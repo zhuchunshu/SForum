@@ -28,7 +28,7 @@ class CsrfMiddleware implements MiddlewareInterface
         if(config("codefec.app.csrf")){
             if(request()->isMethod("post")){
                 if(csrf_token()!=request()->input("_token")){
-                    return admin_abort(["msg" => "会话超时,请重新提交",csrf_token()],419);
+                    return admin_abort(["msg" => "会话超时,请重新提交"],419);
                 }
             }
         }

@@ -49,7 +49,7 @@ class SettingController
      * 个人设置
      * @RequestMapping(path="im", methods="post")
      */
-    public function imPost()
+    public function imPost(): array
     {
         $type = request()->input("type");
         switch ($type) {
