@@ -2086,7 +2086,8 @@ var empty = {
     }); // 获取跳转链接
 
     axios.post("/api/AdminErrorRedirect", {
-      path: location.pathname
+      path: location.pathname,
+      _token: csrf_token
     }).then(function (response) {
       var data = response.data;
 

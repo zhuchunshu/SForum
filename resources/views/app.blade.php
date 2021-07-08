@@ -43,6 +43,7 @@
     <script>var admin = {!! json_encode(\App\CodeFec\Admin\Admin::data()) !!};</script>
     <script src="{{ mix('js/vue.js') }}"></script>
     <script src="{{ mix('js/app.js') }}"></script>
+    <script>var csrf_token="{{csrf_token()}}";</script>
     <script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
     <!-- Tabler Core -->
     <script src="{{ '/tabler/js/tabler.min.js' }}"></script>

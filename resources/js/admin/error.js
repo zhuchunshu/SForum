@@ -26,7 +26,7 @@ const empty = {
         });
       });
     // 获取跳转链接
-    axios.post("/api/AdminErrorRedirect",{path:location.pathname}).then((response) => {
+    axios.post("/api/AdminErrorRedirect",{path:location.pathname,_token:csrf_token}).then((response) => {
         var data = response.data;
         if(data.success===true){
             this.url = data.result.data

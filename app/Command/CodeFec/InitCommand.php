@@ -31,18 +31,18 @@ class InitCommand extends HyperfCommand
     {
         $this->container = $container;
 
-        parent::__construct('CodeFec:Init');
+        parent::__construct('SuperForum');
     }
 
     public function configure()
     {
         parent::configure();
-        $this->setDescription('CodeFec 初始化');
+        $this->setDescription('SuperForum 初始化');
     }
 
     public function handle()
     {
-        if (! AdminUser::count()) {
+        if (! AdminUser::query()->count()) {
             $email = $this->ask('管理员邮箱', '123456@qq.com');
             $username = $this->ask('管理员用户名', 'admin');
             $password = $this->ask('管理员密码', '123456');

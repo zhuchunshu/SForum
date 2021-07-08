@@ -1866,7 +1866,9 @@ if (document.getElementById("app")) {
     methods: {
       // 退出登陆
       logout: function logout() {
-        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/admin/logout").then(function (response) {
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/admin/logout", {
+          _token: csrf_token
+        }).then(function (response) {
           var data = response.data;
 
           if (data.success === false) {
@@ -1896,7 +1898,8 @@ if (document.getElementById("app")) {
 
       // 获取头像
       axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/avatar", {
-        email: admin.email
+        email: admin.email,
+        _token: csrf_token
       }).then(function (response) {
         return _this.avatar = response.data.result.avatar;
       })["catch"](function (error) {
@@ -1922,7 +1925,8 @@ if (document.getElementById("vue-plugin-table")) {
           this.num++;
         } else {
           axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/AdminPluginSave", {
-            data: this.switchs
+            data: this.switchs,
+            _token: csrf_token
           }).then(function (response) {
             var data = response.data;
 
@@ -1963,7 +1967,7 @@ if (document.getElementById("vue-plugin-table")) {
     },
     methods: {
       remove: function remove(name, path) {
-        if (this.switchs.indexOf(name) != -1) {
+        if (this.switchs.indexOf(name) !== -1) {
           sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
             icon: "warning",
             title: "安全起见,卸载插件前请先禁用插件"
@@ -1999,7 +2003,7 @@ if (document.getElementById("vue-plugin-table")) {
       },
       // 资源迁移
       move: function move(name) {
-        if (this.switchs.indexOf(name) == -1) {
+        if (this.switchs.indexOf(name) === -1) {
           sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
             title: "请先启用插件后在运行迁移",
             icon: "error"

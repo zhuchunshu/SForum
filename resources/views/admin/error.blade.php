@@ -23,6 +23,7 @@
     <link href="{{ '/tabler/css/tabler-flags.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
+    <script>var csrf_token="{{csrf_token()}}";</script>
 </head>
 
 <body class="antialiased border-top-wide border-primary d-flex flex-column">

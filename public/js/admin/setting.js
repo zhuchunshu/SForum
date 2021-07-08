@@ -2138,7 +2138,8 @@ var vue_im_form = {
         // 修改用户名
         axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/im", {
           type: 'username',
-          username: this.username
+          username: this.username,
+          _token: csrf_token
         }).then(function (response) {
           var data = response.data;
 
@@ -2166,7 +2167,8 @@ var vue_im_form = {
         // 修改邮箱
         axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/im", {
           type: 'email',
-          email: this.email
+          email: this.email,
+          _token: csrf_token
         }).then(function (response) {
           var data = response.data;
 
@@ -2200,7 +2202,8 @@ var vue_im_form = {
         axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/im", {
           type: 'password',
           old_pwd: this.old_pwd,
-          new_pwd: this.new_pwd
+          new_pwd: this.new_pwd,
+          _token: csrf_token
         }).then(function (response) {
           var data = response.data;
 
