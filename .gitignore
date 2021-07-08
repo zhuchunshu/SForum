@@ -1,0 +1,17 @@
+.buildpath
+.settings/
+.project
+*.patch
+.idea/
+.git/
+runtime/
+vendor/
+.phpintel/
+.env
+.DS_Store
+node_modules
+.phpunit*
+*.cache
+/app/Plugins
+/resources/views/plugins
+/public/plugins
