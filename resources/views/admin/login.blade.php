@@ -23,6 +23,7 @@
     <link href="{{ '/tabler/css/tabler-flags.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
+    <script>var csrf_token="{{csrf_token()}}";</script>
 </head>
 
 <body class="antialiased border-top-wide border-primary d-flex flex-column">
@@ -61,7 +62,6 @@
     <script src="/js/jquery-3.6.0.min.js"></script>
     <script src="{{ mix('js/vue.js') }}"></script>
     <script src="{{ mix('js/app.js') }}"></script>
-    <script>var csrf_token="{{csrf_token()}}";</script>
     <script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
     <!-- Tabler Core -->
     <script src="{{ '/tabler/js/tabler.min.js' }}"></script>

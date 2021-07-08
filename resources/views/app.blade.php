@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="{{ mix('css/app.css') }}">
     <link rel="icon" href="/logo.svg" type="image/x-icon" />
     <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
+    <script>var csrf_token="{{csrf_token()}}";</script>
     <!-- 自定义CSS -->
     @foreach(\App\CodeFec\Ui\functions::get("css") as $key => $value)
         <link rel="stylesheet" href="{{ $value }}">
@@ -43,7 +44,6 @@
     <script>var admin = {!! json_encode(\App\CodeFec\Admin\Admin::data()) !!};</script>
     <script src="{{ mix('js/vue.js') }}"></script>
     <script src="{{ mix('js/app.js') }}"></script>
-    <script>var csrf_token="{{csrf_token()}}";</script>
     <script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
     <!-- Tabler Core -->
     <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
