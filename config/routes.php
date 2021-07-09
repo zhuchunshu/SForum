@@ -12,7 +12,7 @@ declare(strict_types=1);
 
 use App\CodeFec\Plugins;
 use App\Controller\AdminController;
-use App\Controller\IndexController;
+use App\Controller\InstallController;
 use Hyperf\HttpServer\Router\Router;
 
 

@@ -23,11 +23,11 @@ use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\NullOutput;
 
 /**
- * Class IndexController
+ * Class InstallController
  * @Controller
  * @package App\Controller
  */
-class IndexController extends AbstractController
+class InstallController extends AbstractController
 {
     /**
      * @GetMapping(path="/install")
