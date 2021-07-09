@@ -10,6 +10,7 @@ use App\CodeFec\Admin\Admin;
 use App\CodeFec\Admin\Ui\Card;
 use Hyperf\Di\Annotation\Inject;
 use Hyperf\HttpServer\Annotation\Controller;
+use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\RequestMapping;
 use Hyperf\HttpServer\Contract\RequestInterface;
@@ -103,5 +104,16 @@ class SettingController
                 return Json_Api(403, false, ['msg' => '请求方法不存在']);
                 break;
         }
+    }
+
+    /**
+     * @GetMapping(path="/admin/setting")
+     */
+    public function setting(){
+        return view("admin.setting.core");
+    }
+
+    public function setting_post(){
+
     }
 }

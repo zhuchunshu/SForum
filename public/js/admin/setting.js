@@ -2120,121 +2120,136 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var sweetalert__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(sweetalert__WEBPACK_IMPORTED_MODULE_1__);
 
 
-var vue_im_form = {
-  data: function data() {
-    return {
-      old_pwd: "",
-      new_pwd: "",
-      check_username: true,
-      check_email: false,
-      check_password: false,
-      username: admin.username,
-      email: admin.email
-    };
-  },
-  methods: {
-    submit: function submit() {
-      if (this.check_username) {
-        // 修改用户名
-        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/im", {
-          type: 'username',
-          username: this.username,
-          _token: csrf_token
-        }).then(function (response) {
-          var data = response.data;
 
-          if (data.success === false) {
+if (document.getElementById("vue-im-form")) {
+  var vue_im_form = {
+    data: function data() {
+      return {
+        old_pwd: "",
+        new_pwd: "",
+        check_username: true,
+        check_email: false,
+        check_password: false,
+        username: admin.username,
+        email: admin.email
+      };
+    },
+    methods: {
+      submit: function submit() {
+        if (this.check_username) {
+          // 修改用户名
+          axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/im", {
+            type: 'username',
+            username: this.username,
+            _token: csrf_token
+          }).then(function (response) {
+            var data = response.data;
+
+            if (data.success === false) {
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                icon: "error",
+                title: data.result.msg
+              });
+            } else {
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                icon: "success",
+                title: data.result.msg
+              });
+            }
+          })["catch"](function (error) {
+            console.log(error);
             sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-              icon: "error",
-              title: data.result.msg
+              title: "用户名修改失败,详细查看控制台",
+              icon: "error"
             });
-          } else {
-            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-              icon: "success",
-              title: data.result.msg
-            });
-          }
-        })["catch"](function (error) {
-          console.log(error);
-          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-            title: "用户名修改失败,详细查看控制台",
-            icon: "error"
           });
-        });
-      }
+        }
 
-      if (this.check_email) {
-        // 修改邮箱
-        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/im", {
-          type: 'email',
-          email: this.email,
-          _token: csrf_token
-        }).then(function (response) {
-          var data = response.data;
+        if (this.check_email) {
+          // 修改邮箱
+          axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/im", {
+            type: 'email',
+            email: this.email,
+            _token: csrf_token
+          }).then(function (response) {
+            var data = response.data;
 
-          if (data.success === false) {
-            var content = "";
-            data.result.forEach(function (element) {
-              content = content + element + "\n";
-            });
+            if (data.success === false) {
+              var content = "";
+              data.result.forEach(function (element) {
+                content = content + element + "\n";
+              });
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                icon: "error",
+                title: "出错啦!",
+                text: content
+              });
+            } else {
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                icon: "success",
+                title: data.result.msg
+              });
+            }
+          })["catch"](function (error) {
+            console.log(error);
             sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-              icon: "error",
-              title: "出错啦!",
-              text: content
+              title: "用户名修改失败,详细查看控制台",
+              icon: "error"
             });
-          } else {
-            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-              icon: "success",
-              title: data.result.msg
-            });
-          }
-        })["catch"](function (error) {
-          console.log(error);
-          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-            title: "用户名修改失败,详细查看控制台",
-            icon: "error"
           });
-        });
-      }
+        }
 
-      if (this.check_password) {
-        // 修改密码
-        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/im", {
-          type: 'password',
-          old_pwd: this.old_pwd,
-          new_pwd: this.new_pwd,
-          _token: csrf_token
-        }).then(function (response) {
-          var data = response.data;
+        if (this.check_password) {
+          // 修改密码
+          axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/im", {
+            type: 'password',
+            old_pwd: this.old_pwd,
+            new_pwd: this.new_pwd,
+            _token: csrf_token
+          }).then(function (response) {
+            var data = response.data;
 
-          if (data.success === false) {
-            var content = "";
-            data.result.forEach(function (element) {
-              content = content + element + "\n";
-            });
+            if (data.success === false) {
+              var content = "";
+              data.result.forEach(function (element) {
+                content = content + element + "\n";
+              });
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                icon: "error",
+                title: "出错啦!",
+                text: content
+              });
+            } else {
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                icon: "success",
+                title: data.result.msg
+              });
+            }
+          })["catch"](function (error) {
+            console.log(error);
             sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-              icon: "error",
-              title: "出错啦!",
-              text: content
+              title: "用户名修改失败,详细查看控制台",
+              icon: "error"
             });
-          } else {
-            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-              icon: "success",
-              title: data.result.msg
-            });
-          }
-        })["catch"](function (error) {
-          console.log(error);
-          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-            title: "用户名修改失败,详细查看控制台",
-            icon: "error"
           });
-        });
+        }
       }
     }
-  }
-};
-Vue.createApp(vue_im_form).mount("#vue-im-form");
+  };
+  Vue.createApp(vue_im_form).mount("#vue-im-form");
+} // 站点设置 --core
+
+
+if (document.getElementById("setting-core-form")) {
+  var scf = {
+    data: function data() {
+      return {
+        data: {}
+      };
+    }
+  };
+  Vue.createApp(scf).mount("setting-core-form");
+}
 })();
 
 /******/ })()
