@@ -5,8 +5,8 @@
                 <ul class="list-inline list-inline-dots mb-0">
                     <li class="list-inline-item"><a href="https://codefec.com" class="link-secondary">Documentation</a>
                     </li>
-                    <li class="list-inline-item"><a href="https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE" class="link-secondary">License</a></li>
-                    <li class="list-inline-item"><a href="https://github.com/zhuchunshu/CodeFecHF" target="_blank"
+                    <li class="list-inline-item"><a href="https://github.com/zhuchunshu/super-forum/blob/master/LICENSE" class="link-secondary">License</a></li>
+                    <li class="list-inline-item"><a href="https://github.com/zhuchunshu/super-forum" target="_blank"
                             class="link-secondary" rel="noopener">Source code</a></li>
                 </ul>
             </div>
