@@ -7,38 +7,27 @@ use Carbon\Carbon;
 
 /**
  * @property int $id 
- * @property string $username 
- * @property string $email 
- * @property string $password 
- * @property string $avatar 
- * @property string $email_ver_time 
- * @property string $class_id 
+ * @property string $name 
+ * @property string $color 
+ * @property string $icon 
+ * @property string $quanxian 
  * @property Carbon $created_at
  * @property Carbon $updated_at
  */
-class User extends Model
+class UserClass extends Model
 {
     /**
      * The table associated with the model.
      *
      * @var string
      */
-    protected $table = 'users';
+    protected $table = 'user_class';
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = ['username','password','email','avatar','class_id','email_ver_time','_token'];
-
-    /**
-     * The attributes that should be hidden for arrays.
-     *
-     * @var array
-     */
-    protected $hidden = [
-        'password'
-    ];
+    protected $fillable = ['id','name','quanxian','icon','color'];
     /**
      * The attributes that should be cast to native types.
      *
