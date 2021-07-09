@@ -19,7 +19,7 @@
         </div>
     </div>
     <div class="col-md-12">
-        <button class="btn btn-primary">提交</button>
+        <button @@click="submit" class="btn btn-primary">提交</button>
     </div>
     </div>
 </div>

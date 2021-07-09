@@ -11,8 +11,12 @@ declare(strict_types=1);
  */
 namespace App\Model;
 
-class AdminOption extends Model
+use Hyperf\ModelCache\Cacheable;
+use Hyperf\ModelCache\CacheableInterface;
+
+class AdminOption extends Model implements CacheableInterface
 {
+    use Cacheable;
     /**
      * The table associated with the model.
      *

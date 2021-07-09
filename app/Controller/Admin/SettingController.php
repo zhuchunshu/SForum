@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Model\AdminOption;
 use App\Model\AdminUser;
 use App\CodeFec\Admin\Ui;
 use App\CodeFec\Admin\Admin;
@@ -12,6 +13,7 @@ use Hyperf\Di\Annotation\Inject;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
+use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\HttpServer\Annotation\RequestMapping;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface;
@@ -113,7 +115,32 @@ class SettingController
         return view("admin.setting.core");
     }
 
-    public function setting_post(){
+    /**
+     * @PostMapping(path="/admin/setting")
+     */
+    public function setting_post(): array
+    {
+        $data = de_stringify(request()->input('data'));
+        if(!is_array($data)){
+            return Json_Api(403,false,['msg' => '请提交正确的数据']);
+        }
+        foreach ($data as $key=>$value){
+            $name = ['name' => $key];
+            $values = ['value' => $value];
+            AdminOption::query()->updateOrInsert($name,$values);
+        }
+        return Json_Api(200,true,['msg' => '更新成功!']);
+    }
 
+    /**
+     * @PostMapping(path="/api/adminOptionList")
+     */
+    public function adminOptionList(): array
+    {
+        $result = [];
+        foreach (AdminOption::query()->select('name', 'value')->get() as $value){
+            $result[$value->name]=$value->value;
+        }
+        return Json_Api(200,true,$result);
     }
 }

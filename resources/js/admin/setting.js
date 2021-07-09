@@ -1,5 +1,6 @@
 import axios from "axios"
 import swal from "sweetalert"
+var qs = require('querystring')
 
 if(document.getElementById("vue-im-form")){
     const vue_im_form = {
@@ -131,6 +132,53 @@ if(document.getElementById("setting-core-form")){
                 data:{}
             }
         },
+        beforeMount() {
+            axios.post("/api/adminOptionList",{_token:csrf_token})
+            .then(response=>{
+                var data = response.data;
+                if(data.success===true){
+                    this.data=data.result;
+                }else{
+                    swal({
+                        title:data.result.msg,
+                        icon:'error'
+                    })
+                }
+            })
+            .catch(error=>{
+                console.error(error)
+                swal({
+                    title:"请求出错,详细请查看控制台",
+                    icon:"error"
+                })
+            })
+        },
+        methods: {
+            submit(){
+                axios.post("/admin/setting",{_token:csrf_token,data:qs.stringify(this.data)})
+                .then(response=>{
+                    var data = response.data;
+                    if(data.success===true){
+                        swal({
+                            title:data.result.msg,
+                            icon:'success'
+                        })
+                    }else{
+                        swal({
+                            title:data.result.msg,
+                            icon:'error'
+                        })
+                    }
+                })
+                .catch(error=>{
+                    console.error(error)
+                    swal({
+                        title:"请求出错,详细请查看控制台",
+                        icon:"error"
+                    })
+                })
+            }
+        }
     }
-    Vue.createApp(scf).mount("setting-core-form")
+    Vue.createApp(scf).mount("#setting-core-form")
 }
