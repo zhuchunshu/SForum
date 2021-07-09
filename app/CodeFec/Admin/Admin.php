@@ -24,7 +24,7 @@ class Admin
         // 数据库里的密码
         $user = AdminUser::query()->where('username', $username)->first();
         if (Hash::check($password, $user->password)) {
-            session()->set('admin', $user);
+            session()->set('admin', $user->id);
             return true;
         }
         return false;
@@ -32,16 +32,23 @@ class Admin
 
     public static function data()
     {
-        return session()->get('admin');
+        return AdminUser::query()->where("id",session()->get('admin'))->first();
     }
 
     public static function id()
     {
-        return session()->get('admin')['id'];
+        return session()->get('admin');
     }
 
     public static function Check(): bool
     {
-        return session()->has('admin');
+        if(!session()->has('admin')){
+            return false;
+        }
+        if(AdminUser::query()->where("id",session()->get('admin'))->count()){
+            return true;
+        }else{
+            return false;
+        }
     }
 }

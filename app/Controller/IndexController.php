@@ -157,7 +157,7 @@ class IndexController extends AbstractController
         return response()->redirect("/install?step=6");
     }
 
-    public function post_step6()
+    public function post_step6(): \Psr\Http\Message\ResponseInterface
     {
         file_put_contents(BASE_PATH."/app/CodeFec/storage/install.lock",date("Y-m-d H:i:s"));
         return response()->redirect("/admin");
