@@ -620,8 +620,31 @@ if(!function_exists("csrf_token")){
             session()->set("csrf_token",Str::random());
         }
         if(!cache()->has("csrf_token".session()->get("csrf_token"))){
-            cache()->set("csrf_token".session()->get("csrf_token"),Str::random(),120);
+            cache()->set("csrf_token".session()->get("csrf_token"),Str::random(),300);
         }
         return cache()->get("csrf_token".session()->get("csrf_token"));
+    }
+}
+
+if(!function_exists("modifyEnv")){
+    function modifyEnv(array $data)
+    {
+        $envPath = BASE_PATH . '/.env';
+
+        $contentArray = collect(file($envPath, FILE_IGNORE_NEW_LINES));
+
+        $contentArray->transform(function ($item) use ($data) {
+            foreach ($data as $key => $value) {
+                if (str_contains($item, $key)) {
+                    return $key . '=' . $value;
+                }
+            }
+
+            return $item;
+        });
+
+        $content = implode("\n", $contentArray->toArray());
+
+        file_put_contents($envPath, $content);
     }
 }

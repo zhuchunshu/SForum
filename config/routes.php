@@ -28,6 +28,3 @@ Router::addGroup("/admin",function(){
 },[
     "middleware" => [\App\Middleware\AdminMiddleware::class]
 ]);
-
-Router::get("/",[IndexController::class,"index"]);
-Router::post("/",[IndexController::class,"action"]);
