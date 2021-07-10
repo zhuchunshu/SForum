@@ -22,8 +22,12 @@ use Hyperf\Utils\ApplicationContext;
 use Illuminate\Support\Facades\File;
 use Hyperf\Contract\SessionInterface;
 use Hyperf\HttpMessage\Stream\SwooleStream;
+use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface;
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\NullOutput;
 
 function public_path($path = ''): string
 {
@@ -646,5 +650,25 @@ if(!function_exists("modifyEnv")){
         $content = implode("\n", $contentArray->toArray());
 
         file_put_contents($envPath, $content);
+    }
+}
+
+if(!function_exists("run_command")){
+    function run_command(string $command,array $params){
+
+        $param = array_merge(['command'=>$command],$params);
+
+        $input = new ArrayInput($param);
+        $output = new NullOutput();
+
+        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+
+        /** @var Application $application */
+        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+        $application->setAutoExit(false);
+
+// 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
+        $exitCode = $application->run($input, $output);
+
     }
 }
