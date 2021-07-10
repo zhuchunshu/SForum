@@ -417,7 +417,7 @@ function Axios(instanceConfig) {
  */
 Axios.prototype.request = function request(config) {
   /*eslint no-param-reassign:0*/
-  // Allow for axios('example/url'[, config]) a la fetch API
+  // Allow for axios('example/url'[, config]) a la fetch Api
   if (typeof config === 'string') {
     config = arguments[1] || {};
     config.url = arguments[0];
