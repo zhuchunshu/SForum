@@ -14,5 +14,16 @@ namespace App\Plugins\User;
  */
 class User
 {
+    public function handle(){
+        $this->helpers();
+        $this->menu();
+    }
 
+    public function menu(){
+        include __DIR__."/menu.php";
+    }
+
+    public function helpers(){
+        include __DIR__."/helpers.php";
+    }
 }

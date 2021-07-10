@@ -3,6 +3,7 @@ namespace App\CodeFec;
 
 use App\Model\AdminPlugin;
 
+
 class CodeFec {
 
     public function handle(){
