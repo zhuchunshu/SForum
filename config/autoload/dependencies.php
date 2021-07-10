@@ -10,6 +10,8 @@ use App\CodeFec\Ui\UiInterface;
 use Hyperf\View\RenderInterface;
 use App\CodeFec\Menu\MenuInterface;
 use App\CodeFec\Header\HeaderInterface;
+use App\CodeFec\Itf\Setting\Setting;
+use App\CodeFec\Itf\Setting\SettingInterface;
 
 /**
  * CodeFec - Hyperf
@@ -24,5 +26,6 @@ return [
     MenuInterface::class => Menu::class,
     HeaderInterface::class => Header::class,
     UiInterface::class => Ui::class,
-    RenderInterface::class => Render::class
+    RenderInterface::class => Render::class,
+    SettingInterface::class => Setting::class
 ];

@@ -15,6 +15,7 @@ use App\Model\AdminOption;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use App\CodeFec\Admin\Admin;
+use App\CodeFec\Itf\Setting\SettingInterface;
 use Hyperf\Paginator\UrlWindow;
 use Hyperf\View\RenderInterface;
 use App\CodeFec\Menu\MenuInterface;
@@ -650,5 +651,13 @@ if(!function_exists("modifyEnv")){
         $content = implode("\n", $contentArray->toArray());
 
         file_put_contents($envPath, $content);
+    }
+}
+
+if (!function_exists("Itf_Setting")) {
+    function Itf_Setting()
+    {
+        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+        return $container->get(SettingInterface::class);
     }
 }

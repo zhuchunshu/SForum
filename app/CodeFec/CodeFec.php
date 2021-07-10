@@ -11,6 +11,11 @@ class CodeFec {
         $this->header();
         $this->boot();
         $this->plugins();
+        $this->setting();
+    }
+
+    public function setting(){
+        require BASE_PATH."/app/CodeFec/Itf/Setting/default.php";
     }
 
     // 注册菜单

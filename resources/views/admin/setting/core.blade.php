@@ -10,11 +10,15 @@
         <div class="card-tabs border-0">
             <!-- Cards navigation -->
             <ul class="nav nav-tabs">
-                <li class="nav-item"><a href="#default" class="nav-link active" data-bs-toggle="tab">基本设置</a></li>
+                @foreach(Itf_Setting()->get() as $value)
+                    <li class="nav-item"><a href="#{{$value['ename']}}" class="nav-link active" data-bs-toggle="tab">{{$value['name']}}</a></li>
+                @endforeach
             </ul>
             <div class="tab-content" id="setting-core-form">
                 <!-- Content of card #1 -->
-                @include('admin.setting.core.1')
+                @foreach(Itf_Setting()->get() as $value)
+                    @include($value['view'])
+                @endforeach
             </div>
         </div>
     </div>
