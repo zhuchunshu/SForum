@@ -33,7 +33,7 @@
                     </label>
                 </td>
                 <td>
-                    <a @@click="move('{{ $value['dir'] }}','{{ $value['path'] }}')" href="#">迁移资源</a>
+                    <a @@click="migrate('{{ $value['dir'] }}','{{ $value['path'] }}')" href="#">数据迁移</a>
                 </td>
                 <td>
                     <a @@click="remove('{{ $value['dir'] }}','{{ $value['path'] }}')" href="#">卸载</a>

@@ -15,12 +15,14 @@ namespace App\Controller;
 use App\Model\AdminPlugin;
 use Hyperf\DbConnection\Db;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use App\Middleware\AdminMiddleware;
+use League\Flysystem\FileExistsException;
 use Hyperf\HttpServer\Annotation\Middleware;
+use Symfony\Component\Console\Input\ArrayInput;
 use Hyperf\HttpServer\Annotation\AutoController;
 use Hyperf\HttpServer\Contract\RequestInterface;
-use Illuminate\Support\Str;
-use League\Flysystem\FileExistsException;
+use Symfony\Component\Console\Output\NullOutput;
 
 /**
  * @AutoController
@@ -71,39 +73,54 @@ class ApiController
             Db::table('admin_plugins')->insert($arr);
         }
         $myfile = fopen(BASE_PATH . "/app/CodeFec/storage/logs_plugins.php", "w") or die("Unable to open file!");
-        $txt = "- ".date("Y-m-d H:i:s")."插件状态变动:\n" . json_encode(request()->input('data'));
+        $txt = "- " . date("Y-m-d H:i:s") . "插件状态变动:\n" . json_encode(request()->input('data'));
         fwrite($myfile, $txt);
         fclose($myfile);
         return Json_Api(200, true, ['msg' => "更新成功!"]);
     }
 
-    public function AdminPluginMove(): array
+    public function AdminPluginMigrate(): array
     {
-        if(!request()->input("name")){
-            return Json_Api(403,false,['msg' => '插件名不能为空']);
+        if (!request()->input("name")) {
+            return Json_Api(403, false, ['msg' => '插件名不能为空']);
         }
         $plugin_name = request()->input("name");
-        if (is_dir(plugin_path($plugin_name."/resources/views"))){
-            if(!is_dir(BASE_PATH."/resources/views/plugins")){
+        if (is_dir(plugin_path($plugin_name . "/resources/views"))) {
+            if (!is_dir(BASE_PATH . "/resources/views/plugins")) {
                 //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
-                exec("mkdir ".BASE_PATH."/resources/views/plugins");
+                exec("mkdir " . BASE_PATH . "/resources/views/plugins");
             }
-            if(!is_dir(BASE_PATH."/resources/views/plugins/".$plugin_name)){
+            if (!is_dir(BASE_PATH . "/resources/views/plugins/" . $plugin_name)) {
                 //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
-                exec("mkdir ".BASE_PATH."/resources/views/plugins/".$plugin_name);
+                exec("mkdir " . BASE_PATH . "/resources/views/plugins/" . $plugin_name);
             }
-            copy_dir(plugin_path($plugin_name."/resources/views"),BASE_PATH."/resources/views/plugins/".$plugin_name);
+            copy_dir(plugin_path($plugin_name . "/resources/views"), BASE_PATH . "/resources/views/plugins/" . $plugin_name);
         }
-        if (is_dir(plugin_path($plugin_name."/resources/assets"))){
-            if(!is_dir(public_path("plugins"))){
+        if (is_dir(plugin_path($plugin_name . "/resources/assets"))) {
+            if (!is_dir(public_path("plugins"))) {
                 mkdir(public_path("plugins"));
             }
-            if(!is_dir(public_path("plugins/".$plugin_name))){
-                mkdir(public_path("plugins/".$plugin_name));
+            if (!is_dir(public_path("plugins/" . $plugin_name))) {
+                mkdir(public_path("plugins/" . $plugin_name));
             }
-            copy_dir(plugin_path($plugin_name."/resources/assets"),public_path("plugins/".$plugin_name));
+            copy_dir(plugin_path($plugin_name . "/resources/assets"), public_path("plugins/" . $plugin_name));
         }
-        return Json_Api(200,true,['msg' => '资源迁移成功!']);
+        if (is_dir(plugin_path($plugin_name . "/src/migrations"))) {
+            $params = ["command" => "CodeFec:migrate", "path" => plugin_path($plugin_name . "/src/migrations")];
+
+            $input = new ArrayInput($params);
+            $output = new NullOutput();
+
+            $container = \Hyperf\Utils\ApplicationContext::getContainer();
+
+            /** @var Application $application */
+            $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+            $application->setAutoExit(false);
+
+            // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
+            $exitCode = $application->run($input, $output);
+        }
+        return Json_Api(200, true, ['msg' => '资源迁移成功!']);
     }
 
     /**
@@ -112,9 +129,8 @@ class ApiController
     public function AdminPluginRemove(): array
     {
         if (request()->input("path")) {
-            exec("rm -rf ".request()->input("path"),$result,$status);
+            exec("rm -rf " . request()->input("path"), $result, $status);
             return Json_Api(200, true, ['msg' => "卸载成功!"]);
-            
         } else {
             return Json_Api(403, false, ['msg' => "卸载失败,目录:" . request()->input("path") . " 不存在!"]);
         }

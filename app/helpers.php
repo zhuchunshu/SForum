@@ -652,23 +652,3 @@ if(!function_exists("modifyEnv")){
         file_put_contents($envPath, $content);
     }
 }
-
-if(!function_exists("run_command")){
-    function run_command(string $command,array $params){
-
-        $param = array_merge(['command'=>$command],$params);
-
-        $input = new ArrayInput($param);
-        $output = new NullOutput();
-
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
-
-        /** @var Application $application */
-        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
-        $application->setAutoExit(false);
-
-// 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
-        $exitCode = $application->run($input, $output);
-
-    }
-}

@@ -152,7 +152,7 @@ if (document.getElementById("vue-plugin-table")) {
         }
       },
       // 资源迁移
-      move(name) {
+      migrate(name) {
         if (this.switchs.indexOf(name) === -1) {
           swal({
             title: "请先启用插件后在运行迁移",
@@ -160,7 +160,7 @@ if (document.getElementById("vue-plugin-table")) {
           });
         } else {
           axios
-            .post("/api/AdminPluginMove", {
+            .post("/api/AdminPluginMigrate", {
               name: name,
               _token:csrf_token
             })
