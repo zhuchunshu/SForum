@@ -1955,7 +1955,9 @@ if (document.getElementById("vue-plugin-table")) {
       var _this2 = this;
 
       //this.switchs.push("HelloWorld");
-      axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/AdminPluginList").then(function (response) {
+      axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/AdminPluginList", {
+        _token: csrf_token
+      }).then(function (response) {
         return _this2.switchs = response.data.result.data;
       })["catch"](function (error) {
         sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
@@ -1974,7 +1976,8 @@ if (document.getElementById("vue-plugin-table")) {
           });
         } else {
           axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/AdminPluginRemove", {
-            path: path
+            path: path,
+            _token: csrf_token
           }).then(function (response) {
             var data = response.data;
 
@@ -2010,7 +2013,8 @@ if (document.getElementById("vue-plugin-table")) {
           });
         } else {
           axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/AdminPluginMove", {
-            name: name
+            name: name,
+            _token: csrf_token
           }).then(function (response) {
             var data = response.data;
 

@@ -102,7 +102,7 @@ if (document.getElementById("vue-plugin-table")) {
     mounted() {
       //this.switchs.push("HelloWorld");
       axios
-        .post("/api/AdminPluginList")
+        .post("/api/AdminPluginList",{_token:csrf_token})
         .then((response) => (this.switchs = response.data.result.data))
         .catch(function (error) {
           swal({
@@ -123,6 +123,7 @@ if (document.getElementById("vue-plugin-table")) {
           axios
             .post("/api/AdminPluginRemove", {
               path: path,
+              _token:csrf_token
             })
             .then(function (response) {
               var data = response.data;
@@ -161,6 +162,7 @@ if (document.getElementById("vue-plugin-table")) {
           axios
             .post("/api/AdminPluginMove", {
               name: name,
+              _token:csrf_token
             })
             .then(function (response) {
               var data = response.data;

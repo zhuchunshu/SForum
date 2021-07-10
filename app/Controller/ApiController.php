@@ -70,7 +70,7 @@ class ApiController
             }
             Db::table('admin_plugins')->insert($arr);
         }
-        $myfile = fopen(BASE_PATH . "/app/CodeFec/logs/plugins.php", "w") or die("Unable to open file!");
+        $myfile = fopen(BASE_PATH . "/app/CodeFec/storage/logs_plugins.php", "w") or die("Unable to open file!");
         $txt = "- ".date("Y-m-d H:i:s")."插件状态变动:\n" . json_encode(request()->input('data'));
         fwrite($myfile, $txt);
         fclose($myfile);
