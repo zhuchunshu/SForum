@@ -5,14 +5,14 @@ use Illuminate\Support\Arr;
 
 class Setting implements SettingInterface {
 
-    public static $list=[];
+    public $list=[];
 
-    public static function get(): array
+    public function get(): array
     {
-        return self::$list;
+        return $this->list;
     }
 
-    public static function add(int $id, string $name,string $ename,string $view): bool
+    public function add(int $id, string $name,string $ename,string $view): bool
     {
 
         $arr = [
@@ -20,7 +20,7 @@ class Setting implements SettingInterface {
             'ename' => $ename,
             'view' => $view
         ];
-        self::$list = Arr::add(self::$list, $id, $arr);
+        $this->list = Arr::add($this->list, $id, $arr);
 
         return true;
     }

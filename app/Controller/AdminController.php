@@ -41,7 +41,7 @@ class AdminController
         return view('admin.login');
     }
 
-    public function loginPost(LoginRequest $request)
+    public function loginPost(LoginRequest $request): array
     {
         if(Admin::Check()){
             return Json_Api(403,false,["msg"=>"您已登录"]);
@@ -62,7 +62,8 @@ class AdminController
     }
     
     // 退出登录
-    public function logout(){
+    public function logout(): array
+    {
         session()->clear();
         return Json_Api(200,true,["msg"=>"已退出登陆!","url"=>"/admin/login"]);
     }

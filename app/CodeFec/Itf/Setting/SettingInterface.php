@@ -16,7 +16,7 @@ interface SettingInterface
     /**
      * 获取菜单数组.
      */
-    public static function get(): array;
+    public function get(): array;
 
     /**
      * 新增菜单.
@@ -25,5 +25,5 @@ interface SettingInterface
      * @param array 菜单内容 $arr
      * @return bool
      */
-    public static function add(int $id, string $name,string $ename,string $view): bool;
+    public function add(int $id, string $name,string $ename,string $view): bool;
 }

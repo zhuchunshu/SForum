@@ -12,6 +12,7 @@ class CodeFec {
         $this->boot();
         $this->plugins();
         $this->setting();
+        $this->route();
     }
 
     public function setting(){
@@ -33,6 +34,14 @@ class CodeFec {
     public function boot(){
         require BASE_PATH."/app/CodeFec/bootstrap.php";
     }
+
+    /**
+     * 重写路由
+     */
+    public function route(){
+        require BASE_PATH."/app/CodeFec/Itf/Route/default.php";
+    }
+
     // 处理插件
     public function plugins(){
         $array = AdminPlugin::query()->where("status",1)->get();

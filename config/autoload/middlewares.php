@@ -17,6 +17,7 @@ return [
         \Hyperf\Session\Middleware\SessionMiddleware::class,
         \Hyperf\Validation\Middleware\ValidationMiddleware::class,
         CsrfMiddleware::class,
-        \App\Middleware\InstallMiddleware::class
+        \App\Middleware\InstallMiddleware::class,
+        \App\Middleware\RewriteMiddleware::class
     ],
 ];

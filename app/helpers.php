@@ -661,3 +661,10 @@ if (!function_exists("Itf_Setting")) {
         return $container->get(SettingInterface::class);
     }
 }
+
+if(!function_exists("Itf_Route")){
+    function Itf_Route(){
+        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+        return $container->get(\App\CodeFec\Itf\Route\RouteInterface::class);
+    }
+}
