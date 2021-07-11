@@ -593,10 +593,22 @@ if (!function_exists("mstrlen")) {
 
 if(!function_exists("get_options")){
     function get_options($name,$default=""){
-        if(!AdminOption::query()->where("name",$name)->count()){
-            return $default;
-        }else{
-            return AdminOption::query()->where("name",$name)->first()->value;
+        $time = 600;
+        if(AdminOption::query()->where("name","set_cache_time")->count()){
+            if(is_numeric(AdminOption::query()->where("name","set_cache_time")->first()->value)){
+                $time = AdminOption::query()->where("name","set_cache_time")->first()->value;
+            }
+        }
+        if($time!=0){
+            if(!cache()->has("admin.options.".$name)){
+                if(!AdminOption::query()->where("name",$name)->count()){
+                    return $default;
+                    //cache()->set("admin.options.".$name,$default,$time);
+                }else{
+                    cache()->set("admin.options.".$name,AdminOption::query()->where("name",$name)->first()->value,$time);
+                }
+            }
+            return cache()->get("admin.options.".$name);
         }
     }
 }
