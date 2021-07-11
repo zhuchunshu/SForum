@@ -12,12 +12,12 @@ declare(strict_types=1);
 use Hyperf\Session\Handler;
 
 return [
-    'handler' => Handler\FileHandler::class,
+    'handler' => Hyperf\Session\Handler\RedisHandler::class,
     'options' => [
         'connection' => 'default',
         'path' => BASE_PATH . '/runtime/session',
         'gc_maxlifetime' => 1200,
-        'session_name' => 'HYPERF_SESSION_ID',
+        'session_name' => env("APP_NAME","CODEFEC_SESSION_ID"),
         'domain' => null,
         'cookie_lifetime' => 5 * 60 * 60,
     ],
