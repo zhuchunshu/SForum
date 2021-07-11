@@ -8,9 +8,8 @@ namespace App\Plugins\Core;
  * @name Core
  * @author Inkedus
  * @link https://github.com/zhuchunshu/sf-core
- * @description 核心组件
+ * @package 核心组件
  * @version 1.0.0
- * @package App\Plugins\Core
  */
 class Core
 {

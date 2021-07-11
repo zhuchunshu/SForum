@@ -25,7 +25,7 @@
                     <a href="{{ $value['data']['link'] }}">{{ $value['data']['author'] }}</a>
                 </td>
                 <td class="text-muted">{{ $value['data']['version'] }}</td>
-                <td class="text-muted">{{ $value['data']['description'] }}</td>
+                <td class="text-muted">{{ $value['data']['package'] }}</td>
                 <td>
                     <label class="form-check form-switch">
                         <input class="form-check-input" value="{{ $value['dir'] }}" type="checkbox"
