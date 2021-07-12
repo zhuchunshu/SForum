@@ -44,7 +44,7 @@
                             </a>
                             </li>
                         @else
-                        @if ('/' . request()->path() == $value['url'])
+                        @if (Helpers_Str()->is($value['url']."*","/".request()->path()))
                             <li class="nav-item active dropdown">
                             @else
                             <li class="nav-item dropdown">
@@ -69,7 +69,7 @@
                                         {{ $value['name'] }}
                                     </span>
                                 </a>
-                                @if ('/' . request()->path() == $value['url'])
+                                @if (Helpers_Str()->is($value['url']."*","/".request()->path()))
                                     <div class="dropdown-menu show">
                                 @else
                                     <div class="dropdown-menu">

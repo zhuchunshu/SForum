@@ -680,3 +680,9 @@ if(!function_exists("Itf_Route")){
         return $container->get(\App\CodeFec\Itf\Route\RouteInterface::class);
     }
 }
+
+if(!function_exists("Helpers_Str")){
+    function Helpers_Str(){
+        return new Str();
+    }
+}
