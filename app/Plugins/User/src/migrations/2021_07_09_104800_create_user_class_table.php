@@ -15,7 +15,7 @@ class CreateUserClassTable extends Migration
             $table->bigIncrements('id');
             $table->string("name");
             $table->string("color");
-            $table->string("icon");
+            $table->longText("icon");
             $table->string("quanxian")->default(1);
             $table->timestamps();
         });

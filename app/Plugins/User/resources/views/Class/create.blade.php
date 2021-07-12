@@ -9,7 +9,7 @@
 @section('content')
     <div class="col-md-12">
         <div class="card card-body" id="vue-user-create-class">
-            <form @@submit.prevent="">
+            <form @@submit.prevent="submit">
                 <h3 class="card-title">创建用户组</h3>
                 <x-csrf/>
                 <div class="mb-3">
@@ -36,5 +36,5 @@
 @endsection
 
 @section('scripts')
-    <script src="/plugins/User/js/user.js"></script>
+    <script src="{{ mix("plugins/User/js/user.js") }}"></script>
 @endsection

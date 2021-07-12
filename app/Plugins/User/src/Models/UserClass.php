@@ -3,6 +3,7 @@
 declare (strict_types=1);
 namespace App\Plugins\User\src\Models;
 
+use App\Model\Model;
 use Carbon\Carbon;
 
 /**

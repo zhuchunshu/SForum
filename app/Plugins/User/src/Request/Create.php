@@ -1,19 +1,12 @@
 <?php
 
 declare(strict_types=1);
-/**
- * CodeFec - Hyperf
- *
- * @link     https://github.com/zhuchunshu
- * @document https://codefec.com
- * @contact  laravel@88.com
- * @license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
- */
-namespace App\Plugins\User\src\Request\Admin;
+
+namespace App\Plugins\User\src\Request;
 
 use Hyperf\Validation\Request\FormRequest;
 
-class LoginRequest extends FormRequest
+class Create extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -29,16 +22,19 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'username' => 'required|string',
-            'password' => 'required|string',
+            "name" => "required|string|min:2|max:100|unique:user_class,name",
+            "quanxian" => "required|integer|min:1",
+            "color" => "required|string",
+            "icon" => "nullable"
         ];
     }
-
     public function attributes(): array
     {
         return [
-            "username" => "用户名",
-            "password" => "密码"
+            "name" => "用户组名称",
+            "ename" => "用户组标识",
+            "quanxian" => "用户组权限值",
+            "color" => "用户组颜色代码"
         ];
     }
 }
