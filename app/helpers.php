@@ -46,14 +46,14 @@ if (!function_exists('mix_manifest')) {
 }
 
 if (!function_exists('mix')) {
-    function mix($path,$default="/default.js")
+    function mix($path)
     {
         $list = mix_manifest();
         $result = json_decode($list, true);
         if (Arr::has($result, '/' . $path)) {
             return $result['/' . $path];
         }
-        return $default;
+        return $path;
     }
 }
 
