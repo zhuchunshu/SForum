@@ -15,41 +15,33 @@
                     <tr>
                         <th>#</th>
                         <th>名称</th>
-                        <th>标识</th>
                         <th>颜色</th>
                         <th>权限</th>
                         <th class="w-1"></th>
                         <th class="w-1"></th>
-                        <th class="w-1"></th>
                     </tr>
                     </thead>
-                    <tbody id="vue-plugin-table">
-                    @foreach (\App\CodeFec\Plugins::GetAll() as $key => $value)
+                    <tbody id="vue-user-class-table">
+                    @foreach ($page as $value)
                         <tr>
-                            <td>{{ '/app/Plugins/' . $key }}</td>
-                            <td>{{ $value['data']['name'] }}</td>
+                            <td>{{ $value->id }}</td>
+                            <td>{{ $value->name }}</td>
                             <td class="text-muted">
-                                <a href="{{ $value['data']['link'] }}">{{ $value['data']['author'] }}</a>
+                                <div style="width: 25px;height:25px;background-color:{{ $value->color }};border-radius:5px;"></div>
                             </td>
-                            <td class="text-muted">{{ $value['data']['version'] }}</td>
-                            <td class="text-muted">{{ $value['data']['package'] }}</td>
+                            <td class="text-muted">{{ $value->quanxian }}</td>
                             <td>
-                                <label class="form-check form-switch">
-                                    <input class="form-check-input" value="{{ $value['dir'] }}" type="checkbox"
-                                           v-model="switchs">
-                                </label>
+                                <a @@click="migrate('{{ $value['dir'] }}','{{ $value['path'] }}')" href="#">修改</a>
                             </td>
                             <td>
-                                <a @@click="migrate('{{ $value['dir'] }}','{{ $value['path'] }}')" href="#">数据迁移</a>
-                            </td>
-                            <td>
-                                <a @@click="remove('{{ $value['dir'] }}','{{ $value['path'] }}')" href="#">卸载</a>
+                                <a @@click="remove('{{ $value['dir'] }}','{{ $value['path'] }}')" href="#">删除</a>
                             </td>
                         </tr>
                     @endforeach
                     </tbody>
                 </table>
             </div>
+            {!! make_page($page) !!}
         </div>
     </div>
 @endsection

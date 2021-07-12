@@ -19,7 +19,8 @@ class UserClass
      * @GetMapping(path="/admin/userClass")
      */
     public function index(){
-        return view("plugins.User.Class.index");
+        $page = \App\Plugins\User\src\Models\UserClass::query()->paginate(15);
+        return view("plugins.User.Class.index",['page' => $page]);
     }
 
     /**
