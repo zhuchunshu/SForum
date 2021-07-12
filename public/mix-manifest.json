@@ -1,9 +1,10 @@
 {
-    "/js/app.js": "/js/app.js?id=093139861a2130dcf323",
-    "/js/vue.js": "/js/vue.js?id=7d020f18a615c3b05042",
-    "/js/admin/login.js": "/js/admin/login.js?id=f33be29d9650a8e557ea",
-    "/js/admin/error.js": "/js/admin/error.js?id=3dca8846fcddd024a553",
-    "/js/admin/component.js": "/js/admin/component.js?id=7c1df5ab535f318e62bd",
-    "/js/admin/setting.js": "/js/admin/setting.js?id=74b7d2e59b7d57cba9ef",
+    "/js/app.js": "/js/app.js?id=66cea7164f4d2e4cad27",
+    "/js/vue.js": "/js/vue.js?id=311dbdaa968260079409",
+    "/js/admin/login.js": "/js/admin/login.js?id=c3df0a92b70229942c8e",
+    "/js/admin/error.js": "/js/admin/error.js?id=1c46b596d0bb6fca0a66",
+    "/js/admin/component.js": "/js/admin/component.js?id=5bd617180819b44c7cc6",
+    "/js/admin/setting.js": "/js/admin/setting.js?id=14e29482ae75d5c52a09",
+    "/plugins/User/js/user.js": "/plugins/User/js/user.js?id=0d479b05cc6e6cca16a5",
     "/css/app.css": "/css/app.css?id=68b329da9893e34099c7"
 }
