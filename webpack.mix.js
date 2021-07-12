@@ -41,6 +41,11 @@ mix.js(resources_path("js/vue.js"),"js").vue({ version: 3 })
     // setting
     mix.js(resources_path("js/admin/setting.js"),"js/admin").version();
 
+    try{
+        require("./plugins.mix")
+    } catch {
+        
+    }
 
 // app.css
 mix.sass(resources_path("sass/app.scss"),"css").version();
