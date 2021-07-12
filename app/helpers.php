@@ -53,7 +53,7 @@ if (!function_exists('mix')) {
         if (Arr::has($result, '/' . $path)) {
             return $result['/' . $path];
         }
-        return $path;
+        return "/".$path;
     }
 }
 
