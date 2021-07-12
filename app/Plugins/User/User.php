@@ -14,6 +14,7 @@ namespace App\Plugins\User;
 class User
 {
     public function handle(){
+        $this->boot();
         $this->helpers();
         $this->menu();
     }
@@ -24,5 +25,9 @@ class User
 
     public function helpers(){
         include __DIR__."/helpers.php";
+    }
+
+    public function boot(){
+        include __DIR__."/bootstrap.php";
     }
 }
