@@ -31,7 +31,7 @@
                             </td>
                             <td class="text-muted">{{ $value->quanxian }}</td>
                             <td>
-                                <a @@click="migrate('{{ $value['dir'] }}','{{ $value['path'] }}')" href="#">修改</a>
+                                <a href="/admin/userClass/edit/{{ $value->id }}">修改</a>
                             </td>
                             <td>
                                 <a @@click="remove('{{ $value['dir'] }}','{{ $value['path'] }}')" href="#">删除</a>
