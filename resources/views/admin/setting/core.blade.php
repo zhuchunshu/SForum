@@ -10,14 +10,26 @@
         <div class="card-tabs border-0">
             <!-- Cards navigation -->
             <ul class="nav nav-tabs">
-                @foreach(Itf_Setting()->get() as $value)
-                    <li class="nav-item"><a href="#{{$value['ename']}}" class="nav-link active" data-bs-toggle="tab">{{$value['name']}}</a></li>
+                @foreach(Itf_Setting()->get() as $key=>$value)
+                @if($key==1)
+                <li class="nav-item"><a href="#{{$value['ename']}}" class="nav-link active" data-bs-toggle="tab">{{$value['name']}}</a></li>
+                @else
+                <li class="nav-item"><a href="#{{$value['ename']}}" class="nav-link" data-bs-toggle="tab">{{$value['name']}}</a></li>
+                @endif    
                 @endforeach
             </ul>
             <div class="tab-content" id="setting-core-form">
                 <!-- Content of card #1 -->
-                @foreach(Itf_Setting()->get() as $value)
-                    @include($value['view'])
+                @foreach(Itf_Setting()->get() as $key=>$value)
+                    @if($key==1)
+                    <div id="{{$value['ename']}}" class="card tab-pane active show">
+                        @include($value['view'])
+                    </div>
+                    @else
+                    <div id="{{$value['ename']}}" class="card tab-pane">
+                        @include($value['view'])
+                    </div>
+                    @endif
                 @endforeach
             </div>
         </div>

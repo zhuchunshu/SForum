@@ -121,7 +121,11 @@ class SettingController
     public function setting_post(): array
     {
         $data = de_stringify(request()->input('data'));
+        $env = de_stringify(request()->input('env'));
         if(!is_array($data)){
+            return Json_Api(403,false,['msg' => '请提交正确的数据']);
+        }
+        if(!is_array($env)){
             return Json_Api(403,false,['msg' => '请提交正确的数据']);
         }
         foreach ($data as $key=>$value){
@@ -129,6 +133,13 @@ class SettingController
             $values = ['value' => $value];
             AdminOption::query()->updateOrInsert($name,$values);
         }
+        $env_arr = [];
+        foreach ($env as $key=>$value){
+            if($key && $value && is_string($key) && $key!="=" && is_string($value) && $value!="="){
+                $env_arr[$key] = $value;
+            }
+        }
+        modifyEnv($env_arr);
         return Json_Api(200,true,['msg' => '更新成功!']);
     }
 
@@ -140,6 +151,22 @@ class SettingController
         $result = [];
         foreach (AdminOption::query()->select('name', 'value')->get() as $value){
             $result[$value->name]=$value->value;
+        }
+        return Json_Api(200,true,$result);
+    }
+
+    /**
+     * @PostMapping(path="/api/adminEnvList")
+     */
+    public function adminEnvList(): array
+    {
+        $result = [];
+        $content = file_get_contents(BASE_PATH."/.env");
+        foreach (explode("\n",$content) as $value) {
+            if($value && is_string($value)){
+                $arr = explode("=",$value);
+                $result[$arr[0]]=$arr[1];
+            }
         }
         return Json_Api(200,true,$result);
     }

@@ -129,7 +129,8 @@ if(document.getElementById("setting-core-form")){
     const scf = {
         data() {
             return {
-                data:{}
+                data:{},
+                env:{}
             }
         },
         beforeMount() {
@@ -152,10 +153,29 @@ if(document.getElementById("setting-core-form")){
                     icon:"error"
                 })
             })
+            axios.post("/api/adminEnvList",{_token:csrf_token})
+            .then(response=>{
+                var data = response.data;
+                if(data.success===true){
+                    this.env=data.result;
+                }else{
+                    swal({
+                        title:data.result.msg,
+                        icon:'error'
+                    })
+                }
+            })
+            .catch(error=>{
+                console.error(error)
+                swal({
+                    title:"请求出错,详细请查看控制台",
+                    icon:"error"
+                })
+            })
         },
         methods: {
             submit(){
-                axios.post("/admin/setting",{_token:csrf_token,data:qs.stringify(this.data)})
+                axios.post("/admin/setting",{_token:csrf_token,data:qs.stringify(this.data),env:qs.stringify(this.env)})
                 .then(response=>{
                     var data = response.data;
                     if(data.success===true){

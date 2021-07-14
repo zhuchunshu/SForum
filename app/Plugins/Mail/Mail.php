@@ -13,5 +13,13 @@ namespace App\Plugins\Mail;
  */
 class Mail
 {
+    public function handle(){
 
+        $this->setting();
+
+    }
+
+    public function setting(){
+        require_once __DIR__."/setting.php";
+    }
 }

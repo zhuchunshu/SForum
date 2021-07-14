@@ -9,7 +9,9 @@ class Setting implements SettingInterface {
 
     public function get(): array
     {
-        return $this->list;
+        $array = $this->list;
+        ksort($array);
+        return $array;
     }
 
     public function add(int $id, string $name,string $ename,string $view): bool

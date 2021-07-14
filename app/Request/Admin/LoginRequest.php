@@ -9,7 +9,7 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
  */
-namespace App\Plugins\User\src\Request\Admin;
+namespace App\Request\Admin;
 
 use Hyperf\Validation\Request\FormRequest;
 

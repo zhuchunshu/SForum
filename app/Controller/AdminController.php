@@ -15,7 +15,7 @@ use App\CodeFec\Admin\Admin;
 use App\CodeFec\Admin\Ui;
 use App\CodeFec\Admin\Ui\Card;
 use App\Model\AdminUser;
-use App\Plugins\User\src\Request\Admin\LoginRequest;
+use App\Request\Admin\LoginRequest;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface;
 use HyperfExt\Hashing\Hash;
