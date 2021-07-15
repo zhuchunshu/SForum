@@ -7,7 +7,7 @@
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>@yield("title","标题") - {{ config('app_name', 'CodeFec') }}</title>
-{{--    <link rel="stylesheet" href="{{ mix('css/app.css') }}">--}}
+    <link rel="stylesheet" href="{{ mix('plugins/Core/css/app.css') }}">
     <link rel="icon" href="/logo.svg" type="image/x-icon" />
     <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
     <script>var csrf_token="{{csrf_token()}}";</script>
@@ -20,26 +20,12 @@
 
 <body class="antialiased">
 <div id="app" class="wrapper {{ path_class() }}-page">
-    @include('layouts.header')
     {{-- @include('layouts.bujian._msg')
     @include('shared._error') --}}
-    <div class="page-wrapper">
-        @include('layouts.header_title')
-        <div class="page-body">
-            <div class="container-xl">
-                <div class="row row-deck row-cards">
-                    @yield('content')
-                </div>
-            </div>
-        </div>
-    </div>
-    @include('layouts.footer')
+    @yield('content')
 </div>
 
-
 <script src="{{ mix('js/vue.js') }}"></script>
-<script src="{{ mix('js/app.js') }}"></script>
-<script src="{{ mix("js/plugins/Core/naive-ui.js")  }}"></script>
 <!-- 自定义Js -->
 @foreach(\App\CodeFec\Ui\functions::get("js") as $key => $value)
     <script src="{{ $value }}"></script>

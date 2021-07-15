@@ -120,26 +120,35 @@ class SettingController
      */
     public function setting_post(): array
     {
-        $data = de_stringify(request()->input('data'));
-        $env = de_stringify(request()->input('env'));
+        if(!is_array(request()->input('data'))){
+            $data = de_stringify(request()->input('data'));
+        }else{
+            $data = request()->input('data');
+        }
+
         if(!is_array($data)){
             return Json_Api(403,false,['msg' => '请提交正确的数据']);
         }
-        if(!is_array($env)){
-            return Json_Api(403,false,['msg' => '请提交正确的数据']);
-        }
+
         foreach ($data as $key=>$value){
             $name = ['name' => $key];
             $values = ['value' => $value];
             AdminOption::query()->updateOrInsert($name,$values);
         }
-        $env_arr = [];
-        foreach ($env as $key=>$value){
-            if($key && $value && is_string($key) && $key!="=" && is_string($value) && $value!="="){
-                $env_arr[$key] = $value;
+        if(request()->input('env')){
+            $env = de_stringify(request()->input('env'));
+            if(!is_array($env)){
+                return Json_Api(403,false,['msg' => '请提交正确的数据']);
             }
+            $env_arr = [];
+            foreach ($env as $key=>$value){
+                if($key && $value && is_string($key) && $key!="=" && is_string($value) && $value!="="){
+                    $env_arr[$key] = $value;
+                }
+            }
+            modifyEnv($env_arr);
         }
-        modifyEnv($env_arr);
+
         return Json_Api(200,true,['msg' => '更新成功!']);
     }
 

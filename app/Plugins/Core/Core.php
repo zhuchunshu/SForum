@@ -14,10 +14,10 @@ namespace App\Plugins\Core;
 class Core
 {
     public function handle(){
-        $this->menu();
+        $this->setting();
     }
 
-    public function menu(){
-        require_once __DIR__."/menu.php";
+    public function setting(){
+        require_once __DIR__."/setting.php";
     }
 }
