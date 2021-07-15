@@ -1,0 +1,13 @@
+{
+    "name": "zhuchunshu/sf-mail",
+    "description": "Super-Forum 邮箱驱动插件",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "zhuchunshu",
+            "email": "laravel@88.com"
+        }
+    ],
+    "require": {}
+}
