@@ -28,5 +28,5 @@ return [
     UiInterface::class => Ui::class,
     RenderInterface::class => Render::class,
     SettingInterface::class => Setting::class,
-    \App\CodeFec\Itf\Route\RouteInterface::class => \App\CodeFec\Itf\Route\Route::class
+    \App\CodeFec\Itf\Route\RouteInterface::class => \App\CodeFec\Itf\Route\Route::class,
 ];

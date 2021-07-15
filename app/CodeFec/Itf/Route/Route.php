@@ -11,7 +11,7 @@ class Route implements RouteInterface
 
     public $list=[];
 
-    public function add($route, $callback)
+    public function set($route, $callback)
     {
         $this->list = Arr::add($this->list, $route, $callback);
     }

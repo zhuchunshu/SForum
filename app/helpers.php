@@ -210,7 +210,7 @@ if (!function_exists("menu_pdArr")) {
         foreach (menu()->get() as $key => $value) {
             if (arr_has($value, "parent_id")) {
                 if ($value['parent_id'] == $id) {
-                    $arr[] = $value;
+                    $arr[$key] = $value;
                 }
             }
         }
@@ -674,15 +674,16 @@ if (!function_exists("Itf_Setting")) {
     }
 }
 
-if(!function_exists("Itf_Route")){
-    function Itf_Route(){
+if(!function_exists("Router")){
+    function Router(){
         $container = \Hyperf\Utils\ApplicationContext::getContainer();
         return $container->get(\App\CodeFec\Itf\Route\RouteInterface::class);
     }
 }
 
 if(!function_exists("Helpers_Str")){
-    function Helpers_Str(){
+    function Helpers_Str(): Str
+    {
         return new Str();
     }
 }

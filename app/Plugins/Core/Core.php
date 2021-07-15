@@ -13,5 +13,11 @@ namespace App\Plugins\Core;
  */
 class Core
 {
+    public function handle(){
+        $this->menu();
+    }
 
+    public function menu(){
+        require_once __DIR__."/menu.php";
+    }
 }

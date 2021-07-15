@@ -15,6 +15,6 @@ interface RouteInterface
      * @param string $route route,path
      * @param $callback
      */
-    public function add(string $route, $callback);
+    public function set(string $route, $callback);
 
 }

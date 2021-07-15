@@ -30,7 +30,7 @@ class RewriteMiddleware implements MiddlewareInterface
         /** @var Dispatched $dispatched */
         $dispatched = $request->getAttribute(Dispatched::class);
 
-
+        // 安全重写,没有不新建
         foreach (Itf_Route()->get() as $key => $value) {
             if ($dispatched->handler->route === $key) {
                 $dispatched->handler->callback = $value;

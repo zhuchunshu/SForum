@@ -23,7 +23,7 @@
                                 @else
                                 <li class="nav-item">
                             @endif
-                            <a class="nav-link" href="{{ $value['url'] }}">
+                            <a class="nav-link" id="admin-menu-{{$key}}" href="{{ $value['url'] }}">
                                 <span class="nav-link-icon d-md-none d-lg-inline-block">
                                     <!-- Download SVG icon from http://tabler-icons.io/i/package -->
                                     @if ($value['icon'])
@@ -78,9 +78,9 @@
                                         <div class="dropdown-menu-column">
                                             @foreach (menu_pdArr($key) as $keys => $values)
                                                 @if ('/' . request()->path() == $values['url'])
-                                                <a class="dropdown-item active" href="{{ $values['url'] }}">
+                                                <a class="dropdown-item active" id="admin-menu-{{$keys}}" href="{{ $values['url'] }}">
                                                 @else
-                                                <a class="dropdown-item" href="{{ $values['url'] }}">
+                                                <a class="dropdown-item" id="admin-menu-{{$keys}}" href="{{ $values['url'] }}">
                                                 @endif
                                                     <span class="nav-link-icon d-md-none d-lg-inline-block">
                                                         <!-- Download SVG icon from http://tabler-icons.io/i/package -->
