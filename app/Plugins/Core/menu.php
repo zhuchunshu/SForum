@@ -11,7 +11,3 @@ menu()->add(201,[
     "icon" => "",
     "parent_id" => 5
 ]);
-
-Itf_Route()->set("/s",function(){
-    return 1;
-});
