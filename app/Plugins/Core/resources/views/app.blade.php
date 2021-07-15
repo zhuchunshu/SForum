@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="@yield('data-theme','light')">
 
 <head>
     <meta charset="UTF-8">
