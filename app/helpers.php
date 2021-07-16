@@ -610,6 +610,12 @@ if(!function_exists("get_options")){
             }
             return cache()->get("admin.options.".$name);
         }
+        if(!AdminOption::query()->where("name",$name)->count()){
+            return $default;
+            //cache()->set("admin.options.".$name,$default,$time);
+        }else{
+            return AdminOption::query()->where("name",$name)->first()->value;
+        }
     }
 }
 
