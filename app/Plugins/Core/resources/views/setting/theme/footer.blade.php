@@ -1,4 +1,4 @@
-<div id="header" class="card tab-pane active show">
+<div id="footer" class="card tab-pane">
     <div class="card card-body">
         <x-csrf/>
         <div class="mb-3">

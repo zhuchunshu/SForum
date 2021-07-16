@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="@yield('data-theme','light')">
+<html lang="zh-CN" data-theme="{{plugins_core_theme()}}">
 
 <head>
     <meta charset="UTF-8">
