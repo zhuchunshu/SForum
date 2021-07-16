@@ -693,3 +693,10 @@ if(!function_exists("Helpers_Str")){
         return new Str();
     }
 }
+
+if(!function_exists("Itf")){
+    function Itf(){
+        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+        return $container->get(\App\CodeFec\Itf\Itf\ItfInterface::class);
+    }
+}

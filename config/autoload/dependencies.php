@@ -29,4 +29,5 @@ return [
     RenderInterface::class => Render::class,
     SettingInterface::class => Setting::class,
     \App\CodeFec\Itf\Route\RouteInterface::class => \App\CodeFec\Itf\Route\Route::class,
+    \App\CodeFec\Itf\Itf\ItfInterface::class => \App\CodeFec\Itf\Itf\Itf::class
 ];

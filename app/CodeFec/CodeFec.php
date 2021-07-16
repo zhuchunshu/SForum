@@ -13,6 +13,7 @@ class CodeFec {
         $this->plugins();
         $this->setting();
         $this->route();
+        $this->itf();
     }
 
     public function setting(){
@@ -57,6 +58,11 @@ class CodeFec {
                 }
             }
         }
+    }
+
+    public function itf()
+    {
+        require BASE_PATH."/app/CodeFec/Itf/Itf/default.php";
     }
 
 }
