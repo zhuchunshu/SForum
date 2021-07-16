@@ -2,6 +2,10 @@
     <div class="card card-body">
         <x-csrf/>
         <div class="mb-3">
+            <label class="form-label">网站名称</label>
+            <input type="number" min="1" max="3" class="form-control" v-model="data.web_name">
+        </div>
+        <div class="mb-3">
             <div class="form-label">主题</div>
             <select v-model="data.theme_common_theme" class="form-select" >
                 <option value="light">light</option>

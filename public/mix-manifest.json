@@ -1,12 +1,12 @@
 {
-    "/js/app.js": "/js/app.js?id=902b26381bc22b50af8f",
-    "/js/vue.js": "/js/vue.js?id=09c397102abb8f39c68c",
-    "/js/admin/login.js": "/js/admin/login.js?id=17a6227d01a0c7a4368b",
-    "/js/admin/error.js": "/js/admin/error.js?id=df0594b33b7bf6352c91",
-    "/js/admin/component.js": "/js/admin/component.js?id=5bd617180819b44c7cc6",
-    "/js/admin/setting.js": "/js/admin/setting.js?id=b9b4c39f65881ab1be3d",
-    "/plugins/User/js/user.js": "/plugins/User/js/user.js?id=9103f61a5d6d495882f5",
-    "/plugins/Core/js/mithril.js": "/plugins/Core/js/mithril.js?id=a977cd625b445e94935f",
-    "/plugins/Core/css/app.css": "/plugins/Core/css/app.css?id=ad210455340e606a9ebb",
+    "/js/app.js": "/js/app.js?id=68115271a9d441615488",
+    "/js/vue.js": "/js/vue.js?id=7d020f18a615c3b05042",
+    "/js/admin/login.js": "/js/admin/login.js?id=f33be29d9650a8e557ea",
+    "/js/admin/error.js": "/js/admin/error.js?id=3dca8846fcddd024a553",
+    "/js/admin/component.js": "/js/admin/component.js?id=7c1df5ab535f318e62bd",
+    "/js/admin/setting.js": "/js/admin/setting.js?id=b6ac75e276496cb3dfe9",
+    "/plugins/User/js/user.js": "/plugins/User/js/user.js?id=7a3446d74a18b6aa1974",
+    "/plugins/Core/js/mithril.js": "/plugins/Core/js/mithril.js?id=23a1ff8ef877aec88b5b",
+    "/plugins/Core/css/app.css": "/plugins/Core/css/app.css?id=a1ec2f7b9df2b12b2160",
     "/css/app.css": "/css/app.css?id=68b329da9893e34099c7"
 }

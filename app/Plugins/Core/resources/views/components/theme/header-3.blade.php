@@ -1,4 +1,4 @@
-@extends('plugins.Core.app')
+@extends('plugins.Core.components.theme.app')
 @section('content')
     <header class="text-gray-600 body-font" _msthidden="6">
         <div class="container mx-auto flex flex-wrap p-5 flex-col md:flex-row items-center" _msthidden="6">
