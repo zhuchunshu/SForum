@@ -26,6 +26,7 @@
     "daisyui": "^1.9.0",
     "glob-parent": "^5.1.2",
     "laravel-mix": "^6.0.20",
+    "mithril": "^2.0.4",
     "sweetalert": "^2.1.2",
     "vue": "^3.1.1"
   },

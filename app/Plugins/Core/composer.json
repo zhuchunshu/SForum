@@ -1,0 +1,12 @@
+{
+    "name": "zhuchunshu/sf-core",
+    "description": "Super-Forum Core Plugin",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "zhuchunshu",
+            "email": "laravel@88.com"
+        }
+    ],
+    "require": {}
+}
