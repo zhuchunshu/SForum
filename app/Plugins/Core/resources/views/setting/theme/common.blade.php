@@ -41,6 +41,11 @@
             <small>程序默认导入vue.js和mithril.js框架</small>
         </div>
 
+        <div class="mb-3">
+            <label class="form-label">网站描述</label>
+            <textarea type="number" min="1" max="3" class="form-control" v-model="data.web_description"></textarea>
+        </div>
+
     </div>
 </div>
 
