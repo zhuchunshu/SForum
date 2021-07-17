@@ -601,7 +601,7 @@ if(!function_exists("get_options")){
         }
         if($time!=0){
             if(!cache()->has("admin.options.".$name)){
-                if(!AdminOption::query()->where("name",$name)->count()){
+                if(!AdminOption::query()->where("name",$name)->count() or !AdminOption::query()->where("name",$name)->first()->value){
                     return $default;
                     //cache()->set("admin.options.".$name,$default,$time);
                 }else{
@@ -610,7 +610,7 @@ if(!function_exists("get_options")){
             }
             return cache()->get("admin.options.".$name);
         }
-        if(!AdminOption::query()->where("name",$name)->count()){
+        if(!AdminOption::query()->where("name",$name)->count() or !AdminOption::query()->where("name",$name)->first()->value){
             return $default;
             //cache()->set("admin.options.".$name,$default,$time);
         }else{
