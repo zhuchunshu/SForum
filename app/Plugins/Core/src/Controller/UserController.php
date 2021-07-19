@@ -3,6 +3,7 @@ namespace App\Plugins\Core\src\Controller;
 
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
+use Hyperf\HttpServer\Annotation\PostMapping;
 
 /**
  * Class UserController
@@ -23,5 +24,12 @@ class UserController
      */
     public function register(){
         return view("plugins.Core.user.sign",['title' => "注册","view" => "plugins.Core.user.register"]);
+    }
+
+    /**
+     * @PostMapping(path="/register")
+     */
+    public function register_post(){
+        
     }
 }
