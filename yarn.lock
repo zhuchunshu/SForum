@@ -1246,6 +1246,13 @@
   dependencies:
     "@vue/shared" "3.1.1"
 
+"@vue/reactivity@^3.0.2":
+  version "3.1.5"
+  resolved "https://registry.nlark.com/@vue/reactivity/download/@vue/reactivity-3.1.5.tgz#dbec4d9557f7c8f25c2635db1e23a78a729eb991"
+  integrity sha1-2+xNlVf3yPJcJjXbHiOninKeuZE=
+  dependencies:
+    "@vue/shared" "3.1.5"
+
 "@vue/runtime-core@3.1.1":
   version "3.1.1"
   resolved "https://registry.nlark.com/@vue/runtime-core/download/@vue/runtime-core-3.1.1.tgz?cache=0&sync_timestamp=1623098259494&other_urls=https%3A%2F%2Fregistry.nlark.com%2F%40vue%2Fruntime-core%2Fdownload%2F%40vue%2Fruntime-core-3.1.1.tgz#542110c09a643d7d80646a2f071aff6b324c4158"
@@ -1267,6 +1274,11 @@
   version "3.1.1"
   resolved "https://registry.nlark.com/@vue/shared/download/@vue/shared-3.1.1.tgz?cache=0&sync_timestamp=1623098044706&other_urls=https%3A%2F%2Fregistry.nlark.com%2F%40vue%2Fshared%2Fdownload%2F%40vue%2Fshared-3.1.1.tgz#2287cfc3dc20e5b20aeb65c2c3a56533bdca801c"
   integrity sha1-IofPw9wg5bIK62XCw6VlM73KgBw=
+
+"@vue/shared@3.1.5":
+  version "3.1.5"
+  resolved "https://registry.nlark.com/@vue/shared/download/@vue/shared-3.1.5.tgz#74ee3aad995d0a3996a6bb9533d4d280514ede03"
+  integrity sha1-dO46rZldCjmWpruVM9TSgFFO3gM=
 
 "@webassemblyjs/ast@1.11.0":
   version "1.11.0"
@@ -1483,6 +1495,13 @@ alphanum-sort@^1.0.2:
   version "1.0.2"
   resolved "https://registry.npm.taobao.org/alphanum-sort/download/alphanum-sort-1.0.2.tgz#97a1119649b211ad33691d9f9f486a8ec9fbe0a3"
   integrity sha1-l6ERlkmyEa0zaR2fn0hqjsn74KM=
+
+alpinejs@^3.2.2:
+  version "3.2.2"
+  resolved "https://registry.nlark.com/alpinejs/download/alpinejs-3.2.2.tgz#3feaa479671212788d9c6716c85dc19f8255c999"
+  integrity sha1-P+qkeWcSEniNnGcWyF3Bn4JVyZk=
+  dependencies:
+    "@vue/reactivity" "^3.0.2"
 
 ansi-escapes@^4.3.1:
   version "4.3.2"

@@ -20,6 +20,7 @@ mix.js(resources_path("js/app.js"),"js").version();
 
 // vue.js
 mix.js(resources_path("js/vue.js"),"js").vue({ version: 3 })
+mix.js(resources_path("js/alpine.js"),"js")
 .webpackConfig((webpack) => {
     return {
         plugins: [

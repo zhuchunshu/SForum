@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/zhuchunshu/CodeFecHF#readme",
   "dependencies": {
+    "alpinejs": "^3.2.2",
     "axios": "^0.21.1",
     "css-what": "^5.0.1",
     "daisyui": "^1.9.0",
