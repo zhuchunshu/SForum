@@ -16,3 +16,10 @@ if(!function_exists("plugins_core_theme")){
         return plugins_core_common_theme();
     }
 }
+
+if(!function_exists("plugins_core_captcha")){
+    function plugins_core_captcha(): \App\Plugins\Core\src\Lib\Captcha
+    {
+        return new \App\Plugins\Core\src\Lib\Captcha();
+    }
+}

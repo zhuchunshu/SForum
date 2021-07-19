@@ -11,8 +11,11 @@ use Hyperf\HttpServer\Annotation\GetMapping;
  */
 class UserController
 {
+    /**
+     * @GetMapping(path="/login")
+     */
     public function login(){
-
+        return plugins_core_captcha()->get();
     }
 
     /**
