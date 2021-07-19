@@ -15,13 +15,13 @@ class UserController
      * @GetMapping(path="/login")
      */
     public function login(){
-        return plugins_core_captcha()->get();
+        return view("plugins.Core.user.sign",['title' => "登陆","view" => "plugins.Core.user.login"]);
     }
 
     /**
      * @GetMapping(path="/register")
      */
     public function register(){
-        return view("plugins.Core.user.register");
+        return view("plugins.Core.user.sign",['title' => "注册","view" => "plugins.Core.user.register"]);
     }
 }

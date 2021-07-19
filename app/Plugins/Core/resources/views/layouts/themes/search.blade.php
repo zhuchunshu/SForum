@@ -1,4 +1,4 @@
-<span>
+<span class="hidden lg:block">
     <div class="form-control">
         <div class="relative">
             <input type="text" placeholder="Search" class="w-full pr-16 input input-primary input-bordered">
