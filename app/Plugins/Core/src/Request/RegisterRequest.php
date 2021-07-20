@@ -16,13 +16,14 @@ class RegisterRequest extends FormRequest
         return true;
     }
 
-    public function rule():array
+    public function rules():array
     {
         return [
             "username" => "required|max:25|min:2|unique:users,username",
             "password" => "required|min:8|max:30",
             "email" => "required|email|unique:users,email",
             "cfpassword" => "required|min:8|max:30",
+            "captcha" => "required|integer"
         ];
     }
 

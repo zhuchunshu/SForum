@@ -23,3 +23,17 @@ if(!function_exists("plugins_core_captcha")){
         return new \App\Plugins\Core\src\Lib\Captcha();
     }
 }
+
+if(!function_exists("plugins_core_captcha")){
+    function plugins_core_captcha(): \App\Plugins\Core\src\Lib\Captcha
+    {
+        return new \App\Plugins\Core\src\Lib\Captcha();
+    }
+}
+
+if(!function_exists("plugins_core_user_reg_defuc")){
+    function plugins_core_user_reg_defuc()
+    {
+        return \App\Plugins\User\src\Models\UserClass::query()->select("id","name")->get();
+    }
+}

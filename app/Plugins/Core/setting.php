@@ -10,3 +10,5 @@ Itf()->add("core_menu",1,[
     "name" => "首页",
     "url" => "/"
 ]);
+Itf_Setting()->add(203,
+    "注册设置","user-register","plugins.Core.setting.user.register");
