@@ -28,9 +28,6 @@
                             <span class="label-text">Confirm Password</span>
                         </label>
                         <input type="password" v-model="cfpassword" placeholder="Confirm password" class="input input-bordered" required>
-                        <label class="label">
-                            <a href="#" class="label-text-alt">Forgot password?</a>
-                        </label>
                     </div>
                     <div class="form-control">
                         <label class="label">
@@ -49,6 +46,10 @@
                     </div>
                     <div class="form-control mt-6">
                         <button type="submit" class="btn btn-primary">Register</button>
+                    </div>
+                    <div class="divider">Already have an account?</div>
+                    <div class="form-control mt-6">
+                        <a href="/login" class="btn">Login</a>
                     </div>
                 </form>
             </div>
