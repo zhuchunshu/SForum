@@ -2120,73 +2120,76 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var sweetalert__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(sweetalert__WEBPACK_IMPORTED_MODULE_1__);
 
 
-var vcsr = {
-  data: function data() {
-    return {
-      username: "",
-      email: "",
-      password: "",
-      cfpassword: "",
-      captcha: "",
-      endTime: CaptchaEndTime
-    };
-  },
-  methods: {
-    submit: function submit() {
-      axios__WEBPACK_IMPORTED_MODULE_0___default().post("/register", {
-        _token: csrf_token,
-        username: this.username,
-        email: this.email,
-        password: this.password,
-        cfpassword: this.cfpassword,
-        captcha: this.captcha,
-        timer: ""
-      }).then(function (response) {
-        var data = response.data;
 
-        if (data.success === true) {
-          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-            icon: "success",
-            title: data.result.msg
-          });
-          setTimeout(function () {
-            location.href = "/login";
-          }, 1200);
-        } else {
-          if (data.result instanceof Array) {
-            var content = "";
-            data.result.forEach(function (element) {
-              content = content + element + "\n";
-            });
+if (document.getElementById("vue-core-sign-register")) {
+  var vcsr = {
+    data: function data() {
+      return {
+        username: "",
+        email: "",
+        password: "",
+        cfpassword: "",
+        captcha: "",
+        endTime: CaptchaEndTime
+      };
+    },
+    methods: {
+      submit: function submit() {
+        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/register", {
+          _token: csrf_token,
+          username: this.username,
+          email: this.email,
+          password: this.password,
+          cfpassword: this.cfpassword,
+          captcha: this.captcha,
+          timer: ""
+        }).then(function (response) {
+          var data = response.data;
+
+          if (data.success === true) {
             sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-              icon: "error",
-              title: "出错啦!",
-              text: content
-            });
-          } else {
-            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-              icon: "error",
+              icon: "success",
               title: data.result.msg
             });
+            setTimeout(function () {
+              location.href = "/login";
+            }, 1200);
+          } else {
+            if (data.result instanceof Array) {
+              var content = "";
+              data.result.forEach(function (element) {
+                content = content + element + "\n";
+              });
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                icon: "error",
+                title: "出错啦!",
+                text: content
+              });
+            } else {
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                icon: "error",
+                title: data.result.msg
+              });
+            }
           }
-        }
-      })["catch"](function (error) {
-        console.error(error);
-        sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-          title: "请求出错",
-          icon: "error"
+        })["catch"](function (error) {
+          console.error(error);
+          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+            title: "请求出错",
+            icon: "error"
+          });
         });
-      });
+      },
+      setTimeOut: function setTimeOut() {
+        this.endTime--;
+      }
     },
-    setTimeOut: function setTimeOut() {
-      this.endTime--;
+    mounted: function mounted() {
+      this.timer = setInterval(this.setTimeOut, 1000);
     }
-  },
-  mounted: function mounted() {
-    this.timer = setInterval(this.setTimeOut, 1000);
-  }
-};
-Vue.createApp(vcsr).mount("#vue-core-sign-register");
+  };
+  Vue.createApp(vcsr).mount("#vue-core-sign-register");
+}
 })();
 
 /******/ })()
