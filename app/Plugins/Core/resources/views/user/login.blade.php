@@ -19,7 +19,7 @@
                     </div>
 
                     <div class="form-control mt-6">
-                        <button type="submit" class="btn btn-primary">Register</button>
+                        <button type="submit" class="btn btn-primary">Login</button>
                     </div>
                     <div class="divider">No account yet?</div>
                     <div class="form-control mt-6">

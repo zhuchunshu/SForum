@@ -19,8 +19,8 @@ class RegisterRequest extends FormRequest
     public function rules():array
     {
         return [
-            "username" => "required|max:25|min:2|unique:users,username",
-            "password" => "required|min:8|max:30",
+            "username" => "required|string|max:25|min:2|unique:users,username",
+            "password" => "required|string|min:8|max:30",
             "email" => "required|email|unique:users,email",
             "cfpassword" => "required|min:8|max:30",
             "captcha" => "required|integer"

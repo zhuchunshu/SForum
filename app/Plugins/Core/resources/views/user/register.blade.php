@@ -49,7 +49,7 @@
                     </div>
                     <div class="divider">Already have an account?</div>
                     <div class="form-control mt-6">
-                        <a href="/login" class="btn">Login</a>
+                        <a href="/login" class="btn">Sign in</a>
                     </div>
                 </form>
             </div>

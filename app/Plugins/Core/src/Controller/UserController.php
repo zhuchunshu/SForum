@@ -1,7 +1,9 @@
 <?php
 namespace App\Plugins\Core\src\Controller;
 
+use App\Plugins\Core\src\Request\LoginRequest;
 use App\Plugins\Core\src\Request\RegisterRequest;
+use App\Plugins\User\src\Auth;
 use App\Plugins\User\src\Models\User;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -49,5 +51,19 @@ class UserController
             "_token" => Str::random()
         ]);
         return Json_Api(200,true,['msg' => '注册成功!']);
+    }
+
+    /**
+     * @PostMapping(path="/login")
+     */
+    public function login_post(LoginRequest $request){
+        $data = $request->validated();
+        $email = $data['email'];
+        $password = $data['password'];
+        if(Auth::SignIn($email,$password)){
+            return Json_Api(200,true,['msg' => '登陆成功!']);
+        }else{
+            return Json_Api(403,false,['msg' => '登陆失败,账号或密码错误']);
+        }
     }
 }

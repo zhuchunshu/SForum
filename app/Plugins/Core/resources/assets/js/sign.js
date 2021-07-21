@@ -2190,6 +2190,62 @@ if (document.getElementById("vue-core-sign-register")) {
   };
   Vue.createApp(vcsr).mount("#vue-core-sign-register");
 }
+
+if (document.getElementById("vue-core-sign-login")) {
+  var vcsl = {
+    data: function data() {
+      return {
+        email: "",
+        password: ""
+      };
+    },
+    methods: {
+      submit: function submit() {
+        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/login", {
+          _token: csrf_token,
+          email: this.email,
+          password: this.password
+        }).then(function (response) {
+          var data = response.data;
+
+          if (data.success === true) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+              icon: "success",
+              title: data.result.msg
+            });
+            setTimeout(function () {
+              location.href = "/";
+            }, 1200);
+          } else {
+            if (data.result instanceof Array) {
+              var content = "";
+              data.result.forEach(function (element) {
+                content = content + element + "\n";
+              });
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                icon: "error",
+                title: "出错啦!",
+                text: content
+              });
+            } else {
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                icon: "error",
+                title: data.result.msg
+              });
+            }
+          }
+        })["catch"](function (error) {
+          console.error(error);
+          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+            title: "请求出错",
+            icon: "error"
+          });
+        });
+      }
+    }
+  };
+  Vue.createApp(vcsl).mount("#vue-core-sign-login");
+}
 })();
 
 /******/ })()
