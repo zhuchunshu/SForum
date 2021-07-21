@@ -29,6 +29,7 @@
 @if(get_options("theme_common_require_mithril","yes")!="no")
     <script src="{{ mix('plugins/Core/js/mithril.js') }}"></script>
 @endif
+<script src="{{ mix('plugins/Core/js/app.js') }}"></script>
 {{-- <!-- 自定义Js --> --}}
 @foreach(\App\CodeFec\Ui\functions::get("js") as $key => $value)
     <script src="{{ $value }}"></script>
