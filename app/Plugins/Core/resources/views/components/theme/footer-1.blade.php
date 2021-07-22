@@ -1,35 +1,34 @@
 @extends('plugins.Core.components.theme.app')
 @section('content')
-    <footer class="text-gray-600 body-font" _msthidden="23">
-        <div class="bg-gray-100" _msthidden="1">
-            <div class="container mx-auto py-4 px-5 flex flex-wrap flex-col sm:flex-row" _msthidden="1">
-                <p class="text-gray-500 text-sm text-center sm:text-left" _msthash="474592" _msttexthash="2994290" _msthidden="1">© 2020 Tailblocks —
-                    <a href="https://twitter.com/knyttneve" rel="noopener noreferrer" class="text-gray-600 ml-1" target="_blank">@knyttneve</a>
-                </p>
-                <span class="inline-flex sm:ml-auto sm:mt-0 mt-2 justify-center sm:justify-start">
-        <a class="text-gray-500">
-          <svg fill="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="w-5 h-5" viewBox="0 0 24 24">
-            <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"></path>
-          </svg>
-        </a>
-        <a class="ml-3 text-gray-500">
-          <svg fill="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="w-5 h-5" viewBox="0 0 24 24">
-            <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"></path>
-          </svg>
-        </a>
-        <a class="ml-3 text-gray-500">
-          <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="w-5 h-5" viewBox="0 0 24 24">
-            <rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect>
-            <path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37zm1.5-4.87h.01"></path>
-          </svg>
-        </a>
-        <a class="ml-3 text-gray-500">
-          <svg fill="currentColor" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="0" class="w-5 h-5" viewBox="0 0 24 24">
-            <path stroke="none" d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"></path>
-            <circle cx="4" cy="4" r="2" stroke="none"></circle>
-          </svg>
-        </a>
-      </span>
+    <footer class="footer footer-transparent d-print-none">
+        <div class="container">
+            <div class="row text-center align-items-center flex-row-reverse">
+                <div class="col-lg-auto ms-lg-auto">
+                    <ul class="list-inline list-inline-dots mb-0">
+                        <li class="list-inline-item"><a href="./docs/index.html" class="link-secondary">Documentation</a></li>
+                        <li class="list-inline-item"><a href="./license.html" class="link-secondary">License</a></li>
+                        <li class="list-inline-item"><a href="https://github.com/tabler/tabler" target="_blank" class="link-secondary" rel="noopener">Source code</a></li>
+                        <li class="list-inline-item">
+                            <a href="https://github.com/sponsors/codecalm" target="_blank" class="link-secondary" rel="noopener">
+                                <!-- Download SVG icon from http://tabler-icons.io/i/heart -->
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon text-pink icon-filled icon-inline" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M19.5 13.572l-7.5 7.428l-7.5 -7.428m0 0a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572" /></svg>
+                                Sponsor
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-12 col-lg-auto mt-3 mt-lg-0">
+                    <ul class="list-inline list-inline-dots mb-0">
+                        <li class="list-inline-item">
+                            Copyright &copy; 2021
+                            <a href="." class="link-secondary">Tabler</a>.
+                            All rights reserved.
+                        </li>
+                        <li class="list-inline-item">
+                            <a href="./changelog.html" class="link-secondary" rel="noopener">v1.0.0-beta3</a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </footer>
