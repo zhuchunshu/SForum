@@ -10,7 +10,7 @@ class CsrfToken extends Component
     public $token;
     public function __construct()
     {
-        $this->token = csrf_token();
+        $this->token = recsrf_token();
     }
     public function render()
     {

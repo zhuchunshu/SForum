@@ -649,6 +649,16 @@ if(!function_exists("csrf_token")){
     }
 }
 
+if(!function_exists("recsrf_token")){
+    function recsrf_token(){
+        if(!session()->has("csrf_token")){
+            session()->set("csrf_token",Str::random());
+        }
+        cache()->set("csrf_token".session()->get("csrf_token"),Str::random(),300);
+        return cache()->get("csrf_token".session()->get("csrf_token"));
+    }
+}
+
 if(!function_exists("modifyEnv")){
     function modifyEnv(array $data)
     {
