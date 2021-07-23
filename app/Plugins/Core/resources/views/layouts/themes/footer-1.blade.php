@@ -18,8 +18,8 @@
             <div class="mt-3 col-12 col-lg-auto mt-lg-0">
                 <ul class="mb-0 list-inline list-inline-dots">
                     <li class="list-inline-item">
-                        Copyright &copy; {{ date("Y") }}
-                        <a href="." class="link-secondary">{{ get_options("web_name","CodeFec") }}</a>.
+                        Copyright &copy; {{ date('Y') }}
+                        <a href="." class="link-secondary">{{ get_options('web_name', 'CodeFec') }}</a>.
                         All rights reserved.
                     </li>
                     {{-- <li class="list-inline-item">
