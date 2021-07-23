@@ -14,7 +14,7 @@
     <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
     <script>
-        var csrf_token = "{{ csrf_token() }}";
+        var csrf_token = "{{ recsrf_token() }}";
     </script>
     <meta name="description" content="{{ get_options('description') }}">
     <meta name="keywords" content="{{ get_options('keywords') }}">
@@ -26,13 +26,11 @@
 </head>
 
 <body class="antialiased">
-    <div class="flex flex-col h-screen justify-between">
-        @include("plugins.Core.layouts.themes.header-".get_options('core_theme_header',1))
-        <main class="mb-auto h-10">
-            <div id="app" class="container mx-auto {{ path_class() }}-page lg:pt-2">
-                @yield('content')
-            </div>
-        </main>
+@include("plugins.Core.layouts.themes.header-".get_options('core_theme_header',1))
+<div class="page-body">
+    <div class="container-xl">
+        @yield('content')
+    </div>
         @include("plugins.Core.layouts.themes.footer-".get_options('core_theme_footer',1))
     </div>
     <script src="{{ mix('js/vue.js') }}"></script>
