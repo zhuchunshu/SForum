@@ -4,7 +4,6 @@
 namespace App\Plugins\User\src\Middleware;
 
 
-use App\CodeFec\Admin\Admin;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -12,12 +11,11 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
 /**
- * Auth 组件的基本验证
+ * 强制要求登陆
  * @package App\Plugins\User\src\Middleware
  */
-class AuthMiddleware implements MiddlewareInterface
+class LoginMiddleware implements MiddlewareInterface
 {
-
     /**
      * @var ContainerInterface
      */
@@ -30,12 +28,11 @@ class AuthMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        if(auth()->check()){
-            if(request()->path() === "register" || request()->path() === "login"){
-                return admin_abort(['msg' => '您已登录']);
+        if(!auth()->check()){
+            if(request()->path() !== "register" && request()->path() !== "login"){
+                return admin_abort(['msg' => '登录后才可访问','back' => '/login']);
             }
         }
         return $handler->handle($request);
     }
-
 }

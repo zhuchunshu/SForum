@@ -28,15 +28,14 @@
             <span class="avatar avatar-sm" style="background-image: url({{user_avatar(auth()->data()->email,auth()->data()->avatar)}})"></span>
             <div class="d-none d-xl-block ps-2">
                 <div>{{auth()->data()['username']}}</div>
-                <div class="mt-1 small text-muted">本站第:{{auth()->data()->id}}位会员</div>
+                <div class="mt-1 small text-muted">本站第{{auth()->data()->id}}位会员</div>
             </div>
         </a>
         <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-            <a href="#" class="dropdown-item">Set status</a>
-            <a href="#" class="dropdown-item">Profile & account</a>
-            <a href="#" class="dropdown-item">Feedback</a>
+            <a href="/user" class="dropdown-item">个人中心</a>
+            <a href="/user/collections" class="dropdown-item">我的收藏</a>
             <div class="dropdown-divider"></div>
-            <a href="#" class="dropdown-item">Settings</a>
+            <a href="/user/setting" class="dropdown-item">个人设置</a>
             <a href="#" @@click="Logout" class="dropdown-item">Logout</a>
         </div>
     </div>

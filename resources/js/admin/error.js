@@ -12,13 +12,15 @@ const empty = {
     // 获取错误信息
     axios
       .get(location.href + "?data=json")
-      .then(
-        (response) => (
-          (this.code = response.data.code),
-          (this.msg = response.data.result.msg),
-          (this.url = document.referrer)
-        )
-      )
+      .then(response=>{
+          this.code = response.data.code;
+          this.msg = response.data.result.msg;
+          if(response.data.result.back){
+              this.url = response.data.result.back;
+          }else{
+              this.url = document.referrer;
+          }
+      })
       .catch(function (error) {
         console.log(error);
         swal({

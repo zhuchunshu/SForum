@@ -2077,7 +2077,14 @@ var empty = {
 
     // 获取错误信息
     axios.get(location.href + "?data=json").then(function (response) {
-      return _this.code = response.data.code, _this.msg = response.data.result.msg, _this.url = document.referrer;
+      _this.code = response.data.code;
+      _this.msg = response.data.result.msg;
+
+      if (response.data.result.back) {
+        _this.url = response.data.result.back;
+      } else {
+        _this.url = document.referrer;
+      }
     })["catch"](function (error) {
       console.log(error);
       swal({
