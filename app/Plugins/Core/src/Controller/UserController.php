@@ -58,4 +58,12 @@ class UserController
             return Json_Api(403,false,['msg' => '登陆失败,账号或密码错误']);
         }
     }
+
+    #[PostMapping(path: "/logout")]
+    public function logout(): array
+    {
+        session()->remove("auth");
+        session()->remove("auth_data");
+        return Json_Api(200,true,['msg' => '退出登陆成功!','url' => '/login']);
+    }
 }

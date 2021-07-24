@@ -710,3 +710,13 @@ if(!function_exists("Itf")){
         return $container->get(\App\CodeFec\Itf\Itf\ItfInterface::class);
     }
 }
+
+if(!function_exists("file_hash")){
+    function file_hash($path): string
+    {
+        if(file_exists(BASE_PATH."/public/".$path)){
+            return "/".$path."?version=".md5_file(BASE_PATH."/public/".$path);
+        }
+        return "/".$path;
+    }
+}
