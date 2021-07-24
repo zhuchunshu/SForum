@@ -7,34 +7,28 @@ use App\Plugins\User\src\Auth;
 use App\Plugins\User\src\Models\User;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
+use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use HyperfExt\Hashing\Hash;
 use Illuminate\Support\Str;
 
-/**
- * Class UserController
- * @Controller
- * @package App\Plugins\Core\src\Controller
- */
+#[Controller()]
+#[Middleware(\App\Plugins\User\src\Middleware\AuthMiddleware::class)]
 class UserController
 {
-    /**
-     * @GetMapping(path="/login")
-     */
+
+    #[GetMapping(path:"/login")]
     public function login(){
+
         return view("plugins.Core.user.sign",['title' => "登陆","view" => "plugins.Core.user.login"]);
     }
 
-    /**
-     * @GetMapping(path="/register")
-     */
+    #[GetMapping(path:"/register")]
     public function register(){
         return view("plugins.Core.user.sign",['title' => "注册","view" => "plugins.Core.user.register"]);
     }
 
-    /**
-     * @PostMapping(path="/register")
-     */
+    #[PostMapping(path: "/register")]
     public function register_post(RegisterRequest $request){
         $data = $request->validated();
         if($data['password'] != $data['cfpassword']){
@@ -53,9 +47,7 @@ class UserController
         return Json_Api(200,true,['msg' => '注册成功!']);
     }
 
-    /**
-     * @PostMapping(path="/login")
-     */
+    #[PostMapping(path: "/login")]
     public function login_post(LoginRequest $request){
         $data = $request->validated();
         $email = $data['email'];

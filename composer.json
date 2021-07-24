@@ -12,7 +12,7 @@
     "description": "A super forum",
     "license": "MIT",
     "require": {
-        "php": ">=7.3",
+        "php": ">=8.0",
         "ext-json": "*",
         "hyperf/async-queue": "2.2.*",
         "hyperf/cache": "2.2.*",

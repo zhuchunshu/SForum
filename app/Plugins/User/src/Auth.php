@@ -23,7 +23,10 @@ class Auth
 
     public static function data()
     {
-        return User::query()->where("id",session()->get('auth'))->first();
+        if(!session()->has("auth_data")){
+            session()->set("auth_data",User::query()->where("id",session()->get('auth'))->first());
+        }
+        return session()->get("auth_data");
     }
 
     public static function id()
