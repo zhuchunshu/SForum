@@ -15,7 +15,6 @@ use Illuminate\Support\Str;
 
 #[Controller()]
 #[Middleware(\App\Plugins\User\src\Middleware\AuthMiddleware::class)]
-#[Middleware(LoginMiddleware::class)]
 class UserController
 {
 
@@ -73,9 +72,4 @@ class UserController
         return Json_Api(200,true,['msg' => '退出登陆成功!','url' => '/login']);
     }
 
-    #[GetMapping(path: "/user/setting")]
-    public function user_setting(): int
-    {
-        return 1;
-    }
 }
