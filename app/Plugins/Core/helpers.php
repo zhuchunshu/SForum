@@ -37,3 +37,42 @@ if(!function_exists("plugins_core_user_reg_defuc")){
         return \App\Plugins\User\src\Models\UserClass::query()->select("id","name")->get();
     }
 }
+
+if(!function_exists("avatar")){
+    function avatar(int $user_id,$class=null): string
+    {
+        $time = get_options("core_user_def_avatar_cache",600);
+        if($time !==0){
+            if(cache()->has("core.avatar.".$user_id)){
+                $user_data = cache()->get("core.avatar.".$user_id);
+            }else{
+                $user_data = \App\Plugins\User\src\Models\User::query()->where("id",$user_id)->first();
+                cache()->set("core.avatar.".$user_id,$user_data,$time);
+            }
+            $ud = $user_data;
+
+        }else{
+            $ud = \App\Plugins\User\src\Models\User::query()->where("id",$user_id)->first();
+        }
+        if($ud->avatar){
+            return <<<HTML
+<span class="avatar {$class}" style="background-image: url({$ud->avatar})"></span>
+HTML;
+
+        }else{
+            if(get_options("core_user_def_avatar","gavatar")!=="multiavatar"){
+                $url = get_options("theme_common_gavatar","https://cn.gravatar.com/avatar/").md5($ud->email);
+            return <<<HTML
+<span class="avatar {$class}" style="background-image: url({$url})"></span>
+HTML;
+            }else{
+                $img = new Multiavatar();
+                $img = $img($ud->username, null, null);
+                return <<<HTML
+<span class="avatar {$class}">{$img}</span>
+HTML;
+            }
+        }
+    }
+}
+
