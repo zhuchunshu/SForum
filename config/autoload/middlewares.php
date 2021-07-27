@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Middleware\CsrfMiddleware;
+use App\Middleware\ShareErrorsFromSession;
+use App\Middleware\ValidationExceptionHandle;
 
 /**
  * CodeFec - Hyperf
@@ -18,6 +20,7 @@ return [
         \Hyperf\Validation\Middleware\ValidationMiddleware::class,
         CsrfMiddleware::class,
         \App\Middleware\InstallMiddleware::class,
-        \App\Middleware\RewriteMiddleware::class
+        \App\Middleware\RewriteMiddleware::class,
+
     ],
 ];

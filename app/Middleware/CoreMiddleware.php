@@ -41,9 +41,11 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
     /**
      * Handle the response when the routes found but doesn't match any available methods.
      *
-     * @return array|Arrayable|mixed|ResponseInterface|string
+     * @param array $methods
+     * @param ServerRequestInterface $request
+     * @return ResponseInterface
      */
-    protected function handleMethodNotAllowed(array $methods, ServerRequestInterface $request)
+    protected function handleMethodNotAllowed(array $methods, ServerRequestInterface $request): ResponseInterface
     {
         // 重写 HTTP 方法不允许的处理逻辑
         return $this->response()->withStatus(405);

@@ -13,7 +13,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">邮箱</label>
-                        <input type="text" class="form-control">
+                        <input  type="email" v-model="email" class="form-control">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">旧密码</label>

@@ -296,7 +296,7 @@ if (!function_exists("read_plugin_data")) {
 if (!function_exists("admin_abort")) {
     function admin_abort($array, $code = 403)
     {
-        if (request()->isMethod("POST") or request()->input("data") == "json") {
+        if (request()->isMethod("POST") || request()->input("data") === "json") {
             return response()->json(Json_Api($code, false, $array));
         }
         return view('admin.error', [], $code);
@@ -718,5 +718,11 @@ if(!function_exists("file_hash")){
             return "/".$path."?version=".md5_file(BASE_PATH."/public/".$path);
         }
         return "/".$path;
+    }
+}
+
+if(!function_exists("errors")){
+    function errors(){
+        return cache()->get("errors");
     }
 }
