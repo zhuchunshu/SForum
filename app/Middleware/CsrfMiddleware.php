@@ -25,12 +25,16 @@ class CsrfMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        if(config("codefec.app.csrf")){
-            if(request()->isMethod("post")){
-                if(csrf_token()!=request()->input("_token")){
-                    return admin_abort(["msg" => "会话超时,请重新提交"],419);
-                }
+        if(!config("codefec.app.csrf")){
+            return $handler->handle($request);
+        }
+        foreach(Itf()->get("csrf") as $value){
+            if(preg_match("/".$value."/i",request()->path())){
+                return $handler->handle($request);
             }
+        }
+        if(request()->isMethod("post") && csrf_token() !== request()->input("_token")) {
+            return admin_abort(["msg" => "会话超时,请重新提交"],419);
         }
         return $handler->handle($request);
     }
