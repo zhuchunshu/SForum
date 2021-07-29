@@ -9,5 +9,7 @@
             "email": "laravel@88.com"
         }
     ],
-    "require": {}
+    "require": {
+        "phpmailer/phpmailer": "^6.5"
+    }
 }

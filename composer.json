@@ -23,7 +23,7 @@
         "hyperf/db-connection": "2.2.*",
         "hyperf/filesystem": "2.2.*",
         "hyperf/framework": "2.2.*",
-        "hyperf/guzzle": "2.2.*",
+        "hyperf/guzzle": "^2.2",
         "hyperf/http-server": "2.2.*",
         "hyperf/logger": "2.2.*",
         "hyperf/memory": "2.2.*",
@@ -35,9 +35,9 @@
         "hyperf/validation": "2.2.*",
         "hyperf/view": "2.2.*",
         "hyperf/view-engine": "2.2.*",
+        "jetbrains/phpstorm-stubs": "^2021.1",
         "laravel/helpers": "^1.4",
-        "zhuchunshu/hyperf-hashing": "2.2.0",
-        "zhuchunshu/hyperf-mail": "2.2.1"
+        "zhuchunshu/hyperf-hashing": "2.2.0"
     },
     "require-dev": {
         "filp/whoops": "^2.13",

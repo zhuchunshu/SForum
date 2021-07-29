@@ -1,4 +1,8 @@
 <?php
+
+use App\Plugins\Core\src\Lib\Redirect;
+use JetBrains\PhpStorm\Pure;
+
 if(!function_exists("plugins_core_common_theme")){
     function plugins_core_common_theme($default="light"){
         if(!\App\Model\AdminOption::query()->where("name","theme_common_theme")->count()){
@@ -76,3 +80,10 @@ HTML;
     }
 }
 
+
+if(!function_exists("redirect")){
+    #[Pure] function redirect(): Redirect
+    {
+        return new Redirect();
+    }
+}

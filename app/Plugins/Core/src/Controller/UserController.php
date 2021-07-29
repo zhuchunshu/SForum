@@ -72,4 +72,5 @@ class UserController
         return Json_Api(200,true,['msg' => '退出登陆成功!','url' => '/login']);
     }
 
+
 }

@@ -9,8 +9,12 @@
         <input v-model="env.MAIL_SMTP_PORT" type="text" class="form-control">
     </div>
     <div class="mb-3">
-        <label class="form-label">SMTP 加密方式(tls,ssl)</label>
-        <input v-model="env.MAIL_SMTP_ENCRYPTION" type="text" class="form-control">
+        <label class="form-label">发信邮箱</label>
+        <input v-model="env.MAIL_SMTP_FORM_MAIL" type="text" class="form-control">
+    </div>
+    <div class="mb-3">
+        <label class="form-label">发信名称</label>
+        <input v-model="env.MAIL_SMTP_FORM_NAME" type="text" class="form-control">
     </div>
     <div class="mb-3">
         <label class="form-label">SMTP 用户名</label>
@@ -19,9 +23,5 @@
     <div class="mb-3">
         <label class="form-label">SMTP 密码</label>
         <input v-model="env.MAIL_SMTP_PASSWORD" type="text" class="form-control">
-    </div>
-    <div class="mb-3">
-        <label class="form-label">SMTP 超时时间(秒)</label>
-        <input v-model="env.MAIL_SMTP_TIMEOUT" type="text" class="form-control">
     </div>
 </div>

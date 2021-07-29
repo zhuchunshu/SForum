@@ -27,6 +27,8 @@
 
 <body class="antialiased">
 @include("plugins.Core.layouts.themes.header-".get_options('core_theme_header',1))
+@include("plugins.Core.layouts.errors")
+@include("plugins.Core.layouts._msg")
 <div class="page-body">
     <div class="container-xl">
         @yield('content')
@@ -38,7 +40,7 @@
     <script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
     <!-- Tabler Core -->
     <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
-    @if (get_options('theme_common_require_mithril', 'yes') != 'no')
+    @if (get_options('theme_common_require_mithril', 'yes') !== 'no')
         <script src="{{ mix('plugins/Core/js/mithril.js') }}"></script>
     @endif
     <script src="{{ mix('plugins/Core/js/app.js') }}"></script>
