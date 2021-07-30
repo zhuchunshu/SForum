@@ -740,3 +740,10 @@ if(!function_exists("url")){
         return $url.$path;
     }
 }
+
+if(!function_exists("get_num")){
+    function get_num($string): array|string|null
+    {
+        return preg_replace('/[^0-9]/', '', $string);
+    }
+}

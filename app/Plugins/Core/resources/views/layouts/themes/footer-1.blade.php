@@ -22,9 +22,9 @@
                         <a href="." class="link-secondary">{{ get_options('web_name', 'CodeFec') }}</a>.
                         All rights reserved.
                     </li>
-                    {{-- <li class="list-inline-item">
-                        <a href="./changelog.html" class="link-secondary" rel="noopener">v1.0.0-beta3</a>
-                    </li> --}}
+                    {{--                    --}}{{-- <li class="list-inline-item">--}}
+                    {{--                        <a href="./changelog.html" class="link-secondary" rel="noopener">v1.0.0-beta3</a>--}}
+                    {{--                    </li> --}}
                 </ul>
             </div>
         </div>
