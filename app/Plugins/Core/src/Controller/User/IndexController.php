@@ -7,6 +7,7 @@ namespace App\Plugins\Core\src\Controller\User;
 use App\Plugins\Core\src\Request\User\Mydata\JibenRequest;
 use App\Plugins\User\src\Mail\RePwd;
 use App\Plugins\User\src\Middleware\LoginMiddleware;
+use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserRepwd;
 use Exception;
 use Hyperf\HttpServer\Annotation\Controller;
@@ -17,13 +18,14 @@ use Hyperf\HttpServer\Annotation\RequestMapping;
 use HyperfExt\Hashing\Hash;
 use HyperfExt\Mail\Mail;
 use Illuminate\Support\Str;
+use Psr\Http\Message\ResponseInterface;
 
 #[Controller]
 #[Middleware(LoginMiddleware::class)]
 class IndexController
 {
     #[GetMapping(path: "/user/setting")]
-    public function user_setting(): \Psr\Http\Message\ResponseInterface
+    public function user_setting(): ResponseInterface
     {
         return view("plugins.Core.user.setting");
     }
@@ -67,6 +69,38 @@ HTML;
         });
         return redirect()->back()->with('success','修改密码邮件已发送至你的邮箱')->go();
 
+    }
+
+    /**
+     * 处理修改密码
+     * @param $id
+     * @param $hash
+     * @return ResponseInterface
+     */
+    #[GetMapping(path:"/user/myUpdate/ConfirmPassword/{id}/{hash}")]
+    public function myUpdate_ConfirmPassword($id,$hash): ResponseInterface
+    {
+        if(!UserRepwd::query()->where([
+            'user_id' => auth()->data()->id,
+            'id' => $id,
+            'hash' => $hash
+        ])->count()){
+            return admin_abort(['msg' => '鉴权失败,无法修改']);
+        }
+        $data = UserRepwd::query()->where([
+            'user_id' => auth()->data()->id,
+            'id' => $id,
+            'hash' => $hash
+        ])->first();
+        User::query()->where(['id'=>$data->user_id])->update([
+           "password" => $data->pwd
+        ]);
+        auth()->logout();
+        UserRepwd::query()->where([
+            'id' => $id,
+            'hash' => $hash
+        ])->delete();
+        return redirect()->url("/")->with("success","密码修改成功,请重新登录!")->go();
     }
 
     /**

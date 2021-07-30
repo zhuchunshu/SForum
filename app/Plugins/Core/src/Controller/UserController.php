@@ -3,7 +3,6 @@ namespace App\Plugins\Core\src\Controller;
 
 use App\Plugins\Core\src\Request\LoginRequest;
 use App\Plugins\Core\src\Request\RegisterRequest;
-use App\Plugins\User\src\Auth;
 use App\Plugins\User\src\Middleware\LoginMiddleware;
 use App\Plugins\User\src\Models\User;
 use Hyperf\HttpServer\Annotation\Controller;
@@ -57,7 +56,7 @@ class UserController
         $data = $request->validated();
         $email = $data['email'];
         $password = $data['password'];
-        if(Auth::SignIn($email,$password)){
+        if(auth()->SignIn($email,$password)){
             return Json_Api(200,true,['msg' => '登陆成功!']);
         }
 

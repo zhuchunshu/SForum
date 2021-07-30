@@ -7,7 +7,7 @@ use HyperfExt\Hashing\Hash;
 
 class Auth
 {
-    public static function SignIn(string $email, string $password): bool
+    public function SignIn(string $email, string $password): bool
     {
         if (! User::query()->where('email', $email)->count()) {
             return false;
@@ -21,7 +21,14 @@ class Auth
         return false;
     }
 
-    public static function data()
+    public function logout(): bool
+    {
+        session()->remove('auth');
+        session()->remove('auth_data');
+        return true;
+    }
+
+    public function data()
     {
         if(!session()->has("auth_data")){
             session()->set("auth_data",User::query()->where("id",session()->get('auth'))->first());
@@ -29,20 +36,20 @@ class Auth
         return session()->get("auth_data");
     }
 
-    public static function id()
+    public function id()
     {
         return session()->get('auth');
     }
 
-    public static function check(): bool
+    public function check(): bool
     {
         if(!session()->has('auth')){
             return false;
         }
         if(User::query()->where("id",session()->get('auth'))->count()){
             return true;
-        }else{
-            return false;
         }
+
+        return false;
     }
 }
