@@ -46,6 +46,11 @@ class Mail
      */
     public string $form_email;
 
+    /**
+     * 编码
+     * @var string
+     */
+    public string $CharSet ="UTF-8";
 
     public string $SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
 
@@ -85,6 +90,7 @@ class Mail
             $mail->Password   = $this->password;                               //SMTP password
             $mail->SMTPSecure = $this->SMTPSecure;            //Enable implicit TLS encryption
             $mail->Port       = $this->port; //                                    //TCP port to connect to; use 587 if you have set `SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS`
+            $mail->CharSet = $this->CharSet;                     //
 
             //Recipients
             $mail->setFrom($this->form_email, $this->form_name);
