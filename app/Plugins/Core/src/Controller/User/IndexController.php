@@ -72,6 +72,7 @@ HTML;
     }
 
     /**
+<<<<<<< HEAD
      * 处理修改密码
      * @param $id
      * @param $hash
@@ -104,6 +105,8 @@ HTML;
     }
 
     /**
+=======
+>>>>>>> 07b63d77a448a508f2c4b75c4b12917ada43f302
      * @throws Exception
      */
     #[GetMapping(path: "/test")]
