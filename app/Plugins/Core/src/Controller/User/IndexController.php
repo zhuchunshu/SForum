@@ -8,6 +8,7 @@ use App\Plugins\Core\src\Request\User\Mydata\JibenRequest;
 use App\Plugins\User\src\Mail\RePwd;
 use App\Plugins\User\src\Middleware\LoginMiddleware;
 use App\Plugins\User\src\Models\UserRepwd;
+use Exception;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
@@ -51,17 +52,30 @@ class IndexController
             "pwd" => $pwd,
             "hash" => Str::random()
         ]);
+        $user = auth()->data();
+        go(static function() use($data,$user){
+            $url = url("/user/myUpdate/ConfirmPassword/".$data->id."/".$data->hash);
+            $mail = Email();
+            $mail->addAddress($user->email);
+            $mail->Subject = "【".get_options("web_name")."】修改密码确认";
+            $mail->Body    = <<<HTML
+你好 {$user->username},<br>
+你在本网站修改了用户密码,安全起见点击以下链接确认修改:<br>
+<a href="{$url}">{$url}</a>
+HTML;
+            $mail->send();
+        });
+        return redirect()->back()->with('success','修改密码邮件已发送至你的邮箱')->go();
 
     }
 
+    /**
+     * @throws Exception
+     */
     #[GetMapping(path: "/test")]
     public function test()
     {
-        $mail = Email();
-        $mail->addAddress("laravel@88.com");
-        $mail->Subject = "test";
-        $mail->Body    = "aaa";
-        $mail->send();
+        return request()->fullUrl();
         return "ok";
     }
 }

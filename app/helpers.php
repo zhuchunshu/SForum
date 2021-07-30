@@ -730,3 +730,13 @@ if(!function_exists("errors")){
         return [];
     }
 }
+
+if(!function_exists("url")){
+    function url($path=null){
+        $url = "http://".env("APP_DOMAIN","请配置APP_DOMAIN");
+        if(!$path){
+            return $url;
+        }
+        return $url.$path;
+    }
+}
