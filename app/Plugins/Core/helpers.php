@@ -46,18 +46,17 @@ if(!function_exists("avatar")){
     function avatar(int $user_id,$class=null): string
     {
         $time = get_options("core_user_def_avatar_cache",600);
-        if($time !==0){
+        if(get_options("core_user_avatar_cache","1")==="1"){
             if(cache()->has("core.avatar.".$user_id)){
-                $user_data = cache()->get("core.avatar.".$user_id);
+                $ud = cache()->get("core.avatar.".$user_id);
             }else{
-                $user_data = \App\Plugins\User\src\Models\User::query()->where("id",$user_id)->first();
-                cache()->set("core.avatar.".$user_id,$user_data,$time);
+                $ud = \App\Plugins\User\src\Models\User::query()->where("id",$user_id)->first();
+                cache()->set("core.avatar.".$user_id,$ud,$time);
             }
-            $ud = $user_data;
-
         }else{
             $ud = \App\Plugins\User\src\Models\User::query()->where("id",$user_id)->first();
         }
+
         if($ud->avatar){
             return <<<HTML
 <span class="avatar {$class}" style="background-image: url({$ud->avatar})"></span>

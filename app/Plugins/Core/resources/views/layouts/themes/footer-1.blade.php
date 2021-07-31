@@ -22,7 +22,6 @@
                         <a href="." class="link-secondary">{{ get_options('web_name', 'CodeFec') }}</a>.
 {{--                        All rights reserved.--}}
                     </li>
-<<<<<<< HEAD
                      @if(get_options("icp",null))
                         <li class="list-inline-item">
                             <a href="https://beian.miit.gov.cn" class="link-secondary" rel="noopener">{{get_options("icp")}}</a>
@@ -34,11 +33,6 @@
                             <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode={{get_num(get_options("ga_icp"))}}" class="link-secondary" rel="noopener">{{get_options("ga_icp")}}</a>
                         </li>
                     @endif
-=======
-                    {{--                    --}}{{-- <li class="list-inline-item">--}}
-                    {{--                        <a href="./changelog.html" class="link-secondary" rel="noopener">v1.0.0-beta3</a>--}}
-                    {{--                    </li> --}}
->>>>>>> 1949c2757f128f8c3d4c87cdfe1f16130d4f25a2
                 </ul>
             </div>
         </div>
