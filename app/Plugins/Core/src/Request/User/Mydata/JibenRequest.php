@@ -21,4 +21,11 @@ class JibenRequest extends FormRequest
             "new_pwd" => "nullable|string|min:6|max:20",
         ];
     }
+    public function attributes(): array
+    {
+        return [
+            "old_pwd" => "旧密码",
+            "new_pwd" => "新密码"
+        ];
+    }
 }

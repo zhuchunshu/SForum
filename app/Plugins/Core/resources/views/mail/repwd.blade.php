@@ -1,1 +1,1 @@
-{{$data}}
+你好: {{$data->username}}

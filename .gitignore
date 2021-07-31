@@ -18,3 +18,5 @@ node_modules
 /plugins.mix.js
 /tailwind.config.js
 /resources/sass/plugins
+/public/upload
+/public/uploads

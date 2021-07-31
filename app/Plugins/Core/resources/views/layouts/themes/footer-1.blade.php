@@ -20,11 +20,19 @@
                     <li class="list-inline-item">
                         Copyright &copy; {{ date('Y') }}
                         <a href="." class="link-secondary">{{ get_options('web_name', 'CodeFec') }}</a>.
-                        All rights reserved.
+{{--                        All rights reserved.--}}
                     </li>
-                    {{--                    --}}{{-- <li class="list-inline-item">--}}
-                    {{--                        <a href="./changelog.html" class="link-secondary" rel="noopener">v1.0.0-beta3</a>--}}
-                    {{--                    </li> --}}
+                     @if(get_options("icp",null))
+                        <li class="list-inline-item">
+                            <a href="https://beian.miit.gov.cn" class="link-secondary" rel="noopener">{{get_options("icp")}}</a>
+                        </li>
+                    @endif
+                    @if(get_options("ga_icp",null))
+                        <li class="list-inline-item">
+                            <img src="http://www.beian.gov.cn/img/new/gongan.png"  alt="gong an"/>
+                            <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode={{get_num(get_options("ga_icp"))}}" class="link-secondary" rel="noopener">{{get_options("ga_icp")}}</a>
+                        </li>
+                    @endif
                 </ul>
             </div>
         </div>
