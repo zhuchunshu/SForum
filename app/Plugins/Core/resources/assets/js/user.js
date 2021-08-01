@@ -2157,6 +2157,17 @@ if (document.getElementById("vue-user-my-setting")) {
   };
   Vue.createApp(vums).mount("#vue-user-my-setting");
 }
+
+if (document.getElementById("vue-user-my-ver-email")) {
+  var vumve = {
+    data: function data() {
+      return {
+        send: true
+      };
+    }
+  };
+  Vue.createApp(vumve).mount("#vue-user-my-ver-email");
+}
 })();
 
 /******/ })()

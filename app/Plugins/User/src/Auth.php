@@ -7,6 +7,20 @@ use HyperfExt\Hashing\Hash;
 
 class Auth
 {
+    public int $id;
+
+    public string $username;
+
+    public string $email;
+
+    public string|null $avatar;
+
+    public function __construct(){
+        $this->id = $this->data()->id;
+        $this->username = $this->data()->username;
+        $this->email = $this->data()->email;
+        $this->avatar = $this->data()->avatar;
+    }
     public function SignIn(string $email, string $password): bool
     {
         if (! User::query()->where('email', $email)->count()) {

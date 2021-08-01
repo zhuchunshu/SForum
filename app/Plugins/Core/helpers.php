@@ -1,6 +1,7 @@
 <?php
 
 use App\Plugins\Core\src\Lib\Redirect;
+use App\Plugins\Core\src\Lib\UserVerEmail;
 use JetBrains\PhpStorm\Pure;
 
 if(!function_exists("plugins_core_common_theme")){
@@ -84,5 +85,12 @@ if(!function_exists("redirect")){
     #[Pure] function redirect(): Redirect
     {
         return new Redirect();
+    }
+}
+
+if(!function_exists("core_user_ver_email_make")){
+    function core_user_ver_email(): UserVerEmail
+    {
+        return new UserVerEmail();
     }
 }

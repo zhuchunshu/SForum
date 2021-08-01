@@ -34,6 +34,10 @@ class AuthMiddleware implements MiddlewareInterface
             if(request()->path() === "register" || request()->path() === "login"){
                 return admin_abort(['msg' => '您已登录']);
             }
+            // 强制验证邮箱
+            if(!auth()->data()->email_ver_time && request()->path() !== "user/ver_email"){
+                return redirect()->url("/user/ver_email")->go();
+            }
         }
         return $handler->handle($request);
     }
