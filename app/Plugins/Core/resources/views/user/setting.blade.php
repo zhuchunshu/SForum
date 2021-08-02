@@ -37,7 +37,7 @@
                             <div class="card-title">修改头像</div>
                             <div class="mb-3">
                                 <label class="form-label">当前头像
-                                    <div>{!! avatar(auth()->id()) !!}</div>
+                                    <div>{!! avatar(auth()->data()->id) !!}</div>
                                 </label>
                             </div>
                             <div class="mb-3">

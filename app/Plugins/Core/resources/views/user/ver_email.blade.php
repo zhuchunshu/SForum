@@ -4,7 +4,7 @@
     <div id="vue-user-my-ver-email">
         <div class="row row-cards">
             <div class="col-md-4">
-                <form action="/user/myUpdate?Redirect=/user/setting" method="post" enctype="multipart/form-data">
+                <form action="/user/ver_email?Redirect=/user/ver_email" method="post" enctype="multipart/form-data">
                     <x-csrf/>
                     <div class="card card-body">
                         <div class="card-title">基本设置</div>
@@ -15,11 +15,8 @@
                                     <input type="email" disabled class="form-control" value="{{auth()->email}}">
                                 </div>
                                 <div class="col-auto">
-                                    <button v-if="send" type="button" class="btn btn-white btn-icon" aria-label="Button">
+                                    <button v-if="send" type="submit" name="send" value="send" class="btn btn-white btn-icon" aria-label="Button">
                                         发送验证码
-                                    </button>
-                                    <button v-else type="button" class="btn btn-white btn-icon" aria-label="Button">
-                                        倒计时
                                     </button>
                                 </div>
                             </div>
