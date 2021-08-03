@@ -15,7 +15,7 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
-                {{ get_options('web_name', 'CodeFec') }}
+                <a href="/">{{ get_options('web_name', 'CodeFec') }}</a>
             </h1>
             <div class="flex-row navbar-nav order-md-last">
                 @include('plugins.Core.layouts.themes.header-right')

@@ -34,7 +34,7 @@
                                 <a href="/admin/userClass/edit/{{ $value->id }}">修改</a>
                             </td>
                             <td>
-                                <a @@click="remove('{{ $value['dir'] }}','{{ $value['path'] }}')" href="#">删除</a>
+                                <a @@click="remove({{ $value->id }})" href="#">删除</a>
                             </td>
                         </tr>
                     @endforeach
@@ -44,4 +44,8 @@
             {!! make_page($page) !!}
         </div>
     </div>
+@endsection
+
+@section('scripts')
+    <script src="{{ mix("plugins/User/js/user.js") }}"></script>
 @endsection

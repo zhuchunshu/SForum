@@ -94,3 +94,10 @@ if(!function_exists("core_user_ver_email_make")){
         return new UserVerEmail();
     }
 }
+
+if(!function_exists("Core_Ui")){
+    function Core_Ui(): \App\Plugins\Core\src\Lib\Ui
+    {
+        return new App\Plugins\Core\src\Lib\Ui();
+    }
+}

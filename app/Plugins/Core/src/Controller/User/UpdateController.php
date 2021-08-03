@@ -24,7 +24,8 @@ class UpdateController
     #[GetMapping(path: "/user/setting")]
     public function user_setting(): ResponseInterface
     {
-        return view("plugins.Core.user.setting");
+        $data = User::query()->where("id",auth()->id())->with("Class")->first();
+        return view("plugins.Core.user.setting",['data' => $data]);
     }
 
     #[PostMapping(path: "/user/data")]

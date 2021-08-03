@@ -46,4 +46,9 @@ class User extends Model
      * @var array
      */
     protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
+
+    public function Class()
+    {
+        return $this->belongsTo(UserClass::class,"class_id","id");
+    }
 }

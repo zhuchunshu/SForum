@@ -13,6 +13,10 @@
                                 <input disabled type="text" v-model="username" class="form-control">
                             </div>
                             <div class="mb-3">
+                                <label class="form-label">用户组</label>
+                                {!! Core_Ui()->Html()->UserGroup($data->Class) !!}
+                            </div>
+                            <div class="mb-3">
                                 <label class="form-label">邮箱</label>
                                 <input disabled type="email" v-model="email" class="form-control">
                             </div>
