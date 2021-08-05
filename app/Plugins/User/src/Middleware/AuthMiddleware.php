@@ -5,6 +5,7 @@ namespace App\Plugins\User\src\Middleware;
 
 
 use App\CodeFec\Admin\Admin;
+use Hyperf\Utils\Str;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -35,8 +36,10 @@ class AuthMiddleware implements MiddlewareInterface
                 return admin_abort(['msg' => '您已登录']);
             }
             // 强制验证邮箱
-            if(!auth()->data()->email_ver_time && request()->path() !== "user/ver_email"){
-                return redirect()->url("/user/ver_email")->go();
+            if(!Str::is("admin*",request()->path()) && !Str::is("api*",request()->path())){
+                if(!auth()->data()->email_ver_time && request()->path() !== "user/ver_email"){
+                    return redirect()->url("/user/ver_email")->go();
+                }
             }
         }
         return $handler->handle($request);

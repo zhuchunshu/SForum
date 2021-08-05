@@ -12,7 +12,7 @@
                             <label class="form-label">用户名</label>
                             <div class="row g-2">
                                 <div class="col">
-                                    <input type="email" disabled class="form-control" value="{{auth()->email}}">
+                                    <input type="email" disabled class="form-control" value="{{auth()->data()->email}}">
                                 </div>
                                 <div class="col-auto">
                                     <button v-if="send" type="submit" name="send" value="send" class="btn btn-white btn-icon" aria-label="Button">
