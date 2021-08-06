@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Middleware;
 
 use Csrf\Csrf;
+use Hyperf\Utils\Str;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -29,7 +30,7 @@ class CsrfMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
         foreach(Itf()->get("csrf") as $value){
-            if(preg_match("/".$value."/i",request()->path())){
+            if(Str::is($value,request()->path())){
                 return $handler->handle($request);
             }
         }
