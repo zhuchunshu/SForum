@@ -14,5 +14,15 @@ namespace App\Plugins\Topic;
  */
 class Topic
 {
+    public function handle(): void
+    {
 
+        $this->bootstrap();
+
+    }
+
+    public function bootstrap(): void
+    {
+        require_once __DIR__."/bootstrap.php";
+    }
 }
