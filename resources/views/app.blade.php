@@ -23,6 +23,8 @@
 </head>
 
 <body class="antialiased">
+@include("layouts.errors")
+@include("layouts._msg")
     <div id="app" class="wrapper {{ path_class() }}-page">
         @include('layouts.header')
         {{-- @include('layouts.bujian._msg')
