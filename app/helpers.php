@@ -294,8 +294,18 @@ if (!function_exists("read_plugin_data")) {
 }
 
 if (!function_exists("admin_abort")) {
-    function admin_abort($array, $code = 403)
+    /**
+     * @param array|string $data
+     * @param int $code
+     * @return \Psr\Http\Message\ResponseInterface
+     */
+    function admin_abort(array|string $data, int $code = 403): \Psr\Http\Message\ResponseInterface
     {
+        if(is_string($data)){
+            $array = ['msg' => $data];
+        }else{
+            $array = $data;
+        }
         if (request()->isMethod("POST") || request()->input("data") === "json") {
             return response()->json(Json_Api($code, false, $array));
         }

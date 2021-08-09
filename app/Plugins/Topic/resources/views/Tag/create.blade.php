@@ -24,7 +24,7 @@
                     <label class="form-label">
                         图标
                     </label>
-                    <input type="file" class="form-control" name="icon" v-model="icon" required>
+                    <input type="file" accept="image/gif, image/png, image/jpeg, image/jpg" class="form-control" name="icon" v-model="icon" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">描述</label>
