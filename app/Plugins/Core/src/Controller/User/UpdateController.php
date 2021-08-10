@@ -113,4 +113,22 @@ HTML;
         ]);
         return redirect()->back()->with("success","头像修改成功")->go();
     }
+
+    #[PostMapping(path:"/user/myUpdate/other")]
+    public function update_other(){
+        $action = request()->input("action");
+        if(!$action){
+            return redirect()->back()->with("danger","action 为空!")->go();
+        }
+
+        // 删除头像
+        if($action === "removeAvatar"){
+            User::query()->where("id",auth()->id())->update([
+                "avatar" => null
+            ]);
+            return redirect()->back()->with("success","头像删除成功!")->go();
+        }
+
+        return redirect()->back()->with("danger","当前 action 处理方法不存在")->go();
+    }
 }

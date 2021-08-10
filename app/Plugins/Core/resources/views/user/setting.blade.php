@@ -50,6 +50,18 @@
                             </div>
                             <div class="mb-3">
                                 <button class="btn btn-primary" type="submit">提交</button>
+                                <button class="btn btn-primary" style="margin-left:10px" type="submit" name="removeAvatar" value="yes">移除头像</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-md-4">
+                    <form action="/user/myUpdate/other?Redirect=/user/setting" method="post">
+                        <x-csrf/>
+                        <div class="card card-body">
+                            <div class="card-title">其他</div>
+                            <div class="mb-3">
+                                <button class="btn btn-primary" type="submit" name="action" value="removeAvatar">移除头像</button>
                             </div>
                         </div>
                     </form>
