@@ -25,3 +25,91 @@ menu()->add(303,[
     "icon" => '',
     "parent_id" => 301
 ]);
+
+
+
+if(!function_exists("core_Str_menu_url")){
+    function core_Str_menu_url(string $path): string
+    {
+        if($path ==="//"){
+            $path = "/";
+        }
+        return $path;
+    }
+}
+
+// 首页菜单
+Itf()->add("menu",1,[
+   "name" => "首页",
+   "url" => "/",
+    "icon" => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <polyline points="5 12 3 12 12 3 21 12 19 12"></polyline>
+   <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"></path>
+   <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"></path>
+</svg>',
+]);
+Itf()->add("menu",10,[
+    "name" => "首页222",
+    "url" => "/",
+    "icon" => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <polyline points="5 12 3 12 12 3 21 12 19 12"></polyline>
+   <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"></path>
+   <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"></path>
+</svg>',
+]);
+// 首页菜单
+Itf()->add("menu",2,[
+    "name" => "首页2",
+    "url" => "/",
+    "icon" => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <polyline points="5 12 3 12 12 3 21 12 19 12"></polyline>
+   <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"></path>
+   <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"></path>
+</svg>',
+    "parent_id" =>1
+]);
+Itf()->add("menu",3,[
+    "name" => "首页2",
+    "url" => "/",
+    "icon" => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <polyline points="5 12 3 12 12 3 21 12 19 12"></polyline>
+   <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"></path>
+   <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"></path>
+</svg>',
+    "parent_id" =>1
+]);
+
+if (!function_exists("core_menu_pd")) {
+    function core_menu_pd(string $id)
+    {
+        foreach (Itf()->get('menu') as $value) {
+            if (arr_has($value, "parent_id") && "menu_" . $value['parent_id'] === (string)$id) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+if(!function_exists("core_Itf_id")){
+    function core_Itf_id($name,$id){
+        return \Hyperf\Utils\Str::after($id,$name."_");
+    }
+}
+
+if (!function_exists("core_menu_pdArr")) {
+    function core_menu_pdArr($id): array
+    {
+        $arr = [];
+        foreach (Itf()->get("menu") as $key => $value) {
+            if (arr_has($value, "parent_id") && "menu_".$value['parent_id'] === $id) {
+                $arr[$key] = $value;
+            }
+        }
+        return $arr;
+    }
+}

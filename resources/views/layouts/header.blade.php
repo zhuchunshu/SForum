@@ -42,7 +42,7 @@
                                     {{ $value['name'] }}
                                 </span>
                             </a>
-                            </li>
+                                </li>
                         @else
                         @if (Helpers_Str()->is($value['url']."*","/".request()->path()))
                             <li class="nav-item active dropdown">

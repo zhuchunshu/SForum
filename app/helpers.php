@@ -194,7 +194,7 @@ if (!function_exists("menu_pd")) {
         $i = 0;
         foreach (menu()->get() as $key => $value) {
             if (arr_has($value, "parent_id")) {
-                if ($value['parent_id'] == $id) {
+                if ($value['parent_id'] === $id) {
                     $i++;
                 }
             }
