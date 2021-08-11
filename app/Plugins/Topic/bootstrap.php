@@ -28,16 +28,6 @@ menu()->add(303,[
 
 
 
-if(!function_exists("core_Str_menu_url")){
-    function core_Str_menu_url(string $path): string
-    {
-        if($path ==="//"){
-            $path = "/";
-        }
-        return $path;
-    }
-}
-
 // 首页菜单
 Itf()->add("menu",1,[
    "name" => "首页",
@@ -82,34 +72,3 @@ Itf()->add("menu",3,[
 </svg>',
     "parent_id" =>1
 ]);
-
-if (!function_exists("core_menu_pd")) {
-    function core_menu_pd(string $id)
-    {
-        foreach (Itf()->get('menu') as $value) {
-            if (arr_has($value, "parent_id") && "menu_" . $value['parent_id'] === (string)$id) {
-                return true;
-            }
-        }
-        return false;
-    }
-}
-
-if(!function_exists("core_Itf_id")){
-    function core_Itf_id($name,$id){
-        return \Hyperf\Utils\Str::after($id,$name."_");
-    }
-}
-
-if (!function_exists("core_menu_pdArr")) {
-    function core_menu_pdArr($id): array
-    {
-        $arr = [];
-        foreach (Itf()->get("menu") as $key => $value) {
-            if (arr_has($value, "parent_id") && "menu_".$value['parent_id'] === $id) {
-                $arr[$key] = $value;
-            }
-        }
-        return $arr;
-    }
-}
