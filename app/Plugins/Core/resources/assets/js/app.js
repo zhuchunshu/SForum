@@ -2157,7 +2157,18 @@ if (document.getElementById("vue-header-right-my")) {
     }
   };
   Vue.createApp(vhrm).mount("#vue-header-right-my");
-}
+} // 刷新菜单激活状态
+
+
+$(function () {
+  $("a[menu=active]").each(function () {
+    var d = $(this);
+
+    var _class = d.parent().parent().parent().parent().attr("class");
+
+    d.parent().parent().parent().parent().attr('class', _class + " active");
+  });
+});
 })();
 
 /******/ })()

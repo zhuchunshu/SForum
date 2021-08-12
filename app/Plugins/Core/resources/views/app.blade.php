@@ -35,10 +35,10 @@
     </div>
         @include("plugins.Core.layouts.themes.footer-".get_options('core_theme_footer',1))
     </div>
+    <script src='/js/jquery-3.6.0.min.js'></script>
     <script src="{{ mix('js/vue.js') }}"></script>
     <script src="{{ mix('js/alpine.js') }}"></script>
     <script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
-    <!-- Tabler Core -->
     <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
     @if (get_options('theme_common_require_mithril', 'yes') !== 'no')
         <script src="{{ mix('plugins/Core/js/mithril.js') }}"></script>

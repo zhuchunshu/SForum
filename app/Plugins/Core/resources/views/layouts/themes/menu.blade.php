@@ -55,7 +55,7 @@
                             <div class="dropdown-menu-column">
                                 @foreach (core_menu_pdArr($key) as $keys => $values)
                                     @if (core_Str_menu_url('/' . request()->path()) === $values['url'])
-                                        <a class="dropdown-item active" id="admin-menu-{{ $keys }}"
+                                        <a class="dropdown-item active" menu="active" id="admin-menu-{{ $keys }}"
                                             href="{{ $values['url'] }}">
                                         @else
                                             <a class="dropdown-item" id="admin-menu-{{ $keys }}"
