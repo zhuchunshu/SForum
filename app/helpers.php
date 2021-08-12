@@ -255,7 +255,7 @@ if (!function_exists("getPath")) {
     }
 }
 
-if (!function_exists("h")) {
+if (!function_exists("plugin_path")) {
     function plugin_path($path = null)
     {
         if (!$path) {
