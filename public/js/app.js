@@ -2004,6 +2004,32 @@ if (document.getElementById("vue-plugin-table")) {
           });
         }
       },
+      // 迁移所有资源
+      migrateAll: function migrateAll() {
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/AdminPluginMigrateAll", {
+          _token: csrf_token
+        }).then(function (r) {
+          var data = r.data;
+
+          if (data.success === true) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+              title: data.result.msg,
+              icon: "success"
+            });
+          } else {
+            sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+              title: data.result.msg,
+              icon: "error"
+            });
+          }
+        })["catch"](function (error) {
+          sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+            title: "请求出错,详细查看控制台",
+            icon: "error"
+          });
+          console.error(error);
+        });
+      },
       // 资源迁移
       migrate: function migrate(name) {
         if (this.switchs.indexOf(name) === -1) {

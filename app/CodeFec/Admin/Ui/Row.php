@@ -24,8 +24,9 @@ class Row {
     public function id($id=""){
         if(!$id){
             $this->id = Str::random(7);
+        }else{
+            $this->id = $id;
         }
-        $this->id = $id;
         return $this;
     }
 

@@ -35,6 +35,7 @@ class PluginsController
                 ->content($card
                     ->title("插件列表")
                     ->titleType(1)
+                    ->id("vue-plugin-table")
                     ->content(view("admin.plugins"))
                     ->render()
                 )

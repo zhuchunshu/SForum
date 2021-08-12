@@ -151,6 +151,31 @@ if (document.getElementById("vue-plugin-table")) {
             });
         }
       },
+      // 迁移所有资源
+      migrateAll(){
+        axios.post("/api/AdminPluginMigrateAll",{
+          _token:csrf_token
+        }).then(r=>{
+          var data = r.data;
+          if (data.success === true) {
+            swal({
+              title: data.result.msg,
+              icon: "success",
+            });
+          } else {
+            swal({
+              title: data.result.msg,
+              icon: "error",
+            });
+          }
+        }).catch(error => {
+          swal({
+            title: "请求出错,详细查看控制台",
+            icon: "error",
+          });
+          console.error(error);
+        })
+      },
       // 资源迁移
       migrate(name) {
         if (this.switchs.indexOf(name) === -1) {

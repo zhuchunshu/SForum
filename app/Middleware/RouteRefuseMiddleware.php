@@ -30,7 +30,15 @@ class RouteRefuseMiddleware implements MiddlewareInterface
         $dispatched = $request->getAttribute(Dispatched::class);
         // 插件名称
         $Plugin = $dispatched->handler->callback[0];
-        $Plugin = explode('\\', $Plugin)[2];
+        if(!$Plugin){
+            return $handler->handle($request);
+        }
+        $Plugin = explode('\\', $Plugin);
+        if(count($Plugin)>=3){
+            $Plugin = $Plugin[2];
+        }else{
+            return $handler->handle($request);
+        }
         if(is_dir(BASE_PATH . "/app/Plugins/" . $Plugin) && !in_array($Plugin, Plugins_EnList(), true)) {
             return admin_abort($Plugin."插件未启用,无法访问此插件定义的路由",401);
         }

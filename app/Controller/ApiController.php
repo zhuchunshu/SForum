@@ -84,12 +84,18 @@ class ApiController
         return Json_Api(200, true, ['msg' => "更新成功!"]);
     }
 
-    public function AdminPluginMigrate(): array
+    public function AdminPluginMigrate($name=null): array
     {
-        if (!request()->input("name")) {
-            return Json_Api(403, false, ['msg' => '插件名不能为空']);
+        if(!$name){
+            if (!request()->input("name")) {
+                return Json_Api(403, false, ['msg' => '插件名不能为空']);
+            }
+
+            $plugin_name = request()->input("name");
+        }else{
+            $plugin_name = $name;
         }
-        $plugin_name = request()->input("name");
+
         if (is_dir(plugin_path($plugin_name . "/resources/views"))) {
             if (!is_dir(BASE_PATH . "/resources/views/plugins")) {
                 //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
@@ -124,6 +130,14 @@ class ApiController
 
             // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
             $exitCode = $application->run($input, $output);
+        }
+        return Json_Api(200, true, ['msg' => '资源迁移成功!']);
+    }
+
+    public function AdminPluginMigrateAll(): array
+    {
+        foreach (Plugins_EnList() as $name){
+            $this->AdminPluginMigrate($name);
         }
         return Json_Api(200, true, ['msg' => '资源迁移成功!']);
     }

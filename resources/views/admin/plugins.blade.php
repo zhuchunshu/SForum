@@ -1,3 +1,4 @@
+<a @@click="migrateAll" href="#">对所有已启动插件进行数据迁移</a>
 <div class="table-responsive">
     <table class="table table-vcenter table-nowrap">
         <thead>
@@ -12,7 +13,7 @@
             <th class="w-1"></th>
         </tr>
         </thead>
-        <tbody id="vue-plugin-table">
+        <tbody>
         @foreach (\App\CodeFec\Plugins::GetAll() as $key => $value)
             <tr>
                 <td>{{ '/app/Plugins/' . $key }}</td>
