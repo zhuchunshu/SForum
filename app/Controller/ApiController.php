@@ -19,6 +19,7 @@ use Illuminate\Support\Str;
 use App\Middleware\AdminMiddleware;
 use League\Flysystem\FileExistsException;
 use Hyperf\HttpServer\Annotation\Middleware;
+use Psr\SimpleCache\InvalidArgumentException;
 use Symfony\Component\Console\Input\ArrayInput;
 use Hyperf\HttpServer\Annotation\AutoController;
 use Hyperf\HttpServer\Contract\RequestInterface;
@@ -76,6 +77,10 @@ class ApiController
         $txt = "- " . date("Y-m-d H:i:s") . "插件状态变动:\n" . json_encode(request()->input('data'));
         fwrite($myfile, $txt);
         fclose($myfile);
+        try {
+            cache()->delete("admin.plugins.en.list");
+        } catch (InvalidArgumentException $e) {
+        }
         return Json_Api(200, true, ['msg' => "更新成功!"]);
     }
 

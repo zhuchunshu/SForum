@@ -10,6 +10,7 @@ declare(strict_types=1);
  * @license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
  */
 
+use App\Model\AdminPlugin;
 use Hyperf\Utils\Context;
 use App\Model\AdminOption;
 use Illuminate\Support\Arr;
@@ -757,3 +758,18 @@ if(!function_exists("get_num")){
         return preg_replace('/[^0-9]/', '', $string);
     }
 }
+
+// 已启动插件列表
+if(!function_exists("Plugins_EnList")){
+    function Plugins_EnList(){
+        if(!cache()->has("admin.plugins.en.list")){
+            $arr = [];
+            foreach(AdminPlugin::query()->select("name")->get() as $value){
+                $arr[]=$value->name;
+            }
+            cache()->set("admin.plugins.en.list",$arr);
+        }
+        return cache()->get("admin.plugins.en.list");
+    }
+}
+
