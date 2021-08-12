@@ -2041,7 +2041,18 @@ if (document.getElementById("vue-plugin-table")) {
     }
   };
   Vue.createApp(plugin_table).mount("#vue-plugin-table");
-}
+} // 刷新菜单激活状态
+
+
+$(function () {
+  $("a[menu=active]").each(function () {
+    var d = $(this);
+
+    var _class = d.parent().parent().parent().attr("class");
+
+    d.parent().parent().parent().attr('class', _class + " show");
+  });
+});
 
 /***/ }),
 

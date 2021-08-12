@@ -69,16 +69,12 @@
                                         {{ $value['name'] }}
                                     </span>
                                 </a>
-                                @if (Helpers_Str()->is($value['url']."*","/".request()->path()))
-                                    <div class="dropdown-menu show">
-                                @else
-                                    <div class="dropdown-menu">
-                                @endif
+                                <div class="dropdown-menu">
                                     <div class="dropdown-menu-columns">
                                         <div class="dropdown-menu-column">
                                             @foreach (menu_pdArr($key) as $keys => $values)
                                                 @if ('/' . request()->path() == $values['url'])
-                                                <a class="dropdown-item active" id="admin-menu-{{$keys}}" href="{{ $values['url'] }}">
+                                                <a class="dropdown-item active" menu="active" id="admin-menu-{{$keys}}" href="{{ $values['url'] }}">
                                                 @else
                                                 <a class="dropdown-item" id="admin-menu-{{$keys}}" href="{{ $values['url'] }}">
                                                 @endif
