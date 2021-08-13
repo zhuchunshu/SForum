@@ -75,5 +75,6 @@
                     @endforeach
                 </div>
             </div>
+        </div>
     </li>
 @endif
