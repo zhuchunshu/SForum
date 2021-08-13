@@ -39,36 +39,27 @@ Itf()->add("menu",1,[
    <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"></path>
 </svg>',
 ]);
-Itf()->add("menu",10,[
-    "name" => "首页222",
-    "url" => "/",
-    "icon" => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+
+
+Itf()->add("menu",101,[
+    "name" => "标签",
+    "url" => "/tags",
+    "icon" => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-tag" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-   <polyline points="5 12 3 12 12 3 21 12 19 12"></polyline>
-   <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"></path>
-   <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"></path>
+   <path d="M11 3l9 9a1.5 1.5 0 0 1 0 2l-6 6a1.5 1.5 0 0 1 -2 0l-9 -9v-4a4 4 0 0 1 4 -4h4"></path>
+   <circle cx="9" cy="9" r="2"></circle>
 </svg>',
 ]);
-// 首页菜单
-Itf()->add("menu",2,[
-    "name" => "首页2",
-    "url" => "/",
-    "icon" => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+
+Itf()->add("menu",201,[
+    "name" => "会员列表",
+    "url" => "/tags",
+    "icon" => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-users" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-   <polyline points="5 12 3 12 12 3 21 12 19 12"></polyline>
-   <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"></path>
-   <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"></path>
+   <circle cx="9" cy="7" r="4"></circle>
+   <path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"></path>
+   <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+   <path d="M21 21v-2a4 4 0 0 0 -3 -3.85"></path>
 </svg>',
-    "parent_id" =>1
-]);
-Itf()->add("menu",3,[
-    "name" => "首页2",
-    "url" => "/",
-    "icon" => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-   <polyline points="5 12 3 12 12 3 21 12 19 12"></polyline>
-   <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"></path>
-   <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"></path>
-</svg>',
-    "parent_id" =>1
+    'quanxian' => 2
 ]);

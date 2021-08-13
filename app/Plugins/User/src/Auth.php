@@ -3,6 +3,7 @@
 namespace App\Plugins\User\src;
 
 use App\Plugins\User\src\Models\User;
+use App\Plugins\User\src\Models\UserClass;
 use HyperfExt\Hashing\Hash;
 
 class Auth
@@ -24,6 +25,7 @@ class Auth
     public function logout(): bool
     {
         session()->remove('auth');
+        session()->remove('auth_data_class');
         session()->remove('auth_data');
         return true;
     }
@@ -31,9 +33,16 @@ class Auth
     public function data()
     {
         if(!session()->has("auth_data")){
-            session()->set("auth_data",User::query()->where("id",session()->get('auth'))->first());
+            session()->set("auth_data",User::query()->where("id",session()->get('auth'))->with("Class")->first());
         }
         return session()->get("auth_data");
+    }
+
+    public function Class(){
+        if(!session()->has("auth_data_class")){
+            session()->set("auth_data_class",UserClass::query()->where("id",auth()->data()->class_id)->first());
+        }
+        return session()->get("auth_data_class");
     }
 
     public function id()
