@@ -1,7 +1,7 @@
 <?php
 
 
-namespace App\Plugins\Topic\src\Controllers;
+namespace App\Plugins\Topic\src\Controllers\Admin;
 
 
 use App\Middleware\AdminMiddleware;

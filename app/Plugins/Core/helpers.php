@@ -142,3 +142,12 @@ if (!function_exists("core_menu_pdArr")) {
         return $arr;
     }
 }
+
+if(!function_exists("core_default")){
+    function core_default($string=null,$default=null){
+        if($string){
+            return $string;
+        }
+        return $default;
+    }
+}
