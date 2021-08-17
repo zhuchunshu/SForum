@@ -4,3 +4,4 @@
 Itf()->add("authMiddleware",1,"api*");
 Itf()->add("authMiddleware",2,"admin*");
 Itf()->add("authMiddleware",3,"logout");
+

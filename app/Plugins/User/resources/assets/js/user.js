@@ -2266,46 +2266,6 @@ if (document.getElementById("vue-user-edit-class")) {
   };
   Vue.createApp(vsec).mount("#vue-user-edit-class");
 }
-
-if (document.getElementById("vue-user-class-table")) {
-  var vuct = {
-    data: function data() {
-      return {};
-    },
-    methods: {
-      remove: function remove(id) {
-        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/userClass/remove", {
-          _token: csrf_token,
-          id: id
-        }).then(function (r) {
-          var data = r.data;
-
-          if (data.success) {
-            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-              title: data.result.msg,
-              icon: "success"
-            });
-            setTimeout(function () {
-              location.reload();
-            }, 1500);
-          } else {
-            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-              title: data.result.msg,
-              icon: "error"
-            });
-          }
-        })["catch"](function (error) {
-          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
-            title: "请求出错,详细查看控制台",
-            icon: "error"
-          });
-          console.error(error);
-        });
-      }
-    }
-  };
-  Vue.createApp(vuct).mount("#vue-user-class-table");
-}
 })();
 
 /******/ })()

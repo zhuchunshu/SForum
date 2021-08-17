@@ -19,6 +19,8 @@ class Itf implements ItfInterface
 
     public function get($class): array
     {
-        return $this->list[$class];
+        $array = $this->list[$class];
+        ksort($array);
+        return $array;
     }
 }
