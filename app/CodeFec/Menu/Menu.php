@@ -21,7 +21,9 @@ class Menu implements MenuInterface
 
     public function get(): array
     {
-        return $this->list;
+        $array = $this->list;
+        ksort($array);
+        return $array;
     }
 
     public function add(int $id, array $arr): bool
