@@ -18,14 +18,6 @@ use Psr\Http\Message\ResponseInterface;
 #[Middleware(LoginMiddleware::class)]
 class IndexController
 {
-    /**
-     * @throws Exception
-     */
-    #[GetMapping(path: "/test")]
-    public function test()
-    {
-        return request()->fullUrl();
-    }
 
     /**
      * 强制验证邮箱

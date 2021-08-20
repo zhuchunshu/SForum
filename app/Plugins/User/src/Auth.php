@@ -4,6 +4,7 @@ namespace App\Plugins\User\src;
 
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserClass;
+use App\Plugins\User\src\Models\UsersOption;
 use HyperfExt\Hashing\Hash;
 
 class Auth
@@ -26,6 +27,7 @@ class Auth
     {
         session()->remove('auth');
         session()->remove('auth_data_class');
+        session()->remove('auth_data_options');
         session()->remove('auth_data');
         return true;
     }
@@ -43,6 +45,21 @@ class Auth
             session()->set("auth_data_class",UserClass::query()->where("id",auth()->data()->class_id)->first());
         }
         return session()->get("auth_data_class");
+    }
+
+    public function Options(){
+        if(!session()->has("auth_data_options")){
+            session()->set("auth_data_options",UsersOption::query()->where("id",auth()->data()->options_id)->first());
+        }
+        return session()->get("auth_data_options");
+    }
+
+    public function UpdateClass(){
+        session()->set("auth_data_class",UserClass::query()->where("id",auth()->data()->class_id)->first());
+    }
+
+    public function UpdateOptions(){
+        session()->set("auth_data_options",UsersOption::query()->where("id",auth()->data()->options_id)->first());
     }
 
     public function id()

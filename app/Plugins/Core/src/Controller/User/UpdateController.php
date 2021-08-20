@@ -5,9 +5,11 @@ namespace App\Plugins\Core\src\Controller\User;
 use App\Plugins\Core\src\Handler\AvatarUpload;
 use App\Plugins\Core\src\Request\User\Mydata\AvatarRequest;
 use App\Plugins\Core\src\Request\User\Mydata\JibenRequest;
+use App\Plugins\Core\src\Request\User\Mydata\OptionsRequest;
 use App\Plugins\User\src\Middleware\LoginMiddleware;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserRepwd;
+use App\Plugins\User\src\Models\UsersOption;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
@@ -24,7 +26,7 @@ class UpdateController
     #[GetMapping(path: "/user/setting")]
     public function user_setting(): ResponseInterface
     {
-        $data = User::query()->where("id",auth()->id())->with("Class")->first();
+        $data = User::query()->where("id",auth()->id())->with("Class","Options")->first();
         return view("plugins.Core.user.setting",['data' => $data]);
     }
 
@@ -115,7 +117,7 @@ HTML;
     }
 
     #[PostMapping(path:"/user/myUpdate/other")]
-    public function update_other(){
+    public function update_action(){
         $action = request()->input("action");
         if(!$action){
             return redirect()->back()->with("danger","action 为空!")->go();
@@ -130,5 +132,12 @@ HTML;
         }
 
         return redirect()->back()->with("danger","当前 action 处理方法不存在")->go();
+    }
+
+    #[PostMapping(path:"/user/myUpdate/options")]
+    public function update_options(OptionsRequest $request){
+        $data = $request->validated();
+        UsersOption::query()->where(['id' => auth()->data()->options_id])->update($data);
+        return redirect()->back()->with("success","更新成功!")->go();
     }
 }

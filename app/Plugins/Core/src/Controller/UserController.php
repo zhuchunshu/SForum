@@ -5,6 +5,7 @@ use App\Plugins\Core\src\Request\LoginRequest;
 use App\Plugins\Core\src\Request\RegisterRequest;
 use App\Plugins\User\src\Middleware\LoginMiddleware;
 use App\Plugins\User\src\Models\User;
+use App\Plugins\User\src\Models\UsersOption;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
@@ -40,12 +41,14 @@ class UserController
         if(!plugins_core_captcha()->validate($data['captcha'])){
             return Json_Api(403,false,['msg' => "Verification failed, calculation result is wrong 验证失败，计算结果错误"]);
         }
+        $userOption = UsersOption::query()->create(["qianming" => "这个人没有签名"]);
         User::query()->create([
             "username" => $data['username'],
             "email" => $data['email'],
             "password" => Hash::make($data['password']),
             "class_id" => get_options("plugins_core_user_reg_defuc",1),
-            "_token" => Str::random()
+            "_token" => Str::random(),
+            "options_id" => $userOption->id
         ]);
         return Json_Api(200,true,['msg' => '注册成功!']);
     }

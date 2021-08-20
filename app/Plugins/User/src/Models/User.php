@@ -51,4 +51,8 @@ class User extends Model
     {
         return $this->belongsTo(UserClass::class,"class_id","id");
     }
+
+    public function Options(){
+        return $this->belongsTo(UsersOption::class,"options_id","id");
+    }
 }
