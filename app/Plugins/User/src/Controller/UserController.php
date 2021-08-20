@@ -30,7 +30,7 @@ class UserController
         if(!User::query()->where("username",$username)->count()){
             return admin_abort("用户名为:".$username."的用户不存在");
         }
-        $data = User::query()->where("username",$username)->first();
+        $data = User::query()->with("Class","Options")->where("username",$username)->first();
         return view("plugins.User.data",['data'=>$data]);
     }
 }

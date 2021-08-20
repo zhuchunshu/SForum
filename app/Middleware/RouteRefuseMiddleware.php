@@ -29,6 +29,9 @@ class RouteRefuseMiddleware implements MiddlewareInterface
         /** @var Dispatched $dispatched */
         $dispatched = $request->getAttribute(Dispatched::class);
         // 插件名称
+        if(!is_array($dispatched->handler->callback)){
+            return $handler->handle($request);
+        }
         $Plugin = $dispatched->handler->callback[0];
         if(!$Plugin){
             return $handler->handle($request);
