@@ -10,6 +10,7 @@
     ],
     "require": {
         "multiavatar/multiavatar-php": "^1.0",
-        "intervention/image": "^2.6"
+        "intervention/image": "^2.6",
+        "erusev/parsedown": "^1.7"
     }
 }
