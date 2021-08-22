@@ -7,6 +7,7 @@ use App\Plugins\User\src\Models\User;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Psr\Http\Message\ResponseInterface;
+use App\Plugins\User\src\Models\UserClass as UserClassModel;
 
 #[Controller]
 class UserController
@@ -32,5 +33,17 @@ class UserController
         }
         $data = User::query()->with("Class","Options")->where("username",$username)->first();
         return view("plugins.User.data",['data'=>$data]);
+    }
+
+    #[GetMapping(path:"/users/group/{id}.html")]
+    public function group_data($id): ResponseInterface
+    {
+        if(!UserClassModel::query()->where("id",$id)->count()){
+            return admin_abort("页面不存在","404");
+        }
+        $userCount = User::query()->where("class_id",$id)->count();
+        $data = UserClassModel::query()->where("id",$id)->first();
+        $user = User::query()->where("class_id",$id)->paginate(30);
+        return view("plugins.User.group_data",['userCount' => $userCount,'data' => $data,'user'=>$user]);
     }
 }

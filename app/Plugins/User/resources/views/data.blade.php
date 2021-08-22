@@ -1,8 +1,8 @@
 @extends("plugins.Core.app")
 
-@section('title', '「'.$data->username.'」的信息')
-@section('description', '为您展示本站「'.$data->username.'」的信息')
-@section('keywords', '为您展示本站「'.$data->username.'」的信息')
+@section('title', '「'.$data->username.'」会员的信息')
+@section('description', '为您展示本站「'.$data->username.'」用户的信息')
+@section('keywords', '为您展示本站「'.$data->username.'」用户的信息')
 
 
 @section('content')
@@ -67,6 +67,37 @@
                 </div>
             </div>
         </div>
+
+        @if($data->Options->qq || $data->Options->wx || $data->Options->website || $data->Options->email)
+        <div class="col-md-10">
+                <div class="card card-stacked card-body">
+                    <h3 class="card-title">其他信息</h3>
+                    @if($data->Options->qq)
+                        <div class="mb-2">
+                            QQ: {{$data->Options->qq}}
+                        </div>
+                    @endif
+
+                    @if($data->Options->wx)
+                        <div class="mb-2">
+                            微信: {{$data->Options->wx}}
+                        </div>
+                    @endif
+
+                    @if($data->Options->email)
+                        <div class="mb-2">
+                            邮箱: {{$data->Options->email}}
+                        </div>
+                    @endif
+
+                    @if($data->Options->website)
+                        <div class="mb-2">
+                            个人网站: <a href="{{$data->Options->website}}">{{$data->Options->website}}</a>
+                        </div>
+                    @endif
+                </div>
+        </div>
+        @endif
     </div>
 
 
