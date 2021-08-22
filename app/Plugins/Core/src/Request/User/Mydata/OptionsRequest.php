@@ -17,7 +17,7 @@ class OptionsRequest extends FormRequest
     {
         return [
             "qianming" => "nullable|string|max:1000",
-            "qq" => "nullable|numeric|min:5|max:10",
+            "qq" => "nullable|string|min:5|max:10",
             "wx" => "nullable|max:100",
             "website" => "nullable|url",
             "email" => "nullable|email"
