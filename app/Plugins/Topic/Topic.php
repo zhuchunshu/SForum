@@ -14,7 +14,7 @@ namespace App\Plugins\Topic;
  */
 class Topic
 {
-    public function handle(): void
+    public function handler(): void
     {
 
         $this->bootstrap();

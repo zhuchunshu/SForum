@@ -6,7 +6,8 @@ use App\Model\AdminPlugin;
 
 class CodeFec {
 
-    public function handle(){
+    public function handle(): void
+    {
         $this->menu();
         $this->header();
         $this->boot();
@@ -16,35 +17,41 @@ class CodeFec {
         $this->itf();
     }
 
-    public function setting(){
+    public function setting(): void
+    {
         require BASE_PATH."/app/CodeFec/Itf/Setting/default.php";
     }
 
     // 注册菜单
-    public function menu(){
+    public function menu(): void
+    {
 
         require BASE_PATH."/app/CodeFec/Menu/default.php";
 
     }
 
     //创建页头内容
-    public function header(){
+    public function header(): void
+    {
         require BASE_PATH."/app/CodeFec/Header/default.php";
     }
 
-    public function boot(){
+    public function boot(): void
+    {
         require BASE_PATH."/app/CodeFec/bootstrap.php";
     }
 
     /**
      * 重写路由
      */
-    public function route(){
+    public function route(): void
+    {
         require BASE_PATH."/app/CodeFec/Itf/Route/default.php";
     }
 
     // 处理插件
-    public function plugins(){
+    public function plugins(): void
+    {
         $array = AdminPlugin::query()->where("status",1)->get();
         $result = [];
         foreach ($array as $value) {
@@ -53,14 +60,14 @@ class CodeFec {
         foreach ($result as $value) {
             if(file_exists(plugin_path($value."/".$value.".php"))){
                 $class = "\App\Plugins\\".$value."\\".$value;
-                if(@method_exists(new $class(),"handle")){
-                    (new $class())->handle();
+                if(@method_exists(new $class(),"handler")){
+                    (new $class())->handler();
                 }
             }
         }
     }
 
-    public function itf()
+    public function itf(): void
     {
         require BASE_PATH."/app/CodeFec/Itf/Itf/default.php";
     }

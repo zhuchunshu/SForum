@@ -13,7 +13,8 @@ namespace App\Plugins\User;
  */
 class User
 {
-    public function handle(){
+    public function handler(): void
+    {
         $this->boot();
         $this->helpers();
         $this->menu();

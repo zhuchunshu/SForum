@@ -13,7 +13,7 @@ namespace App\Plugins\Core;
  */
 class Core
 {
-    public function handle(): void
+    public function handler(): void
     {
         $this->composer();
         $this->setting();
