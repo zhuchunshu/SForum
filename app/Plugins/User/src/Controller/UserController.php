@@ -17,8 +17,9 @@ class UserController
      */
     #[GetMapping(path:"/users")]
     public function list(){
+        $count = User::query()->count();
         $page = User::query()->paginate(30);
-        return view("plugins.User.list",['page' => $page]);
+        return view("plugins.User.list",['page' => $page,'count'=>$count]);
     }
 
     /**

@@ -182,7 +182,7 @@ if (!function_exists("menu")) {
 }
 
 if (!function_exists("view")) {
-    function view(string $view, array $data = [], int $code = 200)
+    function view(string $view, array $data = [], int $code = 200): \Psr\Http\Message\ResponseInterface
     {
         $container = \Hyperf\Utils\ApplicationContext::getContainer();
         return $container->get(RenderInterface::class)->render($view, $data, $code);
