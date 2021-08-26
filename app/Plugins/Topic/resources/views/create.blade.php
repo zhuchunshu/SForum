@@ -22,12 +22,40 @@
                 </div>
             </div>
         </div>
-        @endsection
+    </div>
+@endsection
+@section('content')
 
-        @section('content')
-
+    <div id="create-topic-vue">
+        <form action="">
             <div class="row row-cards">
-
+                <div class="col-md-9">
+                    <div class="mb-3 border-0 card card-body">
+                        <h3 class="card-title">标题</h3>
+                        <input type="text" class="form-control form-control-lg form-control-flush" placeholder="请输入标题">
+                        <h3 class="card-title">标签</h3>
+                        <div class="mb-3">
+                            <select class="form-select form-select-lg form-control-flush">
+                                <option v-for="option in tags" :value="option.value">
+                                    @{{ option.text }}
+                                </option>
+                            </select>
+                        </div>
+                        <div id="content-vditor"></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    1
+                </div>
             </div>
+        </form>
+    </div>
 
+@endsection
+
+@section('scripts')
+    <script src="{{ mix('plugins/Topic/js/topic.js') }}"></script>
+@endsection
+@section('headers')
+    <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
 @endsection

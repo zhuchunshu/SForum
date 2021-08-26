@@ -29,7 +29,9 @@
     "laravel-mix": "^6.0.20",
     "mithril": "^2.0.4",
     "sweetalert": "^2.1.2",
-    "vue": "^3.1.1"
+    "vditor": "^3.8.6",
+    "vue": "^3.1.1",
+    "vue-cookie": "^1.1.4"
   },
   "devDependencies": {
     "@vue/compiler-sfc": "^3.1.1",

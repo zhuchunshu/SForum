@@ -2748,6 +2748,11 @@ didyoumean@^1.2.1:
   resolved "https://registry.nlark.com/didyoumean/download/didyoumean-1.2.2.tgz#989346ffe9e839b4555ecf5666edea0d3e8ad037"
   integrity sha1-mJNG/+noObRVXs9WZu3qDT6K0Dc=
 
+diff-match-patch@^1.0.5:
+  version "1.0.5"
+  resolved "https://registry.nlark.com/diff-match-patch/download/diff-match-patch-1.0.5.tgz#abb584d5f10cd1196dfc55aa03701592ae3f7b37"
+  integrity sha1-q7WE1fEM0Rlt/FWqA3AVkq4/ezc=
+
 diff-sequences@^26.6.2:
   version "26.6.2"
   resolved "https://registry.nlark.com/diff-sequences/download/diff-sequences-26.6.2.tgz?cache=0&sync_timestamp=1624900526129&other_urls=https%3A%2F%2Fregistry.nlark.com%2Fdiff-sequences%2Fdownload%2Fdiff-sequences-26.6.2.tgz#48ba99157de1923412eed41db6b6d4aa9ca7c0b1"
@@ -6400,6 +6405,11 @@ timsort@^0.3.0:
   resolved "https://registry.npm.taobao.org/timsort/download/timsort-0.3.0.tgz#405411a8e7e6339fe64db9a234de11dc31e02bd4"
   integrity sha1-QFQRqOfmM5/mTbmiNN4R3DHgK9Q=
 
+tiny-cookie@^1.0:
+  version "1.0.1"
+  resolved "https://registry.npm.taobao.org/tiny-cookie/download/tiny-cookie-1.0.1.tgz#753786079c642a3c3d0b2accad600f8de119ac2a"
+  integrity sha1-dTeGB5xkKjw9CyrMrWAPjeEZrCo=
+
 tmp@^0.2.1:
   version "0.2.1"
   resolved "https://registry.npm.taobao.org/tmp/download/tmp-0.2.1.tgz#8457fc3037dcf4719c251367a1af6500ee1ccf14"
@@ -6630,6 +6640,13 @@ vdirs@^0.1.4:
     "@types/node" "^14.14.10"
     evtd "^0.2.2"
 
+vditor@^3.8.6:
+  version "3.8.6"
+  resolved "https://registry.nlark.com/vditor/download/vditor-3.8.6.tgz#95a89c4865efa740bf55f2a7e3f968b395987a60"
+  integrity sha1-laicSGXvp0C/VfKn4/los5WYemA=
+  dependencies:
+    diff-match-patch "^1.0.5"
+
 vendors@^1.0.3:
   version "1.0.4"
   resolved "https://registry.npm.taobao.org/vendors/download/vendors-1.0.4.tgz?cache=0&sync_timestamp=1615203397897&other_urls=https%3A%2F%2Fregistry.npm.taobao.org%2Fvendors%2Fdownload%2Fvendors-1.0.4.tgz#e2b800a53e7a29b93506c3cf41100d16c4c4ad8e"
@@ -6651,6 +6668,13 @@ vooks@^0.2.4, vooks@^0.2.6:
   integrity sha1-+tanjHLjlEPlYoUzewhDuq7tDz4=
   dependencies:
     evtd "^0.2.2"
+
+vue-cookie@^1.1.4:
+  version "1.1.4"
+  resolved "https://registry.npm.taobao.org/vue-cookie/download/vue-cookie-1.1.4.tgz#b8b46d112bda9f93a2f47017c2ed5282d2064fda"
+  integrity sha1-uLRtESvan5Oi9HAXwu1SgtIGT9o=
+  dependencies:
+    tiny-cookie "^1.0"
 
 vue-loader@^16.2.0:
   version "16.2.0"
