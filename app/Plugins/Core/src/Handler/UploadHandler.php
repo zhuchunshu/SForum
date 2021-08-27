@@ -1,15 +1,15 @@
 <?php
 
+
 namespace App\Plugins\Core\src\Handler;
+
 
 use App\Plugins\User\src\Models\UserUpload;
 use Illuminate\Support\Str;
 use Intervention\Image\ImageManagerStatic as Image;
 
-
-class AvatarUpload
+class UploadHandler
 {
-
     public function save($file, $folder, $file_prefix, $max_width = false): array
     {
         if(!auth()->check()){
@@ -21,7 +21,7 @@ class AvatarUpload
         }
         // 构建存储的文件夹规则，值如：uploads/images/avatars/201709/21/
         // 文件夹切割能让查找效率更高。
-        $folder_name = "upload/images/$folder/" . date("Ym/d", time());
+        $folder_name = "upload/$folder/" . date("Ym/d", time());
         if(!is_dir(public_path($folder_name))){
             mkdir(public_path($folder_name),0777,true);
         }
@@ -46,7 +46,6 @@ class AvatarUpload
             // 此类中封装的函数，用于裁剪图片
             $this->reduceSize($upload_path . '/' . $filename, $max_width);
         }
-
         UserUpload::query()->create([
             "user_id" => auth()->id(),
             "path" => public_path("$folder_name/$filename"),
