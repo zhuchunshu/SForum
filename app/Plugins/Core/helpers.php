@@ -1,5 +1,6 @@
 <?php
 
+use App\Plugins\Core\src\Lib\ShortCode\ShortCode;
 use JetBrains\PhpStorm\Pure;
 use App\Plugins\Core\src\Lib\Redirect;
 use App\Plugins\Core\src\Lib\UserVerEmail;
@@ -185,5 +186,12 @@ if(!function_exists("markdown")){
     function markdown(): \Parsedown
     {
         return new Parsedown();
+    }
+}
+
+if(!function_exists("ShortCode")){
+    function ShortCode(): ShortCode
+    {
+        return new ShortCode();
     }
 }
