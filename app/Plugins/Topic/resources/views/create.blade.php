@@ -35,7 +35,7 @@
                         <input type="text" class="form-control form-control-lg form-control-flush" placeholder="请输入标题">
                         <h3 class="card-title">标签</h3>
                         <div class="mb-3">
-                            <select class="form-select form-select-lg form-control-flush">
+                            <select id="select-tags" class="form-select form-select-lg form-control-flush">
                                 <option v-for="option in tags" :value="option.value">
                                     @{{ option.text }}
                                 </option>
@@ -54,6 +54,12 @@
 @endsection
 
 @section('scripts')
+    <script>
+
+    </script>
+    <script type="text/javascript">
+        var imageUpUrl = "/user/upload/image?_token={{csrf_token()}}";
+    </script>
     <script src="{{ mix('plugins/Topic/js/topic.js') }}"></script>
 @endsection
 @section('headers')

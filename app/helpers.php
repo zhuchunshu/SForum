@@ -11,6 +11,7 @@ declare(strict_types=1);
  */
 
 use App\Model\AdminPlugin;
+use Hyperf\HttpServer\Response;
 use Hyperf\Utils\Context;
 use App\Model\AdminOption;
 use Illuminate\Support\Arr;
@@ -149,6 +150,26 @@ if (!function_exists('response')) {
     function response()
     {
         return container()->get(ResponseInterface::class);
+    }
+}
+
+if(!function_exists('PsrResponse')){
+    function PsrResponse(){
+        return container()->get(\Psr\Http\Message\ResponseInterface::class);
+    }
+}
+
+if(!function_exists("ResponseObj")){
+    function ResponseObj(): Response
+    {
+        return new Response();
+    }
+}
+
+if(!function_exists("SwooleStream")){
+    function SwooleStream($contents): SwooleStream
+    {
+        return new SwooleStream($contents);
     }
 }
 

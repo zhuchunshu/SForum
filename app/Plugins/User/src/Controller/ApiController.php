@@ -4,8 +4,11 @@
 namespace App\Plugins\User\src\Controller;
 
 use App\Plugins\Core\src\Handler\UploadHandler;
+use App\Plugins\User\src\Models\User;
 use Hyperf\HttpServer\Annotation\Controller;
+use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\PostMapping;
+use Hyperf\Utils\Arr;
 
 #[Controller]
 class ApiController
@@ -23,5 +26,15 @@ class ApiController
             }
         }
         return $data;
+    }
+    #[PostMapping(path:"/api/user/@user_list")]
+    public function user_list(): array
+    {
+        $data = User::query()->select('username','id')->get();
+        $arr = [];
+        foreach ($data as $key=>$value){
+            $arr = Arr::add($arr,$key,["value"=>"@".$value->username,"html" => '<img src="'.avatar_url($value->id).'" alt="'.$value->username.'"/> '.$value->username]);
+        }
+        return $arr;
     }
 }

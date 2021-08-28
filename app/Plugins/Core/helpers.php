@@ -80,6 +80,35 @@ HTML;
     }
 }
 
+if(!function_exists("avatar_url")){
+    function avatar_url(int $user_id): string
+    {
+        $time = get_options("core_user_def_avatar_cache",600);
+        if(get_options("core_user_avatar_cache","1")==="1"){
+            if(cache()->has("core.avatar.".$user_id)){
+                $ud = cache()->get("core.avatar.".$user_id);
+            }else{
+                $ud = \App\Plugins\User\src\Models\User::query()->where("id",$user_id)->first();
+                cache()->set("core.avatar.".$user_id,$ud,$time);
+            }
+        }else{
+            $ud = \App\Plugins\User\src\Models\User::query()->where("id",$user_id)->first();
+        }
+
+        if($ud->avatar){
+            return $ud->avatar;
+
+        }else{
+            if(get_options("core_user_def_avatar","gavatar")!=="multiavatar"){
+                $url = get_options("theme_common_gavatar","https://cn.gravatar.com/avatar/").md5($ud->email);
+                return $url;
+            }else{
+                return "/user/multiavatar/".$ud->id;
+            }
+        }
+    }
+}
+
 
 if(!function_exists("redirect")){
     #[Pure] function redirect(): Redirect

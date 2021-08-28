@@ -4,8 +4,10 @@
 namespace App\Plugins\User\src\Controller;
 
 use App\Plugins\User\src\Models\User;
+use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
+use Multiavatar;
 use Psr\Http\Message\ResponseInterface;
 use App\Plugins\User\src\Models\UserClass as UserClassModel;
 
@@ -46,5 +48,13 @@ class UserController
         $data = UserClassModel::query()->where("id",$id)->first();
         $user = User::query()->where("class_id",$id)->paginate(30);
         return view("plugins.User.group_data",['userCount' => $userCount,'data' => $data,'user'=>$user]);
+    }
+
+    #[GetMapping(path:"/user/multiavatar/{user_id}")]
+    public function user_multi_avatar($user_id){
+        $ud = \App\Plugins\User\src\Models\User::query()->where("id",$user_id)->first();
+        $img = new Multiavatar();
+        $img = $img($ud->username, null, null);
+        return ResponseObj()->withBody(SwooleStream($img))->withHeader("content-type","image/svg+xml; charset=utf-8");
     }
 }

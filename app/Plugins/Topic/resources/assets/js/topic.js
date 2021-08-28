@@ -17485,13 +17485,25 @@ if (document.getElementById("create-topic-vue")) {
         tags: [{
           "text": "请选择",
           "value": "Default"
-        }]
+        }],
+        userAtList: []
       };
     },
     mounted: function mounted() {
       var _this = this;
 
       // tags
+      axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@user_list", {
+        _token: csrf_token
+      }).then(function (r) {
+        _this.userAtList = r.data;
+      })["catch"](function (e) {
+        swal({
+          title: "获取本站用户列表失败,详细查看控制台",
+          icon: "error"
+        });
+        console.error(e);
+      });
       axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/tags", {
         _token: csrf_token
       }).then(function (response) {
@@ -17509,6 +17521,43 @@ if (document.getElementById("create-topic-vue")) {
           enable: true,
           id: "create_topic"
         },
+        mode: "ir",
+        toolbar: ["emoji", "headings", "bold", "italic", "strike", "link", "|", "list", "ordered-list", "outdent", "indent", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "upload", "record", "table", "|", "undo", "redo", "|", "fullscreen", "edit-mode"],
+        counter: {
+          "enable": true,
+          "type": "已写字数"
+        },
+        hint: {
+          extend: [{
+            key: '@',
+            hint: function hint(key) {
+              console.log(_this.userAtList);
+              return _this.userAtList;
+            }
+          }, {
+            key: '#',
+            hint: function hint(key) {
+              if ('vditor'.indexOf(key.toLocaleLowerCase()) > -1) {
+                return [{
+                  value: '#Vditor',
+                  html: '#Vditor ♏ 一款浏览器端的 Markdown 编辑器，支持所见即所得（富文本）、即时渲染（类似 Typora）和分屏预览模式。'
+                }];
+              }
+
+              return [];
+            }
+          }]
+        },
+        upload: {
+          accept: 'image/*,.wav',
+          token: csrf_token,
+          url: imageUpUrl,
+          linkToImgUrl: imageUpUrl,
+          filename: function filename(name) {
+            return name.replace(/[^(a-zA-Z0-9\u4e00-\u9fa5\.)]/g, '').replace(/[\?\\/:|<>\*\[\]\(\)\$%\{\}@~]/g, '').replace('/\\s/g', '');
+          }
+        },
+        typewriterMode: true,
         placeholder: "请输入正文",
         after: function after() {// this.contentEditor.setValue('')
         }

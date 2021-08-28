@@ -23,6 +23,7 @@
         <link rel="stylesheet" href="{{ $value }}">
     @endforeach
     @yield('css')
+    @yield('headers')
 </head>
 
 <body class="antialiased">

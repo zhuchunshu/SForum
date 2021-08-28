@@ -17,7 +17,10 @@ class ApiController
     {
         $data = [];
         foreach (TopicTag::query()->get() as $key=>$value){
-            $data = Arr::add($data,$key,["text"=>$value->name,"value" => $value->id]);
+            $data = Arr::add($data,$key,[
+                "text"=>$value->name,
+                "value" => $value->id,
+                ]);
         }
         return $data;
     }
