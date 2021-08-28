@@ -46,5 +46,31 @@ class Make
         return $content;
     }
 
+    public function type3(string $content):string{
+        foreach(ShortCode()->all() as $tag=>$value){
+            $tag = core_Itf_id("ShortCode",$tag);
+
+            $pattern = "/\[$tag\]/is";
+
+            $content = preg_replace_callback($pattern, function($match)use($value){
+                return ShortCode()->callback($value['callback'],$match);
+            },$content);
+        }
+        return $content;
+    }
+
+    public function type4(string $content):string{
+        foreach(ShortCode()->all() as $tag=>$value){
+            $tag = core_Itf_id("ShortCode",$tag);
+
+            $pattern = "/\[$tag=(.*?)\]/is";
+
+            $content = preg_replace_callback($pattern, function($match)use($value){
+                return ShortCode()->callback($value['callback'],$match);
+            },$content);
+        }
+        return $content;
+    }
+
 
 }

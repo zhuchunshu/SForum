@@ -21,10 +21,10 @@ class TestController
     }
 
     #[GetMapping(path: "/test")]
-    public function test()
+    public function test(): \Psr\Http\Message\ResponseInterface
     {
-        $content = '$[Inkedus] $[Inkedus]';
-        preg_match_all("/(?<=\\$\\[)[^]]+/u", $content, $arrMatches);
-        return $arrMatches[0];
+        ShortCode()->add("a","App\Plugins\Core\src\Lib\ShortCode\Defaults@a");
+        $content = '[a=(color:black)]';
+        return response()->raw(ShortCode()->make()->type4($content));
     }
 }
