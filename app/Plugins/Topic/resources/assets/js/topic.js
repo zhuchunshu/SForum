@@ -17502,6 +17502,9 @@ if (document.getElementById("create-topic-vue")) {
       };
     },
     methods: {
+      test: function test() {
+        console.log(this.options.hidden.user_class);
+      },
       hidden_user_add: function hidden_user_add() {
         var _this = this;
 
