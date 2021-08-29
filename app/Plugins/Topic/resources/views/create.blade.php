@@ -32,7 +32,7 @@
                 <div class="col-md-9">
                     <div class="mb-3 border-0 card card-body">
                         <h3 class="card-title">标题</h3>
-                        <input type="text" class="form-control form-control-lg form-control-flush" placeholder="请输入标题">
+                        <input type="text" v-model="title" class="form-control form-control-lg form-control-flush" placeholder="请输入标题">
                         <h3 class="card-title">标签</h3>
                         <div class="mb-3">
                             <select id="select-tags" class="form-select form-select-lg form-control-flush">
@@ -45,7 +45,11 @@
                     </div>
                 </div>
                 <div class="col-md-3">
-                    1
+                    <div class="row row-cards">
+                        @foreach($right as $value)
+                            @include($value)
+                        @endforeach
+                    </div>
                 </div>
             </div>
         </form>

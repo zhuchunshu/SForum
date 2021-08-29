@@ -17482,32 +17482,67 @@ if (document.getElementById("create-topic-vue")) {
     data: function data() {
       return {
         contentEditor: '',
+        title: "",
+        options: {
+          hidden: {
+            type: "close",
+            user: {
+              list: [],
+              selected: null
+            },
+            user_class: []
+          }
+        },
         tags: [{
           "text": "请选择",
           "value": "Default"
         }],
-        userAtList: []
+        userAtList: [],
+        topic_keywords: []
       };
     },
+    methods: {
+      hidden_user_add: function hidden_user_add() {
+        var _this = this;
+
+        var username = this.options.hidden.user.selected;
+
+        if (this.options.hidden.user.list.indexOf(username) === -1) {
+          axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@has_user_username/" + username, {
+            _token: csrf_token
+          }).then(function (r) {
+            var data = r.data;
+
+            if (data.success) {
+              _this.options.hidden.user.list.push(username);
+
+              console.log(_this.options.hidden.user.list);
+            } else {
+              swal({
+                title: "新增用户失败,原因:" + data.result.msg,
+                icon: "error"
+              });
+            }
+          })["catch"](function (e) {
+            swal({
+              title: "接口请求失败,详细查看控制台",
+              icon: "error"
+            });
+            console.error(e);
+          });
+        } else {
+          swal("用户:" + username + "已存在,无需重复添加");
+        }
+      }
+    },
     mounted: function mounted() {
-      var _this = this;
+      var _this2 = this;
 
       // tags
-      axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@user_list", {
-        _token: csrf_token
-      }).then(function (r) {
-        _this.userAtList = r.data;
-      })["catch"](function (e) {
-        swal({
-          title: "获取本站用户列表失败,详细查看控制台",
-          icon: "error"
-        });
-        console.error(e);
-      });
       axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/tags", {
         _token: csrf_token
       }).then(function (response) {
-        _this.tags = response.data;
+        _this2.tags = response.data;
       })["catch"](function (e) {
         console.error(e);
       }); // vditor
@@ -17531,20 +17566,12 @@ if (document.getElementById("create-topic-vue")) {
           extend: [{
             key: '@',
             hint: function hint(key) {
-              console.log(_this.userAtList);
-              return _this.userAtList;
+              return _this2.userAtList;
             }
           }, {
-            key: '#',
+            key: '$',
             hint: function hint(key) {
-              if ('vditor'.indexOf(key.toLocaleLowerCase()) > -1) {
-                return [{
-                  value: '#Vditor',
-                  html: '#Vditor ♏ 一款浏览器端的 Markdown 编辑器，支持所见即所得（富文本）、即时渲染（类似 Typora）和分屏预览模式。'
-                }];
-              }
-
-              return [];
+              return _this2.topic_keywords;
             }
           }]
         },
@@ -17559,7 +17586,29 @@ if (document.getElementById("create-topic-vue")) {
         },
         typewriterMode: true,
         placeholder: "请输入正文",
-        after: function after() {// this.contentEditor.setValue('')
+        after: function after() {
+          axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@user_list", {
+            _token: csrf_token
+          }).then(function (r) {
+            _this2.userAtList = r.data;
+          })["catch"](function (e) {
+            swal({
+              title: "获取本站用户列表失败,详细查看控制台",
+              icon: "error"
+            });
+            console.error(e);
+          });
+          axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/keywords", {
+            _token: csrf_token
+          }).then(function (r) {
+            _this2.topic_keywords = r.data;
+          })["catch"](function (e) {
+            swal({
+              title: "获取话题列表失败,详细查看控制台",
+              icon: "error"
+            });
+            console.error(e);
+          });
         }
       });
     }

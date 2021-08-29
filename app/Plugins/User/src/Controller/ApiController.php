@@ -37,4 +37,12 @@ class ApiController
         }
         return $arr;
     }
+
+    #[PostMapping(path:"/api/user/@has_user_username/{username}")]
+    public function has_user_username($username):array{
+        if(User::query()->where("username",$username)->count()){
+            return Json_Api(200,true,['msg' => '此用户存在']);
+        }
+        return Json_Api(404, false,['msg' => '用户:'.$username.'不存在']);
+    }
 }
