@@ -7,6 +7,7 @@
                 <option value="close">不启用</option>
                 <option value="user">指定用户可见</option>
                 <option value="user_class">指定用户组可见</option>
+                <option value="login">登陆可见</option>
             </select>
         </div>
         <div class="mb-3" v-if="options.hidden.type==='user'">
@@ -24,11 +25,11 @@
                     <button type="button" @@click="hidden_user_add" class="btn btn-blue">添加</button>
                 </div>
             </div>
-            <div class="mb" style="margin-top:5px">
+            <div class="mb-3" style="margin-top:5px">
                 <label for="" class="form-label">已选择:</label>
-                <ul v-for="value in options.hidden.user.list">
-                    <li>@{{ value }}</li>
-                </ul>
+                <div v-for="value in options.hidden.user.list">
+                    <span class="badge bg-blue">@{{ value }}</span><br/>
+                </div>
             </div>
         </div>
         <div class="mb-3" v-if="options.hidden.type==='user_class'">
@@ -37,6 +38,12 @@
                     <option value="{{$value->id}}">{{$value->name}}</option>
                 @endforeach
             </select>
+            <div class="mb-3" style="margin-top:5px">
+                <label for="" class="form-label">已选择:</label>
+                <div v-for="value in options.hidden.user_class">
+                    ID: @{{ value }}<br/>
+                </div>
+            </div>
         </div>
     </div>
 </div>

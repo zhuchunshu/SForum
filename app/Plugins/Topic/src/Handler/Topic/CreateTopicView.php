@@ -6,9 +6,6 @@ namespace App\Plugins\Topic\src\Handler\Topic;
 
 class CreateTopicView
 {
-    public array $right = [
-        "plugins.Topic.create.right-quanxian"
-    ];
 
     public function handler(): \Psr\Http\Message\ResponseInterface
     {
@@ -18,6 +15,7 @@ class CreateTopicView
     // 右侧侧栏
     public function right(): array
     {
-        return $this->right;
+        Itf()->add("Topic_create_right",1,"plugins.Topic.create.right-quanxian");
+        return Itf()->get("Topic_create_right");
     }
 }
