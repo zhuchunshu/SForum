@@ -23,8 +23,9 @@ class TestController
     #[GetMapping(path: "/test")]
     public function test(): \Psr\Http\Message\ResponseInterface
     {
+        ShortCodeR()->add("a","App\Plugins\Core\src\Lib\ShortCode\Defaults@a");
         ShortCode()->add("a","App\Plugins\Core\src\Lib\ShortCode\Defaults@a");
         $content = '[a=(color:black)]';
-        return response()->raw(ShortCode()->make()->type4($content));
+        return response()->raw(ShortCode()->make("type4",$content));
     }
 }

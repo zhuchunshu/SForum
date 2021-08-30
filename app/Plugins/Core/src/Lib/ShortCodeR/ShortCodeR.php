@@ -1,34 +1,34 @@
 <?php
 
 
-namespace App\Plugins\Core\src\Lib\ShortCode;
+namespace App\Plugins\Core\src\Lib\ShortCodeR;
 
 
 use Hyperf\Utils\Arr;
 use Hyperf\Utils\Str;
 
-class ShortCode
+class ShortCodeR
 {
 
     public function add($tag,$callback): void
     {
-        Itf()->add("ShortCode",$tag,["callback" => $callback]);
+        Itf()->add("ShortCodeR",$tag,["callback" => $callback]);
     }
 
     public function all(): array
     {
-        return Itf()->get("ShortCode");
+        return Itf()->get("ShortCodeR");
     }
 
     public function get($tag):bool|array{
         if($this->has($tag)){
-            return Itf()->get("ShortCode")[$tag];
+            return Itf()->get("ShortCodeR")[$tag];
         }
         return false;
     }
 
     public function has($tag):bool{
-        if(Arr::has(Itf()->get("ShortCode"),"ShortCode_".$tag)){
+        if(Arr::has(Itf()->get("ShortCodeR"),"ShortCodeR_".$tag)){
             return true;
         }
         return false;
@@ -49,7 +49,12 @@ class ShortCode
         return (new Make())->$method(...$content);
     }
 
-
+    public function handle(string $content):string{
+        $content = $this->make()->default($content);
+        $content = $this->make()->type1($content);
+        $content = $this->make()->type2($content);
+        return $content;
+    }
 
     public function callback($callback,...$parameter){
         $class = Str::before($callback,"@");
