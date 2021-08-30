@@ -27,7 +27,7 @@
 @section('content')
 
     <div id="create-topic-vue">
-        <form action="">
+        <form action="" method="post" @@submit.prevent="submit">
             <div class="row row-cards">
                 <div class="col-md-9">
                     <div class="mb-3 border-0 card card-body">
@@ -54,7 +54,12 @@
                                 </button>
                             </div>
                         </div>
-                        <div id="content-vditor"></div>
+                        <div class="mb-3">
+                            <div id="content-vditor"></div>
+                        </div>
+                        <div class="mb-3">
+                            <button class="btn btn-primary">提交</button>
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-3">
