@@ -17483,6 +17483,12 @@ if (document.getElementById("create-topic-vue")) {
       return {
         vditor: '',
         title: "",
+        edit: {
+          mode: "ir",
+          preview: {
+            mode: "editor"
+          }
+        },
         options: {
           hidden: {
             type: "close",
@@ -17506,8 +17512,146 @@ if (document.getElementById("create-topic-vue")) {
         var md = this.vditor.getSelection();
         this.vditor.updateValue("[reply]" + md + "[/reply]");
       },
-      hidden_user_add: function hidden_user_add() {
+      edit_mode: function edit_mode() {
+        if (this.edit.mode === "ir") {
+          this.edit.mode = "wysiwyg";
+          this.init();
+        } else {
+          if (this.edit.mode === "wysiwyg") {
+            this.edit.mode = "sv";
+            this.edit.preview.mode = "editor";
+            this.init();
+          } else {
+            if (this.edit.mode === "sv") {
+              if (this.edit.preview.mode === "editor") {
+                this.edit.mode = "sv";
+                this.edit.preview.mode = "both";
+                this.init();
+              } else {
+                if (this.edit.preview.mode === "both") {
+                  this.edit.mode = "ir";
+                  this.edit.preview.mode = "editor";
+                  this.init();
+                }
+              }
+            }
+          }
+        }
+
+        iziToast.show({
+          title: 'success',
+          message: '切换成功!',
+          color: "#63ed7a",
+          position: 'topRight',
+          messageColor: '#ffffff',
+          titleColor: '#ffffff'
+        });
+      },
+      edit_toc: function edit_toc() {
+        var md = this.vditor.getValue();
+        this.vditor.setValue("[toc]\n" + md);
+      },
+      init: function init() {
         var _this = this;
+
+        // tags
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/tags", {
+          _token: csrf_token
+        }).then(function (response) {
+          _this.tags = response.data;
+        })["catch"](function (e) {
+          console.error(e);
+        }); // vditor
+
+        this.vditor = new (vditor__WEBPACK_IMPORTED_MODULE_0___default())('content-vditor', {
+          height: 400,
+          toolbarConfig: {
+            pin: true
+          },
+          cache: {
+            enable: true,
+            id: "create_topic"
+          },
+          preview: {
+            markdown: {
+              toc: true,
+              mark: true,
+              fixTermTypo: true
+            }
+          },
+          mode: this.edit.mode,
+          toolbar: ["emoji", "headings", "bold", "italic", "strike", "link", "|", "list", "ordered-list", "outdent", "indent", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "upload", "record", "table", "|", "undo", "redo", "|", "fullscreen", "edit-mode"],
+          counter: {
+            "enable": true,
+            "type": "已写字数"
+          },
+          hint: {
+            extend: [{
+              key: '@',
+              hint: function hint(key) {
+                return _this.userAtList;
+              }
+            }, {
+              key: '$',
+              hint: function hint(key) {
+                return _this.topic_keywords;
+              }
+            }]
+          },
+          upload: {
+            accept: 'image/*,.wav',
+            token: csrf_token,
+            url: imageUpUrl,
+            linkToImgUrl: imageUpUrl,
+            filename: function filename(name) {
+              return name.replace(/[^(a-zA-Z0-9\u4e00-\u9fa5\.)]/g, '').replace(/[\?\\/:|<>\*\[\]\(\)\$%\{\}@~]/g, '').replace('/\\s/g', '');
+            }
+          },
+          typewriterMode: true,
+          placeholder: "请输入正文",
+          after: function after() {
+            axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@user_list", {
+              _token: csrf_token
+            }).then(function (r) {
+              _this.userAtList = r.data;
+            })["catch"](function (e) {
+              swal({
+                title: "获取本站用户列表失败,详细查看控制台",
+                icon: "error"
+              });
+              console.error(e);
+            });
+            axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/keywords", {
+              _token: csrf_token
+            }).then(function (r) {
+              _this.topic_keywords = r.data;
+            })["catch"](function (e) {
+              swal({
+                title: "获取话题列表失败,详细查看控制台",
+                icon: "error"
+              });
+              console.error(e);
+            });
+          },
+          select: function select(md) {
+            // 回复可见
+            swal({
+              title: "你选中了一段文字",
+              text: "是否将选中的文字设为回复可见?",
+              buttons: true,
+              icon: "warning"
+            }).then(function (click) {
+              if (click) {
+                _this.vditor.updateValue("[reply]" + md + "[/reply]");
+              } else {
+                _this.vditor.focus();
+              }
+            });
+          }
+        });
+      },
+      hidden_user_add: function hidden_user_add() {
+        var _this2 = this;
 
         var username = this.options.hidden.user.selected;
 
@@ -17518,7 +17662,7 @@ if (document.getElementById("create-topic-vue")) {
             var data = r.data;
 
             if (data.success) {
-              _this.options.hidden.user.list.push(username);
+              _this2.options.hidden.user.list.push(username);
             } else {
               swal({
                 title: "新增用户失败,原因:" + data.result.msg,
@@ -17538,94 +17682,7 @@ if (document.getElementById("create-topic-vue")) {
       }
     },
     mounted: function mounted() {
-      var _this2 = this;
-
-      // tags
-      axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/tags", {
-        _token: csrf_token
-      }).then(function (response) {
-        _this2.tags = response.data;
-      })["catch"](function (e) {
-        console.error(e);
-      }); // vditor
-
-      this.vditor = new (vditor__WEBPACK_IMPORTED_MODULE_0___default())('content-vditor', {
-        height: 460,
-        toolbarConfig: {
-          pin: true
-        },
-        cache: {
-          enable: true,
-          id: "create_topic"
-        },
-        mode: "ir",
-        toolbar: ["emoji", "headings", "bold", "italic", "strike", "link", "|", "list", "ordered-list", "outdent", "indent", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "upload", "record", "table", "|", "undo", "redo", "|", "fullscreen", "edit-mode"],
-        counter: {
-          "enable": true,
-          "type": "已写字数"
-        },
-        hint: {
-          extend: [{
-            key: '@',
-            hint: function hint(key) {
-              return _this2.userAtList;
-            }
-          }, {
-            key: '$',
-            hint: function hint(key) {
-              return _this2.topic_keywords;
-            }
-          }]
-        },
-        upload: {
-          accept: 'image/*,.wav',
-          token: csrf_token,
-          url: imageUpUrl,
-          linkToImgUrl: imageUpUrl,
-          filename: function filename(name) {
-            return name.replace(/[^(a-zA-Z0-9\u4e00-\u9fa5\.)]/g, '').replace(/[\?\\/:|<>\*\[\]\(\)\$%\{\}@~]/g, '').replace('/\\s/g', '');
-          }
-        },
-        typewriterMode: true,
-        placeholder: "请输入正文",
-        after: function after() {
-          axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@user_list", {
-            _token: csrf_token
-          }).then(function (r) {
-            _this2.userAtList = r.data;
-          })["catch"](function (e) {
-            swal({
-              title: "获取本站用户列表失败,详细查看控制台",
-              icon: "error"
-            });
-            console.error(e);
-          });
-          axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/keywords", {
-            _token: csrf_token
-          }).then(function (r) {
-            _this2.topic_keywords = r.data;
-          })["catch"](function (e) {
-            swal({
-              title: "获取话题列表失败,详细查看控制台",
-              icon: "error"
-            });
-            console.error(e);
-          });
-        },
-        select: function select(md) {
-          // 回复可见
-          swal({
-            title: "你选中了一段文字",
-            text: "是否将选中的文字设为回复可见?",
-            buttons: true,
-            icon: "warning"
-          }).then(function (click) {
-            if (click) {
-              _this2.vditor.updateValue("[reply]" + md + "[/reply]");
-            }
-          });
-        }
-      });
+      this.init();
     }
   };
   Vue.createApp(create_topic_vue).mount("#create-topic-vue");

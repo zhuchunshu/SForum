@@ -41,12 +41,19 @@
                                 </option>
                             </select>
                         </div>
-                        <h3 class="card-title">正文</h3>
-                        <span style="margin-bottom: 5px">
-                            <button type="button" @@click="edit_reply" class="btn btn-white btn-sm btn-pill">
-                                回复可见
-                            </button>
-                        </span>
+                        <div class="border-1 card">
+                            <div class="card-body">
+                                <button style="margin-right:5px" type="button" @@click="edit_reply" class="btn btn-white btn-sm btn-pill">
+                                    回复可见
+                                </button>
+                                <button style="margin-right:5px" type="button" @@click="edit_toc" class="btn btn-white btn-sm btn-pill">
+                                    添加目录
+                                </button>
+                                <button type="button" @@click="edit_mode" class="btn btn-white btn-sm btn-pill">
+                                    切换编辑模式
+                                </button>
+                            </div>
+                        </div>
                         <div id="content-vditor"></div>
                     </div>
                 </div>
@@ -64,9 +71,6 @@
 @endsection
 
 @section('scripts')
-    <script>
-
-    </script>
     <script type="text/javascript">
         var imageUpUrl = "/user/upload/image?_token={{csrf_token()}}";
     </script>

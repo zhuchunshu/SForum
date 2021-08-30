@@ -28,6 +28,7 @@
     "glob-parent": "^5.1.2",
     "laravel-mix": "^6.0.20",
     "mithril": "^2.0.4",
+    "notyf": "^3.10.0",
     "sweetalert": "^2.1.2",
     "vditor": "^3.8.6",
     "vue": "^3.1.1",
