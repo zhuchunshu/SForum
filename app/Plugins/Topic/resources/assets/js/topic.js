@@ -17481,7 +17481,7 @@ if (document.getElementById("create-topic-vue")) {
   var create_topic_vue = {
     data: function data() {
       return {
-        contentEditor: '',
+        vditor: '',
         title: "",
         options: {
           hidden: {
@@ -17502,8 +17502,9 @@ if (document.getElementById("create-topic-vue")) {
       };
     },
     methods: {
-      test: function test() {
-        console.log(this.options.hidden.user_class);
+      edit_reply: function edit_reply() {
+        var md = this.vditor.getSelection();
+        this.vditor.updateValue("[reply]" + md + "[/reply]");
       },
       hidden_user_add: function hidden_user_add() {
         var _this = this;
@@ -17518,8 +17519,6 @@ if (document.getElementById("create-topic-vue")) {
 
             if (data.success) {
               _this.options.hidden.user.list.push(username);
-
-              console.log(_this.options.hidden.user.list);
             } else {
               swal({
                 title: "新增用户失败,原因:" + data.result.msg,
@@ -17550,7 +17549,7 @@ if (document.getElementById("create-topic-vue")) {
         console.error(e);
       }); // vditor
 
-      this.contentEditor = new (vditor__WEBPACK_IMPORTED_MODULE_0___default())('content-vditor', {
+      this.vditor = new (vditor__WEBPACK_IMPORTED_MODULE_0___default())('content-vditor', {
         height: 460,
         toolbarConfig: {
           pin: true
@@ -17611,6 +17610,19 @@ if (document.getElementById("create-topic-vue")) {
               icon: "error"
             });
             console.error(e);
+          });
+        },
+        select: function select(md) {
+          // 回复可见
+          swal({
+            title: "你选中了一段文字",
+            text: "是否将选中的文字设为回复可见?",
+            buttons: true,
+            icon: "warning"
+          }).then(function (click) {
+            if (click) {
+              _this2.vditor.updateValue("[reply]" + md + "[/reply]");
+            }
           });
         }
       });

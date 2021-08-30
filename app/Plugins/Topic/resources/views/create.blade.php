@@ -41,6 +41,12 @@
                                 </option>
                             </select>
                         </div>
+                        <h3 class="card-title">正文</h3>
+                        <span style="margin-bottom: 5px">
+                            <button type="button" @@click="edit_reply" class="btn btn-white btn-sm btn-pill">
+                                回复可见
+                            </button>
+                        </span>
                         <div id="content-vditor"></div>
                     </div>
                 </div>

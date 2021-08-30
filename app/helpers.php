@@ -675,7 +675,7 @@ if(!function_exists("csrf_token")){
             session()->set("csrf_token",Str::random());
         }
         if(!cache()->has("csrf_token".session()->get("csrf_token"))){
-            cache()->set("csrf_token".session()->get("csrf_token"),Str::random(),600);
+            cache()->set("csrf_token".session()->get("csrf_token"),Str::random(),1200);
         }
         return cache()->get("csrf_token".session()->get("csrf_token"));
     }
