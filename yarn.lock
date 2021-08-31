@@ -1460,6 +1460,11 @@ acorn@^8.2.1:
   resolved "https://registry.nlark.com/acorn/download/acorn-8.4.0.tgz#af53266e698d7cffa416714b503066a82221be60"
   integrity sha1-r1MmbmmNfP+kFnFLUDBmqCIhvmA=
 
+add@^2.0.6:
+  version "2.0.6"
+  resolved "https://registry.npm.taobao.org/add/download/add-2.0.6.tgz#248f0a9f6e5a528ef2295dbeec30532130ae2235"
+  integrity sha1-JI8Kn25aUo7yKV2+7DBTITCuIjU=
+
 adjust-sourcemap-loader@3.0.0:
   version "3.0.0"
   resolved "https://registry.nlark.com/adjust-sourcemap-loader/download/adjust-sourcemap-loader-3.0.0.tgz#5ae12fb5b7b1c585e80bbb5a63ec163a1a45e61e"
@@ -4078,6 +4083,11 @@ isobject@^3.0.0, isobject@^3.0.1:
   version "3.0.1"
   resolved "https://registry.nlark.com/isobject/download/isobject-3.0.1.tgz#4e431e92b11a9731636aa1f9c8d1ccbcfdab78df"
   integrity sha1-TkMekrEalzFjaqH5yNHMvP2reN8=
+
+izitoast@^1.4.0:
+  version "1.4.0"
+  resolved "https://registry.nlark.com/izitoast/download/izitoast-1.4.0.tgz#1aa4e3408b7159fba743506af66d8be54fd929fb"
+  integrity sha1-GqTjQItxWfunQ1Bq9m2L5U/ZKfs=
 
 jest-diff@^26.0.0:
   version "26.6.2"
@@ -6960,6 +6970,11 @@ yargs@^17.0.1:
     string-width "^4.2.0"
     y18n "^5.0.5"
     yargs-parser "^20.2.2"
+
+yarn@^1.22.11:
+  version "1.22.11"
+  resolved "https://registry.nlark.com/yarn/download/yarn-1.22.11.tgz#d0104043e7349046e0e2aec977c24be106925ed6"
+  integrity sha1-0BBAQ+c0kEbg4q7Jd8JL4QaSXtY=
 
 yocto-queue@^0.1.0:
   version "0.1.0"

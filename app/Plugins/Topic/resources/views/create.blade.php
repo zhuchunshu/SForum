@@ -32,10 +32,10 @@
                 <div class="col-md-9">
                     <div class="mb-3 border-0 card card-body">
                         <h3 class="card-title">标题</h3>
-                        <input type="text" v-model="title" class="form-control form-control-lg form-control-flush" placeholder="请输入标题">
+                        <input type="text" v-model="title" class="form-control form-control-lg form-control-flush" placeholder="请输入标题" required>
                         <h3 class="card-title">标签</h3>
                         <div class="mb-3">
-                            <select id="select-tags" class="form-select form-select-lg form-control-flush">
+                            <select id="select-tags" v-model="tag_selected" class="form-select form-select-lg form-control-flush">
                                 <option v-for="option in tags" :value="option.value">
                                     @{{ option.text }}
                                 </option>

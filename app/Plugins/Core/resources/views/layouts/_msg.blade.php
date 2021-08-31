@@ -1,6 +1,6 @@
+<link rel="stylesheet" href="{{ mix('plugins/Core/iziToast/css/iziToast.min.css') }}">
 @foreach (['danger', 'warning', 'success', 'info'] as $msg)
     @if(session()->has($msg))
-        <link rel="stylesheet" href="{{ mix('plugins/Core/iziToast/css/iziToast.min.css') }}">
         <script src="{{ mix('plugins/Core/iziToast/js/iziToast.min.js') }}"></script>
         <script>
             if("{{$msg}}"==="success"){

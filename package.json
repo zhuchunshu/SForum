@@ -21,18 +21,21 @@
   },
   "homepage": "https://github.com/zhuchunshu/CodeFecHF#readme",
   "dependencies": {
+    "add": "^2.0.6",
     "alpinejs": "^3.2.2",
     "axios": "^0.21.1",
     "css-what": "^5.0.1",
     "daisyui": "^1.9.0",
     "glob-parent": "^5.1.2",
+    "izitoast": "^1.4.0",
     "laravel-mix": "^6.0.20",
     "mithril": "^2.0.4",
     "notyf": "^3.10.0",
     "sweetalert": "^2.1.2",
     "vditor": "^3.8.6",
     "vue": "^3.1.1",
-    "vue-cookie": "^1.1.4"
+    "vue-cookie": "^1.1.4",
+    "yarn": "^1.22.11"
   },
   "devDependencies": {
     "@vue/compiler-sfc": "^3.1.1",
