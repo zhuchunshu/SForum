@@ -18980,7 +18980,7 @@ if (document.getElementById("create-topic-vue")) {
     data: function data() {
       return {
         vditor: '',
-        title: "",
+        title: localStorage.getItem("topic_create_title"),
         edit: {
           mode: "ir",
           preview: {
@@ -19048,7 +19048,6 @@ if (document.getElementById("create-topic-vue")) {
       },
       submit: function submit() {
         var options_hidden_user_list = qs.stringify(this.options.hidden.user.list);
-        var options_hidden_user_selected = qs.stringify(this.options.hidden.user.selected);
         var options_hidden_user_class = qs.stringify(this.options.hidden.user_class);
         var options_hidden_type = qs.stringify(this.options.hidden.type);
         var html = this.vditor.getHTML();
@@ -19077,13 +19076,33 @@ if (document.getElementById("create-topic-vue")) {
         axios__WEBPACK_IMPORTED_MODULE_1___default().post("/topic/create", {
           _token: csrf_token,
           options_hidden_user_list: options_hidden_user_list,
-          options_hidden_user_selected: options_hidden_user_selected,
           options_hidden_user_class: options_hidden_user_class,
           options_hidden_type: options_hidden_type,
+          title: this.title,
           html: html,
           markdown: markdown,
-          tags: tags
-        }).then(function (r) {})["catch"](function (e) {});
+          tag: tags
+        }).then(function (r) {
+          var data = r.data;
+
+          if (!data.success) {
+            data.result.forEach(function (value) {
+              izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+                title: "error",
+                message: value,
+                position: "topRight",
+                timeout: 10000
+              });
+            });
+          }
+        })["catch"](function (e) {
+          console.error(e);
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: 'Error',
+            position: 'topRight',
+            message: '请求出错,详细查看控制台'
+          });
+        });
       },
       edit_toc: function edit_toc() {
         var md = this.vditor.getValue();
@@ -19171,6 +19190,7 @@ if (document.getElementById("create-topic-vue")) {
               console.error(e);
             });
           },
+          input: function input(md) {},
           select: function select(md) {
             // 回复可见
             swal({
@@ -19188,6 +19208,14 @@ if (document.getElementById("create-topic-vue")) {
           }
         });
       },
+      hidden_user_remove: function hidden_user_remove(username) {
+        this.options.hidden.user.list.splice(this.options.hidden.user.list.indexOf(username), 1);
+        izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+          title: "Success",
+          message: "已将 " + username + " 从可见列表中移除",
+          position: 'topRight'
+        });
+      },
       hidden_user_add: function hidden_user_add() {
         var _this2 = this;
 
@@ -19201,6 +19229,8 @@ if (document.getElementById("create-topic-vue")) {
 
             if (data.success) {
               _this2.options.hidden.user.list.push(username);
+
+              _this2.options.hidden.user.selected = null;
             } else {
               swal({
                 title: "新增用户失败,原因:" + data.result.msg,
@@ -19220,7 +19250,27 @@ if (document.getElementById("create-topic-vue")) {
       }
     },
     mounted: function mounted() {
+      if (localStorage.getItem("topic_create_tag")) {
+        this.tag_selected = localStorage.getItem("topic_create_tag");
+      }
+
+      if (localStorage.getItem("topic_create_tag") || localStorage.getItem("topic_create_title")) {
+        izitoast__WEBPACK_IMPORTED_MODULE_2___default().info({
+          title: "Info",
+          message: "已为您恢复上次编辑内容",
+          position: 'topRight'
+        });
+      }
+
       this.init();
+    },
+    watch: {
+      title: function title(_title) {
+        localStorage.setItem("topic_create_title", _title);
+      },
+      tag_selected: function tag_selected(tag) {
+        localStorage.setItem("topic_create_tag", tag);
+      }
     }
   };
   Vue.createApp(create_topic_vue).mount("#create-topic-vue");

@@ -1766,3 +1766,10 @@
 .vditor-sv__marker--strong {
   font-weight: bold;
 }
+
+pre {
+  padding: 0;
+  border: 0;
+  font-size: 20px;
+  line-height: 1.5rem;
+}

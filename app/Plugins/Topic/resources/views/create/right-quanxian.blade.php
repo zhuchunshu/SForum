@@ -28,7 +28,11 @@
             <div class="mb-3" style="margin-top:5px">
                 <label for="" class="form-label">已选择:</label>
                 <div v-for="value in options.hidden.user.list">
-                    <span class="badge bg-blue">@{{ value }}</span><br/>
+                    <span>
+                        <span class="badge bg-blue">@{{ value }}</span>
+                        <span @@click="hidden_user_remove(value)" style="margin-left:-2px;border-radius:0px;-moz-border-radius:0px;" class="badge bg-red">x</span>
+                    </span>
+                    <br/>
                 </div>
             </div>
         </div>

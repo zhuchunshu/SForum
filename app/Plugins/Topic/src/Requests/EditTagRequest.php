@@ -29,7 +29,10 @@ class EditTagRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            "cfpassword" => "Confirm Password"
+            "name" => "名称",
+            "icon" => "图标",
+            "color" => "颜色值",
+            "description" => "描述"
         ];
     }
 }

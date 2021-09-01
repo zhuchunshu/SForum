@@ -51,3 +51,6 @@ Itf()->add("menu",101,[
 </svg>',
 ]);
 
+
+Itf_Setting()->add(3001,
+    "发帖设置","create-topic","plugins.Topic.admin.setting");
