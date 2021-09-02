@@ -1777,3 +1777,29 @@ pre {
 .vditor-reset {
   font-size: 20px;
 }
+
+.card-circle > span {
+  color: #ff6661;
+}
+
+.card-circle {
+  width: -webkit-fit-content;
+  width: -moz-fit-content;
+  width: fit-content;
+  background-color: rgba(255, 96, 91, 0.06);
+  padding: 0 14px;
+  border-radius: 30px;
+  height: 30px;
+  line-height: 30px;
+}
+
+.card-circle > img {
+  margin-top: -3px;
+  margin-right: 4px;
+  width: 24px;
+  height: 24px;
+}
+
+.bottomLine {
+  font-size: 14px;
+}

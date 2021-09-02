@@ -15,3 +15,7 @@
     </div>
 
 @endsection
+
+@section('headers')
+    <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
+@endsection
