@@ -2,6 +2,7 @@
 
 use App\Plugins\Core\src\Lib\ShortCode\ShortCode;
 use App\Plugins\Core\src\Lib\ShortCodeR\ShortCodeR;
+use DivineOmega\PHPSummary\SummaryTool;
 use JetBrains\PhpStorm\Pure;
 use App\Plugins\Core\src\Lib\Redirect;
 use App\Plugins\Core\src\Lib\UserVerEmail;
@@ -45,6 +46,20 @@ if(!function_exists("plugins_core_user_reg_defuc")){
     }
 }
 
+if(!function_exists("super_avatar")){
+    function super_avatar($user_data): string
+    {
+        if($user_data->avatar){
+            return $user_data->avatar;
+        }
+
+        if(get_options("core_user_def_avatar","gavatar")!=="multiavatar") {
+            return get_options("theme_common_gavatar", "https://cn.gravatar.com/avatar/") . md5($user_data->email);
+        }
+        return "/user/multiavatar/".$user_data->username."/avatar.jpg";
+    }
+}
+
 if(!function_exists("avatar")){
     function avatar(int $user_id,$class=null): string
     {
@@ -68,7 +83,7 @@ HTML;
         }else{
             if(get_options("core_user_def_avatar","gavatar")!=="multiavatar"){
                 $url = get_options("theme_common_gavatar","https://cn.gravatar.com/avatar/").md5($ud->email);
-            return <<<HTML
+                return <<<HTML
 <span class="avatar {$class}" style="background-image: url({$url})"></span>
 HTML;
             }else{
@@ -201,5 +216,34 @@ if(!function_exists("ShortCodeR")){
     function ShortCodeR(): ShortCodeR
     {
         return new ShortCodeR();
+    }
+}
+
+if(!function_exists("xss")){
+    function xss(): \App\Plugins\Core\src\Lib\Xss\Xss
+    {
+        return new App\Plugins\Core\src\Lib\Xss\Xss();
+    }
+}
+
+if(!function_exists("summary")){
+    function summary($content): string
+    {
+        return (new SummaryTool($content))->getSummary();
+    }
+}
+
+if(!function_exists("deOptions")){
+    function deOptions($json){
+        return json_decode($json, true);
+    }
+}
+
+if(!function_exists("getAllImg")){
+    function getAllImg($content):array{
+        $preg = '/<img.*?src=[\"|\']?(.*?)[\"|\']?\s.*?>/i';//匹配img标签的正则表达式
+
+        preg_match_all($preg, $content, $allImg);//这里匹配所有的imgecho
+        return $allImg[1];
     }
 }

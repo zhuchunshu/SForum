@@ -11,6 +11,8 @@
     "require": {
         "multiavatar/multiavatar-php": "^1.0",
         "intervention/image": "^2.6",
-        "erusev/parsedown": "^1.7"
+        "erusev/parsedown": "^1.7",
+        "ezyang/htmlpurifier": "^4.13",
+        "divineomega/php-summary": "^3.0"
     }
 }

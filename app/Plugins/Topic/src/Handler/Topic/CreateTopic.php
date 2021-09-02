@@ -34,6 +34,10 @@ class CreateTopic
         $hidden_type = $request->input("options_hidden_type");
         $hidden_user_class = $request->input("options_hidden_user_class");
         $hidden_user_list = $request->input("options_hidden_user_list");
+        $summary = $request->input("summary");
+        if(!$summary){
+            $summary = summary(strip_tags($html));
+        }
         if($hidden_user_class){
             $hidden_user_class = de_stringify($hidden_user_class);
         }else{
@@ -48,19 +52,22 @@ class CreateTopic
         if(!$hidden_type){
             $hidden_type = "close";
         }
+        $images = getAllImg($html);
         $options = [
             "hidden" => [
                 "type" => $hidden_type,
                 "users" => $hidden_user_list,
                 "user_class" => $hidden_user_class
-            ]
+            ],
+            "summary" => $summary,
+            "images" => $images
         ];
         $options = json_encode($options, JSON_THROW_ON_ERROR,JSON_UNESCAPED_UNICODE);
         $data = Topic::query()->create([
             "title" => $title,
             "user_id" => auth()->id(),
             "status" => "publish",
-            "content" => $html,
+            "content" => xss()->clean($html),
             "markdown" => $markdown,
             "like" => 0,
             "view" => 0,

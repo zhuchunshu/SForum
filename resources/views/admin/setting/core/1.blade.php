@@ -4,6 +4,10 @@
         <input v-model="data.title" type="text" class="form-control">
     </div>
     <div class="mb-3">
+        <label class="form-label">网站首页标题</label>
+        <input v-model="data.home_title" type="text" class="form-control">
+    </div>
+    <div class="mb-3">
         <label class="form-label">网站地址</label>
         <input v-model="env.APP_URL" type="text" class="form-control">
         <small>默认{{url()}}</small>

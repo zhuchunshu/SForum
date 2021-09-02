@@ -24,6 +24,12 @@
             <small>当前: {{get_options("topic_create_time",120)}} 秒,防刷帖 建议不要低于一分钟</small>
         </div>
 
+        <div class="mb-3">
+            <label class="form-label">每页显示帖子数量</label>
+            <input type="number" class="form-control" v-model="data.topic_home_num">
+            <small>当前: {{get_options("topic_home_num",15)}}</small>
+        </div>
+
     </div>
 </div>
 

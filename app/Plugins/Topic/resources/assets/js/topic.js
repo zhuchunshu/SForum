@@ -18988,6 +18988,7 @@ if (document.getElementById("create-topic-vue")) {
           }
         },
         options: {
+          summary: null,
           hidden: {
             type: "close",
             user: {
@@ -19056,6 +19057,7 @@ if (document.getElementById("create-topic-vue")) {
         var markdown = this.vditor.getValue();
         var tags = this.tag_selected;
         var title = this.title;
+        var summary = this.options.summary;
 
         if (!title) {
           izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
@@ -19083,7 +19085,8 @@ if (document.getElementById("create-topic-vue")) {
           title: this.title,
           html: html,
           markdown: markdown,
-          tag: tags
+          tag: tags,
+          options_summary: summary
         }).then(function (r) {
           var data = r.data;
 

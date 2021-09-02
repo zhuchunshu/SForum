@@ -16,6 +16,7 @@ class CreateTopicView
     public function right(): array
     {
         Itf()->add("Topic_create_right",1,"plugins.Topic.create.right-quanxian");
+        Itf()->add("Topic_create_right",2,"plugins.Topic.create.right-summary");
         return Itf()->get("Topic_create_right");
     }
 }

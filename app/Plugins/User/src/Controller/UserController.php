@@ -57,4 +57,11 @@ class UserController
         $img = $img($ud->username, null, null);
         return ResponseObj()->withBody(SwooleStream($img))->withHeader("content-type","image/svg+xml; charset=utf-8");
     }
+
+    #[GetMapping(path:"/user/multiavatar/{username}/avatar.jpg")]
+    public function username_multi_avatar($username){
+        $img = new Multiavatar();
+        $img = $img($username, null, null);
+        return ResponseObj()->withBody(SwooleStream($img))->withHeader("content-type","image/svg+xml; charset=utf-8");
+    }
 }
