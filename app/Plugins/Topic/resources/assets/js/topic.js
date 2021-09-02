@@ -19047,9 +19047,11 @@ if (document.getElementById("create-topic-vue")) {
         });
       },
       submit: function submit() {
+        var _this = this;
+
         var options_hidden_user_list = qs.stringify(this.options.hidden.user.list);
         var options_hidden_user_class = qs.stringify(this.options.hidden.user_class);
-        var options_hidden_type = qs.stringify(this.options.hidden.type);
+        var options_hidden_type = this.options.hidden.type;
         var html = this.vditor.getHTML();
         var markdown = this.vditor.getValue();
         var tags = this.tag_selected;
@@ -19094,6 +19096,23 @@ if (document.getElementById("create-topic-vue")) {
                 timeout: 10000
               });
             });
+          } else {
+            localStorage.removeItem("topic_create_title");
+            localStorage.removeItem("topic_create_tag");
+
+            _this.vditor.clearCache();
+
+            data.result.forEach(function (value) {
+              izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+                title: "success",
+                message: value,
+                position: "topRight",
+                timeout: 10000
+              });
+            });
+            setTimeout(function () {
+              location.href = "/";
+            }, 2000);
           }
         })["catch"](function (e) {
           console.error(e);
@@ -19109,13 +19128,13 @@ if (document.getElementById("create-topic-vue")) {
         this.vditor.setValue("[toc]\n" + md);
       },
       init: function init() {
-        var _this = this;
+        var _this2 = this;
 
         // tags
         axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/tags", {
           _token: csrf_token
         }).then(function (response) {
-          _this.tags = response.data;
+          _this2.tags = response.data;
         })["catch"](function (e) {
           console.error(e);
         }); // vditor
@@ -19146,12 +19165,12 @@ if (document.getElementById("create-topic-vue")) {
             extend: [{
               key: '@',
               hint: function hint(key) {
-                return _this.userAtList;
+                return _this2.userAtList;
               }
             }, {
               key: '$',
               hint: function hint(key) {
-                return _this.topic_keywords;
+                return _this2.topic_keywords;
               }
             }]
           },
@@ -19170,7 +19189,7 @@ if (document.getElementById("create-topic-vue")) {
             axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@user_list", {
               _token: csrf_token
             }).then(function (r) {
-              _this.userAtList = r.data;
+              _this2.userAtList = r.data;
             })["catch"](function (e) {
               swal({
                 title: "获取本站用户列表失败,详细查看控制台",
@@ -19181,7 +19200,7 @@ if (document.getElementById("create-topic-vue")) {
             axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/keywords", {
               _token: csrf_token
             }).then(function (r) {
-              _this.topic_keywords = r.data;
+              _this2.topic_keywords = r.data;
             })["catch"](function (e) {
               swal({
                 title: "获取话题列表失败,详细查看控制台",
@@ -19200,9 +19219,9 @@ if (document.getElementById("create-topic-vue")) {
               icon: "warning"
             }).then(function (click) {
               if (click) {
-                _this.vditor.updateValue("[reply]" + md + "[/reply]");
+                _this2.vditor.updateValue("[reply]" + md + "[/reply]");
               } else {
-                _this.vditor.focus();
+                _this2.vditor.focus();
               }
             });
           }
@@ -19217,7 +19236,7 @@ if (document.getElementById("create-topic-vue")) {
         });
       },
       hidden_user_add: function hidden_user_add() {
-        var _this2 = this;
+        var _this3 = this;
 
         var username = this.options.hidden.user.selected;
 
@@ -19228,9 +19247,9 @@ if (document.getElementById("create-topic-vue")) {
             var data = r.data;
 
             if (data.success) {
-              _this2.options.hidden.user.list.push(username);
+              _this3.options.hidden.user.list.push(username);
 
-              _this2.options.hidden.user.selected = null;
+              _this3.options.hidden.user.selected = null;
             } else {
               swal({
                 title: "新增用户失败,原因:" + data.result.msg,

@@ -1771,5 +1771,9 @@ pre {
   padding: 0;
   border: 0;
   font-size: 20px;
-  line-height: 1.5rem;
+  line-height: 1rem;
+}
+
+.vditor-reset {
+  font-size: 20px;
 }

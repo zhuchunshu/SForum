@@ -1,0 +1,44 @@
+<?php
+
+declare (strict_types=1);
+namespace App\Plugins\Topic\src\Models;
+
+use App\Model\Model;
+use Carbon\Carbon;
+
+/**
+ * @property int $id 
+ * @property string $title 
+ * @property string $user_id 
+ * @property string $status 
+ * @property string $content 
+ * @property string $markdown 
+ * @property string $like 
+ * @property string $view 
+ * @property string $tag_id 
+ * @property string $_token 
+ * @property string $options 
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ */
+class Topic extends Model
+{
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'topic';
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
+    protected $fillable = ['id','created_at','updated_at','title','user_id','status','content','markdown','view','like','tag_id','options','_token'];
+    /**
+     * The attributes that should be cast to native types.
+     *
+     * @var array
+     */
+    protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
+}
