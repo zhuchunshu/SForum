@@ -49,10 +49,21 @@ class ShortCodeR
         return (new Make())->$method(...$content);
     }
 
-    public function handle(string $content):string{
-        $content = $this->make()->default($content);
-        $content = $this->make()->type1($content);
-        $content = $this->make()->type2($content);
+    public function handle($content){
+        $y = $content;
+        $content = $this->make("default",$content);
+        if($content ===$y){
+            $content = $this->make("type1",$content);
+        }
+        if($content ===$y){
+            $content = $this->make("type2",$content);
+        }
+        if($content ===$y){
+            $content = $this->make("type3",$content);
+        }
+        if($content ===$y){
+            $content = $this->make("type4",$content);
+        }
         return $content;
     }
 

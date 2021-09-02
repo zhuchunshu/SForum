@@ -20,7 +20,11 @@ class Itf implements ItfInterface
     public function get($class): array
     {
         $array = $this->list[$class];
-        ksort($array);
+        if($array && is_array($array)){
+            ksort($array);
+        }else{
+            $array = [];
+        }
         return $array;
     }
 }
