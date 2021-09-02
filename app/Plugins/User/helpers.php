@@ -28,6 +28,14 @@ if(!function_exists("get_all_at")){
     }
 }
 
+function replace_all_at(string $content):string{
+    //$pattern = "/\\$\\[(.*?)]/u";
+    $pattern = "/@(.*?)[^ ]+/u";
+    return preg_replace_callback($pattern, static function($match){
+        return (new \App\Plugins\Core\src\Lib\TextParsing())->at($match[0]);
+    },$content);
+}
+
 if(!function_exists("get_all_keywords")){
 
     /**
@@ -38,5 +46,12 @@ if(!function_exists("get_all_keywords")){
     function get_all_keywords(string $content):array{
         preg_match_all("/(?<=\\$\\[)[^]]+/u", $content, $arrMatches);
         return $arrMatches[0];
+    }
+
+    function replace_all_keywords(string $content):string{
+        $pattern = "/\\$\\[(.*?)]/u";
+        return preg_replace_callback($pattern, static function($match){
+            return (new \App\Plugins\Core\src\Lib\TextParsing())->keywords($match[1]);
+        },$content);
     }
 }

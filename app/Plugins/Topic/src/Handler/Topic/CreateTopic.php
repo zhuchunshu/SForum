@@ -62,12 +62,18 @@ class CreateTopic
             "summary" => $summary,
             "images" => $images
         ];
+        $html = xss()->clean($html);
+        // 解析shortCode
+        ShortCode()->handle($html);
+
+        $html = $this->tag($html);
+
         $options = json_encode($options, JSON_THROW_ON_ERROR,JSON_UNESCAPED_UNICODE);
         $data = Topic::query()->create([
             "title" => $title,
             "user_id" => auth()->id(),
             "status" => "publish",
-            "content" => xss()->clean($html),
+            "content" => $html,
             "markdown" => $markdown,
             "like" => 0,
             "view" => 0,
@@ -84,5 +90,13 @@ class CreateTopic
             return Json_Api(401,false,['发帖过于频繁,请 '.$time." 秒后再试"]);
         }
         return true;
+    }
+
+    public function tag(string $html)
+    {
+        foreach (get_all_keywords($html) as $tag){
+            return 1;
+        }
+        return $html;
     }
 }
