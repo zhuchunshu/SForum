@@ -53,4 +53,4 @@ Itf()->add("menu",101,[
 
 
 Itf_Setting()->add(3001,
-    "发帖设置","create-topic","plugins.Topic.admin.setting");
+    "帖子设置","topic","plugins.Topic.admin.setting");

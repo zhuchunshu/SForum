@@ -30,6 +30,12 @@
             <small>当前: {{get_options("topic_home_num",15)}}</small>
         </div>
 
+        <div class="mb-3">
+            <label class="form-label">懒加载默认图片</label>
+            <input type="number" class="form-control" v-model="data.topic_lazyload_img">
+            <small>当前: {{get_options("topic_lazyload_img","/plugins/Topic/loading.gif")}}</small>
+        </div>
+
     </div>
 </div>
 

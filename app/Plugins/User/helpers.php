@@ -28,12 +28,14 @@ if(!function_exists("get_all_at")){
     }
 }
 
-function replace_all_at(string $content):string{
-    //$pattern = "/\\$\\[(.*?)]/u";
-    $pattern = "/@(.*?)[^ ]+/u";
-    return preg_replace_callback($pattern, static function($match){
-        return (new \App\Plugins\Core\src\Lib\TextParsing())->at($match[0]);
-    },$content);
+if(!function_exists("replace_all_at")){
+    function replace_all_at(string $content):string{
+        //$pattern = "/\\$\\[(.*?)]/u";
+        $pattern = "/@(.*?)[^ ]+/u";
+        return preg_replace_callback($pattern, static function($match){
+            return (new \App\Plugins\Core\src\Lib\TextParsing())->at($match[0]);
+        },$content);
+    }
 }
 
 if(!function_exists("get_all_keywords")){

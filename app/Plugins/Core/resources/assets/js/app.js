@@ -2169,6 +2169,16 @@ $(function () {
     d.parent().parent().parent().parent().attr('class', _class + " active");
   });
 });
+$(function () {
+  $("img").each(function () {
+    if ($(this).attr("data-src")) {
+      var d = $(this);
+      setTimeout(function () {
+        d.attr("src", d.attr("data-src"));
+      }, 500);
+    }
+  });
+});
 })();
 
 /******/ })()
