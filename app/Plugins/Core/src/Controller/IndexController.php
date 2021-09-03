@@ -2,6 +2,7 @@
 
 namespace App\Plugins\Core\src\Controller;
 
+use App\Plugins\Topic\src\Handler\Topic\ShowTopic;
 use App\Plugins\Topic\src\Models\Topic;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -22,7 +23,10 @@ class IndexController
 
     #[GetMapping(path:"/{id}.html")]
     public function show($id){
-        return $id;
+        if(!Topic::query()->where('id',$id)->exists()) {
+            return admin_abort("页面不存在",404);
+        }
+        return (new ShowTopic())->handle();
     }
 
 }
