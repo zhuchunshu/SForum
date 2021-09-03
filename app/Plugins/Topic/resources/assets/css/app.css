@@ -1780,6 +1780,7 @@ pre {
 
 .card-circle > span {
   color: #ff6661;
+  font-weight: bolder;
 }
 
 .card-circle {
@@ -1802,4 +1803,11 @@ pre {
 
 .bottomLine {
   font-size: 14px;
+}
+
+.home-article img {
+  max-height: 400px;
+  max-width: 300px;
+  overflow: hidden;
+  margin: 1px;
 }

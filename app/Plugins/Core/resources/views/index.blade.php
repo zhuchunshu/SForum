@@ -5,12 +5,16 @@
 
 @section('content')
 
-    <div class="row row-cards">
-        <div class="col-md-9">
-            @include('plugins.Core.index.index')
-        </div>
-        <div class="col-md-3">
-            @include('plugins.Core.index.right')
+    <div class="row row-cards justify-content-center">
+        <div class="col-md-10">
+            <div class="row row-cards justify-content-center">
+                <div class="col-md-7">
+                    @include('plugins.Core.index.index')
+                </div>
+                <div class="col-md-5">
+                    @include('plugins.Core.index.right')
+                </div>
+            </div>
         </div>
     </div>
 
