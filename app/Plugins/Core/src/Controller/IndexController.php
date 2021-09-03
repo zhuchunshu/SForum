@@ -20,4 +20,9 @@ class IndexController
         return view("plugins.Core.index",["page" => $page]);
     }
 
+    #[GetMapping(path:"/{id}.html")]
+    public function show($id){
+        return $id;
+    }
+
 }

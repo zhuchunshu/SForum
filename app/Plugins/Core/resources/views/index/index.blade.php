@@ -18,14 +18,14 @@
                         <div class="col-md-12">
                             <div class="row">
                                 <div class="col-md-12 markdown home-article">
-                                    <a href="" class="text-reset"><h2>{{$data->title}}</h2></a>
+                                    <a href="/{{$data->id}}.html" class="text-reset"><h2>{{$data->title}}</h2></a>
                                     {{\Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"为捕获到本文摘要内容"),300)}}
                                     <div class="row">
                                         @foreach(deOptions($data->options)["images"] as $key=>$image)
                                             @if($key<=5)
                                                 <div class="col-4">
                                                     <div class="border-5">
-                                                        <a href="#" class="d-block"><img data-src="{{$image}}" class="card-img-top" alt="{{$image}}" src="{{get_options("topic_lazyload_img","/plugins/Topic/loading.gif")}}"></a>
+                                                        <a href="/{{$data->id}}.html" class="d-block"><img data-src="{{$image}}" class="card-img-top" alt="{{$image}}" src="{{get_options("topic_lazyload_img","/plugins/Topic/loading.gif")}}"></a>
                                                     </div>
                                                 </div>
                                             @endif
