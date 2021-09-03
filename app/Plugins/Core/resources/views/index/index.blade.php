@@ -35,7 +35,7 @@
                             </div>
                         </div>
                         <div class="col-md-12" style="margin-top: 5px">
-                            <div class="row">
+                            <div class="d-flex align-items-center">
                                 <div class="col-auto bottomLine">
                                     <a href="/tags/{{$data->tag->id}}.html" style="text-decoration:none">
                                         <div class="card-circle">
@@ -44,22 +44,15 @@
                                         </div>
                                     </a>
                                 </div>
-                                <div class="col"></div>
-                                <div class="col-auto" style="margin-top: 5px">
-                                    <span>{{$data->view}} 浏览</span>
-                                    <span>
-                                        <button class="switch-icon switch-icon-flip" data-bs-toggle="switch-icon">
-                              <span class="switch-icon-a text-muted">
-                                <!-- Download SVG icon from http://tabler-icons.io/i/thumb-up -->
-                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="34" height="34" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M7 11v8a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1v-7a1 1 0 0 1 1 -1h3a4 4 0 0 0 4 -4v-1a2 2 0 0 1 4 0v5h3a2 2 0 0 1 2 2l-1 5a2 3 0 0 1 -2 2h-7a3 3 0 0 1 -3 -3" /></svg>
-                              </span>
-                              <span class="switch-icon-b text-facebook">
-                                <!-- Download SVG icon from http://tabler-icons.io/i/thumb-up -->
-                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="34" height="34" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M7 11v8a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1v-7a1 1 0 0 1 1 -1h3a4 4 0 0 0 4 -4v-1a2 2 0 0 1 4 0v5h3a2 2 0 0 1 2 2l-1 5a2 3 0 0 1 -2 2h-7a3 3 0 0 1 -3 -3" /></svg>
-                              </span>
-                            </button>
-                                        {{$data->like}}
+                                <div class="ms-auto">
+                                    <span class="text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom" title="浏览量">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="12" r="2" /><path d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" /></svg>
+                                        {{$data->view}}
                                     </span>
+                                    <a href="#" class="ms-3 text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom" title="点赞">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M19.5 13.572l-7.5 7.428l-7.5 -7.428m0 0a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572" /></svg>
+                                        {{$data->like}}
+                                    </a>
                                 </div>
                             </div>
                         </div>
