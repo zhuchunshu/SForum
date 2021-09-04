@@ -3,6 +3,8 @@
 namespace App\Plugins\Topic\src\Handler\Topic;
 
 use App\Plugins\Topic\src\Models\Topic;
+use App\Plugins\Topic\src\Models\TopicKeyword;
+use App\Plugins\Topic\src\Models\TopicKeywordsWith;
 use Hyperf\Utils\Str;
 use Psr\SimpleCache\InvalidArgumentException;
 
@@ -67,6 +69,7 @@ class CreateTopic
         ShortCode()->handle($html);
 
         // 解析标签
+        $yhtml = $html;
         $html = $this->tag($html);
         // 解析艾特
         $html = $this->at($html);
@@ -84,6 +87,7 @@ class CreateTopic
             "options" => $options,
             "_token" => auth()->id()."_".Str::random()
         ]);
+        $this->topic_keywords($data,$yhtml);
     }
 
     public function validate($request):array|bool
@@ -97,9 +101,6 @@ class CreateTopic
 
     public function tag(string $html)
     {
-//        foreach (get_all_keywords($html) as $tag){
-//
-//        }
         $html = replace_all_keywords($html);
         return $html;
     }
@@ -107,6 +108,26 @@ class CreateTopic
     public function at(string $html): string
     {
         return replace_all_at($html);
+    }
+
+    public function topic_keywords($data,string $html): void
+    {
+        foreach (get_all_keywords($html) as $tag){
+            if(!TopicKeyword::query()->where("name",$tag)->exists()) {
+                TopicKeyword::query()->create([
+                    "name" => $tag,
+                    "user_id" => auth()->id()
+                ]);
+            }
+            $tk = TopicKeyword::query()->where("name",$tag)->first();
+            if(!TopicKeywordsWith::query()->where(['topic_id'=>$data->id,'with_id' => $tk->id])->exists()) {
+                TopicKeywordsWith::query()->create([
+                    'topic_id' => $data->id,
+                    'with_id' => $tk->id,
+                    'user_id' => auth()->id()
+                ]);
+            }
+        }
     }
 
 
