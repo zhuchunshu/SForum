@@ -19081,7 +19081,7 @@ if (document.getElementById("create-topic-vue")) {
           _token: csrf_token,
           options_hidden_user_list: options_hidden_user_list,
           options_hidden_user_class: options_hidden_user_class,
-          options_hidden_type: options_hidden_type,
+          options_hidden_tfixTermTypoype: options_hidden_type,
           title: this.title,
           html: html,
           markdown: markdown,
@@ -19155,7 +19155,7 @@ if (document.getElementById("create-topic-vue")) {
             markdown: {
               toc: true,
               mark: true,
-              fixTermTypo: true
+              autoSpace: true
             }
           },
           mode: this.edit.mode,
@@ -19296,6 +19296,33 @@ if (document.getElementById("create-topic-vue")) {
     }
   };
   Vue.createApp(create_topic_vue).mount("#create-topic-vue");
+}
+
+if (document.getElementById("topic-content")) {
+  var previewElement = document.getElementById("topic-content");
+  previewElement.addEventListener("click", function (event) {
+    if (event.target.tagName === "IMG") {
+      vditor__WEBPACK_IMPORTED_MODULE_0___default().previewImage(event.target);
+    }
+  });
+  vditor__WEBPACK_IMPORTED_MODULE_0___default().mermaidRender(previewElement);
+  vditor__WEBPACK_IMPORTED_MODULE_0___default().abcRender(previewElement);
+  vditor__WEBPACK_IMPORTED_MODULE_0___default().chartRender(previewElement);
+  vditor__WEBPACK_IMPORTED_MODULE_0___default().mindmapRender(previewElement);
+  vditor__WEBPACK_IMPORTED_MODULE_0___default().graphvizRender(previewElement);
+  vditor__WEBPACK_IMPORTED_MODULE_0___default().mathRender(previewElement);
+  vditor__WEBPACK_IMPORTED_MODULE_0___default().mediaRender(previewElement);
+  vditor__WEBPACK_IMPORTED_MODULE_0___default().highlightRender({
+    lineNumber: true,
+    enable: true
+  }, previewElement);
+  vditor__WEBPACK_IMPORTED_MODULE_0___default().flowchartRender(previewElement);
+  vditor__WEBPACK_IMPORTED_MODULE_0___default().plantumlRender(previewElement);
+  previewElement.addEventListener("click", function (event) {
+    if (event.target.tagName === "IMG") {
+      vditor__WEBPACK_IMPORTED_MODULE_0___default().previewImage(event.target);
+    }
+  });
 }
 })();
 

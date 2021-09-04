@@ -67,4 +67,5 @@
             </div>
         </div>
     @endif
+    {!! make_page($page) !!}
 </div>

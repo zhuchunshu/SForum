@@ -24,3 +24,7 @@
 @section('headers')
     <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
 @endsection
+
+@section('scripts')
+    <script src="{{ mix('plugins/Topic/js/topic.js') }}"></script>
+@endsection

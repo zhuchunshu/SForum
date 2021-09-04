@@ -18,7 +18,7 @@
                     </div>
                 </div>
 
-                <div class="col-md-12 vditor-reset" id="content">
+                <div class="col-md-12 vditor-reset" id="topic-content">
                     {!! ShortCodeR()->handle($data->content) !!}
                 </div>
 
