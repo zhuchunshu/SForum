@@ -18988,7 +18988,7 @@ if (document.getElementById("create-topic-vue")) {
           }
         },
         options: {
-          summary: null,
+          summary: '',
           hidden: {
             type: "close",
             user: {

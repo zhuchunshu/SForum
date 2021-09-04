@@ -23,6 +23,7 @@
     <link href="{{ '/tabler/css/tabler-flags.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
+    <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet" />
     <script>
         var csrf_token = "{{ recsrf_token() }}";
     </script>
@@ -56,6 +57,7 @@
         <script src="{{ mix('plugins/Core/js/mithril.js') }}"></script>
     @endif
     <script src="{{ mix('plugins/Core/js/app.js') }}"></script>
+    <script src="{{ file_hash('js/diy.js') }}"></script>
     {{-- <!-- 自定义Js --> --}}
     @foreach (\App\CodeFec\Ui\functions::get('js') as $key => $value)
         <script src="{{ $value }}"></script>

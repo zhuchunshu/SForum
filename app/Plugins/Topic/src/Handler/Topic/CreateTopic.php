@@ -36,7 +36,7 @@ class CreateTopic
         $hidden_user_list = $request->input("options_hidden_user_list");
         $summary = $request->input("summary");
         if(!$summary){
-            $summary = summary(strip_tags($html));
+            $summary = remove_bbCode(strip_tags($html));
         }
         if($hidden_user_class){
             $hidden_user_class = de_stringify($hidden_user_class);

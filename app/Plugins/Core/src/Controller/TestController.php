@@ -19,8 +19,7 @@ class TestController
     public function test()
     {
         //ShortCodeR()->add("a","App\Plugins\Core\src\Lib\ShortCode\Defaults@a");
-        ShortCode()->add("a","App\Plugins\Core\src\Lib\ShortCode\Defaults@a");
-        $content = Topic::query()->where("id",12)->first()->content;
-        return replace_all_at(($content));
+        $content = "[reply]看你怎么隐藏[/reply] 2222 [reply]看你怎么隐藏[/reply]";
+        return response()->raw(remove_bbCode(($content)));
     }
 }
