@@ -7,10 +7,10 @@
                         <div class="col-md-12">
                             <div class="row">
                                 <div class="col-auto">
-                                    <span class="avatar" style="background-image: url({{super_avatar($data->user)}})"></span>
+                                    <a href="/users/{{$data->user->username}}.html" class="avatar" style="background-image: url({{super_avatar($data->user)}})"></a>
                                 </div>
                                 <div class="col">
-                                    <div style="margin-bottom:0" class="card-title">{{$data->user->username}}</div>
+                                    <a href="/users/{{$data->user->username}}.html" style="margin-bottom:0;text-decoration:none;" class="card-title text-reset">{{$data->user->username}}</a>
                                     <div style="margin-top:1px">发布于:{{$data->created_at}}</div>
                                 </div>
                             </div>
@@ -19,7 +19,7 @@
                             <div class="row">
                                 <div class="col-md-12 markdown home-article">
                                     <a href="/{{$data->id}}.html" class="text-reset"><h2>{{$data->title}}</h2></a>
-                                    {{\Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"未捕获到本文摘要"),300)}}
+                                    <span class="home-summary">{{\Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"未捕获到本文摘要"),300)}}</span>
                                     <div class="row">
                                         @foreach(deOptions($data->options)["images"] as $key=>$image)
                                             @if($key<=5)
