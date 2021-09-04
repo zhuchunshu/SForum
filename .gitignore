@@ -20,3 +20,5 @@ node_modules
 /resources/sass/plugins
 /public/upload
 /public/uploads
+/public/css/diy.css
+/public/js/diy.js
