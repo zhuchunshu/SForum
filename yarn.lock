@@ -2159,6 +2159,11 @@ clone-deep@^4.0.1:
     kind-of "^6.0.2"
     shallow-clone "^3.0.0"
 
+codemirror@^5.62.3:
+  version "5.62.3"
+  resolved "https://registry.nlark.com/codemirror/download/codemirror-5.62.3.tgz?cache=0&sync_timestamp=1629450596099&other_urls=https%3A%2F%2Fregistry.nlark.com%2Fcodemirror%2Fdownload%2Fcodemirror-5.62.3.tgz#5cfdee6931c8b2d1b39ae773aaaaec2cc6b5558e"
+  integrity sha1-XP3uaTHIstGzmudzqqrsLMa1VY4=
+
 collect.js@^4.28.6:
   version "4.28.6"
   resolved "https://registry.npm.taobao.org/collect.js/download/collect.js-4.28.6.tgz#7fb75ae93b8198f7bb88461e263ea09744d0c56b"

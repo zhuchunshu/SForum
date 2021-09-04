@@ -24,6 +24,7 @@
     "add": "^2.0.6",
     "alpinejs": "^3.2.2",
     "axios": "^0.21.1",
+    "codemirror": "^5.62.3",
     "css-what": "^5.0.1",
     "daisyui": "^1.9.0",
     "glob-parent": "^5.1.2",

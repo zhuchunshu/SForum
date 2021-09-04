@@ -35,6 +35,9 @@ mix.js(resources_path("js/alpine.js"),"js")
 //admin
     // login
     mix.js(resources_path("js/admin/login.js"),"js/admin").version();
+
+    //EditFile
+    mix.js(resources_path("js/admin/EditFile.js"),"js/admin").version();
     // error
     mix.js(resources_path("js/admin/error.js"),"js/admin").version();
     // component
