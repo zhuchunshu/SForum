@@ -1,5 +1,5 @@
 <div class="row row-cards">
-    @foreach(Itf()->get("index_right") as $value)
+    @foreach(Itf()->get("show_right") as $value)
         @include($value)
     @endforeach
 </div>

@@ -13,7 +13,7 @@
                     @include('plugins.Core.topic.content')
                 </div>
                 <div class="col-md-5">
-                    @include('plugins.Core.index.right')
+                    @include('plugins.Core.topic.show-right')
                 </div>
             </div>
         </div>
