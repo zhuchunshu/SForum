@@ -19,12 +19,15 @@ class Itf implements ItfInterface
 
     public function get($class): array
     {
-        $array = $this->list[$class];
-        if($array && is_array($array)){
-            ksort($array);
-        }else{
-            $array = [];
+        if(Arr::has($this->list,$class)){
+            $array = $this->list[$class];
+            if($array && is_array($array)){
+                ksort($array);
+            }else{
+                $array = [];
+            }
+            return $array;
         }
-        return $array;
+        return [];
     }
 }

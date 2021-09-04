@@ -66,7 +66,10 @@ class CreateTopic
         // 解析shortCode
         ShortCode()->handle($html);
 
+        // 解析标签
         $html = $this->tag($html);
+        // 解析艾特
+        $html = $this->at($html);
 
         $options = json_encode($options, JSON_THROW_ON_ERROR,JSON_UNESCAPED_UNICODE);
         $data = Topic::query()->create([
@@ -94,9 +97,17 @@ class CreateTopic
 
     public function tag(string $html)
     {
-        foreach (get_all_keywords($html) as $tag){
-            return 1;
-        }
+//        foreach (get_all_keywords($html) as $tag){
+//
+//        }
+        $html = replace_all_keywords($html);
         return $html;
     }
+
+    public function at(string $html): string
+    {
+        return replace_all_at($html);
+    }
+
+
 }

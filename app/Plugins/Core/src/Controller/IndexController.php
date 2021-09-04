@@ -26,7 +26,7 @@ class IndexController
         if(!Topic::query()->where('id',$id)->exists()) {
             return admin_abort("页面不存在",404);
         }
-        return (new ShowTopic())->handle();
+        return (new ShowTopic())->handle($id);
     }
 
 }

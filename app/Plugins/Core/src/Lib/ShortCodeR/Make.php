@@ -8,7 +8,7 @@ class Make
 {
 
     public function default(string $content):string{
-        foreach(ShortCode()->all() as $tag=>$value){
+        foreach(ShortCodeR()->all() as $tag=>$value){
             $tag = core_Itf_id("ShortCodeR",$tag);
 
             $pattern = "/\[$tag\](.*?)\[\/$tag\]/is";
@@ -21,7 +21,7 @@ class Make
     }
 
     public function type2(string $content):string{
-        foreach(ShortCode()->all() as $tag=>$value){
+        foreach(ShortCodeR()->all() as $tag=>$value){
             $tag = core_Itf_id("ShortCodeR",$tag);
 
             $pattern = "/\[$tag=(.*?)\](.*?)\[\/$tag\]/is";
@@ -34,7 +34,7 @@ class Make
     }
 
     public function type1(string $content):string{
-        foreach(ShortCode()->all() as $tag=>$value){
+        foreach(ShortCodeR()->all() as $tag=>$value){
             $tag = core_Itf_id("ShortCodeR",$tag);
 
             $pattern = "/\[$tag (.*?)\](.*?)\[\/$tag\]/is";
@@ -47,7 +47,7 @@ class Make
     }
 
     public function type3(string $content):string{
-        foreach(ShortCode()->all() as $tag=>$value){
+        foreach(ShortCodeR()->all() as $tag=>$value){
             $tag = core_Itf_id("ShortCodeR",$tag);
 
             $pattern = "/\[$tag\]/is";
@@ -60,7 +60,7 @@ class Make
     }
 
     public function type4(string $content):string{
-        foreach(ShortCode()->all() as $tag=>$value){
+        foreach(ShortCodeR()->all() as $tag=>$value){
             $tag = core_Itf_id("ShortCodeR",$tag);
 
             $pattern = "/\[$tag=(.*?)\]/is";

@@ -2,19 +2,27 @@
 
 namespace App\Plugins\Core\src\Lib;
 
+use App\Plugins\User\src\Models\User;
+use Hyperf\Utils\Str;
+
 class TextParsing
 {
     public function keywords($keywords):string{
         return <<<HTML
-<a href="">#{$keywords}</a>
+<a href="/keywords/{$keywords}.html">#{$keywords}</a>
 HTML;
 
     }
 
     public function at($username): string
     {
-        return <<<HTML
-<a href="">{$username}</a>
+        $username = Str::after($username,"@");
+        if(User::query()->where("username",$username)->exists()) {
+            return <<<HTML
+<a href="/users/{$username}.html">@{$username}</a>
 HTML;
+        }
+
+        return "@".$username;
     }
 }
