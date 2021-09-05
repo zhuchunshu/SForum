@@ -18,6 +18,7 @@ class Core
         $this->composer();
         $this->setting();
         $this->helpers();
+        $this->bootstrap();
         $this->shortCode();
     }
 
@@ -38,5 +39,10 @@ class Core
 
     public function shortCode(): void{
         require_once __DIR__."/ShortCode.php";
+    }
+
+    public function bootstrap()
+    {
+        require_once __DIR__."/bootstrap.php";
     }
 }

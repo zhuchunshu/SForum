@@ -29,7 +29,11 @@
                             <td class="text-muted">
                                 <div style="width: 25px;height:25px;background-color:{{ $value->color }};border-radius:5px;"></div>
                             </td>
-                            <td class="text-muted">{{ $value->quanxian }}</td>
+                            <td class="text-muted">
+                                @foreach(json_decode($value->quanxian) as $quanxian)
+                                    <span class="badge bg-blue">{{$quanxian}}</span>
+                                @endforeach
+                            </td>
                             <td>
                                 <a href="/admin/userClass/edit/{{ $value->id }}">修改</a>
                             </td>

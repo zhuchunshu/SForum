@@ -2128,8 +2128,18 @@ if (document.getElementById("vue-user-create-class")) {
         name: "",
         icon: "",
         color: "#206bc4",
-        quanxian: 1
+        quanxian: [],
+        permission_value: 1
       };
+    },
+    mounted: function mounted() {
+      var _this = this;
+
+      axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/userClass/Default/Authority", {
+        _token: csrf_token
+      }).then(function (r) {
+        _this.quanxian = r.data;
+      });
     },
     methods: {
       submit: function submit() {
@@ -2138,7 +2148,8 @@ if (document.getElementById("vue-user-create-class")) {
           name: this.name,
           icon: this.icon,
           color: this.color,
-          quanxian: this.quanxian
+          quanxian: this.quanxian,
+          'permission-value': this.permission_value
         }).then(function (response) {
           var data = response.data;
 
@@ -2189,11 +2200,12 @@ if (document.getElementById("vue-user-edit-class")) {
         name: "",
         icon: "",
         color: "#206bc4",
-        quanxian: 1
+        quanxian: [],
+        permission_value: 1
       };
     },
     beforeMount: function beforeMount() {
-      var _this = this;
+      var _this2 = this;
 
       axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/userClass/" + this.id + "/data", {
         _token: csrf_token
@@ -2207,10 +2219,11 @@ if (document.getElementById("vue-user-edit-class")) {
           });
         } else {
           var result = data.result;
-          _this.name = result.name;
-          _this.icon = result.icon;
-          _this.color = result.color;
-          _this.quanxian = result.quanxian;
+          _this2.name = result.name;
+          _this2.icon = result.icon;
+          _this2.color = result.color;
+          _this2.quanxian = result.quanxian;
+          _this2.permission_value = result.permission_value;
         }
       })["catch"](function (error) {
         console.error(error);
@@ -2224,7 +2237,8 @@ if (document.getElementById("vue-user-edit-class")) {
           name: this.name,
           icon: this.icon,
           color: this.color,
-          quanxian: this.quanxian
+          quanxian: this.quanxian,
+          'permission-value': this.permission_value
         }).then(function (response) {
           var data = response.data;
 

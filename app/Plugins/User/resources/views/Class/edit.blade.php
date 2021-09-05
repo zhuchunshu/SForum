@@ -26,8 +26,16 @@
                     <small><a href="https://tabler-icons.io/">https://tabler-icons.io/</a> 、<a href="https://icons.bootcss.com/">https://icons.bootcss.com/</a> </small>
                 </div>
                 <div class="mb-3">
+                    <label class="form-label">权限(多选)</label>
+                    <select class="form-select" v-model="quanxian" multiple>
+                        @foreach(Authority()->get() as $value)
+                            <option value="{{$value['name']}}">{{$value['description']}}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="mb-3">
                     <label class="form-label">权限值</label>
-                    <input type="number" min="1" class="form-control" v-model="quanxian">
+                    <input type="number" class="form-control" v-model="permission_value">
                 </div>
                 <button class="btn btn-primary" type="submit">提交</button>
             </form>

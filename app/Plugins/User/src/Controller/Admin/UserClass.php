@@ -32,7 +32,15 @@ class UserClass
      */
     public function create_post(Create $request): array
     {
-        \App\Plugins\User\src\Models\UserClass::query()->create($request->validated());
+        $data = $request->validated();
+        $result = [
+            "icon" => $data['icon'],
+            "name" => $data['name'],
+            "color" => $data['color'],
+            "quanxian" => json_encode($data['quanxian'],JSON_UNESCAPED_UNICODE),
+            'permission-value' => $data['permission-value']
+        ];
+        \App\Plugins\User\src\Models\UserClass::query()->create($result);
         return Json_Api(200,true,['msg' => '用户组创建成功!']);
     }
 
@@ -58,7 +66,8 @@ class UserClass
             "icon" => $data->icon,
             "name" => $data->name,
             "color" => $data->color,
-            "quanxian" => $data->quanxian
+            "quanxian" => json_decode($data->quanxian),
+            'permission_value' => $data['permission-value']
         ];
         return Json_Api(200,true,$result);
     }
@@ -73,7 +82,8 @@ class UserClass
          "icon" => $data['icon'],
          "name" => $data['name'],
          "color" => $data['color'],
-         "quanxian" => $data['quanxian']
+         "quanxian" => json_encode($data['quanxian'],JSON_UNESCAPED_UNICODE),
+          'permission-value' => $data['permission-value']
       ]);
       return Json_Api(200,true,['msg' => '更新成功!']);
     }
@@ -98,4 +108,14 @@ class UserClass
         });
         return Json_Api(200,true,['msg' => '删除成功!']);
     }
+
+    #[PostMapping(path:"/admin/userClass/Default/Authority")]
+    public function Get_All_Default_Authority(){
+        $arr = [];
+        foreach(Itf()->get("core_auth_selected") as $value){
+            $arr[]=$value;
+        }
+        return $arr;
+    }
+
 }

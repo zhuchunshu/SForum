@@ -24,9 +24,10 @@ class Update extends FormRequest
         return [
             "id" => "required|exists:user_class",
             "name" => "required|string|min:2|max:100|unique:user_class,name,".$this->input("id"),
-            "quanxian" => "required|integer|min:1",
+            "quanxian" => "required|array",
             "color" => "required|string",
-            "icon" => "nullable"
+            "icon" => "nullable",
+            'permission-value' => "required|integer|min:1",
         ];
     }
     public function attributes(): array
@@ -34,8 +35,9 @@ class Update extends FormRequest
         return [
             "name" => "用户组名称",
             "ename" => "用户组标识",
-            "quanxian" => "用户组权限值",
-            "color" => "用户组颜色代码"
+            "quanxian" => "用户组权限",
+            "color" => "用户组颜色代码",
+            'permission-value' => '权限值'
         ];
     }
 }

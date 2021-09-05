@@ -15,3 +15,12 @@ Itf_Setting()->add(203,
 Itf_Setting()->add(204,
     "用户设置","user-setting","plugins.Core.setting.user.core");
 
+
+
+menu()->add(21,[
+   "name" => "权限分配",
+    "icon" => '',
+    'url' => '',
+]);
+
+

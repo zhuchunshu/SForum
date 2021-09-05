@@ -1,5 +1,6 @@
 <?php
 
+use App\Plugins\Core\src\Lib\Authority\Authority;
 use App\Plugins\Core\src\Lib\ShortCode\ShortCode;
 use App\Plugins\Core\src\Lib\ShortCodeR\ShortCodeR;
 use DivineOmega\PHPSummary\SummaryTool;
@@ -339,5 +340,11 @@ if(!function_exists("remove_bbCode")){
         },$content);
         $content = str_replace(" ","",$content);
         return $content;
+    }
+}
+
+if(!function_exists("Authority")){
+    function Authority(){
+        return new Authority();
     }
 }

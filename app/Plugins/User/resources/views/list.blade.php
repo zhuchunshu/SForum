@@ -18,6 +18,7 @@
                         <h2 class="page-title">
                             会员列表
                         </h2>
+                        本站共 {{$count}} 位会员
                     </div>
 
 

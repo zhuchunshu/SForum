@@ -24,7 +24,7 @@
             <div class="dropdown-menu-column">
                 @foreach (core_menu_pdArr($key) as $keys => $values)
                     @if(arr_has($values,'quanxian'))
-                        @if(auth()->Class()->quanxian>=$values['quanxian'])
+                        @if(auth()->Class()['permission-value']>=$values['quanxian'])
                             @if (core_Str_menu_url('/' . request()->path()) === $values['url'])
                                 <a class="dropdown-item active" menu="active" id="admin-menu-{{ $keys }}"
                                    href="{{ $values['url'] }}">
