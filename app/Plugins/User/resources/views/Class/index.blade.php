@@ -16,6 +16,7 @@
                         <th>#</th>
                         <th>名称</th>
                         <th>颜色</th>
+                        <th>权限值</th>
                         <th>权限</th>
                         <th class="w-1"></th>
                         <th class="w-1"></th>
@@ -28,6 +29,9 @@
                             <td>{{ $value->name }}</td>
                             <td class="text-muted">
                                 <div style="width: 25px;height:25px;background-color:{{ $value->color }};border-radius:5px;"></div>
+                            </td>
+                            <td class="text-muted">
+                                {{$value['permission-value']}}
                             </td>
                             <td class="text-muted">
                                 @foreach(json_decode($value->quanxian) as $quanxian)
