@@ -28,7 +28,7 @@ class UserClass extends Model
      *
      * @var array
      */
-    protected $fillable = ['id','name','quanxian','icon','color'];
+    protected $fillable = ['id','name','quanxian','icon','color','permission-value'];
     /**
      * The attributes that should be cast to native types.
      *

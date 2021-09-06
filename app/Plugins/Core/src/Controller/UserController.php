@@ -69,8 +69,7 @@ class UserController
     #[PostMapping(path: "/logout")]
     public function logout(): array
     {
-        session()->remove("auth");
-        session()->remove("auth_data");
+        auth()->logout();
         return Json_Api(200,true,['msg' => '退出登陆成功!','url' => '/login']);
     }
 
