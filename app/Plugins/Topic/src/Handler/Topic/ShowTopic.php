@@ -12,6 +12,6 @@ class ShowTopic
             ->where('id', $id)
             ->with("tag","user")
             ->first();
-        return view('plugins.Core.topic.show',['data' => $data]);
+        return view('plugins.Core.topic.show.show',['data' => $data]);
     }
 }

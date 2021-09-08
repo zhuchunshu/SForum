@@ -3,6 +3,8 @@
 namespace App\Plugins\Core\src\Lib\Authority;
 
 // 权限管理模块
+use Hyperf\Utils\Arr;
+
 class Authority
 {
     // action列表
@@ -28,6 +30,11 @@ class Authority
             $arr[]=$value;
         }
         return $arr;
+    }
+
+    public function check($userClassData,$quanxian):bool{
+        $data = json_decode($userClassData->quanxian,true);
+        return Arr::has($data,$quanxian);
     }
 
 }
