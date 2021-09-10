@@ -8,6 +8,9 @@ class ShowTopic
 {
     public function handle($id): \Psr\Http\Message\ResponseInterface
     {
+        go(static function() use ($id){
+            Topic::query()->where('id', $id)->increment('view');
+        });
         $data = Topic::query()
             ->where('id', $id)
             ->with("tag","user")
