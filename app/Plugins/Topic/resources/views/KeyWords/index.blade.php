@@ -1,8 +1,8 @@
 @extends("plugins.Core.app")
 
-@section('title', '帖子标签')
-@section('description', '本站帖子标签列表')
-@section('keywords', '本站帖子标签列表')
+@section('title', '关键词列表')
+@section('description', '本站帖子关键词列表')
+@section('keywords', '本站帖子关键词列表')
 
 @section('header')
 <div class="page-wrapper">
@@ -16,7 +16,7 @@
                 Overview
             </div>
             <h2 class="page-title">
-                标签列表
+                关键词列表
             </h2>
         </div>
 
@@ -31,27 +31,18 @@
 <div class="row row-cards">
 @if ($page->count())
     @foreach ($page as $value)
-        <div class="col-md-4">
-            <div class="border-0 card">
-                <div class="card-status-top" style="{{ Core_Ui()->Css()->bg_color($value->color) }}"></div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-auto">
-                            <span class="avatar" style="background-image: url({{ $value->icon }})"></span>
-                        </div>
-                        <div class="col">
-                            <a href="/tags/{{ $value->id }}.html"
-                                class="card-title text-h2">{{ $value->name }}</a>
-                            {{ \Hyperf\Utils\Str::limit(core_default($value->description, '暂无描述'), 32) }}
-                        </div>
-                    </div>
-                </div>
+        <div class="col-4 col-md-2">
+            <div class="keywords-a" style="background-color:{{$color[array_rand($color)]}}">
+                <a href="/keywords/{{$value->name}}.html">
+                    <h2 title="{{$value->name}}">{{$value->name}}</h2>
+                    <p>共{{count($value->kw)}}篇文章</p>
+                </a>
             </div>
         </div>
     @endforeach
 @else
 <div class="col-md-4">
-    <div class="border-0 card">
+    <a class="border-0 card">
         <div class="card-status-top bg-danger"></div>
         <div class="card-body">
             <div class="row">
@@ -63,10 +54,15 @@
                 </div>
             </div>
         </div>
-    </div>
+    </a>
 </div>
 @endif
 {!! make_page($page) !!}
 </div>
+</div>
 
+@endsection
+
+@section('headers')
+        <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
 @endsection

@@ -10,8 +10,18 @@ use Hyperf\HttpServer\Annotation\GetMapping;
 #[Controller]
 class KeywordsController
 {
+    #[GetMapping(path:"/keywords")]
     public function index(){
-
+        $color = [
+            "#35bdc7",
+            '#fca61e',
+            '#e65a4f',
+            '#f29c9f',
+            '#76cba2',
+            '#8f82bc'
+        ];
+        $page = TopicKeyword::query()->with("kw")->paginate(90);
+        return view("plugins.Topic.KeyWords.index",['page' => $page,'color' => $color]);
     }
 
     #[GetMapping(path:"/keywords/{name}.html")]
