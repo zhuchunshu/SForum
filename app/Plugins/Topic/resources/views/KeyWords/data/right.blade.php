@@ -3,7 +3,7 @@
     <div class="col-md-10">
         <div class="card">
 
-            <div class="card-status-top" style="{{Core_Ui()->Css()->bg_color($data->color)}}"></div>
+            <div class="card-status-top bg-primary"></div>
 
             <div class="card-body">
                 <h3 class="card-title">
