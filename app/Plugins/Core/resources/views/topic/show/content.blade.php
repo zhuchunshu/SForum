@@ -12,10 +12,12 @@
                 <div class="col-md-12" id="author">
                     <div class="row">
                         <div class="col-auto">
-                            <span class="avatar" style="background-image: url({{super_avatar($data->user)}})"></span>
+                            <a class="avatar" href="/users/{{$data->user->username}}.html" style="background-image: url({{super_avatar($data->user)}})"></a>
                         </div>
                         <div class="col">
-                            <div class="topic-author-name">{{$data->user->username}}</div>
+                            <div class="topic-author-name">
+                                <a href="/users/{{$data->user->username}}.html" class="text-reset">{{$data->user->username}}</a>
+                            </div>
                             <div>发表于:{{format_date($data->created_at)}}</div>
                         </div>
                     </div>

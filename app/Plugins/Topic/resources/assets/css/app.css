@@ -1826,6 +1826,9 @@ pre {
   font-size: 15px;
   font-weight: bolder;
 }
+.topic-author-name a {
+  text-decoration: none;
+}
 
 .topic h1 {
   margin-bottom: 5px;
