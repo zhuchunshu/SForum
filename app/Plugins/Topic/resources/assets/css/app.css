@@ -1828,7 +1828,11 @@ pre {
 }
 
 .topic h1 {
-  margin-bottom: 20px;
+  margin-bottom: 5px;
+}
+
+.topic ol {
+  margin-bottom: 5px;
 }
 
 .topic #author {
@@ -1837,4 +1841,9 @@ pre {
 
 .home-summary {
   font-size: 16px;
+}
+
+.tag-icon {
+  max-width: 25px;
+  max-height: 25px;
 }

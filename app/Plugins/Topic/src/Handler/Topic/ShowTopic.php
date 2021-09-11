@@ -8,6 +8,7 @@ class ShowTopic
 {
     public function handle($id): \Psr\Http\Message\ResponseInterface
     {
+        // 自增浏览量
         go(static function() use ($id){
             Topic::query()->where('id', $id)->increment('view');
         });
