@@ -12,7 +12,11 @@
                     @include('plugins.Topic.Tags.data.index')
                 </div>
                 <div class="col-md-5">
-                    @include('plugins.Topic.Tags.data.right')
+                    <div class="row row-cards rd">
+                        <div class="col-md-12 sticky" style="top: 105px">
+                            @include('plugins.Topic.Tags.data.right')
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

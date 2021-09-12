@@ -12,7 +12,11 @@
                     @include('plugins.Core.index.index')
                 </div>
                 <div class="col-md-5">
-                    @include('plugins.Core.index.right')
+                    <div class="row row-cards rd">
+                        <div class="col-md-12 sticky" style="top: 105px">
+                            @include('plugins.Core.index.right')
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

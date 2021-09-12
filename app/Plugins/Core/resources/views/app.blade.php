@@ -29,10 +29,6 @@
     </script>
     <meta name="description" content="@yield('description',get_options('description'))">
     <meta name="keywords" content="@yield('keywords',get_options('keywords'))">
-    <!-- 自定义CSS -->
-    @foreach (\App\CodeFec\Ui\functions::get('css') as $key => $value)
-        <link rel="stylesheet" href="{{ $value }}">
-    @endforeach
     @yield('css')
     @yield('headers')
 </head>
