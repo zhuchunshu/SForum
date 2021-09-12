@@ -17,10 +17,3 @@ Itf_Setting()->add(204,
 
 
 
-menu()->add(21,[
-   "name" => "权限分配",
-    "icon" => '',
-    'url' => '',
-]);
-
-

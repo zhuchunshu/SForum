@@ -3,6 +3,7 @@
 namespace App\Plugins\Core\src\Lib\Authority;
 
 // 权限管理模块
+use App\Plugins\User\src\Models\UserClass;
 use Hyperf\Utils\Arr;
 
 class Authority
@@ -32,9 +33,13 @@ class Authority
         return $arr;
     }
 
-    public function check($userClassData,$quanxian):bool{
-        $data = json_decode($userClassData->quanxian,true);
-        return Arr::has($data,$quanxian);
+    public function check($quanxian):bool{
+        if(!auth()->check()){
+           return false;
+        }
+        $userClassData = UserClass::query()->where("id",auth()->data()->class_id)->first();
+        $data = json_decode($userClassData['quanxian'],true);
+        return in_array($quanxian, $data,true);
     }
 
 }

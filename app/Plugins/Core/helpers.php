@@ -348,3 +348,10 @@ if(!function_exists("Authority")){
         return new Authority();
     }
 }
+
+if(!function_exists("curd")){
+    function curd(): \App\Plugins\Core\src\Lib\Curd
+    {
+        return new \App\Plugins\Core\src\Lib\Curd();
+    }
+}
