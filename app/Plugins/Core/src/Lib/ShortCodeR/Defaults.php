@@ -4,6 +4,8 @@
 namespace App\Plugins\Core\src\Lib\ShortCodeR;
 
 
+use App\Plugins\Topic\src\Models\Topic;
+
 class Defaults
 {
   public static function a($match)
@@ -100,5 +102,42 @@ HTML;
 </div>
 
 HTML;
+  }
+  public function topic($match){
+      $topic_id = $match[1];
+      if(!Topic::query()->where("id",$topic_id)->exists()) {
+          return '[topic id="'.$topic_id.'"][/topic]';
+      }
+      $data = Topic::query()->where("id",$topic_id)->select("id","title","user_id","options","created_at")->with("user")->first();
+      $user_avatar = super_avatar($data->user);
+      $title = \Hyperf\Utils\Str::limit($data->title,20);
+      $summary = \Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"未捕获到本文摘要"),40);
+      return <<<HTML
+<a href="">
+
+</a>
+<div class="row topic-with">
+    <div class="col">
+        <a href="/{$data->id}.html" class="text-reset" style="text-decoration:none;"><b>{$title}</b></a>
+        <a href="/{$data->id}.html" style="display: -webkit-box;
+    font-size: 13px;
+    height: 18px;
+    line-height: 18px;
+    color: #999999;
+    word-break: break-all;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    text-decoration:none;">
+            {$summary}
+        </a>
+    </div>
+    <div class="col-auto">
+    <a href="/users/{$data->user->username}.html" class="avatar" style="background-image: url($user_avatar)"></a>
+    </div>
+</div>
+HTML;
+
   }
 }

@@ -1877,3 +1877,25 @@ pre {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.63);
 }
+
+.topic-with {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: row;
+  align-items: center;
+  width: 390px;
+  min-height: 84px;
+  border-radius: 8px;
+  max-width: 100%;
+  overflow: hidden;
+  margin: 16px auto;
+  padding: 12px 12px 9px 12px;
+  background-color: #F6F6F6;
+}
+
+.LinkCard-contents {
+  display: block;
+  flex: 1 1 auto;
+  position: relative;
+}
