@@ -2132,6 +2132,8 @@ if (document.getElementById("EditFile")) {
       this.ace = ace.edit("editor");
       this.ace.setTheme("ace/theme/monokai");
       this.ace.session.setMode("ace/mode/" + lang);
+      this.ace.session.setUseWrapMode(true);
+      this.ace.setHighlightActiveLine(true);
     },
     methods: {
       submit: function submit() {
