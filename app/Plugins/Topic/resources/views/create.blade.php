@@ -32,26 +32,24 @@
                 <div class="col-md-9">
                     <div class="mb-3 border-0 card card-body">
                         <h3 class="card-title">标题</h3>
-                        <input type="text" v-model="title" class="form-control form-control-lg form-control-flush" placeholder="请输入标题" required>
+                        <input type="text" v-model="title" class="form-control form-control-lg form-control-flush"
+                            placeholder="请输入标题" required>
                         <h3 class="card-title">标签</h3>
                         <div class="mb-3">
-                            <select id="select-tags" v-model="tag_selected" class="form-select form-select-lg form-control-flush">
+                            <select id="select-tags" v-model="tag_selected"
+                                class="form-select form-select-lg form-control-flush">
                                 <option v-for="option in tags" :value="option.value">
-                                    @{{ option.text }}
+                                    @{{ option . text }}
                                 </option>
                             </select>
                         </div>
-                        <div class="border-1 card">
-                            <div class="card-body">
-                                <button style="margin-right:5px" type="button" @@click="edit_reply" class="btn btn-white btn-sm btn-pill">
-                                    回复可见
-                                </button>
-                                <button style="margin-right:5px" type="button" @@click="edit_toc" class="btn btn-white btn-sm btn-pill">
-                                    添加目录
-                                </button>
-                                <button type="button" @@click="edit_mode" class="btn btn-white btn-sm btn-pill">
-                                    切换编辑模式
-                                </button>
+                        <div class="vditor-superf-toolbar">
+                            <div class="vditor-toolbar vditor-toolbar--pin" style="padding-left: 10px;">
+                                <div class="vditor-toolbar__item">
+                                    @include('plugins.Topic.create-toolbar')
+                                </div>
+{{--                                    <span class="vditor-counter vditor-tooltipped vditor-tooltipped__nw"--}}
+{{--                                    aria-label="已写字数">18</span>--}}
                             </div>
                         </div>
                         <div class="mb-3">
@@ -64,7 +62,7 @@
                 </div>
                 <div class="col-md-3">
                     <div class="row row-cards">
-                        @foreach($right as $value)
+                        @foreach ($right as $value)
                             @include($value)
                         @endforeach
                     </div>
@@ -77,7 +75,7 @@
 
 @section('scripts')
     <script type="text/javascript">
-        var imageUpUrl = "/user/upload/image?_token={{csrf_token()}}";
+        var imageUpUrl = "/user/upload/image?_token={{ csrf_token() }}";
     </script>
     <script src="{{ mix('plugins/Topic/js/topic.js') }}"></script>
 @endsection

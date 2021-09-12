@@ -1899,3 +1899,8 @@ pre {
   flex: 1 1 auto;
   position: relative;
 }
+
+.vditor-superf-toolbar {
+  background-color: #f6f8fa;
+  text-align: center;
+}

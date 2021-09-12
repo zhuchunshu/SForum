@@ -19126,18 +19126,50 @@ if (document.getElementById("create-topic-vue")) {
           });
         });
       },
+      // 帖子引用
+      edit_with_topic: function edit_with_topic() {
+        var _this2 = this;
+
+        swal("输入帖子id或帖子链接:", {
+          content: "input"
+        }).then(function (value) {
+          if (value) {
+            var id;
+
+            if (!/(^[1-9]\d*$)/.test(value)) {
+              value = value.match(/\/(\S*)\.html/);
+
+              if (value) {
+                value = value[1];
+              } else {
+                return;
+              }
+
+              id = value.substring(value.lastIndexOf("/") + 1);
+            } else {
+              id = value;
+            }
+
+            var md = _this2.vditor.getSelection();
+
+            _this2.vditor.focus();
+
+            _this2.vditor.updateValue("[topic=" + id + "]" + md + "[/topic]");
+          }
+        });
+      },
       edit_toc: function edit_toc() {
         var md = this.vditor.getValue();
         this.vditor.setValue("[toc]\n" + md);
       },
       init: function init() {
-        var _this2 = this;
+        var _this3 = this;
 
         // tags
         axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/tags", {
           _token: csrf_token
         }).then(function (response) {
-          _this2.tags = response.data;
+          _this3.tags = response.data;
         })["catch"](function (e) {
           console.error(e);
         }); // vditor
@@ -19168,12 +19200,12 @@ if (document.getElementById("create-topic-vue")) {
             extend: [{
               key: '@',
               hint: function hint(key) {
-                return _this2.userAtList;
+                return _this3.userAtList;
               }
             }, {
               key: '$',
               hint: function hint(key) {
-                return _this2.topic_keywords;
+                return _this3.topic_keywords;
               }
             }]
           },
@@ -19192,7 +19224,7 @@ if (document.getElementById("create-topic-vue")) {
             axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@user_list", {
               _token: csrf_token
             }).then(function (r) {
-              _this2.userAtList = r.data;
+              _this3.userAtList = r.data;
             })["catch"](function (e) {
               swal({
                 title: "获取本站用户列表失败,详细查看控制台",
@@ -19203,7 +19235,7 @@ if (document.getElementById("create-topic-vue")) {
             axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/keywords", {
               _token: csrf_token
             }).then(function (r) {
-              _this2.topic_keywords = r.data;
+              _this3.topic_keywords = r.data;
             })["catch"](function (e) {
               swal({
                 title: "获取话题列表失败,详细查看控制台",
@@ -19222,9 +19254,9 @@ if (document.getElementById("create-topic-vue")) {
               icon: "warning"
             }).then(function (click) {
               if (click) {
-                _this2.vditor.updateValue("[reply]" + md + "[/reply]");
+                _this3.vditor.updateValue("[reply]" + md + "[/reply]");
               } else {
-                _this2.vditor.focus();
+                _this3.vditor.focus();
               }
             });
           }
@@ -19239,7 +19271,7 @@ if (document.getElementById("create-topic-vue")) {
         });
       },
       hidden_user_add: function hidden_user_add() {
-        var _this3 = this;
+        var _this4 = this;
 
         var username = this.options.hidden.user.selected;
 
@@ -19250,9 +19282,9 @@ if (document.getElementById("create-topic-vue")) {
             var data = r.data;
 
             if (data.success) {
-              _this3.options.hidden.user.list.push(username);
+              _this4.options.hidden.user.list.push(username);
 
-              _this3.options.hidden.user.selected = null;
+              _this4.options.hidden.user.selected = null;
             } else {
               swal({
                 title: "新增用户失败,原因:" + data.result.msg,
