@@ -4,7 +4,7 @@
 
             <div class="row">
                 <div class="col-md-12" id="title">
-                    <h1>{{$data->title}}</h1>
+                    <h1 data-bs-toggle="tooltip" data-bs-placement="top" title="帖子标题">{{$data->title}}</h1>
                 </div>
                 <div class="col-md-12">
                     @include('plugins.Core.topic.show.ol')

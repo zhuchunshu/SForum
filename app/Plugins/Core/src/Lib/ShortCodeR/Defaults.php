@@ -113,11 +113,8 @@ HTML;
       $title = \Hyperf\Utils\Str::limit($data->title,20);
       $summary = \Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"未捕获到本文摘要"),40);
       return <<<HTML
-<a href="">
-
-</a>
 <div class="row topic-with">
-    <div class="col">
+    <div data-bs-toggle="tooltip" data-bs-placement="top" title="引用的帖子" class="col">
         <a href="/{$data->id}.html" class="text-reset" style="text-decoration:none;"><b>{$title}</b></a>
         <a href="/{$data->id}.html" style="display: -webkit-box;
     font-size: 13px;
