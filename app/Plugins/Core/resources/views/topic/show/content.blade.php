@@ -9,6 +9,7 @@
                 <div class="col-md-12">
                     @include('plugins.Core.topic.show.ol')
                 </div>
+                <hr class="hr-text" style="margin-top: 5px;margin-bottom: 5px">
                 <div class="col-md-12" id="author">
                     <div class="row">
                         <div class="col-auto">
