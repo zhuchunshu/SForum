@@ -28,12 +28,22 @@ class UserController
     #[GetMapping(path:"/register")]
     public function register(): \Psr\Http\Message\ResponseInterface
     {
+        if(get_options("core_user_reg_switch","开启")==="关闭"){
+            return admin_abort("注册功能已关闭",403);
+        }
         return view("plugins.Core.user.sign",['title' => "注册","view" => "plugins.Core.user.register"]);
     }
 
     #[PostMapping(path: "/register")]
     public function register_post(RegisterRequest $request): array
     {
+        if(get_options("core_user_reg_switch","开启")==="关闭"){
+            return Json_Api(403,false,['msg' => "注册功能已关闭"]);
+        }
+//        if(get_options("core_user_reg_time","关闭")==="开启"){
+//            $start = get_options("core_user_reg_time_start","")
+//        }
+
         $data = $request->validated();
         if($data['password'] !== $data['cfpassword']){
             return Json_Api(403,false,['msg' => "The two passwords are inconsistent 两次输入密码不一致"]);

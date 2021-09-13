@@ -21,11 +21,17 @@ class TopicController
     #[GetMapping(path: "create")]
     #[Middleware(LoginMiddleware::class)]
     public function create(){
+        if(!Authority()->check("topic_create")){
+            return admin_abort("无发帖权限");
+        }
         return (new CreateTopicView())->handler();
     }
     #[PostMapping(path: "create")]
     #[Middleware(LoginMiddleware::class)]
     public function create_post(CreateTopicRequest $request){
+        if(!Authority()->check("topic_create")){
+            return Json_Api(401,false,['无发帖权限']);
+        }
         return (new CreateTopic())->handler($request);
     }
 }
