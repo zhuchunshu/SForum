@@ -2280,6 +2280,125 @@ if (document.getElementById("vue-user-edit-class")) {
   };
   Vue.createApp(vsec).mount("#vue-user-edit-class");
 }
+
+if (document.getElementById("vue-users")) {
+  var vue_users = {
+    data: function data() {
+      return {};
+    },
+    methods: {
+      username: function username(id, _username) {
+        sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+          title: "修改ID为:" + id + "的用户名",
+          content: {
+            element: "input",
+            attributes: {
+              placeholder: "请输入新的用户名",
+              type: "text",
+              value: _username
+            }
+          }
+        }).then(function (r) {
+          if (!r) {
+            return;
+          }
+
+          if (r === _username) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+              icon: "error",
+              title: "用户名未发生改变"
+            });
+            return;
+          }
+
+          axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/users/update/username", {
+            _token: csrf_token,
+            username: r,
+            user_id: id
+          }).then(function (r) {
+            var data = r.data;
+
+            if (!data.success) {
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                title: data.result.msg,
+                icon: "error"
+              });
+            } else {
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                title: data.result.msg,
+                icon: "success"
+              });
+            }
+          })["catch"](function (e) {
+            console.error(e);
+            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+              title: "请求出错,详细查看控制台",
+              icon: "error"
+            });
+          });
+        });
+      },
+      email: function email(id, _email) {
+        sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+          title: "修改ID为:" + id + "的邮箱",
+          content: {
+            element: "input",
+            attributes: {
+              placeholder: "请输入新的邮箱账号",
+              type: "email",
+              value: _email
+            }
+          }
+        }).then(function (r) {
+          if (!r) {
+            return;
+          }
+
+          if (r === _email) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+              icon: "error",
+              title: "邮箱未发生改变"
+            });
+            return;
+          }
+
+          axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/users/update/email", {
+            _token: csrf_token,
+            email: r,
+            user_id: id
+          }).then(function (r) {
+            var data = r.data;
+
+            if (!data.success) {
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                title: data.result.msg,
+                icon: "error"
+              });
+            } else {
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                title: data.result.msg,
+                icon: "success"
+              });
+            }
+          })["catch"](function (e) {
+            console.error(e);
+            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+              title: "请求出错,详细查看控制台",
+              icon: "error"
+            });
+          });
+        });
+      },
+      UserClass: function UserClass(id, class_id) {
+        alert(class_id);
+      },
+      token: function token(id, _token) {},
+      re_pwd: function re_pwd(id) {},
+      remove: function remove(id) {}
+    }
+  };
+  Vue.createApp(vue_users).mount("#vue-users");
+}
 })();
 
 /******/ })()
