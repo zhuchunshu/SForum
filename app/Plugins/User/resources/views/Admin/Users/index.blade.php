@@ -40,7 +40,7 @@
                                         {{$data->email}}
                                     </td>
                                     <td @@click="UserClass('{{$data->id}}','{{$data->class->id}}')">
-                                        {{$data->class->name}}
+                                        {!! Core_Ui()->Html()->UserGroup($data->class) !!}
                                     </td>
                                     <td>
                                         {{$data->created_at}}

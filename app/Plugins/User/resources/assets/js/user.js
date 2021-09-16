@@ -2390,7 +2390,7 @@ if (document.getElementById("vue-users")) {
         });
       },
       UserClass: function UserClass(id, class_id) {
-        alert(class_id);
+        location.href = "/admin/users/update/" + id + "/UserClass";
       },
       token: function token(id, _token) {},
       re_pwd: function re_pwd(id) {},
