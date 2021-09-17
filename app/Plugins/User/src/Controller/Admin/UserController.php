@@ -7,6 +7,7 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
+use App\Plugins\User\src\Models\UserClass as Uc;
 
 #[Controller]
 #[Middleware(\App\Middleware\AdminMiddleware::class)]
@@ -61,5 +62,28 @@ class UserController
             "email_ver_time" => null
         ]);
         return Json_Api(200,true,['msg' => '修改成功! 用户重新登陆并验证邮箱后生效']);
+    }
+
+    #[GetMapping(path:"/admin/users/update/{id}/UserClass")]
+    public function update_UserClass_view($id){
+        if(!User::query()->where("id",$id)->exists()){
+            return admin_abort("页面不存在",404);
+        }
+        $data = User::query()->where("id",$id)->with("Class")->first();
+        $class = UC::query()->get();
+        return view("plugins.User.Admin.Users.update_UserClass",['data' => $data,'class' => $class]);
+    }
+
+    #[PostMapping(path:"/admin/users/update/UserClass")]
+    public function update_UserClass(){
+        $user_id = request()->input("user_id");
+        $class_id = request()->input("class_id");
+        if(!$user_id || !$class_id){
+            return redirect()->back()->with("danger","请求参数不完整")->go();
+        }
+        User::query()->where("id",$user_id)->update([
+            "class_id" => $class_id
+        ]);
+        return redirect()->url("/admin/users")->with("success","修改成功!")->go();
     }
 }

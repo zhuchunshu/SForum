@@ -42,4 +42,14 @@ class Authority
         return in_array($quanxian, $data,true);
     }
 
+    public function getName(string $quanxian):string|null{
+        $name = null;
+        foreach (Authority()->get() as $value){
+            if($value['name']===$quanxian){
+                $name = $value['description'];
+            }
+        }
+        return $name;
+    }
+
 }

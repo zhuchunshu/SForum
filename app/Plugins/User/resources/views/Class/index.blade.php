@@ -35,7 +35,7 @@
                             </td>
                             <td class="text-muted">
                                 @foreach(json_decode($value->quanxian) as $quanxian)
-                                    <span class="badge bg-blue">{{$quanxian}}</span>
+                                    <span class="badge bg-blue">{{Authority()->getName($quanxian)}}</span>
                                 @endforeach
                             </td>
                             <td>

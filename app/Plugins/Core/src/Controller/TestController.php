@@ -17,6 +17,5 @@ class TestController
     public function test()
     {
 
-        return session()->get("auth_data_class");
     }
 }
