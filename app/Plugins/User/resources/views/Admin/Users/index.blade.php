@@ -8,6 +8,25 @@
         <div class="border-0 card">
             <div class="card-body">
                 <h3 class="card-title">用户列表</h3>
+                <div class="row">
+                    <div class="col"></div>
+                    <div class="col-auto">
+                        <form action="/admin/users/search" method="get">
+                            <div class="mb-1">
+                                <div class="row g-2">
+                                    <div class="col">
+                                        <input type="text" name="q" class="form-control" placeholder="输入用户名搜索…">
+                                    </div>
+                                    <div class="col-auto">
+                                        <button type="submit" class="btn white btn-icon" aria-label="Button">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><circle cx="10" cy="10" r="7"></circle><line x1="21" y1="21" x2="15" y2="15"></line></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
                 @if($page->count())
                     <div class="table-responsive" id="vue-users">
                         <table

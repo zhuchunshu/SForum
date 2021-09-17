@@ -21,6 +21,13 @@ class UserController
         return view("plugins.User.Admin.Users.index",['page' => $page]);
     }
 
+    #[GetMapping(path:"/admin/users/search")]
+    public function search(){
+        $q = request()->input("q");
+        $page = User::query()->where("username","like","%".$q."%")->with("class")->paginate(15);
+        return view("plugins.User.Admin.Users.index",['page' => $page]);
+    }
+
     #[PostMapping(path:"/admin/users/update/username")]
     public function update_username(){
         $user_id = request()->input("user_id");
