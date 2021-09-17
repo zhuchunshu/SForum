@@ -9,6 +9,7 @@ use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use App\Plugins\User\src\Models\UserClass as Uc;
 use Hyperf\Utils\Str;
+use HyperfExt\Hashing\Hash;
 
 #[Controller]
 #[Middleware(\App\Middleware\AdminMiddleware::class)]
@@ -98,5 +99,28 @@ class UserController
             "_token" => Str::random()
         ]);
         return Json_Api(200,true,['msg' => '更新成功!']);
+    }
+
+    #[PostMapping(path:"/admin/users/update/password")]
+    public function update_password(){
+        $user_id = request()->input("user_id");
+        $password = request()->input("password");
+        if(!$user_id || !$password){
+            return Json_Api(403,false,['msg' => '请求参数不完整']);
+        }
+        User::query()->where('user_id',$user_id)->update([
+            'password' => Hash::make($password)
+        ]);
+        return Json_Api(200,true,['msg' => '更新成功!']);
+    }
+
+    #[PostMapping(path:"/admin/users/remove")]
+    public function remove_user(){
+        $user_id = request()->input("user_id");
+        if(!$user_id){
+            return Json_Api(403,false,['msg' => '请求参数不完整']);
+        }
+        User::query()->where('user_id',$user_id)->delete();
+        return Json_Api(200,true,['msg' => '已删除!']);
     }
 }

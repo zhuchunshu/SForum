@@ -2425,8 +2425,78 @@ if (document.getElementById("vue-users")) {
           }
         });
       },
-      re_pwd: function re_pwd(id) {},
-      remove: function remove(id) {}
+      re_pwd: function re_pwd(id) {
+        sweetalert__WEBPACK_IMPORTED_MODULE_1___default()("将密码修改为什么?", {
+          content: {
+            element: "input",
+            attributes: {
+              placeholder: "请输入新的密码",
+              type: "password"
+            }
+          }
+        }).then(function (value) {
+          if (value) {
+            axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/users/update/password", {
+              _token: csrf_token,
+              user_id: id,
+              password: value
+            }).then(function (r) {
+              var data = r.data;
+
+              if (!data.success) {
+                sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                  title: data.result.msg,
+                  icon: "error"
+                });
+              } else {
+                sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                  title: data.result.msg,
+                  icon: "success"
+                });
+              }
+            })["catch"](function (e) {
+              console.error(e);
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                title: "请求出错,详细查看控制台",
+                icon: "error"
+              });
+            });
+          }
+        });
+      },
+      remove: function remove(id) {
+        sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+          title: "确定要删除此用户吗? 删除后不可恢复!!!",
+          buttons: ["取消", "确定"]
+        }).then(function (r) {
+          if (r === true) {
+            axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/users/remove", {
+              _token: csrf_token,
+              user_id: id
+            }).then(function (r) {
+              var data = r.data;
+
+              if (!data.success) {
+                sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                  title: data.result.msg,
+                  icon: "error"
+                });
+              } else {
+                sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                  title: data.result.msg,
+                  icon: "success"
+                });
+              }
+            })["catch"](function (e) {
+              console.error(e);
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                title: "请求出错,详细查看控制台",
+                icon: "error"
+              });
+            });
+          }
+        });
+      }
     }
   };
   Vue.createApp(vue_users).mount("#vue-users");
