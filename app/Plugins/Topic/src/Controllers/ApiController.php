@@ -3,6 +3,7 @@
 
 namespace App\Plugins\Topic\src\Controllers;
 
+use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicKeyword;
 use App\Plugins\Topic\src\Models\TopicTag;
 use App\Plugins\User\src\Models\User;
@@ -36,5 +37,28 @@ class ApiController
             $arr = Arr::add($arr,$key,["value"=>"$[".$value->name."]","html" => $value->name]);
         }
         return $arr;
+    }
+
+    #[PostMapping(path:"with_topic.data")]
+    public function get_WithTopic_Data(){
+        $topic_id = request()->input("topic_id");
+        if(!$topic_id){
+            return Json_Api(403,false,['请求的 帖子id不存在']);
+        }
+        if(!Topic::query()->where("id",$topic_id)->exists()) {
+            return Json_Api(404,false,['ID为:'.$topic_id.'帖子不存在']);
+        }
+
+        $data = Topic::query()->where("id",$topic_id)->select("id","title","user_id","options","created_at")->with("user")->first();
+        $user_avatar = super_avatar($data->user);
+        $title = \Hyperf\Utils\Str::limit($data->title,20);
+        $username = $data->user->username;
+        $summary = \Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"未捕获到本文摘要"),40);
+        return Json_Api(200,true,[
+            "avatar" => $user_avatar,
+            "title" => $title,
+            "summary" => $summary,
+            "username" => $username
+        ]);
     }
 }

@@ -27,4 +27,5 @@
 
 @section('scripts')
     <script src="{{ mix('plugins/Topic/js/topic.js') }}"></script>
+    <script src="{{mix('plugins/Topic/js/core.js')}}"></script>
 @endsection
