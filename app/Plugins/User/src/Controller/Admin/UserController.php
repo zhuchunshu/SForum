@@ -8,6 +8,7 @@ use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use App\Plugins\User\src\Models\UserClass as Uc;
+use Hyperf\Utils\Str;
 
 #[Controller]
 #[Middleware(\App\Middleware\AdminMiddleware::class)]
@@ -85,5 +86,17 @@ class UserController
             "class_id" => $class_id
         ]);
         return redirect()->url("/admin/users")->with("success","修改成功!")->go();
+    }
+
+    #[PostMapping(path:"/admin/users/update/token")]
+    public function update_Token(){
+        $user_id = request()->input("user_id");
+        if(!$user_id){
+            return Json_Api(403,false,['msg' => '请求参数不完整']);
+        }
+        User::query()->where("id",$user_id)->update([
+            "_token" => Str::random()
+        ]);
+        return Json_Api(200,true,['msg' => '更新成功!']);
     }
 }
