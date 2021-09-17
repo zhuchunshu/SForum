@@ -902,6 +902,11 @@
   resolved "https://registry.npm.taobao.org/@emotion/hash/download/@emotion/hash-0.8.0.tgz#bbbff68978fefdbe68ccb533bc8cbe1d1afb5413"
   integrity sha1-u7/2iXj+/b5ozLUzvIy+HRr7VBM=
 
+"@fancyapps/ui@^4.0.4":
+  version "4.0.4"
+  resolved "https://registry.nlark.com/@fancyapps/ui/download/@fancyapps/ui-4.0.4.tgz#5838289fbb7fdb5ede868dc8a7745ecc2d237651"
+  integrity sha1-WDgon7t/217eho3Ip3RezC0jdlE=
+
 "@fullhuman/postcss-purgecss@^4.0.3":
   version "4.0.3"
   resolved "https://registry.npm.taobao.org/@fullhuman/postcss-purgecss/download/@fullhuman/postcss-purgecss-4.0.3.tgz#55d71712ec1c7a88e0d1ba5f10ce7fb6aa05beb4"

@@ -1,5 +1,5 @@
 {
-    "/js/app.js": "/js/app.js?id=929e870b006531a96242",
+    "/js/app.js": "/js/app.js?id=4ee54654e6ad5a2d049e",
     "/js/vue.js": "/js/vue.js?id=c0ed491e9d9bbd0212ac",
     "/js/alpine.js": "/js/alpine.js?id=3b24a5041f6ceb43ef89",
     "/js/admin/login.js": "/js/admin/login.js?id=f33be29d9650a8e557ea",
@@ -12,9 +12,9 @@
     "/plugins/Core/js/app.js": "/plugins/Core/js/app.js?id=c23effd7db4167a34b03",
     "/plugins/Core/js/user.js": "/plugins/Core/js/user.js?id=63c160c957322d007042",
     "/plugins/Topic/js/tag.js": "/plugins/Topic/js/tag.js?id=b441f7881111572ab167",
-    "/plugins/Topic/js/topic.js": "/plugins/Topic/js/topic.js?id=69cb875d936793911952",
-    "/plugins/Topic/js/core.js": "/plugins/Topic/js/core.js?id=e5d0ccfb75a421f16831",
+    "/plugins/Topic/js/topic.js": "/plugins/Topic/js/topic.js?id=081d1c369850d9fcc014",
+    "/plugins/Topic/js/core.js": "/plugins/Topic/js/core.js?id=7230b45a80810132691d",
     "/plugins/Core/css/app.css": "/plugins/Core/css/app.css?id=a1ec2f7b9df2b12b2160",
     "/css/app.css": "/css/app.css?id=68b329da9893e34099c7",
-    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=34a4459f8cf2c2ded615"
+    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=0ecb2226ef491ff7739f"
 }

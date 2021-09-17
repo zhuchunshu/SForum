@@ -19332,11 +19332,6 @@ if (document.getElementById("create-topic-vue")) {
 
 if (document.getElementById("topic-content")) {
   var previewElement = document.getElementById("topic-content");
-  previewElement.addEventListener("click", function (event) {
-    if (event.target.tagName === "IMG") {
-      vditor__WEBPACK_IMPORTED_MODULE_0___default().previewImage(event.target);
-    }
-  });
   vditor__WEBPACK_IMPORTED_MODULE_0___default().mermaidRender(previewElement);
   vditor__WEBPACK_IMPORTED_MODULE_0___default().abcRender(previewElement);
   vditor__WEBPACK_IMPORTED_MODULE_0___default().chartRender(previewElement);
@@ -19350,11 +19345,6 @@ if (document.getElementById("topic-content")) {
   }, previewElement);
   vditor__WEBPACK_IMPORTED_MODULE_0___default().flowchartRender(previewElement);
   vditor__WEBPACK_IMPORTED_MODULE_0___default().plantumlRender(previewElement);
-  previewElement.addEventListener("click", function (event) {
-    if (event.target.tagName === "IMG") {
-      vditor__WEBPACK_IMPORTED_MODULE_0___default().previewImage(event.target);
-    }
-  });
 }
 })();
 
