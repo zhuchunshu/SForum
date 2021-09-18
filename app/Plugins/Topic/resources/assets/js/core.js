@@ -3497,6 +3497,41 @@ $(function () {
     }
   });
 });
+$(function () {
+  $('a[core-click="like-topic"]').click(function () {
+    var _this = this;
+
+    var topic_id = $(this).attr("topic-id");
+    axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/topic/like.topic", {
+      topic_id: topic_id,
+      _token: csrf_token
+    }).then(function (r) {
+      var data = r.data;
+
+      if (!data.success) {
+        izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+          title: "error",
+          message: data.result.msg,
+          position: "topRight",
+          timeout: 10000
+        });
+      } else {
+        // 点赞成功!
+        var y_likes = $(_this).children('span[core-show="topic-likes"]').text();
+        y_likes = parseInt(y_likes);
+        $(_this).children('span[core-show="topic-likes"]').text(y_likes + 1);
+      }
+    })["catch"](function (e) {
+      izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+        title: "error",
+        message: "请求出错,详细查看控制台",
+        position: "topRight",
+        timeout: 10000
+      });
+      console.error(e);
+    });
+  });
+});
 })();
 
 /******/ })()

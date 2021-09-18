@@ -18,7 +18,7 @@
                             <span class="avatar" style="background-color: {{$data->color}}"></span>
                         </div>
                         <div class="col">
-                            <div class="row"><div class="col-auto"><h2>{{$data->name}}</h2></div><div class="col text-red">权限值:{{$data->quanxian}}</div></div>
+                            <div class="row"><div class="col-auto"><h2>{{$data->name}}</h2></div><div class="col text-red">权限值:{{$data['permission-value']}}</div></div>
                             创建日期:{{$data->created_at}} @if($data->updated_at), 最后更新时间:{{$data->updated_at}}@endif
                             @if($userCount),该用户组下一共有 {{$userCount}} 位用户@endif
                         </div>
