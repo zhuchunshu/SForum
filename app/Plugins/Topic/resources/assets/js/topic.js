@@ -19178,7 +19178,8 @@ if (document.getElementById("create-topic-vue")) {
         tag_selected: 1,
         tags: [{
           "text": "请选择",
-          "value": "Default"
+          "value": "Default",
+          "icons": "1"
         }],
         userAtList: [],
         topic_keywords: []
@@ -19525,6 +19526,350 @@ if (document.getElementById("topic-content")) {
   }, previewElement);
   vditor__WEBPACK_IMPORTED_MODULE_0___default().flowchartRender(previewElement);
   vditor__WEBPACK_IMPORTED_MODULE_0___default().plantumlRender(previewElement);
+} // 编辑帖子
+
+
+if (document.getElementById("edit-topic-vue")) {
+  var edit_topic_vue = {
+    data: function data() {
+      return {
+        topic_id: topic_id,
+        vditor: '',
+        title: '',
+        edit: {
+          mode: "ir",
+          preview: {
+            mode: "editor"
+          }
+        },
+        options: {
+          summary: '',
+          hidden: {
+            type: "close",
+            user: {
+              list: [],
+              selected: null
+            },
+            user_class: []
+          }
+        },
+        tag_selected: 1,
+        tags: [{
+          "text": "请选择",
+          "value": "Default",
+          "icons": "1"
+        }],
+        userAtList: [],
+        topic_keywords: []
+      };
+    },
+    methods: {
+      edit_reply: function edit_reply() {
+        var md = this.vditor.getSelection();
+        this.vditor.updateValue("[reply]" + md + "[/reply]");
+      },
+      edit_mode: function edit_mode() {
+        if (this.edit.mode === "ir") {
+          this.edit.mode = "wysiwyg";
+          this.init();
+        } else {
+          if (this.edit.mode === "wysiwyg") {
+            this.edit.mode = "sv";
+            this.edit.preview.mode = "editor";
+            this.init();
+          } else {
+            if (this.edit.mode === "sv") {
+              if (this.edit.preview.mode === "editor") {
+                this.edit.mode = "sv";
+                this.edit.preview.mode = "both";
+                this.init();
+              } else {
+                if (this.edit.preview.mode === "both") {
+                  this.edit.mode = "ir";
+                  this.edit.preview.mode = "editor";
+                  this.init();
+                }
+              }
+            }
+          }
+        }
+
+        izitoast__WEBPACK_IMPORTED_MODULE_2___default().show({
+          title: 'success',
+          message: '切换成功!',
+          color: "#63ed7a",
+          position: 'topRight',
+          messageColor: '#ffffff',
+          titleColor: '#ffffff'
+        });
+      },
+      submit: function submit() {
+        var _this5 = this;
+
+        var options_hidden_user_list = qs.stringify(this.options.hidden.user.list);
+        var options_hidden_user_class = qs.stringify(this.options.hidden.user_class);
+        var options_hidden_type = this.options.hidden.type;
+        var html = this.vditor.getHTML();
+        var markdown = this.vditor.getValue();
+        var tags = this.tag_selected;
+        var title = this.title;
+        var summary = this.options.summary;
+
+        if (!title) {
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: 'Error',
+            position: 'topRight',
+            message: '标题不能为空'
+          });
+          return;
+        }
+
+        if (!html || !markdown) {
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: 'Error',
+            position: 'topRight',
+            message: '正文内容不能为空'
+          });
+          return;
+        }
+
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/topic/edit", {
+          _token: csrf_token,
+          options_hidden_user_list: options_hidden_user_list,
+          options_hidden_user_class: options_hidden_user_class,
+          options_hidden_tfixTermTypoype: options_hidden_type,
+          title: this.title,
+          html: html,
+          markdown: markdown,
+          tag: tags,
+          options_summary: summary
+        }).then(function (r) {
+          var data = r.data;
+
+          if (!data.success) {
+            data.result.forEach(function (value) {
+              izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+                title: "error",
+                message: value,
+                position: "topRight",
+                timeout: 10000
+              });
+            });
+          } else {
+            localStorage.removeItem("topic_create_title");
+            localStorage.removeItem("topic_create_tag");
+
+            _this5.vditor.clearCache();
+
+            data.result.forEach(function (value) {
+              izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+                title: "success",
+                message: value,
+                position: "topRight",
+                timeout: 10000
+              });
+            });
+            setTimeout(function () {
+              location.href = "/";
+            }, 2000);
+          }
+        })["catch"](function (e) {
+          console.error(e);
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: 'Error',
+            position: 'topRight',
+            message: '请求出错,详细查看控制台'
+          });
+        });
+      },
+      // 帖子引用
+      edit_with_topic: function edit_with_topic() {
+        var _this6 = this;
+
+        swal("输入帖子id或帖子链接:", {
+          content: "input"
+        }).then(function (value) {
+          if (value) {
+            var id;
+
+            if (!/(^[1-9]\d*$)/.test(value)) {
+              value = value.match(/\/(\S*)\.html/);
+
+              if (value) {
+                value = value[1];
+              } else {
+                return;
+              }
+
+              id = value.substring(value.lastIndexOf("/") + 1);
+            } else {
+              id = value;
+            }
+
+            var md = _this6.vditor.getSelection();
+
+            copy_to_clipboard__WEBPACK_IMPORTED_MODULE_3___default()('[topic=' + id + ']' + md + '[/topic]');
+            izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+              title: "Success",
+              message: "短代码已复制,请在合适位置粘贴",
+              position: "topRight"
+            });
+          }
+        });
+      },
+      edit_toc: function edit_toc() {
+        var md = this.vditor.getValue();
+        this.vditor.setValue("[toc]\n" + md);
+      },
+      init: function init() {
+        var _this7 = this;
+
+        // tags
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/tags", {
+          _token: csrf_token
+        }).then(function (response) {
+          _this7.tags = response.data;
+        })["catch"](function (e) {
+          console.error(e);
+        }); // vditor
+
+        this.vditor = new (vditor__WEBPACK_IMPORTED_MODULE_0___default())('content-vditor', {
+          height: 400,
+          toolbarConfig: {
+            pin: true
+          },
+          cache: {
+            enable: false
+          },
+          preview: {
+            markdown: {
+              toc: true,
+              mark: true,
+              autoSpace: true
+            }
+          },
+          mode: this.edit.mode,
+          toolbar: ["emoji", "headings", "bold", "italic", "strike", "link", "|", "list", "ordered-list", "outdent", "indent", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "upload", "record", "table", "|", "undo", "redo", "|", "fullscreen", "edit-mode"],
+          counter: {
+            "enable": true,
+            "type": "已写字数"
+          },
+          hint: {
+            extend: [{
+              key: '@',
+              hint: function hint(key) {
+                return _this7.userAtList;
+              }
+            }, {
+              key: '$',
+              hint: function hint(key) {
+                return _this7.topic_keywords;
+              }
+            }]
+          },
+          upload: {
+            accept: 'image/*,.wav',
+            token: csrf_token,
+            url: imageUpUrl,
+            linkToImgUrl: imageUpUrl,
+            filename: function filename(name) {
+              return name.replace(/[^(a-zA-Z0-9\u4e00-\u9fa5\.)]/g, '').replace(/[\?\\/:|<>\*\[\]\(\)\$%\{\}@~]/g, '').replace('/\\s/g', '');
+            }
+          },
+          typewriterMode: true,
+          placeholder: "请输入正文",
+          after: function after() {
+            axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@user_list", {
+              _token: csrf_token
+            }).then(function (r) {
+              _this7.userAtList = r.data;
+            })["catch"](function (e) {
+              swal({
+                title: "获取本站用户列表失败,详细查看控制台",
+                icon: "error"
+              });
+              console.error(e);
+            });
+            axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/keywords", {
+              _token: csrf_token
+            }).then(function (r) {
+              _this7.topic_keywords = r.data;
+            })["catch"](function (e) {
+              swal({
+                title: "获取话题列表失败,详细查看控制台",
+                icon: "error"
+              });
+              console.error(e);
+            });
+          },
+          input: function input(md) {},
+          select: function select(md) {
+            // 回复可见
+            swal({
+              title: "你选中了一段文字",
+              text: "是否将选中的文字设为回复可见?",
+              buttons: true,
+              icon: "warning"
+            }).then(function (click) {
+              if (click) {
+                _this7.vditor.updateValue("[reply]" + md + "[/reply]");
+              } else {
+                _this7.vditor.focus();
+              }
+            });
+          }
+        });
+      },
+      hidden_user_remove: function hidden_user_remove(username) {
+        this.options.hidden.user.list.splice(this.options.hidden.user.list.indexOf(username), 1);
+        izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+          title: "Success",
+          message: "已将 " + username + " 从可见列表中移除",
+          position: 'topRight'
+        });
+      },
+      hidden_user_add: function hidden_user_add() {
+        var _this8 = this;
+
+        var username = this.options.hidden.user.selected;
+
+        if (this.options.hidden.user.list.indexOf(username) === -1) {
+          axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@has_user_username/" + username, {
+            _token: csrf_token
+          }).then(function (r) {
+            var data = r.data;
+
+            if (data.success) {
+              _this8.options.hidden.user.list.push(username);
+
+              _this8.options.hidden.user.selected = null;
+            } else {
+              swal({
+                title: "新增用户失败,原因:" + data.result.msg,
+                icon: "error"
+              });
+            }
+          })["catch"](function (e) {
+            swal({
+              title: "接口请求失败,详细查看控制台",
+              icon: "error"
+            });
+            console.error(e);
+          });
+        } else {
+          swal("用户:" + username + "已存在,无需重复添加");
+        }
+      }
+    },
+    mounted: function mounted() {
+      this.init();
+    },
+    watch: {
+      title: function title(_title2) {},
+      tag_selected: function tag_selected(tag) {}
+    }
+  };
+  Vue.createApp(edit_topic_vue).mount("#edit-topic-vue");
 }
 })();
 

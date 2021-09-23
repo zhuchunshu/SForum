@@ -25,6 +25,7 @@ class ApiController
             $data = Arr::add($data,$key,[
                 "text"=>$value->name,
                 "value" => $value->id,
+                "icons" => "&lt;span class=&quot;avatar avatar-xs&quot; style=&quot;background-image: url($value->icon)&quot;&gt;&lt;/span&gt;"
                 ]);
         }
         return $data;

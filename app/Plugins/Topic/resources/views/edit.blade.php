@@ -1,6 +1,6 @@
 @extends("plugins.Core.app")
 
-@section('title', '发表帖子')
+@section('title', '修改帖子:'.$data['title'])
 
 @section('header')
     <div class="page-wrapper">
@@ -14,7 +14,7 @@
                             Overview
                         </div>
                         <h2 class="page-title">
-                            发表帖子
+                            修改帖子
                         </h2>
                     </div>
 
@@ -26,18 +26,18 @@
 @endsection
 @section('content')
 
-    <div id="create-topic-vue">
+    <div id="edit-topic-vue">
         <form action="" method="post" @@submit.prevent="submit">
             <div class="row row-cards">
                 <div class="col-md-9">
                     <div class="mb-3 border-0 card card-body">
                         <h3 class="card-title">标题</h3>
                         <input type="text" v-model="title" class="form-control form-control-lg form-control-flush"
-                            placeholder="请输入标题" required>
+                               placeholder="请输入标题" required>
                         <h3 class="card-title">标签</h3>
                         <div class="mb-3">
                             <select id="select-tags" v-model="tag_selected"
-                                class="form-select form-select-lg form-control-flush">
+                                    class="form-select form-select-lg form-control-flush">
                                 <option v-for="option in tags" :data-custom-properties="option.icons" :value="option.value">
                                     @{{ option . text }}
                                 </option>
@@ -48,8 +48,8 @@
                                 <div class="vditor-toolbar__item">
                                     @include('plugins.Topic.create-toolbar')
                                 </div>
-{{--                                    <span class="vditor-counter vditor-tooltipped vditor-tooltipped__nw"--}}
-{{--                                    aria-label="已写字数">18</span>--}}
+                                {{--                                    <span class="vditor-counter vditor-tooltipped vditor-tooltipped__nw"--}}
+                                {{--                                    aria-label="已写字数">18</span>--}}
                             </div>
                         </div>
                         <div class="mb-3">
@@ -76,6 +76,7 @@
 @section('scripts')
     <script type="text/javascript">
         var imageUpUrl = "/user/upload/image?_token={{ csrf_token() }}";
+        var topic_id = {{$data->id}};
     </script>
 
     <script src="{{ mix('plugins/Topic/js/topic.js') }}"></script>
