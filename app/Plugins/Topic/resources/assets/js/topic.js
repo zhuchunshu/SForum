@@ -19259,7 +19259,7 @@ if (document.getElementById("create-topic-vue")) {
           _token: csrf_token,
           options_hidden_user_list: options_hidden_user_list,
           options_hidden_user_class: options_hidden_user_class,
-          options_hidden_tfixTermTypoype: options_hidden_type,
+          options_hidden_type: options_hidden_type,
           title: this.title,
           html: html,
           markdown: markdown,
@@ -19801,6 +19801,31 @@ if (document.getElementById("edit-topic-vue")) {
               });
               console.error(e);
             });
+            axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/topic.data", {
+              _token: csrf_token,
+              topic_id: _this7.topic_id
+            }).then(function (r) {
+              var data = r.data;
+
+              if (!data.success) {
+                izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+                  title: 'Error',
+                  position: 'topRight',
+                  message: data.result.msg
+                });
+              } else {
+                console.log(data);
+
+                _this7.setTopicValue(data.result);
+              }
+            })["catch"](function (e) {
+              console.error(e);
+              izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+                title: 'Error',
+                position: 'topRight',
+                message: '请求出错,详细查看控制台'
+              });
+            });
           },
           input: function input(md) {},
           select: function select(md) {
@@ -19859,6 +19884,15 @@ if (document.getElementById("edit-topic-vue")) {
         } else {
           swal("用户:" + username + "已存在,无需重复添加");
         }
+      },
+      setTopicValue: function setTopicValue(data) {
+        this.title = data.title;
+        this.vditor.setValue(data.markdown);
+        this.tag_selected = data.tag.id;
+        this.options.summary = data.options.summary;
+        this.options.hidden.type = data.options.hidden.type;
+        this.options.hidden.user.list = data.options.hidden.users;
+        this.options.hidden.user_class = data.options.hidden.user_class;
       }
     },
     mounted: function mounted() {

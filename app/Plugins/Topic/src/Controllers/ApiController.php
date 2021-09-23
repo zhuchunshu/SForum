@@ -89,4 +89,24 @@ class ApiController
         Topic::query()->where(['id'=>$topic_id])->increment("like");
         return Json_Api(200,true,['msg' =>'已赞!']);
     }
+
+    #[PostMapping(path:"topic.data")]
+    public function topic_data(){
+        if(!auth()->check()){
+            return Json_Api(403,false,['msg' => '未登录!']);
+        }
+        $topic_id = request()->input("topic_id");
+        if(!$topic_id){
+            return Json_Api(403,false,['msg' => '请求参数不足,缺少:topic_id']);
+        }
+        if(!Topic::query()->where("id",$topic_id)->exists()){
+            return Json_Api(403,false,['msg' => 'id为:'.$topic_id."的帖子不存在"]);
+        }
+        $data = Topic::query()->where("id",$topic_id)
+            ->with("user","tag")
+            ->first();
+        $options = deOptions($data->options);
+        $data['options'] = $options;
+        return Json_Api(200,true,$data);
+    }
 }

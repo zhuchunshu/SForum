@@ -38,7 +38,8 @@ class User extends Model
      * @var array
      */
     protected $hidden = [
-        'password'
+        'password',
+        '_token'
     ];
     /**
      * The attributes that should be cast to native types.

@@ -241,7 +241,7 @@ if (!function_exists("menu_pdArr")) {
 }
 
 if (!function_exists("Json_Api")) {
-    function Json_Api(int $code = 200, bool $success = true, array $result = [])
+    function Json_Api(int $code = 200, bool $success = true, object|array $result = [])
     {
         return [
             "code" => $code,
