@@ -1,4 +1,23 @@
 <div class="row row-cards justify-content-center">
+    <div class="col-md-12">
+        <div class="card-tabs border-0">
+            <!-- Cards navigation -->
+            <ul class="nav nav-tabs">
+                @if(!count(request()->all()))
+                    <li class="nav-item"><a href="/" class="nav-link active" data-bs-toggle="tab">最新发布</a></li>
+                @else
+                    <li class="nav-item"><a href="/" class="nav-link">最新发布</a></li>
+                @endif
+                @foreach($topic_menu as $data)
+                    @if(\Hyperf\Utils\Str::contains(core_http_url(),$data['parameter']))
+                        <li class="nav-item"><a href="{{$data['url']}}" class="nav-link active" data-bs-toggle="tab">{{$data['name']}}</a></li>
+                    @else
+                        <li class="nav-item"><a href="{{$data['url']}}" class="nav-link">{{$data['name']}}</a></li>
+                    @endif
+                @endforeach
+            </ul>
+        </div>
+    </div>
     @if($page->count())
         @foreach($page as $data)
             <div class="col-md-12">

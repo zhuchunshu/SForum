@@ -355,3 +355,27 @@ if(!function_exists("curd")){
         return new \App\Plugins\Core\src\Lib\Curd();
     }
 }
+
+if(!function_exists("core_http_build_query")){
+    function core_http_build_query(array $data,array $merge): string
+    {
+        $data = array_merge($data,$merge);
+        return http_build_query($data);
+    }
+}
+
+if(!function_exists("core_http_url")){
+    function core_http_url(): string
+    {
+        $query = http_build_query(request()->all());
+        return request()->path()."?".$query;
+    }
+}
+
+if(!function_exists("core_get_page")){
+    function core_get_page(string $url): array
+    {
+        $data = explode("=",parse_url($url)['query']);
+        return [$data[0] => $data[1]];
+    }
+}

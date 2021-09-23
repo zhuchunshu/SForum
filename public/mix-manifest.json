@@ -1,5 +1,5 @@
 {
-    "/js/app.js": "/js/app.js?id=4ee54654e6ad5a2d049e",
+    "/js/app.js": "/js/app.js?id=896eed200705c419af71",
     "/js/vue.js": "/js/vue.js?id=c0ed491e9d9bbd0212ac",
     "/js/alpine.js": "/js/alpine.js?id=3b24a5041f6ceb43ef89",
     "/js/admin/login.js": "/js/admin/login.js?id=f33be29d9650a8e557ea",
@@ -16,5 +16,6 @@
     "/plugins/Topic/js/core.js": "/plugins/Topic/js/core.js?id=4d8aa3b907c58639c5d7",
     "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=0ecb2226ef491ff7739f",
     "/plugins/Core/css/app.css": "/plugins/Core/css/app.css?id=a1ec2f7b9df2b12b2160",
-    "/css/app.css": "/css/app.css?id=68b329da9893e34099c7"
+    "/css/app.css": "/css/app.css?id=68b329da9893e34099c7",
+    "/plugins/Core/css/core.css": "/plugins/Core/css/core.css?id=3467172cec1b8bdf8184"
 }

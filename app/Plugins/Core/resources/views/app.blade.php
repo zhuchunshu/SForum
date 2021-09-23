@@ -23,6 +23,7 @@
     <link href="{{ '/tabler/css/tabler-flags.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
+    <link rel="stylesheet" href="{{mix("plugins/Core/css/core.css")}}">
     <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet" />
     <script>
         var csrf_token = "{{ recsrf_token() }}";

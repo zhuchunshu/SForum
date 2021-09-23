@@ -12,7 +12,7 @@
             </li>
         @else
             <li class="page-item">
-                <a class="page-link" href="{{ $paginator->previousPageUrl() }}" rel="prev"
+                <a class="page-link" href="?{{ core_http_build_query(request()->all(),core_get_page($paginator->previousPageUrl()))  }}" rel="prev"
                     aria-label="@lang('pagination.previous')"><svg xmlns="http://www.w3.org/2000/svg" class="icon"
                         width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                         stroke-linecap="round" stroke-linejoin="round">
@@ -33,11 +33,11 @@
             {{-- Array Of Links --}}
             @if (is_array($element))
                 @foreach ($element as $page => $url)
-                    @if ($page == $paginator->currentPage())
+                    @if ($page === $paginator->currentPage())
                         <li class="page-item active" aria-current="page"><span
                                 class="page-link">{{ $page }}</span></li>
                     @else
-                        <li class="page-item"><a class="page-link" href="{{ $url }}">{{ $page }}</a>
+                        <li class="page-item"><a class="page-link" href="?{{ core_http_build_query(request()->all(),core_get_page($url)) }}">{{ $page }}</a>
                         </li>
                     @endif
                 @endforeach
@@ -47,7 +47,7 @@
         {{-- Next Page Link --}}
         @if ($paginator->hasMorePages())
             <li class="page-item">
-                <a class="page-link" href="{{ $paginator->nextPageUrl() }}" rel="next"
+                <a class="page-link" href=" ?{{ core_http_build_query(request()->all(),core_get_page($paginator->nextPageUrl()))  }}" rel="next"
                     aria-label="@lang('pagination.next')"><svg xmlns="http://www.w3.org/2000/svg" class="icon"
                         width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                         stroke-linecap="round" stroke-linejoin="round">

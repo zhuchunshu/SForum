@@ -14,6 +14,3 @@ Itf_Setting()->add(203,
     "注册设置","user-register","plugins.Core.setting.user.register");
 Itf_Setting()->add(204,
     "用户设置","user-setting","plugins.Core.setting.user.core");
-
-
-
