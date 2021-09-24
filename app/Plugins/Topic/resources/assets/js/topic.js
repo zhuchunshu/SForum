@@ -19923,7 +19923,7 @@ $(function () {
         }
       }
     }).then(function (r) {
-      if (r && !isNaN(r) && r >= 1) {
+      if (r && !isNaN(r) && r >= 0) {
         axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/set.topic.essence", {
           _token: csrf_token,
           topic_id: topic_id,
@@ -19969,7 +19969,7 @@ $(function () {
         }
       }
     }).then(function (r) {
-      if (r && !isNaN(r) && r >= 1) {
+      if (r && !isNaN(r) && r >= 0) {
         axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/set.topic.topping", {
           _token: csrf_token,
           topic_id: topic_id,
