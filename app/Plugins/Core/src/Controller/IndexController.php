@@ -14,6 +14,7 @@ class IndexController
     #[GetMapping(path:"/")]
     public function index(): \Psr\Http\Message\ResponseInterface
     {
+        $title = null;
         $page = Topic::query()
             ->with("tag","user")
             ->orderBy("id","desc")
@@ -23,18 +24,21 @@ class IndexController
                 ->with("tag","user")
                 ->orderBy("view","desc")
                 ->paginate(get_options("topic_home_num",15));
+            $title = "热度最高的帖子";
         }
         if(request()->input("query")==="likes"){
             $page = Topic::query()
                 ->with("tag","user")
                 ->orderBy("like","desc")
                 ->paginate(get_options("topic_home_num",15));
+            $title = "点赞最多的帖子";
         }
         if(request()->input("query")==="updated_at"){
             $page = Topic::query()
                 ->with("tag","user")
                 ->orderBy("updated_at","desc")
                 ->paginate(get_options("topic_home_num",15));
+            $title = "最后更新";
         }
         $topic_menu = [
             [
@@ -53,7 +57,7 @@ class IndexController
                 "parameter" => "query=updated_at"
             ],
         ];
-        return view("plugins.Core.index",["page" => $page,"topic_menu"=>$topic_menu]);
+        return view("plugins.Core.index",["page" => $page,"topic_menu"=>$topic_menu,'title'=>$title]);
     }
 
     #[GetMapping(path:"/{id}.html")]

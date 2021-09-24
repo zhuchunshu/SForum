@@ -9,7 +9,7 @@
     <title>
         @if(request()->path()==="/")
             @if(get_options('home_title'))
-                {{get_options('home_title')}}
+                @yield("title"){{get_options('home_title')}}
             @else
                 @yield("title","标题") - {{ get_options('title', config('app_name', 'CodeFec')) }}
             @endif

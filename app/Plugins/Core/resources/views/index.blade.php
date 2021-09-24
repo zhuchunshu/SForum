@@ -1,6 +1,8 @@
 @extends("plugins.Core.app")
 
-@section('title',"首页")
+@if($title)
+    @section('title',$title." - ")
+@endif
 
 
 @section('content')
