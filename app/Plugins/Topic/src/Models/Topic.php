@@ -35,7 +35,7 @@ class Topic extends Model
      *
      * @var array
      */
-    protected $fillable = ['id','created_at','updated_at','title','user_id','status','content','markdown','view','like','tag_id','options','_token'];
+    protected $fillable = ['id','created_at','updated_at','title','user_id','status','content','markdown','view','like','tag_id','options','_token','topping','essence','updated_user'];
     /**
      * The attributes that should be cast to native types.
      *
@@ -51,5 +51,14 @@ class Topic extends Model
     public function user(): \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(User::class,"user_id","id");
+    }
+
+    public function update_user(): \Hyperf\Database\Model\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class,"updated_user","id");
+    }
+
+    public function topic_updated(){
+        return $this->belongsTo(TopicUpdated::class,"topic_id");
     }
 }

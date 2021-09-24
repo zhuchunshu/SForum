@@ -19635,6 +19635,7 @@ if (document.getElementById("edit-topic-vue")) {
 
         axios__WEBPACK_IMPORTED_MODULE_1___default().post("/topic/edit", {
           _token: csrf_token,
+          topic_id: this.topic_id,
           options_hidden_user_list: options_hidden_user_list,
           options_hidden_user_class: options_hidden_user_class,
           options_hidden_tfixTermTypoype: options_hidden_type,

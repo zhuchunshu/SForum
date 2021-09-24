@@ -5,30 +5,21 @@ namespace App\Plugins\Topic\src\Handler\Topic;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicKeyword;
 use App\Plugins\Topic\src\Models\TopicKeywordsWith;
+use App\Plugins\Topic\src\Models\TopicUpdated;
 use Hyperf\Utils\Str;
 use Psr\SimpleCache\InvalidArgumentException;
 
-class CreateTopic
+class EditTopic
 {
     public function handler($request){
-        if($this->validate($request)!==true){
-            return $this->validate($request);
-        }
         $this->create($request);
-        $this->after();
-        return Json_Api(200,true,['发布成功!','2秒后跳转到网站首页']);
+        return Json_Api(200,true,['修改成功!','2秒后跳转到网站首页']);
     }
 
-    public function after(): void
-    {
-        try {
-            cache()->set("topic_create_time_" . auth()->id(), time()+get_options("topic_create_time", 120),get_options("topic_create_time", 120));
-        } catch (InvalidArgumentException $e) {
-        }
-    }
 
     public function create($request): void
     {
+        $topic_id = $request->input("topic_id");
         $title = $request->input("title");
         $tag = $request->input("tag");
         $markdown = $request->input("markdown");
@@ -75,30 +66,24 @@ class CreateTopic
         $html = $this->at($html);
 
         $options = json_encode($options, JSON_THROW_ON_ERROR,JSON_UNESCAPED_UNICODE);
-        $data = Topic::query()->create([
+        $data = Topic::query()->where("id",$topic_id)->update([
             "title" => $title,
             "user_id" => auth()->id(),
             "status" => "publish",
             "content" => $html,
             "markdown" => $markdown,
-            "like" => 0,
-            "view" => 0,
             "tag_id" => $tag,
             "options" => $options,
             "_token" => auth()->id()."_".Str::random(),
             "updated_user" => auth()->id()
         ]);
+        TopicUpdated::create([
+           "topic_id" => $topic_id,
+           "user_id" => auth()->id()
+        ]);
         $this->topic_keywords($data,$yhtml);
     }
 
-    public function validate($request):array|bool
-    {
-        if (cache()->has("topic_create_time_" . auth()->id())) {
-            $time = cache()->get("topic_create_time_" . auth()->id())-time();
-            return Json_Api(401,false,['发帖过于频繁,请 '.$time." 秒后再试"]);
-        }
-        return true;
-    }
 
     public function tag(string $html)
     {
@@ -130,6 +115,4 @@ class CreateTopic
             }
         }
     }
-
-
 }

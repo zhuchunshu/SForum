@@ -5,9 +5,11 @@ namespace App\Plugins\Topic\src\Controllers;
 
 use App\Plugins\Topic\src\Handler\Topic\CreateTopic;
 use App\Plugins\Topic\src\Handler\Topic\CreateTopicView;
+use App\Plugins\Topic\src\Handler\Topic\EditTopic;
 use App\Plugins\Topic\src\Handler\Topic\EditTopicView;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Requests\Topic\CreateTopicRequest;
+use App\Plugins\Topic\src\Requests\Topic\UpdateTopicRequest;
 use App\Plugins\User\src\Middleware\LoginMiddleware;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -54,5 +56,19 @@ class TopicController
             return (new EditTopicView())->handler($data);
         }
         return admin_abort("无权限",401);
+    }
+
+    #[PostMapping(path:"/topic/edit")]
+    public function edit_post(UpdateTopicRequest $request){
+        $quanxian = false;
+        if(Authority()->check("admin_topic_edit") && curd()->GetUserClass(auth()->data()->class_id)['permission-value']>curd()->GetUserClass($data->user->class_id)['permission-value']){
+            $quanxian =true;
+        }else if(Authority()->check("topic_edit") && auth()->id() === $data->user->id){
+            $quanxian =true;
+        }
+        if($quanxian===true){
+            return (new EditTopic())->handler($request);
+        }
+        return Json_Api(401,false,['无权限']);
     }
 }
