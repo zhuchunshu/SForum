@@ -4,6 +4,7 @@ declare (strict_types=1);
 namespace App\Plugins\Topic\src\Models;
 
 use App\Model\Model;
+use App\Plugins\User\src\Models\User;
 use Carbon\Carbon;
 
 /**
@@ -33,4 +34,8 @@ class TopicUpdated extends Model
      * @var array
      */
     protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
+
+    public function user(){
+        return $this->belongsTo(User::class,"user_id","id");
+    }
 }

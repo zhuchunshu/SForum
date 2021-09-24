@@ -59,6 +59,6 @@ class Topic extends Model
     }
 
     public function topic_updated(){
-        return $this->belongsTo(TopicUpdated::class,"topic_id");
+        return $this->hasMany(TopicUpdated::class,"topic_id");
     }
 }

@@ -7,7 +7,7 @@ use Hyperf\Utils\Str;
 
 class ShowTopic
 {
-    public function handle($id): \Psr\Http\Message\ResponseInterface
+    public function handle($id)
     {
         // 自增浏览量
         go(static function() use ($id){
@@ -16,7 +16,7 @@ class ShowTopic
         });
         $data = Topic::query()
             ->where('id', $id)
-            ->with("tag","user")
+            ->with("tag","user","topic_updated","update_user")
             ->first();
         $this->session($data);
         return view('plugins.Core.topic.show.show',['data' => $data]);

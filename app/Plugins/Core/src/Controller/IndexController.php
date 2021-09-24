@@ -97,4 +97,16 @@ class IndexController
         return (new ShowTopic())->handle($id);
     }
 
+    #[GetMapping(path:"/{id}.md")]
+    public function show_md($id){
+        if(!Topic::query()->where('id',$id)->exists()) {
+            return admin_abort("页面不存在",404);
+        }
+        $data = Topic::query()
+            ->where('id', $id)
+            ->select("markdown")
+            ->first();
+        return response()->raw($data->markdown);
+    }
+
 }
