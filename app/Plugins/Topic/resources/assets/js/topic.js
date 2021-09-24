@@ -19905,7 +19905,103 @@ if (document.getElementById("edit-topic-vue")) {
     }
   };
   Vue.createApp(edit_topic_vue).mount("#edit-topic-vue");
-}
+} // 对帖子页面的操作
+
+
+$(function () {
+  // 精华
+  $('a[core-click="topic-essence"]').click(function () {
+    var topic_id = $(this).attr("topic-id");
+    swal({
+      title: "精华指数,数字越大排名越靠前",
+      content: {
+        element: "input",
+        attributes: {
+          type: "number",
+          max: 999,
+          min: 1
+        }
+      }
+    }).then(function (r) {
+      if (r && !isNaN(r) && r >= 1) {
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/set.topic.essence", {
+          _token: csrf_token,
+          topic_id: topic_id,
+          zhishu: r
+        }).then(function (r) {
+          var data = r.data;
+
+          if (data.success) {
+            izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+              title: 'Success',
+              position: 'topRight',
+              message: data.result.msg
+            });
+          } else {
+            izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+              title: 'Error',
+              position: 'topRight',
+              message: data.result.msg
+            });
+          }
+        })["catch"](function (e) {
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: 'Error',
+            position: 'topRight',
+            message: '请求出错,详细查看控制台'
+          });
+          console.error(e);
+        });
+      }
+    });
+  }); // 置顶
+
+  $('a[core-click="topic-topping"]').click(function () {
+    var topic_id = $(this).attr("topic-id");
+    swal({
+      title: "置顶指数,数字越大排名越靠前",
+      content: {
+        element: "input",
+        attributes: {
+          type: "number",
+          max: 999,
+          min: 1
+        }
+      }
+    }).then(function (r) {
+      if (r && !isNaN(r) && r >= 1) {
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/set.topic.topping", {
+          _token: csrf_token,
+          topic_id: topic_id,
+          zhishu: r
+        }).then(function (r) {
+          var data = r.data;
+
+          if (data.success) {
+            izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+              title: 'Success',
+              position: 'topRight',
+              message: data.result.msg
+            });
+          } else {
+            izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+              title: 'Error',
+              position: 'topRight',
+              message: data.result.msg
+            });
+          }
+        })["catch"](function (e) {
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: 'Error',
+            position: 'topRight',
+            message: '请求出错,详细查看控制台'
+          });
+          console.error(e);
+        });
+      }
+    });
+  });
+});
 })();
 
 /******/ })()

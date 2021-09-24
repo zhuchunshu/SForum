@@ -48,5 +48,18 @@
 
     @endif
 
-
+    @if(auth()->check() && Authority()->check("topic_options"))
+        <li data-bs-toggle="tooltip" data-bs-placement="top" title="将此帖置顶" class="breadcrumb-item">
+            <a class="cursor-pointer" style="text-decoration: none" core-click="topic-topping" topic-id="{{$data->id}}">
+                置顶
+            </a>
+        </li>
+    @endif
+    @if(auth()->check() && Authority()->check("topic_options"))
+        <li data-bs-toggle="tooltip" data-bs-placement="top" title="将此帖设为精华帖子" class="breadcrumb-item">
+            <a class="cursor-pointer" style="text-decoration: none" core-click="topic-essence" topic-id="{{$data->id}}">
+                精华
+            </a>
+        </li>
+    @endif
 </ol>
