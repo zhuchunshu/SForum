@@ -1,10 +1,23 @@
 <div class="row row-cards justify-content-center">
     <div class="col-md-12">
         <div class="border-0 card card-body topic">
-
+            @if($data->essence>0)
+                <div class="ribbon bg-green text-h3">
+                    精华
+                </div>
+            @endif
             <div class="row">
                 <div class="col-md-12" id="title">
-                    <h1 data-bs-toggle="tooltip" data-bs-placement="top" title="帖子标题">{{$data->title}}</h1>
+                    <h1 data-bs-toggle="tooltip" data-bs-placement="top" title="帖子标题">
+
+                        @if($data->topping>0)
+                            <span class="text-red">
+                                置顶
+                            </span>
+                        @endif
+
+                        {{$data->title}}
+                    </h1>
                 </div>
                 <div class="col-md-12">
                     @include('plugins.Core.topic.show.ol')
