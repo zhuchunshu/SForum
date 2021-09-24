@@ -118,7 +118,7 @@ class ApiController
         if(!$topic_id){
             return Json_Api(403,false,['msg' => '请求参数不足,缺少:topic_id']);
         }
-        if(!empty($zhishu)){
+        if(empty($zhishu) && $zhishu!=0){
             return Json_Api(403,false,['msg' => '请求参数不足,缺少:zhishu']);
         }
         if(!auth()->check() || !Authority()->check("topic_options")){
@@ -153,7 +153,7 @@ class ApiController
         if(!$topic_id){
             return Json_Api(403,false,['msg' => '请求参数不足,缺少:topic_id']);
         }
-        if(!empty($zhishu)){
+        if($zhishu!=0 && empty($zhishu)){
             return Json_Api(403,false,['msg' => '请求参数不足,缺少:zhishu']);
         }
         if(!auth()->check() || !Authority()->check("topic_options")){

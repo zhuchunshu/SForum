@@ -17,12 +17,14 @@ class IndexController
         $title = null;
         $page = Topic::query()
             ->with("tag","user")
+            ->orderBy("topping","desc")
             ->orderBy("id","desc")
             ->paginate(get_options("topic_home_num",15));
         if(request()->input("query")==="hot"){
             $page = Topic::query()
                 ->with("tag","user")
                 ->orderBy("view","desc")
+                ->orderBy("id","desc")
                 ->paginate(get_options("topic_home_num",15));
             $title = "热度最高的帖子";
         }
@@ -30,6 +32,7 @@ class IndexController
             $page = Topic::query()
                 ->with("tag","user")
                 ->orderBy("like","desc")
+                ->orderBy("id","desc")
                 ->paginate(get_options("topic_home_num",15));
             $title = "点赞最多的帖子";
         }
@@ -40,7 +43,33 @@ class IndexController
                 ->paginate(get_options("topic_home_num",15));
             $title = "最后更新";
         }
+        if(request()->input("query")==="essence"){
+            $page = Topic::query()
+                ->where("essence",">",0)
+                ->with("tag","user")
+                ->orderBy("updated_at","desc")
+                ->paginate(get_options("topic_home_num",15));
+            $title = "最后更新";
+        }
+        if(request()->input("query")==="topping"){
+            $page = Topic::query()
+                ->where("topping",">",0)
+                ->with("tag","user")
+                ->orderBy("updated_at","desc")
+                ->paginate(get_options("topic_home_num",15));
+            $title = "最后更新";
+        }
         $topic_menu = [
+            [
+                "name" => "置顶帖子",
+                "url"=> "/?".core_http_build_query(['query'=>'topping'],['page' => request()->input('page' , 1)]),
+                "parameter" => "query=topping"
+            ],
+            [
+                "name" => "精华帖子",
+                "url"=> "/?".core_http_build_query(['query'=>'essence'],['page' => request()->input('page' , 1)]),
+                "parameter" => "query=essence"
+            ],
             [
                 "name" => "热度最高",
                 "url"=> "/?".core_http_build_query(['query'=>'hot'],['page' => request()->input('page' , 1)]),
