@@ -1,5 +1,5 @@
 <div class="row row-cards justify-content-center">
-    <div class="col-md-12">
+    <div class="col-md-12" style="margin-bottom:-20px">
         <div class="card-tabs border-0">
             <!-- Cards navigation -->
             <ul class="nav nav-tabs">
