@@ -15,11 +15,17 @@ class IndexController
     public function index(): \Psr\Http\Message\ResponseInterface
     {
         $title = null;
-        $page = Topic::query()
-            ->with("tag","user")
-            ->orderBy("topping","desc")
-            ->orderBy("id","desc")
-            ->paginate(get_options("topic_home_num",15));
+        $_page = request()->input('page',1);
+        if(!cache()->has("core.index.page.".$_page)){
+            $page = Topic::query()
+                ->with("tag","user")
+                ->orderBy("topping","desc")
+                ->orderBy("id","desc")
+                ->paginate(get_options("topic_home_num",15));
+            cache()->set("core.index.page.".$_page,$page,600);
+        }else{
+            $page = cache()->get("core.index.page.".$_page);
+        }
         if(request()->input("query")==="hot"){
             $page = Topic::query()
                 ->with("tag","user")

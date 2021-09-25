@@ -10,14 +10,18 @@ class ShowTopic
     public function handle($id)
     {
         // 自增浏览量
-        go(static function() use ($id){
-            $updated_at = Topic::query()->where('id', $id)->first()->updated_at;
-            Topic::query()->where('id', $id)->increment('view',1,['updated_at' => $updated_at]);
-        });
-        $data = Topic::query()
-            ->where('id', $id)
-            ->with("tag","user","topic_updated","update_user")
-            ->first();
+        $updated_at = Topic::query()->where('id', $id)->first()->updated_at;
+        Topic::query()->where('id', $id)->increment('view',1,['updated_at' => $updated_at]);
+
+        if(!cache()->has("topic.data.".$id)){
+            $data = Topic::query()
+                ->where('id', $id)
+                ->with("tag","user","topic_updated","update_user")
+                ->first();
+            cache()->set("topic.data.".$id, $data);
+        }else{
+            $data = cache()->get("topic.data.".$id);
+        }
         $this->session($data);
         return view('plugins.Core.topic.show.show',['data' => $data]);
     }
