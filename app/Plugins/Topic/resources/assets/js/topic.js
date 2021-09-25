@@ -19657,9 +19657,6 @@ if (document.getElementById("edit-topic-vue")) {
               });
             });
           } else {
-            localStorage.removeItem("topic_create_title");
-            localStorage.removeItem("topic_create_tag");
-
             _this5.vditor.clearCache();
 
             data.result.forEach(function (value) {
@@ -19671,7 +19668,7 @@ if (document.getElementById("edit-topic-vue")) {
               });
             });
             setTimeout(function () {
-              location.href = "/";
+              location.href = "/" + this.topic_id + ".html";
             }, 2000);
           }
         })["catch"](function (e) {
