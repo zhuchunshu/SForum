@@ -22,8 +22,11 @@ class ShowTopic
         }else{
             $data = cache()->get("topic.data.".$id);
         }
+        $shang = Topic::query()->where([['id','<',$id],['status','publish']])->select('title','id')->orderBy('id','desc')->first();
+        $xia = Topic::query()->where([['id','>',$id],['status','publish']])->select('title','id')->orderBy('id','asc')->first();
+        $sx = ['shang' => $shang,'xia' => $xia];
         $this->session($data);
-        return view('plugins.Core.topic.show.show',['data' => $data]);
+        return view('plugins.Core.topic.show.show',['data' => $data,'get_topic' => $sx]);
     }
 
     public function session($data){

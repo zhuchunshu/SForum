@@ -82,9 +82,9 @@ class EditTopic
            "user_id" => auth()->id()
         ]);
         $this->topic_keywords($data,$yhtml);
-        cache()->remove("topic.data.".$topic_id);
-        cache()->remove("core.index.page.1");
-        cache()->remove("core.index.page.*");
+        cache()->delete("topic.data.".$topic_id);
+        cache()->delete("core.index.page.1");
+        cache()->delete("core.index.page.*");
     }
 
 
