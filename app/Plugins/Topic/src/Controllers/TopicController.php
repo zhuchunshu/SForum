@@ -4,7 +4,9 @@
 namespace App\Plugins\Topic\src\Controllers;
 
 use App\Plugins\Topic\src\Handler\Topic\CreateTopic;
+use App\Plugins\Topic\src\Handler\Topic\DraftTopic;
 use App\Plugins\Topic\src\Handler\Topic\CreateTopicView;
+use App\Plugins\Topic\src\Handler\Topic\DraftEditTopic;
 use App\Plugins\Topic\src\Handler\Topic\EditTopic;
 use App\Plugins\Topic\src\Handler\Topic\EditTopicView;
 use App\Plugins\Topic\src\Models\Topic;
@@ -39,6 +41,15 @@ class TopicController
         }
         return (new CreateTopic())->handler($request);
     }
+    #[PostMapping(path: "create/draft")]
+    #[Middleware(LoginMiddleware::class)]
+    // 存为草稿
+    public function draft_post(CreateTopicRequest $request){
+        if(!Authority()->check("topic_create")){
+            return Json_Api(401,false,['无发帖权限']);
+        }
+        return (new DraftTopic())->handler($request);
+    }
 
     #[GetMapping(path:"/topic/{topic_id}/edit")]
     public function edit($topic_id){
@@ -68,6 +79,20 @@ class TopicController
         }
         if($quanxian===true){
             return (new EditTopic())->handler($request);
+        }
+        return Json_Api(401,false,['无权限']);
+    }
+
+    #[PostMapping(path:"/topic/edit/draft")]
+    public function edit_draft_post(UpdateTopicRequest $request){
+        $quanxian = false;
+        if(Authority()->check("admin_topic_edit") && curd()->GetUserClass(auth()->data()->class_id)['permission-value']>curd()->GetUserClass($data->user->class_id)['permission-value']){
+            $quanxian =true;
+        }else if(Authority()->check("topic_edit") && auth()->id() === $data->user->id){
+            $quanxian =true;
+        }
+        if($quanxian===true){
+            return (new DraftEditTopic())->handler($request);
         }
         return Json_Api(401,false,['无权限']);
     }

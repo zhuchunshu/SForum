@@ -9,11 +9,11 @@ use App\Plugins\Topic\src\Models\TopicUpdated;
 use Hyperf\Utils\Str;
 use Psr\SimpleCache\InvalidArgumentException;
 
-class EditTopic
+class DraftEditTopic
 {
     public function handler($request){
         $this->create($request);
-        return Json_Api(200,true,['修改成功!','2秒后跳转到当前帖子页面']);
+        return Json_Api(200,true,['修改成功!','2秒后跳转到 我的草稿 页面']);
     }
 
 
@@ -69,7 +69,6 @@ class EditTopic
         $data = Topic::query()->where("id",$topic_id)->update([
             "title" => $title,
             "user_id" => auth()->id(),
-            "status" => "publish",
             "content" => $html,
             "markdown" => $markdown,
             "tag_id" => $tag,
@@ -78,8 +77,8 @@ class EditTopic
             "updated_user" => auth()->id()
         ]);
         TopicUpdated::create([
-           "topic_id" => $topic_id,
-           "user_id" => auth()->id()
+            "topic_id" => $topic_id,
+            "user_id" => auth()->id()
         ]);
         $this->topic_keywords($data,$yhtml);
         cache()->delete("topic.data.".$topic_id);

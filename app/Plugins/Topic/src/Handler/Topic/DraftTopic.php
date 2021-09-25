@@ -5,21 +5,24 @@ namespace App\Plugins\Topic\src\Handler\Topic;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicKeyword;
 use App\Plugins\Topic\src\Models\TopicKeywordsWith;
-use App\Plugins\Topic\src\Models\TopicUpdated;
 use Hyperf\Utils\Str;
 use Psr\SimpleCache\InvalidArgumentException;
 
-class EditTopic
+class DraftTopic
 {
     public function handler($request){
         $this->create($request);
-        return Json_Api(200,true,['修改成功!','2秒后跳转到当前帖子页面']);
+        $this->after();
+        return Json_Api(200,true,['保存草稿成功!','2秒后跳转到网站首页']);
     }
 
+    public function after(): void
+    {
+
+    }
 
     public function create($request): void
     {
-        $topic_id = $request->input("topic_id");
         $title = $request->input("title");
         $tag = $request->input("tag");
         $markdown = $request->input("markdown");
@@ -66,25 +69,20 @@ class EditTopic
         $html = $this->at($html);
 
         $options = json_encode($options, JSON_THROW_ON_ERROR,JSON_UNESCAPED_UNICODE);
-        $data = Topic::query()->where("id",$topic_id)->update([
+        $data = Topic::query()->create([
             "title" => $title,
             "user_id" => auth()->id(),
-            "status" => "publish",
+            "status" => "draft",
             "content" => $html,
             "markdown" => $markdown,
+            "like" => 0,
+            "view" => 0,
             "tag_id" => $tag,
             "options" => $options,
             "_token" => auth()->id()."_".Str::random(),
             "updated_user" => auth()->id()
         ]);
-        TopicUpdated::create([
-           "topic_id" => $topic_id,
-           "user_id" => auth()->id()
-        ]);
         $this->topic_keywords($data,$yhtml);
-        cache()->delete("topic.data.".$topic_id);
-        cache()->delete("core.index.page.1");
-        cache()->delete("core.index.page.*");
     }
 
 
@@ -118,4 +116,6 @@ class EditTopic
             }
         }
     }
+
+
 }

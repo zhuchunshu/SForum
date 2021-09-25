@@ -34,6 +34,7 @@
         <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
             <a href="/user" class="dropdown-item">个人中心</a>
             <a href="/user/collections" class="dropdown-item">我的收藏</a>
+            <a href="/user/draft" class="dropdown-item">我的草稿</a>
             <div class="dropdown-divider"></div>
             <a href="/user/setting" class="dropdown-item">个人设置</a>
             <a href="#" @@click="Logout" class="dropdown-item">Logout</a>

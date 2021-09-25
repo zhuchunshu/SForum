@@ -4,6 +4,7 @@
 namespace App\Plugins\Core\src\Controller\User;
 
 
+use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\User\src\Middleware\LoginMiddleware;
 use App\Plugins\User\src\Models\User;
 use Exception;
@@ -61,5 +62,19 @@ class IndexController
     #[GetMapping(path: "/user")]
     public function user(){
         return redirect()->url('/users/'.auth()->data()->username.".html")->go();
+    }
+
+    // 草稿
+    #[GetMapping("/user/draft")]
+    public function draft(){
+        $title = "我的草稿";
+        $page = Topic::query()
+            ->where(['user_id' => auth()->id(),'status' => 'draft'])
+            ->with("tag","user")
+            ->orderBy("topping","desc")
+            ->orderBy("id","desc")
+            ->paginate(get_options("topic_home_num",15));
+
+        return view("plugins.User.draft",["page" => $page]);
     }
 }

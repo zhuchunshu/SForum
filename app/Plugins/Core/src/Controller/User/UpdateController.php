@@ -23,6 +23,7 @@ use Psr\Http\Message\ResponseInterface;
 #[Middleware(LoginMiddleware::class)]
 class UpdateController
 {
+    // 个人设置
     #[GetMapping(path: "/user/setting")]
     public function user_setting(): ResponseInterface
     {
@@ -140,4 +141,5 @@ HTML;
         UsersOption::query()->where(['id' => auth()->data()->options_id])->update($data);
         return redirect()->back()->with("success","更新成功!")->go();
     }
+
 }

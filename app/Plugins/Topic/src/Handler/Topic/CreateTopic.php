@@ -21,8 +21,6 @@ class CreateTopic
 
     public function after(): void
     {
-        cache()->delete("core.index.page.1");
-        cache()->delete("core.index.page.*");
         try {
             cache()->set("topic_create_time_" . auth()->id(), time()+get_options("topic_create_time", 120),get_options("topic_create_time", 120));
         } catch (InvalidArgumentException $e) {
