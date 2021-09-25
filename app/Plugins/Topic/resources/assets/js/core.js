@@ -3490,10 +3490,12 @@ $(function () {
   $("#topic-content a").each(function () {
     var a = $(this);
 
-    if (a.children().get(0).tagName === "IMG" || a.children().get(0).tagName === "img") {
-      a.attr("data-fancybox", "gallery");
-      var img_alt = a.children().attr("alt");
-      a.attr("data-caption", img_alt);
+    if (a.children().length > 0) {
+      if (a.children().get(0).tagName === "IMG" || a.children().get(0).tagName === "img") {
+        a.attr("data-fancybox", "gallery");
+        var img_alt = a.children().attr("alt");
+        a.attr("data-caption", img_alt);
+      }
     }
   });
 });

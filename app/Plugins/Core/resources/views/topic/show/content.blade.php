@@ -39,7 +39,6 @@
                     </div>
                     <div class="col-md-12 vditor-reset" id="topic-content">
                         {!! ShortCodeR()->handle($data->content) !!}
-
                     </div>
 
                 </div>
