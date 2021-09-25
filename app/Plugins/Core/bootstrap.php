@@ -8,6 +8,8 @@ Authority()->add("comment_edit","修改自己的评论");
 Authority()->add("admin_topic_edit","修改所有帖子");
 Authority()->add("admin_comment_edit","修改所有评论");
 
+Authority()->add("admin_view_draft_topic","预览所有(他人)草稿");
+
 
 Itf()->add("core_auth_selected","topic_edit","topic_edit");
 Itf()->add("core_auth_selected","topic_create","topic_create");

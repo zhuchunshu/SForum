@@ -77,4 +77,30 @@ class IndexController
 
         return view("plugins.User.draft",["page" => $page]);
     }
+
+    // 草稿
+    #[GetMapping("/draft/{id}")]
+    public function draft_show($id){
+        if(!Topic::query()->where('id',$id)->exists()) {
+            return admin_abort("页面不存在",404);
+        }
+        $data = Topic::query()
+            ->where('id', $id)
+            ->with("tag","user","topic_updated","update_user")
+            ->first();
+        $quanxian = false;
+        if(auth()->id()==$data->user_id){
+            $quanxian = true;
+        }
+        if(Authority()->check("admin_view_draft_topic")){
+            $quanxian = true;
+        }
+        if($quanxian===false){
+            return admin_abort("无权预览此草稿",401);
+        }
+        $shang = Topic::query()->where([['id','<',$id],['status','publish']])->select('title','id')->orderBy('id','desc')->first();
+        $xia = Topic::query()->where([['id','>',$id],['status','publish']])->select('title','id')->orderBy('id','asc')->first();
+        $sx = ['shang' => $shang,'xia' => $xia];
+        return view('plugins.Core.topic.show.show',['data' => $data,'get_topic' => $sx]);
+    }
 }
