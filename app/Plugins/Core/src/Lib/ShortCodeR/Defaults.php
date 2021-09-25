@@ -5,6 +5,7 @@ namespace App\Plugins\Core\src\Lib\ShortCodeR;
 
 
 use App\Plugins\Topic\src\Models\Topic;
+use Hyperf\Utils\Str;
 
 class Defaults
 {
@@ -122,5 +123,34 @@ HTML;
 </div>
 HTML;
 
+  }
+
+  public function chart($match){
+      $data = strip_tags($match[1]);
+      $id = "chart-".Str::random();
+      return <<<HTML
+<div style="padding: 1rem 1rem;">
+    <div id="{$id}"></div>
+</div>
+<script>
+      // @formatter:off
+      document.addEventListener("DOMContentLoaded", function () {
+      	window.ApexCharts && (new ApexCharts(document.getElementById('$id'), {$data})).render();
+      });
+      // @formatter:on
+   </script>
+HTML;
+
+  }
+
+  public function button($match)
+  {
+      $data = strip_tags($match[1]);
+      $data = Str::after($data,'"');
+      $data = Str::before($data,'"');
+      $data = explode(",",$data);
+      return <<<HTML
+    <a href="{$data[0]}" class="btn {$data[1]}">{$data[2]}</a>
+HTML;
   }
 }

@@ -9,7 +9,7 @@
                 @endif
                 <div class="row">
                     <div class="col-md-12" id="title">
-                        <h1 data-bs-toggle="tooltip" data-bs-placement="top" title="帖子标题">
+                        <h1 data-bs-toggle="tooltip" data-bs-placement="left" title="帖子标题">
 
                             @if($data->topping>0)
                                 <span class="text-red">
@@ -39,21 +39,8 @@
                     </div>
                     <div class="col-md-12 vditor-reset" id="topic-content">
                         {!! ShortCodeR()->handle($data->content) !!}
+
                     </div>
-                    @if($data->updated_user)
-                        <div class="col-md-12">
-                            <div class="hr-text hr-text-left">更新记录</div>
-                            <div class="avatar-list avatar-list-stacked" style="margin-top: -15px">
-                                <span data-bs-toggle="tooltip" data-bs-placement="top" title="{{$data->update_user->username}} 在:{{$data->updated_at}} 提交了一次更新" class="avatar" style="background-image: url({{super_avatar($data->update_user)}})" core-click="user-avatar" username="{{$data->update_user->username}}"></span>
-                                @foreach($data->topic_updated as $value)
-                                    @if($value->created_at!==$data->updated_at)
-                                        <span data-bs-toggle="tooltip" data-bs-placement="top" title="{{$value->user->username}} 在:{{$value->created_at}} 提交了一次更新" class="avatar" style="background-image: url({{super_avatar($value->user)}})" core-click="user-avatar" username="{{$value->user->username}}"></span>
-                                    @endif
-                                @endforeach
-{{--                                <span class="avatar">+8</span>--}}
-                            </div>
-                        </div>
-                    @endif
 
                 </div>
             </div>

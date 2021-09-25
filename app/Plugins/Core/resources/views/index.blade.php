@@ -30,5 +30,6 @@
     <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
 @endsection
 @section('scripts')
+    <script src="/tabler/libs/apexcharts/dist/apexcharts.min.js"></script>
     <script src="{{mix('plugins/Topic/js/core.js')}}"></script>
 @endsection

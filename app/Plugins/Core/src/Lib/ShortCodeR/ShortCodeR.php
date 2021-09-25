@@ -50,6 +50,11 @@ class ShortCodeR
     }
 
     public function handle($content){
+
+        return $this->to($this->to($content));
+    }
+
+    public function to($content){
         $y = $content;
         $content = $this->make("default",$content);
         if($content ===$y){

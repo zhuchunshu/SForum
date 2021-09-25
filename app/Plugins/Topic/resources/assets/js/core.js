@@ -3535,6 +3535,11 @@ $(function () {
     });
   });
 });
+$(function () {
+  $('span[core-click="user-avatar"]').click(function () {
+    location.href = "/users/" + $(this).attr("username") + ".html";
+  });
+});
 })();
 
 /******/ })()
