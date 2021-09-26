@@ -2,6 +2,7 @@
 
 namespace App\Plugins\Topic\src\Handler\Topic;
 
+use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Topic\src\Models\Topic;
 use Hyperf\Utils\Str;
 
@@ -25,8 +26,9 @@ class ShowTopic
         $shang = Topic::query()->where([['id','<',$id],['status','publish']])->select('title','id')->orderBy('id','desc')->first();
         $xia = Topic::query()->where([['id','>',$id],['status','publish']])->select('title','id')->orderBy('id','asc')->first();
         $sx = ['shang' => $shang,'xia' => $xia];
+        $comment_count = TopicComment::query()->where(['status' => 'publish','topic_id'=>$id])->count();
         $this->session($data);
-        return view('plugins.Core.topic.show.show',['data' => $data,'get_topic' => $sx]);
+        return view('plugins.Core.topic.show.show',['data' => $data,'get_topic' => $sx,'comment_count'=>$comment_count]);
     }
 
     public function session($data){

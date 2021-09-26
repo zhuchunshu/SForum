@@ -45,4 +45,17 @@ class ApiController
         }
         return Json_Api(404, false,['msg' => '用户:'.$username.'不存在']);
     }
+
+    #[PostMapping(path:"/api/user/get.user.avatar.url")]
+    public function get_user_avatar_url(){
+        $user_id = request()->input("user_id");
+        if(!$user_id){
+           return Json_Api(403,false,['请求参数不足,缺少:user_id']);
+        }
+        if(!User::query()->where("id",$user_id)->exists()){
+            return Json_Api(403,false,['此用户不存在']);
+        }
+        $data = User::query()->where("id",$user_id)->first();
+        return  Json_Api(200,true,['msg'=>super_avatar($data)]);
+    }
 }

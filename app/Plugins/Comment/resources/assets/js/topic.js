@@ -18934,6 +18934,44 @@ if (document.getElementById("topic-comment-model")) {
   };
   Vue.createApp(topic_comment).mount("#topic-comment-model");
 }
+
+$(function () {
+  $('div[comment-load="topic"]').each(function () {
+    var _this3 = this;
+
+    var topic_id = $(this).attr("topic-id");
+    var comment = $(this);
+    axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/comment/get.topic.comment", {
+      _token: csrf_token,
+      topic_id: topic_id
+    }).then(function (r) {
+      var data = r.data;
+      console.log(data);
+      $(_this3).children('.row').empty();
+
+      if (data.success === false) {
+        return;
+      }
+
+      data = data.result;
+      data.data.forEach(function (value, index) {
+        comment.children('.row.row-cards').append(comment_singer(value, index));
+      });
+    });
+  });
+
+  function comment_singer(data, index) {
+    var lc = index + 1;
+    var user_avatar = null;
+    $.post("/api/user/get.user.avatar.url", {
+      _token: csrf_token,
+      user_id: data.user_id
+    }, function (data) {
+      user_avatar = data.msg;
+    });
+    return "\n<div class=\"col-md-12\" id=\"#comment-".concat(data.id, "\">\n    <div class=\"border-0 card card-body\">\n        <div class=\"row\">\n            <div class=\"col-md-12\">\n                <div class=\"row\">\n                   \n                    <div class=\"col text-truncate\">\n                        <a href=\"\" class=\"text-body d-block text-truncate\">").concat(data.user.username, "</a>\n                        <small class=\"text-muted text-truncate mt-n1\">\u53D1\u8868\u4E8E:").concat(data.created_at, "</small>\n                    </div>\n                    <div class=\"col-auto\">\n                        <a href=\"/").concat(data.topic_id, ".html#comment-").concat(data.id, "\">").concat(lc, "\u697C</a>\n                    </div>\n                </div>\n            </div>\n            <div class=\"col-md-12\">\n                <div class=\"hr-text\" style=\"margin-bottom:5px;margin-top:15px\">\u8BC4\u8BBA\u5185\u5BB9</div>\n            </div>\n            <div class=\"col-md-12 markdown vditor-reset overflow-auto\">\n                ").concat(data.content, "\n            </div>\n            <div class=\"col-md-12\">\n                <div class=\"hr-text\" style=\"margin-bottom:5px;margin-top:15px\">\u64CD\u4F5C</div>\n            </div>\n            <div class=\"col-md-12\">\n            <a data-bs-toggle=\"tooltip\" data-bs-placement=\"top\" title=\"\" href=\"/comment/topic/").concat(data.id, ".md\" class=\"switch-icon switch-icon-flip\" data-bs-original-title=\"\u67E5\u770Bmarkdown\u6587\u672C\">\n                            <span class=\"switch-icon-a text-muted\">\n                                <svg xmlns=\"http://www.w3.org/2000/svg\" class=\"icon icon-tabler icon-tabler-markdown\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" stroke-width=\"2\" stroke=\"currentColor\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n                                    <path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\">\n                                    </path>\n                                    <rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\">\n                                    </rect>\n                                    <path d=\"M7 15v-6l2 2l2 -2v6\"></path>\n                                    <path d=\"M14 13l2 2l2 -2m-2 2v-6\"></path>\n                                </svg>\n                            </span>\n                        </a>\n            </div>\n        </div>\n    </div>\n</div>\n        ");
+  }
+});
 })();
 
 /******/ })()

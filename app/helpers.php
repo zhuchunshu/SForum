@@ -241,12 +241,13 @@ if (!function_exists("menu_pdArr")) {
 }
 
 if (!function_exists("Json_Api")) {
-    function Json_Api(int $code = 200, bool $success = true, object|array $result = [])
+    function Json_Api(int $code = 200, bool $success = true, object|array|string $result = []): array
     {
         return [
             "code" => $code,
             "success" => $success,
-            "result" => $result
+            "result" => $result,
+            "RequestTime" => date("Y-m-d H:i:s")
         ];
     }
 }

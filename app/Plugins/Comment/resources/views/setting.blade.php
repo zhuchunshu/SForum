@@ -18,11 +18,11 @@
             <small>当前: {{get_options("comment_create_time",60)}} 秒,防灌水 建议不要低于一分钟</small>
         </div>
 
-{{--        <div class="mb-3">--}}
-{{--            <label class="form-label">每页显示评论数量</label>--}}
-{{--            <input type="number" class="form-control" v-model="data.comment_page_count">--}}
-{{--            <small>当前: {{get_options("comment_page_count",15)}}</small>--}}
-{{--        </div>--}}
+        <div class="mb-3">
+            <label class="form-label">每次加载多少条评论?</label>
+            <input type="number" class="form-control" v-model="data.comment_page_count">
+            <small>当前: {{get_options("comment_page_count",15)}}</small>
+        </div>
 
 
     </div>

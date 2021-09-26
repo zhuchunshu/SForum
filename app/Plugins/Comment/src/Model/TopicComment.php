@@ -4,6 +4,8 @@ declare (strict_types=1);
 namespace App\Plugins\Comment\src\Model;
 
 use App\Model\Model;
+use App\Plugins\Topic\src\Models\Topic;
+use App\Plugins\User\src\Models\User;
 use Carbon\Carbon;
 
 /**
@@ -40,4 +42,14 @@ class TopicComment extends Model
      * @var array
      */
     protected $casts = ['id' => 'integer', 'likes' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime','optimal' => 'datetime','shenping' => 'datetime'];
+
+    public function user(): \Hyperf\Database\Model\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class,"user_id","id");
+    }
+
+    public function topic(): \Hyperf\Database\Model\Relations\BelongsTo
+    {
+        return $this->belongsTo(Topic::class,"topic_id","id");
+    }
 }

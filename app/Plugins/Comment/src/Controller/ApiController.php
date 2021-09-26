@@ -4,6 +4,7 @@ namespace App\Plugins\Comment\src\Controller;
 
 use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Comment\src\Request\TopicCreate;
+use App\Plugins\Topic\src\Models\Topic;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
 
@@ -46,5 +47,24 @@ class ApiController
             return Json_Api(401,false,['发表评论过于频繁,请 '.$time." 秒后再试"]);
         }
         return true;
+    }
+
+    #[PostMapping(path:"get.topic.comment")]
+    public function topic_comment_list(){
+        $topic_id = request()->input("topic_id");
+        if(!$topic_id){
+            return Json_Api(403,false,['请求参数不足,缺少:topic_id']);
+        }
+        if(!Topic::query()->where(['status' => 'publish','id' => $topic_id])->exists()){
+            return Json_Api(403,false,['ID为:'.$topic_id.'的帖子不存在']);
+        }
+        if(!TopicComment::query()->where(['status' => 'publish','topic_id'=>$topic_id])->count()){
+            return Json_Api(403,false,['此帖子下无评论']);
+        }
+        $page = TopicComment::query()
+            ->where(['status' => 'publish','topic_id'=>$topic_id])
+            ->with('topic','user')
+            ->paginate(get_options("comment_page_count",2));
+        return Json_Api(200,true,$page);
     }
 }
