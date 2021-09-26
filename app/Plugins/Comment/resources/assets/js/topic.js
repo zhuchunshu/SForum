@@ -1834,130 +1834,6 @@ module.exports = {
 
 /***/ }),
 
-/***/ "./node_modules/copy-to-clipboard/index.js":
-/*!*************************************************!*\
-  !*** ./node_modules/copy-to-clipboard/index.js ***!
-  \*************************************************/
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-"use strict";
-
-
-var deselectCurrent = __webpack_require__(/*! toggle-selection */ "./node_modules/toggle-selection/index.js");
-
-var clipboardToIE11Formatting = {
-  "text/plain": "Text",
-  "text/html": "Url",
-  "default": "Text"
-}
-
-var defaultMessage = "Copy to clipboard: #{key}, Enter";
-
-function format(message) {
-  var copyKey = (/mac os x/i.test(navigator.userAgent) ? "⌘" : "Ctrl") + "+C";
-  return message.replace(/#{\s*key\s*}/g, copyKey);
-}
-
-function copy(text, options) {
-  var debug,
-    message,
-    reselectPrevious,
-    range,
-    selection,
-    mark,
-    success = false;
-  if (!options) {
-    options = {};
-  }
-  debug = options.debug || false;
-  try {
-    reselectPrevious = deselectCurrent();
-
-    range = document.createRange();
-    selection = document.getSelection();
-
-    mark = document.createElement("span");
-    mark.textContent = text;
-    // reset user styles for span element
-    mark.style.all = "unset";
-    // prevents scrolling to the end of the page
-    mark.style.position = "fixed";
-    mark.style.top = 0;
-    mark.style.clip = "rect(0, 0, 0, 0)";
-    // used to preserve spaces and line breaks
-    mark.style.whiteSpace = "pre";
-    // do not inherit user-select (it may be `none`)
-    mark.style.webkitUserSelect = "text";
-    mark.style.MozUserSelect = "text";
-    mark.style.msUserSelect = "text";
-    mark.style.userSelect = "text";
-    mark.addEventListener("copy", function(e) {
-      e.stopPropagation();
-      if (options.format) {
-        e.preventDefault();
-        if (typeof e.clipboardData === "undefined") { // IE 11
-          debug && console.warn("unable to use e.clipboardData");
-          debug && console.warn("trying IE specific stuff");
-          window.clipboardData.clearData();
-          var format = clipboardToIE11Formatting[options.format] || clipboardToIE11Formatting["default"]
-          window.clipboardData.setData(format, text);
-        } else { // all other browsers
-          e.clipboardData.clearData();
-          e.clipboardData.setData(options.format, text);
-        }
-      }
-      if (options.onCopy) {
-        e.preventDefault();
-        options.onCopy(e.clipboardData);
-      }
-    });
-
-    document.body.appendChild(mark);
-
-    range.selectNodeContents(mark);
-    selection.addRange(range);
-
-    var successful = document.execCommand("copy");
-    if (!successful) {
-      throw new Error("copy command was unsuccessful");
-    }
-    success = true;
-  } catch (err) {
-    debug && console.error("unable to copy using execCommand: ", err);
-    debug && console.warn("trying IE specific stuff");
-    try {
-      window.clipboardData.setData(options.format || "text", text);
-      options.onCopy && options.onCopy(window.clipboardData);
-      success = true;
-    } catch (err) {
-      debug && console.error("unable to copy using clipboardData: ", err);
-      debug && console.error("falling back to prompt");
-      message = format("message" in options ? options.message : defaultMessage);
-      window.prompt(message, text);
-    }
-  } finally {
-    if (selection) {
-      if (typeof selection.removeRange == "function") {
-        selection.removeRange(range);
-      } else {
-        selection.removeAllRanges();
-      }
-    }
-
-    if (mark) {
-      document.body.removeChild(mark);
-    }
-    reselectPrevious();
-  }
-
-  return success;
-}
-
-module.exports = copy;
-
-
-/***/ }),
-
 /***/ "./node_modules/izitoast/dist/js/iziToast.js":
 /*!***************************************************!*\
   !*** ./node_modules/izitoast/dist/js/iziToast.js ***!
@@ -3448,236 +3324,6 @@ process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 process.umask = function() { return 0; };
-
-
-/***/ }),
-
-/***/ "./node_modules/querystring/decode.js":
-/*!********************************************!*\
-  !*** ./node_modules/querystring/decode.js ***!
-  \********************************************/
-/***/ ((module) => {
-
-"use strict";
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
-// If obj.hasOwnProperty has been overridden, then calling
-// obj.hasOwnProperty(prop) will break.
-// See: https://github.com/joyent/node/issues/1707
-function hasOwnProperty(obj, prop) {
-  return Object.prototype.hasOwnProperty.call(obj, prop);
-}
-
-module.exports = function(qs, sep, eq, options) {
-  sep = sep || '&';
-  eq = eq || '=';
-  var obj = {};
-
-  if (typeof qs !== 'string' || qs.length === 0) {
-    return obj;
-  }
-
-  var regexp = /\+/g;
-  qs = qs.split(sep);
-
-  var maxKeys = 1000;
-  if (options && typeof options.maxKeys === 'number') {
-    maxKeys = options.maxKeys;
-  }
-
-  var len = qs.length;
-  // maxKeys <= 0 means that we should not limit keys count
-  if (maxKeys > 0 && len > maxKeys) {
-    len = maxKeys;
-  }
-
-  for (var i = 0; i < len; ++i) {
-    var x = qs[i].replace(regexp, '%20'),
-        idx = x.indexOf(eq),
-        kstr, vstr, k, v;
-
-    if (idx >= 0) {
-      kstr = x.substr(0, idx);
-      vstr = x.substr(idx + 1);
-    } else {
-      kstr = x;
-      vstr = '';
-    }
-
-    k = decodeURIComponent(kstr);
-    v = decodeURIComponent(vstr);
-
-    if (!hasOwnProperty(obj, k)) {
-      obj[k] = v;
-    } else if (Array.isArray(obj[k])) {
-      obj[k].push(v);
-    } else {
-      obj[k] = [obj[k], v];
-    }
-  }
-
-  return obj;
-};
-
-
-/***/ }),
-
-/***/ "./node_modules/querystring/encode.js":
-/*!********************************************!*\
-  !*** ./node_modules/querystring/encode.js ***!
-  \********************************************/
-/***/ ((module) => {
-
-"use strict";
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
-var stringifyPrimitive = function(v) {
-  switch (typeof v) {
-    case 'string':
-      return v;
-
-    case 'boolean':
-      return v ? 'true' : 'false';
-
-    case 'number':
-      return isFinite(v) ? v : '';
-
-    default:
-      return '';
-  }
-};
-
-module.exports = function(obj, sep, eq, name) {
-  sep = sep || '&';
-  eq = eq || '=';
-  if (obj === null) {
-    obj = undefined;
-  }
-
-  if (typeof obj === 'object') {
-    return Object.keys(obj).map(function(k) {
-      var ks = encodeURIComponent(stringifyPrimitive(k)) + eq;
-      if (Array.isArray(obj[k])) {
-        return obj[k].map(function(v) {
-          return ks + encodeURIComponent(stringifyPrimitive(v));
-        }).join(sep);
-      } else {
-        return ks + encodeURIComponent(stringifyPrimitive(obj[k]));
-      }
-    }).join(sep);
-
-  }
-
-  if (!name) return '';
-  return encodeURIComponent(stringifyPrimitive(name)) + eq +
-         encodeURIComponent(stringifyPrimitive(obj));
-};
-
-
-/***/ }),
-
-/***/ "./node_modules/querystring/index.js":
-/*!*******************************************!*\
-  !*** ./node_modules/querystring/index.js ***!
-  \*******************************************/
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-
-exports.decode = exports.parse = __webpack_require__(/*! ./decode */ "./node_modules/querystring/decode.js");
-exports.encode = exports.stringify = __webpack_require__(/*! ./encode */ "./node_modules/querystring/encode.js");
-
-
-/***/ }),
-
-/***/ "./node_modules/toggle-selection/index.js":
-/*!************************************************!*\
-  !*** ./node_modules/toggle-selection/index.js ***!
-  \************************************************/
-/***/ ((module) => {
-
-
-module.exports = function () {
-  var selection = document.getSelection();
-  if (!selection.rangeCount) {
-    return function () {};
-  }
-  var active = document.activeElement;
-
-  var ranges = [];
-  for (var i = 0; i < selection.rangeCount; i++) {
-    ranges.push(selection.getRangeAt(i));
-  }
-
-  switch (active.tagName.toUpperCase()) { // .toUpperCase handles XHTML
-    case 'INPUT':
-    case 'TEXTAREA':
-      active.blur();
-      break;
-
-    default:
-      active = null;
-      break;
-  }
-
-  selection.removeAllRanges();
-  return function () {
-    selection.type === 'Caret' &&
-    selection.removeAllRanges();
-
-    if (!selection.rangeCount) {
-      ranges.forEach(function(range) {
-        selection.addRange(range);
-      });
-    }
-
-    active &&
-    active.focus();
-  };
-};
 
 
 /***/ }),
@@ -19132,9 +18778,9 @@ var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be in strict mode.
 (() => {
 "use strict";
-/*!*********************************************!*\
-  !*** ./resources/js/plugins/Topic/topic.js ***!
-  \*********************************************/
+/*!***********************************************!*\
+  !*** ./resources/js/plugins/Comment/topic.js ***!
+  \***********************************************/
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var vditor__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vditor */ "./node_modules/vditor/dist/index.min.js");
 /* harmony import */ var vditor__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vditor__WEBPACK_IMPORTED_MODULE_0__);
@@ -19142,592 +18788,52 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var izitoast__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! izitoast */ "./node_modules/izitoast/dist/js/iziToast.js");
 /* harmony import */ var izitoast__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(izitoast__WEBPACK_IMPORTED_MODULE_2__);
-/* harmony import */ var copy_to_clipboard__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! copy-to-clipboard */ "./node_modules/copy-to-clipboard/index.js");
-/* harmony import */ var copy_to_clipboard__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(copy_to_clipboard__WEBPACK_IMPORTED_MODULE_3__);
 
 
 
 
-var qs = __webpack_require__(/*! querystring */ "./node_modules/querystring/index.js");
-
-
-
-if (document.getElementById("create-topic-vue")) {
-  var create_topic_vue = {
-    data: function data() {
-      return {
-        vditor: '',
-        title: localStorage.getItem("topic_create_title"),
-        edit: {
-          mode: "ir",
-          preview: {
-            mode: "editor"
-          }
-        },
-        options: {
-          summary: '',
-          hidden: {
-            type: "close",
-            user: {
-              list: [],
-              selected: null
-            },
-            user_class: []
-          }
-        },
-        tag_selected: 1,
-        tags: [{
-          "text": "请选择",
-          "value": "Default",
-          "icons": "1"
-        }],
-        userAtList: [],
-        topic_keywords: []
-      };
-    },
-    methods: {
-      edit_reply: function edit_reply() {
-        var md = this.vditor.getSelection();
-        this.vditor.updateValue("[reply]" + md + "[/reply]");
-      },
-      edit_mode: function edit_mode() {
-        if (this.edit.mode === "ir") {
-          this.edit.mode = "wysiwyg";
-          this.init();
-        } else {
-          if (this.edit.mode === "wysiwyg") {
-            this.edit.mode = "sv";
-            this.edit.preview.mode = "editor";
-            this.init();
-          } else {
-            if (this.edit.mode === "sv") {
-              if (this.edit.preview.mode === "editor") {
-                this.edit.mode = "sv";
-                this.edit.preview.mode = "both";
-                this.init();
-              } else {
-                if (this.edit.preview.mode === "both") {
-                  this.edit.mode = "ir";
-                  this.edit.preview.mode = "editor";
-                  this.init();
-                }
-              }
-            }
-          }
-        }
-
-        izitoast__WEBPACK_IMPORTED_MODULE_2___default().show({
-          title: 'success',
-          message: '切换成功!',
-          color: "#63ed7a",
-          position: 'topRight',
-          messageColor: '#ffffff',
-          titleColor: '#ffffff'
-        });
-      },
-      submit: function submit() {
-        var _this = this;
-
-        var options_hidden_user_list = qs.stringify(this.options.hidden.user.list);
-        var options_hidden_user_class = qs.stringify(this.options.hidden.user_class);
-        var options_hidden_type = this.options.hidden.type;
-        var html = this.vditor.getHTML();
-        var markdown = this.vditor.getValue();
-        var tags = this.tag_selected;
-        var title = this.title;
-        var summary = this.options.summary;
-
-        if (!title) {
-          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '标题不能为空'
-          });
-          return;
-        }
-
-        if (!html || !markdown) {
-          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '正文内容不能为空'
-          });
-          return;
-        }
-
-        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/topic/create", {
-          _token: csrf_token,
-          options_hidden_user_list: options_hidden_user_list,
-          options_hidden_user_class: options_hidden_user_class,
-          options_hidden_type: options_hidden_type,
-          title: this.title,
-          html: html,
-          markdown: markdown,
-          tag: tags,
-          options_summary: summary
-        }).then(function (r) {
-          var data = r.data;
-
-          if (!data.success) {
-            data.result.forEach(function (value) {
-              izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-                title: "error",
-                message: value,
-                position: "topRight",
-                timeout: 10000
-              });
-            });
-          } else {
-            localStorage.removeItem("topic_create_title");
-            localStorage.removeItem("topic_create_tag");
-
-            _this.vditor.clearCache();
-
-            data.result.forEach(function (value) {
-              izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
-                title: "success",
-                message: value,
-                position: "topRight",
-                timeout: 10000
-              });
-            });
-            setTimeout(function () {
-              location.href = "/";
-            }, 2000);
-          }
-        })["catch"](function (e) {
-          console.error(e);
-          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '请求出错,详细查看控制台'
-          });
-        });
-      },
-      // 存为草稿
-      draft: function draft() {
-        var _this2 = this;
-
-        var options_hidden_user_list = qs.stringify(this.options.hidden.user.list);
-        var options_hidden_user_class = qs.stringify(this.options.hidden.user_class);
-        var options_hidden_type = this.options.hidden.type;
-        var html = this.vditor.getHTML();
-        var markdown = this.vditor.getValue();
-        var tags = this.tag_selected;
-        var title = this.title;
-        var summary = this.options.summary;
-
-        if (!title) {
-          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '标题不能为空'
-          });
-          return;
-        }
-
-        if (!html || !markdown) {
-          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '正文内容不能为空'
-          });
-          return;
-        }
-
-        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/topic/create/draft", {
-          _token: csrf_token,
-          options_hidden_user_list: options_hidden_user_list,
-          options_hidden_user_class: options_hidden_user_class,
-          options_hidden_type: options_hidden_type,
-          title: this.title,
-          html: html,
-          markdown: markdown,
-          tag: tags,
-          options_summary: summary
-        }).then(function (r) {
-          var data = r.data;
-
-          if (!data.success) {
-            data.result.forEach(function (value) {
-              izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-                title: "error",
-                message: value,
-                position: "topRight",
-                timeout: 10000
-              });
-            });
-          } else {
-            localStorage.removeItem("topic_create_title");
-            localStorage.removeItem("topic_create_tag");
-
-            _this2.vditor.clearCache();
-
-            data.result.forEach(function (value) {
-              izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
-                title: "success",
-                message: value,
-                position: "topRight",
-                timeout: 10000
-              });
-            });
-            setTimeout(function () {
-              location.href = "/";
-            }, 2000);
-          }
-        })["catch"](function (e) {
-          console.error(e);
-          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '请求出错,详细查看控制台'
-          });
-        });
-      },
-      // 帖子引用
-      edit_with_topic: function edit_with_topic() {
-        var _this3 = this;
-
-        swal("输入帖子id或帖子链接:", {
-          content: "input"
-        }).then(function (value) {
-          if (value) {
-            var id;
-
-            if (!/(^[1-9]\d*$)/.test(value)) {
-              value = value.match(/\/(\S*)\.html/);
-
-              if (value) {
-                value = value[1];
-              } else {
-                return;
-              }
-
-              id = value.substring(value.lastIndexOf("/") + 1);
-            } else {
-              id = value;
-            }
-
-            var md = _this3.vditor.getSelection();
-
-            copy_to_clipboard__WEBPACK_IMPORTED_MODULE_3___default()('[topic=' + id + ']' + md + '[/topic]');
-            izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
-              title: "Success",
-              message: "短代码已复制,请在合适位置粘贴",
-              position: "topRight"
-            });
-          }
-        });
-      },
-      edit_toc: function edit_toc() {
-        var md = this.vditor.getValue();
-        this.vditor.setValue("[toc]\n" + md);
-      },
-      init: function init() {
-        var _this4 = this;
-
-        // tags
-        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/tags", {
-          _token: csrf_token
-        }).then(function (response) {
-          _this4.tags = response.data;
-        })["catch"](function (e) {
-          console.error(e);
-        }); // vditor
-
-        this.vditor = new (vditor__WEBPACK_IMPORTED_MODULE_0___default())('content-vditor', {
-          height: 400,
-          toolbarConfig: {
-            pin: true
-          },
-          cache: {
-            enable: true,
-            id: "create_topic"
-          },
-          preview: {
-            markdown: {
-              toc: true,
-              mark: true,
-              autoSpace: true
-            }
-          },
-          mode: this.edit.mode,
-          toolbar: ["emoji", "headings", "bold", "italic", "strike", "link", "|", "list", "ordered-list", "outdent", "indent", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "upload", "record", "table", "|", "undo", "redo", "|", "fullscreen", "edit-mode"],
-          counter: {
-            "enable": true,
-            "type": "已写字数"
-          },
-          hint: {
-            extend: [{
-              key: '@',
-              hint: function hint(key) {
-                return _this4.userAtList;
-              }
-            }, {
-              key: '$',
-              hint: function hint(key) {
-                return _this4.topic_keywords;
-              }
-            }]
-          },
-          upload: {
-            accept: 'image/*,.wav',
-            token: csrf_token,
-            url: imageUpUrl,
-            linkToImgUrl: imageUpUrl,
-            filename: function filename(name) {
-              return name.replace(/[^(a-zA-Z0-9\u4e00-\u9fa5\.)]/g, '').replace(/[\?\\/:|<>\*\[\]\(\)\$%\{\}@~]/g, '').replace('/\\s/g', '');
-            }
-          },
-          typewriterMode: true,
-          placeholder: "请输入正文",
-          after: function after() {
-            axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@user_list", {
-              _token: csrf_token
-            }).then(function (r) {
-              _this4.userAtList = r.data;
-            })["catch"](function (e) {
-              swal({
-                title: "获取本站用户列表失败,详细查看控制台",
-                icon: "error"
-              });
-              console.error(e);
-            });
-            axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/keywords", {
-              _token: csrf_token
-            }).then(function (r) {
-              _this4.topic_keywords = r.data;
-            })["catch"](function (e) {
-              swal({
-                title: "获取话题列表失败,详细查看控制台",
-                icon: "error"
-              });
-              console.error(e);
-            });
-          },
-          input: function input(md) {},
-          select: function select(md) {
-            // 回复可见
-            swal({
-              title: "你选中了一段文字",
-              text: "是否将选中的文字设为回复可见?",
-              buttons: true,
-              icon: "warning"
-            }).then(function (click) {
-              if (click) {
-                _this4.vditor.updateValue("[reply]" + md + "[/reply]");
-              } else {
-                _this4.vditor.focus();
-              }
-            });
-          }
-        });
-      },
-      hidden_user_remove: function hidden_user_remove(username) {
-        this.options.hidden.user.list.splice(this.options.hidden.user.list.indexOf(username), 1);
-        izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
-          title: "Success",
-          message: "已将 " + username + " 从可见列表中移除",
-          position: 'topRight'
-        });
-      },
-      hidden_user_add: function hidden_user_add() {
-        var _this5 = this;
-
-        var username = this.options.hidden.user.selected;
-
-        if (this.options.hidden.user.list.indexOf(username) === -1) {
-          axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@has_user_username/" + username, {
-            _token: csrf_token
-          }).then(function (r) {
-            var data = r.data;
-
-            if (data.success) {
-              _this5.options.hidden.user.list.push(username);
-
-              _this5.options.hidden.user.selected = null;
-            } else {
-              swal({
-                title: "新增用户失败,原因:" + data.result.msg,
-                icon: "error"
-              });
-            }
-          })["catch"](function (e) {
-            swal({
-              title: "接口请求失败,详细查看控制台",
-              icon: "error"
-            });
-            console.error(e);
-          });
-        } else {
-          swal("用户:" + username + "已存在,无需重复添加");
-        }
-      }
-    },
-    mounted: function mounted() {
-      if (localStorage.getItem("topic_create_tag")) {
-        this.tag_selected = localStorage.getItem("topic_create_tag");
-      }
-
-      if (localStorage.getItem("topic_create_tag") || localStorage.getItem("topic_create_title")) {
-        izitoast__WEBPACK_IMPORTED_MODULE_2___default().info({
-          title: "Info",
-          message: "已为您恢复上次编辑内容",
-          position: 'topRight'
-        });
-      }
-
-      this.init();
-    },
-    watch: {
-      title: function title(_title) {
-        localStorage.setItem("topic_create_title", _title);
-      },
-      tag_selected: function tag_selected(tag) {
-        localStorage.setItem("topic_create_tag", tag);
-      }
-    }
-  };
-  Vue.createApp(create_topic_vue).mount("#create-topic-vue");
-}
-
-if (document.getElementById("topic-content")) {
-  var previewElement = document.getElementById("topic-content");
-  vditor__WEBPACK_IMPORTED_MODULE_0___default().mermaidRender(previewElement);
-  vditor__WEBPACK_IMPORTED_MODULE_0___default().abcRender(previewElement);
-  vditor__WEBPACK_IMPORTED_MODULE_0___default().chartRender(previewElement);
-  vditor__WEBPACK_IMPORTED_MODULE_0___default().mindmapRender(previewElement);
-  vditor__WEBPACK_IMPORTED_MODULE_0___default().graphvizRender(previewElement);
-  vditor__WEBPACK_IMPORTED_MODULE_0___default().mathRender(previewElement);
-  vditor__WEBPACK_IMPORTED_MODULE_0___default().mediaRender(previewElement);
-  vditor__WEBPACK_IMPORTED_MODULE_0___default().highlightRender({
-    lineNumber: true,
-    enable: true
-  }, previewElement);
-  vditor__WEBPACK_IMPORTED_MODULE_0___default().flowchartRender(previewElement);
-  vditor__WEBPACK_IMPORTED_MODULE_0___default().plantumlRender(previewElement);
-} // 编辑帖子
-
-
-if (document.getElementById("edit-topic-vue")) {
-  var edit_topic_vue = {
+if (document.getElementById("topic-comment-model")) {
+  var topic_comment = {
     data: function data() {
       return {
         topic_id: topic_id,
         vditor: '',
-        title: '',
         edit: {
           mode: "ir",
           preview: {
             mode: "editor"
           }
         },
-        options: {
-          summary: '',
-          hidden: {
-            type: "close",
-            user: {
-              list: [],
-              selected: null
-            },
-            user_class: []
-          }
-        },
         tag_selected: 1,
-        tags: [{
-          "text": "请选择",
-          "value": "Default",
-          "icons": "1"
-        }],
         userAtList: [],
         topic_keywords: []
       };
     },
     methods: {
-      edit_reply: function edit_reply() {
-        var md = this.vditor.getSelection();
-        this.vditor.updateValue("[reply]" + md + "[/reply]");
-      },
-      edit_mode: function edit_mode() {
-        if (this.edit.mode === "ir") {
-          this.edit.mode = "wysiwyg";
-          this.init();
-        } else {
-          if (this.edit.mode === "wysiwyg") {
-            this.edit.mode = "sv";
-            this.edit.preview.mode = "editor";
-            this.init();
-          } else {
-            if (this.edit.mode === "sv") {
-              if (this.edit.preview.mode === "editor") {
-                this.edit.mode = "sv";
-                this.edit.preview.mode = "both";
-                this.init();
-              } else {
-                if (this.edit.preview.mode === "both") {
-                  this.edit.mode = "ir";
-                  this.edit.preview.mode = "editor";
-                  this.init();
-                }
-              }
-            }
-          }
-        }
-
-        izitoast__WEBPACK_IMPORTED_MODULE_2___default().show({
-          title: 'success',
-          message: '切换成功!',
-          color: "#63ed7a",
-          position: 'topRight',
-          messageColor: '#ffffff',
-          titleColor: '#ffffff'
-        });
-      },
       submit: function submit() {
-        var _this6 = this;
+        var _this = this;
 
-        var options_hidden_user_list = qs.stringify(this.options.hidden.user.list);
-        var options_hidden_user_class = qs.stringify(this.options.hidden.user_class);
-        var options_hidden_type = this.options.hidden.type;
-        var html = this.vditor.getHTML();
+        var content = this.vditor.getHTML();
         var markdown = this.vditor.getValue();
-        var tags = this.tag_selected;
-        var title = this.title;
-        var summary = this.options.summary;
 
-        if (!title) {
+        if (!content || !markdown) {
           izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '标题不能为空'
+            title: "Error",
+            message: "评论内容不能为空!",
+            position: 'topRight'
           });
           return;
         }
 
-        if (!html || !markdown) {
-          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '正文内容不能为空'
-          });
-          return;
-        }
-
-        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/topic/edit", {
-          _token: csrf_token,
-          topic_id: this.topic_id,
-          options_hidden_user_list: options_hidden_user_list,
-          options_hidden_user_class: options_hidden_user_class,
-          options_hidden_tfixTermTypoype: options_hidden_type,
-          title: this.title,
-          html: html,
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/comment/topic.create", {
+          content: content,
           markdown: markdown,
-          tag: tags,
-          options_summary: summary
+          _token: csrf_token,
+          topic_id: this.topic_id
         }).then(function (r) {
           var data = r.data;
 
-          if (!data.success) {
+          if (data.success === false) {
             data.result.forEach(function (value) {
               izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
                 title: "error",
@@ -19737,424 +18843,97 @@ if (document.getElementById("edit-topic-vue")) {
               });
             });
           } else {
-            _this6.vditor.clearCache();
+            _this.vditor.clearCache();
 
             data.result.forEach(function (value) {
               izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
-                title: "success",
+                title: "Success",
                 message: value,
                 position: "topRight",
-                timeout: 10000
+                timeout: 1000
               });
             });
             setTimeout(function () {
-              location.href = "/" + this.topic_id + ".html";
-            }, 2000);
+              location.reload();
+            }, 1000);
           }
         })["catch"](function (e) {
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: "Error",
+            message: "请求出错,详细查看控制台",
+            position: "topRight"
+          });
           console.error(e);
-          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '请求出错,详细查看控制台'
-          });
         });
-      },
-      // 存为草稿
-      draft: function draft() {
-        var _this7 = this;
+      }
+    },
+    mounted: function mounted() {
+      var _this2 = this;
 
-        var options_hidden_user_list = qs.stringify(this.options.hidden.user.list);
-        var options_hidden_user_class = qs.stringify(this.options.hidden.user_class);
-        var options_hidden_type = this.options.hidden.type;
-        var html = this.vditor.getHTML();
-        var markdown = this.vditor.getValue();
-        var tags = this.tag_selected;
-        var title = this.title;
-        var summary = this.options.summary;
-
-        if (!title) {
-          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '标题不能为空'
-          });
-          return;
-        }
-
-        if (!html || !markdown) {
-          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '正文内容不能为空'
-          });
-          return;
-        }
-
-        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/topic/edit/draft", {
-          _token: csrf_token,
-          topic_id: this.topic_id,
-          options_hidden_user_list: options_hidden_user_list,
-          options_hidden_user_class: options_hidden_user_class,
-          options_hidden_tfixTermTypoype: options_hidden_type,
-          title: this.title,
-          html: html,
-          markdown: markdown,
-          tag: tags,
-          options_summary: summary
-        }).then(function (r) {
-          var data = r.data;
-
-          if (!data.success) {
-            data.result.forEach(function (value) {
-              izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-                title: "error",
-                message: value,
-                position: "topRight",
-                timeout: 10000
-              });
-            });
-          } else {
-            _this7.vditor.clearCache();
-
-            data.result.forEach(function (value) {
-              izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
-                title: "success",
-                message: value,
-                position: "topRight",
-                timeout: 10000
-              });
-            });
-            setTimeout(function () {
-              location.href = "/user/draft";
-            }, 2000);
+      // vditor
+      this.vditor = new (vditor__WEBPACK_IMPORTED_MODULE_0___default())('topic-comment', {
+        height: 300,
+        toolbarConfig: {
+          pin: true
+        },
+        cache: {
+          enable: true,
+          id: "create_comment_" + this.topic_id
+        },
+        preview: {
+          markdown: {
+            toc: true,
+            mark: true,
+            autoSpace: true
           }
-        })["catch"](function (e) {
-          console.error(e);
-          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '请求出错,详细查看控制台'
-          });
-        });
-      },
-      // 帖子引用
-      edit_with_topic: function edit_with_topic() {
-        var _this8 = this;
-
-        swal("输入帖子id或帖子链接:", {
-          content: "input"
-        }).then(function (value) {
-          if (value) {
-            var id;
-
-            if (!/(^[1-9]\d*$)/.test(value)) {
-              value = value.match(/\/(\S*)\.html/);
-
-              if (value) {
-                value = value[1];
-              } else {
-                return;
-              }
-
-              id = value.substring(value.lastIndexOf("/") + 1);
-            } else {
-              id = value;
+        },
+        mode: this.edit.mode,
+        toolbar: ["emoji", "headings", "bold", "italic", "strike", "link", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "table", "undo", "redo", "|", "edit-mode"],
+        counter: {
+          "enable": true,
+          "type": "已写字数"
+        },
+        hint: {
+          extend: [{
+            key: '@',
+            hint: function hint(key) {
+              return _this2.userAtList;
             }
-
-            var md = _this8.vditor.getSelection();
-
-            copy_to_clipboard__WEBPACK_IMPORTED_MODULE_3___default()('[topic=' + id + ']' + md + '[/topic]');
-            izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
-              title: "Success",
-              message: "短代码已复制,请在合适位置粘贴",
-              position: "topRight"
-            });
-          }
-        });
-      },
-      edit_toc: function edit_toc() {
-        var md = this.vditor.getValue();
-        this.vditor.setValue("[toc]\n" + md);
-      },
-      init: function init() {
-        var _this9 = this;
-
-        // tags
-        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/tags", {
-          _token: csrf_token
-        }).then(function (response) {
-          _this9.tags = response.data;
-        })["catch"](function (e) {
-          console.error(e);
-        }); // vditor
-
-        this.vditor = new (vditor__WEBPACK_IMPORTED_MODULE_0___default())('content-vditor', {
-          height: 400,
-          toolbarConfig: {
-            pin: true
-          },
-          cache: {
-            enable: false
-          },
-          preview: {
-            markdown: {
-              toc: true,
-              mark: true,
-              autoSpace: true
-            }
-          },
-          mode: this.edit.mode,
-          toolbar: ["emoji", "headings", "bold", "italic", "strike", "link", "|", "list", "ordered-list", "outdent", "indent", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "upload", "record", "table", "|", "undo", "redo", "|", "fullscreen", "edit-mode"],
-          counter: {
-            "enable": true,
-            "type": "已写字数"
-          },
-          hint: {
-            extend: [{
-              key: '@',
-              hint: function hint(key) {
-                return _this9.userAtList;
-              }
-            }, {
-              key: '$',
-              hint: function hint(key) {
-                return _this9.topic_keywords;
-              }
-            }]
-          },
-          upload: {
-            accept: 'image/*,.wav',
-            token: csrf_token,
-            url: imageUpUrl,
-            linkToImgUrl: imageUpUrl,
-            filename: function filename(name) {
-              return name.replace(/[^(a-zA-Z0-9\u4e00-\u9fa5\.)]/g, '').replace(/[\?\\/:|<>\*\[\]\(\)\$%\{\}@~]/g, '').replace('/\\s/g', '');
-            }
-          },
-          typewriterMode: true,
-          placeholder: "请输入正文",
-          after: function after() {
-            axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@user_list", {
-              _token: csrf_token
-            }).then(function (r) {
-              _this9.userAtList = r.data;
-            })["catch"](function (e) {
-              swal({
-                title: "获取本站用户列表失败,详细查看控制台",
-                icon: "error"
-              });
-              console.error(e);
-            });
-            axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/keywords", {
-              _token: csrf_token
-            }).then(function (r) {
-              _this9.topic_keywords = r.data;
-            })["catch"](function (e) {
-              swal({
-                title: "获取话题列表失败,详细查看控制台",
-                icon: "error"
-              });
-              console.error(e);
-            });
-            axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/topic.data", {
-              _token: csrf_token,
-              topic_id: _this9.topic_id
-            }).then(function (r) {
-              var data = r.data;
-
-              if (!data.success) {
-                izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-                  title: 'Error',
-                  position: 'topRight',
-                  message: data.result.msg
-                });
-              } else {
-                _this9.setTopicValue(data.result);
-              }
-            })["catch"](function (e) {
-              console.error(e);
-              izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-                title: 'Error',
-                position: 'topRight',
-                message: '请求出错,详细查看控制台'
-              });
-            });
-          },
-          input: function input(md) {},
-          select: function select(md) {
-            // 回复可见
-            swal({
-              title: "你选中了一段文字",
-              text: "是否将选中的文字设为回复可见?",
-              buttons: true,
-              icon: "warning"
-            }).then(function (click) {
-              if (click) {
-                _this9.vditor.updateValue("[reply]" + md + "[/reply]");
-              } else {
-                _this9.vditor.focus();
-              }
-            });
-          }
-        });
-      },
-      hidden_user_remove: function hidden_user_remove(username) {
-        this.options.hidden.user.list.splice(this.options.hidden.user.list.indexOf(username), 1);
-        izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
-          title: "Success",
-          message: "已将 " + username + " 从可见列表中移除",
-          position: 'topRight'
-        });
-      },
-      hidden_user_add: function hidden_user_add() {
-        var _this10 = this;
-
-        var username = this.options.hidden.user.selected;
-
-        if (this.options.hidden.user.list.indexOf(username) === -1) {
-          axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@has_user_username/" + username, {
+          }]
+        },
+        typewriterMode: true,
+        placeholder: "请输入评论内容",
+        after: function after() {
+          axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@user_list", {
             _token: csrf_token
           }).then(function (r) {
-            var data = r.data;
-
-            if (data.success) {
-              _this10.options.hidden.user.list.push(username);
-
-              _this10.options.hidden.user.selected = null;
-            } else {
-              swal({
-                title: "新增用户失败,原因:" + data.result.msg,
-                icon: "error"
-              });
-            }
+            _this2.userAtList = r.data;
           })["catch"](function (e) {
             swal({
-              title: "接口请求失败,详细查看控制台",
+              title: "获取本站用户列表失败,详细查看控制台",
               icon: "error"
             });
             console.error(e);
           });
-        } else {
-          swal("用户:" + username + "已存在,无需重复添加");
-        }
-      },
-      setTopicValue: function setTopicValue(data) {
-        this.title = data.title;
-        this.vditor.setValue(data.markdown);
-        this.tag_selected = data.tag.id;
-        this.options.summary = data.options.summary;
-        this.options.hidden.type = data.options.hidden.type;
-        this.options.hidden.user.list = data.options.hidden.users;
-        this.options.hidden.user_class = data.options.hidden.user_class;
-      }
-    },
-    mounted: function mounted() {
-      this.init();
-    },
-    watch: {
-      title: function title(_title2) {},
-      tag_selected: function tag_selected(tag) {}
+          axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/keywords", {
+            _token: csrf_token
+          }).then(function (r) {
+            _this2.topic_keywords = r.data;
+          })["catch"](function (e) {
+            swal({
+              title: "获取话题列表失败,详细查看控制台",
+              icon: "error"
+            });
+            console.error(e);
+          });
+        },
+        input: function input(md) {},
+        select: function select(md) {}
+      });
     }
   };
-  Vue.createApp(edit_topic_vue).mount("#edit-topic-vue");
-} // 对帖子页面的操作
-
-
-$(function () {
-  // 精华
-  $('a[core-click="topic-essence"]').click(function () {
-    var topic_id = $(this).attr("topic-id");
-    swal({
-      title: "精华指数,数字越大排名越靠前",
-      content: {
-        element: "input",
-        attributes: {
-          type: "number",
-          max: 999,
-          min: 1
-        }
-      }
-    }).then(function (r) {
-      if (r && !isNaN(r) && r >= 0) {
-        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/set.topic.essence", {
-          _token: csrf_token,
-          topic_id: topic_id,
-          zhishu: r
-        }).then(function (r) {
-          var data = r.data;
-
-          if (data.success) {
-            izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
-              title: 'Success',
-              position: 'topRight',
-              message: data.result.msg
-            });
-          } else {
-            izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-              title: 'Error',
-              position: 'topRight',
-              message: data.result.msg
-            });
-          }
-        })["catch"](function (e) {
-          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '请求出错,详细查看控制台'
-          });
-          console.error(e);
-        });
-      }
-    });
-  }); // 置顶
-
-  $('a[core-click="topic-topping"]').click(function () {
-    var topic_id = $(this).attr("topic-id");
-    swal({
-      title: "置顶指数,数字越大排名越靠前",
-      content: {
-        element: "input",
-        attributes: {
-          type: "number",
-          max: 999,
-          min: 1
-        }
-      }
-    }).then(function (r) {
-      if (r && !isNaN(r) && r >= 0) {
-        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/set.topic.topping", {
-          _token: csrf_token,
-          topic_id: topic_id,
-          zhishu: r
-        }).then(function (r) {
-          var data = r.data;
-
-          if (data.success) {
-            izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
-              title: 'Success',
-              position: 'topRight',
-              message: data.result.msg
-            });
-          } else {
-            izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-              title: 'Error',
-              position: 'topRight',
-              message: data.result.msg
-            });
-          }
-        })["catch"](function (e) {
-          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
-            title: 'Error',
-            position: 'topRight',
-            message: '请求出错,详细查看控制台'
-          });
-          console.error(e);
-        });
-      }
-    });
-  });
-});
+  Vue.createApp(topic_comment).mount("#topic-comment-model");
+}
 })();
 
 /******/ })()

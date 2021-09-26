@@ -80,6 +80,8 @@
 
 {{--    上下页--}}
     @include('plugins.Core.topic.show.include.lfpage')
+{{--    评论--}}
+    @include('plugins.Comment.Widget.topic')
 
 
 

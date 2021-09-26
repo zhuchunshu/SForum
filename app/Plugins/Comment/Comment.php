@@ -13,5 +13,11 @@ namespace App\Plugins\Comment;
  */
 class Comment
 {
+    public function handler(){
+        $this->setting();
+    }
 
+    public function setting(){
+        require_once __DIR__."/setting.php";
+    }
 }

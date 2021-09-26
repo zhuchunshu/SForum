@@ -4,6 +4,7 @@ declare (strict_types=1);
 namespace App\Plugins\Topic\src\Models;
 
 use App\Model\Model;
+use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\User\src\Models\User;
 use Carbon\Carbon;
 
@@ -60,5 +61,9 @@ class Topic extends Model
 
     public function topic_updated(){
         return $this->hasMany(TopicUpdated::class,"topic_id");
+    }
+
+    public function comments(){
+        return $this->hasMany(TopicComment::class,"topic_id");
     }
 }

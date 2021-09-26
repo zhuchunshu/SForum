@@ -18,6 +18,10 @@ class CreateTopicCommentTable extends Migration
             $table->string('user_id');
             $table->string('parent_id')->nullable();
             $table->longText("content");
+            $table->longText("markdown")->nullable();
+            $table->string("status")->default('publish');
+            $table->timestamp("shenping")->comment("神评")->nullable();
+            $table->timestamp("optimal")->comment("最佳回复")->nullable();
             $table->timestamps();
         });
     }
