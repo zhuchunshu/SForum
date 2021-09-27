@@ -29,8 +29,12 @@ class ShowTopic
         $comment_count = TopicComment::query()->where(['status' => 'publish','topic_id'=>$id])->count();
         $this->session($data);
         $comment = null;
+        // 评论分页数据
         if (get_options("comment_topic_show_type","default")==="default"){
-            $comment = TopicComment::query()->where(['status' => 'publish','topic_id'=>$id])->paginate(get_options("comment_page_count",15));
+            $comment = TopicComment::query()
+                ->where(['status' => 'publish','topic_id'=>$id])
+                ->with("topic","user")
+                ->paginate(get_options("comment_page_count",15));
         }
         return view('plugins.Core.topic.show.show',['data' => $data,'get_topic' => $sx,'comment_count'=>$comment_count,'comment' => $comment]);
     }

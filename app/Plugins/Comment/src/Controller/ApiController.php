@@ -22,7 +22,7 @@ class ApiController
 
         TopicComment::query()->create([
            'topic_id' => $request->input("topic_id"),
-            'content' => $request->input('content'),
+            'content' => xss()->clean($request->input('content')),
             'markdown' => $request->input('markdown'),
             'user_id' => auth()->id()
         ]);
