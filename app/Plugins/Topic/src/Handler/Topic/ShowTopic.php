@@ -28,7 +28,11 @@ class ShowTopic
         $sx = ['shang' => $shang,'xia' => $xia];
         $comment_count = TopicComment::query()->where(['status' => 'publish','topic_id'=>$id])->count();
         $this->session($data);
-        return view('plugins.Core.topic.show.show',['data' => $data,'get_topic' => $sx,'comment_count'=>$comment_count]);
+        $comment = null;
+        if (get_options("comment_topic_show_type","default")==="default"){
+            $comment = TopicComment::query()->where(['status' => 'publish','topic_id'=>$id])->paginate(get_options("comment_page_count",15));
+        }
+        return view('plugins.Core.topic.show.show',['data' => $data,'get_topic' => $sx,'comment_count'=>$comment_count,'comment' => $comment]);
     }
 
     public function session($data){
