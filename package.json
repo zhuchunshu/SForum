@@ -22,6 +22,7 @@
   "homepage": "https://github.com/zhuchunshu/CodeFecHF#readme",
   "dependencies": {
     "@fancyapps/ui": "^4.0.4",
+    "@popperjs/core": "^2.10.1",
     "add": "^2.0.6",
     "alpinejs": "^3.2.2",
     "axios": "^0.21.1",
@@ -35,6 +36,7 @@
     "mithril": "^2.0.4",
     "notyf": "^3.10.0",
     "sweetalert": "^2.1.2",
+    "tippy.js": "^6.3.1",
     "vditor": "^3.8.6",
     "vue": "^3.1.1",
     "vue-cookie": "^1.1.4",

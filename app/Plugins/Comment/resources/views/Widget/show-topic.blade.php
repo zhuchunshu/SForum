@@ -18,13 +18,13 @@
                                     <div class="col-md-12">
                                         <div class="row">
 {{--                                            头像--}}
-                                            <div class="col-auto">
+                                            <div class="col-auto" id="comment-user-avatar-{{$value->id}}" comment-show="user-data" user-id="{{$value->user_id}}">
                                                 <a href="/users/{{$value->user->username}}.html"><span class="avatar" style="background-image: url({{super_avatar($value->user)}})"></span></a>
                                             </div>
 {{--                                            作者信息--}}
                                             <div class="col text-truncate">
                                                 <a href="/users/{{$value->user->username}}.html" class="text-body d-block text-truncate">{{$value->user->username}}</a>
-                                                <small class="text-muted text-truncate mt-n1">发表于:{{format_date($value->created_at)}}</small>
+                                                <small data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="{{$value->created_at}}" class="text-muted text-truncate mt-n1">发表于:{{format_date($value->created_at)}}</small>
                                             </div>
 {{--                                            楼层信息--}}
                                             <div class="col-auto">
@@ -56,7 +56,7 @@
                                             <span comment-show="comment-topic-likes">{{ $value->likes }}</span>
                                         </a>
                                         {{-- markdown --}}
-                                        <a data-bs-toggle="tooltip" data-bs-placement="top" title="" href="/comment/topic/{{ $value->id }}.md"
+                                        <a data-bs-toggle="tooltip" data-bs-placement="top" href="/comment/topic/{{ $value->id }}.md"
                                            data-bs-original-title="查看markdown文本">
                     <span class="switch-icon-a text-muted">
                         <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-markdown" width="24"

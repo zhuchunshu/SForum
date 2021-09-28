@@ -27,7 +27,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">权限(多选)</label>
-                    <select class="form-select" v-model="quanxian" multiple>
+                    <select size="15" class="form-select" v-model="quanxian" multiple >
                         @foreach(Authority()->get() as $value)
                             <option value="{{$value['name']}}">{{$value['description']}}</option>
                         @endforeach

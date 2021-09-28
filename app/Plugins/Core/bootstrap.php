@@ -9,9 +9,13 @@ Authority()->add("admin_topic_edit","修改所有帖子");
 Authority()->add("admin_comment_edit","修改所有评论");
 
 Authority()->add("admin_view_draft_topic","预览所有(他人)草稿");
+Authority()->add("admin_comment_remove","删除所有(他人)评论");
+Authority()->add("comment_remove","删除自己评论");
+Authority()->add("admin_comment_edit","修改所有(他人)评论");
 
 
 Itf()->add("core_auth_selected","topic_edit","topic_edit");
 Itf()->add("core_auth_selected","topic_create","topic_create");
 Itf()->add("core_auth_selected","comment_create","comment_create");
 Itf()->add("core_auth_selected","comment_edit","comment_edit");
+Itf()->add("core_auth_selected","comment_remove","comment_remove");

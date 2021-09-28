@@ -27,7 +27,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">权限(多选)</label>
-                    <select class="form-select" v-model="quanxian" multiple>
+                    <select class="form-select" v-model="quanxian" multiple size="15">
                         @foreach(Authority()->get() as $value)
                             <option value="{{$value['name']}}">{{$value['description']}}</option>
                         @endforeach
@@ -46,3 +46,4 @@
 @section('scripts')
     <script src="{{ mix("plugins/User/js/user.js") }}"></script>
 @endsection
+

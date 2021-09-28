@@ -58,4 +58,22 @@ class ApiController
         $data = User::query()->where("id",$user_id)->first();
         return  Json_Api(200,true,['msg'=>super_avatar($data)]);
     }
+
+    #[PostMapping(path:"/api/user/get.user.data")]
+    public function get_user_data(){
+        $user_id = request()->input("user_id");
+        if(!$user_id){
+            return Json_Api(403,false,['请求参数不足,缺少:user_id']);
+        }
+        if(!User::query()->where("id",$user_id)->exists()){
+            return Json_Api(403,false,['此用户不存在']);
+        }
+        $data = User::query()
+            ->where("id",$user_id)
+            ->with("Class",'options')
+            ->first();
+        $data['avatar'] = super_avatar($data);
+        $data['group'] = '<a href="/users/group/'.$data->class_id.'.html">'.Core_Ui()->Html()->UserGroup($data->Class).'</a>';
+        return Json_Api(200,true,$data);
+    }
 }
