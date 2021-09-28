@@ -19,7 +19,7 @@ class ShowTopic
                 ->where('id', $id)
                 ->with("tag","user","topic_updated","update_user")
                 ->first();
-            cache()->set("topic.data.".$id, $data);
+            cache()->set("topic.data.".$id, $data,600);
         }else{
             $data = cache()->get("topic.data.".$id);
         }

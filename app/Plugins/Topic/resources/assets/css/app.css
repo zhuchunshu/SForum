@@ -1905,3 +1905,15 @@ pre {
   background-color: #f6f8fa;
   text-align: center;
 }
+
+.vditor-reset blockquote {
+  font-size: 15px;
+  border: 0;
+  background: #e7edf3;
+  color: #667d99;
+  border-radius: 4px;
+  padding: 8px 15px;
+  border-top: 2px dotted #fff;
+  border-bottom: 2px dotted #fff;
+  margin: 1em 0;
+}
