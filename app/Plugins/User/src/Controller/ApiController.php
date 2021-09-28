@@ -62,6 +62,7 @@ class ApiController
     }
 
     #[PostMapping(path:"/api/user/get.user.data")]
+    #[RateLimit(create:12, capacity:10)]
     public function get_user_data(){
         $user_id = request()->input("user_id");
         if(!$user_id){
