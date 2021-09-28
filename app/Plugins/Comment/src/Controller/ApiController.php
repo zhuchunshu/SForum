@@ -21,9 +21,15 @@ class ApiController
         }
         // 处理
 
+        // 过滤xss
+        $content = xss()->clean($request->input('content'));
+
+        // 解析艾特
+        $content = $this->topic_create_at($content);
+
         TopicComment::query()->create([
            'topic_id' => $request->input("topic_id"),
-            'content' => xss()->clean($request->input('content')),
+            'content' => $content,
             'markdown' => $request->input('markdown'),
             'user_id' => auth()->id()
         ]);
@@ -94,5 +100,11 @@ class ApiController
         ]);
         TopicComment::query()->where(['id'=>$comment_id])->increment("likes");
         return Json_Api(200,true,['msg' =>'已赞!']);
+    }
+
+    // 解析创建帖子评论的艾特内容
+    private function topic_create_at(string $content)
+    {
+        return replace_all_at($content);
     }
 }

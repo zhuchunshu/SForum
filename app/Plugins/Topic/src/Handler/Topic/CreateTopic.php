@@ -66,7 +66,7 @@ class CreateTopic
         ];
         $html = xss()->clean($html);
         // 解析shortCode
-        ShortCode()->handle($html);
+        $html = ShortCode()->handle($html);
 
         // 解析标签
         $yhtml = $html;

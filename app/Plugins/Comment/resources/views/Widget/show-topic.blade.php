@@ -35,7 +35,7 @@
                                     </div>
 {{--                                    评论内容--}}
                                     <div class="col-md-12">
-                                        <div class="hr-text" style="margin-bottom:5px;margin-top:15px">评论内容</div>
+                                        <div class="hr-text" style="margin-bottom:8px;margin-top:15px">评论内容</div>
                                     </div>
                                     <div class="col-md-12 markdown vditor-reset">
                                         {!! ShortCodeR()->handle($value->content) !!}
