@@ -3,6 +3,7 @@
 namespace App\Plugins\Comment\src\Controller;
 
 use App\Plugins\Comment\src\Model\TopicComment;
+use App\Plugins\Comment\src\Model\TopicCommentLike;
 use App\Plugins\Comment\src\Request\TopicCreate;
 use App\Plugins\Topic\src\Models\Topic;
 use Hyperf\HttpServer\Annotation\Controller;
@@ -66,5 +67,32 @@ class ApiController
             ->with('topic','user')
             ->paginate(get_options("comment_page_count",2));
         return Json_Api(200,true,$page);
+    }
+
+    #[PostMapping("like.topic.comment")]
+    public function like_topic_comment(): array
+    {
+        if(!auth()->check()){
+            return Json_Api(403,false,['msg' => '未登录!']);
+        }
+
+        $comment_id = request()->input("comment_id");
+        if(!$comment_id){
+            return Json_Api(403,false,['msg' => '请求参数:comment_id 不存在!']);
+        }
+        if(!TopicComment::query()->where('id',$comment_id)->exists()) {
+            return Json_Api(403,false,['msg' => 'id为:'.$comment_id."的评论不存在"]);
+        }
+        if(TopicCommentLike::query()->where(['comment_id' => $comment_id,'user_id'=>auth()->id()])->exists()) {
+            TopicCommentLike::query()->where(['comment_id' => $comment_id,'user_id'=>auth()->id()])->delete();
+            TopicComment::query()->where(['id'=>$comment_id])->decrement("likes");
+            return Json_Api(201,true,['msg' =>'已取消点赞!']);
+        }
+        TopicCommentLike::query()->create([
+            "comment_id" => $comment_id,
+            "user_id" => auth()->id(),
+        ]);
+        TopicComment::query()->where(['id'=>$comment_id])->increment("likes");
+        return Json_Api(200,true,['msg' =>'已赞!']);
     }
 }

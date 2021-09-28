@@ -28,7 +28,7 @@
                                             </div>
 {{--                                            楼层信息--}}
                                             <div class="col-auto">
-                                                <a href="/{{$data->id}}.html?page={{$comment->currentPage()}}#comment-{{$value->id}}">{{ ($key + 1)+(($comment->currentPage()-1)*10) }}楼</a>
+                                                <a href="/{{$data->id}}.html?page={{$comment->currentPage()}}">{{ ($key + 1)+(($comment->currentPage()-1)*10) }}楼</a>
                                             </div>
 
                                         </div>
@@ -45,7 +45,7 @@
                                         <div class="hr-text" style="margin-bottom:5px;margin-top:15px">操作</div>
                                     </div>
                                     <div class="col-md-12">
-                                        <a style="text-decoration:none;" comment-click="comment-like-topic" topic-id="{{ $data->id }}"
+                                        <a style="text-decoration:none;" comment-click="comment-like-topic" comment-id="{{ $value->id }}"
                                            class="cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom" title="点赞">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
                                                  viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"

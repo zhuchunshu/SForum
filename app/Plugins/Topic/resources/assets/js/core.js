@@ -3522,9 +3522,12 @@ $(function () {
         var likes_text = $(_this).children('span[core-show="topic-likes"]');
         var y_likes = likes_text.text();
         y_likes = parseInt(y_likes);
-        $(_this).children('svg[core-show="topic-likes"]').remove();
-        likes_text.before("\n                    \n                ");
-        $(_this).children('span[core-show="topic-likes"]').text(y_likes + 1);
+
+        if (data.code === 200) {
+          $(_this).children('span[core-show="topic-likes"]').text(y_likes + 1);
+        } else {
+          $(_this).children('span[core-show="topic-likes"]').text(y_likes - 1);
+        }
       }
     })["catch"](function (e) {
       izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({

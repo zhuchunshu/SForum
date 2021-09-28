@@ -24543,13 +24543,54 @@ $(function () {
           allowHTML: true,
           arrow: false,
           animateFill: true,
-          followCursor: true,
+          appendTo: document.body,
           plugins: [tippy_js__WEBPACK_IMPORTED_MODULE_3__.animateFill]
         });
       }
     })["catch"](function (e) {
       (0,tippy_js__WEBPACK_IMPORTED_MODULE_3__.default)('#' + id, {
         content: "\u8BF7\u6C42\u51FA\u9519,\u8BE6\u7EC6\u67E5\u770B\u63A7\u5236\u53F0"
+      });
+      console.error(e);
+    });
+  });
+}); // 评论点赞
+
+$(function () {
+  $('a[comment-click="comment-like-topic"]').click(function () {
+    var _this4 = this;
+
+    var comment_id = $(this).attr('comment-id');
+    axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/comment/like.topic.comment", {
+      comment_id: comment_id,
+      _token: csrf_token
+    }).then(function (r) {
+      var data = r.data;
+
+      if (!data.success) {
+        izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+          title: "error",
+          message: data.result.msg,
+          position: "topRight",
+          timeout: 10000
+        });
+      } else {
+        var likes_text = $(_this4).children('span[comment-show="comment-topic-likes"]');
+        var y_likes = likes_text.text();
+        y_likes = parseInt(y_likes);
+
+        if (data.code === 200) {
+          $(_this4).children('span[comment-show="comment-topic-likes"]').text(y_likes + 1);
+        } else {
+          $(_this4).children('span[comment-show="comment-topic-likes"]').text(y_likes - 1);
+        }
+      }
+    })["catch"](function (e) {
+      izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+        title: "error",
+        message: "请求出错,详细查看控制台",
+        position: "topRight",
+        timeout: 10000
       });
       console.error(e);
     });

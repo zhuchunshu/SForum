@@ -1518,6 +1518,11 @@ alpinejs@^3.2.2:
   dependencies:
     "@vue/reactivity" "^3.0.2"
 
+anchor-js@^4.3.1:
+  version "4.3.1"
+  resolved "https://registry.npmmirror.com/anchor-js/download/anchor-js-4.3.1.tgz#643685df60fbefe7516edd07c11be98c05381cf8"
+  integrity sha1-ZDaF32D77+dRbt0HwRvpjAU4HPg=
+
 ansi-escapes@^4.3.1:
   version "4.3.2"
   resolved "https://registry.npm.taobao.org/ansi-escapes/download/ansi-escapes-4.3.2.tgz#6b2291d1db7d98b6521d5f1efa42d0f3a9feb65e"

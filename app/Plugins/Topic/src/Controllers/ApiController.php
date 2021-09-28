@@ -76,11 +76,13 @@ class ApiController
         if(!$topic_id){
             return Json_Api(403,false,['msg' => '请求参数:topic_id 不存在!']);
         }
-        if(!Topic::query()->where('id',$topic_id)->exists()) {
+        if(!Topic::query()->where([['id',$topic_id,'status'=>'publish']])->exists()) {
             return Json_Api(403,false,['msg' => 'id为:'.$topic_id."的帖子不存在"]);
         }
         if(TopicLike::query()->where(['topic_id'=>$topic_id,'user_id'=>auth()->id(),"type" => 'like'])->exists()) {
-            return Json_Api(403,false,['msg' => '您赞过这个帖子了,无需重复点赞!']);
+            TopicLike::query()->where(['topic_id'=>$topic_id,'user_id'=>auth()->id(),"type" => 'like'])->delete();
+            Topic::query()->where(['id'=>$topic_id])->decrement("like");
+            return Json_Api(201,true,['msg' => '已取消点赞']);
         }
         TopicLike::query()->create([
             "topic_id" => $topic_id,

@@ -25,6 +25,7 @@
     "@popperjs/core": "^2.10.1",
     "add": "^2.0.6",
     "alpinejs": "^3.2.2",
+    "anchor-js": "^4.3.1",
     "axios": "^0.21.1",
     "codemirror": "^5.62.3",
     "copy-to-clipboard": "^3.3.1",
