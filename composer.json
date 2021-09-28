@@ -31,6 +31,7 @@
         "hyperf/model-cache": "2.2.*",
         "hyperf/paginator": "2.2.*",
         "hyperf/process": "2.2.*",
+        "hyperf/rate-limit": "^2.2",
         "hyperf/redis": "2.2.*",
         "hyperf/session": "2.2.*",
         "hyperf/validation": "2.2.*",

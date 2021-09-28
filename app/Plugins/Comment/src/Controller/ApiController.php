@@ -8,8 +8,10 @@ use App\Plugins\Comment\src\Request\TopicCreate;
 use App\Plugins\Topic\src\Models\Topic;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
+use Hyperf\RateLimit\Annotation\RateLimit;
 
 #[Controller(prefix:"/api/comment")]
+#[RateLimit(create:1, capacity:3)]
 class ApiController
 {
     // 对帖子进行评论

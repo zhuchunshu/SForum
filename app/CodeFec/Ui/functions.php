@@ -13,7 +13,7 @@ class functions
     public static function get($type)
     {
         $arr = [];
-        foreach (\App\CodeFec\Ui\functions::Ui()->get() as $value) {
+        foreach (self::Ui()->get() as $value) {
             if($value['type']==$type){
                 $arr[]=$value["value"];
             }

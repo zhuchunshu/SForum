@@ -8,9 +8,11 @@ use App\Plugins\User\src\Models\User;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\PostMapping;
+use Hyperf\RateLimit\Annotation\RateLimit;
 use Hyperf\Utils\Arr;
 
 #[Controller]
+#[RateLimit(create:1, capacity:3)]
 class ApiController
 {
     #[PostMapping(path:"/user/upload/image")]

@@ -15,6 +15,7 @@ use Hyperf\HttpMessage\Exception\ServerErrorHttpException;
 use Hyperf\HttpServer\Contract\CoreMiddlewareInterface;
 use Hyperf\HttpServer\Router\Dispatched;
 use Hyperf\HttpServer\Router\DispatcherFactory;
+use Hyperf\RateLimit\Annotation\RateLimit;
 use Hyperf\Server\Exception\ServerException;
 use Hyperf\Utils\Codec\Json;
 use Hyperf\Utils\Context;
