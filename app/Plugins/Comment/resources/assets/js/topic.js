@@ -24515,7 +24515,6 @@ $(function () {
 });
 var template = document.getElementById('template');
 $(function () {
-  // 鼠标选中
   $('div[comment-show="user-data"]').each(function () {
     var user_id = $(this).attr('user-id');
     var id = $(this).attr("id");

@@ -100,12 +100,12 @@ class IndexController
         return view("plugins.Core.index",["page" => $page,"topic_menu"=>$topic_menu,'title'=>$title]);
     }
 
-    #[GetMapping(path:"/{id}.html")]
-    public function show($id){
+    #[GetMapping(path:"/{id}.html[/{comment}]")]
+    public function show($id,$comment=null){
         if(!Topic::query()->where([['id',$id],['status','publish']])->exists()) {
             return admin_abort("页面不存在",404);
         }
-        return (new ShowTopic())->handle($id);
+        return (new ShowTopic())->handle($id,$comment);
     }
 
     #[GetMapping(path:"/{id}.md")]

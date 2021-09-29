@@ -11,7 +11,7 @@
             <div class="col-md-12">
                 <div class="row row-cards">
                     @foreach($comment as $key=>$value)
-                        <div class="col-md-12">
+                        <div id="comment-{{$value->id}}" name="comment-{{$value->id}}" class="col-md-12">
                             <div class="border-0 card card-body">
                                 <div class="row">
 {{--                                    作者信息--}}
@@ -28,7 +28,7 @@
                                             </div>
 {{--                                            楼层信息--}}
                                             <div class="col-auto">
-                                                <a href="/{{$data->id}}.html?page={{$comment->currentPage()}}">{{ ($key + 1)+(($comment->currentPage()-1)*10) }}楼</a>
+                                                <a href="/{{$data->id}}.html/{{$value->id}}?page={{$comment->currentPage()}}">{{ ($key + 1)+(($comment->currentPage()-1)*10) }}楼</a>
                                             </div>
 
                                         </div>
@@ -68,6 +68,16 @@
                             <path d="M14 13l2 2l2 -2m-2 2v-6"></path>
                         </svg>
                     </span>
+                                        </a>
+                                        <a style="text-decoration:none;" comment-click="comment-reply-topic" comment-id="{{ $value->id }}"
+                                           class="cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom" title="回复">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-message-circle-2" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                <path d="M3 20l1.3 -3.9a9 8 0 1 1 3.4 2.9l-4.7 1"></path>
+                                                <line x1="12" y1="12" x2="12" y2="12.01"></line>
+                                                <line x1="8" y1="12" x2="8" y2="12.01"></line>
+                                                <line x1="16" y1="12" x2="16" y2="12.01"></line>
+                                            </svg>
                                         </a>
                                     </div>
                                 </div>

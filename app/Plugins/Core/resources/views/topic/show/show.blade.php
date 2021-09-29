@@ -27,6 +27,9 @@
 
 @section('scripts')
     <script>var topic_id={{$data->id}}</script>
+    @if($comment_page)
+        <script>var comment_id={{$comment_page}}</script>
+    @endif
     <script src="{{ mix('plugins/Topic/js/topic.js') }}"></script>
     <script src="{{mix('plugins/Topic/js/core.js')}}"></script>
     <script src="{{mix('plugins/Comment/js/topic.js')}}"></script>

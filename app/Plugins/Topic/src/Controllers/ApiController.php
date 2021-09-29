@@ -16,7 +16,7 @@ use Hyperf\RateLimit\Annotation\RateLimit;
 use Hyperf\Utils\Arr;
 
 #[Controller(prefix:"/api/topic")]
-#[RateLimit(create:1, capacity:3)]
+#[RateLimit(create:5, capacity:12)]
 class ApiController
 {
     #[PostMapping(path:"tags")]

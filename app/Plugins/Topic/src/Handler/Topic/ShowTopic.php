@@ -8,7 +8,7 @@ use Hyperf\Utils\Str;
 
 class ShowTopic
 {
-    public function handle($id)
+    public function handle($id,$comment_page)
     {
         // 自增浏览量
         $updated_at = Topic::query()->where('id', $id)->first()->updated_at;
@@ -36,7 +36,7 @@ class ShowTopic
                 ->with("topic","user")
                 ->paginate(get_options("comment_page_count",15));
         }
-        return view('plugins.Core.topic.show.show',['data' => $data,'get_topic' => $sx,'comment_count'=>$comment_count,'comment' => $comment]);
+        return view('plugins.Core.topic.show.show',['data' => $data,'get_topic' => $sx,'comment_count'=>$comment_count,'comment' => $comment,'comment_page' => $comment_page]);
     }
 
     public function session($data){

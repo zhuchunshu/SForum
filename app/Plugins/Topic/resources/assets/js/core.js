@@ -3545,6 +3545,23 @@ $(function () {
     location.href = "/users/" + $(this).attr("username") + ".html";
   });
 });
+$(function () {
+  if (!window.location.hash && comment_id) {
+    window.location.hash = "#comment-" + comment_id;
+    var target = $(location.hash);
+
+    if (target.length === 1) {
+      var top = target.offset().top - 200;
+      $('html,body').animate({
+        scrollTop: top + "px"
+      }, 1000);
+    }
+
+    var url = document.URL;
+    url = url.replace(window.location.hash, "");
+    history.replaceState(null, document.title, url);
+  }
+});
 })();
 
 /******/ })()
