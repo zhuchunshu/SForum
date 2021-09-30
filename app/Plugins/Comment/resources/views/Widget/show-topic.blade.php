@@ -67,7 +67,7 @@
                                             <span comment-show="comment-topic-likes">{{ $value->likes }}</span>
                                         </a>
                                         {{-- markdown --}}
-                                        <a data-bs-toggle="tooltip" data-bs-placement="top" href="/comment/topic/{{ $value->id }}.md"
+                                        <a style="text-decoration:none;" data-bs-toggle="tooltip" data-bs-placement="top" href="/comment/topic/{{ $value->id }}.md"
                                            data-bs-original-title="查看markdown文本">
                     <span class="switch-icon-a text-muted">
                         <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-markdown" width="24"
@@ -94,31 +94,29 @@
 {{--                                        删除评论--}}
                                         @if(auth()->check())
 
-                                            @if(Authority()->check("admin_comment_remove") && curd()->GetUserClass(auth()->data()->class_id)['permission-value']>curd()->GetUserClass($value->user->class_id)['permission-value'])
-                                                <a style="text-decoration:none;" comment-click="comment-delete-topic" comment-id="{{ $value->id }}"
-                                                   class="cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom" title="删除">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-trash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                                        <line x1="4" y1="7" x2="20" y2="7"></line>
-                                                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                                                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                                                        <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path>
-                                                        <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path>
-                                                    </svg>
-                                                </a>
-                                            @elseif(Authority()->check("comment_remove") && auth()->id() === $value->user->id)
-                                                <a style="text-decoration:none;" comment-click="comment-delete-topic" comment-id="{{ $value->id }}"
-                                                   class="cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom" title="删除">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-trash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                                        <line x1="4" y1="7" x2="20" y2="7"></line>
-                                                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                                                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                                                        <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path>
-                                                        <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path>
-                                                    </svg>
-                                                </a>
-                                            @endif
+                                            <a style="text-decoration:none;" comment-click="comment-delete-topic" comment-id="{{ $value->id }}"
+                                               class="cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom" title="删除">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-trash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                    <line x1="4" y1="7" x2="20" y2="7"></line>
+                                                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                                                    <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path>
+                                                    <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path>
+                                                </svg>
+                                            </a>
+                                        @endif
+{{--                                        修改评论--}}
+                                        @if(auth()->check())
+                                            <a style="text-decoration:none;" href="/comment/topic/{{$value->id}}/edit"
+                                               class="cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom" title="编辑">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-edit" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                    <path d="M9 7h-3a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-3"></path>
+                                                    <path d="M9 15h3l8.5 -8.5a1.5 1.5 0 0 0 -3 -3l-8.5 8.5v3"></path>
+                                                    <line x1="16" y1="5" x2="19" y2="8"></line>
+                                                </svg>
+                                            </a>
                                         @endif
                                     </div>
                                     <div class="col-md-12" comment-dom="comment-{{$value->id}}" comment-status="off">
