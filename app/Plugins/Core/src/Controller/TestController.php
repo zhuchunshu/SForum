@@ -16,7 +16,7 @@ class TestController
     #[GetMapping(path: "/test")]
     public function test()
     {
-        return core_http_build_query(core_get_page('http://127.0.0.1:9501/?page=2'),request()->all());
+        return view("Core::test");
     }
 
     public function build(string $url){

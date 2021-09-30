@@ -13,7 +13,7 @@ use App\View\Component\CsrfToken;
  * @license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
  */
 return [
-    'engine' => Hyperf\ViewEngine\HyperfViewEngine::class,
+    'engine' =>\App\CodeFec\View\HyperfViewEngine::class,
     'mode' => Hyperf\View\Mode::SYNC,
     'config' => [
         'view_path' => BASE_PATH . '/resources/views/',
