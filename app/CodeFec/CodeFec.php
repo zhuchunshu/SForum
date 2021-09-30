@@ -52,11 +52,7 @@ class CodeFec {
     // 处理插件
     public function plugins(): void
     {
-        $array = AdminPlugin::query()->where("status",1)->get();
-        $result = [];
-        foreach ($array as $value) {
-            $result[]=$value->name;
-        }
+        $result = (new Plugins())->getEnPlugins();
         foreach ($result as $value) {
             if(file_exists(plugin_path($value."/".$value.".php"))){
                 $class = "\App\Plugins\\".$value."\\".$value;

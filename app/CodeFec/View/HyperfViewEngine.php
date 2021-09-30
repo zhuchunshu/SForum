@@ -11,6 +11,7 @@ declare(strict_types=1);
  */
 namespace App\CodeFec\View;
 
+use App\CodeFec\Plugins;
 use App\Model\AdminPlugin;
 use Hyperf\Utils\ApplicationContext;
 use Hyperf\View\Engine\EngineInterface;
@@ -22,12 +23,9 @@ class HyperfViewEngine implements EngineInterface
     {
         /** @var FactoryInterface $factory */
         $factory = ApplicationContext::getContainer()->get(FactoryInterface::class);
-        $array = AdminPlugin::query()->where("status",1)->get();
-        $result = [];
-        foreach ($array as $value) {
-            $result[]=$value->name;
-        }
-        foreach ($result as $value) {
+
+        $plugin_list = (new Plugins())->getEnPlugins();
+        foreach ($plugin_list as $value) {
             $factory->addNamespace($value,plugin_path($value."/resources/views"));
         }
         return $factory->make($template, $data)->render();

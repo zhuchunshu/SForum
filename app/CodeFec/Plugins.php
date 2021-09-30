@@ -1,6 +1,8 @@
 <?php
 namespace App\CodeFec;
 
+use App\Model\AdminPlugin;
+
 class Plugins {
 
     public static function GetAll(): array
@@ -17,6 +19,21 @@ class Plugins {
             }
         }
         return $plugin_arr;
+    }
+
+    // 获取已启用的插件列表
+    public function getEnPlugins(){
+        if(!cache()->has("plugins.en")){
+            $array = AdminPlugin::query()->where("status",1)->get();
+            $result = [];
+            foreach ($array as $value) {
+                $result[]=$value->name;
+            }
+            cache()->set("plugins.en",$result);
+            return $result;
+        }
+        return cache()->get("plugins.en");
+
     }
 
 }

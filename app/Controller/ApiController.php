@@ -81,6 +81,7 @@ class ApiController
             cache()->delete("admin.plugins.en.list");
         } catch (InvalidArgumentException $e) {
         }
+        cache()->delete("plugins.en");
         return Json_Api(200, true, ['msg' => "更新成功!"]);
     }
 
