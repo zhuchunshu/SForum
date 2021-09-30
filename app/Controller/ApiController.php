@@ -102,11 +102,11 @@ class ApiController
                 //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
                 exec("mkdir " . BASE_PATH . "/resources/views/plugins");
             }
-            if (!is_dir(BASE_PATH . "/resources/views/plugins/" . $plugin_name)) {
-                //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
-                exec("mkdir " . BASE_PATH . "/resources/views/plugins/" . $plugin_name);
-            }
-            copy_dir(plugin_path($plugin_name . "/resources/views"), BASE_PATH . "/resources/views/plugins/" . $plugin_name);
+            // if (!is_dir(BASE_PATH . "/resources/views/plugins/" . $plugin_name)) {
+            //     //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
+            //     exec("mkdir " . BASE_PATH . "/resources/views/plugins/" . $plugin_name);
+            // }
+            // copy_dir(plugin_path($plugin_name . "/resources/views"), BASE_PATH . "/resources/views/plugins/" . $plugin_name);
         }
         if (is_dir(plugin_path($plugin_name . "/resources/assets"))) {
             if (!is_dir(public_path("plugins"))) {
