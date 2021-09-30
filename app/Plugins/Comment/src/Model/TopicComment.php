@@ -35,7 +35,7 @@ class TopicComment extends Model
      *
      * @var array
      */
-    protected $fillable = ['likes','topic_id','user_id','parent_id','content','markdown','status','shenping','optimal','created_at','updated_at'];
+    protected $fillable = ['likes','topic_id','user_id','parent_id','content','markdown','status','shenping','optimal','parent_url','created_at','updated_at'];
     /**
      * The attributes that should be cast to native types.
      *
@@ -51,5 +51,10 @@ class TopicComment extends Model
     public function topic(): \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(Topic::class,"topic_id","id");
+    }
+
+    public function parent(): \Hyperf\Database\Model\Relations\BelongsTo
+    {
+        return $this->belongsTo(__CLASS__,"parent_id","id");
     }
 }

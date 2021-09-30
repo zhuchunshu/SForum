@@ -24423,7 +24423,7 @@ if (document.getElementById("topic-comment-model")) {
         },
         preview: {
           markdown: {
-            toc: true,
+            toc: false,
             mark: true,
             autoSpace: true
           }
@@ -24593,6 +24593,97 @@ $(function () {
       });
       console.error(e);
     });
+  });
+}); // 回复评论
+
+$(function () {
+  $('a[comment-click="comment-reply-topic"]').click(function () {
+    var th = $(this);
+    var comment_id = th.attr("comment-id");
+    var dom = $('div[comment-dom="comment-' + comment_id + '"]');
+    var comment_status = dom.attr("comment-status");
+    var vditor_dom = $('div[comment-dom="comment-vditor-' + comment_id + '"]');
+    var comment_url = vditor_dom.attr("comment-url");
+
+    if (vditor_dom.attr("comment-status") === "off") {
+      var vditor = new (vditor__WEBPACK_IMPORTED_MODULE_0___default())('comment-reply-vditor-' + comment_id, {
+        height: 250,
+        toolbarConfig: {
+          pin: true
+        },
+        typewriterMode: true,
+        placeholder: "请输入回复内容",
+        cache: {
+          enable: false
+        },
+        toolbar: ["emoji", "headings", "bold", "italic", "strike", "link", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "table", "undo", "redo", "|", "edit-mode"],
+        counter: {
+          "enable": true,
+          "type": "已写字数"
+        },
+        after: function after() {}
+      });
+      vditor_dom.attr("comment-status", "on");
+    }
+
+    if (comment_status === "off") {
+      dom.attr("comment-status", "on");
+      dom.children(".hr-text").show();
+      vditor_dom.show();
+      $('button[comment-dom="comment-vditor-submit-' + comment_id + '"]').click(function () {
+        var content = vditor.getHTML();
+        var markdown = vditor.getValue();
+
+        if (!content || !markdown) {
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: "Error",
+            message: "回复内容不能为空!",
+            position: "topRight"
+          });
+          return;
+        }
+
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/comment/comment.topic.reply", {
+          _token: csrf_token,
+          comment_id: comment_id,
+          content: content,
+          markdown: markdown,
+          parent_url: comment_url
+        }).then(function (r) {
+          var data = r.data;
+
+          if (data.success === false) {
+            data.result.forEach(function (value) {
+              izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+                title: "Error",
+                message: value,
+                position: "topRight"
+              });
+            });
+          } else {
+            data.result.forEach(function (value) {
+              izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+                title: "Success",
+                message: value,
+                position: "topRight"
+              });
+            });
+          }
+        })["catch"](function (e) {
+          console.error(e);
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: "Error",
+            message: "请求出错,详细查看控制台",
+            position: "topRight"
+          });
+        });
+      });
+      return;
+    }
+
+    dom.attr("comment-status", "off");
+    dom.children(".hr-text").hide();
+    vditor_dom.hide();
   });
 });
 })();

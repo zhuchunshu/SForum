@@ -1917,3 +1917,9 @@ pre {
   border-bottom: 2px dotted #fff;
   margin: 1em 0;
 }
+
+.vditor-reset .quote blockquote {
+  margin-top: 1px;
+  padding-bottom: 5px;
+  background: #F9F9F9 none no-repeat 20px 6px;
+}

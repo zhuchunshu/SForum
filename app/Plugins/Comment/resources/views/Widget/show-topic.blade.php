@@ -38,6 +38,17 @@
                                         <div class="hr-text" style="margin-bottom:8px;margin-top:15px">评论内容</div>
                                     </div>
                                     <div class="col-md-12 markdown vditor-reset">
+                                        @if($value->parent_id)
+                                            <div class="quote">
+                                                <blockquote>
+                                                    <a style="font-size:13px;" href="{{$value->parent_url}}" target="_blank">
+                                                        <span style="color:#999999" >{{$value->parent->user->username}} 发表于 {{$value->created_at}}</span>
+                                                    </a>
+                                                    <br>
+                                                    {{\Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($value->parent->content)),60)}}
+                                                </blockquote>
+                                            </div>
+                                        @endif
                                         {!! ShortCodeR()->handle($value->content) !!}
                                     </div>
 {{--                                    操作--}}
@@ -79,6 +90,13 @@
                                                 <line x1="16" y1="12" x2="16" y2="12.01"></line>
                                             </svg>
                                         </a>
+                                    </div>
+                                    <div class="col-md-12" comment-dom="comment-{{$value->id}}" comment-status="off">
+                                        <div class="hr-text" style="margin-bottom:15px;margin-top:15px;display: none">回复</div>
+                                    </div>
+                                    <div class="col-md-12" style="display: none" comment-url="/{{$data->id}}.html/{{$value->id}}?page={{$comment->currentPage()}}" comment-dom="comment-vditor-{{$value->id}}" comment-status="off">
+                                        <div id="comment-reply-vditor-{{$value->id}}"></div>
+                                        <button style="margin-top:10px" class="btn btn-primary" type="button" comment-dom="comment-vditor-submit-{{$value->id}}">提交</button>
                                     </div>
                                 </div>
                             </div>

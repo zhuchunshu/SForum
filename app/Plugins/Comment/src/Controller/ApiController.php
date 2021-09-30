@@ -5,6 +5,7 @@ namespace App\Plugins\Comment\src\Controller;
 use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Comment\src\Model\TopicCommentLike;
 use App\Plugins\Comment\src\Request\TopicCreate;
+use App\Plugins\Comment\src\Request\TopicReply;
 use App\Plugins\Topic\src\Models\Topic;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
@@ -40,6 +41,39 @@ class ApiController
         cache()->set("comment_create_time_" . auth()->id(), time()+get_options("comment_create_time", 60),get_options("comment_create_time", 60));
 
         return Json_Api(200,true,['发表成功!']);
+    }
+
+    // 回复评论
+    #[PostMapping(path:"comment.topic.reply")]
+    public function topic_reply_create(TopicReply $request): bool|array
+    {
+        // 鉴权
+        if ($this->topic_create_validation()!==true){
+            return $this->topic_create_validation();
+        }
+        // 处理
+
+        // 过滤xss
+        $content = xss()->clean($request->input('content'));
+
+        // 解析艾特
+        $content = $this->topic_create_at($content);
+
+        $comment_id = request()->input('comment_id');
+        $topic_id = TopicComment::query()->where("id",$comment_id)->first()->topic_id;
+        TopicComment::query()->create([
+            'parent_url' => request()->input("parent_url"),
+            'topic_id' => $topic_id,
+            'parent_id' => $comment_id,
+            'content' => $content,
+            'markdown' => $request->input('markdown'),
+            'user_id' => auth()->id()
+        ]);
+
+        //发布成功
+        cache()->set("comment_create_time_" . auth()->id(), time()+get_options("comment_create_time", 60),get_options("comment_create_time", 60));
+
+        return Json_Api(200,true,['回复成功!']);
     }
 
     // 对帖子进行评论 -- 鉴权

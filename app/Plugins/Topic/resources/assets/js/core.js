@@ -3546,7 +3546,7 @@ $(function () {
   });
 });
 $(function () {
-  if (!window.location.hash && comment_id) {
+  if (!window.location.hash && typeof comment_id !== "undefined") {
     window.location.hash = "#comment-" + comment_id;
     var target = $(location.hash);
 
