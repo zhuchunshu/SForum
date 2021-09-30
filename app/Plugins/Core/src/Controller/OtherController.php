@@ -18,7 +18,7 @@ class OtherController
      * @GetMapping(path="/help/core/viewRender/{view}.html")
      */
     public function renderView($view){
-        $view = "plugins.Core.".$view;
+        $view = "Core::".$view;
         if(!view()->exists($view)){
             return admin_abort(['msg' => '视图不存在'],404);
         }

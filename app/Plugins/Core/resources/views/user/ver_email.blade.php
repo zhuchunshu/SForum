@@ -1,4 +1,4 @@
-@extends("plugins.Core.app")
+@extends("Core::app")
 @section('title','验证邮箱')
 @section('content')
     <div id="vue-user-my-ver-email">

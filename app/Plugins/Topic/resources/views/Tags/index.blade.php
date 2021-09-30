@@ -1,4 +1,4 @@
-@extends("plugins.Core.app")
+@extends("Core::app")
 
 @section('title', '帖子标签')
 @section('description', '本站帖子标签列表')

@@ -1,4 +1,4 @@
-@extends('plugins.Core.components.theme.app')
+@extends('Core::components.theme.app')
 @section('content')
     <footer class="footer footer-transparent d-print-none">
         <div class="container">

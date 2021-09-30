@@ -36,7 +36,7 @@ class ShowTopic
                 ->with("topic","user","parent")
                 ->paginate(get_options("comment_page_count",15));
         }
-        return view('plugins.Core.topic.show.show',['data' => $data,'get_topic' => $sx,'comment_count'=>$comment_count,'comment' => $comment,'comment_page' => $comment_page]);
+        return view('Core::topic.show.show',['data' => $data,'get_topic' => $sx,'comment_count'=>$comment_count,'comment' => $comment,'comment_page' => $comment_page]);
     }
 
     public function session($data){

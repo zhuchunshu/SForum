@@ -35,15 +35,15 @@
 </head>
 
 <body class="antialiased">
-@include("plugins.Core.layouts.themes.header-".get_options('core_theme_header',1))
-@include("plugins.Core.layouts.errors")
-@include("plugins.Core.layouts._msg")
+@include("Core::layouts.themes.header-".get_options('core_theme_header',1))
+@include("Core::layouts.errors")
+@include("Core::layouts._msg")
 @yield('header')
 <div class="page-body">
     <div class="container-xl">
         @yield('content')
     </div>
-        @include("plugins.Core.layouts.themes.footer-".get_options('core_theme_footer',1))
+        @include("Core::layouts.themes.footer-".get_options('core_theme_footer',1))
     </div>
     <script src='/js/jquery-3.6.0.min.js'></script>
     <script src="{{ mix('js/vue.js') }}"></script>

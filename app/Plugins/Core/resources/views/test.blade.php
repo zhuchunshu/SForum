@@ -1,4 +1,4 @@
-@extends("plugins.Core.app")
+@extends("Core::app")
 
 @section('title',"创建用户组")
 

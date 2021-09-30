@@ -3,9 +3,9 @@
         {{-- 必须是父级菜单 --}}
         @if (!arr_has($value, 'parent_id'))
             @if(arr_has($value,"quanxian") && auth()->check())
-                @include('plugins.Core.layouts.themes.menu.menu-quanxian')
+                @include('Core::layouts.themes.menu.menu-quanxian')
             @else
-                @include('plugins.Core.layouts.themes.menu.menu')
+                @include('Core::layouts.themes.menu.menu')
             @endif
         @endif
     @endforeach

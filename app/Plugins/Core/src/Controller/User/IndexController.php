@@ -29,7 +29,7 @@ class IndexController
         if(auth()->data()->email_ver_time){
             return redirect()->url("/")->with("info","你已验证邮箱,无需重复操作")->go();
         }
-        return view("plugins.Core.user.ver_email");
+        return view("Core::user.ver_email");
     }
 
     #[PostMapping(path: "/user/ver_email")]
@@ -75,7 +75,7 @@ class IndexController
             ->orderBy("id","desc")
             ->paginate(get_options("topic_home_num",15));
 
-        return view("plugins.User.draft",["page" => $page]);
+        return view("User::draft",["page" => $page]);
     }
 
     // 草稿
@@ -101,6 +101,6 @@ class IndexController
         $shang = Topic::query()->where([['id','<',$id],['status','publish']])->select('title','id')->orderBy('id','desc')->first();
         $xia = Topic::query()->where([['id','>',$id],['status','publish']])->select('title','id')->orderBy('id','asc')->first();
         $sx = ['shang' => $shang,'xia' => $xia];
-        return view('plugins.Core.topic.show.draft',['data' => $data,'get_topic' => $sx]);
+        return view('Core::topic.show.draft',['data' => $data,'get_topic' => $sx]);
     }
 }

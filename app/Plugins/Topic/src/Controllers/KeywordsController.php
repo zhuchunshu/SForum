@@ -21,7 +21,7 @@ class KeywordsController
             '#8f82bc'
         ];
         $page = TopicKeyword::query()->with("kw")->paginate(90);
-        return view("plugins.Topic.KeyWords.index",['page' => $page,'color' => $color]);
+        return view("Topic::KeyWords.index",['page' => $page,'color' => $color]);
     }
 
     #[GetMapping(path:"/keywords/{name}.html")]
@@ -31,6 +31,6 @@ class KeywordsController
         }
         $data = TopicKeyword::query()->where("name",$name)->first();
         $page = TopicKeywordsWith::query()->with("topic")->where("with_id",$data->id)->paginate(15);
-        return view("plugins.Topic.keywords.data",['data' => $data,'page' => $page]);
+        return view("Topic::keywords.data",['data' => $data,'page' => $page]);
     }
 }

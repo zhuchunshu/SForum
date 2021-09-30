@@ -1,4 +1,4 @@
-@extends("plugins.Core.app")
+@extends("Core::app")
 
 @section('title',$data->title)
 @section('description','为您展示:'.$data->title."帖子信息")
@@ -10,10 +10,10 @@
         <div class="col-md-10">
             <div class="row row-cards justify-content-center">
                 <div class="col-md-7">
-                    @include('plugins.Core.topic.content')
+                    @include('Core::topic.content')
                 </div>
                 <div class="col-md-5">
-                    @include('plugins.Core.topic.show-right')
+                    @include('Core::topic.show-right')
                 </div>
             </div>
         </div>

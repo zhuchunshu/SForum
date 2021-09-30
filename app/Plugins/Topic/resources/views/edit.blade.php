@@ -1,4 +1,4 @@
-@extends("plugins.Core.app")
+@extends("Core::app")
 
 @section('title', '修改帖子:'.$data['title'])
 
@@ -46,7 +46,7 @@
                         <div class="vditor-superf-toolbar">
                             <div class="vditor-toolbar vditor-toolbar--pin" style="padding-left: 10px;">
                                 <div class="vditor-toolbar__item">
-                                    @include('plugins.Topic.create-toolbar')
+                                    @include('Topic::create-toolbar')
                                 </div>
                                 {{--                                    <span class="vditor-counter vditor-tooltipped vditor-tooltipped__nw"--}}
                                 {{--                                    aria-label="已写字数">18</span>--}}

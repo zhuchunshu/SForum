@@ -17,14 +17,14 @@ class UserClass
     #[GetMapping(path:"/admin/userClass")]
     public function index(){
         $page = \App\Plugins\User\src\Models\UserClass::query()->paginate(15);
-        return view("plugins.User.Class.index",['page' => $page]);
+        return view("User::Class.index",['page' => $page]);
     }
 
     /**
      * @GetMapping(path="/admin/userClass/create")
      */
     public function create(){
-        return view("plugins.User.Class.create");
+        return view("User::Class.create");
     }
 
     /**
@@ -51,7 +51,7 @@ class UserClass
         if(!\App\Plugins\User\src\Models\UserClass::query()->where("id",$id)->count()){
             return admin_abort(['msg' => 'id为'.$id.'的用户组不存在'],404);
         }
-        return view("plugins.User.Class.edit",['id' => $id]);
+        return view("User::Class.edit",['id' => $id]);
     }
 
     /**

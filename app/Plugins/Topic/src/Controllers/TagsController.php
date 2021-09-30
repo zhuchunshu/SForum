@@ -15,7 +15,7 @@ class TagsController
     public function index(): \Psr\Http\Message\ResponseInterface
     {
         $page = TopicTag::query()->paginate(15,['*'],"TagPage");
-        return view("plugins.Topic.Tags.index",['page' => $page]);
+        return view("Topic::Tags.index",['page' => $page]);
     }
 
     #[GetMapping(path: "/tags/{id}.html")]
@@ -29,6 +29,6 @@ class TagsController
             ->orderBy("id","desc")
             ->paginate(get_options("topic_home_num",15));
         $data = TopicTag::query()->where("id",$id)->first();
-        return view("plugins.Topic.Tags.data",['data' => $data,'page' => $page]);
+        return view("Topic::Tags.data",['data' => $data,'page' => $page]);
     }
 }

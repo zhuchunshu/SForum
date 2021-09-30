@@ -1,4 +1,4 @@
-@extends("plugins.Core.app")
+@extends("Core::app")
 
 @section('title', '「'.$data->username.'」会员的信息')
 @section('description', '为您展示本站「'.$data->username.'」用户的信息')

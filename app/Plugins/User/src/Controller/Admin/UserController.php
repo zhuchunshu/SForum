@@ -18,14 +18,14 @@ class UserController
     #[GetMapping(path:"/admin/users")]
     public function index(){
         $page = User::query()->with("class")->paginate(15);
-        return view("plugins.User.Admin.Users.index",['page' => $page]);
+        return view("User::Admin.Users.index",['page' => $page]);
     }
 
     #[GetMapping(path:"/admin/users/search")]
     public function search(){
         $q = request()->input("q");
         $page = User::query()->where("username","like","%".$q."%")->with("class")->paginate(15);
-        return view("plugins.User.Admin.Users.index",['page' => $page]);
+        return view("User::Admin.Users.index",['page' => $page]);
     }
 
     #[PostMapping(path:"/admin/users/update/username")]
@@ -80,7 +80,7 @@ class UserController
         }
         $data = User::query()->where("id",$id)->with("Class")->first();
         $class = UC::query()->get();
-        return view("plugins.User.Admin.Users.update_UserClass",['data' => $data,'class' => $class]);
+        return view("User::Admin.Users.update_UserClass",['data' => $data,'class' => $class]);
     }
 
     #[PostMapping(path:"/admin/users/update/UserClass")]

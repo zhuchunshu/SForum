@@ -21,7 +21,7 @@ class TagController
 {
     #[GetMapping(path:"/admin/topic/tag/create")]
     public function create(){
-        return view("plugins.Topic.Tag.create");
+        return view("Topic::Tag.create");
     }
 
     #[PostMapping(path:"/admin/topic/tag/create")]
@@ -44,7 +44,7 @@ class TagController
     public function index(): \Psr\Http\Message\ResponseInterface
     {
         $page = TopicTag::query()->paginate(15);
-        return view("plugins.Topic.Tag.index",["page" => $page]);
+        return view("Topic::Tag.index",["page" => $page]);
     }
 
     #[GetMapping(path:"/admin/topic/tag/edit/{id}")]
@@ -53,7 +53,7 @@ class TagController
             return admin_abort('id为'.$id.'的标签不存在',403);
         }
         $data = TopicTag::query()->where("id",$id)->first();
-        return view("plugins.Topic.Tag.edit",['data' => $data]);
+        return view("Topic::Tag.edit",['data' => $data]);
     }
 
     #[PostMapping(path:"/admin/topic/tag/edit")]

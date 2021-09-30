@@ -3,8 +3,8 @@
         <div class="collapse navbar-collapse" id="navbar-menu">
             <div class="navbar navbar-dark">
                 <div class="container-xl">
-                    @include('plugins.Core.layouts.themes.menu')
-                    @include('plugins.Core.layouts.themes.search')
+                    @include('Core::layouts.themes.menu')
+                    @include('Core::layouts.themes.search')
                 </div>
             </div>
         </div>
@@ -18,7 +18,7 @@
                 <a href="/">{{ get_options('web_name', 'CodeFec') }}</a>
             </h1>
             <div class="flex-row navbar-nav order-md-last">
-                @include('plugins.Core.layouts.themes.header-right')
+                @include('Core::layouts.themes.header-right')
             </div>
         </div>
     </header>

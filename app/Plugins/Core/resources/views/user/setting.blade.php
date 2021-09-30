@@ -1,4 +1,4 @@
-@extends("plugins.Core.app")
+@extends("Core::app")
 @section('title','个人设置')
 @section('content')
     <div id="vue-user-my-setting">

@@ -1,4 +1,4 @@
-@extends('plugins.Core.components.theme.app')
+@extends('Core::components.theme.app')
 @section('content')
     <div class="wrapper">
         <header class="navbar navbar-expand-md navbar-light d-print-none">

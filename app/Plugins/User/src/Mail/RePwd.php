@@ -27,7 +27,7 @@ class RePwd extends Mailable implements ShouldQueue
      */
     public function build(): void
     {
-        $this->htmlView('plugins.Core.mail.repwd')->with([
+        $this->htmlView('Core::mail.repwd')->with([
             "data" => $this->data
         ]);
     }

@@ -1,4 +1,4 @@
-@extends('plugins.Core.components.theme.app')
+@extends('Core::components.theme.app')
 @section('content')
     <footer class="text-gray-600 body-font" _msthidden="2">
         <div class="container px-5 py-8 mx-auto flex items-center sm:flex-row flex-col" _msthidden="2">

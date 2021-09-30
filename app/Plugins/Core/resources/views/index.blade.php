@@ -1,4 +1,4 @@
-@extends("plugins.Core.app")
+@extends("Core::app")
 
 @if($title)
     @section('title',$title." - ")
@@ -11,12 +11,12 @@
         <div class="col-md-10">
             <div class="row row-cards justify-content-center">
                 <div class="col-md-7">
-                    @include('plugins.Core.index.index')
+                    @include('Core::index.index')
                 </div>
                 <div class="col-md-5">
                     <div class="row row-cards rd">
                         <div class="col-md-12 sticky" style="top: 105px">
-                            @include('plugins.Core.index.right')
+                            @include('Core::index.right')
                         </div>
                     </div>
                 </div>

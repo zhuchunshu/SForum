@@ -21,7 +21,7 @@ class UserController
     public function list(){
         $count = User::query()->count();
         $page = User::query()->paginate(30);
-        return view("plugins.User.list",['page' => $page,'count'=>$count]);
+        return view("User::list",['page' => $page,'count'=>$count]);
     }
 
     /**
@@ -35,7 +35,7 @@ class UserController
             return admin_abort("用户名为:".$username."的用户不存在");
         }
         $data = User::query()->with("Class","Options")->where("username",$username)->first();
-        return view("plugins.User.data",['data'=>$data]);
+        return view("User::data",['data'=>$data]);
     }
 
     #[GetMapping(path:"/users/group/{id}.html")]
@@ -47,7 +47,7 @@ class UserController
         $userCount = User::query()->where("class_id",$id)->count();
         $data = UserClassModel::query()->where("id",$id)->first();
         $user = User::query()->where("class_id",$id)->paginate(30);
-        return view("plugins.User.group_data",['userCount' => $userCount,'data' => $data,'user'=>$user]);
+        return view("User::group_data",['userCount' => $userCount,'data' => $data,'user'=>$user]);
     }
 
     #[GetMapping(path:"/user/multiavatar/{user_id}")]

@@ -21,7 +21,7 @@
                         </h1>
                     </div>
                     <div class="col-md-12">
-                        @include('plugins.Core.topic.show.ol')
+                        @include('Core::topic.show.ol')
                     </div>
                     <hr class="hr-text" style="margin-top: 5px;margin-bottom: 5px">
                     <div class="col-md-12" id="author">
@@ -79,11 +79,11 @@
     </div>
 
 {{--    上下页--}}
-    @include('plugins.Core.topic.show.include.lfpage')
+    @include('Core::topic.show.include.lfpage')
 {{--    显示评论--}}
-    @include('plugins.Comment.Widget.show-topic')
+    @include('Comment::Widget.show-topic')
 {{--    评论--}}
-    @include('plugins.Comment.Widget.topic')
+    @include('Comment::Widget.topic')
 
 
 
