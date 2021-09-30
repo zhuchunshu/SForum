@@ -39,11 +39,11 @@ class ResourcesMigrate extends HyperfCommand
                 //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
                 exec("mkdir " . plugin_path($plugin_name."/resources"));
             }
-            if (!is_dir(plugin_path($plugin_name."/resources/views"))) {
-                //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
-                exec("mkdir " . plugin_path($plugin_name."/resources/views"));
-            }
-            copy_dir(BASE_PATH . "/resources/views/plugins/" . $plugin_name,plugin_path($plugin_name . "/resources/views"));
+            // if (!is_dir(plugin_path($plugin_name."/resources/views"))) {
+            //     //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
+            //     exec("mkdir " . plugin_path($plugin_name."/resources/views"));
+            // }
+            // copy_dir(BASE_PATH . "/resources/views/plugins/" . $plugin_name,plugin_path($plugin_name . "/resources/views"));
         }
         if (is_dir(public_path("plugins/".$plugin_name))) {
             if (!is_dir(plugin_path($plugin_name."/resources"))) {
