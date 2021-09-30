@@ -24668,6 +24668,9 @@ $(function () {
                 position: "topRight"
               });
             });
+            setTimeout(function () {
+              location.reload();
+            }, 1500);
           }
         })["catch"](function (e) {
           console.error(e);
@@ -24684,6 +24687,58 @@ $(function () {
     dom.attr("comment-status", "off");
     dom.children(".hr-text").hide();
     vditor_dom.hide();
+  });
+}); // 删除评论
+
+$(function () {
+  $('a[comment-click="comment-delete-topic"]').click(function () {
+    var th = $(this);
+    var comment_id = th.attr("comment-id");
+    console.log(comment_id);
+    swal({
+      title: "确定要删除此评论吗?",
+      text: "删除后不可恢复,请谨慎操作",
+      icon: "warning",
+      buttons: true,
+      dangerMode: true
+    }).then(function (willDelete) {
+      if (willDelete) {
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/comment/comment.topic.delete", {
+          _token: csrf_token,
+          comment_id: comment_id
+        }).then(function (r) {
+          var data = r.data;
+
+          if (data.success === false) {
+            data.result.forEach(function (value) {
+              izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+                title: "Error",
+                message: value,
+                position: "topRight"
+              });
+            });
+          } else {
+            data.result.forEach(function (value) {
+              izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+                title: "Success",
+                message: value,
+                position: "topRight"
+              });
+            });
+            setTimeout(function () {
+              location.reload();
+            }, 1500);
+          }
+        })["catch"](function (e) {
+          console.error(e);
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: "Error",
+            message: "请求出错,详细查看控制台",
+            position: "topRight"
+          });
+        });
+      }
+    });
   });
 });
 })();

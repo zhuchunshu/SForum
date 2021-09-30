@@ -76,6 +76,34 @@ class ApiController
         return Json_Api(200,true,['回复成功!']);
     }
 
+    // 删除帖子评论
+    #[PostMapping(path:"comment.topic.delete")]
+    public function topic_delete(){
+        $comment_id = request()->input("comment_id");
+        if(!auth()->check()){
+            return Json_Api(401,false,['未登录']);
+        }
+        if(!$comment_id){
+            return Json_Api(403,false,['请求参数不足,缺少:comment_id']);
+        }
+        if(!TopicComment::query()->where("id",$comment_id)->exists()){
+            return Json_Api(403,false,['id为'.$comment_id."的评论不存在"]);
+        }
+        $data = TopicComment::query()->where("id",$comment_id)->with('user')->first();
+        $quanxian = false;
+        if(Authority()->check("admin_comment_remove") && curd()->GetUserClass(auth()->data()->class_id)['permission-value']>curd()->GetUserClass($data->user->class_id)['permission-value']){
+            $quanxian = true;
+        }
+        if(Authority()->check("comment_remove") && auth()->id() === $data->user->id){
+            $quanxian = true;
+        }
+        if($quanxian === false){
+            return Json_Api(401,false,['无权限!']);
+        }
+        TopicComment::query()->where("id",$comment_id)->delete();
+        return Json_Api(200,true,['已删除!']);
+    }
+
     // 对帖子进行评论 -- 鉴权
     public function topic_create_validation(): bool|array
     {
