@@ -24740,6 +24740,47 @@ $(function () {
       }
     });
   });
+}); // 采纳评论
+
+$(function () {
+  $('a[comment-click="comment-caina-topic"]').click(function () {
+    var th = $(this);
+    var comment_id = th.attr("comment-id");
+    axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/comment/topic.caina.comment", {
+      _token: csrf_token,
+      comment_id: comment_id
+    }).then(function (r) {
+      var data = r.data;
+
+      if (data.success === false) {
+        data.result.forEach(function (value) {
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: "Error",
+            message: value,
+            position: "topRight"
+          });
+        });
+      } else {
+        data.result.forEach(function (value) {
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+            title: "Success",
+            message: value,
+            position: "topRight"
+          });
+        });
+        setTimeout(function () {
+          location.reload();
+        }, 1500);
+      }
+    })["catch"](function (e) {
+      console.error(e);
+      izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+        title: "Error",
+        message: "请求出错,详细查看控制台",
+        position: "topRight"
+      });
+    });
+  });
 });
 })();
 

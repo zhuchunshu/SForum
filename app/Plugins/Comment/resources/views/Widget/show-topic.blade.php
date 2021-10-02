@@ -7,6 +7,9 @@
         </div>
     @endif
     @if(get_options("comment_topic_show_type","default")==="default")
+        @php $caina = false; @endphp
+        @if($data->user_id == auth()->id() && Authority()->check("comment_caina")) @php $caina = true;@endphp @endif
+        @if(Authority()->check("admin_comment_caina")) @php $caina = true; @endphp @endif
         @if($comment->count())
             <div class="col-md-12">
                 <div class="row row-cards">
@@ -29,6 +32,10 @@
 {{--                                            楼层信息--}}
                                             <div class="col-auto">
                                                 <a href="/{{$data->id}}.html/{{$value->id}}?page={{$comment->currentPage()}}">{{ ($key + 1)+(($comment->currentPage()-1)*10) }}楼</a>
+                                                @if($caina)
+                                                    ·
+                                                    <a style="text-decoration:none;" comment-click="comment-caina-topic" comment-id="{{ $value->id }}" data-bs-toggle="tooltip" data-bs-placement="bottom" title="采纳此评论" class="cursor-pointer text-teal">采纳</a>
+                                                @endif
                                             </div>
 
                                         </div>

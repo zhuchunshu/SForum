@@ -218,4 +218,39 @@ class ApiController
         ]);
         return Json_Api(200,true,["更新成功!"]);
     }
+
+    #[PostMapping("topic.caina.comment")]
+    public function topic_caina_comment(){
+        $comment_id = request()->input('comment_id');
+        if(!$comment_id){
+            return Json_Api(403,false,['请求参数不足,缺少:comment_id']);
+        }
+        if(!TopicComment::query()->where([["id",$comment_id],['status','publish']])->exists()){
+            return Json_Api(403,false,['id为:'.$comment_id."的评论不存在"]);
+        }
+        $data = TopicComment::query()
+            ->where([["id",$comment_id],['status','publish']])
+            ->with("topic")
+            ->first();
+        $quanxian = false;
+        if($data->topic->user_id == auth()->id() && Authority()->check("comment_caina")){
+            $quanxian = true;
+        }
+        if(Authority()->check("admin_comment_caina")){
+            $quanxian = true;
+        }
+        if($quanxian === false){
+            return Json_Api(401,false,['无权限!']);
+        }
+        if($data->optimal===null){
+            TopicComment::query()->where([["id",$comment_id],['status','publish']])->update([
+                "optimal" => date("Y-m-d H:i:s")
+            ]);
+        }else{
+            TopicComment::query()->where([["id",$comment_id],['status','publish']])->update([
+                "optimal" => null
+            ]);
+        }
+        return Json_Api(200,true,['更新成功!']);
+    }
 }
