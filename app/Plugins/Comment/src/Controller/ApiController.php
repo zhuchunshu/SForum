@@ -4,6 +4,7 @@ namespace App\Plugins\Comment\src\Controller;
 
 use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Comment\src\Model\TopicCommentLike;
+use App\Plugins\Comment\src\Request\Topic\UpdateComment;
 use App\Plugins\Comment\src\Request\TopicCreate;
 use App\Plugins\Comment\src\Request\TopicReply;
 use App\Plugins\Topic\src\Models\Topic;
@@ -170,5 +171,51 @@ class ApiController
     private function topic_create_at(string $content)
     {
         return replace_all_at($content);
+    }
+
+    #[PostMapping(path:"topic.comment.data")]
+    public function topic_comment_data(): array
+    {
+        $comment_id = request()->input('comment_id');
+        if(!$comment_id){
+            return Json_Api(403,false,['请求参数不足,缺少:comment_id']);
+        }
+        if(!TopicComment::query()->where([["id",$comment_id],['status','publish']])->exists()){
+            return Json_Api(403,false,['id为:'.$comment_id."的评论不存在"]);
+        }
+        $data = TopicComment::query()
+            ->where([["id",$comment_id],['status','publish']])
+            ->first();
+        return Json_Api(200,true,$data);
+    }
+
+    #[PostMapping(path:"topic.comment.update")]
+    public function topic_comment_update(UpdateComment $request){
+        $id = $request->input("comment_id"); // 获取评论id
+        if(!TopicComment::query()->where("id",$id)->exists()){
+            return Json_Api(404,false,["id为:".$id."的评论不存在"]);
+        }
+        $data = TopicComment::query()->where("id",$id)->first();
+        $quanxian = false;
+        if(Authority()->check("admin_topic_edit") && curd()->GetUserClass(auth()->data()->class_id)['permission-value']>curd()->GetUserClass($data->user->class_id)['permission-value']){
+            $quanxian = true;
+        }
+        if(Authority()->check("topic_edit") && auth()->id() === $data->user->id){
+            $quanxian = true;
+        }
+        if($quanxian===false){
+            return Json_Api(401,false,["无权修改!"]);
+        }
+        // 过滤xss
+        $content = xss()->clean($request->input('content'));
+
+        // 解析艾特
+        $content = $this->topic_create_at($content);
+        $markdown = $request->input("markdown");
+        TopicComment::query()->where(['id'=>$id])->update([
+           "content" => $content,
+            "markdown" => $markdown
+        ]);
+        return Json_Api(200,true,["更新成功!"]);
     }
 }
