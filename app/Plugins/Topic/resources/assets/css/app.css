@@ -1783,6 +1783,10 @@ pre {
   padding-top: 8px;
   padding-bottom: 8px;
 }
+.vditor-reset .shortcode-alert-icon {
+  margin-left: -10px;
+  margin-right: -10px;
+}
 
 .card-circle > span {
   color: #ff6661;
@@ -1956,4 +1960,8 @@ pre {
 .shortcode-content-show .shortcode-content-show-title {
   font-size: 20px;
   font-weight: bold;
+}
+
+.comment-optimal {
+  border-color: #28a745;
 }
