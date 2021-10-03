@@ -43,8 +43,6 @@ class ShowTopic
         if(!session()->has("view_topic_data")){
             session()->set("view_topic_data","view.topic.".Str::random());
         }
-        if(!cache()->has(session()->get("view_topic_data"))){
-            cache()->set(session()->get("view_topic_data"),$data,600);
-        }
+        cache()->set(session()->get("view_topic_data"),$data,600);
     }
 }

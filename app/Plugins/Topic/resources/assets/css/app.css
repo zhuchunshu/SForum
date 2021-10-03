@@ -1923,3 +1923,37 @@ pre {
   padding-bottom: 5px;
   background: #F9F9F9 none no-repeat 20px 6px;
 }
+
+.shortcode-content-hidden {
+  font-size: 17px;
+  border: 0;
+  background: #f4f6fa;
+  border-radius: 4px;
+  padding: 8px 15px;
+  border-top: 2px dotted #fff;
+  border-bottom: 2px dotted #fff;
+  border-left: 2px dotted #fff;
+  border-left: 2px dotted #fff;
+  margin: 1em 0;
+}
+.shortcode-content-hidden .shortcode-content-hidden-title {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.shortcode-content-show {
+  font-size: 17px;
+  border: 0;
+  background: #e3e3e3;
+  border-radius: 4px;
+  padding: 8px 15px;
+  border-top: 2px dotted #fff;
+  border-bottom: 2px dotted #fff;
+  border-left: 2px dotted #fff;
+  border-left: 2px dotted #fff;
+  margin: 1em 0;
+}
+.shortcode-content-show .shortcode-content-show-title {
+  font-size: 20px;
+  font-weight: bold;
+}

@@ -4,6 +4,7 @@
 namespace App\Plugins\Core\src\Lib\ShortCodeR;
 
 
+use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Topic\src\Models\Topic;
 use Hyperf\Utils\Str;
 
@@ -152,5 +153,17 @@ HTML;
       return <<<HTML
     <a href="{$data[0]}" class="btn {$data[1]}">{$data[2]}</a>
 HTML;
+  }
+  public function reply($match){
+      $quanxian = false;
+      $topic_data = cache()->get(session()->get("view_topic_data"));
+      $topic_id = $topic_data->id;
+      if(auth()->check() && TopicComment::query()->where(['topic_id' => $topic_id, 'user_id' => auth()->id()])->exists()) {
+          $quanxian = true;
+      }
+      if($quanxian === false){
+          return view("Comment::ShortCode.reply-hidden",['data' => $match[1]]);
+      }
+      return view("Comment::ShortCode.reply-show",['data' => $match[1]]);
   }
 }

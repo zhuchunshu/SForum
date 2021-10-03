@@ -15,3 +15,4 @@ ShortCodeR()->add("topic","App\Plugins\Core\src\Lib\ShortCodeR\Defaults@topic");
 
 ShortCodeR()->add("chart","App\Plugins\Core\src\Lib\ShortCodeR\Defaults@chart");
 ShortCodeR()->add("button","App\Plugins\Core\src\Lib\ShortCodeR\Defaults@button");
+ShortCodeR()->add("reply","App\Plugins\Core\src\Lib\ShortCodeR\Defaults@reply");
