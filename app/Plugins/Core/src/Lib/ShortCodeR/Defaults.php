@@ -164,6 +164,11 @@ HTML;
       if($quanxian === false){
           return view("Comment::ShortCode.reply-hidden",['data' => $match[1]]);
       }
-      return view("Comment::ShortCode.reply-show",['data' => $match[1]]);
+      if(@$match[1]){
+        $data = $match[1];
+      }else{
+          $data=null;
+      }
+      return view("Comment::ShortCode.reply-show",['data' => $data]);
   }
 }
