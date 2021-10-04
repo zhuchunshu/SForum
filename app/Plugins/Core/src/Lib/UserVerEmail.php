@@ -52,5 +52,6 @@ class UserVerEmail
 你的邮箱验证码是:{$captcha}
 HTML;
         $mail->send();
+        return $captcha;
     }
 }

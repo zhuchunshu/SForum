@@ -21,6 +21,11 @@ class IndexController
 {
 
     /**
+     * @var \Psr\Log\LoggerInterface
+     */
+    public \Psr\Log\LoggerInterface $logger;
+
+    /**
      * 强制验证邮箱
      */
     #[GetMapping(path: "/user/ver_email")]

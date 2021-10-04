@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 use App\Model\AdminPlugin;
 use Hyperf\HttpServer\Response;
+use Hyperf\Logger\LoggerFactory;
 use Hyperf\Utils\Context;
 use App\Model\AdminOption;
 use Illuminate\Support\Arr;

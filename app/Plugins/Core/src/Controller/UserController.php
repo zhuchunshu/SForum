@@ -56,7 +56,7 @@ class UserController
             "username" => $data['username'],
             "email" => $data['email'],
             "password" => Hash::make($data['password']),
-            "class_id" => get_options("plugins_core_user_reg_defuc",1),
+            "class_id" => get_options("core_user_reg_defuc",1),
             "_token" => Str::random(),
             "options_id" => $userOption->id
         ]);
