@@ -111,7 +111,7 @@ HTML;
           return '[topic id="'.$topic_id.'"][/topic]';
       }
       return <<<HTML
-<div class="row topic-with" core-data="topic" topic-id="{$topic_id}">
+<div class="hvr-grow row topic-with" core-data="topic" topic-id="{$topic_id}">
     <div class="col" core-data="topic_content">
         <div class="skeleton-line"></div>
         <div class="skeleton-line"></div>

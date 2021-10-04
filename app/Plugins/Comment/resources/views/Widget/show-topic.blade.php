@@ -72,9 +72,10 @@
                                             <div class="hr-text" style="margin-bottom:5px;margin-top:15px">操作</div>
                                         </div>
                                         <div class="col-md-12">
+{{--                                            点赞--}}
                                             <a style="text-decoration:none;" comment-click="comment-like-topic" comment-id="{{ $value->id }}"
-                                               class="cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom" title="点赞">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
+                                               class="cursor-pointer text-muted hvr-icon-bounce" data-bs-toggle="tooltip" data-bs-placement="bottom" title="点赞">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="icon hvr-icon" width="24" height="24"
                                                      viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
                                                      stroke-linejoin="round">
                                                     <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -84,9 +85,9 @@
                                             </a>
                                             {{-- markdown --}}
                                             <a style="text-decoration:none;" data-bs-toggle="tooltip" data-bs-placement="top" href="/comment/topic/{{ $value->id }}.md"
-                                               data-bs-original-title="查看markdown文本">
+                                               data-bs-original-title="查看markdown文本" class="hvr-icon-grow-rotate">
                     <span class="switch-icon-a text-muted">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-markdown" width="24"
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-markdown hvr-icon" width="24"
                              height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                              stroke-linecap="round" stroke-linejoin="round">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
@@ -96,9 +97,10 @@
                         </svg>
                     </span>
                                             </a>
+{{--                                            回复--}}
                                             <a style="text-decoration:none;" comment-click="comment-reply-topic" comment-id="{{ $value->id }}"
-                                               class="cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom" title="回复">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-message-circle-2" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                               class="cursor-pointer text-muted hvr-icon-up" data-bs-toggle="tooltip" data-bs-placement="bottom" title="回复">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon icon-tabler icon-tabler-message-circle-2" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                                                     <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                                     <path d="M3 20l1.3 -3.9a9 8 0 1 1 3.4 2.9l-4.7 1"></path>
                                                     <line x1="12" y1="12" x2="12" y2="12.01"></line>
@@ -111,8 +113,8 @@
                                             @if(auth()->check())
 
                                                 <a style="text-decoration:none;" comment-click="comment-delete-topic" comment-id="{{ $value->id }}"
-                                                   class="cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom" title="删除">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-trash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                   class="cursor-pointer text-muted hvr-icon-drop" data-bs-toggle="tooltip" data-bs-placement="bottom" title="删除">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon icon-tabler icon-tabler-trash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                                                         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                                         <line x1="4" y1="7" x2="20" y2="7"></line>
                                                         <line x1="10" y1="11" x2="10" y2="17"></line>
@@ -125,8 +127,8 @@
                                             {{--                                        修改评论--}}
                                             @if(auth()->check())
                                                 <a style="text-decoration:none;" href="/comment/topic/{{$value->id}}/edit"
-                                                   class="cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom" title="编辑">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-edit" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                   class="hvr-icon-fade cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom" title="编辑">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon icon-tabler icon-tabler-edit" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                                                         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                                         <path d="M9 7h-3a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-3"></path>
                                                         <path d="M9 15h3l8.5 -8.5a1.5 1.5 0 0 0 -3 -3l-8.5 8.5v3"></path>
