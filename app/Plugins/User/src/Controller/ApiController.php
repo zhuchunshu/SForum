@@ -5,6 +5,7 @@ namespace App\Plugins\User\src\Controller;
 
 use App\Plugins\Core\src\Handler\UploadHandler;
 use App\Plugins\User\src\Models\User;
+use App\Plugins\User\src\Models\UsersNotice;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\PostMapping;
@@ -78,5 +79,21 @@ class ApiController
         $data['avatar'] = super_avatar($data);
         $data['group'] = '<a href="/users/group/'.$data->class_id.'.html">'.Core_Ui()->Html()->UserGroup($data->Class).'</a>';
         return Json_Api(200,true,$data);
+    }
+
+    #[PostMapping(path:"/api/user/get.user.config")]
+    public function UserConfig(): array
+    {
+        if(!auth()->check()){
+            return Json_Api(200,false,['msg' => '未登录!']);
+        }
+
+        // 通知小红点
+        $notice_red = UsersNotice::query()->where(["user_id"=>auth()->id(),"status" => 'publish'])->exists();
+
+        $config = [
+            'notice_red' => $notice_red,
+        ];
+        return Json_Api(200,true,$config);
     }
 }

@@ -7,6 +7,7 @@ namespace App\Plugins\Core\src\Controller\User;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\User\src\Middleware\LoginMiddleware;
 use App\Plugins\User\src\Models\User;
+use App\Plugins\User\src\Models\UsersNotice;
 use Exception;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -107,5 +108,12 @@ class IndexController
         $xia = Topic::query()->where([['id','>',$id],['status','publish']])->select('title','id')->orderBy('id','asc')->first();
         $sx = ['shang' => $shang,'xia' => $xia];
         return view('Core::topic.show.draft',['data' => $data,'get_topic' => $sx]);
+    }
+
+    // 个人通知
+    #[GetMapping(path:"/user/notice")]
+    public function notice(){
+        $page = UsersNotice::query()->where(['user_id'=>auth()->id(),'status' => 'publish'])->paginate(15);
+        return view("User::notice",['page' => $page]);
     }
 }

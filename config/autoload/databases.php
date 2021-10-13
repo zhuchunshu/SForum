@@ -31,7 +31,7 @@ return [
         'cache' => [
             'handler' => Hyperf\ModelCache\Handler\RedisHandler::class,
             'cache_key' => '{mc:%s:m:%s}:%s:%s',
-            'prefix' => 'default',
+            'prefix' => env("DB_DATABASE").'default',
             'ttl' => 3600 * 24,
             'empty_model_ttl' => 600,
             'load_script' => true,

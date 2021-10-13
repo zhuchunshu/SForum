@@ -3,6 +3,7 @@
 namespace App\Plugins\User\src\Lib;
 
 use App\Plugins\User\src\Models\User;
+use App\Plugins\User\src\Models\UsersNotice;
 use App\Plugins\User\src\Models\UsersNoticed;
 use Hyperf\Database\Schema\Schema;
 
@@ -49,5 +50,19 @@ class UserNotice
                 ]);
             }
         }
+    }
+
+    /**
+     * 发送通知
+     */
+    public function send($user_id,$title,$content,$action=null): void
+    {
+        UsersNotice::query()->create([
+            'user_id' => $user_id,
+            'title' => $title,
+            'content' => $content,
+            'action' => $action,
+            'status' => 'publish'
+        ]);
     }
 }

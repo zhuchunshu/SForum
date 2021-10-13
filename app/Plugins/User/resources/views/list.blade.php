@@ -25,15 +25,16 @@
                 </div>
             </div>
         </div>
-        @endsection
+    </div>
+@endsection
 
-        @section('content')
+@section('content')
 
             <div class="row row-cards">
                 @if ($page->count())
                     @foreach ($page as $value)
                         <div class="col-md-6 col-lg-3">
-                            <div class="card">
+                            <div class="border-0 card">
                                 <div class="card-body p-4 text-center">
                                     {!! avatar($value->id,"avatar-xl mb-3 avatar-rounded") !!}
                                     <h3 class="m-0 mb-1">

@@ -31,7 +31,7 @@ class ApiController
         // 解析艾特
         $content = $this->topic_create_at($content);
 
-        TopicComment::query()->create([
+        $data = TopicComment::query()->create([
            'topic_id' => $request->input("topic_id"),
             'content' => $content,
             'markdown' => $request->input('markdown'),
@@ -39,6 +39,14 @@ class ApiController
         ]);
 
         //发布成功
+        // 发送通知
+        $topic_data = Topic::query()->where('id', $request->input('topic_id'))->first();
+        if($topic_data->user_id!=auth()->id()){
+            $title = auth()->data()->username."评论了你发布的帖子!";
+            $content = view("Comment::Notice.comment",['comment' => $content,'user_data' => auth()->data(),'data' => $data]);
+            $action = "/".$topic_data->id.".html";
+            user_notice()->send($topic_data->user_id,$title,$content,$action);
+        }
         cache()->set("comment_create_time_" . auth()->id(), time()+get_options("comment_create_time", 60),get_options("comment_create_time", 60));
 
         return Json_Api(200,true,['发表成功!']);
