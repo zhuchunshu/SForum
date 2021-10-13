@@ -19,10 +19,6 @@
                                         {!! Core_Ui()->Html()->UserGroup($data->Class) !!}
                                     </div>
                                     <div class="mb-3">
-                                        <label class="form-label">邮箱</label>
-                                        <input disabled type="email" v-model="email" class="form-control">
-                                    </div>
-                                    <div class="mb-3">
                                         <label class="form-label">旧密码</label>
                                         <input type="text" v-model="old_pwd" name="old_pwd" class="form-control">
                                     </div>
@@ -93,8 +89,23 @@
                         </div>
 
                         <div class="col-md-12">
-
+                            <form action="/user/myUpdate/noticed?Redirect=/user/setting" method="post">
+                                <x-csrf/>
+                                <div class="card card-body">
+                                    <div class="card-title">通知设置</div>
+                                    <div class="mb-3">
+                                        <label class="form-check form-switch">
+                                            <input name="email" class="form-check-input" type="checkbox" {{user_notice()->checked("email",auth()->id())}}>
+                                            <span class="form-check-label">邮件通知</span>
+                                        </label>
+                                    </div>
+                                    <div class="mb-3">
+                                        <button class="btn btn-primary" type="submit">提交</button>
+                                    </div>
+                                </div>
+                            </form>
                         </div>
+
                     </div>
                 </div>
                 <div class="col-md-4">

@@ -15,3 +15,9 @@ if(!function_exists("user_avatar")){
     }
 }
 
+if(!function_exists("user_notice")){
+    function user_notice(): \App\Plugins\User\src\Lib\UserNotice
+    {
+        return new \App\Plugins\User\src\Lib\UserNotice();
+    }
+}

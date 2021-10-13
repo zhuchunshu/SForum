@@ -10,11 +10,13 @@ use App\Plugins\User\src\Middleware\LoginMiddleware;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserRepwd;
 use App\Plugins\User\src\Models\UsersOption;
+use Hyperf\DbConnection\Db;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\HttpServer\Annotation\RequestMapping;
+use Hyperf\Utils\Arr;
 use HyperfExt\Hashing\Hash;
 use Illuminate\Support\Str;
 use Psr\Http\Message\ResponseInterface;
@@ -25,7 +27,7 @@ class UpdateController
 {
     // 个人设置
     #[GetMapping(path: "/user/setting")]
-    public function user_setting(): ResponseInterface
+    public function user_setting()
     {
         $data = User::query()->where("id",auth()->id())->with("Class","Options")->first();
         return view("Core::user.setting",['data' => $data]);
@@ -139,6 +141,19 @@ HTML;
     public function update_options(OptionsRequest $request){
         $data = $request->validated();
         UsersOption::query()->where(['id' => auth()->data()->options_id])->update($data);
+        return redirect()->back()->with("success","更新成功!")->go();
+    }
+
+    #[PostMapping(path:"/user/myUpdate/noticed")]
+    public function update_noticed()
+    {
+        $data = request()->all();
+        $user_id = auth()->id();
+        $arr = [];
+        foreach($data as $key=>$value){
+            $arr[$key]=$value;
+        }
+        user_notice()->update($user_id,$arr);
         return redirect()->back()->with("success","更新成功!")->go();
     }
 
