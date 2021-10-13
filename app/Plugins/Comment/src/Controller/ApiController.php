@@ -70,7 +70,8 @@ class ApiController
 
         $comment_id = request()->input('comment_id');
         $topic_id = TopicComment::query()->where("id",$comment_id)->first()->topic_id;
-        TopicComment::query()->create([
+        $parent_id = TopicComment::query()->where("id",$comment_id)->first()->user_id;
+        $data = TopicComment::query()->create([
             'parent_url' => request()->input("parent_url"),
             'topic_id' => $topic_id,
             'parent_id' => $comment_id,
@@ -78,8 +79,24 @@ class ApiController
             'markdown' => $request->input('markdown'),
             'user_id' => auth()->id()
         ]);
+        $data = TopicComment::query()->where("id",$data->id)->first();
 
         //发布成功
+        // 发送通知 - 帖子作者
+        $topic_data = Topic::query()->where('id', $topic_id)->first();
+        if($topic_data->user_id!=auth()->id() && $topic_data->user_id!=$parent_id){
+            $title = auth()->data()->username."评论了你发布的帖子!";
+            $content = view("Comment::Notice.comment",['comment' => $content,'user_data' => auth()->data(),'data' => $data]);
+            $action = "/".$topic_data->id.".html";
+            user_notice()->send($topic_data->user_id,$title,$content,$action);
+        }
+        // 发送通知 - 被回复的人
+        if($parent_id!=auth()->id()){
+            $title = auth()->data()->username."回复了你的评论!";
+            $content = view("Comment::Notice.reply",['comment' => $content,'user_data' => auth()->data(),'data' => $data]);
+            $action = "/".$topic_data->id.".html";
+            user_notice()->send($topic_data->user_id,$title,$content,$action);
+        }
         cache()->set("comment_create_time_" . auth()->id(), time()+get_options("comment_create_time", 60),get_options("comment_create_time", 60));
 
         return Json_Api(200,true,['回复成功!']);

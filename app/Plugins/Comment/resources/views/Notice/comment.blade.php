@@ -8,7 +8,7 @@
                 <div class="col text-truncate">
                     <a style="white-space:nowrap;" href="/users/{{$user_data->username}}.html" class="text-body text-truncate">{{$user_data->username}}</a>
                     <br>
-                    <small data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="{{$data->created_at}}" class="text-muted text-truncate mt-n1">发表于:{{format_date($data->created_at)}}</small>
+                    <small data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="{{$data->created_at}}" class="text-muted text-truncate mt-n1">发表于:发表于:{{$data->created_at}}</small>
                 </div>
             </div>
         </div>
