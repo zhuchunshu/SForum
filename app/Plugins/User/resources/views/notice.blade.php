@@ -44,9 +44,9 @@
                                 <div class="col"></div>
                                 <div class="col-auto">
                                     @if($value->action)
-                                        <a href="{{$value->action}}" class="btn btn-primary">查看</a>
+                                        <a user-click="notice_action" notice-href="{{$value->action}}" notice-id="{{$value->id}}" class="btn btn-primary">查看</a>
                                     @endif
-                                        <button user-click="notice_read" notice_id="{{$value->id}}" class="btn btn-danger">已读</button>
+                                        <button user-click="notice_read" notice-id="{{$value->id}}" class="btn btn-danger">已读</button>
                                 </div>
                             </div>
                         </div>
@@ -63,4 +63,8 @@
             </div>
         @endif
     </div>
+@endsection
+
+@section('scripts')
+    <script src="{{mix("plugins/Core/js/user.js")}}"></script>
 @endsection

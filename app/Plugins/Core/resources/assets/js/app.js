@@ -2180,6 +2180,26 @@ $(function () {
   });
 });
 console.log("%cSuperForum %cwww.github.com/zhuchunshu/super-forum", "color:#fff;background:linear-gradient(90deg,#448bff,#44e9ff);padding:5px 0;", "color:#000;background:linear-gradient(90deg,#44e9ff,#ffffff);padding:5px 10px 5px 0px;");
+$(function () {
+  axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/user/get.user.config", {
+    _token: csrf_token
+  }).then(function (r) {
+    var data = r.data;
+
+    if (data.success === false) {
+      return;
+    }
+
+    data = data.result;
+    console.log(data); // 通知小红点
+
+    if (document.getElementById("core-notice-red")) {
+      if (data.notice_red === true) {
+        $("#core-notice-red").show();
+      }
+    }
+  });
+});
 })();
 
 /******/ })()

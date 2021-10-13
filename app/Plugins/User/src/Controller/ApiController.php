@@ -85,7 +85,7 @@ class ApiController
     public function UserConfig(): array
     {
         if(!auth()->check()){
-            return Json_Api(200,false,['msg' => '未登录!']);
+            return Json_Api(401,false,['msg' => '未登录!']);
         }
 
         // 通知小红点
@@ -95,5 +95,25 @@ class ApiController
             'notice_red' => $notice_red,
         ];
         return Json_Api(200,true,$config);
+    }
+
+    // 已读通知
+    #[PostMapping(path:"/api/user/notice.read")]
+    public function notice_read(): array
+    {
+        $notice_id = request()->input("notice_id");
+        if(!$notice_id){
+            return Json_Api(403,false,['msg' => '请求参数不足']);
+        }
+        if(!auth()->check()){
+            return Json_Api(401,false,['msg' => '未登录!']);
+        }
+        if(!UsersNotice::query()->where(['status' => 'publish','user_id' => auth()->id(),'id' => $notice_id])->exists()){
+            return Json_Api(403,false,['msg' => '通知不存在!']);
+        }
+        UsersNotice::query()->where(['status' => 'publish','user_id' => auth()->id(),'id' => $notice_id])->update([
+            'status' => 'read'
+        ]);
+        return Json_Api(200,true,['msg' => '设置成功!']);
     }
 }
