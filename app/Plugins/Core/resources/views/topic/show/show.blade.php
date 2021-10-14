@@ -13,7 +13,11 @@
                     @include('Core::topic.show.content')
                 </div>
                 <div class="col-md-5">
-                    @include('Core::topic.show.show-right')
+                    <div class="row row-cards rd">
+                        <div class="col-md-12 sticky" style="top: 105px">
+                            @include('Core::topic.show.show-right')
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -14,3 +14,5 @@ Itf_Setting()->add(203,
     "注册设置","user-register","Core::setting.user.register");
 Itf_Setting()->add(204,
     "用户设置","user-setting","Core::setting.user.core");
+
+Itf()->add("show_right",1,"Core::topic.right");
