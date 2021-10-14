@@ -25,6 +25,7 @@ use Carbon\Carbon;
  */
 class Topic extends Model
 {
+
     /**
      * The table associated with the model.
      *
@@ -59,11 +60,14 @@ class Topic extends Model
         return $this->belongsTo(User::class,"updated_user","id");
     }
 
-    public function topic_updated(){
+    public function topic_updated(): \Hyperf\Database\Model\Relations\HasMany
+    {
         return $this->hasMany(TopicUpdated::class,"topic_id");
     }
 
-    public function comments(){
+    public function comments(): \Hyperf\Database\Model\Relations\HasMany
+    {
         return $this->hasMany(TopicComment::class,"topic_id");
     }
+
 }
