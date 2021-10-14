@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\CodeFec\Plugins;
 use App\Model\AdminPlugin;
 use Hyperf\DbConnection\Db;
 use Illuminate\Support\Arr;
@@ -50,12 +51,7 @@ class ApiController
      */
     public function AdminPluginList(): array
     {
-        $array = AdminPlugin::query()->where("status", 1)->get();
-        $result = [];
-        foreach ($array as $value) {
-            $result[] = $value->name;
-        }
-        return Json_Api(200, true, ['data' => $result]);
+        return Json_Api(200, true, ['data' => (new Plugins())->getEnPlugins()]);
     }
 
     /**

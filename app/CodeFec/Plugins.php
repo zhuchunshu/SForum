@@ -23,12 +23,17 @@ class Plugins {
 
     // 获取已启用的插件列表
     public function getEnPlugins(){
+        $plugins = ['Core','Mail','User','Topic','Comment','Search'];
+        if(!file_exists(BASE_PATH."/app/CodeFec/storage/install.lock")){
+            return $plugins;
+        }
         if(!cache()->has("plugins.en")){
             $array = AdminPlugin::query()->where("status",1)->get();
             $result = [];
             foreach ($array as $value) {
                 $result[]=$value->name;
             }
+            $result = array_merge($plugins,$result);
             cache()->set("plugins.en",$result);
             return $result;
         }
