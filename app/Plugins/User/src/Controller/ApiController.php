@@ -5,6 +5,7 @@ namespace App\Plugins\User\src\Controller;
 
 use App\Plugins\Core\src\Handler\UploadHandler;
 use App\Plugins\User\src\Models\User;
+use App\Plugins\User\src\Models\UserFans;
 use App\Plugins\User\src\Models\UsersNotice;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -115,5 +116,40 @@ class ApiController
             'status' => 'read'
         ]);
         return Json_Api(200,true,['msg' => '设置成功!']);
+    }
+    // 关注用户
+    #[PostMapping(path:"/api/user/userfollow")]
+    public function user_follow(){
+        $user_id = request()->input("user_id");
+        if(!$user_id){
+            return Json_Api(403,false,['请求参数不足,缺少:user_id']);
+        }
+        if(!auth()->check()){
+            return Json_Api(401,false,['msg' => '未登录!']);
+        }
+        if(UserFans::query()->where(['user_id'=>$user_id,'fans_id' => auth()->id()])->exists()){
+            UserFans::query()->where(['user_id'=>$user_id,'fans_id' => auth()->id()])->delete();
+            User::query()->where("id",$user_id)->decrement("fans",1);
+            return Json_Api(201,true,['msg' =>'已取关!']);
+        }
+        User::query()->where("id",$user_id)->increment("fans",1);
+        UserFans::query()->create(['user_id'=>$user_id,'fans_id' => auth()->id()]);
+        return Json_Api(200,true,['msg' =>'已关注!']);
+    }
+
+    // 查询关注状态
+    #[PostMapping(path:"/api/user/userfollow.data")]
+    public function user_follow_data(){
+        $user_id = request()->input("user_id");
+        if(!$user_id){
+            return Json_Api(403,false,['请求参数不足,缺少:user_id']);
+        }
+        if(!auth()->check()){
+            return Json_Api(401,false,['msg' => '未登录!']);
+        }
+        if(UserFans::query()->where(['user_id'=>$user_id,'fans_id' => auth()->id()])->exists()){
+            return Json_Api(200,true,['msg' =>'已关注']);
+        }
+        return Json_Api(403,true,['msg' =>'关注']);
     }
 }
