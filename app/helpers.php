@@ -10,6 +10,7 @@ declare(strict_types=1);
  * @license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
  */
 
+use App\CodeFec\Plugins;
 use App\Model\AdminPlugin;
 use Hyperf\HttpServer\Response;
 use Hyperf\Logger\LoggerFactory;
@@ -785,14 +786,7 @@ if(!function_exists("get_num")){
 // 已启动插件列表
 if(!function_exists("Plugins_EnList")){
     function Plugins_EnList(){
-        if(!cache()->has("admin.plugins.en.list")){
-            $arr = [];
-            foreach(AdminPlugin::query()->select("name")->get() as $value){
-                $arr[]=$value->name;
-            }
-            cache()->set("admin.plugins.en.list",$arr);
-        }
-        return cache()->get("admin.plugins.en.list");
+        return (new Plugins())->getEnPlugins();
     }
 }
 
