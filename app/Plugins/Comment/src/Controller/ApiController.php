@@ -8,14 +8,18 @@ use App\Plugins\Comment\src\Request\Topic\UpdateComment;
 use App\Plugins\Comment\src\Request\TopicCreate;
 use App\Plugins\Comment\src\Request\TopicReply;
 use App\Plugins\Topic\src\Models\Topic;
+use App\Plugins\User\src\Event\SendNotice;
+use Hyperf\Di\Annotation\Inject;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 #[Controller(prefix:"/api/comment")]
 #[RateLimit(create:1, capacity:3)]
 class ApiController
 {
+
     // 对帖子进行评论
     #[PostMapping(path:"topic.create")]
     public function topic_create(TopicCreate $request){

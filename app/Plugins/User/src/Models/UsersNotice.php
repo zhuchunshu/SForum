@@ -5,6 +5,8 @@ namespace App\Plugins\User\src\Models;
 
 use App\Model\Model;
 use Carbon\Carbon;
+use Hyperf\Database\Model\Events\Saved;
+use Psr\Log\LoggerInterface;
 
 /**
  * @property int $id 
@@ -36,4 +38,6 @@ class UsersNotice extends Model
      * @var array
      */
     protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
+
+
 }

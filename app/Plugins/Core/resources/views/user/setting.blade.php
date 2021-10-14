@@ -96,7 +96,7 @@
                                     <div class="mb-3">
                                         <label class="form-check form-switch">
                                             <input name="email" class="form-check-input" type="checkbox" {{user_notice()->checked("email",auth()->id())}}>
-                                            <span class="form-check-label">接收邮件通知</span>
+                                            <span class="form-check-label">不接收邮件通知</span>
                                         </label>
                                     </div>
                                     <div class="mb-3">
