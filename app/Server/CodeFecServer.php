@@ -30,47 +30,47 @@ class CodeFecServer implements OnRequestInterface, MiddlewareInitializerInterfac
     /**
      * @var ContainerInterface
      */
-    protected $container;
+    protected ContainerInterface $container;
 
     /**
      * @var HttpDispatcher
      */
-    protected $dispatcher;
+    protected HttpDispatcher $dispatcher;
 
     /**
      * @var ExceptionHandlerDispatcher
      */
-    protected $exceptionHandlerDispatcher;
+    protected ExceptionHandlerDispatcher $exceptionHandlerDispatcher;
 
     /**
      * @var array
      */
-    protected $middlewares;
+    protected array $middlewares;
 
     /**
      * @var CoreMiddlewareInterface
      */
-    protected $coreMiddleware;
+    protected CoreMiddlewareInterface $coreMiddleware;
 
     /**
      * @var array
      */
-    protected $exceptionHandlers;
+    protected array $exceptionHandlers;
 
     /**
      * @var Dispatcher
      */
-    protected $routerDispatcher;
+    protected Dispatcher $routerDispatcher;
 
     /**
-     * @var \Hyperf\HttpServer\ResponseEmitter
+     * @var ResponseEmitter
      */
-    protected $responseEmitter;
+    protected ResponseEmitter $responseEmitter;
 
     /**
      * @var string
      */
-    protected $serverName;
+    protected string $serverName;
 
     public function __construct(ContainerInterface $container, HttpDispatcher $dispatcher, ExceptionHandlerDispatcher $exceptionHandlerDispatcher, ResponseEmitter $responseEmitter)
     {
@@ -132,7 +132,7 @@ class CodeFecServer implements OnRequestInterface, MiddlewareInitializerInterfac
     /**
      * @return $this
      */
-    public function setServerName(string $serverName)
+    public function setServerName(string $serverName): self
     {
         $this->serverName = $serverName;
         return $this;
@@ -161,7 +161,7 @@ class CodeFecServer implements OnRequestInterface, MiddlewareInitializerInterfac
      * @param mixed $request swoole request or psr server request
      * @param mixed $response swoole response or swow session
      */
-    protected function initRequestAndResponse($request, $response): array
+    protected function initRequestAndResponse(mixed $request, mixed $response): array
     {
         Context::set(ResponseInterface::class, $psr7Response = new Psr7Response());
 

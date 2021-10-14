@@ -25,9 +25,10 @@ class AdminController
     public function index(Ui $ui,Card $card)
     {
         return $ui
-        ->body($card->titleType(1)
+            ->title("Admin")
+            ->body($card->titleType(1)
             ->title("仪表盘")
-            ->content("HelloWorld")
+            ->content("")
             ->render())
         ->render();
     }

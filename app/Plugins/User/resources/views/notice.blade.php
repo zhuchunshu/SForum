@@ -1,8 +1,6 @@
 @extends("Core::app")
 
-@section('title', '会员列表')
-@section('description', '本站会员列表,共['.$page->count().'条内容]')
-@section('keywords', '本站会员列表')
+@section('title', '我的通知')
 
 @section('header')
     <div class="page-wrapper">
@@ -62,6 +60,7 @@
                 </div>
             </div>
         @endif
+        {!! make_page($page) !!}
     </div>
 @endsection
 

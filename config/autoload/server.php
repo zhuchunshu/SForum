@@ -13,6 +13,7 @@ declare(strict_types=1);
 use App\Server\CodeFecServer;
 use Hyperf\Server\Event;
 use Hyperf\Server\Server;
+use Hyperf\Server\ServerInterface;
 use Swoole\Constant;
 
 return [
@@ -20,8 +21,8 @@ return [
     'servers' => [
         [
             'name' => 'http',
-            'type' => Server::SERVER_HTTP,
-            'host' => '127.0.0.1',
+            'type' => ServerInterface::SERVER_HTTP,
+            'host' => (string) env('SERVER_WEB_DOMAIN','127.0.0.1'),
             'port' => (int) env('SERVER_WEB_PORT', 9501),
             'sock_type' => SWOOLE_SOCK_TCP,
             'callbacks' => [
