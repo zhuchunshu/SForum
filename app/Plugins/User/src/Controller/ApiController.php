@@ -136,7 +136,10 @@ class ApiController
         if(UserFans::query()->where(['user_id'=>$user_id,'fans_id' => auth()->id()])->exists()){
             UserFans::query()->where(['user_id'=>$user_id,'fans_id' => auth()->id()])->delete();
             User::query()->where("id",$user_id)->decrement("fans",1);
-            user_notice()->send($user_id,auth()->data()->username." 取关了你!","取关时间:".date("Y-m-d H:i:s"));
+            user_notice()->send($user_id,
+                auth()->data()->username." 取关了你!",
+                "取关时间:".date("Y-m-d H:i:s")
+            );
             return Json_Api(201,true,['msg' =>'已取关!']);
         }
         User::query()->where("id",$user_id)->increment("fans",1);

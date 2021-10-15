@@ -11,7 +11,7 @@ class SendNotice
 
     public string $content;
 
-    public string $action;
+    public $action;
 
     public function __construct($user_id,$title,$content,$action){
         $this->user_id = $user_id;

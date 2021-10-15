@@ -50,7 +50,7 @@
                                 @if($data->Options->email)
                                     邮箱: <a href="mailto:{{$data->Options->email}}">{{$data->Options->email}}</a>,
                                 @endif
-                                注册于:{{$data->created_at}}@if($data->updated_at),最后更新时间:{{$data->updated_at}}@endif
+                                注册于:{{format_date($data->created_at)}}@if($data->updated_at),最后更新:{{format_date($data->updated_at)}},{{$data->fans}}个粉丝@endif
                             </div>
 
                         </div>

@@ -20153,6 +20153,45 @@ $(function () {
         });
       }
     });
+  }); // 删除
+
+  $('a[core-click="topic-delete"]').click(function () {
+    var topic_id = $(this).attr("topic-id");
+    swal({
+      title: "确定要删除此贴吗? 删除后不可恢复",
+      buttons: ["取消", "确定"]
+    }).then(function (r) {
+      if (r === true) {
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/set.topic.delete", {
+          _token: csrf_token,
+          topic_id: topic_id,
+          zhishu: r
+        }).then(function (r) {
+          var data = r.data;
+
+          if (data.success) {
+            izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+              title: 'Success',
+              position: 'topRight',
+              message: data.result.msg
+            });
+          } else {
+            izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+              title: 'Error',
+              position: 'topRight',
+              message: data.result.msg
+            });
+          }
+        })["catch"](function (e) {
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: 'Error',
+            position: 'topRight',
+            message: '请求出错,详细查看控制台'
+          });
+          console.error(e);
+        });
+      }
+    });
   });
 });
 })();
