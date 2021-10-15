@@ -38,7 +38,7 @@ class SendNoticeListener implements ListenerInterface
                 $mail->Subject = "【".get_options("web_name")."】 你有一条新通知!";
                 $mail->Body    = <<<HTML
 <h3>标题: {$event->title}</h3>
-<p>链接: {$url}</p>
+<p>链接: <a href="{$url}">{$url}</a></p>
 HTML;
                 $mail->send();
             });
