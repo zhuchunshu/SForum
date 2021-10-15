@@ -5,6 +5,7 @@ namespace App\Plugins\Topic\src\Handler\Topic;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicKeyword;
 use App\Plugins\Topic\src\Models\TopicKeywordsWith;
+use App\Plugins\User\src\Models\User;
 use Hyperf\Utils\Str;
 use Psr\SimpleCache\InvalidArgumentException;
 
@@ -89,6 +90,7 @@ class CreateTopic
             "updated_user" => auth()->id()
         ]);
         $this->topic_keywords($data,$yhtml);
+        $this->at_user($data,$yhtml);
     }
 
     public function validate($request):array|bool
@@ -128,6 +130,21 @@ class CreateTopic
                     'user_id' => auth()->id()
                 ]);
             }
+        }
+    }
+
+    private function at_user(\Hyperf\Database\Model\Model|\Hyperf\Database\Model\Builder $data, string $html): void
+    {
+        $at_user = get_all_at($html);
+        foreach($at_user as $value){
+            go(function() use ($value,$data){
+                if(User::query()->where("username",$value)->exists()){
+                    $user = User::query()->where("username",$value)->first();
+                    if($user->id!==$data->user_id){
+                        user_notice()->send($user->id,"有人在帖子中提到了你",$user->username."在帖子<b>".$data->title."</b>中提到了你","/".$data->id.".html");
+                    }
+                }
+            });
         }
     }
 

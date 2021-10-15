@@ -278,7 +278,7 @@ if(!function_exists("get_all_at")){
      * @return array
      */
     function get_all_at(string $content):array{
-        preg_match_all("/(?<=@)[^ ]+/u", $content, $arr);
+        preg_match_all("/(?<=@)[^ ]+/u", replace_all_at_space($content), $arr);
         return $arr[0];
     }
 }
