@@ -28,16 +28,17 @@ class SendNoticeListener implements ListenerInterface
         // 接受者邮箱
         $email = User::query()->where('id', $event->user_id)->first()->email;
         $mail = Email();
+        $url =url($event->action);
 
         // 判断用户是否愿意接收通知
         if(user_notice()->check("email",$event->user_id)===false){
             // 执行发送
-            go(function() use ($event,$email,$mail){
+            go(function() use ($event,$email,$mail,$url){
                 $mail->addAddress($email);
                 $mail->Subject = "【".get_options("web_name")."】 你有一条新通知!";
                 $mail->Body    = <<<HTML
 <h3>标题: {$event->title}</h3>
-<p>链接: {$event->action}</p>
+<p>链接: {$url}</p>
 HTML;
                 $mail->send();
             });
