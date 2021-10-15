@@ -129,7 +129,7 @@ class ApiController
         }
 
         // 禁止关注自己
-        if($user_id===auth()->id()){
+        if($user_id==auth()->id()){
             return Json_Api(401,false,['msg' => '不能关注自己']);
         }
 
