@@ -68,6 +68,7 @@ class ApiController
     }
 
     #[PostMapping("like.topic")]
+    #[RateLimit(create:1, capacity:3)]
     public function like_topic(){
 
         if(!auth()->check()){
@@ -150,7 +151,8 @@ class ApiController
         return Json_Api(200,true,['msg' => '更新成功!']);
     }
 
-    // 设置指定
+    // 设置置顶
+    #[RateLimit(create:1, capacity:3)]
     #[PostMapping(path:"set.topic.topping")]
     public function set_topic_topping(): array
     {
@@ -186,7 +188,8 @@ class ApiController
         return Json_Api(200,true,['msg' => '置顶成功!']);
     }
 
-    // 设置指定
+    // 删除帖子
+    #[RateLimit(create:1, capacity:3)]
     #[PostMapping(path:"set.topic.delete")]
     public function set_topic_delete(): array
     {
