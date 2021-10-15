@@ -138,10 +138,10 @@ class ApiController
     public function topic_create_validation(): bool|array
     {
         if(!auth()->check()){
-            return Json_Api(401,false,['msg' => '未登录!']);
+            return Json_Api(401,false,['未登录']);
         }
         if(!Authority()->check("comment_create")){
-            return Json_Api(401,false,['msg' => '无评论权限!']);
+            return Json_Api(401,false,['无评论权限']);
         }
         if (cache()->has("comment_create_time_" . auth()->id())) {
             $time = cache()->get("comment_create_time_" . auth()->id())-time();
