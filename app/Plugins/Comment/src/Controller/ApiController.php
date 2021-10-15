@@ -95,7 +95,7 @@ class ApiController
             user_notice()->send($topic_data->user_id,$title,$content,$action);
         }
         // 发送通知 - 被回复的人
-        if($parent_id!=auth()->id()){
+        if($topic_data->user_id!=auth()->id() && $parent_id!=auth()->id()){
             $title = auth()->data()->username."回复了你的评论!";
             $content = view("Comment::Notice.reply",['comment' => $content,'user_data' => auth()->data(),'data' => $data]);
             $action = "/".$topic_data->id.".html";
@@ -271,14 +271,20 @@ class ApiController
         if($quanxian === false){
             return Json_Api(401,false,['无权限!']);
         }
+        $caina = "取消采纳";
         if($data->optimal===null){
             TopicComment::query()->where([["id",$comment_id],['status','publish']])->update([
                 "optimal" => date("Y-m-d H:i:s")
             ]);
+            $caina = "采纳";
         }else{
             TopicComment::query()->where([["id",$comment_id],['status','publish']])->update([
                 "optimal" => null
             ]);
+        }
+        if($data->user_id !== auth()->id()){
+            $topic = Topic::query()->where("id",$data->topic_id)->first();
+            user_notice()->send($data->user_id,auth()->data()->username.$caina."了你的评论","你发布在: <h2>".$topic->title."</h2> 的评论已被".$caina,"/".$topic->id.".html");
         }
         return Json_Api(200,true,['更新成功!']);
     }

@@ -38,7 +38,7 @@ class Core
     }
 
     public function shortCode(): void{
-        require_once __DIR__."/ShortCode.php";
+        require_once __DIR__."/shortCode.php";
     }
 
     public function bootstrap()

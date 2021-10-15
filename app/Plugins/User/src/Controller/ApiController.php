@@ -127,13 +127,21 @@ class ApiController
         if(!auth()->check()){
             return Json_Api(401,false,['msg' => '未登录!']);
         }
+
+        // 禁止关注自己
+        if($user_id===auth()->id()){
+            return Json_Api(401,false,['msg' => '不能关注自己']);
+        }
+
         if(UserFans::query()->where(['user_id'=>$user_id,'fans_id' => auth()->id()])->exists()){
             UserFans::query()->where(['user_id'=>$user_id,'fans_id' => auth()->id()])->delete();
             User::query()->where("id",$user_id)->decrement("fans",1);
+            user_notice()->send($user_id,auth()->data()->username." 取关了你!","取关时间:".date("Y-m-d H:i:s"));
             return Json_Api(201,true,['msg' =>'已取关!']);
         }
         User::query()->where("id",$user_id)->increment("fans",1);
         UserFans::query()->create(['user_id'=>$user_id,'fans_id' => auth()->id()]);
+        user_notice()->send($user_id,auth()->data()->username." 关注了你!","关注时间:".date("Y-m-d H:i:s"));
         return Json_Api(200,true,['msg' =>'已关注!']);
     }
 
