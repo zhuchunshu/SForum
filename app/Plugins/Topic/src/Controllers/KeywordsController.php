@@ -31,6 +31,6 @@ class KeywordsController
         }
         $data = TopicKeyword::query()->where("name",$name)->first();
         $page = TopicKeywordsWith::query()->with("topic")->where("with_id",$data->id)->paginate(15);
-        return view("Topic::Keywords.data",['data' => $data,'page' => $page]);
+        return view("Topic::KeyWords.data",['data' => $data,'page' => $page]);
     }
 }
