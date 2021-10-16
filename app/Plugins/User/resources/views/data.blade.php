@@ -52,6 +52,10 @@
                                 @endif
                                 注册于:{{format_date($data->created_at)}}@if($data->updated_at),最后更新:{{format_date($data->updated_at)}},{{$data->fans}}个粉丝@endif
                             </div>
+                            <div>
+                                <a href="/users/fans/{{$data->username}}.html" class="btn btn-primary btn-sm btn-square">TA的粉丝</a>
+                                <a href="/users/topic/{{$data->username}}.html" class="btn btn-primary btn-sm btn-square">TA的帖子</a>
+                            </div>
 
                         </div>
                         <div class="col-auto">

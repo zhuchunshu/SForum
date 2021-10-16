@@ -3,7 +3,9 @@
 
 namespace App\Plugins\User\src\Controller;
 
+use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\User\src\Models\User;
+use App\Plugins\User\src\Models\UserFans;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -63,5 +65,32 @@ class UserController
         $img = new Multiavatar();
         $img = $img($username, null, null);
         return ResponseObj()->withBody(SwooleStream($img))->withHeader("content-type","image/svg+xml; charset=utf-8");
+    }
+
+    // 用户帖子
+    #[GetMapping(path:"/users/topic/{username}.html")]
+    public function topic($username){
+        if(!User::query()->where("username",$username)->count()){
+            return admin_abort("用户名为:".$username."的用户不存在");
+        }
+        $user = User::query()->where("username",$username)->first();
+        $page = Topic::query()->where(['status' => 'publish','user_id' => $user->id])
+            ->orderBy('created_at','desc')
+            ->paginate(15);
+        return view("User::topic",['page' => $page,'user' => $user]);
+    }
+
+    // 用户粉丝
+    #[GetMapping(path:"/users/fans/{username}.html")]
+    public function fans($username){
+        if(!User::query()->where("username",$username)->count()){
+            return admin_abort("用户名为:".$username."的用户不存在");
+        }
+        $user = User::query()->where("username",$username)->first();
+        $page = UserFans::query()
+            ->where("user_id",$user->id)
+            ->with('fans')
+            ->paginate(15);
+        return view("User::fans",['page' => $page,'user' => $user]);
     }
 }
