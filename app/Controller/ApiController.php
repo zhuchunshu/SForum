@@ -63,6 +63,7 @@ class ApiController
         Db::table('admin_plugins')->truncate();
         if (request()->input("data") && is_array(request()->input("data"))) {
             $data = request()->input("data");
+            $data = array_unique($data);
             $arr = [];
             foreach ($data as $value) {
                 $arr[] = ['name' => $value, 'status' => 1, 'created_at' => date("Y-m-d H:i:s"), 'updated_at' => date("Y-m-d H:i:s")];

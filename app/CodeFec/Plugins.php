@@ -35,9 +35,9 @@ class Plugins {
             }
             $result = array_merge($plugins,$result);
             cache()->set("plugins.en",$result);
-            return $result;
+            return array_unique($result);
         }
-        return cache()->get("plugins.en");
+        return array_unique(cache()->get("plugins.en"));
 
     }
 
