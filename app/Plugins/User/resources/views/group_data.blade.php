@@ -37,7 +37,7 @@
                                 <h3 class="card-title">该用户组下的会员列表</h3>
                                 <div class="row">
                                     @foreach($user as $value)
-                                    <div class="col-md-6">
+                                    <div class="col-md-6" style="margin-bottom:5px">
                                         <div class="row">
                                             <div class="col-auto">
                                                 {!! avatar($value->id) !!}
