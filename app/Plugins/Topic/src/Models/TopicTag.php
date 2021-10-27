@@ -29,7 +29,7 @@ class TopicTag extends Model
      *
      * @var array
      */
-    protected $fillable = ["name","icon","description","color","type","created_at","updated_at"];
+    protected $fillable = ["name","icon","description","color","type",'userClass',"created_at","updated_at"];
     /**
      * The attributes that should be cast to native types.
      *

@@ -21,3 +21,13 @@ if(!function_exists("user_notice")){
         return new \App\Plugins\User\src\Lib\UserNotice();
     }
 }
+
+if(!function_exists("user_DeCheckClass")){
+    function user_DeCheckClass($topic_tag,$userClassId):bool{
+        if(!$topic_tag->userClass){
+            return false;
+        }
+        $data = json_decode($topic_tag->userClass, true, 512, JSON_THROW_ON_ERROR);
+        return in_array($userClassId, $data,true);
+    }
+}

@@ -22,6 +22,7 @@ class EditTagRequest extends FormRequest
             "id" => "integer|exists:topic_tag,id",
             "name" => "required|string|max:25|min:2|unique:topic_tag,name,".$this->input("id").",id",
             "color" => "required|string",
+            'userClass' => 'nullable|array',
             "description" => "nullable|string"
         ];
     }
@@ -32,7 +33,8 @@ class EditTagRequest extends FormRequest
             "name" => "名称",
             "icon" => "图标",
             "color" => "颜色值",
-            "description" => "描述"
+            "description" => "描述",
+            'userClass' => '可以使用此标签的用户组',
         ];
     }
 }

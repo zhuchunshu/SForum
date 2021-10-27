@@ -21,7 +21,8 @@ class TagController
 {
     #[GetMapping(path:"/admin/topic/tag/create")]
     public function create(){
-        return view("Topic::Tag.create");
+        $userClass = \App\Plugins\User\src\Models\UserClass::query()->get();
+        return view("Topic::Tag.create",['userClass' => $userClass]);
     }
 
     #[PostMapping(path:"/admin/topic/tag/create")]
@@ -30,12 +31,19 @@ class TagController
         $color = $request->input("color");
         $description = $request->input("description");
         $icon = $request->file("icon");
+        $userClass = $request->input("userClass");
+        if($userClass){
+            $userClass = json_encode($userClass, JSON_THROW_ON_ERROR,JSON_UNESCAPED_UNICODE);
+        }else{
+            $userClass = null;
+        }
         $icon_url = $upload->save($icon,"admin",Str::random())['path'];
         TopicTag::create([
             "name" => $name,
             "color" => $color,
             "description" => $description,
-            "icon" => $icon_url
+            "icon" => $icon_url,
+            'userClass' => $userClass
         ]);
         return redirect()->url("/admin/topic/tag")->with("success","创建成功!")->go();
     }
@@ -53,7 +61,8 @@ class TagController
             return admin_abort('id为'.$id.'的标签不存在',403);
         }
         $data = TopicTag::query()->where("id",$id)->first();
-        return view("Topic::Tag.edit",['data' => $data]);
+        $userClass = \App\Plugins\User\src\Models\UserClass::query()->get();
+        return view("Topic::Tag.edit",['data' => $data,'userClass' => $userClass]);
     }
 
     #[PostMapping(path:"/admin/topic/tag/edit")]
@@ -66,6 +75,12 @@ class TagController
         if($request->hasFile("icon")){
             $icon = true;
         }
+        $userClass = $request->input("userClass");
+        if($userClass){
+            $userClass = json_encode($userClass, JSON_THROW_ON_ERROR,JSON_UNESCAPED_UNICODE);
+        }else{
+            $userClass = null;
+        }
 
         if($icon===true){
             // 上传icon
@@ -74,13 +89,15 @@ class TagController
                 "name" => $name,
                 "description" => $description,
                 "color" => $color,
-                "icon" => $url
+                "icon" => $url,
+                'userClass' => $userClass
             ]);
         }else{
             TopicTag::query()->where("id",$id)->update([
                 "name" => $name,
                 "description" => $description,
                 "color" => $color,
+                'userClass' => $userClass
             ]);
         }
         return redirect()->back()->with("success","修改成功!")->go();

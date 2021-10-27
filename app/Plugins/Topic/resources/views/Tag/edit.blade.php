@@ -28,6 +28,15 @@
                     <input type="file" accept="image/gif, image/png, image/jpeg, image/jpg" class="form-control" name="icon" v-model="icon">
                 </div>
                 <div class="mb-3">
+                    <label class="form-label"> 哪个用户组可使用此标签? </label>
+                    <select class="form-select" name="userClass[]" multiple size="8">
+                        @foreach($userClass as $value)
+                            <option value="{{$value->name}}" @if(user_DeCheckClass($data,$value->name)) selected @endif>{{$value->name}}</option>
+                        @endforeach
+                    </select>
+                    <small style="color:red">不选择则所有用户组都可用此标签</small>
+                </div>
+                <div class="mb-3">
                     <label class="form-label">描述</label>
                     <textarea name="description" class="form-control" rows="4">{{$data->description}}</textarea>
                 </div>
