@@ -5,7 +5,9 @@ namespace App\Plugins\Topic\src\Handler\Topic;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicKeyword;
 use App\Plugins\Topic\src\Models\TopicKeywordsWith;
+use App\Plugins\Topic\src\Models\TopicTag;
 use App\Plugins\User\src\Models\User;
+use App\Plugins\User\src\Models\UserClass;
 use Hyperf\Utils\Str;
 use Psr\SimpleCache\InvalidArgumentException;
 
@@ -98,6 +100,11 @@ class CreateTopic
         if (cache()->has("topic_create_time_" . auth()->id())) {
             $time = cache()->get("topic_create_time_" . auth()->id())-time();
             return Json_Api(401,false,['发帖过于频繁,请 '.$time." 秒后再试"]);
+        }
+        $class_name = UserClass::query()->where('id',auth()->data()->class_id)->first()->name;
+        $tag_value = TopicTag::query()->where("id",$request->input('tag'))->first();
+        if(!user_TopicTagQuanxianCheck($tag_value,$class_name)){
+            return Json_Api(401,false,['无权使用此标签']);
         }
         return true;
     }

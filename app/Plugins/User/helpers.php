@@ -31,3 +31,13 @@ if(!function_exists("user_DeCheckClass")){
         return in_array($userClassId, $data,true);
     }
 }
+
+if(!function_exists("user_TopicTagQuanxianCheck")){
+    function user_TopicTagQuanxianCheck($topic_tag,$userClassId):bool{
+        if(!$topic_tag->userClass){
+            return true;
+        }
+        $data = json_decode($topic_tag->userClass, true, 512, JSON_THROW_ON_ERROR);
+        return in_array($userClassId, $data,true);
+    }
+}

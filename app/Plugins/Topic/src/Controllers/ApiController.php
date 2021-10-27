@@ -8,6 +8,7 @@ use App\Plugins\Topic\src\Models\TopicKeyword;
 use App\Plugins\Topic\src\Models\TopicLike;
 use App\Plugins\Topic\src\Models\TopicTag;
 use App\Plugins\User\src\Models\User;
+use App\Plugins\User\src\Models\UserClass;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
@@ -24,11 +25,14 @@ class ApiController
     {
         $data = [];
         foreach (TopicTag::query()->get() as $key=>$value){
-            $data = Arr::add($data,$key,[
-                "text"=>$value->name,
-                "value" => $value->id,
-                "icons" => "&lt;span class=&quot;avatar avatar-xs&quot; style=&quot;background-image: url($value->icon)&quot;&gt;&lt;/span&gt;"
+            $class_name = UserClass::query()->where('id',auth()->data()->class_id)->first()->name;
+            if(user_TopicTagQuanxianCheck($value,$class_name)){
+                $data = Arr::add($data,$key,[
+                    "text"=>$value->name,
+                    "value" => $value->id,
+                    "icons" => "&lt;span class=&quot;avatar avatar-xs&quot; style=&quot;background-image: url($value->icon)&quot;&gt;&lt;/span&gt;"
                 ]);
+            }
         }
         return $data;
     }

@@ -5,14 +5,19 @@ namespace App\Plugins\Topic\src\Handler\Topic;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicKeyword;
 use App\Plugins\Topic\src\Models\TopicKeywordsWith;
+use App\Plugins\Topic\src\Models\TopicTag;
 use App\Plugins\Topic\src\Models\TopicUpdated;
 use App\Plugins\User\src\Models\User;
+use App\Plugins\User\src\Models\UserClass;
 use Hyperf\Utils\Str;
 use Psr\SimpleCache\InvalidArgumentException;
 
 class EditTopic
 {
     public function handler($request){
+        if($this->validate($request)!==true){
+            return $this->validate($request);
+        }
         $this->create($request);
         return Json_Api(200,true,['修改成功!','2秒后跳转到当前帖子页面']);
     }
@@ -135,5 +140,15 @@ class EditTopic
                 ]);
             }
         }
+    }
+
+    private function validate($request):array|bool
+    {
+        $class_name = UserClass::query()->where('id',auth()->data()->class_id)->first()->name;
+        $tag_value = TopicTag::query()->where("id",$request->input('tag'))->first();
+        if(!user_TopicTagQuanxianCheck($tag_value,$class_name)){
+            return Json_Api(401,false,['无权使用此标签']);
+        }
+        return true;
     }
 }
