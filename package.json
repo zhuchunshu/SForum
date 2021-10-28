@@ -1,25 +1,25 @@
 {
-  "name": "codefec-hf",
+  "name": "super-forum",
   "version": "1.0.0",
-  "description": "CodeFec - Hyperf重构版",
-  "main": "index.js",
+  "description": "SuperForum",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "mix": "npx mix watch"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zhuchunshu/CodeFecHF.git"
+    "url": "git+https://github.com/zhuchunshu/SuperForum.git"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
-    "url": "https://github.com/zhuchunshu/CodeFecHF/issues"
+    "url": "https://github.com/zhuchunshu/SuperForum/issues"
   },
-  "homepage": "https://github.com/zhuchunshu/CodeFecHF#readme",
+  "homepage": "https://github.com/zhuchunshu/SuperForum#readme",
   "dependencies": {
     "@fancyapps/ui": "^4.0.4",
     "@popperjs/core": "^2.10.1",
