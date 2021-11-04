@@ -102,7 +102,7 @@ class EditTopic
             go(function() use ($value,$data){
                 if(User::query()->where("username",$value)->exists()){
                     $user = User::query()->where("username",$value)->first();
-                    if($user->id!==$data->user_id){
+                    if($user->id!=$data->user_id){
                         user_notice()->send($user->id,"有人在帖子中提到了你",$user->username."在帖子<b>".$data->title."</b>中提到了你","/".$data->id.".html");
                     }
                 }
