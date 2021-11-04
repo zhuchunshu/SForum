@@ -55,6 +55,7 @@
                             <div>
                                 <a href="/users/fans/{{$data->username}}.html" class="btn btn-primary btn-sm btn-square">TA的粉丝</a>
                                 <a href="/users/topic/{{$data->username}}.html" class="btn btn-primary btn-sm btn-square">TA的帖子</a>
+                                <a href="/users/collections/{{$data->id}}" class="btn btn-primary btn-sm btn-square">TA的收藏</a>
                             </div>
 
                         </div>
