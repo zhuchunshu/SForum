@@ -9,6 +9,7 @@ use App\Plugins\Topic\src\Models\TopicLike;
 use App\Plugins\Topic\src\Models\TopicTag;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserClass;
+use App\Plugins\User\src\Models\UsersCollection;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
@@ -219,5 +220,34 @@ class ApiController
             "status" => "delete"
         ]);
         return Json_Api(200,true,['msg' => '已删除!']);
+    }
+
+    #[PostMapping(path:"star.topic")]
+    #[RateLimit(create:1, capacity:3)]
+    public function star_topic():array{
+        if(!auth()->check()){
+            return Json_Api(401,false,['msg' => '权限不足!']);
+        }
+        $topic_id = request()->input("topic_id");
+        if(!$topic_id){
+            return Json_Api(403,false,['msg' => '请求参数不足,缺少:topic_id']);
+        }
+        if(!Topic::query()->where("id",$topic_id)->exists()){
+            return Json_Api(403,false,['msg' => '要收藏的帖子不存在']);
+        }
+        if(UsersCollection::query()->where(['type' => 'topic','type_id' => $topic_id,'user_id' => auth()->id()])->exists()){
+            UsersCollection::query()->where(['type' => 'topic','type_id' => $topic_id,'user_id' => auth()->id()])->delete();
+            return Json_Api(200,true,['msg' => '取消收藏成功!']);
+        }
+        $topic = Topic::query()->where("id",$topic_id)->first();
+        UsersCollection::query()->create([
+            'user_id' => auth()->id(),
+            'type' => 'topic',
+            'type_id' => $topic_id,
+            'action' => '/'.$topic_id.'.html',
+            'title' => "<b style='color:red'>帖子</b> ".$topic->title,
+            'content' => view("User::Collection.topic",['topic' => $topic])
+        ]);
+        return Json_Api(200,true,['msg'=>'已收藏']);
     }
 }

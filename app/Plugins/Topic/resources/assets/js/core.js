@@ -3624,6 +3624,36 @@ $(function () {
     });
   });
 });
+$(function () {
+  $('a[core-click="star-topic"]').click(function () {
+    var th = $(this);
+    axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/topic/star.topic", {
+      _token: csrf_token,
+      topic_id: topic_id
+    }).then(function (r) {
+      if (!r.data.success) {
+        izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+          title: "Error",
+          message: r.data.result.msg,
+          position: "topRight"
+        });
+      } else {
+        izitoast__WEBPACK_IMPORTED_MODULE_1___default().success({
+          title: "Success",
+          message: r.data.result.msg,
+          position: "topRight"
+        });
+      }
+    })["catch"](function (e) {
+      console.error(e);
+      izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+        title: "Error",
+        message: "请求出错,详细查看控制台",
+        position: "topRight"
+      });
+    });
+  });
+});
 })();
 
 /******/ })()
