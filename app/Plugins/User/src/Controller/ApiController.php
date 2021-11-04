@@ -6,6 +6,7 @@ namespace App\Plugins\User\src\Controller;
 use App\Plugins\Core\src\Handler\UploadHandler;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserFans;
+use App\Plugins\User\src\Models\UsersCollection;
 use App\Plugins\User\src\Models\UsersNotice;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -162,5 +163,22 @@ class ApiController
             return Json_Api(200,true,['msg' =>'已关注']);
         }
         return Json_Api(403,true,['msg' =>'关注']);
+    }
+
+    #[PostMapping(path:"/api/user/remove.collection")]
+    public function remove_collection(): array
+    {
+        if(!auth()->check()){
+            return Json_Api(401,false,['msg' => '未登录!']);
+        }
+        $collection_id = request()->input("collection_id");
+        if(!$collection_id){
+            return Json_Api(403,false,['msg' => '请求参数不足,缺少:collection_id']);
+        }
+        if(!UsersCollection::query()->where("id",$collection_id)->exists()){
+            return Json_Api(403,false,['msg' => '收藏id不存在']);
+        }
+        UsersCollection::query()->where("id",$collection_id)->delete();
+        return Json_Api(200,true,['msg' => '已取消收藏!']);
     }
 }

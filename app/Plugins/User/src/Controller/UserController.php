@@ -6,6 +6,7 @@ namespace App\Plugins\User\src\Controller;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserFans;
+use App\Plugins\User\src\Models\UsersCollection;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -92,5 +93,20 @@ class UserController
             ->with('fans')
             ->paginate(15);
         return view("User::fans",['page' => $page,'user' => $user]);
+    }
+
+    // 用户收藏
+    #[GetMapping(path:"/users/collections/{id}")]
+    public function collections($id){
+        if(!User::query()->where("id",$id)->exists()){
+            return admin_abort("用户不存在",404);
+        }
+        $quanxian = false;
+        if(auth()->id()==$id){
+            $quanxian = true;
+        }
+        $user = User::query()->where("id",$id)->first();
+        $page = UsersCollection::query()->where("user_id",$id)->paginate(15);
+        return view("User::Collections",['page' => $page,'quanxian' => $quanxian,'user' => $user]);
     }
 }

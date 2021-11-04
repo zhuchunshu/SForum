@@ -116,4 +116,9 @@ class IndexController
         $page = UsersNotice::query()->where(['user_id'=>auth()->id(),'status' => 'publish'])->paginate(15);
         return view("User::notice",['page' => $page]);
     }
+    // 个人收藏
+    #[GetMapping(path:"/user/collections")]
+    public function collections(){
+        return redirect()->url("/users/collections/".auth()->id())->go();
+    }
 }
