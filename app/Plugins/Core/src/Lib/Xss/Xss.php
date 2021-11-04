@@ -4,6 +4,7 @@ namespace App\Plugins\Core\src\Lib\Xss;
 
 use HTMLPurifier;
 use HTMLPurifier_Config;
+use HTMLPurifier_HTML5Config;
 
 class Xss
 {
@@ -15,7 +16,8 @@ class Xss
 
     public function config(): void
     {
-        $this->config = HTMLPurifier_Config::createDefault();
+        $config =HTMLPurifier_HTML5Config::createDefault();
+        $this->config = $config;
     }
 
     public function clean($html): string
@@ -23,4 +25,5 @@ class Xss
         $purifier = new HTMLPurifier($this->config);
         return $purifier->purify($html);
     }
+
 }

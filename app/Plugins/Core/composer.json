@@ -13,6 +13,7 @@
         "intervention/image": "^2.6",
         "erusev/parsedown": "^1.7",
         "ezyang/htmlpurifier": "^4.13",
-        "divineomega/php-summary": "^3.0"
+        "divineomega/php-summary": "^3.0",
+        "xemlock/htmlpurifier-html5": "^0.1.11"
     }
 }
