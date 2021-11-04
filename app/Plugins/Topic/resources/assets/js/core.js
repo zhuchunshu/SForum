@@ -3627,6 +3627,7 @@ $(function () {
 $(function () {
   $('a[core-click="star-topic"]').click(function () {
     var th = $(this);
+    var topic_id = th.attr("topic-id");
     axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/topic/star.topic", {
       _token: csrf_token,
       topic_id: topic_id

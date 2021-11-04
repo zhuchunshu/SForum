@@ -3,7 +3,7 @@
         <div class="col-md-12">
             <div class="row">
                 <div class="col-auto">
-                    <span class="avatar" style="background-image: url({{super_avatar($user_data)}})"></span>
+                    <span class="avatar" style="background-image: url({{super_avatar($topic->user)}})"></span>
                 </div>
                 <div class="col text-truncate">
                     <a style="white-space:nowrap;" href="/users/{{$topic->user->username}}.html" class="text-body text-truncate">{{$topic->user->username}}</a>

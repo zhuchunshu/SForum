@@ -9,6 +9,7 @@ use App\Plugins\Comment\src\Request\TopicCreate;
 use App\Plugins\Comment\src\Request\TopicReply;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\User\src\Event\SendNotice;
+use App\Plugins\User\src\Models\UsersCollection;
 use Hyperf\Di\Annotation\Inject;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
@@ -287,5 +288,34 @@ class ApiController
             user_notice()->send($data->user_id,auth()->data()->username.$caina."了你的评论","你发布在: <h2>".$topic->title."</h2> 的评论已被".$caina,"/".$topic->id.".html");
         }
         return Json_Api(200,true,['更新成功!']);
+    }
+
+    #[PostMapping(path:"star.comment")]
+    #[RateLimit(create:1, capacity:3)]
+    public function star_topic():array{
+        if(!auth()->check()){
+            return Json_Api(401,false,['msg' => '权限不足!']);
+        }
+        $comment_id = request()->input("comment_id");
+        if(!$comment_id){
+            return Json_Api(403,false,['msg' => '请求参数不足,缺少:comment_id']);
+        }
+        if(!TopicComment::query()->where("id",$comment_id)->exists()){
+            return Json_Api(403,false,['msg' => '要收藏的评论不存在']);
+        }
+        if(UsersCollection::query()->where(['type' => 'comment','type_id' => $comment_id,'user_id' => auth()->id()])->exists()){
+            UsersCollection::query()->where(['type' => 'comment_id','type_id' => $comment_id,'user_id' => auth()->id()])->delete();
+            return Json_Api(200,true,['msg' => '取消收藏成功!']);
+        }
+        $comment = TopicComment::query()->where("id",$comment_id)->first();
+        UsersCollection::query()->create([
+            'user_id' => auth()->id(),
+            'type' => 'comment',
+            'type_id' => $comment_id,
+            'action' => '/'.$comment->topic->id.'.html',
+            'title' => "<b style='color:red'>评论</b> 帖子:".$comment->topic->title." 下的评论",
+            'content' => view("User::Collection.comment",['comment' => $comment])
+        ]);
+        return Json_Api(200,true,['msg'=>'已收藏']);
     }
 }
