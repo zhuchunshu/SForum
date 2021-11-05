@@ -5005,6 +5005,11 @@ pako@~1.0.5:
   resolved "https://registry.nlark.com/pako/download/pako-1.0.11.tgz#6c9599d340d54dfd3946380252a35705a6b992bf"
   integrity sha1-bJWZ00DVTf05RjgCUqNXBaa5kr8=
 
+paper-audio-player@^0.0.2:
+  version "0.0.2"
+  resolved "https://registry.npmmirror.com/paper-audio-player/download/paper-audio-player-0.0.2.tgz#b479788c96e0e44ac2a8629bf4910d7ce221fb43"
+  integrity sha1-tHl4jJbg5ErCqGKb9JENfOIh+0M=
+
 param-case@^3.0.3:
   version "3.0.4"
   resolved "https://registry.npm.taobao.org/param-case/download/param-case-3.0.4.tgz?cache=0&sync_timestamp=1606867454357&other_urls=https%3A%2F%2Fregistry.npm.taobao.org%2Fparam-case%2Fdownload%2Fparam-case-3.0.4.tgz#7d17fe4aa12bde34d4a77d91acfb6219caad01c5"
