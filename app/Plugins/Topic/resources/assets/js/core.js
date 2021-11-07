@@ -3676,6 +3676,7 @@ $(function () {
     $("#modal-report-input-type").val("topic");
     $("#modal-report-input-type-id").val($(this).attr("topic-id"));
     $("#modal-report-input-content").val("违规页面地址:" + location.href);
+    $("#modal-report-input-url").val(location.href);
     var selected = $("#modal-report-select").val();
     $("#modal-report-input-title").val("【" + selected + "】" + "举报ID为:" + $(this).attr("topic-id") + "的帖子");
   }); // 举报评论
@@ -3686,6 +3687,7 @@ $(function () {
     $("#modal-report-input-type-id").val($(this).attr("topic-id"));
     $("#modal-report-input-content").val("违规页面地址:" + location.protocol + "//" + location.host + $(this).attr("url"));
     var selected = $("#modal-report-select").val();
+    $("#modal-report-input-url").val(location.protocol + "//" + location.host + $(this).attr("url"));
     $("#modal-report-input-title").val("【" + selected + "】" + "举报ID为:" + $(this).attr("comment-id") + "的评论");
   }); // select 变化事件
 
@@ -3700,6 +3702,56 @@ $(function () {
     $("#modal-report-input-type-id").val(null);
     $("#modal-report-input-content").val(null);
     $("#modal-report-input-title").val(null);
+    $("#modal-report-input-url").val(null);
+  }); // 提交举报
+
+  $('#modal-report-submit').click(function () {
+    // 举报类型
+    var type = $("#modal-report-input-type").val();
+    var type_id = $("#modal-report-input-type-id").val(); // 举报标题
+
+    var title = $("#modal-report-input-title").val(); // 举报详细内容
+
+    var content = $("#modal-report-input-content").val(); // 举报原因
+
+    var report_reason = $("#modal-report-select").val(); // 相关链接
+
+    var url = $("#modal-report-input-url").val();
+    axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/core/report/create", {
+      _token: csrf_token,
+      type: type,
+      type_id: type_id,
+      title: title,
+      content: content,
+      report_reason: report_reason,
+      url: url
+    }).then(function (r) {
+      if (!r.data.success) {
+        r.data.result.forEach(function (value) {
+          izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+            title: "error",
+            message: value,
+            position: "topRight",
+            timeout: 10000
+          });
+        });
+      } else {
+        r.data.result.forEach(function (value) {
+          izitoast__WEBPACK_IMPORTED_MODULE_1___default().success({
+            title: "Success",
+            message: value,
+            position: "topRight"
+          });
+        });
+      }
+    })["catch"](function (e) {
+      console.error(e);
+      izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+        position: "topRight",
+        title: "Error",
+        message: "请求出错,详细查看控制台"
+      });
+    });
   });
 });
 

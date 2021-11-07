@@ -132,6 +132,7 @@
                                 <input type="text" id="modal-report-input-title" class="form-control" />
                                 <input type="hidden" value="" id="modal-report-input-type" />
                                 <input type="hidden" value="" id="modal-report-input-type-id" />
+                                <input type="hidden" value="" id="modal-report-input-url" />
                             </div>
                         </div>
                         <div>

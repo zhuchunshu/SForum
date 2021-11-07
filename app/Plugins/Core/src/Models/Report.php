@@ -28,7 +28,7 @@ class Report extends Model
      *
      * @var array
      */
-    protected $fillable = ['id', 'type', 'status', 'user_id','_id','created_at', 'updated_at'];
+    protected $fillable = ['id', 'type', 'status', 'user_id','_id','created_at', 'updated_at','title','content'];
     /**
      * The attributes that should be cast to native types.
      *
