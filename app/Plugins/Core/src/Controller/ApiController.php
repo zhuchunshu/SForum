@@ -30,7 +30,7 @@ class ApiController
             "_id" => $type_id,
             "user_id" => auth()->id(),
             "title" => $request->input('title'),
-            'content' => markdown()->line($content)
+            'content' => xss()->clean(markdown()->line($content))
         ]);
         return Json_Api(200,true,['举报成功! 等待管理员审核']);
     }
