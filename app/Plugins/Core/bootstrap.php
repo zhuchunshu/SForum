@@ -17,6 +17,9 @@ Authority()->add("comment_caina","采纳自己帖子下的评论");
 
 Authority()->add("admin_topic_delete","删除所有帖子");
 Authority()->add("topic_delete","删除自己帖子");
+Authority()->add("report","举报帖子");
+Authority()->add("report_comment","举报评论");
+Authority()->add("admin_report","受理举报");
 
 Itf()->add("core_auth_selected","topic_edit","topic_edit");
 Itf()->add("core_auth_selected","topic_create","topic_create");
@@ -25,3 +28,5 @@ Itf()->add("core_auth_selected","comment_edit","comment_edit");
 Itf()->add("core_auth_selected","comment_remove","comment_remove");
 Itf()->add("core_auth_selected","comment_caina","comment_caina");
 Itf()->add("core_auth_selected","topic_delete","topic_delete");
+Itf()->add("core_auth_selected","report_topic","report_topic");
+Itf()->add("core_auth_selected","report_comment","report_comment");

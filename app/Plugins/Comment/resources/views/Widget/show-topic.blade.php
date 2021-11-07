@@ -138,9 +138,17 @@
 
                                                 <a style="text-decoration:none;" topic-id="{{$data->id}}" comment-click="star-comment" comment-id="{{ $value->id }}"
                                                    class="cursor-pointer text-muted hvr-icon-up" data-bs-toggle="tooltip" data-bs-placement="bottom" title="收藏">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-star" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon icon-tabler icon-tabler-star" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                                                         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                                         <path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z"></path>
+                                                    </svg>
+                                                </a>
+{{--    举报--}}
+                                                <a data-bs-toggle="modal" data-bs-target="#modal-report" url="/{{$data->id}}.html/{{$value->id}}?page={{$comment->currentPage()}}" style="text-decoration:none;" topic-id="{{$data->id}}" comment-click="report-comment" comment-id="{{ $value->id }}"
+                                                   class="cursor-pointer text-muted hvr-icon-pulse" data-bs-toggle="tooltip" data-bs-placement="bottom" title="举报">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon icon-tabler icon-tabler-flag-3" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                        <path d="M5 14h14l-4.5 -4.5l4.5 -4.5h-14v16"></path>
                                                     </svg>
                                                 </a>
                                             @endif

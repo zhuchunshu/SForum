@@ -42,6 +42,8 @@
         "zhuchunshu/hyperf-hashing": "2.2.0"
     },
     "require-dev": {
+        "roave/security-advisories": "dev-latest"
+        ,
         "filp/whoops": "^2.13",
         "friendsofphp/php-cs-fixer": "3.0",
         "hyperf/devtool": "2.2.*",
