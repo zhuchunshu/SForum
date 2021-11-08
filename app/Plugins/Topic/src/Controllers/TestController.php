@@ -11,7 +11,6 @@ class TestController
 {
     #[GetMapping(path:"/test")]
     public function test(){
-        $content = Topic::query()->where("id",38)->first()->content;
-        return get_all_at($content);
+        return Authority()->getUsers("admin_report");
     }
 }

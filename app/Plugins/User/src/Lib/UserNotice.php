@@ -75,4 +75,21 @@ class UserNotice
         ]);
         $this->eventDispatcher->dispatch(new SendNotice($user_id,$title,$content,$action));
     }
+
+    /**
+     * 给多个用户发送通知
+     */
+    public function sends(array $user_ids,$title,$content,$action=null): void
+    {
+        foreach ($user_ids as $user_id){
+            UsersNotice::query()->create([
+                'user_id' => $user_id,
+                'title' => $title,
+                'content' => $content,
+                'action' => $action,
+                'status' => 'publish'
+            ]);
+            $this->eventDispatcher->dispatch(new SendNotice($user_id,$title,$content,$action));
+        }
+    }
 }

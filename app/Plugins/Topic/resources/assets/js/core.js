@@ -3683,8 +3683,8 @@ $(function () {
 
   $('a[comment-click="report-comment"]').click(function () {
     $("#modal-report-title").text("举报此评论");
-    $("#modal-report-input-type").val("topic");
-    $("#modal-report-input-type-id").val($(this).attr("topic-id"));
+    $("#modal-report-input-type").val("comment");
+    $("#modal-report-input-type-id").val($(this).attr("comment-id"));
     $("#modal-report-input-content").val("违规页面地址:" + location.protocol + "//" + location.host + $(this).attr("url"));
     var selected = $("#modal-report-select").val();
     $("#modal-report-input-url").val(location.protocol + "//" + location.host + $(this).attr("url"));

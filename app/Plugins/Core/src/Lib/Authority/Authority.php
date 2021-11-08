@@ -3,6 +3,7 @@
 namespace App\Plugins\Core\src\Lib\Authority;
 
 // 权限管理模块
+use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserClass;
 use Hyperf\Utils\Arr;
 
@@ -52,4 +53,22 @@ class Authority
         return $name;
     }
 
+
+    // 获取拥有相关权限的所有用户
+    public function getUsers(string $quanxian){
+        $userClassIds = [];
+        foreach (UserClass::query()->get() as $value){
+            $data = json_decode($value->quanxian,true);
+            if(in_array($quanxian, $data,true)){
+                $userClassIds[]=$value->id;
+            }
+        }
+        $users = [];
+        foreach (User::query()->get() as $value) {
+            if(Arr::has($userClassIds,$value->class_id)){
+                $users[$value->id]=$value;
+            }
+        }
+        return $users;
+    }
 }

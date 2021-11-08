@@ -4,6 +4,7 @@ declare (strict_types=1);
 namespace App\Plugins\Core\src\Models;
 
 use App\Model\Model;
+use App\Plugins\User\src\Models\User;
 use Carbon\Carbon;
 
 /**
@@ -35,4 +36,9 @@ class Report extends Model
      * @var array
      */
     protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
+
+    public function user(): \Hyperf\Database\Model\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class,'user_id','id');
+    }
 }

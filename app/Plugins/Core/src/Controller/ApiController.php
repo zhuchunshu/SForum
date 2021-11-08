@@ -4,6 +4,7 @@ namespace App\Plugins\Core\src\Controller;
 
 use App\Plugins\Core\src\Models\Report;
 use App\Plugins\Core\src\Request\Report\CreateRequest;
+use App\Plugins\User\src\Lib\UserNotice;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
@@ -25,13 +26,22 @@ class ApiController
         }
         $content = '**违规页面地址:** '.$request->input("url").'
 **举报原因:** '.$request->input("report_reason")."\n\n".$request->input('content');
-        Report::query()->create([
+        $data = Report::query()->create([
             "type" => $type,
             "_id" => $type_id,
             "user_id" => auth()->id(),
             "title" => $request->input('title'),
-            'content' => xss()->clean(markdown()->line($content))
+            'content' => xss()->clean(markdown()->text($content))
         ]);
+
+        // 发送通知
+        $users = [];
+        foreach (Authority()->getUsers("admin_report") as $user){
+            $users[]=$user->id;
+        }
+        $mail_content = view("Core::report.send_admin",['data' => $data]);
+
+        user_notice()->sends($users,"有用户举报了一条内容,需要你来审核",$mail_content,url("/report/".$data->id.".html"));
         return Json_Api(200,true,['举报成功! 等待管理员审核']);
     }
 }
