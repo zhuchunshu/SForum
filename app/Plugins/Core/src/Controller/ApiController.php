@@ -19,6 +19,21 @@ class ApiController
         if(!auth()->check()){
             return Json_Api(401,false,['未登录']);
         }
+
+        // 鉴权
+        $quanxian = false;
+        if(($request->input("type") === "comment") && Authority()->check("report_comment")) {
+            $quanxian = true;
+        }
+        if(($request->input("type") === "topic") && Authority()->check("report_topic")) {
+            $quanxian = true;
+        }
+
+        if($quanxian===false){
+            return Json_Api(401,false,['无权限']);
+        }
+
+        //
         $type = $request->input("type");
         $type_id = $request->input("type_id");
         if(Report::query()->where(['user_id' => auth()->id(),'_id' => $type_id,'type' => $type])->exists()){
