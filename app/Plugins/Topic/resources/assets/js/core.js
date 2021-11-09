@@ -3773,9 +3773,10 @@ $(function () {
     $("div[core-show=\"comment\"]").each(function () {
       var comment_id = $(this).attr("comment-id");
 
-      if (data.indexOf(comment_id) === 0) {
+      if (data.indexOf(comment_id) >= 0) {
         $(this).html('此内容被举报,无法展示');
         $(this).css('background-image', 'url(/plugins/Core/image/comment-ban.png)');
+        $(this).css('background-size', 'cover');
       }
     });
   })["catch"](function (e) {
