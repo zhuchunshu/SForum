@@ -53,7 +53,7 @@
                                         <div class="col-md-12">
                                             <div class="hr-text" style="margin-bottom:8px;margin-top:15px">评论内容</div>
                                         </div>
-                                        <div class="col-md-12 markdown vditor-reset">
+                                        <div core-show="comment" comment-id="{{$value->id}}" class="col-md-12 markdown vditor-reset">
                                             @if($value->parent_id)
                                                 <div class="quote">
                                                     <blockquote>

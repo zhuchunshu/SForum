@@ -3,6 +3,7 @@
 namespace App\Plugins\Comment\src\Controller;
 
 use App\Plugins\Comment\src\Model\TopicComment;
+use App\Plugins\Core\src\Models\Report;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 
@@ -11,6 +12,9 @@ class IndexController
 {
     #[GetMapping(path:"topic/{id}.md")]
     public function show_topic_comment($id){
+        if(Report::query()->where(['type' => 'comment','_id' => $id,'status' => 'approve'])->exists()){
+            return admin_abort('此帖子已被举报并批准,无法查看',403);
+        }
         if(!TopicComment::query()->where("id",$id)->exists()){
             return admin_abort("页面不存在",404);
         }

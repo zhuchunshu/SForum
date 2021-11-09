@@ -3,6 +3,7 @@
 namespace App\Plugins\Topic\src\Handler\Topic;
 
 use App\Plugins\Comment\src\Model\TopicComment;
+use App\Plugins\Core\src\Models\Report;
 use App\Plugins\Topic\src\Models\Topic;
 use Hyperf\Utils\Str;
 
@@ -10,6 +11,9 @@ class ShowTopic
 {
     public function handle($id,$comment_page)
     {
+        if(Report::query()->where(['type' => 'topic','_id' => $id,'status' => 'approve'])->exists()){
+            return admin_abort('此帖子已被举报并批准,无法查看',403);
+        }
         // 自增浏览量
         $updated_at = Topic::query()->where('id', $id)->first()->updated_at;
         Topic::query()->where('id', $id)->increment('view',1,['updated_at' => $updated_at]);
