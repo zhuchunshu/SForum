@@ -2,9 +2,12 @@
 
 namespace App\Plugins\User\src;
 
+use App\Plugins\User\src\Lib\UserAuth;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserClass;
+use App\Plugins\User\src\Models\UsersAuth;
 use App\Plugins\User\src\Models\UsersOption;
+use Hyperf\Utils\Str;
 use HyperfExt\Hashing\Hash;
 
 class Auth
@@ -17,7 +20,9 @@ class Auth
         // 数据库里的密码
         $user = User::query()->where('email', $email)->first();
         if (Hash::check($password, $user->password)) {
-            session()->set('auth', $user->id);
+            $token = Str::random(17);
+            session()->set('auth', $token);
+            (new UserAuth())->create($user->id,$token);
             return true;
         }
         return false;
@@ -29,13 +34,14 @@ class Auth
         session()->remove('auth_data_class');
         session()->remove('auth_data_options');
         session()->remove('auth_data');
+        (new UserAuth())->destroy_token(session()->get('auth'));
         return true;
     }
 
     public function data()
     {
         if(!session()->has("auth_data")){
-            session()->set("auth_data",User::query()->where("id",session()->get('auth'))->with("Class")->first());
+            session()->set("auth_data",User::query()->where("id",$this->id())->with("Class")->first());
         }
         return session()->get("auth_data");
     }
@@ -64,7 +70,7 @@ class Auth
 
     public function id()
     {
-        return session()->get('auth');
+        return UsersAuth::query()->where("token",session()->get('auth'))->first('user_id')->user_id;
     }
 
     public function check(): bool
@@ -72,7 +78,7 @@ class Auth
         if(!session()->has('auth')){
             return false;
         }
-        if(User::query()->where("id",session()->get('auth'))->count()){
+        if(User::query()->where("id",$this->id())->count()){
             return true;
         }
 
