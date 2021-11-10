@@ -2,6 +2,7 @@
 
 namespace App\Plugins\User\src\Controller\Admin;
 
+use App\Plugins\User\src\Lib\UserAuth;
 use App\Plugins\User\src\Models\User;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -47,6 +48,7 @@ class UserController
         User::query()->where("id",$user_id)->update([
            "username" => $username
         ]);
+        (new UserAuth())->destroy($user_id);
         return Json_Api(200,true,['msg' => '修改成功!']);
     }
 
@@ -70,6 +72,7 @@ class UserController
             "email" => $email,
             "email_ver_time" => null
         ]);
+        (new UserAuth())->destroy($user_id);
         return Json_Api(200,true,['msg' => '修改成功! 用户重新登陆并验证邮箱后生效']);
     }
 
@@ -93,6 +96,7 @@ class UserController
         User::query()->where("id",$user_id)->update([
             "class_id" => $class_id
         ]);
+        (new UserAuth())->destroy($user_id);
         return redirect()->url("/admin/users")->with("success","修改成功!")->go();
     }
 
@@ -105,6 +109,7 @@ class UserController
         User::query()->where("id",$user_id)->update([
             "_token" => Str::random()
         ]);
+        (new UserAuth())->destroy($user_id);
         return Json_Api(200,true,['msg' => '更新成功!']);
     }
 
@@ -118,6 +123,7 @@ class UserController
         User::query()->where('user_id',$user_id)->update([
             'password' => Hash::make($password)
         ]);
+        (new UserAuth())->destroy($user_id);
         return Json_Api(200,true,['msg' => '更新成功!']);
     }
 
@@ -128,6 +134,7 @@ class UserController
             return Json_Api(403,false,['msg' => '请求参数不完整']);
         }
         User::query()->where('user_id',$user_id)->delete();
+        (new UserAuth())->destroy($user_id);
         return Json_Api(200,true,['msg' => '已删除!']);
     }
 }
