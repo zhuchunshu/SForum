@@ -8,6 +8,7 @@ use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserFans;
 use App\Plugins\User\src\Models\UsersCollection;
 use App\Plugins\User\src\Models\UsersNotice;
+use App\Plugins\User\src\Models\UserUpload;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\PostMapping;
@@ -180,5 +181,25 @@ class ApiController
         }
         UsersCollection::query()->where("id",$collection_id)->delete();
         return Json_Api(200,true,['msg' => '已取消收藏!']);
+    }
+
+    #[PostMapping(path:"/api/User/Files/remove")]
+    public function filesRemove(): array
+    {
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限!']);
+        }
+        $id = request()->input('id');
+        if(!UserUpload::query()->where("id",$id)->exists()){
+            return Json_Api(403,false,['msg' => '删除失败! 文件不存在!']);
+        }
+        $data = UserUpload::query()->where("id",$id)->first();
+        if(!unlink($data->path)){
+            return Json_Api(403,false,['msg' => '删除失败! 删除文件失败']);
+        }
+        if(!UserUpload::query()->where("id",$id)->delete()){
+            return Json_Api(403,false,['msg' => '删除失败! 从数据库中删除记录失败!']);
+        }
+        return Json_Api(200,true,['msg' => '删除成功!']);
     }
 }

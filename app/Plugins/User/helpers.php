@@ -41,3 +41,18 @@ if(!function_exists("user_TopicTagQuanxianCheck")){
         return in_array($userClassId, $data,true);
     }
 }
+
+if(!function_exists("file_suffix")){
+    function file_suffix(string $path):string{
+        $path = substr($path,strrpos($path,"/")+1);
+        $path = \Hyperf\Utils\Str::after($path,".");
+        return $path;
+    }
+}
+
+if(!function_exists("path_file_name")){
+    function path_file_name(string $path):string{
+        $path = substr($path,strrpos($path,"/")+1);
+        return $path;
+    }
+}
