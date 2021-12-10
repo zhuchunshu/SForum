@@ -120,6 +120,9 @@ class SettingController
      */
     public function setting_post(): array
     {
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         if(!is_array(request()->input('data'))){
             $data = de_stringify(request()->input('data'));
         }else{

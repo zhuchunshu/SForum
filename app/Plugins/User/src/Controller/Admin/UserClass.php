@@ -32,6 +32,9 @@ class UserClass
      */
     public function create_post(Create $request): array
     {
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         $data = $request->validated();
         $result = [
             "icon" => $data['icon'],
@@ -58,6 +61,9 @@ class UserClass
      * @PostMapping(path="/admin/userClass/{id}/data")
      */
     public function data($id){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         if(!\App\Plugins\User\src\Models\UserClass::query()->where("id",$id)->count()){
             return Json_Api(404,false,['msg' => 'id为'.$id.'的用户组不存在']);
         }
@@ -77,6 +83,9 @@ class UserClass
      */
     public function update(Update $request): array
     {
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
       $data = $request->validated();
       \App\Plugins\User\src\Models\UserClass::query()->where("id",$data['id'])->update([
          "icon" => $data['icon'],
@@ -90,6 +99,9 @@ class UserClass
 
     #[PostMapping(path:"/admin/userClass/remove")]
     public function remove(){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         $id = request()->input('id');
         if(!is_numeric($id)){
             return Json_Api(403,false,['msg' => '被删除的用户组id有误']);
@@ -111,6 +123,9 @@ class UserClass
 
     #[PostMapping(path:"/admin/userClass/Default/Authority")]
     public function Get_All_Default_Authority(){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         $arr = [];
         foreach(Itf()->get("core_auth_selected") as $value){
             $arr[]=$value;

@@ -59,7 +59,9 @@ class ApiController
      */
     public function AdminPluginSave(): array
     {
-
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         Db::table('admin_plugins')->truncate();
         if (request()->input("data") && is_array(request()->input("data"))) {
             $data = request()->input("data");
@@ -84,6 +86,9 @@ class ApiController
 
     public function AdminPluginMigrate($name=null): array
     {
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         if(!$name){
             if (!request()->input("name")) {
                 return Json_Api(403, false, ['msg' => '插件名不能为空']);
@@ -134,6 +139,9 @@ class ApiController
 
     public function AdminPluginMigrateAll(): array
     {
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         foreach (Plugins_EnList() as $name){
             $this->AdminPluginMigrate($name);
         }
@@ -145,6 +153,9 @@ class ApiController
      */
     public function AdminPluginRemove(): array
     {
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         if (request()->input("path")) {
             exec("rm -rf " . request()->input("path"), $result, $status);
             return Json_Api(200, true, ['msg' => "卸载成功!"]);

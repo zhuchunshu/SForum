@@ -27,6 +27,9 @@ class TagController
 
     #[PostMapping(path:"/admin/topic/tag/create")]
     public function create_store(CreateTagRequest $request,AvatarUpload $upload){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         $name = $request->input("name");
         $color = $request->input("color");
         $description = $request->input("description");
@@ -67,6 +70,9 @@ class TagController
 
     #[PostMapping(path:"/admin/topic/tag/edit")]
     public function edit_post(EditTagRequest $request,AvatarUpload $upload){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         $icon = false;
         $id = $request->input("id");
         $name = $request->input("name");
@@ -106,6 +112,9 @@ class TagController
 
     #[PostMapping(path:"/admin/topic/tag/remove")]
     public function remove(){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         $id = request()->input("id");
         if(!$id){
             return Json_Api(403,false,['msg' => '请求id不能为空']);

@@ -31,6 +31,9 @@ class UserController
 
     #[PostMapping(path:"/admin/users/update/username")]
     public function update_username(){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         $user_id = request()->input("user_id");
         $username = request()->input("username");
         if(!$user_id){
@@ -54,6 +57,9 @@ class UserController
 
     #[PostMapping(path:"/admin/users/update/email")]
     public function update_email(){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         $user_id = request()->input("user_id");
         $email = request()->input("email");
         if(!$user_id){
@@ -88,6 +94,9 @@ class UserController
 
     #[PostMapping(path:"/admin/users/update/UserClass")]
     public function update_UserClass(){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         $user_id = request()->input("user_id");
         $class_id = request()->input("class_id");
         if(!$user_id || !$class_id){
@@ -102,6 +111,9 @@ class UserController
 
     #[PostMapping(path:"/admin/users/update/token")]
     public function update_Token(){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         $user_id = request()->input("user_id");
         if(!$user_id){
             return Json_Api(403,false,['msg' => '请求参数不完整']);
@@ -115,6 +127,9 @@ class UserController
 
     #[PostMapping(path:"/admin/users/update/password")]
     public function update_password(){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         $user_id = request()->input("user_id");
         $password = request()->input("password");
         if(!$user_id || !$password){
@@ -129,6 +144,9 @@ class UserController
 
     #[PostMapping(path:"/admin/users/remove")]
     public function remove_user(){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
         $user_id = request()->input("user_id");
         if(!$user_id){
             return Json_Api(403,false,['msg' => '请求参数不完整']);
