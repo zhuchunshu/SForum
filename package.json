@@ -39,6 +39,7 @@
     "notyf": "^3.10.0",
     "paper-audio-player": "^0.0.2",
     "sweetalert": "^2.1.2",
+    "sweetalert2": "^11.3.0",
     "tippy.js": "^6.3.1",
     "vditor": "^3.8.6",
     "vue": "^3.1.1",

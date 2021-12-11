@@ -171,4 +171,44 @@ HTML;
       }
       return view("Comment::ShortCode.reply-show",['data' => $data]);
   }
+
+  public function file($match){
+      $result = $match[1];
+      $arr = explode(",",$result);
+      $name = $arr[0];
+      $url = $arr[1];
+      $pwd = $arr[2];
+      $unzip = $arr[3];
+      $pwd?:$pwd="无";
+      $unzip?:$unzip="无";
+      if(!$name || !$url){
+          return <<<HTML
+<div class="alert alert-danger" role="alert">
+  <h4 class="alert-title">附件加载失败&hellip;</h4>
+  <div class="text-muted">您创建的附件因参数不足，所以无法加载</div>
+</div>
+HTML;
+
+      }
+      return <<<HTML
+<div class="alert alert-success alert-dismissible" role="alert">
+  <h3 class="mb-1"><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-cloud-download" width="30" height="30" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M19 18a3.5 3.5 0 0 0 0 -7h-1a5 4.5 0 0 0 -11 -2a4.6 4.4 0 0 0 -2.1 8.4"></path>
+   <line x1="12" y1="13" x2="12" y2="22"></line>
+   <polyline points="9 19 12 22 15 19"></polyline>
+</svg>{$name}</h3>
+  <p>
+  <ul>
+  <li>提取码:{$pwd}</li>
+  <li>解压码:{$unzip}</li>
+</ul>
+</p>
+  <div class="btn-list">
+    <a href="{$url}" class="btn btn-success">下载</a>
+  </div>
+</div>
+HTML;
+
+  }
 }

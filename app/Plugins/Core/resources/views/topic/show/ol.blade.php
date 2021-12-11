@@ -22,7 +22,6 @@
         </a>
     </li>
     @if(auth()->check())
-
         @if(Authority()->check("admin_topic_edit") && curd()->GetUserClass(auth()->data()->class_id)['permission-value']>curd()->GetUserClass($data->user->class_id)['permission-value'])
             <li data-bs-toggle="tooltip" data-bs-placement="top" title="修改帖子信息" class="breadcrumb-item">
                 <a href="/topic/{{$data->id}}/edit">

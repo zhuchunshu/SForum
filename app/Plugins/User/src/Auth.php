@@ -70,7 +70,7 @@ class Auth
 
     public function id()
     {
-        return @UsersAuth::query()->where("token",session()->get('auth'))->first('user_id')->user_id;
+        return (int)@UsersAuth::query()->where("token",session()->get('auth'))->first('user_id')->user_id;
     }
 
     public function check(): bool

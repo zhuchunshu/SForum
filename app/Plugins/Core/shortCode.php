@@ -2,6 +2,9 @@
 ShortCodeR()->add("alert-success",
     "App\Plugins\Core\src\Lib\ShortCodeR\Defaults@alert_success");
 
+ShortCodeR()->add("file",
+    "App\Plugins\Core\src\Lib\ShortCodeR\Defaults@file");
+
 ShortCodeR()->add("alert-info",
     "App\Plugins\Core\src\Lib\ShortCodeR\Defaults@alert_info");
 
