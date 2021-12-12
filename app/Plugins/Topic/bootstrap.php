@@ -51,6 +51,15 @@ Itf()->add("menu",101,[
 </svg>',
 ]);
 
+Itf()->add("menu",401,[
+    "name" => "举报中心",
+    "url" => "/report",
+    "icon" => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-flag-3" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M5 14h14l-4.5 -4.5l4.5 -4.5h-14v16"></path>
+</svg>',
+]);
+
 
 Itf_Setting()->add(3001,
     "帖子设置","topic","Topic::admin.setting");

@@ -26,7 +26,7 @@
     <div class="row justify-content-center">
         <div class="col-md-8">
             @if($page->count())
-                <div class="row">
+                <div class="row row-cards">
                     @foreach($page as $value)
                         <div class="col-md-12">
                             <div class="card border-0">
