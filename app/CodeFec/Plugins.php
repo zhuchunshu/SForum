@@ -34,10 +34,10 @@ class Plugins {
                 $result[]=$value->name;
             }
             $result = array_merge($plugins,$result);
-            cache()->set("plugins.en",$result);
-            return array_unique($result);
+            cache()->set("plugins.en",array_unique($result));
+            return array_values(array_unique($result));
         }
-        return array_unique(cache()->get("plugins.en"));
+        return array_values(array_unique(cache()->get("plugins.en")));
 
     }
 
