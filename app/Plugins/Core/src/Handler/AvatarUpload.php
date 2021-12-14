@@ -10,7 +10,7 @@ use Intervention\Image\ImageManagerStatic as Image;
 class AvatarUpload
 {
 
-    public function save($file, $folder, $file_prefix, $max_width = false): array
+    public function save($file, $folder, $file_prefix=null, $max_width = false): array
     {
         if(!auth()->check()){
             if(!admin_auth()->Check()){
@@ -24,6 +24,9 @@ class AvatarUpload
             $user_id = 1;
         }else{
             $user_id = auth()->id();
+        }
+        if(!$file_prefix){
+            $file_prefix = Str::random();
         }
         // 构建存储的文件夹规则，值如：uploads/images/avatars/201709/21/
         // 文件夹切割能让查找效率更高。

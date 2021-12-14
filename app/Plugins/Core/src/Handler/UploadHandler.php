@@ -10,14 +10,23 @@ use Intervention\Image\ImageManagerStatic as Image;
 
 class UploadHandler
 {
-    public function save($file, $folder, $file_prefix, $max_width = false): array
+    public function save($file, $folder, $file_prefix=null, $max_width = false): array
     {
         if(!auth()->check()){
-            return [
-                'path' => "/404.jpg",
-                "success" => false,
-                "status" => "上传失败,未登录"
-            ];
+            if(!admin_auth()->Check()){
+                return [
+                    'path' => "/404.jpg",
+                    "success" => false,
+                    "status" => "上传失败,未登录"
+                ];
+            }
+
+            $user_id = 1;
+        }else{
+            $user_id = auth()->id();
+        }
+        if(!$file_prefix){
+            $file_prefix = Str::random();
         }
         // 构建存储的文件夹规则，值如：uploads/images/avatars/201709/21/
         // 文件夹切割能让查找效率更高。
@@ -47,7 +56,7 @@ class UploadHandler
             $this->reduceSize($upload_path . '/' . $filename, $max_width);
         }
         UserUpload::query()->create([
-            "user_id" => auth()->id(),
+            "user_id" => $user_id,
             "path" => public_path("$folder_name/$filename"),
             "url" => "/$folder_name/$filename"
         ]);
