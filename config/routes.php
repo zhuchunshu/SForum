@@ -28,3 +28,12 @@ Router::addGroup("/admin",function(){
 },[
     "middleware" => [\App\Middleware\AdminMiddleware::class]
 ]);
+
+
+// 扩展路由
+
+foreach ((new Plugins())->getEnPlugins() as $value){
+    if(file_exists(plugin_path($value."/routes.php"))){
+        require plugin_path($value."/routes.php");
+    }
+}
