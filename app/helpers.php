@@ -776,6 +776,19 @@ if(!function_exists("url")){
     }
 }
 
+if(!function_exists("ws_url")){
+    function ws_url($path=null){
+        $url=env("APP_WS_URL");
+        if(!$url){
+            $url = "ws://".config("server.servers.1.host").":".config("server.servers.1.port");
+        }
+        if(!$path){
+            return $url;
+        }
+        return $url.$path;
+    }
+}
+
 if(!function_exists("get_num")){
     function get_num($string): array|string|null
     {

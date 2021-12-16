@@ -13,6 +13,11 @@
         <small>默认{{url()}}</small>
     </div>
     <div class="mb-3">
+        <label class="form-label">网站websocket地址</label>
+        <input v-model="env.APP_WS_URL" type="text" class="form-control">
+        <small>默认{{ws_url()}}</small>
+    </div>
+    <div class="mb-3">
         <label class="form-label">网站关键字</label>
         <input v-model="data.keywords" type="text" class="form-control">
     </div>
