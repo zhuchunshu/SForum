@@ -45,7 +45,7 @@
                                     <td  @@click="alert('{{$data->path}}')" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$data->path}}" class="text-truncate" style="max-width: 100px">{{$data->path}}</td>
                                     <td class="text-truncate" style="max-width: 100px"><a href="{{$data->url}}">{{$data->url}}</a></td>
                                     <td>{{$data->created_at}}</td>
-                                    <td><a href="#">下载</a></td>
+                                    <td><a @@click="download('{{$data->url}}')" href="#">下载</a></td>
                                     <td><a @@click="remove({{$data->id}})" href="#">删除</a></td>
                                 </tr>
                             @endforeach
