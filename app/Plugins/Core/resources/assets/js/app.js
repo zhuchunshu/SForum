@@ -3523,7 +3523,9 @@ if (ws_url && login_token) {
     //websocket.send('hello');
   };
 
-  websocket.onclose = function (evt) {//console.log("Disconnected");
+  websocket.onclose = function (evt) {
+    //console.log("Disconnected");
+    $('span[core-show="online"]').remove();
   };
 
   window.setInterval(function () {
@@ -3540,14 +3542,27 @@ if (ws_url && login_token) {
       $('span[core-show="online"]').each(function () {
         var user_id = $(this).attr("user-id");
         var y = $(this).attr("class");
+        var title = $(this).attr("title");
 
         if (data.user.online.indexOf(user_id) !== -1) {
           if (y !== "badge bg-success") {
             $(this).attr("class", "badge bg-success");
           }
+
+          if (title !== "在线") {
+            $(this).attr("title", "在线");
+            $(this).attr("data-bs-original-title", "在线");
+            $(this).attr("aria-label", "在线");
+          }
         } else {
           if (y !== "badge bg-danger") {
             $(this).attr("class", "badge bg-danger");
+          }
+
+          if (title !== "离线") {
+            $(this).attr("title", "离线");
+            $(this).attr("data-bs-original-title", "离线");
+            $(this).attr("aria-label", "离线");
           }
         }
       });
@@ -3560,8 +3575,11 @@ if (ws_url && login_token) {
       message: "通信出错,详细查看控制台",
       position: "topRight"
     });
+    $('span[core-show="online"]').remove();
     console.error('Error occured: ' + evt.data);
   };
+} else {
+  $('span[core-show="online"]').remove();
 }
 })();
 

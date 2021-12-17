@@ -28,7 +28,7 @@
                         <div class="row">
                             <div class="col-auto">
                                 <a class="avatar" href="/users/{{ $data->user->username }}.html"
-                                    style="background-image: url({{ super_avatar($data->user) }})"></a>
+                                    style="background-image: url({{ super_avatar($data->user) }})"><span data-bs-toggle="tooltip" data-bs-placement="right" title="离线" core-show="online" user-id="{{$data->user->id}}" class="badge bg-danger"></span></a>
                             </div>
                             <div class="col">
                                 <div class="topic-author-name">
