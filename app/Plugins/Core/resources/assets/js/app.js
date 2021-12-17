@@ -3552,7 +3552,6 @@ if (ws_url && login_token) {
         }
       });
     });
-    console.log(data);
   };
 
   websocket.onerror = function (evt, e) {
