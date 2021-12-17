@@ -379,3 +379,4 @@ if(!function_exists("core_get_page")){
         return [$data[0] => $data[1]];
     }
 }
+

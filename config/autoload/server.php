@@ -40,6 +40,9 @@ return [
                 Event::ON_MESSAGE => [Hyperf\WebSocketServer\Server::class, 'onMessage'],
                 Event::ON_CLOSE => [Hyperf\WebSocketServer\Server::class, 'onClose'],
             ],
+            'settings' => [
+                'open_websocket_protocol' => false,
+            ]
         ],
     ],
     'settings' => [

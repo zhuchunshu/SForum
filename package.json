@@ -35,6 +35,7 @@
     "glob-parent": "^5.1.2",
     "hover.css": "^2.3.2",
     "izitoast": "^1.4.0",
+    "js-base64": "^3.7.2",
     "laravel-mix": "^6.0.20",
     "mithril": "^2.0.4",
     "notyf": "^3.10.0",

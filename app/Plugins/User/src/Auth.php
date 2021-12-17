@@ -28,13 +28,17 @@ class Auth
         return false;
     }
 
+    public function token(){
+        return session()->get("auth",null);
+    }
+
     public function logout(): bool
     {
+        (new UserAuth())->destroy_token(session()->get('auth'));
         session()->remove('auth');
         session()->remove('auth_data_class');
         session()->remove('auth_data_options');
         session()->remove('auth_data');
-        (new UserAuth())->destroy_token(session()->get('auth'));
         return true;
     }
 

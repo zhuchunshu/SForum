@@ -20,7 +20,7 @@ class UsersAuth extends Model
      *
      * @var array
      */
-    protected $fillable = ['id','user_id','token','created_at','updated_at'];
+    protected $fillable = ['id','user_id','token','online','created_at','updated_at'];
     /**
      * The attributes that should be cast to native types.
      *

@@ -23,7 +23,9 @@
                                             <div class="row">
                                                 {{--                                            头像--}}
                                                 <div class="col-auto" id="comment-user-avatar-{{$value->id}}" comment-show="user-data" user-id="{{$value->user_id}}">
-                                                    <a href="/users/{{$value->user->username}}.html"><span class="avatar" style="background-image: url({{super_avatar($value->user)}})"></span></a>
+                                                    <a href="/users/{{$value->user->username}}.html"><span class="avatar" style="background-image: url({{super_avatar($value->user)}})">
+                                                            <span core-show="online" user-id="{{$value->user->id}}" class="badge bg-danger"></span>
+                                                        </span></a>
                                                 </div>
                                                 {{--                                            作者信息--}}
                                                 <div class="col text-truncate">
