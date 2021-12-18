@@ -19,15 +19,10 @@ class ShowTopic
         Topic::query()->where('id', $id)->increment('view',1,['updated_at' => $updated_at]);
 
         // 缓存
-        if(!cache()->has("topic.data.".$id)){
-            $data = Topic::query()
-                ->where('id', $id)
-                ->with("tag","user","topic_updated","update_user")
-                ->first();
-            cache()->set("topic.data.".$id, $data,600);
-        }else{
-            $data = cache()->get("topic.data.".$id);
-        }
+        $data = Topic::query(true)
+            ->where('id', $id)
+            ->with("tag","user","topic_updated","update_user")
+            ->first();
         // 创建数据
         $shang = Topic::query()->where([['id','<',$id],['status','publish']])->select('title','id')->orderBy('id','desc')->first();
         $xia = Topic::query()->where([['id','>',$id],['status','publish']])->select('title','id')->orderBy('id','asc')->first();
