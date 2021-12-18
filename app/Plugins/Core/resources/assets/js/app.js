@@ -3528,14 +3528,6 @@ if (ws_url && login_token) {
     $('span[core-show="online"]').remove();
   };
 
-  window.setInterval(function () {
-    //每隔5秒钟发送一次心跳，避免websocket连接因超时而自动断开
-    var ping = {
-      "type": "ping"
-    };
-    websocket.send(JSON.stringify(ping));
-  }, 1000);
-
   websocket.onmessage = function (evt) {
     var data = JSON.parse(evt.data);
     $(function () {
