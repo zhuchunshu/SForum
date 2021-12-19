@@ -30,7 +30,7 @@ class BladeCsrf implements ListenerInterface
         ];
     }
 
-    public function process(object $event)
+    public function process(object $event):void
     {
         Blade::directive('csrf', function () {
             $token =csrf_token();
