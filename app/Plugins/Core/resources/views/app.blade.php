@@ -60,6 +60,12 @@
     @foreach (\App\CodeFec\Ui\functions::get('js') as $key => $value)
         <script src="{{ $value }}"></script>
     @endforeach
+{{--插件js--}}
+    @foreach((new \App\CodeFec\Plugins())->getEnPlugins() as $value)
+        @if(file_exists(public_path("plugins/".$value."/".$value.".js")))
+            <script src="{{ file_hash("plugins/".$value."/".$value.".js") }}"></script>
+        @endif
+    @endforeach
     @yield('scripts')
 </body>
 
