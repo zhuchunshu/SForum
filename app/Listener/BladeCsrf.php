@@ -10,9 +10,7 @@ use Hyperf\ViewEngine\Blade;
 use Psr\Container\ContainerInterface;
 use Hyperf\Event\Contract\ListenerInterface;
 
-/**
- * @Listener
- */
+#[Listener]
 class BladeCsrf implements ListenerInterface
 {
     /**
