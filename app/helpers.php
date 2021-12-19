@@ -654,6 +654,16 @@ if(!function_exists("get_options")){
     }
 }
 
+if(!function_exists("get_options_nocache")){
+    function get_options_nocache($name,$default=""){
+        if(!AdminOption::query()->where("name",$name)->exists() || !AdminOption::query()->where("name",$name)->first()->value){
+            return $default;
+        }
+
+        return AdminOption::query()->where("name",$name)->first()->value;
+    }
+}
+
 if(!function_exists("admin_auth")){
     function admin_auth(){
         return new Admin();
