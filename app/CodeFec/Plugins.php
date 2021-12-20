@@ -41,4 +41,14 @@ class Plugins {
 
     }
 
+    public function composerInstall(): void
+    {
+        $list = self::GetAll();
+        foreach($list as $data){
+            if(file_exists(plugin_path($data['dir']."/composer.json"))){
+                exec("cd ".plugin_path($data['dir'])." && composer install");
+            }
+        }
+    }
+
 }
