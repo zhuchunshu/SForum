@@ -60,6 +60,32 @@ class MigrateAllResources extends HyperfCommand
                 }
                 copy_dir(public_path("plugins/" . $plugin_name),plugin_path($plugin_name . "/resources/assets"));
             }
+
+            if (is_dir(BASE_PATH."/resources/js/plugins/".$plugin_name)) {
+                if (!is_dir(plugin_path($plugin_name."/resources"))) {
+                    exec("mkdir " . plugin_path($plugin_name."/resources"));
+                }
+                if (!is_dir(plugin_path($plugin_name."/resources/package"))) {
+                    exec("mkdir " . plugin_path($plugin_name."/resources/package"));
+                }
+                if (!is_dir(plugin_path($plugin_name."/resources/package/js"))) {
+                    exec("mkdir " . plugin_path($plugin_name."/resources/package/js"));
+                }
+                copy_dir(BASE_PATH."/resources/js/plugins/".$plugin_name,plugin_path($plugin_name . "/resources/package/js"));
+            }
+
+            if (is_dir(BASE_PATH."/resources/sass/plugins/".$plugin_name)) {
+                if (!is_dir(plugin_path($plugin_name."/resources"))) {
+                    exec("mkdir " . plugin_path($plugin_name."/resources"));
+                }
+                if (!is_dir(plugin_path($plugin_name."/resources/package"))) {
+                    exec("mkdir " . plugin_path($plugin_name."/resources/package"));
+                }
+                if (!is_dir(plugin_path($plugin_name."/resources/package/sass"))) {
+                    exec("mkdir " . plugin_path($plugin_name."/resources/package/sass"));
+                }
+                copy_dir(BASE_PATH."/resources/sass/plugins/".$plugin_name,plugin_path($plugin_name . "/resources/package/sass"));
+            }
             $rows[]=[
               $id,
               $plugin,
