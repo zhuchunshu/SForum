@@ -160,6 +160,19 @@ class InstallController extends AbstractController
     public function post_step6(): \Psr\Http\Message\ResponseInterface
     {
         file_put_contents(BASE_PATH."/app/CodeFec/storage/install.lock",date("Y-m-d H:i:s"));
+        $params = ["command" => "CodeFec:PluginsComposerInstall"];
+
+        $input = new ArrayInput($params);
+        $output = new NullOutput();
+
+        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+
+        /** @var Application $application */
+        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+        $application->setAutoExit(false);
+
+        // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
+        $exitCode = $application->run($input, $output);
         return response()->redirect("/admin");
     }
 }

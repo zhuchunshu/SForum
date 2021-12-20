@@ -18,9 +18,9 @@ use Hyperf\DbConnection\Db;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use App\Middleware\AdminMiddleware;
-use League\Flysystem\FileExistsException;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Psr\SimpleCache\InvalidArgumentException;
+use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Hyperf\HttpServer\Annotation\AutoController;
 use Hyperf\HttpServer\Contract\RequestInterface;
@@ -84,6 +84,9 @@ class ApiController
         return Json_Api(200, true, ['msg' => "更新成功!"]);
     }
 
+    /**
+     * @Middleware(AdminMiddleware::class)
+     */
     public function AdminPluginMigrate($name=null): array
     {
         if(!admin_auth()->check()){
@@ -137,6 +140,9 @@ class ApiController
         return Json_Api(200, true, ['msg' => '资源迁移成功!']);
     }
 
+    /**
+     * @Middleware(AdminMiddleware::class)
+     */
     public function AdminPluginMigrateAll(): array
     {
         if(!admin_auth()->check()){
@@ -146,6 +152,26 @@ class ApiController
             $this->AdminPluginMigrate($name);
         }
         return Json_Api(200, true, ['msg' => '资源迁移成功!']);
+    }
+
+    /**
+     * @Middleware(AdminMiddleware::class)
+     */
+    public function AdminPluginUpdatePackage(){
+        $params = ["command" => "CodeFec:PluginsComposerInstall"];
+
+        $input = new ArrayInput($params);
+        $output = new NullOutput();
+
+        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+
+        /** @var Application $application */
+        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+        $application->setAutoExit(false);
+
+        // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
+        $exitCode = $application->run($input, $output);
+        return Json_Api(200, true, ['msg' => '更新成功!']);
     }
 
     /**

@@ -176,6 +176,31 @@ if (document.getElementById("vue-plugin-table")) {
           console.error(error);
         })
       },
+      // 更新插件包
+      updatePluginsPackage(){
+        axios.post("/api/AdminPluginUpdatePackage",{
+          _token:csrf_token
+        }).then(r=>{
+          var data = r.data;
+          if (data.success === true) {
+            swal({
+              title: data.result.msg,
+              icon: "success",
+            });
+          } else {
+            swal({
+              title: data.result.msg,
+              icon: "error",
+            });
+          }
+        }).catch(error => {
+          swal({
+            title: "请求出错,详细查看控制台",
+            icon: "error",
+          });
+          console.error(error);
+        })
+      },
       // 资源迁移
       migrate(name) {
         if (this.switchs.indexOf(name) === -1) {

@@ -1,5 +1,5 @@
 {
-    "/js/app.js": "/js/app.js?id=b934d6d85fccb4f6a85b",
+    "/js/app.js": "/js/app.js?id=1dbde539c7f10066564e",
     "/js/vue.js": "/js/vue.js?id=c0ed491e9d9bbd0212ac",
     "/js/alpine.js": "/js/alpine.js?id=3b24a5041f6ceb43ef89",
     "/js/admin/login.js": "/js/admin/login.js?id=f33be29d9650a8e557ea",
@@ -7,18 +7,5 @@
     "/js/admin/error.js": "/js/admin/error.js?id=ffceacaf5a305fb626d1",
     "/js/admin/component.js": "/js/admin/component.js?id=7c1df5ab535f318e62bd",
     "/js/admin/setting.js": "/js/admin/setting.js?id=b6ac75e276496cb3dfe9",
-    "/plugins/User/js/user.js": "/plugins/User/js/user.js?id=dbf9408547e0286c08cd",
-    "/plugins/Core/js/sign.js": "/plugins/Core/js/sign.js?id=78eb84e328f92ed756a1",
-    "/plugins/Core/js/app.js": "/plugins/Core/js/app.js?id=8b325e5fbb972c0ecda8",
-    "/plugins/Core/js/user.js": "/plugins/Core/js/user.js?id=d069a3ec0bb191ce1251",
-    "/plugins/Core/js/report.js": "/plugins/Core/js/report.js?id=014f6f666991bccd43b2",
-    "/plugins/Topic/js/tag.js": "/plugins/Topic/js/tag.js?id=b441f7881111572ab167",
-    "/plugins/Topic/js/topic.js": "/plugins/Topic/js/topic.js?id=f287eee570c8bb766891",
-    "/plugins/Topic/js/core.js": "/plugins/Topic/js/core.js?id=924f05ed21dbf6c198c2",
-    "/plugins/Comment/js/topic.js": "/plugins/Comment/js/topic.js?id=48cbb668ca67736fd3cf",
-    "/plugins/Comment/js/edit.js": "/plugins/Comment/js/edit.js?id=2ac61d60fbd24ce6f4e2",
-    "/plugins/Core/css/core.css": "/plugins/Core/css/core.css?id=8af3b7e8b61efe3a2283",
-    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=640b3a09af318d1f2d4b",
-    "/plugins/Core/css/app.css": "/plugins/Core/css/app.css?id=a1ec2f7b9df2b12b2160",
     "/css/app.css": "/css/app.css?id=68b329da9893e34099c7"
 }

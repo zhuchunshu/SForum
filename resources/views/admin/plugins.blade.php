@@ -1,4 +1,5 @@
-<a @@click="migrateAll" href="#">对所有已启动插件进行数据迁移</a>
+<a @@click="migrateAll" href="#">对所有已启动插件进行数据迁移</a>,
+<a @@click="updatePluginsPackage" href="#">更新插件包</a>
 <div class="table-responsive">
     <table class="table table-vcenter table-nowrap">
         <thead>
