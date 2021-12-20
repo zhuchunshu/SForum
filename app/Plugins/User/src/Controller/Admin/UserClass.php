@@ -1,6 +1,7 @@
 <?php
 namespace App\Plugins\User\src\Controller\Admin;
 
+use App\Middleware\AdminMiddleware;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Request\Create;
 use App\Plugins\User\src\Request\Update;
