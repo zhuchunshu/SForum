@@ -45,6 +45,10 @@ class MigratePackage extends HyperfCommand
                     //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
                     exec("mkdir " . BASE_PATH."/resources/js/plugins");
                 }
+                if (!is_dir(BASE_PATH."/resources/sass/plugins")) {
+                    //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
+                    exec("mkdir " . BASE_PATH."/resources/sass/plugins");
+                }
             }
 
             if (is_dir(plugin_path($plugin_name."/resources/package/js"))) {
