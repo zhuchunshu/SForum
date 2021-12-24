@@ -155,6 +155,19 @@ class InstallController extends AbstractController
         $application->setAutoExit(false);
 
         $exitCode = $application->run($input, $output);
+
+        $command = 'CodeFec:migrate';
+
+        $params = ["command" => $command];
+        $input = new ArrayInput($params);
+        $output = new NullOutput();
+
+        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+
+        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+        $application->setAutoExit(false);
+
+        $exitCode = $application->run($input, $output);
         AdminUser::query()->create([
             'email' => request()->input("email"),
             'username' => request()->input("username"),
@@ -171,6 +184,32 @@ class InstallController extends AbstractController
         if(!file_exists(BASE_PATH."/app/CodeFec/storage/install.lock")){
             file_put_contents(BASE_PATH."/app/CodeFec/storage/install.lock",date("Y-m-d H:i:s"));
         }
+        $params = ["command" => "CodeFec:PluginsComposerInstall"];
+
+        $input = new ArrayInput($params);
+        $output = new NullOutput();
+
+        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+
+        /** @var Application $application */
+        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+        $application->setAutoExit(false);
+
+        // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
+        $exitCode = $application->run($input, $output);
+        $params = ["command" => "CodeFec:PluginsComposerInstall"];
+
+        $input = new ArrayInput($params);
+        $output = new NullOutput();
+
+        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+
+        /** @var Application $application */
+        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+        $application->setAutoExit(false);
+
+        // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
+        $exitCode = $application->run($input, $output);
         return redirect()->url("/admin")->go();
     }
 }
