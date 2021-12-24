@@ -5130,6 +5130,11 @@ picomatch@^2.0.4, picomatch@^2.2.1, picomatch@^2.2.3:
   resolved "https://registry.nlark.com/picomatch/download/picomatch-2.3.0.tgz#f1f061de8f6a4bf022892e2d128234fb98302972"
   integrity sha1-8fBh3o9qS/AiiS4tEoI0+5gwKXI=
 
+pjax@^0.2.8:
+  version "0.2.8"
+  resolved "https://registry.npmmirror.com/pjax/download/pjax-0.2.8.tgz#ce789a6a95ec4f555fa04a350ad1fc3dac0d1b6f"
+  integrity sha1-zniaapXsT1VfoEo1CtH8PawNG28=
+
 pkg-dir@^4.1.0, pkg-dir@^4.2.0:
   version "4.2.0"
   resolved "https://registry.npm.taobao.org/pkg-dir/download/pkg-dir-4.2.0.tgz#f099133df7ede422e81d1d8448270eeb3e4261f3"

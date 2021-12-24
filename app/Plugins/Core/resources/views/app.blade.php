@@ -46,7 +46,6 @@
         @yield('content')
     </div>
         @include("Core::layouts.themes.footer-".get_options('core_theme_footer',1))
-    </div>
     <script src='/js/jquery-3.6.0.min.js'></script>
     <script src="{{ mix('js/vue.js') }}"></script>
     <script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
@@ -60,13 +59,14 @@
     @foreach (\App\CodeFec\Ui\functions::get('js') as $key => $value)
         <script src="{{ $value }}"></script>
     @endforeach
-{{--插件js--}}
+    {{--插件js--}}
     @foreach((new \App\CodeFec\Plugins())->getEnPlugins() as $value)
         @if(file_exists(public_path("plugins/".$value."/".$value.".js")))
             <script src="{{ file_hash("plugins/".$value."/".$value.".js") }}"></script>
         @endif
     @endforeach
     @yield('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
+</div>
 </body>
-
 </html>

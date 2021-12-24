@@ -32,31 +32,16 @@ class InstallController extends AbstractController
     /**
      * @GetMapping(path="/install")
      */
-    public function install()
+    public function install(): ?\Psr\Http\Message\ResponseInterface
     {
-        switch (request()->input("step")) {
-            case 1:
-                return view("core.install.step1");
-                break;
-            case 2:
-                return view("core.install.step2");
-                break;
-            case 3:
-                return view("core.install.step3");
-                break;
-            case 4:
-                return view("core.install.step4");
-                break;
-            case 5:
-                return view("core.install.step5");
-                break;
-            case 6:
-                return view("core.install.step6");
-                break;
-            default:
-                return view("core.install.step1");
-                break;
-        }
+        return match (request()->input("step")) {
+            2 => view("core.install.step2"),
+            3 => view("core.install.step3"),
+            4 => view("core.install.step4"),
+            5 => view("core.install.step5"),
+            6 => view("core.install.step6"),
+            default => view("core.install.step1"),
+        };
     }
 
     /**
@@ -64,30 +49,15 @@ class InstallController extends AbstractController
      */
     public function post()
     {
-        switch (request()->input("step")) {
-            case '1':
-                return $this->post_step1();
-                break;
-            case '2':
-                return $this->post_step2();
-                break;
-            case '3':
-                return $this->post_step3();
-                break;
-            case '4':
-                return $this->post_step4();
-                break;
-            case '5':
-                return $this->post_step5();
-                break;
-            case '6':
-                return $this->post_step6();
-                break;
-
-            default:
-                return admin_abort(['msg' => "步骤不存在"]);
-                break;
-        }
+        return match (request()->input("step")) {
+            '1' => $this->post_step1(),
+            '2' => $this->post_step2(),
+            '3' => $this->post_step3(),
+            '4' => $this->post_step4(),
+            '5' => $this->post_step5(),
+            '6' => $this->post_step6(),
+            default => admin_abort(['msg' => "步骤不存在"]),
+        };
     }
 
     public function post_step2(): \Psr\Http\Message\ResponseInterface
@@ -95,7 +65,7 @@ class InstallController extends AbstractController
         $web_name = request()->input("name");
         $web_domain = request()->input("domain");
         $web_ssl = 'false';
-        if (request()->input("ssl") == "https") {
+        if (request()->input("ssl") === "https") {
             $web_ssl = 'true';
         }
         modifyEnv([
@@ -144,6 +114,7 @@ class InstallController extends AbstractController
         $application->setAutoExit(false);
 
         $exitCode = $application->run($input, $output);
+
         return response()->redirect("/install?step=5");
     }
 
@@ -159,6 +130,9 @@ class InstallController extends AbstractController
 
     public function post_step6(): \Psr\Http\Message\ResponseInterface
     {
+        if(!is_dir(BASE_PATH."/app/CodeFec/storage")){
+            exec("mkdir ".BASE_PATH."/app/CodeFec/storage");
+        }
         file_put_contents(BASE_PATH."/app/CodeFec/storage/install.lock",date("Y-m-d H:i:s"));
         $params = ["command" => "CodeFec:PluginsComposerInstall"];
 
@@ -173,6 +147,6 @@ class InstallController extends AbstractController
 
         // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
         $exitCode = $application->run($input, $output);
-        return response()->redirect("/admin");
+        return redirect()->url("/admin")->go();
     }
 }

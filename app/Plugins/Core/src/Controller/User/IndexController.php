@@ -13,7 +13,6 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
-use HyperfExt\Mail\Mail;
 use Psr\Http\Message\ResponseInterface;
 
 #[Controller]
@@ -32,7 +31,7 @@ class IndexController
     #[GetMapping(path: "/user/ver_email")]
     public function user_ver_email()
     {
-        if(auth()->data()->email_ver_time){
+        if(@auth()->data()->email_ver_time){
             return redirect()->url("/")->with("info","你已验证邮箱,无需重复操作")->go();
         }
         return view("Core::user.ver_email");
@@ -58,8 +57,9 @@ class IndexController
         User::query()->where("id",auth()->data()->id)->update([
            "email_ver_time" => date("Y-m-d H:i:s")
         ]);
-        session()->set("auth_data",User::query()->where("id",session()->get('auth'))->first());
-        return redirect()->url("/")->with("success","验证通过!")->go();
+
+        auth()->logout();
+        return redirect()->url("/")->with("success","验证通过，请重新登陆")->go();
     }
 
     /**
