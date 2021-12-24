@@ -45,6 +45,7 @@ class InstallController extends AbstractController
                 return view("core.install.step3");
                 break;
             case 4:
+                //file_put_contents(BASE_PATH."/app/CodeFec/storage/install-step.txt",date("Y-m-d H:i:s"));
                 return view("core.install.step4");
                 break;
             case 5:
@@ -103,6 +104,7 @@ class InstallController extends AbstractController
             'APP_DOMAIN' => $web_domain,
             'APP_SSL' => $web_ssl
         ]);
+        //file_put_contents(BASE_PATH."/app/CodeFec/storage/install-step.txt",date("Y-m-d H:i:s"));
         return response()->redirect("/install?step=3");
     }
 
@@ -111,6 +113,7 @@ class InstallController extends AbstractController
         if (!file_exists(BASE_PATH . "/.env")) {
             copy(BASE_PATH . "/.env.example", BASE_PATH . "/.env");
         }
+        //file_put_contents(BASE_PATH."/app/CodeFec/storage/install-step.txt",date("Y-m-d H:i:s"));
         return response()->redirect("/install?step=2");
     }
 
@@ -122,6 +125,7 @@ class InstallController extends AbstractController
             'DB_USERNAME' => request()->input("DB_USERNAME"),
             'DB_PASSWORD' => request()->input("DB_PASSWORD"),
         ]);
+        //file_put_contents(BASE_PATH."/app/CodeFec/storage/install-step.txt",date("Y-m-d H:i:s"));
         return response()->redirect("/install?step=4");
     }
 
@@ -132,6 +136,7 @@ class InstallController extends AbstractController
             'REDIS_AUTH' => request()->input("REDIS_AUTH"),
             'REDIS_HOST' => request()->input("REDIS_HOST"),
         ]);
+        file_put_contents(BASE_PATH."/app/CodeFec/storage/install-step.txt",date("Y-m-d H:i:s"));
         $command = 'migrate';
 
         $params = ["command" => $command, "--force"];
@@ -144,6 +149,7 @@ class InstallController extends AbstractController
         $application->setAutoExit(false);
 
         $exitCode = $application->run($input, $output);
+        file_put_contents(BASE_PATH."/app/CodeFec/storage/install-step.txt",date("Y-m-d H:i:s"));
         return response()->redirect("/install?step=5");
     }
 

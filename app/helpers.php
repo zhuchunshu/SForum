@@ -708,6 +708,9 @@ if(!function_exists("recsrf_token")){
 if(!function_exists("modifyEnv")){
     function modifyEnv(array $data)
     {
+        if(!is_dir(BASE_PATH."/app/CodeFec/storage")){
+            exec("mkdir ".BASE_PATH."/app/CodeFec/storage");
+        }
         $envPath = BASE_PATH . '/.env';
 
         $contentArray = collect(file($envPath, FILE_IGNORE_NEW_LINES));
