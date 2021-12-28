@@ -30,13 +30,13 @@ use Symfony\Component\Console\Output\NullOutput;
 class InstallController extends AbstractController
 {
     #[GetMapping(path: "/install")]
-    public function install()
+    public function install(): \Psr\Http\Message\ResponseInterface
     {
         return view("core.install");
     }
 
     #[PostMapping(path: "/install")]
-    public function post()
+    public function post(): \Psr\Http\Message\ResponseInterface
     {
         $install_step = (int)cache()->get("install", 1);
         if ((request()->input('reduce', false) == "true") && $install_step !== 1) {
@@ -82,7 +82,7 @@ class InstallController extends AbstractController
         return view("core.install." . cache()->get("install", 1));
     }
 
-    public function post_step2()
+    public function post_step2(): void
     {
         $web_name = request()->input("name");
         $web_domain = request()->input("domain");
@@ -97,14 +97,14 @@ class InstallController extends AbstractController
         ]);
     }
 
-    public function post_step1()
+    public function post_step1(): void
     {
         if (!file_exists(BASE_PATH . "/.env")) {
             copy(BASE_PATH . "/.env.example", BASE_PATH . "/.env");
         }
     }
 
-    public function post_step3()
+    public function post_step3(): void
     {
         modifyEnv([
             'DB_HOST' => request()->input("DB_HOST"),
@@ -115,17 +115,13 @@ class InstallController extends AbstractController
         //file_put_contents(BASE_PATH."/app/CodeFec/storage/install-step.txt",date("Y-m-d H:i:s"));
     }
 
-    public function post_step4()
+    public function post_step4(): void
     {
         modifyEnv([
             'REDIS_PORT' => request()->input("REDIS_PORT"),
             'REDIS_AUTH' => request()->input("REDIS_AUTH"),
             'REDIS_HOST' => request()->input("REDIS_HOST"),
         ]);
-    }
-
-    public function post_step5()
-    {
         $command = 'migrate';
 
         $params = ["command" => $command, "--force"];
@@ -151,6 +147,10 @@ class InstallController extends AbstractController
         $application->setAutoExit(false);
 
         $exitCode = $application->run($input, $output);
+    }
+
+    public function post_step5(): void
+    {
         AdminUser::query()->create([
             'email' => request()->input("email"),
             'username' => request()->input("username"),
@@ -158,7 +158,7 @@ class InstallController extends AbstractController
         ]);
     }
 
-    public function post_step6()
+    public function post_step6(): void
     {
         if (!is_dir(BASE_PATH . "/app/CodeFec/storage")) {
             exec("mkdir " . BASE_PATH . "/app/CodeFec/storage");
