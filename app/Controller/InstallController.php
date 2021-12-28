@@ -29,69 +29,60 @@ use Symfony\Component\Console\Output\NullOutput;
  */
 class InstallController extends AbstractController
 {
-    /**
-     * @GetMapping(path="/install")
-     */
+    #[GetMapping(path: "/install")]
     public function install()
     {
-        switch (request()->input("step")) {
-            case 1:
-                return view("core.install.step1");
-                break;
-            case 2:
-                return view("core.install.step2");
-                break;
-            case 3:
-                return view("core.install.step3");
-                break;
-            case 4:
-                //file_put_contents(BASE_PATH."/app/CodeFec/storage/install-step.txt",date("Y-m-d H:i:s"));
-                return view("core.install.step4");
-                break;
-            case 5:
-                return view("core.install.step5");
-                break;
-            case 6:
-                return view("core.install.step6");
-                break;
-            default:
-                return view("core.install.step1");
-                break;
-        }
+        return view("core.install");
     }
 
-    /**
-     * @PostMapping(path="/install")
-     */
+    #[PostMapping(path: "/install")]
     public function post()
     {
-        switch (request()->input("step")) {
-            case '1':
-                return $this->post_step1();
-                break;
-            case '2':
-                return $this->post_step2();
-                break;
-            case '3':
-                return $this->post_step3();
-                break;
-            case '4':
-                return $this->post_step4();
-                break;
-            case '5':
-                return $this->post_step5();
-                break;
-            case '6':
-                return $this->post_step6();
-                break;
-
-            default:
-                return admin_abort(['msg' => "步骤不存在"]);
-                break;
+        $install_step = (int)cache()->get("install", 1);
+        if ((request()->input('reduce', false) == "true") && $install_step !== 1) {
+            cache()->set("install", $install_step - 1);
+            return view("core.install." . cache()->get("install", 1));
         }
+
+        // 如果点击下一步
+        if (request()->input('next', false) == "true") {
+            switch ($install_step) {
+                case 1:
+                    $this->post_step1();
+                    cache()->set("install", $install_step + 1);
+                    break;
+                case 5:
+                case 2:
+                case 7:
+                    cache()->set("install", $install_step + 1);
+                    break;
+                case 3:
+                    $this->post_step2();
+                    cache()->set("install", $install_step + 1);
+                    break;
+                case 4:
+                    $this->post_step3();
+                    cache()->set("install", $install_step + 1);
+                    break;
+                case 6:
+                    $this->post_step4();
+                    cache()->set("install", $install_step + 1);
+                    break;
+                case 8:
+                    $this->post_step5();
+                    cache()->set("install", $install_step + 1);
+                    break;
+                case 9:
+                    $this->post_step6();
+                    cache()->set("install", $install_step + 1);
+                    break;
+            }
+        }
+
+        return view("core.install." . cache()->get("install", 1));
     }
 
-    public function post_step2(): \Psr\Http\Message\ResponseInterface
+    public function post_step2()
     {
         $web_name = request()->input("name");
         $web_domain = request()->input("domain");
@@ -104,20 +95,16 @@ class InstallController extends AbstractController
             'APP_DOMAIN' => $web_domain,
             'APP_SSL' => $web_ssl
         ]);
-        //file_put_contents(BASE_PATH."/app/CodeFec/storage/install-step.txt",date("Y-m-d H:i:s"));
-        return response()->redirect("/install?step=3");
     }
 
-    public function post_step1(): \Psr\Http\Message\ResponseInterface
+    public function post_step1()
     {
         if (!file_exists(BASE_PATH . "/.env")) {
             copy(BASE_PATH . "/.env.example", BASE_PATH . "/.env");
         }
-        //file_put_contents(BASE_PATH."/app/CodeFec/storage/install-step.txt",date("Y-m-d H:i:s"));
-        return response()->redirect("/install?step=2");
     }
 
-    public function post_step3(): \Psr\Http\Message\ResponseInterface
+    public function post_step3()
     {
         modifyEnv([
             'DB_HOST' => request()->input("DB_HOST"),
@@ -126,22 +113,18 @@ class InstallController extends AbstractController
             'DB_PASSWORD' => request()->input("DB_PASSWORD"),
         ]);
         //file_put_contents(BASE_PATH."/app/CodeFec/storage/install-step.txt",date("Y-m-d H:i:s"));
-        return response()->redirect("/install?step=4");
     }
 
-    public function post_step4(): \Psr\Http\Message\ResponseInterface
+    public function post_step4()
     {
         modifyEnv([
             'REDIS_PORT' => request()->input("REDIS_PORT"),
             'REDIS_AUTH' => request()->input("REDIS_AUTH"),
             'REDIS_HOST' => request()->input("REDIS_HOST"),
         ]);
-        file_put_contents(BASE_PATH."/app/CodeFec/storage/install-step.txt",date("Y-m-d H:i:s"));
-
-        return response()->redirect("/install?step=5");
     }
 
-    public function post_step5(): \Psr\Http\Message\ResponseInterface
+    public function post_step5()
     {
         $command = 'migrate';
 
@@ -173,43 +156,15 @@ class InstallController extends AbstractController
             'username' => request()->input("username"),
             'password' => Hash::make(request()->input("password")),
         ]);
-        return response()->redirect("/install?step=6");
     }
 
-    public function post_step6(): \Psr\Http\Message\ResponseInterface
+    public function post_step6()
     {
-        if(!is_dir(BASE_PATH."/app/CodeFec/storage")){
-            exec("mkdir ".BASE_PATH."/app/CodeFec/storage");
+        if (!is_dir(BASE_PATH . "/app/CodeFec/storage")) {
+            exec("mkdir " . BASE_PATH . "/app/CodeFec/storage");
         }
-        if(!file_exists(BASE_PATH."/app/CodeFec/storage/install.lock")){
-            file_put_contents(BASE_PATH."/app/CodeFec/storage/install.lock",date("Y-m-d H:i:s"));
+        if (!file_exists(BASE_PATH . "/app/CodeFec/storage/install.lock")) {
+            file_put_contents(BASE_PATH . "/app/CodeFec/storage/install.lock", date("Y-m-d H:i:s"));
         }
-        $params = ["command" => "CodeFec:PluginsComposerInstall"];
-
-        $input = new ArrayInput($params);
-        $output = new NullOutput();
-
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
-
-        /** @var Application $application */
-        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
-        $application->setAutoExit(false);
-
-        // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
-        $exitCode = $application->run($input, $output);
-        $params = ["command" => "CodeFec:PluginsComposerInstall"];
-
-        $input = new ArrayInput($params);
-        $output = new NullOutput();
-
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
-
-        /** @var Application $application */
-        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
-        $application->setAutoExit(false);
-
-        // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
-        $exitCode = $application->run($input, $output);
-        return redirect()->url("/admin")->go();
     }
 }

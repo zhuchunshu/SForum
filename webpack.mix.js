@@ -17,6 +17,8 @@ function resources_path($path){
 
 // app.js
 mix.js(resources_path("js/app.js"),"js").version();
+// install.js
+mix.js(resources_path("js/install.js"),"js").version();
 
 // vue.js
 mix.js(resources_path("js/vue.js"),"js").vue({ version: 3 })
