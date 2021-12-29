@@ -49,6 +49,10 @@ class StartCommand extends HyperfCommand
         // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
         $exitCode = $application->run($input, $output);
         $this->info("插件扩展更新完毕!");
+
+        $this->info("开始清理缓存...");
+        exec("composer du");
+        $this->info("缓存清理完毕！");
         $option = make(Option::class, [
             'dir' => $this->input->getOption('dir'),
             'file' => $this->input->getOption('file'),
