@@ -17,7 +17,7 @@ class KillServer extends HyperfCommand
     /**
      * @var ContainerInterface
      */
-    protected $container;
+    protected ContainerInterface $container;
 
     public function __construct(ContainerInterface $container)
     {
@@ -35,7 +35,8 @@ class KillServer extends HyperfCommand
     public function handle()
     {
         if(file_exists(BASE_PATH."/runtime/hyperf.pid")){
-            exec("kill ".BASE_PATH."/runtime/hyperf.pid");
+            $pid = file_get_contents(BASE_PATH."/runtime/hyperf.pid");
+            exec("kill ".$pid);
         }
         $this->line('Successfully', 'info');
     }
