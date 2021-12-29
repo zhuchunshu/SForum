@@ -81,6 +81,7 @@ class ApiController
         } catch (InvalidArgumentException $e) {
         }
         cache()->delete("plugins.en");
+        exec("composer du");
         return Json_Api(200, true, ['msg' => "更新成功!"]);
     }
 
