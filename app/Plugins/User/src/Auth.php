@@ -29,7 +29,10 @@ class Auth
     }
 
     public function token(){
-        return session()->get("auth",null);
+        if($this->check()===true){
+            return session()->get("auth",null);
+        }
+        return null;
     }
 
     public function logout(): bool

@@ -66,7 +66,6 @@
         @endif
     @endforeach
     @yield('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
 </div>
 </body>
 </html>
