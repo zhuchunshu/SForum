@@ -23,7 +23,7 @@ class KillServer extends HyperfCommand
     {
         $this->container = $container;
 
-        parent::__construct('CodeFec:KillsServer');
+        parent::__construct('CodeFec:KillServer');
     }
 
     public function configure()
