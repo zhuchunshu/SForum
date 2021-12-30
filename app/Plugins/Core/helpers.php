@@ -62,7 +62,7 @@ if(!function_exists("super_avatar")){
 }
 
 if(!function_exists("avatar")){
-    function avatar(int $user_id,$class=null): string
+    function avatar(int|string $user_id,$class=null): string
     {
         $time = get_options("core_user_def_avatar_cache",600);
         if(get_options("core_user_avatar_cache","1")==="1"){
