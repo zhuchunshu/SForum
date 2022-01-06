@@ -37,20 +37,20 @@ class ResourcesMigrate extends HyperfCommand
         if (is_dir(BASE_PATH."/resources/views/plugins/".$plugin_name)) {
             if (!is_dir(plugin_path($plugin_name."/resources"))) {
                 //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
-                exec("mkdir " . plugin_path($plugin_name."/resources"));
+                 \Swoole\Coroutine\System::exec("mkdir " . plugin_path($plugin_name."/resources"));
             }
             // if (!is_dir(plugin_path($plugin_name."/resources/views"))) {
             //     //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
-            //     exec("mkdir " . plugin_path($plugin_name."/resources/views"));
+            //      \Swoole\Coroutine\System::exec("mkdir " . plugin_path($plugin_name."/resources/views"));
             // }
             // copy_dir(BASE_PATH . "/resources/views/plugins/" . $plugin_name,plugin_path($plugin_name . "/resources/views"));
         }
         if (is_dir(public_path("plugins/".$plugin_name))) {
             if (!is_dir(plugin_path($plugin_name."/resources"))) {
-                exec("mkdir " . plugin_path($plugin_name."/resources"));
+                 \Swoole\Coroutine\System::exec("mkdir " . plugin_path($plugin_name."/resources"));
             }
             if (!is_dir(plugin_path($plugin_name."/resources/assets"))) {
-                exec("mkdir " . plugin_path($plugin_name."/resources/assets"));
+                 \Swoole\Coroutine\System::exec("mkdir " . plugin_path($plugin_name."/resources/assets"));
             }
             copy_dir(public_path("plugins/" . $plugin_name),plugin_path($plugin_name . "/resources/assets"));
         }

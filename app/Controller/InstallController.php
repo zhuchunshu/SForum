@@ -161,7 +161,7 @@ class InstallController extends AbstractController
     public function post_step6(): void
     {
         if (!is_dir(BASE_PATH . "/app/CodeFec/storage")) {
-            exec("mkdir " . BASE_PATH . "/app/CodeFec/storage");
+             \Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/app/CodeFec/storage");
         }
         if (!file_exists(BASE_PATH . "/app/CodeFec/storage/install.lock")) {
             file_put_contents(BASE_PATH . "/app/CodeFec/storage/install.lock", date("Y-m-d H:i:s"));

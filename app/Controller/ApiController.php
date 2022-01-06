@@ -81,7 +81,7 @@ class ApiController
         } catch (InvalidArgumentException $e) {
         }
         cache()->delete("plugins.en");
-        exec("composer du");
+         \Swoole\Coroutine\System::exec("composer du");
         return Json_Api(200, true, ['msg' => "更新成功!"]);
     }
 
@@ -106,11 +106,11 @@ class ApiController
         if (is_dir(plugin_path($plugin_name . "/resources/views"))) {
             if (!is_dir(BASE_PATH . "/resources/views/plugins")) {
                 //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
-                exec("mkdir " . BASE_PATH . "/resources/views/plugins");
+                 \Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/resources/views/plugins");
             }
             // if (!is_dir(BASE_PATH . "/resources/views/plugins/" . $plugin_name)) {
             //     //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
-            //     exec("mkdir " . BASE_PATH . "/resources/views/plugins/" . $plugin_name);
+            //      \Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/resources/views/plugins/" . $plugin_name);
             // }
             // copy_dir(plugin_path($plugin_name . "/resources/views"), BASE_PATH . "/resources/views/plugins/" . $plugin_name);
         }
@@ -184,7 +184,7 @@ class ApiController
             return Json_Api(401,false,['msg' => '无权限']);
         }
         if (request()->input("path")) {
-            exec("rm -rf " . request()->input("path"), $result, $status);
+             \Swoole\Coroutine\System::exec("rm -rf " . request()->input("path"), $result, $status);
             return Json_Api(200, true, ['msg' => "卸载成功!"]);
         } else {
             return Json_Api(403, false, ['msg' => "卸载失败,目录:" . request()->input("path") . " 不存在!"]);

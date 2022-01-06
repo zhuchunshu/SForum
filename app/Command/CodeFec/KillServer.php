@@ -36,7 +36,7 @@ class KillServer extends HyperfCommand
     {
         if(file_exists(BASE_PATH."/runtime/hyperf.pid")){
             $pid = file_get_contents(BASE_PATH."/runtime/hyperf.pid");
-            exec("kill ".$pid);
+             \Swoole\Coroutine\System::exec("kill ".$pid);
         }
         $this->line('Successfully', 'info');
     }

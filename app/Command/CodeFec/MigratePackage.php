@@ -43,24 +43,24 @@ class MigratePackage extends HyperfCommand
             if (is_dir(plugin_path($plugin_name."/resources/package"))) {
                 if (!is_dir(BASE_PATH."/resources/js/plugins")) {
                     //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
-                    exec("mkdir " . BASE_PATH."/resources/js/plugins");
+                     \Swoole\Coroutine\System::exec("mkdir " . BASE_PATH."/resources/js/plugins");
                 }
                 if (!is_dir(BASE_PATH."/resources/sass/plugins")) {
                     //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
-                    exec("mkdir " . BASE_PATH."/resources/sass/plugins");
+                     \Swoole\Coroutine\System::exec("mkdir " . BASE_PATH."/resources/sass/plugins");
                 }
             }
 
             if (is_dir(plugin_path($plugin_name."/resources/package/js"))) {
                 if (!is_dir(BASE_PATH."/resources/js/plugins/".$plugin_name)) {
-                    exec("mkdir " . plugin_path($plugin_name."/plugins/".$plugin_name));
+                     \Swoole\Coroutine\System::exec("mkdir " . plugin_path($plugin_name."/plugins/".$plugin_name));
                 }
                 copy_dir(plugin_path($plugin_name . "/resources/package/js"),BASE_PATH."/resources/js/plugins/".$plugin_name);
             }
 
             if (is_dir(plugin_path($plugin_name."/resources/package/sass"))) {
                 if (!is_dir(BASE_PATH."/resources/sass/plugins/".$plugin_name)) {
-                    exec("mkdir " . plugin_path($plugin_name."/plugins/".$plugin_name));
+                     \Swoole\Coroutine\System::exec("mkdir " . plugin_path($plugin_name."/plugins/".$plugin_name));
                 }
                 copy_dir(plugin_path($plugin_name . "/resources/package/sass"),BASE_PATH."/resources/sass/plugins/".$plugin_name);
             }
