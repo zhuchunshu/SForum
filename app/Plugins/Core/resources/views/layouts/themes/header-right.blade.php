@@ -21,7 +21,7 @@
 
     <div id="vue-header-right-my" class="nav-item dropdown">
         <a href="#" class="p-0 nav-link d-flex lh-1 text-reset" data-bs-toggle="dropdown" aria-label="Open user menu">
-            {!! avatar(auth()->data()->id,"avatar-sm") !!}
+            {!! avatar(auth()->id(),"avatar-sm") !!}
             <div class="d-none d-xl-block ps-2">
                 <div>{{auth()->data()['username']}}</div>
                 <div class="mt-1 small text-muted">本站第{{auth()->data()->id}}位会员</div>
