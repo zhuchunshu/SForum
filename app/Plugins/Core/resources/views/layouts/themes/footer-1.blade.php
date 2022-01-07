@@ -29,7 +29,7 @@
                     @endif
                     @if(get_options("ga_icp",null))
                         <li class="list-inline-item">
-                            <img src="http://www.beian.gov.cn/img/new/gongan.png"  alt="gong an"/>
+                            <img src="/plugins/Core/image/beian.png"  alt="gong an"/>
                             <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode={{get_num(get_options("ga_icp"))}}" class="link-secondary" rel="noopener">{{get_options("ga_icp")}}</a>
                         </li>
                     @endif
