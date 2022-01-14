@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
-use Csrf\Csrf;
 use Hyperf\Utils\Str;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -30,7 +29,7 @@ class CsrfMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
         foreach(Itf()->get("csrf") as $value){
-            if(Str::is($value,request()->path())){
+            if(!Str::is($this->clean_str($value),$this->clean_str(request()->path()))){
                 return $handler->handle($request);
             }
         }
@@ -39,5 +38,10 @@ class CsrfMiddleware implements MiddlewareInterface
         }
 
         return $handler->handle($request);
+    }
+
+    public function clean_str($str): array|string
+    {
+        return str_replace("/","_",$str);
     }
 }
