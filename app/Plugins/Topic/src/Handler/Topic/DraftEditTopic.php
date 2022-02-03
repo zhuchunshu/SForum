@@ -71,7 +71,7 @@ class DraftEditTopic
         $html = $this->at($html);
 
         $options = json_encode($options, JSON_THROW_ON_ERROR,JSON_UNESCAPED_UNICODE);
-        $data = Topic::query()->where("id",$topic_id)->update([
+         Topic::query()->where("id",$topic_id)->update([
             "title" => $title,
             "user_id" => auth()->id(),
             "content" => $html,
@@ -81,6 +81,7 @@ class DraftEditTopic
             "_token" => auth()->id()."_".Str::random(),
             "updated_user" => auth()->id()
         ]);
+        $data = Topic::query()->where("id",$topic_id)->first();
         TopicUpdated::create([
             "topic_id" => $topic_id,
             "user_id" => auth()->id()
