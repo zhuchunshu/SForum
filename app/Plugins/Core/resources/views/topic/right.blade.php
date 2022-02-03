@@ -7,7 +7,7 @@
                 <div class="col-md-12">
                     <div class="row justify-content-center">
                         <span class="avatar avatar-lg center-block" style="background-image: url({{super_avatar($data->user)}})">
-                            <span data-bs-toggle="tooltip" data-bs-placement="right" title="离线" core-show="online" user-id="{{$data->user->id}}" class="badge bg-danger"></span>
+
                         </span>
                         <br>
                         <b class="card-title text-h2 text-center" style="margin-top: 5px;margin-bottom:2px">{{ $data->user->username }}</b>

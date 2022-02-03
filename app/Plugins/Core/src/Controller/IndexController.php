@@ -113,4 +113,8 @@ class IndexController
         return response()->raw($data->markdown);
     }
 
+    #[GetMapping(path:"/test")]
+    public function test(){
+        return a;
+    }
 }

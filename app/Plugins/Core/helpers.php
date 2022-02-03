@@ -79,7 +79,6 @@ if(!function_exists("avatar")){
         if($ud->avatar){
             return <<<HTML
 <span class="avatar {$class}" style="background-image: url({$ud->avatar})">
-<span data-bs-toggle="tooltip" data-bs-placement="right" title="离线" core-show="online" user-id="{$user_id}" class="badge bg-danger"></span>
 </span>
 HTML;
 
@@ -87,13 +86,13 @@ HTML;
             if(get_options("core_user_def_avatar","gavatar")!=="multiavatar"){
                 $url = get_options("theme_common_gavatar","https://cn.gravatar.com/avatar/").md5($ud->email);
                 return <<<HTML
-<span class="avatar {$class}" style="background-image: url({$url})"><span data-bs-toggle="tooltip" data-bs-placement="right" title="离线" core-show="online" user-id="{$user_id}" class="badge bg-danger"></span></span>
+<span class="avatar {$class}" style="background-image: url({$url})"></span>
 HTML;
             }else{
                 $img = new Multiavatar();
                 $img = $img($ud->username, null, null);
                 return <<<HTML
-<span class="avatar {$class}">{$img}<span data-bs-toggle="tooltip" data-bs-placement="right" title="离线" core-show="online" user-id="{$user_id}" class="badge bg-danger"></span></span>
+<span class="avatar {$class}">{$img}</span>
 HTML;
             }
         }
