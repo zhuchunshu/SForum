@@ -12,8 +12,7 @@
 {{--        </div>--}}
         <div class="row row-cards">
             <div class="col-md-12">
-                <a class="link link-accent card-title">风格1</a>
-                <iframe style="width: 100%" src="/help/core/viewRender/components.theme.footer-1.html"></iframe>
+                <a href="/help/core/viewRender/components.theme.footer-1.html" class="link link-accent card-title">风格1</a>
             </div>
 {{--            <hr/>--}}
 {{--            <div class="col-md-12">--}}
