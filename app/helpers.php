@@ -27,6 +27,7 @@ use Hyperf\Utils\ApplicationContext;
 use Illuminate\Support\Facades\File;
 use Hyperf\Contract\SessionInterface;
 use Hyperf\HttpMessage\Stream\SwooleStream;
+use Overtrue\Http\Client;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface;
@@ -814,3 +815,12 @@ if(!function_exists("Plugins_EnList")){
     }
 }
 
+if(!function_exists("http")){
+	function http($response_type='array'): Client
+	{
+		return Client::create([
+			'response_type' => $response_type,
+			'verify' => false
+		]);
+	}
+}
