@@ -29,7 +29,7 @@ class CsrfMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
         foreach(Itf()->get("csrf") as $value){
-            if(!Str::is($this->clean_str($value),$this->clean_str(request()->path()))){
+            if(Str::is($this->clean_str($value),$this->clean_str(request()->path()))){
                 return $handler->handle($request);
             }
         }
