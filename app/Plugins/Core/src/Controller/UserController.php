@@ -3,6 +3,7 @@ namespace App\Plugins\Core\src\Controller;
 
 use App\Plugins\Core\src\Request\LoginRequest;
 use App\Plugins\Core\src\Request\RegisterRequest;
+use App\Plugins\User\src\Event\AfterRegister;
 use App\Plugins\User\src\Middleware\LoginMiddleware;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UsersOption;
@@ -52,7 +53,7 @@ class UserController
             return Json_Api(403,false,['msg' => "Verification failed, calculation result is wrong 验证失败，计算结果错误"]);
         }
         $userOption = UsersOption::query()->create(["qianming" => "这个人没有签名"]);
-        User::query()->create([
+        $data = User::query()->create([
             "username" => $data['username'],
             "email" => $data['email'],
             "password" => Hash::make($data['password']),
@@ -60,6 +61,8 @@ class UserController
             "_token" => Str::random(),
             "options_id" => $userOption->id
         ]);
+		
+		EventDispatcher()->dispatch(new AfterRegister($data));
         return Json_Api(200,true,['msg' => '注册成功!']);
     }
 

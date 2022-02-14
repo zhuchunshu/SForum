@@ -29,6 +29,7 @@ use Hyperf\Contract\SessionInterface;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Overtrue\Http\Client;
 use Psr\Container\ContainerInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface;
 use Symfony\Component\Console\Application;
@@ -822,5 +823,11 @@ if(!function_exists("http")){
 			'response_type' => $response_type,
 			'verify' => false
 		]);
+	}
+}
+
+if(!function_exists('EventDispatcher')){
+	function EventDispatcher(){
+		return container()->get(EventDispatcherInterface::class);
 	}
 }
