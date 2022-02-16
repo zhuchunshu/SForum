@@ -21,11 +21,3 @@ node_modules
 /public/uploads
 /public/css/diy.css
 /public/js/diy.js
-/app/Plugins
-!/app/Plugins/Core
-!/app/Plugins/User
-!/app/Plugins/Topic
-!/app/Plugins/Comment
-!/app/Plugins/Api
-!/app/Plugins/Search
-!/app/Plugins/Mail

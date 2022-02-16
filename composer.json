@@ -20,6 +20,7 @@
         "hyperf/command": "2.2.*",
         "hyperf/config": "2.2.*",
         "hyperf/config-center": "~2.2.0",
+        "hyperf/crontab": "^2.2",
         "hyperf/database": "2.2.*",
         "hyperf/db-connection": "2.2.*",
         "hyperf/filesystem": "2.2.*",
