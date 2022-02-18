@@ -21,3 +21,4 @@ node_modules
 /public/uploads
 /public/css/diy.css
 /public/js/diy.js
+/app/Plugins
