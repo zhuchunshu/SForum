@@ -22,15 +22,9 @@ use HyperfExt\Hashing\Hash;
 
 class AdminController
 {
-    public function index(Ui $ui,Card $card)
+    public function index()
     {
-        return $ui
-            ->title("Admin")
-            ->body($card->titleType(1)
-            ->title("仪表盘")
-            ->content("")
-            ->render())
-        ->render();
+        return view("admin.index");
     }
 
     public function login()

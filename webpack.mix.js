@@ -46,6 +46,7 @@ mix.js(resources_path("js/alpine.js"),"js")
     mix.js(resources_path("js/admin/component.js"),"js/admin").version();
     // setting
     mix.js(resources_path("js/admin/setting.js"),"js/admin").version();
+    mix.js(resources_path("js/admin/index.js"),"js/admin").version();
 
     try{
         require("./plugins.mix")
