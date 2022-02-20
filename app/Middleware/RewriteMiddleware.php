@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\CodeFec\Annotation\RouteRewrite;
 use App\Controller\AdminController;
+use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\HttpServer\Router\Dispatched;
 use Hyperf\HttpServer\Router\Handler;
 use Psr\Container\ContainerInterface;
@@ -36,7 +38,22 @@ class RewriteMiddleware implements MiddlewareInterface
                 $dispatched->handler->callback = $value;
             }
         }
-
+	
+	    $Route_Class = AnnotationCollector::getClassesByAnnotation(RouteRewrite::class);
+		foreach ($Route_Class as $key=>$data){
+			$callback = [$key,$data->callback];
+			if (@$dispatched->handler->route === $data->route) {
+				$dispatched->handler->callback = $callback;
+			}
+		}
+	
+	    $routeMethods = AnnotationCollector::getMethodsByAnnotation(RouteRewrite::class);
+	    foreach($routeMethods as $data){
+		    $callback = [$data['class'],$data['method']];
+		    if (@$dispatched->handler->route === $data['annotation']->route) {
+			    $dispatched->handler->callback = $callback;
+		    }
+	    }
         return $handler->handle($request);
 
     }
