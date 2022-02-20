@@ -32,7 +32,7 @@ class RewriteMiddleware implements MiddlewareInterface
 
         // 安全重写,没有不新建
         foreach (Router()->get() as $key => $value) {
-            if ($dispatched->handler->route === $key) {
+            if (@$dispatched->handler->route === $key) {
                 $dispatched->handler->callback = $value;
             }
         }
