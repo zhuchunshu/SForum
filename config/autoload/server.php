@@ -22,7 +22,7 @@ return [
         [
             'name' => 'http',
             'type' => ServerInterface::SERVER_HTTP,
-            'host' => (string) env('SERVER_WEB_DOMAIN','127.0.0.1'),
+            'host' => (string) env('SERVER_WEB_DOMAIN','0.0.0.0'),
             'port' => (int) env('SERVER_WEB_PORT', 9501),
             'sock_type' => SWOOLE_SOCK_TCP,
             'callbacks' => [
@@ -32,7 +32,7 @@ return [
         [
             'name' => 'api',
             'type' => ServerInterface::SERVER_HTTP,
-            'host' => (string) env('SERVER_API_DOMAIN','127.0.0.1'),
+            'host' => (string) env('SERVER_API_DOMAIN','0.0.0.0'),
             'port' => (int) env('SERVER_API_PORT', 9503),
             'sock_type' => SWOOLE_SOCK_TCP,
             'callbacks' => [
@@ -42,7 +42,7 @@ return [
         [
             'name' => 'websocket',
             'type' => ServerInterface::SERVER_WEBSOCKET,
-            'host' => (string) env('SERVER_WEB_DOMAIN','127.0.0.1'),
+            'host' => (string) env('SERVER_WEB_DOMAIN','0.0.0.0'),
             'port' => (int) env('SERVER_WS_PORT', 9502),
             'sock_type' => SWOOLE_SOCK_TCP,
             'callbacks' => [
