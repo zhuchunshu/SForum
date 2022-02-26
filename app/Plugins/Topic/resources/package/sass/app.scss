@@ -1,14 +1,26 @@
 @import "~vditor/src/assets/scss/index";
-@import "~@fancyapps/ui/dist/fancybox.css";
+
 
 pre{
   padding:0;
   border:0;
-  font-size:20px;
-  line-height:1rem
+  font-size:16px;
+}
+.vditor-reset p{
+  margin-bottom:5px;
+  word-wrap: break-word;
+  word-break: normal;
+  line-height: 1.5;
+}
+
+.vditor-linenumber {
+  padding-left: 2.5em !important;
+  position: relative;
 }
 .vditor-reset{
-  font-size:20px;
+  //font-family: 'Noto Serif SC',-apple-system,BlinkMacSystemFont,Helvetica Neue,PingFang SC,Microsoft YaHei,Source Han Sans SC,Noto Sans CJK SC,WenQuanYi Micro Hei,sans-serif;
+  //font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "WenQuanYi Micro Hei", "Microsoft Yahei", sans-serif;
+  font-size:16px;
   .alert{
 
     font-size:16px;

@@ -1,5 +1,5 @@
 {
-    "/js/app.js": "/js/app.js?id=1dbde539c7f10066564e",
+    "/js/app.js": "/js/app.js?id=2d6fb9f932830c2304c9",
     "/js/install.js": "/js/install.js?id=7153f0285d293593b21a",
     "/js/vue.js": "/js/vue.js?id=c0ed491e9d9bbd0212ac",
     "/js/alpine.js": "/js/alpine.js?id=3b24a5041f6ceb43ef89",
@@ -9,5 +9,8 @@
     "/js/admin/component.js": "/js/admin/component.js?id=7c1df5ab535f318e62bd",
     "/js/admin/setting.js": "/js/admin/setting.js?id=b6ac75e276496cb3dfe9",
     "/js/admin/index.js": "/js/admin/index.js?id=474fd2ab08b8640673b3",
-    "/css/app.css": "/css/app.css?id=68b329da9893e34099c7"
+    "/plugins/Tribble/js/tag.js": "/plugins/Tribble/js/tag.js?id=f2cbe9525feefaeff9f7",
+    "/plugins/Core/css/core.css": "/plugins/Core/css/core.css?id=4e36b09ff6e0c0c8fa70",
+    "/css/app.css": "/css/app.css?id=68b329da9893e34099c7",
+    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=1448d370762e6a8beddf"
 }

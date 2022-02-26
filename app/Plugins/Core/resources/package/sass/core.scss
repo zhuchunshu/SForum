@@ -1,8 +1,19 @@
-@import '~tippy.js/dist/tippy.css';
-@import '~tippy.js/themes/light.css';
-@import '~tippy.js/dist/backdrop.css';
-@import '~tippy.js/animations/shift-away.css';
 @import '~hover.css';
+
+
+body {
+  -webkit-backface-visibility: hidden;
+  overflow-x: hidden;
+  color: #121212;
+  font-feature-settings: "tnum";
+  line-height: 1.4;
+  font-family: -apple-system,BlinkMacSystemFont,Helvetica Neue,PingFang SC,Microsoft YaHei,Source Han Sans SC,Noto Sans CJK SC,WenQuanYi Micro Hei,sans-serif;
+  text-rendering: optimizeLegibility;
+  -moz-font-feature-settings: "liga" on;
+  font-feature-settings: "liga" on;
+  -webkit-font-smoothing: subpixel-antialiased;
+  font-style: normal;
+}
 
 .sticky{
   position: sticky;
