@@ -34,6 +34,7 @@ class UserController
      */
     #[GetMapping(path:"/users/{username}.html")]
     public function data($username){
+	    $username = urldecode($username);
         if(!User::query()->where("username",$username)->count()){
             return admin_abort("用户名为:".$username."的用户不存在");
         }

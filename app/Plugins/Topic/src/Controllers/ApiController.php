@@ -44,7 +44,7 @@ class ApiController
         $data = TopicKeyword::query()->select('name','id')->get();
         $arr = [];
         foreach ($data as $key=>$value){
-            $arr = Arr::add($arr,$key,["value"=>"$[".$value->name."]","html" => $value->name]);
+            $arr = Arr::add($arr,$key,["value"=>".[".$value->name."]","html" => $value->name]);
         }
         return $arr;
     }

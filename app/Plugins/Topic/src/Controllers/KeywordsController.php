@@ -26,6 +26,7 @@ class KeywordsController
 
     #[GetMapping(path:"/keywords/{name}.html")]
     public function data($name){
+		$name = urldecode($name);
         if(!TopicKeyword::query()->where("name",$name)->exists()) {
             return admin_abort("标签:".$name."不存在",404);
         }
