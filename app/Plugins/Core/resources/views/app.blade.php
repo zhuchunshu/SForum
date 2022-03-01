@@ -6,17 +6,8 @@
     <meta name="viewport"
         content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>
-        @if(request()->path()==="/")
-            @if(get_options('home_title'))
-                @yield("title"){{get_options('home_title')}}
-            @else
-                @yield("title","标题") - {{ get_options('title', config('app_name', 'CodeFec')) }}
-            @endif
-        @else
-            @yield("title","标题") - {{ get_options('title', config('app_name', 'CodeFec')) }}
-        @endif
-    </title>
+    <meta name="referrer" content="origin-when-cross-origin">
+    <title>@if(request()->path()==="/")@if(get_options('home_title')) @yield("title") {{get_options('home_title')}} @else @yield("title","标题") - {{ get_options('title', config('app_name', 'CodeFec')) }}@endif @else @yield("title","标题") - {{ get_options('title', config('app_name', 'CodeFec')) }} @endif</title>
     <link rel="icon" href="/logo.svg" type="image/x-icon" />
     <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
     <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet" />
