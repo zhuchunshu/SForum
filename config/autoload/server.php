@@ -39,6 +39,21 @@ return [
                 Event::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
             ],
         ],
+        [
+            'name' => 'websocket',
+            'type' => ServerInterface::SERVER_WEBSOCKET,
+            'host' => (string) env('SERVER_WEB_DOMAIN','0.0.0.0'),
+            'port' => (int) env('SERVER_WS_PORT', 9502),
+            'sock_type' => SWOOLE_SOCK_TCP,
+            'callbacks' => [
+                Event::ON_HAND_SHAKE => [Hyperf\WebSocketServer\Server::class, 'onHandShake'],
+                Event::ON_MESSAGE => [Hyperf\WebSocketServer\Server::class, 'onMessage'],
+                Event::ON_CLOSE => [Hyperf\WebSocketServer\Server::class, 'onClose'],
+            ],
+            'settings' => [
+                'open_websocket_protocol' => false,
+            ]
+        ],
     ],
     'settings' => [
         Constant::OPTION_ENABLE_COROUTINE => true,

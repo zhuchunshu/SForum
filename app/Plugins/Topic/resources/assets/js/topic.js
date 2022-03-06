@@ -8527,7 +8527,7 @@ if (document.getElementById("edit-topic-vue")) {
           html: html,
           markdown: markdown,
           tag: tags,
-          options_summary: summary
+          summary: summary
         }).then(function (r) {
           var data = r.data;
 
@@ -8605,7 +8605,7 @@ if (document.getElementById("edit-topic-vue")) {
           html: html,
           markdown: markdown,
           tag: tags,
-          options_summary: summary
+          summary: summary
         }).then(function (r) {
           var data = r.data;
 

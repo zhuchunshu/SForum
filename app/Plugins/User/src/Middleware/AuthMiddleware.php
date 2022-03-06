@@ -1,6 +1,5 @@
 <?php
 
-
 namespace App\Plugins\User\src\Middleware;
 
 
