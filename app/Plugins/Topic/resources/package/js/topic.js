@@ -387,7 +387,7 @@ if(document.getElementById("create-topic-vue")){
                                 },
                             },
                             {
-                                key: '$',
+                                key: '.',
                                 hint: (key) => {
                                     return this.topic_keywords
                                 },
@@ -916,7 +916,7 @@ if(document.getElementById("edit-topic-vue")){
                                 },
                             },
                             {
-                                key: '$',
+                                key: '.',
                                 hint: (key) => {
                                     return this.topic_keywords
                                 },

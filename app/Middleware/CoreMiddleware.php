@@ -33,7 +33,7 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
      *
      * @return array|Arrayable|mixed|ResponseInterface|string
      */
-    protected function handleNotFound(ServerRequestInterface $request)
+    protected function handleNotFound(ServerRequestInterface $request): mixed
     {
         // 重写路由找不到的处理逻辑
         return admin_abort(["msg" => "页面不存在"],404);
@@ -81,6 +81,6 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
         if (! $response instanceof ResponseInterface) {
             $response = $this->transferToResponse($response, $request);
         }
-        return $response->withAddedHeader('Server', config("codefec.app.name"));
+        return $response->withAddedHeader('Server', 'CodeFec');
     }
 }

@@ -6,13 +6,9 @@ namespace App\Command;
 
 use Hyperf\Command\Annotation\Command;
 use Hyperf\Command\Command as HyperfCommand;
-use Hyperf\Watcher\Option;
-use Hyperf\Watcher\Watcher;
+use Hyperf\Watcher\{Option,Watcher};
 use Psr\Container\ContainerInterface;
-use Symfony\Component\Console\Application;
-use Symfony\Component\Console\Input\ArrayInput;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\NullOutput;
+use Symfony\Component\Console\{Application,Input\ArrayInput,Input\InputOption,Output\NullOutput};
 
 /**
  * @Command

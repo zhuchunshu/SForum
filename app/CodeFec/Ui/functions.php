@@ -6,11 +6,10 @@ class functions
 {
     public static function Ui()
     {
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
-        return $container->get(UiInterface::class);
+	    return \Hyperf\Utils\ApplicationContext::getContainer()->get(UiInterface::class);
     }
 
-    public static function get($type)
+    public static function get($type): array
     {
         $arr = [];
         foreach (self::Ui()->get() as $value) {

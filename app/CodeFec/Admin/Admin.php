@@ -47,8 +47,8 @@ class Admin
         }
         if(AdminUser::query()->where("id",session()->get('admin'))->count()){
             return true;
-        }else{
-            return false;
         }
+	
+	    return false;
     }
 }

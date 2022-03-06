@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use Hyperf\HttpMessage\Exception\NotFoundHttpException;
 use Hyperf\HttpServer\Router\Dispatched;
 use Hyperf\Utils\Arr;
 use Psr\Container\ContainerInterface;
@@ -46,7 +47,7 @@ class RouteRefuseMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
         if(is_dir(BASE_PATH . "/app/Plugins/" . $Plugin) && !in_array($Plugin, Plugins_EnList(), true)) {
-            return admin_abort($Plugin."插件未启用,无法访问此插件定义的路由",401);
+			throw new NotFoundHttpException();
         }
 
         return $handler->handle($request);

@@ -17,7 +17,7 @@ class Build extends HyperfCommand
     /**
      * @var ContainerInterface
      */
-    protected $container;
+    protected ContainerInterface $container;
 
     public function __construct(ContainerInterface $container)
     {

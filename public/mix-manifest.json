@@ -1,5 +1,5 @@
 {
-    "/js/app.js": "/js/app.js?id=eac1b32ee51785a83c8b",
+    "/js/app.js": "/js/app.js?id=57e75c4346562236c6ed",
     "/js/install.js": "/js/install.js?id=7153f0285d293593b21a",
     "/js/vue.js": "/js/vue.js?id=c0ed491e9d9bbd0212ac",
     "/js/alpine.js": "/js/alpine.js?id=3b24a5041f6ceb43ef89",
@@ -11,6 +11,9 @@
     "/js/admin/index.js": "/js/admin/index.js?id=474fd2ab08b8640673b3",
     "/plugins/Tribble/js/tag.js": "/plugins/Tribble/js/tag.js?id=f2cbe9525feefaeff9f7",
     "/plugins/Topic/js/topic.js": "/plugins/Topic/js/topic.js?id=b62d119754f9062aa494",
+    "/plugins/Blog/js/class.js": "/plugins/Blog/js/class.js?id=f971a10df1dc1339aa62",
+    "/plugins/Blog/js/article.js": "/plugins/Blog/js/article.js?id=44e44f6bf577a112df58",
+    "/plugins/Blog/css/article.css": "/plugins/Blog/css/article.css?id=81ca2c94c21f606d141a",
     "/plugins/Core/css/core.css": "/plugins/Core/css/core.css?id=4e36b09ff6e0c0c8fa70",
     "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=c087bd2d073d1faaa1c4",
     "/css/app.css": "/css/app.css?id=68b329da9893e34099c7"
