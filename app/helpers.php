@@ -424,27 +424,10 @@ if(!function_exists("make_page")){
 
 if(!function_exists("get_options")){
     function get_options($name,$default=""){
-        $time = 600;
-        if(AdminOption::query()->where("name", "set_cache_time")->count() && is_numeric(AdminOption::query()->where("name", "set_cache_time")->first()->value)) {
-            $time = AdminOption::query()->where("name","set_cache_time")->first()->value;
-        }
-        if($time!==0){
-            if(!cache()->has("admin.options.".$name)){
-                if(!AdminOption::query()->where("name",$name)->count() or !AdminOption::query()->where("name",$name)->first()->value){
-                    return $default;
-                    //cache()->set("admin.options.".$name,$default,$time);
-                }
-	
-	            cache()->set("admin.options.".$name,AdminOption::query()->where("name",$name)->first()->value,$time);
-            }
-            return cache()->get("admin.options.".$name);
-        }
-        if(!AdminOption::query()->where("name",$name)->count() or !AdminOption::query()->where("name",$name)->first()->value){
-            return $default;
-            //cache()->set("admin.options.".$name,$default,$time);
-        }
-	
-	    return AdminOption::query()->where("name",$name)->first()->value;
+		if(!cache()->has('admin.options.'.$name)){
+			cache()->set("admin.options.".$name,@AdminOption::query()->where("name",$name)->first()->value);
+		}
+	    return core_default(cache()->get("admin.options.".$name),$default);
     }
 }
 
@@ -456,6 +439,15 @@ if(!function_exists("get_options_nocache")){
 
         return AdminOption::query()->where("name",$name)->first()->value;
     }
+}
+
+
+if(!function_exists("options_clear")){
+	function options_clear(){
+		foreach(AdminOption::query()->get() as $value){
+			cache()->delete('admin.options.'.$value->name);
+		}
+	}
 }
 
 if(!function_exists("admin_auth")){

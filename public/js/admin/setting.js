@@ -2502,6 +2502,31 @@ if (document.getElementById("setting-core-form")) {
             icon: "error"
           });
         });
+      },
+      clearCache: function clearCache() {
+        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/clearCache", {
+          _token: csrf_token
+        }).then(function (response) {
+          var data = response.data;
+
+          if (data.success === true) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+              title: data.result.msg,
+              icon: 'success'
+            });
+          } else {
+            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+              title: data.result.msg,
+              icon: 'error'
+            });
+          }
+        })["catch"](function (error) {
+          console.error(error);
+          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+            title: "请求出错,详细请查看控制台",
+            icon: "error"
+          });
+        });
       }
     }
   };

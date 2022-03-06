@@ -22,11 +22,11 @@
                 <!-- Content of card #1 -->
                 @foreach(Itf_Setting()->get() as $key=>$value)
                     @if($key==1)
-                    <div id="{{$value['ename']}}" class="card tab-pane active show">
+                    <div id="{{$value['ename']}}" class="border-0 card tab-pane active show">
                         @include($value['view'])
                     </div>
                     @else
-                    <div id="{{$value['ename']}}" class="card tab-pane">
+                    <div id="{{$value['ename']}}" class="border-0 card tab-pane">
                         @include($value['view'])
                     </div>
                     @endif
@@ -35,7 +35,8 @@
         </div>
     </div>
     <div class="col-md-12">
-        <button @@click="submit" class="btn btn-primary">提交</button>
+        <button @@click="submit" class="btn btn-light">提交</button>
+        <button style="margin-left:5px" @@click="clearCache" class="btn btn-dark">清理缓存</button>
     </div>
     </div>
 </div>

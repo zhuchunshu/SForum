@@ -145,15 +145,21 @@ class SettingController
             }
             $env_arr = [];
             foreach ($env as $key=>$value){
-                if($key && $value && is_string($key) && $key!="=" && is_string($value) && $value!="="){
+                if($key && $value && is_string($key) && $key !== "=" && is_string($value) && $value!="="){
                     $env_arr[$key] = $value;
                 }
             }
             modifyEnv($env_arr);
         }
-
-        return Json_Api(200,true,['msg' => '更新成功!']);
+	    options_clear();
+        return Json_Api(200,true,['msg' => '清理成功!']);
     }
+	
+	#[PostMapping(path:"/admin/setting/clearCache")]
+	public function setting_clearCache(){
+		options_clear();
+		return Json_Api(200,true,['msg' => '更新成功!']);
+	}
 
     /**
      * @PostMapping(path="/api/adminOptionList")

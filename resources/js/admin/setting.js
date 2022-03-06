@@ -197,6 +197,30 @@ if(document.getElementById("setting-core-form")){
                         icon:"error"
                     })
                 })
+            },
+            clearCache(){
+                axios.post("/admin/setting/clearCache",{_token:csrf_token})
+                    .then(response=>{
+                        var data = response.data;
+                        if(data.success===true){
+                            swal({
+                                title:data.result.msg,
+                                icon:'success'
+                            })
+                        }else{
+                            swal({
+                                title:data.result.msg,
+                                icon:'error'
+                            })
+                        }
+                    })
+                    .catch(error=>{
+                        console.error(error)
+                        swal({
+                            title:"请求出错,详细请查看控制台",
+                            icon:"error"
+                        })
+                    })
             }
         }
     }
