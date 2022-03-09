@@ -2,6 +2,8 @@
 
 namespace App\Plugins\Core\src\Lib;
 
+use App\Plugins\User\src\Models\User;
+
 class UserVerEmail
 {
     public function make(){
@@ -18,10 +20,7 @@ class UserVerEmail
             return false;
         }
         $data = cache()->get("core.user.ver.email.".$id);
-        if($captcha===$data){
-            return true;
-        }
-        return false;
+	    return $captcha === $data;
     }
 
     public function ifsend(): bool
@@ -41,17 +40,21 @@ class UserVerEmail
         return cache()->get("core.user.ver.email.time.".$id,0)-time();
     }
 
-    public function send($email){
+    public function send($id){
+		$data = User::query()->where('id',$id)->first();
+		$username = $data->username;
+		$email = $data->email;
+	    $captcha = $this->make();
         $mail = Email();
-        $user = auth()->data();
-        $captcha = $this->make();
-        $mail->addAddress($email);
-        $mail->Subject = "【".get_options("web_name")."】请查看你的邮箱验证码";
-        $mail->Body    = <<<HTML
-你好 {$user->username},<br>
+        go(function()use ($mail,$email,$captcha,$username){
+	        $mail->addAddress($email);
+	        $mail->Subject = "【".get_options("web_name")."】请查看你的邮箱验证码";
+	        $mail->Body    = <<<HTML
+你好 {$username},<br>
 你的邮箱验证码是:{$captcha}
 HTML;
-        $mail->send();
+	        $mail->send();
+        });
         return $captcha;
     }
 }

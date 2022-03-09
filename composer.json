@@ -15,6 +15,7 @@
         "php": ">=8.0",
         "ext-json": "*",
         "doctrine/dbal": "^3.0",
+        "gregwar/captcha": "^1.1",
         "hyperf/async-queue": "2.2.*",
         "hyperf/cache": "2.2.*",
         "hyperf/command": "2.2.*",

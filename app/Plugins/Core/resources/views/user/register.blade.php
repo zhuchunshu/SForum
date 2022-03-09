@@ -1,61 +1,66 @@
-<div class="flex flex-col h-screen justify-content-center">
-    <div class="hero min-h-screen bg-base-200">
-        <div class="card flex-shrink-0 w-full max-w-sm shadow-2xl bg-base-100">
-            <div class="card-body" id="vue-core-sign-register">
-                <div class="card-title">Register</div>
+<div id="vue-core-sign-register">
+    <div class="text-center mb-4">
+        <a href="." class="navbar-brand navbar-brand-autodark">{{get_options("web_name")}}</a>
+    </div>
+    <form class="card card-md" @@submit.prevent="submit" autocomplete="off">
+        <div class="card-body">
+            <h2 class="card-title text-center mb-4">注册新用户</h2>
+            <div class="mb-3">
+                <label class="form-label">邮箱</label>
+                <input autocomplete="off" type="email" v-model="email" class="form-control" placeholder="Enter email" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">用户名</label>
+                <input autocomplete="off" type="text" v-model="username" class="form-control" placeholder="Enter username" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">
+                    密码
+                </label>
+                <input type="password" v-model="password" class="form-control" placeholder="Password" autocomplete="new-password" required>
+            </div>
+            <div class="mb-2">
+                <label class="form-label">
+                    重复密码
+                </label>
+                <input type="password" v-model="cfpassword" class="form-control" placeholder="Password" autocomplete="new-password" required>
+            </div>
 
-                <form method="POST" @@submit.prevent="submit">
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Username</span>
-                        </label>
-                        <input type="text" v-model="username" placeholder="Username" class="input input-bordered" required>
-                    </div>
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Email</span>
-                        </label>
-                        <input type="email" v-model="email" placeholder="email" class="input input-bordered" required>
-                    </div>
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Password</span>
-                        </label>
-                        <input type="password" v-model="password" placeholder="password" class="input input-bordered" required>
-                    </div>
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Confirm Password</span>
-                        </label>
-                        <input type="password" v-model="cfpassword" placeholder="Confirm password" class="input input-bordered" required>
-                    </div>
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Captcha</span>
-                            <span href="#" class="label-text-alt text-success">
-                               {{plugins_core_captcha()->reget()['add1']}}+{{plugins_core_captcha()->get()['add2']}}=?
-                                <div class="text-info" v-if="endTime>=0">
-                                    Expires in <span id="captcha-endTime">@{{endTime}}</span> seconds
-                                </div>
-                                <div class="text-info" v-else>
-                                    验证码已过期,请刷新网页
-                                </div>
+            @if(get_options('core_user_reg_yaoqing','关闭')==='开启')
+                <div class="mb-3">
+                    <label for="" class="form-label">
+                        邀请码
+                        @if(get_options('core_user_reg_yaoqing_url'))
+                            <span class="form-label-description">
+                                <a href="{{get_options('core_user_reg_yaoqing_url')}}">获取邀请码</a>
                             </span>
-                        </label>
-                        <input placeholder="captcha" v-model="captcha" class="input input-bordered" type="number" required>
+                        @endif
+                    </label>
+                    <div class="input-group">
+                        <input type="text" v-model="invitationCode" class="form-control" placeholder="invitation Code" autocomplete="off" required>
                     </div>
-                    <div class="form-control mt-6">
-                        <button type="submit" class="btn btn-primary">Register</button>
+                </div>
+            @endif
+
+            @if(get_options('core_user_reg_captcha','开启')==='开启')
+                <div class="mb-3">
+                    <label for="" class="form-label">验证码</label>
+                    <div class="input-group">
+                        <input type="text" v-model="captcha" class="form-control" placeholder="captcha" autocomplete="off" required>
+                        <span class="input-group-link">
+                        <img src="{{captcha()->inline()}}" alt="" onclick="this.src='/captcha?id='+Math.random()">
+                    </span>
                     </div>
-                    <div class="divider">Already have an account?</div>
-                    <div class="form-control mt-6">
-                        <a href="/login" class="btn">Sign in</a>
-                    </div>
-                </form>
+                </div>
+            @endif
+
+            <div class="form-footer">
+                <button type="submit" class="btn btn-primary w-100">立即登陆</button>
             </div>
         </div>
+    </form>
+    <div class="text-center text-muted mt-3">
+        已有账号? <a href="/login" tabindex="-1">立即登陆</a>
     </div>
+
 </div>
-<script>
-    var CaptchaEndTime="{{plugins_core_captcha()->get()['time']-time()}}";
-</script>

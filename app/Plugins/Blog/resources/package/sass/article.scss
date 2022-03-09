@@ -1,0 +1,37 @@
+@import "~vditor/src/assets/scss/index";
+@import "~@fancyapps/ui/dist/fancybox.css";
+
+pre{
+  padding:0;
+  border:0;
+  font-size:16px;
+}
+.vditor-reset p{
+  margin-bottom:5px;
+  word-wrap: break-word;
+  word-break: normal;
+  line-height: 1.5;
+}
+.vditor-reset{
+  //font-family: 'Noto Serif SC',-apple-system,BlinkMacSystemFont,Helvetica Neue,PingFang SC,Microsoft YaHei,Source Han Sans SC,Noto Sans CJK SC,WenQuanYi Micro Hei,sans-serif;
+  //font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "WenQuanYi Micro Hei", "Microsoft Yahei", sans-serif;
+  font-size:16px;
+}
+
+
+.vditor-reset blockquote{
+  font-size: 15px;
+  border: 0;
+  background: #e7edf3;
+  color: #667d99;
+  border-radius: 4px;
+  padding: 8px 15px;
+  border-top: 2px dotted #fff;
+  border-bottom: 2px dotted #fff;
+  margin: 1em 0;
+}
+.vditor-reset .quote blockquote{
+  margin-top: 1px;
+  padding-bottom: 5px;
+  background: #F9F9F9 none no-repeat 20px 6px;
+}

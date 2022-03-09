@@ -20,8 +20,18 @@ class LoginRequest extends FormRequest
     {
         return [
             "email" => "required|email|exists:users,email",
-            "password" => "required|string"
+            "password" => "required|string",
+	        'captcha' => 'nullable',
         ];
     }
-
+	
+	public function attributes(): array
+	{
+		return [
+			'email' => '邮箱',
+			'password' => '密码',
+			'captcha' => '验证码'
+		];
+	}
+	
 }

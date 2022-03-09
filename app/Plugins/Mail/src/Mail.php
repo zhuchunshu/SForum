@@ -57,12 +57,12 @@ class Mail
 
     public function init(): Mail
     {
-        $this->host = env("MAIL_SMTP_HOST");
-        $this->username = env("MAIL_SMTP_USERNAME");
-        $this->password = env("MAIL_SMTP_PASSWORD");
-        $this->port = env("MAIL_SMTP_PORT");
-        $this->form_name = env("MAIL_SMTP_FORM_NAME");
-        $this->form_email = env("MAIL_SMTP_FORM_MAIL");
+        $this->host = get_options("MAIL_SMTP_HOST");
+        $this->username = get_options("MAIL_SMTP_USERNAME");
+        $this->password = get_options("MAIL_SMTP_PASSWORD");
+        $this->port = get_options("MAIL_SMTP_PORT");
+        $this->form_name = get_options("MAIL_SMTP_FORM_NAME");
+        $this->form_email = get_options("MAIL_SMTP_FORM_MAIL");
         if($this->port===465){
             $this->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         }

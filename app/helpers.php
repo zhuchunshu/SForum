@@ -564,7 +564,7 @@ if(!function_exists("errors")){
 
 if(!function_exists("url")){
     function url($path=null){
-        $url = env("APP_URL","请配置APP_URL");
+        $url = get_options("APP_URL",env('APP_URL','请配置APP_URL'));
         if(!$path){
             return $url;
         }
@@ -574,7 +574,7 @@ if(!function_exists("url")){
 
 if(!function_exists("ws_url")){
     function ws_url($path=null){
-        $url=env("APP_WS_URL");
+        $url=get_options("APP_WS_URL");
         if(!$url){
             $url = "ws://".config("server.servers.2.host").":".config("server.servers.2.port");
         }
@@ -612,5 +612,12 @@ if(!function_exists("http")){
 if(!function_exists('EventDispatcher')){
 	function EventDispatcher(){
 		return container()->get(EventDispatcherInterface::class);
+	}
+}
+
+if(!function_exists('captcha')){
+	function captcha(): \App\CodeFec\Captcha
+	{
+		return new \App\CodeFec\Captcha();
 	}
 }

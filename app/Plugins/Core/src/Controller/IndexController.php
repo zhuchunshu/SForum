@@ -4,6 +4,7 @@ namespace App\Plugins\Core\src\Controller;
 
 use App\Plugins\Topic\src\Handler\Topic\ShowTopic;
 use App\Plugins\Topic\src\Models\Topic;
+use Gregwar\Captcha\CaptchaBuilder;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\PostMapping;

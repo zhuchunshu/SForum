@@ -31,9 +31,9 @@ class IndexController
     #[GetMapping(path: "/user/ver_email")]
     public function user_ver_email()
     {
-        if(@auth()->data()->email_ver_time){
-            return redirect()->url("/")->with("info","你已验证邮箱,无需重复操作")->go();
-        }
+		if(User::query()->where('id',auth()->id())->value('email_ver_time')){
+			return redirect()->url("/")->with("info","你已验证邮箱,无需重复操作")->go();
+		}
         return view("Core::user.ver_email");
     }
 
@@ -45,7 +45,7 @@ class IndexController
             if(!core_user_ver_email()->ifsend()){
                 return redirect()->back()->with("danger","冷却期间,请".core_user_ver_email()->sendTime()."秒后再试")->go();
             }
-            core_user_ver_email()->send(auth()->data()->email);
+            core_user_ver_email()->send(auth()->id());
             return redirect()->back()->with("success","验证码邮件已发送")->go();
         }
         if(!$captcha){
@@ -54,12 +54,12 @@ class IndexController
         if(!core_user_ver_email()->check($captcha)){
             return redirect()->back()->with("danger","验证码错误")->go();
         }
-        User::query()->where("id",auth()->data()->id)->update([
+        User::query()->where("id",auth()->id())->update([
            "email_ver_time" => date("Y-m-d H:i:s")
         ]);
 
-        auth()->logout();
-        return redirect()->url("/")->with("success","验证通过，请重新登陆")->go();
+        auth()->refresh(auth()->id());
+        return redirect()->url("/")->with("success","验证通过")->go();
     }
 
     /**

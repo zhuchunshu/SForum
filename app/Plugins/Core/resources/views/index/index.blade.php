@@ -61,7 +61,7 @@
                                             @if($key<=5)
                                                 <div class="col-4">
                                                     <div class="border-5">
-                                                        <a href="/{{$data->id}}.html" class="d-block"><img data-src="{{$image}}" class="card-img-top" alt="{{$image}}" src="{{get_options("topic_lazyload_img","/plugins/Topic/loading.gif")}}"></a>
+                                                        <a href="/{{$data->id}}.html" class="d-block"><img src="{{$image}}" class="card-img-top" alt="{{$image}}"></a>
                                                     </div>
                                                 </div>
                                             @endif

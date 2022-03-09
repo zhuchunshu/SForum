@@ -15,11 +15,48 @@
     </script>
     <meta name="description" content="{{ get_options('description') }}">
     <meta name="keywords" content="{{ get_options('keywords') }}">
+    <link rel="icon" href="/logo.svg" type="image/x-icon" />
+    <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
+    <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet" />
+    <link href="{{ '/tabler/css/tabler-flags.min.css' }}" rel="stylesheet" />
+    <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
+    <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
+    <link rel="stylesheet" href="{{mix("plugins/Core/css/core.css")}}">
+    <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet" />
+    <script>
+        var csrf_token = "{{ recsrf_token() }}";
+        var ws_url = "{{ws_url()}}";
+        var login_token = "{{auth()->token()}}";
+    </script>
+    @yield('css')
+    @yield('headers')
 </head>
 
-<body class="antialiased">
-@include($view)
+<body class="border-top-wide border-primary d-flex flex-column">
+<div class="container-tight py-4">
+    @include($view)
+</div>
+
+<script src='/js/jquery-3.6.0.min.js'></script>
 <script src="{{ mix('js/vue.js') }}"></script>
+<script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
+<script src="{{ '/tabler/js/tabler.min.js' }}"></script>
+@if (get_options('theme_common_require_mithril', 'yes') !== 'no')
+    <script src="{{ mix('plugins/Core/js/mithril.js') }}"></script>
+@endif
+<script src="{{ mix('plugins/Core/js/app.js') }}"></script>
+<script src="{{ file_hash('js/diy.js') }}"></script>
+{{-- <!-- 自定义Js --> --}}
+@foreach (\App\CodeFec\Ui\functions::get('js') as $key => $value)
+    <script src="{{ $value }}"></script>
+@endforeach
+{{--插件js--}}
+@foreach((new \App\CodeFec\Plugins())->getEnPlugins() as $value)
+    @if(file_exists(public_path("plugins/".$value."/".$value.".js")))
+        <script src="{{ file_hash("plugins/".$value."/".$value.".js") }}"></script>
+    @endif
+@endforeach
+@yield('scripts')
 <script src="{{ mix('plugins/Core/js/sign.js') }}"></script>
 </body>
 

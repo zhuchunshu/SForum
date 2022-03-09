@@ -1,5 +1,14 @@
 <div class="card-body">
     <div class="mb-3">
+        <label class="form-label">应用名称</label>
+        <input type="text" min="1" max="3" class="form-control" v-model="data.APP_NAME">
+        <small>当前: {{get_options('APP_NAME',env('APP_NAME','未配置'))}}</small>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">网站名称</label>
+        <input type="text" min="1" max="3" class="form-control" v-model="data.web_name">
+    </div>
+    <div class="mb-3">
         <label class="form-label">网站标题</label>
         <input v-model="data.title" type="text" class="form-control">
     </div>
@@ -9,12 +18,12 @@
     </div>
     <div class="mb-3">
         <label class="form-label">网站地址</label>
-        <input v-model="env.APP_URL" type="text" class="form-control">
+        <input v-model="data.APP_URL" type="text" class="form-control">
         <small>当前:{{url()}}</small>
     </div>
     <div class="mb-3">
         <label class="form-label">网站websocket地址</label>
-        <input v-model="env.APP_WS_URL" type="text" class="form-control">
+        <input v-model="data.APP_WS_URL" type="text" class="form-control">
         <small>当前:{{ws_url()}}</small>
     </div>
     <div class="mb-3">

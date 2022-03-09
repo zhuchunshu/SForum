@@ -19,18 +19,24 @@ class RegisterRequest extends FormRequest
     public function rules():array
     {
         return [
-            "username" => "required|string|max:25|min:2|unique:users,username",
+            "username" => "required|string|max:25|min:2|alpha_num|unique:users,username",
             "password" => "required|string|min:8|max:30",
             "email" => "required|email|unique:users,email",
             "cfpassword" => "required|min:8|max:30",
-            "captcha" => "required|integer"
+            "captcha" => "nullable",
+	        'invitationCode' => 'nullable'
         ];
     }
 
     public function attributes(): array
     {
         return [
-            "cfpassword" => "Confirm Password"
+            "cfpassword" => "重复密码",
+	        'password' => '密码',
+	        'email' => '邮箱',
+	        'captcha' => '验证码',
+	        'username' => '用户名',
+	        'invitationCode' => '邀请码'
         ];
     }
 }

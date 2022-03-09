@@ -152,13 +152,13 @@ class SettingController
             modifyEnv($env_arr);
         }
 	    options_clear();
-        return Json_Api(200,true,['msg' => '清理成功!']);
+        return Json_Api(200,true,['msg' => '更新成功!']);
     }
 	
 	#[PostMapping(path:"/admin/setting/clearCache")]
 	public function setting_clearCache(){
 		options_clear();
-		return Json_Api(200,true,['msg' => '更新成功!']);
+		return Json_Api(200,true,['msg' => '清理成功!']);
 	}
 
     /**

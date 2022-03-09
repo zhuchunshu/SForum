@@ -33,6 +33,44 @@ class Auth
         }
         return false;
     }
+	
+	// 刷新登陆
+	public function refresh(int $id): bool
+	{
+		if (! User::query()->where('id', $id)->count()) {
+			return false;
+		}
+		// 数据库里的密码
+		$user = User::query()->where('id', $id)->first();
+		$token = Str::random(17);
+		session()->set('auth', $token);
+		(new UserAuth())->create($user->id,$token);
+		session()->set("auth_data",User::query()->where("id",$this->id())->with("Class")->first());
+		session()->set("auth_data_class",UserClass::query()->where("id",auth()->data()->class_id)->first());
+		session()->set("auth_data_options",UsersOption::query()->where("id",auth()->data()->options_id)->first());
+		EventDispatcher()->dispatch(new AfterLogin($user));
+		return true;
+	}
+	
+	public function SignInUsername(string $username, string $password): bool
+	{
+		if (! User::query()->where('username', $username)->count()) {
+			return false;
+		}
+		// 数据库里的密码
+		$user = User::query()->where('username', $username)->first();
+		if (Hash::check($password, $user->password)) {
+			$token = Str::random(17);
+			session()->set('auth', $token);
+			(new UserAuth())->create($user->id,$token);
+			session()->set("auth_data",User::query()->where("id",$this->id())->with("Class")->first());
+			session()->set("auth_data_class",UserClass::query()->where("id",auth()->data()->class_id)->first());
+			session()->set("auth_data_options",UsersOption::query()->where("id",auth()->data()->options_id)->first());
+			EventDispatcher()->dispatch(new AfterLogin($user));
+			return true;
+		}
+		return false;
+	}
 
     public function token(){
         if($this->check()===true){
