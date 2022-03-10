@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace App\Plugins\Blog\src\Request;
+namespace App\Request\Admin;
 
 use Hyperf\Validation\Request\FormRequest;
 
-class ClassEdit extends FormRequest
+class PluginUpload extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return auth()->check();
+        return true;
     }
 
     /**
@@ -22,9 +22,14 @@ class ClassEdit extends FormRequest
     public function rules(): array
     {
         return [
-			'token' => 'required|exists:blog_class,token',
-	        'class_id' => 'required',
-	        'name' => 'required'
+			'file' => 'mimes:zip,tar.gz'
         ];
     }
+	
+	public function attributes(): array
+	{
+		return [
+			'file' => '上传的文件'
+		];
+	}
 }

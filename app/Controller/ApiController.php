@@ -186,9 +186,9 @@ class ApiController
         if (request()->input("path")) {
              \Swoole\Coroutine\System::exec("rm -rf " . request()->input("path"), $result, $status);
             return Json_Api(200, true, ['msg' => "卸载成功!"]);
-        } else {
-            return Json_Api(403, false, ['msg' => "卸载失败,目录:" . request()->input("path") . " 不存在!"]);
         }
+	
+	    return Json_Api(403, false, ['msg' => "卸载失败,目录:" . request()->input("path") . " 不存在!"]);
     }
 
     public function AdminErrorRedirect(): array

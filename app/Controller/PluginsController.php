@@ -4,42 +4,82 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use Alchemy\Zippy\Zippy;
 use App\CodeFec\Admin\Ui\Card;
 use App\CodeFec\Admin\Ui\Row;
 use App\CodeFec\Admin\Ui;
-use Hyperf\HttpServer\Annotation\AutoController;
+use App\Request\Admin\PluginUpload;
+use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
+use Hyperf\HttpServer\Annotation\PostMapping;
+use Hyperf\Utils\Str;
 use Psr\Http\Message\ResponseInterface;
 
-/**
- * Class PluginsController
- * @AutoController(prefix="/admin/plugins")
- * @Middleware(\App\Middleware\AdminMiddleware::class)
- * @package App\Controller
- */
+#[Controller(prefix:"/admin/plugins")]
+#[Middleware(\App\Middleware\AdminMiddleware::class)]
 class PluginsController
 {
-    /**
-     * @GetMapping(path="/")
-     * @param Ui $ui
-     * @param Row $row
-     * @param Card $card
-     * @return ResponseInterface
-     */
+    #[GetMapping(path:"")]
     public function index(Ui $ui,Row $row,Card $card): ResponseInterface
     {
-        return $ui
-            ->title("插件管理")
-            ->body($row->row("col-md-12")
-                ->content($card
-                    ->title("插件列表")
-                    ->titleType(1)
-                    ->id("vue-plugin-table")
-                    ->content(view("admin.plugins"))
-                    ->render()
-                )
-                ->render())
-            ->render();
+		return view("admin.plugins.index");
     }
+	
+	// 上传插件
+	#[GetMapping(path:"upload")]
+	public function upload(){
+		return view("admin.plugins.upload");
+	}
+	
+	// 上传插件
+	#[PostMapping(path:"upload")]
+	public function upload_submit(PluginUpload $request){
+		// 不带后缀的文件名
+		$filename =  Str::before($request->file('file')->getClientFilename(),'.');
+		// 带后缀的文件名
+		$getClientFilename =  $request->file('file')->getClientFilename();
+		
+		// 移动文件
+		$request->file('file')->moveTo(plugin_path($request->file('file')->getClientFilename()));
+		
+		// 初始化压缩操作类
+		$zippy = Zippy::load();
+		
+		// 打开压缩文件
+		$archiveTar  =  $zippy->open(plugin_path($getClientFilename));
+		
+		// 解压
+		if(!is_dir(plugin_path($filename))){
+			mkdir(plugin_path($filename),0777);
+		}
+		
+		$archiveTar->extract(plugin_path($filename));
+		
+		// 获取解压后,插件文件夹的所有目录
+		$allDir = allDir(plugin_path($filename));
+		foreach($allDir as $value){
+			if(file_exists($value."/.dirName")){
+				$dirname = file_get_contents($value."/.dirName");
+				if(!$dirname){
+					$this->removeFiles(plugin_path($getClientFilename),plugin_path($filename));
+					return redirect()->with('danger','.dirName文件为空')->back()->go();
+				}
+				FileUtil()->moveDir($value,plugin_path($dirname));
+				$this->removeFiles(plugin_path($getClientFilename),plugin_path($filename));
+				return redirect()->with('success','插件上传成功!')->back()->go();
+			}
+		}
+		$this->removeFiles(plugin_path($getClientFilename),plugin_path($filename));
+		return redirect()->with('danger','.插件安装失败,没有找到 .dirName 文件')->back()->go();
+	}
+	
+	public function removeFiles(...$values): void
+	{
+		foreach($values as $value){
+			\Swoole\Coroutine\System::exec('rm -rf "' . $value.'"');
+		}
+	}
+	
+	
 }

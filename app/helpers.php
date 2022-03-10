@@ -40,7 +40,7 @@ use Symfony\Component\Console\Output\NullOutput;
 
 function public_path($path = ''): string
 {
-    if ($path != '') {
+    if ($path !== '') {
         return config('server.settings.document_root') . '/' . $path;
     }
     return config('server.settings.document_root');
@@ -318,7 +318,15 @@ if (!function_exists("get_plugins_doc")) {
             $result1 = explode(" ", $value);
             $arr[$result1[0]] = $result1[1];
         }
-        return $arr;
+		$data = [];
+		foreach($arr as $key => $value){
+			if($key==='package'){
+				$data['description'] = $value;
+			}else{
+				$data[$key] = $value;
+			}
+		}
+        return $data;
     }
 }
 
@@ -599,6 +607,15 @@ if(!function_exists("Plugins_EnList")){
     }
 }
 
+
+// 已启动插件列表
+if(!function_exists("plugins")){
+	function plugins(): Plugins
+	{
+		return new Plugins();
+	}
+}
+
 if(!function_exists("http")){
 	function http($response_type='array'): Client
 	{
@@ -619,5 +636,30 @@ if(!function_exists('captcha')){
 	function captcha(): \App\CodeFec\Captcha
 	{
 		return new \App\CodeFec\Captcha();
+	}
+}
+
+if(!function_exists('fileUtil')){
+	function fileUtil(): \App\CodeFec\FileUtil
+	{
+		return new \App\CodeFec\FileUtil();
+	}
+}
+
+if(!function_exists('allDir')){
+	function allDir($dir){ //遍历目录下的文件夹
+		$data = scandir($dir);
+		$arr = [];
+		// 把自身写进去
+		$arr[]=$dir;
+		
+		foreach($data as $value){
+			if($value !== "." && $value !== '..' && is_dir($dir . "/" . $value)) {
+				foreach(allDir($dir."/".$value) as $v){
+					$arr[]=$v;
+				}
+			}
+		}
+		return $arr;
 	}
 }

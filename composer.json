@@ -14,8 +14,10 @@
     "require": {
         "php": ">=8.0",
         "ext-json": "*",
+        "alchemy/zippy": "^1.0",
         "doctrine/dbal": "^3.0",
         "gregwar/captcha": "^1.1",
+        "hassankhan/config": "^3.0",
         "hyperf/async-queue": "2.2.*",
         "hyperf/cache": "2.2.*",
         "hyperf/command": "2.2.*",

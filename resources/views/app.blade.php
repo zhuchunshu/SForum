@@ -30,7 +30,7 @@
         @include('layouts.header')
         {{-- @include('layouts.bujian._msg')
         @include('shared._error') --}}
-        <div class="page-wrapper">
+        <div class="page-wrapper" id="@yield('pageId',path_class().'-page')">
             @include('layouts.header_title')
             <div class="page-body">
                 <div class="container-xl">
