@@ -38,9 +38,8 @@ class Upgrading
 		// 获取解压后,插件文件夹的所有目录
 		$allDir = allDir($tmp);
 		foreach($allDir as $value){
-			if(file_exists($value."/.CodeFec")){
+			if(file_exists($value."/CodeFec")){
 				FileUtil()->moveDir($value,BASE_PATH,true);
-				\Swoole\Coroutine\System::exec('cd "'.BASE_PATH.'" && composer du');
 				$this->removeFiles($tmp,$path,BASE_PATH."/app/CodeFec/storage/update.lock");
 			}
 		}
