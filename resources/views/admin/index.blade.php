@@ -20,7 +20,8 @@
                                         可更新
                                         <br>
                                         <a :href="data.zipball_url" class="btn btn-dark" style="margin-right: 10px">下载zip包</a>
-                                        <a :href="data.tarball_url" class="btn btn-light">下载tar.gz包</a>
+                                        <a :href="data.tarball_url" style="margin-right: 10px" class="btn btn-light">下载tar.gz包</a>
+                                        <button @@click="update" class="btn btn-green">立即更新</button>
                                     </div>
                                 </div>
                             </div>
@@ -49,6 +50,9 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                        <div class="col-md-12">
+                            <button @@click="clearCache" class="btn btn-dark">清理缓存</button>
                         </div>
 
 

@@ -65,13 +65,13 @@ class PluginsController
 					$this->removeFiles(plugin_path($getClientFilename),plugin_path($filename));
 					return redirect()->with('danger','.dirName文件为空')->back()->go();
 				}
-				FileUtil()->moveDir($value,plugin_path($dirname));
+				FileUtil()->moveDir($value,plugin_path($dirname),true);
 				$this->removeFiles(plugin_path($getClientFilename),plugin_path($filename));
 				return redirect()->with('success','插件上传成功!')->back()->go();
 			}
 		}
 		$this->removeFiles(plugin_path($getClientFilename),plugin_path($filename));
-		return redirect()->with('danger','.插件安装失败,没有找到 .dirName 文件')->back()->go();
+		return redirect()->with('danger','插件安装失败,没有找到 .dirName 文件')->back()->go();
 	}
 	
 	public function removeFiles(...$values): void

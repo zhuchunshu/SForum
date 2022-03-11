@@ -2139,6 +2139,46 @@ if (document.getElementById("vue-admin-index-releases")) {
         }).then(function (r) {
           _this2.commit = r.data;
         });
+      },
+      clearCache: function clearCache() {
+        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/admin/clearCache", {
+          _token: csrf_token
+        }).then(function (r) {
+          var data = r.data;
+
+          if (!data.success) {
+            swal({
+              icon: "error",
+              title: "出错啦!",
+              content: data.result.msg
+            });
+          } else {
+            swal({
+              icon: "success",
+              title: "Success!",
+              content: data.result.msg
+            });
+          }
+        });
+      },
+      update: function update() {
+        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/admin/update", {
+          _token: csrf_token
+        }).then(function (r) {
+          var data = r.data;
+
+          if (!data.success) {
+            swal({
+              icon: "error",
+              title: data.result.msg
+            });
+          } else {
+            swal({
+              icon: "success",
+              title: data.result.msg
+            });
+          }
+        });
       }
     }
   };

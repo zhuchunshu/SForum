@@ -2,10 +2,13 @@
 
 namespace App\Controller\Admin;
 
+use App\Jobs\Upgrading;
 use App\Middleware\AdminMiddleware;
+use Hyperf\Di\Annotation\Inject;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
+use function Swoole\Coroutine\Http\get;
 
 #[Controller(prefix:"/api/admin")]
 #[Middleware(AdminMiddleware::class)]
@@ -55,5 +58,48 @@ class ApiController
 			cache()->set('admin.git.commit',http()->get($this->api_commit),600);
 		}
 		return cache()->get('admin.git.commit');
+	}
+	
+	#[PostMapping(path:"clearCache")]
+	public function clearCache(){
+		cache()->delete('admin.git.getVersion');
+		return Json_Api(200,true,['msg' => '缓存清理成功']);
+	}
+	
+	/**
+	 * @Inject
+	 * @var Upgrading
+	 */
+	private Upgrading $upgrade;
+	
+	#[PostMapping(path:"update")]
+	public function update(){
+		$url = match((string)get_options('update_server',2)){
+			'2' => '',
+			'1' => 'https://ghproxy.com/'
+		};
+		$data = http()->get($this->api_releases);
+		$data = $data[0];
+		
+		// 获取当前程序版本信息
+		$build_info = include BASE_PATH."/build-info.php";
+		$data = array_merge($data, $build_info);
+		$version = $data['version'];
+		$tag_name = $data['tag_name'];
+		
+		// 判断是否不可升级
+		if($tag_name <=$version || $data['prerelease']==='false'){
+			return Json_Api(403,false,['msg' => '无需升级!']);
+		}
+		
+		// 生成文件下载链接
+		$url .= "https://github.com/zhuchunshu/super-forum/archive/".$tag_name.".zip";
+		
+		// 定义文件存放路径
+		$file_path= BASE_PATH."/app/CodeFec/storage/update.zip";
+		
+		// 创建下载任务
+		$this->upgrade->handle($url,$file_path);
+		return $url;
 	}
 }

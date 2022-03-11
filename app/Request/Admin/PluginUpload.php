@@ -22,7 +22,7 @@ class PluginUpload extends FormRequest
     public function rules(): array
     {
         return [
-			'file' => 'mimes:zip,tar.gz'
+			'file' => 'mimes:zip,gzip'
         ];
     }
 	

@@ -27,6 +27,44 @@ if(document.getElementById("vue-admin-index-releases")){
                 }).then(r=>{
                     this.commit = r.data
                 })
+            },
+            clearCache(){
+                axios.post("/api/admin/clearCache",{
+                    _token:csrf_token
+                }).then(r=>{
+                    const data =r.data
+                    if(!data.success){
+                        swal({
+                            icon:"error",
+                            title:"出错啦!",
+                            content:data.result.msg
+                        })
+                    }else{
+                        swal({
+                            icon:"success",
+                            title:"Success!",
+                            content:data.result.msg
+                        })
+                    }
+                })
+            },
+            update(){
+                axios.post("/api/admin/update",{
+                    _token:csrf_token
+                }).then(r=>{
+                    const data =r.data
+                    if(!data.success){
+                        swal({
+                            icon:"error",
+                            title:data.result.msg,
+                        })
+                    }else{
+                        swal({
+                            icon:"success",
+                            title: data.result.msg,
+                        })
+                    }
+                })
             }
         }
     }

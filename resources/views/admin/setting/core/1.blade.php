@@ -5,6 +5,15 @@
         <small>当前: {{get_options('APP_NAME',env('APP_NAME','未配置'))}}</small>
     </div>
     <div class="mb-3">
+        <label class="form-label">更新加速
+        </label>
+        <select class="form-select" v-model="data.update_server">
+            <option value="1">大陆服务器加速</option>
+            <option value="2">境外加速</option>
+        </select>
+        <small>默认境外</small>
+    </div>
+    <div class="mb-3">
         <label class="form-label">网站名称</label>
         <input type="text" min="1" max="3" class="form-control" v-model="data.web_name">
     </div>

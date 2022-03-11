@@ -184,7 +184,8 @@ class ApiController
             return Json_Api(401,false,['msg' => '无权限']);
         }
         if (request()->input("path")) {
-             \Swoole\Coroutine\System::exec("rm -rf " . request()->input("path"), $result, $status);
+             \Swoole\Coroutine\System::exec("rm -rf " . request()->input("path"));
+	        \Swoole\Coroutine\System::exec("composer du");
             return Json_Api(200, true, ['msg' => "卸载成功!"]);
         }
 	
