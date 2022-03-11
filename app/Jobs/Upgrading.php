@@ -15,12 +15,12 @@ class Upgrading
 	#[AsyncQueueMessage]
 	public function handle(string $download,string $path){
 		// 生成更新锁
-		file_put_contents(BASE_PATH."/app/CodeFec/storage/update.lock");
+		file_put_contents(BASE_PATH."/app/CodeFec/storage/update.lock",time());
 		// 下载文件
 		file_put_contents($path,fopen($download,'r'));
 		
 		// 定义临时压缩包存放目录
-		$tmp = BASE_PATH."/app/CodeFec/storage/update";
+		$tmp = BASE_PATH."/runtime/update";
 		
 		// 初始化压缩操作类
 		$zippy = Zippy::load();
@@ -39,13 +39,9 @@ class Upgrading
 		$allDir = allDir($tmp);
 		foreach($allDir as $value){
 			if(file_exists($value."/.CodeFec")){
-				$dirname = file_get_contents($value."/.dirName");
-				if(!$dirname){
-					$this->removeFiles($tmp,$path);
-				}
 				FileUtil()->moveDir($value,BASE_PATH,true);
 				\Swoole\Coroutine\System::exec('cd "'.BASE_PATH.'" && composer du');
-				$this->removeFiles($tmp,$path);
+				$this->removeFiles($tmp,$path,BASE_PATH."/app/CodeFec/storage/update.lock");
 			}
 		}
 	}

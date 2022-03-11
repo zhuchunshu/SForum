@@ -66,11 +66,12 @@ class ApiController
 		return Json_Api(200,true,['msg' => '缓存清理成功']);
 	}
 	
+	
 	/**
 	 * @Inject
 	 * @var Upgrading
 	 */
-	private Upgrading $upgrade;
+	protected $service;
 	
 	#[PostMapping(path:"update")]
 	public function update(){
@@ -96,10 +97,10 @@ class ApiController
 		$url .= "https://github.com/zhuchunshu/super-forum/archive/".$tag_name.".zip";
 		
 		// 定义文件存放路径
-		$file_path= BASE_PATH."/app/CodeFec/storage/update.zip";
+		$file_path= BASE_PATH."/runtime/update.zip";
 		
 		// 创建下载任务
-		$this->upgrade->handle($url,$file_path);
+		$this->service->handle($url,$file_path);
 		return $url;
 	}
 }
