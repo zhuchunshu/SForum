@@ -101,6 +101,6 @@ class ApiController
 		
 		// 创建下载任务
 		$this->service->handle($url,$file_path);
-		return $url;
+		return Json_Api(200,true,['msg' => '升级任务已创建']);
 	}
 }
