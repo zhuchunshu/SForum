@@ -8,6 +8,7 @@ use Hyperf\Di\Annotation\Inject;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
+use Hyperf\Utils\Str;
 use function Swoole\Coroutine\Http\get;
 
 #[Controller(prefix:"/api/admin")]
@@ -31,7 +32,7 @@ class ApiController
 			
 			// 判断是否可升级
 			$data['upgrade']=false;
-			if($tag_name >$version){
+			if($tag_name >$version || $data['prerelease']==='false'){
 				$data['upgrade']=true;
 			}
 			
@@ -89,7 +90,7 @@ class ApiController
 		$tag_name = $data['tag_name'];
 		
 		// 判断是否不可升级
-		if($tag_name <=$version || $data['prerelease']==='false'){
+		if($tag_name >$version || $data['prerelease']==='false'){
 			return Json_Api(403,false,['msg' => '无需升级!']);
 		}
 		
