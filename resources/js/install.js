@@ -99,7 +99,7 @@ if(document.getElementById("app-install")){
                             icon:'success'
                         })
                         setTimeout(()=>{
-                            location.href="/"
+                            location.href="/admin"
                         },1500)
                     }else{
                         swal({

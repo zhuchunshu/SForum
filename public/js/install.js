@@ -2406,7 +2406,7 @@ if (document.getElementById("app-install")) {
               icon: 'success'
             });
             setTimeout(function () {
-              location.href = "/";
+              location.href = "/admin";
             }, 1500);
           } else {
             sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
