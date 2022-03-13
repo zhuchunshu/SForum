@@ -41,6 +41,7 @@
                     @include('core.install.mysql')
                     @include('core.install.redis')
                     @include('core.install.reload')
+                    @include('core.install.port')
                     @include('core.install.user')
 
                 </div>

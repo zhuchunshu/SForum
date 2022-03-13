@@ -88,7 +88,7 @@ class InstallController extends AbstractController
 		}else{
 			$step = (int)core_default(@file_get_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock"),1);
 		}
-		if($step>=5){
+		if($step>=6){
 			return Json_Api(403,false,['msg' => '出错啦!']);
 		}
 		$method = "step_".$step;
@@ -229,7 +229,8 @@ class InstallController extends AbstractController
 			2=>50,
 			3=>75,
 			4=>90,
-			5=>100
+			5=>100,
+			6=>100
 		};
         return [
 			'tips' =>$tips,
