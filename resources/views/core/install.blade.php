@@ -1,4 +1,4 @@
-<!doctype html>
+<!Doctype html>
 <html lang="zh-CN">
 
 <head>
@@ -26,43 +26,52 @@
 
 <body class="antialiased border-top-wide border-primary d-flex flex-column">
     <div class="page page-center">
-        <div class="container-tight py-4">
+        <div class="container-tight py-4" id="app-install">
             <div class="text-center mb-4">
                 <a href="#"><img src="/logo.svg" height="36" alt=""></a>
             </div>
             <div class="card card-md">
-                <div class="card-body text-center py-4 p-sm-5">
-                    <img id="install-img" src="@yield('img','/install/step1.svg')" height="128" class="mb-n2" height="120" alt="">
-                    <h1 class="mt-5">Welcome to SuperForum!</h1>
-                    <p class="text-muted">仅需简单几步,完成程序安装</p>
+                <div class="card-body text-center">
+                    <h1>安装SuperForum!</h1>
+                    <p class="text-muted">本项目开源地址: <a href="https://github.com/zhuchunshu">https://github.com/zhuchunshu</a><br>安装过程中如若遇到问题请到论坛反馈:
+                        <a href="https://forum.runpod.cn">https://forum.runpod.cn</a><br>接下来请根据提示进行安装吧!</p>
                 </div>
-                <div class="hr-text hr-text-center hr-text-spaceless">@yield('hr','your data')</div>
-                <form action="" onsubmit="return false" method="post">
-                    <div class="card-body" id="app-install">
+                <div class="hr-text hr-text-center hr-text-spaceless">@{{ tips }}</div>
+                <div class="card-body">
+                    @include('core.install.mysql')
+                    @include('core.install.redis')
+                    @include('core.install.reload')
+                    @include('core.install.user')
 
-                    </div>
-                    <div class="card-footer">
-                        <div class="row">
-                            <div class="col">
-                                <button type="button" class="btn btn-danger" id="prev">上一步</button>
-                            </div>
-                            <div class="col-auto">
-                                <button type="submit" class="btn btn-primary" id="next">下一步</button>
-                            </div>
-                        </div>
-                    </div>
-                </form>
+                </div>
             </div>
             <div class="row align-items-center mt-3">
-                @yield('footer')
+                <div class="col-4">
+                    <div class="progress">
+                        <div class="progress-bar" :style="{width: progress + '%' }" role="progressbar" :aria-valuenow="progress" aria-valuemin="0" aria-valuemax="100">
+                            <span class="visually-hidden">@{{ progress }}% Complete</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="btn-list justify-content-end">
+                        <a v-if="install_lock>=1" @@click="previous" href="#" class="btn btn-link link-secondary">
+                            上一步
+                        </a>
+                        <a  v-if="install_lock<4" href="#" @@click="next" class="btn btn-primary">
+                            下一步
+                        </a>
+                        <a  v-if="install_lock>=4" href="#" @@click="install" class="btn btn-primary">
+                            完成安装
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-
-    <script src='/js/jquery-3.6.0.min.js'></script>
+    <script src="{{ mix('js/vue.js') }}"></script>
     <script src="{{ mix('js/install.js') }}"></script>
     <script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
-    <!-- Tabler Core -->
     <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
 </body>
 

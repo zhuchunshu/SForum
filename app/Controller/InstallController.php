@@ -32,139 +32,190 @@ class InstallController extends AbstractController
     #[GetMapping(path: "/install")]
     public function install(): \Psr\Http\Message\ResponseInterface
     {
+	    if (!file_exists(BASE_PATH . "/.env")) {
+		    copy(BASE_PATH . "/.env.example", BASE_PATH . "/.env");
+	    }
+		
+	    if (!is_dir(BASE_PATH . "/app/CodeFec/storage")) {
+		    \Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/app/CodeFec/storage");
+	    }
+	    file_put_contents(BASE_PATH."/app/CodeFec/storage/install.reload.lock",time());
         return view("core.install");
     }
+	
+	#[PostMapping(path: "/install/env")]
+	public function env(): array
+	{
+		if (!file_exists(BASE_PATH . "/.env")) {
+			copy(BASE_PATH . "/.env.example", BASE_PATH . "/.env");
+		}
+		
+		if (!is_dir(BASE_PATH . "/app/CodeFec/storage")) {
+			\Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/app/CodeFec/storage");
+		}
+		$result = [];
+		$content = file_get_contents(BASE_PATH."/.env");
+		foreach (explode("\n",$content) as $value) {
+			if($value && is_string($value)){
+				$arr = explode("=",$value);
+				$result[$arr[0]]=$arr[1];
+			}
+		}
+		return $result;
+	}
+	
+	// 上一步
+	#[PostMapping(path:"/install/previous")]
+	public function previous(){
+		if(!file_get_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock")){
+			$step = 1;
+		}else{
+			$step = (int)core_default(@file_get_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock"),1);
+		}
+		if($step<0){
+			return Json_Api(403,false,['msg' => '出错啦!']);
+		}
+		file_put_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock",$step-1);
+		return Json_Api(200, true, ['msg' => 'successfully !']);
+	}
+	
+	// 下一步
+	#[PostMapping(path: "/install/next")]
+	public function next()
+	{
+		if(!file_get_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock")){
+			$step = 1;
+		}else{
+			$step = (int)core_default(@file_get_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock"),1);
+		}
+		if($step>=5){
+			return Json_Api(403,false,['msg' => '出错啦!']);
+		}
+		$method = "step_".$step;
+		file_put_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock",$step+1);
+		return $this->$method(request());
+	}
 
+	// 配置mysql
+	public function step_1($request){
+		if($request->input('env')){
+			$env = de_stringify($request->input('env'));
+			if(!is_array($env)){
+				return Json_Api(403,false,['msg' => '请提交正确的数据']);
+			}
+			$env_arr = [];
+			foreach ($env as $key=>$value){
+				if($key && $value && is_string($key) && $key !== "=" && is_string($value) && $value!="="){
+					$env_arr[$key] = $value;
+				}
+			}
+			modifyEnv($env_arr);
+		}
+		return Json_Api(200, true, ['msg' => '数据库信息配置成功!']);
+	}
+	
+	// 配置redis
+	public function step_2($request){
+		if($request->input('env')){
+			$env = de_stringify($request->input('env'));
+			if(!is_array($env)){
+				return Json_Api(403,false,['msg' => '请提交正确的数据']);
+			}
+			$env_arr = [];
+			foreach ($env as $key=>$value){
+				if($key && $value && is_string($key) && $key !== "=" && is_string($value) && $value!="="){
+					$env_arr[$key] = $value;
+				}
+			}
+			modifyEnv($env_arr);
+		}
+		return Json_Api(200, true, ['msg' => 'redis信息配置成功!']);
+	}
+	
+	// 数据迁移
+	public function step_3($request){
+		$command = 'migrate';
+		
+		$params = ["command" => $command, "--force"];
+		$input = new ArrayInput($params);
+		$output = new NullOutput();
+		
+		$container = \Hyperf\Utils\ApplicationContext::getContainer();
+		
+		$application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+		$application->setAutoExit(false);
+		
+		$exitCode = $application->run($input, $output);
+		
+		$command = 'CodeFec:migrate';
+		
+		$params = ["command" => $command];
+		$input = new ArrayInput($params);
+		$output = new NullOutput();
+		
+		$container = \Hyperf\Utils\ApplicationContext::getContainer();
+		
+		$application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+		$application->setAutoExit(false);
+		
+		$exitCode = $application->run($input, $output);
+		return Json_Api(200, true, ['msg' => '数据迁移成功!']);
+	}
+	
+	// 创建管理员账号
+	public function step_4($request){
+		AdminUser::query()->create([
+			'email' => $request->input("email"),
+			'username' => $request->input("username"),
+			'password' => Hash::make($request->input("password")),
+		]);
+		if (!file_exists(BASE_PATH . "/app/CodeFec/storage/install.lock")) {
+			file_put_contents(BASE_PATH . "/app/CodeFec/storage/install.lock", date("Y-m-d H:i:s"));
+		}
+		return Json_Api(200, true, ['msg' => '安装成功!']);
+	}
+	
+	
+	
     #[PostMapping(path: "/install")]
-    public function post(): \Psr\Http\Message\ResponseInterface
+    public function post(): array
     {
-        $install_step = (int)cache()->get("install", 1);
-        if ((request()->input('reduce', false) == "true") && $install_step !== 1) {
-            cache()->set("install", $install_step - 1);
-            return view("core.install." . cache()->get("install", 1));
-        }
-
-        // 如果点击下一步
-        if (request()->input('next', false) == "true") {
-            switch ($install_step) {
-                case 1:
-                    $this->post_step1();
-                    cache()->set("install", $install_step + 1);
-                    break;
-                case 5:
-                case 2:
-                case 7:
-                    cache()->set("install", $install_step + 1);
-                    break;
-                case 3:
-                    $this->post_step2();
-                    cache()->set("install", $install_step + 1);
-                    break;
-                case 4:
-                    $this->post_step3();
-                    cache()->set("install", $install_step + 1);
-                    break;
-                case 6:
-                    $this->post_step4();
-                    cache()->set("install", $install_step + 1);
-                    break;
-                case 8:
-                    $this->post_step5();
-                    cache()->set("install", $install_step + 1);
-                    break;
-                case 9:
-                    $this->post_step6();
-                    cache()->set("install", $install_step + 1);
-                    break;
-            }
-        }
-
-        return view("core.install." . cache()->get("install", 1));
-    }
-
-    public function post_step2(): void
-    {
-        $web_name = request()->input("name");
-        $web_domain = request()->input("domain");
-        $web_ssl = 'false';
-        if (request()->input("ssl") === "https") {
-            $web_ssl = 'true';
-        }
-        modifyEnv([
-            'APP_NAME' => $web_name,
-            'APP_DOMAIN' => $web_domain,
-            'APP_SSL' => $web_ssl
-        ]);
-    }
-
-    public function post_step1(): void
-    {
-        if (!file_exists(BASE_PATH . "/.env")) {
-            copy(BASE_PATH . "/.env.example", BASE_PATH . "/.env");
-        }
-    }
-
-    public function post_step3(): void
-    {
-        modifyEnv([
-            'DB_HOST' => request()->input("DB_HOST"),
-            'DB_DATABASE' => request()->input("DB_DATABASE"),
-            'DB_USERNAME' => request()->input("DB_USERNAME"),
-            'DB_PASSWORD' => request()->input("DB_PASSWORD"),
-        ]);
-        //file_put_contents(BASE_PATH."/app/CodeFec/storage/install-step.txt",date("Y-m-d H:i:s"));
-    }
-
-    public function post_step4(): void
-    {
-        modifyEnv([
-            'REDIS_PORT' => request()->input("REDIS_PORT"),
-            'REDIS_AUTH' => request()->input("REDIS_AUTH"),
-            'REDIS_HOST' => request()->input("REDIS_HOST"),
-        ]);
-        $command = 'migrate';
-
-        $params = ["command" => $command, "--force"];
-        $input = new ArrayInput($params);
-        $output = new NullOutput();
-
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
-
-        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
-        $application->setAutoExit(false);
-
-        $exitCode = $application->run($input, $output);
-
-        $command = 'CodeFec:migrate';
-
-        $params = ["command" => $command];
-        $input = new ArrayInput($params);
-        $output = new NullOutput();
-
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
-
-        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
-        $application->setAutoExit(false);
-
-        $exitCode = $application->run($input, $output);
-    }
-
-    public function post_step5(): void
-    {
-        AdminUser::query()->create([
-            'email' => request()->input("email"),
-            'username' => request()->input("username"),
-            'password' => Hash::make(request()->input("password")),
-        ]);
-    }
-
-    public function post_step6(): void
-    {
-        if (!is_dir(BASE_PATH . "/app/CodeFec/storage")) {
-             \Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/app/CodeFec/storage");
-        }
-        if (!file_exists(BASE_PATH . "/app/CodeFec/storage/install.lock")) {
-            file_put_contents(BASE_PATH . "/app/CodeFec/storage/install.lock", date("Y-m-d H:i:s"));
-        }
+	    if (!is_dir(BASE_PATH . "/app/CodeFec/storage")) {
+		    \Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/app/CodeFec/storage");
+	    }
+	    if(!file_get_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock")){
+		    $install_lock = 0;
+	    }else{
+		    $install_lock = (int)core_default(@file_get_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock"),1);
+	    }
+	
+		if(!file_exists(BASE_PATH."/app/CodeFec/storage/install.step.lock")){
+			file_put_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock",1);
+		}
+	    if(!file_get_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock")){
+		    $step = 1;
+	    }else{
+		    $step = (int)core_default(@file_get_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock"),1);
+	    }
+		
+		$tips = match($step){
+			1=>"配置数据库信息",
+			2=>"配置redis信息",
+			3=>"重启服务",
+			4=>"创建管理员账号",
+			5=>"安装完成!"
+		};
+		$progress = match($step){
+			1=>25,
+			2=>50,
+			3=>75,
+			4, 5 =>100
+		};
+        return [
+			'tips' =>$tips,
+			'step' => $step,
+	        'progress' =>$progress,
+	        'install_lock' =>$install_lock
+        ];
     }
 }

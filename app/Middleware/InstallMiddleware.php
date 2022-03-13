@@ -26,7 +26,7 @@ class InstallMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         if(!file_exists(BASE_PATH."/app/CodeFec/storage/install.lock")){
-            if(request()->path() !== "install"){
+            if(request()->path()!=="install" && !Str::is($this->clean_str('install/*'),$this->clean_str(request()->path()))){
                 return response()->redirect("/install");
             }
         }

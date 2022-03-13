@@ -1,7 +1,6 @@
 import axios from "axios";
 import swal from "sweetalert";
 import iziToast from "izitoast";
-import Pjax from "pjax";
 
 if(document.getElementById("vue-header-right-my")){
     const vhrm ={

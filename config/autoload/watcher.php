@@ -16,7 +16,7 @@ return [
     'bin' => env('WATCHER_BIN', 'php'),
     'watch' => [
         'dir' => ['app', 'config'],
-        'file' => ['.env'],
-        'scan_interval' => 1000,
+        'file' => ['.env','build-info.php'],
+        'scan_interval' => 2000,
     ],
 ];
