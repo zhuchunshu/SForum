@@ -1,4 +1,4 @@
-<div v-if="step===4">
+<div v-if="step===5">
     <h3 style="color: red">创建管理员用户</h3>
     <div class="mb-3">
         <label class="form-label">管理员邮箱</label>

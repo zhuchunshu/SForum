@@ -162,8 +162,26 @@ class InstallController extends AbstractController
 		return Json_Api(200, true, ['msg' => '数据迁移成功!']);
 	}
 	
-	// 创建管理员账号
+	// 配置服务端口
 	public function step_4($request){
+		if($request->input('env')){
+			$env = de_stringify($request->input('env'));
+			if(!is_array($env)){
+				return Json_Api(403,false,['msg' => '请提交正确的数据']);
+			}
+			$env_arr = [];
+			foreach ($env as $key=>$value){
+				if($key && $value && is_string($key) && $key !== "=" && is_string($value) && $value!="="){
+					$env_arr[$key] = $value;
+				}
+			}
+			modifyEnv($env_arr);
+		}
+		return Json_Api(200, true, ['msg' => '服务端口配置成功!']);
+	}
+	
+	// 创建管理员账号
+	public function step_5($request){
 		AdminUser::query()->create([
 			'email' => $request->input("email"),
 			'username' => $request->input("username"),
@@ -202,14 +220,16 @@ class InstallController extends AbstractController
 			1=>"配置数据库信息",
 			2=>"配置redis信息",
 			3=>"重启服务",
-			4=>"创建管理员账号",
-			5=>"安装完成!"
+			4=>"配置服务端口",
+			5=>"创建管理员账号!",
+			6=>"安装完成!"
 		};
 		$progress = match($step){
 			1=>25,
 			2=>50,
 			3=>75,
-			4, 5 =>100
+			4=>90,
+			5=>100
 		};
         return [
 			'tips' =>$tips,

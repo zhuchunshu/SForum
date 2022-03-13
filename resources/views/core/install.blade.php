@@ -58,10 +58,10 @@
                         <a v-if="install_lock>=1" @@click="previous" href="#" class="btn btn-link link-secondary">
                             上一步
                         </a>
-                        <a  v-if="install_lock<4" href="#" @@click="next" class="btn btn-primary">
+                        <a  v-if="install_lock<5" href="#" @@click="next" class="btn btn-primary">
                             下一步
                         </a>
-                        <a  v-if="install_lock>=4" href="#" @@click="install" class="btn btn-primary">
+                        <a  v-if="install_lock>=5" href="#" @@click="install" class="btn btn-primary">
                             完成安装
                         </a>
                     </div>
