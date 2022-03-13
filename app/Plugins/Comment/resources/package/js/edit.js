@@ -14,6 +14,7 @@ if(document.getElementById("vue-comment-topic-edit-form")){
         mounted() {
             // vditor
             this.vditor = new Vditor('vditor', {
+                cdn:'/js/vditor',
                 height: 300,
                 toolbarConfig: {
                     pin: true,

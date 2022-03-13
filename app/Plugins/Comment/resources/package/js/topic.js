@@ -84,6 +84,7 @@ if(document.getElementById("topic-comment-model")){
 
             // vditor
             this.vditor = new Vditor('topic-comment', {
+                cdn:'/js/vditor',
                 height: 300,
                 toolbarConfig: {
                     pin: true,
@@ -303,6 +304,7 @@ $(function(){
         var comment_url = vditor_dom.attr("comment-url")
         if(vditor_dom.attr("comment-status")==="off"){
             var vditor = new Vditor('comment-reply-vditor-'+comment_id, {
+                cdn:'/js/vditor',
                 height: 250,
                 toolbarConfig: {
                     pin: true,
