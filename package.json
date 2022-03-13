@@ -47,6 +47,7 @@
     "vditor": "^3.8.11",
     "vue": "^3.1.1",
     "vue-cookie": "^1.1.4",
+    "vue-float-action-button": "^0.7.9",
     "vue-terminal": "^1.2.0",
     "yarn": "^1.22.11"
   },

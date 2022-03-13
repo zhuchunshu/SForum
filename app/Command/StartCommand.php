@@ -48,7 +48,7 @@ class StartCommand extends HyperfCommand
         $this->info("插件扩展更新完毕!");
 
         $this->info("开始清理缓存...");
-         \Swoole\Coroutine\System::exec("yes | composer du");
+         \Swoole\Coroutine\System::exec("yes yes | composer du");
         $this->info("缓存清理完毕！");
         $option = make(Option::class, [
             'dir' => $this->input->getOption('dir'),

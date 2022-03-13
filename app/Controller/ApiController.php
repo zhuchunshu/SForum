@@ -77,7 +77,7 @@ class ApiController
         } catch (InvalidArgumentException $e) {
         }
         cache()->delete("plugins.en");
-         \Swoole\Coroutine\System::exec("yes | composer du");
+         \Swoole\Coroutine\System::exec("yes yes | composer du");
         return Json_Api(200, true, ['msg' => "更新成功!"]);
     }
 	
@@ -173,7 +173,7 @@ class ApiController
         }
         if (request()->input("path")) {
              \Swoole\Coroutine\System::exec("rm -rf " . request()->input("path"));
-	        \Swoole\Coroutine\System::exec("yes | composer du");
+	        \Swoole\Coroutine\System::exec("yes yes | composer du");
             return Json_Api(200, true, ['msg' => "卸载成功!"]);
         }
 	

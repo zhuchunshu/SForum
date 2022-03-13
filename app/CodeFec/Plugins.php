@@ -71,7 +71,7 @@ class Plugins {
         $list = self::GetAll();
         foreach($list as $data){
             if(file_exists(plugin_path($data['dir']."/composer.json"))){
-                 \Swoole\Coroutine\System::exec("cd ".plugin_path($data['dir'])." && yes | composer install");
+                 \Swoole\Coroutine\System::exec("cd ".plugin_path($data['dir'])." && yes yes | composer install");
             }
         }
     }

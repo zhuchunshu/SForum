@@ -11,8 +11,6 @@
     <link rel="icon" href="/logo.svg" type="image/x-icon" />
     <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
     <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet" />
-    <link href="{{ '/tabler/css/tabler-flags.min.css' }}" rel="stylesheet" />
-    <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
     <link rel="stylesheet" href="{{mix("plugins/Core/css/core.css")}}">
     <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet" />
@@ -25,6 +23,12 @@
     <meta name="keywords" content="@yield('keywords',get_options('keywords'))">
     @yield('css')
     @yield('headers')
+    {{--插件css--}}
+    @foreach((new \App\CodeFec\Plugins())->getEnPlugins() as $value)
+        @if(file_exists(public_path("plugins/".$value."/".$value.".css")))
+            <link href="{{ file_hash("plugins/".$value."/".$value.".css") }}" rel="stylesheet" />
+        @endif
+    @endforeach
 </head>
 
 <body class="antialiased">
@@ -32,7 +36,7 @@
 @include("Core::layouts.errors")
 @include("Core::layouts._msg")
 @yield('header')
-<div class="page-body">
+<div id="{{ path_class() }}-page" class="page-body">
     <div class="container-xl">
         @yield('content')
     </div>
@@ -50,13 +54,13 @@
     @foreach (\App\CodeFec\Ui\functions::get('js') as $key => $value)
         <script src="{{ $value }}"></script>
     @endforeach
+    @yield('scripts')
     {{--插件js--}}
     @foreach((new \App\CodeFec\Plugins())->getEnPlugins() as $value)
         @if(file_exists(public_path("plugins/".$value."/".$value.".js")))
             <script src="{{ file_hash("plugins/".$value."/".$value.".js") }}"></script>
         @endif
     @endforeach
-    @yield('scripts')
 </div>
 </body>
 </html>

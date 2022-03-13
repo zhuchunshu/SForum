@@ -6760,6 +6760,11 @@ vue-cookie@^1.1.4:
   dependencies:
     tiny-cookie "^1.0"
 
+vue-float-action-button@^0.7.9:
+  version "0.7.9"
+  resolved "https://registry.npmmirror.com/vue-float-action-button/-/vue-float-action-button-0.7.9.tgz#ed086fe443cd4f0000765f36d2ba1984286904ff"
+  integrity sha512-f5EmvV6nfUV5bMXFT/3SHG8SaJMf82VW+4zScYpRy7OnqAhZto1XH13qAJsQrGrZ2y0eufeYn66bwozFc0FfJg==
+
 vue-loader@^16.2.0:
   version "16.2.0"
   resolved "https://registry.nlark.com/vue-loader/download/vue-loader-16.2.0.tgz#046a53308dd47e58efe20ddec1edec027ce3b46e"
