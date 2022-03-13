@@ -46,17 +46,13 @@ class ApiController
         return Json_Api(200, true, menu()->get());
     }
 
-    /**
-     * @Middleware(AdminMiddleware::class)
-     */
+    #[Middleware(AdminMiddleware::class)]
     public function AdminPluginList(): array
     {
         return Json_Api(200, true, ['data' => (new Plugins())->getEnPlugins()]);
     }
-
-    /**
-     * @Middleware(AdminMiddleware::class)
-     */
+	
+	#[Middleware(AdminMiddleware::class)]
     public function AdminPluginSave(): array
     {
         if(!admin_auth()->check()){
@@ -84,10 +80,8 @@ class ApiController
          \Swoole\Coroutine\System::exec("yes | composer du");
         return Json_Api(200, true, ['msg' => "更新成功!"]);
     }
-
-    /**
-     * @Middleware(AdminMiddleware::class)
-     */
+	
+	#[Middleware(AdminMiddleware::class)]
     public function AdminPluginMigrate($name=null): array
     {
         if(!admin_auth()->check()){
@@ -140,10 +134,8 @@ class ApiController
         }
         return Json_Api(200, true, ['msg' => '资源迁移成功!']);
     }
-
-    /**
-     * @Middleware(AdminMiddleware::class)
-     */
+	
+	#[Middleware(AdminMiddleware::class)]
     public function AdminPluginMigrateAll(): array
     {
         if(!admin_auth()->check()){
@@ -154,10 +146,8 @@ class ApiController
         }
         return Json_Api(200, true, ['msg' => '资源迁移成功!']);
     }
-
-    /**
-     * @Middleware(AdminMiddleware::class)
-     */
+	
+	#[Middleware(AdminMiddleware::class)]
     public function AdminPluginUpdatePackage(){
         $params = ["command" => "CodeFec:PluginsComposerInstall"];
 
@@ -174,10 +164,8 @@ class ApiController
         $exitCode = $application->run($input, $output);
         return Json_Api(200, true, ['msg' => '更新成功!']);
     }
-
-    /**
-     * @Middleware(AdminMiddleware::class)
-     */
+	
+	#[Middleware(AdminMiddleware::class)]
     public function AdminPluginRemove(): array
     {
         if(!admin_auth()->check()){

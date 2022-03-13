@@ -17,9 +17,10 @@
     "/plugins/Blog/js/article.js": "/plugins/Blog/js/article.js?id=1daa79381ec003ca4dc4",
     "/plugins/Comment/js/topic.js": "/plugins/Comment/js/topic.js?id=c82cddcfab27e8601430",
     "/plugins/Comment/js/edit.js": "/plugins/Comment/js/edit.js?id=95746a28508676b90ceb",
+    "/plugins/Core/js/app.js": "/plugins/Core/js/app.js?id=6a858d8a3451ec36dd55",
     "/plugins/Blog/css/article.css": "/plugins/Blog/css/article.css?id=81ca2c94c21f606d141a",
     "/plugins/Core/css/core.css": "/plugins/Core/css/core.css?id=4e36b09ff6e0c0c8fa70",
-    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=c087bd2d073d1faaa1c4",
+    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=233a37d37afd0abc0c8b",
     "/plugins/Core/css/app.css": "/plugins/Core/css/app.css?id=68b329da9893e34099c7",
     "/css/app.css": "/css/app.css?id=68b329da9893e34099c7"
 }

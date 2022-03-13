@@ -8160,6 +8160,7 @@ if (document.getElementById("create-topic-vue")) {
         }); // vditor
 
         this.vditor = new (vditor__WEBPACK_IMPORTED_MODULE_1___default())('content-vditor', {
+          cdn: '/js/vditor',
           height: 400,
           toolbarConfig: {
             pin: true
@@ -8694,6 +8695,7 @@ if (document.getElementById("edit-topic-vue")) {
         }); // vditor
 
         this.vditor = new (vditor__WEBPACK_IMPORTED_MODULE_1___default())('content-vditor', {
+          cdn: '/js/vditor',
           height: 400,
           toolbarConfig: {
             pin: true

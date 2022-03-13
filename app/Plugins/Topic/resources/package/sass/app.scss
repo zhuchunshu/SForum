@@ -7,6 +7,7 @@ pre{
   font-size:16px;
 }
 .vditor-reset p{
+  font:normal 1.25em KaTeX_Main,Times New Roman,serif;
   margin-bottom:5px;
   word-wrap: break-word;
   word-break: normal;
@@ -18,8 +19,7 @@ pre{
   position: relative;
 }
 .vditor-reset{
-  //font-family: 'Noto Serif SC',-apple-system,BlinkMacSystemFont,Helvetica Neue,PingFang SC,Microsoft YaHei,Source Han Sans SC,Noto Sans CJK SC,WenQuanYi Micro Hei,sans-serif;
-  //font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "WenQuanYi Micro Hei", "Microsoft Yahei", sans-serif;
+  font:normal 1.25em KaTeX_Main,Times New Roman,serif;
   font-size:16px;
   .alert{
 
