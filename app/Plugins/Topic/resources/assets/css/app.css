@@ -1775,7 +1775,7 @@ pre {
 }
 
 .vditor-reset p {
-  font: normal 1.25em KaTeX_Main, Times New Roman, serif;
+  font: normal 1.1em KaTeX_Main, Times New Roman, serif;
   margin-bottom: 5px;
   word-wrap: break-word;
   word-break: normal;
@@ -1788,7 +1788,7 @@ pre {
 }
 
 .vditor-reset {
-  font: normal 1.25em KaTeX_Main, Times New Roman, serif;
+  font: normal 1.1em KaTeX_Main, Times New Roman, serif;
   font-size: 16px;
 }
 .vditor-reset .alert {
