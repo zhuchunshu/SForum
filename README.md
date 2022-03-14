@@ -1,49 +1,45 @@
-## Super-Forum
-借鉴`CodeFec`,可以理解为CodeFec升级版
-## 特点
-性能强、速度快、易上手、组件化、功能丰富
+super-forum是一个基于php开发的功能丰富、性能好、速度快的中文论坛程序
 
-## 演示站
-[https://forum.runpod.cn](https://forum.runpod.cn)
+### 特点
 
-## 交流QQ群
+免费、年轻化、性能强、速度快、易上手、组件化、功能丰富
+
+### 文档
+
+使用文档: [https://forum.runpod.cn/docs/1](https://forum.runpod.cn/docs/1)
+
+开发文档:[https://forum.runpod.cn/docs/3](https://forum.runpod.cn/docs/3)
+
+### 开源地址
+
+[https://github.com/zhuchunshu/super-forum](https://github.com/zhuchunshu/super-forum)
+
+### QQ交流群
+
 798695907
 
-## 截图
+### 截图
 
-**首页**
+注册
 
-![首页](https://raw.githubusercontent.com/zhuchunshu/Images/master/superforum/home.png)
+![uploadtopic2022031511647275579dHlKHiWHXm.png](/upload/topic/202203/15/1_1647275579_dHlKHiWHXm.png)
 
-**帖子-加载中**
+首页
 
-![帖子页面-加载中](https://raw.githubusercontent.com/zhuchunshu/Images/master/superforum/topic-lazyload.png)
+![uploadtopic2022031511647274941A9jGesdB6o.png](/upload/topic/202203/15/1_1647274941_A9jGesdB6o.png)
 
-**帖子页**
+发帖
 
-![帖子页](https://raw.githubusercontent.com/zhuchunshu/Images/master/superforum/topic.png)
+![uploadtopic20220315116472749698MysOwZsZM.png](/upload/topic/202203/15/1_1647274969_8MysOwZsZM.png)
 
-**评论**
+文章展示
 
-![评论](https://raw.githubusercontent.com/zhuchunshu/Images/master/superforum/comment.png)
+![uploadtopic2022031511647274992iVYzpVxqva.png](/upload/topic/202203/15/1_1647274992_iVYzpVxqva.png)
 
-**回复评论**
+评论
 
-![回复评论](https://raw.githubusercontent.com/zhuchunshu/Images/master/superforum/reply-comment.png)
+![uploadtopic2022031511647275024w1rdLIuoQi.png](/upload/topic/202203/15/1_1647275024_w1rdLIuoQi.png)
 
-**个人设置**
+后台组件
 
-![个人设置](https://raw.githubusercontent.com/zhuchunshu/Images/master/superforum/user-setting.png)
-
-**发帖**
-
-![发帖](https://raw.githubusercontent.com/zhuchunshu/Images/master/superforum/create-topic.png)
-
-**后台-插件**
-
-![后台-插件](https://raw.githubusercontent.com/zhuchunshu/Images/master/superforum/admin-plugins.png)
-
-**后台-设置**
-
-![后台-设置](https://raw.githubusercontent.com/zhuchunshu/Images/master/superforum/admin-setting.png)
-
+![uploadtopic2022031511647275064vjQdQaFPDd.png](/upload/topic/202203/15/1_1647275064_vjQdQaFPDd.png)
