@@ -16,10 +16,11 @@ class SendNoticeListener implements ListenerInterface
             SendNotice::class,
         ];
     }
-
-    /**
-     * @param SendNotice $event
-     */
+	
+	/**
+	 * @param object $event
+	 * @throws \PHPMailer\PHPMailer\Exception
+	 */
     public function process(object $event)
     {
         /**

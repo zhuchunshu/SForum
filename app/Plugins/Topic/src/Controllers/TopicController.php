@@ -72,9 +72,9 @@ class TopicController
     #[PostMapping(path:"/topic/edit")]
     public function edit_post(UpdateTopicRequest $request){
         $quanxian = false;
-        if(Authority()->check("admin_topic_edit") && curd()->GetUserClass(auth()->data()->class_id)['permission-value']>curd()->GetUserClass($data->user->class_id)['permission-value']){
+        if(@Authority()->check("admin_topic_edit") && @curd()->GetUserClass(auth()->data()->class_id)['permission-value']>curd()->GetUserClass(auth()->data()->class_id)['permission-value']){
             $quanxian =true;
-        }else if(Authority()->check("topic_edit") && auth()->id() === $data->user->id){
+        }else if(Authority()->check("topic_edit") && auth()->id() === auth()->data()->id){
             $quanxian =true;
         }
         if($quanxian===true){
@@ -86,9 +86,10 @@ class TopicController
     #[PostMapping(path:"/topic/edit/draft")]
     public function edit_draft_post(UpdateTopicRequest $request){
         $quanxian = false;
-        if(Authority()->check("admin_topic_edit") && curd()->GetUserClass(auth()->data()->class_id)['permission-value']>curd()->GetUserClass($data->user->class_id)['permission-value']){
+	    if(@Authority()->check("admin_topic_edit") && @curd()->GetUserClass(auth()->data()->class_id)['permission-value']>curd()->GetUserClass(auth()->data()->class_id)['permission-value']){
             $quanxian =true;
-        }else if(Authority()->check("topic_edit") && auth()->id() === $data->user->id){
+        }
+		else if(Authority()->check("topic_edit") && auth()->id() === auth()->data()->id){
             $quanxian =true;
         }
         if($quanxian===true){
