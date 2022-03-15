@@ -1,6 +1,6 @@
 <?php
 // 用户组
-menu()->add(101,[
+menu()->add(1021,[
     'url' => '/admin/userClass',
     'name' => '用户组',
     'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-users" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -12,18 +12,18 @@ menu()->add(101,[
 </svg>',
 ]);
 // 用户组
-menu()->add(102,[
+menu()->add(1022,[
     'url' => '/admin/userClass',
     'name' => '管理',
     'icon' => '',
-    'parent_id' => 101
+    'parent_id' => 1021
 ]);
 // 用户组
-menu()->add(103,[
+menu()->add(1023,[
     'url' => '/admin/userClass/create',
     'name' => '新增',
     'icon' => '',
-    'parent_id' => 101
+    'parent_id' => 1021
 ]);
  //用户管理
 menu()->add(104,[
