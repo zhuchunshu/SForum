@@ -30,26 +30,8 @@ class StartCommand extends HyperfCommand
 
     public function handle()
     {
-        $this->info("开始更新插件扩展...");
-        go(function(){
-            $params = ["command" => "CodeFec:PluginsComposerInstall"];
-            $input = new ArrayInput($params);
-            $output = new NullOutput();
-
-            $container = \Hyperf\Utils\ApplicationContext::getContainer();
-
-            /** @var Application $application */
-            $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
-            $application->setAutoExit(false);
-
-            // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
-            $exitCode = $application->run($input, $output);
-        });
-        $this->info("插件扩展更新完毕!");
-
-        $this->info("开始清理缓存...");
+		
          \Swoole\Coroutine\System::exec("yes yes | composer du");
-        $this->info("缓存清理完毕！");
         $option = make(Option::class, [
             'dir' => $this->input->getOption('dir'),
             'file' => $this->input->getOption('file'),

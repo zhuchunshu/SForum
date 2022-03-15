@@ -65,15 +65,6 @@ class Plugins {
         return array_values(array_unique(cache()->get("plugins.en")));
 
     }
-
-    public function composerInstall(): void
-    {
-        $list = self::GetAll();
-        foreach($list as $data){
-            if(file_exists(plugin_path($data['dir']."/composer.json"))){
-                 \Swoole\Coroutine\System::exec("cd ".plugin_path($data['dir'])." && yes yes | composer update");
-            }
-        }
-    }
+	
 
 }

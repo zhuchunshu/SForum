@@ -15,7 +15,6 @@ class Core
 {
     public function handler(): void
     {
-        $this->composer();
         $this->setting();
         $this->helpers();
         $this->bootstrap();
@@ -31,11 +30,7 @@ class Core
     {
         require_once __DIR__."/helpers.php";
     }
-
-    public function composer(): void
-    {
-        require_once __DIR__."/vendor/autoload.php";
-    }
+	
 
     public function shortCode(): void{
         require_once __DIR__."/shortCode.php";

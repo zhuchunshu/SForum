@@ -17,13 +17,9 @@ class Mail
     {
 
         $this->setting();
-        $this->composer();
         $this->helpers();
     }
-
-    public function composer(){
-        require_once __DIR__."/vendor/autoload.php";
-    }
+	
 
     public function setting(): void
     {

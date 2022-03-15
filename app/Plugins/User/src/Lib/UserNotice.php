@@ -2,21 +2,15 @@
 
 namespace App\Plugins\User\src\Lib;
 
-use App\Plugins\User\src\Event\SendNotice;
+use App\Plugins\User\src\Jobs\SendMail;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UsersNotice;
 use App\Plugins\User\src\Models\UsersNoticed;
 use Hyperf\Database\Schema\Schema;
 use Hyperf\Di\Annotation\Inject;
-use Psr\EventDispatcher\EventDispatcherInterface;
 
 class UserNotice
 {
-    /**
-     * @Inject
-     * @var EventDispatcherInterface
-     */
-    private EventDispatcherInterface $eventDispatcher;
 
     public function check(string $type,int|string $user_id): bool
     {
@@ -73,9 +67,10 @@ class UserNotice
             'action' => $action,
             'status' => 'publish'
         ]);
-        $this->eventDispatcher->dispatch(new SendNotice($user_id,$title,$content,$action));
+	    (new SendMail())->handler($user_id,$title,$action);
     }
-
+	
+	
     /**
      * 给多个用户发送通知
      */
@@ -89,7 +84,7 @@ class UserNotice
                 'action' => $action,
                 'status' => 'publish'
             ]);
-            $this->eventDispatcher->dispatch(new SendNotice($user_id,$title,$content,$action));
+	        (new SendMail())->handler($user_id,$title,$action);
         }
     }
 }
