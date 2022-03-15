@@ -35,7 +35,7 @@ class ComposerInstall extends HyperfCommand
 
     public function handle()
     {
-	    \Swoole\Coroutine\System::exec("composer update");
+	    \Swoole\Coroutine\System::exec("yes | composer update");
         $this->line('Successfully installed', 'info');
     }
 }
