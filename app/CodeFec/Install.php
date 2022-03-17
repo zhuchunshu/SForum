@@ -194,6 +194,9 @@ class Install
 		$this->command->info("\nWEB服务端口:".$web."\nWEBSOCKET服务端口:".$ws);
 		$this->command->info("\n请根据文档将对应端口进行反向代理!");
 		$this->command->info("\n反代完成后打开网站进行最后一步安装!");
+		$this->command->info("\n请重新运行此命令启动服务!");
+		$this->command->info("\n请重新运行此命令启动服务!");
+		$this->command->info("\n请重新运行此命令启动服务!");
 	}
 	
 }
