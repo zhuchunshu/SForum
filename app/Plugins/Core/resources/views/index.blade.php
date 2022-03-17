@@ -8,7 +8,7 @@
 @section('content')
 
     <div class="row row-cards justify-content-center">
-        <div class="col-md-10">
+        <div class="col-md-12">
             <div class="row row-cards justify-content-center">
                 <div class="col-md-7">
                     @include('Core::index.index')
