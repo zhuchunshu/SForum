@@ -47,7 +47,7 @@ class Install
 	// 初始化
 	public function init(){
 		if(!file_exists(BASE_PATH."/.env")){
-			copy(BASE_PATH.".env.example",BASE_PATH."/.env");
+			copy(BASE_PATH."/.env.example",BASE_PATH."/.env");
 			return false;
 		}
 		return true;
