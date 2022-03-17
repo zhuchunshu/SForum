@@ -4,14 +4,15 @@ import swal from 'sweetalert';
 const form = {
     data() {
         return {
-            username:'',
-            password:'',
-            csrf_token:''
+            username:null,
+            password:null,
+            csrf_token:null,
+            captcha:null
         }
     },
     methods: {
         submit(){
-            axios.post("/admin/login",{username:this.username,password:this.password,_token:csrf_token})
+            axios.post("/admin/login",{username:this.username,password:this.password,_token:csrf_token,captcha:this.captcha})
             .then(function(response){
                 var data = response.data
                 var content="";

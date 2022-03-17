@@ -2123,9 +2123,10 @@ __webpack_require__.r(__webpack_exports__);
 var form = {
   data: function data() {
     return {
-      username: '',
-      password: '',
-      csrf_token: ''
+      username: null,
+      password: null,
+      csrf_token: null,
+      captcha: null
     };
   },
   methods: {
@@ -2133,7 +2134,8 @@ var form = {
       axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/login", {
         username: this.username,
         password: this.password,
-        _token: csrf_token
+        _token: csrf_token,
+        captcha: this.captcha
       }).then(function (response) {
         var data = response.data;
         var content = "";
