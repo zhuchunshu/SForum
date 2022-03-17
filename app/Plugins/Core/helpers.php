@@ -54,10 +54,10 @@ if(!function_exists("super_avatar")){
             return $user_data->avatar;
         }
 
-        if(get_options("core_user_def_avatar","gavatar")!=="multiavatar") {
+        if(get_options("core_user_def_avatar","gavatar")!=="ui-avatars") {
             return get_options("theme_common_gavatar", "https://cn.gravatar.com/avatar/") . md5($user_data->email);
         }
-        return "/user/multiavatar/".$user_data->username."/avatar.jpg";
+        return "https://ui-avatars.com/api/?background=random&format=svg&name=".$user_data->username;
     }
 }
 
@@ -82,51 +82,19 @@ if(!function_exists("avatar")){
 </span>
 HTML;
 
-        }else{
-            if(get_options("core_user_def_avatar","gavatar")!=="multiavatar"){
-                $url = get_options("theme_common_gavatar","https://cn.gravatar.com/avatar/").md5($ud->email);
-                return <<<HTML
+        }
+	
+	    if(get_options("core_user_def_avatar","gavatar")!=="ui-avatars"){
+	        $url = get_options("theme_common_gavatar","https://cn.gravatar.com/avatar/").md5($ud->email);
+	    }else{
+		    $url = "https://ui-avatars.com/api/?background=random&format=svg&name=".$ud->username;
+	    }
+	    return <<<HTML
 <span class="avatar {$class}" style="background-image: url({$url})"></span>
 HTML;
-            }else{
-                $img = new Multiavatar();
-                $img = $img($ud->username, null, null);
-                return <<<HTML
-<span class="avatar {$class}">{$img}</span>
-HTML;
-            }
-        }
     }
 }
 
-if(!function_exists("avatar_url")){
-    function avatar_url(int $user_id): string
-    {
-        $time = get_options("core_user_def_avatar_cache",600);
-        if(get_options("core_user_avatar_cache","1")==="1"){
-            if(cache()->has("core.avatar.".$user_id)){
-                $ud = cache()->get("core.avatar.".$user_id);
-            }else{
-                $ud = \App\Plugins\User\src\Models\User::query()->where("id",$user_id)->first();
-                cache()->set("core.avatar.".$user_id,$ud,$time);
-            }
-        }else{
-            $ud = \App\Plugins\User\src\Models\User::query()->where("id",$user_id)->first();
-        }
-
-        if($ud->avatar){
-            return $ud->avatar;
-
-        }else{
-            if(get_options("core_user_def_avatar","gavatar")!=="multiavatar"){
-                $url = get_options("theme_common_gavatar","https://cn.gravatar.com/avatar/").md5($ud->email);
-                return $url;
-            }else{
-                return "/user/multiavatar/".$ud->id;
-            }
-        }
-    }
-}
 
 
 if(!function_exists("redirect")){

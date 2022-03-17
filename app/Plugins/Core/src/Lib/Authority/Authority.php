@@ -59,13 +59,13 @@ class Authority
         $userClassIds = [];
         foreach (UserClass::query()->get() as $value){
             $data = json_decode($value->quanxian,true);
-            if(in_array($quanxian, $data,true)){
+            if(in_array($quanxian, $data)){
                 $userClassIds[]=$value->id;
             }
         }
         $users = [];
         foreach (User::query()->get() as $value) {
-            if(Arr::has($userClassIds,$value->class_id)){
+            if(in_array($value->class_id,$userClassIds)){
                 $users[$value->id]=$value;
             }
         }

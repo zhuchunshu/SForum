@@ -4,15 +4,15 @@
         </label>
         <select class="form-select" v-model="data.core_user_def_avatar">
             <option value="gavatar">Gavatar</option>
-            <option value="multiavatar">Multiavatar</option>
+            <option value="ui-avatars">ui-avatars</option>
         </select>
         <small>默认使用Gravatar的头像</small>
     </div>
 
     <div class="mb-3">
-        <label class="form-label">Multiavatar头像演示
+        <label class="form-label">ui-avatars
             <div>
-                <span class="avatar" style="background-image:url(/plugins/Core/image/Multiavatar.gif)"></span>
+                <span class="avatar" style="background-image:url(https://ui-avatars.com/api/?background=random&name=Zhu+Chunshu)"></span>
             </div>
         </label>
     </div>
