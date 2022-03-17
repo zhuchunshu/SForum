@@ -32,12 +32,25 @@ class Install
 	
 	// 开始运行
 	public function run(){
+		// 初始化
+		if($this->init()===false){
+			$this->command->info('初始化成功! 请重新运行此命令');
+		}
 		if($this->getStep()>=5){
 			$this->command->info("请打开网站进行最后的安装操作");
 			return ;
 		}
 		$method = "step_".$this->getStep();
 		$this->$method();
+	}
+	
+	// 初始化
+	public function init(){
+		if(!file_exists(BASE_PATH."/.env")){
+			copy(BASE_PATH.".env.example",BASE_PATH."/.env");
+			return false;
+		}
+		return true;
 	}
 	
 	// 步数加1
