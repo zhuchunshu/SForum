@@ -1,8 +1,8 @@
 @extends("Core::app")
 
 @section('title',$data->title)
-@section('description','为您展示:'.$data->title."帖子信息")
-@section('keywords',$data->title.','.$data->user->username)
+@section('description',\Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"未捕获到本文摘要"),300))
+@section('keywords',$data->title.','.$data->user->username.','.\Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"未捕获到本文摘要"),300))
 
 @section('content')
 

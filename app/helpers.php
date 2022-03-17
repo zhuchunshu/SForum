@@ -189,10 +189,15 @@ if (!function_exists("menu")) {
 }
 
 if (!function_exists("view")) {
-    function view(string $view, array $data = [], int $code = 200): \Psr\Http\Message\ResponseInterface
+    function view(string $view, array $data = [], int $code = 200)
     {
         $container = \Hyperf\Utils\ApplicationContext::getContainer();
-        return $container->get(RenderInterface::class)->render($view, $data, $code);
+		$result = $container->get(RenderInterface::class)->render($view, $data, $code);
+		if(env("APP_ENV")==='dev'){
+			return $result;
+		}
+        $body = minify_html((string)$result->getBody());
+		return $container->get(RenderInterface::class)->renderR($body,$code);
     }
 }
 
@@ -662,4 +667,21 @@ if(!function_exists('allDir')){
 		}
 		return $arr;
 	}
+}
+
+function minify_html($html): array|string|null
+{
+	return preg_replace(
+		$search =[
+			'/\>[^\S ]+/s',  // 删除标签后面空格
+			'/[^\S ]+\</s',  // 删除标签前面的空格
+			'/(\s)+/s'       // 将多个空格合并成一个
+		],
+		[
+			'>',
+			'<',
+			'\\1'
+		],
+		$html
+	);
 }

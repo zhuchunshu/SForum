@@ -67,6 +67,14 @@ class Render implements RenderInterface
             ->withAddedHeader('content-type', $this->getContentType())
             ->withBody(new SwooleStream($this->getContents($template, $data)));
     }
+	
+	public function renderR(string $result, int $code=200): ResponseInterface
+	{
+		return $this->response()
+			->withStatus($code)
+			->withAddedHeader('content-type', $this->getContentType())
+			->withBody(new SwooleStream($result));
+	}
 
     public function getContents(string $template, array $data = []): string
     {
