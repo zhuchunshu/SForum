@@ -53,21 +53,7 @@ class UserController
         $user = User::query()->where("class_id",$id)->paginate(30);
         return view("User::group_data",['userCount' => $userCount,'data' => $data,'user'=>$user]);
     }
-
-    #[GetMapping(path:"/user/multiavatar/{user_id}")]
-    public function user_multi_avatar($user_id){
-        $ud = \App\Plugins\User\src\Models\User::query()->where("id",$user_id)->first();
-        $img = new Multiavatar();
-        $img = $img($ud->username, null, null);
-        return ResponseObj()->withBody(SwooleStream($img))->withHeader("content-type","image/svg+xml; charset=utf-8");
-    }
-
-    #[GetMapping(path:"/user/multiavatar/{username}/avatar.jpg")]
-    public function username_multi_avatar($username){
-        $img = new Multiavatar();
-        $img = $img($username, null, null);
-        return ResponseObj()->withBody(SwooleStream($img))->withHeader("content-type","image/svg+xml; charset=utf-8");
-    }
+	
 
     // 用户帖子
     #[GetMapping(path:"/users/topic/{username}.html")]
@@ -85,6 +71,7 @@ class UserController
     // 用户粉丝
     #[GetMapping(path:"/users/fans/{username}.html")]
     public function fans($username){
+		$username = urldecode($username);
         if(!User::query()->where("username",$username)->count()){
             return admin_abort("用户名为:".$username."的用户不存在");
         }
