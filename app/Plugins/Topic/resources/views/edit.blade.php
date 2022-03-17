@@ -56,7 +56,7 @@
                             <div id="content-vditor"></div>
                         </div>
                         <div class="mb-3">
-                            <button class="btn btn-primary">发布</button> Or <button type="button" @@click="draft" class="btn btn-danger">存为草稿</button>
+                            <button class="btn btn-primary">更新</button>
                         </div>
                     </div>
                 </div>
