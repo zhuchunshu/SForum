@@ -1,16 +1,18 @@
 import axios from "axios";
+var md = require('markdown-it')();
 
 if(document.getElementById("vue-admin-index-releases")){
     const app = {
         data(){
             return {
                 data:null,
-                commit:null,
+                markdown:null,
+                updateLog:null,
             }
         },
         mounted(){
             this.version()
-            this.commits()
+            this.getUpdateLog()
         },
         methods:{
             // 初始化
@@ -21,11 +23,12 @@ if(document.getElementById("vue-admin-index-releases")){
                     this.data = r.data;
                 })
             },
-            commits(){
-                axios.post("/api/admin/getCommit",{
+            getUpdateLog(){
+                axios.post("/api/admin/getUpdateLog",{
                     _token:csrf_token
                 }).then(r=>{
-                    this.commit = r.data
+                    this.markdown = r.data
+                    this.updateLog=md.render(this.markdown)
                 })
             },
             clearCache(){

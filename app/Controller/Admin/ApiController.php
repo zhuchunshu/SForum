@@ -16,7 +16,7 @@ use function Swoole\Coroutine\Http\get;
 class ApiController
 {
 	private string $api_releases = "https://api.github.com/repos/zhuchunshu/super-forum/releases";
-	private string $api_commit = "https://github-api.inkedus.workers.dev/repos/zhuchunshu/super-forum/commits?per_page=10000";
+	private string $update_log = "https://forum.runpod.cn/48.md";
 	#[PostMapping(path:"getVersion")]
 	public function getVersion(){
 		// 获取最新版
@@ -53,12 +53,9 @@ class ApiController
 		return cache()->get('admin.git.getRelease.'.$id);
 	}
 	
-	#[PostMapping(path:"getCommit")]
+	#[PostMapping(path:"getUpdateLog")]
 	public function getCommit(){
-		if(!cache()->has('admin.git.commit')){
-			cache()->set('admin.git.commit',http()->get($this->api_commit),600);
-		}
-		return cache()->get('admin.git.commit');
+		return http('raw')->get($this->update_log);
 	}
 	
 	#[PostMapping(path:"clearCache")]

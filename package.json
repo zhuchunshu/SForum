@@ -37,6 +37,7 @@
     "izitoast": "^1.4.0",
     "js-base64": "^3.7.2",
     "laravel-mix": "^6.0.20",
+    "markdown-it": "^12.3.2",
     "mithril": "^2.0.4",
     "notyf": "^3.10.0",
     "paper-audio-player": "^0.0.2",
