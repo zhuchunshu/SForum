@@ -30,16 +30,6 @@ return [
             ],
         ],
         [
-            'name' => 'api',
-            'type' => ServerInterface::SERVER_HTTP,
-            'host' => (string) env('SERVER_API_DOMAIN','0.0.0.0'),
-            'port' => (int) env('SERVER_API_PORT', 9503),
-            'sock_type' => SWOOLE_SOCK_TCP,
-            'callbacks' => [
-                Event::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
-            ],
-        ],
-        [
             'name' => 'websocket',
             'type' => ServerInterface::SERVER_WEBSOCKET,
             'host' => (string) env('SERVER_WEB_DOMAIN','0.0.0.0'),

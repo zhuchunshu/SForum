@@ -43,41 +43,6 @@ class InstallController extends AbstractController
         return view("core.install");
     }
 	
-	#[PostMapping(path: "/install/env")]
-	public function env(): array
-	{
-		if (!file_exists(BASE_PATH . "/.env")) {
-			copy(BASE_PATH . "/.env.example", BASE_PATH . "/.env");
-		}
-		
-		if (!is_dir(BASE_PATH . "/app/CodeFec/storage")) {
-			\Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/app/CodeFec/storage");
-		}
-		$result = [];
-		$content = file_get_contents(BASE_PATH."/.env");
-		foreach (explode("\n",$content) as $value) {
-			if($value && is_string($value)){
-				$arr = explode("=",$value);
-				$result[$arr[0]]=$arr[1];
-			}
-		}
-		return $result;
-	}
-	
-	// 上一步
-	#[PostMapping(path:"/install/previous")]
-	public function previous(){
-		if(!file_get_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock")){
-			$step = 1;
-		}else{
-			$step = (int)core_default(@file_get_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock"),1);
-		}
-		if($step<0){
-			return Json_Api(403,false,['msg' => '出错啦!']);
-		}
-		file_put_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock",$step-1);
-		return Json_Api(200, true, ['msg' => 'successfully !']);
-	}
 	
 	// 下一步
 	#[PostMapping(path: "/install/next")]
@@ -112,85 +77,6 @@ class InstallController extends AbstractController
 			modifyEnv($env_arr);
 		}
 		return Json_Api(200, true, ['msg' => '数据库信息配置成功!']);
-	}
-	
-	// 配置redis
-	public function step_2($request){
-		if($request->input('env')){
-			$env = de_stringify($request->input('env'));
-			if(!is_array($env)){
-				return Json_Api(403,false,['msg' => '请提交正确的数据']);
-			}
-			$env_arr = [];
-			foreach ($env as $key=>$value){
-				if($key && $value && is_string($key) && $key !== "=" && is_string($value) && $value!="="){
-					$env_arr[$key] = $value;
-				}
-			}
-			modifyEnv($env_arr);
-		}
-		return Json_Api(200, true, ['msg' => 'redis信息配置成功!']);
-	}
-	
-	// 数据迁移
-	public function step_3($request){
-		$command = 'migrate';
-		
-		$params = ["command" => $command, "--force"];
-		$input = new ArrayInput($params);
-		$output = new NullOutput();
-		
-		$container = \Hyperf\Utils\ApplicationContext::getContainer();
-		
-		$application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
-		$application->setAutoExit(false);
-		
-		$exitCode = $application->run($input, $output);
-		
-		$command = 'CodeFec:migrate';
-		
-		$params = ["command" => $command];
-		$input = new ArrayInput($params);
-		$output = new NullOutput();
-		
-		$container = \Hyperf\Utils\ApplicationContext::getContainer();
-		
-		$application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
-		$application->setAutoExit(false);
-		
-		$exitCode = $application->run($input, $output);
-		return Json_Api(200, true, ['msg' => '数据迁移成功!']);
-	}
-	
-	// 配置服务端口
-	public function step_4($request){
-		if($request->input('env')){
-			$env = de_stringify($request->input('env'));
-			if(!is_array($env)){
-				return Json_Api(403,false,['msg' => '请提交正确的数据']);
-			}
-			$env_arr = [];
-			foreach ($env as $key=>$value){
-				if($key && $value && is_string($key) && $key !== "=" && is_string($value) && $value!="="){
-					$env_arr[$key] = $value;
-				}
-			}
-			modifyEnv($env_arr);
-		}
-		return Json_Api(200, true, ['msg' => '服务端口配置成功!']);
-	}
-	
-	// 创建管理员账号
-	public function step_5($request){
-		AdminUser::query()->create([
-			'email' => $request->input("email"),
-			'username' => $request->input("username"),
-			'password' => Hash::make($request->input("password")),
-		]);
-		if (!file_exists(BASE_PATH . "/app/CodeFec/storage/install.lock")) {
-			file_put_contents(BASE_PATH . "/app/CodeFec/storage/install.lock", date("Y-m-d H:i:s"));
-		}
-		return Json_Api(200, true, ['msg' => '安装成功!']);
 	}
 	
 	

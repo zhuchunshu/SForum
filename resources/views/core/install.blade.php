@@ -34,14 +34,11 @@
                 <div class="card-body text-center">
                     <h1>安装SuperForum!</h1>
                     <p class="text-muted">本项目开源地址: <a href="https://github.com/zhuchunshu">https://github.com/zhuchunshu</a><br>安装过程中如若遇到问题请到论坛反馈:
-                        <a href="https://forum.runpod.cn">https://forum.runpod.cn</a><br>接下来请根据提示进行安装吧!</p>
+                        <a href="https://forum.runpod.cn">https://forum.runpod.cn</a></p>
                 </div>
                 <div class="hr-text hr-text-center hr-text-spaceless">@{{ tips }}</div>
                 <div class="card-body">
-                    @include('core.install.mysql')
-                    @include('core.install.redis')
-                    @include('core.install.reload')
-                    @include('core.install.port')
+                    @include('core.install.tips')
                     @include('core.install.user')
 
                 </div>
@@ -56,9 +53,6 @@
                 </div>
                 <div class="col">
                     <div class="btn-list justify-content-end">
-                        <a v-if="install_lock>=1" @@click="previous" href="#" class="btn btn-link link-secondary">
-                            上一步
-                        </a>
                         <a  v-if="install_lock<5" href="#" @@click="next" class="btn btn-primary">
                             下一步
                         </a>
