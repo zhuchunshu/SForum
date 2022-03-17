@@ -4,13 +4,15 @@ namespace App\Jobs;
 
 use Alchemy\Zippy\Zippy;
 use Hyperf\AsyncQueue\Annotation\AsyncQueueMessage;
+use Psr\SimpleCache\InvalidArgumentException;
 
 class Upgrading
 {
 	/**
-	 * @param string  $download 下载链接
-	 * @param string  $path 安装包存放路径
+	 * @param string $download 下载链接
+	 * @param string $path 安装包存放路径
 	 * @return void
+	 * @throws InvalidArgumentException
 	 */
 	#[AsyncQueueMessage]
 	public function handle(string $download,string $path){
@@ -40,7 +42,10 @@ class Upgrading
 		foreach($allDir as $value){
 			if(file_exists($value."/CodeFec")){
 				FileUtil()->moveDir($value,BASE_PATH,true);
+				// 删除更新锁
 				$this->removeFiles($tmp,$path,BASE_PATH."/app/CodeFec/storage/update.lock");
+				// 清理缓存
+				cache()->delete('admin.git.getVersion');
 			}
 		}
 	}

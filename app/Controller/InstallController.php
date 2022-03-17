@@ -60,25 +60,6 @@ class InstallController extends AbstractController
 		file_put_contents(BASE_PATH."/app/CodeFec/storage/install.step.lock",$step+1);
 		return $this->$method(request());
 	}
-
-	// 配置mysql
-	public function step_1($request){
-		if($request->input('env')){
-			$env = de_stringify($request->input('env'));
-			if(!is_array($env)){
-				return Json_Api(403,false,['msg' => '请提交正确的数据']);
-			}
-			$env_arr = [];
-			foreach ($env as $key=>$value){
-				if($key && $value && is_string($key) && $key !== "=" && is_string($value) && $value!="="){
-					$env_arr[$key] = $value;
-				}
-			}
-			modifyEnv($env_arr);
-		}
-		return Json_Api(200, true, ['msg' => '数据库信息配置成功!']);
-	}
-	
 	
 	
     #[PostMapping(path: "/install")]
