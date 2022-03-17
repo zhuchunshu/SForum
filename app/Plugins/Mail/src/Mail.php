@@ -79,7 +79,7 @@ class Mail
 
     public function mail(): ?PHPMailer
     {
-        $mail = new PHPMailer(true);
+        $mail = new PHPMailer(false);
         try {
             //Server settings
             $mail->SMTPDebug = SMTP::DEBUG_OFF;                      //Enable verbose debug output

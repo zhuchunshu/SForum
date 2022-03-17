@@ -2,16 +2,23 @@
 
 namespace App\Plugins\User\src\Lib;
 
-use App\Plugins\User\src\Jobs\SendMail;
+use App\Plugins\User\src\Event\SendMail;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UsersNotice;
 use App\Plugins\User\src\Models\UsersNoticed;
 use Hyperf\Database\Schema\Schema;
 use Hyperf\Di\Annotation\Inject;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 class UserNotice
 {
-
+	
+	/**
+	 * @Inject
+	 * @var EventDispatcherInterface
+	 */
+	private $eventDispatcher;
+	
     public function check(string $type,int|string $user_id): bool
     {
         if(!User::query()->where("id",$user_id)->exists()){
@@ -67,7 +74,7 @@ class UserNotice
             'action' => $action,
             'status' => 'publish'
         ]);
-	    (new SendMail())->handler($user_id,$title,$action);
+	    $this->eventDispatcher->dispatch(new SendMail($user_id,$title,$action));
     }
 	
 	
@@ -84,7 +91,7 @@ class UserNotice
                 'action' => $action,
                 'status' => 'publish'
             ]);
-	        (new SendMail())->handler($user_id,$title,$action);
+	        $this->eventDispatcher->dispatch(new SendMail($user_id,$title,$action));
         }
     }
 }
