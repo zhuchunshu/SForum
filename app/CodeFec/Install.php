@@ -35,6 +35,7 @@ class Install
 		// 初始化
 		if($this->init()===false){
 			$this->command->info('初始化成功! 请重新运行此命令');
+			return ;
 		}
 		if($this->getStep()>=5){
 			$this->command->info("请打开网站进行最后的安装操作");
