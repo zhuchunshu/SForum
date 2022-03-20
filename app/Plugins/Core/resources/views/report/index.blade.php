@@ -24,7 +24,7 @@
 @endsection
 @section('content')
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-md-12">
             @if($page->count())
                 <div class="row row-cards">
                     @foreach($page as $value)
