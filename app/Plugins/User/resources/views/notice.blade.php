@@ -26,48 +26,46 @@
 @endsection
 
 @section('content')
-    <div class="col-md-10">
+    <div class="col-md-12">
         <div class="row row-cards justify-content-center">
-            <div class="col-md-10">
-                @if($page->count())
-                    @foreach($page as $value)
-                        <div class="col-md-10">
-                            <div class="border-0 card">
-                                <div class="card-header">
-                                    <div class="card-title">{{$value->title}}</div>
-                                </div>
-                                <div class="card-body">
-                                    {!! $value->content !!}
-                                </div>
-                                <div class="card-footer">
-                                    <div class="row">
-                                        <div class="col">
-                                            <span data-bs-toggle="tooltip" data-bs-placement="top" title="{{$value->created_at}}" class="badge badge-outline text-blue">{{format_date($value->created_at)}}</span>
-                                        </div>
-                                        <div class="col-auto">
-                                            @if($value->action)
-                                                <a user-click="notice_action" notice-href="{{$value->action}}" notice-id="{{$value->id}}" class="btn btn-primary">查看</a>
-                                            @endif
-                                            <button user-click="notice_read" notice-id="{{$value->id}}" class="btn btn-danger">已读</button>
-                                        </div>
+            @if($page->count())
+                @foreach($page as $value)
+                    <div class="col-md-12">
+                        <div class="border-0 card">
+                            <div class="card-header">
+                                <div class="card-title">{{$value->title}}</div>
+                            </div>
+                            <div class="card-body">
+                                {!! $value->content !!}
+                            </div>
+                            <div class="card-footer">
+                                <div class="row">
+                                    <div class="col">
+                                        <span data-bs-toggle="tooltip" data-bs-placement="top" title="{{$value->created_at}}" class="badge badge-outline text-blue">{{format_date($value->created_at)}}</span>
+                                    </div>
+                                    <div class="col-auto">
+                                        @if($value->action)
+                                            <a user-click="notice_action" notice-href="{{$value->action}}" notice-id="{{$value->id}}" class="btn btn-primary">查看</a>
+                                        @endif
+                                        <button user-click="notice_read" notice-id="{{$value->id}}" class="btn btn-danger">已读</button>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    @endforeach
-                @else
-                    <div class="col-md-12">
-                        <div class="border-0 card">
-                            <div class="card-body">
-                                <h3 class="card-title">暂无通知</h3>
-                            </div>
+                    </div>
+                @endforeach
+            @else
+                <div class="col-md-12">
+                    <div class="border-0 card">
+                        <div class="card-body">
+                            <h3 class="card-title">暂无通知</h3>
                         </div>
                     </div>
-                @endif
-            </div>
-            <div class="col-md-10">
-                {!! make_page($page) !!}
-            </div>
+                </div>
+            @endif
+        </div>
+        <div class="mt-3">
+            {!! make_page($page) !!}
         </div>
     </div>
 @endsection
