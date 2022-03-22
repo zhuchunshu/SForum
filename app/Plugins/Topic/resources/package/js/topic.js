@@ -439,19 +439,7 @@ if(document.getElementById("create-topic-vue")){
                     },
                     select:(md) => {
 
-                        // 回复可见
-                        swal({
-                            title:"你选中了一段文字",
-                            text:"是否将选中的文字设为回复可见?",
-                            buttons:true,
-                            icon:"warning"
-                        }).then(click=>{
-                            if(click){
-                                this.vditor.updateValue("[reply]"+md+"[/reply]")
-                            }else{
-                                this.vditor.focus()
-                            }
-                        })
+
                     }
                 });
             },
@@ -989,19 +977,6 @@ if(document.getElementById("edit-topic-vue")){
                     },
                     select:(md) => {
 
-                        // 回复可见
-                        swal({
-                            title:"你选中了一段文字",
-                            text:"是否将选中的文字设为回复可见?",
-                            buttons:true,
-                            icon:"warning"
-                        }).then(click=>{
-                            if(click){
-                                this.vditor.updateValue("[reply]"+md+"[/reply]")
-                            }else{
-                                this.vditor.focus()
-                            }
-                        })
                     }
                 });
             },

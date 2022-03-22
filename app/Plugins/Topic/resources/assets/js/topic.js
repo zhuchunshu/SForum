@@ -8231,21 +8231,7 @@ if (document.getElementById("create-topic-vue")) {
             });
           },
           input: function input(md) {},
-          select: function select(md) {
-            // 回复可见
-            swal({
-              title: "你选中了一段文字",
-              text: "是否将选中的文字设为回复可见?",
-              buttons: true,
-              icon: "warning"
-            }).then(function (click) {
-              if (click) {
-                _this5.vditor.updateValue("[reply]" + md + "[/reply]");
-              } else {
-                _this5.vditor.focus();
-              }
-            });
-          }
+          select: function select(md) {}
         });
       },
       hidden_user_remove: function hidden_user_remove(username) {
@@ -8788,21 +8774,7 @@ if (document.getElementById("edit-topic-vue")) {
             });
           },
           input: function input(md) {},
-          select: function select(md) {
-            // 回复可见
-            swal({
-              title: "你选中了一段文字",
-              text: "是否将选中的文字设为回复可见?",
-              buttons: true,
-              icon: "warning"
-            }).then(function (click) {
-              if (click) {
-                _this11.vditor.updateValue("[reply]" + md + "[/reply]");
-              } else {
-                _this11.vditor.focus();
-              }
-            });
-          }
+          select: function select(md) {}
         });
       },
       hidden_user_remove: function hidden_user_remove(username) {
