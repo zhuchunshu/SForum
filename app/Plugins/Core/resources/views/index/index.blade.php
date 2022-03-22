@@ -55,7 +55,7 @@
                                             @endif
                                                 {{$data->title}}</h2>
                                     </a>
-                                    <span class="home-summary">{{\Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"未捕获到本文摘要"),300)}}</span>
+                                    <span class="home-summary">{!! \Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"未捕获到本文摘要"),300) !!}</span>
                                     <div class="row">
                                         @foreach(deOptions($data->options)["images"] as $key=>$image)
                                             @if($key<=5)

@@ -1,4 +1,4 @@
-<div class="row row-cards justify-content-center">
+<article class="row row-cards justify-content-center">
     <div class="col-md-12">
         <div class="border-0 card card-body topic">
 
@@ -18,13 +18,13 @@
                     </div>
                 </div>
 
-                <article class="col-md-12 vditor-reset" id="topic-content">
+                <posts class="col-md-12 vditor-reset" id="topic-content">
                     {!! ShortCodeR()->handle($data->content) !!}
-                </article>
+                </posts>
 
             </div>
 
         </div>
     </div>
 
-</div>
+</article>

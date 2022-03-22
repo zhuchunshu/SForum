@@ -24,10 +24,10 @@
                         <span style="color:#999999" >{{$data->parent->user->username}} 发表于 {{$data->created_at}}</span>
                     </a>
                     <br>
-                    {{\Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($data->parent->content)),60)}}
+                    {{\Hyperf\Utils\Str::limit(remove_bbCode(htmlspecialchars($data->parent->content)),60)}}
                 </blockquote>
             </div>
-            {{\Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($data->content)),100)}}
+            {{\Hyperf\Utils\Str::limit(remove_bbCode(htmlspecialchars($data->content)),100)}}
         </div>
     </div>
 </div>

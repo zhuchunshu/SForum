@@ -45,6 +45,7 @@
         "jetbrains/phpstorm-stubs": "^2021.1",
         "laravel/helpers": "^1.4",
         "overtrue/http": "^1.2",
+        "php-curl-class/php-curl-class": "^9.6",
         "spatie/ignition": "^1.0",
         "wikimedia/composer-merge-plugin": "^2.0",
         "zhuchunshu/hyperf-hashing": "2.2.0"

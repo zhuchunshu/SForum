@@ -16,7 +16,7 @@
             <div class="hr-text" style="margin-bottom:5px;margin-top:15px">评论摘要</div>
         </div>
         <div class="col-md-12 markdown vditor-reset">
-            {{\Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($comment->content)),100)}}
+            {{\Hyperf\Utils\Str::limit(remove_bbCode(htmlspecialchars($comment->content)),100)}}
         </div>
     </div>
 </div>

@@ -35,7 +35,7 @@ class EditTopic
         $hidden_user_list = $request->input("options_hidden_user_list");
         $summary = $request->input("summary");
         if(!$summary){
-            $summary = remove_bbCode(strip_tags($html));
+            $summary = remove_bbCode(htmlspecialchars($html));
         }
         if($hidden_user_class){
             $hidden_user_class = de_stringify($hidden_user_class);

@@ -63,7 +63,7 @@
                                                             <span style="color:#999999" >{{$value->parent->user->username}} 发表于 {{$value->created_at}}</span>
                                                         </a>
                                                         <br>
-                                                        {{\Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($value->parent->content)),60)}}
+                                                        {{\Hyperf\Utils\Str::limit(remove_bbCode(htmlspecialchars($value->parent->content)),60)}}
                                                     </blockquote>
                                                 </div>
                                             @endif

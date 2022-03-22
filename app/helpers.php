@@ -669,16 +669,15 @@ if(!function_exists('allDir')){
 	}
 }
 
+// 压缩html
 function minify_html($html): array|string|null
 {
 	return preg_replace(
 		$search =[
-			'/\>[^\S ]+/s',  // 删除标签后面空格
 			'/[^\S ]+\</s',  // 删除标签前面的空格
 			'/(\s)+/s'       // 将多个空格合并成一个
 		],
 		[
-			'>',
 			'<',
 			'\\1'
 		],

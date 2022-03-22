@@ -127,7 +127,7 @@ HTML;
   }
 
   public function chart($match){
-      $data = strip_tags($match[1]);
+      $data = htmlspecialchars($match[1]);
       $id = "chart-".Str::random();
       return <<<HTML
 <div style="padding: 1rem 1rem;">
@@ -146,7 +146,7 @@ HTML;
 
   public function button($match)
   {
-      $data = strip_tags($match[1]);
+      $data = htmlspecialchars($match[1]);
       $data = Str::after($data,'"');
       $data = Str::before($data,'"');
       $data = explode(",",$data);
