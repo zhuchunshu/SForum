@@ -20,7 +20,7 @@
     </div>
     @if($page->count())
         @foreach($page as $data)
-            <posts class="col-md-12">
+            <article class="col-md-12">
                 <div class="border-0 card card-body">
                     <div class="row">
                         <div class="col-md-12">
@@ -94,7 +94,7 @@
                         </div>
                     </div>
                 </div>
-            </posts>
+            </article>
         @endforeach
     @else
         <div class="col-md-12">
