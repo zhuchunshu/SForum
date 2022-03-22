@@ -11,6 +11,7 @@ declare(strict_types=1);
  */
 
 use App\CodeFec\Plugins;
+use App\CodeFec\View\Beautify_Html;
 use App\Model\AdminPlugin;
 use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\HttpServer\Response;
@@ -669,18 +670,18 @@ if(!function_exists('allDir')){
 	}
 }
 
-// 压缩html
+// --压缩-- 美化html
 function minify_html($html): array|string|null
 {
-	return preg_replace(
-		$search =[
-			'/[^\S ]+\</s',  // 删除标签前面的空格
-			'/(\s)+/s'       // 将多个空格合并成一个
-		],
-		[
-			'<',
-			'\\1'
-		],
-		$html
-	);
+	$beautify = new Beautify_Html([
+		'indent_inner_html' => false,
+		'indent_char' => " ",
+		'indent_size' => 2,
+		'wrap_line_length' => 32786,
+		'unformatted' => ['code', 'pre'],
+		'preserve_newlines' => false,
+		'max_preserve_newlines' => 32786,
+		'indent_scripts'	=> 'normal' // keep|separate|normal
+	]);
+	return $beautify->beautify($html);
 }
