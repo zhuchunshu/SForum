@@ -4,6 +4,7 @@
 namespace App\Plugins\Core\src\Lib\ShortCodeR;
 
 
+use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\Utils\Arr;
 use Hyperf\Utils\Str;
 
@@ -17,18 +18,25 @@ class ShortCodeR
 
     public function all(): array
     {
-        return Itf()->get("ShortCodeR");
+	    $arr = Itf()->get("ShortCodeR");
+	    $shortCodeR = AnnotationCollector::getMethodsByAnnotation(\App\CodeFec\Annotation\ShortCode\ShortCodeR::class);
+	    foreach ($shortCodeR as $data){
+		    $name = $data['annotation']->name;
+		    $callback = $data['class']."@".$data['method'];
+		    $arr["ShortCodeR_".$name]=['callback' => $callback];
+	    }
+	    return $arr;
     }
 
     public function get($tag):bool|array{
         if($this->has($tag)){
-            return Itf()->get("ShortCodeR")[$tag];
+            return $this->all()[$tag];
         }
         return false;
     }
 
     public function has($tag):bool{
-        if(Arr::has(Itf()->get("ShortCodeR"),"ShortCodeR_".$tag)){
+        if(Arr::has($this->all(),"ShortCodeR_".$tag)){
             return true;
         }
         return false;
