@@ -678,10 +678,10 @@ function minify_html($html): array|string|null
 		'indent_char' => " ",
 		'indent_size' => 2,
 		'wrap_line_length' => 32786,
-		'unformatted' => ['code', 'pre'],
+		'unformatted' => ['code', 'pre','span'],
 		'preserve_newlines' => false,
 		'max_preserve_newlines' => 32786,
-		'indent_scripts'	=> 'normal' // keep|separate|normal
+		'indent_scripts'	=> 'keep' // keep|separate|normal
 	]);
 	return $beautify->beautify($html);
 }
