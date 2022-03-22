@@ -685,3 +685,10 @@ function minify_html($html): array|string|null
 	]);
 	return $beautify->beautify($html);
 }
+
+if(!function_exists("build_info")){
+	function build_info(){
+		$data = include BASE_PATH."/build-info.php";
+		return json_decode(json_encode($data));
+	}
+}

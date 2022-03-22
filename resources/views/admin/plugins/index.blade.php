@@ -23,7 +23,16 @@
                         </div>
                     @endif
                     <div class="card-body">
-                        <h3 class="card-title">{{$value['data']['name']}}</h3>
+                        <h3 class="card-title">
+                            {{$value['data']['name']}}
+                        </h3>
+                        <p>
+                            @if(@$value['data']['masterVersion'] && @$value['data']['masterVersion']>build_info()->version)
+                                <span class="badge badge-outline text-orange">可能不兼容此插件,要求系统版本>={{$value['data']['masterVersion']}}</span>
+                            @else
+                                <span class="badge badge-outline text-green">当前程序兼容此插件!</span>
+                            @endif
+                        </p>
                         <p>插件目录: {{ '/app/Plugins/' . $key }}</p>
                         <p>插件作者: <a href="{{ $value['data']['link'] }}">{{ $value['data']['author'] }}</a></p>
                         <p>插件版本:{{ $value['data']['version'] }}</p>
