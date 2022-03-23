@@ -23,7 +23,7 @@ class UserController
     #[GetMapping(path:"/users")]
     public function list(){
         $count = User::query()->count();
-        $page = User::query()->paginate(30);
+        $page = User::query()->paginate(20);
         return view("User::list",['page' => $page,'count'=>$count]);
     }
 
@@ -58,6 +58,7 @@ class UserController
     // 用户帖子
     #[GetMapping(path:"/users/topic/{username}.html")]
     public function topic($username){
+	    $username = urldecode($username);
         if(!User::query()->where("username",$username)->count()){
             return admin_abort("用户名为:".$username."的用户不存在");
         }

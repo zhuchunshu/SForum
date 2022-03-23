@@ -63,15 +63,15 @@ class PluginsController
 				$dirname = file_get_contents($value."/.dirName");
 				if(!$dirname){
 					$this->removeFiles(plugin_path($getClientFilename),plugin_path($filename));
-					return redirect()->with('danger','.dirName文件为空')->back()->go();
+					return redirect()->with('danger','.dirName文件为空')->url('/admin/plugins/upload')->go();
 				}
 				FileUtil()->moveDir($value,plugin_path($dirname),true);
 				$this->removeFiles(plugin_path($getClientFilename),plugin_path($filename));
-				return redirect()->with('success','插件上传成功!')->back()->go();
+				return redirect()->with('success','插件上传成功!')->url('/admin/plugins/upload')->go();
 			}
 		}
 		$this->removeFiles(plugin_path($getClientFilename),plugin_path($filename));
-		return redirect()->with('danger','插件安装失败,没有找到 .dirName 文件')->back()->go();
+		return redirect()->with('danger','插件安装失败,没有找到 .dirName 文件')->url('/admin/plugins/upload')->go();
 	}
 	
 	public function removeFiles(...$values): void

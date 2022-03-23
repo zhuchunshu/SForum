@@ -60,10 +60,10 @@
                                                 <div class="quote">
                                                     <blockquote>
                                                         <a style="font-size:13px;" href="{{$value->parent_url}}" target="_blank">
-                                                            <span style="color:#999999" >{{$value->parent->user->username}} 发表于 {{$value->created_at}}</span>
+                                                            <span style="color:#999999" >{{$value->parent->user->username}} 发表于 {{format_date($value->created_at)}}</span>
                                                         </a>
                                                         <br>
-                                                        {{\Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($value->parent->content)),60)}}
+                                                        {!! \Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($value->parent->content)),60) !!}
                                                     </blockquote>
                                                 </div>
                                             @endif

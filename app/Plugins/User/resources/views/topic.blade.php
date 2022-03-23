@@ -128,7 +128,7 @@
                                             <div class="row">
                                                 <div class="col-md-12">
                                                     <div class="row justify-content-center">
-                                                        <span class="avatar avatar-lg center-block" style="background-image: url({{super_avatar($data->user)}})"></span>
+                                                        <span class="avatar avatar-lg center-block" style="background-image: url({{super_avatar($user)}})"></span>
                                                         <br>
                                                         <b class="card-title text-h2 text-center" style="margin-top: 5px;margin-bottom:2px">{{ $user->username }}</b>
                                                         <span class="text-center" style="color:rgba(0,0,0,.45)">共 {{$user->fans}} 位粉丝</span>

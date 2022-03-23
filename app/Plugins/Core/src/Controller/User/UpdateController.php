@@ -70,7 +70,7 @@ class UpdateController
 HTML;
             $mail->send();
         });
-        return redirect()->back()->with('success','修改密码邮件已发送至你的邮箱')->go();
+        return redirect()->url('/user/setting')->with('success','修改密码邮件已发送至你的邮箱')->go();
 
     }
 
@@ -116,14 +116,14 @@ HTML;
         User::query()->where("id",auth()->id())->update([
             "avatar" => $path
         ]);
-        return redirect()->back()->with("success","头像修改成功")->go();
+        return redirect()->url('/user/setting')->with("success","头像修改成功")->go();
     }
 
     #[PostMapping(path:"/user/myUpdate/other")]
     public function update_action(){
         $action = request()->input("action");
         if(!$action){
-            return redirect()->back()->with("danger","action 为空!")->go();
+            return redirect()->url('/user/setting')->with("danger","action 为空!")->go();
         }
 
         // 删除头像
@@ -131,17 +131,17 @@ HTML;
             User::query()->where("id",auth()->id())->update([
                 "avatar" => null
             ]);
-            return redirect()->back()->with("success","头像删除成功!")->go();
+            return redirect()->url('/user/setting')->with("success","头像删除成功!")->go();
         }
 
-        return redirect()->back()->with("danger","当前 action 处理方法不存在")->go();
+        return redirect()->url('/user/setting')->with("danger","当前 action 处理方法不存在")->go();
     }
 
     #[PostMapping(path:"/user/myUpdate/options")]
     public function update_options(OptionsRequest $request){
         $data = $request->validated();
         UsersOption::query()->where(['id' => auth()->data()->options_id])->update($data);
-        return redirect()->back()->with("success","更新成功!")->go();
+        return redirect()->url('/user/setting')->with("success","更新成功!")->go();
     }
 
     #[PostMapping(path:"/user/myUpdate/noticed")]
@@ -154,7 +154,7 @@ HTML;
             $arr[$key]=$value;
         }
         user_notice()->update($user_id,$arr);
-        return redirect()->back()->with("success","更新成功!")->go();
+        return redirect()->url('/user/setting')->with("success","更新成功!")->go();
     }
 
 }

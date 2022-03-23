@@ -204,6 +204,7 @@ HTML;
 	{
 		$data = $request->validated();
 		$username = $data['username'];
+		$username = urldecode($username);
 		$password = $data['password'];
 		$captcha = $data['captcha'];
 		
