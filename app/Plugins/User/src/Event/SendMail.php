@@ -8,7 +8,7 @@ class SendMail
 	
 	public string $title;
 	
-	public string $action;
+	public null|string $action;
 	
 	public function __construct($user_id,$title,$action)
 	{

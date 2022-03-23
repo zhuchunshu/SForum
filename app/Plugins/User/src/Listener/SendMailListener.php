@@ -28,7 +28,7 @@ class SendMailListener implements ListenerInterface
 		$mail = Email();
 		$url =url($event->action);
 		// 判断用户是否愿意接收通知
-		if(user_notice()->check("email",$event->user_id)===false){
+		if(user_notice()->check("email",$event->user_id)===true){
 			// 执行发送
 			$title = $event->title;
 			go(function() use ($title,$mail,$url,$email){
