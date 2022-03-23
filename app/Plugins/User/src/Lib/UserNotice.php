@@ -67,13 +67,21 @@ class UserNotice
      */
     public function send($user_id,$title,$content,$action=null): void
     {
-        UsersNotice::query()->create([
-            'user_id' => $user_id,
-            'title' => $title,
-            'content' => $content,
-            'action' => $action,
-            'status' => 'publish'
-        ]);
+		if(UsersNotice::query()->where(['user_id' => $user_id,'content' => $content])->exists()){
+			UsersNotice::query()->where(['user_id' => $user_id,'content' => $content])->take(1)->update([
+				'status' => 'publish',
+				'created_at' => date('Y-m-d H:i:s')
+			]);
+		}else{
+			UsersNotice::query()->create([
+				'user_id' => $user_id,
+				'title' => $title,
+				'content' => $content,
+				'action' => $action,
+				'status' => 'publish'
+			]);
+		}
+     
 	    $this->eventDispatcher->dispatch(new SendMail($user_id,$title,$action));
     }
 	
@@ -84,13 +92,20 @@ class UserNotice
     public function sends(array $user_ids,$title,$content,$action=null): void
     {
         foreach ($user_ids as $user_id){
-            UsersNotice::query()->create([
-                'user_id' => $user_id,
-                'title' => $title,
-                'content' => $content,
-                'action' => $action,
-                'status' => 'publish'
-            ]);
+	        if(UsersNotice::query()->where(['user_id' => $user_id,'content' => $content])->exists()){
+		        UsersNotice::query()->where(['user_id' => $user_id,'content' => $content])->take(1)->update([
+			        'status' => 'publish',
+			        'created_at'=> date('Y-m-d H:i:s')
+		        ]);
+	        }else{
+		        UsersNotice::query()->create([
+			        'user_id' => $user_id,
+			        'title' => $title,
+			        'content' => $content,
+			        'action' => $action,
+			        'status' => 'publish'
+		        ]);
+	        }
 	        $this->eventDispatcher->dispatch(new SendMail($user_id,$title,$action));
         }
     }
