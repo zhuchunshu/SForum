@@ -73,7 +73,6 @@ class IndexController
     // 草稿
     #[GetMapping("/user/draft")]
     public function draft(){
-        $title = "我的草稿";
         $page = Topic::query()
             ->where(['user_id' => auth()->id(),'status' => 'draft'])
             ->with("tag","user")
