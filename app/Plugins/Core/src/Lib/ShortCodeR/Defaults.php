@@ -10,13 +10,12 @@ use Hyperf\Utils\Str;
 
 class Defaults
 {
-  public static function a($match)
-  {
-    return "<a>$match[1]</a>";
-  }
 
   public function alert_success($match)
   {
+	  if(!@$match[1]){
+		  return $match[0];
+	  }
     return <<<HTML
 <div class="alert alert-important alert-success alert-dismissible">
   <div class="d-flex">
@@ -46,6 +45,9 @@ HTML;
 
   public function alert_error($match)
   {
+	  if(!@$match[1]){
+		  return $match[0];
+	  }
     return <<<HTML
 <div class="alert alert-important alert-danger alert-dismissible">
   <div class="d-flex">
@@ -62,6 +64,9 @@ HTML;
 
   public function alert_info($match)
   {
+	  if(!@$match[1]){
+		  return $match[0];
+	  }
     return <<<HTML
 <div class="alert alert-important alert-info alert-dismissible">
   <div class="d-flex">
@@ -93,6 +98,9 @@ HTML;
 
   public function alert_warning($match)
   {
+	  if(!@$match[1]){
+		  return $match[0];
+	  }
     return <<<HTML
 <div class="alert alert-important alert-warning alert-dismissible">
   <div class="d-flex">
@@ -106,9 +114,13 @@ HTML;
 HTML;
   }
   public function topic($match){
+	  if(!@$match[1]){
+		  return $match[0];
+	  }
+	  
       $topic_id = $match[1];
       if(!Topic::query()->where("id",$topic_id)->exists()) {
-          return '[topic id="'.$topic_id.'"][/topic]';
+          return $match[0];
       }
       return <<<HTML
 <div class="hvr-grow row topic-with" core-data="topic" topic-id="{$topic_id}">
@@ -150,38 +162,24 @@ HTML;
       $data = Str::after($data,'"');
       $data = Str::before($data,'"');
       $data = explode(",",$data);
+	  if(!@$data[0] || !@$data[1] || !@$data[2]){
+		  return $match[0];
+	  }
       return <<<HTML
     <a href="{$data[0]}" class="btn {$data[1]}">{$data[2]}</a>
 HTML;
-  }
-  public function reply($match){
-      $quanxian = false;
-      $topic_data = cache()->get(session()->get("view_topic_data"));
-      $topic_id = $topic_data->id;
-      if(auth()->check() && TopicComment::query()->where(['topic_id' => $topic_id, 'user_id' => auth()->id()])->exists()) {
-          $quanxian = true;
-      }
-      if($quanxian === false){
-          return view("Comment::ShortCode.reply-hidden",['data' => $match[1]]);
-      }
-      if(@$match[1]){
-        $data = $match[1];
-      }else{
-          $data=null;
-      }
-      return view("Comment::ShortCode.reply-show",['data' => $data]);
   }
 
   public function file($match){
       $result = $match[1];
       $arr = explode(",",$result);
-      $name = $arr[0];
-      $url = $arr[1];
-      $pwd = $arr[2];
-      $unzip = $arr[3];
+      $name = @$arr[0];
+      $url = @$arr[1];
+      $pwd = @$arr[2];
+      $unzip = @$arr[3];
       $pwd?:$pwd="无";
       $unzip?:$unzip="无";
-      if(!$name || !$url){
+      if(!@$name || !@$url){
           return <<<HTML
 <div class="alert alert-danger" role="alert">
   <h4 class="alert-title">附件加载失败&hellip;</h4>
