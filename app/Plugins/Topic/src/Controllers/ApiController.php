@@ -90,6 +90,14 @@ class ApiController
         if(TopicLike::query()->where(['topic_id'=>$topic_id,'user_id'=>auth()->id(),"type" => 'like'])->exists()) {
             TopicLike::query()->where(['topic_id'=>$topic_id,'user_id'=>auth()->id(),"type" => 'like'])->delete();
             Topic::query()->where(['id'=>$topic_id])->decrement("like");
+	        // 发送通知
+	        $topic_data = Topic::query()->where('id', $topic_id)->first();
+	        if($topic_data->user_id!=auth()->id()){
+		        $title = auth()->data()->username."对你的帖子取消了点赞";
+		        $content = view("Topic::Notice.nolike_topic",['user_data' => auth()->data(),'data' => $topic_data]);
+		        $action = "/".$topic_data->id.".html";
+		        user_notice()->send($topic_data->user_id,$title,$content,$action);
+	        }
             return Json_Api(201,true,['msg' => '已取消点赞']);
         }
         TopicLike::query()->create([
@@ -97,6 +105,14 @@ class ApiController
             "user_id" => auth()->id(),
         ]);
         Topic::query()->where(['id'=>$topic_id])->increment("like");
+	    // 发送通知
+	    $topic_data = Topic::query()->where('id', $topic_id)->first();
+	    if($topic_data->user_id!=auth()->id()){
+		    $title = auth()->data()->username."赞了你的帖子";
+		    $content = view("Topic::Notice.like_topic",['user_data' => auth()->data(),'data' => $topic_data]);
+		    $action = "/".$topic_data->id.".html";
+		    user_notice()->send($topic_data->user_id,$title,$content,$action);
+	    }
         return Json_Api(200,true,['msg' =>'已赞!']);
     }
 
