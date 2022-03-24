@@ -19,9 +19,11 @@ class Plugins {
 				// 插件类
                 $plugin_arr[$value]['class']="\App\Plugins\\".$value."\\".$value;
 				// 插件信息
-                $plugin_arr[$value]['data']=get_plugins_doc($plugin_arr[$value]['class']);
+	            $plugin_arr[$value]['data']=[];
 				if(file_exists(plugin_path($value."/".$value.".json"))){
 					$plugin_arr[$value]['data'] = array_merge($plugin_arr[$value]['data'],Config::load(plugin_path($value."/".$value.".json"))->all());
+				}else{
+					$plugin_arr[$value]['data']= array_merge($plugin_arr[$value]['data'],get_plugins_doc($plugin_arr[$value]['class']));
 				}
 				
                 $plugin_arr[$value]['file']=plugin_path($value."/".$value.".php");
