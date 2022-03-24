@@ -41,7 +41,13 @@ class Upgrading
 		$allDir = allDir($tmp);
 		foreach($allDir as $value){
 			if(file_exists($value."/CodeFec")){
+				// 删除runtime缓存
+				$this->removeFiles($path,BASE_PATH."/runtime/view",$path,BASE_PATH."/runtime/container");
+				// 替换
 				FileUtil()->moveDir($value,BASE_PATH,true);
+				// 重建索引
+				\Swoole\Coroutine\System::exec('composer dump-autoload -o');
+				\Swoole\Coroutine\System::exec('php CodeFec');
 				// 删除更新锁
 				$this->removeFiles($tmp,$path,BASE_PATH."/app/CodeFec/storage/update.lock");
 				// 清理缓存
