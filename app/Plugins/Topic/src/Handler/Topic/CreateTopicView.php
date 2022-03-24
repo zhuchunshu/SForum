@@ -15,7 +15,6 @@ class CreateTopicView
     // 右侧侧栏
     public function right(): array
     {
-        Itf()->add("Topic_create_right",1,"Topic::create.right-quanxian");
         Itf()->add("Topic_create_right",2,"Topic::create.right-summary");
         return Itf()->get("Topic_create_right");
     }

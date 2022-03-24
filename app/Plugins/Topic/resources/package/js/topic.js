@@ -1,7 +1,6 @@
 import Vditor from 'vditor';
 import axios from "axios";
 import iziToast from "izitoast";
-const qs = require('querystring')
 import copy from 'copy-to-clipboard';
 import Swal from "sweetalert2";
 
@@ -19,16 +18,6 @@ if(document.getElementById("create-topic-vue")){
                 },
                 options:{
                     summary:'',
-                    hidden:{
-                        type:"close",
-                        user:{
-                            list:[
-
-                            ],
-                            selected:null
-                        },
-                        user_class:[]
-                    }
                 },
                 tag_selected:1,
                 tags:[
@@ -85,9 +74,6 @@ if(document.getElementById("create-topic-vue")){
 
             },
             submit(){
-                const options_hidden_user_list = qs.stringify(this.options.hidden.user.list)
-                const options_hidden_user_class = qs.stringify(this.options.hidden.user_class)
-                const options_hidden_type = this.options.hidden.type
                 const html = this.vditor.getHTML();
                 const markdown = this.vditor.getValue();
                 const tags = this.tag_selected;
@@ -113,9 +99,6 @@ if(document.getElementById("create-topic-vue")){
                 }
                 axios.post("/topic/create",{
                     _token:csrf_token,
-                    options_hidden_user_list:options_hidden_user_list,
-                    options_hidden_user_class:options_hidden_user_class,
-                    options_hidden_type:options_hidden_type,
                     title:this.title,
                     html:html,
                     markdown:markdown,
@@ -161,9 +144,6 @@ if(document.getElementById("create-topic-vue")){
             },
             // 存为草稿
             draft(){
-                const options_hidden_user_list = qs.stringify(this.options.hidden.user.list)
-                const options_hidden_user_class = qs.stringify(this.options.hidden.user_class)
-                const options_hidden_type = this.options.hidden.type
                 const html = this.vditor.getHTML();
                 const markdown = this.vditor.getValue();
                 const tags = this.tag_selected;
@@ -189,9 +169,6 @@ if(document.getElementById("create-topic-vue")){
                 }
                 axios.post("/topic/create/draft",{
                     _token:csrf_token,
-                    options_hidden_user_list:options_hidden_user_list,
-                    options_hidden_user_class:options_hidden_user_class,
-                    options_hidden_type:options_hidden_type,
                     title:this.title,
                     html:html,
                     markdown:markdown,
@@ -443,42 +420,6 @@ if(document.getElementById("create-topic-vue")){
                     }
                 });
             },
-            hidden_user_remove(username){
-                this.options.hidden.user.list.splice(this.options.hidden.user.list.indexOf(username),1)
-                iziToast.success({
-                    title:"Success",
-                    message:"已将 "+username+" 从可见列表中移除",
-                    position: 'topRight',
-                })
-            },
-            hidden_user_add(){
-                const username = this.options.hidden.user.selected;
-
-                if(this.options.hidden.user.list.indexOf(username)===-1){
-                    axios.post("/api/user/@has_user_username/"+username,{_token:csrf_token})
-                        .then(r=>{
-                            const data = r.data;
-                            if(data.success){
-                                this.options.hidden.user.list.push(username)
-                                this.options.hidden.user.selected = null;
-                            }else{
-                                swal({
-                                    title:"新增用户失败,原因:"+data.result.msg,
-                                    icon:"error"
-                                })
-                            }
-                        })
-                        .catch(e=>{
-                            swal({
-                                title:"接口请求失败,详细查看控制台",
-                                icon:"error"
-                            })
-                            console.error(e)
-                        })
-                }else{
-                    swal("用户:"+username+"已存在,无需重复添加")
-                }
-            },
 
         },
 
@@ -541,16 +482,6 @@ if(document.getElementById("edit-topic-vue")){
                 },
                 options:{
                     summary:'',
-                    hidden:{
-                        type:"close",
-                        user:{
-                            list:[
-
-                            ],
-                            selected:null
-                        },
-                        user_class:[]
-                    }
                 },
                 tag_selected:1,
                 tags:[
@@ -651,9 +582,6 @@ if(document.getElementById("edit-topic-vue")){
 
             },
             submit(){
-                const options_hidden_user_list = qs.stringify(this.options.hidden.user.list)
-                const options_hidden_user_class = qs.stringify(this.options.hidden.user_class)
-                const options_hidden_type = this.options.hidden.type
                 const html = this.vditor.getHTML();
                 const markdown = this.vditor.getValue();
                 const tags = this.tag_selected;
@@ -680,9 +608,6 @@ if(document.getElementById("edit-topic-vue")){
                 axios.post("/topic/edit",{
                     _token:csrf_token,
                     topic_id:this.topic_id,
-                    options_hidden_user_list:options_hidden_user_list,
-                    options_hidden_user_class:options_hidden_user_class,
-                    options_hidden_tfixTermTypoype:options_hidden_type,
                     title:this.title,
                     html:html,
                     markdown:markdown,
@@ -727,9 +652,6 @@ if(document.getElementById("edit-topic-vue")){
 
             // 存为草稿
             draft(){
-                const options_hidden_user_list = qs.stringify(this.options.hidden.user.list)
-                const options_hidden_user_class = qs.stringify(this.options.hidden.user_class)
-                const options_hidden_type = this.options.hidden.type
                 const html = this.vditor.getHTML();
                 const markdown = this.vditor.getValue();
                 const tags = this.tag_selected;
@@ -756,9 +678,6 @@ if(document.getElementById("edit-topic-vue")){
                 axios.post("/topic/edit/draft",{
                     _token:csrf_token,
                     topic_id:this.topic_id,
-                    options_hidden_user_list:options_hidden_user_list,
-                    options_hidden_user_class:options_hidden_user_class,
-                    options_hidden_tfixTermTypoype:options_hidden_type,
                     title:this.title,
                     html:html,
                     markdown:markdown,
@@ -980,51 +899,12 @@ if(document.getElementById("edit-topic-vue")){
                     }
                 });
             },
-            hidden_user_remove(username){
-                this.options.hidden.user.list.splice(this.options.hidden.user.list.indexOf(username),1)
-                iziToast.success({
-                    title:"Success",
-                    message:"已将 "+username+" 从可见列表中移除",
-                    position: 'topRight',
-                })
-            },
-            hidden_user_add(){
-                const username = this.options.hidden.user.selected;
-
-                if(this.options.hidden.user.list.indexOf(username)===-1){
-                    axios.post("/api/user/@has_user_username/"+username,{_token:csrf_token})
-                        .then(r=>{
-                            const data = r.data;
-                            if(data.success){
-                                this.options.hidden.user.list.push(username)
-                                this.options.hidden.user.selected = null;
-                            }else{
-                                swal({
-                                    title:"新增用户失败,原因:"+data.result.msg,
-                                    icon:"error"
-                                })
-                            }
-                        })
-                        .catch(e=>{
-                            swal({
-                                title:"接口请求失败,详细查看控制台",
-                                icon:"error"
-                            })
-                            console.error(e)
-                        })
-                }else{
-                    swal("用户:"+username+"已存在,无需重复添加")
-                }
-            },
 
             setTopicValue(data){
                 this.title = data.title
                 this.vditor.setValue(data.markdown)
                 this.tag_selected = data.tag.id
                 this.options.summary = data.options.summary
-                this.options.hidden.type = data.options.hidden.type
-                this.options.hidden.user.list = data.options.hidden.users
-                this.options.hidden.user_class = data.options.hidden.user_class
             }
 
         },

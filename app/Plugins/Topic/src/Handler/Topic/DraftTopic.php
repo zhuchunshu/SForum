@@ -27,34 +27,12 @@ class DraftTopic
         $tag = $request->input("tag");
         $markdown = $request->input("markdown");
         $html = $request->input("html");
-        $hidden_type = $request->input("options_hidden_type");
-        $hidden_user_class = $request->input("options_hidden_user_class");
-        $hidden_user_list = $request->input("options_hidden_user_list");
         $summary = $request->input("summary");
         if(!$summary){
             $summary = remove_bbCode(strip_tags($html));
         }
-        if($hidden_user_class){
-            $hidden_user_class = de_stringify($hidden_user_class);
-        }else{
-            $hidden_user_class = [];
-        }
-
-        if($hidden_user_list){
-            $hidden_user_list = de_stringify($hidden_user_list);
-        }else{
-            $hidden_user_list = [];
-        }
-        if(!$hidden_type){
-            $hidden_type = "close";
-        }
         $images = getAllImg($html);
         $options = [
-            "hidden" => [
-                "type" => $hidden_type,
-                "users" => $hidden_user_list,
-                "user_class" => $hidden_user_class
-            ],
             "summary" => $summary,
             "images" => $images
         ];
