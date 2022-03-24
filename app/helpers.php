@@ -194,6 +194,7 @@ if (!function_exists("view")) {
     {
         $container = \Hyperf\Utils\ApplicationContext::getContainer();
 		$result = $container->get(RenderInterface::class)->render($view, $data, $code);
+	    return $result;
 		if(env("APP_ENV")==='dev'){
 			return $result;
 		}
