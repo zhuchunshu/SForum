@@ -22,7 +22,7 @@
                                     </div>
                                     {{--                                            楼层信息--}}
                                     <div class="col-auto">
-                                        <a class="badge badge-pill bg-teal" href="/{{$value->topic_id}}.html">来源帖子</a>
+                                        <a class="badge badge-pill bg-teal" href="/{{$value->topic_id}}.html">访问所在帖子</a>
                                     </div>
 
                                 </div>

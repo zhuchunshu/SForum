@@ -4,6 +4,7 @@ namespace App\Plugins\Core\src\Lib;
 
 use App\CodeFec\Annotation\ShortCode\ShortCodeR;
 use App\Plugins\Comment\src\Model\TopicComment;
+use App\Plugins\Topic\src\Models\TopicTag;
 use App\Plugins\User\src\Models\User;
 
 class ShortCode
@@ -83,5 +84,19 @@ class ShortCode
 		}
 		$data = TopicComment::query()->where(['id'=>$comment_id,'status' =>'publish'])->first();
 		return view("Comment::ShortCode.comment",['value' => $data]);
+	}
+	
+	// 引用标签
+	#[ShortCodeR(name:"topic-tag")]
+	public function topic_tag($match){
+		if(!@$match[1]){
+			return '[topic-tag]标签用法错误!';
+		}
+		$id = $match[1];
+		if(!TopicTag::query()->where(['id'=>$id])->exists()){
+			return $match[0];
+		}
+		$data = TopicTag::query()->where(['id'=>$id])->first();
+		return view("Topic::ShortCode.tag",['value' => $data]);
 	}
 }
