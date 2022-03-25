@@ -51,7 +51,6 @@ class DraftEditTopic
         $options = json_encode($options, JSON_THROW_ON_ERROR,JSON_UNESCAPED_UNICODE);
          Topic::query()->where("id",$topic_id)->update([
             "title" => $title,
-            "user_id" => auth()->id(),
             "content" => $html,
             "markdown" => $markdown,
             "tag_id" => $tag,

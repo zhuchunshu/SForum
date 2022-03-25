@@ -10,7 +10,7 @@ use Intervention\Image\ImageManagerStatic as Image;
 
 class UploadHandler
 {
-    public function save($file, $folder, $file_prefix=null, $max_width = false): array
+    public function save($file, $folder, $file_prefix=null, $max_width = 500): array
     {
         if(!auth()->check()){
             if(!admin_auth()->Check()){
@@ -73,7 +73,7 @@ class UploadHandler
         $image = Image::make($file_path);
 
         // 进行大小调整的操作
-        $image->resize($max_width, null, function ($constraint) {
+        $image->resize(200, null, function ($constraint) {
 
             // 设定宽度是 $max_width，高度等比例缩放
             $constraint->aspectRatio();

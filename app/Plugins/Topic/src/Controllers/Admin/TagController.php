@@ -40,7 +40,7 @@ class TagController
         }else{
             $userClass = null;
         }
-        $icon_url = $upload->save($icon,"admin",Str::random())['path'];
+        $icon_url = $upload->save($icon,"admin",Str::random(),200)['path'];
         TopicTag::create([
             "name" => $name,
             "color" => $color,
@@ -90,7 +90,7 @@ class TagController
 
         if($icon===true){
             // 上传icon
-            $url = $upload->save($request->file("icon"),"admin",Str::random())['path'];
+            $url = $upload->save($request->file("icon"),"admin",Str::random(),200)['path'];
             TopicTag::query()->where("id",$id)->update([
                 "name" => $name,
                 "description" => $description,
