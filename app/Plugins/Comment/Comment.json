@@ -1,7 +1,7 @@
 {
   "name": "评论插件",
   "description": "提供基本帖子评论功能",
-  "version": "1.3.6",
+  "version": "1.3.8",
   "author": "zhuchunshu",
   "link": "https://github.com/zhuchunshu",
   "masterVersion": "v1.3.4"
