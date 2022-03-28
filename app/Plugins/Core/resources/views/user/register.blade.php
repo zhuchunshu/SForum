@@ -55,7 +55,7 @@
             @endif
 
             <div class="form-footer">
-                <button type="submit" class="btn btn-primary w-100">立即登陆</button>
+                <button type="submit" class="btn btn-primary w-100">立即注册</button>
             </div>
         </div>
     </form>

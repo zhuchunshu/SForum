@@ -1,6 +1,6 @@
 
 {{--                作者信息--}}
-<div class="col-md-10">
+<div class="col-md-12">
     <div class="border-0 card">
         <div class="card-body">
             <div class="row">
@@ -32,7 +32,7 @@
 </div>
 
 {{--                标签信息--}}
-<div class="col-md-10">
+<div class="col-md-12">
     <div class="border-0 card">
         <div class="card-body">
             <div class="row">

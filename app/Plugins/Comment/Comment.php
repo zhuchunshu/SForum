@@ -14,6 +14,7 @@ namespace App\Plugins\Comment;
 class Comment
 {
     public function handler(){
+		$this->helpers();
         $this->setting();
     }
 

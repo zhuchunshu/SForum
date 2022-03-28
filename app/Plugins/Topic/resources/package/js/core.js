@@ -2,6 +2,7 @@ import axios from "axios";
 import iziToast from "izitoast";
 import Fancybox from "@fancyapps/ui";
 import swal from "sweetalert";
+import copy from 'copy-to-clipboard';
 
 $(function(){
     $('div[core-data="topic"]').each(function(){
@@ -199,6 +200,7 @@ $(function () {
 })
 
 $(function(){
+    // 收藏帖子
     $('a[core-click="star-topic"]').click(function(){
         var th = $(this);
         var topic_id = th.attr("topic-id");
@@ -230,6 +232,22 @@ $(function(){
     })
 })
 
+
+$(function(){
+    // 引用帖子
+    $('a[core-click="quote-topic"]').click(function(){
+        const topic_id = $(this).attr("topic-id");
+        const shortCode="[topic="+topic_id+"][/topic]";
+        copy(shortCode);
+        iziToast.success({
+            title:"Success",
+            message:"已复制短代码!",
+            position:"topRight"
+        })
+    })
+})
+
+
 // 举报
 $(function(){
 
@@ -253,6 +271,18 @@ $(function(){
         var selected=$("#modal-report-select").val();
         $("#modal-report-input-url").val(location.protocol+"//"+location.host+$(this).attr("url"))
         $("#modal-report-input-title").val("【"+selected+"】"+"举报ID为:"+$(this).attr("comment-id")+"的评论")
+    })
+
+    // 引用评论
+    $('a[comment-click="quote-comment"]').click(function(){
+        const comment_id = $(this).attr("comment-id");
+        const shortCode="[topic-comment="+comment_id+"][/topic-comment]";
+        copy(shortCode);
+        iziToast.success({
+            title:"Success",
+            message:"已复制短代码!",
+            position:"topRight"
+        })
     })
 
     // select 变化事件

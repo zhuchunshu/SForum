@@ -111,6 +111,7 @@
                                                 </svg>
                                             </a>
 
+
                                             {{--                                        删除评论--}}
                                             @if(auth()->check())
 
@@ -154,6 +155,19 @@
                                                     </svg>
                                                 </a>
                                             @endif
+                                            {{--                                            引用评论--}}
+                                            <a style="text-decoration:none;" comment-click="quote-comment" comment-id="{{ $value->id }}"
+                                               class="cursor-pointer text-muted hvr-icon-up" data-bs-toggle="tooltip" data-bs-placement="bottom" title="引用">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-blockquote" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                    <path d="M6 15h15"></path>
+                                                    <path d="M21 19h-15"></path>
+                                                    <path d="M15 11h6"></path>
+                                                    <path d="M21 7h-6"></path>
+                                                    <path d="M9 9h1a1 1 0 1 1 -1 1v-2.5a2 2 0 0 1 2 -2"></path>
+                                                    <path d="M3 9h1a1 1 0 1 1 -1 1v-2.5a2 2 0 0 1 2 -2"></path>
+                                                </svg>
+                                            </a>
                                         </div>
                                         <div class="col-md-12" comment-dom="comment-{{$value->id}}" comment-status="off">
                                             <div class="hr-text" style="margin-bottom:15px;margin-top:15px;display: none">回复</div>

@@ -52,7 +52,7 @@ class ApiController
         }
         cache()->set("comment_create_time_" . auth()->id(), time()+get_options("comment_create_time", 60),get_options("comment_create_time", 60));
 
-        return Json_Api(200,true,['发表成功!']);
+        return Json_Api(200,true,['msg'=>'发表成功!','url' => "/".$data->topic_id.".html/".$data->id."?page=".get_topic_comment_page($data->id)]);
     }
 
     // 回复评论
@@ -102,7 +102,7 @@ class ApiController
         }
         cache()->set("comment_create_time_" . auth()->id(), time()+get_options("comment_create_time", 60),get_options("comment_create_time", 60));
 
-        return Json_Api(200,true,['回复成功!']);
+        return Json_Api(200,true,['msg'=>'回复成功!','url' => "/".$data->topic_id.".html/".$data->id."?page=".get_topic_comment_page($data->id)]);
     }
 
     // 删除帖子评论

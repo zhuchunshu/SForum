@@ -56,16 +56,14 @@ if(document.getElementById("topic-comment-model")){
                         })
                     }else{
                         this.vditor.clearCache()
-                        data.result.forEach(function(value){
-                            iziToast.success({
-                                title:"Success",
-                                message:value,
-                                position:"topRight",
-                                timeout:1000
-                            })
+                        iziToast.success({
+                            title:"Success",
+                            message:data.result.msg,
+                            position:"topRight",
+                            timeout:1000
                         })
-                        setTimeout(function(){
-                            location.reload()
+                        setTimeout(()=>{
+                            location.href=data.result.url;
                         },1000);
                     }
                 }).catch(e=>{
@@ -379,16 +377,15 @@ $(function(){
                             })
                         })
                     }else{
-                        data.result.forEach(function(value){
-                            iziToast.success({
-                                title:"Success",
-                                message:value,
-                                position:"topRight"
-                            })
+                        iziToast.success({
+                            title:"Success",
+                            message:data.result.msg,
+                            position:"topRight",
+                            timeout:1000
                         })
-                        setTimeout(function(){
-                            location.reload()
-                        },1500)
+                        setTimeout(()=>{
+                            location.href=data.result.url;
+                        },1000);
                     }
                 }).catch(e=>{
                     console.error(e)
