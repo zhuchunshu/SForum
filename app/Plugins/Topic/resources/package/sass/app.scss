@@ -13,6 +13,38 @@ pre{
   word-break: normal;
   line-height: 1.5;
 }
+.vditor-reset{
+  h1:before{
+    content: "#";
+    display: inline-block;
+    padding-right: 0.23em;
+  }
+  h2:before{
+    content: "#";
+    display: inline-block;
+    padding-right: 0.23em;
+  }
+  h3:before{
+    content: "#";
+    display: inline-block;
+    padding-right: 0.23em;
+  }
+  h4:before{
+    content: "#";
+    display: inline-block;
+    padding-right: 0.23em;
+  }
+  h5:before{
+    content: "#";
+    display: inline-block;
+    padding-right: 0.23em;
+  }
+  h6:before{
+    content: "#";
+    display: inline-block;
+    padding-right: 0.23em;
+  }
+}
 
 .vditor-linenumber {
   padding-left: 2.5em !important;

@@ -82,7 +82,7 @@
                                         <div style="margin-top:1px">发布于:{{$data->created_at}}</div>
                                     </div>
                                     <div class="col-auto">
-                                        <a user-click="user_follow" user-id="{{$data->user_id}}" class="btn btn-danger">关注</a>
+                                        <a user-click="user_follow" user-id="{{$data->user_id}}" class="btn btn-light">关注</a>
                                     </div>
                                 </div>
                             </div>

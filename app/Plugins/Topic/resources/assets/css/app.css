@@ -1782,6 +1782,37 @@ pre {
   line-height: 1.5;
 }
 
+.vditor-reset h1:before {
+  content: "#";
+  display: inline-block;
+  padding-right: 0.23em;
+}
+.vditor-reset h2:before {
+  content: "#";
+  display: inline-block;
+  padding-right: 0.23em;
+}
+.vditor-reset h3:before {
+  content: "#";
+  display: inline-block;
+  padding-right: 0.23em;
+}
+.vditor-reset h4:before {
+  content: "#";
+  display: inline-block;
+  padding-right: 0.23em;
+}
+.vditor-reset h5:before {
+  content: "#";
+  display: inline-block;
+  padding-right: 0.23em;
+}
+.vditor-reset h6:before {
+  content: "#";
+  display: inline-block;
+  padding-right: 0.23em;
+}
+
 .vditor-linenumber {
   padding-left: 2.5em !important;
   position: relative;
