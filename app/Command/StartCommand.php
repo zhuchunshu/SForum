@@ -7,6 +7,7 @@ namespace App\Command;
 use App\CodeFec\Install;
 use Hyperf\Command\Annotation\Command;
 use Hyperf\Command\Command as HyperfCommand;
+use Hyperf\Utils\Str;
 use Hyperf\Watcher\{Option,Watcher};
 use Psr\Container\ContainerInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -32,7 +33,12 @@ class StartCommand extends HyperfCommand
     public function handle()
     {
         if(file_exists(BASE_PATH."/app/CodeFec/storage/install.lock") || (new Install($this->output,$this))->getStep()>=5){
-	        \Swoole\Coroutine\System::exec("yes yes | composer du");
+	        if(Str::is('Linux',system_name())){
+		        \Swoole\Coroutine\System::exec("yes yes | composer du");
+	        }else{
+		        \Swoole\Coroutine\System::exec("composer du");
+	        }
+			
 	        $option = make(Option::class, [
 		        'dir' => $this->input->getOption('dir'),
 		        'file' => $this->input->getOption('file'),

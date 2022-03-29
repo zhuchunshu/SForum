@@ -7,6 +7,7 @@ namespace App\Command\CodeFec\Plugins;
 use App\CodeFec\Plugins;
 use Hyperf\Command\Command as HyperfCommand;
 use Hyperf\Command\Annotation\Command;
+use Hyperf\Utils\Str;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -35,7 +36,11 @@ class ComposerInstall extends HyperfCommand
 
     public function handle()
     {
-	    \Swoole\Coroutine\System::exec("yes | composer update");
+	    if(Str::is('Linux',system_name())){
+		    \Swoole\Coroutine\System::exec("yes | composer update");
+	    }else{
+		    \Swoole\Coroutine\System::exec("composer update");
+	    }
         $this->line('Successfully installed', 'info');
     }
 }

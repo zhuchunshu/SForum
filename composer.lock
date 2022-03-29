@@ -146,7 +146,13 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/DivineOmega/php-summary/zipball/0307a38f8050e2aa7b979271ab6f226d01ea4ecb",
                 "reference": "0307a38f8050e2aa7b979271ab6f226d01ea4ecb",
-                "shasum": ""
+                "shasum": "",
+                "mirrors": [
+                    {
+                        "url": "https://mirrors.aliyun.com/composer/dists/%package%/%reference%.%type%",
+                        "preferred": true
+                    }
+                ]
             },
             "require": {
                 "php": ">=7.1"
@@ -991,7 +997,13 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/erusev/parsedown/zipball/cb17b6477dfff935958ba01325f2e8a2bfa6dab3",
                 "reference": "cb17b6477dfff935958ba01325f2e8a2bfa6dab3",
-                "shasum": ""
+                "shasum": "",
+                "mirrors": [
+                    {
+                        "url": "https://mirrors.aliyun.com/composer/dists/%package%/%reference%.%type%",
+                        "preferred": true
+                    }
+                ]
             },
             "require": {
                 "ext-mbstring": "*",
@@ -1041,7 +1053,13 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/ezyang/htmlpurifier/zipball/12ab42bd6e742c70c0a52f7b82477fcd44e64b75",
                 "reference": "12ab42bd6e742c70c0a52f7b82477fcd44e64b75",
-                "shasum": ""
+                "shasum": "",
+                "mirrors": [
+                    {
+                        "url": "https://mirrors.aliyun.com/composer/dists/%package%/%reference%.%type%",
+                        "preferred": true
+                    }
+                ]
             },
             "require": {
                 "php": ">=5.2"
@@ -4132,7 +4150,13 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/Intervention/image/zipball/744ebba495319501b873a4e48787759c72e3fb8c",
                 "reference": "744ebba495319501b873a4e48787759c72e3fb8c",
-                "shasum": ""
+                "shasum": "",
+                "mirrors": [
+                    {
+                        "url": "https://mirrors.aliyun.com/composer/dists/%package%/%reference%.%type%",
+                        "preferred": true
+                    }
+                ]
             },
             "require": {
                 "ext-fileinfo": "*",
@@ -4763,7 +4787,13 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/multiavatar/multiavatar-php/zipball/13a62a656b1c2ca1c62dee57b4c1d8a3b04e6574",
                 "reference": "13a62a656b1c2ca1c62dee57b4c1d8a3b04e6574",
-                "shasum": ""
+                "shasum": "",
+                "mirrors": [
+                    {
+                        "url": "https://mirrors.aliyun.com/composer/dists/%package%/%reference%.%type%",
+                        "preferred": true
+                    }
+                ]
             },
             "type": "library",
             "autoload": {
@@ -7953,7 +7983,13 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/xemlock/htmlpurifier-html5/zipball/f0d563f9fd4a82a3d759043483f9a94c0d8c2255",
                 "reference": "f0d563f9fd4a82a3d759043483f9a94c0d8c2255",
-                "shasum": ""
+                "shasum": "",
+                "mirrors": [
+                    {
+                        "url": "https://mirrors.aliyun.com/composer/dists/%package%/%reference%.%type%",
+                        "preferred": true
+                    }
+                ]
             },
             "require": {
                 "ezyang/htmlpurifier": "^4.8",
@@ -8008,7 +8044,13 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/Yurunsoft/PHPMailer-Swoole/zipball/ec09ff66f6e9eb8b94b8574545357dc52e91c0a5",
                 "reference": "ec09ff66f6e9eb8b94b8574545357dc52e91c0a5",
-                "shasum": ""
+                "shasum": "",
+                "mirrors": [
+                    {
+                        "url": "https://mirrors.aliyun.com/composer/dists/%package%/%reference%.%type%",
+                        "preferred": true
+                    }
+                ]
             },
             "require": {
                 "php": ">=7.0",

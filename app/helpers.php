@@ -693,3 +693,11 @@ if(!function_exists("build_info")){
 		return json_decode(json_encode($data));
 	}
 }
+
+// 获取系统名
+if(!function_exists("system_name")){
+	function system_name(): bool|string|null
+	{
+		return shell_exec("echo \$(uname)");
+	}
+}
