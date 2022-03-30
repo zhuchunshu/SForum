@@ -7,6 +7,9 @@ use App\Command\StartCommand;
 use App\Controller\ApiController;
 use App\Model\AdminOption;
 use Swoole\Coroutine\System;
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -116,7 +119,7 @@ class Upgrading
 				cache()->delete('admin.git.getVersion');
 				// 对所有插件进行资源迁移
 				$this->command->info("对所有插件进行资源迁移...\n");
-				(new ApiController())->AdminPluginMigrateAll();
+				$this->AdminPluginMigrateAll();
 				// 更新插件包
 				$this->command->info("更新插件包...\n");
 				System::exec('php CodeFec CodeFec:PluginsComposerInstall');
@@ -130,6 +133,49 @@ class Upgrading
 	{
 		foreach($values as $value){
 			\Swoole\Coroutine\System::exec('rm -rf "' . $value.'"');
+		}
+	}
+	
+	private function AdminPluginMigrateAll(): void
+	{
+		foreach (Plugins_EnList() as $name){
+			if(!$name){
+				if (!request()->input("name")) {
+					return;
+				}
+				
+				$plugin_name = request()->input("name");
+			}else{
+				$plugin_name = $name;
+			}
+			
+			if (is_dir(plugin_path($plugin_name . "/resources/views")) && !is_dir(BASE_PATH . "/resources/views/plugins")) {
+				\Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/resources/views/plugins");
+			}
+			if (is_dir(plugin_path($plugin_name . "/resources/assets"))) {
+				if (!is_dir(public_path("plugins"))) {
+					mkdir(public_path("plugins"));
+				}
+				if (!is_dir(public_path("plugins/" . $plugin_name))) {
+					mkdir(public_path("plugins/" . $plugin_name));
+				}
+				copy_dir(plugin_path($plugin_name . "/resources/assets"), public_path("plugins/" . $plugin_name));
+			}
+			if (is_dir(plugin_path($plugin_name . "/src/migrations"))) {
+				$params = ["command" => "CodeFec:migrate", "path" => plugin_path($plugin_name . "/src/migrations")];
+				
+				$input = new ArrayInput($params);
+				$output = new NullOutput();
+				
+				$container = \Hyperf\Utils\ApplicationContext::getContainer();
+				
+				/** @var Application $application */
+				$application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+				$application->setAutoExit(false);
+				
+				// 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
+				$exitCode = $application->run($input, $output);
+			}
 		}
 	}
 }

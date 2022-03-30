@@ -135,6 +135,58 @@
             "time": "2017-10-13T19:09:01+00:00"
         },
         {
+            "name": "divineomega/php-summary",
+            "version": "v3.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/DivineOmega/php-summary.git",
+                "reference": "0307a38f8050e2aa7b979271ab6f226d01ea4ecb"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/DivineOmega/php-summary/zipball/0307a38f8050e2aa7b979271ab6f226d01ea4ecb",
+                "reference": "0307a38f8050e2aa7b979271ab6f226d01ea4ecb",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1"
+            },
+            "require-dev": {
+                "php-coveralls/php-coveralls": "^2.1",
+                "phpunit/phpunit": "^7.0 || ^8.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.0-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "DivineOmega\\PHPSummary\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-3.0-only"
+            ],
+            "description": "PHP Summarization Library",
+            "homepage": "https://github.com/DivineOmega/php-summary",
+            "keywords": [
+                "library",
+                "php",
+                "summarization",
+                "summarization library",
+                "summarizing",
+                "summary"
+            ],
+            "support": {
+                "issues": "https://github.com/DivineOmega/php-summary/issues",
+                "source": "https://github.com/DivineOmega/php-summary/tree/v3.0.0"
+            },
+            "time": "2020-06-24T22:16:52+00:00"
+        },
+        {
             "name": "doctrine/annotations",
             "version": "1.13.2",
             "source": {
@@ -376,16 +428,16 @@
         },
         {
             "name": "doctrine/dbal",
-            "version": "3.3.3",
+            "version": "3.3.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/dbal.git",
-                "reference": "82331b861727c15b1f457ef05a8729e508e7ead5"
+                "reference": "83f779beaea1893c0bece093ab2104c6d15a7f26"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/dbal/zipball/82331b861727c15b1f457ef05a8729e508e7ead5",
-                "reference": "82331b861727c15b1f457ef05a8729e508e7ead5",
+                "url": "https://api.github.com/repos/doctrine/dbal/zipball/83f779beaea1893c0bece093ab2104c6d15a7f26",
+                "reference": "83f779beaea1893c0bece093ab2104c6d15a7f26",
                 "shasum": ""
             },
             "require": {
@@ -467,7 +519,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/dbal/issues",
-                "source": "https://github.com/doctrine/dbal/tree/3.3.3"
+                "source": "https://github.com/doctrine/dbal/tree/3.3.4"
             },
             "funding": [
                 {
@@ -483,7 +535,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2022-03-09T15:39:50+00:00"
+            "time": "2022-03-20T18:37:29+00:00"
         },
         {
             "name": "doctrine/deprecations",
@@ -928,6 +980,107 @@
             "time": "2021-10-11T09:18:27+00:00"
         },
         {
+            "name": "erusev/parsedown",
+            "version": "1.7.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/erusev/parsedown.git",
+                "reference": "cb17b6477dfff935958ba01325f2e8a2bfa6dab3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/erusev/parsedown/zipball/cb17b6477dfff935958ba01325f2e8a2bfa6dab3",
+                "reference": "cb17b6477dfff935958ba01325f2e8a2bfa6dab3",
+                "shasum": ""
+            },
+            "require": {
+                "ext-mbstring": "*",
+                "php": ">=5.3.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^4.8.35"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-0": {
+                    "Parsedown": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Emanuil Rusev",
+                    "email": "hello@erusev.com",
+                    "homepage": "http://erusev.com"
+                }
+            ],
+            "description": "Parser for Markdown.",
+            "homepage": "http://parsedown.org",
+            "keywords": [
+                "markdown",
+                "parser"
+            ],
+            "support": {
+                "issues": "https://github.com/erusev/parsedown/issues",
+                "source": "https://github.com/erusev/parsedown/tree/1.7.x"
+            },
+            "time": "2019-12-30T22:54:17+00:00"
+        },
+        {
+            "name": "ezyang/htmlpurifier",
+            "version": "v4.14.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ezyang/htmlpurifier.git",
+                "reference": "12ab42bd6e742c70c0a52f7b82477fcd44e64b75"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ezyang/htmlpurifier/zipball/12ab42bd6e742c70c0a52f7b82477fcd44e64b75",
+                "reference": "12ab42bd6e742c70c0a52f7b82477fcd44e64b75",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.2"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "library/HTMLPurifier.composer.php"
+                ],
+                "psr-0": {
+                    "HTMLPurifier": "library/"
+                },
+                "exclude-from-classmap": [
+                    "/library/HTMLPurifier/Language/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-2.1-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Edward Z. Yang",
+                    "email": "admin@htmlpurifier.org",
+                    "homepage": "http://ezyang.com"
+                }
+            ],
+            "description": "Standards compliant HTML filter written in PHP",
+            "homepage": "http://htmlpurifier.org/",
+            "keywords": [
+                "html"
+            ],
+            "support": {
+                "issues": "https://github.com/ezyang/htmlpurifier/issues",
+                "source": "https://github.com/ezyang/htmlpurifier/tree/v4.14.0"
+            },
+            "time": "2021-12-25T01:21:49+00:00"
+        },
+        {
             "name": "fig/http-message-util",
             "version": "1.1.5",
             "source": {
@@ -1104,16 +1257,16 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "7.4.1",
+            "version": "7.4.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "ee0a041b1760e6a53d2a39c8c34115adc2af2c79"
+                "reference": "ac1ec1cd9b5624694c3a40be801d94137afb12b4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/ee0a041b1760e6a53d2a39c8c34115adc2af2c79",
-                "reference": "ee0a041b1760e6a53d2a39c8c34115adc2af2c79",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/ac1ec1cd9b5624694c3a40be801d94137afb12b4",
+                "reference": "ac1ec1cd9b5624694c3a40be801d94137afb12b4",
                 "shasum": ""
             },
             "require": {
@@ -1208,7 +1361,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/guzzle/issues",
-                "source": "https://github.com/guzzle/guzzle/tree/7.4.1"
+                "source": "https://github.com/guzzle/guzzle/tree/7.4.2"
             },
             "funding": [
                 {
@@ -1224,7 +1377,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2021-12-06T18:43:05+00:00"
+            "time": "2022-03-20T14:16:28+00:00"
         },
         {
             "name": "guzzlehttp/promises",
@@ -1427,16 +1580,16 @@
         },
         {
             "name": "hassankhan/config",
-            "version": "3.0.0",
+            "version": "3.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/hassankhan/config.git",
-                "reference": "a3f02c5158d0a772d242ffd377657793c08cc0c6"
+                "reference": "82421bb17d21cb0c10b98b89ea54aa4027adfc3f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/hassankhan/config/zipball/a3f02c5158d0a772d242ffd377657793c08cc0c6",
-                "reference": "a3f02c5158d0a772d242ffd377657793c08cc0c6",
+                "url": "https://api.github.com/repos/hassankhan/config/zipball/82421bb17d21cb0c10b98b89ea54aa4027adfc3f",
+                "reference": "82421bb17d21cb0c10b98b89ea54aa4027adfc3f",
                 "shasum": ""
             },
             "require": {
@@ -1484,9 +1637,9 @@
             ],
             "support": {
                 "issues": "https://github.com/hassankhan/config/issues",
-                "source": "https://github.com/hassankhan/config/tree/3.0.0"
+                "source": "https://github.com/hassankhan/config/tree/3.0.1"
             },
-            "time": "2021-12-30T16:38:05+00:00"
+            "time": "2022-03-26T19:37:50+00:00"
         },
         {
             "name": "hyperf/async-queue",
@@ -2726,16 +2879,16 @@
         },
         {
             "name": "hyperf/memory",
-            "version": "v2.2.0",
+            "version": "v2.2.29",
             "source": {
                 "type": "git",
                 "url": "https://github.com/hyperf/memory.git",
-                "reference": "e26bfea8c73af4604b217a1b449fbc64a06985d3"
+                "reference": "bdb543ca97c6b24a385bb0a2e08a542bb9cd633f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/hyperf/memory/zipball/e26bfea8c73af4604b217a1b449fbc64a06985d3",
-                "reference": "e26bfea8c73af4604b217a1b449fbc64a06985d3",
+                "url": "https://api.github.com/repos/hyperf/memory/zipball/bdb543ca97c6b24a385bb0a2e08a542bb9cd633f",
+                "reference": "bdb543ca97c6b24a385bb0a2e08a542bb9cd633f",
                 "shasum": ""
             },
             "require": {
@@ -2773,20 +2926,20 @@
                 "pull-request": "https://github.com/hyperf/hyperf/pulls",
                 "source": "https://github.com/hyperf/hyperf"
             },
-            "time": "2021-07-18T06:50:14+00:00"
+            "time": "2022-03-23T07:31:49+00:00"
         },
         {
             "name": "hyperf/model-cache",
-            "version": "v2.2.28",
+            "version": "v2.2.29",
             "source": {
                 "type": "git",
                 "url": "https://github.com/hyperf/model-cache.git",
-                "reference": "81f7d1357923c7f7276e507255380c0e4314e219"
+                "reference": "9345391d5efa2cfed82769c03bdec1223d52006c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/hyperf/model-cache/zipball/81f7d1357923c7f7276e507255380c0e4314e219",
-                "reference": "81f7d1357923c7f7276e507255380c0e4314e219",
+                "url": "https://api.github.com/repos/hyperf/model-cache/zipball/9345391d5efa2cfed82769c03bdec1223d52006c",
+                "reference": "9345391d5efa2cfed82769c03bdec1223d52006c",
                 "shasum": ""
             },
             "require": {
@@ -2831,7 +2984,7 @@
                 "pull-request": "https://github.com/hyperf/hyperf/pulls",
                 "source": "https://github.com/hyperf/hyperf"
             },
-            "time": "2022-03-14T03:07:12+00:00"
+            "time": "2022-03-14T11:40:41+00:00"
         },
         {
             "name": "hyperf/model-listener",
@@ -3657,16 +3810,16 @@
         },
         {
             "name": "illuminate/collections",
-            "version": "v9.5.1",
+            "version": "v9.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/illuminate/collections.git",
-                "reference": "3cc51aa2a03a4c3bd4995e64e00ca795f65cb9c2"
+                "reference": "759aa8468381542842dc099b315f580a3cb8f128"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/illuminate/collections/zipball/3cc51aa2a03a4c3bd4995e64e00ca795f65cb9c2",
-                "reference": "3cc51aa2a03a4c3bd4995e64e00ca795f65cb9c2",
+                "url": "https://api.github.com/repos/illuminate/collections/zipball/759aa8468381542842dc099b315f580a3cb8f128",
+                "reference": "759aa8468381542842dc099b315f580a3cb8f128",
                 "shasum": ""
             },
             "require": {
@@ -3708,11 +3861,11 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2022-03-15T13:34:43+00:00"
+            "time": "2022-03-26T11:51:20+00:00"
         },
         {
             "name": "illuminate/conditionable",
-            "version": "v9.5.1",
+            "version": "v9.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/illuminate/conditionable.git",
@@ -3758,16 +3911,16 @@
         },
         {
             "name": "illuminate/contracts",
-            "version": "v9.5.1",
+            "version": "v9.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/illuminate/contracts.git",
-                "reference": "7ef269f27f8ac0e1d0217a28ff5544ea8bbd0fee"
+                "reference": "de0878799e3eaccb5efdf714c516522fa53b7c81"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/illuminate/contracts/zipball/7ef269f27f8ac0e1d0217a28ff5544ea8bbd0fee",
-                "reference": "7ef269f27f8ac0e1d0217a28ff5544ea8bbd0fee",
+                "url": "https://api.github.com/repos/illuminate/contracts/zipball/de0878799e3eaccb5efdf714c516522fa53b7c81",
+                "reference": "de0878799e3eaccb5efdf714c516522fa53b7c81",
                 "shasum": ""
             },
             "require": {
@@ -3802,11 +3955,11 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2022-03-12T17:02:05+00:00"
+            "time": "2022-03-18T14:48:15+00:00"
         },
         {
             "name": "illuminate/macroable",
-            "version": "v9.5.1",
+            "version": "v9.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/illuminate/macroable.git",
@@ -3852,7 +4005,7 @@
         },
         {
             "name": "illuminate/pipeline",
-            "version": "v9.5.1",
+            "version": "v9.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/illuminate/pipeline.git",
@@ -3900,16 +4053,16 @@
         },
         {
             "name": "illuminate/support",
-            "version": "v9.5.1",
+            "version": "v9.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/illuminate/support.git",
-                "reference": "fe167872090bd70ec8f9c26ebd81979dc44da167"
+                "reference": "c0ef963c7c622318168f34a22d810f775a89d109"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/illuminate/support/zipball/fe167872090bd70ec8f9c26ebd81979dc44da167",
-                "reference": "fe167872090bd70ec8f9c26ebd81979dc44da167",
+                "url": "https://api.github.com/repos/illuminate/support/zipball/c0ef963c7c622318168f34a22d810f775a89d109",
+                "reference": "c0ef963c7c622318168f34a22d810f775a89d109",
                 "shasum": ""
             },
             "require": {
@@ -3965,7 +4118,91 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2022-03-13T14:56:16+00:00"
+            "time": "2022-03-28T18:00:48+00:00"
+        },
+        {
+            "name": "intervention/image",
+            "version": "2.7.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Intervention/image.git",
+                "reference": "744ebba495319501b873a4e48787759c72e3fb8c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Intervention/image/zipball/744ebba495319501b873a4e48787759c72e3fb8c",
+                "reference": "744ebba495319501b873a4e48787759c72e3fb8c",
+                "shasum": ""
+            },
+            "require": {
+                "ext-fileinfo": "*",
+                "guzzlehttp/psr7": "~1.1 || ^2.0",
+                "php": ">=5.4.0"
+            },
+            "require-dev": {
+                "mockery/mockery": "~0.9.2",
+                "phpunit/phpunit": "^4.8 || ^5.7 || ^7.5.15"
+            },
+            "suggest": {
+                "ext-gd": "to use GD library based image processing.",
+                "ext-imagick": "to use Imagick based image processing.",
+                "intervention/imagecache": "Caching extension for the Intervention Image library"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.4-dev"
+                },
+                "laravel": {
+                    "providers": [
+                        "Intervention\\Image\\ImageServiceProvider"
+                    ],
+                    "aliases": {
+                        "Image": "Intervention\\Image\\Facades\\Image"
+                    }
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Intervention\\Image\\": "src/Intervention/Image"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Oliver Vogel",
+                    "email": "oliver@olivervogel.com",
+                    "homepage": "http://olivervogel.com/"
+                }
+            ],
+            "description": "Image handling and manipulation library with support for Laravel integration",
+            "homepage": "http://image.intervention.io/",
+            "keywords": [
+                "gd",
+                "image",
+                "imagick",
+                "laravel",
+                "thumbnail",
+                "watermark"
+            ],
+            "support": {
+                "issues": "https://github.com/Intervention/image/issues",
+                "source": "https://github.com/Intervention/image/tree/2.7.1"
+            },
+            "funding": [
+                {
+                    "url": "https://www.paypal.me/interventionphp",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/Intervention",
+                    "type": "github"
+                }
+            ],
+            "time": "2021-12-16T16:49:26+00:00"
         },
         {
             "name": "jetbrains/phpstorm-stubs",
@@ -4515,6 +4752,53 @@
             "time": "2022-03-14T12:44:37+00:00"
         },
         {
+            "name": "multiavatar/multiavatar-php",
+            "version": "v1.0.5",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/multiavatar/multiavatar-php.git",
+                "reference": "13a62a656b1c2ca1c62dee57b4c1d8a3b04e6574"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/multiavatar/multiavatar-php/zipball/13a62a656b1c2ca1c62dee57b4c1d8a3b04e6574",
+                "reference": "13a62a656b1c2ca1c62dee57b4c1d8a3b04e6574",
+                "shasum": ""
+            },
+            "type": "library",
+            "autoload": {
+                "classmap": [
+                    "Multiavatar.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "Gie Katon",
+                    "homepage": "https://giekaton.com"
+                }
+            ],
+            "description": "Multicultural Avatar Generator",
+            "homepage": "https://multiavatar.com",
+            "keywords": [
+                "avatar",
+                "creator",
+                "generator",
+                "image",
+                "maker",
+                "picture",
+                "profile"
+            ],
+            "support": {
+                "issues": "https://github.com/multiavatar/multiavatar-php/issues",
+                "source": "https://github.com/multiavatar/multiavatar-php/tree/v1.0.5"
+            },
+            "time": "2021-03-02T07:33:46+00:00"
+        },
+        {
             "name": "nesbot/carbon",
             "version": "2.57.0",
             "source": {
@@ -4942,6 +5226,84 @@
                 "source": "https://github.com/PHP-DI/PhpDocReader/tree/2.2.1"
             },
             "time": "2020-10-12T12:39:22+00:00"
+        },
+        {
+            "name": "phpmailer/phpmailer",
+            "version": "v6.6.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/PHPMailer/PHPMailer.git",
+                "reference": "e43bac82edc26ca04b36143a48bde1c051cfd5b1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/PHPMailer/PHPMailer/zipball/e43bac82edc26ca04b36143a48bde1c051cfd5b1",
+                "reference": "e43bac82edc26ca04b36143a48bde1c051cfd5b1",
+                "shasum": ""
+            },
+            "require": {
+                "ext-ctype": "*",
+                "ext-filter": "*",
+                "ext-hash": "*",
+                "php": ">=5.5.0"
+            },
+            "require-dev": {
+                "dealerdirect/phpcodesniffer-composer-installer": "^0.7.0",
+                "doctrine/annotations": "^1.2",
+                "php-parallel-lint/php-console-highlighter": "^0.5.0",
+                "php-parallel-lint/php-parallel-lint": "^1.3.1",
+                "phpcompatibility/php-compatibility": "^9.3.5",
+                "roave/security-advisories": "dev-latest",
+                "squizlabs/php_codesniffer": "^3.6.2",
+                "yoast/phpunit-polyfills": "^1.0.0"
+            },
+            "suggest": {
+                "ext-mbstring": "Needed to send email in multibyte encoding charset or decode encoded addresses",
+                "hayageek/oauth2-yahoo": "Needed for Yahoo XOAUTH2 authentication",
+                "league/oauth2-google": "Needed for Google XOAUTH2 authentication",
+                "psr/log": "For optional PSR-3 debug logging",
+                "stevenmaguire/oauth2-microsoft": "Needed for Microsoft XOAUTH2 authentication",
+                "symfony/polyfill-mbstring": "To support UTF-8 if the Mbstring PHP extension is not enabled (^1.2)"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "PHPMailer\\PHPMailer\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-2.1-only"
+            ],
+            "authors": [
+                {
+                    "name": "Marcus Bointon",
+                    "email": "phpmailer@synchromedia.co.uk"
+                },
+                {
+                    "name": "Jim Jagielski",
+                    "email": "jimjag@gmail.com"
+                },
+                {
+                    "name": "Andy Prevost",
+                    "email": "codeworxtech@users.sourceforge.net"
+                },
+                {
+                    "name": "Brent R. Matzelle"
+                }
+            ],
+            "description": "PHPMailer is a full-featured email creation and transfer class for PHP",
+            "support": {
+                "issues": "https://github.com/PHPMailer/PHPMailer/issues",
+                "source": "https://github.com/PHPMailer/PHPMailer/tree/v6.6.0"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/Synchro",
+                    "type": "github"
+                }
+            ],
+            "time": "2022-02-28T15:31:21+00:00"
         },
         {
             "name": "phpoption/phpoption",
@@ -5713,16 +6075,16 @@
         },
         {
             "name": "spatie/ignition",
-            "version": "1.2.4",
+            "version": "1.2.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/ignition.git",
-                "reference": "ec58c125c15eecaa20180f01ef9667d41a568ba8"
+                "reference": "2f059cf42b48f7c522efbba1c05ad59fc2c1a3f2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/ignition/zipball/ec58c125c15eecaa20180f01ef9667d41a568ba8",
-                "reference": "ec58c125c15eecaa20180f01ef9667d41a568ba8",
+                "url": "https://api.github.com/repos/spatie/ignition/zipball/2f059cf42b48f7c522efbba1c05ad59fc2c1a3f2",
+                "reference": "2f059cf42b48f7c522efbba1c05ad59fc2c1a3f2",
                 "shasum": ""
             },
             "require": {
@@ -5779,7 +6141,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2022-03-11T13:28:02+00:00"
+            "time": "2022-03-29T08:48:34+00:00"
         },
         {
             "name": "symfony/console",
@@ -7580,6 +7942,103 @@
             "time": "2021-02-24T05:28:06+00:00"
         },
         {
+            "name": "xemlock/htmlpurifier-html5",
+            "version": "v0.1.11",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/xemlock/htmlpurifier-html5.git",
+                "reference": "f0d563f9fd4a82a3d759043483f9a94c0d8c2255"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/xemlock/htmlpurifier-html5/zipball/f0d563f9fd4a82a3d759043483f9a94c0d8c2255",
+                "reference": "f0d563f9fd4a82a3d759043483f9a94c0d8c2255",
+                "shasum": ""
+            },
+            "require": {
+                "ezyang/htmlpurifier": "^4.8",
+                "php": ">=5.2"
+            },
+            "require-dev": {
+                "php-coveralls/php-coveralls": "^1.1|^2.1",
+                "phpunit/phpunit": ">=4.7 <8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "classmap": [
+                    "library/HTMLPurifier/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "xemlock",
+                    "email": "xemlock@gmail.com"
+                }
+            ],
+            "description": "HTML5 element definitions for HTML Purifier",
+            "keywords": [
+                "HTML5",
+                "Purifier",
+                "html",
+                "htmlpurifier",
+                "security",
+                "tidy",
+                "validator",
+                "xss"
+            ],
+            "support": {
+                "issues": "https://github.com/xemlock/htmlpurifier-html5/issues",
+                "source": "https://github.com/xemlock/htmlpurifier-html5/tree/master"
+            },
+            "time": "2019-08-07T17:19:21+00:00"
+        },
+        {
+            "name": "yurunsoft/phpmailer-swoole",
+            "version": "v1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Yurunsoft/PHPMailer-Swoole.git",
+                "reference": "ec09ff66f6e9eb8b94b8574545357dc52e91c0a5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Yurunsoft/PHPMailer-Swoole/zipball/ec09ff66f6e9eb8b94b8574545357dc52e91c0a5",
+                "reference": "ec09ff66f6e9eb8b94b8574545357dc52e91c0a5",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.0",
+                "phpmailer/phpmailer": "~6.0"
+            },
+            "require-dev": {
+                "swoft/swoole-ide-helper": "~2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/PHPMailer/functions.php"
+                ],
+                "psr-4": {
+                    "PHPMailer\\PHPMailer\\": "src/PHPMailer",
+                    "Yurun\\Util\\Swoole\\PHPMailer\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-2.1"
+            ],
+            "description": "PHPMailer 支持 Swoole 协程环境",
+            "support": {
+                "issues": "https://github.com/Yurunsoft/PHPMailer-Swoole/issues",
+                "source": "https://github.com/Yurunsoft/PHPMailer-Swoole/tree/master"
+            },
+            "time": "2019-10-24T07:46:26+00:00"
+        },
+        {
             "name": "zhuchunshu/hyperf-hashing",
             "version": "V2.2.0",
             "source": {
@@ -7714,16 +8173,16 @@
         },
         {
             "name": "composer/semver",
-            "version": "3.3.0",
+            "version": "3.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/composer/semver.git",
-                "reference": "f79c90ad4e9b41ac4dfc5d77bf398cf61fbd718b"
+                "reference": "5d8e574bb0e69188786b8ef77d43341222a41a71"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/composer/semver/zipball/f79c90ad4e9b41ac4dfc5d77bf398cf61fbd718b",
-                "reference": "f79c90ad4e9b41ac4dfc5d77bf398cf61fbd718b",
+                "url": "https://api.github.com/repos/composer/semver/zipball/5d8e574bb0e69188786b8ef77d43341222a41a71",
+                "reference": "5d8e574bb0e69188786b8ef77d43341222a41a71",
                 "shasum": ""
             },
             "require": {
@@ -7775,7 +8234,7 @@
             "support": {
                 "irc": "irc://irc.freenode.org/composer",
                 "issues": "https://github.com/composer/semver/issues",
-                "source": "https://github.com/composer/semver/tree/3.3.0"
+                "source": "https://github.com/composer/semver/tree/3.3.1"
             },
             "funding": [
                 {
@@ -7791,7 +8250,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2022-03-15T08:35:57+00:00"
+            "time": "2022-03-16T11:22:07+00:00"
         },
         {
             "name": "composer/xdebug-handler",
@@ -8672,16 +9131,16 @@
         },
         {
             "name": "phpdocumentor/type-resolver",
-            "version": "1.6.0",
+            "version": "1.6.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpDocumentor/TypeResolver.git",
-                "reference": "93ebd0014cab80c4ea9f5e297ea48672f1b87706"
+                "reference": "77a32518733312af16a44300404e945338981de3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpDocumentor/TypeResolver/zipball/93ebd0014cab80c4ea9f5e297ea48672f1b87706",
-                "reference": "93ebd0014cab80c4ea9f5e297ea48672f1b87706",
+                "url": "https://api.github.com/repos/phpDocumentor/TypeResolver/zipball/77a32518733312af16a44300404e945338981de3",
+                "reference": "77a32518733312af16a44300404e945338981de3",
                 "shasum": ""
             },
             "require": {
@@ -8716,9 +9175,9 @@
             "description": "A PSR-5 based resolver of Class names, Types and Structural Element Names",
             "support": {
                 "issues": "https://github.com/phpDocumentor/TypeResolver/issues",
-                "source": "https://github.com/phpDocumentor/TypeResolver/tree/1.6.0"
+                "source": "https://github.com/phpDocumentor/TypeResolver/tree/1.6.1"
             },
-            "time": "2022-01-04T19:58:01+00:00"
+            "time": "2022-03-15T21:29:03+00:00"
         },
         {
             "name": "phpspec/prophecy",
@@ -9278,16 +9737,17 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Roave/SecurityAdvisories.git",
-                "reference": "86b842d48cdaaab1bf3dc24fdc830bf7b58cfcab"
+                "reference": "4b07ae1c8cf8264073a0e561b9e833fc2a3759ea"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Roave/SecurityAdvisories/zipball/86b842d48cdaaab1bf3dc24fdc830bf7b58cfcab",
-                "reference": "86b842d48cdaaab1bf3dc24fdc830bf7b58cfcab",
+                "url": "https://api.github.com/repos/Roave/SecurityAdvisories/zipball/4b07ae1c8cf8264073a0e561b9e833fc2a3759ea",
+                "reference": "4b07ae1c8cf8264073a0e561b9e833fc2a3759ea",
                 "shasum": ""
             },
             "conflict": {
                 "3f/pygmentize": "<1.2",
+                "admidio/admidio": "<4.1.9",
                 "adodb/adodb-php": "<=5.20.20|>=5.21,<=5.21.3",
                 "akaunting/akaunting": "<2.1.13",
                 "alextselegidis/easyappointments": "<1.4.3",
@@ -9306,9 +9766,11 @@
                 "bagisto/bagisto": "<0.1.5",
                 "barrelstrength/sprout-base-email": "<1.2.7",
                 "barrelstrength/sprout-forms": "<3.9",
+                "barryvdh/laravel-translation-manager": "<0.6.2",
                 "baserproject/basercms": "<4.5.4",
                 "billz/raspap-webgui": "<=2.6.6",
                 "bk2k/bootstrap-package": ">=7.1,<7.1.2|>=8,<8.0.8|>=9,<9.0.4|>=9.1,<9.1.3|>=10,<10.0.10|>=11,<11.0.3",
+                "bmarshall511/wordpress_zero_spam": "<5.2.13",
                 "bolt/bolt": "<3.7.2",
                 "bolt/core": "<4.1.13",
                 "bottelet/flarepoint": "<2.2.1",
@@ -9335,6 +9797,7 @@
                 "contao/core": ">=2,<3.5.39",
                 "contao/core-bundle": "<4.9.18|>=4.10,<4.11.7|= 4.10.0",
                 "contao/listing-bundle": ">=4,<4.4.8",
+                "contao/managed-edition": "<=1.5",
                 "craftcms/cms": "<3.7.14",
                 "croogo/croogo": "<3.0.7",
                 "datadog/dd-trace": ">=0.30,<0.30.2",
@@ -9387,7 +9850,7 @@
                 "flarum/tags": "<=0.1-beta.13",
                 "fluidtypo3/vhs": "<5.1.1",
                 "fooman/tcpdf": "<6.2.22",
-                "forkcms/forkcms": "<=5.9.2",
+                "forkcms/forkcms": "<5.11.1",
                 "fossar/tcpdf-parser": "<6.2.22",
                 "francoisjacquet/rosariosis": "<8.1.1",
                 "friendsofsymfony/oauth2-php": "<1.3",
@@ -9409,10 +9872,12 @@
                 "gregwar/rst": "<1.0.3",
                 "grumpydictator/firefly-iii": "<5.6.5",
                 "guzzlehttp/guzzle": ">=4-rc.2,<4.2.4|>=5,<5.3.1|>=6,<6.2.1",
+                "guzzlehttp/psr7": "<1.8.4|>=2,<2.1.1",
                 "helloxz/imgurl": "<=2.31",
                 "hillelcoren/invoice-ninja": "<5.3.35",
                 "hjue/justwriting": "<=1",
                 "hov/jobfair": "<1.0.13|>=2,<2.0.2",
+                "hyn/multi-tenant": ">=5.6,<5.7.2",
                 "ibexa/post-install": "<=1.0.4",
                 "icecoder/icecoder": "<=8.1",
                 "illuminate/auth": ">=4,<4.0.99|>=4.1,<=4.1.31|>=4.2,<=4.2.22|>=5,<=5.0.35|>=5.1,<=5.1.46|>=5.2,<=5.2.45|>=5.3,<=5.3.31|>=5.4,<=5.4.36|>=5.5,<5.5.10",
@@ -9426,7 +9891,10 @@
                 "ivankristianto/phpwhois": "<=4.3",
                 "jackalope/jackalope-doctrine-dbal": "<1.7.4",
                 "james-heinrich/getid3": "<1.9.21",
-                "joomla/archive": "<1.1.10",
+                "joomla/archive": "<1.1.12|>=2,<2.0.1",
+                "joomla/filesystem": "<1.6.2|>=2,<2.0.1",
+                "joomla/filter": "<1.4.4|>=2,<2.0.1",
+                "joomla/input": ">=2,<2.0.2",
                 "joomla/session": "<1.3.1",
                 "jsdecena/laracom": "<2.0.9",
                 "jsmitty12/phpwhois": "<5.1",
@@ -9458,7 +9926,7 @@
                 "magento/magento1ee": ">=1,<1.14.4.3",
                 "magento/product-community-edition": ">=2,<2.2.10|>=2.3,<2.3.2-p.2",
                 "marcwillmann/turn": "<0.3.3",
-                "matyhtf/framework": "<=3.0.5",
+                "matyhtf/framework": "<3.0.6",
                 "mautic/core": "<4.2|= 2.13.1",
                 "mediawiki/core": ">=1.27,<1.27.6|>=1.29,<1.29.3|>=1.30,<1.30.2|>=1.31,<1.31.9|>=1.32,<1.32.6|>=1.32.99,<1.33.3|>=1.33.99,<1.34.3|>=1.34.99,<1.35",
                 "microweber/microweber": "<1.3",
@@ -9479,7 +9947,7 @@
                 "nette/nette": ">=2,<2.0.19|>=2.1,<2.1.13",
                 "nilsteampassnet/teampass": "<=2.1.27.36",
                 "nukeviet/nukeviet": "<4.3.4",
-                "nystudio107/craft-seomatic": "<3.3",
+                "nystudio107/craft-seomatic": "<3.4.12",
                 "nzo/url-encryptor-bundle": ">=4,<4.3.2|>=5,<5.0.1",
                 "october/backend": "<1.1.2",
                 "october/cms": "= 1.1.1|= 1.0.471|= 1.0.469|>=1.0.319,<1.0.469",
@@ -9508,16 +9976,16 @@
                 "phpfastcache/phpfastcache": "<6.1.5|>=7,<7.1.2|>=8,<8.0.7",
                 "phpmailer/phpmailer": "<6.5",
                 "phpmussel/phpmussel": ">=1,<1.6",
-                "phpmyadmin/phpmyadmin": "<4.9.8|>=5,<5.0.3|>=5.1,<5.1.2",
-                "phpoffice/phpexcel": "<1.8.2",
+                "phpmyadmin/phpmyadmin": "<5.1.3",
+                "phpoffice/phpexcel": "<1.8",
                 "phpoffice/phpspreadsheet": "<1.16",
                 "phpseclib/phpseclib": "<2.0.31|>=3,<3.0.7",
                 "phpservermon/phpservermon": "<=3.5.2",
-                "phpunit/phpunit": ">=4.8.19,<4.8.28|>=5.0.10,<5.6.3",
+                "phpunit/phpunit": "<4.8.28|>=5,<5.6.3",
                 "phpwhois/phpwhois": "<=4.2.5",
                 "phpxmlrpc/extras": "<0.6.1",
-                "pimcore/pimcore": "<=10.3.2",
-                "pocketmine/pocketmine-mp": "<4.0.7",
+                "pimcore/pimcore": "<10.4",
+                "pocketmine/pocketmine-mp": "<4.2.4",
                 "pressbooks/pressbooks": "<5.18",
                 "prestashop/autoupgrade": ">=4,<4.10.1",
                 "prestashop/contactform": ">1.0.1,<4.3",
@@ -9550,7 +10018,7 @@
                 "shopware/production": "<=6.3.5.2",
                 "shopware/shopware": "<5.7.7",
                 "shopware/storefront": "<=6.4.8.1",
-                "showdoc/showdoc": "<=2.10.2",
+                "showdoc/showdoc": "<2.10.4",
                 "silverstripe/admin": ">=1,<1.8.1",
                 "silverstripe/assets": ">=1,<1.4.7|>=1.5,<1.5.2",
                 "silverstripe/cms": "<4.3.6|>=4.4,<4.4.4",
@@ -9584,10 +10052,10 @@
                 "swiftmailer/swiftmailer": ">=4,<5.4.5",
                 "sylius/admin-bundle": ">=1,<1.0.17|>=1.1,<1.1.9|>=1.2,<1.2.2",
                 "sylius/grid": ">=1,<1.1.19|>=1.2,<1.2.18|>=1.3,<1.3.13|>=1.4,<1.4.5|>=1.5,<1.5.1",
-                "sylius/grid-bundle": ">=1,<1.1.19|>=1.2,<1.2.18|>=1.3,<1.3.13|>=1.4,<1.4.5|>=1.5,<1.5.1",
+                "sylius/grid-bundle": "<1.10.1",
                 "sylius/paypal-plugin": ">=1,<1.2.4|>=1.3,<1.3.1",
                 "sylius/resource-bundle": "<1.3.14|>=1.4,<1.4.7|>=1.5,<1.5.2|>=1.6,<1.6.4",
-                "sylius/sylius": "<1.6.9|>=1.7,<1.7.9|>=1.8,<1.8.3|>=1.9,<1.9.5",
+                "sylius/sylius": "<1.9.10|>=1.10,<1.10.11|>=1.11,<1.11.2",
                 "symbiote/silverstripe-multivaluefield": ">=3,<3.0.99",
                 "symbiote/silverstripe-queuedjobs": ">=3,<3.0.2|>=3.1,<3.1.4|>=4,<4.0.7|>=4.1,<4.1.2|>=4.2,<4.2.4|>=4.3,<4.3.3|>=4.4,<4.4.3|>=4.5,<4.5.1|>=4.6,<4.6.4",
                 "symbiote/silverstripe-versionedfiles": "<=2.0.3",
@@ -9650,7 +10118,7 @@
                 "usmanhalalit/pixie": "<1.0.3|>=2,<2.0.2",
                 "vanilla/safecurl": "<0.9.2",
                 "verot/class.upload.php": "<=1.0.3|>=2,<=2.0.4",
-                "vrana/adminer": "<4.7.9",
+                "vrana/adminer": "<4.8.1",
                 "wallabag/tcpdf": "<6.2.22",
                 "wanglelecc/laracms": "<=1.0.3",
                 "web-auth/webauthn-framework": ">=3.3,<3.3.4",
@@ -9732,7 +10200,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2022-03-14T19:04:00+00:00"
+            "time": "2022-03-29T22:04:06+00:00"
         },
         {
             "name": "sebastian/cli-parser",
@@ -10700,16 +11168,16 @@
         },
         {
             "name": "swoole/ide-helper",
-            "version": "4.8.7",
+            "version": "4.8.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/swoole/ide-helper.git",
-                "reference": "62d306dcfdb7c2cd21768386955af9de387163f9"
+                "reference": "dd87843a5040831f9ad40b68fb57879b7342ef61"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/swoole/ide-helper/zipball/62d306dcfdb7c2cd21768386955af9de387163f9",
-                "reference": "62d306dcfdb7c2cd21768386955af9de387163f9",
+                "url": "https://api.github.com/repos/swoole/ide-helper/zipball/dd87843a5040831f9ad40b68fb57879b7342ef61",
+                "reference": "dd87843a5040831f9ad40b68fb57879b7342ef61",
                 "shasum": ""
             },
             "type": "library",
@@ -10726,7 +11194,7 @@
             "description": "IDE help files for Swoole.",
             "support": {
                 "issues": "https://github.com/swoole/ide-helper/issues",
-                "source": "https://github.com/swoole/ide-helper/tree/4.8.7"
+                "source": "https://github.com/swoole/ide-helper/tree/4.8.8"
             },
             "funding": [
                 {
@@ -10738,7 +11206,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2022-02-23T01:04:01+00:00"
+            "time": "2022-03-17T18:24:39+00:00"
         },
         {
             "name": "symfony/event-dispatcher",
@@ -11156,5 +11624,5 @@
         "ext-json": "*"
     },
     "platform-dev": [],
-    "plugin-api-version": "2.2.0"
+    "plugin-api-version": "2.0.0"
 }
