@@ -1768,28 +1768,6 @@
   font-weight: bold;
 }
 
-.imgList {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.imgItem {
-  padding: 5px;
-  max-height: 200px;
-}
-
-.imgItem img {
-  height: 100%;
-  width: 100%;
-  -o-object-fit: cover;
-     object-fit: cover;
-}
-
-.mio-lazy-img {
-  width: 100%;
-  height: 100%;
-}
-
 pre {
   padding: 0;
   border: 0;
