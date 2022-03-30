@@ -11018,23 +11018,7 @@ if (document.getElementById("vue-admin-index-releases")) {
         });
       },
       update: function update() {
-        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/admin/update", {
-          _token: csrf_token
-        }).then(function (r) {
-          var data = r.data;
-
-          if (!data.success) {
-            swal({
-              icon: "error",
-              title: data.result.msg
-            });
-          } else {
-            swal({
-              icon: "success",
-              title: data.result.msg
-            });
-          }
-        });
+        swal("安全起见，请手动更新", "更新命令: php CodeFec CodeFec:Upgrading");
       }
     }
   };

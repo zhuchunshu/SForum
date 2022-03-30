@@ -4,7 +4,9 @@ namespace App\CodeFec;
 
 use Alchemy\Zippy\Zippy;
 use App\Command\StartCommand;
+use App\Controller\ApiController;
 use App\Model\AdminOption;
+use Swoole\Coroutine\System;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -112,6 +114,13 @@ class Upgrading
 				$this->removeFiles($tmp,$path,BASE_PATH."/app/CodeFec/storage/update.lock");
 				// 清理缓存
 				cache()->delete('admin.git.getVersion');
+				// 对所有插件进行资源迁移
+				$this->command->info("对所有插件进行资源迁移...\n");
+				(new ApiController())->AdminPluginMigrateAll();
+				// 更新插件包
+				$this->command->info("更新插件包...\n");
+				System::exec('php CodeFec CodeFec:PluginsComposerInstall');
+				
 				$this->command->info("更新成功!");
 			}
 		}
