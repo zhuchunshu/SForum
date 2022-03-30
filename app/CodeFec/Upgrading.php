@@ -56,7 +56,7 @@ class Upgrading
 		
 		// 判断是否不可升级
 		if($tag_name <=$version || $data['prerelease']===true){
-			return Json_Api(403,false,['msg' => '无需升级!']);
+			$this->command->error('无需升级');
 		}
 		
 		// 生成文件下载链接
@@ -66,14 +66,16 @@ class Upgrading
 		$file_path= BASE_PATH."/runtime/update.zip";
 		
 		// 创建下载任务
-		$this->handle($url,$file_path);
-		return Json_Api(200,true,['msg' => '升级任务已创建']);
+		$this->download($url,$file_path);
 	}
 	
-	public function handle(string $download,string $path){
+	public function download(string $download,string $path){
+		$this->command->info("开始更新...\n");
+		$this->command->info("生成更新锁...\n");
 		// 生成更新锁
 		file_put_contents(BASE_PATH."/app/CodeFec/storage/update.lock",time());
 		// 下载文件
+		$this->command->info("\n下载资源包...");
 		file_put_contents($path,fopen($download,'r'));
 		
 		// 定义临时压缩包存放目录
@@ -97,16 +99,20 @@ class Upgrading
 		foreach($allDir as $value){
 			if(file_exists($value."/CodeFec")){
 				// 删除runtime缓存
+				$this->command->info("删除runtime缓存...\n");
 				$this->removeFiles($path,BASE_PATH."/runtime/view",$path,BASE_PATH."/runtime/container");
 				// 替换
 				FileUtil()->moveDir($value,BASE_PATH,true);
 				// 重建索引
+				$this->command->info("重建索引...\n");
 				\Swoole\Coroutine\System::exec('composer dump-autoload -o');
 				\Swoole\Coroutine\System::exec('php CodeFec');
 				// 删除更新锁
+				$this->command->info("删除更新锁...\n");
 				$this->removeFiles($tmp,$path,BASE_PATH."/app/CodeFec/storage/update.lock");
 				// 清理缓存
 				cache()->delete('admin.git.getVersion');
+				$this->command->info("更新成功!");
 			}
 		}
 	}
