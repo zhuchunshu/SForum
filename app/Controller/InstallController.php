@@ -61,6 +61,18 @@ class InstallController extends AbstractController
 		return $this->$method(request());
 	}
 	
+	public function step_5($request){
+		AdminUser::query()->create([
+			'email' => $request->input("email"),
+			'username' => $request->input("username"),
+			'password' => Hash::make($request->input("password")),
+		]);
+		if (!file_exists(BASE_PATH . "/app/CodeFec/storage/install.lock")) {
+			file_put_contents(BASE_PATH . "/app/CodeFec/storage/install.lock", date("Y-m-d H:i:s"));
+		}
+		return Json_Api(200, true, ['msg' => '安装成功!']);
+	}
+	
 	
     #[PostMapping(path: "/install")]
     public function post(): array
