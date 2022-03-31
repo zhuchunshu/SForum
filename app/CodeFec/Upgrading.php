@@ -62,6 +62,7 @@ class Upgrading
 		// 判断是否不可升级
 		if($tag_name <=$version || $data['prerelease']===true){
 			$this->command->error('无需升级');
+			return;
 		}
 		
 		// 生成文件下载链接
