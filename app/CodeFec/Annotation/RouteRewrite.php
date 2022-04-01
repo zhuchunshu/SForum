@@ -14,4 +14,5 @@ class RouteRewrite extends AbstractAnnotation
 {
 	public string $route;
 	public string $callback='handler';
+	public string $method='GET';
 }

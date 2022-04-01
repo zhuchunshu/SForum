@@ -31,18 +31,12 @@ class RewriteMiddleware implements MiddlewareInterface
     {
         /** @var Dispatched $dispatched */
         $dispatched = $request->getAttribute(Dispatched::class);
-
-        // 安全重写,没有不新建
-        foreach (Router()->get() as $key => $value) {
-            if (@$dispatched->handler->route === $key) {
-                $dispatched->handler->callback = $value;
-            }
-        }
 	
+		// 从注解内读
 	    $Route_Class = AnnotationCollector::getClassesByAnnotation(RouteRewrite::class);
 		foreach ($Route_Class as $key=>$data){
 			$callback = [$key,$data->callback];
-			if (@$dispatched->handler->route === $data->route) {
+			if (@$dispatched->handler->route === $data->route && $data->method===request()->getMethod()) {
 				$dispatched->handler->callback = $callback;
 			}
 		}
@@ -50,7 +44,7 @@ class RewriteMiddleware implements MiddlewareInterface
 	    $routeMethods = AnnotationCollector::getMethodsByAnnotation(RouteRewrite::class);
 	    foreach($routeMethods as $data){
 		    $callback = [$data['class'],$data['method']];
-		    if (@$dispatched->handler->route === $data['annotation']->route) {
+		    if (@$dispatched->handler->route === $data['annotation']->route &&  $data['annotation']->method===request()->getMethod()) {
 			    $dispatched->handler->callback = $callback;
 		    }
 	    }
