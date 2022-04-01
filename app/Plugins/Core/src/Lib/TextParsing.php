@@ -17,6 +17,7 @@ HTML;
     public function at($username): string
     {
         $username = Str::after($username,"@");
+		$username = str_replace(" ","",$username);
 		$username = urldecode($username);
         if(User::query()->where("username",$username)->exists()) {
             return <<<HTML
