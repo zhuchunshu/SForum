@@ -1,5 +1,5 @@
 <div class="row row-cards">
-    <div class="col-md-10">
+    <div class="col-md-12">
         <div class="card">
             <div class="card-status-top bg-primary"></div>
             <div class="card-body">

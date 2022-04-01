@@ -8,7 +8,7 @@
 @section('content')
 
     <div class="row justify-content-center row-cards">
-        <div class="col-md-10">
+        <div class="col-md-12">
             <div class="card card-stacked">
                 <div class="card-body">
                     <div class="row g-2 align-items-center">
@@ -75,7 +75,7 @@
             </div>
         </div>
 
-        <div class="col-md-10">
+        <div class="col-md-12">
             <div class="card card-stacked card-body">
                 <h3 class="card-title">签名</h3>
                 <div class="markdown">
@@ -85,7 +85,7 @@
         </div>
 
         @if($data->Options->qq || $data->Options->wx || $data->Options->website || $data->Options->email)
-        <div class="col-md-10">
+        <div class="col-md-12">
                 <div class="card card-stacked card-body">
                     <h3 class="card-title">其他信息</h3>
                     @if($data->Options->qq)

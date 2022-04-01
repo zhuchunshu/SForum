@@ -29,7 +29,7 @@
     <div class="row row-cards justify-content-center">
         @if($page->count())
             @foreach($page as $value)
-                <div class="col-md-10">
+                <div class="col-md-12">
                     <div class="border-0 card">
                         <div class="card-header">
                             <div class="card-title">{!! $value->title !!}</div>

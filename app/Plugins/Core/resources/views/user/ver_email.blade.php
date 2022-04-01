@@ -2,12 +2,12 @@
 @section('title','验证邮箱')
 @section('content')
     <div id="vue-user-my-ver-email">
-        <div class="row row-cards">
-            <div class="col-md-4">
+        <div class="row row-cards justify-content-center">
+            <div class="col-md-12">
                 <form action="/user/ver_email?Redirect=/user/ver_email" method="post" enctype="multipart/form-data">
                     <x-csrf/>
                     <div class="card card-body">
-                        <div class="card-title">基本设置</div>
+                        <div class="card-title">邮箱验证</div>
                         <div class="mb-3">
                             <label class="form-label">用户名</label>
                             <div class="row g-2">

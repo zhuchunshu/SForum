@@ -7,7 +7,7 @@
     <div class="row row-cards justify-content-center">
         <div class="col-md-12">
             <div class="row row-cards justify-content-center">
-                <div class="col-md-7">
+                <div class="col-md-12">
                     <div class="row row-cards justify-content-center">
                         <div class="col-md-12">
                             <div class="border-0 card">

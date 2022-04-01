@@ -1,6 +1,6 @@
 <div class="row row-cards">
 
-    <div class="col-md-10">
+    <div class="col-md-12">
         <div class="card">
 
             <div class="card-status-top" style="{{Core_Ui()->Css()->bg_color($data->color)}}"></div>

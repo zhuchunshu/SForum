@@ -2,7 +2,7 @@
 @section('title','「'.$data->title.'」 的举报详情')
 @section('content')
 <div class="row justify-content-center">
-    <div class="col-md-8">
+    <div class="col-md-12">
         <div class="card border-0">
             @if($data->status==="pending")
                 <div class="ribbon bg-indigo">代办</div>

@@ -6,7 +6,7 @@
 @section('content')
 
    <div class="row justify-content-center">
-       <div class="col-md-8">
+       <div class="col-md-12">
            <div class="border-0 card">
                <div class="card-header">
                    <h3 class="card-title"><a class="text-red" href="/{{$data->topic->id}}.html">{{$data->topic->title}}</a> 下id为{{$data->id}}的评论</h3>
