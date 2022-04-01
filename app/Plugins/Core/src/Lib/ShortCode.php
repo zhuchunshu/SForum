@@ -65,10 +65,10 @@ class ShortCode
 			return '[user]标签用法错误!';
 		}
 		$user_id = $match[1];
-		if(!User::query()->where('id',$user_id)->exists()){
+		if(!User::query()->where('id',$user_id)->orWhere("username",$user_id)->exists()){
 			return $match[0];
 		}
-		$data = User::query()->where('id',$user_id)->first();
+		$data = User::query()->where('id',$user_id)->orWhere("username",$user_id)->first();
 		return view("User::ShortCode.user",['data' => $data]);
 	}
 	
