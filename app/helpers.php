@@ -545,6 +545,12 @@ if(!function_exists("Router")){
     }
 }
 
+if(!function_exists("Theme")){
+	function Theme(){
+		return \Hyperf\Utils\ApplicationContext::getContainer()->get(\App\CodeFec\Itf\Theme\ThemeInterface::class);
+	}
+}
+
 if(!function_exists("Helpers_Str")){
     function Helpers_Str(): Str
     {
