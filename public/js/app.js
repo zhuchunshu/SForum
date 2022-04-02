@@ -2060,7 +2060,7 @@ if (document.getElementById("vue-plugin-table")) {
       migrate: function migrate(name) {
         if (this.switchs.indexOf(name) === -1) {
           sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
-            title: "请先启用插件后在运行迁移",
+            title: "请先启用插件后再运行迁移",
             icon: "error"
           });
         } else {
@@ -2093,6 +2093,128 @@ if (document.getElementById("vue-plugin-table")) {
     }
   };
   Vue.createApp(plugin_table).mount("#vue-plugin-table");
+} // 主题
+
+
+if (document.getElementById("vue-theme-table")) {
+  var app = {
+    data: function data() {
+      return {
+        enable: 'CodeFec',
+        num: 0
+      };
+    },
+    mounted: function mounted() {
+      var _this3 = this;
+
+      //this.switchs.push("HelloWorld");
+      axios__WEBPACK_IMPORTED_MODULE_1___default().post("/admin/themes", {
+        _token: csrf_token
+      }).then(function (response) {
+        return _this3.enable = response.data.enable;
+      })["catch"](function (error) {
+        sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+          icon: "error",
+          title: "请求错误,详细查看控制台"
+        });
+        console.log(error);
+      });
+    },
+    methods: {
+      remove: function remove(name) {
+        if (this.enable === name) {
+          sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+            icon: "warning",
+            title: "安全起见,卸载主题前请先切换主题"
+          });
+        } else {
+          axios__WEBPACK_IMPORTED_MODULE_1___default().post("/admin/themes/remove", {
+            name: name,
+            _token: csrf_token
+          }).then(function (response) {
+            var data = response.data;
+
+            if (data.success === true) {
+              sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+                title: data.result.msg,
+                icon: "success"
+              });
+              setTimeout(function () {
+                location.reload();
+              }, 1200);
+            } else {
+              sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+                title: data.result.msg,
+                icon: "error"
+              });
+            }
+          })["catch"](function (error) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+              title: "请求出错,详细查看控制台",
+              icon: "error"
+            });
+            console.log(error);
+          });
+        }
+      },
+      Setenable: function Setenable(name) {
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/admin/themes/enable", {
+          name: name,
+          _token: csrf_token
+        }).then(function (response) {
+          var data = response.data;
+
+          if (data.success === true) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+              title: data.result.msg,
+              icon: "success"
+            });
+            setTimeout(function () {
+              location.reload();
+            }, 1200);
+          } else {
+            sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+              title: data.result.msg,
+              icon: "error"
+            });
+          }
+        })["catch"](function (error) {
+          sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+            title: "请求出错,详细查看控制台",
+            icon: "error"
+          });
+          console.log(error);
+        });
+      },
+      // 迁移所有资源
+      migrateAll: function migrateAll() {
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/admin/themes/MigrateAll", {
+          _token: csrf_token
+        }).then(function (r) {
+          var data = r.data;
+
+          if (data.success === true) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+              title: data.result.msg,
+              icon: "success"
+            });
+          } else {
+            sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+              title: data.result.msg,
+              icon: "error"
+            });
+          }
+        })["catch"](function (error) {
+          sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+            title: "请求出错,详细查看控制台",
+            icon: "error"
+          });
+          console.error(error);
+        });
+      }
+    }
+  };
+  Vue.createApp(app).mount("#vue-theme-table");
 } // 刷新菜单激活状态
 
 

@@ -280,6 +280,16 @@ if (!function_exists("plugin_path")) {
     }
 }
 
+if (!function_exists("theme_path")) {
+	function theme_path($path = null): string
+	{
+		if (!$path) {
+			return BASE_PATH . "/app/Themes";
+		}
+		return BASE_PATH . "/app/Themes/" . $path;
+	}
+}
+
 if (!function_exists("read_file")) {
     function read_file($file_path): ?string
     {
@@ -545,9 +555,16 @@ if(!function_exists("Router")){
     }
 }
 
-if(!function_exists("Theme")){
-	function Theme(){
+if(!function_exists("Themes")){
+	function Themes(){
 		return \Hyperf\Utils\ApplicationContext::getContainer()->get(\App\CodeFec\Itf\Theme\ThemeInterface::class);
+	}
+}
+
+if(!function_exists("Theme")){
+	function Theme(): \App\CodeFec\Themes
+	{
+		return new \App\CodeFec\Themes();
 	}
 }
 

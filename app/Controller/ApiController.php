@@ -175,7 +175,7 @@ class ApiController
         if(!admin_auth()->check()){
             return Json_Api(401,false,['msg' => '无权限']);
         }
-        if (request()->input("path")) {
+        if (request()->input("path") && is_dir(request()->input("path"))) {
              \Swoole\Coroutine\System::exec("rm -rf " . request()->input("path"));
 	        if(\Hyperf\Utils\Str::is('Linux',system_name())){
 		        \Swoole\Coroutine\System::exec("yes | composer du");
@@ -198,11 +198,11 @@ class ApiController
             $path = request()->input("path", null);
             if (Arr::has($list, $path)) {
                 return Json_Api(200, true, ["data" => $list[$path]]);
-            } else {
-                return Json_Api(403, false, ["data" => "#"]);
             }
-        } else {
-            return Json_Api(403, false, ["data" => "#"]);
+	
+	        return Json_Api(403, false, ["data" => "#"]);
         }
+	
+	    return Json_Api(403, false, ["data" => "#"]);
     }
 }

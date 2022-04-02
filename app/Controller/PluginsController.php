@@ -5,9 +5,6 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use Alchemy\Zippy\Zippy;
-use App\CodeFec\Admin\Ui\Card;
-use App\CodeFec\Admin\Ui\Row;
-use App\CodeFec\Admin\Ui;
 use App\Request\Admin\PluginUpload;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -21,7 +18,7 @@ use Psr\Http\Message\ResponseInterface;
 class PluginsController
 {
     #[GetMapping(path:"")]
-    public function index(Ui $ui,Row $row,Card $card): ResponseInterface
+    public function index(): ResponseInterface
     {
 		return view("admin.plugins.index");
     }
