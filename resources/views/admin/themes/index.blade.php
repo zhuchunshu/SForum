@@ -16,7 +16,7 @@
                         <div class="card-stamp">
                             <div class="bg-yellow">
                                 <!-- Download SVG icon from http://tabler-icons.io/i/bell -->
-                                <img src="{{plugins()->getLogo($key)}}" alt="">
+                                <img src="{{theme()->getLogo($key)}}" alt="">
                             </div>
                         </div>
                     @endif
@@ -31,7 +31,7 @@
                                 <span class="badge badge-outline text-green">当前插件兼容此程序!</span>
                             @endif
                         </p>
-                        <p>主题目录: {{ '/app/Plugins/' . $key }}</p>
+                        <p>主题目录: {{ '/app/Themes/' . $key }}</p>
                         <p>主题作者: <a href="{{ $value['data']['link'] }}">{{ $value['data']['author'] }}</a></p>
                         <p>主题版本:{{ $value['data']['version'] }}</p>
                         <p>主题描述:{{ $value['data']['description'] }}</p>
