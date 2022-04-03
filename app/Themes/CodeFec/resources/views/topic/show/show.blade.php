@@ -9,10 +9,10 @@
     <div class="row row-cards justify-content-center">
         <div class="col-md-12">
             <div class="row row-cards justify-content-center">
-                <div class="col-md-8">
+                <div class="col-md-9">
                     @include('App::topic.show.content')
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="row row-cards rd">
                         <div class="col-md-12 sticky" style="top: 105px">
                             @include('App::topic.show.show-right')

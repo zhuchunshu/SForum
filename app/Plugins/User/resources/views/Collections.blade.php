@@ -54,7 +54,7 @@
                 </div>
             @endforeach
         @else
-            <div class="col-md-10">
+            <div class="col-md-12">
                 <div class="border-0 card">
                     <div class="card-body">
                         <h3 class="card-title">暂无收藏内容</h3>
