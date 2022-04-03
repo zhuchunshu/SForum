@@ -1,0 +1,31 @@
+@import '~hover.css';
+
+
+// 自己定义的
+body {
+  -webkit-backface-visibility: hidden;
+  overflow-x: hidden;
+  color: #121212;
+  font-feature-settings: "tnum";
+  line-height: 1.4;
+  font-family: -apple-system,BlinkMacSystemFont,Helvetica Neue,PingFang SC,Microsoft YaHei,Source Han Sans SC,Noto Sans CJK SC,WenQuanYi Micro Hei,sans-serif;
+  text-rendering: optimizeLegibility;
+  -moz-font-feature-settings: "liga" on;
+  font-feature-settings: "liga" on;
+  -webkit-font-smoothing: subpixel-antialiased;
+  font-style: normal;
+}
+
+.sticky{
+  position: sticky;
+  position: -webkit-sticky;
+}
+
+.rd{
+  height: 100%;
+  display: flow-root;
+}
+.form-control:focus {
+  border-color:#ccc;box-shadow: inset 0 1px 1px rgba(0,0,0,.075);-webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075)
+
+}

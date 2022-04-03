@@ -30,7 +30,7 @@ class UpdateController
     public function user_setting()
     {
         $data = User::query()->where("id",auth()->id())->with("Class","Options")->first();
-        return view("Core::user.setting",['data' => $data]);
+        return view("App::user.setting",['data' => $data]);
     }
 
     #[PostMapping(path: "/user/data")]

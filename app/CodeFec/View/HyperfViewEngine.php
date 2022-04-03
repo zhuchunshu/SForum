@@ -23,15 +23,19 @@ class HyperfViewEngine implements EngineInterface
     {
         /** @var FactoryInterface $factory */
         $factory = ApplicationContext::getContainer()->get(FactoryInterface::class);
-
+		// 插件
         $plugin_list = (new Plugins())->getEnPlugins();
         foreach ($plugin_list as $value) {
             $factory->addNamespace($value,plugin_path($value."/resources/views"));
         }
-		foreach(Theme()->get() as $namespace=>$hints){
+		// 替换
+		foreach(Themes()->get() as $namespace=>$hints){
 			$factory->replaceNamespace($namespace,$hints);
 		}
-        return $factory->make($template, $data)->render();
+		// 主题
+	    $name = get_options("theme","CodeFec");
+	    $factory->replaceNamespace("App",theme_path($name."/resources/views"));
+        return $factory->make($template,$data)->render();
     }
 
 

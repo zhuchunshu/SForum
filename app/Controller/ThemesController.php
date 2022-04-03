@@ -38,18 +38,25 @@ class ThemesController
 			$theme_name = $name;
 		}
 		
-		if (is_dir(theme_path($theme_name . "/resources/views")) && !is_dir(BASE_PATH . "/resources/views/themes")) {
-			//return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
-			\Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/resources/views/themes");
+		if (is_dir(theme_path($name . "/resources/views"))) {
+			if (!is_dir(BASE_PATH . "/resources/views/themes")) {
+				//return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
+				\Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/resources/views/themes");
+			}
+			// if (!is_dir(BASE_PATH . "/resources/views/plugins/" . $plugin_name)) {
+			//     //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
+			//      \Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/resources/views/plugins/" . $plugin_name);
+			// }
+			// copy_dir(plugin_path($plugin_name . "/resources/views"), BASE_PATH . "/resources/views/plugins/" . $plugin_name);
 		}
 		if (is_dir(theme_path($theme_name . "/resources/assets"))) {
-			if (!is_dir(public_path("plugins"))) {
-				mkdir(theme_path("plugins"));
+			if (!is_dir(public_path("themes"))) {
+				mkdir(public_path("themes"));
 			}
 			if (!is_dir(public_path("themes/" . $theme_name))) {
 				mkdir(public_path("themes/" . $theme_name));
 			}
-			copy_dir(theme_path($theme_name . "/resources/assets"), public_path("plugins/" . $theme_name));
+			copy_dir(theme_path($theme_name . "/resources/assets"), public_path("themes/" . $theme_name));
 		}
 		return Json_Api(200, true, ['msg' => '资源迁移成功!']);
 	}
@@ -58,9 +65,7 @@ class ThemesController
 	#[PostMapping(path:"MigrateAll")]
 	public function MigrateAll(): array
 	{
-		foreach (Plugins_EnList() as $name){
-			$this->Migrate($name);
-		}
+		$this->Migrate(get_options("theme","CodeFec"));
 		return Json_Api(200, true, ['msg' => '资源迁移成功!']);
 	}
 	

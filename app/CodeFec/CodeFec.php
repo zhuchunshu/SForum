@@ -10,6 +10,7 @@ class CodeFec {
         $this->header();
         $this->boot();
         $this->plugins();
+		$this->themes();
         $this->setting();
         $this->route();
         $this->itf();
@@ -60,6 +61,17 @@ class CodeFec {
             }
         }
     }
+	
+	// 处理主题
+	public function themes(){
+		$name = get_options("theme",'CodeFec'); //主题名
+		if(file_exists(theme_path($name."/".$name.".php"))){
+			$class = "\App\Themes\\".$name."\\".$name;
+			if(@method_exists(new $class(),"handler")){
+				(new $class())->handler();
+			}
+		}
+	}
 
     public function itf(): void
     {

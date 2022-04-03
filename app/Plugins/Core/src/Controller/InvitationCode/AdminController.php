@@ -23,12 +23,12 @@ class AdminController
 			2 => InvitationCode::query()->paginate(30),
 			3 => InvitationCode::query()->where('status',true)->paginate(30)
 		};
-		return view("Core::admin.InvitationCode.index",['page' => $page]);
+		return view("App::admin.InvitationCode.index",['page' => $page]);
 	}
 	
 	#[GetMapping(path:"export")]
 	public function export(){
-		return view("Core::admin.InvitationCode.export");
+		return view("App::admin.InvitationCode.export");
 	}
 	
 	#[PostMapping(path:"export")]
@@ -66,7 +66,7 @@ class AdminController
 	
 	#[GetMapping(path:"create")]
 	public function create(){
-		return view("Core::admin.InvitationCode.create");
+		return view("App::admin.InvitationCode.create");
 	}
 	
 	/**

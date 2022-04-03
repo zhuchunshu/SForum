@@ -1,4 +1,4 @@
-@extends("Core::app")
+@extends("App::app")
 
 @section('title', '「'.$user->username.'」的收藏')
 

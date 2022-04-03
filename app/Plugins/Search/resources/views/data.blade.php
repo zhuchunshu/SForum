@@ -1,4 +1,4 @@
-@extends("Core::app")
+@extends("App::app")
 
 @section('title',"「".$q."」的搜索结果")
 @section('description','为你展示「'.$q.'」的搜索结果')
@@ -99,7 +99,7 @@
                 <div class="col-md-5">
                     <div class="row row-cards rd">
                         <div class="col-md-12 sticky" style="top: 105px">
-                            @include('Core::index.right')
+                            @include('App::index.right')
                         </div>
                     </div>
                 </div>

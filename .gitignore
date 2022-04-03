@@ -12,9 +12,12 @@ vendor/
 node_modules
 .phpunit*
 *.cache
+/resources/js/themes
+/resources/sass/themes
 /resources/views/plugins
 /resources/js/plugins
 /public/plugins
+/public/themes
 /plugins.mix.js
 /resources/sass/plugins
 /public/upload

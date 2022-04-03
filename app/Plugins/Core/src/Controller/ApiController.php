@@ -54,7 +54,7 @@ class ApiController
         foreach (Authority()->getUsers("admin_report") as $user){
             $users[]=$user->id;
         }
-        $mail_content = view("Core::report.send_admin",['data' => $data]);
+        $mail_content = view("App::report.send_admin",['data' => $data]);
 
         user_notice()->sends($users,"有用户举报了一条内容,需要你来审核",$mail_content,"/report/".$data->id.".html");
         return Json_Api(200,true,['举报成功! 等待管理员审核']);
@@ -132,7 +132,7 @@ class ApiController
         }
 
         $user_data = auth()->data();
-        $mail_content = view("Core::report.remove_admin",['data' => $data,'user' => $user_data]);
+        $mail_content = view("App::report.remove_admin",['data' => $data,'user' => $user_data]);
 
         user_notice()->sends($users,"有管理员删除了一条举报,特此通知!",$mail_content,url("/"));
         return Json_Api(200,true,['删除成功!']);

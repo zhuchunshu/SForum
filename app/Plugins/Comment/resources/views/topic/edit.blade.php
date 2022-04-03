@@ -1,4 +1,4 @@
-@extends("Core::app")
+@extends("App::app")
 
 @section('title',"修改id为:".$data->id."的评论")
 

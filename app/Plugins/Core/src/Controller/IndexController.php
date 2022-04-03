@@ -91,7 +91,7 @@ class IndexController
                 "parameter" => "query=updated_at"
             ],
         ];
-        return view("Core::index",["page" => $page,"topic_menu"=>$topic_menu,'title'=>$title]);
+        return view("App::index",["page" => $page,"topic_menu"=>$topic_menu,'title'=>$title]);
     }
 
     #[GetMapping(path:"/{id}.html[/{comment}]")]

@@ -12,7 +12,7 @@ class ReportController
     #[GetMapping(path:"")]
     public function index(){
         $page = Report::query()->paginate(15);
-        return view("Core::report.index",['page' => $page]);
+        return view("App::report.index",['page' => $page]);
     }
 
     #[GetMapping(path:"{id}.html")]
@@ -21,6 +21,6 @@ class ReportController
             return admin_abort("页面不存在",404);
         }
         $data = Report::query()->where("id",$id)->first();
-        return view("Core::report.data",['data' => $data]);
+        return view("App::report.data",['data' => $data]);
     }
 }

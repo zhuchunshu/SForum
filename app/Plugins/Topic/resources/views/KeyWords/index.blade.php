@@ -1,4 +1,4 @@
-@extends("Core::app")
+@extends("App::app")
 
 @section('title', '关键词列表')
 @section('description', '本站帖子关键词列表')

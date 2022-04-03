@@ -27,7 +27,7 @@ class UserController
     public function login(): \Psr\Http\Message\ResponseInterface
     {
 
-        return view("Core::user.sign",['title' => "登陆","view" => "Core::user.login"]);
+        return view("App::user.sign",['title' => "登陆","view" => "App::user.login"]);
     }
 	
 	// 忘记密码
@@ -35,7 +35,7 @@ class UserController
 	public function forgot_password(): \Psr\Http\Message\ResponseInterface
 	{
 		
-		return view("Core::user.sign",['title' => "找回密码","view" => "Core::user.forgot_password"]);
+		return view("App::user.sign",['title' => "找回密码","view" => "App::user.forgot_password"]);
 	}
 	
 	#[PostMapping(path:"/forgot-password")]
@@ -112,7 +112,7 @@ HTML;
 	public function login_username(): \Psr\Http\Message\ResponseInterface
 	{
 		
-		return view("Core::user.sign",['title' => "使用用户名登陆","view" => "Core::user.login_username"]);
+		return view("App::user.sign",['title' => "使用用户名登陆","view" => "App::user.login_username"]);
 	}
 
     #[GetMapping(path:"/register")]
@@ -121,7 +121,7 @@ HTML;
         if(get_options("core_user_reg_switch","开启")==="关闭"){
             return admin_abort("注册功能已关闭",403);
         }
-        return view("Core::user.sign",['title' => "注册","view" => "Core::user.register"]);
+        return view("App::user.sign",['title' => "注册","view" => "App::user.register"]);
     }
 
     #[PostMapping(path: "/register")]

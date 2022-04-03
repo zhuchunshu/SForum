@@ -1,4 +1,4 @@
-@extends("Core::app")
+@extends("App::app")
 
 @section('title',"「".$user->username."」的帖子列表")
 @section('description','为你展示「'.$user->username.'」的帖子列表')

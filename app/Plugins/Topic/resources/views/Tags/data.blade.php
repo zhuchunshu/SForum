@@ -1,4 +1,4 @@
-@extends("Core::app")
+@extends("App::app")
 
 @section('title', '「'.$data->name.'」标签的相关信息,以及此标签下的所有帖子')
 @section('description', '为您展示「'.$data->name.'」标签的相关信息,以及此标签下的所有帖子')
