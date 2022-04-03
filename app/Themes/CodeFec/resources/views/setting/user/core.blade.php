@@ -28,6 +28,16 @@
     </div>
 
     <div class="mb-3">
+        <label class="form-label">强制验证邮箱
+        </label>
+        <select class="form-select" v-model="data.core_user_email_ver">
+            <option value="1">开启</option>
+            <option value="2">关闭</option>
+        </select>
+        <small>默认开启</small>
+    </div>
+
+    <div class="mb-3">
         <label class="form-label">头像缓存时间
         </label>
         <input type="number" class="form-control" v-model="data.core_user_def_avatar_cache">

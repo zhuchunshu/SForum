@@ -35,7 +35,6 @@ class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
      */
     protected function handleNotFound(ServerRequestInterface $request): mixed
     {
-		session()->remove('_previous');
         // 重写路由找不到的处理逻辑
         return admin_abort(["msg" => "页面不存在"],404);
     }

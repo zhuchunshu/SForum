@@ -39,7 +39,7 @@ class AuthMiddleware implements MiddlewareInterface
                     return $handler->handle($request);
                 }
             }
-            if(!auth()->data()->email_ver_time && request()->path() !== "user/ver_email"){
+            if((int)get_options('core_user_email_ver',1)===1 && !auth()->data()->email_ver_time && request()->path() !== "user/ver_email"){
                 return redirect()->url("/user/ver_email")->go();
             }
         }
