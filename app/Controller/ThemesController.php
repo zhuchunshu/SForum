@@ -2,9 +2,13 @@
 
 namespace App\Controller;
 
+use Alchemy\Zippy\Zippy;
 use App\Middleware\AdminMiddleware;
 use App\Model\AdminOption;
+use App\Request\Admin\PluginUpload;
+use App\Request\Admin\ThemeUpload;
 use Hyperf\HttpServer\Annotation\{Controller, GetMapping, Middleware, PostMapping};
+use Hyperf\Utils\Str;
 
 #[Controller(prefix:"/admin/themes")]
 #[Middleware(AdminMiddleware::class)]
@@ -47,7 +51,7 @@ class ThemesController
 			//     //return Json_Api(200,true,['msg' => BASE_PATH."/resources/views/plugins/".$plugin_name]);
 			//      \Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/resources/views/plugins/" . $plugin_name);
 			// }
-			// copy_dir(plugin_path($plugin_name . "/resources/views"), BASE_PATH . "/resources/views/plugins/" . $plugin_name);
+			// copy_dir(theme_path($plugin_name . "/resources/views"), BASE_PATH . "/resources/views/plugins/" . $plugin_name);
 		}
 		if (is_dir(theme_path($theme_name . "/resources/assets"))) {
 			if (!is_dir(public_path("themes"))) {
@@ -112,4 +116,58 @@ class ThemesController
 		options_clear();
 	}
 	
+	// 上传主题
+	#[GetMapping(path:"upload")]
+	public function upload(){
+		return view("admin.themes.upload");
+	}
+	
+	// 上传主题
+	#[PostMapping(path:"upload")]
+	public function upload_submit(ThemeUpload $request){
+		// 不带后缀的文件名
+		$filename =  Str::before($request->file('file')->getClientFilename(),'.');
+		// 带后缀的文件名
+		$getClientFilename =  $request->file('file')->getClientFilename();
+		
+		// 移动文件
+		$request->file('file')->moveTo(theme_path($request->file('file')->getClientFilename()));
+		
+		// 初始化压缩操作类
+		$zippy = Zippy::load();
+		
+		// 打开压缩文件
+		$archiveTar  =  $zippy->open(theme_path($getClientFilename));
+		
+		// 解压
+		if(!is_dir(theme_path($filename))){
+			mkdir(theme_path($filename),0777);
+		}
+		
+		$archiveTar->extract(theme_path($filename));
+		
+		// 获取解压后,插件文件夹的所有目录
+		$allDir = allDir(theme_path($filename));
+		foreach($allDir as $value){
+			if(file_exists($value."/.dirName")){
+				$dirname = file_get_contents($value."/.dirName");
+				if(!$dirname){
+					$this->removeFiles(theme_path($getClientFilename),theme_path($filename));
+					return redirect()->with('danger','.dirName文件为空')->url('/admin/themes/upload')->go();
+				}
+				FileUtil()->moveDir($value,theme_path($dirname),true);
+				$this->removeFiles(theme_path($getClientFilename));
+				return redirect()->with('success','主题上传成功!')->url('/admin/themes/upload')->go();
+			}
+		}
+		$this->removeFiles(theme_path($getClientFilename),theme_path($filename));
+		return redirect()->with('danger','主题安装失败,没有找到 .dirName 文件')->url('/admin/themes/upload')->go();
+	}
+	
+	public function removeFiles(...$values): void
+	{
+		foreach($values as $value){
+			\Swoole\Coroutine\System::exec('rm -rf "' . $value.'"');
+		}
+	}
 }
