@@ -41,6 +41,9 @@ class RouteRefuseMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
         $Plugin = explode('\\', $Plugin);
+		if(count($Plugin) >= 1 && $Plugin[1]==="Themes"){
+			throw new NotFoundHttpException();
+		}
         if(count($Plugin)>=3){
             $Plugin = $Plugin[2];
         }else{
