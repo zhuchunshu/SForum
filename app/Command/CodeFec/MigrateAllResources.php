@@ -114,7 +114,7 @@ class MigrateAllResources extends HyperfCommand
 				if (!is_dir(theme_path($plugin_name."/resources/package"))) {
 					\Swoole\Coroutine\System::exec("mkdir " . theme_path($plugin_name."/resources/package"));
 				}
-				if (!is_dir(plugin_path($plugin_name."/resources/package/js"))) {
+				if (!is_dir(theme_path($plugin_name."/resources/package/js"))) {
 					\Swoole\Coroutine\System::exec("mkdir " . theme_path($plugin_name."/resources/package/js"));
 				}
 				copy_dir(BASE_PATH."/resources/js/themes/".$plugin_name,theme_path($plugin_name . "/resources/package/js"));
