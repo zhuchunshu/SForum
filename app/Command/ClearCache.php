@@ -6,6 +6,7 @@ namespace App\Command;
 
 use Hyperf\Command\Command as HyperfCommand;
 use Hyperf\Command\Annotation\Command;
+use Hyperf\Utils\Str;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -34,7 +35,12 @@ class ClearCache extends HyperfCommand
 
     public function handle()
     {
-	    \Swoole\Coroutine\System::exec('composer dump-autoload -o');
-	    \Swoole\Coroutine\System::exec('php CodeFec');
+	    if(Str::is('Linux',system_name())){
+		    \Swoole\Coroutine\System::exec('yes | composer dump-autoload -o');
+		    \Swoole\Coroutine\System::exec('yes| php CodeFec');
+	    }else{
+		    \Swoole\Coroutine\System::exec('composer dump-autoload -o');
+		    \Swoole\Coroutine\System::exec('php CodeFec');
+	    }
     }
 }
