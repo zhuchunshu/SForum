@@ -45,7 +45,8 @@
                                                 </div>
                                                 {{--                                            楼层信息--}}
                                                 <div class="col-auto">
-                                                    <a href="/{{$data->id}}.html/{{$value->id}}?page={{$comment->currentPage()}}">{{ ($key + 1)+(($comment->currentPage()-1)*10) }}
+                                                    <a href="/{{$data->id}}.html/{{$value->id}}?page={{$comment->currentPage()}}">
+                                                        {{ ($key + 1)+(($comment->currentPage()-1)*get_options('comment_page_count',15)) }}
                                                         楼</a>
                                                     @if($caina)
                                                         ·
