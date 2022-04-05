@@ -9,7 +9,7 @@
         "microservice",
         "middleware"
     ],
-    "description": "A super forum",
+    "description": "super-forum",
     "license": "MIT",
     "require": {
         "php": ">=8.0",

@@ -111,8 +111,7 @@ class Upgrading
 				FileUtil()->moveDir($value,BASE_PATH,true);
 				// 重建索引
 				$this->command->info("重建索引...\n");
-				\Swoole\Coroutine\System::exec('composer dump-autoload -o');
-				\Swoole\Coroutine\System::exec('php CodeFec');
+				\Swoole\Coroutine\System::exec('php CodeFec ClearCache');
 				// 删除更新锁
 				$this->command->info("删除更新锁...\n");
 				$this->removeFiles($tmp,$path,BASE_PATH."/app/CodeFec/storage/update.lock");
@@ -140,15 +139,7 @@ class Upgrading
 	private function AdminPluginMigrateAll(): void
 	{
 		foreach (Plugins_EnList() as $name){
-			if(!$name){
-				if (!request()->input("name")) {
-					return;
-				}
-				
-				$plugin_name = request()->input("name");
-			}else{
-				$plugin_name = $name;
-			}
+			$plugin_name = $name;
 			
 			if (is_dir(plugin_path($plugin_name . "/resources/views")) && !is_dir(BASE_PATH . "/resources/views/plugins")) {
 				\Swoole\Coroutine\System::exec("mkdir " . BASE_PATH . "/resources/views/plugins");
