@@ -18,8 +18,8 @@ class TopicCreate extends FormRequest
     {
         return [
             "topic_id" => "required|exists:topic,id",
-            "content" => "required|string|min:".get_options("comment_create_min",1)."|max:".get_options("comment_create_max",200),
-            "markdown" => "required|string",
+            "content" => "required|string",
+            "markdown" => "required|string|between:".get_options("comment_create_min",1).",".get_options("comment_create_max",200),
         ];
     }
 
@@ -28,7 +28,7 @@ class TopicCreate extends FormRequest
         return [
             "topic_id" => "帖子ID",
             "html" => "评论内容",
-            "markdown" => "评论markdown内容"
+            "markdown" => "评论md内容"
         ];
     }
 }
