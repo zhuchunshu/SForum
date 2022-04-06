@@ -1,18 +1,18 @@
 <?php
 Itf_Setting()->add(200,
-    "主题 - 全局","theme-common","App::setting.theme.common");
+    "主题 - 全局","theme-common","setting.theme.common");
 
 Itf_Setting()->add(201,
-"主题 - 页头","theme-header","App::setting.theme.header");
+"主题 - 页头","theme-header","setting.theme.header");
 Itf()->add("core_menu",1,[
     "name" => "首页",
     "url" => "/"
 ]);
 
 Itf_Setting()->add(203,
-    "登陆注册","sign","App::setting.user.sign");
+    "登陆注册","sign","setting.user.sign");
 Itf_Setting()->add(204,
-    "用户设置","user-setting","App::setting.user.core");
+    "用户设置","user-setting","setting.user.core");
 
 Itf()->add("show_right",1,"App::topic.right");
 
