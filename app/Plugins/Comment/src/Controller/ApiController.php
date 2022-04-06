@@ -98,7 +98,7 @@ class ApiController
             $title = auth()->data()->username."回复了你的评论!";
             $content = view("Comment::Notice.reply",['comment' => $content,'user_data' => auth()->data(),'data' => $data]);
             $action = "/".$topic_data->id.".html";
-            user_notice()->send($topic_data->user_id,$title,$content,$action);
+            user_notice()->send($parent_id,$title,$content,$action);
         }
         cache()->set("comment_create_time_" . auth()->id(), time()+get_options("comment_create_time", 60),get_options("comment_create_time", 60));
 
