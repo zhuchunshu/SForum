@@ -109,9 +109,6 @@ class Upgrading
 				$this->removeFiles($path,BASE_PATH."/runtime/view",$path,BASE_PATH."/runtime/container");
 				// 替换
 				FileUtil()->moveDir($value,BASE_PATH,true);
-				// 重建索引
-				$this->command->info("重建索引...\n");
-				\Swoole\Coroutine\System::exec('php CodeFec ClearCache');
 				// 删除更新锁
 				$this->command->info("删除更新锁...\n");
 				$this->removeFiles($tmp,$path,BASE_PATH."/app/CodeFec/storage/update.lock");
@@ -124,7 +121,11 @@ class Upgrading
 				$this->command->info("更新插件包...\n");
 				System::exec('php CodeFec CodeFec:PluginsComposerInstall');
 				
-				$this->command->info("更新成功!");
+				// 重建索引
+				$this->command->info("重建索引...\n");
+				\Swoole\Coroutine\System::exec('php CodeFec ClearCache');
+				
+				$this->command->info("升级完成!");
 			}
 		}
 	}
