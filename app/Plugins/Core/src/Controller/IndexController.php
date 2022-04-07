@@ -111,6 +111,6 @@ class IndexController
             ->where([['id', $id],['status','publish']])
             ->select("markdown")
             ->first();
-        return response()->raw($data->markdown);
+        return response()->raw(ShortCodeR()->filter($data->markdown));
     }
 }

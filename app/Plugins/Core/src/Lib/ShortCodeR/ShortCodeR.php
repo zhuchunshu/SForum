@@ -56,11 +56,22 @@ class ShortCodeR
     {
         return (new Make())->$method(...$content);
     }
+	
+	public function filter_make($method,...$content)
+	{
+		return (new Filter())->$method(...$content);
+	}
 
     public function handle($content){
 
         return $this->to($this->to($content));
     }
+	
+	
+	
+	public function filter($content){
+		return $this->filter_to($this->filter_to($content));
+	}
 
     public function to($content){
         $y = $content;
@@ -72,13 +83,25 @@ class ShortCodeR
             $content = $this->make("type2",$content);
         }
         if($content ===$y){
-            $content = $this->make("type3",$content);
-        }
-        if($content ===$y){
             $content = $this->make("type4",$content);
         }
         return $content;
     }
+	
+	public function filter_to($content){
+		$y = $content;
+		$content = $this->filter_make("default",$content);
+		if($content ===$y){
+			$content = $this->filter_make("type1",$content);
+		}
+		if($content ===$y){
+			$content = $this->filter_make("type2",$content);
+		}
+		if($content ===$y){
+			$content = $this->filter_make("type4",$content);
+		}
+		return $content;
+	}
 
     public function callback($callback,...$parameter){
         $class = Str::before($callback,"@");

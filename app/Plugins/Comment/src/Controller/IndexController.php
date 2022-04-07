@@ -13,13 +13,13 @@ class IndexController
     #[GetMapping(path:"topic/{id}.md")]
     public function show_topic_comment($id){
         if(Report::query()->where(['type' => 'comment','_id' => $id,'status' => 'approve'])->exists()){
-            return admin_abort('此帖子已被举报并批准,无法查看',403);
+            return admin_abort('此评论已被举报并批准,无法查看',403);
         }
         if(!TopicComment::query()->where("id",$id)->exists()){
             return admin_abort("页面不存在",404);
         }
-        $data = TopicComment::query()->select("markdown")->where("id",$id)->first()->markdown;
-        return response()->raw($data);
+        $data = TopicComment::query()->select("markdown")->where("id",$id)->value('markdown');
+	    return response()->raw(ShortCodeR()->filter($data));
     }
 
     #[GetMapping(path:"topic/{id}/edit")]

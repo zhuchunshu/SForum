@@ -71,9 +71,6 @@ class ShortCode
             $content = $this->make("type2",$content);
         }
         if($content ===$y){
-            $content = $this->make("type3",$content);
-        }
-        if($content ===$y){
             $content = $this->make("type4",$content);
         }
         return $content;

@@ -14,7 +14,7 @@ class Make
             $pattern = "/\[$tag\](.*?)\[\/$tag\]/is";
 
             $content = preg_replace_callback($pattern, function($match)use($value){
-                return ShortCode()->callback($value['callback'],$match);
+                return ShortCodeR()->callback($value['callback'],$match);
             },$content);
         }
         return $content;
@@ -27,7 +27,7 @@ class Make
             $pattern = "/\[$tag=(.*?)\](.*?)\[\/$tag\]/is";
 
             $content = preg_replace_callback($pattern, function($match)use($value){
-                return ShortCode()->callback($value['callback'],$match);
+                return ShortCodeR()->callback($value['callback'],$match);
             },$content);
         }
         return $content;
@@ -40,7 +40,7 @@ class Make
             $pattern = "/\[$tag (.*?)\](.*?)\[\/$tag\]/is";
 
             $content = preg_replace_callback($pattern, function($match)use($value){
-                return ShortCode()->callback($value['callback'],$match);
+                return ShortCodeR()->callback($value['callback'],$match);
             },$content);
         }
         return $content;
@@ -53,7 +53,7 @@ class Make
             $pattern = "/\[$tag\]/is";
 
             $content = preg_replace_callback($pattern, function($match)use($value){
-                return ShortCode()->callback($value['callback'],$match);
+                return ShortCodeR()->callback($value['callback'],$match);
             },$content);
         }
         return $content;
@@ -66,7 +66,7 @@ class Make
             $pattern = "/\[$tag=(.*?)\]/is";
 
             $content = preg_replace_callback($pattern, function($match)use($value){
-                return ShortCode()->callback($value['callback'],$match);
+                return ShortCodeR()->callback($value['callback'],$match);
             },$content);
         }
         return $content;
