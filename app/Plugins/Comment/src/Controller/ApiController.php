@@ -8,6 +8,7 @@ use App\Plugins\Comment\src\Request\Topic\UpdateComment;
 use App\Plugins\Comment\src\Request\TopicCreate;
 use App\Plugins\Comment\src\Request\TopicReply;
 use App\Plugins\Topic\src\Models\Topic;
+use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UsersCollection;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
@@ -27,7 +28,10 @@ class ApiController
             return $this->topic_create_validation();
         }
         // 处理
-
+	
+	    // 原内容
+	    $yhtml = $request->input('content');
+		
         // 过滤xss
         $content = xss()->clean($request->input('content'));
 
@@ -40,6 +44,8 @@ class ApiController
             'markdown' => $request->input('markdown'),
             'user_id' => auth()->id()
         ]);
+	    // 艾特被回复的人
+	    $this->at_user($data,$yhtml);
 
         //发布成功
         // 发送通知
@@ -65,6 +71,9 @@ class ApiController
         }
         // 处理
 
+	    // 原内容
+	    $yhtml = $request->input('content');
+	    
         // 过滤xss
         $content = xss()->clean($request->input('content'));
 
@@ -83,6 +92,9 @@ class ApiController
             'user_id' => auth()->id()
         ]);
         $data = TopicComment::query()->where("id",$data->id)->first();
+	
+	    // 艾特被回复的人
+	    $this->at_user($data,$yhtml);
 
         //发布成功
         // 发送通知 - 帖子作者
@@ -100,10 +112,33 @@ class ApiController
             $action = "/".$topic_data->id.".html";
             user_notice()->send($parent_id,$title,$content,$action);
         }
+	 
+		
+		// 设置下一此回复时间
         cache()->set("comment_create_time_" . auth()->id(), time()+get_options("comment_create_time", 60),get_options("comment_create_time", 60));
 
         return Json_Api(200,true,['msg'=>'回复成功!','url' => "/".$data->topic_id.".html/".$data->id."?page=".get_topic_comment_page($data->id)]);
     }
+	
+	private function at_user(\Hyperf\Database\Model\Model|\Hyperf\Database\Model\Builder $data, string $html): void
+	{
+		$at_user = get_all_at($html);
+		foreach($at_user as $username){
+			go(function() use ($username,$data){
+				if(User::query()->where("username",$username)->exists()){
+					$user = User::query()->where("username",$username)->first();
+					if((int)$user->id!==(int)$data->user_id){
+						user_notice()->send(
+							$user->id,
+							"有人在评论中提到了你",
+							"有人在评论中提到了你",
+							"/".$data->topic_id.".html/".$data->id."?page=".get_topic_comment_page($data->id)
+						);
+					}
+				}
+			});
+		}
+	}
 
     // 删除帖子评论
     #[PostMapping(path:"comment.topic.delete")]
