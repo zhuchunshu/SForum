@@ -116,7 +116,7 @@
             </article>
         @endforeach
     @else
-        <div class="col-md-10">
+        <div class="col-md-12">
             <div class="border-0 card card-body">
                 <div class="text-center card-title">暂无内容</div>
             </div>

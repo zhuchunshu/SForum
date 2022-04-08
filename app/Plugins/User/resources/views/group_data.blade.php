@@ -9,7 +9,7 @@
 
     <div class="row justify-content-center row-cards">
 
-        <div class="col-md-10">
+        <div class="col-md-12">
             <div class="border-0 card">
                 <div class="card-status-top" style="{{ Core_Ui()->Css()->bg_color($data->color) }}"></div>
                 <div class="card-body">
@@ -28,7 +28,7 @@
         </div>
 
         @if($userCount)
-            <div class="col-md-10">
+            <div class="col-md-12">
                 <div style="margin-bottom: 10px">
                     @if($user->count())
                         <div class="border-0 card">
