@@ -27,7 +27,6 @@ pre{
   font-size:16px;
 }
 .vditor-reset p{
-  font:normal 1.1em KaTeX_Main,Times New Roman,serif;
   margin-bottom:5px;
   word-wrap: break-word;
   word-break: normal;
@@ -37,30 +36,18 @@ pre{
   h1:before{
     content: "#";
     display: inline-block;
+    color: #4263eb!important;
     padding-right: 0.23em;
   }
   h2:before{
-    content: "#";
+    content: "##";
+    color: #4263eb!important;
     display: inline-block;
     padding-right: 0.23em;
   }
   h3:before{
-    content: "#";
-    display: inline-block;
-    padding-right: 0.23em;
-  }
-  h4:before{
-    content: "#";
-    display: inline-block;
-    padding-right: 0.23em;
-  }
-  h5:before{
-    content: "#";
-    display: inline-block;
-    padding-right: 0.23em;
-  }
-  h6:before{
-    content: "#";
+    content: "###";
+    color: #4263eb!important;
     display: inline-block;
     padding-right: 0.23em;
   }
@@ -71,7 +58,6 @@ pre{
   position: relative;
 }
 .vditor-reset{
-  font:normal 1.1em KaTeX_Main,Times New Roman,serif;
   font-size:16px;
   .alert{
     font-size:16px;

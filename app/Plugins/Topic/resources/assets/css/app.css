@@ -1797,7 +1797,6 @@ pre {
 }
 
 .vditor-reset p {
-  font: normal 1.1em KaTeX_Main, Times New Roman, serif;
   margin-bottom: 5px;
   word-wrap: break-word;
   word-break: normal;
@@ -1807,30 +1806,18 @@ pre {
 .vditor-reset h1:before {
   content: "#";
   display: inline-block;
+  color: #4263eb !important;
   padding-right: 0.23em;
 }
 .vditor-reset h2:before {
-  content: "#";
+  content: "##";
+  color: #4263eb !important;
   display: inline-block;
   padding-right: 0.23em;
 }
 .vditor-reset h3:before {
-  content: "#";
-  display: inline-block;
-  padding-right: 0.23em;
-}
-.vditor-reset h4:before {
-  content: "#";
-  display: inline-block;
-  padding-right: 0.23em;
-}
-.vditor-reset h5:before {
-  content: "#";
-  display: inline-block;
-  padding-right: 0.23em;
-}
-.vditor-reset h6:before {
-  content: "#";
+  content: "###";
+  color: #4263eb !important;
   display: inline-block;
   padding-right: 0.23em;
 }
@@ -1841,7 +1828,6 @@ pre {
 }
 
 .vditor-reset {
-  font: normal 1.1em KaTeX_Main, Times New Roman, serif;
   font-size: 16px;
 }
 .vditor-reset .alert {
