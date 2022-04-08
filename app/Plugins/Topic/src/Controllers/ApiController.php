@@ -255,14 +255,10 @@ class ApiController
             UsersCollection::query()->where(['type' => 'topic','type_id' => $topic_id,'user_id' => auth()->id()])->delete();
             return Json_Api(200,true,['msg' => '取消收藏成功!']);
         }
-        $topic = Topic::query()->where("id",$topic_id)->first();
         UsersCollection::query()->create([
             'user_id' => auth()->id(),
             'type' => 'topic',
             'type_id' => $topic_id,
-            'action' => '/'.$topic_id.'.html',
-            'title' => "<b style='color:red'>帖子</b> ".$topic->title,
-            'content' => view("User::Collection.topic",['topic' => $topic])
         ]);
         return Json_Api(200,true,['msg'=>'已收藏']);
     }

@@ -28,7 +28,7 @@ class UsersCollection extends Model
      *
      * @var array
      */
-    protected $fillable = ['user_id','title','content','created_at','updated_at','action','type','type_id'];
+    protected $fillable = ['id','user_id','created_at','updated_at','type','type_id'];
     /**
      * The attributes that should be cast to native types.
      *

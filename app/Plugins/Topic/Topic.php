@@ -18,6 +18,8 @@ class Topic
     {
 
         $this->bootstrap();
+	
+	    $this->helpers();
 
     }
 
@@ -25,4 +27,9 @@ class Topic
     {
         require_once __DIR__."/bootstrap.php";
     }
+	
+	private function helpers()
+	{
+		require_once __DIR__."/helpers.php";
+	}
 }

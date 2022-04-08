@@ -69,3 +69,15 @@ if(!function_exists("get_topic_comment_floor")){
 		return $floor;
 	}
 }
+
+
+if(!function_exists("get_topic_comment")){
+	function get_topic_comment($id): array|\Hyperf\Database\Model\Collection|\Hyperf\Database\Model\Model|bool|TopicComment
+	{
+		$comment = TopicComment::find($id);
+		if(!$comment){
+			return false;
+		}
+		return $comment;
+	}
+}

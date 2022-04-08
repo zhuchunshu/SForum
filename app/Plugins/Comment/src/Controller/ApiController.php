@@ -323,6 +323,7 @@ class ApiController
         return Json_Api(200,true,['更新成功!']);
     }
 
+	// 收藏评论
     #[PostMapping(path:"star.comment")]
     #[RateLimit(create:1, capacity:3)]
     public function star_topic():array{
@@ -340,14 +341,10 @@ class ApiController
             UsersCollection::query()->where(['type' => 'comment_id','type_id' => $comment_id,'user_id' => auth()->id()])->delete();
             return Json_Api(200,true,['msg' => '取消收藏成功!']);
         }
-        $comment = TopicComment::query()->where("id",$comment_id)->first();
         UsersCollection::query()->create([
             'user_id' => auth()->id(),
             'type' => 'comment',
             'type_id' => $comment_id,
-            'action' => '/'.$comment->topic->id.'.html',
-            'title' => "<b style='color:red'>评论</b> 帖子:".$comment->topic->title." 下的评论",
-            'content' => view("User::Collection.comment",['comment' => $comment])
         ]);
         return Json_Api(200,true,['msg'=>'已收藏']);
     }
