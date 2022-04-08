@@ -36,7 +36,7 @@
                                 <div class="card-body">
                                     <h3 class="card-title">其他信息</h3>
                                     <p>官网: <a href="https://www.runpod.cn">https://www.runpod.cn</a> </p>
-                                    <p>文档: <a href="https://www.runpod.cn/docs">https://www.runpod.cn/docs</a> </p>\
+                                    <p>文档: <a href="https://www.runpod.cn/docs">https://www.runpod.cn/docs</a> </p>
                                     <p>开源地址: <a href="https://github.com/zhuchunshu/super-forum">https://github.com/zhuchunshu/super-forum</a> </p>
                                 </div>
                             </div>

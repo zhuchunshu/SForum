@@ -1,7 +1,7 @@
 {
   "name": "User",
   "description": "对用户功能的支持",
-  "version": "1.4.6",
+  "version": "1.4.8",
   "author": "zhuchunshu",
   "link": "https://github.com/zhuchunshu",
   "masterVersion": "v1.3.4"
