@@ -26,6 +26,11 @@ pre{
   border:0;
   font-size:16px;
 }
+.vditor-reset{
+  font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+  overflow:hidden;
+}
+
 .vditor-reset p{
   margin-bottom:5px;
   word-wrap: break-word;
@@ -268,3 +273,4 @@ pre{
 .comment-optimal:active {
   transform: translateY(-8px);
 }
+
