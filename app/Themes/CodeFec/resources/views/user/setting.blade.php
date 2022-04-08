@@ -47,7 +47,7 @@
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">微信</label>
-                                        <input class="form-control" type="text" placeholder="" name="wx" value="{{$data->options->qq}}">
+                                        <input class="form-control" type="text" placeholder="" name="wx" value="{{$data->options->wx}}">
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">个人网站</label>
