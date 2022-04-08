@@ -151,7 +151,7 @@ class UserController
         if(!$user_id){
             return Json_Api(403,false,['msg' => '请求参数不完整']);
         }
-        User::query()->where('user_id',$user_id)->delete();
+        User::query()->where('id',$user_id)->delete();
         (new UserAuth())->destroy($user_id);
         return Json_Api(200,true,['msg' => '已删除!']);
     }

@@ -15,6 +15,7 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
+use Hyperf\RateLimit\Annotation\RateLimit;
 use HyperfExt\Hashing\Hash;
 use Illuminate\Support\Str;
 
@@ -125,6 +126,7 @@ HTML;
     }
 
     #[PostMapping(path: "/register")]
+    #[RateLimit(create:1, capacity:1)]
     public function register_post(RegisterRequest $request): array
     {
         if(get_options("core_user_reg_switch","开启")==="关闭"){
@@ -152,6 +154,14 @@ HTML;
 	    // 判断验证码问题
 	    if((get_options('core_user_reg_yaoqing', '关闭') === '开启') && !InvitationCode::query()->where(['code' => $invitationCode,'status' => false])->exists()) {
 		    return Json_Api(403,false,['msg' => '邀请码不存在!']);
+	    }
+		
+		if(User::query()->where("username",$username)->exists()){
+			return Json_Api(403,false,['msg' => '用户名已被使用!']);
+		}
+	
+	    if(User::query()->where("email",$email)->exists()){
+		    return Json_Api(403,false,['msg' => '用户名已被使用!']);
 	    }
 		
         
