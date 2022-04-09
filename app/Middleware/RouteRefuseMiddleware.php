@@ -42,7 +42,7 @@ class RouteRefuseMiddleware implements MiddlewareInterface
         }
         $Plugin = explode('\\', $Plugin);
 		if(count($Plugin) >= 1 && $Plugin[1]==="Themes"){
-			throw new NotFoundHttpException();
+			return response()->json(Json_Api(500,false,'禁止在主题内定义路由'));
 		}
         if(count($Plugin)>=3){
             $Plugin = $Plugin[2];
@@ -50,7 +50,7 @@ class RouteRefuseMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
         if(is_dir(BASE_PATH . "/app/Plugins/" . $Plugin) && !in_array($Plugin, Plugins_EnList(), true)) {
-			throw new NotFoundHttpException();
+	        return response()->json(Json_Api(500,false,'定义此路由的插件未启用'));
         }
 
         return $handler->handle($request);
