@@ -33,6 +33,9 @@ class ShortCode
 		if(auth()->check() && TopicComment::query()->where(['topic_id' => $topic_id, 'user_id' => auth()->id()])->exists()) {
 			$quanxian = true;
 		}
+		if(auth()->check() && (int)$topic_data->user_id === auth()->id()){
+			$quanxian = true;
+		}
 		if($quanxian === false){
 			return view("Comment::ShortCode.reply-hidden",['data' => $match[1]]);
 		}
@@ -52,7 +55,8 @@ class ShortCode
 		}
 		$password = $match[1];
 		$data = $match[2];
-		if((string)request()->input('view-password',null)===$password){
+		$topic_data = cache()->get(session()->get("view_topic_data"));
+		if((string)request()->input('view-password',null)===$password || @(int)$topic_data->user_id===auth()->id()){
 			return view("Topic::ShortCode.password-show",['data' => $data]);
 		}
 		return view("Topic::ShortCode.password-hidden",['data' => $data]);
