@@ -26,4 +26,11 @@ interface MenuInterface
      * @return bool
      */
     public function add(int $id, array $arr): bool;
+	
+	/**
+	 * 重写菜单
+	 * @param int $id
+	 * @param array $data
+	 */
+	public function re(int $id,array $data);
 }

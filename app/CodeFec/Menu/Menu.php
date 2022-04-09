@@ -15,7 +15,7 @@ use Illuminate\Support\Arr;
 
 class Menu implements MenuInterface
 {
-    public $list = [
+    public array $list = [
         
     ];
 
@@ -31,4 +31,10 @@ class Menu implements MenuInterface
         $this->list = Arr::add($this->list, $id, $arr);
         return true;
     }
+	
+	public function re($id,$data): bool
+	{
+		$this->list[$id] = $data;
+		return true;
+	}
 }
