@@ -18,5 +18,12 @@ interface ItfInterface
      * @param $data
      */
     public function add($class, $id,$data);
+	
+	/**
+	 * @param $class
+	 * @param $id
+	 * @param $data
+	 */
+	public function re($class, $id,$data);
 
 }

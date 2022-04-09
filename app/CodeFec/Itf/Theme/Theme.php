@@ -13,7 +13,7 @@ class Theme implements ThemeInterface
 
     public function set($namespace, $hints)
     {
-        $this->list = Arr::add($this->list, $namespace, $hints);
+        $this->list[$namespace]=$hints;
     }
 
     public function get(): array

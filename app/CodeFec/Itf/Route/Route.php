@@ -15,6 +15,12 @@ class Route implements RouteInterface
     {
         $this->list = Arr::add($this->list, $route, $callback);
     }
+	
+	public function re($route, $callback): bool
+	{
+		$this->list[$route] = $callback;
+		return true;
+	}
 
     public function get(): array
     {

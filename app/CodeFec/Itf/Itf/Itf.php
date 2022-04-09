@@ -9,13 +9,19 @@ use Illuminate\Support\Arr;
 class Itf implements ItfInterface
 {
 
-    public $list=[];
+    public array $list=[];
 
     public function add($class, $id,$data): bool
     {
         $this->list = Arr::add($this->list, $class.".".$class."_".$id, $data);
         return true;
     }
+	
+	public function re($class, $id,$data): bool
+	{
+		$this->list[$class][$class."_".$id] = $data;
+		return true;
+	}
 
     public function get($class): array
     {
@@ -30,4 +36,9 @@ class Itf implements ItfInterface
         }
         return [];
     }
+	
+	public function all(): array
+	{
+		return $this->list;
+	}
 }
