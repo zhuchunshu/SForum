@@ -13,12 +13,9 @@
     </div>
 
     <div class="mb-3">
-        <div class="form-label">是否导入mithril.js (默认导入mithril.js)</div>
-        <select v-model="data.theme_common_require_mithril" class="form-select" >
-            <option value="yes">导入</option>
-            <option value="no">不导入</option>
-        </select>
-        <small>程序默认导入vue.js、alpine.js和mithril.js框架</small>
+        <div class="form-label">网站icon</div>
+        <input type="text" class="form-control" v-model="data.theme_common_icon">
+        <small>填写链接,<a href="/admin/users/files/upload" target="_blank">点我</a> 上传文件</small>
     </div>
 
 </div>

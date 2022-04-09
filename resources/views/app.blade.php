@@ -13,8 +13,8 @@
     <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
     <link rel="stylesheet" href="{{ mix('css/app.css') }}">
-    <link rel="icon" href="/logo.svg" type="image/x-icon" />
-    <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
+    <link rel="icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon" />
+    <link rel="shortcut icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon" />
     <script>var csrf_token="{{recsrf_token()}}";</script>
     <!-- 自定义CSS -->
     @foreach(\App\CodeFec\Ui\functions::get("css") as $key => $value)

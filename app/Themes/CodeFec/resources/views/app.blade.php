@@ -8,8 +8,8 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="referrer" content="same-origin">
     <title>@if(request()->path()==="/")@if(get_options('home_title')) @yield("title") {{get_options('home_title')}} @else @yield("title","标题") - {{ get_options('title', config('app_name', 'CodeFec')) }}@endif @else @yield("title","标题") - {{ get_options('title', config('app_name', 'CodeFec')) }} @endif</title>
-    <link rel="icon" href="/logo.svg" type="image/x-icon" />
-    <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
+    <link rel="icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon" />
+    <link rel="shortcut icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon" />
     <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
     <link rel="stylesheet" href="{{mix("plugins/Core/css/core.css")}}">
