@@ -95,7 +95,7 @@ class UserController
             $quanxian = true;
         }
         $user = User::query()->where("id",$id)->first();
-        $page = UsersCollection::query()->where("user_id",$id)->paginate(15);
+        $page = UsersCollection::query()->where("user_id",$id)->orderBy("id","desc")->paginate(15);
         return view("User::Collections",['page' => $page,'quanxian' => $quanxian,'user' => $user]);
     }
 }
