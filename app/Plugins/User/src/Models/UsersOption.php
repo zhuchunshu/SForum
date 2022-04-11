@@ -30,7 +30,7 @@ class UsersOption extends Model
      *
      * @var array
      */
-    protected $fillable = ["id","created_at","updated_at","qianming","qq","weixin","website","email","options"];
+    protected $fillable = ["id","created_at","updated_at","qianming","qq","weixin","website","email","options","credits","golds","exp","money"];
     /**
      * The attributes that should be cast to native types.
      *

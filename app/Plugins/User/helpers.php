@@ -45,8 +45,7 @@ if(!function_exists("user_TopicTagQuanxianCheck")){
 if(!function_exists("file_suffix")){
     function file_suffix(string $path):string{
         $path = substr($path,strrpos($path,"/")+1);
-        $path = \Hyperf\Utils\Str::after($path,".");
-        return $path;
+	    return \Hyperf\Utils\Str::after($path,".");
     }
 }
 
@@ -55,4 +54,15 @@ if(!function_exists("path_file_name")){
         $path = substr($path,strrpos($path,"/")+1);
         return $path;
     }
+}
+
+if(!function_exists("get_user_options")){
+	function get_user_options($user_id): \App\Plugins\User\src\Models\UsersOption|\Hyperf\Database\Model\Collection|\Hyperf\Database\Model\Model|bool|array
+	{
+		$options = \App\Plugins\User\src\Models\UsersOption::find($user_id);
+		if(!$options){
+			return false;
+		}
+		return $options;
+	}
 }
