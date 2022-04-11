@@ -35,7 +35,7 @@ class ClearCache extends HyperfCommand
 
     public function handle()
     {
-	    if(Str::is('Linux',system_name())){
+	    if(stripos(system_name(), "Linux") !== false){
 		    \Swoole\Coroutine\System::exec('yes | composer dump-autoload -o');
 		    \Swoole\Coroutine\System::exec('yes| php CodeFec');
 	    }else{

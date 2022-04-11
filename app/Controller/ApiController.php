@@ -77,7 +77,7 @@ class ApiController
         } catch (InvalidArgumentException $e) {
         }
         cache()->delete("plugins.en");
-	    if(\Hyperf\Utils\Str::is('Linux',system_name())){
+	    if(\Hyperf\Utils\stripos(system_name(), "Linux") !== false){
 		    \Swoole\Coroutine\System::exec("yes yes | composer du");
 	    }else{
 		    \Swoole\Coroutine\System::exec("composer du");
@@ -177,7 +177,7 @@ class ApiController
         }
         if (request()->input("path") && is_dir(request()->input("path"))) {
              \Swoole\Coroutine\System::exec("rm -rf " . request()->input("path"));
-	        if(\Hyperf\Utils\Str::is('Linux',system_name())){
+	        if(\Hyperf\Utils\stripos(system_name(), "Linux") !== false){
 		        \Swoole\Coroutine\System::exec("yes | composer du");
 	        }else{
 		        \Swoole\Coroutine\System::exec("composer du");

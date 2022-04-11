@@ -36,7 +36,7 @@ class ComposerInstall extends HyperfCommand
 
     public function handle()
     {
-	    if(Str::is('Linux',system_name())){
+	    if(stripos(system_name(), "Linux") !== false){
 		    \Swoole\Coroutine\System::exec("yes | composer update");
 	    }else{
 		    \Swoole\Coroutine\System::exec("composer update");

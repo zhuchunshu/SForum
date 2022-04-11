@@ -721,6 +721,6 @@ if(!function_exists("build_info")){
 if(!function_exists("system_name")){
 	function system_name(): bool|string|null
 	{
-		return shell_exec("echo \$(uname)");
+		return str_replace("\n","",shell_exec("echo \$(uname)"));
 	}
 }

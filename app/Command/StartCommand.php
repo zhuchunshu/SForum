@@ -33,7 +33,7 @@ class StartCommand extends HyperfCommand
     public function handle()
     {
         if(file_exists(BASE_PATH."/app/CodeFec/storage/install.lock") || (new Install($this->output,$this))->getStep()>=5){
-	        if(Str::is('Linux',system_name())){
+	        if(stripos(system_name(), "Linux") !== false){
 		        \Swoole\Coroutine\System::exec("yes yes | composer du");
 	        }else{
 		        \Swoole\Coroutine\System::exec("composer du");
