@@ -4,7 +4,7 @@ use Hyperf\Database\Schema\Schema;
 use Hyperf\Database\Schema\Blueprint;
 use Hyperf\Database\Migrations\Migration;
 
-class UpdateUsersCollectionsTable extends Migration
+class UpdateUsersCollections2Table extends Migration
 {
     /**
      * Run the migrations.
