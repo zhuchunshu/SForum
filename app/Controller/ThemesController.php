@@ -79,7 +79,7 @@ class ThemesController
 		$path = theme_path(request()->input('name'));
 		if ($path && is_dir($path)) {
 			\Swoole\Coroutine\System::exec("rm -rf " . $path);
-			if(\Hyperf\Utils\stripos(system_name(), "Linux") !== false){
+			if(stripos(system_name(), "Linux") !== false){
 				\Swoole\Coroutine\System::exec("yes | composer du");
 			}else{
 				\Swoole\Coroutine\System::exec("composer du");
