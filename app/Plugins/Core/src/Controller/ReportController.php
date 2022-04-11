@@ -11,7 +11,7 @@ class ReportController
 {
     #[GetMapping(path:"")]
     public function index(){
-        $page = Report::query()->paginate(15);
+        $page = Report::query()->orderBy("created_at","desc")->paginate(15);
         return view("App::report.index",['page' => $page]);
     }
 

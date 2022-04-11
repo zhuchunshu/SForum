@@ -338,7 +338,7 @@ class ApiController
             return Json_Api(403,false,['msg' => '要收藏的评论不存在']);
         }
         if(UsersCollection::query()->where(['type' => 'comment','type_id' => $comment_id,'user_id' => auth()->id()])->exists()){
-            UsersCollection::query()->where(['type' => 'comment_id','type_id' => $comment_id,'user_id' => auth()->id()])->delete();
+            UsersCollection::query()->where(['type' => 'comment','type_id' => $comment_id,'user_id' => auth()->id()])->delete();
             return Json_Api(200,true,['msg' => '取消收藏成功!']);
         }
         UsersCollection::query()->create([
