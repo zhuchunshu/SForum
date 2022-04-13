@@ -17,6 +17,7 @@ super-forum是一个基于php开发的功能丰富、性能好、速度快的中
 ### QQ交流群
 
 798695907
+![JetBrains Logo (Main) logo](https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png)
 
 ### 截图
 
