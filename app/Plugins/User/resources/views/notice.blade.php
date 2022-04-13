@@ -17,7 +17,9 @@
                             通知列表
                         </h2>
                     </div>
-
+                    <div class="col-auto">
+					<button user-click="notice_allread" class="btn btn-danger">一键清空未读通知</button>
+					</div>
 
                 </div>
             </div>
