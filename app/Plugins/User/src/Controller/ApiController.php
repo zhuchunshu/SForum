@@ -120,6 +120,21 @@ class ApiController
         ]);
         return Json_Api(200,true,['msg' => '设置成功!']);
     }
+	// 一键清空未读通知
+	#[PostMapping(path:"/api/user/notice.allread")]
+	public function notice_allread(): array
+	{
+	    if(!auth()->check()){
+	        return Json_Api(401,false,['msg' => '未登录!']);
+	    }
+	    if(!UsersNotice::query()->where(['status' => 'publish','user_id' => auth()->id()])->exists()){
+	        return Json_Api(403,false,['msg' => '没有未读通知!']);
+	    }
+	    UsersNotice::query()->where(['status' => 'publish','user_id' => auth()->id()])->update([
+	        'status' => 'read'
+	    ]);
+	    return Json_Api(200,true,['msg' => '一键清空未读通知成功!']);
+	}
     // 关注用户
     #[PostMapping(path:"/api/user/userfollow")]
     public function user_follow(){
