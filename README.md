@@ -46,4 +46,4 @@ super-forum是一个基于php开发的功能丰富、性能好、速度快的中
 
 ## 致谢
 感谢Jetbrains提供开发工具
-![JetBrains Logo (Main) logo](https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png)
+![https://www.jetbrains.com](https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png)
