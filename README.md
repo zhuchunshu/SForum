@@ -17,7 +17,6 @@ super-forum是一个基于php开发的功能丰富、性能好、速度快的中
 ### QQ交流群
 
 798695907
-![JetBrains Logo (Main) logo](https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png)
 
 ### 截图
 
@@ -44,3 +43,7 @@ super-forum是一个基于php开发的功能丰富、性能好、速度快的中
 后台组件
 
 ![uploadtopic2022031511647275064vjQdQaFPDd.png](https://forum.runpod.cn/upload/topic/202203/15/1_1647275064_vjQdQaFPDd.png)
+
+## 致谢
+感谢Jetbrains提供开发工具
+![JetBrains Logo (Main) logo](https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png)
