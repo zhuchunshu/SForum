@@ -36,6 +36,18 @@ class RewriteMiddleware implements MiddlewareInterface
 	    $Route_Class = AnnotationCollector::getClassesByAnnotation(RouteRewrite::class);
 		foreach ($Route_Class as $key=>$data){
 			$callback = [$key,$data->callback];
+			$Plugin = explode('\\', $key);
+			if(count($Plugin) >= 1 && $Plugin[1]==="Themes"){
+				return $handler->handle($request);
+			}
+			if(count($Plugin)>=3){
+				$Plugin = $Plugin[2];
+			}else{
+				return $handler->handle($request);
+			}
+			if(is_dir(BASE_PATH . "/app/Plugins/" . $Plugin) && !in_array($Plugin, Plugins_EnList(), true)) {
+				return $handler->handle($request);
+			}
 			if (@$dispatched->handler->route === $data->route && $data->method===request()->getMethod()) {
 				$dispatched->handler->callback = $callback;
 			}
@@ -44,6 +56,18 @@ class RewriteMiddleware implements MiddlewareInterface
 	    $routeMethods = AnnotationCollector::getMethodsByAnnotation(RouteRewrite::class);
 	    foreach($routeMethods as $data){
 		    $callback = [$data['class'],$data['method']];
+		    $Plugin = explode('\\', $data['class']);
+		    if(count($Plugin) >= 1 && $Plugin[1]==="Themes"){
+			    return $handler->handle($request);
+		    }
+		    if(count($Plugin)>=3){
+			    $Plugin = $Plugin[2];
+		    }else{
+			    return $handler->handle($request);
+		    }
+		    if(is_dir(BASE_PATH . "/app/Plugins/" . $Plugin) && !in_array($Plugin, Plugins_EnList(), true)) {
+			    return $handler->handle($request);
+		    }
 		    if (@$dispatched->handler->route === $data['annotation']->route &&  $data['annotation']->method===request()->getMethod()) {
 			    $dispatched->handler->callback = $callback;
 		    }
