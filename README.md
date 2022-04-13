@@ -44,6 +44,5 @@ super-forum是一个基于php开发的功能丰富、性能好、速度快的中
 
 ![uploadtopic2022031511647275064vjQdQaFPDd.png](https://forum.runpod.cn/upload/topic/202203/15/1_1647275064_vjQdQaFPDd.png)
 
-## 致谢
-感谢Jetbrains提供开发工具
-![https://www.jetbrains.com](https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png)
+## Thanks
+<a href="https://www.jetbrains.com/?from=SuperForum"><img src="https://goframe.org/download/thumbnails/1114119/jetbrains.png" height="120" alt="JetBrains"/></a>
