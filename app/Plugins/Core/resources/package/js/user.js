@@ -92,6 +92,31 @@ $(function(){
     })
 })
 
+// 一键清空未读通知
+$('button[user-click="notice_allread"]').click(function(){
+    axios.post("/api/user/notice.allread",{
+        _token:csrf_token,
+    }).then(r=>{
+        var data = r.data
+        if(data.success===false){
+            iziToast.error({
+                title: "Error",
+                position:"topRight",
+                message:data.result.msg
+            })
+        }else{
+            iziToast.success({
+                title: "Success",
+                position:"topRight",
+                message:data.result.msg
+            })
+            setTimeout(function(){
+                location.reload()
+            },1500)
+        }
+    })
+})
+
 $(function () {
     // 关注用户
     $('a[user-click="user_follow"]').click(function(){
