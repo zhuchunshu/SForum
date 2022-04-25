@@ -40,7 +40,7 @@
                         </div>
                     </div>
                     <article class="col-md-12 vditor-reset" id="topic-content">
-                        {!! ShortCodeR()->handle($data->content) !!}
+                        {!! ShortCodeR()->topic()->handle($data->content) !!}
                     </article>
 
                 </div>
