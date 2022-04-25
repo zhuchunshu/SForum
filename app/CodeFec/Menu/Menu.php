@@ -37,4 +37,10 @@ class Menu implements MenuInterface
 		$this->list[$id] = $data;
 		return true;
 	}
+	
+	public function del($id): bool
+	{
+		$this->list = array_diff_key($this->list, [$id => $this->list[$id]]);
+		return true;
+	}
 }

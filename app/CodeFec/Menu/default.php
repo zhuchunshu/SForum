@@ -10,6 +10,7 @@ menu()->add(0,[
     <path d="M6.4 20a9 9 0 1 1 11.2 0z"></path>
  </svg>',
 ]);
+
 menu()->add(1,[
     'url' => '/admin/plugins',
     'name' => '组件',

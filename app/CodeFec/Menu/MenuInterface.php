@@ -33,4 +33,10 @@ interface MenuInterface
 	 * @param array $data
 	 */
 	public function re(int $id,array $data);
+	
+	/**
+	 * 删除菜单
+	 * @param int $id
+	 */
+	public function del(int $id);
 }

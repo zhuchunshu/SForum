@@ -25,5 +25,11 @@ interface ItfInterface
 	 * @param $data
 	 */
 	public function re($class, $id,$data);
+	
+	/**
+	 * @param $class
+	 * @param $id
+	 */
+	public function del($class, $id);
 
 }

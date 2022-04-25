@@ -22,6 +22,12 @@ class Itf implements ItfInterface
 		$this->list[$class][$class."_".$id] = $data;
 		return true;
 	}
+	
+	public function del($class, $id): bool
+	{
+		$this->list[$class]=array_diff_key($this->list[$class], [$class."_".$id => $this->list[$class][$class."_".$id]]);
+		return true;
+	}
 
     public function get($class): array
     {

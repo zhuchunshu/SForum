@@ -21,6 +21,12 @@ class Route implements RouteInterface
 		$this->list[$route] = $callback;
 		return true;
 	}
+	
+	public function del($route): bool
+	{
+		$this->list = array_diff_key($this->list, [$route => $this->list[$route]]);
+		return true;
+	}
 
     public function get(): array
     {
