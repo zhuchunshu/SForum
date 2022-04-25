@@ -1,6 +1,7 @@
 <?php
-
-
+/**
+ * 你无需读懂 我的代码
+ */
 namespace App\Plugins\Core\src\Lib\ShortCodeR;
 
 
@@ -10,6 +11,21 @@ use Hyperf\Utils\Str;
 
 class ShortCodeR
 {
+	public bool $comment  = false;
+	
+	public function comment($diff=true): ShortCodeR
+	{
+		$this->comment = $diff;
+		return $this;
+	}
+	
+	public bool $topic  = false;
+	
+	public function topic($diff=true): ShortCodeR
+	{
+		$this->topic = $diff;
+		return $this;
+	}
 
     public function add($tag,$callback): void
     {
@@ -25,9 +41,16 @@ class ShortCodeR
 		    $callback = $data['class']."@".$data['method'];
 		    $arr["ShortCodeR_".$name]=['callback' => $callback];
 	    }
-	    return $arr;
+		$data = $this->diff($arr);
+	    if($this->comment===true){
+			$data = $this->diff_comment($data);
+	    }
+	    if($this->topic===true){
+		    $data = $this->diff_topic($data);
+	    }
+		return $data;
     }
-
+	
     public function get($tag):bool|array{
         if($this->has($tag)){
             return $this->all()[$tag];
@@ -52,9 +75,9 @@ class ShortCodeR
     }
 
 
-    public function make($method,...$content)
+    public function make($method,$all,$content)
     {
-        return (new Make())->$method(...$content);
+        return (new Make())->$method($all,$content);
     }
 	
 	public function filter_make($method,...$content)
@@ -63,27 +86,24 @@ class ShortCodeR
 	}
 
     public function handle($content){
-
-        return $this->to($this->to($content));
+        return $this->to($this->all(),$this->to($this->all(),$content));
     }
-	
-	
 	
 	public function filter($content){
 		return $this->filter_to($this->filter_to($content));
 	}
 
-    public function to($content){
+    public function to($all,$content){
         $y = $content;
-        $content = $this->make("default",$content);
+        $content = $this->make("default",$all,$content);
         if($content ===$y){
-            $content = $this->make("type1",$content);
+            $content = $this->make("type1",$all,$content);
         }
         if($content ===$y){
-            $content = $this->make("type2",$content);
+            $content = $this->make("type2",$all,$content);
         }
         if($content ===$y){
-            $content = $this->make("type4",$content);
+            $content = $this->make("type4",$all,$content);
         }
         return $content;
     }
@@ -108,4 +128,63 @@ class ShortCodeR
         $method = Str::after($callback,"@");
         return (new $class())->$method(...$parameter);
     }
+	
+	private function _(): array
+	{
+		$all = [];
+		foreach(Itf()->get('_ShortCodeR') as $value){
+			$all[]="ShortCodeR_".$value;
+		}
+		return array_unique($all);
+	}
+	
+	private function _comment(): array
+	{
+		$all = [];
+		foreach(Itf()->get('_Comment_ShortCodeR') as $value){
+			$all[]="ShortCodeR_".$value;
+		}
+		return array_unique($all);
+	}
+	
+	private function _topic(): array
+	{
+		$all = [];
+		foreach(Itf()->get('_Topic_ShortCodeR') as $value){
+			$all[]="ShortCodeR_".$value;
+		}
+		return array_unique($all);
+	}
+	
+	private function diff(array $data){
+		$arr = [];
+		foreach($data as $k=>$v) {
+			if(!in_array($k,$this->_())){
+				$arr[$k] = $v;
+			}
+		}
+		return $arr;
+	}
+	
+	private function diff_comment(array $data)
+	{
+		$arr = [];
+		foreach($data as $k=>$v) {
+			if(!in_array($k,$this->_comment())){
+				$arr[$k] = $v;
+			}
+		}
+		return $arr;
+	}
+	
+	private function diff_topic(array $data)
+	{
+		$arr = [];
+		foreach($data as $k=>$v) {
+			if(!in_array($k,$this->_topic())){
+				$arr[$k] = $v;
+			}
+		}
+		return $arr;
+	}
 }

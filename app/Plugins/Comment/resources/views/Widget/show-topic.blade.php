@@ -92,7 +92,7 @@
                                                     </div>
                                                 @endif
                                             @endif
-                                            {!! ShortCodeR()->handle($value->content) !!}
+                                            {!! ShortCodeR()->comment()->handle($value->content) !!}
                                         </div>
                                         {{--                                    操作--}}
                                         <div class="col-md-12">
