@@ -30,7 +30,7 @@
                     @include('App::topic.show.include.author')
 
 {{--文章信息--}}
-                    <article class="col-md-12 vditor-reset" id="topic-content">
+                    <article class="col-md-12 markdown" id="topic-content">
                         {!! ShortCodeR()->topic()->handle($data->content) !!}
                     </article>
 
