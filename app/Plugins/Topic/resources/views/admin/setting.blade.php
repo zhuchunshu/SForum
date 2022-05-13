@@ -29,5 +29,23 @@
         <small>当前: {{get_options("topic_home_num",15)}}</small>
     </div>
 
+    <div class="mb-3">
+        <label class="form-label">显示帖子作者ip归属地</label>
+        <select type="number" class="form-control" v-model="data.topic_author_ip">
+            <option value="开启">开启</option>
+            <option value="关闭">关闭</option>
+        </select>
+        <small>默认开启</small>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">显示帖子修订者ip归属地</label>
+        <select type="number" class="form-control" v-model="data.topic_updated_author_ip">
+            <option value="开启">开启</option>
+            <option value="关闭">关闭</option>
+        </select>
+        <small>默认开启</small>
+    </div>
+
 
 </div>

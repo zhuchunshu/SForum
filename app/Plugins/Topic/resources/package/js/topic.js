@@ -3,6 +3,7 @@ import axios from "axios";
 import iziToast from "izitoast";
 import copy from 'copy-to-clipboard';
 import Swal from "sweetalert2";
+import methods from "codemirror/src/edit/methods";
 
 if(document.getElementById("create-topic-vue")){
     const create_topic_vue = {
@@ -1062,4 +1063,82 @@ $(function(){
             }
         });
     })
+})
+
+
+const topic = {
+    data(){
+        return {
+            'user':{
+                'city':null,
+            }
+        }
+    },
+    mounted(){
+        this.getUserCity();
+    },
+    methods:{
+        // 获取作者所在城市
+        getUserCity(){
+            axios.post("/api/topic/get.user",{
+                _token:csrf_token,
+                topic_id:topic_id
+            }).then(r=>{
+                this.user = r.data.result;
+            }).catch(e=>{
+                iziToast.error({
+                    title: 'Error',
+                    message:"请求出错,详细查看控制台",
+                    position:"topRight"
+                })
+                console.error(e)
+            })
+        }
+    }
+
+
+}
+
+Vue.createApp(topic).mount('#topic');
+
+
+// 加载评论作者IP归属地
+$(function(){
+    let comments = [];
+    $('small[comment-type="ip"]').each(function(){
+        comments.push($(this).attr("comment-id"));
+    })
+    if(comments.length>0){
+        axios.post('/api/comment/get.user.ip',{
+            _token:csrf_token,
+            comments:comments
+        }).then(r=>{
+            let data = r.data;
+            data = data.result
+            data.forEach(function(v){
+                $('small[comment-id="'+v.comment_id+'"]').text(v.text);
+            })
+        })
+    }
+})
+
+
+// 加载帖子更新记录作者IP归属地
+$(function(){
+    let updateds = [];
+    $('span[topic-type="updated_ip"]').each(function(){
+        updateds.push($(this).attr("updated-id"));
+    })
+    if(updateds.length>0){
+        axios.post('/api/topic/get.updated.user.ip',{
+            _token:csrf_token,
+            updateds:updateds
+        }).then(r=>{
+            let data = r.data;
+            data = data.result
+            data.forEach(function(v){
+                $('span[updated-id="'+v.updated_id+'"]').text(v.text);
+            })
+        })
+    }
 })

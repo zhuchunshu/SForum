@@ -48,7 +48,8 @@
         "php-curl-class/php-curl-class": "^9.6",
         "spatie/ignition": "^1.0",
         "wikimedia/composer-merge-plugin": "^2.0",
-        "zhuchunshu/hyperf-hashing": "2.2.0"
+        "zhuchunshu/hyperf-hashing": "2.2.0",
+      "ext-iconv": "*"
     },
     "require-dev": {
         "roave/security-advisories": "dev-latest"

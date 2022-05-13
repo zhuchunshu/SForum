@@ -42,6 +42,10 @@
                                                     <small data-bs-toggle="tooltip" data-bs-placement="top"
                                                            data-bs-original-title="{{$value->created_at}}"
                                                            class="text-muted text-truncate mt-n1">发表于:{{format_date($value->created_at)}}</small>
+                                                    @if(get_options('comment_author_ip','开启')==='开启' &&$value->user_ip)
+                                                        |
+                                                        <small class="text-red" comment-type="ip" comment-id="{{$value->id}}">Loading<span class="animated-dots"></span></small>
+                                                    @endif
                                                 </div>
                                                 {{--                                            楼层信息--}}
                                                 <div class="col-auto">

@@ -35,13 +35,15 @@ class TopicComment extends Model
      *
      * @var array
      */
-    protected $fillable = ['likes','topic_id','user_id','parent_id','content','markdown','status','shenping','optimal','parent_url','created_at','updated_at'];
+    protected $fillable = ['likes','topic_id','user_id','parent_id','content','markdown','status','shenping','optimal','parent_url','created_at','updated_at','user_agent','user_ip'];
     /**
      * The attributes that should be cast to native types.
      *
      * @var array
      */
     protected $casts = ['id' => 'integer', 'likes' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime','optimal' => 'datetime','shenping' => 'datetime'];
+	
+	protected $hidden = ['user_ip'];
 
     public function user(): \Hyperf\Database\Model\Relations\BelongsTo
     {

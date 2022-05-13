@@ -65,6 +65,8 @@ class CreateTopic
             "like" => 0,
             "view" => 0,
             "tag_id" => $tag,
+			'user_ip' => get_client_ip(),
+			'user_agent' => get_user_agent(),
             "options" => $options,
             "_token" => auth()->id()."_".Str::random(),
             "updated_user" => auth()->id()

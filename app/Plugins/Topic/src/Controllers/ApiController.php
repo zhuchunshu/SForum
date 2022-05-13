@@ -7,6 +7,7 @@ use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicKeyword;
 use App\Plugins\Topic\src\Models\TopicLike;
 use App\Plugins\Topic\src\Models\TopicTag;
+use App\Plugins\Topic\src\Models\TopicUpdated;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserClass;
 use App\Plugins\User\src\Models\UsersCollection;
@@ -18,7 +19,7 @@ use Hyperf\RateLimit\Annotation\RateLimit;
 use Hyperf\Utils\Arr;
 
 #[Controller(prefix:"/api/topic")]
-#[RateLimit(create:5, capacity:12)]
+#[RateLimit(create:1, capacity:3)]
 class ApiController
 {
     #[PostMapping(path:"tags")]
@@ -262,4 +263,45 @@ class ApiController
         ]);
         return Json_Api(200,true,['msg'=>'已收藏']);
     }
+	
+	#[PostMapping(path:"get.user")]
+	#[RateLimit(create:1, capacity:3)]
+	public function get_user():array{
+		$topic_id = request()->input("topic_id");
+		if(!$topic_id){
+			return Json_Api(403,false,['msg' => '请求参数不足,缺少:topic_id']);
+		}
+		$data = Topic::query()->where([
+			'status' =>'publish',
+			'id' => $topic_id
+		])->with('user')->first();
+		if(get_options('topic_author_ip','开启')==="开启" && $data->user_ip){
+			$data['user']['city'] = get_client_ip_data($data->user_ip)['pro'];
+		}
+		return Json_Api(200,true,$data['user']);
+	}
+	
+	// 获取修订者IP
+	#[PostMapping(path:"get.updated.user.ip")]
+	#[RateLimit(create:1, capacity:3)]
+	public function get_user_ip(){
+		if(!request()->input('updateds')){
+			return Json_Api(403,false,['msg' => '请求参数不足,缺少:updateds']);
+		}
+		if(!is_array(request()->input('updateds'))){
+			return Json_Api(403,false,['msg' => '请求数据格式有误']);
+		}
+		$updateds = request()->input('updateds');
+		$data = [];
+		foreach($updateds as $updated_id){
+			$updated = TopicUpdated::query()->where(["id"=>$updated_id])->first();
+			if($updated->user_ip){
+				$data[] = [
+					'updated_id' => $updated->id,
+					'text' => "IP归属地:".core_default(get_client_ip_data($updated->user_ip)['pro'],'未知')
+				];
+			}
+		}
+		return Json_Api(200,true,$data);
+	}
 }

@@ -737,7 +737,27 @@ if(!function_exists("system_name")){
 
 
 if(!function_exists("get_user_agent")){
+	/**
+	 * 获取客户端user agent信息
+	 * @return mixed|string
+	 */
 	function get_user_agent(){
 		return request()->getHeader('user-agent')[0];
+	}
+}
+
+if(!function_exists("get_client_ip_data")){
+	/**
+	 * 获取ip 信息
+	 * @param null $ip
+	 * @return array
+	 */
+	function get_client_ip_data($ip=null): array
+	{
+		$result = http('raw')->get('http://whois.pconline.com.cn/ipJson.jsp?json=true&ip='.$ip)->getBody();
+		$result = (string)str_replace("\n",'',(string)$result);
+		$result = iconv('GBK','UTF-8',$result);
+		$result = json_decode($result,true);
+		return $result;
 	}
 }

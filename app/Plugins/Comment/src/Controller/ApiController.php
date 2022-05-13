@@ -42,7 +42,9 @@ class ApiController
            'topic_id' => $request->input("topic_id"),
             'content' => $content,
             'markdown' => $request->input('markdown'),
-            'user_id' => auth()->id()
+            'user_id' => auth()->id(),
+	        'user_agent' => get_user_agent(),
+	        'user_ip' => get_client_ip(),
         ]);
 	    // 艾特被回复的人
 	    $this->at_user($data,$yhtml);
@@ -89,7 +91,9 @@ class ApiController
             'parent_id' => $comment_id,
             'content' => $content,
             'markdown' => $request->input('markdown'),
-            'user_id' => auth()->id()
+            'user_id' => auth()->id(),
+	        'user_agent' => get_user_agent(),
+	        'user_ip' => get_client_ip()
         ]);
         $data = TopicComment::query()->where("id",$data->id)->first();
 	
@@ -348,4 +352,28 @@ class ApiController
         ]);
         return Json_Api(200,true,['msg'=>'已收藏']);
     }
+	
+	// 获取评论者IP
+	#[PostMapping(path:"get.user.ip")]
+	#[RateLimit(create:1, capacity:3)]
+	public function get_user_ip(){
+		if(!request()->input('comments')){
+			return Json_Api(403,false,['msg' => '请求参数不足,缺少:comments']);
+		}
+		if(!is_array(request()->input('comments'))){
+			return Json_Api(403,false,['msg' => '请求数据格式有误']);
+		}
+		$comments = request()->input('comments');
+		$data = [];
+		foreach($comments as $comment_id){
+			$comment = TopicComment::query()->where(["id"=>$comment_id,'status' => 'publish'])->first();
+			if($comment->user_ip){
+				$data[] = [
+					'comment_id' => $comment->id,
+					'text' => "IP归属地:".get_client_ip_data($comment->user_ip)['pro']
+				];
+			}
+		}
+		return Json_Api(200,true,$data);
+	}
 }
