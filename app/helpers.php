@@ -602,7 +602,7 @@ if(!function_exists("errors")){
 
 if(!function_exists("url")){
     function url($path=null){
-        $url = get_options("APP_URL",env('APP_URL','请配置APP_URL'));
+        $url = get_options("APP_URL","http://".request()->getHeader('host')[0]);
         if(!$path){
             return $url;
         }
