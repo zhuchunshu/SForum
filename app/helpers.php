@@ -610,6 +610,16 @@ if(!function_exists("url")){
     }
 }
 
+if(!function_exists("url_source")){
+	function url_source($path=null){
+		$url = "http://".request()->getHeader('host')[0];
+		if(!$path){
+			return $url;
+		}
+		return $url.$path;
+	}
+}
+
 if(!function_exists("ws_url")){
     function ws_url($path=null){
         $url=get_options("APP_WS_URL");
@@ -722,5 +732,12 @@ if(!function_exists("system_name")){
 	function system_name(): bool|string|null
 	{
 		return str_replace("\n","",shell_exec("echo \$(uname)"));
+	}
+}
+
+
+if(!function_exists("get_user_agent")){
+	function get_user_agent(){
+		return request()->getHeader('user-agent')[0];
 	}
 }
