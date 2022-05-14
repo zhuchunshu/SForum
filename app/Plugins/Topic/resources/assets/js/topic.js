@@ -17169,7 +17169,7 @@ $(function () {
     });
   });
 });
-var topic = {
+var author = {
   data: function data() {
     return {
       'user': {
@@ -17201,7 +17201,7 @@ var topic = {
     }
   }
 };
-Vue.createApp(topic).mount('#topic'); // 加载评论作者IP归属地
+Vue.createApp(topic).mount('#author'); // 加载评论作者IP归属地
 
 $(function () {
   var comments = [];

@@ -1066,7 +1066,7 @@ $(function(){
 })
 
 
-const topic = {
+const author = {
     data(){
         return {
             'user':{
@@ -1099,7 +1099,7 @@ const topic = {
 
 }
 
-Vue.createApp(topic).mount('#topic');
+Vue.createApp(topic).mount('#author');
 
 
 // 加载评论作者IP归属地
