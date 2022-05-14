@@ -1,4 +1,4 @@
-<div class="card-footer" style="background-color: #f4f6fa;">
+<div class="card-footer">
     <div class="row">
         <div class="col">
             {{-- 点赞 --}}

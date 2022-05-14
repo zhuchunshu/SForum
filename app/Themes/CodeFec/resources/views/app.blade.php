@@ -31,7 +31,7 @@
     @endforeach
 </head>
 
-<body class="antialiased">
+<body class="{{session()->get('theme','antialiased')}}">
 @include("App::layouts.themes.header-".get_options('core_theme_header',1))
 @include("App::layouts.errors")
 @include("App::layouts._msg")

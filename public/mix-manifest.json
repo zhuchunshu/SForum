@@ -10,8 +10,10 @@
     "/js/admin/setting.js": "/js/admin/setting.js?id=f32f5543597519889463",
     "/js/admin/index.js": "/js/admin/index.js?id=f430961bcf2bf67909a1",
     "/plugins/Core/js/user.js": "/plugins/Core/js/user.js?id=48373b12775f4d6464e2",
+    "/plugins/Core/js/app.js": "/plugins/Core/js/app.js?id=725eae192af7876ec959",
     "/plugins/Topic/js/topic.js": "/plugins/Topic/js/topic.js?id=76368ef86f7ee34ad88c",
+    "/plugins/Comment/js/topic.js": "/plugins/Comment/js/topic.js?id=abf58f47af79dcec6886",
     "/plugins/User/js/user.js": "/plugins/User/js/user.js?id=dbf9408547e0286c08cd",
-    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=fedfa116cc4ebe8acbec",
+    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=bde2e3be6c64199b72bd",
     "/css/app.css": "/css/app.css?id=68b329da9893e34099c7"
 }

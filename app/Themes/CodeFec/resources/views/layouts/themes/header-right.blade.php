@@ -11,12 +11,30 @@
 
 @if(auth()->check())
 
-    <div class="nav-item dropdown me-3">
+    <div class="nav-item d-none d-lg-flex me-3">
         <a href="/user/notice" class="px-0 nav-link">
             <!-- Download SVG icon from http://tabler-icons.io/i/bell -->
             <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" /><path d="M9 17v1a3 3 0 0 0 6 0v-1" /></svg>
             <span id="core-notice-red" class="badge bg-red" style="display: none;"></span>
         </a>
+    </div>
+
+    <div class="nav-item dropdown me-3">
+        @if(session()->get('theme','dark'))
+            <a href="#" id="core_update_theme" class="px-0 nav-link">
+                <!-- Download SVG icon from http://tabler-icons.io/i/bell -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-moon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <desc>Download more icon variants from https://tabler-icons.io/i/moon</desc>
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                    <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"></path>
+                </svg>
+            </a>
+        @else
+            <a href="#" id="core_update_theme" class="px-0 nav-link">
+                <!-- Download SVG icon from http://tabler-icons.io/i/bell -->
+                <svg class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M0 0h24v24H0z" stroke="none"></path><circle cx="12" cy="12" r="4"></circle><path d="M3 12h1m8-9v1m8 8h1m-9 8v1M5.6 5.6l.7.7m12.1-.7l-.7.7m0 11.4l.7.7m-12.1-.7l-.7.7"></path></svg>
+            </a>
+        @endif
     </div>
 
     <div id="vue-header-right-my" class="nav-item dropdown">

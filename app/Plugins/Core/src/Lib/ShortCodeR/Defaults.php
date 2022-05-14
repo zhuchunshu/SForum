@@ -123,7 +123,7 @@ HTML;
           return $match[0];
       }
       return <<<HTML
-<div class="hvr-grow row topic-with" core-data="topic" topic-id="{$topic_id}">
+<div class="card border-1 hvr-grow row topic-with" core-data="topic" topic-id="{$topic_id}">
     <div class="col" core-data="topic_content">
         <div class="skeleton-line"></div>
         <div class="skeleton-line"></div>
