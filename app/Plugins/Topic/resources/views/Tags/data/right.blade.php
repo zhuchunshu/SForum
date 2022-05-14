@@ -12,11 +12,22 @@
                 <p>
                     {{core_default($data->description,get_options("description","无描述"))}}
                 </p>
+                <b class="text-h3">创建者</b>:
+                @if($data->user_id)
+                    <a href="/users/{{ $data->user->username }}.html">
+                        <span class="avatar avatar-rounded" style="--tblr-avatar-size:20px;background-image: url({{super_avatar($data->user)}})"></span>
+                        {{ $data->user->username }}</a>
+                @else
+                    <span class="text-red">系统管理员</span>
+                @endif
             </div>
 
             <div class="card-footer">
                 @if(auth()->check())
                     <a href="/topic/create" class="btn btn-dark">发帖</a>
+                    @if(Authority()->check('topic_tag_create') && $data->user_id == auth()->id())
+                        <a href="/tags/{{$data->id}}/edit" class="btn btn-primary">修改</a>
+                    @endif
                 @else
                     <a href="/login" class="btn btn-dark">登陆</a>
                     <a href="/register" class="btn btn-light">注册</a>

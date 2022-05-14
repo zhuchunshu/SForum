@@ -20,7 +20,11 @@
             </h2>
         </div>
 
-
+        <div class="col-auto">
+            @if(auth()->check() && Authority()->check('topic_tag_create'))
+                <a href="/tags/create" class="btn btn-primary">创建标签</a>
+            @endif
+        </div>
     </div>
 </div>
 </div>

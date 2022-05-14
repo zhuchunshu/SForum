@@ -64,3 +64,7 @@ Itf()->add("menu",401,[
 
 Itf_Setting()->add(3001,
     "帖子设置","topic","Topic::admin.setting");
+
+
+// 权限
+Authority()->add("topic_tag_create","创建标签");
