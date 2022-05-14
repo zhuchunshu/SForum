@@ -3569,6 +3569,42 @@ $(function () {
 // }else{
 //     $('span[core-show="online"]').remove();
 // }
+// 切换主题
+
+$(function () {
+  $("#core_update_theme").click(function () {
+    var theme = $("body").attr("class");
+
+    if (theme === "antialiased") {
+      $("body").attr("class", 'theme-dark');
+    }
+
+    if (theme === "theme-dark") {
+      $("body").attr("class", 'antialiased');
+    }
+
+    axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/core/toggle.theme", {
+      _token: csrf_token,
+      theme: $("body").attr("class")
+    }).then(function (r) {
+      var data = r.data;
+
+      if (data.success === false) {
+        izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+          title: "Error",
+          message: data.result.msg,
+          position: "topRight"
+        });
+      } else {
+        izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+          title: "Success",
+          message: data.result.msg,
+          position: "topRight"
+        });
+      }
+    });
+  });
+});
 })();
 
 /******/ })()

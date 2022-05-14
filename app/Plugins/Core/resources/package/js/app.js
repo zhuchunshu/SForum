@@ -141,3 +141,34 @@ $(function(){
 //     $('span[core-show="online"]').remove();
 // }
 
+// 切换主题
+$(function(){
+    $("#core_update_theme").click(function(){
+        let theme = $("body").attr("class");
+        if(theme==="antialiased"){
+            $("body").attr("class",'theme-dark')
+        }
+        if(theme==="theme-dark"){
+            $("body").attr("class",'antialiased')
+        }
+        axios.post("/api/core/toggle.theme",{
+            _token:csrf_token,
+            theme:$("body").attr("class")
+        }).then(r=>{
+            let data = r.data;
+            if(data.success===false){
+                iziToast.error({
+                    title: "Error",
+                    message:data.result.msg,
+                    position:"topRight"
+                })
+            }else{
+                iziToast.success({
+                    title: "Success",
+                    message:data.result.msg,
+                    position:"topRight"
+                })
+            }
+        })
+    })
+})
