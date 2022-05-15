@@ -69,8 +69,11 @@
                                 <div class="col">
                                     <a href="/users/{{$data->user->username}}.html"
                                        style="margin-bottom:0;text-decoration:none;"
-                                       class="card-title text-reset">{{$data->user->username}}</a>
-                                    <div style="margin-top:1px">发布于:{{$data->created_at}}</div>
+                                       class="text-reset me-1"><strong>{{$data->user->username}}</strong></a>
+                                    <a data-bs-toggle="tooltip" data-bs-placement="right" title="{{$data->user->class->name}}" href="/users/group/{{$data->user->class->id}}.html" style="color:{{$data->user->class->color}}">
+                                        <span>{!! $data->user->class->icon !!}</span>
+                                    </a>
+                                    <div style="margin-top:1px">发布于:{{format_date($data->created_at)}}</div>
                                 </div>
                                 <div class="col-auto">
                                     @if($data->essence>0)

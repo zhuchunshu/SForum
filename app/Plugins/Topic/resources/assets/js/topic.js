@@ -17201,7 +17201,7 @@ var author = {
     }
   }
 };
-Vue.createApp(topic).mount('#author'); // 加载评论作者IP归属地
+Vue.createApp(author).mount('#author'); // 加载评论作者IP归属地
 
 $(function () {
   var comments = [];

@@ -10,6 +10,9 @@
                     <div class="topic-author-name">
                         <a href="/users/{{ $data->user->username }}.html"
                            class="text-reset">{{ $data->user->username }}</a>
+                        <a data-bs-toggle="tooltip" data-bs-placement="right" title="{{$data->user->class->name}}" href="/users/group/{{$data->user->class->id}}.html" style="color:{{$data->user->class->color}}">
+                            <span>{!! $data->user->class->icon !!}</span>
+                        </a>
                     </div>
                     <div>发表于:{{ format_date($data->created_at) }}
                         <span v-if="user.city">

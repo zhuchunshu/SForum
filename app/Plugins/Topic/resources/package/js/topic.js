@@ -1099,7 +1099,7 @@ const author = {
 
 }
 
-Vue.createApp(topic).mount('#author');
+Vue.createApp(author).mount('#author');
 
 
 // 加载评论作者IP归属地

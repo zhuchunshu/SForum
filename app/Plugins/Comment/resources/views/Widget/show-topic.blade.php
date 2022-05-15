@@ -36,6 +36,9 @@
                                                     <a style="white-space:nowrap;"
                                                        href="/users/{{$value->user->username}}.html"
                                                        class="text-body text-truncate">{{$value->user->username}}</a>
+                                                    <a data-bs-toggle="tooltip" data-bs-placement="right" title="{{$value->user->class->name}}" href="/users/group/{{$value->user->class->id}}.html" style="color:{{$value->user->class->color}}">
+                                                        <span>{!! $value->user->class->icon !!}</span>
+                                                    </a>
                                                     @if($value->optimal) <span
                                                             class="badge badge-pill bg-teal">最佳回复</span> @endif
                                                     <br/>
