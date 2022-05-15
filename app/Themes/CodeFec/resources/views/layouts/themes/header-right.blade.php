@@ -20,7 +20,7 @@
     </div>
 
     <div class="nav-item dropdown me-3">
-        @if(session()->get('theme','dark'))
+        @if(session()->get('theme','theme-dark')!=="theme-dark")
             <a href="#" id="core_update_theme" class="px-0 nav-link">
                 <!-- Download SVG icon from http://tabler-icons.io/i/bell -->
                 <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-moon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">

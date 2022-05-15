@@ -8,7 +8,7 @@
                         <a class="page-link"
                            href="/{{$get_topic['shang']['id']}}.html">
                             <div class="page-item-subtitle">上一篇文章</div>
-                            <div class="page-item-title">
+                            <div class="page-item-title text-reset">
                                 {{ \Hyperf\Utils\Str::limit($get_topic['shang']['title'], 20, '...') }}</div>
                         </a>
                     </li>
@@ -25,7 +25,7 @@
                         <a class="page-link"
                            href="/{{ $get_topic['xia']['id']  }}.html">
                             <div class="page-item-subtitle">下一篇文章</div>
-                            <div class="page-item-title">
+                            <div class="page-item-title text-reset">
                                 {{ \Hyperf\Utils\Str::limit($get_topic['xia']['title'], 20, '...') }}</div>
                         </a>
                     </li>
