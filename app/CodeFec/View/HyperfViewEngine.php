@@ -35,6 +35,7 @@ class HyperfViewEngine implements EngineInterface
 		// 主题
 	    $name = get_options("theme","CodeFec");
 	    $factory->replaceNamespace("App",theme_path($name."/resources/views"));
+	    $factory->replaceNamespace("Core",theme_path($name."/resources/views"));
         return $factory->make($template,$data)->render();
     }
 
