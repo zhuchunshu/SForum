@@ -73,6 +73,13 @@
 
 @endsection
 
-@section("scripts")
-    <script src="{{mix('plugins/Topic/js/tag.js')}}"></script>
+@section('scripts')
+    <script type="text/javascript">
+        var imageUpUrl = "/user/upload/image?_token={{ csrf_token() }}";
+    </script>
+
+    <script src="{{ mix('plugins/Topic/js/topic.js') }}"></script>
+@endsection
+@section('headers')
+    <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
 @endsection
