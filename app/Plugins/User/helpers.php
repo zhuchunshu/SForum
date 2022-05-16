@@ -66,3 +66,27 @@ if(!function_exists("get_user_options")){
 		return $options;
 	}
 }
+
+if(!function_exists("get_user_settings")){
+	/**
+	 * @param int|string $user_id 用户id
+	 * @param string $name name
+	 * @param string $default 默认值
+	 * @return mixed|null
+	 * @throws \Psr\SimpleCache\InvalidArgumentException
+	 */
+	function get_user_settings(int|string $user_id, string $name, string $default=""){
+		if(!cache()->has('user.settings.'.$user_id.'.'.$name)){
+			cache()->set("user.settings.".$user_id.'.'.$name,@\App\Plugins\User\src\Models\UsersSetting::query()->where(["user_id"=>$user_id,"name"=>$name])->first()->value);
+		}
+		return core_default(cache()->get("user.settings.".$user_id.".".$name),$default);
+	}
+}
+
+if(!function_exists("user_settings_clear")){
+	function user_settings_clear($user_id){
+		foreach(\App\Plugins\User\src\Models\UsersSetting::query()->where('user_id',$user_id)->get() as $value){
+			cache()->delete('user.settings.'.$user_id.'.'.$value->name);
+		}
+	}
+}

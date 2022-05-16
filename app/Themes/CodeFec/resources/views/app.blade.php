@@ -17,7 +17,7 @@
     <script>
         var csrf_token = "{{ recsrf_token() }}";
         var ws_url = "{{ws_url()}}";
-        var login_token = "{{auth()->token()}}";
+        var _token = "{{auth()->token()}}";
     </script>
     <meta name="description" content="@yield('description',get_options('description'))">
     <meta name="keywords" content="@yield('keywords',get_options('keywords'))">

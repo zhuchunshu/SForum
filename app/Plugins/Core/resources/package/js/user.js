@@ -1,5 +1,7 @@
 import axios from "axios";
 import iziToast from "izitoast";
+import swal from "sweetalert";
+import qs from "querystring";
 
 if(document.getElementById("vue-user-my-setting")){
     const vums = {
@@ -211,3 +213,64 @@ $(function(){
         })
     })
 })
+
+
+// 用户设置 --core
+if(document.getElementById("users-settings-form")){
+    const app = {
+        data() {
+            return {
+                data:{},
+                env:{}
+            }
+        },
+        beforeMount() {
+            axios.post("/api/user/get.user.settings",{_token:csrf_token,})
+                .then(response=>{
+                    var data = response.data;
+                    if(data.success===true){
+                        this.data=data.result;
+                    }else{
+                        swal({
+                            title:data.result.msg,
+                            icon:'error'
+                        })
+                    }
+                })
+                .catch(error=>{
+                    console.error(error)
+                    swal({
+                        title:"请求出错,详细请查看控制台",
+                        icon:"error"
+                    })
+                })
+        },
+        methods: {
+            submit(){
+                axios.post("/api/user/set.user.settings",{_token:csrf_token,data:qs.stringify(this.data),env:qs.stringify(this.env)})
+                    .then(response=>{
+                        var data = response.data;
+                        if(data.success===true){
+                            swal({
+                                title:data.result.msg,
+                                icon:'success'
+                            })
+                        }else{
+                            swal({
+                                title:data.result.msg,
+                                icon:'error'
+                            })
+                        }
+                    })
+                    .catch(error=>{
+                        console.error(error)
+                        swal({
+                            title:"请求出错,详细请查看控制台",
+                            icon:"error"
+                        })
+                    })
+            }
+        }
+    }
+    Vue.createApp(app).mount("#users-settings-form")
+}

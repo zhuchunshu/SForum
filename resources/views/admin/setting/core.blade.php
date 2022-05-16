@@ -18,7 +18,7 @@
                 @endif    
                 @endforeach
             </ul>
-            <div class="tab-content" id="setting-core-form">
+            <div class="tab-content">
                 <!-- Content of card #1 -->
                 @foreach(Itf_Setting()->get() as $key=>$value)
                     @if($key==1)

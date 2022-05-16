@@ -17,13 +17,15 @@ interface SettingInterface
      * 获取菜单数组.
      */
     public function get(): array;
-
-    /**
-     * 新增菜单.
-     *
-     * @param int 菜单id $id
-     * @param array 菜单内容 $arr
-     * @return bool
-     */
+	
+	/**
+	 * 新增菜单.
+	 *
+	 * @param int 菜单id $id
+	 * @param string $name
+	 * @param string $ename
+	 * @param string $view
+	 * @return bool
+	 */
     public function add(int $id, string $name,string $ename,string $view): bool;
 }

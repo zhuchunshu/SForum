@@ -754,10 +754,8 @@ if(!function_exists("get_client_ip_data")){
 	 */
 	function get_client_ip_data($ip=null): array
 	{
-		$result = http('raw')->get('http://whois.pconline.com.cn/ipJson.jsp?json=true&ip='.$ip)->getBody();
-		$result = (string)str_replace("\n",'',(string)$result);
-		$result = iconv('GBK','UTF-8',$result);
-		$result = json_decode($result,true);
+		$result = http('array')->get('http://ip.useragentinfo.com/json?ip='.$ip);
+		$result['pro']=$result['province'];
 		return $result;
 	}
 }

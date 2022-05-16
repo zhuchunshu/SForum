@@ -1,123 +1,43 @@
 @extends("App::app")
 @section('title','个人设置')
 @section('content')
-    <div id="vue-user-my-setting">
-            <div class="row row-cards">
-                <div class="col-md-4">
-                    <div class="row row-cards">
-                        <div class="col-md-12">
-                            <form action="/user/myUpdate?Redirect=/user/setting" method="post" enctype="multipart/form-data">
-                                <x-csrf/>
-                                <div class="card card-body">
-                                    <div class="card-title">基本设置</div>
-                                    <div class="mb-3">
-                                        <label class="form-label">用户名</label>
-                                        <input disabled type="text" v-model="username" class="form-control">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">用户组</label>
-                                        {!! Core_Ui()->Html()->UserGroup($data->Class) !!}
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">旧密码</label>
-                                        <input type="text" v-model="old_pwd" name="old_pwd" class="form-control">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">新密码</label>
-                                        <input type="text" v-model="new_pwd" name="new_pwd" class="form-control">
-                                    </div>
-                                    <div class="mb-3">
-                                        <button class="btn btn-primary" type="submit">提交</button>
-                                    </div>
-                                </div>
-                            </form>
+    <div>
+            <div class="row row-cards justify-content-center">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <ul class="nav nav-pills card-header-pills">
+                                <li class="nav-item">
+                                    <a class="nav-link @if(request()->input('m')!=='options') active @endif fw-bold" href="/user/setting">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon me-1 d-none d-sm-block" width="24"
+                                             height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                                             stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M0 0h24v24H0z" stroke="none"/>
+                                            <circle cx="12" cy="12" r="9"/>
+                                            <path d="M12 7v5l3 3"/>
+                                        </svg>
+                                        基本设置</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link @if(request()->input('m')==='options') active @endif fw-bold" href="/user/setting?m=options">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-settings" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                            <desc>Download more icon variants from https://tabler-icons.io/i/settings</desc>
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                            <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
+                                        灵活设置</a>
+                                </li>
+                            </ul>
                         </div>
                         <div class="col-md-12">
-                            <form action="/user/myUpdate/options?Redirect=/user/setting" method="post" enctype="multipart/form-data">
-                                <x-csrf/>
-                                <div class="card card-body">
-                                    <div class="card-title">其他设置</div>
-                                    <div class="mb-3">
-                                        <label class="form-label">签名</label>
-                                        <textarea class="form-control" name="qianming" type="text">{{$data->options->qianming}}</textarea>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">QQ</label>
-                                        <input class="form-control" type="text" placeholder="" name="qq" value="{{$data->options->qq}}">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">微信</label>
-                                        <input class="form-control" type="text" placeholder="" name="wx" value="{{$data->options->wx}}">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">个人网站</label>
-                                        <input class="form-control" type="url" placeholder="" name="website" value="{{$data->options->website}}">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">对外展示邮箱</label>
-                                        <input class="form-control" type="email" placeholder="" name="email" value="{{$data->options->email}}">
-                                    </div>
-                                    <div class="mb-3">
-                                        <button class="btn btn-primary" type="submit">提交</button>
-                                    </div>
-                                </div>
-                            </form>
+                            @if(request()->input('m')!=='options')
+                                @include('App::user.setting.common')
+                            @else
+                                @include('App::user.setting.options')
+                            @endif
                         </div>
                     </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="row row-cards">
-                        <div class="col-md-12">
-                            <form action="/user/myUpdate/avatar?Redirect=/user/setting" method="post" enctype="multipart/form-data">
-                                <x-csrf/>
-                                <div class="card card-body">
-                                    <div class="card-title">修改头像</div>
-                                    <div class="mb-3">
-                                        <label class="form-label">当前头像
-                                            <div>{!! avatar(auth()->data()->id) !!}</div>
-                                        </label>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">选择头像</label>
-                                        <input name="avatar" type="file" accept="image/gif, image/png, image/jpeg, image/jpg" class="form-control">
-                                    </div>
-                                    <div class="mb-3">
-                                        <button class="btn btn-primary" type="submit">提交</button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-
-                        <div class="col-md-12">
-                            <form action="/user/myUpdate/noticed?Redirect=/user/setting" method="post">
-                                <x-csrf/>
-                                <div class="card card-body">
-                                    <div class="card-title">通知设置</div>
-                                    <div class="mb-3">
-                                        <label class="form-check form-switch">
-                                            <input name="email" class="form-check-input" type="checkbox" {{user_notice()->checked("email",auth()->id())}}>
-                                            <span class="form-check-label">接收邮件通知</span>
-                                        </label>
-                                    </div>
-                                    <div class="mb-3">
-                                        <button class="btn btn-primary" type="submit">提交</button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <form action="/user/myUpdate/other?Redirect=/user/setting" method="post">
-                        <x-csrf/>
-                        <div class="card card-body">
-                            <div class="card-title">其他</div>
-                            <div class="mb-3">
-                                <button class="btn btn-primary" type="submit" name="action" value="removeAvatar">移除头像</button>
-                            </div>
-                        </div>
-                    </form>
                 </div>
             </div>
     </div>

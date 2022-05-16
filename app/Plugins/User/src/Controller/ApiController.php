@@ -8,6 +8,7 @@ use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserFans;
 use App\Plugins\User\src\Models\UsersCollection;
 use App\Plugins\User\src\Models\UsersNotice;
+use App\Plugins\User\src\Models\UsersSetting;
 use App\Plugins\User\src\Models\UserUpload;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -226,4 +227,43 @@ class ApiController
         }
         return Json_Api(200,true,['msg' => '删除成功!']);
     }
+	
+	#[PostMapping(path:"/api/user/get.user.settings")]
+	public function get_user_settings(){
+		if(!auth()->check()){
+			return Json_Api(401,false,['msg' => '未登录!']);
+		}
+		$result = [];
+		foreach (UsersSetting::query()->where('user_id',auth()->id())->select('name', 'value')->get() as $value){
+			$result[$value->name]=$value->value;
+		}
+		return Json_Api(200,true,$result);
+	
+	}
+	
+	#[PostMapping(path:"/api/user/set.user.settings")]
+	public function set_user_settings(){
+		if(!auth()->check()){
+			return Json_Api(401,false,['msg' => '未登录!']);
+		}
+		if(!is_array(request()->input('data'))){
+			$data = de_stringify(request()->input('data'));
+		}else{
+			$data = request()->input('data');
+		}
+		
+		if(!is_array($data)){
+			return Json_Api(403,false,['msg' => '请提交正确的数据']);
+		}
+		
+		foreach ($data as $key=>$value){
+			if(UsersSetting::query()->where(['user_id'=>auth()->id(),'name' => $key])->exists()){
+				UsersSetting::query()->where(['user_id'=>auth()->id(),'name' => $key])->update(['value' => $value]);
+			}else{
+				UsersSetting::query()->create(['user_id'=>auth()->id(),'name' => $key, 'value' => $value]);
+			}
+		}
+		user_settings_clear(auth()->id());
+		return Json_Api(200,true,['msg' => '更新成功!']);
+	}
 }
