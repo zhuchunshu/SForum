@@ -46,12 +46,12 @@ class migrate extends HyperfCommand
     public function handle()
     {
         $path = $this->input->getArgument('path') ?? BASE_PATH."/migrations";
+		$this->migrator->path($path);
         $arr = array_merge(
             $this->migrator->paths(),
-            [$path]
         );
         $this->migrator->setOutput($this->output)
-            ->run($path,[
+            ->run($arr,[
                 'pretend' => $this->input->getOption('pretend'),
                 'step' => $this->input->getOption('step'),
             ]);
