@@ -36,8 +36,10 @@
                 </div>
             @endif
         </div>
+        @if(count(Itf()->get('users_options')))
         <div class="p-3">
             <button @@click="submit" class="btn btn-light">提交</button>
         </div>
+        @endif
     </div>
 </div>
