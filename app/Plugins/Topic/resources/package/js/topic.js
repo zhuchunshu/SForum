@@ -233,7 +233,7 @@ if(document.getElementById("create-topic-vue")){
                                 id = value
                             }
                             const md = this.vditor.getSelection();
-                            copy('[topic='+id+']'+md+'[/topic]')
+                            copy('[topic topic_id='+id+']')
                             iziToast.success({
                                 title:"Success",
                                 message:"短代码已复制,请在合适位置粘贴",
@@ -278,7 +278,7 @@ if(document.getElementById("create-topic-vue")){
                         return ;
                     }
                     const md = this.vditor.getSelection();
-                    copy('[file='+formValues.name+','+formValues.url+','+formValues.pwd+','+formValues.unzip+']'+md+'[/file]')
+                    copy('[file name="'+formValues.name+'" url="'+formValues.url+'" password="'+formValues.pwd+'" unzip="'+formValues.unzip+'"]')
                     iziToast.success({
                         title:"Success",
                         message:"短代码已复制,请在合适位置粘贴",
@@ -740,7 +740,7 @@ if(document.getElementById("edit-topic-vue")){
                                 id = value
                             }
                             const md = this.vditor.getSelection();
-                            copy('[topic='+id+']'+md+'[/topic]')
+                            copy('[topic topic_id='+id+']')
                             iziToast.success({
                                 title:"Success",
                                 message:"短代码已复制,请在合适位置粘贴",

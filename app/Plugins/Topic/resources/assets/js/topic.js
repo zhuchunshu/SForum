@@ -16354,7 +16354,7 @@ if (document.getElementById("create-topic-vue")) {
 
             var md = _this3.vditor.getSelection();
 
-            copy_to_clipboard__WEBPACK_IMPORTED_MODULE_4___default()('[topic=' + id + ']' + md + '[/topic]');
+            copy_to_clipboard__WEBPACK_IMPORTED_MODULE_4___default()('[topic topic_id=' + id + ']');
             izitoast__WEBPACK_IMPORTED_MODULE_3___default().success({
               title: "Success",
               message: "短代码已复制,请在合适位置粘贴",
@@ -16428,7 +16428,7 @@ if (document.getElementById("create-topic-vue")) {
 
                 case 13:
                   md = _this4.vditor.getSelection();
-                  copy_to_clipboard__WEBPACK_IMPORTED_MODULE_4___default()('[file=' + formValues.name + ',' + formValues.url + ',' + formValues.pwd + ',' + formValues.unzip + ']' + md + '[/file]');
+                  copy_to_clipboard__WEBPACK_IMPORTED_MODULE_4___default()('[file name="' + formValues.name + '" url="' + formValues.url + '" password="' + formValues.pwd + '" unzip="' + formValues.unzip + '"]');
                   izitoast__WEBPACK_IMPORTED_MODULE_3___default().success({
                     title: "Success",
                     message: "短代码已复制,请在合适位置粘贴",
@@ -16895,7 +16895,7 @@ if (document.getElementById("edit-topic-vue")) {
 
             var md = _this9.vditor.getSelection();
 
-            copy_to_clipboard__WEBPACK_IMPORTED_MODULE_4___default()('[topic=' + id + ']' + md + '[/topic]');
+            copy_to_clipboard__WEBPACK_IMPORTED_MODULE_4___default()('[topic topic_id=' + id + ']');
             izitoast__WEBPACK_IMPORTED_MODULE_3___default().success({
               title: "Success",
               message: "短代码已复制,请在合适位置粘贴",
