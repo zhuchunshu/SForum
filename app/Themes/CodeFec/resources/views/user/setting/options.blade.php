@@ -2,7 +2,7 @@
     <div class="row row-cards" id="users-settings-form">
         <div class="col-md-12">
             <!-- Cards with tabs component -->
-            @if(count(Itf()->get('users_options')))
+            @if(!count(Itf()->get('users_options')))
                 <div class="card-tabs border-0">
                     <!-- Cards navigation -->
                     <ul class="nav nav-tabs">
