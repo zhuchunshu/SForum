@@ -13,6 +13,6 @@ return [
     'default' => [
         'driver' => Hyperf\Cache\Driver\RedisDriver::class,
         'packer' => Hyperf\Utils\Packer\PhpSerializerPacker::class,
-        'prefix' => env('APP_NAME', 'CodeFec') . ':',
+        'prefix' => env('APP_KEY', 'CodeFec') . ':',
     ],
 ];

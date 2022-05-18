@@ -3,6 +3,7 @@
 namespace App\CodeFec;
 
 use App\Command\StartCommand;
+use Hyperf\Utils\Str;
 use Swoole\Coroutine\MySQL;
 use Swoole\Coroutine\Redis;
 use Symfony\Component\Console\Application;
@@ -121,6 +122,7 @@ class Install
 		}
 		// 数据库连接成功
 		modifyEnv([
+			'APP_KEY' => Str::random(32),
 			'DB_HOST' => $host,
 			'DB_PORT' => $port,
 			'DB_USERNAME' => $username,
