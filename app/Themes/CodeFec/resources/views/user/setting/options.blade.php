@@ -1,4 +1,4 @@
-<div class="col-md-12 p-3">
+<div class="col-md-12">
     <div class="row row-cards" id="users-settings-form">
         <div class="col-md-12">
             <!-- Cards with tabs component -->
