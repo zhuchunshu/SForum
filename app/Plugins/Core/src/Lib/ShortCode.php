@@ -6,6 +6,7 @@ use App\CodeFec\Annotation\ShortCode\ShortCodeR;
 use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Topic\src\Models\TopicTag;
 use App\Plugins\User\src\Models\User;
+use Thunder\Shortcode\Shortcode\ShortcodeInterface;
 
 class ShortCode
 {
@@ -49,12 +50,13 @@ class ShortCode
 	
 	// 密码可见
 	#[ShortCodeR(name:"password")]
-	public function password($match){
+	public function password($match,ShortcodeInterface $s){
+		$s->getContent();
 		if(!@$match[1] || !@$match[2]){
 			return '[password]标签用法错误!';
 		}
-		$password = $match[1];
-		$data = $match[2];
+		$password = $s->getParameter('password');
+		$data = $s->getContent();
 		$topic_data = cache()->get(session()->get("view_topic_data"));
 		if((string)request()->input('view-password',null)===$password || @(int)$topic_data->user_id===auth()->id()){
 			return view("Topic::ShortCode.password-show",['data' => $data]);
@@ -64,13 +66,11 @@ class ShortCode
 	
 	// 引用用户
 	#[ShortCodeR(name:"user")]
-	public function user($match){
-		if(!@$match[1]){
-			return '[user]标签用法错误!';
-		}
-		$user_id = $match[1];
+	public function user($match,ShortcodeInterface $s){
+		
+		$user_id = $s->getParameter('user_id');
 		if(!User::query()->where('id',$user_id)->orWhere("username",$user_id)->exists()){
-			return $match[0];
+			return '['.$s->getName().'] 短标签使用出错';
 		}
 		$data = User::query()->where('id',$user_id)->orWhere("username",$user_id)->first();
 		return view("User::ShortCode.user",['data' => $data]);
@@ -78,13 +78,11 @@ class ShortCode
 	
 	// 引用评论
 	#[ShortCodeR(name:"topic-comment")]
-	public function topic_comment($match){
-		if(!@$match[1]){
-			return '[topic-comment]标签用法错误!';
-		}
-		$comment_id = $match[1];
+	public function topic_comment($match,ShortcodeInterface $s){
+		
+		$comment_id = $s->getParameter('comment_id');
 		if(!TopicComment::query()->where(['id'=>$comment_id,'status' =>'publish'])->exists()){
-			return $match[0];
+			return '['.$s->getName().'] 短标签使用出错';
 		}
 		$data = TopicComment::query()->where(['id'=>$comment_id,'status' =>'publish'])->first();
 		return view("Comment::ShortCode.comment",['value' => $data]);
@@ -92,13 +90,11 @@ class ShortCode
 	
 	// 引用标签
 	#[ShortCodeR(name:"topic-tag")]
-	public function topic_tag($match){
-		if(!@$match[1]){
-			return '[topic-tag]标签用法错误!';
-		}
-		$id = $match[1];
+	public function topic_tag($match,ShortcodeInterface $s){
+		
+		$id = $s->getParameter('tag_id');
 		if(!TopicTag::query()->where(['id'=>$id])->exists()){
-			return $match[0];
+			return '['.$s->getName().'] 短标签使用出错';
 		}
 		$data = TopicTag::query()->where(['id'=>$id])->first();
 		return view("Topic::ShortCode.tag",['value' => $data]);

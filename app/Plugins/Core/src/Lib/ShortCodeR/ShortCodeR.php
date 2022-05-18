@@ -8,10 +8,21 @@ namespace App\Plugins\Core\src\Lib\ShortCodeR;
 use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\Utils\Arr;
 use Hyperf\Utils\Str;
+use JetBrains\PhpStorm\Pure;
+use Thunder\Shortcode\HandlerContainer\HandlerContainer;
+use Thunder\Shortcode\Parser\RegularParser;
+use Thunder\Shortcode\Processor\Processor;
+use Thunder\Shortcode\Shortcode\ShortcodeInterface;
 
 class ShortCodeR
 {
 	public bool $comment  = false;
+	
+	public HandlerContainer $handlers;
+	#[Pure] public function __construct(){
+		$this->handlers = new HandlerContainer();
+		
+	}
 	
 	public function comment($diff=true): ShortCodeR
 	{
@@ -79,49 +90,30 @@ class ShortCodeR
     {
         return (new Make())->$method($all,$content);
     }
-	
-	public function filter_make($method,...$content)
-	{
-		return (new Filter())->$method(...$content);
-	}
 
     public function handle($content){
-        return $this->to($this->all(),$this->to($this->all(),$content));
-    }
+		foreach($this->all() as $tag=>$value){
+			$tag = core_Itf_id("ShortCodeR",$tag);
+			$this->handlers->add($tag, function(ShortcodeInterface $s)use($value){
+				$match = [$s->getContent(),$s->getContent(),$s->getContent()];
+				return $this->callback($value['callback'],$match,$s);
+			});
+		}
+		$processor = new Processor(new RegularParser(), $this->handlers);
+		return $processor->process($content);
+	}
 	
 	public function filter($content){
-		return $this->filter_to($this->filter_to($content));
+		foreach($this->all() as $tag=>$value){
+			$tag = core_Itf_id("ShortCodeR",$tag);
+			$this->handlers->add($tag, function(ShortcodeInterface $s)use($value){
+				return '['.$s->getName()."]"."安全性问题,禁止预览此标签内容[/".$s->getName()."]";
+			});
+		}
+		$processor = new Processor(new RegularParser(), $this->handlers);
+		return $processor->process($content);
 	}
-
-    public function to($all,$content){
-        $y = $content;
-        $content = $this->make("default",$all,$content);
-        if($content ===$y){
-            $content = $this->make("type1",$all,$content);
-        }
-        if($content ===$y){
-            $content = $this->make("type2",$all,$content);
-        }
-        if($content ===$y){
-            $content = $this->make("type4",$all,$content);
-        }
-        return $content;
-    }
 	
-	public function filter_to($content){
-		$y = $content;
-		$content = $this->filter_make("default",$content);
-		if($content ===$y){
-			$content = $this->filter_make("type1",$content);
-		}
-		if($content ===$y){
-			$content = $this->filter_make("type2",$content);
-		}
-		if($content ===$y){
-			$content = $this->filter_make("type4",$content);
-		}
-		return $content;
-	}
 
     public function callback($callback,...$parameter){
         $class = Str::before($callback,"@");

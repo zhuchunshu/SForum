@@ -28,11 +28,12 @@ use Psr\Http\Message\ServerRequestInterface;
 
 class CoreMiddleware extends \Hyperf\HttpServer\CoreMiddleware
 {
-    /**
-     * Handle the response when cannot found any routes.
-     *
-     * @return array|Arrayable|mixed|ResponseInterface|string
-     */
+	/**
+	 * Handle the response when cannot found any routes.
+	 *
+	 * @param ServerRequestInterface $request
+	 * @return mixed
+	 */
     protected function handleNotFound(ServerRequestInterface $request): mixed
     {
         // 重写路由找不到的处理逻辑

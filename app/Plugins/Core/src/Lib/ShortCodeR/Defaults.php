@@ -7,15 +7,13 @@ namespace App\Plugins\Core\src\Lib\ShortCodeR;
 use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Topic\src\Models\Topic;
 use Hyperf\Utils\Str;
+use Thunder\Shortcode\Shortcode\ShortcodeInterface;
 
 class Defaults
 {
 
-  public function alert_success($match)
+  public function alert_success($match,ShortcodeInterface $s)
   {
-	  if(!@$match[1]){
-		  return $match[0];
-	  }
     return <<<HTML
 <div class="alert alert-important alert-success alert-dismissible">
   <div class="d-flex">
@@ -37,17 +35,14 @@ class Defaults
         <path d="M5 12l5 5l10 -10" />
       </svg>
     </div>
-    <div class="shortcode-alert-text">{$match[1]}</div>
+    <div class="shortcode-alert-text">{$s->getContent()}</div>
   </div>
 </div>
 HTML;
   }
 
-  public function alert_error($match)
+  public function alert_error($match,ShortcodeInterface $s)
   {
-	  if(!@$match[1]){
-		  return $match[0];
-	  }
     return <<<HTML
 <div class="alert alert-important alert-danger alert-dismissible">
   <div class="d-flex">
@@ -55,18 +50,15 @@ HTML;
       <!-- Download SVG icon from http://tabler-icons.io/i/check -->
       <svg xmlns="http://www.w3.org/2000/svg" class="icon alert-icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
     </div>
-    <div class="shortcode-alert-text">{$match[1]}</div>
+    <div class="shortcode-alert-text">{$s->getContent()}</div>
   </div>
 </div>
 
 HTML;
   }
 
-  public function alert_info($match)
+  public function alert_info($match,ShortcodeInterface $s)
   {
-	  if(!@$match[1]){
-		  return $match[0];
-	  }
     return <<<HTML
 <div class="alert alert-important alert-info alert-dismissible">
   <div class="d-flex">
@@ -89,38 +81,33 @@ HTML;
         <polyline points="11 12 12 12 12 16 13 16"></polyline>
       </svg>
     </div>
-    <div class="shortcode-alert-text">{$match[1]}</div>
+    <div class="shortcode-alert-text">{$s->getContent()}</div>
   </div>
 </div>
 
 HTML;
   }
 
-  public function alert_warning($match)
+  public function alert_warning($match,ShortcodeInterface $s)
   {
-	  if(!@$match[1]){
-		  return $match[0];
-	  }
+	  
     return <<<HTML
 <div class="alert alert-important alert-warning alert-dismissible">
   <div class="d-flex">
     <div class="shortcode-alert-icon">
     <svg xmlns="http://www.w3.org/2000/svg" class="icon alert-icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M12 9v2m0 4v.01"></path><path d="M5 19h14a2 2 0 0 0 1.84 -2.75l-7.1 -12.25a2 2 0 0 0 -3.5 0l-7.1 12.25a2 2 0 0 0 1.75 2.75"></path></svg>
     </div>
-    <div class="shortcode-alert-text">{$match[1]}</div>
+    <div class="shortcode-alert-text">{$s->getContent()}</div>
   </div>
 </div>
 
 HTML;
   }
-  public function topic($match){
-	  if(!@$match[1]){
-		  return $match[0];
-	  }
+  public function topic($match,ShortcodeInterface $s){
 	  
-      $topic_id = $match[1];
+      $topic_id = $s->getParameter('topic_id');
       if(!Topic::query()->where("id",$topic_id)->exists()) {
-          return $match[0];
+	      return '['.$s->getName().'] 短标签使用出错';
       }
       return <<<HTML
 <div class="card border-1 hvr-grow row topic-with" core-data="topic" topic-id="{$topic_id}">
@@ -138,8 +125,8 @@ HTML;
 
   }
 
-  public function chart($match){
-      $data = strip_tags($match[1]);
+  public function chart($match,ShortcodeInterface $s){
+      $data = strip_tags($s->getContent());
       $id = "chart-".Str::random();
       return <<<HTML
 <div style="padding: 1rem 1rem;">
@@ -156,27 +143,19 @@ HTML;
 
   }
 
-  public function button($match)
+  public function button($match,ShortcodeInterface $s)
   {
-      $data = strip_tags($match[1]);
-      $data = Str::after($data,'"');
-      $data = Str::before($data,'"');
-      $data = explode(",",$data);
-	  if(!@$data[0] || !@$data[1] || !@$data[2]){
-		  return $match[0];
-	  }
+	  
       return <<<HTML
-    <a href="{$data[0]}" class="btn {$data[1]}">{$data[2]}</a>
+    <a href="{$s->getParameter('url','/')}" class="btn {$s->getParameter('class','btn-light')}">{$s->getContent()}</a>
 HTML;
   }
 
-  public function file($match){
-      $result = $match[1];
-      $arr = explode(",",$result);
-      $name = @$arr[0];
-      $url = @$arr[1];
-      $pwd = @$arr[2];
-      $unzip = @$arr[3];
+  public function file($match,ShortcodeInterface $s){
+      $name = $s->getParameter('name');
+      $url = $s->getParameter('url');
+      $pwd = $s->getParameter('password');
+      $unzip = $s->getParameter('unzip');
       $pwd?:$pwd="无";
       $unzip?:$unzip="无";
       if(!@$name || !@$url){

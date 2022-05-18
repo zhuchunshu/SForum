@@ -6,10 +6,10 @@ class CodeFec {
 
     public function handle(): void
     {
+	    $this->plugins();
         $this->menu();
         $this->header();
         $this->boot();
-        $this->plugins();
 		$this->themes();
         $this->setting();
         $this->route();

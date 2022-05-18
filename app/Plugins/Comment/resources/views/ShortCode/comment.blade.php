@@ -43,7 +43,7 @@
                                         </blockquote>
                                     </div>
                                 @endif
-                                {!! ShortCodeR()->handle($value->content) !!}
+                                {!! $value->content !!}
                             </div>
                             {{--                                    操作--}}
                             <div class="col-md-12">

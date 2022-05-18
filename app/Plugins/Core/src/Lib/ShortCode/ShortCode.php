@@ -7,10 +7,21 @@ namespace App\Plugins\Core\src\Lib\ShortCode;
 use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\Utils\Arr;
 use Hyperf\Utils\Str;
+use JetBrains\PhpStorm\Pure;
+use Thunder\Shortcode\HandlerContainer\HandlerContainer;
+use Thunder\Shortcode\Parser\RegularParser;
+use Thunder\Shortcode\Processor\Processor;
+use Thunder\Shortcode\Shortcode\ShortcodeInterface;
 
 class ShortCode
 {
-
+	
+	public HandlerContainer $handlers;
+	
+	#[Pure] public function __construct(){
+		$this->handlers = new HandlerContainer();
+		
+	}
     public function add($tag,$callback): void
     {
         Itf()->add("ShortCode",$tag,["callback" => $callback]);
@@ -58,23 +69,17 @@ class ShortCode
     }
 
     public function handle($content){
-        return $this->to($this->to($content));
+	    foreach($this->all() as $tag=>$value){
+		    $tag = core_Itf_id("ShortCode",$tag);
+		    $this->handlers->add($tag, function(ShortcodeInterface $s)use($value){
+			    $match = [$s->getContent(),$s->getContent(),$s->getContent()];
+			    return $this->callback($value['callback'],$match,$s);
+		    });
+	    }
+	    $processor = new Processor(new RegularParser(), $this->handlers);
+	    return $processor->process($content);
     }
-
-    public function to($content){
-        $y = $content;
-        $content = $this->make("default",$content);
-        if($content ===$y){
-            $content = $this->make("type1",$content);
-        }
-        if($content ===$y){
-            $content = $this->make("type2",$content);
-        }
-        if($content ===$y){
-            $content = $this->make("type4",$content);
-        }
-        return $content;
-    }
+	
 
     public function callback($callback,...$parameter){
         $class = Str::before($callback,"@");
