@@ -18,7 +18,7 @@ class ShortCode
 	
 	public HandlerContainer $handlers;
 	
-	#[Pure] public function __construct(){
+	public function __construct(){
 		$this->handlers = new HandlerContainer();
 		
 	}
