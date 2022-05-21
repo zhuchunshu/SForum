@@ -18,7 +18,7 @@
                                     <div class="col text-truncate">
                                         <a style="white-space:nowrap;" href="/users/{{$value->user->username}}.html" class="text-body text-truncate">{{$value->user->username}}</a>
                                         <br />
-                                        <small data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="{{$value->created_at}}" class="text-muted text-truncate mt-n1">发表于:{{format_date($value->created_at)}}</small>
+                                        <small data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="{{$value->created_at}}" class="text-muted text-truncate mt-n1">{{__("app.Published on")}}:{{format_date($value->created_at)}}</small>
                                     </div>
                                     {{--                                            楼层信息--}}
                                     <div class="col-auto">
@@ -29,14 +29,14 @@
                             </div>
                             {{--                                    评论内容--}}
                             <div class="col-md-12">
-                                <div class="hr-text" style="margin-bottom:8px;margin-top:15px">评论内容</div>
+                                <div class="hr-text" style="margin-bottom:8px;margin-top:15px">{{__("topic.comment.comment content")}}</div>
                             </div>
                             <div core-show="comment" comment-id="{{$value->id}}" class="col-md-12 markdown vditor-reset">
                                 @if($value->parent_id)
                                     <div class="quote">
                                         <blockquote>
                                             <a style="font-size:13px;" href="{{$value->parent_url}}" target="_blank">
-                                                <span style="color:#999999" >{{$value->parent->user->username}} 发表于 {{format_date($value->created_at)}}</span>
+                                                <span style="color:#999999" >{{$value->parent->user->username}} {{__("app.Published on")}} {{format_date($value->created_at)}}</span>
                                             </a>
                                             <br>
                                             {!! \Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($value->parent->content)),60) !!}
@@ -47,7 +47,7 @@
                             </div>
                             {{--                                    操作--}}
                             <div class="col-md-12">
-                                <div class="hr-text" style="margin-bottom:5px;margin-top:15px">操作</div>
+                                <div class="hr-text" style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.operate")}}</div>
                             </div>
                             <div class="col-md-12">
                                 {{--                                            点赞--}}

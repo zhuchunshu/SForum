@@ -21,6 +21,7 @@ return [
         \Hyperf\Validation\Middleware\ValidationMiddleware::class,
         CsrfMiddleware::class,
         RouteRefuseMiddleware::class,
+	    \App\Middleware\Translator::class,
         \App\Middleware\InstallMiddleware::class,
         \App\Middleware\RewriteMiddleware::class,
         \App\Plugins\User\src\Middleware\AuthMiddleware::class,

@@ -28,7 +28,7 @@ class TopicReply extends FormRequest
     {
         return [
             "comment_id" => "被回复的评论ID",
-            "content" => "评论内容",
+            "content" => __("topic.comment.comment content"),
             "markdown" => "评论md内容",
             "parent_url" => "被回复的帖子链接",
         ];

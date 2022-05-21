@@ -51,4 +51,13 @@
         <label class="form-label">公安备案号</label>
         <input v-model="data.ga_icp" type="text" class="form-control">
     </div>
+    <div class="mb-3">
+        <label class="form-label">{{__('admin.setting.language')}}</label>
+        <select v-model="data.language" class="form-select">
+            @foreach(language()->all() as $lang=>$name)
+                <option value="{{$lang}}">{{$name}}</option>
+            @endforeach
+        </select>
+        <small>{{__('app.default')}}: 简体中文(zh_CN)</small>
+    </div>
 </div>

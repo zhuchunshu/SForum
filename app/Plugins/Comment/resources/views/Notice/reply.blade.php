@@ -9,7 +9,7 @@
                     <a style="white-space:nowrap;" href="/users/{{$user_data->username}}.html" class="text-body text-truncate">{{$user_data->username}}</a>
                     <br>
                     <small data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="{{$data->created_at}}" class="text-muted text-truncate mt-n1">
-                        发表于:{{$data->created_at}}
+                        {{__("app.Published on")}}:{{$data->created_at}}
                     </small>
                 </div>
             </div>
@@ -21,7 +21,7 @@
             <div class="quote">
                 <blockquote>
                     <a style="font-size:13px;" href="{{$data->parent_url}}" target="_blank">
-                        <span style="color:#999999" >{{$data->parent->user->username}} 发表于 {{$data->created_at}}</span>
+                        <span style="color:#999999" >{{$data->parent->user->username}} {{__("app.Published on")}} {{$data->created_at}}</span>
                     </a>
                     <br>
                     {{\Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($data->parent->content)),60)}}

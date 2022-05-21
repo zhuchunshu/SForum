@@ -276,7 +276,7 @@ class ApiController
 			'id' => $topic_id
 		])->with('user')->first();
 		if(get_options('topic_author_ip','开启')==="开启" && $data->user_ip){
-			$data['user']['city'] = get_client_ip_data($data->user_ip)['pro'];
+			$data['user']['city'] = __("app.IP attribution",['province' =>get_client_ip_data($data->user_ip)['pro']]);
 		}
 		return Json_Api(200,true,$data['user']);
 	}

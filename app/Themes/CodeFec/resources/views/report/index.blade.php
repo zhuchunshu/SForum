@@ -49,7 +49,7 @@
                                                         <div class="topic-author-name">
                                                             <a href="/users/{{$value->user->username}}.html" class="text-reset">{{$value->user->username}}</a>
                                                         </div>
-                                                        <div>举报创建于:{{format_date($value->created_at)}}</div>
+                                                        <div>{{__('app.report created at',['time' => format_date($value->created_at)])}}</div>
                                                     </div>
                                                 </div>
                                             </div>

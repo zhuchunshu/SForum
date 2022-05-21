@@ -14,11 +14,11 @@
                             <span>{!! $data->user->class->icon !!}</span>
                         </a>
                     </div>
-                    <div>发表于:{{ format_date($data->created_at) }}
+                    <div>{{__("app.Published on")}}:{{ format_date($data->created_at) }}
                         <span v-if="user.city">
                             |
                             <span class="text-red">
-                                IP归属地: @{{user.city}}
+                                @{{user.city}}
                             </span>
                         </span>
                     </div>

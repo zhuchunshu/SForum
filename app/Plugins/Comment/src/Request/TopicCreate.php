@@ -27,7 +27,7 @@ class TopicCreate extends FormRequest
     {
         return [
             "topic_id" => "帖子ID",
-            "html" => "评论内容",
+            "html" => __("topic.comment.comment content"),
             "markdown" => "评论md内容"
         ];
     }

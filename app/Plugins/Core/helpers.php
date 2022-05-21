@@ -251,17 +251,17 @@ if(!function_exists("format_date")){
     {
         $t = time() - strtotime($time);
         $f = array(
-            '31536000' => '年',
-            '2592000' => '个月',
-            '604800' => '星期',
-            '86400' => '天',
-            '3600' => '小时',
-            '60' => '分钟',
-            '1' => '秒'
+            '31536000' => __('app.year'),
+            '2592000' => __('app.month'),
+            '604800' => __('app.week'),
+            '86400' => __('app.day'),
+            '3600' => __('app.hour'),
+            '60' => __('app.minute'),
+            '1' => __('app.second')
         );
         foreach ($f as $k => $v) {
             if (0 != $c = floor($t / (int)$k)) {
-                return $c . $v . '前';
+                return $c . ' '.$v . __('app.ago');
             }
         }
     }

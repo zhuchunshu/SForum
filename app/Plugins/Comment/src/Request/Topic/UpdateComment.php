@@ -27,7 +27,7 @@ class UpdateComment extends FormRequest
     {
         return [
             "comment_id" => "评论ID",
-            "content" => "评论内容",
+            "content" => __("topic.comment.comment content"),
             "markdown" => "评论markdown内容",
         ];
     }

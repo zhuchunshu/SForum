@@ -4,16 +4,16 @@
             <div class="card-body topic">
                 @if ($data->essence > 0)
                     <div class="ribbon bg-green text-h3">
-                        精华
+                        {{__('app.essence')}}
                     </div>
                 @endif
                 <div class="row">
 {{--                    标题--}}
                     <div class="col-md-12" id="title">
-                        <h1 data-bs-toggle="tooltip" data-bs-placement="left" title="帖子标题">
+                        <h1 data-bs-toggle="tooltip" data-bs-placement="left" title="{{__('topic.title')}}">
                             @if ($data->topping > 0)
                                 <span class="text-red">
-                                    置顶
+                                    {{__('app.top')}}
                                 </span>
                             @endif
                             {{ $data->title }}

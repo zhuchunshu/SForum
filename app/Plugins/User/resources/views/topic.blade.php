@@ -27,12 +27,12 @@
                                                         <a href="/users/{{$data->user->username}}.html"
                                                            style="margin-bottom:0;text-decoration:none;"
                                                            class="card-title text-reset">{{$data->user->username}}</a>
-                                                        <div style="margin-top:1px">发布于:{{$data->created_at}}</div>
+                                                        <div style="margin-top:1px">{{__("app.Published on")}}:{{$data->created_at}}</div>
                                                     </div>
                                                     <div class="col-auto">
                                                         @if($data->essence>0)
                                                             <div class="ribbon bg-green text-h3">
-                                                                精华
+                                                                {{__("app.essence")}}
                                                             </div>
                                                         @endif
                                                     </div>
@@ -45,7 +45,7 @@
                                                             <h2>
                                                                 @if($data->topping>0)
                                                                     <span class="text-red">
-                                                    置顶
+                                                    {{__('app.top')}}
                                                 </span>
                                                                 @endif
                                                                 {{$data->title}}</h2>
@@ -97,7 +97,7 @@
                                                     </div>
                                                     <div class="ms-auto">
                                     <span class="text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom"
-                                          title="浏览量">
+                                          title="{{__("app.pageviews")}}">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
                                              viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                                              stroke-linecap="round" stroke-linejoin="round"><path stroke="none"
@@ -152,7 +152,7 @@
                                         </div>
                                         <div class="card-footer">
                                             @if(auth()->check())
-                                                <a href="/topic/create" class="btn btn-dark">发帖</a>
+                                                <a href="/topic/create" class="btn btn-dark">{{__("topic.create")}}</a>
                                             @else
                                                 <a href="/login" class="btn btn-dark">登陆</a>
                                                 <a href="/register" class="btn btn-light">注册</a>

@@ -290,6 +290,16 @@ if (!function_exists("theme_path")) {
 	}
 }
 
+if (!function_exists("lang_path")) {
+	function lang_path($path = null): string
+	{
+		if (!$path) {
+			return BASE_PATH . "/app/Languages";
+		}
+		return BASE_PATH . "/app/Languages/" . $path;
+	}
+}
+
 if (!function_exists("read_file")) {
     function read_file($file_path): ?string
     {
@@ -757,5 +767,12 @@ if(!function_exists("get_client_ip_data")){
 		$result = http('array')->get('http://ip.useragentinfo.com/json?ip='.$ip);
 		$result['pro']=$result['province'];
 		return $result;
+	}
+}
+
+if(!function_exists('language')){
+	function language(): \App\CodeFec\Language
+	{
+		return new \App\CodeFec\Language();
 	}
 }

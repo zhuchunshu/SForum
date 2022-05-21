@@ -309,12 +309,12 @@ class ApiController
         if($quanxian === false){
             return Json_Api(401,false,['无权限!']);
         }
-        $caina = "取消采纳";
+        $caina = __("topic.comment.cancel")." ".__("topic.comment.adoption");
         if($data->optimal===null){
             TopicComment::query()->where([["id",$comment_id],['status','publish']])->update([
                 "optimal" => date("Y-m-d H:i:s")
             ]);
-            $caina = "采纳";
+            $caina = __("topic.comment.adoption");
         }else{
             TopicComment::query()->where([["id",$comment_id],['status','publish']])->update([
                 "optimal" => null
@@ -370,7 +370,7 @@ class ApiController
 			if($comment->user_ip){
 				$data[] = [
 					'comment_id' => $comment->id,
-					'text' => "IP归属地:".get_client_ip_data($comment->user_ip)['pro']
+					'text' => __("app.IP attribution",['province' => get_client_ip_data($comment->user_ip)['pro']])
 				];
 			}
 		}

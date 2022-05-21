@@ -31,7 +31,7 @@
                                                         <a href="/users/{{ $data->user->username }}.html"
                                                            class="text-reset">{{ $data->user->username }}</a>
                                                     </div>
-                                                    <div>创建于:{{ format_date($data->created_at) }}</div>
+                                                    <div>{{__('app.created at',['time' =>  format_date($data->created_at)])}}</div>
                                                 </div>
                                             </div>
                                         </div>

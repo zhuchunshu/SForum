@@ -16,7 +16,7 @@
 
             <div class="card-footer">
                 @if(auth()->check())
-                    <a href="/topic/create" class="btn btn-dark">发帖</a>
+                    <a href="/topic/create" class="btn btn-dark">{{__("topic.create")}}</a>
                 @else
                     <a href="/login" class="btn btn-dark">登陆</a>
                     <a href="/register" class="btn btn-light">注册</a>

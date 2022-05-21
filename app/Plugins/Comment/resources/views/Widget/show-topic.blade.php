@@ -40,11 +40,11 @@
                                                         <span>{!! $value->user->class->icon !!}</span>
                                                     </a>
                                                     @if($value->optimal) <span
-                                                            class="badge badge-pill bg-teal">最佳回复</span> @endif
+                                                            class="badge badge-pill bg-teal">{{__("topic.comment.best reply")}}</span> @endif
                                                     <br/>
                                                     <small data-bs-toggle="tooltip" data-bs-placement="top"
                                                            data-bs-original-title="{{$value->created_at}}"
-                                                           class="text-muted text-truncate mt-n1">发表于:{{format_date($value->created_at)}}</small>
+                                                           class="text-muted text-truncate mt-n1">{{__("app.Published on")}}:{{format_date($value->created_at)}}</small>
                                                     @if(get_options('comment_author_ip','开启')==='开启' &&$value->user_ip)
                                                         |
                                                         <small class="text-red" comment-type="ip" comment-id="{{$value->id}}">Loading<span class="animated-dots"></span></small>
@@ -53,19 +53,18 @@
                                                 {{--                                            楼层信息--}}
                                                 <div class="col-auto">
                                                     <a href="/{{$data->id}}.html/{{$value->id}}?page={{$comment->currentPage()}}">
-                                                        {{ ($key + 1)+(($comment->currentPage()-1)*get_options('comment_page_count',15)) }}
-                                                        楼</a>
+                                                        {{__("topic.floor",['floor' => ($key + 1)+(($comment->currentPage()-1)*get_options('comment_page_count',15)) ])}}</a>
                                                     @if($caina)
                                                         ·
                                                         <a style="text-decoration:none;"
                                                            comment-click="comment-caina-topic"
                                                            comment-id="{{ $value->id }}" data-bs-toggle="tooltip"
-                                                           data-bs-placement="bottom" title="采纳此评论"
+                                                           data-bs-placement="bottom" title="{{__("topic.comment.adoption")}}"
                                                            class="cursor-pointer text-teal">
                                                             @if($value->optimal)
-                                                                取消采纳
+                                                            {{__("topic.comment.cancel")}}
                                                             @else
-                                                                采纳
+                                                                {{__("topic.comment.adoption")}}
                                                             @endif
                                                         </a>
                                                     @endif
@@ -75,7 +74,7 @@
                                         </div>
                                         {{--                                    评论内容--}}
                                         <div class="col-md-12">
-                                            <div class="hr-text" style="margin-bottom:8px;margin-top:15px">评论内容</div>
+                                            <div class="hr-text" style="margin-bottom:8px;margin-top:15px">{{__("topic.comment.comment content")}}</div>
                                         </div>
                                         <div core-show="comment" comment-id="{{$value->id}}"
                                              class="col-md-12 markdown vditor-reset">
@@ -85,7 +84,7 @@
                                                         <blockquote>
                                                             <a style="font-size:13px;" href="{{$value->parent_url}}"
                                                                target="_blank">
-                                                                <span style="color:#999999">{{$value->parent->user->username}} 发表于 {{format_date($value->parent->created_at)}}</span>
+                                                                <span style="color:#999999">{{$value->parent->user->username}} {{__("app.Published on")}} {{format_date($value->parent->created_at)}}</span>
                                                             </a>
                                                             <br>
                                                             {!! \Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($value->parent->content)),60) !!}
@@ -103,7 +102,7 @@
                                         </div>
                                         {{--                                    操作--}}
                                         <div class="col-md-12">
-                                            <div class="hr-text" style="margin-bottom:5px;margin-top:15px">操作</div>
+                                            <div class="hr-text" style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.operate")}}</div>
                                         </div>
                                         <div class="col-md-12">
                                             {{--                                            点赞--}}

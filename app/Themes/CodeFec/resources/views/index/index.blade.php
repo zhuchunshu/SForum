@@ -12,7 +12,7 @@
                             <circle cx="12" cy="12" r="9"/>
                             <path d="M12 7v5l3 3"/>
                         </svg>
-                        最新</a>
+                        {{__('app.latest')}}</a>
                 </li>
             @else
                 <li class="nav-item">
@@ -24,7 +24,7 @@
                             <circle cx="12" cy="12" r="9"/>
                             <path d="M12 7v5l3 3"/>
                         </svg>
-                        最新</a>
+                        {{__('app.latest')}}</a>
                 </li>
             @endif
             @foreach($topic_menu as $data)
@@ -73,12 +73,12 @@
                                     <a data-bs-toggle="tooltip" data-bs-placement="right" title="{{$data->user->class->name}}" href="/users/group/{{$data->user->class->id}}.html" style="color:{{$data->user->class->color}}">
                                         <span>{!! $data->user->class->icon !!}</span>
                                     </a>
-                                    <div style="margin-top:1px">发布于:{{format_date($data->created_at)}}</div>
+                                    <div style="margin-top:1px">{{__("app.Published on")}}:{{format_date($data->created_at)}}</div>
                                 </div>
                                 <div class="col-auto">
                                     @if($data->essence>0)
                                         <div class="ribbon bg-green text-h3">
-                                            精华
+                                            {{__("app.essence")}}
                                         </div>
                                     @endif
                                 </div>
@@ -91,7 +91,7 @@
                                         <h2>
                                             @if($data->topping>0)
                                                 <span class="text-red">
-                                                    置顶
+                                                    {{__('app.top')}}
                                                 </span>
                                             @endif
                                             {{$data->title}}</h2>
@@ -143,7 +143,7 @@
                                 </div>
                                 <div class="ms-auto">
                                     <span class="text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom"
-                                          title="浏览量">
+                                          title="{{__("app.pageviews")}}">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
                                              viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                                              stroke-linecap="round" stroke-linejoin="round"><path stroke="none"

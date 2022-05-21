@@ -70,7 +70,7 @@ class ShortCode
 		
 		$user_id = $s->getParameter('user_id');
 		if(!User::query()->where('id',$user_id)->orWhere("username",$user_id)->exists()){
-			return '['.$s->getName().'] 短标签使用出错';
+			return '['.$s->getName().'] '.__("app.Error using short tags");
 		}
 		$data = User::query()->where('id',$user_id)->orWhere("username",$user_id)->first();
 		return view("User::ShortCode.user",['data' => $data]);
@@ -82,7 +82,7 @@ class ShortCode
 		
 		$comment_id = $s->getParameter('comment_id');
 		if(!TopicComment::query()->where(['id'=>$comment_id,'status' =>'publish'])->exists()){
-			return '['.$s->getName().'] 短标签使用出错';
+			return '['.$s->getName().'] '.__("app.Error using short tags");
 		}
 		$data = TopicComment::query()->where(['id'=>$comment_id,'status' =>'publish'])->first();
 		return view("Comment::ShortCode.comment",['value' => $data]);
@@ -94,7 +94,7 @@ class ShortCode
 		
 		$id = $s->getParameter('tag_id');
 		if(!TopicTag::query()->where(['id'=>$id])->exists()){
-			return '['.$s->getName().'] 短标签使用出错';
+			return '['.$s->getName().'] '.__("app.Error using short tags");
 		}
 		$data = TopicTag::query()->where(['id'=>$id])->first();
 		return view("Topic::ShortCode.tag",['value' => $data]);

@@ -98,7 +98,7 @@
                                                                 <br/>
                                                                 <small data-bs-toggle="tooltip" data-bs-placement="top"
                                                                        data-bs-original-title="{{$value->created_at}}"
-                                                                       class="text-muted text-truncate mt-n1">发表于:{{format_date(get_topic_comment($value->type_id)->created_at)}}</small>
+                                                                       class="text-muted text-truncate mt-n1">{{__("app.Published on")}}:{{format_date(get_topic_comment($value->type_id)->created_at)}}</small>
                                                             </div>
                                                             {{--                                            楼层信息--}}
                                                             <div class="col-auto">
@@ -111,7 +111,7 @@
                                                     {{--                                    评论内容--}}
                                                     <div class="col-md-12">
                                                         <div class="hr-text" style="margin-bottom:8px;margin-top:15px">
-                                                            评论内容
+                                                            {{__("topic.comment.comment content")}}
                                                         </div>
                                                     </div>
                                                     <div core-show="comment" comment-id="{{$value->type_id}}"
@@ -121,7 +121,7 @@
                                                                 <blockquote>
                                                                     <a style="font-size:13px;"
                                                                        href="{{get_topic_comment($value->type_id)->parent_url}}" target="_blank">
-                                                                        <span style="color:#999999">{{get_topic_comment($value->type_id)->parent->user->username}} 发表于 {{format_date(get_topic_comment($value->type_id)->created_at)}}</span>
+                                                                        <span style="color:#999999">{{get_topic_comment($value->type_id)->parent->user->username}} {{__("app.Published on")}} {{format_date(get_topic_comment($value->type_id)->created_at)}}</span>
                                                                     </a>
                                                                     <br>
                                                                     {!! \Hyperf\Utils\Str::limit(remove_bbCode(strip_tags(get_topic_comment($value->type_id)->parent->content)),60) !!}

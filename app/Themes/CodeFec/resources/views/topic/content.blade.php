@@ -13,7 +13,7 @@
                         </div>
                         <div class="col">
                             <div class="topic-author-name">{{$data->user->username}}</div>
-                            <div>发表于:{{format_date($data->created_at)}}</div>
+                            <div>{{__("app.Published on")}}:{{format_date($data->created_at)}}</div>
                         </div>
                     </div>
                 </div>

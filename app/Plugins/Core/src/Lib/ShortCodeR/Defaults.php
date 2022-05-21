@@ -107,7 +107,7 @@ HTML;
 	  
       $topic_id = $s->getParameter('topic_id');
       if(!Topic::query()->where("id",$topic_id)->exists()) {
-	      return '['.$s->getName().'] 短标签使用出错';
+	      return '['.$s->getName().'] '.__("app.Error using short tags");
       }
       return <<<HTML
 <div class="card border-1 hvr-grow row topic-with" core-data="topic" topic-id="{$topic_id}">
