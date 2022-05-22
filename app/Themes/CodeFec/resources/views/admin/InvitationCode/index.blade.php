@@ -47,12 +47,12 @@
                                 @endforeach
                             @else
                                 <tr>
-                                    <td>暂无</td>
-                                    <td>暂无</td>
-                                    <td>暂无</td>
-                                    <td>暂无</td>
-                                    <td>暂无</td>
-                                    <td>暂无</td>
+                                    <td>{{__("app.none")}}</td>
+                                    <td>{{__("app.none")}}</td>
+                                    <td>{{__("app.none")}}</td>
+                                    <td>{{__("app.none")}}</td>
+                                    <td>{{__("app.none")}}</td>
+                                    <td>{{__("app.none")}}</td>
                                 </tr>
                             @endif
                         </tbody>

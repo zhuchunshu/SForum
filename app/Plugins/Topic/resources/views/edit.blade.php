@@ -1,6 +1,6 @@
 @extends("App::app")
 
-@section('title', '修改帖子:'.$data['title'])
+@section('title', __("topic.edit topic").':'.$data['title'])
 
 @section('header')
     <div class="page-wrapper">
@@ -14,7 +14,7 @@
                             Overview
                         </div>
                         <h2 class="page-title">
-                            修改帖子
+                            {{__("topic.edit topic")}}
                         </h2>
                     </div>
 
@@ -31,10 +31,10 @@
             <div class="row row-cards">
                 <div class="col-md-9">
                     <div class="mb-3 border-0 card card-body">
-                        <h3 class="card-title">标题</h3>
+                        <h3 class="card-title">{{__("app.title")}}</h3>
                         <input type="text" v-model="title" class="form-control form-control-lg form-control-flush"
-                               placeholder="请输入标题" required>
-                        <h3 class="card-title">标签</h3>
+                               placeholder="{{__("topic.Please enter a title")}}" required>
+                        <h3 class="card-title">{{__("app.tag")}}</h3>
                         <div class="mb-3">
                             <select id="select-tags" v-model="tag_selected"
                                     class="form-select form-select-lg form-control-flush">
@@ -56,7 +56,7 @@
                             <div id="content-vditor"></div>
                         </div>
                         <div class="mb-3">
-                            <button class="btn btn-primary">更新</button>
+                            <button class="btn btn-primary">{{__("app.submit")}}</button>
                         </div>
                     </div>
                 </div>

@@ -16,7 +16,7 @@
                         <th>#</th>
                         <th>名称</th>
                         <th>颜色</th>
-                        <th>权限值</th>
+                        <th>{{__("app.permission value")}}</th>
                         <th>权限</th>
                         <th class="w-1"></th>
                         <th class="w-1"></th>

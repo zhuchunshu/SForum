@@ -10,7 +10,7 @@
                     <div class="col">
                         <a href="/tags/{{ $value->id }}.html"
                            class="card-title text-h2">{{ $value->name }}</a>
-                        {{ \Hyperf\Utils\Str::limit(core_default($value->description, '暂无描述'), 32) }}
+                        {{ \Hyperf\Utils\Str::limit(core_default($value->description, __("app.no description")), 32) }}
                     </div>
                 </div>
             </div>

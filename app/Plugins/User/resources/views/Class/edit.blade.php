@@ -34,7 +34,7 @@
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">权限值</label>
+                    <label class="form-label">{{__("app.permission value")}}</label>
                     <input type="number" class="form-control" v-model="permission_value">
                 </div>
                 <button class="btn btn-primary" type="submit">提交</button>

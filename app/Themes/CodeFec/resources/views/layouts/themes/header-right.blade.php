@@ -42,7 +42,7 @@
             {!! avatar(auth()->id(),"avatar-sm") !!}
             <div class="d-none d-xl-block ps-2">
                 <div>{{auth()->data()['username']}}</div>
-                <div class="mt-1 small text-muted">本站第{{auth()->data()->id}}位会员</div>
+                <div class="mt-1 small text-muted">{{__("user.st member",['member' => auth()->id()])}}</div>
             </div>
         </a>
         <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">

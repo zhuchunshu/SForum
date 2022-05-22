@@ -10,7 +10,7 @@
                     {{$data->name}}
                 </h3>
                 <p>
-                    {{core_default($data->description,get_options("description","无描述"))}}
+                    {{core_default($data->description,get_options("description",__("app.no description")))}}
                 </p>
                 <b class="text-h3">创建者</b>:
                 @if($data->user_id)
@@ -26,11 +26,11 @@
                 @if(auth()->check())
                     <a href="/topic/create" class="btn btn-dark">{{__("topic.create")}}</a>
                     @if(Authority()->check('topic_tag_create') && $data->user_id == auth()->id())
-                        <a href="/tags/{{$data->id}}/edit" class="btn btn-primary">修改</a>
+                        <a href="/tags/{{$data->id}}/edit" class="btn btn-primary">{{__("app.edit")}}</a>
                     @endif
                 @else
-                    <a href="/login" class="btn btn-dark">登陆</a>
-                    <a href="/register" class="btn btn-light">注册</a>
+                    <a href="/login" class="btn btn-dark">{{__('app.login')}}</a>
+                    <a href="/register" class="btn btn-light">{{__("app.register")}}</a>
                 @endif
             </div>
 

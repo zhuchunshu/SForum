@@ -7,7 +7,7 @@
                     <li class="page-item page-prev">
                         <a class="page-link"
                            href="/{{$get_topic['shang']['id']}}.html">
-                            <div class="page-item-subtitle">上一篇文章</div>
+                            <div class="page-item-subtitle">{{__("topic.previous")}}</div>
                             <div class="page-item-title text-reset">
                                 {{ \Hyperf\Utils\Str::limit($get_topic['shang']['title'], 20, '...') }}</div>
                         </a>
@@ -15,8 +15,8 @@
                 @else
                     <li class="page-item page-prev disabled">
                         <a class="page-link" href="#" tabindex="-1" aria-disabled="true">
-                            <div class="page-item-subtitle">上一篇文章</div>
-                            <div class="page-item-title">暂无</div>
+                            <div class="page-item-subtitle">{{__("topic.previous")}}</div>
+                            <div class="page-item-title">{{__("app.none")}}</div>
                         </a>
                     </li>
                 @endif
@@ -24,7 +24,7 @@
                     <li class="page-item page-next">
                         <a class="page-link"
                            href="/{{ $get_topic['xia']['id']  }}.html">
-                            <div class="page-item-subtitle">下一篇文章</div>
+                            <div class="page-item-subtitle">{{__("topic.next")}}</div>
                             <div class="page-item-title text-reset">
                                 {{ \Hyperf\Utils\Str::limit($get_topic['xia']['title'], 20, '...') }}</div>
                         </a>
@@ -32,8 +32,8 @@
                 @else
                     <li class="page-item page-next disabled">
                         <a class="page-link" href="#">
-                            <div class="page-item-subtitle">下一篇文章</div>
-                            <div class="page-item-title">暂无</div>
+                            <div class="page-item-subtitle">{{__("topic.next")}}</div>
+                            <div class="page-item-title">{{__("app.none")}}</div>
                         </a>
                     </li>
                 @endif

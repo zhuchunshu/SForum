@@ -109,7 +109,7 @@
                                     </span>
                                                         <a style="text-decoration:none;" core-click="like-topic" topic-id="{{$data->id}}"
                                                            class="ms-3 text-muted cursor-pointer" data-bs-toggle="tooltip"
-                                                           data-bs-placement="bottom" title="点赞">
+                                                           data-bs-placement="bottom" title="{{__("topic.likes")}}">
                                                             <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
                                                                  viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                                                                  stroke-linecap="round" stroke-linejoin="round">
@@ -128,7 +128,7 @@
                         @else
                             <div class="col-md-12">
                                 <div class="border-0 card card-body">
-                                    <div class="text-center card-title">暂无内容</div>
+                                    <div class="text-center card-title">{{__("app.No more results")}}</div>
                                 </div>
                             </div>
                         @endif
@@ -147,15 +147,15 @@
                                                 {{get_options("web_name")}}
                                             </h3>
                                             <p>
-                                                {{get_options("description","无描述")}}
+                                                {{get_options("description",__("app.no description"))}}
                                             </p>
                                         </div>
                                         <div class="card-footer">
                                             @if(auth()->check())
                                                 <a href="/topic/create" class="btn btn-dark">{{__("topic.create")}}</a>
                                             @else
-                                                <a href="/login" class="btn btn-dark">登陆</a>
-                                                <a href="/register" class="btn btn-light">注册</a>
+                                                <a href="/login" class="btn btn-dark">{{__("app.login")}}</a>
+                                                <a href="/register" class="btn btn-light">{{__("app.register")}}</a>
                                             @endif
                                         </div>
                                     </div>
@@ -184,8 +184,8 @@
                                                     <path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"></path>
                                                     <path d="M16 11h6m-3 -3v6"></path>
                                                 </svg>
-                                                <span>关注</span></a>
-                                            <a href="/users/{{$user->username}}.html" class="card-btn">查看</a>
+                                                <span>{{__("app.follow")}}</span></a>
+                                            <a href="/users/{{$user->username}}.html" class="card-btn">{{__("app.watch")}}</a>
                                         </div>
                                     </div>
                                 </div>

@@ -33,7 +33,7 @@
                     <div class="mb-3 border-0 card card-body">
                         <h3 class="card-title">{{__("app.title")}}</h3>
                         <input type="text" v-model="title" class="form-control form-control-lg form-control-flush"
-                            placeholder="enter {{__("app.title")}}" required>
+                            placeholder="{{__("topic.Please enter a title")}}" required>
                         <h3 class="card-title">{{__("app.tag")}}</h3>
                         <div class="mb-3">
                             <select id="select-tags" v-model="tag_selected"

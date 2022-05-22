@@ -70,7 +70,7 @@
                     <div class="col-md-12">
                         <div class="card border-0">
                             <div class="card-body">
-                                <h3 class="card-title">暂无内容</h3>
+                                <h3 class="card-title">{{__("app.No more results")}}</h3>
                             </div>
                         </div>
                     </div>

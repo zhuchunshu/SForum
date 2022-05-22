@@ -37,7 +37,7 @@ class Update extends FormRequest
             "ename" => "用户组标识",
             "quanxian" => "用户组权限",
             "color" => "用户组颜色代码",
-            'permission-value' => '权限值'
+            'permission-value' => __("app.permission value")
         ];
     }
 }

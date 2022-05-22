@@ -50,7 +50,7 @@
                     <span class="avatar"></span>
                 </div>
                 <div class="col">
-                    <h3 class="card-title text-h2">暂无内容</h3>
+                    <h3 class="card-title text-h2">{{__("app.No more results")}}</h3>
                 </div>
             </div>
         </div>

@@ -43,7 +43,7 @@
                                     </h2>
                                     <div id="collapse-{{$value->id}}" class="accordion-collapse collapse" data-bs-parent="#accordion-example">
                                         <div class="accordion-body pt-0">
-                                            <b>权限值:</b> {{$value['permission-value']}}
+                                            <b>{{__("app.permission value")}}:</b> {{$value['permission-value']}}
                                             <div>
                                                 <h3>权限列表</h3>
                                                 @foreach(json_decode($value->quanxian) as $quanxian)

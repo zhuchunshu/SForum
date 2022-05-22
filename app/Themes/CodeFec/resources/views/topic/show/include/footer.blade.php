@@ -4,7 +4,7 @@
             {{-- 点赞 --}}
             <a style="text-decoration:none;" core-click="like-topic" topic-id="{{ $data->id }}"
                class="hvr-icon-bounce cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="点赞">
+               title="{{__("topic.likes")}}">
                 <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon" width="24" height="24"
                      viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
                      stroke-linejoin="round">
@@ -15,7 +15,7 @@
             </a>
             {{-- markdown --}}
             <a data-bs-toggle="tooltip" data-bs-placement="top" title="" href="/{{ $data->id }}.md"
-               data-bs-original-title="查看markdown文本" class="hvr-icon-grow-rotate">
+               data-bs-original-title="{{__("app.preview markdown")}}" class="hvr-icon-grow-rotate">
                     <span class="switch-icon-a text-muted">
                         <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon icon-tabler icon-tabler-markdown"
                              width="24"

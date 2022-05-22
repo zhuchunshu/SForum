@@ -15,6 +15,15 @@ return [
 		'adopted comment' => ':name 采纳了你的评论',
 		'best reply' => '最佳回复',
 		'comment content' => '评论内容',
-		'operate' => '操作'
+		'operate' => '操作',
 	],
+	'likes' => '点赞',
+	'previous' => '上一篇',
+	'next' => '下一篇',
+	'edit topic' => '编辑帖子',
+	'Please enter a title' => '请输入标题',
+	'Reply is visible' => '回复可见',
+	'toggle edit mode' => '切换编辑模式',
+	'Quoted Post' => '引用帖子',
+	'Add attachments' => '添加附件',
 ];

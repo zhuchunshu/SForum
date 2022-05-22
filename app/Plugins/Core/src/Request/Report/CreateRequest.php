@@ -29,7 +29,7 @@ class CreateRequest extends FormRequest
     public function attributes(): array{
         return [
             "report_reason" => "举报原因",
-            'title' => '标题',
+            'title' => __("app.title"),
             'content' => '详细说明',
             'url' => '相关链接'
         ];

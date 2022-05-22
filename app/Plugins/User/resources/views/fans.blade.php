@@ -39,7 +39,7 @@
                             <h3 class="m-0 mb-1">
                                 <a href="/users/{{$value->fans->username}}.html">{{$value->fans->username}}</a>
                             </h3>
-                            <div class="text-muted">本站第{{$value->fans->id}}位会员</div>
+                            <div class="text-muted"> {{__("user.st member",['member' => $value->fans->id])}}</div>
                             <div class="text-muted">注册时间:{{$value->fans->created_at}}</div>
                             <div class="text-muted">关注时间:{{$value->created_at}}</div>
                             <div class="mt-3">
@@ -61,7 +61,7 @@
                                 <span class="avatar"></span>
                             </div>
                             <div class="col">
-                                <h3 class="card-title text-h2">暂无内容</h3>
+                                <h3 class="card-title text-h2">{{__("app.No more results")}}</h3>
                             </div>
                         </div>
                     </div>

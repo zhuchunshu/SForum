@@ -36,14 +36,14 @@
                             @if($value->description)
                                 <td class="text-muted">{{ \Hyperf\Utils\Str::limit($value->description,100) }}</td>
                             @else
-                                <td class="text-muted">无描述</td>
+                                <td class="text-muted">{{__("app.no description")}}</td>
                             @endif
 
                             <td>
-                                <a href="/admin/topic/tag/edit/{{ $value->id }}">修改</a>
+                                <a href="/admin/topic/tag/edit/{{ $value->id }}">{{__("app.edit")}}</a>
                             </td>
                             <td>
-                                <a @@click="remove({{ $value->id }})" href="#">删除</a>
+                                <a @@click="remove({{ $value->id }})" href="#">{{__("app.delete")}}</a>
                             </td>
                         </tr>
                     @endforeach

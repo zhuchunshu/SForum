@@ -14,11 +14,11 @@
                             Overview
                         </div>
                         <h2 class="page-title">
-                            通知列表
+                            {{__("user.notice list")}}
                         </h2>
                     </div>
                     <div class="col-auto">
-					<button user-click="notice_allread" class="btn btn-danger">一键清空未读通知</button>
+					<button user-click="notice_allread" class="btn btn-danger">{{__("user.clean notice")}}</button>
 					</div>
 
                 </div>

@@ -30,7 +30,7 @@ menu()->add(303,[
 
 // 首页菜单
 Itf()->add("menu",1,[
-   "name" => __("app.home"),
+   "name" => "app.home",
    "url" => "/",
     "icon" => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
@@ -42,7 +42,7 @@ Itf()->add("menu",1,[
 
 
 Itf()->add("menu",101,[
-    "name" => __("app.tag"),
+    "name" => "app.tag",
     "url" => "/tags",
     "icon" => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-tag" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
@@ -52,7 +52,7 @@ Itf()->add("menu",101,[
 ]);
 
 Itf()->add("menu",401,[
-    "name" => __("app.report center"),
+    "name" => "app.report center",
     "url" => "/report",
     "icon" => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-flag-3" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>

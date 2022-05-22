@@ -18,7 +18,7 @@
         @endif
     </span>
     <span class="nav-link-title">
-        {{ $value['name'] }}
+        {{ __($value['name']) }}
     </span>
 </a>
 

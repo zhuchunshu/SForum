@@ -19,7 +19,7 @@
             @endif
         </span>
         <span class="nav-link-title">
-            {{ $value['name'] }}
+            {{ __($value['name']) }}
         </span>
     </a>
 
@@ -43,7 +43,7 @@
                 @endif
             </span>
             <span class="nav-link-title">
-                {{ $value['name'] }}
+                {{ __($value['name']) }}
             </span>
         </a>
         <div class="dropdown-menu">
@@ -70,7 +70,7 @@
                                     <circle cx="12" cy="12" r="9"></circle>
                                 </svg>
                             @endif
-                        </span>{{ $values['name'] }}
+                        </span>{{ __($values['name']) }}
                         </a>
                     @endforeach
                 </div>

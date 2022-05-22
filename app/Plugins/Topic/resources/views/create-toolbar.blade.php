@@ -1,5 +1,5 @@
 {{--回复可见--}}
-<button type="button" @@click="edit_reply" class="vditor-tooltipped vditor-tooltipped__n" aria-label="回复可见">
+<button type="button" @@click="edit_reply" class="vditor-tooltipped vditor-tooltipped__n" aria-label="{{__("topic.Reply is visible")}}">
 
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chat-dots" viewBox="0 0 16 16">
         <path d="M5 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
@@ -8,18 +8,9 @@
 
 </button>
 
-{{--添加目录--}}
-<button type="button" @@click="edit_toc" class="vditor-tooltipped vditor-tooltipped__n" aria-label="添加目录">
-
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-card-checklist" viewBox="0 0 16 16">
-        <path d="M14.5 3a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h13zm-13-1A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-13z"/>
-        <path d="M7 5.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm-1.496-.854a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0zM7 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm-1.496-.854a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 0 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0z"/>
-    </svg>
-
-</button>
 
 {{--切换编辑模式--}}
-<button type="button" @@click="edit_mode" class="vditor-tooltipped vditor-tooltipped__n" aria-label="切换编辑模式">
+<button type="button" @@click="edit_mode" class="vditor-tooltipped vditor-tooltipped__n" aria-label="{{__("topic.toggle edit mode")}}">
 
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-repeat" viewBox="0 0 16 16">
         <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/>
@@ -29,7 +20,7 @@
 </button>
 
 {{--引用帖子--}}
-<button type="button" @@click="edit_with_topic" class="vditor-tooltipped vditor-tooltipped__n" aria-label="引用帖子">
+<button type="button" @@click="edit_with_topic" class="vditor-tooltipped vditor-tooltipped__n" aria-label="{{__("topic.Quoted Post")}}">
 
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-text" viewBox="0 0 16 16">
         <path d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z"/>
@@ -40,7 +31,7 @@
 
 
 {{--附件--}}
-<button type="button" @@click="edit_with_files" class="vditor-tooltipped vditor-tooltipped__n" aria-label="添加附件">
+<button type="button" @@click="edit_with_files" class="vditor-tooltipped vditor-tooltipped__n" aria-label="{{__("topic.Add attachments")}}">
 
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-zip" viewBox="0 0 16 16">
         <path d="M5 7.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v.938l.4 1.599a1 1 0 0 1-.416 1.074l-.93.62a1 1 0 0 1-1.11 0l-.929-.62a1 1 0 0 1-.415-1.074L5 8.438V7.5zm2 0H6v.938a1 1 0 0 1-.03.243l-.4 1.598.93.62.929-.62-.4-1.598A1 1 0 0 1 7 8.438V7.5z"/>

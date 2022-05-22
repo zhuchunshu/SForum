@@ -1,7 +1,7 @@
 @extends("App::app")
 
-@section('title',"「".$q."」的搜索结果")
-@section('description','为你展示「'.$q.'」的搜索结果')
+@section('title',__("app.search result",['search'=>"「".$q."]"]))
+@section('description',__("app.search result",['search'=>"「".$q."]"]))
 
 @section('content')
 
@@ -75,7 +75,7 @@
                                         <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="12" r="2" /><path d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" /></svg>
                                         {{$data->view}}
                                     </span>
-                                                        <a style="text-decoration:none;" core-click="like-topic" topic-id="{{$data->id}}" class="ms-3 text-muted cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="bottom" title="点赞">
+                                                        <a style="text-decoration:none;" core-click="like-topic" topic-id="{{$data->id}}" class="ms-3 text-muted cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{__("topic.likes")}}">
                                                             <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M19.5 13.572l-7.5 7.428l-7.5 -7.428m0 0a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572" /></svg>
                                                             <span core-show="topic-likes">{{$data->like}}</span>
                                                         </a>
@@ -89,7 +89,7 @@
                         @else
                             <div class="col-md-12">
                                 <div class="border-0 card card-body">
-                                    <div class="text-center card-title">暂无内容</div>
+                                    <div class="text-center card-title">{{__("app.No more results")}}</div>
                                 </div>
                             </div>
                         @endif

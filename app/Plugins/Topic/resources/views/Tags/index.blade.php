@@ -1,6 +1,6 @@
 @extends("App::app")
 
-@section('title', '帖子标签')
+@section('title', __("app.tag"))
 @section('description', '本站帖子标签列表')
 @section('keywords', '本站帖子标签列表')
 
@@ -16,13 +16,13 @@
                 Overview
             </div>
             <h2 class="page-title">
-                标签列表
+                {{__("tag.list")}}
             </h2>
         </div>
 
         <div class="col-auto">
             @if(auth()->check() && Authority()->check('topic_tag_create'))
-                <a href="/tags/create" class="btn btn-primary">创建标签</a>
+                <a href="/tags/create" class="btn btn-primary">{{__("tag.create")}}</a>
             @endif
         </div>
     </div>
@@ -46,7 +46,7 @@
                         <div class="col">
                             <a href="/tags/{{ $value->id }}.html"
                                 class="card-title text-h2">{{ $value->name }}</a>
-                            {{ \Hyperf\Utils\Str::limit(core_default($value->description, '暂无描述'), 32) }}
+                            {{ \Hyperf\Utils\Str::limit(core_default($value->description, __("app.no description")), 32) }}
                         </div>
                     </div>
                 </div>
@@ -63,7 +63,7 @@
                     <span class="avatar"></span>
                 </div>
                 <div class="col">
-                    <h3 class="card-title text-h2">暂无内容</h3>
+                    <h3 class="card-title text-h2">{{__("app.No more results")}}</h3>
                 </div>
             </div>
         </div>

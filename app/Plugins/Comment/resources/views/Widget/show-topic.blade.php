@@ -109,7 +109,7 @@
                                             <a style="text-decoration:none;" comment-click="comment-like-topic"
                                                comment-id="{{ $value->id }}"
                                                class="cursor-pointer text-muted hvr-icon-bounce"
-                                               data-bs-toggle="tooltip" data-bs-placement="bottom" title="点赞">
+                                               data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{__("topic.likes")}}">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon hvr-icon" width="24"
                                                      height="24"
                                                      viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
@@ -123,7 +123,7 @@
                                             {{-- markdown --}}
                                             <a style="text-decoration:none;" data-bs-toggle="tooltip"
                                                data-bs-placement="top" href="/comment/topic/{{ $value->id }}.md"
-                                               data-bs-original-title="查看markdown文本" class="hvr-icon-grow-rotate">
+                                               data-bs-original-title="{{__("app.preview markdown")}}" class="hvr-icon-grow-rotate">
                     <span class="switch-icon-a text-muted">
                         <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-markdown hvr-icon"
                              width="24"
@@ -140,7 +140,7 @@
                                             <a style="text-decoration:none;" comment-click="comment-reply-topic"
                                                comment-id="{{ $value->id }}"
                                                class="cursor-pointer text-muted hvr-icon-up" data-bs-toggle="tooltip"
-                                               data-bs-placement="bottom" title="回复">
+                                               data-bs-placement="bottom" title="{{__("app.reply")}}">
                                                 <svg xmlns="http://www.w3.org/2000/svg"
                                                      class="hvr-icon icon icon-tabler icon-tabler-message-circle-2"
                                                      width="24" height="24" viewBox="0 0 24 24" stroke-width="2"
@@ -161,7 +161,7 @@
                                                 <a style="text-decoration:none;" comment-click="comment-delete-topic"
                                                    comment-id="{{ $value->id }}"
                                                    class="cursor-pointer text-muted hvr-icon-drop"
-                                                   data-bs-toggle="tooltip" data-bs-placement="bottom" title="删除">
+                                                   data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{__("app.delete")}}">
                                                     <svg xmlns="http://www.w3.org/2000/svg"
                                                          class="hvr-icon icon icon-tabler icon-tabler-trash" width="24"
                                                          height="24" viewBox="0 0 24 24" stroke-width="2"
@@ -247,7 +247,7 @@
                                         <div class="col-md-12" comment-dom="comment-{{$value->id}}"
                                              comment-status="off">
                                             <div class="hr-text"
-                                                 style="margin-bottom:15px;margin-top:15px;display: none">回复
+                                                 style="margin-bottom:15px;margin-top:15px;display: none">{{__("app.reply")}}
                                             </div>
                                         </div>
                                         <div class="col-md-12" style="display: none"

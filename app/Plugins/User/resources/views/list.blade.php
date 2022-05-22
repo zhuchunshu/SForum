@@ -1,6 +1,6 @@
 @extends("App::app")
 
-@section('title', '会员列表')
+@section('title',  __("user.list"))
 @section('description', '本站会员列表,共['.$page->count().'条内容]')
 @section('keywords', '本站会员列表')
 
@@ -16,9 +16,9 @@
                             Overview
                         </div>
                         <h2 class="page-title">
-                            会员列表
+                            {{ __("user.list") }}
                         </h2>
-                        本站共 {{$count}} 位会员
+                        {{__("user.members in total",['total' => $count])}}
                     </div>
 
 
@@ -40,8 +40,8 @@
                                     <h3 class="m-0 mb-1">
                                         <a href="/users/{{$value->username}}.html">{{$value->username}}</a>
                                     </h3>
-                                    <div class="text-muted">本站第{{$value->id}}位会员</div>
-                                    <div class="text-muted">加入时间:{{$value->created_at}}</div>
+                                    <div class="text-muted">{{__("user.st member",['member' => $value->id])}}</div>
+                                    <div class="text-muted">{{__("app.Join time",['time' => $value->created_at])}}</div>
                                     <div class="mt-3">
                                         <a href="/users/group/{{$value->Class->id}}.html">
                                             {!! Core_Ui()->Html()->UserGroup($value->Class) !!}
@@ -61,7 +61,7 @@
                                         <span class="avatar"></span>
                                     </div>
                                     <div class="col">
-                                        <h3 class="card-title text-h2">暂无内容</h3>
+                                        <h3 class="card-title text-h2">{{__("app.No more results")}}</h3>
                                     </div>
                                 </div>
                             </div>
