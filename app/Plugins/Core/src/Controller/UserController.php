@@ -165,7 +165,7 @@ HTML;
 	    }
 		
         
-        $userOption = UsersOption::query()->create(["qianming" => "这个人没有签名"]);
+        $userOption = UsersOption::query()->create(["qianming" => "no bio"]);
         $result = User::query()->create([
             "username" => $username,
             "email" => $email,

@@ -67,5 +67,7 @@ return [
 	'name' => "名称",
 	'color' => '颜色',
 	'icon' => '图标',
-	'watch' => "查看"
+	'watch' => "查看",
+	'wechat' => '微信',
+	'email' => '邮箱',
 ];

@@ -48,7 +48,7 @@
 {{--                                </svg>CodeFec                                            #CTO                                                                        发帖总量:48--}}
 {{--                                共发布了65条评论,--}}
                                 @if($data->Options->email)
-                                    邮箱: <a href="mailto:{{$data->Options->email}}">{{$data->Options->email}}</a>,
+                                {{__("app.email')}}: <a href="mailto:{{$data->Options->email}}">{{$data->Options->email}}</a>,
                                 @endif
                                 注册于:{{format_date($data->created_at)}}@if($data->updated_at),最后更新:{{format_date($data->updated_at)}},{{$data->fans}}个粉丝@endif
                             </div>
@@ -77,9 +77,9 @@
 
         <div class="col-md-12">
             <div class="card card-stacked card-body">
-                <h3 class="card-title">签名</h3>
+                <h3 class="card-title">{{__("app.bio")}}</h3>
                 <div class="markdown">
-                    {!! markdown()->text(core_default($data->Options->qianming,"暂无无签名")) !!}
+                    {!! markdown()->text(core_default($data->Options->qianming,__("user.no bio"))) !!}
                 </div>
             </div>
         </div>
@@ -87,7 +87,7 @@
         @if($data->Options->qq || $data->Options->wx || $data->Options->website || $data->Options->email)
         <div class="col-md-12">
                 <div class="card card-stacked card-body">
-                    <h3 class="card-title">其他信息</h3>
+                    <h3 class="card-title">{{__("user.other information")}}</h3>
                     @if($data->Options->qq)
                         <div class="mb-2">
                             QQ: {{$data->Options->qq}}
@@ -96,19 +96,19 @@
 
                     @if($data->Options->wx)
                         <div class="mb-2">
-                            微信: {{$data->Options->wx}}
+                            {{__("user.wechat")}}: {{$data->Options->wx}}
                         </div>
                     @endif
 
                     @if($data->Options->email)
                         <div class="mb-2">
-                            邮箱: {{$data->Options->email}}
+                            {{__("app.email")}}: {{$data->Options->email}}
                         </div>
                     @endif
 
                     @if($data->Options->website)
                         <div class="mb-2">
-                            个人网站: <a href="{{$data->Options->website}}">{{$data->Options->website}}</a>
+                            {{__("user.personal website")}}: <a href="{{$data->Options->website}}">{{$data->Options->website}}</a>
                         </div>
                     @endif
                 </div>

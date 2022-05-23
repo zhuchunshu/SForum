@@ -34,7 +34,7 @@
                     <div class="card card-body">
                         <div class="card-title">其他设置</div>
                         <div class="mb-3">
-                            <label class="form-label">签名</label>
+                            <label class="form-label">{{__("app.bio")}}</label>
                             <textarea class="form-control" name="qianming" type="text">{{$data->options->qianming}}</textarea>
                         </div>
                         <div class="mb-3">

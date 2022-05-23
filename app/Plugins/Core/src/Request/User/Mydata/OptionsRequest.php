@@ -26,7 +26,7 @@ class OptionsRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            "qianming" => "签名",
+            "qianming" => __("app.bio"),
             "wx" => "微信",
             "website" => "个人网站",
             "email" => "展示邮箱"
