@@ -21,7 +21,7 @@ class ShowTopic
         // 缓存
         $data = Topic::query(true)
             ->where('id', $id)
-            ->with("tag","user","topic_updated","update_user")
+            ->with("tag","user","topic_updated")
             ->first();
         // 创建数据
         $shang = Topic::query()->where([['id','<',$id],['status','publish']])->select('title','id')->orderBy('id','desc')->first();
@@ -36,7 +36,6 @@ class ShowTopic
                 ->where(['status' => 'publish','topic_id'=>$id])
                 ->with("topic","user","parent")
                 ->orderBy("optimal","desc")
-                ->orderBy("likes","desc")
                 ->paginate(get_options("comment_page_count",15));
         }
         return view('App::topic.show.show',['data' => $data,'get_topic' => $sx,'comment_count'=>$comment_count,'comment' => $comment,'comment_page' => $comment_page]);

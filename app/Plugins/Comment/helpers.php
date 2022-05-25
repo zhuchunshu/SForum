@@ -28,7 +28,6 @@ if(!function_exists("get_topic_comment_page")){
 				->where(['status' => 'publish','topic_id'=>$topic_id])
 				->with("topic","user","parent")
 				->orderBy("optimal","desc")
-				->orderBy("likes","desc")
 				->paginate($comment_num,['*'],'page',$page)->items();
 			foreach($data as $value){
 				if((int)$value->id===(int)$comment_id){

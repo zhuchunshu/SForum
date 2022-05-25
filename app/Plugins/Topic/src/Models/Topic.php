@@ -5,6 +5,7 @@ namespace App\Plugins\Topic\src\Models;
 
 use App\Model\Model;
 use App\Plugins\Comment\src\Model\TopicComment;
+use App\Plugins\Core\src\Models\Post;
 use App\Plugins\User\src\Models\User;
 use Carbon\Carbon;
 
@@ -37,37 +38,65 @@ class Topic extends Model
      *
      * @var array
      */
-    protected $fillable = ['id','created_at','updated_at','title','user_id','status','content','markdown','view','like','tag_id','options','_token','topping','essence','updated_user','user_agent','user_ip'];
+    protected $fillable = ['id','created_at','updated_at','title','user_id','status','post_id','view','tag_id','options','_token','topping','essence'];
     /**
      * The attributes that should be cast to native types.
      *
      * @var array
      */
     protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
-
+	
+	/**
+	 * 帖子标签信息
+	 * @return \Hyperf\Database\Model\Relations\BelongsTo
+	 */
     public function tag(): \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(TopicTag::class,"tag_id","id");
     }
-
+	
+	/**
+	 * 帖子作者信息
+	 * @return \Hyperf\Database\Model\Relations\BelongsTo
+	 */
     public function user(): \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(User::class,"user_id","id");
     }
-
-    public function update_user(): \Hyperf\Database\Model\Relations\BelongsTo
-    {
-        return $this->belongsTo(User::class,"updated_user","id");
-    }
-
+	
+	/**
+	 * 帖子更新记录
+	 * @return \Hyperf\Database\Model\Relations\HasMany
+	 */
     public function topic_updated(): \Hyperf\Database\Model\Relations\HasMany
     {
         return $this->hasMany(TopicUpdated::class,"topic_id");
     }
-
+	
+	/**
+	 * 帖子下的所有评论
+	 * @return \Hyperf\Database\Model\Relations\HasMany
+	 */
     public function comments(): \Hyperf\Database\Model\Relations\HasMany
     {
         return $this->hasMany(TopicComment::class,"topic_id");
     }
+	
+	/**
+	 * 帖子下的所有点赞
+	 * @return \Hyperf\Database\Model\Relations\HasMany
+	 */
+	public function likes(): \Hyperf\Database\Model\Relations\HasMany
+	{
+		return $this->hasMany(TopicLike::class,"topic_id");
+	}
+	
+	/**
+	 * 帖子内容
+	 * @return \Hyperf\Database\Model\Relations\BelongsTo
+	 */
+	public function post(){
+		return $this->belongsTo(Post::class,"post_id","id");
+	}
 
 }

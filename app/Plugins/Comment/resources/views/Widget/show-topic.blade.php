@@ -45,7 +45,7 @@
                                                     <small data-bs-toggle="tooltip" data-bs-placement="top"
                                                            data-bs-original-title="{{$value->created_at}}"
                                                            class="text-muted text-truncate mt-n1">{{__("app.Published on")}}:{{format_date($value->created_at)}}</small>
-                                                    @if(get_options('comment_author_ip','开启')==='开启' &&$value->user_ip)
+                                                    @if(get_options('comment_author_ip','开启')==='开启' && @$value->post->user_ip)
                                                         |
                                                         <small class="text-red" comment-type="ip" comment-id="{{$value->id}}">Loading<span class="animated-dots"></span></small>
                                                     @endif
@@ -87,7 +87,7 @@
                                                                 <span style="color:#999999">{{$value->parent->user->username}} {{__("app.Published on")}} {{format_date($value->parent->created_at)}}</span>
                                                             </a>
                                                             <br>
-                                                            {!! \Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($value->parent->content)),60) !!}
+                                                            {!! \Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($value->parent->post->content)),60) !!}
                                                         </blockquote>
                                                     </div>
                                                 @else
@@ -98,7 +98,7 @@
                                                     </div>
                                                 @endif
                                             @endif
-                                            {!! ShortCodeR()->comment()->handle($value->content) !!}
+                                            {!! ShortCodeR()->comment()->handle($value->post->content) !!}
                                         </div>
                                         {{--                                    操作--}}
                                         <div class="col-md-12">

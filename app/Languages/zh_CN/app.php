@@ -46,6 +46,7 @@ return [
 	'created at' => '创建于:  :time',
 	'report created at' => '举报于:  :time',
 	'report center' => '举报中心',
+	'week' => '周',
 	'ago' => '前',
 	'year' => '年',
 	'month' => '月',

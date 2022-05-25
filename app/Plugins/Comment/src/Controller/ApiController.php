@@ -7,6 +7,7 @@ use App\Plugins\Comment\src\Model\TopicCommentLike;
 use App\Plugins\Comment\src\Request\Topic\UpdateComment;
 use App\Plugins\Comment\src\Request\TopicCreate;
 use App\Plugins\Comment\src\Request\TopicReply;
+use App\Plugins\Core\src\Models\Post;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UsersCollection;
@@ -38,14 +39,21 @@ class ApiController
         // 解析艾特
         $content = $this->topic_create_at($content);
 
+		$post = Post::query()->create([
+			'content' => $content,
+			'markdown' => $request->input('markdown'),
+			'user_agent' => get_user_agent(),
+			'user_ip' => get_client_ip(),
+			'user_id' => auth()->id()
+		]);
         $data = TopicComment::query()->create([
-           'topic_id' => $request->input("topic_id"),
-            'content' => $content,
-            'markdown' => $request->input('markdown'),
+            'topic_id' => $request->input("topic_id"),
+			'post_id' => $post->id,
             'user_id' => auth()->id(),
-	        'user_agent' => get_user_agent(),
-	        'user_ip' => get_client_ip(),
         ]);
+		// 给posts表设置comment_id字段的值
+		Post::query()->where('id',$post->id)->update(['comment_id'=>$data->id]);
+		
 	    // 艾特被回复的人
 	    $this->at_user($data,$yhtml);
 
@@ -85,16 +93,22 @@ class ApiController
         $comment_id = request()->input('comment_id');
         $topic_id = TopicComment::query()->where("id",$comment_id)->first()->topic_id;
         $parent_id = TopicComment::query()->where("id",$comment_id)->first()->user_id;
+		$post = Post::query()->create([
+			'content' => $content,
+			'markdown' => $request->input('markdown'),
+			'user_agent' => get_user_agent(),
+			'user_ip' => get_client_ip(),
+			'user_id' => auth()->id()
+		]);
         $data = TopicComment::query()->create([
+			'post_id' => $post->id,
             'parent_url' => request()->input("parent_url"),
             'topic_id' => $topic_id,
             'parent_id' => $comment_id,
-            'content' => $content,
-            'markdown' => $request->input('markdown'),
             'user_id' => auth()->id(),
-	        'user_agent' => get_user_agent(),
-	        'user_ip' => get_client_ip()
         ]);
+	    // 给posts表设置comment_id字段的值
+	    Post::query()->where('id',$post->id)->update(['comment_id'=>$data->id]);
         $data = TopicComment::query()->where("id",$data->id)->first();
 	
 	    // 艾特被回复的人
@@ -253,6 +267,7 @@ class ApiController
         $data = TopicComment::query()
             ->where([["id",$comment_id],['status','publish']])
             ->first();
+		$data['markdown'] = $data->post->markdown;
         return Json_Api(200,true,$data);
     }
 
@@ -279,10 +294,11 @@ class ApiController
         // 解析艾特
         $content = $this->topic_create_at($content);
         $markdown = $request->input("markdown");
-        TopicComment::query()->where(['id'=>$id])->update([
-           "content" => $content,
-            "markdown" => $markdown
-        ]);
+        $post_id = TopicComment::query()->find($id)->post_id;
+		Post::query()->where("id",$post_id)->update([
+			'content' => $content,
+			'markdown' => $markdown
+		]);
         return Json_Api(200,true,["更新成功!"]);
     }
 
@@ -367,10 +383,10 @@ class ApiController
 		$data = [];
 		foreach($comments as $comment_id){
 			$comment = TopicComment::query()->where(["id"=>$comment_id,'status' => 'publish'])->first();
-			if($comment->user_ip){
+			if($comment->post->user_ip){
 				$data[] = [
 					'comment_id' => $comment->id,
-					'text' => __("app.IP attribution",['province' => get_client_ip_data($comment->user_ip)['pro']])
+					'text' => __("app.IP attribution",['province' => get_client_ip_data($comment->post->user_ip)['pro']])
 				];
 			}
 		}

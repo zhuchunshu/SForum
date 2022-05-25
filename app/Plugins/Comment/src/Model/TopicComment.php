@@ -4,6 +4,7 @@ declare (strict_types=1);
 namespace App\Plugins\Comment\src\Model;
 
 use App\Model\Model;
+use App\Plugins\Core\src\Models\Post;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\User\src\Models\User;
 use Carbon\Carbon;
@@ -35,7 +36,7 @@ class TopicComment extends Model
      *
      * @var array
      */
-    protected $fillable = ['likes','topic_id','user_id','parent_id','content','markdown','status','shenping','optimal','parent_url','created_at','updated_at','user_agent','user_ip'];
+    protected $fillable = ['topic_id','post_id','user_id','parent_id','status','shenping','optimal','parent_url','created_at','updated_at'];
     /**
      * The attributes that should be cast to native types.
      *
@@ -44,19 +45,47 @@ class TopicComment extends Model
     protected $casts = ['id' => 'integer', 'likes' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime','optimal' => 'datetime','shenping' => 'datetime'];
 	
 	protected $hidden = ['user_ip'];
-
+	
+	/**
+	 * 评论作者信息
+	 * @return \Hyperf\Database\Model\Relations\BelongsTo
+	 */
     public function user(): \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(User::class,"user_id","id");
     }
-
+	
+	/**
+	 * 评论所在的帖子信息
+	 * @return \Hyperf\Database\Model\Relations\BelongsTo
+	 */
     public function topic(): \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(Topic::class,"topic_id","id");
     }
-
+	
+	/**
+	 * 评论parent信息
+	 * @return \Hyperf\Database\Model\Relations\BelongsTo
+	 */
     public function parent(): \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(__CLASS__,"parent_id","id");
     }
+	
+	/**
+	 * 评论内容
+	 * @return \Hyperf\Database\Model\Relations\BelongsTo
+	 */
+	public function post(){
+		return $this->belongsTo(Post::class,"post_id","id");
+	}
+	
+	/**
+	 * 评论点赞信息
+	 * @return \Hyperf\Database\Model\Relations\BelongsTo
+	 */
+	public function likes(){
+		return $this->belongsTo(TopicCommentLike::class,"comment_id","id");
+	}
 }

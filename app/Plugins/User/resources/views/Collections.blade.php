@@ -41,7 +41,7 @@
                                 <div class="row">
                                     <div class="col-md-12">
                                         <div class="card-text">
-                                            <span class="home-summary">{{ \Hyperf\Utils\Str::limit(core_default(deOptions(get_topic($value->type_id)->options)["summary"],"未捕获到本文摘要"),300) }}</span>
+                                            <span class="home-summary markdown">{!! content_brief(get_topic($value->type_id)->post->content,get_options("topic_brief_len",250)) !!}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -115,7 +115,7 @@
                                                         </div>
                                                     </div>
                                                     <div core-show="comment" comment-id="{{$value->type_id}}"
-                                                         class="col-md-12 markdown vditor-reset">
+                                                         class="col-md-12 markdown">
                                                         @if(get_topic_comment($value->type_id)->parent_id)
                                                             <div class="quote">
                                                                 <blockquote>
@@ -124,11 +124,11 @@
                                                                         <span style="color:#999999">{{get_topic_comment($value->type_id)->parent->user->username}} {{__("app.Published on")}} {{format_date(get_topic_comment($value->type_id)->created_at)}}</span>
                                                                     </a>
                                                                     <br>
-                                                                    {!! \Hyperf\Utils\Str::limit(remove_bbCode(strip_tags(get_topic_comment($value->type_id)->parent->content)),60) !!}
+                                                                    {!! \Hyperf\Utils\Str::limit(remove_bbCode(strip_tags(get_topic_comment($value->type_id)->parent->post->content)),60) !!}
                                                                 </blockquote>
                                                             </div>
                                                         @endif
-                                                        {!! ShortCodeR()->handle(get_topic_comment($value->type_id)->content) !!}
+                                                        {!! ShortCodeR()->handle(get_topic_comment($value->type_id)->post->content) !!}
                                                     </div>
 
 

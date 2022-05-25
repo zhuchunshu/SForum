@@ -91,7 +91,7 @@ class IndexController
         }
         $data = Topic::query()
             ->where('id', $id)
-            ->with("tag","user","topic_updated","update_user")
+            ->with("tag","user","topic_updated")
             ->first();
         $quanxian = false;
         if(auth()->id()==$data->user_id){

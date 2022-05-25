@@ -116,7 +116,11 @@ class ApiController
 	    }
         return Json_Api(200,true,['msg' =>'已赞!']);
     }
-
+	
+	/**
+	 * 获取帖子信息
+	 * @return array
+	 */
     #[PostMapping(path:"topic.data")]
     public function topic_data(){
         if(!auth()->check()){
@@ -132,8 +136,8 @@ class ApiController
         $data = Topic::query()->where("id",$topic_id)
             ->with("user","tag")
             ->first();
-        $options = deOptions($data->options);
-        $data['options'] = $options;
+        $data['markdown'] = $data->post->markdown;
+        $data['options'] = [];
         return Json_Api(200,true,$data);
     }
 
@@ -275,8 +279,8 @@ class ApiController
 			'status' =>'publish',
 			'id' => $topic_id
 		])->with('user')->first();
-		if(get_options('topic_author_ip','开启')==="开启" && $data->user_ip){
-			$data['user']['city'] = __("app.IP attribution",['province' =>get_client_ip_data($data->user_ip)['pro']]);
+		if(get_options('topic_author_ip','开启')==="开启" && $data->post->user_ip){
+			$data['user']['city'] = __("app.IP attribution",['province' =>get_client_ip_data($data->post->user_ip)['pro']]);
 		}
 		return Json_Api(200,true,$data['user']);
 	}

@@ -1,8 +1,8 @@
 @extends("App::app")
 
 @section('title',$data->title)
-@section('description',\Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"未捕获到本文摘要"),300))
-@section('keywords',$data->title.','.$data->user->username.','.\Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"未捕获到本文摘要"),300))
+@section('description',content_brief($data->post->content,get_options("topic_brief_len",250)))
+@section('keywords',$data->title.','.$data->user->username.','.content_brief($data->post->content,get_options("topic_brief_len",250)))
 
 @section('content')
 

@@ -2,6 +2,7 @@
 
 namespace App\Plugins\Topic\src\Handler\Topic;
 
+use App\Plugins\Core\src\Models\Post;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicKeyword;
 use App\Plugins\Topic\src\Models\TopicKeywordsWith;
@@ -19,27 +20,25 @@ class EditTopic
 		if($this->validate($request) !== true) {
 			return $this->validate($request);
 		}
-		$this->create($request);
+		$this->update($request);
 		return Json_Api(200, true, ['修改成功!', '2秒后跳转到当前帖子页面']);
 	}
 	
 	
-	public function create($request): void
+	public function update($request): void
 	{
+		// 帖子id
 		$topic_id = $request->input("topic_id");
+		// 帖子标题
 		$title = $request->input("title");
+		// 帖子标签
 		$tag = $request->input("tag");
+		// 帖子md内容
 		$markdown = $request->input("markdown");
+		// 帖子html内容
 		$html = $request->input("html");
-		$summary = $request->input("summary");
-		if(!$summary) {
-			$summary = remove_bbCode(strip_tags($html));
-		}
-		$images = getAllImg($html);
-		$options = [
-			"summary" => $summary,
-			"images" => $images
-		];
+		$options = [];
+		// xss过滤
 		$html = xss()->clean($html);
 		// 解析shortCode
 		ShortCode()->handle($html);
@@ -50,16 +49,14 @@ class EditTopic
 		// 解析艾特
 		$html = $this->at($html);
 		
-		$options = json_encode($options, JSON_THROW_ON_ERROR, JSON_UNESCAPED_UNICODE);
-		Topic::query()->where("id", $topic_id)->update([
-			"title" => $title,
-			"status" => "publish",
+		$post_id = Topic::query()->find($topic_id)->post_id;
+		Post::query()->where('id',$post_id)->update([
 			"content" => $html,
 			"markdown" => $markdown,
+		]);
+		Topic::query()->where("id", $topic_id)->update([
+			"title" => $title,
 			"tag_id" => $tag,
-			"options" => $options,
-			"_token" => auth()->id() . "_" . Str::random(),
-			"updated_user" => auth()->id()
 		]);
 		$data = Topic::query()->where("id", $topic_id)->first();
 		TopicUpdated::create([
@@ -72,8 +69,6 @@ class EditTopic
 		$topic_data = Topic::query()->where("id", $topic_id)->first();
 		$this->at_user($topic_data, $yhtml);
 		cache()->delete("topic.data." . $topic_id);
-		cache()->delete("core.index.page.1");
-		cache()->delete("core.index.page.*");
 	}
 	
 	private function at_user(\Hyperf\Database\Model\Model|\Hyperf\Database\Model\Builder $data, string $html): void

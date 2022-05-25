@@ -26,4 +26,5 @@ return [
 	'toggle edit mode' => '切换编辑模式',
 	'Quoted Post' => '引用帖子',
 	'Add attachments' => '添加附件',
+	'summary' => '帖子摘要',
 ];

@@ -35,18 +35,7 @@
                                                         <a href="/topic/{{$data->id}}/edit" class="text-reset">
                                                             <h2>{{$data->title}}</h2>
                                                         </a>
-                                                        <span class="home-summary">{{\Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"未捕获到本文摘要"),300)}}</span>
-                                                        <div class="row">
-                                                            @foreach(deOptions($data->options)["images"] as $key=>$image)
-                                                                @if($key<=5)
-                                                                    <div class="col-4">
-                                                                        <div class="border-5">
-                                                                            <a href="/topic/{{$data->id}}/edit" class="d-block"><img data-src="{{$image}}" class="card-img-top" alt="{{$image}}" src="{{get_options("topic_lazyload_img","/plugins/Topic/loading.gif")}}"></a>
-                                                                        </div>
-                                                                    </div>
-                                                                @endif
-                                                            @endforeach
-                                                        </div>
+                                                        <span class="home-summary">{!! content_brief($data->post->content,get_options("topic_brief_len",250)) !!}</span>
                                                     </div>
                                                 </div>
                                             </div>

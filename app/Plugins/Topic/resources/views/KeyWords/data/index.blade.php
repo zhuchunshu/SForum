@@ -40,38 +40,7 @@
                                             @endif
                                             {{$data->title}}</h2>
                                     </a>
-                                    <span class="home-summary">{{ \Hyperf\Utils\Str::limit(core_default(deOptions($data->options)["summary"],"未捕获到本文摘要"),300) }}</span>
-                                    <div class="row">
-                                        @if(count(deOptions($data->options)["images"])<=6)
-                                            @if(count(deOptions($data->options)["images"])>=3)
-                                                @foreach(deOptions($data->options)["images"] as $key=>$image)
-                                                    <div class="col-4 imgItem">
-                                                        <a href="/{{$data->id}}.html"><img src="{{$image}}"
-                                                                                           class="mio-lazy-img"
-                                                                                           alt="{{$image}}"></a>
-                                                    </div>
-                                                @endforeach
-                                            @endif
-                                            @if(count(deOptions($data->options)["images"])===2)
-                                                @foreach(deOptions($data->options)["images"] as $key=>$image)
-                                                    <div class="col-4 imgItem">
-                                                        <a href="/{{$data->id}}.html"><img src="{{$image}}"
-                                                                                           class="mio-lazy-img"
-                                                                                           alt="{{$image}}"></a>
-                                                    </div>
-                                                @endforeach
-                                            @endif
-                                            @if(count(deOptions($data->options)["images"])===1)
-                                                @foreach(deOptions($data->options)["images"] as $key=>$image)
-                                                    <div class="col-4 imgItem">
-                                                        <a href="/{{$data->id}}.html"><img src="{{$image}}"
-                                                                                           class="mio-lazy-img"
-                                                                                           alt="{{$image}}"></a>
-                                                    </div>
-                                                @endforeach
-                                            @endif
-                                        @endif
-                                    </div>
+                                    <span class="home-summary">{!! content_brief($data->post->content,get_options("topic_brief_len",250)) !!}</span>
                                 </div>
                             </div>
                         </div>

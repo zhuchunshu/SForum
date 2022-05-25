@@ -48,7 +48,7 @@
 {{--                                </svg>CodeFec                                            #CTO                                                                        发帖总量:48--}}
 {{--                                共发布了65条评论,--}}
                                 @if($data->Options->email)
-                                {{__("app.email')}}: <a href="mailto:{{$data->Options->email}}">{{$data->Options->email}}</a>,
+                                {{__("app.email")}}: <a href="mailto:{{$data->Options->email}}">{{$data->Options->email}}</a>,
                                 @endif
                                 注册于:{{format_date($data->created_at)}}@if($data->updated_at),最后更新:{{format_date($data->updated_at)}},{{$data->fans}}个粉丝@endif
                             </div>

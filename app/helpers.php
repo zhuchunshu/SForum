@@ -776,3 +776,14 @@ if(!function_exists('language')){
 		return new \App\CodeFec\Language();
 	}
 }
+
+if(!function_exists('content_brief')){
+	function content_brief($content,$len=100): string
+	{
+		// hook post_brief_start.php
+		$content = strip_tags($content);
+		$content = htmlspecialchars($content);
+		$content = \Hyperf\Utils\Str::limit($content,$len);
+		return htmlspecialchars_decode($content,ENT_QUOTES);
+	}
+}

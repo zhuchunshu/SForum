@@ -2,6 +2,7 @@
 
 namespace App\Plugins\Topic\src\Handler\Topic;
 
+use App\Plugins\Core\src\Models\Post;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicKeyword;
 use App\Plugins\Topic\src\Models\TopicKeywordsWith;
@@ -32,19 +33,14 @@ class CreateTopic
 
     public function create($request): void
     {
+		// 帖子标题
         $title = $request->input("title");
+		// 帖子标签
         $tag = $request->input("tag");
+		// 帖子md内容
         $markdown = $request->input("markdown");
+		// 帖子html内容
         $html = $request->input("html");
-        $summary = $request->input("summary");
-        if(!$summary){
-            $summary = remove_bbCode(strip_tags($html));
-        }
-        $images = getAllImg($html);
-        $options = [
-            "summary" => $summary,
-            "images" => $images
-        ];
         $html = xss()->clean($html);
         // 解析shortCode
         $html = ShortCode()->handle($html);
@@ -54,23 +50,24 @@ class CreateTopic
         $html = $this->tag($html);
         // 解析艾特
         $html = $this->at($html);
-
-        $options = json_encode($options, JSON_THROW_ON_ERROR,JSON_UNESCAPED_UNICODE);
+		
+		$post = Post::query()->create([
+			'content' => $html,
+			'markdown' => $markdown,
+			'user_id' => auth()->id(),
+			'user_ip' => get_client_ip(),
+			'user_agent' => get_user_agent(),
+		]);
         $data = Topic::query()->create([
+			'post_id' => $post->id,
             "title" => $title,
             "user_id" => auth()->id(),
             "status" => "publish",
-            "content" => $html,
-            "markdown" => $markdown,
-            "like" => 0,
             "view" => 0,
             "tag_id" => $tag,
-			'user_ip' => get_client_ip(),
-			'user_agent' => get_user_agent(),
-            "options" => $options,
-            "_token" => auth()->id()."_".Str::random(),
-            "updated_user" => auth()->id()
         ]);
+		// 给Posts表设置topic_id字段的值
+	    Post::query()->where('id',$post->id)->update(['topic_id'=>$data->id]);
         $this->topic_keywords($data,$yhtml);
         $this->at_user($data,$yhtml);
     }

@@ -39,11 +39,11 @@
                                                 <span style="color:#999999" >{{$value->parent->user->username}} {{__("app.Published on")}} {{format_date($value->created_at)}}</span>
                                             </a>
                                             <br>
-                                            {!! \Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($value->parent->content)),60) !!}
+                                            {!! \Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($value->parent->post->content)),60) !!}
                                         </blockquote>
                                     </div>
                                 @endif
-                                {!! $value->content !!}
+                                {!! $value->post->content !!}
                             </div>
                             {{--                                    操作--}}
                             <div class="col-md-12">
