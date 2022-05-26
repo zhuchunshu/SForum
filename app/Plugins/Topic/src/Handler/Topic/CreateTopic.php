@@ -42,8 +42,6 @@ class CreateTopic
 		// 帖子html内容
         $html = $request->input("html");
         $html = xss()->clean($html);
-        // 解析shortCode
-        $html = ShortCode()->handle($html);
 
         // 解析标签
         $yhtml = $html;

@@ -37,8 +37,6 @@ class DraftTopic
             "images" => $images
         ];
         $html = xss()->clean($html);
-        // 解析shortCode
-        ShortCode()->handle($html);
 
         // 解析标签
         $yhtml = $html;

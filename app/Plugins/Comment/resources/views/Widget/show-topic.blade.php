@@ -98,7 +98,7 @@
                                                     </div>
                                                 @endif
                                             @endif
-                                            {!! ShortCodeR()->comment()->handle($value->post->content) !!}
+                                            {!!CommentContentParse()->parse($value->post->content,['comment' => $value,'topic' => $data]) !!}
                                         </div>
                                         {{--                                    操作--}}
                                         <div class="col-md-12">

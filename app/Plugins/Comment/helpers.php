@@ -1,5 +1,6 @@
 <?php
 
+use App\Plugins\Comment\src\ContentParse;
 use App\Plugins\Comment\src\Model\TopicComment;
 
 if(!function_exists("get_topic_comment_page")){
@@ -78,5 +79,12 @@ if(!function_exists("get_topic_comment")){
 			return false;
 		}
 		return $comment;
+	}
+}
+
+if(!function_exists("CommentContentParse")){
+	function CommentContentParse(): ContentParse
+	{
+		return new ContentParse();
 	}
 }

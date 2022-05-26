@@ -16,25 +16,32 @@ use Thunder\Shortcode\Shortcode\ShortcodeInterface;
 
 class ShortCodeR
 {
-	public bool $comment  = false;
 	
-	public HandlerContainer $handlers;
+	/**
+	 * ShortCode 处理器
+	 * @var HandlerContainer
+	 */
+	private HandlerContainer $handlers;
+	
+	/**
+	 * 不解析的ShortCode
+	 * @var array
+	 */
+	private array $remove=[];
+	
 	public function __construct(){
 		$this->handlers = new HandlerContainer();
 		
 	}
 	
-	public function comment($diff=true): ShortCodeR
+	/**
+	 * 设置删除的ShortCode
+	 * @param array $shortCodes
+	 * @return ShortCodeR
+	 */
+	public function setRemove(array $shortCodes): ShortCodeR
 	{
-		$this->comment = $diff;
-		return $this;
-	}
-	
-	public bool $topic  = false;
-	
-	public function topic($diff=true): ShortCodeR
-	{
-		$this->topic = $diff;
+		$this->remove = $shortCodes;
 		return $this;
 	}
 
@@ -42,7 +49,11 @@ class ShortCodeR
     {
         Itf()->add("ShortCodeR",$tag,["callback" => $callback]);
     }
-
+	
+	/**
+	 * 获取全部ShortCode
+	 * @return array
+	 */
     public function all(): array
     {
 	    $arr = Itf()->get("ShortCodeR");
@@ -52,13 +63,15 @@ class ShortCodeR
 		    $callback = $data['class']."@".$data['method'];
 		    $arr["ShortCodeR_".$name]=['callback' => $callback];
 	    }
-		$data = $this->diff($arr);
-	    if($this->comment===true){
-			$data = $this->diff_comment($data);
+		
+		// 去重
+		$data = $this->unique($arr);
+		
+		// 清理不解析的ShortCode
+	    if(count($this->remove)){
+		    $data = $this->remove($data);
 	    }
-	    if($this->topic===true){
-		    $data = $this->diff_topic($data);
-	    }
+		
 		return $data;
     }
 	
@@ -90,20 +103,33 @@ class ShortCodeR
     {
         return (new Make())->$method($all,$content);
     }
-
-    public function handle($content){
-		foreach($this->all() as $tag=>$value){
+	
+	/**
+	 * 处理器
+	 * @param $content
+	 * @param $data
+	 * @return string
+	 */
+    public function handle($content,$data){
+		$shortCodes = $this->all();
+		foreach($shortCodes as $tag=>$value){
 			$tag = core_Itf_id("ShortCodeR",$tag);
-			$this->handlers->add($tag, function(ShortcodeInterface $s)use($value){
+			$this->handlers->add($tag, function(ShortcodeInterface $s)use($value,$data){
 				$match = [$s->getContent(),$s->getContent(),$s->getContent()];
-				return $this->callback($value['callback'],$match,$s);
+				return $this->callback($value['callback'],$match,$s,$data);
 			});
 		}
 		$processor = new Processor(new RegularParser(), $this->handlers);
 		return $processor->process($content);
 	}
 	
-	public function filter($content){
+	/**
+	 * 筛选
+	 * @param $content
+	 * @return string
+	 */
+	public function filter($content): string
+	{
 		foreach($this->all() as $tag=>$value){
 			$tag = core_Itf_id("ShortCodeR",$tag);
 			$this->handlers->add($tag, function(ShortcodeInterface $s)use($value){
@@ -114,11 +140,18 @@ class ShortCodeR
 		return $processor->process($content);
 	}
 	
-
-    public function callback($callback,...$parameter){
-        $class = Str::before($callback,"@");
-        $method = Str::after($callback,"@");
-        return (new $class())->$method(...$parameter);
+	
+	/**
+	 * 回调
+	 * @param $callback
+	 * @param ...$parameter
+	 * @return mixed
+	 */
+    public function callback($callback,...$parameter): mixed
+    {
+	    $class = Str::before($callback,"@");
+	    $method = Str::after($callback,"@");
+	    return call_user_func_array([new $class,$method],$parameter);
     }
 	
 	private function _(): array
@@ -130,50 +163,45 @@ class ShortCodeR
 		return array_unique($all);
 	}
 	
-	private function _comment(): array
-	{
-		$all = [];
-		foreach(Itf()->get('_Comment_ShortCodeR') as $value){
-			$all[]="ShortCodeR_".$value;
-		}
-		return array_unique($all);
-	}
 	
-	private function _topic(): array
+	/**
+	 * 删除指定ShortCode
+	 * @param $data
+	 * @return array
+	 */
+	private function remove($data): array
 	{
-		$all = [];
-		foreach(Itf()->get('_Topic_ShortCodeR') as $value){
-			$all[]="ShortCodeR_".$value;
-		}
-		return array_unique($all);
-	}
-	
-	private function diff(array $data){
 		$arr = [];
 		foreach($data as $k=>$v) {
-			if(!in_array($k,$this->_())){
+			if(!in_array($k, $this->_remove(), true)){
 				$arr[$k] = $v;
 			}
 		}
 		return $arr;
 	}
 	
-	private function diff_comment(array $data)
+	/**
+	 * 被删除的ShortCode
+	 * @return array
+	 */
+	private function _remove(): array
 	{
-		$arr = [];
-		foreach($data as $k=>$v) {
-			if(!in_array($k,$this->_comment())){
-				$arr[$k] = $v;
-			}
+		$all = [];
+		foreach($this->remove as $value){
+			$all[]="ShortCodeR_".$value;
 		}
-		return $arr;
+		return array_unique($all);
 	}
 	
-	private function diff_topic(array $data)
-	{
+	/**
+	 * 去重
+	 * @param array $data
+	 * @return array
+	 */
+	private function unique(array $data){
 		$arr = [];
 		foreach($data as $k=>$v) {
-			if(!in_array($k,$this->_topic())){
+			if(!in_array($k, $this->_(), true)){
 				$arr[$k] = $v;
 			}
 		}

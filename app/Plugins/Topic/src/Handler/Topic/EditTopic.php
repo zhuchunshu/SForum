@@ -40,8 +40,6 @@ class EditTopic
 		$options = [];
 		// xss过滤
 		$html = xss()->clean($html);
-		// 解析shortCode
-		ShortCode()->handle($html);
 		
 		// 解析标签
 		$yhtml = $html;

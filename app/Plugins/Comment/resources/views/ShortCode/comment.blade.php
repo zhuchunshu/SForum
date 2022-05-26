@@ -43,7 +43,7 @@
                                         </blockquote>
                                     </div>
                                 @endif
-                                {!! $value->post->content !!}
+                                    {!!CommentContentParse()->parse($value->post->content,['comment' => $value,'topic' => $value->topic,'RemoveshortCode' => ['topic-comment']]) !!}
                             </div>
                             {{--                                    操作--}}
                             <div class="col-md-12">

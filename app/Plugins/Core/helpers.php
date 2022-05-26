@@ -1,7 +1,6 @@
 <?php
 
 use App\Plugins\Core\src\Lib\Authority\Authority;
-use App\Plugins\Core\src\Lib\ShortCode\ShortCode;
 use App\Plugins\Core\src\Lib\ShortCodeR\ShortCodeR;
 use DivineOmega\PHPSummary\SummaryTool;
 use JetBrains\PhpStorm\Pure;
@@ -203,12 +202,6 @@ if(!function_exists("markdown")){
     }
 }
 
-if(!function_exists("ShortCode")){
-    function ShortCode(): ShortCode
-    {
-        return new ShortCode();
-    }
-}
 
 if(!function_exists("ShortCodeR")){
     function ShortCodeR(): ShortCodeR

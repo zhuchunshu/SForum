@@ -28,7 +28,6 @@ class ShowTopic
         $xia = Topic::query()->where([['id','>',$id],['status','publish']])->select('title','id')->orderBy('id','asc')->first();
         $sx = ['shang' => $shang,'xia' => $xia];
         $comment_count = TopicComment::query()->where(['status' => 'publish','topic_id'=>$id])->count();
-        $this->session($data);
         $comment = null;
         // 评论分页数据
         if (get_options("comment_topic_show_type","default")==="default"){
@@ -38,14 +37,11 @@ class ShowTopic
                 ->orderBy("optimal","desc")
                 ->paginate(get_options("comment_page_count",15));
         }
-        return view('App::topic.show.show',['data' => $data,'get_topic' => $sx,'comment_count'=>$comment_count,'comment' => $comment,'comment_page' => $comment_page]);
+		// ContentParse data
+	    $parseData = [
+		    'topic' => $data,
+	    ];
+        return view('App::topic.show.show',['data' => $data,'get_topic' => $sx,'comment_count'=>$comment_count,'comment' => $comment,'comment_page' => $comment_page,'parseData' => $parseData]);
     }
-
-    public function session($data): void
-    {
-        if(!session()->has("view_topic_data")){
-            session()->set("view_topic_data","view.topic.".Str::random());
-        }
-        cache()->set(session()->get("view_topic_data"),$data,600);
-    }
+	
 }

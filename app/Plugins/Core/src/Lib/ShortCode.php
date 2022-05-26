@@ -27,9 +27,9 @@ class ShortCode
 	
 	// 回复可见
 	#[ShortCodeR(name:"reply")]
-	public function reply($match){
+	public function reply($match,ShortcodeInterface $s,$data){
 		$quanxian = false;
-		$topic_data = cache()->get(session()->get("view_topic_data"));
+		$topic_data = $data['topic'];
 		$topic_id = $topic_data->id;
 		if(auth()->check() && TopicComment::query()->where(['topic_id' => $topic_id, 'user_id' => auth()->id()])->exists()) {
 			$quanxian = true;

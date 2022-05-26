@@ -31,7 +31,7 @@
 
 {{--文章信息--}}
                     <article class="col-md-12 markdown" id="topic-content">
-                        {!! ShortCodeR()->topic()->handle($data->post->content) !!}
+                        {!! ContentParse()->parse($data->post->content,$parseData) !!}
                     </article>
 
                 </div>
