@@ -764,8 +764,16 @@ if(!function_exists("get_client_ip_data")){
 	 */
 	function get_client_ip_data($ip=null): array
 	{
-		$result = http('array')->get('http://ip.useragentinfo.com/json?ip='.$ip);
-		$result['pro']=$result['province'];
+		$result = http('array')->post('http://pro.ip-api.com/json/'.$ip."?fields=66842623&key=ipapiq9SFY1Ic4&lang=zh-CN",[
+			'fields'=>'66842623',
+			'key'=>'ipapiq9SFY1Ic4',
+			'lang'=>'zh-CN',
+		],[
+			'headers' => [
+				'Origin' => 'https://members.ip-api.com'
+			]
+		]);
+		$result['pro']=$result['regionName'];
 		return $result;
 	}
 }
