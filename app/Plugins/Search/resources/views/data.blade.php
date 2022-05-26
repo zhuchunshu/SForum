@@ -46,7 +46,7 @@
                                                                 @endif
                                                                 <div class="row">
                                                                     <div class="col-md-12 markdown home-article">
-                                                                        <span class="home-summary">{!! $data->content !!}</span>
+                                                                        <span class="home-summary">{!! content_brief($data->content,get_options("topic_brief_len",250)) !!}</span>
                                                                     </div>
                                                                 </div>
                                                             </a>
