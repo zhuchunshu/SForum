@@ -23,15 +23,21 @@
                 <div class="mb-3">
                     <label class="form-label">图标代码(svg)</label>
                     <textarea rows="3" v-model="icon" class="form-control"></textarea>
-                    <small><a href="https://tabler-icons.io/">https://tabler-icons.io/</a> 、<a href="https://icons.bootcss.com/">https://icons.bootcss.com/</a> </small>
+                    <small><a href="https://tabler-icons.io/">https://tabler-icons.io/</a> 、<a
+                                href="https://icons.bootcss.com/">https://icons.bootcss.com/</a> </small>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">权限(多选)</label>
-                    <select size="15" class="form-select" v-model="quanxian" multiple >
+                    <div class="row">
                         @foreach(Authority()->get() as $value)
-                            <option value="{{$value['name']}}">{{$value['description']}}</option>
+                            <div class="col-4">
+                                <label class="form-check form-switch">
+                                    <input v-model="quanxian" value="{{$value['name']}}" class="form-check-input" type="checkbox">
+                                    <span class="form-check-label">{{$value['description']}}</span>
+                                </label>
+                            </div>
                         @endforeach
-                    </select>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">{{__("app.permission value")}}</label>
@@ -44,6 +50,6 @@
 @endsection
 
 @section('scripts')
-    <script>var userClassId="{{ $id }}";</script>
+    <script>var userClassId = "{{ $id }}";</script>
     <script src="{{ mix("plugins/User/js/user.js") }}"></script>
 @endsection

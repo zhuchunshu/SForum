@@ -28,11 +28,16 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label"> 哪个用户组可使用此标签? </label>
-                    <select class="form-select" name="userClass[]" multiple size="8">
+                    <div class="row">
                         @foreach($userClass as $value)
-                            <option value="{{$value->name}}">{{$value->name}}</option>
+                            <div class="col-4">
+                                <label class="form-check form-switch">
+                                    <input name="userClass[]" value="{{$value['name']}}" class="form-check-input" type="checkbox">
+                                    <span class="form-check-label">{{$value['name']}}</span>
+                                </label>
+                            </div>
                         @endforeach
-                    </select>
+                    </div>
                     <small style="color:red">不选择则所有用户组都可用此标签</small>
                 </div>
                 <div class="mb-3">

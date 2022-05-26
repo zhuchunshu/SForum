@@ -27,11 +27,16 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">权限(多选)</label>
-                    <select class="form-select" v-model="quanxian" multiple size="15">
+                    <div class="row">
                         @foreach(Authority()->get() as $value)
-                            <option value="{{$value['name']}}">{{$value['description']}}</option>
+                            <div class="col-4">
+                                <label class="form-check form-switch">
+                                    <input v-model="quanxian" value="{{$value['name']}}" class="form-check-input" type="checkbox">
+                                    <span class="form-check-label">{{$value['description']}}</span>
+                                </label>
+                            </div>
                         @endforeach
-                    </select>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">{{__("app.permission value")}}</label>
