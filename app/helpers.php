@@ -651,8 +651,8 @@ if(!function_exists("get_num")){
 }
 
 // 已启动插件列表
-if(!function_exists("Plugins_EnList")){
-    function Plugins_EnList(){
+if(!function_exists("getEnPlugins")){
+    function getEnPlugins(){
         return (new Plugins())->getEnPlugins();
     }
 }

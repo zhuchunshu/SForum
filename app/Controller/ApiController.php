@@ -79,8 +79,10 @@ class ApiController
         cache()->delete("plugins.en");
 	    if(stripos(system_name(), "Linux") !== false){
 		    \Swoole\Coroutine\System::exec("yes yes | composer du");
+		    \Swoole\Coroutine\System::exec("yes yes | php CodeFec");
 	    }else{
 		    \Swoole\Coroutine\System::exec("composer du");
+		    \Swoole\Coroutine\System::exec("php CodeFec");
 	    }
         return Json_Api(200, true, ['msg' => "更新成功!"]);
     }
@@ -145,7 +147,7 @@ class ApiController
         if(!admin_auth()->check()){
             return Json_Api(401,false,['msg' => '无权限']);
         }
-        foreach (Plugins_EnList() as $name){
+        foreach (getEnPlugins() as $name){
             $this->AdminPluginMigrate($name);
         }
         return Json_Api(200, true, ['msg' => '资源迁移成功!']);

@@ -7,6 +7,7 @@ namespace App\Command;
 use App\CodeFec\Install;
 use Hyperf\Command\Annotation\Command;
 use Hyperf\Command\Command as HyperfCommand;
+use Hyperf\Utils\Arr;
 use Hyperf\Utils\Str;
 use Hyperf\Watcher\{Option,Watcher};
 use Psr\Container\ContainerInterface;
@@ -50,6 +51,9 @@ class StartCommand extends HyperfCommand
 		        'output' => $this->output,
 	        ]);
 	
+			// 复制文件
+			$this->copyFile();
+			
 	        $watcher->run();
         }else{
 	        $install = make(Install::class, [
@@ -60,4 +64,14 @@ class StartCommand extends HyperfCommand
 	        $install->run();
         }
     }
+	
+	private function copyFile(): void
+	{
+		foreach(Itf()->get('copyFile') as $file){
+			if(Arr::has($file, 'from') && Arr::has($file, 'to') && is_dir($file['from']) && is_dir($file['to'])) {
+				copy($file['from'],$file['to']);
+			}
+		}
+		$this->info('Copy File Successfully!');
+	}
 }

@@ -49,7 +49,7 @@ class RouteRefuseMiddleware implements MiddlewareInterface
         }else{
             return $handler->handle($request);
         }
-        if(is_dir(BASE_PATH . "/app/Plugins/" . $Plugin) && !in_array($Plugin, Plugins_EnList(), true)) {
+        if(is_dir(BASE_PATH . "/app/Plugins/" . $Plugin) && !in_array($Plugin, getEnPlugins(), true)) {
 	        return response()->json(Json_Api(500,false,'定义此路由的插件未启用'));
         }
 

@@ -45,7 +45,7 @@ class RewriteMiddleware implements MiddlewareInterface
 			}else{
 				return $handler->handle($request);
 			}
-			if(is_dir(BASE_PATH . "/app/Plugins/" . $Plugin) && !in_array($Plugin, Plugins_EnList(), true)) {
+			if(is_dir(BASE_PATH . "/app/Plugins/" . $Plugin) && !in_array($Plugin, getEnPlugins(), true)) {
 				return $handler->handle($request);
 			}
 			if (@$dispatched->handler->route === $data->route && $data->method===request()->getMethod()) {
@@ -65,7 +65,7 @@ class RewriteMiddleware implements MiddlewareInterface
 		    }else{
 			    return $handler->handle($request);
 		    }
-		    if(is_dir(BASE_PATH . "/app/Plugins/" . $Plugin) && !in_array($Plugin, Plugins_EnList(), true)) {
+		    if(is_dir(BASE_PATH . "/app/Plugins/" . $Plugin) && !in_array($Plugin, getEnPlugins(), true)) {
 			    return $handler->handle($request);
 		    }
 		    if (@$dispatched->handler->route === $data['annotation']->route &&  $data['annotation']->method===request()->getMethod()) {

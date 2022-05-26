@@ -139,7 +139,7 @@ class Upgrading
 	
 	private function AdminPluginMigrateAll(): void
 	{
-		foreach (Plugins_EnList() as $name){
+		foreach (getEnPlugins() as $name){
 			$plugin_name = $name;
 			
 			if (is_dir(plugin_path($plugin_name . "/resources/views")) && !is_dir(BASE_PATH . "/resources/views/plugins")) {
