@@ -46,6 +46,7 @@ class V2_0 extends HyperfCommand
 		if(file_exists(BASE_PATH."/app/CodeFec/storage/update/2_0.lock")){
 			$this->error('你已经运行过此升级命令了,安全起见,禁止再次运行此命令');
 			$this->line('如有问题,请到论坛反馈: https://runpod.cn');
+			return ;
 		}
 		$this->error('执行前一定要备份数据库 !!!');
 		$this->error('Make sure to backup the database before executing !!!');
