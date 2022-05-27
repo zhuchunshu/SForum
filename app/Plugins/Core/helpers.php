@@ -370,3 +370,18 @@ if(!function_exists("core_get_page")){
     }
 }
 
+if(!function_exists("emoji_add")){
+	/**
+	 * @param string $name emoji name
+	 * @param string $emoji emoji json path
+	 * @param string $type emoji name
+	 * @throws Exception
+	 */
+	function emoji_add(string $name,string $emoji,string $type='text'){
+		Itf()->add('emoji',random_int(2,99212),[
+			'name' => $name,
+			'emoji' => $emoji,
+			'type' => $type
+		]);
+	}
+}
