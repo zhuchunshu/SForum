@@ -6,7 +6,7 @@ namespace App\Plugins\Core\src\Lib;
 
 class Redirect
 {
-    public string $url;
+    private string $url;
 
     public function url($url): Redirect
     {

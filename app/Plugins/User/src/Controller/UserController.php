@@ -22,9 +22,12 @@ class UserController
      */
     #[GetMapping(path:"/users")]
     public function list(){
-        $count = User::query()->count();
-        $page = User::query()->paginate(20);
-        return view("User::list",['page' => $page,'count'=>$count]);
+        if(auth()->check()){
+	        $count = User::query()->count();
+	        $page = User::query()->paginate(20);
+	        return view("User::list",['page' => $page,'count'=>$count]);
+        }
+		return redirect()->url('/')->with('danger','权限不足')->go();
     }
 
     /**
