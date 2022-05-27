@@ -1,4 +1,7 @@
 <?php
+
+use App\Plugins\User\src\Models\UsersSetting;
+
 if(!function_exists("auth")){
     function auth(): \App\Plugins\User\src\Auth
     {
@@ -88,5 +91,23 @@ if(!function_exists("user_settings_clear")){
 		foreach(\App\Plugins\User\src\Models\UsersSetting::query()->where('user_id',$user_id)->get() as $value){
 			cache()->delete('user.settings.'.$user_id.'.'.$value->name);
 		}
+	}
+}
+
+if(!function_exists("set_user_settings")){
+	function set_user_settings(int $user_id,array $data){
+		
+		if(!is_array($data)){
+			return ;
+		}
+		
+		foreach ($data as $key=>$value){
+			if(UsersSetting::query()->where(['user_id'=>$user_id,'name' => $key])->exists()){
+				UsersSetting::query()->where(['user_id'=>$user_id,'name' => $key])->update(['value' => $value]);
+			}else{
+				UsersSetting::query()->create(['user_id'=>$user_id,'name' => $key, 'value' => $value]);
+			}
+		}
+		user_settings_clear($user_id);
 	}
 }

@@ -3,6 +3,7 @@
 namespace App\Plugins\Core\src\Controller\User;
 
 use App\Plugins\Core\src\Handler\AvatarUpload;
+use App\Plugins\Core\src\Handler\UploadHandler;
 use App\Plugins\Core\src\Request\User\Mydata\AvatarRequest;
 use App\Plugins\Core\src\Request\User\Mydata\JibenRequest;
 use App\Plugins\Core\src\Request\User\Mydata\OptionsRequest;
@@ -157,5 +158,21 @@ HTML;
         user_notice()->update($user_id,$arr);
         return redirect()->url('/user/setting')->with("success","更新成功!")->go();
     }
+	
+	#[PostMapping(path:"/user/setbackgroundImg")]
+	public function setBackgroundImg(UploadHandler $uploader){
+		if(!request()->hasFile('backgroundImg')){
+			return redirect()->url('/user/setting?m=userSetting_3')->with('danger','背景图片上传失败!')->go();
+		}
+		$file = $uploader->save(request()->file('backgroundImg'),'backgroundImg/',auth()->id(),1200);
+		$path = $file['path'] ?: null;
+		if($path){
+			set_user_settings(auth()->id(),[
+				'backgroundImg' => $path
+			]);
+			return redirect()->url('/user/setting?m=userSetting_3')->with('success','背景图片修改成功')->go();
+		}
+		return redirect()->url('/user/setting?m=userSetting_3')->with('danger','背景图片修改失败!')->go();
+	}
 
 }
