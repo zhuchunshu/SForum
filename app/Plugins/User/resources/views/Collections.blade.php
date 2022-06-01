@@ -128,7 +128,7 @@
                                                                 </blockquote>
                                                             </div>
                                                         @endif
-                                                        {!! ShortCodeR()->handle(get_topic_comment($value->type_id)->post->content) !!}
+                                                            {!!CommentContentParse()->parse(get_topic_comment($value->type_id)->post->content,['comment' => get_topic_comment($value->type_id),'topic' =>get_topic_comment($value->type_id)->topic,'RemoveshortCode' => ['topic-comment']]) !!}
                                                     </div>
 
 
