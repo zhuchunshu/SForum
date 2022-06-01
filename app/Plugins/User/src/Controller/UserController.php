@@ -41,8 +41,8 @@ class UserController
         if(!User::query()->where("username",$username)->count()){
             return admin_abort("用户名为:".$username."的用户不存在");
         }
-        $data = User::query()->with("Class","Options")->where("username",$username)->first();
-        return view("User::data",['data'=>$data]);
+        $user = User::query()->where("username",$username)->first();
+        return view("User::data",['user'=>$user]);
     }
 
     #[GetMapping(path:"/users/group/{id}.html")]

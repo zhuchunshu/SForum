@@ -147,6 +147,9 @@ class ApiController
             return Json_Api(401,false,['msg' => '未登录!']);
         }
 
+		if(!User::query()->where('id',$user_id)->exists()){
+			return Json_Api(401,false,['msg' =>'用户不存在!']);
+		}
         // 禁止关注自己
         if($user_id==auth()->id()){
             return Json_Api(401,false,['msg' => '不能关注自己']);
@@ -154,7 +157,6 @@ class ApiController
 
         if(UserFans::query()->where(['user_id'=>$user_id,'fans_id' => auth()->id()])->exists()){
             UserFans::query()->where(['user_id'=>$user_id,'fans_id' => auth()->id()])->delete();
-            User::query()->where("id",$user_id)->decrement("fans",1);
 			
 			// 发送取关通知
             user_notice()->send($user_id,
@@ -163,7 +165,6 @@ class ApiController
             );
             return Json_Api(201,true,['msg' =>'已取关!']);
         }
-        User::query()->where("id",$user_id)->increment("fans",1);
         UserFans::query()->create(['user_id'=>$user_id,'fans_id' => auth()->id()]);
 		
 		// 发送通知
@@ -172,7 +173,7 @@ class ApiController
 		    view("User::notice.userfollow",['user' => auth()->data()])
 	    );
 		
-        return Json_Api(200,true,['msg' =>'已关注!']);
+        return Json_Api(200,true,['msg' =>'已关注']);
     }
 
     // 查询关注状态

@@ -4,6 +4,9 @@ declare (strict_types=1);
 namespace App\Plugins\User\src\Models;
 
 use App\Model\Model;
+use App\Plugins\Comment\src\Model\TopicComment;
+use App\Plugins\Topic\src\Models\Topic;
+use App\Plugins\Topic\src\Models\TopicTag;
 use Carbon\Carbon;
 
 /**
@@ -54,7 +57,48 @@ class User extends Model
         return $this->belongsTo(UserClass::class,"class_id","id");
     }
 
-    public function Options(){
+	
+    public function options(){
         return $this->belongsTo(UsersOption::class,"options_id","id");
     }
+	
+	/**
+	 * 获取用户的评论
+	 * @return \Hyperf\Database\Model\Relations\HasMany
+	 */
+	public function comments(){
+		return $this->hasMany(TopicComment::class,"user_id","id");
+	}
+	
+	/**
+	 * 获取用户的话题
+	 * @return \Hyperf\Database\Model\Relations\HasMany
+	 */
+	public function topic(){
+		return $this->hasMany(Topic::class,"user_id","id");
+	}
+	
+	/**
+	 * 收藏
+	 * @return \Hyperf\Database\Model\Relations\HasMany
+	 */
+	public function collections(){
+		return $this->hasMany(UsersCollection::class,"user_id","id");
+	}
+	
+	/**
+	 * 粉丝
+	 * @return \Hyperf\Database\Model\Relations\HasMany
+	 */
+	public function fan(){
+		return $this->hasMany(UserFans::class,"user_id","id");
+	}
+	
+	/**
+	 * 主题标签
+	 * @return \Hyperf\Database\Model\Relations\HasMany
+	 */
+	public function tags(){
+		return $this->hasMany(TopicTag::class,"user_id","id");
+	}
 }

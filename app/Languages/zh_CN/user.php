@@ -13,4 +13,15 @@ return [
 	'no bio' => '这个人没有签名',
 	'personal website' => '个人网站',
 	'other information' => '其他信息',
+	'register time' => '注册时间',
+	'comment count' => '评论数量',
+	'topic count' => '主题数量',
+	'collection count' => '收藏数量',
+	'fans count' => '粉丝数量',
+	'topic tag count' => '标签数量',
+	'QQ' => 'QQ',
+	'wechat' => '微信',
+	'email' => '邮箱',
+	'website' => '网站',
+	'wealth' => '财富'
 ];

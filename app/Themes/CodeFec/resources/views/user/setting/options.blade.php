@@ -22,7 +22,7 @@
                                     @include($value['view'])
                                 </div>
                             @else
-                                <div id="{{$$key}}" class="border-0 card tab-pane">
+                                <div id="{{$key}}" class="border-0 card tab-pane">
                                     @include($value['view'])
                                 </div>
                             @endif
