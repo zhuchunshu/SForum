@@ -1,155 +1,60 @@
 @extends("App::app")
-
-@foreach(Itf()->get('users_home_menu') as $key => $value)
+@foreach(Itf()->get('users_notices') as $key => $value)
     @if($key === request()->input('m',key(Itf()->get('users_notices'))))
-        @section('title',$value['name'].' | '.'「'.$user->username.'」')
-@endif
+        @section('title',$value['name'].' | 我的通知')
+    @endif
 @endforeach
-@section('description', '为您展示本站「'.$user->username.'」用户的信息')
-@section('keywords', '为您展示本站「'.$user->username.'」用户的信息')
-
-
 @section('content')
-
     <div class="row row-cards">
 
-        <div class="col-md-12">
-            <div class="border-0 card">
-                <a href="{{get_user_settings($user->id,'backgroundImg','https://images.unsplash.com/photo-1653185053677-26b081c1a214?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1632&q=80')}}"
-                   class="card-cover card-cover-blurred"
-                   style="background-image: url({{get_user_settings($user->id,'backgroundImg','https://images.unsplash.com/photo-1653185053677-26b081c1a214?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1632&q=80')}});min-height: 200px">
-
-                </a>
-                <div class="card-body ms-1">
-                    <div class="row">
-                        <div class="col">
-                            <div class="row">
-                                <div class="col-auto text-center">
-                                    <span class="avatar avatar-xl avatar-thumb text-light border-2 border-wide rounded"
-                                          style="background-image: url({{super_avatar($user)}});margin-top:-70px"></span>
-                                    <div>
-                                        <span class="card-title mb-1"
-                                              style="font-size: 25px;display: inline">{{$user->username}}</span>
-                                        <a href="/users/group/{{$user->class_id}}.html" class="badge badge-outline"
-                                           style="color: {{$user->Class->color}}">{{$user->Class->name}}</a>
-                                    </div>
-                                    <div class="text-muted">{{$user->options->qianming}}</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-auto text-center">
-                            <a class="btn btn-outline-primary mt-1 mb-3" user-click="user_follow"
-                               user-id="{{ $user->id }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user-plus"
-                                     width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                     fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                    <circle cx="9" cy="7" r="4"></circle>
-                                    <path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"></path>
-                                    <path d="M16 11h6m-3 -3v6"></path>
-                                </svg>
-                                <span>关注</span>
-                            </a>
-                            <br>
-                            <div class="btn btn-outline-primary" user-click="user_follow" user-id="{{ $data->id }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-send"
-                                     width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                     fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                    <desc>Download more icon variants from https://tabler-icons.io/i/send</desc>
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                                    <path d="M21 3l-6.5 18a0.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a0.55 .55 0 0 1 0 -1l18 -6.5"></path>
-                                </svg>
-                                <span>发私信</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="border-0 card">
                 <div class="card-body">
                     <ul class="nav nav-pills nav-vertical">
-                        @foreach(Itf()->get('users_home_menu') as $key => $value)
-                            @if($value['quanxian']!==null)
-                                @if(call_user_func($value['quanxian'])===true)
-                                    <li class="nav-item">
-                                        <a href="?m={{$key}}"
-                                           @if(request()->input('m',key(Itf()->get('users_home_menu')))===$key) class="row nav-link active"
-                                           @else class="row nav-link" @endif>
-                                            <div class="col">
-                                                {!! $value['icon'] !!}
-                                                {{$value['name']}}
-                                            </div>
-                                            <div class="col-auto">
-                                                <svg xmlns="http://www.w3.org/2000/svg"
-                                                     class="icon icon-tabler icon-tabler-chevron-right" width="24"
-                                                     height="24" viewBox="0 0 24 24" stroke-width="2"
-                                                     stroke="currentColor" fill="none" stroke-linecap="round"
-                                                     stroke-linejoin="round">
-                                                    <desc>Download more icon variants from
-                                                        https://tabler-icons.io/i/chevron-right
-                                                    </desc>
-                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                                    <polyline points="9 6 15 12 9 18"></polyline>
-                                                </svg>
-                                            </div>
-                                        </a>
-                                    </li>
-                                @endif
-                            @else
-                                <li class="nav-item">
-                                    <a href="?m={{$key}}"
-                                       @if(request()->input('m',key(Itf()->get('users_home_menu')))===$key) class="row nav-link active"
-                                       @else class="row nav-link" @endif>
-                                        <div class="col">
-                                            {!! $value['icon'] !!}
-                                            {{$value['name']}}
-                                        </div>
-                                        <div class="col-auto">
-                                            <svg xmlns="http://www.w3.org/2000/svg"
-                                                 class="icon icon-tabler icon-tabler-chevron-right" width="24"
-                                                 height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                 fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <desc>Download more icon variants from
-                                                    https://tabler-icons.io/i/chevron-right
-                                                </desc>
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                                <polyline points="9 6 15 12 9 18"></polyline>
-                                            </svg>
-                                        </div>
-                                    </a>
-                                </li>
-                            @endif
+                        @foreach(Itf()->get('users_notices') as $key => $value)
+                            <li class="nav-item">
+                                <a href="?m={{$key}}"
+                                   @if(request()->input('m',key(Itf()->get('users_notices')))===$key) class="row nav-link active"
+                                   @else class="row nav-link" @endif>
+                                    <div class="col">
+                                        {!! $value['icon'] !!}
+                                        {{$value['name']}}
+                                    </div>
+                                    <div class="col-auto">
+                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                             class="icon icon-tabler icon-tabler-chevron-right" width="24"
+                                             height="24" viewBox="0 0 24 24" stroke-width="2"
+                                             stroke="currentColor" fill="none" stroke-linecap="round"
+                                             stroke-linejoin="round">
+                                            <desc>Download more icon variants from
+                                                https://tabler-icons.io/i/chevron-right
+                                            </desc>
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                            <polyline points="9 6 15 12 9 18"></polyline>
+                                        </svg>
+                                    </div>
+                                </a>
+                            </li>
                         @endforeach
                     </ul>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-9">
+        <div class="col-md-10">
             @php $view=null; @endphp
-            @foreach(Itf()->get('users_home_menu') as $key => $value)
-                @if($key === request()->input('m',key(Itf()->get('users_home_menu'))))
-                    @if($value['quanxian']!==null)
-                        @if(call_user_func($value['quanxian'])===true)
-                            @php $view=$value['view']; @endphp
-                        @endif
-                    @else
-                        @php $view=$value['view']; @endphp
-                    @endif
+            @foreach(Itf()->get('users_notices') as $key => $value)
+                @if($key === request()->input('m',key(Itf()->get('users_notices'))))
+                    @php $view=$value['view']; @endphp
                 @endif
             @endforeach
             @if($view)
-                @include($view,['user' => $user])
+                @include($view)
             @else
                 <div class="border-0 card">
                     <div class="card-body">
                         <div class="text-center justify-content-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" id="currentIllo"
-                                 data-name="Layer 1"
+                            <svg xmlns="http://www.w3.org/2000/svg"  width="400" height="400" id="currentIllo" data-name="Layer 1"
                                  viewBox="0 0 860.13137 571.14799"
                                  class="injected-svg DownloadModal__ImageFile-sc-p17csy-5 iIfSkb grid_media"
                                  xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -222,12 +127,33 @@
                 </div>
             @endif
         </div>
+
     </div>
+@endsection
 
-    <style>
-        {{get_user_settings($user->id,'home_css_code')}}
-    </style>
+@section('header')
+    <div class="page-wrapper">
+        <div class="container-xl">
+            <!-- Page title -->
+            <div class="page-header d-print-none">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <!-- Page pre-title -->
+                        <div class="page-pretitle">
+                            Overview
+                        </div>
+                        <h2 class="page-title">
+                            {{__("user.notice list")}}
+                        </h2>
+                    </div>
+                    <div class="col-auto">
+                        <button user-click="notice_allread" class="btn btn-outline-dark">{{__("user.clean notice")}}</button>
+                    </div>
 
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('scripts')

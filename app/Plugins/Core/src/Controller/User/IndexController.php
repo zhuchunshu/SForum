@@ -111,9 +111,9 @@ class IndexController
 
     // 个人通知
     #[GetMapping(path:"/user/notice")]
-    public function notice(){
-        $page = UsersNotice::query()->where(['user_id'=>auth()->id(),'status' => 'publish'])->orderByDesc('created_at')->paginate(15);
-        return view("User::notice",['page' => $page]);
+    public function notice(): ResponseInterface
+    {
+		return redirect()->url('/notice')->go();
     }
     // 个人收藏
     #[GetMapping(path:"/user/collections")]

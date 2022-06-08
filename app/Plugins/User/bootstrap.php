@@ -59,6 +59,17 @@ Itf()->add('users_settings',1,[
 	'view' => 'User::setting.user.code'
 ]);
 
+Itf()->add('users_settings',2,[
+	'name' => '私信设置',
+	'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <desc>Download more icon variants from https://tabler-icons.io/i/messages</desc>
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M21 14l-3 -3h-7a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1h9a1 1 0 0 1 1 1v10"></path>
+   <path d="M14 15v2a1 1 0 0 1 -1 1h-7l-3 3v-10a1 1 0 0 1 1 -1h2"></path>
+</svg>',
+	'view' => 'User::setting.user.message'
+]);
+
 
 
 
@@ -145,4 +156,41 @@ Itf()->add('users_home_menu',6,[
 </svg>',
 	'view' => 'User::home.collections',
 	'quanxian' => null,
+]);
+
+Itf()->add('users_notices',1,[
+	'name' => '互动通知',
+	'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-arrows-right-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <desc>Download more icon variants from https://tabler-icons.io/i/arrows-right-left</desc>
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <line x1="21" y1="7" x2="3" y2="7"></line>
+   <path d="M18 10l3 -3l-3 -3"></path>
+   <path d="M6 20l-3 -3l3 -3"></path>
+   <line x1="3" y1="17" x2="21" y2="17"></line>
+</svg>',
+	'view' => 'User::notice.interactive',
+]);
+
+Itf()->add('users_notices',2,[
+	'name' => '系统通知',
+	'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-bell-ringing" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <desc>Download more icon variants from https://tabler-icons.io/i/bell-ringing</desc>
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"></path>
+   <path d="M9 17v1a3 3 0 0 0 6 0v-1"></path>
+   <path d="M21 6.727a11.05 11.05 0 0 0 -2.794 -3.727"></path>
+   <path d="M3 6.727a11.05 11.05 0 0 1 2.792 -3.727"></path>
+</svg>',
+	'view' => 'User::notice.system',
+]);
+
+Itf()->add('users_notices',3,[
+	'name' => '私信通知',
+	'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-messages" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <desc>Download more icon variants from https://tabler-icons.io/i/messages</desc>
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M21 14l-3 -3h-7a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1h9a1 1 0 0 1 1 1v10"></path>
+   <path d="M14 15v2a1 1 0 0 1 -1 1h-7l-3 3v-10a1 1 0 0 1 1 -1h2"></path>
+</svg>',
+	'view' => 'User::notice.pm',
 ]);
