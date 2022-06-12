@@ -36,12 +36,15 @@
     @include("App::layouts.themes.header-".get_options('core_theme_header',1))
     @include("App::layouts.errors")
     @include("App::layouts._msg")
-    @yield('header')
-    <div id="{{ path_class() }}-page" class="page-body">
-        <div class="container-xl">
-            @yield('content')
+    <div id="{{ path_class() }}-page">
+        @yield('header')
+        <div class="page-body">
+            <div class="container-xl">
+                @yield('content')
+            </div>
         </div>
     </div>
+
     @include("App::layouts.themes.footer-".get_options('core_theme_footer',1))
     <script src='/js/jquery-3.6.0.min.js'></script>
     <script src="{{ mix('js/vue.js') }}"></script>
