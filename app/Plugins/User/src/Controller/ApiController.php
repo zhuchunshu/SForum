@@ -94,7 +94,12 @@ class ApiController
         }
 
         // 通知小红点
-        $notice_red = UsersNotice::query()->where(["user_id"=>auth()->id(),"status" => 'publish'])->exists();
+	    $notice_red = 0;
+	    foreach(Itf()->get('users_notices') as $value){
+			if(@$value['count'] && is_callable($value['count']) && call_user_func($value['count'],auth()->id())>0){
+			    $notice_red += call_user_func($value['count'], auth()->id());
+			}
+	    }
 
         $config = [
             'notice_red' => $notice_red,

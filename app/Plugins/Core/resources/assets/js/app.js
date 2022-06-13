@@ -3739,7 +3739,7 @@ $(function () {
     data = data.result; // 通知小红点
 
     if (document.getElementById("core-notice-red")) {
-      if (data.notice_red === true) {
+      if (data.notice_red > 0) {
         $("#core-notice-red").show();
       }
     }

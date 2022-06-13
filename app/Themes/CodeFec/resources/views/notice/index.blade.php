@@ -22,6 +22,10 @@
                                             {{$value['name']}}
                                         </div>
                                         <div class="col-auto">
+                                            @php $msgCount = call_user_func($value['count'],auth()->id()); @endphp
+                                            @if(is_callable($value['count']) && $msgCount>0)
+                                                <span class="badge badge-sm badge-pill bg-red">{{$msgCount}}</span>
+                                            @endif
                                             <svg xmlns="http://www.w3.org/2000/svg"
                                                  class="icon icon-tabler icon-tabler-chevron-right" width="24"
                                                  height="24" viewBox="0 0 24 24" stroke-width="2"

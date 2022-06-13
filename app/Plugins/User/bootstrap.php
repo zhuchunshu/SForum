@@ -1,6 +1,8 @@
 <?php
 
 // 设置邮件验证白名单路径
+use App\Plugins\User\src\Models\UsersNotice;
+
 Itf()->add("authMiddleware",1,"api*");
 Itf()->add("authMiddleware",2,"admin*");
 Itf()->add("authMiddleware",3,"logout");
@@ -175,6 +177,9 @@ Itf()->add('users_notices',1,[
    <line x1="3" y1="17" x2="21" y2="17"></line>
 </svg>',
 	'view' => 'User::notice.interactive',
+	'count' => function($user_id){
+		return UsersNotice::query()->where(["user_id"=>$user_id,"status" => 'publish'])->count();
+	}
 ]);
 
 //Itf()->add('users_notices',2,[
@@ -199,4 +204,7 @@ Itf()->add('users_notices',3,[
    <path d="M14 15v2a1 1 0 0 1 -1 1h-7l-3 3v-10a1 1 0 0 1 1 -1h2"></path>
 </svg>',
 	'view' => 'User::notice.pm',
+	'count' => function($user_id){
+		return \App\Plugins\User\src\Models\UsersPm::query()->where('to_id',$user_id)->where('read',false)->count();
+	}
 ]);

@@ -35,23 +35,10 @@ class Pm extends BaseNamespace
 	#[Event("join-room")]
 	public function onJoinRoom(Socket $socket, $data)
 	{
-		// 将当前用户加入房间
-		$socket->join($data);
-		// 向房间内其他用户推送（不含当前用户）
-		$socket->to($data)->emit('event', $socket->getSid() . "has joined {$data}");
-		// 向房间内所有人广播（含当前用户）
-		$this->emit('event', 'There are ' . count($socket->getAdapter()->clients($data)) . " players in {$data}");
+		return $this->getMsg($socket,$data);
 	}
 	
-	/**
-	 * @param string $data
-	 */
-	#[Event("say")]
-	public function onSay(Socket $socket, $data)
-	{
-		$data = Json::decode($data);
-		$socket->to($data['room'])->emit('event', $socket->getSid() . " say: {$data['message']}");
-	}
+	
 	
 	#[Event('getMsg')]
 	public function getMsg(Socket $socket,$data)
@@ -64,7 +51,7 @@ class Pm extends BaseNamespace
 			return ;
 		}
 		$auth = UsersAuth::query()->where('token',$token)->first()->user;
-		UsersPm::query()->where('to_id',$auth->id)->update(['read' => false]);
+		UsersPm::query()->where('to_id',$auth->id)->where('from_id',$to_id)->update(['read' => true]);
 		\App\Plugins\User\src\Models\UsersPm::query()->where(['from_id'=>$to_id,'to_id' => $auth->id])->update(['read' => true]);
 		$msg = UsersPm::query(true)->where([['from_id',$auth->id],['to_id',$to_id]])->Orwhere([['to_id',$auth->id],['from_id',$to_id]])->count();
 		return $socket->emit('getMsg', $msg);
@@ -92,7 +79,6 @@ class Pm extends BaseNamespace
 			'to_id' => $to_id,
 			'message' => $data['msg']
 		]);
-		UsersPm::query()->where('to_id',$auth->id)->update(['read' => true]);
 		$msg = UsersPm::query(true)->where([['from_id',$auth->id],['to_id',$to_id]])->Orwhere([['to_id',$auth->id],['from_id',$to_id]])->count();
 		return $socket->emit('getMsg', $msg);
 		

@@ -227,8 +227,9 @@ if (document.getElementById('user-pm-container')) {
               icon: "error"
             });
             return;
-          } //this.socket.emit('join-room', '{"token":"'+ _token+'","to_id":"'+to_id+'"}');
+          }
 
+          _this4.socket.emit('join-room', '{"token":"' + _token + '","to_id":"' + to_id + '"}');
 
           setInterval(function () {
             _this4.socket.emit('getMsg', '{"token":"' + _token + '","to_id":"' + to_id + '"}');

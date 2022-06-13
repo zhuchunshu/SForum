@@ -211,7 +211,7 @@ if(document.getElementById('user-pm-container')){
                         })
                         return ;
                     }
-                    //this.socket.emit('join-room', '{"token":"'+ _token+'","to_id":"'+to_id+'"}');
+                    this.socket.emit('join-room', '{"token":"'+ _token+'","to_id":"'+to_id+'"}');
                     setInterval(()=>{
                         this.socket.emit('getMsg','{"token":"'+ _token+'","to_id":"'+to_id+'"}');
                         this.socket.on('getMsg',(data)=>{
