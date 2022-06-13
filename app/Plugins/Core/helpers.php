@@ -374,7 +374,7 @@ if(!function_exists("emoji_add")){
 	/**
 	 * @param string $name emoji name
 	 * @param string $emoji emoji json path
-	 * @param string $type emoji name
+	 * @param string $type emoji type emoji | image | emoticon(颜文字)
 	 * @throws Exception
 	 */
 	function emoji_add(string $name,string $emoji,string $type='text'){

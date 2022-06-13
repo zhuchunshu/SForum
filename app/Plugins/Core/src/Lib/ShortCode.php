@@ -50,14 +50,14 @@ class ShortCode
 	
 	// 密码可见
 	#[ShortCodeR(name:"password")]
-	public function password($match,ShortcodeInterface $s){
+	public function password($match,ShortcodeInterface $s,$d){
 		$s->getContent();
 		if(!@$match[1] || !@$match[2]){
 			return '[password]标签用法错误!';
 		}
 		$password = $s->getParameter('password');
 		$data = $s->getContent();
-		$topic_data = cache()->get(session()->get("view_topic_data"));
+		$topic_data = $d['topic'];
 		if((string)request()->input('view-password',null)===$password || @(int)$topic_data->user_id===auth()->id()){
 			return view("Topic::ShortCode.password-show",['data' => $data]);
 		}

@@ -30,7 +30,7 @@ return [
             ],
         ],
         [
-            'name' => 'websocket',
+            'name' => 'socket-io',
             'type' => ServerInterface::SERVER_WEBSOCKET,
             'host' => (string) env('SERVER_WEB_DOMAIN','0.0.0.0'),
             'port' => (int) env('SERVER_WS_PORT', 9502),

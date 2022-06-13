@@ -1,5 +1,6 @@
 <div class="row row-cards">
 
+    @if($user->options->qq && $user->options->wx && $user->options->website && $user->options->email)
     <div class="col-12">
         <div class="border-0 card card-body">
             <dl class="row">
@@ -23,6 +24,7 @@
             </dl>
         </div>
     </div>
+    @endif
 
     <div class="col-12">
 

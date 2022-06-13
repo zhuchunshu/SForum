@@ -22,7 +22,61 @@ class Emoji
 		}
 		$emojis = [];
 		foreach($emoji as $data) {
-			if(!Arr::has($data, 'type') || @$data['type'] !== 'img') {
+			$allEmoji = Config::load($data['emoji'])->all() ?: [];
+			$allEmojis = [];
+			switch ($data['type']) {
+				case 'emoji':
+					foreach($allEmoji as $k => $v) {
+						$allEmojis[] = [
+							'icon' => $k,
+							'text' => $k
+						];
+					}
+					break;
+				case 'image':
+					foreach($allEmoji as $k => $v) {
+						$allEmojis[] = [
+							'icon' => '<img alt="' .$k . '" width="' . get_options("contentParse_owo_width", 25) . '" height="' . get_options("contentParse_owo_height", 25) . '" src="' . $v . '" />',
+							'text' => "::".$data['name'].":".$k."::"
+						];
+					}
+					break;
+				default:
+					foreach($allEmoji as $k => $v) {
+						$allEmojis[] = [
+							'icon' => $v,
+							'text' => $v
+						];
+					}
+					break;
+			}
+			if(is_array($allEmojis) && count($allEmojis)) {
+				$emojis[$data['name']] = [
+					'type' => $data['type'],
+					'container' => $allEmojis
+				];
+			}
+		}
+		return $emojis;
+		
+	}
+	
+	/**
+	 * 获取所有图片表情
+	 * @return array
+	 */
+	public function getImg(): array
+	{
+		$all = Itf()->get('emoji') ?: [];
+		$emoji = [];
+		foreach($all as $data) {
+			if(Arr::has($data, 'name') && Arr::has($data, 'emoji') && file_exists($data['emoji'])) {
+				$emoji[] = $data;
+			}
+		}
+		$emojis = [];
+		foreach($emoji as $data) {
+			if(!Arr::has($data, 'type') || @$data['type'] !== 'image') {
 				$allEmoji = Config::load($data['emoji'])->all() ?: [];
 				if(is_array($allEmoji) && count($allEmoji)) {
 					$emojis['text'][$data['name']] = $allEmoji;
@@ -44,11 +98,8 @@ class Emoji
 		return (new \Zhuchunshu\EmojiParse\Emoji())->parse($content, function($match) {
 			$name = $match[1];
 			$emoji = $match[2];
-			if(get_options('contentParse_owo_text', '开启') === "开启" && Arr::has($this->get(), 'text') && Arr::has($this->get()['text'], $name) && Arr::has($this->get()['text'][$name], $emoji)) {
-				return $this->get()['text'][$name][$emoji];
-			}
-			if(get_options('contentParse_owo_img', '开启') === "开启" && Arr::has($this->get(), 'img') && Arr::has($this->get()['img'], $name) && Arr::has($this->get()['img'][$name], $emoji)) {
-				return '<img alt="' . $match[0] . '" width="' . get_options("contentParse_owo_width", 25) . '" height="' . get_options("contentParse_owo_height", 25) . '" src="' . $this->get()['img'][$name][$emoji] . '" />';
+			if(get_options('contentParse_owo_img', '开启') === "开启") {
+				return '<img alt="' . $match[0] . '" width="' . get_options("contentParse_owo_width", 25) . '" height="' . get_options("contentParse_owo_height", 25) . '" src="' . $this->getImg()['image'][$name][$emoji] . '" />';
 			}
 			return $match[0];
 		});

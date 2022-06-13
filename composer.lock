@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5c5e3e99e043eec17a3547e6139253ae",
+    "content-hash": "4524e7b65c327dee5ad2171901f32743",
     "packages": [
         {
             "name": "alchemy/zippy",
@@ -75,6 +75,83 @@
             "time": "2021-04-13T14:13:44+00:00"
         },
         {
+            "name": "astrotomic/php-twemoji",
+            "version": "0.2.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Astrotomic/php-twemoji.git",
+                "reference": "960bc12c1e156a21a869efdb9045ed42f54a2c6c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Astrotomic/php-twemoji/zipball/960bc12c1e156a21a869efdb9045ed42f54a2c6c",
+                "reference": "960bc12c1e156a21a869efdb9045ed42f54a2c6c",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "ext-mbstring": "*",
+                "php": "^7.4 || ^8.0"
+            },
+            "require-dev": {
+                "pestphp/pest": "^0.3.0",
+                "s9e/regexp-builder": "^1.4",
+                "spatie/emoji": "^2.3.0",
+                "spatie/pest-plugin-snapshots": "^1.0"
+            },
+            "suggest": {
+                "spatie/emoji": "*"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Astrotomic\\Twemoji\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Tom Witkowski",
+                    "email": "gummibeer@astrotomic.info",
+                    "homepage": "https://astrotomic.info",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Easily generate Twemoji URLs",
+            "homepage": "https://github.com/Astrotomic/php-twemoji",
+            "keywords": [
+                "emoji",
+                "twemoji",
+                "unicode"
+            ],
+            "support": {
+                "issues": "https://github.com/Astrotomic/php-twemoji/issues",
+                "source": "https://github.com/Astrotomic/php-twemoji/tree/0.2.2"
+            },
+            "funding": [
+                {
+                    "url": "https://forest.astrotomic.info",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/Gummibeer",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/SarahSibert",
+                    "type": "github"
+                },
+                {
+                    "url": "https://issuehunt.io/r/astrotomic",
+                    "type": "issuehunt"
+                }
+            ],
+            "time": "2022-02-05T09:04:00+00:00"
+        },
+        {
             "name": "bandwidth-throttle/token-bucket",
             "version": "2.0.0",
             "source": {
@@ -133,6 +210,58 @@
                 "source": "https://github.com/bandwidth-throttle/token-bucket/tree/master"
             },
             "time": "2017-10-13T19:09:01+00:00"
+        },
+        {
+            "name": "divineomega/php-summary",
+            "version": "v3.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/DivineOmega/php-summary.git",
+                "reference": "0307a38f8050e2aa7b979271ab6f226d01ea4ecb"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/DivineOmega/php-summary/zipball/0307a38f8050e2aa7b979271ab6f226d01ea4ecb",
+                "reference": "0307a38f8050e2aa7b979271ab6f226d01ea4ecb",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1"
+            },
+            "require-dev": {
+                "php-coveralls/php-coveralls": "^2.1",
+                "phpunit/phpunit": "^7.0 || ^8.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.0-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "DivineOmega\\PHPSummary\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-3.0-only"
+            ],
+            "description": "PHP Summarization Library",
+            "homepage": "https://github.com/DivineOmega/php-summary",
+            "keywords": [
+                "library",
+                "php",
+                "summarization",
+                "summarization library",
+                "summarizing",
+                "summary"
+            ],
+            "support": {
+                "issues": "https://github.com/DivineOmega/php-summary/issues",
+                "source": "https://github.com/DivineOmega/php-summary/tree/v3.0.0"
+            },
+            "time": "2020-06-24T22:16:52+00:00"
         },
         {
             "name": "doctrine/annotations",
@@ -920,6 +1049,107 @@
                 }
             ],
             "time": "2021-10-11T09:18:27+00:00"
+        },
+        {
+            "name": "erusev/parsedown",
+            "version": "1.7.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/erusev/parsedown.git",
+                "reference": "cb17b6477dfff935958ba01325f2e8a2bfa6dab3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/erusev/parsedown/zipball/cb17b6477dfff935958ba01325f2e8a2bfa6dab3",
+                "reference": "cb17b6477dfff935958ba01325f2e8a2bfa6dab3",
+                "shasum": ""
+            },
+            "require": {
+                "ext-mbstring": "*",
+                "php": ">=5.3.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^4.8.35"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-0": {
+                    "Parsedown": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Emanuil Rusev",
+                    "email": "hello@erusev.com",
+                    "homepage": "http://erusev.com"
+                }
+            ],
+            "description": "Parser for Markdown.",
+            "homepage": "http://parsedown.org",
+            "keywords": [
+                "markdown",
+                "parser"
+            ],
+            "support": {
+                "issues": "https://github.com/erusev/parsedown/issues",
+                "source": "https://github.com/erusev/parsedown/tree/1.7.x"
+            },
+            "time": "2019-12-30T22:54:17+00:00"
+        },
+        {
+            "name": "ezyang/htmlpurifier",
+            "version": "v4.14.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ezyang/htmlpurifier.git",
+                "reference": "12ab42bd6e742c70c0a52f7b82477fcd44e64b75"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ezyang/htmlpurifier/zipball/12ab42bd6e742c70c0a52f7b82477fcd44e64b75",
+                "reference": "12ab42bd6e742c70c0a52f7b82477fcd44e64b75",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.2"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "library/HTMLPurifier.composer.php"
+                ],
+                "psr-0": {
+                    "HTMLPurifier": "library/"
+                },
+                "exclude-from-classmap": [
+                    "/library/HTMLPurifier/Language/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-2.1-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Edward Z. Yang",
+                    "email": "admin@htmlpurifier.org",
+                    "homepage": "http://ezyang.com"
+                }
+            ],
+            "description": "Standards compliant HTML filter written in PHP",
+            "homepage": "http://htmlpurifier.org/",
+            "keywords": [
+                "html"
+            ],
+            "support": {
+                "issues": "https://github.com/ezyang/htmlpurifier/issues",
+                "source": "https://github.com/ezyang/htmlpurifier/tree/v4.14.0"
+            },
+            "time": "2021-12-25T01:21:49+00:00"
         },
         {
             "name": "fig/http-message-util",
@@ -3295,6 +3525,64 @@
             "time": "2022-04-03T10:50:03+00:00"
         },
         {
+            "name": "hyperf/socketio-server",
+            "version": "v2.2.33",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/hyperf/socketio-server.git",
+                "reference": "e0bc67397f64cbe419f011b4cdbdceff1f78a48e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/hyperf/socketio-server/zipball/e0bc67397f64cbe419f011b4cdbdceff1f78a48e",
+                "reference": "e0bc67397f64cbe419f011b4cdbdceff1f78a48e",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "ext-redis": "*",
+                "ext-swoole": ">=4.4",
+                "hyperf/di": "~2.2.0",
+                "hyperf/redis": "~2.2.0",
+                "hyperf/websocket-server": "~2.2.0",
+                "mix/redis-subscribe": "^2.1",
+                "php": ">=7.2"
+            },
+            "suggest": {
+                "hyperf/command": "Required to use RemoveRedisGarbage command",
+                "hyperf/nsq": "Required to use RedisNsqAdapter",
+                "hyperf/session": "Required to use session"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.2-dev"
+                },
+                "hyperf": {
+                    "config": "Hyperf\\SocketIOServer\\ConfigProvider"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Hyperf\\SocketIOServer\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Socket.io implementation for hyperf",
+            "keywords": [
+                "hyperf",
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/hyperf/socketio-server/issues",
+                "source": "https://github.com/hyperf/socketio-server/tree/v2.2.33"
+            },
+            "time": "2022-05-24T13:10:54+00:00"
+        },
+        {
             "name": "hyperf/translation",
             "version": "v2.2.13",
             "source": {
@@ -3965,6 +4253,90 @@
             "time": "2022-05-24T13:49:53+00:00"
         },
         {
+            "name": "intervention/image",
+            "version": "2.7.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Intervention/image.git",
+                "reference": "04be355f8d6734c826045d02a1079ad658322dad"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Intervention/image/zipball/04be355f8d6734c826045d02a1079ad658322dad",
+                "reference": "04be355f8d6734c826045d02a1079ad658322dad",
+                "shasum": ""
+            },
+            "require": {
+                "ext-fileinfo": "*",
+                "guzzlehttp/psr7": "~1.1 || ^2.0",
+                "php": ">=5.4.0"
+            },
+            "require-dev": {
+                "mockery/mockery": "~0.9.2",
+                "phpunit/phpunit": "^4.8 || ^5.7 || ^7.5.15"
+            },
+            "suggest": {
+                "ext-gd": "to use GD library based image processing.",
+                "ext-imagick": "to use Imagick based image processing.",
+                "intervention/imagecache": "Caching extension for the Intervention Image library"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.4-dev"
+                },
+                "laravel": {
+                    "providers": [
+                        "Intervention\\Image\\ImageServiceProvider"
+                    ],
+                    "aliases": {
+                        "Image": "Intervention\\Image\\Facades\\Image"
+                    }
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Intervention\\Image\\": "src/Intervention/Image"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Oliver Vogel",
+                    "email": "oliver@intervention.io",
+                    "homepage": "https://intervention.io/"
+                }
+            ],
+            "description": "Image handling and manipulation library with support for Laravel integration",
+            "homepage": "http://image.intervention.io/",
+            "keywords": [
+                "gd",
+                "image",
+                "imagick",
+                "laravel",
+                "thumbnail",
+                "watermark"
+            ],
+            "support": {
+                "issues": "https://github.com/Intervention/image/issues",
+                "source": "https://github.com/Intervention/image/tree/2.7.2"
+            },
+            "funding": [
+                {
+                    "url": "https://paypal.me/interventionio",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/Intervention",
+                    "type": "github"
+                }
+            ],
+            "time": "2022-05-21T17:30:32+00:00"
+        },
+        {
             "name": "jetbrains/phpstorm-stubs",
             "version": "v2021.3",
             "source": {
@@ -4413,6 +4785,58 @@
             "time": "2018-07-07T18:43:25+00:00"
         },
         {
+            "name": "mix/redis-subscribe",
+            "version": "v2.2.16",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mix-php/redis-subscribe.git",
+                "reference": "85ac4516791e584f3cebee6e4ae2383067bd1517"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mix-php/redis-subscribe/zipball/85ac4516791e584f3cebee6e4ae2383067bd1517",
+                "reference": "85ac4516791e584f3cebee6e4ae2383067bd1517",
+                "shasum": ""
+            },
+            "require": {
+                "ext-swoole": ">=4.4.4",
+                "php": ">=7.0.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^7.0.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Mix\\Redis\\Subscribe\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "liu,jian",
+                    "email": "coder.keda@gmail.com"
+                }
+            ],
+            "description": "Redis subscribe library based on Swoole coroutine",
+            "homepage": "https://openmix.org/",
+            "keywords": [
+                "mix",
+                "redis",
+                "subscribe",
+                "swoole"
+            ],
+            "support": {
+                "issues": "https://github.com/mix-php/redis-subscribe/issues",
+                "source": "https://github.com/mix-php/redis-subscribe/tree/v2.2.16"
+            },
+            "abandoned": "mix/redis-subscriber",
+            "time": "2020-10-26T09:06:52+00:00"
+        },
+        {
             "name": "monolog/monolog",
             "version": "2.5.0",
             "source": {
@@ -4510,6 +4934,53 @@
                 }
             ],
             "time": "2022-04-08T15:43:54+00:00"
+        },
+        {
+            "name": "multiavatar/multiavatar-php",
+            "version": "v1.0.5",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/multiavatar/multiavatar-php.git",
+                "reference": "13a62a656b1c2ca1c62dee57b4c1d8a3b04e6574"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/multiavatar/multiavatar-php/zipball/13a62a656b1c2ca1c62dee57b4c1d8a3b04e6574",
+                "reference": "13a62a656b1c2ca1c62dee57b4c1d8a3b04e6574",
+                "shasum": ""
+            },
+            "type": "library",
+            "autoload": {
+                "classmap": [
+                    "Multiavatar.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "Gie Katon",
+                    "homepage": "https://giekaton.com"
+                }
+            ],
+            "description": "Multicultural Avatar Generator",
+            "homepage": "https://multiavatar.com",
+            "keywords": [
+                "avatar",
+                "creator",
+                "generator",
+                "image",
+                "maker",
+                "picture",
+                "profile"
+            ],
+            "support": {
+                "issues": "https://github.com/multiavatar/multiavatar-php/issues",
+                "source": "https://github.com/multiavatar/multiavatar-php/tree/v1.0.5"
+            },
+            "time": "2021-03-02T07:33:46+00:00"
         },
         {
             "name": "nesbot/carbon",
@@ -4940,6 +5411,84 @@
                 "source": "https://github.com/PHP-DI/PhpDocReader/tree/2.2.1"
             },
             "time": "2020-10-12T12:39:22+00:00"
+        },
+        {
+            "name": "phpmailer/phpmailer",
+            "version": "v6.6.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/PHPMailer/PHPMailer.git",
+                "reference": "e43bac82edc26ca04b36143a48bde1c051cfd5b1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/PHPMailer/PHPMailer/zipball/e43bac82edc26ca04b36143a48bde1c051cfd5b1",
+                "reference": "e43bac82edc26ca04b36143a48bde1c051cfd5b1",
+                "shasum": ""
+            },
+            "require": {
+                "ext-ctype": "*",
+                "ext-filter": "*",
+                "ext-hash": "*",
+                "php": ">=5.5.0"
+            },
+            "require-dev": {
+                "dealerdirect/phpcodesniffer-composer-installer": "^0.7.0",
+                "doctrine/annotations": "^1.2",
+                "php-parallel-lint/php-console-highlighter": "^0.5.0",
+                "php-parallel-lint/php-parallel-lint": "^1.3.1",
+                "phpcompatibility/php-compatibility": "^9.3.5",
+                "roave/security-advisories": "dev-latest",
+                "squizlabs/php_codesniffer": "^3.6.2",
+                "yoast/phpunit-polyfills": "^1.0.0"
+            },
+            "suggest": {
+                "ext-mbstring": "Needed to send email in multibyte encoding charset or decode encoded addresses",
+                "hayageek/oauth2-yahoo": "Needed for Yahoo XOAUTH2 authentication",
+                "league/oauth2-google": "Needed for Google XOAUTH2 authentication",
+                "psr/log": "For optional PSR-3 debug logging",
+                "stevenmaguire/oauth2-microsoft": "Needed for Microsoft XOAUTH2 authentication",
+                "symfony/polyfill-mbstring": "To support UTF-8 if the Mbstring PHP extension is not enabled (^1.2)"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "PHPMailer\\PHPMailer\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-2.1-only"
+            ],
+            "authors": [
+                {
+                    "name": "Marcus Bointon",
+                    "email": "phpmailer@synchromedia.co.uk"
+                },
+                {
+                    "name": "Jim Jagielski",
+                    "email": "jimjag@gmail.com"
+                },
+                {
+                    "name": "Andy Prevost",
+                    "email": "codeworxtech@users.sourceforge.net"
+                },
+                {
+                    "name": "Brent R. Matzelle"
+                }
+            ],
+            "description": "PHPMailer is a full-featured email creation and transfer class for PHP",
+            "support": {
+                "issues": "https://github.com/PHPMailer/PHPMailer/issues",
+                "source": "https://github.com/PHPMailer/PHPMailer/tree/v6.6.0"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/Synchro",
+                    "type": "github"
+                }
+            ],
+            "time": "2022-02-28T15:31:21+00:00"
         },
         {
             "name": "phpoption/phpoption",
@@ -7381,6 +7930,62 @@
             "time": "2022-04-26T13:22:23+00:00"
         },
         {
+            "name": "thunderer/shortcode",
+            "version": "v0.7.5",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/thunderer/Shortcode.git",
+                "reference": "a4fee30613bd46efb421f8305aff0466a3268a99"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/thunderer/Shortcode/zipball/a4fee30613bd46efb421f8305aff0466a3268a99",
+                "reference": "a4fee30613bd46efb421f8305aff0466a3268a99",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.3"
+            },
+            "require-dev": {
+                "phpunit/phpunit": ">=4.1",
+                "symfony/yaml": ">=2.0"
+            },
+            "suggest": {
+                "ext-dom": "if you want to use XML serializer",
+                "ext-json": "if you want to use JSON serializer",
+                "symfony/yaml": "if you want to use YAML serializer"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Thunder\\Shortcode\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Tomasz Kowalczyk",
+                    "email": "tomasz@kowalczyk.cc"
+                }
+            ],
+            "description": "Advanced shortcode (BBCode) parser and engine for PHP",
+            "keywords": [
+                "bbcode",
+                "engine",
+                "library",
+                "parser",
+                "shortcode"
+            ],
+            "support": {
+                "issues": "https://github.com/thunderer/Shortcode/issues",
+                "source": "https://github.com/thunderer/Shortcode/tree/v0.7.5"
+            },
+            "time": "2022-01-13T18:53:33+00:00"
+        },
+        {
             "name": "vlucas/phpdotenv",
             "version": "v5.4.1",
             "source": {
@@ -7586,6 +8191,144 @@
                 "source": "https://github.com/wikimedia/composer-merge-plugin/tree/v2.0.1"
             },
             "time": "2021-02-24T05:28:06+00:00"
+        },
+        {
+            "name": "xemlock/htmlpurifier-html5",
+            "version": "v0.1.11",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/xemlock/htmlpurifier-html5.git",
+                "reference": "f0d563f9fd4a82a3d759043483f9a94c0d8c2255"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/xemlock/htmlpurifier-html5/zipball/f0d563f9fd4a82a3d759043483f9a94c0d8c2255",
+                "reference": "f0d563f9fd4a82a3d759043483f9a94c0d8c2255",
+                "shasum": ""
+            },
+            "require": {
+                "ezyang/htmlpurifier": "^4.8",
+                "php": ">=5.2"
+            },
+            "require-dev": {
+                "php-coveralls/php-coveralls": "^1.1|^2.1",
+                "phpunit/phpunit": ">=4.7 <8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "classmap": [
+                    "library/HTMLPurifier/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "xemlock",
+                    "email": "xemlock@gmail.com"
+                }
+            ],
+            "description": "HTML5 element definitions for HTML Purifier",
+            "keywords": [
+                "HTML5",
+                "Purifier",
+                "html",
+                "htmlpurifier",
+                "security",
+                "tidy",
+                "validator",
+                "xss"
+            ],
+            "support": {
+                "issues": "https://github.com/xemlock/htmlpurifier-html5/issues",
+                "source": "https://github.com/xemlock/htmlpurifier-html5/tree/master"
+            },
+            "time": "2019-08-07T17:19:21+00:00"
+        },
+        {
+            "name": "yurunsoft/phpmailer-swoole",
+            "version": "v1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Yurunsoft/PHPMailer-Swoole.git",
+                "reference": "ec09ff66f6e9eb8b94b8574545357dc52e91c0a5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Yurunsoft/PHPMailer-Swoole/zipball/ec09ff66f6e9eb8b94b8574545357dc52e91c0a5",
+                "reference": "ec09ff66f6e9eb8b94b8574545357dc52e91c0a5",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.0",
+                "phpmailer/phpmailer": "~6.0"
+            },
+            "require-dev": {
+                "swoft/swoole-ide-helper": "~2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/PHPMailer/functions.php"
+                ],
+                "psr-4": {
+                    "PHPMailer\\PHPMailer\\": "src/PHPMailer",
+                    "Yurun\\Util\\Swoole\\PHPMailer\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "LGPL-2.1"
+            ],
+            "description": "PHPMailer 支持 Swoole 协程环境",
+            "support": {
+                "issues": "https://github.com/Yurunsoft/PHPMailer-Swoole/issues",
+                "source": "https://github.com/Yurunsoft/PHPMailer-Swoole/tree/master"
+            },
+            "time": "2019-10-24T07:46:26+00:00"
+        },
+        {
+            "name": "zhuchunshu/emoji-parse",
+            "version": "v1.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/zhuchunshu/php-emoji-Parse.git",
+                "reference": "15a8099dfe427d2809587c60f96c0234bac693fe"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/zhuchunshu/php-emoji-Parse/zipball/15a8099dfe427d2809587c60f96c0234bac693fe",
+                "reference": "15a8099dfe427d2809587c60f96c0234bac693fe",
+                "shasum": ""
+            },
+            "require": {
+                "astrotomic/php-twemoji": "^0.2.2",
+                "php": ">=7.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Zhuchunshu\\EmojiParse\\": "src/Emoji"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "zhuchunshu",
+                    "email": "laravel@88.com"
+                }
+            ],
+            "description": "emoji parse",
+            "support": {
+                "issues": "https://github.com/zhuchunshu/php-emoji-Parse/issues",
+                "source": "https://github.com/zhuchunshu/php-emoji-Parse/tree/v1.0.1"
+            },
+            "time": "2022-05-25T12:29:06+00:00"
         },
         {
             "name": "zhuchunshu/hyperf-hashing",
@@ -11196,5 +11939,5 @@
         "ext-json": "*"
     },
     "platform-dev": [],
-    "plugin-api-version": "2.3.0"
+    "plugin-api-version": "2.0.0"
 }

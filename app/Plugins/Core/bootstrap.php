@@ -30,3 +30,6 @@ Itf()->add("core_auth_selected","comment_caina","comment_caina");
 Itf()->add("core_auth_selected","topic_delete","topic_delete");
 Itf()->add("core_auth_selected","report_topic","report_topic");
 Itf()->add("core_auth_selected","report_comment","report_comment");
+
+emoji_add('小黄脸',plugin_path('Core/resources/assets/emoji/小黄脸.json'),'image');
+

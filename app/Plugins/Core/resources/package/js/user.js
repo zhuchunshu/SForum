@@ -121,7 +121,7 @@ $('button[user-click="notice_allread"]').click(function(){
 
 $(function () {
     // 关注用户
-    $('a[user-click="user_follow"]').click(function(){
+    $('*[user-click="user_follow"]').click(function(){
         var user_id = $(this).attr("user-id")
         var th = $(this)
         axios.post("/api/user/userfollow",{

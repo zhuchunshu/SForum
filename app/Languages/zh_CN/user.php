@@ -23,5 +23,5 @@ return [
 	'wechat' => '微信',
 	'email' => '邮箱',
 	'website' => '网站',
-	'wealth' => '财富'
+	'wealth' => '财富',
 ];

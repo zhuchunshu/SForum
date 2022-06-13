@@ -50,9 +50,6 @@ class StartCommand extends HyperfCommand
 		        'option' => $option,
 		        'output' => $this->output,
 	        ]);
-	
-			// 复制文件
-			$this->copyFile();
 			
 	        $watcher->run();
         }else{
@@ -65,13 +62,4 @@ class StartCommand extends HyperfCommand
         }
     }
 	
-	private function copyFile(): void
-	{
-		foreach(Itf()->get('copyFile') as $file){
-			if(Arr::has($file, 'from') && Arr::has($file, 'to') && is_dir($file['from']) && is_dir($file['to'])) {
-				copy($file['from'],$file['to']);
-			}
-		}
-		$this->info('Copy File Successfully!');
-	}
 }

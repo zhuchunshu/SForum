@@ -20,4 +20,12 @@ return [
 	'turn off' => '关闭',
 	'default' => '默认: :default',
 	'current' => '当前: :current',
+	'user' => [
+		'pm' => [
+			'msg maxlength' => '消息最大长度',
+			'msg reserve' => '消息保留时长'
+		]
+	],
+	'is reserved forever' => ':reserve 为永久保留',
+	'Unit:day' => "单位:天"
 ];

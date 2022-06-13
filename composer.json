@@ -39,6 +39,7 @@
         "hyperf/rate-limit": "^2.2",
         "hyperf/redis": "2.2.*",
         "hyperf/session": "2.2.*",
+        "hyperf/socketio-server": "^2.2",
         "hyperf/translation": "^2.2",
         "hyperf/validation": "2.2.*",
         "hyperf/view": "2.2.*",

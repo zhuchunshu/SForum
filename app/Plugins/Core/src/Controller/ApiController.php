@@ -7,6 +7,7 @@ use App\Plugins\Core\src\Request\Report\CreateRequest;
 use App\Plugins\User\src\Lib\UserNotice;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
+use Hyperf\HttpServer\Annotation\RequestMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
 
 #[Controller(prefix:"/api/core")]
@@ -157,5 +158,12 @@ class ApiController
 		}
 		session()->set('theme',request()->input('theme'));
 		return Json_Api(200,true,['msg' => '切换成功!']);
+	}
+	
+	// 获取所有emoji
+	#[RequestMapping(path:"OwO.json")]
+	public function emoji(){
+		$all = (new \App\Plugins\Core\src\Lib\Emoji())->get();
+		return $all;
 	}
 }
