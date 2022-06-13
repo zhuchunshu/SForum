@@ -77,7 +77,7 @@ class Pm extends BaseNamespace
 		UsersPm::query()->create([
 			'from_id' => $auth->id,
 			'to_id' => $to_id,
-			'message' => $data['msg']
+			'message' => htmlspecialchars($data['msg'])
 		]);
 		$msg = UsersPm::query(true)->where([['from_id',$auth->id],['to_id',$to_id]])->Orwhere([['to_id',$auth->id],['from_id',$to_id]])->count();
 		return $socket->emit('getMsg', $msg);
