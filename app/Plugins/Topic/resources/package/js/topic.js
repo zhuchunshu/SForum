@@ -1079,40 +1079,42 @@ $(function(){
 })
 
 
-const author = {
-    data(){
-        return {
-            'user':{
-                'city':null,
+if(document.getElementById("author")){
+    const author = {
+        data(){
+            return {
+                'user':{
+                    'city':null,
+                }
+            }
+        },
+        mounted(){
+            this.getUserCity();
+        },
+        methods:{
+            // 获取作者所在城市
+            getUserCity(){
+                axios.post("/api/topic/get.user",{
+                    _token:csrf_token,
+                    topic_id:topic_id
+                }).then(r=>{
+                    this.user = r.data.result;
+                }).catch(e=>{
+                    iziToast.error({
+                        title: 'Error',
+                        message:"请求出错,详细查看控制台",
+                        position:"topRight"
+                    })
+                    console.error(e)
+                })
             }
         }
-    },
-    mounted(){
-        this.getUserCity();
-    },
-    methods:{
-        // 获取作者所在城市
-        getUserCity(){
-            axios.post("/api/topic/get.user",{
-                _token:csrf_token,
-                topic_id:topic_id
-            }).then(r=>{
-                this.user = r.data.result;
-            }).catch(e=>{
-                iziToast.error({
-                    title: 'Error',
-                    message:"请求出错,详细查看控制台",
-                    position:"topRight"
-                })
-                console.error(e)
-            })
-        }
+
+
     }
 
-
+    Vue.createApp(author).mount('#author');
 }
-
-Vue.createApp(author).mount('#author');
 
 
 // 加载评论作者IP归属地

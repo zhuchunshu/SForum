@@ -8907,39 +8907,43 @@ $(function () {
     });
   });
 });
-var author = {
-  data: function data() {
-    return {
-      'user': {
-        'city': null
-      }
-    };
-  },
-  mounted: function mounted() {
-    this.getUserCity();
-  },
-  methods: {
-    // 获取作者所在城市
-    getUserCity: function getUserCity() {
-      var _this11 = this;
 
-      axios__WEBPACK_IMPORTED_MODULE_2___default().post("/api/topic/get.user", {
-        _token: csrf_token,
-        topic_id: topic_id
-      }).then(function (r) {
-        _this11.user = r.data.result;
-      })["catch"](function (e) {
-        izitoast__WEBPACK_IMPORTED_MODULE_3___default().error({
-          title: 'Error',
-          message: "请求出错,详细查看控制台",
-          position: "topRight"
+if (document.getElementById("author")) {
+  var author = {
+    data: function data() {
+      return {
+        'user': {
+          'city': null
+        }
+      };
+    },
+    mounted: function mounted() {
+      this.getUserCity();
+    },
+    methods: {
+      // 获取作者所在城市
+      getUserCity: function getUserCity() {
+        var _this11 = this;
+
+        axios__WEBPACK_IMPORTED_MODULE_2___default().post("/api/topic/get.user", {
+          _token: csrf_token,
+          topic_id: topic_id
+        }).then(function (r) {
+          _this11.user = r.data.result;
+        })["catch"](function (e) {
+          izitoast__WEBPACK_IMPORTED_MODULE_3___default().error({
+            title: 'Error',
+            message: "请求出错,详细查看控制台",
+            position: "topRight"
+          });
+          console.error(e);
         });
-        console.error(e);
-      });
+      }
     }
-  }
-};
-Vue.createApp(author).mount('#author'); // 加载评论作者IP归属地
+  };
+  Vue.createApp(author).mount('#author');
+} // 加载评论作者IP归属地
+
 
 $(function () {
   var comments = [];

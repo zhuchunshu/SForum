@@ -1,6 +1,5 @@
 import axios from "axios";
 import iziToast from "izitoast";
-import Fancybox from "@fancyapps/ui";
 import swal from "sweetalert";
 import copy from 'copy-to-clipboard';
 

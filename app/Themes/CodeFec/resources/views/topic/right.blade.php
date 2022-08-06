@@ -14,7 +14,7 @@
                             <a data-bs-toggle="tooltip" data-bs-placement="top" title="{{$data->user->class->name}}" href="/users/group/{{$data->user->class->id}}.html" style="color:{{$data->user->class->color}}">
                                 <span>{!! $data->user->class->icon !!}</span>
                             </a></b>
-                        <span class="text-center" style="color:rgba(0,0,0,.45)">共 {{$data->user->fans}} 位粉丝</span>
+                        <span class="text-center" style="color:rgba(0,0,0,.45)">共 {{$data->user->fan->count()}} 位粉丝</span>
                         <br>
                     </div>
                 </div>

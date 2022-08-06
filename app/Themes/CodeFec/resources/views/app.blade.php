@@ -50,9 +50,6 @@
     <script src="{{ mix('js/vue.js') }}"></script>
     <script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
     <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
-    @if (get_options('theme_common_require_mithril', 'yes') !== 'no')
-        <script src="{{ mix('plugins/Core/js/mithril.js') }}"></script>
-    @endif
     <script src="{{ mix('plugins/Core/js/app.js') }}"></script>
     <script src="{{ file_hash('js/diy.js') }}"></script>
     {{-- <!-- 自定义Js --> --}}
