@@ -3,7 +3,7 @@ import axios from "axios";
 import iziToast from "izitoast";
 import copy from 'copy-to-clipboard';
 import Swal from "sweetalert2";
-import methods from "codemirror/src/edit/methods";
+
 
 if(document.getElementById("create-topic-vue")){
     const create_topic_vue = {
@@ -17,6 +17,7 @@ if(document.getElementById("create-topic-vue")){
                         mode:"editor"
                     }
                 },
+                emoji:null,
                 options:{
                     summary:'',
                 },
@@ -39,30 +40,30 @@ if(document.getElementById("create-topic-vue")){
                 this.vditor.updateValue("[reply]"+md+"[/reply]")
             },
             edit_mode(){
-              if(this.edit.mode==="ir"){
-                  this.edit.mode="wysiwyg"
-                  this.init()
-              }else{
-                  if(this.edit.mode==="wysiwyg"){
-                      this.edit.mode="sv"
-                      this.edit.preview.mode="editor";
-                      this.init()
-                  }else{
-                      if(this.edit.mode==="sv"){
-                          if(this.edit.preview.mode==="editor"){
-                              this.edit.mode="sv"
-                              this.edit.preview.mode="both";
-                              this.init()
-                          }else{
-                              if(this.edit.preview.mode==="both"){
-                                  this.edit.mode="ir"
-                                  this.edit.preview.mode="editor";
-                                  this.init()
-                              }
-                          }
-                      }
-                  }
-              }
+                if(this.edit.mode==="ir"){
+                    this.edit.mode="wysiwyg"
+                    this.init()
+                }else{
+                    if(this.edit.mode==="wysiwyg"){
+                        this.edit.mode="sv"
+                        this.edit.preview.mode="editor";
+                        this.init()
+                    }else{
+                        if(this.edit.mode==="sv"){
+                            if(this.edit.preview.mode==="editor"){
+                                this.edit.mode="sv"
+                                this.edit.preview.mode="both";
+                                this.init()
+                            }else{
+                                if(this.edit.preview.mode==="both"){
+                                    this.edit.mode="ir"
+                                    this.edit.preview.mode="editor";
+                                    this.init()
+                                }
+                            }
+                        }
+                    }
+                }
 
                 iziToast.show({
                     title: 'success',
@@ -292,6 +293,13 @@ if(document.getElementById("create-topic-vue")){
                 const md = this.vditor.getValue();
                 this.vditor.setValue("[toc]\n"+md)
             },
+
+            selectEmoji(emoji){
+                emoji = " "+ emoji + " "
+                this.vditor.insertValue(emoji)
+                this.vditor.tip("表情插入成功!")
+            },
+
             init(){
                 // tags
 
@@ -323,7 +331,6 @@ if(document.getElementById("create-topic-vue")){
                     },
                     mode: this.edit.mode,
                     toolbar: [
-                        "emoji",
                         "headings",
                         "bold",
                         "italic",
@@ -418,7 +425,8 @@ if(document.getElementById("create-topic-vue")){
                     select:(md) => {
 
 
-                    }
+                    },
+
                 });
             },
 
@@ -502,6 +510,12 @@ if(document.getElementById("edit-topic-vue")){
                 const md = this.vditor.getSelection();
                 this.vditor.updateValue("[reply]"+md+"[/reply]")
             },
+            selectEmoji(emoji){
+                emoji = " "+ emoji + " "
+                this.vditor.insertValue(emoji)
+                this.vditor.tip("表情插入成功!")
+            },
+
             async edit_with_files() {
                 const {value: formValues} = await Swal.fire({
                     title: '添加附件',
@@ -783,7 +797,6 @@ if(document.getElementById("edit-topic-vue")){
                     },
                     mode: this.edit.mode,
                     toolbar: [
-                        "emoji",
                         "headings",
                         "bold",
                         "italic",
