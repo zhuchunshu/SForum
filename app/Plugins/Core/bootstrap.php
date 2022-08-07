@@ -20,6 +20,8 @@ Authority()->add("topic_delete","删除自己帖子");
 Authority()->add("report_topic","举报帖子");
 Authority()->add("report_comment","举报评论");
 Authority()->add("admin_report","受理举报");
+Authority()->add("upload_file","上传附件");
+Authority()->add("upload_image","上传图片");
 
 Itf()->add("core_auth_selected","topic_edit","topic_edit");
 Itf()->add("core_auth_selected","topic_create","topic_create");
@@ -32,4 +34,3 @@ Itf()->add("core_auth_selected","report_topic","report_topic");
 Itf()->add("core_auth_selected","report_comment","report_comment");
 
 emoji_add('小黄脸',plugin_path('Core/resources/assets/emoji/小黄脸.json'),'image');
-

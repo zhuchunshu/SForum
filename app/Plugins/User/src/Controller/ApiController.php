@@ -3,6 +3,7 @@
 
 namespace App\Plugins\User\src\Controller;
 
+use App\Plugins\Core\src\Handler\FileUpload;
 use App\Plugins\Core\src\Handler\UploadHandler;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserFans;
@@ -11,7 +12,6 @@ use App\Plugins\User\src\Models\UsersNotice;
 use App\Plugins\User\src\Models\UsersSetting;
 use App\Plugins\User\src\Models\UserUpload;
 use Hyperf\HttpServer\Annotation\Controller;
-use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
 use Hyperf\Utils\Arr;
@@ -23,17 +23,43 @@ class ApiController
     #[PostMapping(path:"/user/upload/image")]
     public function up_image(UploadHandler $uploader){
         $data = [];
+	    if(!Authority()->check('upload_file')){
+		    return Json_Api(401,false,['msg' => '你所在的用户组无权上传图片']);
+	    }
         foreach (request()->file('file') as $key => $file) {
-            $result = $uploader->save($file, 'topic', auth()->id());
-            if ($result) {
-                $url = $result['path'];
-                $data['data']['succMap'][$url]=$url;
-            } else {
-                array_push((array)$data['data']['errFiles'],$key);
-            }
+			if($file->getSize()>get_options('core_user_up_img_size',2048)){
+				$result = $uploader->save($file, 'topic', auth()->id());
+				if ($result) {
+					$url = $result['path'];
+					$data['data']['succMap'][$url]=$url;
+				} else {
+					(array)$data['data']['errFiles'][] = $key;
+				}
+			}
         }
         return $data;
     }
+	
+	#[PostMapping(path:"/user/upload/file")]
+	public function up_file(FileUpload $uploader){
+		$data = [];
+		if(!Authority()->check('upload_file')){
+			return Json_Api(401,false,['msg' => '你所在的用户组无权上传文件']);
+		}
+		foreach (request()->file('file') as $key => $file) {
+			if($file->getSize()>get_options('core_user_up_file_size',4096)){
+				$result = $uploader->save($file, 'topic', auth()->id());
+				if ($result) {
+					$url = $result['path'];
+					$data['data']['succMap'][$url]=$url;
+				} else {
+					(array)$data['data']['errFiles'][] = $key;
+				}
+			}
+		}
+		return $data;
+	}
+	
     #[PostMapping(path:"/api/user/@user_list")]
     public function user_list(): array
     {
