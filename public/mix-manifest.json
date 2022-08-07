@@ -10,13 +10,13 @@
     "/js/admin/setting.js": "/js/admin/setting.js?id=4d166aebaf24daa9b1ee",
     "/js/admin/index.js": "/js/admin/index.js?id=c2c9328910e506c96687",
     "/plugins/Core/js/user.js": "/plugins/Core/js/user.js?id=8fac803a867bafc9e978",
-    "/plugins/Core/js/app.js": "/plugins/Core/js/app.js?id=309d58ecd1d1bddee38a",
-    "/plugins/Topic/js/topic.js": "/plugins/Topic/js/topic.js?id=7ebb10bb402031d47f5d",
+    "/plugins/Core/js/app.js": "/plugins/Core/js/app.js?id=80695f1ab9af41cd3fc4",
+    "/plugins/Topic/js/topic.js": "/plugins/Topic/js/topic.js?id=3baca879be58956db459",
     "/plugins/Comment/js/topic.js": "/plugins/Comment/js/topic.js?id=05be726469d11c840306",
     "/plugins/User/js/user.js": "/plugins/User/js/user.js?id=67d504d56c98f83c5f1e",
     "/plugins/User/js/pm.js": "/plugins/User/js/pm.js?id=f61ea2d0de0ec9c8b6a7",
-    "/plugins/Topic/js/core.js": "/plugins/Topic/js/core.js?id=61f5d6f724a396012443",
+    "/plugins/Topic/js/core.js": "/plugins/Topic/js/core.js?id=3c541c6e02c9073dd785",
     "/plugins/User/css/pm.css": "/plugins/User/css/pm.css?id=275ff7baed3f0ad596d9",
-    "/css/app.css": "/css/app.css?id=68b329da9893e34099c7",
-    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=42f1620841ee43bc00fb"
+    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=42f1620841ee43bc00fb",
+    "/css/app.css": "/css/app.css?id=c1d20cb85fd399794cbd"
 }

@@ -54,7 +54,7 @@
                 </a>
             @endif
             {{--                引用--}}
-            <a style="text-decoration:none;" core-click="quote-topic" topic-id="{{ $data->id }}"
+            <a style="text-decoration:none;" core-click="copy" copy-content="[topic topic_id={{$data->id}}]" message="短代码复制成功!"
                class="hvr-icon-bounce cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom"
                title="引用">
                 <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-blockquote" width="24"

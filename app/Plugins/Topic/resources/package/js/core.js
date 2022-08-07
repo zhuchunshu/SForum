@@ -232,19 +232,6 @@ $(function(){
 })
 
 
-$(function(){
-    // 引用帖子
-    $('a[core-click="quote-topic"]').click(function(){
-        const topic_id = $(this).attr("topic-id");
-        const shortCode="[topic="+topic_id+"][/topic]";
-        copy(shortCode);
-        iziToast.success({
-            title:"Success",
-            message:"已复制短代码!",
-            position:"topRight"
-        })
-    })
-})
 
 
 // 举报

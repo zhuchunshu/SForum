@@ -1,6 +1,8 @@
 import axios from "axios";
 import swal from "sweetalert";
 import iziToast from "izitoast";
+import copy from "copy-to-clipboard";
+
 
 
 if(document.getElementById("vue-header-right-my")){
@@ -176,6 +178,25 @@ $(function(){
                     position:"topRight"
                 })
             }
+        })
+    })
+})
+
+
+
+$(function(){
+    // 引用帖子
+    $('a[core-click="copy"]').click(function(){
+        const content= $(this).attr("copy-content")
+        copy(content);
+        var message = "复制成功";
+        if($(this).attr("message")){
+            message = $(this).attr("message")
+        }
+        iziToast.success({
+            title:"Success",
+            message: message,
+            position:"topRight"
         })
     })
 })

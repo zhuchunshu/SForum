@@ -14,10 +14,13 @@
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
     <link rel="stylesheet" href="{{mix("plugins/Core/css/core.css")}}">
     <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet" />
+    <link rel="stylesheet" href="{{mix('css/app.css')}}">
     <script>
         var csrf_token = "{{ recsrf_token() }}";
         var ws_url = "{{ws_url()}}";
         var _token = "{{auth()->token()}}";
+        var imageUpUrl = "/user/upload/image?_token={{ csrf_token() }}";
+        var fileUpUrl = "/user/upload/file?_token={{ csrf_token() }}";
     </script>
     <meta name="description" content="@yield('description',get_options('description'))">
     <meta name="keywords" content="@yield('keywords',get_options('keywords'))">

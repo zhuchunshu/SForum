@@ -48,7 +48,18 @@
                                 @if(count((new \App\Plugins\Core\src\Lib\Emoji())->get()))
                                     <div class="col-md-3">
                                         <div class="card">
-                                            <ul class="nav nav-tabs" data-bs-toggle="tabs">
+                                            <ul class="nav nav-tabs" data-bs-toggle="tabs" style="flex-wrap: inherit;
+        width: 100%;
+        height: 3.333333rem;
+        padding: 0.373333rem 0.32rem 0;
+        box-sizing: border-box;
+        /* 下面是实现横向滚动的关键代码 */
+        display: inline;
+        float: left;
+        white-space: nowrap;
+        overflow-x: scroll;
+        -webkit-overflow-scrolling: touch; /*解决在ios滑动不顺畅问题*/
+        overflow-y: hidden;">
                                                 @foreach((new \App\Plugins\Core\src\Lib\Emoji())->get() as $key => $value)
                                                     <li class="nav-item">
                                                         <a href="#emoji-list-{{$key}}" class="nav-link @if ($loop->first) active @endif" data-bs-toggle="tab">{{$key}}</a>
@@ -58,7 +69,7 @@
                                             <div class="card-body">
                                                 <div class="tab-content">
                                                     @foreach((new \App\Plugins\Core\src\Lib\Emoji())->get() as $key => $value)
-                                                        <div class="tab-pane overflow-auto  @if ($loop->first) active @endif show" id="emoji-list-{{$key}}" style="max-height: 320px">
+                                                        <div class="tab-pane  @if ($loop->first) active @endif show" id="emoji-list-{{$key}}" style="max-height: 320px;overflow-x: hidden;">
                                                             <div class="row">
                                                                 @if($value['type'] === 'image')
                                                                     @foreach($value['container'] as $emojis)
@@ -96,7 +107,6 @@
 
 @section('scripts')
     <script type="text/javascript">
-        var imageUpUrl = "/user/upload/image?_token={{ csrf_token() }}";
         var topic_id = {{$data->id}};
     </script>
 

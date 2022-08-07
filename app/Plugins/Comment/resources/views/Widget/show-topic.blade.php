@@ -225,8 +225,7 @@
                                                 </a>
                                             @endif
                                             {{--                                            引用评论--}}
-                                            <a style="text-decoration:none;" comment-click="quote-comment"
-                                               comment-id="{{ $value->id }}"
+                                            <a style="text-decoration:none;"  core-click="copy" copy-content="[comment comment_id={{$value->id}}]" message="短代码复制成功!"
                                                class="cursor-pointer text-muted hvr-icon-up" data-bs-toggle="tooltip"
                                                data-bs-placement="bottom" title="引用">
                                                 <svg xmlns="http://www.w3.org/2000/svg"
@@ -244,6 +243,7 @@
                                                 </svg>
                                             </a>
                                         </div>
+
                                         <div class="col-md-12" comment-dom="comment-{{$value->id}}"
                                              comment-status="off">
                                             <div class="hr-text"

@@ -8210,7 +8210,7 @@ if (document.getElementById("create-topic-vue")) {
             }
           },
           mode: this.edit.mode,
-          toolbar: ["headings", "bold", "italic", "strike", "link", "|", "list", "ordered-list", "outdent", "indent", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "upload", "record", "table", "|", "undo", "redo", "|", "fullscreen", "edit-mode"],
+          toolbar: ["headings", "bold", "italic", "strike", "link", "|", "list", "ordered-list", "outdent", "indent", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "upload", "table", "|", "undo", "redo", "|", "fullscreen", "edit-mode"],
           counter: {
             "enable": true,
             "type": "已写字数"
@@ -8675,7 +8675,7 @@ if (document.getElementById("edit-topic-vue")) {
             }
           },
           mode: this.edit.mode,
-          toolbar: ["headings", "bold", "italic", "strike", "link", "|", "list", "ordered-list", "outdent", "indent", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "upload", "record", "table", "|", "undo", "redo", "|", "fullscreen", "edit-mode"],
+          toolbar: ["headings", "bold", "italic", "strike", "link", "|", "list", "ordered-list", "outdent", "indent", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "upload", "table", "|", "undo", "redo", "|", "fullscreen", "edit-mode"],
           counter: {
             "enable": true,
             "type": "已写字数"
