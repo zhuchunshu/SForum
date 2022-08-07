@@ -107,6 +107,12 @@ if(document.getElementById("vue-comment-topic-edit-form")){
             });
         },
         methods: {
+            selectEmoji(emoji){
+                emoji = " "+ emoji + " "
+                this.vditor.insertValue(emoji)
+                this.vditor.tip("表情插入成功!")
+            },
+
             submit() {
                 var content = this.vditor.getHTML();
                 var markdown = this.vditor.getValue();

@@ -27,6 +27,11 @@ if(document.getElementById("topic-comment-model")){
 
         methods:{
 
+            selectEmoji(emoji){
+                emoji = " "+ emoji + " "
+                this.vditor.insertValue(emoji)
+                this.vditor.tip("表情插入成功!")
+            },
             submit(){
                 const content = this.vditor.getHTML();
                 const markdown = this.vditor.getValue()

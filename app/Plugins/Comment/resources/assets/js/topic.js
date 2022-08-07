@@ -3686,6 +3686,11 @@ if (document.getElementById("topic-comment-model")) {
       };
     },
     methods: {
+      selectEmoji: function selectEmoji(emoji) {
+        emoji = " " + emoji + " ";
+        this.vditor.insertValue(emoji);
+        this.vditor.tip("表情插入成功!");
+      },
       submit: function submit() {
         var _this = this;
 
