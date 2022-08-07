@@ -46,7 +46,7 @@
                                                         @foreach((new \App\Plugins\Core\src\Lib\Emoji())->get() as $key => $value)
                                                             <div class="tab-pane  @if ($loop->first) active @endif show"
                                                                  id="emoji-list-{{$key}}"
-                                                                 style="max-height: 320px;overflow-x: hidden;">
+                                                                 style="max-height: 220px;overflow-x: hidden;">
                                                                 <div class="row">
                                                                     @if($value['type'] === 'image')
                                                                         @foreach($value['container'] as $emojis)
