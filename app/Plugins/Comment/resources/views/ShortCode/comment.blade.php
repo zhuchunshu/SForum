@@ -62,6 +62,7 @@
                                     <span comment-show="comment-topic-likes">{{ $value->likes }}</span>
                                 </a>
                                 {{-- markdown --}}
+                                @if(get_options('comment_ban_markdown_preview')!=="true")
                                 <a style="text-decoration:none;" data-bs-toggle="tooltip" data-bs-placement="top" href="/comment/topic/{{ $value->id }}.md"
                                    data-bs-original-title="{{__("app.preview markdown")}}" class="hvr-icon-grow-rotate">
                     <span class="switch-icon-a text-muted">
@@ -75,6 +76,7 @@
                         </svg>
                     </span>
                                 </a>
+                                @endif
 
                                 {{--                                        收藏--}}
                                 @if(auth()->check())

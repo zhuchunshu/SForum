@@ -12,6 +12,9 @@ class IndexController
 {
     #[GetMapping(path:"topic/{id}.md")]
     public function show_topic_comment($id){
+	    if(get_options('comment_ban_markdown_preview')==="true"){
+		    return admin_abort("页面不存在",404);
+	    }
         if(Report::query()->where(['type' => 'comment','_id' => $id,'status' => 'approve'])->exists()){
             return admin_abort('此评论已被举报并批准,无法查看',403);
         }

@@ -14,8 +14,9 @@
                 <span core-show="topic-likes">{{ $data->like }}</span>
             </a>
             {{-- markdown --}}
-            <a data-bs-toggle="tooltip" data-bs-placement="top" title="" href="/{{ $data->id }}.md"
-               data-bs-original-title="{{__("app.preview markdown")}}" class="hvr-icon-grow-rotate">
+            @if(get_options('topic_ban_markdown_preview')!=="true")
+                <a data-bs-toggle="tooltip" data-bs-placement="top" title="" href="/{{ $data->id }}.md"
+                   data-bs-original-title="{{__("app.preview markdown")}}" class="hvr-icon-grow-rotate">
                     <span class="switch-icon-a text-muted">
                         <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon icon-tabler icon-tabler-markdown"
                              width="24"
@@ -27,7 +28,8 @@
                             <path d="M14 13l2 2l2 -2m-2 2v-6"></path>
                         </svg>
                     </span>
-            </a>
+                </a>
+            @endif
             @if(auth()->check())
                 {{--                收藏--}}
                 <a style="text-decoration:none;" core-click="star-topic" topic-id="{{ $data->id }}"

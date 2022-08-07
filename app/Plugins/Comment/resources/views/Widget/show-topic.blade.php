@@ -121,9 +121,10 @@
                                                 <span comment-show="comment-topic-likes">{{ $value->likes }}</span>
                                             </a>
                                             {{-- markdown --}}
-                                            <a style="text-decoration:none;" data-bs-toggle="tooltip"
-                                               data-bs-placement="top" href="/comment/topic/{{ $value->id }}.md"
-                                               data-bs-original-title="{{__("app.preview markdown")}}" class="hvr-icon-grow-rotate">
+                                            @if(get_options('comment_ban_markdown_preview')!=="true")
+                                                <a style="text-decoration:none;" data-bs-toggle="tooltip"
+                                                   data-bs-placement="top" href="/comment/topic/{{ $value->id }}.md"
+                                                   data-bs-original-title="{{__("app.preview markdown")}}" class="hvr-icon-grow-rotate">
                     <span class="switch-icon-a text-muted">
                         <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-markdown hvr-icon"
                              width="24"
@@ -135,7 +136,8 @@
                             <path d="M14 13l2 2l2 -2m-2 2v-6"></path>
                         </svg>
                     </span>
-                                            </a>
+                                                </a>
+                                            @endif
                                             {{--                                            回复--}}
                                             <a style="text-decoration:none;" comment-click="comment-reply-topic"
                                                comment-id="{{ $value->id }}"

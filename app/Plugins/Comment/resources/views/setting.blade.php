@@ -45,5 +45,12 @@
         <small>默认开启</small>
     </div>
 
+    <div class="mb-3">
+        <label class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" v-model="data.comment_ban_markdown_preview">
+            <span class="form-check-label">禁用markdown预览</span>
+        </label>
+    </div>
+
 
 </div>
