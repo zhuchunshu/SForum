@@ -8,8 +8,13 @@ LABEL maintainer="Hyperf Developers <group@hyperf.io>" version="1.0" license="MI
 ARG timezone
 
 ENV TIMEZONE=${timezone:-"Asia/Shanghai"} \
-    APP_ENV=prod \
-    SCAN_CACHEABLE=(true)
+    APP_ENV=dev \
+    DB_HOST=${DB_HOST} \
+    DB_PORT=${DB_PORT}    \
+    DB_DATABASE=${DB_DATABASE}  \
+    DB_USERNAME=${DB_USERNAME}  \
+    DB_PASSWORD=${DB_PASSWORD}  \
+    SCAN_CACHEABLE=(true)  
 
 # update
 RUN set -ex \
@@ -44,4 +49,4 @@ RUN composer install -o && php bin/hyperf.php
 
 EXPOSE 9501-9503
 
-ENTRYPOINT ["php", "/opt/www/bin/hyperf.php", "CodeFec"]
+ENTRYPOINT ["php", "/opt/www/bin/hyperf.php", "Docker"]
