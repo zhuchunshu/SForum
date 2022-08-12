@@ -36,7 +36,9 @@
                                             </div>
                                         </div>
                                         <div class="col-md-12 vditor-reset" id="topic-content">
-                                            {!! ShortCodeR()->handle($data->content) !!}
+                                            {!! ContentParse()->parse($data->post->content,[
+		    'topic' => $data,
+	    ]) !!}
                                         </div>
 
                                     </div>
@@ -44,8 +46,6 @@
                             </div>
 
                         </div>
-
-
 
 
                     </div>
