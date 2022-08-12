@@ -1,26 +1,6 @@
 version: '3.8'
 
 services:
-  web:
-    build: .
-    ports:
-      - "9501:9501"
-      - "9502:9502"
-      - "9503:9503"
-    environment:
-      APP_ENV: dev
-      SCAN_CACHEABLE: (false)
-      DB_DATABASE: forum2
-      DB_USERNAME: forum2
-      DB_PASSWORD: forum2
-      DB_HOST: db
-      REDIS_HOST: redis
-  
-    depends_on:
-      - db
-      - redis
-    networks:
-      - default
   db:
     image: mysql
     restart: always
@@ -51,12 +31,34 @@ services:
     image: adminer
     restart: always
     ports:
-      - 8080:8080
+      - "8080:8080"
     networks:
       - default
 
+  web:
+    build: .
+    ports:
+      - "9501:9501"
+      - "9502:9502"
+      - "9503:9503"
+    environment:
+      APP_ENV: dev
+      SCAN_CACHEABLE: (false)
+      DB_DATABASE: forum2
+      DB_USERNAME: forum2
+      DB_PASSWORD: forum2
+      REDIS_HOST: redis
+    depends_on:
+      - db
+      - redis
+    networks:
+      - default
+    links:
+      - db
+
 volumes:
   db_data:
+  web_data:
 
 networks:
   default:
