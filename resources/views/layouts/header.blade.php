@@ -6,7 +6,7 @@
         </button>
         <h1 class="navbar-brand navbar-brand-autodark">
             <a href="/">
-                {{ config('codefec.app.name', 'CodeFec') }}
+                {{ config('app_name', 'CodeFec') }}
             </a>
         </h1>
         <h1 class="navbar-brand navbar-brand-autodark">
