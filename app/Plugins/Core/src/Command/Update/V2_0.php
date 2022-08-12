@@ -77,7 +77,7 @@ class V2_0 extends HyperfCommand
 	
 	private function topic()
 	{
-		$topics = Db::table('topic')->where("post_id",'=',null)->get(['id','content','markdown','user_agent','user_ip','user_id','created_at', 'updated_at']);
+		$topics = DB::table('topic')->where("post_id",'=',null)->get(['id','content','markdown','user_agent','user_ip','user_id','created_at', 'updated_at']);
 		foreach($topics as $data){
 			$post = Post::query()->create([
 				'topic_id' => $data->id,

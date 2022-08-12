@@ -9,8 +9,8 @@ Itf()->add("core_menu",1,[
     "url" => "/"
 ]);
 
-Itf_Setting()->add(203,
-    "登陆注册","sign","setting.user.sign");
+Itf_Setting()->add(212,
+    "登陆注册","setting_user_sign","setting.user.sign");
 Itf_Setting()->add(204,
     "用户设置","user-setting","setting.user.core");
 
