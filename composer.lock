@@ -153,7 +153,7 @@
         },
         {
             "name": "bandwidth-throttle/token-bucket",
-            "version": "2.0.0",
+            "version": "2.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/bandwidth-throttle/token-bucket.git",
