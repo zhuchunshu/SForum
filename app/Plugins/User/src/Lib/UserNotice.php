@@ -82,9 +82,9 @@ class UserNotice
 			]);
 		}
      
-	    $this->eventDispatcher->dispatch(new SendMail($user_id,$title,$action));
+	    $this->sendMail($user_id,$title,$action);
     }
-	
+
 	
     /**
      * 给多个用户发送通知
@@ -106,7 +106,27 @@ class UserNotice
 			        'status' => 'publish'
 		        ]);
 	        }
-	        $this->eventDispatcher->dispatch(new SendMail($user_id,$title,$action));
+            $this->sendMail($user_id,$title,$action);
         }
+    }
+
+    private function sendMail($user_id,$title,$action){
+        $email = User::query()->where('id', $user_id)->first()->email;
+        $mail = Email();
+        $url =url($action);
+        // 判断用户是否愿意接收通知
+        $_this = $this;
+        go(function() use ($title,$mail,$url,$email,$_this,$user_id){
+            if($_this->check("email",$user_id)===true){
+                // 执行发送
+                $mail->addAddress($email);
+                $mail->Subject = "【".get_options("web_name")."】 你有一条新通知!";
+                $mail->Body    = <<<HTML
+<h3>标题: {$title}</h3>
+<p>链接: <a href="{$url}">{$url}</a></p>
+HTML;
+                $mail->send();
+            }
+        });
     }
 }

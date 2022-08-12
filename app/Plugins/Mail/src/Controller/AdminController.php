@@ -25,6 +25,7 @@ class AdminController
 		if(!$email){
 			return redirect()->back()->with("danger","请求参数不足!")->go();
 		}
+
 		$mail = Email();
 		$mail->addAddress($email);
 		$random = Str::random();

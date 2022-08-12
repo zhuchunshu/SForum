@@ -19,10 +19,7 @@ return [
     StdoutLoggerInterface::class => [
         'log_level' => [
             LogLevel::INFO,
-            // LogLevel::ALERT,
-            // LogLevel::ERROR,
-            // LogLevel::DEBUG,
-            // LogLevel::WARNING,
+
         ],
     ],
 ];
