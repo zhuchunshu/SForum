@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "343ae6fba6cf60b378d696f4a2ae885a",
+    "content-hash": "fc98e47707541f415983a15c0ba9555d",
     "packages": [
         {
             "name": "alchemy/zippy",
@@ -7435,6 +7435,53 @@
             "time": "2022-01-02T09:55:41+00:00"
         },
         {
+            "name": "tencentcloud/tencentcloud-sdk-php",
+            "version": "3.0.702",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/TencentCloud/tencentcloud-sdk-php.git",
+                "reference": "792eb68b3afb424c33603cef076acae29c3a6589"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/TencentCloud/tencentcloud-sdk-php/zipball/792eb68b3afb424c33603cef076acae29c3a6589",
+                "reference": "792eb68b3afb424c33603cef076acae29c3a6589",
+                "shasum": ""
+            },
+            "require": {
+                "guzzlehttp/guzzle": "^6.3 || ^7.0",
+                "php": ">=5.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "TencentCloud\\": "./src/TencentCloud"
+                },
+                "classmap": [
+                    "src/QcloudApi/QcloudApi.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "coolli",
+                    "email": "tencentcloudapi@tencent.com",
+                    "homepage": "https://cloud.tencent.com/document/sdk/PHP",
+                    "role": "Developer"
+                }
+            ],
+            "description": "TencentCloudApi php sdk",
+            "homepage": "https://github.com/TencentCloud/tencentcloud-sdk-php",
+            "support": {
+                "issues": "https://github.com/TencentCloud/tencentcloud-sdk-php/issues",
+                "source": "https://github.com/TencentCloud/tencentcloud-sdk-php/tree/3.0.702"
+            },
+            "time": "2022-08-12T05:43:58+00:00"
+        },
+        {
             "name": "thunderer/shortcode",
             "version": "v0.7.5",
             "source": {
@@ -7489,6 +7536,63 @@
                 "source": "https://github.com/thunderer/Shortcode/tree/v0.7.5"
             },
             "time": "2022-01-13T18:53:33+00:00"
+        },
+        {
+            "name": "ucloud/ucloud-sdk-php",
+            "version": "0.3.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ucloud/ucloud-sdk-php.git",
+                "reference": "9677ada71a88e8f93d59eec86759062b6ee18c91"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ucloud/ucloud-sdk-php/zipball/9677ada71a88e8f93d59eec86759062b6ee18c91",
+                "reference": "9677ada71a88e8f93d59eec86759062b6ee18c91",
+                "shasum": ""
+            },
+            "require": {
+                "guzzlehttp/guzzle": "^6.2.1|^7.0",
+                "php": ">=5.6",
+                "psr/log": "^1.1"
+            },
+            "require-dev": {
+                "phpcompatibility/php-compatibility": "^9.0",
+                "phpunit/phpunit": "^9.0",
+                "squizlabs/php_codesniffer": "^3.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "UCloud\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "ucloud",
+                    "email": "yufei.li@ucloud.cn"
+                }
+            ],
+            "description": "UCloud",
+            "homepage": "https://github.com/ucloud/ucloud-sdk-php",
+            "keywords": [
+                "php",
+                "ucloud"
+            ],
+            "support": {
+                "issues": "https://github.com/ucloud/ucloud-sdk-php/issues",
+                "source": "https://github.com/ucloud/ucloud-sdk-php/tree/0.3.3"
+            },
+            "time": "2022-06-21T13:16:07+00:00"
         },
         {
             "name": "vlucas/phpdotenv",

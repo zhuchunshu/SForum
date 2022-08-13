@@ -13,6 +13,8 @@ Itf_Setting()->add(212,
     "登陆注册","setting_user_sign","setting.user.sign");
 Itf_Setting()->add(204,
     "用户设置","user-setting","setting.user.core");
+Itf_Setting()->add(205,
+    "短信设置","user-sms","setting.user.sms");
 
 Itf()->add("show_right",1,"App::topic.right");
 
@@ -65,4 +67,17 @@ menu()->add(2004,[
 </svg>',
 	'url' => '/admin/Invitation-code/export',
 	'parent_id' => 2001
+]);
+
+
+Itf()->add('SMS',1,[
+    'name' => 'Qcloud',
+    'handler' => \App\Plugins\Core\src\Lib\Sms\Service\Qcloud::class,
+    'view' => 'App::Sms.qcloud'
+]);
+
+Itf()->add('SMS',2,[
+    'name' => 'Ucloud',
+    'handler' => \App\Plugins\Core\src\Lib\Sms\Service\Ucloud::class,
+    'view' => 'App::Sms.ucloud'
 ]);

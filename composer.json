@@ -49,6 +49,8 @@
         "laravel/helpers": "^1.4",
         "overtrue/http": "^1.2",
         "php-curl-class/php-curl-class": "^9.6",
+        "tencentcloud/tencentcloud-sdk-php": "^3.0",
+        "ucloud/ucloud-sdk-php": "^0.3.3",
         "wikimedia/composer-merge-plugin": "^2.0",
         "zhuchunshu/hyperf-hashing": "2.2.0"
     },
