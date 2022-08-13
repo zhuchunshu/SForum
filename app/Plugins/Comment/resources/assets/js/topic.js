@@ -3768,7 +3768,27 @@ if (document.getElementById("topic-comment-model")) {
           }
         },
         mode: this.edit.mode,
-        toolbar: ["emoji", "headings", "bold", "italic", "strike", "link", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "table", "undo", "redo", "|", "edit-mode"],
+        toolbar: ["headings", "bold", "italic", "strike", "link", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "table", {
+          hotkey: '⌘-⇧-V',
+          name: 'video',
+          tipPosition: 's',
+          tip: '插入视频',
+          className: 'right',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-camera-video" viewBox="0 0 16 16">\n' + '  <path fill-rule="evenodd" d="M0 5a2 2 0 0 1 2-2h7.5a2 2 0 0 1 1.983 1.738l3.11-1.382A1 1 0 0 1 16 4.269v7.462a1 1 0 0 1-1.406.913l-3.111-1.382A2 2 0 0 1 9.5 13H2a2 2 0 0 1-2-2V5zm11.5 5.175 3.5 1.556V4.269l-3.5 1.556v4.35zM2 4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h7.5a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H2z"/>\n' + '</svg>',
+          click: function click() {
+            swal("请输入视频链接:", {
+              content: "input"
+            }).then(function (value) {
+              if (value) {
+                var content = '<video  controls>\n' + '  <source src="' + value + '" ">\n' + '</video>';
+
+                _this2.vditor.focus();
+
+                _this2.vditor.insertValue(content);
+              }
+            });
+          }
+        }, "undo", "redo", "|", "edit-mode"],
         counter: {
           "enable": true,
           "type": "已写字数"
@@ -3897,6 +3917,8 @@ $(function () {
 
 $(function () {
   $('a[comment-click="comment-reply-topic"]').click(function () {
+    var _this5 = this;
+
     var th = $(this);
     var comment_id = th.attr("comment-id");
     var dom = $('div[comment-dom="comment-' + comment_id + '"]');
@@ -3916,7 +3938,27 @@ $(function () {
         cache: {
           enable: false
         },
-        toolbar: ["emoji", "headings", "bold", "italic", "strike", "link", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "table", "undo", "redo", "|", "edit-mode"],
+        toolbar: ["headings", "bold", "italic", "strike", "link", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", {
+          hotkey: '⌘-⇧-V',
+          name: 'video',
+          tipPosition: 's',
+          tip: '插入视频',
+          className: 'right',
+          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-camera-video" viewBox="0 0 16 16">\n' + '  <path fill-rule="evenodd" d="M0 5a2 2 0 0 1 2-2h7.5a2 2 0 0 1 1.983 1.738l3.11-1.382A1 1 0 0 1 16 4.269v7.462a1 1 0 0 1-1.406.913l-3.111-1.382A2 2 0 0 1 9.5 13H2a2 2 0 0 1-2-2V5zm11.5 5.175 3.5 1.556V4.269l-3.5 1.556v4.35zM2 4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h7.5a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H2z"/>\n' + '</svg>',
+          click: function click() {
+            swal("请输入视频链接:", {
+              content: "input"
+            }).then(function (value) {
+              if (value) {
+                var content = '<video  controls>\n' + '  <source src="' + value + '" ">\n' + '</video>';
+
+                _this5.vditor.focus();
+
+                _this5.vditor.insertValue(content);
+              }
+            });
+          }
+        }, "table", "undo", "redo", "|", "edit-mode"],
         counter: {
           "enable": true,
           "type": "已写字数"
