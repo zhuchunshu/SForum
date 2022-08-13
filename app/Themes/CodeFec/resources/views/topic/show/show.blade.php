@@ -27,6 +27,7 @@
 
 @section('headers')
     <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
+    <link rel="stylesheet" href="{{file_hash('tabler/libs/plyr/dist/plyr.css')}}">
 @endsection
 
 @section('scripts')
@@ -37,4 +38,10 @@
     <script src="{{ mix('plugins/Topic/js/topic.js') }}"></script>
     <script src="{{mix('plugins/Topic/js/core.js')}}"></script>
     <script src="{{mix('plugins/Comment/js/topic.js')}}"></script>
+    <script src="{{file_hash('tabler/libs/plyr/dist/plyr.min.js')}}"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            window.Plyr && (new Plyr('video'));
+        });
+    </script>
 @endsection
