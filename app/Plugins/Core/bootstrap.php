@@ -34,3 +34,6 @@ Itf()->add("core_auth_selected","report_topic","report_topic");
 Itf()->add("core_auth_selected","report_comment","report_comment");
 
 emoji_add('小黄脸',plugin_path('Core/resources/assets/emoji/小黄脸.json'),'image');
+emoji_add('小电视',plugin_path('Core/resources/assets/emoji/tv_小电视.json'),'image');
+emoji_add('热词系列',plugin_path('Core/resources/assets/emoji/热词系列一.json'),'image');
+emoji_add('斗图',plugin_path('Core/resources/assets/emoji/斗图.json'),'image',true);

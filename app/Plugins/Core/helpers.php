@@ -377,11 +377,12 @@ if(!function_exists("emoji_add")){
 	 * @param string $type emoji type emoji | image | emoticon(颜文字)
 	 * @throws Exception
 	 */
-	function emoji_add(string $name,string $emoji,string $type='text'){
+	function emoji_add(string $name,string $emoji,string $type,bool $size=false){
 		Itf()->add('emoji',random_int(2,99212),[
 			'name' => $name,
 			'emoji' => $emoji,
-			'type' => $type
+			'type' => $type,
+			'size' => $size
 		]);
 	}
 }

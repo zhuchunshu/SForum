@@ -73,7 +73,7 @@
                                                             <div class="row">
                                                                 @if($value['type'] === 'image')
                                                                     @foreach($value['container'] as $emojis)
-                                                                        <div @@click="selectEmoji('{{$emojis['text']}}')" class="col-2 hvr-glow emoji-picker" emoji-data="{{$emojis['text']}}">{!! $emojis['icon'] !!}</div>
+                                                                        <div @@click="selectEmoji('{{$emojis['text']}}')" class="col-3 col-sm-2 col-md-4 col-lg-3 hvr-glow emoji-picker" emoji-data="{{$emojis['text']}}">{!! $emojis['icon'] !!}</div>
                                                                     @endforeach
                                                                 @endif
                                                             </div>

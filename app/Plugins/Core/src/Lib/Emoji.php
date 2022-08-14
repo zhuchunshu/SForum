@@ -36,7 +36,7 @@ class Emoji
 				case 'image':
 					foreach($allEmoji as $k => $v) {
 						$allEmojis[] = [
-							'icon' => '<img alt="' .$k . '" width="' . get_options("contentParse_owo_width", 25) . '" height="' . get_options("contentParse_owo_height", 25) . '" src="' . $v . '" />',
+							'icon' => '<img class="emoji-tippy" alt="' .$k . '" min-width="' . get_options("contentParse_owo_width", 50) . '" min-height="' . get_options("contentParse_owo_height", 50) . '" src="' . $v . '" />',
 							'text' => "::".$data['name'].":".$k."::"
 						];
 					}
@@ -98,11 +98,25 @@ class Emoji
 		return (new \Zhuchunshu\EmojiParse\Emoji())->parse($content, function($match) {
 			$name = $match[1];
 			$emoji = $match[2];
-			if(get_options('contentParse_owo_img', '开启') === "开启") {
-				return '<img alt="' . $match[0] . '" width="' . get_options("contentParse_owo_width", 25) . '" height="' . get_options("contentParse_owo_height", 25) . '" src="' . $this->getImg()['image'][$name][$emoji] . '" />';
+			if($this->liftSize($name)){
+				if(get_options('contentParse_owo_img', '开启') === "开启") {
+					return '<img alt="' . $match[0] . '" max-width="100" height="150" src="' . $this->getImg()['image'][$name][$emoji] . '" />';
+				}
+			}else if(get_options('contentParse_owo_img', '开启') === "开启") {
+				return '<img alt="' . $match[0] . '" width="' . get_options("contentParse_owo_width", 30) . '" height="' . get_options("contentParse_owo_height", 30) . '" src="' . $this->getImg()['image'][$name][$emoji] . '" />';
 			}
+			
 			return $match[0];
 		});
 		
+	}
+	
+	private function liftSize($name){
+		foreach(Itf()->get('emoji') as $item) {
+			if($item['name']===$name && $item['size']===true){
+				return true;
+			}
+		}
+		return false;
 	}
 }

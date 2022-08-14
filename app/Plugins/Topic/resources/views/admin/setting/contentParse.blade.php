@@ -65,12 +65,12 @@
             <div class="col-3">
                 <label class="form-label">owo 表情图片宽度</label>
                 <input type="number" v-model="data.contentParse_owo_width" min="1" class="form-control">
-                <small>当前: {{get_options("contentParse_owo_width",25)}}</small>
+                <small>当前: {{get_options("contentParse_owo_width",30)}}</small>
             </div>
             <div class="col-3">
                 <label class="form-label"> owo 表情图片高度</label>
                 <input type="number" v-model="data.contentParse_owo_height" min="1" class="form-control">
-                <small>当前: {{get_options("contentParse_owo_height",25)}}</small>
+                <small>当前: {{get_options("contentParse_owo_height",30)}}</small>
             </div>
         </div>
     </div>
