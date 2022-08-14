@@ -12,7 +12,9 @@ class UpdateUsersAddPhoneVerTime extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->timestamp('phone_ver_time')->nullable();
+            if (!Schema::hasColumn('users', 'phone_ver_time')) {
+                $table->timestamp('phone_ver_time')->nullable();
+            }
         });
     }
 

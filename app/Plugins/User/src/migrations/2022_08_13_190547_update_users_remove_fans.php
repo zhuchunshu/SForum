@@ -12,7 +12,9 @@ class UpdateUsersRemoveFans extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('fans');
+            if (Schema::hasColumn('users', 'fans')) {
+                $table->dropColumn('fans');
+            }
         });
     }
 
