@@ -103,8 +103,13 @@ class ShortCode
 
     #[ShortCodeR(name:"InvitationCode")]
     public function InvitationCode($match,ShortcodeInterface $s,$data){
-        $topic_user_id = $data['topic']['user_id'];
-        if(!Authority()->checkUser('core_shortCode_InvitationCode',$topic_user_id)){
+        $user_id = 0;
+        if(@$data['comment']['user_id']){
+            $user_id = $data['comment']['user_id'];
+        }else if (@$data['topic']['user_id']){
+            $user_id = $data['topic']['user_id'];
+        }
+        if(!Authority()->checkUser('core_shortCode_InvitationCode',$user_id)){
             return '['.$s->getName().'] '.__("app.Error using short tags");
         }
         $offset = $s->getParameter('offset');
