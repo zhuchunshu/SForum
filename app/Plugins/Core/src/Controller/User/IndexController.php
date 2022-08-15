@@ -133,7 +133,10 @@ class IndexController
     #[PostMapping(path:"/user/ver_phone/send")]
     public function ver_phone_send(Request $request){
         $phone = $request->input("phone");
-
+	    if(cache()->has('user.verify.phone.'.auth()->id())){
+		    return redirect()->url("/user/ver_phone")->with("danger","今日发信次数已用光")->go();
+	    }
+		
         if(!$phone){
             return redirect()->url("/user/ver_phone")->with("info","请输入手机号")->go();
         }
