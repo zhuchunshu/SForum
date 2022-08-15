@@ -77,7 +77,7 @@
                                             <div class="hr-text" style="margin-bottom:8px;margin-top:15px">{{__("topic.comment.comment content")}}</div>
                                         </div>
                                         <div core-show="comment" comment-id="{{$value->id}}"
-                                             class="col-md-12 markdown vditor-reset">
+                                             class="col-md-12 markdown">
                                             @if($value->parent_id)
                                                 @if(@$value->parent->id)
                                                     <div class="quote">
