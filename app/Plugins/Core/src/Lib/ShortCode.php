@@ -4,6 +4,7 @@ namespace App\Plugins\Core\src\Lib;
 
 use App\CodeFec\Annotation\ShortCode\ShortCodeR;
 use App\Plugins\Comment\src\Model\TopicComment;
+use App\Plugins\Core\src\Models\InvitationCode;
 use App\Plugins\Topic\src\Models\TopicTag;
 use App\Plugins\User\src\Models\User;
 use Thunder\Shortcode\Shortcode\ShortcodeInterface;
@@ -99,4 +100,24 @@ class ShortCode
 		$data = TopicTag::query()->where(['id'=>$id])->first();
 		return view("Topic::ShortCode.tag",['value' => $data]);
 	}
+
+    #[ShortCodeR(name:"InvitationCode")]
+    public function InvitationCode($match,ShortcodeInterface $s,$data){
+        $user_id = 0;
+        if(@$data['comment']['user_id']){
+            $user_id = $data['comment']['user_id'];
+        }else if (@$data['topic']['user_id']){
+            $user_id = $data['topic']['user_id'];
+        }
+        if(!Authority()->checkUser('core_shortCode_InvitationCode',$user_id)){
+            return '['.$s->getName().'] '.__("app.Error using short tags");
+        }
+        $offset = $s->getParameter('offset');
+        $limit = $s->getParameter('limit');
+        if(!$offset || !$limit){
+            return '['.$s->getName().'] '.__("app.Error using short tags");
+        }
+        $codes = InvitationCode::query()->limit($limit)->offset($offset-1)->get();
+        return view('App::ShortCode.InvitationCode',['codes' => $codes]);
+    }
 }

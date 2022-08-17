@@ -43,6 +43,16 @@ class Authority
         return in_array($quanxian, $data,true);
     }
 
+    public function checkUser($quanxian,$user_id):bool{
+        if(!User::query()->where('id',$user_id)->exists()){
+            return false;
+        }
+        $user= User::query()->find($user_id);
+        $userClassData = UserClass::query()->where("id",$user->class_id)->first();
+        $data = json_decode($userClassData['quanxian'],true);
+        return in_array($quanxian, $data,true);
+    }
+
     public function getName(string $quanxian):string|null{
         $name = null;
         foreach (Authority()->get() as $value){

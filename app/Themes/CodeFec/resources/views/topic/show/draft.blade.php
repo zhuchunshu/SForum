@@ -35,7 +35,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-12 vditor-reset" id="topic-content">
+                                        <div class="col-md-12  markdown" id="topic-content">
                                             {!! ContentParse()->parse($data->post->content,[
 		    'topic' => $data,
 	    ]) !!}

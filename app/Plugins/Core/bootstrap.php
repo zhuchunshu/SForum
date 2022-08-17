@@ -22,6 +22,7 @@ Authority()->add("report_comment","举报评论");
 Authority()->add("admin_report","受理举报");
 Authority()->add("upload_file","上传附件");
 Authority()->add("upload_image","上传图片");
+Authority()->add("core_shortCode_InvitationCode","使用邀请码ShortCode");
 
 Itf()->add("core_auth_selected","topic_edit","topic_edit");
 Itf()->add("core_auth_selected","topic_create","topic_create");
@@ -32,6 +33,8 @@ Itf()->add("core_auth_selected","comment_caina","comment_caina");
 Itf()->add("core_auth_selected","topic_delete","topic_delete");
 Itf()->add("core_auth_selected","report_topic","report_topic");
 Itf()->add("core_auth_selected","report_comment","report_comment");
+Itf()->add("core_auth_selected","upload_file","upload_file");
+Itf()->add("core_auth_selected","upload_image","upload_image");
 
 emoji_add('小黄脸',plugin_path('Core/resources/assets/emoji/小黄脸.json'),'image');
 emoji_add('小电视',plugin_path('Core/resources/assets/emoji/tv_小电视.json'),'image');

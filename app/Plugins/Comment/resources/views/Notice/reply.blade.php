@@ -17,7 +17,7 @@
         <div class="col-md-12">
             <div class="hr-text" style="margin-bottom:5px;margin-top:15px">回复内容</div>
         </div>
-        <div class="col-md-12 markdown vditor-reset">
+        <div class="col-md-12 markdown">
             <div class="quote">
                 <blockquote>
                     <a style="font-size:13px;" href="{{$data->parent_url}}" target="_blank">
