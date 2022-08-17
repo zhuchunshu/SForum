@@ -3,6 +3,8 @@
 @foreach(Itf()->get('users_home_menu') as $key => $value)
     @if($key === request()->input('m',key(Itf()->get('users_notices'))))
         @section('title',$value['name'].' | '.'「'.$user->username.'」')
+@else
+    @section('title','概览 | '.'「'.$user->username.'」')
 @endif
 @endforeach
 @section('description', '为您展示本站「'.$user->username.'」用户的信息')
