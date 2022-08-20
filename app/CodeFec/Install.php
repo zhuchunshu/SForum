@@ -166,6 +166,7 @@ class Install
 	
 	// 数据库迁移
 	public function step_3(){
+		\Swoole\Coroutine\System::exec("cp ./app/Plugins/*/src/mig*/* ./mi*");
 		$command = 'migrate';
 		
 		$params = ["command" => $command];
@@ -182,54 +183,54 @@ class Install
 		$exitCode = $application->run($input, $output);
 		
 		$this->addStep();
-
-        // V2.0 对topic表的更改
-        $topics = DB::table('topic')->where("post_id",'=',null)->get(['id','content','markdown','user_agent','user_ip','user_id','created_at', 'updated_at']);
-        foreach($topics as $data){
-            $post = Post::query()->create([
-                'topic_id' => $data->id,
-                'user_id' => $data->user_id,
-                'content' => $data->content,
-                'markdown' => $data->markdown,
-                'user_agent' => $data->user_agent,
-                'user_ip' => $data->user_ip,
-                'created_at' => $data->created_at,
-                'updated_at' => $data->updated_at
-            ]);
-            Topic::query()->where('id',$data->id)->update(['post_id' =>$post['id']]);
-        }
-
-        // v2.0对topic_comment表的更改
-        $comments = Db::table('topic_comment')->where("post_id",'=',null)->get(['id','user_id','content','markdown','user_agent','user_ip','created_at','updated_at']);
-        foreach($comments as $data) {
-            $post = Post::query()->create([
-                'comment_id' => $data->id,
-                'user_id' => $data->user_id,
-                'content' => $data->content,
-                'markdown' => $data->markdown,
-                'user_agent' => $data->user_agent,
-                'user_ip' => $data->user_ip,
-                'created_at' => $data->created_at,
-                'updated_at' => $data->updated_at,
-            ]);
-            TopicComment::query()->where('id', $data->id)->update(['post_id' => $post['id']]);
-        }
-        // v2.0清理数据库字段
-        Schema::table('topic', function (Blueprint $table) {
-            // 删除 多余字段
-            $table->dropColumn(['content','markdown','user_agent','user_ip','like','_token']);
-        });
-        Schema::table('topic_comment', function (Blueprint $table) {
-            // 删除 多余字段
-            $table->dropColumn(['content','markdown','user_agent','user_ip','likes']);
-        });
-
+		
 		$this->command->info('数据库迁移成功!');
 		$this->command->info("\n请重新运行此命令!");
 	}
 	
 	// 配置端口
 	public function step_4(){
+		// V2.0 对topic表的更改
+		$topics = DB::table('topic')->where("post_id",'=',null)->get(['id','content','markdown','user_agent','user_ip','user_id','created_at', 'updated_at']);
+		foreach($topics as $data){
+			$post = Post::query()->create([
+				'topic_id' => $data->id,
+				'user_id' => $data->user_id,
+				'content' => $data->content,
+				'markdown' => $data->markdown,
+				'user_agent' => $data->user_agent,
+				'user_ip' => $data->user_ip,
+				'created_at' => $data->created_at,
+				'updated_at' => $data->updated_at
+			]);
+			Topic::query()->where('id',$data->id)->update(['post_id' =>$post['id']]);
+		}
+		
+		// v2.0对topic_comment表的更改
+		$comments = Db::table('topic_comment')->where("post_id",'=',null)->get(['id','user_id','content','markdown','user_agent','user_ip','created_at','updated_at']);
+		foreach($comments as $data) {
+			$post = Post::query()->create([
+				'comment_id' => $data->id,
+				'user_id' => $data->user_id,
+				'content' => $data->content,
+				'markdown' => $data->markdown,
+				'user_agent' => $data->user_agent,
+				'user_ip' => $data->user_ip,
+				'created_at' => $data->created_at,
+				'updated_at' => $data->updated_at,
+			]);
+			TopicComment::query()->where('id', $data->id)->update(['post_id' => $post['id']]);
+		}
+		// v2.0清理数据库字段
+		Schema::table('topic', function (Blueprint $table) {
+			// 删除 多余字段
+			$table->dropColumn(['content','markdown','user_agent','user_ip','like','_token']);
+		});
+		Schema::table('topic_comment', function (Blueprint $table) {
+			// 删除 多余字段
+			$table->dropColumn(['content','markdown','user_agent','user_ip','likes']);
+		});
+		
 		$this->command->info($this->getTips());
 		$web = $this->command->ask('WEB服务端口',env('SERVER_WEB_PORT'));
 		$this->command->line($web);
