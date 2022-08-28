@@ -2,6 +2,7 @@ import axios from "axios";
 import iziToast from "izitoast";
 import swal from "sweetalert";
 import copy from 'copy-to-clipboard';
+import { Fancybox } from "@fancyapps/ui";
 
 $(function(){
     $('div[core-data="topic"]').each(function(){
