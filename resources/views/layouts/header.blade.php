@@ -1,5 +1,5 @@
 @include('layouts.header_top')
-<aside class="navbar navbar-vertical navbar-expand-lg navbar-dark">
+<aside class="navbar navbar-vertical navbar-expand-lg navbar-light">
     <div class="container-fluid">
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
             <span class="navbar-toggler-icon"></span>

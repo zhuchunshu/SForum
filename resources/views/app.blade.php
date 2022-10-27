@@ -33,7 +33,7 @@
         <div class="page-wrapper" id="@yield('pageId',path_class().'-page')">
             @include('layouts.header_title')
             <div class="page-body">
-                <div class="container-xl">
+                <div class="container-fluid">
                     <div class="row row-deck row-cards">
                         @yield('content')
                     </div>
