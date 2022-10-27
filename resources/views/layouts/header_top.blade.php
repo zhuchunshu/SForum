@@ -1,4 +1,15 @@
-<header class="navbar navbar-expand-md navbar-light d-none d-lg-block">
+<header class="navbar navbar-expand-md @switch(get_options('admin_theme_header','1'))
+@case("1")
+        navbar-light
+@break
+@case("2")
+        navbar-dark
+@break
+@case("3")
+        navbar-transparent
+@break
+
+@endswitch d-none d-lg-block">
     <div class="container-fluid">
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
             <span class="navbar-toggler-icon"></span>

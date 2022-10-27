@@ -14,6 +14,26 @@
         <small>默认境外</small>
     </div>
     <div class="mb-3">
+        <label class="form-label">后台主题 - 页头
+        </label>
+        <select class="form-select" v-model="data.admin_theme_header">
+            <option value="1">白</option>
+            <option value="2">黑</option>
+            <option value="3">透明</option>
+        </select>
+        <small>默认:白</small>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">后台主题 - 菜单
+        </label>
+        <select class="form-select" v-model="data.admin_theme_menu">
+            <option value="1">白</option>
+            <option value="2">黑</option>
+            <option value="3">透明</option>
+        </select>
+        <small>默认:白</small>
+    </div>
+    <div class="mb-3">
         <label class="form-label">网站名称</label>
         <input type="text" min="1" max="3" class="form-control" v-model="data.web_name">
     </div>

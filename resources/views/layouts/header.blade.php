@@ -1,5 +1,15 @@
 @include('layouts.header_top')
-<aside class="navbar navbar-vertical navbar-expand-lg navbar-light">
+<aside class="navbar navbar-vertical navbar-expand-lg @switch(get_options('admin_theme_menu','1'))
+@case("1")
+        navbar-light
+@break
+@case("2")
+        navbar-dark
+@break
+@case("3")
+        navbar-transparent
+@break
+@endswitch">
     <div class="container-fluid">
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
             <span class="navbar-toggler-icon"></span>
