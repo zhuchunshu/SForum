@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Jobs\Upgrading;
 use App\Middleware\AdminMiddleware;
+use App\Plugins\Topic\src\ContentParse;
 use Hyperf\Di\Annotation\Inject;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\Middleware;
@@ -54,8 +55,10 @@ class ApiController
 	}
 	
 	#[PostMapping(path:"getUpdateLog")]
-	public function getCommit(){
-		return http('raw')->get($this->update_log);
+	public function getCommit()
+    {
+        $data = http('raw')->get($this->update_log)->getBody()->getContents();
+		return (new ContentParse())->parse($data);
 	}
 	
 	#[PostMapping(path:"clearCache")]
