@@ -7,6 +7,7 @@ use App\Plugins\Core\src\Handler\FileUpload;
 use App\Plugins\Core\src\Handler\UploadHandler;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserFans;
+use App\Plugins\User\src\Models\UsersAuth;
 use App\Plugins\User\src\Models\UsersCollection;
 use App\Plugins\User\src\Models\UsersNotice;
 use App\Plugins\User\src\Models\UsersSetting;
@@ -297,5 +298,24 @@ class ApiController
 		}
 		user_settings_clear(auth()->id());
 		return Json_Api(200,true,['msg' => '更新成功!']);
+	}
+	
+	#[PostMapping(path:"/api/User/get.session.ip")]
+	public function get_user_session_ip(): array
+	{
+		$user_id = request()->input('user_id');
+		if(!$user_id){
+			return Json_Api(403,false,['msg' => '用户id不能为空']);
+		}
+		if(!User::query()->where('id',$user_id)->exists()){
+			return Json_Api(403,false,['msg' => '用户不存在']);
+		}
+		$sessions = UsersAuth::query()->orderByDesc('created_at')->where('user_id',$user_id)->get();
+		foreach($sessions as $data){
+			if($data->user_ip){
+				return Json_Api(200,true,['msg' => "IP归属地:".core_default(get_client_ip_data($data->user_ip)['pro'],'未知')]);
+			}
+		}
+		return Json_Api(403,false,['msg' => '未找到用户IP归属地信息']);
 	}
 }

@@ -35,6 +35,13 @@
                                     </div>
                                     <div class="text-muted">{{$user->options->qianming}}</div>
                                 </div>
+                                <div class="col">
+                                    <div id="vue-users-data-session-ip" style="display:inline-block">
+                                            <span class="text-muted" v-if="ip">
+                                                @{{ ip }}
+                                            </span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="col-auto text-center">
@@ -231,5 +238,6 @@
 @endsection
 
 @section('scripts')
+    <script>var user_id = {{$user->id}}</script>
     <script src="{{mix("plugins/Core/js/user.js")}}"></script>
 @endsection

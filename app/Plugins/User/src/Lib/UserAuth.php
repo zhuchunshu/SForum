@@ -14,6 +14,7 @@ class UserAuth
         UsersAuth::query()->create([
             'user_id' => $user_id,
             'token' => $token,
+	        'user_ip' => get_client_ip()
         ]);
 		return true;
     }
