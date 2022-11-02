@@ -78,7 +78,7 @@ class ShortCode
 	}
 	
 	// 引用评论
-	#[ShortCodeR(name:"topic-comment")]
+	#[ShortCodeR(name:"comment")]
 	public function topic_comment($match,ShortcodeInterface $s){
 		
 		$comment_id = $s->getParameter('comment_id');
