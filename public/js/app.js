@@ -2491,6 +2491,32 @@ try {// window.$ = window.jQuery = require('jquery');
 
 /***/ }),
 
+/***/ "./resources/sass/plugins/Topic/app.less":
+/*!***********************************************!*\
+  !*** ./resources/sass/plugins/Topic/app.less ***!
+  \***********************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+// extracted by mini-css-extract-plugin
+
+
+/***/ }),
+
+/***/ "./app/Plugins/User/resources/package/scss/pm.scss":
+/*!*********************************************************!*\
+  !*** ./app/Plugins/User/resources/package/scss/pm.scss ***!
+  \*********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+// extracted by mini-css-extract-plugin
+
+
+/***/ }),
+
 /***/ "./resources/sass/app.scss":
 /*!*********************************!*\
   !*** ./resources/sass/app.scss ***!
@@ -2818,6 +2844,8 @@ process.umask = function() { return 0; };
 /******/ 		// [resolve, reject, Promise] = chunk loading, 0 = chunk loaded
 /******/ 		var installedChunks = {
 /******/ 			"/js/app": 0,
+/******/ 			"plugins/User/css/pm": 0,
+/******/ 			"plugins/Topic/css/app": 0,
 /******/ 			"css/app": 0
 /******/ 		};
 /******/ 		
@@ -2866,8 +2894,10 @@ process.umask = function() { return 0; };
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module depends on other loaded chunks and execution need to be delayed
-/******/ 	__webpack_require__.O(undefined, ["css/app"], () => (__webpack_require__("./resources/js/app.js")))
-/******/ 	var __webpack_exports__ = __webpack_require__.O(undefined, ["css/app"], () => (__webpack_require__("./resources/sass/app.scss")))
+/******/ 	__webpack_require__.O(undefined, ["plugins/User/css/pm","plugins/Topic/css/app","css/app"], () => (__webpack_require__("./resources/js/app.js")))
+/******/ 	__webpack_require__.O(undefined, ["plugins/User/css/pm","plugins/Topic/css/app","css/app"], () => (__webpack_require__("./resources/sass/plugins/Topic/app.less")))
+/******/ 	__webpack_require__.O(undefined, ["plugins/User/css/pm","plugins/Topic/css/app","css/app"], () => (__webpack_require__("./app/Plugins/User/resources/package/scss/pm.scss")))
+/******/ 	var __webpack_exports__ = __webpack_require__.O(undefined, ["plugins/User/css/pm","plugins/Topic/css/app","css/app"], () => (__webpack_require__("./resources/sass/app.scss")))
 /******/ 	__webpack_exports__ = __webpack_require__.O(__webpack_exports__);
 /******/ 	
 /******/ })()

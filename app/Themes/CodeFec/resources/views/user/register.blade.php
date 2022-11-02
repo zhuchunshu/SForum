@@ -32,7 +32,7 @@
                         邀请码
                         @if(get_options('core_user_reg_yaoqing_url'))
                             <span class="form-label-description">
-                                <a href="{{get_options('core_user_reg_yaoqing_url')}}">获取邀请码</a>
+                                <a target="_blank" href="{{get_options('core_user_reg_yaoqing_url')}}">获取邀请码</a>
                             </span>
                         @endif
                     </label>

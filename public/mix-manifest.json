@@ -1,5 +1,5 @@
 {
-    "/js/app.js": "/js/app.js?id=4f8642873e0e2a19cece",
+    "/js/app.js": "/js/app.js?id=d739dcfda4e22a72df0c",
     "/js/install.js": "/js/install.js?id=e2a427dad25f612dc8fb",
     "/js/vue.js": "/js/vue.js?id=c0ed491e9d9bbd0212ac",
     "/js/alpine.js": "/js/alpine.js?id=3b24a5041f6ceb43ef89",
@@ -9,5 +9,15 @@
     "/js/admin/component.js": "/js/admin/component.js?id=7c1df5ab535f318e62bd",
     "/js/admin/setting.js": "/js/admin/setting.js?id=4d166aebaf24daa9b1ee",
     "/js/admin/index.js": "/js/admin/index.js?id=505f34d21dc046de3d56",
+    "/plugins/Core/js/user.js": "/plugins/Core/js/user.js?id=8fac803a867bafc9e978",
+    "/plugins/Core/js/app.js": "/plugins/Core/js/app.js?id=80695f1ab9af41cd3fc4",
+    "/plugins/Topic/js/topic.js": "/plugins/Topic/js/topic.js?id=6daede4f980885952a49",
+    "/plugins/Comment/js/topic.js": "/plugins/Comment/js/topic.js?id=458d688da003ac1a11dc",
+    "/plugins/Comment/js/edit.js": "/plugins/Comment/js/edit.js?id=8fdad6a3026b69a14c21",
+    "/plugins/User/js/user.js": "/plugins/User/js/user.js?id=67d504d56c98f83c5f1e",
+    "/plugins/User/js/pm.js": "/plugins/User/js/pm.js?id=f61ea2d0de0ec9c8b6a7",
+    "/plugins/Topic/js/core.js": "/plugins/Topic/js/core.js?id=8f69be0350520b9c1f01",
+    "/plugins/User/css/pm.css": "/plugins/User/css/pm.css?id=275ff7baed3f0ad596d9",
+    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=42f1620841ee43bc00fb",
     "/css/app.css": "/css/app.css?id=c1d20cb85fd399794cbd"
 }

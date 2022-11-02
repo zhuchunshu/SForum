@@ -6,15 +6,16 @@ use App\Plugins\User\src\Models\UsersAuth;
 
 class UserAuth
 {
-    public function create(int $user_id,string $token): void
+    public function create(int $user_id,string $token): bool
     {
-        if(UsersAuth::query()->where('user_id',$user_id)->exists()){
-            UsersAuth::query()->where('user_id',$user_id)->delete();
-        }
+	    if(UsersAuth::query()->where('user_id',$user_id)->count()){
+		    UsersAuth::query()->where('user_id',$user_id)->take(1)->delete();
+	    }
         UsersAuth::query()->create([
             'user_id' => $user_id,
             'token' => $token,
         ]);
+		return true;
     }
 
     public function destroy(int $user_id): void{

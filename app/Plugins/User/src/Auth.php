@@ -20,11 +20,15 @@ class Auth
             return false;
         }
         // 数据库里的密码
-        $user = User::query()->where('email', $email)->first();
+        $user_id = User::query()->where('email', $email)->first()->id;
+		$user = User::query()->find($user_id);
+		
         if (Hash::check($password, $user->password)) {
             $token = Str::random(17);
             session()->set('auth', $token);
-            (new UserAuth())->create($user->id,$token);
+            if(!(new UserAuth())->create($user->id,$token)){
+				return false;
+            }
             session()->set("auth_data",User::query()->where("id",$this->id())->with("Class")->first());
             session()->set("auth_data_class",UserClass::query()->where("id",auth()->data()->class_id)->first());
             session()->set("auth_data_options",UsersOption::query()->where("id",auth()->data()->options_id)->first());
@@ -41,7 +45,7 @@ class Auth
 			return false;
 		}
 		// 数据库里的密码
-		$user = User::query()->where('id', $id)->first();
+		$user = User::query()->find($id);
 		$token = Str::random(17);
 		session()->set('auth', $token);
 		(new UserAuth())->create($user->id,$token);
