@@ -491,7 +491,7 @@ if(document.getElementById("topic-content")){
     Vditor.graphvizRender(previewElement)
     Vditor.mathRender(previewElement);
     Vditor.mediaRender(previewElement);
-    Vditor.highlightRender({ lineNumber: true, enable: true }, previewElement);
+    //Vditor.highlightRender({ lineNumber: true, enable: true }, previewElement);
     Vditor.flowchartRender(previewElement);
     Vditor.plantumlRender(previewElement);
 }

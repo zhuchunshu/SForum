@@ -8323,11 +8323,8 @@ if (document.getElementById("topic-content")) {
   vditor__WEBPACK_IMPORTED_MODULE_1___default().mindmapRender(previewElement);
   vditor__WEBPACK_IMPORTED_MODULE_1___default().graphvizRender(previewElement);
   vditor__WEBPACK_IMPORTED_MODULE_1___default().mathRender(previewElement);
-  vditor__WEBPACK_IMPORTED_MODULE_1___default().mediaRender(previewElement);
-  vditor__WEBPACK_IMPORTED_MODULE_1___default().highlightRender({
-    lineNumber: true,
-    enable: true
-  }, previewElement);
+  vditor__WEBPACK_IMPORTED_MODULE_1___default().mediaRender(previewElement); //Vditor.highlightRender({ lineNumber: true, enable: true }, previewElement);
+
   vditor__WEBPACK_IMPORTED_MODULE_1___default().flowchartRender(previewElement);
   vditor__WEBPACK_IMPORTED_MODULE_1___default().plantumlRender(previewElement);
 } // 编辑帖子
