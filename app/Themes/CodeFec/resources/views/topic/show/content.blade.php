@@ -30,7 +30,7 @@
                     @include('App::topic.show.include.author')
 
 {{--文章信息--}}
-                    <article class="col-md-12 markdown" id="topic-content">
+                    <article class="col-md-12 article" id="topic-content">
                         {!! ContentParse()->parse($data->post->content,$parseData) !!}
                     </article>
 

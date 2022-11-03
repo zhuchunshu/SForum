@@ -1827,30 +1827,46 @@ pre {
   border: 0;
   font-size: 16px;
 }
-.vditor-reset {
-  font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
-}
-.vditor-reset p {
+.article p {
   margin-bottom: 5px;
   word-wrap: break-word;
   word-break: normal;
   line-height: 1.5;
+  font-size: 16px;
 }
-.vditor-reset h1:before {
+.article h1 {
+  font-size: 28px;
+}
+.article h2 {
+  font-size: 24px;
+}
+.article h3 {
+  font-size: 20px;
+}
+.article h4 {
+  font-size: 18px;
+}
+.article h5 {
+  font-size: 14px;
+}
+.article h6 {
+  font-size: 12px;
+}
+.article h1:before {
   content: "#";
   display: inline-block;
-  color: #4263eb !important;
+  color: #0073fa !important;
   padding-right: 0.23em;
 }
-.vditor-reset h2:before {
+.article h2:before {
   content: "##";
-  color: #4263eb !important;
+  color: #0073fa !important;
   display: inline-block;
   padding-right: 0.23em;
 }
-.vditor-reset h3:before {
+.article h3:before {
   content: "###";
-  color: #4263eb !important;
+  color: #0073fa !important;
   display: inline-block;
   padding-right: 0.23em;
 }
@@ -1858,15 +1874,15 @@ pre {
   padding-left: 2.5em !important;
   position: relative;
 }
-.vditor-reset {
+.article {
   font-size: 16px;
 }
-.vditor-reset .alert {
+.article .alert {
   font-size: 16px;
   padding-top: 8px;
   padding-bottom: 8px;
 }
-.vditor-reset .shortcode-alert-icon {
+.article .shortcode-alert-icon {
   margin-left: -10px;
   margin-right: -10px;
 }

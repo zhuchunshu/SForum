@@ -4126,6 +4126,29 @@ if (document.getElementById("users-settings-form")) {
   };
   Vue.createApp(app).mount("#users-settings-form");
 }
+
+if (document.getElementById("vue-users-data-session-ip")) {
+  var _app = {
+    data: function data() {
+      return {
+        ip: null
+      };
+    },
+    mounted: function mounted() {
+      var _this3 = this;
+
+      axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/User/get.session.ip", {
+        _token: csrf_token,
+        user_id: user_id
+      }).then(function (r) {
+        if (r.data.success) {
+          _this3.ip = r.data.result.msg;
+        }
+      });
+    }
+  };
+  Vue.createApp(_app).mount("#vue-users-data-session-ip");
+}
 })();
 
 /******/ })()

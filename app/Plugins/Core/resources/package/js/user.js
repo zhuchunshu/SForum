@@ -274,3 +274,26 @@ if(document.getElementById("users-settings-form")){
     }
     Vue.createApp(app).mount("#users-settings-form")
 }
+
+if(document.getElementById("vue-users-data-session-ip")){
+
+    const app = {
+        data(){
+            return {
+                ip:null
+            }
+        },
+        mounted() {
+            axios.post("/api/User/get.session.ip",{
+                _token:csrf_token,
+                user_id:user_id
+            }).then(r=>{
+                if(r.data.success){
+                    this.ip = r.data.result.msg
+                }
+            })
+        }
+    }
+
+    Vue.createApp(app).mount("#vue-users-data-session-ip")
+}
