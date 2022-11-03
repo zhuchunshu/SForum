@@ -44,6 +44,7 @@
             <small>默认开启</small>
         </div>
 
+
         <div class="col-3">
             <label class="form-label">头像缓存时间
             </label>
@@ -63,6 +64,13 @@
             </label>
             <input type="number" class="form-control" v-model="data.core_user_up_file_size">
             <small>当前:{{get_options('core_user_up_file_size',4096)}} KB</small>
+        </div>
+
+        <div class="col-3">
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.user_email_noticed_on">
+                <span class="form-check-label">开启所有用户邮件通知功能(需用户自行手动关闭)</span>
+            </label>
         </div>
 
     </div>
