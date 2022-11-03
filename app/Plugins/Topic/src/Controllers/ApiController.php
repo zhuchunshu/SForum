@@ -28,7 +28,7 @@ class ApiController
         $data = [
 			['text' => '请选择标签','value' => 0, ]
         ];
-        foreach (TopicTag::query()->get() as $key=>$value){
+        foreach (TopicTag::query()->where('status','=',null)->get() as $key=>$value){
             $class_name = UserClass::query()->where('id',auth()->data()->class_id)->first()->name;
             if(user_TopicTagQuanxianCheck($value,$class_name)){
                 $data = Arr::add($data,$key+1,[

@@ -26,6 +26,13 @@ menu()->add(303,[
     "parent_id" => 301
 ]);
 
+menu()->add(304,[
+    "name" => "任务",
+    "url" => "/admin/topic/tag/jobs",
+    "icon" => '',
+    "parent_id" => 301
+]);
+
 
 
 // 首页菜单

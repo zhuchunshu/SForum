@@ -71,4 +71,6 @@ return [
 	'watch' => "查看",
 	'wechat' => '微信',
 	'email' => '邮箱',
+    'approval' => '批准',
+    'reject' => '驳回'
 ];

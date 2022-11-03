@@ -9,6 +9,7 @@ use App\Plugins\Core\src\Handler\AvatarUpload;
 use App\Plugins\Topic\src\Models\TopicTag;
 use App\Plugins\Topic\src\Requests\CreateTagRequest;
 use App\Plugins\Topic\src\Requests\EditTagRequest;
+use App\Plugins\User\src\Models\User;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
@@ -127,5 +128,73 @@ class TagController
         }
         TopicTag::query()->where("id",$id)->delete();
         return Json_Api(200,true,['msg' => '删除成功!']);
+    }
+
+    #[GetMapping("/admin/topic/tag/jobs")]
+    public function jobs(){
+        $jobs = TopicTag::query()->where('status','待审核')->paginate(15);
+        return view('Topic::Tag.jobs',['page' => $jobs]);
+    }
+
+    #[PostMapping("/admin/topic/tag/job/approval")]
+    public function job_approval(){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
+        $id = request()->input("id");
+        if(!$id){
+            return Json_Api(403,false,['msg' => '请求id不能为空']);
+        }
+        if (!TopicTag::query()->where("id",$id)->count()){
+            return Json_Api(403,false,['msg' => 'id为'.$id."的标签不存在"]);
+        }
+        TopicTag::where('status','待审核')->where('id',$id)->update([
+            'status' => null
+        ]);
+        $user = TopicTag::query()->find($id)->user;
+        $mail = Email();
+        $url = url('/tags/'.$id.".html");
+        // 判断用户是否愿意接收通知
+        go(function()use ($mail,$url,$user) {
+            $mail->addAddress($user->email);
+            $mail->Subject = "【" . get_options("web_name") . "】 你的标签创建申请已审核通过";
+            $mail->Body = <<<HTML
+<h3>标题: 你的标签创建申请已审核通过,现在可以使用啦</h3>
+<p>链接: <a href="{$url}">{$url}</a></p>
+HTML;
+            $mail->send();
+        });
+        return Json_Api(200,true,['msg' => '修改成功!']);
+    }
+
+    #[PostMapping("/admin/topic/tag/job/reject")]
+    public function job_reject(){
+        if(!admin_auth()->check()){
+            return Json_Api(401,false,['msg' => '无权限']);
+        }
+        $id = request()->input("id");
+        if(!$id){
+            return Json_Api(403,false,['msg' => '请求id不能为空']);
+        }
+        if (!TopicTag::query()->where('status','待审核')->where("id",$id)->count()){
+            return Json_Api(403,false,['msg' => 'id为'.$id."的标签不存在"]);
+        }
+        $user = TopicTag::query()->where('status','待审核')->find($id)->user;
+        $mail = Email();
+        $url = url('/tags');
+        // 判断用户是否愿意接收通知
+        $content = request()->input('content','无理由');
+        go(function()use ($mail,$url,$user,$content) {
+            $mail->addAddress($user->email);
+            $mail->Subject = "【" . get_options("web_name") . "】 你的标签创建申请已被驳回";
+            $mail->Body = <<<HTML
+<h3>标题: 你的标签创建申请已被驳回</h3>
+<p>驳回理由:{$content}</p>
+<p>链接: <a href="{$url}">{$url}</a></p>
+HTML;
+            $mail->send();
+        });
+        TopicTag::query()->where('status','待审核')->where('id',$id)->delete();
+        return Json_Api(200,true,['msg' => '修改成功!']);
     }
 }
