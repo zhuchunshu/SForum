@@ -47,7 +47,7 @@
 
                         <div class="mb-3">
                             <div class="row">
-                                @if(count((new \App\Plugins\Core\src\Lib\Emoji())->get()))
+                                @if(get_options("topic_emoji_close",'false')!=="true" && count((new \App\Plugins\Core\src\Lib\Emoji())->get()))
                                     <div class="col-md-3">
                                         <div class="card">
                                             <ul class="nav nav-tabs" data-bs-toggle="tabs" style="flex-wrap: inherit;
@@ -74,7 +74,8 @@
                                                 <div class="tab-content">
                                                     @foreach((new \App\Plugins\Core\src\Lib\Emoji())->get() as $key => $value)
                                                         <div class="tab-pane  @if ($loop->first) active @endif show"
-                                                             id="emoji-list-{{$key}}" style="max-height: 320px;overflow-x: hidden;">
+                                                             id="emoji-list-{{$key}}"
+                                                             style="max-height: 320px;overflow-x: hidden;">
                                                             <div class="row">
                                                                 @if($value['type'] === 'image')
                                                                     @foreach($value['container'] as $emojis)

@@ -18,7 +18,7 @@
                         <div class="row">
                             <div class="mb-3">
                                 <div class="row">
-                                    @if(count((new \App\Plugins\Core\src\Lib\Emoji())->get()))
+                                    @if(get_options("comment_emoji_close",'false')!=="true" && count((new \App\Plugins\Core\src\Lib\Emoji())->get()))
                                         <div class="col-md-3">
                                             <div class="card">
                                                 <ul class="nav nav-tabs" data-bs-toggle="tabs" style="flex-wrap: inherit;
