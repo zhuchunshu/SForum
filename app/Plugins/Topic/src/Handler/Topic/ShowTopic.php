@@ -28,15 +28,18 @@ class ShowTopic
         $xia = Topic::query()->where([['id','>',$id],['status','publish']])->select('title','id')->orderBy('id','asc')->first();
         $sx = ['shang' => $shang,'xia' => $xia];
         $comment_count = TopicComment::query()->where(['status' => 'publish','topic_id'=>$id])->count();
-        $comment = null;
         // 评论分页数据
-        if (get_options("comment_topic_show_type","default")==="default"){
-            $comment = TopicComment::query()
-                ->where(['status' => 'publish','topic_id'=>$id])
-                ->with("topic","user","parent")
-                ->orderBy("optimal","desc")
-                ->paginate(get_options("comment_page_count",15));
+        if (get_options("comment_show_desc","off")==="true"){
+            $CommentOrderBy = 'desc';
+        }else{
+	        $CommentOrderBy = 'asc';
         }
+	    $comment = TopicComment::query()
+		    ->where(['status' => 'publish','topic_id'=>$id])
+		    ->with("topic","user","parent")
+		    ->orderBy("optimal","desc")
+		    ->orderBy("created_at",$CommentOrderBy)
+		    ->paginate(get_options("comment_page_count",15));
 		// ContentParse data
 	    $parseData = [
 		    'topic' => $data,
