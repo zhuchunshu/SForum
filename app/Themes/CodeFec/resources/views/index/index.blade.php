@@ -109,8 +109,9 @@
                                 <div class="col-auto bottomLine">
                                     <a href="/tags/{{$data->tag->id}}.html" style="text-decoration:none">
                                         <div class="card-circle">
-                                            <img src="{{$data->tag->icon}}" alt="">
-                                            <span>{{$data->tag->name}}</span>
+                                            <span>
+                                                # {{$data->tag->name}}
+                                            </span>
                                         </div>
                                     </a>
                                 </div>
@@ -129,7 +130,10 @@
                                     <a style="text-decoration:none;" href="/{{$data->id}}.html#topic-comment"
                                        class="ms-3 text-muted cursor-pointer" data-bs-toggle="tooltip"
                                        data-bs-placement="bottom" title="{{__("app.comment")}}">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-message-circle" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                             class="icon icon-tabler icon-tabler-message-circle" width="24" height="24"
+                                             viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                                             stroke-linecap="round" stroke-linejoin="round">
                                             <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                             <path d="M3 20l1.3 -3.9a9 8 0 1 1 3.4 2.9l-4.7 1"></path>
                                             <line x1="12" y1="12" x2="12" y2="12.01"></line>
