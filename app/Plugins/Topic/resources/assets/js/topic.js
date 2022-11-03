@@ -7859,7 +7859,7 @@ if (document.getElementById("create-topic-vue")) {
         options: {
           summary: ''
         },
-        tag_selected: 1,
+        tag_selected: 0,
         tags: [{
           "text": "请选择",
           "value": "Default",
@@ -7915,6 +7915,12 @@ if (document.getElementById("create-topic-vue")) {
         var html = this.vditor.getHTML();
         var markdown = this.vditor.getValue();
         var tags = this.tag_selected;
+
+        if (tags === 0) {
+          swal("Error", "请选择标签!", "error");
+          return;
+        }
+
         var title = this.title;
         var summary = this.options.summary;
 
@@ -7989,6 +7995,12 @@ if (document.getElementById("create-topic-vue")) {
         var html = this.vditor.getHTML();
         var markdown = this.vditor.getValue();
         var tags = this.tag_selected;
+
+        if (tags === 0) {
+          swal("Error", "请选择标签!", "error");
+          return;
+        }
+
         var title = this.title;
         var summary = this.options.summary;
 
@@ -8346,7 +8358,7 @@ if (document.getElementById("edit-topic-vue")) {
         options: {
           summary: ''
         },
-        tag_selected: 1,
+        tag_selected: 0,
         tags: [{
           "text": "请选择",
           "value": "Default",
@@ -8487,6 +8499,12 @@ if (document.getElementById("edit-topic-vue")) {
         var html = this.vditor.getHTML();
         var markdown = this.vditor.getValue();
         var tags = this.tag_selected;
+
+        if (tags === 0) {
+          swal("Error", "请选择标签!", "error");
+          return;
+        }
+
         var title = this.title;
         var summary = this.options.summary;
 

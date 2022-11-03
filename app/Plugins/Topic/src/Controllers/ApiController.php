@@ -25,14 +25,16 @@ class ApiController
     #[PostMapping(path:"tags")]
     public function Tags(): array
     {
-        $data = [];
+        $data = [
+			['text' => '请选择标签','value' => 0, ]
+        ];
         foreach (TopicTag::query()->get() as $key=>$value){
             $class_name = UserClass::query()->where('id',auth()->data()->class_id)->first()->name;
             if(user_TopicTagQuanxianCheck($value,$class_name)){
-                $data = Arr::add($data,$key,[
+                $data = Arr::add($data,$key+1,[
                     "text"=>$value->name,
                     "value" => $value->id,
-                    "icons" => "&lt;span class=&quot;avatar avatar-xs&quot; style=&quot;background-image: url($value->icon)&quot;&gt;&lt;/span&gt;"
+//                    "icons" => "&lt;span class=&quot;avatar avatar-xs&quot; style=&quot;background-image: url($value->icon)&quot;&gt;&lt;/span&gt;"
                 ]);
             }
         }

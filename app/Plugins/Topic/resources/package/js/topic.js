@@ -21,7 +21,7 @@ if(document.getElementById("create-topic-vue")){
                 options:{
                     summary:'',
                 },
-                tag_selected:1,
+                tag_selected:0,
                 tags:[
                     {"text":"请选择","value":"Default","icons":"1"}
                 ],
@@ -79,6 +79,10 @@ if(document.getElementById("create-topic-vue")){
                 const html = this.vditor.getHTML();
                 const markdown = this.vditor.getValue();
                 const tags = this.tag_selected;
+                if(tags===0){
+                    swal("Error", "请选择标签!", "error");
+                    return ;
+                }
                 const title = this.title;
                 const summary = this.options.summary
                 if(!title){
@@ -149,6 +153,10 @@ if(document.getElementById("create-topic-vue")){
                 const html = this.vditor.getHTML();
                 const markdown = this.vditor.getValue();
                 const tags = this.tag_selected;
+                if(tags===0){
+                    swal("Error", "请选择标签!", "error");
+                    return ;
+                }
                 const title = this.title;
                 const summary = this.options.summary
                 if(!title){
@@ -515,7 +523,7 @@ if(document.getElementById("edit-topic-vue")){
                 options:{
                     summary:'',
                 },
-                tag_selected:1,
+                tag_selected:0,
                 tags:[
                     {"text":"请选择","value":"Default","icons":"1"}
                 ],
@@ -623,6 +631,10 @@ if(document.getElementById("edit-topic-vue")){
                 const html = this.vditor.getHTML();
                 const markdown = this.vditor.getValue();
                 const tags = this.tag_selected;
+                if(tags===0){
+                    swal("Error", "请选择标签!", "error");
+                    return ;
+                }
                 const title = this.title;
                 const summary = this.options.summary
                 if(!title){
