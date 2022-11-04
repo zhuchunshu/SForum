@@ -81,3 +81,9 @@ Itf()->add('SMS',2,[
     'handler' => \App\Plugins\Core\src\Lib\Sms\Service\Ucloud::class,
     'view' => 'App::Sms.ucloud'
 ]);
+
+Itf()->add('SMS',3,[
+    'name' => 'SmsBao',
+    'handler' => \App\Plugins\Core\src\Lib\Sms\Service\SmsBao::class,
+    'view' => 'App::Sms.smsbao'
+]);
