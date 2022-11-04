@@ -795,3 +795,10 @@ if(!function_exists('content_brief')){
 		return htmlspecialchars_decode($content,ENT_QUOTES);
 	}
 }
+
+if(!function_exists('admin_log')){
+    function admin_log(): \App\CodeFec\Admin\LogServer
+    {
+        return (new \App\CodeFec\Admin\LogServer());
+    }
+}
