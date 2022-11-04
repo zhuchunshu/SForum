@@ -11,7 +11,7 @@
             </div>
         </div>
         <div class="card-body">
-<pre><code>@json([$data],JSON_UNESCAPED_UNICODE)</code>
+<pre><code>@json([$data],JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT)</code>
 </pre>
         </div>
         <div class="card-footer">

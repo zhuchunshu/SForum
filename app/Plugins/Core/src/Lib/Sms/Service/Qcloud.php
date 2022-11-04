@@ -40,6 +40,9 @@ class Qcloud
 
             // 返回的resp是一个SendSmsResponse的实例，与请求对象对应
             // 输出json格式的字符串回包
+            admin_log()->insert('sms','Qcloud','发信结果',[
+                'data' => $client->SendSms($req)->toJsonString()
+            ]);
             return $client->SendSms($req)->toJsonString();
         });
     }

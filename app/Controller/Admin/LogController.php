@@ -34,7 +34,6 @@ class LogController
     public function data($id){
         $data = admin_log()->db()->findById($id);
         $_token = $data['_token'];
-        $data = $data['data'];
         return view('admin.server.logger_data',['data' => $data,'_token' => $_token]);
     }
 }

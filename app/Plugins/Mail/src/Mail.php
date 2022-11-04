@@ -100,6 +100,9 @@ class Mail
 
             return $mail;
         } catch (Exception $e) {
+            admin_log()->insert('mail','sendMail(默认发信)','发信失败!',[
+                'error' => $e
+            ]);
             throw new \RuntimeException($mail->ErrorInfo);
         }
     }

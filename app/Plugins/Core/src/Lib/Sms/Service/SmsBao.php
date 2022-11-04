@@ -22,11 +22,16 @@ class SmsBao
                 "50" => "内容含有敏感词"
             );
             $content = '【' . get_options('sms_smsbao_name') . '】你的注册验证码为:' . $data[0] . '，' . $data[1] . '分钟内有效，如非本人操作，请忽略本短信';
-            $result = http('raw')
+            $http = http('raw')
                 ->get('http://api.smsbao.com/sms?u=' .
                     get_options('sms_smsbao_user') .
                     '&p=' . md5(get_options('sms_smsbao_pass'))
-                    . "&m=" . $to . '&c=' . $content)->getBody()->getContents();
+                    . "&m=" . $to . '&c=' . $content)->getBody();
+            $result = $http->getContents();
+            admin_log()->insert('sms','SmsBao(短信宝)',$statusStr[$result],[
+                'http' => $http,
+                'result' => $result
+            ]);
             return $statusStr[$result];
 
         });

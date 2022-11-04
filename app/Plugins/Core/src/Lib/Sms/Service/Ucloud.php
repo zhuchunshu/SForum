@@ -9,7 +9,13 @@ use UCloud\USMS\USMSClient;
 class Ucloud
 {
     public function handler($to,array $data){
-        go(function() use ($to,$data){
+        go(/**
+         * @throws \SleekDB\Exceptions\IdNotAllowedException
+         * @throws UCloudException
+         * @throws \SleekDB\Exceptions\IOException
+         * @throws \SleekDB\Exceptions\JsonException
+         * @throws \SleekDB\Exceptions\InvalidArgumentException
+         */ function() use ($to,$data){
             // Build client
             $client = new USMSClient([
                 "publicKey" => get_options('sms_ucloud_publicKey'),
@@ -26,6 +32,9 @@ class Ucloud
                 $req->setTemplateParams($data);
                 $resp = $client->sendUSMSMessage($req);
             } catch (UCloudException $e) {
+                admin_log()->insert('sms','Ucloud','发信失败',[
+                    'error' => $e
+                ]);
                 throw $e;
             }
             return $resp->toArray();
