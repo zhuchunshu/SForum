@@ -47,7 +47,8 @@ mix.js(resources_path("js/alpine.js"),"js")
     // setting
     mix.js(resources_path("js/admin/setting.js"),"js/admin").version();
     mix.js(resources_path("js/admin/index.js"),"js/admin").version();
-
+    // pay
+    mix.js(resources_path("js/admin/pay.js"),"js/admin").version();
     try{
         require("./plugins.mix")
     } catch {

@@ -802,3 +802,14 @@ if(!function_exists('admin_log')){
         return (new \App\CodeFec\Admin\LogServer());
     }
 }
+
+if(!function_exists('pay')){
+    /**
+     * 支付服务
+     * @return \App\Plugins\Core\src\Lib\Pay\PayService
+     */
+    function pay(): \App\Plugins\Core\src\Lib\Pay\PayService
+    {
+        return new \App\Plugins\Core\src\Lib\Pay\PayService();
+    }
+}

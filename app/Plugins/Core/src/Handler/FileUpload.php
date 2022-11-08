@@ -36,7 +36,7 @@ class FileUpload
 		$upload_path = public_path() . '/' . $folder_name;
 		
 		// 获取文件的后缀名，因图片从剪贴板里黏贴时后缀名为空，所以此处确保后缀一直存在
-		$extension = strtolower($file->getExtension()) ?: 'png';
+		$extension = strtolower(@$file->getExtension()) ?: 'png';
 		
 		// 拼接文件名，加前缀是为了增加辨析度，前缀可以是相关数据模型的 ID
 		// 值如：1_1493521050_7BVc9v9ujP.png
@@ -54,6 +54,7 @@ class FileUpload
 		]);
 		return [
 			'path' => "/$folder_name/$filename",
+            'raw_path' => public_path("$folder_name/$filename"),
 			"success" => true,
 			"status" => "上传成功!"
 		];

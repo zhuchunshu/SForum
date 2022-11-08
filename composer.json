@@ -52,7 +52,9 @@
         "rakibtg/sleekdb": "^2.15",
         "tencentcloud/tencentcloud-sdk-php": "^3.0",
         "ucloud/ucloud-sdk-php": "^0.3.3",
+        "whichbrowser/parser": "^2.1",
         "wikimedia/composer-merge-plugin": "^2.0",
+        "yansongda/pay": "~3.2.0",
         "zhuchunshu/hyperf-hashing": "2.2.0"
     },
     "require-dev": {
