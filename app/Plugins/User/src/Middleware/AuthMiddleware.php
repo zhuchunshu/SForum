@@ -40,12 +40,12 @@ class AuthMiddleware implements MiddlewareInterface
                 }
             }
             // 邮箱验证
-            if((int)get_options('core_user_email_ver',1)===1 && !auth()->data()->email_ver_time && request()->path() !== "user/ver_email"){
+            if((int)get_options('core_user_email_ver',1)===1 && !auth()->data()->email_ver_time && request()->path() !== "user/ver_email" && request()->path() !== "user/ver_phone" && request()->path() !== "user/ver_phone/send" ){
                 return redirect()->url("/user/ver_email")->go();
             }
             // 手机号验证
-            if(get_options('core_user_sms','关闭') === "开启" && !auth()->data()->phone_ver_time && request()->path() !== "user/ver_phone"
-            && request()->path() !== "user/ver_phone/send"
+            if(get_options('core_user_sms','关闭') === "开启" && !auth()->data()->phone_ver_time && request()->path() !== "user/ver_phone" && request()->path() !== "user/ver_email"
+                && request()->path() !== "user/ver_phone/send"
             ){
                 return redirect()->url("/user/ver_phone")->go();
             }
