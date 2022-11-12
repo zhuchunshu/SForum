@@ -47,7 +47,7 @@
                                             或点此链接支付:<a :href="pay_url">@{{ pay_url }}</a>
                                         </span>
                                         <div class="form-selectgroup" v-if="!qrcode_url">
-                                            @foreach(pay()->getInterfaces() as $id=>$data)
+                                            @foreach(pay()->get_enabled_data() as $id=>$data)
                                                 <label class="form-selectgroup-item">
                                                     <input type="radio" v-model="payment"
                                                            value='[{{$id}},"{{$data['ename']}}"]'

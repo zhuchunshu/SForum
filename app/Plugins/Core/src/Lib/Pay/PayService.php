@@ -175,6 +175,26 @@ class PayService
     }
 
     /**
+     * 获取已启动支付插件
+     * @return array
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function get_enabled_data(): array
+    {
+        // 获取在数据库中已启用的支付插件
+        $pays = json_decode(pay()->get_options('enable', '[]'));
+        $enable = [];
+        foreach ($pays as $name) {
+            foreach ($this->getInterfaces() as $id => $p) {
+                if (Arr::has($p, 'ename') && $p['ename'] === $name) {
+                    $enable[$id] = $p;
+                }
+            }
+        }
+        return $enable;
+    }
+
+    /**
      * 处理回调通知
      * @param string $id 订单号(由super-forum系统生产)
      * @param string $status 订单状态
@@ -342,6 +362,12 @@ class PayService
         if (!Arr::has($this->getInterfaces()[$payment_method[0]], 'ename') || $this->getInterfaces()[$payment_method[0]]['ename'] !== $payment_method[1]) {
             return Json_Api(403, false, ['msg' => '支付方式不存在,ename检索失败']);
         }
+
+        // 检索支付方式id
+        if (!is_array($this->get_enabled_data()[$payment_method[0]])) {
+            return Json_Api(403, false, ['msg' => '此支付扩展未启用']);
+        }
+
         return true;
     }
 
