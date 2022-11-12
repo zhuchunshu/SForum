@@ -22,7 +22,7 @@
                                             </div>
                                             <div class="form-selectgroup-label-content d-flex align-items-center">
 
-                                                <img style="max-height:65px;width:125px;" src="{{$pay['icon']}}" alt="{{$pay['name']}}">
+                                                <img style="max-height:35px;width:75px;" src="{{$pay['icon']}}" alt="{{$pay['name']}}">
                                                 <div>
                                                     <div class="font-weight-medium">{{$pay['name']}}</div>
                                                     <div class="text-muted">{{$pay['description']}}</div>
