@@ -92,10 +92,13 @@
                                     <div class="datagrid-content">{{$order->amount}} 元</div>
                                 </div>
                             @endif
-                            <div class="datagrid-item">
-                                <div class="datagrid-title">用户实付金额</div>
-                                <div class="datagrid-content">{{$order->payer_total}} 元</div>
-                            </div>
+                            @if($order->payer_total)
+                                <div class="datagrid-item">
+                                    <div class="datagrid-title">用户实付金额</div>
+                                    <div class="datagrid-content">{{$order->payer_total}} 元</div>
+                                </div>
+                            @endif
+
                             @if($order->payer_total)
                                 <div class="datagrid-item">
                                     <div class="datagrid-title">实收金额(订单总金额)</div>
