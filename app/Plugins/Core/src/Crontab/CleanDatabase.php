@@ -20,6 +20,8 @@ class CleanDatabase
         $this->notice();
         // 清理超过一天未付款、取消、关闭的订单
         $this->order();
+        // 清理admin_logger日志
+        $this->admin_logger();
     }
     
     public function isEnable(): bool
@@ -54,5 +56,18 @@ class CleanDatabase
             PayOrder::where('id', $id)->delete();
         }
         //return $data;
+    }
+
+    /**
+     * 清理admin_logger过期日志
+     * @return void
+     */
+    private function admin_logger(): void
+    {
+        foreach (scandir(BASE_PATH."/runtime/logs/admin_logger_database") as $name) {
+            if (is_dir(BASE_PATH."/runtime/logs/admin_logger_database/".$name) && $name!==(string)date('YmW') && $name!=='.' && $name!=='..') {
+                deldir(BASE_PATH."/runtime/logs/admin_logger_database/".$name);
+            }
+        }
     }
 }
