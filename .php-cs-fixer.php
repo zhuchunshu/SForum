@@ -1,15 +1,14 @@
 <?php
 
 $header = <<<'EOF'
-CodeFec - Hyperf
-
-@link     https://github.com/zhuchunshu
-@document https://codefec.com
-@contact  laravel@88.com
-@license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
+This file is part of Hyperf.
+@link     https://www.hyperf.io
+@document https://hyperf.wiki
+@contact  group@hyperf.io
+@license  https://github.com/hyperf/hyperf/blob/master/LICENSE
 EOF;
 
-return PhpCsFixer\Config::create()
+return (new PhpCsFixer\Config())
     ->setRiskyAllowed(true)
     ->setRules([
         '@PSR2' => true,
@@ -17,7 +16,7 @@ return PhpCsFixer\Config::create()
         '@DoctrineAnnotation' => true,
         '@PhpCsFixer' => true,
         'header_comment' => [
-            'commentType' => 'PHPDoc',
+            'comment_type' => 'PHPDoc',
             'header' => $header,
             'separate' => 'none',
             'location' => 'after_declare_strict',

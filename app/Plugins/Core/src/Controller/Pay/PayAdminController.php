@@ -5,6 +5,7 @@ namespace App\Plugins\Core\src\Controller\Pay;
 use App\Middleware\AdminMiddleware;
 use App\Plugins\Core\src\Handler\FileUpload;
 use App\Plugins\Core\src\Models\PayConfig;
+use App\Plugins\Core\src\Models\PayOrder;
 use Hyperf\HttpServer\Annotation\{Controller, GetMapping, Middleware, PostMapping};
 
 #[Controller(prefix: '/admin/Pay')]
@@ -17,7 +18,28 @@ class PayAdminController
      */
     #[GetMapping(path:"")]
     public function index(){
-        return view('App::Pay.admin.index');
+        $where_column = request()->input('where_column');
+        $q = request()->input('trade_no');
+        if(!$where_column){
+            $_orderBy = 'ASC';
+            if ($q){
+                $page = PayOrder::query()->where('trade_no','like','%'.$q.'%')->orWhere('id','like','%'.$q.'%')->paginate(15);
+            }else{
+                $page = PayOrder::query()->paginate(15);
+            }
+            return view('App::Pay.admin.index',['page'=>$page,'_orderBy' => $_orderBy]);
+        }
+        $_orderBy = match (request()->input('_orderBy')){
+            'ASC' => 'DESC',
+            'DESC' => 'ASC',
+        };
+        if ($q){
+            $page = PayOrder::query()->where('trade_no','like','%'.$q.'%')->orWhere('id','like','%'.$q.'%')->orderBy($where_column,$_orderBy)->paginate(15);
+
+        }else{
+            $page = PayOrder::query()->orderBy($where_column,$_orderBy)->paginate(15);
+        }
+        return view('App::Pay.admin.index',['page'=>$page,'_orderBy' => $_orderBy]);
     }
 
     /**
@@ -86,5 +108,13 @@ class PayAdminController
         pay()->clean_options();
         return redirect()->url('/admin/Pay/setting')->with('success','更新成功')->go();
         //return view('App::Pay.admin.setting');
+    }
+
+    #[GetMapping(path:'{trade_no}/order')]
+    public function order_show($trade_no){
+        if (!PayOrder::query()->where('trade_no',$trade_no)->exists()){
+            return redirect()->url('/admin/Pay')->with('danger','订单不存在')->go();
+        }
+        return pay()->find($trade_no);
     }
 }

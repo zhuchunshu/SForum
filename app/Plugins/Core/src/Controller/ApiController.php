@@ -16,29 +16,30 @@ class ApiController
 {
     // 创建举报
     #[PostMapping(path:"report/create")]
-    public function report_create(CreateRequest $request){
-        if(!auth()->check()){
-            return Json_Api(401,false,['未登录']);
+    public function report_create(CreateRequest $request)
+    {
+        if (!auth()->check()) {
+            return Json_Api(401, false, ['未登录']);
         }
 
         // 鉴权
         $quanxian = false;
-        if(($request->input("type") === "comment") && Authority()->check("report_comment")) {
+        if (($request->input("type") === "comment") && Authority()->check("report_comment")) {
             $quanxian = true;
         }
-        if(($request->input("type") === "topic") && Authority()->check("report_topic")) {
+        if (($request->input("type") === "topic") && Authority()->check("report_topic")) {
             $quanxian = true;
         }
 
-        if($quanxian===false){
-            return Json_Api(401,false,['无权限']);
+        if ($quanxian===false) {
+            return Json_Api(401, false, ['无权限']);
         }
 
         //
         $type = $request->input("type");
         $type_id = $request->input("type_id");
-        if(Report::query()->where(['user_id' => auth()->id(),'_id' => $type_id,'type' => $type])->exists()){
-            return Json_Api(403,false,['你已举报此贴,无需重复举报']);
+        if (Report::query()->where(['user_id' => auth()->id(),'_id' => $type_id,'type' => $type])->exists()) {
+            return Json_Api(403, false, ['你已举报此贴,无需重复举报']);
         }
         $content = '**违规页面地址:** '.$request->input("url").'
 **举报原因:** '.$request->input("report_reason")."\n\n".$request->input('content');
@@ -52,118 +53,131 @@ class ApiController
 
         // 发送通知
         $users = [];
-        foreach (Authority()->getUsers("admin_report") as $user){
+        foreach (Authority()->getUsers("admin_report") as $user) {
             $users[]=$user->id;
         }
-        $mail_content = view("App::report.send_admin",['data' => $data]);
+        $mail_content = view("App::report.send_admin", ['data' => $data]);
 
-        user_notice()->sends($users,"有用户举报了一条内容,需要你来审核",$mail_content,"/report/".$data->id.".html");
-        return Json_Api(200,true,['举报成功! 等待管理员审核']);
+        user_notice()->sends($users, "有用户举报了一条内容,需要你来审核", $mail_content, "/report/".$data->id.".html");
+        return Json_Api(200, true, ['举报成功! 等待管理员审核']);
     }
 
     // 获取举报信息
     #[PostMapping(path:"report/data")]
-    public function report_data(){
+    public function report_data()
+    {
         $report_id = request()->input('report_id');
-        if(!$report_id){
-            return Json_Api(403,false,['请求参数不足,缺少:report_id']);
+        if (!$report_id) {
+            return Json_Api(403, false, ['请求参数不足,缺少:report_id']);
         }
-        if(!Report::query()->where("id",$report_id)->exists()){
-            return Json_Api(403,false,['id为'.$report_id."的举报内容不存在"]);
+        if (!Report::query()->where("id", $report_id)->exists()) {
+            return Json_Api(403, false, ['id为'.$report_id."的举报内容不存在"]);
         }
-        $data = Report::query()->where("id",$report_id)->first(['status','type','_id']);
-        return Json_Api(200,true,$data);
+        $data = Report::query()->where("id", $report_id)->first(['status','type','_id']);
+        return Json_Api(200, true, $data);
     }
 
     #[PostMapping(path:"report/update")]
-    public function report_update(){
-        if(!auth()->check() || !Authority()->check("admin_report")){
-            return Json_Api(401,false,['无权限']);
+    public function report_update()
+    {
+        if (!auth()->check() || !Authority()->check("admin_report")) {
+            return Json_Api(401, false, ['无权限']);
         }
         $report_id = request()->input('report_id');
-        if(!$report_id){
-            return Json_Api(403,false,['请求参数不足,缺少:report_id']);
+        if (!$report_id) {
+            return Json_Api(403, false, ['请求参数不足,缺少:report_id']);
         }
-        if(!Report::query()->where("id",$report_id)->exists()){
-            return Json_Api(403,false,['id为'.$report_id."的举报内容不存在"]);
+        if (!Report::query()->where("id", $report_id)->exists()) {
+            return Json_Api(403, false, ['id为'.$report_id."的举报内容不存在"]);
         }
-        $status = Report::query()->where("id",$report_id)->first(['status'])->status;
-        if($status==="pending"){
+        $status = Report::query()->where("id", $report_id)->first(['status'])->status;
+        if ($status==="pending") {
             $_status="approve";
             $_text="批准";
         }
-        if($status==="reject"){
+        if ($status==="reject") {
             $_status="approve";
             $_text="批准";
         }
-        if($status==="approve"){
+        if ($status==="approve") {
             $_status="reject";
             $_text="驳回";
         }
-        Report::query()->where("id",$report_id)->update([
+        Report::query()->where("id", $report_id)->update([
             'status' => $_status
         ]);
-        return Json_Api(200,true,[$_text."成功!"]);
+        return Json_Api(200, true, [$_text."成功!"]);
     }
 
     // 删除举报
     #[PostMapping(path:"report/remove")]
-    public function report_remove(){
-        if(!auth()->check() || !Authority()->check("admin_report")){
-            return Json_Api(401,false,['无权限']);
+    public function report_remove()
+    {
+        if (!auth()->check() || !Authority()->check("admin_report")) {
+            return Json_Api(401, false, ['无权限']);
         }
         $report_id = request()->input('report_id');
-        if(!$report_id){
-            return Json_Api(403,false,['请求参数不足,缺少:report_id']);
+        if (!$report_id) {
+            return Json_Api(403, false, ['请求参数不足,缺少:report_id']);
         }
-        if(!Report::query()->where("id",$report_id)->exists()){
-            return Json_Api(403,false,['id为'.$report_id."的举报内容不存在"]);
+        if (!Report::query()->where("id", $report_id)->exists()) {
+            return Json_Api(403, false, ['id为'.$report_id."的举报内容不存在"]);
         }
 
         // 举报快照
-        $data = Report::query()->where("id",$report_id)->first();
+        $data = Report::query()->where("id", $report_id)->first();
 
-        Report::query()->where("id",$report_id)->delete();
+        Report::query()->where("id", $report_id)->delete();
 
 
         // 发送通知
         $users = [];
-        foreach (Authority()->getUsers("admin_report") as $user){
+        foreach (Authority()->getUsers("admin_report") as $user) {
             $users[]=$user->id;
         }
 
         $user_data = auth()->data();
-        $mail_content = view("App::report.remove_admin",['data' => $data,'user' => $user_data]);
+        $mail_content = view("App::report.remove_admin", ['data' => $data,'user' => $user_data]);
 
-        user_notice()->sends($users,"有管理员删除了一条举报,特此通知!",$mail_content,url("/"));
-        return Json_Api(200,true,['删除成功!']);
+        user_notice()->sends($users, "有管理员删除了一条举报,特此通知!", $mail_content, url("/"));
+        return Json_Api(200, true, ['删除成功!']);
     }
 
     // 获取所有被举报并批准的的评论
     #[PostMapping(path:"report/approve.comment")]
-    public function report_approve_comment_list(){
+    public function report_approve_comment_list()
+    {
         $arr = [];
-        foreach (Report::query()->where(["type"=>"comment",'status' => 'approve'])->get() as $value){
+        foreach (Report::query()->where(["type"=>"comment",'status' => 'approve'])->get() as $value) {
             $arr[]=$value->_id;
         }
-        return Json_Api(200,true,$arr);
+        return Json_Api(200, true, $arr);
     }
-	
-	// 切换主题
-	#[RateLimit(create:1, capacity:1)]
-	#[PostMapping(path:"toggle.theme")]
-	public function theme_toggle(){
-		if(!request()->input('theme')){
-			return Json_Api(403,false,['msg'=>'请求参数不足,缺少:theme']);
-		}
-		session()->set('theme',request()->input('theme'));
-		return Json_Api(200,true,['msg' => '切换成功!']);
-	}
-	
-	// 获取所有emoji
-	#[RequestMapping(path:"OwO.json")]
-	public function emoji(){
-		$all = (new \App\Plugins\Core\src\Lib\Emoji())->get();
-		return $all;
-	}
+    
+    // 切换主题
+    #[RateLimit(create:1, capacity:1)]
+    #[PostMapping(path:"toggle.theme")]
+    public function theme_toggle()
+    {
+        if (!request()->input('theme')) {
+            return Json_Api(403, false, ['msg'=>'请求参数不足,缺少:theme']);
+        }
+        session()->set('theme', request()->input('theme'));
+        return Json_Api(200, true, ['msg' => '切换成功!']);
+    }
+    
+    // 获取所有emoji
+    #[RequestMapping(path:"OwO.json")]
+    public function emoji()
+    {
+        return (new \App\Plugins\Core\src\Lib\Emoji())->get();
+    }
+
+    #[RequestMapping(path:"qr_code")]
+    public function qr_code(): \Psr\Http\Message\ResponseInterface
+    {
+        $content = request()->input('content', url());
+        $qr_code = qr_code()->format('svg')->generate($content);
+        return response()->raw($qr_code)->withHeader('Content-Type', 'image/svg+xml');
+    }
 }

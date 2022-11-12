@@ -21,8 +21,8 @@
                                                 <span class="form-selectgroup-check"></span>
                                             </div>
                                             <div class="form-selectgroup-label-content d-flex align-items-center">
-                                                <span class="avatar me-3"
-                                                      style="background-image: url({{$pay['icon']}});background-repeat:no-repeat;background-size:100% 100%;-moz-background-size:100% 100%;"></span>
+
+                                                <img style="max-height:65px;width:125px;" src="{{$pay['icon']}}" alt="{{$pay['name']}}">
                                                 <div>
                                                     <div class="font-weight-medium">{{$pay['name']}}</div>
                                                     <div class="text-muted">{{$pay['description']}}</div>

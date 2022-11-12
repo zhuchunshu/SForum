@@ -1,94 +1,114 @@
 <?php
-Itf_Setting()->add(200,
-    "主题 - 全局","theme-common","setting.theme.common");
+Itf_Setting()->add(
+    200,
+    "主题 - 全局",
+    "theme-common",
+    "setting.theme.common"
+);
 
-Itf_Setting()->add(201,
-"主题 - 页头","theme-header","setting.theme.header");
-Itf()->add("core_menu",1,[
+Itf_Setting()->add(
+    201,
+    "主题 - 页头",
+    "theme-header",
+    "setting.theme.header"
+);
+Itf()->add("core_menu", 1, [
     "name" => "首页",
     "url" => "/"
 ]);
 
-Itf_Setting()->add(212,
-    "登陆注册","setting_user_sign","setting.user.sign");
-Itf_Setting()->add(204,
-    "用户设置","user-setting","setting.user.core");
-Itf_Setting()->add(205,
-    "短信设置","user-sms","setting.user.sms");
+Itf_Setting()->add(
+    212,
+    "登陆注册",
+    "setting_user_sign",
+    "setting.user.sign"
+);
+Itf_Setting()->add(
+    204,
+    "用户设置",
+    "user-setting",
+    "setting.user.core"
+);
+Itf_Setting()->add(
+    205,
+    "短信设置",
+    "user-sms",
+    "setting.user.sms"
+);
 
-Itf()->add("show_right",1,"App::topic.right");
+Itf()->add("show_right", 1, "App::topic.right");
 
-menu()->add(2001,[
-	'name' => '注册邀请码',
-	'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-key" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+menu()->add(2001, [
+    'name' => '注册邀请码',
+    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-key" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <circle cx="8" cy="15" r="4"></circle>
    <line x1="10.85" y1="12.15" x2="19" y2="4"></line>
    <line x1="18" y1="5" x2="20" y2="7"></line>
    <line x1="15" y1="8" x2="17" y2="10"></line>
 </svg>',
-	'url' => '/admin/Invitation-code'
+    'url' => '/admin/Invitation-code'
 ]);
 
-menu()->add(2002,[
-	'name' => '管理',
-	'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-key" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+menu()->add(2002, [
+    'name' => '管理',
+    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-key" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <circle cx="8" cy="15" r="4"></circle>
    <line x1="10.85" y1="12.15" x2="19" y2="4"></line>
    <line x1="18" y1="5" x2="20" y2="7"></line>
    <line x1="15" y1="8" x2="17" y2="10"></line>
 </svg>',
-	'url' => '/admin/Invitation-code',
-	'parent_id' => 2001
+    'url' => '/admin/Invitation-code',
+    'parent_id' => 2001
 ]);
 
-menu()->add(2003,[
-	'name' => '添加',
-	'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-key" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+menu()->add(2003, [
+    'name' => '添加',
+    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-key" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <circle cx="8" cy="15" r="4"></circle>
    <line x1="10.85" y1="12.15" x2="19" y2="4"></line>
    <line x1="18" y1="5" x2="20" y2="7"></line>
    <line x1="15" y1="8" x2="17" y2="10"></line>
 </svg>',
-	'url' => '/admin/Invitation-code/create',
-	'parent_id' => 2001
+    'url' => '/admin/Invitation-code/create',
+    'parent_id' => 2001
 ]);
 
-menu()->add(2004,[
-	'name' => '导出',
-	'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-key" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+menu()->add(2004, [
+    'name' => '导出',
+    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-key" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <circle cx="8" cy="15" r="4"></circle>
    <line x1="10.85" y1="12.15" x2="19" y2="4"></line>
    <line x1="18" y1="5" x2="20" y2="7"></line>
    <line x1="15" y1="8" x2="17" y2="10"></line>
 </svg>',
-	'url' => '/admin/Invitation-code/export',
-	'parent_id' => 2001
+    'url' => '/admin/Invitation-code/export',
+    'parent_id' => 2001
 ]);
 
 
-Itf()->add('SMS',1,[
+Itf()->add('SMS', 1, [
     'name' => 'Qcloud',
     'handler' => \App\Plugins\Core\src\Lib\Sms\Service\Qcloud::class,
     'view' => 'App::Sms.qcloud'
 ]);
 
-Itf()->add('SMS',2,[
+Itf()->add('SMS', 2, [
     'name' => 'Ucloud',
     'handler' => \App\Plugins\Core\src\Lib\Sms\Service\Ucloud::class,
     'view' => 'App::Sms.ucloud'
 ]);
 
-Itf()->add('SMS',3,[
+Itf()->add('SMS', 3, [
     'name' => 'SmsBao',
     'handler' => \App\Plugins\Core\src\Lib\Sms\Service\SmsBao::class,
     'view' => 'App::Sms.smsbao'
 ]);
 
-menu()->add(71,[
+menu()->add(71, [
     'name' => '支付',
     'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-paypal" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
@@ -96,7 +116,7 @@ menu()->add(71,[
 </svg>',
     'url' => '/admin/Pay'
 ]);
-menu()->add(3702,[
+menu()->add(3702, [
     'name' => '配置',
     'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-paypal" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
@@ -105,7 +125,7 @@ menu()->add(3702,[
     'url' => '/admin/Pay/config',
     'parent_id' => 71,
 ]);
-menu()->add(3703,[
+menu()->add(3703, [
     'name' => '设置',
     'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-paypal" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
@@ -114,7 +134,7 @@ menu()->add(3703,[
     'url' => '/admin/Pay/setting',
     'parent_id' => 71,
 ]);
-menu()->add(3701,[
+menu()->add(3701, [
     'name' => '订单',
     'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-paypal" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
@@ -125,20 +145,22 @@ menu()->add(3701,[
 ]);
 
 
-Itf()->add('Pay',1,[
+Itf()->add('Pay', 1, [
     'name' => '微信支付',
     'ename' => 'wechatPay',
     'description' => '【官方】微信支付',
     'handler' => \App\Plugins\Core\src\Lib\Pay\Service\WechatPay::class,
-    'icon' => '/plugins/Core/image/wechatPay.png',
+    'icon' => '/plugins/Core/image/wechatPay_icon.svg',
+    'logo' => '/plugins/Core/image/wechatPay.png',
     'view' => 'App::Pay.wechatPay'
 ]);
 
-Itf()->add('Pay',2,[
+Itf()->add('Pay', 2, [
     'name' => '支付宝',
     'ename' => 'aliPay',
     'description' => '【官方】支付宝',
     'handler' => \App\Plugins\Core\src\Lib\Pay\Service\AliPay::class,
-    'icon' => '/plugins/Core/image/wechatPay.png',
+    'icon' => '/plugins/Core/image/alipay_icon.svg',
+    'logo' => '/plugins/Core/image/alipay.svg',
     'view' => 'App::Pay.aliPay'
 ]);

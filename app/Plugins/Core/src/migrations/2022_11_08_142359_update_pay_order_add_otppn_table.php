@@ -4,7 +4,7 @@ use Hyperf\Database\Schema\Schema;
 use Hyperf\Database\Schema\Blueprint;
 use Hyperf\Database\Migrations\Migration;
 
-class UpdatePayOrderTable extends Migration
+class UpdatePayOrderAddOtppnTable extends Migration
 {
     /**
      * Run the migrations.

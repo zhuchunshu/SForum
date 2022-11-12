@@ -4,6 +4,7 @@ declare (strict_types=1);
 namespace App\Plugins\Core\src\Models;
 
 use App\Model\Model;
+use App\Plugins\User\src\Models\User;
 
 /**
  * @property int $id 订单号
@@ -39,4 +40,8 @@ class PayOrder extends Model
      * @var array
      */
     protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
+
+    public function user(){
+        return $this->belongsTo(User::class,"user_id","id");
+    }
 }

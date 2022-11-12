@@ -15,7 +15,15 @@ class AliPayController extends AliPay
     public function create($order_id)
     {
         $user_agent = request()->getHeader('user-agent')[0];
+        if (!PayOrder::query()->where('id', $order_id)->exists()) {
+            return Json_Api(403, false, ['msg' => '订单不存在']);
+        }
+        // 获取订单信息
         $order = PayOrder::query()->find($order_id);
+        // 判断订单是否为未支付状态
+        if ($order->status !== '待支付' && $order->status !== '待付款' && $order->status !== '未支付' && $order->status !== '未付款') {
+            return Json_Api(403, false, ['msg' => $order->status,]);
+        }
         $create_order = [
             'out_trade_no' => (string)$order->id,
             'subject' => $order->title,

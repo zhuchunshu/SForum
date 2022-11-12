@@ -10,6 +10,6 @@ declare(strict_types=1);
  * @license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
  */
 return [
-	Hyperf\Crontab\Process\CrontabDispatcherProcess::class,
-	Hyperf\AsyncQueue\Process\ConsumerProcess::class,
+    Hyperf\Crontab\Process\CrontabDispatcherProcess::class,
+    Hyperf\AsyncQueue\Process\ConsumerProcess::class,
 ];

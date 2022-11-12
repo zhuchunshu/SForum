@@ -3,9 +3,9 @@
 namespace App\Plugins\Core\src\Lib\Pay\Event;
 
 /**
- * 回调通知事件
+ * 交易关闭事件
  */
-class NotifyEvent
+class CloseEvent
 {
     /**
      * 订单id

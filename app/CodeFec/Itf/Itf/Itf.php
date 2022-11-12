@@ -3,48 +3,46 @@
 
 namespace App\CodeFec\Itf\Itf;
 
-
 use Illuminate\Support\Arr;
 
 class Itf implements ItfInterface
 {
-
     public array $list=[];
 
-    public function add($class, $id,$data): bool
+    public function add($class, $id, $data): bool
     {
         $this->list = Arr::add($this->list, $class.".".$class."_".$id, $data);
         return true;
     }
-	
-	public function re($class, $id,$data): bool
-	{
-		$this->list[$class][$class."_".$id] = $data;
-		return true;
-	}
-	
-	public function del($class, $id): bool
-	{
-		$this->list[$class]=array_diff_key($this->list[$class], [$class."_".$id => $this->list[$class][$class."_".$id]]);
-		return true;
-	}
+    
+    public function re($class, $id, $data): bool
+    {
+        $this->list[$class][$class."_".$id] = $data;
+        return true;
+    }
+    
+    public function del($class, $id): bool
+    {
+        $this->list[$class]=array_diff_key($this->list[$class], [$class."_".$id => $this->list[$class][$class."_".$id]]);
+        return true;
+    }
 
     public function get($class): array
     {
-        if(Arr::has($this->list,$class)){
+        if (Arr::has($this->list, $class)) {
             $array = $this->list[$class];
-            if($array && is_array($array)){
+            if ($array && is_array($array)) {
                 ksort($array);
-            }else{
+            } else {
                 $array = [];
             }
             return $array;
         }
         return [];
     }
-	
-	public function all(): array
-	{
-		return $this->list;
-	}
+    
+    public function all(): array
+    {
+        return $this->list;
+    }
 }

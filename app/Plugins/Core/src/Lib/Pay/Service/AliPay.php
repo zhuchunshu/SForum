@@ -8,7 +8,7 @@ use Yansongda\Pay\Pay;
 class AliPay
 {
     /**
-     * 金额转分 -> 倍数
+     * 金额转元 -> 倍数
      * @var int|float
      */
     private int|float $amount_multiple = 1;
@@ -19,15 +19,15 @@ class AliPay
      * @param bool $dividing
      * @return float|int
      */
-    protected function calculate_amount(string|int $amount, bool $dividing=false): float|int
+    protected function calculate_amount(string|int $amount, bool $dividing = false): float|int
     {
-        if(!is_numeric($amount)){
+        if (!is_numeric($amount)) {
             return 0;
         }
-        if($dividing===true){
-            return $amount/$this->amount_multiple;
+        if ($dividing === true) {
+            return $amount / $this->amount_multiple;
         }
-        return $amount*$this->amount_multiple;
+        return $amount * $this->amount_multiple;
     }
 
     /**
@@ -50,8 +50,8 @@ class AliPay
                     'alipay_public_cert_path' => pay()->get_options('alipay_public_cert_path'),
                     // 必填-支付宝根证书 路径
                     'alipay_root_cert_path' => pay()->get_options('alipay_root_cert_path'),
-                    'return_url' => pay()->get_options('alipay_return_url',url('/pay/alipay/return')),
-                    'notify_url' => pay()->get_options('alipay_notify_url',url('/api/pay/alipay/notify')),
+                    'return_url' => pay()->get_options('alipay_return_url', url('/pay/alipay/return')),
+                    'notify_url' => pay()->get_options('alipay_notify_url', url('/api/pay/alipay/notify')),
                     // 选填-第三方应用授权token
                     //'app_auth_token' => '',
                     // 选填-服务商模式下的服务商 id，当 mode 为 Pay::MODE_SERVICE 时使用该参数
@@ -61,8 +61,8 @@ class AliPay
                 ]
             ],
             'logger' => [
-                'enable' => env('PAY_LOG_ENABLE',false),
-                'file' => BASE_PATH.'/runtime/logs/pay.log',
+                'enable' => env('PAY_LOG_ENABLE', true),
+                'file' => BASE_PATH . '/runtime/logs/pay.log',
                 'level' => 'debug', // 建议生产环境等级调整为 info，开发环境为 debug
                 'type' => 'single', // optional, 可选 daily.
                 'max_file' => 30, // optional, 当 type 为 daily 时有效，默认 30 天
@@ -73,7 +73,6 @@ class AliPay
                 // 更多配置项请参考 [Guzzle](https://guzzle-cn.readthedocs.io/zh_CN/latest/request-options.html)
             ],
         ];
-
     }
 
     /**
@@ -90,12 +89,14 @@ class AliPay
      * 创建订单
      * @param PayOrder $order
      * @return array|\Yansongda\Supports\Collection
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
-    public function create($order){
+    public function create($order)
+    {
         // 定义支付链接
-        $url = url("/pay/alipay/".$order->id."/goto");
+        $url = url("/pay/alipay/" . $order->id . "/goto");
         // 如果是扫码付则重新定义
-        if(get_options('alipay_pay_mode','MIX')==='SCAN'){
+        if (get_options('alipay_pay_mode', 'MIX') === 'SCAN') {
             $create_order = [
                 'out_trade_no' => (string)$order->id,
                 'subject' => $order->title,
@@ -104,7 +105,7 @@ class AliPay
             ];
             $url = $this->pay()->scan($create_order)->qr_code;
         }
-        return Json_Api(200,true,['msg' => '订单创建成功!','url' => $url]);
+        return Json_Api(200, true, ['msg' => '订单创建成功!', 'url' => $url]);
     }
 
     private array $pay_status = [
@@ -133,14 +134,81 @@ class AliPay
             $result['out_trade_no'],
             $this->pay_status[$result['trade_status']],
             $result['trade_no'],
-            $this->calculate_amount($result['receipt_amount'],true),
+            $this->calculate_amount($result['receipt_amount'], true),
             $result,
-            $this->calculate_amount($result['total_amount'],true),
+            $this->calculate_amount($result['total_amount'], true),
+            '[2,"aliPay"]'
         );
-        if($notify_result===true){
-            return  true;
+        if ($notify_result === true) {
+            return true;
         }
-        admin_log()->insert('Pay','AliPay','支付回调失败!',$notify_result);
+        admin_log()->insert('Pay', 'AliPay', '支付回调失败!', $notify_result);
         return $notify_result;
+    }
+
+    /**
+     * 查询订单
+     * @param PayOrder $order
+     * @return array
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Yansongda\Pay\Exception\ContainerException
+     * @throws \Yansongda\Pay\Exception\InvalidParamsException
+     * @throws \Yansongda\Pay\Exception\ServiceNotFoundException
+     */
+    public function find(PayOrder $order)
+    {
+        $result = $this->pay()->find([
+            'out_trade_no' => $order->id,
+            'trade_no' => $order->trade_no,
+        ]);
+        return [
+            'amount' => $order->amount,//预收金额
+            'payer_total' => $order->payer_total, //实收金额
+            'status' => $this->pay_status[$result->trade_status], // 订单状态
+            'amount_total' => $result->total_amount, // 订单总金额
+            'success_time' => @$result->send_pay_date ?: null // 支付完成时间
+        ];
+    }
+
+    /**
+     * 关闭订单
+     * @param PayOrder $order
+     * @return array
+     * @throws \Yansongda\Pay\Exception\ContainerException
+     * @throws \Yansongda\Pay\Exception\InvalidParamsException
+     * @throws \Yansongda\Pay\Exception\ServiceNotFoundException
+     */
+    public function close(PayOrder $order): array
+    {
+        $result = $this->pay()->close($order->id);
+        if ((int)$result->code !== 10000) {
+            admin_log()->insert('PayMent', 'AliPay', '关闭订单失败', $result);
+            return Json_Api(500, false, ['msg' => '关闭订单失败,' . $result->sub_msg]);
+        }
+        PayOrder::query()->where('id', $order->id)->update([
+            'status' => '交易关闭'
+        ]);
+        return Json_Api(200, true, ['msg' => '订单已关闭!']);
+    }
+
+    /**
+     * 取消订单
+     * @param PayOrder $order
+     * @return array
+     * @throws \Yansongda\Pay\Exception\ContainerException
+     * @throws \Yansongda\Pay\Exception\InvalidParamsException
+     * @throws \Yansongda\Pay\Exception\ServiceNotFoundException
+     */
+    public function cancel(PayOrder $order): array
+    {
+        $result = $this->pay()->cancel($order->id);
+        if ((int)$result->code !== 10000) {
+            admin_log()->insert('PayMent', 'AliPay', '取消订单失败', $result);
+            return Json_Api(500, false, ['msg' => '取消订单失败,' . $result->msg]);
+        }
+        PayOrder::query()->where('id', $order->id)->update([
+            'status' => '订单取消'
+        ]);
+        return Json_Api(200, true, ['msg' => '取消订单成功!']);
     }
 }
