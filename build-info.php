@@ -1,6 +1,6 @@
 <?php
 return [
-	'version' => 'v2.0.8',
+	'version' => 'v2.0.9',
 	'zhuchunshu' => 'zhuchunshu',
 	'link' => 'https://forum.runpod.cn'
 ];
