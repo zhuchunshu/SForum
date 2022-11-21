@@ -66,7 +66,7 @@ class CleanDatabase
     {
         foreach (scandir(BASE_PATH."/runtime/logs/admin_logger_database") as $name) {
             if (is_dir(BASE_PATH."/runtime/logs/admin_logger_database/".$name) && $name!==(string)date('YmW') && $name!=='.' && $name!=='..') {
-                deldir(BASE_PATH."/runtime/logs/admin_logger_database/".$name);
+                System::exec('rm -rf '.BASE_PATH."/runtime/logs/admin_logger_database/".$name);
             }
         }
     }
