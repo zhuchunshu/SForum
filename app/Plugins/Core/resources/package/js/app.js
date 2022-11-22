@@ -200,3 +200,9 @@ $(function(){
         })
     })
 })
+
+$(function(){
+    $(":button").click(function(){
+        $('.captcha').attr('src','/captcha?id='+Math.random())
+    })
+})

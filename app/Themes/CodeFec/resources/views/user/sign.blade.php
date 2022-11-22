@@ -18,8 +18,6 @@
     <link rel="icon" href="/logo.svg" type="image/x-icon" />
     <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
     <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet" />
-    <link href="{{ '/tabler/css/tabler-flags.min.css' }}" rel="stylesheet" />
-    <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
     <link rel="stylesheet" href="{{mix("plugins/Core/css/core.css")}}">
     <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet" />
@@ -39,11 +37,7 @@
 
 <script src='/js/jquery-3.6.0.min.js'></script>
 <script src="{{ mix('js/vue.js') }}"></script>
-<script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
 <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
-@if (get_options('theme_common_require_mithril', 'yes') !== 'no')
-    <script src="{{ mix('plugins/Core/js/mithril.js') }}"></script>
-@endif
 <script src="{{ mix('plugins/Core/js/app.js') }}"></script>
 <script src="{{ file_hash('js/diy.js') }}"></script>
 {{-- <!-- 自定义Js --> --}}

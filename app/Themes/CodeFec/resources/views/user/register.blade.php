@@ -48,7 +48,7 @@
                     <div class="input-group">
                         <input type="text" v-model="captcha" class="form-control" placeholder="captcha" autocomplete="off" required>
                         <span class="input-group-link">
-                        <img src="{{captcha()->inline()}}" alt="" onclick="this.src='/captcha?id='+Math.random()">
+                        <img class="captcha" src="{{captcha()->inline()}}" alt="" onclick="this.src='/captcha?id='+Math.random()">
                     </span>
                     </div>
                 </div>
