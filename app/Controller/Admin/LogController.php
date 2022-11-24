@@ -20,7 +20,6 @@ class LogController
         $perPage = (int) request()->input('per_page', 15);
 
         $data = admin_log()->get();
-        rsort($data);
         // 这里根据 $currentPage 和 $perPage 进行数据查询，以下使用 Collection 代替
         $collection = new Collection($data);
 

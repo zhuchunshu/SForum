@@ -84,7 +84,7 @@ class LogServer
      */
     public function get(): array
     {
-        return $this->db()->findAll();
+        return $this->db()->createQueryBuilder()->orderBy(['created_at' => 'desc','id'=>'desc'])->getQuery()->fetch();
     }
 
 }
