@@ -8,7 +8,7 @@ class UserAuth
 {
     public function create(int $user_id,string $token): bool
     {
-	    if(UsersAuth::query()->where('user_id',$user_id)->count()){
+	    if(UsersAuth::query()->where('user_id',$user_id)->count()>get_options('core_user_session_num', 1)){
 		    UsersAuth::query()->where('user_id',$user_id)->take(1)->delete();
 	    }
         UsersAuth::query()->create([
