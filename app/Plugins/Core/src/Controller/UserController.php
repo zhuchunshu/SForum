@@ -112,6 +112,9 @@ HTML;
 	#[GetMapping(path:"/login/username")]
 	public function login_username(): \Psr\Http\Message\ResponseInterface
 	{
+		if(auth()->check()){
+            return admin_abort(['msg' => '您已登录']);
+        }
 		
 		return view("App::user.sign",['title' => "使用用户名登陆","view" => "App::user.login_username"]);
 	}
@@ -212,6 +215,9 @@ HTML;
 	#[PostMapping(path: "/login/username")]
 	public function login_username_post(LoginUsernameRequest $request): ?array
 	{
+		if(auth()->check()){
+            return admin_abort(['msg' => '您已登录']);
+        }
 		$data = $request->validated();
 		$username = $data['username'];
 		$username = urldecode($username);
