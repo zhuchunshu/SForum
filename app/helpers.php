@@ -802,8 +802,9 @@ if (!function_exists('language')) {
 }
 
 if (!function_exists('content_brief')) {
-    function content_brief($content, $len=100): string
+    function content_brief($content, string | int $len=100): string
     {
+        $len = (int)$len;
         // hook post_brief_start.php
         $content = strip_tags($content);
         $content = htmlspecialchars($content);

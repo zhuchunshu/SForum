@@ -100,7 +100,7 @@
                                             @endif
                                             {{$data->title}}</h2>
                                     </a>
-                                    <span class="home-summary">{!! content_brief($data->post->content,get_options("topic_brief_len",250)) !!}</span>
+                                    <span class="home-summary">{!! content_brief($data->post->content,(int)get_options("topic_brief_len",250)) !!}</span>
                                 </div>
                             </div>
                         </div>
