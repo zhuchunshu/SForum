@@ -1,12 +1,4 @@
 @if($comment_count)
-    @if(get_options("comment_topic_show_type","default")==="ajax")
-        <div class="col-md-12" comment-load="topic" topic-id="{{$data->id}}">
-            <div class="row row-cards">
-                <span class="text-center" comment-load="remove"><h1>正在加载评论<span
-                                class="animated-dots"></span></h1></span>
-            </div>
-        </div>
-    @endif
     @if(get_options("comment_topic_show_type","default")==="default")
         @php $caina = false; @endphp
         @if($data->user_id == auth()->id() && Authority()->check("comment_caina")) @php $caina = true;@endphp @endif
@@ -36,7 +28,10 @@
                                                     <a style="white-space:nowrap;"
                                                        href="/users/{{$value->user->username}}.html"
                                                        class="text-body text-truncate">{{$value->user->username}}</a>
-                                                    <a data-bs-toggle="tooltip" data-bs-placement="right" title="{{$value->user->class->name}}" href="/users/group/{{$value->user->class->id}}.html" style="color:{{$value->user->class->color}}">
+                                                    <a data-bs-toggle="tooltip" data-bs-placement="right"
+                                                       title="{{$value->user->class->name}}"
+                                                       href="/users/group/{{$value->user->class->id}}.html"
+                                                       style="color:{{$value->user->class->color}}">
                                                         <span>{!! $value->user->class->icon !!}</span>
                                                     </a>
                                                     @if($value->optimal) <span
@@ -44,10 +39,13 @@
                                                     <br/>
                                                     <small data-bs-toggle="tooltip" data-bs-placement="top"
                                                            data-bs-original-title="{{$value->created_at}}"
-                                                           class="text-muted text-truncate mt-n1">{{__("app.Published on")}}:{{format_date($value->created_at)}}</small>
+                                                           class="text-muted text-truncate mt-n1">{{__("app.Published on")}}
+                                                        :{{format_date($value->created_at)}}</small>
                                                     @if(get_options('comment_author_ip','开启')==='开启' && @$value->post->user_ip)
                                                         |
-                                                        <small class="text-red" comment-type="ip" comment-id="{{$value->id}}">Loading<span class="animated-dots"></span></small>
+                                                        <small class="text-red" comment-type="ip"
+                                                               comment-id="{{$value->id}}">Loading<span
+                                                                    class="animated-dots"></span></small>
                                                     @endif
                                                 </div>
                                                 {{--                                            楼层信息--}}
@@ -59,10 +57,11 @@
                                                         <a style="text-decoration:none;"
                                                            comment-click="comment-caina-topic"
                                                            comment-id="{{ $value->id }}" data-bs-toggle="tooltip"
-                                                           data-bs-placement="bottom" title="{{__("topic.comment.adoption")}}"
+                                                           data-bs-placement="bottom"
+                                                           title="{{__("topic.comment.adoption")}}"
                                                            class="cursor-pointer text-teal">
                                                             @if($value->optimal)
-                                                            {{__("topic.comment.cancel")}}
+                                                                {{__("topic.comment.cancel")}}
                                                             @else
                                                                 {{__("topic.comment.adoption")}}
                                                             @endif
@@ -74,7 +73,8 @@
                                         </div>
                                         {{--                                    评论内容--}}
                                         <div class="col-md-12">
-                                            <div class="hr-text" style="margin-bottom:8px;margin-top:15px">{{__("topic.comment.comment content")}}</div>
+                                            <div class="hr-text"
+                                                 style="margin-bottom:8px;margin-top:15px">{{__("topic.comment.comment content")}}</div>
                                         </div>
                                         <div core-show="comment" comment-id="{{$value->id}}"
                                              class="col-md-12 markdown">
@@ -102,14 +102,16 @@
                                         </div>
                                         {{--                                    操作--}}
                                         <div class="col-md-12">
-                                            <div class="hr-text" style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.operate")}}</div>
+                                            <div class="hr-text"
+                                                 style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.operate")}}</div>
                                         </div>
                                         <div class="col-md-12">
                                             {{--                                            点赞--}}
                                             <a style="text-decoration:none;" comment-click="comment-like-topic"
                                                comment-id="{{ $value->id }}"
                                                class="cursor-pointer text-muted hvr-icon-bounce"
-                                               data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{__("topic.likes")}}">
+                                               data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                               title="{{__("topic.likes")}}">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon hvr-icon" width="24"
                                                      height="24"
                                                      viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
@@ -124,7 +126,8 @@
                                             @if(get_options('comment_ban_markdown_preview')!=="true")
                                                 <a style="text-decoration:none;" data-bs-toggle="tooltip"
                                                    data-bs-placement="top" href="/comment/topic/{{ $value->id }}.md"
-                                                   data-bs-original-title="{{__("app.preview markdown")}}" class="hvr-icon-grow-rotate">
+                                                   data-bs-original-title="{{__("app.preview markdown")}}"
+                                                   class="hvr-icon-grow-rotate">
                     <span class="switch-icon-a text-muted">
                         <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-markdown hvr-icon"
                              width="24"
@@ -163,7 +166,8 @@
                                                 <a style="text-decoration:none;" comment-click="comment-delete-topic"
                                                    comment-id="{{ $value->id }}"
                                                    class="cursor-pointer text-muted hvr-icon-drop"
-                                                   data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{__("app.delete")}}">
+                                                   data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                   title="{{__("app.delete")}}">
                                                     <svg xmlns="http://www.w3.org/2000/svg"
                                                          class="hvr-icon icon icon-tabler icon-tabler-trash" width="24"
                                                          height="24" viewBox="0 0 24 24" stroke-width="2"
@@ -227,7 +231,8 @@
                                                 </a>
                                             @endif
                                             {{--                                            引用评论--}}
-                                            <a style="text-decoration:none;"  core-click="copy" copy-content="[comment comment_id={{$value->id}}]" message="短代码复制成功!"
+                                            <a style="text-decoration:none;" core-click="copy"
+                                               copy-content="[comment comment_id={{$value->id}}]" message="短代码复制成功!"
                                                class="cursor-pointer text-muted hvr-icon-up" data-bs-toggle="tooltip"
                                                data-bs-placement="bottom" title="引用">
                                                 <svg xmlns="http://www.w3.org/2000/svg"
