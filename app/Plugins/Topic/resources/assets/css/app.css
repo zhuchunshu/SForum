@@ -1804,6 +1804,9 @@
 .vditor-sv__marker--strong {
   font-weight: bold;
 }
+.vditor-reset {
+  font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, PingFang SC, Microsoft YaHei, Source Han Sans SC, Noto Sans CJK SC, WenQuanYi Micro Hei, sans-serif;
+}
 .imgList {
   display: flex;
   flex-wrap: wrap;
@@ -1828,10 +1831,10 @@ pre {
   font-size: 16px;
 }
 .article p {
-  margin-bottom: 5px;
+  margin-bottom: 1px;
   word-wrap: break-word;
   word-break: normal;
-  line-height: 1.5;
+  line-height: 1.25;
   font-size: 16px;
 }
 .article h1 {

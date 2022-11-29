@@ -1,5 +1,5 @@
 {
-    "/js/app.js": "/js/app.js?id=4f8642873e0e2a19cece",
+    "/js/app.js": "/js/app.js?id=5f4131c4a24b6dabd927",
     "/js/install.js": "/js/install.js?id=e2a427dad25f612dc8fb",
     "/js/vue.js": "/js/vue.js?id=c0ed491e9d9bbd0212ac",
     "/js/alpine.js": "/js/alpine.js?id=3b24a5041f6ceb43ef89",
@@ -13,5 +13,6 @@
     "/plugins/Topic/js/tag.js": "/plugins/Topic/js/tag.js?id=56aaf760485da588a88d",
     "/plugins/User/js/order.js": "/plugins/User/js/order.js?id=ece0287ab56ebf7881ee",
     "/plugins/Core/js/app.js": "/plugins/Core/js/app.js?id=9bc41947722837bad834",
+    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=0f65782d30f3ff05c2c3",
     "/css/app.css": "/css/app.css?id=68b329da9893e34099c7"
 }

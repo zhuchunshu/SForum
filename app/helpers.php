@@ -789,7 +789,11 @@ if (!function_exists("get_client_ip_data")) {
                 'Origin' => 'https://members.ip-api.com'
             ]
         ]);
-        $result['pro']=$result['regionName'];
+        if (Arr::has($result, 'regionName')) {
+            $result['pro']=$result['regionName'];
+        }else{
+            $result['pro']='';
+        }
         return $result;
     }
 }
