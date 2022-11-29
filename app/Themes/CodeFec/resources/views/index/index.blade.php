@@ -40,7 +40,7 @@
                     </li>
                 @endif
             @endforeach
-            <li class="nav-item d-none d-md-flex d-lg-none ms-auto">
+            <li class="nav-item d-md-none ms-auto">
                 <a href="/topic/create" class="btn btn-primary btn-pill shadow-sm py-1" role="button" rel="noreferrer">
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-pencil" width="24"
                          height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
