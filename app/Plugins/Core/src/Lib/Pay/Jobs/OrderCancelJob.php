@@ -25,6 +25,6 @@ class OrderCancelJob extends Job
     {
         $order_id = $this->params['order_id'];
         $payServer = $this->params['payServer'];
-        var_dump(pay()->cancel($order_id,false,$payServer));
+        pay()->cancel($order_id,false,$payServer);
     }
 }

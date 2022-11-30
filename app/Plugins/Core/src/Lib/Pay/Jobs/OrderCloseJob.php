@@ -25,6 +25,6 @@ class OrderCloseJob extends Job
     {
         $order_id = $this->params['order_id'];
         $payServer = $this->params['payServer'];
-        var_dump(pay()->close($order_id,false,$payServer));
+        pay()->close($order_id,false,$payServer);
     }
 }
