@@ -164,3 +164,13 @@ Itf()->add('Pay', 2, [
     'logo' => '/plugins/Core/image/alipay.svg',
     'view' => 'App::Pay.aliPay'
 ]);
+
+Itf()->add('Pay', 0, [
+    'name' => '余额支付',
+    'ename' => 'SFPay',
+    'description' => '优先使用账户余额支付',
+    'handler' => \App\Plugins\Core\src\Lib\Pay\Service\SFPay::class,
+    'icon' => '/plugins/Core/image/PAYMENT.svg',
+    'logo' => '/plugins/Core/image/PAYMENT.svg',
+    'view' => 'App::Pay.SFPay'
+]);

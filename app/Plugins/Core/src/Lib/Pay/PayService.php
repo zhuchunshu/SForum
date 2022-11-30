@@ -288,59 +288,66 @@ class PayService
     public function close($id, $check_payment = true, $payServer = null)
     {
         $order = PayOrder::query()->find($id);
-        if ($order->trade_no) {
+        if(Str::is('*待支付*','*'.$order->status.'*') || Str::is('*未支付*','*'.$order->status.'*') || Str::is('*未付款*','*'.$order->status.'*')){
+            if ($order->trade_no) {
+                PayOrder::query()->where('id', $order->id)->update([
+                    'status' => '交易关闭'
+                ]);
+                return Json_Api(200, true, ['msg' => '交易已关闭!']);
+            }
             PayOrder::query()->where('id', $order->id)->update([
                 'status' => '交易关闭'
             ]);
-            return Json_Api(200, true, ['msg' => '交易已关闭!']);
+            $payment_method = json_decode($order->payment_method, true);
+            // 检索支付方式
+            if (($check_payment === true) && $this->check_payment($payment_method) !== true) {
+                return $this->check_payment($payment_method);
+            }
+            // 支付插件信息
+            if ($payServer === null) {
+                $payServer = $this->get_ename_Interfaces()[$payment_method[1]];
+            }
+            $payServerHandler = $payServer['handler'];
+            if (!@method_exists(new $payServerHandler(), 'close')) {
+                return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . "无有效的订单查询方法"]);
+            }
+            return (new $payServerHandler())->close($order);
         }
-        PayOrder::query()->where('id', $order->id)->update([
-            'status' => '交易关闭'
-        ]);
-        $payment_method = json_decode($order->payment_method, true);
-        // 检索支付方式
-        if (($check_payment === true) && $this->check_payment($payment_method) !== true) {
-            return $this->check_payment($payment_method);
-        }
-        // 支付插件信息
-        if ($payServer === null) {
-            $payServer = $this->get_ename_Interfaces()[$payment_method[1]];
-        }
-        $payServerHandler = $payServer['handler'];
-        if (!@method_exists(new $payServerHandler(), 'close')) {
-            return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . "无有效的订单查询方法"]);
-        }
-        return (new $payServerHandler())->close($order);
+
+        return Json_Api(403, false, ['msg' => '当前订单状态不允许关闭']);
     }
 
     /**
-     * 关闭订单
+     * 取消订单
      * @param $id
      * @return array|ResponseInterface
      */
     public function cancel($id, $check_payment = true, $payServer = null)
     {
         $order = PayOrder::query()->find($id);
-        if (!$order->trade_no) {
-            PayOrder::query()->where('id', $order->id)->update([
-                'status' => '订单取消'
-            ]);
-            return Json_Api(200, true, ['msg' => '取消订单成功!']);
+        if(Str::is('*待支付*','*'.$order->status.'*') || Str::is('*未支付*','*'.$order->status.'*') || Str::is('*未付款*','*'.$order->status.'*')) {
+            if (!$order->trade_no) {
+                PayOrder::query()->where('id', $order->id)->update([
+                    'status' => '订单取消'
+                ]);
+                return Json_Api(200, true, ['msg' => '取消订单成功!']);
+            }
+            $payment_method = json_decode($order->payment_method, true);
+            // 检索支付方式
+            if (($check_payment === true) && $this->check_payment($payment_method) !== true) {
+                return $this->check_payment($payment_method);
+            }
+            // 支付插件信息
+            if ($payServer === null) {
+                $payServer = $this->get_ename_Interfaces()[$payment_method[1]];
+            }
+            $payServerHandler = $payServer['handler'];
+            if (!@method_exists(new $payServerHandler(), 'cancel')) {
+                return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . "无有效的订单查询方法"]);
+            }
+            return (new $payServerHandler())->cancel($order);
         }
-        $payment_method = json_decode($order->payment_method, true);
-        // 检索支付方式
-        if (($check_payment === true) && $this->check_payment($payment_method) !== true) {
-            return $this->check_payment($payment_method);
-        }
-        // 支付插件信息
-        if ($payServer === null) {
-            $payServer = $this->get_ename_Interfaces()[$payment_method[1]];
-        }
-        $payServerHandler = $payServer['handler'];
-        if (!@method_exists(new $payServerHandler(), 'cancel')) {
-            return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . "无有效的订单查询方法"]);
-        }
-        return (new $payServerHandler())->cancel($order);
+        return Json_Api(403, false, ['msg' => '当前订单状态不允许取消']);
     }
 
     /**

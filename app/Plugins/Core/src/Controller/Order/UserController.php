@@ -3,12 +3,17 @@
 namespace App\Plugins\Core\src\Controller\Order;
 
 use App\Plugins\Core\src\Models\PayOrder;
+use App\Plugins\User\src\Middleware\AuthMiddleware;
+use App\Plugins\User\src\Middleware\LoginMiddleware;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
+use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\Utils\Str;
 
 #[Controller(prefix: "/user/order")]
+#[Middleware(LoginMiddleware::class)]
+#[Middleware(AuthMiddleware::class)]
 class UserController
 {
     #[GetMapping(path: "{id}.order")]

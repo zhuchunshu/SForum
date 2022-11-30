@@ -3,6 +3,7 @@
 namespace App\Plugins\Core\src\Controller\Pay;
 
 use App\Plugins\Core\src\Lib\Pay\Service\AliPay;
+use App\Plugins\Core\src\Lib\Pay\Service\SFPay;
 use App\Plugins\Core\src\Lib\Pay\Service\WechatPay;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
@@ -29,6 +30,15 @@ class PayApiController
         $result = (new AliPay())->notify(request()->all());
         if ($result===true) {
             return  (new AliPay())->pay()->success();
+        }
+        return $result;
+    }
+
+    #[RequestMapping(path:"SFPay/notify")]
+    public function SFPay_notify(){
+        $result = (new SFPay())->notify(request()->all());
+        if ($result===true) {
+            return Json_Api(200,true,['msg' => 'success']);
         }
         return $result;
     }
