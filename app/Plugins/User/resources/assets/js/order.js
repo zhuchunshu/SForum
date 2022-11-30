@@ -3725,6 +3725,89 @@ if (document.getElementById('user-order-show-paying')) {
   };
   Vue.createApp(app).mount("#user-order-show-paying");
 }
+
+if (document.getElementById("user-data-money-recharge")) {
+  var _app = {
+    data: function data() {
+      return {
+        payment: null,
+        amount: null,
+        qrcode_url: null,
+        captcha: null,
+        pay_url: null,
+        paid: false,
+        order_id: null,
+        btn_disabled: false
+      };
+    },
+    mounted: function mounted() {},
+    methods: {
+      submit: function submit() {
+        var _this3 = this;
+
+        if (!this.payment) {
+          swal('Error', '请选择支付方式', 'error');
+          return;
+        }
+
+        if (!this.amount) {
+          swal('Error', '充值金额不能为空', 'error');
+          return;
+        }
+
+        if (!this.captcha) {
+          swal('Error', '请输入验证码', 'error');
+          return;
+        }
+
+        this.btn_disabled = true;
+        axios__WEBPACK_IMPORTED_MODULE_0___default().post('/user/asset/money.recharge', {
+          _token: csrf_token,
+          amount: this.amount,
+          payment: this.payment,
+          captcha: this.captcha
+        }).then(function (r) {
+          var data = r.data;
+          _this3.btn_disabled = false;
+
+          if (data.success === false) {
+            swal('请求出错!', data.result.msg, 'error');
+            return;
+          }
+
+          _this3.qrcode_url = "/api/core/qr_code?content=" + data.result.url;
+          _this3.pay_url = data.result.url;
+          _this3.order_id = data.result.order_id;
+
+          _this3.checkPaid();
+        });
+      },
+      checkPaid: function checkPaid() {
+        var _this4 = this;
+
+        setInterval(function () {
+          axios__WEBPACK_IMPORTED_MODULE_0___default().post('/user/order/' + _this4.order_id + '.order/status', {
+            _token: csrf_token
+          }).then(function (r) {
+            var data = r.data;
+
+            if (data.success === false) {
+              console.error(data);
+            } else {
+              if (data.result.status === "支付成功") {
+                _this4.paid = true;
+                setTimeout(function () {
+                  location.href = "/user/order/" + _this4.order_id + ".order";
+                }, 1500);
+              }
+            }
+          });
+        }, 2000);
+      }
+    }
+  };
+  Vue.createApp(_app).mount('#user-data-money-recharge');
+}
 })();
 
 /******/ })()

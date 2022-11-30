@@ -33,7 +33,7 @@
             <div class="row row-cards">
 
                 <div class="col-12 col-md-6 col-lg-3">
-                    <div class="card card-sm">
+                    <a href="/user/asset/money" class="card card-sm">
                         <div class="card-body">
                             <div class="row align-items-center">
                                 <div class="col-auto">
@@ -58,7 +58,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
 
                 <div class="col-12 col-md-6 col-lg-3">

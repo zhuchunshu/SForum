@@ -100,7 +100,7 @@ class WechatPay
             ],
         ];
         $result = $this->pay()->scan($create_order);
-        return Json_Api(200, true, ['msg' => '订单创建成功!', 'url' => $result->code_url]);
+        return Json_Api(200, true, ['msg' => '订单创建成功!', 'url' => $result->code_url,'order_id' => $order->id]);
     }
 
     /**

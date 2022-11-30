@@ -202,6 +202,7 @@ $(function(){
 })
 
 $(function(){
+    // 刷新验证码
     $(":button").click(function(){
         $('.captcha').attr('src','/captcha?id='+Math.random())
     })

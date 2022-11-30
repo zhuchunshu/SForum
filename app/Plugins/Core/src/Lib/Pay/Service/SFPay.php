@@ -59,7 +59,7 @@ class SFPay
             return Json_Api(403, false, ['msg' => '余额不足! 请充值', 'url' => '']);
         }
 
-        return Json_Api(200, true, ['msg' => '订单创建成功!', 'url' => url('/pay/SFPay/'.$order->id.'/paying')]);
+        return Json_Api(200, true, ['msg' => '订单创建成功!', 'url' => url('/pay/SFPay/'.$order->id.'/paying'),'order_id' => $order->id]);
     }
 
     /**

@@ -14,6 +14,7 @@ use HyperfExt\Hashing\Hash;
 
 class Auth
 {
+
     public function SignIn(string $email, string $password): bool
     {
         if (! User::query()->where('email', $email)->count()) {

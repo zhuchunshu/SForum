@@ -354,8 +354,9 @@ class PayService
      * 检索支付方式
      * @param array $payment_method
      * @return bool|array
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
-    private function check_payment(array $payment_method): bool|array
+    public function check_payment(array $payment_method): bool|array
     {
         // 检索支付方式
         if (!is_array($payment_method) || !is_numeric($payment_method[0]) || !is_string($payment_method[1])) {

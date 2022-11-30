@@ -105,7 +105,7 @@ class AliPay
             ];
             $url = $this->pay()->scan($create_order)->qr_code;
         }
-        return Json_Api(200, true, ['msg' => '订单创建成功!', 'url' => $url]);
+        return Json_Api(200, true, ['msg' => '订单创建成功!', 'url' => $url,'order_id' => $order->id]);
     }
 
     private array $pay_status = [
