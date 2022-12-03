@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 /**
- * CodeFec - Hyperf
- *
- * @link     https://github.com/zhuchunshu
- * @document https://codefec.com
- * @contact  laravel@88.com
- * @license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
+ * This file is part of Hyperf.
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
 use Hyperf\Contract\StdoutLoggerInterface;
 use Psr\Log\LogLevel;
@@ -19,9 +18,9 @@ return [
     StdoutLoggerInterface::class => [
         'log_level' => [
             LogLevel::INFO,
-//            LogLevel::DEBUG,
-//            LogLevel::ERROR,
-//            LogLevel::WARNING,
+            //            LogLevel::DEBUG,
+            //            LogLevel::ERROR,
+            //            LogLevel::WARNING,
         ],
     ],
 ];

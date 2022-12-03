@@ -4,10 +4,10 @@
     "keywords": [
         "php",
         "swoole",
-        "framework",
+        "php-forum",
         "hyperf",
         "microservice",
-        "middleware"
+        "php-bbs"
     ],
     "description": "super-forum",
     "license": "MIT",

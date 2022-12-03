@@ -1,15 +1,20 @@
 <?php
 
 declare(strict_types=1);
-
+/**
+ * This file is part of Hyperf.
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 namespace App\Command;
 
 use App\CodeFec\Install;
 use Hyperf\Command\Annotation\Command;
 use Hyperf\Command\Command as HyperfCommand;
-use Hyperf\Utils\Arr;
-use Hyperf\Utils\Str;
-use Hyperf\Watcher\{Option,Watcher};
+use Hyperf\Watcher\Option;
+use Hyperf\Watcher\Watcher;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\Console\Input\InputOption;
 
@@ -33,33 +38,27 @@ class StartCommand extends HyperfCommand
 
     public function handle()
     {
-        if(file_exists(BASE_PATH."/app/CodeFec/storage/install.lock") || (new Install($this->output,$this))->getStep()>=5){
-	        if(stripos(system_name(), "Linux") !== false){
-		        \Swoole\Coroutine\System::exec("yes yes | composer du");
-	        }else{
-		        \Swoole\Coroutine\System::exec("composer du");
-	        }
-			
-	        $option = make(Option::class, [
-		        'dir' => $this->input->getOption('dir'),
-		        'file' => $this->input->getOption('file'),
-		        'restart' => ! $this->input->getOption('no-restart'),
-	        ]);
-	
-	        $watcher = make(Watcher::class, [
-		        'option' => $option,
-		        'output' => $this->output,
-	        ]);
-			
-	        $watcher->run();
-        }else{
-	        $install = make(Install::class, [
-		        'output' => $this->output,
-		        'command' => $this
-	        ]);
-	
-	        $install->run();
+        if (file_exists(BASE_PATH . '/app/CodeFec/storage/install.lock') || (new Install($this->output, $this))->getStep() >= 5) {
+            
+            $option = make(Option::class, [
+                'dir' => $this->input->getOption('dir'),
+                'file' => $this->input->getOption('file'),
+                'restart' => ! $this->input->getOption('no-restart'),
+            ]);
+
+            $watcher = make(Watcher::class, [
+                'option' => $option,
+                'output' => $this->output,
+            ]);
+
+            $watcher->run();
+        } else {
+            $install = make(Install::class, [
+                'output' => $this->output,
+                'command' => $this,
+            ]);
+
+            $install->run();
         }
     }
-	
 }

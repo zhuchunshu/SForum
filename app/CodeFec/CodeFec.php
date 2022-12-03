@@ -1,16 +1,24 @@
 <?php
+
+declare(strict_types=1);
+/**
+ * This file is part of Hyperf.
+ * @link     https://www.hyperf.io
+ * @document https://hyperf.wiki
+ * @contact  group@hyperf.io
+ * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ */
 namespace App\CodeFec;
 
-
-class CodeFec {
-
+class CodeFec
+{
     public function handle(): void
     {
-	    $this->plugins();
+        $this->plugins();
         $this->menu();
         $this->header();
         $this->boot();
-		$this->themes();
+        $this->themes();
         $this->setting();
         $this->route();
         $this->itf();
@@ -18,34 +26,32 @@ class CodeFec {
 
     public function setting(): void
     {
-        require BASE_PATH."/app/CodeFec/Itf/Setting/default.php";
+        require BASE_PATH . '/app/CodeFec/Itf/Setting/default.php';
     }
 
     // 注册菜单
     public function menu(): void
     {
-
-        require BASE_PATH."/app/CodeFec/Menu/default.php";
-
+        require BASE_PATH . '/app/CodeFec/Menu/default.php';
     }
 
     //创建页头内容
     public function header(): void
     {
-        require BASE_PATH."/app/CodeFec/Header/default.php";
+        require BASE_PATH . '/app/CodeFec/Header/default.php';
     }
 
     public function boot(): void
     {
-        require BASE_PATH."/app/CodeFec/bootstrap.php";
+        require BASE_PATH . '/app/CodeFec/bootstrap.php';
     }
 
     /**
-     * 重写路由
+     * 重写路由.
      */
     public function route(): void
     {
-        require BASE_PATH."/app/CodeFec/Itf/Route/default.php";
+        require BASE_PATH . '/app/CodeFec/Itf/Route/default.php';
     }
 
     // 处理插件
@@ -53,29 +59,29 @@ class CodeFec {
     {
         $result = (new Plugins())->getEnPlugins();
         foreach ($result as $value) {
-            if(file_exists(plugin_path($value."/".$value.".php"))){
-                $class = "\App\Plugins\\".$value."\\".$value;
-                if(@method_exists(new $class(),"handler")){
+            if (file_exists(plugin_path($value . '/' . $value . '.php'))) {
+                $class = '\\App\\Plugins\\' . $value . '\\' . $value;
+                if (@method_exists(new $class(), 'handler')) {
                     (new $class())->handler();
                 }
             }
         }
     }
-	
-	// 处理主题
-	public function themes(){
-		$name = get_options("theme",'CodeFec'); //主题名
-		if(file_exists(theme_path($name."/".$name.".php"))){
-			$class = "\App\Themes\\".$name."\\".$name;
-			if(@method_exists(new $class(),"handler")){
-				(new $class())->handler();
-			}
-		}
-	}
+
+    // 处理主题
+    public function themes()
+    {
+        $name = get_options('theme', 'CodeFec'); //主题名
+        if (file_exists(theme_path($name . '/' . $name . '.php'))) {
+            $class = '\\App\\Themes\\' . $name . '\\' . $name;
+            if (@method_exists(new $class(), 'handler')) {
+                (new $class())->handler();
+            }
+        }
+    }
 
     public function itf(): void
     {
-        require BASE_PATH."/app/CodeFec/Itf/Itf/default.php";
+        require BASE_PATH . '/app/CodeFec/Itf/Itf/default.php';
     }
-
 }
