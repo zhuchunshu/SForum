@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 /**
- * CodeFec - Hyperf
- *
+ * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
- * @document https://codefec.com
+ * @document https://github.com/zhuchunshu/super-forum
  * @contact  laravel@88.com
- * @license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
  */
 namespace App\Model;
 
@@ -26,5 +25,4 @@ class AdminPlugin extends Model
      * @var array
      */
     protected $fillable = ['id', 'name', 'status', 'created_at', 'updated_at'];
-
 }
