@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 /**
- * CodeFec - Hyperf
- *
+ * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
- * @document https://codefec.com
+ * @document https://github.com/zhuchunshu/super-forum
  * @contact  laravel@88.com
- * @license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
  */
 use Hyperf\Watcher\Driver\ScanFileDriver;
 
@@ -16,7 +15,7 @@ return [
     'bin' => env('WATCHER_BIN', 'php'),
     'watch' => [
         'dir' => ['app', 'config'],
-        'file' => ['.env','build-info.php'],
+        'file' => ['.env', 'build-info.php'],
         'scan_interval' => 2000,
     ],
 ];
