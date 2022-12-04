@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 /**
- * CodeFec - Hyperf
- *
+ * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
- * @document https://codefec.com
+ * @document https://github.com/zhuchunshu/super-forum
  * @contact  laravel@88.com
- * @license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
  */
 namespace App\Exception\Handler;
 
@@ -21,13 +20,13 @@ class ValidationExceptionHandler extends ExceptionHandler
 {
     public function handle(Throwable $throwable, ResponseInterface $response): ResponseInterface
     {
-        if(request()->input("Redirect",null)){
+        if (request()->input('Redirect', null)) {
             $this->stopPropagation();
             /** @var ValidationException $throwable */
             $body = $throwable->validator->errors()->all();
-            cache()->set("errors",$body,1);
+            cache()->set('errors', $body, 1);
             //return response()->json(cache()->get("errors"));
-            return response()->redirect(request()->input("Redirect",null));
+            return response()->redirect(request()->input('Redirect', null));
         }
 
         $this->stopPropagation();
