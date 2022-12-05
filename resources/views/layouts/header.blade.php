@@ -1,4 +1,3 @@
-@include('layouts.header_top')
 <aside class="navbar navbar-vertical navbar-expand-lg @switch(get_options('admin_theme_menu','1'))
 @case("1")
         navbar-light
@@ -118,3 +117,4 @@
         </div>
     </div>
 </aside>
+@include('layouts.header_top')

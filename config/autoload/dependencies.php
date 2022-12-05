@@ -1,26 +1,24 @@
 <?php
 
 declare(strict_types=1);
-
-use App\CodeFec\Ui\Ui;
-use App\CodeFec\Menu\Menu;
-use App\CodeFec\View\Render;
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ */
 use App\CodeFec\Header\Header;
-use App\CodeFec\Ui\UiInterface;
-use Hyperf\View\RenderInterface;
-use App\CodeFec\Menu\MenuInterface;
 use App\CodeFec\Header\HeaderInterface;
 use App\CodeFec\Itf\Setting\Setting;
 use App\CodeFec\Itf\Setting\SettingInterface;
+use App\CodeFec\Menu\Menu;
+use App\CodeFec\Menu\MenuInterface;
+use App\CodeFec\Ui\Ui;
+use App\CodeFec\Ui\UiInterface;
+use App\CodeFec\View\Render;
+use Hyperf\View\RenderInterface;
 
-/**
- * CodeFec - Hyperf
- *
- * @link     https://github.com/zhuchunshu
- * @document https://codefec.com
- * @contact  laravel@88.com
- * @license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
- */
 return [
     Hyperf\HttpServer\CoreMiddleware::class => App\Middleware\CoreMiddleware::class,
     MenuInterface::class => Menu::class,
@@ -30,5 +28,5 @@ return [
     SettingInterface::class => Setting::class,
     \App\CodeFec\Itf\Route\RouteInterface::class => \App\CodeFec\Itf\Route\Route::class,
     \App\CodeFec\Itf\Itf\ItfInterface::class => \App\CodeFec\Itf\Itf\Itf::class,
-	\App\CodeFec\Itf\Theme\ThemeInterface::class => \App\CodeFec\Itf\Theme\Theme::class,
+    \App\CodeFec\Itf\Theme\ThemeInterface::class => \App\CodeFec\Itf\Theme\Theme::class,
 ];

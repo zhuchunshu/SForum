@@ -14,11 +14,11 @@
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
+        <div class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
             @foreach(\App\CodeFec\Header\functions::left() as $key => $value)
                 @include($value['view'])
             @endforeach
-        </h1>
+        </div>
         <div class="navbar-nav flex-row order-md-last">
             @foreach(\App\CodeFec\Header\functions::right() as $key => $value)
                 @include($value['view'])

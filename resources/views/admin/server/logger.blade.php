@@ -6,6 +6,7 @@
     <div class="row row-cards">
         <div class="card">
             <div class="card-body">
+                <small class="text-muted">每周一清空重建</small>
                 <div id="table-default" class="table-responsive">
                     <table class="table">
                         <thead>
