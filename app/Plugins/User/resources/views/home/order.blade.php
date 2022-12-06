@@ -63,14 +63,14 @@
                                         <td class="text-muted">
                                             {{$order->title}}
                                         </td>
-                                        <td>{{$order->amount}} 元</td>
+                                        <td>{{$order->amount}} {{get_options('wealth_money_unit_name','元')}}</td>
                                         <td>
                                             <span class="badge badge-outline {{pay()->generate_html()->status_class_text($order->status)}}">{{$order->status}}</span>
                                         </td>
                                         <td class="text-muted">@if($order->trade_no) {{\Hyperf\Utils\Str::limit($order->trade_no,8)}} @else
                                                 <span class="badge badge-outline {{pay()->generate_html()->status_class_text($order->status)}}">{{$order->status}}</span> @endif
                                         </td>
-                                        <td>@if($order->amount_total){{$order->amount_total}} 元 @else <span
+                                        <td>@if($order->amount_total){{$order->amount_total}} {{get_options('wealth_money_unit_name','元')}} @else <span
                                                     class="badge badge-outline {{pay()->generate_html()->status_class_text($order->status)}}">{{$order->status}}</span> @endif
                                         </td>
                                         @if($order->payment_method) @php($payment = pay()->get_pay_plugin_data((string)json_decode($order->payment_method,true)[0],json_decode($order->payment_method,true)[1])) @else @php($payment = '获取失败') @endif

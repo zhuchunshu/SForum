@@ -1,5 +1,6 @@
 import axios from "axios";
 import iziToast from "izitoast";
+import qs from "querystring";
 
 if (document.getElementById('user-order-show-paying')) {
     const app = {
@@ -70,11 +71,11 @@ if (document.getElementById("user-data-money-recharge")) {
                 payment: null,
                 amount: null,
                 qrcode_url: null,
-                captcha:null,
+                captcha: null,
                 pay_url: null,
                 paid: false,
-                order_id:null,
-                btn_disabled:false
+                order_id: null,
+                btn_disabled: false
             }
         },
         mounted() {
@@ -94,7 +95,7 @@ if (document.getElementById("user-data-money-recharge")) {
                     swal('Error', '请输入验证码', 'error')
                     return;
                 }
-                this.btn_disabled=true;
+                this.btn_disabled = true;
                 axios.post('/user/asset/money.recharge', {
                     _token: csrf_token,
                     amount: this.amount,
@@ -125,7 +126,7 @@ if (document.getElementById("user-data-money-recharge")) {
                             if (data.result.status === "支付成功") {
                                 this.paid = true;
                                 setTimeout(() => {
-                                    location.href="/user/order/"+this.order_id+".order";
+                                    location.href = "/user/order/" + this.order_id + ".order";
                                 }, 1500)
                             }
                         }
@@ -135,4 +136,52 @@ if (document.getElementById("user-data-money-recharge")) {
         }
     }
     Vue.createApp(app).mount('#user-data-money-recharge')
+}
+
+if (document.getElementById('user-data-exchange')) {
+    const app = {
+        data() {
+            return {
+                data: {},
+                selected: user_exchange_selected,
+                submit_urls: submit_urls,
+                captcha:null
+            }
+        },
+        mounted() {
+
+        },
+        methods: {
+            submit() {
+                if(!this.captcha){
+                    swal('Error','请输入验证码','error')
+                    return ;
+                }
+                axios.post(this.submit_urls[this.selected], {
+                    _token: csrf_token,
+                    data: qs.stringify(this.data),
+                    captcha:this.captcha
+                }).then(r => {
+                    const data = r.data;
+                    if(data.success===false){
+                        swal('Error',data.result.msg,'error')
+                    }else{
+                        if(data.code===201){
+                            setTimeout(()=>{
+                                location.reload()
+                            },2000)
+                        }
+                        swal('Success',data.result.msg+"",'success')
+                    }
+                })
+                //console.log(qs.stringify(this.data))
+            }
+        },
+        watch: {
+            selected(val) {
+                console.log(val)
+            }
+        }
+    }
+    Vue.createApp(app).mount('#user-data-exchange')
 }

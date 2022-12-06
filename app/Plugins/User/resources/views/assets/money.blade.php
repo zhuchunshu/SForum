@@ -36,8 +36,8 @@
                         @foreach($page as $data)
                             <tr>
                                 <th>{{$data->id}}</th>
-                                <td>{{$data->original}}</td>
-                                <td>{{$data->cash}}</td>
+                                <td>{{$data->original}} {{get_options('wealth_money_unit_name','元')}}</td>
+                                <td>{{$data->cash}} {{get_options('wealth_money_unit_name','元')}}</td>
                                 <td>@if($data->order_id) <a href="/user/order/{{$data->order_id}}.order">{{$data->order_id}}</a> @else 未绑定订单 @endif</td>
                                 <td>@if($data->remark) {{$data->remark}} @else 无备注 @endif</td>
                                 <td>{{$data->created_at}}</td>
@@ -69,13 +69,12 @@
                             Overview
                         </div>
                         <h2 class="page-title">
-                            余额明细
+                            {{get_options('wealth_money_name','余额')}}明细
                         </h2>
                     </div>
 
                     <div class="col-auto">
                         <a href="/users/{{auth()->data()->username}}.html" class="btn btn-primary">个人中心</a>
-
                     </div>
                 </div>
             </div>

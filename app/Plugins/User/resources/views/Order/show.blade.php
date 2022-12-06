@@ -89,20 +89,20 @@
                             @if($order->amount)
                                 <div class="datagrid-item">
                                     <div class="datagrid-title">预收金额</div>
-                                    <div class="datagrid-content">{{$order->amount}} 元</div>
+                                    <div class="datagrid-content">{{$order->amount}} {{get_options('wealth_money_unit_name','元')}}</div>
                                 </div>
                             @endif
                             @if($order->payer_total)
                                 <div class="datagrid-item">
                                     <div class="datagrid-title">用户实付金额</div>
-                                    <div class="datagrid-content">{{$order->payer_total}} 元</div>
+                                    <div class="datagrid-content">{{$order->payer_total}} {{get_options('wealth_money_unit_name','元')}}</div>
                                 </div>
                             @endif
 
                             @if($order->payer_total)
                                 <div class="datagrid-item">
                                     <div class="datagrid-title">实收金额(订单总金额)</div>
-                                    <div class="datagrid-content">{{$order->amount_total}} 元</div>
+                                    <div class="datagrid-content">{{$order->amount_total}} {{get_options('wealth_money_unit_name','元')}}</div>
                                 </div>
                             @endif
                             @if($order->title)

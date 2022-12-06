@@ -1,11 +1,18 @@
 <?php
 
-// 设置邮件验证白名单路径
+declare(strict_types=1);
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ */
 use App\Plugins\User\src\Models\UsersNotice;
 
-Itf()->add("authMiddleware", 1, "api*");
-Itf()->add("authMiddleware", 2, "admin*");
-Itf()->add("authMiddleware", 3, "logout");
+Itf()->add('authMiddleware', 1, 'api*');
+Itf()->add('authMiddleware', 2, 'admin*');
+Itf()->add('authMiddleware', 3, 'logout');
 
 // 用户设置
 //Itf()->add("users_options",1,[
@@ -23,7 +30,7 @@ Itf()->add('userSetting', 1, [
                                                 <circle cx="12" cy="12" r="9"/>
                                                 <path d="M12 7v5l3 3"/>
                                             </svg>',
-    'view' => 'App::user.setting.common'
+    'view' => 'App::user.setting.common',
 ]);
 
 Itf()->add('userSetting', 2, [
@@ -34,7 +41,7 @@ Itf()->add('userSetting', 2, [
    <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"></path>
    <circle cx="12" cy="12" r="3"></circle>
 </svg>',
-    'view' => 'App::user.setting.options'
+    'view' => 'App::user.setting.options',
 ]);
 
 Itf()->add('userSetting', 3, [
@@ -46,9 +53,8 @@ Itf()->add('userSetting', 3, [
    <path d="M4 15l4 -4a3 5 0 0 1 3 0l5 5"></path>
    <path d="M14 14l1 -1a3 5 0 0 1 3 0l2 2"></path>
 </svg>',
-    'view' => 'App::user.setting.backgroundImg'
+    'view' => 'App::user.setting.backgroundImg',
 ]);
-
 
 Itf()->add('users_settings', 1, [
     'name' => '自定义代码',
@@ -58,7 +64,7 @@ Itf()->add('users_settings', 1, [
    <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"></path>
    <circle cx="12" cy="12" r="3"></circle>
 </svg>',
-    'view' => 'User::setting.user.code'
+    'view' => 'User::setting.user.code',
 ]);
 
 Itf()->add('users_settings', 2, [
@@ -69,26 +75,22 @@ Itf()->add('users_settings', 2, [
    <path d="M21 14l-3 -3h-7a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1h9a1 1 0 0 1 1 1v10"></path>
    <path d="M14 15v2a1 1 0 0 1 -1 1h-7l-3 3v-10a1 1 0 0 1 1 -1h2"></path>
 </svg>',
-    'view' => 'User::setting.user.message'
+    'view' => 'User::setting.user.message',
 ]);
-
-
-
 
 Itf_Setting()->add(
     171,
-    "财富设置",
-    "wealth",
-    "User::setting.admin.wealth"
+    '财富设置',
+    'wealth',
+    'User::setting.admin.wealth'
 );
 
 Itf_Setting()->add(
     172,
-    "私信设置",
-    "pm",
-    "User::setting.admin.pm"
+    '私信设置',
+    'pm',
+    'User::setting.admin.pm'
 );
-
 
 Itf()->add('users_home_menu', 1, [
     'name' => '概览',
@@ -142,7 +144,6 @@ Itf()->add('users_home_menu', 4, [
     'quanxian' => null,
 ]);
 
-
 Itf()->add('users_home_menu', 5, [
     'name' => '粉丝',
     'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-users" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -178,8 +179,8 @@ Itf()->add('users_home_menu', 7, [
 </svg>',
     'view' => 'User::home.order',
     'quanxian' => \Opis\Closure\serialize((function ($user) {
-        return (int)$user->id === auth()->id();
-    })) ,
+        return (int) $user->id === auth()->id();
+    })),
 ]);
 
 Itf()->add('users_notices', 1, [
@@ -193,9 +194,9 @@ Itf()->add('users_notices', 1, [
    <line x1="3" y1="17" x2="21" y2="17"></line>
 </svg>',
     'view' => 'User::notice.interactive',
-    'count' =>  \Opis\Closure\serialize(function ($user_id) {
-        return UsersNotice::query()->where(["user_id"=>$user_id,"status" => 'publish'])->count();
-    })
+    'count' => \Opis\Closure\serialize(function ($user_id) {
+        return UsersNotice::query()->where(['user_id' => $user_id, 'status' => 'publish'])->count();
+    }),
 ]);
 
 //Itf()->add('users_notices',2,[
@@ -222,9 +223,8 @@ Itf()->add('users_notices', 3, [
     'view' => 'User::notice.pm',
     'count' => \Opis\Closure\serialize(function ($user_id) {
         return \App\Plugins\User\src\Models\UsersPm::query()->where('to_id', $user_id)->where('read', false)->count();
-    })
+    }),
 ]);
-
 
 Itf()->add('users_home_menu', 8, [
     'name' => '充值',
@@ -237,6 +237,54 @@ Itf()->add('users_home_menu', 8, [
 </svg>',
     'view' => 'User::assets.money_recharge',
     'quanxian' => \Opis\Closure\serialize((function ($user) {
-        return (int)$user->id === auth()->id();
-    })) ,
+        return (int) $user->id === auth()->id();
+    })),
+]);
+
+Itf()->add('users_home_menu', 9, [
+    'name' => '兑换',
+    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-credit-card" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <rect x="3" y="5" width="18" height="14" rx="3"></rect>
+   <line x1="3" y1="10" x2="21" y2="10"></line>
+   <line x1="7" y1="15" x2="7.01" y2="15"></line>
+   <line x1="11" y1="15" x2="13" y2="15"></line>
+</svg>',
+    'view' => 'User::assets.exchange',
+    'quanxian' => \Opis\Closure\serialize((function ($user) {
+        return (int) $user->id === auth()->id();
+    })),
+]);
+
+Itf()->add('user_exchange', 0, [
+    'name' => function () {
+        return get_options('wealth_money_name', '余额') . ' >>> ' . get_options('wealth_golds_name', '金币');
+    },
+    'view' => 'User::assets.exchange.moneyTo_golds',
+    'url' => '/api/user/exchange/moneyTo_golds',
+    'on' => function () {
+        return get_options('wealth_close_redemption_money_to_golds') !== 'true';
+    },
+]);
+
+Itf()->add('user_exchange', 1, [
+    'name' => function () {
+        return get_options('wealth_money_name', '余额') . ' >>> ' . get_options('wealth_credit_name', '积分');
+    },
+    'view' => 'User::assets.exchange.moneyTo_credit',
+    'url' => '/api/user/exchange/moneyTo_credit',
+    'on' => function () {
+        return get_options('wealth_close_redemption_money_to_credit') !== 'true';
+    },
+]);
+
+Itf()->add('user_exchange', 2, [
+    'name' => function () {
+        return get_options('wealth_golds_name', '金币') . ' >>> ' . get_options('wealth_credit_name', '积分');
+    },
+    'view' => 'User::assets.exchange.goldsTo_credit',
+    'url' => '/api/user/exchange/goldsTo_credit',
+    'on' => function () {
+        return get_options('wealth_close_redemption_golds_to_credit') !== 'true';
+    },
 ]);
