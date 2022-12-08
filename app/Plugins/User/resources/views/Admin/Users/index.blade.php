@@ -43,6 +43,7 @@
                                 <th>Token</th>
                                 <th class="w-1"></th>
                                 <th class="w-1"></th>
+                                <th class="w-1"></th>
                             </tr>
                             </thead>
                             <tbody>
@@ -75,6 +76,9 @@
                                     </td>
                                     <td>
                                         <a @@click="remove('{{$data->id}}')" href="#">删除</a>
+                                    </td>
+                                    <td>
+                                        <a href="/admin/users/{{$data->id}}/show">查看</a>
                                     </td>
                                 </tr>
                             @endforeach

@@ -8,7 +8,7 @@
         <div class="col-md-12">
             <div class="row row-cards">
                 {{--                用户总数--}}
-                <div class="col-md-6 col-xl-3">
+                <div class="col-md-6 col-xl-3 col-6">
                     <a class="card card-link" href="#">
                         <div class="card-body">
                             <div class="row">
@@ -34,7 +34,7 @@
                     </a>
                 </div>
                 {{--                帖子总数--}}
-                <div class="col-md-6 col-xl-3">
+                <div class="col-md-6 col-xl-3 col-6">
                     <a class="card card-link" href="#">
                         <div class="card-body">
                             <div class="row">
@@ -59,7 +59,7 @@
                 </div>
 
                 {{--                评论总数--}}
-                <div class="col-md-6 col-xl-3">
+                <div class="col-md-6 col-xl-3 col-6">
                     <a class="card card-link" href="#">
                         <div class="card-body">
                             <div class="row">
@@ -86,7 +86,7 @@
                 </div>
 
                 {{--                标签总数--}}
-                <div class="col-md-6 col-xl-3">
+                <div class="col-md-6 col-xl-3 col-6">
                     <a class="card card-link" href="#">
                         <div class="card-body">
                             <div class="row">
@@ -112,7 +112,7 @@
                 </div>
 
                 {{--                Swoole版本--}}
-                <div class="col-md-6 col-xl-3">
+                <div class="col-md-6 col-xl-3 col-6">
                     <a class="card card-link" href="#">
                         <div class="card-body">
                             <div class="row">
@@ -129,7 +129,7 @@
                 </div>
 
                 {{--                PHP版本--}}
-                <div class="col-md-6 col-xl-3">
+                <div class="col-md-6 col-xl-3 col-6">
                     <a class="card card-link" href="#">
                         <div class="card-body">
                             <div class="row">
@@ -146,7 +146,7 @@
                 </div>
 
                 {{--                SuperForum版本--}}
-                <div class="col-md-6 col-xl-3">
+                <div class="col-md-6 col-xl-3 col-6">
                     <a class="card card-link" href="#">
                         <div class="card-body">
                             <div class="row">
@@ -154,7 +154,7 @@
                                     <span class="bg-indigo-lt text-white avatar">S</span>
                                 </div>
                                 <div class="col">
-                                    <div class="font-weight-medium">SuperForum版本</div>
+                                    <div class="font-weight-medium">系统版本</div>
                                     <div class="text-muted">{{build_info()->version}}</div>
                                 </div>
                             </div>
@@ -163,7 +163,7 @@
                 </div>
 
                 {{--                插件数量--}}
-                <div class="col-md-6 col-xl-3">
+                <div class="col-md-6 col-xl-3 col-6">
                     <a class="card card-link" href="#">
                         <div class="card-body">
                             <div class="row">
@@ -184,8 +184,6 @@
                         </div>
                     </a>
                 </div>
-
-
             </div>
         </div>
 
