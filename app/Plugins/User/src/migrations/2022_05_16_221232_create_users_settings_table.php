@@ -11,11 +11,14 @@ class CreateUsersSettingsTable extends Migration
      */
     public function up(): void
     {
-        Schema::create('users_settings', function (Blueprint $table) {
-	        $table->string('user_id');
-	        $table->string('name');
-	        $table->string('value');
-        });
+        if (!Schema::hasTable('users_settings')) {
+            Schema::create('users_settings', function (Blueprint $table) {
+                $table->string('user_id');
+                $table->string('name');
+                $table->string('value');
+            });
+        }
+
     }
 
     /**

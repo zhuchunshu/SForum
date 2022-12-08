@@ -1,8 +1,16 @@
 <?php
 
-use Hyperf\Database\Schema\Schema;
-use Hyperf\Database\Schema\Blueprint;
+declare(strict_types=1);
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ */
 use Hyperf\Database\Migrations\Migration;
+use Hyperf\Database\Schema\Blueprint;
+use Hyperf\Database\Schema\Schema;
 
 class UpdateUsersAuthAddUserIpTable extends Migration
 {
@@ -12,7 +20,9 @@ class UpdateUsersAuthAddUserIpTable extends Migration
     public function up(): void
     {
         Schema::table('users_auth', function (Blueprint $table) {
-            $table->string('user_ip')->nullable();
+            if (! Schema::hasColumn('users_auth', 'user_ip')) {
+                $table->string('user_ip')->nullable();
+            }
         });
     }
 
@@ -22,7 +32,6 @@ class UpdateUsersAuthAddUserIpTable extends Migration
     public function down(): void
     {
         Schema::table('users_auth', function (Blueprint $table) {
-            //
         });
     }
 }
