@@ -1,7 +1,5 @@
 @foreach (['danger', 'warning', 'success', 'info'] as $msg)
     @if(session()->has($msg))
-        <link rel="stylesheet" href="{{ mix('iziToast/css/iziToast.min.css') }}">
-        <script src="{{ mix('iziToast/js/iziToast.min.js') }}"></script>
         <script>
             if("{{$msg}}"==="success"){
                 var c= "#63ed7a";
@@ -25,6 +23,19 @@
                 position: 'topRight',
                 messageColor : '#ffffff',
                 titleColor : '#ffffff'
+            });
+        </script>
+    @endif
+@endforeach
+
+
+@foreach(Itf()->get('admin-ui-msg') as $key => $value)
+    @if(call_user_func($value['enable'])===true)
+        <script>
+            iziToast.{{$value['status']}}({
+                title: '{{$value['status']}}',
+                message: '{{call_user_func($value['msg'])}}',
+                position:  "{{core_default(@$value['position'],'topRight')}}",
             });
         </script>
     @endif

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport"
-        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="referrer" content="same-origin">
     <title>@yield("title","标题") - {{ config('app.name', 'CodeFec') }}</title>
@@ -16,6 +16,8 @@
     <link rel="icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon" />
     <link rel="shortcut icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon" />
     <script>var csrf_token="{{recsrf_token()}}";</script>
+    <link rel="stylesheet" href="{{ mix('iziToast/css/iziToast.min.css') }}">
+    <script src="{{ mix('iziToast/js/iziToast.min.js') }}"></script>
     <!-- 自定义CSS -->
     @foreach(\App\CodeFec\Ui\functions::get("css") as $key => $value)
         <link rel="stylesheet" href="{{ $value }}">
@@ -26,35 +28,41 @@
 <body class="antialiased">
 @include("layouts.errors")
 @include("layouts._msg")
-    <div id="app" class="wrapper {{ path_class() }}-page">
-        @include('layouts.header')
-        {{-- @include('layouts.bujian._msg')
-        @include('shared._error') --}}
-        <div class="page-wrapper" id="@yield('pageId',path_class().'-page')">
-            @include('layouts.header_title')
-            <div class="page-body">
-                <div class="container-fluid">
-                    <div class="row row-deck row-cards">
-                        @yield('content')
+<div id="app" class="wrapper {{ path_class() }}-page">
+    @include('layouts.header')
+    {{-- @include('layouts.bujian._msg')
+    @include('shared._error') --}}
+    <div class="page-wrapper" id="@yield('pageId',path_class().'-page')">
+        @include('layouts.header_title')
+        <div class="page-body">
+            <div class="container-fluid">
+                @foreach(Itf()->get('admin-ui-page-body-container-hook') as $key=>$value)
+                    <div id="{{$key}}">
+                        <!-- admin-ui-page-body-container-hook: {{$value['name']}} -->
+                        @include($value['view'])
                     </div>
+                @endforeach
+                <div class="row row-deck row-cards">
+                    @yield('content')
                 </div>
             </div>
-            @include('layouts.footer')
         </div>
+        @include('layouts.footer')
     </div>
+</div>
 
-    <script src="/js/jquery-3.6.0.min.js"></script>
-    <script>var admin = {!! json_encode(\App\CodeFec\Admin\Admin::data()) !!};</script>
-    <script src="{{ mix('js/vue.js') }}"></script>
-    <script src="{{ mix('js/app.js') }}"></script>
-    <script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
-    <!-- Tabler Core -->
-    <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
-    <!-- 自定义Js -->
-    @foreach(\App\CodeFec\Ui\functions::get("js") as $key => $value)
-        <script src="{{ $value }}"></script>
-    @endforeach
-    @yield('scripts')
+<script src="/js/jquery-3.6.0.min.js"></script>
+<script>var admin = {!! json_encode(\App\CodeFec\Admin\Admin::data()) !!};</script>
+<script src="{{ mix('js/vue.js') }}"></script>
+<script src="{{ mix('js/app.js') }}"></script>
+<script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
+<!-- Tabler Core -->
+<script src="{{ '/tabler/js/tabler.min.js' }}"></script>
+<!-- 自定义Js -->
+@foreach(\App\CodeFec\Ui\functions::get("js") as $key => $value)
+    <script src="{{ $value }}"></script>
+@endforeach
+@yield('scripts')
 </body>
 
 </html>

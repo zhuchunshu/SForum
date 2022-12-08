@@ -1,6 +1,11 @@
 <div class="container-fluid">
     <!-- Page title -->
     <div class="page-header d-print-none">
+        @foreach(Itf()->get('admin-ui-header-title-hook') as $key=>$value)
+            <div id="{{$key}}">
+                @include($value)
+            </div>
+        @endforeach
         <div class="row align-items-center">
             <div class="col">
                 <!-- Page pre-title -->
