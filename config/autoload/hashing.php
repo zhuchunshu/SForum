@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 /**
- * This file is part of hyperf-ext/hashing.
- *
- * @link     https://github.com/hyperf-ext/hashing
- * @contact  eric@zhu.email
- * @license  https://github.com/hyperf-ext/hashing/blob/master/LICENSE
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
  */
 return [
     /*
@@ -20,7 +20,7 @@ return [
     |
     */
 
-    'default' => 'bcrypt',
+    'default' => env('HASH_DRIVER', 'bcrypt'),
 
     'driver' => [
         /*
@@ -39,6 +39,16 @@ return [
             'options' => [
                 'rounds' => env('BCRYPT_ROUNDS', 10),
             ],
+        ],
+
+        'md5' => [
+            'class' => \HyperfExt\Hashing\Driver\Md5Driver::class,
+            'options' => [],
+        ],
+
+        'md5t' => [
+            'class' => \HyperfExt\Hashing\Driver\Md5TDriver::class,
+            'options' => [],
         ],
 
         /*

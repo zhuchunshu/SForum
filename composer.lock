@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6ef86a3e8f1ed62dd1070ec521f45e29",
+    "content-hash": "0557ae6c60504d38dbff1ea96bd98865",
     "packages": [
         {
             "name": "alchemy/zippy",
@@ -8444,16 +8444,16 @@
         },
         {
             "name": "zhuchunshu/hyperf-hashing",
-            "version": "V2.2.0",
+            "version": "V2.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/zhuchunshu/hyperf-hashing.git",
-                "reference": "1e88d6e3f10f063f27f878e271e6a0aad115df53"
+                "reference": "d67f2eca50f623a3e66f96877a9ca1de9dc4de22"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/zhuchunshu/hyperf-hashing/zipball/1e88d6e3f10f063f27f878e271e6a0aad115df53",
-                "reference": "1e88d6e3f10f063f27f878e271e6a0aad115df53",
+                "url": "https://api.github.com/repos/zhuchunshu/hyperf-hashing/zipball/d67f2eca50f623a3e66f96877a9ca1de9dc4de22",
+                "reference": "d67f2eca50f623a3e66f96877a9ca1de9dc4de22",
                 "shasum": ""
             },
             "require": {
@@ -8498,9 +8498,9 @@
             ],
             "support": {
                 "issues": "https://github.com/zhuchunshu/hyperf-hashing/issues",
-                "source": "https://github.com/zhuchunshu/hyperf-hashing/tree/V2.2.0"
+                "source": "https://github.com/zhuchunshu/hyperf-hashing/tree/V2.2.1"
             },
-            "time": "2021-07-21T06:41:10+00:00"
+            "time": "2022-12-08T14:25:47+00:00"
         }
     ],
     "packages-dev": [
