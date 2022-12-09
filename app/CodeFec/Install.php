@@ -18,8 +18,7 @@ use Hyperf\Database\Schema\Blueprint;
 use Hyperf\Database\Schema\Schema;
 use Hyperf\DbConnection\Db;
 use Hyperf\Utils\Str;
-use Swoole\Coroutine\MySQL;
-use Swoole\Coroutine\Redis;
+use PDOException;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\NullOutput;
@@ -126,18 +125,15 @@ class Install
         $HASH_DRIVER = $this->command->ask('密码加密驱动 [ bcrypt | md5 | md5t | argon2i | argon2id ]', 'bcrypt');
         $this->command->line($HASH_DRIVER);
 
-        $swoole_mysql = new MySQL();
-        $swoole_mysql->connect([
-            'host' => $host,
-            'port' => $port,
-            'user' => $username,
-            'password' => $password,
-            'database' => $dbname,
-        ]);
-        if ($swoole_mysql->connected === false) {
+        $dsn = 'mysql:dbname=' . $dbname . ';host=' . $host . ';port=' . $port;
+        try {
+            $pdo = new \PDO($dsn, $username, $password);
+        } catch (PDOException $e) {
             $this->command->error('数据库连接失败! 无法进行安装');
+            $this->command->error($e->getMessage());
             return;
         }
+
         // 数据库连接成功
         modifyEnv([
             'APP_KEY' => Str::random(32),
@@ -162,12 +158,14 @@ class Install
         $this->command->line($host);
         $port = $this->command->ask('redis 端口', env('REDIS_PORT'));
         $this->command->line($port);
-        $redis = new Redis();
-        $redis->connect($host, $port);
-        if ($redis->connected === false) {
+        try {
+            redis()->connect($host, (int) $port);
+        } catch (\RedisException $e) {
             $this->command->error('redis连接失败! 无法进行安装');
+            $this->command->error($e->getMessage());
             return;
         }
+
         // redis连接成功!
         modifyEnv([
             'REDIS_HOST' => $host,
