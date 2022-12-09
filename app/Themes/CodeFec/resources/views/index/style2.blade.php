@@ -44,7 +44,7 @@
                                     <a href="/users/{{$data->comments->last()->user->username}}.html" class="text-muted">{{$data->comments->last()->user->username}}</a>  {{format_date($data->comments->last()->created_at)}}
                                 @endif
                             </div>
-                            <div class="ms-auto">
+                            <div class="ms-auto d-none d-lg-inline-block">
                                     <span class="text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom"
                                           title="{{__("app.pageviews")}}">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
