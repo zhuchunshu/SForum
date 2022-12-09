@@ -76,7 +76,7 @@ class ApiController
         $data = User::query()->select('username', 'id')->get();
         $arr = [];
         foreach ($data as $key => $value) {
-            $arr = Arr::add($arr, $key, ['value' => '@' . $value->username, 'html' => '<img src="' . avatar_url($value->id) . '" alt="' . $value->username . '"/> ' . $value->username]);
+            $arr[$key]=['value' => '@' . $value->username, 'html' => '<img src="' . avatar_url($value->id) . '" alt="' . $value->username . '"/> ' . $value->username];
         }
         return $arr;
     }
@@ -135,8 +135,9 @@ class ApiController
         // 通知小红点
         $notice_red = 0;
         foreach (Itf()->get('users_notices') as $value) {
-            if (@$value['count'] && is_callable($value['count']) && call_user_func($value['count'], auth()->id()) > 0) {
-                $notice_red += call_user_func($value['count'], auth()->id());
+            $count = \Opis\Closure\unserialize((string)$value['count']);
+            if (@$count && is_callable($count) && call_user_func($count, auth()->id()) > 0) {
+                $notice_red += call_user_func($count, auth()->id());
             }
         }
 
