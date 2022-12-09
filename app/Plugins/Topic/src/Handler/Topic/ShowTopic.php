@@ -39,7 +39,7 @@ class ShowTopic
             ->with("topic", "user", "parent")
             ->orderBy("optimal", "desc")
             ->orderBy("created_at", $CommentOrderBy)
-            ->paginate(get_options("comment_page_count", 15));
+            ->paginate((int)get_options("comment_page_count", 15));
         // ContentParse data
         $parseData = [
             'topic' => $data,

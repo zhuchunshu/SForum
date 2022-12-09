@@ -58,7 +58,7 @@ class IndexController
                 ->where([['topping', '>', 0], ['status', 'publish']])
                 ->with('tag', 'user')
                 ->orderBy('updated_at', 'desc')
-                ->paginate(get_options('topic_home_num', 15));
+                ->paginate((int) get_options('topic_home_num', 15));
             $title = '最后更新';
         }
         $topic_menu = [
