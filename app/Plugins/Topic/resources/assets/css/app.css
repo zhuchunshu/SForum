@@ -1834,51 +1834,11 @@ pre {
   margin-bottom: 1px;
   word-wrap: break-word;
   word-break: normal;
-  line-height: 1.25;
   font-size: 16px;
-}
-.article h1 {
-  font-size: 28px;
-}
-.article h2 {
-  font-size: 24px;
-}
-.article h3 {
-  font-size: 20px;
-}
-.article h4 {
-  font-size: 18px;
-}
-.article h5 {
-  font-size: 14px;
-}
-.article h6 {
-  font-size: 12px;
-}
-.article h1:before {
-  content: "#";
-  display: inline-block;
-  color: #0073fa !important;
-  padding-right: 0.23em;
-}
-.article h2:before {
-  content: "##";
-  color: #0073fa !important;
-  display: inline-block;
-  padding-right: 0.23em;
-}
-.article h3:before {
-  content: "###";
-  color: #0073fa !important;
-  display: inline-block;
-  padding-right: 0.23em;
 }
 .vditor-linenumber {
   padding-left: 2.5em !important;
   position: relative;
-}
-.article {
-  font-size: 16px;
 }
 .article .alert {
   font-size: 16px;
@@ -1994,7 +1954,7 @@ pre {
   background-color: #f6f8fa;
   text-align: center;
 }
-.vditor-reset blockquote {
+.article blockquote {
   font-size: 15px;
   border: 0;
   background: #e7edf3;
@@ -2005,7 +1965,7 @@ pre {
   border-bottom: 2px dotted #fff;
   margin: 1em 0;
 }
-.vditor-reset .quote blockquote {
+.article .quote blockquote {
   margin-top: 1px;
   padding-bottom: 5px;
   background: #F9F9F9 none no-repeat 20px 6px;

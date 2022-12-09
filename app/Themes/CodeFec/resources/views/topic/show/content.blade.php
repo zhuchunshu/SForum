@@ -8,7 +8,7 @@
                     </div>
                 @endif
                 <div class="row">
-{{--                    标题--}}
+                    {{--                    标题--}}
                     <div class="col-md-12" id="title">
                         <h1 data-bs-toggle="tooltip" data-bs-placement="left" title="{{__('topic.title')}}">
                             @if ($data->topping > 0)
@@ -20,39 +20,45 @@
                         </h1>
                     </div>
 
-{{--                    面包屑--}}
+                    {{--                    面包屑--}}
                     <div class="col-md-12">
                         @include('App::topic.show.ol')
                     </div>
                     <hr class="hr-text" style="margin-top: 5px;margin-bottom: 5px">
 
-{{--                    作者信息--}}
+                    {{--                    作者信息--}}
                     @include('App::topic.show.include.author')
 
-{{--文章信息--}}
-                    <article class="col-md-12 article vditor-reset markdown" id="topic-content">
+                    {{--文章信息--}}
+                    <article class="col-md-12 article markdown" id="topic-content">
                         {!! ContentParse()->parse($data->post->content,$parseData) !!}
                     </article>
+                    @if($data->user->Options->qianming!=='no bio')
+                        <div class="hr-text hr-text-left mb-3">signature</div>
+                        <span class="text-muted mb-0">
+                            {{$data->user->Options->qianming}}
+                        </span>
+                    @endif
 
                 </div>
             </div>
 
-{{--            页脚--}}
+            {{--            页脚--}}
             @include('App::topic.show.include.footer')
 
         </div>
 
     </div>
 
-{{--    上下页--}}
+    {{--    上下页--}}
     @include('App::topic.show.include.lfpage')
-{{--    显示评论--}}
+    {{--    显示评论--}}
     @include('Comment::Widget.show-topic')
-{{--    评论--}}
+    {{--    评论--}}
     @include('Comment::Widget.topic')
 
     @if(auth()->check())
-{{--        举报模态--}}
+        {{--        举报模态--}}
         @include('App::topic.show.include.report')
     @endif
 </div>
