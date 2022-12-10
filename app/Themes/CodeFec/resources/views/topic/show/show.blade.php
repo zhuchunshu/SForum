@@ -77,7 +77,9 @@
     <script src="{{file_hash('highlight/highlightjs-line-numbers.min.js')}}"></script>
     <script>
         hljs.highlightAll();
-        hljs.initLineNumbersOnLoad();
+        hljs.initLineNumbersOnLoad({
+            singleLine: true
+        });
     </script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
