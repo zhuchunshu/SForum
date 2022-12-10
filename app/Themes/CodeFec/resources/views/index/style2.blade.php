@@ -15,7 +15,7 @@
                                 <a href="/{{$data->id}}.html" class="text-reset">
                                     <h3 class="text-muted">
                                         @if($data->topping>0)
-                                            <span class="badge bg-red d-none d-lg-inline-block">
+                                            <span class="badge bg-red">
                                                     {{__('app.top')}}
                                                 </span>
                                         @else

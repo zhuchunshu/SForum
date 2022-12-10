@@ -2,36 +2,26 @@
 
 declare(strict_types=1);
 /**
- * This file is part of Hyperf.
- * @link     https://www.hyperf.io
- * @document https://hyperf.wiki
- * @contact  group@hyperf.io
- * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
  */
-use App\CodeFec\Admin\Admin;
-use App\CodeFec\Itf\Setting\SettingInterface;
-use App\CodeFec\Menu\MenuInterface;
-use App\CodeFec\Plugins;
-use App\CodeFec\View\Beautify_Html;
+use App\CodeFec\{Admin\Admin,Itf\Setting\SettingInterface,Menu\MenuInterface,Plugins,View\Beautify_Html};
 use App\Model\AdminOption;
-use Hyperf\Contract\SessionInterface;
-use Hyperf\Contract\StdoutLoggerInterface;
+use Hyperf\Context\Context;
+use Hyperf\Contract\{SessionInterface,StdoutLoggerInterface};
 use Hyperf\HttpMessage\Stream\SwooleStream;
-use Hyperf\HttpServer\Contract\ResponseInterface;
-use Hyperf\HttpServer\Response;
+use Hyperf\HttpServer\{Contract\ResponseInterface,Response};
 use Hyperf\Logger\LoggerFactory;
 use Hyperf\Paginator\UrlWindow;
 use Hyperf\Server\ServerFactory;
-use Hyperf\Utils\ApplicationContext;
-use Hyperf\Utils\Context;
+use Hyperf\Utils\{ApplicationContext};
 use Hyperf\View\RenderInterface;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
+use Illuminate\Support\{Arr,Facades\File,Str};
 use Overtrue\Http\Client;
-use Psr\Container\ContainerInterface;
-use Psr\EventDispatcher\EventDispatcherInterface;
-use Psr\Http\Message\ServerRequestInterface;
+use Psr\{Container\ContainerInterface,EventDispatcher\EventDispatcherInterface,Http\Message\ServerRequestInterface};
 
 function public_path($path = ''): string
 {
@@ -409,15 +399,15 @@ if (! function_exists('get_client_ip')) {
          * @var ServerRequestInterface $request
          */
         $request = Context::get(ServerRequestInterface::class);
-        $ip_addr = $request->getHeaderLine('x-forwarded-for');
+        $ip_addr = @explode(',', $request->getHeaderLine('x-forwarded-for'))[0];
         if (verify_ip($ip_addr)) {
             return $ip_addr;
         }
-        $ip_addr = $request->getHeaderLine('remote-host');
+        $ip_addr = @explode(',', $request->getHeaderLine('remote-host'))[0];
         if (verify_ip($ip_addr)) {
             return $ip_addr;
         }
-        $ip_addr = $request->getHeaderLine('x-real-ip');
+        $ip_addr = @explode(',', $request->getHeaderLine('x-real-ip'))[0];
         if (verify_ip($ip_addr)) {
             return $ip_addr;
         }
