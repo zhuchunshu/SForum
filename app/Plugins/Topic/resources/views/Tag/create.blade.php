@@ -6,7 +6,7 @@
     <div class="col-md-12">
         <div class="card card-body" id="vue-topic-tag-create">
             <h3 class="card-title">新增标签</h3>
-            <form method="post" action="/admin/topic/tag/create?Redirect=admin/topic/tag/create" @@submit.prevent="submit" enctype="multipart/form-data">
+            <form method="post" action="/admin/topic/tag/create?Redirect=admin/topic/tag/create">
                 <x-csrf/>
                 <div class="mb-3">
                     <label class="form-label">
@@ -14,17 +14,20 @@
                     </label>
                     <input type="text" class="form-control" name="name" v-model="name" required>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">
-                        颜色
-                    </label>
-                    <input type="color" class="form-control form-control-color" name="color" v-model="color" required>
+                <div class="mb-3 row">
+                    <div class="col-6">
+                        <label class="form-label">
+                            颜色
+                        </label>
+                        <input type="color" class="form-control form-control-color" name="color" v-model="color" required>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">
                         图标
                     </label>
-                    <input type="file" accept="image/gif, image/png, image/jpeg, image/jpg" class="form-control" name="icon" v-model="icon" required>
+                    <a href="https://tabler-icons.io/">https://tabler-icons.io/</a>
+                    <textarea name="icon" v-model="icon" rows="10" class="form-control" required></textarea>
                 </div>
                 <div class="mb-3">
                     <label class="form-label"> 哪个用户组可使用此标签? </label>

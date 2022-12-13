@@ -14,24 +14,33 @@
                     <input type="text" class="form-control" name="name" v-model="name" required>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">
-                        {{__("app.color")}}
-                    </label>
-                    <input type="color" class="form-control form-control-color" name="color" v-model="color" required>
+                    <div class="row">
+                        <div class="col-6">
+                            <label class="form-label">
+                                {{__("app.color")}}
+                            </label>
+                            <input type="color" class="form-control form-control-color" name="color" v-model="color" required>
+                        </div>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">
                         {{__("app.icon")}}
                     </label>
-                    <input type="file" accept="image/gif, image/png, image/jpeg, image/jpg" class="form-control" name="icon" v-model="icon" required>
+                    <a href="https://tabler-icons.io/">https://tabler-icons.io/</a>
+                    <textarea name="icon" v-model="icon" rows="10" class="form-control" required></textarea>
                 </div>
+
                 <div class="mb-3">
                     <label class="form-label"> {{__("tag.Which user group can use this label")}} </label>
-                    <select class="form-select" name="userClass[]" multiple size="8">
-                        @foreach($userClass as $value)
-                            <option value="{{$value->name}}">{{$value->name}}</option>
-                        @endforeach
-                    </select>
+                    @foreach($userClass as $value)
+                        <div class="col-4">
+                            <label class="form-check form-switch">
+                                <input name="userClass[]" value="{{$value['name']}}" class="form-check-input" type="checkbox">
+                                <span class="form-check-label">{{$value['name']}}</span>
+                            </label>
+                        </div>
+                    @endforeach
                     <small style="color:red">{{__("tag.If not selected, this label is available to all user groups")}}</small>
                 </div>
                 <div class="mb-3">

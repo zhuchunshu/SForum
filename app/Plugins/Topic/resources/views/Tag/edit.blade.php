@@ -14,18 +14,20 @@
                     </label>
                     <input type="text" class="form-control" value="{{$data->name}}" name="name" v-model="name" required>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">
-                        颜色
-                    </label>
-                    <input type="color" class="form-control form-control-color" value="{{$data->color}}" name="color" v-model="color" required>
+                <div class="mb-3 row">
+                    <div class="col-6">
+                        <label class="form-label">
+                            颜色
+                        </label>
+                        <input type="color" class="form-control form-control-color"  value="{{$data->color}}" name="color" v-model="color" required>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">
                         图标
-                        <span class="avatar" style="background-image: url({{$data->icon}})"></span>
                     </label>
-                    <input type="file" accept="image/gif, image/png, image/jpeg, image/jpg" class="form-control" name="icon" v-model="icon">
+                    <a href="https://tabler-icons.io/">https://tabler-icons.io/</a>
+                    <textarea name="icon" v-model="icon"  rows="10" class="form-control" required>{{$data->icon}}</textarea>
                 </div>
                 <div class="mb-3">
                     <label class="form-label"> 哪个用户组可使用此标签? </label>
