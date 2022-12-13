@@ -37,7 +37,7 @@
                     <div class="col-md-12" style="margin-top: 5px">
                         <div class="d-flex align-items-center">
                             <div class="text-muted" style="margin-top:1px">
-                                <a href="/users/{{$data->user->username}}.html" class="text-muted">{{$data->user->username}}</a>  {{format_date($data->created_at)}}
+                                <a href="/users/{{$data->user->username}}.html" class="text-muted">{{$data->user->username}}</a>  @if(request()->input('query')==="publish") {{format_date($data->created_at)}} @else {{format_date($data->updated_at)}} @endif
 
                                 @if($data->comments->count())
                                     ←

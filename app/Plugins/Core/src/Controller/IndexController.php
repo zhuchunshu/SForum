@@ -26,7 +26,7 @@ class IndexController
             ->where('status', 'publish')
             ->with('tag', 'user')
             ->orderBy('topping', 'desc')
-            ->orderBy('id', 'desc')
+            ->orderBy('updated_at', 'desc')
             ->paginate(get_options('topic_home_num', 15));
         if (request()->input('query') === 'hot') {
             $page = Topic::query()
@@ -37,13 +37,13 @@ class IndexController
                 ->paginate(get_options('topic_home_num', 15));
             $title = '热度最高的帖子';
         }
-        if (request()->input('query') === 'updated_at') {
+        if (request()->input('query') === 'publish') {
             $page = Topic::query()
                 ->where('status', 'publish')
                 ->with('tag', 'user')
-                ->orderBy('updated_at', 'desc')
+                ->orderBy('id', 'desc')
                 ->paginate(get_options('topic_home_num', 15));
-            $title = '最后更新';
+            $title = '最新发布';
         }
         if (request()->input('query') === 'essence') {
             $page = Topic::query()
@@ -51,7 +51,7 @@ class IndexController
                 ->with('tag', 'user')
                 ->orderBy('updated_at', 'desc')
                 ->paginate(get_options('topic_home_num', 15));
-            $title = '最后更新';
+            $title = '精华';
         }
         if (request()->input('query') === 'topping') {
             $page = Topic::query()
@@ -59,9 +59,21 @@ class IndexController
                 ->with('tag', 'user')
                 ->orderBy('updated_at', 'desc')
                 ->paginate((int) get_options('topic_home_num', 15));
-            $title = '最后更新';
+            $title = '置顶';
         }
         $topic_menu = [
+            [
+                'name' => '最新发布',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-news" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M16 6h3a1 1 0 0 1 1 1v11a2 2 0 0 1 -4 0v-13a1 1 0 0 0 -1 -1h-10a1 1 0 0 0 -1 1v12a3 3 0 0 0 3 3h11"></path>
+   <line x1="8" y1="8" x2="12" y2="8"></line>
+   <line x1="8" y1="12" x2="12" y2="12"></line>
+   <line x1="8" y1="16" x2="12" y2="16"></line>
+</svg>',
+                'url' => '/?' . core_http_build_query(['query' => 'publish'], ['page' => request()->input('page', 1)]),
+                'parameter' => 'query=publish',
+            ],
             [
                 'name' => __('app.essence'),
                 'icon' => '<svg width="24" height="24" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" class="icon w-3 h-3 me-1 d-none d-md-block"><g stroke-width="3" fill-rule="evenodd"><path fill="#fff" fill-opacity=".01" d="M0 0h48v48H0z"/><g stroke="currentColor" fill="none"><path d="M10.636 5h26.728L45 18.3 24 43 3 18.3z"/><path d="M10.636 5L24 43 37.364 5M3 18.3h42"/><path d="M15.41 18.3L24 5l8.59 13.3"/></g></g></svg>',

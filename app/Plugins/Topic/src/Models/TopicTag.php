@@ -51,4 +51,9 @@ class TopicTag extends Model
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
+
+    public function topic(): \Hyperf\Database\Model\Relations\HasMany
+    {
+        return $this->hasMany(Topic::class, 'tag_id', 'id');
+    }
 }
