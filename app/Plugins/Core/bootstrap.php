@@ -48,3 +48,31 @@ Itf()->add('ui-home-tabs-dropdown',0,[
    }),
     'view' => 'App::widget.home.dropdown1'
 ]);
+
+Itf()->add('ui-topic-right-start-hook',0,[
+    'enable' => (function(){
+        return true;
+    }),
+    'view' => 'App::widget.topic.right_start_1'
+]);
+
+Itf()->add('ui-index-right-start-hook',0,[
+    'enable' => (function(){
+        return true;
+    }),
+    'view' => 'App::widget.home.right_start_1'
+]);
+
+Itf()->add('ui-tags-right-start-hook',0,[
+    'enable' => (function(){
+        return true;
+    }),
+    'view' => 'App::widget.topic.tags.right_start_1'
+]);
+
+Itf()->add('ui-keywords-right-start-hook',0,[
+    'enable' => (function(){
+        return true;
+    }),
+    'view' => 'App::widget.topic.keywords.right_start_1'
+]);
