@@ -40,15 +40,19 @@
                     </li>
                 @endif
             @endforeach
-            <li class="nav-item d-md-none ms-auto">
-                <a href="/topic/create" class="btn btn-primary btn-pill shadow-sm py-1" role="button" rel="noreferrer">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-pencil" width="24"
-                         height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
-                         stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M0 0h24v24H0z" stroke="none"/>
-                        <path d="M4 20h4L18.5 9.5a1.5 1.5 0 0 0-4-4L4 16v4M13.5 6.5l4 4"/>
-                    </svg>
-                    发表</a>
+            <li class="nav-item ms-auto">
+                <div class="dropdown">
+                    <a href="#" class="btn-action dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><!-- Download SVG icon from http://tabler-icons.io/i/dots-vertical -->
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" /><circle cx="12" cy="5" r="1" /></svg>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end">
+                        @foreach(Itf()->get('ui-home-tabs-dropdown') as $k=>$v)
+                            @if(call_user_func($v['enable'])===true)
+                                @include($v['view'])
+                            @endif
+                        @endforeach
+                    </div>
+                </div>
             </li>
         </ul>
     </div>
