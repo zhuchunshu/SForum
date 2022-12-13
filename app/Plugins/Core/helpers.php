@@ -1,81 +1,81 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ */
 use App\Plugins\Core\src\Lib\Authority\Authority;
+use App\Plugins\Core\src\Lib\Redirect;
 use App\Plugins\Core\src\Lib\ShortCodeR\ShortCodeR;
+use App\Plugins\Core\src\Lib\UserVerEmail;
 use DivineOmega\PHPSummary\SummaryTool;
 use JetBrains\PhpStorm\Pure;
-use App\Plugins\Core\src\Lib\Redirect;
-use App\Plugins\Core\src\Lib\UserVerEmail;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
-if (!function_exists("plugins_core_common_theme")) {
-    function plugins_core_common_theme($default="light")
+if (! function_exists('plugins_core_common_theme')) {
+    function plugins_core_common_theme($default = 'light')
     {
-        if (!\App\Model\AdminOption::query()->where("name", "theme_common_theme")->count()) {
+        if (! \App\Model\AdminOption::query()->where('name', 'theme_common_theme')->count()) {
             return $default;
         }
-        return \App\Model\AdminOption::query()->where("name", "theme_common_theme")->first()->value;
+        return \App\Model\AdminOption::query()->where('name', 'theme_common_theme')->first()->value;
     }
 }
 
-if (!function_exists("plugins_core_theme")) {
+if (! function_exists('plugins_core_theme')) {
     function plugins_core_theme()
     {
-        if (session()->has("core.common.theme")) {
-            return session()->get("core.common.theme");
+        if (session()->has('core.common.theme')) {
+            return session()->get('core.common.theme');
         }
         return plugins_core_common_theme();
     }
 }
 
-if (!function_exists("plugins_core_captcha")) {
-    function plugins_core_captcha(): \App\Plugins\Core\src\Lib\Captcha
+if (! function_exists('plugins_core_captcha')) {
+    function plugins_core_captcha(): App\Plugins\Core\src\Lib\Captcha
     {
         return new \App\Plugins\Core\src\Lib\Captcha();
     }
 }
 
-if (!function_exists("plugins_core_captcha")) {
-    function plugins_core_captcha(): \App\Plugins\Core\src\Lib\Captcha
-    {
-        return new \App\Plugins\Core\src\Lib\Captcha();
-    }
-}
-
-if (!function_exists("plugins_core_user_reg_defuc")) {
+if (! function_exists('plugins_core_user_reg_defuc')) {
     function plugins_core_user_reg_defuc()
     {
-        return \App\Plugins\User\src\Models\UserClass::query()->select("id", "name")->get();
+        return \App\Plugins\User\src\Models\UserClass::query()->select('id', 'name')->get();
     }
 }
 
-if (!function_exists("super_avatar")) {
+if (! function_exists('super_avatar')) {
     function super_avatar($user_data): string
     {
         if ($user_data->avatar) {
             return $user_data->avatar;
         }
 
-        if (get_options("core_user_def_avatar", "gavatar")!=="ui-avatars") {
-            return get_options("theme_common_gavatar", "https://cn.gravatar.com/avatar/") . md5($user_data->email);
+        if (get_options('core_user_def_avatar', 'gavatar') !== 'ui-avatars') {
+            return get_options('theme_common_gavatar', 'https://cn.gravatar.com/avatar/') . md5($user_data->email);
         }
-        return "https://ui-avatars.com/api/?background=random&format=svg&name=".$user_data->username;
+        return 'https://ui-avatars.com/api/?background=random&format=svg&name=' . $user_data->username;
     }
 }
 
-if (!function_exists("avatar")) {
-    function avatar(int|string $user_id, $class=null): string
+if (! function_exists('avatar')) {
+    function avatar(int | string $user_id, $class = null): string
     {
-        $time = get_options("core_user_def_avatar_cache", 600);
-        if (get_options("core_user_avatar_cache", "1")==="1") {
-            if (cache()->has("core.avatar.".$user_id)) {
-                $ud = cache()->get("core.avatar.".$user_id);
+        $time = get_options('core_user_def_avatar_cache', 600);
+        if (get_options('core_user_avatar_cache', '1') === '1') {
+            if (cache()->has('core.avatar.' . $user_id)) {
+                $ud = cache()->get('core.avatar.' . $user_id);
             } else {
-                $ud = \App\Plugins\User\src\Models\User::query()->where("id", $user_id)->first();
-                cache()->set("core.avatar.".$user_id, $ud, $time);
+                $ud = \App\Plugins\User\src\Models\User::query()->where('id', $user_id)->first();
+                cache()->set('core.avatar.' . $user_id, $ud, $time);
             }
         } else {
-            $ud = \App\Plugins\User\src\Models\User::query()->where("id", $user_id)->first();
+            $ud = \App\Plugins\User\src\Models\User::query()->where('id', $user_id)->first();
         }
 
         if ($ud->avatar) {
@@ -84,11 +84,11 @@ if (!function_exists("avatar")) {
 </span>
 HTML;
         }
-    
-        if (get_options("core_user_def_avatar", "gavatar")!=="ui-avatars") {
-            $url = get_options("theme_common_gavatar", "https://cn.gravatar.com/avatar/").md5($ud->email);
+
+        if (get_options('core_user_def_avatar', 'gavatar') !== 'ui-avatars') {
+            $url = get_options('theme_common_gavatar', 'https://cn.gravatar.com/avatar/') . md5($ud->email);
         } else {
-            $url = "https://ui-avatars.com/api/?background=random&format=svg&name=".$ud->username;
+            $url = 'https://ui-avatars.com/api/?background=random&format=svg&name=' . $ud->username;
         }
         return <<<HTML
 <span class="avatar {$class}" style="background-image: url({$url})"></span>
@@ -96,71 +96,70 @@ HTML;
     }
 }
 
-if (!function_exists("avatar_url")) {
+if (! function_exists('avatar_url')) {
     function avatar_url(int $user_id): string
     {
-        $time = get_options("core_user_def_avatar_cache", 600);
-        if (get_options("core_user_avatar_cache", "1")==="1") {
-            if (cache()->has("core.avatar.".$user_id)) {
-                $ud = cache()->get("core.avatar.".$user_id);
+        $time = get_options('core_user_def_avatar_cache', 600);
+        if (get_options('core_user_avatar_cache', '1') === '1') {
+            if (cache()->has('core.avatar.' . $user_id)) {
+                $ud = cache()->get('core.avatar.' . $user_id);
             } else {
-                $ud = \App\Plugins\User\src\Models\User::query()->where("id", $user_id)->first();
-                cache()->set("core.avatar.".$user_id, $ud, $time);
+                $ud = \App\Plugins\User\src\Models\User::query()->where('id', $user_id)->first();
+                cache()->set('core.avatar.' . $user_id, $ud, $time);
             }
         } else {
-            $ud = \App\Plugins\User\src\Models\User::query()->where("id", $user_id)->first();
+            $ud = \App\Plugins\User\src\Models\User::query()->where('id', $user_id)->first();
         }
 
         if ($ud->avatar) {
             return $ud->avatar;
         }
-    
-        if (get_options("core_user_def_avatar", "gavatar")!=="ui-avatars") {
-            $url = get_options("theme_common_gavatar", "https://cn.gravatar.com/avatar/").md5($ud->email);
+
+        if (get_options('core_user_def_avatar', 'gavatar') !== 'ui-avatars') {
+            $url = get_options('theme_common_gavatar', 'https://cn.gravatar.com/avatar/') . md5($ud->email);
         } else {
-            $url = "https://ui-avatars.com/api/?background=random&format=svg&name=".$ud->username;
+            $url = 'https://ui-avatars.com/api/?background=random&format=svg&name=' . $ud->username;
         }
         return $url;
     }
 }
 
-
-if (!function_exists("redirect")) {
+if (! function_exists('redirect')) {
     #[Pure] function redirect(): Redirect
     {
         return new Redirect();
     }
 }
 
-if (!function_exists("core_user_ver_email_make")) {
+if (! function_exists('core_user_ver_email_make')) {
     function core_user_ver_email(): UserVerEmail
     {
         return new UserVerEmail();
     }
 }
 
-if (!function_exists("Core_Ui")) {
-    function Core_Ui(): \App\Plugins\Core\src\Lib\Ui
+if (! function_exists('Core_Ui')) {
+    function Core_Ui(): App\Plugins\Core\src\Lib\Ui
     {
         return new App\Plugins\Core\src\Lib\Ui();
     }
 }
 
-if (!function_exists("core_Str_menu_url")) {
+if (! function_exists('core_Str_menu_url')) {
     function core_Str_menu_url(string $path): string
     {
-        if ($path ==="//") {
-            $path = "/";
+        if ($path === '//') {
+            $path = '/';
         }
         return $path;
     }
 }
 
-if (!function_exists("core_menu_pd")) {
+if (! function_exists('core_menu_pd')) {
     function core_menu_pd(string $id)
     {
         foreach (Itf()->get('menu') as $value) {
-            if (arr_has($value, "parent_id") && "menu_" . $value['parent_id'] === (string)$id) {
+            if (arr_has($value, 'parent_id') && 'menu_' . $value['parent_id'] === (string) $id) {
                 return true;
             }
         }
@@ -168,19 +167,19 @@ if (!function_exists("core_menu_pd")) {
     }
 }
 
-if (!function_exists("core_Itf_id")) {
+if (! function_exists('core_Itf_id')) {
     function core_Itf_id($name, $id)
     {
-        return \Hyperf\Utils\Str::after($id, $name."_");
+        return \Hyperf\Utils\Str::after($id, $name . '_');
     }
 }
 
-if (!function_exists("core_menu_pdArr")) {
+if (! function_exists('core_menu_pdArr')) {
     function core_menu_pdArr($id): array
     {
         $arr = [];
-        foreach (Itf()->get("menu") as $key => $value) {
-            if (arr_has($value, "parent_id") && "menu_".$value['parent_id'] === $id) {
+        foreach (Itf()->get('menu') as $key => $value) {
+            if (arr_has($value, 'parent_id') && 'menu_' . $value['parent_id'] === $id) {
                 $arr[$key] = $value;
             }
         }
@@ -188,8 +187,8 @@ if (!function_exists("core_menu_pdArr")) {
     }
 }
 
-if (!function_exists("core_default")) {
-    function core_default($string=null, $default=null)
+if (! function_exists('core_default')) {
+    function core_default($string = null, $default = null)
     {
         if ($string) {
             return $string;
@@ -198,110 +197,106 @@ if (!function_exists("core_default")) {
     }
 }
 
-if (!function_exists("markdown")) {
-    function markdown(): \Parsedown
+if (! function_exists('markdown')) {
+    function markdown(): Parsedown
     {
         return new Parsedown();
     }
 }
 
-
-if (!function_exists("ShortCodeR")) {
+if (! function_exists('ShortCodeR')) {
     function ShortCodeR(): ShortCodeR
     {
         return new ShortCodeR();
     }
 }
 
-if (!function_exists("xss")) {
-    function xss(): \App\Plugins\Core\src\Lib\Xss\Xss
+if (! function_exists('xss')) {
+    function xss(): App\Plugins\Core\src\Lib\Xss\Xss
     {
         return new App\Plugins\Core\src\Lib\Xss\Xss();
     }
 }
 
-if (!function_exists("summary")) {
+if (! function_exists('summary')) {
     function summary($content): string
     {
         return (new SummaryTool($content))->getSummary();
     }
 }
 
-if (!function_exists("deOptions")) {
+if (! function_exists('deOptions')) {
     function deOptions($json)
     {
         return json_decode($json, true);
     }
 }
 
-if (!function_exists("getAllImg")) {
-    function getAllImg($content):array
+if (! function_exists('getAllImg')) {
+    function getAllImg($content): array
     {
-        $preg = '/<img.*?src=[\"|\']?(.*?)[\"|\']?\s.*?>/i';//匹配img标签的正则表达式
+        $preg = '/<img.*?src=[\"|\']?(.*?)[\"|\']?\s.*?>/i'; //匹配img标签的正则表达式
 
-        preg_match_all($preg, $content, $allImg);//这里匹配所有的imgecho
+        preg_match_all($preg, $content, $allImg); //这里匹配所有的imgecho
         return $allImg[1];
     }
 }
 
-if (!function_exists("format_date")) {
+if (! function_exists('format_date')) {
     function format_date($time)
     {
-        $t = time() - strtotime($time);
-        $f = array(
+        $t = time() - strtotime((string) $time);
+        $f = [
             '31536000' => __('app.year'),
             '2592000' => __('app.month'),
             '604800' => __('app.week'),
             '86400' => __('app.day'),
             '3600' => __('app.hour'),
             '60' => __('app.minute'),
-            '1' => __('app.second')
-        );
+            '1' => __('app.second'),
+        ];
         foreach ($f as $k => $v) {
-            if (0 != $c = floor($t / (int)$k)) {
-                return $c . ' '.$v . __('app.ago');
+            if (0 != $c = floor($t / (int) $k)) {
+                return $c . ' ' . $v . __('app.ago');
             }
         }
     }
 }
 
-
-if (!function_exists("get_all_at")) {
+if (! function_exists('get_all_at')) {
     /**
-     * 获取内容中所有被艾特的用户
-     * @param string $content
-     * @return array
+     * 获取内容中所有被艾特的用户.
      */
-    function get_all_at(string $content):array
+    function get_all_at(string $content): array
     {
-        preg_match_all("/(?<=@)[^ ]+/u", replace_all_at_space($content), $arr);
+        preg_match_all('/(?<=@)[^ ]+/u', replace_all_at_space($content), $arr);
         return $arr[0];
     }
 }
 
-if (!function_exists("replace_all_at_space")) {
+if (! function_exists('replace_all_at_space')) {
     function replace_all_at_space(string $content): string
     {
         //$pattern = "/\\$\\[(.*?)]/u";
-        $pattern = "/@(.*?)[^ <\/p>]+/u";
+        $pattern = '/@(.*?)[^ <\\/p>]+/u';
         return preg_replace_callback($pattern, static function ($match) {
-            return $match[0]." ";
+            return $match[0] . ' ';
         }, $content);
     }
 }
 
-if (!function_exists("remove_all_p_space")) {
-    function remove_all_p_space(string $content):string
+if (! function_exists('remove_all_p_space')) {
+    function remove_all_p_space(string $content): string
     {
-        return str_replace(" </p>", "</p>", $content);
+        return str_replace(' </p>', '</p>', $content);
     }
 }
 
-if (!function_exists("replace_all_at")) {
-    function replace_all_at(string $content):string
+if (! function_exists('replace_all_at')) {
+    function replace_all_at(string $content): string
     {
         //$pattern = "/\\$\\[(.*?)]/u";
-        $pattern = "/@(.*?)[^ ]+/u";
+        $pattern = '/@(.*?)[^ ]+/u';
         $content = replace_all_at_space($content);
         return remove_all_p_space(preg_replace_callback($pattern, static function ($match) {
             return (new \App\Plugins\Core\src\Lib\TextParsing())->at($match[0]);
@@ -309,56 +304,52 @@ if (!function_exists("replace_all_at")) {
     }
 }
 
-if (!function_exists("get_all_keywords")) {
-
+if (! function_exists('get_all_keywords')) {
     /**
-     * 获取内容中所有话题关键词
-     * @param string $content
-     * @return array
+     * 获取内容中所有话题关键词.
      */
-    function get_all_keywords(string $content):array
+    function get_all_keywords(string $content): array
     {
-        preg_match_all("/(?<=\\.\\[)[^]]+/u", $content, $arrMatches);
+        preg_match_all('/(?<=\\.\\[)[^]]+/u', $content, $arrMatches);
         return $arrMatches[0];
     }
 
-    function replace_all_keywords(string $content):string
+    function replace_all_keywords(string $content): string
     {
-        $pattern = "/\\.\\[(.*?)]/u";
+        $pattern = '/\\.\\[(.*?)]/u';
         return preg_replace_callback($pattern, static function ($match) {
             return (new \App\Plugins\Core\src\Lib\TextParsing())->keywords($match[1]);
         }, $content);
     }
 }
 
-if (!function_exists("remove_bbCode")) {
+if (! function_exists('remove_bbCode')) {
     function remove_bbCode($content)
     {
-        $pattern = "/\[(.*?)\](.*?)\[\/(.*?)\]/is";
+        $pattern = '/\\[(.*?)\\](.*?)\\[\\/(.*?)\\]/is';
 
         $content = preg_replace_callback($pattern, function ($match) {
-            return "";
+            return '';
         }, $content);
-        $content = str_replace(" ", "", $content);
-        return $content;
+        return str_replace(' ', '', $content);
     }
 }
 
-if (!function_exists("Authority")) {
+if (! function_exists('Authority')) {
     function Authority()
     {
         return new Authority();
     }
 }
 
-if (!function_exists("curd")) {
-    function curd(): \App\Plugins\Core\src\Lib\Curd
+if (! function_exists('curd')) {
+    function curd(): App\Plugins\Core\src\Lib\Curd
     {
         return new \App\Plugins\Core\src\Lib\Curd();
     }
 }
 
-if (!function_exists("core_http_build_query")) {
+if (! function_exists('core_http_build_query')) {
     function core_http_build_query(array $data, array $merge): string
     {
         $data = array_merge($data, $merge);
@@ -366,36 +357,36 @@ if (!function_exists("core_http_build_query")) {
     }
 }
 
-if (!function_exists("core_http_url")) {
+if (! function_exists('core_http_url')) {
     function core_http_url(): string
     {
         $query = http_build_query(request()->all());
-        return request()->path()."?".$query;
+        return request()->path() . '?' . $query;
     }
 }
 
-if (!function_exists("core_get_page")) {
+if (! function_exists('core_get_page')) {
     function core_get_page(string $url): array
     {
-        $data = explode("=", parse_url($url)['query']);
+        $data = explode('=', parse_url($url)['query']);
         return [$data[0] => $data[1]];
     }
 }
 
-if (!function_exists("emoji_add")) {
+if (! function_exists('emoji_add')) {
     /**
      * @param string $name emoji name
      * @param string $emoji emoji json path
      * @param string $type emoji type emoji | image | emoticon(颜文字)
      * @throws Exception
      */
-    function emoji_add(string $name, string $emoji, string $type, bool $size=false)
+    function emoji_add(string $name, string $emoji, string $type, bool $size = false)
     {
         Itf()->add('emoji', random_int(2, 99212), [
             'name' => $name,
             'emoji' => $emoji,
             'type' => $type,
-            'size' => $size
+            'size' => $size,
         ]);
     }
 }

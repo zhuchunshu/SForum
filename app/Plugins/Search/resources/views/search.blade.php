@@ -1,6 +1,5 @@
-<div class="order-first my-2 my-md-0 flex-grow-1 flex-md-grow-0 order-md-last">
-    <form action="/search" method="get">
-        <div class="input-icon">
+<form action="/search" method="get">
+    <div class="input-icon">
             <span class="input-icon-addon">
                 <!-- Download SVG icon from http://tabler-icons.io/i/search -->
                 <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
@@ -11,8 +10,7 @@
                     <line x1="21" y1="21" x2="15" y2="15" />
                 </svg>
             </span>
-            <input type="text" class="form-control" placeholder="Search…"
-                   aria-label="Search in website" name="q">
-        </div>
-    </form>
-</div>
+        <input type="text" class="form-control" placeholder="Search…"
+               aria-label="Search in website" name="q">
+    </div>
+</form>

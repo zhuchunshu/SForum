@@ -17,7 +17,7 @@
             <div class="navbar navbar-light">
                 <div class="container-xl">
                     @include('App::layouts.themes.menu')
-                    @include('App::layouts.themes.search')
+                    @include('App::layouts.themes.right')
                 </div>
             </div>
         </div>

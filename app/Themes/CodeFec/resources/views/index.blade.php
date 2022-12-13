@@ -9,8 +9,18 @@
 
     <div class="row row-cards justify-content-center">
         <div class="col-md-12">
+            @foreach(Itf()->get('ui-index-header-hook') as $k=>$v)
+                @if(call_user_func($v['enable'])===true)
+                    @include($v['view'])
+                @endif
+            @endforeach
             <div class="row row-cards justify-content-center">
                 <div class="col-md-9">
+                    @foreach(Itf()->get('ui-index-content-hook') as $k=>$v)
+                        @if(call_user_func($v['enable'])===true)
+                            @include($v['view'])
+                        @endif
+                    @endforeach
                     @include('App::index.index')
                 </div>
                 <div class="col-md-3">

@@ -1,5 +1,6 @@
 <div class="card-body">
     <h3 class="card-title">目前只支持SMTP发信</h3>
+    <span class="text-muted"><a href="/admin/mail">点我测试发信</a></span>
     <div class="mb-3">
         <label class="form-label">SMTP 主机地址</label>
         <input v-model="data.MAIL_SMTP_HOST" type="text" class="form-control">
