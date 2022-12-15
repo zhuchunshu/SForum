@@ -42,7 +42,7 @@ class TagsController
             ->with('tag', 'user')
             ->orderBy('topping', 'desc')
             ->orderBy('updated_at', 'desc')
-            ->paginate(get_options('topic_home_num', 15));
+            ->paginate((int)get_options('topic_home_num', 15));
         if (request()->input('query') === 'hot') {
             $page = Topic::query()
                 ->where('tag_id', $id)
@@ -50,7 +50,7 @@ class TagsController
                 ->with('tag', 'user')
                 ->orderBy('view', 'desc')
                 ->orderBy('id', 'desc')
-                ->paginate(get_options('topic_home_num', 15));
+                ->paginate((int)get_options('topic_home_num', 15));
         }
         if (request()->input('query') === 'publish') {
             $page = Topic::query()
@@ -58,7 +58,7 @@ class TagsController
                 ->where('status', 'publish')
                 ->with('tag', 'user')
                 ->orderBy('id', 'desc')
-                ->paginate(get_options('topic_home_num', 15));
+                ->paginate((int)get_options('topic_home_num', 15));
         }
         if (request()->input('query') === 'essence') {
             $page = Topic::query()
@@ -66,7 +66,7 @@ class TagsController
                 ->where([['essence', '>', 0], ['status', 'publish']])
                 ->with('tag', 'user')
                 ->orderBy('updated_at', 'desc')
-                ->paginate(get_options('topic_home_num', 15));
+                ->paginate((int)get_options('topic_home_num', 15));
         }
         if (request()->input('query') === 'topping') {
             $page = Topic::query()

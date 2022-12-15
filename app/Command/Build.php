@@ -36,7 +36,7 @@ class Build extends HyperfCommand
     {
         $version = $this->ask("版本","v1.0.0");
 	    $author = $this->ask("作者","zhuchunshu");
-	    $link = $this->ask("链接","https://forum.runpod.cn");
+	    $link = $this->ask("链接","https://www.runpod.cn");
 	    $content = $this->replace($version, $author, $link);
 	    file_put_contents(BASE_PATH."/build-info.php",$content);
 		$this->info('Successfully');
@@ -45,6 +45,6 @@ class Build extends HyperfCommand
 	private function replace(mixed $version, mixed $author, mixed $link): string
 	{
 		$content = file_get_contents(BASE_PATH."/app/Command/build-info.stub");
-		return str_replace(array('author', '1.0', 'http://forum.runpod.cn'), array($author, $version, $link), $content);
+		return str_replace(array('author', '1.0', 'http://www.runpod.cn'), array($author, $version, $link), $content);
 	}
 }

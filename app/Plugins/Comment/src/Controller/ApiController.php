@@ -217,7 +217,7 @@ class ApiController
         $page = TopicComment::query()
             ->where(['status' => 'publish','topic_id'=>$topic_id])
             ->with('topic','user')
-            ->paginate(get_options("comment_page_count",2));
+            ->paginate((int)get_options("comment_page_count",2));
         return Json_Api(200,true,$page);
     }
 

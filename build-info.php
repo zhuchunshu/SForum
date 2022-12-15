@@ -11,5 +11,5 @@ declare(strict_types=1);
 return [
     'version' => 'v2.1.6',
     'zhuchunshu' => 'zhuchunshu',
-    'link' => 'https://forum.runpod.cn',
+    'link' => 'https://www.runpod.cn',
 ];

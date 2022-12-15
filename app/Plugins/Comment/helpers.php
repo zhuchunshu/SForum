@@ -22,14 +22,14 @@ if(!function_exists("get_topic_comment_page")){
 		// 获取最后一页页码
 		$lastPage = TopicComment::query()
 			->where(['status' => 'publish','topic_id'=>$topic_id])
-			->paginate($comment_num)->lastPage();
+			->paginate((int)$comment_num)->lastPage();
 		for($i = 0; $i < $lastPage; $i++){
 			$page = $i+1;
 			$data = TopicComment::query()
 				->where(['status' => 'publish','topic_id'=>$topic_id])
 				->with("topic","user","parent")
 				->orderBy("optimal","desc")
-				->paginate($comment_num,['*'],'page',$page)->items();
+				->paginate((int)$comment_num,['*'],'page',$page)->items();
 			foreach($data as $value){
 				if((int)$value->id===(int)$comment_id){
 					$inPage=$page;
@@ -60,7 +60,7 @@ if(!function_exists("get_topic_comment_floor")){
 		// ($key + 1)+(($comment->currentPage()-1)*get_options('comment_page_count',15))
 		$page = TopicComment::query()
 			->where(['topic_id' => $topic_id,'status' => 'publish'])
-			->paginate($comment_num,['*'],'page',$comment_page);
+			->paginate((int)$comment_num,['*'],'page',$comment_page);
 		foreach($page as $k => $v){
 			if((int)$v->id===$comment_id){
 				$floor = ($k + 1)+(($comment_page-1)*get_options('comment_page_count',15));

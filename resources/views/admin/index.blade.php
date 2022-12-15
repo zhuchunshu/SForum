@@ -238,7 +238,7 @@
                                         <div class="row">
                                             <div class="col">更新日志</div>
                                             <div class="col-auto"><a
-                                                        href="https://forum.runpod.cn/48.html">查看</a></div>
+                                                        href="https://www.runpod.cn/48.html">查看</a></div>
                                         </div>
                                     </h3>
                                     <div style="overflow:scroll;overflow-x:hidden;max-height: 700px;"

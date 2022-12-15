@@ -34,7 +34,7 @@
                 <div class="card-body text-center">
                     <h1>安装SuperForum!</h1>
                     <p class="text-muted">本项目开源地址: <a href="https://github.com/zhuchunshu">https://github.com/zhuchunshu</a><br>安装过程中如若遇到问题请到论坛反馈:
-                        <a href="https://forum.runpod.cn">https://forum.runpod.cn</a></p>
+                        <a href="https://www.runpod.cn">https://www.runpod.cn</a></p>
                 </div>
                 <div class="hr-text hr-text-center hr-text-spaceless">@{{ tips }}</div>
                 <div class="card-body">

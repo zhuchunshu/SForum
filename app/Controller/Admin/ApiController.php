@@ -17,7 +17,7 @@ use function Swoole\Coroutine\Http\get;
 class ApiController
 {
 	private string $api_releases = "https://api.github.com/repos/zhuchunshu/super-forum/releases";
-	private string $update_log = "https://forum.runpod.cn/48.md";
+	private string $update_log = "https://www.runpod.cn/48.md";
 	#[PostMapping(path:"getVersion")]
 	public function getVersion(){
 		// 获取最新版
