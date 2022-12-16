@@ -15,9 +15,9 @@
 
         <div class="col-md-12">
             <div class="border-0 card">
-                <a href="{{get_user_settings($user->id,'backgroundImg','https://images.unsplash.com/photo-1653185053677-26b081c1a214?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1632&q=80')}}"
+                <a href="{{get_user_settings($user->id,'backgroundImg','/plugins/Core/image/user_background.jpg')}}"
                    class="card-cover card-cover-blurred"
-                   style="background-image: url({{get_user_settings($user->id,'backgroundImg','https://images.unsplash.com/photo-1653185053677-26b081c1a214?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1632&q=80')}});min-height: 200px">
+                   style="background-image: url({{get_user_settings($user->id,'backgroundImg','/plugins/Core/image/user_background.jpg')}});min-height: 200px">
 
                 </a>
                 <div class="card-body ms-1">
@@ -26,7 +26,7 @@
                             <div class="row">
                                 <div class="col-auto text-center">
                                     <span class="avatar avatar-xl avatar-thumb text-light border-2 border-wide rounded"
-                                          style="background-image: url({{super_avatar($user)}});margin-top:-70px"></span>
+                                          style="background-image: url({{super_avatar($user)}});margin-top:-220px"></span>
                                     <div>
                                         <span class="card-title mb-1"
                                               style="font-size: 25px;display: inline">{{$user->username}}</span>
@@ -44,31 +44,25 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-auto text-center">
-                            <a class="btn btn-outline-primary mt-1 mb-3" user-click="user_follow"
-                               user-id="{{ $user->id }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user-plus"
-                                     width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                     fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                    <circle cx="9" cy="7" r="4"></circle>
-                                    <path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"></path>
-                                    <path d="M16 11h6m-3 -3v6"></path>
-                                </svg>
-                                <span>关注</span>
-                            </a>
-                            <br>
-                            <a class="btn btn-outline-primary" href="/users/pm/{{$user->id}}" >
-                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-send"
-                                     width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                     fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                    <desc>Download more icon variants from https://tabler-icons.io/i/send</desc>
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                                    <path d="M21 3l-6.5 18a0.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a0.55 .55 0 0 1 0 -1l18 -6.5"></path>
-                                </svg>
-                                <span>发私信</span>
-                            </a>
+                        <div class="col-auto align-self-center text-center">
+                            <div class="dropdown">
+                                <button type="button" class="btn dropdown-toggle" data-bs-toggle="dropdown">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-plus" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                </button>
+                                <div class="dropdown-menu">
+                                    <a class="dropdown-item"  user-click="user_follow"
+                                       user-id="{{ $user->id }}">
+                                        <span>关注</span>
+                                    </a>
+                                    <a class="dropdown-item" href="/users/pm/{{$user->id}}">
+                                        私信
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

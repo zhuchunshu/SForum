@@ -1,6 +1,6 @@
 <ol class="breadcrumb" aria-label="breadcrumbs">
     <li data-bs-toggle="tooltip" data-bs-placement="top" title="{{__('app.tag')}}" class="breadcrumb-item"><a href="/tags/{{$data->tag->id}}.html">
-            <img class="tag-icon" src="{{$data->tag->icon}}" alt="{{$data->tag->name}}">
+            {!! $data->tag->icon !!}
             {{$data->tag->name}}
         </a>
     </li>

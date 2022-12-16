@@ -1,16 +1,24 @@
 <div class="col-md-12">
+    <a href="/tags/{{$data->id}}.html" class="card card-link text-primary-fg" style="background-color: {{$data->color}}!important;">
+        <div class="card-stamp">
+            <div class="card-stamp-icon bg-yellow">
+                <!-- Download SVG icon from http://tabler-icons.io/i/star -->
+                {!! $data->icon !!}
+            </div>
+        </div>
+        <div class="card-body">
+            <h3 class="card-title">{{$data->name}}</h3>
+            <p>{{ \Hyperf\Utils\Str::limit(core_default($data->description, __("app.no description")), 32) }}</p>
+        </div>
+    </a>
+</div>
+<div class="col-md-12">
     <div class="card">
 
         <div class="card-status-top" style="{{Core_Ui()->Css()->bg_color($data->color)}}"></div>
 
         <div class="card-body">
-            <h3 class="card-title">
-                {{$data->name}}
-            </h3>
-            <p>
-                {{core_default($data->description,get_options("description",__("app.no description")))}}
-            </p>
-            <b class="text-h3">创建者</b>:
+            <b class="text-h3">标签创建者</b>:
             @if($data->user_id)
                 <a href="/users/{{ $data->user->username }}.html">
                     <span class="avatar avatar-rounded" style="--tblr-avatar-size:20px;background-image: url({{super_avatar($data->user)}})"></span>
@@ -34,3 +42,4 @@
 
     </div>
 </div>
+

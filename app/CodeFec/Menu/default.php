@@ -1,6 +1,14 @@
 <?php
-// 仪表盘
-menu()->add(0,[
+
+declare(strict_types=1);
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ */
+menu()->add(0, [
     'url' => '/admin',
     'name' => '仪表盘',
     'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-dashboard" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -11,7 +19,7 @@ menu()->add(0,[
  </svg>',
 ]);
 
-menu()->add(1,[
+menu()->add(1, [
     'url' => '/admin/plugins',
     'name' => '组件',
     'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-package" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -23,10 +31,10 @@ menu()->add(1,[
     <line x1="16" y1="5.25" x2="8" y2="9.75"></line>
  </svg>',
 ]);
-menu()->add(6,[
-	'url' => '/admin/themes',
-	'name' => '主题',
-	'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-template" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+menu()->add(6, [
+    'url' => '/admin/themes',
+    'name' => '主题',
+    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-template" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <rect x="4" y="4" width="16" height="4" rx="1"></rect>
    <rect x="4" y="12" width="6" height="8" rx="1"></rect>
@@ -36,10 +44,10 @@ menu()->add(6,[
 </svg>',
 ]);
 
-menu()->add(101,[
-	'url' => '/admin/plugins',
-	'name' => '管理',
-	'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-package" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+menu()->add(101, [
+    'url' => '/admin/plugins',
+    'name' => '管理',
+    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-package" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
     <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
     <polyline points="12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5 12 3"></polyline>
     <line x1="12" y1="12" x2="20" y2="7.5"></line>
@@ -47,13 +55,13 @@ menu()->add(101,[
     <line x1="12" y1="12" x2="4" y2="7.5"></line>
     <line x1="16" y1="5.25" x2="8" y2="9.75"></line>
  </svg>',
-	'parent_id' => 1,
+    'parent_id' => 1,
 ]);
 
-menu()->add(102,[
-	'url' => '/admin/plugins/upload',
-	'name' => '上传',
-	'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-package" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+menu()->add(102, [
+    'url' => '/admin/plugins/upload',
+    'name' => '上传',
+    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-package" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
     <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
     <polyline points="12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5 12 3"></polyline>
     <line x1="12" y1="12" x2="20" y2="7.5"></line>
@@ -61,12 +69,12 @@ menu()->add(102,[
     <line x1="12" y1="12" x2="4" y2="7.5"></line>
     <line x1="16" y1="5.25" x2="8" y2="9.75"></line>
  </svg>',
-	'parent_id' => 1,
+    'parent_id' => 1,
 ]);
-menu()->add(161,[
-	'url' => '/admin/themes',
-	'name' => '管理',
-	'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-package" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+menu()->add(161, [
+    'url' => '/admin/themes',
+    'name' => '管理',
+    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-package" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
     <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
     <polyline points="12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5 12 3"></polyline>
     <line x1="12" y1="12" x2="20" y2="7.5"></line>
@@ -74,13 +82,13 @@ menu()->add(161,[
     <line x1="12" y1="12" x2="4" y2="7.5"></line>
     <line x1="16" y1="5.25" x2="8" y2="9.75"></line>
  </svg>',
-	'parent_id' => 6,
+    'parent_id' => 6,
 ]);
 
-menu()->add(162,[
-	'url' => '/admin/themes/upload',
-	'name' => '上传',
-	'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-package" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+menu()->add(162, [
+    'url' => '/admin/themes/upload',
+    'name' => '上传',
+    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-package" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
     <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
     <polyline points="12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5 12 3"></polyline>
     <line x1="12" y1="12" x2="20" y2="7.5"></line>
@@ -88,40 +96,63 @@ menu()->add(162,[
     <line x1="12" y1="12" x2="4" y2="7.5"></line>
     <line x1="16" y1="5.25" x2="8" y2="9.75"></line>
  </svg>',
-	'parent_id' => 6,
+    'parent_id' => 6,
 ]);
 
 // 网站设置
-menu()->add(5,[
+menu()->add(5, [
     'url' => '/admin/setting',
-    'name' => '设置',
+    'name' => '站务',
+    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-3d-cube-sphere" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M6 17.6l-2 -1.1v-2.5"></path>
+   <path d="M4 10v-2.5l2 -1.1"></path>
+   <path d="M10 4.1l2 -1.1l2 1.1"></path>
+   <path d="M18 6.4l2 1.1v2.5"></path>
+   <path d="M20 14v2.5l-2 1.12"></path>
+   <path d="M14 19.9l-2 1.1l-2 -1.1"></path>
+   <line x1="12" y1="12" x2="14" y2="10.9"></line>
+   <line x1="18" y1="8.6" x2="20" y2="7.5"></line>
+   <line x1="12" y1="12" x2="12" y2="14.5"></line>
+   <line x1="12" y1="18.5" x2="12" y2="21"></line>
+   <path d="M12 12l-2 -1.12"></path>
+   <line x1="6" y1="8.6" x2="4" y2="7.5"></line>
+</svg>',
+]);
+
+
+
+menu()->add(501, [
+    'url' => '/admin/setting',
+    'name' => '站点设置',
     'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-settings" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"></path>
    <circle cx="12" cy="12" r="3"></circle>
 </svg>',
+    'parent_id' => 5,
 ]);
 
-menu()->add(10,[
-   'url' => '#',
-   'name' => '文件编辑',
+menu()->add(10, [
+    'url' => '#',
+    'name' => '文件编辑',
     'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <path d="M14 3v4a1 1 0 0 0 1 1h4"></path>
    <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"></path>
-</svg>'
+</svg>',
 ]);
 
-menu()->add(1001,[
+menu()->add(1001, [
     'url' => '/admin/EditFile/css',
     'name' => '自定义CSS代码',
     'icon' => '',
-    'parent_id' => 10
+    'parent_id' => 10,
 ]);
 
-menu()->add(1002,[
+menu()->add(1002, [
     'url' => '/admin/EditFile/js',
     'name' => '自定义JS代码',
     'icon' => '',
-    'parent_id' => 10
+    'parent_id' => 10,
 ]);
