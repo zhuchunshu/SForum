@@ -49,7 +49,7 @@
                                 <div class="col-auto bottomLine">
                                     <a href="/tags/{{$data->tag->id}}.html" style="text-decoration:none">
                                         <div class="card-circle">
-                                            <img src="{{$data->tag->icon}}" alt="">
+                                            {!! $data->tag->icon !!}
                                             <span>{{$data->tag->name}}</span>
                                         </div>
                                     </a>

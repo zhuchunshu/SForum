@@ -39,7 +39,7 @@
                 <div class="col-md-6 col-lg-4">
                     <a href="/tags/{{$value->id}}.html" class="card card-link text-primary-fg" style="background-color: {{$value->color}}!important;">
                         <div class="card-stamp">
-                            <div class="card-stamp-icon bg-yellow" style=color:{{$value->font_color}}">
+                            <div class="card-stamp-icon bg-yellow">
                                 <!-- Download SVG icon from http://tabler-icons.io/i/star -->
                                 {!! $value->icon !!}
                             </div>

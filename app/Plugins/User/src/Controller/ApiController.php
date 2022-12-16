@@ -242,7 +242,7 @@ class ApiController
             return Json_Api(401, false, ['msg' => '未登录!']);
         }
         if (UserFans::query()->where(['user_id' => $user_id, 'fans_id' => auth()->id()])->exists()) {
-            return Json_Api(200, true, ['msg' => '已关注']);
+            return Json_Api(200, true, ['msg' => '取关']);
         }
         return Json_Api(403, true, ['msg' => '关注']);
     }
