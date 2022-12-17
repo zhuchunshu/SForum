@@ -104,7 +104,7 @@
                     </div>
                     <p class="empty-title">密码修改成功</p>
                     <p class="empty-subtitle text-muted">
-                        以为您自动登陆,点击下方按钮返回首页
+                        已为您自动登陆,点击下方按钮返回首页
                     </p>
                     <div class="empty-action">
                         <a href="/" class="btn btn-primary">
