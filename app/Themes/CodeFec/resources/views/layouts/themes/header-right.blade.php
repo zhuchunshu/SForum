@@ -26,7 +26,7 @@
         </a>
     </div>
 
-    <div class="nav-item dropdown me-3">
+    <div class="nav-item dropdown me-3 d-none d-md-inline-flex">
         @if(session()->get('theme','theme-dark')!=="theme-dark")
             <a href="#" id="core_update_theme" class="px-0 nav-link">
                 <!-- Download SVG icon from http://tabler-icons.io/i/bell -->
@@ -53,7 +53,7 @@
 
     <div id="vue-header-right-my" class="nav-item dropdown">
         <a href="#" class="p-0 nav-link d-flex lh-1 text-reset" data-bs-toggle="dropdown" aria-label="Open user menu">
-            {!! avatar(auth()->id(),"avatar-sm") !!}
+            <span class="avatar avatar-sm avatar-rounded" style="background-image: url({{super_avatar(auth()->data())}})"></span>
             <div class="d-none d-xl-block ps-2">
                 <div>{{auth()->data()['username']}}</div>
                 <div class="mt-1 small text-muted">{{__("user.st member",['member' => auth()->id()])}}</div>
@@ -75,9 +75,20 @@
     </div>
 @else
     <div class="nav-item dropdown">
-        <span>
+        <span class="d-none d-md-block">
             <a href="/register" class="btn btn-light">注册</a>
             <a href="/login" class="btn btn-dark">登陆</a>
+        </span>
+        <span class="d-block d-md-none">
+            <a class="px-0 nav-link" href="/login">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-login" width="24"
+                     height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                     stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2"></path>
+   <path d="M20 12h-13l3 -3m0 6l-3 -3"></path>
+</svg>
+            </a>
         </span>
     </div>
 @endif
