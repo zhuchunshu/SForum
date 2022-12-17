@@ -19,7 +19,7 @@ class UserAuth
 		return true;
     }
 
-    public function destroy(int $user_id): void{
+    public function destroy(string|int $user_id): void{
         if(UsersAuth::query()->where('user_id',$user_id)->exists()){
             UsersAuth::query()->where('user_id',$user_id)->delete();
         }
