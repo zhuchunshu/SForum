@@ -45,13 +45,18 @@ class CreateMiddleware implements MiddlewareInterface
 
         if ($validator->fails()) {
             // Handle exception
-            return redirect()->with('danger', $validator->errors()->first())->url('topic/create')->go();
+            $data = $data['basis'];
+            unset($data['content']);
+            $result = [];
+            $result['basis']=$data;
+            $result['restoredraft'] = true;
+            return redirect()->with('danger', $validator->errors()->first())->url('topic/create?'.http_build_query($result))->go();
         }
-        $this->create($data);
+        $data = $this->create($data);
         return $next($data);
     }
 
-    public function create($data): void
+    public function create($data)
     {
         // 帖子标题
         $title = $data['basis']['title'];
@@ -74,7 +79,7 @@ class CreateMiddleware implements MiddlewareInterface
             'user_ip' => get_client_ip(),
             'user_agent' => get_user_agent(),
         ]);
-        $data = Topic::query()->create([
+        $topic = Topic::query()->create([
             'post_id' => $post->id,
             'title' => $title,
             'user_id' => auth()->id(),
@@ -83,9 +88,12 @@ class CreateMiddleware implements MiddlewareInterface
             'tag_id' => $tag,
         ]);
         // 给Posts表设置topic_id字段的值
-        Post::query()->where('id', $post->id)->update(['topic_id' => $data->id]);
-        $this->topic_keywords($data, $_content);
-        $this->at_user($data, $_content);
+        Post::query()->where('id', $post->id)->update(['topic_id' => $topic->id]);
+        $this->topic_keywords($topic, $_content);
+        $this->at_user($topic, $_content);
+        $data['topic_id']= $topic->id;
+        $data['post_id']= $post->id;
+        return $data;
     }
 
     private function tag(string $html)

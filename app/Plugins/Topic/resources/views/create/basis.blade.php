@@ -25,6 +25,7 @@
     <textarea name="basis[content]" id="basis-content" cols="30" rows="10"></textarea>
 </div>
 
+<script src="{{file_hash("js/axios.min.js")}}"></script>
 <script defer>
     const target = document.getElementsByTagName("html")[0]
     const body_className = document.getElementsByTagName("html")[0].getAttribute("data-theme");
@@ -38,6 +39,25 @@
 
     observer.observe(target, {attributes: true});
 
+    const image_upload_handler = (blobInfo, progress) => new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('file', blobInfo.blob(), blobInfo.filename());
+        formData.append('_token', csrf_token);
+        axios.post("/user/upload/image",formData,{
+            'Content-type' : 'multipart/form-data'
+        }).then(function(r){
+            console.log(r)
+            const data = r.data;
+            if(data.success){
+                resolve(data.result.url);
+                return ;
+            }
+            reject({message:'HTTP Error: ' + data.result.msg + ', Error Code: '+data.code,remove: true});
+        }).catch(function(e){
+            console.log(e)
+        })
+
+    });
 
     document.addEventListener("DOMContentLoaded", function () {
         let options = {
@@ -54,6 +74,17 @@
             link_default_target: '_blank',
             toolbar_mode: 'sliding',
             image_advtab: true,
+            automatic_uploads: true,
+            images_reuse_filename: true,
+            setup : function(ed) {
+                //console.log(ed)
+            },
+            images_upload_handler: image_upload_handler,
+            init_instance_callback: (editor) => {
+                @if(request()->has('restoredraft'))
+                editor.plugins.autosave.restoreDraft()
+                @endif
+            },
             mobile:{
                 menu:{!! \App\Plugins\Topic\src\Lib\Editor::menu() !!},
                 menubar:"{!! \App\Plugins\Topic\src\Lib\Editor::menubar() !!}",

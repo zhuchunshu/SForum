@@ -12,6 +12,7 @@ namespace App\Plugins\User\src\Controller;
 
 use App\Plugins\Core\src\Handler\FileUpload;
 use App\Plugins\Core\src\Handler\UploadHandler;
+use App\Plugins\User\src\Middleware\LoginMiddleware;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserFans;
 use App\Plugins\User\src\Models\UsersAuth;
@@ -20,36 +21,34 @@ use App\Plugins\User\src\Models\UsersNotice;
 use App\Plugins\User\src\Models\UsersSetting;
 use App\Plugins\User\src\Models\UserUpload;
 use Hyperf\HttpServer\Annotation\Controller;
+use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
-use Hyperf\Utils\Arr;
 
 #[Controller]
 #[RateLimit(create: 1, capacity: 3)]
 class ApiController
 {
     #[PostMapping(path: '/user/upload/image')]
+    #[Middleware(LoginMiddleware::class)]
     public function up_image(UploadHandler $uploader)
     {
-        $data = [];
         if (! Authority()->check('upload_file')) {
             return Json_Api(419, false, ['msg' => '你所在的用户组无权上传图片']);
         }
-        foreach (request()->file('file') as $key => $file) {
-            if ($file->getSize() > get_options('core_user_up_img_size', 2048)) {
-                $result = $uploader->save($file, 'topic', auth()->id());
-                if ($result) {
-                    $url = $result['path'];
-                    $data['data']['succMap'][$url] = $url;
-                } else {
-                    (array) $data['data']['errFiles'][] = $key;
-                }
+        $file = request()->file('file');
+        if ($file->getSize() > get_options('core_user_up_img_size', 2048)) {
+            $result = $uploader->save($file, 'topic', auth()->id());
+            if ($result['success'] === true) {
+                return Json_Api(200, true, ['msg' => '上传成功!', 'url' => $result['path']]);
             }
+            return Json_Api(403, false, ['msg' => '上传失败!']);
         }
-        return $data;
+        return Json_Api(403, false, ['msg' => '上传失败!']);
     }
 
     #[PostMapping(path: '/user/upload/file')]
+    #[Middleware(LoginMiddleware::class)]
     public function up_file(FileUpload $uploader)
     {
         $data = [];
@@ -76,7 +75,7 @@ class ApiController
         $data = User::query()->select('username', 'id')->get();
         $arr = [];
         foreach ($data as $key => $value) {
-            $arr[$key]=['value' => '@' . $value->username, 'html' => '<img src="' . avatar_url($value->id) . '" alt="' . $value->username . '"/> ' . $value->username];
+            $arr[$key] = ['value' => '@' . $value->username, 'html' => '<img src="' . avatar_url($value->id) . '" alt="' . $value->username . '"/> ' . $value->username];
         }
         return $arr;
     }
@@ -135,7 +134,7 @@ class ApiController
         // 通知小红点
         $notice_red = 0;
         foreach (Itf()->get('users_notices') as $value) {
-            $count = \Opis\Closure\unserialize((string)$value['count']);
+            $count = \Opis\Closure\unserialize((string) $value['count']);
             if (@$count && is_callable($count) && call_user_func($count, auth()->id()) > 0) {
                 $notice_red += call_user_func($count, auth()->id());
             }

@@ -50,6 +50,16 @@ class TopicController
         return (new CreateTopic())->handler(request());
     }
 
+    #[PostMapping(path: 'create/upload')]
+    #[Middleware(LoginMiddleware::class)]
+    public function create_upload()
+    {
+        if (! Authority()->check('topic_create')) {
+            return Json_Api(419, false, ['无发帖权限']);
+        }
+        return (new CreateTopic())->handler(request());
+    }
+
     #[PostMapping(path: 'create/draft')]
     #[Middleware(LoginMiddleware::class)]
 
