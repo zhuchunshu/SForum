@@ -33,7 +33,7 @@ class ApiController
     {
         $data = [];
         if (! Authority()->check('upload_file')) {
-            return Json_Api(401, false, ['msg' => '你所在的用户组无权上传图片']);
+            return Json_Api(419, false, ['msg' => '你所在的用户组无权上传图片']);
         }
         foreach (request()->file('file') as $key => $file) {
             if ($file->getSize() > get_options('core_user_up_img_size', 2048)) {
@@ -54,7 +54,7 @@ class ApiController
     {
         $data = [];
         if (! Authority()->check('upload_file')) {
-            return Json_Api(401, false, ['msg' => '你所在的用户组无权上传文件']);
+            return Json_Api(419, false, ['msg' => '你所在的用户组无权上传文件']);
         }
         foreach (request()->file('file') as $key => $file) {
             if ($file->getSize() > get_options('core_user_up_file_size', 4096)) {
@@ -129,7 +129,7 @@ class ApiController
     public function UserConfig(): array
     {
         if (! auth()->check()) {
-            return Json_Api(401, false, ['msg' => '未登录!']);
+            return Json_Api(419, false, ['msg' => '未登录!']);
         }
 
         // 通知小红点
@@ -157,7 +157,7 @@ class ApiController
             return Json_Api(403, false, ['msg' => '请求参数不足']);
         }
         if (! auth()->check()) {
-            return Json_Api(401, false, ['msg' => '未登录!']);
+            return Json_Api(419, false, ['msg' => '未登录!']);
         }
         if (! UsersNotice::query()->where(['status' => 'publish', 'user_id' => auth()->id(), 'id' => $notice_id])->exists()) {
             return Json_Api(403, false, ['msg' => '通知不存在!']);
@@ -174,7 +174,7 @@ class ApiController
     public function notice_allread(): array
     {
         if (! auth()->check()) {
-            return Json_Api(401, false, ['msg' => '未登录!']);
+            return Json_Api(419, false, ['msg' => '未登录!']);
         }
         if (! UsersNotice::query()->where(['status' => 'publish', 'user_id' => auth()->id()])->exists()) {
             return Json_Api(403, false, ['msg' => '没有未读通知!']);
@@ -195,15 +195,15 @@ class ApiController
             return Json_Api(403, false, ['请求参数不足,缺少:user_id']);
         }
         if (! auth()->check()) {
-            return Json_Api(401, false, ['msg' => '未登录!']);
+            return Json_Api(419, false, ['msg' => '未登录!']);
         }
 
         if (! User::query()->where('id', $user_id)->exists()) {
-            return Json_Api(401, false, ['msg' => '用户不存在!']);
+            return Json_Api(419, false, ['msg' => '用户不存在!']);
         }
         // 禁止关注自己
         if ($user_id == auth()->id()) {
-            return Json_Api(401, false, ['msg' => '不能关注自己']);
+            return Json_Api(419, false, ['msg' => '不能关注自己']);
         }
 
         if (UserFans::query()->where(['user_id' => $user_id, 'fans_id' => auth()->id()])->exists()) {
@@ -239,7 +239,7 @@ class ApiController
             return Json_Api(403, false, ['请求参数不足,缺少:user_id']);
         }
         if (! auth()->check()) {
-            return Json_Api(401, false, ['msg' => '未登录!']);
+            return Json_Api(419, false, ['msg' => '未登录!']);
         }
         if (UserFans::query()->where(['user_id' => $user_id, 'fans_id' => auth()->id()])->exists()) {
             return Json_Api(200, true, ['msg' => '取关']);
@@ -251,7 +251,7 @@ class ApiController
     public function remove_collection(): array
     {
         if (! auth()->check()) {
-            return Json_Api(401, false, ['msg' => '未登录!']);
+            return Json_Api(419, false, ['msg' => '未登录!']);
         }
         $collection_id = request()->input('collection_id');
         if (! $collection_id) {
@@ -268,7 +268,7 @@ class ApiController
     public function filesRemove(): array
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限!']);
+            return Json_Api(419, false, ['msg' => '无权限!']);
         }
         $id = request()->input('id');
         if (! UserUpload::query()->where('id', $id)->exists()) {
@@ -288,7 +288,7 @@ class ApiController
     public function get_user_settings()
     {
         if (! auth()->check()) {
-            return Json_Api(401, false, ['msg' => '未登录!']);
+            return Json_Api(419, false, ['msg' => '未登录!']);
         }
         $result = [];
         foreach (UsersSetting::query()->where('user_id', auth()->id())->select('name', 'value')->get() as $value) {
@@ -301,7 +301,7 @@ class ApiController
     public function set_user_settings()
     {
         if (! auth()->check()) {
-            return Json_Api(401, false, ['msg' => '未登录!']);
+            return Json_Api(419, false, ['msg' => '未登录!']);
         }
         if (! is_array(request()->input('data'))) {
             $data = de_stringify(request()->input('data'));

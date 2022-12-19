@@ -40,7 +40,7 @@ if (!function_exists("user_DeCheckClass")) {
 if (!function_exists("user_TopicTagQuanxianCheck")) {
     function user_TopicTagQuanxianCheck($topic_tag, $userClassId):bool
     {
-        if (!$topic_tag->userClass) {
+        if (!@$topic_tag->userClass) {
             return true;
         }
         $data = json_decode($topic_tag->userClass, true, 512, JSON_THROW_ON_ERROR);

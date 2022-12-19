@@ -103,7 +103,7 @@ class DraftEditTopic
         $class_name = UserClass::query()->where('id',auth()->data()->class_id)->first()->name;
         $tag_value = TopicTag::query()->where("id",$request->input('tag'))->first();
         if(!user_TopicTagQuanxianCheck($tag_value,$class_name)){
-            return Json_Api(401,false,['无权使用此标签']);
+            return Json_Api(419,false,['无权使用此标签']);
         }
         return true;
     }

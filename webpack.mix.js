@@ -39,9 +39,6 @@ mix.js(resources_path("js/alpine.js"), "js")
 // login
 mix.js(resources_path("js/admin/login.js"), "js/admin").version();
 
-// bigData 大数据
-mix.js(resources_path("js/admin/stationService.js"), "js/admin").version();
-
 //EditFile
 mix.js(resources_path("js/admin/EditFile.js"), "js/admin").version();
 // error

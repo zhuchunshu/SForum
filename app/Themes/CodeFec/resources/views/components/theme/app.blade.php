@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="{{plugins_core_theme()}}">
+<html lang="zh-CN" data-theme="{{session()->get('theme','antialiased')}}">
 
 <head>
     <meta charset="UTF-8">

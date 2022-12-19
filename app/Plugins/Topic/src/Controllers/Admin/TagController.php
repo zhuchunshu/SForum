@@ -35,7 +35,7 @@ class TagController
     public function create_store(CreateTagRequest $request)
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         $name = $request->input('name');
         $color = $request->input('color');
@@ -79,7 +79,7 @@ class TagController
     public function edit_post(EditTagRequest $request, AvatarUpload $upload)
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         $id = $request->input('id');
         $icon = $request->input('icon');
@@ -107,7 +107,7 @@ class TagController
     public function remove()
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         $id = request()->input('id');
         if (! $id) {
@@ -134,7 +134,7 @@ class TagController
     public function job_approval()
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         $id = request()->input('id');
         if (! $id) {
@@ -166,7 +166,7 @@ HTML;
     public function job_reject()
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         $id = request()->input('id');
         if (! $id) {

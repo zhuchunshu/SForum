@@ -19,7 +19,7 @@ class ApiController
     public function report_create(CreateRequest $request)
     {
         if (!auth()->check()) {
-            return Json_Api(401, false, ['未登录']);
+            return Json_Api(419, false, ['未登录']);
         }
 
         // 鉴权
@@ -32,7 +32,7 @@ class ApiController
         }
 
         if ($quanxian===false) {
-            return Json_Api(401, false, ['无权限']);
+            return Json_Api(419, false, ['无权限']);
         }
 
         //
@@ -81,7 +81,7 @@ class ApiController
     public function report_update()
     {
         if (!auth()->check() || !Authority()->check("admin_report")) {
-            return Json_Api(401, false, ['无权限']);
+            return Json_Api(419, false, ['无权限']);
         }
         $report_id = request()->input('report_id');
         if (!$report_id) {
@@ -114,7 +114,7 @@ class ApiController
     public function report_remove()
     {
         if (!auth()->check() || !Authority()->check("admin_report")) {
-            return Json_Api(401, false, ['无权限']);
+            return Json_Api(419, false, ['无权限']);
         }
         $report_id = request()->input('report_id');
         if (!$report_id) {

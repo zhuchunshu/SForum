@@ -156,7 +156,7 @@ class ApiController
             return Json_Api(403,false,['msg' => '请求参数不足,缺少:zhishu']);
         }
         if(!auth()->check() || !Authority()->check("topic_options")){
-            return Json_Api(401,false,['msg' => '权限不足!']);
+            return Json_Api(419,false,['msg' => '权限不足!']);
         }
         if(!Topic::query()->where("id",$topic_id)->exists()){
             return Json_Api(403,false,['msg' => '被操作的帖子不存在']);
@@ -193,7 +193,7 @@ class ApiController
             return Json_Api(403,false,['msg' => '请求参数不足,缺少:zhishu']);
         }
         if(!auth()->check() || !Authority()->check("topic_options")){
-            return Json_Api(401,false,['msg' => '权限不足!']);
+            return Json_Api(419,false,['msg' => '权限不足!']);
         }
         if(!Topic::query()->where("id",$topic_id)->exists()){
             return Json_Api(403,false,['msg' => '被操作的帖子不存在']);
@@ -237,7 +237,7 @@ class ApiController
         }
 
         if(!auth()->check() || $quanxian===false){
-            return Json_Api(401,false,['msg' => '权限不足!']);
+            return Json_Api(419,false,['msg' => '权限不足!']);
         }
         Topic::query()->where("id",$topic_id)->update([
             "status" => "delete"
@@ -249,7 +249,7 @@ class ApiController
     #[RateLimit(create:1, capacity:3)]
     public function star_topic():array{
         if(!auth()->check()){
-            return Json_Api(401,false,['msg' => '权限不足!']);
+            return Json_Api(419,false,['msg' => '权限不足!']);
         }
         $topic_id = request()->input("topic_id");
         if(!$topic_id){

@@ -4,7 +4,6 @@
     "/js/vue.js": "/js/vue.js?id=c0ed491e9d9bbd0212ac",
     "/js/alpine.js": "/js/alpine.js?id=3b24a5041f6ceb43ef89",
     "/js/admin/login.js": "/js/admin/login.js?id=da1c592d350b030d748d",
-    "/js/admin/stationService.js": "/js/admin/stationService.js?id=2852a142d911b3e97cc7",
     "/js/admin/EditFile.js": "/js/admin/EditFile.js?id=4d5216bc31a8a5907c6c",
     "/js/admin/error.js": "/js/admin/error.js?id=766b20ab83ddf9c42848",
     "/js/admin/component.js": "/js/admin/component.js?id=7c1df5ab535f318e62bd",
@@ -12,6 +11,9 @@
     "/js/admin/index.js": "/js/admin/index.js?id=505f34d21dc046de3d56",
     "/js/admin/pay.js": "/js/admin/pay.js?id=476f7157fca67c342d8c",
     "/plugins/User/js/order.js": "/plugins/User/js/order.js?id=75d4436e905e45647c23",
-    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=79de63a5e4b9344254a6",
-    "/css/app.css": "/css/app.css?id=68b329da9893e34099c7"
+    "/plugins/Core/js/app.js": "/plugins/Core/js/app.js?id=802dc3d10d90c4074bfb",
+    "/plugins/Topic/js/topic.js": "/plugins/Topic/js/topic.js?id=29e388129057c5289f63",
+    "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=7a04749a2ef2c33ea28f",
+    "/css/app.css": "/css/app.css?id=68b329da9893e34099c7",
+    "/plugins/Topic/js/editor.js": "/plugins/Topic/js/editor.js?id=c4ca4238a0b923820dcc"
 }

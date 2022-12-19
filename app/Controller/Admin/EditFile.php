@@ -22,7 +22,7 @@ class EditFile
     #[PostMapping(path:"/admin/EditFile/css")]
     public function css_save(){
         if(!admin_auth()->check()){
-            return Json_Api(401,false,['msg' => '无权限']);
+            return Json_Api(419,false,['msg' => '无权限']);
         }
         $content = request()->input("content");
         if($this->PutFile(public_path("css/diy.css"),$content)){
@@ -35,7 +35,7 @@ class EditFile
     #[PostMapping(path:"/admin/EditFile/js")]
     public function js_save(){
         if(!admin_auth()->check()){
-            return Json_Api(401,false,['msg' => '无权限']);
+            return Json_Api(419,false,['msg' => '无权限']);
         }
         $content = request()->input("content");
         if($this->PutFile(public_path("js/diy.js"),$content)){

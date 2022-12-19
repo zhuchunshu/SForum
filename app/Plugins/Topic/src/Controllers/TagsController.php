@@ -110,7 +110,7 @@ class TagsController
     public function create()
     {
         if (! auth()->check() || ! Authority()->check('topic_tag_create')) {
-            return admin_abort('权限不足', 401);
+            return admin_abort('权限不足', 419);
         }
         $userClass = \App\Plugins\User\src\Models\UserClass::query()->get();
         return view('Topic::Tags.create', ['userClass' => $userClass]);
@@ -120,7 +120,7 @@ class TagsController
     public function create_store(CreateTagRequest $request)
     {
         if (! auth()->check() || ! Authority()->check('topic_tag_create')) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         $name = $request->input('name');
         $color = $request->input('color');
@@ -170,14 +170,14 @@ HTML;
     public function edit($id)
     {
         if (! auth()->check() || ! Authority()->check('topic_tag_create')) {
-            return admin_abort('权限不足', 401);
+            return admin_abort('权限不足', 419);
         }
         if (! TopicTag::query()->where('status', '=', null)->where('id', $id)->count()) {
             return admin_abort('id为' . $id . '的标签不存在', 403);
         }
         $data = TopicTag::query()->find($id);
         if ((int) $data->user_id !== (int) auth()->id()) {
-            return admin_abort('您无权限修改', 401);
+            return admin_abort('您无权限修改', 419);
         }
         $userClass = \App\Plugins\User\src\Models\UserClass::query()->get();
         return view('Topic::Tags.edit', ['data' => $data, 'userClass' => $userClass]);
@@ -187,7 +187,7 @@ HTML;
     public function edit_post(EditTagRequest $request, AvatarUpload $upload)
     {
         if (! auth()->check() || ! Authority()->check('topic_tag_create')) {
-            return admin_abort('权限不足', 401);
+            return admin_abort('权限不足', 419);
         }
         $id = $request->input('id');
         $name = $request->input('name');
@@ -202,7 +202,7 @@ HTML;
 
         $data = TopicTag::query()->where('status', '=', null)->find($id);
         if ((int) $data->user_id !== (int) auth()->id()) {
-            return admin_abort('您无权限修改', 401);
+            return admin_abort('您无权限修改', 419);
         }
 
         TopicTag::query()->where('id', $id)->update([

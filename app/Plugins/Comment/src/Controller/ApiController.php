@@ -163,7 +163,7 @@ class ApiController
     public function topic_delete(){
         $comment_id = request()->input("comment_id");
         if(!auth()->check()){
-            return Json_Api(401,false,['未登录']);
+            return Json_Api(419,false,['未登录']);
         }
         if(!$comment_id){
             return Json_Api(403,false,['请求参数不足,缺少:comment_id']);
@@ -180,7 +180,7 @@ class ApiController
             $quanxian = true;
         }
         if($quanxian === false){
-            return Json_Api(401,false,['无权限!']);
+            return Json_Api(419,false,['无权限!']);
         }
         TopicComment::query()->where("id",$comment_id)->delete();
         return Json_Api(200,true,['已删除!']);
@@ -190,14 +190,14 @@ class ApiController
     public function topic_create_validation(): bool|array
     {
         if(!auth()->check()){
-            return Json_Api(401,false,['未登录']);
+            return Json_Api(419,false,['未登录']);
         }
         if(!Authority()->check("comment_create")){
-            return Json_Api(401,false,['无评论权限']);
+            return Json_Api(419,false,['无评论权限']);
         }
         if (cache()->has("comment_create_time_" . auth()->id())) {
             $time = cache()->get("comment_create_time_" . auth()->id())-time();
-            return Json_Api(401,false,['发表评论过于频繁,请 '.$time." 秒后再试"]);
+            return Json_Api(419,false,['发表评论过于频繁,请 '.$time." 秒后再试"]);
         }
         return true;
     }
@@ -286,7 +286,7 @@ class ApiController
             $quanxian = true;
         }
         if($quanxian===false){
-            return Json_Api(401,false,["无权修改!"]);
+            return Json_Api(419,false,["无权修改!"]);
         }
         // 过滤xss
         $content = xss()->clean($request->input('content'));
@@ -323,7 +323,7 @@ class ApiController
             $quanxian = true;
         }
         if($quanxian === false){
-            return Json_Api(401,false,['无权限!']);
+            return Json_Api(419,false,['无权限!']);
         }
         $caina = __("topic.comment.cancel")." ".__("topic.comment.adoption");
         if($data->optimal===null){
@@ -348,7 +348,7 @@ class ApiController
     #[RateLimit(create:1, capacity:3)]
     public function star_topic():array{
         if(!auth()->check()){
-            return Json_Api(401,false,['msg' => '权限不足!']);
+            return Json_Api(419,false,['msg' => '权限不足!']);
         }
         $comment_id = request()->input("comment_id");
         if(!$comment_id){

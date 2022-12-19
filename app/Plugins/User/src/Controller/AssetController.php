@@ -40,7 +40,7 @@ class AssetController
             return Json_Api(403, false, ['msg' => '请求参数不足']);
         }
         if (! captcha()->check($captcha)) {
-            return Json_Api(401, false, ['msg' => '验证码错误!']);
+            return Json_Api(419, false, ['msg' => '验证码错误!']);
         }
         // 验证支付方式
         $payment = json_decode($payment, true);

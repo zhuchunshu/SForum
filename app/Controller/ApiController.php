@@ -52,7 +52,7 @@ class ApiController
     public function AdminPluginSave(): array
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         Db::table('admin_plugins')->truncate();
         if (request()->input('data') && is_array(request()->input('data'))) {
@@ -87,7 +87,7 @@ class ApiController
     public function AdminPluginMigrate($name = null): array
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         if (! $name) {
             if (! request()->input('name')) {
@@ -141,7 +141,7 @@ class ApiController
     public function AdminPluginMigrateAll(): array
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         foreach (getEnPlugins() as $name) {
             $this->AdminPluginMigrate($name);
@@ -172,7 +172,7 @@ class ApiController
     public function AdminPluginRemove(): array
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         if (request()->input('path') && is_dir(request()->input('path'))) {
             \Swoole\Coroutine\System::exec('rm -rf ' . request()->input('path'));

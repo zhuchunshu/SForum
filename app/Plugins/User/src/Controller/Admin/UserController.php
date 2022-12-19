@@ -43,7 +43,7 @@ class UserController
     public function update_username()
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         $user_id = request()->input('user_id');
         $username = request()->input('username');
@@ -70,7 +70,7 @@ class UserController
     public function update_email()
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         $user_id = request()->input('user_id');
         $email = request()->input('email');
@@ -109,7 +109,7 @@ class UserController
     public function update_UserClass()
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         $user_id = request()->input('user_id');
         $class_id = request()->input('class_id');
@@ -127,7 +127,7 @@ class UserController
     public function update_Token()
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         $user_id = request()->input('user_id');
         if (! $user_id) {
@@ -144,7 +144,7 @@ class UserController
     public function update_password()
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         $user_id = request()->input('user_id');
         $password = request()->input('password');
@@ -162,7 +162,7 @@ class UserController
     public function remove_user()
     {
         if (! admin_auth()->check()) {
-            return Json_Api(401, false, ['msg' => '无权限']);
+            return Json_Api(419, false, ['msg' => '无权限']);
         }
         $user_id = request()->input('user_id');
         if (! $user_id) {

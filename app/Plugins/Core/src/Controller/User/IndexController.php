@@ -109,7 +109,7 @@ class IndexController
             $quanxian = true;
         }
         if ($quanxian === false) {
-            return admin_abort('无权预览此草稿', 401);
+            return admin_abort('无权预览此草稿', 419);
         }
         $shang = Topic::query()->where([['id', '<', $id], ['status', 'publish']])->select('title', 'id')->orderBy('id', 'desc')->first();
         $xia = Topic::query()->where([['id', '>', $id], ['status', 'publish']])->select('title', 'id')->orderBy('id', 'asc')->first();

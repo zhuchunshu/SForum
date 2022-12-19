@@ -60,7 +60,7 @@ class AdminController
             return Json_Api(200,true,["msg"=>"登陆成功!","url"=>"/admin"]);
         }
 	
-	    return Json_Api(401,false,["密码错误"]);
+	    return Json_Api(419,false,["密码错误"]);
     }
     
     // 退出登录

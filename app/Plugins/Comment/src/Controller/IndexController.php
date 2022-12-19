@@ -39,7 +39,7 @@ class IndexController
             $quanxian = true;
         }
         if($quanxian===false){
-            return admin_abort("无权操作!",401);
+            return admin_abort("无权操作!",419);
         }
         return view("Comment::topic.edit",['data' => $data]);
     }

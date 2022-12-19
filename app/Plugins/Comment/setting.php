@@ -1,3 +1,3 @@
 <?php
-Itf_Setting()->add(401,
+Itf_Setting()->add(419,
     "评论设置","comment-setting","Comment::setting");
