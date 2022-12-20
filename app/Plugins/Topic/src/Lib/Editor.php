@@ -20,10 +20,28 @@ class Editor
     {
         $data = [];
         foreach (Itf()->get('topic-create-editor-plugins') as $value) {
-            $data = array_merge($data, $value);
+            foreach ($value as $plugin) {
+                $data[] = $plugin;
+            }
         }
         $data = array_unique($data);
         $data = array_values($data);
+        return json_encode($data, JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * 获取编辑器外部插件.
+     * @return false|string
+     */
+    public static function externalPlugins(): bool | string
+    {
+        $data = [];
+        foreach (Itf()->get('topic-create-editor-external_plugins') as $value) {
+            foreach ($value as $name => $plugin) {
+                $data[$name] = $plugin;
+            }
+        }
+        $data = array_unique($data);
         return json_encode($data);
     }
 
@@ -35,7 +53,9 @@ class Editor
     {
         $data = [];
         foreach (Itf()->get('topic-create-editor-toolbar') as $value) {
-            $data = array_merge($data, $value);
+            foreach ($value as $toolbar) {
+                $data[] = $toolbar;
+            }
         }
         $data = array_values($data);
         $data = implode(' ', $data);
@@ -49,7 +69,9 @@ class Editor
     {
         $data = [];
         foreach (Itf()->get('topic-create-editor-menu') as $key => $value) {
-            $data = array_merge($data, $value);
+            foreach ($value as $keys => $menu) {
+                $data[$keys] = $menu;
+            }
         }
         $result = [];
         foreach ($data as $key => $value) {
@@ -65,14 +87,15 @@ class Editor
     public static function menubar()
     {
         $data = [];
-        foreach (Itf()->get('topic-create-editor-menu') as $key => $value) {
-            $data = array_merge($data, $value);
+        foreach (Itf()->get('topic-create-editor-menu') as $value) {
+            foreach ($value as $key => $menu) {
+                $data[$key] = $menu;
+            }
         }
-        $result = [];
         foreach ($data as $key => $value) {
             $result[] = $key;
         }
         $result = array_values(array_unique($result));
-        return implode(' ',$result);
+        return implode(' ', $result);
     }
 }

@@ -60,6 +60,14 @@ class TopicController
         return (new CreateTopic())->handler(request());
     }
 
+    #[PostMapping(path: 'create/preview')]
+    #[Middleware(LoginMiddleware::class)]
+    public function create_preview()
+    {
+        $content = request()->input('content', '无内容');
+        return view('Topic::create.preview', ['content' => $content]);
+    }
+
     #[PostMapping(path: 'create/draft')]
     #[Middleware(LoginMiddleware::class)]
 

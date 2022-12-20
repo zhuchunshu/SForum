@@ -98,7 +98,6 @@ Itf()->add('topic-create-data', 0, [
     'view' => 'Topic::create.basis',
     'scripts' => [
         file_hash('plugins/Topic/js/topic.js'),
-        file_hash('plugins/Topic/js/editor.js'),
         file_hash('tabler/libs/tom-select/dist/js/tom-select.base.min.js'),
         file_hash('tabler/libs/tinymce/tinymce.min.js'),
     ],
@@ -106,9 +105,9 @@ Itf()->add('topic-create-data', 0, [
 
 // topic create -  editor plugins
 
-Itf()->add('topic-create-editor-plugins', 0, ['importcss', 'searchreplace', 'autolink', 'autosave',  'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'media', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'anchor', 'insertdatetime', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars',]);
+Itf()->add('topic-create-editor-plugins', 0, ['importcss', 'searchreplace', 'autolink', 'autosave',  'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'media', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'insertdatetime', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
 
-Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', 'restoredraft', '|', 'bold', 'italic', 'underline', 'strikethrough', '|', 'fontfamily', 'fontsize', 'blocks', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify','outdent', 'indent','numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', '|', 'insertfile', 'image', 'media','link', 'anchor', 'codesample', '|', 'ltr', 'rtl']);
+Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', 'restoredraft', '|', 'bold', 'italic', 'underline', 'strikethrough', '|', 'fontfamily', 'fontsize', 'blocks', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', '|', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
 
 Itf()->add('topic-create-editor-toolbar', 1, [
     'basicDateButton',
@@ -121,10 +120,8 @@ Itf()->add('topic-create-editor-menu', 0, [
             'newdocument',
             'restoredraft',
             '|',
-            'preview',
-            '|',
+            'sfPreview',
             'export',
-            'print',
             '|',
             'deleteallconversations',
         ],
@@ -252,4 +249,8 @@ Itf()->add('topic-create-editor-menu', 1, [
 //    ]
 //]);
 
-Itf()->add('topic-create-handle-middleware-end',0,\App\Plugins\Topic\src\Handler\Topic\Middleware\Create\CreateEndMiddleware::class);
+Itf()->add('topic-create-handle-middleware-end', 0, \App\Plugins\Topic\src\Handler\Topic\Middleware\Create\CreateEndMiddleware::class);
+
+Itf()->add('topic-create-editor-external_plugins', 0, [
+    'sfPreview' => file_hash('plugins/Topic/js/editor/plugins/sfPreview.js'),
+]);

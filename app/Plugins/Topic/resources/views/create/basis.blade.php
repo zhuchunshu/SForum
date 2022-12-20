@@ -75,10 +75,11 @@
             toolbar_mode: 'sliding',
             image_advtab: true,
             automatic_uploads: true,
-            images_reuse_filename: true,
+            convert_urls:false,
             setup : function(ed) {
                 //console.log(ed)
             },
+            external_plugins:{!! \App\Plugins\Topic\src\Lib\Editor::externalPlugins() !!},
             images_upload_handler: image_upload_handler,
             init_instance_callback: (editor) => {
                 @if(request()->has('restoredraft'))
