@@ -105,13 +105,10 @@ Itf()->add('topic-create-data', 0, [
 
 // topic create -  editor plugins
 
-Itf()->add('topic-create-editor-plugins', 0, ['importcss', 'searchreplace', 'autolink', 'autosave',  'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'media', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'insertdatetime', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
+Itf()->add('topic-create-editor-plugins', 0, ['importcss', 'searchreplace', 'autolink', 'autosave',  'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'media', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
 
-Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', 'restoredraft', '|', 'bold', 'italic', 'underline', 'strikethrough', '|', 'fontfamily', 'fontsize', 'blocks', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', '|', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
+Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', '|','blocks', '|', 'bold', 'italic', 'underline', 'strikethrough',  '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
 
-Itf()->add('topic-create-editor-toolbar', 1, [
-    'basicDateButton',
-]);
 
 Itf()->add('topic-create-editor-menu', 0, [
     'file' => [
@@ -181,8 +178,6 @@ Itf()->add('topic-create-editor-menu', 1, [
             'nonbreaking',
             'anchor',
             'tableofcontents',
-            '|',
-            'insertdatetime',
         ],
     ],
     'format' => [

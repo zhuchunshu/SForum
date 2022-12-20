@@ -15,7 +15,7 @@
                 @endif
             @endforeach
             <div class="row row-cards justify-content-center">
-                <div class="col-md-9">
+                <div class="col-lg-9">
                     @foreach(Itf()->get('ui-index-content-hook') as $k=>$v)
                         @if(call_user_func($v['enable'])===true)
                             @include($v['view'])
@@ -23,7 +23,7 @@
                     @endforeach
                     @include('App::index.index')
                 </div>
-                <div class="col-md-3">
+                <div class="col-lg-3">
                     <div class="row row-cards rd">
                         <div class="col-md-12 sticky" style="top: 105px">
                             @include('App::index.right')

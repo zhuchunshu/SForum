@@ -69,7 +69,7 @@
             </div>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-lg-3">
             <div class="border-0 card">
                 <div class="card-body">
                     <ul class="nav nav-pills nav-vertical">
@@ -131,7 +131,7 @@
             </div>
         </div>
 
-        <div class="col-md-9">
+        <div class="col-lg-9">
             @php $view=null; @endphp
             @foreach(Itf()->get('users_home_menu') as $key => $value)
                 @if($key === request()->input('m',key(Itf()->get('users_home_menu'))))

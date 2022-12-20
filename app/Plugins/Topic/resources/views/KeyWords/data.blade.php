@@ -8,10 +8,10 @@
     <div class="row row-cards justify-content-center">
         <div class="col-md-12">
             <div class="row row-cards justify-content-center">
-                <div class="col-md-9">
+                <div class="col-lg-9">
                     @include('Topic::KeyWords.data.index')
                 </div>
-                <div class="col-md-3">
+                <div class="col-lg-3">
                     <div class="row row-cards rd">
                         <div class="col-md-12 sticky" style="top: 105px">
                             @include('Topic::KeyWords.data.right')

@@ -1,6 +1,6 @@
 <div class="card card-body">
     <div class="row">
-        <div class="col-md-3">
+        <div class="col-lg-3">
             <label for="" class="form-label">
                 {{__("admin.wealth.money name")}}
             </label>
@@ -8,7 +8,7 @@
             <small>{{__("admin.current",['current' => get_options('wealth_money_name','余额')])}}</small>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-lg-3">
             <label for="" class="form-label">
                 {{__("admin.wealth.money unit name",['name' => get_options('wealth_money_name','余额')])}}
             </label>
@@ -16,21 +16,21 @@
             <small>{{__("admin.current",['current' => get_options('wealth_money_unit_name','元')])}}</small>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-lg-3">
             <label for="" class="form-label">
                 {{__("admin.wealth.credit name")}}
             </label>
             <input type="text" v-model="data.wealth_credit_name" class="form-control">
             <small>{{__("admin.current",['current' => get_options('wealth_credit_name','积分')])}}</small>
         </div>
-        <div class="col-md-3">
+        <div class="col-lg-3">
             <label for="" class="form-label">
                 {{__("admin.wealth.golds name")}}
             </label>
             <input type="text" v-model="data.wealth_golds_name" class="form-control">
             <small>{{__("admin.current",['current' => get_options('wealth_golds_name','金币')])}}</small>
         </div>
-        <div class="col-md-3">
+        <div class="col-lg-3">
             <label for="" class="form-label">
                 {{__("admin.wealth.exp name")}}
             </label>
@@ -53,28 +53,28 @@
                 <a class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="close"></a>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-lg-3">
             <label for="" class="form-label">
                 {{__("admin.wealth.how many",['number' => 1,'first' => get_options('wealth_money_name','余额'),'last' => get_options('wealth_golds_name','金币')])}}
             </label>
             <input type="text" v-model="data.wealth_how_many_money_to_golds" class="form-control">
             <small>{{__("admin.current",['current' => get_options('wealth_how_many_money_to_golds','1')])}}</small>
         </div>
-        <div class="col-md-3">
+        <div class="col-lg-3">
             <label for="" class="form-label">
                 {{__("admin.wealth.how many",['number' => 1,'first' => get_options('wealth_money_name','余额'),'last' => get_options('wealth_credit_name','积分')])}}
             </label>
             <input type="text" v-model="data.wealth_how_many_money_to_credit" class="form-control">
             <small>{{__("admin.current",['current' => get_options('wealth_how_many_money_to_credit',get_options('wealth_how_many_money_to_golds','1')*get_options('wealth_how_many_golds_to_credit',10))])}}</small>
         </div>
-        <div class="col-md-3">
+        <div class="col-lg-3">
             <label for="" class="form-label">
                 {{__("admin.wealth.how many",['number' => 1,'first' => get_options('wealth_golds_name','金币'),'last' => get_options('wealth_credit_name','积分')])}}
             </label>
             <input type="text" v-model="data.wealth_how_many_golds_to_credit" class="form-control">
             <small>{{__("admin.current",['current' => get_options('wealth_how_many_golds_to_credit',10)])}}</small>
         </div>
-        <div class="col-md-3">
+        <div class="col-lg-3">
             <label class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" v-model="data.wealth_close_redemption_money_to_golds">
                 <span class="form-check-label">{{__("admin.wealth.close redemption",['first' => get_options('wealth_money_name','余额'),'last' => get_options('wealth_golds_name','金币')])}}</span>

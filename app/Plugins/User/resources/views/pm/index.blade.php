@@ -6,7 +6,7 @@
 
     <div class="border-0 card card-body" id="user-pm-container">
         <div class="row row-cards justify-content-center">
-            <div class="col-md-3">
+            <div class="col-lg-3">
                 <div class="border-0 card">
                     <div class="card-header">
                         <h3 class="card-title">联系人</h3>
@@ -37,7 +37,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-9">
+            <div class="col-lg-9">
                 <div class="border-0 card">
                     <div class="card-header">
                         <h3 class="card-title"><a href="/users/{{$user->username}}.html" class="avatar avatar-sm"

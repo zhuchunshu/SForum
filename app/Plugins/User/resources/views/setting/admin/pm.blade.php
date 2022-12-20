@@ -1,6 +1,6 @@
 <div class="card card-body">
     <div class="row">
-        <div class="col-md-3">
+        <div class="col-lg-3">
             <label for="" class="form-label">
                 {{__("admin.user.pm.msg maxlength")}}
             </label>
@@ -8,7 +8,7 @@
             <small>{{__("admin.current",['current' => get_options('pm_msg_maxlength',300)])}}</small>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-lg-3">
             <label for="" class="form-label">
                 {{__("admin.user.pm.msg reserve")}}
             </label>

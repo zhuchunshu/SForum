@@ -9,7 +9,7 @@
                 <div class="row row-cards">
 
 {{--                    版本信息--}}
-                <div class="col-md-9">
+                <div class="col-lg-9">
                     <div class="border-0 card">
                         <div class="card-body">
                             <h3 class="card-title">版本信息</h3>
@@ -27,7 +27,7 @@
                     </div>
                 </div>
                 {{--                    作者信息--}}
-                <div class="col-md-3" v-if="author">
+                <div class="col-lg-3" v-if="author">
                     <div class="border-0 card">
                         <div class="card-body text-center">
                             <div class="mb-3">
