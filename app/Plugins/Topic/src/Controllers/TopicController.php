@@ -86,7 +86,7 @@ class TopicController
         if (! Topic::query()->where('id', $topic_id)->exists()) {
             return admin_abort('帖子不存在', 404);
         }
-        $data = Topic::query()->where('id', $topic_id)->with('user')->first();
+        $data = Topic::query()->find($topic_id);
         $quanxian = false;
         if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;

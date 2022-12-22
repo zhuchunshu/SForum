@@ -1,6 +1,6 @@
 @extends("App::app")
 
-@section('title', __("topic.edit topic").':'.$data['title'])
+@section('title', __("topic.edit topic").':【'.$data['title']."】")
 
 @section('header')
     <div class="page-wrapper">
@@ -26,91 +26,70 @@
 @endsection
 @section('content')
 
-    <div id="edit-topic-vue">
-        <form action="" method="post" @@submit.prevent="submit">
-            <div class="row row-cards">
-                <div class="col-md-12">
-                    <div class="mb-3 border-0 card card-body">
-                        <h3 class="card-title">{{__("app.title")}}</h3>
-                        <input type="text" v-model="title" class="form-control form-control-lg form-control-flush"
-                               placeholder="{{__("topic.Please enter a title")}}" required>
-                        <h3 class="card-title">{{__("app.tag")}}</h3>
-                        <div class="mb-3">
-                            <select id="select-tags" v-model="tag_selected"
-                                    class="form-select form-select-lg form-control-flush">
-                                <option v-for="option in tags" :data-custom-properties="option.icons" :value="option.value">
-                                    @{{ option . text }}
-                                </option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <div class="row">
-                                @if(get_options("topic_emoji_close",'false')!=="true" && count((new \App\Plugins\Core\src\Lib\Emoji())->get()))
-                                    <div class="col-lg-3">
-                                        <div class="card">
-                                            <ul class="nav nav-tabs" data-bs-toggle="tabs" style="flex-wrap: inherit;
-        width: 100%;
-        height: 3.333333rem;
-        padding: 0.373333rem 0.32rem 0;
-        box-sizing: border-box;
-        /* 下面是实现横向滚动的关键代码 */
-        display: inline;
-        float: left;
-        white-space: nowrap;
-        overflow-x: scroll;
-        -webkit-overflow-scrolling: touch; /*解决在ios滑动不顺畅问题*/
-        overflow-y: hidden;">
-                                                @foreach((new \App\Plugins\Core\src\Lib\Emoji())->get() as $key => $value)
-                                                    <li class="nav-item">
-                                                        <a href="#emoji-list-{{$key}}" class="nav-link @if ($loop->first) active @endif" data-bs-toggle="tab">{{$key}}</a>
-                                                    </li>
-                                                @endforeach
-                                            </ul>
-                                            <div class="card-body">
-                                                <div class="tab-content">
-                                                    @foreach((new \App\Plugins\Core\src\Lib\Emoji())->get() as $key => $value)
-                                                        <div class="tab-pane  @if ($loop->first) active @endif show" id="emoji-list-{{$key}}" style="max-height: 320px;overflow-x: hidden;">
-                                                            <div class="row">
-                                                                @if($value['type'] === 'image')
-                                                                    @foreach($value['container'] as $emojis)
-                                                                        <div @@click="selectEmoji('{{$emojis['text']}}')" class="col-3 col-sm-2 col-md-4 col-lg-3 hvr-glow emoji-picker" emoji-data="{{$emojis['text']}}">{!! $emojis['icon'] !!}</div>
-                                                                    @endforeach
-                                                                @endif
-                                                            </div>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-lg-9">
-                                        <div id="content-vditor"></div>
-                                    </div>
-                                @else
-                                    <div class="col-md-12">
-                                        <div id="content-vditor"></div>
-                                    </div>
-                                @endif
+    <div class="row row-cards">
 
+        <div class="col-12" id="topic-create">
+            <form action="/topic/update" method="POST">
+                <div class="row row-cards">
+                    <div class="col-lg-9">
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">帖子信息</h3>
+                            </div>
+                            <div class="card-body">
+                                @foreach(Itf()->get('topic-edit-data') as $k=>$v)
+                                    @if(call_user_func($v['enable'])===true && isset($v['view']))
+                                        @include($v['view'])
+                                    @endif
+                                @endforeach
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <button class="btn btn-primary">{{__("app.submit")}}</button>
+
+                    </div>
+
+                    <div class="col-lg-3">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">附加信息</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    @foreach(Itf()->get('topic-edit-options') as $k=>$v)
+                                        @if(call_user_func($v['enable'])===true)
+                                            @include($v['view'])
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    <div class="col-12">
+                        @csrf()
+                        <button class="btn btn-primary" type="submit">提交</button>
+                    </div>
                 </div>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 
 @endsection
 
 @section('scripts')
-    <script type="text/javascript">
-        var topic_id = {{$data->id}};
-    </script>
-
-    <script src="{{ mix('plugins/Topic/js/topic.js') }}"></script>
+    @foreach(Itf()->get('topic-edit-data') as $k=>$v)
+        @if(call_user_func($v['enable'])===true && isset($v['scripts']))
+            @foreach($v['scripts'] as $script)
+                <script src="{{$script}}" defer></script>
+            @endforeach
+        @endif
+    @endforeach
+    @foreach(Itf()->get('topic-edit-options') as $k=>$v)
+        @if(call_user_func($v['enable'])===true && isset($v['scripts']) && is_array($v['scripts']))
+            @foreach($v['scripts'] as $script)
+                <script src="{{$script}}" defer></script>
+            @endforeach
+        @endif
+    @endforeach
 @endsection
 @section('headers')
     <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">

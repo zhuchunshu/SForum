@@ -246,3 +246,23 @@ Itf()->add('topic-create-handle-middleware-end', 0, \App\Plugins\Topic\src\Handl
 Itf()->add('topic-create-editor-external_plugins', 0, [
     'sfPreview' => file_hash('plugins/Topic/js/editor/plugins/sfPreview.js'),
 ]);
+
+
+Itf()->add('topic-edit-data', 0, [
+    'enable' => (function () {
+        return true;
+    }),
+    'view' => 'Topic::edit.basis',
+    'scripts' => [
+        file_hash('plugins/Topic/js/topic.js'),
+        file_hash('tabler/libs/tom-select/dist/js/tom-select.base.min.js'),
+        file_hash('tabler/libs/tinymce/tinymce.min.js'),
+    ],
+]);
+
+Itf()->add('topic-edit-options', 0, [
+    'enable' => (function () {
+        return true;
+    }),
+    'view' => 'Topic::edit.options.disable_comment',
+]);
