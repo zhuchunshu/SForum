@@ -48,9 +48,9 @@ class CreateMiddleware implements MiddlewareInterface
             $data = $data['basis'];
             unset($data['content']);
             $result = [];
-            $result['basis']=$data;
+            $result['basis'] = $data;
             $result['restoredraft'] = true;
-            return redirect()->with('danger', $validator->errors()->first())->url('topic/create?'.http_build_query($result))->go();
+            return redirect()->with('danger', $validator->errors()->first())->url('topic/create?' . http_build_query($result))->go();
         }
         $data = $this->create($data);
         return $next($data);
@@ -91,8 +91,8 @@ class CreateMiddleware implements MiddlewareInterface
         Post::query()->where('id', $post->id)->update(['topic_id' => $topic->id]);
         $this->topic_keywords($topic, $_content);
         $this->at_user($topic, $_content);
-        $data['topic_id']= $topic->id;
-        $data['post_id']= $post->id;
+        $data['topic_id'] = $topic->id;
+        $data['post_id'] = $post->id;
         return $data;
     }
 

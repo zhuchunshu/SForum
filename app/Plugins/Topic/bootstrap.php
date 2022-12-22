@@ -105,9 +105,9 @@ Itf()->add('topic-create-data', 0, [
 
 // topic create -  editor plugins
 
-Itf()->add('topic-create-editor-plugins', 0, ['importcss', 'searchreplace', 'autolink', 'autosave',  'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'media', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
+Itf()->add('topic-create-editor-plugins', 0, ['importcss', 'restoredraft', 'searchreplace', 'autolink', 'autosave', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'media', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
 
-Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', '|','blocks', '|', 'bold', 'italic', 'underline', 'strikethrough',  '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
+Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'restoredraft', 'codesample', '|', 'ltr', 'rtl']);
 
 
 Itf()->add('topic-create-editor-menu', 0, [
@@ -234,15 +234,12 @@ Itf()->add('topic-create-editor-menu', 1, [
     ],
 ]);
 
-//Itf()->add('topic-create-options',0,[
-//    'enable' => (function(){
-//        return true;
-//    }),
-//    'view' => 'Topic::create.options.noupload',
-//    'scripts' => [
-//        //file_hash('tabler/libs/dropzone/dist/dropzone-min.js')
-//    ]
-//]);
+Itf()->add('topic-create-options', 0, [
+    'enable' => (function () {
+        return true;
+    }),
+    'view' => 'Topic::create.options.disable_comment',
+]);
 
 Itf()->add('topic-create-handle-middleware-end', 0, \App\Plugins\Topic\src\Handler\Topic\Middleware\Create\CreateEndMiddleware::class);
 
