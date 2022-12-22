@@ -1,73 +1,81 @@
 <div class="row row-cards">
 
     @if($user->options->qq && $user->options->wx && $user->options->website && $user->options->email)
-    <div class="col-12">
-        <div class="border-0 card card-body">
-            <dl class="row">
-                @if($user->options->qq)
-                    <dt class="col-sm-3">{{ __('user.QQ') }}:</dt>
-                    <dd class="col-sm-9">{{ $user->options->qq }}</dd>
-                @endif
-                @if($user->options->wx)
-                    <dt class="col-sm-3">{{ __('user.wechat') }}:</dt>
-                    <dd class="col-sm-9">{{ $user->options->wx }}</dd>
-                @endif
-                @if($user->options->website)
-                    <dt class="col-sm-3">{{ __('user.website') }}:</dt>
-                    <dd class="col-sm-9"><a href="{{ $user->options->website }}">{{ $user->options->website }}</a></dd>
-                @endif
-                @if($user->options->email)
-                    <dt class="col-sm-3">{{ __('user.email') }}:</dt>
-                    <dd class="col-sm-9"><a href="mailto:{{ $user->options->email }}">{{ $user->options->email }}</a>
-                    </dd>
-                @endif
-            </dl>
+        <div class="col-12">
+            <div class="border-0 card card-body">
+                <dl class="row">
+                    @if($user->options->qq)
+                        <dt class="col-sm-3">{{ __('user.QQ') }}:</dt>
+                        <dd class="col-sm-9">{{ $user->options->qq }}</dd>
+                    @endif
+                    @if($user->options->wx)
+                        <dt class="col-sm-3">{{ __('user.wechat') }}:</dt>
+                        <dd class="col-sm-9">{{ $user->options->wx }}</dd>
+                    @endif
+                    @if($user->options->website)
+                        <dt class="col-sm-3">{{ __('user.website') }}:</dt>
+                        <dd class="col-sm-9"><a href="{{ $user->options->website }}">{{ $user->options->website }}</a>
+                        </dd>
+                    @endif
+                    @if($user->options->email)
+                        <dt class="col-sm-3">{{ __('user.email') }}:</dt>
+                        <dd class="col-sm-9"><a
+                                    href="mailto:{{ $user->options->email }}">{{ $user->options->email }}</a>
+                        </dd>
+                    @endif
+                </dl>
+            </div>
         </div>
-    </div>
     @endif
 
-    <div class="col-12">
+    @if(auth()->id() ===(int)$user->id)
+        <div class="col-12">
 
-        <div class="border-0 card card-body">
-            <h3 class="card-title">{{__("user.wealth")}}</h3>
-            <div class="row row-cards">
+            <div class="border-0 card card-body">
+                <h3 class="card-title">{{__("user.wealth")}}</h3>
+                <div class="row row-cards">
 
-                <div class="col-12 col-md-6 col-lg-3">
-                    <a href="/user/asset/money" class="card card-sm">
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-auto">
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <a href="/user/asset/money" class="card card-sm">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-auto">
                             <span class="bg-orange-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
-                              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-currency-dollar" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                              <svg xmlns="http://www.w3.org/2000/svg"
+                                   class="icon icon-tabler icon-tabler-currency-dollar" width="24" height="24"
+                                   viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                                   stroke-linecap="round" stroke-linejoin="round">
    <desc>Download more icon variants from https://tabler-icons.io/i/currency-dollar</desc>
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <path d="M16.7 8a3 3 0 0 0 -2.7 -2h-4a3 3 0 0 0 0 6h4a3 3 0 0 1 0 6h-4a3 3 0 0 1 -2.7 -2"></path>
    <path d="M12 3v3m0 12v3"></path>
 </svg>
                             </span>
-                                </div>
-                                <div class="col">
-                                    <div class="font-weight-medium">
-                                        <span>{{$user->options->money}}</span>
                                     </div>
-                                    <div class="text-muted">
-                                        {{get_options('wealth_money_name','余额')}}
+                                    <div class="col">
+                                        <div class="font-weight-medium">
+                                            <span>{{$user->options->money}}</span>
+                                        </div>
+                                        <div class="text-muted">
+                                            {{get_options('wealth_money_name','余额')}}
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-auto">
+                                    <div class="col-auto">
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </a>
-                </div>
+                        </a>
+                    </div>
 
-                <div class="col-12 col-md-6 col-lg-3">
-                    <div class="card card-sm">
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-auto">
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <div class="card card-sm">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-auto">
                             <span class="bg-yellow-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
-                              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-credit-card" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-credit-card"
+                                   width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+                                   fill="none" stroke-linecap="round" stroke-linejoin="round">
    <desc>Download more icon variants from https://tabler-icons.io/i/credit-card</desc>
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <rect x="3" y="5" width="18" height="14" rx="3"></rect>
@@ -76,29 +84,31 @@
    <line x1="11" y1="15" x2="13" y2="15"></line>
 </svg>
                             </span>
-                                </div>
-                                <div class="col">
-                                    <div class="font-weight-medium">
-                                        <span>{{$user->options->credits}}</span>
                                     </div>
-                                    <div class="text-muted">
-                                        {{get_options('wealth_credit_name','积分')}}
+                                    <div class="col">
+                                        <div class="font-weight-medium">
+                                            <span>{{$user->options->credits}}</span>
+                                        </div>
+                                        <div class="text-muted">
+                                            {{get_options('wealth_credit_name','积分')}}
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-auto">
+                                    <div class="col-auto">
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="col-12 col-md-6 col-lg-3">
-                    <div class="card card-sm">
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-auto">
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <div class="card card-sm">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-auto">
                             <span class="bg-cyan-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
-                              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-coin" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-coin"
+                                   width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+                                   fill="none" stroke-linecap="round" stroke-linejoin="round">
    <desc>Download more icon variants from https://tabler-icons.io/i/coin</desc>
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <circle cx="12" cy="12" r="9"></circle>
@@ -106,56 +116,59 @@
    <path d="M12 6v2m0 8v2"></path>
 </svg>
                             </span>
-                                </div>
-                                <div class="col">
-                                    <div class="font-weight-medium">
-                                        <span>{{$user->options->golds}}</span>
                                     </div>
-                                    <div class="text-muted">
-                                        {{get_options('wealth_golds_name','金币')}}
+                                    <div class="col">
+                                        <div class="font-weight-medium">
+                                            <span>{{$user->options->golds}}</span>
+                                        </div>
+                                        <div class="text-muted">
+                                            {{get_options('wealth_golds_name','金币')}}
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-auto">
+                                    <div class="col-auto">
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
 
-                <div class="col-12 col-md-6 col-lg-3">
-                    <div class="card card-sm">
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-auto">
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <div class="card card-sm">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-auto">
                             <span class="bg-azure-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
-                              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-activity" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-activity"
+                                   width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+                                   fill="none" stroke-linecap="round" stroke-linejoin="round">
    <desc>Download more icon variants from https://tabler-icons.io/i/activity</desc>
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <path d="M3 12h4l3 8l4 -16l3 8h4"></path>
 </svg>
                             </span>
-                                </div>
-                                <div class="col">
-                                    <div class="font-weight-medium">
-                                        <span>{{$user->options->exp}}</span>
                                     </div>
-                                    <div class="text-muted">
-                                        {{get_options('wealth_exp_name','经验')}}
+                                    <div class="col">
+                                        <div class="font-weight-medium">
+                                            <span>{{$user->options->exp}}</span>
+                                        </div>
+                                        <div class="text-muted">
+                                            {{get_options('wealth_exp_name','经验')}}
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-auto">
+                                    <div class="col-auto">
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+
                 </div>
-
-
             </div>
-        </div>
 
-    </div>
+        </div>
+    @endif
 
     <div class="col-12">
         <div class="border-0 card card-body">
