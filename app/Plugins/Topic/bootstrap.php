@@ -109,7 +109,6 @@ Itf()->add('topic-create-editor-plugins', 0, ['importcss', 'restoredraft', 'sear
 
 Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'restoredraft', 'codesample', '|', 'ltr', 'rtl']);
 
-
 Itf()->add('topic-create-editor-menu', 0, [
     'file' => [
         'title' => 'File',
@@ -242,11 +241,11 @@ Itf()->add('topic-create-options', 0, [
 ]);
 
 Itf()->add('topic-create-handle-middleware-end', 0, \App\Plugins\Topic\src\Handler\Topic\Middleware\Create\CreateEndMiddleware::class);
+Itf()->add('topic-update-handle-middleware-end', 0, \App\Plugins\Topic\src\Handler\Topic\Middleware\Update\UpdateEndMiddleware::class);
 
 Itf()->add('topic-create-editor-external_plugins', 0, [
     'sfPreview' => file_hash('plugins/Topic/js/editor/plugins/sfPreview.js'),
 ]);
-
 
 Itf()->add('topic-edit-data', 0, [
     'enable' => (function () {

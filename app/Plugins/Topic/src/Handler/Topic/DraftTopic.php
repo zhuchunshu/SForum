@@ -25,7 +25,6 @@ class DraftTopic
     {
         $title = $request->input("title");
         $tag = $request->input("tag");
-        $markdown = $request->input("markdown");
         $html = $request->input("html");
         $summary = $request->input("summary");
         if(!$summary){
@@ -50,7 +49,6 @@ class DraftTopic
             "user_id" => auth()->id(),
             "status" => "draft",
             "content" => $html,
-            "markdown" => $markdown,
             "like" => 0,
             "view" => 0,
             "tag_id" => $tag,

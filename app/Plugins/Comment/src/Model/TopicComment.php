@@ -15,8 +15,7 @@ use Carbon\Carbon;
  * @property string $topic_id 
  * @property string $user_id 
  * @property string $parent_id 
- * @property string $content 
- * @property string $markdown 
+ * @property string $content
  * @property string $status 
  * @property string $shenping 
  * @property string $optimal 

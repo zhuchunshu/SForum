@@ -19,7 +19,6 @@ use Carbon\Carbon;
 /**
  * @property int $id
  * @property string $content
- * @property string $markdown
  * @property string $user_agent
  * @property string $user_ip
  * @property Carbon $created_at
@@ -39,7 +38,7 @@ class Post extends Model
      *
      * @var array
      */
-    protected $fillable = ['id', 'user_id', 'comment_id', 'topic_id', 'content', 'markdown', 'user_agent', 'user_ip', 'created_at', 'updated_at'];
+    protected $fillable = ['id', 'user_id', 'comment_id', 'topic_id', 'content', 'user_agent', 'user_ip', 'created_at', 'updated_at'];
 
     /**
      * The attributes that should be cast to native types.

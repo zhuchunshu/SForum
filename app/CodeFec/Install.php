@@ -205,13 +205,12 @@ class Install
     public function step_4()
     {
         // V2.0 对topic表的更改
-        $topics = DB::table('topic')->where('post_id', '=', null)->get(['id', 'content', 'markdown', 'user_agent', 'user_ip', 'user_id', 'created_at', 'updated_at']);
+        $topics = DB::table('topic')->where('post_id', '=', null)->get(['id', 'content', 'user_agent', 'user_ip', 'user_id', 'created_at', 'updated_at']);
         foreach ($topics as $data) {
             $post = Post::query()->create([
                 'topic_id' => $data->id,
                 'user_id' => $data->user_id,
                 'content' => $data->content,
-                'markdown' => $data->markdown,
                 'user_agent' => $data->user_agent,
                 'user_ip' => $data->user_ip,
                 'created_at' => $data->created_at,
@@ -221,13 +220,12 @@ class Install
         }
 
         // v2.0对topic_comment表的更改
-        $comments = Db::table('topic_comment')->where('post_id', '=', null)->get(['id', 'user_id', 'content', 'markdown', 'user_agent', 'user_ip', 'created_at', 'updated_at']);
+        $comments = Db::table('topic_comment')->where('post_id', '=', null)->get(['id', 'user_id', 'content', 'user_agent', 'user_ip', 'created_at', 'updated_at']);
         foreach ($comments as $data) {
             $post = Post::query()->create([
                 'comment_id' => $data->id,
                 'user_id' => $data->user_id,
                 'content' => $data->content,
-                'markdown' => $data->markdown,
                 'user_agent' => $data->user_agent,
                 'user_ip' => $data->user_ip,
                 'created_at' => $data->created_at,

@@ -41,7 +41,6 @@ class ApiController
 
 		$post = Post::query()->create([
 			'content' => $content,
-			'markdown' => $request->input('markdown'),
 			'user_agent' => get_user_agent(),
 			'user_ip' => get_client_ip(),
 			'user_id' => auth()->id()
@@ -95,7 +94,6 @@ class ApiController
         $parent_id = TopicComment::query()->where("id",$comment_id)->first()->user_id;
 		$post = Post::query()->create([
 			'content' => $content,
-			'markdown' => $request->input('markdown'),
 			'user_agent' => get_user_agent(),
 			'user_ip' => get_client_ip(),
 			'user_id' => auth()->id()
@@ -267,7 +265,6 @@ class ApiController
         $data = TopicComment::query()
             ->where([["id",$comment_id],['status','publish']])
             ->first();
-		$data['markdown'] = $data->post->markdown;
         return Json_Api(200,true,$data);
     }
 
@@ -293,11 +290,9 @@ class ApiController
 
         // 解析艾特
         $content = $this->topic_create_at($content);
-        $markdown = $request->input("markdown");
         $post_id = TopicComment::query()->find($id)->post_id;
 		Post::query()->where("id",$post_id)->update([
 			'content' => $content,
-			'markdown' => $markdown
 		]);
         return Json_Api(200,true,["更新成功!"]);
     }

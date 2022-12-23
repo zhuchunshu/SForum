@@ -144,7 +144,6 @@ class ApiController
         $data = Topic::query()->where('id', $topic_id)
             ->with('user', 'tag')
             ->first();
-        $data['markdown'] = $data->post->markdown;
         $data['options'] = [];
         return Json_Api(200, true, $data);
     }

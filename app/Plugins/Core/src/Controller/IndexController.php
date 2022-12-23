@@ -98,20 +98,4 @@ class IndexController
         }
         return (new ShowTopic())->handle($id, $comment);
     }
-
-    #[GetMapping(path: '/{id}.md')]
-    public function show_md($id)
-    {
-        if (get_options('topic_ban_markdown_preview') === 'true') {
-            return admin_abort('页面不存在', 404);
-        }
-        if (! Topic::query()->where([['id', $id], ['status', 'publish']])->exists()) {
-            return admin_abort('页面不存在', 404);
-        }
-        $data = Topic::query()
-            ->where([['id', $id], ['status', 'publish']])
-            ->select('post_id')
-            ->first();
-        return response()->raw(ShortCodeR()->filter($data->post->markdown));
-    }
 }

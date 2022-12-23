@@ -13,23 +13,6 @@
                 </svg>
                 <span core-show="topic-likes">{{ $data->like }}</span>
             </a>
-            {{-- markdown --}}
-            @if(get_options('topic_ban_markdown_preview')!=="true")
-                <a data-bs-toggle="tooltip" data-bs-placement="top" title="" href="/{{ $data->id }}.md"
-                   data-bs-original-title="{{__("app.preview markdown")}}" class="hvr-icon-grow-rotate">
-                    <span class="switch-icon-a text-muted">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon icon-tabler icon-tabler-markdown"
-                             width="24"
-                             height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
-                             stroke-linecap="round" stroke-linejoin="round">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                            <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-                            <path d="M7 15v-6l2 2l2 -2v6"></path>
-                            <path d="M14 13l2 2l2 -2m-2 2v-6"></path>
-                        </svg>
-                    </span>
-                </a>
-            @endif
             @if(auth()->check())
                 {{--                收藏--}}
                 <a style="text-decoration:none;" core-click="star-topic" topic-id="{{ $data->id }}"

@@ -23,7 +23,6 @@ use Carbon\Carbon;
  * @property string $user_id
  * @property string $status
  * @property string $content
- * @property string $markdown
  * @property string $like
  * @property string $view
  * @property string $tag_id

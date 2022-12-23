@@ -20,7 +20,6 @@ class UpdateTopicRequest extends FormRequest
             "topic_id" => "required|exists:topic,id",
             "html" => "required|string|min:".get_options("topic_create_content_min",10),
             "title" => "required|string|min:".get_options("topic_create_title_min",1)."|max:".get_options("topic_create_title_max",200),
-            "markdown" => "required|string|min:".get_options("topic_create_content_min",10),
             "tag" => "required|exists:topic_tag,id"
         ];
     }
@@ -29,8 +28,7 @@ class UpdateTopicRequest extends FormRequest
     {
         return [
             "topic_id" => "帖子id",
-            "html" => "正文html内容",
-            "markdown" => "正文markdown内容",
+            "html" => "正文内容",
             "title" => "标题",
             "tag" => "标签id"
         ];

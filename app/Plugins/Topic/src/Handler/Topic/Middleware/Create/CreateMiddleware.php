@@ -74,7 +74,6 @@ class CreateMiddleware implements MiddlewareInterface
 
         $post = Post::query()->create([
             'content' => $content,
-            'markdown' => '',
             'user_id' => auth()->id(),
             'user_ip' => get_client_ip(),
             'user_agent' => get_user_agent(),

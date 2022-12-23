@@ -99,8 +99,8 @@ class TopicController
         return admin_abort('无权限', 419);
     }
 
-    #[PostMapping(path: '/topic/edit')]
-    public function edit_post(UpdateTopicRequest $request)
+    #[PostMapping(path: '/topic/update')]
+    public function edit_post()
     {
         $quanxian = false;
         if (@Authority()->check('admin_topic_edit') && @curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass(auth()->data()->class_id)['permission-value']) {
@@ -109,9 +109,9 @@ class TopicController
             $quanxian = true;
         }
         if ($quanxian === true) {
-            return (new EditTopic())->handler($request);
+            return (new EditTopic())->handler();
         }
-        return Json_Api(419, false, ['无权限']);
+        return admin_abort('无权限', 419);
     }
 
     #[PostMapping(path: '/topic/edit/draft')]

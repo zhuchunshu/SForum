@@ -19,7 +19,6 @@ class UpdateComment extends FormRequest
         return [
             "comment_id" => "required|exists:topic_comment,id",
             "content" => "required|string|min:".get_options("comment_reply_min",1)."|max:".get_options("comment_reply_max",200),
-            "markdown" => "required|string",
         ];
     }
 
@@ -28,7 +27,6 @@ class UpdateComment extends FormRequest
         return [
             "comment_id" => "评论ID",
             "content" => __("topic.comment.comment content"),
-            "markdown" => "评论markdown内容",
         ];
     }
 }

@@ -27,7 +27,6 @@ class DraftEditTopic
         $topic_id = $request->input("topic_id");
         $title = $request->input("title");
         $tag = $request->input("tag");
-        $markdown = $request->input("markdown");
         $html = $request->input("html");
         $summary = $request->input("summary");
         if(!$summary){
@@ -50,7 +49,6 @@ class DraftEditTopic
          Topic::query()->where("id",$topic_id)->update([
             "title" => $title,
             "content" => $html,
-            "markdown" => $markdown,
             "tag_id" => $tag,
             "options" => $options,
             "_token" => auth()->id()."_".Str::random(),

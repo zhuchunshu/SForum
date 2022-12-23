@@ -61,22 +61,6 @@
                                     </svg>
                                     <span comment-show="comment-topic-likes">{{ $value->likes }}</span>
                                 </a>
-                                {{-- markdown --}}
-                                @if(get_options('comment_ban_markdown_preview')!=="true")
-                                <a style="text-decoration:none;" data-bs-toggle="tooltip" data-bs-placement="top" href="/comment/topic/{{ $value->id }}.md"
-                                   data-bs-original-title="{{__("app.preview markdown")}}" class="hvr-icon-grow-rotate">
-                    <span class="switch-icon-a text-muted">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-markdown hvr-icon" width="24"
-                             height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
-                             stroke-linecap="round" stroke-linejoin="round">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                            <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-                            <path d="M7 15v-6l2 2l2 -2v6"></path>
-                            <path d="M14 13l2 2l2 -2m-2 2v-6"></path>
-                        </svg>
-                    </span>
-                                </a>
-                                @endif
 
                                 {{--                                        收藏--}}
                                 @if(auth()->check())
