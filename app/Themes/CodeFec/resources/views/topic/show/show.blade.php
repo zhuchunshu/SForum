@@ -45,9 +45,7 @@
     @if($comment_page)
         <script>var comment_id ={{$comment_page}}</script>
     @endif
-    <script src="{{ mix('plugins/Topic/js/topic.js') }}"></script>
     <script src="{{mix('plugins/Topic/js/core.js')}}"></script>
-    <script src="{{mix('plugins/Comment/js/topic.js')}}"></script>
     <script src="{{file_hash('tabler/libs/plyr/dist/plyr.min.js')}}"></script>
     <style>
         /* for block of numbers */

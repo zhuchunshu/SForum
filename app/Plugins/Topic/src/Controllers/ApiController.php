@@ -21,6 +21,7 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
 use Hyperf\Utils\Arr;
+use Swoole\Timer;
 
 #[Controller(prefix: '/api/topic')]
 #[RateLimit(create: 1, capacity: 3)]
@@ -71,7 +72,7 @@ class ApiController
         $user_avatar = super_avatar($data->user);
         $title = \Hyperf\Utils\Str::limit($data->title, 20);
         $username = $data->user->username;
-        $summary = '作者：'.$username;
+        $summary = '作者：' . $username;
         return Json_Api(200, true, [
             'avatar' => $user_avatar,
             'title' => $title,
@@ -312,13 +313,15 @@ class ApiController
         $updateds = request()->input('updateds');
         $data = [];
         foreach ($updateds as $updated_id) {
-            $updated = TopicUpdated::query()->where(['id' => $updated_id])->first();
-            if ($updated->user_ip) {
-                $data[] = [
-                    'updated_id' => $updated->id,
-                    'text' => 'IP归属地:' . core_default(get_client_ip_data($updated->user_ip)['pro'], '未知'),
-                ];
-            }
+            Timer::tick(1000, function () use ($updated_id, $data) {
+                $updated = TopicUpdated::query()->where(['id' => $updated_id])->first();
+                if ($updated->user_ip) {
+                    $data[] = [
+                        'updated_id' => $updated->id,
+                        'text' => 'IP归属地:' . core_default(get_client_ip_data($updated->user_ip)['pro'], '未知'),
+                    ];
+                }
+            });
         }
         return Json_Api(200, true, $data);
     }

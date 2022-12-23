@@ -10,7 +10,7 @@
 
 @if(auth()->check())
 
-    <div class="nav-item d-none d-lg-flex me-3">
+    <div class="nav-item d-none d-md-flex me-3">
         <a href="/user/notice" class="px-0 nav-link">
             <!-- Download SVG icon from http://tabler-icons.io/i/bell -->
             <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24"
