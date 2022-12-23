@@ -32,7 +32,7 @@
     <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
     <link rel="stylesheet" href="{{file_hash('tabler/libs/plyr/dist/plyr.css')}}">
 </head>
-<body class="border-0 card card-body">
+<body class="border-0 card card-body {{session()->get('theme','antialiased')}}" style="background-color: transparent;">
 <article class="col-md-12 article markdown" id="topic-content">
     {!! ContentParse()->parse($content) !!}
 </article>
