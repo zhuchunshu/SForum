@@ -241,7 +241,7 @@ Itf()->add('topic-create-options', 0, [
 ]);
 
 Itf()->add('topic-create-handle-middleware-end', 0, \App\Plugins\Topic\src\Handler\Topic\Middleware\Create\CreateEndMiddleware::class);
-Itf()->add('topic-update-handle-middleware-end', 0, \App\Plugins\Topic\src\Handler\Topic\Middleware\Update\UpdateEndMiddleware::class);
+Itf()->add('topic-edit-handle-middleware-end', 0, \App\Plugins\Topic\src\Handler\Topic\Middleware\Update\UpdateEndMiddleware::class);
 
 Itf()->add('topic-create-editor-external_plugins', 0, [
     'sfPreview' => file_hash('plugins/Topic/js/editor/plugins/sfPreview.js'),

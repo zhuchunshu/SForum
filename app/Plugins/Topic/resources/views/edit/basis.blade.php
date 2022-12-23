@@ -3,6 +3,7 @@
     <input type="text" class="form-control"  value="{{$data->title}}" name="basis[title]" placeholder="title" required>
 </div>
 
+<input type="hidden" name="basis[topic_id]" value="{{$data->id}}">
 <div class="mb-3">
     <label class="form-label">选择标签</label>
     <select type="text" name="basis[tag]" class="form-select" id="select-topic-tags" required>
