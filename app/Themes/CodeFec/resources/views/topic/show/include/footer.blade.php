@@ -1,19 +1,19 @@
 <div class="card-footer">
     <div class="row">
         <div class="col">
-            {{-- 点赞 --}}
-            <a style="text-decoration:none;" core-click="like-topic" topic-id="{{ $data->id }}"
-               class="hvr-icon-bounce cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="{{__("topic.likes")}}">
-                <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon" width="24" height="24"
-                     viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
-                     stroke-linejoin="round">
-                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                    <path d="M19.5 13.572l-7.5 7.428l-7.5 -7.428m0 0a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572"/>
-                </svg>
-                <span core-show="topic-likes">{{ $data->like }}</span>
-            </a>
             @if(auth()->check())
+                {{-- 点赞 --}}
+                <a style="text-decoration:none;" core-click="like-topic" topic-id="{{ $data->id }}"
+                   class="hvr-icon-bounce cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                   title="{{__("topic.likes")}}">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon" width="24" height="24"
+                         viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                         stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M19.5 13.572l-7.5 7.428l-7.5 -7.428m0 0a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572"/>
+                    </svg>
+                    <span core-show="topic-likes">{{ $data->like }}</span>
+                </a>
                 {{--                收藏--}}
                 <a style="text-decoration:none;" core-click="star-topic" topic-id="{{ $data->id }}"
                    class="hvr-icon-bounce cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom"
@@ -37,23 +37,23 @@
                         <path d="M5 14h14l-4.5 -4.5l4.5 -4.5h-14v16"></path>
                     </svg>
                 </a>
+                {{--                引用--}}
+                <a style="text-decoration:none;" core-click="copy" copy-content="[topic topic_id={{$data->id}}]" message="短代码复制成功!"
+                   class="hvr-icon-bounce cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                   title="引用">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-blockquote" width="24"
+                         height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                        <path d="M6 15h15"></path>
+                        <path d="M21 19h-15"></path>
+                        <path d="M15 11h6"></path>
+                        <path d="M21 7h-6"></path>
+                        <path d="M9 9h1a1 1 0 1 1 -1 1v-2.5a2 2 0 0 1 2 -2"></path>
+                        <path d="M3 9h1a1 1 0 1 1 -1 1v-2.5a2 2 0 0 1 2 -2"></path>
+                    </svg>
+                </a>
             @endif
-            {{--                引用--}}
-            <a style="text-decoration:none;" core-click="copy" copy-content="[topic topic_id={{$data->id}}]" message="短代码复制成功!"
-               class="hvr-icon-bounce cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="引用">
-                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-blockquote" width="24"
-                     height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                    <path d="M6 15h15"></path>
-                    <path d="M21 19h-15"></path>
-                    <path d="M15 11h6"></path>
-                    <path d="M21 7h-6"></path>
-                    <path d="M9 9h1a1 1 0 1 1 -1 1v-2.5a2 2 0 0 1 2 -2"></path>
-                    <path d="M3 9h1a1 1 0 1 1 -1 1v-2.5a2 2 0 0 1 2 -2"></path>
-                </svg>
-            </a>
         </div>
 
         {{--                    右边 footer--}}

@@ -8,7 +8,7 @@
                             {!! $data->tag->icon !!}
                             {{$data->tag->name}}
                         </a></li>
-                    <li class="breadcrumb-item active" aria-current="page"><a href="">{{$data->title}}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page"><a href="">{{\Hyperf\Utils\Str::limit($data->title,20)}}</a></li>
                 </ol>
             </div>
             <div class="card-body topic">
