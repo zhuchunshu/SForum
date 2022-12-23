@@ -113,7 +113,7 @@ class UserNotice
                     'status' => 'publish'
                 ]);
             }
-            $this->sendMail($user_id, $title, $action, Str::limit($contentLength, 197));
+            $this->sendMail($user_id, $title, $action, $content, $contentLength);
         }
     }
     
