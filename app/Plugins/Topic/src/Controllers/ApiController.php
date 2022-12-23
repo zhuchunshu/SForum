@@ -313,15 +313,13 @@ class ApiController
         $updateds = request()->input('updateds');
         $data = [];
         foreach ($updateds as $updated_id) {
-            Timer::tick(1000, function () use ($updated_id, $data) {
-                $updated = TopicUpdated::query()->where(['id' => $updated_id])->first();
-                if ($updated->user_ip) {
-                    $data[] = [
-                        'updated_id' => $updated->id,
-                        'text' => 'IP归属地:' . core_default(get_client_ip_data($updated->user_ip)['pro'], '未知'),
-                    ];
-                }
-            });
+            $updated = TopicUpdated::query()->where(['id' => $updated_id])->first();
+            if ($updated->user_ip) {
+                $data[] = [
+                    'updated_id' => $updated->id,
+                    'text' => 'IP归属地:' . core_default(get_client_ip_data($updated->user_ip)['pro'], '未知'),
+                ];
+            }
         }
         return Json_Api(200, true, $data);
     }
