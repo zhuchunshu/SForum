@@ -31,7 +31,7 @@
                         <div class="col-md-12">
                             <div class="card border-0">
                                 @if($value->status==="pending")
-                                    <div class="ribbon bg-indigo">代办</div>
+                                    <div class="ribbon bg-indigo">待办</div>
                                 @elseif($value->status==="reject")
                                     <div class="ribbon bg-red">驳回</div>
                                 @elseif($value->status==="approve")
