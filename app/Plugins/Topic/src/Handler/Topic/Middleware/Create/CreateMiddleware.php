@@ -36,6 +36,7 @@ class CreateMiddleware implements MiddlewareInterface
                 'title' => 'required|string|min:' . get_options('topic_create_title_min', 1) . '|max:' . get_options('topic_create_title_max', 200),
                 'tag' => 'required|exists:topic_tag,id',
             ],
+            [],
             [
                 'content' => '内容',
                 'title' => '标题',

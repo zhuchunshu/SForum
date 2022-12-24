@@ -17,7 +17,7 @@
                         {{__('app.essence')}}
                     </div>
                 @endif
-                <div class="row">
+                <div class="row" style="margin-top: -10px">
                     {{--                    标题--}}
                     <div class="col-md-12" id="title">
                         <h1 data-bs-toggle="tooltip" data-bs-placement="left" title="{{__('topic.title')}}">

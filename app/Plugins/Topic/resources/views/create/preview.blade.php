@@ -23,7 +23,7 @@
     <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{mix('css/app.css')}}">
     <script>
-        var csrf_token = "{{ recsrf_token() }}";
+        var csrf_token = "{{ csrf_token() }}";
         var ws_url = "{{ws_url()}}";
         var _token = "{{auth()->token()}}";
         var imageUpUrl = "/user/upload/image?_token={{ csrf_token() }}";

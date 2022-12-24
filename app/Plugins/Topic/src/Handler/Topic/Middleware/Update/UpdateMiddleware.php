@@ -38,6 +38,7 @@ class UpdateMiddleware implements MiddlewareInterface
                 'title' => 'required|string|min:' . get_options('topic_create_title_min', 1) . '|max:' . get_options('topic_create_title_max', 200),
                 'tag' => 'required|exists:topic_tag,id',
             ],
+            [],
             [
                 'topic_id' => '帖子id',
                 'content' => '正文内容',

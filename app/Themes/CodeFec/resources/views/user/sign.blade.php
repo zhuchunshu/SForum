@@ -22,7 +22,7 @@
     <link rel="stylesheet" href="{{mix("plugins/Core/css/core.css")}}">
     <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet" />
     <script>
-        var csrf_token = "{{ recsrf_token() }}";
+        var csrf_token = "{{ csrf_token() }}";
         var ws_url = "{{ws_url()}}";
         var login_token = "{{auth()->token()}}";
     </script>

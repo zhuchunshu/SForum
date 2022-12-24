@@ -52,13 +52,30 @@
                                 <h3 class="card-title">附加信息</h3>
                             </div>
                             <div class="card-body">
-                               <div class="row">
-                                   @foreach(Itf()->get('topic-create-options') as $k=>$v)
-                                       @if(call_user_func($v['enable'])===true)
-                                           @include($v['view'])
-                                       @endif
-                                   @endforeach
-                               </div>
+                                <div class="row">
+                                    @foreach(Itf()->get('topic-create-options') as $k=>$v)
+                                        @if(call_user_func($v['enable'])===true)
+                                            @include($v['view'])
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="row row-cards">
+                            <div class="col-lg-9">
+                                <div class="card card-body">
+                                    <label for="" class="form-label">验证码</label>
+                                    <div class="input-group">
+                                        <input type="text" name="captcha" class="form-control" placeholder="captcha"
+                                               autocomplete="off" required>
+                                        <span class="input-group-link">
+                                 <img class="captcha" src="{{captcha()->inline()}}" alt=""
+                                      onclick="this.src='/captcha?id='+Math.random()">
+                            </span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -24,6 +24,7 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
+use Hyperf\RateLimit\Annotation\RateLimit;
 
 #[Controller(prefix: '/topic')]
 #[Middleware(\App\Plugins\User\src\Middleware\AuthMiddleware::class)]
@@ -100,6 +101,7 @@ class TopicController
     }
 
     #[PostMapping(path: '/topic/update')]
+    #[RateLimit(create:1, capacity:1, consume:1)]
     public function edit_post()
     {
         $quanxian = false;

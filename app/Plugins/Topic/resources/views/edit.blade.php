@@ -65,8 +65,25 @@
                         </div>
                     </div>
                     <div class="col-12">
+                        <div class="row row-cards">
+                            <div class="col-lg-9">
+                                <div class="card card-body">
+                                    <label for="" class="form-label">验证码</label>
+                                    <div class="input-group">
+                                        <input type="text" name="captcha" class="form-control" placeholder="captcha"
+                                               autocomplete="off" required>
+                                        <span class="input-group-link">
+                                 <img class="captcha" src="{{captcha()->inline()}}" alt=""
+                                      onclick="this.src='/captcha?id='+Math.random()">
+                            </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
                         @csrf()
-                        <button class="btn btn-primary" type="submit">提交</button>
+                        <button timeout="1500" auto-event="disabled" class="btn btn-primary" type="submit">提交</button>
                     </div>
                 </div>
             </form>

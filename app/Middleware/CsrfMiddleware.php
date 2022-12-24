@@ -36,7 +36,6 @@ class CsrfMiddleware implements MiddlewareInterface
         if(request()->isMethod("post") && csrf_token() !== request()->input("_token")) {
             return admin_abort(["msg" => "会话超时,请刷新后重新提交"],419);
         }
-
         return $handler->handle($request);
     }
 

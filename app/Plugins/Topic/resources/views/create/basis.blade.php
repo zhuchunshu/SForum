@@ -12,7 +12,7 @@
         </option>
         @foreach(\App\Plugins\Topic\src\Models\TopicTag::query()->where('status','=',null)->get() as $topic_tags)
             <option value="{{$topic_tags->id}}"
-                    data-custom-properties="&lt;span class=&quot;badge&quot; style=&quot;background-color: {{$topic_tags->color}} &quot; &gt;{{$topic_tags->icon}}&lt;/span&gt;">
+                    data-custom-properties="&lt;span class=&quot;badge&quot; style=&quot;background-color: {{$topic_tags->color}} &quot; &gt;{{$topic_tags->icon}}&lt;/span&gt;" @if(request()->input('basis.tag') && request()->input('basis.tag')==$topic_tags->id){{"selected"}}@endif>
                 {{$topic_tags->name}}
             </option>
         @endforeach
