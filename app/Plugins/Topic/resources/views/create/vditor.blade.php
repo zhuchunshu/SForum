@@ -76,9 +76,6 @@
                     </div>
                     <div class="mb-3">
                         <button class="btn btn-primary">{{__("topic.publish")}}</button>
-                        Or
-                        <button type="button" @@click="draft" class="btn btn-danger">
-                            {{__("topic.draft")}}</button>
                     </div>
                 </div>
             </div>

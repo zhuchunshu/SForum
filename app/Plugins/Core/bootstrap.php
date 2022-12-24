@@ -8,7 +8,6 @@ Authority()->add("comment_edit","修改自己的评论");
 Authority()->add("admin_topic_edit","修改所有帖子");
 Authority()->add("admin_comment_edit","修改所有评论");
 
-Authority()->add("admin_view_draft_topic","预览所有(他人)草稿");
 Authority()->add("admin_comment_remove","删除所有(他人)评论");
 Authority()->add("comment_remove","删除自己评论");
 

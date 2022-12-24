@@ -8,7 +8,6 @@ return [
 	'title' => '帖子标题',
 	'create' => '发帖',
 	'publish' => "发布",
-	"draft" => "存为草稿",
 	"comment" => [
 		'adoption' => '采纳',
 		'cancel' => '取消采纳',

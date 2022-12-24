@@ -74,49 +74,6 @@ class IndexController
         return redirect()->url('/users/' . auth()->data()->username . '.html')->go();
     }
 
-    // 草稿
-
-    #[GetMapping('/user/draft')]
-    public function draft()
-    {
-        $page = Topic::query()
-            ->where(['user_id' => auth()->id(), 'status' => 'draft'])
-            ->with('tag', 'user')
-            ->orderBy('topping', 'desc')
-            ->orderBy('id', 'desc')
-            ->paginate((int)get_options('topic_home_num', 15));
-
-        return view('User::draft', ['page' => $page]);
-    }
-
-    // 草稿
-
-    #[GetMapping('/draft/{id}')]
-    public function draft_show($id)
-    {
-        if (! Topic::query()->where('id', $id)->exists()) {
-            return admin_abort('页面不存在', 404);
-        }
-        $data = Topic::query()
-            ->where('id', $id)
-            ->with('tag', 'user', 'topic_updated')
-            ->first();
-        $quanxian = false;
-        if (auth()->id() == $data->user_id) {
-            $quanxian = true;
-        }
-        if (Authority()->check('admin_view_draft_topic')) {
-            $quanxian = true;
-        }
-        if ($quanxian === false) {
-            return admin_abort('无权预览此草稿', 419);
-        }
-        $shang = Topic::query()->where([['id', '<', $id], ['status', 'publish']])->select('title', 'id')->orderBy('id', 'desc')->first();
-        $xia = Topic::query()->where([['id', '>', $id], ['status', 'publish']])->select('title', 'id')->orderBy('id', 'asc')->first();
-        $sx = ['shang' => $shang, 'xia' => $xia];
-        return view('App::topic.show.draft', ['data' => $data, 'get_topic' => $sx]);
-    }
-
     // 个人通知
 
     #[GetMapping(path: '/user/notice')]
