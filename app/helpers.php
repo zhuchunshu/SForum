@@ -8,20 +8,30 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
  */
-use App\CodeFec\{Admin\Admin,Itf\Setting\SettingInterface,Menu\MenuInterface,Plugins,View\Beautify_Html};
+use App\CodeFec\Admin\Admin;
+use App\CodeFec\Itf\Setting\SettingInterface;
+use App\CodeFec\Menu\MenuInterface;
+use App\CodeFec\Plugins;
+use App\CodeFec\View\Beautify_Html;
 use App\Model\AdminOption;
 use Hyperf\Context\Context;
-use Hyperf\Contract\{SessionInterface,StdoutLoggerInterface};
+use Hyperf\Contract\SessionInterface;
+use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\HttpMessage\Stream\SwooleStream;
-use Hyperf\HttpServer\{Contract\ResponseInterface,Response};
+use Hyperf\HttpServer\Contract\ResponseInterface;
+use Hyperf\HttpServer\Response;
 use Hyperf\Logger\LoggerFactory;
 use Hyperf\Paginator\UrlWindow;
 use Hyperf\Server\ServerFactory;
 use Hyperf\Utils\{ApplicationContext};
 use Hyperf\View\RenderInterface;
-use Illuminate\Support\{Arr,Facades\File,Str};
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use Overtrue\Http\Client;
-use Psr\{Container\ContainerInterface,EventDispatcher\EventDispatcherInterface,Http\Message\ServerRequestInterface};
+use Psr\Container\ContainerInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
 function public_path($path = ''): string
 {
@@ -488,37 +498,34 @@ if (! function_exists('de_stringify')) {
 if (! function_exists('csrf_token')) {
     function csrf_token()
     {
-        if (! session()->has('csrf_token')) {
-            session()->set('csrf_token', Str::random());
+        if (! session()->has('CSRF_TOKEN')) {
+            session()->set('CSRF_TOKEN', Str::random());
         }
-        if (! cache()->has('csrf_token' . session()->get('csrf_token'))) {
-            cache()->set('csrf_token' . session()->get('csrf_token'), Str::random());
+        if (! cache()->has('CSRF_TOKEN' . session()->get('CSRF_TOKEN'))) {
+            $k = sha1(json_encode([
+                request()->getHeader('host')[0],
+                get_client_ip(),
+                get_user_agent(),
+            ], JSON_THROW_ON_ERROR));
+            cache()->set('CSRF_TOKEN' . session()->get('CSRF_TOKEN'), $k);
         }
-        return cache()->get('csrf_token' . session()->get('csrf_token'));
-    }
-}
-
-if (! function_exists('csrf_token')) {
-    function csrf_token()
-    {
-        if (! session()->has('csrf_token')) {
-            session()->set('csrf_token', Str::random());
-        }
-        if (! cache()->has('csrf_token.' . session()->get('csrf_token'))) {
-            cache()->set('csrf_token.' . session()->get('csrf_token'), Str::random());
-        }
-        return cache()->get('csrf_token.' . session()->get('csrf_token'));
+        return cache()->get('CSRF_TOKEN' . session()->get('CSRF_TOKEN'));
     }
 }
 
 if (! function_exists('recsrf_token')) {
     function recsrf_token()
     {
-        if (! session()->has('csrf_token')) {
-            session()->set('csrf_token', Str::random());
+        if (! session()->has('CSRF_TOKEN')) {
+            session()->set('CSRF_TOKEN', Str::random());
         }
-        cache()->set('csrf_token.' . session()->get('csrf_token'), Str::random());
-        return cache()->get('csrf_token.' . session()->get('csrf_token'));
+        $k = sha1(json_encode([
+            request()->getHeader('host')[0],
+            get_client_ip(),
+            get_user_agent(),
+        ], JSON_THROW_ON_ERROR));
+        cache()->set('CSRF_TOKEN' . session()->get('CSRF_TOKEN'), $k);
+        return cache()->get('CSRF_TOKEN' . session()->get('CSRF_TOKEN'));
     }
 }
 
