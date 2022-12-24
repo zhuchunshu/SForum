@@ -80,7 +80,7 @@
                         </div>
                     </div>
                     <div class="col-12">
-                        @csrf()
+                        <x-csrf/>()
                         <button class="btn btn-primary" type="submit">提交</button>
                     </div>
                 </div>

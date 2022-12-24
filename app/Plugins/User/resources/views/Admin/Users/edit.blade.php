@@ -14,7 +14,7 @@
             </div>
             <div class="card-body">
                 <form action="/admin/users/{{$user->id}}/edit" method="post">
-                    @csrf()
+                    <x-csrf/>()
                     <div class="mb-3">
                         <label for="" class="form-label">用户名</label>
                         <input class="form-control" type="text"  name="username" value="{{$user->username}}">

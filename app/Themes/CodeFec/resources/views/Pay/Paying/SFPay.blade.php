@@ -9,7 +9,7 @@
                 <a href="." class="navbar-brand navbar-brand-autodark"><img src="./static/logo.svg" height="36" alt=""></a>
             </div>
             <form class="card card-md" action="" method="post" autocomplete="off" novalidate>
-                @csrf()
+                <x-csrf/>()
                 <div class="card-body text-center">
                     <div class="mb-3">
                         <h2 class="card-title">支付锁</h2>

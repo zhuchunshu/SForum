@@ -82,7 +82,7 @@
                         </div>
                     </div>
                     <div class="col-12">
-                        @csrf()
+                        <x-csrf/>()
                         <button timeout="1500" auto-event="disabled" class="btn btn-primary" type="submit">提交</button>
                     </div>
                 </div>
