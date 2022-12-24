@@ -1,8 +1,14 @@
 <?php
 
-
+declare(strict_types=1);
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ */
 namespace App\Plugins\Core\src\Lib;
-
 
 class Redirect
 {
@@ -10,13 +16,13 @@ class Redirect
 
     public function url($url): Redirect
     {
-      $this->url = $url;
-      return $this;
+        $this->url = $url;
+        return $this;
     }
 
     public function back(): Redirect
     {
-        $this->url = session()->get("_previous")['url'];
+        $this->url = request()->getHeader('referer')[0];
         return $this;
     }
 

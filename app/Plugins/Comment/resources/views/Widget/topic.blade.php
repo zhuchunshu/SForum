@@ -49,14 +49,23 @@
                     <a class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="close"></a>
                 </div>
 
-                <div class="mb-1" id="topic-comment-model">
-                    <form action="" method="post" @@submit.prevent="submit">
+                <div class="mb-1">
+                    <form action="/topic/create/comment/{{$data->id}}" method="post">
                         <div class="row">
-                            <div class="col-md-12">
-                                <div id="topic-comment"></div>
+                            <div class="col-md-12 mb-3">
+                                <x-csrf/>
+                                <input type="hidden" name="topic_id" value="{{$data->id}}">
+                                <textarea name="content" placeholder="说点什么..." class="form-control" data-bs-toggle="autosize" required></textarea>
+                            </div>
+                            <div class="col-12">
+                                <div class="row">
+                                    <div class="col">
+                                        <button class="btn btn-primary">评论</button>
+                                    </div>
+                                    <div class="col-auto"><a class="text-muted" href="/topic/create/comment/{{$data->id}}">[高级回复]</a></div>
+                                </div>
                             </div>
                         </div>
-                        <button class="btn btn-azure">评论</button>
                     </form>
                 </div>
             @endif
