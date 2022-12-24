@@ -66,7 +66,7 @@
                         @if($i<=5)
                             <span data-bs-toggle="modal" data-bs-target="#topic-updated"
                                   class="avatar avatar-sm avatar-rounded"
-                                  style="--tblr-avatar-size:25px;background-image:url({{avatar_url($v->user_id)}})"></span>
+                                  style="--tblr-avatar-size:25px;background-image:url({{super_avatar($v->user)}})"></span>
                             @php
                                 $i++;
                             @endphp
@@ -97,7 +97,7 @@
                         <li>
                             <div class="list-timeline-icon"><!-- Download SVG icon from http://tabler-icons.io/i/brand-twitter -->
                                 <!-- SVG icon code -->
-                                <a href="/users/{{$value->user->username}}.html" class="avatar avatar-rounded" style="background-image: url('{{avatar_url($value->user_id)}}')"></a>
+                                <a href="/users/{{$value->user->username}}.html" class="avatar avatar-rounded" style="background-image: url('{{super_avatar($value->user)}}')"></a>
                             </div>
                             <div class="list-timeline-content">
                                 <div class="list-timeline-time">{{format_date($value->created_at)}}</div>

@@ -69,16 +69,6 @@ class ApiController
         return $data;
     }
 
-    #[PostMapping(path: '/api/user/@user_list')]
-    public function user_list(): array
-    {
-        $data = User::query()->select('username', 'id')->get();
-        $arr = [];
-        foreach ($data as $key => $value) {
-            $arr[$key] = ['value' => '@' . $value->username, 'html' => '<img src="' . avatar_url($value->id) . '" alt="' . $value->username . '"/> ' . $value->username];
-        }
-        return $arr;
-    }
 
     #[PostMapping(path: '/api/user/@has_user_username/{username}')]
     public function has_user_username($username): array

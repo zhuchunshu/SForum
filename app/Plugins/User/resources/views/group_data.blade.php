@@ -41,7 +41,7 @@
                                     <div class="col-md-6" style="margin-bottom:5px">
                                         <div class="row">
                                             <div class="col-auto">
-                                                {!! avatar($value->id) !!}
+                                                <span class="avatar" style="background-image: url({{super_avatar($value)}})"></span>
                                             </div>
                                             <div class="col">
                                                 <a href="/users/{{$value->username}}.html" class="text-body d-block text-truncate"><b>{{$value->username}}</b></a>

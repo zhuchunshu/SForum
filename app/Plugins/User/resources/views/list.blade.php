@@ -36,7 +36,7 @@
                         <div class="col-md-6 col-lg-3">
                             <div class="border-0 card">
                                 <div class="card-body p-4 text-center">
-                                    {!! avatar($value->id,"avatar-xl mb-3 avatar-rounded") !!}
+                                    <span class="avatar avatar-xl mb-3 avatar-rounded" style="background-image: url({{super_avatar($value)}})"></span>
                                     <h3 class="m-0 mb-1">
                                         <a href="/users/{{$value->username}}.html">{{$value->username}}</a>
                                     </h3>

@@ -70,7 +70,7 @@
                         <div class="card-title">修改头像</div>
                         <div class="mb-3">
                             <label class="form-label">当前头像
-                                <div>{!! avatar(auth()->data()->id) !!}</div>
+                                <div><span class="avatar" style="background-image: url({{super_avatar(auth()->data())}})"></span></div>
                             </label>
                         </div>
                         <div class="mb-3">
