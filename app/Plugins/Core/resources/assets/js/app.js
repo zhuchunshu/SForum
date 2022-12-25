@@ -4035,9 +4035,15 @@ $(function () {
   });
 });
 $(function () {
-  // 刷新验证码
-  $(":button").click(function () {
-    $('.captcha').attr('src', '/captcha?id=' + Math.random());
+  $('button[auto-event="disabled"]').on("click", function () {
+    var _this = this;
+
+    $(this).attr('disabled', 'disabled');
+    var timeout = $(this).attr('timeout');
+    setTimeout(function () {
+      $(_this).removeAttr('disabled');
+    }, timeout);
+    $(this).parents('form').submit();
   });
 });
 })();

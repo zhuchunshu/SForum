@@ -372,3 +372,218 @@ $(function(){
         })
     })
 })
+
+// 加载帖子更新记录作者IP归属地
+
+$(function(){
+    let updateds = [];
+    $('span[topic-type="updated_ip"]').each(function(){
+        updateds.push($(this).attr("updated-id"));
+    })
+    if(updateds.length>0){
+        axios.post('/api/topic/get.updated.user.ip',{
+            _token:csrf_token,
+            updateds:updateds
+        }).then(r=>{
+            let data = r.data;
+            data = data.result
+            data.forEach(function(v){
+                $('span[updated-id="'+v.updated_id+'"]').text(v.text);
+            })
+        })
+    }
+})
+
+
+// 对帖子页面的操作
+$(function(){
+
+    // 精华
+    $('a[core-click="topic-essence"]').click(function(){
+        var topic_id = $(this).attr("topic-id");
+        swal({
+            title:"精华指数,数字越大排名越靠前",
+            content: {
+                element: "input",
+                attributes: {
+                    type: "number",
+                    max:999,
+                    min:1
+                },
+            },
+        }).then(r => {
+            if(r && !isNaN(r) && r>=0){
+                axios.post("/api/topic/set.topic.essence",{
+                    _token:csrf_token,
+                    topic_id:topic_id,
+                    zhishu:r
+                }).then(r=>{
+                    const data = r.data;
+                    if(data.success){
+                        iziToast.success({
+                            title: 'Success',
+                            position: 'topRight',
+                            message: data.result.msg,
+                        });
+                    }else{
+                        iziToast.error({
+                            title: 'Error',
+                            position: 'topRight',
+                            message: data.result.msg,
+                        });
+                    }
+                }).catch(e=>{
+                    iziToast.error({
+                        title: 'Error',
+                        position: 'topRight',
+                        message: '请求出错,详细查看控制台',
+                    });
+                    console.error(e)
+                })
+            }
+        });
+    })
+
+    // 置顶
+    $('a[core-click="topic-topping"]').click(function(){
+        var topic_id = $(this).attr("topic-id");
+        swal({
+            title:"置顶指数,数字越大排名越靠前",
+            content: {
+                element: "input",
+                attributes: {
+                    type: "number",
+                    max:999,
+                    min:1
+                },
+            },
+        }).then(r => {
+            if(r && !isNaN(r) && r>=0){
+                axios.post("/api/topic/set.topic.topping",{
+                    _token:csrf_token,
+                    topic_id:topic_id,
+                    zhishu:r
+                }).then(r=>{
+                    const data = r.data;
+                    if(data.success){
+                        iziToast.success({
+                            title: 'Success',
+                            position: 'topRight',
+                            message: data.result.msg,
+                        });
+                    }else{
+                        iziToast.error({
+                            title: 'Error',
+                            position: 'topRight',
+                            message: data.result.msg,
+                        });
+                    }
+                }).catch(e=>{
+                    iziToast.error({
+                        title: 'Error',
+                        position: 'topRight',
+                        message: '请求出错,详细查看控制台',
+                    });
+                    console.error(e)
+                })
+            }
+        });
+    })
+
+    // 删除
+    $('a[core-click="topic-delete"]').click(function(){
+        var topic_id = $(this).attr("topic-id");
+        swal({
+            title:"确定要删除此贴吗? 删除后不可恢复",
+            buttons: ["取消", "确定"],
+        }).then(r => {
+            if(r===true){
+                axios.post("/api/topic/set.topic.delete",{
+                    _token:csrf_token,
+                    topic_id:topic_id,
+                    zhishu:r
+                }).then(r=>{
+                    const data = r.data;
+                    if(data.success){
+                        iziToast.success({
+                            title: 'Success',
+                            position: 'topRight',
+                            message: data.result.msg,
+                        });
+                    }else{
+                        iziToast.error({
+                            title: 'Error',
+                            position: 'topRight',
+                            message: data.result.msg,
+                        });
+                    }
+                }).catch(e=>{
+                    iziToast.error({
+                        title: 'Error',
+                        position: 'topRight',
+                        message: '请求出错,详细查看控制台',
+                    });
+                    console.error(e)
+                })
+            }
+        });
+    })
+})
+
+if(document.getElementById("author")){
+    const author = {
+        data(){
+            return {
+                'user':{
+                    'city':null,
+                }
+            }
+        },
+        mounted(){
+            this.getUserCity();
+        },
+        methods:{
+            // 获取作者所在城市
+            getUserCity(){
+                axios.post("/api/topic/get.user",{
+                    _token:csrf_token,
+                    topic_id:topic_id
+                }).then(r=>{
+                    this.user = r.data.result;
+                }).catch(e=>{
+                    iziToast.error({
+                        title: 'Error',
+                        message:"请求出错,详细查看控制台",
+                        position:"topRight"
+                    })
+                    console.error(e)
+                })
+            }
+        }
+
+
+    }
+
+    Vue.createApp(author).mount('#author');
+}
+
+
+// 加载评论作者IP归属地
+$(function(){
+    let comments = [];
+    $('small[comment-type="ip"]').each(function(){
+        comments.push($(this).attr("comment-id"));
+    })
+    if(comments.length>0){
+        axios.post('/api/comment/get.user.ip',{
+            _token:csrf_token,
+            comments:comments
+        }).then(r=>{
+            let data = r.data;
+            data = data.result
+            data.forEach(function(v){
+                $('small[comment-id="'+v.comment_id+'"]').text(v.text);
+            })
+        })
+    }
+})

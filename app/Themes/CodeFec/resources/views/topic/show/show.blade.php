@@ -38,15 +38,6 @@
 @section('headers')
     <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
     <link rel="stylesheet" href="{{file_hash('tabler/libs/plyr/dist/plyr.css')}}">
-@endsection
-
-@section('scripts')
-    <script>var topic_id ={{$data->id}}</script>
-    @if($comment_page)
-        <script>var comment_id ={{$comment_page}}</script>
-    @endif
-    <script src="{{mix('plugins/Topic/js/core.js')}}"></script>
-    <script src="{{file_hash('tabler/libs/plyr/dist/plyr.min.js')}}"></script>
     <style>
         /* for block of numbers */
         .hljs-ln-numbers {
@@ -81,6 +72,16 @@
             background-color: #21252B
         }
     </style>
+@endsection
+
+@section('scripts')
+    <script>var topic_id ={{$data->id}}</script>
+    @if($comment_page)
+        <script>var comment_id ={{$comment_page}}</script>
+    @endif
+    <script src="{{mix('plugins/Topic/js/core.js')}}"></script>
+    <script src="{{mix('plugins/Comment/js/topic.js')}}"></script>
+    <script src="{{file_hash('tabler/libs/plyr/dist/plyr.min.js')}}"></script>
     <script src="{{file_hash('highlight/highlight.min.js')}}"></script>
     <script src="{{file_hash('highlight/highlightjs-line-numbers.min.js')}}"></script>
     <script>

@@ -1,5 +1,13 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ */
 namespace App\Plugins\Comment\src\Request;
 
 use Hyperf\Validation\Request\FormRequest;
@@ -14,21 +22,19 @@ class TopicReply extends FormRequest
         return true;
     }
 
-    public function rules():array
+    public function rules(): array
     {
         return [
-            "comment_id" => "required|exists:topic_comment,id",
-            "content" => "required|string",
-            "parent_url" => "required",
+            'comment_id' => 'required|exists:topic_comment,id',
+            'content' => 'required|string',
         ];
     }
 
     public function attributes(): array
     {
         return [
-            "comment_id" => "被回复的评论ID",
-            "content" => __("topic.comment.comment content"),
-            "parent_url" => "被回复的帖子链接",
+            'comment_id' => '被回复的评论ID',
+            'content' => '回复内容',
         ];
     }
 }

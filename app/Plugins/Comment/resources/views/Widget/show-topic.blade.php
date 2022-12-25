@@ -4,6 +4,27 @@
         @if($data->user_id == auth()->id() && Authority()->check("comment_caina")) @php $caina = true;@endphp @endif
         @if(Authority()->check("admin_comment_caina")) @php $caina = true; @endphp @endif
         @if($comment->count())
+            <div class="modal modal-blur fade" id="reply-comment-modal" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">回复评论</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div>
+                                <label class="form-label">回复内容</label>
+                                <input type="hidden" name="comment_id" value="" id="reply-comment-id">
+                                <textarea class="form-control" name="content" id="reply-comment-content" data-bs-toggle="autosize" placeholder="说点什么..."></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn me-auto" data-bs-dismiss="modal">关闭</button>
+                            <button type="button" class="btn btn-primary" id="reply-comment-modal-reply-button" data-bs-dismiss="modal">回复</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="col-md-12">
                 <div class="row row-cards">
                     @foreach($comment as $key=>$value)
@@ -124,7 +145,7 @@
                                             </a>
                                             {{--                                            回复--}}
                                             <a style="text-decoration:none;" comment-click="comment-reply-topic"
-                                               comment-id="{{ $value->id }}"
+                                               comment-id="{{ $value->id }}" data-bs-toggle="modal" data-bs-target="#reply-comment-modal"
                                                class="cursor-pointer text-muted hvr-icon-up" data-bs-toggle="tooltip"
                                                data-bs-placement="bottom" title="{{__("app.reply")}}">
                                                 <svg xmlns="http://www.w3.org/2000/svg"
@@ -230,21 +251,6 @@
                                                     <path d="M3 9h1a1 1 0 1 1 -1 1v-2.5a2 2 0 0 1 2 -2"></path>
                                                 </svg>
                                             </a>
-                                        </div>
-
-                                        <div class="col-md-12" comment-dom="comment-{{$value->id}}"
-                                             comment-status="off">
-                                            <div class="hr-text"
-                                                 style="margin-bottom:15px;margin-top:15px;display: none">{{__("app.reply")}}
-                                            </div>
-                                        </div>
-                                        <div class="col-md-12" style="display: none"
-                                             comment-url="/{{$data->id}}.html/{{$value->id}}?page={{$comment->currentPage()}}"
-                                             comment-dom="comment-vditor-{{$value->id}}" comment-status="off">
-                                            <div id="comment-reply-vditor-{{$value->id}}"></div>
-                                            <button style="margin-top:10px" class="btn btn-primary" type="button"
-                                                    comment-dom="comment-vditor-submit-{{$value->id}}">提交
-                                            </button>
                                         </div>
                                     </div>
                                 </div>
