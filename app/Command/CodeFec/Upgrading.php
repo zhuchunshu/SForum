@@ -1,12 +1,17 @@
 <?php
 
 declare(strict_types=1);
-
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ */
 namespace App\Command\CodeFec;
 
-use App\CodeFec\Install;
-use Hyperf\Command\Command as HyperfCommand;
 use Hyperf\Command\Annotation\Command;
+use Hyperf\Command\Command as HyperfCommand;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -35,11 +40,11 @@ class Upgrading extends HyperfCommand
 
     public function handle()
     {
-	    $install = make(\App\CodeFec\Upgrading::class, [
-		    'output' => $this->output,
-		    'command' => $this
-	    ]);
-	
-	    $install->run();
+        $install = make(\App\CodeFec\Upgrading::class, [
+            'output' => $this->output,
+            'command' => $this,
+        ]);
+
+        $install->run();
     }
 }
