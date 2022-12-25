@@ -60,14 +60,14 @@
         let options = {
             selector: '#basis-content',
             height: 450,
-            menu:{!! \App\Plugins\Topic\src\Lib\Editor::menu() !!},
-            menubar:"{!! \App\Plugins\Topic\src\Lib\Editor::menubar() !!}",
+            menu:{!! \App\Plugins\Topic\src\Lib\Edit\Editor::menu() !!},
+            menubar:"{!! \App\Plugins\Topic\src\Lib\Edit\Editor::menubar() !!}",
             statusbar: true,
             elementpath: true,
             promotion: false,
-            plugins: {!! \App\Plugins\Topic\src\Lib\Editor::plugins() !!},
+            plugins: {!! \App\Plugins\Topic\src\Lib\Edit\Editor::plugins() !!},
             language: "zh-Hans",
-            toolbar: "{!! \App\Plugins\Topic\src\Lib\Editor::toolbar() !!}",
+            toolbar: "{!! \App\Plugins\Topic\src\Lib\Edit\Editor::toolbar() !!}",
             link_default_target: '_blank',
             toolbar_mode: 'sliding',
             image_advtab: true,
@@ -76,7 +76,7 @@
             setup : function(ed) {
                 //console.log(ed)
             },
-            external_plugins:{!! \App\Plugins\Topic\src\Lib\Editor::externalPlugins() !!},
+            external_plugins:{!! \App\Plugins\Topic\src\Lib\Edit\Editor::externalPlugins() !!},
             images_upload_handler: image_upload_handler,
             init_instance_callback: (editor) => {
                 @if(request()->has('restoredraft'))
@@ -84,8 +84,8 @@
                 @endif
             },
             mobile:{
-                menu:{!! \App\Plugins\Topic\src\Lib\Editor::menu() !!},
-                menubar:"{!! \App\Plugins\Topic\src\Lib\Editor::menubar() !!}",
+                menu:{!! \App\Plugins\Topic\src\Lib\Edit\Editor::menu() !!},
+                menubar:"{!! \App\Plugins\Topic\src\Lib\Edit\Editor::menubar() !!}",
                 toolbar_mode: 'scrolling'
             },
             autosave_ask_before_unload: true,

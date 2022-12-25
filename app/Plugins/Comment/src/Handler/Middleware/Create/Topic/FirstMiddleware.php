@@ -24,9 +24,14 @@ class FirstMiddleware implements MiddlewareInterface
         if (! Authority()->check('comment_create')) {
             return redirect()->back()->with('danger', '无评论权限')->go();
         }
+        $backUrl = pathinfo(request()->getHeader('referer')[0])['dirname'] . '/' . $data['topic_id'];
+        $result = [
+            'content' =>  @$data['no_content']?:$data['content'],
+            'restoredraft' => true,
+        ];
         if (cache()->has('comment_create_time_' . auth()->id())) {
             $time = cache()->get('comment_create_time_' . auth()->id()) - time();
-            return redirect()->back()->with('danger', '发表评论过于频繁,请 ' . $time . ' 秒后再试')->go();
+            return redirect()->url($backUrl . '?' . http_build_query($result))->with('danger', '发表评论过于频繁,请 ' . $time . ' 秒后再试')->go();
         }
         cache()->set('comment_create_time_' . auth()->id(), time() + get_options('comment_create_time', 60), get_options('comment_create_time', 60));
         return $next($data);

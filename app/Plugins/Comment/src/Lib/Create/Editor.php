@@ -8,18 +8,19 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
  */
-namespace App\Plugins\Topic\src\Lib;
+namespace App\Plugins\Comment\src\Lib\Create;
 
 class Editor
 {
     /**
      * 获取编辑器插件列表.
      * @return bool|string
+     * @throws \JsonException
      */
     public static function plugins(): bool | string
     {
         $data = [];
-        foreach (Itf()->get('topic-create-editor-plugins') as $value) {
+        foreach (Itf()->get('comment-topic-create-editor-plugins') as $value) {
             foreach ($value as $plugin) {
                 $data[] = $plugin;
             }
@@ -36,7 +37,7 @@ class Editor
     public static function externalPlugins(): bool | string
     {
         $data = [];
-        foreach (Itf()->get('topic-create-editor-external_plugins') as $value) {
+        foreach (Itf()->get('comment-topic-create-editor-external_plugins') as $value) {
             foreach ($value as $name => $plugin) {
                 $data[$name] = $plugin;
             }
@@ -52,7 +53,7 @@ class Editor
     public static function toolbar(): bool | string
     {
         $data = [];
-        foreach (Itf()->get('topic-create-editor-toolbar') as $value) {
+        foreach (Itf()->get('comment-topic-create-editor-toolbar') as $value) {
             foreach ($value as $toolbar) {
                 $data[] = $toolbar;
             }
@@ -68,7 +69,7 @@ class Editor
     public static function menu()
     {
         $data = [];
-        foreach (Itf()->get('topic-create-editor-menu') as $key => $value) {
+        foreach (Itf()->get('comment-topic-create-editor-menu') as $key => $value) {
             foreach ($value as $keys => $menu) {
                 $data[$keys] = $menu;
             }
@@ -87,7 +88,7 @@ class Editor
     public static function menubar()
     {
         $data = [];
-        foreach (Itf()->get('topic-create-editor-menu') as $value) {
+        foreach (Itf()->get('comment-topic-create-editor-menu') as $value) {
             foreach ($value as $key => $menu) {
                 $data[$key] = $menu;
             }

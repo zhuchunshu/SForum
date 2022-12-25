@@ -22,7 +22,7 @@ class Redirect
 
     public function back(): Redirect
     {
-        $this->url = request()->getHeader('referer')[0];
+        $this->url = request()->getHeader('referer')[0]?:'/';
         return $this;
     }
 

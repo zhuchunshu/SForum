@@ -44,7 +44,17 @@ class CreateMiddleware implements MiddlewareInterface
         if ($validator->fails()) {
             // Handle exception
             cache()->delete('comment_create_time_' . auth()->id());
-            return redirect()->url(request()->getHeader('referer')[0] . '?' . http_build_query($data))->with('danger', $validator->errors()->first())->go();
+            $backUrl = pathinfo(request()->getHeader('referer')[0])['dirname'] . '/' . $data['topic_id'];
+            $result = [
+                'content' => $data['no_content'] ?: $data['content'],
+                'restoredraft' => true,
+            ];
+            return redirect()->url($backUrl . '?' . http_build_query($result))->with('danger', $validator->errors()->first())->go();
+        }
+        $topic = Topic::query()->find($data['topic_id']);
+        if (@$topic->post->options->disable_comment) {
+            cache()->delete('comment_create_time_' . auth()->id());
+            return redirect()->back()->with('danger', '此帖子关闭了评论功能')->go();
         }
         $data = $this->create($data);
         return $next($data);

@@ -55,7 +55,7 @@
                             <div class="col-md-12 mb-3">
                                 <x-csrf/>
                                 <input type="hidden" name="topic_id" value="{{$data->id}}">
-                                <textarea name="content" placeholder="说点什么..." class="form-control" data-bs-toggle="autosize" required></textarea>
+                                <textarea name="content" placeholder="说点什么..." class="form-control" data-bs-toggle="autosize" required>{{request()->input('content')}}</textarea>
                             </div>
                             <div class="col-12">
                                 <div class="row">
