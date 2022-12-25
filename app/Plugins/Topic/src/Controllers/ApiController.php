@@ -239,9 +239,9 @@ class ApiController
         }
         $data = Topic::query()->where('id', $topic_id)->first();
         $quanxian = false;
-        if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
+        if (Authority()->check('admin_topic_delete') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
-        } elseif (Authority()->check('topic_edit') && auth()->id() === $data->user->id) {
+        } elseif (Authority()->check('topic_delete') && auth()->id() === $data->user->id) {
             $quanxian = true;
         }
 

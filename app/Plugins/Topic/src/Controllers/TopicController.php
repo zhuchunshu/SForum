@@ -15,8 +15,6 @@ use App\Plugins\Topic\src\Handler\Topic\CreateTopicView;
 use App\Plugins\Topic\src\Handler\Topic\EditTopic;
 use App\Plugins\Topic\src\Handler\Topic\EditTopicView;
 use App\Plugins\Topic\src\Models\Topic;
-use App\Plugins\Topic\src\Requests\Topic\CreateTopicRequest;
-use App\Plugins\Topic\src\Requests\Topic\UpdateTopicRequest;
 use App\Plugins\User\src\Middleware\LoginMiddleware;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -87,7 +85,7 @@ class TopicController
     }
 
     #[PostMapping(path: '/topic/update')]
-    #[RateLimit(create:1, capacity:1, consume:1)]
+    #[RateLimit(create: 1, capacity: 1, consume: 1)]
     public function edit_post()
     {
         $quanxian = false;

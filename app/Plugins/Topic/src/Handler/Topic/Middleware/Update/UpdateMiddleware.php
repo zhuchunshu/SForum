@@ -51,6 +51,17 @@ class UpdateMiddleware implements MiddlewareInterface
             return redirect()->with('danger', $validator->errors()->first())->url('topic/' . $data['basis']['topic_id'] . '/edit')->go();
         }
         $data['topic_id'] = $data['basis']['topic_id'];
+        $topic = Topic::query()->find($data['topic_id']);
+        $quanxian = false;
+        if(Authority()->check("admin_topic_edit") && auth()->Class()['permission-value']>curd()->GetUserClass($topic->user->class_id)['permission-value']){
+            $quanxian = true;
+        }
+        if(Authority()->check("topic_edit") && auth()->id() === $topic->user->id){
+            $quanxian = true;
+        }
+        if($quanxian===false){
+            return redirect()->back()->with('danger','无权修改!')->go();
+        }
         $data = $this->update($data);
         return $next($data);
     }

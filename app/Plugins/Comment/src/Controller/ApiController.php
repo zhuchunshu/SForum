@@ -268,35 +268,6 @@ class ApiController
         return Json_Api(200,true,$data);
     }
 
-    #[PostMapping(path:"topic.comment.update")]
-    public function topic_comment_update(UpdateComment $request){
-        $id = $request->input("comment_id"); // 获取评论id
-        if(!TopicComment::query()->where("id",$id)->exists()){
-            return Json_Api(404,false,["id为:".$id."的评论不存在"]);
-        }
-        $data = TopicComment::query()->where("id",$id)->first();
-        $quanxian = false;
-        if(Authority()->check("admin_topic_edit") && curd()->GetUserClass(auth()->data()->class_id)['permission-value']>curd()->GetUserClass($data->user->class_id)['permission-value']){
-            $quanxian = true;
-        }
-        if(Authority()->check("topic_edit") && auth()->id() === $data->user->id){
-            $quanxian = true;
-        }
-        if($quanxian===false){
-            return Json_Api(419,false,["无权修改!"]);
-        }
-        // 过滤xss
-        $content = xss()->clean($request->input('content'));
-
-        // 解析艾特
-        $content = $this->topic_create_at($content);
-        $post_id = TopicComment::query()->find($id)->post_id;
-		Post::query()->where("id",$post_id)->update([
-			'content' => $content,
-		]);
-        return Json_Api(200,true,["更新成功!"]);
-    }
-
     #[PostMapping("topic.caina.comment")]
     public function topic_caina_comment(){
         $comment_id = request()->input('comment_id');

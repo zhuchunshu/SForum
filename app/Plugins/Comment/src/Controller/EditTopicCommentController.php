@@ -27,10 +27,10 @@ class EditTopicCommentController
         }
         $data = TopicComment::query()->find($id);
         $quanxian = false;
-        if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
+        if (Authority()->check('admin_comment_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
         }
-        if (Authority()->check('topic_edit') && auth()->id() === $data->user->id) {
+        if (Authority()->check('comment_edit') && auth()->id() === $data->user->id) {
             $quanxian = true;
         }
         if ($quanxian === false) {
