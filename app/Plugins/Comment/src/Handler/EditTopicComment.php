@@ -10,17 +10,17 @@ declare(strict_types=1);
  */
 namespace App\Plugins\Comment\src\Handler;
 
-use App\Plugins\Comment\src\Annotation\Topic\CreateFirstMiddleware;
-use App\Plugins\Comment\src\Annotation\Topic\CreateLastMiddleware;
-use App\Plugins\Comment\src\Annotation\Topic\CreateMiddleware;
+use App\Plugins\Comment\src\Annotation\Topic\UpdateFirstMiddleware;
+use App\Plugins\Comment\src\Annotation\Topic\UpdateLastMiddleware;
+use App\Plugins\Comment\src\Annotation\Topic\UpdateMiddleware;
 use Hyperf\Di\Annotation\AnnotationCollector;
 
-class CreateTopicComment
+class EditTopicComment
 {
-    public function handler($topic_id)
+    public function handler($comment_id)
     {
         $request = request()->all();
-        $request['topic_id'] = $topic_id;
+        $request['comment_id'] = $comment_id;
         $handler = function ($request) {
             return $request;
         };
@@ -54,16 +54,16 @@ class CreateTopicComment
     private function middlewares(): array
     {
         $middlewares = [];
-        foreach (AnnotationCollector::getClassesByAnnotation(CreateFirstMiddleware::class) as $key => $value) {
+        foreach (AnnotationCollector::getClassesByAnnotation(UpdateFirstMiddleware::class) as $key => $value) {
             $middlewares[] = $key;
         }
-        foreach (AnnotationCollector::getClassesByAnnotation(CreateMiddleware::class) as $key => $value) {
+        foreach (AnnotationCollector::getClassesByAnnotation(UpdateMiddleware::class) as $key => $value) {
             $middlewares[] = $key;
         }
-        foreach (AnnotationCollector::getClassesByAnnotation(CreateLastMiddleware::class) as $key => $value) {
+        foreach (AnnotationCollector::getClassesByAnnotation(UpdateLastMiddleware::class) as $key => $value) {
             $middlewares[] = $key;
         }
-        $endMiddlewares = Itf()->get('create-topic-comment-handle-middleware-end');
+        $endMiddlewares = Itf()->get('edit-topic-comment-handle-middleware-end');
         krsort($endMiddlewares);
         foreach ($endMiddlewares as $value) {
             $middlewares[] = $value;

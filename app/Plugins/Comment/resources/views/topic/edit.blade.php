@@ -1,80 +1,45 @@
 @extends("App::app")
 
-@section('title',"修改id为:".$data->id."的评论")
+@section('title',"修改评论")
 
 
 @section('content')
 
-    <div class="row justify-content-center">
-        <div class="col-md-12">
-            <div class="border-0 card">
+    <div class="row row-cards justify-content-center">
+        <div class="col-lg-12">
+            <ol class="breadcrumb breadcrumb-arrows" aria-label="breadcrumbs">
+                <li class="breadcrumb-item"><a href="/">首页</a></li>
+                <li class="breadcrumb-item"><a href="/tags/{{$comment->topic->tag->id}}.html">
+                        {!! $comment->topic->tag->icon !!}
+                        {{$comment->topic->tag->name}}
+                    </a>
+                </li>
+                <li class="breadcrumb-item"><a href="/{{$comment->topic->id}}.html">
+                        {{\Hyperf\Utils\Str::limit($comment->topic->title,25)}}
+                    </a>
+                </li>
+                <li class="breadcrumb-item"><a href="{{'/' . $comment->topic_id . '.html/' . $comment->id . '?page=' . get_topic_comment_page($comment->id)}}">
+                        ID【{{$comment->id}}】的评论
+                    </a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page"><a href="#">修改评论</a></li>
+            </ol>
+        </div>
+        <div class="col-lg-12">
+            <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title"><a class="text-red"
-                                              href="/{{$data->topic->id}}.html">{{$data->topic->title}}</a>
-                        下id为{{$data->id}}的评论</h3>
+                    <h3 class="card-title">回帖</h3>
                 </div>
-                <div class="card-body" id="vue-comment-topic-edit-form">
-                    <form action="" method="post" @@submit.prevent="submit">
-                        <div class="row">
-                            <div class="mb-3">
-                                <div class="row">
-                                    @if(get_options("comment_emoji_close",'false')!=="true" && count((new \App\Plugins\Core\src\Lib\Emoji())->get()))
-                                        <div class="col-lg-3">
-                                            <div class="card">
-                                                <ul class="nav nav-tabs" data-bs-toggle="tabs" style="flex-wrap: inherit;
-        width: 100%;
-        height: 3.333333rem;
-        padding: 0.373333rem 0.32rem 0;
-        box-sizing: border-box;
-        /* 下面是实现横向滚动的关键代码 */
-        display: inline;
-        float: left;
-        white-space: nowrap;
-        overflow-x: scroll;
-        -webkit-overflow-scrolling: touch; /*解决在ios滑动不顺畅问题*/
-        overflow-y: hidden;">
-                                                    @foreach((new \App\Plugins\Core\src\Lib\Emoji())->get() as $key => $value)
-                                                        <li class="nav-item">
-                                                            <a href="#emoji-list-{{$key}}"
-                                                               class="nav-link @if ($loop->first) active @endif"
-                                                               data-bs-toggle="tab">{{$key}}</a>
-                                                        </li>
-                                                    @endforeach
-                                                </ul>
-                                                <div class="card-body">
-                                                    <div class="tab-content">
-                                                        @foreach((new \App\Plugins\Core\src\Lib\Emoji())->get() as $key => $value)
-                                                            <div class="tab-pane  @if ($loop->first) active @endif show"
-                                                                 id="emoji-list-{{$key}}"
-                                                                 style="max-height: 220px;overflow-x: hidden;">
-                                                                <div class="row">
-                                                                    @if($value['type'] === 'image')
-                                                                        @foreach($value['container'] as $emojis)
-                                                                            <div @@click="selectEmoji('{{$emojis['text']}}')"
-                                                                                 class="col-3 col-sm-2 col-md-4 col-lg-3 hvr-glow emoji-picker"
-                                                                                 emoji-data="{{$emojis['text']}}">{!! $emojis['icon'] !!}</div>
-                                                                        @endforeach
-                                                                    @endif
-                                                                </div>
-                                                            </div>
-                                                        @endforeach
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-9">
-                                            <div id="vditor"></div>
-                                        </div>
-                                    @else
-                                        <div class="col-md-12">
-                                            <div id="vditor"></div>
-                                        </div>
-                                    @endif
-                                    <div class="col-12 mt-3">
-                                        <button class="btn btn-primary" style="margin-top: 5px">提交</button>
-                                    </div>
-                                </div>
-                            </div>
+                <div class="card-body">
+                    <form action="/comment/topic/{{$comment->id}}/edit" method="post">
+                        <x-csrf/>
+                        <input type="hidden" name="comment_id" value="{{$comment->id}}">
+                        <div class="mb-3">
+                            <label for="" class="form-label"></label>
+                            <textarea name="content" id="content" rows="3">{!! $comment->post->content !!}</textarea>
+                        </div>
+                        <div class="mb-3 d-flex flex-row-reverse">
+                            <button class="btn btn-primary" type="submit">修改评论</button>
                         </div>
                     </form>
                 </div>
@@ -84,11 +49,74 @@
 
 @endsection
 
-@section('headers')
-    <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
-@endsection
 @section('scripts')
-    <script>var comment_id = {{$data->id}}</script>
-    <script>var topic_id = {{$data->topic_id}}</script>
-    <script src="{{mix("plugins/Comment/js/edit.js")}}"></script>
+    <script src="{{file_hash("js/axios.min.js")}}"></script>
+    <script src="{{file_hash('tabler/libs/tinymce/tinymce.min.js')}}"></script>
+    <script defer>
+        const target = document.getElementsByTagName("html")[0]
+        const body_className = document.getElementsByTagName("html")[0].getAttribute("data-theme");
+        const observer = new MutationObserver(function (mutations) {
+            mutations.forEach(function (mutation) {
+                if (body_className !== document.getElementsByTagName("html")[0].getAttribute("data-theme")) {
+                    location.reload()
+                }
+            });
+        });
+
+        observer.observe(target, {attributes: true});
+
+        const image_upload_handler = (blobInfo, progress) => new Promise((resolve, reject) => {
+            const formData = new FormData();
+            formData.append('file', blobInfo.blob(), blobInfo.filename());
+            formData.append('_token', csrf_token);
+            axios.post("/user/upload/image",formData,{
+                'Content-type' : 'multipart/form-data'
+            }).then(function(r){
+                console.log(r)
+                const data = r.data;
+                if(data.success){
+                    resolve(data.result.url);
+                    return ;
+                }
+                reject({message:'HTTP Error: ' + data.result.msg + ', Error Code: '+data.code,remove: true});
+            }).catch(function(e){
+                console.log(e)
+            })
+
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            let options = {
+                selector: '#content',
+                height: 450,
+                menu:{!! \App\Plugins\Comment\src\Lib\Edit\Editor::menu() !!},
+                menubar:"{!! \App\Plugins\Comment\src\Lib\Edit\Editor::menubar() !!}",
+                statusbar: true,
+                elementpath: true,
+                promotion: false,
+                plugins: {!! \App\Plugins\Comment\src\Lib\Edit\Editor::plugins() !!},
+                language: "zh-Hans",
+                toolbar: "{!! \App\Plugins\Comment\src\Lib\Edit\Editor::toolbar() !!}",
+                link_default_target: '_blank',
+                toolbar_mode: 'sliding',
+                image_advtab: true,
+                automatic_uploads: true,
+                convert_urls:false,
+                external_plugins:{!! \App\Plugins\Comment\src\Lib\Edit\Editor::externalPlugins() !!},
+                images_upload_handler: image_upload_handler,
+                mobile:{
+                    menu:{!! \App\Plugins\Comment\src\Lib\Edit\Editor::menu() !!},
+                    menubar:"{!! \App\Plugins\Comment\src\Lib\Edit\Editor::menubar() !!}",
+                    toolbar_mode: 'scrolling'
+                },
+                branding:false,
+                content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }'
+            }
+            if (document.body.className === 'theme-dark') {
+                options.skin = 'oxide-dark';
+                options.content_css = 'dark';
+            }
+            tinyMCE.init(options);
+        });
+    </script>
 @endsection

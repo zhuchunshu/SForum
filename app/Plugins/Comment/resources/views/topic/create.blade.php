@@ -82,20 +82,20 @@
             let options = {
                 selector: '#content',
                 height: 450,
-                menu:{!! \App\Plugins\Comment\src\Lib\Edit\Editor::menu() !!},
-                menubar:"{!! \App\Plugins\Comment\src\Lib\Edit\Editor::menubar() !!}",
+                menu:{!! \App\Plugins\Comment\src\Lib\Create\Editor::menu() !!},
+                menubar:"{!! \App\Plugins\Comment\src\Lib\Create\Editor::menubar() !!}",
                 statusbar: true,
                 elementpath: true,
                 promotion: false,
-                plugins: {!! \App\Plugins\Comment\src\Lib\Edit\Editor::plugins() !!},
+                plugins: {!! \App\Plugins\Comment\src\Lib\Create\Editor::plugins() !!},
                 language: "zh-Hans",
-                toolbar: "{!! \App\Plugins\Comment\src\Lib\Edit\Editor::toolbar() !!}",
+                toolbar: "{!! \App\Plugins\Comment\src\Lib\Create\Editor::toolbar() !!}",
                 link_default_target: '_blank',
                 toolbar_mode: 'sliding',
                 image_advtab: true,
                 automatic_uploads: true,
                 convert_urls:false,
-                external_plugins:{!! \App\Plugins\Comment\src\Lib\Edit\Editor::externalPlugins() !!},
+                external_plugins:{!! \App\Plugins\Comment\src\Lib\Create\Editor::externalPlugins() !!},
                 images_upload_handler: image_upload_handler,
                 init_instance_callback: (editor) => {
                     @if(request()->has('restoredraft'))
@@ -103,8 +103,8 @@
                     @endif
                 },
                 mobile:{
-                    menu:{!! \App\Plugins\Comment\src\Lib\Edit\Editor::menu() !!},
-                    menubar:"{!! \App\Plugins\Comment\src\Lib\Edit\Editor::menubar() !!}",
+                    menu:{!! \App\Plugins\Comment\src\Lib\Create\Editor::menu() !!},
+                    menubar:"{!! \App\Plugins\Comment\src\Lib\Create\Editor::menubar() !!}",
                     toolbar_mode: 'scrolling'
                 },
                 autosave_ask_before_unload: true,

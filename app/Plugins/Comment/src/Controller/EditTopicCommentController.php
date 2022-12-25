@@ -10,20 +10,22 @@ declare(strict_types=1);
  */
 namespace App\Plugins\Comment\src\Controller;
 
+use App\Plugins\Comment\src\Handler\EditTopicComment;
 use App\Plugins\Comment\src\Model\TopicComment;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
+use Hyperf\HttpServer\Annotation\PostMapping;
 
 #[Controller(prefix: '/comment')]
-class IndexController
+class EditTopicCommentController
 {
     #[GetMapping(path: 'topic/{id}/edit')]
-    public function edit_topic_comment($id)
+    public function index($id)
     {
         if (! TopicComment::query()->where('id', $id)->exists()) {
             return admin_abort('id为:' . $id . '的评论不存在', 404);
         }
-        $data = TopicComment::query()->where('id', $id)->first();
+        $data = TopicComment::query()->find($id);
         $quanxian = false;
         if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
@@ -34,6 +36,13 @@ class IndexController
         if ($quanxian === false) {
             return admin_abort('无权操作!', 419);
         }
-        return view('Comment::topic.edit', ['data' => $data]);
+        return view('Comment::topic.edit', ['comment' => $data]);
+    }
+
+    #[PostMapping(path: 'topic/{id}/edit')]
+    public function update($id)
+    {
+
+        return (new EditTopicComment())->handler($id);
     }
 }

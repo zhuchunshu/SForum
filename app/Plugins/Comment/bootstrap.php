@@ -1,6 +1,7 @@
 <?php
 
 Itf()->add('create-topic-comment-handle-middleware-end', 0, \App\Plugins\Comment\src\Handler\Middleware\Create\Topic\EndMiddleware::class);
+Itf()->add('edit-topic-comment-handle-middleware-end', 0, \App\Plugins\Comment\src\Handler\Middleware\Edit\Topic\EndMiddleware::class);
 
 Itf()->add('comment-topic-create-editor-external_plugins', 0, [
     'sfPreview' => file_hash('plugins/Topic/js/editor/plugins/sfPreview.js'),
@@ -9,7 +10,7 @@ Itf()->add('comment-topic-edit-editor-external_plugins', 0, [
     'sfPreview' => file_hash('plugins/Topic/js/editor/plugins/sfPreview.js'),
 ]);
 Itf()->add('comment-topic-create-editor-plugins', 0, ['importcss', 'searchreplace', 'autolink', 'autosave', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'media', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
-Itf()->add('comment-topic-edit-editor-plugins', 0, ['importcss', 'searchreplace', 'autolink', 'autosave', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'media', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
+Itf()->add('comment-topic-edit-editor-plugins', 0, ['importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'media', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
 
 Itf()->add('comment-topic-create-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'restoredraft', 'codesample', '|', 'ltr', 'rtl']);
 Itf()->add('comment-topic-edit-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'restoredraft', 'codesample', '|', 'ltr', 'rtl']);
