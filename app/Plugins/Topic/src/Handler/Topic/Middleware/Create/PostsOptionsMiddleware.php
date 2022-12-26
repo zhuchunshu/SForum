@@ -27,6 +27,11 @@ class PostsOptionsMiddleware implements MiddlewareInterface
             $post_options = PostsOption::query()->where('post_id', $post_id)->first()->id;
         }
         $data['posts_options'] = $post_options;
+        $disable_comment = (bool) request()->input('options.disable_comment', false);
+        $posts_options_id = $data['posts_options']['id'];
+        PostsOption::query()->where('id', $posts_options_id)->update([
+            'disable_comment' => $disable_comment,
+        ]);
         return $next($data);
     }
 }
