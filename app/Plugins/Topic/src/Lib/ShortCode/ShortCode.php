@@ -21,7 +21,7 @@ class ShortCode
         if (! @isset($data['comment'])) {
             return '[' . $shortCode->getName() . ']短标签只能用于评论';
         }
-        if(auth()->id()==$data['comment']['user_id'] || auth()->id()==$data['comment']['topic']['id']){
+        if(auth()->id()==$data['comment']['user_id'] || auth()->id()==$data['comment']['topic']['user_id']){
             return $shortCode->getContent();
         }
         return <<<HTML
