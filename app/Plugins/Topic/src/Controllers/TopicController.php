@@ -62,6 +62,7 @@ class TopicController
     public function create_preview()
     {
         $content = request()->input('content', '无内容');
+        $content = xss()->clean($content);
         return view('Topic::create.preview', ['content' => $content]);
     }
 
