@@ -111,8 +111,7 @@ Itf()->add('topic-edit-editor-plugins', 0, ['importcss', 'searchreplace', 'autol
 Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'restoredraft', 'codesample', '|', 'ltr', 'rtl']);
 Itf()->add('topic-edit-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'restoredraft', 'codesample', '|', 'ltr', 'rtl']);
 
-
-$editor_menu =[
+$editor_menu = [
     'file' => [
         'title' => 'File',
         'items' => [
@@ -270,3 +269,19 @@ Itf()->add('topic-edit-options', 0, [
     }),
     'view' => 'Topic::edit.options.disable_comment',
 ]);
+
+Itf()->add('topic-create-options', 1, [
+    'enable' => (function () {
+        return true;
+    }),
+    'view' => 'Topic::create.options.only_author',
+]);
+Itf()->add('topic-edit-options', 1, [
+    'enable' => (function () {
+        return true;
+    }),
+    'view' => 'Topic::edit.options.only_author',
+]);
+
+Itf()->add('topic-create-handle-middleware-end', 1, \App\Plugins\Topic\src\Handler\Topic\Middleware\Create\Options\OnlyAuthor::class);
+Itf()->add('topic-edit-handle-middleware-end', 1, \App\Plugins\Topic\src\Handler\Topic\Middleware\Create\Options\OnlyAuthor::class);
