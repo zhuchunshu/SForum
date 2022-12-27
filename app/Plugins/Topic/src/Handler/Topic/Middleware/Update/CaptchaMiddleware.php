@@ -18,7 +18,7 @@ class CaptchaMiddleware implements MiddlewareInterface
     public function handler($data, \Closure $next)
     {
         if (! captcha()->check(request()->input('captcha'))) {
-            return redirect()->url('/' . $data['basis']['topic_id'] . '.html')->with('danger', '验证码错误')->go();
+            return redirect()->back()->with('danger', '验证码错误')->go();
         }
         return $next($data);
     }

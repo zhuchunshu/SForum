@@ -48,7 +48,7 @@ class UpdateMiddleware implements MiddlewareInterface
         );
 
         if ($validator->fails()) {
-            return redirect()->with('danger', $validator->errors()->first())->url('topic/' . $data['basis']['topic_id'] . '/edit')->go();
+            return redirect()->with('danger', $validator->errors()->first())->back()->go();
         }
         $data['topic_id'] = $data['basis']['topic_id'];
         $topic = Topic::query()->find($data['topic_id']);

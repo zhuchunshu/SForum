@@ -22,7 +22,7 @@ class UpdateFirstMiddleware implements MiddlewareInterface
         $class_name = UserClass::query()->where('id', auth()->data()->class_id)->first()->name;
         $tag_value = TopicTag::query()->where('id', $data['basis']['tag'])->first();
         if (! user_TopicTagQuanxianCheck($tag_value, $class_name)) {
-            return redirect()->with('danger', '无权使用此标签')->url('topic/create')->go();
+            return redirect()->with('danger', '无权使用此标签')->back()->go();
         }
         return $next($data);
     }
