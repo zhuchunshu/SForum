@@ -26,7 +26,7 @@ class ShortCode
         }
         return <<<HTML
 <div class="card card-body disabled">
-私密评论，仅作者可见
+私密评论，仅楼主可见
 </div>
 HTML;
     }
