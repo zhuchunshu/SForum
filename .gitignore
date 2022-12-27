@@ -25,3 +25,4 @@ node_modules
 /public/css/diy.css
 /public/js/diy.js
 /app/CodeFec/storage
+/resources/views/customize/
