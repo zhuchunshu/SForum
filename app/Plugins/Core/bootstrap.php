@@ -93,7 +93,6 @@ Itf()->add('ui-index-right-end-hook', 99999, [
         return false;
     }),
 ]);
-
 Itf()->add('ui-common-right-end-hook', 99999, [
     'view' => 'App::widget.friend_links',
     'enable' => (function () {
