@@ -840,9 +840,13 @@ if (! function_exists('qr_code')) {
 if (! function_exists('backup')) {
     /**
      * 备份网站数据.
+     * @param null|mixed $path 备份文件存放位置
      */
-    function backup(): void
+    function backup(mixed $path = null): void
     {
+        if (! $path) {
+            $path = BASE_PATH . '/runtime/backup.zip';
+        }
         $sql_backup_name = Str::random(40) . '.sql';
         $sql_backup_name = BASE_PATH . '/runtime/' . $sql_backup_name;
         System::exec('mysqldump -u ' . config('databases.default.username') . ' -p' . config('databases.default.password') . ' ' . config('databases.default.database') . ' > "' . $sql_backup_name . '"');
@@ -857,7 +861,7 @@ if (! function_exists('backup')) {
             $backup_files['backup.sql'] = $sql_backup_name;
         }
         $zippy = Zippy::load();
-        $zippy->create(BASE_PATH . '/runtime/backup.zip', $backup_files, true);
+        $zippy->create($path, $backup_files, true);
         System::exec('rm -rf "' . $sql_backup_name . '"');
     }
 }

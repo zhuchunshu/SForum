@@ -50,7 +50,7 @@ class Upgrading
 
     public function run()
     {
-        $url = match ((string) $this->get_options('update_server', 2)) {
+        $url = match ((string) $this->get_options('update_server', '2')) {
             '2' => '',
             '1' => 'https://ghproxy.com/'
         };
@@ -79,12 +79,25 @@ class Upgrading
         $this->download($url, $file_path);
     }
 
-    public function download(string $download, string $path)
+    public function removeFiles(...$values): void
+    {
+        foreach ($values as $value) {
+            \Swoole\Coroutine\System::exec('rm -rf "' . $value . '"');
+        }
+    }
+
+    private function download(string $download, string $path)
     {
         $this->command->info("开始更新...\n");
         $this->command->info("生成更新锁...\n");
         // 生成更新锁
         file_put_contents(BASE_PATH . '/app/CodeFec/storage/update.lock', time());
+        // 备份网站数据
+        $this->command->info('开始备份网站数据，网站数据会存放在:' . BASE_PATH . "/runtime/backup.zip 文件中\n");
+        backup();
+        // 卸载自带组件
+        $this->rmPlugins();
+        $this->command->info("卸载自带组件...\n");
         // 下载文件
         $this->command->info("\n下载资源包...");
         file_put_contents($path, fopen($download, 'r'));
@@ -132,13 +145,6 @@ class Upgrading
         }
     }
 
-    public function removeFiles(...$values): void
-    {
-        foreach ($values as $value) {
-            \Swoole\Coroutine\System::exec('rm -rf "' . $value . '"');
-        }
-    }
-
     private function AdminPluginMigrateAll(): void
     {
         foreach (getEnPlugins() as $name) {
@@ -172,5 +178,15 @@ class Upgrading
                 $exitCode = $application->run($input, $output);
             }
         }
+    }
+
+    private function rmPlugins(): void
+    {
+        $plugins = ['Core', 'User', 'Search', 'Topic', 'Comment', 'Mail'];
+        foreach ($plugins as $plugin) {
+            $path = plugin_path($plugin);
+            $this->removeFiles($path);
+        }
+        $this->removeFiles(theme_path('CodeFec'));
     }
 }
