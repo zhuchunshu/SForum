@@ -8,6 +8,7 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
  */
+use Alchemy\Zippy\Zippy;
 use App\CodeFec\Admin\Admin;
 use App\CodeFec\Itf\Setting\SettingInterface;
 use App\CodeFec\Menu\MenuInterface;
@@ -32,6 +33,7 @@ use Overtrue\Http\Client;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Swoole\Coroutine\System;
 
 function public_path($path = ''): string
 {
@@ -832,5 +834,30 @@ if (! function_exists('qr_code')) {
     function qr_code(): SimpleSoftwareIO\QrCode\Generator
     {
         return new \SimpleSoftwareIO\QrCode\Generator();
+    }
+}
+
+if (! function_exists('backup')) {
+    /**
+     * 备份网站数据.
+     */
+    function backup(): void
+    {
+        $sql_backup_name = Str::random(40) . '.sql';
+        $sql_backup_name = BASE_PATH . '/runtime/' . $sql_backup_name;
+        System::exec('mysqldump -u ' . config('databases.default.username') . ' -p' . config('databases.default.password') . ' ' . config('databases.default.database') . ' > "' . $sql_backup_name . '"');
+        $backup_files = [
+            BASE_PATH . '/app',
+            public_path(),
+            BASE_PATH . '/.env',
+            BASE_PATH . '/composer.json',
+            BASE_PATH . '/composer.lock',
+        ];
+        if (file_exists($sql_backup_name)) {
+            $backup_files['backup.sql'] = $sql_backup_name;
+        }
+        $zippy = Zippy::load();
+        $zippy->create(BASE_PATH . '/runtime/backup.zip', $backup_files, true);
+        System::exec('rm -rf "' . $sql_backup_name . '"');
     }
 }
