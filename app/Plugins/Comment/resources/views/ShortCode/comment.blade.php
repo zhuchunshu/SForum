@@ -1,4 +1,9 @@
 <div class="row row-cards justify-content-center">
+    @if(@isset($value->topic->post->options->only_author) && $value->topic->post->options->only_author)
+        @php($posts_options_only_author = true)
+    @else
+        @php($posts_options_only_author = false)
+    @endif
     <div class="col-md-10">
         <div class="card">
             <div id="comment-{{$value->id}}" name="comment-{{$value->id}}" class="col-md-12">
@@ -31,20 +36,24 @@
                             <div class="col-md-12">
                                 <div class="hr-text" style="margin-bottom:8px;margin-top:15px">{{__("topic.comment.comment content")}}</div>
                             </div>
-                            <div core-show="comment" comment-id="{{$value->id}}" class="col-md-12 markdown">
-                                @if($value->parent_id)
-                                    <div class="quote">
-                                        <blockquote>
-                                            <a style="font-size:13px;" href="{{$value->parent_url}}" target="_blank">
-                                                <span style="color:#999999" >{{$value->parent->user->username}} {{__("app.Published on")}} {{format_date($value->created_at)}}</span>
-                                            </a>
-                                            <br>
-                                            {!! \Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($value->parent->post->content)),60) !!}
-                                        </blockquote>
-                                    </div>
-                                @endif
+                            @if($posts_options_only_author)
+                                @include('Comment::Widget.only-author')
+                            @else
+                                <div core-show="comment" comment-id="{{$value->id}}" class="col-md-12 markdown">
+                                    @if($value->parent_id)
+                                        <div class="quote">
+                                            <blockquote>
+                                                <a style="font-size:13px;" href="{{$value->parent_url}}" target="_blank">
+                                                    <span style="color:#999999" >{{$value->parent->user->username}} {{__("app.Published on")}} {{format_date($value->created_at)}}</span>
+                                                </a>
+                                                <br>
+                                                {!! \Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($value->parent->post->content)),60) !!}
+                                            </blockquote>
+                                        </div>
+                                    @endif
                                     {!!CommentContentParse()->parse($value->post->content,['comment' => $value,'topic' => $value->topic,'RemoveshortCode' => ['topic-comment']]) !!}
-                            </div>
+                                </div>
+                            @endif
                             {{--                                    操作--}}
                             <div class="col-md-12">
                                 <div class="hr-text" style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.operate")}}</div>
