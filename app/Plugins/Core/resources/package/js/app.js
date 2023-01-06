@@ -213,3 +213,18 @@ $(function(){
         $(this).parents('form').submit()
     })
 })
+
+
+
+function GetQueryString(name){
+    const reg = eval("/" + name + "/g");
+    const r = window.location.search.substr(1);
+    const flag = reg.test(r);
+    return !!flag;
+}
+
+if(GetQueryString('clean_topic_content_cache')){
+    localStorage.removeItem('topic_create_content');
+    localStorage.removeItem('create_topic_title');
+    localStorage.removeItem('create_topic_tag');
+}

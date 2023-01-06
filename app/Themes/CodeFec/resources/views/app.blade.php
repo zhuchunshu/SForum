@@ -55,6 +55,7 @@
     <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
     <script src="{{ mix('plugins/Core/js/app.js') }}"></script>
     <script src="{{ file_hash('js/diy.js') }}"></script>
+    <script src="{{ file_hash('js/alpine.min.js') }}" defer></script>
     {{-- <!-- 自定义Js --> --}}
     @foreach (\App\CodeFec\Ui\functions::get('js') as $key => $value)
         <script src="{{ $value }}"></script>
