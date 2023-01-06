@@ -98,20 +98,18 @@
                 external_plugins:{!! \App\Plugins\Comment\src\Lib\Create\Editor::externalPlugins() !!},
                 images_upload_handler: image_upload_handler,
                 init_instance_callback: (editor) => {
-                    @if(request()->has('restoredraft'))
-                    editor.plugins.autosave.restoreDraft()
-                    @endif
+                    if(localStorage.getItem('topic_comment_create_content')){
+                        editor.setContent(localStorage.getItem('topic_comment_create_content'))
+                    }
+                    editor.on('input', function(e) {
+                        localStorage.setItem('topic_comment_create_content',editor.getContent())
+                    });
                 },
                 mobile:{
                     menu:{!! \App\Plugins\Comment\src\Lib\Create\Editor::menu() !!},
                     menubar:"{!! \App\Plugins\Comment\src\Lib\Create\Editor::menubar() !!}",
                     toolbar_mode: 'scrolling'
                 },
-                autosave_ask_before_unload: true,
-                autosave_interval: '1s',
-                autosave_prefix: '{{config('codefec.app.name')}}-comment-{path}{query}-{id}-',
-                autosave_restore_when_empty: false,
-                autosave_retention: '1400m',
                 branding:false,
                 content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }'
             }

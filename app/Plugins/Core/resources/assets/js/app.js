@@ -4059,6 +4059,10 @@ if (GetQueryString('clean_topic_content_cache')) {
   localStorage.removeItem('create_topic_title');
   localStorage.removeItem('create_topic_tag');
 }
+
+if (GetQueryString('clean_topic_comment_content_cache')) {
+  localStorage.removeItem('topic_comment_create_content');
+}
 })();
 
 /******/ })()
