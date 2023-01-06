@@ -840,15 +840,20 @@ if (! function_exists('qr_code')) {
 if (! function_exists('backup')) {
     /**
      * 备份网站数据.
-     * @param null|mixed $path 备份文件存放位置
+     * @param null|mixed $filename backup压缩文件 文件名
      */
-    function backup(mixed $path = null): void
+    function backup(mixed $filename = null): string
     {
-        if (! $path) {
-            $path = BASE_PATH . '/runtime/backup.zip';
+        if (! is_dir(BASE_PATH . '/runtime/backup')) {
+            System::exec('cd ' . BASE_PATH . '/runtime' . '&& mkdir ' . 'backup');
+        }
+        if (! $filename) {
+            $filename = BASE_PATH . '/runtime/backup/backup.zip';
+        } else {
+            $filename = BASE_PATH . '/runtime/backup/' . $filename;
         }
         $sql_backup_name = Str::random(40) . '.sql';
-        $sql_backup_name = BASE_PATH . '/runtime/' . $sql_backup_name;
+        $sql_backup_name = BASE_PATH . '/runtime/backup/' . $sql_backup_name;
         System::exec('mysqldump -u ' . config('databases.default.username') . ' -p' . config('databases.default.password') . ' ' . config('databases.default.database') . ' > "' . $sql_backup_name . '"');
         $backup_files = [
             BASE_PATH . '/app',
@@ -861,7 +866,8 @@ if (! function_exists('backup')) {
             $backup_files['backup.sql'] = $sql_backup_name;
         }
         $zippy = Zippy::load();
-        $zippy->create($path, $backup_files, true);
+        $zippy->create($filename, $backup_files, true);
         System::exec('rm -rf "' . $sql_backup_name . '"');
+        return $filename;
     }
 }
