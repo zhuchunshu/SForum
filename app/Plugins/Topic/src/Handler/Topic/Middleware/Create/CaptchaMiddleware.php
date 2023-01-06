@@ -17,10 +17,10 @@ class CaptchaMiddleware implements MiddlewareInterface
 {
     public function handler($data, \Closure $next)
     {
-        if (! captcha()->check(request()->input('captcha'))) {
-            unset($data['basis']['content']);
-            return redirect()->with('danger', '验证码错误')->url('topic/create?' . http_build_query($data))->go();
-        }
+//        if (! captcha()->check(request()->input('captcha'))) {
+//            unset($data['basis']['content']);
+//            return redirect()->with('danger', '验证码错误')->url('topic/create?' . http_build_query($data))->go();
+//        }
         return $next($data);
     }
 }
