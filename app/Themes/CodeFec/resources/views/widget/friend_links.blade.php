@@ -10,9 +10,13 @@
             @endif
         </div>
         <div class="card-body">
-            @foreach(\App\Plugins\Core\src\Models\FriendLink::query()->orderByDesc('to_sort')->get(['name','link','to_sort']) as $data)
-                <span class="antialiased"><a class="text-muted h3" href="{{$data->link}}">{{$data->name}}</a></span>
-            @endforeach
+            <ul style="padding-left: 0;list-style: none;">
+                @foreach(\App\Plugins\Core\src\Models\FriendLink::query()->orderByDesc('to_sort')->get(['name','link','to_sort','_blank']) as $data)
+                    <li class="mb-1" style="float: left;list-style: outside none none;padding: 3px;line-height: 1.6">
+                        <a class="text-muted h4" @if((int)$data->_blank===1) target="_blank" @endif href="{{$data->link}}">{{$data->name}}</a>
+                    </li>
+                @endforeach
+            </ul>
         </div>
     </div>
 </div>
