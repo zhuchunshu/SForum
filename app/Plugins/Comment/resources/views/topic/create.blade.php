@@ -3,22 +3,22 @@
 @section('content')
     <div class="row row-cards justify-content-center">
         <div class="col-lg-12">
-            <ol class="breadcrumb breadcrumb-arrows" aria-label="breadcrumbs">
-                <li class="breadcrumb-item"><a href="/">首页</a></li>
-                <li class="breadcrumb-item"><a href="/tags/{{$topic->tag->id}}.html">
-                        {!! $topic->tag->icon !!}
-                        {{$topic->tag->name}}
-                    </a>
-                </li>
-                <li class="breadcrumb-item"><a href="/{{$topic->id}}.html">
-                        {{\Hyperf\Utils\Str::limit($topic->title,25)}}
-                    </a>
-                </li>
-                <li class="breadcrumb-item active" aria-current="page"><a href="#">回帖</a></li>
-            </ol>
-        </div>
-        <div class="col-lg-12">
             <div class="card">
+                <div class="card-header">
+                    <ol class="breadcrumb breadcrumb-arrows" aria-label="breadcrumbs">
+                        <li class="breadcrumb-item"><a href="/">首页</a></li>
+                        <li class="breadcrumb-item"><a href="/tags/{{$topic->tag->id}}.html">
+                                {!! $topic->tag->icon !!}
+                                {{$topic->tag->name}}
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item"><a href="/{{$topic->id}}.html">
+                                {{\Hyperf\Utils\Str::limit($topic->title,25)}}
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item active" aria-current="page"><a href="#">回帖</a></li>
+                    </ol>
+                </div>
                 <div class="card-header">
                     <h3 class="card-title">回帖</h3>
                 </div>
