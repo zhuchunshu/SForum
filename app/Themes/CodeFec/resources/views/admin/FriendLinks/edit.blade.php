@@ -42,7 +42,11 @@
                                     <option value="关闭" @if($data->_blank!='1') selected @endif>关闭</option>
                                 </select>
                             </div>
-                            <div class="col-12 row">
+                            <div class="col-lg-4">
+                                <label for="" class="form-label">站点描述</label>
+                                <textarea name="description" rows="1" class="form-control">{{$data->description}}</textarea>
+                            </div>
+                            <div class="col-12 row mt-2">
                                 <div class="col"></div>
                                 <div class="col-auto">
                                     <button type="submit" name="action" value="delete" class="btn btn-danger">删除</button>

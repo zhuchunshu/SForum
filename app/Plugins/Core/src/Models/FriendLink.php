@@ -19,6 +19,7 @@ use App\Model\Model;
  * @property string $icon
  * @property int $to_sort
  * @property int $_blank
+ * @property string $description
  */
 class FriendLink extends Model
 {
@@ -36,7 +37,7 @@ class FriendLink extends Model
      *
      * @var array
      */
-    protected $fillable = ['id', 'name', 'link', 'to_sort', 'icon', 'target'];
+    protected $fillable = ['id', 'name', 'link', 'to_sort', 'icon', 'target','description'];
 
     /**
      * The attributes that should be cast to native types.

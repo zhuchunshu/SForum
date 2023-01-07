@@ -18,5 +18,14 @@
                 @endforeach
             </ul>
         </div>
+        @if(get_options('theme_common_friend_links_all'))
+        <div class="card-footer">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <a href="{{get_options('theme_common_friend_links_all')}}">查看全部</a>
+                </div>
+            </div>
+        </div>
+        @endif
     </div>
 </div>

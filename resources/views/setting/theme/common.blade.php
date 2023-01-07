@@ -37,6 +37,10 @@
             <div class="form-label">申请友链地址</div>
             <input type="text" v-model="data.theme_common_friend_links_apply" class="form-control">
         </div>
+        <div class="col-lg-4">
+            <div class="form-label">查看全部友链地址</div>
+            <input type="text" v-model="data.theme_common_friend_links_all" class="form-control">
+        </div>
     </div>
 
 </div>

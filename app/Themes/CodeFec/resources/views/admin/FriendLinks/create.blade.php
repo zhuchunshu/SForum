@@ -37,7 +37,11 @@
                                     <option value="关闭">关闭</option>
                                 </select>
                             </div>
-                            <div class="col-12 row">
+                            <div class="col-lg-4">
+                                <label for="" class="form-label">站点描述</label>
+                                <textarea name="description" rows="1" class="form-control"></textarea>
+                            </div>
+                            <div class="col-12 row mt-2">
                                 <div class="col"></div>
                                 <div class="col-auto">
                                     <button type="submit" class="btn btn-primary">提交</button>

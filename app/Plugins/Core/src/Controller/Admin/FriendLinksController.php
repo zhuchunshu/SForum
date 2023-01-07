@@ -50,6 +50,7 @@ class FriendLinksController
                 'icon' => 'nullable',
                 'to_sort' => 'required|integer',
                 '_blank' => 'required',
+                'description' => 'nullable|string',
             ],
             [],
             [
@@ -58,6 +59,7 @@ class FriendLinksController
                 'icon' => '图标',
                 'to_sort' => '排序',
                 '_blank' => '是否新标签打开',
+                'description' => '网站描述',
             ]
         );
 
@@ -91,7 +93,7 @@ class FriendLinksController
         if (! FriendLink::query()->where('id', $id)->exists()) {
             return redirect()->back()->with('danger', '友链不存在')->go();
         }
-        if(request()->input('action')==='delete'){
+        if (request()->input('action') === 'delete') {
             FriendLink::query()->where('id', $id)->delete();
             return redirect()->with('success', '删除成功!')->url('/admin/setting/friend_links')->go();
         }
@@ -103,6 +105,7 @@ class FriendLinksController
                 'icon' => 'nullable',
                 'to_sort' => 'required|integer',
                 '_blank' => 'required',
+                'description' => 'nullable|string',
             ],
             [],
             [
@@ -111,6 +114,7 @@ class FriendLinksController
                 'icon' => '图标',
                 'to_sort' => '排序',
                 '_blank' => '是否新标签打开',
+                'description' => '网站描述',
             ]
         );
 
