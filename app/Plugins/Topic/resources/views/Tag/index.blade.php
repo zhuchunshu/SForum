@@ -28,7 +28,7 @@
                             <td>{{ $value->id }}</td>
                             <td>{{ $value->name }}</td>
                             <td>
-                                <span class="avatar avatar-sm" style="background-image: url({{$value->icon}})"></span>
+                                <span class="avatar avatar-sm">{!! $value->icon !!}</span>
                             </td>
                             <td class="text-muted">
                                 <div style="width: 25px;height:25px;background-color:{{ $value->color }};border-radius:5px;"></div>
