@@ -756,6 +756,16 @@ if (! function_exists('system_name')) {
         return str_replace("\n", '', shell_exec('echo $(uname)'));
     }
 }
+if (! function_exists('cmd_which')) {
+    function cmd_which($bin): bool | string | null
+    {
+        $cmd = shell_exec('which ' . $bin);
+        if ($cmd) {
+            return str_replace("\n", '', $cmd);
+        }
+        return false;
+    }
+}
 
 if (! function_exists('get_user_agent')) {
     /**
@@ -852,9 +862,12 @@ if (! function_exists('backup')) {
         } else {
             $filename = BASE_PATH . '/runtime/backup/' . $filename;
         }
-        $sql_backup_name = Str::random(40) . '.sql';
-        $sql_backup_name = BASE_PATH . '/runtime/backup/' . $sql_backup_name;
-        System::exec('mysqldump -u ' . config('databases.default.username') . ' -p' . config('databases.default.password') . ' ' . config('databases.default.database') . ' > "' . $sql_backup_name . '"');
+        $sql_backup_name = null;
+        if (cmd_which('mysqldump')) {
+            $sql_backup_name = Str::random(40) . '.sql';
+            $sql_backup_name = BASE_PATH . '/runtime/backup/' . $sql_backup_name;
+            System::exec('mysqldump -u ' . config('databases.default.username') . ' -p' . config('databases.default.password') . ' ' . config('databases.default.database') . ' > "' . $sql_backup_name . '"');
+        }
         $backup_files = [
             BASE_PATH . '/app',
             public_path(),
@@ -862,7 +875,7 @@ if (! function_exists('backup')) {
             BASE_PATH . '/composer.json',
             BASE_PATH . '/composer.lock',
         ];
-        if (file_exists($sql_backup_name)) {
+        if ($sql_backup_name && file_exists($sql_backup_name)) {
             $backup_files['backup.sql'] = $sql_backup_name;
         }
         $zippy = Zippy::load();
