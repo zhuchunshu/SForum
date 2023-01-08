@@ -2,7 +2,7 @@
     <div class="d-flex justify-content-between border-0 card">
         <div class="row">
             <div class="col-auto">
-                <a href="/users/{{$data->user->username}}.html" class="avatar"
+                <a href="/users/{{$data->user->id}}.html" class="avatar"
                    style="background-image: url({{super_avatar($data->user)}});--tblr-avatar-size: 3.2rem;">
                 </a>
 
@@ -37,11 +37,11 @@
                     <div class="col-md-12" style="margin-top: 5px">
                         <div class="d-flex align-items-center">
                             <div class="text-muted" style="margin-top:1px">
-                                <a href="/users/{{$data->user->username}}.html" class="text-muted">{{$data->user->username}}</a>  @if(request()->input('query')==="publish") {{format_date($data->created_at)}} @else {{format_date($data->updated_at)}} @endif
+                                <a href="/users/{{$data->user->id}}.html" class="text-muted">{{$data->user->username}}</a>  @if(request()->input('query')==="publish") {{format_date($data->created_at)}} @else {{format_date($data->updated_at)}} @endif
 
                                 @if($data->comments->count())
                                     ←
-                                    <a href="/users/{{$data->comments->last()->user->username}}.html" class="text-muted">{{$data->comments->last()->user->username}}</a>  {{format_date($data->comments->last()->created_at)}}
+                                    <a href="/users/{{$data->comments->last()->user->id}}.html" class="text-muted">{{$data->comments->last()->user->username}}</a>  {{format_date($data->comments->last()->created_at)}}
                                 @endif
                             </div>
                             <div class="ms-auto d-none d-lg-inline-block">

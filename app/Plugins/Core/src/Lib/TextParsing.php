@@ -21,7 +21,7 @@ HTML;
 		$username = urldecode($username);
         if(User::query()->where("username",$username)->exists()) {
             return <<<HTML
-<a href="/users/{$username}.html">@{$username}</a>
+<a href="/users/{$username}.username">@{$username}</a>
 HTML;
         }
 

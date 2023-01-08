@@ -47,7 +47,7 @@
                                                 <div class="col">
                                                     <div class="col">
                                                         <div class="topic-author-name">
-                                                            <a href="/users/{{$value->user->username}}.html" class="text-reset">{{$value->user->username}}</a>
+                                                            <a href="/users/{{$value->user->id}}.html" class="text-reset">{{$value->user->username}}</a>
                                                         </div>
                                                         <div>{{__('app.report created at',['time' => format_date($value->created_at)])}}</div>
                                                     </div>

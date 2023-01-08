@@ -8,15 +8,15 @@
                         <div class="col-md-12">
                             <div class="row">
                                 <div class="col-auto">
-                                    <a href="/users/{{$data->user->username}}.html" class="avatar"
+                                    <a href="/users/{{$data->user->id}}.html" class="avatar"
                                        style="background-image: url({{super_avatar($data->user)}})">
 
                                     </a>
                                 </div>
                                 <div class="col">
-                                    <a href="/users/{{$data->user->username}}.html"
+                                    <a href="/users/{{$data->user->id}}.html"
                                        style="margin-bottom:0;text-decoration:none;"
-                                       class="card-title text-reset">{{$data->user->username}}</a>
+                                       class="card-title text-reset">{{$data->user->id}}</a>
                                     <div style="margin-top:1px">{{__("app.Published on")}}:{{$data->created_at}}</div>
                                 </div>
                                 <div class="col-auto">

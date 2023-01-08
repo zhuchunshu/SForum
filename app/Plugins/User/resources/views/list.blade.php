@@ -38,7 +38,7 @@
                                 <div class="card-body p-4 text-center">
                                     <span class="avatar avatar-xl mb-3 avatar-rounded" style="background-image: url({{super_avatar($value)}})"></span>
                                     <h3 class="m-0 mb-1">
-                                        <a href="/users/{{$value->username}}.html">{{$value->username}}</a>
+                                        <a href="/users/{{$value->id}}.html">{{$value->username}}</a>
                                     </h3>
                                     <div class="text-muted">{{__("user.st member",['member' => $value->id])}}</div>
                                     <div class="text-muted">{{__("app.Join time",['time' => $value->created_at])}}</div>

@@ -20,7 +20,7 @@
         <div class="card-body">
             <b class="text-h3">标签创建者</b>:
             @if($data->user_id)
-                <a href="/users/{{ $data->user->username }}.html">
+                <a href="/users/{{ $data->user->id }}.html">
                     <span class="avatar avatar-rounded" style="--tblr-avatar-size:20px;background-image: url({{super_avatar($data->user)}})"></span>
                     {{ $data->user->username }}</a>
             @else

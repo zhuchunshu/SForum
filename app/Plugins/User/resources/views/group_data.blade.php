@@ -44,7 +44,7 @@
                                                 <span class="avatar" style="background-image: url({{super_avatar($value)}})"></span>
                                             </div>
                                             <div class="col">
-                                                <a href="/users/{{$value->username}}.html" class="text-body d-block text-truncate"><b>{{$value->username}}</b></a>
+                                                <a href="/users/{{$value->id}}.html" class="text-body d-block text-truncate"><b>{{$value->username}}</b></a>
                                                 {{__("user.registration date")}}:{{$value->created_at}}
                                             </div>
                                         </div>

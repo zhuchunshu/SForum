@@ -37,7 +37,7 @@
                         <div class="card-body p-4 text-center">
                             <span class="avatar avatar-xl mb-3 avatar-rounded" style="background-image: url({{super_avatar($value->fans)}})"></span>
                             <h3 class="m-0 mb-1">
-                                <a href="/users/{{$value->fans->username}}.html">{{$value->fans->username}}</a>
+                                <a href="/users/{{$value->fans->id}}.html">{{$value->fans->username}}</a>
                             </h3>
                             <div class="text-muted"> {{__("user.st member",['member' => $value->fans->id])}}</div>
                             <div class="text-muted">注册时间:{{$value->fans->created_at}}</div>

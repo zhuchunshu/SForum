@@ -71,7 +71,7 @@ class IndexController
     #[GetMapping(path: '/user')]
     public function user()
     {
-        return redirect()->url('/users/' . auth()->data()->username . '.html')->go();
+        return redirect()->url('/users/' . auth()->id() . '.html')->go();
     }
 
     // 个人通知

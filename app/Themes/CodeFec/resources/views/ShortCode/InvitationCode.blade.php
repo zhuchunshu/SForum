@@ -35,7 +35,7 @@
                                 </td>
                                 <td>
                                     @if($data->status)
-                                        <a href="/users/{{$data->user->username}}.html">
+                                        <a href="/users/{{$data->user->id}}.html">
                                             <span class="avatar avatar-rounded" style="background-image: url({{super_avatar($data->user)}})"></span>
                                         </a>
                                     @else

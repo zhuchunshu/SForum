@@ -40,7 +40,7 @@
                                         {{path_file_name($data->path)}}
                                     </td>
                                     <td>
-                                        <a href="/users/{{$data->user->username}}.html"><span class="avatar" style="background-image: url({{super_avatar($data->user)}})"></span></a>
+                                        <a href="/users/{{$data->user->id}}.html"><span class="avatar" style="background-image: url({{super_avatar($data->user)}})"></span></a>
                                     </td>
                                     <td  @@click="alert('{{$data->path}}')" data-bs-toggle="tooltip" data-bs-placement="top" title="{{$data->path}}" class="text-truncate" style="max-width: 100px">{{$data->path}}</td>
                                     <td class="text-truncate" style="max-width: 100px"><a href="{{$data->url}}">{{$data->url}}</a></td>

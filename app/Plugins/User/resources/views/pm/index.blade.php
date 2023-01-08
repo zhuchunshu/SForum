@@ -40,7 +40,7 @@
             <div class="col-lg-9">
                 <div class="border-0 card">
                     <div class="card-header">
-                        <h3 class="card-title"><a href="/users/{{$user->username}}.html" class="avatar avatar-sm"
+                        <h3 class="card-title"><a href="/users/{{$user->id}}.html" class="avatar avatar-sm"
                                                   style="background-image: url({{super_avatar($user)}})"></a>
                             正在与: {{$user->username}} 沟通</h3>
                     </div>

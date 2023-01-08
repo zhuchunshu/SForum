@@ -2,7 +2,7 @@
     <div class="row row-cards">
         {{--                作者信息--}}
         <div class="col-md-12">
-            <a class="card card-link" href="/users/{{$data->user->username}}.html">
+            <a class="card card-link" href="/users/{{$data->user->id}}.html">
                 <div class="card-cover card-cover-blurred text-center" style="background-image: url({{get_user_settings($data->user->id,'backgroundImg','/plugins/Core/image/user_background.jpg')}})">
                     <span class="avatar avatar-xl avatar-thumb avatar-rounded" style="background-image: url({{super_avatar($data->user)}})"></span>
                 </div>

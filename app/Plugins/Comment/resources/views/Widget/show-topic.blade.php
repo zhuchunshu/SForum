@@ -43,7 +43,7 @@
                                                 {{--                                            头像--}}
                                                 <div class="col-auto" id="comment-user-avatar-{{$value->id}}"
                                                      comment-show="user-data" user-id="{{$value->user_id}}">
-                                                    <a href="/users/{{$value->user->username}}.html"><span
+                                                    <a href="/users/{{$value->user->id}}.html"><span
                                                                 class="avatar"
                                                                 style="background-image: url({{super_avatar($value->user)}})">
 
@@ -52,7 +52,7 @@
                                                 {{--                                            作者信息--}}
                                                 <div class="col text-truncate">
                                                     <a style="white-space:nowrap;"
-                                                       href="/users/{{$value->user->username}}.html"
+                                                       href="/users/{{$value->user->id}}.html"
                                                        class="text-body text-truncate">{{$value->user->username}}</a>
                                                     <a data-bs-toggle="tooltip" data-bs-placement="right"
                                                        title="{{$value->user->class->name}}"

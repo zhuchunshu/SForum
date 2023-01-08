@@ -62,7 +62,7 @@
                                 <tr>
                                     <td class="sort-id">@if($data->trade_no)<a href="/admin/Pay/{{$data->trade_no}}/order">{{$data->id}}</a> @else {{$data->id}} @endif</td>
                                     <td class="sort-title">{{$data->title}}</td>
-                                    <td class="sort-user"><a href="/users/{{$data->user->username}}.html"><span class="avatar avatar-sm" style="background-image: url({{super_avatar($data->user)}})"></span></a></td>
+                                    <td class="sort-user"><a href="/users/{{$data->user->id}}.html"><span class="avatar avatar-sm" style="background-image: url({{super_avatar($data->user)}})"></span></a></td>
                                     <td class="sort-amount">{{$data->amount}}</td>
                                     <td class="sort-trade_no"><a href="/admin/Pay/{{$data->trade_no}}/order">{{$data->trade_no}}</a></td>
                                     <td class="sort-payer_total">{{$data->payer_total}}</td>

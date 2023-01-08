@@ -34,7 +34,7 @@
                         <div class="datagrid-title">订单创建者</div>
                         <div class="datagrid-content">
                             <div class="d-flex align-items-center">
-                                <a href="/users/{{$order->user->username}}.html"><span
+                                <a href="/users/{{$order->user->id}}.html"><span
                                             class="avatar avatar-xs me-2 avatar-rounded"
                                             style="background-image: url({{super_avatar($order->user)}})"></span></a>
                                 {{$order->user->username}}

@@ -8,7 +8,7 @@
                 <div class="card-header">
                     <h3 class="card-title">账单明细</h3>
                     <div class="card-actions">
-                        <a href="/users/{{auth()->data()->username}}.html?m=users_home_menu_8">充值</a>
+                        <a href="/users/{{auth()->id()}}.html?m=users_home_menu_8">充值</a>
                     </div>
                 </div>
                 <div class="card-body table-responsive">
@@ -76,7 +76,7 @@
                     </div>
 
                     <div class="col-auto">
-                        <a href="/users/{{auth()->data()->username}}.html" class="btn btn-primary">个人中心</a>
+                        <a href="/users/{{auth()->id()}}.html" class="btn btn-primary">个人中心</a>
                     </div>
                 </div>
             </div>

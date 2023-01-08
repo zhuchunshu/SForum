@@ -97,7 +97,7 @@
                         <li>
                             <div class="list-timeline-icon"><!-- Download SVG icon from http://tabler-icons.io/i/brand-twitter -->
                                 <!-- SVG icon code -->
-                                <a href="/users/{{$value->user->username}}.html" class="avatar avatar-rounded" style="background-image: url('{{super_avatar($value->user)}}')"></a>
+                                <a href="/users/{{$value->user->id}}.html" class="avatar avatar-rounded" style="background-image: url('{{super_avatar($value->user)}}')"></a>
                             </div>
                             <div class="list-timeline-content">
                                 <div class="list-timeline-time">{{format_date($value->created_at)}}</div>

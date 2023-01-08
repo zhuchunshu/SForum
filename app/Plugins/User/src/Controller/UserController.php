@@ -35,15 +35,31 @@ class UserController
      * @param $username
      * @return ResponseInterface
      */
-    #[GetMapping(path:"/users/{username}.html")]
-    public function data($username){
+    #[GetMapping(path:"/users/{id}.html")]
+    public function data($id){
+        if (! User::query()->where('id', $id)->count()) {
+            return admin_abort('页面不存在', 404);
+        }
+        $user = User::query()->find($id);
+        return view('User::data', ['user' => $user]);
+    }
+
+    /**
+     * 用户信息
+     * @param $username
+     * @return ResponseInterface
+     */
+    #[GetMapping(path:"/users/{username}.username")]
+    public function username($username){
 	    $username = urldecode($username);
         if(!User::query()->where("username",$username)->count()){
-            return admin_abort("用户名为:".$username."的用户不存在");
+            return admin_abort("页面不存在",404);
         }
         $user = User::query()->where("username",$username)->first();
-        return view("User::data",['user'=>$user]);
+        return redirect()->url('/users/'.$user->id.".username")->go();
     }
+
+
 
     #[GetMapping(path:"/users/group/{id}.html")]
     public function group_data($id): ResponseInterface

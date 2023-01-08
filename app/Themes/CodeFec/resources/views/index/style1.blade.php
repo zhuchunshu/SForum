@@ -4,13 +4,13 @@
             <div class="col-md-12">
                 <div class="row">
                     <div class="col-auto">
-                        <a href="/users/{{$data->user->username}}.html" class="avatar avatar-rounded"
+                        <a href="/users/{{$data->user->id}}.html" class="avatar avatar-rounded"
                            style="background-image: url({{super_avatar($data->user)}})">
 
                         </a>
                     </div>
                     <div class="col">
-                        <a href="/users/{{$data->user->username}}.html"
+                        <a href="/users/{{$data->user->id}}.html"
                            style="margin-bottom:0;text-decoration:none;"
                            class="text-reset me-1"><strong>{{$data->user->username}}</strong></a>
                         <a data-bs-toggle="tooltip" data-bs-placement="right"

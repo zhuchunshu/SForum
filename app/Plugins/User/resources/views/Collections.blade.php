@@ -49,7 +49,7 @@
                             <div class="card-footer">
                                 <div class="row">
                                     <div class="col">
-                                        <a href="/users/{{get_topic($value->type_id)->user->username}}.html">
+                                        <a href="/users/{{get_topic($value->type_id)->user->id}}.html">
                                             <span class="avatar"
                                                   style="background-image: url({{super_avatar(get_topic($value->type_id)->user)}})">
 
@@ -84,7 +84,7 @@
                                                             <div class="col-auto"
                                                                  id="comment-user-avatar-{{$value->type_id}}"
                                                                  comment-show="user-data" user-id="{{get_topic_comment($value->type_id)->user_id}}">
-                                                                <a href="/users/{{get_topic_comment($value->type_id)->user->username}}.html"><span
+                                                                <a href="/users/{{get_topic_comment($value->type_id)->user->id}}.html"><span
                                                                             class="avatar"
                                                                             style="background-image: url({{super_avatar(get_topic_comment($value->type_id)->user)}})">
 
@@ -93,7 +93,7 @@
                                                             {{--                                            作者信息--}}
                                                             <div class="col text-truncate">
                                                                 <a style="white-space:nowrap;"
-                                                                   href="/users/{{get_topic_comment($value->type_id)->user->username}}.html"
+                                                                   href="/users/{{get_topic_comment($value->type_id)->user->id}}.html"
                                                                    class="text-body text-truncate">{{get_topic_comment($value->type_id)->user->username}}</a>
                                                                 <br/>
                                                                 <small data-bs-toggle="tooltip" data-bs-placement="top"
@@ -140,7 +140,7 @@
                                     <div class="card-footer">
                                         <div class="row">
                                             <div class="col">
-                                                <a href="/users/{{get_topic_comment($value->type_id)->user->username}}.html">
+                                                <a href="/users/{{get_topic_comment($value->type_id)->user->id}}.html">
                                             <span class="avatar"
                                                   style="background-image: url({{super_avatar(get_topic_comment($value->type_id)->user)}})">
 

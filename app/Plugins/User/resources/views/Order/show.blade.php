@@ -7,7 +7,7 @@
                 <div class="card-header">
                     <h3 class="card-title">订单信息</h3>
                     <div class="card-actions">
-                        <a href="/users/{{auth()->data()->username}}.html?m=users_home_menu_7">返回订单列表</a>
+                        <a href="/users/{{auth()->id()}}.html?m=users_home_menu_7">返回订单列表</a>
                     </div>
                 </div>
                 <div class="card-body">

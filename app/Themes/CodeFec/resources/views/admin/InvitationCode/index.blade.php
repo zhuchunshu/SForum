@@ -39,7 +39,7 @@
                                     <tr>
                                         <td>{{$value->id}}</td>
                                         <td>{{$value->code}}</td>
-                                        <td>@if($value->user_id) <a href="/users/{{@$value->user->username}}.html"><span class="avatar avatar-sm" style="background-image: url({{@super_avatar($value->user)}})"></span></a> @else 无 @endif</td>
+                                        <td>@if($value->user_id) <a href="/users/{{@$value->user->id}}.html"><span class="avatar avatar-sm" style="background-image: url({{@super_avatar($value->user)}})"></span></a> @else 无 @endif</td>
                                         <td>@if($value->status) 已使用 @else 未使用 @endif</td>
                                         <td></td>
                                         <td><input v-model="checkedIds" value="{{$value->id}}" class="form-check-input" type="checkbox"></td>

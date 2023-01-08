@@ -18,13 +18,13 @@
                                             <div class="col-md-12">
                                                 <div class="row">
                                                     <div class="col-auto">
-                                                        <a href="/users/{{$data->user->username}}.html" class="avatar"
+                                                        <a href="/users/{{$data->user->id}}.html" class="avatar"
                                                            style="background-image: url({{super_avatar($data->user)}})">
 
                                                         </a>
                                                     </div>
                                                     <div class="col">
-                                                        <a href="/users/{{$data->user->username}}.html"
+                                                        <a href="/users/{{$data->user->id}}.html"
                                                            style="margin-bottom:0;text-decoration:none;"
                                                            class="card-title text-reset">{{$data->user->username}}</a>
                                                         <div style="margin-top:1px">{{__("app.Published on")}}:{{$data->created_at}}</div>
@@ -154,7 +154,7 @@
                                                     <path d="M16 11h6m-3 -3v6"></path>
                                                 </svg>
                                                 <span>{{__("app.follow")}}</span></a>
-                                            <a href="/users/{{$user->username}}.html" class="card-btn">{{__("app.watch")}}</a>
+                                            <a href="/users/{{$user->id}}.html" class="card-btn">{{__("app.watch")}}</a>
                                         </div>
                                     </div>
                                 </div>
