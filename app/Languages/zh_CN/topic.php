@@ -10,7 +10,7 @@ return [
 	'publish' => "发布",
 	"comment" => [
 		'adoption' => '采纳',
-		'cancel' => '取消采纳',
+		'cancel' => '取消',
 		'adopted comment' => ':name 采纳了你的评论',
 		'best reply' => '最佳回复',
 		'comment content' => '评论内容',

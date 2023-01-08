@@ -7,28 +7,28 @@
 
     <div class="row row-cards justify-content-center">
         <div class="col-lg-12">
-            <ol class="breadcrumb breadcrumb-arrows" aria-label="breadcrumbs">
-                <li class="breadcrumb-item"><a href="/">首页</a></li>
-                <li class="breadcrumb-item"><a href="/tags/{{$comment->topic->tag->id}}.html">
-                        {!! $comment->topic->tag->icon !!}
-                        {{$comment->topic->tag->name}}
-                    </a>
-                </li>
-                <li class="breadcrumb-item"><a href="/{{$comment->topic->id}}.html">
-                        {{\Hyperf\Utils\Str::limit($comment->topic->title,25)}}
-                    </a>
-                </li>
-                <li class="breadcrumb-item"><a href="{{'/' . $comment->topic_id . '.html/' . $comment->id . '?page=' . get_topic_comment_page($comment->id)}}">
-                        ID【{{$comment->id}}】的评论
-                    </a>
-                </li>
-                <li class="breadcrumb-item active" aria-current="page"><a href="#">修改评论</a></li>
-            </ol>
-        </div>
-        <div class="col-lg-12">
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">回帖</h3>
+                    <ol class="breadcrumb breadcrumb-arrows" aria-label="breadcrumbs">
+                        <li class="breadcrumb-item"><a href="/">首页</a></li>
+                        <li class="breadcrumb-item"><a href="/tags/{{$comment->topic->tag->id}}.html">
+                                {!! $comment->topic->tag->icon !!}
+                                {{$comment->topic->tag->name}}
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item"><a href="/{{$comment->topic->id}}.html">
+                                {{\Hyperf\Utils\Str::limit($comment->topic->title,25)}}
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item"><a href="{{'/' . $comment->topic_id . '.html/' . $comment->id . '?page=' . get_topic_comment_page($comment->id)}}">
+                                ID【{{$comment->id}}】的评论
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item active" aria-current="page"><a href="#">修改评论</a></li>
+                    </ol>
+                </div>
+                <div class="card-header">
+                    <h3 class="card-title">修改评论</h3>
                 </div>
                 <div class="card-body">
                     <form action="/comment/topic/{{$comment->id}}/edit" method="post">

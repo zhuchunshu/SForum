@@ -17,15 +17,43 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <div>
-                                <label class="form-label">回复内容</label>
-                                <input type="hidden" name="comment_id" value="" id="reply-comment-id">
-                                <textarea class="form-control" name="content" id="reply-comment-content" data-bs-toggle="autosize" placeholder="说点什么..."></textarea>
-                            </div>
+                            @if(authManager()->guest())
+                                <div class="empty">
+                                    <div class="empty-icon"><!-- Download SVG icon from http://tabler-icons.io/i/mood-sad -->
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-login" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                            <path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2"></path>
+                                            <path d="M20 12h-13l3 -3m0 6l-3 -3"></path>
+                                        </svg>
+                                    </div>
+                                    <p class="empty-title">无权限</p>
+                                    <p class="empty-subtitle text-muted">
+                                        请登录后评论
+                                    </p>
+                                </div>
+                            @else
+                                <div>
+                                    <label class="form-label">回复内容</label>
+                                    <input type="hidden" name="comment_id" value="" id="reply-comment-id">
+                                    <textarea class="form-control" name="content" id="reply-comment-content" data-bs-toggle="autosize" placeholder="说点什么..."></textarea>
+                                </div>
+                            @endif
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn me-auto" data-bs-dismiss="modal">关闭</button>
-                            <button type="button" class="btn btn-primary" id="reply-comment-modal-reply-button" data-bs-dismiss="modal">回复</button>
+                            @if(auth()->check())
+                                <button type="button" class="btn btn-primary" id="reply-comment-modal-reply-button" data-bs-dismiss="modal">回复</button>
+                            @else
+                                <a href="/login" class="btn btn-primary">
+                                    <!-- Download SVG icon from http://tabler-icons.io/i/search -->
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-login" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                        <path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2"></path>
+                                        <path d="M20 12h-13l3 -3m0 6l-3 -3"></path>
+                                    </svg>
+                                    登陆
+                                </a>
+                            @endif
                         </div>
                     </div>
                 </div>

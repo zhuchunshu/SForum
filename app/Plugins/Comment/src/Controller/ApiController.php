@@ -64,6 +64,7 @@ class ApiController
         // 给posts表设置comment_id字段的值
         Post::query()->where('id', $post->id)->update(['comment_id' => $data->id]);
         $data = TopicComment::query()->where('id', $data->id)->first();
+        Topic::query()->where('id', $data['topic_id'])->update(['updated_at' => date('Y-m-d H:i:s')]);
 
         // 艾特被回复的人
         $this->at_user($data, $yhtml);
@@ -125,14 +126,14 @@ class ApiController
     public function comment_reply_validation(): bool | array
     {
         if (! auth()->check()) {
-            return Json_Api(419, false, ['未登录']);
+            return Json_Api(419, false, ['msg'=>'未登录']);
         }
         if (! Authority()->check('comment_create')) {
-            return Json_Api(419, false, ['无评论权限']);
+            return Json_Api(419, false, ['msg'=>'无评论权限']);
         }
         if (cache()->has('comment_create_time_' . auth()->id())) {
             $time = cache()->get('comment_create_time_' . auth()->id()) - time();
-            return Json_Api(419, false, ['发表评论过于频繁,请 ' . $time . ' 秒后再试']);
+            return Json_Api(419, false, ['msg'=>'发表评论过于频繁,请 ' . $time . ' 秒后再试']);
         }
         return true;
     }
@@ -233,10 +234,8 @@ class ApiController
                 'optimal' => null,
             ]);
         }
-        if ($data->user_id !== auth()->id()) {
-            $topic = Topic::query()->where('id', $data->topic_id)->first();
-            user_notice()->send($data->user_id, auth()->data()->username . $caina . '了你的评论', '你发布在: <h2>' . $topic->title . '</h2> 的评论已被' . $caina, '/' . $topic->id . '.html');
-        }
+        $topic = Topic::query()->where('id', $data->topic_id)->first();
+        user_notice()->send($data->user_id, auth()->data()->username . $caina . '了你的评论', '你发布在: <h2>' . $topic->title . '</h2> 的评论已被' . $caina, '/' . $topic->id . '.html');
         return Json_Api(200, true, ['更新成功!']);
     }
 

@@ -47,7 +47,7 @@
                                     </div>
                                     <div class="col-auto">
                                         @if($value->action)
-                                            <a user-click="notice_action" notice-href="{{$value->action}}" notice-id="{{$value->id}}" class="btn btn-primary">查看</a>
+                                            <a href="{{$value->action}}" class="btn">查看</a>
                                         @endif
                                         <button user-click="notice_read" notice-id="{{$value->id}}" class="btn btn-danger">已读</button>
                                     </div>

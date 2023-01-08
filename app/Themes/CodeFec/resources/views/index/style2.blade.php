@@ -19,7 +19,8 @@
                                                     {{__('app.top')}}
                                                 </span>
                                         @else
-                                            <span class="badge" style="background-color: {{$data->tag->color}}!important;">
+                                            <span class="badge"
+                                                  style="background-color: {{$data->tag->color}}!important;">
                                                         {{$data->tag->name}}
                                                     </span>
                                         @endif
@@ -37,11 +38,19 @@
                     <div class="col-md-12" style="margin-top: 5px">
                         <div class="d-flex align-items-center">
                             <div class="text-muted" style="margin-top:1px">
-                                <a href="/users/{{$data->user->id}}.html" class="text-muted">{{$data->user->username}}</a>  @if(request()->input('query')==="publish") {{format_date($data->created_at)}} @else {{format_date($data->updated_at)}} @endif
+                                <a href="/users/{{$data->user->id}}.html"
+                                   class="text-muted">{{$data->user->username}}</a> {{format_date($data->created_at)}}
 
                                 @if($data->comments->count())
                                     ←
-                                    <a href="/users/{{$data->comments->last()->user->id}}.html" class="text-muted">{{$data->comments->last()->user->username}}</a>  {{format_date($data->comments->last()->created_at)}}
+                                    @if($data->updated_at>$data->comments->last()->created_at)
+                                        <a href="/users/{{$data->user->id}}.html"
+                                           class="text-muted">{{$data->user->username}}</a>  {{format_date($data->updated_at)}}
+                                    @else
+                                        <a href="/users/{{$data->comments->last()->user->id}}.html"
+                                           class="text-muted">{{$data->comments->last()->user->username}}</a>  {{format_date($data->comments->last()->created_at)}}
+                                    @endif
+
                                 @endif
                             </div>
                             <div class="ms-auto d-none d-lg-inline-block">
