@@ -1,12 +1,17 @@
 <?php
 
 declare(strict_types=1);
-
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ */
 namespace App\Command;
 
-use Hyperf\Command\Command as HyperfCommand;
 use Hyperf\Command\Annotation\Command;
-use Hyperf\Utils\Str;
+use Hyperf\Command\Command as HyperfCommand;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -35,12 +40,15 @@ class ClearCache extends HyperfCommand
 
     public function handle()
     {
-	    if(stripos(system_name(), "Linux") !== false){
-		    \Swoole\Coroutine\System::exec('yes | composer dump-autoload -o');
-		    \Swoole\Coroutine\System::exec('yes| php CodeFec');
-	    }else{
-		    \Swoole\Coroutine\System::exec('composer dump-autoload -o');
-		    \Swoole\Coroutine\System::exec('php CodeFec');
-	    }
+        go(function () {
+            system_clear_cache();
+        });
+    }
+
+    public function removeFiles(...$values): void
+    {
+        foreach ($values as $value) {
+            \Swoole\Coroutine\System::exec('rm -rf "' . $value . '"');
+        }
     }
 }

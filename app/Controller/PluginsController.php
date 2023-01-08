@@ -18,6 +18,7 @@ use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\Utils\Str;
 use Psr\Http\Message\ResponseInterface;
+use Swoole\Coroutine\System;
 
 #[Controller(prefix: '/admin/plugins')]
 #[Middleware(\App\Middleware\AdminMiddleware::class)]
@@ -78,6 +79,7 @@ class PluginsController
             }
         }
         $this->removeFiles(plugin_path($getClientFilename), plugin_path($filename));
+        System::exec('php CodeFec ClearCache');
         return redirect()->with('danger', '插件安装失败,没有找到 .dirName 文件')->url('/admin/plugins/upload')->go();
     }
 

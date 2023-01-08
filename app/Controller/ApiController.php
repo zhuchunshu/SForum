@@ -18,6 +18,7 @@ use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Illuminate\Support\Arr;
 use Psr\SimpleCache\InvalidArgumentException;
+use Swoole\Coroutine\System;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\NullOutput;
@@ -73,13 +74,7 @@ class ApiController
         } catch (InvalidArgumentException $e) {
         }
         cache()->delete('plugins.en');
-        if (stripos(system_name(), 'Linux') !== false) {
-            \Swoole\Coroutine\System::exec('yes yes | composer du');
-            \Swoole\Coroutine\System::exec('yes yes | php CodeFec');
-        } else {
-            \Swoole\Coroutine\System::exec('composer du');
-            \Swoole\Coroutine\System::exec('php CodeFec');
-        }
+        System::exec('php CodeFec ClearCache');
         return Json_Api(200, true, ['msg' => '更新成功!']);
     }
 
