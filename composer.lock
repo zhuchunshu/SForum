@@ -4,8 +4,74 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0557ae6c60504d38dbff1ea96bd98865",
+    "content-hash": "af5c273b30fe6672cc8aa478cb1ef815",
     "packages": [
+        {
+            "name": "96qbhy/simple-jwt",
+            "version": "v1.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/qbhy/simple-jwt.git",
+                "reference": "60e7b5a86086b29469e5cd1501145336fdc7c3c7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/qbhy/simple-jwt/zipball/60e7b5a86086b29469e5cd1501145336fdc7c3c7",
+                "reference": "60e7b5a86086b29469e5cd1501145336fdc7c3c7",
+                "shasum": ""
+            },
+            "require": {
+                "doctrine/cache": "^1.10",
+                "ext-json": ">=1.0",
+                "php": ">=7.1"
+            },
+            "require-dev": {
+                "brainmaestro/composer-git-hooks": "^2.8",
+                "friendsofphp/php-cs-fixer": "^2.16",
+                "hyperf/utils": "^1.1",
+                "phpunit/phpunit": "^9.1"
+            },
+            "type": "library",
+            "extra": {
+                "hooks": {
+                    "pre-commit": [
+                        "echo committing as $(git config user.name)",
+                        "vendor/bin/php-cs-fixer fix .",
+                        "git add .",
+                        "composer test"
+                    ]
+                },
+                "hyperf": {
+                    "config": "Qbhy\\SimpleJwt\\Hyperf\\ConfigProvider"
+                },
+                "laravel": {
+                    "providers": [
+                        "Qbhy\\SimpleJwt\\Laravel\\ServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Qbhy\\SimpleJwt\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "96qbhy",
+                    "email": "96qbhy@gmail.com"
+                }
+            ],
+            "description": "简单的 jwt 实现",
+            "support": {
+                "issues": "https://github.com/qbhy/simple-jwt/issues",
+                "source": "https://github.com/qbhy/simple-jwt/tree/v1.4"
+            },
+            "time": "2021-09-29T03:15:34+00:00"
+        },
         {
             "name": "alchemy/zippy",
             "version": "1.0.0",
@@ -442,16 +508,16 @@
         },
         {
             "name": "doctrine/cache",
-            "version": "2.2.0",
+            "version": "1.13.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/cache.git",
-                "reference": "1ca8f21980e770095a31456042471a57bc4c68fb"
+                "reference": "56cd022adb5514472cb144c087393c1821911d09"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/cache/zipball/1ca8f21980e770095a31456042471a57bc4c68fb",
-                "reference": "1ca8f21980e770095a31456042471a57bc4c68fb",
+                "url": "https://api.github.com/repos/doctrine/cache/zipball/56cd022adb5514472cb144c087393c1821911d09",
+                "reference": "56cd022adb5514472cb144c087393c1821911d09",
                 "shasum": ""
             },
             "require": {
@@ -461,12 +527,18 @@
                 "doctrine/common": ">2.2,<2.4"
             },
             "require-dev": {
+                "alcaeus/mongo-php-adapter": "^1.1",
                 "cache/integration-tests": "dev-master",
                 "doctrine/coding-standard": "^9",
+                "mongodb/mongodb": "^1.1",
                 "phpunit/phpunit": "^7.5 || ^8.5 || ^9.5",
+                "predis/predis": "~1.0",
                 "psr/cache": "^1.0 || ^2.0 || ^3.0",
                 "symfony/cache": "^4.4 || ^5.4 || ^6",
                 "symfony/var-exporter": "^4.4 || ^5.4 || ^6"
+            },
+            "suggest": {
+                "alcaeus/mongo-php-adapter": "Required to use legacy MongoDB driver"
             },
             "type": "library",
             "autoload": {
@@ -515,7 +587,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/cache/issues",
-                "source": "https://github.com/doctrine/cache/tree/2.2.0"
+                "source": "https://github.com/doctrine/cache/tree/1.13.0"
             },
             "funding": [
                 {
@@ -531,7 +603,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2022-05-20T20:07:39+00:00"
+            "time": "2022-05-20T20:06:54+00:00"
         },
         {
             "name": "doctrine/collections",
@@ -2506,16 +2578,16 @@
         },
         {
             "name": "hyperf/engine",
-            "version": "v1.3.4",
+            "version": "v1.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/hyperf/engine.git",
-                "reference": "392b44b1124c278c99b100b4c65189780b5f01c6"
+                "reference": "b3d13a49bcb8047c28406a4b57ffa75c951f59ac"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/hyperf/engine/zipball/392b44b1124c278c99b100b4c65189780b5f01c6",
-                "reference": "392b44b1124c278c99b100b4c65189780b5f01c6",
+                "url": "https://api.github.com/repos/hyperf/engine/zipball/b3d13a49bcb8047c28406a4b57ffa75c951f59ac",
+                "reference": "b3d13a49bcb8047c28406a4b57ffa75c951f59ac",
                 "shasum": ""
             },
             "require": {
@@ -2524,6 +2596,7 @@
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.0",
                 "hyperf/guzzle": "^2.2",
+                "hyperf/http-message": " ^2.0",
                 "phpstan/phpstan": "^1.0",
                 "phpunit/phpunit": "^9.4",
                 "swoole/ide-helper": "dev-master"
@@ -2534,7 +2607,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "1.3-dev"
+                    "dev-master": "1.4-dev"
                 },
                 "hyperf": {
                     "config": "Hyperf\\Engine\\ConfigProvider"
@@ -2555,9 +2628,9 @@
             ],
             "support": {
                 "issues": "https://github.com/hyperf/engine/issues",
-                "source": "https://github.com/hyperf/engine/tree/v1.3.4"
+                "source": "https://github.com/hyperf/engine/tree/v1.4.0"
             },
-            "time": "2022-09-05T06:17:31+00:00"
+            "time": "2023-01-06T07:23:19+00:00"
         },
         {
             "name": "hyperf/event",
@@ -8473,6 +8546,89 @@
                 "source": "https://github.com/zhuchunshu/php-emoji-Parse/tree/v1.0.1"
             },
             "time": "2022-05-25T12:29:06+00:00"
+        },
+        {
+            "name": "zhuchunshu/hyperf-auth",
+            "version": "v2.2.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/zhuchunshu/hyperf-auth.git",
+                "reference": "4e5beccb5722d5040aa5eef7d8c88a5efb0fb096"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/zhuchunshu/hyperf-auth/zipball/4e5beccb5722d5040aa5eef7d8c88a5efb0fb096",
+                "reference": "4e5beccb5722d5040aa5eef7d8c88a5efb0fb096",
+                "shasum": ""
+            },
+            "require": {
+                "96qbhy/simple-jwt": "^v1.4.0",
+                "ext-json": "*",
+                "ext-redis": "*",
+                "ext-swoole": ">=4.4",
+                "hyperf/cache": "^2.0",
+                "hyperf/di": "^2.0",
+                "php": ">=7.2"
+            },
+            "require-dev": {
+                "brainmaestro/composer-git-hooks": "^2.8",
+                "friendsofphp/php-cs-fixer": "^2.14",
+                "hyperf/command": "^2.2",
+                "hyperf/config": "^2.0",
+                "hyperf/database": "^2.0",
+                "hyperf/event": "^2.2",
+                "hyperf/framework": "^2.0",
+                "hyperf/redis": "^2.0",
+                "hyperf/session": "^2.0",
+                "hyperf/testing": "^2.0",
+                "hyperf/utils": "^2.2",
+                "itsgoingd/clockwork": "^5.0",
+                "phpstan/phpstan": "^0.12",
+                "swoft/swoole-ide-helper": "dev-master",
+                "symfony/console": "^5.3",
+                "symfony/var-dumper": "^5.3"
+            },
+            "suggest": {
+                "ext-redis": "*"
+            },
+            "type": "library",
+            "extra": {
+                "hyperf": {
+                    "config": "Qbhy\\HyperfAuth\\ConfigProvider"
+                },
+                "hooks": {
+                    "pre-commit": [
+                        "echo committing as $(git config user.name)",
+                        "vendor/bin/php-cs-fixer fix .",
+                        "git add .",
+                        "composer test"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/helper.php"
+                ],
+                "psr-4": {
+                    "Qbhy\\HyperfAuth\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "super-forum 能用的hyperf 的 auth 组件",
+            "keywords": [
+                "hyperf",
+                "hyperf-auth",
+                "jwt-auth",
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/zhuchunshu/hyperf-auth/issues",
+                "source": "https://github.com/zhuchunshu/hyperf-auth/tree/v2.2.3"
+            },
+            "time": "2023-01-08T08:22:24+00:00"
         },
         {
             "name": "zhuchunshu/hyperf-hashing",

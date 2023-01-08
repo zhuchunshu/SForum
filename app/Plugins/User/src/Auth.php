@@ -29,12 +29,10 @@ class Auth
         }
         // 数据库里的密码
         $user_id = User::query()->where('email', $email)->first()->id;
-        $user = User::query()->find($user_id);
+        $user = User::find($user_id);
 
         if (Hash::check($password, $user->password)) {
-            $token = Str::random(17);
-            session()->set('auth', $token);
-            if (! (new UserAuth())->create($user->id, $token)) {
+            if (! authManager()->login($user)) {
                 return false;
             }
             EventDispatcher()->dispatch(new AfterLogin($user));
@@ -50,10 +48,8 @@ class Auth
             return false;
         }
         // 数据库里的密码
-        $user = User::query()->find($id);
-        $token = Str::random(17);
-        session()->set('auth', $token);
-        (new UserAuth())->create($user->id, $token);
+        $user = User::find($id);
+        authManager()->login($user);
         EventDispatcher()->dispatch(new AfterLogin($user));
         return true;
     }
@@ -86,26 +82,24 @@ class Auth
     public function logout(): bool
     {
         EventDispatcher()->dispatch(new Logout($this->id()));
-        (new UserAuth())->destroy_token(session()->get('auth'));
-        session()->remove('auth');
+        authManager()->logout();
         return true;
     }
 
-    public function data(): \Hyperf\Database\Model\Collection|\Hyperf\Database\Model\Model|array|\Hyperf\Database\Model\Builder|null
+    public function data(): \Hyperf\Database\Model\Collection | \Hyperf\Database\Model\Model | array | \Hyperf\Database\Model\Builder | null
     {
         return User::query()->find($this->id());
     }
 
-    public function Class(): \Hyperf\Database\Model\Model|\Hyperf\Database\Model\Builder|null
+    public function Class(): \Hyperf\Database\Model\Model | \Hyperf\Database\Model\Builder | null
     {
         return UserClass::query()->where('id', auth()->data()->class_id)->first();
     }
 
-    public function Options(): \Hyperf\Database\Model\Model|\Hyperf\Database\Model\Builder|null
+    public function Options(): \Hyperf\Database\Model\Model | \Hyperf\Database\Model\Builder | null
     {
         return UsersOption::query()->where('id', auth()->data()->options_id)->first();
     }
-
 
     /**
      * get user id.
@@ -113,7 +107,7 @@ class Auth
      */
     public function id()
     {
-        return (int) @UsersAuth::query()->where('token', session()->get('auth'))->first('user_id')->user_id;
+        return (int) authManager()->id();
     }
 
     /**
@@ -121,13 +115,6 @@ class Auth
      */
     public function check(): bool
     {
-        if (! session()->has('auth')) {
-            return false;
-        }
-        if (User::query()->where('id', $this->id())->count()) {
-            return true;
-        }
-
-        return false;
+        return authManager()->check();
     }
 }

@@ -20,6 +20,7 @@ return [
             App\Exception\Handler\RateLimitExceptionHandler::class,
             App\Exception\Handler\ValidationExceptionHandler::class,
             WhoopsExceptionHandler::class,
+            \App\Plugins\User\src\Exceptions\AuthExceptionHandler::class,
         ],
     ],
 ];

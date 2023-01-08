@@ -17,12 +17,6 @@
                 </div>
             </label>
         </div>
-        <div class="col-3">
-            <label class="form-label">允许几台设备同时登录？
-            </label>
-            <input type="number" class="form-control" v-model="data.core_user_session_num">
-            <small>当前:{{get_options('core_user_session_num',1)}}台</small>
-        </div>
 
         <div class="col-4">
             <label class="form-label">头像缓存
