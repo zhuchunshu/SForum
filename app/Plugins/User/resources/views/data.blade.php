@@ -58,9 +58,11 @@
                                        user-id="{{ $user->id }}">
                                         <span>关注</span>
                                     </a>
-                                    <a class="dropdown-item" href="/users/pm/{{$user->id}}">
-                                        私信
-                                    </a>
+                                    @if((int)$user->id!==auth()->id())
+                                        <a class="dropdown-item" href="/users/pm/{{$user->id}}">
+                                            私信
+                                        </a>
+                                    @endif
                                 </div>
                             </div>
                         </div>
