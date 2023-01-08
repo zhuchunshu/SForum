@@ -44,12 +44,7 @@ class CreateMiddleware implements MiddlewareInterface
         if ($validator->fails()) {
             // Handle exception
             cache()->delete('comment_create_time_' . auth()->id());
-            $backUrl = pathinfo(request()->getHeader('referer')[0])['dirname'] . '/' . $data['topic_id'];
-            $result = [
-                'content' => $data['no_content'] ?: $data['content'],
-                'restoredraft' => true,
-            ];
-            return redirect()->url($backUrl . '?' . http_build_query($result))->with('danger', $validator->errors()->first())->go();
+            return redirect()->back()->with('danger', $validator->errors()->first())->go();
         }
         $topic = Topic::query()->find($data['topic_id']);
         if (@$topic->post->options->disable_comment) {
