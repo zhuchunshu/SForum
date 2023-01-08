@@ -127,7 +127,7 @@
                                                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                                                     <path d="M19.5 13.572l-7.5 7.428l-7.5 -7.428m0 0a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572"/>
                                                 </svg>
-                                                <span comment-show="comment-topic-likes">{{ $value->likes }}</span>
+                                                <span comment-show="comment-topic-likes">{{ $value->likes->count() }}</span>
                                             </a>
                                             {{--                                            回复--}}
                                             <a style="text-decoration:none;" comment-click="comment-reply-topic"

@@ -173,14 +173,12 @@ class ApiController
         }
         if (TopicCommentLike::query()->where(['comment_id' => $comment_id, 'user_id' => auth()->id()])->exists()) {
             TopicCommentLike::query()->where(['comment_id' => $comment_id, 'user_id' => auth()->id()])->delete();
-            TopicComment::query()->where(['id' => $comment_id])->decrement('likes');
             return Json_Api(201, true, ['msg' => '已取消点赞!']);
         }
         TopicCommentLike::query()->create([
             'comment_id' => $comment_id,
             'user_id' => auth()->id(),
         ]);
-        TopicComment::query()->where(['id' => $comment_id])->increment('likes');
         return Json_Api(200, true, ['msg' => '已赞!']);
     }
 

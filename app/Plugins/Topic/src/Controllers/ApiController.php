@@ -98,7 +98,6 @@ class ApiController
         }
         if (TopicLike::query()->where(['topic_id' => $topic_id, 'user_id' => auth()->id(), 'type' => 'like'])->exists()) {
             TopicLike::query()->where(['topic_id' => $topic_id, 'user_id' => auth()->id(), 'type' => 'like'])->delete();
-            Topic::query()->where(['id' => $topic_id])->decrement('like');
             // 发送通知
             $topic_data = Topic::query()->where('id', $topic_id)->first();
             if ($topic_data->user_id != auth()->id()) {
@@ -113,7 +112,6 @@ class ApiController
             'topic_id' => $topic_id,
             'user_id' => auth()->id(),
         ]);
-        Topic::query()->where(['id' => $topic_id])->increment('like');
         // 发送通知
         $topic_data = Topic::query()->where('id', $topic_id)->first();
         if ($topic_data->user_id != auth()->id()) {

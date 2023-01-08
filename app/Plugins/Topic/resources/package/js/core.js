@@ -46,7 +46,7 @@ $(function(){
                 `)
                 // 设置用户头像
                 author.html(`
-                <a href="/users/${topic.username}.html" class="avatar" style="background-image: url(${topic.avatar})"></a>
+                <a href="/users/${topic.username}.username" class="avatar" style="background-image: url(${topic.avatar})"></a>
                 `)
             }
         }).catch(e=>{
@@ -120,7 +120,7 @@ $(function(){
 
 $(function(){
     $('span[core-click="user-avatar"]').click(function(){
-        location.href="/users/"+$(this).attr("username")+".html"
+        location.href="/users/"+$(this).attr("username")+".username"
     })
 })
 

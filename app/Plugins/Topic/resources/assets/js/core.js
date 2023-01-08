@@ -3889,7 +3889,7 @@ $(function () {
 
         content.html("\n                <a href=\"/".concat(topic_id, ".html\" class=\"text-reset\" style=\"text-decoration:none;\"><b>").concat(topic.title, "</b></a>\n        <a href=\"/").concat(topic_id, ".html\" style=\"display: -webkit-box;\n    font-size: 13px;\n    height: 18px;\n    line-height: 18px;\n    color: #999999;\n    word-break: break-all;\n    text-overflow: ellipsis;\n    overflow: hidden;\n    -webkit-box-orient: vertical;\n    -webkit-line-clamp: 1;\n    text-decoration:none;\">\n            ").concat(topic.summary, "\n        </a>\n                ")); // 设置用户头像
 
-        author.html("\n                <a href=\"/users/".concat(topic.username, ".html\" class=\"avatar\" style=\"background-image: url(").concat(topic.avatar, ")\"></a>\n                "));
+        author.html("\n                <a href=\"/users/".concat(topic.username, ".username\" class=\"avatar\" style=\"background-image: url(").concat(topic.avatar, ")\"></a>\n                "));
       }
     })["catch"](function (e) {
       y.html("ID为:" + topic_id + "获取失败!,详细查看控制台");
@@ -3962,7 +3962,7 @@ $(function () {
 });
 $(function () {
   $('span[core-click="user-avatar"]').click(function () {
-    location.href = "/users/" + $(this).attr("username") + ".html";
+    location.href = "/users/" + $(this).attr("username") + ".username";
   });
 });
 $(function () {
