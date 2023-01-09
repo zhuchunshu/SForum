@@ -60,8 +60,6 @@ class IndexController
         User::query()->where('id', auth()->id())->update([
             'email_ver_time' => date('Y-m-d H:i:s'),
         ]);
-
-        auth()->refresh(auth()->id());
         return redirect()->url('/')->with('success', '验证通过')->go();
     }
 

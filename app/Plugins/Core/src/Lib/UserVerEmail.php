@@ -29,7 +29,7 @@ class UserVerEmail
             return false;
         }
         $data = cache()->get('core.user.ver.email.' . $id);
-        return $captcha === $data;
+        return (int)$captcha === $data;
     }
 
     public function ifsend(): bool
