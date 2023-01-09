@@ -33,13 +33,13 @@
                                 </div>
                             </div>
                             {{--                                    评论内容--}}
-                            <div class="col-md-12">
-                                <div class="hr-text" style="margin-bottom:8px;margin-top:15px">{{__("topic.comment.comment content")}}</div>
-                            </div>
+{{--                            <div class="col-md-12">--}}
+{{--                                <div class="hr-text" style="margin-bottom:8px;margin-top:15px">{{__("topic.comment.comment content")}}</div>--}}
+{{--                            </div>--}}
                             @if($posts_options_only_author)
                                 @include('Comment::Widget.only-author')
                             @else
-                                <div core-show="comment" comment-id="{{$value->id}}" class="col-md-12 markdown">
+                                <div core-show="comment" comment-id="{{$value->id}}" class="col-md-12 mt-2 mb-2 markdown">
                                     @if($value->parent_id)
                                         <div class="quote">
                                             <blockquote>
@@ -55,9 +55,9 @@
                                 </div>
                             @endif
                             {{--                                    操作--}}
-                            <div class="col-md-12">
-                                <div class="hr-text" style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.operate")}}</div>
-                            </div>
+{{--                            <div class="col-md-12">--}}
+{{--                                <div class="hr-text" style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.operate")}}</div>--}}
+{{--                            </div>--}}
                             <div class="col-md-12">
                                 {{--                                            点赞--}}
                                 <a style="text-decoration:none;" comment-click="comment-like-topic" comment-id="{{ $value->id }}"
@@ -80,6 +80,7 @@
                                             <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                             <path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z"></path>
                                         </svg>
+                                        收藏
                                     </a>
 
                                 @endif

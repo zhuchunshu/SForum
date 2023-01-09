@@ -126,20 +126,20 @@
                                             </div>
                                         </div>
                                         {{--                                    评论内容--}}
-                                        <div class="col-md-12">
-                                            <div class="hr-text"
-                                                 style="margin-bottom:8px;margin-top:15px">{{__("topic.comment.comment content")}}</div>
-                                        </div>
+{{--                                        <div class="col-md-12">--}}
+{{--                                            <div class="hr-text"--}}
+{{--                                                 style="margin-bottom:8px;margin-top:15px">{{__("topic.comment.comment content")}}</div>--}}
+{{--                                        </div>--}}
                                         @if($posts_options_only_author && auth()->id()!=$value->user_id && auth()->id()!=$data->user_id)
                                             @include('Comment::Widget.only-author')
                                         @else
                                             @include('Comment::Widget.source')
                                         @endif
                                         {{--                                    操作--}}
-                                        <div class="col-md-12">
-                                            <div class="hr-text"
-                                                 style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.operate")}}</div>
-                                        </div>
+{{--                                        <div class="col-md-12">--}}
+{{--                                            <div class="hr-text"--}}
+{{--                                                 style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.operate")}}</div>--}}
+{{--                                        </div>--}}
                                         <div class="col-md-12">
                                             {{--                                            点赞--}}
                                             <a style="text-decoration:none;" comment-click="comment-like-topic"
@@ -160,8 +160,7 @@
                                             {{--                                            回复--}}
                                             <a style="text-decoration:none;" comment-click="comment-reply-topic"
                                                comment-id="{{ $value->id }}" data-bs-toggle="modal" data-bs-target="#reply-comment-modal"
-                                               class="cursor-pointer text-muted hvr-icon-up" data-bs-toggle="tooltip"
-                                               data-bs-placement="bottom" title="{{__("app.reply")}}">
+                                               class="cursor-pointer text-muted hvr-icon-up" title="{{__("app.reply")}}">
                                                 <svg xmlns="http://www.w3.org/2000/svg"
                                                      class="hvr-icon icon icon-tabler icon-tabler-message-circle-2"
                                                      width="24" height="24" viewBox="0 0 24 24" stroke-width="2"
@@ -173,6 +172,7 @@
                                                     <line x1="8" y1="12" x2="8" y2="12.01"></line>
                                                     <line x1="16" y1="12" x2="16" y2="12.01"></line>
                                                 </svg>
+                                                {{__("app.reply")}}
                                             </a>
 
 
@@ -196,6 +196,7 @@
                                                         <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path>
                                                         <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path>
                                                     </svg>
+                                                    {{__("app.delete")}}
                                                 </a>
                                             @endif
                                             {{--                                        修改评论--}}
@@ -203,7 +204,7 @@
                                                 <a style="text-decoration:none;"
                                                    href="/comment/topic/{{$value->id}}/edit"
                                                    class="hvr-icon-fade cursor-pointer text-muted"
-                                                   data-bs-toggle="tooltip" data-bs-placement="bottom" title="编辑">
+                                                   data-bs-toggle="tooltip" data-bs-placement="bottom" title="修改">
                                                     <svg xmlns="http://www.w3.org/2000/svg"
                                                          class="hvr-icon icon icon-tabler icon-tabler-edit" width="24"
                                                          height="24" viewBox="0 0 24 24" stroke-width="2"
@@ -214,6 +215,7 @@
                                                         <path d="M9 15h3l8.5 -8.5a1.5 1.5 0 0 0 -3 -3l-8.5 8.5v3"></path>
                                                         <line x1="16" y1="5" x2="19" y2="8"></line>
                                                     </svg>
+                                                    修改
                                                 </a>
 
                                                 <a style="text-decoration:none;" topic-id="{{$data->id}}"
@@ -228,6 +230,7 @@
                                                         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                                         <path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z"></path>
                                                     </svg>
+                                                    收藏
                                                 </a>
                                                 {{--    举报--}}
                                                 <a data-bs-toggle="modal" data-bs-target="#modal-report"
@@ -244,13 +247,14 @@
                                                         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                                         <path d="M5 14h14l-4.5 -4.5l4.5 -4.5h-14v16"></path>
                                                     </svg>
+                                                    举报
                                                 </a>
                                             @endif
                                             {{--                                            引用评论--}}
                                             <a style="text-decoration:none;" core-click="copy"
                                                copy-content="[comment comment_id={{$value->id}}]" message="短代码复制成功!"
                                                class="cursor-pointer text-muted hvr-icon-up" data-bs-toggle="tooltip"
-                                               data-bs-placement="bottom" title="引用">
+                                               data-bs-placement="bottom" title="短代码">
                                                 <svg xmlns="http://www.w3.org/2000/svg"
                                                      class="icon icon-tabler icon-tabler-blockquote" width="24"
                                                      height="24" viewBox="0 0 24 24" stroke-width="2"
@@ -264,6 +268,7 @@
                                                     <path d="M9 9h1a1 1 0 1 1 -1 1v-2.5a2 2 0 0 1 2 -2"></path>
                                                     <path d="M3 9h1a1 1 0 1 1 -1 1v-2.5a2 2 0 0 1 2 -2"></path>
                                                 </svg>
+                                                短代码
                                             </a>
                                         </div>
                                     </div>
