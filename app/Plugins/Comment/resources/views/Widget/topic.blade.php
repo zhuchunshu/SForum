@@ -36,13 +36,13 @@
             @else
 
 
-                <div class="mb-1">
+                <div class="mb-1" x-data="comment">
                     <form action="/topic/create/comment/{{$data->id}}" method="post">
                         <div class="row">
                             <div class="col-md-12 mb-3">
                                 <x-csrf/>
                                 <input type="hidden" name="topic_id" value="{{$data->id}}">
-                                <textarea name="content" placeholder="说点什么..." class="form-control" data-bs-toggle="autosize" required>{{request()->input('content')}}</textarea>
+                                <textarea x-model="content" name="content" placeholder="说点什么..." class="form-control" data-bs-toggle="autosize" required>{{request()->input('content')}}</textarea>
                             </div>
                             <div class="col-12">
                                 <div class="row">
@@ -59,3 +59,63 @@
         </div>
     </div>
 </div>
+
+<script>
+    var reg =  new RegExp('<[^>]+>','gi');  //过滤所有的html标签，不包括内容
+
+    // var reg2 = /<(img|br|hr|input)[^>]*>/gi;  //只匹配img、br、hr、input标签
+    var reg2 = new RegExp('<(img|br|hr|input)[^>]*>','gi');  //只匹配img、br、hr、input标签
+
+    // var reg3 = /<(\S*)[^>]*>[^<]*<\/(\1)>/gi;        //分组匹配，过滤所有的html标签，包括内容
+    var reg3 = new RegExp('<(\\S*)[^>]*>[^<]*<\\/(\\1)>','gi');  //分组匹配，过滤所有的html标签，包括内容
+
+
+
+    /*
+    * 将所有的标签过滤，不过滤标签内内容
+    * */
+    function filterHtml(str){
+        if(typeof str !='string'){  //不是字符串
+            return str;
+        }
+
+        return str.replace(reg,'');
+    }
+
+    /*
+    * 讲所有的标签过滤，也过滤标签内的内容
+    * str 需要过滤的字符串
+    * isbool  为false则需要单标签过滤，为true则不需要单标签过滤
+    * */
+    function filterHtmlOrContainer(str,isbool) {
+        if(typeof str !='string'){  //不是字符串
+            return str;
+        }
+        var result = str;
+        if(!isbool){  //先把单标签过滤了
+            result = result.replace(reg2, '');
+        }
+        result = result.replace(reg3,'');    //先经过分组匹配，把双标签去除，如果是嵌套标签，则会先将嵌套标签内的双标签过滤掉
+        if(reg3.test(result)) { //如果为true，则代表还有标签
+            return filterHtmlOrContainer(result, true);
+        }else {
+            return result;
+        }
+    }
+
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('comment', () => ({
+            init() {
+                this.$watch('content', () => {
+                    localStorage.setItem('create_topic_comment_{{$data->id}}',this.content)
+                })
+            },
+            content:(()=>{
+                if(localStorage.getItem('create_topic_comment_{{$data->id}}')){
+                    return localStorage.getItem('create_topic_comment_{{$data->id}}')
+                }
+                return null;
+            })
+        }))
+    })
+</script>

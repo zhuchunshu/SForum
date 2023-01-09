@@ -18,6 +18,6 @@ class EndMiddleware implements MiddlewareInterface
     public function handler($data, \Closure $next)
     {
         $topic_id = TopicComment::query()->find($data['comment_id'])->topic_id;
-        return redirect()->url('/' . $topic_id . '.html/' . $data['comment_id'] . '?page=' . get_topic_comment_page((int)$data['comment_id']))->with('success', '发表成功!')->go();
+        return redirect()->url('/' . $topic_id . '.html/' . $data['comment_id'] . '?page=' . get_topic_comment_page((int)$data['comment_id']))->with('success', '更新成功!')->go();
     }
 }

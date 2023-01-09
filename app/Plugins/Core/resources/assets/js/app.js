@@ -4061,7 +4061,48 @@ if (GetQueryString('clean_topic_content_cache')) {
 }
 
 if (GetQueryString('clean_topic_comment_content_cache')) {
-  localStorage.removeItem('topic_comment_create_content');
+  localStorage.removeItem(getQueryVariable('clean_topic_comment_content_cache'));
+  history.pushState('', '', urlDel('clean_topic_comment_content_cache'));
+}
+
+function urlDel(name) {
+  var url = window.location;
+  var baseUrl = url.origin + url.pathname + "?";
+  var query = url.search.substr(1);
+
+  if (query.indexOf(name) > -1) {
+    var obj = {};
+    var arr = query.split("&");
+
+    for (var i = 0; i < arr.length; i++) {
+      arr[i] = arr[i].split("=");
+      obj[arr[i][0]] = arr[i][1];
+    }
+
+    ;
+    delete obj[name];
+    var url = baseUrl + JSON.stringify(obj).replace(/[\"\{\}]/g, "").replace(/\:/g, "=").replace(/\,/g, "&");
+    return url;
+  } else {
+    return window.location.href;
+  }
+
+  ;
+}
+
+function getQueryVariable(variable) {
+  var query = window.location.search.substring(1);
+  var vars = query.split("&");
+
+  for (var i = 0; i < vars.length; i++) {
+    var pair = vars[i].split("=");
+
+    if (pair[0] === variable) {
+      return pair[1];
+    }
+  }
+
+  return false;
 }
 })();
 

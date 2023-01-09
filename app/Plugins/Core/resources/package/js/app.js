@@ -4,18 +4,15 @@ import iziToast from "izitoast";
 import copy from "copy-to-clipboard";
 
 
-
-if(document.getElementById("vue-header-right-my")){
-    const vhrm ={
-        data(){
-            return {
-
-            }
+if (document.getElementById("vue-header-right-my")) {
+    const vhrm = {
+        data() {
+            return {}
         },
-        methods:{
-            Logout(){
+        methods: {
+            Logout() {
                 axios
-                    .post("/logout",{_token:csrf_token})
+                    .post("/logout", {_token: csrf_token})
                     .then(function (response) {
                         var data = response.data;
                         if (data.success === false) {
@@ -46,40 +43,40 @@ if(document.getElementById("vue-header-right-my")){
 }
 
 // 刷新菜单激活状态
-$(function(){
-    $("a[menu=active]").each(function(){
+$(function () {
+    $("a[menu=active]").each(function () {
         const d = $(this);
-        const _class =d.parent().parent().parent().parent().attr("class");
+        const _class = d.parent().parent().parent().parent().attr("class");
         d.parent().parent().parent().parent().attr('class', _class + " active")
     })
 })
 
-$(function(){
-    $("img").each(function(){
-        if($(this).attr("data-src")){
+$(function () {
+    $("img").each(function () {
+        if ($(this).attr("data-src")) {
             var d = $(this)
-            setTimeout(function(){
-                d.attr("src",d.attr("data-src"))
-            },500)
+            setTimeout(function () {
+                d.attr("src", d.attr("data-src"))
+            }, 500)
         }
     })
 })
 
-console.log("%cSuperForum %cwww.github.com/zhuchunshu/super-forum","color:#fff;background:linear-gradient(90deg,#448bff,#44e9ff);padding:5px 0;", "color:#000;background:linear-gradient(90deg,#44e9ff,#ffffff);padding:5px 10px 5px 0px;")
+console.log("%cSuperForum %cwww.github.com/zhuchunshu/super-forum", "color:#fff;background:linear-gradient(90deg,#448bff,#44e9ff);padding:5px 0;", "color:#000;background:linear-gradient(90deg,#44e9ff,#ffffff);padding:5px 10px 5px 0px;")
 
-$(function(){
-    axios.post("/api/user/get.user.config",{
-        _token:csrf_token
-    }).then(r=>{
+$(function () {
+    axios.post("/api/user/get.user.config", {
+        _token: csrf_token
+    }).then(r => {
         var data = r.data;
-        if(data.success===false){
-            return ;
+        if (data.success === false) {
+            return;
         }
         data = data.result;
 
         // 通知小红点
-        if (document.getElementById("core-notice-red")){
-            if(data.notice_red>0){
+        if (document.getElementById("core-notice-red")) {
+            if (data.notice_red > 0) {
                 $("#core-notice-red").show();
             }
         }
@@ -144,40 +141,40 @@ $(function(){
 // }
 
 // 切换主题
-$(function(){
-    $("#core_update_theme").click(function(){
+$(function () {
+    $("#core_update_theme").click(function () {
         let theme = $("body").attr("class");
-        if(theme==="antialiased"){
-            $("body").attr("class",'theme-dark')
-            $("html").attr("data-theme",'theme-dark')
+        if (theme === "antialiased") {
+            $("body").attr("class", 'theme-dark')
+            $("html").attr("data-theme", 'theme-dark')
             $(this).html('<svg class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M0 0h24v24H0z" stroke="none"></path><circle cx="12" cy="12" r="4"></circle><path d="M3 12h1m8-9v1m8 8h1m-9 8v1M5.6 5.6l.7.7m12.1-.7l-.7.7m0 11.4l.7.7m-12.1-.7l-.7.7"></path></svg>');
 
         }
-        if(theme==="theme-dark"){
-            $("body").attr("class",'antialiased')
-            $("html").attr("data-theme",'antialiased')
+        if (theme === "theme-dark") {
+            $("body").attr("class", 'antialiased')
+            $("html").attr("data-theme", 'antialiased')
             $(this).html('<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-moon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">\n' +
                 '                    <desc>Download more icon variants from https://tabler-icons.io/i/moon</desc>\n' +
                 '                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>\n' +
                 '                    <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"></path>\n' +
                 '                </svg>');
         }
-        axios.post("/api/core/toggle.theme",{
-            _token:csrf_token,
-            theme:$("body").attr("class")
-        }).then(r=>{
+        axios.post("/api/core/toggle.theme", {
+            _token: csrf_token,
+            theme: $("body").attr("class")
+        }).then(r => {
             let data = r.data;
-            if(data.success===false){
+            if (data.success === false) {
                 iziToast.error({
                     title: "Error",
-                    message:data.result.msg,
-                    position:"topRight"
+                    message: data.result.msg,
+                    position: "topRight"
                 })
-            }else{
+            } else {
                 iziToast.success({
                     title: "Success",
-                    message:data.result.msg,
-                    position:"topRight"
+                    message: data.result.msg,
+                    position: "topRight"
                 })
             }
         })
@@ -185,49 +182,79 @@ $(function(){
 })
 
 
-
-$(function(){
+$(function () {
     // 引用帖子
-    $('a[core-click="copy"]').click(function(){
-        const content= $(this).attr("copy-content")
+    $('a[core-click="copy"]').click(function () {
+        const content = $(this).attr("copy-content")
         copy(content);
         var message = "复制成功";
-        if($(this).attr("message")){
+        if ($(this).attr("message")) {
             message = $(this).attr("message")
         }
         iziToast.success({
-            title:"Success",
+            title: "Success",
             message: message,
-            position:"topRight"
+            position: "topRight"
         })
     })
 })
 
-$(function(){
-    $('button[auto-event="disabled"]').on("click",function(){
-        $(this).attr('disabled','disabled')
+$(function () {
+    $('button[auto-event="disabled"]').on("click", function () {
+        $(this).attr('disabled', 'disabled')
         const timeout = $(this).attr('timeout')
-        setTimeout(()=>{
+        setTimeout(() => {
             $(this).removeAttr('disabled')
-        },timeout)
+        }, timeout)
         $(this).parents('form').submit()
     })
 })
 
 
-
-function GetQueryString(name){
+function GetQueryString(name) {
     const reg = eval("/" + name + "/g");
     const r = window.location.search.substr(1);
     const flag = reg.test(r);
     return !!flag;
 }
 
-if(GetQueryString('clean_topic_content_cache')){
+if (GetQueryString('clean_topic_content_cache')) {
     localStorage.removeItem('topic_create_content');
     localStorage.removeItem('create_topic_title');
     localStorage.removeItem('create_topic_tag');
 }
-if(GetQueryString('clean_topic_comment_content_cache')){
-    localStorage.removeItem('topic_comment_create_content');
+if (GetQueryString('clean_topic_comment_content_cache')) {
+    localStorage.removeItem(getQueryVariable('clean_topic_comment_content_cache'));
+    history.pushState('', '', urlDel('clean_topic_comment_content_cache'))
+}
+
+function urlDel(name){
+    var url = window.location;
+    var baseUrl = url.origin + url.pathname + "?";
+    var query = url.search.substr(1);
+    if (query.indexOf(name)>-1) {
+        var obj = {}
+        var arr = query.split("&");
+        for (var i = 0; i < arr.length; i++) {
+            arr[i] = arr[i].split("=");
+            obj[arr[i][0]] = arr[i][1];
+        };
+        delete obj[name];
+        var url = baseUrl + JSON.stringify(obj).replace(/[\"\{\}]/g,"").replace(/\:/g,"=").replace(/\,/g,"&");
+        return url
+    }else{
+        return window.location.href;
+    };
+}
+
+function getQueryVariable(variable) {
+    var query = window.location.search.substring(1);
+    var vars = query.split("&");
+    for (var i = 0; i < vars.length; i++) {
+        var pair = vars[i].split("=");
+        if (pair[0] === variable) {
+            return pair[1];
+        }
+    }
+    return false;
 }

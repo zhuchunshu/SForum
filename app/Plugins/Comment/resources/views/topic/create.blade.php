@@ -98,11 +98,11 @@
                 external_plugins:{!! \App\Plugins\Comment\src\Lib\Create\Editor::externalPlugins() !!},
                 images_upload_handler: image_upload_handler,
                 init_instance_callback: (editor) => {
-                    if(localStorage.getItem('topic_comment_create_content')){
-                        editor.setContent(localStorage.getItem('topic_comment_create_content'))
+                    if(localStorage.getItem('create_topic_comment_{{$topic->id}}')){
+                        editor.setContent(localStorage.getItem('create_topic_comment_{{$topic->id}}'))
                     }
                     editor.on('input', function(e) {
-                        localStorage.setItem('topic_comment_create_content',editor.getContent())
+                        localStorage.setItem('create_topic_comment_{{$topic->id}}',editor.getContent())
                     });
                 },
                 mobile:{
