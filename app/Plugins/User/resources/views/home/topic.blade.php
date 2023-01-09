@@ -29,8 +29,13 @@
                                                     {{__('app.top')}}
                                                 </span>
                                                                 @else
-                                                                    <span class="badge" style="background-color: {{$data->tag->color}}!important;">
+                                                                    <span class="badge d-none d-lg-inline-block"
+                                                                          style="background-color: {{$data->tag->color}}!important;">
                                                         {{$data->tag->name}}
+                                                    </span>
+                                                                    <span class="badge d-inline-block d-md-none"
+                                                                          style="background-color: {{$data->tag->color}}!important;">
+                                                        {!! $data->tag->icon !!}
                                                     </span>
                                                                 @endif
                                                                 @if($data->essence>0)
