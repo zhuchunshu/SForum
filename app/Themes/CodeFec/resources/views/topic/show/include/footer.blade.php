@@ -24,6 +24,7 @@
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                         <path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z"></path>
                     </svg>
+                    收藏
                 </a>
                 {{--                    举报--}}
                 <a data-bs-toggle="modal" data-bs-target="#modal-report" style="text-decoration:none;"
@@ -36,11 +37,12 @@
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                         <path d="M5 14h14l-4.5 -4.5l4.5 -4.5h-14v16"></path>
                     </svg>
+                    举报
                 </a>
                 {{--                引用--}}
                 <a style="text-decoration:none;" core-click="copy" copy-content="[topic topic_id={{$data->id}}]" message="短代码复制成功!"
                    class="hvr-icon-bounce cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom"
-                   title="引用">
+                   title="短代码">
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-blockquote" width="24"
                          height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                          stroke-linecap="round" stroke-linejoin="round">
@@ -52,6 +54,7 @@
                         <path d="M9 9h1a1 1 0 1 1 -1 1v-2.5a2 2 0 0 1 2 -2"></path>
                         <path d="M3 9h1a1 1 0 1 1 -1 1v-2.5a2 2 0 0 1 2 -2"></path>
                     </svg>
+                    短代码
                 </a>
             @endif
         </div>
