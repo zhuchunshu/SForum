@@ -19,7 +19,7 @@
 
 <div class="mb-3">
     <label class="form-label">内容正文</label>
-    <textarea name="basis[content]" id="basis-content" cols="30" rows="10">{!! $data->post->content !!}</textarea>
+    <textarea name="basis[content]" id="basis-content" cols="30" rows="10">{{$data->post->content}}</textarea>
 </div>
 
 <script src="{{file_hash("js/axios.min.js")}}"></script>

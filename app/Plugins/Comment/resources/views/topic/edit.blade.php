@@ -36,7 +36,7 @@
                         <input type="hidden" name="comment_id" value="{{$comment->id}}">
                         <div class="mb-3">
                             <label for="" class="form-label"></label>
-                            <textarea name="content" id="content" rows="3">{!! $comment->post->content !!}</textarea>
+                            <textarea name="content" id="content" rows="3">{{$comment->post->content}}</textarea>
                         </div>
                         <div class="mb-3 d-flex flex-row-reverse">
                             <button class="btn btn-primary" type="submit">修改评论</button>
