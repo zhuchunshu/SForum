@@ -1,4 +1,4 @@
-<div class="wrapper sticky-top">
+<div class="wrapper sticky-top border-top-wide border-primary">
     <div class="navbar-expand-md">
         <div class="collapse navbar-collapse" id="navbar-menu">
             <div class="navbar navbar-light">
