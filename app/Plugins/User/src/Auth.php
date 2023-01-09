@@ -62,7 +62,10 @@ class Auth
         // 数据库里的密码
         $user = User::query()->where('username', $username)->first();
         if (Hash::check($password, $user->password)) {
-            authManager()->login(User::find($user->id));
+            $user_id = $user->id;
+            if (! authManager()->login(User::find($user_id))) {
+                return false;
+            }
             EventDispatcher()->dispatch(new AfterLogin($user));
             return true;
         }

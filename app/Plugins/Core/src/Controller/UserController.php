@@ -220,7 +220,7 @@ HTML;
     }
 
     #[PostMapping(path: '/login/username')]
-    public function login_username_post(LoginUsernameRequest $request): \Psr\Http\Message\ResponseInterface|array
+    public function login_username_post(LoginUsernameRequest $request)
     {
         if (auth()->check()) {
             return admin_abort(['msg' => '您已登录']);
