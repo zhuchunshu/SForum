@@ -62,9 +62,7 @@ class Auth
         // 数据库里的密码
         $user = User::query()->where('username', $username)->first();
         if (Hash::check($password, $user->password)) {
-            $token = Str::random(17);
-            session()->set('auth', $token);
-            (new UserAuth())->create($user->id, $token);
+            authManager()->login(User::find($user->id));
             EventDispatcher()->dispatch(new AfterLogin($user));
             return true;
         }
