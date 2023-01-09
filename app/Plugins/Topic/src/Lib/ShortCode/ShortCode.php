@@ -21,13 +21,22 @@ class ShortCode
         if (! @isset($data['comment'])) {
             return '[' . $shortCode->getName() . ']短标签只能用于评论';
         }
-        if(auth()->id()==$data['comment']['user_id'] || auth()->id()==$data['comment']['topic']['user_id']){
+        if (auth()->id() == $data['comment']['user_id'] || auth()->id() == $data['comment']['topic']['user_id']) {
             return $shortCode->getContent();
         }
-        return <<<HTML
+        return <<<'HTML'
 <div class="card card-body disabled">
 私密评论，仅楼主可见
 </div>
 HTML;
+    }
+
+    #[ShortCodeR(name: 'code')]
+    public function code($match, ShortcodeInterface $shortCode)
+    {
+        $lang = $shortCode->getParameter('lang','text');
+        $content = $shortCode->getContent();
+        return '<pre class="language-'.$lang.'"><code>'.$content.'</code></pre>';
+
     }
 }
