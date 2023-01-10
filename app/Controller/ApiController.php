@@ -16,7 +16,6 @@ use Hyperf\DbConnection\Db;
 use Hyperf\HttpServer\Annotation\AutoController;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Contract\RequestInterface;
-use Illuminate\Support\Arr;
 use Psr\SimpleCache\InvalidArgumentException;
 use Swoole\Coroutine\System;
 use Symfony\Component\Console\Application;
@@ -74,7 +73,21 @@ class ApiController
         } catch (InvalidArgumentException $e) {
         }
         cache()->delete('plugins.en');
-        System::exec('php CodeFec ClearCache');
+        go(function () {
+            $params = ['command' => 'ClearCache'];
+
+            $input = new ArrayInput($params);
+            $output = new NullOutput();
+
+            $container = \Hyperf\Utils\ApplicationContext::getContainer();
+
+            /** @var Application $application */
+            $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+            $application->setAutoExit(false);
+
+            // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
+            $exitCode = $application->run($input, $output);
+        });
         return Json_Api(200, true, ['msg' => '更新成功!']);
     }
 
@@ -171,32 +184,10 @@ class ApiController
         }
         if (request()->input('path') && is_dir(request()->input('path'))) {
             \Swoole\Coroutine\System::exec('rm -rf ' . request()->input('path'));
-            if (stripos(system_name(), 'Linux') !== false) {
-                \Swoole\Coroutine\System::exec('yes | composer du');
-            } else {
-                \Swoole\Coroutine\System::exec('composer du');
-            }
+            System::exec('php CodeFec ClearCache');
             return Json_Api(200, true, ['msg' => '卸载成功!']);
         }
 
         return Json_Api(403, false, ['msg' => '卸载失败,目录:' . request()->input('path') . ' 不存在!']);
-    }
-
-    public function AdminErrorRedirect(): array
-    {
-        $list = [
-            '/admin' => '/admin/login',
-            '/admin/login' => '/admin',
-        ];
-        if (request()->input('path', null)) {
-            $path = request()->input('path', null);
-            if (Arr::has($list, $path)) {
-                return Json_Api(200, true, ['data' => $list[$path]]);
-            }
-
-            return Json_Api(403, false, ['data' => '#']);
-        }
-
-        return Json_Api(403, false, ['data' => '#']);
     }
 }
