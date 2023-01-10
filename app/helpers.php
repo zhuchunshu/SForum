@@ -506,11 +506,7 @@ if (!function_exists('csrf_token')) {
             session()->set('CSRF_TOKEN', Str::random());
         }
         if (!cache()->has('CSRF_TOKEN' . session()->get('CSRF_TOKEN'))) {
-            $k = sha1(json_encode([
-                request()->getHeader('host')[0],
-                get_client_ip(),
-                get_user_agent(),
-            ], JSON_THROW_ON_ERROR));
+            $k = \Hyperf\Utils\Str::random(25);
             cache()->set('CSRF_TOKEN' . session()->get('CSRF_TOKEN'), $k);
         }
         return cache()->get('CSRF_TOKEN' . session()->get('CSRF_TOKEN'));
@@ -523,11 +519,7 @@ if (!function_exists('recsrf_token')) {
         if (!session()->has('CSRF_TOKEN')) {
             session()->set('CSRF_TOKEN', Str::random());
         }
-        $k = sha1(json_encode([
-            request()->getHeader('host')[0],
-            get_client_ip(),
-            get_user_agent(),
-        ], JSON_THROW_ON_ERROR));
+        $k = \Hyperf\Utils\Str::random(25);
         cache()->set('CSRF_TOKEN' . session()->get('CSRF_TOKEN'), $k);
         return cache()->get('CSRF_TOKEN' . session()->get('CSRF_TOKEN'));
     }

@@ -8,6 +8,7 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
  */
+
 namespace App\Middleware;
 
 use Hyperf\Utils\Str;
@@ -31,7 +32,7 @@ class CsrfMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        if (! config('codefec.app.csrf')) {
+        if (!config('codefec.app.csrf')) {
             return $handler->handle($request);
         }
         foreach (Itf()->get('csrf') as $value) {
@@ -39,18 +40,13 @@ class CsrfMiddleware implements MiddlewareInterface
                 return $handler->handle($request);
             }
         }
-        $sha1 = sha1(json_encode([
-            request()->getHeader('host')[0],
-            get_client_ip(),
-            get_user_agent(),
-        ], JSON_THROW_ON_ERROR));
-        if (request()->isMethod('post') && $sha1 !== request()->input('_token')) {
-            return admin_abort(['msg' => '会话超时,请刷新后重新提交', 'CSRF_TOKEN_CREATE' => is_string(recsrf_token()) ], 419);
+        if (request()->isMethod('post') && csrf_token() !== request()->input('_token')) {
+            return admin_abort(['msg' => '会话超时,请刷新后重新提交', 'CSRF_TOKEN_CREATE' => is_string(recsrf_token())], 419);
         }
         return $handler->handle($request);
     }
 
-    public function clean_str($str): array | string
+    public function clean_str($str): array|string
     {
         return str_replace('/', '_', $str);
     }
