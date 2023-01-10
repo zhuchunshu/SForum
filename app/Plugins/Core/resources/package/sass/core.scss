@@ -1,5 +1,6 @@
 @import '~hover.css';
 
+
 // 自己定义的
 body {
   -webkit-backface-visibility: hidden;
@@ -7,7 +8,7 @@ body {
   color: #121212;
   font-feature-settings: "tnum";
   line-height: 1.4;
-  font-family: -apple-system,BlinkMacSystemFont,Helvetica Neue,PingFang SC,Microsoft YaHei,Source Han Sans SC,Noto Sans CJK SC,WenQuanYi Micro Hei,sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, PingFang SC, Microsoft YaHei, Source Han Sans SC, Noto Sans CJK SC, WenQuanYi Micro Hei, sans-serif;
   text-rendering: optimizeLegibility;
   -moz-font-feature-settings: "liga" on;
   font-feature-settings: "liga" on;
@@ -15,16 +16,110 @@ body {
   font-style: normal;
 }
 
-.sticky{
+.sticky {
   position: sticky;
   position: -webkit-sticky;
 }
 
-.rd{
+.rd {
   height: 100%;
   display: flow-root;
 }
-.form-control:focus {
-  border-color:#ccc;box-shadow: inset 0 1px 1px rgba(0,0,0,.075);-webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075)
 
+.form-control:focus {
+  border-color: #ccc;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
+  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075)
+
+}
+
+
+.ua-icon {
+  display: inline-block;
+  width: 1pc;
+  height: 1pc;
+  background-size: cover;
+  background-repeat: no-repeat;
+  vertical-align: text-top
+}
+
+.icon-360 {
+  background-image: url(/plugins/User/image/icon/360.png)
+}
+
+.icon-android {
+  background-image: url(/plugins/User/image/icon/android.png);
+  height: 19px
+}
+
+.icon-apple {
+  background-image: url(/plugins/User/image/icon/apple.png)
+}
+
+.icon-baidu {
+  background-image: url(/plugins/User/image/icon/baidu.png)
+}
+
+.icon-chrome {
+  background-image: url(/plugins/User/image/icon/chrome.png)
+}
+
+.icon-edge {
+  background-image: url(/plugins/User/image/icon/edge.png)
+}
+
+.icon-firefox {
+  background-image: url(/plugins/User/image/icon/firefox.png)
+}
+
+.icon-google {
+  background-image: url(/plugins/User/image/icon/google.png)
+}
+
+.icon-ie {
+  background-image: url(/plugins/User/image/icon/ie.png)
+}
+
+.icon-liebao {
+  background-image: url(/plugins/User/image/icon/liebao.png)
+}
+
+.icon-linux {
+  background-image: url(/plugins/User/image/icon/linux.png)
+}
+
+.icon-mac {
+  background-image: url(/plugins/User/image/icon/mac.png)
+}
+
+.icon-opera {
+  background-image: url(/plugins/User/image/icon/opera.png)
+}
+
+.icon-qq {
+  background-image: url(/plugins/User/image/icon/qq.png)
+}
+
+.icon-quark {
+  background-image: url(/plugins/User/image/icon/quark.png)
+}
+
+.icon-safari {
+  background-image: url(/plugins/User/image/icon/safari.png)
+}
+
+.icon-ubuntu {
+  background-image: url(/plugins/User/image/icon/ubuntu.png)
+}
+
+.icon-uc {
+  background-image: url(/plugins/User/image/icon/uc.png)
+}
+
+.icon-win1 {
+  background-image: url(/plugins/User/image/icon/win1.png)
+}
+
+.icon-win2 {
+  background-image: url(/plugins/User/image/icon/win2.png)
 }

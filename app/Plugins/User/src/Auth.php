@@ -12,12 +12,9 @@ namespace App\Plugins\User\src;
 
 use App\Plugins\User\src\Event\AfterLogin;
 use App\Plugins\User\src\Event\Logout;
-use App\Plugins\User\src\Lib\UserAuth;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserClass;
-use App\Plugins\User\src\Models\UsersAuth;
 use App\Plugins\User\src\Models\UsersOption;
-use Hyperf\Utils\Str;
 use HyperfExt\Hashing\Hash;
 
 class Auth
@@ -75,7 +72,7 @@ class Auth
     public function token()
     {
         if ($this->check() === true) {
-            return session()->get('auth', null);
+            return session()->get('AUTH_TOKEN', null);
         }
         return null;
     }
@@ -89,7 +86,7 @@ class Auth
 
     public function data(): \Hyperf\Database\Model\Collection | \Hyperf\Database\Model\Model | array | \Hyperf\Database\Model\Builder | null
     {
-        return User::query()->find($this->id());
+        return authManager()->user();
     }
 
     public function Class(): \Hyperf\Database\Model\Model | \Hyperf\Database\Model\Builder | null
@@ -108,7 +105,10 @@ class Auth
      */
     public function id()
     {
-        return (int) authManager()->id();
+        if ($this->check()) {
+            return (int) authManager()->id();
+        }
+        return null;
     }
 
     /**

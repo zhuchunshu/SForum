@@ -59,6 +59,12 @@
             <input type="number" class="form-control" v-model="data.core_user_up_file_size">
             <small>当前:{{get_options('core_user_up_file_size',4096)}} KB</small>
         </div>
+        <div class="col-3">
+            <label class="form-label">允许几台设备同时在线？
+            </label>
+            <input type="number" class="form-control" v-model="data.core_user_session_num">
+            <small>当前:{{get_options('core_user_session_num',10)}}</small>
+        </div>
 
         <div class="col-3">
             <label class="form-check form-switch">

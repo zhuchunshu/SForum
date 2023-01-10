@@ -168,7 +168,7 @@ return [
             'prefix' => env('SIMPLE_JWT_PREFIX', 'default'),
         ],
         'session' => [
-            'driver' => Qbhy\HyperfAuth\Guard\SessionGuard::class,
+            'driver' => \App\Plugins\User\src\AuthGuard::class,
             'provider' => 'users',
         ],
     ],
