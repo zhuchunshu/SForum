@@ -26,7 +26,7 @@ class AdminMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         if(!Admin::Check()){
-            return admin_abort(["msg" => "无权访问,请先登录"]);
+            return redirect()->url('/admin/login')->with('danger','无权访问,请先登录')->go();
         }
         return $handler->handle($request);
     }

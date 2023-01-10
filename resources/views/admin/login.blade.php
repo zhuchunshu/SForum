@@ -5,28 +5,21 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>Sign in - {{ config('codefec.app.name') }}</title>
-    <link rel="preconnect" href="https://www.google-analytics.com" crossorigin>
-    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
-    <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin>
+    <title>Sign in - {{get_options('title', config('app_name', 'CodeFec')) }}</title>
     <meta name="msapplication-TileColor" content="#206bc4" />
     <meta name="theme-color" content="#206bc4" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="HandheldFriendly" content="True" />
-    <meta name="MobileOptimized" content="320" />
     <link rel="icon" href="/logo.svg" type="image/x-icon" />
     <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
     <!-- CSS files -->
     <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet" />
-    <link href="{{ '/tabler/css/tabler-flags.min.css' }}" rel="stylesheet" />
-    <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
-    <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ mix('iziToast/css/iziToast.min.css') }}">
+    <script src="{{ mix('iziToast/js/iziToast.min.js') }}"></script>
     <script>var csrf_token="{{csrf_token()}}";</script>
 </head>
 
 <body class="antialiased border-top-wide border-primary d-flex flex-column">
+@include("layouts.errors")
+@include("layouts._msg")
     <div class="page page-center">
         <div class="container-tight py-4">
             <div class="text-center mb-4">
