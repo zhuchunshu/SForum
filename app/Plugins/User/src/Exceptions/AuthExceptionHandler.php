@@ -20,7 +20,7 @@ class AuthExceptionHandler extends ExceptionHandler
     {
         $this->stopPropagation();
         if (request()->path() !== 'register' && request()->path() !== 'login') {
-            return admin_abort(['msg' => '登录后才可访问', 'back' => '/login']);
+            return admin_abort(['msg' => '登录后才可访问', 'back' => '/login'],403,'/login');
         }
     }
 

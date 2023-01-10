@@ -23,7 +23,7 @@
                                                   style="background-color: {{$data->tag->color}}!important;">
                                                         {{$data->tag->name}}
                                                     </span>
-                                            <span class="badge d-inline-block d-md-none"
+                                            <span class="badge d-inline-block d-lg-none"
                                                   style="background-color: {{$data->tag->color}}!important;">
                                                         {!! $data->tag->icon !!}
                                                     </span>
