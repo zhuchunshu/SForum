@@ -34,7 +34,7 @@ class UserController
     #[GetMapping(path: '/login')]
     public function login(): \Psr\Http\Message\ResponseInterface
     {
-        return view('App::user.sign', ['title' => '登陆', 'view' => 'App::user.login']);
+        return view('App::user.sign', ['title' => '使用用户名登陆', 'view' => 'App::user.login_username']);
     }
 
     // 忘记密码
@@ -119,14 +119,14 @@ HTML;
         return Json_Api(200, true, ['msg' => '验证成功! 请设置新密码']);
     }
 
-    #[GetMapping(path: '/login/username')]
+    #[GetMapping(path: '/login/email')]
     public function login_username(): \Psr\Http\Message\ResponseInterface
     {
         if (auth()->check()) {
             redirect()->back()->with('info', '您已登录')->go();
         }
 
-        return view('App::user.sign', ['title' => '使用用户名登陆', 'view' => 'App::user.login_username']);
+        return view('App::user.sign', ['title' => '登陆', 'view' => 'App::user.login']);
     }
 
     #[GetMapping(path: '/register')]
