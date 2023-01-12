@@ -34,7 +34,8 @@ class LoginMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        if (! auth()->check()) {
+        $token = request()->input('_session', null);
+        if (! auth()->check($token)) {
             throw new UnauthorizedException('Without authorization');
         }
 

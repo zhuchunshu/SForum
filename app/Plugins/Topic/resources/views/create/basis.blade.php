@@ -71,6 +71,7 @@
         const formData = new FormData();
         formData.append('file', blobInfo.blob(), blobInfo.filename());
         formData.append('_token', csrf_token);
+        formData.append('_session', _token);
         axios.post("/user/upload/image",formData,{
             'Content-type' : 'multipart/form-data'
         }).then(function(r){

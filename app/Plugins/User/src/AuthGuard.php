@@ -8,7 +8,6 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
  */
-
 namespace App\Plugins\User\src;
 
 use App\Plugins\User\src\Models\UsersAuth;
@@ -44,20 +43,27 @@ class AuthGuard extends SessionGuard
             'user_id' => $this->user()->getId(),
             'token' => session()->get('AUTH_TOKEN'),
         ])->delete();
-        return (bool)$this->session->remove($this->sessionKey()) && $this->session->remove('AUTH_TOKEN');
+        return (bool) $this->session->remove($this->sessionKey()) && $this->session->remove('AUTH_TOKEN');
     }
 
-    public function check(): bool
+    public function check(string $token = null): bool
     {
         try {
-            return $this->user() instanceof Authenticatable && call_user_func(function () {
+            return $this->user() instanceof Authenticatable && call_user_func(function () use ($token) {
+                if ($token === null) {
                     return UsersAuth::query()->where([
                         'user_id' => $this->user()->getId(),
                         'user_ip' => get_client_ip(),
                         'token' => session()->get('AUTH_TOKEN'),
                         'user_agent' => get_user_agent(),
                     ])->exists();
-                }) === true;
+                }
+                return UsersAuth::query()->where([
+                    'user_id' => $this->user()->getId(),
+                    'token' => session()->get('AUTH_TOKEN'),
+                    'user_agent' => get_user_agent(),
+                ])->exists();
+            }) === true;
         } catch (AuthException $exception) {
             return false;
         }
