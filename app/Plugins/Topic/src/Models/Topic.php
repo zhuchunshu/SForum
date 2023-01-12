@@ -45,7 +45,7 @@ class Topic extends Model
      *
      * @var array
      */
-    protected $fillable = ['id', 'created_at', 'updated_at', 'title', 'user_id', 'status', 'post_id', 'view', 'tag_id', 'options', '_token', 'topping', 'essence'];
+    protected $fillable = ['id', 'created_at', 'updated_at', 'title', 'user_id', 'status', 'post_id', 'view', 'tag_id', 'options','topping', 'essence'];
 
     /**
      * The attributes that should be cast to native types.
