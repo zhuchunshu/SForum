@@ -56,6 +56,7 @@
 
 </style>
 <link rel="stylesheet" href="{{file_hash('highlight/styles/mac.css')}}">
+<link rel="stylesheet" href="{{file_hash('highlight/highlightjs-copy.min.css')}}">
 <link rel="stylesheet" href="{{file_hash('highlight/styles/atom-one-dark.min.css')}}">
 <style>
     pre code.hljs {
@@ -72,11 +73,15 @@
 </style>
 <script src="{{file_hash('highlight/highlight.min.js')}}"></script>
 <script src="{{file_hash('highlight/highlightjs-line-numbers.min.js')}}"></script>
+<script src="{{file_hash('highlight/highlightjs-copy.min.js')}}"></script>
 <script>
     hljs.highlightAll();
     hljs.initLineNumbersOnLoad({
         singleLine: true
     });
+    hljs.addPlugin(
+        new CopyButtonPlugin()
+    );
 </script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
