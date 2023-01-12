@@ -17,6 +17,7 @@ use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\Paginator\LengthAwarePaginator;
 use Hyperf\Utils\Collection;
 use Hyperf\Utils\Str;
+use Swoole\Coroutine\System;
 use Symfony\Component\Finder\Finder;
 
 #[Controller(prefix: '/admin/setting/components')]
@@ -26,6 +27,9 @@ class ComponentController
     #[GetMapping(path: '')]
     public function index()
     {
+        if (! is_dir(BASE_PATH . '/resources/views/customize/component')) {
+            System::exec('cd ' . BASE_PATH . '/resources/views' . '&& mkdir ' . 'customize && cd customize && mkdir component');
+        }
         $page = $this->page();
         return view('admin.setting.components', ['page' => $page]);
     }

@@ -14,6 +14,7 @@ use App\Plugins\User\src\Event\AfterLogin;
 use App\Plugins\User\src\Event\Logout;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserClass;
+use App\Plugins\User\src\Models\UsersAuth;
 use App\Plugins\User\src\Models\UsersOption;
 use HyperfExt\Hashing\Hash;
 
@@ -113,9 +114,17 @@ class Auth
 
     /**
      * check is login.
+     * @param null|mixed $token
      */
-    public function check(): bool
+    public function check(string $token = null): bool
     {
-        return authManager()->check();
+        if ($token === null) {
+            return authManager()->check($token);
+        }
+        return UsersAuth::query()->where([
+            'user_id' => authManager()->user()->getId(),
+            'token' => $token,
+            'user_agent' => get_user_agent(),
+        ])->exists();
     }
 }

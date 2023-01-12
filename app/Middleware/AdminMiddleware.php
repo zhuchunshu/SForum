@@ -1,14 +1,20 @@
 <?php
 
 declare(strict_types=1);
-
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ */
 namespace App\Middleware;
 
 use App\CodeFec\Admin\Admin;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
 class AdminMiddleware implements MiddlewareInterface
@@ -25,8 +31,8 @@ class AdminMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        if(!Admin::Check()){
-            return redirect()->url('/admin/login')->with('danger','无权访问,请先登录')->go();
+        if (! Admin::Check()) {
+            return redirect()->url('/admin/login')->with('danger', '无权访问,请先登录')->go();
         }
         return $handler->handle($request);
     }

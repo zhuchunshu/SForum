@@ -1,26 +1,36 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ */
 namespace App\Plugins\Core\src\Controller;
 
 use App\Plugins\Core\src\Models\Report;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 
-#[Controller(prefix:"/report")]
+#[Controller(prefix: '/report')]
 class ReportController
 {
-    #[GetMapping(path:"")]
-    public function index(){
-        $page = Report::query()->orderBy("created_at","desc")->paginate(15);
-        return view("App::report.index",['page' => $page]);
+    #[GetMapping(path: '')]
+    public function index()
+    {
+        $page = Report::query()->orderBy('created_at', 'desc')->paginate(15);
+        return view('App::report.index', ['page' => $page]);
     }
 
-    #[GetMapping(path:"{id}.html")]
-    public function data($id){
-        if(!Report::query()->where("id",$id)->exists()){
-            return admin_abort("页面不存在",404);
+    #[GetMapping(path: '{id}.html')]
+    public function data($id)
+    {
+        if (! Report::query()->where('id', $id)->exists()) {
+            return admin_abort('页面不存在', 404);
         }
-        $data = Report::query()->where("id",$id)->first();
-        return view("App::report.data",['data' => $data]);
+        $data = Report::query()->where('id', $id)->first();
+        return view('App::report.data', ['data' => $data]);
     }
 }

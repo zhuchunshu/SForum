@@ -2,27 +2,25 @@
 
 declare(strict_types=1);
 /**
- * This file is part of Hyperf.
- *
- * @link     https://www.hyperf.io
- * @document https://hyperf.wiki
- * @contact  group@hyperf.io
- * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
  */
 namespace App\CodeFec\View;
 
-
-use Hyperf\View\Mode;
-use Hyperf\Utils\Context;
-use Hyperf\View\RenderInterface;
-use Hyperf\View\Engine\NoneEngine;
 use Hyperf\Contract\ConfigInterface;
-use Psr\Container\ContainerInterface;
-use Hyperf\View\Engine\EngineInterface;
-use Psr\Http\Message\ResponseInterface;
-use Hyperf\View\Exception\RenderException;
 use Hyperf\HttpMessage\Stream\SwooleStream;
+use Hyperf\Utils\Context;
+use Hyperf\View\Engine\EngineInterface;
+use Hyperf\View\Engine\NoneEngine;
 use Hyperf\View\Exception\EngineNotFindException;
+use Hyperf\View\Exception\RenderException;
+use Hyperf\View\Mode;
+use Hyperf\View\RenderInterface;
+use Psr\Container\ContainerInterface;
+use Psr\Http\Message\ResponseInterface;
 
 class Render implements RenderInterface
 {
@@ -59,21 +57,22 @@ class Render implements RenderInterface
         $this->container = $container;
     }
 
-    public function render(string $template, array $data = [],int $code=200): ResponseInterface
+    public function render(string $template, array $data = [], int $code = 200): ResponseInterface
+    {
+        $content = $this->getContents($template, $data);
+        return $this->response()
+            ->withStatus($code)
+            ->withAddedHeader('content-type', $this->getContentType())
+            ->withBody(new SwooleStream($content));
+    }
+
+    public function renderR(string $result, int $code = 200): ResponseInterface
     {
         return $this->response()
             ->withStatus($code)
             ->withAddedHeader('content-type', $this->getContentType())
-            ->withBody(new SwooleStream($this->getContents($template, $data)));
+            ->withBody(new SwooleStream($result));
     }
-	
-	public function renderR(string $result, int $code=200): ResponseInterface
-	{
-		return $this->response()
-			->withStatus($code)
-			->withAddedHeader('content-type', $this->getContentType())
-			->withBody(new SwooleStream($result));
-	}
 
     public function getContents(string $template, array $data = []): string
     {

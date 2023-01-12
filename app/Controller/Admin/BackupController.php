@@ -27,6 +27,9 @@ class BackupController
     #[GetMapping(path: '')]
     public function index()
     {
+        if (! is_dir(BASE_PATH . '/runtime/backup')) {
+            System::exec('cd ' . BASE_PATH . '/runtime' . '&& mkdir ' . 'backup');
+        }
         return view('admin.server.backup', ['page' => $this->page()]);
     }
 

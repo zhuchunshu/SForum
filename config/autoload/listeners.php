@@ -10,4 +10,5 @@ declare(strict_types=1);
  * @license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
  */
 return [
+    Hyperf\ModelCache\Listener\EagerLoadListener::class,
 ];

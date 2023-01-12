@@ -1,75 +1,57 @@
 <?php
+
+declare(strict_types=1);
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/super-forum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ */
 namespace App\Server;
 
 use App\CodeFec\CodeFec;
-use Throwable;
 use FastRoute\Dispatcher;
-use Hyperf\Utils\Context;
 use Hyperf\Contract\ConfigInterface;
-use Hyperf\Dispatcher\HttpDispatcher;
-use Hyperf\HttpServer\CoreMiddleware;
-use Psr\Container\ContainerInterface;
-use Hyperf\HttpServer\ResponseEmitter;
-use Hyperf\Contract\OnRequestInterface;
-use Hyperf\Utils\Coordinator\Constants;
-use Psr\Http\Message\ResponseInterface;
-use Hyperf\HttpServer\MiddlewareManager;
-use Hyperf\HttpServer\Router\Dispatched;
-use Psr\Http\Message\ServerRequestInterface;
-use Hyperf\HttpServer\Router\DispatcherFactory;
-use Hyperf\Utils\Coordinator\CoordinatorManager;
 use Hyperf\Contract\MiddlewareInitializerInterface;
-use Hyperf\HttpMessage\Server\Request as Psr7Request;
+use Hyperf\Contract\OnRequestInterface;
+use Hyperf\Dispatcher\HttpDispatcher;
 use Hyperf\ExceptionHandler\ExceptionHandlerDispatcher;
+use Hyperf\HttpMessage\Server\Request as Psr7Request;
 use Hyperf\HttpMessage\Server\Response as Psr7Response;
 use Hyperf\HttpServer\Contract\CoreMiddlewareInterface;
+use Hyperf\HttpServer\CoreMiddleware;
 use Hyperf\HttpServer\Exception\Handler\HttpExceptionHandler;
+use Hyperf\HttpServer\MiddlewareManager;
+use Hyperf\HttpServer\ResponseEmitter;
+use Hyperf\HttpServer\Router\Dispatched;
+use Hyperf\HttpServer\Router\DispatcherFactory;
+use Hyperf\Utils\Context;
+use Hyperf\Utils\Coordinator\Constants;
+use Hyperf\Utils\Coordinator\CoordinatorManager;
+use Psr\Container\ContainerInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Throwable;
 
-class CodeFecServer implements OnRequestInterface, MiddlewareInitializerInterface {
-
-    /**
-     * @var ContainerInterface
-     */
+class CodeFecServer implements OnRequestInterface, MiddlewareInitializerInterface
+{
     protected ContainerInterface $container;
 
-    /**
-     * @var HttpDispatcher
-     */
     protected HttpDispatcher $dispatcher;
 
-    /**
-     * @var ExceptionHandlerDispatcher
-     */
     protected ExceptionHandlerDispatcher $exceptionHandlerDispatcher;
 
-    /**
-     * @var array
-     */
     protected array $middlewares;
 
-    /**
-     * @var CoreMiddlewareInterface
-     */
     protected CoreMiddlewareInterface $coreMiddleware;
 
-    /**
-     * @var array
-     */
     protected array $exceptionHandlers;
 
-    /**
-     * @var Dispatcher
-     */
     protected Dispatcher $routerDispatcher;
 
-    /**
-     * @var ResponseEmitter
-     */
     protected ResponseEmitter $responseEmitter;
 
-    /**
-     * @var string
-     */
     protected string $serverName;
 
     public function __construct(ContainerInterface $container, HttpDispatcher $dispatcher, ExceptionHandlerDispatcher $exceptionHandlerDispatcher, ResponseEmitter $responseEmitter)
@@ -95,8 +77,8 @@ class CodeFecServer implements OnRequestInterface, MiddlewareInitializerInterfac
     {
         try {
             CoordinatorManager::until(Constants::WORKER_START)->yield();
-	
-	        (new CodeFec)->handle();
+
+            (new CodeFec())->handle();
             [$psr7Request, $psr7Response] = $this->initRequestAndResponse($request, $response);
 
             $psr7Request = $this->coreMiddleware->dispatch($psr7Request);
