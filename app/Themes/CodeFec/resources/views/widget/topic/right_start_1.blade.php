@@ -7,7 +7,7 @@
                     <span class="avatar avatar-xl avatar-thumb avatar-rounded" style="background-image: url({{super_avatar($data->user)}})"></span>
                 </div>
                 <div class="card-body text-center">
-                    <div class="card-title mb-1">{{$data->user->username}}</div>
+                    <div class="card-title mb-1">{!! u_username($data->user,['link' => false]) !!}</div>
                     <div class="text-muted">本文作者，至今共发布{{$data->user->topic->count()}}篇文章</div>
                 </div>
             </a>

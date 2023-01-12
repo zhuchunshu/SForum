@@ -121,4 +121,8 @@ class User extends Model implements \Qbhy\HyperfAuth\Authenticatable
     {
         return $this->hasMany(TopicTag::class, 'user_id', 'id');
     }
+
+    public function auth(){
+        return $this->hasMany(UsersAuth::class,'user_id','id');
+    }
 }

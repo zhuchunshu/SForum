@@ -36,7 +36,7 @@ class LoginMiddleware implements MiddlewareInterface
     {
         $token = request()->input('_session', null);
         if (! auth()->check($token)) {
-            throw new UnauthorizedException('Without authorization');
+            throw new UnauthorizedException('请无视此日志,此日志表明有用户未登陆账号');
         }
 
         return $handler->handle($request);

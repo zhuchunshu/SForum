@@ -79,9 +79,7 @@
                                                 </div>
                                                 {{--                                            作者信息--}}
                                                 <div class="col text-truncate">
-                                                    <a style="white-space:nowrap;"
-                                                       href="/users/{{$value->user->id}}.html"
-                                                       class="text-body text-truncate">{{$value->user->username}}</a>
+                                                    {!! u_username($value->user,['extends' => true,'comment' => true,'class' =>['text-body','text-truncate'],'style' => 'white-space:nowrap;']) !!}
                                                     <a data-bs-toggle="tooltip" data-bs-placement="right"
                                                        title="{{$value->user->class->name}}"
                                                        href="/users/group/{{$value->user->class->id}}.html"

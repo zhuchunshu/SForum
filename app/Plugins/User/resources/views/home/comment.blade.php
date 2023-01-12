@@ -18,14 +18,14 @@
                                                 <div class="col-md-12">
                                                     <div class="row">
                                                         {{--                                            头像--}}
-                                                        <div class="col-auto" id="comment-user-avatar-{{$value->id}}" comment-show="user-data" user-id="{{$value->user_id}}">
-                                                            <a href="/users/{{$value->user->id}}.html"><span class="avatar" style="background-image: url({{super_avatar($value->user)}})">
+                                                        <div class="col-auto" id="comment-user-avatar-{{$value->id}}" comment-show="user-data" user-id="{{$user->id}}">
+                                                            <a href="/users/{{$user->id}}.html"><span class="avatar" style="background-image: url({{super_avatar($value->user)}})">
 
                                                         </span></a>
                                                         </div>
                                                         {{--                                            作者信息--}}
                                                         <div class="col text-truncate">
-                                                            <a style="white-space:nowrap;" href="/users/{{$value->user->id}}.html" class="text-body text-truncate">{{$value->user->username}}</a>
+                                                            <a style="white-space:nowrap;" href="/users/{{$user->id}}.html" class="text-body text-truncate">{{$user->username}}</a>
                                                             <br />
                                                             <small data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="{{$value->created_at}}" class="text-muted text-truncate mt-n1">{{__("app.Published on")}}:{{format_date($value->created_at)}}</small>
                                                         </div>

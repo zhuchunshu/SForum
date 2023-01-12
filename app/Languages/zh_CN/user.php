@@ -24,4 +24,10 @@ return [
 	'email' => '邮箱',
 	'website' => '网站',
 	'wealth' => '财富',
+    'location' => '位置信息',
+    'topic num' => '文章数量',
+    'comment num' => '评论数量',
+    'fans num' => '粉丝数量',
+    'last login time' => '最后登陆',
+    'data' => '数据'
 ];

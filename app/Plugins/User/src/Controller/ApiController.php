@@ -326,7 +326,7 @@ class ApiController
         $sessions = UsersAuth::query()->orderByDesc('created_at')->where('user_id', $user_id)->get();
         foreach ($sessions as $data) {
             if ($data->user_ip) {
-                return Json_Api(200, true, ['msg' => 'IP归属地:' . core_default(get_client_ip_data($data->user_ip)['pro'], '未知')]);
+                return Json_Api(200, true, ['msg' => core_default(get_client_ip_data($data->user_ip)['pro'], '未知')]);
             }
         }
         return Json_Api(403, false, ['msg' => '未找到用户IP归属地信息']);

@@ -92,12 +92,12 @@ class Auth
 
     public function Class(): \Hyperf\Database\Model\Model | \Hyperf\Database\Model\Builder | null
     {
-        return UserClass::query()->where('id', auth()->data()->class_id)->first();
+        return $this->data()->Class;
     }
 
     public function Options(): \Hyperf\Database\Model\Model | \Hyperf\Database\Model\Builder | null
     {
-        return UsersOption::query()->where('id', auth()->data()->options_id)->first();
+        return $this->data()->options;
     }
 
     /**
@@ -106,10 +106,7 @@ class Auth
      */
     public function id()
     {
-        if ($this->check()) {
-            return (int) authManager()->id();
-        }
-        return null;
+        return (int) authManager()->id();
     }
 
     /**

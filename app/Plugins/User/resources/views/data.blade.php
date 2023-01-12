@@ -29,18 +29,11 @@
                                           style="background-image: url({{super_avatar($user)}});margin-top:-220px"></span>
                                     <div>
                                         <span class="card-title mb-1"
-                                              style="font-size: 25px;display: inline">{{$user->username}}</span>
+                                              style="font-size: 25px;display: inline">{!!u_username($user,['extends' => true,'users_home' => true,'link' => false]) !!}</span>
                                         <a href="/users/group/{{$user->class_id}}.html" class="badge badge-outline"
                                            style="color: {{$user->Class->color}}">{{$user->Class->name}}</a>
                                     </div>
-                                    <div class="text-muted">{{$user->options->qianming}}</div>
-                                </div>
-                                <div class="col">
-                                    <div id="vue-users-data-session-ip" style="display:inline-block">
-                                            <span class="text-muted" v-if="ip">
-                                                @{{ ip }}
-                                            </span>
-                                    </div>
+                                    <div class="text-muted"> @if($user->options->qianming!=='no bio'){{$user->options->qianming}}@else{{__("user.no bio")}} @endif</div>
                                 </div>
                             </div>
                         </div>

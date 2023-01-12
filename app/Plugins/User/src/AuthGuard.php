@@ -46,18 +46,10 @@ class AuthGuard extends SessionGuard
         return (bool) $this->session->remove($this->sessionKey()) && $this->session->remove('AUTH_TOKEN');
     }
 
-    public function check(string $token = null): bool
+    public function check(): bool
     {
         try {
-            return $this->user() instanceof Authenticatable && call_user_func(function () use ($token) {
-                if ($token === null) {
-                    return UsersAuth::query()->where([
-                        'user_id' => $this->user()->getId(),
-                        'user_ip' => get_client_ip(),
-                        'token' => session()->get('AUTH_TOKEN'),
-                        'user_agent' => get_user_agent(),
-                    ])->exists();
-                }
+            return $this->user() instanceof Authenticatable && call_user_func(function () {
                 return UsersAuth::query()->where([
                     'user_id' => $this->user()->getId(),
                     'token' => session()->get('AUTH_TOKEN'),
@@ -78,4 +70,10 @@ class AuthGuard extends SessionGuard
         }
         UsersAuth::query()->where('user_id', $user_id)->where($_protected)->delete();
     }
+
+    public function guest(): bool
+    {
+        return ! $this->check();
+    }
+
 }

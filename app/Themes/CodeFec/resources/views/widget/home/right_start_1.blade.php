@@ -1,26 +1,15 @@
-<div class="col-md-12">
-    <div class="card">
-        @if(auth()->check())
+@if(auth()->check())
+    <div class="col-md-12">
+        <div class="card">
             <div class="card-cover card-cover-blurred text-center" style="background-image: url({{get_user_settings(auth()->id(),'backgroundImg','/plugins/Core/image/user_background.jpg')}})">
                 <span class="avatar avatar-xl avatar-thumb avatar-rounded" style="background-image: url({{super_avatar(auth()->data())}})"></span>
             </div>
             <div class="card-body text-center">
-                <div class="card-title mb-1">{{auth()->data()->username}}</div>
+                <div class="card-title mb-1">{!! u_username(auth()->data(),['extends' => true,'home_right' => true,'link' => false]) !!}</div>
                 <div class="text-muted">至今共发布{{auth()->data()->topic->count()}}篇文章</div>
 
             </div>
-        @else
-            <div class="card-body">
-                <h3 class="card-title">
-                    {{get_options("web_name")}}
-                </h3>
-                <p>
-                    {{get_options("description",__("app.no description"))}}
-                </p>
-            </div>
-        @endif
-        <div class="d-flex">
-            @if(auth()->check())
+            <div class="d-flex">
                 <a href="/topic/create" class="card-btn">
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-pencil-plus" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
@@ -39,10 +28,24 @@
                         <path d="M21 21v-2a4 4 0 0 0 -3 -3.85"></path>
                     </svg>个人中心
                 </a>
-            @else
-                <a href="/register" class="card-btn">{{__("app.register")}}</a>
-                <a href="/login" class="card-btn">{{__("app.login")}}</a>
-            @endif
+            </div>
         </div>
     </div>
-</div>
+@else
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h3 class="card-title">
+                    {{get_options("web_name")}}
+                </h3>
+                <p>
+                    {{get_options("description",__("app.no description"))}}
+                </p>
+            </div>
+            <div class="d-flex">
+                <a href="/register" class="card-btn">{{__("app.register")}}</a>
+                <a href="/login" class="card-btn">{{__("app.login")}}</a>
+            </div>
+        </div>
+    </div>
+@endif

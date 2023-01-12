@@ -12,7 +12,7 @@
                             <div class="card">
                                 <div class="card-body p-4 text-center">
                                     <span class="avatar avatar-xl mb-3 avatar-rounded" style="background-image: url({{super_avatar($value->fans)}})"></span>
-                                    <h3 class="m-0 mb-1"><a href="#">{{$value->fans->username}}</a></h3>
+                                    <h3 class="m-0 mb-1"><a href="#">{!! u_username($value->fans) !!}</a></h3>
                                     {{--                                    <div class="text-muted">UI Designer</div>--}}
                                     <div class="mt-3">
                                         <a href="/users/group/{{$value->fans->class_id}}.html" class="badge badge-outline"

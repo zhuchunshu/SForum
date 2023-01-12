@@ -8,8 +8,7 @@
                 </div>
                 <div class="col">
                     <div class="topic-author-name">
-                        <a href="/users/{{ $data->user->id }}.html"
-                           class="text-reset">{{ $data->user->username }}</a>
+                        {!! u_username($data->user,['topic' => true,'extends' => true,'class' => ['text-reset']]) !!}
                         <a data-bs-toggle="tooltip" data-bs-placement="right" title="{{$data->user->class->name}}" href="/users/group/{{$data->user->class->id}}.html" style="color:{{$data->user->class->color}}">
                             <span>{!! $data->user->class->icon !!}</span>
                         </a>

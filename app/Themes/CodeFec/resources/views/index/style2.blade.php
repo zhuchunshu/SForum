@@ -42,17 +42,14 @@
                     <div class="col-md-12" style="margin-top: 5px">
                         <div class="d-flex align-items-center">
                             <div class="text-muted" style="margin-top:1px">
-                                <a href="/users/{{$data->user->id}}.html"
-                                   class="text-muted">{{$data->user->username}}</a> {{format_date($data->created_at)}}
+                                {!! u_username($data->user,['class' => ['text-muted']]) !!} {{format_date($data->created_at)}}
 
                                 @if($data->comments->count())
                                     ←
                                     @if($data->updated_at>$data->comments->last()->created_at)
-                                        <a href="/users/{{$data->user->id}}.html"
-                                           class="text-muted">{{$data->user->username}}</a>  {{format_date($data->updated_at)}}
+                                        {!! u_username($data->user,['class' => ['text-muted']]) !!} {{format_date($data->updated_at)}}
                                     @else
-                                        <a href="/users/{{$data->comments->last()->user->id}}.html"
-                                           class="text-muted">{{$data->comments->last()->user->username}}</a>  {{format_date($data->comments->last()->created_at)}}
+                                        {!! u_username($data->comments->last()->user,['class' => ['text-muted']]) !!}  {{format_date($data->comments->last()->created_at)}}
                                     @endif
 
                                 @endif

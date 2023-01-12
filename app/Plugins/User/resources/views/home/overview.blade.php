@@ -28,6 +28,137 @@
         </div>
     @endif
 
+    <div class="col-12">
+        <div class="border-0 card card-body">
+            <h3 class="card-title">{{__("user.data")}}</h3>
+            <div class="row row-cards">
+                <div class="col-12 col-md-6 col-lg-3">
+                    <div class="card card-sm">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-auto">
+                            <span class="bg-azure-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
+                              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-location" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M21 3l-6.5 18a0.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a0.55 .55 0 0 1 0 -1l18 -6.5"></path>
+</svg>
+                            </span>
+                                </div>
+                                <div class="col">
+                                    <div class="font-weight-medium">
+                                        <div id="vue-users-data-session-ip" style="display:inline-block">
+                                            <span v-if="ip">
+                                                @{{ ip }}
+                                            </span>
+                                            <span v-else>
+                                                Loading<span class="animated-dots"></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="text-muted">
+                                        {{__("user.location")}}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3">
+                    <a href="/users/{{$user->id}}.html?m=users_home_menu_2" class="card card-sm">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-auto">
+                            <span class="bg-azure-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-book" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0"></path>
+   <path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0"></path>
+   <line x1="3" y1="6" x2="3" y2="19"></line>
+   <line x1="12" y1="6" x2="12" y2="19"></line>
+   <line x1="21" y1="6" x2="21" y2="19"></line>
+</svg>
+                            </span>
+                                </div>
+                                <div class="col">
+                                    <div class="font-weight-medium">
+                                        {{$user->topic->count()}}
+                                    </div>
+                                    <div class="text-muted">
+                                        {{__("user.topic count")}}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3">
+                    <a  href="/users/{{$user->id}}.html?m=users_home_menu_3" class="card card-sm">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-auto">
+                            <span class="bg-azure-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-message" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M4 21v-13a3 3 0 0 1 3 -3h10a3 3 0 0 1 3 3v6a3 3 0 0 1 -3 3h-9l-4 4"></path>
+   <line x1="8" y1="9" x2="16" y2="9"></line>
+   <line x1="8" y1="13" x2="14" y2="13"></line>
+</svg>
+                            </span>
+                                </div>
+                                <div class="col">
+                                    <div class="font-weight-medium">
+                                        {{$user->topic->count()}}
+                                    </div>
+                                    <div class="text-muted">
+                                        {{__("user.comment count")}}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3">
+                    <a  href="/users/{{$user->id}}.html?m=users_home_menu_5" class="card card-sm">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-auto">
+                            <span class="bg-azure-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-users" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <circle cx="9" cy="7" r="4"></circle>
+   <path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"></path>
+   <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+   <path d="M21 21v-2a4 4 0 0 0 -3 -3.85"></path>
+</svg>
+                            </span>
+                                </div>
+                                <div class="col">
+                                    <div class="font-weight-medium">
+                                        {{$user->fan->count()}}
+                                    </div>
+                                    <div class="text-muted">
+                                        {{__("user.fans count")}}
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @if(auth()->id() ===(int)$user->id)
         <div class="col-12">
 
@@ -40,7 +171,7 @@
                             <div class="card-body">
                                 <div class="row align-items-center">
                                     <div class="col-auto">
-                            <span class="bg-orange-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
+                            <span class="bg-cyan-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
                               <svg xmlns="http://www.w3.org/2000/svg"
                                    class="icon icon-tabler icon-tabler-currency-dollar" width="24" height="24"
                                    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
@@ -72,7 +203,7 @@
                             <div class="card-body">
                                 <div class="row align-items-center">
                                     <div class="col-auto">
-                            <span class="bg-yellow-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
+                            <span class="bg-cyan-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
                               <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-credit-card"
                                    width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
                                    fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -138,7 +269,7 @@
                             <div class="card-body">
                                 <div class="row align-items-center">
                                     <div class="col-auto">
-                            <span class="bg-azure-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
+                            <span class="bg-cyan-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
                               <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-activity"
                                    width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
                                    fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -170,16 +301,17 @@
         </div>
     @endif
 
+
     <div class="col-12">
         <div class="border-0 card card-body">
             <div class="row row-cards">
 
-                <div class="col-12 col-md-6 col-lg-4">
+                <div class="col-12 col-md-6 col-lg-3">
                     <div class="card card-sm">
                         <div class="card-body">
                             <div class="row align-items-center">
                                 <div class="col-auto">
-                            <span class="bg-green-lt text-white avatar" title="{{$user->created_at}}"
+                            <span class="bg-indigo-lt text-white avatar" title="{{$user->created_at}}"
                                   data-bs-toggle="tooltip" data-bs-placement="top"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
                               <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock"
                                    width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
@@ -205,65 +337,29 @@
                         </div>
                     </div>
                 </div>
-
-
-                <div class="col-12 col-md-6 col-lg-4">
+                <div class="col-12 col-md-6 col-lg-3">
                     <div class="card card-sm">
                         <div class="card-body">
                             <div class="row align-items-center">
                                 <div class="col-auto">
-                            <span class="bg-pink-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
-                              <svg xmlns="http://www.w3.org/2000/svg"
-                                   class="icon icon-tabler icon-tabler-message-circle" width="24" height="24"
-                                   viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
-                                   stroke-linecap="round" stroke-linejoin="round">
-   <desc>Download more icon variants from https://tabler-icons.io/i/message-circle</desc>
-   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-   <path d="M3 20l1.3 -3.9a9 8 0 1 1 3.4 2.9l-4.7 1"></path>
-   <line x1="12" y1="12" x2="12" y2="12.01"></line>
-   <line x1="8" y1="12" x2="8" y2="12.01"></line>
-   <line x1="16" y1="12" x2="16" y2="12.01"></line>
-</svg>
-                            </span>
-                                </div>
-                                <div class="col">
-                                    <div class="font-weight-medium">
-                                        {{$user->comments->count()}}
-                                    </div>
-                                    <div class="text-muted">
-                                        {{__("user.comment count")}}
-                                    </div>
-                                </div>
-                                <div class="col-auto">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-
-                <div class="col-12 col-md-6 col-lg-4">
-                    <div class="card card-sm">
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-auto">
-                            <span class="bg-primary-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
-                              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-note"
+                            <span class="bg-indigo-lt text-white avatar" title="{{$user->created_at}}"
+                                  data-bs-toggle="tooltip" data-bs-placement="top"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
+                              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock"
                                    width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
                                    fill="none" stroke-linecap="round" stroke-linejoin="round">
-   <desc>Download more icon variants from https://tabler-icons.io/i/note</desc>
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-   <line x1="13" y1="20" x2="20" y2="13"></line>
-   <path d="M13 20v-6a1 1 0 0 1 1 -1h6v-7a2 2 0 0 0 -2 -2h-12a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7"></path>
+   <circle cx="12" cy="12" r="9"></circle>
+   <polyline points="12 7 12 12 15 15"></polyline>
 </svg>
                             </span>
                                 </div>
                                 <div class="col">
                                     <div class="font-weight-medium">
-                                        {{$user->topic->count()}}
+                                        <span title="{{$user->auth->last()->created_at}}" data-bs-toggle="tooltip"
+                                              data-bs-placement="top">{{format_date($user->auth->last()->created_at)}}</span>
                                     </div>
                                     <div class="text-muted">
-                                        {{__("user.topic count")}}
+                                        {{__("user.last login time")}}
                                     </div>
                                 </div>
                                 <div class="col-auto">
@@ -273,12 +369,16 @@
                     </div>
                 </div>
 
-                <div class="col-12 col-md-6 col-lg-4">
+
+
+
+
+                <div class="col-12 col-md-6 col-lg-3">
                     <div class="card card-sm">
                         <div class="card-body">
                             <div class="row align-items-center">
                                 <div class="col-auto">
-                            <span class="bg-red-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
+                            <span class="bg-indigo-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
                               <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-star"
                                    width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
                                    fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -303,44 +403,13 @@
                     </div>
                 </div>
 
-                <div class="col-12 col-md-6 col-lg-4">
+
+                <div class="col-12 col-md-6 col-lg-3">
                     <div class="card card-sm">
                         <div class="card-body">
                             <div class="row align-items-center">
                                 <div class="col-auto">
                             <span class="bg-indigo-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
-                              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user-circle"
-                                   width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                   fill="none" stroke-linecap="round" stroke-linejoin="round">
-   <desc>Download more icon variants from https://tabler-icons.io/i/user-circle</desc>
-   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-   <circle cx="12" cy="12" r="9"></circle>
-   <circle cx="12" cy="10" r="3"></circle>
-   <path d="M6.168 18.849a4 4 0 0 1 3.832 -2.849h4a4 4 0 0 1 3.834 2.855"></path>
-</svg>
-                            </span>
-                                </div>
-                                <div class="col">
-                                    <div class="font-weight-medium">
-                                        {{$user->fan->count()}}
-                                    </div>
-                                    <div class="text-muted">
-                                        {{__("user.fans count")}}
-                                    </div>
-                                </div>
-                                <div class="col-auto">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-12 col-md-6 col-lg-4">
-                    <div class="card card-sm">
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-auto">
-                            <span class="bg-cyan-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
                               <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-tag"
                                    width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
                                    fill="none" stroke-linecap="round" stroke-linejoin="round">
