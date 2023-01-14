@@ -33,7 +33,7 @@
 
                         <div class="card">
                             <div class="card-header">
-                                <h3 class="card-title">帖子信息</h3>
+                                <h3 class="card-title">发布帖子</h3>
                             </div>
                             <div class="card-body">
                                 @foreach(Itf()->get('topic-create-data') as $k=>$v)

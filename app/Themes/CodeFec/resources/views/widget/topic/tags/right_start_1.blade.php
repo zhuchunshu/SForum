@@ -30,7 +30,7 @@
 
         <div class="card-footer">
             @if(auth()->check())
-                <a href="/topic/create" class="btn btn-dark">{{__("topic.create")}}</a>
+                <a href="/topic/create?basis[tag]={{$data->id}}" class="btn btn-dark">{{__("topic.create")}}</a>
                 @if(Authority()->check('topic_tag_create') && $data->user_id == auth()->id())
                     <a href="/tags/{{$data->id}}/edit" class="btn btn-primary">{{__("app.edit")}}</a>
                 @endif

@@ -7,13 +7,10 @@
     <div class="mb-3">
         <label class="form-label">选择标签</label>
         <select type="text" x-model="tag" name="basis[tag]" class="form-select" id="select-topic-tags" required>
-            <option value="null"
-                    data-custom-properties="">
-                请选择
-            </option>
+
             @foreach(\App\Plugins\Topic\src\Models\TopicTag::query()->where('status','=',null)->get() as $topic_tags)
                 <option value="{{$topic_tags->id}}"
-                        data-custom-properties="&lt;span class=&quot;badge&quot; style=&quot;background-color: {{$topic_tags->color}} &quot; &gt;{{$topic_tags->icon}}&lt;/span&gt;" @if(request()->input('basis.tag') && request()->input('basis.tag')==$topic_tags->id){{"selected"}}@endif>
+                        data-custom-properties="&lt;span class=&quot;badge&quot; style=&quot;background-color: {{$topic_tags->color}} &quot; &gt;{{$topic_tags->icon}}&lt;/span&gt;" @if((int)request()->input('basis.tag')===(int)$topic_tags->id){{"selected"}}@endif>
                     {{$topic_tags->name}}
                 </option>
             @endforeach
@@ -46,10 +43,13 @@
                 return null;
             }),
             tag:(()=>{
+                @if(!request()->has('basis.tag'))
                 if(localStorage.getItem('create_topic_tag')){
                     return localStorage.getItem('create_topic_tag')
                 }
-                return null;
+                @else
+                    return {{request()->input('basis.tag')}};
+                @endif
             })
         }))
     })
