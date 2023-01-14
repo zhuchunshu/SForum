@@ -182,6 +182,13 @@ class ApiController
         if (! admin_auth()->check()) {
             return Json_Api(419, false, ['msg' => '无权限']);
         }
+        $default_path = [];
+        foreach(\plugins()->get_all() as $plugin){
+            $default_path[]=plugin_path($plugin);
+        }
+        if(in_array(request()->input('path'),$default_path)){
+            return Json_Api(401, false, ['msg' => '禁止卸载默认插件']);
+        }
         if (request()->input('path') && is_dir(request()->input('path'))) {
             \Swoole\Coroutine\System::exec('rm -rf ' . request()->input('path'));
             System::exec('php CodeFec ClearCache');

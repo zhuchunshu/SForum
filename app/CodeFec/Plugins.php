@@ -15,7 +15,7 @@ use Noodlehaus\Config;
 
 class Plugins
 {
-    public static function GetAll(): array
+    public function GetAll(): array
     {
         $arr = getPath(plugin_path());
         $plugin_arr = [];
@@ -45,21 +45,20 @@ class Plugins
      * @param string $dirName 插件目录名
      * @return ?string
      */
-    public function getLogo(string $dirName): ?string
+    public function has_logo(string $dirName): ?bool
     {
         // 插件logo
         $file = plugin_path($dirName . '/' . $dirName . '.png');
         if (file_exists($file)) {
-            $image_info = getimagesize($file);
-            $image_data = fread(fopen($file, 'rb'), filesize($file));
-            return 'data:' . $image_info['mime'] . ';base64,' . chunk_split(base64_encode($image_data));
+            return true;
         }
-        return null;
+        return false;
     }
 
     // 获取已启用的插件列表
     public function getEnPlugins()
     {
+        return $this->get_all();
         $plugins = ['Core', 'Mail', 'User', 'Topic', 'Comment', 'Search'];
         if (! file_exists(BASE_PATH . '/app/CodeFec/storage/install.lock')) {
             return $plugins;
@@ -75,5 +74,25 @@ class Plugins
             return array_values(array_unique($result));
         }
         return array_values(array_unique(cache()->get('plugins.en')));
+    }
+
+    public function get_default()
+    {
+        return ['Core', 'Mail', 'User', 'Topic', 'Comment', 'Search'];
+    }
+
+    public function get_all()
+    {
+        $result = [];
+        foreach ($this->GetAll() as $key => $plugin) {
+            $result[] = $key;
+        }
+        $result = array_merge($result, $this->get_default());
+        return array_values(array_unique($result));
+    }
+
+    public function get_all_data()
+    {
+        return $this->GetAll();
     }
 }

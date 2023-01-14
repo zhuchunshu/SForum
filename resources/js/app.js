@@ -114,42 +114,35 @@ if (document.getElementById("vue-plugin-table")) {
         },
         methods: {
             remove(name, path) {
-                if (this.switchs.indexOf(name) !== -1) {
-                    swal({
-                        icon: "warning",
-                        title: "安全起见,卸载插件前请先禁用插件",
-                    });
-                } else {
-                    axios
-                        .post("/api/AdminPluginRemove", {
-                            path: path,
-                            _token: csrf_token
-                        })
-                        .then(function (response) {
-                            var data = response.data;
-                            if (data.success === true) {
-                                swal({
-                                    title: data.result.msg,
-                                    icon: "success",
-                                });
-                                setTimeout(() => {
-                                    location.reload();
-                                }, 1200);
-                            } else {
-                                swal({
-                                    title: data.result.msg,
-                                    icon: "error",
-                                });
-                            }
-                        })
-                        .catch(function (error) {
+                axios
+                    .post("/api/AdminPluginRemove", {
+                        path: path,
+                        _token: csrf_token
+                    })
+                    .then(function (response) {
+                        var data = response.data;
+                        if (data.success === true) {
                             swal({
-                                title: "请求出错,详细查看控制台",
+                                title: data.result.msg,
+                                icon: "success",
+                            });
+                            setTimeout(() => {
+                                location.reload();
+                            }, 1200);
+                        } else {
+                            swal({
+                                title: data.result.msg,
                                 icon: "error",
                             });
-                            console.log(error);
+                        }
+                    })
+                    .catch(function (error) {
+                        swal({
+                            title: "请求出错,详细查看控制台",
+                            icon: "error",
                         });
-                }
+                        console.log(error);
+                    });
             },
             // 迁移所有资源
             migrateAll() {

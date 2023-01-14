@@ -2,7 +2,7 @@
 
 @section('title','插件管理')
 @section('headerBtn')
-    <button class="btn btn-light" @@click="migrateAll" href="#">对所有已启动插件进行数据迁移</button>
+    <button class="btn btn-light" @@click="migrateAll" href="#">所有插件数据迁移</button>
 
     <button class="btn btn-dark" @@click="updatePluginsPackage" style="margin-left: 5px">更新插件包</button>
 @endsection
@@ -20,57 +20,75 @@
                     </div>
                     <div>
                         <h4 class="alert-title">Did you know?</h4>
-                        <div class="text-muted">插件启停时网站出现短暂502为正常现象，因为SuperForum在优化/重建代理类，这个过程一般需要5秒左右</div>
+                        <div class="text-muted">SuperForum已废弃插件启停功能，不用的插件建议直接卸载。</div>
                     </div>
                 </div>
                 <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
             </div>
         </div>
-        @foreach (\App\CodeFec\Plugins::GetAll() as $key => $value)
-            <div class="col-md-4">
-                <div class="card">
-                    @if(plugins()->getLogo($key))
-                        <div class="card-stamp">
-                            <div class="bg-yellow">
-                                <!-- Download SVG icon from http://tabler-icons.io/i/bell -->
-                                <img src="{{plugins()->getLogo($key)}}" alt="">
-                            </div>
-                        </div>
-                    @endif
-                    <div class="card-body">
-                        <h3 class="card-title">
-                            {{$value['data']['name']}}
-                        </h3>
-                        <p>
-                            @if(@$value['data']['masterVersion'] && @$value['data']['masterVersion']>build_info()->version)
-                                <span class="badge badge-outline text-orange">可能不兼容此插件,要求系统版本>={{$value['data']['masterVersion']}}</span>
-                            @else
-                                <span class="badge badge-outline text-green">当前插件兼容此程序!</span>
-                            @endif
-                        </p>
-                        <p>插件目录: {{ '/app/Plugins/' . $key }}</p>
-                        <p>插件作者: <a href="{{ $value['data']['link'] }}">{{ $value['data']['author'] }}</a></p>
-                        <p>插件版本:{{ $value['data']['version'] }}</p>
-                        <p>插件描述:{{ $value['data']['description'] }}</p>
-                    </div>
-                    <div class="card-footer">
-                        <div class="row align-items-center">
-                            <div class="col-auto">
-                                <a @@click="migrate('{{ $value['dir'] }}','{{ $value['path'] }}')" href="#">数据迁移</a>
-                                |
-                                <a @@click="remove('{{ $value['dir'] }}','{{ $value['path'] }}')" href="#">卸载</a>
-                            </div>
-                            <div class="col-auto ms-auto">
-                                <label class="form-check form-switch">
-                                    <input class="form-check-input" value="{{ $value['dir'] }}" type="checkbox"
-                                           v-model="switchs">
-                                </label>
-                            </div>
-                        </div>
-                    </div>
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header"><h3 class="card-title">插件列表</h3></div>
+                <div class="card-table table-responsive">
+                    <table
+                            class="table table-vcenter table-nowrap">
+                        <thead>
+                        <tr>
+                            <th>插件名</th>
+                            <th>兼容性</th>
+                            <th>作者</th>
+                            <th>版本</th>
+                            <th>描述</th>
+                            <th class="w-1"></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @if(!$page->count())
+                            <td class="text-muted">无更多结果</td>
+                            <td class="text-muted">无更多结果</td>
+                            <td class="text-muted">无更多结果</td>
+                            <td class="text-muted">无更多结果</td>
+                            <td class="text-muted">无更多结果</td>
+                            <td class="text-muted">无更多结果</td>
+                        @else
+                            @foreach($page as $plugin)
+                                <tr>
+                                    <td class="text-center">
+                                        @if(plugins()->has_logo($plugin['dir']))
+                                            <span class="avatar avatar-md"><img src="/admin/plugins/logo?plugin={{$plugin['dir']}}" alt=""></span>
+                                        @endif <div>{{$plugin['data']['name']}}</div></td>
+                                    <td class="text-muted" >
+                                        @if(@$plugin['data']['masterVersion'] && @$plugin['data']['masterVersion']>build_info()->version)
+                                            <span class="status status-red">不兼容,要求SuperForum版本>={{$plugin['data']['masterVersion']}}</span>
+                                        @else
+                                            <span class="status status-green">兼容!</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-muted" ><a href="{{ $plugin['data']['link'] }}">{{ $plugin['data']['author'] }}</a></td>
+                                    <td class="text-muted" >
+                                        {{$plugin['data']['version']}}
+                                    </td>
+                                    <td>
+                                        {!! $plugin['data']['description'] !!}
+                                    </td>
+                                    <td>
+                                        <a @@click="migrate('{{ $plugin['dir'] }}','{{ $plugin['path'] }}')" href="#">数据迁移</a>
+                                        |
+                                        <a @@click="remove('{{ $plugin['dir'] }}','{{ $plugin['path'] }}')" href="#">卸载</a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @endif
+                        </tbody>
+                    </table>
                 </div>
+                @if($page->count() && (int)request()->input('page',1)!==1)
+                    <div class="card-footer">
+                        {!! make_page($page) !!}
+                    </div>
+                @endif
             </div>
-        @endforeach
+        </div>
     </div>
 
 @endsection

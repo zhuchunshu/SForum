@@ -2200,40 +2200,33 @@ if (document.getElementById("vue-plugin-table")) {
     },
     methods: {
       remove: function remove(name, path) {
-        if (this.switchs.indexOf(name) !== -1) {
-          sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
-            icon: "warning",
-            title: "安全起见,卸载插件前请先禁用插件"
-          });
-        } else {
-          axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/AdminPluginRemove", {
-            path: path,
-            _token: csrf_token
-          }).then(function (response) {
-            var data = response.data;
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/AdminPluginRemove", {
+          path: path,
+          _token: csrf_token
+        }).then(function (response) {
+          var data = response.data;
 
-            if (data.success === true) {
-              sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
-                title: data.result.msg,
-                icon: "success"
-              });
-              setTimeout(function () {
-                location.reload();
-              }, 1200);
-            } else {
-              sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
-                title: data.result.msg,
-                icon: "error"
-              });
-            }
-          })["catch"](function (error) {
+          if (data.success === true) {
             sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
-              title: "请求出错,详细查看控制台",
+              title: data.result.msg,
+              icon: "success"
+            });
+            setTimeout(function () {
+              location.reload();
+            }, 1200);
+          } else {
+            sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+              title: data.result.msg,
               icon: "error"
             });
-            console.log(error);
+          }
+        })["catch"](function (error) {
+          sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
+            title: "请求出错,详细查看控制台",
+            icon: "error"
           });
-        }
+          console.log(error);
+        });
       },
       // 迁移所有资源
       migrateAll: function migrateAll() {
