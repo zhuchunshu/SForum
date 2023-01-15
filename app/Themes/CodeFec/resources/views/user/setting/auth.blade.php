@@ -63,7 +63,6 @@
     </div>
 </div>
 <script src="{{file_hash("js/axios.min.js")}}"></script>
-<script type="text/javascript" src="https://ip.useragentinfo.com/jsonp?ip="></script>
 <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('auth', () => ({
