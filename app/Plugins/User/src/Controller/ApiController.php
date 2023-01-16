@@ -202,7 +202,7 @@ class ApiController
             user_notice()->send(
                 $user_id,
                 auth()->data()->username . ' 取关了你!',
-                view('User::notice.userfollow_d', ['user' => auth()->data()])
+                view('User::notice.userfollow_d')
             );
             return Json_Api(201, true, ['msg' => '已取关!']);
         }
@@ -212,7 +212,7 @@ class ApiController
         user_notice()->send(
             $user_id,
             auth()->data()->username . ' 关注了你!',
-            view('User::notice.userfollow', ['user' => auth()->data()])
+            view('User::notice.userfollow')
         );
 
         return Json_Api(200, true, ['msg' => '已关注']);
