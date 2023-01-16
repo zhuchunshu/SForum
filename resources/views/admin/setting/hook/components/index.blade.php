@@ -8,8 +8,11 @@
            <div class="card">
                <div class="card-header">
                    <h3 class="card-title">部件列表</h3>
+                   <div class="card-actions">
+                       <a href="/admin/hook/components/create">新建</a>
+                   </div>
                </div>
-               <div class="table-responsive">
+               <div class="table-responsive" id="vue-admin-hook-components">
                    <table class="table card-table table-vcenter">
                        <thead>
                        <tr>
@@ -18,11 +21,14 @@
                            <th>备注</th>
                            <th></th>
                            <th></th>
+                           <th></th>
                        </tr>
                        </thead>
                        <tbody>
                        @if(!$page->count())
                            <tr>
+                               <td class="text-muted">暂无更多结果</td>
+                               <td class="text-muted">暂无更多结果</td>
                                <td class="text-muted">暂无更多结果</td>
                                <td class="text-muted">暂无更多结果</td>
                                <td class="text-muted">暂无更多结果</td>
@@ -46,6 +52,9 @@
                                    <td class="text-muted w-5">
                                        <a href="/admin/hook/components/edit?path={{$component['file_name']}}">编辑</a>
                                    </td>
+                                   <td class="text-muted w-5">
+                                       <a @@click="rm('{{$component['file_name']}}')" href="#">删除</a>
+                                   </td>
                                </tr>
                            @endforeach
                        @endif
@@ -57,16 +66,9 @@
                </div>
            </div>
        </div>
-       @if(!$page->count())
-           <div class="col-lg-12">
-               <div class="card card-body empty">
-                   <div class="empty-header">403</div>
-                   <p class="empty-title">暂无可用部件</p>
-                   <p class="empty-subtitle text-muted">
-                       如果你是开发者，可以在 {{BASE_PATH."/resources/views/customize/component/"}} 目录下创建
-                   </p>
-               </div>
-           </div>
-       @endif
    </div>
+@endsection
+
+@section('scripts')
+    <script src="{{mix('js/admin/component.js')}}"></script>
 @endsection

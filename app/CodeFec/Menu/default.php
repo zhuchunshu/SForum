@@ -133,16 +133,6 @@ menu()->add(501, [
     'parent_id' => 5,
 ]);
 
-menu()->add(502, [
-    'url' => '/admin/setting/components',
-    'name' => '部件',
-    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-settings" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-   <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"></path>
-   <circle cx="12" cy="12" r="3"></circle>
-</svg>',
-    'parent_id' => 5,
-]);
 
 menu()->add(504, [
     'url' => '/admin/setting/menu',
@@ -169,4 +159,23 @@ menu()->add(522, [
    <path d="M19 15l3 3l-3 3"></path>
 </svg>',
     'parent_id' => 5,
+]);
+
+
+menu()->add(17,[
+    'url' => '/admin/hook',
+    'name' => '钩子',
+    'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-fish-hook" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M16 9v6a5 5 0 0 1 -10 0v-4l3 3"></path>
+   <circle cx="16" cy="7" r="2"></circle>
+   <path d="M16 5v-2"></path>
+</svg>',
+]);
+
+menu()->add(1712,[
+    'url' => '/admin/hook/components',
+    'name' => '部件',
+    'icon' => '',
+    'parent_id' => 17
 ]);
