@@ -77,6 +77,11 @@ class User extends Model implements \Qbhy\HyperfAuth\Authenticatable
         return $this->belongsTo(UsersOption::class, 'options_id', 'id');
     }
 
+    public function users_option()
+    {
+        return $this->belongsTo(UsersOption::class, 'options_id', 'id');
+    }
+
     /**
      * 获取用户的评论.
      * @return \Hyperf\Database\Model\Relations\HasMany

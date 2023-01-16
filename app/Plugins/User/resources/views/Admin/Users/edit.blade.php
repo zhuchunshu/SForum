@@ -50,47 +50,47 @@
 
                     <div class="mb-3">
                         <label for="" class="form-label">签名</label>
-                        <textarea rows="4" name="Options[qianming]" class="form-control">{{$user->Options->qianming}}</textarea>
+                        <textarea rows="4" name="options[qianming]" class="form-control">{{$user->options->qianming}}</textarea>
                     </div>
 
                     <div class="mb-3">
                         <label for="" class="form-label">qq</label>
-                        <input class="form-control" type="text" name="Options[qq]" value="@if($user->Options->qq) {{$user->Options->qq}} @else 暂无 @endif">
+                        <input class="form-control" type="text" name="options[qq]" value="@if($user->options->qq) {{$user->options->qq}} @endif">
                     </div>
                     <div class="mb-3">
                         <label for="" class="form-label">微信</label>
-                        <input class="form-control" type="text" name="Options[wx]" value="@if($user->Options->wx) {{$user->Options->wx}} @else 暂无 @endif">
+                        <input class="form-control" type="text" name="options[wx]" value="@if($user->options->wx) {{$user->options->wx}} @endif">
                     </div>
 
 
                     <div class="mb-3">
                         <label for="" class="form-label">网站</label>
-                        <input class="form-control" type="text" name="Options[website]" value="@if($user->Options->website) {{$user->Options->website}} @else 暂无 @endif">
+                        <input class="form-control" type="text" name="options[website]" value="@if($user->options->website) {{$user->options->website}}  @endif">
                     </div>
 
                     <div class="mb-3">
                         <label for="" class="form-label">对外邮箱</label>
-                        <input class="form-control" type="text" name="Options[email]" value="@if($user->Options->email) {{$user->Options->email}} @else 暂无 @endif">
+                        <input class="form-control" type="text" name="options[email]" value="@if($user->options->email) {{$user->options->email}} @endif">
                     </div>
 
                     <div class="mb-3">
                         <label for="" class="form-label">积分</label>
-                        <input class="form-control" type="text" name="Options[credits]" value="@if($user->Options->credits) {{$user->Options->credits}} @else 暂无 @endif">
+                        <input class="form-control" type="text" name="options[credits]" value="@if($user->options->credits) {{$user->options->credits}} @endif">
                     </div>
 
                     <div class="mb-3">
                         <label for="" class="form-label">金币</label>
-                        <input class="form-control" type="text" name="Options[golds]" value="@if($user->Options->golds) {{$user->Options->golds}} @else 暂无 @endif">
+                        <input class="form-control" type="text" name="options[golds]" value="@if($user->options->golds) {{$user->options->golds}} @endif">
                     </div>
 
                     <div class="mb-3">
                         <label for="" class="form-label">经验</label>
-                        <input class="form-control" type="text" name="Options[exp]" value="@if($user->Options->exp) {{$user->Options->exp}} @else 暂无 @endif">
+                        <input class="form-control" type="text" name="options[exp]" value="@if($user->options->exp) {{$user->options->exp}} @endif">
                     </div>
 
                     <div class="mb-3">
                         <label for="" class="form-label">余额</label>
-                        <input class="form-control" type="text" name="Options[money]" value="@if($user->Options->money) {{$user->Options->money}} @else 暂无 @endif">
+                        <input class="form-control" type="text" name="options[money]" value="@if($user->options->money) {{$user->options->money}} @endif">
                     </div>
 
                     <div class="mb-3">

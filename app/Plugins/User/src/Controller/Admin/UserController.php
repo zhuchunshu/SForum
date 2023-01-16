@@ -13,6 +13,7 @@ namespace App\Plugins\User\src\Controller\Admin;
 use App\Plugins\User\src\Lib\UserAuth;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserClass as Uc;
+use App\Plugins\User\src\Models\UsersOption;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
@@ -199,18 +200,14 @@ class UserController
         if (! User::query()->where('id', $id)->exists()) {
             return redirect()->url('/admin/users')->with('danger', '用户不存在')->go();
         }
-        $user = User::query()->with('Options','Class')->find($id);
+        $user = User::query()->with('options','Class')->find($id);
         foreach (request()->all() as $key => $value) {
-            if ($key !== '_token') {
-                if (is_array($value)) {
-                    foreach ($value as $_k => $_v) {
-                        $user->{$key}->{$_k} = trim($_v);
-                    }
-                } elseif (is_string($value)) {
-                    $user->{$key} = trim($value);
-                }
+            if ($key !== '_token' && is_string($value)) {
+                $user->{$key} = trim($value);
             }
         }
+        UsersOption::query()->where('id',$user->options->id)->update(request()->input('options',[]));
+        //$user->users_option=$user->options;
         $user->save();
         return redirect()->url('/admin/users/' . $id . '/show')->with('success', '修改成功!')->go();
         //return view('User::Admin.Users.edit', ['user' => $user]);
