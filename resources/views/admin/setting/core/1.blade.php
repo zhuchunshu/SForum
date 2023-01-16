@@ -80,8 +80,9 @@
             <small>{{__('app.default')}}: 简体中文(zh_CN)</small>
         </div>
         <div class="col-lg-4">
-            <label class="form-label">网站logo地址</label>
+            <label class="form-label">网站logo小部件调用代码</label>
             <input v-model="data.web_logo" type="text" class="form-control">
+            <small>请输入小部件调用代码, <a href="/admin/hook/components" target="_blank">点我进入小部件页面</a> </small>
         </div>
     </div>
 </div>
