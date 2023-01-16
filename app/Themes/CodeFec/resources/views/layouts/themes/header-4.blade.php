@@ -5,7 +5,8 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
-                <a href="/">{{ get_options('web_name', 'CodeFec') }}</a>
+                <a href="/"> @if(!get_options('web_logo')){{get_options('web_name', 'CodeFec')}}@else
+                        <img src="{{get_options('web_name', 'CodeFec')}}" alt="{{ get_options('web_name', 'CodeFec') }}"> @endif</a>
             </h1>
             <div class="flex-row navbar-nav order-md-last">
                 @include('App::layouts.themes.header-right')
