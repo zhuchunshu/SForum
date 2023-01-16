@@ -129,8 +129,15 @@ class Menu
     public function backup()
     {
 
-        $menu_serialize =  $this->serialize($this->get());
-        $menu = json_encode($this->get(),JSON_PRETTY_PRINT,JSON_UNESCAPED_UNICODE);
+        $data = [];
+        foreach ($this->get() as $k=>$v){
+            if(arr_has($v,'quanxian') && $v['quanxian'] instanceof \Closure){
+                $v['quanxian']=$this->serialize($v['quanxian']);
+            }
+            $data[$k]=$v;
+        }
+        $menu_serialize =  $this->serialize($data);
+        $menu = json_encode($data,JSON_PRETTY_PRINT,JSON_UNESCAPED_UNICODE);
         if (! is_dir(BASE_PATH . '/runtime/backup')) {
             System::exec('cd ' . BASE_PATH . '/runtime' . '&& mkdir ' . 'backup');
         }
