@@ -2361,7 +2361,7 @@ if (document.getElementById("EditFile")) {
     },
     mounted: function mounted() {
       this.ace = ace.edit("editor");
-      this.ace.setTheme("ace/theme/monokai");
+      this.ace.setTheme("ace/theme/one_dark");
       this.ace.session.setMode("ace/mode/" + lang);
       this.ace.session.setUseWrapMode(true);
       this.ace.setHighlightActiveLine(true);

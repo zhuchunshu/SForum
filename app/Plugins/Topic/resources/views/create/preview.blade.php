@@ -12,7 +12,7 @@
     <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet"/>
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{mix("plugins/Core/css/core.css")}}">
-    <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet"/>
+{{--    <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet"/>--}}
     <link rel="stylesheet" href="{{mix('css/app.css')}}">
     <script>
         var csrf_token = "{{ csrf_token() }}";
@@ -33,7 +33,7 @@
 <script src="{{ mix('js/vue.js') }}"></script>
 <script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
 <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
-<script src="{{ file_hash('js/diy.js') }}"></script>
+{{--<script src="{{ file_hash('js/diy.js') }}"></script>--}}
 <script src="{{ mix('plugins/Topic/js/topic.js') }}"></script>
 <script src="{{mix('plugins/Topic/js/core.js')}}"></script>
 <style>

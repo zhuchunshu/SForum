@@ -13,7 +13,7 @@
     <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
     <link rel="stylesheet" href="{{mix("plugins/Core/css/core.css")}}">
-    <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet" />
+{{--    <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet" />--}}
     <link rel="stylesheet" href="{{mix('css/app.css')}}">
     <script>
         var csrf_token = "{{ csrf_token() }}";
@@ -54,7 +54,7 @@
     <script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
     <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
     <script src="{{ mix('plugins/Core/js/app.js') }}"></script>
-    <script src="{{ file_hash('js/diy.js') }}"></script>
+{{--    <script src="{{ file_hash('js/diy.js') }}"></script>--}}
     <script src="{{ file_hash('js/alpine.min.js') }}" defer></script>
     {{-- <!-- 自定义Js --> --}}
     @foreach (\App\CodeFec\Ui\functions::get('js') as $key => $value)
