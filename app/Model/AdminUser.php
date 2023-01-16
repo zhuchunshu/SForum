@@ -25,4 +25,6 @@ class AdminUser extends Model
      * @var array
      */
     protected $fillable = ['id', 'username', 'email', 'avatar', 'password', 'created_at', 'updated_at'];
+
+    public $hidden = ['password'];
 }

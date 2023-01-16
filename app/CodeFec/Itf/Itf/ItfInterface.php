@@ -32,4 +32,8 @@ interface ItfInterface
 	 */
 	public function del($class, $id);
 
+    /**
+     * @param $class
+     */
+    public function _del($class);
 }

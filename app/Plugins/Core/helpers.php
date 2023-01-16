@@ -15,8 +15,6 @@ use App\Plugins\Core\src\Lib\UserVerEmail;
 use DivineOmega\PHPSummary\SummaryTool;
 use JetBrains\PhpStorm\Pure;
 
-
-
 if (! function_exists('plugins_core_user_reg_defuc')) {
     function plugins_core_user_reg_defuc()
     {
@@ -79,8 +77,8 @@ if (! function_exists('core_Str_menu_url')) {
 if (! function_exists('core_menu_pd')) {
     function core_menu_pd(string $id)
     {
-        foreach (Itf()->get('menu') as $value) {
-            if (arr_has($value, 'parent_id') && 'menu_' . $value['parent_id'] === (string) $id) {
+        foreach (_menu() as $value) {
+            if (arr_has($value, 'parent_id') && (string) $value['parent_id'] === (string) $id) {
                 return true;
             }
         }
@@ -99,8 +97,8 @@ if (! function_exists('core_menu_pdArr')) {
     function core_menu_pdArr($id): array
     {
         $arr = [];
-        foreach (Itf()->get('menu') as $key => $value) {
-            if (arr_has($value, 'parent_id') && 'menu_' . $value['parent_id'] === $id) {
+        foreach (_menu() as $key => $value) {
+            if (arr_has($value, 'parent_id') && (string) $value['parent_id'] === (string) $id) {
                 $arr[$key] = $value;
             }
         }

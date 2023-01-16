@@ -24,12 +24,12 @@
             <div class="dropdown-menu-column">
                 @foreach (core_menu_pdArr($key) as $keys => $values)
                     @if(arr_has($values,'quanxian'))
-                        @if(auth()->Class()['permission-value']>=$values['quanxian'])
+                        @if(call_user_func($values['quanxian'])===true && !$values['hidden'])
                             @if (core_Str_menu_url('/' . request()->path()) === $values['url'])
-                                <a class="dropdown-item active" menu="active" id="admin-menu-{{ $keys }}"
+                                <a class="dropdown-item active" menu="active" id="home-menu-{{ $keys }}"
                                    href="{{ $values['url'] }}">
                                     @else
-                                        <a class="dropdown-item" id="admin-menu-{{ $keys }}" href="{{ $values['url'] }}">
+                                        <a class="dropdown-item" id="home-menu-{{ $keys }}" href="{{ $values['url'] }}">
                                             @endif
                                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                         <!-- Download SVG icon from http://tabler-icons.io/i/package -->
@@ -47,12 +47,12 @@
                     </span>{{ __($values['name']) }}
                                         </a>
                         @endif
-                    @else
+                    @elseif(!$values['hidden'])
                         @if (core_Str_menu_url('/' . request()->path()) === $values['url'])
-                            <a class="dropdown-item active" menu="active" id="admin-menu-{{ $keys }}"
+                            <a class="dropdown-item active" menu="active" id="home-menu-{{ $keys }}"
                                href="{{ $values['url'] }}">
                                 @else
-                                    <a class="dropdown-item" id="admin-menu-{{ $keys }}" href="{{ $values['url'] }}">
+                                    <a class="dropdown-item" id="home-menu-{{ $keys }}" href="{{ $values['url'] }}">
                                         @endif
                                         <span class="nav-link-icon d-md-none d-lg-inline-block">
                         <!-- Download SVG icon from http://tabler-icons.io/i/package -->

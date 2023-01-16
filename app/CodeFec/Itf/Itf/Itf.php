@@ -7,23 +7,23 @@ use Illuminate\Support\Arr;
 
 class Itf implements ItfInterface
 {
-    public array $list=[];
+    public array $list = [];
 
     public function add($class, $id, $data): bool
     {
-        $this->list = Arr::add($this->list, $class.".".$class."_".$id, $data);
+        $this->list = Arr::add($this->list, $class . "." . $class . "_" . $id, $data);
         return true;
     }
-    
+
     public function re($class, $id, $data): bool
     {
-        $this->list[$class][$class."_".$id] = $data;
+        $this->list[$class][$class . "_" . $id] = $data;
         return true;
     }
-    
+
     public function del($class, $id): bool
     {
-        $this->list[$class]=array_diff_key($this->list[$class], [$class."_".$id => $this->list[$class][$class."_".$id]]);
+        $this->list[$class] = array_diff_key($this->list[$class], [$class . "_" . $id => $this->list[$class][$class . "_" . $id]]);
         return true;
     }
 
@@ -40,9 +40,14 @@ class Itf implements ItfInterface
         }
         return [];
     }
-    
+
     public function all(): array
     {
         return $this->list;
+    }
+
+    public function _del($class)
+    {
+        $this->list[$class] = [];
     }
 }

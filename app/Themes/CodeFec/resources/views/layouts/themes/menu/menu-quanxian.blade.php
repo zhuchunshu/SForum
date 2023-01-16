@@ -1,9 +1,9 @@
 @if (!core_menu_pd($key))
-    @if(@auth()->check() && @auth()->Class()['permission-value']>=@$value['quanxian'])
+    @if(call_user_func($value['quanxian'])===true)
         @include('App::layouts.themes.menu.single')
     @endif
 @else
-    @if(@auth()->check() && @auth()->Class()['permission-value']>=@$value['quanxian'])
+    @if(call_user_func($value['quanxian'])===true)
         @include('App::layouts.themes.menu.multiple')
     @endif
 @endif

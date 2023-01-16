@@ -2762,6 +2762,109 @@ if (document.getElementById("setting-core-form")) {
     }
   };
   Vue.createApp(scf).mount("#setting-core-form");
+} // 新建页头菜单
+
+
+if (document.getElementById('vue-create-header-menu')) {
+  var app = {
+    data: function data() {
+      return {
+        data: form_data
+      };
+    },
+    methods: {
+      submit: function submit() {
+        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/menu/create", {
+          _token: csrf_token,
+          data: JSON.stringify(this.data)
+        }).then(function (r) {
+          var data = r.data;
+
+          if (data.success === false) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Error', data.result.msg, 'error');
+            return;
+          }
+
+          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Success', data.result.msg, 'success');
+          setTimeout(function () {
+            location.href = "/admin/setting/menu";
+          }, 1500);
+        })["catch"](function (e) {
+          console.error(e);
+          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Error', '请求出错', 'error');
+        });
+      }
+    }
+  };
+  Vue.createApp(app).mount("#vue-create-header-menu");
+} // 新建页头菜单
+
+
+if (document.getElementById('vue-edit-header-menu')) {
+  var _app = {
+    data: function data() {
+      return {
+        data: form_data
+      };
+    },
+    methods: {
+      submit: function submit() {
+        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/menu/update", {
+          _token: csrf_token,
+          id: this.data.id,
+          data: JSON.stringify(this.data)
+        }).then(function (r) {
+          var data = r.data;
+
+          if (data.success === false) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Error', data.result.msg, 'error');
+            return;
+          }
+
+          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Success', data.result.msg, 'success');
+          setTimeout(function () {
+            location.reload();
+          }, 1500);
+        })["catch"](function (e) {
+          console.error(e);
+          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Error', '请求出错', 'error');
+        });
+      }
+    }
+  };
+  Vue.createApp(_app).mount("#vue-edit-header-menu");
+}
+
+if (document.getElementById('vue-menu-list')) {
+  var _app2 = {
+    data: function data() {
+      return {};
+    },
+    methods: {
+      del: function del(id) {
+        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/menu/delete", {
+          _token: csrf_token,
+          id: id
+        }).then(function (r) {
+          var data = r.data;
+
+          if (data.success === false) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Error', data.result.msg, 'error');
+            return;
+          }
+
+          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Success', data.result.msg, 'success');
+          setTimeout(function () {
+            location.reload();
+          }, 1500);
+        })["catch"](function (e) {
+          console.error(e);
+          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Error', '请求出错', 'error');
+        });
+      }
+    }
+  };
+  Vue.createApp(_app2).mount("#vue-menu-list");
 }
 })();
 

@@ -3,7 +3,7 @@
     @else
     <li class="nav-item">
 @endif
-<a class="nav-link" id="admin-menu-{{ $key }}" href="{{ $value['url'] }}">
+<a class="nav-link" id="home-menu-{{ $key }}" href="{{ $value['url'] }}">
     <span class="nav-link-icon d-md-none d-lg-inline-block">
         <!-- Download SVG icon from http://tabler-icons.io/i/package -->
         @if ($value['icon'])
