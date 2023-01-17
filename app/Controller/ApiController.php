@@ -190,7 +190,6 @@ class ApiController
             return Json_Api(401, false, ['msg' => '禁止卸载默认插件']);
         }
         if (request()->input('path') && is_dir(request()->input('path'))) {
-            \Swoole\Coroutine\System::exec('rm -rf ' . request()->input('path'));
             go(function(){
                 \Swoole\Coroutine\System::exec('composer du -o');
               $params = ['command' => 'ClearCache'];

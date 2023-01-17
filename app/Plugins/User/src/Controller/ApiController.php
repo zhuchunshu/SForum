@@ -33,11 +33,11 @@ class ApiController
     #[Middleware(LoginMiddleware::class)]
     public function up_image(UploadHandler $uploader)
     {
-        if (! Authority()->check('upload_file')) {
+        if (! Authority()->check('upload_image')) {
             return Json_Api(419, false, ['msg' => '你所在的用户组无权上传图片']);
         }
         $file = request()->file('file');
-        if ($file->getSize() > get_options('core_user_up_img_size', 2048)) {
+        if (@$file->getSize() && $file->getSize() > get_options('core_user_up_img_size', 2048)) {
             $result = $uploader->save($file, 'topic', auth()->id());
             if ($result['success'] === true) {
                 return Json_Api(200, true, ['msg' => '上传成功!', 'url' => $result['path']]);
