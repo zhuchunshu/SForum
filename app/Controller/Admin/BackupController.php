@@ -64,7 +64,7 @@ class BackupController
     public function create()
     {
         go(function () {
-            backup('backup-' . date('y-m-d') . '-' . Str::random() . '.zip');
+            backup('backup-' . date('y-m-d') . '-' . Str::random());
         });
         return redirect()->back()->with('success', '任务已创建')->go();
     }

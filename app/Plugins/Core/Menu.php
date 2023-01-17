@@ -126,7 +126,7 @@ class Menu
     }
 
 
-    public function backup()
+    public function backup($name='menu')
     {
 
         $data = [];
@@ -144,8 +144,23 @@ class Menu
         if (! is_dir(BASE_PATH . '/runtime/backup/menu')) {
             System::exec('cd ' . BASE_PATH . '/runtime/backup' . '&& mkdir ' . 'menu');
         }
-        file_put_contents(BASE_PATH."/runtime/backup/menu/menu_serialize.txt",$menu_serialize);
-        file_put_contents(BASE_PATH."/runtime/backup/menu/menu.json",$menu);
+        file_put_contents(BASE_PATH."/runtime/backup/menu/".$name."_serialize.txt",$menu_serialize);
+        file_put_contents(BASE_PATH."/runtime/backup/menu/".$name.".json",$menu);
         return true;
+    }
+
+    /**
+     * 导入
+     */
+    public function import(array $data,$recover=false){
+        $prefix_name = config('cache.default.prefix') . 'menu';
+        if($recover===true){
+            redis()->del($prefix_name);
+        }
+        foreach ($data as$item) {
+            if (! redis()->hExists($prefix_name, (string) $item['id'])) {
+                redis()->hSetNx($prefix_name, (string) $item['id'], $this->serialize($item));
+            }
+        }
     }
 }

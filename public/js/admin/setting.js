@@ -2866,6 +2866,73 @@ if (document.getElementById('vue-menu-list')) {
   };
   Vue.createApp(_app2).mount("#vue-menu-list");
 }
+
+if (document.getElementById('vue-setting-menu-import')) {
+  var _app3 = {
+    data: function data() {
+      return {};
+    },
+    methods: {
+      // import 导入
+      im: function im(path) {
+        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/menu/import", {
+          _token: csrf_token,
+          path: path
+        }).then(function (r) {
+          var data = r.data;
+
+          if (data.success) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Success', data.result.msg, 'success');
+            setTimeout(function () {
+              location.reload();
+            }, 1200);
+            return;
+          }
+
+          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Error', data.result.msg, 'error');
+        });
+      },
+      recover: function recover(path) {
+        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/menu/recover", {
+          _token: csrf_token,
+          path: path
+        }).then(function (r) {
+          var data = r.data;
+
+          if (data.success) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Success', data.result.msg, 'success');
+            setTimeout(function () {
+              location.reload();
+            }, 1200);
+            return;
+          }
+
+          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Error', data.result.msg, 'error');
+        });
+      },
+      // remove 删除文件
+      rm: function rm(path) {
+        axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/setting/menu/import.delete.file", {
+          _token: csrf_token,
+          path: path
+        }).then(function (r) {
+          var data = r.data;
+
+          if (data.success) {
+            sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Success', data.result.msg, 'success');
+            setTimeout(function () {
+              location.reload();
+            }, 1200);
+            return;
+          }
+
+          sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('Error', data.result.msg, 'error');
+        });
+      }
+    }
+  };
+  Vue.createApp(_app3).mount("#vue-setting-menu-import");
+}
 })();
 
 /******/ })()

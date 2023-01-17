@@ -852,9 +852,9 @@ if (! function_exists('backup')) {
         if (! $filename) {
             $filename = BASE_PATH . '/runtime/backup/backup.zip';
         } else {
-            $filename = BASE_PATH . '/runtime/backup/' . $filename;
+            $filename = BASE_PATH . '/runtime/backup/' . $filename.".zip";
         }
-        _menu_instance()->backup();
+        _menu_instance()->backup($filename);
         $sql_backup_name = null;
         if (cmd_which('mysqldump')) {
             $sql_backup_name = Str::random(40) . '.sql';

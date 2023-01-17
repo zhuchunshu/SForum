@@ -332,3 +332,66 @@ if(document.getElementById('vue-menu-list')){
     }
     Vue.createApp(app).mount("#vue-menu-list")
 }
+
+if(document.getElementById('vue-setting-menu-import')){
+    const app ={
+        data(){
+            return {
+
+            }
+        },
+        methods:{
+            // import 导入
+            im(path){
+                axios.post("/admin/setting/menu/import",{
+                    _token:csrf_token,
+                    path:path
+                }).then(r=>{
+                    const data = r.data;
+                    if(data.success){
+                        swal('Success',data.result.msg,'success')
+                        setTimeout(()=>{
+                            location.reload()
+                        },1200)
+                        return ;
+                    }
+                    swal('Error',data.result.msg,'error')
+                })
+            },
+            recover(path){
+                axios.post("/admin/setting/menu/recover",{
+                    _token:csrf_token,
+                    path:path
+                }).then(r=>{
+                    const data = r.data;
+                    if(data.success){
+                        swal('Success',data.result.msg,'success')
+                        setTimeout(()=>{
+                            location.reload()
+                        },1200)
+                        return ;
+                    }
+                    swal('Error',data.result.msg,'error')
+                })
+            },
+            // remove 删除文件
+            rm(path){
+                axios.post("/admin/setting/menu/import.delete.file",{
+                    _token:csrf_token,
+                    path:path
+                }).then(r=>{
+                    const data = r.data;
+                    if(data.success){
+                        swal('Success',data.result.msg,'success')
+                        setTimeout(()=>{
+                            location.reload()
+                        },1200)
+                        return ;
+                    }
+                    swal('Error',data.result.msg,'error')
+                })
+            }
+        }
+    }
+    Vue.createApp(app).mount("#vue-setting-menu-import")
+}

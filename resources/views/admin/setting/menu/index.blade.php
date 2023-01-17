@@ -9,6 +9,8 @@
                     <h3 class="card-title">页头导航</h3>
                     <div class="card-actions">
                         <a href="/admin/setting/menu/create" >新增</a>
+                        |
+                        <a href="/admin/setting/menu/import" >导入(恢复)</a>
                     </div>
                 </div>
                 <div class="card-table table-responsive" id="vue-menu-list">
