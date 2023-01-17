@@ -191,7 +191,22 @@ class ApiController
         }
         if (request()->input('path') && is_dir(request()->input('path'))) {
             \Swoole\Coroutine\System::exec('rm -rf ' . request()->input('path'));
-            System::exec('php CodeFec ClearCache');
+            go(function(){
+                \Swoole\Coroutine\System::exec('composer du -o');
+              $params = ['command' => 'ClearCache'];
+
+              $input = new ArrayInput($params);
+              $output = new NullOutput();
+
+              $container = \Hyperf\Utils\ApplicationContext::getContainer();
+
+              /** @var Application $application */
+              $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+              $application->setAutoExit(false);
+
+              // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
+              $exitCode = $application->run($input, $output);
+          });
             return Json_Api(200, true, ['msg' => '卸载成功!']);
         }
 
