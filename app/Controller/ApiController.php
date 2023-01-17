@@ -183,7 +183,7 @@ class ApiController
             return Json_Api(419, false, ['msg' => '无权限']);
         }
         $default_path = [];
-        foreach(\plugins()->get_all() as $plugin){
+        foreach(\plugins()->get_default() as $plugin){
             $default_path[]=plugin_path($plugin);
         }
         if(in_array(request()->input('path'),$default_path)){

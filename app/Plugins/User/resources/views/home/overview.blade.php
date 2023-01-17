@@ -355,8 +355,13 @@
                                 </div>
                                 <div class="col">
                                     <div class="font-weight-medium">
-                                        <span title="{{$user->auth->last()->created_at}}" data-bs-toggle="tooltip"
-                                              data-bs-placement="top">{{format_date($user->auth->last()->created_at)}}</span>
+                                        @if(!$user->auth->count())
+                                            <span title="查询失败" data-bs-toggle="tooltip"
+                                                  data-bs-placement="top">查询失败</span>
+                                        @else
+                                            <span title="{{$user->auth->last()->created_at}}" data-bs-toggle="tooltip"
+                                                  data-bs-placement="top">{{format_date($user->auth->last()->created_at)}}</span>
+                                        @endif
                                     </div>
                                     <div class="text-muted">
                                         {{__("user.last login time")}}
