@@ -27,8 +27,8 @@
                 @foreach (menu()->get() as $key => $value)
                     @if (!arr_has($value, 'parent_id'))
                         @if (!menu_pd($key))
-                            @if ('/' . request()->path() == $value['url'])
-                                <li class="nav-item active">
+                            @if (\Hyperf\Utils\Str::is("*".$value['url']."*",'/' . request()->path()) && $value['url']!=='/admin')
+                            <li class="nav-item active">
                                 @else
                                 <li class="nav-item">
                             @endif

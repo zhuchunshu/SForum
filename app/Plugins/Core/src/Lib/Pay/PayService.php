@@ -1,5 +1,13 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/SForum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
+ */
 namespace App\Plugins\Core\src\Lib\Pay;
 
 use App\CodeFec\Ui\Generate\PayGenerate;
@@ -15,31 +23,29 @@ use Psr\Http\Message\ResponseInterface;
 
 class PayService
 {
-
     /**
      * 关闭订单服务
      * @Inject
-     * @var OrderCloseJobService
      */
     protected OrderCloseJobService $OrderCloseJobService;
 
     /**
-     * @param string|int $user_id 用户id
+     * @param int|string $user_id 用户id
      * @param string $title 订单标题
      * @param string $total_amount 订单金额
      * @param array $payment_method 支付方式
-     * @return bool|array
+     * @return array|bool
      */
-    public function create(string|int $user_id, string $title, string $total_amount, array $payment_method): bool|array
+    public function create(string | int $user_id, string $title, string $total_amount, array $payment_method): bool | array
     {
         // 判断用户是否存在
-        if (!User::query()->where('id', $user_id)->exists()) {
+        if (! User::query()->where('id', $user_id)->exists()) {
             return Json_Api(403, false, ['msg' => '用户不存在']);
         }
         // 截取标题
         $title = Str::limit($title, 200);
         // 判断金额类型
-        if (!is_numeric($total_amount)) {
+        if (! is_numeric($total_amount)) {
             return Json_Api(403, false, ['msg' => '订单金额格式不正确']);
         }
         // 检索支付方式
@@ -48,12 +54,12 @@ class PayService
         }
         // 创建订单
         $order = PayOrder::create([
-            'id' => date("Ymd") . $user_id . date("His") . rand(1, 9) * rand(2, 11), // 订单号
+            'id' => date('Ymd') . $user_id . date('His') . rand(1, 9) * rand(2, 11), // 订单号
             'title' => $title,
             'status' => '待支付',
             'user_id' => $user_id,
             'amount' => $total_amount,
-            'payment_method' => json_encode($payment_method, JSON_UNESCAPED_UNICODE)
+            'payment_method' => json_encode($payment_method, JSON_UNESCAPED_UNICODE),
         ]);
 
         // 支付插件信息
@@ -61,15 +67,14 @@ class PayService
         // 定时关闭订单
         $this->OrderCloseJobService->push(['order_id' => $order->id, 'check_payment' => false, 'payServer' => $payServer]);
         $payServerHandler = $payServer['handler'];
-        if (!@method_exists(new $payServerHandler(), 'create')) {
-            return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . "无有效的订单创建方法"]);
+        if (! @method_exists(new $payServerHandler(), 'create')) {
+            return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . '无有效的订单创建方法']);
         }
         return (new $payServerHandler())->create($order);
     }
 
     /**
-     * 获取所有支付接口
-     * @return array
+     * 获取所有支付接口.
      */
     public function getInterfaces(): array
     {
@@ -89,14 +94,8 @@ class PayService
         return $data;
     }
 
-    private function core_Itf_id($name, $id)
-    {
-        return \Hyperf\Utils\Str::after($id, $name . "_");
-    }
-
     /**
-     * 获取所有支付接口
-     *
+     * 获取所有支付接口.
      */
     public function get_ename_Interfaces()
     {
@@ -117,31 +116,21 @@ class PayService
     }
 
     /**
-     * 获取配置内容
-     * @param string $name
+     * 获取配置内容.
      * @param string $default
-     * @return mixed|null
      * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @return null|mixed
      */
-    public function get_options(string $name, string $default = "")
+    public function get_options(string $name, $default = '')
     {
-        if (!cache()->has('admin.options.pay.' . $name)) {
-            cache()->set("admin.options.pay." . $name, @PayConfig::query()->where("name", $name)->first()->value);
+        if (! cache()->has('admin.options.pay.' . $name)) {
+            cache()->set('admin.options.pay.' . $name, @PayConfig::query()->where('name', $name)->first()->value);
         }
-        return $this->core_default(cache()->get("admin.options.pay." . $name), $default);
-    }
-
-    private function core_default($string = null, $default = null)
-    {
-        if ($string) {
-            return $string;
-        }
-        return $default;
+        return $this->core_default(cache()->get('admin.options.pay.' . $name), $default);
     }
 
     /**
-     * 清理配置缓存
-     * @return bool
+     * 清理配置缓存.
      * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function clean_options(): bool
@@ -153,8 +142,7 @@ class PayService
     }
 
     /**
-     * 获取已启动支付插件
-     * @return array
+     * 获取已启动支付插件.
      * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function get_enabled(): array
@@ -175,8 +163,7 @@ class PayService
     }
 
     /**
-     * 获取已启动支付插件
-     * @return array
+     * 获取已启动支付插件.
      * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function get_enabled_data(): array
@@ -195,19 +182,18 @@ class PayService
     }
 
     /**
-     * 处理回调通知
+     * 处理回调通知.
      * @param string $id 订单号(由SForum系统生产)
      * @param string $status 订单状态
      * @param string $trade_no 交易单号
      * @param string $payer_total 实收金额
      * @param array $notify_result 回调数据
      * @param string $amount_total 总金额
-     * @param string|null $payment_method
-     * @return bool|array
+     * @return array|bool
      */
-    public function notify(string $id, string $status, string $trade_no, string $payer_total, array $notify_result, string $amount_total, string|null $payment_method = null): bool|array
+    public function notify(string $id, string $status, string $trade_no, string $payer_total, array $notify_result, string $amount_total, string | null $payment_method = null): bool | array
     {
-        if (!PayOrder::query()->where('id', $id)->exists()) {
+        if (! PayOrder::query()->where('id', $id)->exists()) {
             return Json_Api(403, false, ['msg' => '订单号不存在']);
         }
         // 更新数据
@@ -217,7 +203,7 @@ class PayService
             'amount_total' => $amount_total,
             'payer_total' => $payer_total,
             'notify_result' => json_encode($notify_result, JSON_UNESCAPED_UNICODE, JSON_PRETTY_PRINT),
-            'payment_method' => $payment_method ?: PayOrder::query()->find($id)->payment_method
+            'payment_method' => $payment_method ?: PayOrder::query()->find($id)->payment_method,
         ]);
         // 触发事件
         EventDispatcher()->dispatch(new NotifyEvent($id));
@@ -225,32 +211,30 @@ class PayService
         return true;
     }
 
-
     /**
-     * 获取支付插件信息
+     * 获取支付插件信息.
      * @param $id
      * @param $ename
      * @return array|mixed
      */
     public function get_pay_plugin_data($id, $ename): mixed
     {
-        if (!array_key_exists($id, $this->getInterfaces())) {
+        if (! array_key_exists($id, $this->getInterfaces())) {
             return '支付方式不存在,id检索失败';
         }
         // 检索支付方式ename
-        if (!Arr::has($this->getInterfaces()[$id], 'ename') || $this->getInterfaces()[$id]['ename'] !== $ename) {
+        if (! Arr::has($this->getInterfaces()[$id], 'ename') || $this->getInterfaces()[$id]['ename'] !== $ename) {
             return '支付方式不存在,ename检索失败';
         }
         return $this->getInterfaces()[$id];
     }
 
     /**
-     * 查询订单
+     * 查询订单.
      * @param $trade_no
-     * @param bool $refund
      * @return array|ResponseInterface
      */
-    public function find($trade_no, bool $refund = false): array|ResponseInterface
+    public function find($trade_no, bool $refund = false): array | ResponseInterface
     {
         $order = PayOrder::query()->where('trade_no', $trade_no)->first();
         $payment_method = json_decode($order->payment_method, true);
@@ -261,8 +245,8 @@ class PayService
         // 支付插件信息
         $payServer = $this->get_ename_Interfaces()[$payment_method[1]];
         $payServerHandler = $payServer['handler'];
-        if (!@method_exists(new $payServerHandler(), 'find')) {
-            return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . "无有效的订单查询方法"]);
+        if (! @method_exists(new $payServerHandler(), 'find')) {
+            return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . '无有效的订单查询方法']);
         }
         $result = (new $payServerHandler())->find($order, $refund);
         return view('App::Pay.admin.order_show', ['order' => $order, 'result' => $result]);
@@ -270,16 +254,14 @@ class PayService
 
     /**
      * 生成前端html代码
-     * @return PayGenerate
      */
     public function generate_html(): PayGenerate
     {
-        return (new PayGenerate());
+        return new PayGenerate();
     }
 
-
     /**
-     * 关闭订单
+     * 关闭订单.
      * @param $id
      * @param bool $check_payment
      * @param null $payServer
@@ -288,15 +270,15 @@ class PayService
     public function close($id, $check_payment = true, $payServer = null)
     {
         $order = PayOrder::query()->find($id);
-        if(Str::is('*待支付*','*'.$order->status.'*') || Str::is('*未支付*','*'.$order->status.'*') || Str::is('*未付款*','*'.$order->status.'*')){
+        if (Str::is('*待支付*', '*' . $order->status . '*') || Str::is('*未支付*', '*' . $order->status . '*') || Str::is('*未付款*', '*' . $order->status . '*')) {
             if ($order->trade_no) {
                 PayOrder::query()->where('id', $order->id)->update([
-                    'status' => '交易关闭'
+                    'status' => '交易关闭',
                 ]);
                 return Json_Api(200, true, ['msg' => '交易已关闭!']);
             }
             PayOrder::query()->where('id', $order->id)->update([
-                'status' => '交易关闭'
+                'status' => '交易关闭',
             ]);
             $payment_method = json_decode($order->payment_method, true);
             // 检索支付方式
@@ -308,8 +290,8 @@ class PayService
                 $payServer = $this->get_ename_Interfaces()[$payment_method[1]];
             }
             $payServerHandler = $payServer['handler'];
-            if (!@method_exists(new $payServerHandler(), 'close')) {
-                return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . "无有效的订单查询方法"]);
+            if (! @method_exists(new $payServerHandler(), 'close')) {
+                return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . '无有效的订单查询方法']);
             }
             return (new $payServerHandler())->close($order);
         }
@@ -318,17 +300,19 @@ class PayService
     }
 
     /**
-     * 取消订单
+     * 取消订单.
      * @param $id
+     * @param mixed $check_payment
+     * @param null|mixed $payServer
      * @return array|ResponseInterface
      */
     public function cancel($id, $check_payment = true, $payServer = null)
     {
         $order = PayOrder::query()->find($id);
-        if(Str::is('*待支付*','*'.$order->status.'*') || Str::is('*未支付*','*'.$order->status.'*') || Str::is('*未付款*','*'.$order->status.'*')) {
-            if (!$order->trade_no) {
+        if (Str::is('*待支付*', '*' . $order->status . '*') || Str::is('*未支付*', '*' . $order->status . '*') || Str::is('*未付款*', '*' . $order->status . '*')) {
+            if (! $order->trade_no) {
                 PayOrder::query()->where('id', $order->id)->update([
-                    'status' => '订单取消'
+                    'status' => '订单取消',
                 ]);
                 return Json_Api(200, true, ['msg' => '取消订单成功!']);
             }
@@ -342,8 +326,8 @@ class PayService
                 $payServer = $this->get_ename_Interfaces()[$payment_method[1]];
             }
             $payServerHandler = $payServer['handler'];
-            if (!@method_exists(new $payServerHandler(), 'cancel')) {
-                return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . "无有效的订单查询方法"]);
+            if (! @method_exists(new $payServerHandler(), 'cancel')) {
+                return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . '无有效的订单查询方法']);
             }
             return (new $payServerHandler())->cancel($order);
         }
@@ -351,28 +335,27 @@ class PayService
     }
 
     /**
-     * 检索支付方式
-     * @param array $payment_method
-     * @return bool|array
+     * 检索支付方式.
      * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @return array|bool
      */
-    public function check_payment(array $payment_method): bool|array
+    public function check_payment(array $payment_method): bool | array
     {
         // 检索支付方式
-        if (!is_array($payment_method) || !is_numeric($payment_method[0]) || !is_string($payment_method[1])) {
+        if (! is_array($payment_method) || ! is_numeric($payment_method[0]) || ! is_string($payment_method[1])) {
             return Json_Api(403, false, ['msg' => '支付方式格式不正确']);
         }
         // 检索支付方式id
-        if (!Arr::has($this->getInterfaces(), $payment_method[0])) {
+        if (! Arr::has($this->getInterfaces(), $payment_method[0])) {
             return Json_Api(403, false, ['msg' => '支付方式不存在,id检索失败']);
         }
         // 检索支付方式ename
-        if (!Arr::has($this->getInterfaces()[$payment_method[0]], 'ename') || $this->getInterfaces()[$payment_method[0]]['ename'] !== $payment_method[1]) {
+        if (! Arr::has($this->getInterfaces()[$payment_method[0]], 'ename') || $this->getInterfaces()[$payment_method[0]]['ename'] !== $payment_method[1]) {
             return Json_Api(403, false, ['msg' => '支付方式不存在,ename检索失败']);
         }
 
         // 检索支付方式id
-        if (!is_array($this->get_enabled_data()[$payment_method[0]])) {
+        if (! is_array($this->get_enabled_data()[$payment_method[0]])) {
             return Json_Api(403, false, ['msg' => '此支付扩展未启用']);
         }
 
@@ -380,14 +363,14 @@ class PayService
     }
 
     /**
-     * 对未付款订单进行付款
+     * 对未付款订单进行付款.
      * @param $order_id
      * @param $payment
      * @return array|bool|mixed
      */
     public function paying($order_id, $payment = null): mixed
     {
-        if (!PayOrder::query()->where('id', $order_id)->exists()) {
+        if (! PayOrder::query()->where('id', $order_id)->exists()) {
             return Json_Api(403, false, ['msg' => '订单不存在']);
         }
         // 获取订单信息
@@ -411,9 +394,22 @@ class PayService
         // 支付插件信息
         $payServer = $this->get_ename_Interfaces()[$payment_method[1]];
         $payServerHandler = $payServer['handler'];
-        if (!@method_exists(new $payServerHandler(), 'create')) {
-            return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . "无有效的订单创建方法"]);
+        if (! @method_exists(new $payServerHandler(), 'create')) {
+            return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . '无有效的订单创建方法']);
         }
         return (new $payServerHandler())->create($order);
+    }
+
+    private function core_Itf_id($name, $id)
+    {
+        return \Hyperf\Utils\Str::after($id, $name . '_');
+    }
+
+    private function core_default($string = null, $default = null)
+    {
+        if ($string) {
+            return $string;
+        }
+        return $default;
     }
 }
