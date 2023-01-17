@@ -56,7 +56,7 @@ class ApiController
             return Json_Api(419, false, ['msg' => '你所在的用户组无权上传文件']);
         }
         foreach (request()->file('file') as $key => $file) {
-            if ($file->getSize() > get_options('core_user_up_file_size', 4096)) {
+            if (@$file->getSize() && $file->getSize() > get_options('core_user_up_file_size', 4096)) {
                 $result = $uploader->save($file, 'topic', auth()->id());
                 if ($result) {
                     $url = $result['path'];
