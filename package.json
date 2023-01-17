@@ -1,7 +1,7 @@
 {
-  "name": "super-forum",
+  "name": "SForum",
   "version": "1.0.0",
-  "description": "SuperForum",
+  "description": "SForum",
   "directories": {
     "test": "test"
   },
@@ -11,15 +11,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zhuchunshu/SuperForum.git"
+    "url": "git+https://github.com/zhuchunshu/SForum.git"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/zhuchunshu/SuperForum/issues"
+    "url": "https://github.com/zhuchunshu/SForum/issues"
   },
-  "homepage": "https://github.com/zhuchunshu/SuperForum#readme",
+  "homepage": "https://github.com/zhuchunshu/SForum#readme",
   "dependencies": {
     "@fancyapps/ui": "^4.0.4",
     "@picmo/popup-picker": "^5.4.0",

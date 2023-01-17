@@ -8617,7 +8617,7 @@
             "license": [
                 "MIT"
             ],
-            "description": "super-forum 能用的hyperf 的 auth 组件",
+            "description": "SForum 能用的hyperf 的 auth 组件",
             "keywords": [
                 "hyperf",
                 "hyperf-auth",

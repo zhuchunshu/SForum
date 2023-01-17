@@ -3494,7 +3494,7 @@ $(function () {
     }
   });
 });
-console.log("%cSuperForum %cwww.github.com/zhuchunshu/super-forum", "color:#fff;background:linear-gradient(90deg,#448bff,#44e9ff);padding:5px 0;", "color:#000;background:linear-gradient(90deg,#44e9ff,#ffffff);padding:5px 10px 5px 0px;");
+console.log("%cSForum %cwww.github.com/zhuchunshu/SForum", "color:#fff;background:linear-gradient(90deg,#448bff,#44e9ff);padding:5px 0;", "color:#000;background:linear-gradient(90deg,#44e9ff,#ffffff);padding:5px 10px 5px 0px;");
 $(function () {
   axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/user/get.user.config", {
     _token: csrf_token

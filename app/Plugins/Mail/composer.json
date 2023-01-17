@@ -1,6 +1,6 @@
 {
     "name": "zhuchunshu/sf-mail",
-    "description": "Super-Forum 邮箱驱动插件",
+    "description": "SForum 邮箱驱动插件",
     "type": "project",
     "license": "MIT",
     "authors": [

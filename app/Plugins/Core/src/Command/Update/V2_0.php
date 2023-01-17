@@ -4,9 +4,9 @@ declare(strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
- * @document https://github.com/zhuchunshu/super-forum
+ * @document https://github.com/zhuchunshu/SForum
  * @contact  laravel@88.com
- * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
 namespace App\Plugins\Core\src\Command\Update;
 
@@ -42,7 +42,7 @@ class V2_0 extends HyperfCommand
     public function configure()
     {
         parent::configure();
-        $this->setDescription('super-forum 2.0 升级迁移命令');
+        $this->setDescription('SForum 2.0 升级迁移命令');
     }
 
     public function handle()

@@ -4,9 +4,9 @@ declare(strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
- * @document https://github.com/zhuchunshu/super-forum
+ * @document https://github.com/zhuchunshu/SForum
  * @contact  laravel@88.com
- * @license  https://github.com/zhuchunshu/super-forum/blob/master/LICENSE
+ * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
 namespace App\CodeFec;
 
@@ -27,7 +27,7 @@ class Upgrading
 
     public \App\Command\CodeFec\Upgrading $command;
 
-    private string $api_releases = 'https://api.github.com/repos/zhuchunshu/super-forum/releases';
+    private string $api_releases = 'https://api.github.com/repos/zhuchunshu/SForum/releases';
 
     public function __construct(OutputInterface $output, \App\Command\CodeFec\Upgrading $command)
     {
@@ -70,7 +70,7 @@ class Upgrading
         }
 
         // 生成文件下载链接
-        $url .= 'https://github.com/zhuchunshu/super-forum/archive/' . $tag_name . '.zip';
+        $url .= 'https://github.com/zhuchunshu/SForum/archive/' . $tag_name . '.zip';
 
         // 定义文件存放路径
         $file_path = BASE_PATH . '/runtime/update.zip';

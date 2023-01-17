@@ -196,7 +196,7 @@ class PayService
 
     /**
      * 处理回调通知
-     * @param string $id 订单号(由super-forum系统生产)
+     * @param string $id 订单号(由SForum系统生产)
      * @param string $status 订单状态
      * @param string $trade_no 交易单号
      * @param string $payer_total 实收金额

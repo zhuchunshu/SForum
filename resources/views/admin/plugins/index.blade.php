@@ -20,7 +20,7 @@
                     </div>
                     <div>
                         <h4 class="alert-title">Did you know?</h4>
-                        <div class="text-muted">SuperForum已废弃插件启停功能，不用的插件建议直接卸载。</div>
+                        <div class="text-muted">SForum已废弃插件启停功能，不用的插件建议直接卸载。</div>
                     </div>
                 </div>
                 <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
@@ -59,7 +59,7 @@
                                         @endif <div>{{$plugin['data']['name']}}</div></td>
                                     <td class="text-muted" >
                                         @if(@$plugin['data']['masterVersion'] && @$plugin['data']['masterVersion']>build_info()->version)
-                                            <span class="status status-red">不兼容,要求SuperForum版本>={{$plugin['data']['masterVersion']}}</span>
+                                            <span class="status status-red">不兼容,要求SForum版本>={{$plugin['data']['masterVersion']}}</span>
                                         @else
                                             <span class="status status-green">兼容!</span>
                                         @endif

@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>SuperForum安装 - {{ config('codefec.app.name') }}</title>
+    <title>SForum安装 - {{ config('codefec.app.name') }}</title>
     <meta name="theme-color" content="#206bc4" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -32,7 +32,7 @@
             </div>
             <div class="card card-md">
                 <div class="card-body text-center">
-                    <h1>安装SuperForum!</h1>
+                    <h1>安装SForum!</h1>
                     <p class="text-muted">本项目开源地址: <a href="https://github.com/zhuchunshu">https://github.com/zhuchunshu</a><br>安装过程中如若遇到问题请到论坛反馈:
                         <a href="https://www.runpod.cn">https://www.runpod.cn</a></p>
                 </div>

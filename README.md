@@ -1,4 +1,4 @@
-super-forum是一个基于php开发的功能丰富、性能好、速度快的中文论坛程序
+SForum是一个基于php开发的功能丰富、性能好、速度快的中文论坛程序
 
 ### 特点
 
@@ -12,7 +12,7 @@ super-forum是一个基于php开发的功能丰富、性能好、速度快的中
 
 ### 开源地址
 
-[https://github.com/zhuchunshu/super-forum](https://github.com/zhuchunshu/super-forum)
+[https://github.com/zhuchunshu/SForum](https://github.com/zhuchunshu/SForum)
 
 ### QQ交流群
 
@@ -46,4 +46,4 @@ super-forum是一个基于php开发的功能丰富、性能好、速度快的中
 ![image](https://user-images.githubusercontent.com/57830364/207396470-32423a80-e281-4a2f-a996-29d345ae0639.png)
 
 ## Thanks
-<a href="https://www.jetbrains.com/?from=SuperForum"><img src="https://goframe.org/download/thumbnails/1114119/jetbrains.png" height="120" alt="JetBrains"/></a>
+<a href="https://www.jetbrains.com/?from=SForum"><img src="https://goframe.org/download/thumbnails/1114119/jetbrains.png" height="120" alt="JetBrains"/></a>

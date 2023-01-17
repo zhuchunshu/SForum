@@ -145,7 +145,7 @@
                     </a>
                 </div>
 
-                {{--                SuperForum版本--}}
+                {{--                SForum版本--}}
                 <div class="col-md-6 col-xl-3 col-6">
                     <a class="card card-link" href="#">
                         <div class="card-body">
@@ -224,7 +224,7 @@
                                     <p>官网: <a href="https://www.runpod.cn">https://www.runpod.cn</a></p>
                                     <p>文档: <a href="https://www.runpod.cn/docs">https://www.runpod.cn/docs</a>
                                     </p>
-                                    <p>开源地址: <a href="https://github.com/zhuchunshu/super-forum">https://github.com/zhuchunshu/super-forum</a>
+                                    <p>开源地址: <a href="https://github.com/zhuchunshu/SForum">https://github.com/zhuchunshu/SForum</a>
                                     </p>
                                 </div>
                             </div>

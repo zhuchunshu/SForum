@@ -1,5 +1,5 @@
 {
-    "name": "zhuchunshu/super-forum",
+    "name": "zhuchunshu/SForum",
     "type": "project",
     "keywords": [
         "php",
@@ -9,7 +9,7 @@
         "microservice",
         "php-bbs"
     ],
-    "description": "super-forum",
+    "description": "SForum",
     "license": "MIT",
     "require": {
         "php": ">=8.0",

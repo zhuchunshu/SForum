@@ -16,7 +16,7 @@ use function Swoole\Coroutine\Http\get;
 #[Middleware(AdminMiddleware::class)]
 class ApiController
 {
-	private string $api_releases = "https://api.github.com/repos/zhuchunshu/super-forum/releases";
+	private string $api_releases = "https://api.github.com/repos/zhuchunshu/SForum/releases";
 	private string $update_log = "https://www.runpod.cn/48.md";
 	#[PostMapping(path:"getVersion")]
 	public function getVersion(){
@@ -95,7 +95,7 @@ class ApiController
 		}
 		
 		// 生成文件下载链接
-		$url .= "https://github.com/zhuchunshu/super-forum/archive/".$tag_name.".zip";
+		$url .= "https://github.com/zhuchunshu/SForum/archive/".$tag_name.".zip";
 		
 		// 定义文件存放路径
 		$file_path= BASE_PATH."/runtime/update.zip";
