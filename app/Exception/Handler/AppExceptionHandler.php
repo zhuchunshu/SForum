@@ -15,6 +15,7 @@ use Hyperf\ExceptionHandler\ExceptionHandler;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\Utils\Str;
 use Psr\Http\Message\ResponseInterface;
+use Qbhy\HyperfAuth\Exception\UnauthorizedException;
 use Throwable;
 
 class AppExceptionHandler extends ExceptionHandler
@@ -37,6 +38,7 @@ class AppExceptionHandler extends ExceptionHandler
             'message' => $throwable->getMessage(),
             'line' => $throwable->getLine(),
             'file' => $throwable->getFile(),
+            'link' => url(request()->getPathInfo()),
         ]);
         $log_id = $log['_id'];
         return $response->withHeader('Server', 'SForum')->withStatus(500)->withBody(new SwooleStream('Internal Server Error. log in <a href="' . url('/admin/server/logger/' . $log_id . '.html') . '">' . url('/admin/server/logger/' . $log_id . '.html') . '</a>'));
@@ -44,6 +46,6 @@ class AppExceptionHandler extends ExceptionHandler
 
     public function isValid(Throwable $throwable): bool
     {
-        return true;
+        return !$throwable instanceof UnauthorizedException;
     }
 }
