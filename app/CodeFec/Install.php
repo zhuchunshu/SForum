@@ -195,9 +195,29 @@ class Install
 
         $exitCode = $application->run($input, $output);
 
+        $this->command->info('数据库迁移成功!');
+
+
+        // 数据填充
+        $command = 'db:seed';
+
+        $params = ['command' => $command];
+
+        $input = new ArrayInput($params);
+        $output = new NullOutput();
+
+        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+
+        /** @var Application $application */
+        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+        $application->setAutoExit(false);
+
+        $exitCode = $application->run($input, $output);
+
+        // 下一步
         $this->addStep();
 
-        $this->command->info('数据库迁移成功!');
+        $this->command->info('数据库填充成功!');
         $this->command->info("\n请重新运行此命令!");
     }
 
@@ -252,6 +272,26 @@ class Install
             'SERVER_WEB_PORT' => $web,
             'SERVER_WS_PORT' => $ws,
         ]);
+
+        // gen auth-env
+
+        // 数据填充
+        $command = 'gen:auth-env';
+
+        $params = ['command' => $command];
+
+        $input = new ArrayInput($params);
+        $output = new NullOutput();
+
+        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+
+        /** @var Application $application */
+        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+        $application->setAutoExit(false);
+
+        $exitCode = $application->run($input, $output);
+
+
         $this->addStep();
         $this->command->info('配置成功!');
         $this->command->info("\nWEB服务端口:" . $web . "\nWEBSOCKET服务端口:" . $ws);
