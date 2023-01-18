@@ -615,10 +615,11 @@ if (! function_exists('url')) {
     function url($path = null)
     {
         $url = get_options('APP_URL', null);
+        $url = $url ?: \App\Helpers\Url::getReqFullHost(request());
         if (! $path) {
             return $url;
         }
-        return $url.$path;
+        return $url . $path;
     }
 }
 
@@ -852,7 +853,7 @@ if (! function_exists('backup')) {
         if (! $filename) {
             $filename = BASE_PATH . '/runtime/backup/backup.zip';
         } else {
-            $filename = BASE_PATH . '/runtime/backup/' . $filename.".zip";
+            $filename = BASE_PATH . '/runtime/backup/' . $filename . '.zip';
         }
         _menu_instance()->backup($filename);
         $sql_backup_name = null;
@@ -933,9 +934,9 @@ if (! function_exists('get_component_view_name')) {
         $view = 'customize.component.' . $name;
         $container = \Hyperf\Utils\ApplicationContext::getContainer();
         $factory = $container->get(FactoryInterface::class);
-        if (!$factory->exists($view)) {
+        if (! $factory->exists($view)) {
             return 'shared.viewIsNull';
-        };
+        }
         return $view;
     }
 }
