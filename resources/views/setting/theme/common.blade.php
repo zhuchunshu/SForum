@@ -41,6 +41,16 @@
             <div class="form-label">查看全部友链地址</div>
             <input type="text" v-model="data.theme_common_friend_links_all" class="form-control">
         </div>
+        <div class="col-lg-4">
+            <div class="form-label">head标签内自定义代码</div>
+            <input type="text" v-model="data.theme_common_diy_code_head" class="form-control">
+            <small>请输入小部件调用代码, <a href="/admin/hook/components" target="_blank">点我进入小部件页面</a> </small>
+        </div>
+        <div class="col-lg-4">
+            <div class="form-label">body标签结尾自定义代码</div>
+            <input type="text" v-model="data.theme_common_diy_code_body" class="form-control">
+            <small>请输入小部件调用代码, <a href="/admin/hook/components" target="_blank">点我进入小部件页面</a> </small>
+        </div>
     </div>
 
 </div>

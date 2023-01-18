@@ -27,11 +27,14 @@
     @yield('css')
     @yield('headers')
     {{--插件css--}}
-    @foreach((new \App\CodeFec\Plugins())->getEnPlugins() as $value)
+    @foreach((new \App\CodeFec\Plugins())->get_all() as $value)
         @if(file_exists(public_path("plugins/".$value."/".$value.".css")))
             <link href="{{ file_hash("plugins/".$value."/".$value.".css") }}" rel="stylesheet" />
         @endif
     @endforeach
+    @if(get_options('theme_common_diy_code_head'))
+        @include(get_component_view_name(get_options('theme_common_diy_code_head')))
+    @endif
 </head>
 
 <body class="{{session()->get('theme','antialiased')}}">
@@ -62,11 +65,14 @@
     @endforeach
     @yield('scripts')
     {{--插件js--}}
-    @foreach((new \App\CodeFec\Plugins())->getEnPlugins() as $value)
+    @foreach((new \App\CodeFec\Plugins())->get_all() as $value)
         @if(file_exists(public_path("plugins/".$value."/".$value.".js")))
             <script src="{{ file_hash("plugins/".$value."/".$value.".js") }}"></script>
         @endif
     @endforeach
 </div>
+@if(get_options('theme_common_diy_code_body'))
+    @include(get_component_view_name(get_options('theme_common_diy_code_body')))
+@endif
 </body>
 </html>
