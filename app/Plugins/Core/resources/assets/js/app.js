@@ -4033,17 +4033,11 @@ $(function () {
       position: "topRight"
     });
   });
-});
-$(function () {
-  $('button[auto-event="disabled"]').on("click", function () {
-    var _this = this;
+}); // 点击按钮是自动刷新验证码
 
-    $(this).attr('disabled', 'disabled');
-    var timeout = $(this).attr('timeout');
-    setTimeout(function () {
-      $(_this).removeAttr('disabled');
-    }, timeout);
-    $(this).parents('form').submit();
+$(function () {
+  $(":button").click(function () {
+    $('.captcha').attr('src', '/captcha?id=' + Math.random());
   });
 });
 

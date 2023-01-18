@@ -199,14 +199,10 @@ $(function () {
     })
 })
 
-$(function () {
-    $('button[auto-event="disabled"]').on("click", function () {
-        $(this).attr('disabled', 'disabled')
-        const timeout = $(this).attr('timeout')
-        setTimeout(() => {
-            $(this).removeAttr('disabled')
-        }, timeout)
-        $(this).parents('form').submit()
+// 点击按钮是自动刷新验证码
+$(function(){
+    $(":button").click(function(){
+        $('.captcha').attr('src','/captcha?id='+Math.random())
     })
 })
 
