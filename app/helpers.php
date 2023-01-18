@@ -39,7 +39,7 @@ use Swoole\Coroutine\System;
 function public_path($path = ''): string
 {
     if ($path !== '') {
-        return config('server.settings.document_root') . '/' . $path;
+        return config('server.settings.document_root') . '/' . ltrim($path,'/');
     }
     return config('server.settings.document_root');
 }

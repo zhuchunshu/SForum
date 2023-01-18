@@ -8,7 +8,7 @@
         <div class="border-0 card">
             <div class="card-body">
                 <h3 class="card-title">文件上传</h3>
-                <form action="?Redirect=/admin/users/files/upload" method="post" enctype="multipart/form-data">
+                <form action="?Redirect=/admin/files/upload" method="post" enctype="multipart/form-data">
                     <x-csrf/>
                     <div class="mb-3">
                         <input type="file" class="form-control" id="file" name="file">

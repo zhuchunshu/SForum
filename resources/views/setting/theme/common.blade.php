@@ -16,7 +16,7 @@
         <div class="col-lg-4">
             <div class="form-label">网站icon</div>
             <input type="text" class="form-control" v-model="data.theme_common_icon">
-            <small>填写链接,<a href="/admin/users/files/upload" target="_blank">点我</a> 上传文件</small>
+            <small>填写链接,<a href="/admin/files/upload" target="_blank">点我</a> 上传文件</small>
         </div>
         <div class="col-lg-4">
             <div class="form-label">友情链接</div>
