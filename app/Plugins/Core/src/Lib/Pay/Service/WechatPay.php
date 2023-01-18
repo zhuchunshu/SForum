@@ -2,12 +2,13 @@
 
 namespace App\Plugins\Core\src\Lib\Pay\Service;
 
+use App\Plugins\Core\src\Controller\Pay\PayInterFace;
 use App\Plugins\Core\src\Models\PayOrder;
 use Psr\SimpleCache\InvalidArgumentException;
 use Yansongda\Pay\Exception\{ContainerException, InvalidParamsException, ServiceNotFoundException};
 use Yansongda\Pay\Pay;
 
-class WechatPay
+class WechatPay implements PayInterFace
 {
     /**
      * 金额转元 -> 倍数
@@ -90,7 +91,7 @@ class WechatPay
      * @return array|\Yansongda\Supports\Collection
      * @throws InvalidArgumentException
      */
-    public function create($order): \Yansongda\Supports\Collection|array
+    public function create(PayOrder $order): \Yansongda\Supports\Collection|array
     {
         $create_order = [
             'out_trade_no' => (string)$order->id,

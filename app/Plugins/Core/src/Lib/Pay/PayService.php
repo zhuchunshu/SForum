@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace App\Plugins\Core\src\Lib\Pay;
 
 use App\CodeFec\Ui\Generate\PayGenerate;
+use App\Plugins\Core\src\Controller\Pay\PayInterFace;
 use App\Plugins\Core\src\Lib\Pay\Event\NotifyEvent;
 use App\Plugins\Core\src\Lib\Pay\Jobs\Service\OrderCloseJobService;
 use App\Plugins\Core\src\Models\PayConfig;
@@ -20,6 +21,7 @@ use Hyperf\Di\Annotation\Inject;
 use Hyperf\Utils\Arr;
 use Hyperf\Utils\Str;
 use Psr\Http\Message\ResponseInterface;
+use Psr\SimpleCache\InvalidArgumentException;
 
 class PayService
 {
@@ -34,6 +36,7 @@ class PayService
      * @param string $title 订单标题
      * @param string $total_amount 订单金额
      * @param array $payment_method 支付方式
+     * @throws InvalidArgumentException
      * @return array|bool
      */
     public function create(string | int $user_id, string $title, string $total_amount, array $payment_method): bool | array
@@ -54,7 +57,7 @@ class PayService
         }
         // 创建订单
         $order = PayOrder::create([
-            'id' => date('Ymd') . $user_id . date('His') . rand(1, 9) * rand(2, 11), // 订单号
+            'id' => date('Ymd') . $user_id . date('His') . random_int(1, 9) * random_int(2, 11), // 订单号
             'title' => $title,
             'status' => '待支付',
             'user_id' => $user_id,
@@ -70,7 +73,7 @@ class PayService
         if (! @method_exists(new $payServerHandler(), 'create')) {
             return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . '无有效的订单创建方法']);
         }
-        return (new $payServerHandler())->create($order);
+        return call_user_func([new $payServerHandler(), 'create'], $order);
     }
 
     /**
@@ -79,16 +82,16 @@ class PayService
     public function getInterfaces(): array
     {
         $data = [];
-        foreach (Itf()->get('Pay') as $key => $Pays) {
+        foreach (Itf()->get('Pay') as $key => $pay) {
             if (
-                Arr::has($Pays, 'name')
-                && Arr::has($Pays, 'description')
-                && Arr::has($Pays, 'ename')
-                && Arr::has($Pays, 'handler')
-                && Arr::has($Pays, 'icon')
-                && Arr::has($Pays, 'view')
-            ) {
-                $data[$this->core_Itf_id('Pay', $key)] = $Pays;
+                Arr::has($pay, 'name')
+                && Arr::has($pay, 'description')
+                && Arr::has($pay, 'ename')
+                && Arr::has($pay, 'handler')
+                && Arr::has($pay, 'icon')
+                && Arr::has($pay, 'view')
+                && new $pay['handler']() instanceof PayInterFace) {
+                $data[$this->core_Itf_id('Pay', $key)] = $pay;
             }
         }
         return $data;
@@ -108,6 +111,7 @@ class PayService
                 && Arr::has($Pays, 'handler')
                 && Arr::has($Pays, 'icon')
                 && Arr::has($Pays, 'view')
+                && new $Pays['handler']() instanceof PayInterFace
             ) {
                 $data[$Pays['ename']] = $Pays;
             }
@@ -191,7 +195,7 @@ class PayService
      * @param string $amount_total 总金额
      * @return array|bool
      */
-    public function notify(string $id, string $status, string $trade_no, string $payer_total, array $notify_result, string $amount_total, string | null $payment_method = null): bool | array
+    public function notify(string $id, string $status, string $trade_no, string | int | float $payer_total, array $notify_result, string | int | float $amount_total, string | null $payment_method = null): bool | array
     {
         if (! PayOrder::query()->where('id', $id)->exists()) {
             return Json_Api(403, false, ['msg' => '订单号不存在']);
@@ -248,7 +252,8 @@ class PayService
         if (! @method_exists(new $payServerHandler(), 'find')) {
             return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . '无有效的订单查询方法']);
         }
-        $result = (new $payServerHandler())->find($order, $refund);
+        //$result = (new $payServerHandler())->find($order, $refund);
+        $result = call_user_func([new $payServerHandler(), 'find'], $order, $refund);
         return view('App::Pay.admin.order_show', ['order' => $order, 'result' => $result]);
     }
 
@@ -293,7 +298,8 @@ class PayService
             if (! @method_exists(new $payServerHandler(), 'close')) {
                 return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . '无有效的订单查询方法']);
             }
-            return (new $payServerHandler())->close($order);
+            //return (new $payServerHandler())->close($order);
+            return call_user_func([new $payServerHandler(), 'close'], $order);
         }
 
         return Json_Api(403, false, ['msg' => '当前订单状态不允许关闭']);
@@ -329,14 +335,15 @@ class PayService
             if (! @method_exists(new $payServerHandler(), 'cancel')) {
                 return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . '无有效的订单查询方法']);
             }
-            return (new $payServerHandler())->cancel($order);
+            //return (new $payServerHandler())->cancel($order);
+            return call_user_func([new $payServerHandler(), 'cancel'], $order);
         }
         return Json_Api(403, false, ['msg' => '当前订单状态不允许取消']);
     }
 
     /**
      * 检索支付方式.
-     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws InvalidArgumentException
      * @return array|bool
      */
     public function check_payment(array $payment_method): bool | array
@@ -397,7 +404,8 @@ class PayService
         if (! @method_exists(new $payServerHandler(), 'create')) {
             return Json_Api(500, false, ['msg' => '支付插件:' . $payment_method[1] . '无有效的订单创建方法']);
         }
-        return (new $payServerHandler())->create($order);
+        // return (new $payServerHandler())->create($order);
+        return call_user_func([new $payServerHandler(), 'create'], $order);
     }
 
     private function core_Itf_id($name, $id)

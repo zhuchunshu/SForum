@@ -71,7 +71,7 @@ class PayAdminController
             $file = request()->file($name);
             if ($file->isFile()) {
                 // 保存文件
-                $file = $fileUpload->save($file, 'admin', 'pay_wechat_');
+                $file = $fileUpload->save($file, 'admin', 'pay_');
                 // 获取文件路径
                 $file = $file['raw_path'];
                 // 插入到数据库

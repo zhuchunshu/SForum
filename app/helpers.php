@@ -614,11 +614,11 @@ if (! function_exists('errors')) {
 if (! function_exists('url')) {
     function url($path = null)
     {
-        $url = get_options('APP_URL', 'http://' . request()->getHeader('host')[0]);
+        $url = get_options('APP_URL', null);
         if (! $path) {
             return $url;
         }
-        return null;
+        return $url.$path;
     }
 }
 
