@@ -95,9 +95,37 @@
             new CopyButtonPlugin()
         );
     </script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            window.Plyr && (new Plyr('video'));
-        });
-    </script>
+    @if(get_options('topic_show_video_enable_m3u8','false')==='true')
+        <script src="{{file_hash('js/hls.min.js')}}"></script>
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const video = document.querySelector('video');
+                const player = window.Plyr && (new Plyr('video'));
+                if (!Hls.isSupported()) {
+                    video.src = source;
+                } else {
+                    // For more Hls.js options, see https://github.com/dailymotion/hls.js
+                    const hls = new Hls();
+                    hls.loadSource(player.source);
+                    hls.attachMedia(video);
+                    window.hls = hls;
+
+                    // Handle changing captions
+                    player.on('languagechange', () => {
+                        // Caption support is still flaky. See: https://github.com/sampotts/plyr/issues/994
+                        setTimeout(() => hls.subtitleTrack = player.currentTrack, 50);
+                    });
+                }
+
+                // Expose player so it can be used from the console
+                window.player = player;
+            });
+        </script>
+    @else
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                window.Plyr && (new Plyr('video'));
+            });
+        </script>
+    @endif
 @endsection
