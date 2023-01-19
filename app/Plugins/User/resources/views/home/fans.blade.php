@@ -16,7 +16,7 @@
                                     {{--                                    <div class="text-muted">UI Designer</div>--}}
                                     <div class="mt-3">
                                         <a href="/users/group/{{$value->fans->class_id}}.html" class="badge badge-outline"
-                                           style="color: {{$value->Class->color}}">{{$value->fans->Class->name}}</a>
+                                           style="color: {{$value->fans->Class->color}}">{{$value->fans->Class->name}}</a>
                                     </div>
                                 </div>
                                 <div class="d-flex">
