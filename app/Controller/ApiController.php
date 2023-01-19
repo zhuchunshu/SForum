@@ -17,7 +17,6 @@ use Hyperf\HttpServer\Annotation\AutoController;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Psr\SimpleCache\InvalidArgumentException;
-use Swoole\Coroutine\System;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\NullOutput;
@@ -183,29 +182,31 @@ class ApiController
             return Json_Api(419, false, ['msg' => '无权限']);
         }
         $default_path = [];
-        foreach(\plugins()->get_default() as $plugin){
-            $default_path[]=plugin_path($plugin);
+        foreach (\plugins()->get_default() as $plugin) {
+            $default_path[] = plugin_path($plugin);
         }
-        if(in_array(request()->input('path'),$default_path)){
+        if (in_array(request()->input('path'), $default_path)) {
             return Json_Api(401, false, ['msg' => '禁止卸载默认插件']);
         }
         if (request()->input('path') && is_dir(request()->input('path'))) {
-            go(function(){
+            // 删除插件
+            removeFiles(request()->input('path'));
+            go(function () {
                 \Swoole\Coroutine\System::exec('composer du -o');
-              $params = ['command' => 'ClearCache'];
+                $params = ['command' => 'ClearCache'];
 
-              $input = new ArrayInput($params);
-              $output = new NullOutput();
+                $input = new ArrayInput($params);
+                $output = new NullOutput();
 
-              $container = \Hyperf\Utils\ApplicationContext::getContainer();
+                $container = \Hyperf\Utils\ApplicationContext::getContainer();
 
-              /** @var Application $application */
-              $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
-              $application->setAutoExit(false);
+                /** @var Application $application */
+                $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+                $application->setAutoExit(false);
 
-              // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
-              $exitCode = $application->run($input, $output);
-          });
+                // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
+                $exitCode = $application->run($input, $output);
+            });
             return Json_Api(200, true, ['msg' => '卸载成功!']);
         }
 
