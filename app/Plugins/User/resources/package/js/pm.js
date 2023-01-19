@@ -1,4 +1,5 @@
-
+import axios from "axios";
+import swal from "sweetalert";
 // 私信
 class OwO {
     constructor(option) {
@@ -164,21 +165,24 @@ if(document.getElementById('user-pm-container')){
     const app = {
         data(){
             return {
-                socket:null,
-                msg:null,
-                to_id:to_id,
-                btn:{
-                    disabled:false
+                to_id: to_id,
+                btn: {
+                    disabled: false
                 },
-                messages:0
+                msg:null,
+                messages: []
             }
         },
         mounted(){
             this.InitOwO();
-            this.InitSocket();
+            this.get_msg()
             setInterval(()=>{
                 this.msg = document.getElementsByTagName('textarea')[0].value;
             },300);
+            // 获取消息
+            setInterval(()=>{
+                this.get_msg()
+            },2000);
         },
         methods:{
 
@@ -200,31 +204,10 @@ if(document.getElementById('user-pm-container')){
                     maxHeight: '250px'
                 })
             },
-            // 初始化socket
-            InitSocket(){
-                this.socket = io(pm_socket, { transports: ["websocket"] });
-                this.socket.on("connect", () => {
-                    if(this.socket.connected===false){
-                        swal({
-                            title:"聊天室连接失败!",
-                            icon: "error"
-                        })
-                        return ;
-                    }
-                    this.socket.emit('join-room', '{"token":"'+ _token+'","to_id":"'+to_id+'"}');
-                    setInterval(()=>{
-                        this.socket.emit('getMsg','{"token":"'+ _token+'","to_id":"'+to_id+'"}');
-                        this.socket.on('getMsg',(data)=>{
-                            this.messages = data;
-                        });
-                    }, 3000);
 
-                });
-
-            },
             // 发消息
             sendMsg(){
-                console.log(this.msg)
+                this.btn.disabled = this.btn.disabled === false;
                 if(!this.msg){
                     swal({
                         title:"不能发送空消息",
@@ -232,12 +215,41 @@ if(document.getElementById('user-pm-container')){
                     })
                     return ;
                 }
-                this.btn.disabled = this.btn.disabled === false;
-                if(this.socket.emit('sendMsg','{"token":"'+ _token+'","to_id":"'+to_id+'","msg" : "'+this.msg+'"}')){
+                axios.post("/api/user/pm/send_msg",{
+                    _token:csrf_token,
+                    user_id:to_id,
+                    content:this.msg
+                }).then(r=>{
+                    const data = r.data
+                    if(data.success===false){
+                        swal('发送失败',data.result.msg,'error')
+                        return ;
+                    }
                     this.btn.disabled = this.btn.disabled === false;
                     this.msg = null;
-                    location.reload();
-                }
+                    this.get_msg()
+                }).catch(e=>{
+                    swal('发送失败','网络请求错误','error')
+                    console.error(e)
+                })
+            },
+            // 获取消息
+            get_msg(){
+                axios.post("/api/user/pm/get_msg",{
+                    _token:csrf_token,
+                    user_id:to_id,
+                }).then(r=>{
+                    const data = r.data
+                    if(data.success===false){
+                        swal('获取失败',data.result.msg,'error')
+                        return ;
+                    }
+                    this.messages = data.result.message
+
+                }).catch(e=>{
+                    swal('获取失败','网络请求错误','error')
+                    console.error(e)
+                })
             }
         }
     }

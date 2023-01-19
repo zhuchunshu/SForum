@@ -23,7 +23,7 @@
                 </div>
                 <div class="list-group list-group-flush overflow-auto" style="max-height: 44rem">
                     @foreach($contacts as $contact)
-                        <div class="list-group-item @if($contact->id===$user->id) active @endif">
+                        <div class="list-group-item">
                             <div class="row">
                                 <div class="col-auto">
                                     <a href="/users/pm/{{$contact->id}}">
@@ -33,7 +33,7 @@
                                 </div>
                                 <div class="col text-truncate">
                                     <a href="/users/pm/{{$contact->id}}" class="text-body d-block">{{$contact->username}}</a>
-                                    <div class="text-muted text-truncate mt-n1">{{$contact->options->qianming}}</div>
+                                    <div class="text-muted text-truncate mt-n1"> @if($contact->options->qianming!=='no bio'){{$contact->options->qianming}}@else{{__("user.no bio")}} @endif</div>
                                 </div>
                                 @if($contact->msgCount>0)
                                 <div class="col-auto"><span class="badge badge-pill bg-red">{{$contact->msgCount}}</span></div>

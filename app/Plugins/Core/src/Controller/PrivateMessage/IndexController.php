@@ -50,6 +50,7 @@ class IndexController
             $count = \App\Plugins\User\src\Models\UsersPm::query()->where(['from_id' => $value->id, 'to_id' => auth()->id(), 'read' => false])->count();
             $contacts[$key]['msgCount'] = $count;
         }
-        return view('User::pm.index', ['user' => $user, 'messagesCount' => $messagesCount, 'messages' => $messages, 'contacts' => $contacts]);
+        $msgExists = UsersPm::query()->where([['from_id', auth()->id()], ['to_id', $user_id]])->Orwhere([['to_id', auth()->id()], ['from_id', $user_id]])->exists();
+        return view('User::pm.index', ['user' => $user, 'messagesCount' => $messagesCount, 'messages' => $messages, 'contacts' => $contacts,'msgExists' => $msgExists]);
     }
 }

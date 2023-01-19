@@ -50,10 +50,10 @@
             <label class="form-label required">网站地址</label>
             <input v-model="data.APP_URL" type="text" class="form-control">
         </div>
-        <div class="col-lg-4">
-            <label class="form-label required">网站websocket地址</label>
-            <input v-model="data.APP_WS_URL" type="text" class="form-control">
-        </div>
+{{--        <div class="col-lg-4">--}}
+{{--            <label class="form-label required">网站websocket地址</label>--}}
+{{--            <input v-model="data.APP_WS_URL" type="text" class="form-control">--}}
+{{--        </div>--}}
         <div class="col-lg-4">
             <label class="form-label">网站关键字</label>
             <input v-model="data.keywords" type="text" class="form-control">

@@ -266,11 +266,9 @@ class Install
         $this->command->info($this->getTips());
         $web = $this->command->ask('WEB服务端口', env('SERVER_WEB_PORT'));
         $this->command->line($web);
-        $ws = $this->command->ask('WEBSOCKET服务端口', env('SERVER_WS_PORT'));
-        $this->command->line($ws);
         modifyEnv([
             'SERVER_WEB_PORT' => $web,
-            'SERVER_WS_PORT' => $ws,
+            'SERVER_WS_PORT' => 9502,
         ]);
 
         // gen auth-env
@@ -294,7 +292,7 @@ class Install
 
         $this->addStep();
         $this->command->info('配置成功!');
-        $this->command->info("\nWEB服务端口:" . $web . "\nWEBSOCKET服务端口:" . $ws);
+        $this->command->info("\nWEB服务端口:" . $web);
         $this->command->info("\n请根据文档将对应端口进行反向代理!");
         $this->command->info("\n反代完成后打开网站进行最后一步安装!");
         $this->command->info("\n请重新运行此命令启动服务!");

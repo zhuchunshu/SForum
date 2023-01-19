@@ -240,6 +240,19 @@ if (! function_exists('Json_Api')) {
     }
 }
 
+
+if (! function_exists('json_api')) {
+    function json_api(int $code = 200, bool $success = true, object | array | string $result = []): array
+    {
+        return [
+            'code' => $code,
+            'success' => $success,
+            'result' => $result,
+            'RequestTime' => date('Y-m-d H:i:s'),
+        ];
+    }
+}
+
 if (! function_exists('session')) {
     function session()
     {

@@ -24,7 +24,11 @@
                                     <div class="col text-truncate">
                                         <a href="/users/pm/{{$contact->id}}"
                                            class="text-body d-block">{{$contact->username}}</a>
-                                        <div class="text-muted text-truncate mt-n1">{{$contact->options->qianming}}</div>
+                                        <div class="text-muted text-truncate mt-n1">@if($contact->options->qianming!=='no bio')
+                                                {{$contact->options->qianming}}
+                                            @else
+                                                {{__("user.no bio")}}
+                                            @endif</div>
                                     </div>
                                     @if($contact->id!==$user->id && $contact->msgCount>0)
                                         <div class="col-auto">
@@ -45,40 +49,43 @@
                             正在与: {{$user->username}} 沟通</h3>
                     </div>
                     <div class="card-body">
-                        <div v-if="messages>{{$messagesCount}}" class="alert alert-info" role="alert">
-                            有新的消息 — <a href="" class="alert-link">刷新</a>!
-                        </div>
                         <div class="row">
                             <div id="chat-list" class="col-12 overflow-auto border-1 card card-body"
                                  style="height: 34rem">
-                                @if(count($messages))
-                                    @foreach($messages as $message)
-                                        @if((int)$message->from_id===auth()->id())
-                                            <div class="d-flex flex-row-reverse">
-                                                <div class="p-2 bd-highlight">
-                                                    <span class="avatar avatar-sm avatar-rounded"
-                                                          style="background-image: url({{super_avatar(auth()->data())}})"></span>
-                                                </div>
-                                                <div class="p-2">
-                                                    <div class="message1">{!! ContentParse()->parse($message->message) !!}</div>
-                                                </div>
-                                            </div>
-                                        @elseif((int)$message->to_id===auth()->id())
-                                            <div class="d-flex">
-                                                <div class="p-2">
-                                                    <span class="avatar avatar-sm avatar-rounded"
-                                                          style="background-image: url({{super_avatar($message->from_user)}})"></span>
-                                                </div>
-                                                <div class="p-2">
-                                                    <div class="message2">{!! ContentParse()->parse($message->message) !!}</div>
-                                                </div>
-                                            </div>
-                                        @endif
-                                    @endforeach
-                                @else
+                                @if(!$msgExists)
                                     <div class="text-center text-muted">
                                         你们至今还没有聊过
                                     </div>
+                                @else
+
+                                <div v-if="messages">
+                                    <div v-for="message in messages">
+                                        <div class="d-flex flex-row-reverse" v-if="message.from_id=={{auth()->id()}}">
+                                            <div class="p-2 bd-highlight">
+                                                    <span class="avatar avatar-sm avatar-rounded"
+                                                          style="background-image: url({{super_avatar(auth()->data())}})"></span>
+                                            </div>
+                                            <div class="p-2">
+                                                <div class="message1" v-html="message.message"></div>
+                                                <span>
+                                                    <small v-text="message.created_at"></small>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex" v-else>
+                                            <div class="p-2">
+                                                    <span class="avatar avatar-sm avatar-rounded"
+                                                          style="background-image: url({{super_avatar($user)}})"></span>
+                                            </div>
+                                            <div class="p-2">
+                                                <div class="message2" v-html="message.message"></div>
+                                                <span>
+                                                    <small v-text="message.created_at"></small>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 @endif
                             </div>
                             <div class="col-12 mt-2">
@@ -167,7 +174,10 @@
 
 @section('scripts')
     <script>var pm_socket = "{{ws_url('/User/Pm')}}?login-token={{auth()->token()}}&to={{$user->id}}";
-        var to_id = {{$user->id}};</script>
+        var to_id = {{$user->id}};
+        var from_user = @json(['username' => auth()->data()->username,'avatar' =>super_avatar(auth()->data())]);
+        var to_user = @json(['username' => $user->username,'avatar' =>super_avatar($user)]);
+    </script>
     <script src="{{file_hash('plugins/Core/js/socket.io.js')}}"></script>
     <script src="{{file_hash('plugins/User/js/pm.js')}}"></script>
 @endsection
