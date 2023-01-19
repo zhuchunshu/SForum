@@ -2,7 +2,7 @@
     <div class="col-md-12">
         <div class="p-4 text-center">
             <span class="avatar avatar-xl mb-3 avatar-rounded" style="background-image: url({{super_avatar(auth()->data())}})"></span>
-            <h3 class="m-0 mb-1"><a href="/users/{{auth()->id()}}.html">{{auth()->data->username}}</a></h3>
+            <h3 class="m-0 mb-1"><a href="/users/{{auth()->id()}}.html">{{auth()->data()->username}}</a></h3>
             <div class="text-muted">取关了你!</div>
         </div>
     </div>
