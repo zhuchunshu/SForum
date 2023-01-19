@@ -113,7 +113,7 @@
                                 </div>
                                 <div class="col">
                                     <div class="font-weight-medium">
-                                        {{$user->topic->count()}}
+                                        {{$user->comments->count()}}
                                     </div>
                                     <div class="text-muted">
                                         {{__("user.comment count")}}
