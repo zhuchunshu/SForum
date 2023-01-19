@@ -1,5 +1,5 @@
 {
-    "/js/app.js": "/js/app.js?id=a6b8432d351c002bcdf2",
+    "/js/app.js": "/js/app.js?id=7b14aeca045081f806e8",
     "/js/install.js": "/js/install.js?id=e2a427dad25f612dc8fb",
     "/js/vue.js": "/js/vue.js?id=c0ed491e9d9bbd0212ac",
     "/js/admin/login.js": "/js/admin/login.js?id=da1c592d350b030d748d",
@@ -16,5 +16,6 @@
     "/plugins/Comment/js/topic.js": "/plugins/Comment/js/topic.js?id=29dcafc461430b7a09ea",
     "/plugins/Core/css/core.css": "/plugins/Core/css/core.css?id=6ba7c538e297a5b36901",
     "/plugins/Topic/css/app.css": "/plugins/Topic/css/app.css?id=b0b03c628cf0bb08723d",
-    "/css/app.css": "/css/app.css?id=68b329da9893e34099c7"
+    "/css/app.css": "/css/app.css?id=68b329da9893e34099c7",
+    "/plugins/User/css/pm.css": "/plugins/User/css/pm.css?id=769df8b12977408d3bca"
 }

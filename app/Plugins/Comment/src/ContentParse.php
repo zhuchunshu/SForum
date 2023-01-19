@@ -31,8 +31,8 @@ class ContentParse
         if (count(Itf()->get('comment_shortCode_remove'))) {
             $shortCode = array_merge($shortCode, Itf()->get('comment_shortCode_remove'));
         }
-        if (Arr::has($data, 'RemoveshortCode') && count($data['RemoveshortCode'])) {
-            $shortCode = array_merge($shortCode, $data['RemoveshortCode']);
+        if (Arr::has($data, 'remove_shortCode') && count($data['remove_shortCode'])) {
+            $shortCode = array_merge($shortCode, $data['remove_shortCode']);
         }
         $shortCode = array_unique($shortCode);
         return ShortCodeR()->setRemove($shortCode)->handle($content, $data);
