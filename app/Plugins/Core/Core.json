@@ -1,8 +1,8 @@
 {
 	"name": "核心组件",
 	"description": "核心组件,提供基本功能",
-	"version": "2.2.4",
+	"version": "2.2.5",
 	"author": "zhuchunshu",
 	"link": "https://github.com/zhuchunshu",
-	"masterVersion": "v2.2.4"
+	"masterVersion": "v2.2.5"
 }

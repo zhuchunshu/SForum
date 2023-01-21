@@ -22,19 +22,18 @@ class ShowTopic
             return admin_abort('此帖子已被举报并批准,无法查看', 403);
         }
         // 自增浏览量
-        $updated_at = Topic::query()->where('id', $id)->first()->updated_at;
-        Topic::query()->where('id', $id)->increment('view', 1, ['updated_at' => $updated_at]);
+        go(function () use ($id) {
+            $updated_at = Topic::query()->where('id', $id)->first()->updated_at;
+            Topic::query()->where('id', $id)->increment('view', 1, ['updated_at' => $updated_at]);
+        });
 
         // 缓存
-        $data = Topic::query(true)
-            ->where('id', $id)
-            ->with('tag', 'user', 'topic_updated')
-            ->first();
+        $data = Topic::query()->with('tag', 'user', 'topic_updated', 'likes', 'post', 'post.options', 'comments.user', 'comments.post')->find($id);
         // 创建数据
         $shang = Topic::query()->where([['id', '<', $id], ['status', 'publish']])->select('title', 'id')->orderBy('id', 'desc')->first();
         $xia = Topic::query()->where([['id', '>', $id], ['status', 'publish']])->select('title', 'id')->orderBy('id', 'asc')->first();
         $sx = ['shang' => $shang, 'xia' => $xia];
-        $comment_count = TopicComment::query()->where(['status' => 'publish', 'topic_id' => $id])->count();
+        $comment_count = TopicComment::query()->where(['status' => 'publish', 'topic_id' => $id])->exists();
         // 评论分页数据
         if (get_options('comment_show_desc', 'off') === 'true') {
             $CommentOrderBy = 'desc';
@@ -43,7 +42,7 @@ class ShowTopic
         }
         $comment = TopicComment::query()
             ->where(['status' => 'publish', 'topic_id' => $id])
-            ->with('topic', 'user', 'parent')
+            ->with('topic', 'user', 'parent', 'likes', 'post', 'post.options')
             ->orderBy('optimal', 'desc')
             ->orderBy('created_at', $CommentOrderBy)
             ->paginate((int) get_options('comment_page_count', 15));
