@@ -135,7 +135,7 @@ HTML;
         if (get_options('core_user_reg_switch', '开启') === '关闭') {
             return admin_abort('注册功能已关闭', 403);
         }
-        return view('App::user.sign', ['title' => '注册', 'view' => 'App::user.register']);
+        return view('App::user.sign', ['login' => false,'register' => true,'title' => '注册', 'view' => 'App::user.register']);
     }
 
     #[PostMapping(path: '/register')]

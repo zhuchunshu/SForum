@@ -43,8 +43,10 @@
                     <div class="card card-md">
                         <div class="card-body">
                             @if(@$login!==false)<h2 class="h2 text-center mb-4">登录到您的帐户</h2>@endif
+                            @if(@$register===true)<h2 class="h2 text-center mb-4">注册新的账号</h2>@endif
                             @include($view)
                         </div>
+                        @if(get_options('core_user_otlogin','开启')==='开启' && @$login!==false)
                         <div class="hr-text">or</div>
                         <div class="card-body">
                             <div class="row">
@@ -60,10 +62,18 @@
                                     </a></div>
                             </div>
                         </div>
+                        @endif
                     </div>
-                    <div class="text-center text-muted mt-3">
-                        还没有账号? <a href="/register" tabindex="-1">立即注册</a>
-                    </div>
+                    @if(@$register!==true)
+                        <div class="text-center text-muted mt-3">
+                            还没有账号? <a href="/register" tabindex="-1">立即注册</a>
+                        </div>
+                    @endif
+                    @if(@$register===true)
+                        <div class="text-center text-muted mt-3">
+                            已有账号? <a href="/login" tabindex="-1">立即登陆</a>
+                        </div>
+                    @endif
                 </div>
             </div>
             <div class="col-lg d-none d-lg-block">
