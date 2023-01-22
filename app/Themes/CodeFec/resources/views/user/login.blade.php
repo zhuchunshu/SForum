@@ -8,7 +8,7 @@
             <div class="mb-3">
                 <label class="form-label">邮箱
                     <span class="form-label-description">
-                  <a href="/login">用户名登陆</a>
+                  <a href="/login?redirect={{request()->input('redirect','/')}}">用户名登陆</a>
                 </span></label>
                 <input type="email" v-model="email" class="form-control" placeholder="Enter email" required>
             </div>

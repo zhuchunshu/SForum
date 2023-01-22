@@ -1,6 +1,7 @@
 import axios from "axios";
 import swal from "sweetalert";
 
+// 注册
 if(document.getElementById("vue-core-sign-register")){
     const vcsr = {
         data() {
@@ -98,7 +99,7 @@ if(document.getElementById("vue-core-sign-login")){
                                 title:data.result.msg
                             })
                             setTimeout(()=>{
-                                location.href="/";
+                                location.href= redirect_url;
                             },1000)
 
                         }else{
@@ -135,7 +136,7 @@ if(document.getElementById("vue-core-sign-login")){
     Vue.createApp(vcsl).mount("#vue-core-sign-login")
 }
 
-// 邮箱登陆
+// 用户名登陆
 if(document.getElementById("vue-core-sign-login-username")){
     const app = {
         data(){
@@ -161,7 +162,7 @@ if(document.getElementById("vue-core-sign-login-username")){
                                 title:data.result.msg
                             })
                             setTimeout(()=>{
-                                location.href="/";
+                                location.href=redirect_url;
                             },1000)
 
                         }else{

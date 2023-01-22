@@ -51,6 +51,9 @@
     @endif
 @endforeach
 @yield('scripts')
+<script>
+    var redirect_url = "{{request()->input('redirect','/')}}"
+</script>
 <script src="{{ mix('plugins/Core/js/sign.js') }}"></script>
 </body>
 
