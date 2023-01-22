@@ -17,6 +17,7 @@
         "ext-json": "*",
         "alchemy/zippy": "^1.0",
         "doctrine/dbal": "^3.0",
+        "gai871013/ip-location": "^1.1",
         "gregwar/captcha": "^1.1",
         "hassankhan/config": "^3.0",
         "hyperf/async-queue": "2.2.*",

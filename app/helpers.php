@@ -788,20 +788,14 @@ if (! function_exists('get_client_ip_data')) {
     /**
      * 获取ip 信息.
      * @param null $ip
+     * @return array
+     * @throws \Gai871013\IpLocation\Exceptions\InvalidArgumentException
      */
     function get_client_ip_data($ip = null): array
     {
-        $result = http('array')->post('http://pro.ip-api.com/json/' . $ip . '?fields=66842623&key=ipapiq9SFY1Ic4&lang=zh-CN', [
-            'fields' => '66842623',
-            'key' => 'ipapiq9SFY1Ic4',
-            'lang' => 'zh-CN',
-        ], [
-            'headers' => [
-                'Origin' => 'https://members.ip-api.com',
-            ],
-        ]);
-        if (Arr::has($result, 'regionName')) {
-            $result['pro'] = $result['regionName'];
+        $result = (new \Gai871013\IpLocation\IpLocation())->getLocation($ip);
+        if (Arr::has($result, 'country')) {
+            $result['pro'] = $result['country'];
         } else {
             $result['pro'] = '';
         }

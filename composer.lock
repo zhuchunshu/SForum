@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "af5c273b30fe6672cc8aa478cb1ef815",
+    "content-hash": "bfc97c995e667b9deca230c4c23f7f29",
     "packages": [
         {
             "name": "96qbhy/simple-jwt",
@@ -1393,6 +1393,69 @@
                 "source": "https://github.com/php-fig/http-message-util/tree/1.1.5"
             },
             "time": "2020-11-24T22:02:12+00:00"
+        },
+        {
+            "name": "gai871013/ip-location",
+            "version": "1.1.230111",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/gai871013/ip-location.git",
+                "reference": "d9c9fa1e01694cc37280b87b7bbfbc2b75aeb573"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/gai871013/ip-location/zipball/d9c9fa1e01694cc37280b87b7bbfbc2b75aeb573",
+                "reference": "d9c9fa1e01694cc37280b87b7bbfbc2b75aeb573",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": ">0",
+                "php": ">7.0"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.2",
+                "phpunit/phpunit": "^7.0|^8.0|^9.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Gai871013\\IpLocation\\ServiceProvider"
+                    ],
+                    "aliases": {
+                        "IpLocation": "Gai871013\\IpLocation\\Facades\\IpLocation"
+                    }
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Gai871013\\IpLocation\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "王朝",
+                    "email": "wang.gaichao@163.com"
+                }
+            ],
+            "description": "纯真IP地址,composer包(解析QQWay.dat)",
+            "homepage": "https://github.com/gai871013/ip-location",
+            "keywords": [
+                "IP",
+                "IP归属地",
+                "ip地址",
+                "laravel",
+                "location"
+            ],
+            "support": {
+                "issues": "https://github.com/gai871013/ip-location/issues",
+                "source": "https://github.com/gai871013/ip-location/tree/1.1.230111"
+            },
+            "time": "2023-01-12T07:06:59+00:00"
         },
         {
             "name": "graham-campbell/result-type",
