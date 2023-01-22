@@ -14,51 +14,44 @@
     }
 </style>
 <div id="vue-core-forgot-password">
-    <div class="text-center mb-4">
-        <a href="." class="navbar-brand navbar-brand-autodark">{{get_options("web_name")}}</a>
-    </div>
     <transition name="slide-fade">
         <transition v-if="sendCoded" name="slide-fade">
             <div v-if="show">
-                <form class="card card-md" @@submit.prevent="sendCode">
-                    <div class="card-body">
-                        <h2 class="card-title text-center mb-4">找回密码</h2>
+                <form  @@submit.prevent="sendCode">
+                    <h2 class="card-title text-center mb-4">找回密码</h2>
 
-                        <div class="mb-3">
-                            <label class="form-label">邮箱
-                                <span class="form-label-description">
+                    <div class="mb-3">
+                        <label class="form-label">邮箱
+                            <span class="form-label-description">
                 </span></label>
-                            <input type="email" v-model="email" class="form-control" placeholder="Enter email" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="" class="form-label">验证码</label>
-                            <div class="input-group">
-                                <input type="text" v-model="captcha" class="form-control" placeholder="captcha"
-                                       autocomplete="off" required>
-                                <span class="input-group-link">
+                        <input type="email" v-model="email" class="form-control" placeholder="Enter email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="" class="form-label">验证码</label>
+                        <div class="input-group">
+                            <input type="text" v-model="captcha" class="form-control" placeholder="captcha"
+                                   autocomplete="off" required>
+                            <span class="input-group-link">
                         <img class="captcha" src="{{captcha()->inline()}}" alt="" onclick="this.src='/captcha?id='+Math.random()">
                     </span>
-                            </div>
                         </div>
+                    </div>
 
-                        <div class="form-footer">
-                            <button type="submit" class="btn btn-primary w-100">发送6位邮箱验证码</button>
-                        </div>
+                    <div class="form-footer">
+                        <button type="submit" class="btn btn-primary w-100">发送6位邮箱验证码</button>
                     </div>
                 </form>
             </div>
             <div v-else>
-                <form class="card card-md" @@submit.prevent="submit">
-                    <div class="card-body">
-                        <h2 class="card-title text-center mb-4">找回密码</h2>
-                        <div class="mb-3">
-                            <label for="" class="form-label">邮箱验证码</label>
-                            <input type="text" v-model="YzCode" class="form-control" autocomplete="off" required>
-                        </div>
+                <form @@submit.prevent="submit">
+                    <h2 class="card-title text-center mb-4">输入邮箱验证码</h2>
+                    <div class="mb-3">
+                        <label for="" class="form-label">邮箱验证码</label>
+                        <input type="text" v-model="YzCode" class="form-control" autocomplete="off" required>
+                    </div>
 
-                        <div class="form-footer">
-                            <button type="submit" class="btn btn-primary w-100">提交</button>
-                        </div>
+                    <div class="form-footer">
+                        <button type="submit" class="btn btn-primary w-100">提交</button>
                     </div>
                 </form>
             </div>
@@ -66,26 +59,24 @@
 
         <transition v-else name="slide-fade">
             <div v-if="setpwd">
-                <form class="card card-md" @@submit.prevent="setPwdSubmit">
-                    <div class="card-body">
-                        <h2 class="card-title text-center mb-4">设置新密码</h2>
+                <form @@submit.prevent="setPwdSubmit">
+                    <h2 class="card-title text-center mb-4">设置新密码</h2>
 
-                        <div class="mb-3">
-                            <label class="form-label">新密码</label>
-                            <input type="password" v-model="setPwd_password" class="form-control"
-                                   placeholder="Enter password" required>
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">新密码</label>
+                        <input type="password" v-model="setPwd_password" class="form-control"
+                               placeholder="Enter password" required>
+                    </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">确认密码</label>
-                            <input type="password" v-model="setPwd_cfpassword" class="form-control"
-                                   placeholder="Enter password" required>
-                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">确认密码</label>
+                        <input type="password" v-model="setPwd_cfpassword" class="form-control"
+                               placeholder="Enter password" required>
+                    </div>
 
 
-                        <div class="form-footer">
-                            <button type="submit" class="btn btn-primary w-100">确认修改</button>
-                        </div>
+                    <div class="form-footer">
+                        <button type="submit" class="btn btn-primary w-100">确认修改</button>
                     </div>
                 </form>
             </div>

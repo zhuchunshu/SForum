@@ -42,7 +42,7 @@ class UserController
     #[GetMapping(path: '/forgot-password')]
     public function forgot_password(): \Psr\Http\Message\ResponseInterface
     {
-        return view('App::user.sign', ['title' => '找回密码', 'view' => 'App::user.forgot_password']);
+        return view('App::user.sign', ['login' => false,'title' => '找回密码', 'view' => 'App::user.forgot_password']);
     }
 
     #[PostMapping(path: '/forgot-password')]
