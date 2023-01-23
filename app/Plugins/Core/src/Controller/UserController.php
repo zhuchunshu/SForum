@@ -86,7 +86,7 @@ class UserController
             return Json_Api(403, false, ['msg' => '验证码错误!']);
         }
         // 生成验证码
-        $code = Str::random(6);
+        $code = (string)random_int(100000,999999);
         cache()->set('forgot-password.' . $code, $email, 600);
         // 发送邮件
         $mail = Email();

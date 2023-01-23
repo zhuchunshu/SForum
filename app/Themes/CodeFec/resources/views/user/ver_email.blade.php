@@ -15,7 +15,7 @@
                                     <input type="email" disabled class="form-control" value="{{auth()->data()->email}}">
                                 </div>
                                 <div class="col-auto">
-                                    <button v-if="send" type="submit" name="send" value="send" class="btn btn-white btn-icon" aria-label="Button">
+                                    <button v-if="send" type="submit" name="send" value="send" class="btn btn-white" aria-label="Button">
                                         发送验证码
                                     </button>
                                 </div>
