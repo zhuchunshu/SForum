@@ -30,8 +30,10 @@
     @yield('headers')
 </head>
 
-<body  class=" border-top-wide border-primary d-flex flex-column">
+<body  class="border-top-wide border-primary d-flex flex-column">
 <div class="page page-center">
+    @include("App::layouts.errors")
+    @include("App::layouts._msg")
     <div class="container container-normal py-4">
         <div class="row align-items-center g-4">
             <div class="col-lg">
