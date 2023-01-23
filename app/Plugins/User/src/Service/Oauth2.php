@@ -55,7 +55,7 @@ class Oauth2
             $data['handler'] = $obj->setting_handler();
             $all[$obj->mark()] = $data;
         }
-        return array_unique($all);
+        return $all;
     }
 
     /*
