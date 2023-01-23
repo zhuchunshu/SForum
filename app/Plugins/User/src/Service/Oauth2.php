@@ -27,7 +27,7 @@ class Oauth2
     public function get_all_interface(): array
     {
         $arr = [];
-        $all = $this->AnnotationCollector::getClassesByAnnotation(Oauth2Annotation::class);
+        $all = $this->AnnotationCollector::getClassesByAnnotation(Oauth2Annotation::class)?:[];
         $all = array_keys($all);
         foreach ($all as $item) {
             if (new $item() instanceof Oauth2Interface) {

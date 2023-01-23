@@ -174,7 +174,7 @@ HTML;
         }
 
         if (User::query()->where('email', $email)->exists()) {
-            return Json_Api(403, false, ['msg' => '用户名已被使用!']);
+            return Json_Api(403, false, ['msg' => '邮箱已被使用!']);
         }
 
         $userOption = UsersOption::query()->create(['qianming' => 'no bio']);
