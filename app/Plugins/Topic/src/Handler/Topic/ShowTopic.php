@@ -30,9 +30,6 @@ class ShowTopic
         // 缓存
         $data = Topic::query()->with('tag', 'user', 'topic_updated', 'likes', 'post', 'post.options', 'comments.user', 'comments.post')->find($id);
         // 创建数据
-        $shang = Topic::query()->where([['id', '<', $id], ['status', 'publish']])->select('title', 'id')->orderBy('id', 'desc')->first();
-        $xia = Topic::query()->where([['id', '>', $id], ['status', 'publish']])->select('title', 'id')->orderBy('id', 'asc')->first();
-        $sx = ['shang' => $shang, 'xia' => $xia];
         $comment_count = TopicComment::query()->where(['status' => 'publish', 'topic_id' => $id])->exists();
         // 评论分页数据
         if (get_options('comment_show_desc', 'off') === 'true') {
@@ -40,16 +37,23 @@ class ShowTopic
         } else {
             $CommentOrderBy = 'asc';
         }
+        if (! request()->input('comment_sort')) {
+            $comment_sort = $CommentOrderBy;
+        } elseif (request()->input('comment_sort') === 'asc' || request()->input('comment_sort') === 'desc') {
+            $comment_sort = request()->input('comment_sort');
+        } else {
+            $comment_sort = $CommentOrderBy;
+        }
         $comment = TopicComment::query()
             ->where(['status' => 'publish', 'topic_id' => $id])
             ->with('topic', 'user', 'parent', 'likes', 'post', 'post.options')
             ->orderBy('optimal', 'desc')
-            ->orderBy('created_at', $CommentOrderBy)
+            ->orderBy('created_at', $comment_sort)
             ->paginate((int) get_options('comment_page_count', 15));
         // ContentParse data
         $parseData = [
             'topic' => $data,
         ];
-        return view('App::topic.show.show', ['data' => $data, 'get_topic' => $sx, 'comment_count' => $comment_count, 'comment' => $comment, 'comment_page' => $comment_page, 'parseData' => $parseData]);
+        return view('App::topic.show.show', ['data' => $data,  'comment_count' => $comment_count, 'comment_sort' => $comment_sort, 'comment' => $comment, 'comment_page' => $comment_page, 'parseData' => $parseData]);
     }
 }

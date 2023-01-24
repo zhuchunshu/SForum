@@ -59,96 +59,119 @@
                 </div>
             </div>
             <div class="col-md-12">
-                <div class="row row-cards">
-                    @foreach($comment as $key=>$value)
-                        <div id="comment-{{$value->id}}" name="comment-{{$value->id}}" class="col-md-12">
-                            <div class="card @if($value->optimal) comment-optimal @else border-0 @endif">
-                                <div class="card-body">
-                                    <div class="row">
-                                        {{--                                    作者信息--}}
-                                        <div class="col-md-12">
+                <div class="card">
+
+                    <div class="card-header">
+                        <h3 class="card-title">全部评论</h3>
+                        <div class="card-actions">
+                            @if($comment_sort=="desc")
+                                <a href="?{{ core_http_build_query(request()->all(),['comment_sort' => 'asc'])  }}">倒序显示↓</a>
+
+                            @else
+                                <a href="?{{ core_http_build_query(request()->all(),['comment_sort' => 'desc'])  }}">正序显示↑</a>
+
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+
+                        <div class="row row-cards">
+                            @foreach($comment as $key=>$value)
+                                <div id="comment-{{$value->id}}" name="comment-{{$value->id}}" class="col-md-12">
+                                    <div class="card @if($value->optimal) comment-optimal @endif">
+                                        <div class="card-body">
                                             <div class="row">
-                                                {{--                                            头像--}}
-                                                <div class="col-auto" id="comment-user-avatar-{{$value->id}}"
-                                                     comment-show="user-data" user-id="{{$value->user_id}}">
-                                                    <a href="/users/{{$value->user->id}}.html"><span
-                                                                class="avatar"
-                                                                style="background-image: url({{super_avatar($value->user)}})">
+                                                {{--                                    作者信息--}}
+                                                <div class="col-md-12">
+                                                    <div class="row">
+                                                        {{--                                            头像--}}
+                                                        <div class="col-auto" id="comment-user-avatar-{{$value->id}}"
+                                                             comment-show="user-data" user-id="{{$value->user_id}}">
+                                                            <a href="/users/{{$value->user->id}}.html"><span
+                                                                        class="avatar"
+                                                                        style="background-image: url({{super_avatar($value->user)}})">
 
                                                         </span></a>
-                                                </div>
-                                                {{--                                            作者信息--}}
-                                                <div class="col text-truncate">
-                                                    {!! u_username($value->user,['extends' => true,'comment' => true,'class' =>['text-body','text-truncate'],'style' => 'white-space:nowrap;']) !!}
-                                                    <a data-bs-toggle="tooltip" data-bs-placement="right"
-                                                       title="{{$value->user->class->name}}"
-                                                       href="/users/group/{{$value->user->class->id}}.html"
-                                                       style="color:{{$value->user->class->color}}">
-                                                        <span>{!! $value->user->class->icon !!}</span>
-                                                    </a>
-                                                    @if($value->optimal) <span
-                                                            class="badge badge-pill bg-teal">{{__("topic.comment.best reply")}}</span> @endif
-                                                    <br/>
-                                                    <small data-bs-toggle="tooltip" data-bs-placement="top"
-                                                           data-bs-original-title="{{$value->created_at}}"
-                                                           class="text-muted text-truncate mt-n1">{{__("app.Published on")}}
-                                                        :{{format_date($value->created_at)}}</small>
-                                                    @if(get_options('comment_author_ip','开启')==='开启' && @$value->post->user_ip)
-                                                        |
-                                                        <small class="text-red" comment-type="ip"
-                                                               comment-id="{{$value->id}}">Loading<span
-                                                                    class="animated-dots"></span></small>
-                                                    @endif
-                                                </div>
-                                                {{--                                            楼层信息--}}
-                                                <div class="col-auto">
-                                                    <a href="/{{$data->id}}.html/{{$value->id}}?page={{$comment->currentPage()}}">
-                                                        {{__("topic.floor",['floor' => ($key + 1)+(($comment->currentPage()-1)*get_options('comment_page_count',15)) ])}}</a>
-                                                    @if($caina)
-                                                        ·
-                                                        <a style="text-decoration:none;"
-                                                           comment-click="comment-caina-topic"
-                                                           comment-id="{{ $value->id }}" data-bs-toggle="tooltip"
-                                                           data-bs-placement="bottom"
-                                                           title="{{__("topic.comment.adoption")}}"
-                                                           class="cursor-pointer text-teal">
-                                                            @if($value->optimal)
-                                                                {{__("topic.comment.cancel")}}
-                                                            @else
-                                                                {{__("topic.comment.adoption")}}
+                                                        </div>
+                                                        {{--                                            作者信息--}}
+                                                        <div class="col text-truncate">
+                                                            {!! u_username($value->user,['extends' => true,'comment' => true,'class' =>['text-body','text-truncate'],'style' => 'white-space:nowrap;']) !!}
+                                                            <a data-bs-toggle="tooltip" data-bs-placement="right"
+                                                               title="{{$value->user->class->name}}"
+                                                               href="/users/group/{{$value->user->class->id}}.html"
+                                                               style="color:{{$value->user->class->color}}">
+                                                                <span>{!! $value->user->class->icon !!}</span>
+                                                            </a>
+                                                            @if($value->optimal) <span
+                                                                    class="badge badge-pill bg-teal">{{__("topic.comment.best reply")}}</span> @endif
+                                                            <br/>
+                                                            <small data-bs-toggle="tooltip" data-bs-placement="top"
+                                                                   data-bs-original-title="{{$value->created_at}}"
+                                                                   class="text-muted text-truncate mt-n1">{{__("app.Published on")}}
+                                                                :{{format_date($value->created_at)}}</small>
+                                                            @if(get_options('comment_author_ip','开启')==='开启' && @$value->post->user_ip)
+                                                                |
+                                                                <small class="text-red" comment-type="ip"
+                                                                       comment-id="{{$value->id}}">Loading<span
+                                                                            class="animated-dots"></span></small>
                                                             @endif
-                                                        </a>
-                                                    @endif
-                                                </div>
+                                                        </div>
+                                                        {{--                                            楼层信息--}}
+                                                        <div class="col-auto">
+                                                            <a href="/{{$data->id}}.html/{{$value->id}}?page={{$comment->currentPage()}}">
+                                                                {{__("topic.floor",['floor' => ($key + 1)+(($comment->currentPage()-1)*get_options('comment_page_count',15)) ])}}</a>
+                                                            @if($caina)
+                                                                ·
+                                                                <a style="text-decoration:none;"
+                                                                   comment-click="comment-caina-topic"
+                                                                   comment-id="{{ $value->id }}" data-bs-toggle="tooltip"
+                                                                   data-bs-placement="bottom"
+                                                                   title="{{__("topic.comment.adoption")}}"
+                                                                   class="cursor-pointer text-teal">
+                                                                    @if($value->optimal)
+                                                                        {{__("topic.comment.cancel")}}
+                                                                    @else
+                                                                        {{__("topic.comment.adoption")}}
+                                                                    @endif
+                                                                </a>
+                                                            @endif
+                                                        </div>
 
+                                                    </div>
+                                                </div>
+                                                {{--                                    评论内容--}}
+                                                {{--                                        <div class="col-md-12">--}}
+                                                {{--                                            <div class="hr-text"--}}
+                                                {{--                                                 style="margin-bottom:8px;margin-top:15px">{{__("topic.comment.comment content")}}</div>--}}
+                                                {{--                                        </div>--}}
+                                                @if($posts_options_only_author && auth()->id()!=$value->user_id && auth()->id()!=$data->user_id)
+                                                    @include('Comment::Widget.only-author')
+                                                @else
+                                                    @include('Comment::Widget.source')
+                                                @endif
+                                                {{--                                    操作--}}
+                                                {{--                                        <div class="col-md-12">--}}
+                                                {{--                                            <div class="hr-text"--}}
+                                                {{--                                                 style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.operate")}}</div>--}}
+                                                {{--                                        </div>--}}
+                                                @include('Comment::shared.footer_tool')
                                             </div>
                                         </div>
-                                        {{--                                    评论内容--}}
-{{--                                        <div class="col-md-12">--}}
-{{--                                            <div class="hr-text"--}}
-{{--                                                 style="margin-bottom:8px;margin-top:15px">{{__("topic.comment.comment content")}}</div>--}}
-{{--                                        </div>--}}
-                                        @if($posts_options_only_author && auth()->id()!=$value->user_id && auth()->id()!=$data->user_id)
-                                            @include('Comment::Widget.only-author')
-                                        @else
-                                            @include('Comment::Widget.source')
-                                        @endif
-                                        {{--                                    操作--}}
-{{--                                        <div class="col-md-12">--}}
-{{--                                            <div class="hr-text"--}}
-{{--                                                 style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.operate")}}</div>--}}
-{{--                                        </div>--}}
-                                        @include('Comment::shared.footer_tool')
+
                                     </div>
                                 </div>
-
-                            </div>
+                            @endforeach
                         </div>
-                    @endforeach
+
+                    </div>
+
+                    <div class="card-footer pb-0">
+                        {!! make_page($comment) !!}
+                    </div>
+
+
                 </div>
-            </div>
-            <div>
-                {!! make_page($comment) !!}
             </div>
         @endif
     @endif
