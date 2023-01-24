@@ -18,6 +18,9 @@ use Hyperf\Di\Annotation\Inject;
 
 class Oauth2
 {
+    /**
+     * @var AnnotationCollector
+     */
     #[Inject]
     protected AnnotationCollector $AnnotationCollector;
 

@@ -23,6 +23,9 @@ use Hyperf\Validation\Contract\ValidatorFactoryInterface;
 #[Controller(prefix: '/admin/setting/friend_links')]
 class FriendLinksController
 {
+    /**
+     * @var ValidatorFactoryInterface
+     */
     #[Inject]
     protected ValidatorFactoryInterface $validationFactory;
 
