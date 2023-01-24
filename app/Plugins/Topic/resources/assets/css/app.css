@@ -26,7 +26,6 @@ pre {
   font-size: 16px;
 }
 .article p {
-  margin-bottom: 1px;
   word-wrap: break-word;
   word-break: normal;
   font-size: 16px;
@@ -34,6 +33,9 @@ pre {
 .vditor-linenumber {
   padding-left: 2.5em !important;
   position: relative;
+}
+.article {
+  font-size: 1rem;
 }
 .article .alert {
   font-size: 16px;
