@@ -18,7 +18,7 @@
         <div class="col-lg-12">
             <div class="row row-cards">
                 @foreach($page as $data)
-                    <div class="col col-md-6 col-lg-4 ">
+                    <div class="col-6 col-md-4 col-lg-3 ">
                         <a href="/admin/setting/friend_links/{{$data->id}}/edit" class="card card-link">
                             <div class="card-body">
                                 <h3 class="card-title">{{$data->name}}</h3>
