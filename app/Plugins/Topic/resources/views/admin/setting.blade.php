@@ -67,6 +67,13 @@
                 <span class="form-check-label">创建标签需要审核</span>
             </label>
         </div>
+
+        <div class="col-lg-3">
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.topic_like_sort">
+                <span class="form-check-label">点赞改变排序</span>
+            </label>
+        </div>
     </div>
 
 

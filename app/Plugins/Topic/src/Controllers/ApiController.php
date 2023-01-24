@@ -21,7 +21,6 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
 use Hyperf\Utils\Arr;
-use Swoole\Timer;
 
 #[Controller(prefix: '/api/topic')]
 #[RateLimit(create: 1, capacity: 3)]
@@ -99,12 +98,17 @@ class ApiController
         if (TopicLike::query()->where(['topic_id' => $topic_id, 'user_id' => auth()->id(), 'type' => 'like'])->exists()) {
             TopicLike::query()->where(['topic_id' => $topic_id, 'user_id' => auth()->id(), 'type' => 'like'])->delete();
             // 发送通知
-            $topic_data = Topic::query()->where('id', $topic_id)->first();
+            $topic_data = Topic::find($topic_id);
             if ($topic_data->user_id != auth()->id()) {
                 $title = auth()->data()->username . '对你的帖子取消了点赞';
                 $content = view('Topic::Notice.nolike_topic', ['user_data' => auth()->data(), 'data' => $topic_data]);
                 $action = '/' . $topic_data->id . '.html';
                 user_notice()->send($topic_data->user_id, $title, $content, $action);
+            }
+            if(get_options('topic_like_sort','false')==="true"){
+                Topic::where('id', $topic_id)->update([
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
             }
             return Json_Api(201, true, ['msg' => '已取消点赞']);
         }
@@ -113,12 +117,17 @@ class ApiController
             'user_id' => auth()->id(),
         ]);
         // 发送通知
-        $topic_data = Topic::query()->where('id', $topic_id)->first();
+        $topic_data = Topic::find($topic_id);
         if ($topic_data->user_id != auth()->id()) {
             $title = auth()->data()->username . '赞了你的帖子';
             $content = view('Topic::Notice.like_topic', ['user_data' => auth()->data(), 'data' => $topic_data]);
             $action = '/' . $topic_data->id . '.html';
             user_notice()->send($topic_data->user_id, $title, $content, $action);
+        }
+        if(get_options('topic_like_sort','false')==="true"){
+            Topic::where('id', $topic_id)->update([
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
         }
         return Json_Api(200, true, ['msg' => '已赞!']);
     }
