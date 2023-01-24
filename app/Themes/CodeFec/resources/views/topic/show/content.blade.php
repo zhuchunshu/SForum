@@ -1,4 +1,9 @@
 <div class="row row-cards justify-content-center">
+    @foreach(Itf()->get('ui-start-end-hook') as $k=>$v)
+        @if(call_user_func($v['enable'])===true)
+            @include($v['view'])
+        @endif
+    @endforeach
     <div class="col-md-12" id="topic">
         <div class="card">
             <div class="card-header">
@@ -61,7 +66,12 @@
     </div>
 
     {{--    上下页--}}
-    @include('App::topic.show.include.lfpage')
+{{--    @include('App::topic.show.include.lfpage')--}}
+    @foreach(Itf()->get('ui-topic-comment-before-hook') as $k=>$v)
+        @if(call_user_func($v['enable'])===true)
+            @include($v['view'])
+        @endif
+    @endforeach
     @if(isset($data->post->options->disable_comment) && $data->post->options->disable_comment)
         <div class="col-md-12">
             <div class="border-0 card">
@@ -96,13 +106,33 @@
     @else
         {{--    显示评论--}}
         @include('Comment::Widget.show-topic')
+        @foreach(Itf()->get('ui-topic-comment-after-hook') as $k=>$v)
+            @if(call_user_func($v['enable'])===true)
+                @include($v['view'])
+            @endif
+        @endforeach
         {{--    评论--}}
+        @foreach(Itf()->get('ui-topic-create-comment-before-hook') as $k=>$v)
+            @if(call_user_func($v['enable'])===true)
+                @include($v['view'])
+            @endif
+        @endforeach
         @include('Comment::Widget.topic')
+        @foreach(Itf()->get('ui-topic-create-comment-after-hook') as $k=>$v)
+            @if(call_user_func($v['enable'])===true)
+                @include($v['view'])
+            @endif
+        @endforeach
     @endif
 
     @if(auth()->check())
         {{--        举报模态--}}
         @include('App::topic.show.include.report')
     @endif
+    @foreach(Itf()->get('ui-topic-end-hook') as $k=>$v)
+        @if(call_user_func($v['enable'])===true)
+            @include($v['view'])
+        @endif
+    @endforeach
 </div>
 
