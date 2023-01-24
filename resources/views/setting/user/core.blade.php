@@ -73,6 +73,13 @@
             </label>
         </div>
 
+        <div class="col-3">
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.user_location_show_close">
+                <span class="form-check-label">关闭显示个人中心位置信息</span>
+            </label>
+        </div>
+
     </div>
 
 </div>

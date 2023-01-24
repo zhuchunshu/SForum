@@ -32,6 +32,7 @@
         <div class="border-0 card card-body">
             <h3 class="card-title">{{__("user.data")}}</h3>
             <div class="row row-cards">
+                @if(get_options("user_location_show_close",'false')!=="true")
                 <div class="col-12 col-md-6 col-lg-3">
                     <div class="card card-sm">
                         <div class="card-body">
@@ -65,7 +66,7 @@
                         </div>
                     </div>
                 </div>
-
+                @endif
                 <div class="col-12 col-md-6 col-lg-3">
                     <a href="/users/{{$user->id}}.html?m=users_home_menu_2" class="card card-sm">
                         <div class="card-body">

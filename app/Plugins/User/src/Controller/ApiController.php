@@ -24,6 +24,7 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
+use Hyperf\Utils\Str;
 
 #[Controller]
 #[RateLimit(create: 1, capacity: 3)]
@@ -326,7 +327,7 @@ class ApiController
         $sessions = UsersAuth::query()->orderByDesc('created_at')->where('user_id', $user_id)->get();
         foreach ($sessions as $data) {
             if ($data->user_ip) {
-                return Json_Api(200, true, ['msg' => core_default(get_client_ip_data($data->user_ip)['pro'], '未知')]);
+                return Json_Api(200, true, ['msg' => Str::limit(get_client_ip_data($data->user_ip)['pro'],4,'')]);
             }
         }
         return Json_Api(403, false, ['msg' => '未找到用户IP归属地信息']);
