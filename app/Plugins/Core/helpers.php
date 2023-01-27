@@ -242,17 +242,6 @@ if (! function_exists('get_all_keywords')) {
     }
 }
 
-if (! function_exists('remove_bbCode')) {
-    function remove_bbCode($content)
-    {
-        $pattern = '/\\[(.*?)\\](.*?)\\[\\/(.*?)\\]/is';
-
-        $content = preg_replace_callback($pattern, function ($match) {
-            return '';
-        }, $content);
-        return str_replace(' ', '', $content);
-    }
-}
 
 if (! function_exists('Authority')) {
     function Authority()
