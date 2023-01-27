@@ -1,0 +1,55 @@
+version: '3'
+services:
+  web:
+    build: .
+    ports:
+      - "9501:9501"
+
+    environment:
+      - DB_HOST=db
+      - REDIS_HOST=redis
+      - DB_DATABASE=sforum
+      - DB_USERNAME=sforum
+      - DB_PASSWORD=sforum
+
+    depends_on:
+      - db
+      - redis
+    networks:
+      - sf
+    volumes:
+      - sforum:/data
+
+  redis:
+    image: redis:7.0
+    networks:
+      - sf
+    volumes:
+      - redis:/data
+      - redis:/usr/local/etc/redis/redis.conf
+      - redis:/logs
+
+  db:
+    image: mariadb:10.5.18
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: sforum
+      MARIADB_DATABASE: sforum
+      MARIADB_USER: sforum
+      MARIADB_PASSWORD: sforum
+    networks:
+      - sf
+    volumes:
+      - db:/var/lib/mysql
+
+networks:
+  sf:
+    external: false
+
+volumes:
+  sforum:
+    driver: local
+  db:
+    driver: local
+  redis:
+    driver: local

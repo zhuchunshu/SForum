@@ -24,9 +24,9 @@
     </script>
 </head>
 
-<body class="antialiased border-top-wide border-primary d-flex flex-column">
+<body class="antialiased border-top-wide border-primary d-flex flex-column" id="app-install">
     <div class="page page-center">
-        <div class="container-tight py-4" id="app-install">
+        <div class="container-tight py-4">
             <div class="text-center mb-4">
                 <a href="#"><img src="/logo.svg" height="36" alt=""></a>
             </div>
@@ -56,10 +56,27 @@
                         <a  v-if="install_lock<5" href="#" @@click="next" class="btn btn-primary">
                             下一步
                         </a>
-                        <a  v-if="install_lock>=5" href="#" @@click="install" class="btn btn-primary">
+                        <a  v-if="install_lock>=5" href="#" data-bs-toggle="modal" data-bs-target="#modal-scrollable"  class="btn btn-primary">
                             完成安装
                         </a>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal modal-blur fade" id="modal-scrollable" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog  modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">SForum免责声明</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @include("core.install.disclaimer")
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" @@click="install" data-bs-dismiss="modal">签署并安装</button>
                 </div>
             </div>
         </div>

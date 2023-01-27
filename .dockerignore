@@ -1,0 +1,9 @@
+idea/
+.idea/
+.git/
+vendor/
+node_modules/
+yarn-error.log
+.env
+runtime/
+app/CodeFec/storage
