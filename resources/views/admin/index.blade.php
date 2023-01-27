@@ -195,19 +195,18 @@
 
                         {{--                        当前版本--}}
                         <div class="col-md-6">
-                            <div class="border-0 card" v-if="data">
+                            <div class="card" v-if="data">
                                 <div class="card-body">
                                     <h3 class="card-title">Releases</h3>
                                     <p>当前版本:@{{data.version}}</p>
                                     <p>最新版本: <a :href="data.new_version_url">@{{data.tag_name}}</a></p>
                                     <div v-if="data.upgrade">
                                         可更新
-                                        <br>
-                                        <a :href="data.zipball_url" class="btn btn-dark"
-                                           style="margin-right: 10px">下载zip包</a>
-                                        <a :href="data.tarball_url" style="margin-right: 10px"
-                                           class="btn btn-light">下载tar.gz包</a>
-                                        <button @@click="update" class="btn btn-green">立即更新</button>
+{{--                                        <a :href="data.zipball_url" class="btn btn-dark"--}}
+{{--                                           style="margin-right: 10px">下载zip包</a>--}}
+{{--                                        <a :href="data.tarball_url" style="margin-right: 10px"--}}
+{{--                                           class="btn btn-light">下载tar.gz包</a>--}}
+                                        <a target="_blank" href="https://www.runpod.cn/docs/1/22.html" class="btn btn-green">立即更新</a>
                                     </div>
                                 </div>
                                 <div class="card-footer">
@@ -218,34 +217,35 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="border-0 card" v-if="data">
+                            <div class="card" v-if="data">
+                                <div class="card-header">
+                                    <h3 class="card-title">开发者信息</h3>
+                                </div>
                                 <div class="card-body">
-                                    <h3 class="card-title">其他信息</h3>
-                                    <p>官网: <a href="https://www.runpod.cn">https://www.runpod.cn</a></p>
-                                    <p>文档: <a href="https://www.runpod.cn/docs">https://www.runpod.cn/docs</a>
-                                    </p>
-                                    <p>开源地址: <a href="https://github.com/zhuchunshu/SForum">https://github.com/zhuchunshu/SForum</a>
-                                    </p>
+                                    <ul>
+                                        <li>官网: <a href="https://www.runpod.cn">https://www.runpod.cn</a>
+                                        </li>
+                                        <li>
+                                            文档: <a href="https://www.runpod.cn/docs">https://www.runpod.cn/docs</a>
+                                        </li>
+                                        <li>
+                                            开源地址: <a href="https://github.com/zhuchunshu/SForum">https://github.com/zhuchunshu/SForum</a>
+                                        </li>
+                                    </ul>
+                                    <h3>鸣谢</h3>
+                                    <ul>
+                                        <li>hyperf: <a href="https://hyperf.io/">https://hyperf.io/</a>
+                                        </li>
+                                        <li>
+                                            swoole: <a href="https://swoole.com/">https://swoole.com/</a>
+                                        </li>
+                                        <li>赞助名单：<a href="https://www.runpod.cn/290.html">https://www.runpod.cn/290.html</a></li>
+                                    </ul>
                                 </div>
                             </div>
                         </div>
 
-                        {{--                        commit --}}
-                        <div class="col-md-12">
-                            <div class="border-0 card" v-if="markdown">
-                                <div class="card-body">
-                                    <h3 class="card-title">
-                                        <div class="row">
-                                            <div class="col">更新日志</div>
-                                            <div class="col-auto"><a
-                                                        href="https://www.runpod.cn/48.html">查看</a></div>
-                                        </div>
-                                    </h3>
-                                    <div style="overflow:scroll;overflow-x:hidden;max-height: 700px;"
-                                         class="markdown" v-html="updateLog"></div>
-                                </div>
-                            </div>
-                        </div>
+
 
 
                     </div>

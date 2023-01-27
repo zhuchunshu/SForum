@@ -7,6 +7,7 @@ use App\Middleware\AdminMiddleware;
 use App\Plugins\Topic\src\ContentParse;
 use Hyperf\Di\Annotation\Inject;
 use Hyperf\HttpServer\Annotation\Controller;
+use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\Utils\Str;
@@ -17,7 +18,6 @@ use function Swoole\Coroutine\Http\get;
 class ApiController
 {
 	private string $api_releases = "https://api.github.com/repos/zhuchunshu/SForum/releases";
-	private string $update_log = "https://www.runpod.cn/48.md";
 	#[PostMapping(path:"getVersion")]
 	public function getVersion(){
 		// 获取最新版
@@ -57,8 +57,7 @@ class ApiController
 	#[PostMapping(path:"getUpdateLog")]
 	public function getCommit()
     {
-        $data = http('raw')->get($this->update_log)->getBody()->getContents();
-		return (new ContentParse())->parse($data);
+		return (new ContentParse())->parse('此功能已关闭');
 	}
 	
 	#[PostMapping(path:"clearCache")]
@@ -104,4 +103,11 @@ class ApiController
 		$this->service->handle($url,$file_path);
 		return Json_Api(200,true,['msg' => '升级任务已创建']);
 	}
+
+    // 同意免责声明
+    #[GetMapping("agree.disclaimer")]
+    public function agree_disclaimer(){
+        cache()->set('admin.core.disclaimer',time());
+        return Json_Api(200,true,['msg' => 'success']);
+    }
 }

@@ -3,7 +3,9 @@
         <div class="row text-center align-items-center flex-row-reverse">
             <div class="col-lg-auto ms-lg-auto">
                 <ul class="list-inline list-inline-dots mb-0">
-                    <li class="list-inline-item"><a href="https://runpod.cn" class="link-secondary">Documentation</a>
+                    <li class="list-inline-item"><a href="https://www.runpod.cn/381.html" class="link-secondary">免责声明</a>
+                    </li>
+                    <li class="list-inline-item"><a href="https://runpod.cn/docs" class="link-secondary">Documentation</a>
                     </li>
                     <li class="list-inline-item"><a href="https://github.com/zhuchunshu/SForum/blob/master/LICENSE" class="link-secondary">License</a></li>
                     <li class="list-inline-item"><a href="https://github.com/zhuchunshu/SForum" target="_blank"

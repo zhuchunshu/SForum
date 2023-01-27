@@ -34,7 +34,6 @@ if(document.getElementById("vue-admin-index-releases")){
         },
         mounted(){
             this.version()
-            this.getUpdateLog()
         },
         methods:{
             // 初始化

@@ -11232,7 +11232,6 @@ if (document.getElementById("vue-admin-index-releases")) {
     },
     mounted: function mounted() {
       this.version();
-      this.getUpdateLog();
     },
     methods: {
       // 初始化

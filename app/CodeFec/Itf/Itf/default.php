@@ -14,3 +14,9 @@ Itf()->add('error_redirect', 1, [
     '/admin' => '/admin/login',
     '/admin/login' => '/admin',
 ]);
+
+
+Itf()->add('admin-ui-page-body-container-hook', -10, [
+    'name' => 'common',
+    'view' => 'core.admin.disclaimer'
+]);

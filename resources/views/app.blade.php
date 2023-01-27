@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="{{ mix('css/app.css') }}">
     <link rel="icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon" />
     <link rel="shortcut icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon" />
+    <script src="/js/jquery-3.6.0.min.js"></script>
     <script>var csrf_token="{{csrf_token()}}";</script>
     <link rel="stylesheet" href="{{ mix('iziToast/css/iziToast.min.css') }}">
     <script src="{{ mix('iziToast/js/iziToast.min.js') }}"></script>
@@ -51,13 +52,13 @@
     </div>
 </div>
 
-<script src="/js/jquery-3.6.0.min.js"></script>
 <script>var admin = {!! json_encode(\App\CodeFec\Admin\Admin::data()) !!};</script>
 <script src="{{ mix('js/vue.js') }}"></script>
 <script src="{{ mix('js/app.js') }}"></script>
 <script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
 <!-- Tabler Core -->
 <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
+<script src="{{ file_hash('js/alpine.min.js') }}" defer></script>
 <!-- 自定义Js -->
 @foreach(\App\CodeFec\Ui\functions::get("js") as $key => $value)
     <script src="{{ $value }}"></script>
