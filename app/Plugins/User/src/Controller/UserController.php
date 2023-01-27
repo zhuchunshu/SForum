@@ -33,7 +33,7 @@ class UserController
             $page = User::query()->paginate(20);
             return view('User::list', ['page' => $page, 'count' => $count]);
         }
-        return redirect()->url('/')->with('danger', '权限不足')->go();
+        return admin_abort('登陆后可见',401,'/login');
     }
 
     /**
