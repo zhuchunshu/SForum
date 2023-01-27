@@ -114,6 +114,7 @@ if (document.getElementById("vue-plugin-table")) {
         },
         methods: {
             remove(name, path) {
+                swal("Tips",'卸载中,请等待...','info')
                 axios
                     .post("/api/AdminPluginRemove", {
                         path: path,

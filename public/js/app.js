@@ -2200,6 +2200,7 @@ if (document.getElementById("vue-plugin-table")) {
     },
     methods: {
       remove: function remove(name, path) {
+        sweetalert__WEBPACK_IMPORTED_MODULE_2___default()("Tips", '卸载中,请等待...', 'info');
         axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/AdminPluginRemove", {
           path: path,
           _token: csrf_token

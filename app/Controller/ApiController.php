@@ -191,22 +191,12 @@ class ApiController
         if (request()->input('path') && is_dir(request()->input('path'))) {
             // 删除插件
             removeFiles(request()->input('path'));
-            go(function () {
-                \Swoole\Coroutine\System::exec('composer du -o');
-                $params = ['command' => 'ClearCache'];
-
-                $input = new ArrayInput($params);
-                $output = new NullOutput();
-
-                $container = \Hyperf\Utils\ApplicationContext::getContainer();
-
-                /** @var Application $application */
-                $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
-                $application->setAutoExit(false);
-
-                // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
-                $exitCode = $application->run($input, $output);
-            });
+            \Swoole\Coroutine\System::exec('composer du -o');
+            \Swoole\Coroutine\System::exec('php CodeFec');
+            $myfile = fopen(BASE_PATH . '/app/CodeFec/storage/logs_plugins.php', 'wb') or exit('Unable to open file!');
+            $txt = '- ' . date('Y-m-d H:i:s') . "插件状态变动\n";
+            fwrite($myfile, $txt);
+            fclose($myfile);
             return Json_Api(200, true, ['msg' => '卸载成功!']);
         }
 
