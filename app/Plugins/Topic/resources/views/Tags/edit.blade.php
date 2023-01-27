@@ -35,8 +35,8 @@
                                 <label class="form-label">
                                     {{__("app.color")}}
                                 </label>
-                                <input type="color" {{$data->color}} class="form-control form-control-color"
-                                       name="color" v-model="color" required>
+                                <input type="color" value="{{$data->color}}" class="form-control form-control-color"
+                                       name="color" required>
                             </div>
                         </div>
                     </div>
