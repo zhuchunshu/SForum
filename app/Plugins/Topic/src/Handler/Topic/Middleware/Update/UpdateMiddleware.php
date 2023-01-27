@@ -100,8 +100,9 @@ class UpdateMiddleware implements MiddlewareInterface
             'user_agent' => get_user_agent(),
         ]);
         $this->topic_keywords($topic, $_content);
-        $topic_data = Topic::query()->find($topic_id);
-        $this->at_user($topic_data, $_content);
+        // 不at
+//        $topic_data = Topic::query()->find($topic_id);
+//        $this->at_user($topic_data, $_content);
         cache()->delete('topic.data.' . $topic_id);
         $data['topic_id'] = $topic_id;
         $data['post_id'] = $post_id;
