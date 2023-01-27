@@ -1,5 +1,5 @@
-LABEL org.opencontainers.image.source = "https://github.com/zhuchunshu/SForum"
 FROM hyperf/hyperf:8.0-alpine-v3.15-swoole
+LABEL org.opencontainers.image.source = "https://github.com/zhuchunshu/SForum"
 ARG timezone
 
 ENV TIMEZONE=${timezone:-"Asia/Shanghai"} \

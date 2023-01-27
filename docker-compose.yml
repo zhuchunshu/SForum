@@ -2,7 +2,7 @@ version: '3'
 services:
   web:
     #zhuchunshu/sforum:v2 or ghcr.io/zhuchunshu/sforum:v2
-    image: ghcr.io/zhuchunshu/sforum:v2
+    image: ghcr.io/zhuchunshu/sforum
     ports:
       - "9501:9501"
 
