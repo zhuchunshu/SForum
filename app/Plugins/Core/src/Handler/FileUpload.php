@@ -2,6 +2,7 @@
 
 namespace App\Plugins\Core\src\Handler;
 
+use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserUpload;
 use Illuminate\Support\Str;
 
@@ -18,7 +19,7 @@ class FileUpload
 				];
 			}
 			
-			$user_id = 1;
+			$user_id = User::first()->id;
 		}else{
 			$user_id = auth()->id();
 		}

@@ -10,6 +10,7 @@ declare(strict_types=1);
  */
 namespace App\Plugins\Core\src\Handler;
 
+use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserUpload;
 use Illuminate\Support\Str;
 use Intervention\Image\ImageManagerStatic as Image;
@@ -27,7 +28,7 @@ class UploadHandler
                 ];
             }
 
-            $user_id = 1;
+            $user_id = User::first()->id;
         } else {
             $user_id = auth()->id();
         }
