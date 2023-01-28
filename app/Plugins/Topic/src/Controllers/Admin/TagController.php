@@ -51,7 +51,7 @@ class TagController
             'name' => $name,
             'color' => $color,
             'description' => $description,
-            'icon' => $icon.'1',
+            'icon' => $icon,
             'userClass' => $userClass,
         ]);
         return redirect()->url('/admin/topic/tag')->with('success', '创建成功!')->go();
