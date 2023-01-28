@@ -20,9 +20,11 @@ services:
       - sf
     volumes:
       - sforum:/data
+    restart: always
 
   redis:
     image: redis:7.0
+    restart: always
     networks:
       - sf
     volumes:
