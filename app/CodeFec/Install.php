@@ -199,7 +199,7 @@ class Install
 
 
         // 数据填充
-        $command = 'db:seed';
+        $command = 'db:seed --force';
 
         $params = ['command' => $command];
 

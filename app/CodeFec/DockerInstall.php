@@ -132,7 +132,7 @@ class DockerInstall
         $this->command->info('数据库迁移成功!');
 
         // 数据填充
-        $command = 'db:seed';
+        $command = 'db:seed --force';
 
         $params = ['command' => $command];
 
