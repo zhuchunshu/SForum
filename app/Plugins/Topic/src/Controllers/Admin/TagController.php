@@ -12,6 +12,7 @@ namespace App\Plugins\Topic\src\Controllers\Admin;
 
 use App\Middleware\AdminMiddleware;
 use App\Plugins\Core\src\Handler\AvatarUpload;
+use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicTag;
 use App\Plugins\Topic\src\Requests\CreateTagRequest;
 use App\Plugins\Topic\src\Requests\EditTagRequest;
@@ -119,6 +120,10 @@ class TagController
         if (! TopicTag::query()->where('id', $id)->count()) {
             return Json_Api(403, false, ['msg' => 'id为' . $id . '的标签不存在']);
         }
+        // 迁移工作
+        go(function () use ($id) {
+            Topic::query()->where('tag_id', $id)->update(['tag_id' => 1]);
+        });
         TopicTag::query()->where('id', $id)->delete();
         return Json_Api(200, true, ['msg' => '删除成功!']);
     }

@@ -8,9 +8,10 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
-
 namespace App\Plugins\Topic\src\Controllers;
 
+use App\Plugins\Comment\src\Model\TopicComment;
+use App\Plugins\Core\src\Models\Post;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicKeyword;
 use App\Plugins\Topic\src\Models\TopicLike;
@@ -60,11 +61,11 @@ class ApiController
     #[PostMapping(path: 'with_topic.data')]
     public function get_WithTopic_Data()
     {
-        $topic_id = (int)request()->input('topic_id');
-        if (!$topic_id) {
+        $topic_id = (int) request()->input('topic_id');
+        if (! $topic_id) {
             return Json_Api(403, false, ['请求的 帖子id不存在']);
         }
-        if (!Topic::query()->where('id', $topic_id)->exists()) {
+        if (! Topic::query()->where('id', $topic_id)->exists()) {
             return Json_Api(404, false, ['ID为:' . $topic_id . '帖子不存在']);
         }
 
@@ -85,15 +86,15 @@ class ApiController
     #[RateLimit(create: 1, capacity: 3)]
     public function like_topic()
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return Json_Api(403, false, ['msg' => '未登录!']);
         }
 
         $topic_id = request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数:topic_id 不存在!']);
         }
-        if (!Topic::query()->where([['id', $topic_id, 'status' => 'publish']])->exists()) {
+        if (! Topic::query()->where([['id', $topic_id, 'status' => 'publish']])->exists()) {
             return Json_Api(403, false, ['msg' => 'id为:' . $topic_id . '的帖子不存在']);
         }
         if (TopicLike::query()->where(['topic_id' => $topic_id, 'user_id' => auth()->id(), 'type' => 'like'])->exists()) {
@@ -140,14 +141,14 @@ class ApiController
     #[PostMapping(path: 'topic.data')]
     public function topic_data()
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return Json_Api(403, false, ['msg' => '未登录!']);
         }
         $topic_id = request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
-        if (!Topic::query()->where('id', $topic_id)->exists()) {
+        if (! Topic::query()->where('id', $topic_id)->exists()) {
             return Json_Api(403, false, ['msg' => 'id为:' . $topic_id . '的帖子不存在']);
         }
         $data = Topic::query()->where('id', $topic_id)
@@ -164,19 +165,19 @@ class ApiController
     {
         $topic_id = request()->input('topic_id');
         $zhishu = request()->input('zhishu');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
         if (empty($zhishu) && $zhishu != 0) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:zhishu']);
         }
-        if (!auth()->check() || !Authority()->check('topic_options')) {
+        if (! auth()->check() || ! Authority()->check('topic_options')) {
             return Json_Api(419, false, ['msg' => '权限不足!']);
         }
-        if (!Topic::query()->where('id', $topic_id)->exists()) {
+        if (! Topic::query()->where('id', $topic_id)->exists()) {
             return Json_Api(403, false, ['msg' => '被操作的帖子不存在']);
         }
-        if (!is_numeric($zhishu)) {
+        if (! is_numeric($zhishu)) {
             return Json_Api(403, false, ['msg' => '精华指数必须为数字']);
         }
         if ($zhishu < 0 || $zhishu > 999) {
@@ -202,19 +203,19 @@ class ApiController
     {
         $topic_id = request()->input('topic_id');
         $zhishu = request()->input('zhishu');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
         if ($zhishu != 0 && empty($zhishu)) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:zhishu']);
         }
-        if (!auth()->check() || !Authority()->check('topic_options')) {
+        if (! auth()->check() || ! Authority()->check('topic_options')) {
             return Json_Api(419, false, ['msg' => '权限不足!']);
         }
-        if (!Topic::query()->where('id', $topic_id)->exists()) {
+        if (! Topic::query()->where('id', $topic_id)->exists()) {
             return Json_Api(403, false, ['msg' => '被操作的帖子不存在']);
         }
-        if (!is_numeric($zhishu)) {
+        if (! is_numeric($zhishu)) {
             return Json_Api(403, false, ['msg' => '置顶指数必须为数字']);
         }
         if ($zhishu < 0 || $zhishu > 999) {
@@ -239,10 +240,10 @@ class ApiController
     public function set_topic_delete(): array
     {
         $topic_id = request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
-        if (!Topic::query()->where('id', $topic_id)->exists()) {
+        if (! Topic::query()->where('id', $topic_id)->exists()) {
             return Json_Api(403, false, ['msg' => '被删除的帖子不存在']);
         }
         $data = Topic::query()->where('id', $topic_id)->first();
@@ -253,12 +254,18 @@ class ApiController
             $quanxian = true;
         }
 
-        if (!auth()->check() || $quanxian === false) {
+        if (! auth()->check() || $quanxian === false) {
             return Json_Api(419, false, ['msg' => '权限不足!']);
         }
-        Topic::query()->where('id', $topic_id)->update([
-            'status' => 'delete',
-        ]);
+        // 删除评论
+        go(function () use ($topic_id) {
+            TopicComment::query()->where('topic_id', $topic_id)->delete();
+        });
+        // 删除帖子
+        go(function () use ($topic_id) {
+            Post::where('topic_id', $topic_id)->delete();
+            Topic::destroy($topic_id);
+        });
         return Json_Api(200, true, ['msg' => '已删除!']);
     }
 
@@ -266,14 +273,14 @@ class ApiController
     #[RateLimit(create: 1, capacity: 3)]
     public function star_topic(): array
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return Json_Api(419, false, ['msg' => '权限不足!']);
         }
         $topic_id = request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
-        if (!Topic::query()->where('id', $topic_id)->exists()) {
+        if (! Topic::query()->where('id', $topic_id)->exists()) {
             return Json_Api(403, false, ['msg' => '要收藏的帖子不存在']);
         }
         if (UsersCollection::query()->where(['type' => 'topic', 'type_id' => $topic_id, 'user_id' => auth()->id()])->exists()) {
@@ -293,7 +300,7 @@ class ApiController
     public function get_user(): array
     {
         $topic_id = request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
         $data = Topic::query()->where([
@@ -313,10 +320,10 @@ class ApiController
     public function get_user_ip()
     {
         $topic_id = request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
-        if (!Topic::where(['status' => 'publish', 'id' => $topic_id])->exists()) {
+        if (! Topic::where(['status' => 'publish', 'id' => $topic_id])->exists()) {
             return admin_abort(['msg' => '帖子不存在', 'result' => []]);
         }
         $all = [];
@@ -328,7 +335,7 @@ class ApiController
                     'formatdate' => format_date($item->created_at),
                     'username' => $item->user->username,
                     'avatar' => avatar($item->user),
-                    'ip' => get_client_ip_data($item->user_ip)['pro']
+                    'ip' => get_client_ip_data($item->user_ip)['pro'],
                 ];
             } else {
                 $all[] = [
@@ -336,7 +343,7 @@ class ApiController
                     'formatdate' => format_date($item->created_at),
                     'username' => $item->user->username,
                     'avatar' => avatar($item->user),
-                    'ip' => '未知'
+                    'ip' => '未知',
                 ];
             }
         }

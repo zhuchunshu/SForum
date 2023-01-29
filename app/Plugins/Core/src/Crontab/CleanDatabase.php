@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace App\Plugins\Core\src\Crontab;
 
 use App\Plugins\Core\src\Models\PayOrder;
+use App\Plugins\Core\src\Models\Post;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicUpdated;
 use App\Plugins\User\src\Models\UsersNotice;
@@ -42,6 +43,13 @@ class CleanDatabase
     // 清理已删除的文章
     private function topic()
     {
+        foreach (Post::where('topic_id')->get(['id', 'topic_id']) as $item) {
+            go(function () use ($item) {
+                if (! Topic::query()->where('id', $item->topic_id)->exists()) {
+                    Post::query()->where('id', $item->id)->delete();
+                }
+            });
+        }
         Topic::query()->where('status', 'delete')->delete();
     }
 
