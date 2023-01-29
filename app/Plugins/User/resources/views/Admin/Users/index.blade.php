@@ -59,9 +59,15 @@
                                     <td @@click="email('{{$data->id}}','{{$data->email}}')">
                                         {{$data->email}}
                                     </td>
+                                    @if(@$data->class->id)
                                     <td @@click="UserClass('{{$data->id}}','{{$data->class->id}}')">
                                         {!! Core_Ui()->Html()->UserGroup($data->class) !!}
                                     </td>
+                                    @else
+                                        <td>
+                                            暂无
+                                        </td>
+                                    @endif
                                     <td>
                                         {{$data->created_at}}
                                     </td>
