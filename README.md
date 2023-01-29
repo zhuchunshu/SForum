@@ -6,9 +6,9 @@ SForum是一个基于php开发的功能丰富、性能好、速度快的中文�
 
 ### 文档
 
-使用文档: [https://forum.runpod.cn/docs/1](https://forum.runpod.cn/docs/1)
+使用文档: [https://www.runpod.cn/docs/1](https://forum.runpod.cn/docs/1)
 
-开发文档:[https://forum.runpod.cn/docs/3](https://forum.runpod.cn/docs/3)
+开发文档:[https://www.runpod.cn/docs/3](https://forum.runpod.cn/docs/3)
 
 ### 开源地址
 
