@@ -78,9 +78,10 @@
 
                         <div class="row row-cards">
                             @foreach($comment as $key=>$value)
+                                @if(!$loop->first)<div class="hr-text mt-1 mb-1">next</div>@endif
                                 <div id="comment-{{$value->id}}" name="comment-{{$value->id}}" class="col-md-12">
-                                    <div class="card @if($value->optimal) comment-optimal @endif">
-                                        <div class="card-body">
+                                    <div class="@if($value->optimal) comment-optimal @endif">
+                                        <div class="mx-2 my-2">
                                             <div class="row">
                                                 {{--                                    作者信息--}}
                                                 <div class="col-md-12">
