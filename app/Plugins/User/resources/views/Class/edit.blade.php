@@ -13,21 +13,30 @@
                 <h3 class="card-title">修改用户组</h3>
                 <x-csrf/>
                 <div class="mb-3">
-                    <label class="form-label">名称</label>
+                    <label class="form-label required">名称</label>
                     <input type="text" class="form-control" v-model="name">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">颜色值</label>
-                    <input type="color" class="form-control form-control-color" v-model="color">
+                    <label class="form-label required">颜色值</label>
+                    <div class="row">
+                        <div class="col-auto">
+                            <input type="color" class="form-control form-control-color" v-model="color">
+
+                        </div>
+                        <div class="col-auto">
+                            <input type="text" class="form-control"  v-model="color" >
+                        </div>
+                        <div class="col"></div>
+                    </div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">图标代码(svg)</label>
+                    <label class="form-label required">图标代码</label>
                     <textarea rows="3" v-model="icon" class="form-control"></textarea>
-                    <small><a href="https://tabler-icons.io/">https://tabler-icons.io/</a> 、<a
+                    <small>填写svg代码：<a href="https://tabler-icons.io/">https://tabler-icons.io/</a> 、<a
                                 href="https://icons.bootcss.com/">https://icons.bootcss.com/</a> </small>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">权限(多选)</label>
+                    <label class="form-label required">权限(多选)</label>
                     <div class="row">
                         @foreach(Authority()->get() as $value)
                             <div class="col-4">
@@ -40,7 +49,7 @@
                     </div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">{{__("app.permission value")}}</label>
+                    <label class="form-label required">{{__("app.permission value")}}</label>
                     <input type="number" class="form-control" v-model="permission_value">
                 </div>
                 <button class="btn btn-primary" type="submit">提交</button>
