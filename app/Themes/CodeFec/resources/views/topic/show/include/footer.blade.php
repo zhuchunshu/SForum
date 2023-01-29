@@ -63,7 +63,57 @@
             {{--                    右边 footer--}}
             <div class="col-auto">
                 {{--            修改记录--}}
-                @if(count($data->topic_updated))
+                @if($data->topic_updated->count())
+                    {{--    修改记录--}}
+                    <div class="modal modal-blur fade" id="topic-updated" tabindex="-1" role="dialog" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">帖子修订记录</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <script>
+                                    document.addEventListener('alpine:init', () => {
+                                        Alpine.data('user_updated', () => ({
+                                            updateds:[
+
+                                            ],
+                                            async init() {
+                                                this.updateds = await (await fetch('/api/topic/get.updated_user', {
+                                                    'method': 'post', headers: {
+                                                        'Content-Type': 'application/json'
+                                                    }, body: JSON.stringify({_token: csrf_token, topic_id: '{{$data->id}}'})
+                                                })).json().then(res => res.result.result);
+                                            }
+                                        }))
+                                    })
+                                </script>
+                                <div class="modal-body">
+                                    <ul x-data="user_updated" class="timeline">
+                                        <template x-for="data in updateds">
+                                            <li class="timeline-event">
+                                                <div class="timeline-event-icon bg-twitter-lt"><!-- Download SVG icon from http://tabler-icons.io/i/brand-twitter -->
+                                                    <span class="avatar" :style="{'background-image': 'url('+data.avatar+')'}"></span>
+                                                </div>
+                                                <div class="card timeline-event-card">
+                                                    <div class="card-body">
+                                                        <div class="text-muted float-end" x-text="data.formatdate"></div>
+                                                        <h4 x-text="data.username"></h4>
+                                                        <p class="text-muted">在<span x-text="data.date"></span>修改了文章</p>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        </template>
+
+                                    </ul>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
+                                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">好的</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="avatar-list avatar-list-stacked">
                         @php $i = 1; @endphp
                         @foreach($data->topic_updated as $v)
@@ -88,45 +138,6 @@
             </div>
         </div>
     </div>
-    <div class="modal modal-blur fade" id="topic-updated" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">帖子修订记录</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <ul class="list list-timeline">
-                        @foreach($data->topic_updated as $value)
-                            <li>
-                                <div class="list-timeline-icon">
-                                    <!-- Download SVG icon from http://tabler-icons.io/i/brand-twitter -->
-                                    <!-- SVG icon code -->
-                                    <a href="/users/{{$value->user->id}}.html" class="avatar avatar-rounded"
-                                       style="background-image: url('{{super_avatar($value->user)}}')"></a>
-                                </div>
-                                <div class="list-timeline-content">
-                                    <div class="list-timeline-time">{{format_date($value->created_at)}}</div>
-                                    <p class="list-timeline-title">{{$value->user->username}}</p>
-                                    <p class="text-muted">修改时间:{{$value->created_at}}
-                                        @if(get_options('topic_updated_author_ip','开启')==='开启' &&$value->user_ip)
-                                            |
-                                            <span class="text-red" topic-type="updated_ip" updated-id="{{$value->id}}">Loading<span
-                                                        class="animated-dots"></span></span>
-                                        @endif
-                                    </p>
-                                </div>
-                            </li>
-                        @endforeach
 
-                    </ul>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">好的</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
 @endif
