@@ -825,6 +825,9 @@ if (! function_exists('remove_bbCode')) {
 if (! function_exists('content_brief')) {
     function content_brief($content, string | int $len = 100): string
     {
+        if(@!$content){
+            return $content;
+        }
         $len = (int) $len;
         // hook post_brief_start.php
         $content = strip_tags($content);
