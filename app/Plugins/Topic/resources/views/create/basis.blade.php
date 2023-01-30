@@ -22,6 +22,13 @@
         <label class="form-label">内容正文</label>
         <textarea name="basis[content]" id="basis-content" cols="30" rows="10"></textarea>
     </div>
+    <div>
+        @if(get_options('topic_emoji_close')!=='true')
+            <link rel="stylesheet" href="{{file_hash('css/OwO.min.css')}}">
+            <div class="OwO" id="create-comment-owo">[表情]</div>
+            <script src="{{file_hash('js/editor.OwO.js')}}"></script>
+        @endif
+    </div>
 </div>
 
 <script src="{{file_hash("js/axios.min.js")}}"></script>
@@ -117,6 +124,16 @@
                 editor.on('input', function(e) {
                     localStorage.setItem('topic_create_content',editor.getContent())
                 });
+                @if(get_options('topic_emoji_close')!=='true')
+                new OwO({
+                    logo: '[OωO表情]',
+                    container: document.getElementById('create-comment-owo'),
+                    target: editor,
+                    api: '/api/core/OwO.json',
+                    width: '300px',
+                    maxHeight: '250px',
+                });
+                @endif
             },
             mobile:{
                 menu:{!! \App\Plugins\Topic\src\Lib\Create\Editor::menu() !!},

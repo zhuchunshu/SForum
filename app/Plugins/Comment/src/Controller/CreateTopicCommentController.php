@@ -22,6 +22,15 @@ use Hyperf\HttpServer\Annotation\PostMapping;
 #[Middleware(LoginMiddleware::class)]
 class CreateTopicCommentController
 {
+    #[PostMapping(path: 'preview')]
+    #[Middleware(LoginMiddleware::class)]
+    public function create_preview()
+    {
+        $content = request()->input('content', '无内容');
+        $content = xss()->clean($content);
+        return view('Comment::topic.preview', ['content' => $content]);
+    }
+
     #[GetMapping(path: '{topic_id}')]
     public function index($topic_id)
     {

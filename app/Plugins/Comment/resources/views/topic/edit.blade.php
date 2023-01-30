@@ -38,8 +38,17 @@
                             <label for="" class="form-label"></label>
                             <textarea name="content" id="content" rows="3">{{$comment->post->content}}</textarea>
                         </div>
-                        <div class="mb-3 d-flex flex-row-reverse">
-                            <button class="btn btn-primary" type="submit">修改评论</button>
+                        <div class="row">
+                            <div class="col">
+                                @if(get_options('comment_emoji_close')!=='true')
+                                    <link rel="stylesheet" href="{{file_hash('css/OwO.min.css')}}">
+                                    <div class="OwO" id="create-comment-owo">[表情]</div>
+                                    <script src="{{file_hash('js/editor.OwO.js')}}"></script>
+                                @endif
+                            </div>
+                            <div class="col-auto">
+                                <button class="btn btn-primary" type="submit">修改评论</button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -105,6 +114,18 @@
                 convert_urls:false,
                 external_plugins:{!! \App\Plugins\Comment\src\Lib\Edit\Editor::externalPlugins() !!},
                 images_upload_handler: image_upload_handler,
+                init_instance_callback:(editor)=>{
+                    @if(get_options('comment_emoji_close')!=='true')
+                    new OwO({
+                        logo: '[OωO表情]',
+                        container: document.getElementById('create-comment-owo'),
+                        target: editor,
+                        api: '/api/core/OwO.json',
+                        width: '300px',
+                        maxHeight: '250px',
+                    });
+                    @endif
+                },
                 mobile:{
                     menu:{!! \App\Plugins\Comment\src\Lib\Edit\Editor::menu() !!},
                     menubar:"{!! \App\Plugins\Comment\src\Lib\Edit\Editor::menubar() !!}",

@@ -31,8 +31,17 @@
                             <label for="" class="form-label"></label>
                             <textarea name="content" id="content" rows="3"></textarea>
                         </div>
-                        <div class="mb-3 d-flex flex-row-reverse">
-                            <button class="btn btn-primary" type="submit">回帖</button>
+                        <div class="row">
+                            <div class="col">
+                                @if(get_options('comment_emoji_close')!=='true')
+                                    <link rel="stylesheet" href="{{file_hash('css/OwO.min.css')}}">
+                                    <div class="OwO" id="create-comment-owo">[表情]</div>
+                                    <script src="{{file_hash('js/editor.OwO.js')}}"></script>
+                                @endif
+                            </div>
+                            <div class="col-auto">
+                                <button class="btn btn-primary" type="submit">回帖</button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -63,17 +72,17 @@
             formData.append('file', blobInfo.blob(), blobInfo.filename());
             formData.append('_token', csrf_token);
             formData.append('_session', _token);
-            axios.post("/user/upload/image",formData,{
-                'Content-type' : 'multipart/form-data'
-            }).then(function(r){
+            axios.post("/user/upload/image", formData, {
+                'Content-type': 'multipart/form-data'
+            }).then(function (r) {
                 console.log(r)
                 const data = r.data;
-                if(data.success){
+                if (data.success) {
                     resolve(data.result.url);
-                    return ;
+                    return;
                 }
-                reject({message:'HTTP Error: ' + data.result.msg + ', Error Code: '+data.code,remove: true});
-            }).catch(function(e){
+                reject({message: 'HTTP Error: ' + data.result.msg + ', Error Code: ' + data.code, remove: true});
+            }).catch(function (e) {
                 console.log(e)
             })
 
@@ -83,8 +92,8 @@
             let options = {
                 selector: '#content',
                 height: 450,
-                menu:{!! \App\Plugins\Comment\src\Lib\Create\Editor::menu() !!},
-                menubar:"{!! \App\Plugins\Comment\src\Lib\Create\Editor::menubar() !!}",
+                menu: {!! \App\Plugins\Comment\src\Lib\Create\Editor::menu() !!},
+                menubar: "{!! \App\Plugins\Comment\src\Lib\Create\Editor::menubar() !!}",
                 statusbar: true,
                 elementpath: true,
                 promotion: false,
@@ -95,23 +104,33 @@
                 toolbar_mode: 'sliding',
                 image_advtab: true,
                 automatic_uploads: true,
-                convert_urls:false,
-                external_plugins:{!! \App\Plugins\Comment\src\Lib\Create\Editor::externalPlugins() !!},
+                convert_urls: false,
+                external_plugins: {!! \App\Plugins\Comment\src\Lib\Create\Editor::externalPlugins() !!},
                 images_upload_handler: image_upload_handler,
                 init_instance_callback: (editor) => {
-                    if(localStorage.getItem('create_topic_comment_{{$topic->id}}')){
+                    if (localStorage.getItem('create_topic_comment_{{$topic->id}}')) {
                         editor.setContent(localStorage.getItem('create_topic_comment_{{$topic->id}}'))
                     }
-                    editor.on('input', function(e) {
-                        localStorage.setItem('create_topic_comment_{{$topic->id}}',editor.getContent())
+                    editor.on('input', function (e) {
+                        localStorage.setItem('create_topic_comment_{{$topic->id}}', editor.getContent())
                     });
+                    @if(get_options('comment_emoji_close')!=='true')
+                    new OwO({
+                        logo: '[OωO表情]',
+                        container: document.getElementById('create-comment-owo'),
+                        target: editor,
+                        api: '/api/core/OwO.json',
+                        width: '300px',
+                        maxHeight: '250px',
+                    });
+                    @endif
                 },
-                mobile:{
-                    menu:{!! \App\Plugins\Comment\src\Lib\Create\Editor::menu() !!},
-                    menubar:"{!! \App\Plugins\Comment\src\Lib\Create\Editor::menubar() !!}",
+                mobile: {
+                    menu: {!! \App\Plugins\Comment\src\Lib\Create\Editor::menu() !!},
+                    menubar: "{!! \App\Plugins\Comment\src\Lib\Create\Editor::menubar() !!}",
                     toolbar_mode: 'scrolling'
                 },
-                branding:false,
+                branding: false,
                 content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }'
             }
             if (document.body.className === 'theme-dark') {

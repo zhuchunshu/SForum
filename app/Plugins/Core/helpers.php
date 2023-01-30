@@ -290,7 +290,7 @@ if (! function_exists('emoji_add')) {
      */
     function emoji_add(string $name, string $emoji, string $type, bool $size = false)
     {
-        Itf()->add('emoji', random_int(2, 99212), [
+        Itf()->add('emoji', count(Itf()->get('emoji'))+1, [
             'name' => $name,
             'emoji' => $emoji,
             'type' => $type,
