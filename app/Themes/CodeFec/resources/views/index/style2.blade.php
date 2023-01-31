@@ -1,41 +1,45 @@
-<article class="col-md-12 p-2 border-bottom hoverable">
-    <div class="d-flex justify-content-between border-0 card">
+<article class="col-md-12 p-3 pt-2 pb-2 border-bottom">
+    <div class="d-flex border-0 card">
         <div class="row">
             <div class="col-auto align-self-center">
                 <a href="/users/{{$data->user->id}}.html" class="avatar"
-                   style="background-image: url({{super_avatar($data->user)}});--tblr-avatar-size: 2.5rem;">
+                   style="background-image: url({{super_avatar($data->user)}});--tblr-avatar-size: 2.6rem;">
                 </a>
 
             </div>
             <div class="col">
                 <div class="row">
-                    <div class="col-md-12" style="margin-top: 5px">
-                        <div class="home-article">
-                            <a href="/{{$data->id}}.html" class="text-reset">
-                                <b class="text-reset str text-muted" style="font-size: 1.04rem;word-break: break-all;word-wrap: break-word;">
-                                    @if($data->topping>0)
-                                        <span class="badge bg-red">
+                    <div class="col-md-12">
+                        <div class="row">
+                            <div class="col-md-12 markdown home-article">
+                                <a href="/{{$data->id}}.html" class="text-reset">
+                                    <h3 class="text-muted">
+                                        @if($data->topping>0)
+                                            <span class="badge bg-red">
                                                     {{__('app.top')}}
                                                 </span>
-                                    @else
-                                        <span class="badge d-none d-lg-inline-block"
-                                              style="background-color: {{$data->tag->color}}!important;">
+                                        @else
+                                            <span class="badge d-none d-lg-inline-block"
+                                                  style="background-color: {{$data->tag->color}}!important;">
                                                         {{$data->tag->name}}
                                                     </span>
-                                        <span class="badge d-inline-block d-lg-none"
-                                              style="background-color: {{$data->tag->color}}!important;">
+                                            <span class="badge d-inline-block d-lg-none"
+                                                  style="background-color: {{$data->tag->color}}!important;">
                                                         {!! $data->tag->icon !!}
                                                     </span>
-                                    @endif
-                                    @if($data->essence>0)
-                                        <span class="badge bg-green d-none d-lg-inline-block">
+                                        @endif
+                                        @if($data->essence>0)
+                                            <span class="badge bg-green d-none d-lg-inline-block">
                                                         {{__("app.essence")}}
                                                     </span>
-                                    @endif
+                                        @endif
 
-                                    {{$data->title}}</b>
-                            </a>
+                                        {{$data->title}}</h3>
+                                </a>
+                            </div>
                         </div>
+                    </div>
+                    <div class="col-md-12">
                         <div class="d-flex align-items-center">
                             <div class="text-muted" style="margin-top:1px">
                                 {!! u_username($data->user,['class' => ['text-muted']]) !!} {{format_date($data->created_at)}}
