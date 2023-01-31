@@ -59,7 +59,8 @@ class ApiController
     }
 
     #[PostMapping(path: 'with_topic.data')]
-    public function get_WithTopic_Data()
+    #[RateLimit(create: 3, capacity: 6)]
+    public function get_with_topic_data()
     {
         $topic_id = (int) request()->input('topic_id');
         if (! $topic_id) {
