@@ -167,9 +167,11 @@
 
                     </div>
 
-                    <div class="card-footer pb-0">
-                        {!! make_page($comment) !!}
-                    </div>
+                    @if($comment->hasPages())
+                        <div class="card-footer pb-0">
+                            {!! make_page($comment) !!}
+                        </div>
+                    @endif
 
 
                 </div>

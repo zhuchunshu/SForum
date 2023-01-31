@@ -12,7 +12,7 @@
                     <div class="col-md-12" style="margin-top: 5px">
                         <div class="markdown home-article">
                             <a href="/{{$data->id}}.html" class="text-reset">
-                                <h4 class="text-muted">
+                                <span class="text-reset" style="font-size: 1.04rem;word-break: break-all;word-wrap: break-word;">
                                     @if($data->topping>0)
                                         <span class="badge bg-red">
                                                     {{__('app.top')}}
@@ -33,7 +33,7 @@
                                                     </span>
                                     @endif
 
-                                    {{$data->title}}</h4>
+                                    {{$data->title}}</span>
                             </a>
                         </div>
                         <div class="d-flex align-items-center">
