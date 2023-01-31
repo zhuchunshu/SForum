@@ -3,7 +3,7 @@
         <div class="row">
             <div class="col-auto align-self-center">
                 <a href="/users/{{$data->user->id}}.html" class="avatar"
-                   style="background-image: url({{super_avatar($data->user)}});--tblr-avatar-size: 2.6rem;">
+                   style="background-image: url({{super_avatar($data->user)}});--tblr-avatar-size: 2.8rem;">
                 </a>
 
             </div>

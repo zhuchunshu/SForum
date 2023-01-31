@@ -350,4 +350,24 @@ class ApiController
         }
         return json_api(200, true, ['msg' => '获取成功', 'result' => $all]);
     }
+
+    // 获取帖子上下页信息
+    #[PostMapping(path: 'get.topic.include.ifpage')]
+    #[RateLimit(create: 1, capacity: 1)]
+    public function get_topic_include_ifpage(){
+        $topic_id = request()->input('topic_id');
+        if (! $topic_id) {
+            return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
+        }
+        if (! Topic::where(['status' => 'publish', 'id' => $topic_id])->exists()) {
+            return admin_abort(['msg' => '帖子不存在', 'result' => []]);
+        }
+        $shang = Topic::query()->where([['id', '<', $topic_id], ['status', 'publish']])->select('title', 'id')->orderBy('id', 'desc')->first();
+        $shang['url']= '/'.@$shang['id'].'.html';
+        $shang['title']=  \Hyperf\Utils\Str::limit(@$shang['title']?:' ', 20, '...');
+        $xia = Topic::query()->where([['id', '>', $topic_id], ['status', 'publish']])->select('title', 'id')->orderBy('id', 'asc')->first();
+        $xia['url']= '/'.@$xia['id'].'.html';
+        $xia['title']=  \Hyperf\Utils\Str::limit(@$xia['title']?:' ', 20, '...');
+        return json_api(200, true, ['msg' => '获取成功', 'result' => ['shang' => $shang, 'xia' => $xia]]);
+    }
 }

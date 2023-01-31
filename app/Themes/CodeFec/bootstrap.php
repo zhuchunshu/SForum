@@ -8,9 +8,9 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
-Itf()->add('ui-topic-create-comment-before-hook', 1, [
+Itf()->add('ui-topic-comment-before-hook', 1, [
     'enable' => (function () {
         return true;
     }),
-    'view' => 'App::extends.widgets.next_comment',
+    'view' => 'App::topic.show.include.lfpage',
 ]);
