@@ -148,17 +148,15 @@ class TagsController
             'user_id' => auth()->id(),
         ]);
         if (get_options('topic_create_tag_ex', 'false') === 'true') {
-            $mail = Email();
             $url = url('/admin/topic/tag/jobs');
-            go(function () use ($mail, $url) {
+            go(function () use ($url) {
                 foreach (AdminUser::query()->get() as $user) {
-                    $mail->addAddress($user->email);
-                    $mail->Subject = '【' . get_options('web_name') . '】 有用户申请创建了标签，需要你审核';
-                    $mail->Body = <<<HTML
+                    $Subject = '【' . get_options('web_name') . '】 有用户申请创建了标签，需要你审核';
+                    $Body = <<<HTML
 <h3>标题: 有用户申请创建了标签，需要你审核</h3>
 <p>链接: <a href="{$url}">{$url}</a></p>
 HTML;
-                    $mail->send();
+                    Email()->send($user->email,$Subject,$Body);
                 }
             });
         }

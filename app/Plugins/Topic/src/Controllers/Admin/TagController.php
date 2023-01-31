@@ -152,17 +152,15 @@ class TagController
             'status' => null,
         ]);
         $user = TopicTag::query()->find($id)->user;
-        $mail = Email();
         $url = url('/tags/' . $id . '.html');
         // 判断用户是否愿意接收通知
-        go(function () use ($mail, $url, $user) {
-            $mail->addAddress($user->email);
-            $mail->Subject = '【' . get_options('web_name') . '】 你的标签创建申请已审核通过';
-            $mail->Body = <<<HTML
+        go(function () use ($url, $user) {
+            $Subject = '【' . get_options('web_name') . '】 你的标签创建申请已审核通过';
+            $Body = <<<HTML
 <h3>标题: 你的标签创建申请已审核通过,现在可以使用啦</h3>
 <p>链接: <a href="{$url}">{$url}</a></p>
 HTML;
-            $mail->send();
+            Email()->send($user->email, $Subject, $Body);
         });
         return Json_Api(200, true, ['msg' => '修改成功!']);
     }
@@ -181,19 +179,17 @@ HTML;
             return Json_Api(403, false, ['msg' => 'id为' . $id . '的标签不存在']);
         }
         $user = TopicTag::query()->where('status', '待审核')->find($id)->user;
-        $mail = Email();
         $url = url('/tags');
         // 判断用户是否愿意接收通知
         $content = request()->input('content', '无理由');
-        go(function () use ($mail, $url, $user, $content) {
-            $mail->addAddress($user->email);
-            $mail->Subject = '【' . get_options('web_name') . '】 你的标签创建申请已被驳回';
-            $mail->Body = <<<HTML
+        go(function () use ($url, $user, $content) {
+            $Subject = '【' . get_options('web_name') . '】 你的标签创建申请已被驳回';
+            $Body = <<<HTML
 <h3>标题: 你的标签创建申请已被驳回</h3>
 <p>驳回理由:{$content}</p>
 <p>链接: <a href="{$url}">{$url}</a></p>
 HTML;
-            $mail->send();
+            Email()->send($user->email, $Subject, $Body);
         });
         TopicTag::query()->where('status', '待审核')->where('id', $id)->delete();
         return Json_Api(200, true, ['msg' => '修改成功!']);

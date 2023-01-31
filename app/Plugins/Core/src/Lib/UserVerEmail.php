@@ -52,19 +52,16 @@ class UserVerEmail
 
     public function send($id)
     {
-        $data = User::query()->where('id', $id)->first();
+        $data = User::find($id);
         $username = $data->username;
         $email = $data->email;
         $captcha = $this->make();
-        $mail = Email();
-        go(function () use ($mail, $email, $captcha, $username) {
-            $mail->addAddress($email);
-            $mail->Subject = '【' . get_options('web_name') . '】请查看你的邮箱验证码';
-            $mail->Body = <<<HTML
+        go(function () use ($email, $captcha, $username) {
+            $body = <<<HTML
 你好 {$username},<br>
 你的邮箱验证码是:{$captcha}
 HTML;
-            $mail->send();
+            Email()->send($email, '【' . get_options('web_name') . '】请查看你的邮箱验证码', $body);
         });
         return $captcha;
     }

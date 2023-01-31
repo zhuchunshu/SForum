@@ -146,6 +146,8 @@ menu()->add(504, [
 </svg>',
     'parent_id' => 5,
 ]);
+
+
 menu()->add(522, [
     'url' => '/admin/server/backup',
     'name' => '备份',

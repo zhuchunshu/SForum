@@ -10,6 +10,11 @@
         }
     ],
     "require": {
-        "yurunsoft/phpmailer-swoole":"^1.0"
+        "yurunsoft/phpmailer-swoole":"^1.0",
+        "alibabacloud/dm-20151123": "1.0.x"
+    }
+    ,
+    "require-dev": {
+        "roave/security-advisories": "dev-latest"
     }
 }

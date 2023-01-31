@@ -91,8 +91,8 @@
                         <div class="card-title">通知设置</div>
                         <div class="mb-3">
                             <label class="form-check form-switch">
-                                <input name="email" class="form-check-input" type="checkbox" {{user_notice()->checked("email",auth()->id())}}>
-                                <span class="form-check-label">@if(get_options('user_email_noticed_on','false')==="true")不接收邮件通知@else接收邮件通知@endif</span>
+                                <input name="email" class="form-check-input" type="checkbox" @if((string)get_user_settings(auth()->id(), 'noticed')==="1") {{"checked"}} @endif>
+                                <span class="form-check-label">@if(get_options('user_email_noticed_on','false')==="true")接收邮件通知@else不接收邮件通知@endif</span>
                             </label>
                         </div>
                         <div class="mb-3">

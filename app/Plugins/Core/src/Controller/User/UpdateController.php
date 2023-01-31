@@ -70,15 +70,13 @@ class UpdateController
         $user = auth()->data();
         go(static function () use ($data, $user) {
             $url = url('/user/myUpdate/ConfirmPassword/' . $data->id . '/' . $data->hash);
-            $mail = Email();
-            $mail->addAddress($user->email);
-            $mail->Subject = '【' . get_options('web_name') . '】修改密码确认';
-            $mail->Body = <<<HTML
+            $Subject = '【' . get_options('web_name') . '】修改密码确认';
+            $Body = <<<HTML
 你好 {$user->username},<br>
 你在本网站修改了用户密码,安全起见点击以下链接确认修改:<br>
 <a href="{$url}">{$url}</a>
 HTML;
-            $mail->send();
+            Email()->send($user->email, $Subject, $Body);
         });
         return redirect()->url('/user/setting')->with('success', '修改密码邮件已发送至你的邮箱')->go();
     }
@@ -159,13 +157,16 @@ HTML;
     #[PostMapping(path: '/user/myUpdate/noticed')]
     public function update_noticed()
     {
-        $data = request()->all();
         $user_id = auth()->id();
-        $arr = [];
-        foreach ($data as $key => $value) {
-            $arr[$key] = $value;
+        if (get_user_settings($user_id, 'noticed', '0') === '1') {
+            set_user_settings($user_id, [
+                'noticed' => '0',
+            ]);
+        } else {
+            set_user_settings($user_id, [
+                'noticed' => '1',
+            ]);
         }
-        user_notice()->update($user_id, $arr);
         return redirect()->url('/user/setting')->with('success', '更新成功!')->go();
     }
 

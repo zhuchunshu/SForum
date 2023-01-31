@@ -42,7 +42,7 @@ class UserController
     #[GetMapping(path: '/forgot-password')]
     public function forgot_password(): \Psr\Http\Message\ResponseInterface
     {
-        return view('App::user.sign', ['login' => false,'title' => '找回密码', 'view' => 'App::user.forgot_password']);
+        return view('App::user.sign', ['login' => false, 'title' => '找回密码', 'view' => 'App::user.forgot_password']);
     }
 
     #[PostMapping(path: '/forgot-password')]
@@ -86,19 +86,17 @@ class UserController
             return Json_Api(403, false, ['msg' => '验证码错误!']);
         }
         // 生成验证码
-        $code = (string)random_int(100000,999999);
+        $code = (string) random_int(100000, 999999);
         cache()->set('forgot-password.' . $code, $email, 600);
         // 发送邮件
-        $mail = Email();
-        go(function () use ($email, $code, $mail) {
-            $mail->addAddress($email);
-            $mail->Subject = '【' . get_options('web_name') . '】 请查看你的验证码!';
-            $mail->Body = <<<HTML
+        go(function () use ($email, $code) {
+            $Subject = '【' . get_options('web_name') . '】 请查看你的验证码!';
+            $Body = <<<HTML
 <h3>你正在尝试找回密码</h3>
 <p>验证码为: <code>{$code}</code> </p>
 <p>有效期 10分钟</p>
 HTML;
-            $mail->send();
+            Email()->send($email, $Subject, $Body);
         });
         return Json_Api(200, true, ['msg' => '已发送验证码!']);
     }
@@ -135,7 +133,7 @@ HTML;
         if (get_options('core_user_reg_switch', '开启') === '关闭') {
             return admin_abort('注册功能已关闭', 403);
         }
-        return view('App::user.sign', ['login' => false,'register' => true,'title' => '注册', 'view' => 'App::user.register']);
+        return view('App::user.sign', ['login' => false, 'register' => true, 'title' => '注册', 'view' => 'App::user.register']);
     }
 
     #[PostMapping(path: '/register')]

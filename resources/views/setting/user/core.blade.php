@@ -69,7 +69,7 @@
         <div class="col-3">
             <label class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" v-model="data.user_email_noticed_on">
-                <span class="form-check-label">开启所有用户邮件通知功能(需用户自行手动关闭)</span>
+                <span class="form-check-label">关闭所有用户邮件通知功能(需用户自行手动开启)</span>
             </label>
         </div>
 

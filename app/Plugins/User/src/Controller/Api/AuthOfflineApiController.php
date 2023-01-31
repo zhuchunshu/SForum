@@ -65,16 +65,14 @@ class AuthOfflineApiController
         $username = auth()->data()->username;
         $email = auth()->data()->email;
         $captcha = $this->ver_code($token);
-        $mail = Email();
-        go(function () use ($mail, $email, $captcha, $username, $token) {
-            $mail->addAddress($email);
-            $mail->Subject = '【' . get_options('web_name') . '】请查看你的验证码';
-            $mail->Body = <<<HTML
+        go(function () use ($email, $captcha, $username, $token) {
+            $Subject = '【' . get_options('web_name') . '】请查看你的验证码';
+            $Body = <<<HTML
 你好 {$username},<br>
 Token:{$token},<br>
 验证码:{$captcha}<br><br>10分钟内有效
 HTML;
-            $mail->send();
+            Email()->send($email, $Subject, $Body);
         });
     }
 }

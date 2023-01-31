@@ -39,7 +39,7 @@ use Swoole\Coroutine\System;
 function public_path($path = ''): string
 {
     if ($path !== '') {
-        return config('server.settings.document_root') . '/' . ltrim($path,'/');
+        return config('server.settings.document_root') . '/' . ltrim($path, '/');
     }
     return config('server.settings.document_root');
 }
@@ -239,7 +239,6 @@ if (! function_exists('Json_Api')) {
         ];
     }
 }
-
 
 if (! function_exists('json_api')) {
     function json_api(int $code = 200, bool $success = true, object | array | string $result = []): array
@@ -470,6 +469,19 @@ if (! function_exists('get_options')) {
             cache()->set('admin.options.' . $name, @AdminOption::query()->where('name', $name)->first()->value);
         }
         return core_default(cache()->get('admin.options.' . $name), $default);
+    }
+}
+
+if (! function_exists('set_options')) {
+    function set_options($name, $value): void
+    {
+        if (AdminOption::query()->where('name', $name)->exists()) {
+            AdminOption::query()->where('name', $name)->update(['value' => $value]);
+        } else {
+            AdminOption::query()->create(['name' => $name, 'value' => $value]);
+        }
+        cache()->set('admin.options.' . $name, $value);
+        options_clear();
     }
 }
 
@@ -788,7 +800,6 @@ if (! function_exists('get_client_ip_data')) {
     /**
      * 获取ip 信息.
      * @param null $ip
-     * @return array
      * @throws \Gai871013\IpLocation\Exceptions\InvalidArgumentException
      */
     function get_client_ip_data($ip = null): array
@@ -825,14 +836,14 @@ if (! function_exists('remove_bbCode')) {
 if (! function_exists('content_brief')) {
     function content_brief($content, string | int $len = 100): string
     {
-        if(@!$content){
+        if (@! $content) {
             return $content;
         }
         $len = (int) $len;
         // hook post_brief_start.php
         $content = strip_tags($content);
         $content = htmlspecialchars($content);
-        $content = remove_bbCode($content)?:'';
+        $content = remove_bbCode($content) ?: '';
         $content = \Hyperf\Utils\Str::limit($content, $len);
         return htmlspecialchars_decode($content, ENT_QUOTES);
     }
