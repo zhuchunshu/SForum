@@ -33,7 +33,6 @@
                                         <a href="/users/group/{{$user->class_id}}.html" class="badge badge-outline"
                                            style="color: {{$user->Class->color}}">{{$user->Class->name}}</a>
                                     </div>
-                                    <div class="text-muted"> @if($user->options->qianming!=='no bio'){{$user->options->qianming}}@else{{__("user.no bio")}} @endif</div>
                                 </div>
                             </div>
                         </div>
@@ -60,6 +59,8 @@
                             </div>
                         </div>
                     </div>
+                    <div class="text-muted"> @if($user->options->qianming!=='no bio'){{$user->options->qianming}}@else{{__("user.no bio")}} @endif</div>
+
                 </div>
             </div>
         </div>
