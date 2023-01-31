@@ -6,7 +6,7 @@
                     <a class="avatar" href="/users/{{ $data->user->id }}.html"
                        style="background-image: url({{ super_avatar($data->user) }})"></a>
                 </div>
-                <div class="col">
+                <div class="col" style="margin-left: -10px">
                     <div class="topic-author-name">
                         {!! u_username($data->user,['topic' => true,'extends' => true,'class' => ['text-reset']]) !!}
                         <a data-bs-toggle="tooltip" data-bs-placement="right" title="{{$data->user->class->name}}" href="/users/group/{{$data->user->class->id}}.html" style="color:{{$data->user->class->color}}">

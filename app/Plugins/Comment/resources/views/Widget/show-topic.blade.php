@@ -96,7 +96,7 @@
                                                         </span></a>
                                                         </div>
                                                         {{--                                            作者信息--}}
-                                                        <div class="col text-truncate my-0">
+                                                        <div class="col text-truncate my-0" style="margin-left: -10px">
                                                             {!! u_username($value->user,['extends' => true,'comment' => true,'class' =>['text-body','text-truncate'],'style' => 'white-space:nowrap;']) !!}
                                                             @if($value->optimal) <span
                                                                     class="badge badge-pill bg-teal">{{__("topic.comment.best reply")}}</span> @endif

@@ -7,7 +7,7 @@
                 </a>
 
             </div>
-            <div class="col">
+            <div class="col" style="margin-left: -8px">
                 <div class="row">
                     <div class="col-md-12">
                         <div class="row">
