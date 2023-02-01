@@ -10,10 +10,23 @@ declare(strict_types=1);
  */
 namespace App\Plugins\User\src\Controller\Admin;
 
+use App\Plugins\Comment\src\Model\TopicComment;
+use App\Plugins\Core\src\Models\PayAmountRecord;
+use App\Plugins\Core\src\Models\PayOrder;
+use App\Plugins\Core\src\Models\Post;
+use App\Plugins\Core\src\Models\Report;
+use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\User\src\Lib\UserAuth;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserClass as Uc;
+use App\Plugins\User\src\Models\UserFans;
+use App\Plugins\User\src\Models\UsersAuth;
+use App\Plugins\User\src\Models\UsersCollection;
+use App\Plugins\User\src\Models\UsersNotice;
 use App\Plugins\User\src\Models\UsersOption;
+use App\Plugins\User\src\Models\UsersPm;
+use App\Plugins\User\src\Models\UsersSetting;
+use App\Plugins\User\src\Models\UserUpload;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
@@ -159,6 +172,9 @@ class UserController
         return Json_Api(200, true, ['msg' => '更新成功!']);
     }
 
+    /**
+     * 删除用户
+     */
     #[PostMapping(path: '/admin/users/remove')]
     public function remove_user()
     {
@@ -169,6 +185,38 @@ class UserController
         if (! $user_id) {
             return Json_Api(403, false, ['msg' => '请求参数不完整']);
         }
+        go(function ()use($user_id){
+           // 清理用户帖子数据
+            Topic::query()->where('user_id', $user_id)->delete();
+            // 清理用户评论数据
+            TopicComment::query()->where('user_id', $user_id)->delete();
+            // 清理用户Posts数据
+            Post::query()->where('user_id', $user_id)->delete();
+            //清理用户粉丝数据
+            UserFans::query()->where('user_id', $user_id)->delete();
+            UserFans::query()->where('fans_id', $user_id)->delete();
+            // 清理用户设置数据
+            UsersSetting::query()->where('user_id', $user_id)->delete();
+            // 清理用户通知数据
+            UsersNotice::query()->where('user_id', $user_id)->delete();
+            // 清理用户收藏数据
+            UsersCollection::query()->where('user_id', $user_id)->delete();
+            // 清理用户消息数据
+            UsersPm::query()->where('from_id', $user_id)->orWhere('to_id',$user_id)->delete();
+            // 清理用户options数据
+            $options_id = User::find($user_id)->options_id;
+            UsersOption::where('id', $options_id)->delete();
+            // 清理用户auth数据
+            UsersAuth::query()->where('user_id', $user_id)->delete();
+            // 删除用户上传的文件
+            UserUpload::query()->where('user_id', $user_id)->delete();
+            // 删除用户举报
+            Report::query()->where('user_id', $user_id)->delete();
+            // 删除用户订单
+            PayOrder::query()->where('user_id', $user_id)->delete();
+            // 删除用户财富记录
+            PayAmountRecord::where('user_id', $user_id)->delete();
+        });
         User::query()->where('id', $user_id)->delete();
         (new UserAuth())->destroy($user_id);
         return Json_Api(200, true, ['msg' => '已删除!']);
