@@ -3,66 +3,68 @@
 @section('title',__("app.search result",['search'=>"「".$q."]"]))
 @section('description',__("app.search result",['search'=>"「".$q."]"]))
 
+@section('header')
+    <div class="page-wrapper">
+        <div class="container-xl">
+            <!-- Page title -->
+            <div class="page-header d-print-none">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <!-- Page pre-title -->
+                        <div class="page-pretitle">
+                            Overview
+                        </div>
+                        <h2 class="page-title">
+                            {{ __("app.search result",['search'=>"「".$q."]"]) }}
+                        </h2>
+                    </div>
+
+
+                </div>
+            </div>
+        </div>
+    </div>
+@endsection
+
 @section('content')
 
     <div class="row row-cards justify-content-center">
         <div class="col-md-12">
             <div class="row row-cards justify-content-center">
                 <div class="col-lg-9">
-                    <div class="row row-cards justify-content-center">
-                        @if($page->count())
-                            @foreach($page as $data)
-                                <div class="col-md-12">
-                                    <div class="border-0 card card-body">
-                                        <div class="row">
-                                            <div class="col-md-12">
-                                                <div class="row">
-                                                    <div class="col-auto">
-                                                        <a href="/users/{{$data->user->id}}.html" class="avatar"
-                                                           style="background-image: url({{super_avatar($data->user)}})"></a>
-                                                    </div>
-                                                    <div class="col">
-                                                        <a href="/users/{{$data->user->id}}.html"
-                                                           style="margin-bottom:0;text-decoration:none;"
-                                                           class="card-title text-reset">{{$data->user->username}}</a>
-                                                        <div style="margin-top:1px">{{__("app.Published on")}}
-                                                            :{{$data->created_at}}</div>
-                                                    </div>
-                                                    <div class="col-auto">
-                                                        @if($data->essence>0)
-                                                            <div class="ribbon bg-green text-h3">
-                                                                {{__("app.essence")}}
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-12">
-                                                @if($data->comment_id)
-                                                    <a href="{{$data->comments->topic->id}}.html" class="text-reset">
-                                                        @endif
-                                                        @if($data->topic_id)
-                                                            <a href="{{$data->topic->id}}.html" class="text-reset">
-                                                                @endif
-                                                                <div class="row">
-                                                                    <div class="col-md-12 markdown home-article">
-                                                                        <span class="home-summary">{!! content_brief($data->content,get_options("topic_brief_len",250))?:"无内容" !!}</span>
-                                                                    </div>
-                                                                </div>
-                                                            </a>
-                                            </div>
-                                        </div>
+                    <div class="row row-cards">
+                        @foreach($page as $data)
+                            <article class="col-md-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <a href="{{$data['url']}}" class="card-title">
+                                            {{$data['title']}}
+                                        </a>
+                                    </div>
+                                    <div class="card-body markdown">
+                                        {!! $data['content'] !!}
+                                    </div>
+                                    <div class="card-footer">
+                                        <ul style="margin-left: -20px">
+                                            <li style="float: left;list-style: outside none none;padding: 3px;line-height: 1.6">
+                                                <a href="{{$data['user']['url']}}">{{$data['user']['name']}}</a>
+                                            </li>
+                                            <li style="float: left;list-style: outside none none;padding: 3px;line-height: 1.6">
+                                                <a href="{{$data['tag']['url']}}">{{$data['tag']['name']}}</a>
+                                            </li>
+                                            <li style="float: left;list-style: outside none none;padding: 3px;line-height: 1.6">
+                                                <span class="text-muted">{{format_date($data['created_at'])}}</span>
+                                            </li>
+                                        </ul>
                                     </div>
                                 </div>
-                            @endforeach
-                        @else
-                            <div class="col-md-12">
-                                <div class="border-0 card card-body">
-                                    <div class="text-center card-title">{{__("app.No more results")}}</div>
-                                </div>
-                            </div>
+                            </article>
+                        @endforeach
+                    </div>
+                    <div class="mt-3">
+                        @if($page->hasPages())
+                            {!! make_page($page) !!}
                         @endif
-                        {!! make_page($page) !!}
                     </div>
                 </div>
                 <div class="col-lg-3">
