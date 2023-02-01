@@ -1,78 +1,76 @@
-@extends("app")
-
-@section('title',"文件管理")
-
-
+@extends('app')
+@section('title','存储服务配置')
 @section('content')
-    <div class="col-md-12">
-        <div class="border-0 card">
-            <div class="card-body">
-                <h3 class="card-title">用户文件管理</h3>
-                <div class="row">
-                    <div class="col"></div>
-
-                </div>
-
-                <div class="table-responsive" id="vue-users-files">
-                    <table
-                            class="table table-vcenter table-nowrap">
-                        <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>类型</th>
-                            <th>路径</th>
-                            <th>文件名</th>
-                            <th>url</th>
-                            <th>创建时间</th>
-                            <th class="w-1">文件大小</th>
-                            <th class="w-1"></th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @if($page->count())
-                            @foreach($page as $file)
-                                <tr>
-                                    <td>
-                                        {{$file['id']}}
-                                    </td>
-                                    <td>
-                                        <span class="avatar bg-blue-lt">{{$file['extension']}}</span>
-                                    </td>
-                                    <td @@click="alert('{{$file['path']}}')" class="text-truncate"
-                                        style="max-width: 100px">
-                                        {{($file['path'])}}
-                                    </td>
-                                    <td @@click="alert('{{$file['filename']}}')" data-bs-toggle="tooltip"
-                                        data-bs-placement="top" title="{{$file['filename']}}" class="text-truncate"
-                                        style="max-width: 100px">{{$file['filename']}}</td>
-                                    <td class="text-truncate" style="max-width: 100px"><a
-                                                href="{{$file['url']}}">{{$file['url']}}</a></td>
-                                    <td>{{$file['date']}}</td>
-                                    <td>{{round($file['size']/1024,2)}}KB</td>
-                                    <td><a @@click="download('{{$file['url']}}')" href="#">下载</a></td>
-                                </tr>
-                            @endforeach
+    <div class="row row-cards">
+        <div class="col-12">
+            <form action="" method="POST">
+                <x-csrf/>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">存储服务接口配置</h3>
+                    </div>
+                    <div class="card-body">
+                        @if(count((new \App\Plugins\Core\src\Service\FileStoreService())->get_services()))
+                            <div class="card">
+                                <div class="card-header">
+                                    <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs">
+                                        <li class="nav-item">
+                                            <a href="#tabs-master" class="nav-link active" data-bs-toggle="tab"><!-- Download SVG icon from http://tabler-icons.io/i/home -->
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-aperture" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                    <circle cx="12" cy="12" r="9"></circle>
+                                                    <path d="M3.6 15h10.55"></path>
+                                                    <path d="M6.551 4.938l3.26 10.034"></path>
+                                                    <path d="M17.032 4.636l-8.535 6.201"></path>
+                                                    <path d="M20.559 14.51l-8.535 -6.201"></path>
+                                                    <path d="M12.257 20.916l3.261 -10.034"></path>
+                                                </svg>主要</a>
+                                        </li>
+                                        @foreach((new \App\Plugins\Core\src\Service\FileStoreService())->get_services() as $key=>$data)
+                                            <li class="nav-item">
+                                                <a href="#tabs-interface-{{$key}}" class="nav-link" data-bs-toggle="tab"><!-- Download SVG icon from http://tabler-icons.io/i/user -->
+                                                    {!! $data['name'] !!}
+                                                </a>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                                <div class="card-body">
+                                    <div class="tab-content">
+                                        <div class="tab-pane active show" id="tabs-master">
+                                            @include('User::Admin.FileStore.master')
+                                        </div>
+                                        @foreach((new \App\Plugins\Core\src\Service\FileStoreService())->get_services() as $key=>$data)
+                                            <div class="tab-pane" id="tabs-interface-{{$key}}">
+                                                @include($data['view'])
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
                         @else
-                            <tr>
-                                <td>无更多结果</td>
-                                <td>无更多结果</td>
-                                <td>无更多结果</td>
-                                <td>无更多结果</td>
-                                <td>无更多结果</td>
-                                <td>无更多结果</td>
-                                <td>无更多结果</td>
-                                <td>无更多结果</td>
-                            </tr>
+                            <div class="empty">
+                                <div class="empty-header">403</div>
+                                <p class="empty-title">暂无接口</p>
+                                <p class="empty-subtitle text-muted">
+                                    暂无可用的发信服务接口，请尝试自己扩展或安装扩展插件
+                                </p>
+                            </div>
                         @endif
-                        </tbody>
-                    </table>
+                    </div>
+                    @if(count((new \App\Plugins\Core\src\Service\FileStoreService())->get_services()))
+                        <div class="card-footer">
+                            <div class="row">
+                                <div class="col"></div>
+                                <div class="col-auto">
+                                    <button class="btn btn-primary">保存</button>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 </div>
-            </div>
-            {!! make_page($page) !!}
+            </form>
         </div>
     </div>
-@endsection
 
-@section('scripts')
-    <script src="{{ mix("plugins/User/js/user.js") }}"></script>
 @endsection
