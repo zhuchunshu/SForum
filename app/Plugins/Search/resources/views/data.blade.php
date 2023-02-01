@@ -37,7 +37,7 @@
                             <article class="col-md-12">
                                 <div class="card">
                                     <div class="card-header">
-                                        <a href="{{$data['url']}}" class="card-title">
+                                        <a href="{{$data['url']}}" class="card-title link-primary">
                                             {{$data['title']}}
                                         </a>
                                     </div>
