@@ -26,3 +26,4 @@ node_modules
 /public/js/diy.js
 /app/CodeFec/storage
 /resources/views/customize/
+/app/CodeFec/Demo/

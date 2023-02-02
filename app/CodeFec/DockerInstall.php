@@ -130,24 +130,6 @@ class DockerInstall
         $exitCode = $application->run($input, $output);
 
         $this->command->info('数据库迁移成功!');
-
-        // 数据填充
-        $command = 'db:seed --force';
-
-        $params = ['command' => $command];
-
-        $input = new ArrayInput($params);
-        $output = new NullOutput();
-
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
-
-        /** @var Application $application */
-        $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
-        $application->setAutoExit(false);
-
-        $exitCode = $application->run($input, $output);
-
-        $this->command->info('数据库填充成功!');
     }
 
     // 升级v2

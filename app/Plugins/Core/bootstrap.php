@@ -48,10 +48,7 @@ emoji_add('小黄脸', plugin_path('Core/resources/assets/emoji/小黄脸.json')
 emoji_add('小电视', plugin_path('Core/resources/assets/emoji/tv_小电视.json'), 'image');
 emoji_add('热词系列', plugin_path('Core/resources/assets/emoji/热词系列一.json'), 'image');
 emoji_add('斗图', plugin_path('Core/resources/assets/emoji/斗图.json'), 'image', true);
-emoji_add('斗图2', plugin_path('Core/resources/assets/emoji/斗图.json'), 'image', true);
-emoji_add('斗图3', plugin_path('Core/resources/assets/emoji/斗图.json'), 'image', true);
-emoji_add('斗图4', plugin_path('Core/resources/assets/emoji/斗图.json'), 'image', true);
-emoji_add('斗图5', plugin_path('Core/resources/assets/emoji/斗图.json'), 'image', true);
+
 
 Itf()->add('ui-home-tabs-dropdown', 0, [
     'enable' => (function () {
