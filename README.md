@@ -1,24 +1,12 @@
-SForum是一个基于php开发的功能丰富、性能好、速度快的中文论坛程序
+高性能组件化的论坛程序✨
 
-### 特点
+官网:[https://www.sforum.cn](https://www.sforum.cn)，论坛:[https://www.runpod.cn](https://www.runpod.cn)
 
-免费、年轻化、性能强、速度快、易上手、组件化、功能丰富
-
-### 文档
-
-使用文档: [https://www.runpod.cn/docs/1](https://forum.runpod.cn/docs/1)
-
-开发文档:[https://www.runpod.cn/docs/3](https://forum.runpod.cn/docs/3)
-
-### 开源地址
-
-[https://github.com/zhuchunshu/SForum](https://github.com/zhuchunshu/SForum)
-
-### QQ交流群
+**QQ交流群**
 
 798695907
 
-### 截图
+**截图**
 
 注册
 
