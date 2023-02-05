@@ -107,11 +107,11 @@ Itf()->add('topic-create-data', 0, [
 
 // topic create -  editor plugins
 
-Itf()->add('topic-create-editor-plugins', 0, ['emoticons','importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'media', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
-Itf()->add('topic-edit-editor-plugins', 0, ['emoticons','importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'media', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
+Itf()->add('topic-create-editor-plugins', 0, ['emoticons','importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
+Itf()->add('topic-edit-editor-plugins', 0, ['emoticons','importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
 
-Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|','emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
-Itf()->add('topic-edit-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '｜','emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
+Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|','emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
+Itf()->add('topic-edit-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '｜','emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
 
 $editor_menu = [
     'file' => [
@@ -163,7 +163,6 @@ $editor_menu = [
         'items' => [
             'image',
             'link',
-            'media',
             'emoticons',
             'addcomment',
             'pageembed',

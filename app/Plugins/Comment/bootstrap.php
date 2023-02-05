@@ -12,11 +12,11 @@ Itf()->add('comment-topic-edit-editor-external_plugins', 0, [
 ]);
 
 
-Itf()->add('comment-topic-create-editor-plugins', 0, ['emoticons','importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'media', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
-Itf()->add('comment-topic-edit-editor-plugins', 0, ['emoticons','importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'media', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
+Itf()->add('comment-topic-create-editor-plugins', 0, ['emoticons','importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
+Itf()->add('comment-topic-edit-editor-plugins', 0, ['emoticons','importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
 
-Itf()->add('comment-topic-create-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|','emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
-Itf()->add('comment-topic-edit-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|','emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'media', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
+Itf()->add('comment-topic-create-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|','emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
+Itf()->add('comment-topic-edit-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|','emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
 
 
 $editor_menu =[
@@ -69,7 +69,6 @@ $editor_menu =[
         'items' => [
             'image',
             'link',
-            'media',
             'addcomment',
             'pageembed',
             'template',
