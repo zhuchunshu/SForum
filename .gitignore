@@ -1,6 +1,5 @@
 .buildpath
 .settings/
-build.sh
 .project
 *.patch
 .idea/
