@@ -56,7 +56,7 @@ class SearchController
             ->get(['user_id', 'topic_id', 'content', 'created_at', 'id']);
 
         foreach ($_topic as $topic) {
-            $topics[] = [
+            $item = [
                 'user' => [
                     'name' => $topic->user->username,
                     'url' => '/users/' . $topic->user->id . '.html',
@@ -70,6 +70,11 @@ class SearchController
                 'content' => @str_limit(remove_bbCode(strip_tags($topic->content) ?: '暂无内容') ?: '暂无内容', 100),
                 'url' => '/' . $topic->topic_id . '.html',
             ];
+            if (in_array($item, $topics) || !Topic::where('id',$topic->topic_id)->exists()) {
+                continue;
+            }
+
+            $topics[] = $item;
         }
 
         $page = $this->page($topics);
