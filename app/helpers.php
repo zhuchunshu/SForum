@@ -829,7 +829,7 @@ if (! function_exists('remove_bbCode')) {
         $content = preg_replace_callback($pattern, function ($match) {
             return '';
         }, $content);
-        return str_replace(' ', '', $content);
+        return trim($content?:' ');
     }
 }
 
