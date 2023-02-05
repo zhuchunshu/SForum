@@ -918,7 +918,7 @@ if (! function_exists('system_clear_cache')) {
     function system_clear_cache()
     {
         removeFiles(BASE_PATH . '/runtime/container', BASE_PATH . '/runtime/view');
-        \Swoole\Coroutine\System::exec('php CodeFec && php CodeFec CodeFec:view-engine-cache');
+        \Swoole\Coroutine\System::exec('php CodeFec CodeFec:view-engine-cache && php CodeFec');
     }
 }
 
