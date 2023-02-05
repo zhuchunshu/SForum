@@ -1,0 +1,1 @@
+ docker buildx build --platform linux/arm,linux/arm64,linux/amd64,darwin,windows/amd64 -t ghcr.io/zhuchunshu/sforum . --push
