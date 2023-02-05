@@ -1,11 +1,20 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/SForum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
+ */
 namespace App\CodeFec;
 
-use Gregwar\Captcha\CaptchaBuilder;
-use Gregwar\Captcha\PhraseBuilder;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
+use Hyperf\RateLimit\Annotation\RateLimit;
+use Hyperf\Utils\ApplicationContext;
+use Irooit\Captcha\CaptchaFactory;
 
 #[Controller]
 class Captcha
@@ -15,37 +24,30 @@ class Captcha
     {
         return '/captcha';
     }
-    
-    #[GetMapping(path:"/captcha")]
+
+    #[GetMapping(path: '/captcha')]
+    #[RateLimit(create: 1, capacity: 1, consume: 1)]
     public function build()
     {
-        $phraseBuilder = new PhraseBuilder(5, '0123456789');
-        $captcha = new CaptchaBuilder(null, $phraseBuilder);
-        $captcha->build();
-        // 将验证码的值存储到session中
-        session()->set('captcha', strtolower($captcha->getPhrase()));
-        // 获得验证码图片二进制数据
-        $img_content = $captcha->get();
-        return response()->raw($img_content);
+        $captchaFactory = ApplicationContext::getContainer()->get(CaptchaFactory::class);
+        $captcha = $captchaFactory->make('default',true);
+        $image = $captcha['img'];
+        session()->set('captcha', $captcha['key']);
+        $image = base64_decode(explode('base64,', $image)[1]);
+        return response()->raw($image)->withHeader('Content-Type', 'image/png');
     }
-    
+
     public function inline(): string
     {
-        $phraseBuilder = new PhraseBuilder(5, '0123456789');
-        $captcha = new CaptchaBuilder(null, $phraseBuilder);
-        $captcha->build();
-        // 将验证码的值存储到session中
-        session()->set('captcha', strtolower($captcha->getPhrase()));
-        // 获得验证码图片二进制数据
-        return $captcha->inline();
+        $captchaFactory = ApplicationContext::getContainer()->get(CaptchaFactory::class);
+        $captcha = $captchaFactory->make('default',true);
+        session()->set('captcha', $captcha['key']);
+        return $captcha['img'];
     }
-    
+
     public function check($captcha): bool
     {
-        $result = (string)strtolower($captcha) === (string)session()->get('captcha');
-        if ($result) {
-            session()->remove('captcha');
-        }
-        return $result;
+        $captchaFactory = ApplicationContext::getContainer()->get(CaptchaFactory::class);
+        return $captchaFactory->validate($captcha, session()->get('captcha'));
     }
 }
