@@ -10,6 +10,7 @@ if(document.getElementById("app-install")){
                 progress:25,
                 step:1,
                 tips:null,
+                get_install_lock:false,
                 install_lock:0,
                 env:null,
                 email:null,
@@ -27,6 +28,7 @@ if(document.getElementById("app-install")){
                     this.step = data.step;
                     this.tips = data.tips;
                     this.install_lock = data.install_lock;
+                    this.get_install_lock = true;
                 })
                 axios.post("/install/env",{
                     _token:csrf_token

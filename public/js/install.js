@@ -2543,6 +2543,7 @@ if (document.getElementById("app-install")) {
         progress: 25,
         step: 1,
         tips: null,
+        get_install_lock: false,
         install_lock: 0,
         env: null,
         email: null,
@@ -2562,6 +2563,7 @@ if (document.getElementById("app-install")) {
           _this.step = data.step;
           _this.tips = data.tips;
           _this.install_lock = data.install_lock;
+          _this.get_install_lock = true;
         });
         axios__WEBPACK_IMPORTED_MODULE_0___default().post("/install/env", {
           _token: csrf_token

@@ -52,7 +52,7 @@
                     </div>
                 </div>
                 <div class="col">
-                    <div class="btn-list justify-content-end">
+                    <div class="btn-list justify-content-end" v-if="install_lock">
                         <a  v-if="install_lock<5" href="#" @@click="next" class="btn btn-primary">
                             下一步
                         </a>
