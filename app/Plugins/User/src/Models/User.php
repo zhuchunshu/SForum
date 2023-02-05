@@ -25,6 +25,7 @@ use Qbhy\HyperfAuth\Authenticatable;
  * @property string $password
  * @property string $avatar
  * @property string $email_ver_time
+ * @property string $phone_ver_time
  * @property string $class_id
  * @property Carbon $created_at
  * @property Carbon $updated_at
