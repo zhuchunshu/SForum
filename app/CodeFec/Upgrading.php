@@ -94,6 +94,9 @@ class Upgrading
         file_put_contents(BASE_PATH . '/app/CodeFec/storage/update.lock', time());
         // 备份网站数据
         $this->command->info('开始备份网站数据，网站数据会存放在:' . BASE_PATH . "/runtime/backup/backup.zip 文件中\n");
+        if(file_exists( BASE_PATH . "/runtime/backup/backup.zip")){
+            $this->removeFiles(BASE_PATH . "/runtime/backup/backup.zip");
+        }
         backup();
         // 卸载自带组件
         $this->rmPlugins();
