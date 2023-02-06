@@ -32,7 +32,7 @@
         <div class="col-md-12">
             <div class="row row-cards justify-content-center">
                 <div class="col-lg-9">
-                    @if($page->hasPages())
+                    @if($page->count())
                         <div class="row row-cards">
                             @foreach($page as $data)
                                 <article class="col-md-12">
