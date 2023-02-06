@@ -14,7 +14,7 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
 use Hyperf\Utils\ApplicationContext;
-use Irooit\Captcha\CaptchaFactory;
+use Inkedus\Captcha\CaptchaFactory;
 
 #[Controller]
 class Captcha

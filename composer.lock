@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0f6c1867fde371e9c20ead3e465bc644",
+    "content-hash": "b0e180861a7123a160f9d1ef32db0eca",
     "packages": [
         {
             "name": "96qbhy/simple-jwt",
@@ -5060,69 +5060,6 @@
             "time": "2022-05-21T17:30:32+00:00"
         },
         {
-            "name": "irooit/hyperf-captcha",
-            "version": "1.0.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/irooit/hyperf-captcha.git",
-                "reference": "aef4af51253062cf66ddfd953a92b33e93034150"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/irooit/hyperf-captcha/zipball/aef4af51253062cf66ddfd953a92b33e93034150",
-                "reference": "aef4af51253062cf66ddfd953a92b33e93034150",
-                "shasum": ""
-            },
-            "require": {
-                "ext-fileinfo": "*",
-                "ext-swoole": ">=4.5",
-                "hyperf-ext/encryption": "2.2.*",
-                "hyperf/cache": "2.2.*",
-                "hyperf/di": "2.2.*",
-                "hyperf/framework": "2.2.*",
-                "hyperf/validation": "2.2.*",
-                "intervention/image": "^2.7",
-                "php": ">=7.3"
-            },
-            "require-dev": {
-                "friendsofphp/php-cs-fixer": "^3.0",
-                "mockery/mockery": "^1.0",
-                "phpstan/phpstan": "^0.12",
-                "phpunit/phpunit": ">=7.0",
-                "swoole/ide-helper": "^4.5",
-                "swow/swow": "dev-develop",
-                "symfony/var-dumper": "^5.1"
-            },
-            "type": "library",
-            "extra": {
-                "hyperf": {
-                    "config": "Irooit\\Captcha\\ConfigProvider"
-                },
-                "branch-alias": {
-                    "dev-master": "1.0.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Irooit\\Captcha\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "description": "A CAPTCHA package for Hyperf Framework",
-            "keywords": [
-                "hyperf",
-                "php"
-            ],
-            "support": {
-                "issues": "https://github.com/irooit/hyperf-captcha/issues",
-                "source": "https://github.com/irooit/hyperf-captcha/tree/1.0.2"
-            },
-            "time": "2021-11-25T16:52:07+00:00"
-        },
-        {
             "name": "jetbrains/phpstorm-stubs",
             "version": "v2021.3",
             "source": {
@@ -8527,16 +8464,16 @@
         },
         {
             "name": "tencentcloud/tencentcloud-sdk-php",
-            "version": "3.0.816",
+            "version": "3.0.817",
             "source": {
                 "type": "git",
                 "url": "https://github.com/TencentCloud/tencentcloud-sdk-php.git",
-                "reference": "3f36030ad649b7dba01b23b9495fd82adbdab7bf"
+                "reference": "2d84ea087e6c647b64d35f6ca0f0cc0712d9a60b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/TencentCloud/tencentcloud-sdk-php/zipball/3f36030ad649b7dba01b23b9495fd82adbdab7bf",
-                "reference": "3f36030ad649b7dba01b23b9495fd82adbdab7bf",
+                "url": "https://api.github.com/repos/TencentCloud/tencentcloud-sdk-php/zipball/2d84ea087e6c647b64d35f6ca0f0cc0712d9a60b",
+                "reference": "2d84ea087e6c647b64d35f6ca0f0cc0712d9a60b",
                 "shasum": ""
             },
             "require": {
@@ -8568,9 +8505,9 @@
             "homepage": "https://github.com/TencentCloud/tencentcloud-sdk-php",
             "support": {
                 "issues": "https://github.com/TencentCloud/tencentcloud-sdk-php/issues",
-                "source": "https://github.com/TencentCloud/tencentcloud-sdk-php/tree/3.0.816"
+                "source": "https://github.com/TencentCloud/tencentcloud-sdk-php/tree/3.0.817"
             },
-            "time": "2023-02-03T00:03:08+00:00"
+            "time": "2023-02-06T00:05:28+00:00"
         },
         {
             "name": "thunderer/shortcode",
@@ -9318,6 +9255,69 @@
                 "source": "https://github.com/zhuchunshu/hyperf-auth/tree/v2.2.3"
             },
             "time": "2023-01-08T08:22:24+00:00"
+        },
+        {
+            "name": "zhuchunshu/hyperf-captcha",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/zhuchunshu/hyperf-captcha.git",
+                "reference": "f868a66499772b2ea58b9ddceccb13f05527348d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/zhuchunshu/hyperf-captcha/zipball/f868a66499772b2ea58b9ddceccb13f05527348d",
+                "reference": "f868a66499772b2ea58b9ddceccb13f05527348d",
+                "shasum": ""
+            },
+            "require": {
+                "ext-fileinfo": "*",
+                "ext-swoole": ">=4.5",
+                "hyperf-ext/encryption": "2.2.*",
+                "hyperf/cache": "2.2.*",
+                "hyperf/di": "2.2.*",
+                "hyperf/framework": "2.2.*",
+                "hyperf/validation": "2.2.*",
+                "intervention/image": "^2.7",
+                "php": ">=7.3"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.0",
+                "mockery/mockery": "^1.0",
+                "phpstan/phpstan": "^0.12",
+                "phpunit/phpunit": ">=7.0",
+                "swoole/ide-helper": "^4.5",
+                "swow/swow": "dev-develop",
+                "symfony/var-dumper": "^5.1"
+            },
+            "type": "library",
+            "extra": {
+                "hyperf": {
+                    "config": "Inkedus\\Captcha\\ConfigProvider"
+                },
+                "branch-alias": {
+                    "dev-master": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Inkedus\\Captcha\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "A CAPTCHA package for Hyperf Framework",
+            "keywords": [
+                "hyperf",
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/zhuchunshu/hyperf-captcha/issues",
+                "source": "https://github.com/zhuchunshu/hyperf-captcha/tree/v1.0.0"
+            },
+            "time": "2023-02-06T11:25:54+00:00"
         },
         {
             "name": "zhuchunshu/hyperf-hashing",

@@ -45,7 +45,7 @@
         "hyperf/view": "2.2.*",
         "hyperf/view-engine": "2.2.*",
         "hyperf/websocket-server": "^2.2",
-        "irooit/hyperf-captcha": "^1.0",
+        "zhuchunshu/hyperf-captcha": "^1.0",
         "jetbrains/phpstorm-stubs": "^2021.1",
         "laravel/helpers": "^1.4",
         "opis/closure": "^3.6",
