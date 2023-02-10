@@ -53,9 +53,8 @@ class UserNotice
                 'action' => $action,
                 'status' => 'publish',
             ]);
+            $this->sendMail($user_id, $title, $action, $content);
         }
-
-        $this->sendMail($user_id, $title, $action, $content);
     }
 
     /**
@@ -80,8 +79,8 @@ class UserNotice
                     'action' => $action,
                     'status' => 'publish',
                 ]);
+                $this->sendMail($user_id, $title, $action, $content);
             }
-            $this->sendMail($user_id, $title, $action, $content);
         }
     }
 
