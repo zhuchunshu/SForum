@@ -62,6 +62,15 @@
                                                     width: '300px',
                                                     maxHeight: '250px',
                                                 });
+
+                                                var OwO_demo2 = new OwO({
+                                                    logo: '[OωO表情]',
+                                                    container: document.getElementById('create-comment-owo2'),
+                                                    target: document.getElementById('reply-comment-content'),
+                                                    api: '/api/core/OwO.json',
+                                                    width: '300px',
+                                                    maxHeight: '250px',
+                                                });
                                             </script>
                                         @endif
                                     </div>
