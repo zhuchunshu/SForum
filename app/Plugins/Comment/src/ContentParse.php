@@ -46,7 +46,7 @@ class ContentParse
     private function twemoji(string $content): string
     {
         if (get_options("contentParse_twemoji", "开启") === "开启") {
-            return (new Emoji())->twemoji($content)->svg()->base(get_options("contentParse_twemoji_cdn", "https://lib.baomitu.com/twemoji/1.4.2"))->toHtml(null, ['width' => get_options("contentParse_twemoji_contentParse_width", 25), 'height' => get_options("contentParse_twemoji_contentParse_height", 25)]);
+            return (new Emoji())->twemoji($content)->svg()->base(get_options("contentParse_twemoji_cdn", "https://lib.baomitu.com/twemoji/1.4.2"))->toHtml(null, ['lightbox'=>'false','width' => get_options("contentParse_twemoji_contentParse_width", 25), 'height' => get_options("contentParse_twemoji_contentParse_height", 25)]);
         }
         return $content;
     }

@@ -86,6 +86,7 @@
     <script src="{{file_hash('highlight/highlight.min.js')}}"></script>
     <script src="{{file_hash('highlight/highlightjs-line-numbers.min.js')}}"></script>
     <script src="{{file_hash('highlight/highlightjs-copy.min.js')}}"></script>
+    <script src="{{file_hash('tabler//libs/fslightbox/index.js')}}" defer></script>
     <script>
         hljs.highlightAll();
         hljs.initLineNumbersOnLoad({
