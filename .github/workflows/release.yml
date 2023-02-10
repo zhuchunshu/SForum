@@ -12,9 +12,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     
-    - name: Get version
-      id: get_version
-      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+    - name: 'Get Previous tag'
+      id: previoustag
+      uses: "WyriHaximus/github-action-get-previous-tag@v1"
+      with:
+        fallback: 1.0.0 # Optional fallback tag to use when no tag can be found
+    - name: 'Get next minor version'
+      id: semvers
+      uses: "WyriHaximus/github-action-next-semvers@v1"
+      with:
+        version: ${{ steps.previoustag.outputs.tag }}
       
     - name: Checkout source
       uses: actions/checkout@v3
@@ -25,8 +32,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
       with:
-        tag_name: ${{ steps.get_version.outputs.VERSION }}
-        name: ${{ steps.get_version.outputs.VERSION }}
+        tag_name: ${{ steps.previoustag.outputs.tag }}
+        name: ${{ steps.previoustag.outputs.tag }}
         draft: false
         prerelease: false
       
@@ -49,6 +56,6 @@ jobs:
         platforms: linux/arm,linux/arm64,linux/amd64,darwin,windows/amd64
         push: true
         tags: |
-          zhuchunshu/sforum:${{ github.event.release.tag_name }}
+          zhuchunshu/sforum:${{ steps.previoustag.outputs.tag }}
      
 
