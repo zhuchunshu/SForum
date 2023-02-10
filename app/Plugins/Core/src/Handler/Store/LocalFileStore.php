@@ -48,7 +48,7 @@ class LocalFileStore implements FileStoreInterface
                     throw new \RuntimeException(sprintf('Directory "%s" was not created', $concurrentDirectory));
                 }
             }
-            System::exec('mv ' . $path . ' ' . $folder_name."/".$filename);
+            System::exec('mv ' . $path . ' ' .public_path( $folder_name."/".$filename));
             return [
                 'url' => "/{$folder_name}/{$filename}",
                 'path' => public_path("{$folder_name}/{$filename}"),
