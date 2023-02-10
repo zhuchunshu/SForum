@@ -7,51 +7,26 @@ on:
 
 jobs:
   release:
-    name: Create Release
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
+    - name: Checkout
       uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.PAT }}
-          
-    - name: Checkout new tag
-      run: git checkout ${{ github.ref_name }}
-      
-    - name: Get version
-      id: get_version
-      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
-      
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ steps.get_version.outputs.VERSION }}
-        release_name: ${{ steps.get_version.outputs.VERSION }}
-        draft: false
-        prerelease: false
-  docker:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create Release
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
-      -
+    - name: Release
+      id: release_build
+      uses: softprops/action-gh-release@v1 
+    -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
-      -
+    -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      -
+    -
         name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
+    -
         name: Build and push
         uses: docker/build-push-action@v4
         with:
@@ -59,5 +34,6 @@ jobs:
           push: true
           tags: |
             zhuchunshu/sforum:latest
-            zhuchunshu/sforum:${{ steps.get_version.outputs.VERSION }}
+            zhuchunshu/sforum:${{ steps.release_build.outputs.id }}
+     
 
