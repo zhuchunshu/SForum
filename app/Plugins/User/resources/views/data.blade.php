@@ -15,10 +15,9 @@
 
         <div class="col-md-12">
             <div class="border-0 card">
-                <a href="{{get_user_settings($user->id,'backgroundImg','/plugins/Core/image/user_background.jpg')}}"
+                <a data-fslightbox href="{{get_user_settings($user->id,'backgroundImg','/plugins/Core/image/user_background.jpg')}}"
                    class="card-cover card-cover-blurred"
                    style="background-image: url({{get_user_settings($user->id,'backgroundImg','/plugins/Core/image/user_background.jpg')}});min-height: 200px">
-
                 </a>
                 <div class="card-body ms-1">
                     <div class="row">
@@ -231,4 +230,5 @@
 @section('scripts')
     <script>var user_id = {{$user->id}}</script>
     <script src="{{mix("plugins/Core/js/user.js")}}"></script>
+    <script src="{{file_hash('tabler//libs/fslightbox/index.js')}}" defer></script>
 @endsection
