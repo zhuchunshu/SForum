@@ -2,9 +2,9 @@ name: 自动发布Release
 
 on:
   push:
-    # Sequence of patterns matched against refs/tags
     tags:
-      - "v*" 
+    - 'v*'
+
 
 jobs:
   build:
