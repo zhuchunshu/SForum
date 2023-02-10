@@ -2,8 +2,10 @@ name: 自动发布Release
 
 on:
   push:
+    branches:
+      - '**'
     tags:
-    - 'v*'
+      - 'v*'
   workflow_dispatch:
 
 
