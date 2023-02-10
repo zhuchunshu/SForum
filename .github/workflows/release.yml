@@ -17,7 +17,7 @@ jobs:
       run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
       
     - name: Checkout source
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       
     - name: Create Release
       id: create_release
@@ -25,9 +25,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: ${{ github.ref }}
-        body: TODO New Release.
+        tag_name: ${{ steps.get_version.outputs.VERSION }}
+        name: ${{ steps.get_version.outputs.VERSION }}
         draft: false
         prerelease: false
       
