@@ -10,7 +10,15 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     steps:
-    
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.PAT }}
+          
+    - name: Checkout new tag
+      run: git checkout ${{ github.ref_name }}
+      
     - name: Get version
       id: get_version
       run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
