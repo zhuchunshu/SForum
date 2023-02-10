@@ -4233,7 +4233,7 @@ $(function () {
   $('a[core-click="topic-essence"]').click(function () {
     var topic_id = $(this).attr("topic-id");
     sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
-      title: "精华指数,数字越大排名越靠前",
+      title: "精华指数,数字越大排名越靠前,0为取消加精",
       content: {
         element: "input",
         attributes: {
@@ -4279,7 +4279,7 @@ $(function () {
   $('a[core-click="topic-topping"]').click(function () {
     var topic_id = $(this).attr("topic-id");
     sweetalert__WEBPACK_IMPORTED_MODULE_2___default()({
-      title: "置顶指数,数字越大排名越靠前",
+      title: "置顶指数,数字越大排名越靠前,0为取消置顶",
       content: {
         element: "input",
         attributes: {
