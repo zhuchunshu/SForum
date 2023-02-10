@@ -4,6 +4,7 @@ on:
   push:
     tags:
     - 'v*'
+  workflow_dispatch:
 
 
 jobs:
@@ -12,6 +13,11 @@ jobs:
     steps:
     - env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
+    
+    - name: Get version
+      id: get_version
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+      
     - name: Checkout source
       uses: actions/checkout@v2
       
