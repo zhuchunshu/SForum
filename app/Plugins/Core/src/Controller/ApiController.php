@@ -63,7 +63,6 @@ class ApiController
         foreach (Authority()->getUsers('admin_report') as $user) {
             $users[] = $user->id;
         }
-        return $users;
         $mail_content = view('App::report.send_admin', ['data' => $data]);
 
         user_notice()->sends($users, '有用户举报了一条内容,需要你来审核', $mail_content, '/report/' . $data->id . '.html');

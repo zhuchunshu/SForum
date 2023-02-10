@@ -1,5 +1,5 @@
 <div core-show="comment" comment-id="{{$value->id}}"
-     class="col-md-12 markdown mt-2 mb-2">
+     class="col-md-12 markdown mt-3 mb-2 px-3">
     @if($value->parent_id)
         @if(@$value->parent->id)
             <div class="quote">

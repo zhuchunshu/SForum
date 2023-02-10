@@ -76,10 +76,10 @@
 
                         <div class="row row-cards">
                             @foreach($comment as $key=>$value)
-                                @if(!$loop->first)<div class="hr-text mt-1 mb-1">next</div>@endif
-                                <div id="comment-{{$value->id}}" name="comment-{{$value->id}}" class="col-md-12">
+                                @if(!$loop->first)<div class="hr-text mt-0 mb-0">next</div>@endif
+                                <div id="comment-{{$value->id}}" name="comment-{{$value->id}}" class="col-md-12 mt-1">
                                     <div class="@if($value->optimal) comment-optimal @endif">
-                                        <div class="mx-2 my-2">
+                                        <div class="mt-2">
                                             <div class="row">
                                                 {{--                                    作者信息--}}
                                                 <div class="col-md-12">
@@ -88,7 +88,7 @@
                                                         <div class="col-auto" id="comment-user-avatar-{{$value->id}}"
                                                              comment-show="user-data" user-id="{{$value->user_id}}">
                                                             <a href="/users/{{$value->user->id}}.html"><span
-                                                                        class="avatar"
+                                                                        class="avatar avatar-rounded"
                                                                         style="background-image: url({{super_avatar($value->user)}})">
 
                                                         </span></a>
@@ -148,7 +148,9 @@
                                                 {{--                                            <div class="hr-text"--}}
                                                 {{--                                                 style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.operate")}}</div>--}}
                                                 {{--                                        </div>--}}
-                                                @include('Comment::shared.footer_tool')
+                                                @if(auth()->check())
+                                                    @include('Comment::shared.footer_tool')
+                                                @endif
                                             </div>
                                         </div>
 
