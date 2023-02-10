@@ -77,7 +77,12 @@ $(function () {
         // 通知小红点
         if (document.getElementById("core-notice-red")) {
             if (data.notice_red > 0) {
-                $("#core-notice-red").show();
+                var ele = $("#core-notice-red")
+                ele.show();
+                ele.text(data.notice_red)
+                var header_ele = $("div.border-primary")
+                header_ele.addClass("border-orange")
+                header_ele.removeClass("border-primary")
             }
         }
     })

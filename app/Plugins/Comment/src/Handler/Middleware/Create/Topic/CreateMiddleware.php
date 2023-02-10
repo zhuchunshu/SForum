@@ -88,9 +88,9 @@ class CreateMiddleware implements MiddlewareInterface
         $topic_data = Topic::query()->find($data['topic_id']);
         if ($topic_data->user_id != auth()->id()) {
             $title = auth()->data()->username . '评论了你发布的帖子!';
-            $content = view('Comment::Notice.comment', ['comment' => $content, 'user_data' => auth()->data(), 'data' => $comment]);
+            $c = view('Comment::Notice.comment', ['data' => $comment]);
             $action = '/' . $topic_data->id . '.html';
-            user_notice()->send($topic_data->user_id, $title, $content, $action);
+            user_notice()->send($topic_data->user_id, $title, $c, $action);
         }
 
         $data['comment'] = $comment;

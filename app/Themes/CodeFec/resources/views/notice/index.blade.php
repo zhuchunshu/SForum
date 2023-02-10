@@ -153,8 +153,10 @@
                                 </h2>
                             </div>
                             <div class="col-auto">
+                                <button user-click="notice_clear"
+                                        class="btn btn-primary">{{__("user.clean notice")}}</button>
                                 <button user-click="notice_allread"
-                                        class="btn btn-outline-dark">{{__("user.clean notice")}}</button>
+                                        class="btn btn-success">{{__("user.read all")}}</button>
                             </div>
 
                         </div>

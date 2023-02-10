@@ -14,6 +14,7 @@ use App\Plugins\User\src\Event\SendMail;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UsersNotice;
 use Hyperf\Utils\Str;
+use Psr\Http\Message\ResponseInterface;
 
 class UserNotice
 {
@@ -36,9 +37,8 @@ class UserNotice
      * @param mixed $title
      * @param mixed $content
      * @param null|mixed $action
-     * @param mixed $contentLength
      */
-    public function send($user_id, $title, $content, $action = null, $contentLength = 197): void
+    public function send($user_id, $title, $content, $action = null): void
     {
         if (UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->exists()) {
             UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->take(1)->update([
@@ -55,7 +55,7 @@ class UserNotice
             ]);
         }
 
-        $this->sendMail($user_id, $title, $action, $content, $contentLength);
+        $this->sendMail($user_id, $title, $action, $content);
     }
 
     /**
@@ -63,9 +63,8 @@ class UserNotice
      * @param mixed $title
      * @param mixed $content
      * @param null|mixed $action
-     * @param mixed $contentLength
      */
-    public function sends(array $user_ids, $title, $content, $action = null, $contentLength = 197): void
+    public function sends(array $user_ids, $title, $content, $action = null): void
     {
         foreach ($user_ids as $user_id) {
             if (UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->exists()) {
@@ -82,7 +81,7 @@ class UserNotice
                     'status' => 'publish',
                 ]);
             }
-            $this->sendMail($user_id, $title, $action, $content, $contentLength);
+            $this->sendMail($user_id, $title, $action, $content);
         }
     }
 
@@ -92,16 +91,15 @@ class UserNotice
      * @param mixed $title
      * @param mixed $action
      * @param null|mixed $content
-     * @param mixed $contentLength
      */
-    private function sendMail($user_id, $title, $action = null, $content = null, $contentLength = 197): void
+    private function sendMail($user_id, $title, $action = null, $content = null): void
     {
         // 获取收件人邮箱
         $email = User::query()->where('id', $user_id)->first()->email;
         // 执行发送
-        $Subject = '【' . get_options('web_name') . '】 你有一条新通知!';
+        $Subject = '【' . get_options('web_name') . '】'.$title;
         // 获取发信内容
-        $Body = $this->get_mail_content($title, $content, $action, $contentLength);
+        $Body = $this->get_mail_content($title, $content, $action);
         // 判断用户是否愿意接收邮件通知
         // 检查用户是否愿意接受通知
         if ($this->check($user_id)) {
@@ -113,14 +111,18 @@ class UserNotice
     }
 
     // 获取发信内容
-    private function get_mail_content($title, $content = null, $action = null, $contentLength = 197): string
+    private function get_mail_content($title, $content = null, $action = null): string
     {
+       if($content instanceof ResponseInterface){
+           $content = $content->getBody()->getContents();
+       }
+        $content = strip_tags($content);
         $url = url($action);
         // 执行发送
         if ($content) {
-            $content = Str::limit((string) $content, $contentLength);
+            $content = Str::limit($content, 10000, '...');
             $Body = <<<HTML
-<h3>主题: {$title}</h3>
+<h3>{$title}</h3>
 <hr>
 {$content}
 <hr>
@@ -128,7 +130,7 @@ class UserNotice
 HTML;
         } else {
             $Body = <<<HTML
-<h3>主题: {$title}</h3>
+<h3>{$title}</h3>
 <p>链接: <a href="{$url}">{$url}</a></p>
 HTML;
         }

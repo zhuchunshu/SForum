@@ -26,7 +26,7 @@ class CleanDatabase
         // 清理已删除的文章
         $this->topic();
         // 清理已读通知
-        $this->notice();
+//        $this->notice();
         // 清理超过一天未付款、取消、关闭的订单
         $this->order();
         // 清理admin_logger日志
@@ -54,10 +54,10 @@ class CleanDatabase
     }
 
     // 清理已读通知
-    private function notice()
-    {
-        UsersNotice::query()->where('status', 'read')->delete();
-    }
+//    private function notice()
+//    {
+//        UsersNotice::query()->where('status', 'read')->delete();
+//    }
 
     // 清理订单
     private function order()

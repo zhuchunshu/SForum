@@ -3,10 +3,10 @@
         <div class="col-md-12">
             <div class="row">
                 <div class="col-auto">
-                    <span class="avatar" style="background-image: url({{super_avatar($user_data)}})"></span>
+                    <span class="avatar" style="background-image: url({{super_avatar(auth()->data())}})"></span>
                 </div>
                 <div class="col text-truncate">
-                    <a style="white-space:nowrap;" href="/users/{{$user_data->id}}.html" class="text-body text-truncate">{{$user_data->username}}</a>
+                    <a style="white-space:nowrap;" href="/users/{{auth()->id()}}.html" class="text-body text-truncate">{{auth()->data()->username}}</a>
                     <br>
                     <small data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="{{$data->created_at}}" class="text-muted text-truncate mt-n1">
                         {{__("app.Published on")}}:{{$data->created_at}}

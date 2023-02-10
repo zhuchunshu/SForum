@@ -3942,6 +3942,31 @@ $(function () {
   });
 }); // 一键清空未读通知
 
+$('button[user-click="notice_clear"]').click(function () {
+  axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/user/notice.clear", {
+    _token: csrf_token
+  }).then(function (r) {
+    var data = r.data;
+
+    if (data.success === false) {
+      izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+        title: "Error",
+        position: "topRight",
+        message: data.result.msg
+      });
+    } else {
+      izitoast__WEBPACK_IMPORTED_MODULE_1___default().success({
+        title: "Success",
+        position: "topRight",
+        message: data.result.msg
+      });
+      setTimeout(function () {
+        location.reload();
+      }, 1500);
+    }
+  });
+}); // 一键清空未读通知
+
 $('button[user-click="notice_allread"]').click(function () {
   axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/user/notice.allread", {
     _token: csrf_token

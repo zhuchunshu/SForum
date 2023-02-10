@@ -1,4 +1,4 @@
-@php($page = \App\Plugins\User\src\Models\UsersNotice::query()->where(['user_id'=>auth()->id(),'status' => 'publish'])->orderByDesc('created_at')->paginate(15))
+@php($page = \App\Plugins\User\src\Models\UsersNotice::query()->where(['user_id'=>auth()->id()])->orderByDesc('created_at')->paginate(15))
 <div class="row row-cards justify-content-center">
     @if($page->count())
         @foreach($page as $value)
@@ -17,9 +17,8 @@
                             </div>
                             <div class="col-auto">
                                 @if($value->action)
-                                    <a href="{{$value->action}}" class="btn btn-primary">查看</a>
+                                    <a user-click="notice_action" notice-href="{{$value->action}}" notice-id="{{$value->id}}"  class="btn btn-primary">查看</a>
                                 @endif
-                                <button user-click="notice_read" notice-id="{{$value->id}}" class="btn btn-danger">已读</button>
                             </div>
                         </div>
                     </div>

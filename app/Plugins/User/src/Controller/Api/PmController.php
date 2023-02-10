@@ -63,8 +63,8 @@ class PmController
         }
         $auth_id = auth()->id();
         go(function () use ($user_id, $auth_id) {
-            UsersPm::query()->where('to_id', auth()->id())->where('from_id', $user_id)->update(['read' => true]);
-            \App\Plugins\User\src\Models\UsersPm::query()->where(['from_id' => $user_id, 'to_id' => $auth_id])->update(['read' => true]);
+            UsersPm::query()->where('to_id', $auth_id)->where('from_id', $user_id)->update(['read' => true]);
+            UsersPm::query()->where(['from_id' => $user_id, 'to_id' => $auth_id])->update(['read' => true]);
         });
         $message = [];
 

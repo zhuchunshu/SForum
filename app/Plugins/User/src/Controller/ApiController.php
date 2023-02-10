@@ -18,6 +18,7 @@ use App\Plugins\User\src\Models\UserFans;
 use App\Plugins\User\src\Models\UsersAuth;
 use App\Plugins\User\src\Models\UsersCollection;
 use App\Plugins\User\src\Models\UsersNotice;
+use App\Plugins\User\src\Models\UsersPm;
 use App\Plugins\User\src\Models\UsersSetting;
 use App\Plugins\User\src\Models\UserUpload;
 use Hyperf\HttpServer\Annotation\Controller;
@@ -158,10 +159,28 @@ class ApiController
         return Json_Api(200, true, ['msg' => '设置成功!']);
     }
 
-    // 一键清空未读通知
-
+    // 一键已读未读通知
     #[PostMapping(path: '/api/user/notice.allread')]
     public function notice_allread(): array
+    {
+        if (! auth()->check()) {
+            return Json_Api(419, false, ['msg' => '未登录!']);
+        }
+        if ( !UsersPm::query()->where(['to_id' => auth()->id()])->exists() &&! UsersNotice::query()->where(['status' => 'publish', 'user_id' => auth()->id()])->exists()) {
+            return Json_Api(403, false, ['msg' => '没有未读通知!']);
+        }
+        UsersNotice::query()->where(['status' => 'publish', 'user_id' => auth()->id()])->update([
+            'status' => 'read',
+        ]);
+        UsersPm::query()->where(['to_id' => auth()->id()])->update([
+           'read' => true,
+        ]);
+        return Json_Api(200, true, ['msg' => '操作成功!']);
+    }
+
+    // 一键已读未读通知
+    #[PostMapping(path: '/api/user/notice.clear')]
+    public function notice_clear(): array
     {
         if (! auth()->check()) {
             return Json_Api(419, false, ['msg' => '未登录!']);
@@ -169,11 +188,10 @@ class ApiController
         if (! UsersNotice::query()->where(['status' => 'publish', 'user_id' => auth()->id()])->exists()) {
             return Json_Api(403, false, ['msg' => '没有未读通知!']);
         }
-        UsersNotice::query()->where(['status' => 'publish', 'user_id' => auth()->id()])->update([
-            'status' => 'read',
-        ]);
-        return Json_Api(200, true, ['msg' => '一键清空未读通知成功!']);
+        UsersNotice::query()->where(['status' => 'publish', 'user_id' => auth()->id()])->delete();
+        return Json_Api(200, true, ['msg' => '清空成功!']);
     }
+
 
     // 关注用户
 

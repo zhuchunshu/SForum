@@ -123,7 +123,7 @@ class ApiController
         $topic_data = Topic::find($topic_id);
         if ($topic_data->user_id != auth()->id()) {
             $title = auth()->data()->username . '赞了你的帖子';
-            $content = view('Topic::Notice.like_topic', ['user_data' => auth()->data(), 'data' => $topic_data]);
+            $content = view('Topic::Notice.like_topic', ['data' => $topic_data]);
             $action = '/' . $topic_data->id . '.html';
             user_notice()->send($topic_data->user_id, $title, $content, $action);
         }
