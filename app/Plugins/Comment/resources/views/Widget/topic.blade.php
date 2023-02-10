@@ -1,4 +1,4 @@
-<div class="col-md-12">
+<div class="col-md-12" id="comment">
     <div class="border-0 card">
         <div class="card-header">
             <div class="card-title">评论</div>

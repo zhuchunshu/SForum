@@ -1,4 +1,4 @@
-@if($comment_count)
+@if($comment->total())
     @if(get_options("comment_topic_show_type","default")==="default")
         @php $caina = false; @endphp
         @if($data->user_id == auth()->id() && Authority()->check("comment_caina")) @php $caina = true;@endphp @endif
@@ -65,11 +65,9 @@
                         <h3 class="card-title">全部评论</h3>
                         <div class="card-actions">
                             @if($comment_sort=="desc")
-                                <a href="?{{ core_http_build_query(request()->all(),['comment_sort' => 'asc'])  }}">倒序显示↓</a>
-
+                                <a href="?{{ core_http_build_query(request()->all(),['comment_sort' => 'asc'])  }}">正序显示↑</a>
                             @else
-                                <a href="?{{ core_http_build_query(request()->all(),['comment_sort' => 'desc'])  }}">正序显示↑</a>
-
+                                <a href="?{{ core_http_build_query(request()->all(),['comment_sort' => 'desc'])  }}">倒序显示↓</a>
                             @endif
                         </div>
                     </div>

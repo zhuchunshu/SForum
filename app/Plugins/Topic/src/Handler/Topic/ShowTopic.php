@@ -29,8 +29,6 @@ class ShowTopic
 
         // 缓存
         $data = Topic::query()->with('tag', 'user', 'topic_updated', 'likes', 'post', 'post.options', 'comments.user', 'comments.post')->find($id);
-        // 创建数据
-        $comment_count = TopicComment::query()->where(['status' => 'publish', 'topic_id' => $id])->exists();
         // 评论分页数据
         if (get_options('comment_show_desc', 'off') === 'true') {
             $CommentOrderBy = 'desc';
@@ -54,6 +52,6 @@ class ShowTopic
         $parseData = [
             'topic' => $data,
         ];
-        return view('App::topic.show.show', ['data' => $data,  'comment_count' => $comment_count, 'comment_sort' => $comment_sort, 'comment' => $comment, 'comment_page' => $comment_page, 'parseData' => $parseData]);
+        return view('App::topic.show.show', ['data' => $data,  'comment_sort' => $comment_sort, 'comment' => $comment, 'comment_page' => $comment_page, 'parseData' => $parseData]);
     }
 }

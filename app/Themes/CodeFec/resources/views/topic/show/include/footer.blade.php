@@ -27,19 +27,19 @@
                     </svg>
                     收藏
                 </a>
-                {{--                    举报--}}
-                <a data-bs-toggle="modal" data-bs-target="#modal-report" style="text-decoration:none;"
-                   core-click="report-topic" topic-id="{{ $data->id }}"
-                   class="hvr-icon-pulse cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom"
-                   title="举报">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon icon-tabler icon-tabler-flag-3"
-                         width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
-                         stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                        <path d="M5 14h14l-4.5 -4.5l4.5 -4.5h-14v16"></path>
-                    </svg>
-                    举报
-                </a>
+{{--                --}}{{--                    举报--}}
+{{--                <a data-bs-toggle="modal" data-bs-target="#modal-report" style="text-decoration:none;"--}}
+{{--                   core-click="report-topic" topic-id="{{ $data->id }}"--}}
+{{--                   class="hvr-icon-pulse cursor-pointer text-muted" data-bs-toggle="tooltip" data-bs-placement="bottom"--}}
+{{--                   title="举报">--}}
+{{--                    <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon icon-tabler icon-tabler-flag-3"--}}
+{{--                         width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"--}}
+{{--                         stroke-linecap="round" stroke-linejoin="round">--}}
+{{--                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>--}}
+{{--                        <path d="M5 14h14l-4.5 -4.5l4.5 -4.5h-14v16"></path>--}}
+{{--                    </svg>--}}
+{{--                    举报--}}
+{{--                </a>--}}
                 {{--                引用--}}
                 <a style="text-decoration:none;" core-click="copy" copy-content="[topic topic_id={{$data->id}}]"
                    message="短代码复制成功!"
