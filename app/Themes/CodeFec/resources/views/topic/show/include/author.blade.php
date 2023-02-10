@@ -34,7 +34,7 @@
     </div>
 </div>
 <div class="mt-0 mb-0">
-    <div class="hr-text hr-text-right mt-3 mb-0">
+    <div class="hr-text hr-text-right mt-3 mb-0" style="margin-right: 1rem;">
         <div class="text-muted">
 {{--            浏览量--}}
             <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-eye" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
