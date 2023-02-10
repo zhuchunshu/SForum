@@ -77,8 +77,8 @@
                         <div class="row row-cards">
                             @foreach($comment as $key=>$value)
                                 @if(!$loop->first)<div class="hr-text mt-0 mb-0">next</div>@endif
-                                <div id="comment-{{$value->id}}" name="comment-{{$value->id}}" class="col-md-12 mt-1">
-                                    <div class="@if($value->optimal) comment-optimal @endif">
+                                <div id="comment-{{$value->id}}" name="comment-{{$value->id}}" class="col-md-12 mt-1 @if($comment_page==$value->id) bg-cyan-lt @endif">
+                                    <div class="@if($value->optimal)comment-optimal @endif">
                                         <div class="mt-2">
                                             <div class="row">
                                                 {{--                                    作者信息--}}
