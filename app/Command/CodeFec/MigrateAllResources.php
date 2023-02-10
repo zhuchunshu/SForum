@@ -39,7 +39,7 @@ class MigrateAllResources extends HyperfCommand
     }
 	
 	public function plugins(){
-		$plugins = getPath(plugin_path());
+		$plugins = getPathDir(plugin_path());
 		$rows = [];
 		$time = time();
 		foreach($plugins as $key=>$plugin){

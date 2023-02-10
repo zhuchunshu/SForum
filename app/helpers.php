@@ -259,7 +259,7 @@ if (! function_exists('session')) {
     }
 }
 
-// 获取目录下的所有文件夹
+// 获取目录下的所有文件
 if (! function_exists('getPath')) {
     function getPath($path)
     {
@@ -270,6 +270,23 @@ if (! function_exists('getPath')) {
         $data = scandir($path);
         foreach ($data as $value) {
             if ($value != '.' && $value != '..') {
+                $arr[] = $value;
+            }
+        }
+        return $arr;
+    }
+}
+
+if (! function_exists('getPathDir')) {
+    function getPathDir($path)
+    {
+        if (! is_dir($path)) {
+            return false;
+        }
+        $arr = [];
+        $data = scandir($path);
+        foreach ($data as $value) {
+            if ($value != '.' && $value != '..' && is_dir($path . '/' . $value)) {
                 $arr[] = $value;
             }
         }

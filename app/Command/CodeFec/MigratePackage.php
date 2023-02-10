@@ -40,7 +40,7 @@ class MigratePackage extends HyperfCommand
 	
 	private function plugins()
 	{
-		$plugins = getPath(plugin_path());
+		$plugins = getPathDir(plugin_path());
 		$rows = [];
 		$time = time();
 		foreach($plugins as $key=>$plugin){
