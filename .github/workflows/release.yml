@@ -3,9 +3,7 @@ name: 自动发布Release
 on:
   push:
     tags:
-    - '*'
-    branches:
-      - 'master'
+    - 'v*'
 
 jobs:
   release:
