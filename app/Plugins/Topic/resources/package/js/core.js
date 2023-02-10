@@ -2,7 +2,6 @@ import axios from "axios";
 import iziToast from "izitoast";
 import swal from "sweetalert";
 import copy from 'copy-to-clipboard';
-import { Fancybox } from "@fancyapps/ui";
 
 $(function(){
     $('div[core-data="topic"]').each(function(){
@@ -57,20 +56,20 @@ $(function(){
 })
 
 $(function(){
-    $("#topic-content img").each(function(){
+    $("img").each(function(){
         const img = $(this);
-        if(img.parents().get(0).tagName!=="a" && img.parents().get(0).tagName!=="A"){
+        if(img.attr("lightbox")!=="false" && img.parents().get(0).tagName!=="a" && img.parents().get(0).tagName!=="A"){
             const img_url = img.attr("src");
             const img_alt = img.attr("alt");
-            img.wrap("<a data-fancybox='gallery' data-caption=\""+img_alt+"\" href='"+img_url+"'></a>")
+            img.wrap("<a data-fslightbox=\"gallery\" href='"+img_url+"'></a>")
         }
     })
 
-    $("#topic-content a").each(function(){
+    $("a").each(function(){
         const a = $(this);
         if(a.children().length>0){
             if(a.children().get(0).tagName==="IMG" || a.children().get(0).tagName==="img"){
-                a.attr("data-fancybox","gallery")
+                a.attr("data-fslightbox","gallery")
                 const img_alt = a.children().attr("alt")
                 a.attr("data-caption",img_alt)
             }
@@ -78,6 +77,7 @@ $(function(){
 
     })
 
+    refreshFsLightbox();
 })
 
 $(function(){
