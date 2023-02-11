@@ -7,7 +7,7 @@
     <div class="col-md-12" id="topic">
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title text-reset" style="font-size: 1.5rem;" data-bs-toggle="tooltip"
+                <h2 class="card-title text-reset" style="font-size: 1.5rem;line-height: 1.5;" data-bs-toggle="tooltip"
                     data-bs-placement="top" title="{{__('topic.title')}}">
                     {{ $data->title }}
                     @if ($data->essence > 0)
