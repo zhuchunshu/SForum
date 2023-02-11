@@ -235,7 +235,8 @@ class ApiController
             ]);
         }
         $topic = Topic::query()->where('id', $data->topic_id)->first();
-        user_notice()->send($data->user_id, auth()->data()->username . $caina . '了你的评论', '你发布在: <h2>' . $topic->title . '</h2> 的评论已被' . $caina, '/' . $topic->id . '.html');
+        $url = get_topic_comment_url($comment_id);
+        user_notice()->send($data->user_id, auth()->data()->username . $caina . '了你的评论', '你发布在: <h2>' . $topic->title . '</h2> 的评论已被' . $caina, $url);
         return Json_Api(200, true, ['更新成功!']);
     }
 
@@ -305,7 +306,7 @@ class ApiController
                             $user->id,
                             '有人在评论中提到了你',
                             '有人在评论中提到了你',
-                            '/' . $data->topic_id . '.html/' . $data->id . '?page=' . get_topic_comment_page($data->id)
+                            get_topic_comment_url($data->id)
                         );
                     }
                 }

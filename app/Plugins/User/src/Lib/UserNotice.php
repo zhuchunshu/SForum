@@ -96,7 +96,7 @@ class UserNotice
         // 获取收件人邮箱
         $email = User::query()->where('id', $user_id)->first()->email;
         // 执行发送
-        $Subject = '【' . get_options('web_name') . '】'.$title;
+        $Subject = '【' . get_options('web_name') . '】' . $title;
         // 获取发信内容
         $Body = $this->get_mail_content($title, $content, $action);
         // 判断用户是否愿意接收邮件通知
@@ -112,11 +112,15 @@ class UserNotice
     // 获取发信内容
     private function get_mail_content($title, $content = null, $action = null): string
     {
-       if($content instanceof ResponseInterface){
-           $content = $content->getBody()->getContents();
-       }
+        if ($content instanceof ResponseInterface) {
+            $content = $content->getBody()->getContents();
+        }
         $content = strip_tags($content);
-        $url = url($action);
+        if (! Str::is('http*', $action)) {
+            $url = url($action);
+        } else {
+            $url = $action;
+        }
         // 执行发送
         if ($content) {
             $content = Str::limit($content, 10000, '...');
