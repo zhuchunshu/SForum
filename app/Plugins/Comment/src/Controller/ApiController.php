@@ -79,7 +79,7 @@ class ApiController
             user_notice()->send($topic_data->user_id, $title, $content, $action);
         }
         // 发送通知 - 被回复的人
-        if ($topic_data->user_id != auth()->id() && $parent_id != auth()->id()) {
+        if ($parent_id != auth()->id()) {
             $title = auth()->data()->username . '回复了你的评论!';
             $content = view('Comment::Notice.reply', ['comment' => $content, 'user_data' => auth()->data(), 'data' => $data]);
             $action = '/' . $topic_data->id . '.html';
