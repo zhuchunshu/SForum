@@ -3877,7 +3877,7 @@ $(function () {
   });
 });
 $(function () {
-  $("img").each(function () {
+  $("#topic-page img").each(function () {
     var img = $(this);
 
     if (img.attr("lightbox") !== "false" && img.parents().get(0).tagName !== "a" && img.parents().get(0).tagName !== "A") {
@@ -3886,7 +3886,7 @@ $(function () {
       img.wrap("<a data-fslightbox=\"gallery\" href='" + img_url + "'></a>");
     }
   });
-  $("a").each(function () {
+  $("#topic-page a").each(function () {
     var a = $(this);
 
     if (a.children().length > 0) {

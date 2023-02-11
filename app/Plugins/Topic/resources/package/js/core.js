@@ -56,7 +56,7 @@ $(function(){
 })
 
 $(function(){
-    $("img").each(function(){
+    $("#topic-page img").each(function(){
         const img = $(this);
         if(img.attr("lightbox")!=="false" && img.parents().get(0).tagName!=="a" && img.parents().get(0).tagName!=="A"){
             const img_url = img.attr("src");
@@ -65,7 +65,7 @@ $(function(){
         }
     })
 
-    $("a").each(function(){
+    $("#topic-page a").each(function(){
         const a = $(this);
         if(a.children().length>0){
             if(a.children().get(0).tagName==="IMG" || a.children().get(0).tagName==="img"){

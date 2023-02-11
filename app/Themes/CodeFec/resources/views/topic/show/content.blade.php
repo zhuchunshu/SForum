@@ -1,4 +1,4 @@
-<div class="row row-cards justify-content-center">
+<div class="row row-cards justify-content-center" id="topic-page">
     @foreach(Itf()->get('ui-start-end-hook') as $k=>$v)
         @if(call_user_func($v['enable'])===true)
             @include($v['view'])
