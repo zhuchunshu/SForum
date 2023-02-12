@@ -234,6 +234,40 @@ class ApiController
         return Json_Api(200, true, ['msg' => '置顶成功!']);
     }
 
+    // 锁帖
+
+    #[RateLimit(create: 1, capacity: 3)]
+    #[PostMapping(path: 'set.topic.lock')]
+    public function set_topic_lock(): array
+    {
+        $topic_id = request()->input('topic_id');
+        // 判断是否有权限
+        if (! Authority()->check('topic_lock')) {
+            return Json_Api(419, false, ['msg' => '权限不足!']);
+        }
+
+        // 判断帖子是否存在
+        if (! $topic_id || ! Topic::query()->where('id', $topic_id)->exists()) {
+            return Json_Api(403, false, ['msg' => '帖子不存在']);
+        }
+
+        // 帖子信息
+        $topic = Topic::find($topic_id);
+        $tip = $topic->status === 'lock' ? '解除锁定' : '锁定';
+
+        // 执行锁帖
+        $update = $topic->status === 'lock' ? 'publish' : 'lock';
+
+        Topic::where('id', $topic_id)->update(['status' => $update]);
+
+        // 发送通知
+        if ($topic->user_id != auth()->id()) {
+            user_notice()->send($topic->user_id, '你有一条帖子已被' . $tip, '帖子《<a href="/'.$topic_id.'.html" >'.$topic->title.'</a>》已被管理员：【<a href="/users/' . auth()->id() . '.html">' . auth()->data()->username . '</a>】' . $tip, '/' . $topic_id . '.html');
+        }
+
+        return Json_Api(200, true, ['msg' => $tip . '成功!']);
+    }
+
     // 删除帖子
 
     #[RateLimit(create: 1, capacity: 3)]
@@ -304,7 +338,7 @@ class ApiController
         if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
-        $data = Topic::with('user','post')->find($topic_id);
+        $data = Topic::with('user', 'post')->find($topic_id);
         if (get_options('topic_author_ip', '开启') === '开启' && $data->post->user_ip) {
             $data['user']['city'] = __('app.IP attribution', ['province' => get_client_ip_data($data->post->user_ip)['pro']]);
         }
@@ -349,9 +383,11 @@ class ApiController
     }
 
     // 获取帖子上下页信息
+
     #[PostMapping(path: 'get.topic.include.ifpage')]
     #[RateLimit(create: 1, capacity: 1)]
-    public function get_topic_include_ifpage(){
+    public function get_topic_include_ifpage()
+    {
         $topic_id = request()->input('topic_id');
         if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
@@ -359,12 +395,12 @@ class ApiController
         if (! Topic::where(['id' => $topic_id])->exists()) {
             return admin_abort(['msg' => '帖子不存在', 'result' => []]);
         }
-        $shang = Topic::query()->where([['id', '<', $topic_id],])->select('title', 'id')->orderBy('id', 'desc')->first();
-        $shang['url']= '/'.@$shang['id'].'.html';
-        $shang['title']=  \Hyperf\Utils\Str::limit(@$shang['title']?:' ', 20, '...');
-        $xia = Topic::query()->where([['id', '>', $topic_id],])->select('title', 'id')->orderBy('id', 'asc')->first();
-        $xia['url']= '/'.@$xia['id'].'.html';
-        $xia['title']=  \Hyperf\Utils\Str::limit(@$xia['title']?:' ', 20, '...');
+        $shang = Topic::query()->where([['id', '<', $topic_id]])->select('title', 'id')->orderBy('id', 'desc')->first();
+        $shang['url'] = '/' . @$shang['id'] . '.html';
+        $shang['title'] = \Hyperf\Utils\Str::limit(@$shang['title'] ?: ' ', 20, '...');
+        $xia = Topic::query()->where([['id', '>', $topic_id]])->select('title', 'id')->orderBy('id', 'asc')->first();
+        $xia['url'] = '/' . @$xia['id'] . '.html';
+        $xia['title'] = \Hyperf\Utils\Str::limit(@$xia['title'] ?: ' ', 20, '...');
         return json_api(200, true, ['msg' => '获取成功', 'result' => ['shang' => $shang, 'xia' => $xia]]);
     }
 }

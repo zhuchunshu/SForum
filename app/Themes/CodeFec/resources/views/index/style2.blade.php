@@ -12,30 +12,45 @@
                     <div class="col-md-12">
                         <div class="row">
                             <div class="col-md-12 markdown home-article">
-                                <a href="/{{$data->id}}.html" class="text-reset">
-                                    <h3 class="text-muted">
-                                        @if($data->topping>0)
-                                            <span class="badge bg-red">
+                                <h3 class="text-muted">
+                                    @if($data->topping>0)
+                                        <span class="badge bg-red">
                                                     {{__('app.top')}}
                                                 </span>
-                                        @else
-                                            <span class="badge d-none d-lg-inline-block"
-                                                  style="background-color: {{$data->tag->color}}!important;">
+                                    @else
+                                        <span class="badge d-none d-lg-inline-block"
+                                              style="background-color: {{$data->tag->color}}!important;">
                                                         {{$data->tag->name}}
                                                     </span>
-                                            <span class="badge d-inline-block d-lg-none"
-                                                  style="background-color: {{$data->tag->color}}!important;">
+                                        <span class="badge d-inline-block d-lg-none"
+                                              style="background-color: {{$data->tag->color}}!important;">
                                                         {!! $data->tag->icon !!}
                                                     </span>
-                                        @endif
-                                        @if($data->essence>0)
-                                            <span class="badge bg-green d-none d-lg-inline-block">
+                                    @endif
+                                    @if($data->essence>0)
+                                        <span class="badge bg-green d-none d-lg-inline-block">
                                                         {{__("app.essence")}}
                                                     </span>
-                                        @endif
+                                    @endif
 
-                                        {{$data->title}}</h3>
-                                </a>
+                                        <a href="/{{$data->id}}.html" class="text-reset">
+                                            {{$data->title}}
+                                        </a>
+                                    @if($data->status==="lock")
+                                        <div data-bs-toggle="tooltip" data-bs-placement="top" title="帖子已锁定" style="display: inline-block" class="text-reset bg-transparent">
+                                                <svg xmlns="http://www.w3.org/2000/svg"
+                                                     style="margin-bottom: 3px"
+                                                     class="icon icon-tabler icon-tabler-lock" width="20" height="20"
+                                                     viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+                                                     fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M5 11m0 2a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z"></path>
+   <path d="M12 16m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"></path>
+   <path d="M8 11v-4a4 4 0 0 1 8 0v4"></path>
+</svg>
+                                            </div>
+                                    @endif
+                                </h3>
                             </div>
                         </div>
                     </div>

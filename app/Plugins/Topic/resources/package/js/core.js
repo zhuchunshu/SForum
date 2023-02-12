@@ -56,7 +56,7 @@ $(function(){
 })
 
 $(function(){
-    $("#topic-page img").each(function(){
+    $("img").each(function(){
         const img = $(this);
         if(img.attr("lightbox")!=="false" && img.parents().get(0).tagName!=="a" && img.parents().get(0).tagName!=="A"){
             const img_url = img.attr("src");
@@ -65,7 +65,7 @@ $(function(){
         }
     })
 
-    $("#topic-page a").each(function(){
+    $("a").each(function(){
         const a = $(this);
         if(a.children().length>0){
             if(a.children().get(0).tagName==="IMG" || a.children().get(0).tagName==="img"){
@@ -488,6 +488,38 @@ $(function(){
                 })
             }
         });
+    })
+
+
+    // 锁帖
+    $('a[core-click="topic-lock"]').click(function(){
+        var topic_id = $(this).attr("topic-id");
+        axios.post("/api/topic/set.topic.lock",{
+            _token:csrf_token,
+            topic_id:topic_id,
+        }).then(r=>{
+            const data = r.data;
+            if(data.success){
+                iziToast.success({
+                    title: 'Success',
+                    position: 'topRight',
+                    message: data.result.msg,
+                });
+            }else{
+                iziToast.error({
+                    title: 'Error',
+                    position: 'topRight',
+                    message: data.result.msg,
+                });
+            }
+        }).catch(e=>{
+            iziToast.error({
+                title: 'Error',
+                position: 'topRight',
+                message: '请求出错,详细查看控制台',
+            });
+            console.error(e)
+        })
     })
 
     // 删除

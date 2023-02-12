@@ -3877,7 +3877,7 @@ $(function () {
   });
 });
 $(function () {
-  $("#topic-page img").each(function () {
+  $("img").each(function () {
     var img = $(this);
 
     if (img.attr("lightbox") !== "false" && img.parents().get(0).tagName !== "a" && img.parents().get(0).tagName !== "A") {
@@ -3886,7 +3886,7 @@ $(function () {
       img.wrap("<a data-fslightbox=\"gallery\" href='" + img_url + "'></a>");
     }
   });
-  $("#topic-page a").each(function () {
+  $("a").each(function () {
     var a = $(this);
 
     if (a.children().length > 0) {
@@ -4299,6 +4299,37 @@ $(function () {
           console.error(e);
         });
       }
+    });
+  }); // 锁帖
+
+  $('a[core-click="topic-lock"]').click(function () {
+    var topic_id = $(this).attr("topic-id");
+    axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/topic/set.topic.lock", {
+      _token: csrf_token,
+      topic_id: topic_id
+    }).then(function (r) {
+      var data = r.data;
+
+      if (data.success) {
+        izitoast__WEBPACK_IMPORTED_MODULE_1___default().success({
+          title: 'Success',
+          position: 'topRight',
+          message: data.result.msg
+        });
+      } else {
+        izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+          title: 'Error',
+          position: 'topRight',
+          message: data.result.msg
+        });
+      }
+    })["catch"](function (e) {
+      izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+        title: 'Error',
+        position: 'topRight',
+        message: '请求出错,详细查看控制台'
+      });
+      console.error(e);
     });
   }); // 删除
 

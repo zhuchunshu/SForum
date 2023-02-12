@@ -10,6 +10,20 @@
                 <h2 class="card-title text-reset" style="font-size: 1.5rem;line-height: 1.5;" data-bs-toggle="tooltip"
                     data-bs-placement="top" title="{{__('topic.title')}}">
                     {{ $data->title }}
+                    @if($data->status==="lock")
+                        <span data-bs-toggle="tooltip" data-bs-placement="bottom" title="帖子已锁定" style="display: inline-block" class="text-reset bg-transparent">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                 style="--tblr-icon-size:1.8rem;margin-bottom: 4px"
+                                 class="icon icon-tabler icon-tabler-lock" width="20" height="20"
+                                 viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+                                 fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                <path d="M5 11m0 2a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z"></path>
+                                <path d="M12 16m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"></path>
+                                <path d="M8 11v-4a4 4 0 0 1 8 0v4"></path>
+                            </svg>
+                        </span>
+                    @endif
                     @if ($data->essence > 0)
                         <span class="text-green">
                             <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-diamond"
