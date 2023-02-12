@@ -68,7 +68,9 @@
             </div>
         </div>
     @endif
-    <div class="mt-2">
-        {!! make_page($page) !!}
-    </div>
+    @if($page->count())
+        <div class="mt-2">
+            {!! make_page($page) !!}
+        </div>
+    @endif
 </div>
