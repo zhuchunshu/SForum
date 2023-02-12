@@ -43,7 +43,7 @@ class ShowTopic
             $comment_sort = $CommentOrderBy;
         }
         $comment = TopicComment::query()
-            ->where(['status' => 'publish', 'topic_id' => $id])
+            ->where(['topic_id' => $id])
             ->with('topic', 'user', 'parent', 'likes', 'post', 'post.options')
             ->orderBy('optimal', 'desc')
             ->orderBy('created_at', $comment_sort)

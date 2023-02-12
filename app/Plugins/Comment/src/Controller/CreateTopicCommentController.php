@@ -37,7 +37,7 @@ class CreateTopicCommentController
         if (! Authority()->check('comment_create')) {
             return redirect()->back()->with('danger', '无评论权限')->go();
         }
-        if (! Topic::query()->where(['id' => $topic_id, 'status' => 'publish'])->exists()) {
+        if (! Topic::query()->where(['id' => $topic_id])->exists()) {
             return redirect()->back()->with('danger', '帖子不存在')->go();
         }
         $topic = Topic::query()->find($topic_id);

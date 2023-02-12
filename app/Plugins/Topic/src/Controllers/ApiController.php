@@ -95,7 +95,7 @@ class ApiController
         if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数:topic_id 不存在!']);
         }
-        if (! Topic::query()->where([['id', $topic_id, 'status' => 'publish']])->exists()) {
+        if (! Topic::query()->where([['id', $topic_id]])->exists()) {
             return Json_Api(403, false, ['msg' => 'id为:' . $topic_id . '的帖子不存在']);
         }
         if (TopicLike::query()->where(['topic_id' => $topic_id, 'user_id' => auth()->id(), 'type' => 'like'])->exists()) {
@@ -304,10 +304,7 @@ class ApiController
         if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
-        $data = Topic::query()->where([
-            'status' => 'publish',
-            'id' => $topic_id,
-        ])->with('user')->first();
+        $data = Topic::with('user','post')->find($topic_id);
         if (get_options('topic_author_ip', '开启') === '开启' && $data->post->user_ip) {
             $data['user']['city'] = __('app.IP attribution', ['province' => get_client_ip_data($data->post->user_ip)['pro']]);
         }
@@ -324,7 +321,7 @@ class ApiController
         if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
-        if (! Topic::where(['status' => 'publish', 'id' => $topic_id])->exists()) {
+        if (! Topic::where(['id' => $topic_id])->exists()) {
             return admin_abort(['msg' => '帖子不存在', 'result' => []]);
         }
         $all = [];
@@ -359,13 +356,13 @@ class ApiController
         if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
-        if (! Topic::where(['status' => 'publish', 'id' => $topic_id])->exists()) {
+        if (! Topic::where(['id' => $topic_id])->exists()) {
             return admin_abort(['msg' => '帖子不存在', 'result' => []]);
         }
-        $shang = Topic::query()->where([['id', '<', $topic_id], ['status', 'publish']])->select('title', 'id')->orderBy('id', 'desc')->first();
+        $shang = Topic::query()->where([['id', '<', $topic_id],])->select('title', 'id')->orderBy('id', 'desc')->first();
         $shang['url']= '/'.@$shang['id'].'.html';
         $shang['title']=  \Hyperf\Utils\Str::limit(@$shang['title']?:' ', 20, '...');
-        $xia = Topic::query()->where([['id', '>', $topic_id], ['status', 'publish']])->select('title', 'id')->orderBy('id', 'asc')->first();
+        $xia = Topic::query()->where([['id', '>', $topic_id],])->select('title', 'id')->orderBy('id', 'asc')->first();
         $xia['url']= '/'.@$xia['id'].'.html';
         $xia['title']=  \Hyperf\Utils\Str::limit(@$xia['title']?:' ', 20, '...');
         return json_api(200, true, ['msg' => '获取成功', 'result' => ['shang' => $shang, 'xia' => $xia]]);

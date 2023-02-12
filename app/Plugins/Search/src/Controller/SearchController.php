@@ -30,8 +30,7 @@ class SearchController
         // 中文转义搜索内容
         $q = urldecode($q);
         $topics = [];
-        $topic = Topic::where('status', 'publish')
-            ->where('title', 'like', '%' . $q . '%')
+        $topic = Topic::where('title', 'like', '%' . $q . '%')
             ->with('user', 'post', 'tag')
             ->get(['title', 'user_id', 'post_id', 'id', 'created_at', 'tag_id']);
         foreach ($topic as $item) {

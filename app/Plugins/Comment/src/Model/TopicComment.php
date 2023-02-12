@@ -15,6 +15,7 @@ use App\Plugins\Core\src\Models\Post;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\User\src\Models\User;
 use Carbon\Carbon;
+use Hyperf\Database\Model\SoftDeletes;
 
 /**
  * @property int $id
@@ -31,6 +32,7 @@ use Carbon\Carbon;
  */
 class TopicComment extends Model
 {
+    use SoftDeletes;
     /**
      * The table associated with the model.
      *

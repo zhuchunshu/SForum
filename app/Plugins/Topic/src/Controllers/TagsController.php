@@ -38,7 +38,6 @@ class TagsController
         }
         $page = Topic::query(true)
             ->where('tag_id', $id)
-            ->where('status', 'publish')
             ->with('tag', 'user')
             ->orderBy('topping', 'desc')
             ->orderBy('updated_at', 'desc')
@@ -46,7 +45,6 @@ class TagsController
         if (request()->input('query') === 'hot') {
             $page = Topic::query()
                 ->where('tag_id', $id)
-                ->where('status', 'publish')
                 ->with('tag', 'user')
                 ->orderBy('view', 'desc')
                 ->orderBy('id', 'desc')
@@ -55,7 +53,6 @@ class TagsController
         if (request()->input('query') === 'publish') {
             $page = Topic::query()
                 ->where('tag_id', $id)
-                ->where('status', 'publish')
                 ->with('tag', 'user')
                 ->orderBy('id', 'desc')
                 ->paginate((int)get_options('topic_home_num', 15));
@@ -63,7 +60,7 @@ class TagsController
         if (request()->input('query') === 'essence') {
             $page = Topic::query()
                 ->where('tag_id', $id)
-                ->where([['essence', '>', 0], ['status', 'publish']])
+                ->where([['essence', '>', 0],])
                 ->with('tag', 'user')
                 ->orderBy('updated_at', 'desc')
                 ->paginate((int)get_options('topic_home_num', 15));
@@ -71,7 +68,7 @@ class TagsController
         if (request()->input('query') === 'topping') {
             $page = Topic::query()
                 ->where('tag_id', $id)
-                ->where([['topping', '>', 0], ['status', 'publish']])
+                ->where([['topping', '>', 0],])
                 ->with('tag', 'user')
                 ->orderBy('updated_at', 'desc')
                 ->paginate((int) get_options('topic_home_num', 15));
