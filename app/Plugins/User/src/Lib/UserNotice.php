@@ -38,7 +38,7 @@ class UserNotice
      * @param mixed $content
      * @param null|mixed $action
      */
-    public function send($user_id, $title, $content, $action = null): void
+    public function send($user_id, $title, $content, $action = null,bool $sendMail=true): void
     {
         if (UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->exists()) {
             UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->take(1)->update([
@@ -53,7 +53,9 @@ class UserNotice
                 'action' => $action,
                 'status' => 'publish',
             ]);
-            $this->sendMail($user_id, $title, $action, $content);
+            if($sendMail===true){
+                $this->sendMail($user_id, $title, $action, $content);
+            }
         }
     }
 
@@ -63,7 +65,7 @@ class UserNotice
      * @param mixed $content
      * @param null|mixed $action
      */
-    public function sends(array $user_ids, $title, $content, $action = null): void
+    public function sends(array $user_ids, $title, $content, $action = null,bool $sendMail=true): void
     {
         foreach ($user_ids as $user_id) {
             if (UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->exists()) {
@@ -79,7 +81,9 @@ class UserNotice
                     'action' => $action,
                     'status' => 'publish',
                 ]);
-                $this->sendMail($user_id, $title, $action, $content);
+                if($sendMail===true){
+                    $this->sendMail($user_id, $title, $action, $content);
+                }
             }
         }
     }

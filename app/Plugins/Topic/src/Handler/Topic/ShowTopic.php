@@ -13,11 +13,13 @@ namespace App\Plugins\Topic\src\Handler\Topic;
 use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Core\src\Models\Report;
 use App\Plugins\Topic\src\Models\Topic;
+use Hyperf\DbConnection\Db;
 
 class ShowTopic
 {
     public function handle($id, $comment_page)
     {
+        // 判断是否被举报
         if (Report::query()->where(['type' => 'topic', '_id' => $id, 'status' => 'approve'])->exists()) {
             return admin_abort('此帖子已被举报并批准,无法查看', 403);
         }
@@ -26,6 +28,24 @@ class ShowTopic
             $updated_at = Topic::query()->where('id', $id)->first()->updated_at;
             Topic::query()->where('id', $id)->increment('view', 1, ['updated_at' => $updated_at]);
         });
+
+        // 自动锁定
+        go(function () use ($id) {
+            $topic = Topic::find($id);
+            // 帖子发布天数
+            $post_published_time = floor((time() - strtotime((string) $topic->created_at)) / 86400);
+
+            // 判断是否需要锁帖
+            if ($topic->status !== 'lock' && get_options('topic_auto_lock') === 'true' && (int) $post_published_time > (int) get_options('topic_auto_lock_day', 30)) {
+                // 锁帖
+
+                Db::table('topic')->where('id', $id)->update(['status' => 'lock']);
+
+                // 发送通知
+                user_notice()->send($topic->user_id, '你有一条帖子已被系统自动锁定', '帖子《<a href="/' . $topic->id . '.html" >' . $topic->title . '</a>》已被系统自动锁定，原因：帖子发布时间已大于系统设定自动锁帖时间', '/' . $topic->id . '.html', false);
+            }
+        });
+
 
         // 缓存
         $data = Topic::query()->with('tag', 'user', 'topic_updated', 'likes', 'post', 'post.options', 'comments.user', 'comments.post')->find($id);
