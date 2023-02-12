@@ -12,7 +12,10 @@
                     {{ $data->title }}
                     @if ($data->essence > 0)
                         <span class="text-green">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-diamond" style="--tblr-icon-size:1.8rem" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-diamond"
+                                 style="--tblr-icon-size:1.8rem" width="24" height="24" viewBox="0 0 24 24"
+                                 stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                                 stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <path d="M6 5h12l3 5l-8.5 9.5a.7 .7 0 0 1 -1 0l-8.5 -9.5l3 -5"></path>
    <path d="M10 12l-2 -2.2l.6 -1"></path>
@@ -50,14 +53,14 @@
             <article class="card-body topic article markdown text-reset">
                 {!! ContentParse()->parse($data->post->content,$parseData) !!}
             </article>
-            <div class="px-3 py-3">
-                @if($data->user->Options->qianming!=='no bio')
+            @if($data->user->Options->qianming!=='no bio')
+                <div class="px-3 py-3">
                     <div class="hr-text hr-text-left mt-0 mb-3">signature</div>
                     <span class="text-muted">
                             {{$data->user->Options->qianming}}
                     </span>
-                @endif
-            </div>
+                </div>
+            @endif
 
             {{--            页脚--}}
             @include('App::topic.show.include.footer')
