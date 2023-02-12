@@ -23,27 +23,41 @@
                     <h3 class="card-title">回帖</h3>
                 </div>
                 <div class="card-body">
-                    <form action="/topic/create/comment/{{$topic->id}}" method="post">
-                        <x-csrf/>
-                        <input type="hidden" name="no_content" value="1">
-                        <input type="hidden" name="topic_id" value="{{$topic->id}}">
+                    @if($topic->status==="lock")
                         <div class="mb-3">
                             <label for="" class="form-label"></label>
-                            <textarea name="content" id="content" rows="3"></textarea>
+                            <textarea class="form-control" rows="3" disabled>回复的主题已经关闭</textarea>
                         </div>
                         <div class="row">
                             <div class="col">
-                                @if(get_options('comment_emoji_close')!=='true')
-                                    <link rel="stylesheet" href="{{file_hash('css/OwO.min.css')}}">
-                                    <div class="OwO" id="create-comment-owo">[表情]</div>
-                                    <script src="{{file_hash('js/editor.OwO.js')}}"></script>
-                                @endif
                             </div>
                             <div class="col-auto">
-                                <button class="btn btn-primary" type="submit">回帖</button>
+                                <button class="btn btn-primary disabled" disabled type="submit">回帖</button>
                             </div>
                         </div>
-                    </form>
+                    @else
+                        <form action="/topic/create/comment/{{$topic->id}}" method="post">
+                            <x-csrf/>
+                            <input type="hidden" name="no_content" value="1">
+                            <input type="hidden" name="topic_id" value="{{$topic->id}}">
+                            <div class="mb-3">
+                                <label for="" class="form-label"></label>
+                                <textarea name="content" id="content" rows="3"></textarea>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    @if(get_options('comment_emoji_close')!=='true')
+                                        <link rel="stylesheet" href="{{file_hash('css/OwO.min.css')}}">
+                                        <div class="OwO" id="create-comment-owo">[表情]</div>
+                                        <script src="{{file_hash('js/editor.OwO.js')}}"></script>
+                                    @endif
+                                </div>
+                                <div class="col-auto">
+                                    <button class="btn btn-primary" type="submit">回帖</button>
+                                </div>
+                            </div>
+                        </form>
+                    @endif
                 </div>
             </div>
         </div>

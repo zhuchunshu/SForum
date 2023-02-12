@@ -23,14 +23,12 @@ class IndexController
     {
         $title = null;
         $page = Topic::query(true)
-            ->where('status', 'publish')
             ->with('tag', 'user')
             ->orderBy('topping', 'desc')
             ->orderBy('updated_at', 'desc')
             ->paginate((int) get_options('topic_home_num', 15));
         if (request()->input('query') === 'hot') {
             $page = Topic::query()
-                ->where('status', 'publish')
                 ->with('tag', 'user')
                 ->orderBy('view', 'desc')
                 ->orderBy('id', 'desc')
@@ -39,7 +37,6 @@ class IndexController
         }
         if (request()->input('query') === 'publish') {
             $page = Topic::query()
-                ->where('status', 'publish')
                 ->with('tag', 'user')
                 ->orderBy('id', 'desc')
                 ->paginate((int) get_options('topic_home_num', 15));
@@ -47,7 +44,7 @@ class IndexController
         }
         if (request()->input('query') === 'essence') {
             $page = Topic::query()
-                ->where([['essence', '>', 0], ['status', 'publish']])
+                ->where([['essence', '>', 0]])
                 ->with('tag', 'user')
                 ->orderBy('updated_at', 'desc')
                 ->paginate((int) get_options('topic_home_num', 15));
@@ -55,7 +52,7 @@ class IndexController
         }
         if (request()->input('query') === 'topping') {
             $page = Topic::query()
-                ->where([['topping', '>', 0], ['status', 'publish']])
+                ->where([['topping', '>', 0]])
                 ->with('tag', 'user')
                 ->orderBy('updated_at', 'desc')
                 ->paginate((int) get_options('topic_home_num', 15));
@@ -93,7 +90,7 @@ class IndexController
     #[GetMapping(path: '/{id}.html[/{comment}]')]
     public function show($id, $comment = null)
     {
-        if (! Topic::query()->where([['id', $id], ['status', 'publish']])->exists()) {
+        if (! Topic::query()->where([['id', $id]])->exists()) {
             return admin_abort('页面不存在', 404);
         }
         return (new ShowTopic())->handle($id, $comment);

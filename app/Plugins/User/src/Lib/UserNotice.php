@@ -8,6 +8,7 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
+
 namespace App\Plugins\User\src\Lib;
 
 use App\Plugins\User\src\Event\SendMail;
@@ -19,9 +20,9 @@ use Psr\Http\Message\ResponseInterface;
 class UserNotice
 {
     // 检查用户是否愿意接受通知
-    public function check($user_id)
+    public function check($user_id): bool
     {
-        $user_noticed = (string) get_user_settings($user_id, 'noticed', '0');
+        $user_noticed = (string)get_user_settings($user_id, 'noticed', '0');
         if (get_options('user_email_noticed_on') === 'true' && $user_noticed === '1') {
             return true;
         }
@@ -38,12 +39,13 @@ class UserNotice
      * @param mixed $content
      * @param null|mixed $action
      */
-    public function send($user_id, $title, $content, $action = null): void
+    public function send($user_id, $title, $content, $action = null, bool $sendMail = true, ?string $sort = null): void
     {
         if (UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->exists()) {
             UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->take(1)->update([
                 'status' => 'publish',
                 'created_at' => date('Y-m-d H:i:s'),
+                'sort' => $sort,
             ]);
         } else {
             UsersNotice::query()->create([
@@ -51,9 +53,12 @@ class UserNotice
                 'title' => $title,
                 'content' => $content,
                 'action' => $action,
+                'sort' => $sort,
                 'status' => 'publish',
             ]);
-            $this->sendMail($user_id, $title, $action, $content);
+            if ($sendMail === true) {
+                $this->sendMail($user_id, $title, $action, $content);
+            }
         }
     }
 
@@ -63,13 +68,14 @@ class UserNotice
      * @param mixed $content
      * @param null|mixed $action
      */
-    public function sends(array $user_ids, $title, $content, $action = null): void
+    public function sends(array $user_ids, $title, $content, $action = null, bool $sendMail = true, ?string $sort = null): void
     {
         foreach ($user_ids as $user_id) {
             if (UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->exists()) {
                 UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->take(1)->update([
                     'status' => 'publish',
                     'created_at' => date('Y-m-d H:i:s'),
+                    'sort' => $sort,
                 ]);
             } else {
                 UsersNotice::query()->create([
@@ -77,9 +83,12 @@ class UserNotice
                     'title' => $title,
                     'content' => $content,
                     'action' => $action,
+                    'sort' => $sort,
                     'status' => 'publish',
                 ]);
-                $this->sendMail($user_id, $title, $action, $content);
+                if ($sendMail === true) {
+                    $this->sendMail($user_id, $title, $action, $content);
+                }
             }
         }
     }
@@ -116,7 +125,7 @@ class UserNotice
             $content = $content->getBody()->getContents();
         }
         $content = strip_tags($content);
-        if (! Str::is('http*', $action)) {
+        if (!Str::is('http*', $action)) {
             $url = url($action);
         } else {
             $url = $action;

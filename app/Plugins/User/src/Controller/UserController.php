@@ -89,7 +89,7 @@ class UserController
             return admin_abort('用户名为:' . $username . '的用户不存在');
         }
         $user = User::query()->where('username', $username)->first();
-        $page = Topic::query()->where(['status' => 'publish', 'user_id' => $user->id])
+        $page = Topic::query()->where(['user_id' => $user->id])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
         return view('User::topic', ['page' => $page, 'user' => $user]);

@@ -98,10 +98,10 @@ class ShortCode
     public function topic_comment($match, ShortcodeInterface $s)
     {
         $comment_id = $s->getParameter('comment_id');
-        if (! TopicComment::query()->where(['id' => $comment_id, 'status' => 'publish'])->exists()) {
+        if (! TopicComment::where(['id' => $comment_id])->exists()) {
             return '[' . $s->getName() . '] ' . __('app.Error using short tags');
         }
-        $data = TopicComment::query()->where(['id' => $comment_id, 'status' => 'publish'])->first();
+        $data = TopicComment::find($comment_id);
         return view('Comment::ShortCode.comment', ['value' => $data]);
     }
 

@@ -27,7 +27,7 @@ if (! function_exists('get_topic_comment_page')) {
         $inPage = 1;
         // 获取最后一页页码
         $lastPage = TopicComment::query()
-            ->where(['status' => 'publish', 'topic_id' => $topic_id])
+            ->where(['topic_id' => $topic_id])
             ->paginate((int) $comment_num)->lastPage();
         if (get_options('comment_show_desc', 'off') === 'true') {
             $CommentOrderBy = 'desc';
@@ -44,7 +44,7 @@ if (! function_exists('get_topic_comment_page')) {
         for ($i = 0; $i < $lastPage; ++$i) {
             $page = $i + 1;
             $data = TopicComment::query()
-                ->where(['status' => 'publish', 'topic_id' => $topic_id])
+                ->where(['topic_id' => $topic_id])
                 ->with('topic', 'user', 'parent')
                 ->orderBy('optimal', 'desc')
                 ->orderBy('created_at', $comment_sort)
@@ -77,7 +77,7 @@ if (! function_exists('get_topic_comment_floor')) {
         $comment_page = get_topic_comment_page($comment_id);
         // ($key + 1)+(($comment->currentPage()-1)*get_options('comment_page_count',15))
         $page = TopicComment::query()
-            ->where(['topic_id' => $topic_id, 'status' => 'publish'])
+            ->where(['topic_id' => $topic_id])
             ->paginate((int) $comment_num, ['*'], 'page', $comment_page);
         foreach ($page as $k => $v) {
             if ((int) $v->id === $comment_id) {

@@ -13,9 +13,9 @@ namespace App\Plugins\Topic\src\Models;
 use App\Model\Model;
 use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Core\src\Models\Post;
-use App\Plugins\Core\src\Models\PostsOption;
 use App\Plugins\User\src\Models\User;
 use Carbon\Carbon;
+use Hyperf\Database\Model\SoftDeletes;
 
 /**
  * @property int $id
@@ -33,6 +33,8 @@ use Carbon\Carbon;
  */
 class Topic extends Model
 {
+    use SoftDeletes;
+
     /**
      * The table associated with the model.
      *
@@ -45,7 +47,7 @@ class Topic extends Model
      *
      * @var array
      */
-    protected $fillable = ['id', 'created_at', 'updated_at', 'title', 'user_id', 'status', 'post_id', 'view', 'tag_id', 'options','topping', 'essence'];
+    protected $fillable = ['id', 'created_at', 'updated_at', 'title', 'user_id', 'status', 'post_id', 'view', 'tag_id', 'options', 'topping', 'essence'];
 
     /**
      * The attributes that should be cast to native types.

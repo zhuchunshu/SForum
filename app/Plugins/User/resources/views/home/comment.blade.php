@@ -1,7 +1,7 @@
 <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
 <div class="row row-cards">
 
-    @php($topics = \App\Plugins\Comment\src\Model\TopicComment::query()->where(['user_id' => $user->id,'status' => 'publish'])->orderByDesc('id')->paginate(15))
+    @php($topics = \App\Plugins\Comment\src\Model\TopicComment::query()->where(['user_id' => $user->id,])->orderByDesc('id')->paginate(15))
     <div class="col-md-12">
         <div class="border-0 card card-body">
             <h3 class="card-title">{{$user->username}} 发布的评论</h3>

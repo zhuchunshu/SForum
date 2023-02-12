@@ -1,4 +1,4 @@
-@php($page = \App\Plugins\User\src\Models\UsersNotice::query()->where(['user_id'=>auth()->id()])->orderByDesc('created_at')->paginate(15))
+@php($page = \App\Plugins\User\src\Models\UsersNotice::query()->where(['user_id'=>auth()->id(),'sort' => null])->orderByDesc('created_at')->paginate(15))
 <div class="row row-cards justify-content-center">
     @if($page->count())
         @foreach($page as $value)

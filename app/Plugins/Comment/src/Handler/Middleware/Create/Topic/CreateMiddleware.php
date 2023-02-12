@@ -46,7 +46,11 @@ class CreateMiddleware implements MiddlewareInterface
             cache()->delete('comment_create_time_' . auth()->id());
             return redirect()->back()->with('danger', $validator->errors()->first())->go();
         }
-        $topic = Topic::query()->find($data['topic_id']);
+        $topic = Topic::find($data['topic_id']);
+        if($topic->status==="lock"){
+            cache()->delete('comment_create_time_' . auth()->id());
+            return redirect()->back()->with('danger', '回复的帖子已锁定(关闭)')->go();
+        }
         if (@$topic->post->options->disable_comment) {
             cache()->delete('comment_create_time_' . auth()->id());
             return redirect()->back()->with('danger', '此帖子关闭了评论功能')->go();

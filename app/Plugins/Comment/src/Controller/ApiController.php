@@ -145,14 +145,14 @@ class ApiController
         if (! $topic_id) {
             return Json_Api(403, false, ['请求参数不足,缺少:topic_id']);
         }
-        if (! Topic::query()->where(['status' => 'publish', 'id' => $topic_id])->exists()) {
+        if (! Topic::query()->where(['id' => $topic_id])->exists()) {
             return Json_Api(403, false, ['ID为:' . $topic_id . '的帖子不存在']);
         }
-        if (! TopicComment::query()->where(['status' => 'publish', 'topic_id' => $topic_id])->count()) {
+        if (! TopicComment::query()->where(['topic_id' => $topic_id])->count()) {
             return Json_Api(403, false, ['此帖子下无评论']);
         }
         $page = TopicComment::query()
-            ->where(['status' => 'publish', 'topic_id' => $topic_id])
+            ->where(['topic_id' => $topic_id])
             ->with('topic', 'user')
             ->paginate((int) get_options('comment_page_count', 2));
         return Json_Api(200, true, $page);
@@ -190,11 +190,11 @@ class ApiController
         if (! $comment_id) {
             return Json_Api(403, false, ['请求参数不足,缺少:comment_id']);
         }
-        if (! TopicComment::query()->where([['id', $comment_id], ['status', 'publish']])->exists()) {
+        if (! TopicComment::query()->where([['id', $comment_id]])->exists()) {
             return Json_Api(403, false, ['id为:' . $comment_id . '的评论不存在']);
         }
         $data = TopicComment::query()
-            ->where([['id', $comment_id], ['status', 'publish']])
+            ->where([['id', $comment_id]])
             ->first();
         return Json_Api(200, true, $data);
     }
@@ -206,11 +206,11 @@ class ApiController
         if (! $comment_id) {
             return Json_Api(403, false, ['请求参数不足,缺少:comment_id']);
         }
-        if (! TopicComment::query()->where([['id', $comment_id], ['status', 'publish']])->exists()) {
+        if (! TopicComment::query()->where([['id', $comment_id]])->exists()) {
             return Json_Api(403, false, ['id为:' . $comment_id . '的评论不存在']);
         }
         $data = TopicComment::query()
-            ->where([['id', $comment_id], ['status', 'publish']])
+            ->where([['id', $comment_id]])
             ->with('topic')
             ->first();
         $quanxian = false;
@@ -225,12 +225,12 @@ class ApiController
         }
         $caina = __('topic.comment.cancel') . ' ' . __('topic.comment.adoption');
         if ($data->optimal === null) {
-            TopicComment::query()->where([['id', $comment_id], ['status', 'publish']])->update([
+            TopicComment::query()->where([['id', $comment_id]])->update([
                 'optimal' => date('Y-m-d H:i:s'),
             ]);
             $caina = __('topic.comment.adoption');
         } else {
-            TopicComment::query()->where([['id', $comment_id], ['status', 'publish']])->update([
+            TopicComment::query()->where([['id', $comment_id]])->update([
                 'optimal' => null,
             ]);
         }
@@ -283,7 +283,7 @@ class ApiController
         $comments = request()->input('comments');
         $data = [];
         foreach ($comments as $comment_id) {
-            $comment = TopicComment::query()->where(['id' => $comment_id, 'status' => 'publish'])->first();
+            $comment = TopicComment::query()->where(['id' => $comment_id, ])->first();
             if ($comment->post->user_ip) {
                 $data[] = [
                     'comment_id' => $comment->id,

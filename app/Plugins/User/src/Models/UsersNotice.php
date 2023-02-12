@@ -6,6 +6,7 @@ namespace App\Plugins\User\src\Models;
 use App\Model\Model;
 use Carbon\Carbon;
 use Hyperf\Database\Model\Events\Saved;
+use Hyperf\Database\Model\SoftDeletes;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -31,7 +32,7 @@ class UsersNotice extends Model
      *
      * @var array
      */
-    protected $fillable = ['user_id', 'title', 'content', 'action','created_at', 'updated_at','status'];
+    protected $fillable = ['user_id', 'title', 'content', 'action','created_at', 'updated_at','status','sort'];
     /**
      * The attributes that should be cast to native types.
      *

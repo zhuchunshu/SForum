@@ -50,7 +50,7 @@
 
         <div class="col-lg-3">
             <label class="form-label">摘要长度</label>
-            <input type="number" class="form-control" mix="1" v-model="data.topic_brief_len">
+            <input type="number" class="form-control" min="1" v-model="data.topic_brief_len">
             <small>默认250</small>
         </div>
 
@@ -73,6 +73,19 @@
                 <input class="form-check-input" type="checkbox" v-model="data.topic_like_sort">
                 <span class="form-check-label">点赞改变排序</span>
             </label>
+        </div>
+
+        <div class="col-lg-3">
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.topic_auto_lock">
+                <span class="form-check-label">自动锁帖</span>
+            </label>
+        </div>
+
+        <div class="col-lg-3">
+            <label class="form-label">自动锁定发布时间超过多少天的帖子?</label>
+            <input type="number" class="form-control" min="1" v-model="data.topic_auto_lock_day">
+            <small>默认30</small>
         </div>
     </div>
 

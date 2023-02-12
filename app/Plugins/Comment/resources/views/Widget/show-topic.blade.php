@@ -117,7 +117,7 @@
                                                         <div class="col-auto">
                                                             <a href="/{{$data->id}}.html/{{$value->id}}?page={{$comment->currentPage()}}">
                                                                 {{__("topic.floor",['floor' => ($key + 1)+(($comment->currentPage()-1)*get_options('comment_page_count',15)) ])}}</a>
-                                                            @if($caina)
+                                                            @if($caina && !$value->deleted_at)
                                                                 ·
                                                                 <a style="text-decoration:none;"
                                                                    comment-click="comment-caina-topic"
@@ -137,21 +137,22 @@
                                                     </div>
                                                 </div>
                                                 {{--                                    评论内容--}}
-                                                {{--                                        <div class="col-md-12">--}}
-                                                {{--                                            <div class="hr-text"--}}
-                                                {{--                                                 style="margin-bottom:8px;margin-top:15px">{{__("topic.comment.comment content")}}</div>--}}
-                                                {{--                                        </div>--}}
-                                                @if($posts_options_only_author && auth()->id()!=$value->user_id && auth()->id()!=$data->user_id)
-                                                    @include('Comment::Widget.only-author')
+
+                                                @if(!$value->deleted_at)
+                                                    @if($posts_options_only_author && auth()->id()!=$value->user_id && auth()->id()!=$data->user_id)
+                                                        @include('Comment::Widget.only-author')
+                                                    @else
+                                                        @include('Comment::Widget.source')
+                                                    @endif
                                                 @else
-                                                    @include('Comment::Widget.source')
+                                                    @include('Comment::Widget.deleted')
                                                 @endif
                                                 {{--                                    操作--}}
                                                 {{--                                        <div class="col-md-12">--}}
                                                 {{--                                            <div class="hr-text"--}}
                                                 {{--                                                 style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.operate")}}</div>--}}
                                                 {{--                                        </div>--}}
-                                                @if(auth()->check())
+                                                @if(auth()->check() && !$value->deleted_at)
                                                     @include('Comment::shared.footer_tool')
                                                 @endif
                                             </div>
