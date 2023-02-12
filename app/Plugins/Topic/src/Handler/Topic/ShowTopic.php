@@ -42,7 +42,7 @@ class ShowTopic
         } else {
             $comment_sort = $CommentOrderBy;
         }
-        $comment = TopicComment::query()
+        $comment = TopicComment::withTrashed()
             ->where(['topic_id' => $id])
             ->with('topic', 'user', 'parent', 'likes', 'post', 'post.options')
             ->orderBy('optimal', 'desc')
