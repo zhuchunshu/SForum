@@ -55,31 +55,33 @@ $(function(){
     });
 })
 
-$(function(){
-    $("img").each(function(){
-        const img = $(this);
-        if(img.attr("lightbox")!=="false" && img.parents().get(0).tagName!=="a" && img.parents().get(0).tagName!=="A"){
-            const img_url = img.attr("src");
-            const img_alt = img.attr("alt");
-            img.wrap("<a data-fslightbox=\"gallery\" href='"+img_url+"'></a>")
-        }
-    })
-
-    $("a").each(function(){
-        const a = $(this);
-        if(a.children().length>0){
-            if(a.children().get(0).tagName==="IMG" || a.children().get(0).tagName==="img"){
-                a.attr("data-fslightbox","gallery")
-                const img_alt = a.children().attr("alt")
-                a.attr("data-caption",img_alt)
+if(document.getElementById('topic-page')){
+    $(function(){
+        $("#topic-page img").each(function(){
+            const img = $(this);
+            if(img.attr("lightbox")!=="false" && img.parents().get(0).tagName!=="a" && img.parents().get(0).tagName!=="A"){
+                const img_url = img.attr("src");
+                const img_alt = img.attr("alt");
+                img.wrap("<a data-fslightbox=\"gallery\" href='"+img_url+"'></a>")
             }
-        }
+        })
 
+        $("#topic-page a").each(function(){
+            const a = $(this);
+            if(a.children().length>0){
+                if(a.children().get(0).tagName==="IMG" || a.children().get(0).tagName==="img"){
+                    a.attr("data-fslightbox","gallery")
+                    const img_alt = a.children().attr("alt")
+                    a.attr("data-caption",img_alt)
+                }
+            }
+
+        })
+
+        refreshFsLightbox();
     })
 
-    refreshFsLightbox();
-})
-
+}
 $(function(){
     $('a[core-click="like-topic"]').click(function(){
         const topic_id = $(this).attr("topic-id")
