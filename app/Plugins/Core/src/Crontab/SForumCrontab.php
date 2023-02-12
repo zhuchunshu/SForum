@@ -44,7 +44,7 @@ class SForumCrontab
                 // 发送通知
 
                 $notice = new \App\Plugins\User\src\Lib\UserNotice();
-                $notice->send($topic->user_id, '你有一条帖子已被系统定时任务自动锁定', '帖子《<a href="/' . $topic->id . '.html" >' . $topic->title . '</a>》已被系统定时任务发现并自动锁定，原因：帖子发布时间已大于系统设定自动锁帖时间', '/' . $topic->id . '.html', false);
+                $notice->send($topic->user_id, '你有一条帖子已被系统定时任务自动锁定', '帖子《<a href="/' . $topic->id . '.html" >' . $topic->title . '</a>》已被系统定时任务发现并自动锁定，原因：帖子发布时间已大于系统设定自动锁帖时间', '/' . $topic->id . '.html', false,'system');
             }
         }
     }

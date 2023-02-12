@@ -42,10 +42,9 @@ class ShowTopic
                 Db::table('topic')->where('id', $id)->update(['status' => 'lock']);
 
                 // 发送通知
-                user_notice()->send($topic->user_id, '你有一条帖子已被系统自动锁定', '帖子《<a href="/' . $topic->id . '.html" >' . $topic->title . '</a>》已被系统自动锁定，原因：帖子发布时间已大于系统设定自动锁帖时间', '/' . $topic->id . '.html', false);
+                user_notice()->send($topic->user_id, '你有一条帖子已被系统自动锁定', '帖子《<a href="/' . $topic->id . '.html" >' . $topic->title . '</a>》已被系统自动锁定，原因：帖子发布时间已大于系统设定自动锁帖时间', '/' . $topic->id . '.html', false, 'system');
             }
         });
-
 
         // 缓存
         $data = Topic::query()->with('tag', 'user', 'topic_updated', 'likes', 'post', 'post.options', 'comments.user', 'comments.post')->find($id);

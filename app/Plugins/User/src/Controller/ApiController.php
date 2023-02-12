@@ -185,10 +185,8 @@ class ApiController
         if (! auth()->check()) {
             return Json_Api(419, false, ['msg' => '未登录!']);
         }
-        if (! UsersNotice::query()->where(['status' => 'publish', 'user_id' => auth()->id()])->exists()) {
-            return Json_Api(403, false, ['msg' => '没有未读通知!']);
-        }
-        UsersNotice::query()->where(['status' => 'publish', 'user_id' => auth()->id()])->delete();
+
+        UsersNotice::query()->where(['user_id' => auth()->id()])->delete();
         return Json_Api(200, true, ['msg' => '清空成功!']);
     }
 
