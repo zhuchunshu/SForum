@@ -15,7 +15,7 @@ if (! function_exists('get_topic_comment_page')) {
     /**
      * 获取评论所在的页码
      */
-    function get_topic_comment_page(int $comment_id): int
+    function get_topic_comment_page(string|int $comment_id): int
     {
         if (! \App\Plugins\Comment\src\Model\TopicComment::query()->where('id', $comment_id)->exists()) {
             return 1;
