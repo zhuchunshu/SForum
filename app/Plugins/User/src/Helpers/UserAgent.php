@@ -17,40 +17,24 @@ class UserAgent
         if (preg_match('/MSIE\s([^\s|;]+)/i', $agent, $regs)) {
             $outputer = '<i class="ua-icon icon-ie"></i>Internet Explore';
         } elseif (preg_match('/FireFox\/([^\s]+)/i', $agent, $regs)) {
-            $str1 = explode('Firefox/', $regs[0]);
-            $FireFox_vern = explode('.', $str1[1]);
             $outputer = '<i class="ua-icon icon-firefox"></i>FireFox';
         } elseif (preg_match('/Maxthon([\d]*)\/([^\s]+)/i', $agent, $regs)) {
-            $str1 = explode('Maxthon/', $agent);
-            $Maxthon_vern = explode('.', $str1[1]);
             $outputer = '<i class="ua-icon icon-edge"></i>MicroSoft Edge';
         } elseif (preg_match('#360([a-zA-Z0-9.]+)#i', $agent, $regs)) {
             $outputer = '<i class="ua-icon icon-360"></i>360极速浏览器';
         } elseif (preg_match('/Edge([\d]*)\/([^\s]+)/i', $agent, $regs)) {
-            $str1 = explode('Edge/', $regs[0]);
-            $Edge_vern = explode('.', $str1[1]);
             $outputer = '<i class="ua-icon icon-edge"></i>MicroSoft Edge';
         } elseif (stripos($agent, 'UC') !== false) {
-            $str1 = explode('rowser/', $agent);
-            $UCBrowser_vern = explode('.', $str1[1]);
             $outputer = '<i class="ua-icon icon-uc"></i>UC浏览器';
         } elseif (preg_match('/QQ/i', $agent, $regs) || preg_match('/QQBrowser\/([^\s]+)/i', $agent, $regs)) {
-            $str1 = explode('rowser/', $agent);
-            $QQ_vern = explode('.', $str1[1]);
             $outputer = '<i class= "ua-icon icon-qq"></i>QQ浏览器';
         } elseif (preg_match('/UBrowser/i', $agent, $regs)) {
-            $str1 = explode('rowser/', $agent);
-            $UCBrowser_vern = explode('.', $str1[1]);
             $outputer = '<i class="ua-icon icon-uc"></i>UC浏览器';
         } elseif (preg_match('/Opera[\s|\/]([^\s]+)/i', $agent, $regs)) {
             $outputer = '<i class= "ua-icon icon-opera"></i>Opera';
         } elseif (preg_match('/Chrome([\d]*)\/([^\s]+)/i', $agent, $regs)) {
-            $str1 = explode('Chrome/', $agent);
-            $chrome_vern = explode('.', $str1[1]);
             $outputer = '<i class="ua-icon icon-chrome""></i>Google Chrome';
         } elseif (preg_match('/safari\/([^\s]+)/i', $agent, $regs)) {
-            $str1 = explode('Version/', $agent);
-            $safari_vern = explode('.', $str1[1]);
             $outputer = '<i class="ua-icon icon-safari"></i>Safari';
         } else {
             $outputer = '<i class="ua-icon icon-chrome"></i>Google Chrome';
