@@ -58,7 +58,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="text-muted"> @if($user->options->qianming!=='no bio'){{$user->options->qianming}}@else{{__("user.no bio")}} @endif</div>
+                    <div class="text-muted"> @if($user->options->qianming && $user->options->qianming!=='no bio'){{$user->options->qianming}}@else{{__("user.no bio")}} @endif</div>
 
                 </div>
             </div>

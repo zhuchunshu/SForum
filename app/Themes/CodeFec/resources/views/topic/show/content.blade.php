@@ -67,7 +67,7 @@
             <article class="card-body topic article markdown text-reset">
                 {!! ContentParse()->parse($data->post->content,$parseData) !!}
             </article>
-            @if($data->user->Options->qianming!=='no bio')
+            @if($data->user->Options->qianming && $data->user->Options->qianming!=='no bio')
                 <div class="px-3 py-3">
                     <div class="hr-text hr-text-left mt-0 mb-3">signature</div>
                     <span class="text-muted">

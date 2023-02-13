@@ -24,7 +24,7 @@
                                     <div class="col text-truncate">
                                         <a href="/users/pm/{{$contact->id}}"
                                            class="text-body d-block">{{$contact->username}}</a>
-                                        <div class="text-muted text-truncate mt-n1">@if($contact->options->qianming!=='no bio')
+                                        <div class="text-muted text-truncate mt-n1">@if($contact->options->qianming && $contact->options->qianming!=='no bio')
                                                 {{$contact->options->qianming}}
                                             @else
                                                 {{__("user.no bio")}}

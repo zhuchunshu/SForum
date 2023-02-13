@@ -33,7 +33,7 @@
                                 </div>
                                 <div class="col text-truncate">
                                     <a href="/users/pm/{{$contact->id}}" class="text-body d-block">{{$contact->username}}</a>
-                                    <div class="text-muted text-truncate mt-n1"> @if($contact->options->qianming!=='no bio'){{$contact->options->qianming}}@else{{__("user.no bio")}} @endif</div>
+                                    <div class="text-muted text-truncate mt-n1"> @if($contact->options->qianming && $contact->options->qianming!=='no bio'){{$contact->options->qianming}}@else{{__("user.no bio")}} @endif</div>
                                 </div>
                                 @if($contact->msgCount>0)
                                 <div class="col-auto"><span class="badge badge-pill bg-red">{{$contact->msgCount}}</span></div>
