@@ -19,6 +19,7 @@ use App\Plugins\Topic\src\Models\TopicTag;
 use App\Plugins\Topic\src\Models\TopicUpdated;
 use App\Plugins\User\src\Models\UserClass;
 use App\Plugins\User\src\Models\UsersCollection;
+use Hyperf\DbConnection\Db;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
@@ -258,7 +259,7 @@ class ApiController
         // 执行锁帖
         $update = $topic->status === 'lock' ? 'publish' : 'lock';
 
-        Topic::where('id', $topic_id)->update(['status' => $update]);
+        Db::table('topic')->where('id', $topic_id)->update(['status' => $update]);
 
         // 发送通知
         if ($topic->user_id != auth()->id()) {
