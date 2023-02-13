@@ -59,7 +59,8 @@ if (! function_exists('mix')) {
 //        if (Arr::has($result, '/' . $path)) {
 //            return $result['/' . $path];
 //        }
-        return '/' . $path;
+//        return '/' . $path;
+        return file_hash($path);
     }
 }
 
@@ -637,7 +638,7 @@ if (! function_exists('file_hash')) {
     function file_hash($path): string
     {
         if (file_exists(BASE_PATH . '/public/' . $path)) {
-            return '/' . $path . '?version=' . md5_file(BASE_PATH . '/public/' . $path);
+            return '/' . $path . '?version=' . build_info()->version;
         }
         return '/' . $path;
     }

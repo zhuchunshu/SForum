@@ -100,14 +100,14 @@
     margin-top: 7px;
     margin-bottom: 10px;
     border-radius: 4px;
-    width: 386px !important;
+    width: 100%!important;
     top: 3px;
     z-index: 999999
 }
 
 @media (max-width: 450px) {
     .OwO .OwO-body {
-        width: 320px !important;
+        width: 100% !important;
         position: absolute;
         top: 15px
     }
@@ -143,7 +143,7 @@
     transition: background .2s;
     display: inline-block;
     padding: 5px 10px;
-    margin: 2px 3px;
+    margin: 2px -1px;
     outline: 0;
     text-decoration: none;
     cursor: pointer;
@@ -160,7 +160,7 @@
 }
 
 .OwO .OwO-body .OwO-items-image .OwO-item {
-    max-width: 50px;
+    max-width: 45px;
     box-sizing: border-box
 }
 
