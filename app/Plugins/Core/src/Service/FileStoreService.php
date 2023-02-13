@@ -50,14 +50,20 @@ class FileStoreService
      * 保存文件.
      * @param $file
      * @param $folder
-     * @param $file_prefix
+     * @param null $file_prefix
      * @param mixed $move
      * @param null|mixed $path
      */
     public function save($file, $folder, $file_prefix = null, $move = false, $path = null): array
     {
-        $file_store_service = get_options('file_store_service');
-        if ($file_store_service) {
+        $file_store_service = get_options('file_store_service', 'b53a68eae9ecac0d86eb8d1125524b13');
+
+        if (! arr_has($this->get_services(), $file_store_service)) {
+            $file_store_service = key($this->get_services());
+        }
+
+        // 判断存储服务是否存在
+        if ($file_store_service || arr_has($this->get_services(), $file_store_service)) {
             $services = $this->get_services();
             if (isset($services[$file_store_service])) {
                 $class = $services[$file_store_service]['class'];
