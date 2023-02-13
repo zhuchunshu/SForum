@@ -13,7 +13,7 @@
                     @if($data->status==="lock")
                         <span data-bs-toggle="tooltip" data-bs-placement="bottom" title="帖子已锁定" style="display: inline-block" class="text-reset bg-transparent">
                             <svg xmlns="http://www.w3.org/2000/svg"
-                                 style="--tblr-icon-size:1.8rem;margin-bottom: 4px"
+                                 style="--tblr-icon-size:1.5rem;margin-bottom: 4px"
                                  class="icon icon-tabler icon-tabler-lock" width="20" height="20"
                                  viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
                                  fill="none" stroke-linecap="round" stroke-linejoin="round">
