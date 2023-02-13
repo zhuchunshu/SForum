@@ -1,9 +1,9 @@
-name: 自动发布Release
+name: 自动预发布Release 
 
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*.*.*.*"
   workflow_dispatch:
 
 jobs:
@@ -42,6 +42,6 @@ jobs:
         name: ${{ steps.previoustag.outputs.tag }}
         body: ${{ steps.changelog.outputs.changelog }}
         draft: false
-        prerelease: false
+        prerelease: true
      
 
