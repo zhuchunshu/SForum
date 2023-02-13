@@ -15,4 +15,9 @@ class WebController
 	public function Releases($id){
 		return view("admin.panel.Releases",['id' => $id]);
 	}
+
+    #[GetMapping(path:"Releases/current/{id}")]
+    public function current_releases($id){
+        return view("admin.panel.current_releases",['id' => $id]);
+    }
 }

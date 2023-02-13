@@ -286,7 +286,7 @@
                             <div class="card" v-if="data">
                                 <div class="card-body">
                                     <h3 class="card-title">Releases</h3>
-                                    <p>当前版本:@{{data.version}}</p>
+                                    <p>当前版本: <a v-if="data.version" :href="data.current_version_url">@{{data.version}}</a> </p>
                                     <p>最新版本: <a :href="data.new_version_url">@{{data.tag_name}}</a></p>
                                     <div v-if="data.upgrade">
                                         可更新
