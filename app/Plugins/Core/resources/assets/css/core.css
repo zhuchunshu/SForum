@@ -2954,3 +2954,8 @@ body {
 .icon-huawei {
   background-image: url(/plugins/User/image/icon/huawei.png);
 }
+
+.text-muted-sm {
+  color: rgba(134, 142, 150, 0.8) !important;
+  font-size: 11px;
+}

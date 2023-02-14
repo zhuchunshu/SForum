@@ -12,7 +12,7 @@
                     <div class="col-md-12">
                         <div class="row">
                             <div class="col-md-12 markdown home-article">
-                                <h3 class="text-muted">
+                                <h3 class="text-muted text-truncate">
                                     @if($data->topping>0)
                                         <span class="badge bg-red">
                                                     {{__('app.top')}}
@@ -56,15 +56,15 @@
                     </div>
                     <div class="col-md-12">
                         <div class="d-flex align-items-center">
-                            <div class="text-muted" style="margin-top:1px">
-                                {!! u_username($data->user,['class' => ['text-muted']]) !!} {{format_date($data->created_at)}}
+                            <div class="text-muted-sm" style="margin-top:5px">
+                                {!! u_username($data->user,['class' => ['text-muted-sm']]) !!} {{format_date($data->created_at)}}
 
                                 @if($data->comments->count())
                                     ←
                                     @if($data->updated_at>$data->comments->last()->created_at)
-                                        {!! u_username($data->user,['class' => ['text-muted']]) !!} {{format_date($data->updated_at)}}
+                                        {!! u_username($data->user,['class' => ['text-muted-sm']]) !!} {{format_date($data->updated_at)}}
                                     @else
-                                        {!! u_username($data->comments->last()->user,['class' => ['text-muted']]) !!}  {{format_date($data->comments->last()->created_at)}}
+                                        {!! u_username($data->comments->last()->user,['class' => ['text-muted-sm']]) !!}  {{format_date($data->comments->last()->created_at)}}
                                     @endif
 
                                 @endif
