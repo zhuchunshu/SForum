@@ -31,7 +31,7 @@ RUN set -ex \
 WORKDIR /data/www
 
 COPY . /data/www
-RUN composer install --no-dev  && php CodeFec
+RUN composer install --no-dev && composer update -o && php CodeFec
 
 
 EXPOSE 9501
