@@ -8,3 +8,4 @@ yarn-error.log
 runtime/
 app/CodeFec/storage
 build.sh
+/app/CodeFec/Itf/Itf/config.json
