@@ -32,6 +32,9 @@ class PmController
     #[PostMapping(path: 'send_msg')]
     public function send_msg()
     {
+        if (! Authority()->check('user_private_chat')) {
+            return admin_abort('你所在的用户组无私聊权限');
+        }
         $user_id = request()->input('user_id');
         $msg = request()->input('content');
         if (! $user_id || ! User::query()->where('id', $user_id)->exists()) {
@@ -54,6 +57,9 @@ class PmController
     #[PostMapping(path: 'get_msg')]
     public function get_msg()
     {
+        if (! Authority()->check('user_private_chat')) {
+            return admin_abort('你所在的用户组无私聊权限');
+        }
         $user_id = request()->input('user_id');
         if (! $user_id || ! User::query()->where('id', $user_id)->exists()) {
             return json_api(403, false, ['msg' => '私信用户不存在']);

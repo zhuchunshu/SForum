@@ -14,7 +14,7 @@ return [
         'connection' => 'default',
         'path' => BASE_PATH . '/runtime/session',
         'gc_maxlifetime' => 72 * 60 * 60,
-        'session_name' => env('APP_NAME', 'CODEFEC_SESSION_ID'),
+        'session_name' => env('APP_KEY', 'CODEFEC_SESSION_ID'),
         'domain' => null,
         'cookie_lifetime' => 72 * 60 * 60,
     ],

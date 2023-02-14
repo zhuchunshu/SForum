@@ -26,10 +26,6 @@ class HyperfViewEngine implements EngineInterface
         foreach ($plugin_list as $value) {
             $factory->addNamespace($value, plugin_path($value . '/resources/views'));
         }
-        // 替换
-        foreach (Themes()->get() as $namespace => $hints) {
-            $factory->replaceNamespace($namespace, $hints);
-        }
         // 主题
         $name = get_options('theme', 'CodeFec');
         $factory->replaceNamespace('App', theme_path($name . '/resources/views'));

@@ -31,9 +31,11 @@ Authority()->add('report_comment', '举报评论');
 Authority()->add('admin_report', '受理举报');
 Authority()->add('upload_file', '上传附件');
 Authority()->add('upload_image', '上传图片');
+Authority()->add('user_private_chat', '私聊');
 Authority()->add('core_shortCode_InvitationCode', '使用邀请码ShortCode');
 
 Itf()->add('core_auth_selected', 'topic_edit', 'topic_edit');
+Itf()->add('core_auth_selected', 'user_private_chat', 'user_private_chat');
 Itf()->add('core_auth_selected', 'topic_create', 'topic_create');
 Itf()->add('core_auth_selected', 'comment_create', 'comment_create');
 Itf()->add('core_auth_selected', 'comment_edit', 'comment_edit');
