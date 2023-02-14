@@ -34,7 +34,7 @@ class Upgrading extends HyperfCommand
         // 强制更新
         $this->addOption('force', 'f', InputOption::VALUE_NONE, '强制更新');
         // 不备份
-        $this->addOption('no-backup', 'n', InputOption::VALUE_NONE, '不进行备份');
+        $this->addOption('no-backup', 'nb', InputOption::VALUE_NONE, '不进行备份');
     }
 
     public function configure()
