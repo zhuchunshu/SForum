@@ -125,6 +125,9 @@ class UserNotice
             $content = $content->getBody()->getContents();
         }
         $content = strip_tags($content);
+        if(!$action){
+            $action = url();
+        }
         if (!Str::is('http*', $action)) {
             $url = url($action);
         } else {
