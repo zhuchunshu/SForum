@@ -30,7 +30,7 @@ class ApiController
      */
     protected $service;
 
-    private string $api_releases = 'https://github-api.inkedus.workers.dev/repos/zhuchunshu/SForum/releases';
+    private string $api_releases = 'https://api.github.com/repos/zhuchunshu/SForum/releases';
 
     #[PostMapping(path: 'getVersion')]
     public function getVersion()
