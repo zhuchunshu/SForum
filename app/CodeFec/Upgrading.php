@@ -48,7 +48,7 @@ class Upgrading
         return $default;
     }
 
-    public function run()
+    public function run($force = false, $no_backup = false)
     {
         $url = match ((string) $this->get_options('update_server', '2')) {
             '2' => '',
@@ -63,10 +63,13 @@ class Upgrading
         $version = $data['version'];
         $tag_name = $data['tag_name'];
 
-        // 判断是否不可升级
-        if ($tag_name <= $version || $data['prerelease'] === true) {
-            $this->command->error('无需升级');
-            return;
+        // 判断是否进行强制更新
+        if ($force === false) {
+            // 判断是否不可升级
+            if ($tag_name <= $version || $data['prerelease'] === true) {
+                $this->command->error('无需升级');
+                return;
+            }
         }
 
         // 生成文件下载链接
@@ -76,7 +79,7 @@ class Upgrading
         $file_path = BASE_PATH . '/runtime/update.zip';
 
         // 创建下载任务
-        $this->download($url, $file_path);
+        $this->download($url, $file_path, $no_backup);
     }
 
     public function removeFiles(...$values): void
@@ -86,7 +89,7 @@ class Upgrading
         }
     }
 
-    private function download(string $download, string $path)
+    private function download(string $download, string $path, $no_backup = false)
     {
         $this->command->info("开始更新...\n");
         $this->command->info("生成更新锁...\n");
@@ -94,10 +97,12 @@ class Upgrading
         file_put_contents(BASE_PATH . '/app/CodeFec/storage/update.lock', time());
         // 备份网站数据
         $this->command->info('开始备份网站数据，网站数据会存放在:' . BASE_PATH . "/runtime/backup/backup.zip 文件中\n");
-        if(file_exists( BASE_PATH . "/runtime/backup/backup.zip")){
-            $this->removeFiles(BASE_PATH . "/runtime/backup/backup.zip");
+        if (file_exists(BASE_PATH . '/runtime/backup/backup.zip')) {
+            $this->removeFiles(BASE_PATH . '/runtime/backup/backup.zip');
         }
-        backup();
+        if ($no_backup === false) {
+            backup();
+        }
         // 卸载自带组件
         $this->rmPlugins();
         $this->command->info("卸载自带组件...\n");

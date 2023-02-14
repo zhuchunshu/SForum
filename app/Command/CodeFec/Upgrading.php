@@ -13,6 +13,7 @@ namespace App\Command\CodeFec;
 use Hyperf\Command\Annotation\Command;
 use Hyperf\Command\Command as HyperfCommand;
 use Psr\Container\ContainerInterface;
+use Symfony\Component\Console\Input\InputOption;
 
 /**
  * @Command
@@ -30,6 +31,10 @@ class Upgrading extends HyperfCommand
         $this->container = $container;
 
         parent::__construct('CodeFec:Upgrading');
+        // 强制更新
+        $this->addOption('force', 'f', InputOption::VALUE_NONE, '强制更新');
+        // 不备份
+        $this->addOption('no-backup', 'n', InputOption::VALUE_NONE, '不进行备份');
     }
 
     public function configure()
@@ -43,6 +48,8 @@ class Upgrading extends HyperfCommand
         $install = make(\App\CodeFec\Upgrading::class, [
             'output' => $this->output,
             'command' => $this,
+            'force' => $this->input->getOption('force'),
+            'no_backup' => $this->input->getOption('no-backup'),
         ]);
 
         $install->run();
