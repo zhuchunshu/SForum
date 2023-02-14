@@ -176,7 +176,7 @@ if (! function_exists('format_date')) {
         ];
         foreach ($f as $k => $v) {
             if (0 != $c = floor($t / (int) $k)) {
-                return $c . ' ' . $v . __('app.ago');
+                return $c . $v . __('app.ago');
             }
         }
     }
