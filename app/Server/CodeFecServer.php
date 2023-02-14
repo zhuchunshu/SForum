@@ -78,7 +78,6 @@ class CodeFecServer implements OnRequestInterface, MiddlewareInitializerInterfac
         try {
             CoordinatorManager::until(Constants::WORKER_START)->yield();
 
-            (new CodeFec())->handle();
             [$psr7Request, $psr7Response] = $this->initRequestAndResponse($request, $response);
 
             $psr7Request = $this->coreMiddleware->dispatch($psr7Request);

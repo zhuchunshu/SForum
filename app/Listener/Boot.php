@@ -10,14 +10,14 @@ declare(strict_types=1);
  */
 namespace App\Listener;
 
+use App\CodeFec\CodeFec;
 use Hyperf\Event\Annotation\Listener;
 use Hyperf\Event\Contract\ListenerInterface;
 use Hyperf\Framework\Event\BootApplication;
-use Hyperf\ViewEngine\Blade;
 use Psr\Container\ContainerInterface;
 
 #[Listener]
-class BladeCsrf implements ListenerInterface
+class Boot implements ListenerInterface
 {
     /**
      * @var ContainerInterface
@@ -38,13 +38,6 @@ class BladeCsrf implements ListenerInterface
 
     public function process(object $event): void
     {
-        Blade::directive('csrf', function () {
-            $token = csrf_token();
-            return "<?php echo <<<HTML
-<input type='hidden' name='_token' value='{$token}'>
-
-HTML;
-; ?>";
-        });
+        (new CodeFec())->handle();
     }
 }
