@@ -12,7 +12,7 @@
                     <div class="col-md-12">
                         <div class="row">
                             <div class="col-md-12 markdown home-article">
-                                <h3 class="text-muted text-truncate">
+                                <h3 class="text-muted">
                                     @if($data->topping>0)
                                         <span class="badge bg-red">
                                                     {{__('app.top')}}
