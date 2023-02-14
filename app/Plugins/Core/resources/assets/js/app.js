@@ -3914,15 +3914,22 @@ $(function () {
 
     data = data.result; // 通知小红点
 
-    if (document.getElementById("core-notice-red")) {
-      if (data.notice_red > 0) {
-        var ele = $("#core-notice-red");
-        ele.show();
-        ele.text(data.notice_red);
-        var header_ele = $("div.border-primary");
-        header_ele.addClass("border-orange");
-        header_ele.removeClass("border-primary");
-      }
+    if (data.notice_red > 0) {
+      // 通知icon小红点
+      var ele = $("#core-notice-red");
+      ele.show();
+      ele.text(data.notice_red); // 下拉小红点
+
+      var ele2 = $("#common-user-notice-1");
+      ele2.show();
+      ele2.text(data.notice_red); // 移动端小红点
+
+      var ele3 = $("#common-user-notice-2");
+      ele3.show(); // 页头呼吸条
+
+      var header_ele = $("div.border-primary");
+      header_ele.addClass("border-orange");
+      header_ele.removeClass("border-primary");
     }
   });
 }); // if (ws_url && login_token){

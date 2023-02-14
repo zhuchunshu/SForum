@@ -54,6 +54,7 @@
     <div id="vue-header-right-my" class="nav-item dropdown">
         <a href="#" class="p-0 nav-link d-flex lh-1 text-reset" data-bs-toggle="dropdown" aria-label="Open user menu">
             <span class="avatar avatar-sm avatar-rounded" style="background-image: url({{super_avatar(auth()->data())}})"></span>
+            <span id="common-user-notice-2" class="badge bg-red badge-blink d-md-none" style="transform: translate(50%, -50%);display: none; top: -2px; z-index: 1; position: absolute !important; right: 0px !important;"></span>
             <div class="d-none d-xl-block ps-2">
                 <div>{{auth()->data()->username}}</div>
                 <div class="mt-1 small text-muted">{{__("user.st member",['member' => auth()->id()])}}</div>
@@ -63,13 +64,14 @@
             <a href="/user" class="dropdown-item">个人中心</a>
             <a href="/user/collections" class="dropdown-item">我的收藏</a>
             <a href="/user/notice" class="dropdown-item">
-                <!-- Download SVG icon from http://tabler-icons.io/i/bell -->
-                {{--                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" /><path d="M9 17v1a3 3 0 0 0 6 0v-1" /></svg>--}}
+{{--                <!-- Download SVG icon from http://tabler-icons.io/i/bell -->--}}
+{{--                --}}{{--                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" /><path d="M9 17v1a3 3 0 0 0 6 0v-1" /></svg>--}}
                 我的通知
+                <span id="common-user-notice-1" class="badge bg-red ms-2" style="display: none"></span>
             </a>
             <div class="dropdown-divider"></div>
             <a href="/user/setting" class="dropdown-item">个人设置</a>
-            <a href="#" @@click="Logout" class="dropdown-item">Logout</a>
+            <a href="#" @@click="Logout" class="dropdown-item">退出</a>
         </div>
     </div>
 @else
