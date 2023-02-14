@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace App\Listener;
 
 use App\CodeFec\CodeFec;
+use App\CodeFec\Install;
 use Hyperf\Event\Annotation\Listener;
 use Hyperf\Event\Contract\ListenerInterface;
 use Hyperf\Framework\Event\BootApplication;
@@ -38,6 +39,24 @@ class Boot implements ListenerInterface
 
     public function process(object $event): void
     {
-        (new CodeFec())->handle();
+        if(file_exists(BASE_PATH . '/app/CodeFec/storage/install.lock') || $this->get_step() >= 5){
+            (new CodeFec())->handle();
+        }
+    }
+
+    private function get_step(){
+        if (! is_dir(BASE_PATH . '/app/CodeFec/storage')) {
+            mkdir(BASE_PATH . '/app/CodeFec/storage');
+        }
+        // 创建文件
+        if (! file_exists(BASE_PATH . '/app/CodeFec/storage/install.step.lock')) {
+            file_put_contents(BASE_PATH . '/app/CodeFec/storage/install.step.lock', 1);
+        }
+        if (! @file_get_contents(BASE_PATH . '/app/CodeFec/storage/install.step.lock')) {
+            $step = 1;
+        } else {
+            $step = (int) file_get_contents(BASE_PATH . '/app/CodeFec/storage/install.step.lock');
+        }
+        return $step;
     }
 }
