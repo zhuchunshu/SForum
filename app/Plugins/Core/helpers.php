@@ -242,7 +242,6 @@ if (! function_exists('get_all_keywords')) {
     }
 }
 
-
 if (! function_exists('Authority')) {
     function Authority()
     {
@@ -290,11 +289,31 @@ if (! function_exists('emoji_add')) {
      */
     function emoji_add(string $name, string $emoji, string $type, bool $size = false)
     {
-        Itf()->add('emoji', count(Itf()->get('emoji'))+1, [
+        Itf()->add('emoji', count(Itf()->get('emoji')) + 1, [
             'name' => $name,
             'emoji' => $emoji,
             'type' => $type,
             'size' => $size,
         ]);
+    }
+}
+
+// 截取省份
+if (! function_exists('intercept_province')) {
+    function intercept_province(string $address)
+    {
+        $all = \Noodlehaus\Config::load(plugin_path('Core/src/province.json'))->all();
+        $province = [];
+        foreach ($all as $item) {
+            $province[] = $item['name'];
+        }
+        // 输出
+        $echo = null;
+        foreach ($province as $item) {
+            if (\Hyperf\Utils\Str::is('*' . $item . '*', $address)) {
+                $echo = $item;
+            }
+        }
+        return $echo ?: $address;
     }
 }

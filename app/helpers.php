@@ -828,6 +828,8 @@ if (! function_exists('get_client_ip_data')) {
         } else {
             $result['pro'] = '';
         }
+        $result['country']=intercept_province($result['country']);
+        $result['pro']=intercept_province($result['pro']);
         return $result;
     }
 }
