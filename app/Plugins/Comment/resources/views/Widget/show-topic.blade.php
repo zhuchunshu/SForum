@@ -36,7 +36,7 @@
                                     <label class="form-label">回复内容</label>
                                     <input type="hidden" name="comment_id" value="" id="reply-comment-id">
                                     <textarea class="form-control" name="content" id="reply-comment-content" data-bs-toggle="autosize" placeholder="说点什么..."></textarea>
-                                    <div class="mt-3 d-flex flex-lg-row-reverse">
+                                    <div class="mt-3 ">
                                         <div class="OwO" id="create-comment-owo2">[OωO表情]</div>
                                     </div>
                                 </div>

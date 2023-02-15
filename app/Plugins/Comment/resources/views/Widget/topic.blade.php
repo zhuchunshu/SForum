@@ -60,28 +60,7 @@
                                         <div class="col-auto"> <button class="btn btn-primary">评论</button></div>
                                         <div class="col align-self-center">
                                             @if(get_options('comment_emoji_close')!=='true')
-                                                <link rel="stylesheet" href="{{file_hash('css/OwO.min.css')}}">
                                                 <div class="OwO" id="create-comment-owo">[OωO表情]</div>
-                                                <script src="{{file_hash('js/OwO.min.js')}}"></script>
-                                                <script>
-                                                    var OwO_demo = new OwO({
-                                                        logo: '[OωO表情]',
-                                                        container: document.getElementById('create-comment-owo'),
-                                                        target: document.getElementById('create-comment-textarea'),
-                                                        api: '/api/core/OwO.json',
-                                                        width: '300px',
-                                                        maxHeight: '250px',
-                                                    });
-
-                                                    var OwO_demo2 = new OwO({
-                                                        logo: '[OωO表情]',
-                                                        container: document.getElementById('create-comment-owo2'),
-                                                        target: document.getElementById('reply-comment-content'),
-                                                        api: '/api/core/OwO.json',
-                                                        width: '300px',
-                                                        maxHeight: '250px',
-                                                    });
-                                                </script>
                                             @endif
                                         </div>
                                         <div class="col-auto align-self-center">

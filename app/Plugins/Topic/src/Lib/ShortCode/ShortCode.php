@@ -36,7 +36,9 @@ HTML;
     {
         $lang = $shortCode->getParameter('lang','text');
         $content = $shortCode->getContent();
-        return '<pre class="language-'.$lang.'"><code>'.$content.'</code></pre>';
+        return <<<HTML
+<pre class="language-{$lang}"><code>{$content}</code></pre>
+HTML;
 
     }
 }

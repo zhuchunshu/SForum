@@ -12,7 +12,7 @@
                     <div class="col-md-12">
                         <div class="row">
                             <div class="col-md-12 markdown home-article">
-                                <h3 class="text-muted">
+                                <h3 class="text-muted @if(get_options('theme_home_title_truncate')){{"text-truncate"}}@endif">
                                     @if($data->topping>0)
                                         <span class="badge bg-red">
                                                     {{__('app.top')}}
@@ -22,10 +22,13 @@
                                               style="background-color: {{$data->tag->color}}!important;">
                                                         {{$data->tag->name}}
                                                     </span>
-                                        <span class="badge d-inline-block d-lg-none"
-                                              style="background-color: {{$data->tag->color}}!important;">
+                                        @if(get_options('theme_home_tag_icon')==='true')
+                                            <span class="badge d-inline-block d-lg-none"
+                                                  style="background-color: {{$data->tag->color}}!important;">
                                                         {!! $data->tag->icon !!}
                                                     </span>
+                                        @endif
+
                                     @endif
                                     @if($data->essence>0)
                                         <span class="badge bg-green d-none d-lg-inline-block">
@@ -33,22 +36,23 @@
                                                     </span>
                                     @endif
 
-                                        <a href="/{{$data->id}}.html" class="text-reset">
-                                            {{$data->title}}
-                                        </a>
+                                    <a href="/{{$data->id}}.html" class="text-reset">
+                                        {{$data->title}}
+                                    </a>
                                     @if($data->status==="lock")
-                                        <div data-bs-toggle="tooltip" data-bs-placement="top" title="帖子已锁定" style="display: inline-block" class="text-reset bg-transparent">
-                                                <svg xmlns="http://www.w3.org/2000/svg"
-                                                     style="margin-bottom: 3px"
-                                                     class="icon icon-tabler icon-tabler-lock" width="20" height="20"
-                                                     viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                     fill="none" stroke-linecap="round" stroke-linejoin="round">
-   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-   <path d="M5 11m0 2a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z"></path>
-   <path d="M12 16m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"></path>
-   <path d="M8 11v-4a4 4 0 0 1 8 0v4"></path>
-</svg>
-                                            </div>
+                                        <div data-bs-toggle="tooltip" data-bs-placement="top" title="帖子已锁定"
+                                             style="display: inline-block" class="text-reset bg-transparent">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                 style="margin-bottom: 3px"
+                                                 class="icon icon-tabler icon-tabler-lock" width="20" height="20"
+                                                 viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+                                                 fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                <path d="M5 11m0 2a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z"></path>
+                                                <path d="M12 16m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"></path>
+                                                <path d="M8 11v-4a4 4 0 0 1 8 0v4"></path>
+                                            </svg>
+                                        </div>
                                     @endif
                                 </h3>
                             </div>
@@ -61,11 +65,14 @@
 
                                 @if($data->comments->count())
                                     ←
-                                    @if($data->updated_at>$data->comments->last()->created_at)
-                                        {!! u_username($data->user,['class' => ['text-muted-sm']]) !!} {{format_date($data->updated_at)}}
-                                    @else
-                                        {!! u_username($data->comments->last()->user,['class' => ['text-muted-sm']]) !!}  {{format_date($data->comments->last()->created_at)}}
-                                    @endif
+{{--                                最后回复--}}
+                                    {!! u_username($data->comments->last()->user,['class' => ['text-muted-sm']]) !!}  {{format_date($data->comments->last()->created_at)}}
+
+                                    {{--                                    @if($data->updated_at>$data->comments->last()->created_at)--}}
+{{--                                        {!! u_username($data->user,['class' => ['text-muted-sm']]) !!} {{format_date($data->updated_at)}}--}}
+{{--                                    @else--}}
+{{--                                        {!! u_username($data->comments->last()->user,['class' => ['text-muted-sm']]) !!}  {{format_date($data->comments->last()->created_at)}}--}}
+{{--                                    @endif--}}
 
                                 @endif
                             </div>

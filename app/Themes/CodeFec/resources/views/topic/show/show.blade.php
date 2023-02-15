@@ -87,17 +87,40 @@
     <script src="{{file_hash('highlight/highlightjs-line-numbers.min.js')}}"></script>
     <script src="{{file_hash('highlight/highlightjs-copy.min.js')}}"></script>
     <script src="{{file_hash('tabler//libs/fslightbox/index.js')}}" defer></script>
-    <script>
-        hljs.highlightAll();
-        hljs.initLineNumbersOnLoad({
-            singleLine: true
-        });
-        hljs.addPlugin(
-            new CopyButtonPlugin()
-        );
-    </script>
+
+    @if(get_options('comment_emoji_close')!=='true')
+        <link rel="stylesheet" href="{{file_hash('css/OwO.min.css')}}">
+        <script src="{{file_hash('js/OwO.min.js')}}"></script>
+        <script>
+            var OwO_demo = new OwO({
+                logo: '[OωO表情]',
+                container: document.getElementById('create-comment-owo'),
+                target: document.getElementById('create-comment-textarea'),
+                api: '/api/core/OwO.json',
+                width: '300px',
+                maxHeight: '250px',
+            });
+            if(OwO_demo){
+                var OwO_demo2 = new OwO({
+                    logo: '[OωO表情]',
+                    container: document.getElementById('create-comment-owo2'),
+                    target: document.getElementById('reply-comment-content'),
+                    api: '/api/core/OwO.json',
+                    width: '300px',
+                    maxHeight: '250px',
+                });
+            }
+        </script>
+    @endif
     <script>
         document.addEventListener("DOMContentLoaded", function () {
+            hljs.highlightAll();
+            hljs.initLineNumbersOnLoad({
+                singleLine: true
+            });
+            hljs.addPlugin(
+                new CopyButtonPlugin()
+            );
             window.Plyr && (new Plyr('video'));
         });
     </script>
