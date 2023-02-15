@@ -29,4 +29,3 @@ jobs:
           push: true
           tags: |
             zhuchunshu/sforum:latest
-          no-cache: true
