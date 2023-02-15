@@ -14,7 +14,7 @@
                         <span class="cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{$data->created_at}}">
                             {{__("app.Published on")}}:{{ format_date($data->created_at) }}
                         </span>
-                        ｜<span class="cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{$data->updated_at}}">{{__("app.Updated on")}}:{{ format_date($data->created_at) }}</span>
+                        ｜<span class="cursor-pointer" data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{$data->updated_at}}">{{__("app.Updated on")}}:{{ format_date($data->updated_at) }}</span>
                         @if(get_options('topic_author_ip', '开启') === '开启' && $data->post->user_ip)
                             <span v-if="user.city">
                             |
