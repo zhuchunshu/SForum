@@ -36,6 +36,7 @@
 @endsection
 
 @section('headers')
+    <link rel="stylesheet" href="{{file_hash('highlight/styles/mac.css')}}">
     <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
     <link rel="stylesheet" href="{{file_hash('tabler/libs/plyr/dist/plyr.css')}}">
     <style>
@@ -57,7 +58,6 @@
         }
 
     </style>
-    <link rel="stylesheet" href="{{file_hash('highlight/styles/mac.css')}}">
     <link rel="stylesheet" href="{{file_hash('highlight/highlightjs-copy.min.css')}}">
     <link rel="stylesheet" href="{{file_hash('highlight/styles/atom-one-dark.min.css')}}">
     <style>
