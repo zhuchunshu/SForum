@@ -66,6 +66,39 @@
                         </div>
                     </div>
                 </div>
+                @else
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <div class="card card-sm">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-auto">
+                            <span class="bg-azure-lt text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/heart -->
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-id" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M3 4m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z"></path>
+   <path d="M9 10m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+   <path d="M15 8l2 0"></path>
+   <path d="M15 12l2 0"></path>
+   <path d="M7 16l10 0"></path>
+</svg>
+                            </span>
+                                    </div>
+                                    <div class="col">
+                                        <div class="font-weight-medium">
+                                            <div id="vue-users-data-session-ip" style="display:inline-block">
+                                            {{$user->id}}
+                                            </div>
+                                        </div>
+                                        <div class="text-muted">
+                                            UID
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 @endif
                 <div class="col-12 col-md-6 col-lg-3">
                     <a href="/users/{{$user->id}}.html?m=users_home_menu_2" class="card card-sm">
