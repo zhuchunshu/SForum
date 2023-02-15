@@ -9,7 +9,7 @@ declare(strict_types=1);
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
 return [
-    'version' => 'v2.3.6',
+    'version' => 'v2.3.7',
     'author' => 'zhuchunshu',
     'link' => 'https://www.runpod.cn',
 ];
