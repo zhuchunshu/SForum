@@ -91,8 +91,12 @@ class Upgrading
 
     private function download(string $download, string $path, $no_backup = false)
     {
+        if(!file_exists(BASE_PATH . '/app/CodeFec/storage/update.lock')){
+            file_put_contents(BASE_PATH . '/app/CodeFec/storage/update.lock', time());
+            $this->command->info('更新锁已创建,请重新运行此命令...');
+            return ;
+        }
         $this->command->info("开始更新...\n");
-        $this->command->info("生成更新锁...\n");
         // 生成更新锁
         file_put_contents(BASE_PATH . '/app/CodeFec/storage/update.lock', time());
         // 备份网站数据
@@ -144,11 +148,7 @@ class Upgrading
                 $this->command->info("更新插件包...\n");
                 System::exec('php CodeFec CodeFec:PluginsComposerInstall');
 
-                // 重建索引
-                $this->command->info("重建索引...\n");
-                \Swoole\Coroutine\System::exec('php CodeFec ClearCache');
-
-                $this->command->info('升级完成!');
+                $this->command->alert("更新完成\n请重启服务");
             }
         }
     }
