@@ -3,8 +3,12 @@
 兑换比例: 1 {{get_options('wealth_golds_name', '金币')}} >>>  {{$proportion}} {{get_options('wealth_credit_name', '积分')}}
 <div class="mb-2">
     @php($user = \App\Plugins\User\src\Models\User::query()->with('Options')->find(auth()->id()))
-    @php( $dc = \Hyperf\Utils\Str::after($user->Options->golds,'.'))
-    @php($dc = (int)\Hyperf\Utils\Str::length($dc))
+    @if(count(explode('.',$user->Options->golds))>1)
+        @php( $dc = \Hyperf\Utils\Str::after((string)$user->Options->golds,'.'))
+        @php($dc = (int)\Hyperf\Utils\Str::length($dc))
+    @else
+        @php($dc = 0)
+    @endif
     当前 {{get_options('wealth_golds_name', '金币')}}数量: <b class="text-red">{{$user->Options->golds}}</b>，
     最多能兑换 <b class="text-red">{{intval($user->Options->golds*$proportion)}}</b> {{get_options('wealth_credit_name', '积分')}}
     @if(round($user->Options->golds - (intval($user->Options->golds*$proportion))/$proportion,$dc)!=0)

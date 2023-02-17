@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b0e180861a7123a160f9d1ef32db0eca",
+    "content-hash": "1d542cd2f2bf12d6e76ad03cd60f3a69",
     "packages": [
         {
             "name": "96qbhy/simple-jwt",
@@ -2970,6 +2970,59 @@
                 "source": "https://github.com/hyperf/hyperf"
             },
             "time": "2023-01-19T06:25:51+00:00"
+        },
+        {
+            "name": "hyperf/db",
+            "version": "v2.2.33",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/hyperf/db.git",
+                "reference": "ba224610ae798c21a50435fcb2dc5df42b2f14b5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/hyperf/db/zipball/ba224610ae798c21a50435fcb2dc5df42b2f14b5",
+                "reference": "ba224610ae798c21a50435fcb2dc5df42b2f14b5",
+                "shasum": ""
+            },
+            "require": {
+                "hyperf/config": "~2.2.0",
+                "hyperf/contract": "~2.2.0",
+                "hyperf/pool": "~2.2.0",
+                "hyperf/utils": "~2.2.0",
+                "php": ">=7.2",
+                "psr/container": "^1.0|^2.0"
+            },
+            "suggest": {
+                "ext-swoole": "Required to use Swoole Coroutine MySQL."
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.2-dev"
+                },
+                "hyperf": {
+                    "config": "Hyperf\\DB\\ConfigProvider"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Hyperf\\DB\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "keywords": [
+                "hyperf",
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/hyperf/db/issues",
+                "source": "https://github.com/hyperf/db/tree/v2.2.33"
+            },
+            "time": "2022-05-24T13:10:54+00:00"
         },
         {
             "name": "hyperf/db-connection",

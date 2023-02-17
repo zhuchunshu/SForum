@@ -26,6 +26,7 @@
         "hyperf/config-center": "~2.2.0",
         "hyperf/crontab": "^2.2",
         "hyperf/database": "2.2.*",
+        "hyperf/db": "2.2.*",
         "hyperf/db-connection": "2.2.*",
         "hyperf/filesystem": "2.2.*",
         "hyperf/framework": "2.2.*",
@@ -45,7 +46,6 @@
         "hyperf/view": "2.2.*",
         "hyperf/view-engine": "2.2.*",
         "hyperf/websocket-server": "^2.2",
-        "zhuchunshu/hyperf-captcha": "^1.0",
         "jetbrains/phpstorm-stubs": "^2021.1",
         "laravel/helpers": "^1.4",
         "opis/closure": "^3.6",
@@ -59,6 +59,7 @@
         "wikimedia/composer-merge-plugin": "^2.0",
         "yansongda/pay": "~3.2.0",
         "zhuchunshu/hyperf-auth": "^2.2",
+        "zhuchunshu/hyperf-captcha": "^1.0",
         "zhuchunshu/hyperf-hashing": "^2.2"
     },
     "require-dev": {

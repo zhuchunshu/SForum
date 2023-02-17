@@ -27,6 +27,8 @@ use App\Plugins\User\src\Models\UsersOption;
 use App\Plugins\User\src\Models\UsersPm;
 use App\Plugins\User\src\Models\UsersSetting;
 use App\Plugins\User\src\Models\UserUpload;
+use App\Plugins\User\src\Service\Middleware\Oauth2Master;
+use App\Plugins\User\src\Service\UserManagement;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
@@ -173,7 +175,7 @@ class UserController
     }
 
     /**
-     * 删除用户
+     * 删除用户.
      */
     #[PostMapping(path: '/admin/users/remove')]
     public function remove_user()
@@ -185,8 +187,8 @@ class UserController
         if (! $user_id) {
             return Json_Api(403, false, ['msg' => '请求参数不完整']);
         }
-        go(function ()use($user_id){
-           // 清理用户帖子数据
+        go(function () use ($user_id) {
+            // 清理用户帖子数据
             Topic::query()->where('user_id', $user_id)->delete();
             // 清理用户评论数据
             TopicComment::query()->where('user_id', $user_id)->delete();
@@ -202,7 +204,7 @@ class UserController
             // 清理用户收藏数据
             UsersCollection::query()->where('user_id', $user_id)->delete();
             // 清理用户消息数据
-            UsersPm::query()->where('from_id', $user_id)->orWhere('to_id',$user_id)->delete();
+            UsersPm::query()->where('from_id', $user_id)->orWhere('to_id', $user_id)->delete();
             // 清理用户options数据
             $options_id = User::find($user_id)->options_id;
             UsersOption::where('id', $options_id)->delete();
@@ -245,24 +247,47 @@ class UserController
     #[PostMapping(path: '/admin/users/{id}/edit')]
     public function edit_submit($id)
     {
-        if (! User::query()->where('id', $id)->exists()) {
-            return redirect()->url('/admin/users')->with('danger', '用户不存在')->go();
-        }
-        $user = User::query()->with('options','Class')->find($id);
-        foreach (request()->all() as $key => $value) {
-            if ($key !== '_token' && is_string($value)) {
-                $user->{$key} = trim($value);
-            }
-        }
-        UsersOption::query()->where('id',$user->options->id)->update(request()->input('options',[]));
-        //$user->users_option=$user->options;
-        $user->save();
-        return redirect()->url('/admin/users/' . $id . '/show')->with('success', '修改成功!')->go();
-        //return view('User::Admin.Users.edit', ['user' => $user]);
+        $request = request()->all();
+        $request['id'] = $id;
+        $handler = function ($request) {
+            return redirect()->back()->with('success', '更新成功!')->go();
+        };
+
+        // 通过中间件
+        $run = $this->throughMiddleware($handler, $this->middlewares());
+        return $run($request);
     }
 
     public function get_user_data($user_id): \Hyperf\Database\Model\Model | \Hyperf\Database\Model\Builder | null
     {
         return User::query()->with(['Options', 'Class'])->where('id', $user_id)->first();
+    }
+
+    /**
+     * 通过中间件 through the middleware.
+     * @param $handler
+     * @param $stack
+     * @return \Closure|mixed
+     */
+    protected function throughMiddleware($handler, $stack): mixed
+    {
+        // 闭包实现中间件功能 closures implement middleware functions
+        foreach ($stack as $middleware) {
+            $handler = function ($request) use ($handler, $middleware) {
+                if ($middleware instanceof \Closure) {
+                    return call_user_func($middleware, $request, $handler);
+                }
+
+                return call_user_func([new $middleware(), 'handler'], $request, $handler);
+            };
+        }
+        return $handler;
+    }
+
+    private function middlewares(): array
+    {
+        $_[] = Oauth2Master::class;
+        $middlewares = array_merge($_, (new UserManagement())->get_all_handler());
+        return array_reverse($middlewares);
     }
 }
