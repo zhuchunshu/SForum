@@ -312,3 +312,9 @@ menu()->add(1921, [
     'url' => '/admin/setting/oauth2',
     'parent_id' => 5,
 ]);
+
+
+Itf()->add('admin-ui-page-body-container-hook', 12, [
+    'name' => 'user-check-options',
+    'view' => 'User::.Admin.hook'
+]);
