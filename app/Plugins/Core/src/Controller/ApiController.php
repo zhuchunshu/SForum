@@ -147,7 +147,7 @@ class ApiController
         $user_data = auth()->data();
         $mail_content = view('App::report.remove_admin', ['data' => $data, 'user' => $user_data]);
 
-        user_notice()->sends($users, '有管理员删除了一条举报,特此通知!', $mail_content, url('/'));
+        user_notice()->sends($users, '有管理员删除了一条举报,特此通知!', $mail_content, url('/'),true,'system');
         return Json_Api(200, true, ['删除成功!']);
     }
 
