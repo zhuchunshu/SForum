@@ -36,6 +36,9 @@ HTML;
     {
         $lang = $shortCode->getParameter('lang','text');
         $content = $shortCode->getContent();
+        $content = str_replace("<p>", "", $content);
+        $content = str_replace("</p>", "", $content);
+        $content = trim($content);
         return <<<HTML
 <pre class="language-{$lang}"><code>{$content}</code></pre>
 HTML;
