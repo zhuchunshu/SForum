@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Event\SuccessInstallEvent;
 use App\Model\AdminUser;
 use App\Plugins\User\src\Models\UserClass;
 use Hyperf\HttpServer\Annotation\Controller;
@@ -99,6 +100,8 @@ class InstallController extends AbstractController
                 'permission-value' => '1',
             ]);
         });
+        // 安装成功事件
+        EventDispatcher()->dispatch(new SuccessInstallEvent());
 		return Json_Api(200, true, ['msg' => '安装成功!']);
 	}
 	
