@@ -92,15 +92,17 @@
         <link rel="stylesheet" href="{{file_hash('css/OwO.min.css')}}">
         <script src="{{file_hash('js/OwO.min.js')}}"></script>
         <script>
-            var OwO_demo = new OwO({
-                logo: '[OωO表情]',
-                container: document.getElementById('create-comment-owo'),
-                target: document.getElementById('create-comment-textarea'),
-                api: '/api/core/OwO.json',
-                width: '300px',
-                maxHeight: '250px',
-            });
-            if(OwO_demo){
+            if(document.getElementById('create-comment-owo') && document.getElementById('create-comment-textarea')){
+                var OwO_demo = new OwO({
+                    logo: '[OωO表情]',
+                    container: document.getElementById('create-comment-owo'),
+                    target: document.getElementById('create-comment-textarea'),
+                    api: '/api/core/OwO.json',
+                    width: '300px',
+                    maxHeight: '250px',
+                });
+            }
+            if(OwO_demo && document.getElementById('create-comment-owo2')){
                 var OwO_demo2 = new OwO({
                     logo: '[OωO表情]',
                     container: document.getElementById('create-comment-owo2'),
