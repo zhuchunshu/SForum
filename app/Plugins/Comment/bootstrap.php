@@ -214,3 +214,32 @@ HTML;
 
     }),
 ]);
+
+
+
+// 自定义
+$editor_menu2 = [
+    'shortCode' => [
+        'title' => '短代码',
+        'items' => [
+            'sf-code',
+            'sf-hidden',
+            'sf-alert',
+            'sf-quote',
+        ],
+    ],
+];
+// 自定义编辑器
+Itf()->add('comment-topic-create-editor-menu', 2, $editor_menu2);
+Itf()->add('comment-topic-edit-editor-menu', 2, $editor_menu2);
+
+// 外部插件
+$external_plugins = [
+    'sf-code' => file_hash('plugins/Comment/js/editor/plugins/shortCode/code.js'),
+    'sf-hidden' => file_hash('plugins/Comment/js/editor/plugins/shortCode/hidden.js'),
+    'sf-alert' => file_hash('plugins/Comment/js/editor/plugins/shortCode/alert.js'),
+    'sf-quote' => file_hash('plugins/Comment/js/editor/plugins/shortCode/quote.js'),
+];
+
+Itf()->add('comment-topic-edit-editor-external_plugins', 2, $external_plugins);
+Itf()->add('comment-topic-create-editor-external_plugins', 2, $external_plugins);

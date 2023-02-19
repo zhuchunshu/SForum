@@ -236,6 +236,36 @@ $editor_menu = [
 Itf()->add('topic-create-editor-menu', 0, $editor_menu);
 Itf()->add('topic-edit-editor-menu', 0, $editor_menu);
 
+// 自定义
+$editor_menu2 = [
+    'shortCode' => [
+        'title' => '短代码',
+        'items' => [
+            'sf-code',
+            'sf-hidden',
+            'sf-alert',
+            'sf-quote',
+        ],
+    ],
+];
+// 自定义编辑器
+Itf()->add('topic-create-editor-menu', 2, $editor_menu2);
+Itf()->add('topic-edit-editor-menu', 2, $editor_menu2);
+
+// 外部插件
+$external_plugins = [
+    'sf-code' => file_hash('plugins/Topic/js/editor/plugins/shortCode/code.js'),
+    'sf-hidden' => file_hash('plugins/Topic/js/editor/plugins/shortCode/hidden.js'),
+    'sf-alert' => file_hash('plugins/Topic/js/editor/plugins/shortCode/alert.js'),
+    'sf-quote' => file_hash('plugins/Topic/js/editor/plugins/shortCode/quote.js'),
+];
+
+Itf()->add('topic-create-editor-external_plugins', 2, $external_plugins);
+Itf()->add('topic-edit-editor-external_plugins', 2, $external_plugins);
+
+
+
+// 编辑器选项
 Itf()->add('topic-create-options', 0, [
     'enable' => (function () {
         return true;
