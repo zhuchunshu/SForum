@@ -36,6 +36,20 @@ menu()->add(104,[
 </svg>',
 ]);
 
+menu()->add(10411,[
+    'url' => '/admin/users',
+    'name' => '用户列表',
+    'icon' => '',
+    'parent_id' => 104
+]);
+
+menu()->add(10412,[
+    'url' => '/admin/users/moderator',
+    'name' => '版主管理',
+    'icon' => '',
+    'parent_id' => 104
+]);
+
 //文件管理
 menu()->add(105,[
     'url' => '/admin/files',

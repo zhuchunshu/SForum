@@ -324,7 +324,10 @@ Itf()->add('topic-edit-handle-middleware-end', 1, \App\Plugins\Topic\src\Handler
 // 新增帖子操作按钮 - 修改
 Itf()->add('ui-topic-show-dropdown', 1, [
     'enable' => (function ($data) {
-        if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
+//        if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
+//            return true;
+//        }
+        if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id',auth()->id())->exists()){
             return true;
         }
         if (Authority()->check('topic_edit') && auth()->id() === $data->user->id) {
@@ -349,6 +352,7 @@ Itf()->add('ui-topic-show-dropdown', 3, [
         if (auth()->check() && Authority()->check("topic_options")) {
             return true;
         }
+
         return false;
     }),
     'view' => (function ($data) {
@@ -384,6 +388,9 @@ HTML;
 Itf()->add('ui-topic-show-dropdown', 4, [
     'enable' => (function ($data) {
         if (auth()->check() && Authority()->check("topic_lock")) {
+            return true;
+        }
+        if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id',auth()->id())->exists()){
             return true;
         }
         return false;
@@ -427,6 +434,10 @@ Itf()->add('ui-topic-show-dropdown', 100, [
         if (Authority()->check('topic_delete') && auth()->id() === $data->user->id) {
             return true;
         }
+        if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id',auth()->id())->exists()){
+            return true;
+        }
+
         return false;
     }),
     'view' => (function ($data) {
@@ -453,7 +464,6 @@ Itf()->add('ui-topic-show-dropdown', 99, [
         return true;
     }),
     'view' => (function ($data) {
-        $__app_delete = __('app.delete');
         return <<<HTML
 <a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modal-report" core-click="report-topic" topic-id="$data->id" >
 <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon icon-tabler icon-tabler-flag-3"

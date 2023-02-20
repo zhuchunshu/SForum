@@ -107,12 +107,15 @@ class ApiController
         if (! TopicComment::query()->where('id', $comment_id)->exists()) {
             return Json_Api(403, false, ['id为' . $comment_id . '的评论不存在']);
         }
-        $data = TopicComment::query()->where('id', $comment_id)->with('user')->first();
+        $data = TopicComment::query()->find($comment_id);
         $quanxian = false;
         if (Authority()->check('admin_comment_remove') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
         }
         if (Authority()->check('comment_remove') && auth()->id() === $data->user->id) {
+            $quanxian = true;
+        }
+        if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->topic->tag_id)->where('user_id',auth()->id())->exists()){
             $quanxian = true;
         }
         if ($quanxian === false) {

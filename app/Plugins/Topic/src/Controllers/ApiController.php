@@ -242,10 +242,6 @@ class ApiController
     public function set_topic_lock(): array
     {
         $topic_id = request()->input('topic_id');
-        // 判断是否有权限
-        if (! Authority()->check('topic_lock')) {
-            return Json_Api(419, false, ['msg' => '权限不足!']);
-        }
 
         // 判断帖子是否存在
         if (! $topic_id || ! Topic::query()->where('id', $topic_id)->exists()) {
@@ -254,6 +250,10 @@ class ApiController
 
         // 帖子信息
         $topic = Topic::find($topic_id);
+        // 判断是否有权限
+        if (! Authority()->check('topic_lock') && !\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $topic->tag_id)->where('user_id',auth()->id())->exists()) {
+            return Json_Api(419, false, ['msg' => '权限不足!']);
+        }
         $tip = $topic->status === 'lock' ? '解除锁定' : '锁定';
 
         // 执行锁帖
@@ -287,6 +287,8 @@ class ApiController
         if (Authority()->check('admin_topic_delete') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
         } elseif (Authority()->check('topic_delete') && auth()->id() === $data->user->id) {
+            $quanxian = true;
+        }elseif (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id',auth()->id())->exists()){
             $quanxian = true;
         }
 

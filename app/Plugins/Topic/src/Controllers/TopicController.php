@@ -79,6 +79,9 @@ class TopicController
         } elseif (Authority()->check('topic_edit') && auth()->id() === $data->user->id) {
             $quanxian = true;
         }
+//        elseif (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {
+//            $quanxian = true;
+//        }
         if ($quanxian === true) {
             return (new EditTopicView())->handler($data);
         }
@@ -89,12 +92,16 @@ class TopicController
     #[RateLimit(create: 1, capacity: 1, consume: 1)]
     public function edit_post()
     {
+        $data = Topic::query()->find(request()->input('basis.tag'));
         $quanxian = false;
-        if (@Authority()->check('admin_topic_edit') && @curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass(auth()->data()->class_id)['permission-value']) {
+        if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
-        } elseif (Authority()->check('topic_edit') && auth()->id() === auth()->data()->id) {
+        } elseif (Authority()->check('topic_edit') && auth()->id() === $data->user->id) {
             $quanxian = true;
         }
+//        elseif (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {
+//            $quanxian = true;
+//        }
         if ($quanxian === true) {
             return (new EditTopic())->handler();
         }

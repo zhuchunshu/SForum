@@ -1,4 +1,4 @@
-@foreach (['danger', 'warning', 'success', 'info'] as $msg)
+@foreach (['danger', 'warning', 'success', 'info','error'] as $msg)
     @if(session()->has($msg))
         <script>
             if("{{$msg}}"==="success"){
@@ -9,6 +9,9 @@
             }
             if("{{$msg}}"==="warning"){
                 var c= "#ffc107";
+            }
+            if("{{$msg}}"==="error"){
+                var c= "#dc3545";
             }
             if("{{$msg}}"==="#17a2b8"){
                 var c= "#ffc107";
