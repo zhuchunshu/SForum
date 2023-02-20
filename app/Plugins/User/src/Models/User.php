@@ -12,6 +12,7 @@ namespace App\Plugins\User\src\Models;
 
 use App\Model\Model;
 use App\Plugins\Comment\src\Model\TopicComment;
+use App\Plugins\Topic\src\Models\Moderator;
 use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicTag;
 use Carbon\Carbon;
@@ -130,5 +131,9 @@ class User extends Model implements \Qbhy\HyperfAuth\Authenticatable
 
     public function auth(){
         return $this->hasMany(UsersAuth::class,'user_id','id');
+    }
+
+    public function moderator(){
+        return $this->hasMany(Moderator::class,'user_id','id');
     }
 }

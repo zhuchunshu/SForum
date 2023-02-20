@@ -56,4 +56,9 @@ class TopicTag extends Model
     {
         return $this->hasMany(Topic::class, 'tag_id', 'id');
     }
+
+    public function moderator(): \Hyperf\Database\Model\Relations\HasMany
+    {
+        return $this->hasMany(Moderator::class, 'tag_id', 'id');
+    }
 }

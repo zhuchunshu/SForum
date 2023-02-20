@@ -26,6 +26,16 @@
             @else
                 <span class="text-red">系统管理员</span>
             @endif
+            @if($data->moderator->count())
+            <div class="mt-3">
+                <b class="text-h3">版主：</b>
+                <div data-bs-toggle="modal" data-bs-target="#modal-moderator-list" class="avatar-list avatar-list-stacked mt-2">
+                    @foreach($data->moderator as $moderator)
+                        <span class="avatar avatar-sm rounded-circle" style="background-image: url({{avatar($moderator->user)}})"></span>
+                    @endforeach
+                </div>
+            </div>
+            @endif
         </div>
 
         <div class="card-footer">
@@ -42,4 +52,3 @@
 
     </div>
 </div>
-

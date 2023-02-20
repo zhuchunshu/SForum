@@ -21,6 +21,41 @@
             </div>
         </div>
     </div>
+
+    @if($data->moderator->count())
+
+        <div class="modal modal-blur fade" id="modal-moderator-list" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">版主列表</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="list-group list-group-flush">
+                            @foreach($data->moderator as $moderator)
+                                <div class="list-group-item">
+                                    <div class="row">
+                                        <div class="col-auto">
+                                            <a href="/users/{{$moderator->user->id}}.html" class="avatar" style="background-image: url({{avatar($moderator->user)}})"></a>
+                                        </div>
+                                        <div class="col text-truncate">
+                                            <a href="/users/{{$moderator->user->id}}.html" class="text-body d-block">{{$moderator->user->username}}</a>
+                                            <div class="text-muted text-truncate mt-n1">@if($moderator->user->Options->qianming && $moderator->user->Options->qianming!=='no bio') {{$moderator->user->Options->qianming}}@else{{"没有签名"}}@endif</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">好的</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 @endsection
 
 

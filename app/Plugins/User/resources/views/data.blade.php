@@ -15,7 +15,8 @@
 
         <div class="col-md-12">
             <div class="border-0 card">
-                <a data-fslightbox href="{{get_user_settings($user->id,'backgroundImg','/plugins/Core/image/user_background.jpg')}}"
+                <a data-fslightbox
+                   href="{{get_user_settings($user->id,'backgroundImg','/plugins/Core/image/user_background.jpg')}}"
                    class="card-cover card-cover-blurred"
                    style="background-image: url({{get_user_settings($user->id,'backgroundImg','/plugins/Core/image/user_background.jpg')}});min-height: 200px">
                 </a>
@@ -28,9 +29,8 @@
                                           style="background-image: url({{super_avatar($user)}});margin-top:-220px"></span>
                                     <div>
                                         <span class="card-title mb-1"
-                                              style="font-size: 25px;display: inline">{!!u_username($user,['extends' => true,'users_home' => true,'link' => false]) !!}</span>
-                                        <a href="/users/group/{{$user->class_id}}.html" class="badge badge-outline"
-                                           style="color: {{$user->Class->color}}">{{$user->Class->name}}</a>
+                                              style="font-size: 25px;display: inline">{!!u_username($user,['extends' => true,'users_home' => true,'link' => false]) !!}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -38,14 +38,17 @@
                         <div class="col-auto align-self-center text-center">
                             <div class="dropdown">
                                 <button type="button" class="btn dropdown-toggle" data-bs-toggle="dropdown">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-plus" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-plus"
+                                         width="24" height="24" viewBox="0 0 24 24" stroke-width="2"
+                                         stroke="currentColor" fill="none" stroke-linecap="round"
+                                         stroke-linejoin="round">
                                         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                         <line x1="12" y1="5" x2="12" y2="19"></line>
                                         <line x1="5" y1="12" x2="19" y2="12"></line>
                                     </svg>
                                 </button>
                                 <div class="dropdown-menu">
-                                    <a class="dropdown-item"  user-click="user_follow"
+                                    <a class="dropdown-item" user-click="user_follow"
                                        user-id="{{ $user->id }}">
                                         <span>关注</span>
                                     </a>
@@ -58,7 +61,11 @@
                             </div>
                         </div>
                     </div>
-                    <div class="text-muted"> @if($user->options->qianming && $user->options->qianming!=='no bio'){{$user->options->qianming}}@else{{__("user.no bio")}} @endif</div>
+                    <div class="text-muted"> @if($user->options->qianming && $user->options->qianming!=='no bio')
+                            {{$user->options->qianming}}
+                        @else
+                            {{__("user.no bio")}}
+                        @endif</div>
 
                 </div>
             </div>
@@ -70,7 +77,7 @@
                     <ul class="nav nav-pills nav-vertical">
                         @foreach(Itf()->get('users_home_menu') as $key => $value)
                             @if($value['quanxian']!==null)
-{{--                                {{\Opis\Closure\unserialize((string)$value['quanxian'])}}--}}
+                                {{--                                {{\Opis\Closure\unserialize((string)$value['quanxian'])}}--}}
                                 @if(call_user_func(\Opis\Closure\unserialize((string)$value['quanxian']),$user)===true)
                                     <li class="nav-item">
                                         <a href="?m={{$key}}"
@@ -224,6 +231,44 @@
     <style>
         {{get_user_settings($user->id,'home_css_code')}}
     </style>
+    @if($user->moderator->count())
+        <div class="modal modal-blur fade" id="modal-user-moderator" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">管理论坛(标签)</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="list-group list-group-flush">
+                            <div class="row row-cards">
+                                @foreach($user->moderator as $moderator)
+                                    <div class="col-md-6 col-lg-4">
+                                        <a href="/tags/{{$moderator->tag->id}}.html" class="card card-link text-primary-fg" style="background-color: {{$moderator->tag->color}}!important;">
+                                            <div class="card-stamp">
+                                                <div class="card-stamp-icon bg-yellow">
+                                                    <!-- Download SVG icon from http://tabler-icons.io/i/star -->
+                                                    {!! $moderator->tag->icon !!}
+                                                </div>
+                                            </div>
+                                            <div class="card-body">
+                                                <h3 class="card-title">{{$moderator->tag->name}}</h3>
+                                                <p>{{ \Hyperf\Utils\Str::limit(core_default($moderator->tag->description, __("app.no description")), 32) }}</p>
+                                            </div>
+                                        </a>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">好的</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
 @endsection
 
