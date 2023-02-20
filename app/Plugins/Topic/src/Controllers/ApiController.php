@@ -304,6 +304,10 @@ class ApiController
             Post::where('topic_id', $topic_id)->delete();
             Topic::destroy($topic_id);
         });
+        // 发送通知
+        if ($data->user_id != auth()->id()) {
+            user_notice()->send($data->user_id, '你有一条帖子已被删除', '帖子《<a href="/'.$topic_id.'.html" >'.$data->title.'</a>》已被管理员：【<a href="/users/' . auth()->id() . '.html">' . auth()->data()->username . '</a>】删除', '/' . $topic_id . '.html',true,'system');
+        }
         return Json_Api(200, true, ['msg' => '已删除!']);
     }
 

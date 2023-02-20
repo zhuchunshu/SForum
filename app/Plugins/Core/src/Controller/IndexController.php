@@ -90,7 +90,14 @@ class IndexController
     #[GetMapping(path: '/{id}.html[/{comment}]')]
     public function show($id, $comment = null)
     {
-        if (! Topic::query()->where([['id', $id]])->exists()) {
+        // 主题已被删除
+        if (Topic::onlyTrashed()->where('id', $id)->exists()) {
+            $data = Topic::onlyTrashed()->find($id);
+            return view('App::topic.trashed', ['data' => $data]);
+        }
+
+        // 主题不在回收站
+        if (! Topic::where([['id', $id]])->exists()) {
             return admin_abort('页面不存在', 404);
         }
         return (new ShowTopic())->handle($id, $comment);

@@ -10,6 +10,7 @@ declare(strict_types=1);
  */
 namespace App\Plugins\Topic\src\Controllers;
 
+use App\Plugins\Core\src\Models\Post;
 use App\Plugins\Topic\src\Handler\Topic\CreateTopic;
 use App\Plugins\Topic\src\Handler\Topic\CreateTopicView;
 use App\Plugins\Topic\src\Handler\Topic\EditTopic;
@@ -106,5 +107,36 @@ class TopicController
             return (new EditTopic())->handler();
         }
         return admin_abort('无权限', 419);
+    }
+
+    #[PostMapping(path: '/topic/{id}/topic.trashed.restore')]
+    public function topic_trashed_restore($id)
+    {
+        if (! Topic::onlyTrashed()->where('id', $id)->exists()) {
+            return redirect()->back()->with('danger', '此主题不在回收站中')->go();
+        }
+        // 主题信息
+        $data = Topic::onlyTrashed()->find($id);
+        // 判断权限
+        $quanxian = false;
+        if (auth()->id() === (int) $data->id && Authority()->check('topic_recover')) {
+            $quanxian = true;
+        } elseif (Authority()->check('admin_topic_recover')) {
+            $quanxian = true;
+        } elseif (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {
+            $quanxian = true;
+        }
+        if (! $quanxian) {
+            return redirect()->back()->with('danger', '无权限')->go();
+        }
+        // 恢复主题
+        $data->restore();
+        $post = Post::withTrashed()->find($data->post_id);
+        $post->restore();
+        // 发送通知
+        if (auth()->id() !== $data->user_id) {
+            user_notice()->send($data->user_id, '你有一条主题被恢复', '您的主题《<a href="/' . $data->id . '.html">' . $data->title . '</a>》已被恢复，管理员【<a href="/users/' . auth()->id() . '">' . auth()->data()->username . '</a>】', '/' . $data->id . '.html', true, 'system');
+        }
+        return redirect()->with('success', '操作成功')->back()->go();
     }
 }
