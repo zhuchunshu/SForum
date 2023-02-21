@@ -28,7 +28,12 @@
         </div>
         <div class="col-lg-12">
             <div class="card">
-                <div class="card-header"><h3 class="card-title">插件列表</h3></div>
+                <div class="card-header">
+                    <h3 class="card-title">插件列表</h3>
+                    <div class="card-actions">
+                        <a href="https://www.runpod.cn/sforum/addon">应用市场</a>
+                    </div>
+                </div>
                 <div class="card-table table-responsive">
                     <table
                             class="table table-vcenter table-nowrap">
