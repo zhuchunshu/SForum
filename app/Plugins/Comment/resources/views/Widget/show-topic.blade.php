@@ -79,7 +79,7 @@
 
                         <div class="row row-cards">
                             @foreach($comment as $key=>$value)
-                                @if(!$loop->first)<div class="hr-text mt-0 mb-0">next</div>@endif
+                                @if(!$loop->first)<div class="hr-text mt-1 mb-1">next</div>@endif
                                 <div id="comment-{{$value->id}}" name="comment-{{$value->id}}" class="col-md-12 mt-1 @if($comment_page==$value->id) bg-cyan-lt @endif">
                                     <div class="@if($value->optimal)comment-optimal @endif">
                                         <div class="mt-2">
@@ -166,7 +166,7 @@
                     </div>
 
                     @if($comment->hasPages())
-                        <div class="card-footer pb-0">
+                        <div class="card-footer pb-0 pt-0">
                             {!! make_page($comment) !!}
                         </div>
                     @endif
