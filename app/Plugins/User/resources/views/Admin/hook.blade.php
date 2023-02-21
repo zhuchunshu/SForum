@@ -2,7 +2,7 @@
     Hyperf\Database\Schema\Schema::getColumnType('users_options', 'money') !== 'integer'
     ||  Hyperf\Database\Schema\Schema::getColumnType('users_options', 'credits') !== 'integer'
     ||  Hyperf\Database\Schema\Schema::getColumnType('users_options', 'golds') !== 'integer'
-    ||  Hyperf\Database\Schema\Schema::getColumnType('users_options', 'exp') !== 'integer1'
+    ||  Hyperf\Database\Schema\Schema::getColumnType('users_options', 'exp') !== 'integer'
 )
     <div class="alert alert-warning">
         <h4>警告</h4>
