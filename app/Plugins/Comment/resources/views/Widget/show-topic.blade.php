@@ -141,10 +141,14 @@
                                                 {{--                                    评论内容--}}
 
                                                 @if(!$value->deleted_at)
-                                                    @if($posts_options_only_author && auth()->id()!=$value->user_id && auth()->id()!=$data->user_id)
-                                                        @include('Comment::Widget.only-author')
+                                                    @if($value->status!=='report')
+                                                        @if($posts_options_only_author && auth()->id()!=$value->user_id && auth()->id()!=$data->user_id)
+                                                            @include('Comment::Widget.only-author')
+                                                        @else
+                                                            @include('Comment::Widget.source')
+                                                        @endif
                                                     @else
-                                                        @include('Comment::Widget.source')
+                                                        @include('Comment::Widget.report')
                                                     @endif
                                                 @else
                                                     @include('Comment::Widget.deleted')

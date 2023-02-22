@@ -19,10 +19,6 @@ class ShowTopic
 {
     public function handle($id, $comment_page)
     {
-        // 判断是否被举报
-        if (Report::query()->where(['type' => 'topic', '_id' => $id, 'status' => 'approve'])->exists()) {
-            return admin_abort('此帖子已被举报并批准,无法查看', 403);
-        }
         // 自增浏览量
         go(function () use ($id) {
             $updated_at = Topic::query()->where('id', $id)->first()->updated_at;
@@ -47,7 +43,13 @@ class ShowTopic
         });
 
         // 缓存
-        $data = Topic::query()->with('tag', 'user', 'topic_updated', 'likes', 'post', 'post.options', 'comments.user', 'comments.post')->find($id);
+        $data = Topic::with('tag', 'user', 'topic_updated', 'likes', 'post', 'post.options', 'comments.user', 'comments.post')->find($id);
+        // 举报
+        if($data->status==='report'){
+            // 已被举报并批准
+            return view('App::topic.report', ['data' => $data]);
+        }
+
         // 评论分页数据
         if (get_options('comment_show_desc', 'off') === 'true') {
             $CommentOrderBy = 'desc';

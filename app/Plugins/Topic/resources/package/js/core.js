@@ -351,30 +351,6 @@ function removeBlock(str) {
 }
 
 
-// 处理被举报的评论
-$(function(){
-    axios.post("/api/core/report/approve.comment",{
-        _token:csrf_token
-    }).then(r=>{
-        var data = r.data.result;
-        $("div[core-show=\"comment\"]").each(function(){
-            var comment_id = $(this).attr("comment-id")
-            if(data.indexOf(comment_id)>=0){
-                $(this).html('此内容被举报,无法展示')
-                $(this).css('background-image','url(/plugins/Core/image/comment-ban.png)')
-                $(this).css('background-size','cover')
-            }
-        })
-    }).catch(e=>{
-        console.error(e)
-        iziToast.error({
-            title:"Error",
-            position:"topRight",
-            message:"请求出错,详细查看控制台"
-        })
-    })
-})
-
 // 加载帖子更新记录作者IP归属地
 
 $(function(){
