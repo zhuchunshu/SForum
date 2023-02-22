@@ -324,12 +324,12 @@ Itf()->add('topic-edit-handle-middleware-end', 1, \App\Plugins\Topic\src\Handler
 // 新增帖子操作按钮 - 修改
 Itf()->add('ui-topic-show-dropdown', 1, [
     'enable' => (function ($data) {
-//        if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
-//            return true;
-//        }
-        if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id',auth()->id())->exists()){
+        if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             return true;
         }
+//        if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id',auth()->id())->exists()){
+//            return true;
+//        }
         if (Authority()->check('topic_edit') && auth()->id() === $data->user->id) {
             return true;
         }
