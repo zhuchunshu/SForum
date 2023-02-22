@@ -9,7 +9,6 @@
                         'Content-Type': 'application/json'
                     }, body: JSON.stringify({_token: csrf_token, topic_id: '{{$data->id}}'})
                 })).json().then(res => res.result.result);
-                console.log(this.data)
             },
         }))
     })
