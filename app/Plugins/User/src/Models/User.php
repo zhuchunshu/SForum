@@ -136,4 +136,10 @@ class User extends Model implements \Qbhy\HyperfAuth\Authenticatable
     public function moderator(){
         return $this->hasMany(Moderator::class,'user_id','id');
     }
+
+    public function scopeRegisteredBefore($query, $timestamp)
+    {
+        return $query->where('created_at', '<=', date('Y-m-d H:i:s', $timestamp));
+    }
+
 }

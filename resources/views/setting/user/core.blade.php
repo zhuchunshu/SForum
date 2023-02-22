@@ -66,18 +66,31 @@
             <small>当前:{{get_options('core_user_session_num',10)}}</small>
         </div>
 
-        <div class="col-3">
+        <div class="col-3 align-self-center">
             <label class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" v-model="data.user_email_noticed_on">
                 <span class="form-check-label">关闭所有用户邮件通知功能(需用户自行手动开启)</span>
             </label>
         </div>
 
-        <div class="col-3">
+        <div class="col-3 align-self-center">
             <label class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" v-model="data.user_location_show_close">
                 <span class="form-check-label">关闭显示个人中心位置信息</span>
             </label>
+        </div>
+        <div class="col-3 align-self-center">
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.user_no_ver_email_auto_delete">
+                <span class="form-check-label">自动删除未验证邮箱的用户</span>
+            </label>
+        </div>
+
+        <div class="col-3">
+            <label class="form-label">超过几天未验证邮箱会被删除？
+            </label>
+            <input type="number" min="1" max="365" class="form-control" v-model="data.user_no_ver_email_auto_delete_day">
+            <small>当前:{{get_options('user_no_ver_email_auto_delete_day',10)}}</small>
         </div>
 
     </div>
