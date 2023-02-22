@@ -64,7 +64,6 @@ class ApiController
             $users[] = $user->id;
         }
         $mail_content = view('App::report.send_admin', ['data' => $data]);
-
         user_notice()->sends($users, '有用户举报了一条内容,需要你来审核', $mail_content, '/report/' . $data->id . '.html',true,'system');
         return Json_Api(200, true, ['举报成功! 等待管理员审核']);
     }

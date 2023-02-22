@@ -71,25 +71,7 @@ class UserNotice
     public function sends(array $user_ids, $title, $content, $action = null, bool $sendMail = true, ?string $sort = null): void
     {
         foreach ($user_ids as $user_id) {
-            if (UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->exists()) {
-                UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->take(1)->update([
-                    'status' => 'publish',
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'sort' => $sort,
-                ]);
-            } else {
-                UsersNotice::query()->create([
-                    'user_id' => $user_id,
-                    'title' => $title,
-                    'content' => $content,
-                    'action' => $action,
-                    'sort' => $sort,
-                    'status' => 'publish',
-                ]);
-                if ($sendMail === true) {
-                    $this->sendMail($user_id, $title, $action, $content);
-                }
-            }
+            $this->send($user_id, $title, $content, $action, $sendMail, $sort);
         }
     }
 
