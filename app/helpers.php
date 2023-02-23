@@ -828,8 +828,8 @@ if (! function_exists('get_client_ip_data')) {
         } else {
             $result['pro'] = '';
         }
-        $result['country']=intercept_province($result['country']);
-        $result['pro']=intercept_province($result['pro']);
+        $result['country'] = intercept_province($result['country']);
+        $result['pro'] = intercept_province($result['pro']);
         return $result;
     }
 }
@@ -849,7 +849,7 @@ if (! function_exists('remove_bbCode')) {
         $content = preg_replace_callback($pattern, function ($match) {
             return '';
         }, $content);
-        return trim($content?:' ');
+        return trim($content ?: ' ');
     }
 }
 
@@ -992,5 +992,28 @@ if (! function_exists('get_component_view_name')) {
             return 'shared.viewIsNull';
         }
         return $view;
+    }
+}
+
+if (! function_exists('make_template')) {
+    function make_template(string $file, array $data)
+    {
+        $template = get_file_content($file);
+
+        foreach ($data as $key => $value) {
+            $template = str_replace('{{' . $key . '}}', $value, $template);
+        }
+
+        return $template;
+    }
+}
+
+if (! function_exists('get_file_content')) {
+    function get_file_content($file): bool | string
+    {
+        $handle = fopen($file, 'r');
+        $content = fread($handle, filesize($file));
+        fclose($handle);
+        return $content;
     }
 }

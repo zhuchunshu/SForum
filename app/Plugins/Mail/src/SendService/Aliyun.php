@@ -72,6 +72,7 @@ class Aliyun implements SendServiceInterface
             ]);
             throw $error;
         }
+        return false;
     }
 
     /**

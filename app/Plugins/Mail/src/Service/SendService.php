@@ -56,6 +56,17 @@ class SendService
     {
         $service = get_options('mail_service', 'ca583971fcbccdf5d7ed77cf4c471ac5');
         $class = $this->get_services()[$service]['class'];
+        $content = make_template(plugin_path('Mail/resources/template/sforum.htm'),[
+            'web_name' => get_options('web_name',config('app_name')),
+            'title' => $subject,
+            'content' => $body,
+            'unlink' => url('/user/setting'),
+            'url' => url(),
+            'app_name' => get_options('APP_NAME',config('app_name')),
+            'date' => date('Y')
+        ]);
+
+        $body = $content;
         return (new $class())->send($email, $subject, $body);
     }
 

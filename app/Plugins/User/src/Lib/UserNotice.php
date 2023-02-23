@@ -124,7 +124,8 @@ class UserNotice
         if ($content instanceof ResponseInterface) {
             $content = $content->getBody()->getContents();
         }
-        $content = strip_tags($content);
+        $allowed_tags = '<p><a><div><img>';
+        $content = strip_tags($content, $allowed_tags);
         if(!$action){
             $action = url();
         }
@@ -133,20 +134,25 @@ class UserNotice
         } else {
             $url = $action;
         }
+        $url_html = <<<HTML
+                <a href="$url" target="_blank" style="text-align: center;align-content: center;background-color: #000000; font-size: 15px; line-height: 22px; font-family: 'Helvetica', Arial, sans-serif; font-weight: normal; text-decoration: none; padding: 12px 15px; color: #ffffff; border-radius: 5px; display: inline-block; mso-padding-alt: 0;">
+
+                    <span style="mso-text-raise: 15pt; color: #ffffff;">查看</span>
+                </a>
+                <br>
+链接：<a href="$url" target="_blank">$url</a>
+HTML;
         // 执行发送
         if ($content) {
-            $content = Str::limit($content, 10000, '...');
+
             $Body = <<<HTML
-<h3>{$title}</h3>
-<hr>
 {$content}
-<hr>
-<p>链接: <a href="{$url}">{$url}</a></p>
+
+<p>{$url_html}</p>
 HTML;
         } else {
             $Body = <<<HTML
-<h3>{$title}</h3>
-<p>链接: <a href="{$url}">{$url}</a></p>
+<p>{$url_html}</p>
 HTML;
         }
         return $Body;

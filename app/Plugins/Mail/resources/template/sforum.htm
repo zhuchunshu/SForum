@@ -1,0 +1,156 @@
+<style>
+    .logo {
+        font-family: 'Open Sans', sans-serif;
+        font-size: 25px;
+        color: transparent;
+        text-shadow: 0 0 0 #00a1d6;
+        position: relative;
+    }
+
+    .logo::after {
+        content: 'Logo';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(to bottom, #00a1d6 0%, #00a1d6 60%, #fff 60%, #fff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-fill-color: transparent;
+    }
+</style>
+<div id="DNSPodMail-Wrap"
+     style="width:660px; margin:0 auto; background-color:#fff;  border-radius:4px; box-shadow: 0 2px 7px 0 rgba(5,34,97,0.10); overflow: hidden; font-family: 'helvetica neue',PingFangSC-Light,arial,'hiragino sans gb','microsoft yahei ui','microsoft yahei',simsun,sans-serif;">
+
+
+    <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+
+
+        <tbody>
+<!--        &lt;!&ndash; header s &ndash;&gt;-->
+<!--        <tr>-->
+<!--            <td>-->
+<!--               <h3 class="logo">{{web_name}}</h3>-->
+<!--            </td>-->
+<!--        </tr>-->
+        <!-- header e -->
+
+        <!-- body s -->
+        <tr>
+            <td style="padding-left:40px; padding-right:40px;">
+
+
+                <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width: 100%;">
+
+
+                    <tbody>
+                    <tr>
+                        <td>
+                            <h3 style="margin:0; padding:32px 0; font-size:24px; color:#242D4E; line-height:48px;">
+                                {{title}}</h3>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+
+                            <p class="cTMail-content"
+                               style="font-size: 14px; color: rgb(51, 51, 51); line-height: 24px; margin: 6px 0px 0px; overflow-wrap: break-word; word-break: break-all;">
+                                {{content}}
+                            </p>
+
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding-top:1px; padding-bottom:2px;">
+
+
+                        </td>
+                    </tr>
+                    <!-- footer s -->
+                    <tr>
+                        <td style="padding-top:24px; padding-bottom:40px; border-top:1px solid #E6E9EE;">
+
+
+                            <table border="0" cellpadding="0" cellspacing="0"
+                                   style="border-collapse:collapse;width: 100%;">
+
+
+                                <tbody>
+                                <tr>
+                                    <td valign="top">
+
+
+                                        <div style="margin-bottom:24px; margin-top:12px;">
+                                            <a href="{{url}}" target="_blank">
+                                                <h3 style="margin:0; padding:32px 0; font-size:24px; color:#242D4E; line-height:48px;">
+                                                    {{web_name}}</h3>
+                                            </a>
+                                        </div>
+
+
+                                        <p style="margin: 0px; padding: 0px; line-height: 28px;"><span
+                                                style="color: rgb(174, 187, 204); font-size: 14px;">此为系统邮件，请勿回复。</span><br>
+
+                                            <span
+                                                    style="color: rgb(174, 187, 204); font-size: 14px;">
+                                                如果不想收到通知，请点击：<a href="{{unlink}}"
+                                                                 style="color: rgb(174, 187, 204); text-decoration: none; font-size: 14px;">关闭通知</a>
+                                            </span>
+                                            <br/>
+                                            <span
+                                                style="color: rgb(174, 187, 204); font-size: 14px;">
+
+
+
+
+
+Copyright © {{date}} {{app_name}}, Inc. All rights reserved.</span>
+                                        </p>
+
+
+                                    </td>
+                                    <td valign="top" style="text-align: right;">
+
+
+                                        <div style="font-size:0px;"><br>
+
+
+                                        </div>
+
+
+                                        <p style="margin:0; padding:0; font-size:14px; line-height:28px; color: #AEBBCC;">
+                                            <br>
+
+
+                                        </p>
+
+
+                                    </td>
+                                </tr>
+                                </tbody>
+
+
+                            </table>
+
+
+                        </td>
+                    </tr>
+                    <!-- footer e -->
+                    </tbody>
+
+
+                </table>
+
+
+            </td>
+        </tr>
+        <!-- body e --></tbody>
+
+
+    </table>
+
+
+</div>
