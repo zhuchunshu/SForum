@@ -43,11 +43,15 @@ tinymce.PluginManager.add('sf-hidden', (editor, url) => {
             const data = api.getData();
             /* Insert content when the window form is submitted */
             const select = data.select;
+            let content = data.content;
+
+            content = content.replace(/\r?\n/g, "<br>");
+
             if(select==="password"){
-                localStorage.setItem('tinyMCE_plugin_sf_hidden_content', data.content);
+                localStorage.setItem('tinyMCE_plugin_sf_hidden_content', content);
                 api.redial(openDialog2);
             }else{
-                editor.insertContent('['+select+']'+data.content+'[/'+select+']');
+                editor.insertContent('['+select+']'+content+'[/'+select+']');
                 api.close();
             }
         }

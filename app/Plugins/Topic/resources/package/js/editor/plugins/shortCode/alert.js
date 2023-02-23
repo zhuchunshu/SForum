@@ -44,7 +44,9 @@ tinymce.PluginManager.add('sf-alert', (editor, url) => {
             const data = api.getData();
             /* Insert content when the window form is submitted */
             const alert_type = data.type;
-            editor.insertContent('['+alert_type+']'+data.content+'[/'+alert_type+']');
+            let content = data.content;
+            content = content.replace(/\r?\n/g, "<br>");
+            editor.insertContent('['+alert_type+']'+content+'[/'+alert_type+']');
             api.close();
         }
     });

@@ -58,8 +58,12 @@ tinymce.PluginManager.add('sf-code', (editor, url) => {
         ],
         onSubmit: (api) => {
             const data = api.getData();
+            let code = data.code;
+
+            code = code.replace(/\r?\n/g, "<br>");
+
             /* Insert content when the window form is submitted */
-            editor.insertContent('[code lang='+data.lang+']'+data.code+'[/code]');
+            editor.insertContent('[code lang='+data.lang+']'+code+'[/code]');
             api.close();
         }
     });

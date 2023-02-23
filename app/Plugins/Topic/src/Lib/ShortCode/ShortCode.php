@@ -38,6 +38,7 @@ HTML;
         $content = $shortCode->getContent();
         $content = str_replace("<p>", "", $content);
         $content = str_replace("</p>", "", $content);
+        $content = str_replace("<br>", "\n", $content);
         $content = trim($content);
         return <<<HTML
 <pre class="language-{$lang}"><code>{$content}</code></pre>
