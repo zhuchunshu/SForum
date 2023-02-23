@@ -28,7 +28,7 @@ class MoneyRecharge implements ListenerInterface
     {
         //订单id
         $order_id = $event->id;
-        if (redis()->sIsMember('user_pay_money_recharge', $order_id)) {
+        if (redis()->sIsMember(env("APP_KEY",'CodeFec').":".'user_pay_money_recharge', $order_id)) {
             $order = PayOrder::find($order_id);
             if ($order->status==='支付成功') {
                 $user = User::find($order->user_id);
@@ -44,7 +44,7 @@ class MoneyRecharge implements ListenerInterface
                     'remark' => '购买:【'.$order->title.'】'
                 ]);
             }
-            redis()->sRem('user_pay_money_recharge', $order_id);
+            redis()->sRem(env("APP_KEY",'CodeFec').":".'user_pay_money_recharge', $order_id);
         }
     }
 }

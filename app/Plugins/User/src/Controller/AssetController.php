@@ -58,7 +58,7 @@ class AssetController
         // 发起支付
         $result = pay()->create(auth()->id(), auth()->data()->username . '账户充值', $amount, $payment);
         $order_id = $result['result']['order_id'];
-        redis()->sAdd('user_pay_money_recharge', $order_id);
+        redis()->sAdd(env("APP_KEY",'CodeFec').":".'user_pay_money_recharge', $order_id);
         return $result;
     }
 
