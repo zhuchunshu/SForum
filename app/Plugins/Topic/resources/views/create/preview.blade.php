@@ -73,6 +73,7 @@
 </style>
 <script src="{{file_hash('highlight/highlight.min.js')}}"></script>
 <script src="{{file_hash('highlight/highlightjs-line-numbers.min.js')}}"></script>
+<script src="{{file_hash('highlight/lang-markup.min.js')}}"></script>
 <script src="{{file_hash('highlight/highlightjs-copy.min.js')}}"></script>
 <script>
     hljs.highlightAll();

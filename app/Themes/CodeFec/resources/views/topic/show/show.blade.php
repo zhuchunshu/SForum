@@ -85,6 +85,7 @@
     <script src="{{file_hash('tabler/libs/plyr/dist/plyr.min.js')}}"></script>
     <script src="{{file_hash('highlight/highlight.min.js')}}"></script>
     <script src="{{file_hash('highlight/highlightjs-line-numbers.min.js')}}"></script>
+    <script src="{{file_hash('highlight/lang-markup.min.js')}}"></script>
     <script src="{{file_hash('tabler//libs/fslightbox/index.js')}}" defer></script>
 
     @if(get_options('comment_emoji_close')!=='true')
