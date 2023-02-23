@@ -81,7 +81,7 @@ class UserAgent
         if ($echo === null) {
             $echo = $parse->browser->name;
         }
-        return $echo ?: $parse->toString();
+        return $echo ?: @$parse->toString()?:"";
     }
 
     // 获取操作系统信息
@@ -93,15 +93,15 @@ class UserAgent
 
         // mac
         if ($parse->isOs('OS X')) {
-            $echo = '<i class="ua-icon icon-mac"></i>MacOS ' . $parse->os->version->toString();
+            $echo = '<i class="ua-icon icon-mac"></i>MacOS ' . @$parse->os->version->toString()?:"获取失败";
         }
 
         // win
         if ($parse->isOs('Windows')) {
             if ((int) $parse->os->version->toString() ?: 1 > 7) {
-                $echo = '<i class="ua-icon icon-win2"></i>Windows ' . $parse->os->version->toString();
+                $echo = '<i class="ua-icon icon-win2"></i>Windows ' . @$parse->os->version->toString()?:"获取失败";
             } else {
-                $echo = '<i class="ua-icon icon-win1"></i>Windows ' . $parse->os->version->toString();
+                $echo = '<i class="ua-icon icon-win1"></i>Windows ' . @$parse->os->version->toString()?:"获取失败";
             }
         }
 
@@ -122,24 +122,24 @@ class UserAgent
 
         //android
         if ($parse->isOs('Android')) {
-            $echo = '<i class="ua-icon icon-android"></i>Android ' . $parse->os->version->toString();
+            $echo = '<i class="ua-icon icon-android"></i>Android ' . @$parse->os->version->toString()?:'获取失败';
         }
 
         //ios || iphone
         if ($parse->isOs('iOS') || $parse->isOs('iPhone')) {
-            $echo = '<i class="ua-icon icon-apple"></i>iOS ' . $parse->os->version->toString();
+            $echo = '<i class="ua-icon icon-apple"></i>iOS ' . @$parse->os->version->toString()?:'获取失败';
         }
 
         if ($echo === null) {
             if ($parse->isType('desktop')) {
-                $echo = '<i class="ua-icon icon-desktop"></i>' . $parse->os->toString();
+                $echo = '<i class="ua-icon icon-desktop"></i>' . @$parse->os->toString()?:"获取失败";
             } elseif ($parse->isMobile()) {
-                $echo = '<i class="ua-icon icon-mobile"></i>' . $parse->os->toString();
+                $echo = '<i class="ua-icon icon-mobile"></i>' . @$parse->os->toString()?:"获取失败";
             } else {
-                $echo = $parse->os->toString();
+                $echo = @$parse->os->toString()?:"获取失败";
             }
         }
-        return $echo ?: $parse->toString();
+        return $echo ?: @$parse->toString()?:"获取失败";
     }
 
     public static function cutIp(string $ip, int $length = 3, string $replace = '*')
