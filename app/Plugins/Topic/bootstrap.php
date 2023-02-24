@@ -72,6 +72,7 @@ Itf()->add('menu', 419, [
     'quanxian' => (function () {
         return true;
     }),
+    'hidden' => true
 ]);
 
 Itf_Setting()->add(

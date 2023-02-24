@@ -29,7 +29,7 @@
                 <div class="row row-cards">
                     @foreach($page as $value)
                         <div class="col-md-12">
-                            <div class="card border-0">
+                            <div class="card">
                                 @if($value->status==="pending")
                                     <div class="ribbon bg-indigo">待办</div>
                                 @elseif($value->status==="reject")
@@ -37,27 +37,27 @@
                                 @elseif($value->status==="approve")
                                     <div class="ribbon bg-green">批准</div>
                                 @endif
-                                <div class="card-body">
+                                <div class="card-header">
                                     <div class="row">
-                                        <div class="col-md-12">
-                                            <div class="row">
-                                                <div class="col-auto">
-                                                    <span style="background-image: url({{super_avatar($value->user)}})" class="avatar"></span>
+                                        <div class="col-auto">
+                                            <span style="background-image: url({{super_avatar($value->user)}})" class="avatar"></span>
+                                        </div>
+                                        <div class="col">
+                                            <div class="col">
+                                                <div class="topic-author-name">
+                                                    <a href="/users/{{$value->user->id}}.html" class="text-reset">{{$value->user->username}}</a>
                                                 </div>
-                                                <div class="col">
-                                                    <div class="col">
-                                                        <div class="topic-author-name">
-                                                            <a href="/users/{{$value->user->id}}.html" class="text-reset">{{$value->user->username}}</a>
-                                                        </div>
-                                                        <div>{{__('app.report created at',['time' => format_date($value->created_at)])}}</div>
-                                                    </div>
-                                                </div>
+                                                <div>{{__('app.report created at',['time' => format_date($value->created_at)])}}</div>
                                             </div>
                                         </div>
-                                        <div class="col-md-12">
-                                            <div class="hr-text">举报标题</div>
-                                            <a href="/report/{{$value->id}}.html" class="card-title">{{$value->title}}</a>
-                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <a href="/report/{{$value->id}}.html" class="card-title">{{$value->title}}</a>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="d-flex flex-row-reverse">
+                                        <a href="/report/{{$value->id}}.html" class="btn btn-primary">查看</a>
                                     </div>
                                 </div>
                             </div>

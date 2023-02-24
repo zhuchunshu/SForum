@@ -20,6 +20,9 @@ class ReportController
     #[GetMapping(path: '')]
     public function index()
     {
+        if(!Authority()->check('admin_report')){
+            return admin_abort('无权访问');
+        }
         $page = Report::query()->orderBy('created_at', 'desc')->paginate(15);
         return view('App::report.index', ['page' => $page]);
     }
@@ -27,6 +30,10 @@ class ReportController
     #[GetMapping(path: '{id}.html')]
     public function data($id)
     {
+        if(!Authority()->check('admin_report')){
+            return admin_abort('无权访问');
+        }
+
         if (! Report::query()->where('id', $id)->exists()) {
             return admin_abort('页面不存在', 404);
         }

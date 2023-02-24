@@ -3,7 +3,10 @@
 @section('content')
 <div class="row justify-content-center">
     <div class="col-md-12">
-        <div class="card border-0">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">{{$data->title}}</h3>
+            </div>
             @if($data->status==="pending")
                 <div class="ribbon bg-indigo">待办</div>
             @elseif($data->status==="reject")
@@ -12,7 +15,6 @@
                 <div class="ribbon bg-green">批准</div>
             @endif
             <div class="card-body">
-                <h3 class="card-title">{{$data->title}}</h3>
                 <div class="markdown vditor-reset">
                     {!! $data->content !!}
                 </div>
