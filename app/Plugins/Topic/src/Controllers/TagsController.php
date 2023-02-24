@@ -40,6 +40,7 @@ class TagsController
             ->where('tag_id', $id)
             ->with('tag', 'user')
             ->orderBy('topping', 'desc')
+            ->orderByDesc('last_time')
             ->orderBy('updated_at', 'desc')
             ->paginate((int)get_options('topic_home_num', 15));
         if (request()->input('query') === 'hot') {
@@ -62,6 +63,7 @@ class TagsController
                 ->where('tag_id', $id)
                 ->where([['essence', '>', 0],])
                 ->with('tag', 'user')
+                ->orderByDesc('last_time')
                 ->orderBy('updated_at', 'desc')
                 ->paginate((int)get_options('topic_home_num', 15));
         }
@@ -70,6 +72,7 @@ class TagsController
                 ->where('tag_id', $id)
                 ->where([['topping', '>', 0],])
                 ->with('tag', 'user')
+                ->orderByDesc('last_time')
                 ->orderBy('updated_at', 'desc')
                 ->paginate((int) get_options('topic_home_num', 15));
         }

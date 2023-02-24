@@ -19,7 +19,7 @@ class LastMiddleware implements MiddlewareInterface
 {
     public function handler($data, \Closure $next)
     {
-        Topic::query()->where('id', $data['topic_id'])->update(['updated_at' => date('Y-m-d H:i:s')]);
+        Topic::query()->where('id', $data['topic_id'])->update(['last_time' => time()]);
         return $next($data);
     }
 }

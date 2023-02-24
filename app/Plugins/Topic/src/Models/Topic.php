@@ -47,7 +47,7 @@ class Topic extends Model
      *
      * @var array
      */
-    protected $fillable = ['id', 'created_at', 'updated_at', 'title', 'user_id', 'status', 'post_id', 'view', 'tag_id', 'options', 'topping', 'essence'];
+    protected $fillable = ['id', 'created_at', 'updated_at', 'title', 'user_id', 'status', 'post_id', 'view', 'tag_id', 'options', 'topping', 'essence', 'last_time'];
 
     /**
      * The attributes that should be cast to native types.
@@ -103,5 +103,15 @@ class Topic extends Model
     public function post()
     {
         return $this->belongsTo(Post::class, 'post_id', 'id');
+    }
+
+    /**
+     * 获取最后回复时间
+     * @param $value
+     * @return float|int|string
+     */
+    public function getLastTimeAttribute($value): float | int | string
+    {
+        return $value && $value > 0 ? Carbon::createFromTimestamp($value)->format('Y-m-d H:i:s') : Carbon::parse($this->updated_at)->timestamp;
     }
 }

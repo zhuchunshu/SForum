@@ -109,11 +109,6 @@ class ApiController
                 $action = '/' . $topic_data->id . '.html';
                 user_notice()->send($topic_data->user_id, $title, $content, $action);
             }
-            if (get_options('topic_like_sort', 'false') === 'true') {
-                Topic::where('id', $topic_id)->update([
-                    'updated_at' => date('Y-m-d H:i:s'),
-                ]);
-            }
             return Json_Api(201, true, ['msg' => '已取消点赞']);
         }
         TopicLike::query()->create([
@@ -130,7 +125,7 @@ class ApiController
         }
         if (get_options('topic_like_sort', 'false') === 'true') {
             Topic::where('id', $topic_id)->update([
-                'updated_at' => date('Y-m-d H:i:s'),
+                'last_time' => time(),
             ]);
         }
         return Json_Api(200, true, ['msg' => '已赞!']);
