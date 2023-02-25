@@ -64,7 +64,7 @@ class ApiController
         // 给posts表设置comment_id字段的值
         Post::query()->where('id', $post->id)->update(['comment_id' => $data->id]);
         $data = TopicComment::query()->where('id', $data->id)->first();
-        Topic::query()->where('id', $data['topic_id'])->update(['updated_at' => date('Y-m-d H:i:s')]);
+        Topic::query()->where('id', $data['topic_id'])->update(['last_time' => time()]);
 
         // 艾特被回复的人
         $this->at_user($data, $yhtml);

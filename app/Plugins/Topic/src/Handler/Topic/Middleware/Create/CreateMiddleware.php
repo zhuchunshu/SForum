@@ -85,6 +85,7 @@ class CreateMiddleware implements MiddlewareInterface
             'user_id' => auth()->id(),
             'status' => 'publish',
             'view' => 0,
+            'last_time' => time(),
             'tag_id' => $tag,
         ]);
         // 给Posts表设置topic_id字段的值
