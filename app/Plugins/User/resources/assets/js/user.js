@@ -3913,6 +3913,64 @@ if (document.getElementById("vue-user-create-class")) {
   Vue.createApp(vucc).mount("#vue-user-create-class");
 }
 
+if (document.getElementById("app-vue-user-class-table")) {
+  var app = {
+    data: function data() {
+      return {};
+    },
+    methods: {
+      rm: function rm(id) {
+        sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+          title: "确定删除?",
+          icon: "warning",
+          buttons: true,
+          dangerMode: true
+        }).then(function (willDelete) {
+          if (willDelete) {
+            axios__WEBPACK_IMPORTED_MODULE_0___default().post("/admin/userClass/remove", {
+              _token: csrf_token,
+              id: id
+            }).then(function (response) {
+              var data = response.data;
+
+              if (data.success === true) {
+                sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                  icon: "success",
+                  title: data.result.msg
+                });
+              } else {
+                if (data.result instanceof Array) {
+                  var content = "";
+                  data.result.forEach(function (element) {
+                    content = content + element + "\n";
+                  });
+                  sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                    icon: "error",
+                    title: "出错啦!",
+                    text: content
+                  });
+                } else {
+                  sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                    icon: "error",
+                    title: data.result.msg
+                  });
+                }
+              }
+            })["catch"](function (error) {
+              sweetalert__WEBPACK_IMPORTED_MODULE_1___default()({
+                title: "请求出错,详细查看控制台",
+                icon: "error"
+              });
+              console.error(error);
+            });
+          }
+        });
+      }
+    }
+  };
+  Vue.createApp(app).mount("#app-vue-user-class-table");
+}
+
 if (document.getElementById("vue-user-edit-class")) {
   var vsec = {
     data: function data() {

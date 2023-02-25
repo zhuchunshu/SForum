@@ -22,7 +22,7 @@
                         <th class="w-1"></th>
                     </tr>
                     </thead>
-                    <tbody id="vue-user-class-table">
+                    <tbody id="app-vue-user-class-table">
                     @foreach ($page as $value)
                         <tr>
                             <td>{{ $value->id }}</td>
@@ -42,7 +42,7 @@
                                 <a href="/admin/userClass/edit/{{ $value->id }}">修改</a>
                             </td>
                             <td>
-                                <a @@click="remove({{ $value->id }})" href="#">删除</a>
+                                <a @@click="rm({{ $value->id }})" href="#">删除</a>
                             </td>
                         </tr>
                     @endforeach

@@ -73,6 +73,69 @@ if(document.getElementById("vue-user-create-class")){
     Vue.createApp(vucc).mount("#vue-user-create-class")
 }
 
+
+if(document.getElementById("app-vue-user-class-table")){
+    const app = {
+        data(){
+            return {
+
+            }
+        },
+        methods:{
+            rm(id){
+                swal({
+                    title:"确定删除?",
+                    icon:"warning",
+                    buttons:true,
+                    dangerMode:true
+                }).then(willDelete=>{
+                    if(willDelete){
+                        axios.post("/admin/userClass/remove",{
+                            _token:csrf_token,
+                            id:id
+                        })
+                            .then(response=>{
+                                var data = response.data;
+                                if(data.success===true){
+                                    swal({
+                                        icon:"success",
+                                        title:data.result.msg
+                                    })
+                                }else{
+                                    if(data.result instanceof Array){
+                                        var content = "";
+                                        data.result.forEach(element => {
+                                            content = content+element+"\n"
+                                        });
+                                        swal({
+                                            icon : "error",
+                                            title: "出错啦!",
+                                            text:content
+                                        });
+                                    }else{
+                                        swal({
+                                            icon:"error",
+                                            title:data.result.msg
+                                        })
+                                    }
+                                }
+                            })
+                            .catch(error=>{
+                                swal({
+                                    title:"请求出错,详细查看控制台",
+                                    icon:"error"
+                                })
+                                console.error(error)
+                            })
+                    }
+                })
+            }
+        }
+    }
+    Vue.createApp(app).mount("#app-vue-user-class-table")
+}
+
+
 if(document.getElementById("vue-user-edit-class")){
     const vsec = {
         data(){
