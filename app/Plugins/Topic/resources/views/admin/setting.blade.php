@@ -87,6 +87,13 @@
             <input type="number" class="form-control" min="1" v-model="data.topic_auto_lock_day">
             <small>默认30</small>
         </div>
+
+        <div class="col-lg-3 align-self-center">
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.topic_previous_page_close">
+                <span class="form-check-label">关闭上下条帖子加载</span>
+            </label>
+        </div>
     </div>
 
 
