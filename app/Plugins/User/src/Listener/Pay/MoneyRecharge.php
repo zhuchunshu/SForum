@@ -1,5 +1,13 @@
 <?php
 
+declare(strict_types=1);
+/**
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/SForum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
+ */
 namespace App\Plugins\User\src\Listener\Pay;
 
 use App\Plugins\Core\src\Lib\Pay\Event\NotifyEvent;
@@ -28,23 +36,23 @@ class MoneyRecharge implements ListenerInterface
     {
         //订单id
         $order_id = $event->id;
-        if (redis()->sIsMember(env("APP_KEY",'CodeFec').":".'user_pay_money_recharge', $order_id)) {
+        if (redis()->sIsMember(env('APP_KEY', 'CodeFec') . ':' . 'user_pay_money_recharge', $order_id)) {
             $order = PayOrder::find($order_id);
-            if ($order->status==='支付成功') {
+            if ($order->status === '支付成功') {
                 $user = User::find($order->user_id);
                 $option = UsersOption::find($user->options_id);
                 UsersOption::query()->where('id', $user->options_id)->update([
-                    'money' => $option->money+$order->amount
+                    'money' => $option->money + $order->amount * 100,
                 ]);
                 PayAmountRecord::query()->create([
-                    'original' =>  $option->money,
-                    'cash' =>  $option->money+$order->amount,
-                    'user_id' =>$user->id,
+                    'original' => $option->money,
+                    'cash' => $option->money,
+                    'user_id' => $user->id,
                     'order_id' => $order->id,
-                    'remark' => '购买:【'.$order->title.'】'
+                    'remark' => '购买:【' . $order->title . '】',
                 ]);
             }
-            redis()->sRem(env("APP_KEY",'CodeFec').":".'user_pay_money_recharge', $order_id);
+            redis()->sRem(env('APP_KEY', 'CodeFec') . ':' . 'user_pay_money_recharge', $order_id);
         }
     }
 }
