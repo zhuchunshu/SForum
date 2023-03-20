@@ -85,7 +85,7 @@ if (! function_exists('path_file_name')) {
 }
 
 if (! function_exists('get_user_options')) {
-    function get_user_options($user_id): App\Plugins\User\src\Models\UsersOption|\Hyperf\Database\Model\Collection|\Hyperf\Database\Model\Model|bool|array
+    function get_user_options($user_id): App\Plugins\User\src\Models\UsersOption | \Hyperf\Database\Model\Collection | \Hyperf\Database\Model\Model | bool | array
     {
         $options = \App\Plugins\User\src\Models\UsersOption::find($user_id);
         if (! $options) {
@@ -106,7 +106,7 @@ if (! function_exists('get_user_settings')) {
     function get_user_settings(int | string $user_id, string $name, string $default = '')
     {
         if (! cache()->has('user.settings.' . $user_id . '.' . $name)) {
-            cache()->set('user.settings.' . $user_id . '.' . $name, @\App\Plugins\User\src\Models\UsersSetting::query()->where(['user_id' => $user_id, 'name' => $name])->first()->value);
+            cache()->set('user.settings.' . $user_id . '.' . $name, @\App\Plugins\User\src\Models\UsersSetting::query()->where(['user_id' => $user_id, 'name' => $name])->value('value') ?: null);
         }
         return core_default(cache()->get('user.settings.' . $user_id . '.' . $name), $default);
     }
