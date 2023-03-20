@@ -19,8 +19,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="icon alert-icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="12" r="9" /><line x1="12" y1="8" x2="12.01" y2="8" /><polyline points="11 12 12 12 12 16 13 16" /></svg>
                     </div>
                     <div>
-                        <h4 class="alert-title">Did you know?</h4>
-                        <div class="text-muted">SForum已废弃插件启停功能，不用的插件建议直接卸载。</div>
+                        <div class="text-muted">SForum已废弃插件启停功能，不用的插件建议直接卸载。<a href="https://sforum.cn/use/instructions/plugin.html">点击这里</a>查看插件使用教程 </div>
                     </div>
                 </div>
                 <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
@@ -40,6 +39,7 @@
                         <thead>
                         <tr>
                             <th>插件名</th>
+                            <th>别名</th>
                             <th>兼容性</th>
                             <th>作者</th>
                             <th>版本</th>
@@ -55,6 +55,7 @@
                             <td class="text-muted">无更多结果</td>
                             <td class="text-muted">无更多结果</td>
                             <td class="text-muted">无更多结果</td>
+                            <td class="text-muted">无更多结果</td>
                         @else
                             @foreach($page as $plugin)
                                 <tr>
@@ -62,6 +63,9 @@
                                         @if(plugins()->has_logo($plugin['dir']))
                                             <span class="avatar avatar-md"><img src="/admin/plugins/logo?plugin={{$plugin['dir']}}" alt=""></span>
                                         @endif <div>{{$plugin['data']['name']}}</div></td>
+                                    <td>
+                                        {{$plugin['dir']}}
+                                    </td>
                                     <td class="text-muted" >
                                         @if(@$plugin['data']['masterVersion'] && @$plugin['data']['masterVersion']>build_info()->version)
                                             <span class="status status-red">不兼容,要求SForum版本>={{$plugin['data']['masterVersion']}}</span>
