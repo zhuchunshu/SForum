@@ -33,7 +33,7 @@
                     {{__('app.revise')}}
                 </a>
             </li>
-        @elseif(Authority()->check("topic_edit") && auth()->id() === $data->user->id)
+        @elseif(Authority()->check("topic_edit") && auth()->id() === (int)$data->user->id)
             <li data-bs-toggle="tooltip" data-bs-placement="top" title="{{__('app.revise')}}" class="breadcrumb-item">
                 <a href="/topic/{{$data->id}}/edit">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
@@ -62,7 +62,7 @@
                     {{__('app.delete')}}
                 </a>
             </li>
-        @elseif(Authority()->check("topic_delete") && auth()->id() === $data->user->id)
+        @elseif(Authority()->check("topic_delete") && auth()->id() === (int)$data->user->id)
             <li data-bs-toggle="tooltip" data-bs-placement="top" title="{{__('app.delete')}}" class="breadcrumb-item">
                 <a class="cursor-pointer" style="text-decoration: none" core-click="topic-delete" topic-id="{{$data->id}}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-trash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">

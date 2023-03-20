@@ -112,7 +112,7 @@ class ApiController
         if (Authority()->check('admin_comment_remove') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
         }
-        if (Authority()->check('comment_remove') && auth()->id() === $data->user->id) {
+        if (Authority()->check('comment_remove') && auth()->id() === (int)$data->user->id) {
             $quanxian = true;
         }
         if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->topic->tag_id)->where('user_id',auth()->id())->exists()){

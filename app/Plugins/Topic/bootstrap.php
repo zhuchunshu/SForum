@@ -331,7 +331,7 @@ Itf()->add('ui-topic-show-dropdown', 1, [
 //        if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id',auth()->id())->exists()){
 //            return true;
 //        }
-        if (Authority()->check('topic_edit') && auth()->id() === $data->user->id) {
+        if (Authority()->check('topic_edit') && auth()->id() === (int)$data->user->id) {
             return true;
         }
         return false;
@@ -432,7 +432,7 @@ Itf()->add('ui-topic-show-dropdown', 100, [
         if (Authority()->check('admin_topic_delete') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             return true;
         }
-        if (Authority()->check('topic_delete') && auth()->id() === $data->user->id) {
+        if (Authority()->check('topic_delete') && auth()->id() === (int)$data->user->id) {
             return true;
         }
         if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id',auth()->id())->exists()){

@@ -77,7 +77,7 @@ class TopicController
         $quanxian = false;
         if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
-        } elseif (Authority()->check('topic_edit') && auth()->id() === $data->user->id) {
+        } elseif (Authority()->check('topic_edit') && auth()->id() === (int)$data->user->id) {
             $quanxian = true;
         }
 //        elseif (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {
@@ -97,7 +97,7 @@ class TopicController
         $quanxian = false;
         if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
-        } elseif (Authority()->check('topic_edit') && auth()->id() === $data->user->id) {
+        } elseif (Authority()->check('topic_edit') && auth()->id() === (int)$data->user->id) {
             $quanxian = true;
         }
 //        elseif (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {

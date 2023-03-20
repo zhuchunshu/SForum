@@ -49,7 +49,7 @@ class EditMiddleware implements MiddlewareInterface
         if (Authority()->check('admin_comment_edit') && auth()->Class()['permission-value'] > curd()->GetUserClass($comment->user->class_id)['permission-value']) {
             $quanxian = true;
         }
-        if (Authority()->check('comment_edit') && auth()->id() === $comment->user->id) {
+        if (Authority()->check('comment_edit') && auth()->id() === (int)$comment->user->id) {
             $quanxian = true;
         }
         if ($quanxian === false) {

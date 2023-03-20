@@ -56,7 +56,7 @@ class UpdateMiddleware implements MiddlewareInterface
         if(Authority()->check("admin_topic_edit") && auth()->Class()['permission-value']>curd()->GetUserClass($topic->user->class_id)['permission-value']){
             $quanxian = true;
         }
-        if(Authority()->check("topic_edit") && auth()->id() === $topic->user->id){
+        if(Authority()->check("topic_edit") && auth()->id() === (int)$topic->user->id){
             $quanxian = true;
         }
         if($quanxian===false){
