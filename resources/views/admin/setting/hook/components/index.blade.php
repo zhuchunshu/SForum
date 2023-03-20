@@ -4,6 +4,20 @@
 
 @section('content')
    <div class="row row-cards">
+       <div class="col-12">
+           <div class="alert alert-info alert-dismissible" role="alert">
+               <div class="d-flex">
+                   <div>
+                       <!-- Download SVG icon from http://tabler-icons.io/i/info-circle -->
+                       <svg xmlns="http://www.w3.org/2000/svg" class="icon alert-icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="12" r="9" /><line x1="12" y1="8" x2="12.01" y2="8" /><polyline points="11 12 12 12 12 16 13 16" /></svg>
+                   </div>
+                   <div>
+                       <div class="text-muted">SForum已弃用热重载功能，修改后记得重启SForum服务，不然不会生效，严重则产生错误。 </div>
+                   </div>
+               </div>
+               <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
+           </div>
+       </div>
        <div class="col-lg-12">
            <div class="card">
                <div class="card-header">
