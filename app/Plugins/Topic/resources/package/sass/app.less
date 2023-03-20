@@ -278,79 +278,69 @@ pre {
   transform: translateY(-8px);
 }
 
-:root {
+.article:not(pre) :root {
   --bg-color: #ffffff; /* 定义背景颜色变量 */
   --border-color: #eceeef; /* 定义边框颜色变量 */
   --text-color: #454545; /* 定义文本颜色变量 */
   --highlight-bg-color: #f9f9f9; /* 定义行高亮背景颜色变量 */
 }
 
-.article table {
+.article:not(pre) table {
   width: 100%;
   background-color: var(--bg-color);
   border-collapse: collapse;
 }
 
-.article table th,
-.article table td {
+.article:not(pre) table th,
+.article:not(pre) table td {
   padding: 0.5rem;
   vertical-align: middle;
   border-top: 1px solid var(--border-color);
 }
 
-.article table thead th {
+.article:not(pre) table thead th {
   vertical-align: middle;
   border-bottom: 2px solid var(--border-color);
 }
 
-.article table tbody + tbody {
+.article:not(pre) table tbody + tbody {
   border-top: 2px solid var(--border-color);
 }
 
-.article table .table-bordered,
-.article table .table-bordered th,
-.article table .table-bordered td {
+.article:not(pre) table .table-bordered,
+.article:not(pre) table .table-bordered th,
+.article:not(pre) table .table-bordered td {
   border: 1px solid var(--border-color);
 }
 
-.article table .table-bordered th,
-.article table .table-bordered td {
+.article:not(pre) table .table-bordered th,
+.article:not(pre) table .table-bordered td {
   border-width: 0 1px 1px 0;
 }
 
-.article table .table-bordered th:last-child,
-.article table .table-bordered td:last-child {
+.article:not(pre) table .table-bordered th:last-child,
+.article:not(pre) table .table-bordered td:last-child {
   border-right-width: 1px;
 }
 
-.article table .table-bordered th:first-child,
-.article table .table-bordered td:first-child {
+.article:not(pre) table .table-bordered th:first-child,
+.article:not(pre) table .table-bordered td:first-child {
   border-left-width: 1px;
 }
 
-.article table th {
-  font-weight: 600;
-  text-align: left;
-  color: var(--text-color);
-  text-transform: uppercase;
-  font-size: 12px;
-}
 
-.article table tbody tr:nth-child(even) {
+
+.article:not(pre) table tbody tr:nth-child(even) {
   background-color: var(--highlight-bg-color);
 }
 
-.article table tbody tr:hover {
+.article:not(pre) table tbody tr:hover {
   background-color: #f2f2f2;
 }
 
-.article table td {
-  font-size: 14px;
-  color: var(--text-color);
-}
 
 /* 夜间模式样式 */
-[data-theme="theme-dark"] {
+[data-theme="theme-dark"] .article:not(pre) {
   --bg-color: #292d31; /* 修改背景颜色变量 */
   --border-color: #464e5f; /* 修改边框颜色变量 */
   --text-color: #b2b2b2; /* 修改文本颜色变量 */
@@ -358,6 +348,6 @@ pre {
   background-color: transparent; /* 去掉背景颜色 */
 }
 
-[data-theme="theme-dark"] .article table tbody tr:hover {
+[data-theme="theme-dark"] .article:not(pre) table tbody tr:hover {
   background-color: transparent; /* 将 hover 颜色设为透明 */
 }
