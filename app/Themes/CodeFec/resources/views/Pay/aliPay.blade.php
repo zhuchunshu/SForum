@@ -1,34 +1,34 @@
 <div class="card-body">
     <div class="mb-3">
         <label for="" class="form-label">支付宝分配的app_id <b class="text-red">*</b></label>
-        <input type="text" class="form-control" name="alipay_app_id" value="{{pay()->get_options('alipay_app_id')}}" required>
+        <input type="text" class="form-control" name="alipay_app_id" value="{{pay()->get_options('alipay_app_id')}}">
     </div>
     <div class="mb-3">
         <label for="" class="form-label">应用私钥 <b class="text-red">*</b></label>
-        <textarea class="form-control" name="alipay_app_secret_cert" id="" rows="10" required>{{pay()->get_options('alipay_app_secret_cert')}}</textarea>
+        <textarea class="form-control" name="alipay_app_secret_cert" id="" rows="10">{{pay()->get_options('alipay_app_secret_cert')}}</textarea>
     </div>
     <div class="mb-3">
         <label for="" class="form-label">应用公钥证书 <b class="text-red">*</b></label>
-        <input type="file" class="form-control" name="alipay_app_public_cert_path" value="{{pay()->get_options('alipay_app_public_cert_path')}}" @if(!pay()->get_options('alipay_app_public_cert_path')){{'required'}}@endif>
+        <input type="file" class="form-control" name="alipay_app_public_cert_path" value="{{pay()->get_options('alipay_app_public_cert_path')}}">
         <small class="text-muted">{{pay()->get_options('alipay_app_public_cert_path')}}</small>
     </div>
     <div class="mb-3">
         <label for="" class="form-label">支付宝公钥证书 <b class="text-red">*</b></label>
-        <input type="file" class="form-control" name="alipay_public_cert_path" value="{{pay()->get_options('alipay_public_cert_path')}}" @if(!pay()->get_options('alipay_public_cert_path')){{'required'}}@endif>
+        <input type="file" class="form-control" name="alipay_public_cert_path" value="{{pay()->get_options('alipay_public_cert_path')}}">
         <small class="text-muted">{{pay()->get_options('alipay_public_cert_path')}}</small>
     </div>
     <div class="mb-3">
         <label for="" class="form-label">支付宝根证书 <b class="text-red">*</b></label>
-        <input type="file" class="form-control" name="alipay_root_cert_path" @if(!pay()->get_options('alipay_root_cert_path')){{'required'}}@endif>
+        <input type="file" class="form-control" name="alipay_root_cert_path">
         <small class="text-muted">{{pay()->get_options('alipay_root_cert_path')}}</small>
     </div>
     <div class="mb-3">
         <label for="" class="form-label">回调地址 <b class="text-red">*</b></label>
-        <input type="text" class="form-control" name="alipay_notify_url" value="{{pay()->get_options('alipay_notify_url',url('/api/pay/alipay/notify'))}}" required>
+        <input type="text" class="form-control" name="alipay_notify_url" value="{{pay()->get_options('alipay_notify_url',url('/api/pay/alipay/notify'))}}">
     </div>
     <div class="mb-3">
         <label for="" class="form-label">支付返回地址 <b class="text-red">*</b></label>
-        <input type="text" class="form-control" name="alipay_return_url" value="{{pay()->get_options('alipay_return_url',url('/pay/alipay/return'))}}" required>
+        <input type="text" class="form-control" name="alipay_return_url" value="{{pay()->get_options('alipay_return_url',url('/pay/alipay/return'))}}">
     </div>
     <div class="mb-3">
         <label for="" class="form-label">支付方式</label>
