@@ -34,13 +34,7 @@ if (! function_exists('get_topic_comment_page')) {
         } else {
             $CommentOrderBy = 'asc';
         }
-        if (! request()->input('comment_sort')) {
-            $comment_sort = $CommentOrderBy;
-        } elseif (request()->input('comment_sort') === 'asc' || request()->input('comment_sort') === 'desc') {
-            $comment_sort = request()->input('comment_sort');
-        } else {
-            $comment_sort = $CommentOrderBy;
-        }
+        $comment_sort = $CommentOrderBy;
         for ($i = 0; $i < $lastPage; ++$i) {
             $page = $i + 1;
             $data = TopicComment::query()
