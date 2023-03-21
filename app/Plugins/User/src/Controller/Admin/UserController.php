@@ -189,22 +189,22 @@ class UserController
         }
         go(function () use ($user_id) {
             // 清理用户帖子数据
-            Topic::query()->where('user_id', $user_id)->delete();
+            Topic::where('user_id', $user_id)->delete();
             // 清理用户评论数据
-            TopicComment::query()->where('user_id', $user_id)->delete();
+            TopicComment::where('user_id', $user_id)->delete();
             // 清理用户Posts数据
-            Post::query()->where('user_id', $user_id)->delete();
+            Post::where('user_id', $user_id)->delete();
             //清理用户粉丝数据
-            UserFans::query()->where('user_id', $user_id)->delete();
-            UserFans::query()->where('fans_id', $user_id)->delete();
+            UserFans::where('user_id', $user_id)->delete();
+            UserFans::where('fans_id', $user_id)->delete();
             // 清理用户设置数据
-            UsersSetting::query()->where('user_id', $user_id)->delete();
+            UsersSetting::where('user_id', $user_id)->delete();
             // 清理用户通知数据
-            UsersNotice::query()->where('user_id', $user_id)->delete();
+            UsersNotice::where('user_id', $user_id)->delete();
             // 清理用户收藏数据
-            UsersCollection::query()->where('user_id', $user_id)->delete();
+            UsersCollection::where('user_id', $user_id)->delete();
             // 清理用户消息数据
-            UsersPm::query()->where('from_id', $user_id)->orWhere('to_id', $user_id)->delete();
+            UsersPm::where('from_id', $user_id)->orWhere('to_id', $user_id)->delete();
             // 清理用户options数据
             $options_id = User::find($user_id)->options_id;
             UsersOption::where('id', $options_id)->delete();
