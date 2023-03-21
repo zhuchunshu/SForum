@@ -115,6 +115,7 @@ class Auth
      */
     public function check(string $token = null): bool
     {
+        $token = $token?: request()->input("_session",null);
         if ($token === null) {
             return authManager()->check($token);
         }
