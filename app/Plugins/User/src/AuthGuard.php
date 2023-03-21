@@ -54,11 +54,17 @@ class AuthGuard extends SessionGuard
                     'user_id' => $this->user()->getId(),
                     'token' => session()->get('AUTH_TOKEN'),
                     'user_agent' => get_user_agent(),
+                    'user_ip' => get_client_ip(),
                 ])->exists();
             }) === true;
         } catch (AuthException $exception) {
             return false;
         }
+    }
+
+    public function guest(): bool
+    {
+        return ! $this->check();
     }
 
     private function deleteAuth($user_id)
@@ -70,10 +76,4 @@ class AuthGuard extends SessionGuard
         }
         UsersAuth::query()->where('user_id', $user_id)->where($_protected)->delete();
     }
-
-    public function guest(): bool
-    {
-        return ! $this->check();
-    }
-
 }
