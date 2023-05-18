@@ -46,7 +46,14 @@ class ApiController
         $content = $this->topic_create_at($content);
 
         $comment_id = request()->input('comment_id');
+        if (! TopicComment::query()->where('id', $comment_id)->exists()) {
+            return json_api(404,false,'评论不存在');
+        }
         $topic_id = TopicComment::query()->where('id', $comment_id)->first()->topic_id;
+        $topic = Topic::query()->find($topic_id);
+        if (@$topic->post->options->disable_comment) {
+            return json_api(403,false,'此帖子关闭了评论功能');
+        }
         $parent_id = TopicComment::query()->where('id', $comment_id)->first()->user_id;
         $post = Post::query()->create([
             'content' => $content,
