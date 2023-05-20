@@ -8,25 +8,21 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
-
 namespace App\Command;
 
 use App\CodeFec\Install;
 use Hyperf\Command\Annotation\Command;
-use Symfony\Component\Console\Command\Command as HyperfCommand;
+use Hyperf\Command\Command as HyperfCommand;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\Engine\Coroutine;
 use Hyperf\Server\ServerFactory;
-use Hyperf\Watcher\Option;
-use Hyperf\Watcher\Watcher;
+use InvalidArgumentException;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use InvalidArgumentException;
-
 
 /**
  * @Command
@@ -46,13 +42,17 @@ class StartCommand extends HyperfCommand
         $this->addOption('no-restart', 'N', InputOption::VALUE_NONE, 'Whether no need to restart server');
     }
 
+    public function handle()
+    {
+        // TODO: Implement handle() method.
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->removeFiles(BASE_PATH . '/runtime/container', BASE_PATH . '/runtime/view');
         exec('php CodeFec');
 
         if (file_exists(BASE_PATH . '/app/CodeFec/storage/install.lock') || (new Install($output, $this))->getStep() >= 5) {
-
             $this->checkEnvironment($output);
 
             $serverFactory = $this->container->get(ServerFactory::class)
@@ -60,7 +60,7 @@ class StartCommand extends HyperfCommand
                 ->setLogger($this->container->get(StdoutLoggerInterface::class));
 
             $serverConfig = $this->container->get(ConfigInterface::class)->get('server', []);
-            if (!$serverConfig) {
+            if (! $serverConfig) {
                 throw new InvalidArgumentException('At least one server should be defined.');
             }
 
@@ -89,7 +89,7 @@ class StartCommand extends HyperfCommand
 
     private function checkEnvironment(OutputInterface $output)
     {
-        if (!extension_loaded('swoole')) {
+        if (! extension_loaded('swoole')) {
             return;
         }
         /**
@@ -117,7 +117,7 @@ class StartCommand extends HyperfCommand
          */
         $useShortname = ini_get_all('swoole')['swoole.use_shortname']['local_value'];
         $useShortname = strtolower(trim(str_replace('0', '', $useShortname)));
-        if (!in_array($useShortname, ['', 'off', 'false'], true)) {
+        if (! in_array($useShortname, ['', 'off', 'false'], true)) {
             $output->writeln("<error>ERROR</error> Swoole short function names must be disabled before the server starts, please set swoole.use_shortname='Off' in your php.ini.");
             exit(SIGTERM);
         }
