@@ -1,135 +1,122 @@
-ace.define("ace/snippets/r",["require","exports","module"], function(require, exports, module) {
-"use strict";
+ace.define("ace/snippets/r",["require","exports","module"],function(e,t){"use strict";t.snippetText=`snippet #!
+	#!/usr/bin/env Rscript
 
-exports.snippetText = "snippet #!\n\
-	#!/usr/bin/env Rscript\n\
-\n\
-# includes\n\
-snippet lib\n\
-	library(${1:package})\n\
-snippet req\n\
-	require(${1:package})\n\
-snippet source\n\
-	source('${1:file}')\n\
-\n\
-# conditionals\n\
-snippet if\n\
-	if (${1:condition}) {\n\
-		${2:code}\n\
-	}\n\
-snippet el\n\
-	else {\n\
-		${1:code}\n\
-	}\n\
-snippet ei\n\
-	else if (${1:condition}) {\n\
-		${2:code}\n\
-	}\n\
-\n\
-# functions\n\
-snippet fun\n\
-	${1:name} = function (${2:variables}) {\n\
-		${3:code}\n\
-	}\n\
-snippet ret\n\
-	return(${1:code})\n\
-\n\
-# dataframes, lists, etc\n\
-snippet df\n\
-	${1:name}[${2:rows}, ${3:cols}]\n\
-snippet c\n\
-	c(${1:items})\n\
-snippet li\n\
-	list(${1:items})\n\
-snippet mat\n\
-	matrix(${1:data}, nrow=${2:rows}, ncol=${3:cols})\n\
-\n\
-# apply functions\n\
-snippet apply\n\
-	apply(${1:array}, ${2:margin}, ${3:function})\n\
-snippet lapply\n\
-	lapply(${1:list}, ${2:function})\n\
-snippet sapply\n\
-	sapply(${1:list}, ${2:function})\n\
-snippet vapply\n\
-	vapply(${1:list}, ${2:function}, ${3:type})\n\
-snippet mapply\n\
-	mapply(${1:function}, ${2:...})\n\
-snippet tapply\n\
-	tapply(${1:vector}, ${2:index}, ${3:function})\n\
-snippet rapply\n\
-	rapply(${1:list}, ${2:function})\n\
-\n\
-# plyr functions\n\
-snippet dd\n\
-	ddply(${1:frame}, ${2:variables}, ${3:function})\n\
-snippet dl\n\
-	dlply(${1:frame}, ${2:variables}, ${3:function})\n\
-snippet da\n\
-	daply(${1:frame}, ${2:variables}, ${3:function})\n\
-snippet d_\n\
-	d_ply(${1:frame}, ${2:variables}, ${3:function})\n\
-\n\
-snippet ad\n\
-	adply(${1:array}, ${2:margin}, ${3:function})\n\
-snippet al\n\
-	alply(${1:array}, ${2:margin}, ${3:function})\n\
-snippet aa\n\
-	aaply(${1:array}, ${2:margin}, ${3:function})\n\
-snippet a_\n\
-	a_ply(${1:array}, ${2:margin}, ${3:function})\n\
-\n\
-snippet ld\n\
-	ldply(${1:list}, ${2:function})\n\
-snippet ll\n\
-	llply(${1:list}, ${2:function})\n\
-snippet la\n\
-	laply(${1:list}, ${2:function})\n\
-snippet l_\n\
-	l_ply(${1:list}, ${2:function})\n\
-\n\
-snippet md\n\
-	mdply(${1:matrix}, ${2:function})\n\
-snippet ml\n\
-	mlply(${1:matrix}, ${2:function})\n\
-snippet ma\n\
-	maply(${1:matrix}, ${2:function})\n\
-snippet m_\n\
-	m_ply(${1:matrix}, ${2:function})\n\
-\n\
-# plot functions\n\
-snippet pl\n\
-	plot(${1:x}, ${2:y})\n\
-snippet ggp\n\
-	ggplot(${1:data}, aes(${2:aesthetics}))\n\
-snippet img\n\
-	${1:(jpeg,bmp,png,tiff)}(filename=\"${2:filename}\", width=${3}, height=${4}, unit=\"${5}\")\n\
-	${6:plot}\n\
-	dev.off()\n\
-\n\
-# statistical test functions\n\
-snippet fis\n\
-	fisher.test(${1:x}, ${2:y})\n\
-snippet chi\n\
-	chisq.test(${1:x}, ${2:y})\n\
-snippet tt\n\
-	t.test(${1:x}, ${2:y})\n\
-snippet wil\n\
-	wilcox.test(${1:x}, ${2:y})\n\
-snippet cor\n\
-	cor.test(${1:x}, ${2:y})\n\
-snippet fte\n\
-	var.test(${1:x}, ${2:y})\n\
-snippet kvt \n\
-	kv.test(${1:x}, ${2:y})\n\
-";
-exports.scope = "r";
+# includes
+snippet lib
+	library(\${1:package})
+snippet req
+	require(\${1:package})
+snippet source
+	source('\${1:file}')
 
-});                (function() {
-                    ace.require(["ace/snippets/r"], function(m) {
-                        if (typeof module == "object" && typeof exports == "object" && module) {
-                            module.exports = m;
-                        }
-                    });
-                })();
-            
+# conditionals
+snippet if
+	if (\${1:condition}) {
+		\${2:code}
+	}
+snippet el
+	else {
+		\${1:code}
+	}
+snippet ei
+	else if (\${1:condition}) {
+		\${2:code}
+	}
+
+# functions
+snippet fun
+	\${1:name} = function (\${2:variables}) {
+		\${3:code}
+	}
+snippet ret
+	return(\${1:code})
+
+# dataframes, lists, etc
+snippet df
+	\${1:name}[\${2:rows}, \${3:cols}]
+snippet c
+	c(\${1:items})
+snippet li
+	list(\${1:items})
+snippet mat
+	matrix(\${1:data}, nrow=\${2:rows}, ncol=\${3:cols})
+
+# apply functions
+snippet apply
+	apply(\${1:array}, \${2:margin}, \${3:function})
+snippet lapply
+	lapply(\${1:list}, \${2:function})
+snippet sapply
+	sapply(\${1:list}, \${2:function})
+snippet vapply
+	vapply(\${1:list}, \${2:function}, \${3:type})
+snippet mapply
+	mapply(\${1:function}, \${2:...})
+snippet tapply
+	tapply(\${1:vector}, \${2:index}, \${3:function})
+snippet rapply
+	rapply(\${1:list}, \${2:function})
+
+# plyr functions
+snippet dd
+	ddply(\${1:frame}, \${2:variables}, \${3:function})
+snippet dl
+	dlply(\${1:frame}, \${2:variables}, \${3:function})
+snippet da
+	daply(\${1:frame}, \${2:variables}, \${3:function})
+snippet d_
+	d_ply(\${1:frame}, \${2:variables}, \${3:function})
+
+snippet ad
+	adply(\${1:array}, \${2:margin}, \${3:function})
+snippet al
+	alply(\${1:array}, \${2:margin}, \${3:function})
+snippet aa
+	aaply(\${1:array}, \${2:margin}, \${3:function})
+snippet a_
+	a_ply(\${1:array}, \${2:margin}, \${3:function})
+
+snippet ld
+	ldply(\${1:list}, \${2:function})
+snippet ll
+	llply(\${1:list}, \${2:function})
+snippet la
+	laply(\${1:list}, \${2:function})
+snippet l_
+	l_ply(\${1:list}, \${2:function})
+
+snippet md
+	mdply(\${1:matrix}, \${2:function})
+snippet ml
+	mlply(\${1:matrix}, \${2:function})
+snippet ma
+	maply(\${1:matrix}, \${2:function})
+snippet m_
+	m_ply(\${1:matrix}, \${2:function})
+
+# plot functions
+snippet pl
+	plot(\${1:x}, \${2:y})
+snippet ggp
+	ggplot(\${1:data}, aes(\${2:aesthetics}))
+snippet img
+	\${1:(jpeg,bmp,png,tiff)}(filename="\${2:filename}", width=\${3}, height=\${4}, unit="\${5}")
+	\${6:plot}
+	dev.off()
+
+# statistical test functions
+snippet fis
+	fisher.test(\${1:x}, \${2:y})
+snippet chi
+	chisq.test(\${1:x}, \${2:y})
+snippet tt
+	t.test(\${1:x}, \${2:y})
+snippet wil
+	wilcox.test(\${1:x}, \${2:y})
+snippet cor
+	cor.test(\${1:x}, \${2:y})
+snippet fte
+	var.test(\${1:x}, \${2:y})
+snippet kvt 
+	kv.test(\${1:x}, \${2:y})
+`,t.scope="r"}),function(){ace.require(["ace/snippets/r"],function(e){typeof module=="object"&&typeof exports=="object"&&module&&(module.exports=e)})}()

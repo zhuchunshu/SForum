@@ -1,9 +1,1 @@
-
-;                (function() {
-                    ace.require(["ace/snippets/matlab"], function(m) {
-                        if (typeof module == "object" && typeof exports == "object" && module) {
-                            module.exports = m;
-                        }
-                    });
-                })();
-            
+(function(){ace.require(["ace/snippets/matlab"],function(e){typeof module=="object"&&typeof exports=="object"&&module&&(module.exports=e)})})()

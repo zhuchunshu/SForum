@@ -1,106 +1,93 @@
-ace.define("ace/snippets/tcl",["require","exports","module"], function(require, exports, module) {
-"use strict";
-
-exports.snippetText = "# #!/usr/bin/env tclsh\n\
-snippet #!\n\
-	#!/usr/bin/env tclsh\n\
-	\n\
-# Process\n\
-snippet pro\n\
-	proc ${1:function_name} {${2:args}} {\n\
-		${3:#body ...}\n\
-	}\n\
-#xif\n\
-snippet xif\n\
-	${1:expr}? ${2:true} : ${3:false}\n\
-# Conditional\n\
-snippet if\n\
-	if {${1}} {\n\
-		${2:# body...}\n\
-	}\n\
-# Conditional if..else\n\
-snippet ife\n\
-	if {${1}} {\n\
-		${2:# body...}\n\
-	} else {\n\
-		${3:# else...}\n\
-	}\n\
-# Conditional if..elsif..else\n\
-snippet ifee\n\
-	if {${1}} {\n\
-		${2:# body...}\n\
-	} elseif {${3}} {\n\
-		${4:# elsif...}\n\
-	} else {\n\
-		${5:# else...}\n\
-	}\n\
-# If catch then\n\
-snippet ifc\n\
-	if { [catch {${1:#do something...}} ${2:err}] } {\n\
-		${3:# handle failure...}\n\
-	}\n\
-# Catch\n\
-snippet catch\n\
-	catch {${1}} ${2:err} ${3:options}\n\
-# While Loop\n\
-snippet wh\n\
-	while {${1}} {\n\
-		${2:# body...}\n\
-	}\n\
-# For Loop\n\
-snippet for\n\
-	for {set ${2:var} 0} {$$2 < ${1:count}} {${3:incr} $2} {\n\
-		${4:# body...}\n\
-	}\n\
-# Foreach Loop\n\
-snippet fore\n\
-	foreach ${1:x} {${2:#list}} {\n\
-		${3:# body...}\n\
-	}\n\
-# after ms script...\n\
-snippet af\n\
-	after ${1:ms} ${2:#do something}\n\
-# after cancel id\n\
-snippet afc\n\
-	after cancel ${1:id or script}\n\
-# after idle\n\
-snippet afi\n\
-	after idle ${1:script}\n\
-# after info id\n\
-snippet afin\n\
-	after info ${1:id}\n\
-# Expr\n\
-snippet exp\n\
-	expr {${1:#expression here}}\n\
-# Switch\n\
-snippet sw\n\
-	switch ${1:var} {\n\
-		${3:pattern 1} {\n\
-			${4:#do something}\n\
-		}\n\
-		default {\n\
-			${2:#do something}\n\
-		}\n\
-	}\n\
-# Case\n\
-snippet ca\n\
-	${1:pattern} {\n\
-		${2:#do something}\n\
-	}${3}\n\
-# Namespace eval\n\
-snippet ns\n\
-	namespace eval ${1:path} {${2:#script...}}\n\
-# Namespace current\n\
-snippet nsc\n\
-	namespace current\n\
-";
-exports.scope = "tcl";
-
-});                (function() {
-                    ace.require(["ace/snippets/tcl"], function(m) {
-                        if (typeof module == "object" && typeof exports == "object" && module) {
-                            module.exports = m;
-                        }
-                    });
-                })();
-            
+ace.define("ace/snippets/tcl",["require","exports","module"],function(e,t){"use strict";t.snippetText=`# #!/usr/bin/env tclsh
+snippet #!
+	#!/usr/bin/env tclsh
+	
+# Process
+snippet pro
+	proc \${1:function_name} {\${2:args}} {
+		\${3:#body ...}
+	}
+#xif
+snippet xif
+	\${1:expr}? \${2:true} : \${3:false}
+# Conditional
+snippet if
+	if {\${1}} {
+		\${2:# body...}
+	}
+# Conditional if..else
+snippet ife
+	if {\${1}} {
+		\${2:# body...}
+	} else {
+		\${3:# else...}
+	}
+# Conditional if..elsif..else
+snippet ifee
+	if {\${1}} {
+		\${2:# body...}
+	} elseif {\${3}} {
+		\${4:# elsif...}
+	} else {
+		\${5:# else...}
+	}
+# If catch then
+snippet ifc
+	if { [catch {\${1:#do something...}} \${2:err}] } {
+		\${3:# handle failure...}
+	}
+# Catch
+snippet catch
+	catch {\${1}} \${2:err} \${3:options}
+# While Loop
+snippet wh
+	while {\${1}} {
+		\${2:# body...}
+	}
+# For Loop
+snippet for
+	for {set \${2:var} 0} {$$2 < \${1:count}} {\${3:incr} $2} {
+		\${4:# body...}
+	}
+# Foreach Loop
+snippet fore
+	foreach \${1:x} {\${2:#list}} {
+		\${3:# body...}
+	}
+# after ms script...
+snippet af
+	after \${1:ms} \${2:#do something}
+# after cancel id
+snippet afc
+	after cancel \${1:id or script}
+# after idle
+snippet afi
+	after idle \${1:script}
+# after info id
+snippet afin
+	after info \${1:id}
+# Expr
+snippet exp
+	expr {\${1:#expression here}}
+# Switch
+snippet sw
+	switch \${1:var} {
+		\${3:pattern 1} {
+			\${4:#do something}
+		}
+		default {
+			\${2:#do something}
+		}
+	}
+# Case
+snippet ca
+	\${1:pattern} {
+		\${2:#do something}
+	}\${3}
+# Namespace eval
+snippet ns
+	namespace eval \${1:path} {\${2:#script...}}
+# Namespace current
+snippet nsc
+	namespace current
+`,t.scope="tcl"}),function(){ace.require(["ace/snippets/tcl"],function(e){typeof module=="object"&&typeof exports=="object"&&module&&(module.exports=e)})}()

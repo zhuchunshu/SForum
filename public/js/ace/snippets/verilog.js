@@ -1,9 +1,1 @@
-
-;                (function() {
-                    ace.require(["ace/snippets/verilog"], function(m) {
-                        if (typeof module == "object" && typeof exports == "object" && module) {
-                            module.exports = m;
-                        }
-                    });
-                })();
-            
+(function(){ace.require(["ace/snippets/verilog"],function(e){typeof module=="object"&&typeof exports=="object"&&module&&(module.exports=e)})})()

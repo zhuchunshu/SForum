@@ -1,9 +1,1 @@
-
-;                (function() {
-                    ace.require(["ace/snippets/apex"], function(m) {
-                        if (typeof module == "object" && typeof exports == "object" && module) {
-                            module.exports = m;
-                        }
-                    });
-                })();
-            
+(function(){ace.require(["ace/snippets/apex"],function(e){typeof module=="object"&&typeof exports=="object"&&module&&(module.exports=e)})})()

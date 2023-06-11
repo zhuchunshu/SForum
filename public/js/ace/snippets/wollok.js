@@ -1,98 +1,85 @@
-ace.define("ace/snippets/wollok",["require","exports","module"], function(require, exports, module) {
-"use strict";
+ace.define("ace/snippets/wollok",["require","exports","module"],function(e,t){"use strict";t.snippetText=`##
+## Basic Java packages and import
+snippet im
+	import
+snippet w.l
+	wollok.lang
+snippet w.i
+	wollok.lib
 
-exports.snippetText = "##\n\
-## Basic Java packages and import\n\
-snippet im\n\
-	import\n\
-snippet w.l\n\
-	wollok.lang\n\
-snippet w.i\n\
-	wollok.lib\n\
-\n\
-## Class and object\n\
-snippet cl\n\
-	class ${1:`Filename(\"\", \"untitled\")`} ${2}\n\
-snippet obj\n\
-	object ${1:`Filename(\"\", \"untitled\")`} ${2:inherits Parent}${3}\n\
-snippet te\n\
-	test ${1:`Filename(\"\", \"untitled\")`}\n\
-\n\
-##\n\
-## Enhancements\n\
-snippet inh\n\
-	inherits\n\
-\n\
-##\n\
-## Comments\n\
-snippet /*\n\
-	/*\n\
-	 * ${1}\n\
-	 */\n\
-\n\
-##\n\
-## Control Statements\n\
-snippet el\n\
-	else\n\
-snippet if\n\
-	if (${1}) ${2}\n\
-\n\
-##\n\
-## Create a Method\n\
-snippet m\n\
-	method ${1:method}(${2}) ${5}\n\
-\n\
-##  \n\
-## Tests\n\
-snippet as\n\
-	assert.equals(${1:expected}, ${2:actual})\n\
-\n\
-##\n\
-## Exceptions\n\
-snippet ca\n\
-	catch ${1:e} : (${2:Exception} ) ${3}\n\
-snippet thr\n\
-	throw\n\
-snippet try\n\
-	try {\n\
-		${3}\n\
-	} catch ${1:e} : ${2:Exception} {\n\
-	}\n\
-\n\
-##\n\
-## Javadocs\n\
-snippet /**\n\
-	/**\n\
-	 * ${1}\n\
-	 */\n\
-\n\
-##\n\
-## Print Methods\n\
-snippet print\n\
-	console.println(\"${1:Message}\")\n\
-\n\
-##\n\
-## Setter and Getter Methods\n\
-snippet set\n\
-	method set${1:}(${2:}) {\n\
-		$1 = $2\n\
-	}\n\
-snippet get\n\
-	method get${1:}() {\n\
-		return ${1:};\n\
-	}\n\
-\n\
-##\n\
-## Terminate Methods or Loops\n\
-snippet re\n\
-	return";
-exports.scope = "wollok";
+## Class and object
+snippet cl
+	class \${1:\`Filename("", "untitled")\`} \${2}
+snippet obj
+	object \${1:\`Filename("", "untitled")\`} \${2:inherits Parent}\${3}
+snippet te
+	test \${1:\`Filename("", "untitled")\`}
 
-});                (function() {
-                    ace.require(["ace/snippets/wollok"], function(m) {
-                        if (typeof module == "object" && typeof exports == "object" && module) {
-                            module.exports = m;
-                        }
-                    });
-                })();
-            
+##
+## Enhancements
+snippet inh
+	inherits
+
+##
+## Comments
+snippet /*
+	/*
+	 * \${1}
+	 */
+
+##
+## Control Statements
+snippet el
+	else
+snippet if
+	if (\${1}) \${2}
+
+##
+## Create a Method
+snippet m
+	method \${1:method}(\${2}) \${5}
+
+##  
+## Tests
+snippet as
+	assert.equals(\${1:expected}, \${2:actual})
+
+##
+## Exceptions
+snippet ca
+	catch \${1:e} : (\${2:Exception} ) \${3}
+snippet thr
+	throw
+snippet try
+	try {
+		\${3}
+	} catch \${1:e} : \${2:Exception} {
+	}
+
+##
+## Javadocs
+snippet /**
+	/**
+	 * \${1}
+	 */
+
+##
+## Print Methods
+snippet print
+	console.println("\${1:Message}")
+
+##
+## Setter and Getter Methods
+snippet set
+	method set\${1:}(\${2:}) {
+		$1 = $2
+	}
+snippet get
+	method get\${1:}() {
+		return \${1:};
+	}
+
+##
+## Terminate Methods or Loops
+snippet re
+	return`,t.scope="wollok"}),function(){ace.require(["ace/snippets/wollok"],function(e){typeof module=="object"&&typeof exports=="object"&&module&&(module.exports=e)})}()

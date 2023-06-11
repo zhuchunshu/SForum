@@ -1,4 +1,4 @@
-@extends("App::app")
+@extends("App::layouts.index-app")
 
 @if($title)
     @section('title',$title." - ")
@@ -42,6 +42,6 @@
     <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
 @endsection
 @section('scripts')
-    <script src="/tabler/libs/apexcharts/dist/apexcharts.min.js"></script>
+{{--    <script src="/tabler/libs/apexcharts/dist/apexcharts.min.js"></script>--}}
     <script src="{{mix('plugins/Topic/js/core.js')}}"></script>
 @endsection

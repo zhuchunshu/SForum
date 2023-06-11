@@ -1,8 +1,1 @@
-const helper = {
-    alert(){
-        alert("a")
-    }
-}
-function helpers(){
-    return helper;
-}
+const helper={alert(){alert("a")}};function helpers(){return helper}

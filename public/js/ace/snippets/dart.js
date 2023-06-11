@@ -1,97 +1,84 @@
-ace.define("ace/snippets/dart",["require","exports","module"], function(require, exports, module) {
-"use strict";
-
-exports.snippetText = "snippet lib\n\
-	library ${1};\n\
-	${2}\n\
-snippet im\n\
-	import '${1}';\n\
-	${2}\n\
-snippet pa\n\
-	part '${1}';\n\
-	${2}\n\
-snippet pao\n\
-	part of ${1};\n\
-	${2}\n\
-snippet main\n\
-	void main() {\n\
-	  ${1:/* code */}\n\
-	}\n\
-snippet st\n\
-	static ${1}\n\
-snippet fi\n\
-	final ${1}\n\
-snippet re\n\
-	return ${1}\n\
-snippet br\n\
-	break;\n\
-snippet th\n\
-	throw ${1}\n\
-snippet cl\n\
-	class ${1:`Filename(\"\", \"untitled\")`} ${2}\n\
-snippet imp\n\
-	implements ${1}\n\
-snippet ext\n\
-	extends ${1}\n\
-snippet if\n\
-	if (${1:true}) {\n\
-	  ${2}\n\
-	}\n\
-snippet ife\n\
-	if (${1:true}) {\n\
-	  ${2}\n\
-	} else {\n\
-	  ${3}\n\
-	}\n\
-snippet el\n\
-	else\n\
-snippet sw\n\
-	switch (${1}) {\n\
-	  ${2}\n\
-	}\n\
-snippet cs\n\
-	case ${1}:\n\
-	  ${2}\n\
-snippet de\n\
-	default:\n\
-	  ${1}\n\
-snippet for\n\
-	for (var ${2:i} = 0, len = ${1:things}.length; $2 < len; ${3:++}$2) {\n\
-	  ${4:$1[$2]}\n\
-	}\n\
-snippet fore\n\
-	for (final ${2:item} in ${1:itemList}) {\n\
-	  ${3:/* code */}\n\
-	}\n\
-snippet wh\n\
-	while (${1:/* condition */}) {\n\
-	  ${2:/* code */}\n\
-	}\n\
-snippet dowh\n\
-	do {\n\
-	  ${2:/* code */}\n\
-	} while (${1:/* condition */});\n\
-snippet as\n\
-	assert(${1:/* condition */});\n\
-snippet try\n\
-	try {\n\
-	  ${2}\n\
-	} catch (${1:Exception e}) {\n\
-	}\n\
-snippet tryf\n\
-	try {\n\
-	  ${2}\n\
-	} catch (${1:Exception e}) {\n\
-	} finally {\n\
-	}\n\
-";
-exports.scope = "dart";
-
-});                (function() {
-                    ace.require(["ace/snippets/dart"], function(m) {
-                        if (typeof module == "object" && typeof exports == "object" && module) {
-                            module.exports = m;
-                        }
-                    });
-                })();
-            
+ace.define("ace/snippets/dart",["require","exports","module"],function(e,t){"use strict";t.snippetText=`snippet lib
+	library \${1};
+	\${2}
+snippet im
+	import '\${1}';
+	\${2}
+snippet pa
+	part '\${1}';
+	\${2}
+snippet pao
+	part of \${1};
+	\${2}
+snippet main
+	void main() {
+	  \${1:/* code */}
+	}
+snippet st
+	static \${1}
+snippet fi
+	final \${1}
+snippet re
+	return \${1}
+snippet br
+	break;
+snippet th
+	throw \${1}
+snippet cl
+	class \${1:\`Filename("", "untitled")\`} \${2}
+snippet imp
+	implements \${1}
+snippet ext
+	extends \${1}
+snippet if
+	if (\${1:true}) {
+	  \${2}
+	}
+snippet ife
+	if (\${1:true}) {
+	  \${2}
+	} else {
+	  \${3}
+	}
+snippet el
+	else
+snippet sw
+	switch (\${1}) {
+	  \${2}
+	}
+snippet cs
+	case \${1}:
+	  \${2}
+snippet de
+	default:
+	  \${1}
+snippet for
+	for (var \${2:i} = 0, len = \${1:things}.length; $2 < len; \${3:++}$2) {
+	  \${4:$1[$2]}
+	}
+snippet fore
+	for (final \${2:item} in \${1:itemList}) {
+	  \${3:/* code */}
+	}
+snippet wh
+	while (\${1:/* condition */}) {
+	  \${2:/* code */}
+	}
+snippet dowh
+	do {
+	  \${2:/* code */}
+	} while (\${1:/* condition */});
+snippet as
+	assert(\${1:/* condition */});
+snippet try
+	try {
+	  \${2}
+	} catch (\${1:Exception e}) {
+	}
+snippet tryf
+	try {
+	  \${2}
+	} catch (\${1:Exception e}) {
+	} finally {
+	}
+`,t.scope="dart"}),function(){ace.require(["ace/snippets/dart"],function(e){typeof module=="object"&&typeof exports=="object"&&module&&(module.exports=e)})}()
