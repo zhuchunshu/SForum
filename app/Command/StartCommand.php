@@ -49,8 +49,7 @@ class StartCommand extends HyperfCommand
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->removeFiles(BASE_PATH . '/runtime/container', BASE_PATH . '/runtime/view');
-        exec('php CodeFec');
+        shell_exec('composer du');
 
         if (file_exists(BASE_PATH . '/app/CodeFec/storage/install.lock') || (new Install($output, $this))->getStep() >= 5) {
             $this->checkEnvironment($output);
