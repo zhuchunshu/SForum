@@ -1,7 +1,7 @@
 @extends("App::app")
 
 @section('title',$data->title)
-@section('description','「关于'.$data->title."」帖子的相关信息")
+@section('description',get_content_brief($data->post->content)?:'「关于'.$data->title."」帖子的相关信息")
 @section('keywords',$data->title.','.$data->user->username)
 
 @section('content')

@@ -1017,3 +1017,21 @@ if (! function_exists('get_file_content')) {
         return $content;
     }
 }
+
+// 截取内容摘要
+if (! function_exists('get_content_brief')) {
+    function get_content_brief($content, $len = 200): string
+    {
+        if (@! $content) {
+            return $content;
+        }
+        $len = (int) $len;
+        // hook post_brief_start.php
+        $content = strip_tags($content);
+        $content = htmlspecialchars($content);
+        $content = remove_bbCode($content) ?: '';
+        $content = \Hyperf\Utils\Str::limit($content, $len);
+        $content = trim(preg_replace('/\s+/', ' ', $content));
+        return htmlspecialchars_decode($content, ENT_QUOTES);
+    }
+}
