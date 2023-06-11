@@ -48,13 +48,17 @@
                                     </svg>
                                 </button>
                                 <div class="dropdown-menu">
-                                    <a class="dropdown-item" user-click="user_follow"
-                                       user-id="{{ $user->id }}">
-                                        <span>关注</span>
-                                    </a>
-                                    @if((int)$user->id!==auth()->id())
+                                    @if((int)$user->id===auth()->id())
+                                        <a class="dropdown-item" href="/user/setting">
+                                            个人设置
+                                        </a>
+                                    @else
                                         <a class="dropdown-item" href="/users/pm/{{$user->id}}">
                                             私信
+                                        </a>
+                                        <a class="dropdown-item" user-click="user_follow"
+                                           user-id="{{ $user->id }}">
+                                            <span>关注</span>
                                         </a>
                                     @endif
                                 </div>
