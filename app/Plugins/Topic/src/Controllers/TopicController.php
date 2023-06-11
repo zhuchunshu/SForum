@@ -93,7 +93,7 @@ class TopicController
     #[RateLimit(create: 1, capacity: 1, consume: 1)]
     public function edit_post()
     {
-        $data = Topic::query()->find(request()->input('basis.tag'));
+        $data = Topic::query()->find(request()->input('basis.topic_id'));
         $quanxian = false;
         if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
