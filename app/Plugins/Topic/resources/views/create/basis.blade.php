@@ -1,16 +1,24 @@
 <div x-data="basis">
     <div class="mb-3">
         <label class="form-label">标题</label>
-        <input type="text" x-model="title"  id="topic-create-title" class="form-control" value="{{request()->input('basis.title')}}" name="basis[title]" placeholder="title" required>
+        <input type="text" x-model="title" id="topic-create-title" class="form-control"
+               value="{{request()->input('basis.title')}}" name="basis[title]" placeholder="title" required>
     </div>
 
     <div class="mb-3">
-        <label class="form-label">选择标签</label>
-        <select type="text" x-model="tag" name="basis[tag]" class="form-select" id="select-topic-tags" required>
+        <label :class="{'required text-red' :! tag_selected}" class="form-label">选择标签</label>
+        <select type="text" x-model="tag" name="basis[tag]" class="form-select"
+                id="select-topic-tags"
+                required>
 
+            <option value="null"
+                    data-custom-properties="&lt;span class=&quot;badge bg-danger-lt&quot;&gt;Tip&lt;/span&gt;">请选择标签
+            </option>
             @foreach(\App\Plugins\Topic\src\Models\TopicTag::query()->where('status','=',null)->get() as $topic_tags)
                 <option value="{{$topic_tags->id}}"
-                        data-custom-properties="&lt;span class=&quot;badge&quot; style=&quot;background-color: {{$topic_tags->color}} &quot; &gt;{{$topic_tags->icon}}&lt;/span&gt;" @if((int)request()->input('basis.tag')===(int)$topic_tags->id){{"selected"}}@endif>
+                        data-custom-properties="&lt;span class=&quot;badge&quot; style=&quot;background-color: {{$topic_tags->color}} &quot; &gt;{{$topic_tags->icon}}&lt;/span&gt;" @if((int)request()->input('basis.tag')===(int)$topic_tags->id)
+                    {{"selected"}}
+                        @endif>
                     {{$topic_tags->name}}
                 </option>
             @endforeach
@@ -33,29 +41,43 @@
 
 <script src="{{file_hash("js/axios.min.js")}}"></script>
 <script>
+    function disableDefaultOption(select) {
+        select.options[0].disabled = true; // 禁用默认选项
+    }
+
     document.addEventListener('alpine:init', () => {
         Alpine.data('basis', () => ({
+            tag_selected: false,
             init() {
                 this.$watch('title', () => {
-                    localStorage.setItem('create_topic_title',this.title)
+                    localStorage.setItem('create_topic_title', this.title)
                 })
                 this.$watch('tag', () => {
-                    localStorage.setItem('create_topic_tag',this.tag)
+                    localStorage.setItem('create_topic_tag', this.tag)
+                    this.tag_selected = this.tag !== 'null';
                 })
+                this.$nextTick(() => {
+                    // 在 nextTick 中执行的代码
+                    this.tag_selected = this.tag() !== 'null';
+                });
             },
-            title: (()=>{
-                if(localStorage.getItem('create_topic_title')){
+            title: (() => {
+                if (localStorage.getItem('create_topic_title')) {
                     return localStorage.getItem('create_topic_title')
                 }
                 return null;
             }),
-            tag:(()=>{
+            tag: (() => {
                 @if(!request()->has('basis.tag'))
-                if(localStorage.getItem('create_topic_tag')){
+                if (localStorage.getItem('create_topic_tag')) {
+                    console.log(localStorage.getItem('create_topic_tag'))
+                    if (localStorage.getItem('create_topic_tag') !== "null") {
+                        this.tag_selected = true;
+                    }
                     return localStorage.getItem('create_topic_tag')
                 }
                 @else
-                    return {{request()->input('basis.tag')}};
+                return {{request()->input('basis.tag')}};
                 @endif
             })
         }))
@@ -79,17 +101,17 @@
         formData.append('file', blobInfo.blob(), blobInfo.filename());
         formData.append('_token', csrf_token);
         formData.append('_session', _token);
-        axios.post("/user/upload/image",formData,{
-            'Content-type' : 'multipart/form-data'
-        }).then(function(r){
+        axios.post("/user/upload/image", formData, {
+            'Content-type': 'multipart/form-data'
+        }).then(function (r) {
             console.log(r)
             const data = r.data;
-            if(data.success){
+            if (data.success) {
                 resolve(data.result.url);
-                return ;
+                return;
             }
-            reject({message:'HTTP Error: ' + data.result.msg + ', Error Code: '+data.code,remove: true});
-        }).catch(function(e){
+            reject({message: 'HTTP Error: ' + data.result.msg + ', Error Code: ' + data.code, remove: true});
+        }).catch(function (e) {
             console.log(e)
         })
 
@@ -99,8 +121,8 @@
         let options = {
             selector: '#basis-content',
             height: 450,
-            menu:{!! \App\Plugins\Topic\src\Lib\Create\Editor::menu() !!},
-            menubar:"{!! \App\Plugins\Topic\src\Lib\Create\Editor::menubar() !!}",
+            menu: {!! \App\Plugins\Topic\src\Lib\Create\Editor::menu() !!},
+            menubar: "{!! \App\Plugins\Topic\src\Lib\Create\Editor::menubar() !!}",
             statusbar: true,
             elementpath: true,
             promotion: false,
@@ -111,18 +133,18 @@
             toolbar_mode: 'sliding',
             image_advtab: true,
             automatic_uploads: true,
-            convert_urls:false,
-            setup : function(ed) {
+            convert_urls: false,
+            setup: function (ed) {
                 //console.log(ed)
             },
-            external_plugins:{!! \App\Plugins\Topic\src\Lib\Create\Editor::externalPlugins() !!},
+            external_plugins: {!! \App\Plugins\Topic\src\Lib\Create\Editor::externalPlugins() !!},
             images_upload_handler: image_upload_handler,
             init_instance_callback: (editor) => {
-                if(localStorage.getItem('topic_create_content')){
+                if (localStorage.getItem('topic_create_content')) {
                     editor.setContent(localStorage.getItem('topic_create_content'))
                 }
-                editor.on('input', function(e) {
-                    localStorage.setItem('topic_create_content',editor.getContent())
+                editor.on('input', function (e) {
+                    localStorage.setItem('topic_create_content', editor.getContent())
                 });
                 @if(get_options('topic_emoji_close')!=='true')
                 new OwO({
@@ -135,12 +157,12 @@
                 });
                 @endif
             },
-            mobile:{
-                menu:{!! \App\Plugins\Topic\src\Lib\Create\Editor::menu() !!},
-                menubar:"{!! \App\Plugins\Topic\src\Lib\Create\Editor::menubar() !!}",
+            mobile: {
+                menu: {!! \App\Plugins\Topic\src\Lib\Create\Editor::menu() !!},
+                menubar: "{!! \App\Plugins\Topic\src\Lib\Create\Editor::menubar() !!}",
                 toolbar_mode: 'scrolling'
             },
-            branding:false,
+            branding: false,
             content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }'
         }
         if (document.body.className === 'theme-dark') {
