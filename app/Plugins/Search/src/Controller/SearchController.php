@@ -49,7 +49,7 @@ class SearchController
                 'url' => '/' . $item->id . '.html',
             ];
         }
-        $topics2= [];
+        $topics2 = [];
 
         $_topic = Post::where('topic_id', '!=', 'null')
             ->where('topic_id', '!=', '0')
@@ -58,7 +58,7 @@ class SearchController
             ->get(['user_id', 'topic_id', 'content', 'created_at', 'id']);
 
         foreach ($_topic as $topic) {
-            if (in_array($item, $topics2) || !Topic::where('id',$topic->topic_id)->exists()) {
+            if (in_array($item, $topics2) || ! Topic::where('id', $topic->topic_id)->exists()) {
                 continue;
             }
             $item = [
@@ -71,7 +71,7 @@ class SearchController
                     'url' => '/tags' . $topic->topic->tag->id . '.html',
                 ],
                 'created_at' => $topic->created_at,
-                'title' => @$topic->topic->title?:'暂无标题',
+                'title' => @$topic->topic->title ?: '暂无标题',
                 'content' => @str_limit(remove_bbCode(strip_tags($topic->content) ?: '暂无内容') ?: '暂无内容', 100),
                 'url' => '/' . $topic->topic_id . '.html',
             ];
@@ -80,7 +80,7 @@ class SearchController
         }
 
         $data = array_merge($topics, $topics2);
-
+        $data = array_unique($data);
         $page = $this->page($data);
         return view('Search::data', ['page' => $page, 'q' => $q]);
     }
