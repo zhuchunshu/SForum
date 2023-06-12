@@ -15,6 +15,7 @@ use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Core\src\Models\InvitationCode;
 use App\Plugins\Topic\src\Models\TopicTag;
 use App\Plugins\User\src\Models\User;
+use Hyperf\Utils\Str;
 use Thunder\Shortcode\Shortcode\ShortcodeInterface;
 
 class ShortCode
@@ -137,5 +138,48 @@ class ShortCode
         }
         $codes = InvitationCode::query()->limit($limit)->offset($offset - 1)->get();
         return view('App::ShortCode.InvitationCode', ['codes' => $codes]);
+    }
+
+    // 轮播
+
+    #[ShortCodeR(name: 'carousel')]
+    public function carousel($match, ShortcodeInterface $shortcode, $data)
+    {
+        // 类型
+        $type = $shortcode->getParameter('type');
+
+        // 样式
+        $style = $shortcode->getParameter('style');
+        // 获取""中的内容
+//        $style = preg_replace('/\"(.*)\"/', '$1', $style);
+
+        // class
+        $class = $shortcode->getParameter('class');
+        // 获取""中的内容
+//        $class = preg_replace('/\"(.*)\"/', '$1', $class);
+
+
+        if (! is_numeric($type) || ! in_array($type, [1, 2, 3, 4, 5, 6])) {
+            return '[' . $shortcode->getName() . '] ' . __('app.Error using short tags');
+        }
+
+        // 生成随机id
+        $id = Str::random();
+
+        // 获取内容
+        $content = $shortcode->getContent();
+
+        // 删除内容中的空格及换行符和html代码
+        $content = strip_tags($content);
+        $content = preg_replace("/(\\s|\r|\n|\t|\v|\f)+/", '', $content);
+        // 把内容转为数组类型
+        $content = explode('|', $content);
+
+        // 所有图片
+        $images = [];
+        foreach ($content as $item) {
+            $images[] = json_decode($item);
+        }
+        return view('App::ShortCode.carousel.' . $type, compact('class','style','id', 'images'));
     }
 }
