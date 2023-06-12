@@ -6,7 +6,7 @@
                     <a class="avatar avatar-rounded" href="/users/{{ $data->user->id }}.html"
                        style="background-image: url({{ super_avatar($data->user) }})"></a>
                 </div>
-                <div class="col" style="margin-left: -10px">
+                <div class="col">
                     <div class="topic-author-name">
                         {!! u_username($data->user,['topic' => true,'extends' => true,'class' => ['text-reset']]) !!}
                     </div>
