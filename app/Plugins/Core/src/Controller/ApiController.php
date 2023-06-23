@@ -180,7 +180,7 @@ class ApiController
         $data = Report::query()->where('id', $report_id)->first();
 
         Report::query()->where('id', $report_id)->delete();
-        go(function () use ($report_id,) {
+        go(function () use ($report_id, ) {
             $report = Report::find($report_id);
             $post = \App\Plugins\Core\src\Models\Post::find($report->post_id);
             if ($post->comment_id) {
@@ -239,5 +239,15 @@ class ApiController
         $content = request()->input('content', url());
         $qr_code = qr_code()->format('svg')->generate($content);
         return response()->raw($qr_code)->withHeader('Content-Type', 'image/svg+xml');
+    }
+
+    #[RequestMapping(path: 'useragentinfo')]
+    public function useragentinfo()
+    {
+        return [
+            'useragent' => get_user_agent(),
+            'ip' => get_client_ip(),
+            'ip_info' => get_client_ip_data(get_client_ip()),
+        ];
     }
 }

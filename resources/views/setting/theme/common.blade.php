@@ -61,6 +61,14 @@
         </div>
 
         <div class="col-lg-4 align-self-center">
+            <div class="form-label">右侧边栏小工具黏性</div>
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.theme_right_tool_sticky">
+                <span class="form-check-label">关闭</span>
+            </label>
+        </div>
+
+        <div class="col-lg-4 align-self-center">
             <div class="form-label">首页文章标题自动截断</div>
             <label class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" v-model="data.theme_home_title_truncate">

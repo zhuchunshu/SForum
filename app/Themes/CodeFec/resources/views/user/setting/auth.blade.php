@@ -67,9 +67,9 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('auth', () => ({
             async get_ip(ip) {
-                let r = await (await fetch('https://ip.useragentinfo.com/json?ip=' + ip)).json()
+                let r = await (await fetch('/api/core/useragentinfo')).json()
 
-                return await r.province + " " + r.city + " " + r.area + " " + r.isp
+                return r.ip_info.pro;
             },
             offline(token) {
                 axios.post("/api/user/setting/authOffline/check", {

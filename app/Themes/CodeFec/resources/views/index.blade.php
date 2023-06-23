@@ -24,8 +24,8 @@
                     @include('App::index.index')
                 </div>
                 <div class="col-lg-3">
-                    <div class="row row-cards rd">
-                        <div class="col-md-12 sticky" style="top: 105px">
+                    <div class="row row-cards @if(get_options('theme_right_tool_sticky')!=='true'){{"rd"}}@endif">
+                        <div class="col-md-12 @if(get_options('theme_right_tool_sticky')!=='true'){{"sticky"}}@endif" style="top: 105px">
                             @include('App::index.right')
                         </div>
                     </div>
