@@ -36,7 +36,7 @@
     @endif
 </head>
 
-<body class="{{session()->get('theme','antialiased')}}">
+<body  data-bs-theme="{{session()->get('theme','light')}}">
 <div class="page">
     @include("App::layouts.themes.header-".get_options('core_theme_header',1))
     @include("App::layouts.errors")

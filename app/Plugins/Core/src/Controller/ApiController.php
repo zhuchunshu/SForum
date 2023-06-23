@@ -221,6 +221,7 @@ class ApiController
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:theme']);
         }
         session()->set('theme', request()->input('theme'));
+        session()->set('bs_theme', request()->input('bs_theme'));
         return Json_Api(200, true, ['msg' => '切换成功!']);
     }
 

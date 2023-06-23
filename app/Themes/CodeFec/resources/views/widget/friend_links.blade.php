@@ -1,6 +1,5 @@
 <div class="col-md-12">
     <div class="card">
-        <div class="card-status-top bg-danger"></div>
         <div class="card-header">
             <h3 class="card-title">友情链接</h3>
             @if(get_options('theme_common_friend_links_apply'))

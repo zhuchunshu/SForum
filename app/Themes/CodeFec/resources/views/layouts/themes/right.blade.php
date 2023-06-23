@@ -6,7 +6,7 @@
     @endforeach
     {{--    夜间模式--}}
     <div class="mx-2 d-md-none align-self-center">
-        @if(session()->get('theme','theme-dark')!=="theme-dark")
+        @if(session()->get('theme','dark')!=="dark")
             <a href="#" name="core_update_theme" class="px-0 nav-link">
                 <!-- Download SVG icon from http://tabler-icons.io/i/bell -->
                 <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-moon" width="24" height="24"
