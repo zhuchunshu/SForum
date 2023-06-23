@@ -91,7 +91,7 @@
                         </tbody>
                     </table>
                 </div>
-                @if($page->count() && (int)request()->input('page',1)!==1)
+                @if($page->hasPages())
                     <div class="card-footer">
                         {!! make_page($page) !!}
                     </div>
