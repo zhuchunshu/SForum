@@ -9,7 +9,7 @@
             <div class="row row-cards">
                 {{--                用户总数--}}
                 <div class="col-md-6 col-xl-3 col-6">
-                    <a class="card card-link" href="#">
+                    <a class="card card-link" href="/admin/users">
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-auto">
@@ -87,7 +87,7 @@
 
                 {{--                标签总数--}}
                 <div class="col-md-6 col-xl-3 col-6">
-                    <a class="card card-link" href="#">
+                    <a class="card card-link" href="/admin/topic/tag">
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-auto">
@@ -164,7 +164,7 @@
 
                 {{--                插件数量--}}
                 <div class="col-md-6 col-xl-3 col-6">
-                    <a class="card card-link" href="#">
+                    <a class="card card-link" href="/admin/plugins">
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-auto">

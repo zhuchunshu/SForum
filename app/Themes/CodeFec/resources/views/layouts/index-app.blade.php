@@ -50,7 +50,11 @@
         </div>
     </div>
 
-    @include("App::layouts.themes.footer-".get_options('core_theme_footer',1))
+    @if(!get_options('web_footer'))
+        @include("App::layouts.themes.footer-1")
+    @else
+        @include(get_component_view_name(get_options('web_footer')))
+    @endif
     <script src='/js/jquery-3.6.0.min.js'></script>
     <script src="{{ mix('js/vue.js') }}"></script>
     <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
