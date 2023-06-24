@@ -112,7 +112,7 @@
             branding:false,
             content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; } img{max-width:700px}'
         }
-        if (document.body.className === 'theme-dark') {
+        if (document.body.getAttribute("data-bs-theme") === 'dark') {
             options.skin = 'oxide-dark';
             options.content_css = 'dark';
         }
