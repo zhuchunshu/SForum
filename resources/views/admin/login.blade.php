@@ -17,7 +17,7 @@
     <script>var csrf_token="{{csrf_token()}}";</script>
 </head>
 
-<body class="antialiased border-top-wide border-primary d-flex flex-column">
+<body data-bs-theme="{{session()->get('theme','light')}}" class="antialiased border-top-wide border-primary d-flex flex-column">
 @include("layouts.errors")
 @include("layouts._msg")
     <div class="page page-center">

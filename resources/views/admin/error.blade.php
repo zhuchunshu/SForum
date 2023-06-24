@@ -23,7 +23,7 @@
 
 </head>
 
-<body class="antialiased border-top-wide border-primary d-flex flex-column">
+<body data-bs-theme="{{session()->get('theme','light')}}" class="antialiased border-top-wide border-primary d-flex flex-column">
     <div class="page page-center">
         <div class="container-tight py-4">
             <div class="empty" id="empty">

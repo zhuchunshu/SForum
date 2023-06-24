@@ -30,7 +30,7 @@
     @yield('headers')
 </head>
 
-<body  class="border-top-wide border-primary d-flex flex-column">
+<body data-bs-theme="{{session()->get('theme','light')}}" class="border-top-wide border-primary d-flex flex-column">
 <div class="page page-center">
     @include("App::layouts.errors")
     @include("App::layouts._msg")

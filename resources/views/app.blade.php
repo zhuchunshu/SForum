@@ -26,7 +26,7 @@
     @yield('css')
 </head>
 
-<body class="antialiased">
+<body data-bs-theme="{{session()->get('theme','light')}}" class="antialiased">
 @include("layouts.errors")
 @include("layouts._msg")
 <div id="app" class="wrapper {{ path_class() }}-page">
