@@ -1,6 +1,6 @@
 <div class="col-md-12">
     <div class="card">
-        <div class="card-header">
+        <div class="card-header" style="padding: 10px 20px 10px 10px">
             <h3 class="card-title">友情链接</h3>
             @if(get_options('theme_common_friend_links_apply'))
                 <div class="card-actions">
@@ -18,7 +18,7 @@
             </ul>
         </div>
         @if(get_options('theme_common_friend_links_all'))
-        <div class="card-footer">
+        <div class="card-footer" style="padding: 10px 20px 10px 10px">
             <div class="row align-items-center">
                 <div class="col-auto">
                     <a href="{{get_options('theme_common_friend_links_all')}}">查看全部</a>
