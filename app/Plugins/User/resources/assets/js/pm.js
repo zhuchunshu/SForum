@@ -2319,6 +2319,10 @@ if (document.getElementById('user-pm-container')) {
           _this4.msg = null;
 
           _this4.get_msg();
+
+          if (!msgExists) {
+            location.reload();
+          }
         })["catch"](function (e) {
           sweetalert__WEBPACK_IMPORTED_MODULE_1___default()('发送失败', '网络请求错误', 'error');
           console.error(e);

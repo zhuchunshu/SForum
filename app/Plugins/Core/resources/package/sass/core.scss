@@ -5,7 +5,6 @@
 body {
   -webkit-backface-visibility: hidden;
   overflow-x: hidden;
-  color: #121212;
   font-feature-settings: "tnum";
   line-height: 1.4;
   font-family: -apple-system, BlinkMacSystemFont, Helvetica Neue, PingFang SC, Microsoft YaHei, Source Han Sans SC, Noto Sans CJK SC, WenQuanYi Micro Hei, sans-serif;
@@ -15,6 +14,17 @@ body {
   -webkit-font-smoothing: subpixel-antialiased;
   font-style: normal;
 }
+.card-header{
+  padding: 10px 25px 10px 15px;
+}
+.card-body{
+  padding: 10px 25px 10px 15px;
+}
+
+.card-footer{
+  padding: 10px 25px 10px 15px;
+}
+
 
 .sticky {
   position: sticky;

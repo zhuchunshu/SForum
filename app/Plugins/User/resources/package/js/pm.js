@@ -228,6 +228,9 @@ if(document.getElementById('user-pm-container')){
                     this.btn.disabled = this.btn.disabled === false;
                     this.msg = null;
                     this.get_msg()
+                    if (!msgExists){
+                        location.reload()
+                    }
                 }).catch(e=>{
                     swal('发送失败','网络请求错误','error')
                     console.error(e)
