@@ -101,7 +101,8 @@
             mobile:{
                 menu:{!! \App\Plugins\Topic\src\Lib\Edit\Editor::menu() !!},
                 menubar:"{!! \App\Plugins\Topic\src\Lib\Edit\Editor::menubar() !!}",
-                toolbar_mode: 'scrolling'
+                toolbar_mode: 'scrolling',
+                content_style: 'img{max-width:300px}'
             },
             autosave_ask_before_unload: true,
             autosave_interval: '1s',
@@ -109,7 +110,7 @@
             autosave_restore_when_empty: false,
             autosave_retention: '1400m',
             branding:false,
-            content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }'
+            content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; } img{max-width:700px}'
         }
         if (document.body.className === 'theme-dark') {
             options.skin = 'oxide-dark';

@@ -160,10 +160,11 @@
             mobile: {
                 menu: {!! \App\Plugins\Topic\src\Lib\Create\Editor::menu() !!},
                 menubar: "{!! \App\Plugins\Topic\src\Lib\Create\Editor::menubar() !!}",
-                toolbar_mode: 'scrolling'
+                toolbar_mode: 'scrolling',
+                content_style: 'img{max-width:300px}'
             },
             branding: false,
-            content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }'
+            content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; } img{max-width:700px}'
         }
         if (document.body.className === 'theme-dark') {
             options.skin = 'oxide-dark';
