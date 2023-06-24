@@ -80,9 +80,24 @@ class SearchController
         }
 
         $data = array_merge($topics, $topics2);
-        $data = array_unique($data);
+        $data = $this->unique_key_array($data,'content');
         $page = $this->page($data);
         return view('Search::data', ['page' => $page, 'q' => $q]);
+    }
+
+    private function unique_key_array($inputArray, $key): array
+    {
+        $uniqueKeys = array();
+        $outputArray = array();
+
+        foreach ($inputArray as $item) {
+            if (!in_array($item[$key], $uniqueKeys)) {
+                $uniqueKeys[] = $item[$key];
+                $outputArray[] = $item;
+            }
+        }
+
+        return $outputArray;
     }
 
     private function page($result)
