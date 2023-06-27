@@ -1,11 +1,11 @@
 @extends("app")
 
 @section('title','插件管理')
-@section('headerBtn')
-    <button class="btn btn-light" @@click="migrateAll" href="#">所有插件数据迁移</button>
+{{--@section('headerBtn')--}}
+{{--    <button class="btn btn-light" @@click="migrateAll" href="#">所有插件数据迁移</button>--}}
 
-    <button class="btn btn-dark" @@click="updatePluginsPackage" style="margin-left: 5px">更新插件包</button>
-@endsection
+{{--    <button class="btn btn-dark" @@click="updatePluginsPackage" style="margin-left: 5px">更新插件包</button>--}}
+{{--@endsection--}}
 
 @section('pageId','vue-plugin-table')
 
