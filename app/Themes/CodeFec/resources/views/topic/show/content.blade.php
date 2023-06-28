@@ -80,7 +80,6 @@
             @include('App::topic.show.include.footer')
 
         </div>
-
     </div>
 
     {{--    上下页--}}

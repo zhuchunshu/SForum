@@ -38,12 +38,6 @@ Itf_Setting()->add(
     'user-setting',
     'setting.user.core'
 );
-Itf_Setting()->add(
-    205,
-    '短信设置',
-    'user-sms',
-    'setting.user.sms'
-);
 
 Itf()->add('ui-topic-page-right-layout', 1, [
     'view' => 'App::topic.right',
@@ -103,23 +97,6 @@ menu()->add(2004, [
     'parent_id' => 2001,
 ]);
 
-Itf()->add('SMS', 1, [
-    'name' => 'Qcloud',
-    'handler' => \App\Plugins\Core\src\Lib\Sms\Service\Qcloud::class,
-    'view' => 'App::Sms.qcloud',
-]);
-
-Itf()->add('SMS', 2, [
-    'name' => 'Ucloud',
-    'handler' => \App\Plugins\Core\src\Lib\Sms\Service\Ucloud::class,
-    'view' => 'App::Sms.ucloud',
-]);
-
-Itf()->add('SMS', 3, [
-    'name' => 'SmsBao',
-    'handler' => \App\Plugins\Core\src\Lib\Sms\Service\SmsBao::class,
-    'view' => 'App::Sms.smsbao',
-]);
 
 menu()->add(71, [
     'name' => '支付',

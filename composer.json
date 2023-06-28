@@ -53,8 +53,6 @@
         "php-curl-class/php-curl-class": "^9.6",
         "rakibtg/sleekdb": "^2.15",
         "simplesoftwareio/simple-qrcode": "^4.2",
-        "tencentcloud/tencentcloud-sdk-php": "^3.0",
-        "ucloud/ucloud-sdk-php": "^0.3.3",
         "whichbrowser/parser": "^2.1",
         "wikimedia/composer-merge-plugin": "^2.0",
         "yansongda/pay": "~3.2.0",
