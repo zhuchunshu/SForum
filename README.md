@@ -1,12 +1,27 @@
 A high-performance forum program with rich features and low memory usage, based on modular components.✨
-一个功能丰富占内存少的组件化高性能论坛程序✨
-官网:[https://www.sforum.cn](https://www.sforum.cn)，论坛:[https://www.runpod.cn](https://www.runpod.cn)
 
-**QQ交流群**
+这是一个功能丰富占内存少的组件化高性能论坛程序，但请别把它当成论坛程序✨
 
-798695907
 
-**截图**
+官网:[https://www.sforum.cn](https://www.sforum.cn)，论坛:[https://www.runpod.cn](https://www.runpod.cn)，QQ群：798695907
+
+## 一键安装
+跟安装宝塔面板一样，运行一行命令，你只管输入yes或者no
+
+### Ubuntu/Debian
+```bash
+wget -O sforum_ubuntu.sh https://ghproxy.com/https://raw.githubusercontent.com/zhuchunshu/sforum-script/main/install/ubuntu.sh && bash ./sforum_ubuntu.sh
+```
+### Centos
+```bash
+wget -O sforum_centos.sh https://ghproxy.com/https://raw.githubusercontent.com/zhuchunshu/sforum-script/main/install/centos.sh && bash ./sforum_centos.sh
+```
+### 自动获取系统信息进行安装（不建议！）
+```bash
+wget -O sforum_install.sh https://ghproxy.com/https://raw.githubusercontent.com/zhuchunshu/sforum-script/main/install.sh && bash ./sforum_install.sh
+```
+
+## 截图
 
 注册
 
