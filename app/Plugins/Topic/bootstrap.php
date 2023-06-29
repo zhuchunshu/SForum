@@ -72,7 +72,7 @@ Itf()->add('menu', 419, [
     'quanxian' => (function () {
         return true;
     }),
-    'hidden' => true
+    'hidden' => true,
 ]);
 
 Itf_Setting()->add(
@@ -108,11 +108,11 @@ Itf()->add('topic-create-data', 0, [
 
 // topic create -  editor plugins
 
-Itf()->add('topic-create-editor-plugins', 0, ['emoticons','importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
-Itf()->add('topic-edit-editor-plugins', 0, ['emoticons','importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
+Itf()->add('topic-create-editor-plugins', 0, ['emoticons', 'sfVideo', 'importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
+Itf()->add('topic-edit-editor-plugins', 0, ['emoticons', 'sfVideo', 'importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
 
-Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|','emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
-Itf()->add('topic-edit-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '｜','emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'link', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
+Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|', 'emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'link','sfVideo', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
+Itf()->add('topic-edit-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '｜', 'emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'link', 'sfVideo','sfPreview', 'codesample', '|', 'ltr', 'rtl']);
 
 $editor_menu = [
     'file' => [
@@ -163,6 +163,7 @@ $editor_menu = [
         'title' => 'Insert',
         'items' => [
             'image',
+            'sfVideo',
             'link',
             'emoticons',
             'addcomment',
@@ -264,8 +265,6 @@ $external_plugins = [
 Itf()->add('topic-create-editor-external_plugins', 2, $external_plugins);
 Itf()->add('topic-edit-editor-external_plugins', 2, $external_plugins);
 
-
-
 // 编辑器选项
 Itf()->add('topic-create-options', 0, [
     'enable' => (function () {
@@ -279,9 +278,11 @@ Itf()->add('topic-edit-handle-middleware-end', 0, \App\Plugins\Topic\src\Handler
 
 Itf()->add('topic-create-editor-external_plugins', 0, [
     'sfPreview' => file_hash('plugins/Topic/js/editor/plugins/sfPreview.js'),
+    'sfVideo' => file_hash('plugins/Topic/js/editor/plugins/sfVideo.js'),
 ]);
 Itf()->add('topic-edit-editor-external_plugins', 0, [
     'sfPreview' => file_hash('plugins/Topic/js/editor/plugins/sfPreview.js'),
+    'sfVideo' => file_hash('plugins/Topic/js/editor/plugins/sfVideo.js'),
 ]);
 
 Itf()->add('topic-edit-data', 0, [
@@ -319,9 +320,6 @@ Itf()->add('topic-edit-options', 1, [
 Itf()->add('topic-create-handle-middleware-end', 1, \App\Plugins\Topic\src\Handler\Topic\Middleware\Create\Options\OnlyAuthor::class);
 Itf()->add('topic-edit-handle-middleware-end', 1, \App\Plugins\Topic\src\Handler\Topic\Middleware\Create\Options\OnlyAuthor::class);
 
-
-
-
 // 新增帖子操作按钮 - 修改
 Itf()->add('ui-topic-show-dropdown', 1, [
     'enable' => (function ($data) {
@@ -331,7 +329,7 @@ Itf()->add('ui-topic-show-dropdown', 1, [
 //        if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id',auth()->id())->exists()){
 //            return true;
 //        }
-        if (Authority()->check('topic_edit') && auth()->id() === (int)$data->user->id) {
+        if (Authority()->check('topic_edit') && auth()->id() === (int) $data->user->id) {
             return true;
         }
         return false;
@@ -350,7 +348,7 @@ HTML;
 // 新增帖子操作按钮 - 精华 和置顶
 Itf()->add('ui-topic-show-dropdown', 3, [
     'enable' => (function ($data) {
-        if (auth()->check() && Authority()->check("topic_options")) {
+        if (auth()->check() && Authority()->check('topic_options')) {
             return true;
         }
 
@@ -383,21 +381,19 @@ HTML;
     }),
 ]);
 
-
-
 // 新增 锁帖按钮
 Itf()->add('ui-topic-show-dropdown', 4, [
     'enable' => (function ($data) {
-        if (auth()->check() && Authority()->check("topic_lock")) {
+        if (auth()->check() && Authority()->check('topic_lock')) {
             return true;
         }
-        if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id',auth()->id())->exists()){
+        if (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {
             return true;
         }
         return false;
     }),
     'view' => (function ($data) {
-        if($data->status!==['lock']){
+        if ($data->status !== ['lock']) {
             return <<<HTML
 <a class="dropdown-item" core-click="topic-lock" topic-id="{$data->id}" >
 <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-lock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -409,8 +405,8 @@ Itf()->add('ui-topic-show-dropdown', 4, [
 锁帖
 </a>
 HTML;
-        }else{
-            return <<<HTML
+        }
+        return <<<HTML
 <a class="dropdown-item" core-click="topic-lock" topic-id="{$data->id}" >
 <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-lock-open" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
@@ -421,10 +417,8 @@ HTML;
 解锁
 </a>
 HTML;
-        }
     }),
 ]);
-
 
 // 新增帖子操作按钮 - 删除
 Itf()->add('ui-topic-show-dropdown', 100, [
@@ -432,10 +426,10 @@ Itf()->add('ui-topic-show-dropdown', 100, [
         if (Authority()->check('admin_topic_delete') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             return true;
         }
-        if (Authority()->check('topic_delete') && auth()->id() === (int)$data->user->id) {
+        if (Authority()->check('topic_delete') && auth()->id() === (int) $data->user->id) {
             return true;
         }
-        if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id',auth()->id())->exists()){
+        if (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {
             return true;
         }
 
@@ -458,7 +452,6 @@ HTML;
     }),
 ]);
 
-
 // 新增帖子操作按钮 - 举报
 Itf()->add('ui-topic-show-dropdown', 99, [
     'enable' => (function ($data) {
@@ -466,7 +459,7 @@ Itf()->add('ui-topic-show-dropdown', 99, [
     }),
     'view' => (function ($data) {
         return <<<HTML
-<a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modal-report" core-click="report-topic" topic-id="$data->id" >
+<a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modal-report" core-click="report-topic" topic-id="{$data->id}" >
 <svg xmlns="http://www.w3.org/2000/svg" class="hvr-icon icon icon-tabler icon-tabler-flag-3"
                          width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                          stroke-linecap="round" stroke-linejoin="round">

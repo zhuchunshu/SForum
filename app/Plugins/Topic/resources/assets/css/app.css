@@ -20,15 +20,6 @@
   width: 100%;
   height: 100%;
 }
-pre {
-  padding: 0;
-  border: 0;
-  font-size: 16px;
-  background: unset;
-}
-.hljs {
-  box-shadow: unset;
-}
 .article p {
   word-wrap: break-word;
   word-break: normal;
