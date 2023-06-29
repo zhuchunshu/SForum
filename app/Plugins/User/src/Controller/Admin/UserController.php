@@ -167,7 +167,7 @@ class UserController
         if (! $user_id || ! $password) {
             return Json_Api(403, false, ['msg' => '请求参数不完整']);
         }
-        User::query()->where('user_id', $user_id)->update([
+        User::query()->where('id', $user_id)->update([
             'password' => Hash::make($password),
         ]);
         (new UserAuth())->destroy($user_id);
