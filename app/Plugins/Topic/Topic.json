@@ -1,8 +1,8 @@
 {
   "name": "Topic",
   "description": "提供帖子基本功能",
-  "version": "2.4.8",
+  "version": "2.4.9",
   "author": "zhuchunshu",
   "link": "https://github.com/zhuchunshu",
-  "masterVersion": "v2.4.8"
+  "masterVersion": "v2.4.9"
 }
