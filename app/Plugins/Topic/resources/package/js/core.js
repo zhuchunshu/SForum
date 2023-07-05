@@ -597,3 +597,26 @@ $(function(){
         })
     }
 })
+
+
+// 获取当前网站的主机名
+var currentHostname = window.location.hostname;
+
+// 查找所有 Markdown 文档中的超链接
+var links = document.querySelectorAll('.markdown a');
+
+// 循环遍历每个超链接
+for (var i = 0; i < links.length; i++) {
+    var link = links[i];
+    var hostname = link.hostname;
+
+    // 排除图片超链接
+    if (link.querySelector('img')) {
+        continue;
+    }
+
+    // 如果超链接的主机名与当前网站主机名不同，则在新窗口中打开
+    if (hostname !== currentHostname) {
+        link.target = '_blank';
+    }
+}
