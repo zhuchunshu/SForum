@@ -1,4 +1,4 @@
-<div class="wrapper sticky-top border-top-wide border-primary">
+<div class="wrapper sticky-top@if(get_options("theme_common_navbar_sticky")==="true"){{"sticky-top"}}@endif border-top-wide border-primary">
     <div class="navbar-expand-md">
         <div class="collapse navbar-collapse" id="navbar-menu">
             <div class="navbar navbar-light">

@@ -1,4 +1,4 @@
-<div class="wrapper sticky-top border-top-wide border-primary">
+<div class="wrapper @if(get_options("theme_common_navbar_sticky")==="true"){{"sticky-top"}}@endif border-top-wide border-primary">
     <header class="navbar navbar-expand-md navbar-light d-print-none">
         <div class="container-xl">
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">

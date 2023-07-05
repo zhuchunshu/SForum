@@ -25,6 +25,15 @@
                 <span class="form-check-label">开启友链功能</span>
             </label>
         </div>
+
+        <div class="col-lg-4">
+            <div class="form-label">黏性导航栏</div>
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.theme_common_navbar_sticky">
+                <span class="form-check-label">开启黏性导航栏</span>
+            </label>
+        </div>
+
         <div class="col-lg-4">
             <div class="form-label">友链显示位置</div>
             <select v-model="data.theme_common_friend_links_position" class="form-select">
