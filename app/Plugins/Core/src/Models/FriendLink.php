@@ -37,12 +37,12 @@ class FriendLink extends Model
      *
      * @var array
      */
-    protected $fillable = ['id', 'name', 'link', 'to_sort', 'icon', 'target','description'];
+    protected $fillable = ['id', 'name', 'link', 'to_sort', 'icon', 'hidden', 'target', 'description'];
 
     /**
      * The attributes that should be cast to native types.
      *
      * @var array
      */
-    protected $casts = ['id' => 'integer', 'to_sort' => 'integer', '_blank' => 'integer'];
+    protected $casts = ['id' => 'integer', 'to_sort' => 'integer', '_blank' => 'integer', 'hidden' => 'integer'];
 }

@@ -32,7 +32,7 @@ class FriendLinksController
     #[GetMapping(path: '')]
     public function index()
     {
-        $page = FriendLink::query()->orderByDesc('id')->paginate(15);
+        $page = FriendLink::query()->orderByDesc('id')->paginate(12);
         return view('App::admin.FriendLinks.index', ['page' => $page]);
     }
 
@@ -53,6 +53,7 @@ class FriendLinksController
                 'icon' => 'nullable',
                 'to_sort' => 'required|integer',
                 '_blank' => 'required',
+                'hidden' => 'required',
                 'description' => 'nullable|string',
             ],
             [],
@@ -62,6 +63,7 @@ class FriendLinksController
                 'icon' => '图标',
                 'to_sort' => '排序',
                 '_blank' => '是否新标签打开',
+                'hidden' => '是否在首页隐藏',
                 'description' => '网站描述',
             ]
         );
@@ -75,6 +77,10 @@ class FriendLinksController
         if ($validated['_blank'] === '开启') {
             $validated['_blank'] = true;
         }
+        if ($validated['hidden'] === '开启') {
+            $validated['hidden'] = true;
+        }
+
         FriendLink::query()->create($validated);
         return redirect()->url('/admin/setting/friend_links')->with('success', '添加成功!')->go();
     }
@@ -108,6 +114,7 @@ class FriendLinksController
                 'icon' => 'nullable',
                 'to_sort' => 'required|integer',
                 '_blank' => 'required',
+                'hidden' => 'required',
                 'description' => 'nullable|string',
             ],
             [],
@@ -117,6 +124,7 @@ class FriendLinksController
                 'icon' => '图标',
                 'to_sort' => '排序',
                 '_blank' => '是否新标签打开',
+                'hidden' => '是否在首页隐藏',
                 'description' => '网站描述',
             ]
         );
@@ -130,6 +138,10 @@ class FriendLinksController
         if ($validated['_blank'] === '开启') {
             $validated['_blank'] = true;
         }
+        if ($validated['hidden'] === '开启') {
+            $validated['hidden'] = true;
+        }
+
         FriendLink::query()->where('id', $id)->update($validated);
         return redirect()->with('success', '更新成功!')->url('/admin/setting/friend_links')->go();
     }

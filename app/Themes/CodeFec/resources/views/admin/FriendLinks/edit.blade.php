@@ -43,6 +43,13 @@
                                 </select>
                             </div>
                             <div class="col-lg-4">
+                                <label for="" class="form-label required">首页隐藏</label>
+                                <select name="hidden" class="form-select">
+                                    <option value="开启">开启</option>
+                                    <option value="关闭" @if($data->hidden!='1') selected @endif>关闭</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-4">
                                 <label for="" class="form-label">站点描述</label>
                                 <textarea name="description" rows="1" class="form-control">{{$data->description}}</textarea>
                             </div>

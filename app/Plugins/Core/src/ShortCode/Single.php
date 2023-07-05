@@ -12,11 +12,10 @@ namespace App\Plugins\Core\src\ShortCode;
 
 use App\CodeFec\Annotation\ShortCode\ShortCodeR;
 use Hyperf\View\RenderInterface;
-use Thunder\Shortcode\Shortcode\ShortcodeInterface;
 
 class Single
 {
-    #[ShortCodeR(name:"friend_links")]
+    #[ShortCodeR(name: 'friend_links')]
     public function friend_links()
     {
         $container = \Hyperf\Utils\ApplicationContext::getContainer();

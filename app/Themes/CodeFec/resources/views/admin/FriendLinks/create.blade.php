@@ -37,6 +37,14 @@
                                     <option value="关闭">关闭</option>
                                 </select>
                             </div>
+
+                            <div class="col-lg-4">
+                                <label for="" class="form-label required">首页隐藏</label>
+                                <select name="hidden" class="form-select">
+                                    <option value="关闭">关闭</option>
+                                    <option value="开启">开启</option>
+                                </select>
+                            </div>
                             <div class="col-lg-4">
                                 <label for="" class="form-label">站点描述</label>
                                 <textarea name="description" rows="1" class="form-control"></textarea>
