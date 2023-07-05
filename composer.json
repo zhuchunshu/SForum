@@ -50,7 +50,6 @@
         "laravel/helpers": "^1.4",
         "opis/closure": "^3.6",
         "overtrue/http": "^1.2",
-        "php-curl-class/php-curl-class": "^9.6",
         "rakibtg/sleekdb": "^2.15",
         "simplesoftwareio/simple-qrcode": "^4.2",
         "whichbrowser/parser": "^2.1",
