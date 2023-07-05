@@ -29,6 +29,7 @@ use App\Plugins\User\src\Models\UsersSetting;
 use App\Plugins\User\src\Models\UserUpload;
 use App\Plugins\User\src\Service\Middleware\Oauth2Master;
 use App\Plugins\User\src\Service\UserManagement;
+use Hyperf\DbConnection\Db;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
@@ -189,11 +190,11 @@ class UserController
         }
         go(function () use ($user_id) {
             // 清理用户帖子数据
-            Topic::where('user_id', $user_id)->delete();
+            Db::table('topic')->where('user_id', $user_id)->delete();
             // 清理用户评论数据
-            TopicComment::where('user_id', $user_id)->delete();
+            Db::table('topic_comment')->where('user_id', $user_id)->delete();
             // 清理用户Posts数据
-            Post::where('user_id', $user_id)->delete();
+            Db::table('posts')->where('user_id', $user_id)->delete();
             //清理用户粉丝数据
             UserFans::where('user_id', $user_id)->delete();
             UserFans::where('fans_id', $user_id)->delete();
