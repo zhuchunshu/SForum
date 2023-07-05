@@ -342,3 +342,21 @@
 [data-theme="theme-dark"] .article:not(pre) table tbody tr:hover {
   background-color: transparent; /* 将 hover 颜色设为透明 */
 }
+
+.bilibili-iframe {
+  position: relative;
+  width: 100%;
+}
+.bilibili-iframe::before {
+  content: "";
+  display: block;
+  padding-top: 56.25%; /* 设置为16:9的宽高比 */
+}
+
+.bilibili-iframe iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}

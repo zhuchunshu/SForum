@@ -80,6 +80,7 @@
         document.addEventListener("DOMContentLoaded", function () {
 
             window.Plyr && (new Plyr('video'));
+            (new Plyr('div[data-plyr-provider="youtube"]'));
         });
     </script>
 @endsection
