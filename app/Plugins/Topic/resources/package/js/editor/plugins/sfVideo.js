@@ -128,6 +128,8 @@ tinymce.PluginManager.add('sfVideo', (editor, url) => {
                 let video = `<video src="${url}" width="${width}" height="${height}" controls="controls">您的浏览器不支持 video 标签。</video>`
                 // 插入到编辑器
                 editor.insertContent(video)
+                return ;
+
             }
             // 如果code不为空
             if(code){
@@ -156,6 +158,7 @@ tinymce.PluginManager.add('sfVideo', (editor, url) => {
                 }
                 // 插入到编辑器
                 editor.insertContent(code)
+                return ;
             }
             // 如果embed不为空
             if(embed){
@@ -177,6 +180,7 @@ tinymce.PluginManager.add('sfVideo', (editor, url) => {
                     let bbcode = `[media website=bilibili]${aid}[/media]`
                     // 插入到编辑器
                     editor.insertContent(bbcode)
+                    return ;
                 }
                 // 如果embed=youtube
                 if(embed === "youtube"){
@@ -200,6 +204,7 @@ tinymce.PluginManager.add('sfVideo', (editor, url) => {
                     let bbcode = `[media website=youtube]${id}[/media]`
                     // 插入到编辑器
                     editor.insertContent(bbcode)
+                    return ;
                 }
             }
             api.close();
