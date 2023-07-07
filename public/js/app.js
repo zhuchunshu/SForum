@@ -2452,6 +2452,12 @@ $(function () {
     d.parent().parent().parent().attr('class', _class + " show");
   });
 });
+$('a[data-bs-toggle="tab"]').click(function (event) {
+  event.preventDefault(); // 阻止默认的链接行为
+  // 获取目标哈希值
+
+  window.location.hash = $(this).attr("href"); // 更新URL的哈希值
+});
 
 /***/ }),
 

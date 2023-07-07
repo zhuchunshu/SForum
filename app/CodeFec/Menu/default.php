@@ -181,3 +181,10 @@ menu()->add(1712,[
     'icon' => '',
     'parent_id' => 17
 ]);
+
+menu()->add(1713,[
+    'url' => '/admin/hook/credits',
+    'name' => '奖励设置',
+    'icon' => '',
+    'parent_id' => 17
+]);
