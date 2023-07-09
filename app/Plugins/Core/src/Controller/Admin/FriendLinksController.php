@@ -142,6 +142,9 @@ class FriendLinksController
         }
         if ($validated['hidden'] === '开启') {
             $validated['hidden'] = true;
+        }else{
+            $validated['hidden'] = false;
+
         }
 
         FriendLink::query()->where('id', $id)->update($validated);
