@@ -16,6 +16,10 @@ class EndMiddleware implements MiddlewareInterface
 {
     public function handler($data, \Closure $next)
     {
+        // 评论发表成功
+        // 添加发表成功事件
+        EventDispatcher()->dispatch(new \App\Plugins\User\src\Event\Task\Daily\CreateTopicComment($data['comment']['id']));
+
         return redirect()->url('/' . $data['topic_id'] . '.html/' . $data['comment']['id'] . '?page=' . get_topic_comment_page($data['comment']['id'])."&clean_topic_comment_content_cache=create_topic_comment_".$data['topic_id'])->with('success', '发表成功!')->go();
     }
 }

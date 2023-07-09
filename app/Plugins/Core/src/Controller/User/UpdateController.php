@@ -15,6 +15,7 @@ use App\Plugins\Core\src\Handler\UploadHandler;
 use App\Plugins\Core\src\Request\User\Mydata\AvatarRequest;
 use App\Plugins\Core\src\Request\User\Mydata\JibenRequest;
 use App\Plugins\Core\src\Request\User\Mydata\OptionsRequest;
+use App\Plugins\User\src\Event\Task\System\SetAvatar;
 use App\Plugins\User\src\Middleware\LoginMiddleware;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UserRepwd;
@@ -124,6 +125,10 @@ HTML;
         User::query()->where('id', auth()->id())->update([
             'avatar' => $path,
         ]);
+        // 头像上传成功
+        // 触发头像上传成功事件
+        EventDispatcher()->dispatch(new SetAvatar(auth()->id()));
+
         return redirect()->url('/user/setting')->with('success', '头像修改成功')->go();
     }
 

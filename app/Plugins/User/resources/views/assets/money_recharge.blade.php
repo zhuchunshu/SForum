@@ -3,6 +3,9 @@
         <div class="card border-0">
             <div class="card-header">
                 <h3 class="card-title">账户充值</h3>
+                <div class="card-actions">
+                    <a href="/user/asset/money" class="btn btn-link">{{get_options('wealth_money_name', '余额')}}变更记录</a>
+                </div>
             </div>
             <div class="card-body" id="user-data-money-recharge">
                 <div v-if="paid" class="text-center">

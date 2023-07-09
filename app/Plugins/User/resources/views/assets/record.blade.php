@@ -1,14 +1,14 @@
 @extends("App::app")
-@section('title','我的'.get_options('wealth_money_name', '余额'))
+@section('title','资产变更记录')
 @section('content')
 
     <div class="row row-cards">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">账单明细</h3>
+                    <h3 class="card-title">资产变更记录</h3>
                     <div class="card-actions">
-                        <a href="/users/{{auth()->id()}}.html?m=users_home_menu_8">充值</a>
+                        <a href="/users/{{auth()->id()}}.html?m=users_home_menu_12">返回任务列表</a>
                     </div>
                 </div>
                 <div class="card-body table-responsive">
@@ -16,9 +16,10 @@
                         <thead>
                         <tr>
                             <th>#</th>
-                            <th class="text-nowrap">变更前{{get_options('wealth_money_name', '余额')}}</th>
-                            <th class="text-nowrap">变更后{{get_options('wealth_money_name', '余额')}}</th>
-                            <th class="text-nowrap">绑定订单</th>
+                            <th class="text-nowrap">变更前</th>
+                            <th class="text-nowrap">变更后</th>
+                            <th class="text-nowrap">资产类型</th>
+                            <th class="text-nowrap">变化</th>
                             <th class="text-nowrap">备注</th>
                             <th class="text-nowrap">创建时间</th>
                         </tr>
@@ -26,20 +27,16 @@
                         <tbody>
                         @if(!$page->count())
                             <tr>
-                                <th>暂无结果</th>
-                                <td>暂无结果</td>
-                                <td>暂无结果</td>
-                                <td>暂无结果</td>
-                                <td>暂无结果</td>
-                                <td>暂无结果</td>
+                                <th class="text-center" colspan="6">暂无结果</th>
                             </tr>
                         @else
                             @foreach($page as $data)
                                 <tr>
                                     <th>{{$data->id}}</th>
-                                    <td>{{$data->original}} {{get_options('wealth_money_unit_name','元')}}</td>
-                                    <td>{{$data->cash}} {{get_options('wealth_money_unit_name','元')}}</td>
-                                    <td>@if($data->order_id) <a href="/user/order/{{$data->order_id}}.order">{{$data->order_id}}</a> @else 未绑定订单 @endif</td>
+                                    <td>{{$data->original}}</td>
+                                    <td>{{$data->cash}}</td>
+                                    <td>{{get_options('wealth_'.$data->type.'_name')?:$data->type}}</td>
+                                    <td>{{(!is_negative($data->change)===false)?"":"+" }}{{$data->change}}</td>
                                     <td>@if($data->remark) {{$data->remark}} @else 无备注 @endif</td>
                                     <td>{{$data->created_at}}</td>
                                 </tr>
@@ -71,7 +68,7 @@
                             Overview
                         </div>
                         <h2 class="page-title">
-                            {{get_options('wealth_money_name','余额')}}明细
+                            资产变更记录
                         </h2>
                     </div>
 

@@ -30,5 +30,12 @@ return [
     'comment num' => '评论数量',
     'fans num' => '粉丝数量',
     'last login time' => '最后登陆',
-    'data' => '数据'
+    'data' => '数据',
+	'already_checkin_tips' => '你今天已经签到过了',
+	'not_checkin_tips' => '你今天还没有签到',
+    'task' => [
+        'checkin' => '签到',
+        'set_avatar_done' => '已设置头像',
+        'set_avatar_undone' => '还未设置头像',
+    ]
 ];

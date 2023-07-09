@@ -20,8 +20,8 @@
             <label for="" class="form-label">
                 {{__("admin.wealth.credit name")}}
             </label>
-            <input type="text" v-model="data.wealth_credit_name" class="form-control">
-            <small>{{__("admin.current",['current' => get_options('wealth_credit_name','积分')])}}</small>
+            <input type="text" v-model="data.wealth_credits_name" class="form-control">
+            <small>{{__("admin.current",['current' => get_options('wealth_credits_name','积分')])}}</small>
         </div>
         <div class="col-lg-3">
             <label for="" class="form-label">

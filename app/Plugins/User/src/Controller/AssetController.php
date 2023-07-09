@@ -23,10 +23,24 @@ use Hyperf\HttpServer\Annotation\PostMapping;
 #[Middleware(AuthMiddleware::class)]
 class AssetController
 {
+    #[GetMapping(path: 'record')]
+    public function record(){
+        $page = PayAmountRecord::query()
+            ->where('user_id', auth()->id())
+            ->whereNotNull('type')
+            ->where('type', '!=', 'money')
+            ->orderByDesc('created_at')
+            ->paginate(15);
+        return view('User::assets.record', ['page' => $page]);
+    }
+
     #[GetMapping(path: 'money')]
     public function money()
     {
-        $page = PayAmountRecord::query()->where('user_id', auth()->id())->orderByDesc('created_at')->paginate(15);
+        $page = PayAmountRecord::query()
+            ->where('type', null)
+            ->orWhere('type', 'money')
+            ->where('user_id', auth()->id())->orderByDesc('created_at')->paginate(15);
         return view('User::assets.money', ['page' => $page]);
     }
 
@@ -58,8 +72,7 @@ class AssetController
         // 发起支付
         $result = pay()->create(auth()->id(), auth()->data()->username . '账户充值', $amount, $payment);
         $order_id = $result['result']['order_id'];
-        redis()->sAdd(env("APP_KEY",'CodeFec').":".'user_pay_money_recharge', $order_id);
+        redis()->sAdd(env('APP_KEY', 'CodeFec') . ':' . 'user_pay_money_recharge', $order_id);
         return $result;
     }
-
 }

@@ -23,22 +23,22 @@
     </div>
 
     <div class="col-6 col-lg-3">
-        <label for="" class="form-label">积分</label>
+        <label for="" class="form-label">{{get_options('wealth_credits_name', '积分')}}</label>
         <input class="form-control" type="number" disabled value="@if($user->Options->credits){{$user->Options->credits}}@else{{"0"}}@endif">
     </div>
 
     <div class="col-6 col-lg-3">
-        <label for="" class="form-label">金币</label>
+        <label for="" class="form-label">{{get_options('wealth_golds_name', '金币')}}</label>
         <input class="form-control" type="number" disabled value="@if($user->Options->golds){{$user->Options->golds}}@else{{"0"}}@endif">
     </div>
 
     <div class="col-6 col-lg-3">
-        <label for="" class="form-label">经验</label>
+        <label for="" class="form-label">{{get_options('wealth_exp_name', '经验')}}</label>
         <input class="form-control" type="number" disabled value="@if($user->Options->exp){{$user->Options->exp}}@else{{"0"}}@endif">
     </div>
 
     <div class="col-6 col-lg-3">
-        <label for="" class="form-label">余额</label>
+        <label for="" class="form-label">{{get_options('wealth_money_name', '余额')}}</label>
         <input class="form-control" min="0.01" step="0.01" type="number" disabled value="@if($user->Options->money){{$user->Options->money}}@else{{"0"}}@endif">
     </div>
     <div class="col-6 col-lg-3">

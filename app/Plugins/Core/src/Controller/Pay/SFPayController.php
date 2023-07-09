@@ -32,7 +32,7 @@ class SFPayController
         }
         $money = User::query()->where('id', $order->user_id)->with('options')->first()->options->money;
         if ($money<$order->amount) {
-            return admin_abort('余额不足! 请充值', 403);
+            return admin_abort(get_options('wealth_money_name', '余额').'不足! 请充值', 403);
         }
         return view('App::Pay.Paying.SFPay', ['order' => $order,'money' => $money]);
     }
@@ -51,7 +51,7 @@ class SFPayController
         }
         $money = User::query()->where('id', $order->user_id)->with('options')->first()->options->money;
         if ($money<$order->amount) {
-            return redirect()->url('/pay/SFPay/'.$order_id.'/paying')->with('danger', '余额不足! 请充值')->go();
+            return redirect()->url('/pay/SFPay/'.$order_id.'/paying')->with('danger', get_options('wealth_money_name', '余额').'不足! 请充值')->go();
         }
         // 验证密码
         $password = User::query()->where('id', $order->user_id)->with('options')->first()->password;

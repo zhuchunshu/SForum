@@ -12,6 +12,7 @@ use App\Plugins\Core\src\Lib\Authority\Authority;
 use App\Plugins\Core\src\Lib\Redirect;
 use App\Plugins\Core\src\Lib\ShortCodeR\ShortCodeR;
 use App\Plugins\Core\src\Lib\UserVerEmail;
+use App\Plugins\Core\src\Models\PayAmountRecord;
 use DivineOmega\PHPSummary\SummaryTool;
 use JetBrains\PhpStorm\Pure;
 
@@ -315,5 +316,46 @@ if (! function_exists('intercept_province')) {
             }
         }
         return $echo ?: $address;
+    }
+}
+
+// 创建余额变更记录
+if (! function_exists('create_amount_record')) {
+    /**
+     * @param  $user_id int|string 用户id
+     * @param float|string $origin int|string 变更前
+     * @param float|string $cash int|string 变更后
+     * @param null|string $type int|string|null 变更类型
+     * @param null|float|string $change int|string|null 变更幅度
+     * @param null|int|string $order_id string|int 订单号
+     * @param null|string $remark string|int 备注
+     * @return \Hyperf\Database\Model\Model|PayAmountRecord
+     */
+    function create_amount_record(int | string $user_id, float | string $origin, float | string $cash, string $type = null, float | string $change = null, int | string $order_id = null, string $remark = null, ): PayAmountRecord | \Hyperf\Database\Model\Model
+    {
+        return PayAmountRecord::create([
+            'user_id' => $user_id,
+            'original' => $origin,
+            'cash' => $cash,
+            'type' => $type,
+            'change' => $change,
+            'order_id' => $order_id,
+            'remark' => $remark,
+        ]);
+    }
+}
+
+if (! function_exists('is_negative')) {
+    /**
+     * 判断内容为负数.
+     * @param float|int|string $number
+     * @return bool
+     */
+    function is_negative(string | float | int $number): bool
+    {
+        if ($number < 0) {
+            return true;
+        }
+        return str_starts_with($number, '-');
     }
 }

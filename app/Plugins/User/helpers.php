@@ -138,3 +138,63 @@ if (! function_exists('set_user_settings')) {
         user_settings_clear($user_id);
     }
 }
+
+// 获取用户积分资产信息
+if (! function_exists('get_user_assets_credits')) {
+    /**
+     * 获取用户积分.
+     * @param int|string $user_id
+     * @return float|\Hyperf\Utils\HigherOrderCollectionProxy|\Hyperf\Utils\HigherOrderTapProxy|\Illuminate\Support\HigherOrderTapProxy|int|mixed
+     */
+    function get_user_assets_credits(string | int $user_id)
+    {
+        // 获取用户options_id
+        $options_id = \App\Plugins\User\src\Models\User::find($user_id)->options_id;
+        // 获取用户资产信息
+        $options = \App\Plugins\User\src\Models\UsersOption::find($options_id);
+        return $options->credits ?: 0;
+    }
+}
+
+// 获取用户金币资产信息
+if (! function_exists('get_user_assets_gold')) {
+    /**
+     * 获取用户金币
+     * @param int|string $user_id
+     * @return float|\Hyperf\Utils\HigherOrderCollectionProxy|\Hyperf\Utils\HigherOrderTapProxy|\Illuminate\Support\HigherOrderTapProxy|int|mixed
+     */
+    function get_user_assets_gold(string | int $user_id)
+    {
+        // 获取用户options_id
+        $options_id = \App\Plugins\User\src\Models\User::find($user_id)->options_id;
+        // 获取用户资产信息
+        $options = \App\Plugins\User\src\Models\UsersOption::find($options_id);
+        return $options->golds ?: 0;
+    }
+}
+
+// 获取用户余额资产信息
+if (! function_exists('get_user_assets_money')) {
+    /**
+     * 获取用户余额.
+     * @param int|string $user_id
+     * @return \Hyperf\Utils\HigherOrderCollectionProxy|\Hyperf\Utils\HigherOrderTapProxy|\Illuminate\Support\HigherOrderTapProxy|int|mixed
+     */
+    function get_user_assets_money(string | int $user_id): mixed
+    {
+        // 获取用户options_id
+        $options_id = \App\Plugins\User\src\Models\User::find($user_id)->options_id;
+        // 获取用户资产信息
+        $options = \App\Plugins\User\src\Models\UsersOption::find($options_id);
+        return $options->money ?: 0;
+    }
+}
+
+if (! function_exists('user_option')) {
+    function user_option(int | string $user_id): App\Plugins\User\src\Models\UsersOption | \Hyperf\Database\Model\Collection | \Hyperf\Database\Model\Model | array | null
+    {
+        $user = \App\Plugins\User\src\Models\User::find($user_id);
+        $options_id = $user->options_id;
+        return \App\Plugins\User\src\Models\UsersOption::find($options_id);
+    }
+}

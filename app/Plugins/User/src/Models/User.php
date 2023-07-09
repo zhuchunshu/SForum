@@ -17,7 +17,6 @@ use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicTag;
 use Carbon\Carbon;
 use Qbhy\HyperfAuth\AuthAbility;
-use Qbhy\HyperfAuth\Authenticatable;
 
 /**
  * @property int $id
@@ -34,6 +33,7 @@ use Qbhy\HyperfAuth\Authenticatable;
 class User extends Model implements \Qbhy\HyperfAuth\Authenticatable
 {
     use AuthAbility;
+
     /**
      * The table associated with the model.
      *
@@ -129,17 +129,18 @@ class User extends Model implements \Qbhy\HyperfAuth\Authenticatable
         return $this->hasMany(TopicTag::class, 'user_id', 'id');
     }
 
-    public function auth(){
-        return $this->hasMany(UsersAuth::class,'user_id','id');
+    public function auth()
+    {
+        return $this->hasMany(UsersAuth::class, 'user_id', 'id');
     }
 
-    public function moderator(){
-        return $this->hasMany(Moderator::class,'user_id','id');
+    public function moderator()
+    {
+        return $this->hasMany(Moderator::class, 'user_id', 'id');
     }
 
     public function scopeRegisteredBefore($query, $timestamp)
     {
         return $query->where('created_at', '<=', date('Y-m-d H:i:s', $timestamp));
     }
-
 }

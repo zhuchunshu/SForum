@@ -74,17 +74,16 @@ class UsersOption extends Model
      */
     public function getCreditsAttribute($value)
     {
-        return ((float) $value)/100;
+        return ((float) $value) / 100;
     }
 
     /**
      * 设置用户的积分.
      * @param $value
-     * @return void
      */
     public function setCreditsAttribute($value)
     {
-        $this->attributes['credits'] = ((float) $value)*100;
+        $this->attributes['credits'] = ((float) $value) * 100;
     }
 
     /**
@@ -94,28 +93,55 @@ class UsersOption extends Model
      */
     public function getGoldsAttribute($value)
     {
-        return ((float) $value)/100;
+        return ((float) $value) / 100;
     }
 
     /**
      * 设置用户的金币
      * @param $value
-     * @return void
      */
     public function setGoldsAttribute($value)
     {
-        $this->attributes['golds'] = ((float) $value)*100;
+        $this->attributes['golds'] = ((float) $value) * 100;
     }
 
     // 获取用户经验
     public function getExpAttribute($value)
     {
-        return ((int) $value);
+        return (float) $value;
     }
 
     // 设置用户经验
     public function setExpAttribute($value)
     {
-        $this->attributes['exp'] = ((int) $value);
+        $this->attributes['exp'] = ((float) $value);
+    }
+
+    // 增加用户积分
+    public function addCredits($value)
+    {
+        $this->credits += (float) $value;
+        $this->save();
+    }
+
+    // 扣除用户积分
+    public function reduceCredits($value)
+    {
+        $this->credits -= (float) $value;
+        $this->save();
+    }
+
+    // 增加用户金币
+    public function addGolds($value)
+    {
+        $this->golds += (float) $value;
+        $this->save();
+    }
+
+    // 扣除用户金币
+    public function reduceGolds($value)
+    {
+        $this->golds -= (float) $value;
+        $this->save();
     }
 }
