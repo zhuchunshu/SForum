@@ -77,7 +77,7 @@
                 </div>
             </div>
             <div class="col-lg d-none d-lg-block">
-                <img src="/plugins/Core/image/undraw_secure_login_pdn4.svg" height="300" class="d-block mx-auto" alt="">
+                <img src="{{get_options('sign_page_image','/plugins/Core/image/undraw_secure_login_pdn4.svg')}}" height="300" class="d-block mx-auto" alt="">
             </div>
         </div>
     </div>

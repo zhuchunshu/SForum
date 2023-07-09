@@ -84,6 +84,11 @@
                 <span class="form-check-label">开启</span>
             </label>
         </div>
+
+        <div class="col-lg-4">
+            <div class="form-label">注册/登录页图片</div>
+            <input type="text" class="form-control" v-model="data.sign_page_image">
+        </div>
     </div>
 
 </div>
