@@ -76,7 +76,7 @@ Itf()->add('user_task_daily', 2, [
 Itf()->add('user_task_daily', 4, [
     'name' => '每日评论',
     'view' => 'User::assets.task.daily.create_topic_comment',
-    'show' =>function () {
+    'show' => function () {
         return get_hook_credit_options('create_topic_comment_check', 'true') === 'true';
     },
 ]);
@@ -84,7 +84,14 @@ Itf()->add('user_task_daily', 4, [
 Itf()->add('user_task_system', 1, [
     'name' => '设置头像',
     'view' => 'User::assets.task.system.set_avatar',
-    'show' =>function () {
+    'show' => function () {
         return get_hook_credit_options('set_avatar_check', 'true') === 'true';
     },
+]);
+
+Itf()->add('ui-index-right-start-hook', 12, [
+    'enable' => (function () {
+        return (get_options('theme_home_task_widget_checkin') === 'true') && (auth()->check()) && (get_hook_credit_options('checkin_check', 'true') === 'true');
+    }),
+    'view' => 'User::assets.task.widget.checkin',
 ]);

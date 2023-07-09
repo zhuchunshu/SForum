@@ -89,6 +89,14 @@
             <div class="form-label">注册/登录页图片</div>
             <input type="text" class="form-control" v-model="data.sign_page_image">
         </div>
+
+        <div class="col-lg-4 align-self-center">
+            <div class="form-label">首页签到小部件</div>
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.theme_home_task_widget_checkin">
+                <span class="form-check-label">开启</span>
+            </label>
+        </div>
     </div>
 
 </div>
