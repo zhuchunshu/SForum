@@ -96,6 +96,9 @@ class ApiController
         // 设置下一此回复时间
         cache()->set('comment_create_time_' . auth()->id(), time() + get_options('comment_create_time', 60), get_options('comment_create_time', 60));
 
+        // 添加发表成功事件
+        EventDispatcher()->dispatch(new \App\Plugins\User\src\Event\Task\Daily\CreateTopicComment($data->id));
+
         return Json_Api(200, true, ['msg' => '回复成功!', 'url' => '/' . $data->topic_id . '.html/' . $data->id . '?page=' . get_topic_comment_page($data->id)]);
     }
 
