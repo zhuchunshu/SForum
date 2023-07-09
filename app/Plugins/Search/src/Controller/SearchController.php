@@ -25,7 +25,7 @@ class SearchController
     {
         $q = request()->input('q');
         if (! $q) {
-            return admin_abort('搜索内容不能为空', 403);
+            return redirect()->back()->with('danger','搜索内容不能为空')->go();
         }
         // 中文转义搜索内容
         $q = urldecode($q);
@@ -80,18 +80,21 @@ class SearchController
         }
 
         $data = array_merge($topics, $topics2);
-        $data = $this->unique_key_array($data,'content');
+        $data = $this->unique_key_array($data, 'content');
+        // 倒序
+        array_multisort(array_column($data, 'created_at'), SORT_DESC, $data);
+
         $page = $this->page($data);
         return view('Search::data', ['page' => $page, 'q' => $q]);
     }
 
     private function unique_key_array($inputArray, $key): array
     {
-        $uniqueKeys = array();
-        $outputArray = array();
+        $uniqueKeys = [];
+        $outputArray = [];
 
         foreach ($inputArray as $item) {
-            if (!in_array($item[$key], $uniqueKeys)) {
+            if (! in_array($item[$key], $uniqueKeys)) {
                 $uniqueKeys[] = $item[$key];
                 $outputArray[] = $item;
             }
