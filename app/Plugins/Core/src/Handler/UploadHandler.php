@@ -36,14 +36,18 @@ class UploadHandler
         }
         $upload_path = public_path() . '/' . $folder_name;
         $extension = strtolower($file->getExtension()) ?: 'png';
-        $filename = $file_prefix . '_' . time() . '_' . Str::random(10) . '.' . $extension;
+        $random = Str::random(10);
+        $filename = $file_prefix . '_' . time() . '_' . $random . '.' . $extension;
+        $_filename = $file_prefix . '_' . time() . '_' . $random;
         $file->moveTo(public_path($folder_name . '/' . $filename));
+        $path = public_path("{$folder_name}/{$filename}");
         if ($max_width && $extension !== 'gif') {
             // 此类中封装的函数，用于裁剪图片
             $this->reduceSize($upload_path . '/' . $filename, $max_width);
+            $to = public_path("{$folder_name}/{$_filename}.webp");
+            $this->webp($path, $to);
+            $path = $to;
         }
-
-        $path = public_path("{$folder_name}/{$filename}");
 
         $service = new FileStoreService();
         $upload = $service->save($file, $folder, $file_prefix, true, $path);
@@ -88,5 +92,13 @@ class UploadHandler
 
         // 对图片修改后进行保存
         $image->save();
+    }
+
+    private function webp($from, $to)
+    {
+        $image = Image::make($from);
+        $image->encode('webp');
+        $image->save($to);
+        unlink($from);
     }
 }
