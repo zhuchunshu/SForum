@@ -23,7 +23,7 @@
                     @endforeach
                     @include('App::index.index')
                 </div>
-                <div class="col-lg-3">
+                <div class="col-lg-3 @if(get_options('theme_home_widget_hidden')==="true"){{"d-none d-lg-block"}}@endif">
                     <div class="row row-cards @if(get_options('theme_right_tool_sticky')!=='true'){{"rd"}}@endif">
                         <div class="col-md-12 @if(get_options('theme_right_tool_sticky')!=='true'){{"sticky"}}@endif" style="top: 105px">
                             @include('App::index.right')

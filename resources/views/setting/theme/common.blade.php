@@ -97,6 +97,22 @@
                 <span class="form-check-label">开启</span>
             </label>
         </div>
+
+        <div class="col-lg-4 align-self-center">
+            <div class="form-label">移动端隐藏全部小部件卡片</div>
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.theme_home_widget_hidden">
+                <span class="form-check-label">开启</span>
+            </label>
+        </div>
+
+        <div class="col-lg-4 align-self-center">
+            <div class="form-label">移动端隐藏个人信息 卡片</div>
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.theme_home_widget_hidden_userdataCard">
+                <span class="form-check-label">开启</span>
+            </label>
+        </div>
     </div>
 
 </div>

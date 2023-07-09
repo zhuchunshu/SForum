@@ -1,5 +1,5 @@
 @if(auth()->check())
-    <div class="col-md-12">
+    <div class="col-md-12  @if(get_options('theme_home_widget_hidden_userdataCard')==='true'){{"d-none d-lg-block"}}@endif">
         <div class="card">
             <div class="card-cover card-cover-blurred text-center" style="background-image: url({{get_user_settings(auth()->id(),'backgroundImg','/plugins/Core/image/user_background.jpg')}})">
                 <span class="avatar avatar-xl avatar-thumb avatar-rounded" style="background-image: url({{super_avatar(auth()->data())}})"></span>
