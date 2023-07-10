@@ -22,26 +22,28 @@
 <script>
 
     const btn = document.getElementById("home-right-widget-task-checkin-button")
-    btn.addEventListener('click', function () {
-        // 使用fetch发送post请求
-        fetch('/api/user/task/checkin', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                _token:csrf_token
-            })
-        }).then(function (response) {
-            // 处理响应数据
-            response.json().then(function (data) {
-                if(data.success===true){
-                    swal("签到成功", data.result.msg, "success");
-                }else{
-                    swal("签到失败", data.result.msg, "error");
-                }
+    if(btn){
+        btn.addEventListener('click', function () {
+            // 使用fetch发送post请求
+            fetch('/api/user/task/checkin', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    _token:csrf_token
+                })
+            }).then(function (response) {
+                // 处理响应数据
+                response.json().then(function (data) {
+                    if(data.success===true){
+                        swal("签到成功", data.result.msg, "success");
+                    }else{
+                        swal("签到失败", data.result.msg, "error");
+                    }
+                })
             })
         })
-    })
+    }
 
 </script>
