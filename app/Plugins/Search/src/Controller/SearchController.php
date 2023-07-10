@@ -41,7 +41,7 @@ class SearchController
                 ],
                 'tag' => [
                     'name' => $item->tag->name,
-                    'url' => '/tags' . $item->tag->id . '.html',
+                    'url' => '/tags/' . $item->tag->id . '.html',
                 ],
                 'created_at' => $item->created_at,
                 'title' => $item->title,
@@ -68,7 +68,7 @@ class SearchController
                 ],
                 'tag' => [
                     'name' => $topic->topic->tag->name,
-                    'url' => '/tags' . $topic->topic->tag->id . '.html',
+                    'url' => '/tags/' . $topic->topic->tag->id . '.html',
                 ],
                 'created_at' => $topic->created_at,
                 'title' => @$topic->topic->title ?: '暂无标题',
