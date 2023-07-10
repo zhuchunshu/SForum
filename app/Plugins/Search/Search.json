@@ -1,8 +1,8 @@
 {
   "name": "Search",
   "description": "提供基本搜索功能",
-  "version": "2.5.2",
+  "version": "2.5.3",
   "author": "zhuchunshu",
   "link": "https://github.com/zhuchunshu",
-  "masterVersion": "v2.5.2"
+  "masterVersion": "v2.5.3"
 }
