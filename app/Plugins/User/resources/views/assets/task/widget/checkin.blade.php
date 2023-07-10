@@ -38,6 +38,9 @@
                 response.json().then(function (data) {
                     if(data.success===true){
                         swal("签到成功", data.result.msg, "success");
+                        setTimeout(()=>{
+                            location.reload()
+                        },1500)
                     }else{
                         swal("签到失败", data.result.msg, "error");
                     }
