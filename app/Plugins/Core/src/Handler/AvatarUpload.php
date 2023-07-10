@@ -40,7 +40,7 @@ class AvatarUpload
         $_filename = $file_prefix . '_' . time() . '_' . $random;
         $file->moveTo(public_path($folder_name . '/' . $filename));
         $path = public_path("{$folder_name}/{$filename}");
-        if ($max_width && $extension !== 'gif') {
+        if ($max_width && $extension !== 'webp') {
             // 此类中封装的函数，用于裁剪图片
             $this->reduceSize($upload_path . '/' . $filename, $max_width);
             $to = public_path("{$folder_name}/{$_filename}.webp");
