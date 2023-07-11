@@ -8,7 +8,6 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
-
 namespace App\Plugins\User\src\Lib;
 
 use App\Plugins\User\src\Event\SendMail;
@@ -22,7 +21,7 @@ class UserNotice
     // 检查用户是否愿意接受通知
     public function check($user_id): bool
     {
-        $user_noticed = (string)get_user_settings($user_id, 'noticed', '0');
+        $user_noticed = (string) get_user_settings($user_id, 'noticed', '0');
         if (get_options('user_email_noticed_on') === 'true' && $user_noticed === '1') {
             return true;
         }
@@ -126,25 +125,20 @@ class UserNotice
         }
         $allowed_tags = '<p><a><div><img>';
         $content = strip_tags($content, $allowed_tags);
-        if(!$action){
+        if (! $action) {
             $action = url();
         }
-        if (!Str::is('http*', $action)) {
+        if (! Str::is('http*', $action)) {
             $url = url($action);
         } else {
             $url = $action;
         }
         $url_html = <<<HTML
-                <a href="$url" target="_blank" style="text-align: center;align-content: center;background-color: #000000; font-size: 15px; line-height: 22px; font-family: 'Helvetica', Arial, sans-serif; font-weight: normal; text-decoration: none; padding: 12px 15px; color: #ffffff; border-radius: 5px; display: inline-block; mso-padding-alt: 0;">
-
-                    <span style="mso-text-raise: 15pt; color: #ffffff;">查看</span>
-                </a>
                 <br>
-链接：<a href="$url" target="_blank">$url</a>
+查看链接：<a href="{$url}" target="_blank">{$url}</a>
 HTML;
         // 执行发送
         if ($content) {
-
             $Body = <<<HTML
 {$content}
 
