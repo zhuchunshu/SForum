@@ -320,11 +320,10 @@
 @section('scripts')
     <script>var user_id = {{$user->id}}</script>
     <script src="{{mix('plugins/Topic/js/core.js')}}"></script>
-    <script src="{{mix("plugins/Core/js/user.js")}}"></script>
-    <script src="{{file_hash('tabler//libs/fslightbox/index.js')}}" defer></script>
-    <script src="{{file_hash('highlight/highlight.min.js')}}"></script>
-    <script src="{{file_hash('highlight/highlightjs-line-numbers.min.js')}}"></script>
-    <script src="{{file_hash('highlight/lang-markup.min.js')}}"></script>
+    @if(request()->has('m') && request()->input('m')!=="users_home_menu_1")
+        <script src="{{mix("plugins/Core/js/user.js")}}"></script>
+    @endif
+    <script src="{{file_hash('tabler/libs/fslightbox/index.js')}}" defer></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             hljs.highlightAll();
