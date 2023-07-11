@@ -277,43 +277,7 @@
 @endsection
 
 @section('headers')
-    <link rel="stylesheet" href="{{file_hash('highlight/styles/mac.css')}}">
     <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
-    <link rel="stylesheet" href="{{file_hash('tabler/libs/plyr/dist/plyr.css')}}">
-    <style>
-        /* for block of numbers */
-        .hljs-ln-numbers {
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            -khtml-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-
-            text-align: center;
-            border-right: 1px solid #CCC;
-            vertical-align: top;
-            padding-right: 50px;
-
-            /* your custom style here */
-        }
-
-    </style>
-    <link rel="stylesheet" href="{{file_hash('highlight/highlightjs-copy.min.css')}}">
-    <link rel="stylesheet" href="{{file_hash('highlight/styles/atom-one-dark.min.css')}}">
-    <style>
-        pre code.hljs {
-            padding: 0;
-        }
-
-        .hljs-ln {
-            margin-top: 1.7rem;
-        }
-
-        .hljs {
-            background-color: #21252B
-        }
-    </style>
 @endsection
 
 
@@ -324,13 +288,4 @@
         <script src="{{mix("plugins/Core/js/user.js")}}"></script>
     @endif
     <script src="{{file_hash('tabler/libs/fslightbox/index.js')}}" defer></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            hljs.highlightAll();
-            hljs.initLineNumbersOnLoad({
-                singleLine: true
-            });
-            window.Plyr && (new Plyr('video'));
-        });
-    </script>
 @endsection
