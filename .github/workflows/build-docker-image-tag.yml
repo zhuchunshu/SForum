@@ -45,5 +45,6 @@ jobs:
         push: true
         tags: |
           zhuchunshu/sforum:${{ steps.previoustag.outputs.tag }}
+          zhuchunshu/sforum:latest
      
 
