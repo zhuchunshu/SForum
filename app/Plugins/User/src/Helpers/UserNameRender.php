@@ -8,7 +8,6 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
-
 namespace App\Plugins\User\src\Helpers;
 
 use App\Plugins\User\src\Annotation\UserNameRenderAnnotation;
@@ -16,7 +15,7 @@ use Hyperf\Di\Annotation\AnnotationCollector;
 
 class UserNameRender
 {
-    public function render($user, array $data)
+    public function render($user, array $data = [])
     {
         @$user->usernameRender = $user->username;
         $handler = static function ($user, $data) {
