@@ -125,7 +125,7 @@ tinymce.PluginManager.add('sfVideo', (editor, url) => {
                 }
                 // 如果格式正确
                 // 生成video代码
-                let video = `<video src="${url}" width="${width}" height="${height}" controls="controls">您的浏览器不支持 video 标签。</video>`
+                let video = `<video style="max-height: 400px" src="${url}" width="${width}" height="${height}" controls="controls">您的浏览器不支持 video 标签。</video>`
                 // 插入到编辑器
                 editor.insertContent(video)
                 api.close();

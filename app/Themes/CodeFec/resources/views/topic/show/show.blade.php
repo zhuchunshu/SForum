@@ -39,6 +39,12 @@
     <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
     <link rel="stylesheet" href="{{ file_hash('css/prism.css') }}">
     <link rel="stylesheet" href="{{file_hash('tabler/libs/plyr/dist/plyr.css')}}">
+    <style>
+        .plyr iframe, .plyr video{
+            height: unset;
+            max-height: 100%;
+        }
+    </style>
 @endsection
 
 @section('scripts')
@@ -80,7 +86,7 @@
     @endif
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-
+            $("video").css("max-height","400px")
             window.Plyr && (new Plyr('video'));
             (new Plyr('div[data-plyr-provider="youtube"]'));
         });
