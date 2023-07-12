@@ -23,6 +23,7 @@
     </script>
     <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
     <link rel="stylesheet" href="{{file_hash('tabler/libs/plyr/dist/plyr.css')}}">
+    <link rel="stylesheet" href="{{ file_hash('css/prism.css') }}">
 </head>
 <body class="border-0 card card-body {{session()->get('theme','antialiased')}}" style="background-color: transparent;">
 <article class="col-md-12 article markdown" id="topic-content">
@@ -36,6 +37,7 @@
 {{--<script src="{{ file_hash('js/diy.js') }}"></script>--}}
 <script src="{{ mix('plugins/Topic/js/topic.js') }}"></script>
 <script src="{{mix('plugins/Topic/js/core.js')}}"></script>
+<script src="{{ file_hash('js/prism.js') }}"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         window.Plyr && (new Plyr('video'));

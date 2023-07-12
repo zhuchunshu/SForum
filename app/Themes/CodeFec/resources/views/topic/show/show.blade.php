@@ -37,6 +37,7 @@
 
 @section('headers')
     <link rel="stylesheet" href="{{ mix('plugins/Topic/css/app.css') }}">
+    <link rel="stylesheet" href="{{ file_hash('css/prism.css') }}">
     <link rel="stylesheet" href="{{file_hash('tabler/libs/plyr/dist/plyr.css')}}">
 @endsection
 
@@ -49,6 +50,7 @@
     <script src="{{mix('plugins/Comment/js/topic.js')}}"></script>
     <script src="{{file_hash('tabler/libs/plyr/dist/plyr.min.js')}}"></script>
     <script src="{{file_hash('tabler/libs/fslightbox/index.js')}}" defer></script>
+    <script src="{{ file_hash('js/prism.js') }}"></script>
 
     @if(get_options('comment_emoji_close')!=='true')
         <link rel="stylesheet" href="{{file_hash('css/OwO.min.css')}}">

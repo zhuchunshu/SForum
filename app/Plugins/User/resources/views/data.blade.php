@@ -287,5 +287,9 @@
     @if(request()->has('m') && request()->input('m')!=="users_home_menu_1")
         <script src="{{mix("plugins/Core/js/user.js")}}"></script>
     @endif
+    @if(request()->has('m') && request()->input('m')==="users_home_menu_3")
+        <link rel="stylesheet" href="{{ file_hash('css/prism.css') }}">
+        <script src="{{ file_hash('js/prism.js') }}"></script>
+    @endif
     <script src="{{file_hash('tabler/libs/fslightbox/index.js')}}" defer></script>
 @endsection
