@@ -284,7 +284,7 @@
 @section('scripts')
     <script>var user_id = {{$user->id}}</script>
     <script src="{{mix('plugins/Topic/js/core.js')}}"></script>
-    @if(request()->has('m') && request()->input('m')!=="users_home_menu_1")
+    @if(request()->has('m') && request()->input('m')!=="users_home_menu_1" && request()->input('m')!=="users_home_menu_4" && request()->input('m')!=="users_home_menu_5")
         <script src="{{mix("plugins/Core/js/user.js")}}"></script>
     @endif
     @if(request()->has('m') && request()->input('m')==="users_home_menu_3")
