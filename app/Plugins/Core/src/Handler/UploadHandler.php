@@ -10,6 +10,7 @@ declare(strict_types=1);
  */
 namespace App\Plugins\Core\src\Handler;
 
+use App\Plugins\Core\src\Event\UploadImage;
 use App\Plugins\Core\src\Service\FileStoreService;
 use App\Plugins\User\src\Models\UserUpload;
 use Illuminate\Support\Str;
@@ -48,6 +49,9 @@ class UploadHandler
             $this->webp($path, $to);
             $path = $to;
         }
+
+        // 图片处理完毕事件
+        EventDispatcher()->dispatch(new UploadImage($path));
 
         $service = new FileStoreService();
         $upload = $service->save($file, $folder, $file_prefix, true, $path);
