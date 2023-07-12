@@ -148,21 +148,6 @@
   background-color: #f6f8fa;
   text-align: center;
 }
-.article blockquote {
-  font-size: 15px;
-  border: 0;
-  background: var(--tblr-code-bg);
-  border-radius: 4px;
-  padding: 8px 15px;
-  border-top: 2px dotted #fff;
-  border-bottom: 2px dotted #fff;
-  margin: 1em 0;
-}
-.article .quote blockquote {
-  margin-top: 1px;
-  padding-bottom: 5px;
-  background: #F9F9F9 none no-repeat 20px 6px;
-}
 .shortcode-content-hidden {
   font-size: 17px;
   border: 0;
