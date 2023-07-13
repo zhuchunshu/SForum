@@ -3993,43 +3993,46 @@ $('button[user-click="notice_allread"]').click(function () {
 });
 $(function () {
   // 关注用户
-  $('*[user-click="user_follow"]').click(function () {
-    var user_id = $(this).attr("user-id");
-    var th = $(this);
-    axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/user/userfollow", {
-      _token: csrf_token,
-      user_id: user_id
-    }).then(function (r) {
-      var data = r.data;
+  if (!isUserPage) {
+    $('*[user-click="user_follow"]').click(function () {
+      var user_id = $(this).attr("user-id");
+      var th = $(this);
+      axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/user/userfollow", {
+        _token: csrf_token,
+        user_id: user_id
+      }).then(function (r) {
+        var data = r.data;
 
-      if (data.success === true) {
-        if (data.code === 200) {
-          th.children('span').text(data.result.msg);
+        if (data.success === true) {
+          if (data.code === 200) {
+            th.children('span').text(data.result.msg);
+          } else {
+            th.children('span').text("关注");
+          }
+
+          izitoast__WEBPACK_IMPORTED_MODULE_1___default().success({
+            title: "Success",
+            message: data.result.msg,
+            position: "topRight"
+          });
         } else {
-          th.children('span').text("关注");
+          izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+            title: "Error",
+            message: data.result.msg,
+            position: "topRight"
+          });
         }
-
-        izitoast__WEBPACK_IMPORTED_MODULE_1___default().success({
-          title: "Success",
-          message: data.result.msg,
-          position: "topRight"
-        });
-      } else {
+      })["catch"](function (e) {
+        console.error(e);
         izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
           title: "Error",
-          message: data.result.msg,
+          message: "请求出错,详细查看控制台",
           position: "topRight"
         });
-      }
-    })["catch"](function (e) {
-      console.error(e);
-      izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
-        title: "Error",
-        message: "请求出错,详细查看控制台",
-        position: "topRight"
       });
     });
-  }); //查询关注状态
+  } //查询关注状态
+
 
   $('a[user-click="user_follow"]').each(function () {
     var user_id = $(this).attr("user-id");
