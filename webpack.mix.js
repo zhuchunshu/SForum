@@ -55,8 +55,6 @@ try {
 
 }
 
-// app.css
-mix.sass(resources_path("sass/app.scss"), "css").version();
 
 
 // 设置public目录

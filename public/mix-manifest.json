@@ -1,5 +1,5 @@
 {
-    "/js/app.js": "/js/app.js?id=ca9b006f16ce2ebcfc11",
+    "/js/app.js": "/js/app.js?id=2e77c120ac4a4527029e",
     "/js/install.js": "/js/install.js?id=8787ba5d0ec807f2d7aa",
     "/js/vue.js": "/js/vue.js?id=2ef8281bab897a85a353",
     "/js/admin/login.js": "/js/admin/login.js?id=bf4f7392229c2b898b5c",
@@ -9,6 +9,18 @@
     "/js/admin/setting.js": "/js/admin/setting.js?id=b20d2ba6594263904662",
     "/js/admin/index.js": "/js/admin/index.js?id=37314d36189ca9708caa",
     "/js/admin/pay.js": "/js/admin/pay.js?id=d41d8cd98f00b204e980",
+    "/plugins/Core/js/admin.js": "/plugins/Core/js/admin.js?id=ee4a80e4d856b074ccc9",
+    "/plugins/Core/js/app.js": "/plugins/Core/js/app.js?id=d01db754999e96d32b95",
+    "/plugins/Core/js/report.js": "/plugins/Core/js/report.js?id=f0498920bd2ea95bd2ad",
+    "/plugins/Core/js/sign.js": "/plugins/Core/js/sign.js?id=9fbfd820c91f285768b5",
     "/plugins/Core/js/user.js": "/plugins/Core/js/user.js?id=d0e94076f618f6fae765",
-    "/css/app.css": "/css/app.css?id=68b329da9893e34099c7"
+    "/plugins/Topic/js/tag.js": "/plugins/Topic/js/tag.js?id=1e874b0101d587c0a73e",
+    "/plugins/Topic/js/topic.js": "/plugins/Topic/js/topic.js?id=5e3cb57b4063e99612bb",
+    "/plugins/Topic/js/editor.js": "/plugins/Topic/js/editor.js?id=d41d8cd98f00b204e980",
+    "/plugins/Topic/js/core.js": "/plugins/Topic/js/core.js?id=d9aab0be882bb2f26d60",
+    "/plugins/User/js/order.js": "/plugins/User/js/order.js?id=ff1dc8ef9bcf16770227",
+    "/plugins/User/js/pm.js": "/plugins/User/js/pm.js?id=9e15203f3ed8be7cbdb3",
+    "/plugins/User/js/user.js": "/plugins/User/js/user.js?id=4f7e20e856fc2ab616dc",
+    "/plugins/Comment/js/edit.js": "/plugins/Comment/js/edit.js?id=401095050fa73934ebd1",
+    "/plugins/Comment/js/topic.js": "/plugins/Comment/js/topic.js?id=d6489001042116ae3690"
 }
