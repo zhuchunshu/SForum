@@ -34,8 +34,14 @@ menu()->add(303, [
 ]);
 
 menu()->add(304, [
-    'name' => '任务',
+    'name' => '审核任务',
     'url' => '/admin/topic/tag/jobs',
+    'icon' => '',
+    'parent_id' => 301,
+]);
+menu()->add(3045, [
+    'name' => '关键词管理',
+    'url' => '/admin/topic/keywords',
     'icon' => '',
     'parent_id' => 301,
 ]);
