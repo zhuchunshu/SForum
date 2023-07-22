@@ -4,15 +4,15 @@
             <div class="card-header">
                 <ol class="breadcrumb breadcrumb-arrows" aria-label="breadcrumbs">
                     <li class="breadcrumb-item"><a href="/">首页</a></li>
-                    <li class="breadcrumb-item"><a href="/tags">标签列表</a></li>
-                    <li class="breadcrumb-item active" aria-current="page"><a href="">{!! $data->icon !!} {{$data->name}}</a></li>
+                    <li class="breadcrumb-item"><a href="/keywords">关键词</a></li>
+                    <li class="breadcrumb-item active" aria-current="page"><a href="">{{$data->name}}</a></li>
                 </ol>
             </div>
             <div class="card-header">
                 <ul class="nav nav-pills card-header-pills">
                     @if(!count(request()->all()))
                         <li class="nav-item">
-                            <a class="nav-link active fw-bold" href="/tags/{{$data->id}}.html">
+                            <a class="nav-link active fw-bold" href="/keywords/{{$data->name}}.html">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon me-1 d-none d-sm-block" width="24"
                                      height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                                      stroke-linecap="round" stroke-linejoin="round">
@@ -24,7 +24,7 @@
                         </li>
                     @else
                         <li class="nav-item">
-                            <a class="nav-link" href="/tags/{{$data->id}}.html">
+                            <a class="nav-link" href="/keywords/{{$data->name}}.html">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon me-1 d-none d-sm-block" width="24"
                                      height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                                      stroke-linecap="round" stroke-linejoin="round">
@@ -66,9 +66,9 @@
             </div>
 
             @if($page->count())
-                @foreach($page as $data)
-                    @include('App::index.style2')
-                @endforeach
+               @foreach($page as $data)
+                    @include('Topic::KeyWords.data.style')
+               @endforeach
             @else
                 <div class="col-md-12">
                     <div class="border-0 card card-body">

@@ -230,13 +230,13 @@ if (! function_exists('get_all_keywords')) {
      */
     function get_all_keywords(string $content): array
     {
-        preg_match_all('/(?<=\\.\\[)[^]]+/u', $content, $arrMatches);
-        return $arrMatches[0];
+        preg_match_all('/#(\p{L}+)/u', $content, $arrMatches);
+        return $arrMatches[1];
     }
 
     function replace_all_keywords(string $content): string
     {
-        $pattern = '/\\.\\[(.*?)]/u';
+        $pattern = '/#(\p{L}+)/u';
         return preg_replace_callback($pattern, static function ($match) {
             return (new \App\Plugins\Core\src\Lib\TextParsing())->keywords($match[1]);
         }, $content);
