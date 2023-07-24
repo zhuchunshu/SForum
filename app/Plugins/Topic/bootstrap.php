@@ -114,17 +114,17 @@ Itf()->add('topic-create-data', 0, [
 
 // topic create -  editor plugins
 
-Itf()->add('topic-create-editor-plugins', 0, ['emoticons', 'sfVideo', 'importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
-Itf()->add('topic-edit-editor-plugins', 0, ['emoticons', 'sfVideo', 'importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
+Itf()->add('topic-create-editor-plugins', 0, ['fullscreen', 'emoticons', 'sfVideo', 'importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
+Itf()->add('topic-edit-editor-plugins', 0, ['fullscreen', 'emoticons', 'sfVideo', 'importcss', 'searchreplace', 'autolink', 'directionality', 'code', 'visualblocks', 'visualchars', 'image', 'link', 'codesample', 'table', 'charmap', 'pagebreak', 'nonbreaking', 'advlist', 'lists', 'wordcount', 'charmap', 'quickbars']);
 
-Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|', 'emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'link','sfVideo', 'sfPreview', 'codesample', '|', 'ltr', 'rtl']);
-Itf()->add('topic-edit-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '｜', 'emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'link', 'sfVideo','sfPreview', 'codesample', '|', 'ltr', 'rtl']);
+Itf()->add('topic-create-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '|', 'emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'link', 'sfVideo', 'sfPreview', 'codesample', 'fullscreen', '|', 'ltr', 'rtl']);
+Itf()->add('topic-edit-editor-toolbar', 0, ['undo', 'redo', '|', 'blocks', '｜', 'emoticons', 'bold', 'italic', 'underline', 'strikethrough', '|', 'alignleft', 'aligncenter', 'alignright', 'alignjustify', 'outdent', 'indent', 'numlist', 'bullist', '|', 'forecolor', 'backcolor', 'removeformat', 'insertfile', 'image', 'link', 'sfVideo', 'sfPreview', 'codesample', 'fullscreen', '|', 'ltr', 'rtl']);
 
 $editor_menu = [
     'file' => [
         'title' => 'File',
         'items' => [
-            'newdocument',
+            'fullscreen',
             'restoredraft',
             '|',
             'sfPreview',
@@ -335,7 +335,7 @@ Itf()->add('ui-topic-show-dropdown', 1, [
 //        if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id',auth()->id())->exists()){
 //            return true;
 //        }
-        if (Authority()->check('topic_edit') && auth()->id() === (int) $data->user->id) {
+        if (Authority()->check('topic_edit') && auth()->id() === (int)$data->user->id) {
             return true;
         }
         return false;
@@ -432,7 +432,7 @@ Itf()->add('ui-topic-show-dropdown', 100, [
         if (Authority()->check('admin_topic_delete') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             return true;
         }
-        if (Authority()->check('topic_delete') && auth()->id() === (int) $data->user->id) {
+        if (Authority()->check('topic_delete') && auth()->id() === (int)$data->user->id) {
             return true;
         }
         if (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {

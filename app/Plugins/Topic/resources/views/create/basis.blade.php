@@ -119,8 +119,9 @@
 
     document.addEventListener("DOMContentLoaded", function () {
         let options = {
+            fullscreen_native: true,
             selector: '#basis-content',
-            height: 450,
+            height: 500,
             menu: {!! \App\Plugins\Topic\src\Lib\Create\Editor::menu() !!},
             menubar: "{!! \App\Plugins\Topic\src\Lib\Create\Editor::menubar() !!}",
             statusbar: true,
