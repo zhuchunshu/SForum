@@ -40,13 +40,25 @@ class AvatarUpload
         $_filename = $file_prefix . '_' . time() . '_' . $random;
         $file->moveTo(public_path($folder_name . '/' . $filename));
         $path = public_path("{$folder_name}/{$filename}");
-        if ($max_width && $extension !== 'webp') {
-            // 此类中封装的函数，用于裁剪图片
+
+        // 检查是否允许用户设置 GIF 头像，并且文件扩展名是 GIF
+        if (get_options('user_set_avatar_gif') === 'true' && $extension === 'gif') {
+            // 如果允许 GIF 头像，直接跳过处理
+        } elseif ($max_width && $extension !== 'webp') {
+            // 如果有最大宽度限制，并且文件扩展名不是 webp
+
+            // 调用 reduceSize 函数，用于裁剪图片并调整大小
             $this->reduceSize($upload_path . '/' . $filename, $max_width);
+
+            // 将裁剪后的图片转换为 webp 格式
             $to = public_path("{$folder_name}/{$_filename}.webp");
             $this->webp($path, $to);
+
+            // 更新路径为转换后的 webp 图片路径
             $path = $to;
         }
+
+
 
         $service = new FileStoreService();
         $upload = $service->save($file, $folder, $file_prefix, true, $path);

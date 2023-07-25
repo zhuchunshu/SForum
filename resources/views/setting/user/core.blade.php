@@ -86,6 +86,14 @@
             </label>
         </div>
 
+        <div class="col-3 align-self-center">
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.user_set_avatar_gif">
+                <span class="form-check-label">开启支持上传gif头像</span>
+            </label>
+        </div>
+
+
         <div class="col-3">
             <label class="form-label">超过几天未验证邮箱会被删除？
             </label>
