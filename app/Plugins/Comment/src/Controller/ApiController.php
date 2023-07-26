@@ -47,12 +47,16 @@ class ApiController
 
         $comment_id = request()->input('comment_id');
         if (! TopicComment::query()->where('id', $comment_id)->exists()) {
-            return json_api(404,false,'评论不存在');
+            return json_api(404, false, '评论不存在');
         }
         $topic_id = TopicComment::query()->where('id', $comment_id)->first()->topic_id;
         $topic = Topic::query()->find($topic_id);
+        if ($topic->status === 'lock') {
+            cache()->delete('comment_create_time_' . auth()->id());
+            return json_api(401, false, ['回复的帖子已锁定(关闭)']);
+        }
         if (@$topic->post->options->disable_comment) {
-            return json_api(403,false,'此帖子关闭了评论功能');
+            return json_api(403, false, '此帖子关闭了评论功能');
         }
         $parent_id = TopicComment::query()->where('id', $comment_id)->first()->user_id;
         $post = Post::query()->create([
@@ -122,10 +126,10 @@ class ApiController
         if (Authority()->check('admin_comment_remove') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
         }
-        if (Authority()->check('comment_remove') && auth()->id() === (int)$data->user->id) {
+        if (Authority()->check('comment_remove') && auth()->id() === (int) $data->user->id) {
             $quanxian = true;
         }
-        if(\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->topic->tag_id)->where('user_id',auth()->id())->exists()){
+        if (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->topic->tag_id)->where('user_id', auth()->id())->exists()) {
             $quanxian = true;
         }
         if ($quanxian === false) {
@@ -139,14 +143,14 @@ class ApiController
     public function comment_reply_validation(): bool | array
     {
         if (! auth()->check()) {
-            return Json_Api(419, false, ['msg'=>'未登录']);
+            return Json_Api(419, false, ['msg' => '未登录']);
         }
         if (! Authority()->check('comment_create')) {
-            return Json_Api(419, false, ['msg'=>'无评论权限']);
+            return Json_Api(419, false, ['msg' => '无评论权限']);
         }
         if (cache()->has('comment_create_time_' . auth()->id())) {
             $time = cache()->get('comment_create_time_' . auth()->id()) - time();
-            return Json_Api(419, false, ['msg'=>'发表评论过于频繁,请 ' . $time . ' 秒后再试']);
+            return Json_Api(419, false, ['msg' => '发表评论过于频繁,请 ' . $time . ' 秒后再试']);
         }
         return true;
     }
@@ -296,7 +300,7 @@ class ApiController
         $comments = request()->input('comments');
         $data = [];
         foreach ($comments as $comment_id) {
-            $comment = TopicComment::query()->where(['id' => $comment_id, ])->first();
+            $comment = TopicComment::query()->where(['id' => $comment_id])->first();
             if ($comment->post->user_ip) {
                 $data[] = [
                     'comment_id' => $comment->id,
