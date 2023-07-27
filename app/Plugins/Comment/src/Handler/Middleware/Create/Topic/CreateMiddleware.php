@@ -41,13 +41,17 @@ class CreateMiddleware implements MiddlewareInterface
             ]
         );
 
+        if (request()->has('originalContent')) {
+            $data['content'] = str_replace("\n", '<br />', $data['content']);
+        }
+
         if ($validator->fails()) {
             // Handle exception
             cache()->delete('comment_create_time_' . auth()->id());
             return redirect()->back()->with('danger', $validator->errors()->first())->go();
         }
         $topic = Topic::find($data['topic_id']);
-        if($topic->status==="lock"){
+        if ($topic->status === 'lock') {
             cache()->delete('comment_create_time_' . auth()->id());
             return redirect()->back()->with('danger', '回复的帖子已锁定(关闭)')->go();
         }

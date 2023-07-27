@@ -53,6 +53,7 @@
                             @else
                                 <div class="col-md-12 mb-3">
                                     <x-csrf/>
+                                    <input type="hidden" name="originalContent" value="1">
                                     <textarea x-model="content" id="create-comment-textarea" name="content" placeholder="说点什么..." class="form-control OwO-textarea" data-bs-toggle="autosize" required>{{request()->input('content')}}</textarea>
                                 </div>
                                 <div class="col-12">

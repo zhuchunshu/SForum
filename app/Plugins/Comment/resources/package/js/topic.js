@@ -60,7 +60,8 @@ $(function(){
         axios.post("/api/comment/comment.topic.reply",{
             content:content,
             comment_id:comment_id,
-            _token:csrf_token
+            _token:csrf_token,
+            originalContent:1,
         }).then(r=>{
             const data = r.data;
             if(data.success===true){

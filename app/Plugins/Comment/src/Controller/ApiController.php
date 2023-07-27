@@ -35,12 +35,15 @@ class ApiController
             return $this->comment_reply_validation();
         }
         // 处理
-
+        $requestContent = $request->input('content');
+        if (request()->has('originalContent')) {
+            $requestContent = str_replace("\n", '<br />', $requestContent);
+        }
         // 原内容
-        $yhtml = $request->input('content');
+        $yhtml = $requestContent;
 
         // 过滤xss
-        $content = xss()->clean($request->input('content'));
+        $content = xss()->clean($requestContent);
 
         // 解析艾特
         $content = $this->topic_create_at($content);
