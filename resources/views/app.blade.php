@@ -16,7 +16,11 @@
     <link rel="icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon" />
     <link rel="shortcut icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon" />
     <script src="/js/jquery-3.6.0.min.js"></script>
-    <script>var csrf_token="{{csrf_token()}}";</script>
+    <script>
+        var csrf_token="{{csrf_token()}}";
+
+        var auto_theme = "{{session()->get('auto_theme','light')}}";
+    </script>
     <link rel="stylesheet" href="{{ mix('iziToast/css/iziToast.min.css') }}">
     <script src="{{ mix('iziToast/js/iziToast.min.js') }}"></script>
     <!-- 自定义CSS -->
@@ -26,7 +30,7 @@
     @yield('css')
 </head>
 
-<body data-bs-theme="{{session()->get('theme','light')}}" class="antialiased">
+<body data-bs-theme="{{session()->get('theme',session()->get('auto_theme','light'))}}" class="antialiased">
 @include("layouts.errors")
 @include("layouts._msg")
 <div id="app" class="wrapper {{ path_class() }}-page">

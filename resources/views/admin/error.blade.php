@@ -20,10 +20,14 @@
     <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
     <!-- CSS files -->
     <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet" />
+    <script>
+
+        var auto_theme = "{{session()->get('auto_theme','light')}}";
+    </script>
 
 </head>
 
-<body data-bs-theme="{{session()->get('theme','light')}}" class="antialiased border-top-wide border-primary d-flex flex-column">
+<body data-bs-theme="{{session()->get('theme',session()->get('auto_theme','light'))}}" class="antialiased border-top-wide border-primary d-flex flex-column">
     <div class="page page-center">
         <div class="container-tight py-4">
             <div class="empty" id="empty">

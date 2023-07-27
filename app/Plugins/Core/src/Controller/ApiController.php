@@ -225,6 +225,19 @@ class ApiController
         return Json_Api(200, true, ['msg' => '切换成功!']);
     }
 
+    // 切换主题
+
+    #[RateLimit(create: 1, capacity: 1)]
+    #[PostMapping(path: 'toggle.auto.theme')]
+    public function auto_theme_toggle()
+    {
+        if (! request()->input('theme')) {
+            return Json_Api(403, false, ['msg' => '请求参数不足,缺少:theme']);
+        }
+        session()->set('auto_theme', request()->input('theme'));
+        return Json_Api(200, true, ['msg' => '切换成功!']);
+    }
+
     // 获取所有emoji
 
     #[RequestMapping(path: 'OwO.json')]

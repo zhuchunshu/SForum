@@ -14,10 +14,11 @@
     <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet" />
     <link rel="stylesheet" href="{{ mix('iziToast/css/iziToast.min.css') }}">
     <script src="{{ mix('iziToast/js/iziToast.min.js') }}"></script>
-    <script>var csrf_token="{{csrf_token()}}";</script>
+    <script>
+        var auto_theme = "{{session()->get('auto_theme','light')}}"; var csrf_token="{{csrf_token()}}";</script>
 </head>
 
-<body data-bs-theme="{{session()->get('theme','light')}}" class="antialiased border-top-wide border-primary d-flex flex-column">
+<body data-bs-theme="{{session()->get('theme',session()->get('auto_theme','light'))}}" class="antialiased border-top-wide border-primary d-flex flex-column">
 @include("layouts.errors")
 @include("layouts._msg")
     <div class="page page-center">

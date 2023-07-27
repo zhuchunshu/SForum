@@ -15,6 +15,7 @@
     {{--    <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet" />--}}
     <link rel="stylesheet" href="{{mix('css/app.css')}}">
     <script>
+        var auto_theme = "{{session()->get('auto_theme','light')}}";
         var csrf_token = "{{ csrf_token() }}";
         var ws_url = "{{ws_url()}}";
         var _token = "{{auth()->token()}}";
@@ -36,7 +37,7 @@
     @endif
 </head>
 
-<body  data-bs-theme="{{session()->get('theme','light')}}">
+<body  data-bs-theme="{{session()->get('theme',session()->get('auto_theme','light'))}}">
 <div class="page">
     @include("App::layouts.themes.header-".get_options('core_theme_header',1))
     @include("App::layouts.errors")

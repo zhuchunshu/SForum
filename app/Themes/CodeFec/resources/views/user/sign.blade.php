@@ -10,9 +10,6 @@
     <link rel="stylesheet" href="{{ mix('plugins/Core/css/app.css') }}">
     <link rel="icon" href="/logo.svg" type="image/x-icon" />
     <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
-    <script>
-        var csrf_token = "{{ csrf_token() }}";
-    </script>
     <meta name="description" content="{{ get_options('description') }}">
     <meta name="keywords" content="{{ get_options('keywords') }}">
     <link rel="icon" href="/logo.svg" type="image/x-icon" />
@@ -25,12 +22,14 @@
         var csrf_token = "{{ csrf_token() }}";
         var ws_url = "{{ws_url()}}";
         var login_token = "{{auth()->token()}}";
+
+        var auto_theme = "{{session()->get('auto_theme','light')}}";
     </script>
     @yield('css')
     @yield('headers')
 </head>
 
-<body data-bs-theme="{{session()->get('theme','light')}}" class="border-top-wide border-primary d-flex flex-column">
+<body data-bs-theme="{{session()->get('theme',session()->get('auto_theme','light'))}}" class="border-top-wide border-primary d-flex flex-column">
 <div class="page page-center">
     @include("App::layouts.errors")
     @include("App::layouts._msg")

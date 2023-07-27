@@ -294,3 +294,38 @@ function getQueryVariable(variable) {
     }
     return false;
 }
+
+$(function(){
+    if(matchMedia('(prefers-color-scheme: dark)').matches!==auto_theme){
+        if(matchMedia('(prefers-color-scheme: dark)').matches){
+            $("body").attr("data-bs-theme", 'dark')
+        }else{
+            $("body").attr("data-bs-theme", 'light')
+        }
+        axios.post("/api/core/toggle.auto.theme", {
+            _token: csrf_token,
+            theme: $("body").attr("data-bs-theme")
+        })
+    }
+})
+
+// 处理暗黑模式状态变化的函数
+function handleDarkModeChange() {
+    $(function(){
+        if(matchMedia('(prefers-color-scheme: dark)').matches!==auto_theme){
+            if(matchMedia('(prefers-color-scheme: dark)').matches){
+                $("body").attr("data-bs-theme", 'dark')
+            }else{
+                $("body").attr("data-bs-theme", 'light')
+            }
+            axios.post("/api/core/toggle.auto.theme", {
+                _token: csrf_token,
+                theme: $("body").attr("data-bs-theme")
+            })
+        }
+    })
+}
+
+// 添加事件监听器到媒体查询
+const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+darkModeMediaQuery.addListener(handleDarkModeChange);

@@ -13,7 +13,8 @@
     <link href="{{ '/tabler/css/tabler-flags.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
-    <script>var csrf_token="{{csrf_token()}}";</script>
+    <script>
+        var auto_theme = "{{session()->get('auto_theme','light')}}"; var csrf_token="{{csrf_token()}}";</script>
     <meta name="description" content="{{ get_options("description") }}">
     <meta name="keywords" content="{{ get_options("keywords") }}">
     <!-- 自定义CSS -->
