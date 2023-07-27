@@ -19,6 +19,7 @@
     <script>
         var csrf_token="{{csrf_token()}}";
 
+        var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
         var auto_theme = "{{session()->get('auto_theme','light')}}";
     </script>
     <link rel="stylesheet" href="{{ mix('iziToast/css/iziToast.min.css') }}">

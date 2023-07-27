@@ -14,6 +14,7 @@
     <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
     <script>
+        var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
         var auto_theme = "{{session()->get('auto_theme','light')}}"; var csrf_token="{{csrf_token()}}";</script>
     <meta name="description" content="{{ get_options("description") }}">
     <meta name="keywords" content="{{ get_options("keywords") }}">

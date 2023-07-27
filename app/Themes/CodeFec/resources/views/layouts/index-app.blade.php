@@ -15,6 +15,7 @@
     {{--    <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet" />--}}
     <link rel="stylesheet" href="{{mix('css/app.css')}}">
     <script>
+        var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
         var auto_theme = "{{session()->get('auto_theme','light')}}";
         var csrf_token = "{{ csrf_token() }}";
         var ws_url = "{{ws_url()}}";

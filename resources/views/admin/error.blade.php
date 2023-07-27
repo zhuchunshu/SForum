@@ -22,6 +22,7 @@
     <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet" />
     <script>
 
+        var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
         var auto_theme = "{{session()->get('auto_theme','light')}}";
     </script>
 

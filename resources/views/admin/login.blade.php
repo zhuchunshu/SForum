@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="{{ mix('iziToast/css/iziToast.min.css') }}">
     <script src="{{ mix('iziToast/js/iziToast.min.js') }}"></script>
     <script>
+        var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
         var auto_theme = "{{session()->get('auto_theme','light')}}"; var csrf_token="{{csrf_token()}}";</script>
 </head>
 

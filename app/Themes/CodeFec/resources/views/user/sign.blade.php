@@ -23,6 +23,7 @@
         var ws_url = "{{ws_url()}}";
         var login_token = "{{auth()->token()}}";
 
+        var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
         var auto_theme = "{{session()->get('auto_theme','light')}}";
     </script>
     @yield('css')

@@ -296,7 +296,7 @@ function getQueryVariable(variable) {
 }
 
 $(function(){
-    if(matchMedia('(prefers-color-scheme: dark)').matches!==auto_theme){
+    if(theme_status===false && matchMedia('(prefers-color-scheme: dark)').matches!==auto_theme){
         if(matchMedia('(prefers-color-scheme: dark)').matches){
             $("body").attr("data-bs-theme", 'dark')
         }else{
@@ -312,7 +312,7 @@ $(function(){
 // 处理暗黑模式状态变化的函数
 function handleDarkModeChange() {
     $(function(){
-        if(matchMedia('(prefers-color-scheme: dark)').matches!==auto_theme){
+        if(theme_status===false && matchMedia('(prefers-color-scheme: dark)').matches!==auto_theme){
             if(matchMedia('(prefers-color-scheme: dark)').matches){
                 $("body").attr("data-bs-theme", 'dark')
             }else{
