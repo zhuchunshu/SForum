@@ -37,6 +37,13 @@ jobs:
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ secrets.GHCR_USERNAME }}
+        password: ${{ secrets.GHCR_TOKEN }}
 
     - name: Build and push to Docker Hub
       uses: docker/build-push-action@v4
@@ -46,16 +53,5 @@ jobs:
         tags: |
           zhuchunshu/sforum:${{ steps.previoustag.outputs.tag }}
           zhuchunshu/sforum:latest
-
-    - name: Tag image for GHCR.io
-      run: docker tag zhuchunshu/sforum:${{ steps.previoustag.outputs.tag }} ghcr.io/zhuchunshu/sforum:${{ steps.previoustag.outputs.tag }}
-      
-    - name: Login to GHCR.io
-      uses: docker/login-action@v2
-      with:
-        registry: ghcr.io
-        username: ${{ secrets.GHCR_USERNAME }}
-        password: ${{ secrets.GHCR_TOKEN }}
-      
-    - name: Push to GHCR.io
-      run: docker push ghcr.io/zhuchunshu/sforum:${{ steps.previoustag.outputs.tag }}
+          ghcr.io/zhuchunshu/sforum:${{ steps.previoustag.outputs.tag }}
+          ghcr.io/zhuchunshu/sforum:latest
