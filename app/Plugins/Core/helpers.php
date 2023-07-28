@@ -197,8 +197,7 @@ if (! function_exists('get_all_at')) {
 if (! function_exists('replace_all_at_space')) {
     function replace_all_at_space(string $content): string
     {
-        //$pattern = "/\\$\\[(.*?)]/u";
-        $pattern = '/@(.*?)[^ <\\/p>]+/u';
+        $pattern = '/@(.*?)(?=[^ <\\/p>]+)/u';
         return preg_replace_callback($pattern, static function ($match) {
             return $match[0] . ' ';
         }, $content);
