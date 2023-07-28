@@ -30,11 +30,14 @@ class EditTopicCommentController
         if (Authority()->check('admin_comment_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
         }
-        if (Authority()->check('comment_edit') && auth()->id() === (int)$data->user->id) {
+        if (Authority()->check('comment_edit') && auth()->id() === (int) $data->user->id) {
             $quanxian = true;
         }
         if ($quanxian === false) {
             return admin_abort('无权操作!', 419);
+        }
+        if (get_options('comment_change_limit') === 'true' && time() - \Carbon\Carbon::parse($data->created_at)->timestamp > (int) get_options('comment_change_limit_time', 5) * 60) {
+            return redirect()->back()->with('danger', ' 评论发布时间已超过' . get_options('comment_change_limit_time', 5) . '分钟，禁止修改!');
         }
         return view('Comment::topic.edit', ['comment' => $data]);
     }
@@ -42,7 +45,6 @@ class EditTopicCommentController
     #[PostMapping(path: 'topic/{id}/edit')]
     public function update($id)
     {
-
         return (new EditTopicComment())->handler($id);
     }
 }

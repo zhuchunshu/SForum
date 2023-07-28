@@ -31,26 +31,43 @@
                     <h3 class="card-title">修改评论</h3>
                 </div>
                 <div class="card-body">
-                    <form action="/comment/topic/{{$comment->id}}/edit" method="post">
+                    @if(get_options('comment_change_limit')==="true" && time()-\Carbon\Carbon::parse($comment->created_at)->timestamp>(int)get_options("comment_change_limit_time",5)*60)
                         <x-csrf/>
                         <input type="hidden" name="comment_id" value="{{$comment->id}}">
                         <div class="mb-3">
-                            <label for="" class="form-label"></label>
-                            <textarea name="content" id="content" rows="3">{{$comment->post->content}}</textarea>
+                            <div class="alert alert-danger" role="alert">
+                                评论发布时间已超过{{get_options("comment_change_limit_time",5)}}分钟，禁止修改!
+                            </div>
+                            <textarea disabled name="content" id="content" rows="3">{{$comment->post->content}}</textarea>
                         </div>
                         <div class="row">
-                            <div class="col">
-                                @if(get_options('comment_emoji_close')!=='true')
-                                    <link rel="stylesheet" href="{{file_hash('css/OwO.min.css')}}">
-                                    <div class="OwO" id="create-comment-owo">[表情]</div>
-                                    <script src="{{file_hash('js/editor.OwO.js')}}"></script>
-                                @endif
-                            </div>
+                            <div class="col"></div>
                             <div class="col-auto">
-                                <button class="btn btn-primary" type="submit">修改评论</button>
+                                <button class="btn btn-primary disabled" type="button">修改评论</button>
                             </div>
                         </div>
-                    </form>
+                    @else
+                        <form action="/comment/topic/{{$comment->id}}/edit" method="post">
+                            <x-csrf/>
+                            <input type="hidden" name="comment_id" value="{{$comment->id}}">
+                            <div class="mb-3">
+                                <label for="" class="form-label"></label>
+                                <textarea name="content" id="content" rows="3">{{$comment->post->content}}</textarea>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    @if(get_options('comment_emoji_close')!=='true')
+                                        <link rel="stylesheet" href="{{file_hash('css/OwO.min.css')}}">
+                                        <div class="OwO" id="create-comment-owo">[表情]</div>
+                                        <script src="{{file_hash('js/editor.OwO.js')}}"></script>
+                                    @endif
+                                </div>
+                                <div class="col-auto">
+                                    <button class="btn btn-primary" type="submit">修改评论</button>
+                                </div>
+                            </div>
+                        </form>
+                    @endif
                 </div>
             </div>
         </div>
