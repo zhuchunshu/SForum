@@ -3,6 +3,7 @@
         @php $caina = false; @endphp
         @if($data->user_id == auth()->id() && Authority()->check("comment_caina")) @php $caina = true;@endphp @endif
         @if(Authority()->check("admin_comment_caina")) @php $caina = true; @endphp @endif
+        @php($comment_change_show = get_options('comment_change_show'))
         @if($comment->count())
             @if(@isset($data->post->options->only_author) && $data->post->options->only_author)
                 @php($posts_options_only_author = true)
@@ -41,9 +42,9 @@
                                         <textarea class="form-control" name="content" id="reply-comment-content" data-bs-toggle="autosize" placeholder="说点什么..."></textarea>
                                     @endif
                                     @if(get_options('comment_emoji_close')!=='true')
-                                    <div class="mt-3 ">
-                                        <div class="OwO" id="create-comment-owo2">[OωO表情]</div>
-                                    </div>
+                                        <div class="mt-3 ">
+                                            <div class="OwO" id="create-comment-owo2">[OωO表情]</div>
+                                        </div>
                                     @endif
                                 </div>
                             @endif
@@ -117,6 +118,10 @@
                                                                 <small class="text-red" comment-type="ip"
                                                                        comment-id="{{$value->id}}">Loading<span
                                                                             class="animated-dots"></span></small>
+                                                            @endif
+                                                            @if($comment_change_show==="true" && $value->post->updated_at>$value->post->created_at)
+                                                                | <small data-bs-toggle="popover" data-bs-placement="top" data-bs-html="true" data-bs-content="<p>此评论在{{format_date($value->post->updated_at)}}进行了修改</p><p class='mb-0'><a>最后修改时间为:{{$value->post->updated_at}}</a></p>"
+                                                                       class="text-muted text-truncate mt-n1 cursor-pointer">修改过</small>
                                                             @endif
                                                         </div>
                                                         {{--                                            楼层信息--}}
