@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="{{mix('css/app.css')}}">
     <script>
 
-         var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
+        var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
         const captcha_cloudflare_turnstile_website_key = "{{get_options("admin_captcha_cloudflare_turnstile_website_key","1x00000000000000000000AA")}}"
         const system_theme = "{{session()->get('theme',session()->get('auto_theme','light'))}}"
         var auto_theme = "{{session()->get('auto_theme','light')}}";
@@ -44,7 +44,11 @@
 
 <body data-bs-theme="{{session()->get('theme',session()->get('auto_theme','light'))}}">
 <div class="page">
-    @include("App::layouts.themes.header-".get_options('core_theme_header',1))
+    @if(get_options("web_header"))
+        @include(get_component_view_name(get_options('web_header')))
+    @else
+        @include("App::layouts.themes.header-".get_options('core_theme_header',1))
+    @endif
     @include("App::layouts.errors")
     @include("App::layouts._msg")
     <div id="{{ path_class() }}-page">

@@ -42,7 +42,11 @@
 
 <body  data-bs-theme="{{session()->get('theme',session()->get('auto_theme','light'))}}">
 <div class="page">
-    @include("App::layouts.themes.header-".get_options('core_theme_header',1))
+    @if(get_options("web_header"))
+        @include(get_component_view_name(get_options('web_header')))
+    @else
+        @include("App::layouts.themes.header-".get_options('core_theme_header',1))
+    @endif
     @include("App::layouts.errors")
     @include("App::layouts._msg")
     <div id="{{ path_class() }}-page">
