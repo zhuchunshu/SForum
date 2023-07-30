@@ -28,7 +28,7 @@ return [
 	'created' => '创建',
 	'updated_at' => '更新时间',
 	'created_at' => '创建时间',
-	'bio' => '个人简历',
+	'bio' => '个人签名',
 	'Join time' => '加入时间:  :time',
 	'search' => 'Search',
 	'Creator' => '创建者',
