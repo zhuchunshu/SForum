@@ -240,7 +240,7 @@ Itf()->add('users_home_menu', 8, [
 </svg>',
     'view' => 'User::assets.money_recharge',
     'quanxian' => \Opis\Closure\serialize((function ($user) {
-        return (int) $user->id === auth()->id();
+        return (int) $user->id === auth()->id() && count(pay()->get_enabled_data());
     })),
 ]);
 

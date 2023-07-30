@@ -17,9 +17,9 @@ Itf_Setting()->add(
 
 Itf_Setting()->add(
     201,
-    '主题 - 页头',
-    'theme-header',
-    'setting.theme.header'
+    '验证码',
+    'captcha',
+    'setting.captcha'
 );
 Itf()->add('core_menu', 1, [
     'name' => '首页',

@@ -14,7 +14,9 @@
     <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
     <script>
-        var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
+         var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
+        const captcha_cloudflare_turnstile_website_key = "{{get_options("admin_captcha_cloudflare_turnstile_website_key","1x00000000000000000000AA")}}"
+        const system_theme = "{{session()->get('theme',session()->get('auto_theme','light'))}}"
         var auto_theme = "{{session()->get('auto_theme','light')}}"; var csrf_token="{{csrf_token()}}";</script>
     <meta name="description" content="{{ get_options("description") }}">
     <meta name="keywords" content="{{ get_options("keywords") }}">

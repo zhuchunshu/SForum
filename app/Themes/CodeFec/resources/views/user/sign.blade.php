@@ -19,11 +19,10 @@
     <link rel="stylesheet" href="{{mix("plugins/Core/css/core.css")}}">
 {{--    <link href="{{ file_hash("css/diy.css") }}" rel="stylesheet" />--}}
     <script>
-        var csrf_token = "{{ csrf_token() }}";
-        var ws_url = "{{ws_url()}}";
-        var login_token = "{{auth()->token()}}";
-
+        const csrf_token = "{{ csrf_token() }}";
         var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
+        const captcha_cloudflare_turnstile_website_key = "{{get_options("admin_captcha_cloudflare_turnstile_website_key","1x00000000000000000000AA")}}"
+        const system_theme = "{{session()->get('theme',session()->get('auto_theme','light'))}}"
         var auto_theme = "{{session()->get('auto_theme','light')}}";
     </script>
     @yield('css')
@@ -103,4 +102,5 @@
     var redirect_url = "{{request()->input('redirect','/')}}"
 </script>
 <script src="{{ mix('plugins/Core/js/sign.js') }}"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback" async defer></script>
 </body>

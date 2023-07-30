@@ -1,6 +1,15 @@
 import axios from "axios";
 import swal from "sweetalert";
 
+function getCaptchaInputValue(){
+    const inputs = document.querySelectorAll('input[isCaptchaInput]');
+    let v= inputs[0].value
+    if(!v){
+        v = localStorage.getItem("cf_captcha")
+    }
+    return v;
+}
+
 // 注册
 if(document.getElementById("vue-core-sign-register")){
     const vcsr = {
@@ -16,6 +25,9 @@ if(document.getElementById("vue-core-sign-register")){
         },
         methods: {
             submit(){
+                if(getCaptchaInputValue()){
+                    this.captcha = getCaptchaInputValue()
+                }
                 axios.post("/register",{
                     _token:csrf_token,
                     username:this.username,
@@ -85,6 +97,9 @@ if(document.getElementById("vue-core-sign-login")){
         },
         methods:{
             submit(){
+                if(getCaptchaInputValue()){
+                    this.captcha = getCaptchaInputValue()
+                }
                 axios.post("/login",{
                     _token:csrf_token,
                     email:this.email,
@@ -148,6 +163,9 @@ if(document.getElementById("vue-core-sign-login-username")){
         },
         methods:{
             submit(){
+                if(getCaptchaInputValue()){
+                    this.captcha = getCaptchaInputValue()
+                }
                 axios.post("/login/username",{
                     _token:csrf_token,
                     username:this.username,
@@ -219,6 +237,9 @@ if(document.getElementById("vue-core-forgot-password")){
         },
         methods:{
             sendCode(){
+                if(getCaptchaInputValue()){
+                    this.captcha = getCaptchaInputValue()
+                }
                 axios.post("/forgot-password/sendCode",{
                     _token:csrf_token,
                     email:this.email,
@@ -358,3 +379,4 @@ if(document.getElementById("vue-core-forgot-password")){
 
     Vue.createApp(app).mount("#vue-core-forgot-password")
 }
+

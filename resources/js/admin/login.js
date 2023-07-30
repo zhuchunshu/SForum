@@ -1,6 +1,15 @@
 import axios from "axios"
 import swal from 'sweetalert';
 
+function getCaptchaInputValue(){
+    const inputs = document.querySelectorAll('input[isCaptchaInput]');
+    let v= inputs[0].value
+    if(!v){
+        v = localStorage.getItem("cf_captcha")
+    }
+    return v;
+}
+
 const form = {
     data() {
         return {
@@ -12,6 +21,9 @@ const form = {
     },
     methods: {
         submit(){
+            if(getCaptchaInputValue()){
+                this.captcha = getCaptchaInputValue()
+            }
             axios.post("/admin/login",{username:this.username,password:this.password,_token:csrf_token,captcha:this.captcha})
             .then(function(response){
                 var data = response.data

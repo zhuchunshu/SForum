@@ -56,7 +56,6 @@
         "wikimedia/composer-merge-plugin": "^2.0",
         "yansongda/pay": "~3.2.0",
         "zhuchunshu/hyperf-auth": "^2.2",
-        "zhuchunshu/hyperf-captcha": "^1.0",
         "zhuchunshu/hyperf-hashing": "^2.2"
     },
     "require-dev": {

@@ -26,15 +26,11 @@
                 </span></label>
                         <input type="email" v-model="email" class="form-control" placeholder="Enter email" required>
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-1">
                         <label for="" class="form-label">验证码</label>
-                        <div class="input-group">
-                            <input type="text" v-model="captcha" class="form-control" placeholder="captcha"
-                                   autocomplete="off" required>
-                            <span class="input-group-link">
-                        <img class="captcha" src="{{captcha()->inline()}}" alt="" onclick="this.src='/captcha?id='+Math.random()">
-                    </span>
-                        </div>
+                        <input type="hidden" isCaptchaInput v-model="captcha" class="form-control" placeholder="captcha" autocomplete="off"
+                               required>
+                        <div id="captcha-container"></div>
                     </div>
 
                     <div class="form-footer">
@@ -73,7 +69,6 @@
                         <input type="password" v-model="setPwd_cfpassword" class="form-control"
                                placeholder="Enter password" required>
                     </div>
-
 
                     <div class="form-footer">
                         <button type="submit" class="btn btn-primary w-100">确认修改</button>

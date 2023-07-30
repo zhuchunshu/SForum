@@ -3,6 +3,22 @@ import swal from "sweetalert";
 import iziToast from "izitoast";
 import copy from "copy-to-clipboard";
 
+window.onloadTurnstileCallback = function() {
+    if(document.getElementById("captcha-container")){
+        turnstile.render('#captcha-container', {
+            sitekey: captcha_cloudflare_turnstile_website_key,
+            theme: system_theme,
+            callback: function(token) {
+                console.log('Captcha token: ' + token)
+                const captchaInputs = document.querySelectorAll('input[isCaptchaInput]');
+                captchaInputs.forEach(input => {
+                    input.value = token;
+                    localStorage.setItem("cf_captcha",token)
+                });
+            },
+        });
+    }
+}
 
 if (document.getElementById("vue-header-right-my")) {
     const vhrm = {
@@ -238,14 +254,6 @@ $(function () {
         })
     })
 })
-
-// 点击按钮是自动刷新验证码
-$(function(){
-    $(":button").click(function(){
-        $('.captcha').attr('src','/captcha?id='+Math.random())
-    })
-})
-
 
 function GetQueryString(name) {
     const reg = eval("/" + name + "/g");

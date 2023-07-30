@@ -1,6 +1,14 @@
 import axios from "axios";
 import iziToast from "izitoast";
 import qs from "querystring";
+function getCaptchaInputValue(){
+    const inputs = document.querySelectorAll('input[isCaptchaInput]');
+    let v= inputs[0].value
+    if(!v){
+        v = localStorage.getItem("cf_captcha")
+    }
+    return v;
+}
 
 if (document.getElementById('user-order-show-paying')) {
     const app = {
@@ -78,11 +86,11 @@ if (document.getElementById("user-data-money-recharge")) {
                 btn_disabled: false
             }
         },
-        mounted() {
-
-        },
         methods: {
             submit() {
+                if(getCaptchaInputValue()){
+                    this.captcha = getCaptchaInputValue()
+                }
                 if (!this.payment) {
                     swal('Error', '请选择支付方式', 'error')
                     return;
@@ -153,6 +161,9 @@ if (document.getElementById('user-data-exchange')) {
         },
         methods: {
             submit() {
+                if(getCaptchaInputValue()){
+                    this.captcha = getCaptchaInputValue()
+                }
                 if(!this.captcha){
                     swal('Error','请输入验证码','error')
                     return ;
