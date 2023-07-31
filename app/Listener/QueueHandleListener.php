@@ -46,8 +46,8 @@ class QueueHandleListener implements ListenerInterface
     
     public function process(object $event): void
     {
-        if ($event instanceof Event && $event->message->job()) {
-            $job = $event->message->job();
+        if ($event instanceof Event && $event->getMessage()->job()) {
+            $job = $event->getMessage()->job();
             $jobClass = get_class($job);
             $date = date('Y-m-d H:i:s');
             switch (true) {
