@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -17,7 +17,7 @@ class Editor
      * @return bool|string
      * @throws \JsonException
      */
-    public static function plugins(): bool | string
+    public static function plugins() : bool|string
     {
         $data = [];
         foreach (Itf()->get('topic-edit-editor-plugins') as $value) {
@@ -29,12 +29,11 @@ class Editor
         $data = array_values($data);
         return json_encode($data, JSON_THROW_ON_ERROR);
     }
-
     /**
      * 获取编辑器外部插件.
      * @return false|string
      */
-    public static function externalPlugins(): bool | string
+    public static function externalPlugins() : bool|string
     {
         $data = [];
         foreach (Itf()->get('topic-edit-editor-external_plugins') as $value) {
@@ -45,12 +44,11 @@ class Editor
         $data = array_unique($data);
         return json_encode($data);
     }
-
     /**
      * 获取编辑器toolbar.
      * @return bool|string
      */
-    public static function toolbar(): bool | string
+    public static function toolbar() : bool|string
     {
         $data = [];
         foreach (Itf()->get('topic-edit-editor-toolbar') as $value) {
@@ -62,7 +60,6 @@ class Editor
         $data = implode(' ', $data);
         return trim($data);
     }
-
     /**
      * 获取编辑器menu(菜单).
      */
@@ -81,7 +78,6 @@ class Editor
         }
         return json_encode($result);
     }
-
     /**
      * 获取编辑器menubar.
      */

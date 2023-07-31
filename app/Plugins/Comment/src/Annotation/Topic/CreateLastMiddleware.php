@@ -4,7 +4,6 @@ namespace App\Plugins\Comment\src\Annotation\Topic;
 
 use Attribute;
 use Hyperf\Di\Annotation\AbstractAnnotation;
-
 /**
  * @Annotation
  * @Target({"CLASS"})
@@ -12,5 +11,4 @@ use Hyperf\Di\Annotation\AbstractAnnotation;
 #[Attribute(Attribute::TARGET_CLASS)]
 class CreateLastMiddleware extends AbstractAnnotation
 {
-
 }

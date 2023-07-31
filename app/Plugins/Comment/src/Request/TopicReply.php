@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -11,30 +11,21 @@ declare(strict_types=1);
 namespace App\Plugins\Comment\src\Request;
 
 use Hyperf\Validation\Request\FormRequest;
-
 class TopicReply extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
-    public function authorize(): bool
+    public function authorize() : bool
     {
         return true;
     }
-
-    public function rules(): array
+    public function rules() : array
     {
-        return [
-            'comment_id' => 'required|exists:topic_comment,id',
-            'content' => 'required|string',
-        ];
+        return ['comment_id' => 'required|exists:topic_comment,id', 'content' => 'required|string'];
     }
-
-    public function attributes(): array
+    public function attributes() : array
     {
-        return [
-            'comment_id' => '被回复的评论ID',
-            'content' => '回复内容',
-        ];
+        return ['comment_id' => '被回复的评论ID', 'content' => '回复内容'];
     }
 }

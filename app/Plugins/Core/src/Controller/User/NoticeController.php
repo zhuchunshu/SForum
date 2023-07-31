@@ -6,14 +6,13 @@ use App\Plugins\User\src\Middleware\LoginMiddleware;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
-
 #[Middleware(LoginMiddleware::class)]
-#[Controller(prefix:"/notice")]
+#[Controller(prefix: "/notice")]
 class NoticeController
 {
-	#[GetMapping(path:"")]
-	public function index()
-	{
-		return view("App::notice.index");
-	}
+    #[GetMapping("")]
+    public function index()
+    {
+        return view("App::notice.index");
+    }
 }

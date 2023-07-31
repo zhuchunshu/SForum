@@ -4,11 +4,12 @@ namespace App\Plugins\Core\src\Lib\Ui;
 
 class Html
 {
-    public function UserGroup($data){
+    public function UserGroup($data)
+    {
         $style = Core_Ui()->Css()->bg_color($data->color);
-        if($data->icon){
+        if ($data->icon) {
             $icon = $data->icon;
-        }else{
+        } else {
             $icon = <<<HTML
 <span>
 <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-users" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -20,11 +21,9 @@ class Html
 </svg>
 </span>
 HTML;
-
         }
         return <<<HTML
 <span class="badge" style="{$style}">{$icon}{$data->name}</span>
 HTML;
-
     }
 }

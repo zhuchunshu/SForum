@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -16,18 +16,17 @@ use App\Plugins\User\src\Models\UsersPm;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
-
 #[Controller(prefix: '/users/pm')]
 #[Middleware(LoginMiddleware::class)]
 class IndexController
 {
-    #[GetMapping(path: '{user_id}')]
+    #[GetMapping('{user_id}')]
     public function index($user_id)
     {
-        if (! Authority()->check('user_private_chat')) {
+        if (!Authority()->check('user_private_chat')) {
             return admin_abort('你所在的用户组无私聊权限');
         }
-        if (! User::query()->where('id', $user_id)->exists()) {
+        if (!User::query()->where('id', $user_id)->exists()) {
             return redirect()->back()->with('danger', '用户不存在')->go();
         }
         $user = User::query()->find($user_id);
@@ -39,7 +38,6 @@ class IndexController
         }
         $messagesCount = UsersPm::query()->where([['from_id', auth()->id()], ['to_id', $user_id]])->Orwhere([['to_id', auth()->id()], ['from_id', $user_id]])->count();
         $messages = UsersPm::query()->where([['from_id', auth()->id()], ['to_id', $user_id]])->Orwhere([['to_id', auth()->id()], ['from_id', $user_id]])->with('from_user', 'to_user')->get();
-
         $contacts = [];
         foreach (UsersPm::query()->where(['from_id' => auth()->id()])->orWhere('to_id', auth()->id())->orderBy('created_at', 'desc')->get() as $pms) {
             if ((int) $pms->from_id !== auth()->id()) {

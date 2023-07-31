@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * CodeFec - Hyperf
  *
@@ -21,44 +21,35 @@ use Hyperf\Event\Contract\ListenerInterface;
 use Hyperf\ExceptionHandler\Formatter\FormatterInterface;
 use Hyperf\Logger\LoggerFactory;
 
-/**
- * @Listener
- */
+#[Listener]
 class QueueHandleListener implements ListenerInterface
 {
     /**
      * @var \Psr\Log\LoggerInterface
      */
     protected $logger;
-
     /**
      * @var FormatterInterface
      */
     protected $formatter;
-
+    
     public function __construct(LoggerFactory $loggerFactory, FormatterInterface $formatter)
     {
         $this->logger = $loggerFactory->get('queue');
         $this->formatter = $formatter;
     }
-
-    public function listen(): array
+    
+    public function listen() : array
     {
-        return [
-            AfterHandle::class,
-            BeforeHandle::class,
-            FailedHandle::class,
-            RetryHandle::class,
-        ];
+        return [AfterHandle::class, BeforeHandle::class, FailedHandle::class, RetryHandle::class];
     }
-
-    public function process(object $event)
+    
+    public function process(object $event): void
     {
         if ($event instanceof Event && $event->message->job()) {
             $job = $event->message->job();
             $jobClass = get_class($job);
             $date = date('Y-m-d H:i:s');
-
             switch (true) {
                 case $event instanceof BeforeHandle:
                     $this->logger->info(sprintf('[%s] Processing %s.', $date, $jobClass));

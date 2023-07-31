@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -16,7 +16,6 @@ use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\User\src\Models\User;
 use Carbon\Carbon;
 use Hyperf\Database\Model\SoftDeletes;
-
 /**
  * @property int $id
  * @property string $content
@@ -33,50 +32,44 @@ class Post extends Model
      *
      * @var string
      */
-    protected $table = 'posts';
-
+    protected ?string $table = 'posts';
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = ['id', 'user_id', 'comment_id', 'topic_id', 'content', 'user_agent', 'user_ip', 'created_at', 'updated_at'];
-
+    protected array $fillable = ['id', 'user_id', 'comment_id', 'topic_id', 'content', 'user_agent', 'user_ip', 'created_at', 'updated_at'];
     /**
      * The attributes that should be cast to native types.
      *
      * @var array
      */
-    protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
-
+    protected array $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
     /**
      * 获取作者信息.
      */
-    public function user(): \Hyperf\Database\Model\Relations\BelongsTo
+    public function user() : \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
-
     /**
      * 获取所属帖子信息.
      */
-    public function topic(): \Hyperf\Database\Model\Relations\BelongsTo
+    public function topic() : \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(Topic::class, 'topic_id', 'id');
     }
-
     /**
      * 获取所属评论信息.
      */
-    public function comments(): \Hyperf\Database\Model\Relations\BelongsTo
+    public function comments() : \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(TopicComment::class, 'comment_id', 'id');
     }
-
     /*
      * 获取options信息
      */
-    public function options(): \Hyperf\Database\Model\Relations\HasOne
+    public function options() : \Hyperf\Database\Model\Relations\HasOne
     {
         return $this->hasOne(PostsOption::class, 'post_id');
     }

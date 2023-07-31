@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -13,7 +13,6 @@ namespace App\Plugins\User\src\Service\Extend\UserManagement\Handler;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UsersOption;
 use App\Plugins\User\src\Service\interfaces\UMHandlerInterface;
-
 class OptionsHandler implements UMHandlerInterface
 {
     public function handler(array $data, \Closure $next)

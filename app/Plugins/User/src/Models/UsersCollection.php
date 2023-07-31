@@ -5,7 +5,6 @@ namespace App\Plugins\User\src\Models;
 
 use App\Model\Model;
 use Carbon\Carbon;
-
 /**
  * @property int $id 
  * @property string $title 
@@ -22,17 +21,17 @@ class UsersCollection extends Model
      *
      * @var string
      */
-    protected $table = 'users_collections';
+    protected ?string $table = 'users_collections';
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = ['id','user_id','created_at','updated_at','type','type_id'];
+    protected array $fillable = ['id', 'user_id', 'created_at', 'updated_at', 'type', 'type_id'];
     /**
      * The attributes that should be cast to native types.
      *
      * @var array
      */
-    protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
+    protected array $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
 }

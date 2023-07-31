@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -20,10 +20,6 @@ use Hyperf\Database\Schema\Schema;
 use Hyperf\DbConnection\Db;
 use Psr\Container\ContainerInterface;
 use Swoole\Coroutine\System;
-
-/**
- * @Command
- */
 #[Command]
 class V2_0 extends HyperfCommand
 {
@@ -31,20 +27,16 @@ class V2_0 extends HyperfCommand
      * @var ContainerInterface
      */
     protected $container;
-
     public function __construct(ContainerInterface $container)
     {
         $this->container = $container;
-
         parent::__construct('update:2_0');
     }
-
     public function configure()
     {
         parent::configure();
         $this->setDescription('SForum 2.0 升级迁移命令');
     }
-
     public function handle()
     {
         if (file_exists(BASE_PATH . '/app/CodeFec/storage/update/2_0.lock')) {
@@ -59,7 +51,6 @@ class V2_0 extends HyperfCommand
             $this->error('退出迁移');
             exit;
         }
-
         $this->info('开始迁移topic表');
         $this->topic();
         $this->info('开始迁移topic_comment表');
@@ -70,48 +61,28 @@ class V2_0 extends HyperfCommand
             $this->clean_database();
             $this->info('清理完毕');
         }
-
-        if (! is_dir(BASE_PATH . '/app/CodeFec/storage/update')) {
+        if (!is_dir(BASE_PATH . '/app/CodeFec/storage/update')) {
             System::exec('mkdir -p ' . BASE_PATH . '/app/CodeFec/storage/update');
         }
         file_put_contents(BASE_PATH . '/app/CodeFec/storage/update/2_0.lock', time());
         $this->info('Successfully!');
     }
-
     private function topic()
     {
         $topics = DB::table('topic')->where('post_id', '=', null)->get(['id', 'content', 'user_agent', 'user_ip', 'user_id', 'created_at', 'updated_at']);
         foreach ($topics as $data) {
-            $post = Post::query()->create([
-                'topic_id' => $data->id,
-                'user_id' => $data->user_id,
-                'content' => $data->content,
-                'user_agent' => $data->user_agent,
-                'user_ip' => $data->user_ip,
-                'created_at' => $data->created_at,
-                'updated_at' => $data->updated_at,
-            ]);
+            $post = Post::query()->create(['topic_id' => $data->id, 'user_id' => $data->user_id, 'content' => $data->content, 'user_agent' => $data->user_agent, 'user_ip' => $data->user_ip, 'created_at' => $data->created_at, 'updated_at' => $data->updated_at]);
             Topic::query()->where('id', $data->id)->update(['post_id' => $post['id']]);
         }
     }
-
     private function topic_comment()
     {
         $comments = Db::table('topic_comment')->where('post_id', '=', null)->get(['id', 'user_id', 'content', 'user_agent', 'user_ip', 'created_at', 'updated_at']);
         foreach ($comments as $data) {
-            $post = Post::query()->create([
-                'comment_id' => $data->id,
-                'user_id' => $data->user_id,
-                'content' => $data->content,
-                'user_agent' => $data->user_agent,
-                'user_ip' => $data->user_ip,
-                'created_at' => $data->created_at,
-                'updated_at' => $data->updated_at,
-            ]);
+            $post = Post::query()->create(['comment_id' => $data->id, 'user_id' => $data->user_id, 'content' => $data->content, 'user_agent' => $data->user_agent, 'user_ip' => $data->user_ip, 'created_at' => $data->created_at, 'updated_at' => $data->updated_at]);
             TopicComment::query()->where('id', $data->id)->update(['post_id' => $post['id']]);
         }
     }
-
     private function clean_database()
     {
         $this->info('清理topic表');

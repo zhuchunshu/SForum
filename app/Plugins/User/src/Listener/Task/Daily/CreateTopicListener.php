@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -14,25 +14,21 @@ use App\Plugins\User\src\Event\Task\Daily\CreateTopic;
 use App\Plugins\User\src\Models\UsersAward;
 use Hyperf\Event\Annotation\Listener;
 use Hyperf\Event\Contract\ListenerInterface;
-
 #[Listener]
 class CreateTopicListener implements ListenerInterface
 {
-    public function listen(): array
+    public function listen() : array
     {
-        return [
-            CreateTopic::class,
-        ];
+        return [CreateTopic::class];
     }
-
-    public function process(object $event)
+    public function process(object $event): void
     {
         $user = auth()->data();
         // 判断是否开启了发帖奖励功能
         if (get_hook_credit_options('create_topic_check', 'true') !== 'true') {
             return;
         }
-        go(function () use ($user) {
+        go(function () use($user) {
             // 判断是否开启了发帖随机积分奖励
             if (get_hook_credit_options('credit_create_topic_checkbox', 'true') === 'true') {
                 // 开启了发帖随机积分奖励
@@ -76,10 +72,7 @@ class CreateTopicListener implements ListenerInterface
                 create_amount_record($user->id, get_user_assets_gold($user->id), get_user_assets_gold($user->id) + $golds_create_topic_fix, 'golds', $golds_create_topic_fix, null, '发帖固定奖励');
             }
             // 写奖励记录
-            UsersAward::create([
-                'user_id' => $user->id,
-                'name' => 'create_topic',
-            ]);
+            UsersAward::create(['user_id' => $user->id, 'name' => 'create_topic']);
         });
     }
 }

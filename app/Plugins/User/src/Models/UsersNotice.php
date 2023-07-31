@@ -8,7 +8,6 @@ use Carbon\Carbon;
 use Hyperf\Database\Model\Events\Saved;
 use Hyperf\Database\Model\SoftDeletes;
 use Psr\Log\LoggerInterface;
-
 /**
  * @property int $id 
  * @property string $user_id 
@@ -26,19 +25,17 @@ class UsersNotice extends Model
      *
      * @var string
      */
-    protected $table = 'users_notice';
+    protected ?string $table = 'users_notice';
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = ['user_id', 'title', 'content', 'action','created_at', 'updated_at','status','sort'];
+    protected array $fillable = ['user_id', 'title', 'content', 'action', 'created_at', 'updated_at', 'status', 'sort'];
     /**
      * The attributes that should be cast to native types.
      *
      * @var array
      */
-    protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
-
-
+    protected array $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
 }

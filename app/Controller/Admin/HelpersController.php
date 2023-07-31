@@ -21,7 +21,7 @@ use Hyperf\HttpServer\Annotation\Middleware;
 #[Middleware(LoginMiddleware::class)]
 class HelpersController
 {
-    #[GetMapping(path: 'clear_sessions')]
+    #[GetMapping('clear_sessions')]
     public function clear_sessions(): \Psr\Http\Message\ResponseInterface
     {
         session()->clear();

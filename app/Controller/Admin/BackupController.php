@@ -24,7 +24,7 @@ use Symfony\Component\Finder\Finder;
 #[Controller(prefix: '/admin/server/backup')]
 class BackupController
 {
-    #[GetMapping(path: '')]
+    #[GetMapping('')]
     public function index()
     {
         if (! is_dir(BASE_PATH . '/runtime/backup')) {
@@ -33,7 +33,7 @@ class BackupController
         return view('admin.server.backup', ['page' => $this->page()]);
     }
 
-    #[GetMapping(path: 'download')]
+    #[GetMapping('download')]
     public function download()
     {
         $path = request()->input('path', BASE_PATH . '/runtime/backup/backup.zip');
@@ -43,7 +43,7 @@ class BackupController
         return response()->download($path);
     }
 
-    #[GetMapping(path: 'delete')]
+    #[GetMapping('delete')]
     public function delete()
     {
         $filename = request()->input('filename', );
@@ -60,7 +60,7 @@ class BackupController
         return redirect()->back()->with('success', '删除任务已创建')->go();
     }
 
-    #[GetMapping(path: 'create')]
+    #[GetMapping('create')]
     public function create()
     {
         go(function () {

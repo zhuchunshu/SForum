@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -17,10 +17,6 @@ use Hyperf\Database\Schema\Schema;
 use Hyperf\DB\DB;
 use Hyperf\Utils\ApplicationContext;
 use Psr\Container\ContainerInterface;
-
-/**
- * @Command
- */
 #[Command]
 class UserOptionMigrate extends HyperfCommand
 {
@@ -28,20 +24,16 @@ class UserOptionMigrate extends HyperfCommand
      * @var ContainerInterface
      */
     protected $container;
-
     public function __construct(ContainerInterface $container)
     {
         $this->container = $container;
-
         parent::__construct('plugin:userOptionsMigrate');
     }
-
     public function configure()
     {
         parent::configure();
         $this->setDescription('Hyperf Demo Command');
     }
-
     public function handle()
     {
         $this->comment("\n转换用户财富数据为整型\n数值不会精确到小数点，所以用户财富中的小数点会被抹去");
@@ -60,18 +52,12 @@ class UserOptionMigrate extends HyperfCommand
             $money = intval(trim((string) $item->money) ?: 0);
             // 经验
             $exp = intval(trim((string) $item->exp) ?: 0);
-            $u = UsersOption::where('id', $item->id)->update([
-                'credits' => $credits,
-                'golds' => $golds,
-                'money' => $money,
-                'exp' => $exp,
-            ]);
+            $u = UsersOption::where('id', $item->id)->update(['credits' => $credits, 'golds' => $golds, 'money' => $money, 'exp' => $exp]);
             if ($u) {
                 $this->info('ID:' . $item->id . '数据转换成功');
             }
         }
         // 修改数据库字段
-
         // 余额
         if (Schema::getColumnType('users_options', 'money') !== 'integer') {
             $db->query('ALTER TABLE users_options MODIFY money INT;');

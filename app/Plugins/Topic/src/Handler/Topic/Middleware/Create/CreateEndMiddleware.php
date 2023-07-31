@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -11,7 +11,6 @@ declare(strict_types=1);
 namespace App\Plugins\Topic\src\Handler\Topic\Middleware\Create;
 
 use App\Plugins\Topic\src\Handler\Topic\Middleware\MiddlewareInterface;
-
 class CreateEndMiddleware implements MiddlewareInterface
 {
     public function handler($data, \Closure $next)

@@ -12,7 +12,7 @@ namespace App\CodeFec\View;
 
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\HttpMessage\Stream\SwooleStream;
-use Hyperf\Utils\Context;
+use Hyperf\Context\Context;
 use Hyperf\View\Engine\EngineInterface;
 use Hyperf\View\Engine\NoneEngine;
 use Hyperf\View\Exception\EngineNotFindException;

@@ -1,20 +1,16 @@
 <?php
 
-
 namespace App\Plugins\Core\src\Lib\ShortCodeR;
-
 
 use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Topic\src\Models\Topic;
 use Hyperf\Utils\Str;
 use Thunder\Shortcode\Shortcode\ShortcodeInterface;
-
 class Defaults
 {
-
-  public function alert_success($match,ShortcodeInterface $s)
-  {
-    return <<<HTML
+    public function alert_success($match, ShortcodeInterface $s)
+    {
+        return <<<HTML
 <div class="alert alert-important alert-success alert-dismissible">
   <div class="d-flex">
     <div class="shortcode-alert-icon">
@@ -39,11 +35,10 @@ class Defaults
   </div>
 </div>
 HTML;
-  }
-
-  public function alert_error($match,ShortcodeInterface $s)
-  {
-    return <<<HTML
+    }
+    public function alert_error($match, ShortcodeInterface $s)
+    {
+        return <<<HTML
 <div class="alert alert-important alert-danger alert-dismissible">
   <div class="d-flex">
     <div class="shortcode-alert-icon">
@@ -55,11 +50,10 @@ HTML;
 </div>
 
 HTML;
-  }
-
-  public function alert_info($match,ShortcodeInterface $s)
-  {
-    return <<<HTML
+    }
+    public function alert_info($match, ShortcodeInterface $s)
+    {
+        return <<<HTML
 <div class="alert alert-important alert-info alert-dismissible">
   <div class="d-flex">
     <div class="shortcode-alert-icon">
@@ -86,12 +80,10 @@ HTML;
 </div>
 
 HTML;
-  }
-
-  public function alert_warning($match,ShortcodeInterface $s)
-  {
-	  
-    return <<<HTML
+    }
+    public function alert_warning($match, ShortcodeInterface $s)
+    {
+        return <<<HTML
 <div class="alert alert-important alert-warning alert-dismissible">
   <div class="d-flex">
     <div class="shortcode-alert-icon">
@@ -102,14 +94,14 @@ HTML;
 </div>
 
 HTML;
-  }
-  public function topic($match,ShortcodeInterface $s){
-	  
-      $topic_id = $s->getParameter('topic_id');
-      if(!Topic::query()->where("id",$topic_id)->exists()) {
-	      return '['.$s->getName().'] '.__("app.Error using short tags");
-      }
-      return <<<HTML
+    }
+    public function topic($match, ShortcodeInterface $s)
+    {
+        $topic_id = $s->getParameter('topic_id');
+        if (!Topic::query()->where("id", $topic_id)->exists()) {
+            return '[' . $s->getName() . '] ' . __("app.Error using short tags");
+        }
+        return <<<HTML
 <div class="card border-1 hvr-grow row topic-with" core-data="topic" topic-id="{$topic_id}">
     <div class="col" core-data="topic_content">
         <div class="skeleton-line"></div>
@@ -122,52 +114,47 @@ HTML;
     </div>
 </div>
 HTML;
-
-  }
-
-  public function chart($match,ShortcodeInterface $s){
-      $data = strip_tags($s->getContent());
-      $id = "chart-".Str::random();
-      return <<<HTML
+    }
+    public function chart($match, ShortcodeInterface $s)
+    {
+        $data = strip_tags($s->getContent());
+        $id = "chart-" . Str::random();
+        return <<<HTML
 <div style="padding: 1rem 1rem;">
     <div id="{$id}"></div>
 </div>
 <script>
       // @formatter:off
       document.addEventListener("DOMContentLoaded", function () {
-      	window.ApexCharts && (new ApexCharts(document.getElementById('$id'), {$data})).render();
+      \twindow.ApexCharts && (new ApexCharts(document.getElementById('{$id}'), {$data})).render();
       });
       // @formatter:on
    </script>
 HTML;
-
-  }
-
-  public function button($match,ShortcodeInterface $s)
-  {
-	  
-      return <<<HTML
-    <a href="{$s->getParameter('url','/')}" class="btn {$s->getParameter('class','btn-light')}">{$s->getContent()}</a>
+    }
+    public function button($match, ShortcodeInterface $s)
+    {
+        return <<<HTML
+    <a href="{$s->getParameter('url', '/')}" class="btn {$s->getParameter('class', 'btn-light')}">{$s->getContent()}</a>
 HTML;
-  }
-
-  public function file($match,ShortcodeInterface $s){
-      $name = $s->getParameter('name');
-      $url = $s->getParameter('url');
-      $pwd = $s->getParameter('password');
-      $unzip = $s->getParameter('unzip');
-      $pwd?:$pwd="无";
-      $unzip?:$unzip="无";
-      if(!@$name || !@$url){
-          return <<<HTML
+    }
+    public function file($match, ShortcodeInterface $s)
+    {
+        $name = $s->getParameter('name');
+        $url = $s->getParameter('url');
+        $pwd = $s->getParameter('password');
+        $unzip = $s->getParameter('unzip');
+        $pwd ?: ($pwd = "无");
+        $unzip ?: ($unzip = "无");
+        if (!@$name || !@$url) {
+            return <<<HTML
 <div class="alert alert-danger" role="alert">
   <b class="alert-title">附件加载失败&hellip;</b>
   <div class="text-muted">您创建的附件因参数不足，所以无法加载</div>
 </div>
 HTML;
-
-      }
-      return <<<HTML
+        }
+        return <<<HTML
 <div class="alert alert-success alert-dismissible" role="alert">
   <b class="mb-1"><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-cloud-download" width="30" height="30" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
@@ -186,7 +173,5 @@ HTML;
   </div>
 </div>
 HTML;
-
-  }
-  
+    }
 }

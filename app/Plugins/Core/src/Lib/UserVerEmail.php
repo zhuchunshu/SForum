@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -11,7 +11,6 @@ declare(strict_types=1);
 namespace App\Plugins\Core\src\Lib;
 
 use App\Plugins\User\src\Models\User;
-
 class UserVerEmail
 {
     public function make()
@@ -21,21 +20,19 @@ class UserVerEmail
         cache()->set('core.user.ver.email.time.' . $id, time() + 60);
         return cache()->get('core.user.ver.email.' . $id);
     }
-
-    public function check($captcha): bool
+    public function check($captcha) : bool
     {
         $id = auth()->data()->id;
-        if (! cache()->has('core.user.ver.email.' . $id)) {
+        if (!cache()->has('core.user.ver.email.' . $id)) {
             return false;
         }
         $data = cache()->get('core.user.ver.email.' . $id);
-        return (int)$captcha === $data;
+        return (int) $captcha === $data;
     }
-
-    public function ifsend(): bool
+    public function ifsend() : bool
     {
         $id = auth()->id();
-        if (! cache()->has('core.user.ver.email.time.' . $id)) {
+        if (!cache()->has('core.user.ver.email.time.' . $id)) {
             return true;
         }
         if (cache()->get('core.user.ver.email.time.' . $id, 0) - time() <= 0) {
@@ -43,20 +40,18 @@ class UserVerEmail
         }
         return false;
     }
-
-    public function sendTime(): int
+    public function sendTime() : int
     {
         $id = auth()->id();
         return cache()->get('core.user.ver.email.time.' . $id, 0) - time();
     }
-
     public function send($id)
     {
         $data = User::find($id);
         $username = $data->username;
         $email = $data->email;
         $captcha = $this->make();
-        go(function () use ($email, $captcha, $username) {
+        go(function () use($email, $captcha, $username) {
             $body = <<<HTML
 你好 {$username},<br>
 你的邮箱验证码是:{$captcha}

@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -15,11 +15,10 @@ use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UsersNotice;
 use Hyperf\Utils\Str;
 use Psr\Http\Message\ResponseInterface;
-
 class UserNotice
 {
     // 检查用户是否愿意接受通知
-    public function check($user_id): bool
+    public function check($user_id) : bool
     {
         $user_noticed = (string) get_user_settings($user_id, 'noticed', '0');
         if (get_options('user_email_noticed_on') === 'true' && $user_noticed === '1') {
@@ -30,7 +29,6 @@ class UserNotice
         }
         return false;
     }
-
     /**
      * 发送通知.
      * @param mixed $user_id
@@ -38,60 +36,36 @@ class UserNotice
      * @param mixed $content
      * @param null|mixed $action
      */
-    public function send($user_id, $title, $content, $action = null, bool $sendMail = true, ?string $sort = null): void
+    public function send($user_id, $title, $content, $action = null, bool $sendMail = true, ?string $sort = null) : void
     {
         if (UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->exists()) {
-            UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->take(1)->update([
-                'status' => 'publish',
-                'created_at' => date('Y-m-d H:i:s'),
-                'sort' => $sort,
-            ]);
+            UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->take(1)->update(['status' => 'publish', 'created_at' => date('Y-m-d H:i:s'), 'sort' => $sort]);
         } else {
-            UsersNotice::query()->create([
-                'user_id' => $user_id,
-                'title' => $title,
-                'content' => $content,
-                'action' => $action,
-                'sort' => $sort,
-                'status' => 'publish',
-            ]);
+            UsersNotice::query()->create(['user_id' => $user_id, 'title' => $title, 'content' => $content, 'action' => $action, 'sort' => $sort, 'status' => 'publish']);
             if ($sendMail === true) {
                 $this->sendMail($user_id, $title, $action, $content);
             }
         }
     }
-
     /**
      * 给多个用户发送通知.
      * @param mixed $title
      * @param mixed $content
      * @param null|mixed $action
      */
-    public function sends(array $user_ids, $title, $content, $action = null, bool $sendMail = true, ?string $sort = null): void
+    public function sends(array $user_ids, $title, $content, $action = null, bool $sendMail = true, ?string $sort = null) : void
     {
         foreach ($user_ids as $user_id) {
             if (UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->exists()) {
-                UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->take(1)->update([
-                    'status' => 'publish',
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'sort' => $sort,
-                ]);
+                UsersNotice::query()->where(['user_id' => $user_id, 'content' => $content])->take(1)->update(['status' => 'publish', 'created_at' => date('Y-m-d H:i:s'), 'sort' => $sort]);
             } else {
-                UsersNotice::query()->create([
-                    'user_id' => $user_id,
-                    'title' => $title,
-                    'content' => $content,
-                    'action' => $action,
-                    'sort' => $sort,
-                    'status' => 'publish',
-                ]);
+                UsersNotice::query()->create(['user_id' => $user_id, 'title' => $title, 'content' => $content, 'action' => $action, 'sort' => $sort, 'status' => 'publish']);
                 if ($sendMail === true) {
                     $this->sendMail($user_id, $title, $action, $content);
                 }
             }
         }
     }
-
     /**
      * 发送邮件通知.
      * @param mixed $user_id
@@ -99,7 +73,7 @@ class UserNotice
      * @param mixed $action
      * @param null|mixed $content
      */
-    private function sendMail($user_id, $title, $action = null, $content = null): void
+    private function sendMail($user_id, $title, $action = null, $content = null) : void
     {
         // 获取收件人邮箱
         $email = User::query()->where('id', $user_id)->first()->email;
@@ -116,19 +90,18 @@ class UserNotice
             EventDispatcher()->dispatch(new SendMail($user_id, $title, $action));
         }
     }
-
     // 获取发信内容
-    private function get_mail_content($title, $content = null, $action = null): string
+    private function get_mail_content($title, $content = null, $action = null) : string
     {
         if ($content instanceof ResponseInterface) {
             $content = $content->getBody()->getContents();
         }
         $allowed_tags = '<p><a><div><img>';
         $content = strip_tags($content, $allowed_tags);
-        if (! $action) {
+        if (!$action) {
             $action = url();
         }
-        if (! Str::is('http*', $action)) {
+        if (!Str::is('http*', $action)) {
             $url = url($action);
         } else {
             $url = $action;

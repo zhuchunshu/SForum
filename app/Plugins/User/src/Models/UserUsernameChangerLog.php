@@ -5,7 +5,6 @@ namespace App\Plugins\User\src\Models;
 
 use App\Model\Model;
 use Carbon\Carbon;
-
 /**
  * @property int $id 
  * @property string $user_id 
@@ -21,17 +20,17 @@ class UserUsernameChangerLog extends Model
      *
      * @var string
      */
-    protected $table = 'user_username_changer_log';
+    protected ?string $table = 'user_username_changer_log';
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = ['id','user_id','old','new','created_at','updated_at'];
+    protected array $fillable = ['id', 'user_id', 'old', 'new', 'created_at', 'updated_at'];
     /**
      * The attributes that should be cast to native types.
      *
      * @var array
      */
-    protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
+    protected array $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
 }

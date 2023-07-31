@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -14,7 +14,6 @@ namespace App\Plugins\Core\src\Service;
 use App\Plugins\Core\src\Annotation\FileStoreAnnotation;
 use App\Plugins\Core\src\Handler\FileStoreInterface;
 use Hyperf\Di\Annotation\AnnotationCollector;
-
 class FileStoreService
 {
     // 获取所有储存服务
@@ -23,17 +22,11 @@ class FileStoreService
         $services = [];
         foreach (AnnotationCollector::getClassesByAnnotation(FileStoreAnnotation::class) as $key => $value) {
             if (new $key() instanceof FileStoreInterface) {
-                $services[md5($key)] = [
-                    'name' => (new $key())->name(),
-                    'handler' => (new $key())->handler(),
-                    'view' => (new $key())->view(),
-                    'class' => $key,
-                ];
+                $services[md5($key)] = ['name' => (new $key())->name(), 'handler' => (new $key())->handler(), 'view' => (new $key())->view(), 'class' => $key];
             }
         }
         return $services;
     }
-
     // 获取所有储存服务
     public function get_handlers()
     {
@@ -45,7 +38,6 @@ class FileStoreService
         }
         return $handlers;
     }
-
     /**
      * 保存文件.
      * @param $file
@@ -54,14 +46,12 @@ class FileStoreService
      * @param mixed $move
      * @param null|mixed $path
      */
-    public function save($file, $folder, $file_prefix = null, $move = false, $path = null): array
+    public function save($file, $folder, $file_prefix = null, $move = false, $path = null) : array
     {
         $file_store_service = get_options('file_store_service', 'b53a68eae9ecac0d86eb8d1125524b13');
-
-        if (! arr_has($this->get_services(), $file_store_service)) {
+        if (!arr_has($this->get_services(), $file_store_service)) {
             $file_store_service = key($this->get_services());
         }
-
         // 判断存储服务是否存在
         if ($file_store_service || arr_has($this->get_services(), $file_store_service)) {
             $services = $this->get_services();
@@ -75,13 +65,8 @@ class FileStoreService
         }
         return $this->response();
     }
-
     public function response($success = false, $file_path = null, $file_url = null)
     {
-        return [
-            'path' => $file_path,
-            'url' => $file_url,
-            'success' => $success,
-        ];
+        return ['path' => $file_path, 'url' => $file_url, 'success' => $success];
     }
 }

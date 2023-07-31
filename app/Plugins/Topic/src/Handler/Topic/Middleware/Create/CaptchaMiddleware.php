@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -11,16 +11,15 @@ declare(strict_types=1);
 namespace App\Plugins\Topic\src\Handler\Topic\Middleware\Create;
 
 use App\Plugins\Topic\src\Handler\Topic\Middleware\MiddlewareInterface;
-
 #[\App\Plugins\Topic\src\Annotation\Topic\CreateFirstMiddleware]
 class CaptchaMiddleware implements MiddlewareInterface
 {
     public function handler($data, \Closure $next)
     {
-//        if (! captcha()->check(request()->input('captcha'))) {
-//            unset($data['basis']['content']);
-//            return redirect()->with('danger', '验证码错误')->url('topic/create?' . http_build_query($data))->go();
-//        }
+        //        if (! captcha()->check(request()->input('captcha'))) {
+        //            unset($data['basis']['content']);
+        //            return redirect()->with('danger', '验证码错误')->url('topic/create?' . http_build_query($data))->go();
+        //        }
         return $next($data);
     }
 }

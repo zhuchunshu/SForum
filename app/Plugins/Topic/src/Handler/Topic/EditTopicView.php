@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -12,13 +12,12 @@ namespace App\Plugins\Topic\src\Handler\Topic;
 
 class EditTopicView
 {
-    public function handler($data): \Psr\Http\Message\ResponseInterface
+    public function handler($data) : \Psr\Http\Message\ResponseInterface
     {
         return view('Topic::edit', ['right' => $this->right(), 'data' => $data]);
     }
-
     // 右侧侧栏
-    public function right(): array
+    public function right() : array
     {
         //Itf()->add("Topic_create_right",2,"Topic::create.right-summary");
         return Itf()->get('Topic_create_right');

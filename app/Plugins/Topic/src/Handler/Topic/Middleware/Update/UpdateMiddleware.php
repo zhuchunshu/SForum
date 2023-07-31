@@ -23,44 +23,26 @@ use Hyperf\Validation\Contract\ValidatorFactoryInterface;
 #[\App\Plugins\Topic\src\Annotation\Topic\UpdateMiddleware]
 class UpdateMiddleware implements MiddlewareInterface
 {
-    /**
-     * @Inject
-     */
+    #[Inject]
     protected ValidatorFactoryInterface $validationFactory;
 
     public function handler($data, \Closure $next)
     {
-        $validator = $this->validationFactory->make(
-            $data['basis'],
-            [
-                'topic_id' => 'required|exists:topic,id',
-                'content' => 'required|string|min:' . get_options('topic_create_content_min', 10),
-                'title' => 'required|string|min:' . get_options('topic_create_title_min', 1) . '|max:' . get_options('topic_create_title_max', 200),
-                'tag' => 'required|exists:topic_tag,id',
-            ],
-            [],
-            [
-                'topic_id' => '帖子id',
-                'content' => '正文内容',
-                'title' => '标题',
-                'tag' => '标签id',
-            ]
-        );
-
+        $validator = $this->validationFactory->make($data['basis'], ['topic_id' => 'required|exists:topic,id', 'content' => 'required|string|min:' . get_options('topic_create_content_min', 10), 'title' => 'required|string|min:' . get_options('topic_create_title_min', 1) . '|max:' . get_options('topic_create_title_max', 200), 'tag' => 'required|exists:topic_tag,id'], [], ['topic_id' => '帖子id', 'content' => '正文内容', 'title' => '标题', 'tag' => '标签id']);
         if ($validator->fails()) {
             return redirect()->with('danger', $validator->errors()->first())->back()->go();
         }
         $data['topic_id'] = $data['basis']['topic_id'];
         $topic = Topic::query()->find($data['topic_id']);
         $quanxian = false;
-        if(Authority()->check("admin_topic_edit") && auth()->Class()['permission-value']>curd()->GetUserClass($topic->user->class_id)['permission-value']){
+        if (Authority()->check('admin_topic_edit') && auth()->Class()['permission-value'] > curd()->GetUserClass($topic->user->class_id)['permission-value']) {
             $quanxian = true;
         }
-        if(Authority()->check("topic_edit") && auth()->id() === (int)$topic->user->id){
+        if (Authority()->check('topic_edit') && auth()->id() === (int) $topic->user->id) {
             $quanxian = true;
         }
-        if($quanxian===false){
-            return redirect()->back()->with('danger','无权修改!')->go();
+        if ($quanxian === false) {
+            return redirect()->back()->with('danger', '无权修改!')->go();
         }
         $data = $this->update($data);
         return $next($data);
@@ -77,32 +59,20 @@ class UpdateMiddleware implements MiddlewareInterface
         // 帖子html内容
         $content = $data['basis']['content'];
         $content = xss()->clean($content);
-
         // 解析标签
         $_content = $content;
         $content = $this->tag($content);
         // 解析艾特
         $content = $this->at($content);
-
         $post_id = Topic::query()->find($topic_id)->post_id;
-        Post::query()->where('id', $post_id)->update([
-            'content' => $content,
-        ]);
-        Topic::query()->where('id', $topic_id)->update([
-            'title' => $title,
-            'tag_id' => $tag,
-        ]);
+        Post::query()->where('id', $post_id)->update(['content' => $content]);
+        Topic::query()->where('id', $topic_id)->update(['title' => $title, 'tag_id' => $tag]);
         $topic = Topic::query()->where('id', $topic_id)->first();
-        TopicUpdated::create([
-            'topic_id' => $topic_id,
-            'user_id' => auth()->id(),
-            'user_ip' => get_client_ip(),
-            'user_agent' => get_user_agent(),
-        ]);
+        TopicUpdated::create(['topic_id' => $topic_id, 'user_id' => auth()->id(), 'user_ip' => get_client_ip(), 'user_agent' => get_user_agent()]);
         $this->topic_keywords($topic, $_content);
         // 不at
-//        $topic_data = Topic::query()->find($topic_id);
-//        $this->at_user($topic_data, $_content);
+        //        $topic_data = Topic::query()->find($topic_id);
+        //        $this->at_user($topic_data, $_content);
         cache()->delete('topic.data.' . $topic_id);
         $data['topic_id'] = $topic_id;
         $data['post_id'] = $post_id;
@@ -123,18 +93,11 @@ class UpdateMiddleware implements MiddlewareInterface
     {
         foreach (get_all_keywords($html) as $tag) {
             if (! TopicKeyword::query()->where('name', $tag)->exists()) {
-                TopicKeyword::query()->create([
-                    'name' => $tag,
-                    'user_id' => auth()->id(),
-                ]);
+                TopicKeyword::query()->create(['name' => $tag, 'user_id' => auth()->id()]);
             }
             $tk = TopicKeyword::query()->where('name', $tag)->first();
             if (! TopicKeywordsWith::query()->where(['topic_id' => $data->id, 'with_id' => $tk->id])->exists()) {
-                TopicKeywordsWith::query()->create([
-                    'topic_id' => $data->id,
-                    'with_id' => $tk->id,
-                    'user_id' => auth()->id(),
-                ]);
+                TopicKeywordsWith::query()->create(['topic_id' => $data->id, 'with_id' => $tk->id, 'user_id' => auth()->id()]);
             }
         }
     }

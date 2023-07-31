@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -14,18 +14,14 @@ use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UsersAward;
 use Hyperf\Event\Annotation\Listener;
 use Hyperf\Event\Contract\ListenerInterface;
-
 #[Listener]
 class SetAvatar implements ListenerInterface
 {
-    public function listen(): array
+    public function listen() : array
     {
-        return [
-            \App\Plugins\User\src\Event\Task\System\SetAvatar::class,
-        ];
+        return [\App\Plugins\User\src\Event\Task\System\SetAvatar::class];
     }
-
-    public function process(object $event)
+    public function process(object $event): void
     {
         // 获取用户id
         $user_id = $event->user_id;
@@ -33,7 +29,7 @@ class SetAvatar implements ListenerInterface
         if (get_hook_credit_options('set_avatar_check', 'true') !== 'true') {
             return;
         }
-        go(function () use ($user_id) {
+        go(function () use($user_id) {
             // 判断是否未给此用户发放奖励
             if (UsersAward::where('user_id', $user_id)->where('name', 'set_avatar')->exists()) {
                 return;
@@ -60,12 +56,8 @@ class SetAvatar implements ListenerInterface
                 $options->addGolds((int) $gold);
                 create_amount_record($user_id, get_user_assets_gold($user_id), get_user_assets_gold($user_id) + $gold, 'golds', $credit, null, '上传头像奖励');
             }
-
             // 写奖励记录
-            UsersAward::create([
-                'user_id' => $user_id,
-                'name' => 'set_avatar',
-            ]);
+            UsersAward::create(['user_id' => $user_id, 'name' => 'set_avatar']);
         });
     }
 }

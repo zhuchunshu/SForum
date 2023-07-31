@@ -4,7 +4,6 @@ namespace App\Plugins\Core\src\Handler\Store\Handler;
 
 use App\Plugins\Core\src\Handler\Store\FileStoreHandlerInterface;
 use Hyperf\Utils\Arr;
-
 class MasterHandler implements FileStoreHandlerInterface
 {
     public function handler(array $data, \Closure $next)

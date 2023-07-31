@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -17,12 +17,11 @@ class AdminPlugin extends Model
      *
      * @var string
      */
-    protected $table = 'admin_plugins';
-
+    protected ?string $table = 'admin_plugins';
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = ['id', 'name', 'status', 'created_at', 'updated_at'];
+    protected array $fillable = ['id', 'name', 'status', 'created_at', 'updated_at'];
 }

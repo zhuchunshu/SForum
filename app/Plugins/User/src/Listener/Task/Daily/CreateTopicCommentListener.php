@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -14,18 +14,14 @@ use App\Plugins\User\src\Event\Task\Daily\CreateTopicComment;
 use App\Plugins\User\src\Models\UsersAward;
 use Hyperf\Event\Annotation\Listener;
 use Hyperf\Event\Contract\ListenerInterface;
-
 #[Listener]
 class CreateTopicCommentListener implements ListenerInterface
 {
-    public function listen(): array
+    public function listen() : array
     {
-        return [
-            CreateTopicComment::class,
-        ];
+        return [CreateTopicComment::class];
     }
-
-    public function process(object $event)
+    public function process(object $event): void
     {
         // 获取用户id
         $user_id = auth()->id();
@@ -33,7 +29,7 @@ class CreateTopicCommentListener implements ListenerInterface
         if (get_hook_credit_options('create_topic_comment_check', 'true') !== 'true') {
             return;
         }
-        go(function () use ($user_id) {
+        go(function () use($user_id) {
             // 判断是否开启了评论随机积分奖励功能
             if (get_hook_credit_options('credit_create_topic_comment_checkbox', 'true') === 'true') {
                 // 开启了评论随机积分奖励
@@ -77,10 +73,7 @@ class CreateTopicCommentListener implements ListenerInterface
                 create_amount_record($user_id, get_user_assets_gold($user_id), get_user_assets_gold($user_id) + $gold_create_topic_comment, 'golds', $gold_create_topic_comment, null, '评论固定奖励');
             }
             // 写奖励记录
-            UsersAward::create([
-                'user_id' => $user_id,
-                'name' => 'create_topic_comment',
-            ]);
+            UsersAward::create(['user_id' => $user_id, 'name' => 'create_topic_comment']);
         });
     }
 }

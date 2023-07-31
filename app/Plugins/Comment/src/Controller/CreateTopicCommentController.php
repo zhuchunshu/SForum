@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -17,12 +17,11 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
-
 #[Controller(prefix: '/topic/create/comment')]
 #[Middleware(LoginMiddleware::class)]
 class CreateTopicCommentController
 {
-    #[PostMapping(path: 'preview')]
+    #[PostMapping('preview')]
     #[Middleware(LoginMiddleware::class)]
     public function create_preview()
     {
@@ -30,14 +29,13 @@ class CreateTopicCommentController
         $content = xss()->clean($content);
         return view('Comment::topic.preview', ['content' => $content]);
     }
-
-    #[GetMapping(path: '{topic_id}')]
+    #[GetMapping('{topic_id}')]
     public function index($topic_id)
     {
-        if (! Authority()->check('comment_create')) {
+        if (!Authority()->check('comment_create')) {
             return redirect()->back()->with('danger', '无评论权限')->go();
         }
-        if (! Topic::query()->where(['id' => $topic_id])->exists()) {
+        if (!Topic::query()->where(['id' => $topic_id])->exists()) {
             return redirect()->back()->with('danger', '帖子不存在')->go();
         }
         $topic = Topic::query()->find($topic_id);
@@ -46,8 +44,7 @@ class CreateTopicCommentController
         }
         return view('Comment::topic.create', ['topic' => $topic]);
     }
-
-    #[PostMapping(path: '{topic_id}')]
+    #[PostMapping('{topic_id}')]
     public function store($topic_id)
     {
         return (new CreateTopicComment())->handler($topic_id);

@@ -23,7 +23,7 @@ class Captcha
         return '/captcha';
     }
 
-    #[GetMapping(path: '/captcha')]
+    #[GetMapping('/captcha')]
     #[RateLimit(create: 1, capacity: 1, consume: 1)]
     public function build()
     {

@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -17,14 +17,12 @@ class AdminUser extends Model
      *
      * @var string
      */
-    protected $table = 'admin_users';
-
+    protected ?string $table = 'admin_users';
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = ['id', 'username', 'email', 'avatar', 'password', 'created_at', 'updated_at'];
-
-    public $hidden = ['password'];
+    protected array $fillable = ['id', 'username', 'email', 'avatar', 'password', 'created_at', 'updated_at'];
+    public array $hidden = ['password'];
 }

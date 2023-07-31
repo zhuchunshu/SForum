@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -17,9 +17,6 @@ use Hyperf\ViewEngine\Compiler\CompilerInterface;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\Finder\Finder;
 
-/**
- * @Command
- */
 #[Command]
 class ViewEngineCache extends HyperfCommand
 {
@@ -27,20 +24,19 @@ class ViewEngineCache extends HyperfCommand
      * @var ContainerInterface
      */
     protected $container;
-
+    
     public function __construct(ContainerInterface $container)
     {
         $this->container = $container;
-
         parent::__construct('CodeFec:view-engine-cache');
     }
-
+    
     public function configure()
     {
         parent::configure();
         $this->setDescription('view-engine-cache');
     }
-
+    
     public function handle()
     {
         $plugins = BASE_PATH . '/app/Plugins/';
@@ -56,7 +52,6 @@ class ViewEngineCache extends HyperfCommand
             $this->make($item);
         }
     }
-
     /**
      * 生成缓存.
      * @param $dir

@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -12,16 +12,15 @@ namespace App\Plugins\Comment\src\Handler\Middleware\Create\Topic;
 
 use App\Plugins\Comment\src\Annotation\Topic\CreateFirstMiddleware;
 use App\Plugins\Topic\src\Handler\Topic\Middleware\MiddlewareInterface;
-
 #[CreateFirstMiddleware]
 class FirstMiddleware implements MiddlewareInterface
 {
     public function handler($data, \Closure $next)
     {
-        if (! auth()->check()) {
+        if (!auth()->check()) {
             return redirect()->back()->with('danger', '未登陆')->go();
         }
-        if (! Authority()->check('comment_create')) {
+        if (!Authority()->check('comment_create')) {
             return redirect()->back()->with('danger', '无评论权限')->go();
         }
         if (cache()->has('comment_create_time_' . auth()->id())) {

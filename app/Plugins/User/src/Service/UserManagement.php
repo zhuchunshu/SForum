@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -15,7 +15,6 @@ use App\Plugins\User\src\Service\interfaces\UMHandlerInterface;
 use App\Plugins\User\src\Service\interfaces\UserManagementInterface;
 use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\Di\Annotation\Inject;
-
 /**
  * 用户管理.
  */
@@ -26,11 +25,10 @@ class UserManagement
      */
     #[Inject]
     protected AnnotationCollector $AnnotationCollector;
-
     /*
      * 获取所有管理接口
      */
-    public function get_all_interface(): array
+    public function get_all_interface() : array
     {
         $arr = [];
         $all = $this->AnnotationCollector::getClassesByAnnotation(UserManagementAnnotation::class) ?: [];
@@ -42,9 +40,8 @@ class UserManagement
         }
         return $arr;
     }
-
     // 获取所有管理接口,带信息
-    public function get_all(): array
+    public function get_all() : array
     {
         $all = [];
         foreach ($this->get_all_interface() as $item) {
@@ -57,9 +54,8 @@ class UserManagement
         }
         return $all;
     }
-
     // 获取所有处理器
-    public function get_all_handler(): array
+    public function get_all_handler() : array
     {
         $all = [];
         foreach ($this->get_all() as $data) {

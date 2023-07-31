@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -12,7 +12,6 @@ namespace App\Plugins\User\src\Helpers\Middlewares\UserNameRender;
 
 use App\Plugins\User\src\Annotation\UserNameRenderAnnotation;
 use App\Plugins\User\src\Helpers\Middlewares\MiddlewareInterface;
-
 #[UserNameRenderAnnotation]
 class LinkName implements MiddlewareInterface
 {
@@ -26,7 +25,6 @@ class LinkName implements MiddlewareInterface
         //return json_encode($data['link']);
         return $next($user, $data);
     }
-
     private function getClass($data)
     {
         $classes = data_get($data, 'class', ['text-reset']);
@@ -35,7 +33,6 @@ class LinkName implements MiddlewareInterface
         }
         return $classes;
     }
-
     private function getStyle($data)
     {
         $style = data_get($data, 'style', []);

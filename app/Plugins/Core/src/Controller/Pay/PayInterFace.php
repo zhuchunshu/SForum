@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -11,7 +11,6 @@ declare(strict_types=1);
 namespace App\Plugins\Core\src\Controller\Pay;
 
 use App\Plugins\Core\src\Models\PayOrder;
-
 interface PayInterFace
 {
     /**
@@ -19,27 +18,23 @@ interface PayInterFace
      * @param PayOrder $order 订单
      * @return mixed
      */
-    public function create(PayOrder $order): mixed;
-
+    public function create(PayOrder $order) : mixed;
     /**
      * 支付回调.
      * @param mixed $mixed
      */
-    public function notify(mixed $mixed): mixed;
-
+    public function notify(mixed $mixed) : mixed;
     /**
      * 查询订单.
      * @return mixed
      */
-    public function find(PayOrder $order): array;
-
+    public function find(PayOrder $order) : array;
     /**
      * 关闭订单.
      */
-    public function close(PayOrder $order): array;
-
+    public function close(PayOrder $order) : array;
     /**
      * 取消订单.
      */
-    public function cancel(PayOrder $order): array;
+    public function cancel(PayOrder $order) : array;
 }

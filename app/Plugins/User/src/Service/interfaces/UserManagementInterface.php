@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -13,11 +13,9 @@ namespace App\Plugins\User\src\Service\interfaces;
 interface UserManagementInterface
 {
     // 处理器
-    public function handler(): string;
-
+    public function handler() : string;
     // 编辑视图
-    public function edit_view(): string;
-
+    public function edit_view() : string;
     // 查看视图
-    public function show_view(): string;
+    public function show_view() : string;
 }

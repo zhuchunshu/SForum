@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -12,13 +12,11 @@ namespace App\Plugins\User\src\Service\Extend\UserManagement\Handler;
 
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Service\interfaces\UMHandlerInterface;
-
 class BasisHandler implements UMHandlerInterface
 {
     public function handler(array $data, \Closure $next)
     {
         $id = $data['id'];
-
         if (arr_has($data, 'basis')) {
             $user = User::query()->find($id);
             foreach ($data['basis'] as $k => $v) {
@@ -26,7 +24,6 @@ class BasisHandler implements UMHandlerInterface
                 $user->save();
             }
         }
-
         return $next($data);
     }
 }

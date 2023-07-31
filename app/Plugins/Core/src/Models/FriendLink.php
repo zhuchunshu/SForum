@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -11,7 +11,6 @@ declare(strict_types=1);
 namespace App\Plugins\Core\src\Models;
 
 use App\Model\Model;
-
 /**
  * @property int $id
  * @property string $name
@@ -23,26 +22,23 @@ use App\Model\Model;
  */
 class FriendLink extends Model
 {
-    public $timestamps = false;
-
+    public bool $timestamps = false;
     /**
      * The table associated with the model.
      *
      * @var string
      */
-    protected $table = 'friend_links';
-
+    protected ?string $table = 'friend_links';
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = ['id', 'name', 'link', 'to_sort', 'icon', 'hidden', 'target', 'description'];
-
+    protected array $fillable = ['id', 'name', 'link', 'to_sort', 'icon', 'hidden', 'target', 'description'];
     /**
      * The attributes that should be cast to native types.
      *
      * @var array
      */
-    protected $casts = ['id' => 'integer', 'to_sort' => 'integer', '_blank' => 'integer', 'hidden' => 'integer'];
+    protected array $casts = ['id' => 'integer', 'to_sort' => 'integer', '_blank' => 'integer', 'hidden' => 'integer'];
 }

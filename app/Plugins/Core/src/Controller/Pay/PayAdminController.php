@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -18,7 +18,6 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
-
 #[Controller(prefix: '/admin/Pay')]
 #[Middleware(AdminMiddleware::class)]
 class PayAdminController
@@ -27,12 +26,12 @@ class PayAdminController
      * 订单.
      * @return \Psr\Http\Message\ResponseInterface
      */
-    #[GetMapping(path: '')]
+    #[GetMapping('')]
     public function index()
     {
         $where_column = request()->input('where_column');
         $q = request()->input('trade_no');
-        if (! $where_column) {
+        if (!$where_column) {
             $_orderBy = 'ASC';
             if ($q) {
                 $page = PayOrder::query()->where('trade_no', 'like', '%' . $q . '%')->orWhere('id', 'like', '%' . $q . '%')->paginate(15);
@@ -52,17 +51,15 @@ class PayAdminController
         }
         return view('App::Pay.admin.index', ['page' => $page, '_orderBy' => $_orderBy]);
     }
-
     /**
      * 配置.
      */
-    #[GetMapping(path: 'config')]
+    #[GetMapping('config')]
     public function config()
     {
         return view('App::Pay.admin.config');
     }
-
-    #[PostMapping(path: 'config')]
+    #[PostMapping('config')]
     public function config_save(FileUpload $fileUpload)
     {
         // 先处理上传的文件
@@ -85,18 +82,16 @@ class PayAdminController
         pay()->clean_options();
         return redirect()->url('/admin/Pay/config')->with('success', '更新成功')->go();
     }
-
     /**
      * 支付设置.
      * @return \Psr\Http\Message\ResponseInterface
      */
-    #[GetMapping(path: 'setting')]
+    #[GetMapping('setting')]
     public function setting()
     {
         return view('App::Pay.admin.setting');
     }
-
-    #[PostMapping(path: 'setting')]
+    #[PostMapping('setting')]
     public function setting_submit()
     {
         $pay = request()->input('pay', []);
@@ -106,31 +101,23 @@ class PayAdminController
         return redirect()->url('/admin/Pay/setting')->with('success', '更新成功')->go();
         //return view('App::Pay.admin.setting');
     }
-
-    #[GetMapping(path: '{trade_no}/order')]
+    #[GetMapping('{trade_no}/order')]
     public function order_show($trade_no)
     {
-        if (! PayOrder::query()->where('trade_no', $trade_no)->exists()) {
+        if (!PayOrder::query()->where('trade_no', $trade_no)->exists()) {
             return redirect()->url('/admin/Pay')->with('danger', '订单不存在')->go();
         }
         return pay()->find($trade_no);
     }
-
-    private function config_save_insert($name, $value): bool
+    private function config_save_insert($name, $value) : bool
     {
         if (PayConfig::query()->where('name', $name)->exists()) {
             // 存在则更新
-            PayConfig::query()->where('name', $name)->update([
-                'value' => $value,
-            ]);
+            PayConfig::query()->where('name', $name)->update(['value' => $value]);
             return true;
         }
-
         // 不存在则新建
-        PayConfig::query()->create([
-            'value' => $value,
-            'name' => $name,
-        ]);
+        PayConfig::query()->create(['value' => $value, 'name' => $name]);
         return true;
     }
 }

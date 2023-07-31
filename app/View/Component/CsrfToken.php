@@ -12,7 +12,8 @@ class CsrfToken extends Component
     {
         $this->token = csrf_token();
     }
-    public function render()
+
+    public function render(): mixed
     {
         return views('components.csrf');
     }

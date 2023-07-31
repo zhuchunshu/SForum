@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -11,28 +11,24 @@ declare(strict_types=1);
 namespace App\Plugins\Core\src\Models;
 
 use App\Model\Model;
-
 /**
  * @property int $id
  * @property int $disable_comment
  */
 class PostsOption extends Model
 {
-
-    protected $fillable = ['post_id','id','disable_comment'];
-
-    public $timestamps = false;
+    protected array $fillable = ['post_id', 'id', 'disable_comment'];
+    public bool $timestamps = false;
     /**
      * The table associated with the model.
      *
      * @var string
      */
-    protected $table = 'posts_options';
-
+    protected ?string $table = 'posts_options';
     /**
      * The attributes that should be cast to native types.
      *
      * @var array
      */
-    protected $casts = ['id' => 'integer', 'disable_comment' => 'integer'];
+    protected array $casts = ['id' => 'integer', 'disable_comment' => 'integer'];
 }

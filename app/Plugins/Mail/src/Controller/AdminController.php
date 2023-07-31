@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -17,41 +17,36 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
-
 #[Middleware(AdminMiddleware::class)]
 #[Controller(prefix: '/admin/mail')]
 class AdminController
 {
-    #[GetMapping(path: '')]
+    #[GetMapping('')]
     public function index()
     {
         return view('Mail::admin.index');
     }
-
-    #[PostMapping(path: '')]
+    #[PostMapping('')]
     public function submit()
     {
         $request = request()->all();
         $handler = function ($request) {
             return redirect()->back()->with('success', '更新成功!')->go();
         };
-
         // 通过中间件
         $run = $this->throughMiddleware($handler, $this->middlewares());
         return $run($request);
     }
-
-    #[GetMapping(path: 'test')]
+    #[GetMapping('test')]
     public function test()
     {
         return view('Mail::admin.test');
     }
-
-    #[PostMapping(path: 'test')]
+    #[PostMapping('test')]
     public function test_submit()
     {
         $email = request()->input('email');
-        if (! $email) {
+        if (!$email) {
             return redirect()->back()->with('danger', '请求参数不足!')->go();
         }
         $Subject = '【' . get_options('web_name') . '】 邮件测试!';
@@ -63,29 +58,26 @@ HTML;
         }
         return redirect()->back()->with('danger', '发送失败!')->go();
     }
-
     /**
      * 通过中间件 through the middleware.
      * @param $handler
      * @param $stack
      * @return \Closure|mixed
      */
-    protected function throughMiddleware($handler, $stack): mixed
+    protected function throughMiddleware($handler, $stack) : mixed
     {
         // 闭包实现中间件功能 closures implement middleware functions
         foreach ($stack as $middleware) {
-            $handler = function ($request) use ($handler, $middleware) {
+            $handler = function ($request) use($handler, $middleware) {
                 if ($middleware instanceof \Closure) {
                     return call_user_func($middleware, $request, $handler);
                 }
-
                 return call_user_func([new $middleware(), 'handler'], $request, $handler);
             };
         }
         return $handler;
     }
-
-    private function middlewares(): array
+    private function middlewares() : array
     {
         $_[] = MailMaster::class;
         $middlewares = array_merge($_, (new SendService())->get_handlers());

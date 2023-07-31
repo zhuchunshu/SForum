@@ -3,18 +3,14 @@
 namespace App\Plugins\Core\src\Request\User\Mydata;
 
 use Hyperf\Validation\Request\FormRequest;
-
 class AvatarRequest extends FormRequest
 {
-    public function authorize(): bool
+    public function authorize() : bool
     {
         return true;
     }
-
-    public function rules(): array
+    public function rules() : array
     {
-        return [
-            "avatar" => "required|image",
-        ];
+        return ["avatar" => "required|image"];
     }
 }

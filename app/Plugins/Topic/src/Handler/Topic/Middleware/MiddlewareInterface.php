@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -12,5 +12,5 @@ namespace App\Plugins\Topic\src\Handler\Topic\Middleware;
 
 interface MiddlewareInterface
 {
-    public function handler($data,\Closure $next);
+    public function handler($data, \Closure $next);
 }

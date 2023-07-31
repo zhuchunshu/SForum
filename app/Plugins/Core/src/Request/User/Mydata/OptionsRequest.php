@@ -1,35 +1,20 @@
 <?php
 
-
 namespace App\Plugins\Core\src\Request\User\Mydata;
 
-
 use Hyperf\Validation\Request\FormRequest;
-
 class OptionsRequest extends FormRequest
 {
-    public function authorize(): bool
+    public function authorize() : bool
     {
         return true;
     }
-
-    public function rules(): array
+    public function rules() : array
     {
-        return [
-            "qianming" => "nullable|string|max:1000",
-            "qq" => "nullable|string|min:5|max:10",
-            "wx" => "nullable|max:100",
-            "website" => "nullable|url",
-            "email" => "nullable|email"
-        ];
+        return ["qianming" => "nullable|string|max:1000", "qq" => "nullable|string|min:5|max:10", "wx" => "nullable|max:100", "website" => "nullable|url", "email" => "nullable|email"];
     }
-    public function attributes(): array
+    public function attributes() : array
     {
-        return [
-            "qianming" => __("app.bio"),
-            "wx" => "微信",
-            "website" => "个人网站",
-            "email" => "展示邮箱"
-        ];
+        return ["qianming" => __("app.bio"), "wx" => "微信", "website" => "个人网站", "email" => "展示邮箱"];
     }
 }

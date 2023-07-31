@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -28,48 +28,39 @@ use Hyperf\HttpServer\Annotation\RequestMapping;
 use HyperfExt\Hashing\Hash;
 use Illuminate\Support\Str;
 use Psr\Http\Message\ResponseInterface;
-
 #[Controller]
 #[Middleware(LoginMiddleware::class)]
 class UpdateController
 {
     // 个人设置
-
-    #[GetMapping(path: '/user/setting')]
+    #[GetMapping('/user/setting')]
     public function user_setting()
     {
         $data = User::query()->where('id', auth()->id())->with('Class', 'Options')->first();
         $itf = Itf()->get('userSetting');
         return view('App::user.setting', ['data' => $data, 'itf' => $itf]);
     }
-
-    #[PostMapping(path: '/user/data')]
+    #[PostMapping('/user/data')]
     public function my_data()
     {
         return auth()->data();
     }
-
     // 更新个人信息
-
-    #[RequestMapping(method: 'POST,HEAD', path: '/user/myUpdate')]
+    #[PostMapping('/user/myUpdate')]
     public function myUpdate(JibenRequest $request)
     {
-        if (! $request->input('old_pwd') || ! $request->input('new_pwd')) {
+        if (!$request->input('old_pwd') || !$request->input('new_pwd')) {
             return redirect()->back()->with('info', '无修改')->go();
         }
         $old_pwd = $request->input('old_pwd');
         $new_pwd = $request->input('new_pwd');
-        if (! Hash::check($old_pwd, auth()->data()->password)) {
+        if (!Hash::check($old_pwd, auth()->data()->password)) {
             return redirect()->back()->with('danger', '旧密码错误')->go();
         }
         $pwd = Hash::make($new_pwd);
-        $data = UserRepwd::query()->create([
-            'user_id' => auth()->data()->id,
-            'pwd' => $pwd,
-            'hash' => Str::random(),
-        ]);
+        $data = UserRepwd::query()->create(['user_id' => auth()->data()->id, 'pwd' => $pwd, 'hash' => Str::random()]);
         $user = auth()->data();
-        go(static function () use ($data, $user) {
+        go(static function () use($data, $user) {
             $url = url('/user/myUpdate/ConfirmPassword/' . $data->id . '/' . $data->hash);
             $Subject = '【' . get_options('web_name') . '】修改密码确认';
             $Body = <<<HTML
@@ -81,112 +72,80 @@ HTML;
         });
         return redirect()->url('/user/setting')->with('success', '修改密码邮件已发送至你的邮箱')->go();
     }
-
     /**
      * 处理修改密码
      * @param $id
      * @param $hash
      * @return ResponseInterface
      */
-    #[GetMapping(path: '/user/myUpdate/ConfirmPassword/{id}/{hash}')]
-    public function myUpdate_ConfirmPassword($id, $hash): ResponseInterface
+    #[GetMapping('/user/myUpdate/ConfirmPassword/{id}/{hash}')]
+    public function myUpdate_ConfirmPassword($id, $hash) : ResponseInterface
     {
-        if (! UserRepwd::query()->where([
-            'user_id' => auth()->data()->id,
-            'id' => $id,
-            'hash' => $hash,
-        ])->count()) {
+        if (!UserRepwd::query()->where(['user_id' => auth()->data()->id, 'id' => $id, 'hash' => $hash])->count()) {
             return admin_abort(['msg' => '鉴权失败,无法修改']);
         }
-        $data = UserRepwd::query()->where([
-            'user_id' => auth()->data()->id,
-            'id' => $id,
-            'hash' => $hash,
-        ])->first();
-        User::query()->where(['id' => $data->user_id])->update([
-            'password' => $data->pwd,
-        ]);
+        $data = UserRepwd::query()->where(['user_id' => auth()->data()->id, 'id' => $id, 'hash' => $hash])->first();
+        User::query()->where(['id' => $data->user_id])->update(['password' => $data->pwd]);
         auth()->logout();
-        UserRepwd::query()->where([
-            'id' => $id,
-            'hash' => $hash,
-        ])->delete();
+        UserRepwd::query()->where(['id' => $id, 'hash' => $hash])->delete();
         return redirect()->url('/')->with('success', '密码修改成功,请重新登录!')->go();
     }
-
     /**
      * 上传头像.
      */
-    #[PostMapping(path: '/user/myUpdate/avatar')]
+    #[PostMapping('/user/myUpdate/avatar')]
     public function update_avatar(AvatarRequest $request, AvatarUpload $upload)
     {
         $data = $upload->save($request->file('avatar'), auth()->id(), \Hyperf\Utils\Str::random(), 200);
         $path = $data['path'];
-        User::query()->where('id', auth()->id())->update([
-            'avatar' => $path,
-        ]);
+        User::query()->where('id', auth()->id())->update(['avatar' => $path]);
         // 头像上传成功
         // 触发头像上传成功事件
         EventDispatcher()->dispatch(new SetAvatar(auth()->id()));
-
         return redirect()->url('/user/setting')->with('success', '头像修改成功')->go();
     }
-
-    #[PostMapping(path: '/user/myUpdate/other')]
+    #[PostMapping('/user/myUpdate/other')]
     public function update_action()
     {
         $action = request()->input('action');
-        if (! $action) {
+        if (!$action) {
             return redirect()->url('/user/setting')->with('danger', 'action 为空!')->go();
         }
-
         // 删除头像
         if ($action === 'removeAvatar') {
-            User::query()->where('id', auth()->id())->update([
-                'avatar' => null,
-            ]);
+            User::query()->where('id', auth()->id())->update(['avatar' => null]);
             return redirect()->url('/user/setting')->with('success', '头像删除成功!')->go();
         }
-
         return redirect()->url('/user/setting')->with('danger', '当前 action 处理方法不存在')->go();
     }
-
-    #[PostMapping(path: '/user/myUpdate/options')]
+    #[PostMapping('/user/myUpdate/options')]
     public function update_options(OptionsRequest $request)
     {
         $data = $request->validated();
         UsersOption::query()->where(['id' => auth()->data()->options_id])->update($data);
         return redirect()->url('/user/setting')->with('success', '更新成功!')->go();
     }
-
-    #[PostMapping(path: '/user/myUpdate/noticed')]
+    #[PostMapping('/user/myUpdate/noticed')]
     public function update_noticed()
     {
         $user_id = auth()->id();
         if (get_user_settings($user_id, 'noticed', '0') === '1') {
-            set_user_settings($user_id, [
-                'noticed' => '0',
-            ]);
+            set_user_settings($user_id, ['noticed' => '0']);
         } else {
-            set_user_settings($user_id, [
-                'noticed' => '1',
-            ]);
+            set_user_settings($user_id, ['noticed' => '1']);
         }
         return redirect()->url('/user/setting')->with('success', '更新成功!')->go();
     }
-
-    #[PostMapping(path: '/user/setbackgroundImg')]
+    #[PostMapping('/user/setbackgroundImg')]
     public function setBackgroundImg(UploadHandler $uploader)
     {
-        if (! request()->hasFile('backgroundImg')) {
+        if (!request()->hasFile('backgroundImg')) {
             return redirect()->url('/user/setting?m=userSetting_3')->with('danger', '背景图片上传失败!')->go();
         }
         $file = $uploader->save(request()->file('backgroundImg'), 'backgroundImg/', auth()->id(), 1200);
         $path = $file['path'] ?: null;
         if ($path) {
-            set_user_settings(auth()->id(), [
-                'backgroundImg' => $path,
-            ]);
+            set_user_settings(auth()->id(), ['backgroundImg' => $path]);
             return redirect()->url('/user/setting?m=userSetting_3')->with('success', '背景图片修改成功')->go();
         }
         return redirect()->url('/user/setting?m=userSetting_3')->with('danger', '背景图片修改失败!')->go();

@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -15,12 +15,11 @@ use App\Plugins\User\src\Models\UsersAward;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
-
 #[Middleware(LoginMiddleware::class)]
 #[Controller(prefix: '/api/user/task/checkin')]
 class CheckinController
 {
-    #[PostMapping(path: '')]
+    #[PostMapping('')]
     public function checkin()
     {
         //判断是否开启了签到功能
@@ -33,7 +32,6 @@ class CheckinController
         }
         $award_credit = 0;
         $award_gold = 0;
-
         // 判断是否开启了签到随机积分奖励
         if (get_hook_credit_options('credit_checkin_checkbox', 'true') === 'true') {
             // 开启了签到随机积分奖励
@@ -78,16 +76,10 @@ class CheckinController
         }
         // 写奖励记录
         if (UsersAward::where('user_id', auth()->id())->where('name', 'checkin')->exists()) {
-            UsersAward::where('user_id', auth()->id())->where('name', 'checkin')->update([
-                'created_at' => \Carbon\Carbon::now(),
-            ]);
+            UsersAward::where('user_id', auth()->id())->where('name', 'checkin')->update(['created_at' => \Carbon\Carbon::now()]);
         } else {
-            UsersAward::create([
-                'user_id' => auth()->id(),
-                'name' => 'checkin',
-            ]);
+            UsersAward::create(['user_id' => auth()->id(), 'name' => 'checkin']);
         }
-
         $award = [];
         if ($award_gold > 0) {
             $award[get_options('wealth_golds_name', '金币')] = $award_gold;

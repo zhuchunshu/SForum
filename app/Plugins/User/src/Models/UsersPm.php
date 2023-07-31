@@ -6,7 +6,6 @@ namespace App\Plugins\User\src\Models;
 use App\Model\Model;
 use App\Plugins\Core\src\Models\Post;
 use Carbon\Carbon;
-
 /**
  * @property int $id 
  * @property string $post_id 
@@ -22,26 +21,25 @@ class UsersPm extends Model
      *
      * @var string
      */
-    protected $table = 'users_pm';
+    protected ?string $table = 'users_pm';
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = ['id','from_id','to_id','message','read','created_at','updated_at'];
+    protected array $fillable = ['id', 'from_id', 'to_id', 'message', 'read', 'created_at', 'updated_at'];
     /**
      * The attributes that should be cast to native types.
      *
      * @var array
      */
-    protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
-	
-	public function from_user(){
-		return $this->belongsTo(User::class,"from_id","id");
-	}
-	
-	public function to_user(){
-		return $this->belongsTo(User::class,"to_id","id");
-	}
-	
+    protected array $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
+    public function from_user()
+    {
+        return $this->belongsTo(User::class, "from_id", "id");
+    }
+    public function to_user()
+    {
+        return $this->belongsTo(User::class, "to_id", "id");
+    }
 }

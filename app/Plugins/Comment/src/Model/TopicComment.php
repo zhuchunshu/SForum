@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -16,7 +16,6 @@ use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\User\src\Models\User;
 use Carbon\Carbon;
 use Hyperf\Database\Model\SoftDeletes;
-
 /**
  * @property int $id
  * @property int $likes
@@ -38,48 +37,41 @@ class TopicComment extends Model
      *
      * @var string
      */
-    protected $table = 'topic_comment';
-
+    protected ?string $table = 'topic_comment';
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = ['topic_id', 'post_id', 'user_id', 'parent_id', 'status', 'shenping', 'optimal', 'parent_url', 'created_at', 'updated_at'];
-
+    protected array $fillable = ['topic_id', 'post_id', 'user_id', 'parent_id', 'status', 'shenping', 'optimal', 'parent_url', 'created_at', 'updated_at'];
     /**
      * The attributes that should be cast to native types.
      *
      * @var array
      */
-    protected $casts = ['id' => 'integer', 'likes' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime', 'optimal' => 'datetime', 'shenping' => 'datetime'];
-
-    protected $hidden = ['user_ip'];
-
+    protected array $casts = ['id' => 'integer', 'likes' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime', 'optimal' => 'datetime', 'shenping' => 'datetime'];
+    protected array $hidden = ['user_ip'];
     /**
      * 评论作者信息.
      */
-    public function user(): \Hyperf\Database\Model\Relations\BelongsTo
+    public function user() : \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
-
     /**
      * 评论所在的帖子信息.
      */
-    public function topic(): \Hyperf\Database\Model\Relations\BelongsTo
+    public function topic() : \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(Topic::class, 'topic_id', 'id');
     }
-
     /**
      * 评论parent信息.
      */
-    public function parent(): \Hyperf\Database\Model\Relations\BelongsTo
+    public function parent() : \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(__CLASS__, 'parent_id', 'id');
     }
-
     /**
      * 评论内容.
      * @return \Hyperf\Database\Model\Relations\BelongsTo
@@ -88,7 +80,6 @@ class TopicComment extends Model
     {
         return $this->belongsTo(Post::class, 'post_id', 'id');
     }
-
     /**
      * 评论点赞信息.
      * @return

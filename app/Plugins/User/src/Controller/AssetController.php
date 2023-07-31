@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -17,43 +17,33 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
-
 #[Controller(prefix: '/user/asset')]
 #[Middleware(LoginMiddleware::class)]
 #[Middleware(AuthMiddleware::class)]
 class AssetController
 {
-    #[GetMapping(path: 'record')]
-    public function record(){
-        $page = PayAmountRecord::query()
-            ->where('user_id', auth()->id())
-            ->whereNotNull('type')
-            ->where('type', '!=', 'money')
-            ->orderByDesc('created_at')
-            ->paginate(15);
+    #[GetMapping('record')]
+    public function record()
+    {
+        $page = PayAmountRecord::query()->where('user_id', auth()->id())->whereNotNull('type')->where('type', '!=', 'money')->orderByDesc('created_at')->paginate(15);
         return view('User::assets.record', ['page' => $page]);
     }
-
-    #[GetMapping(path: 'money')]
+    #[GetMapping('money')]
     public function money()
     {
-        $page = PayAmountRecord::query()
-            ->where('type', null)
-            ->orWhere('type', 'money')
-            ->where('user_id', auth()->id())->orderByDesc('created_at')->paginate(15);
+        $page = PayAmountRecord::query()->where('type', null)->orWhere('type', 'money')->where('user_id', auth()->id())->orderByDesc('created_at')->paginate(15);
         return view('User::assets.money', ['page' => $page]);
     }
-
-    #[PostMapping(path: 'money.recharge')]
+    #[PostMapping('money.recharge')]
     public function money_recharge_submit()
     {
         $payment = request()->input('payment');
         $amount = request()->input('amount');
         $captcha = request()->input('captcha');
-        if (! $payment || ! $amount || ! $captcha) {
+        if (!$payment || !$amount || !$captcha) {
             return Json_Api(403, false, ['msg' => '请求参数不足']);
         }
-        if (! captcha()->check($captcha)) {
+        if (!captcha()->check($captcha)) {
             return Json_Api(419, false, ['msg' => '验证码错误!']);
         }
         // 验证支付方式
@@ -66,7 +56,7 @@ class AssetController
             return pay()->check_payment($payment);
         }
         // 支付方式可用，继续下一轮
-        if (! is_numeric($amount) || $amount > 1000 || $amount < 0.01) {
+        if (!is_numeric($amount) || $amount > 1000 || $amount < 0.01) {
             return Json_Api(403, false, ['msg' => '充值金额格式有误']);
         }
         // 发起支付

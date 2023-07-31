@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -16,23 +16,21 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\DeleteMapping;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
-
 #[Controller(prefix: '/admin/topic/keywords')]
 #[Middleware(AdminMiddleware::class)]
 class KeywordController
 {
-    #[GetMapping(path: '')]
+    #[GetMapping('')]
     public function index()
     {
         $q = request()->input('q', '');
         $page = TopicKeyword::with('user')->where('name', 'like', '%' . $q . '%')->paginate(20);
         return view('Topic::KeyWords.admin', ['page' => $page]);
     }
-
-    #[DeleteMapping(path: '{id}')]
+    #[DeleteMapping('{id}')]
     public function remove($id)
     {
-        if (empty($id) || ! (int) $id) {
+        if (empty($id) || !(int) $id) {
             return json_api(400, false, 'Bad request');
         }
         if (TopicKeyword::where('id', $id)->exists()) {

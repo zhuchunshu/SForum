@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -13,7 +13,6 @@ namespace App\Plugins\Comment\src\Handler\Middleware\Create\Topic;
 use App\Plugins\Comment\src\Annotation\Topic\CreateLastMiddleware;
 use App\Plugins\Topic\src\Handler\Topic\Middleware\MiddlewareInterface;
 use App\Plugins\Topic\src\Models\Topic;
-
 #[CreateLastMiddleware]
 class LastMiddleware implements MiddlewareInterface
 {

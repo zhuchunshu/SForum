@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -14,7 +14,6 @@ use App\Plugins\Comment\src\Annotation\Topic\UpdateFirstMiddleware;
 use App\Plugins\Comment\src\Annotation\Topic\UpdateLastMiddleware;
 use App\Plugins\Comment\src\Annotation\Topic\UpdateMiddleware;
 use Hyperf\Di\Annotation\AnnotationCollector;
-
 class EditTopicComment
 {
     public function handler($comment_id)
@@ -24,12 +23,10 @@ class EditTopicComment
         $handler = function ($request) {
             return $request;
         };
-
         // 通过中间件
         $run = $this->throughMiddleware($handler, $this->middlewares());
         return $run($request);
     }
-
     /**
      * 通过中间件 through the middleware.
      * @param $handler
@@ -40,18 +37,16 @@ class EditTopicComment
     {
         // 闭包实现中间件功能 closures implement middleware functions
         foreach ($stack as $middleware) {
-            $handler = function ($request) use ($handler, $middleware) {
+            $handler = function ($request) use($handler, $middleware) {
                 if ($middleware instanceof \Closure) {
                     return call_user_func($middleware, $request, $handler);
                 }
-
                 return call_user_func([new $middleware(), 'handler'], $request, $handler);
             };
         }
         return $handler;
     }
-
-    private function middlewares(): array
+    private function middlewares() : array
     {
         $middlewares = [];
         foreach (AnnotationCollector::getClassesByAnnotation(UpdateFirstMiddleware::class) as $key => $value) {

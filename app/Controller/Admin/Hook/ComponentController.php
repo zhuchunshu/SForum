@@ -31,7 +31,7 @@ class ComponentController
      * 部件列表.
      * @return \Psr\Http\Message\ResponseInterface
      */
-    #[GetMapping(path: '')]
+    #[GetMapping('')]
     public function index()
     {
         if (!is_dir(BASE_PATH . '/resources/views/customize/component')) {
@@ -47,7 +47,7 @@ class ComponentController
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      */
-    #[GetMapping(path: 'preview')]
+    #[GetMapping('preview')]
     public function preview()
     {
         $component = request()->input('component');
@@ -64,7 +64,7 @@ class ComponentController
      * 修改小部件代码
      * @return \Psr\Http\Message\ResponseInterface
      */
-    #[GetMapping(path: 'edit')]
+    #[GetMapping('edit')]
     public function edit()
     {
         $path = request()->input('path');
@@ -79,7 +79,7 @@ class ComponentController
      * 获取小部件文件内容.
      * @return array|\Psr\Http\Message\ResponseInterface
      */
-    #[GetMapping(path: 'get_file_content')]
+    #[GetMapping('get_file_content')]
     public function get_file_content()
     {
         $path = request()->input('path');
@@ -94,7 +94,7 @@ class ComponentController
      * 提交修改部件代码
      * @return array|\Psr\Http\Message\ResponseInterface
      */
-    #[PostMapping(path: 'put_file_content')]
+    #[PostMapping('put_file_content')]
     public function put_file_content()
     {
         $path = request()->input('path');
@@ -109,13 +109,13 @@ class ComponentController
     /**
      * 创建小部件.
      */
-    #[GetMapping(path: 'create')]
+    #[GetMapping('create')]
     public function create(): \Psr\Http\Message\ResponseInterface
     {
         return view('admin.setting.hook.components.create');
     }
 
-    #[PostMapping(path: 'create')]
+    #[PostMapping('create')]
     public function store()
     {
         $content = request()->input('content');
@@ -147,7 +147,7 @@ class ComponentController
         return Json_Api(200, true, ['msg' => '创建成功!', 'redirect' => '/admin/hook/components/edit?path=' . $_file_path]);
     }
 
-    #[PostMapping(path:"delete")]
+    #[PostMapping("delete")]
     public function delete(){
         $path = request()->input('path');
         $path = BASE_PATH . '/resources/views/customize/component/' . $path;

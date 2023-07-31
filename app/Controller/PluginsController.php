@@ -31,7 +31,7 @@ use Symfony\Component\Console\Output\NullOutput;
 #[Middleware(\App\Middleware\AdminMiddleware::class)]
 class PluginsController
 {
-    #[GetMapping(path: '')]
+    #[GetMapping('')]
     public function index(): ResponseInterface
     {
         return view('admin.plugins.index', ['page' => $this->page()]);
@@ -39,13 +39,13 @@ class PluginsController
 
     // 上传插件
 
-    #[GetMapping(path: 'upload')]
+    #[GetMapping('upload')]
     public function upload()
     {
         return view('admin.plugins.upload');
     }
 
-    #[GetMapping(path: 'logo')]
+    #[GetMapping('logo')]
     public function logo()
     {
         $plugin = request()->input('plugin');
@@ -58,7 +58,7 @@ class PluginsController
 
     // 上传插件
 
-    #[PostMapping(path: 'upload')]
+    #[PostMapping('upload')]
     public function upload_submit(PluginUpload $request)
     {
         // 不带后缀的文件名

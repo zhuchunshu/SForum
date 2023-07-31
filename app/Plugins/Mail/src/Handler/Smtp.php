@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -11,7 +11,6 @@ declare(strict_types=1);
 namespace App\Plugins\Mail\src\Handler;
 
 use App\Plugins\Mail\src\SendServiceHandlerInterface;
-
 class Smtp implements SendServiceHandlerInterface
 {
     public function handler(array $data, \Closure $next)

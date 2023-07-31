@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -15,12 +15,11 @@ use App\Plugins\Core\src\Lib\Pay\Service\SFPay;
 use App\Plugins\Core\src\Lib\Pay\Service\WechatPay;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\RequestMapping;
-
 #[Controller(prefix: '/api/pay')]
 class PayApiController
 {
-    #[RequestMapping(path: 'wechat/notify')]
-    public function wechat_notify(): bool | array | \Psr\Http\Message\ResponseInterface
+    #[RequestMapping('wechat/notify')]
+    public function wechat_notify() : bool|array|\Psr\Http\Message\ResponseInterface
     {
         //admin_log()->insert('Pay','wechat','回调结果',1);
         $result = (new WechatPay())->notify(request()->all());
@@ -29,9 +28,8 @@ class PayApiController
         }
         return $result;
     }
-
-    #[RequestMapping(path: 'alipay/notify')]
-    public function alipay_notify(): bool | array | \Psr\Http\Message\ResponseInterface
+    #[RequestMapping('alipay/notify')]
+    public function alipay_notify() : bool|array|\Psr\Http\Message\ResponseInterface
     {
         $result = (new AliPay())->notify(request()->all());
         if ($result === true) {
@@ -39,8 +37,7 @@ class PayApiController
         }
         return $result;
     }
-
-    #[RequestMapping(path: 'SFPay/notify')]
+    #[RequestMapping('SFPay/notify')]
     public function SFPay_notify()
     {
         $result = (new SFPay())->notify(request()->all());

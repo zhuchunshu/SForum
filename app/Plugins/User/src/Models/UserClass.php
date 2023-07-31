@@ -5,7 +5,6 @@ namespace App\Plugins\User\src\Models;
 
 use App\Model\Model;
 use Carbon\Carbon;
-
 /**
  * @property int $id 
  * @property string $name 
@@ -22,17 +21,17 @@ class UserClass extends Model
      *
      * @var string
      */
-    protected $table = 'user_class';
+    protected ?string $table = 'user_class';
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = ['id','name','quanxian','icon','color','permission-value'];
+    protected array $fillable = ['id', 'name', 'quanxian', 'icon', 'color', 'permission-value'];
     /**
      * The attributes that should be cast to native types.
      *
      * @var array
      */
-    protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
+    protected array $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
 }

@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -23,74 +23,63 @@ use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\Paginator\LengthAwarePaginator;
 use Hyperf\Utils\Collection;
 use Symfony\Component\Finder\Finder;
-
 #[Controller(prefix: '/admin/files')]
 #[Middleware(AdminMiddleware::class)]
 class FilesController
 {
-
-    #[GetMapping(path: '')]
+    #[GetMapping('')]
     public function index()
     {
         return view("User::Admin.Files.index");
     }
-
-    #[PostMapping(path: '')]
+    #[PostMapping('')]
     public function submit()
     {
         $request = request()->all();
         $handler = function ($request) {
             return redirect()->back()->with('success', '更新成功!')->go();
         };
-
         // 通过中间件
         $run = $this->throughMiddleware($handler, $this->middlewares());
         return $run($request);
     }
-
     /**
      * 通过中间件 through the middleware.
      * @param $handler
      * @param $stack
      * @return \Closure|mixed
      */
-    protected function throughMiddleware($handler, $stack): mixed
+    protected function throughMiddleware($handler, $stack) : mixed
     {
         // 闭包实现中间件功能 closures implement middleware functions
         foreach ($stack as $middleware) {
-            $handler = function ($request) use ($handler, $middleware) {
+            $handler = function ($request) use($handler, $middleware) {
                 if ($middleware instanceof \Closure) {
                     return call_user_func($middleware, $request, $handler);
                 }
-
                 return call_user_func([new $middleware(), 'handler'], $request, $handler);
             };
         }
         return $handler;
     }
-
-    private function middlewares(): array
+    private function middlewares() : array
     {
         $_[] = MasterHandler::class;
         $middlewares = array_merge($_, (new FileStoreService())->get_handlers());
         return array_reverse($middlewares);
     }
-
-    #[GetMapping(path: 'user')]
+    #[GetMapping('user')]
     public function user_file()
     {
         $page = UserUpload::query()->orderBy('id', 'desc')->with('user')->paginate(30);
-
         return view('User::Admin.Files.user', ['page' => $page]);
     }
-
-    #[GetMapping(path: 'upload')]
+    #[GetMapping('upload')]
     public function upload()
     {
         return view('User::Admin.Files.upload');
     }
-
-    #[PostMapping(path: 'upload')]
+    #[PostMapping('upload')]
     public function upload_submit(UploadFile $request, FileUpload $uploader)
     {
         $file = $request->file('file');
@@ -98,8 +87,6 @@ class FilesController
         if ($data['success'] === true) {
             return redirect()->url('/admin/files/upload?url=' . $data['path'])->with('success', '上传成功!')->go();
         }
-
         return redirect()->url('/admin/files/upload')->with('danger', '上传失败!')->go();
     }
-
 }

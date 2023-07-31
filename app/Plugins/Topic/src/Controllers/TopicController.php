@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -22,43 +22,39 @@ use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
-
 #[Controller(prefix: '/topic')]
 #[Middleware(\App\Plugins\User\src\Middleware\AuthMiddleware::class)]
 #[Middleware(LoginMiddleware::class)]
 class TopicController
 {
-    #[GetMapping(path: 'create')]
+    #[GetMapping('create')]
     #[Middleware(LoginMiddleware::class)]
     public function create()
     {
-        if (! Authority()->check('topic_create')) {
+        if (!Authority()->check('topic_create')) {
             return admin_abort('无发帖权限');
         }
         return (new CreateTopicView())->handler();
     }
-
-    #[PostMapping(path: 'create')]
+    #[PostMapping('create')]
     #[Middleware(LoginMiddleware::class)]
     public function create_post()
     {
-        if (! Authority()->check('topic_create')) {
+        if (!Authority()->check('topic_create')) {
             return Json_Api(419, false, ['无发帖权限']);
         }
         return (new CreateTopic())->handler(request());
     }
-
-    #[PostMapping(path: 'create/upload')]
+    #[PostMapping('create/upload')]
     #[Middleware(LoginMiddleware::class)]
     public function create_upload()
     {
-        if (! Authority()->check('topic_create')) {
+        if (!Authority()->check('topic_create')) {
             return Json_Api(419, false, ['无发帖权限']);
         }
         return (new CreateTopic())->handler(request());
     }
-
-    #[PostMapping(path: 'create/preview')]
+    #[PostMapping('create/preview')]
     #[Middleware(LoginMiddleware::class)]
     public function create_preview()
     {
@@ -66,30 +62,28 @@ class TopicController
         $content = xss()->clean($content);
         return view('Topic::create.preview', ['content' => $content]);
     }
-
-    #[GetMapping(path: '/topic/{topic_id}/edit')]
+    #[GetMapping('/topic/{topic_id}/edit')]
     public function edit($topic_id)
     {
-        if (! Topic::query()->where('id', $topic_id)->exists()) {
+        if (!Topic::query()->where('id', $topic_id)->exists()) {
             return admin_abort('帖子不存在', 404);
         }
         $data = Topic::query()->find($topic_id);
         $quanxian = false;
         if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
-        } elseif (Authority()->check('topic_edit') && auth()->id() === (int)$data->user->id) {
+        } elseif (Authority()->check('topic_edit') && auth()->id() === (int) $data->user->id) {
             $quanxian = true;
         }
-//        elseif (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {
-//            $quanxian = true;
-//        }
+        //        elseif (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {
+        //            $quanxian = true;
+        //        }
         if ($quanxian === true) {
             return (new EditTopicView())->handler($data);
         }
         return admin_abort('无权限', 419);
     }
-
-    #[PostMapping(path: '/topic/update')]
+    #[PostMapping('/topic/update')]
     #[RateLimit(create: 1, capacity: 1, consume: 1)]
     public function edit_post()
     {
@@ -97,22 +91,21 @@ class TopicController
         $quanxian = false;
         if (Authority()->check('admin_topic_edit') && curd()->GetUserClass(auth()->data()->class_id)['permission-value'] > curd()->GetUserClass($data->user->class_id)['permission-value']) {
             $quanxian = true;
-        } elseif (Authority()->check('topic_edit') && auth()->id() === (int)$data->user->id) {
+        } elseif (Authority()->check('topic_edit') && auth()->id() === (int) $data->user->id) {
             $quanxian = true;
         }
-//        elseif (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {
-//            $quanxian = true;
-//        }
+        //        elseif (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {
+        //            $quanxian = true;
+        //        }
         if ($quanxian === true) {
             return (new EditTopic())->handler();
         }
         return admin_abort('无权限', 419);
     }
-
-    #[PostMapping(path: '/topic/{id}/topic.trashed.restore')]
+    #[PostMapping('/topic/{id}/topic.trashed.restore')]
     public function topic_trashed_restore($id)
     {
-        if (! Topic::onlyTrashed()->where('id', $id)->exists()) {
+        if (!Topic::onlyTrashed()->where('id', $id)->exists()) {
             return redirect()->back()->with('danger', '此主题不在回收站中')->go();
         }
         // 主题信息
@@ -126,7 +119,7 @@ class TopicController
         } elseif (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {
             $quanxian = true;
         }
-        if (! $quanxian) {
+        if (!$quanxian) {
             return redirect()->back()->with('danger', '无权限')->go();
         }
         // 恢复主题

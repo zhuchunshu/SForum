@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -20,22 +20,20 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
-
 #[Middleware(AdminMiddleware::class)]
 #[Controller]
 class TagController
 {
-    #[GetMapping(path: '/admin/topic/tag/create')]
+    #[GetMapping('/admin/topic/tag/create')]
     public function create()
     {
         $userClass = \App\Plugins\User\src\Models\UserClass::query()->get();
         return view('Topic::Tag.create', ['userClass' => $userClass]);
     }
-
-    #[PostMapping(path: '/admin/topic/tag/create')]
+    #[PostMapping('/admin/topic/tag/create')]
     public function create_store(CreateTagRequest $request)
     {
-        if (! admin_auth()->check()) {
+        if (!admin_auth()->check()) {
             return Json_Api(419, false, ['msg' => '无权限']);
         }
         $name = $request->input('name');
@@ -48,38 +46,29 @@ class TagController
         } else {
             $userClass = null;
         }
-        TopicTag::create([
-            'name' => $name,
-            'color' => $color,
-            'description' => $description,
-            'icon' => $icon,
-            'userClass' => $userClass,
-        ]);
+        TopicTag::create(['name' => $name, 'color' => $color, 'description' => $description, 'icon' => $icon, 'userClass' => $userClass]);
         return redirect()->url('/admin/topic/tag')->with('success', '创建成功!')->go();
     }
-
-    #[GetMapping(path: '/admin/topic/tag')]
-    public function index(): \Psr\Http\Message\ResponseInterface
+    #[GetMapping('/admin/topic/tag')]
+    public function index() : \Psr\Http\Message\ResponseInterface
     {
         $page = TopicTag::query()->paginate(15);
         return view('Topic::Tag.index', ['page' => $page]);
     }
-
-    #[GetMapping(path: '/admin/topic/tag/edit/{id}')]
+    #[GetMapping('/admin/topic/tag/edit/{id}')]
     public function edit($id)
     {
-        if (! TopicTag::query()->where('id', $id)->count()) {
+        if (!TopicTag::query()->where('id', $id)->count()) {
             return admin_abort('id为' . $id . '的标签不存在', 403);
         }
         $data = TopicTag::query()->where('id', $id)->first();
         $userClass = \App\Plugins\User\src\Models\UserClass::query()->get();
         return view('Topic::Tag.edit', ['data' => $data, 'userClass' => $userClass]);
     }
-
-    #[PostMapping(path: '/admin/topic/tag/edit')]
+    #[PostMapping('/admin/topic/tag/edit')]
     public function edit_post(EditTagRequest $request, AvatarUpload $upload)
     {
-        if (! admin_auth()->check()) {
+        if (!admin_auth()->check()) {
             return Json_Api(419, false, ['msg' => '无权限']);
         }
         $id = $request->input('id');
@@ -93,68 +82,56 @@ class TagController
         } else {
             $userClass = null;
         }
-
-        TopicTag::query()->where('id', $id)->update([
-            'name' => $name,
-            'description' => $description,
-            'color' => $color,
-            'icon' => $icon,
-            'userClass' => $userClass,
-        ]);
+        TopicTag::query()->where('id', $id)->update(['name' => $name, 'description' => $description, 'color' => $color, 'icon' => $icon, 'userClass' => $userClass]);
         return redirect()->url(request()->input('Redirect'))->with('success', '修改成功!')->go();
     }
-
-    #[PostMapping(path: '/admin/topic/tag/remove')]
+    #[PostMapping('/admin/topic/tag/remove')]
     public function remove()
     {
-        if (! admin_auth()->check()) {
+        if (!admin_auth()->check()) {
             return Json_Api(419, false, ['msg' => '无权限']);
         }
         $id = request()->input('id');
-        if (! $id) {
+        if (!$id) {
             return Json_Api(403, false, ['msg' => '请求id不能为空']);
         }
         if ($id === 1) {
             return Json_Api(403, false, ['msg' => '安全起见,你不能删除id为1的标签,因为这属于是帖子的默认分类']);
         }
-        if (! TopicTag::query()->where('id', $id)->count()) {
+        if (!TopicTag::query()->where('id', $id)->count()) {
             return Json_Api(403, false, ['msg' => 'id为' . $id . '的标签不存在']);
         }
         // 迁移工作
-        go(function () use ($id) {
+        go(function () use($id) {
             Topic::query()->where('tag_id', $id)->update(['tag_id' => 1]);
         });
         TopicTag::query()->where('id', $id)->delete();
         return Json_Api(200, true, ['msg' => '删除成功!']);
     }
-
     #[GetMapping('/admin/topic/tag/jobs')]
     public function jobs()
     {
         $jobs = TopicTag::query()->where('status', '待审核')->paginate(15);
         return view('Topic::Tag.jobs', ['page' => $jobs]);
     }
-
     #[PostMapping('/admin/topic/tag/job/approval')]
     public function job_approval()
     {
-        if (! admin_auth()->check()) {
+        if (!admin_auth()->check()) {
             return Json_Api(419, false, ['msg' => '无权限']);
         }
         $id = request()->input('id');
-        if (! $id) {
+        if (!$id) {
             return Json_Api(403, false, ['msg' => '请求id不能为空']);
         }
-        if (! TopicTag::query()->where('id', $id)->count()) {
+        if (!TopicTag::query()->where('id', $id)->count()) {
             return Json_Api(403, false, ['msg' => 'id为' . $id . '的标签不存在']);
         }
-        TopicTag::where('status', '待审核')->where('id', $id)->update([
-            'status' => null,
-        ]);
+        TopicTag::where('status', '待审核')->where('id', $id)->update(['status' => null]);
         $user = TopicTag::query()->find($id)->user;
         $url = url('/tags/' . $id . '.html');
         // 判断用户是否愿意接收通知
-        go(function () use ($url, $user) {
+        go(function () use($url, $user) {
             $Subject = '【' . get_options('web_name') . '】 你的标签创建申请已审核通过';
             $Body = <<<HTML
 <h3>标题: 你的标签创建申请已审核通过,现在可以使用啦</h3>
@@ -164,25 +141,24 @@ HTML;
         });
         return Json_Api(200, true, ['msg' => '修改成功!']);
     }
-
     #[PostMapping('/admin/topic/tag/job/reject')]
     public function job_reject()
     {
-        if (! admin_auth()->check()) {
+        if (!admin_auth()->check()) {
             return Json_Api(419, false, ['msg' => '无权限']);
         }
         $id = request()->input('id');
-        if (! $id) {
+        if (!$id) {
             return Json_Api(403, false, ['msg' => '请求id不能为空']);
         }
-        if (! TopicTag::query()->where('status', '待审核')->where('id', $id)->count()) {
+        if (!TopicTag::query()->where('status', '待审核')->where('id', $id)->count()) {
             return Json_Api(403, false, ['msg' => 'id为' . $id . '的标签不存在']);
         }
         $user = TopicTag::query()->where('status', '待审核')->find($id)->user;
         $url = url('/tags');
         // 判断用户是否愿意接收通知
         $content = request()->input('content', '无理由');
-        go(function () use ($url, $user, $content) {
+        go(function () use($url, $user, $content) {
             $Subject = '【' . get_options('web_name') . '】 你的标签创建申请已被驳回';
             $Body = <<<HTML
 <h3>标题: 你的标签创建申请已被驳回</h3>

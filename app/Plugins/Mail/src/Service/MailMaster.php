@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -12,7 +12,6 @@ namespace App\Plugins\Mail\src\Service;
 
 use App\Plugins\Mail\src\SendServiceHandlerInterface;
 use Hyperf\Utils\Arr;
-
 class MailMaster implements SendServiceHandlerInterface
 {
     public function handler(array $data, \Closure $next)

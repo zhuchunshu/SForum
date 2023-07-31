@@ -14,7 +14,7 @@ use Hyperf\Utils\Collection;
 #[Controller(prefix:"/admin/server/logger")]
 class LogController
 {
-    #[GetMapping(path:"")]
+    #[GetMapping("")]
     public function index(){
         $currentPage = (int) request()->input('page', 1);
         $perPage = (int) request()->input('per_page', 15);
@@ -29,7 +29,7 @@ class LogController
         return view('admin.server.logger',['page' => $page]);
     }
 
-    #[GetMapping(path:"{id}.html")]
+    #[GetMapping("{id}.html")]
     public function data($id){
         $data = admin_log()->db()->findById($id);
         $_token = $data['_token'];

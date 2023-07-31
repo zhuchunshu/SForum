@@ -16,7 +16,7 @@ class ThemesController
 {
 
     // 主题管理 - 首页
-    #[GetMapping(path: "")]
+    #[GetMapping("")]
     public function index()
     {
         return admin_abort('页面不存在');
@@ -24,7 +24,7 @@ class ThemesController
     }
 
     // 主题信息
-    #[PostMapping(path: "")]
+    #[PostMapping("")]
     public function get()
     {
         return admin_abort('页面不存在');
@@ -72,7 +72,7 @@ class ThemesController
     }
 
     // 迁移所有资源
-    #[PostMapping(path: "MigrateAll")]
+    #[PostMapping("MigrateAll")]
     public function MigrateAll(): array
     {
         return admin_abort('页面不存在');
@@ -81,7 +81,7 @@ class ThemesController
     }
 
     // 卸载主题
-    #[PostMapping(path: "remove")]
+    #[PostMapping("remove")]
     public function remove()
     {
         return admin_abort('页面不存在');
@@ -100,7 +100,7 @@ class ThemesController
     }
 
     // 启用主题
-    #[PostMapping(path: "enable")]
+    #[PostMapping("enable")]
     public function enable()
     {
         return admin_abort('页面不存在');
@@ -129,7 +129,7 @@ class ThemesController
     }
 
     // 上传主题
-    #[GetMapping(path: "upload")]
+    #[GetMapping("upload")]
     public function upload()
     {
         return admin_abort('页面不存在');
@@ -137,7 +137,7 @@ class ThemesController
     }
 
     // 上传主题
-    #[PostMapping(path: "upload")]
+    #[PostMapping("upload")]
     public function upload_submit(ThemeUpload $request)
     {
         return admin_abort('页面不存在');

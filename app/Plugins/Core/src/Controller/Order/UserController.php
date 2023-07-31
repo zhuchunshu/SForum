@@ -10,13 +10,12 @@ use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\Utils\Str;
-
 #[Controller(prefix: "/user/order")]
 #[Middleware(LoginMiddleware::class)]
 #[Middleware(AuthMiddleware::class)]
 class UserController
 {
-    #[GetMapping(path: "{id}.order")]
+    #[GetMapping("{id}.order")]
     public function order_show($id)
     {
         // 判断订单是否存在
@@ -27,13 +26,12 @@ class UserController
         $order = PayOrder::query()->find($id);
         return view('User::Order.show', ['order' => $order]);
     }
-
-    #[PostMapping(path: "{id}.order/paying")]
+    #[PostMapping("{id}.order/paying")]
     public function order_paying($id)
     {
         // 判断订单是否存在
         if (!PayOrder::query()->where('id', $id)->where('user_id', auth()->id())->exists()) {
-            return Json_Api(403, false, ['msg' => '订单不存在.'.$id]);
+            return Json_Api(403, false, ['msg' => '订单不存在.' . $id]);
         }
         // 订单信息
         $order = PayOrder::query()->find($id);
@@ -45,13 +43,12 @@ class UserController
         }
         return pay()->paying($order->id, request()->input('payment'));
     }
-
-    #[PostMapping(path: "{id}.order/status")]
+    #[PostMapping("{id}.order/status")]
     public function get_order_status($id)
     {
         // 判断订单是否存在
         if (!PayOrder::query()->where('id', $id)->where('user_id', auth()->id())->exists()) {
-            return Json_Api(403, false, ['msg' => '订单不存在.'.$id]);
+            return Json_Api(403, false, ['msg' => '订单不存在.' . $id]);
         }
         // 订单信息
         $order = PayOrder::query()->find($id);
@@ -59,6 +56,6 @@ class UserController
         if (Str::is('*成功*', $status)) {
             $status = '支付成功';
         }
-        return Json_Api(200, true, ['msg' => '获取成功!','status' => $status]);
+        return Json_Api(200, true, ['msg' => '获取成功!', 'status' => $status]);
     }
 }

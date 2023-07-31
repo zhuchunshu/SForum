@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -12,7 +12,6 @@ namespace App\Plugins\User\src\Models;
 
 use App\Model\Model;
 use Carbon\Carbon;
-
 /**
  * @property int $id
  * @property string $qianming
@@ -31,22 +30,19 @@ class UsersOption extends Model
      *
      * @var string
      */
-    protected $table = 'users_options';
-
+    protected ?string $table = 'users_options';
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
-    protected $fillable = ['id', 'created_at', 'updated_at', 'qianming', 'qq', 'weixin', 'website', 'email', 'options', 'credits', 'golds', 'exp', 'money'];
-
+    protected array $fillable = ['id', 'created_at', 'updated_at', 'qianming', 'qq', 'weixin', 'website', 'email', 'options', 'credits', 'golds', 'exp', 'money'];
     /**
      * The attributes that should be cast to native types.
      *
      * @var array
      */
-    protected $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
-
+    protected array $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
     /**
      * 设置用户的余额.
      *
@@ -54,9 +50,8 @@ class UsersOption extends Model
      */
     public function setMoneyAttribute($value)
     {
-        $this->attributes['money'] = ((float) $value) * 100;
+        $this->attributes['money'] = (float) $value * 100;
     }
-
     /**
      * 获取用户的余额.
      *
@@ -64,9 +59,8 @@ class UsersOption extends Model
      */
     public function getMoneyAttribute($value)
     {
-        return ((float) $value) / 100;
+        return (float) $value / 100;
     }
-
     /**
      * 获取用户的积分.
      * @param $value
@@ -74,18 +68,16 @@ class UsersOption extends Model
      */
     public function getCreditsAttribute($value)
     {
-        return ((float) $value) / 100;
+        return (float) $value / 100;
     }
-
     /**
      * 设置用户的积分.
      * @param $value
      */
     public function setCreditsAttribute($value)
     {
-        $this->attributes['credits'] = ((float) $value) * 100;
+        $this->attributes['credits'] = (float) $value * 100;
     }
-
     /**
      * 获取用户的金币
      * @param $value
@@ -93,51 +85,44 @@ class UsersOption extends Model
      */
     public function getGoldsAttribute($value)
     {
-        return ((float) $value) / 100;
+        return (float) $value / 100;
     }
-
     /**
      * 设置用户的金币
      * @param $value
      */
     public function setGoldsAttribute($value)
     {
-        $this->attributes['golds'] = ((float) $value) * 100;
+        $this->attributes['golds'] = (float) $value * 100;
     }
-
     // 获取用户经验
     public function getExpAttribute($value)
     {
         return (float) $value;
     }
-
     // 设置用户经验
     public function setExpAttribute($value)
     {
-        $this->attributes['exp'] = ((float) $value);
+        $this->attributes['exp'] = (float) $value;
     }
-
     // 增加用户积分
     public function addCredits($value)
     {
         $this->credits += (float) $value;
         $this->save();
     }
-
     // 扣除用户积分
     public function reduceCredits($value)
     {
         $this->credits -= (float) $value;
         $this->save();
     }
-
     // 增加用户金币
     public function addGolds($value)
     {
         $this->golds += (float) $value;
         $this->save();
     }
-
     // 扣除用户金币
     public function reduceGolds($value)
     {
