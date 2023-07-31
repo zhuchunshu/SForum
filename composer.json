@@ -21,7 +21,6 @@
         "hassankhan/config": "^3.0",
         "hyperf/async-queue": "3.0.*",
         "hyperf/cache": "3.0.*",
-        "hyperf/code-generator": "^0.3.3",
         "hyperf/command": "3.0.*",
         "hyperf/config": "3.0.*",
         "hyperf/config-center": "3.0.*",
