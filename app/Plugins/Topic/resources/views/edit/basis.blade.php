@@ -32,10 +32,10 @@
 <script src="{{file_hash("js/axios.min.js")}}"></script>
 <script defer>
     const target = document.getElementsByTagName("html")[0]
-    const body_className = document.getElementsByTagName("html")[0].getAttribute("data-theme");
+    const body_className = document.getElementsByTagName("html")[0].getAttribute("data-bs-theme");
     const observer = new MutationObserver(function (mutations) {
         mutations.forEach(function (mutation) {
-            if (body_className !== document.getElementsByTagName("html")[0].getAttribute("data-theme")) {
+            if (body_className !== document.getElementsByTagName("html")[0].getAttribute("data-bs-theme")) {
                 location.reload()
             }
         });
