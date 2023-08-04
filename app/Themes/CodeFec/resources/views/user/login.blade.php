@@ -27,7 +27,7 @@
             </div>
         @endif
         <div class="form-footer">
-            <button type="submit" class="btn btn-primary w-100">登陆</button>
+            <button type="submit" isNeedCaptcha disabled class="btn btn-primary w-100">登陆</button>
         </div>
     </form>
 </div>

@@ -34,7 +34,7 @@
                         <div id="captcha-container"></div>
                     </div>
 
-                    <button class="btn btn-primary">提交</button>
+                    <button isNeedCaptcha disabled class="btn btn-primary">提交</button>
                 </form>
             </div>
         </div>
@@ -73,6 +73,11 @@
     </script>
     <script src="{{mix("plugins/Core/js/user.js")}}"></script>
     <script src="{{mix('plugins/User/js/order.js')}}"></script>
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback" async
-            defer></script>
+    @if(get_options("admin_captcha_service","cloudflare")==="google")
+        <script src="//www.recaptcha.net/recaptcha/api.js?onload=onloadGoogleRecaptchaCallback" async
+                defer></script>
+    @else
+        <script src="//challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback" async
+                defer></script>
+    @endif
 @endsection

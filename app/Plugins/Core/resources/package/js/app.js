@@ -3,20 +3,47 @@ import swal from "sweetalert";
 import iziToast from "izitoast";
 import copy from "copy-to-clipboard";
 
-window.onloadTurnstileCallback = function() {
-    if(document.getElementById("captcha-container")){
+window.onloadTurnstileCallback = function () {
+    if (document.getElementById("captcha-container")) {
         turnstile.render('#captcha-container', {
-            sitekey: captcha_cloudflare_turnstile_website_key,
+            sitekey: captcha_config.cloudflare,
             theme: system_theme,
-            callback: function(token) {
+            callback: function (token) {
                 console.log('Captcha token: ' + token)
                 const captchaInputs = document.querySelectorAll('input[isCaptchaInput]');
                 captchaInputs.forEach(input => {
                     input.value = token;
-                    localStorage.setItem("cf_captcha",token)
+                });
+                localStorage.setItem("captcha_token", token)
+                const needCaptchaBtn = document.querySelectorAll('button[isNeedCaptcha]');
+                needCaptchaBtn.forEach((button) => {
+                    button.removeAttribute('disabled');
                 });
             },
         });
+    }
+}
+
+window.onloadGoogleRecaptchaCallback = function () {
+    if (document.getElementById("captcha-container")) {
+        grecaptcha.render('captcha-container', {
+            'sitekey': captcha_config.recaptcha, //公钥
+            'theme': system_theme, //主题颜色，有light与dark两个值可选
+            'size': 'normal',//尺寸规则，有normal与compact两个值可选
+            'callback': function (response) {
+                console.log('Captcha token: ' + response)
+                const captchaInputs = document.querySelectorAll('input[isCaptchaInput]');
+                captchaInputs.forEach(input => {
+                    input.value = response;
+                });
+                localStorage.setItem("captcha_token", response)
+                const needCaptchaBtn = document.querySelectorAll('button[isNeedCaptcha]');
+                needCaptchaBtn.forEach((button) => {
+                    button.removeAttribute('disabled');
+                });
+            },
+
+        })
     }
 }
 
@@ -207,7 +234,7 @@ $(function () {
 
 $(function () {
     $('a[name="core_update_theme"]').click(function () {
-        let theme =$("body").attr("data-bs-theme")
+        let theme = $("body").attr("data-bs-theme")
         if (theme === "light") {
             $("body").attr("data-bs-theme", 'dark')
             $(this).html('<svg class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M0 0h24v24H0z" stroke="none"></path><circle cx="12" cy="12" r="4"></circle><path d="M3 12h1m8-9v1m8 8h1m-9 8v1M5.6 5.6l.7.7m12.1-.7l-.7.7m0 11.4l.7.7m-12.1-.7l-.7.7"></path></svg>');
@@ -255,6 +282,7 @@ $(function () {
     })
 })
 
+
 function GetQueryString(name) {
     const reg = eval("/" + name + "/g");
     const r = window.location.search.substr(1);
@@ -272,23 +300,25 @@ if (GetQueryString('clean_topic_comment_content_cache')) {
     history.pushState('', '', urlDel('clean_topic_comment_content_cache'))
 }
 
-function urlDel(name){
+function urlDel(name) {
     var url = window.location;
     var baseUrl = url.origin + url.pathname + "?";
     var query = url.search.substr(1);
-    if (query.indexOf(name)>-1) {
+    if (query.indexOf(name) > -1) {
         var obj = {}
         var arr = query.split("&");
         for (var i = 0; i < arr.length; i++) {
             arr[i] = arr[i].split("=");
             obj[arr[i][0]] = arr[i][1];
-        };
+        }
+        ;
         delete obj[name];
-        var url = baseUrl + JSON.stringify(obj).replace(/[\"\{\}]/g,"").replace(/\:/g,"=").replace(/\,/g,"&");
+        var url = baseUrl + JSON.stringify(obj).replace(/[\"\{\}]/g, "").replace(/\:/g, "=").replace(/\,/g, "&");
         return url
-    }else{
+    } else {
         return window.location.href;
-    };
+    }
+    ;
 }
 
 function getQueryVariable(variable) {
@@ -303,11 +333,11 @@ function getQueryVariable(variable) {
     return false;
 }
 
-$(function(){
-    if(theme_status===false && matchMedia('(prefers-color-scheme: dark)').matches!==auto_theme){
-        if(matchMedia('(prefers-color-scheme: dark)').matches){
+$(function () {
+    if (theme_status === false && matchMedia('(prefers-color-scheme: dark)').matches !== auto_theme) {
+        if (matchMedia('(prefers-color-scheme: dark)').matches) {
             $("body").attr("data-bs-theme", 'dark')
-        }else{
+        } else {
             $("body").attr("data-bs-theme", 'light')
         }
         axios.post("/api/core/toggle.auto.theme", {
@@ -319,11 +349,11 @@ $(function(){
 
 // 处理暗黑模式状态变化的函数
 function handleDarkModeChange() {
-    $(function(){
-        if(theme_status===false && matchMedia('(prefers-color-scheme: dark)').matches!==auto_theme){
-            if(matchMedia('(prefers-color-scheme: dark)').matches){
+    $(function () {
+        if (theme_status === false && matchMedia('(prefers-color-scheme: dark)').matches !== auto_theme) {
+            if (matchMedia('(prefers-color-scheme: dark)').matches) {
                 $("body").attr("data-bs-theme", 'dark')
-            }else{
+            } else {
                 $("body").attr("data-bs-theme", 'light')
             }
             axios.post("/api/core/toggle.auto.theme", {
@@ -337,3 +367,21 @@ function handleDarkModeChange() {
 // 添加事件监听器到媒体查询
 const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 darkModeMediaQuery.addListener(handleDarkModeChange);
+
+// 自动刷新验证码
+document.addEventListener("DOMContentLoaded", function() {
+    const buttons = document.querySelectorAll("button[isNeedCaptcha]");
+
+    buttons.forEach(button => {
+        button.addEventListener("click", function() {
+            switch (captcha_config.service) {
+                case "google":
+                    grecaptcha.reset();
+                    break;
+                case "cloudflare":
+                    turnstile.reset();
+                    break;
+            }
+        });
+    });
+});

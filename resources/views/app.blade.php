@@ -8,19 +8,22 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
 
     <title>@yield("title","标题") - {{ get_options('title', config('app_name', 'CodeFec')) }}</title>
-    <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet" />
-    <link href="{{ '/tabler/css/tabler-flags.min.css' }}" rel="stylesheet" />
-    <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet" />
-    <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
+    <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet"/>
+    <link href="{{ '/tabler/css/tabler-flags.min.css' }}" rel="stylesheet"/>
+    <link href="{{ '/tabler/css/tabler-payments.min.css' }}" rel="stylesheet"/>
+    <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{ mix('css/app.css') }}">
-    <link rel="icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon" />
-    <link rel="shortcut icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon" />
+    <link rel="icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon"/>
+    <link rel="shortcut icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon"/>
     <script src="/js/jquery-3.6.0.min.js"></script>
     <script>
-        var csrf_token="{{csrf_token()}}";
-
-         var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
-        const captcha_cloudflare_turnstile_website_key = "{{get_options("admin_captcha_cloudflare_turnstile_website_key","1x00000000000000000000AA")}}"
+        var csrf_token = "{{csrf_token()}}";
+        var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
+        const captcha_config = {
+            cloudflare: "{{get_options("admin_captcha_cloudflare_turnstile_website_key","1x00000000000000000000AA")}}",
+            recaptcha: "{{get_options("admin_captcha_recaptcha_website_key")}}",
+            service:"{{get_options("admin_captcha_service")}}"
+        }
         const system_theme = "{{session()->get('theme',session()->get('auto_theme','light'))}}"
         var auto_theme = "{{session()->get('auto_theme','light')}}";
     </script>

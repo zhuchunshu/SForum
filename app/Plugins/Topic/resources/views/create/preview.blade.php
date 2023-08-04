@@ -17,7 +17,11 @@
     <script>
 
          var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
-        const captcha_cloudflare_turnstile_website_key = "{{get_options("admin_captcha_cloudflare_turnstile_website_key","1x00000000000000000000AA")}}"
+       const captcha_config = {
+            cloudflare: "{{get_options("admin_captcha_cloudflare_turnstile_website_key","1x00000000000000000000AA")}}",
+            recaptcha: "{{get_options("admin_captcha_recaptcha_website_key")}}",
+            service:"{{get_options("admin_captcha_service")}}"
+        }
         const system_theme = "{{session()->get('theme',session()->get('auto_theme','light'))}}"
         var auto_theme = "{{session()->get('auto_theme','light')}}";
         var csrf_token = "{{ csrf_token() }}";

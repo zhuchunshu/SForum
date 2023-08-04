@@ -16,7 +16,11 @@
     <script src="{{ mix('iziToast/js/iziToast.min.js') }}"></script>
     <script>
         var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
-        const captcha_cloudflare_turnstile_website_key = "{{get_options("admin_captcha_cloudflare_turnstile_website_key","1x00000000000000000000AA")}}"
+        const captcha_config = {
+            cloudflare: "{{get_options("admin_captcha_cloudflare_turnstile_website_key","1x00000000000000000000AA")}}",
+            recaptcha: "{{get_options("admin_captcha_recaptcha_website_key")}}",
+            service: "{{get_options("admin_captcha_service")}}"
+        }
         const system_theme = "{{session()->get('theme',session()->get('auto_theme','light'))}}"
         var auto_theme = "{{session()->get('auto_theme','light')}}";
         var csrf_token = "{{csrf_token()}}";</script>
@@ -56,7 +60,7 @@
                         <div id="captcha-container"></div>
                     </div>
                     <div class="form-footer" id="submit">
-                        <button type="submit" class="btn btn-primary w-100">Sign in</button>
+                        <button isNeedCaptcha disabled type="submit" class="btn btn-primary w-100">登录</button>
                     </div>
                 </div>
             </form>
@@ -70,26 +74,13 @@
 <!-- Tabler Core -->
 <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
 <script type="module" src="{{ mix('js/admin/login.js') }}"></script>
-<script>
-    window.onloadTurnstileCallback = function() {
-        if(document.getElementById("captcha-container")){
-            turnstile.render('#captcha-container', {
-                sitekey: captcha_cloudflare_turnstile_website_key,
-                theme: system_theme,
-                callback: function(token) {
-                    console.log('Captcha token: ' + token)
-                    const captchaInputs = document.querySelectorAll('input[isCaptchaInput]');
-                    captchaInputs.forEach(input => {
-                        input.value = token;
-                        localStorage.setItem("cf_captcha",token)
-                    });
-                },
-            });
-        }
-    }
-</script>
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback" async
-        defer></script>
+@if(get_options("admin_captcha_service","cloudflare")==="google")
+    <script src="//www.recaptcha.net/recaptcha/api.js?onload=onloadGoogleRecaptchaCallback" async
+            defer></script>
+@else
+    <script src="//challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback" async
+            defer></script>
+@endif
 </body>
 
 </html>

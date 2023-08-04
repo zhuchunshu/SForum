@@ -10,31 +10,17 @@ declare(strict_types=1);
  */
 namespace App\CodeFec;
 
-use Hyperf\HttpServer\Annotation\Controller;
-use Hyperf\HttpServer\Annotation\GetMapping;
-use Hyperf\RateLimit\Annotation\RateLimit;
-
-#[Controller]
 class Captcha
 {
-    // 获取验证码
-    public function get()
-    {
-        return '/captcha';
-    }
-
-    #[GetMapping('/captcha')]
-    #[RateLimit(create: 1, capacity: 1, consume: 1)]
-    public function build()
-    {
-    }
-
-    public function inline(): string
-    {
-        return '';
-    }
-
     public function check($captcha): bool
+    {
+        return match (get_options('admin_captcha_service', 'cloudflare')) {
+            'cloudflare' => $this->checkCloudflare($captcha),
+            'google' => $this->checkGoogle($captcha),
+        };
+    }
+
+    private function checkCloudflare($captcha): bool
     {
         if (! get_options('admin_captcha_cloudflare_turnstile_website_key') || ! get_options('admin_captcha_cloudflare_turnstile_key')) {
             return true;
@@ -48,4 +34,18 @@ class Captcha
         ]);
         return $res['success'];
     }
+
+    private function checkGoogle($captcha)
+    {
+        if (! get_options('admin_captcha_recaptcha_key')) {
+            return true;
+        }
+        $res = http()->post('https://www.recaptcha.net/recaptcha/api/siteverify', [
+            'secret' => get_options('admin_captcha_recaptcha_key'),
+            'response' => $captcha,
+            'remoteip' => get_client_ip(),
+        ]);
+        return $res['success'];
+    }
+
 }

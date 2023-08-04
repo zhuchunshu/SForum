@@ -5,7 +5,7 @@ function getCaptchaInputValue(){
     const inputs = document.querySelectorAll('input[isCaptchaInput]');
     let v= inputs[0].value
     if(!v){
-        v = localStorage.getItem("cf_captcha")
+        v = localStorage.getItem("captcha_token")
     }
     return v;
 }
