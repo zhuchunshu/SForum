@@ -294,7 +294,7 @@
 {{--                                           style="margin-right: 10px">下载zip包</a>--}}
 {{--                                        <a :href="data.tarball_url" style="margin-right: 10px"--}}
 {{--                                           class="btn btn-light">下载tar.gz包</a>--}}
-                                        <a target="_blank" href="https://www.runpod.cn/docs/1/22.html" class="btn btn-green">立即更新</a>
+                                        <a target="_blank" href="https://sforum.cn/use/update/" class="btn btn-primary">立即更新</a>
                                     </div>
                                 </div>
                                 <div class="card-footer">
