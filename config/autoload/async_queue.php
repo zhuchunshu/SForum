@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 /**
- * CodeFec - Hyperf
- *
+ * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
- * @document https://codefec.com
+ * @document https://github.com/zhuchunshu/SForum
  * @contact  laravel@88.com
- * @license  https://github.com/zhuchunshu/CodeFecHF/blob/master/LICENSE
+ * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
 return [
     'default' => [
@@ -16,6 +15,6 @@ return [
         'timeout' => 2,
         'retry_seconds' => 5,
         'handle_timeout' => 10,
-        'processes' => 1,
+        'processes' => 2,
     ],
 ];

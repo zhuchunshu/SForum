@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 /**
- * This file is part of qbhy/hyperf-auth.
- *
- * @link     https://github.com/qbhy/hyperf-auth
- * @document https://github.com/qbhy/hyperf-auth/blob/master/README.md
- * @contact  qbhy0715@qq.com
- * @license  https://github.com/qbhy/hyperf-auth/blob/master/LICENSE
+ * This file is part of zhuchunshu.
+ * @link     https://github.com/zhuchunshu
+ * @document https://github.com/zhuchunshu/SForum
+ * @contact  laravel@88.com
+ * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
 use Qbhy\SimpleJwt\Encoders;
 use Qbhy\SimpleJwt\EncryptAdapters as Encrypter;
@@ -86,11 +85,11 @@ return [
              * 可选配置
              * 缓存类
              */
-//            'cache' => new \Doctrine\Common\Cache\FilesystemCache(sys_get_temp_dir()),
+            //            'cache' => new \Doctrine\Common\Cache\FilesystemCache(sys_get_temp_dir()),
             // 如果需要分布式部署，请选择 redis 或者其他支持分布式的缓存驱动
-                        'cache' => function () {
-                            return make(\Qbhy\HyperfAuth\HyperfRedisCache::class);
-                        },
+            'cache' => function () {
+                return make(\Qbhy\HyperfAuth\HyperfRedisCache::class);
+            },
 
             /*
              * 可选配置
@@ -157,9 +156,9 @@ return [
              */
             //'cache' => new \Doctrine\Common\Cache\FilesystemCache(sys_get_temp_dir()),
             // 如果需要分布式部署，请选择 redis 或者其他支持分布式的缓存驱动
-                        'cache' => function () {
-                            return make(\Qbhy\HyperfAuth\HyperfRedisCache::class);
-                        },
+            'cache' => function () {
+                return make(\Qbhy\HyperfAuth\HyperfRedisCache::class);
+            },
 
             /*
              * 可选配置
