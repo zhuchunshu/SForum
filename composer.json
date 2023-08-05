@@ -114,8 +114,7 @@
         ],
         "post-autoload-dump": [
             "rm -rf runtime/container",
-            "rm -rf runtime/view",
-            "php CodeFec"
+            "rm -rf runtime/view"
         ],
         "test": "co-phpunit -c phpunit.xml --colors=always",
         "cs-fix": "php-cs-fixer fix $1",
