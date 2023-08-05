@@ -13,7 +13,7 @@ class Route implements RouteInterface
 
     public function set($route, $callback)
     {
-        $this->list = Arr::add($this->list, $route, $callback);
+        $this->list = Arr::set($this->list, $route, $callback);
     }
 	
 	public function re($route, $callback): bool

@@ -37,7 +37,7 @@ class Header implements HeaderInterface
             'type' => $type,
             'view' => $view,
         ];
-        $this->list = Arr::add($this->list, $id, $arr);
+        $this->list = Arr::set($this->list, $id, $arr);
         return true;
     }
 }

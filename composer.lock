@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "241d83bddd34e1746e4ca3ac02344aca",
+    "content-hash": "f096c0241971aed4bd2d5c95af8346ec",
     "packages": [
         {
             "name": "96qbhy/simple-jwt",

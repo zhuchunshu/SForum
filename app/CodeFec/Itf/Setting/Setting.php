@@ -22,7 +22,7 @@ class Setting implements SettingInterface {
             'ename' => $ename,
             'view' => $view
         ];
-        $this->list = Arr::add($this->list, $id, $arr);
+        $this->list = Arr::set($this->list, $id, $arr);
 
         return true;
     }
