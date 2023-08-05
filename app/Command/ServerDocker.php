@@ -13,16 +13,11 @@ namespace App\Command;
 use App\CodeFec\DockerInstall;
 use Hyperf\Command\Annotation\Command;
 use Hyperf\Command\Command as HyperfCommand;
-use Hyperf\Contract\ConfigInterface;
-use Hyperf\Contract\StdoutLoggerInterface;
-use Hyperf\Engine\Coroutine;
-use Hyperf\Server\ServerFactory;
+use Hyperf\Watcher\Option;
+use Hyperf\Watcher\Watcher;
 use Psr\Container\ContainerInterface;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use Swoole\Coroutine\System;
-use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\OutputInterface;
 
 #[Command]
 class ServerDocker extends HyperfCommand
@@ -54,38 +49,17 @@ class ServerDocker extends HyperfCommand
             if (! is_dir(BASE_PATH . '/app/CodeFec/storage')) {
                 System::exec('cd ' . BASE_PATH . '/app/CodeFec && mkdir storage');
             }
+            $myfile = fopen(BASE_PATH . '/app/CodeFec/storage/install.step.lock', 'wb') or exit('Unable to open file!');
+            fwrite($myfile, '5');
+            fclose($myfile);
             $install = make(DockerInstall::class, ['output' => $this->output, 'command' => $this]);
             $install->run();
         }
-    }
-
-    protected function execute(InputInterface $input, OutputInterface $output)
-    {
-        shell_exec('composer du');
-        $this->checkEnvironment($output);
-        $serverFactory = $this->container->get(ServerFactory::class);
-        $serverFactory->setEventDispatcher($this->container->get(EventDispatcherInterface::class));
-        $serverFactory->setLogger($this->container->get(StdoutLoggerInterface::class));
-        $serverConfig = $this->container->get(ConfigInterface::class)->get('server', []);
-        if (! $serverConfig) {
-            throw new \InvalidArgumentException('At least one se$rver should be defined.');
-        }
-        $serverFactory->configure($serverConfig);
-        Coroutine::set(['hook_flags' => \Hyperf\Support\swoole_hook_flags()]);
-        $serverFactory->start();
-        return 0;
-    }
-
-    private function checkEnvironment(OutputInterface $output)
-    {
-        if (! extension_loaded('swoole')) {
-            return;
-        }
-        $useShortname = ini_get_all('swoole')['swoole.use_shortname']['local_value'];
-        $useShortname = strtolower(trim(str_replace('0', '', $useShortname)));
-        if (! in_array($useShortname, ['', 'off', 'false'], true)) {
-            $output->writeln("<error>ERROR</error> Swoole short function names must be disabled before the server starts, please set swoole.use_shortname='Off' in your php.ini.");
-            exit(SIGTERM);
-        }
+        go(function () {
+            system_clear_cache();
+        });
+        $option = make(Option::class, ['dir' => $this->input->getOption('dir'), 'file' => $this->input->getOption('file'), 'restart' => ! $this->input->getOption('no-restart')]);
+        $watcher = make(Watcher::class, ['option' => $option, 'output' => $this->output]);
+        $watcher->run();
     }
 }
