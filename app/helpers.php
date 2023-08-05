@@ -1035,3 +1035,31 @@ if (! function_exists('get_content_brief')) {
         return htmlspecialchars_decode($content, ENT_QUOTES);
     }
 }
+
+// 判断已安装
+if(!function_exists("is_installed")){
+    function is_installed(): bool{
+        if (file_exists(BASE_PATH . '/app/CodeFec/storage/install.lock') || get_install_step() >= 5){
+            return true;
+        }
+        return false;
+    }
+}
+
+if(!function_exists("get_install_step")){
+    function get_install_step(){
+        if (! is_dir(BASE_PATH . '/app/CodeFec/storage')) {
+            mkdir(BASE_PATH . '/app/CodeFec/storage');
+        }
+        // 创建文件
+        if (! file_exists(BASE_PATH . '/app/CodeFec/storage/install.step.lock')) {
+            file_put_contents(BASE_PATH . '/app/CodeFec/storage/install.step.lock', 1);
+        }
+        if (! @file_get_contents(BASE_PATH . '/app/CodeFec/storage/install.step.lock')) {
+            $step = 1;
+        } else {
+            $step = (int) file_get_contents(BASE_PATH . '/app/CodeFec/storage/install.step.lock');
+        }
+        return $step;
+    }
+}
