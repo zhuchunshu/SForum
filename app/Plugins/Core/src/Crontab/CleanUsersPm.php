@@ -31,7 +31,7 @@ class CleanUsersPm
     }
     public function isEnable() : bool
     {
-        return !((int) $this->get_options('pm_msg_reserve', 7) === 0);
+        return (is_installed() && (int) $this->get_options('pm_msg_reserve', 7) !== 0);
     }
     private function core_default($string = null, $default = null)
     {
