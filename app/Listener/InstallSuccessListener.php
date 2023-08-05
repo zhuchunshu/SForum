@@ -7,7 +7,7 @@ use Hyperf\Database\Schema\Schema;
 use Hyperf\DB\DB;
 use Hyperf\Event\Annotation\Listener;
 use Hyperf\Event\Contract\ListenerInterface;
-use Hyperf\Utils\ApplicationContext;
+use Hyperf\Context\ApplicationContext;
 
 /**
  * 安装成功

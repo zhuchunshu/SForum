@@ -19,7 +19,7 @@ use App\Plugins\Core\src\Models\PayOrder;
 use App\Plugins\User\src\Models\User;
 use Hyperf\Di\Annotation\Inject;
 use Hyperf\Utils\Arr;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use Psr\Http\Message\ResponseInterface;
 use Psr\SimpleCache\InvalidArgumentException;
 class PayService
@@ -362,7 +362,7 @@ class PayService
     }
     private function core_Itf_id($name, $id)
     {
-        return \Hyperf\Utils\Str::after($id, $name . '_');
+        return \Hyperf\Stringable\Str::after($id, $name . '_');
     }
     private function core_default($string = null, $default = null)
     {

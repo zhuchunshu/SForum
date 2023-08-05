@@ -8,7 +8,7 @@ use App\Model\AdminOption;
 use App\Request\Admin\PluginUpload;
 use App\Request\Admin\ThemeUpload;
 use Hyperf\HttpServer\Annotation\{Controller, GetMapping, Middleware, PostMapping};
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 
 #[Controller(prefix: "/admin/themes")]
 #[Middleware(AdminMiddleware::class)]

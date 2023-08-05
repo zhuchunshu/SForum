@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace App\Plugins\Core\src\Lib;
 
 use App\Plugins\User\src\Models\User;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 class TextParsing
 {
     public function keywords($keywords) : string

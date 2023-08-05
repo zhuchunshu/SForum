@@ -10,7 +10,7 @@ declare(strict_types=1);
  */
 namespace App\Middleware;
 
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;

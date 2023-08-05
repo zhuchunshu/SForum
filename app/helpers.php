@@ -182,14 +182,14 @@ if (! function_exists('path_class')) {
 if (! function_exists('menu')) {
     function menu()
     {
-        return \Hyperf\Utils\ApplicationContext::getContainer()->get(MenuInterface::class);
+        return \Hyperf\Context\ApplicationContext::getContainer()->get(MenuInterface::class);
     }
 }
 
 if (! function_exists('view')) {
     function view(string $view, array $data = [], int $code = 200)
     {
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+        $container = \Hyperf\Context\ApplicationContext::getContainer();
         return $container->get(RenderInterface::class)->render($view, $data, $code);
         if (env('APP_ENV') === 'dev') {
             return $result;
@@ -256,7 +256,7 @@ if (! function_exists('json_api')) {
 if (! function_exists('session')) {
     function session()
     {
-        return \Hyperf\Utils\ApplicationContext::getContainer()->get(SessionInterface::class);
+        return \Hyperf\Context\ApplicationContext::getContainer()->get(SessionInterface::class);
     }
 }
 
@@ -550,7 +550,7 @@ if (! function_exists('csrf_token')) {
             session()->set('CSRF_TOKEN', Str::random());
         }
         if (! cache()->has('CSRF_TOKEN' . session()->get('CSRF_TOKEN'))) {
-            $k = \Hyperf\Utils\Str::random(25);
+            $k = \Hyperf\Stringable\Str::random(25);
             cache()->set('CSRF_TOKEN' . session()->get('CSRF_TOKEN'), $k);
         }
         return cache()->get('CSRF_TOKEN' . session()->get('CSRF_TOKEN'));
@@ -563,7 +563,7 @@ if (! function_exists('recsrf_token')) {
         if (! session()->has('CSRF_TOKEN')) {
             session()->set('CSRF_TOKEN', Str::random());
         }
-        $k = \Hyperf\Utils\Str::random(25);
+        $k = \Hyperf\Stringable\Str::random(25);
         cache()->set('CSRF_TOKEN' . session()->get('CSRF_TOKEN'), $k);
         return cache()->get('CSRF_TOKEN' . session()->get('CSRF_TOKEN'));
     }
@@ -595,21 +595,21 @@ if (! function_exists('modifyEnv')) {
 if (! function_exists('Itf_Setting')) {
     function Itf_Setting()
     {
-        return \Hyperf\Utils\ApplicationContext::getContainer()->get(SettingInterface::class);
+        return \Hyperf\Context\ApplicationContext::getContainer()->get(SettingInterface::class);
     }
 }
 
 if (! function_exists('Router')) {
     function Router()
     {
-        return \Hyperf\Utils\ApplicationContext::getContainer()->get(\App\CodeFec\Itf\Route\RouteInterface::class);
+        return \Hyperf\Context\ApplicationContext::getContainer()->get(\App\CodeFec\Itf\Route\RouteInterface::class);
     }
 }
 
 if (! function_exists('Themes')) {
     function Themes()
     {
-        return \Hyperf\Utils\ApplicationContext::getContainer()->get(\App\CodeFec\Itf\Theme\ThemeInterface::class);
+        return \Hyperf\Context\ApplicationContext::getContainer()->get(\App\CodeFec\Itf\Theme\ThemeInterface::class);
     }
 }
 
@@ -630,7 +630,7 @@ if (! function_exists('Helpers_Str')) {
 if (! function_exists('Itf')) {
     function Itf()
     {
-        return \Hyperf\Utils\ApplicationContext::getContainer()->get(\App\CodeFec\Itf\Itf\ItfInterface::class);
+        return \Hyperf\Context\ApplicationContext::getContainer()->get(\App\CodeFec\Itf\Itf\ItfInterface::class);
     }
 }
 
@@ -864,7 +864,7 @@ if (! function_exists('content_brief')) {
         $content = strip_tags($content);
         $content = htmlspecialchars($content);
         $content = remove_bbCode($content) ?: '';
-        $content = \Hyperf\Utils\Str::limit($content, $len);
+        $content = \Hyperf\Stringable\Str::limit($content, $len);
         return htmlspecialchars_decode($content, ENT_QUOTES);
     }
 }
@@ -986,7 +986,7 @@ if (! function_exists('get_component_view_name')) {
     function get_component_view_name($name): string
     {
         $view = 'customize.component.' . $name;
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+        $container = \Hyperf\Context\ApplicationContext::getContainer();
         $factory = $container->get(FactoryInterface::class);
         if (! $factory->exists($view)) {
             return 'shared.viewIsNull';
@@ -1030,7 +1030,7 @@ if (! function_exists('get_content_brief')) {
         $content = strip_tags($content);
         $content = htmlspecialchars($content);
         $content = remove_bbCode($content) ?: '';
-        $content = \Hyperf\Utils\Str::limit($content, $len);
+        $content = \Hyperf\Stringable\Str::limit($content, $len);
         $content = trim(preg_replace('/\s+/', ' ', $content));
         return htmlspecialchars_decode($content, ENT_QUOTES);
     }

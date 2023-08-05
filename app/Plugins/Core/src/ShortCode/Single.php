@@ -17,7 +17,7 @@ class Single
     #[ShortCodeR(name: 'friend_links')]
     public function friend_links()
     {
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+        $container = \Hyperf\Context\ApplicationContext::getContainer();
         return $container->get(RenderInterface::class)->render('App::widget.shortCode.friend_links');
     }
 }

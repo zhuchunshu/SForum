@@ -13,7 +13,7 @@ namespace App\Plugins\User\src\Lib;
 use App\Plugins\User\src\Event\SendMail;
 use App\Plugins\User\src\Models\User;
 use App\Plugins\User\src\Models\UsersNotice;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use Psr\Http\Message\ResponseInterface;
 class UserNotice
 {

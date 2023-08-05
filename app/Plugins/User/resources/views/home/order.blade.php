@@ -67,7 +67,7 @@
                                         <td>
                                             <span class="badge badge-outline {{pay()->generate_html()->status_class_text($order->status)}}">{{$order->status}}</span>
                                         </td>
-                                        <td class="text-muted">@if($order->trade_no) {{\Hyperf\Utils\Str::limit($order->trade_no,8)}} @else
+                                        <td class="text-muted">@if($order->trade_no) {{\Hyperf\Stringable\Str::limit($order->trade_no,8)}} @else
                                                 <span class="badge badge-outline {{pay()->generate_html()->status_class_text($order->status)}}">{{$order->status}}</span> @endif
                                         </td>
                                         <td>@if($order->amount_total){{$order->amount_total}} {{get_options('wealth_money_unit_name','元')}} @else <span

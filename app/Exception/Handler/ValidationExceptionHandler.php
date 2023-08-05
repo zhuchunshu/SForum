@@ -35,7 +35,7 @@ class ValidationExceptionHandler extends ExceptionHandler
         if (! $response->hasHeader('content-type')) {
             $response = $response->withAddedHeader('content-type', 'text/plain; charset=utf-8');
         }
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+        $container = \Hyperf\Context\ApplicationContext::getContainer();
         $responses = $container->get(\Hyperf\HttpServer\Contract\ResponseInterface::class);
 
         return $responses->json(Json_Api($throwable->status, false, $body));

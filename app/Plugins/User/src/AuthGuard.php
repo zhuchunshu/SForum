@@ -12,7 +12,7 @@ namespace App\Plugins\User\src;
 
 use App\Plugins\User\src\Models\UsersAuth;
 use Hyperf\Context\Context;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use Qbhy\HyperfAuth\Authenticatable;
 use Qbhy\HyperfAuth\Exception\AuthException;
 use Qbhy\HyperfAuth\Guard\SessionGuard;

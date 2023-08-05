@@ -14,7 +14,7 @@ use Hyperf\Command\Annotation\Command;
 use Hyperf\Command\Command as HyperfCommand;
 use Hyperf\Database\Schema\Schema;
 use Hyperf\DbConnection\Db;
-use Hyperf\Utils\ApplicationContext;
+use Hyperf\Context\ApplicationContext;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\Console\Helper\ProgressBar;
 #[Command]

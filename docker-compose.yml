@@ -11,6 +11,7 @@ services:
       - DB_DATABASE=sforum
       - DB_USERNAME=sforum
       - DB_PASSWORD=sforum
+      - SCAN_CACHEABLE=true
 
     depends_on:
       - db

@@ -9,7 +9,7 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 #[Controller(prefix: "/user/order")]
 #[Middleware(LoginMiddleware::class)]
 #[Middleware(AuthMiddleware::class)]

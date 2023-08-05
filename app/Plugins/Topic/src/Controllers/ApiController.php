@@ -63,7 +63,7 @@ class ApiController
         }
         $data = Topic::query()->where('id', $topic_id)->select('id', 'title', 'user_id', 'options', 'created_at')->with('user')->first();
         $user_avatar = super_avatar($data->user);
-        $title = \Hyperf\Utils\Str::limit($data->title, 20);
+        $title = \Hyperf\Stringable\Str::limit($data->title, 20);
         $username = $data->user->username;
         $summary = '作者：' . $username;
         return Json_Api(200, true, ['avatar' => $user_avatar, 'title' => $title, 'summary' => $summary, 'username' => $username]);
@@ -329,10 +329,10 @@ class ApiController
         }
         $shang = Topic::query()->where([['id', '<', $topic_id]])->select('title', 'id')->orderBy('id', 'desc')->first();
         $shang['url'] = '/' . @$shang['id'] . '.html';
-        $shang['title'] = \Hyperf\Utils\Str::limit(@$shang['title'] ?: ' ', 20, '...');
+        $shang['title'] = \Hyperf\Stringable\Str::limit(@$shang['title'] ?: ' ', 20, '...');
         $xia = Topic::query()->where([['id', '>', $topic_id]])->select('title', 'id')->orderBy('id', 'asc')->first();
         $xia['url'] = '/' . @$xia['id'] . '.html';
-        $xia['title'] = \Hyperf\Utils\Str::limit(@$xia['title'] ?: ' ', 20, '...');
+        $xia['title'] = \Hyperf\Stringable\Str::limit(@$xia['title'] ?: ' ', 20, '...');
         return json_api(200, true, ['msg' => '获取成功', 'result' => ['shang' => $shang, 'xia' => $xia]]);
     }
 }

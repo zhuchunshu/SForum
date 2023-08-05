@@ -4,8 +4,8 @@
 <div class="mb-2">
     @php($user = \App\Plugins\User\src\Models\User::query()->with('Options')->find(auth()->id()))
     @if(count(explode('.',$user->Options->money))>1)
-        @php( $dc = \Hyperf\Utils\Str::after((string)$user->Options->money,'.'))
-        @php($dc = (int)\Hyperf\Utils\Str::length($dc))
+        @php( $dc = \Hyperf\Stringable\Str::after((string)$user->Options->money,'.'))
+        @php($dc = (int)\Hyperf\Stringable\Str::length($dc))
     @else
         @php($dc = 0)
     @endif

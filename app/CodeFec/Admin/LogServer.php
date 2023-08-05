@@ -10,7 +10,7 @@ declare(strict_types=1);
  */
 namespace App\CodeFec\Admin;
 
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use SleekDB\Exceptions\IdNotAllowedException;
 use SleekDB\Exceptions\InvalidArgumentException;
 use SleekDB\Exceptions\InvalidConfigurationException;

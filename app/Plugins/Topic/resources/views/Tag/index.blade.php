@@ -34,7 +34,7 @@
                                 <div style="width: 25px;height:25px;background-color:{{ $value->color }};border-radius:5px;"></div>
                             </td>
                             @if($value->description)
-                                <td class="text-muted">{{ \Hyperf\Utils\Str::limit($value->description,100) }}</td>
+                                <td class="text-muted">{{ \Hyperf\Stringable\Str::limit($value->description,100) }}</td>
                             @else
                                 <td class="text-muted">{{__("app.no description")}}</td>
                             @endif

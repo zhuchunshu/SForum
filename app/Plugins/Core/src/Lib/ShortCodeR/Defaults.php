@@ -4,7 +4,7 @@ namespace App\Plugins\Core\src\Lib\ShortCodeR;
 
 use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Topic\src\Models\Topic;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use Thunder\Shortcode\Shortcode\ShortcodeInterface;
 class Defaults
 {

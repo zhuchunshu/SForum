@@ -18,7 +18,7 @@ use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\Paginator\LengthAwarePaginator;
 use Hyperf\Utils\Collection;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -152,7 +152,7 @@ class PluginsController
             $input = new ArrayInput($params);
             $output = new NullOutput();
 
-            $container = \Hyperf\Utils\ApplicationContext::getContainer();
+            $container = \Hyperf\Context\ApplicationContext::getContainer();
 
             /** @var Application $application */
             $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);

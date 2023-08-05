@@ -1,23 +1,57 @@
-version: '3.1'
-
-networks:
-  mysql_networks:
-    external: true
-
+version: '3'
 services:
   web:
-    #zhuchunshu/sforum:v2 or ghcr.io/zhuchunshu/sforum:v2
-    build: .
+    image: zhuchunshu/sforum:dev
     ports:
       - "9501:9501"
+
     environment:
       - DB_HOST=db
       - REDIS_HOST=redis
       - DB_DATABASE=sforum
       - DB_USERNAME=sforum
-      - DB_PASSWORD=123456
+      - DB_PASSWORD=sforum
 
+    depends_on:
+      - db
+      - redis
     networks:
-      - mysql_networks
+      - sf
     volumes:
-      - ./:/data/www
+      - sforum:/data
+    restart: always
+
+  redis:
+    image: redis:7.0
+    restart: always
+    networks:
+      - sf
+    volumes:
+      - redis:/data
+      - redis:/usr/local/etc/redis/redis.conf
+      - redis:/logs
+
+  db:
+    image: mariadb:10.5.18
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: sforum
+      MARIADB_DATABASE: sforum
+      MARIADB_USER: sforum
+      MARIADB_PASSWORD: sforum
+    networks:
+      - sf
+    volumes:
+      - db:/var/lib/mysql
+
+networks:
+  sf:
+    external: false
+
+volumes:
+  sforum:
+    driver: local
+  db:
+    driver: local
+  redis:
+    driver: local

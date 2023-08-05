@@ -1,5 +1,5 @@
 @extends('App::app')
-@section('title','评论帖子【'.\Hyperf\Utils\Str::limit($topic->title,25).'】')
+@section('title','评论帖子【'.\Hyperf\Stringable\Str::limit($topic->title,25).'】')
 @section('content')
     <div class="row row-cards justify-content-center">
         <div class="col-lg-12">
@@ -13,7 +13,7 @@
                             </a>
                         </li>
                         <li class="breadcrumb-item"><a href="/{{$topic->id}}.html">
-                                {{\Hyperf\Utils\Str::limit($topic->title,25)}}
+                                {{\Hyperf\Stringable\Str::limit($topic->title,25)}}
                             </a>
                         </li>
                         <li class="breadcrumb-item active" aria-current="page"><a href="#">回帖</a></li>

@@ -15,7 +15,7 @@ use Hyperf\Command\Annotation\Command;
 use Hyperf\Command\Command as HyperfCommand;
 use Hyperf\Database\Schema\Schema;
 use Hyperf\DB\DB;
-use Hyperf\Utils\ApplicationContext;
+use Hyperf\Context\ApplicationContext;
 use Psr\Container\ContainerInterface;
 #[Command]
 class UserOptionMigrate extends HyperfCommand

@@ -10,7 +10,6 @@ declare(strict_types=1);
  */
 namespace App\Server;
 
-use App\CodeFec\CodeFec;
 use FastRoute\Dispatcher;
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Contract\MiddlewareInitializerInterface;

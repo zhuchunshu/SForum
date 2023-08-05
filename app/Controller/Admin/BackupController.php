@@ -16,7 +16,7 @@ use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\Paginator\LengthAwarePaginator;
 use Hyperf\Utils\Collection;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use Swoole\Coroutine\System;
 use Symfony\Component\Finder\Finder;
 

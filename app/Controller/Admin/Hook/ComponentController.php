@@ -18,7 +18,7 @@ use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\Paginator\LengthAwarePaginator;
 use Hyperf\Utils\Collection;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use Hyperf\ViewEngine\Contract\FactoryInterface;
 use Swoole\Coroutine\System;
 use Symfony\Component\Finder\Finder;
@@ -52,7 +52,7 @@ class ComponentController
     {
         $component = request()->input('component');
         $component = 'customize.component.' . $component;
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+        $container = \Hyperf\Context\ApplicationContext::getContainer();
         $factory = $container->get(FactoryInterface::class);
         if (!$factory->exists($component)) {
             return admin_abort('小部件不存在', 403);

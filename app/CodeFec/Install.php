@@ -17,7 +17,7 @@ use App\Plugins\Topic\src\Models\Topic;
 use Hyperf\Database\Schema\Blueprint;
 use Hyperf\Database\Schema\Schema;
 use Hyperf\DbConnection\Db;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use PDOException;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -187,7 +187,7 @@ class Install
         $input = new ArrayInput($params);
         $output = new NullOutput();
 
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+        $container = \Hyperf\Context\ApplicationContext::getContainer();
 
         /** @var Application $application */
         $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
@@ -216,7 +216,7 @@ class Install
                 $input = new ArrayInput($params);
                 $output = new NullOutput();
 
-                $container = \Hyperf\Utils\ApplicationContext::getContainer();
+                $container = \Hyperf\Context\ApplicationContext::getContainer();
 
                 /** @var Application $application */
                 $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
@@ -296,7 +296,7 @@ class Install
         $input = new ArrayInput($params);
         $output = new NullOutput();
 
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+        $container = \Hyperf\Context\ApplicationContext::getContainer();
 
         /** @var Application $application */
         $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);

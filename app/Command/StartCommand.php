@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types=1);
+declare(strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -27,9 +27,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[Command]
 class StartCommand extends HyperfCommand
 {
-    
     protected ContainerInterface $container;
-    
+
     public function __construct(ContainerInterface $container)
     {
         parent::__construct('CodeFec');
@@ -39,12 +38,12 @@ class StartCommand extends HyperfCommand
         $this->addOption('dir', 'D', InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, '', []);
         $this->addOption('no-restart', 'N', InputOption::VALUE_NONE, 'Whether no need to restart server');
     }
-    
+
     public function handle()
     {
         // TODO: Implement handle() method.
     }
-    
+
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         shell_exec('composer du');
@@ -52,7 +51,7 @@ class StartCommand extends HyperfCommand
             $this->checkEnvironment($output);
             $serverFactory = $this->container->get(ServerFactory::class)->setEventDispatcher($this->container->get(EventDispatcherInterface::class))->setLogger($this->container->get(StdoutLoggerInterface::class));
             $serverConfig = $this->container->get(ConfigInterface::class)->get('server', []);
-            if (!$serverConfig) {
+            if (! $serverConfig) {
                 throw new InvalidArgumentException('At least one server should be defined.');
             }
             $serverFactory->configure($serverConfig);
@@ -64,17 +63,17 @@ class StartCommand extends HyperfCommand
         }
         return 0;
     }
-    
-    private function removeFiles(...$values) : void
+
+    private function removeFiles(...$values): void
     {
         foreach ($values as $value) {
             exec('rm -rf "' . $value . '"');
         }
     }
-    
+
     private function checkEnvironment(OutputInterface $output)
     {
-        if (!extension_loaded('swoole')) {
+        if (! extension_loaded('swoole')) {
             return;
         }
         /**
@@ -102,7 +101,7 @@ class StartCommand extends HyperfCommand
          */
         $useShortname = ini_get_all('swoole')['swoole.use_shortname']['local_value'];
         $useShortname = strtolower(trim(str_replace('0', '', $useShortname)));
-        if (!in_array($useShortname, ['', 'off', 'false'], true)) {
+        if (! in_array($useShortname, ['', 'off', 'false'], true)) {
             $output->writeln("<error>ERROR</error> Swoole short function names must be disabled before the server starts, please set swoole.use_shortname='Off' in your php.ini.");
             exit(SIGTERM);
         }

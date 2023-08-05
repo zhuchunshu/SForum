@@ -6,7 +6,7 @@ class functions
 {
     public static function Ui()
     {
-	    return \Hyperf\Utils\ApplicationContext::getContainer()->get(UiInterface::class);
+	    return \Hyperf\Context\ApplicationContext::getContainer()->get(UiInterface::class);
     }
 
     public static function get($type): array

@@ -4,7 +4,7 @@ namespace App\Plugins\Core\src\Jobs;
 
 use App\Plugins\Core\src\Models\InvitationCode;
 use Hyperf\AsyncQueue\Annotation\AsyncQueueMessage;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 class CreateInvitationCodeJob
 {
     #[AsyncQueueMessage]

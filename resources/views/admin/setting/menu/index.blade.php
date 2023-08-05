@@ -39,7 +39,7 @@
                                 <tr>
                                     <td>{{$menu['id']}}</td>
                                     <td>{{__($menu['name'])}}</td>
-                                    <td><a href="{{$menu['url']}}">{{\Hyperf\Utils\Str::limit($menu['url'],50)}}</a></td>
+                                    <td><a href="{{$menu['url']}}">{{\Hyperf\Stringable\Str::limit($menu['url'],50)}}</a></td>
                                     <td>
                                         {!! $menu['icon'] !!}
                                     </td>

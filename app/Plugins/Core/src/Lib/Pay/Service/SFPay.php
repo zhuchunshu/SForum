@@ -13,7 +13,7 @@ namespace App\Plugins\Core\src\Lib\Pay\Service;
 use App\Plugins\Core\src\Controller\Pay\PayInterFace;
 use App\Plugins\Core\src\Models\PayOrder;
 use App\Plugins\User\src\Models\User;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use Psr\SimpleCache\InvalidArgumentException;
 use Yansongda\Pay\Exception\ContainerException;
 use Yansongda\Pay\Exception\InvalidParamsException;

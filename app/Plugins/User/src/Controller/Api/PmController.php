@@ -17,7 +17,7 @@ use App\Plugins\User\src\Models\UsersPm;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 /**
  * 私信
  */

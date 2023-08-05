@@ -15,7 +15,7 @@ use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Core\src\Models\InvitationCode;
 use App\Plugins\Topic\src\Models\TopicTag;
 use App\Plugins\User\src\Models\User;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use Thunder\Shortcode\Shortcode\ShortcodeInterface;
 class ShortCode
 {

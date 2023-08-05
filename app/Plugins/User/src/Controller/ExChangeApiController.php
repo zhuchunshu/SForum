@@ -45,8 +45,8 @@ class ExChangeApiController
         }
         $user = User::query()->with('Options')->find(auth()->id());
         // 最多能兑换的金币数量
-        $dc = \Hyperf\Utils\Str::after($user->Options->money, '.');
-        $dc = \Hyperf\Utils\Str::length($dc);
+        $dc = \Hyperf\Stringable\Str::after($user->Options->money, '.');
+        $dc = \Hyperf\Stringable\Str::length($dc);
         $max = intval($user->Options->money * get_options('wealth_how_many_money_to_golds', '1'));
         if ($moneyTo_golds_num > $max) {
             return Json_Api(403, false, ['msg' => '超出最大兑换限制']);
@@ -90,8 +90,8 @@ class ExChangeApiController
         $proportion = get_options('wealth_how_many_golds_to_credit', 10);
         // 最多能兑换的金币数量
         $max = intval($user->Options->golds * $proportion);
-        $dc = \Hyperf\Utils\Str::after($user->Options->golds, '.');
-        $dc = \Hyperf\Utils\Str::length($dc);
+        $dc = \Hyperf\Stringable\Str::after($user->Options->golds, '.');
+        $dc = \Hyperf\Stringable\Str::length($dc);
         if ($goldsTo_credit_num > $max) {
             return Json_Api(403, false, ['msg' => '超出最大兑换限制']);
         }
@@ -134,8 +134,8 @@ class ExChangeApiController
         $proportion = get_options('wealth_how_many_money_to_credit', get_options('wealth_how_many_money_to_golds', '1') * get_options('wealth_how_many_golds_to_credit', 10));
         // 最多能兑换的金币数量
         $max = intval($user->Options->money * $proportion);
-        $dc = \Hyperf\Utils\Str::after($user->Options->money, '.');
-        $dc = \Hyperf\Utils\Str::length($dc);
+        $dc = \Hyperf\Stringable\Str::after($user->Options->money, '.');
+        $dc = \Hyperf\Stringable\Str::length($dc);
         if ($moneyTo_credit_num > $max) {
             return Json_Api(403, false, ['msg' => '超出最大兑换限制']);
         }

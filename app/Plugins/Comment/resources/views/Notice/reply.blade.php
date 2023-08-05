@@ -24,10 +24,10 @@
                         <span style="color:#999999" >{{$data->parent->user->username}} {{__("app.Published on")}} {{$data->created_at}}</span>
                     </a>
                     <br>
-                    {{\Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($data->parent->post->content)),60)}}
+                    {{\Hyperf\Stringable\Str::limit(remove_bbCode(strip_tags($data->parent->post->content)),60)}}
                 </blockquote>
             </div>
-            {{\Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($data->post->content)),100)}}
+            {{\Hyperf\Stringable\Str::limit(remove_bbCode(strip_tags($data->post->content)),100)}}
         </div>
     </div>
 </div>

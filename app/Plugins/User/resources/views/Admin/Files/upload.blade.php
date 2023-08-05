@@ -26,7 +26,7 @@
                     <h3 class="card-title">文件上传成功!</h3>
                     <div class="mb-3">
                         <label for="" class="form-label">文件链接</label>
-                        @if(\Hyperf\Utils\Str::is('http*//*',request()->input("url")))
+                        @if(\Hyperf\Stringable\Str::is('http*//*',request()->input("url")))
                             <input type="text" class="form-control" value="{{(request()->input("url"))}}">
                         @else
                             <input type="text" class="form-control" value="{{url(request()->input("url"))}}">

@@ -25,7 +25,7 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 #[Controller]
 #[RateLimit(create: 1, capacity: 3)]
 class ApiController

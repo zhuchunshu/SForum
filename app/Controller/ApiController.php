@@ -74,7 +74,7 @@ class ApiController
             $params = ['command' => 'ClearCache'];
             $input = new ArrayInput($params);
             $output = new NullOutput();
-            $container = \Hyperf\Utils\ApplicationContext::getContainer();
+            $container = \Hyperf\Context\ApplicationContext::getContainer();
             /** @var Application $application */
             $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
             $application->setAutoExit(false);
@@ -122,7 +122,7 @@ class ApiController
             $params = ['command' => 'CodeFec:migrate', 'path' => plugin_path($plugin_name . '/src/migrations')];
             $input = new ArrayInput($params);
             $output = new NullOutput();
-            $container = \Hyperf\Utils\ApplicationContext::getContainer();
+            $container = \Hyperf\Context\ApplicationContext::getContainer();
             /** @var Application $application */
             $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
             $application->setAutoExit(false);
@@ -150,7 +150,7 @@ class ApiController
         $params = ['command' => 'CodeFec:PluginsComposerInstall'];
         $input = new ArrayInput($params);
         $output = new NullOutput();
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+        $container = \Hyperf\Context\ApplicationContext::getContainer();
         /** @var Application $application */
         $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
         $application->setAutoExit(false);

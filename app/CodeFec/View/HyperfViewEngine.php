@@ -11,25 +11,26 @@ declare(strict_types=1);
 namespace App\CodeFec\View;
 
 use App\CodeFec\Plugins;
-use Hyperf\Utils\ApplicationContext;
+use Hyperf\Di\Annotation\Inject;
 use Hyperf\View\Engine\EngineInterface;
 use Hyperf\ViewEngine\Contract\FactoryInterface;
 
 class HyperfViewEngine implements EngineInterface
 {
+    #[Inject]
+    protected FactoryInterface $factory;
+
     public function render($template, $data, $config): string
     {
-        /** @var FactoryInterface $factory */
-        $factory = ApplicationContext::getContainer()->get(FactoryInterface::class);
         // 插件
         $plugin_list = (new Plugins())->getEnPlugins();
         foreach ($plugin_list as $value) {
-            $factory->addNamespace($value, plugin_path($value . '/resources/views'));
+            $this->factory->addNamespace($value, plugin_path($value . '/resources/views'));
         }
         // 主题
         $name = get_options('theme', 'CodeFec');
-        $factory->replaceNamespace('App', theme_path($name . '/resources/views'));
-        $factory->replaceNamespace('Core', theme_path($name . '/resources/views'));
-        return $factory->make($template, $data)->render();
+        $this->factory->replaceNamespace('App', theme_path($name . '/resources/views'));
+        $this->factory->replaceNamespace('Core', theme_path($name . '/resources/views'));
+        return $this->factory->make($template, $data)->render();
     }
 }

@@ -9,7 +9,7 @@ declare(strict_types=1);
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
 use App\Plugins\User\src\Models\UsersSetting;
-use Hyperf\Utils\ApplicationContext;
+use Hyperf\Context\ApplicationContext;
 use Qbhy\HyperfAuth\AuthManager;
 
 if (! function_exists('auth')) {
@@ -73,7 +73,7 @@ if (! function_exists('file_suffix')) {
     function file_suffix(string $path): string
     {
         $path = substr($path, strrpos($path, '/') + 1);
-        return \Hyperf\Utils\Str::after($path, '.');
+        return \Hyperf\Stringable\Str::after($path, '.');
     }
 }
 

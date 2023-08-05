@@ -36,7 +36,7 @@
                         </li>
                     @endif
                     @foreach($topic_menu as $data)
-                        @if(\Hyperf\Utils\Str::contains(core_http_url(),$data['parameter']))
+                        @if(\Hyperf\Stringable\Str::contains(core_http_url(),$data['parameter']))
                             <li class="nav-item">
                                 <a class="nav-link active fw-bold" href="{{$data['url']}}">
                                     {!!$data['icon']!!}{{$data['name']}}</a>

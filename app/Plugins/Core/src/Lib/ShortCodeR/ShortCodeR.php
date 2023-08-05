@@ -7,7 +7,7 @@ namespace App\Plugins\Core\src\Lib\ShortCodeR;
 
 use Hyperf\Di\Annotation\AnnotationCollector;
 use Hyperf\Utils\Arr;
-use Hyperf\Utils\Str;
+use Hyperf\Stringable\Str;
 use JetBrains\PhpStorm\Pure;
 use Thunder\Shortcode\HandlerContainer\HandlerContainer;
 use Thunder\Shortcode\Parser\RegularParser;

@@ -90,7 +90,7 @@ if (! function_exists('core_menu_pd')) {
 if (! function_exists('core_Itf_id')) {
     function core_Itf_id($name, $id)
     {
-        return \Hyperf\Utils\Str::after($id, $name . '_');
+        return \Hyperf\Stringable\Str::after($id, $name . '_');
     }
 }
 
@@ -310,7 +310,7 @@ if (! function_exists('intercept_province')) {
         // 输出
         $echo = null;
         foreach ($province as $item) {
-            if (\Hyperf\Utils\Str::is('*' . $item . '*', $address)) {
+            if (\Hyperf\Stringable\Str::is('*' . $item . '*', $address)) {
                 $echo = $item;
             }
         }

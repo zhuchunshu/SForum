@@ -14,7 +14,7 @@ class functions
 {
     public static function header(): HeaderInterface
     {
-        $container = \Hyperf\Utils\ApplicationContext::getContainer();
+        $container = \Hyperf\Context\ApplicationContext::getContainer();
         return $container->get(HeaderInterface::class);
     }
 

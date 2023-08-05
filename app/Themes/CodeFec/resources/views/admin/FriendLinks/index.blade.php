@@ -22,7 +22,7 @@
                         <a href="/admin/setting/friend_links/{{$data->id}}/edit" class="card card-link">
                             <div class="card-body">
                                 <h3 class="card-title">{{$data->name}}</h3>
-                                <span class="text-muted">{{\Hyperf\Utils\Str::limit($data->link,80)}}</span>
+                                <span class="text-muted">{{\Hyperf\Stringable\Str::limit($data->link,80)}}</span>
                             </div>
                         </a>
                     </div>

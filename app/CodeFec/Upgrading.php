@@ -174,7 +174,7 @@ class Upgrading
                 $input = new ArrayInput($params);
                 $output = new NullOutput();
 
-                $container = \Hyperf\Utils\ApplicationContext::getContainer();
+                $container = \Hyperf\Context\ApplicationContext::getContainer();
 
                 /** @var Application $application */
                 $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);

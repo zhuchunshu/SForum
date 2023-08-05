@@ -16,7 +16,7 @@
             <div class="hr-text" style="margin-bottom:5px;margin-top:15px">{{__("topic.comment.comment content")}}</div>
         </div>
         <div class="col-md-12 markdown">
-            {{\Hyperf\Utils\Str::limit(remove_bbCode(strip_tags($data->post->content)),100)}}
+            {{\Hyperf\Stringable\Str::limit(remove_bbCode(strip_tags($data->post->content)),100)}}
         </div>
     </div>
 </div>

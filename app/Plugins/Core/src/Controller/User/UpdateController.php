@@ -96,7 +96,7 @@ HTML;
     #[PostMapping('/user/myUpdate/avatar')]
     public function update_avatar(AvatarRequest $request, AvatarUpload $upload)
     {
-        $data = $upload->save($request->file('avatar'), auth()->id(), \Hyperf\Utils\Str::random(), 200);
+        $data = $upload->save($request->file('avatar'), auth()->id(), \Hyperf\Stringable\Str::random(), 200);
         $path = $data['path'];
         User::query()->where('id', auth()->id())->update(['avatar' => $path]);
         // 头像上传成功

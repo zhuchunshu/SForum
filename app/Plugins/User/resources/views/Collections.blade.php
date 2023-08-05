@@ -124,7 +124,7 @@
                                                                         <span style="color:#999999">{{get_topic_comment($value->type_id)->parent->user->username}} {{__("app.Published on")}} {{format_date(get_topic_comment($value->type_id)->created_at)}}</span>
                                                                     </a>
                                                                     <br>
-                                                                    {!! \Hyperf\Utils\Str::limit(remove_bbCode(strip_tags(get_topic_comment($value->type_id)->parent->post->content)),60) !!}
+                                                                    {!! \Hyperf\Stringable\Str::limit(remove_bbCode(strip_tags(get_topic_comment($value->type_id)->parent->post->content)),60) !!}
                                                                 </blockquote>
                                                             </div>
                                                         @endif

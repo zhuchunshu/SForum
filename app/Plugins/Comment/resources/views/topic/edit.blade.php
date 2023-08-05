@@ -17,7 +17,7 @@
                             </a>
                         </li>
                         <li class="breadcrumb-item"><a href="/{{$comment->topic->id}}.html">
-                                {{\Hyperf\Utils\Str::limit($comment->topic->title,25)}}
+                                {{\Hyperf\Stringable\Str::limit($comment->topic->title,25)}}
                             </a>
                         </li>
                         <li class="breadcrumb-item"><a href="{{'/' . $comment->topic_id . '.html/' . $comment->id . '?page=' . get_topic_comment_page($comment->id)}}">
