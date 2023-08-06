@@ -17,8 +17,8 @@ use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\Paginator\LengthAwarePaginator;
-use Hyperf\Utils\Collection;
 use Hyperf\Stringable\Str;
+use Hyperf\Utils\Collection;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -72,15 +72,19 @@ class PluginsController
         // 初始化压缩操作类
         $zippy = Zippy::load();
 
-        // 打开压缩文件
-        $archiveTar = $zippy->open(plugin_path($getClientFilename));
+        try {
+            // 打开压缩文件
+            $archiveTar = $zippy->open(plugin_path($getClientFilename));
 
-        // 解压
-        if (! is_dir(plugin_path($filename))) {
-            mkdir(plugin_path($filename), 0777);
+            // 解压
+            if (! is_dir(plugin_path($filename))) {
+                mkdir(plugin_path($filename), 0777);
+            }
+
+            $archiveTar->extract(plugin_path($filename));
+        } catch (\Exception $e) {
+            return redirect()->with('danger', '压缩包解压失败')->back()->go();
         }
-
-        $archiveTar->extract(plugin_path($filename));
 
         // 获取解压后,插件文件夹的所有目录
         $allDir = allDir(plugin_path($filename));
