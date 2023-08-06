@@ -23,13 +23,13 @@
     </div>
 
     <div class="col-6 col-lg-3">
-        <label for="" class="form-label">{{get_options('wealth_credits_name', '金币')}}</label>
+        <label for="" class="form-label">{{get_options('wealth_credits_name', '积分')}}</label>
         <input class="form-control" type="number" name="options[credits]" value="{{$user->options->credits?:0}}">
     </div>
 
     <div class="col-6 col-lg-3">
         <label for="" class="form-label">{{get_options('wealth_golds_name', '金币')}}</label>
-        <input class="form-control" type="number" name="options[golds]" value="{{$user->options->golds?:0}}">
+        <input class="form-control" type="number" min="1" max="999999999" name="options[golds]" value="{{$user->options->golds?:0}}">
     </div>
 
     <div class="col-6 col-lg-3">
