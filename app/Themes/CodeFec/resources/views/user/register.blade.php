@@ -47,7 +47,7 @@
         @endif
 
         <div class="form-footer">
-            <button type="submit" class="btn btn-primary w-100">立即注册</button>
+            <button type="submit" @if(get_options('core_user_reg_captcha','开启')==='开启') {{"isNeedCaptcha disabled"}} @endif class="btn btn-primary w-100">立即注册</button>
         </div>
     </form>
 </div>

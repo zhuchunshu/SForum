@@ -3,7 +3,10 @@ import swal from 'sweetalert';
 
 function getCaptchaInputValue(){
     const inputs = document.querySelectorAll('input[isCaptchaInput]');
-    let v= inputs[0].value
+    let v;
+    if(inputs.length>0){
+        v = inputs[0].value
+    }
     if(!v){
         v = localStorage.getItem("captcha_token")
     }
