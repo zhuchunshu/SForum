@@ -1,7 +1,7 @@
 version: '3'
 services:
   web:
-    image: zhuchunshu/sforum:v2.5.9
+    image: zhuchunshu/sforum:v2.6.0
     ports:
       - "9501:9501"
 
