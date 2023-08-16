@@ -42,7 +42,17 @@ services:
     networks:
       - sf
     volumes:
-      - db:/var/lib/mysql
+      - db:/var/lib/
+  phpmyadmin:
+    image: phpmyadmin
+    restart: always
+    ports:
+      - "9588:80"
+    environment:
+      - PMA_HOST=db
+      - PMA_ARBITRARY=1
+    networks:
+      - sf
 
 networks:
   sf:
@@ -55,3 +65,4 @@ volumes:
     driver: local
   redis:
     driver: local
+
