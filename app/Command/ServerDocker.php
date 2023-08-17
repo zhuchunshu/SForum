@@ -39,18 +39,7 @@ class ServerDocker extends HyperfCommand
         $this->addOption('no-restart', 'N', InputOption::VALUE_NONE, 'Whether no need to restart server');
     }
 
-    public function handle()
-    {
-        // TODO: Implement handle() method.
-    }
-
-    public function configure()
-    {
-        parent::configure();
-        $this->setDescription('start docker server');
-    }
-
-    public function execute(InputInterface $input, OutputInterface $output)
+    public function handle(): void
     {
         if (! file_exists(BASE_PATH . '/app/CodeFec/storage/install.lock')) {
             if (! is_dir(BASE_PATH . '/app/CodeFec/storage')) {
@@ -61,11 +50,15 @@ class ServerDocker extends HyperfCommand
             fclose($myfile);
             $install = make(DockerInstall::class, ['output' => $this->output, 'command' => $this]);
             $install->run();
-            return 0;
         }
         $option = make(Option::class, ['dir' => $this->input->getOption('dir'), 'file' => $this->input->getOption('file'), 'restart' => ! $this->input->getOption('no-restart')]);
         $watcher = make(Watcher::class, ['option' => $option, 'output' => $this->output]);
         $watcher->run();
-        return 0;
+    }
+
+    public function configure()
+    {
+        parent::configure();
+        $this->setDescription('start docker server');
     }
 }

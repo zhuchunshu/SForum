@@ -18,7 +18,7 @@ return [
         [
             'name' => 'http',
             'type' => ServerInterface::SERVER_HTTP,
-            'host' => (string) env('SERVER_WEB_DOMAIN', '0.0.0.0'),
+            'host' => '0.0.0.0',
             'port' => (int) env('SERVER_WEB_PORT', 9501),
             'sock_type' => SWOOLE_SOCK_TCP,
             'callbacks' => [
@@ -28,7 +28,7 @@ return [
     ],
     'settings' => [
         Constant::OPTION_ENABLE_COROUTINE => true,
-        Constant::OPTION_WORKER_NUM => swoole_cpu_num() * (int) env('WORKER_NUM', 3) ?: 1,
+        Constant::OPTION_WORKER_NUM => swoole_cpu_num() * (float) env('WORKER_NUM', 3) ?: 1,
         Constant::OPTION_PID_FILE => BASE_PATH . '/runtime/hyperf.pid',
         Constant::OPTION_OPEN_TCP_NODELAY => true,
         Constant::OPTION_MAX_COROUTINE => 100000,
@@ -36,7 +36,7 @@ return [
         Constant::OPTION_MAX_REQUEST => 0,
         Constant::OPTION_SOCKET_BUFFER_SIZE => 2 * 1024 * 1024,
         Constant::OPTION_BUFFER_OUTPUT_SIZE => 2 * 1024 * 1024,
-        Constant::OPTION_PACKAGE_MAX_LENGTH => 100 * 1024 * 1024,
+        Constant::OPTION_PACKAGE_MAX_LENGTH => (float) env('OPTION_PACKAGE_MAX_LENGTH', 100) * 1024 * 1024,
         // 静态资源
         'document_root' => BASE_PATH . '/public',
         'enable_static_handler' => env('ENABLE_STATIC_HANDLER', true),
