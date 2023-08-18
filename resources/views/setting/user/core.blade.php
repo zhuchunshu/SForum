@@ -101,6 +101,45 @@
             <small>当前:{{get_options('user_no_ver_email_auto_delete_day',10)}}</small>
         </div>
 
+        <div class="col-3">
+            <label class="form-label">小黑屋用户组</label>
+            <select v-model="data.user_black_group_id" class="form-select">
+                @foreach(\App\Plugins\User\src\Models\UserClass::query()->get() as $user_group)
+                    <option value="{{$user_group->id}}">{{$user_group->name}}</option>
+                @endforeach
+            </select>
+            <small>不选则不设置小黑屋用户组</small>
+        </div>
+
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header"><b>小黑屋用户内容重写</b></div>
+                <div class="card-body row">
+
+                    <div class="col-4">
+                        <label for="" class="form-label">发布的内容</label>
+                        <textarea class="form-control" v-model="data.user_ban_re_post_content" rows="3"></textarea>
+                    </div>
+
+                    <div class="col-4">
+                        <label for="" class="form-label">签名</label>
+                        <textarea class="form-control" v-model="data.user_ban_re_qianming" rows="3"></textarea>
+                    </div>
+
+                    <div class="col-4">
+                        <label for="" class="form-label">帖子标题</label>
+                        <textarea class="form-control" v-model="data.user_ban_re_topic_title" rows="3"></textarea>
+                    </div>
+
+                    <div class="col-4">
+                        <label for="" class="form-label">头像链接</label>
+                        <input class="form-control" v-model="data.user_ban_re_avatar" type="text">
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
     </div>
 
 </div>

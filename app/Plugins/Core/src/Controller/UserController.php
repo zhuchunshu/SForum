@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types=1);
+declare(strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -26,21 +26,25 @@ use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
 use HyperfExt\Hashing\Hash;
 use Illuminate\Support\Str;
+
 #[Controller]
 #[Middleware(\App\Plugins\User\src\Middleware\AuthMiddleware::class)]
 class UserController
 {
     #[GetMapping('/login')]
-    public function login() : \Psr\Http\Message\ResponseInterface
+    public function login(): \Psr\Http\Message\ResponseInterface
     {
         return view('App::user.sign', ['title' => '使用用户名登陆', 'view' => 'App::user.login_username']);
     }
+
     // 忘记密码
+
     #[GetMapping('/forgot-password')]
-    public function forgot_password() : \Psr\Http\Message\ResponseInterface
+    public function forgot_password(): \Psr\Http\Message\ResponseInterface
     {
         return view('App::user.sign', ['login' => false, 'title' => '找回密码', 'view' => 'App::user.forgot_password']);
     }
+
     #[PostMapping('/forgot-password')]
     public function forgot_password_submit(ForgotPassword $request)
     {
@@ -49,7 +53,7 @@ class UserController
         $code = $data['code'];
         $password = $data['password'];
         $cfpassword = $data['cfpassword'];
-        if (!cache()->has('forgot-password.' . $code)) {
+        if (! cache()->has('forgot-password.' . $code)) {
             return Json_Api(403, false, ['msg' => '验证失败,可能是验证码已过期!']);
         }
         $code_email = cache()->get('forgot-password.' . $code);
@@ -64,21 +68,23 @@ class UserController
         auth()->SignIn($email, $password);
         return Json_Api(200, true, ['msg' => '修改成功!']);
     }
+
     // 找回密码 -- 发送验证码
+
     #[PostMapping('/forgot-password/sendCode')]
     public function forgot_password_sendCode(ForgotPasswordSendCodeRequest $request)
     {
         $data = $request->validated();
         $email = $data['email'];
         $captcha = $data['captcha'];
-        if (!captcha()->check($captcha)) {
+        if (! captcha()->check($captcha)) {
             return Json_Api(403, false, ['msg' => '验证码错误!']);
         }
         // 生成验证码
         $code = (string) random_int(100000, 999999);
         cache()->set('forgot-password.' . $code, $email, 600);
         // 发送邮件
-        go(function () use($email, $code) {
+        go(function () use ($email, $code) {
             $Subject = '【' . get_options('web_name') . '】 请查看你的验证码!';
             $Body = <<<HTML
 <h3>你正在尝试找回密码</h3>
@@ -89,38 +95,43 @@ HTML;
         });
         return Json_Api(200, true, ['msg' => '已发送验证码!']);
     }
+
     // 找回密码 -- 验证
+
     #[PostMapping('/forgot-password/verifyCode')]
     public function forgot_password_verifyCode()
     {
         $code = request()->input('code');
-        if (!$code) {
+        if (! $code) {
             return Json_Api(403, false, ['msg' => '请求参数不足!']);
         }
-        if (!cache()->has('forgot-password.' . $code)) {
+        if (! cache()->has('forgot-password.' . $code)) {
             return Json_Api(403, false, ['msg' => '验证失败,可能是验证码已过期!']);
         }
         return Json_Api(200, true, ['msg' => '验证成功! 请设置新密码']);
     }
+
     #[GetMapping('/login/email')]
-    public function login_username() : \Psr\Http\Message\ResponseInterface
+    public function login_username(): \Psr\Http\Message\ResponseInterface
     {
         if (auth()->check()) {
             redirect()->back()->with('info', '您已登录')->go();
         }
         return view('App::user.sign', ['title' => '登陆', 'view' => 'App::user.login']);
     }
+
     #[GetMapping('/register')]
-    public function register() : \Psr\Http\Message\ResponseInterface
+    public function register(): \Psr\Http\Message\ResponseInterface
     {
         if (get_options('core_user_reg_switch', '开启') === '关闭') {
             return admin_abort('注册功能已关闭', 403);
         }
         return view('App::user.sign', ['login' => false, 'register' => true, 'title' => '注册', 'view' => 'App::user.register']);
     }
+
     #[PostMapping('/register')]
     #[RateLimit(create: 1, capacity: 1)]
-    public function register_post(RegisterRequest $request) : array
+    public function register_post(RegisterRequest $request): array
     {
         if (get_options('core_user_reg_switch', '开启') === '关闭') {
             return Json_Api(403, false, ['msg' => '注册功能已关闭']);
@@ -134,7 +145,7 @@ HTML;
         $username = $data['username'];
         $invitationCode = $data['invitationCode'];
         // 判断验证码问题
-        if (get_options('core_user_reg_captcha', '开启') === '开启' && !captcha()->check($captcha)) {
+        if (get_options('core_user_reg_captcha', '开启') === '开启' && ! captcha()->check($captcha)) {
             return Json_Api(403, false, ['msg' => '验证码错误!']);
         }
         // 判断两次输入密码是否一致
@@ -142,7 +153,7 @@ HTML;
             return Json_Api(403, false, ['msg' => '两次输入密码不一致']);
         }
         // 判断验证码问题
-        if (get_options('core_user_reg_yaoqing', '关闭') === '开启' && !InvitationCode::query()->where(['code' => $invitationCode, 'status' => false])->exists()) {
+        if (get_options('core_user_reg_yaoqing', '关闭') === '开启' && ! InvitationCode::query()->where(['code' => $invitationCode, 'status' => false])->exists()) {
             return Json_Api(403, false, ['msg' => '邀请码不存在!']);
         }
         if (User::query()->where('username', $username)->exists()) {
@@ -160,14 +171,15 @@ HTML;
         auth()->SignIn($email, $password);
         return Json_Api(200, true, ['msg' => '注册成功!']);
     }
+
     #[PostMapping('/login')]
-    public function login_post(LoginRequest $request) : ?array
+    public function login_post(LoginRequest $request): ?array
     {
         $data = $request->validated();
         $email = $data['email'];
         $password = $data['password'];
         $captcha = $data['captcha'];
-        if (get_options('core_user_login_captcha', '开启') === '开启' && !captcha()->check($captcha)) {
+        if (get_options('core_user_login_captcha', '开启') === '开启' && ! captcha()->check($captcha)) {
             return Json_Api(403, false, ['msg' => '验证码错误!']);
         }
         if (auth()->SignIn($email, $password)) {
@@ -175,6 +187,7 @@ HTML;
         }
         return Json_Api(403, false, ['msg' => '登陆失败,账号或密码错误']);
     }
+
     #[PostMapping('/login/username')]
     public function login_username_post(LoginUsernameRequest $request)
     {
@@ -186,7 +199,7 @@ HTML;
         $username = urldecode($username);
         $password = $data['password'];
         $captcha = $data['captcha'];
-        if (get_options('core_user_login_captcha', '开启') === '开启' && !captcha()->check($captcha)) {
+        if (get_options('core_user_login_captcha', '开启') === '开启' && ! captcha()->check($captcha)) {
             return Json_Api(403, false, ['msg' => '验证码错误!']);
         }
         if (auth()->SignInUsername($username, $password)) {
@@ -194,8 +207,9 @@ HTML;
         }
         return Json_Api(403, false, ['msg' => '登陆失败,账号或密码错误']);
     }
+
     #[PostMapping('/logout')]
-    public function logout() : array
+    public function logout(): array
     {
         auth()->logout();
         return Json_Api(200, true, ['msg' => '退出登陆成功!', 'url' => '/login']);

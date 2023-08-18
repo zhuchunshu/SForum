@@ -198,3 +198,20 @@ if (! function_exists('user_option')) {
         return \App\Plugins\User\src\Models\UsersOption::find($options_id);
     }
 }
+
+if (! function_exists('numberToUniqueLetter')) {
+    function numberToUniqueLetter($number): string
+    {
+        $letters = 'abcdefghijklmnopqrstuvwxyz';
+        $base = 26; // 字母表的长度
+        $result = '';
+
+        while ($number > 0) {
+            $remainder = ($number - 1) % $base; // 得到余数
+            $result = $letters[$remainder] . $result;
+            $number = intdiv($number - 1, $base); // 更新商
+        }
+
+        return $result;
+    }
+}
