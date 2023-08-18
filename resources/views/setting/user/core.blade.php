@@ -133,7 +133,12 @@
 
                     <div class="col-4">
                         <label for="" class="form-label">头像链接</label>
-                        <input class="form-control" v-model="data.user_ban_re_avatar" type="text">
+                        <input class="form-control" v-model="data.user_ban_re_avatar" type="text" placeholder="请输入头像链接">
+                    </div>
+
+                    <div class="col-4">
+                        <label for="" class="form-label">个人中心显示内容 <span class="text-red">[小部件调用代码]</span> </label>
+                        <input class="form-control" v-model="data.user_ban_users_page" type="text" placeholder="输入小部件调用代码">
                     </div>
 
                 </div>
