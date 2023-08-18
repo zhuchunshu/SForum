@@ -84,12 +84,14 @@
     })
 </script>
 <script defer>
-    const target = document.getElementsByTagName("html")[0]
-    const body_className = document.getElementsByTagName("html")[0].getAttribute("data-bs-theme");
+    const target = document.getElementsByTagName("body")[0]
+    const body_className = document.getElementsByTagName("body")[0].getAttribute("data-bs-theme");
     const observer = new MutationObserver(function (mutations) {
         mutations.forEach(function (mutation) {
-            if (body_className !== document.getElementsByTagName("html")[0].getAttribute("data-bs-theme")) {
-                location.reload()
+            if (body_className !== document.getElementsByTagName("body")[0].getAttribute("data-bs-theme")) {
+                setTimeout(()=>{
+                    location.reload()
+                },200)
             }
         });
     });
