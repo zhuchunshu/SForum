@@ -199,7 +199,7 @@ if (! function_exists('replace_all_at_space')) {
     {
         $pattern = '/@(.*?)(?=[^ <\\/p>]+)/u';
         return preg_replace_callback($pattern, static function ($match) {
-            return $match[0] . ' ';
+            return $match[0];
         }, $content);
     }
 }
