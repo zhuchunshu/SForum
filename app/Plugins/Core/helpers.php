@@ -189,15 +189,15 @@ if (! function_exists('get_all_at')) {
      */
     function get_all_at(string $content): array
     {
-        preg_match_all('/(?<=@)[^ ]+/u', replace_all_at_space($content), $arr);
-        return $arr[0];
+        preg_match_all('/@([^\p{P}\p{S}\s]+)/u', replace_all_at_space($content), $arr);
+        return $arr[1];
     }
 }
 
 if (! function_exists('replace_all_at_space')) {
     function replace_all_at_space(string $content): string
     {
-        $pattern = '/@(.*?)(?=[^ <\\/p>]+)/u';
+        $pattern = '/@([^\p{P}\p{S}\s]+)(?=[^ <\/p>]+)/u';
         return preg_replace_callback($pattern, static function ($match) {
             return $match[0];
         }, $content);
@@ -215,10 +215,11 @@ if (! function_exists('replace_all_at')) {
     function replace_all_at(string $content): string
     {
         //$pattern = "/\\$\\[(.*?)]/u";
-        $pattern = '/@(.*?)[^ ]+/u';
+        $pattern = '/@([^\p{P}\p{S}\s]+)(?=[^ ]+)/u';
         $content = replace_all_at_space($content);
         return remove_all_p_space(preg_replace_callback($pattern, static function ($match) {
-            return (new \App\Plugins\Core\src\Lib\TextParsing())->at($match[0]);
+//            var_dump($match[1]);
+            return (new \App\Plugins\Core\src\Lib\TextParsing())->at($match[1]);
         }, $content));
     }
 }
