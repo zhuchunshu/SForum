@@ -114,7 +114,10 @@ class Topic extends Model
     // 处理获取标题
     public function getTitleAttribute($value): string
     {
-        @$class_id = $this->user->class_id;
+        if (@! $this->user->class_id) {
+            return $value;
+        }
+        $class_id = $this->user->class_id;
         if ((int) get_options('user_black_group_id') === (int) $class_id) {
             return get_options('user_ban_re_topic_title', '此用户已被封禁,帖子禁止查看');
         }

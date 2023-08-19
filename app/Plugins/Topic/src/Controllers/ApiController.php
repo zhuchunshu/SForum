@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types=1);
+declare(strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -24,12 +24,13 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
 use Hyperf\Utils\Arr;
+
 #[Controller(prefix: '/api/topic')]
 #[RateLimit(create: 1, capacity: 3)]
 class ApiController
 {
     #[PostMapping('tags')]
-    public function Tags() : array
+    public function Tags(): array
     {
         $data = [['text' => '请选择标签', 'value' => 0]];
         foreach (TopicTag::query()->where('status', '=', null)->get() as $key => $value) {
@@ -40,8 +41,9 @@ class ApiController
         }
         return $data;
     }
+
     #[PostMapping('keywords')]
-    public function topic_keyword() : array
+    public function topic_keyword(): array
     {
         $data = TopicKeyword::query()->select('name', 'id')->get();
         $arr = [];
@@ -50,15 +52,16 @@ class ApiController
         }
         return $arr;
     }
+
     #[PostMapping('with_topic.data')]
     #[RateLimit(create: 3, capacity: 6)]
     public function get_with_topic_data()
     {
         $topic_id = (int) request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['请求的 帖子id不存在']);
         }
-        if (!Topic::query()->where('id', $topic_id)->exists()) {
+        if (! Topic::query()->where('id', $topic_id)->exists()) {
             return Json_Api(404, false, ['ID为:' . $topic_id . '帖子不存在']);
         }
         $data = Topic::query()->where('id', $topic_id)->select('id', 'title', 'user_id', 'options', 'created_at')->with('user')->first();
@@ -68,18 +71,19 @@ class ApiController
         $summary = '作者：' . $username;
         return Json_Api(200, true, ['avatar' => $user_avatar, 'title' => $title, 'summary' => $summary, 'username' => $username]);
     }
+
     #[PostMapping('like.topic')]
     #[RateLimit(create: 1, capacity: 3)]
     public function like_topic()
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return Json_Api(403, false, ['msg' => '未登录!']);
         }
         $topic_id = request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数:topic_id 不存在!']);
         }
-        if (!Topic::query()->where([['id', $topic_id]])->exists()) {
+        if (! Topic::query()->where([['id', $topic_id]])->exists()) {
             return Json_Api(403, false, ['msg' => 'id为:' . $topic_id . '的帖子不存在']);
         }
         if (TopicLike::query()->where(['topic_id' => $topic_id, 'user_id' => auth()->id(), 'type' => 'like'])->exists()) {
@@ -108,6 +112,7 @@ class ApiController
         }
         return Json_Api(200, true, ['msg' => '已赞!']);
     }
+
     /**
      * 获取帖子信息.
      * @return array
@@ -115,39 +120,41 @@ class ApiController
     #[PostMapping('topic.data')]
     public function topic_data()
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return Json_Api(403, false, ['msg' => '未登录!']);
         }
         $topic_id = request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
-        if (!Topic::query()->where('id', $topic_id)->exists()) {
+        if (! Topic::query()->where('id', $topic_id)->exists()) {
             return Json_Api(403, false, ['msg' => 'id为:' . $topic_id . '的帖子不存在']);
         }
         $data = Topic::query()->where('id', $topic_id)->with('user', 'tag')->first();
         $data['options'] = [];
         return Json_Api(200, true, $data);
     }
+
     // 设置精华
+
     #[PostMapping('set.topic.essence')]
-    public function set_topic_essence() : array
+    public function set_topic_essence(): array
     {
         $topic_id = request()->input('topic_id');
         $zhishu = request()->input('zhishu');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
         if (empty($zhishu) && $zhishu != 0) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:zhishu']);
         }
-        if (!auth()->check() || !Authority()->check('topic_options')) {
+        if (! auth()->check() || ! Authority()->check('topic_options')) {
             return Json_Api(419, false, ['msg' => '权限不足!']);
         }
-        if (!Topic::query()->where('id', $topic_id)->exists()) {
+        if (! Topic::query()->where('id', $topic_id)->exists()) {
             return Json_Api(403, false, ['msg' => '被操作的帖子不存在']);
         }
-        if (!is_numeric($zhishu)) {
+        if (! is_numeric($zhishu)) {
             return Json_Api(403, false, ['msg' => '精华指数必须为数字']);
         }
         if ($zhishu < 0 || $zhishu > 999) {
@@ -160,26 +167,28 @@ class ApiController
         }
         return Json_Api(200, true, ['msg' => '更新成功!']);
     }
+
     // 设置置顶
+
     #[RateLimit(create: 1, capacity: 3)]
     #[PostMapping('set.topic.topping')]
-    public function set_topic_topping() : array
+    public function set_topic_topping(): array
     {
         $topic_id = request()->input('topic_id');
         $zhishu = request()->input('zhishu');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
         if ($zhishu != 0 && empty($zhishu)) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:zhishu']);
         }
-        if (!auth()->check() || !Authority()->check('topic_options')) {
+        if (! auth()->check() || ! Authority()->check('topic_options')) {
             return Json_Api(419, false, ['msg' => '权限不足!']);
         }
-        if (!Topic::query()->where('id', $topic_id)->exists()) {
+        if (! Topic::query()->where('id', $topic_id)->exists()) {
             return Json_Api(403, false, ['msg' => '被操作的帖子不存在']);
         }
-        if (!is_numeric($zhishu)) {
+        if (! is_numeric($zhishu)) {
             return Json_Api(403, false, ['msg' => '置顶指数必须为数字']);
         }
         if ($zhishu < 0 || $zhishu > 999) {
@@ -192,20 +201,22 @@ class ApiController
         }
         return Json_Api(200, true, ['msg' => '置顶成功!']);
     }
+
     // 锁帖
+
     #[RateLimit(create: 1, capacity: 3)]
     #[PostMapping('set.topic.lock')]
-    public function set_topic_lock() : array
+    public function set_topic_lock(): array
     {
         $topic_id = request()->input('topic_id');
         // 判断帖子是否存在
-        if (!$topic_id || !Topic::query()->where('id', $topic_id)->exists()) {
+        if (! $topic_id || ! Topic::query()->where('id', $topic_id)->exists()) {
             return Json_Api(403, false, ['msg' => '帖子不存在']);
         }
         // 帖子信息
         $topic = Topic::find($topic_id);
         // 判断是否有权限
-        if (!Authority()->check('topic_lock') && !\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $topic->tag_id)->where('user_id', auth()->id())->exists()) {
+        if (! Authority()->check('topic_lock') && ! \App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $topic->tag_id)->where('user_id', auth()->id())->exists()) {
             return Json_Api(419, false, ['msg' => '权限不足!']);
         }
         $tip = $topic->status === 'lock' ? '解除锁定' : '锁定';
@@ -218,16 +229,18 @@ class ApiController
         }
         return Json_Api(200, true, ['msg' => $tip . '成功!']);
     }
+
     // 删除帖子
+
     #[RateLimit(create: 1, capacity: 3)]
     #[PostMapping('set.topic.delete')]
-    public function set_topic_delete() : array
+    public function set_topic_delete(): array
     {
         $topic_id = request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
-        if (!Topic::query()->where('id', $topic_id)->exists()) {
+        if (! Topic::query()->where('id', $topic_id)->exists()) {
             return Json_Api(403, false, ['msg' => '被删除的帖子不存在']);
         }
         $data = Topic::query()->where('id', $topic_id)->first();
@@ -239,15 +252,15 @@ class ApiController
         } elseif (\App\Plugins\Topic\src\Models\Moderator::query()->where('tag_id', $data->tag_id)->where('user_id', auth()->id())->exists()) {
             $quanxian = true;
         }
-        if (!auth()->check() || $quanxian === false) {
+        if (! auth()->check() || $quanxian === false) {
             return Json_Api(419, false, ['msg' => '权限不足!']);
         }
         // 删除评论
-        go(function () use($topic_id) {
+        go(function () use ($topic_id) {
             TopicComment::query()->where('topic_id', $topic_id)->delete();
         });
         // 删除帖子
-        go(function () use($topic_id) {
+        go(function () use ($topic_id) {
             Post::where('topic_id', $topic_id)->delete();
             Topic::destroy($topic_id);
         });
@@ -257,18 +270,19 @@ class ApiController
         }
         return Json_Api(200, true, ['msg' => '已删除!']);
     }
+
     #[PostMapping('star.topic')]
     #[RateLimit(create: 1, capacity: 3)]
-    public function star_topic() : array
+    public function star_topic(): array
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return Json_Api(419, false, ['msg' => '权限不足!']);
         }
         $topic_id = request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
-        if (!Topic::query()->where('id', $topic_id)->exists()) {
+        if (! Topic::query()->where('id', $topic_id)->exists()) {
             return Json_Api(403, false, ['msg' => '要收藏的帖子不存在']);
         }
         if (UsersCollection::query()->where(['type' => 'topic', 'type_id' => $topic_id, 'user_id' => auth()->id()])->exists()) {
@@ -278,12 +292,13 @@ class ApiController
         UsersCollection::query()->create(['user_id' => auth()->id(), 'type' => 'topic', 'type_id' => $topic_id]);
         return Json_Api(200, true, ['msg' => '已收藏']);
     }
+
     #[PostMapping('get.user')]
     #[RateLimit(create: 1, capacity: 3)]
-    public function get_user() : array
+    public function get_user(): array
     {
         $topic_id = request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
         $data = Topic::with('user', 'post')->find($topic_id);
@@ -292,16 +307,18 @@ class ApiController
         }
         return Json_Api(200, true, $data['user']);
     }
+
     // 获取修订者IP
+
     #[PostMapping('get.updated_user')]
     #[RateLimit(create: 1, capacity: 3)]
     public function get_user_ip()
     {
         $topic_id = request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
-        if (!Topic::where(['id' => $topic_id])->exists()) {
+        if (! Topic::where(['id' => $topic_id])->exists()) {
             return admin_abort(['msg' => '帖子不存在', 'result' => []]);
         }
         $all = [];
@@ -315,24 +332,40 @@ class ApiController
         }
         return json_api(200, true, ['msg' => '获取成功', 'result' => $all]);
     }
+
     // 获取帖子上下页信息
+
     #[PostMapping('get.topic.include.ifpage')]
     #[RateLimit(create: 1, capacity: 1)]
     public function get_topic_include_ifpage()
     {
         $topic_id = request()->input('topic_id');
-        if (!$topic_id) {
+        if (! $topic_id) {
             return Json_Api(403, false, ['msg' => '请求参数不足,缺少:topic_id']);
         }
-        if (!Topic::where(['id' => $topic_id])->exists()) {
+        if (! Topic::where(['id' => $topic_id])->exists()) {
             return admin_abort(['msg' => '帖子不存在', 'result' => []]);
         }
-        $shang = Topic::query()->where([['id', '<', $topic_id]])->select('title', 'id')->orderBy('id', 'desc')->first();
-        $shang['url'] = '/' . @$shang['id'] . '.html';
-        $shang['title'] = \Hyperf\Stringable\Str::limit(@$shang['title'] ?: ' ', 20, '...');
-        $xia = Topic::query()->where([['id', '>', $topic_id]])->select('title', 'id')->orderBy('id', 'asc')->first();
-        $xia['url'] = '/' . @$xia['id'] . '.html';
-        $xia['title'] = \Hyperf\Stringable\Str::limit(@$xia['title'] ?: ' ', 20, '...');
-        return json_api(200, true, ['msg' => '获取成功', 'result' => ['shang' => $shang, 'xia' => $xia]]);
+        $shang = Topic::where('id', '<', $topic_id)
+            ->orderBy('id', 'desc')
+            ->first(['title', 'id']);
+
+        if ($shang) {
+            $shang['url'] = "/{$shang['id']}.html";
+            $shang['title'] = \Hyperf\Stringable\Str::limit($shang['title'] ?: ' ', 20, '...');
+        }
+
+        $xia = Topic::where('id', '>', $topic_id)
+            ->orderBy('id', 'asc')
+            ->first(['title', 'id']);
+
+        if ($xia) {
+            $xia['url'] = "/{$xia['id']}.html";
+            $xia['title'] = \Hyperf\Stringable\Str::limit($xia['title'] ?: ' ', 20, '...');
+        }
+
+        $result = ['shang' => $shang, 'xia' => $xia];
+
+        return json_api(200, true, ['msg' => '获取成功', 'result' => $result]);
     }
 }
