@@ -104,6 +104,7 @@
         <div class="col-3">
             <label class="form-label">小黑屋用户组</label>
             <select v-model="data.user_black_group_id" class="form-select">
+                <option value="0">不选择</option>
                 @foreach(\App\Plugins\User\src\Models\UserClass::query()->get() as $user_group)
                     <option value="{{$user_group->id}}">{{$user_group->name}}</option>
                 @endforeach
