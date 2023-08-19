@@ -143,7 +143,7 @@ class User extends Model implements \Qbhy\HyperfAuth\Authenticatable
     }
 
     // 处理获取头像
-    public function getAvatarAttribute($value): string
+    public function getAvatarAttribute($value): ?string
     {
         // 用户组id
         $class_id = $this->attributes['class_id'];
