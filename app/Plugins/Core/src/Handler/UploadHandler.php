@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types=1);
+declare(strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -13,21 +13,29 @@ namespace App\Plugins\Core\src\Handler;
 use App\Plugins\Core\src\Event\UploadImage;
 use App\Plugins\Core\src\Service\FileStoreService;
 use App\Plugins\User\src\Models\UserUpload;
+use Hyperf\HttpMessage\Upload\UploadedFile;
 use Illuminate\Support\Str;
 use Intervention\Image\ImageManagerStatic as Image;
+
 // 上传图片
 class UploadHandler
 {
-    public function save($file, $folder, $file_prefix = null, $max_width = 1500) : array
+    public function save(UploadedFile $file, $folder, $file_prefix = null, $max_width = 1500): array
     {
-        if (!auth()->check() && !admin_auth()->Check()) {
+        if (! auth()->check() && ! admin_auth()->Check()) {
             return ['path' => '/404.jpg', 'success' => false, 'status' => '上传失败:未登录'];
         }
-        if (!$file_prefix) {
+        // 获取上传的文件大小
+        $file_size = $file->getSize() / 1024;
+        if ((float) get_options('core_user_up_img_size', 2048) < $file_size) {
+            return ['path' => '/404.jpg', 'success' => false, 'status' => '上传失败，上传文件大小超过限制'];
+        }
+
+        if (! $file_prefix) {
             $file_prefix = Str::random();
         }
         $folder_name = "upload/{$folder}/" . date('Ym/d', time());
-        if (!is_dir(public_path($folder_name))) {
+        if (! is_dir(public_path($folder_name))) {
             mkdir(public_path($folder_name), 0777, true);
         }
         $upload_path = public_path() . '/' . $folder_name;
@@ -58,6 +66,7 @@ class UploadHandler
         }
         return ['path' => $upload['url'], 'raw_path' => $upload['path'], 'success' => $upload['success'], 'status' => '上传成功!'];
     }
+
     public function reduceSize($file_path, $max_width)
     {
         // 先实例化，传参是文件的磁盘物理路径
@@ -72,6 +81,7 @@ class UploadHandler
         // 对图片修改后进行保存
         $image->save();
     }
+
     private function webp($from, $to)
     {
         $image = Image::make($from);
