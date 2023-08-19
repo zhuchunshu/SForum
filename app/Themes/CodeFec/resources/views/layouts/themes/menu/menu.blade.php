@@ -51,7 +51,7 @@
                         <div class="dropdown-menu-column">
                             @foreach (core_menu_pdArr($key) as $keys => $values)
                                 @if(!$values['hidden'])
-                                    @if( $values['quanxian'] instanceof \Closure)
+                                    @if( arr_has($values,'quanxian') && $values['quanxian'] instanceof \Closure)
                                         @if(call_user_func($values['quanxian'])===true)
                                             @if (core_Str_menu_url('/' . request()->path()) === $values['url'])
                                                 <a class="dropdown-item active" menu="active" id="home-menu-{{ $keys }}"
