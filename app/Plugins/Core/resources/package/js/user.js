@@ -146,42 +146,45 @@ $('button[user-click="notice_allread"]').click(function(){
 $(function () {
     // 关注用户
     if(typeof isUserPage !== 'undefined'){
-        $('*[user-click="user_follow"]').click(function(){
-            var user_id = $(this).attr("user-id")
-            var th = $(this)
-            axios.post("/api/user/userfollow",{
-                _token:csrf_token,
-                user_id:user_id
-            }).then(r=>{
-                var data = r.data;
-                if(data.success=== true){
-                    if(data.code===200){
-                        th.children('span').text(data.result.msg)
+        if(isUserPage!==true){
+            $('*[user-click="user_follow"]').click(function(){
+                var user_id = $(this).attr("user-id")
+                var th = $(this)
+                axios.post("/api/user/userfollow",{
+                    _token:csrf_token,
+                    user_id:user_id
+                }).then(r=>{
+                    var data = r.data;
+                    if(data.success=== true){
+                        if(data.code===200){
+                            th.children('span').text(data.result.msg)
+                        }else{
+                            th.children('span').text("关注")
+                        }
+                        iziToast.success({
+                            title:"Success",
+                            message:data.result.msg,
+                            position:"topRight"
+                        })
                     }else{
-                        th.children('span').text("关注")
+                        iziToast.error({
+                            title:"Error",
+                            message:data.result.msg,
+                            position:"topRight"
+                        })
                     }
-                    iziToast.success({
-                        title:"Success",
-                        message:data.result.msg,
-                        position:"topRight"
-                    })
-                }else{
+                }).catch(e=>{
+                    console.error(e)
                     iziToast.error({
                         title:"Error",
-                        message:data.result.msg,
+                        message:"请求出错,详细查看控制台",
                         position:"topRight"
                     })
-                }
-            }).catch(e=>{
-                console.error(e)
-                iziToast.error({
-                    title:"Error",
-                    message:"请求出错,详细查看控制台",
-                    position:"topRight"
                 })
             })
-        })
+        }
     }
+
 
 
     //查询关注状态
