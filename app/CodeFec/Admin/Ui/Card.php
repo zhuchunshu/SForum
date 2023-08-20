@@ -11,7 +11,7 @@ declare(strict_types=1);
  */
 namespace  App\CodeFec\Admin\Ui;
 
-use Illuminate\Support\Str;
+use Hyperf\Stringable\Str;
 use Psr\Http\Message\ResponseInterface;
 
 /**

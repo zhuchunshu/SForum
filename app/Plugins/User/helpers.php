@@ -144,7 +144,7 @@ if (! function_exists('get_user_assets_credits')) {
     /**
      * 获取用户积分.
      * @param int|string $user_id
-     * @return float|\Hyperf\Utils\HigherOrderCollectionProxy|\Hyperf\Utils\HigherOrderTapProxy|\Illuminate\Support\HigherOrderTapProxy|int|mixed
+     * @return float|\Hyperf\Utils\HigherOrderCollectionProxy|\Hyperf\Utils\HigherOrderTapProxy|int|mixed
      */
     function get_user_assets_credits(string | int $user_id)
     {
@@ -161,7 +161,7 @@ if (! function_exists('get_user_assets_gold')) {
     /**
      * 获取用户金币
      * @param int|string $user_id
-     * @return float|\Hyperf\Utils\HigherOrderCollectionProxy|\Hyperf\Utils\HigherOrderTapProxy|\Illuminate\Support\HigherOrderTapProxy|int|mixed
+     * @return float|\Hyperf\Utils\HigherOrderCollectionProxy|\Hyperf\Utils\HigherOrderTapProxy|int|mixed
      */
     function get_user_assets_gold(string | int $user_id)
     {
@@ -178,7 +178,7 @@ if (! function_exists('get_user_assets_money')) {
     /**
      * 获取用户余额.
      * @param int|string $user_id
-     * @return \Hyperf\Utils\HigherOrderCollectionProxy|\Hyperf\Utils\HigherOrderTapProxy|\Illuminate\Support\HigherOrderTapProxy|int|mixed
+     * @return \Hyperf\Utils\HigherOrderCollectionProxy|\Hyperf\Utils\HigherOrderTapProxy|int|mixed
      */
     function get_user_assets_money(string | int $user_id): mixed
     {

@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace App\Plugins\Mail\src\Service;
 
 use App\Plugins\Mail\src\SendServiceHandlerInterface;
-use Hyperf\Utils\Arr;
+use Hyperf\Collection\Arr;
 class MailMaster implements SendServiceHandlerInterface
 {
     public function handler(array $data, \Closure $next)

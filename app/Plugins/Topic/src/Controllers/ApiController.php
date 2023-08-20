@@ -23,7 +23,7 @@ use Hyperf\DbConnection\Db;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
-use Hyperf\Utils\Arr;
+use Hyperf\Collection\Arr;
 
 #[Controller(prefix: '/api/topic')]
 #[RateLimit(create: 1, capacity: 3)]

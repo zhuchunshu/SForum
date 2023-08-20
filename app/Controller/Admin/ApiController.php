@@ -18,7 +18,7 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
-use Illuminate\Support\Str;
+use Hyperf\Stringable\Str;
 
 #[Controller(prefix: '/api/admin')]
 #[Middleware(AdminMiddleware::class)]

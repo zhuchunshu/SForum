@@ -15,7 +15,7 @@ use App\Plugins\Core\src\Annotation\FileStoreAnnotation;
 use App\Plugins\Core\src\Handler\FileStoreInterface;
 use App\Plugins\Core\src\Handler\Store\Handler\LocalStoreHandler;
 use Hyperf\HttpMessage\Upload\UploadedFile;
-use Illuminate\Support\Str;
+use Hyperf\Stringable\Str;
 use SplFileInfo;
 use Swoole\Coroutine\System;
 #[FileStoreAnnotation]

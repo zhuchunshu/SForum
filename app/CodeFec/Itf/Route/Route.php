@@ -4,7 +4,7 @@
 namespace App\CodeFec\Itf\Route;
 
 
-use Illuminate\Support\Arr;
+use Hyperf\Collection\Arr;
 
 class Route implements RouteInterface
 {

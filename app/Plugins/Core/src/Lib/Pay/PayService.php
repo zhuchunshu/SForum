@@ -19,7 +19,7 @@ use App\Plugins\Core\src\Models\PayOrder;
 use App\Plugins\User\src\Models\User;
 use Hyperf\Di\Annotation\Inject;
 use Hyperf\Stringable\Str;
-use Hyperf\Utils\Arr;
+use Hyperf\Collection\Arr;
 use Psr\Http\Message\ResponseInterface;
 use Psr\SimpleCache\InvalidArgumentException;
 

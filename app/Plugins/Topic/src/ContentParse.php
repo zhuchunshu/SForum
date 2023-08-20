@@ -10,7 +10,7 @@ declare(strict_types=1);
  */
 namespace App\Plugins\Topic\src;
 
-use Hyperf\Utils\Arr;
+use Hyperf\Collection\Arr;
 use Zhuchunshu\EmojiParse\Emoji;
 
 class ContentParse

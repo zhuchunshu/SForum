@@ -10,7 +10,7 @@ declare(strict_types=1);
  */
 namespace App\Plugins\Core;
 
-use Hyperf\Utils\Arr;
+use Hyperf\Collection\Arr;
 use Swoole\Coroutine\System;
 
 class Menu

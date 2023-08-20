@@ -6,7 +6,7 @@
 namespace App\Plugins\Core\src\Lib\ShortCodeR;
 
 use Hyperf\Di\Annotation\AnnotationCollector;
-use Hyperf\Utils\Arr;
+use Hyperf\Collection\Arr;
 use Hyperf\Stringable\Str;
 use JetBrains\PhpStorm\Pure;
 use Thunder\Shortcode\HandlerContainer\HandlerContainer;

@@ -10,7 +10,7 @@ declare(strict_types=1);
  */
 namespace App\CodeFec;
 
-use Hyperf\Utils\Arr;
+use Hyperf\Collection\Arr;
 use Noodlehaus\Config;
 
 class Themes

@@ -1,7 +1,7 @@
 <?php
 namespace App\CodeFec\Ui;
 
-use Illuminate\Support\Arr;
+use Hyperf\Collection\Arr;
 
 class Ui implements UiInterface {
 

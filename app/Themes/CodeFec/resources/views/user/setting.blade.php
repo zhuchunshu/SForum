@@ -12,7 +12,7 @@
                                     <li class="nav-item">
                                         <a class="nav-link @if(request()->input('m','userSetting_1')===$key) active @endif fw-bold"
                                            href="/user/setting?m={{$key}}">
-                                            @if(\Hyperf\Utils\Arr::has($value,'icon'))
+                                            @if(\Hyperf\Collection\Arr::has($value,'icon'))
                                                 {!! $value['icon'] !!}
                                             @endif
                                             {{$value['name']}}</a>

@@ -14,7 +14,7 @@ use App\Plugins\Core\src\Event\UploadImage;
 use App\Plugins\Core\src\Service\FileStoreService;
 use App\Plugins\User\src\Models\UserUpload;
 use Hyperf\HttpMessage\Upload\UploadedFile;
-use Illuminate\Support\Str;
+use Hyperf\Stringable\Str;
 use Intervention\Image\ImageManagerStatic as Image;
 
 // 上传图片

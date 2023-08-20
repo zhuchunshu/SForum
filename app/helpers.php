@@ -15,6 +15,7 @@ use App\CodeFec\Menu\MenuInterface;
 use App\CodeFec\Plugins;
 use App\CodeFec\View\Beautify_Html;
 use App\Model\AdminOption;
+use Hyperf\Collection\Arr;
 use Hyperf\Context\Context;
 use Hyperf\Contract\SessionInterface;
 use Hyperf\Contract\StdoutLoggerInterface;
@@ -24,12 +25,10 @@ use Hyperf\HttpServer\Response;
 use Hyperf\Logger\LoggerFactory;
 use Hyperf\Paginator\UrlWindow;
 use Hyperf\Server\ServerFactory;
+use Hyperf\Stringable\Str;
 use Hyperf\Utils\{ApplicationContext};
 use Hyperf\View\RenderInterface;
 use Hyperf\ViewEngine\Contract\FactoryInterface;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
 use Overtrue\Http\Client;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -329,7 +328,7 @@ if (! function_exists('read_file')) {
     function read_file($file_path): ?string
     {
         if (file_exists($file_path)) {
-            return File::get($file_path);
+            return file_get_contents($file_path);
         }
 
         return null;
@@ -1037,17 +1036,19 @@ if (! function_exists('get_content_brief')) {
 }
 
 // 判断已安装
-if(!function_exists("is_installed")){
-    function is_installed(): bool{
-        if (file_exists(BASE_PATH . '/app/CodeFec/storage/install.lock') || get_install_step() >= 5){
+if (! function_exists('is_installed')) {
+    function is_installed(): bool
+    {
+        if (file_exists(BASE_PATH . '/app/CodeFec/storage/install.lock') || get_install_step() >= 5) {
             return true;
         }
         return false;
     }
 }
 
-if(!function_exists("get_install_step")){
-    function get_install_step(){
+if (! function_exists('get_install_step')) {
+    function get_install_step()
+    {
         if (! is_dir(BASE_PATH . '/app/CodeFec/storage')) {
             mkdir(BASE_PATH . '/app/CodeFec/storage');
         }

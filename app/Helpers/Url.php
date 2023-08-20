@@ -69,7 +69,7 @@ class Url
      */
     public static function formatParameters($parameters)
     {
-        return \Hyperf\Utils\Arr::wrap($parameters);
+        return \Hyperf\Collection\Arr::wrap($parameters);
     }
 
     /**

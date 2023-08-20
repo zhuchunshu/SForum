@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types=1);
+declare(strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -12,20 +12,24 @@ namespace App\Plugins\Core\src\Crontab;
 
 use App\Model\AdminOption;
 use App\Plugins\Topic\src\Models\Topic;
+use Carbon\Carbon;
 use Hyperf\Crontab\Annotation\Crontab;
 use Hyperf\DbConnection\Db;
-use Illuminate\Support\Carbon;
-#[Crontab(name: 'SForumCrontab', rule: '0 *\\/12 * * *', callback: 'execute', enable: [SForumCrontab::class, 'isEnable'], memo: 'SForum定时任务')]
+
+#[Crontab(name: 'SForumCrontab', rule: '0 *\\/12 * * *', callback: 'execute', memo: 'SForum定时任务', enable: [SForumCrontab::class, 'isEnable'])]
 class SForumCrontab
 {
     public function execute()
     {
     }
-    public function isEnable() : bool
+
+    public function isEnable(): bool
     {
         return true;
     }
+
     // 自动锁定主题
+
     #[Crontab(rule: '0 *\\/12 * * *', memo: '自动锁定主题')]
     public function topic_auto_lock()
     {
@@ -43,7 +47,9 @@ class SForumCrontab
             }
         }
     }
+
     // 自动删除未验证邮箱的用户
+
     #[Crontab(rule: '0 *\\/12 * * *', memo: '自动删除未验证邮箱的用户')]
     public function auto_delete_no_ver_time_user()
     {

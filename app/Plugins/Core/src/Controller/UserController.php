@@ -25,7 +25,7 @@ use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\RateLimit\Annotation\RateLimit;
 use HyperfExt\Hashing\Hash;
-use Illuminate\Support\Str;
+use Hyperf\Stringable\Str;
 
 #[Controller]
 #[Middleware(\App\Plugins\User\src\Middleware\AuthMiddleware::class)]

@@ -17,7 +17,7 @@ use App\Plugins\User\src\Models\UsersOption;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
-use Hyperf\Utils\Arr;
+use Hyperf\Collection\Arr;
 
 #[Middleware(LoginMiddleware::class)]
 #[Controller(prefix: '/api/user/exchange')]

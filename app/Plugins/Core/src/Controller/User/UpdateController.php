@@ -26,7 +26,7 @@ use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\HttpServer\Annotation\RequestMapping;
 use HyperfExt\Hashing\Hash;
-use Illuminate\Support\Str;
+use Hyperf\Stringable\Str;
 use Psr\Http\Message\ResponseInterface;
 #[Controller]
 #[Middleware(LoginMiddleware::class)]

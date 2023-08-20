@@ -4,7 +4,7 @@
 namespace App\CodeFec\Itf\Theme;
 
 
-use Illuminate\Support\Arr;
+use Hyperf\Collection\Arr;
 
 class Theme implements ThemeInterface
 {

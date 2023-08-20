@@ -4,7 +4,7 @@
 namespace App\Plugins\Mail\src;
 
 use Exception;
-use Illuminate\Support\Arr;
+use Hyperf\Collection\Arr;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 

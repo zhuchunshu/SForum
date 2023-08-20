@@ -11,7 +11,7 @@ declare(strict_types=1);
  */
 namespace App\CodeFec\Header;
 
-use Illuminate\Support\Arr;
+use Hyperf\Collection\Arr;
 
 class Header implements HeaderInterface
 {

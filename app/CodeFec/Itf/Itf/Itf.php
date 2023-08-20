@@ -10,7 +10,7 @@ declare(strict_types=1);
  */
 namespace App\CodeFec\Itf\Itf;
 
-use Illuminate\Support\Arr;
+use Hyperf\Collection\Arr;
 
 class Itf implements ItfInterface
 {

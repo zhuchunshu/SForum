@@ -1,7 +1,7 @@
 <?php
 namespace App\CodeFec\Itf\Setting;
 
-use Illuminate\Support\Arr;
+use Hyperf\Collection\Arr;
 
 class Setting implements SettingInterface {
 

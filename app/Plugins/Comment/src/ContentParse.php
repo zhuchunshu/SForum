@@ -2,7 +2,7 @@
 
 namespace App\Plugins\Comment\src;
 
-use Hyperf\Utils\Arr;
+use Hyperf\Collection\Arr;
 use Zhuchunshu\EmojiParse\Emoji;
 
 class ContentParse

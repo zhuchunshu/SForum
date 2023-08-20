@@ -1,7 +1,7 @@
 <?php
 namespace App\CodeFec\Admin\Ui;
 
-use Illuminate\Support\Str;
+use Hyperf\Stringable\Str;
 
 class Row {
 

@@ -2,7 +2,7 @@
 
 namespace App\CodeFec;
 
-use Hyperf\Utils\Arr;
+use Hyperf\Collection\Arr;
 use Noodlehaus\Config;
 
 class Language

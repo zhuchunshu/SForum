@@ -12,7 +12,7 @@ namespace App\Plugins\Core\src\Handler;
 
 use App\Plugins\Core\src\Service\FileStoreService;
 use App\Plugins\User\src\Models\UserUpload;
-use Illuminate\Support\Str;
+use Hyperf\Stringable\Str;
 use Intervention\Image\ImageManagerStatic as Image;
 
 class AvatarUpload

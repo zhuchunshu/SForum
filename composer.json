@@ -47,7 +47,6 @@
         "hyperf/view-engine": "3.0.*",
         "hyperf/websocket-server": "3.0.*",
         "jetbrains/phpstorm-stubs": "^2021.1",
-        "laravel/helpers": "^1.6",
         "opis/closure": "^3.6",
         "overtrue/http": "^1.2",
         "rakibtg/sleekdb": "^2.15",

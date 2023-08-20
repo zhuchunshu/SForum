@@ -10,7 +10,7 @@ declare (strict_types=1);
  */
 namespace App\Plugins\Core\src\Lib;
 
-use Hyperf\Utils\Arr;
+use Hyperf\Collection\Arr;
 use Noodlehaus\Config;
 class Emoji
 {
