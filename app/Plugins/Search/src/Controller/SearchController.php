@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types=1);
+declare(strict_types=1);
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -15,7 +15,9 @@ use App\Plugins\Topic\src\Models\Topic;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\Paginator\LengthAwarePaginator;
+use Hyperf\Stringable\Str;
 use Hyperf\Utils\Collection;
+
 #[Controller]
 class SearchController
 {
@@ -23,7 +25,7 @@ class SearchController
     public function index()
     {
         $q = request()->input('q');
-        if (!$q) {
+        if (! $q) {
             return redirect()->back()->with('danger', '搜索内容不能为空')->go();
         }
         // 中文转义搜索内容
@@ -31,15 +33,15 @@ class SearchController
         $topics = [];
         $topic = Topic::where('title', 'like', '%' . $q . '%')->with('user', 'post', 'tag')->get(['title', 'user_id', 'post_id', 'id', 'created_at', 'tag_id']);
         foreach ($topic as $item) {
-            $topics[] = ['user' => ['name' => $item->user->username, 'url' => '/users/' . $item->user->id . '.html'], 'tag' => ['name' => $item->tag->name, 'url' => '/tags/' . $item->tag->id . '.html'], 'created_at' => $item->created_at, 'title' => $item->title, 'content' => str_limit(remove_bbCode(strip_tags($item->post->content) ?: '暂无内容') ?: '暂无内容', 100), 'url' => '/' . $item->id . '.html'];
+            $topics[] = ['user' => ['name' => $item->user->username, 'url' => '/users/' . $item->user->id . '.html'], 'tag' => ['name' => $item->tag->name, 'url' => '/tags/' . $item->tag->id . '.html'], 'created_at' => $item->created_at, 'title' => $item->title, 'content' => Str::limit(remove_bbCode(strip_tags($item->post->content) ?: '暂无内容') ?: '暂无内容', 100), 'url' => '/' . $item->id . '.html'];
         }
         $topics2 = [];
         $_topic = Post::where('topic_id', '!=', 'null')->where('topic_id', '!=', '0')->where('content', 'like', '%' . $q . '%')->with('user', 'topic', 'topic.tag')->get(['user_id', 'topic_id', 'content', 'created_at', 'id']);
         foreach ($_topic as $topic) {
-            if (in_array($item, $topics2) || !Topic::where('id', $topic->topic_id)->exists()) {
+            if (in_array($item, $topics2) || ! Topic::where('id', $topic->topic_id)->exists()) {
                 continue;
             }
-            $item = ['user' => ['name' => $topic->user->username, 'url' => '/users/' . $topic->user->id . '.html'], 'tag' => ['name' => $topic->topic->tag->name, 'url' => '/tags/' . $topic->topic->tag->id . '.html'], 'created_at' => $topic->created_at, 'title' => @$topic->topic->title ?: '暂无标题', 'content' => @str_limit(remove_bbCode(strip_tags($topic->content) ?: '暂无内容') ?: '暂无内容', 100), 'url' => '/' . $topic->topic_id . '.html'];
+            $item = ['user' => ['name' => $topic->user->username, 'url' => '/users/' . $topic->user->id . '.html'], 'tag' => ['name' => $topic->topic->tag->name, 'url' => '/tags/' . $topic->topic->tag->id . '.html'], 'created_at' => $topic->created_at, 'title' => @$topic->topic->title ?: '暂无标题', 'content' => Str::limit(remove_bbCode(strip_tags($topic->content) ?: '暂无内容') ?: '暂无内容', 100), 'url' => '/' . $topic->topic_id . '.html'];
             $topics2[] = $item;
         }
         $data = array_merge($topics, $topics2);
@@ -49,18 +51,20 @@ class SearchController
         $page = $this->page($data);
         return view('Search::data', ['page' => $page, 'q' => $q]);
     }
-    private function unique_key_array($inputArray, $key) : array
+
+    private function unique_key_array($inputArray, $key): array
     {
         $uniqueKeys = [];
         $outputArray = [];
         foreach ($inputArray as $item) {
-            if (!in_array($item[$key], $uniqueKeys)) {
+            if (! in_array($item[$key], $uniqueKeys)) {
                 $uniqueKeys[] = $item[$key];
                 $outputArray[] = $item;
             }
         }
         return $outputArray;
     }
+
     private function page($result)
     {
         $currentPage = (int) request()->input('page', 1);
