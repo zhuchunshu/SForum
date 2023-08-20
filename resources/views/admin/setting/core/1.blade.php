@@ -5,35 +5,7 @@
             <input type="text" min="1" max="3" class="form-control" v-model="data.APP_NAME">
             <small>当前: {{get_options('APP_NAME',env('APP_NAME','未配置'))}}</small>
         </div>
-        <div class="col-lg-4">
-            <label class="form-label">更新加速
-            </label>
-            <select class="form-select" v-model="data.update_server">
-                <option value="1">大陆服务器加速</option>
-                <option value="2">境外加速</option>
-            </select>
-            <small>默认境外</small>
-        </div>
-        <div class="col-lg-4">
-            <label class="form-label">后台主题 - 页头
-            </label>
-            <select class="form-select" v-model="data.admin_theme_header">
-                <option value="1">白</option>
-                <option value="2">黑</option>
-                <option value="3">透明</option>
-            </select>
-            <small>默认:白</small>
-        </div>
-        <div class="col-lg-4">
-            <label class="form-label">后台主题 - 菜单
-            </label>
-            <select class="form-select" v-model="data.admin_theme_menu">
-                <option value="1">白</option>
-                <option value="2">黑</option>
-                <option value="3">透明</option>
-            </select>
-            <small>默认:白</small>
-        </div>
+
         <div class="col-lg-4">
             <label class="form-label">网站名称</label>
             <input type="text" min="1" max="3" class="form-control" v-model="data.web_name">
@@ -70,15 +42,15 @@
             <label class="form-label">公安备案号</label>
             <input v-model="data.ga_icp" type="text" class="form-control">
         </div>
-        <div class="col-lg-4">
-            <label class="form-label">{{__('admin.setting.language')}}</label>
-            <select v-model="data.language" class="form-select">
-                @foreach(language()->all() as $lang=>$name)
-                    <option value="{{$lang}}">{{$name}}</option>
-                @endforeach
-            </select>
-            <small>{{__('app.default')}}: 简体中文(zh_CN)</small>
-        </div>
+{{--        <div class="col-lg-4">--}}
+{{--            <label class="form-label">{{__('admin.setting.language')}}</label>--}}
+{{--            <select v-model="data.language" class="form-select">--}}
+{{--                @foreach(language()->all() as $lang=>$name)--}}
+{{--                    <option value="{{$lang}}">{{$name}}</option>--}}
+{{--                @endforeach--}}
+{{--            </select>--}}
+{{--            <small>{{__('app.default')}}: 简体中文(zh_CN)</small>--}}
+{{--        </div>--}}
         <div class="col-lg-4">
             <label class="form-label">网站logo小部件调用代码</label>
             <input v-model="data.web_logo" type="text" class="form-control">

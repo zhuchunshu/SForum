@@ -168,7 +168,14 @@
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-auto">
-                                    <span class="bg-yellow-lt text-white avatar"><svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-box" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                    <span class="bg-yellow-lt text-white avatar"><svg xmlns="http://www.w3.org/2000/svg"
+                                                                                      class="icon icon-tabler icon-tabler-box"
+                                                                                      width="24" height="24"
+                                                                                      viewBox="0 0 24 24"
+                                                                                      stroke-width="2"
+                                                                                      stroke="currentColor" fill="none"
+                                                                                      stroke-linecap="round"
+                                                                                      stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <polyline points="12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5 12 3"></polyline>
    <line x1="12" y1="12" x2="20" y2="7.5"></line>
@@ -196,26 +203,26 @@
                         return await response.text()
                     },
                     clean() {
-                        let response = fetch('/api/admin/tool/clean_redundant_data',{
-                            method:'POST',
-                            headers:{
+                        let response = fetch('/api/admin/tool/clean_redundant_data', {
+                            method: 'POST',
+                            headers: {
                                 'Content-Type': 'application/json'
                             },
-                            body:JSON.stringify({
-                                'clean':true,
-                                '_token':csrf_token
+                            body: JSON.stringify({
+                                'clean': true,
+                                '_token': csrf_token
                             })
                         })
-                        swal('Success','清理任务已创建','success')
+                        swal('Success', '清理任务已创建', 'success')
                     }
                 }))
             })
         </script>
-{{--        站点工具--}}
+        {{--        站点工具--}}
         <div class="col-md-12">
 
             <div class="row row-cards">
-{{--                工具--}}
+                {{--                工具--}}
                 <div class="col-lg-6">
                     <div class="row row-cards">
                         {{--                        数据清理--}}
@@ -223,109 +230,181 @@
                         <div class="col-12" x-data="data_clean">
                             <div class="card">
                                 <div class="card-header">
-                                    <h3 class="card-title">数据清理</h3>
+                                    <h3 class="card-title">无用数据清理</h3>
                                 </div>
                                 <div class="card-body">
-                                    可<a x-on:click="clean()" href="#">清理</a>：<span x-text="await get_count()">loading...</span>条数据
+                                    可<a x-on:click="clean()" href="#">清理</a>：<span x-text="await get_count()">loading...</span>条无用数据
                                 </div>
                             </div>
                         </div>
-                        <div class="col-12">
+                        <div class="col-lg-6">
                             <div class="card">
                                 <div class="card-header">
                                     <h3 class="card-title">服务信息</h3>
                                 </div>
                                 <div class="card-body">
                                     <p>系统信息：<span class="text-primary">{{shell_exec('echo $(uname -a)')}}</span></p>
-                                    <p>占用内存：<span class="text-primary">{{round(memory_get_usage()/1024/1024,2)}} MB</span></p>
+                                    <p>占用内存：<span
+                                                class="text-primary">{{round(memory_get_usage()/1024/1024,2)}} MB</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6" id="vue-admin-index-releases">
+                            <div class="row row-cards">
+                                <div class="col-md-12" v-if="data">
+                                    <div class="row row-cards">
+
+                                        {{--                        当前版本--}}
+                                        <div class="col-md-12">
+                                            <div class="card" v-if="data">
+                                                <div class="card-body">
+                                                    <h3 class="card-title">Releases</h3>
+                                                    <p>当前版本: <a v-if="data.version"
+                                                                    :href="data.current_version_url">@{{data.version}}</a>
+                                                    </p>
+                                                    <p>最新版本: <a :href="data.new_version_url">@{{data.tag_name}}</a>
+                                                    </p>
+                                                    <div v-if="data.upgrade">
+                                                        可更新
+                                                        {{--                                        <a :href="data.zipball_url" class="btn btn-dark"--}}
+                                                        {{--                                           style="margin-right: 10px">下载zip包</a>--}}
+                                                        {{--                                        <a :href="data.tarball_url" style="margin-right: 10px"--}}
+                                                        {{--                                           class="btn btn-light">下载tar.gz包</a>--}}
+                                                        <a target="_blank" href="https://sforum.cn/use/update/"
+                                                           class="btn btn-primary">立即更新</a>
+                                                    </div>
+                                                </div>
+                                                <div class="card-footer">
+                                                    <div class="col-md-12">
+                                                        <button @@click="clearCache" class="btn btn-dark">清理缓存
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                                {{--                加载中--}}
+                                <div class="col-md-12" v-else>
+                                    <div class="border-0 card">
+                                        <div class="card-body">
+                                            <div class="empty">
+                                                <p class="empty-title">Loading...</p>
+
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
 
                 <div class="col-lg-6">
-                    <div class="card" v-if="data">
-                        <div class="card-header">
-                            <h3 class="card-title">开发者信息</h3>
-                        </div>
-                        <div class="card-body">
-                            <ul>
-                                <li>官网: <a href="https://www.sforum.cn">https://www.sforum.cn</a>
-                                <li>论坛: <a href="https://www.runpod.cn">https://www.runpod.cn</a>
-                                </li>
-                                <li>
-                                    文档: <a href="https://www.runpod.cn/docs">https://www.runpod.cn/docs</a>
-                                </li>
-                                <li>
-                                    开源地址: <a href="https://github.com/zhuchunshu/SForum">https://github.com/zhuchunshu/SForum</a>
-                                </li>
-                            </ul>
-                            <h3>鸣谢</h3>
-                            <ul>
-                                <li>hyperf: <a href="https://hyperf.io/">https://hyperf.io/</a>
-                                </li>
-                                <li>
-                                    swoole: <a href="https://swoole.com/">https://swoole.com/</a>
-                                </li>
-                                <li>赞助名单：<a href="https://www.runpod.cn/290.html">https://www.runpod.cn/290.html</a></li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-        </div>
-        <div class="col-md-12" id="vue-admin-index-releases">
-            <div class="row row-cards">
-                <div class="col-md-12" v-if="data">
                     <div class="row row-cards">
 
-                        {{--                        当前版本--}}
-                        <div class="col-md-6">
-                            <div class="card" v-if="data">
-                                <div class="card-body">
-                                    <h3 class="card-title">Releases</h3>
-                                    <p>当前版本: <a v-if="data.version" :href="data.current_version_url">@{{data.version}}</a> </p>
-                                    <p>最新版本: <a :href="data.new_version_url">@{{data.tag_name}}</a></p>
-                                    <div v-if="data.upgrade">
-                                        可更新
-{{--                                        <a :href="data.zipball_url" class="btn btn-dark"--}}
-{{--                                           style="margin-right: 10px">下载zip包</a>--}}
-{{--                                        <a :href="data.tarball_url" style="margin-right: 10px"--}}
-{{--                                           class="btn btn-light">下载tar.gz包</a>--}}
-                                        <a target="_blank" href="https://sforum.cn/use/update/" class="btn btn-primary">立即更新</a>
+                        @if(get_options('sforum_notice')!=="true")
+                            <div class="col-12" x-data="sfnotice">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h3 class="card-title">通知信息</h3>
+                                        <div class="card-actions">
+                                            <a target="_blank" href="https://www.runpod.cn/tags/27.html"
+                                               class="btn btn-link">查看全部</a>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="card-footer">
-                                    <div class="col-md-12">
-                                        <button @@click="clearCache" class="btn btn-dark">清理缓存</button>
+                                    <div class="card-body">
+                                        <div class="text-center" x-show="!data">
+                                            暂无数据
+                                        </div>
+                                        <div x-show="data">
+                                            <div class="list-group list-group-flush overflow-auto"
+                                                 style="max-height: 15rem">
+                                                <template x-for="v in data">
+                                                    <div class="list-group-item">
+                                                        <div class="text-truncate">
+                                                            <a target="_blank" :href="v.url" x-text="v.title"></a>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="col-md-6">
-
-                        </div>
-
-
-
+                            <script>
+                                document.addEventListener('alpine:init', () => {
+                                    Alpine.data('sfnotice', () => ({
+                                        data: null,
+                                        init() {
+                                            fetch('/api/admin/sforum.notice', {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json'
+                                                },
+                                                body: JSON.stringify({
+                                                    '_token': csrf_token
+                                                })
+                                            }).then(res => {
+                                                return res.json()
+                                            }).then(res => {
+                                                if (!res.success) {
+                                                    return;
+                                                }
+                                                this.data = res.result.data
+                                            })
+                                        }
+                                    }))
+                                })
+                            </script>
+                        @endif
 
                     </div>
+
                 </div>
-
-                {{--                加载中--}}
-                <div class="col-md-12" v-else>
-                    <div class="border-0 card">
-                        <div class="card-body">
-                            <div class="empty">
-                                <p class="empty-title">Loading...</p>
-
+                <div class="col-lg-6">
+                    <div class="col-12">
+                        <div class="card" v-if="data">
+                            <div class="card-header">
+                                <h3 class="card-title">开发者信息</h3>
+                                <div class="card-actions">
+                                    <a target="_blank" href="https://www.runpod.cn/sforum/sponsors" class="btn btn-link">赞助开发者</a>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <ul>
+                                    <li>官网: <a href="https://www.sforum.cn">https://www.sforum.cn</a>
+                                    <li>论坛: <a href="https://www.runpod.cn">https://www.runpod.cn</a>
+                                    </li>
+                                    <li>
+                                        文档: <a href="https://docs.sforum.cn">https://docs.sforum.cn</a>
+                                    </li>
+                                    <li>
+                                        开源地址: <a href="https://github.com/zhuchunshu/SForum">https://github.com/zhuchunshu/SForum</a>
+                                    </li>
+                                </ul>
+                                <h3>鸣谢</h3>
+                                <ul>
+                                    <li>hyperf: <a href="https://hyperf.io/">https://hyperf.io/</a>
+                                    </li>
+                                    <li>
+                                        swoole: <a href="https://swoole.com/">https://swoole.com/</a>
+                                    </li>
+                                    <li>赞助名单：<a
+                                                href="https://www.runpod.cn/290.html">https://www.runpod.cn/290.html</a>
+                                    </li>
+                                </ul>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
         </div>
 
     </div>

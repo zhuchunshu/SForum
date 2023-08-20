@@ -9,4 +9,5 @@ declare(strict_types=1);
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
 Itf_Setting()->add(1, '基本设置', 'default', 'admin.setting.core.1');
+Itf_Setting()->add(2, '后台/服务', 'admin', 'admin.setting.core.2');
 
