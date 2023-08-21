@@ -67,7 +67,7 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('auth', () => ({
             async get_ip(ip) {
-                let r = await (await fetch('/api/core/useragentinfo')).json()
+                let r = await (await fetch('/api/core/useragentinfo?ip='+ip)).json()
 
                 return r.ip_info.pro;
             },
