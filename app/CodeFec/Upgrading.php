@@ -27,10 +27,11 @@ class Upgrading
 
     public \App\Command\CodeFec\Upgrading $command;
 
-    private string $api_releases = 'https://api.github.com/repos/zhuchunshu/SForum/releases';
+    private string $api_releases = '/repos/zhuchunshu/SForum/releases';
 
     public function __construct(OutputInterface $output, \App\Command\CodeFec\Upgrading $command)
     {
+        $this->api_releases = get_options('github_api_url', 'https://api.github.com') . $this->api_releases;
         $this->output = $output;
         $this->command = $command;
     }

@@ -39,5 +39,11 @@
             </label>
         </div>
 
+        <div class="col-lg-4 mb-3">
+            <div class="form-label">Github API 地址</div>
+            <input v-model="data.github_api_url" placeholder="Github API 地址" type="text" class="form-control">
+            <small class="text-muted">默认是 https://api.github.com </small>
+        </div>
+
     </div>
 </div>

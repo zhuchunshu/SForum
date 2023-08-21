@@ -28,13 +28,18 @@ class ApiController
     protected Upgrading $service;
 
     // sforum github api接口
-    private string $api_releases = 'https://api.github.com/repos/zhuchunshu/SForum/releases';
+    private string $api_releases = '/repos/zhuchunshu/SForum/releases';
 
     // sforum 通知接口
     private string $api_notice = 'https://www.runpod.cn/api/v1/SFService/sforum/admin/notice';
 
     // sforum 通知获取数量
     private int $api_notice_limit = 100;
+
+    public function __construct()
+    {
+        $this->api_releases = get_options('github_api_url', 'https://api.github.com') . $this->api_releases;
+    }
 
     #[PostMapping('getVersion')]
     public function getVersion()
@@ -139,6 +144,7 @@ class ApiController
     }
 
     // 获取sforum通知
+
     #[PostMapping('sforum.notice')]
     public function sforum_notice(): array
     {
