@@ -18,6 +18,6 @@ class UpdateTopicRequest extends FormRequest
     }
     public function attributes() : array
     {
-        return ["topic_id" => "帖子id", "html" => "正文内容", "title" => "标题", "tag" => "标签id"];
+        return ["topic_id" => "帖子id", "html" => "正文内容", "title" => "标题", "tag" => "板块id"];
     }
 }

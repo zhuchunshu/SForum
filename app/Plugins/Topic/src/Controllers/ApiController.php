@@ -32,7 +32,7 @@ class ApiController
     #[PostMapping('tags')]
     public function Tags(): array
     {
-        $data = [['text' => '请选择标签', 'value' => 0]];
+        $data = [['text' => '请选择板块', 'value' => 0]];
         foreach (TopicTag::query()->where('status', '=', null)->get() as $key => $value) {
             $class_name = UserClass::query()->where('id', auth()->data()->class_id)->first()->name;
             if (user_TopicTagQuanxianCheck($value, $class_name)) {

@@ -1,6 +1,6 @@
 @extends("app")
 
-@section('title',"任务 - 帖子标签管理")
+@section('title',"任务 - 板块管理")
 
 @section('content')
     <div class="col-md-12">

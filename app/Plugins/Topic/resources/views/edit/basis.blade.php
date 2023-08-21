@@ -5,7 +5,7 @@
 
 <input type="hidden" name="basis[topic_id]" value="{{$data->id}}">
 <div class="mb-3">
-    <label class="form-label">选择标签</label>
+    <label class="form-label">选择板块</label>
     <select type="text" name="basis[tag]" class="form-select" id="select-topic-tags" required>
         @foreach(\App\Plugins\Topic\src\Models\TopicTag::query()->where('status','=',null)->get() as $topic_tags)
             <option value="{{$topic_tags->id}}"

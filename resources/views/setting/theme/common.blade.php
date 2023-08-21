@@ -62,7 +62,7 @@
         </div>
 
         <div class="col-lg-4 align-self-center">
-            <div class="form-label">首页移动端显示标签图标</div>
+            <div class="form-label">首页移动端显示板块图标</div>
             <label class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" v-model="data.theme_home_tag_icon">
                 <span class="form-check-label">开启</span>

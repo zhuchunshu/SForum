@@ -1,8 +1,8 @@
 @extends("App::app")
 
 @section('title', __("app.tag"))
-@section('description', '本站帖子标签列表')
-@section('keywords', '本站帖子标签列表')
+@section('description', '本站板块列表')
+@section('keywords', '本站板块列表')
 
 @section('header')
     <div class="page-wrapper">

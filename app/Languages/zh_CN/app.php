@@ -4,7 +4,7 @@ return [
 	'welcome' => '欢迎',
 	'default' => '默认',
 	'home' => '首页',
-	'tag' => '标签',
+	'tag' => '板块',
 	'user' => '用户',
 	'latest' => '最新',
 	'essence' => '精华',

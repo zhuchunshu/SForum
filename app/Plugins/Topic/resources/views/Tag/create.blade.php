@@ -1,11 +1,11 @@
 @extends("app")
 
-@section('title',"帖子标签 - 新增")
+@section('title',"帖子板块 - 新增")
 
 @section('content')
     <div class="col-md-12">
         <div class="card card-body" id="vue-topic-tag-create">
-            <h3 class="card-title">新增标签</h3>
+            <h3 class="card-title">新增板块</h3>
             <form method="post" action="/admin/topic/tag/create?Redirect=admin/topic/tag/create">
                 <x-csrf/>
                 <div class="mb-3">
@@ -30,7 +30,7 @@
                     <textarea name="icon" v-model="icon" rows="10" class="form-control" required></textarea>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label"> 哪个用户组可使用此标签? </label>
+                    <label class="form-label"> 哪个用户组可使用此板块? </label>
                     <div class="row">
                         @foreach($userClass as $value)
                             <div class="col-4">
@@ -41,7 +41,7 @@
                             </div>
                         @endforeach
                     </div>
-                    <small style="color:red">不选择则所有用户组都可用此标签</small>
+                    <small style="color:red">不选择则所有用户组都可用此板块</small>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">描述</label>

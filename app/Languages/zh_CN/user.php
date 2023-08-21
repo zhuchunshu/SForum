@@ -19,7 +19,7 @@ return [
 	'topic count' => '主题数量',
 	'collection count' => '收藏数量',
 	'fans count' => '粉丝数量',
-	'topic tag count' => '标签数量',
+	'topic tag count' => '板块数量',
 	'QQ' => 'QQ',
 	'wechat' => '微信',
 	'email' => '邮箱',

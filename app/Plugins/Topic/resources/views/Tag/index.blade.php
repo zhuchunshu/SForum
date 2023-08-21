@@ -1,9 +1,9 @@
 @extends("app")
 
-@section('title',"帖子标签管理")
+@section('title',"板块管理")
 
 @section('headerBtn')
-    <a href="/admin/topic/tag/create" class="btn btn-primary">创建新标签</a>
+    <a href="/admin/topic/tag/create" class="btn btn-primary">创建新板块</a>
 @endsection
 
 @section('content')

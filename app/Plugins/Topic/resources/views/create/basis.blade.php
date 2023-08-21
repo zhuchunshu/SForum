@@ -6,13 +6,13 @@
     </div>
 
     <div class="mb-3">
-        <label :class="{'required text-red' :! tag_selected}" class="form-label">选择标签</label>
+        <label :class="{'required text-red' :! tag_selected}" class="form-label">选择板块</label>
         <select type="text" x-model="tag" name="basis[tag]" class="form-select"
                 id="select-topic-tags"
                 required>
 
             <option value="null"
-                    data-custom-properties="&lt;span class=&quot;badge bg-danger-lt&quot;&gt;Tip&lt;/span&gt;">请选择标签
+                    data-custom-properties="&lt;span class=&quot;badge bg-danger-lt&quot;&gt;Tip&lt;/span&gt;">请选择板块
             </option>
             @foreach(\App\Plugins\Topic\src\Models\TopicTag::query()->where('status','=',null)->get() as $topic_tags)
                 <option value="{{$topic_tags->id}}"

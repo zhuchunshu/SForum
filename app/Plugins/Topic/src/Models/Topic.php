@@ -53,7 +53,7 @@ class Topic extends Model
     protected array $casts = ['id' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
 
     /**
-     * 帖子标签信息.
+     * 板块信息.
      */
     public function tag(): \Hyperf\Database\Model\Relations\BelongsTo
     {

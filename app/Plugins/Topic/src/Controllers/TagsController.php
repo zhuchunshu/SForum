@@ -93,9 +93,9 @@ class TagsController
             $url = url('/admin/topic/tag/jobs');
             go(function () use($url) {
                 foreach (AdminUser::query()->get() as $user) {
-                    $Subject = '【' . get_options('web_name') . '】 有用户申请创建了标签，需要你审核';
+                    $Subject = '【' . get_options('web_name') . '】 有用户申请创建了板块，需要你审核';
                     $Body = <<<HTML
-<h3>标题: 有用户申请创建了标签，需要你审核</h3>
+<h3>标题: 有用户申请创建了板块，需要你审核</h3>
 <p>链接: <a href="{$url}">{$url}</a></p>
 HTML;
                     Email()->send($user->email, $Subject, $Body);
@@ -111,7 +111,7 @@ HTML;
             return admin_abort('权限不足', 419);
         }
         if (!TopicTag::query()->where('status', '=', null)->where('id', $id)->count()) {
-            return admin_abort('id为' . $id . '的标签不存在', 403);
+            return admin_abort('id为' . $id . '的板块不存在', 403);
         }
         $data = TopicTag::query()->find($id);
         if ((int) $data->user_id !== (int) auth()->id()) {

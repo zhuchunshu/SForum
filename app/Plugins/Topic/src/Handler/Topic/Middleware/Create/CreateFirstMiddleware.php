@@ -28,7 +28,7 @@ class CreateFirstMiddleware implements MiddlewareInterface
         $tag_value = TopicTag::query()->where('id', $data['basis']['tag'])->first();
         if (!user_TopicTagQuanxianCheck($tag_value, $class_name)) {
             unset($data['basis']['content']);
-            return redirect()->with('danger', '无权使用此标签')->url('topic/create?' . http_build_query($data))->go();
+            return redirect()->with('danger', '无权使用此板块')->url('topic/create?' . http_build_query($data))->go();
         }
         return $next($data);
     }

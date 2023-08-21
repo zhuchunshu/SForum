@@ -8,7 +8,7 @@
                 <ol class="breadcrumb breadcrumb-arrows" aria-label="breadcrumbs">
                     <li class="breadcrumb-item"><a href="/">首页</a></li>
                     <li class="breadcrumb-item">
-                        <a href="/tags">标签列表</a>
+                        <a href="/tags">板块列表</a>
                     </li>
                     <li class="breadcrumb-item"><a href="/tags/{{$data->id}}.html">
                             {!! $data->icon !!}{{$data->name}}

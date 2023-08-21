@@ -18,7 +18,7 @@ tinymce.PluginManager.add('sf-quote', (editor, url) => {
                         { value: 'user', text: '用户' },
                         { value: 'topic', text: '帖子' },
                         { value: 'comment', text: '评论' },
-                        { value: 'topic-tag', text: '标签' },
+                        { value: 'topic-tag', text: '板块' },
                     ]
                 },
                 {

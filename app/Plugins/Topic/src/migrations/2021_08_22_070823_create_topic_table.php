@@ -20,7 +20,7 @@ class CreateTopicTable extends Migration
             $table->longText("markdown")->comment('markdown内容');
             $table->integer('like')->comment('点赞数量')->default(0)->nullable();
             $table->integer('view')->comment('浏览量')->default(0)->nullable();
-            $table->string('tag_id')->comment('标签id')->default(1);
+            $table->string('tag_id')->comment('板块id')->default(1);
             $table->string('_token');
             $table->text('options')->nullable();
             $table->timestamps();

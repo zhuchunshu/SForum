@@ -85,7 +85,7 @@
                     </a>
                 </div>
 
-                {{--                标签总数--}}
+                {{--                板块总数--}}
                 <div class="col-md-6 col-xl-3 col-6">
                     <a class="card card-link" href="/admin/topic/tag">
                         <div class="card-body">
@@ -103,7 +103,7 @@
                                     </span>
                                 </div>
                                 <div class="col">
-                                    <div class="font-weight-medium">标签总数</div>
+                                    <div class="font-weight-medium">板块总数</div>
                                     <div class="text-muted">{{\App\Plugins\Topic\src\Models\TopicTag::query()->count()}}</div>
                                 </div>
                             </div>

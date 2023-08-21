@@ -18,6 +18,6 @@ class CreateTopicRequest extends FormRequest
     }
     public function attributes() : array
     {
-        return ["html" => "正文html内容", "title" => "标题", "tag" => "标签id"];
+        return ["html" => "正文html内容", "title" => "标题", "tag" => "板块id"];
     }
 }

@@ -108,7 +108,7 @@ class User extends Model implements \Qbhy\HyperfAuth\Authenticatable
     }
 
     /**
-     * 主题标签.
+     * 主题板块.
      * @return \Hyperf\Database\Model\Relations\HasMany
      */
     public function tags()

@@ -18,7 +18,7 @@
         <div class="card-status-top" style="{{Core_Ui()->Css()->bg_color($data->color)}}"></div>
 
         <div class="card-body">
-            <b class="text-h3">标签创建者</b>:
+            <b class="text-h3">板块创建者</b>:
             @if($data->user_id)
                 <a href="/users/{{ $data->user->id }}.html">
                     <span class="avatar avatar-rounded" style="--tblr-avatar-size:20px;background-image: url({{super_avatar($data->user)}})"></span>

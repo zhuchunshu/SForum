@@ -235,7 +235,7 @@
                                             </div>
                                         </div>
                                         <div class="text-muted">
-                                            管理标签
+                                            管理板块
                                         </div>
                                     </div>
                                     <div class="col-auto">

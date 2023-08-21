@@ -45,7 +45,7 @@ class Moderator extends Model
         return $this->hasOne(\App\Plugins\User\src\Models\User::class, 'id', 'user_id');
     }
     /**
-     * 标签信息.
+     * 板块信息.
      */
     public function tag() : \Hyperf\Database\Model\Relations\HasOne
     {

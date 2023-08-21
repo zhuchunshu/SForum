@@ -94,7 +94,7 @@ class ShortCode
         $data = TopicComment::find($comment_id);
         return view('Comment::ShortCode.comment', ['value' => $data]);
     }
-    // 引用标签
+    // 引用板块
     #[ShortCodeR(name: 'topic-tag')]
     public function topic_tag($match, ShortcodeInterface $s)
     {

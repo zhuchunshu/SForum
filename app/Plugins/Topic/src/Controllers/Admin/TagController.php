@@ -59,7 +59,7 @@ class TagController
     public function edit($id)
     {
         if (!TopicTag::query()->where('id', $id)->count()) {
-            return admin_abort('id为' . $id . '的标签不存在', 403);
+            return admin_abort('id为' . $id . '的板块不存在', 403);
         }
         $data = TopicTag::query()->where('id', $id)->first();
         $userClass = \App\Plugins\User\src\Models\UserClass::query()->get();
@@ -96,10 +96,10 @@ class TagController
             return Json_Api(403, false, ['msg' => '请求id不能为空']);
         }
         if ($id === 1) {
-            return Json_Api(403, false, ['msg' => '安全起见,你不能删除id为1的标签,因为这属于是帖子的默认分类']);
+            return Json_Api(403, false, ['msg' => '安全起见,你不能删除id为1的板块,因为这属于是帖子的默认分类']);
         }
         if (!TopicTag::query()->where('id', $id)->count()) {
-            return Json_Api(403, false, ['msg' => 'id为' . $id . '的标签不存在']);
+            return Json_Api(403, false, ['msg' => 'id为' . $id . '的板块不存在']);
         }
         // 迁移工作
         go(function () use($id) {
@@ -125,16 +125,16 @@ class TagController
             return Json_Api(403, false, ['msg' => '请求id不能为空']);
         }
         if (!TopicTag::query()->where('id', $id)->count()) {
-            return Json_Api(403, false, ['msg' => 'id为' . $id . '的标签不存在']);
+            return Json_Api(403, false, ['msg' => 'id为' . $id . '的板块不存在']);
         }
         TopicTag::where('status', '待审核')->where('id', $id)->update(['status' => null]);
         $user = TopicTag::query()->find($id)->user;
         $url = url('/tags/' . $id . '.html');
         // 判断用户是否愿意接收通知
         go(function () use($url, $user) {
-            $Subject = '【' . get_options('web_name') . '】 你的标签创建申请已审核通过';
+            $Subject = '【' . get_options('web_name') . '】 你的板块创建申请已审核通过';
             $Body = <<<HTML
-<h3>标题: 你的标签创建申请已审核通过,现在可以使用啦</h3>
+<h3>标题: 你的板块创建申请已审核通过,现在可以使用啦</h3>
 <p>链接: <a href="{$url}">{$url}</a></p>
 HTML;
             Email()->send($user->email, $Subject, $Body);
@@ -152,16 +152,16 @@ HTML;
             return Json_Api(403, false, ['msg' => '请求id不能为空']);
         }
         if (!TopicTag::query()->where('status', '待审核')->where('id', $id)->count()) {
-            return Json_Api(403, false, ['msg' => 'id为' . $id . '的标签不存在']);
+            return Json_Api(403, false, ['msg' => 'id为' . $id . '的板块不存在']);
         }
         $user = TopicTag::query()->where('status', '待审核')->find($id)->user;
         $url = url('/tags');
         // 判断用户是否愿意接收通知
         $content = request()->input('content', '无理由');
         go(function () use($url, $user, $content) {
-            $Subject = '【' . get_options('web_name') . '】 你的标签创建申请已被驳回';
+            $Subject = '【' . get_options('web_name') . '】 你的板块创建申请已被驳回';
             $Body = <<<HTML
-<h3>标题: 你的标签创建申请已被驳回</h3>
+<h3>标题: 你的板块创建申请已被驳回</h3>
 <p>驳回理由:{$content}</p>
 <p>链接: <a href="{$url}">{$url}</a></p>
 HTML;

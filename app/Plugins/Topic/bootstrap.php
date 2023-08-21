@@ -9,7 +9,7 @@ declare(strict_types=1);
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
 menu()->add(301, [
-    'name' => '帖子标签',
+    'name' => '板块',
     'url' => '#',
     'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-tags" viewBox="0 0 16 16">
   <path d="M3 2v4.586l7 7L14.586 9l-7-7H3zM2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586V2z"/>
@@ -96,7 +96,7 @@ Itf_Setting()->add(
 );
 
 // 权限
-Authority()->add('topic_tag_create', '创建标签');
+Authority()->add('topic_tag_create', '创建板块');
 
 // topic create view
 

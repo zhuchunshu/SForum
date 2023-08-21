@@ -27,7 +27,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label required">选择论坛(标签)</label>
+                            <label class="form-label required">选择论坛(板块)</label>
                             <select type="text" class="form-select" placeholder="Select a user" name="tag_id" id="select-tag" required>
                                 @foreach(\App\Plugins\Topic\src\Models\TopicTag::all() as $tag)
                                     <option value="0">请选择</option>

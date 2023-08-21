@@ -64,7 +64,7 @@
         <div class="col-lg-3">
             <label class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" v-model="data.topic_create_tag_ex">
-                <span class="form-check-label">创建标签需要审核</span>
+                <span class="form-check-label">创建板块需要审核</span>
             </label>
         </div>
 

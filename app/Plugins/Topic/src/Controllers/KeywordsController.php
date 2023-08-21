@@ -29,7 +29,7 @@ class KeywordsController
     {
         $name = urldecode($name);
         if (!TopicKeyword::query()->where('name', $name)->exists()) {
-            return admin_abort('标签:' . $name . '不存在', 404);
+            return admin_abort('板块:' . $name . '不存在', 404);
         }
         $data = TopicKeyword::query()->where('name', $name)->first();
         $topic_menu = [['name' => '最新发布', 'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-news" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">

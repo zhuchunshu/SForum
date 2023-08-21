@@ -26,6 +26,6 @@ class EditTagRequest extends FormRequest
     }
     public function attributes() : array
     {
-        return ['name' => '名称', 'icon' => '图标', 'color' => '颜色值', 'description' => '描述', 'userClass' => '可以使用此标签的用户组'];
+        return ['name' => '名称', 'icon' => '图标', 'color' => '颜色值', 'description' => '描述', 'userClass' => '可以使用此板块的用户组'];
     }
 }

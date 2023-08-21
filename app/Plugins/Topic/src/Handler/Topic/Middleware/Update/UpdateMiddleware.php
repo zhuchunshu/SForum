@@ -28,7 +28,7 @@ class UpdateMiddleware implements MiddlewareInterface
 
     public function handler($data, \Closure $next)
     {
-        $validator = $this->validationFactory->make($data['basis'], ['topic_id' => 'required|exists:topic,id', 'content' => 'required|string|min:' . get_options('topic_create_content_min', 10), 'title' => 'required|string|min:' . get_options('topic_create_title_min', 1) . '|max:' . get_options('topic_create_title_max', 200), 'tag' => 'required|exists:topic_tag,id'], [], ['topic_id' => '帖子id', 'content' => '正文内容', 'title' => '标题', 'tag' => '标签id']);
+        $validator = $this->validationFactory->make($data['basis'], ['topic_id' => 'required|exists:topic,id', 'content' => 'required|string|min:' . get_options('topic_create_content_min', 10), 'title' => 'required|string|min:' . get_options('topic_create_title_min', 1) . '|max:' . get_options('topic_create_title_max', 200), 'tag' => 'required|exists:topic_tag,id'], [], ['topic_id' => '帖子id', 'content' => '正文内容', 'title' => '标题', 'tag' => '板块id']);
         if ($validator->fails()) {
             return redirect()->with('danger', $validator->errors()->first())->back()->go();
         }
@@ -54,7 +54,7 @@ class UpdateMiddleware implements MiddlewareInterface
         $topic_id = $data['topic_id'];
         // 帖子标题
         $title = $data['basis']['title'];
-        // 帖子标签
+        // 板块
         $tag = $data['basis']['tag'];
         // 帖子html内容
         $content = $data['basis']['content'];

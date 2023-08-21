@@ -25,7 +25,7 @@ class CreateMiddleware implements MiddlewareInterface
     protected ValidatorFactoryInterface $validationFactory;
     public function handler($data, \Closure $next)
     {
-        $validator = $this->validationFactory->make($data['basis'], ['content' => 'required|string|min:' . get_options('topic_create_content_min', 10), 'title' => 'required|string|min:' . get_options('topic_create_title_min', 1) . '|max:' . get_options('topic_create_title_max', 200), 'tag' => 'required|exists:topic_tag,id'], [], ['content' => '内容', 'title' => '标题', 'tag' => '标签']);
+        $validator = $this->validationFactory->make($data['basis'], ['content' => 'required|string|min:' . get_options('topic_create_content_min', 10), 'title' => 'required|string|min:' . get_options('topic_create_title_min', 1) . '|max:' . get_options('topic_create_title_max', 200), 'tag' => 'required|exists:topic_tag,id'], [], ['content' => '内容', 'title' => '标题', 'tag' => '板块']);
         if ($validator->fails()) {
             // Handle exception
             $data = $data['basis'];
@@ -42,7 +42,7 @@ class CreateMiddleware implements MiddlewareInterface
     {
         // 帖子标题
         $title = $data['basis']['title'];
-        // 帖子标签
+        // 板块
         $tag = $data['basis']['tag'];
         // 帖子html内容
         $content = $data['basis']['content'];

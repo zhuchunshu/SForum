@@ -13,7 +13,7 @@
             </a>
         </div>
 
-        {{--                标签信息--}}
+        {{--                板块信息--}}
         <div class="col-md-12">
             <a href="/tags/{{$data->tag->id}}.html" class="card card-link text-primary-fg" style="background-color: {{$data->tag->color}}!important;">
                 <div class="card-stamp">

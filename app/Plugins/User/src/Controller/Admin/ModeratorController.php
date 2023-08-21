@@ -40,22 +40,22 @@ class ModeratorController
         $user_id = request()->input('user_id');
         $tag_id = request()->input('tag_id');
         if (empty($user_id) || empty($tag_id)) {
-            return redirect()->back()->with('error', '用户或标签不能为空!')->go();
+            return redirect()->back()->with('error', '用户或板块不能为空!')->go();
         }
         if ($user_id === "0") {
             return redirect()->back()->with('error', '用户不能为空!')->go();
         }
         if ($tag_id === "0") {
-            return redirect()->back()->with('error', '标签不能为空!')->go();
+            return redirect()->back()->with('error', '板块不能为空!')->go();
         }
         if (!User::where('id', $user_id)->exists()) {
             return redirect()->back()->with('error', '用户不存在!')->go();
         }
         if (!TopicTag::where('id', $tag_id)->exists()) {
-            return redirect()->back()->with('error', '标签不存在!')->go();
+            return redirect()->back()->with('error', '板块不存在!')->go();
         }
         if (Moderator::where('user_id', $user_id)->where('tag_id', $tag_id)->exists()) {
-            return redirect()->back()->with('error', '该用户已经是该标签的版主了!')->go();
+            return redirect()->back()->with('error', '该用户已经是该板块的版主了!')->go();
         }
         Moderator::create(['user_id' => $user_id, 'tag_id' => $tag_id]);
         return redirect()->url('/admin/users/moderator')->with('success', '版主添加成功!')->go();
