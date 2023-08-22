@@ -3,7 +3,7 @@ name: 发布docker开发镜像
 on:
   push:
     branches:
-      - 'master'
+      - 'dev'
 
 jobs:
   docker:
