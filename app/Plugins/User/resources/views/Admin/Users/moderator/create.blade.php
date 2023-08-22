@@ -19,7 +19,7 @@
                             <label class="form-label required">选择用户</label>
                             <select type="text" class="form-select" placeholder="Select a user" name="user_id" id="select-people" required>
                                 <option value="0">请选择</option>
-                                @foreach(App\Plugins\User\src\Models\User::all(['id','avatar','email','username']) as $user)
+                                @foreach(App\Plugins\User\src\Models\User::all(['id','class_id','avatar','email','username']) as $user)
                                     <option value="{{$user->id}}" data-custom-properties="&lt;span class=&quot;avatar avatar-xs&quot; style=&quot;background-image: url({{avatar($user)}})&quot;&gt;&lt;/span&gt;">
                                         {{$user->username}}</option>
                                 @endforeach
