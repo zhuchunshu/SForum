@@ -85,6 +85,16 @@
 @endsection
 
 @section('scripts')
+    <script>
+        const sforumConfig = {
+            // 代币名称
+            tokenName: {
+                credit: "{{get_options('wealth_credit_name','积分')}}",
+                golds: "{{get_options('wealth_golds_name','金币')}}",
+                money: "{{get_options('wealth_money_name','余额')}}",
+            },
+        }
+    </script>
     @foreach(Itf()->get('topic-edit-data') as $k=>$v)
         @if(call_user_func($v['enable'])===true && isset($v['scripts']))
             @foreach($v['scripts'] as $script)

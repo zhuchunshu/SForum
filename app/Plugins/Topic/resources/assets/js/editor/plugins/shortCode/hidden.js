@@ -19,6 +19,7 @@ tinymce.PluginManager.add('sf-hidden', (editor, url) => {
                         { value: 'login', text: '登陆可见' },
                         { value: 'reply', text: '回复可见' },
                         { value: 'password', text: '密码可见' },
+                        { value: 'buy', text: '付款可见' },
                     ]
                 },
                 {
@@ -50,10 +51,15 @@ tinymce.PluginManager.add('sf-hidden', (editor, url) => {
             if(select==="password"){
                 localStorage.setItem('tinyMCE_plugin_sf_hidden_content', content);
                 api.redial(openDialog2);
-            }else{
-                editor.insertContent('['+select+']'+content+'[/'+select+']');
-                api.close();
+                return ;
             }
+            if(select==="buy"){
+                localStorage.setItem('tinyMCE_plugin_sf_hidden_content', content);
+                api.redial(openDialog3);
+                return ;
+            }
+            editor.insertContent('['+select+']'+content+'[/'+select+']');
+            api.close();
         }
     });
     /* Adds a menu item, which can then be included in any menu via the menu/menubar configuration */
@@ -94,6 +100,49 @@ tinymce.PluginManager.add('sf-hidden', (editor, url) => {
             /* Insert content when the window form is submitted */
             const content = localStorage.getItem('tinyMCE_plugin_sf_hidden_content');
             editor.insertContent('[password password='+data.password+']'+content+'[/password]');
+            api.close();
+        }
+    };
+
+    const openDialog3 = {
+        title: '输入付费信息',
+        body: {
+            type: 'panel',
+            items: [
+                {
+                    type: 'input',
+                    name: 'amount',
+                    label: '请输入支付代币数量'
+                },
+                {
+                    type: 'selectbox', // component type
+                    name: 'type', // identifier
+                    label: '请选择代币类型',
+                    size: 1, // number of visible values (optional)
+                    items: [
+                        { value: 'money', text: sforumConfig.tokenName.money },
+                        { value: 'golds', text: sforumConfig.tokenName.golds },
+                        { value: 'credits', text: sforumConfig.tokenName.credit },
+                    ]
+                },
+            ]
+        },
+        buttons: [
+            {
+                type: 'cancel',
+                text: 'Close'
+            },
+            {
+                type: 'submit',
+                text: 'Insert',
+                buttonType: 'primary'
+            }
+        ],
+        onSubmit: (api) => {
+            const data = api.getData();
+            /* Insert content when the window form is submitted */
+            const content = localStorage.getItem('tinyMCE_plugin_sf_hidden_content');
+            editor.insertContent('[buy amount='+data.amount+' type="'+data.type+'"]'+content+'[/buy]');
             api.close();
         }
     };
