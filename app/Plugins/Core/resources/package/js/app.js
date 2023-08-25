@@ -107,39 +107,83 @@ $(function () {
 
 console.log("%cSForum %cwww.github.com/zhuchunshu/SForum", "color:#fff;background:linear-gradient(90deg,#448bff,#44e9ff);padding:5px 0;", "color:#000;background:linear-gradient(90deg,#44e9ff,#ffffff);padding:5px 10px 5px 0px;")
 
-$(function () {
+
+function get_user_config(){
+    // 发起 POST 请求以获取用户配置
     axios.post("/api/user/get.user.config", {
         _token: csrf_token
-    }).then(r => {
-        var data = r.data;
-        if (data.success === false) {
+    }).then(response => {
+        const responseData = response.data;
+
+        // 若请求不成功，则退出
+        if (responseData.success === false) {
             return;
         }
-        data = data.result;
 
-        // 通知小红点
-        if (data.notice_red > 0) {
-            // 通知icon小红点
-            var ele = $("#core-notice-red")
-            ele.show();
-            ele.text(data.notice_red)
-            // 下拉小红点
-            var ele2 = $("#common-user-notice-1")
-            ele2.show();
-            ele2.text(data.notice_red)
+        const userData = responseData.result;
 
-            // 移动端小红点
-            var ele3 = $("#common-user-notice-2")
-            ele3.show();
+        // 更新 UI 元素根据用户数据
 
-            // 页头呼吸条
-            var header_ele = $("div.border-primary")
-            header_ele.addClass("border-orange")
-            header_ele.removeClass("border-primary")
+        // 更新通知红点
+        if (userData.notice_red > 0) {
+            // 更新通知图标上的红点
+            const notificationIcon = $("#core-notice-red");
+            notificationIcon.show();
+            notificationIcon.text(userData.notice_red);
+
+            // 更新下拉菜单上的红点
+            const dropdownRedDot = $("#common-user-notice-1");
+            dropdownRedDot.show();
+            dropdownRedDot.text(userData.notice_red);
+
+            // 更新移动端红点
+            const mobileRedDot = $("#common-user-notice-2");
+            mobileRedDot.show();
+
+            // 更新页头的样式
+            const headerElement = $("div.border-primary");
+            headerElement.addClass("border-orange");
+            headerElement.removeClass("border-primary");
+        }else{
+            const notificationIcon = $("#core-notice-red");
+            notificationIcon.hide();
+
+            // 更新下拉菜单上的红点
+            const dropdownRedDot = $("#common-user-notice-1");
+            dropdownRedDot.hide();
+
+            // 更新移动端红点
+            const mobileRedDot = $("#common-user-notice-2");
+            mobileRedDot.hide();
+
+            // 更新页头的样式
+            const headerElement = $("div.border-orange");
+            headerElement.addClass("border-primary");
+            headerElement.removeClass("border-orange");
         }
+    });
+}
 
-    })
-})
+get_user_config()
+
+let timerId;
+
+const startTimer = () => {
+    timerId = setInterval(get_user_config, 5000);
+};
+
+const stopTimer = () => {
+    clearInterval(timerId);
+};
+
+const handleVisibilityChange = () => {
+    document.hidden ? stopTimer() : startTimer();
+};
+
+document.addEventListener("visibilitychange", handleVisibilityChange);
+startTimer();
+
+
 
 // if (ws_url && login_token){
 //     var wsServer = ws_url+'/core?login-token='+login_token;
