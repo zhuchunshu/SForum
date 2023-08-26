@@ -35,5 +35,5 @@ class ShortcodePaidPost extends Model
     /**
      * The attributes that should be cast to native types.
      */
-    protected array $casts = ['id' => 'integer', 'post_id' => 'integer', 'amount' => 'integer', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
+    protected array $casts = ['id' => 'integer', 'post_id' => 'integer', 'amount' => 'float', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
 }
