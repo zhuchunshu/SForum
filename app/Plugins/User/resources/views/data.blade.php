@@ -110,7 +110,7 @@
                             @foreach(Itf()->get('users_home_menu') as $key => $value)
                                 @if($value['quanxian']!==null)
                                     {{--                                {{\Opis\Closure\unserialize((string)$value['quanxian'])}}--}}
-                                    @if(call_user_func(\Opis\Closure\unserialize((string)$value['quanxian']),$user)===true)
+                                    @if(call_user_func(_unserialize((string)$value['quanxian']),$user)===true)
                                         <li class="nav-item">
                                             <a href="?m={{$key}}"
                                                @if(request()->input('m',key(Itf()->get('users_home_menu')))===$key) class="row nav-link active"
@@ -170,7 +170,7 @@
                 @foreach(Itf()->get('users_home_menu') as $key => $value)
                     @if($key === request()->input('m',key(Itf()->get('users_home_menu'))))
                         @if($value['quanxian']!==null)
-                            @if(call_user_func(\Opis\Closure\unserialize((string)$value['quanxian']),$user)===true)
+                            @if(call_user_func(_unserialize((string)$value['quanxian']),$user)===true)
                                 @php $view=$value['view']; @endphp
                             @endif
                         @else

@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+
 /**
  * This file is part of zhuchunshu.
  * @link     https://github.com/zhuchunshu
@@ -8,6 +9,7 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
+
 use Alchemy\Zippy\Zippy;
 use App\CodeFec\Admin\Admin;
 use App\CodeFec\Itf\Setting\SettingInterface;
@@ -43,14 +45,14 @@ function public_path($path = ''): string
     return config('server.settings.document_root');
 }
 
-if (! function_exists('mix_manifest')) {
+if (!function_exists('mix_manifest')) {
     function mix_manifest()
     {
         return file_get_contents(public_path('mix-manifest.json'));
     }
 }
 
-if (! function_exists('mix')) {
+if (!function_exists('mix')) {
     function mix($path)
     {
 //        $list = mix_manifest();
@@ -63,7 +65,7 @@ if (! function_exists('mix')) {
     }
 }
 
-if (! function_exists('arr_has')) {
+if (!function_exists('arr_has')) {
     function arr_has($array, $keys): bool
     {
         return Arr::has($array, $keys);
@@ -73,7 +75,7 @@ if (! function_exists('arr_has')) {
 /*
  * 容器实例
  */
-if (! function_exists('container')) {
+if (!function_exists('container')) {
     function container(): ContainerInterface
     {
         return ApplicationContext::getContainer();
@@ -83,7 +85,7 @@ if (! function_exists('container')) {
 /*
  * redis 客户端实例
  */
-if (! function_exists('redis')) {
+if (!function_exists('redis')) {
     function redis()
     {
         return container()->get(Redis::class);
@@ -93,7 +95,7 @@ if (! function_exists('redis')) {
 /*
  * server 实例 基于 swoole server
  */
-if (! function_exists('server')) {
+if (!function_exists('server')) {
     function server()
     {
         return container()->get(ServerFactory::class)->getServer()->getServer();
@@ -103,7 +105,7 @@ if (! function_exists('server')) {
 /*
  * 缓存实例 简单的缓存
  */
-if (! function_exists('cache')) {
+if (!function_exists('cache')) {
     function cache()
     {
         return container()->get(Psr\SimpleCache\CacheInterface::class);
@@ -113,7 +115,7 @@ if (! function_exists('cache')) {
 /*
  * 控制台日志
  */
-if (! function_exists('stdLog')) {
+if (!function_exists('stdLog')) {
     function stdLog()
     {
         return container()->get(StdoutLoggerInterface::class);
@@ -123,49 +125,49 @@ if (! function_exists('stdLog')) {
 /*
  * 文件日志
  */
-if (! function_exists('logger')) {
+if (!function_exists('logger')) {
     function logger()
     {
         return container()->get(LoggerFactory::class)->make();
     }
 }
 
-if (! function_exists('response')) {
+if (!function_exists('response')) {
     function response()
     {
         return container()->get(ResponseInterface::class);
     }
 }
 
-if (! function_exists('PsrResponse')) {
+if (!function_exists('PsrResponse')) {
     function PsrResponse()
     {
         return container()->get(\Psr\Http\Message\ResponseInterface::class);
     }
 }
 
-if (! function_exists('ResponseObj')) {
+if (!function_exists('ResponseObj')) {
     function ResponseObj(): Response
     {
         return new Response();
     }
 }
 
-if (! function_exists('SwooleStream')) {
+if (!function_exists('SwooleStream')) {
     function SwooleStream($contents): SwooleStream
     {
         return new SwooleStream($contents);
     }
 }
 
-if (! function_exists('request')) {
+if (!function_exists('request')) {
     function request(): Hyperf\HttpServer\Request
     {
         return new Hyperf\HttpServer\Request();
     }
 }
 
-if (! function_exists('path_class')) {
+if (!function_exists('path_class')) {
     function path_class()
     {
         $path = request()->path();
@@ -178,14 +180,14 @@ if (! function_exists('path_class')) {
     }
 }
 
-if (! function_exists('menu')) {
+if (!function_exists('menu')) {
     function menu()
     {
         return \Hyperf\Context\ApplicationContext::getContainer()->get(MenuInterface::class);
     }
 }
 
-if (! function_exists('view')) {
+if (!function_exists('view')) {
     function view(string $view, array $data = [], int $code = 200)
     {
         $container = \Hyperf\Context\ApplicationContext::getContainer();
@@ -193,12 +195,12 @@ if (! function_exists('view')) {
         if (env('APP_ENV') === 'dev') {
             return $result;
         }
-        $body = minify_html((string) $result->getBody());
+        $body = minify_html((string)$result->getBody());
         return $container->get(RenderInterface::class)->renderR($body, $code);
     }
 }
 
-if (! function_exists('menu_pd')) {
+if (!function_exists('menu_pd')) {
     function menu_pd($id)
     {
         $i = 0;
@@ -213,7 +215,7 @@ if (! function_exists('menu_pd')) {
     }
 }
 
-if (! function_exists('menu_pdArr')) {
+if (!function_exists('menu_pdArr')) {
     function menu_pdArr($id)
     {
         $arr = [];
@@ -228,8 +230,8 @@ if (! function_exists('menu_pdArr')) {
     }
 }
 
-if (! function_exists('Json_Api')) {
-    function Json_Api(int $code = 200, bool $success = true, object | array | string $result = []): array
+if (!function_exists('Json_Api')) {
+    function Json_Api(int $code = 200, bool $success = true, object|array|string $result = []): array
     {
         return [
             'code' => $code,
@@ -240,8 +242,8 @@ if (! function_exists('Json_Api')) {
     }
 }
 
-if (! function_exists('json_api')) {
-    function json_api(int $code = 200, bool $success = true, object | array | string $result = []): array
+if (!function_exists('json_api')) {
+    function json_api(int $code = 200, bool $success = true, object|array|string $result = []): array
     {
         return [
             'code' => $code,
@@ -252,7 +254,7 @@ if (! function_exists('json_api')) {
     }
 }
 
-if (! function_exists('session')) {
+if (!function_exists('session')) {
     function session()
     {
         return \Hyperf\Context\ApplicationContext::getContainer()->get(SessionInterface::class);
@@ -260,10 +262,10 @@ if (! function_exists('session')) {
 }
 
 // 获取目录下的所有文件
-if (! function_exists('getPath')) {
+if (!function_exists('getPath')) {
     function getPath($path)
     {
-        if (! is_dir($path)) {
+        if (!is_dir($path)) {
             return false;
         }
         $arr = [];
@@ -277,10 +279,10 @@ if (! function_exists('getPath')) {
     }
 }
 
-if (! function_exists('getPathDir')) {
+if (!function_exists('getPathDir')) {
     function getPathDir($path)
     {
-        if (! is_dir($path)) {
+        if (!is_dir($path)) {
             return false;
         }
         $arr = [];
@@ -294,37 +296,37 @@ if (! function_exists('getPathDir')) {
     }
 }
 
-if (! function_exists('plugin_path')) {
+if (!function_exists('plugin_path')) {
     function plugin_path($path = null): string
     {
-        if (! $path) {
+        if (!$path) {
             return BASE_PATH . '/app/Plugins';
         }
         return BASE_PATH . '/app/Plugins/' . $path;
     }
 }
 
-if (! function_exists('theme_path')) {
+if (!function_exists('theme_path')) {
     function theme_path($path = null): string
     {
-        if (! $path) {
+        if (!$path) {
             return BASE_PATH . '/app/Themes';
         }
         return BASE_PATH . '/app/Themes/' . $path;
     }
 }
 
-if (! function_exists('lang_path')) {
+if (!function_exists('lang_path')) {
     function lang_path($path = null): string
     {
-        if (! $path) {
+        if (!$path) {
             return BASE_PATH . '/app/Languages';
         }
         return BASE_PATH . '/app/Languages/' . $path;
     }
 }
 
-if (! function_exists('read_file')) {
+if (!function_exists('read_file')) {
     function read_file($file_path): ?string
     {
         if (file_exists($file_path)) {
@@ -335,12 +337,12 @@ if (! function_exists('read_file')) {
     }
 }
 
-if (! function_exists('admin_abort')) {
+if (!function_exists('admin_abort')) {
     /**
      * @param array|string $data
      * @return \Psr\Http\Message\ResponseInterface
      */
-    function admin_abort(array | string $data, int $code = 403, string $redirect = null): Psr\Http\Message\ResponseInterface
+    function admin_abort(array|string $data, int $code = 403, string $redirect = null): Psr\Http\Message\ResponseInterface
     {
         if (is_string($data)) {
             $array = ['msg' => $data];
@@ -356,7 +358,7 @@ if (! function_exists('admin_abort')) {
     }
 }
 
-if (! function_exists('get_plugins_doc')) {
+if (!function_exists('get_plugins_doc')) {
     function get_plugins_doc($class): array
     {
         $re = new ReflectionClass(new $class());
@@ -381,7 +383,7 @@ if (! function_exists('get_plugins_doc')) {
     }
 }
 
-if (! function_exists('deldir')) {
+if (!function_exists('deldir')) {
     function deldir($path)
     {
         //如果是目录则继续
@@ -410,7 +412,7 @@ if (! function_exists('deldir')) {
     }
 }
 
-if (! function_exists('copy_dir')) {
+if (!function_exists('copy_dir')) {
     function copy_dir($src, $dst)
     {
         $dir = opendir($src);
@@ -429,14 +431,14 @@ if (! function_exists('copy_dir')) {
     }
 }
 
-if (! function_exists('verify_ip')) {
+if (!function_exists('verify_ip')) {
     function verify_ip($realip)
     {
         return filter_var($realip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4);
     }
 }
 
-if (! function_exists('get_client_ip')) {
+if (!function_exists('get_client_ip')) {
     function get_client_ip()
     {
         /**
@@ -463,7 +465,7 @@ if (! function_exists('get_client_ip')) {
     }
 }
 
-if (! function_exists('make_page')) {
+if (!function_exists('make_page')) {
     function make_page($page, $default = 'default'): Psr\Http\Message\ResponseInterface
     {
         $window = UrlWindow::make($page);
@@ -479,17 +481,17 @@ if (! function_exists('make_page')) {
     }
 }
 
-if (! function_exists('get_options')) {
+if (!function_exists('get_options')) {
     function get_options($name, $default = '')
     {
-        if (! cache()->has('admin.options.' . $name)) {
+        if (!cache()->has('admin.options.' . $name)) {
             cache()->set('admin.options.' . $name, @AdminOption::query()->where('name', $name)->first()->value);
         }
         return core_default(cache()->get('admin.options.' . $name), $default);
     }
 }
 
-if (! function_exists('set_options')) {
+if (!function_exists('set_options')) {
     function set_options($name, $value): void
     {
         if (AdminOption::query()->where('name', $name)->exists()) {
@@ -502,10 +504,10 @@ if (! function_exists('set_options')) {
     }
 }
 
-if (! function_exists('get_options_nocache')) {
+if (!function_exists('get_options_nocache')) {
     function get_options_nocache($name, $default = '')
     {
-        if (! AdminOption::query()->where('name', $name)->exists() || ! AdminOption::query()->where('name', $name)->first()->value) {
+        if (!AdminOption::query()->where('name', $name)->exists() || !AdminOption::query()->where('name', $name)->first()->value) {
             return $default;
         }
 
@@ -513,7 +515,7 @@ if (! function_exists('get_options_nocache')) {
     }
 }
 
-if (! function_exists('options_clear')) {
+if (!function_exists('options_clear')) {
     function options_clear()
     {
         foreach (AdminOption::query()->get() as $value) {
@@ -522,14 +524,14 @@ if (! function_exists('options_clear')) {
     }
 }
 
-if (! function_exists('admin_auth')) {
+if (!function_exists('admin_auth')) {
     function admin_auth(): Admin
     {
         return new Admin();
     }
 }
 
-if (! function_exists('de_stringify')) {
+if (!function_exists('de_stringify')) {
     function de_stringify(string $stringify): array
     {
         $result = [];
@@ -542,13 +544,13 @@ if (! function_exists('de_stringify')) {
     }
 }
 
-if (! function_exists('csrf_token')) {
+if (!function_exists('csrf_token')) {
     function csrf_token()
     {
-        if (! session()->has('CSRF_TOKEN')) {
+        if (!session()->has('CSRF_TOKEN')) {
             session()->set('CSRF_TOKEN', Str::random());
         }
-        if (! cache()->has('CSRF_TOKEN' . session()->get('CSRF_TOKEN'))) {
+        if (!cache()->has('CSRF_TOKEN' . session()->get('CSRF_TOKEN'))) {
             $k = \Hyperf\Stringable\Str::random(25);
             cache()->set('CSRF_TOKEN' . session()->get('CSRF_TOKEN'), $k);
         }
@@ -556,10 +558,10 @@ if (! function_exists('csrf_token')) {
     }
 }
 
-if (! function_exists('recsrf_token')) {
+if (!function_exists('recsrf_token')) {
     function recsrf_token()
     {
-        if (! session()->has('CSRF_TOKEN')) {
+        if (!session()->has('CSRF_TOKEN')) {
             session()->set('CSRF_TOKEN', Str::random());
         }
         $k = \Hyperf\Stringable\Str::random(25);
@@ -568,7 +570,7 @@ if (! function_exists('recsrf_token')) {
     }
 }
 
-if (! function_exists('modifyEnv')) {
+if (!function_exists('modifyEnv')) {
     function modifyEnv(array $data)
     {
         $envPath = BASE_PATH . '/.env';
@@ -591,49 +593,49 @@ if (! function_exists('modifyEnv')) {
     }
 }
 
-if (! function_exists('Itf_Setting')) {
+if (!function_exists('Itf_Setting')) {
     function Itf_Setting()
     {
         return \Hyperf\Context\ApplicationContext::getContainer()->get(SettingInterface::class);
     }
 }
 
-if (! function_exists('Router')) {
+if (!function_exists('Router')) {
     function Router()
     {
         return \Hyperf\Context\ApplicationContext::getContainer()->get(\App\CodeFec\Itf\Route\RouteInterface::class);
     }
 }
 
-if (! function_exists('Themes')) {
+if (!function_exists('Themes')) {
     function Themes()
     {
         return \Hyperf\Context\ApplicationContext::getContainer()->get(\App\CodeFec\Itf\Theme\ThemeInterface::class);
     }
 }
 
-if (! function_exists('Theme')) {
+if (!function_exists('Theme')) {
     function Theme(): App\CodeFec\Themes
     {
         return new \App\CodeFec\Themes();
     }
 }
 
-if (! function_exists('Helpers_Str')) {
+if (!function_exists('Helpers_Str')) {
     function Helpers_Str(): Str
     {
         return new Str();
     }
 }
 
-if (! function_exists('Itf')) {
+if (!function_exists('Itf')) {
     function Itf()
     {
         return \Hyperf\Context\ApplicationContext::getContainer()->get(\App\CodeFec\Itf\Itf\ItfInterface::class);
     }
 }
 
-if (! function_exists('file_hash')) {
+if (!function_exists('file_hash')) {
     function file_hash($path): string
     {
         if (file_exists(BASE_PATH . '/public/' . $path)) {
@@ -643,7 +645,7 @@ if (! function_exists('file_hash')) {
     }
 }
 
-if (! function_exists('errors')) {
+if (!function_exists('errors')) {
     function errors()
     {
         if (cache()->has('errors')) {
@@ -653,49 +655,49 @@ if (! function_exists('errors')) {
     }
 }
 
-if (! function_exists('url')) {
+if (!function_exists('url')) {
     function url($path = null)
     {
         $url = get_options('APP_URL', null);
         $url = $url ?: \App\Helpers\Url::getReqFullHost(request());
-        if (! $path) {
+        if (!$path) {
             return $url;
         }
         return $url . $path;
     }
 }
 
-if (! function_exists('url_source')) {
+if (!function_exists('url_source')) {
     function url_source($path = null)
     {
         $url = 'http://' . request()->getHeader('host')[0];
-        if (! $path) {
+        if (!$path) {
             return $url;
         }
         return $url . $path;
     }
 }
 
-if (! function_exists('ws_url')) {
+if (!function_exists('ws_url')) {
     function ws_url($path = null)
     {
         $url = get_options('APP_WS_URL');
-        if (! $path) {
+        if (!$path) {
             return $url;
         }
         return $url . $path;
     }
 }
 
-if (! function_exists('get_num')) {
-    function get_num($string): array | string | null
+if (!function_exists('get_num')) {
+    function get_num($string): array|string|null
     {
         return preg_replace('/[^0-9]/', '', $string);
     }
 }
 
 // 已启动插件列表
-if (! function_exists('getEnPlugins')) {
+if (!function_exists('getEnPlugins')) {
     function getEnPlugins()
     {
         return (new Plugins())->getEnPlugins();
@@ -703,14 +705,14 @@ if (! function_exists('getEnPlugins')) {
 }
 
 // 已启动插件列表
-if (! function_exists('plugins')) {
+if (!function_exists('plugins')) {
     function plugins(): Plugins
     {
         return new Plugins();
     }
 }
 
-if (! function_exists('http')) {
+if (!function_exists('http')) {
     function http($response_type = 'array'): Client
     {
         return Client::create([
@@ -720,28 +722,28 @@ if (! function_exists('http')) {
     }
 }
 
-if (! function_exists('EventDispatcher')) {
+if (!function_exists('EventDispatcher')) {
     function EventDispatcher()
     {
         return container()->get(EventDispatcherInterface::class);
     }
 }
 
-if (! function_exists('captcha')) {
+if (!function_exists('captcha')) {
     function captcha(): App\CodeFec\Captcha
     {
         return new \App\CodeFec\Captcha();
     }
 }
 
-if (! function_exists('fileUtil')) {
+if (!function_exists('fileUtil')) {
     function fileUtil(): App\CodeFec\FileUtil
     {
         return new \App\CodeFec\FileUtil();
     }
 }
 
-if (! function_exists('allDir')) {
+if (!function_exists('allDir')) {
     function allDir($dir)
     { //遍历目录下的文件夹
         $data = scandir($dir);
@@ -761,7 +763,7 @@ if (! function_exists('allDir')) {
 }
 
 // --压缩-- 美化html
-function minify_html($html): array | string | null
+function minify_html($html): array|string|null
 {
     $beautify = new Beautify_Html([
         'indent_inner_html' => false,
@@ -776,7 +778,7 @@ function minify_html($html): array | string | null
     return $beautify->beautify($html);
 }
 
-if (! function_exists('build_info')) {
+if (!function_exists('build_info')) {
     function build_info()
     {
         $data = include BASE_PATH . '/build-info.php';
@@ -785,14 +787,14 @@ if (! function_exists('build_info')) {
 }
 
 // 获取系统名
-if (! function_exists('system_name')) {
-    function system_name(): bool | string | null
+if (!function_exists('system_name')) {
+    function system_name(): bool|string|null
     {
         return str_replace("\n", '', shell_exec('echo $(uname)'));
     }
 }
-if (! function_exists('cmd_which')) {
-    function cmd_which($bin): bool | string | null
+if (!function_exists('cmd_which')) {
+    function cmd_which($bin): bool|string|null
     {
         $cmd = shell_exec('which ' . $bin);
         if ($cmd) {
@@ -802,7 +804,7 @@ if (! function_exists('cmd_which')) {
     }
 }
 
-if (! function_exists('get_user_agent')) {
+if (!function_exists('get_user_agent')) {
     /**
      * 获取客户端user agent信息.
      * @return mixed|string
@@ -813,7 +815,7 @@ if (! function_exists('get_user_agent')) {
     }
 }
 
-if (! function_exists('get_client_ip_data')) {
+if (!function_exists('get_client_ip_data')) {
     /**
      * 获取ip 信息.
      * @param null $ip
@@ -833,14 +835,14 @@ if (! function_exists('get_client_ip_data')) {
     }
 }
 
-if (! function_exists('language')) {
+if (!function_exists('language')) {
     function language(): App\CodeFec\Language
     {
         return new \App\CodeFec\Language();
     }
 }
 
-if (! function_exists('remove_bbCode')) {
+if (!function_exists('remove_bbCode')) {
     function remove_bbCode($content)
     {
         $pattern = '/\\[(.*?)\\](.*?)\\[\\/(.*?)\\]/is';
@@ -852,13 +854,13 @@ if (! function_exists('remove_bbCode')) {
     }
 }
 
-if (! function_exists('content_brief')) {
-    function content_brief($content, string | int $len = 100): string
+if (!function_exists('content_brief')) {
+    function content_brief($content, string|int $len = 100): string
     {
-        if (@! $content) {
+        if (@!$content) {
             return $content;
         }
-        $len = (int) $len;
+        $len = (int)$len;
         // hook post_brief_start.php
         $content = strip_tags($content);
         $content = htmlspecialchars($content);
@@ -868,14 +870,14 @@ if (! function_exists('content_brief')) {
     }
 }
 
-if (! function_exists('admin_log')) {
+if (!function_exists('admin_log')) {
     function admin_log(): App\CodeFec\Admin\LogServer
     {
         return new \App\CodeFec\Admin\LogServer();
     }
 }
 
-if (! function_exists('pay')) {
+if (!function_exists('pay')) {
     /**
      * 支付服务
      * @return \App\Plugins\Core\src\Lib\Pay\PayService
@@ -886,24 +888,24 @@ if (! function_exists('pay')) {
     }
 }
 
-if (! function_exists('qr_code')) {
+if (!function_exists('qr_code')) {
     function qr_code(): SimpleSoftwareIO\QrCode\Generator
     {
         return new \SimpleSoftwareIO\QrCode\Generator();
     }
 }
 
-if (! function_exists('backup')) {
+if (!function_exists('backup')) {
     /**
      * 备份网站数据.
      * @param null|mixed $filename backup压缩文件 文件名
      */
     function backup(mixed $filename = null): string
     {
-        if (! is_dir(BASE_PATH . '/runtime/backup')) {
+        if (!is_dir(BASE_PATH . '/runtime/backup')) {
             System::exec('cd ' . BASE_PATH . '/runtime' . '&& mkdir ' . 'backup');
         }
-        if (! $filename) {
+        if (!$filename) {
             $filename = BASE_PATH . '/runtime/backup/backup.zip';
         } else {
             $filename = BASE_PATH . '/runtime/backup/' . $filename . '.zip';
@@ -933,7 +935,7 @@ if (! function_exists('backup')) {
     }
 }
 
-if (! function_exists('system_clear_cache')) {
+if (!function_exists('system_clear_cache')) {
     function system_clear_cache()
     {
         removeFiles(BASE_PATH . '/runtime/container', BASE_PATH . '/runtime/view');
@@ -941,7 +943,7 @@ if (! function_exists('system_clear_cache')) {
     }
 }
 
-if (! function_exists('removeFiles')) {
+if (!function_exists('removeFiles')) {
     function removeFiles(...$values): void
     {
         foreach ($values as $value) {
@@ -950,51 +952,51 @@ if (! function_exists('removeFiles')) {
     }
 }
 
-if (! function_exists('_menu')) {
+if (!function_exists('_menu')) {
     function _menu()
     {
         return call_user_func([new \App\Plugins\Core\Menu(), 'get']);
     }
 }
 
-if (! function_exists('_menu_keys')) {
+if (!function_exists('_menu_keys')) {
     function _menu_keys()
     {
         return call_user_func([new \App\Plugins\Core\Menu(), 'get_keys']);
     }
 }
 
-if (! function_exists('_menu_data')) {
+if (!function_exists('_menu_data')) {
     /**
      * @param int|string $id menu id
      * @return mixed
      */
-    function _menu_get_data(int | string $id)
+    function _menu_get_data(int|string $id)
     {
         return call_user_func([new \App\Plugins\Core\Menu(), 'get_data'], $id);
     }
 }
 
-if (! function_exists('_menu_instance')) {
+if (!function_exists('_menu_instance')) {
     function _menu_instance(): App\Plugins\Core\Menu
     {
         return new \App\Plugins\Core\Menu();
     }
 }
-if (! function_exists('get_component_view_name')) {
+if (!function_exists('get_component_view_name')) {
     function get_component_view_name($name): string
     {
         $view = 'customize.component.' . $name;
         $container = \Hyperf\Context\ApplicationContext::getContainer();
         $factory = $container->get(FactoryInterface::class);
-        if (! $factory->exists($view)) {
+        if (!$factory->exists($view)) {
             return 'shared.viewIsNull';
         }
         return $view;
     }
 }
 
-if (! function_exists('make_template')) {
+if (!function_exists('make_template')) {
     function make_template(string $file, array $data)
     {
         $template = get_file_content($file);
@@ -1007,8 +1009,8 @@ if (! function_exists('make_template')) {
     }
 }
 
-if (! function_exists('get_file_content')) {
-    function get_file_content($file): bool | string
+if (!function_exists('get_file_content')) {
+    function get_file_content($file): bool|string
     {
         $handle = fopen($file, 'r');
         $content = fread($handle, filesize($file));
@@ -1018,13 +1020,13 @@ if (! function_exists('get_file_content')) {
 }
 
 // 截取内容摘要
-if (! function_exists('get_content_brief')) {
+if (!function_exists('get_content_brief')) {
     function get_content_brief($content, $len = 200): string
     {
-        if (@! $content) {
+        if (@!$content) {
             return $content;
         }
-        $len = (int) $len;
+        $len = (int)$len;
         // hook post_brief_start.php
         $content = strip_tags($content);
         $content = htmlspecialchars($content);
@@ -1036,7 +1038,7 @@ if (! function_exists('get_content_brief')) {
 }
 
 // 判断已安装
-if (! function_exists('is_installed')) {
+if (!function_exists('is_installed')) {
     function is_installed(): bool
     {
         if (file_exists(BASE_PATH . '/app/CodeFec/storage/install.lock') || get_install_step() >= 5) {
@@ -1046,21 +1048,37 @@ if (! function_exists('is_installed')) {
     }
 }
 
-if (! function_exists('get_install_step')) {
+if (!function_exists('get_install_step')) {
     function get_install_step()
     {
-        if (! is_dir(BASE_PATH . '/app/CodeFec/storage')) {
+        if (!is_dir(BASE_PATH . '/app/CodeFec/storage')) {
             mkdir(BASE_PATH . '/app/CodeFec/storage');
         }
         // 创建文件
-        if (! file_exists(BASE_PATH . '/app/CodeFec/storage/install.step.lock')) {
+        if (!file_exists(BASE_PATH . '/app/CodeFec/storage/install.step.lock')) {
             file_put_contents(BASE_PATH . '/app/CodeFec/storage/install.step.lock', 1);
         }
-        if (! @file_get_contents(BASE_PATH . '/app/CodeFec/storage/install.step.lock')) {
+        if (!@file_get_contents(BASE_PATH . '/app/CodeFec/storage/install.step.lock')) {
             $step = 1;
         } else {
-            $step = (int) file_get_contents(BASE_PATH . '/app/CodeFec/storage/install.step.lock');
+            $step = (int)file_get_contents(BASE_PATH . '/app/CodeFec/storage/install.step.lock');
         }
         return $step;
+    }
+}
+
+
+if (!function_exists('_serialize')) {
+    function _serialize($closure): string
+    {
+        return serialize(new \Laravel\SerializableClosure\SerializableClosure($closure));
+    }
+}
+
+if (!function_exists('_unserialize')) {
+    function _unserialize(string $serialized)
+    {
+        admin_log()->insert("2","2","2",$serialized);
+        return unserialize($serialized)->getClosure();
     }
 }

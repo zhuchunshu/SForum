@@ -81,7 +81,7 @@ class Menu
      */
     private function db(): array
     {
-        $prefix_name = config('cache.default.prefix') . 'menu';
+        $prefix_name = \Hyperf\Config\config('cache.default.prefix') . 'menus';
         foreach ($this->Itf() as $id => $item) {
             if (! redis()->hExists($prefix_name, (string) $id)) {
                 redis()->hSetNx($prefix_name, (string) $id, $this->serialize($item));
@@ -92,9 +92,9 @@ class Menu
         $all = redis()->hGetAll($prefix_name);
         $result = [];
         foreach ($all as $id => $data) {
-            $_data = $this->unserialize($data);
+            $_data = unserialize($data);
             if (Arr::has($_data, 'quanxian')) {
-                $_data['quanxian'] = $this->unserialize($_data['quanxian']);
+                $_data['quanxian'] = _unserialize($_data['quanxian']);
             }
             if (! arr_has($_data, 'sort')) {
                 $_data['sort'] = $id;
@@ -113,7 +113,21 @@ class Menu
      */
     public function serialize($data): string
     {
-        return \Opis\Closure\serialize($data);
+        if(is_array($data)){
+            foreach ($data as  $key => $item) {
+                if(is_array($item)){
+                    $data[$key]=$this->serialize($item);
+                }else{
+                    if($item instanceof \Closure){
+                        $data[$key] = _serialize($item);
+                    }else{
+                        $data[$key] = $item;
+                    }
+                }
+            }
+            return serialize($data);
+        }
+        return _serialize($data);
     }
 
     /**
@@ -122,7 +136,7 @@ class Menu
      */
     private function unserialize($data)
     {
-        return @\Opis\Closure\unserialize($data, ['allowed_classes' => true]);
+        return _unserialize($data);
     }
 
 
