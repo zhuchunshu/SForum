@@ -87,5 +87,18 @@ class BuyPost
         UsersOption::where('id', $user->Options->id)->increment($shortcode->type, $shortcode->amount * 100);
         // 写收益记录
         create_amount_record($user->id, $coin, $coin + $shortcode->amount, $shortcode->type, $shortcode->amount, null, '帖子隐藏内容收益,post_id:' . $shortcode->post_id);
+        $url = url('/' . $post->topic->id . '.html');
+        $coin_name = match ($shortcode->type) {
+            'money' => get_options('wealth_money_name', '余额'),
+            'credits' => get_options('wealth_credit_name', '积分'),
+            'golds' => get_options('wealth_golds_name', '金币'),
+        };
+        // 发送收益通知
+        user_notice()->send(
+            $user->id,
+            '你的帖子付费可见内容为你带来了收益',
+            '你的帖子付费可见内容为你带来了收益，帖子id:' . $post->id . '，收益：' . $shortcode->amount . $coin_name . '，已到账',
+            $url,
+        );
     }
 }
