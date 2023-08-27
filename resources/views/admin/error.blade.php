@@ -16,8 +16,8 @@
     <meta name="mobile-web-app-capable" content="yes"/>
     <meta name="HandheldFriendly" content="True"/>
     <meta name="MobileOptimized" content="320"/>
-    <link rel="icon" href="/logo.svg" type="image/x-icon"/>
-    <link rel="shortcut icon" href="/logo.svg" type="image/x-icon"/>
+    <link rel="icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon"/>
+    <link rel="shortcut icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon"/>
     <!-- CSS files -->
     <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet"/>
     <script>
