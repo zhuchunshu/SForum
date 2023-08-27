@@ -52,7 +52,7 @@ class BuyPosts
             return $this->alert('amount参数必须为数字');
         }
         // 判断amount 是否大于或等于0.01
-        if ($amount <= 0.01) {
+        if ($amount < 0.01) {
             return $this->alert('amount参数必须大于0.01');
         }
 

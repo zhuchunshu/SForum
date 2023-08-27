@@ -41,7 +41,7 @@
                                 </div>
                                 <div class="card-actions">
                                     @if($userCount)
-                                        ,{{__("user.members in total",['total' => $userCount])}}
+                                        {{__("user.members in total",['total' => $userCount])}}
                                     @endif
                                 </div>
                             </div>
