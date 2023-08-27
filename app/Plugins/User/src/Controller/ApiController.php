@@ -117,7 +117,7 @@ class ApiController
         // 通知小红点
         $notice_red = 0;
         foreach (Itf()->get('users_notices') as $value) {
-            $count = \Opis\Closure\unserialize((string) $value['count']);
+            $count = _unserialize((string) $value['count']);
             if (@$count && is_callable($count) && call_user_func($count, auth()->id()) > 0) {
                 $notice_red += call_user_func($count, auth()->id());
             }
