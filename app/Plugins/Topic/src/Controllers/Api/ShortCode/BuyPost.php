@@ -99,6 +99,7 @@ class BuyPost
             '你的帖子付费可见内容为你带来了收益',
             '你的帖子付费可见内容为你带来了收益，帖子id:' . $post->id . '，收益：' . $shortcode->amount . $coin_name . '，已到账',
             $url,
+            false
         );
     }
 }
