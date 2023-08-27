@@ -8,6 +8,7 @@ declare (strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
+
 namespace App\Plugins\Core\src\Command\Update;
 
 use Hyperf\Command\Annotation\Command;
@@ -17,6 +18,7 @@ use Hyperf\DbConnection\Db;
 use Hyperf\Context\ApplicationContext;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\Console\Helper\ProgressBar;
+
 #[Command]
 class v238 extends HyperfCommand
 {
@@ -24,16 +26,19 @@ class v238 extends HyperfCommand
      * @var ContainerInterface
      */
     protected $container;
+
     public function __construct(ContainerInterface $container)
     {
         $this->container = $container;
         parent::__construct('update:v2.3.8');
     }
+
     public function configure()
     {
         parent::configure();
         $this->setDescription('升级v2.3.8必备的数据迁移命令');
     }
+
     public function handle()
     {
         $this->info('开始优化库中 created_at 和 updated_at字段');
@@ -44,6 +49,7 @@ class v238 extends HyperfCommand
             $this->op_user_ip();
         });
     }
+
     private function op_created_at_updated_at()
     {
         $tables = Schema::getAllTables();
@@ -52,7 +58,7 @@ class v238 extends HyperfCommand
         $_table = [];
         foreach ($tables as $table) {
             // 表名
-            $table_name = reset($table);
+            $table_name = $table[0];
             if (Schema::hasColumns($table_name, ['created_at', 'updated_at'])) {
                 if (Schema::getColumnType($table_name, 'created_at') !== 'integer' && Schema::getColumnType($table_name, 'updated_at') !== 'integer') {
                     $_table[] = $table_name;
@@ -89,6 +95,7 @@ class v238 extends HyperfCommand
         $progressBar->finish();
         $this->alert('created_at 、 updated_at 字段优化完成');
     }
+
     private function op_user_ip()
     {
         $tables = Schema::getAllTables();
@@ -97,7 +104,7 @@ class v238 extends HyperfCommand
         $_table = [];
         foreach ($tables as $table) {
             // 表名
-            $table_name = reset($table);
+            $table_name = $table[0];
             if (Schema::hasColumns($table_name, ['user_ip'])) {
                 if (Schema::getColumnType($table_name, 'user_ip') !== 'integer') {
                     $_table[] = $table_name;

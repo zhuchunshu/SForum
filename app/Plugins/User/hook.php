@@ -26,9 +26,7 @@ Itf()->add('users_home_menu', 12, [
    <path d="M12 15m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z"></path>
 </svg>',
     'view' => 'User::assets.task',
-    'quanxian' => \Opis\Closure\serialize((function ($user) {
-        return (int) $user->id === auth()->id();
-    })),
+    'quanxian' => _serialize(fn($user)=>(int) $user->id === auth()->id()),
 ]);
 
 Itf()->add('user-admin-hook-credit', 0, [

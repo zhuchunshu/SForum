@@ -1,4 +1,4 @@
-FROM hyperf/hyperf:8.0-alpine-v3.15-swoole
+FROM hyperf/hyperf:8.2-alpine-vedge-swoole
 LABEL org.opencontainers.image.source = "https://github.com/zhuchunshu/SForum"
 ARG timezone
 
@@ -12,7 +12,7 @@ RUN set -ex \
     && php -m \
     && php --ri swoole \
     #  ---------- some config ----------
-    && cd /etc/php8 \
+    && cd /etc/php* \
     # - config PHP
     && { \
         echo "upload_max_filesize=128M"; \
@@ -31,7 +31,6 @@ WORKDIR /data/www
 
 COPY . /data/www
 RUN composer install --no-dev && composer update -o && composer dumpautoload -o
-
 
 EXPOSE 9501
 

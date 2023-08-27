@@ -178,9 +178,7 @@ Itf()->add('users_home_menu', 7, [
    <line x1="11" y1="15" x2="13" y2="15"></line>
 </svg>',
     'view' => 'User::home.order',
-    'quanxian' => \Opis\Closure\serialize((function ($user) {
-        return (int) $user->id === auth()->id();
-    })),
+    'quanxian' => _serialize(fn($user)=>(int) $user->id === auth()->id()),
 ]);
 
 Itf()->add('users_notices', 1, [
@@ -194,9 +192,7 @@ Itf()->add('users_notices', 1, [
    <line x1="3" y1="17" x2="21" y2="17"></line>
 </svg>',
     'view' => 'User::notice.interactive',
-    'count' => \Opis\Closure\serialize(function ($user_id) {
-        return UsersNotice::query()->where(['user_id' => $user_id, 'status' => 'publish', 'sort' => null])->count();
-    }),
+    'count' => _serialize(fn($user_id)=>UsersNotice::query()->where(['user_id' => $user_id, 'status' => 'publish', 'sort' => null])->count()),
 ]);
 
 Itf()->add('users_notices', 2, [
@@ -210,9 +206,7 @@ Itf()->add('users_notices', 2, [
    <path d="M3 6.727a11.05 11.05 0 0 1 2.792 -3.727"></path>
 </svg>',
     'view' => 'User::notice.system',
-    'count' => \Opis\Closure\serialize(function ($user_id) {
-        return UsersNotice::query()->where(['user_id' => $user_id, 'status' => 'publish', 'sort' => 'system'])->count();
-    }),
+    'count' => _serialize(fn($user_id)=>UsersNotice::query()->where(['user_id' => $user_id, 'status' => 'publish', 'sort' => 'system'])->count()),
 ]);
 
 Itf()->add('users_notices', 3, [
@@ -224,9 +218,7 @@ Itf()->add('users_notices', 3, [
    <path d="M14 15v2a1 1 0 0 1 -1 1h-7l-3 3v-10a1 1 0 0 1 1 -1h2"></path>
 </svg>',
     'view' => 'User::notice.pm',
-    'count' => \Opis\Closure\serialize(function ($user_id) {
-        return \App\Plugins\User\src\Models\UsersPm::query()->where('to_id', $user_id)->where('read', false)->count();
-    }),
+    'count' => _serialize(fn($user_id)=>\App\Plugins\User\src\Models\UsersPm::query()->where('to_id', $user_id)->where('read', false)->count()),
 ]);
 
 Itf()->add('users_home_menu', 8, [
@@ -239,9 +231,7 @@ Itf()->add('users_home_menu', 8, [
    <path d="M6 5l14 1l-1 7h-13"></path>
 </svg>',
     'view' => 'User::assets.money_recharge',
-    'quanxian' => \Opis\Closure\serialize((function ($user) {
-        return (int) $user->id === auth()->id() && count(pay()->get_enabled_data());
-    })),
+    'quanxian' => _serialize(fn($user)=>$user->id === auth()->id() && count(pay()->get_enabled_data())),
 ]);
 
 Itf()->add('users_home_menu', 9, [
@@ -254,9 +244,7 @@ Itf()->add('users_home_menu', 9, [
    <path d="M5 16v-5a5 5 0 0 1 5 -5h3l-3 -3m0 6l3 -3"></path>
 </svg>',
     'view' => 'User::assets.exchange',
-    'quanxian' => \Opis\Closure\serialize((function ($user) {
-        return (int) $user->id === auth()->id();
-    })),
+    'quanxian' => _serialize(fn($user)=>$user->id === auth()->id()),
 ]);
 
 Itf()->add('user_exchange', 0, [
