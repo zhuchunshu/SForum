@@ -16,10 +16,19 @@
                 <div class="d-flex">
                     <div>
                         <!-- Download SVG icon from http://tabler-icons.io/i/info-circle -->
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon alert-icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="12" r="9" /><line x1="12" y1="8" x2="12.01" y2="8" /><polyline points="11 12 12 12 12 16 13 16" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon alert-icon" width="24" height="24"
+                             viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <circle cx="12" cy="12" r="9"/>
+                            <line x1="12" y1="8" x2="12.01" y2="8"/>
+                            <polyline points="11 12 12 12 12 16 13 16"/>
+                        </svg>
                     </div>
                     <div>
-                        <div class="text-muted">SForum已废弃插件启停功能，不用的插件建议直接卸载。<a href="https://sforum.cn/use/instructions/plugin.html">点击这里</a>查看插件使用教程 </div>
+                        <div class="text-muted">SForum已废弃插件启停功能，不用的插件建议直接卸载。<a
+                                    href="https://sforum.cn/use/instructions/plugin.html">点击这里</a>查看插件使用教程
+                        </div>
                     </div>
                 </div>
                 <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
@@ -61,29 +70,34 @@
                                 <tr>
                                     <td class="text-center">
                                         @if(plugins()->has_logo($plugin['dir']))
-                                            <span class="avatar avatar-md"><img src="/admin/plugins/logo?plugin={{$plugin['dir']}}" alt=""></span>
-                                        @endif <div>{{$plugin['data']['name']}}</div></td>
+                                            <span class="avatar avatar-md"><img
+                                                        src="/admin/plugins/logo?plugin={{$plugin['dir']}}"
+                                                        alt=""></span>
+                                        @endif
+                                        <div>{{$plugin['data']['name']}}</div>
+                                    </td>
                                     <td>
                                         {{$plugin['dir']}}
                                     </td>
-                                    <td class="text-muted" >
+                                    <td class="text-muted">
                                         @if(@$plugin['data']['masterVersion'] && @$plugin['data']['masterVersion']>build_info()->version)
                                             <span class="status status-red">不兼容,要求SForum版本>={{$plugin['data']['masterVersion']}}</span>
                                         @else
                                             <span class="status status-green">兼容!</span>
                                         @endif
                                     </td>
-                                    <td class="text-muted" ><a href="{{ $plugin['data']['link'] }}">{{ $plugin['data']['author'] }}</a></td>
-                                    <td class="text-muted" >
+                                    <td class="text-muted"><a
+                                                href="{{ $plugin['data']['link'] }}">{{ $plugin['data']['author'] }}</a>
+                                    </td>
+                                    <td class="text-muted"
+                                        id="admin-plugins-list-{{$plugin['data']['author']}}-{{$plugin['dir']}}">
                                         {{$plugin['data']['version']}}
                                     </td>
                                     <td>
                                         {!! $plugin['data']['description'] !!}
                                     </td>
                                     <td>
-                                        <a @@click="migrate('{{ $plugin['dir'] }}','{{ $plugin['path'] }}')" href="#">数据迁移</a>
-                                        |
-                                        <a @@click="remove('{{ $plugin['dir'] }}','{{ $plugin['path'] }}')" href="#">卸载</a>
+                                        <button onclick="remove('{{ $plugin['dir'] }}','{{ $plugin['path'] }}')" class="btn btn-link">卸载</button>
                                     </td>
                                 </tr>
                             @endforeach
@@ -100,4 +114,66 @@
         </div>
     </div>
 
+@endsection
+
+@section('scripts')
+    <script src="{{file_hash("js/axios.min.js")}}"></script>
+    <script>
+        // 查更新
+        fetch('/admin/plugins/newVersion', {
+            method: 'post',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                _token: '{{csrf_token()}}'
+            })
+        }).then(res => res.json()).then(res => {
+            if (res.success === true) {
+                // 遍历 res.result
+                res.result.forEach(plugin => {
+                    // 获取当前版本
+                    console.log(plugin)
+                    let aid = plugin.aid
+                    // 把 aid 中的 / 替换为 -
+                    aid = aid.replace(/\//g, '-')
+                    $("#admin-plugins-list-" + aid).append(`｜<a href="${plugin.url}" target="_blank">可更新：${plugin.new_version}</a>`)
+                })
+            }
+        })
+
+        //
+        function remove(name, path) {
+            swal("Tips", '卸载中,请等待...', 'info')
+            axios
+                .post("/api/AdminPluginRemove", {
+                    path: path,
+                    _token: csrf_token
+                })
+                .then(function (response) {
+                    var data = response.data;
+                    if (data.success === true) {
+                        swal({
+                            title: data.result.msg,
+                            icon: "success",
+                        });
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1200);
+                    } else {
+                        swal({
+                            title: data.result.msg,
+                            icon: "error",
+                        });
+                    }
+                })
+                .catch(function (error) {
+                    swal({
+                        title: "请求出错,详细查看控制台",
+                        icon: "error",
+                    });
+                    console.log(error);
+                });
+        }
+    </script>
 @endsection

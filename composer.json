@@ -47,7 +47,7 @@
         "hyperf/view-engine": "3.0.*",
         "hyperf/websocket-server": "3.0.*",
         "jetbrains/phpstorm-stubs": "^2021.1",
-        "opis/closure": "^3.6",
+        "laravel/serializable-closure": "^1.3",
         "overtrue/http": "^1.2",
         "rakibtg/sleekdb": "^2.15",
         "simplesoftwareio/simple-qrcode": "^4.2",
