@@ -40,7 +40,7 @@ menu()->add(304, [
     'parent_id' => 301,
 ]);
 menu()->add(3045, [
-    'name' => '关键词管理',
+    'name' => '标签管理',
     'url' => '/admin/topic/keywords',
     'icon' => '',
     'parent_id' => 301,

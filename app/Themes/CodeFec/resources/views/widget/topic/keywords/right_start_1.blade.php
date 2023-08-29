@@ -8,7 +8,7 @@
                 {{$data->name}}
             </h3>
             <p>
-                关键词: <b>{{$data->name}}</b> 下的帖子
+                标签: <b>{{$data->name}}</b> 下的帖子
             </p>
         </div>
 

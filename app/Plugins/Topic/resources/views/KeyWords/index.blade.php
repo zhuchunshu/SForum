@@ -1,8 +1,8 @@
 @extends("App::app")
 
-@section('title', '关键词列表')
-@section('description', '本站帖子关键词列表')
-@section('keywords', '本站帖子关键词列表')
+@section('title', '标签列表')
+@section('description', '本站帖子标签列表')
+@section('keywords', '本站帖子标签列表')
 
 @section('header')
 <div class="page-wrapper">
@@ -16,7 +16,7 @@
                 Overview
             </div>
             <h2 class="page-title">
-                关键词列表
+                标签列表
             </h2>
         </div>
 

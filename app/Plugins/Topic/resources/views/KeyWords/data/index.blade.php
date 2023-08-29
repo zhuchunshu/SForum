@@ -4,7 +4,7 @@
             <div class="card-header">
                 <ol class="breadcrumb breadcrumb-arrows" aria-label="breadcrumbs">
                     <li class="breadcrumb-item"><a href="/">首页</a></li>
-                    <li class="breadcrumb-item"><a href="/keywords">关键词</a></li>
+                    <li class="breadcrumb-item"><a href="/keywords">标签</a></li>
                     <li class="breadcrumb-item active" aria-current="page"><a href="">{{$data->name}}</a></li>
                 </ol>
             </div>
