@@ -31,7 +31,7 @@ class Upgrading
 
     public function __construct(OutputInterface $output, \App\Command\CodeFec\Upgrading $command)
     {
-        $this->api_releases = get_options('github_api_url', 'https://api.github.com') . $this->api_releases;
+        $this->api_releases = $this->get_options('github_api_url', 'https://api.github.com') . $this->api_releases;
         $this->output = $output;
         $this->command = $command;
     }
