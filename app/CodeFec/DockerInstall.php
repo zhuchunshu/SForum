@@ -144,21 +144,6 @@ class DockerInstall
                 }
                 copy_dir(plugin_path($plugin_name . '/resources/assets'), public_path('plugins/' . $plugin_name));
             }
-            if (is_dir(plugin_path($plugin_name . '/src/migrations'))) {
-                $params = ['command' => 'CodeFec:migrate', 'path' => plugin_path($plugin_name . '/src/migrations')];
-
-                $input = new ArrayInput($params);
-                $output = new NullOutput();
-
-                $container = \Hyperf\Context\ApplicationContext::getContainer();
-
-                /** @var Application $application */
-                $application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
-                $application->setAutoExit(false);
-
-                // 这种方式: 不会暴露出命令执行中的异常, 不会阻止程序返回
-                $exitCode = $application->run($input, $output);
-            }
         }
 
 
