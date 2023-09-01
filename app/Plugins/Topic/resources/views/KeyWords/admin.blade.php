@@ -1,10 +1,10 @@
 @extends('app')
-@section('title','关键词管理')
+@section('title','标签管理')
 @section('content')
     <div class="col-12">
         <div class="card" x-data="topickeywords">
             <div class="card-header">
-                <h3 class="card-title">关键词管理</h3>
+                <h3 class="card-title">标签管理</h3>
                 <div class="card-actions">
                     <form action="" method="GET">
                         <div class="row g-2">
@@ -76,7 +76,7 @@
                     if (!confirmRemove) {
                         return;
                     }
-                    // 发出fetch请求删除关键词
+                    // 发出fetch请求删除标签
                     fetch("/admin/topic/keywords/" + id, {
                         method: 'DELETE',
                         headers: {

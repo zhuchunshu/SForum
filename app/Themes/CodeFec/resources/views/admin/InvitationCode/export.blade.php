@@ -11,7 +11,7 @@
                     <x-csrf/>
                     <div class="row row-cards">
                         <div class="col-md-4">
-                            <label for="" class="form-label">关键词</label>
+                            <label for="" class="form-label">标签</label>
                             <input type="text" class="form-control" name="keywords">
                         </div>
                         <div class="col-md-4">

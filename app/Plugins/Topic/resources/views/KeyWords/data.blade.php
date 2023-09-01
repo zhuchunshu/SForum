@@ -1,8 +1,8 @@
 @extends("App::app")
 
-@section('title', '「'.$data->name.'」关键词下的帖子列表')
-@section('description', '为您展示「'.$data->name.'」关键词下的帖子列表')
-@section('keywords', '为您展示「'.$data->name.'」关键词下的帖子列表')
+@section('title', '「'.$data->name.'」标签下的帖子列表')
+@section('description', '为您展示「'.$data->name.'」标签下的帖子列表')
+@section('keywords', '为您展示「'.$data->name.'」标签下的帖子列表')
 
 @section('content')
     <div class="row row-cards justify-content-center">

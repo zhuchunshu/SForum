@@ -226,7 +226,7 @@ if (! function_exists('replace_all_at')) {
 
 if (! function_exists('get_all_keywords')) {
     /**
-     * 获取内容中所有话题关键词.
+     * 获取内容中所有话题标签.
      */
     function get_all_keywords(string $content): array
     {
