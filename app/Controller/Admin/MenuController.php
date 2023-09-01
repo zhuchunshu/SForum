@@ -116,7 +116,7 @@ class MenuController extends AbstractController
         if (arr_has($data, 'parent_id') && data_get($data, 'parent_id') && arr_has(_menu_get_data($data['parent_id']), 'parent_id')) {
             return Json_Api(403, false, ['msg' => '子菜单不能作为上级菜单使用']);
         }
-        $prefix_name = config('cache.default.prefix') . 'menu';
+        $prefix_name = config('cache.default.prefix') . 'menus';
         redis()->hSetNx($prefix_name, (string) ((int) max(_menu_keys()) + 1), _menu_instance()->serialize($data));
         return Json_Api(200, true, ['msg' => '创建成功!']);
     }
@@ -147,7 +147,7 @@ class MenuController extends AbstractController
         } else {
             unset($data['parent_id']);
         }
-        $prefix_name = config('cache.default.prefix') . 'menu';
+        $prefix_name = config('cache.default.prefix') . 'menus';
         redis()->hDel($prefix_name, (string) $this->request->input('id'));
         redis()->hSetNx($prefix_name, (string) $this->request->input('id'), _menu_instance()->serialize($data));
         return Json_Api(200, true, ['msg' => '修改成功!']);
@@ -163,7 +163,7 @@ class MenuController extends AbstractController
         if (arr_has(Itf()->get('menu'), $id)) {
             return Json_Api(403, false, ['msg' => '这是不可删除的菜单']);
         }
-        $prefix_name = config('cache.default.prefix') . 'menu';
+        $prefix_name = config('cache.default.prefix') . 'menus';
         redis()->hDel($prefix_name, (string) $this->request->input('id'));
         return Json_Api(200, true, ['msg' => '删除成功!']);
     }

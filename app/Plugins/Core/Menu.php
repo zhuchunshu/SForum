@@ -167,7 +167,7 @@ class Menu
      * 导入
      */
     public function import(array $data,$recover=false){
-        $prefix_name = config('cache.default.prefix') . 'menu';
+        $prefix_name = config('cache.default.prefix') . 'menus';
         if($recover===true){
             redis()->del($prefix_name);
         }
