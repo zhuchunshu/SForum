@@ -51,7 +51,7 @@
         "overtrue/http": "^1.2",
         "rakibtg/sleekdb": "^2.15",
         "simplesoftwareio/simple-qrcode": "^4.2",
-        "whichbrowser/parser": "^2.1",
+        "zhuchunshu/whichbrowser-parser": "1.*",
         "wikimedia/composer-merge-plugin": "^2.0",
         "yansongda/pay": "~3.2.0",
         "zhuchunshu/hyperf-auth": "3.0.*",
