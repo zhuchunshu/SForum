@@ -1,8 +1,8 @@
 {
   "name": "评论插件",
   "description": "提供基本帖子评论功能",
-  "version": "2.6.3",
+  "version": "2.6.4",
   "author": "SForum",
   "link": "https://github.com/zhuchunshu",
-  "masterVersion": "v2.6.3"
+  "masterVersion": "v2.6.4"
 }
