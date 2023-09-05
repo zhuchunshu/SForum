@@ -43,8 +43,7 @@ class AdminController
         if (! $username || ! $password || ! $captcha) {
             return Json_Api(403, false, ['请求参数不足!']);
         }
-
-        if (! captcha()->check($captcha)) {
+        if(get_options('admin_login_captcha_off')!=='true' && ! captcha()->check($captcha)){
             return Json_Api(403, false, ['验证码错误!']);
         }
 

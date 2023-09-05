@@ -45,5 +45,12 @@
             <small class="text-muted">默认是 https://api.github.com </small>
         </div>
 
+        <div class="mb-3 col-lg-4">
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.admin_login_captcha_off">
+                <span class="form-check-label">关闭后台登录验证吗</span>
+            </label>
+        </div>
+
     </div>
 </div>

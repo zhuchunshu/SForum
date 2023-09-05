@@ -53,14 +53,19 @@
                                    autocomplete="off">
                         </div>
                     </div>
-                    <div class="mb-1">
-                        <label for="" class="form-label">验证码</label>
-                        <input isCaptchaInput type="hidden" v-model="captcha" class="form-control" placeholder="captcha"
-                               autocomplete="off" required>
-                        <div id="captcha-container"></div>
-                    </div>
+                    @if(get_options('admin_login_captcha_off')!=='true')
+                        <div class="mb-1">
+                            <label for="" class="form-label">验证码</label>
+                            <input isCaptchaInput type="hidden" v-model="captcha" class="form-control"
+                                   placeholder="captcha"
+                                   autocomplete="off" required>
+                            <div id="captcha-container"></div>
+                        </div>
+                    @endif
                     <div class="form-footer" id="submit">
-                        <button isNeedCaptcha disabled type="submit" class="btn btn-primary w-100">登录</button>
+                        <button @if(get_options('admin_login_captcha_off')!=='true') isNeedCaptcha disabled
+                                @endif type="submit" class="btn btn-primary w-100">登录
+                        </button>
                     </div>
                 </div>
             </form>
@@ -74,12 +79,14 @@
 <!-- Tabler Core -->
 <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
 <script type="module" src="{{ mix('js/admin/login.js') }}"></script>
-@if(get_options("admin_captcha_service","cloudflare")==="google")
-    <script src="//www.recaptcha.net/recaptcha/api.js?onload=onloadGoogleRecaptchaCallback" async
-            defer></script>
-@else
-    <script src="//challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback" async
-            defer></script>
+@if(get_options('admin_login_captcha_off')!=='true')
+    @if(get_options("admin_captcha_service","cloudflare")==="google")
+        <script src="//www.recaptcha.net/recaptcha/api.js?onload=onloadGoogleRecaptchaCallback" async
+                defer></script>
+    @else
+        <script src="//challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback" async
+                defer></script>
+    @endif
 @endif
 </body>
 
