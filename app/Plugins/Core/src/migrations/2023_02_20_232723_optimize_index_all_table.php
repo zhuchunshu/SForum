@@ -26,7 +26,8 @@ class OptimizeIndexAllTable extends Migration
         // 处理全部user_id字段
         $tables = Schema::getAllTables();
         foreach ($tables as $table) {
-            $name = $table[0];
+            $_table = get_object_vars($table);
+            @$name = reset($_table);
             if (Schema::hasColumn($name, 'user_id') && Schema::getColumnType($name, 'user_id') !== 'bigint') {
                 $db->query('ALTER TABLE ' . $name . ' MODIFY COLUMN user_id BIGINT;');
                 Schema::table($name, function (Blueprint $table) {
