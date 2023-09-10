@@ -40,7 +40,10 @@ class AdminController
         $username = $request->input('username');
         $password = $request->input('password');
         $captcha = $request->input('captcha');
-        if (! $username || ! $password || ! $captcha) {
+        if (! $username || ! $password) {
+            return Json_Api(403, false, ['请求参数不足!']);
+        }
+        if(get_options('admin_login_captcha_off')!=='true' && ! $captcha ){
             return Json_Api(403, false, ['请求参数不足!']);
         }
         if(get_options('admin_login_captcha_off')!=='true' && ! captcha()->check($captcha)){
