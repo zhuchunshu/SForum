@@ -1078,7 +1078,6 @@ if (!function_exists('_serialize')) {
 if (!function_exists('_unserialize')) {
     function _unserialize(string $serialized)
     {
-        admin_log()->insert("2","2","2",$serialized);
         return unserialize($serialized)->getClosure();
     }
 }
