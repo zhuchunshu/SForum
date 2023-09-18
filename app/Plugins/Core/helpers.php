@@ -218,7 +218,6 @@ if (! function_exists('replace_all_at')) {
         $pattern = '/@(\w+)(?=[^\w@]|$)/u';
         $content = replace_all_at_space($content);
         return remove_all_p_space(preg_replace_callback($pattern, static function ($match) {
-            var_dump($match);
             return (new \App\Plugins\Core\src\Lib\TextParsing())->at($match[1]);
         }, $content));
     }
