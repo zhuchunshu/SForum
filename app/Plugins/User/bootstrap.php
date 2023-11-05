@@ -305,5 +305,3 @@ Itf()->add('admin-ui-page-body-container-hook', 12, [
     'name' => 'user-check-options',
     'view' => 'User::Admin.hook',
 ]);
-
-Authority()->add('none','小黑屋');
