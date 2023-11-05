@@ -37,6 +37,17 @@
 </div>
 <div class="mt-0 mb-0">
     <div class="hr-text hr-text-right mt-3 mb-0" style="margin-right: 1rem;">
+        <a class="text-muted" href="/tags/{{$data->tag->id}}.html">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                <path d="M5 9l14 0"></path>
+                <path d="M5 15l14 0"></path>
+                <path d="M11 4l-4 16"></path>
+                <path d="M17 4l-4 16"></path>
+            </svg>
+            {{$data->tag->name}}
+        </a>
+        <span class="mx-1">|</span>
         <div class="text-muted">
 {{--            浏览量--}}
             <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-eye" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
