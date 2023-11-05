@@ -20,3 +20,8 @@ Itf()->add('admin-ui-page-body-container-hook', -10, [
     'name' => 'common',
     'view' => 'core.admin.disclaimer'
 ]);
+
+Itf()->add('admin-ui-page-body-container-hook', -11, [
+    'name' => 'set_app_name',
+    'view' => 'admin.hook.set_app_name'
+]);
