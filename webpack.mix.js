@@ -43,6 +43,7 @@ try {
 
 }
 
+mix.css(resources_path("sass/app.css"), "css").version();
 
 
 // 设置public目录

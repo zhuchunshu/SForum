@@ -1,5 +1,5 @@
 {
-    "/js/app.js": "/js/app.js?id=23746e1ca56a031ee719",
+    "/js/app.js": "/js/app.js?id=3e83a49b42d12b238c6a",
     "/js/install.js": "/js/install.js?id=8787ba5d0ec807f2d7aa",
     "/js/admin/login.js": "/js/admin/login.js?id=a74fee6e7def6229a755",
     "/js/admin/EditFile.js": "/js/admin/EditFile.js?id=c549eac80e00b999ce76",
@@ -21,5 +21,6 @@
     "/plugins/User/js/pm.js": "/plugins/User/js/pm.js?id=00970bdf6a4b6fefa9e5",
     "/plugins/User/js/user.js": "/plugins/User/js/user.js?id=4f7e20e856fc2ab616dc",
     "/plugins/Comment/js/edit.js": "/plugins/Comment/js/edit.js?id=401095050fa73934ebd1",
-    "/plugins/Comment/js/topic.js": "/plugins/Comment/js/topic.js?id=c25dcd26004f7309ec9c"
+    "/plugins/Comment/js/topic.js": "/plugins/Comment/js/topic.js?id=c25dcd26004f7309ec9c",
+    "/css/app.css": "/css/app.css?id=2b5b1d5d5df786b6c004"
 }
