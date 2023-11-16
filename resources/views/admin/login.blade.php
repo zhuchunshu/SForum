@@ -8,8 +8,8 @@
     <title>Sign in - {{get_options('title', config('app_name', 'CodeFec')) }}</title>
     <meta name="msapplication-TileColor" content="#206bc4"/>
     <meta name="theme-color" content="#206bc4"/>
-    <link rel="icon" href="/logo.svg" type="image/x-icon"/>
-    <link rel="shortcut icon" href="/logo.svg" type="image/x-icon"/>
+    <link rel="icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon"/>
+    <link rel="shortcut icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon"/>
     <!-- CSS files -->
     <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet"/>
     <link rel="stylesheet" href="{{ mix('iziToast/css/iziToast.min.css') }}">

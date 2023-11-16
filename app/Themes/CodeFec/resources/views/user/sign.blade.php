@@ -8,12 +8,10 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>{{$title}} - {{ get_options('title', config('app_name', 'CodeFec')) }}</title>
     <link rel="stylesheet" href="{{ mix('plugins/Core/css/app.css') }}">
-    <link rel="icon" href="/logo.svg" type="image/x-icon" />
-    <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
     <meta name="description" content="{{ get_options('description') }}">
     <meta name="keywords" content="{{ get_options('keywords') }}">
-    <link rel="icon" href="/logo.svg" type="image/x-icon" />
-    <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
+    <link rel="icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon"/>
+    <link rel="shortcut icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon"/>
     <link href="{{ '/tabler/css/tabler.min.css' }}" rel="stylesheet" />
     <link href="{{ '/tabler/css/tabler-vendors.min.css' }}" rel="stylesheet" />
     <link rel="stylesheet" href="{{mix("plugins/Core/css/core.css")}}">
