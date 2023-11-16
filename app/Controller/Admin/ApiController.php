@@ -111,7 +111,7 @@ class ApiController
     {
         $url = match ((string) get_options('update_server', 2)) {
             '2' => '',
-            '1' => 'https://ghproxy.com/',
+            '1' => 'https://gh-proxy.com/',
         };
         $data = http()->get($this->api_releases);
         $data = $data[0];
