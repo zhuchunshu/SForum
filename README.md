@@ -23,15 +23,15 @@
 
 ### Ubuntu/Debian
 ```bash
-wget -O sforum_ubuntu.sh https://gh-proxy.com/https://raw.githubusercontent.com/zhuchunshu/sforum-script/main/install/ubuntu.sh && bash ./sforum_ubuntu.sh
+wget -O sforum_ubuntu.sh https://ghproxy.typecho.ltd/https://raw.githubusercontent.com/zhuchunshu/sforum-script/main/install/ubuntu.sh && bash ./sforum_ubuntu.sh
 ```
 ### Centos
 ```bash
-wget -O sforum_centos.sh https://gh-proxy.com/https://raw.githubusercontent.com/zhuchunshu/sforum-script/main/install/centos.sh && bash ./sforum_centos.sh
+wget -O sforum_centos.sh https://ghproxy.typecho.ltd/https://raw.githubusercontent.com/zhuchunshu/sforum-script/main/install/centos.sh && bash ./sforum_centos.sh
 ```
 ### 自动获取系统信息进行安装（不建议！）
 ```bash
-wget -O sforum_install.sh https://gh-proxy.com/https://raw.githubusercontent.com/zhuchunshu/sforum-script/main/install.sh && bash ./sforum_install.sh
+wget -O sforum_install.sh https://ghproxy.typecho.ltd/https://raw.githubusercontent.com/zhuchunshu/sforum-script/main/install.sh && bash ./sforum_install.sh
 ```
 
 ## 截图
