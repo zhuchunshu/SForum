@@ -39,7 +39,7 @@
     {!! ContentParse()->parse($content) !!}
 </article>
 
-<script src='/js/jquery-3.6.0.min.js'></script>
+<script src='/js/jquery-3.7.1.min.js'></script>
 <script src="{{ mix('js/vue.js') }}"></script>
 <script src="{{ '/tabler/libs/apexcharts/dist/apexcharts.min.js' }}"></script>
 <script src="{{ '/tabler/js/tabler.min.js' }}"></script>

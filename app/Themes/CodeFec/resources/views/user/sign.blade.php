@@ -84,7 +84,7 @@
     </div>
 </div>
 
-<script src='/js/jquery-3.6.0.min.js'></script>
+<script src='/js/jquery-3.7.1.min.js'></script>
 <script src="{{ mix('js/vue.js') }}"></script>
 <script src="{{ '/tabler/js/tabler.min.js' }}"></script>
 <script src="{{ mix('plugins/Core/js/app.js') }}"></script>

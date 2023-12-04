@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="{{ mix('css/app.css') }}">
     <link rel="icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon"/>
     <link rel="shortcut icon" href="{{get_options('theme_common_icon','/logo.svg')}}" type="image/x-icon"/>
-    <script src="/js/jquery-3.6.0.min.js"></script>
+    <script src="/js/jquery-3.7.1.min.js"></script>
     <script>
         var csrf_token = "{{csrf_token()}}";
         var theme_status = @if(session()->has('theme')) {{"true"}} @else {{"false"}} @endif;
