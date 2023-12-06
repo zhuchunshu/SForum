@@ -1021,10 +1021,10 @@
   resolved "https://registry.npm.taobao.org/@emotion/hash/download/@emotion/hash-0.8.0.tgz"
   integrity sha1-u7/2iXj+/b5ozLUzvIy+HRr7VBM=
 
-"@fancyapps/ui@^4.0.4":
-  version "4.0.4"
-  resolved "https://registry.nlark.com/@fancyapps/ui/download/@fancyapps/ui-4.0.4.tgz"
-  integrity sha1-WDgon7t/217eho3Ip3RezC0jdlE=
+"@fancyapps/ui@^5.0.28":
+  version "5.0.28"
+  resolved "https://registry.yarnpkg.com/@fancyapps/ui/-/ui-5.0.28.tgz#f0ef09a05e0e0be8815e839949a535850bd0a91b"
+  integrity sha512-CJ0Uw/KkSHH/bE+Uz4BaWgxQgzY1Dwl6dlYZtW1SGBrQBrIRuV4G3VEG1uVw27JAB9xgCbUAJddk3JQ/kvPACA==
 
 "@floating-ui/core@^1.0.1":
   version "1.0.1"

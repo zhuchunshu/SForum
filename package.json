@@ -22,7 +22,7 @@
   },
   "homepage": "https://github.com/zhuchunshu/SForum#readme",
   "dependencies": {
-    "@fancyapps/ui": "^4.0.4",
+    "@fancyapps/ui": "^5.0.28",
     "@picmo/popup-picker": "^5.4.0",
     "@popperjs/core": "^2.10.1",
     "@wangeditor/editor": "^5.1.1",

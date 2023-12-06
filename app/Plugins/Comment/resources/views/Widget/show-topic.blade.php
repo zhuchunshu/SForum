@@ -82,7 +82,7 @@
                         </div>
                     </div>
 
-                    <div class="card-body">
+                    <div class="card-body" id="comment-list">
 
                         <div class="row row-cards">
                             @foreach($comment as $key=>$value)
