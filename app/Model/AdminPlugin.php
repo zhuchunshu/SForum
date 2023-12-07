@@ -15,7 +15,7 @@ class AdminPlugin extends Model
     /**
      * The table associated with the model.
      *
-     * @var string
+     * @var ?string
      */
     protected ?string $table = 'admin_plugins';
     /**

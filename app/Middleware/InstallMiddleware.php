@@ -31,15 +31,11 @@ class InstallMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        if (! file_exists(BASE_PATH . '/app/CodeFec/storage/install.lock')) {
-            if (request()->path() !== 'install' && ! Str::is($this->clean_str('install/*'), $this->clean_str(request()->path()))) {
-                return response()->redirect('/install');
-            }
+        if (!file_exists(BASE_PATH . '/app/CodeFec/storage/install.lock') && request()->path() !== 'install' && !Str::is($this->clean_str('install/*'), $this->clean_str(request()->path()))) {
+            return response()->redirect('/install');
         }
-        if (file_exists(BASE_PATH . '/app/CodeFec/storage/update.lock')) {
-            if (request()->path() !== 'admin' && ! Str::is($this->clean_str('admin/*'), $this->clean_str(request()->path()))) {
-                return admin_abort('系统升级中..', 200);
-            }
+        if (file_exists(BASE_PATH . '/app/CodeFec/storage/update.lock') && request()->path() !== 'admin' && !Str::is($this->clean_str('admin/*'), $this->clean_str(request()->path()))) {
+            return admin_abort('系统升级中..', 200);
         }
         if ((request()->path() === 'install') && file_exists(BASE_PATH . '/app/CodeFec/storage/install.lock')) {
             return admin_abort(['msg' => '页面不存在'], 404);

@@ -19,7 +19,7 @@ class AdminOption extends Model implements CacheableInterface
     /**
      * The table associated with the model.
      *
-     * @var string
+     * @var ?string
      */
     protected ?string $table = 'admin_options';
     /**

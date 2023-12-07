@@ -32,7 +32,7 @@ class CsrfMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        if (!config('codefec.app.csrf')) {
+        if (!\Hyperf\Config\config('codefec.app.csrf')) {
             return $handler->handle($request);
         }
         foreach (Itf()->get('csrf') as $value) {
