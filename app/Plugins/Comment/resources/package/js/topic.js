@@ -49,7 +49,7 @@ $(function () {
     })
     // 发送回复评论请求
     $("#reply-comment-modal-reply-button").bind("click", function () {
-        replyCommentRequest
+        replyCommentRequest()
     })
     // ctrl enter 发布评论
     if (document.getElementById('reply-comment-content')) {
