@@ -66,6 +66,27 @@
             <small>当前:{{get_options('core_user_session_num',10)}}</small>
         </div>
 
+        <div class="col-12 mt-3 mb-3 ">
+            <div class="card border-red">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-3 align-self-center">
+                            <label class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" v-model="data.user_auth_ver_ip">
+                                <span class="form-check-label">关闭登录状态验证用户IP</span>
+                            </label>
+                        </div>
+                        <div class="col-3 align-self-center">
+                            <label class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" v-model="data.user_auth_ver_ua">
+                                <span class="form-check-label">关闭登录状态验证用户user agent</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="col-3 align-self-center">
             <label class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" v-model="data.user_email_noticed_on">

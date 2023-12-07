@@ -8,6 +8,7 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
+
 namespace App\Plugins\User\src;
 
 use App\Plugins\User\src\Models\UsersAuth;
@@ -43,20 +44,27 @@ class AuthGuard extends SessionGuard
             'user_id' => $this->user()->getId(),
             'token' => session()->get('AUTH_TOKEN'),
         ])->delete();
-        return (bool) $this->session->remove($this->sessionKey()) && $this->session->remove('AUTH_TOKEN');
+        return (bool)$this->session->remove($this->sessionKey()) && $this->session->remove('AUTH_TOKEN');
     }
 
     public function check(): bool
     {
         try {
             return $this->user() instanceof Authenticatable && call_user_func(function () {
-                return UsersAuth::query()->where([
-                    'user_id' => $this->user()->getId(),
-                    'token' => session()->get('AUTH_TOKEN'),
-                    'user_agent' => get_user_agent(),
-                    'user_ip' => get_client_ip(),
-                ])->exists();
-            }) === true;
+                    $query = [
+                        'user_id' => $this->user()->getId(),
+                        'token' => session()->get('AUTH_TOKEN'),
+                        'user_agent' => get_user_agent(),
+                        'user_ip' => get_client_ip(),
+                    ];
+                    if (get_options('user_auth_ver_ua') !== "true") {
+                        $query['user_agent'] = get_user_agent();
+                    }
+                    if (get_options('user_auth_user_ip') !== "true") {
+                        $query['user_ip'] = get_client_ip();
+                    }
+                    return UsersAuth::query()->where($query)->exists();
+                }) === true;
         } catch (AuthException $exception) {
             return false;
         }
@@ -64,7 +72,7 @@ class AuthGuard extends SessionGuard
 
     public function guest(): bool
     {
-        return ! $this->check();
+        return !$this->check();
     }
 
     private function deleteAuth($user_id)
