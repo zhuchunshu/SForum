@@ -44,7 +44,7 @@ class HyperfViewEngine implements EngineInterface
         // 获取主题替换配置
         $trs = Itf()->get('theme-replace');
         // 按键名排序数组
-        ksort($trs);
+        krsort($trs);
         // 初始化数组
         $arrays = [];
         // 遍历主题替换配置
