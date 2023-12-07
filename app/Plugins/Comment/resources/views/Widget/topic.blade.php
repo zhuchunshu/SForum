@@ -37,7 +37,7 @@
 
 
                 <div class="mb-1" x-data="comment">
-                    <form action="/topic/create/comment/{{$data->id}}" method="post">
+                    <form id="topic-create-comment-form" action="/topic/create/comment/{{$data->id}}" method="post">
                         <div class="row">
 {{--                            锁帖--}}
                             @if($data->status==="lock")
@@ -53,7 +53,7 @@
                             @else
                                 <div class="col-md-12 mb-3">
                                     <x-csrf/>
-                                    <input type="hidden" name="originalContent" value="1">
+                                    <input type="hidden" id="create-comment-textarea-hidden" name="originalContent" value="1">
                                     <textarea x-model="content" id="create-comment-textarea" name="content" placeholder="说点什么..." class="form-control OwO-textarea" data-bs-toggle="autosize" required>{{request()->input('content')}}</textarea>
                                 </div>
                                 <div class="col-12">
