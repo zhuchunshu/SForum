@@ -15,10 +15,12 @@ class ContentParse
     {
         $content = $this->ShortCode($content, $data);
         $content = $this->twemoji($content);
-        $content = $this->owo($content);
+        if (!arr_has($data, 'remove_owo') || $data['remove_owo'] !== true) {
+            $content = $this->owo($content);
+        }
         return $content;
     }
-    
+
     /**
      * ShortCode 处理
      * @param string $content 内容
@@ -37,7 +39,7 @@ class ContentParse
         $shortCode = array_unique($shortCode);
         return ShortCodeR()->setRemove($shortCode)->handle($content, $data);
     }
-    
+
     /**
      * TwEmoji 处理
      * @param string $content
@@ -46,11 +48,11 @@ class ContentParse
     private function twemoji(string $content): string
     {
         if (get_options("contentParse_twemoji", "开启") === "开启") {
-            return (new Emoji())->twemoji($content)->svg()->base(get_options("contentParse_twemoji_cdn", "https://lib.baomitu.com/twemoji/1.4.2"))->toHtml(null, ['lightbox'=>'false','width' => get_options("contentParse_twemoji_contentParse_width", 25), 'height' => get_options("contentParse_twemoji_contentParse_height", 25)]);
+            return (new Emoji())->twemoji($content)->svg()->base(get_options("contentParse_twemoji_cdn", "https://lib.baomitu.com/twemoji/1.4.2"))->toHtml(null, ['lightbox' => 'false', 'width' => get_options("contentParse_twemoji_contentParse_width", 25), 'height' => get_options("contentParse_twemoji_contentParse_height", 25)]);
         }
         return $content;
     }
-    
+
     /**
      * 渲染owo表情
      * @param string $content
