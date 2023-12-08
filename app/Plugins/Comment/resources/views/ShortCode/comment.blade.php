@@ -51,7 +51,7 @@
                                             </blockquote>
                                         </div>
                                     @endif
-                                    {!!CommentContentParse()->parse($value->post->content,['comment' => $value,'topic' => $value->topic,'remove_shortCode' => ['comment'],'remove_owo' => true]) !!}
+                                    {!! $value->post->content !!}
                                 </div>
                             @endif
 
