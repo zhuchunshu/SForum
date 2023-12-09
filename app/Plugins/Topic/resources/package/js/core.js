@@ -65,7 +65,7 @@ if (document.getElementById('topic-page')) {
 
         // 如果父级标签不是A标签,则添加A标签
         if ($(this).attr("lightbox")!=="false" && parentTagName !== "A") {
-            $(this).wrap("<a href='" + $(this).attr("src") + "' data-fancybox data-caption='" + $(this).attr("alt") + "'></a>");
+            $(this).wrap("<a href='" + $(this).attr("src") + "' data-fancybox=\"gallery\" data-caption='" + $(this).attr("alt") + "'></a>");
         }
 
     });
@@ -75,14 +75,24 @@ if (document.getElementById('topic-page')) {
 
         // 如果父级标签不是A标签,则添加A标签
         if ($(this).attr("lightbox")!=="false" && parentTagName !== "A") {
-            $(this).wrap("<a href='" + $(this).attr("src") + "' data-fancybox data-caption='" + $(this).attr("alt") + "'></a>");
+            $(this).wrap("<a href='" + $(this).attr("src") + "' data-fancybox=\"gallery\" data-caption='" + $(this).attr("alt") + "'></a>");
         }
 
     });
 
     // 等待上面循环执行完毕
     Fancybox.bind("[data-fancybox]", {
-        // Your custom options
+        contentClick: "toggleCover",
+        Thumbs: {
+            showOnStart: false,
+        },
+        Images: {
+            Panzoom: {
+                panMode: "mousemove",
+                mouseMoveFactor: 1.1,
+                mouseMoveFriction: 0.12,
+            },
+        }
     });
 
 }
