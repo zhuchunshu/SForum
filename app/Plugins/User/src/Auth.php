@@ -119,10 +119,13 @@ class Auth
         if ($token === null) {
             return authManager()->check($token);
         }
-        return UsersAuth::query()->where([
+        $query = [
             'user_id' => authManager()->user()->getId(),
             'token' => $token,
-            'user_agent' => get_user_agent(),
-        ])->exists();
+        ];
+        if (get_options('user_auth_ver_ua') !== "true") {
+            $query['user_agent'] = get_user_agent();
+        }
+        return UsersAuth::query()->where($query)->exists();
     }
 }
