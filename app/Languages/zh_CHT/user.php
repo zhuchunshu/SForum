@@ -1,0 +1,41 @@
+<?php
+
+
+return [
+	'list' => '用户列表',
+	'st member' => '本站第 :member 位會員',
+	'members in total' => '共有 :total 位會員',
+	'List of members under this user group' => '本用户組下的會員列表',
+	'registration date' => '註冊日期',
+	'user group info' => '用户組的信息',
+	'notice list' => '通知列表',
+	'clean notice' => '清空通知',
+	'read all' => '全部已讀',
+	'no bio' => '這個人沒有簽名',
+	'personal website' => '個人網站',
+	'other information' => '其他信息',
+	'register time' => '註冊時間',
+	'comment count' => '評論數量',
+	'topic count' => '主題數量',
+	'collection count' => '收藏數量',
+	'fans count' => '粉絲數量',
+	'topic tag count' => '板塊數量',
+	'QQ' => 'QQ',
+	'wechat' => '微信',
+	'email' => '郵箱',
+	'website' => '網站',
+	'wealth' => '財富',
+    'location' => '位置信息',
+    'topic num' => '文章數量',
+    'comment num' => '評論數量',
+    'fans num' => '粉絲數量',
+    'last login time' => '最後登陸',
+    'data' => '數據',
+	'already_checkin_tips' => '你今天已經簽到過了',
+	'not_checkin_tips' => '你今天還沒有簽到',
+    'task' => [
+        'checkin' => '簽到',
+        'set_avatar_done' => '已設置頭像',
+        'set_avatar_undone' => '還未設置頭像',
+    ]
+];
