@@ -12,7 +12,7 @@
                     <div class="col-md-12">
                         <div class="row">
                             <div class="col-md-12 markdown home-article">
-                                <h3 class="text-muted @if(get_options('theme_home_title_truncate')){{"text-truncate"}}@endif">
+                                <h3 class="text-muted @if(get_options('theme_home_title_truncate')==="true"){{"text-truncate"}}@endif">
                                     @if($data->topic->topping>0)
                                         <span class="badge bg-red">
                                                     {{__('app.top')}}
