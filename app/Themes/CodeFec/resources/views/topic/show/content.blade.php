@@ -65,7 +65,17 @@
             </div>
             @include('App::topic.show.include.author')
             <article class="card-body topic article markdown text-reset">
+                @foreach(Itf()->get('ui-topic-article-before-hook') as $k=>$v)
+                    @if(call_user_func($v['enable'])===true)
+                        @include($v['view'])
+                    @endif
+                @endforeach
                 {!! ContentParse()->parse($data->post->content,$parseData) !!}
+                @foreach(Itf()->get('ui-topic-article-after-hook') as $k=>$v)
+                    @if(call_user_func($v['enable'])===true)
+                        @include($v['view'])
+                    @endif
+                @endforeach
             </article>
             @if($data->user->Options->qianming && $data->user->Options->qianming!=='no bio')
                 <div class="px-3 py-3">

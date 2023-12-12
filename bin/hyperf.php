@@ -14,7 +14,7 @@ error_reporting(E_ALL);
 require BASE_PATH . '/vendor/autoload.php';
 
 // Self-called anonymous function that creates its own scope and keep the global namespace clean.
-(function () {
+(static function () {
     Hyperf\Di\ClassLoader::init();
     /** @var Psr\Container\ContainerInterface $container */
     $container = require BASE_PATH . '/config/container.php';
