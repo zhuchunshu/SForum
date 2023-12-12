@@ -24,21 +24,20 @@ class ValidationExceptionHandler extends ExceptionHandler
             $this->stopPropagation();
             /** @var ValidationException $throwable */
             $body = $throwable->validator->errors()->all();
-            cache()->set('errors', $body, 1);
-            //return response()->json(cache()->get("errors"));
+            session()->set('errors', $body);
             return response()->redirect(request()->input('Redirect', null));
         }
 
         $this->stopPropagation();
         /** @var ValidationException $throwable */
         $body = $throwable->validator->errors()->all();
-        if (! $response->hasHeader('content-type')) {
-            $response = $response->withAddedHeader('content-type', 'text/plain; charset=utf-8');
-        }
+//        if (! $response->hasHeader('content-type')) {
+//            $response = $response->withAddedHeader('content-type', 'text/plain; charset=utf-8');
+//        }
         $container = \Hyperf\Context\ApplicationContext::getContainer();
         $responses = $container->get(\Hyperf\HttpServer\Contract\ResponseInterface::class);
 
-        return $responses->json(Json_Api($throwable->status, false, $body));
+        return $responses->json(json_api($throwable->status, false, $body));
         //return $response->withStatus($throwable->status)->withBody(new SwooleStream($body));
     }
 

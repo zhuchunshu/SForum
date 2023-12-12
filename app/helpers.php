@@ -648,8 +648,8 @@ if (!function_exists('file_hash')) {
 if (!function_exists('errors')) {
     function errors()
     {
-        if (cache()->has('errors')) {
-            return cache()->get('errors');
+        if (session()->has('errors')) {
+            return session()->get('errors');
         }
         return [];
     }
