@@ -86,7 +86,7 @@ class WechatPay implements PayInterFace
     {
         $create_order = ['out_trade_no' => (string) $order->id, 'description' => $order->title, 'amount' => ['total' => $this->calculate_amount($order->amount)]];
         $result = $this->pay()->scan($create_order);
-        return Json_Api(200, true, ['msg' => '订单创建成功!', 'url' => $result->code_url, 'order_id' => $order->id]);
+        return json_api(200, true, ['msg' => '订单创建成功!', 'url' => $result->code_url, 'order_id' => (string)$order->id]);
     }
     /**
      * 支付回调

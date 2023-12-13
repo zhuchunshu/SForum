@@ -14,7 +14,12 @@ use App\Plugins\Core\src\Controller\Pay\PayInterFace;
 use App\Plugins\Core\src\Models\PayOrder;
 use App\Plugins\User\src\Models\User;
 use Hyperf\Stringable\Str;
+use Psr\Http\Message\ResponseInterface;
 use Psr\SimpleCache\InvalidArgumentException;
+use SleekDB\Exceptions\IdNotAllowedException;
+use SleekDB\Exceptions\InvalidConfigurationException;
+use SleekDB\Exceptions\IOException;
+use SleekDB\Exceptions\JsonException;
 use Yansongda\Pay\Exception\ContainerException;
 use Yansongda\Pay\Exception\InvalidParamsException;
 use Yansongda\Pay\Exception\ServiceNotFoundException;
@@ -46,17 +51,16 @@ class SFPay implements PayInterFace
         }
         return Json_Api(200, true, ['msg' => '订单创建成功!', 'url' => url('/pay/SFPay/' . $order->id . '/paying'), 'order_id' => $order->id]);
     }
+
     /**
      * 支付回调.
-     * @param $request
-     * @param mixed $order_id
-     * @throws \SleekDB\Exceptions\IOException
-     * @throws \SleekDB\Exceptions\IdNotAllowedException
+     * @param  $order_id
+     * @return array|bool|ResponseInterface
+     * @throws IOException
+     * @throws IdNotAllowedException
      * @throws \SleekDB\Exceptions\InvalidArgumentException
-     * @throws \SleekDB\Exceptions\JsonException
-     * @throws ContainerException
-     * @throws InvalidParamsException
-     * @return array|bool|\Psr\Http\Message\ResponseInterface
+     * @throws InvalidConfigurationException
+     * @throws JsonException
      */
     public function notify($order_id) : bool|array|\Psr\Http\Message\ResponseInterface
     {

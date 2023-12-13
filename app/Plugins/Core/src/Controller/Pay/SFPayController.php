@@ -14,6 +14,7 @@ use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\Stringable\Str;
 use HyperfExt\Hashing\Hash;
+
 #[Controller(prefix: '/pay/SFPay')]
 #[Middleware(LoginMiddleware::class)]
 class SFPayController
@@ -35,6 +36,7 @@ class SFPayController
         }
         return view('App::Pay.Paying.SFPay', ['order' => $order, 'money' => $money]);
     }
+
     #[PostMapping("{order_id}/paying")]
     public function paying_submit($order_id)
     {
@@ -61,7 +63,9 @@ class SFPayController
             PayAmountRecord::query()->create(['original' => $money, 'cash' => $money - $order->amount, 'user_id' => auth()->id(), 'order_id' => $order->id, 'remark' => '购买:【' . $order->title . '】']);
             // 扣钱
             $options_id = User::query()->where('id', $order->user_id)->with('options')->first()->options_id;
-            UsersOption::query()->where('id', $options_id)->update(['money' => (string) $money - $order->amount]);
+            $option = UsersOption::query()->find($options_id);
+            $option->money -= $order->amount;
+            $option->save();
         }
         // 触发回调
         (new SFPay())->notify($order->id);
