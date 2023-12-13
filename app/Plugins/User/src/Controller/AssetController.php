@@ -31,7 +31,7 @@ class AssetController
     #[GetMapping('money')]
     public function money()
     {
-        $page = PayAmountRecord::query()->where('type', null)->orWhere('type', 'money')->where('user_id', auth()->id())->orderByDesc('created_at')->paginate(15);
+        $page = PayAmountRecord::query()->where('type', null)->orWhere('type', 'money')->where('user_id', auth()->id())->orderByDesc('id')->paginate(15);
         return view('User::assets.money', ['page' => $page]);
     }
     #[PostMapping('money.recharge')]
