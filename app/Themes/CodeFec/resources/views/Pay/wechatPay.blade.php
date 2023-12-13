@@ -22,7 +22,7 @@
         <input type="text" class="form-control" name="wechat_notify_url" value="{{pay()->get_options('wechat_notify_url',url('/api/pay/wechat/notify'))}}">
     </div>
     <div class="mb-3">
-        <label for="" class="form-label">公众号appid <b class="text-red">*</b></label>
+        <label for="" class="form-label">公众号/小程序 appid <b class="text-red">*</b></label>
         <input type="text" class="form-control" name="wechat_mp_app_id" value="{{pay()->get_options('wechat_mp_app_id')}}">
     </div>
 </div>
