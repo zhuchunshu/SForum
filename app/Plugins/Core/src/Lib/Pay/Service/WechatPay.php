@@ -14,15 +14,16 @@ class WechatPay implements PayInterFace
      * @var int | float
      */
     private int|float $amount_multiple = 100;
+
     /**
      * 计算实际金额
-     * @param string|int $amount
+     * @param string|int|float $amount
      * @param bool $dividing
      * @return float|int
      */
-    protected function calculate_amount(string|int $amount, bool $dividing = false) : float|int
+    protected function calculate_amount(string|int|float $amount, bool $dividing = false) : float|int
     {
-        if (!is_numeric($amount)) {
+        if (!is_numeric($amount) && is_float($amount)) {
             return 0;
         }
         if ($dividing === true) {

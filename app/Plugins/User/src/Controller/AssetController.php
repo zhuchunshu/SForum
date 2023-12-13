@@ -38,7 +38,7 @@ class AssetController
     public function money_recharge_submit()
     {
         $payment = request()->input('payment');
-        $amount = request()->input('amount');
+        $amount = (float) request()->input('amount');
         $captcha = request()->input('captcha');
         if (!$payment || !$amount || !$captcha) {
             return Json_Api(403, false, ['msg' => '请求参数不足']);
