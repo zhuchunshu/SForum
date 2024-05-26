@@ -1,4 +1,4 @@
-<article class="col-md-12 p-3 pt-2 pb-2 border-bottom">
+<article class="col-md-12 p-3 pt-2 pb-2 @if($page->hasPages()) border-bottom @endif">
     <div class="d-flex border-0 card">
         <div class="row">
             <div class="col-auto align-self-center">
@@ -65,14 +65,14 @@
 
                                 @if($data->comments->count())
                                     ←
-{{--                                最后回复--}}
+                                    {{--                                最后回复--}}
                                     {!! u_username($data->comments->last()->user,['class' => ['text-muted-sm']]) !!}  {{format_date($data->comments->last()->created_at)}}
 
                                     {{--                                    @if($data->updated_at>$data->comments->last()->created_at)--}}
-{{--                                        {!! u_username($data->user,['class' => ['text-muted-sm']]) !!} {{format_date($data->updated_at)}}--}}
-{{--                                    @else--}}
-{{--                                        {!! u_username($data->comments->last()->user,['class' => ['text-muted-sm']]) !!}  {{format_date($data->comments->last()->created_at)}}--}}
-{{--                                    @endif--}}
+                                    {{--                                        {!! u_username($data->user,['class' => ['text-muted-sm']]) !!} {{format_date($data->updated_at)}}--}}
+                                    {{--                                    @else--}}
+                                    {{--                                        {!! u_username($data->comments->last()->user,['class' => ['text-muted-sm']]) !!}  {{format_date($data->comments->last()->created_at)}}--}}
+                                    {{--                                    @endif--}}
 
                                 @endif
                             </div>
