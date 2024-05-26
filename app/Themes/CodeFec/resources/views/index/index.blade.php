@@ -1,5 +1,6 @@
 <div class="card">
 
+
     <div class="card-header">
         <ul class="nav nav-pills card-header-pills">
             @if(!count(request()->all()))
@@ -69,6 +70,15 @@
         @foreach($page as $data)
             @include('App::index.style2')
         @endforeach
+            <a href="/topic/create" class="border border-1 bg-primary  text-white position-fixed bottom-0 end-0 m-3 mb-6 mr-6 p-3 rounded-circle d-flex align-items-center justify-content-center d-lg-none" style="z-index: 9999">
+                <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-pencil-plus">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                    <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+                    <path d="M13.5 6.5l4 4" />
+                    <path d="M16 19h6" />
+                    <path d="M19 16v6" />
+                </svg>
+            </a>
         <div class="mt-2">
             {!! make_page($page) !!}
         </div>
