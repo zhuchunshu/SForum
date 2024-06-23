@@ -16,6 +16,7 @@ use App\Plugins\Topic\src\Models\Topic;
 use App\Plugins\Topic\src\Models\TopicKeyword;
 use App\Plugins\Topic\src\Models\TopicLike;
 use App\Plugins\Topic\src\Models\TopicTag;
+use App\Plugins\Topic\src\Models\TopicUnlock;
 use App\Plugins\Topic\src\Models\TopicUpdated;
 use App\Plugins\User\src\Models\UserClass;
 use App\Plugins\User\src\Models\UsersCollection;
@@ -222,6 +223,11 @@ class ApiController
         $tip = $topic->status === 'lock' ? '解除锁定' : '锁定';
         // 执行锁帖
         $update = $topic->status === 'lock' ? 'publish' : 'lock';
+        if($update==='publish' && !TopicUnlock::where('topic_id', $topic_id)->exists()){
+            TopicUnlock::create([
+               'topic_id' => $topic_id,
+            ]);
+        }
         Db::table('topic')->where('id', $topic_id)->update(['status' => $update]);
         // 发送通知
         if ($topic->user_id != auth()->id()) {

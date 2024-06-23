@@ -101,6 +101,10 @@ class Topic extends Model
         return $this->belongsTo(Post::class, 'post_id', 'id');
     }
 
+    public function unlock(){
+        return $this->belongsTo(TopicUnlock::class,'topic_id','id');
+    }
+
     /**
      * 获取最后回复时间.
      * @param $value
