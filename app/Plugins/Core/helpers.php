@@ -14,6 +14,7 @@ use App\Plugins\Core\src\Lib\ShortCodeR\ShortCodeR;
 use App\Plugins\Core\src\Lib\UserVerEmail;
 use App\Plugins\Core\src\Models\PayAmountRecord;
 use DivineOmega\PHPSummary\SummaryTool;
+use Hyperf\DbConnection\Db;
 use JetBrains\PhpStorm\Pure;
 
 if (! function_exists('plugins_core_user_reg_defuc')) {
@@ -31,7 +32,8 @@ if (! function_exists('super_avatar')) {
         }
 
         if (get_options('core_user_def_avatar', 'gavatar') !== 'ui-avatars') {
-            return get_options('theme_common_gavatar', 'https://cn.gravatar.com/avatar/') . md5($user_data->email);
+            $email = Db::table('users')->where('id', $user_data->id)->value('email');
+            return get_options('theme_common_gavatar', 'https://cn.gravatar.com/avatar/') . md5($email);
         }
         return 'https://ui-avatars.com/api/?background=random&format=svg&name=' . $user_data->username;
     }
