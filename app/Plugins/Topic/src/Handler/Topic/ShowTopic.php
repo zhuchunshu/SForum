@@ -13,6 +13,7 @@ namespace App\Plugins\Topic\src\Handler\Topic;
 use App\Plugins\Comment\src\Model\TopicComment;
 use App\Plugins\Core\src\Models\Report;
 use App\Plugins\Topic\src\Models\Topic;
+use App\Plugins\Topic\src\Models\TopicUnlock;
 use Hyperf\DbConnection\Db;
 class ShowTopic
 {
@@ -29,7 +30,7 @@ class ShowTopic
             // 帖子发布天数
             $post_published_time = floor((time() - strtotime((string) $topic->created_at)) / 86400);
             // 判断是否需要锁帖
-            if ($topic->status !== 'lock' && get_options('topic_auto_lock') === 'true' && (int) $post_published_time > (int) get_options('topic_auto_lock_day', 30)) {
+            if ($topic->status !== 'lock' && get_options('topic_auto_lock') === 'true' && (int) $post_published_time > (int) get_options('topic_auto_lock_day', 30) && !TopicUnlock::where('topic_id',$topic->id)->exists()) {
                 // 锁帖
                 Db::table('topic')->where('id', $id)->update(['status' => 'lock']);
                 // 发送通知
