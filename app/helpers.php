@@ -24,6 +24,7 @@ use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Hyperf\HttpServer\Contract\ResponseInterface;
 use Hyperf\HttpServer\Response;
+use Hyperf\HttpServer\Router\Dispatched;
 use Hyperf\Logger\LoggerFactory;
 use Hyperf\Paginator\UrlWindow;
 use Hyperf\Server\ServerFactory;
@@ -1079,5 +1080,48 @@ if (!function_exists('_unserialize')) {
     function _unserialize(string $serialized)
     {
         return unserialize($serialized)->getClosure();
+    }
+}
+
+
+if (! function_exists('get_current_action')) {
+    /**
+     * 获取当前请求的控制器和方法
+     *
+     * @return array
+     * @throws Exception
+     */
+    function get_current_action() : array
+    {
+        $obj = request()->getAttribute(Dispatched::class);
+
+        if (property_exists($obj, 'handler')
+            && isset($obj->handler)
+            && property_exists($obj->handler, 'callback')
+        ) {
+            $action = $obj->handler->callback;
+        } else {
+            throw new \Exception('The route is undifined! Please check!');
+        }
+
+        $errMsg = 'The controller and method are not found! Please check!';
+        if (is_array($action)) {
+            list($controller, $method) = $action;
+        } elseif (is_string($action)) {
+            if (strstr($action, '::')) {
+                list($controller, $method) = explode('::', $action);
+            } elseif (strstr($action, '@')) {
+                list($controller, $method) = explode('@', $action);
+            } else {
+                list($controller, $method) = [false, false];
+                logger()->error($errMsg);
+                std_out_log()->error($errMsg);
+            }
+        } else {
+            list($controller, $method) = [false, false];
+            logger()->error($errMsg);
+            std_out_log()->error($errMsg);
+        }
+        return compact('controller', 'method');
     }
 }

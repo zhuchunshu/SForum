@@ -95,6 +95,19 @@
             <script src="{{ file_hash("plugins/".$value."/".$value.".js") }}"></script>
         @endif
     @endforeach
+{{--        用户水印--}}
+    @if(get_options('user_username_watermark')==="true" && get_current_action()!==[
+    "controller" => 'App\Plugins\Core\src\Controller\IndexController',
+    "method" => 'show'
+])
+            <script type="text/javascript" src="{{mix('plugins/Topic/js/watermark.js')}}"></script>
+            <script>
+                $('body').watermark({
+                    texts: ["{{auth()->data()->username}}","{{date("Y-m-d H:i:s")}}"],
+                    textColor : "#d2d2d2", //文字颜色
+                });
+            </script>
+    @endif
 </div>
 @if(get_options('theme_common_diy_code_body'))
     @include(get_component_view_name(get_options('theme_common_diy_code_body')))
