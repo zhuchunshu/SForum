@@ -92,7 +92,7 @@
         @endif
     @endforeach
     {{--        用户水印--}}
-    @if(get_options('user_username_watermark')==="true" && get_current_action()!==[
+    @if(auth()->check() && get_options('user_username_watermark')==="true" && get_current_action()!==[
 "controller" => 'App\Plugins\Core\src\Controller\IndexController',
 "method" => 'show'
 ])
