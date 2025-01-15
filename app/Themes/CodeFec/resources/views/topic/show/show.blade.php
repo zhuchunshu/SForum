@@ -58,6 +58,17 @@
     <script src="{{mix('plugins/Comment/js/topic.js')}}"></script>
     <script src="{{file_hash('tabler/libs/plyr/dist/plyr.min.js')}}"></script>
     <script src="{{ file_hash('js/prism.js') }}"></script>
+{{--    帖子作者水印--}}
+    @if(get_options('topic_author_watermark')==="true")
+        <script type="text/javascript" src="{{mix('plugins/Topic/js/watermark.js')}}"></script>
+        <script>
+            $('body').watermark({
+                texts : ["{{$data->user->username}}"],
+                textColor : "#d2d2d2", //文字颜色
+            });
+        </script>
+
+    @endif
 
     @if(get_options('comment_emoji_close')!=='true')
         <link rel="stylesheet" href="{{file_hash('css/OwO.min.css')}}">

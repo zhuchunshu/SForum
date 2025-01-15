@@ -94,6 +94,14 @@
                 <span class="form-check-label">关闭上下条帖子加载</span>
             </label>
         </div>
+
+        <div class="col-lg-3 align-self-center">
+            <label class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="data.topic_author_watermark">
+                <span class="form-check-label">开启帖子页面作者水印</span>
+            </label>
+
+        </div>
     </div>
 
 
