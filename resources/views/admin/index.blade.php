@@ -403,6 +403,19 @@
                         </div>
                     </div>
                 </div>
+                <div class="col-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">系统信息</h3>
+                        </div>
+                        <div class="card-body">
+                            <ul>
+                                <li>PHP版本：{{ PHP_VERSION  }} </li>
+                                <li>服务器内存：{{ json_encode(getMemoryInfo())  }} </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>

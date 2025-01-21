@@ -1125,3 +1125,43 @@ if (! function_exists('get_current_action')) {
         return compact('controller', 'method');
     }
 }
+
+if (!function_exists('getMemoryInfo')) {
+    /**
+     * 获取内存信息
+     * @return array
+     */
+    function getMemoryInfo() {
+        $os = strtolower(PHP_OS);
+        $total_memory = 0;
+        $free_memory = 0;
+        if ($os === 'darwin') {
+            // 在 Mac 上使用 sysctl 命令获取总内存信息
+            $total_memory_output = shell_exec('sysctl -n hw.memsize');
+            $total_memory = (int)$total_memory_output / (1024 * 1024);
+            // 估算空闲内存（此处使用一个简单的示例，可以根据实际情况完善）
+            $free_memory = $total_memory * 0.3;
+        } elseif ($os === 'linux') {
+            // 读取 /proc/meminfo 文件的内容
+            $meminfo = file_get_contents('/proc/meminfo');
+            // 将文件内容按行分割
+            $lines = explode("\n", $meminfo);
+            foreach ($lines as $line) {
+                // 查找 MemTotal 行
+                if (strpos($line, 'MemTotal:') === 0) {
+                    // 提取 MemTotal 的值，单位为 KB
+                    $total_memory = (int)trim(substr($line, strpos($line, ':') + 1)) / 1024;
+                }
+                // 查找 MemFree 行
+                if (strpos($line, 'MemFree:') === 0) {
+                    // 提取 MemFree 的值，单位为 KB
+                    $free_memory = (int)trim(substr($line, strpos($line, ':') + 1)) / 1024;
+                }
+            }
+        }
+        return [
+            'total_memory' => $total_memory,
+            'free_memory' => $free_memory
+        ];
+    }
+}
