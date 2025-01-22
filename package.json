@@ -58,7 +58,7 @@
     "vue-cookie": "^1.1.4",
     "vue-float-action-button": "^0.7.9",
     "vue-terminal": "^1.2.0",
-    "yarn": "^1.22.11"
+    "yarn": "^1.22.13"
   },
   "devDependencies": {
     "@vue/compiler-sfc": "^3.3.4",
