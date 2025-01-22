@@ -1165,3 +1165,45 @@ if (!function_exists('getMemoryInfo')) {
         ];
     }
 }
+
+if(!function_exists('get_ram_total')){
+    /**
+     * 获取内存总量
+     * @return float|int|mixed
+     */
+    function get_ram_total(){
+        return getMemoryInfo()['total_memory'];
+    }
+}
+
+if(!function_exists('get_ram_free')){
+    /**
+     * 获取内存空闲量
+     * @return float|int|mixed
+     */
+    function get_ram_free(){
+        return getMemoryInfo()['free_memory'];
+    }
+}
+
+if (!function_exists('get_cpu_count')) {
+    /**
+     * 获取cpu核心数量
+     * @return int
+     */
+    function get_cpu_count(): int
+    {
+        $os = strtolower(PHP_OS);
+        $core_count = 0;
+        if ($os === 'darwin') {
+            // 在 Mac 上使用 sysctl 命令获取 CPU 核心数
+            $sysctl_output = shell_exec('sysctl -n hw.ncpu');
+            $core_count = (int)$sysctl_output;
+        } elseif ($os === 'linux') {
+            // 在 Linux 上使用 nproc 命令获取 CPU 核心数
+            $nproc_output = shell_exec('nproc');
+            $core_count = (int)$nproc_output;
+        }
+        return $core_count;
+    }
+}

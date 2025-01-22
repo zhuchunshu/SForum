@@ -8,6 +8,7 @@ declare(strict_types=1);
  * @contact  laravel@88.com
  * @license  https://github.com/zhuchunshu/SForum/blob/master/LICENSE
  */
+
 namespace App\Controller\Admin;
 
 use App\Jobs\Upgrading;
@@ -19,6 +20,7 @@ use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\Stringable\Str;
+use Swoole\Constant;
 
 #[Controller(prefix: '/api/admin')]
 #[Middleware(AdminMiddleware::class)]
@@ -45,7 +47,7 @@ class ApiController
     public function getVersion()
     {
         // 获取最新版
-        if (! cache()->has('admin.git.getVersion')) {
+        if (!cache()->has('admin.git.getVersion')) {
             $data = http()->get($this->api_releases);
             // 当前版本
             $current = null;
@@ -81,7 +83,7 @@ class ApiController
     #[PostMapping('getRelease/{id}')]
     public function getRelease($id)
     {
-        if (! cache()->has('admin.git.getRelease.' . $id)) {
+        if (!cache()->has('admin.git.getRelease.' . $id)) {
             $data = http()->get($this->api_releases . '/' . $id);
             $r = http('raw')->get($data['html_url']);
             $body = $r->getBody();
@@ -109,7 +111,7 @@ class ApiController
     #[PostMapping('update')]
     public function update()
     {
-        $url = match ((string) get_options('update_server', 2)) {
+        $url = match ((string)get_options('update_server', 2)) {
             '2' => '',
             '1' => 'https://ghproxy.typecho.ltd/',
         };
@@ -155,6 +157,24 @@ class ApiController
         } catch (\Throwable) {
             return Json_Api(500, false, ['msg' => '获取失败']);
         }
+        return Json_Api(200, true, ['msg' => 'success', 'data' => $data]);
+    }
+
+    #[PostMapping('get.host.data')]
+    public function getHostData(): array
+    {
+        $data = [
+            'cpu' => [
+                'count' => get_cpu_count(),
+            ],
+            'ram' => [
+                'usage' => round(memory_get_usage()/1024/1024,1)*\Hyperf\Config\config('server.settings.'.Constant::OPTION_WORKER_NUM),
+
+
+                'free' => round(get_ram_free(),1),
+                'total' => round(get_ram_total(),1),
+            ],
+        ];
         return Json_Api(200, true, ['msg' => 'success', 'data' => $data]);
     }
 }
