@@ -4,6 +4,49 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+usage() {
+  cat <<'USAGE'
+Usage: ./scripts/dev.sh [options]
+
+Options:
+  --build, --rebuild  Rebuild development images before starting.
+  --watch             Enable Docker Compose Watch explicitly.
+  --print-command     Print the resolved Docker Compose command and exit.
+  -h, --help          Show this help message.
+
+Default mode reuses existing containers and images. Source changes reload
+through bind mounts, Nuxt/Vite HMR, and Air.
+USAGE
+}
+
+BUILD_ENABLED=0
+WATCH_ENABLED=0
+PRINT_COMMAND=0
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --build | --rebuild)
+      BUILD_ENABLED=1
+      ;;
+    --watch)
+      WATCH_ENABLED=1
+      ;;
+    --print-command)
+      PRINT_COMMAND=1
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      usage
+      exit 1
+      ;;
+  esac
+  shift
+done
+
 if ! command -v docker >/dev/null 2>&1; then
   echo "Docker is required. Please install Docker first."
   exit 1
@@ -32,6 +75,10 @@ set_env_key() {
   local key="$1"
   local value="$2"
   local tmp_file
+
+  if grep -Fqx "${key}=${value}" .env; then
+    return
+  fi
 
   tmp_file="$(mktemp)"
   awk -v key="$key" -v value="$value" '
@@ -83,15 +130,38 @@ set -a
 . ./.env
 set +a
 
-WATCH_FLAG=()
-if docker compose up --help | grep -q -- "--watch"; then
-  WATCH_FLAG=(--watch)
+if [ "$WATCH_ENABLED" -eq 1 ] && ! docker compose up --help | grep -q -- "--watch"; then
+  echo "Docker Compose Watch is not available in this Docker Compose version."
+  exit 1
+fi
+
+COMPOSE_ARGS=(-f compose.yaml -f compose.dev.yaml up)
+if [ "$BUILD_ENABLED" -eq 1 ]; then
+  COMPOSE_ARGS+=(--build)
+fi
+if [ "$WATCH_ENABLED" -eq 1 ]; then
+  COMPOSE_ARGS+=(--watch)
 fi
 
 echo "Starting SForum development stack..."
+if [ "$BUILD_ENABLED" -eq 1 ]; then
+  echo "Mode: rebuild development images before starting"
+elif [ "$WATCH_ENABLED" -eq 1 ]; then
+  echo "Mode: fast start with explicit Docker Compose Watch"
+else
+  echo "Mode: fast start, no forced rebuild, no Compose Watch"
+fi
 echo "Web: http://127.0.0.1:${WEB_PORT:-3000}"
 echo "Web health: http://127.0.0.1:${WEB_PORT:-3000}/health"
 echo "API health via web: http://127.0.0.1:${WEB_PORT:-3000}/api/v1/health"
 echo "Internal services stay on the Compose network: api, postgres, redis, meilisearch, mailpit"
+echo "Use './scripts/dev.sh --build' after Dockerfile or dependency changes."
 
-docker compose -f compose.yaml -f compose.dev.yaml up --build "${WATCH_FLAG[@]}"
+if [ "$PRINT_COMMAND" -eq 1 ]; then
+  printf "docker compose"
+  printf " %q" "${COMPOSE_ARGS[@]}"
+  printf "\n"
+  exit 0
+fi
+
+docker compose "${COMPOSE_ARGS[@]}"

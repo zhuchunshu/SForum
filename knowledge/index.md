@@ -14,12 +14,21 @@ This is the entry point for project memory.
 - Development/deployment workflow has been proposed: Docker Compose for local
   and production orchestration, `scripts/dev.sh` for one-command hot-reload
   development, and bilingual `deploy.sh` for production operations.
+- `scripts/dev.sh` now defaults to a faster bind-mount hot-reload loop without
+  forced rebuilds or Compose Watch; use `--build` or `--watch` explicitly when
+  needed.
+- Frontend build/typecheck commands use isolated Nuxt temporary directories and
+  generated output is ignored by dev watchers to avoid repeated reloads.
+- Nuxt top-level `ignore` rules are intentionally narrower than Vite watcher
+  ignores so dependency packages such as `@nuxt/ui/dist` remain discoverable by
+  Nuxt component auto-imports.
 - Docker Compose development and production now publish only the `web` service
   to `127.0.0.1:${WEB_PORT}`. API, PostgreSQL, Redis, Meilisearch, and support
   services stay on the Compose network, with `/api/v1/*` proxied through Nuxt.
 - Product internationalization is required from the first implementation.
   Default locale is Simplified Chinese (`zh-CN`); first secondary locale is
   English (`en-US`).
+- Created 6 distinct visual design sub-pages under `/components/demo/*` using pure Tailwind CSS and custom rules, preparing to refactor all 20 type-safe Vue components without `@nuxt/ui` wrappers.
 
 ## Navigation
 

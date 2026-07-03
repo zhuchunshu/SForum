@@ -5,6 +5,7 @@ services:
     command: ["air", "-c", ".air.toml"]
     volumes:
       - ./apps/api:/app
+      - go_build_cache:/root/.cache/go-build
     develop:
       watch:
         - action: sync
@@ -12,6 +13,13 @@ services:
           target: /app
           ignore:
             - tmp/
+            - bin/
+            - coverage/
+            - coverage.out
+            - "*.test"
+            - "*.out"
+            - "*.prof"
+            - "*.coverprofile"
         - action: rebuild
           path: ./apps/api/go.mod
         - action: rebuild
@@ -23,6 +31,7 @@ services:
     command: ["air", "-c", ".air.worker.toml"]
     volumes:
       - ./apps/api:/app
+      - go_build_cache:/root/.cache/go-build
     develop:
       watch:
         - action: sync
@@ -30,6 +39,13 @@ services:
           target: /app
           ignore:
             - tmp/
+            - bin/
+            - coverage/
+            - coverage.out
+            - "*.test"
+            - "*.out"
+            - "*.prof"
+            - "*.coverprofile"
         - action: rebuild
           path: ./apps/api/go.mod
         - action: rebuild
@@ -52,7 +68,14 @@ services:
           ignore:
             - .nuxt/
             - .output/
+            - .nitro/
+            - .vite/
+            - .cache/
+            - dist/
+            - coverage/
             - node_modules/
+            - playwright-report/
+            - test-results/
         - action: rebuild
           path: ./apps/web/package.json
         - action: rebuild
@@ -64,4 +87,5 @@ services:
     image: axllent/mailpit:latest
 
 volumes:
+  go_build_cache:
   web_node_modules:

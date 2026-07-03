@@ -1,13 +1,32 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/* Tailwind CSS v4 Rebuild Trigger Comment - Scanned new demo routes */
+
+@theme {
+  --color-primary-50: var(--color-zinc-50);
+  --color-primary-100: var(--color-zinc-100);
+  --color-primary-200: var(--color-zinc-200);
+  --color-primary-300: var(--color-zinc-300);
+  --color-primary-400: var(--color-zinc-400);
+  --color-primary-500: var(--color-zinc-500);
+  --color-primary-600: var(--color-zinc-600);
+  --color-primary-700: var(--color-zinc-700);
+  --color-primary-800: var(--color-zinc-800);
+  --color-primary-900: var(--color-zinc-900);
+  --color-primary-950: var(--color-zinc-950);
+}
+
 :root {
   color-scheme: light;
-  font-family: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
-  background: #f6f7f9;
-  color: #18212f;
+  font-family: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #fcfcfd;
+  color: #09090b;
 }
 
 body {
   margin: 0;
-  background: #f6f7f9;
+  background: #fcfcfd;
 }
 
 a {
@@ -25,7 +44,7 @@ a {
   margin: 0 auto;
   padding: 28px;
   background: #ffffff;
-  border: 1px solid #dfe4ea;
+  border: 1px solid #e4e4e7;
   border-radius: 8px;
 }
 
@@ -38,7 +57,7 @@ a {
 
 .eyebrow {
   margin: 0 0 10px;
-  color: #5a6b82;
+  color: #71717a;
   font-size: 14px;
 }
 
@@ -46,12 +65,14 @@ h1 {
   margin: 0;
   font-size: clamp(32px, 5vw, 56px);
   line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .intro {
   max-width: 680px;
   margin: 18px 0 0;
-  color: #445166;
+  color: #3f3f46;
   font-size: 17px;
   line-height: 1.7;
 }
@@ -65,11 +86,18 @@ h1 {
 
 .language-switch a {
   padding: 8px 12px;
-  border: 1px solid #cfd8e3;
+  border: 1px solid #e4e4e7;
   border-radius: 8px;
-  background: #f9fbfd;
-  color: #28364a;
+  background: #ffffff;
+  color: #18181b;
   font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.language-switch a:hover {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
 }
 
 .status-grid {
@@ -82,21 +110,21 @@ h1 {
 .status-grid article {
   min-height: 96px;
   padding: 16px;
-  border: 1px solid #e2e7ee;
+  border: 1px solid #e4e4e7;
   border-radius: 8px;
-  background: #fbfcfe;
+  background: #ffffff;
 }
 
 .status-grid span {
   display: block;
-  color: #6a778b;
+  color: #71717a;
   font-size: 13px;
 }
 
 .status-grid strong {
   display: block;
   margin-top: 8px;
-  color: #18212f;
+  color: #09090b;
   font-size: 18px;
 }
 

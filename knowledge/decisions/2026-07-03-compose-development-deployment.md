@@ -76,3 +76,14 @@ Port exposure was narrowed by
 Compose stacks should publish only the `web` service on
 `127.0.0.1:${WEB_PORT}`. API, database, cache, search, and support services
 stay internal to the Compose network.
+
+## Update 2026-07-04 Fast Dev Loop
+
+`scripts/dev.sh` should default to `docker compose up` without forced `--build`
+or automatic Compose Watch. The development stack already bind-mounts source
+trees, so Nuxt/Vite HMR and Air receive code changes directly. Developers can
+opt into `./scripts/dev.sh --build` after Dockerfile, dependency, or toolchain
+changes, and `./scripts/dev.sh --watch` when deliberately testing Compose Watch
+rules. Frontend build/typecheck commands should use separate Nuxt temporary
+directories, and generated output directories should be ignored by development
+watchers so one-off commands do not trigger repeated reloads.

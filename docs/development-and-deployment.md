@@ -67,22 +67,30 @@ Expected behavior:
 - Creates `.env` from `.env.example` when missing.
 - Ensures default local locale settings are `APP_LOCALE=zh-CN` and
   `SUPPORTED_LOCALES=zh-CN,en-US`.
-- Starts all required services with Docker Compose.
+- Starts all required services with Docker Compose, reusing existing
+  development images by default.
 - Runs database migrations automatically or prompts when destructive changes
   are possible.
 - Streams combined logs by default.
 - Prints local web URLs, internal service names, and useful follow-up commands.
 
-Recommended Compose command inside `scripts/dev.sh`:
+Recommended default Compose command inside `scripts/dev.sh`:
 
 ```sh
-docker compose -f compose.yaml -f compose.dev.yaml up --build --watch
+docker compose -f compose.yaml -f compose.dev.yaml up
 ```
 
-If Compose Watch is unavailable, fall back to:
+Rebuild development images explicitly after Dockerfile, dependency, or toolchain
+changes:
 
 ```sh
 docker compose -f compose.yaml -f compose.dev.yaml up --build
+```
+
+Enable Compose Watch only when deliberately testing watch rules:
+
+```sh
+./scripts/dev.sh --watch
 ```
 
 ### Development Services
@@ -100,16 +108,28 @@ docker compose -f compose.yaml -f compose.dev.yaml up --build
 
 - Nuxt uses its built-in Vite HMR.
 - Go services should use `air` in development containers.
-- Compose Watch should sync source files into containers and rebuild when
-  dependency files change.
+- Source bind mounts feed code changes into containers by default.
+- Web generated output directories such as `.output`, `.nitro`, coverage, and
+  test reports are ignored by Nuxt/Vite watchers and optional Compose Watch.
+- `bun run build` and `bun run typecheck` use separate Nuxt temporary build
+  directories so they do not churn the dev server's `.nuxt` state.
+- Nuxt UI's automatic remote font provider module is disabled until the product
+  intentionally chooses web fonts, avoiding build-time network retries.
+- Compose Watch is optional and should not be enabled by default while the same
+  source trees are bind-mounted.
 
 Suggested watch rules:
 
 - Sync `apps/web/app`, `apps/web/server`, `apps/web/public`, and
   `apps/web/nuxt.config.ts` into the `web` container.
+- Ignore frontend generated output such as `.nuxt`, `.output`, `.nitro`,
+  `.vite`, `.cache`, `dist`, `coverage`, `playwright-report`, and
+  `test-results`.
 - Rebuild `web` when `apps/web/package.json`, `bun.lock`, or Nuxt config
   dependency settings change.
 - Sync `apps/api` Go source into `api` and `worker` containers.
+- Ignore backend generated output such as `tmp`, `bin`, coverage files, and Go
+  test binaries.
 - Rebuild Go containers when `apps/api/go.mod` or `apps/api/go.sum` changes.
 
 ### Development Ports

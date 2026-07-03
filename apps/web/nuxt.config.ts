@@ -3,12 +3,49 @@ const appUrl =
   process.env.NUXT_PUBLIC_I18N_BASE_URL ||
   process.env.APP_URL ||
   'http://127.0.0.1:3000'
+const nuxtGeneratedIgnores = [
+  '.nuxt/**',
+  '.output/**',
+  '.nitro/**',
+  '.vite/**',
+  '.cache/**',
+  'coverage/**',
+  'playwright-report/**',
+  'test-results/**'
+]
+
+const generatedOutputWatchIgnores = [
+  '**/.nuxt/**',
+  '**/.output/**',
+  '**/.nitro/**',
+  '**/.vite/**',
+  '**/.cache/**',
+  '**/dist/**',
+  '**/coverage/**',
+  '**/playwright-report/**',
+  '**/test-results/**'
+]
 
 export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@nuxtjs/i18n', '@nuxtjs/seo'],
   ssr: true,
-  css: ['~/assets/css/main.css'],
+  buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
+  ignore: nuxtGeneratedIgnores,
+  css: ['~/assets/css/main.css', '~/assets/css/sforum-components.css'],
   devtools: { enabled: true },
+  ui: {
+    fonts: false
+  },
+  vite: {
+    server: {
+      watch: {
+        ignored: generatedOutputWatchIgnores
+      }
+    }
+  },
+  schemaOrg: {
+    enabled: false
+  },
   runtimeConfig: {
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || '/api/v1',

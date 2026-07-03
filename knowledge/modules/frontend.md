@@ -10,6 +10,13 @@ metadata, and browser-side interactions.
 Foundation scaffold exists under `apps/web`.
 The web container now passes `APP_URL` into Nuxt, and Nuxt uses it for the
 site config and Nuxt i18n SEO `baseUrl`.
+Generated output directories are ignored by Nuxt/Vite development watchers, and
+`bun run build`/`bun run typecheck` use isolated Nuxt temporary directories so
+they do not disturb the active dev server state.
+Nuxt top-level ignores stay scoped to app-local generated output so Nuxt UI
+components under `node_modules/@nuxt/ui/dist` are still auto-imported.
+Nuxt UI remote font integration is disabled for now to avoid build-time network
+provider retries while the theme uses local/system fonts.
 
 ## Planned Stack
 

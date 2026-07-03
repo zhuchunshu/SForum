@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "nuxt dev --host 0.0.0.0",
-    "build": "nuxt build",
+    "build": "NUXT_BUILD_DIR=.nuxt/build nuxt build",
     "preview": "nuxt preview --host 0.0.0.0",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "NUXT_BUILD_DIR=.nuxt/typecheck nuxt typecheck"
   },
   "dependencies": {
     "@nuxt/ui": "latest",

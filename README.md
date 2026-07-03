@@ -24,6 +24,18 @@ After dependencies are available, start the local stack with:
 ./scripts/dev.sh
 ```
 
+The default path favors quick feedback by reusing existing development images
+and relying on bind mounts, Nuxt/Vite HMR, and Air. After Dockerfile or
+dependency changes, rebuild explicitly:
+
+```sh
+./scripts/dev.sh --build
+```
+
+Frontend build and typecheck scripts use separate Nuxt temporary directories so
+`bun run build` and `bun run typecheck` do not churn the dev server's `.nuxt`
+state or trigger noisy reloads.
+
 Useful endpoints:
 
 - Web: `http://127.0.0.1:3000`
