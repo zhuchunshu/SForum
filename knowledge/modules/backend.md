@@ -7,7 +7,7 @@ background work.
 
 ## Current Status
 
-Planned. No application code has been added.
+Foundation scaffold exists under `apps/api`.
 
 ## Planned Stack
 
@@ -44,9 +44,8 @@ Planned. No application code has been added.
 
 ## Next Steps
 
-- Scaffold `apps/api` after the architecture is confirmed.
-- Add config loading, health check, logging, migrations, and database
-  connectivity.
+- Add PostgreSQL/Redis/Meilisearch connectivity after the health-check
+  foundation.
 - Add supported-locale config and a user locale preference field during identity
   schema design.
 - Define the first OpenAPI contract and schema migrations.

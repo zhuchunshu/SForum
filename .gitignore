@@ -1,17 +1,85 @@
 # OS files
 .DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Editor files
+# Editor and workspace files
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
 
-# Environment files
+# Environment files and local secrets
 .env
 .env.*
 !.env.example
+!.env.production.example
+.envrc
+.deployrc
+.deployrc.*
 
-# Logs and temporary files
+# Logs
 *.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun-debug.log*
+
+# Temporary files
 tmp/
 temp/
+*.tmp
+*.temp
 
+# Dependencies
+node_modules/
+apps/web/node_modules/
+
+# Nuxt, Nitro, Vite, and frontend build output
+.nuxt/
+.output/
+.nitro/
+dist/
+coverage/
+apps/web/.nuxt/
+apps/web/.output/
+apps/web/.nitro/
+apps/web/dist/
+apps/web/coverage/
+apps/web/.vite/
+apps/web/.cache/
+apps/web/node_modules/
+
+
+# Go build and test output
+bin/
+*.test
+*.out
+*.prof
+*.coverprofile
+coverage.out
+apps/api/tmp/
+apps/api/bin/
+apps/api/coverage/
+
+# Docker Compose local overrides and runtime data
+compose.override.yaml
+compose.override.yml
+compose.local.yaml
+compose.local.yml
+docker-compose.override.yaml
+docker-compose.override.yml
+docker-compose.local.yaml
+docker-compose.local.yml
+
+# Backups and local persisted runtime data
+backups/
+deploy/backups/
+deploy/data/
+deploy/runtime/

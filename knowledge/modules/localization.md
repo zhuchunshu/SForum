@@ -7,7 +7,10 @@ translation key conventions, and server-owned localized templates.
 
 ## Current Status
 
-Planned. No application code has been added.
+Foundation scaffold exists:
+
+- Frontend locale catalogs under `apps/web/i18n/locales`.
+- Backend locale normalization under `apps/api/internal/modules/localization`.
 
 ## Requirements
 
@@ -55,7 +58,6 @@ Planned. No application code has been added.
 
 ## Next Steps
 
-- Add Nuxt i18n config during frontend scaffold.
-- Add initial locale catalogs.
+- Expand locale coverage as user-facing pages are added.
 - Add backend locale config and profile preference field during identity schema
   design.

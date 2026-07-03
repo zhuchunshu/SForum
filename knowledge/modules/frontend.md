@@ -7,7 +7,7 @@ metadata, and browser-side interactions.
 
 ## Current Status
 
-Planned. No application code has been added.
+Foundation scaffold exists under `apps/web`.
 
 ## Planned Stack
 
@@ -38,7 +38,6 @@ Planned. No application code has been added.
 
 ## Next Steps
 
-- Scaffold `apps/web` after the architecture is confirmed.
-- Add Nuxt i18n configuration and initial `zh-CN`/`en-US` catalogs.
+- Expand the initial `zh-CN`/`en-US` catalogs as pages are added.
 - Add page skeletons for home, category list, topic detail, login, and profile.
 - Add SEO metadata conventions before real pages proliferate.

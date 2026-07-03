@@ -1,0 +1,13 @@
+.env
+.env.*
+.nuxt
+.output
+.nitro
+dist
+coverage
+node_modules
+.cache
+.vite
+*.log
+playwright-report
+test-results

@@ -97,5 +97,4 @@ Recommended handoff format:
 
 - Git repository initialized.
 - Documentation and knowledge-base skeleton created.
-- No application code has been added yet.
-
+- First application scaffold has been added under `apps/web` and `apps/api`.

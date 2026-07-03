@@ -169,8 +169,8 @@ Notes:
   changing user-facing features.
 - `contracts/openapi.yaml` is the API contract. Generate TypeScript types or a
   client for `apps/web` from this file once endpoints exist.
-- Top-level `src/` is a placeholder from initial setup and should be retired
-  when the `apps/` structure is created.
+- The earlier top-level `src/` placeholder was retired once the `apps/`
+  structure was created.
 
 ## Development And Deployment
 

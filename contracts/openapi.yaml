@@ -1,0 +1,44 @@
+openapi: 3.1.0
+info:
+  title: SForum API
+  version: 0.1.0
+  description: Initial API contract for the SForum foundation.
+servers:
+  - url: /api/v1
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - name
+                  - status
+                  - environment
+                  - locale
+                  - supportedLocales
+                  - time
+                properties:
+                  name:
+                    type: string
+                  status:
+                    type: string
+                    enum: [ok]
+                  environment:
+                    type: string
+                  locale:
+                    type: string
+                    examples: [zh-CN]
+                  supportedLocales:
+                    type: array
+                    items:
+                      type: string
+                  time:
+                    type: string
+                    format: date-time

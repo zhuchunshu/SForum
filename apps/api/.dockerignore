@@ -1,0 +1,11 @@
+tmp
+.env
+.env.*
+bin
+coverage
+*.test
+*.out
+*.prof
+*.coverprofile
+coverage.out
+*.log

@@ -1,0 +1,22 @@
+{
+  "name": "@sforum/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev --host 0.0.0.0",
+    "build": "nuxt build",
+    "preview": "nuxt preview --host 0.0.0.0",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@nuxt/ui": "latest",
+    "@nuxtjs/i18n": "latest",
+    "@nuxtjs/seo": "latest",
+    "nuxt": "latest",
+    "vue": "latest"
+  },
+  "devDependencies": {
+    "typescript": "latest",
+    "vue-tsc": "latest"
+  }
+}

@@ -6,8 +6,9 @@ This is the entry point for project memory.
 
 - Repository initialized on 2026-07-03.
 - Basic documentation and knowledge-base skeleton created.
-- No application code has been added.
-- Forum architecture stack has been proposed, but not yet scaffolded.
+- First application scaffold has been added under `apps/web` and `apps/api`.
+- Forum architecture stack has been proposed and foundation scaffolding has
+  started.
 - Proposed stack: Nuxt 4/Vue 3/Nuxt UI/Bun frontend; Go Fiber v3,
   PostgreSQL, Redis, and Meilisearch backend.
 - Development/deployment workflow has been proposed: Docker Compose for local
@@ -28,6 +29,8 @@ This is the entry point for project memory.
   layout.
 - `../docs/development-and-deployment.md` - proposed local development,
   hot-reload, Docker Compose, and production deployment workflow.
+- `../apps/web` - Nuxt web scaffold with default `zh-CN` localization.
+- `../apps/api` - Go Fiber API and worker scaffold.
 
 ## How To Use This In A New Session
 

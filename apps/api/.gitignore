@@ -1,0 +1,24 @@
+# Go build and test output
+tmp/
+bin/
+*.test
+*.out
+*.prof
+*.coverprofile
+coverage.out
+coverage/
+
+# Local environment and logs
+.env
+.env.*
+*.log
+
+# Generated local caches
+.cache/
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo

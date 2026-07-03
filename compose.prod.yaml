@@ -1,0 +1,46 @@
+services:
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+
+  api:
+    build:
+      target: api
+    restart: unless-stopped
+
+  worker:
+    build:
+      target: worker
+    restart: unless-stopped
+
+  web:
+    build:
+      target: prod
+    restart: unless-stopped
+    environment:
+      NUXT_PUBLIC_API_BASE_URL: ${NUXT_PUBLIC_API_BASE_URL:-/api/v1}
+
+  postgres:
+    restart: unless-stopped
+
+  redis:
+    restart: unless-stopped
+
+  meilisearch:
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

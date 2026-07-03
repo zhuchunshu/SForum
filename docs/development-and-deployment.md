@@ -1,7 +1,7 @@
 # Development And Deployment
 
-Status: proposed on 2026-07-03. This document records the target workflow
-before implementation scaffolding begins.
+Status: foundation scaffold started on 2026-07-04. This document records the
+target workflow and the current first implementation slice.
 
 ## Goals
 
@@ -43,8 +43,8 @@ before implementation scaffolding begins.
     `-- test.sh
 ```
 
-The exact files should be created when the app scaffold exists. Until then this
-document is the contract.
+The first foundation scaffold creates these files. They should continue to
+evolve as the app gains real migrations, releases, and backups.
 
 ## Local Development
 
@@ -110,11 +110,11 @@ Suggested watch rules:
 Default local ports:
 
 - Web: `http://localhost:3000`
-- API: `http://localhost:8080`
-- PostgreSQL: `localhost:5432`
-- Redis: `localhost:6379`
-- Meilisearch: `http://localhost:7700`
-- Mailpit: `http://localhost:8025`
+- API: `http://localhost:18080`
+- PostgreSQL: `localhost:15432`
+- Redis: `localhost:16379`
+- Meilisearch: `http://localhost:17700`
+- Mailpit: `http://localhost:18025`
 - MinIO: `http://localhost:9001`
 
 Ports should be configurable in `.env`.

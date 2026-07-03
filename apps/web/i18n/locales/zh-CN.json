@@ -1,0 +1,24 @@
+{
+  "home": {
+    "metaTitle": "论坛基础架构",
+    "metaDescription": "SForum 的第一版基础骨架已经包含 Nuxt、Go Fiber、Docker Compose 和默认简体中文多语言支持。",
+    "eyebrow": "SForum 基础骨架",
+    "title": "一个可维护的论坛，从清晰地基开始。",
+    "intro": "当前版本先接好前端、后端、健康检查、本地化和开发部署入口，后续再逐步加入用户、版块、主题、帖子和搜索。",
+    "languageNav": "语言切换",
+    "cards": {
+      "frontend": {
+        "label": "前端",
+        "value": "Nuxt 4 + Vue 3 + Nuxt UI"
+      },
+      "backend": {
+        "label": "后端",
+        "value": "Go Fiber v3 API"
+      },
+      "locale": {
+        "label": "默认语言",
+        "value": "简体中文"
+      }
+    }
+  }
+}
