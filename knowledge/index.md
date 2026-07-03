@@ -14,6 +14,9 @@ This is the entry point for project memory.
 - Development/deployment workflow has been proposed: Docker Compose for local
   and production orchestration, `scripts/dev.sh` for one-command hot-reload
   development, and bilingual `deploy.sh` for production operations.
+- Local Docker Compose development startup has been verified: `./scripts/dev.sh`
+  builds the API, worker, and web images, and health endpoints respond through
+  the published development ports.
 - Product internationalization is required from the first implementation.
   Default locale is Simplified Chinese (`zh-CN`); first secondary locale is
   English (`en-US`).

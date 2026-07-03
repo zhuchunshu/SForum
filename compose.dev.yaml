@@ -28,6 +28,8 @@ services:
             - tmp/
         - action: rebuild
           path: ./apps/api/go.mod
+        - action: rebuild
+          path: ./apps/api/go.sum
 
   worker:
     build:
@@ -44,6 +46,8 @@ services:
             - tmp/
         - action: rebuild
           path: ./apps/api/go.mod
+        - action: rebuild
+          path: ./apps/api/go.sum
 
   web:
     build:
@@ -65,6 +69,10 @@ services:
             - node_modules/
         - action: rebuild
           path: ./apps/web/package.json
+        - action: rebuild
+          path: ./apps/web/bun.lock
+        - action: rebuild
+          path: ./apps/web/nuxt.config.ts
 
   mailpit:
     image: axllent/mailpit:latest

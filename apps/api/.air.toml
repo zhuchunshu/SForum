@@ -5,9 +5,14 @@ tmp_dir = "tmp"
 cmd = "go build -o ./tmp/sforum-api ./cmd/api"
 bin = "./tmp/sforum-api"
 include_ext = ["go"]
-exclude_dir = ["tmp", "internal/store/sqlc"]
+exclude_dir = ["tmp", "vendor", "internal/store/sqlc"]
 delay = 1000
 stop_on_error = true
+send_interrupt = true
+kill_delay = "500ms"
 
 [log]
 time = true
+
+[misc]
+clean_on_exit = true
