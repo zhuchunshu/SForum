@@ -12,6 +12,9 @@ target workflow and the current first implementation slice.
 - Production deployment uses Docker Compose and a high-interaction `deploy.sh`
   script.
 - `deploy.sh` supports both English and Chinese prompts.
+- Only the `web` service publishes a host port, and it binds to
+  `127.0.0.1:${WEB_PORT}`. Other services communicate only on the Docker
+  Compose network.
 - Application runtime defaults to Simplified Chinese (`zh-CN`) and declares
   supported product locales explicitly.
 - Production operations should be understandable for a small team without
@@ -46,6 +49,10 @@ target workflow and the current first implementation slice.
 The first foundation scaffold creates these files. They should continue to
 evolve as the app gains real migrations, releases, and backups.
 
+`deploy/caddy/Caddyfile` is an optional host-level reverse proxy example. It is
+not used as a default Docker Compose service because the Compose stack should
+publish only `web`.
+
 ## Local Development
 
 Primary command:
@@ -64,7 +71,7 @@ Expected behavior:
 - Runs database migrations automatically or prompts when destructive changes
   are possible.
 - Streams combined logs by default.
-- Prints local URLs, service ports, and useful follow-up commands.
+- Prints local web URLs, internal service names, and useful follow-up commands.
 
 Recommended Compose command inside `scripts/dev.sh`:
 
@@ -107,17 +114,22 @@ Suggested watch rules:
 
 ### Development Ports
 
-Default local ports:
+Only `web` publishes a host port, bound to loopback:
 
-- Web: `http://localhost:3000`
-- API: `http://localhost:18080`
-- PostgreSQL: `localhost:15432`
-- Redis: `localhost:16379`
-- Meilisearch: `http://localhost:17700`
-- Mailpit: `http://localhost:18025`
-- MinIO: `http://localhost:9001`
+- Web: `http://127.0.0.1:3000`
+- API via web: `http://127.0.0.1:3000/api/v1`
 
-Ports should be configurable in `.env`.
+Internal services use Compose DNS names and are not reachable directly from the
+host by default:
+
+- API: `api:8080`
+- PostgreSQL: `postgres:5432`
+- Redis: `redis:6379`
+- Meilisearch: `meilisearch:7700`
+- Mailpit: `mailpit:1025` and `mailpit:8025`
+
+`WEB_PORT` should be configurable in `.env`. Internal ports should stay stable
+unless the service image or application runtime changes.
 
 ## Production Deployment
 
@@ -130,6 +142,11 @@ Primary command:
 Production should use Docker Compose with pinned image tags or locally built
 release images.
 
+The Compose stack should publish only the `web` service to
+`127.0.0.1:${WEB_PORT}`. If the site needs public TLS or a public domain, run a
+host-level reverse proxy outside this Compose stack and point it at that
+loopback web port.
+
 Recommended Compose command for deploy:
 
 ```sh
@@ -138,8 +155,8 @@ docker compose -f compose.yaml -f compose.prod.yaml up -d --build
 
 ### Production Services
 
-- `proxy`: Caddy or another reverse proxy with automatic TLS.
-- `web`: Nuxt production server.
+- `web`: Nuxt production server, the only service with a host port. It proxies
+  same-origin `/api/v1/*` traffic to the API over the Compose network.
 - `api`: Fiber production API.
 - `worker`: background worker.
 - `postgres`: PostgreSQL with a persistent named volume or host-mounted data
@@ -159,11 +176,12 @@ Optional later services:
 Use same-origin routing in production:
 
 - `/` routes to `web`.
-- `/api/v1/*` routes to `api`.
+- `/api/v1/*` is received by `web` and proxied internally to `api:8080`.
 - Health endpoints remain accessible to the proxy and deploy script.
 
-Caddy is the preferred default because it keeps TLS automation simple for a
-single-server Docker Compose deployment.
+The Docker Compose stack should not publish a separate proxy service. A public
+reverse proxy, if used, should live on the host or in another explicitly managed
+network boundary and forward to `127.0.0.1:${WEB_PORT}`.
 
 ## `deploy.sh` Interaction Design
 
@@ -213,7 +231,7 @@ Before deploy or update:
 
 - Docker is installed and running.
 - Docker Compose plugin is available.
-- Required ports are free or already owned by this deployment.
+- `WEB_PORT` is free or already owned by this deployment on `127.0.0.1`.
 - `.env.production` exists and required secrets are set.
 - Domain DNS appears to point to the host when TLS is enabled.
 - Available disk space is above a configured threshold.
@@ -265,7 +283,9 @@ Important production variables:
 
 - `APP_ENV=production`
 - `APP_URL`
-- `API_BASE_URL`
+- `WEB_PORT`
+- `NUXT_PUBLIC_API_BASE_URL=/api/v1`
+- `NUXT_API_INTERNAL_BASE_URL=http://api:8080/api/v1`
 - `APP_LOCALE=zh-CN`
 - `SUPPORTED_LOCALES=zh-CN,en-US`
 - `POSTGRES_DB`

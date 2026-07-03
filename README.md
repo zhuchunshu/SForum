@@ -26,9 +26,13 @@ After dependencies are available, start the local stack with:
 
 Useful endpoints:
 
-- Web: `http://localhost:3000`
-- API health: `http://localhost:18080/api/v1/health`
-- Web health: `http://localhost:3000/health`
+- Web: `http://127.0.0.1:3000`
+- API health via web: `http://127.0.0.1:3000/api/v1/health`
+- Web health: `http://127.0.0.1:3000/health`
+
+Only the `web` service publishes a host port. API, PostgreSQL, Redis,
+Meilisearch, and other support services communicate on the Docker Compose
+network.
 
 ## Start Here
 

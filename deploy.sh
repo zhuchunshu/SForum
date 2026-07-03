@@ -73,11 +73,13 @@ t() {
       preflight) echo "Running preflight checks..." ;;
       no_docker) echo "Docker is required." ;;
       no_compose) echo "Docker Compose plugin is required." ;;
+      invalid_public_api_base) echo "NUXT_PUBLIC_API_BASE_URL must be /api/v1 so only the web service needs a host port." ;;
       backup_first) echo "Creating backup before deploy..." ;;
       no_migrations) echo "Migration runner is not wired yet; skipping for this foundation slice." ;;
       rollback_later) echo "Rollback metadata is not available yet. This will be enabled when release image tags are introduced." ;;
       confirm_restore) echo "Type RESTORE to confirm database restore:" ;;
       backup_path) echo "Backup file path:" ;;
+      web_url) echo "Web is bound to:" ;;
       done) echo "Done." ;;
       *) echo "$key" ;;
     esac
@@ -101,11 +103,13 @@ t() {
       preflight) echo "正在执行预检..." ;;
       no_docker) echo "需要先安装 Docker。" ;;
       no_compose) echo "需要 Docker Compose 插件。" ;;
+      invalid_public_api_base) echo "NUXT_PUBLIC_API_BASE_URL 必须是 /api/v1，这样只有 web 服务需要宿主机端口。" ;;
       backup_first) echo "部署前正在创建备份..." ;;
       no_migrations) echo "迁移执行器尚未接入；当前基础骨架阶段跳过。" ;;
       rollback_later) echo "暂未记录可回滚版本；引入发布镜像标签后会启用。" ;;
       confirm_restore) echo "请输入 RESTORE 确认恢复数据库：" ;;
       backup_path) echo "备份文件路径：" ;;
+      web_url) echo "Web 已绑定到：" ;;
       done) echo "完成。" ;;
       *) echo "$key" ;;
     esac
@@ -121,6 +125,35 @@ ensure_env() {
   fi
 }
 
+env_file_value() {
+  local file="$1"
+  local key="$2"
+  local fallback="$3"
+  local value
+
+  value="$(grep "^${key}=" "$file" | tail -n 1 | cut -d "=" -f 2- || true)"
+  if [ "$value" = "" ]; then
+    value="$fallback"
+  fi
+  printf "%s" "$value"
+}
+
+validate_env_contract() {
+  local public_api_base
+  public_api_base="$(env_file_value .env.production NUXT_PUBLIC_API_BASE_URL /api/v1)"
+
+  if [ "$public_api_base" != "/api/v1" ]; then
+    echo "$(t invalid_public_api_base)"
+    exit 1
+  fi
+}
+
+print_web_url() {
+  local web_port
+  web_port="$(env_file_value .env.production WEB_PORT 3000)"
+  echo "$(t web_url) http://127.0.0.1:${web_port}"
+}
+
 preflight() {
   echo "$(t preflight)"
   if ! command -v docker >/dev/null 2>&1; then
@@ -132,6 +165,7 @@ preflight() {
     exit 1
   fi
   ensure_env
+  validate_env_contract
 }
 
 install() {
@@ -145,6 +179,7 @@ deploy_update() {
   ./deploy/scripts/backup-postgres.sh || true
   "${COMPOSE[@]}" up -d --build
   "${COMPOSE[@]}" ps
+  print_web_url
 }
 
 run_migrations() {

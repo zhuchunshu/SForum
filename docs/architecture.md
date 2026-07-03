@@ -23,12 +23,15 @@ The default deployment shape should be same-origin:
 
 ```text
 browser
-  -> Nuxt web app at /
-  -> Fiber API at /api/v1/*
-       -> PostgreSQL
-       -> Redis
-       -> Meilisearch
-       -> background worker
+  -> local browser or host reverse proxy
+  -> Nuxt web app at 127.0.0.1:${WEB_PORT}
+       -> pages at /
+       -> /api/v1/* proxy route
+            -> Fiber API at api:8080
+                 -> PostgreSQL
+                 -> Redis
+                 -> Meilisearch
+                 -> background worker
 ```
 
 Nuxt renders forum pages on the server for first-load HTML, metadata, canonical
@@ -190,8 +193,11 @@ Summary:
   stop, and rollback.
 - Local and production environment files should default `APP_LOCALE` to
   `zh-CN` and list supported locales explicitly.
-- Production should use same-origin routing through a reverse proxy, with `/`
-  serving Nuxt and `/api/v1/*` serving Fiber.
+- Local and production Compose stacks should publish only the `web` service on
+  `127.0.0.1:${WEB_PORT}`. API, PostgreSQL, Redis, and Meilisearch stay on the
+  Compose network.
+- Same-origin `/api/v1/*` requests should enter through Nuxt and proxy to Fiber
+  internally at `api:8080`.
 
 ## Backend Module Boundaries
 

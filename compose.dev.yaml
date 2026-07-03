@@ -1,22 +1,8 @@
 services:
-  postgres:
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-
-  redis:
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-
-  meilisearch:
-    ports:
-      - "${MEILI_PORT:-7700}:7700"
-
   api:
     build:
       target: dev
     command: ["air", "-c", ".air.toml"]
-    ports:
-      - "${API_PORT:-8080}:8080"
     volumes:
       - ./apps/api:/app
     develop:
@@ -54,7 +40,7 @@ services:
       target: dev
     command: ["bun", "run", "dev"]
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
     volumes:
       - ./apps/web:/app
       - web_node_modules:/app/node_modules
@@ -76,9 +62,6 @@ services:
 
   mailpit:
     image: axllent/mailpit:latest
-    ports:
-      - "${MAILPIT_SMTP_PORT:-1025}:1025"
-      - "${MAILPIT_UI_PORT:-8025}:8025"
 
 volumes:
   web_node_modules:

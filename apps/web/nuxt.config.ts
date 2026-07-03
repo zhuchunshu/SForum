@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1',
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || '/api/v1',
       appLocale: process.env.APP_LOCALE || 'zh-CN',
       supportedLocales: process.env.SUPPORTED_LOCALES || 'zh-CN,en-US'
     }

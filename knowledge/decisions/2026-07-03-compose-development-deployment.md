@@ -68,3 +68,11 @@ Production deployment:
 - Implement `deploy.sh` with language persistence and safety prompts before the
   first production deployment.
 - Decide production backup destination and retention policy.
+
+## Update 2026-07-04
+
+Port exposure was narrowed by
+`2026-07-04-compose-web-only-loopback-ports.md`: both development and production
+Compose stacks should publish only the `web` service on
+`127.0.0.1:${WEB_PORT}`. API, database, cache, search, and support services
+stay internal to the Compose network.
