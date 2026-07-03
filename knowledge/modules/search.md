@@ -16,6 +16,8 @@ Planned. No application code has been added.
 - Topic and post writes should create durable indexing events.
 - A worker processes indexing events and can rebuild an index from PostgreSQL.
 - Private, deleted, draft, and moderation-only content must not be indexed.
+- Index documents should include locale/content-language fields once content
+  language is captured.
 
 ## Candidate Documents
 
@@ -28,6 +30,7 @@ Planned. No application code has been added.
 
 - Whether MVP search covers topics only or topics plus posts.
 - How private categories and role-scoped search should behave.
+- Whether content-language filtering is part of MVP.
 - Exact ranking settings, typo tolerance, synonyms, and stop words.
 
 ## Next Steps

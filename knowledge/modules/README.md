@@ -7,6 +7,7 @@ Current planned modules:
 - `frontend.md`
 - `backend.md`
 - `forum.md`
+- `localization.md`
 - `search.md`
 
 Possible future modules:

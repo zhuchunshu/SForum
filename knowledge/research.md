@@ -17,6 +17,21 @@ libraries, frameworks, or services.
   https://ui.nuxt.com/docs/getting-started/installation/nuxt,
   https://nuxtseo.com/, https://bun.sh/docs
 
+## Product Internationalization
+
+- Problem: all user-facing features must support multiple languages, with
+  Simplified Chinese as the default and SEO-friendly localized public pages.
+- Options: custom translation helpers, Vue I18n directly, Nuxt i18n.
+- Recommendation: Nuxt i18n for the frontend, with backend stable error codes
+  and a small backend localization module for emails/notifications.
+- Reason: Nuxt i18n integrates Vue I18n with Nuxt routing and SEO metadata
+  helpers. Keeping backend APIs code-based avoids coupling English or Chinese
+  prose to API contracts.
+- Follow-up: configure `zh-CN` as the default locale and `en-US` as the first
+  secondary locale when `apps/web` is scaffolded.
+- Sources: https://i18n.nuxtjs.org/docs/getting-started,
+  https://i18n.nuxtjs.org/docs/guide/seo
+
 ## Backend HTTP Framework
 
 - Problem: expose a maintainable JSON API for forum reads, writes, sessions,
@@ -90,3 +105,31 @@ libraries, frameworks, or services.
 - Follow-up: choose allowed extensions and link policies before implementation.
 - Sources: https://github.com/yuin/goldmark,
   https://github.com/microcosm-cc/bluemonday
+
+## Development And Deployment Orchestration
+
+- Problem: run the full local stack with hot reload and deploy production with
+  one repeatable command.
+- Options: raw shell scripts only, Docker Compose, Kubernetes, platform-specific
+  PaaS configuration.
+- Recommendation: Docker Compose with dev/prod override files, plus
+  `scripts/dev.sh` and a bilingual interactive `deploy.sh`.
+- Reason: Compose is enough for a maintainable single-host forum deployment and
+  also works well for local dependencies such as PostgreSQL, Redis, and
+  Meilisearch. It avoids Kubernetes complexity while keeping services explicit.
+- Follow-up: use Compose Watch when available, but provide a normal
+  `docker compose up --build` fallback.
+- Sources: https://docs.docker.com/compose/how-tos/file-watch/,
+  https://docs.docker.com/compose/how-tos/profiles/,
+  https://docs.docker.com/compose/how-tos/production/
+
+## Go Hot Reload
+
+- Problem: reload the Fiber API and worker when Go code changes during local
+  development.
+- Options: manual `go run`, `air`, `CompileDaemon`, custom watcher.
+- Recommendation: `air` in development containers.
+- Reason: `air` is a mature Go live reload tool and keeps local backend
+  iteration close to the Nuxt dev-server experience.
+- Follow-up: add `.air.toml` files once `apps/api` commands exist.
+- Sources: https://github.com/air-verse/air

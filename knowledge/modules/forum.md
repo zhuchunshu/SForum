@@ -33,6 +33,10 @@ redirect to the canonical slug if changed.
 - Keep edit history for posts after the grace period selected by product rules.
 - Hide deleted or moderation-only content from public SSR pages, sitemap, and
   Meilisearch indexes.
+- Category labels, moderation labels, and system-authored forum text must be
+  localizable, defaulting to Simplified Chinese.
+- User-authored posts and topics are stored as written and are not translated by
+  default.
 
 ## Open Questions
 

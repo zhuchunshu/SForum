@@ -6,6 +6,8 @@ application code is added.
 ## Architecture Goals
 
 - Build an SEO-friendly forum with server-rendered public pages.
+- Support multilingual product features from the first implementation, with
+  Simplified Chinese as the default language.
 - Keep the frontend and backend independently understandable, testable, and
   deployable.
 - Use mature framework-native or ecosystem libraries before creating custom
@@ -44,6 +46,8 @@ must not become a second backend for forum domain logic.
 - App framework: Nuxt 4 with Vue 3.
 - Build layer: Vite through Nuxt's default builder.
 - UI system: Nuxt UI with Tailwind CSS.
+- Internationalization: Nuxt i18n with Simplified Chinese (`zh-CN`) as the
+  default product locale and English (`en-US`) as the first secondary locale.
 - SEO: SSR enabled by default, `useSeoMeta`, canonical URLs, route rules for
   hybrid rendering, and `@nuxtjs/seo` for robots, sitemap, OG image, and
   schema.org helpers.
@@ -99,6 +103,8 @@ Target layout when implementation starts:
 |   |   |-- server/
 |   |   |   |-- api-proxy/
 |   |   |   `-- middleware/
+|   |   |-- i18n/
+|   |   |   `-- locales/
 |   |   |-- shared/
 |   |   |-- nuxt.config.ts
 |   |   `-- package.json
@@ -119,6 +125,7 @@ Target layout when implementation starts:
 |       |   |   |-- forum/
 |       |   |   |-- moderation/
 |       |   |   |-- notifications/
+|       |   |   |-- localization/
 |       |   |   `-- search/
 |       |   |-- platform/
 |       |   |   |-- meili/
@@ -134,6 +141,10 @@ Target layout when implementation starts:
 |       `-- sqlc.yaml
 |-- contracts/
 |   `-- openapi.yaml
+|-- compose.yaml
+|-- compose.dev.yaml
+|-- compose.prod.yaml
+|-- deploy.sh
 |-- deploy/
 |-- docs/
 |-- knowledge/
@@ -153,10 +164,34 @@ Notes:
 - `apps/api/internal/store/*` contains migrations, handwritten SQL, and
   generated `sqlc` code. Generated code should stay isolated from handwritten
   domain logic.
+- `apps/web/i18n/locales/*` contains frontend message catalogs. Start with
+  `zh-CN` and `en-US`, and keep Simplified Chinese complete before adding or
+  changing user-facing features.
 - `contracts/openapi.yaml` is the API contract. Generate TypeScript types or a
   client for `apps/web` from this file once endpoints exist.
 - Top-level `src/` is a placeholder from initial setup and should be retired
   when the `apps/` structure is created.
+
+## Development And Deployment
+
+Development and deployment are part of the architecture, not afterthoughts. The
+target workflow is documented in `docs/development-and-deployment.md`.
+
+Summary:
+
+- Local development should start with one command: `./scripts/dev.sh`.
+- The development environment should include Nuxt, Fiber, the worker,
+  PostgreSQL, Redis, and Meilisearch.
+- Nuxt should use Vite HMR; Go services should use `air`; Docker Compose Watch
+  should sync source changes into containers when available.
+- Production should deploy with Docker Compose and `./deploy.sh`.
+- `deploy.sh` should support English and Simplified Chinese prompts, first-time
+  setup, deploy/update, migrations, backups, restore, logs, status, restart,
+  stop, and rollback.
+- Local and production environment files should default `APP_LOCALE` to
+  `zh-CN` and list supported locales explicitly.
+- Production should use same-origin routing through a reverse proxy, with `/`
+  serving Nuxt and `/api/v1/*` serving Fiber.
 
 ## Backend Module Boundaries
 
@@ -205,6 +240,23 @@ committed with an indexing event and processed by `cmd/worker`.
 Deferred for MVP unless needed early. Should own mention notifications, reply
 notifications, email preferences, digest jobs, and delivery attempts.
 
+### `localization`
+
+Owns backend locale negotiation, locale-aware email/notification templates,
+supported-locale configuration, and translation keys for server-originated
+messages. The API should return stable machine-readable error codes; Nuxt should
+localize normal UI and validation display from those codes.
+
+Default behavior:
+
+- Default locale: `zh-CN`.
+- First secondary locale: `en-US`.
+- Anonymous locale preference comes from the localized route, then locale cookie,
+  then `Accept-Language`, then `zh-CN`.
+- Signed-in users can store a preferred locale on their profile.
+- Server logs and internal error details remain English-friendly for operations,
+  while user-facing responses and templates are localizable.
+
 ## Data Ownership
 
 - PostgreSQL owns canonical users, categories, topics, posts, revisions,
@@ -221,16 +273,45 @@ notifications, email preferences, digest jobs, and delivery attempts.
   topic lists, topic detail, and user profile summaries.
 - Mutating routes should be under `/api/v1/*`, require session auth, and return
   JSON problem-style errors with stable machine-readable codes.
+- API errors should include a stable `code` and may include a default
+  Simplified Chinese message. The frontend should map known codes to localized
+  UI text so English and future languages do not depend on backend prose.
+- Requests should carry locale context through route, cookie, profile, or
+  `Accept-Language`; responses that depend on locale should set appropriate
+  cache variation rules.
 - Nuxt should call the same API contract used by browser interactions. During
   SSR, forward relevant cookies to the API.
 - Prefer same-origin routing in production to avoid CORS complexity for browser
   sessions.
+
+## Internationalization Rules
+
+- All new user-facing product features must add translations at implementation
+  time.
+- Simplified Chinese (`zh-CN`) is the default and must be complete before a
+  feature is considered done.
+- English (`en-US`) is the first secondary locale.
+- Public URL strategy should be `prefix_except_default`: Simplified Chinese
+  pages use unprefixed canonical paths such as `/t/123/title`; English pages use
+  `/en/*`.
+- Use stable translation keys; do not hardcode user-facing strings inside Vue
+  components, Go handlers, email templates, or deploy/runtime scripts.
+- Store user locale preference separately from user-generated content language.
+- User-generated forum content is not automatically translated. It may include a
+  detected or selected content language later for filtering/search, but source
+  content remains authored by the user.
+- Seed data, category names, moderation reason labels, notifications, and emails
+  must be localizable.
+- Tests should include at least one route/page assertion for default
+  Simplified Chinese and one for English once UI exists.
 
 ## SEO Rules
 
 - Render public category, topic, post, and profile pages with SSR.
 - Use canonical topic URLs and redirect stale slugs.
 - Generate `robots.txt` and `sitemap.xml`.
+- Generate localized `lang`, `hreflang`, canonical, and Open Graph locale tags
+  for public pages.
 - Use stable title/meta description templates per page type.
 - Add structured data for forum discussion pages when page content exists.
 - Hide private, deleted, draft, or moderation-only content from sitemap and
@@ -243,8 +324,14 @@ Milestone 1 should establish architecture and tooling, not all forum features:
 
 - Scaffold `apps/web` and `apps/api`.
 - Add local development services for PostgreSQL, Redis, and Meilisearch.
+- Add `compose.yaml`, `compose.dev.yaml`, `scripts/dev.sh`, and hot-reload
+  development containers.
 - Add config loading, logging, health checks, migrations, and one smoke test per
   app.
+- Add `compose.prod.yaml`, `.env.production.example`, and a first version of
+  the interactive bilingual `deploy.sh`.
+- Add Nuxt i18n configuration, initial `zh-CN` and `en-US` locale catalogs,
+  and backend locale configuration with `zh-CN` as the default.
 - Define the initial OpenAPI contract skeleton.
 - Create the first PostgreSQL schema migrations for users, categories, topics,
   posts, and post revisions.
@@ -253,11 +340,12 @@ Milestone 1 should establish architecture and tooling, not all forum features:
 
 ## Open Architecture Questions
 
-- Deployment target: single VPS/container host, Fly.io, Render, Kubernetes, or
-  another platform?
+- Production host target: which single VPS/container host should the Docker
+  Compose deployment optimize for first?
 - Registration policy: open signup, invite-only, or admin-created accounts?
 - Email provider for verification and notifications.
 - Upload support and object storage provider.
+- Production backup destination and retention policy.
 - Exact moderation roles and permission matrix.
 - Whether search ships in MVP or follows immediately after core forum reads and
   writes.
@@ -266,6 +354,8 @@ Milestone 1 should establish architecture and tooling, not all forum features:
 
 - Nuxt 4 documentation: https://nuxt.com/docs/4.x/getting-started/introduction
 - Nuxt UI documentation: https://ui.nuxt.com/docs/getting-started/installation/nuxt
+- Nuxt i18n documentation: https://i18n.nuxtjs.org/docs/getting-started
+- Nuxt i18n SEO guide: https://i18n.nuxtjs.org/docs/guide/seo
 - Nuxt SEO: https://nuxtseo.com/
 - Bun documentation: https://bun.sh/docs
 - Fiber v3 documentation: https://docs.gofiber.io/next/

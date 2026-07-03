@@ -20,6 +20,7 @@ Planned. No application code has been added.
 - Meilisearch through `meilisearch-go`.
 - `go-playground/validator/v10` for validation.
 - `log/slog` for structured logging.
+- Backend locale configuration for `zh-CN` default and `en-US` support.
 
 ## Planned Boundaries
 
@@ -28,6 +29,8 @@ Planned. No application code has been added.
 - `forum`: categories, topics, posts, revisions, visibility, slugs.
 - `moderation`: reports, staff actions, audit trail, soft deletion.
 - `search`: Meilisearch settings, indexing jobs, rebuilds, search endpoints.
+- `localization`: locale negotiation, supported locale config, server-owned
+  localized templates, and translation key conventions.
 - `notifications`: deferred unless MVP requires it.
 
 ## Open Questions
@@ -37,10 +40,13 @@ Planned. No application code has been added.
 - Whether search indexing uses a PostgreSQL outbox, a Redis-backed queue, or a
   Postgres-native job library.
 - Final deployment target and runtime process model.
+- Whether backend emails and notifications need full English translation in MVP.
 
 ## Next Steps
 
 - Scaffold `apps/api` after the architecture is confirmed.
 - Add config loading, health check, logging, migrations, and database
   connectivity.
+- Add supported-locale config and a user locale preference field during identity
+  schema design.
 - Define the first OpenAPI contract and schema migrations.

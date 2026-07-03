@@ -11,6 +11,8 @@ The repository currently contains project documentation, collaboration rules, an
 - `knowledge/` - project memory for decisions, module notes, and session handoffs.
 - `apps/` - planned future application source code for `web` and `api`.
 - `contracts/` - planned API contracts such as OpenAPI.
+- `compose*.yaml` - planned Docker Compose files for development and production.
+- `deploy.sh` - planned bilingual production deployment entry point.
 - `src/` - initial placeholder; expected to be retired when `apps/` is created.
 - `tests/` - future tests.
 - `assets/` - future static or design assets.

@@ -56,5 +56,6 @@ Use same-origin routing in production where possible:
 
 - Confirm MVP scope and whether Meilisearch ships in the first executable
   milestone or immediately after core forum reads/writes.
-- Confirm deployment target and same-origin reverse proxy strategy.
+- Confirm the first single-host production target and same-origin reverse proxy
+  strategy.
 - Confirm registration policy, email provider, and upload/object storage plan.
