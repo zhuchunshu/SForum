@@ -29,8 +29,8 @@
 - Consider whether `scripts/dev.sh` should enable Compose Watch by default while
   bind mounts are also present, because Compose currently warns that watched
   paths are already bind-mounted.
-- Add `APP_URL`/i18n base URL wiring before SEO tags become part of acceptance
-  checks.
+- `APP_URL`/i18n base URL wiring was completed in the 2026-07-04 i18n base URL
+  fix handoff.
 
 ## Open Questions
 

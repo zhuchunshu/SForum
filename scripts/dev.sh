@@ -53,8 +53,29 @@ set_env_key() {
   mv "$tmp_file" .env
 }
 
+replace_env_value() {
+  local key="$1"
+  local old_value="$2"
+  local new_value="$3"
+  local tmp_file
+
+  if grep -q "^${key}=${old_value}$" .env; then
+    tmp_file="$(mktemp)"
+    awk -v key="$key" -v old_value="$old_value" -v new_value="$new_value" '
+      $0 == key "=" old_value {
+        print key "=" new_value
+        next
+      }
+      { print }
+    ' .env > "$tmp_file"
+    mv "$tmp_file" .env
+  fi
+}
+
 ensure_env_key APP_LOCALE zh-CN
 ensure_env_key SUPPORTED_LOCALES zh-CN,en-US
+ensure_env_key APP_URL http://127.0.0.1:3000
+replace_env_value APP_URL http://localhost:3000 http://127.0.0.1:3000
 set_env_key NUXT_PUBLIC_API_BASE_URL /api/v1
 ensure_env_key NUXT_API_INTERNAL_BASE_URL http://api:8080/api/v1
 

@@ -83,3 +83,5 @@ backups/
 deploy/backups/
 deploy/data/
 deploy/runtime/
+
+.superpowers

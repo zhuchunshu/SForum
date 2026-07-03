@@ -8,6 +8,8 @@ metadata, and browser-side interactions.
 ## Current Status
 
 Foundation scaffold exists under `apps/web`.
+The web container now passes `APP_URL` into Nuxt, and Nuxt uses it for the
+site config and Nuxt i18n SEO `baseUrl`.
 
 ## Planned Stack
 

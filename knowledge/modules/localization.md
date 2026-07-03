@@ -11,6 +11,7 @@ Foundation scaffold exists:
 
 - Frontend locale catalogs under `apps/web/i18n/locales`.
 - Backend locale normalization under `apps/api/internal/modules/localization`.
+- Nuxt i18n SEO links use `APP_URL` as the base URL.
 
 ## Requirements
 
