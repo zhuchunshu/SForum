@@ -6,17 +6,18 @@ The repository currently contains project documentation, collaboration rules, an
 
 ## Repository Map
 
-- `agent.md` - working rules for AI agents and contributors.
-- `AGENTS.md` - short compatibility entry that points agents to `agent.md`.
+- `AGENTS.md` - working rules for AI agents and contributors.
 - `docs/` - product, architecture, and planning documents.
 - `knowledge/` - project memory for decisions, module notes, and session handoffs.
-- `src/` - future application source code.
+- `apps/` - planned future application source code for `web` and `api`.
+- `contracts/` - planned API contracts such as OpenAPI.
+- `src/` - initial placeholder; expected to be retired when `apps/` is created.
 - `tests/` - future tests.
 - `assets/` - future static or design assets.
 
 ## Start Here
 
-1. Read `agent.md`.
+1. Read `AGENTS.md`.
 2. Read `knowledge/index.md`.
 3. Check the latest file under `knowledge/sessions/` when resuming work.
 4. Update the knowledge base after making meaningful product, technical, or process decisions.

@@ -5,7 +5,7 @@
 - Initialized the Git repository.
 - Created the documentation skeleton.
 - Created the knowledge-base workflow.
-- Added project guidance in `agent.md`.
+- Added project guidance in `AGENTS.md`.
 
 ## Decisions
 
@@ -23,4 +23,3 @@
 - Should the project prioritize a traditional server-rendered forum, an SPA, or a hybrid approach?
 - Which database should be used?
 - What authentication model is preferred?
-
