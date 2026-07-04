@@ -27,6 +27,31 @@ paths:
           $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /human-verification/challenge:
+    get:
+      summary: Create a human verification challenge
+      operationId: createHumanVerificationChallenge
+      parameters:
+        - name: purpose
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [register]
+          description: Verification purpose for rate limits and replay scope.
+      responses:
+        "200":
+          description: ALTCHA challenge payload for the requested purpose.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AltchaChallenge"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /auth/login:
     post:
       summary: Log in with username or email
@@ -250,6 +275,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Problem"
+    TooManyRequests:
+      description: Rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
   schemas:
     CurrentUser:
       type: object
@@ -291,6 +322,7 @@ components:
         - username
         - email
         - password
+        - humanVerification
       properties:
         username:
           type: string
@@ -303,6 +335,62 @@ components:
         displayName:
           type: string
         locale:
+          type: string
+        humanVerification:
+          $ref: "#/components/schemas/HumanVerification"
+    HumanVerification:
+      type: object
+      required:
+        - provider
+        - token
+      properties:
+        provider:
+          type: string
+          enum: [altcha]
+        token:
+          type: string
+          description: Base64-encoded ALTCHA payload emitted by the widget.
+    AltchaChallenge:
+      type: object
+      required:
+        - parameters
+      properties:
+        parameters:
+          type: object
+          required:
+            - algorithm
+            - nonce
+            - salt
+            - cost
+            - keyLength
+            - keyPrefix
+          properties:
+            algorithm:
+              type: string
+              examples: [PBKDF2/SHA-256]
+            nonce:
+              type: string
+            salt:
+              type: string
+            cost:
+              type: integer
+            keyLength:
+              type: integer
+            keyPrefix:
+              type: string
+            keySignature:
+              type: string
+            memoryCost:
+              type: integer
+            parallelism:
+              type: integer
+            expiresAt:
+              type: integer
+              format: int64
+            data:
+              type: object
+              additionalProperties: true
+        signature:
           type: string
     LoginRequest:
       type: object

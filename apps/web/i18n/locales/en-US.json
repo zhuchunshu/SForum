@@ -54,6 +54,8 @@
     "emailPlaceholder": "email address",
     "displayNamePlaceholder": "Jane Doe",
     "passwordPlaceholder": "At least 8 characters",
+    "humanVerification": "Human verification",
+    "humanVerificationLoading": "Loading human verification...",
     "brandHeadlineL1": "A place for",
     "brandHeadlineL2": "real conversations",
     "brandDesc": "No algorithm, no noise. Organized by topic — every reply is worth reading.",
@@ -62,21 +64,62 @@
     "feature3": "Bilingual interface — switch anytime"
   },
   "admin": {
+    "shell": {
+      "brand": "SForum",
+      "section": "Control panel",
+      "unknownUser": "Administrator",
+      "member": "Member",
+      "visitForum": "Back to forum",
+      "signOut": "Sign out"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "roles": "User groups",
+      "rolesBadge": "RBAC",
+      "forumHome": "Forum home"
+    },
     "home": {
       "metaTitle": "Admin",
-      "eyebrow": "SForum admin",
-      "title": "Manage forum groups and permissions",
+      "title": "Admin overview",
       "intro": "Admin tools use the same forum account system, with every management action controlled by API permissions.",
-      "navLabel": "Admin navigation",
-      "rolesLink": "View user groups"
+      "rolesLink": "View user groups",
+      "cards": {
+        "access": {
+          "label": "Access control",
+          "value": "Enabled"
+        },
+        "prefix": {
+          "label": "Admin entry"
+        },
+        "stack": {
+          "label": "UI stack",
+          "value": "Nuxt UI + Nuxt Icon"
+        }
+      },
+      "nextTitle": "Admin modules",
+      "nextIntro": "Admin features will connect here as permissions are added.",
+      "next": {
+        "roles": {
+          "title": "Groups and permissions",
+          "description": "Review system groups, custom groups, and the default member role."
+        },
+        "audit": {
+          "title": "Moderation log",
+          "description": "Reserved for future staff actions and security review."
+        },
+        "settings": {
+          "title": "Site settings",
+          "description": "Reserved for forum name, registration policy, and content policy."
+        }
+      }
     },
     "roles": {
       "metaTitle": "User Groups",
-      "eyebrow": "Identity and permissions",
       "title": "User Groups",
-      "intro": "Open registrations join the member group by default. The member alias can change, but the role cannot be deleted.",
       "caption": "Forum user group list",
       "refresh": "Refresh",
+      "searchPlaceholder": "Search key, alias, or description",
+      "count": "{count} groups",
       "key": "Key",
       "alias": "Alias",
       "description": "Description",
@@ -92,6 +135,11 @@
   "errors": {
     "permissionDenied": "You do not have permission to perform this action.",
     "registerFailed": "Registration failed. Check the form and try again.",
-    "loginFailed": "Login failed. Check your account and password."
+    "loginFailed": "Login failed. Check your account and password.",
+    "humanVerificationRequired": "Please complete human verification first.",
+    "humanVerificationInvalid": "Human verification failed. Please try again.",
+    "humanVerificationExpired": "Human verification expired. Please verify again.",
+    "humanVerificationReplayed": "This verification has already been used. Please verify again.",
+    "rateLimited": "Too many attempts. Please try again later."
   }
 }

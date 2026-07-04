@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { CurrentUser } from '~/composables/useAuthSession'
+import { useAdminRoutes } from '~/composables/useAdminRoutes'
 
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
+const adminRoutes = useAdminRoutes()
 const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
 const { refresh, can } = useAuthSession()
 
@@ -14,10 +16,49 @@ const form = reactive({
 })
 const submitting = ref(false)
 const errorMessage = ref('')
+const humanVerificationToken = ref('')
 
 useSeoMeta({
   title: t('auth.registerTitle')
 })
+
+function handleAltchaVerified(event: Event) {
+  const detail = (event as CustomEvent<{ payload?: string }>).detail
+  humanVerificationToken.value = detail?.payload || ''
+}
+
+function handleAltchaStateChange(event: Event) {
+  const detail = (event as CustomEvent<{ state?: string, payload?: string }>).detail
+  if (detail?.state === 'verified' && detail.payload) {
+    humanVerificationToken.value = detail.payload
+    return
+  }
+  if (detail?.state === 'expired' || detail?.state === 'error' || detail?.state === 'unverified') {
+    humanVerificationToken.value = ''
+  }
+}
+
+function resetHumanVerification() {
+  humanVerificationToken.value = ''
+}
+
+function registerErrorMessage(error: unknown) {
+  const code = (error as { data?: { code?: string } })?.data?.code
+  switch (code) {
+    case 'human_verification.required':
+      return t('errors.humanVerificationRequired')
+    case 'human_verification.invalid':
+      return t('errors.humanVerificationInvalid')
+    case 'human_verification.expired':
+      return t('errors.humanVerificationExpired')
+    case 'human_verification.replayed':
+      return t('errors.humanVerificationReplayed')
+    case 'rate_limit.exceeded':
+      return t('errors.rateLimited')
+    default:
+      return t('errors.registerFailed')
+  }
+}
 
 async function submitRegister() {
   errorMessage.value = ''
@@ -32,13 +73,17 @@ async function submitRegister() {
         email: form.email,
         password: form.password,
         displayName: form.displayName,
-        locale: locale.value
+        locale: locale.value,
+        humanVerification: {
+          provider: 'altcha',
+          token: humanVerificationToken.value
+        }
       }
     })
     await refresh()
-    await navigateTo(localePath(can('admin.access') ? '/admin' : '/'))
-  } catch {
-    errorMessage.value = t('errors.registerFailed')
+    await navigateTo(can('admin.access') ? adminRoutes.path('/') : localePath('/'))
+  } catch (error) {
+    errorMessage.value = registerErrorMessage(error)
   } finally {
     submitting.value = false
   }
@@ -170,6 +215,28 @@ async function submitRegister() {
               autocomplete="new-password"
               required
             />
+          </div>
+
+          <div class="auth-field">
+            <label class="auth-label">
+              {{ t('auth.humanVerification') }}
+            </label>
+            <ClientOnly>
+              <altcha-widget
+                class="auth-altcha"
+                :challenge="`${apiBaseUrl}/human-verification/challenge?purpose=register`"
+                :language="locale === 'zh-CN' ? 'zh-cn' : 'en'"
+                type="checkbox"
+                @verified="handleAltchaVerified"
+                @expired="resetHumanVerification"
+                @statechange="handleAltchaStateChange"
+              />
+              <template #fallback>
+                <div class="auth-altcha-fallback">
+                  {{ t('auth.humanVerificationLoading') }}
+                </div>
+              </template>
+            </ClientOnly>
           </div>
 
           <button class="auth-btn" type="submit" :disabled="submitting">
@@ -394,6 +461,27 @@ async function submitRegister() {
 }
 
 .auth-input::placeholder { color: #d1d5db; }
+
+.auth-altcha {
+  width: 100%;
+  --altcha-max-width: 100%;
+  --altcha-border-radius: 7px;
+  --altcha-border-color: #d1d5db;
+  --altcha-color-primary: #0f766e;
+  --altcha-color-primary-content: #ffffff;
+  --altcha-color-success: #0f766e;
+}
+
+.auth-altcha-fallback {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 13px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  color: #6b7280;
+  font-size: 13px;
+}
 
 .auth-btn {
   display: block;

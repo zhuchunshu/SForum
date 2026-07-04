@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/session"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 )
 
 const sessionUserIDKey = "user_id"
@@ -14,23 +15,37 @@ const sessionUserIDKey = "user_id"
 type Controller struct {
 	service  *identity.Service
 	sessions *session.Store
+	verifier *humanverify.Service
 }
 
 func NewController(service *identity.Service, sessions *session.Store) *Controller {
-	return &Controller{service: service, sessions: sessions}
+	return NewControllerWithVerifier(service, sessions, humanverify.NewDisabledService())
+}
+
+func NewControllerWithVerifier(service *identity.Service, sessions *session.Store, verifier *humanverify.Service) *Controller {
+	if verifier == nil {
+		verifier = humanverify.NewDisabledService()
+	}
+	return &Controller{service: service, sessions: sessions, verifier: verifier}
 }
 
 type registerRequest struct {
-	Username    string `json:"username"`
-	Email       string `json:"email"`
-	Password    string `json:"password"`
-	DisplayName string `json:"displayName"`
-	Locale      string `json:"locale"`
+	Username          string                   `json:"username"`
+	Email             string                   `json:"email"`
+	Password          string                   `json:"password"`
+	DisplayName       string                   `json:"displayName"`
+	Locale            string                   `json:"locale"`
+	HumanVerification humanVerificationRequest `json:"humanVerification"`
 }
 
 type loginRequest struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
+}
+
+type humanVerificationRequest struct {
+	Provider string `json:"provider"`
+	Token    string `json:"token"`
 }
 
 type roleRequest struct {
@@ -47,6 +62,15 @@ func (h *Controller) register(c fiber.Ctx) error {
 	var req registerRequest
 	if err := c.Bind().Body(&req); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+
+	if err := h.verifier.Verify(c.Context(), humanverify.VerifyRequest{
+		Provider: req.HumanVerification.Provider,
+		Purpose:  humanverify.PurposeRegister,
+		Token:    req.HumanVerification.Token,
+		IP:       c.IP(),
+	}); err != nil {
+		return mapHumanVerificationError(err)
 	}
 
 	current, err := h.service.Register(c.Context(), identity.RegisterInput{
@@ -83,6 +107,19 @@ func (h *Controller) login(c fiber.Ctx) error {
 	}
 
 	return c.JSON(current)
+}
+
+func (h *Controller) humanVerificationChallenge(c fiber.Ctx) error {
+	purpose, ok := parseHumanVerificationPurpose(c.Query("purpose"))
+	if !ok {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+
+	challenge, err := h.verifier.Challenge(c.Context(), purpose, humanverify.Subject{IP: c.IP()})
+	if err != nil {
+		return mapHumanVerificationError(err)
+	}
+	return c.JSON(challenge.Payload)
 }
 
 func (h *Controller) logout(c fiber.Ctx) error {
@@ -254,5 +291,31 @@ func mapIdentityError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "auth.password_policy")
 	default:
 		return err
+	}
+}
+
+func mapHumanVerificationError(err error) error {
+	switch {
+	case errors.Is(err, humanverify.ErrRateLimited):
+		return fiber.NewError(fiber.StatusTooManyRequests, humanverify.CodeRateLimited)
+	case errors.Is(err, humanverify.ErrRequired):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, humanverify.CodeRequired)
+	case errors.Is(err, humanverify.ErrExpired):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, humanverify.CodeExpired)
+	case errors.Is(err, humanverify.ErrReplayed):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, humanverify.CodeReplayed)
+	case errors.Is(err, humanverify.ErrInvalid):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, humanverify.CodeInvalid)
+	default:
+		return err
+	}
+}
+
+func parseHumanVerificationPurpose(value string) (humanverify.Purpose, bool) {
+	switch humanverify.Purpose(value) {
+	case humanverify.PurposeRegister, humanverify.PurposePasswordReset, humanverify.PurposeLoginRisk, humanverify.PurposePostRisk:
+		return humanverify.Purpose(value), true
+	default:
+		return "", false
 	}
 }

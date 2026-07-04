@@ -3,6 +3,8 @@ package identitycontroller
 import "github.com/gofiber/fiber/v3"
 
 func (h *Controller) RegisterRoutes(api fiber.Router) {
+	api.Get("/human-verification/challenge", h.humanVerificationChallenge)
+
 	auth := api.Group("/auth")
 	auth.Post("/register", h.register)
 	auth.Post("/login", h.login)

@@ -1,5 +1,8 @@
 <script setup lang="ts">
-definePageMeta({ middleware: 'admin' })
+definePageMeta({
+  middleware: 'admin',
+  layout: 'admin'
+})
 
 type Role = {
   id: number
@@ -15,10 +18,44 @@ type Role = {
 const { t } = useI18n()
 const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
 const requestHeaders = import.meta.server ? useRequestHeaders(['cookie']) : undefined
+const search = ref('')
+
 const { data: roles, pending, error, refresh } = await useFetch<Role[]>(`${apiBaseUrl}/roles`, {
   credentials: 'include',
   headers: requestHeaders,
   default: () => []
+})
+
+const columns = computed(() => [
+  {
+    accessorKey: 'key',
+    header: t('admin.roles.key')
+  },
+  {
+    accessorKey: 'alias',
+    header: t('admin.roles.alias')
+  },
+  {
+    accessorKey: 'description',
+    header: t('admin.roles.description')
+  },
+  {
+    id: 'status',
+    header: t('admin.roles.status')
+  }
+])
+
+const filteredRoles = computed(() => {
+  const keyword = search.value.trim().toLowerCase()
+
+  if (!keyword) {
+    return roles.value ?? []
+  }
+
+  return (roles.value ?? []).filter((role) => {
+    return [role.key, role.alias, role.description]
+      .some((value) => value.toLowerCase().includes(keyword))
+  })
 })
 
 useSeoMeta({
@@ -27,163 +64,87 @@ useSeoMeta({
 </script>
 
 <template>
-  <main class="page-shell">
-    <section class="forum-board" aria-labelledby="admin-roles-title">
-      <div class="roles-header">
-        <div>
-          <p class="eyebrow">
-            {{ t('admin.roles.eyebrow') }}
-          </p>
-          <h1 id="admin-roles-title">
-            {{ t('admin.roles.title') }}
-          </h1>
-          <p class="intro">
-            {{ t('admin.roles.intro') }}
-          </p>
-        </div>
+  <UDashboardNavbar :title="t('admin.roles.title')" icon="i-lucide-shield-check">
+    <template #right>
+      <UButton
+        color="neutral"
+        variant="outline"
+        leading-icon="i-lucide-refresh-cw"
+        :loading="pending"
+        @click="refresh()"
+      >
+        {{ t('admin.roles.refresh') }}
+      </UButton>
+    </template>
+  </UDashboardNavbar>
 
-        <SFButton variant="ghost" :loading="pending" @click="refresh()">
-          {{ t('admin.roles.refresh') }}
-        </SFButton>
-      </div>
-
-      <SFAlert
-        v-if="error"
-        class="roles-alert"
-        :title="t('admin.roles.loadFailed')"
-        variant="danger"
-        compact
+  <UDashboardToolbar>
+    <template #left>
+      <UInput
+        v-model="search"
+        icon="i-lucide-search"
+        :placeholder="t('admin.roles.searchPlaceholder')"
+        class="w-72 max-w-full"
       />
+    </template>
+    <template #right>
+      <UBadge color="neutral" variant="soft">
+        {{ t('admin.roles.count', { count: filteredRoles.length }) }}
+      </UBadge>
+    </template>
+  </UDashboardToolbar>
 
-      <div v-else-if="roles.length" class="roles-table-wrap">
-        <table class="roles-table">
-          <caption>{{ t('admin.roles.caption') }}</caption>
-          <thead>
-            <tr>
-              <th scope="col">
-                {{ t('admin.roles.key') }}
-              </th>
-              <th scope="col">
-                {{ t('admin.roles.alias') }}
-              </th>
-              <th scope="col">
-                {{ t('admin.roles.description') }}
-              </th>
-              <th scope="col">
-                {{ t('admin.roles.status') }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="role in roles" :key="role.id">
-              <td>
-                <code>{{ role.key }}</code>
-              </td>
-              <td>{{ role.alias }}</td>
-              <td>{{ role.description || t('admin.roles.noDescription') }}</td>
-              <td>
-                <div class="role-badges">
-                  <SFBadge v-if="role.isSystem" variant="info">
-                    {{ t('admin.roles.system') }}
-                  </SFBadge>
-                  <SFBadge v-if="role.isDefault" variant="primary">
-                    {{ t('admin.roles.default') }}
-                  </SFBadge>
-                  <SFBadge v-if="role.isDeletable" variant="neutral">
-                    {{ t('admin.roles.custom') }}
-                  </SFBadge>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+  <div class="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+    <UAlert
+      v-if="error"
+      color="error"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      :title="t('admin.roles.loadFailed')"
+    />
 
-      <SFAlert
-        v-else
-        class="roles-alert"
-        :title="t('admin.roles.empty')"
-        variant="info"
-        compact
-      />
-    </section>
-  </main>
+    <UCard v-else>
+      <UTable
+        :data="filteredRoles"
+        :columns="columns"
+        :loading="pending"
+        :empty="t('admin.roles.empty')"
+        :caption="t('admin.roles.caption')"
+        sticky
+        class="max-h-[calc(100vh-13rem)]"
+      >
+        <template #key-cell="{ row }">
+          <code class="rounded bg-muted px-2 py-1 text-xs font-medium text-highlighted">
+            {{ row.original.key }}
+          </code>
+        </template>
+
+        <template #alias-cell="{ row }">
+          <span class="font-medium text-highlighted">
+            {{ row.original.alias }}
+          </span>
+        </template>
+
+        <template #description-cell="{ row }">
+          <span class="text-muted">
+            {{ row.original.description || t('admin.roles.noDescription') }}
+          </span>
+        </template>
+
+        <template #status-cell="{ row }">
+          <div class="flex flex-wrap gap-1.5">
+            <UBadge v-if="row.original.isSystem" color="info" variant="soft">
+              {{ t('admin.roles.system') }}
+            </UBadge>
+            <UBadge v-if="row.original.isDefault" color="success" variant="soft">
+              {{ t('admin.roles.default') }}
+            </UBadge>
+            <UBadge v-if="row.original.isDeletable" color="neutral" variant="outline">
+              {{ t('admin.roles.custom') }}
+            </UBadge>
+          </div>
+        </template>
+      </UTable>
+    </UCard>
+  </div>
 </template>
-
-<style scoped>
-.roles-header {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.roles-alert {
-  margin-top: 24px;
-}
-
-.roles-table-wrap {
-  overflow-x: auto;
-  margin-top: 28px;
-  border: 1px solid var(--sf-border);
-  border-radius: 8px;
-}
-
-.roles-table {
-  width: 100%;
-  min-width: 720px;
-  border-collapse: collapse;
-  background: #ffffff;
-  font-size: 14px;
-}
-
-.roles-table caption {
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-}
-
-.roles-table th,
-.roles-table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--sf-border-light);
-  text-align: left;
-  vertical-align: top;
-}
-
-.roles-table th {
-  color: var(--sf-fg-tertiary);
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.roles-table tr:last-child td {
-  border-bottom: 0;
-}
-
-.roles-table code {
-  color: var(--sf-accent);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.role-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-@media (max-width: 760px) {
-  .roles-header {
-    display: block;
-  }
-
-  .roles-header .sf-button {
-    margin-top: 20px;
-  }
-}
-</style>

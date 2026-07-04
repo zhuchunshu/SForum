@@ -21,3 +21,16 @@ func TestParseAddrRejectsMissingPort(t *testing.T) {
 		t.Fatal("expected error for missing port")
 	}
 }
+
+func TestStorageConfigIncludesPassword(t *testing.T) {
+	cfg, err := StorageConfig("redis:6379", "secret")
+	if err != nil {
+		t.Fatalf("StorageConfig returned error: %v", err)
+	}
+	if cfg.Host != "redis" || cfg.Port != 6379 {
+		t.Fatalf("unexpected redis config: %+v", cfg)
+	}
+	if cfg.Password != "secret" {
+		t.Fatalf("expected password to be set, got %q", cfg.Password)
+	}
+}

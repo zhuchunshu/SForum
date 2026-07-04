@@ -10,12 +10,14 @@ import (
 	nethttp "net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
 
 	identitycontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Identity"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -99,6 +101,97 @@ func TestRegisterEndpointCreatesSession(t *testing.T) {
 	}
 	if cookies := resp.Cookies(); len(cookies) == 0 {
 		t.Fatal("expected session cookie")
+	}
+}
+
+func TestRegisterEndpointRequiresHumanVerification(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	verifier := humanverify.NewService(
+		humanverify.ServiceConfig{Enabled: true, ChallengeTTL: time.Minute},
+		httpFakeHumanProvider{result: humanverify.VerifyResult{Verified: true, Code: humanverify.CodeOK}},
+		humanverify.NewMemoryStore(),
+	)
+	identityController := identitycontroller.NewControllerWithVerifier(identity.NewService(store), session.NewStore(), verifier)
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
+
+	body := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN"}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("register request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+	var problem problemResponse
+	if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
+		t.Fatalf("decode problem response: %v", err)
+	}
+	if problem.Code != humanverify.CodeRequired {
+		t.Fatalf("expected required code, got %q", problem.Code)
+	}
+}
+
+func TestRegisterEndpointAcceptsHumanVerificationToken(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	verifier := humanverify.NewService(
+		humanverify.ServiceConfig{Enabled: true, ChallengeTTL: time.Minute},
+		httpFakeHumanProvider{result: humanverify.VerifyResult{Verified: true, Code: humanverify.CodeOK}},
+		humanverify.NewMemoryStore(),
+	)
+	identityController := identitycontroller.NewControllerWithVerifier(identity.NewService(store), session.NewStore(), verifier)
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
+
+	body := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN","humanVerification":{"provider":"altcha","token":"valid-token"}}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("register request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+	if cookies := resp.Cookies(); len(cookies) == 0 {
+		t.Fatal("expected session cookie")
+	}
+}
+
+func TestHumanVerificationChallengeEndpoint(t *testing.T) {
+	cfg := testConfig()
+	verifier := humanverify.NewService(
+		humanverify.ServiceConfig{Enabled: true, ChallengeTTL: time.Minute},
+		httpFakeHumanProvider{challenge: map[string]any{"challenge": "fake"}},
+		humanverify.NewMemoryStore(),
+	)
+	identityController := identitycontroller.NewControllerWithVerifier(identity.NewService(newHTTPFakeStore()), session.NewStore(), verifier)
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
+
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/human-verification/challenge?purpose=register", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("challenge request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode challenge response: %v", err)
+	}
+	if body["challenge"] != "fake" {
+		t.Fatalf("expected fake challenge, got %v", body)
 	}
 }
 
@@ -393,4 +486,28 @@ type routeProviderFunc func(api fiber.Router)
 
 func (fn routeProviderFunc) RegisterRoutes(api fiber.Router) {
 	fn(api)
+}
+
+type httpFakeHumanProvider struct {
+	challenge map[string]any
+	result    humanverify.VerifyResult
+}
+
+func (p httpFakeHumanProvider) Challenge(context.Context, humanverify.Purpose, humanverify.Subject) (humanverify.Challenge, error) {
+	payload := p.challenge
+	if payload == nil {
+		payload = map[string]any{"challenge": "fake"}
+	}
+	return humanverify.Challenge{
+		Provider: humanverify.ProviderAltcha,
+		Purpose:  humanverify.PurposeRegister,
+		Payload:  payload,
+	}, nil
+}
+
+func (p httpFakeHumanProvider) Verify(context.Context, humanverify.VerifyRequest) (humanverify.VerifyResult, error) {
+	if p.result.Code == "" {
+		return humanverify.VerifyResult{Verified: true, Code: humanverify.CodeOK}, nil
+	}
+	return p.result, nil
 }

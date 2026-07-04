@@ -39,6 +39,10 @@ This is the entry point for project memory.
   toasts, and tabs, with a dev-only `/components` preview page. The preview page
   now covers seven forum-oriented sections: foundations, feedback, forum list,
   composer flow, moderation, member profile, and loading/empty states.
+- The admin foundation now uses a dedicated Nuxt UI Dashboard shell with Nuxt
+  Icon lucide icons. Source files stay under `apps/web/app/pages/admin`, while
+  Nuxt rewrites the public route prefix from `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`,
+  defaulting to `/control-panel`.
 - Identity and permissions architecture is accepted: SForum uses one user
   system for regular users, moderators, and administrators; the first registered
   user becomes the protected initial `super_admin`; later open registrations
@@ -48,6 +52,11 @@ This is the entry point for project memory.
   default self-hosted human-verification provider for registration,
   password-reset initiation, and later risk-based actions, paired with
   Redis-backed rate limits and single-use challenge tracking.
+- ALTCHA-backed registration human verification is implemented in the first
+  identity slice. The API exposes `/api/v1/human-verification/challenge`,
+  verifies ALTCHA payloads before account creation, stores replay/rate-limit
+  state in Redis, and the Nuxt registration page sends the widget token through
+  `humanVerification`.
 - Backend API code has migrated to a Laravel-style directory shape while
   staying Go-explicit: `cmd/api` is process-focused, `bootstrap` assembles the
   runtime, `app/Http` owns the HTTP kernel, `app/Http/Controllers/*` owns
@@ -80,6 +89,12 @@ This is the entry point for project memory.
   composition, route registration, and Laravel-style API directory decision.
 - `decisions/2026-07-04-altcha-human-verification.md` - accepted ALTCHA human
   verification decision.
+- `decisions/2026-07-04-configurable-admin-control-panel.md` - accepted
+  configurable admin route prefix and Nuxt UI dashboard shell decision.
+- `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA
+  implementation handoff.
+- `sessions/2026-07-04-admin-foundation.md` - admin foundation implementation
+  handoff.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -
   security verification design.
 - `../docs/development-and-deployment.md` - proposed local development,

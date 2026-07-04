@@ -1,8 +1,18 @@
+import type { NuxtPage } from 'nuxt/schema'
+import {
+  LEGACY_ADMIN_ROUTE_PREFIX,
+  normalizeAdminRoutePrefix
+} from './app/utils/adminRoutePrefix'
+
 const appName = process.env.APP_NAME || 'SForum'
 const appUrl =
   process.env.NUXT_PUBLIC_I18N_BASE_URL ||
   process.env.APP_URL ||
   'http://127.0.0.1:3000'
+const adminRoutePrefix = normalizeAdminRoutePrefix(
+  process.env.NUXT_PUBLIC_ADMIN_ROUTE_PREFIX ||
+  process.env.ADMIN_ROUTE_PREFIX
+)
 const nuxtGeneratedIgnores = [
   '.nuxt/**',
   '.output/**',
@@ -26,6 +36,24 @@ const generatedOutputWatchIgnores = [
   '**/test-results/**'
 ]
 
+function rewriteAdminPageRoutes(pages: NuxtPage[]) {
+  for (const page of pages) {
+    if (
+      page.path === LEGACY_ADMIN_ROUTE_PREFIX ||
+      page.path.startsWith(`${LEGACY_ADMIN_ROUTE_PREFIX}/`)
+    ) {
+      page.path = page.path.replace(
+        LEGACY_ADMIN_ROUTE_PREFIX,
+        adminRoutePrefix
+      )
+    }
+
+    if (page.children?.length) {
+      rewriteAdminPageRoutes(page.children)
+    }
+  }
+}
+
 export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@nuxtjs/i18n', '@nuxtjs/seo'],
   ssr: true,
@@ -43,12 +71,18 @@ export default defineNuxtConfig({
       }
     }
   },
+  vue: {
+    compilerOptions: {
+      isCustomElement: (tag) => tag === 'altcha-widget'
+    }
+  },
   schemaOrg: {
     enabled: false
   },
   runtimeConfig: {
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || '/api/v1',
+      adminRoutePrefix,
       appLocale: process.env.APP_LOCALE || 'zh-CN',
       supportedLocales: process.env.SUPPORTED_LOCALES || 'zh-CN,en-US',
       i18n: {
@@ -92,6 +126,11 @@ export default defineNuxtConfig({
       cookieKey: 'sforum_locale',
       redirectOn: 'root',
       fallbackLocale: 'zh-CN'
+    }
+  },
+  hooks: {
+    'pages:extend'(pages) {
+      rewriteAdminPageRoutes(pages)
     }
   },
   ogImage: {

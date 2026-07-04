@@ -54,6 +54,8 @@
     "emailPlaceholder": "邮箱地址",
     "displayNamePlaceholder": "小明",
     "passwordPlaceholder": "至少 8 位",
+    "humanVerification": "人机验证",
+    "humanVerificationLoading": "正在加载人机验证…",
     "brandHeadlineL1": "一个认真讨论",
     "brandHeadlineL2": "事情的地方",
     "brandDesc": "没有算法推荐，没有信息流噪音。按话题组织，每条回复都值得被读到。",
@@ -62,21 +64,62 @@
     "feature3": "中英文界面，随时切换"
   },
   "admin": {
+    "shell": {
+      "brand": "SForum",
+      "section": "控制台",
+      "unknownUser": "管理员",
+      "member": "成员",
+      "visitForum": "返回论坛",
+      "signOut": "退出登录"
+    },
+    "nav": {
+      "dashboard": "仪表盘",
+      "roles": "用户组",
+      "rolesBadge": "RBAC",
+      "forumHome": "论坛首页"
+    },
     "home": {
       "metaTitle": "管理后台",
-      "eyebrow": "SForum 管理",
-      "title": "管理论坛用户组与权限",
+      "title": "后台总览",
       "intro": "后台使用同一套论坛账号体系，所有管理能力由 API 权限控制。",
-      "navLabel": "管理后台导航",
-      "rolesLink": "查看用户组"
+      "rolesLink": "查看用户组",
+      "cards": {
+        "access": {
+          "label": "访问控制",
+          "value": "已启用"
+        },
+        "prefix": {
+          "label": "后台入口"
+        },
+        "stack": {
+          "label": "界面组件",
+          "value": "Nuxt UI + Nuxt Icon"
+        }
+      },
+      "nextTitle": "管理模块",
+      "nextIntro": "按权限逐步接入后台功能。",
+      "next": {
+        "roles": {
+          "title": "用户组与权限",
+          "description": "查看系统用户组、自定义用户组和默认成员身份。"
+        },
+        "audit": {
+          "title": "审核记录",
+          "description": "为后续版主管理与安全审计预留入口。"
+        },
+        "settings": {
+          "title": "站点设置",
+          "description": "为论坛名称、注册策略和内容策略预留入口。"
+        }
+      }
     },
     "roles": {
       "metaTitle": "用户组",
-      "eyebrow": "身份与权限",
       "title": "用户组",
-      "intro": "开放注册用户默认加入 member 用户组。member 可以修改别名，但不能删除。",
       "caption": "论坛用户组列表",
       "refresh": "刷新",
+      "searchPlaceholder": "搜索标识、别名或说明",
+      "count": "{count} 个用户组",
       "key": "标识",
       "alias": "别名",
       "description": "说明",
@@ -92,6 +135,11 @@
   "errors": {
     "permissionDenied": "你没有权限执行此操作。",
     "registerFailed": "注册失败，请检查填写内容后重试。",
-    "loginFailed": "登录失败，请检查账号和密码。"
+    "loginFailed": "登录失败，请检查账号和密码。",
+    "humanVerificationRequired": "请先完成人机验证。",
+    "humanVerificationInvalid": "人机验证失败，请重新验证。",
+    "humanVerificationExpired": "人机验证已过期，请重新验证。",
+    "humanVerificationReplayed": "本次验证已使用，请重新验证。",
+    "rateLimited": "操作过于频繁，请稍后再试。"
   }
 }

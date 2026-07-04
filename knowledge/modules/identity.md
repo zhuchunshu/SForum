@@ -19,6 +19,10 @@ Initial identity foundation is implemented.
 - Browser sessions are backed by Redis through Fiber sessions.
 - API endpoints exist for registration, login, logout, current session, role
   listing, role creation/update/delete, and role permission replacement.
+- Registration now requires human verification in the default runtime path:
+  `/api/v1/human-verification/challenge?purpose=register` returns an ALTCHA v2
+  challenge, and `/api/v1/auth/register` verifies the submitted
+  `humanVerification` token before creating the user.
 - Nuxt has login/register pages, an admin route middleware, an admin overview,
   and a first user-group list shell.
 
@@ -72,8 +76,17 @@ Initial identity foundation is implemented.
 - `apps/api/app/Http/Controllers/Identity/controller.go` maps stable API error
   codes such as `auth.required`, `permission.denied`, and
   `role.default_role_locked`.
+- `apps/api/app/Support/HumanVerify` owns the provider boundary, ALTCHA v2
+  challenge/verification adapter, Redis-backed replay/rate-limit store, and
+  in-memory test/local store.
 - `apps/api/app/Providers/identity.go` wires the identity store, service, and
   controller into the ordered route-provider list.
+- `apps/api/bootstrap/app.go` wires the configured human-verification provider.
+  `HUMAN_VERIFICATION_PROVIDER=altcha` is the default; `disabled` is available
+  for local/testing contexts where the caller intentionally bypasses this layer.
+- `apps/web/app/pages/register.vue` renders the ALTCHA widget client-side and
+  maps `human_verification.*` and `rate_limit.exceeded` API error codes to
+  localized messages.
 - Registration responses reload the current user after the bootstrap
   transaction so `roleKeys` and `permissions` serialize as arrays.
 - `contracts/openapi.yaml` documents the current auth and role endpoints.
@@ -89,9 +102,11 @@ Initial identity foundation is implemented.
 
 ## Next Steps
 
-- Add ALTCHA challenge generation, server verification, Redis replay
-  protection, and registration rate limits.
+- Tune production ALTCHA challenge cost, expiration, and per-IP limits after
+  testing on expected low-end client devices.
 - Add CSRF protection for cookie-authenticated unsafe requests.
+- Extend the same human-verification boundary to password-reset initiation and
+  risk-based login/posting checks when those flows are implemented.
 - Add account deletion/disable flows while preserving the initial
   `super_admin` invariant.
 - Expand the admin role-management UI from list shell to editable role and

@@ -6,6 +6,7 @@ import (
 
 	identitycontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Identity"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 )
 
 type IdentityProvider struct {
@@ -13,8 +14,12 @@ type IdentityProvider struct {
 }
 
 func NewIdentityProvider(store identity.Store, sessions *session.Store) *IdentityProvider {
+	return NewIdentityProviderWithVerifier(store, sessions, humanverify.NewDisabledService())
+}
+
+func NewIdentityProviderWithVerifier(store identity.Store, sessions *session.Store, verifier *humanverify.Service) *IdentityProvider {
 	return &IdentityProvider{
-		controller: identitycontroller.NewController(identity.NewService(store), sessions),
+		controller: identitycontroller.NewControllerWithVerifier(identity.NewService(store), sessions, verifier),
 	}
 }
 

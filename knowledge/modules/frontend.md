@@ -23,6 +23,12 @@ uppercase `SF` component names. The first component set is backed by
 `/components` route. That preview page now shows the components in expanded
 forum scenarios: publishing, moderation, member profile, feedback, lists, and
 state handling.
+Admin pages use a dedicated `admin` Nuxt layout built from Nuxt UI Dashboard
+components (`UDashboardGroup`, `UDashboardSidebar`, `UDashboardPanel`,
+`UDashboardNavbar`, `UDashboardToolbar`) and Nuxt Icon lucide icons. The source
+directory remains `apps/web/app/pages/admin`, while Nuxt `pages:extend`
+rewrites the public URL prefix to `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`, with
+`/control-panel` as the default.
 
 ## Planned Stack
 
@@ -57,7 +63,7 @@ state handling.
 
 - Expand the initial `zh-CN`/`en-US` catalogs as pages are added.
 - Add page skeletons for home, category list, topic detail, login, and profile.
-- Add protected admin route conventions under the same Nuxt app for role and
-  user management.
+- Add protected admin pages under the configurable control-panel shell for user
+  management, moderation, audit, and site settings.
 - Add SEO metadata conventions before real pages proliferate.
 - Start replacing static forum page sketches with the reusable `SF*` components.

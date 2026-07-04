@@ -22,6 +22,11 @@ type Config struct {
 	WorkerDatabaseMaxConns       int32
 	WorkerShutdownTimeout        time.Duration
 	RedisAddr                    string
+	RedisPassword                string
+	HumanVerificationProvider    string
+	AltchaSecret                 string
+	AltchaChallengeTTL           time.Duration
+	AltchaCost                   int
 	MeiliHost                    string
 	MeiliMasterKey               string
 	JobQueueCriticalWorkers      int
@@ -49,6 +54,11 @@ func Load() Config {
 		WorkerDatabaseMaxConns:       int32(envPositiveInt("WORKER_DATABASE_MAX_CONNS", 10)),
 		WorkerShutdownTimeout:        envDuration("WORKER_SHUTDOWN_TIMEOUT", 30*time.Second),
 		RedisAddr:                    env("REDIS_ADDR", "redis:6379"),
+		RedisPassword:                env("REDIS_PASSWORD", ""),
+		HumanVerificationProvider:    env("HUMAN_VERIFICATION_PROVIDER", "altcha"),
+		AltchaSecret:                 env("ALTCHA_SECRET", "sforum-dev-altcha-secret"),
+		AltchaChallengeTTL:           envDuration("ALTCHA_CHALLENGE_TTL", 10*time.Minute),
+		AltchaCost:                   envPositiveInt("ALTCHA_COST", 1000),
 		MeiliHost:                    env("MEILI_HOST", "http://meilisearch:7700"),
 		MeiliMasterKey:               env("MEILI_MASTER_KEY", "sforum-dev-meili-key"),
 		JobQueueCriticalWorkers:      envPositiveInt("JOB_QUEUE_CRITICAL_WORKERS", 4),

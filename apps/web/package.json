@@ -9,9 +9,11 @@
     "typecheck": "NUXT_BUILD_DIR=.nuxt/typecheck nuxt typecheck"
   },
   "dependencies": {
+    "@iconify-json/lucide": "^1.2.116",
     "@nuxt/ui": "latest",
     "@nuxtjs/i18n": "latest",
     "@nuxtjs/seo": "latest",
+    "altcha": "^3.1.0",
     "nuxt": "latest",
     "vue": "latest"
   },

@@ -10,6 +10,8 @@ echo "Running Go tests..."
 if [ -d apps/web/node_modules ]; then
   echo "Running Nuxt typecheck..."
   (cd apps/web && bun run typecheck)
+  echo "Running admin framework validation..."
+  bun tests/validate-admin-framework.ts
 else
   echo "Skipping Nuxt typecheck because apps/web/node_modules is missing."
 fi

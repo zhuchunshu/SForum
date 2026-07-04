@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { CurrentUser } from '~/composables/useAuthSession'
+import { useAdminRoutes } from '~/composables/useAdminRoutes'
 
 const { t } = useI18n()
 const localePath = useLocalePath()
+const adminRoutes = useAdminRoutes()
 const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
 const { refresh, can } = useAuthSession()
 
@@ -31,7 +33,7 @@ async function submitLogin() {
       }
     })
     await refresh()
-    await navigateTo(localePath(can('admin.access') ? '/admin' : '/'))
+    await navigateTo(can('admin.access') ? adminRoutes.path('/') : localePath('/'))
   } catch {
     errorMessage.value = t('errors.loginFailed')
   } finally {

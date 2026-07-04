@@ -25,14 +25,24 @@ func ParseAddr(addr string) (string, int, error) {
 	return host, port, nil
 }
 
-func NewStorage(addr string) (*redisstorage.Storage, error) {
+func StorageConfig(addr string, password string) (redisstorage.Config, error) {
 	host, port, err := ParseAddr(addr)
+	if err != nil {
+		return redisstorage.Config{}, err
+	}
+
+	return redisstorage.Config{
+		Host:     host,
+		Port:     port,
+		Password: password,
+	}, nil
+}
+
+func NewStorage(addr string, password string) (*redisstorage.Storage, error) {
+	cfg, err := StorageConfig(addr, password)
 	if err != nil {
 		return nil, err
 	}
 
-	return redisstorage.New(redisstorage.Config{
-		Host: host,
-		Port: port,
-	}), nil
+	return redisstorage.New(cfg), nil
 }
