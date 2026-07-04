@@ -88,13 +88,16 @@ const currentLocaleName = computed(() => {
           @click="langMenuOpen = !langMenuOpen"
         >
           <!-- 地球图标 -->
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="10"/>
             <path d="M2 12h20"/>
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
           </svg>
-          <svg class="navbar__chevron" :class="{ 'navbar__chevron--open': langMenuOpen }" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- 语言文本 -->
+          <span class="navbar__lang-text">{{ currentLocaleName }}</span>
+          <!-- 下拉箭头 -->
+          <svg class="navbar__chevron" :class="{ 'navbar__chevron--open': langMenuOpen }" width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
 
@@ -112,7 +115,7 @@ const currentLocaleName = computed(() => {
             >
               <span>{{ loc.name }}</span>
               <!-- 当前语言打勾 -->
-              <svg v-if="locale === loc.code" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <svg v-if="locale === loc.code" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
             </NuxtLink>
