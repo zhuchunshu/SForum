@@ -207,8 +207,8 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
         <!-- ======================================= -->
         <aside class="hidden lg:block space-y-6">
           <!-- Navigation Links -->
-          <SFCard class="p-4">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+          <SFCard flush class="p-4">
+            <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
               {{ t('home.sidebar.navTitle') }}
             </h2>
             <nav class="space-y-1" aria-label="首页辅助导航">
@@ -232,9 +232,9 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
           </SFCard>
 
           <!-- Categories Card -->
-          <SFCard id="categories" class="p-4">
+          <SFCard flush id="categories" class="p-4">
             <div class="flex justify-between items-center mb-3">
-              <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 {{ t('home.sidebar.sections') }}
               </h2>
               <SFBadge variant="neutral">{{ totalCategoryThreads }}</SFBadge>
@@ -246,7 +246,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                     <span class="w-1.5 h-1.5 rounded-full bg-[#0F766E]"></span>
                     <span>{{ cat.name }}</span>
                   </span>
-                  <span class="text-xs text-slate-400 font-mono">{{ cat.count }}</span>
+                    <span class="text-xs text-slate-500 font-mono">{{ cat.count }}</span>
                 </a>
               </li>
             </ul>
@@ -336,21 +336,21 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
         <!-- ======================================= -->
         <aside class="hidden md:block space-y-6">
           <!-- User Status Panel -->
-          <SFCard class="p-5 text-center">
+          <SFCard flush class="p-5 text-center">
             <template v-if="user">
               <div class="flex flex-col items-center gap-2">
                 <SFAvatar :name="user.displayName" size="lg" status="online" />
                 <h2 class="font-bold text-slate-800 text-base mt-1">{{ user.displayName }}</h2>
-                <p class="text-xs text-slate-400">@{{ user.username }}</p>
+                <p class="text-xs text-slate-500">@{{ user.username }}</p>
                 
                 <div class="grid grid-cols-2 gap-4 w-full mt-4 pt-4 border-t border-slate-100">
                   <div>
                     <span class="block text-sm font-bold text-slate-800">12</span>
-                    <span class="text-[10px] text-slate-400 uppercase font-semibold">{{ t('home.sidebar.userPosts') }}</span>
+                    <span class="text-[10px] text-slate-500 uppercase font-semibold">{{ t('home.sidebar.userPosts') }}</span>
                   </div>
                   <div>
                     <span class="block text-sm font-bold text-slate-800">84</span>
-                    <span class="text-[10px] text-slate-400 uppercase font-semibold">{{ t('home.sidebar.userLikes') }}</span>
+                    <span class="text-[10px] text-slate-500 uppercase font-semibold">{{ t('home.sidebar.userLikes') }}</span>
                   </div>
                 </div>
               </div>
@@ -361,7 +361,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                   💬
                 </div>
                 <h2 class="font-bold text-slate-800 text-sm">{{ t('home.sidebar.welcomeTitle') }}</h2>
-                <p class="text-xs text-slate-500 leading-relaxed">{{ t('home.sidebar.welcomeDesc') }}</p>
+                <p class="text-xs text-slate-600 leading-relaxed">{{ t('home.sidebar.welcomeDesc') }}</p>
                 <div class="grid grid-cols-2 gap-2 pt-2">
                   <NuxtLink :to="localePath('/login')" class="sf-button sf-button--ghost sf-button--sm block text-center">
                     {{ t('home.sidebar.loginBtn') }}
@@ -375,12 +375,12 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
           </SFCard>
 
           <!-- Check In Card -->
-          <SFCard v-if="user" class="p-4 flex items-center justify-between gap-3">
+          <SFCard flush v-if="user" class="p-4 flex items-center justify-between gap-3">
             <div class="min-w-0">
               <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wide">
                 {{ t('home.sidebar.checkIn') }}
               </h3>
-              <p class="text-[10px] text-slate-400 mt-0.5 truncate">
+              <p class="text-[10px] text-slate-500 mt-0.5 truncate">
                 {{ checkedIn ? t('home.sidebar.checkedIn', { days: checkInDays }) : t('home.sidebar.checkInDesc') }}
               </p>
             </div>
@@ -396,8 +396,8 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
           </SFCard>
 
           <!-- Hot Discussions Card -->
-          <SFCard class="p-4" id="tags">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+          <SFCard flush class="p-4" id="tags">
+            <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
               {{ t('home.sidebar.hotThreads') }}
             </h2>
             <ul class="space-y-2.5">
@@ -417,32 +417,32 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                   <a href="#" class="text-xs text-slate-700 hover:text-[#0F766E] hover:underline font-medium block truncate">
                     {{ topic.title }}
                   </a>
-                  <span class="text-[9px] text-slate-400 font-mono">{{ t('home.sidebar.repliesCount', { count: topic.replies }) }}</span>
+                  <span class="text-[9px] text-slate-500 font-mono">{{ t('home.sidebar.repliesCount', { count: topic.replies }) }}</span>
                 </div>
               </li>
             </ul>
           </SFCard>
 
           <!-- Forum Stats Card -->
-          <SFCard class="p-4">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+          <SFCard flush class="p-4">
+            <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
               {{ t('home.sidebar.forumStats') }}
             </h2>
             <ul class="space-y-2 text-xs text-slate-600">
               <li class="flex justify-between py-0.5">
-                <span class="text-slate-400">{{ t('home.sidebar.statThreads') }}</span>
+                <span class="text-slate-500">{{ t('home.sidebar.statThreads') }}</span>
                 <span class="font-semibold font-mono text-slate-800">4,284</span>
               </li>
               <li class="flex justify-between py-0.5">
-                <span class="text-slate-400">{{ t('home.sidebar.statReplies') }}</span>
+                <span class="text-slate-500">{{ t('home.sidebar.statReplies') }}</span>
                 <span class="font-semibold font-mono text-slate-800">23,109</span>
               </li>
               <li class="flex justify-between py-0.5">
-                <span class="text-slate-400">{{ t('home.sidebar.statMembers') }}</span>
+                <span class="text-slate-500">{{ t('home.sidebar.statMembers') }}</span>
                 <span class="font-semibold font-mono text-slate-800">894</span>
               </li>
               <li class="flex justify-between py-0.5">
-                <span class="text-slate-400">{{ t('home.sidebar.statOnline') }}</span>
+                <span class="text-slate-500">{{ t('home.sidebar.statOnline') }}</span>
                 <span class="font-semibold font-mono text-slate-800 flex items-center gap-1.5">
                   <span class="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>
                   <span>1,024</span>
