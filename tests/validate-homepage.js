@@ -71,7 +71,7 @@ for (const pathArr of keyPaths) {
 console.log('✓ All 6 required homepage locale key paths validated in both zh-CN and en-US bundles.');
 
 // 6. Verify layout grids
-if (!indexContent.includes('grid-cols-12') || !indexContent.includes('col-span-12') || !indexContent.includes('lg:col-span-6')) {
+if (!indexContent.includes('max-w-[1376px]') || !indexContent.includes('lg:grid-cols-[270px_1fr_290px]') || !indexContent.includes('md:grid-cols-[1fr_290px]')) {
   throw new Error('index.vue layout grid configuration is missing or incorrect');
 }
 console.log('✓ 3-column responsive grid classes found in index.vue template.');
