@@ -103,25 +103,25 @@ useSeoMeta({
   </UDashboardToolbar>
 
   <div class="flex flex-col gap-6">
-    <div class="grid gap-4 lg:grid-cols-3">
-      <UCard v-for="card in overviewCards" :key="card.label" class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
-        <div class="flex items-start justify-between gap-4">
+    <div class="grid gap-5 lg:grid-cols-3">
+      <UCard v-for="card in overviewCards" :key="card.label" class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
+        <div class="flex items-center justify-between gap-4">
           <div class="min-w-0">
-            <p class="text-xs font-medium text-slate-500 dark:text-zinc-400">
+            <p class="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
               {{ card.label }}
             </p>
-            <p class="mt-2 truncate text-xl font-bold text-slate-900 dark:text-white">
+            <p class="mt-2.5 truncate text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               {{ card.value }}
             </p>
           </div>
-          <span class="grid size-10 shrink-0 place-items-center rounded-md bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
-            <UIcon :name="card.icon" class="size-5" :class="card.tone" />
+          <span class="icon-glass-box shrink-0" :class="card.tone">
+            <UIcon :name="card.icon" class="size-5 z-10" />
           </span>
         </div>
       </UCard>
     </div>
 
-    <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
+    <UCard class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <div>
@@ -136,16 +136,16 @@ useSeoMeta({
         </div>
       </template>
 
-      <div class="divide-y divide-slate-100 dark:divide-zinc-800">
+      <div class="divide-y divide-slate-100 dark:divide-zinc-800/50">
         <component
           :is="section.to ? 'NuxtLink' : 'div'"
           v-for="section in nextSections"
           :key="section.title"
           :to="section.to"
-          class="flex items-center gap-4 py-4 first:pt-0 last:pb-0"
+          class="flex items-center gap-4 py-4 first:pt-0 last:pb-0 hover:bg-slate-50/50 dark:hover:bg-zinc-800/20 px-2 rounded-lg transition-colors cursor-pointer"
         >
-          <span class="grid size-10 shrink-0 place-items-center rounded-md bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
-            <UIcon :name="section.icon" class="size-5 text-slate-500 dark:text-zinc-400" />
+          <span class="icon-glass-box shrink-0 text-slate-600 dark:text-zinc-300">
+            <UIcon :name="section.icon" class="size-5 z-10" />
           </span>
           <span class="min-w-0 flex-1">
             <span class="block font-semibold text-slate-900 dark:text-white text-sm">
