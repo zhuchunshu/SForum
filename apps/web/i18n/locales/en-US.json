@@ -117,7 +117,11 @@
       "roles": "User groups",
       "rolesBadge": "RBAC",
       "settings": "Site settings",
-      "forumHome": "Forum home"
+      "forumHome": "Forum home",
+      "userPermission": "Users & Permissions",
+      "userManagement": "User management",
+      "userGroups": "User groups",
+      "permissionManagement": "Permission management"
     },
     "home": {
       "metaTitle": "Admin",

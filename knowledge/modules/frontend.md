@@ -53,6 +53,8 @@ components (`UDashboardGroup`, `UDashboardSidebar`, `UDashboardPanel`,
 directory remains `apps/web/app/pages/admin`, while Nuxt `pages:extend`
 rewrites the public URL prefix to `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`, with
 `/control-panel` as the default.
+The public forum navbar user dropdown no longer exposes the admin entry link,
+so the configurable admin prefix is not revealed from the regular logged-in UI.
 Runtime site options are read through `useWebOptions()`. `site.name` now drives
 the navbar, auth pages, admin shell, and browser title template, with `SForum`
 as the fallback product name.

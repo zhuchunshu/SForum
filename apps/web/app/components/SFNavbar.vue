@@ -2,7 +2,6 @@
 const { t, locale, locales } = useI18n()
 const localePath = useLocalePath()
 const switchLocalePath = useSwitchLocalePath()
-const adminRoutes = useAdminRoutes()
 const { user, refresh } = useAuthSession()
 const { siteName } = useWebOptions()
 const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
@@ -157,15 +156,6 @@ const avatarLetter = computed(() =>
                   <span class="navbar__dropdown-name">{{ displayName }}</span>
                   <span class="navbar__dropdown-username">@{{ user.username }}</span>
                 </div>
-                <div class="navbar__dropdown-divider" />
-                <NuxtLink
-                  :to="adminRoutes.path('/')"
-                  class="navbar__dropdown-item"
-                  role="menuitem"
-                  @click="menuOpen = false"
-                >
-                  {{ t('nav.admin') }}
-                </NuxtLink>
                 <div class="navbar__dropdown-divider" />
                 <button
                   class="navbar__dropdown-item navbar__dropdown-item--danger"

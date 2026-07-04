@@ -117,7 +117,11 @@
       "roles": "用户组",
       "rolesBadge": "RBAC",
       "settings": "站点设置",
-      "forumHome": "论坛首页"
+      "forumHome": "论坛首页",
+      "userPermission": "用户/权限",
+      "userManagement": "用户管理",
+      "userGroups": "用户组",
+      "permissionManagement": "权限管理"
     },
     "home": {
       "metaTitle": "管理后台",

@@ -58,6 +58,8 @@ This is the entry point for project memory.
   Icon lucide icons. Source files stay under `apps/web/app/pages/admin`, while
   Nuxt rewrites the public route prefix from `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`,
   defaulting to `/control-panel`.
+- The public forum navbar no longer shows an admin entry in the logged-in user
+  dropdown, avoiding direct exposure of the configurable admin route prefix.
 - Identity and permissions architecture is accepted: SForum uses one user
   system for regular users, moderators, and administrators; the first registered
   user becomes the protected initial `super_admin`; later open registrations
@@ -172,6 +174,8 @@ This is the entry point for project memory.
   fix for the unsupported `nuxi preview --host` flag.
 - `sessions/2026-07-05-admin-multitab-layout-upgrades.md` - admin multitabs,
   global topbar, theme adaptive sidebar, and nested menu layout upgrades handoff.
+- `sessions/2026-07-05-public-navbar-hide-admin-entry.md` - public navbar admin
+  entry removal handoff.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -
   security verification design.
 - `../docs/development-and-deployment.md` - proposed local development,

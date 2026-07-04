@@ -61,15 +61,25 @@ const navigationItems = computed(() => [
       to: adminRoutes.path('/')
     },
     {
-      label: '系统管理',
-      icon: 'i-lucide-shield-check',
+      label: t('admin.nav.userPermission'),
+      icon: 'i-lucide-user-cog',
       defaultOpen: true,
       children: [
         {
-          label: t('admin.nav.roles'),
+          label: t('admin.nav.userManagement'),
+          icon: 'i-lucide-contact',
+          to: adminRoutes.path('/users')
+        },
+        {
+          label: t('admin.nav.userGroups'),
           icon: 'i-lucide-users',
           to: adminRoutes.path('/roles'),
           badge: t('admin.nav.rolesBadge')
+        },
+        {
+          label: t('admin.nav.permissionManagement'),
+          icon: 'i-lucide-shield-check',
+          to: adminRoutes.path('/permissions')
         }
       ]
     },
