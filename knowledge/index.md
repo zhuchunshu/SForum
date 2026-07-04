@@ -48,11 +48,12 @@ This is the entry point for project memory.
   default self-hosted human-verification provider for registration,
   password-reset initiation, and later risk-based actions, paired with
   Redis-backed rate limits and single-use challenge tracking.
-- Backend HTTP composition now follows the first slice of the Laravel-inspired
-  but Go-explicit bootstrap/provider/routes structure: `cmd/api` is
-  process-focused, `internal/bootstrap` assembles the API runtime,
-  `internal/http` accepts route providers, and identity owns provider/routes
-  files.
+- Backend API code has migrated to a Laravel-style directory shape while
+  staying Go-explicit: `cmd/api` is process-focused, `bootstrap` assembles the
+  runtime, `app/Http` owns the HTTP kernel, `app/Http/Controllers/*` owns
+  controllers and routes, `app/Providers` owns provider wiring,
+  `app/Models/*` owns domain logic, and `database/*` owns migrations, SQL, and
+  generated `sqlc` code.
 
 ## Navigation
 
@@ -65,10 +66,10 @@ This is the entry point for project memory.
   layout.
 - `modules/identity.md` - identity, registration, sessions, roles, permissions,
   human verification, and policy notes.
-- `modules/backend.md` - backend stack, module boundaries, jobs, and the target
-  Laravel-inspired HTTP bootstrap/routing structure.
+- `modules/backend.md` - backend stack, module boundaries, jobs, and the
+  Laravel-style Go/Fiber API directory structure.
 - `decisions/2026-07-04-laravel-style-http-routing.md` - accepted backend
-  composition and route registration decision.
+  composition, route registration, and Laravel-style API directory decision.
 - `decisions/2026-07-04-altcha-human-verification.md` - accepted ALTCHA human
   verification decision.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -

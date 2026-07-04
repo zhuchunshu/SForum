@@ -77,7 +77,7 @@ data fetching, and Vite-backed development without splitting the frontend stack.
   so Cloudflare Turnstile can be added later for deployments that want managed
   bot detection.
 - Durable jobs and queues: River backed by PostgreSQL, wrapped by a small
-  project-owned `internal/platform/jobs` package.
+  project-owned `app/Support/Jobs` package.
 - Search: Meilisearch with `meilisearch-go`, fed from PostgreSQL through a
   rebuildable indexer.
 - Validation: `go-playground/validator/v10` through Fiber's struct validator.
@@ -122,32 +122,38 @@ Target layout as implementation grows:
 |       |   |-- api/
 |       |   |-- migrate/
 |       |   `-- worker/
-|       |-- internal/
-|       |   |-- bootstrap/
-|       |   |   |-- app.go
-|       |   |   `-- providers.go
-|       |   |-- config/
-|       |   |-- http/
-|       |   |   |-- middleware/
-|       |   |   |-- routes.go
-|       |   |   `-- errors.go
-|       |   |-- modules/
-|       |   |   |-- identity/
-|       |   |   |-- forum/
-|       |   |   |-- moderation/
-|       |   |   |-- notifications/
-|       |   |   |-- localization/
-|       |   |   `-- search/
-|       |   |-- platform/
-|       |   |   |-- meili/
-|       |   |   |-- postgres/
-|       |   |   |-- redis/
-|       |   |   `-- storage/
-|       |   |-- store/
-|       |   |   |-- migrations/
-|       |   |   |-- queries/
-|       |   |   `-- sqlc/
-|       |   `-- testing/
+|       |-- app/
+|       |   |-- Http/
+|       |   |   |-- Controllers/
+|       |   |   |   |-- Identity/
+|       |   |   |   |-- Forum/
+|       |   |   |   `-- Admin/
+|       |   |   |-- Middleware/
+|       |   |   |-- errors.go
+|       |   |   `-- server.go
+|       |   |-- Jobs/
+|       |   |-- Models/
+|       |   |   |-- Identity/
+|       |   |   |-- Forum/
+|       |   |   |-- Moderation/
+|       |   |   `-- Search/
+|       |   |-- Policies/
+|       |   |-- Providers/
+|       |   `-- Support/
+|       |       |-- Jobs/
+|       |       |-- Localization/
+|       |       |-- Meili/
+|       |       |-- Postgres/
+|       |       |-- Redis/
+|       |       `-- Storage/
+|       |-- bootstrap/
+|       |   `-- app.go
+|       |-- config/
+|       |   `-- config.go
+|       |-- database/
+|       |   |-- migrations/
+|       |   |-- queries/
+|       |   `-- sqlc/
 |       |-- go.mod
 |       `-- sqlc.yaml
 |-- contracts/
@@ -167,20 +173,31 @@ Notes:
 
 - `apps/web` is the Nuxt application. Keep forum business rules out of Nuxt
   server routes.
-- `apps/api/internal/bootstrap` is the API composition layer. It wires config,
-  logging, database clients, session stores, module providers, HTTP routes, and
-  worker dependencies. It should be the Go equivalent of Laravel's
-  `bootstrap/app.php`: explicit and easy to read, not a hidden dependency
-  container.
-- `apps/api/internal/modules/*` are vertical domain modules. A module can own
-  handlers, request/response DTOs, service methods, policies, and repository
-  interfaces for one domain area.
-- `apps/api/internal/platform/*` wraps external systems and infrastructure
-  clients. `internal/platform/jobs` owns queue configuration, worker runtime,
-  dispatch helpers, and job test helpers.
-- `apps/api/internal/store/*` contains migrations, handwritten SQL, and
-  generated `sqlc` code. Generated code should stay isolated from handwritten
-  domain logic.
+- `apps/api` is a Go module named `github.com/zhuchunshu/sforum/apps/api`.
+- `apps/api/bootstrap` is the API composition layer. It wires config, logging,
+  database clients, session stores, module providers, HTTP routes, and worker
+  dependencies. It should be the Go equivalent of Laravel's `bootstrap/app.php`:
+  explicit and easy to read, not a hidden dependency container.
+- `apps/api/app/Http` is the HTTP kernel. Controllers live under
+  `app/Http/Controllers/<Area>` and stay thin: parse requests, call services,
+  map domain errors, and return stable responses.
+- `apps/api/app/Providers` contains explicit service providers that assemble
+  controllers, services, stores, policies, jobs, and route providers for each
+  area.
+- `apps/api/app/Models/<Domain>` contains domain-facing Go packages: types,
+  services, policies, repository interfaces, and persistence adapters for one
+  domain. These are not Laravel Eloquent models; the name is a directory
+  convention for SForum's Laravel-like project shape.
+- `apps/api/app/Jobs` contains queued job definitions and handlers owned by the
+  application. Shared River runtime, dispatch helpers, and infrastructure glue
+  live under `apps/api/app/Support/Jobs`.
+- `apps/api/app/Support/*` wraps external systems and reusable infrastructure
+  clients such as PostgreSQL, Redis, Meilisearch, localization, storage, and
+  queue support.
+- `apps/api/config` contains application configuration loading.
+- `apps/api/database/*` contains migrations, handwritten SQL, and generated
+  `sqlc` code. Generated code should stay isolated from handwritten domain
+  logic.
 - `apps/web/i18n/locales/*` contains frontend message catalogs. Start with
   `zh-CN` and `en-US`, and keep Simplified Chinese complete before adding or
   changing user-facing features.
@@ -200,21 +217,23 @@ Recommended mapping:
 
 - `cmd/api/main.go`: process entry only. Load config, create the logger, call
   `bootstrap.NewAPI(...)`, start Fiber, and handle graceful shutdown.
-- `internal/bootstrap`: application assembly. Open PostgreSQL/Redis clients,
+- `bootstrap`: application assembly. Open PostgreSQL/Redis clients,
   build session stores, instantiate module providers, collect route providers,
   and return the HTTP app plus cleanup hooks.
-- `internal/http`: HTTP kernel. Own Fiber configuration, global middleware,
+- `config`: environment parsing and typed application settings.
+- `app/Http`: HTTP kernel. Own Fiber configuration, global middleware,
   `/api/v1` grouping, health/system routes, centralized JSON error handling,
   and route-provider interfaces.
-- `internal/modules/<module>/provider.go`: module composition. Build the
-  module's store, service, policies, handlers, route provider, jobs, and seeds
-  using dependencies passed from bootstrap.
-- `internal/modules/<module>/routes.go`: module route declarations. Group
-  endpoints by user-facing capability, keep middleware close to the group it
-  protects, and call thin handler methods.
-- `internal/modules/<module>/http.go`: request/response DTOs and handler
-  methods. Handlers parse input, call services, map module errors to stable API
-  codes, and return responses.
+- `app/Http/Controllers/<Area>`: request/response DTOs, route declarations,
+  and controller methods. Controllers parse input, call services, map module
+  errors to stable API codes, and return responses.
+- `app/Providers`: module composition. Build each area's store, service,
+  policies, controllers, route provider, jobs, and seeds using dependencies
+  passed from bootstrap.
+- `app/Models/<Domain>`: domain logic and persistence boundaries for one area.
+- `app/Support`: infrastructure wrappers and shared adapters.
+- `database`: schema migrations, handwritten SQL queries, and generated SQL
+  access code.
 
 Route registration should be explicit and ordered. Prefer a small
 `http.RouteProvider` interface and an explicit provider list over package-level
@@ -230,9 +249,9 @@ Middleware belongs at the narrowest useful layer:
 - Route group middleware: authentication, permission checks, human verification,
   and risk controls for specific capabilities.
 
-Do not register routes from `cmd/*`, platform packages, service constructors,
-or database stores. Those packages may provide dependencies, but route shape
-belongs to `internal/http` and module route files.
+Do not register routes from `cmd/*`, `app/Models/*`, `app/Support/*`, service
+constructors, or database stores. Those packages may provide dependencies, but
+route shape belongs to `app/Http` and controller route files.
 
 ## Development And Deployment
 
@@ -322,11 +341,11 @@ retry conventions, and dispatch API. SForum uses River with PostgreSQL as the
 primary durable queue foundation. Redis is not the first durable job store; it
 remains focused on sessions, cache, and rate limiting.
 
-The framework should feel Laravel-inspired at the module boundary: modules
-define typed jobs, dispatch jobs from services, run workers by queue, retry
-failed work, delay jobs, and keep failures visible. The implementation remains
-Go-native and explicit through a small `internal/platform/jobs` wrapper around
-River.
+The framework should feel Laravel-inspired at the module boundary: application
+packages define typed jobs, dispatch jobs from services, run workers by queue,
+retry failed work, delay jobs, and keep failures visible. The implementation
+remains Go-native and explicit through a small `app/Support/Jobs` wrapper
+around River.
 
 Initial queue names:
 

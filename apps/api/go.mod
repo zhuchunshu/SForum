@@ -1,4 +1,4 @@
-module github.com/inkedus/sforum/apps/api
+module github.com/zhuchunshu/sforum/apps/api
 
 go 1.25.7
 

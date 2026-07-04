@@ -25,11 +25,11 @@ The selected durable queue foundation is River backed by PostgreSQL.
 
 ## Planned Boundaries
 
-- `apps/api/internal/platform/jobs`: queue configuration, River client setup,
+- `apps/api/app/Support/Jobs`: queue configuration, River client setup,
   dispatch helpers, worker registry, runtime startup, logging middleware,
   timeout handling, and test helpers.
 - `apps/api/cmd/worker`: process entrypoint for consuming jobs.
-- `apps/api/internal/modules/*/jobs`: module-owned job args and handlers.
+- `apps/api/app/Jobs/*`: module-owned job args and handlers.
 
 ## Queue Names
 
@@ -62,6 +62,6 @@ The selected durable queue foundation is River backed by PostgreSQL.
 ## Next Steps
 
 - Add River dependency and queue migrations after the design is reviewed.
-- Implement `internal/platform/jobs`.
+- Implement `app/Support/Jobs`.
 - Replace the placeholder worker with the River runtime.
 - Implement the first search indexing job and transactional enqueue test.

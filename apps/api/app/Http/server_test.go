@@ -14,8 +14,9 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
 
-	"github.com/inkedus/sforum/apps/api/internal/config"
-	"github.com/inkedus/sforum/apps/api/internal/modules/identity"
+	identitycontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Identity"
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
 func TestNewAppRegistersRouteProviders(t *testing.T) {
@@ -80,8 +81,8 @@ func TestHealthEndpoint(t *testing.T) {
 func TestRegisterEndpointCreatesSession(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()
-	identityHandler := identity.NewHandler(identity.NewService(store), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityHandler}})
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
 
 	body := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN"}`)
 	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(body))
@@ -103,8 +104,8 @@ func TestRegisterEndpointCreatesSession(t *testing.T) {
 
 func TestSessionEndpointRequiresAuth(t *testing.T) {
 	cfg := testConfig()
-	identityHandler := identity.NewHandler(identity.NewService(newHTTPFakeStore()), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityHandler}})
+	identityController := identitycontroller.NewController(identity.NewService(newHTTPFakeStore()), session.NewStore())
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
 	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/auth/session", nil)
 
 	resp, err := app.Test(req)
@@ -120,8 +121,8 @@ func TestSessionEndpointRequiresAuth(t *testing.T) {
 
 func TestRolesEndpointRequiresAuth(t *testing.T) {
 	cfg := testConfig()
-	identityHandler := identity.NewHandler(identity.NewService(newHTTPFakeStore()), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityHandler}})
+	identityController := identitycontroller.NewController(identity.NewService(newHTTPFakeStore()), session.NewStore())
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
 	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/roles", nil)
 
 	resp, err := app.Test(req)
@@ -138,8 +139,8 @@ func TestRolesEndpointRequiresAuth(t *testing.T) {
 func TestCreateRoleEndpointAllowsSuperAdmin(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()
-	identityHandler := identity.NewHandler(identity.NewService(store), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityHandler}})
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
 	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
 
 	body := []byte(`{"key":"moderator","alias":"版主","description":"管理内容"}`)
@@ -168,8 +169,8 @@ func TestCreateRoleEndpointAllowsSuperAdmin(t *testing.T) {
 func TestCreateRoleEndpointRejectsMember(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()
-	identityHandler := identity.NewHandler(identity.NewService(store), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityHandler}})
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
 	registerHTTPUser(t, app, "admin", "admin@example.com")
 	memberCookie := registerHTTPUser(t, app, "member1", "member1@example.com")
 

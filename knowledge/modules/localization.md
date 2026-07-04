@@ -10,7 +10,7 @@ translation key conventions, and server-owned localized templates.
 Foundation scaffold exists:
 
 - Frontend locale catalogs under `apps/web/i18n/locales`.
-- Backend locale normalization under `apps/api/internal/modules/localization`.
+- Backend locale normalization under `apps/api/app/Support/Localization`.
 - Nuxt i18n SEO links use `APP_URL` as the base URL.
 
 ## Requirements

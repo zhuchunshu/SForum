@@ -4,7 +4,7 @@
 
 **Goal:** Build the first River/PostgreSQL-backed jobs framework for SForum, with explicit queue configuration, a dispatcher API, a worker runtime, and the first typed search indexing job contract.
 
-**Architecture:** PostgreSQL remains the durable source for both app data and jobs. `internal/platform/jobs` wraps River so modules dispatch typed jobs through SForum-owned APIs, while `cmd/worker` starts the River client and consumes named queues. The first search job is implemented against a narrow `TopicIndexer` interface because forum tables and Meilisearch indexing are not implemented yet.
+**Architecture:** PostgreSQL remains the durable source for both app data and jobs. `app/Support/Jobs` wraps River so modules dispatch typed jobs through SForum-owned APIs, while `cmd/worker` starts the River client and consumes named queues. The first search job is implemented against a narrow `TopicIndexer` interface because forum tables and Meilisearch indexing are not implemented yet.
 
 **Tech Stack:** Go 1.25+, River, River pgx v5 driver, `pgx/v5`, PostgreSQL, `log/slog`, Go unit tests.
 
@@ -13,20 +13,20 @@
 ## File Structure
 
 - Modify `apps/api/go.mod` and `apps/api/go.sum`: add River and pgx dependencies.
-- Modify `apps/api/internal/config/config.go`: add worker queue concurrency, worker shutdown timeout, and database pool sizing config.
-- Create `apps/api/internal/config/config_test.go`: test default job/worker config parsing.
-- Create `apps/api/internal/platform/postgres/pool.go`: build `pgxpool.Config` and open PostgreSQL pools.
-- Create `apps/api/internal/platform/postgres/pool_test.go`: test pool config without connecting to a database.
-- Create `apps/api/internal/platform/jobs/types.go`: define queue constants and shared enqueue options.
-- Create `apps/api/internal/platform/jobs/config.go`: convert app config into River queue config.
-- Create `apps/api/internal/platform/jobs/config_test.go`: test queue config and defaults.
-- Create `apps/api/internal/platform/jobs/dispatcher.go`: expose SForum dispatch methods over River `Insert` and `InsertTx`.
-- Create `apps/api/internal/platform/jobs/dispatcher_test.go`: verify queue options and transaction forwarding with a fake client.
-- Create `apps/api/internal/platform/jobs/registry.go`: collect module worker registrations and build a River workers bundle.
-- Create `apps/api/internal/platform/jobs/registry_test.go`: verify registration ordering and error behavior.
-- Create `apps/api/internal/platform/jobs/runtime.go`: create and run the River client.
-- Create `apps/api/internal/modules/search/jobs/index_topic.go`: define the first typed search indexing job and worker.
-- Create `apps/api/internal/modules/search/jobs/index_topic_test.go`: test job kind, unique options, validation, and indexer invocation.
+- Modify `apps/api/config/config.go`: add worker queue concurrency, worker shutdown timeout, and database pool sizing config.
+- Create `apps/api/config/config_test.go`: test default job/worker config parsing.
+- Create `apps/api/app/Support/Postgres/pool.go`: build `pgxpool.Config` and open PostgreSQL pools.
+- Create `apps/api/app/Support/Postgres/pool_test.go`: test pool config without connecting to a database.
+- Create `apps/api/app/Support/Jobs/types.go`: define queue constants and shared enqueue options.
+- Create `apps/api/app/Support/Jobs/config.go`: convert app config into River queue config.
+- Create `apps/api/app/Support/Jobs/config_test.go`: test queue config and defaults.
+- Create `apps/api/app/Support/Jobs/dispatcher.go`: expose SForum dispatch methods over River `Insert` and `InsertTx`.
+- Create `apps/api/app/Support/Jobs/dispatcher_test.go`: verify queue options and transaction forwarding with a fake client.
+- Create `apps/api/app/Support/Jobs/registry.go`: collect module worker registrations and build a River workers bundle.
+- Create `apps/api/app/Support/Jobs/registry_test.go`: verify registration ordering and error behavior.
+- Create `apps/api/app/Support/Jobs/runtime.go`: create and run the River client.
+- Create `apps/api/app/Jobs/Search/index_topic.go`: define the first typed search indexing job and worker.
+- Create `apps/api/app/Jobs/Search/index_topic_test.go`: test job kind, unique options, validation, and indexer invocation.
 - Modify `apps/api/cmd/worker/main.go`: replace the placeholder worker loop with PostgreSQL pool setup, River client startup, signal handling, and graceful stop.
 - Modify `docs/development-and-deployment.md`: add the River migration command and local worker verification notes.
 - Modify `knowledge/modules/jobs.md`: record implementation status and operational commands.
@@ -49,8 +49,8 @@
 **Files:**
 - Modify: `apps/api/go.mod`
 - Modify: `apps/api/go.sum`
-- Modify: `apps/api/internal/config/config.go`
-- Create: `apps/api/internal/config/config_test.go`
+- Modify: `apps/api/config/config.go`
+- Create: `apps/api/config/config_test.go`
 
 - [ ] **Step 1: Add River and pgx dependencies**
 
@@ -65,7 +65,7 @@ Expected: `apps/api/go.mod` gains direct requirements for `github.com/jackc/pgx/
 
 - [ ] **Step 2: Write failing config tests**
 
-Create `apps/api/internal/config/config_test.go`:
+Create `apps/api/config/config_test.go`:
 
 ```go
 package config
@@ -173,14 +173,14 @@ Run:
 
 ```bash
 cd apps/api
-go test ./internal/config
+go test ./config
 ```
 
 Expected: FAIL because `Config` does not yet have the worker/database fields and parse helpers.
 
 - [ ] **Step 4: Implement worker config parsing**
 
-Modify `apps/api/internal/config/config.go` to:
+Modify `apps/api/config/config.go` to:
 
 ```go
 package config
@@ -192,7 +192,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/inkedus/sforum/apps/api/internal/modules/localization"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Localization"
 )
 
 type Config struct {
@@ -309,7 +309,7 @@ Run:
 
 ```bash
 cd apps/api
-go test ./internal/config
+go test ./config
 ```
 
 Expected: PASS.
@@ -317,7 +317,7 @@ Expected: PASS.
 Commit:
 
 ```bash
-git add apps/api/go.mod apps/api/go.sum apps/api/internal/config/config.go apps/api/internal/config/config_test.go
+git add apps/api/go.mod apps/api/go.sum apps/api/config/config.go apps/api/config/config_test.go
 git commit -m "feat(api): add worker queue config"
 ```
 
@@ -326,12 +326,12 @@ git commit -m "feat(api): add worker queue config"
 ### Task 2: PostgreSQL Pool Helper
 
 **Files:**
-- Create: `apps/api/internal/platform/postgres/pool.go`
-- Create: `apps/api/internal/platform/postgres/pool_test.go`
+- Create: `apps/api/app/Support/Postgres/pool.go`
+- Create: `apps/api/app/Support/Postgres/pool_test.go`
 
 - [ ] **Step 1: Write failing pool config tests**
 
-Create `apps/api/internal/platform/postgres/pool_test.go`:
+Create `apps/api/app/Support/Postgres/pool_test.go`:
 
 ```go
 package postgres
@@ -376,14 +376,14 @@ Run:
 
 ```bash
 cd apps/api
-go test ./internal/platform/postgres
+go test ./app/Support/Postgres
 ```
 
 Expected: FAIL because `BuildPoolConfig` is not defined.
 
 - [ ] **Step 3: Implement pool helper**
 
-Create `apps/api/internal/platform/postgres/pool.go`:
+Create `apps/api/app/Support/Postgres/pool.go`:
 
 ```go
 package postgres
@@ -422,7 +422,7 @@ Run:
 
 ```bash
 cd apps/api
-go test ./internal/platform/postgres
+go test ./app/Support/Postgres
 ```
 
 Expected: PASS.
@@ -430,7 +430,7 @@ Expected: PASS.
 Commit:
 
 ```bash
-git add apps/api/internal/platform/postgres/pool.go apps/api/internal/platform/postgres/pool_test.go
+git add apps/api/app/Support/Postgres/pool.go apps/api/app/Support/Postgres/pool_test.go
 git commit -m "feat(api): add postgres pool helper"
 ```
 
@@ -439,13 +439,13 @@ git commit -m "feat(api): add postgres pool helper"
 ### Task 3: Queue Constants And River Queue Config
 
 **Files:**
-- Create: `apps/api/internal/platform/jobs/types.go`
-- Create: `apps/api/internal/platform/jobs/config.go`
-- Create: `apps/api/internal/platform/jobs/config_test.go`
+- Create: `apps/api/app/Support/Jobs/types.go`
+- Create: `apps/api/app/Support/Jobs/config.go`
+- Create: `apps/api/app/Support/Jobs/config_test.go`
 
 - [ ] **Step 1: Write failing queue config tests**
 
-Create `apps/api/internal/platform/jobs/config_test.go`:
+Create `apps/api/app/Support/Jobs/config_test.go`:
 
 ```go
 package jobs
@@ -455,7 +455,7 @@ import (
 
 	"github.com/riverqueue/river"
 
-	"github.com/inkedus/sforum/apps/api/internal/config"
+	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
 func TestFromAppConfigBuildsRiverQueues(t *testing.T) {
@@ -510,14 +510,14 @@ Run:
 
 ```bash
 cd apps/api
-go test ./internal/platform/jobs
+go test ./app/Support/Jobs
 ```
 
 Expected: FAIL because the jobs package does not exist.
 
 - [ ] **Step 3: Add queue constants and enqueue option type**
 
-Create `apps/api/internal/platform/jobs/types.go`:
+Create `apps/api/app/Support/Jobs/types.go`:
 
 ```go
 package jobs
@@ -562,7 +562,7 @@ func (opts EnqueueOptions) RiverInsertOpts() *river.InsertOpts {
 
 - [ ] **Step 4: Add queue config conversion**
 
-Create `apps/api/internal/platform/jobs/config.go`:
+Create `apps/api/app/Support/Jobs/config.go`:
 
 ```go
 package jobs
@@ -570,7 +570,7 @@ package jobs
 import (
 	"github.com/riverqueue/river"
 
-	"github.com/inkedus/sforum/apps/api/internal/config"
+	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
 type Config struct {
@@ -618,7 +618,7 @@ Run:
 
 ```bash
 cd apps/api
-go test ./internal/platform/jobs
+go test ./app/Support/Jobs
 ```
 
 Expected: PASS.
@@ -626,7 +626,7 @@ Expected: PASS.
 Commit:
 
 ```bash
-git add apps/api/internal/platform/jobs/types.go apps/api/internal/platform/jobs/config.go apps/api/internal/platform/jobs/config_test.go
+git add apps/api/app/Support/Jobs/types.go apps/api/app/Support/Jobs/config.go apps/api/app/Support/Jobs/config_test.go
 git commit -m "feat(api): add job queue config"
 ```
 
@@ -635,12 +635,12 @@ git commit -m "feat(api): add job queue config"
 ### Task 4: Dispatcher API
 
 **Files:**
-- Create: `apps/api/internal/platform/jobs/dispatcher.go`
-- Create: `apps/api/internal/platform/jobs/dispatcher_test.go`
+- Create: `apps/api/app/Support/Jobs/dispatcher.go`
+- Create: `apps/api/app/Support/Jobs/dispatcher_test.go`
 
 - [ ] **Step 1: Write failing dispatcher tests**
 
-Create `apps/api/internal/platform/jobs/dispatcher_test.go`:
+Create `apps/api/app/Support/Jobs/dispatcher_test.go`:
 
 ```go
 package jobs
@@ -730,14 +730,14 @@ Run:
 
 ```bash
 cd apps/api
-go test ./internal/platform/jobs
+go test ./app/Support/Jobs
 ```
 
 Expected: FAIL because `NewDispatcher` is not defined.
 
 - [ ] **Step 3: Implement dispatcher**
 
-Create `apps/api/internal/platform/jobs/dispatcher.go`:
+Create `apps/api/app/Support/Jobs/dispatcher.go`:
 
 ```go
 package jobs
@@ -778,7 +778,7 @@ Run:
 
 ```bash
 cd apps/api
-go test ./internal/platform/jobs
+go test ./app/Support/Jobs
 ```
 
 Expected: PASS.
@@ -786,7 +786,7 @@ Expected: PASS.
 Commit:
 
 ```bash
-git add apps/api/internal/platform/jobs/dispatcher.go apps/api/internal/platform/jobs/dispatcher_test.go
+git add apps/api/app/Support/Jobs/dispatcher.go apps/api/app/Support/Jobs/dispatcher_test.go
 git commit -m "feat(api): add job dispatcher"
 ```
 
@@ -795,13 +795,13 @@ git commit -m "feat(api): add job dispatcher"
 ### Task 5: Worker Registry And Runtime
 
 **Files:**
-- Create: `apps/api/internal/platform/jobs/registry.go`
-- Create: `apps/api/internal/platform/jobs/registry_test.go`
-- Create: `apps/api/internal/platform/jobs/runtime.go`
+- Create: `apps/api/app/Support/Jobs/registry.go`
+- Create: `apps/api/app/Support/Jobs/registry_test.go`
+- Create: `apps/api/app/Support/Jobs/runtime.go`
 
 - [ ] **Step 1: Write failing registry tests**
 
-Create `apps/api/internal/platform/jobs/registry_test.go`:
+Create `apps/api/app/Support/Jobs/registry_test.go`:
 
 ```go
 package jobs
@@ -852,14 +852,14 @@ Run:
 
 ```bash
 cd apps/api
-go test ./internal/platform/jobs
+go test ./app/Support/Jobs
 ```
 
 Expected: FAIL because `NewRegistry` is not defined.
 
 - [ ] **Step 3: Implement registry**
 
-Create `apps/api/internal/platform/jobs/registry.go`:
+Create `apps/api/app/Support/Jobs/registry.go`:
 
 ```go
 package jobs
@@ -893,7 +893,7 @@ func (r *Registry) Build() (*river.Workers, error) {
 
 - [ ] **Step 4: Implement runtime client construction**
 
-Create `apps/api/internal/platform/jobs/runtime.go`:
+Create `apps/api/app/Support/Jobs/runtime.go`:
 
 ```go
 package jobs
@@ -931,7 +931,7 @@ Run:
 
 ```bash
 cd apps/api
-go test ./internal/platform/jobs
+go test ./app/Support/Jobs
 ```
 
 Expected: PASS.
@@ -939,7 +939,7 @@ Expected: PASS.
 Commit:
 
 ```bash
-git add apps/api/internal/platform/jobs/registry.go apps/api/internal/platform/jobs/registry_test.go apps/api/internal/platform/jobs/runtime.go
+git add apps/api/app/Support/Jobs/registry.go apps/api/app/Support/Jobs/registry_test.go apps/api/app/Support/Jobs/runtime.go
 git commit -m "feat(api): add job worker runtime"
 ```
 
@@ -948,12 +948,12 @@ git commit -m "feat(api): add job worker runtime"
 ### Task 6: Search Index Topic Job Contract
 
 **Files:**
-- Create: `apps/api/internal/modules/search/jobs/index_topic.go`
-- Create: `apps/api/internal/modules/search/jobs/index_topic_test.go`
+- Create: `apps/api/app/Jobs/Search/index_topic.go`
+- Create: `apps/api/app/Jobs/Search/index_topic_test.go`
 
 - [ ] **Step 1: Write failing search job tests**
 
-Create `apps/api/internal/modules/search/jobs/index_topic_test.go`:
+Create `apps/api/app/Jobs/Search/index_topic_test.go`:
 
 ```go
 package jobs
@@ -964,7 +964,7 @@ import (
 
 	"github.com/riverqueue/river"
 
-	platformjobs "github.com/inkedus/sforum/apps/api/internal/platform/jobs"
+	platformjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
 
 type fakeTopicIndexer struct {
@@ -1042,14 +1042,14 @@ Run:
 
 ```bash
 cd apps/api
-go test ./internal/modules/search/jobs
+go test ./app/Jobs/Search
 ```
 
 Expected: FAIL because the search jobs package does not exist.
 
 - [ ] **Step 3: Implement search job**
 
-Create `apps/api/internal/modules/search/jobs/index_topic.go`:
+Create `apps/api/app/Jobs/Search/index_topic.go`:
 
 ```go
 package jobs
@@ -1060,7 +1060,7 @@ import (
 
 	"github.com/riverqueue/river"
 
-	platformjobs "github.com/inkedus/sforum/apps/api/internal/platform/jobs"
+	platformjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
 
 type TopicIndexer interface {
@@ -1111,7 +1111,7 @@ Run:
 
 ```bash
 cd apps/api
-go test ./internal/modules/search/jobs
+go test ./app/Jobs/Search
 ```
 
 Expected: PASS.
@@ -1119,7 +1119,7 @@ Expected: PASS.
 Commit:
 
 ```bash
-git add apps/api/internal/modules/search/jobs/index_topic.go apps/api/internal/modules/search/jobs/index_topic_test.go
+git add apps/api/app/Jobs/Search/index_topic.go apps/api/app/Jobs/Search/index_topic_test.go
 git commit -m "feat(api): add search index topic job"
 ```
 
@@ -1155,9 +1155,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/inkedus/sforum/apps/api/internal/config"
-	platformjobs "github.com/inkedus/sforum/apps/api/internal/platform/jobs"
-	"github.com/inkedus/sforum/apps/api/internal/platform/postgres"
+	"github.com/zhuchunshu/sforum/apps/api/config"
+	platformjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 )
 
 func main() {

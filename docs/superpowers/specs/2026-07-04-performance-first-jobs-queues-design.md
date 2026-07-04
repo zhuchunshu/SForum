@@ -15,7 +15,7 @@ should still be Go-native, explicit, and performance-first.
 
 Use River as the primary durable job queue for SForum, backed by PostgreSQL.
 
-SForum will wrap River with a small `internal/platform/jobs` layer so module
+SForum will wrap River with a small `app/Support/Jobs` layer so module
 code uses stable project-owned concepts while still benefiting from River's
 typed workers, PostgreSQL persistence, transactional enqueueing, retries, queue
 configuration, and unique-job support.
@@ -81,7 +81,7 @@ for a forum MVP.
 Target package layout:
 
 ```text
-apps/api/internal/platform/jobs/
+apps/api/app/Support/Jobs/
 |-- config.go
 |-- dispatcher.go
 |-- registry.go
@@ -89,12 +89,12 @@ apps/api/internal/platform/jobs/
 |-- types.go
 `-- testing.go
 
-apps/api/internal/modules/search/jobs/
+apps/api/app/Jobs/Search/
 |-- index_post.go
 |-- index_topic.go
 `-- rebuild_index.go
 
-apps/api/internal/modules/notifications/jobs/
+apps/api/app/Jobs/Notifications/
 |-- fanout_reply.go
 `-- send_email.go
 ```
@@ -291,7 +291,7 @@ Update architecture and knowledge-base documentation to record:
 When implementation begins, create a separate implementation plan for:
 
 1. Adding River dependencies and migrations.
-2. Building `internal/platform/jobs`.
+2. Building `app/Support/Jobs`.
 3. Updating `cmd/worker`.
 4. Adding the first search indexing job.
 5. Adding integration tests for transactional enqueueing.

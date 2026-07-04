@@ -64,13 +64,16 @@ Initial identity foundation is implemented.
 
 ## Implementation Notes
 
-- `apps/api/internal/modules/identity/service.go` owns registration, login,
+- `apps/api/app/Models/Identity/service.go` owns registration, login,
   current-user loading, actor loading, and role-management service checks.
-- `apps/api/internal/modules/identity/policy.go` keeps permission checks small:
+- `apps/api/app/Models/Identity/policy.go` keeps permission checks small:
   `super_admin` receives all permissions while active, and other users rely on
   the union of enabled role permissions.
-- `apps/api/internal/modules/identity/http.go` maps stable API error codes such
-  as `auth.required`, `permission.denied`, and `role.default_role_locked`.
+- `apps/api/app/Http/Controllers/Identity/controller.go` maps stable API error
+  codes such as `auth.required`, `permission.denied`, and
+  `role.default_role_locked`.
+- `apps/api/app/Providers/identity.go` wires the identity store, service, and
+  controller into the ordered route-provider list.
 - Registration responses reload the current user after the bootstrap
   transaction so `roleKeys` and `permissions` serialize as arrays.
 - `contracts/openapi.yaml` documents the current auth and role endpoints.

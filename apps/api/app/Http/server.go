@@ -8,7 +8,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 
-	"github.com/inkedus/sforum/apps/api/internal/config"
+	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
 type healthResponse struct {

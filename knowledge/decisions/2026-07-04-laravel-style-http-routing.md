@@ -1,4 +1,4 @@
-# Decision: Laravel-Style HTTP Routing And Providers
+# Decision: Laravel-Style API Directory, Routing, And Providers
 
 ## Status
 
@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The Fiber API scaffold is growing beyond a health endpoint. Identity work has
+The Fiber API scaffold has grown beyond a health endpoint. Identity work has
 started, and route registration is already beginning to mix HTTP setup, module
 dependencies, session wiring, and process bootstrap concerns.
 
@@ -16,22 +16,27 @@ runtime magic.
 
 ## Decision
 
-Use a Laravel-inspired, Go-explicit backend composition structure:
+Use a Laravel-style, Go-explicit backend composition structure:
 
 - `cmd/api/main.go` stays as a process entrypoint. It should not know every
   domain module's routes or construction details.
-- `internal/bootstrap` becomes the application assembly layer, similar in role
-  to Laravel's `bootstrap/app.php`: load config, prepare shared infrastructure,
-  instantiate module providers, collect route providers, and return the runtime.
-- `internal/http` acts like the HTTP kernel: Fiber config, global middleware,
+- `bootstrap` is the application assembly layer, similar in role to Laravel's
+  `bootstrap/app.php`: load config, prepare shared infrastructure, instantiate
+  module providers, collect route providers, and return the runtime.
+- `config` owns environment parsing and typed settings.
+- `app/Http` acts like the HTTP kernel: Fiber config, global middleware,
   `/api/v1` grouping, health/system routes, centralized JSON error handling,
   and the route-provider interface.
-- Each domain module gets a small provider file, such as
-  `internal/modules/identity/provider.go`, that builds that module's store,
-  service, handlers, route provider, policies, jobs, and seeds from shared
+- `app/Http/Controllers/<Area>` owns request/response DTOs, route
+  declarations, and thin controller methods.
+- `app/Providers` owns module provider wiring. Providers build stores,
+  services, policies, controllers, route providers, jobs, and seeds from shared
   dependencies.
-- Each domain module owns its route declarations in a focused routes file, such
-  as `internal/modules/identity/routes.go`.
+- `app/Models/<Domain>` owns domain-facing Go packages: types, services,
+  policies, repository interfaces, and persistence adapters. These are not
+  Laravel Eloquent models.
+- `app/Support/*` wraps external systems and reusable infrastructure clients.
+- `database/*` owns migrations, handwritten SQL, and generated `sqlc` code.
 
 Prefer an explicit ordered provider list over package-level auto-registration,
 `init` functions, filesystem scanning, or a general-purpose dependency
@@ -40,8 +45,8 @@ injection container.
 ## Routing Rules
 
 - Register public API routes under `/api/v1`.
-- Keep health/system routes in `internal/http`, not in domain modules.
-- Keep domain route groups in their owning modules.
+- Keep health/system routes in `app/Http`, not in domain packages.
+- Keep domain route groups in their owning controllers.
 - Put middleware at the narrowest useful level: global, API group, or route
   group.
 - Route files may reference handlers and middleware, but not database clients
@@ -59,21 +64,23 @@ revisit generated dependency wiring before adopting runtime container behavior.
 
 ## Consequences
 
-- Route registration has one visible path from bootstrap to HTTP to modules.
+- Route registration has one visible path from bootstrap to providers to HTTP
+  controllers.
 - Adding a module requires a deliberate provider entry, making new surface area
   easier to review.
 - HTTP setup stays independent from domain implementation details.
-- Module route files stay close to handlers and policies, so endpoint behavior
-  remains discoverable.
+- Controller route files stay close to handlers and policies, so endpoint
+  behavior remains discoverable.
 - The project avoids Laravel-style hidden magic while retaining the parts of
   Laravel's organization that make large applications easier to navigate.
+- The API module path is `github.com/zhuchunshu/sforum/apps/api`.
 
 ## Follow-up
 
-- Extend `internal/bootstrap` with future module providers as forum,
+- Extend `bootstrap` and `app/Providers` with future module providers as forum,
   moderation, search, human verification, and jobs are implemented.
-- Split future module route declarations from handler method files once a
-  module has more than a few endpoints.
+- Keep route declarations in `app/Http/Controllers/*/routes.go` once a
+  controller has more than a few endpoints.
 - Keep OpenAPI route paths aligned with the module route files.
 
 ## References

@@ -1,8 +1,8 @@
-package identity
+package identitycontroller
 
 import "github.com/gofiber/fiber/v3"
 
-func (h *Handler) RegisterRoutes(api fiber.Router) {
+func (h *Controller) RegisterRoutes(api fiber.Router) {
 	auth := api.Group("/auth")
 	auth.Post("/register", h.register)
 	auth.Post("/login", h.login)

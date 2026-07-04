@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/inkedus/sforum/apps/api/internal/modules/localization"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Localization"
 )
 
 type Config struct {

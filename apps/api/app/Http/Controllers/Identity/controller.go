@@ -1,21 +1,23 @@
-package identity
+package identitycontroller
 
 import (
 	"errors"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
+
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 )
 
 const sessionUserIDKey = "user_id"
 
-type Handler struct {
-	service  *Service
+type Controller struct {
+	service  *identity.Service
 	sessions *session.Store
 }
 
-func NewHandler(service *Service, sessions *session.Store) *Handler {
-	return &Handler{service: service, sessions: sessions}
+func NewController(service *identity.Service, sessions *session.Store) *Controller {
+	return &Controller{service: service, sessions: sessions}
 }
 
 type registerRequest struct {
@@ -41,13 +43,13 @@ type replaceRolePermissionsRequest struct {
 	Permissions []string `json:"permissions"`
 }
 
-func (h *Handler) register(c fiber.Ctx) error {
+func (h *Controller) register(c fiber.Ctx) error {
 	var req registerRequest
 	if err := c.Bind().Body(&req); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
 
-	current, err := h.service.Register(c.Context(), RegisterInput{
+	current, err := h.service.Register(c.Context(), identity.RegisterInput{
 		Username:    req.Username,
 		Email:       req.Email,
 		Password:    req.Password,
@@ -65,13 +67,13 @@ func (h *Handler) register(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(current)
 }
 
-func (h *Handler) login(c fiber.Ctx) error {
+func (h *Controller) login(c fiber.Ctx) error {
 	var req loginRequest
 	if err := c.Bind().Body(&req); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
 
-	current, err := h.service.Login(c.Context(), LoginInput{Login: req.Login, Password: req.Password})
+	current, err := h.service.Login(c.Context(), identity.LoginInput{Login: req.Login, Password: req.Password})
 	if err != nil {
 		return mapIdentityError(err)
 	}
@@ -83,7 +85,7 @@ func (h *Handler) login(c fiber.Ctx) error {
 	return c.JSON(current)
 }
 
-func (h *Handler) logout(c fiber.Ctx) error {
+func (h *Controller) logout(c fiber.Ctx) error {
 	sess, err := h.sessions.Get(c)
 	if err != nil {
 		return err
@@ -94,7 +96,7 @@ func (h *Handler) logout(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func (h *Handler) session(c fiber.Ctx) error {
+func (h *Controller) session(c fiber.Ctx) error {
 	userID, ok, err := h.sessionUserID(c)
 	if err != nil {
 		return err
@@ -110,7 +112,7 @@ func (h *Handler) session(c fiber.Ctx) error {
 	return c.JSON(current)
 }
 
-func (h *Handler) listRoles(c fiber.Ctx) error {
+func (h *Controller) listRoles(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
 		return err
@@ -123,7 +125,7 @@ func (h *Handler) listRoles(c fiber.Ctx) error {
 	return c.JSON(roles)
 }
 
-func (h *Handler) createRole(c fiber.Ctx) error {
+func (h *Controller) createRole(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
 		return err
@@ -134,7 +136,7 @@ func (h *Handler) createRole(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
 
-	role, err := h.service.CreateRole(c.Context(), actor, RoleInput{
+	role, err := h.service.CreateRole(c.Context(), actor, identity.RoleInput{
 		Key:         req.Key,
 		Alias:       req.Alias,
 		Description: req.Description,
@@ -145,7 +147,7 @@ func (h *Handler) createRole(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(role)
 }
 
-func (h *Handler) updateRole(c fiber.Ctx) error {
+func (h *Controller) updateRole(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
 		return err
@@ -156,7 +158,7 @@ func (h *Handler) updateRole(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
 
-	role, err := h.service.UpdateRole(c.Context(), actor, c.Params("roleKey"), RoleInput{
+	role, err := h.service.UpdateRole(c.Context(), actor, c.Params("roleKey"), identity.RoleInput{
 		Alias:       req.Alias,
 		Description: req.Description,
 	})
@@ -166,7 +168,7 @@ func (h *Handler) updateRole(c fiber.Ctx) error {
 	return c.JSON(role)
 }
 
-func (h *Handler) deleteRole(c fiber.Ctx) error {
+func (h *Controller) deleteRole(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
 		return err
@@ -178,7 +180,7 @@ func (h *Handler) deleteRole(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func (h *Handler) replaceRolePermissions(c fiber.Ctx) error {
+func (h *Controller) replaceRolePermissions(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
 		return err
@@ -195,7 +197,7 @@ func (h *Handler) replaceRolePermissions(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func (h *Handler) saveSessionUserID(c fiber.Ctx, userID int64) error {
+func (h *Controller) saveSessionUserID(c fiber.Ctx, userID int64) error {
 	sess, err := h.sessions.Get(c)
 	if err != nil {
 		return err
@@ -204,7 +206,7 @@ func (h *Handler) saveSessionUserID(c fiber.Ctx, userID int64) error {
 	return sess.Save()
 }
 
-func (h *Handler) sessionUserID(c fiber.Ctx) (int64, bool, error) {
+func (h *Controller) sessionUserID(c fiber.Ctx) (int64, bool, error) {
 	sess, err := h.sessions.Get(c)
 	if err != nil {
 		return 0, false, err
@@ -220,35 +222,35 @@ func (h *Handler) sessionUserID(c fiber.Ctx) (int64, bool, error) {
 	}
 }
 
-func (h *Handler) actor(c fiber.Ctx) (Actor, error) {
+func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 	userID, ok, err := h.sessionUserID(c)
 	if err != nil {
-		return Actor{}, err
+		return identity.Actor{}, err
 	}
 	if !ok {
-		return Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+		return identity.Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
 	}
 
 	actor, err := h.service.Actor(c.Context(), userID)
 	if err != nil {
-		return Actor{}, mapIdentityError(err)
+		return identity.Actor{}, mapIdentityError(err)
 	}
 	return actor, nil
 }
 
 func mapIdentityError(err error) error {
 	switch {
-	case errors.Is(err, ErrInvalidCredentials):
+	case errors.Is(err, identity.ErrInvalidCredentials):
 		return fiber.NewError(fiber.StatusUnauthorized, "auth.invalid_credentials")
-	case errors.Is(err, ErrPermissionDenied):
+	case errors.Is(err, identity.ErrPermissionDenied):
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
-	case errors.Is(err, ErrSystemRoleLocked):
+	case errors.Is(err, identity.ErrSystemRoleLocked):
 		return fiber.NewError(fiber.StatusConflict, "role.system_role_locked")
-	case errors.Is(err, ErrDefaultRoleLocked):
+	case errors.Is(err, identity.ErrDefaultRoleLocked):
 		return fiber.NewError(fiber.StatusConflict, "role.default_role_locked")
-	case errors.Is(err, ErrInitialSuperAdminLocked):
+	case errors.Is(err, identity.ErrInitialSuperAdminLocked):
 		return fiber.NewError(fiber.StatusConflict, "user.initial_super_admin_locked")
-	case errors.Is(err, ErrPasswordDoesNotMeetPolicy):
+	case errors.Is(err, identity.ErrPasswordDoesNotMeetPolicy):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "auth.password_policy")
 	default:
 		return err

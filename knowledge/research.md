@@ -49,13 +49,13 @@ libraries, frameworks, or services.
 - Problem: keep Fiber route registration, middleware, service construction, and
   module boundaries understandable as identity, forum, moderation, search, and
   jobs grow.
-- Options: keep route registration directly in `internal/http`, add a full DI
+- Options: keep route registration directly in `app/Http`, add a full DI
   container, use package-level auto-registration, or adopt a Laravel-inspired
   explicit bootstrap/provider/routes pattern.
 - Recommendation: use a Laravel-inspired organization with Go-explicit
   dependencies. Keep `cmd/api` small, assemble shared infrastructure in
-  `internal/bootstrap`, let modules expose providers and route providers, and
-  keep route declarations in module-owned route files.
+  `bootstrap`, let `app/Providers` expose route providers, and keep route
+  declarations in `app/Http/Controllers/*/routes.go`.
 - Reason: Laravel's route files, middleware groups, and service providers are
   familiar and readable, but Go should keep dependencies visible instead of
   relying on runtime magic. This avoids route sprawl without introducing a
@@ -75,7 +75,7 @@ libraries, frameworks, or services.
 - Recommendation: `pgx/v5 + sqlc`.
 - Reason: `pgx` is the PostgreSQL driver/toolkit; `sqlc` generates type-safe Go
   from SQL while keeping queries reviewable and database-specific.
-- Follow-up: isolate generated code under `internal/store/sqlc`.
+- Follow-up: isolate generated code under `database/sqlc`.
 - Sources: https://pkg.go.dev/github.com/jackc/pgx/v5,
   https://docs.sqlc.dev/en/latest/
 
@@ -86,7 +86,7 @@ libraries, frameworks, or services.
 - Recommendation: `goose`.
 - Reason: simple SQL migration files, common Go ecosystem usage, and easy local
   and CI execution.
-- Follow-up: migrations live under `apps/api/internal/store/migrations`.
+- Follow-up: migrations live under `apps/api/database/migrations`.
 - Sources: https://github.com/pressly/goose
 
 ## Browser Sessions
@@ -169,7 +169,7 @@ libraries, frameworks, or services.
   important first requirement: enqueueing jobs from the same transaction as
   domain writes. That keeps post/topic writes and derived work such as search
   indexing consistent without introducing Redis as a second durable system.
-- Follow-up: wrap River behind `internal/platform/jobs`; keep Redis available
+- Follow-up: wrap River behind `app/Support/Jobs`; keep Redis available
   for sessions/cache/rate limits and possible later non-critical fast-lane
   jobs.
 - Sources: https://riverqueue.com/docs,

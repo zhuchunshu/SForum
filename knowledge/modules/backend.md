@@ -10,10 +10,11 @@ background work.
 Foundation scaffold exists under `apps/api`.
 Jobs and queues architecture has been accepted. River backed by PostgreSQL is
 the first durable queue foundation.
-Backend HTTP composition now has an initial Laravel-inspired but Go-explicit
-implementation: `internal/bootstrap` assembles the API runtime,
-`internal/http` registers an ordered route-provider list, and identity owns its
-provider and routes files.
+Backend HTTP composition now has a Laravel-style but Go-explicit
+implementation: `bootstrap` assembles the API runtime, `app/Http` registers an
+ordered route-provider list, `app/Http/Controllers/*` owns thin controllers and
+route declarations, `app/Providers` owns provider wiring, and `app/Models/*`
+owns domain logic.
 
 ## Planned Stack
 
@@ -58,16 +59,18 @@ needs one.
 Target ownership:
 
 - `cmd/api/main.go` starts and stops the process only.
-- `internal/bootstrap` wires config, logging, PostgreSQL, Redis, sessions,
-  module providers, route providers, jobs, and cleanup hooks.
-- `internal/http` owns Fiber app construction, global middleware, `/api/v1`,
+- `bootstrap` wires config, logging, PostgreSQL, Redis, sessions, providers,
+  route providers, jobs, and cleanup hooks.
+- `config` owns environment parsing and typed settings.
+- `app/Http` owns Fiber app construction, global middleware, `/api/v1`,
   health/system routes, JSON error shape, and route-provider interfaces.
-- `internal/modules/*/provider.go` builds each domain module from shared
-  dependencies.
-- `internal/modules/*/routes.go` declares that module's routes and route-group
-  middleware.
-- `internal/modules/*/http.go` keeps request DTOs, response DTOs, and thin
-  handlers.
+- `app/Http/Controllers/*` declares routes and keeps request DTOs, response
+  DTOs, and thin controller methods.
+- `app/Providers` builds each module from shared dependencies.
+- `app/Models/*` owns domain types, services, policies, repository interfaces,
+  and persistence adapters.
+- `app/Support/*` wraps external systems and reusable infrastructure clients.
+- `database/*` owns migrations, handwritten SQL, and generated `sqlc` code.
 
 Route registration rules:
 
@@ -87,9 +90,8 @@ Route registration rules:
 - Enqueue jobs transactionally with domain writes when the job represents a
   side effect of that write.
 - Keep job payloads small and ID-based.
-- Domain modules own their job handlers under `internal/modules/*/jobs`.
-- Shared queue runtime and dispatch helpers live under
-  `internal/platform/jobs`.
+- Application jobs live under `app/Jobs/*`.
+- Shared queue runtime and dispatch helpers live under `app/Support/Jobs`.
 - Initial queue names are `critical`, `default`, `search`, `mail`,
   `notifications`, and `maintenance`.
 
@@ -112,4 +114,4 @@ Route registration rules:
 - Use ALTCHA by default for human verification, backed by Redis rate limits and
   single-use challenge tracking.
 - Define the first OpenAPI contract and schema migrations.
-- Add River and `internal/platform/jobs` after the jobs design is reviewed.
+- Add River and `app/Support/Jobs` after the jobs design is reviewed.

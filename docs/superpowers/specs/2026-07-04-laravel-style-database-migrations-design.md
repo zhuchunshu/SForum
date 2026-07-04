@@ -18,7 +18,7 @@ modify the database structure outside the migration system.
 
 ## Migration Rules
 
-- Store migration files under `apps/api/internal/store/migrations`.
+- Store migration files under `apps/api/database/migrations`.
 - Every database schema change must be represented by a new migration file.
 - A migration that has been merged, deployed, or shared with another developer
   is immutable history. Do not edit it; add a new migration that corrects or

@@ -18,10 +18,10 @@ sessions/cache/rate limits, and a separate `cmd/worker` process.
 
 Use River with PostgreSQL as the primary durable jobs and queues foundation.
 
-Create a small SForum-owned wrapper under `apps/api/internal/platform/jobs` so
+Create a small SForum-owned wrapper under `apps/api/app/Support/Jobs` so
 modules can dispatch and register jobs through project-level interfaces. Domain
-modules define their own job argument structs and handlers under their module
-directories.
+modules define their own job argument structs and handlers under
+`apps/api/app/Jobs`.
 
 Redis will not be used as the first durable queue store. It remains available
 for sessions, cache, rate limiting, and later non-critical fast-lane work.
@@ -45,7 +45,7 @@ complex enough to justify the extra infrastructure.
 ## Follow-Up
 
 - Add River dependencies and migrations when implementation begins.
-- Build `internal/platform/jobs` as the stable project API around River.
+- Build `app/Support/Jobs` as the stable project API around River.
 - Convert `cmd/worker` from a placeholder process into the River worker
   runtime.
 - Implement search indexing jobs before email or notification jobs.

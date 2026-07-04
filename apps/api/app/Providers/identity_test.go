@@ -1,4 +1,4 @@
-package identity
+package providers
 
 import (
 	nethttp "net/http"
@@ -10,8 +10,7 @@ import (
 )
 
 func TestProviderRegistersIdentityRoutes(t *testing.T) {
-	_, store := newTestService(t)
-	provider := NewProvider(store, session.NewStore())
+	provider := NewIdentityProvider(nil, session.NewStore())
 
 	app := fiber.New()
 	api := app.Group("/api/v1")

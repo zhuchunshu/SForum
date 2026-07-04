@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/inkedus/sforum/apps/api/internal/config"
+	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
 func main() {

@@ -8,7 +8,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
-	"github.com/inkedus/sforum/apps/api/internal/config"
+	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
 func main() {
@@ -34,7 +34,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := goose.Up(db, "internal/store/migrations"); err != nil {
+	if err := goose.Up(db, "database/migrations"); err != nil {
 		logger.Error("migrations failed", "error", err)
 		os.Exit(1)
 	}

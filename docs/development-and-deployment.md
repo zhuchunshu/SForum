@@ -332,7 +332,7 @@ Compose health checks should gate dependent services where practical.
 ## Jobs And Worker Runtime
 
 The `worker` service is the durable background job runtime. It should consume
-River-backed PostgreSQL queues through `apps/api/internal/platform/jobs`.
+River-backed PostgreSQL queues through `apps/api/app/Support/Jobs`.
 
 Initial named queues are `critical`, `default`, `search`, `mail`,
 `notifications`, and `maintenance`. Production deployments may run more than one

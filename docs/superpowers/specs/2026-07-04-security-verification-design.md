@@ -67,7 +67,7 @@ the first milestone.
 Create a platform-level human-verification boundary during implementation:
 
 ```text
-apps/api/internal/platform/humanverify
+apps/api/app/Support/HumanVerify
   - Provider interface
   - ALTCHA challenge generation and payload verification
   - challenge purpose names

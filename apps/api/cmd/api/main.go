@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/inkedus/sforum/apps/api/internal/bootstrap"
-	"github.com/inkedus/sforum/apps/api/internal/config"
+	"github.com/zhuchunshu/sforum/apps/api/bootstrap"
+	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
 func main() {

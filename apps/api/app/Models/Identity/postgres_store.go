@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	store "github.com/inkedus/sforum/apps/api/internal/store/sqlc"
+	store "github.com/zhuchunshu/sforum/apps/api/database/sqlc"
 )
 
 type PostgresStore struct {
