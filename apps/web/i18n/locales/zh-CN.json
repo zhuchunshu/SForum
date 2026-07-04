@@ -20,5 +20,57 @@
         "value": "简体中文"
       }
     }
+  },
+  "auth": {
+    "registerTitle": "注册账号",
+    "registerEyebrow": "开放注册",
+    "registerIntro": "第一个注册用户会成为受保护的超级管理员，后续注册用户默认加入 member 用户组。",
+    "loginTitle": "登录",
+    "loginEyebrow": "论坛账号",
+    "loginIntro": "前台和后台使用同一套论坛账号，后台能力由 API 权限统一控制。",
+    "username": "用户名",
+    "email": "邮箱",
+    "password": "密码",
+    "displayName": "显示名称",
+    "loginName": "用户名或邮箱",
+    "submitRegister": "创建账号",
+    "submitLogin": "登录",
+    "haveAccount": "已经有账号？",
+    "needAccount": "还没有账号？",
+    "goLogin": "去登录",
+    "goRegister": "去注册"
+  },
+  "admin": {
+    "home": {
+      "metaTitle": "管理后台",
+      "eyebrow": "SForum 管理",
+      "title": "管理论坛用户组与权限",
+      "intro": "后台使用同一套论坛账号体系，所有管理能力由 API 权限控制。",
+      "navLabel": "管理后台导航",
+      "rolesLink": "查看用户组"
+    },
+    "roles": {
+      "metaTitle": "用户组",
+      "eyebrow": "身份与权限",
+      "title": "用户组",
+      "intro": "开放注册用户默认加入 member 用户组。member 可以修改别名，但不能删除。",
+      "caption": "论坛用户组列表",
+      "refresh": "刷新",
+      "key": "标识",
+      "alias": "别名",
+      "description": "说明",
+      "status": "状态",
+      "system": "系统",
+      "default": "默认",
+      "custom": "自定义",
+      "empty": "还没有可显示的用户组。",
+      "loadFailed": "用户组加载失败。",
+      "noDescription": "暂无说明"
+    }
+  },
+  "errors": {
+    "permissionDenied": "你没有权限执行此操作。",
+    "registerFailed": "注册失败，请检查填写内容后重试。",
+    "loginFailed": "登录失败，请检查账号和密码。"
   }
 }

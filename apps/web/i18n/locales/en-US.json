@@ -20,5 +20,57 @@
         "value": "Simplified Chinese"
       }
     }
+  },
+  "auth": {
+    "registerTitle": "Create Account",
+    "registerEyebrow": "Open registration",
+    "registerIntro": "The first registered user becomes the protected super administrator. Later users join the member group by default.",
+    "loginTitle": "Log In",
+    "loginEyebrow": "Forum account",
+    "loginIntro": "Public forum access and admin access use the same account system. API permissions remain authoritative.",
+    "username": "Username",
+    "email": "Email",
+    "password": "Password",
+    "displayName": "Display name",
+    "loginName": "Username or email",
+    "submitRegister": "Create account",
+    "submitLogin": "Log in",
+    "haveAccount": "Already have an account?",
+    "needAccount": "Need an account?",
+    "goLogin": "Log in",
+    "goRegister": "Register"
+  },
+  "admin": {
+    "home": {
+      "metaTitle": "Admin",
+      "eyebrow": "SForum admin",
+      "title": "Manage forum groups and permissions",
+      "intro": "Admin tools use the same forum account system, with every management action controlled by API permissions.",
+      "navLabel": "Admin navigation",
+      "rolesLink": "View user groups"
+    },
+    "roles": {
+      "metaTitle": "User Groups",
+      "eyebrow": "Identity and permissions",
+      "title": "User Groups",
+      "intro": "Open registrations join the member group by default. The member alias can change, but the role cannot be deleted.",
+      "caption": "Forum user group list",
+      "refresh": "Refresh",
+      "key": "Key",
+      "alias": "Alias",
+      "description": "Description",
+      "status": "Status",
+      "system": "System",
+      "default": "Default",
+      "custom": "Custom",
+      "empty": "No user groups to show yet.",
+      "loadFailed": "User groups could not be loaded.",
+      "noDescription": "No description"
+    }
+  },
+  "errors": {
+    "permissionDenied": "You do not have permission to perform this action.",
+    "registerFailed": "Registration failed. Check the form and try again.",
+    "loginFailed": "Login failed. Check your account and password."
   }
 }
