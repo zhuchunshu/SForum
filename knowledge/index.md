@@ -124,6 +124,7 @@ This is the entry point for project memory.
   `site.name` defaults to `SForum`, is cached in the backend Options service,
   is readable by the frontend through `useWebOptions().webOption()`, and can be
   edited from the admin site settings page by users with `settings.manage`.
+- The global footer has been implemented using the Option A (Single-line Minimalist) design direction, supporting dynamic copyright data, localized links (Terms, Privacy, Guidelines) mapped to placeholder links, and full Light/Dark mode responsiveness.
 
 ## Navigation
 
@@ -182,6 +183,9 @@ This is the entry point for project memory.
   entry removal handoff.
 - `sessions/2026-07-05-auth-session-restart-resilience.md` - frontend auth
   refresh behavior for API restart/session recovery resilience.
+- `sessions/2026-07-05-global-footer-implementation.md` - global footer implementation handoff.
+- `../docs/superpowers/specs/2026-07-05-global-footer-design.md` - global footer design spec.
+- `../docs/superpowers/plans/2026-07-05-global-footer.md` - global footer implementation plan.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -
   security verification design.
 - `../docs/development-and-deployment.md` - proposed local development,
