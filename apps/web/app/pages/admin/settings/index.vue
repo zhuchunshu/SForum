@@ -54,6 +54,8 @@ const altchaSecretPlaceholder = computed(() => {
     : t('admin.settings.verification.secretPlaceholder')
 })
 
+const adminOptionsMap = ref<Record<string, AdminWebOption>>({})
+
 const { pending, error, refresh } = await useAsyncData('admin-web-options', async () => {
   const envelope = await fetchAdminEnvelope()
   applyAdminOptions(envelope.data)
@@ -64,6 +66,31 @@ useSeoMeta({
   title: t('admin.settings.metaTitle')
 })
 
+// 基础配置对比与重置
+const initialSiteName = computed(() => adminOptionsMap.value['site.name']?.value || 'SForum')
+const initialSiteUrl = computed(() => adminOptionsMap.value['site.url']?.value || 'http://127.0.0.1:3000')
+const initialDefaultLocale = computed(() => adminOptionsMap.value['site.default_locale']?.value || 'zh-CN')
+const initialSupportedLocales = computed(() => parseLocaleList(adminOptionsMap.value['site.supported_locales']?.value || 'zh-CN,en-US'))
+
+const hasBasicChanges = computed(() => {
+  return form.siteName !== initialSiteName.value ||
+         form.siteUrl !== initialSiteUrl.value ||
+         form.defaultLocale !== initialDefaultLocale.value ||
+         JSON.stringify(form.supportedLocales) !== JSON.stringify(initialSupportedLocales.value)
+})
+
+// 验证配置对比与重置
+const initialProvider = computed(() => normalizeProvider(adminOptionsMap.value['human_verification.provider']?.value))
+const initialChallengeTTL = computed(() => adminOptionsMap.value['human_verification.altcha.challenge_ttl']?.value || '10m')
+const initialCost = computed(() => Number(adminOptionsMap.value['human_verification.altcha.cost']?.value || 1000))
+
+const hasVerificationChanges = computed(() => {
+  return form.humanVerificationProvider !== initialProvider.value ||
+         form.altchaChallengeTTL !== initialChallengeTTL.value ||
+         form.altchaCost !== initialCost.value ||
+         form.altchaSecret.trim() !== ''
+})
+
 function applyAdminOptions(items: AdminWebOption[]) {
   const publicOptions = items.filter((item) => item.public && !item.secret)
   options.value = {
@@ -72,6 +99,8 @@ function applyAdminOptions(items: AdminWebOption[]) {
   }
 
   const map = Object.fromEntries(items.map((item) => [item.name, item]))
+  adminOptionsMap.value = map
+
   form.siteName = map['site.name']?.value || 'SForum'
   form.siteUrl = map['site.url']?.value || 'http://127.0.0.1:3000'
   form.defaultLocale = map['site.default_locale']?.value || 'zh-CN'
@@ -142,6 +171,30 @@ async function saveVerificationSettings() {
 async function saveAndApply(items: WebOption[]) {
   const updated = await saveMany(items)
   applyAdminOptions(updated)
+}
+
+function resetBasicForm() {
+  form.siteName = initialSiteName.value
+  form.siteUrl = initialSiteUrl.value
+  form.defaultLocale = initialDefaultLocale.value
+  form.supportedLocales = [...initialSupportedLocales.value]
+  toast.add({
+    color: 'neutral',
+    icon: 'i-lucide-rotate-ccw',
+    title: '已重置基础设置更改'
+  })
+}
+
+function resetVerificationForm() {
+  form.humanVerificationProvider = initialProvider.value
+  form.altchaChallengeTTL = initialChallengeTTL.value
+  form.altchaCost = initialCost.value
+  form.altchaSecret = ''
+  toast.add({
+    color: 'neutral',
+    icon: 'i-lucide-rotate-ccw',
+    title: '已重置验证设置更改'
+  })
 }
 
 function parseLocaleList(value: string) {
@@ -232,182 +285,184 @@ function onLocaleToggle(locale: string, event: Event) {
       </UButton>
     </div>
 
-    <UCard
-      v-if="activeTab === 'basic'"
-      class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
-    >
-      <template #header>
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <h2 class="text-base font-bold text-slate-900 dark:text-white">
-              {{ t('admin.settings.basic.title') }}
-            </h2>
-            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
-              {{ t('admin.settings.basic.description') }}
-            </p>
-          </div>
-          <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-mono">
-            site.*
-          </UBadge>
-        </div>
-      </template>
-
-      <form class="grid max-w-3xl gap-4" @submit.prevent="saveBasicSettings">
-        <UFormField :label="t('admin.settings.siteName')" name="site-name">
-          <UInput
-            v-model="form.siteName"
-            icon="i-lucide-message-square-text"
-            :placeholder="t('admin.settings.siteNamePlaceholder')"
-            maxlength="80"
-            required
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField :label="t('admin.settings.siteUrl')" name="site-url">
-          <UInput
-            v-model="form.siteUrl"
-            icon="i-lucide-link"
-            type="url"
-            :placeholder="t('admin.settings.siteUrlPlaceholder')"
-            required
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField :label="t('admin.settings.defaultLocale')" name="default-locale">
-          <select
-            v-model="form.defaultLocale"
-            class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-          >
-            <option
-              v-for="choice in localeChoices.filter((choice) => form.supportedLocales.includes(choice.value))"
-              :key="choice.value"
-              :value="choice.value"
-            >
-              {{ choice.label }}
-            </option>
-          </select>
-        </UFormField>
-
-        <UFormField :label="t('admin.settings.supportedLocales')" name="supported-locales">
-          <div class="flex flex-wrap gap-3">
-            <label
-              v-for="choice in localeChoices"
-              :key="choice.value"
-              class="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
-            >
-              <input
-                type="checkbox"
-                class="size-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                :checked="form.supportedLocales.includes(choice.value)"
-                @change="onLocaleToggle(choice.value, $event)"
-              />
-              <span>{{ choice.label }}</span>
-            </label>
-          </div>
-        </UFormField>
-
-        <div class="flex justify-end pt-2">
-          <UButton
-            type="submit"
-            leading-icon="i-lucide-save"
-            :loading="savingBasic"
-            class="bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-medium"
-          >
-            {{ t('admin.settings.save') }}
-          </UButton>
-        </div>
-      </form>
-    </UCard>
-
-    <UCard
-      v-else
-      class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
-    >
-      <template #header>
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <h2 class="text-base font-bold text-slate-900 dark:text-white">
-              {{ t('admin.settings.verification.title') }}
-            </h2>
-            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
-              {{ t('admin.settings.verification.description') }}
-            </p>
-          </div>
-          <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-mono">
-            ALTCHA
-          </UBadge>
-        </div>
-      </template>
-
-      <form class="grid max-w-3xl gap-4" @submit.prevent="saveVerificationSettings">
-        <UFormField :label="t('admin.settings.verification.provider')" name="verification-provider">
-          <select
-            v-model="form.humanVerificationProvider"
-            class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-          >
-            <option value="disabled">{{ t('admin.settings.verification.disabled') }}</option>
-            <option value="altcha">{{ t('admin.settings.verification.altcha') }}</option>
-          </select>
-        </UFormField>
-
-        <div class="grid gap-4 md:grid-cols-2">
-          <UFormField :label="t('admin.settings.verification.altchaSecret')" name="altcha-secret">
-            <UInput
-              v-model="form.altchaSecret"
-              icon="i-lucide-key-round"
-              type="password"
-              :placeholder="altchaSecretPlaceholder"
-              class="w-full"
-            />
-          </UFormField>
-
-          <div class="flex items-end">
-            <UBadge
-              :color="form.altchaSecretSet ? 'success' : 'neutral'"
-              variant="soft"
-              class="h-9 border border-slate-200 px-3 dark:border-zinc-800"
-            >
-              {{ form.altchaSecretSet ? t('admin.settings.verification.secretConfigured') : t('admin.settings.verification.secretMissing') }}
+    <!-- 基础配置 Tab -->
+    <form v-if="activeTab === 'basic'" class="flex flex-col" @submit.prevent="saveBasicSettings">
+      <UCard
+        class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
+        :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }"
+      >
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-bold text-slate-900 dark:text-white">
+                {{ t('admin.settings.basic.title') }}
+              </h2>
+              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.settings.basic.description') }}
+              </p>
+            </div>
+            <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-mono">
+              site.*
             </UBadge>
           </div>
-        </div>
+        </template>
 
-        <div class="grid gap-4 md:grid-cols-2">
-          <UFormField :label="t('admin.settings.verification.challengeTTL')" name="altcha-ttl">
+        <div class="grid max-w-3xl gap-4">
+          <UFormField :label="t('admin.settings.siteName')" name="site-name">
             <UInput
-              v-model="form.altchaChallengeTTL"
-              icon="i-lucide-clock-3"
-              placeholder="10m"
+              v-model="form.siteName"
+              icon="i-lucide-message-square-text"
+              :placeholder="t('admin.settings.siteNamePlaceholder')"
+              maxlength="80"
               required
               class="w-full"
             />
           </UFormField>
 
-          <UFormField :label="t('admin.settings.verification.cost')" name="altcha-cost">
+          <UFormField :label="t('admin.settings.siteUrl')" name="site-url">
             <UInput
-              v-model.number="form.altchaCost"
-              icon="i-lucide-cpu"
-              type="number"
-              min="1"
+              v-model="form.siteUrl"
+              icon="i-lucide-link"
+              type="url"
+              :placeholder="t('admin.settings.siteUrlPlaceholder')"
               required
               class="w-full"
             />
           </UFormField>
+
+          <UFormField :label="t('admin.settings.defaultLocale')" name="default-locale">
+            <select
+              v-model="form.defaultLocale"
+              class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            >
+              <option
+                v-for="choice in localeChoices.filter((choice) => form.supportedLocales.includes(choice.value))"
+                :key="choice.value"
+                :value="choice.value"
+              >
+                {{ choice.label }}
+              </option>
+            </select>
+          </UFormField>
+
+          <UFormField :label="t('admin.settings.supportedLocales')" name="supported-locales">
+            <div class="flex flex-wrap gap-3">
+              <label
+                v-for="choice in localeChoices"
+                :key="choice.value"
+                class="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
+              >
+                <input
+                  type="checkbox"
+                  class="size-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                  :checked="form.supportedLocales.includes(choice.value)"
+                  @change="onLocaleToggle(choice.value, $event)"
+                />
+                <span>{{ choice.label }}</span>
+              </label>
+            </div>
+          </UFormField>
         </div>
 
-        <div class="flex justify-end pt-2">
-          <UButton
-            type="submit"
-            leading-icon="i-lucide-save"
-            :loading="savingVerification"
-            class="bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-medium"
-          >
-            {{ t('admin.settings.save') }}
-          </UButton>
+        <template #footer>
+          <SFAdminFormFooter
+            :saving="savingBasic"
+            :show-unsaved-alert="hasBasicChanges"
+            :submit-text="t('admin.settings.save')"
+            @reset="resetBasicForm"
+          />
+        </template>
+      </UCard>
+    </form>
+
+    <!-- 人机验证 Tab -->
+    <form v-else class="flex flex-col" @submit.prevent="saveVerificationSettings">
+      <UCard
+        class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
+        :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }"
+      >
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-bold text-slate-900 dark:text-white">
+                {{ t('admin.settings.verification.title') }}
+              </h2>
+              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.settings.verification.description') }}
+              </p>
+            </div>
+            <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-mono">
+              ALTCHA
+            </UBadge>
+          </div>
+        </template>
+
+        <div class="grid max-w-3xl gap-4">
+          <UFormField :label="t('admin.settings.verification.provider')" name="verification-provider">
+            <select
+              v-model="form.humanVerificationProvider"
+              class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            >
+              <option value="disabled">{{ t('admin.settings.verification.disabled') }}</option>
+              <option value="altcha">{{ t('admin.settings.verification.altcha') }}</option>
+            </select>
+          </UFormField>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <UFormField :label="t('admin.settings.verification.altchaSecret')" name="altcha-secret">
+              <UInput
+                v-model="form.altchaSecret"
+                icon="i-lucide-key-round"
+                type="password"
+                :placeholder="altchaSecretPlaceholder"
+                class="w-full"
+              />
+            </UFormField>
+
+            <div class="flex items-end">
+              <UBadge
+                :color="form.altchaSecretSet ? 'success' : 'neutral'"
+                variant="soft"
+                class="h-9 border border-slate-200 px-3 dark:border-zinc-800"
+              >
+                {{ form.altchaSecretSet ? t('admin.settings.verification.secretConfigured') : t('admin.settings.verification.secretMissing') }}
+              </UBadge>
+            </div>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <UFormField :label="t('admin.settings.verification.challengeTTL')" name="altcha-ttl">
+              <UInput
+                v-model="form.altchaChallengeTTL"
+                icon="i-lucide-clock-3"
+                placeholder="10m"
+                required
+                class="w-full"
+              />
+            </UFormField>
+
+            <UFormField :label="t('admin.settings.verification.cost')" name="altcha-cost">
+              <UInput
+                v-model.number="form.altchaCost"
+                icon="i-lucide-cpu"
+                type="number"
+                min="1"
+                required
+                class="w-full"
+              />
+            </UFormField>
+          </div>
         </div>
-      </form>
-    </UCard>
+
+        <template #footer>
+          <SFAdminFormFooter
+            :saving="savingVerification"
+            :show-unsaved-alert="hasVerificationChanges"
+            :submit-text="t('admin.settings.save')"
+            @reset="resetVerificationForm"
+          />
+        </template>
+      </UCard>
+    </form>
   </div>
 </template>
