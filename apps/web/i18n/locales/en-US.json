@@ -9,25 +9,41 @@
     "logout": "Log out"
   },
   "home": {
-    "metaTitle": "Forum Foundation",
-    "metaDescription": "The first SForum foundation includes Nuxt, Go Fiber, Docker Compose, and Simplified Chinese as the default multilingual baseline.",
-    "eyebrow": "SForum foundation",
-    "title": "A maintainable forum starts with a clear foundation.",
-    "intro": "This first slice wires the frontend, backend, health checks, localization, and development/deployment entry points before forum features are added.",
-    "languageNav": "Language switcher",
-    "cards": {
-      "frontend": {
-        "label": "Frontend",
-        "value": "Nuxt 4 + Vue 3 + Nuxt UI"
-      },
-      "backend": {
-        "label": "Backend",
-        "value": "Go Fiber v3 API"
-      },
-      "locale": {
-        "label": "Default language",
-        "value": "Simplified Chinese"
-      }
+    "metaTitle": "SForum Community",
+    "metaDescription": "SForum is a maintainable, high-performance minimalist community forum.",
+    "searchPlaceholder": "Search threads, content...",
+    "filter": {
+      "latest": "Latest",
+      "hot": "Hot",
+      "featured": "Featured",
+      "following": "Following"
+    },
+    "sidebar": {
+      "navTitle": "Navigation",
+      "navHome": "Home",
+      "navCategories": "Categories",
+      "navTags": "Hot Tags",
+      "navMembers": "Members",
+      "sections": "Discussion Boards",
+      "secTech": "Tech Talk",
+      "secCreative": "Creative Design",
+      "secLife": "Daily Life",
+      "secNotice": "Announcements",
+      "userCard": "Profile",
+      "userPosts": "Posts",
+      "userLikes": "Likes",
+      "welcomeTitle": "Welcome to SForum",
+      "welcomeDesc": "This is a place to discuss things seriously. Join today and start sharing with thousands of creators.",
+      "loginBtn": "Log In",
+      "registerBtn": "Register Account",
+      "checkIn": "Check In",
+      "checkedIn": "Checked in {days} d",
+      "hotThreads": "Hot Discussions",
+      "forumStats": "Community Stats",
+      "statThreads": "Total Threads",
+      "statReplies": "Total Replies",
+      "statMembers": "Registered Members",
+      "statOnline": "Online Active"
     }
   },
   "auth": {

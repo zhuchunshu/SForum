@@ -9,25 +9,41 @@
     "logout": "退出登录"
   },
   "home": {
-    "metaTitle": "论坛基础架构",
-    "metaDescription": "SForum 的第一版基础骨架已经包含 Nuxt、Go Fiber、Docker Compose 和默认简体中文多语言支持。",
-    "eyebrow": "SForum 基础骨架",
-    "title": "一个可维护的论坛，从清晰地基开始。",
-    "intro": "当前版本先接好前端、后端、健康检查、本地化和开发部署入口，后续再逐步加入用户、版块、主题、帖子和搜索。",
-    "languageNav": "语言切换",
-    "cards": {
-      "frontend": {
-        "label": "前端",
-        "value": "Nuxt 4 + Vue 3 + Nuxt UI"
-      },
-      "backend": {
-        "label": "后端",
-        "value": "Go Fiber v3 API"
-      },
-      "locale": {
-        "label": "默认语言",
-        "value": "简体中文"
-      }
+    "metaTitle": "SForum 社区首页",
+    "metaDescription": "SForum 是一个可维护、高性能的极简社区论坛。",
+    "searchPlaceholder": "搜索帖子标题、内容...",
+    "filter": {
+      "latest": "最新",
+      "hot": "热门",
+      "featured": "精华",
+      "following": "关注"
+    },
+    "sidebar": {
+      "navTitle": "导航",
+      "navHome": "论坛首页",
+      "navCategories": "板块分类",
+      "navTags": "热门标签",
+      "navMembers": "活跃成员",
+      "sections": "讨论板块",
+      "secTech": "技术分享",
+      "secCreative": "创意设计",
+      "secLife": "日常生活",
+      "secNotice": "官方公告",
+      "userCard": "个人中心",
+      "userPosts": "帖子",
+      "userLikes": "获赞",
+      "welcomeTitle": "欢迎来到 SForum",
+      "welcomeDesc": "这里是一个认真讨论事情的地方。立即加入以和数千名创作者一同分享经验。",
+      "loginBtn": "登录账号",
+      "registerBtn": "注册新账号",
+      "checkIn": "每日签到",
+      "checkedIn": "已连续签到 {days} 天",
+      "hotThreads": "热门讨论",
+      "forumStats": "全站数据统计",
+      "statThreads": "主题总数",
+      "statReplies": "累计回复",
+      "statMembers": "注册会员",
+      "statOnline": "当前在线"
     }
   },
   "auth": {
