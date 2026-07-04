@@ -197,6 +197,7 @@
     "permissionDenied": "You do not have permission to perform this action.",
     "registerFailed": "Registration failed. Check the form and try again.",
     "sessionUnavailable": "Your account was created, but automatic sign-in failed. Please sign in directly.",
+    "authServiceUnavailable": "The sign-in service is temporarily unavailable. Please refresh the page shortly.",
     "loginFailed": "Login failed. Check your username/email and password, or register first if you do not have an account.",
     "humanVerificationRequired": "Please complete human verification first.",
     "humanVerificationInvalid": "Human verification failed. Please try again.",

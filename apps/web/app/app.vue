@@ -6,15 +6,19 @@ const localeHead = useLocaleHead({
   lang: true,
   seo: true
 })
-const { siteName, refresh } = useWebOptions()
+const { siteName, refresh: refreshWebOptions } = useWebOptions()
+const { refresh: refreshAuthSession } = useAuthSession()
 const startupOptionsTimeout = import.meta.dev ? 800 : 2000
 
 // 引入页签缓存控制列表
 const { cachedTabNames } = useAdminTabs()
 
-await useAsyncData('web-options', async () => {
-  // 开发热重载时 API 可能还在编译，首屏先使用本地默认站点配置。
-  await refresh({ timeout: startupOptionsTimeout }).catch(() => null)
+await useAsyncData('app-startup', async () => {
+  // 开发热重载时 API 可能还在编译，首屏先使用本地默认状态。
+  await Promise.all([
+    refreshWebOptions({ timeout: startupOptionsTimeout }).catch(() => null),
+    refreshAuthSession({ timeout: startupOptionsTimeout })
+  ])
   return true
 })
 

@@ -23,6 +23,9 @@ startup banner, then imports the generated Nitro server entry at
 During development startup and API hot reloads, the global site-options read
 uses a short timeout and falls back to local defaults so SSR can render the page
 while the API process is still compiling.
+App startup also attempts to restore the current browser session from
+`/auth/session`; transient API failures mark auth as temporarily unavailable
+without clearing the cached user state.
 Nuxt top-level ignores stay scoped to app-local generated output so Nuxt UI
 components under `node_modules/@nuxt/ui/dist` are still auto-imported.
 Nuxt UI remote font integration is disabled for now to avoid build-time network
@@ -58,6 +61,10 @@ so the configurable admin prefix is not revealed from the regular logged-in UI.
 Runtime site options are read through `useWebOptions()`. `site.name` now drives
 the navbar, auth pages, admin shell, and browser title template, with `SForum`
 as the fallback product name.
+Admin route middleware distinguishes real unauthenticated responses from
+temporary auth-service failures. A 401 or `auth.required` redirects to login;
+API restart/502/timeout cases show a temporary unavailable error instead of
+forcing the user to sign in again.
 
 ## Planned Stack
 

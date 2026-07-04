@@ -98,6 +98,10 @@ This is the entry point for project memory.
   timeout, 24-hour session-id renewal, login-time session reset, production
   Secure cookies, and login audit records with IP, User-Agent, time, and salted
   session hash.
+- Frontend auth refresh now preserves the current user state during transient
+  API restart/timeout/gateway failures, restores browser sessions during app
+  startup when the API is available, and only redirects to login on confirmed
+  401/`auth.required` responses.
 - Backend API code has migrated to a Laravel-style directory shape while
   staying Go-explicit: `cmd/api` is process-focused, `bootstrap` assembles the
   runtime, `app/Http` owns the HTTP kernel, `app/Http/Controllers/*` owns
@@ -176,6 +180,8 @@ This is the entry point for project memory.
   global topbar, theme adaptive sidebar, and nested menu layout upgrades handoff.
 - `sessions/2026-07-05-public-navbar-hide-admin-entry.md` - public navbar admin
   entry removal handoff.
+- `sessions/2026-07-05-auth-session-restart-resilience.md` - frontend auth
+  refresh behavior for API restart/session recovery resilience.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -
   security verification design.
 - `../docs/development-and-deployment.md` - proposed local development,

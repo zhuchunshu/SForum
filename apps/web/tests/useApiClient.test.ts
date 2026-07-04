@@ -4,6 +4,7 @@ import { parse, compileScript } from '@vue/compiler-sfc'
 import { computed, reactive, ref } from 'vue'
 
 import { apiErrorFields, apiErrorMessage, apiErrorReason } from '../app/composables/useApiClient'
+import { isUnauthenticatedAuthError } from '../app/composables/useAuthSession'
 import { registerErrorMessage } from '../app/utils/registerErrors'
 
 describe('api error helpers', () => {
@@ -102,6 +103,39 @@ describe('register error helpers', () => {
   })
 })
 
+describe('auth session refresh helpers', () => {
+  test('treats auth.required envelopes as logged out', () => {
+    const error = {
+      data: {
+        code: 401,
+        message: '请先登录。',
+        data: {
+          reason: 'auth.required'
+        }
+      }
+    }
+
+    expect(isUnauthenticatedAuthError(error)).toBe(true)
+  })
+
+  test('does not treat transient API failures as logged out', () => {
+    const error = {
+      response: {
+        status: 502,
+        _data: {
+          code: 502,
+          message: 'Bad Gateway',
+          data: {
+            reason: 'server.unavailable'
+          }
+        }
+      }
+    }
+
+    expect(isUnauthenticatedAuthError(error)).toBe(false)
+  })
+})
+
 describe('register page submit guard', () => {
   test('does not send a second registration request while submitting', async () => {
     const page = await loadRegisterPageForSubmitTest()
@@ -134,6 +168,18 @@ describe('register page submit guard', () => {
     await page.context.submitRegister()
 
     expect(page.context.sessionUnavailable.value).toBe(true)
+  })
+})
+
+describe('login page navigation', () => {
+  test('hydrates the current user and navigates after successful login', async () => {
+    const page = await loadLoginPageForSubmitTest()
+
+    await page.context.submitLogin()
+
+    expect(page.loginRequests()).toHaveLength(1)
+    expect(page.sessionUser()?.username).toBe('admin')
+    expect(page.navigations()).toEqual(['/control-panel'])
   })
 })
 
@@ -221,6 +267,86 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
     context,
     registerRequests: () => requests.filter((request) => request.path === '/auth/register'),
     resolveRegister: () => resolveRegister({ username: 'codex' }),
+    sessionUser: () => sessionUser
+  }
+}
+
+async function loadLoginPageForSubmitTest() {
+  const source = readFileSync(new URL('../app/pages/login.vue', import.meta.url), 'utf8')
+  const { descriptor } = parse(source, { filename: 'login.vue' })
+  const compiled = compileScript(descriptor, { id: 'login-submit-test' }).content
+  const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'browser' })
+  const executable = transpiler.transformSync(compiled)
+    .replace(
+      /import\s+\{\s*defineComponent\s+as\s+_defineComponent\s*\}\s+from\s+['"]vue['"];?/,
+      'const { defineComponent: _defineComponent } = __vue;'
+    )
+    .replace(/export default /, 'return ')
+
+  const requests: Array<{ path: string, options?: unknown }> = []
+  const navigations: string[] = []
+  let sessionUser: { username?: string, roleKeys?: string[], permissions?: string[] } | null = null
+
+  const request = (path: string, requestOptions?: unknown) => {
+    requests.push({ path, options: requestOptions })
+    return Promise.resolve({
+      username: 'admin',
+      roleKeys: ['super_admin'],
+      permissions: []
+    })
+  }
+
+  const factory = new Function(
+    '__vue',
+    'definePageMeta',
+    'useI18n',
+    'useLocalePath',
+    'useAdminRoutes',
+    'useApiClient',
+    'useAuthSession',
+    'useWebOptions',
+    'useSeoMeta',
+    'reactive',
+    'ref',
+    'apiErrorMessage',
+    'navigateTo',
+    executable
+  )
+  const component = factory(
+    {
+      defineComponent: (options: unknown) => options
+    },
+    () => {},
+    () => ({ t: (key: string) => key }),
+    () => (path: string) => path,
+    () => ({ path: (path: string) => path === '/' ? '/control-panel' : `/control-panel${path}` }),
+    () => ({ request }),
+    () => ({
+      setUser: (currentUser: { username?: string, roleKeys?: string[], permissions?: string[] } | null) => {
+        sessionUser = currentUser
+      },
+      can: (permission: string) => {
+        return Boolean(
+          sessionUser?.permissions?.includes(permission) ||
+          sessionUser?.roleKeys?.includes('super_admin')
+        )
+      }
+    }),
+    () => ({ siteName: 'SForum' }),
+    () => {},
+    reactive,
+    ref,
+    () => '',
+    async (path: string) => {
+      navigations.push(path)
+    }
+  )
+  const context = await component.setup({}, { expose: () => {} })
+
+  return {
+    context,
+    loginRequests: () => requests.filter((request) => request.path === '/auth/login'),
+    navigations: () => navigations,
     sessionUser: () => sessionUser
   }
 }

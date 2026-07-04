@@ -197,6 +197,7 @@
     "permissionDenied": "你没有权限执行此操作。",
     "registerFailed": "注册失败，请检查填写内容后重试。",
     "sessionUnavailable": "账号已创建，但自动登录失败，请直接登录。",
+    "authServiceUnavailable": "登录服务暂时不可用，请稍后刷新页面。",
     "loginFailed": "登录失败，请检查用户名/邮箱和密码；如果还没有账号，请先注册。",
     "humanVerificationRequired": "请先完成人机验证。",
     "humanVerificationInvalid": "人机验证失败，请重新验证。",

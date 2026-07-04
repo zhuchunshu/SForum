@@ -40,6 +40,10 @@ Initial identity foundation is implemented.
 - Browser auth remains Redis-backed server session, not JWT-first. Sessions use
   HTTP-only SameSite=Lax cookies, secure cookies in production, 30-day idle
   timeout, 180-day absolute timeout, and 24-hour session-id renewal by default.
+- Nuxt treats only 401/`auth.required` from `/auth/session` as logged out.
+  Transient API restart, timeout, or gateway failures keep the existing
+  frontend user state and surface auth service unavailability instead of
+  redirecting to login.
 - Successful registration auto-login and every successful login write
   `audit_events` records with user id, action, IP address, User-Agent, and a
   salted session-id hash. The first version stores this for security/admin
