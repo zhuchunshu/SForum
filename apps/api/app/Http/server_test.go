@@ -112,8 +112,8 @@ func TestRegisterEndpointCreatesSession(t *testing.T) {
 	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
 	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 
-	body := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN"}`)
-	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(body))
+	requestBody := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN"}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(requestBody))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := app.Test(req)
@@ -127,6 +127,22 @@ func TestRegisterEndpointCreatesSession(t *testing.T) {
 	}
 	if cookies := resp.Cookies(); len(cookies) == 0 {
 		t.Fatal("expected session cookie")
+	}
+	var body apiEnvelope[identity.CurrentUser]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode register response: %v", err)
+	}
+	if body.Code != nethttp.StatusCreated {
+		t.Fatalf("expected envelope code 201, got %d", body.Code)
+	}
+	if body.Message != "OK" {
+		t.Fatalf("expected OK message, got %q", body.Message)
+	}
+	if body.Data.Username != "admin" {
+		t.Fatalf("expected admin username, got %q", body.Data.Username)
+	}
+	if body.Data.Locale != "zh-CN" {
+		t.Fatalf("expected zh-CN locale, got %q", body.Data.Locale)
 	}
 }
 
@@ -174,8 +190,8 @@ func TestRegisterEndpointAcceptsHumanVerificationToken(t *testing.T) {
 	identityController := identitycontroller.NewControllerWithVerifier(identity.NewService(store), session.NewStore(), verifier)
 	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 
-	body := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN","humanVerification":{"provider":"altcha","token":"valid-token"}}`)
-	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(body))
+	requestBody := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN","humanVerification":{"provider":"altcha","token":"valid-token"}}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(requestBody))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := app.Test(req)
@@ -189,6 +205,19 @@ func TestRegisterEndpointAcceptsHumanVerificationToken(t *testing.T) {
 	}
 	if cookies := resp.Cookies(); len(cookies) == 0 {
 		t.Fatal("expected session cookie")
+	}
+	var body apiEnvelope[identity.CurrentUser]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode register response: %v", err)
+	}
+	if body.Code != nethttp.StatusCreated {
+		t.Fatalf("expected envelope code 201, got %d", body.Code)
+	}
+	if body.Message != "OK" {
+		t.Fatalf("expected OK message, got %q", body.Message)
+	}
+	if body.Data.Username != "admin" {
+		t.Fatalf("expected admin username, got %q", body.Data.Username)
 	}
 }
 
@@ -260,15 +289,15 @@ func TestLogoutEndpointReturnsNoDataEnvelope(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	var body apiEnvelope[*json.RawMessage]
+	var body apiEnvelope[json.RawMessage]
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode logout envelope: %v", err)
 	}
 	if body.Code != nethttp.StatusOK || body.Message != "OK" {
 		t.Fatalf("unexpected envelope: %#v", body)
 	}
-	if body.Data != nil {
-		t.Fatalf("expected null data, got %v", body.Data)
+	if string(body.Data) != "null" {
+		t.Fatalf("expected null data, got %s", string(body.Data))
 	}
 }
 
