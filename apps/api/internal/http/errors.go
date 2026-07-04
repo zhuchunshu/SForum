@@ -19,7 +19,7 @@ func errorHandler(logger *slog.Logger) fiber.ErrorHandler {
 
 		if fiberErr, ok := err.(*fiber.Error); ok {
 			status = fiberErr.Code
-			code = "http_error"
+			code = fiberErr.Message
 			message = fiberErr.Message
 		} else {
 			logger.Error("request failed", "error", err)

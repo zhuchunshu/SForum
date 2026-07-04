@@ -10,8 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gofiber/fiber/v3/middleware/session"
+
 	"github.com/inkedus/sforum/apps/api/internal/config"
 	httpserver "github.com/inkedus/sforum/apps/api/internal/http"
+	"github.com/inkedus/sforum/apps/api/internal/modules/identity"
+	"github.com/inkedus/sforum/apps/api/internal/platform/postgres"
+	redisplatform "github.com/inkedus/sforum/apps/api/internal/platform/redis"
 )
 
 func main() {
@@ -20,7 +25,31 @@ func main() {
 		Level: cfg.LogLevel,
 	}))
 
-	app := httpserver.NewApp(cfg, logger)
+	ctx := context.Background()
+	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		logger.Error("postgres setup failed", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	redisStorage, err := redisplatform.NewStorage(cfg.RedisAddr)
+	if err != nil {
+		logger.Error("redis session storage setup failed", "error", err)
+		os.Exit(1)
+	}
+
+	sessionStore := session.NewStore(session.Config{
+		Storage:        redisStorage,
+		CookieHTTPOnly: true,
+		CookieSameSite: "Lax",
+	})
+	identityStore := identity.NewPostgresStore(pool)
+	identityHandler := identity.NewHandler(identity.NewService(identityStore), sessionStore)
+
+	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
+		IdentityHandler: identityHandler,
+	})
 	errCh := make(chan error, 1)
 
 	go func() {

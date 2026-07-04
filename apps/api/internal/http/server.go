@@ -20,7 +20,13 @@ type healthResponse struct {
 	Time             time.Time `json:"time"`
 }
 
-func NewApp(cfg config.Config, logger *slog.Logger) *fiber.App {
+type Dependencies struct {
+	IdentityHandler interface {
+		RegisterRoutes(api fiber.Router)
+	}
+}
+
+func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName:      cfg.AppName,
 		ErrorHandler: errorHandler(logger),
@@ -29,13 +35,17 @@ func NewApp(cfg config.Config, logger *slog.Logger) *fiber.App {
 	app.Use(requestid.New())
 	app.Use(recover.New())
 
-	registerRoutes(app, cfg)
+	registerRoutes(app, cfg, deps)
 
 	return app
 }
 
-func registerRoutes(app *fiber.App, cfg config.Config) {
+func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 	api := app.Group("/api/v1")
+
+	if deps.IdentityHandler != nil {
+		deps.IdentityHandler.RegisterRoutes(api)
+	}
 
 	api.Get("/health", func(c fiber.Ctx) error {
 		return c.JSON(healthResponse{
