@@ -199,72 +199,62 @@ h1:not([data-slot="title"]) {
   scrollbar-width: none;
 }
 
-/* 放大后台侧边栏菜单项与折叠层级间距 */
-#sforum-admin-sidebar [data-slot="link"] {
-  padding-top: 0.7rem;
-  padding-bottom: 0.7rem;
-  padding-left: 0.85rem;
-  padding-right: 0.85rem;
-  font-size: 0.875rem;
-  border-radius: 8px;
-}
-
-/* 针对多级菜单 Accordion Trigger & Content 宽度与过渡微调 */
-#sforum-admin-sidebar button[data-slot="link"] {
-  width: 100%;
-}
-#sforum-admin-sidebar ul[data-slot="childList"] {
-  margin-top: 0.25rem;
-  margin-bottom: 0.5rem;
-  padding-left: 1.25rem;
-  border-left: 1px dashed var(--border-admin);
-  margin-left: 1.25rem;
-}
-#sforum-admin-sidebar ul[data-slot="childList"] [data-slot="link"] {
-  padding-top: 0.45rem;
-  padding-bottom: 0.45rem;
-  font-size: 0.825rem;
-}
-
 /* ========================================================================= */
 /* SForum 后台管理现代雅致主题 (SaaS Elegant Theme) */
 /* ========================================================================= */
 
-/* 侧栏总宽度加宽，做大做强 */
-#sforum-admin-sidebar {
-  width: 320px !important; /* 拓宽侧边栏以适配超大字体 */
+/* 后台侧栏在展开状态下保留更宽的阅读空间，同时不破坏折叠态。 */
+.sforum-admin-sidebar[data-collapsed="false"] {
+  min-width: 270px !important;
+  max-width: 270px !important;
 }
 
-/* 侧栏主链接容器样式升级：字号与高度调大，间距更舒展 */
-#sforum-admin-sidebar [data-slot="link"] {
-  font-size: 1.15rem !important; /* 升级为 18.4px */
-  font-weight: 700 !important; /* 更加加粗显眼 */
-  padding-top: 1.1rem !important; /* 极佳的高度感 */
-  padding-bottom: 1.1rem !important;
-  padding-left: 1.4rem !important;
-  padding-right: 1.4rem !important;
+/* 侧栏主菜单项：字号与高度调大，文字加粗，间距更舒展 */
+.sforum-admin-sidebar [data-slot="link"] {
+  min-height: 54px !important;
+  padding: 0.95rem 1.25rem !important;
   border-radius: 12px !important;
+  font-size: 1.05rem !important; /* ~17px 大文字 */
+  font-weight: 700 !important; /* 更加加粗醒目 */
+  line-height: 1.25 !important;
 }
 
-/* 侧边栏图标加大，保证视觉主体显眼 */
-#sforum-admin-sidebar [data-slot="icon"] {
-  width: 1.6rem !important; /* 调整为 ~25.6px */
-  height: 1.6rem !important;
+.sforum-admin-sidebar button[data-slot="link"],
+.sforum-admin-sidebar a[data-slot="link"] {
+  width: 100%;
 }
 
-/* 二级菜单虚线指示器高级感微调 */
-#sforum-admin-sidebar ul[data-slot="childList"] {
+.sforum-admin-sidebar [data-slot="linkLabel"] {
+  line-height: 1.3 !important;
+}
+
+.sforum-admin-sidebar [data-slot="linkLeadingIcon"],
+.sforum-admin-sidebar [data-slot="linkTrailingIcon"] {
+  width: 1.35rem !important; /* 调整为 21.6px */
+  height: 1.35rem !important;
+}
+
+/* 二级菜单保持从属感，但文字与点击区域也要足够大。 */
+.sforum-admin-sidebar ul[data-slot="childList"] {
+  margin-top: 0.4rem !important;
+  margin-bottom: 0.75rem !important;
   border-left: 2px dashed rgba(148, 163, 184, 0.2) !important;
-  margin-left: 2rem !important;
-  padding-left: 1.6rem !important;
+  margin-left: 1.8rem !important;
+  padding-left: 1.35rem !important;
 }
 
-#sforum-admin-sidebar ul[data-slot="childList"] [data-slot="link"] {
-  font-size: 1.05rem !important; /* 从 0.95rem 提升到 16.8px */
-  font-weight: 600 !important;
-  padding-top: 0.8rem !important;
-  padding-bottom: 0.8rem !important;
+.sforum-admin-sidebar ul[data-slot="childList"] [data-slot="link"] {
+  min-height: 46px !important;
+  padding: 0.75rem 1rem !important;
   border-radius: 10px !important;
+  font-size: 0.925rem !important; /* 从 0.825rem 提升到 14.8px */
+  font-weight: 600 !important;
+}
+
+.sforum-admin-sidebar ul[data-slot="childList"] [data-slot="linkLeadingIcon"],
+.sforum-admin-sidebar ul[data-slot="childList"] [data-slot="linkTrailingIcon"] {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
 }
 
 /* 浅色模式下的软阴影卡片 */
