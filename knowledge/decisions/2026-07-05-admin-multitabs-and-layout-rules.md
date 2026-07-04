@@ -56,6 +56,14 @@ When developing new pages or sections in the SForum Admin Control Panel (`apps/w
 - All sidebar options, tabs, page headers, tables, buttons, and alert states **must not use emojis**.
 - Use Lucide icons (`i-lucide-*`) or project-approved icon bundles.
 
+### 6. Standardized Form Actions & Sticky Footer (统一表单操作与吸底保存条)
+- **吸底布局规范**：所有后台配置页面、长表单编辑页面，若含有“保存”、“重置/取消”等操作，**严禁**直接平铺在卡片底部。
+- **统一使用 `SFAdminFormFooter`**：必须在 `<form>` 的底部引入 `<SFAdminFormFooter>` 组件。它会自动粘性吸附在内容视口底部，确保用户无需滚动页面即可执行保存。
+- **状态联动规范**：
+  - 保存按钮必须绑定 `:loading="saving"`，防止重复提交。
+  - 表单的 Input/Select 在提交中应当伴随禁用，或通过 `disabled` 属性统一传递给 Footer。
+  - 按钮图标严格使用 `i-lucide-*`，遵循无 emoji 规范。
+
 ## Consequences
 
 - New admin features can be quickly created by copying a template page that uses the layout and registering the tab in `onMounted`.
