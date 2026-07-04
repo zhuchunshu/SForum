@@ -33,6 +33,26 @@ tailwind.config = { theme: { extend: { colors: {
   .ghost-btn:hover { border-color: #cbd5e1; background: #f8fafc; }
   .pill-tag { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; border: 1px solid transparent; }
   .glass-nav { background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .pulse-dot { animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+  
+  /* Scrollbar Utilities */
+  .scrollbar-none { scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  
+  /* Prose Styling for Markdown Editor & Thread Detail */
+  .prose h1 { font-size: 1.5rem; font-weight: 800; color: #0F172A; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+  .prose h2 { font-size: 1.25rem; font-weight: 700; color: #0F172A; margin-top: 1.25rem; margin-bottom: 0.5rem; }
+  .prose h3 { font-size: 1.1rem; font-weight: 600; color: #0F172A; margin-top: 1rem; margin-bottom: 0.5rem; }
+  .prose p { margin-bottom: 0.75rem; line-height: 1.6; }
+  .prose strong { font-weight: 700; color: #0F172A; }
+  .prose em { font-style: italic; }
+  .prose a { color: #2563eb; text-decoration: underline; font-weight: 500; }
+  .prose a:hover { color: #1d4ed8; }
+  .prose code { background: #F1F5F9; color: #0F172A; padding: 0.125rem 0.25rem; border-radius: 4px; font-family: monospace; font-size: 0.85em; }
+  .prose pre { background: #0F172A; color: #F8FAFC; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; font-family: monospace; font-size: 0.875rem; }
+  .prose pre code { background: transparent; color: inherit; padding: 0; font-size: inherit; }
+  .prose blockquote { border-left: 4px solid #2563eb; padding-left: 1rem; color: #475569; font-style: italic; margin: 1rem 0; background: #eff6ff; padding-top: 0.5rem; padding-bottom: 0.5rem; border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
 </style>
 </head>
 <body class="antialiased text-fg">
