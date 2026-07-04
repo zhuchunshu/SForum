@@ -203,8 +203,9 @@ Summary:
 
 ### `identity`
 
-Owns users, credentials, sessions, email verification, password reset, profile
-identity fields, and login/logout flows.
+Owns users, credentials, sessions, registration, email verification, password
+reset, profile identity fields, roles, permissions, policy helpers, and
+login/logout flows.
 
 Recommended MVP auth model:
 
@@ -213,6 +214,16 @@ Recommended MVP auth model:
 - Session ID regeneration on login and privilege escalation.
 - Password hashing with Argon2id from `golang.org/x/crypto`.
 - CSRF protection for cookie-authenticated writes.
+- One `users` table for regular members, moderators, and administrators.
+- Open registration by default after bootstrapping.
+- The first registered user becomes the protected initial `super_admin`.
+- Later registered users receive the system `member` role by default.
+- `member` can have a custom display alias, but its role key is stable and the
+  role is not deletable while it remains the default registration role.
+- Admin-managed custom roles/user groups are supported.
+- Use database-backed RBAC and Go policy helpers first; keep the policy
+  interface narrow enough to introduce Casbin later if the permission matrix
+  becomes complex.
 
 ### `forum`
 
@@ -230,8 +241,10 @@ redirect to the canonical URL.
 ### `moderation`
 
 Owns reports, moderation actions, audit trail, soft deletion, staff notes, and
-role-sensitive actions. Start with in-code policies for simple roles; evaluate
-Casbin only if the permission matrix grows beyond ordinary forum roles.
+role-sensitive actions. Moderation must consume the identity module's actor and
+policy helpers instead of duplicating permission checks in handlers. Start with
+in-code policies for simple roles; evaluate Casbin only if the permission matrix
+grows beyond ordinary forum roles.
 
 ### `search`
 
@@ -279,6 +292,8 @@ Default behavior:
   topic lists, topic detail, and user profile summaries.
 - Mutating routes should be under `/api/v1/*`, require session auth, and return
   JSON problem-style errors with stable machine-readable codes.
+- Nuxt admin routes live in the same web app under protected routes such as
+  `/admin/*`; the Fiber API remains the source of truth for permission checks.
 - API errors should include a stable `code` and may include a default
   Simplified Chinese message. The frontend should map known codes to localized
   UI text so English and future languages do not depend on backend prose.
@@ -341,18 +356,18 @@ Milestone 1 should establish architecture and tooling, not all forum features:
 - Define the initial OpenAPI contract skeleton.
 - Create the first PostgreSQL schema migrations for users, categories, topics,
   posts, and post revisions.
-- Implement session foundation only if authentication is part of the first
-  executable milestone.
+- Implement the identity foundation: open registration, first-user
+  `super_admin` bootstrapping, Redis-backed sessions, default `member`
+  assignment, and initial RBAC migrations.
 
 ## Open Architecture Questions
 
 - Production host target: which single VPS/container host should the Docker
   Compose deployment optimize for first?
-- Registration policy: open signup, invite-only, or admin-created accounts?
 - Email provider for verification and notifications.
 - Upload support and object storage provider.
 - Production backup destination and retention policy.
-- Exact moderation roles and permission matrix.
+- Exact MVP role-management screens and permission seed list.
 - Whether search ships in MVP or follows immediately after core forum reads and
   writes.
 

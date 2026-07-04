@@ -24,8 +24,8 @@ Foundation scaffold exists under `apps/api`.
 
 ## Planned Boundaries
 
-- `identity`: users, credentials, sessions, profiles, password reset, email
-  verification.
+- `identity`: users, credentials, sessions, profiles, registration, password
+  reset, email verification, roles, permissions, and policy helpers.
 - `forum`: categories, topics, posts, revisions, visibility, slugs.
 - `moderation`: reports, staff actions, audit trail, soft deletion.
 - `search`: Meilisearch settings, indexing jobs, rebuilds, search endpoints.
@@ -35,12 +35,12 @@ Foundation scaffold exists under `apps/api`.
 
 ## Open Questions
 
-- Whether auth ships in the first executable milestone or follows the read-only
-  forum foundation.
 - Whether search indexing uses a PostgreSQL outbox, a Redis-backed queue, or a
   Postgres-native job library.
 - Final deployment target and runtime process model.
 - Whether backend emails and notifications need full English translation in MVP.
+- Exact username, email, password, and email-verification rules for open
+  registration.
 
 ## Next Steps
 
@@ -48,4 +48,7 @@ Foundation scaffold exists under `apps/api`.
   foundation.
 - Add supported-locale config and a user locale preference field during identity
   schema design.
+- Use one user system with open registration, first-user `super_admin`
+  bootstrapping, default `member` assignment, and admin-managed custom
+  roles/user groups.
 - Define the first OpenAPI contract and schema migrations.

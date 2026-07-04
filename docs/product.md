@@ -13,6 +13,20 @@ Define the forum product clearly before implementation starts.
 - Notifications.
 - Administration.
 
+## Identity And Registration
+
+- SForum uses one user system for regular users, moderators, and
+  administrators.
+- Registration is open by default after the first account is created.
+- The first registered user becomes the initial super administrator.
+- The initial super administrator cannot be deleted, disabled, or stripped of
+  super administrator permissions.
+- Later registered users receive the default `member` role.
+- The `member` role can have a custom display alias, but its key is stable and
+  the role is not deletable while it remains the default registration role.
+- Administrators can manage custom roles/user groups and assign permissions to
+  them.
+
 ## Localization
 
 - Product features must support multiple languages from the first

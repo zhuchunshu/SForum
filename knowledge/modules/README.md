@@ -7,12 +7,12 @@ Current planned modules:
 - `frontend.md`
 - `backend.md`
 - `forum.md`
+- `identity.md`
 - `localization.md`
 - `search.md`
 
 Possible future modules:
 
-- `auth.md`
 - `users.md`
 - `categories.md`
 - `topics.md`

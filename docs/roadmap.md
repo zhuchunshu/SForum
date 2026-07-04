@@ -21,12 +21,15 @@
 - Add `compose.prod.yaml`, `.env.production.example`, and an initial bilingual
   interactive `deploy.sh`.
 - Define the first OpenAPI contract skeleton.
-- Create initial schema migrations for users, categories, topics, posts, and
-  post revisions.
+- Create initial schema migrations for users, roles, permissions, categories,
+  topics, posts, and post revisions.
+- Add identity foundation: open registration, first-user `super_admin`
+  bootstrapping, Redis-backed sessions, default `member` assignment, and
+  initial RBAC policy helpers.
 
 ## Milestone 2: Core Forum
 
-- User accounts.
+- User profiles and account settings.
 - Categories and topics.
 - Posts and replies.
 - Basic moderation.

@@ -37,6 +37,11 @@ This is the entry point for project memory.
   slice includes buttons, cards, inputs, toggles, avatars, feed rows, comments,
   search, editor, pagination, progress, skeleton, empty state, alerts, badges,
   toasts, and tabs, with a dev-only `/components` preview page.
+- Identity and permissions architecture is accepted: SForum uses one user
+  system for regular users, moderators, and administrators; the first registered
+  user becomes the protected initial `super_admin`; later open registrations
+  receive the undeletable default `member` role; admin-managed custom
+  roles/user groups are supported.
 
 ## Navigation
 
@@ -47,6 +52,8 @@ This is the entry point for project memory.
 - `research.md` - library and ecosystem research notes.
 - `../docs/architecture.md` - proposed technical architecture and directory
   layout.
+- `modules/identity.md` - identity, registration, sessions, roles, permissions,
+  and policy notes.
 - `../docs/development-and-deployment.md` - proposed local development,
   hot-reload, Docker Compose, and production deployment workflow.
 - `../apps/web` - Nuxt web scaffold with default `zh-CN` localization.
@@ -70,3 +77,4 @@ This is the entry point for project memory.
 - What production backup destination and retention policy should be used?
 - Should English translations be mandatory for MVP launch or allowed to lag
   during internal development?
+- Should email verification be required before posting in MVP?

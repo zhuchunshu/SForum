@@ -80,6 +80,20 @@ libraries, frameworks, or services.
 - Sources: https://docs.gofiber.io/next/middleware/session/,
   https://github.com/redis/go-redis
 
+## Authorization And Roles
+
+- Problem: support one forum user system with regular members, moderators,
+  administrators, open registration, protected first-user bootstrapping, and
+  admin-managed custom roles/user groups.
+- Options: in-code policy helpers over database RBAC, Casbin, OPA/Cedar-style
+  policy engines, relationship-based authorization systems such as SpiceDB.
+- Recommendation: start with database-backed RBAC plus small Go policy helpers.
+- Reason: the MVP permission model is ordinary forum RBAC with a few protected
+  system invariants. A narrow policy interface can adopt Casbin later if
+  category-scoped roles or complex policies become necessary.
+- Follow-up: seed system `super_admin` and `member` roles; keep role keys stable
+  while allowing editable display aliases.
+
 ## Search
 
 - Problem: provide fast topic/post search without making the search engine the
