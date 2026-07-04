@@ -18,6 +18,14 @@
       "featured": "精华",
       "following": "关注"
     },
+    "badge": {
+      "pinned": "置顶",
+      "featured": "精华"
+    },
+    "emptyState": {
+      "title": "未找到匹配的话题",
+      "description": "尝试换个关键词或者选择其他过滤器分类看看。"
+    },
     "sidebar": {
       "navTitle": "导航",
       "navHome": "论坛首页",
@@ -37,6 +45,9 @@
       "loginBtn": "登录账号",
       "registerBtn": "注册新账号",
       "checkIn": "每日签到",
+      "checkInDesc": "每日签到可领取社区积分",
+      "checkInBtn": "签到",
+      "checkedInBtn": "已签到",
       "checkedIn": "已连续签到 {days} 天",
       "hotThreads": "热门讨论",
       "forumStats": "全站数据统计",

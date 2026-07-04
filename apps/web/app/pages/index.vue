@@ -17,7 +17,7 @@ interface Category {
   key: string
   count: number
 }
-const categories = ref<Category[]>([
+const categories = computed<Category[]>(() => [
   { name: t('home.sidebar.secTech'), key: 'tech', count: 184 },
   { name: t('home.sidebar.secCreative'), key: 'creative', count: 42 },
   { name: t('home.sidebar.secLife'), key: 'life', count: 96 },
@@ -39,7 +39,7 @@ interface Thread {
   isPinned?: boolean
   isFeatured?: boolean
 }
-const threads = ref<Thread[]>([
+const threads = computed<Thread[]>(() => [
   {
     id: 1,
     title: 'Vue 3.5 新特性深度解析与最佳实践',
@@ -57,7 +57,7 @@ const threads = ref<Thread[]>([
   {
     id: 2,
     title: '关于论坛首页三栏布局设计的建议与吐槽收集帖',
-    excerpt: 'SForum 首页现已采用经典的三栏式门户布局，大家对目前的整体视觉、各个端上的响应式细节、以及组件排列有什么想法？欢迎在此帖畅所欲言，我们的设计师 and 开发者会每天跟进优化。',
+    excerpt: 'SForum 首页现已采用经典的三栏式门户布局，大家对目前的整体视觉、各个端上的响应式细节、以及组件排列有什么想法？欢迎在此帖畅所欲言，我们的设计师和开发者会每天跟进优化。',
     category: t('home.sidebar.secNotice'),
     categoryKey: 'notice',
     author: '管理员',
@@ -154,19 +154,23 @@ const filteredThreads = computed(() => {
 })
 
 // Watch tab selection to trigger mock loading skeleton
-watch(currentTab, () => {
+watch(currentTab, (newVal, oldVal, onCleanup) => {
+  currentPage.value = 1
   isPending.value = true
-  setTimeout(() => {
+  const timer = setTimeout(() => {
     isPending.value = false
   }, 400)
+  onCleanup(() => clearTimeout(timer))
 })
 
 // Watch search query to trigger mock loading skeleton
-watch(searchQuery, () => {
+watch(searchQuery, (newVal, oldVal, onCleanup) => {
+  currentPage.value = 1
   isPending.value = true
-  setTimeout(() => {
+  const timer = setTimeout(() => {
     isPending.value = false
   }, 300)
+  onCleanup(() => clearTimeout(timer))
 })
 
 // Daily check-in status
@@ -288,8 +292,8 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                   :views="thread.views"
                   :score="thread.score"
                   :badges="[
-                    ...(thread.isPinned ? [{ label: '置顶', variant: 'danger' as const }] : []),
-                    ...(thread.isFeatured ? [{ label: '精华', variant: 'success' as const }] : []),
+                    ...(thread.isPinned ? [{ label: t('home.badge.pinned'), variant: 'danger' as const }] : []),
+                    ...(thread.isFeatured ? [{ label: t('home.badge.featured'), variant: 'success' as const }] : []),
                     { label: thread.category, variant: 'primary' as const }
                   ]"
                 />
@@ -300,8 +304,8 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
             <template v-else>
               <SFCard class="p-12 flex justify-center">
                 <SFEmptyState
-                  title="未找到匹配的话题"
-                  description="尝试换个关键词或者选择其他过滤器分类看看。"
+                  :title="t('home.emptyState.title')"
+                  :description="t('home.emptyState.description')"
                 />
               </SFCard>
             </template>
@@ -366,7 +370,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                 {{ t('home.sidebar.checkIn') }}
               </h3>
               <p class="text-[10px] text-slate-400 mt-0.5 truncate">
-                {{ checkedIn ? t('home.sidebar.checkedIn', { days: checkInDays }) : '每日签到可领取社区积分' }}
+                {{ checkedIn ? t('home.sidebar.checkedIn', { days: checkInDays }) : t('home.sidebar.checkInDesc') }}
               </p>
             </div>
             <SFButton
@@ -376,7 +380,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
               @click="handleCheckIn"
               class="transition-transform active:scale-95 shrink-0"
             >
-              {{ checkedIn ? '已签到' : '签到' }}
+              {{ checkedIn ? t('home.sidebar.checkedInBtn') : t('home.sidebar.checkInBtn') }}
             </SFButton>
           </SFCard>
 

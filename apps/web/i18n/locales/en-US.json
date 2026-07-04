@@ -18,6 +18,14 @@
       "featured": "Featured",
       "following": "Following"
     },
+    "badge": {
+      "pinned": "Pinned",
+      "featured": "Featured"
+    },
+    "emptyState": {
+      "title": "No matching threads found",
+      "description": "Try switching keywords or selecting another category filter."
+    },
     "sidebar": {
       "navTitle": "Navigation",
       "navHome": "Home",
@@ -37,6 +45,9 @@
       "loginBtn": "Log In",
       "registerBtn": "Register Account",
       "checkIn": "Check In",
+      "checkInDesc": "Check in daily to earn community points",
+      "checkInBtn": "Check In",
+      "checkedInBtn": "Checked In",
       "checkedIn": "Checked in {days} d",
       "hotThreads": "Hot Discussions",
       "forumStats": "Community Stats",
