@@ -21,6 +21,16 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
+type apiEnvelope[T any] struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    T      `json:"data"`
+}
+
+type apiErrorData struct {
+	Reason string `json:"reason"`
+}
+
 func TestNewAppRegistersRouteProviders(t *testing.T) {
 	cfg := testConfig()
 	app := NewApp(cfg, slog.Default(), Dependencies{
@@ -64,19 +74,25 @@ func TestHealthEndpoint(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	var body healthResponse
+	var body apiEnvelope[healthResponse]
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode health response: %v", err)
 	}
 
-	if body.Status != "ok" {
-		t.Fatalf("expected ok status, got %q", body.Status)
+	if body.Code != nethttp.StatusOK {
+		t.Fatalf("expected envelope code 200, got %d", body.Code)
 	}
-	if body.Locale != "zh-CN" {
-		t.Fatalf("expected zh-CN locale, got %q", body.Locale)
+	if body.Message != "OK" {
+		t.Fatalf("expected OK message, got %q", body.Message)
 	}
-	if len(body.SupportedLocales) != 2 {
-		t.Fatalf("expected two supported locales, got %v", body.SupportedLocales)
+	if body.Data.Status != "ok" {
+		t.Fatalf("expected ok status, got %q", body.Data.Status)
+	}
+	if body.Data.Locale != "zh-CN" {
+		t.Fatalf("expected zh-CN locale, got %q", body.Data.Locale)
+	}
+	if len(body.Data.SupportedLocales) != 2 {
+		t.Fatalf("expected two supported locales, got %v", body.Data.SupportedLocales)
 	}
 }
 
@@ -128,12 +144,12 @@ func TestRegisterEndpointRequiresHumanVerification(t *testing.T) {
 	if resp.StatusCode != nethttp.StatusUnprocessableEntity {
 		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
-	var problem problemResponse
+	var problem apiEnvelope[apiErrorData]
 	if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
 		t.Fatalf("decode problem response: %v", err)
 	}
-	if problem.Code != humanverify.CodeRequired {
-		t.Fatalf("expected required code, got %q", problem.Code)
+	if problem.Data.Reason != humanverify.CodeRequired {
+		t.Fatalf("expected required code, got %q", problem.Data.Reason)
 	}
 }
 
@@ -209,6 +225,38 @@ func TestSessionEndpointRequiresAuth(t *testing.T) {
 
 	if resp.StatusCode != nethttp.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestSessionEndpointReturnsLocalizedEnvelopeError(t *testing.T) {
+	cfg := testConfig()
+	identityController := identitycontroller.NewController(identity.NewService(newHTTPFakeStore()), session.NewStore())
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/auth/session", nil)
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("session request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error envelope: %v", err)
+	}
+	if body.Code != nethttp.StatusUnauthorized {
+		t.Fatalf("expected envelope code 401, got %d", body.Code)
+	}
+	if body.Message != "Please sign in first." {
+		t.Fatalf("expected localized message, got %q", body.Message)
+	}
+	if body.Data.Reason != "auth.required" {
+		t.Fatalf("expected auth.required reason, got %q", body.Data.Reason)
 	}
 }
 

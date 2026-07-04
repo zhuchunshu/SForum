@@ -36,6 +36,7 @@ func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.Ap
 
 	app.Use(requestid.New())
 	app.Use(recover.New())
+	app.Use(localeMiddleware(cfg))
 
 	registerRoutes(app, cfg, deps)
 
@@ -52,7 +53,7 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 	}
 
 	api.Get("/health", func(c fiber.Ctx) error {
-		return c.JSON(healthResponse{
+		return OK(c, healthResponse{
 			Name:             cfg.AppName,
 			Status:           "ok",
 			Environment:      cfg.AppEnv,

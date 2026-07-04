@@ -6,28 +6,31 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-type problemResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
 func errorHandler(logger *slog.Logger) fiber.ErrorHandler {
 	return func(c fiber.Ctx, err error) error {
 		status := fiber.StatusInternalServerError
-		code := "internal_error"
-		message := "服务器暂时不可用，请稍后再试。"
+		reason := "internal_error"
 
 		if fiberErr, ok := err.(*fiber.Error); ok {
 			status = fiberErr.Code
-			code = fiberErr.Message
-			message = fiberErr.Message
+			reason = normalizeFiberErrorReason(status, fiberErr.Message)
 		} else {
 			logger.Error("request failed", "error", err)
 		}
 
-		return c.Status(status).JSON(problemResponse{
-			Code:    code,
-			Message: message,
-		})
+		return ErrorResponse(c, status, reason)
+	}
+}
+
+func normalizeFiberErrorReason(status int, message string) string {
+	switch {
+	case message == "":
+		return "internal_error"
+	case status == fiber.StatusNotFound && message == "Not Found":
+		return "not_found"
+	case status == fiber.StatusMethodNotAllowed && message == "Method Not Allowed":
+		return "method_not_allowed"
+	default:
+		return message
 	}
 }
