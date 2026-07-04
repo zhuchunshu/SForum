@@ -53,6 +53,14 @@ const displayName = computed(() =>
 const avatarLetter = computed(() =>
   displayName.value.charAt(0).toUpperCase()
 )
+
+// 当前语言的名称，比如 "简体中文" 或 "English"
+const currentLocaleName = computed(() => {
+  const currentLoc = (locales.value as any[]).find(
+    (loc) => (typeof loc === 'object' ? loc.code : loc) === locale.value
+  )
+  return typeof currentLoc === 'object' ? currentLoc.name : currentLoc || ''
+})
 </script>
 
 <template>
