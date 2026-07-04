@@ -13,3 +13,6 @@ if [ -d apps/web/node_modules ]; then
 else
   echo "Skipping Nuxt typecheck because apps/web/node_modules is missing."
 fi
+
+echo "Running identity UI validation..."
+node tests/validate-identity-ui.js
