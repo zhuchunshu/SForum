@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
 
+	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 )
@@ -88,7 +89,7 @@ func (h *Controller) register(c fiber.Ctx) error {
 		return err
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(current)
+	return apphttp.Created(c, current)
 }
 
 func (h *Controller) login(c fiber.Ctx) error {
@@ -106,7 +107,7 @@ func (h *Controller) login(c fiber.Ctx) error {
 		return err
 	}
 
-	return c.JSON(current)
+	return apphttp.OK(c, current)
 }
 
 func (h *Controller) humanVerificationChallenge(c fiber.Ctx) error {
@@ -119,7 +120,7 @@ func (h *Controller) humanVerificationChallenge(c fiber.Ctx) error {
 	if err != nil {
 		return mapHumanVerificationError(err)
 	}
-	return c.JSON(challenge.Payload)
+	return apphttp.OK(c, challenge.Payload)
 }
 
 func (h *Controller) logout(c fiber.Ctx) error {
@@ -130,7 +131,7 @@ func (h *Controller) logout(c fiber.Ctx) error {
 	if err := sess.Destroy(); err != nil {
 		return err
 	}
-	return c.SendStatus(fiber.StatusNoContent)
+	return apphttp.NoData(c)
 }
 
 func (h *Controller) session(c fiber.Ctx) error {
@@ -146,7 +147,7 @@ func (h *Controller) session(c fiber.Ctx) error {
 	if err != nil {
 		return mapIdentityError(err)
 	}
-	return c.JSON(current)
+	return apphttp.OK(c, current)
 }
 
 func (h *Controller) listRoles(c fiber.Ctx) error {
@@ -159,7 +160,7 @@ func (h *Controller) listRoles(c fiber.Ctx) error {
 	if err != nil {
 		return mapIdentityError(err)
 	}
-	return c.JSON(roles)
+	return apphttp.OK(c, roles)
 }
 
 func (h *Controller) createRole(c fiber.Ctx) error {
@@ -181,7 +182,7 @@ func (h *Controller) createRole(c fiber.Ctx) error {
 	if err != nil {
 		return mapIdentityError(err)
 	}
-	return c.Status(fiber.StatusCreated).JSON(role)
+	return apphttp.Created(c, role)
 }
 
 func (h *Controller) updateRole(c fiber.Ctx) error {
@@ -202,7 +203,7 @@ func (h *Controller) updateRole(c fiber.Ctx) error {
 	if err != nil {
 		return mapIdentityError(err)
 	}
-	return c.JSON(role)
+	return apphttp.OK(c, role)
 }
 
 func (h *Controller) deleteRole(c fiber.Ctx) error {
@@ -214,7 +215,7 @@ func (h *Controller) deleteRole(c fiber.Ctx) error {
 	if err := h.service.DeleteRole(c.Context(), actor, c.Params("roleKey")); err != nil {
 		return mapIdentityError(err)
 	}
-	return c.SendStatus(fiber.StatusNoContent)
+	return apphttp.NoData(c)
 }
 
 func (h *Controller) replaceRolePermissions(c fiber.Ctx) error {
@@ -231,7 +232,7 @@ func (h *Controller) replaceRolePermissions(c fiber.Ctx) error {
 	if err := h.service.ReplaceRolePermissions(c.Context(), actor, c.Params("roleKey"), req.Permissions); err != nil {
 		return mapIdentityError(err)
 	}
-	return c.SendStatus(fiber.StatusNoContent)
+	return apphttp.NoData(c)
 }
 
 func (h *Controller) saveSessionUserID(c fiber.Ctx, userID int64) error {

@@ -1,4 +1,4 @@
-package http
+package http_test
 
 import (
 	"bytes"
@@ -15,6 +15,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
 
+	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	identitycontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Identity"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
@@ -31,10 +32,19 @@ type apiErrorData struct {
 	Reason string `json:"reason"`
 }
 
+type healthResponse struct {
+	Name             string    `json:"name"`
+	Status           string    `json:"status"`
+	Environment      string    `json:"environment"`
+	Locale           string    `json:"locale"`
+	SupportedLocales []string  `json:"supportedLocales"`
+	Time             time.Time `json:"time"`
+}
+
 func TestNewAppRegistersRouteProviders(t *testing.T) {
 	cfg := testConfig()
-	app := NewApp(cfg, slog.Default(), Dependencies{
-		RouteProviders: []RouteProvider{routeProviderFunc(func(api fiber.Router) {
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{routeProviderFunc(func(api fiber.Router) {
 			api.Get("/probe", func(c fiber.Ctx) error {
 				return c.JSON(fiber.Map{"status": "registered"})
 			})
@@ -61,7 +71,7 @@ func TestHealthEndpoint(t *testing.T) {
 		SupportedLocales: []string{"zh-CN", "en-US"},
 	}
 
-	app := NewApp(cfg, slog.Default(), Dependencies{})
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{})
 	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/health", nil)
 
 	resp, err := app.Test(req)
@@ -100,7 +110,7 @@ func TestRegisterEndpointCreatesSession(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()
 	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 
 	body := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN"}`)
 	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(body))
@@ -129,7 +139,7 @@ func TestRegisterEndpointRequiresHumanVerification(t *testing.T) {
 		humanverify.NewMemoryStore(),
 	)
 	identityController := identitycontroller.NewControllerWithVerifier(identity.NewService(store), session.NewStore(), verifier)
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 
 	body := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN"}`)
 	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(body))
@@ -162,7 +172,7 @@ func TestRegisterEndpointAcceptsHumanVerificationToken(t *testing.T) {
 		humanverify.NewMemoryStore(),
 	)
 	identityController := identitycontroller.NewControllerWithVerifier(identity.NewService(store), session.NewStore(), verifier)
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 
 	body := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN","humanVerification":{"provider":"altcha","token":"valid-token"}}`)
 	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(body))
@@ -190,7 +200,7 @@ func TestHumanVerificationChallengeEndpoint(t *testing.T) {
 		humanverify.NewMemoryStore(),
 	)
 	identityController := identitycontroller.NewControllerWithVerifier(identity.NewService(newHTTPFakeStore()), session.NewStore(), verifier)
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 
 	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/human-verification/challenge?purpose=register", nil)
 	resp, err := app.Test(req)
@@ -202,19 +212,22 @@ func TestHumanVerificationChallengeEndpoint(t *testing.T) {
 	if resp.StatusCode != nethttp.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
-	var body map[string]string
+	var body apiEnvelope[map[string]string]
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode challenge response: %v", err)
 	}
-	if body["challenge"] != "fake" {
-		t.Fatalf("expected fake challenge, got %v", body)
+	if body.Code != nethttp.StatusOK || body.Message != "OK" {
+		t.Fatalf("unexpected envelope: %#v", body)
+	}
+	if body.Data["challenge"] != "fake" {
+		t.Fatalf("expected fake challenge, got %v", body.Data)
 	}
 }
 
 func TestSessionEndpointRequiresAuth(t *testing.T) {
 	cfg := testConfig()
 	identityController := identitycontroller.NewController(identity.NewService(newHTTPFakeStore()), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/auth/session", nil)
 
 	resp, err := app.Test(req)
@@ -228,10 +241,41 @@ func TestSessionEndpointRequiresAuth(t *testing.T) {
 	}
 }
 
+func TestLogoutEndpointReturnsNoDataEnvelope(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+	cookie := registerHTTPUser(t, app, "admin", "admin@example.com")
+
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/logout", nil)
+	req.AddCookie(cookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("logout request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var body apiEnvelope[*json.RawMessage]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode logout envelope: %v", err)
+	}
+	if body.Code != nethttp.StatusOK || body.Message != "OK" {
+		t.Fatalf("unexpected envelope: %#v", body)
+	}
+	if body.Data != nil {
+		t.Fatalf("expected null data, got %v", body.Data)
+	}
+}
+
 func TestSessionEndpointReturnsLocalizedEnvelopeError(t *testing.T) {
 	cfg := testConfig()
 	identityController := identitycontroller.NewController(identity.NewService(newHTTPFakeStore()), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/auth/session", nil)
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 
@@ -263,7 +307,7 @@ func TestSessionEndpointReturnsLocalizedEnvelopeError(t *testing.T) {
 func TestRolesEndpointRequiresAuth(t *testing.T) {
 	cfg := testConfig()
 	identityController := identitycontroller.NewController(identity.NewService(newHTTPFakeStore()), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/roles", nil)
 
 	resp, err := app.Test(req)
@@ -281,11 +325,11 @@ func TestCreateRoleEndpointAllowsSuperAdmin(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()
 	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
 
-	body := []byte(`{"key":"moderator","alias":"版主","description":"管理内容"}`)
-	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/roles", bytes.NewReader(body))
+	requestBody := []byte(`{"key":"moderator","alias":"版主","description":"管理内容"}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/roles", bytes.NewReader(requestBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(adminCookie)
 
@@ -298,12 +342,15 @@ func TestCreateRoleEndpointAllowsSuperAdmin(t *testing.T) {
 	if resp.StatusCode != nethttp.StatusCreated {
 		t.Fatalf("expected 201, got %d", resp.StatusCode)
 	}
-	var role identity.Role
-	if err := json.NewDecoder(resp.Body).Decode(&role); err != nil {
+	var body apiEnvelope[identity.Role]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode role response: %v", err)
 	}
-	if role.Key != "moderator" || role.Alias != "版主" {
-		t.Fatalf("unexpected role response: %#v", role)
+	if body.Code != nethttp.StatusCreated || body.Message != "OK" {
+		t.Fatalf("unexpected envelope: %#v", body)
+	}
+	if body.Data.Key != "moderator" || body.Data.Alias != "版主" {
+		t.Fatalf("unexpected role response: %#v", body.Data)
 	}
 }
 
@@ -311,7 +358,7 @@ func TestCreateRoleEndpointRejectsMember(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()
 	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityController}})
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 	registerHTTPUser(t, app, "admin", "admin@example.com")
 	memberCookie := registerHTTPUser(t, app, "member1", "member1@example.com")
 
