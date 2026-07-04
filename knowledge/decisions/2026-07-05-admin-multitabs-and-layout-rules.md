@@ -35,6 +35,7 @@ When developing new pages or sections in the SForum Admin Control Panel (`apps/w
   })
   ```
 - This enables precise state caching when tabs are open, and automatically purges page memory and input states when the tab is closed by the user.
+- **Keep-Alive Navigation Synchronization**: Because pages are cached by `<KeepAlive>`, switching between already open tabs does not re-trigger the page's `onMounted` hook. To ensure the active tab indicator stays synchronized, the global `admin.vue` layout watches `route.path` and parses the current location into a valid tab ID using `resolveTabIdFromPath` to update `adminTabs.activeTabId.value` reactively.
 
 ### 4. Sidebar Theme Adaptivity and Nested Menus (侧边栏及多级菜单)
 - The sidebar background and text colors must adapt to the color theme (white background in light mode, dark zinc-950 in dark mode). Avoid inline dark overrides (e.g., `text-slate-400!`).
