@@ -52,7 +52,7 @@ async function submitLogin() {
 
       <div class="auth-left-body">
         <h1 class="auth-headline">
-          {{ t('auth.brandHeadline') }}
+          {{ t('auth.brandHeadlineL1') }}<br />{{ t('auth.brandHeadlineL2') }}
         </h1>
         <p class="auth-desc">
           {{ t('auth.brandDesc') }}
