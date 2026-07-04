@@ -341,17 +341,17 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
             <template v-if="user">
               <div class="flex flex-col items-center gap-2">
                 <SFAvatar :name="user.displayName" size="lg" status="online" />
-                <h2 class="font-bold text-slate-800 text-base mt-1">{{ user.displayName }}</h2>
-                <p class="text-xs text-slate-500">@{{ user.username }}</p>
+                <h2 class="font-bold text-slate-800 text-lg mt-1">{{ user.displayName }}</h2>
+                <p class="text-sm text-slate-500">@{{ user.username }}</p>
                 
                 <div class="grid grid-cols-2 gap-4 w-full mt-4 pt-4 border-t border-slate-100">
                   <div>
-                    <span class="block text-sm font-bold text-slate-800">12</span>
-                    <span class="text-[10px] text-slate-500 uppercase font-semibold">{{ t('home.sidebar.userPosts') }}</span>
+                    <span class="block text-base font-bold text-slate-800">12</span>
+                    <span class="text-xs text-slate-400 uppercase font-semibold">{{ t('home.sidebar.userPosts') }}</span>
                   </div>
                   <div>
-                    <span class="block text-sm font-bold text-slate-800">84</span>
-                    <span class="text-[10px] text-slate-500 uppercase font-semibold">{{ t('home.sidebar.userLikes') }}</span>
+                    <span class="block text-base font-bold text-slate-800">84</span>
+                    <span class="text-xs text-slate-400 uppercase font-semibold">{{ t('home.sidebar.userLikes') }}</span>
                   </div>
                 </div>
               </div>
@@ -378,10 +378,10 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
           <!-- Check In Card -->
           <SFCard flush v-if="user" class="p-4 flex items-center justify-between gap-3">
             <div class="min-w-0">
-              <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wide">
+              <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide">
                 {{ t('home.sidebar.checkIn') }}
               </h3>
-              <p class="text-[10px] text-slate-500 mt-0.5 truncate">
+              <p class="text-xs text-slate-500 mt-1 truncate">
                 {{ checkedIn ? t('home.sidebar.checkedIn', { days: checkInDays }) : t('home.sidebar.checkInDesc') }}
               </p>
             </div>
@@ -398,13 +398,13 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
 
           <!-- Hot Discussions Card -->
           <SFCard flush class="p-4" id="tags">
-            <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
               {{ t('home.sidebar.hotThreads') }}
             </h2>
-            <ul class="space-y-2.5">
-              <li v-for="(topic, index) in hotTopics" :key="topic.id" class="flex gap-2.5 items-start">
+            <ul class="space-y-3">
+              <li v-for="(topic, index) in hotTopics" :key="topic.id" class="flex gap-3 items-start">
                 <span
-                  class="w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center shrink-0 mt-0.5"
+                  class="w-[18px] h-[18px] rounded text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5 px-1"
                   :class="[
                     index === 0 ? 'bg-red-500 text-white' : '',
                     index === 1 ? 'bg-orange-400 text-white' : '',
@@ -415,10 +415,10 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                   {{ index + 1 }}
                 </span>
                 <div class="min-w-0 flex-1">
-                  <a href="#" class="text-xs text-slate-700 hover:text-[#0F766E] hover:underline font-medium block truncate">
+                  <a href="#" class="text-sm text-slate-700 hover:text-[#0F766E] hover:underline font-medium block truncate">
                     {{ topic.title }}
                   </a>
-                  <span class="text-[9px] text-slate-500 font-mono">{{ t('home.sidebar.repliesCount', { count: topic.replies }) }}</span>
+                  <span class="text-xs text-slate-400 font-mono mt-0.5 block">{{ t('home.sidebar.repliesCount', { count: topic.replies }) }}</span>
                 </div>
               </li>
             </ul>
@@ -426,26 +426,26 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
 
           <!-- Forum Stats Card -->
           <SFCard flush class="p-4">
-            <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
               {{ t('home.sidebar.forumStats') }}
             </h2>
-            <ul class="space-y-2 text-xs text-slate-600">
+            <ul class="space-y-2.5 text-sm text-slate-700 font-medium">
               <li class="flex justify-between py-0.5">
-                <span class="text-slate-500">{{ t('home.sidebar.statThreads') }}</span>
+                <span class="text-slate-500 font-normal">{{ t('home.sidebar.statThreads') }}</span>
                 <span class="font-semibold font-mono text-slate-800">4,284</span>
               </li>
               <li class="flex justify-between py-0.5">
-                <span class="text-slate-500">{{ t('home.sidebar.statReplies') }}</span>
+                <span class="text-slate-500 font-normal">{{ t('home.sidebar.statReplies') }}</span>
                 <span class="font-semibold font-mono text-slate-800">23,109</span>
               </li>
               <li class="flex justify-between py-0.5">
-                <span class="text-slate-500">{{ t('home.sidebar.statMembers') }}</span>
+                <span class="text-slate-500 font-normal">{{ t('home.sidebar.statMembers') }}</span>
                 <span class="font-semibold font-mono text-slate-800">894</span>
               </li>
               <li class="flex justify-between py-0.5">
-                <span class="text-slate-500">{{ t('home.sidebar.statOnline') }}</span>
-                <span class="font-semibold font-mono text-slate-800 flex items-center gap-1.5">
-                  <span class="w-1.5 h-1.5 rounded-full bg-green-400 pulse-dot"></span>
+                <span class="text-slate-500 font-normal">{{ t('home.sidebar.statOnline') }}</span>
+                <span class="font-semibold font-mono text-slate-800 flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-green-400 pulse-dot"></span>
                   <span>1,024</span>
                 </span>
               </li>
