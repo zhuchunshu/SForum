@@ -17,6 +17,10 @@ Nuxt top-level ignores stay scoped to app-local generated output so Nuxt UI
 components under `node_modules/@nuxt/ui/dist` are still auto-imported.
 Nuxt UI remote font integration is disabled for now to avoid build-time network
 provider retries while the theme uses local/system fonts.
+The forum UI component library now lives in `apps/web/app/components/` with
+uppercase `SF` component names. The first component set is backed by
+`apps/web/app/assets/css/sforum-components.css` and previewed on the dev-only
+`/components` route.
 
 ## Planned Stack
 
@@ -44,9 +48,12 @@ provider retries while the theme uses local/system fonts.
 - Whether admin UI lives inside the same Nuxt app or a protected route group.
 - Whether English translations are mandatory for MVP launch or can lag during
   internal development.
+- Which `SF` components should wrap Nuxt UI primitives later, versus staying
+  plain Vue/CSS components.
 
 ## Next Steps
 
 - Expand the initial `zh-CN`/`en-US` catalogs as pages are added.
 - Add page skeletons for home, category list, topic detail, login, and profile.
 - Add SEO metadata conventions before real pages proliferate.
+- Start replacing static forum page sketches with the reusable `SF*` components.

@@ -4,10 +4,10 @@ const path = require('path');
 const DEMOS_DIR = path.join(__dirname, '../apps/web/app/assets/demos');
 const FILES_TO_VALIDATE = [
   'forum-components.html',
+  'forum-components-v2.html',
   'forum-components-swiss.html',
   'forum-components-glass.html',
-  'forum-components-neobrutalism.html',
-  'forum-components-aurora.html'
+  'forum-components-neobrutalism.html'
 ];
 
 const REQUIRED_IDS = [

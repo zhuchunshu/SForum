@@ -28,7 +28,15 @@ This is the entry point for project memory.
 - Product internationalization is required from the first implementation.
   Default locale is Simplified Chinese (`zh-CN`); first secondary locale is
   English (`en-US`).
-- Created 6 distinct visual design sub-pages under `/components/demo/*` using pure Tailwind CSS and custom rules, preparing to refactor all 20 type-safe Vue components without `@nuxt/ui` wrappers.
+- The standalone `forum-components.html` demo uses a Pine Teal clean forum UI
+  direction: teal primary actions, light surfaces, thin borders, reduced
+  radius, no gradient backgrounds, no emoji icons, and a dedicated
+  status/feedback component section.
+- The Pine Teal demo has been split into a reusable Nuxt component library under
+  `apps/web/app/components/` using the uppercase `SF` prefix. The first library
+  slice includes buttons, cards, inputs, toggles, avatars, feed rows, comments,
+  search, editor, pagination, progress, skeleton, empty state, alerts, badges,
+  toasts, and tabs, with a dev-only `/components` preview page.
 
 ## Navigation
 
