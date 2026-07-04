@@ -204,5 +204,11 @@
     "humanVerificationExpired": "Human verification expired. Please verify again.",
     "humanVerificationReplayed": "This verification has already been used. Please verify again.",
     "rateLimited": "Too many attempts. Please try again later."
+  },
+  "footer": {
+    "copyright": "© {year} {siteName}. All rights reserved.",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "guidelines": "Guidelines"
   }
 }

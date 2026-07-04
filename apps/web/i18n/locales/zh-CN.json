@@ -204,5 +204,11 @@
     "humanVerificationExpired": "人机验证已过期，请重新验证。",
     "humanVerificationReplayed": "本次验证已使用，请重新验证。",
     "rateLimited": "操作过于频繁，请稍后再试。"
+  },
+  "footer": {
+    "copyright": "© {year} {siteName}。保留所有权利。",
+    "terms": "服务条款",
+    "privacy": "隐私政策",
+    "guidelines": "社区指南"
   }
 }

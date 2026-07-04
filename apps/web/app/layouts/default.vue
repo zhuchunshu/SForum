@@ -1,6 +1,9 @@
 <template>
-  <div>
+  <div class="flex flex-col min-h-screen">
     <SFNavbar />
-    <slot />
+    <div class="flex-1">
+      <slot />
+    </div>
+    <SFFooter />
   </div>
 </template>
