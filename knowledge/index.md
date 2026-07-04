@@ -39,10 +39,9 @@ This is the entry point for project memory.
   toasts, and tabs, with a dev-only `/components` preview page. The preview page
   now covers seven forum-oriented sections: foundations, feedback, forum list,
   composer flow, moderation, member profile, and loading/empty states.
-- The SForum homepage (`apps/web/app/pages/index.vue`) has been fully implemented
-  using the Pine Teal Clean visual theme and classic 3-column responsive grid layout,
-  complete with mock categories/threads data, instant debounced search filtering, tab sorting,
-  slicing pagination logic, dynamic i18n support, and automated validation tests.
+- The SForum homepage (`apps/web/app/pages/index.vue`) has been optimized with a wider max-w-[1376px] container and explicit column widths (Left 270px, Middle flexible up to 720px, Right 290px) on desktop to improve readability and breathing room.
+- The thread feed row component (`SFFeedRow.vue`) has been redesigned using a compact no-excerpt layout (Left author avatar, Right title and upvote/reply actions inline, and bottom row metadata/views), doubling the layout information density.
+- Sidebar accessibility was improved by fixing double padding via the `flush` property and updating text colors to `slate-500` and `slate-600` for higher contrast.
 - The admin foundation now uses a dedicated Nuxt UI Dashboard shell with Nuxt
   Icon lucide icons. Source files stay under `apps/web/app/pages/admin`, while
   Nuxt rewrites the public route prefix from `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`,
