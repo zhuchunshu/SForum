@@ -27,10 +27,10 @@
   --border-default: #e4e4e7;
 
   /* 后台定制：浅色模式 */
-  --bg-admin-sidebar: #0f172a; /* Slate 900 */
-  --bg-admin-sidebar-hover: rgba(255, 255, 255, 0.06);
-  --text-admin-sidebar: #94a3b8;
-  --text-admin-sidebar-active: #2dd4bf;
+  --bg-admin-sidebar: #ffffff; /* White Sidebar */
+  --bg-admin-sidebar-hover: #f1f5f9; /* Slate 100 */
+  --text-admin-sidebar: #475569; /* Slate 600 */
+  --text-admin-sidebar-active: #0f766e; /* Teal theme color */
   
   --bg-admin-app: #f8fafc;
   --bg-admin-card: #ffffff;
@@ -197,4 +197,31 @@ h1:not([data-slot="title"]) {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* 放大后台侧边栏菜单项与折叠层级间距 */
+#sforum-admin-sidebar [data-slot="link"] {
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+  padding-left: 0.85rem;
+  padding-right: 0.85rem;
+  font-size: 0.875rem;
+  border-radius: 8px;
+}
+
+/* 针对多级菜单 Accordion Trigger & Content 宽度与过渡微调 */
+#sforum-admin-sidebar button[data-slot="link"] {
+  width: 100%;
+}
+#sforum-admin-sidebar ul[data-slot="childList"] {
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+  padding-left: 1.25rem;
+  border-left: 1px dashed var(--border-admin);
+  margin-left: 1.25rem;
+}
+#sforum-admin-sidebar ul[data-slot="childList"] [data-slot="link"] {
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+  font-size: 0.825rem;
 }
