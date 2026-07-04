@@ -438,14 +438,19 @@ tailwind.config = { theme: { extend: { colors: {
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
         </button>
         <div class="absolute right-0 top-full mt-2 w-44 card shadow-xl py-1.5 z-10">
-          <button class="w-full text-left px-4 py-2 text-sm hover:bg-muted flex items-center gap-2.5">📌 收藏</button>
           <button class="w-full text-left px-4 py-2 text-sm hover:bg-muted flex items-center gap-2.5">
-            <svg class="sf-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15l6-6m-4-3h-1a5 5 0 000 10h1m3-10h1a5 5 0 010 10h-1"/></svg>
-            复制链接
+            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg> <span>收藏</span>
           </button>
-          <button class="w-full text-left px-4 py-2 text-sm hover:bg-muted flex items-center gap-2.5">🚩 举报</button>
+          <button class="w-full text-left px-4 py-2 text-sm hover:bg-muted flex items-center gap-2.5">
+            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg> <span>复制链接</span>
+          </button>
+          <button class="w-full text-left px-4 py-2 text-sm hover:bg-muted flex items-center gap-2.5">
+            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21v11h-6l-1-1H5a2 2 0 00-2 2zm0 0h18"/></svg> <span>举报</span>
+          </button>
           <div class="border-t border-border-light my-1"></div>
-          <button class="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2.5">🗑 删除</button>
+          <button class="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2.5">
+            <svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg> <span>删除</span>
+          </button>
         </div>
       </div>
     </div>
@@ -454,7 +459,7 @@ tailwind.config = { theme: { extend: { colors: {
     <div class="card p-6">
       <p class="text-xs font-bold text-fg-tertiary uppercase tracking-wider mb-4">方案 2 · 大面积二分卡片单选器</p>
       <div class="grid grid-cols-2 gap-3">
-        <div class="p-3 rounded-xl border-2 border-accent bg-accent-soft/50 cursor-pointer"><p class="font-bold text-sm mb-1">公开</p><p class="text-xs text-fg-tertiary">所有人可见</p></div>
+        <div class="p-3 rounded-xl border-2 border-slate-900 bg-slate-50 cursor-pointer"><p class="font-bold text-sm mb-1">公开</p><p class="text-xs text-fg-tertiary">所有人可见</p></div>
         <div class="p-3 rounded-xl border-2 border-border hover:border-border transition cursor-pointer"><p class="font-bold text-sm mb-1">私密</p><p class="text-xs text-fg-tertiary">仅自己可见</p></div>
       </div>
     </div>
@@ -485,7 +490,7 @@ tailwind.config = { theme: { extend: { colors: {
       <p class="text-xs font-bold text-fg-tertiary uppercase tracking-wider mb-4">方案 5 · 自动补全关联框</p>
       <div class="max-w-lg">
         <div class="relative">
-          <input class="w-full h-11 px-4 rounded-xl border border-border text-sm focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent-soft transition" placeholder="输入关键词搜索..." value="Vue">
+          <input class="w-full h-11 px-4 rounded-xl border border-border text-sm focus:outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 transition" placeholder="输入关键词搜索..." value="Vue">
           <div class="absolute left-0 top-full mt-1.5 w-full card shadow-xl overflow-hidden z-10">
             <div class="px-4 py-2 text-[10px] font-bold text-fg-tertiary uppercase tracking-wider bg-muted">文章</div>
             <div class="px-4 py-2.5 text-sm hover:bg-muted cursor-pointer flex items-center justify-between"><span><strong class="text-fg">Vue</strong> 3 组合式 API 入门</span><span class="text-xs text-fg-tertiary">1.2k 阅读</span></div>
@@ -493,7 +498,7 @@ tailwind.config = { theme: { extend: { colors: {
             <div class="px-4 py-2 text-[10px] font-bold text-fg-tertiary uppercase tracking-wider bg-muted border-t border-border-light">标签</div>
             <div class="px-4 py-2.5 text-sm hover:bg-muted cursor-pointer">#<strong class="text-fg">vue</strong>3</div>
             <div class="px-4 py-2 text-[10px] font-bold text-fg-tertiary uppercase tracking-wider bg-muted border-t border-border-light">用户</div>
-            <div class="px-4 py-2.5 text-sm hover:bg-muted cursor-pointer flex items-center gap-2"><div class="w-5 h-5 rounded-full bg-gradient-to-br from-accent to-accent-light"></div>Evan <strong class="text-fg">Vue</strong></div>
+            <div class="px-4 py-2.5 text-sm hover:bg-muted cursor-pointer flex items-center gap-2"><div class="w-5 h-5 rounded-full bg-slate-200"></div>Evan <strong class="text-fg">Vue</strong></div>
           </div>
         </div>
       </div>
