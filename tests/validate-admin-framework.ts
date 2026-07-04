@@ -58,7 +58,7 @@ for (const authPage of ['apps/web/app/pages/login.vue', 'apps/web/app/pages/regi
 for (const adminPage of ['apps/web/app/pages/admin/index.vue', 'apps/web/app/pages/admin/roles.vue']) {
   const content = read(adminPage)
   assert(content.includes("layout: 'admin'"), `${adminPage} should use the admin layout`)
-  assert(content.includes('UDashboardNavbar'), `${adminPage} should render inside the Nuxt UI dashboard shell`)
+  assert(content.includes('UDashboardToolbar'), `${adminPage} should render inside the Nuxt UI dashboard shell`)
 }
 
 const adminLayout = read('apps/web/app/layouts/admin.vue')
