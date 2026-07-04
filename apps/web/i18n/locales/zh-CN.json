@@ -256,6 +256,98 @@
       "loadFailed": "权限加载失败。",
       "noDescription": "暂无说明"
     },
+    "permissionModules": {
+      "admin": "后台管理",
+      "identity": "用户与身份",
+      "forum": "论坛内容",
+      "moderation": "内容审核"
+    },
+    "permissionCatalog": {
+      "admin": {
+        "access": {
+          "label": "访问后台",
+          "description": "允许进入管理后台。"
+        }
+      },
+      "role": {
+        "manage": {
+          "label": "管理用户组",
+          "description": "创建、编辑、删除用户组，并配置用户组权限。"
+        }
+      },
+      "user": {
+        "manage": {
+          "label": "管理用户",
+          "description": "查看用户、分配用户组，并设置单个用户的权限例外。"
+        },
+        "ban": {
+          "label": "封禁用户",
+          "description": "限制用户继续参与论坛互动。"
+        }
+      },
+      "category": {
+        "manage": {
+          "label": "管理版块",
+          "description": "创建和编辑论坛版块。"
+        }
+      },
+      "topic": {
+        "create": {
+          "label": "发布主题",
+          "description": "创建新的论坛主题。"
+        },
+        "edit_any": {
+          "label": "编辑任意主题",
+          "description": "编辑任何用户发布的主题。"
+        },
+        "delete_any": {
+          "label": "删除任意主题",
+          "description": "删除任何用户发布的主题。"
+        },
+        "lock": {
+          "label": "锁定主题",
+          "description": "锁定或解锁主题讨论。"
+        },
+        "pin": {
+          "label": "置顶主题",
+          "description": "置顶或取消置顶主题。"
+        }
+      },
+      "post": {
+        "create": {
+          "label": "发表回复",
+          "description": "在主题下创建回复。"
+        },
+        "edit_own": {
+          "label": "编辑自己的回复",
+          "description": "编辑自己发布的回复。"
+        },
+        "edit_any": {
+          "label": "编辑任意回复",
+          "description": "编辑任何用户发布的回复。"
+        },
+        "delete_own": {
+          "label": "删除自己的回复",
+          "description": "删除自己发布的回复。"
+        },
+        "delete_any": {
+          "label": "删除任意回复",
+          "description": "删除任何用户发布的回复。"
+        }
+      },
+      "moderation": {
+        "report_review": {
+          "label": "处理举报",
+          "description": "查看并处理内容举报。"
+        }
+      },
+      "settings": {
+        "manage": {
+          "label": "管理站点设置",
+          "description": "修改站点名称、语言、人机验证等运行时设置。"
+        }
+      }
+    },
     "settings": {
       "metaTitle": "站点设置",
       "title": "站点设置",

@@ -18,6 +18,9 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	if cfg.DatabaseMaxConns != 10 {
 		t.Fatalf("expected default api database max conns 10, got %d", cfg.DatabaseMaxConns)
 	}
+	if !cfg.MigrateOnStartup {
+		t.Fatal("expected startup migrations to be enabled by default")
+	}
 	if cfg.WorkerDatabaseMaxConns != 10 {
 		t.Fatalf("expected default worker database max conns 10, got %d", cfg.WorkerDatabaseMaxConns)
 	}
@@ -74,6 +77,7 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 	t.Setenv("APP_ENV", "test")
 	t.Setenv("DATABASE_MAX_CONNS", "17")
+	t.Setenv("MIGRATE_ON_STARTUP", "false")
 	t.Setenv("WORKER_DATABASE_MAX_CONNS", "23")
 	t.Setenv("WORKER_SHUTDOWN_TIMEOUT", "45s")
 	t.Setenv("JOB_QUEUE_CRITICAL_WORKERS", "1")
@@ -96,6 +100,9 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 
 	if cfg.DatabaseMaxConns != 17 {
 		t.Fatalf("expected api max conns from env, got %d", cfg.DatabaseMaxConns)
+	}
+	if cfg.MigrateOnStartup {
+		t.Fatal("expected startup migrations to be disabled from env")
 	}
 	if cfg.WorkerDatabaseMaxConns != 23 {
 		t.Fatalf("expected worker max conns from env, got %d", cfg.WorkerDatabaseMaxConns)
@@ -143,6 +150,7 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 func TestLoadFallsBackForInvalidWorkerConfig(t *testing.T) {
 	t.Setenv("APP_ENV", "test")
 	t.Setenv("DATABASE_MAX_CONNS", "bad")
+	t.Setenv("MIGRATE_ON_STARTUP", "sometimes")
 	t.Setenv("WORKER_SHUTDOWN_TIMEOUT", "bad")
 	t.Setenv("JOB_QUEUE_SEARCH_WORKERS", "0")
 	t.Setenv("SESSION_IDLE_TIMEOUT", "bad")
@@ -155,6 +163,9 @@ func TestLoadFallsBackForInvalidWorkerConfig(t *testing.T) {
 
 	if cfg.DatabaseMaxConns != 10 {
 		t.Fatalf("expected invalid database conns to fall back, got %d", cfg.DatabaseMaxConns)
+	}
+	if !cfg.MigrateOnStartup {
+		t.Fatal("expected invalid startup migration value to fall back to enabled")
 	}
 	if cfg.WorkerShutdownTimeout != 30*time.Second {
 		t.Fatalf("expected invalid shutdown timeout to fall back, got %s", cfg.WorkerShutdownTimeout)

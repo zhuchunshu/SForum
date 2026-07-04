@@ -61,6 +61,7 @@ type AdminUserList = {
 
 const { t } = useI18n()
 const { request } = useApiClient()
+const { permissionLabel, permissionDescription, permissionModuleLabel } = usePermissionText()
 const adminTabs = useAdminTabs()
 
 const search = ref('')
@@ -515,7 +516,7 @@ async function savePermissionOverrides() {
           <div class="space-y-4">
             <div v-for="group in groupedPermissions" :key="group.module" class="space-y-2">
               <div class="text-xs font-semibold uppercase text-slate-500 dark:text-zinc-400">
-                {{ group.module }}
+                {{ permissionModuleLabel(group.module) }}
               </div>
               <div class="divide-y divide-slate-200 overflow-hidden rounded-md border border-slate-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
                 <div
@@ -524,9 +525,12 @@ async function savePermissionOverrides() {
                   class="grid gap-3 px-3 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                 >
                   <div class="min-w-0">
-                    <code class="font-semibold text-slate-900 dark:text-zinc-100">{{ permission.key }}</code>
+                    <span class="block font-semibold text-slate-900 dark:text-zinc-100">
+                      {{ permissionLabel(permission) }}
+                    </span>
+                    <code class="mt-0.5 block text-xs text-slate-500 dark:text-zinc-400">{{ permission.key }}</code>
                     <p class="mt-0.5 text-xs text-slate-500 dark:text-zinc-400">
-                      {{ permission.description || t('admin.permissions.noDescription') }}
+                      {{ permissionDescription(permission) }}
                     </p>
                   </div>
                   <div class="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5 text-xs dark:border-zinc-800 dark:bg-zinc-900">

@@ -256,6 +256,98 @@
       "loadFailed": "Permissions could not be loaded.",
       "noDescription": "No description"
     },
+    "permissionModules": {
+      "admin": "Admin",
+      "identity": "Users & Identity",
+      "forum": "Forum Content",
+      "moderation": "Moderation"
+    },
+    "permissionCatalog": {
+      "admin": {
+        "access": {
+          "label": "Access admin area",
+          "description": "Allows entry to the admin control panel."
+        }
+      },
+      "role": {
+        "manage": {
+          "label": "Manage user groups",
+          "description": "Create, edit, delete user groups, and configure group permissions."
+        }
+      },
+      "user": {
+        "manage": {
+          "label": "Manage users",
+          "description": "View users, assign groups, and set per-user permission exceptions."
+        },
+        "ban": {
+          "label": "Ban users",
+          "description": "Restrict users from continuing to participate in the forum."
+        }
+      },
+      "category": {
+        "manage": {
+          "label": "Manage categories",
+          "description": "Create and edit forum categories."
+        }
+      },
+      "topic": {
+        "create": {
+          "label": "Create topics",
+          "description": "Create new forum topics."
+        },
+        "edit_any": {
+          "label": "Edit any topic",
+          "description": "Edit topics published by any user."
+        },
+        "delete_any": {
+          "label": "Delete any topic",
+          "description": "Delete topics published by any user."
+        },
+        "lock": {
+          "label": "Lock topics",
+          "description": "Lock or unlock topic discussions."
+        },
+        "pin": {
+          "label": "Pin topics",
+          "description": "Pin or unpin topics."
+        }
+      },
+      "post": {
+        "create": {
+          "label": "Create replies",
+          "description": "Create replies under topics."
+        },
+        "edit_own": {
+          "label": "Edit own replies",
+          "description": "Edit replies posted by the current user."
+        },
+        "edit_any": {
+          "label": "Edit any reply",
+          "description": "Edit replies posted by any user."
+        },
+        "delete_own": {
+          "label": "Delete own replies",
+          "description": "Delete replies posted by the current user."
+        },
+        "delete_any": {
+          "label": "Delete any reply",
+          "description": "Delete replies posted by any user."
+        }
+      },
+      "moderation": {
+        "report_review": {
+          "label": "Review reports",
+          "description": "Review and resolve content reports."
+        }
+      },
+      "settings": {
+        "manage": {
+          "label": "Manage site settings",
+          "description": "Edit runtime settings such as site name, languages, and human verification."
+        }
+      }
+    },
     "settings": {
       "metaTitle": "Site Settings",
       "title": "Site Settings",

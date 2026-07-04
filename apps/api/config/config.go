@@ -19,6 +19,7 @@ type Config struct {
 	HTTPHost                     string
 	HTTPPort                     string
 	DatabaseURL                  string
+	MigrateOnStartup             bool
 	DatabaseMaxConns             int32
 	WorkerDatabaseMaxConns       int32
 	WorkerShutdownTimeout        time.Duration
@@ -61,6 +62,7 @@ func Load() Config {
 		HTTPHost:                     env("HTTP_HOST", "0.0.0.0"),
 		HTTPPort:                     env("HTTP_PORT", "8080"),
 		DatabaseURL:                  env("DATABASE_URL", "postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable"),
+		MigrateOnStartup:             envBool("MIGRATE_ON_STARTUP", true),
 		DatabaseMaxConns:             int32(envPositiveInt("DATABASE_MAX_CONNS", 10)),
 		WorkerDatabaseMaxConns:       int32(envPositiveInt("WORKER_DATABASE_MAX_CONNS", 10)),
 		WorkerShutdownTimeout:        envDuration("WORKER_SHUTDOWN_TIMEOUT", 30*time.Second),
@@ -112,6 +114,21 @@ func envPositiveInt(key string, fallback int) int {
 		return fallback
 	}
 	return value
+}
+
+func envBool(key string, fallback bool) bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	if value == "" {
+		return fallback
+	}
+	switch value {
+	case "1", "true", "t", "yes", "y", "on":
+		return true
+	case "0", "false", "f", "no", "n", "off":
+		return false
+	default:
+		return fallback
+	}
 }
 
 func envDuration(key string, fallback time.Duration) time.Duration {

@@ -11,6 +11,9 @@
   - Users page manages user groups and direct permission overrides.
   - Roles page creates/edits custom groups and role permissions.
   - Permissions page shows the role permission matrix.
+- Permission names, descriptions, and module labels in the admin permissions
+  UI are localized on the frontend through `usePermissionText`; permission keys
+  remain visible as stable identifiers.
 - Updated OpenAPI, backend/frontend localization, and UI validation scripts.
 
 ## Decisions

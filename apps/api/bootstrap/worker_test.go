@@ -11,7 +11,7 @@ func TestNewWorkerWithoutRegisteredJobsStartsIdle(t *testing.T) {
 	worker, err := NewWorker(context.Background(), config.Config{
 		DatabaseURL:            "://not-used-by-idle-worker",
 		WorkerDatabaseMaxConns: 1,
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("new idle worker: %v", err)
 	}

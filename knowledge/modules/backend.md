@@ -76,11 +76,14 @@ Target ownership:
 - `app/Models/*` owns domain types, services, policies, repository interfaces,
   and persistence adapters.
 - `app/Support/*` wraps external systems and reusable infrastructure clients.
-- `database/*` owns migrations, handwritten SQL, and generated `sqlc` code.
-- Development Compose runs Goose migrations automatically through a one-shot
-  `migrate` service before API and worker startup. Production uses the same
-  migration binary from `deploy.sh` after backup and before app services are
-  updated.
+- `database/*` owns migrations, handwritten SQL, generated `sqlc` code, and
+  the shared Goose migrator.
+- API and worker processes run embedded Goose migrations at startup when
+  `MIGRATE_ON_STARTUP=true`. The shared migrator uses Goose's PostgreSQL table
+  lock, so parallel process starts serialize safely.
+- Development Compose and production deploys may still run the same migration
+  binary explicitly as a visible pre-start check; startup migration should then
+  be an idempotent no-op.
 
 Route registration rules:
 

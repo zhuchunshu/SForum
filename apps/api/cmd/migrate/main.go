@@ -1,14 +1,12 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"log/slog"
 	"os"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
-
 	"github.com/zhuchunshu/sforum/apps/api/config"
+	"github.com/zhuchunshu/sforum/apps/api/database/migrator"
 )
 
 func main() {
@@ -17,27 +15,11 @@ func main() {
 		Level: cfg.LogLevel,
 	}))
 
-	db, err := sql.Open("pgx", cfg.DatabaseURL)
-	if err != nil {
-		logger.Error("open database failed", "error", err)
-		os.Exit(1)
-	}
-	defer db.Close()
-
-	if err := db.Ping(); err != nil {
-		logger.Error("database ping failed", "error", err)
-		os.Exit(1)
-	}
-
-	if err := goose.SetDialect("postgres"); err != nil {
-		logger.Error("set goose dialect failed", "error", err)
-		os.Exit(1)
-	}
-
-	if err := goose.Up(db, "database/migrations"); err != nil {
+	if err := migrator.Up(context.Background(), migrator.Config{
+		DatabaseURL: cfg.DatabaseURL,
+		Logger:      logger.With("component", "database.migrator"),
+	}); err != nil {
 		logger.Error("migrations failed", "error", err)
 		os.Exit(1)
 	}
-
-	logger.Info("migrations complete")
 }

@@ -270,9 +270,12 @@ Summary:
 - `deploy.sh` should support English and Simplified Chinese prompts, first-time
   setup, deploy/update, migrations, backups, restore, logs, status, restart,
   stop, and rollback.
-- Development Compose runs Goose migrations through a one-shot `migrate`
-  service before API and worker startup. Production deployments run the same
-  migration binary explicitly after backup and before app services are updated.
+- API and worker processes run embedded Goose migrations at startup when
+  `MIGRATE_ON_STARTUP=true`. The shared migrator uses a PostgreSQL Goose lock,
+  so parallel process starts serialize safely.
+- Development Compose and production deploys may still run the same migration
+  binary explicitly as a visible pre-start check; startup migration should then
+  be an idempotent no-op.
 - Local and production environment files should provide first-run fallback
   values for site URL, default locale, supported locales, and CAPTCHA settings;
   operators manage the runtime values from the admin site settings page.

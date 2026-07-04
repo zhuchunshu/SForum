@@ -70,6 +70,8 @@ Expected behavior:
   starting dependencies, so local processes can own their ports.
 - Waits for dependency services to be running or healthy.
 - Runs Goose database migrations automatically after PostgreSQL is healthy.
+- API and worker processes also run embedded Goose migrations during startup
+  when `MIGRATE_ON_STARTUP=true`, so direct process starts stay schema-safe.
 - Prints local dependency URLs and the follow-up local frontend/API commands.
 
 Recommended default Compose command inside `scripts/dev.sh`:
@@ -85,7 +87,8 @@ toolchain changes:
 ./scripts/dev.sh --build
 ```
 
-Skip automatic migrations only when deliberately testing dependency startup:
+Skip only the dependency-start one-shot migration when deliberately testing
+dependency startup. API and worker starts still follow `MIGRATE_ON_STARTUP`:
 
 ```sh
 ./scripts/dev.sh --no-migrate
@@ -151,7 +154,7 @@ processes can connect without joining the Compose network:
 - Mailpit SMTP: `127.0.0.1:11025`
 - Mailpit UI: `http://127.0.0.1:18025`
 
-The migration container still uses Compose DNS internally:
+The one-shot migration container still uses Compose DNS internally:
 
 - PostgreSQL: `postgres:5432`
 - Redis: `redis:6379`
@@ -286,7 +289,8 @@ Default update flow:
 4. Pull or build images.
 5. Create PostgreSQL backup.
 6. Run migrations through the one-shot `migrate` Compose service.
-7. Start infrastructure and app services.
+7. Start infrastructure and app services; API and worker startup run the same
+   embedded migrations again and should normally no-op.
 8. Confirm service status.
 9. Run health checks.
 10. Print URLs, service status, and rollback hint.
@@ -314,6 +318,7 @@ Important production variables:
 
 - `APP_ENV=production`
 - `APP_URL` (first-run fallback for runtime `site.url`)
+- `MIGRATE_ON_STARTUP=true`
 - `WEB_PORT`
 - `NUXT_PUBLIC_API_BASE_URL=/api/v1`
 - `NUXT_API_INTERNAL_BASE_URL=http://api:8080/api/v1`
@@ -367,6 +372,23 @@ Worker queue concurrency is configured by environment variables:
 - `JOB_QUEUE_NOTIFICATIONS_WORKERS`: workers for notification fanout.
 - `JOB_QUEUE_MAINTENANCE_WORKERS`: workers for cleanup and scheduled
   maintenance jobs.
+
+### Application Migrations
+
+SForum schema migrations use Goose SQL files under `apps/api/database/migrations`.
+The files are embedded into the API, worker, and `sforum-migrate` binaries, so
+runtime containers do not need a separate migrations directory.
+
+By default, `MIGRATE_ON_STARTUP=true` makes API and worker processes run
+PostgreSQL migrations once during startup before module services open their
+normal connection pools. The migrator uses Goose's PostgreSQL table lock so
+parallel API/worker starts serialize safely. Set `MIGRATE_ON_STARTUP=false`
+only for special maintenance cases where an operator is running migrations
+separately and wants startup to skip the check.
+
+`deploy.sh` still runs the one-shot `migrate` service after backup and before
+updating app services so migration failures surface before traffic reaches a
+new release. Startup migration then acts as an idempotent safety net.
 
 ### River Migrations
 

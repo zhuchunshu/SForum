@@ -48,6 +48,7 @@ services:
       HTTP_HOST: 0.0.0.0
       HTTP_PORT: 8080
       DATABASE_URL: ${DATABASE_URL:-postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable}
+      MIGRATE_ON_STARTUP: ${MIGRATE_ON_STARTUP:-true}
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
       MEILI_HOST: ${MEILI_HOST:-http://meilisearch:7700}
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-sforum-dev-meili-key}
@@ -70,6 +71,7 @@ services:
       SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-zh-CN,en-US}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: ${DATABASE_URL:-postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable}
+      MIGRATE_ON_STARTUP: ${MIGRATE_ON_STARTUP:-true}
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
       MEILI_HOST: ${MEILI_HOST:-http://meilisearch:7700}
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-sforum-dev-meili-key}

@@ -33,6 +33,10 @@ const requiredKeys = [
   ['admin', 'users', 'permissionSection'],
   ['admin', 'users', 'overrideMode', 'deny'],
   ['admin', 'permissions', 'matrix'],
+  ['admin', 'permissionModules', 'identity'],
+  ['admin', 'permissionCatalog', 'admin', 'access', 'label'],
+  ['admin', 'permissionCatalog', 'role', 'manage', 'description'],
+  ['admin', 'permissionCatalog', 'post', 'delete_any', 'label'],
   ['errors', 'permissionDenied']
 ];
 
@@ -57,6 +61,19 @@ for (const [name, content] of [
   }
   if (!content.includes('i-lucide-')) {
     throw new Error(`${name} should use Nuxt Icon lucide icons`);
+  }
+}
+
+for (const [name, content] of [
+  ['admin/users.vue', adminUsersPage],
+  ['admin/roles.vue', adminRolesPage],
+  ['admin/permissions.vue', adminPermissionsPage]
+]) {
+  if (!content.includes('usePermissionText')) {
+    throw new Error(`${name} should localize permission labels and descriptions through usePermissionText`);
+  }
+  if (content.includes('permission.description ||')) {
+    throw new Error(`${name} should not render raw backend permission descriptions directly`);
   }
 }
 

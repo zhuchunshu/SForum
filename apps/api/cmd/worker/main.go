@@ -20,7 +20,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	worker, err := bootstrap.NewWorker(ctx, cfg)
+	worker, err := bootstrap.NewWorker(ctx, cfg, logger)
 	if err != nil {
 		logger.Error("worker bootstrap failed", "error", err)
 		os.Exit(1)

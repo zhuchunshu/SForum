@@ -41,6 +41,7 @@ type PermissionMatrix = {
 
 const { t } = useI18n()
 const { request } = useApiClient()
+const { permissionLabel, permissionDescription, permissionModuleLabel } = usePermissionText()
 const adminTabs = useAdminTabs()
 
 const roles = ref<Role[]>([])
@@ -158,7 +159,7 @@ function roleHasPermission(roleKey: string, permissionKey: string) {
         <section v-for="group in groupedPermissions" :key="group.module" class="space-y-3">
           <div class="flex items-center justify-between gap-3">
             <h3 class="text-sm font-semibold uppercase tracking-normal text-slate-600 dark:text-zinc-300">
-              {{ group.module }}
+              {{ permissionModuleLabel(group.module) }}
             </h3>
             <UBadge color="neutral" variant="soft">
               {{ t('admin.permissions.moduleCount', { count: group.items.length }) }}
@@ -185,9 +186,12 @@ function roleHasPermission(roleKey: string, permissionKey: string) {
               <tbody class="divide-y divide-slate-200 bg-white dark:divide-zinc-800 dark:bg-zinc-900">
                 <tr v-for="permission in group.items" :key="permission.key">
                   <td class="sticky left-0 z-10 min-w-72 bg-white px-3 py-2 dark:bg-zinc-900">
-                    <code class="font-semibold text-slate-900 dark:text-zinc-100">{{ permission.key }}</code>
+                    <span class="block font-semibold text-slate-900 dark:text-zinc-100">
+                      {{ permissionLabel(permission) }}
+                    </span>
+                    <code class="mt-0.5 block text-xs text-slate-500 dark:text-zinc-400">{{ permission.key }}</code>
                     <p class="mt-0.5 text-xs text-slate-500 dark:text-zinc-400">
-                      {{ permission.description || t('admin.permissions.noDescription') }}
+                      {{ permissionDescription(permission) }}
                     </p>
                   </td>
                   <td

@@ -31,6 +31,7 @@ type Permission = {
 
 const { t } = useI18n()
 const { request } = useApiClient()
+const { permissionLabel, permissionDescription, permissionModuleLabel } = usePermissionText()
 const search = ref('')
 const adminTabs = useAdminTabs()
 
@@ -415,7 +416,7 @@ async function deleteRole() {
           <div class="max-h-[42vh] space-y-4 overflow-y-auto pr-1">
             <div v-for="group in groupedPermissions" :key="group.module" class="space-y-2">
               <div class="text-xs font-semibold uppercase text-slate-500 dark:text-zinc-400">
-                {{ group.module }}
+                {{ permissionModuleLabel(group.module) }}
               </div>
               <label
                 v-for="permission in group.items"
@@ -430,9 +431,12 @@ async function deleteRole() {
                   @change="togglePermission(permission.key)"
                 >
                 <span class="min-w-0">
-                  <code class="font-semibold text-slate-900 dark:text-zinc-100">{{ permission.key }}</code>
+                  <span class="block font-semibold text-slate-900 dark:text-zinc-100">
+                    {{ permissionLabel(permission) }}
+                  </span>
+                  <code class="mt-0.5 block text-xs text-slate-500 dark:text-zinc-400">{{ permission.key }}</code>
                   <span class="mt-0.5 block text-xs text-slate-500 dark:text-zinc-400">
-                    {{ permission.description || t('admin.permissions.noDescription') }}
+                    {{ permissionDescription(permission) }}
                   </span>
                 </span>
               </label>

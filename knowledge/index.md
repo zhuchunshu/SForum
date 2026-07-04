@@ -117,10 +117,10 @@ This is the entry point for project memory.
   controllers and routes, `app/Providers` owns provider wiring,
   `app/Models/*` owns domain logic, and `database/*` owns migrations, SQL, and
   generated `sqlc` code.
-- Goose migrations now run automatically from `scripts/dev.sh` through a
-  one-shot `migrate` service after dependency startup. Production deploys run
-  the same migration binary explicitly from `deploy.sh` after a PostgreSQL
-  backup.
+- Goose migrations now run from a shared embedded migrator. API and worker
+  processes run migrations at startup when `MIGRATE_ON_STARTUP=true`, guarded
+  by Goose's PostgreSQL table lock. `scripts/dev.sh` and `deploy.sh` may still
+  run the same migration command explicitly as a visible pre-start check.
 - Jobs and queues foundation implementation has started: River-backed durable
   queue support now lives under `apps/api/app/Support/Jobs`, `cmd/worker` uses
   `bootstrap.NewWorker`, and the first search job contract is
@@ -166,6 +166,8 @@ This is the entry point for project memory.
 - `decisions/2026-07-05-local-dev-dependencies-and-processes.md` - accepted
   local development split where Compose starts dependencies and frontend/API
   run as host processes.
+- `decisions/2026-07-05-startup-database-migrations.md` - accepted embedded
+  Goose startup migrations for API and worker processes.
 - `decisions/2026-07-05-admin-multitabs-and-layout-rules.md` - accepted admin
   multitabs, topbar breadcrumbs, larger tabs, and nested menu rules decision.
 - `decisions/2026-07-05-user-permission-overrides.md` - accepted user-level
@@ -186,6 +188,8 @@ This is the entry point for project memory.
   hardening handoff.
 - `sessions/2026-07-05-local-dev-dependencies.md` - local dependency startup
   and host-process development handoff.
+- `sessions/2026-07-05-startup-database-migrations.md` - embedded startup
+  migration implementation handoff.
 - `sessions/2026-07-05-registration-altcha-default-disabled.md` -
   registration ALTCHA default-off implementation handoff.
 - `sessions/2026-07-05-nuxt-dev-open-delay.md` - Nuxt dev 503 loading page,

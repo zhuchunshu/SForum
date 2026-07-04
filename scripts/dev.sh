@@ -10,7 +10,7 @@ Usage: ./scripts/dev.sh [options]
 
 Options:
   --build, --rebuild  Rebuild development images before starting.
-  --no-migrate        Start dependency services without running migrations.
+  --no-migrate        Skip the one-shot migration command after dependencies start.
   --print-command     Print the resolved Docker Compose command and exit.
   -h, --help          Show this help message.
 
@@ -113,10 +113,11 @@ case "${NUXT_API_INTERNAL_BASE_URL:-}" in
     ;;
 esac
 if [ "$MIGRATE_ENABLED" -eq 1 ]; then
-  echo "Database migrations run after PostgreSQL is healthy."
+  echo "One-shot database migrations run after PostgreSQL is healthy."
 else
-  echo "Database migrations skipped by --no-migrate."
+  echo "One-shot database migrations skipped by --no-migrate."
 fi
+echo "API/worker startup still follows MIGRATE_ON_STARTUP=${MIGRATE_ON_STARTUP:-true}."
 echo "Then run: cd apps/web && bun run dev"
 echo "Then run: cd apps/api && air"
 echo "Use './scripts/dev.sh --build' after Dockerfile or dependency changes."
