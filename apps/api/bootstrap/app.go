@@ -26,7 +26,7 @@ type API struct {
 }
 
 func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, error) {
-	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL)
+	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL, cfg.DatabaseMaxConns)
 	if err != nil {
 		return nil, fmt.Errorf("postgres setup failed: %w", err)
 	}

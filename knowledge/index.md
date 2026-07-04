@@ -54,6 +54,10 @@ This is the entry point for project memory.
   controllers and routes, `app/Providers` owns provider wiring,
   `app/Models/*` owns domain logic, and `database/*` owns migrations, SQL, and
   generated `sqlc` code.
+- Jobs and queues foundation implementation has started: River-backed durable
+  queue support now lives under `apps/api/app/Support/Jobs`, `cmd/worker` uses
+  `bootstrap.NewWorker`, and the first search job contract is
+  `search.index_topic`.
 
 ## Navigation
 

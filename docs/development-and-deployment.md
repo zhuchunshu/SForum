@@ -343,6 +343,36 @@ Redis should not be treated as the first durable queue store. It remains the
 session, cache, and rate-limit backing service unless a later design introduces
 a clearly non-critical fast-lane queue.
 
+### Queue Configuration
+
+Worker queue concurrency is configured by environment variables:
+
+- `WORKER_DATABASE_MAX_CONNS`: PostgreSQL pool size for the worker process.
+- `WORKER_SHUTDOWN_TIMEOUT`: graceful worker stop timeout, such as `30s`.
+- `JOB_QUEUE_CRITICAL_WORKERS`: workers for small consistency-critical jobs.
+- `JOB_QUEUE_DEFAULT_WORKERS`: workers for ordinary background jobs.
+- `JOB_QUEUE_SEARCH_WORKERS`: workers for Meilisearch indexing and rebuilds.
+- `JOB_QUEUE_MAIL_WORKERS`: workers for outbound email delivery.
+- `JOB_QUEUE_NOTIFICATIONS_WORKERS`: workers for notification fanout.
+- `JOB_QUEUE_MAINTENANCE_WORKERS`: workers for cleanup and scheduled
+  maintenance jobs.
+
+### River Migrations
+
+River owns its internal job tables and runs its own migration line. Before a
+worker can consume durable jobs in a new database, run:
+
+```sh
+cd apps/api
+go install github.com/riverqueue/river/cmd/river@latest
+river migrate-up --database-url "$DATABASE_URL" --line main
+```
+
+Use `river migrate-list --database-url "$DATABASE_URL" --line main` to inspect
+which River migrations have been applied. Do not use `river migrate-down` in
+production unless an operator has already accepted that it may remove River job
+tables and queued jobs.
+
 ## Backup Strategy
 
 Minimum viable production backup:

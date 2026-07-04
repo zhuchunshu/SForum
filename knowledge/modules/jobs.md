@@ -10,9 +10,21 @@ surface that makes those jobs consistent.
 
 ## Current Status
 
-Architecture accepted on 2026-07-04. No application code has been added yet.
+Architecture accepted on 2026-07-04. Foundation implementation started on
+2026-07-04.
 
 The selected durable queue foundation is River backed by PostgreSQL.
+
+Implemented so far:
+
+- `apps/api/app/Support/Jobs` wraps River queue config, dispatching, worker
+  registration, and runtime startup.
+- `apps/api/bootstrap.NewWorker` opens the worker PostgreSQL pool, builds the
+  worker registry, and creates the River client.
+- `apps/api/cmd/worker` starts and gracefully stops the River-backed worker
+  runtime.
+- `apps/api/app/Jobs/Search` defines the first typed job contract,
+  `search.index_topic`, against a narrow `TopicIndexer` interface.
 
 ## Planned Stack
 
@@ -54,14 +66,18 @@ The selected durable queue foundation is River backed by PostgreSQL.
 
 ## Open Questions
 
-- Exact environment variable names for queue concurrency and worker pool sizing.
 - Whether the first scheduler uses River-native periodic features or a small
   SForum scheduler that enqueues ordinary durable jobs.
 - Which observability metrics are required before production launch.
+- Whether River migrations should stay as an explicit CLI command or be wrapped
+  by the future SForum migrate command.
 
 ## Next Steps
 
-- Add River dependency and queue migrations after the design is reviewed.
-- Implement `app/Support/Jobs`.
-- Replace the placeholder worker with the River runtime.
-- Implement the first search indexing job and transactional enqueue test.
+- Run River migrations before starting workers against a fresh database.
+- Wire real module registrations into `bootstrap.NewWorker` as domain jobs
+  become available.
+- Implement the actual Meilisearch topic indexer and dispatch
+  `search.index_topic` transactionally from future topic writes.
+- Add integration tests for transactional enqueueing once forum write services
+  exist.
