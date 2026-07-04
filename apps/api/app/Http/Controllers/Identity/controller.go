@@ -8,15 +8,14 @@ import (
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 )
 
-const sessionUserIDKey = "user_id"
-
 type Controller struct {
-	service  *identity.Service
-	sessions *session.Store
-	verifier *humanverify.Service
+	service      *identity.Service
+	authSessions *authsession.Manager
+	verifier     *humanverify.Service
 }
 
 func NewController(service *identity.Service, sessions *session.Store) *Controller {
@@ -24,10 +23,14 @@ func NewController(service *identity.Service, sessions *session.Store) *Controll
 }
 
 func NewControllerWithVerifier(service *identity.Service, sessions *session.Store, verifier *humanverify.Service) *Controller {
+	return NewControllerWithAuthSessions(service, authsession.NewManager(sessions, authsession.Config{}), verifier)
+}
+
+func NewControllerWithAuthSessions(service *identity.Service, sessions *authsession.Manager, verifier *humanverify.Service) *Controller {
 	if verifier == nil {
 		verifier = humanverify.NewDisabledService()
 	}
-	return &Controller{service: service, sessions: sessions, verifier: verifier}
+	return &Controller{service: service, authSessions: sessions, verifier: verifier}
 }
 
 type registerRequest struct {
@@ -65,6 +68,17 @@ func (h *Controller) register(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
 
+	input := identity.RegisterInput{
+		Username:    req.Username,
+		Email:       req.Email,
+		Password:    req.Password,
+		DisplayName: req.DisplayName,
+		Locale:      req.Locale,
+	}
+	if err := h.service.ValidateRegister(c.Context(), input); err != nil {
+		return mapIdentityError(err)
+	}
+
 	if err := h.verifier.Verify(c.Context(), humanverify.VerifyRequest{
 		Provider: req.HumanVerification.Provider,
 		Purpose:  humanverify.PurposeRegister,
@@ -74,19 +88,20 @@ func (h *Controller) register(c fiber.Ctx) error {
 		return mapHumanVerificationError(err)
 	}
 
-	current, err := h.service.Register(c.Context(), identity.RegisterInput{
-		Username:    req.Username,
-		Email:       req.Email,
-		Password:    req.Password,
-		DisplayName: req.DisplayName,
-		Locale:      req.Locale,
-	})
+	current, err := h.service.Register(c.Context(), input)
 	if err != nil {
 		return mapIdentityError(err)
 	}
 
-	if err := h.saveSessionUserID(c, current.ID); err != nil {
-		return err
+	pendingSession, err := h.authSessions.Begin(c, current.ID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
+	}
+	if err := h.auditLogin(c, current.ID, identity.AuditActionRegister, pendingSession.Info().Hash); err != nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
+	}
+	if err := pendingSession.Save(); err != nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
 	}
 
 	return apphttp.Created(c, current)
@@ -111,7 +126,14 @@ func (h *Controller) login(c fiber.Ctx) error {
 		return mapIdentityError(err)
 	}
 
-	if err := h.saveSessionUserID(c, current.ID); err != nil {
+	pendingSession, err := h.authSessions.Begin(c, current.ID)
+	if err != nil {
+		return err
+	}
+	if err := h.auditLogin(c, current.ID, identity.AuditActionLogin, pendingSession.Info().Hash); err != nil {
+		return err
+	}
+	if err := pendingSession.Save(); err != nil {
 		return err
 	}
 
@@ -133,11 +155,7 @@ func (h *Controller) humanVerificationChallenge(c fiber.Ctx) error {
 }
 
 func (h *Controller) logout(c fiber.Ctx) error {
-	sess, err := h.sessions.Get(c)
-	if err != nil {
-		return err
-	}
-	if err := sess.Destroy(); err != nil {
+	if err := h.authSessions.Destroy(c); err != nil {
 		return err
 	}
 	return apphttp.NoData(c)
@@ -244,29 +262,8 @@ func (h *Controller) replaceRolePermissions(c fiber.Ctx) error {
 	return apphttp.NoData(c)
 }
 
-func (h *Controller) saveSessionUserID(c fiber.Ctx, userID int64) error {
-	sess, err := h.sessions.Get(c)
-	if err != nil {
-		return err
-	}
-	sess.Set(sessionUserIDKey, userID)
-	return sess.Save()
-}
-
 func (h *Controller) sessionUserID(c fiber.Ctx) (int64, bool, error) {
-	sess, err := h.sessions.Get(c)
-	if err != nil {
-		return 0, false, err
-	}
-
-	switch value := sess.Get(sessionUserIDKey).(type) {
-	case int64:
-		return value, value != 0, nil
-	case int:
-		return int64(value), value != 0, nil
-	default:
-		return 0, false, nil
-	}
+	return h.authSessions.CurrentUserID(c)
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
@@ -283,6 +280,16 @@ func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 		return identity.Actor{}, mapIdentityError(err)
 	}
 	return actor, nil
+}
+
+func (h *Controller) auditLogin(c fiber.Ctx, userID int64, action string, sessionHash string) error {
+	return h.service.RecordLoginAudit(c.Context(), identity.LoginAudit{
+		UserID:      userID,
+		Action:      action,
+		IPAddress:   c.IP(),
+		UserAgent:   c.Get(fiber.HeaderUserAgent),
+		SessionHash: sessionHash,
+	})
 }
 
 func mapIdentityError(err error) error {

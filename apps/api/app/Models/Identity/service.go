@@ -36,19 +36,27 @@ func (s *Service) RegistrationStatus(ctx context.Context) (RegistrationStatus, e
 	return RegistrationStatus{NextUserIsInitialSuperAdmin: !hasAnyUser}, nil
 }
 
-func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUser, error) {
-	username := strings.TrimSpace(input.Username)
-	email := strings.TrimSpace(input.Email)
-	displayName := strings.TrimSpace(input.DisplayName)
-	if displayName == "" {
-		displayName = username
-	}
-	locale := strings.TrimSpace(input.Locale)
-	if locale == "" {
-		locale = "zh-CN"
+func (s *Service) ValidateRegister(ctx context.Context, input RegisterInput) error {
+	normalized := normalizeRegisterInput(input)
+	fields := validateRegisterInput(normalized.Username, normalized.Email, input.Password)
+	if len(fields) > 0 {
+		return NewRegisterInvalid(fields)
 	}
 
-	fields := validateRegisterInput(username, email, input.Password)
+	conflicts, err := s.store.FindRegistrationConflicts(ctx, normalized.Username, normalized.Email)
+	if err != nil {
+		return err
+	}
+	if conflictFields := registrationConflictFields(conflicts); len(conflictFields) > 0 {
+		return NewRegisterInvalid(conflictFields)
+	}
+	return nil
+}
+
+func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUser, error) {
+	normalized := normalizeRegisterInput(input)
+
+	fields := validateRegisterInput(normalized.Username, normalized.Email, input.Password)
 	if len(fields) > 0 {
 		return CurrentUser{}, NewRegisterInvalid(fields)
 	}
@@ -64,7 +72,7 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUse
 		if err != nil {
 			return err
 		}
-		conflicts, err := tx.FindRegistrationConflicts(ctx, username, email)
+		conflicts, err := tx.FindRegistrationConflicts(ctx, normalized.Username, normalized.Email)
 		if err != nil {
 			return err
 		}
@@ -74,10 +82,10 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUse
 		}
 
 		current, err = tx.CreateUser(ctx, CreateUserInput{
-			Username:            username,
-			Email:               email,
-			DisplayName:         displayName,
-			Locale:              locale,
+			Username:            normalized.Username,
+			Email:               normalized.Email,
+			DisplayName:         normalized.DisplayName,
+			Locale:              normalized.Locale,
 			IsInitialSuperAdmin: !hasAnyUser,
 		})
 		if err != nil {
@@ -107,13 +115,39 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUse
 			current.RoleKeys = append(current.RoleKeys, superAdmin.Key)
 		}
 
-		return nil
+		return tx.LoadCurrentUserAccess(ctx, &current)
 	})
 	if err != nil {
 		return CurrentUser{}, err
 	}
 
-	return s.store.GetCurrentUser(ctx, current.ID)
+	return current, nil
+}
+
+type normalizedRegisterInput struct {
+	Username    string
+	Email       string
+	DisplayName string
+	Locale      string
+}
+
+func normalizeRegisterInput(input RegisterInput) normalizedRegisterInput {
+	username := strings.TrimSpace(input.Username)
+	displayName := strings.TrimSpace(input.DisplayName)
+	if displayName == "" {
+		displayName = username
+	}
+	locale := strings.TrimSpace(input.Locale)
+	if locale == "" {
+		locale = "zh-CN"
+	}
+
+	return normalizedRegisterInput{
+		Username:    username,
+		Email:       strings.TrimSpace(input.Email),
+		DisplayName: displayName,
+		Locale:      locale,
+	}
 }
 
 func validateRegisterInput(username string, email string, password string) FieldMessages {
@@ -165,8 +199,15 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (CurrentUser, err
 	if !ok {
 		return CurrentUser{}, ErrInvalidCredentials
 	}
+	if credential.Status != UserStatusActive {
+		return CurrentUser{}, ErrInvalidCredentials
+	}
 
 	return credential.CurrentUser, nil
+}
+
+func (s *Service) RecordLoginAudit(ctx context.Context, input LoginAudit) error {
+	return s.store.RecordLoginAudit(ctx, input)
 }
 
 func (s *Service) CurrentUser(ctx context.Context, userID int64) (CurrentUser, error) {

@@ -29,8 +29,9 @@ Define the forum product clearly before implementation starts.
 
 ## Security And Abuse Prevention
 
-- Registration uses human verification by default.
-- SForum's default human-verification provider is ALTCHA.
+- Registration human verification is disabled by default and can be enabled by
+  deployment configuration.
+- ALTCHA is the first supported self-hosted human-verification provider.
 - Human verification is paired with rate limits; it is not the only anti-spam
   control.
 - Login should stay low-friction for normal users and require human

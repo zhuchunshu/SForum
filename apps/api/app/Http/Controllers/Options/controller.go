@@ -9,18 +9,21 @@ import (
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 )
-
-const sessionUserIDKey = "user_id"
 
 type Controller struct {
 	service  *options.Service
 	users    identity.ActorStore
-	sessions *session.Store
+	sessions *authsession.Manager
 }
 
-func NewController(service *options.Service, users identity.ActorStore, sessions *session.Store) *Controller {
+func NewController(service *options.Service, users identity.ActorStore, sessions *authsession.Manager) *Controller {
 	return &Controller{service: service, users: users, sessions: sessions}
+}
+
+func NewControllerWithStore(service *options.Service, users identity.ActorStore, sessions *session.Store) *Controller {
+	return NewController(service, users, authsession.NewManager(sessions, authsession.Config{}))
 }
 
 type updateOptionRequest struct {
@@ -66,19 +69,7 @@ func (h *Controller) update(c fiber.Ctx) error {
 }
 
 func (h *Controller) sessionUserID(c fiber.Ctx) (int64, bool, error) {
-	sess, err := h.sessions.Get(c)
-	if err != nil {
-		return 0, false, err
-	}
-
-	switch value := sess.Get(sessionUserIDKey).(type) {
-	case int64:
-		return value, value != 0, nil
-	case int:
-		return int64(value), value != 0, nil
-	default:
-		return 0, false, nil
-	}
+	return h.sessions.CurrentUserID(c)
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {

@@ -58,16 +58,22 @@ if (!registerPage.includes("import type { AltchaWidgetElement } from 'altcha'"))
 if (!registerPage.includes('const altchaWidget = ref<AltchaWidgetElement | null>(null)')) {
   throw new Error('Registration ALTCHA widget should keep a typed template ref');
 }
+if (!registerPage.includes('humanVerificationEnabled')) {
+  throw new Error('Registration ALTCHA widget should be guarded by the configured provider');
+}
 if (!registerPage.includes('ref="altchaWidget"')) {
   throw new Error('Registration ALTCHA widget should bind the template ref');
 }
 if (!registerPage.includes('altchaWidget.value?.reset()')) {
   throw new Error('Registration ALTCHA widget should reset the widget instance, not only the token');
 }
-if (!registerPage.includes('const submittedHumanVerificationToken = humanVerificationToken.value')) {
-  throw new Error('Registration should remember whether a submitted ALTCHA token may have been consumed');
+if (!registerPage.includes("const submittedHumanVerificationToken = humanVerificationEnabled.value ? humanVerificationToken.value : ''")) {
+  throw new Error('Registration should only submit ALTCHA tokens when human verification is enabled');
 }
-if (!registerPage.includes("submittedHumanVerificationToken || fieldError('humanVerification')")) {
+if (!registerPage.includes('body.humanVerification')) {
+  throw new Error('Registration should omit the human verification payload when ALTCHA is disabled');
+}
+if (!registerPage.includes("humanVerificationEnabled.value && (submittedHumanVerificationToken || fieldError('humanVerification'))")) {
   throw new Error('Registration should reset ALTCHA after any failed submission that included a token');
 }
 

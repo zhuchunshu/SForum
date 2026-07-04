@@ -33,9 +33,10 @@ Options considered:
 - reCAPTCHA.
 - Custom honeypots and rate limits only.
 
-Recommendation: use ALTCHA as the default provider. Keep the backend interface
-small enough to support Cloudflare Turnstile later if a deployment already uses
-Cloudflare and wants a managed bot-detection service.
+Recommendation: keep human verification disabled by default, and use ALTCHA as
+the first supported self-hosted provider when a deployment enables verification.
+Keep the backend interface small enough to support Cloudflare Turnstile later if
+a deployment already uses Cloudflare and wants a managed bot-detection service.
 
 ALTCHA fits SForum's first architecture because it is self-hostable,
 privacy-oriented, supports server-side verification libraries including Go, and
@@ -51,7 +52,8 @@ the first milestone.
 
 ## Core Decisions
 
-- Use ALTCHA as the default human-verification provider.
+- Keep human verification disabled by default; use ALTCHA as the first
+  supported self-hosted provider when explicitly enabled.
 - Treat CAPTCHA as one anti-automation layer, not as the full security model.
 - Combine ALTCHA with Redis-backed rate limits, short challenge expiration,
   single-use challenge tracking, CSRF protection, audit logs, and email
@@ -178,13 +180,13 @@ Nuxt renders the ALTCHA widget only on forms that require human verification.
 
 Default MVP behavior:
 
-- Registration page always shows the widget.
-- Password reset request page shows the widget when implemented.
+- Registration page hides the widget unless the public provider is `altcha`.
+- Password reset request page shows the widget when implemented and enabled.
 - Login page does not show the widget until the API reports
   `human_verification.required` for the current risk state.
 
 The widget challenge URL points at the same-origin API route so no browser-side
-third-party service is required for the default ALTCHA flow.
+third-party service is required when ALTCHA is enabled.
 
 ## Security Rules
 

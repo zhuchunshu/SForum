@@ -99,9 +99,16 @@ libraries, frameworks, or services.
 - Reason: forums need reliable logout, revocation, rate-limiting integration,
   and role changes. Server sessions keep browser auth simpler than JWT refresh
   flows.
-- Follow-up: enable CSRF protection for cookie-authenticated writes.
+- Implementation default: 30-day idle timeout, 180-day absolute timeout,
+  24-hour session-id renewal, login/reset session id on authentication, and
+  audit logs using salted session-id hashes rather than raw session ids.
+- Follow-up: enable CSRF protection for cookie-authenticated writes; if later
+  adding mobile/third-party API clients, use short-lived access tokens with
+  persisted rotating refresh tokens and reuse detection.
 - Sources: https://docs.gofiber.io/next/middleware/session/,
-  https://github.com/redis/go-redis
+  https://github.com/redis/go-redis,
+  https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html,
+  https://www.rfc-editor.org/rfc/rfc9700.html
 
 ## Human Verification And Anti-Automation
 

@@ -1,4 +1,16 @@
 services:
+  postgres:
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-15432}:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-16379}:6379"
+
+  meilisearch:
+    ports:
+      - "127.0.0.1:${MEILI_PORT:-17700}:7700"
+
   migrate:
     build:
       context: ./apps/api
@@ -10,7 +22,7 @@ services:
       APP_LOCALE: ${APP_LOCALE:-zh-CN}
       SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-zh-CN,en-US}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      DATABASE_URL: ${DATABASE_URL:-postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable}
+      DATABASE_URL: postgres://${POSTGRES_USER:-sforum}:${POSTGRES_PASSWORD:-sforum}@postgres:5432/${POSTGRES_DB:-sforum}?sslmode=disable
       GOMODCACHE: /go/pkg/mod
     depends_on:
       postgres:
@@ -26,6 +38,9 @@ services:
       target: dev
     command: ["air", "-c", ".air.toml"]
     environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-sforum}:${POSTGRES_PASSWORD:-sforum}@postgres:5432/${POSTGRES_DB:-sforum}?sslmode=disable
+      REDIS_ADDR: redis:6379
+      MEILI_HOST: http://meilisearch:7700
       GOMODCACHE: /go/pkg/mod
     depends_on:
       migrate:
@@ -61,6 +76,9 @@ services:
       target: dev
     command: ["air", "-c", ".air.worker.toml"]
     environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-sforum}:${POSTGRES_PASSWORD:-sforum}@postgres:5432/${POSTGRES_DB:-sforum}?sslmode=disable
+      REDIS_ADDR: redis:6379
+      MEILI_HOST: http://meilisearch:7700
       GOMODCACHE: /go/pkg/mod
     depends_on:
       migrate:
@@ -93,6 +111,8 @@ services:
     build:
       target: dev
     command: ["bun", "run", "dev"]
+    environment:
+      NUXT_API_INTERNAL_BASE_URL: http://api:8080/api/v1
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     volumes:
@@ -123,6 +143,9 @@ services:
 
   mailpit:
     image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-11025}:1025"
+      - "127.0.0.1:${MAILPIT_UI_PORT:-18025}:8025"
 
 volumes:
   go_build_cache:

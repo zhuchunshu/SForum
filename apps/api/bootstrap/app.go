@@ -2,6 +2,8 @@ package bootstrap
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -9,12 +11,14 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/extractors"
 	"github.com/gofiber/fiber/v3/middleware/session"
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
+	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
@@ -54,13 +58,23 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 
 	sessionStore := session.NewStore(session.Config{
-		Storage:        redisStorage,
-		CookieHTTPOnly: true,
-		CookieSameSite: "Lax",
+		Storage:         redisStorage,
+		KeyGenerator:    secureSessionID,
+		Extractor:       extractors.FromCookie("sforum_session"),
+		IdleTimeout:     cfg.SessionIdleTimeout,
+		AbsoluteTimeout: cfg.SessionAbsoluteTimeout,
+		CookieHTTPOnly:  true,
+		CookieSameSite:  fiber.CookieSameSiteLaxMode,
+		CookiePath:      "/",
+		CookieSecure:    strings.EqualFold(cfg.AppEnv, "production"),
+	})
+	authSessions := authsession.NewManager(sessionStore, authsession.Config{
+		RenewalInterval: cfg.SessionRenewalInterval,
+		HashSecret:      cfg.SessionHashSecret,
 	})
 	identityStore := identity.NewPostgresStore(pool)
-	identityProvider := providers.NewIdentityProviderWithVerifier(identityStore, sessionStore, humanVerifier)
-	optionsProvider := providers.NewOptionsProvider(options.NewPostgresStore(pool), identityStore, sessionStore)
+	identityProvider := providers.NewIdentityProviderWithAuthSessions(identityStore, authSessions, humanVerifier)
+	optionsProvider := providers.NewOptionsProviderWithSessions(options.NewPostgresStore(pool), identityStore, authSessions)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
 		RouteProviders: []httpserver.RouteProvider{identityProvider, optionsProvider},
@@ -79,6 +93,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			pool.Close()
 		},
 	}, nil
+}
+
+func secureSessionID() string {
+	var token [32]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		panic(fmt.Errorf("generate session id: %w", err))
+	}
+	return base64.RawURLEncoding.EncodeToString(token[:])
 }
 
 func (api *API) Close() {

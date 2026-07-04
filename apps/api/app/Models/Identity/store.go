@@ -6,6 +6,7 @@ type Store interface {
 	ActorStore
 	WithBootstrapTx(ctx context.Context, fn func(context.Context, TxStore) error) error
 	AnyUserExists(ctx context.Context) (bool, error)
+	FindRegistrationConflicts(ctx context.Context, username string, email string) (RegistrationConflicts, error)
 	GetCurrentUser(ctx context.Context, userID int64) (CurrentUser, error)
 	GetCredentialByLogin(ctx context.Context, login string) (CredentialUser, error)
 	ListRoles(ctx context.Context) ([]Role, error)
@@ -13,6 +14,7 @@ type Store interface {
 	UpdateRole(ctx context.Context, roleKey string, input RoleInput) (Role, error)
 	DeleteRole(ctx context.Context, roleKey string) error
 	ReplaceRolePermissions(ctx context.Context, actorUserID int64, roleKey string, permissions []string) error
+	RecordLoginAudit(ctx context.Context, input LoginAudit) error
 }
 
 type ActorStore interface {
@@ -27,6 +29,7 @@ type TxStore interface {
 	GetDefaultRole(ctx context.Context) (Role, error)
 	GetRole(ctx context.Context, roleKey string) (Role, error)
 	AssignRole(ctx context.Context, userID int64, roleID int64) error
+	LoadCurrentUserAccess(ctx context.Context, current *CurrentUser) error
 }
 
 type CreateUserInput struct {

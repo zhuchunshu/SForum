@@ -35,3 +35,10 @@ loopback port.
 - Operators who need direct database, cache, search, or mailpit access should
   use `docker compose exec`, temporary port forwarding, or a separate
   intentionally configured operations path.
+
+## Update 2026-07-05
+
+Development now runs the frontend and API as host processes. To support that
+loop, `compose.dev.yaml` publishes PostgreSQL, Redis, Meilisearch, and Mailpit
+to loopback-only host ports. This is a development-only exception; production
+Compose still publishes only the web entry point.

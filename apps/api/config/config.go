@@ -23,6 +23,10 @@ type Config struct {
 	WorkerShutdownTimeout        time.Duration
 	RedisAddr                    string
 	RedisPassword                string
+	SessionIdleTimeout           time.Duration
+	SessionAbsoluteTimeout       time.Duration
+	SessionRenewalInterval       time.Duration
+	SessionHashSecret            string
 	HumanVerificationProvider    string
 	AltchaSecret                 string
 	AltchaChallengeTTL           time.Duration
@@ -41,6 +45,11 @@ type Config struct {
 func Load() Config {
 	supported := localization.ParseSupportedLocales(env("SUPPORTED_LOCALES", "zh-CN,en-US"))
 	defaultLocale := localization.Normalize(env("APP_LOCALE", localization.DefaultLocale), supported)
+	sessionIdleTimeout := envDuration("SESSION_IDLE_TIMEOUT", 30*24*time.Hour)
+	sessionAbsoluteTimeout := envDuration("SESSION_ABSOLUTE_TIMEOUT", 180*24*time.Hour)
+	if sessionAbsoluteTimeout < sessionIdleTimeout {
+		sessionAbsoluteTimeout = sessionIdleTimeout
+	}
 
 	return Config{
 		AppEnv:                       env("APP_ENV", "development"),
@@ -55,7 +64,11 @@ func Load() Config {
 		WorkerShutdownTimeout:        envDuration("WORKER_SHUTDOWN_TIMEOUT", 30*time.Second),
 		RedisAddr:                    env("REDIS_ADDR", "redis:6379"),
 		RedisPassword:                env("REDIS_PASSWORD", ""),
-		HumanVerificationProvider:    env("HUMAN_VERIFICATION_PROVIDER", "altcha"),
+		SessionIdleTimeout:           sessionIdleTimeout,
+		SessionAbsoluteTimeout:       sessionAbsoluteTimeout,
+		SessionRenewalInterval:       envDuration("SESSION_RENEWAL_INTERVAL", 24*time.Hour),
+		SessionHashSecret:            env("SESSION_HASH_SECRET", "sforum-dev-session-hash-secret"),
+		HumanVerificationProvider:    env("HUMAN_VERIFICATION_PROVIDER", "disabled"),
 		AltchaSecret:                 env("ALTCHA_SECRET", "sforum-dev-altcha-secret"),
 		AltchaChallengeTTL:           envDuration("ALTCHA_CHALLENGE_TTL", 10*time.Minute),
 		AltchaCost:                   envPositiveInt("ALTCHA_COST", 1000),

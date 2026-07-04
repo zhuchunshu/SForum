@@ -13,6 +13,10 @@ const adminRoutePrefix = normalizeAdminRoutePrefix(
   process.env.NUXT_PUBLIC_ADMIN_ROUTE_PREFIX ||
   process.env.ADMIN_ROUTE_PREFIX
 )
+const humanVerificationProvider = normalizeHumanVerificationProvider(
+  process.env.NUXT_PUBLIC_HUMAN_VERIFICATION_PROVIDER ||
+  process.env.HUMAN_VERIFICATION_PROVIDER
+)
 const nuxtGeneratedIgnores = [
   '.nuxt/**',
   '.output/**',
@@ -54,6 +58,10 @@ function rewriteAdminPageRoutes(pages: NuxtPage[]) {
   }
 }
 
+function normalizeHumanVerificationProvider(value?: string) {
+  return value?.trim().toLowerCase() === 'altcha' ? 'altcha' : 'disabled'
+}
+
 export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@nuxtjs/i18n', '@nuxtjs/seo'],
   ssr: true,
@@ -83,6 +91,7 @@ export default defineNuxtConfig({
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || '/api/v1',
       adminRoutePrefix,
+      humanVerificationProvider,
       appLocale: process.env.APP_LOCALE || 'zh-CN',
       supportedLocales: process.env.SUPPORTED_LOCALES || 'zh-CN,en-US',
       i18n: {

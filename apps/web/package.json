@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nuxt dev --host 0.0.0.0",
+    "dev": "nuxt dev --host 0.0.0.0 --dotenv ../../.env",
     "build": "NUXT_BUILD_DIR=.nuxt/build nuxt build",
     "preview": "nuxt preview --host 0.0.0.0",
     "typecheck": "NUXT_BUILD_DIR=.nuxt/typecheck nuxt typecheck"

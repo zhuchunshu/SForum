@@ -65,46 +65,45 @@ Expected behavior:
 
 - Verifies Docker and Docker Compose are available.
 - Creates `.env` from `.env.example` when missing.
-- Ensures default local locale settings are `APP_LOCALE=zh-CN` and
-  `SUPPORTED_LOCALES=zh-CN,en-US`.
-- Starts all required services with Docker Compose, reusing existing
-  development images by default.
-- Runs Goose database migrations automatically before API startup and before
-  worker startup when the worker profile is enabled.
-- Streams combined logs by default.
-- Prints local web URLs, internal service names, and useful follow-up commands.
+- Starts PostgreSQL, Redis, Meilisearch, and Mailpit with Docker Compose.
+- Stops old Compose-managed `web`, `api`, and `worker` containers before
+  starting dependencies, so local processes can own their ports.
+- Waits for dependency services to be running or healthy.
+- Runs Goose database migrations automatically after PostgreSQL is healthy.
+- Prints local dependency URLs and the follow-up local frontend/API commands.
 
 Recommended default Compose command inside `scripts/dev.sh`:
 
 ```sh
-docker compose -f compose.yaml -f compose.dev.yaml up --remove-orphans
+docker compose -f compose.yaml -f compose.dev.yaml up --remove-orphans --wait postgres redis meilisearch mailpit
 ```
 
-Rebuild development images explicitly after Dockerfile, dependency, or toolchain
-changes:
+Rebuild the migration image explicitly after Dockerfile, dependency, or
+toolchain changes:
 
 ```sh
-docker compose -f compose.yaml -f compose.dev.yaml up --remove-orphans --build
+./scripts/dev.sh --build
 ```
 
-Enable Compose Watch only when deliberately testing watch rules:
+Skip automatic migrations only when deliberately testing dependency startup:
 
 ```sh
-./scripts/dev.sh --watch
+./scripts/dev.sh --no-migrate
 ```
 
-Start the background worker when testing jobs:
+Start the frontend and API locally after dependencies are up:
 
 ```sh
-./scripts/dev.sh --worker
+cd apps/web && bun run dev
+cd apps/api && air
 ```
 
 ### Development Services
 
-- `web`: Nuxt dev server with Vite HMR.
-- `api`: Fiber API with Go hot reload.
-- `worker`: optional background worker with Go hot reload, enabled by
-  `./scripts/dev.sh --worker`.
+- `web`: local Nuxt dev server with Vite HMR, started manually.
+- `api`: local Fiber API with Go hot reload, started manually with Air.
+- `worker`: local background worker with Go hot reload when job testing needs
+  it, started manually with the worker Air config.
 - `postgres`: PostgreSQL with a named development volume.
 - `redis`: Redis with a named development volume or ephemeral storage.
 - `meilisearch`: Meilisearch with a named development volume.
@@ -113,61 +112,48 @@ Start the background worker when testing jobs:
 
 ### Hot Reload
 
-- Nuxt uses its built-in Vite HMR.
-- Go services should use `air` in development containers.
-- Source bind mounts feed code changes into containers by default.
-- Development Go containers persist both `/root/.cache/go-build` and
-  `/go/pkg/mod` in named volumes so container recreates do not repeatedly
-  download modules.
-- Air writes temporary hot-reload binaries into named volumes instead of the
-  host bind mount, keeping reloads quieter and reducing Docker Desktop file
-  sharing overhead.
-- The idle worker is opt-in during early development because it otherwise
-  duplicates API rebuild work without consuming real jobs yet.
-- The web service is allowed to start before the API in development. SSR reads
+- Nuxt uses its built-in Vite HMR from `apps/web`.
+- Go services use local `air` from `apps/api`.
+- Air loads the repository root `.env` through `env_files`, so local API and
+  worker processes use the same development configuration.
+- `bun run dev` passes `--dotenv ../../.env`, so Nuxt also reads the repository
+  root `.env` when started from `apps/web`.
+- The web app may start before the API in development. SSR reads
   startup site options with a short timeout and falls back to local defaults so
   the site can open while the API is still compiling.
 - Web generated output directories such as `.output`, `.nitro`, coverage, and
-  test reports are ignored by Nuxt/Vite watchers and optional Compose Watch.
+  test reports are ignored by Nuxt/Vite watchers.
 - `bun run build` and `bun run typecheck` use separate Nuxt temporary build
   directories so they do not churn the dev server's `.nuxt` state.
 - Nuxt UI's automatic remote font provider module is disabled until the product
   intentionally chooses web fonts, avoiding build-time network retries.
-- Compose Watch is optional and should not be enabled by default while the same
-  source trees are bind-mounted.
-
-Suggested watch rules:
-
-- Sync `apps/web/app`, `apps/web/server`, `apps/web/public`, and
-  `apps/web/nuxt.config.ts` into the `web` container.
-- Ignore frontend generated output such as `.nuxt`, `.output`, `.nitro`,
-  `.vite`, `.cache`, `dist`, `coverage`, `playwright-report`, and
-  `test-results`.
-- Rebuild `web` when `apps/web/package.json`, `bun.lock`, or Nuxt config
-  dependency settings change.
-- Sync `apps/api` Go source into `api` and `worker` containers.
-- Ignore backend generated output such as `tmp`, `bin`, coverage files, and Go
-  test binaries.
-- Rebuild Go containers when `apps/api/go.mod` or `apps/api/go.sum` changes.
+- Compose Watch is not part of the default development loop now that frontend
+  and backend processes run locally.
 
 ### Development Ports
 
-Only `web` publishes a host port, bound to loopback:
+Development publishes dependency services to loopback so local frontend and API
+processes can connect without joining the Compose network:
 
 - Web: `http://127.0.0.1:3000`
 - API via web: `http://127.0.0.1:3000/api/v1`
+- API direct: `http://127.0.0.1:8080/api/v1`
+- PostgreSQL: `127.0.0.1:15432`
+- Redis: `127.0.0.1:16379`
+- Meilisearch: `http://127.0.0.1:17700`
+- Mailpit SMTP: `127.0.0.1:11025`
+- Mailpit UI: `http://127.0.0.1:18025`
 
-Internal services use Compose DNS names and are not reachable directly from the
-host by default:
+The migration container still uses Compose DNS internally:
 
-- API: `api:8080`
 - PostgreSQL: `postgres:5432`
 - Redis: `redis:6379`
 - Meilisearch: `meilisearch:7700`
 - Mailpit: `mailpit:1025` and `mailpit:8025`
 
-`WEB_PORT` should be configurable in `.env`. Internal ports should stay stable
-unless the service image or application runtime changes.
+`WEB_PORT`, `POSTGRES_PORT`, `REDIS_PORT`, `MEILI_PORT`,
+`MAILPIT_SMTP_PORT`, and `MAILPIT_UI_PORT` are configurable in `.env`.
+Production Compose keeps only the web entry point published.
 
 ## Production Deployment
 

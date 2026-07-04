@@ -6,6 +6,7 @@ import (
 
 	identitycontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Identity"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 )
 
@@ -18,8 +19,12 @@ func NewIdentityProvider(store identity.Store, sessions *session.Store) *Identit
 }
 
 func NewIdentityProviderWithVerifier(store identity.Store, sessions *session.Store, verifier *humanverify.Service) *IdentityProvider {
+	return NewIdentityProviderWithAuthSessions(store, authsession.NewManager(sessions, authsession.Config{}), verifier)
+}
+
+func NewIdentityProviderWithAuthSessions(store identity.Store, sessions *authsession.Manager, verifier *humanverify.Service) *IdentityProvider {
 	return &IdentityProvider{
-		controller: identitycontroller.NewControllerWithVerifier(identity.NewService(store), sessions, verifier),
+		controller: identitycontroller.NewControllerWithAuthSessions(identity.NewService(store), sessions, verifier),
 	}
 }
 

@@ -185,9 +185,10 @@ verification is required before posting, the account may still be created with
 
 ## Human Verification And Anti-Automation
 
-SForum uses ALTCHA as the default human-verification provider for open
-registration and password-reset initiation. Verification is not a replacement
-for rate limiting or moderation; it is one layer that increases the cost of
+SForum keeps human verification disabled by default and supports ALTCHA as the
+first self-hosted provider for open registration and password-reset initiation
+when a deployment explicitly enables it. Verification is not a replacement for
+rate limiting or moderation; it is one layer that increases the cost of
 automated abuse.
 
 Backend responsibilities:
@@ -203,8 +204,10 @@ Backend responsibilities:
 
 Frontend responsibilities:
 
-- Render the ALTCHA widget on registration.
-- Render it on password-reset initiation when that flow exists.
+- Render the ALTCHA widget on registration when the public provider is
+  `altcha`.
+- Render it on password-reset initiation when that flow exists and verification
+  is enabled.
 - Render it on login only after the API reports a challenge is required for the
   current risk state.
 - Localize all verification and rate-limit errors in Simplified Chinese and

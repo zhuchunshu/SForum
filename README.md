@@ -18,26 +18,24 @@ The repository contains project documentation, collaboration rules, a lightweigh
 
 ## Development
 
-After dependencies are available, start the local stack with:
+Start the local dependency services first:
 
 ```sh
 ./scripts/dev.sh
 ```
 
-The default path favors quick feedback by reusing existing development images
-and relying on bind mounts, Nuxt/Vite HMR, and Air. Go module/build caches and
-Air temporary binaries live in Docker named volumes so container recreates and
-reloads do not repeatedly redownload modules or write hot-reload binaries
-through the host bind mount.
+The script starts PostgreSQL, Redis, Meilisearch, and Mailpit with Docker
+Compose, waits for healthy services, and runs database migrations by default.
+It does not start the frontend, API, or worker.
 
-The background worker is disabled by default while it has no concrete job
-handlers. Start it only when testing jobs:
+Run the frontend and API locally in separate terminals:
 
 ```sh
-./scripts/dev.sh --worker
+cd apps/web && bun run dev
+cd apps/api && air
 ```
 
-After Dockerfile or dependency changes, rebuild explicitly:
+After Dockerfile or dependency changes, rebuild the migration image explicitly:
 
 ```sh
 ./scripts/dev.sh --build
@@ -52,10 +50,12 @@ Useful endpoints:
 - Web: `http://127.0.0.1:3000`
 - API health via web: `http://127.0.0.1:3000/api/v1/health`
 - Web health: `http://127.0.0.1:3000/health`
+- Meilisearch health: `http://127.0.0.1:17700/health`
+- Mailpit UI: `http://127.0.0.1:18025`
 
-Only the `web` service publishes a host port. API, PostgreSQL, Redis,
-Meilisearch, and other support services communicate on the Docker Compose
-network.
+Development dependency services publish loopback-only host ports so locally
+started `air` and Nuxt can connect to them. Production Compose keeps internal
+services private and publishes only the web entry point.
 
 ## Start Here
 

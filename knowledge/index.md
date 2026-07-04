@@ -11,24 +11,26 @@ This is the entry point for project memory.
   started.
 - Proposed stack: Nuxt 4/Vue 3/Nuxt UI/Bun frontend; Go Fiber v3,
   PostgreSQL, Redis, and Meilisearch backend.
-- Development/deployment workflow has been proposed: Docker Compose for local
-  and production orchestration, `scripts/dev.sh` for one-command hot-reload
-  development, and bilingual `deploy.sh` for production operations.
-- `scripts/dev.sh` now defaults to a faster bind-mount hot-reload loop without
-  forced rebuilds or Compose Watch; use `--build` or `--watch` explicitly when
-  needed.
-- Development startup now keeps Go module cache, Go build cache, and Air
-  temporary binaries in Docker named volumes. The idle worker is opt-in via
-  `./scripts/dev.sh --worker`, and the web service can render with fallback site
-  options while the API is still compiling.
+- Development/deployment workflow has been proposed: Docker Compose for
+  production orchestration and local dependency services, local `bun run dev`
+  plus `air` for frontend/API hot reload, and bilingual `deploy.sh` for
+  production operations.
+- `scripts/dev.sh` now starts only development dependencies: PostgreSQL, Redis,
+  Meilisearch, and Mailpit. It stops old Compose-managed frontend/backend
+  containers, waits for dependencies, and runs migrations by default; use
+  `--no-migrate` only when testing dependency startup.
+- Local frontend and backend processes read the repository root `.env`
+  directly: Nuxt dev uses `--dotenv ../../.env`, and Air uses
+  `env_files = ["../../.env"]`.
 - Frontend build/typecheck commands use isolated Nuxt temporary directories and
   generated output is ignored by dev watchers to avoid repeated reloads.
 - Nuxt top-level `ignore` rules are intentionally narrower than Vite watcher
   ignores so dependency packages such as `@nuxt/ui/dist` remain discoverable by
   Nuxt component auto-imports.
-- Docker Compose development and production now publish only the `web` service
-  to `127.0.0.1:${WEB_PORT}`. API, PostgreSQL, Redis, Meilisearch, and support
-  services stay on the Compose network, with `/api/v1/*` proxied through Nuxt.
+- Development Compose publishes dependency services to loopback-only host ports
+  so local `air` and Nuxt can connect. Production Compose still publishes only
+  the `web` service to `127.0.0.1:${WEB_PORT}`, with API and internal services
+  staying on the Compose network.
 - Product internationalization is required from the first implementation.
   Default locale is Simplified Chinese (`zh-CN`); first secondary locale is
   English (`en-US`).
@@ -55,15 +57,17 @@ This is the entry point for project memory.
   user becomes the protected initial `super_admin`; later open registrations
   receive the undeletable default `member` role; admin-managed custom
   roles/user groups are supported.
-- Security verification architecture is accepted: SForum uses ALTCHA as the
-  default self-hosted human-verification provider for registration,
-  password-reset initiation, and later risk-based actions, paired with
-  Redis-backed rate limits and single-use challenge tracking.
-- ALTCHA-backed registration human verification is implemented in the first
+- Security verification architecture is accepted: SForum keeps human
+  verification disabled by default, with ALTCHA as the first supported
+  self-hosted provider for registration, password-reset initiation, and later
+  risk-based actions when deployments enable it, paired with Redis-backed rate
+  limits and single-use challenge tracking.
+- ALTCHA-backed registration human verification is implemented as an opt-in
   identity slice. The API exposes `/api/v1/human-verification/challenge`,
-  verifies ALTCHA payloads before account creation, stores replay/rate-limit
-  state in Redis, and the Nuxt registration page sends the widget token through
-  `humanVerification`.
+  verifies ALTCHA payloads before account creation when enabled, stores
+  replay/rate-limit state in Redis, and the Nuxt registration page sends the
+  widget token through `humanVerification` only when the public runtime provider
+  is `altcha`.
 - The registration page now reads `/api/v1/auth/registration-status` and, when
   no user exists yet, warns that the first registered user will become the
   super administrator.
@@ -71,16 +75,26 @@ This is the entry point for project memory.
   single generic `auth.invalid_credentials` reason for safety, while
   registration validation returns localized `data.fields` messages for
   username, email, password, and human verification.
+- Registration now validates editable fields and username/email conflicts before
+  consuming ALTCHA tokens, constructs the returned current-user access inside
+  the bootstrap transaction, and reports post-create session failures as
+  `auth.session_unavailable` so users are guided to log in instead of retrying
+  registration.
+- Browser authentication uses Redis-backed server sessions rather than
+  JWT-first auth. Sessions now have a 30-day idle timeout, 180-day absolute
+  timeout, 24-hour session-id renewal, login-time session reset, production
+  Secure cookies, and login audit records with IP, User-Agent, time, and salted
+  session hash.
 - Backend API code has migrated to a Laravel-style directory shape while
   staying Go-explicit: `cmd/api` is process-focused, `bootstrap` assembles the
   runtime, `app/Http` owns the HTTP kernel, `app/Http/Controllers/*` owns
   controllers and routes, `app/Providers` owns provider wiring,
   `app/Models/*` owns domain logic, and `database/*` owns migrations, SQL, and
   generated `sqlc` code.
-- Goose migrations now run automatically in the development Compose stack
-  through a one-shot `migrate` service before API/worker startup. Production
-  deploys run the same migration binary explicitly from `deploy.sh` after a
-  PostgreSQL backup.
+- Goose migrations now run automatically from `scripts/dev.sh` through a
+  one-shot `migrate` service after dependency startup. Production deploys run
+  the same migration binary explicitly from `deploy.sh` after a PostgreSQL
+  backup.
 - Jobs and queues foundation implementation has started: River-backed durable
   queue support now lives under `apps/api/app/Support/Jobs`, `cmd/worker` uses
   `bootstrap.NewWorker`, and the first search job contract is
@@ -115,14 +129,27 @@ This is the entry point for project memory.
   verification decision.
 - `decisions/2026-07-04-api-response-envelope-localized-message.md` - accepted
   backend API envelope and localized message decision.
+- `decisions/2026-07-05-browser-session-jwt-strategy.md` - accepted browser
+  session lifetime, renewal, audit, and future JWT/API-token strategy.
+- `decisions/2026-07-05-registration-altcha-default-disabled.md` - accepted
+  registration ALTCHA default-off runtime behavior.
 - `decisions/2026-07-04-configurable-admin-control-panel.md` - accepted
   configurable admin route prefix and Nuxt UI dashboard shell decision.
+- `decisions/2026-07-05-local-dev-dependencies-and-processes.md` - accepted
+  local development split where Compose starts dependencies and frontend/API
+  run as host processes.
 - `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA
   implementation handoff.
 - `sessions/2026-07-04-registration-status-notice.md` - first-user
   super-admin notice implementation handoff.
 - `sessions/2026-07-04-admin-foundation.md` - admin foundation implementation
   handoff.
+- `sessions/2026-07-05-registration-verification-session-failure.md` -
+  registration verification ordering and session-failure fix handoff.
+- `sessions/2026-07-05-local-dev-dependencies.md` - local dependency startup
+  and host-process development handoff.
+- `sessions/2026-07-05-registration-altcha-default-disabled.md` -
+  registration ALTCHA default-off implementation handoff.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -
   security verification design.
 - `../docs/development-and-deployment.md` - proposed local development,
@@ -149,4 +176,5 @@ This is the entry point for project memory.
 - Should English translations be mandatory for MVP launch or allowed to lag
   during internal development?
 - Should email verification be required before posting in MVP?
-- What default ALTCHA challenge expiration and work cost should production use?
+- What ALTCHA challenge expiration and work cost should production use when
+  human verification is explicitly enabled?

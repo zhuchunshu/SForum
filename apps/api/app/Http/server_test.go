@@ -235,6 +235,144 @@ func TestRegisterEndpointAcceptsHumanVerificationToken(t *testing.T) {
 	}
 }
 
+func TestRegisterEndpointDoesNotConsumeHumanVerificationForInvalidFields(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	provider := &countingHumanProvider{result: humanverify.VerifyResult{Verified: true, Code: humanverify.CodeOK}}
+	verifier := humanverify.NewService(
+		humanverify.ServiceConfig{Enabled: true, ChallengeTTL: time.Minute},
+		provider,
+		humanverify.NewMemoryStore(),
+	)
+	identityController := identitycontroller.NewControllerWithVerifier(identity.NewService(store), session.NewStore(), verifier)
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+
+	requestBody := []byte(`{"username":" ","email":"not-an-email","password":"short","displayName":"Admin","locale":"zh-CN","humanVerification":{"provider":"altcha","token":"valid-token"}}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("register request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+	if provider.verifies != 0 {
+		t.Fatalf("expected verifier not to run for invalid fields, got %d calls", provider.verifies)
+	}
+}
+
+func TestRegisterEndpointDoesNotConsumeHumanVerificationForDuplicateIdentity(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	if _, err := identity.NewService(store).Register(context.Background(), identity.RegisterInput{
+		Username: "admin",
+		Email:    "admin@example.com",
+		Password: "correct horse battery staple",
+	}); err != nil {
+		t.Fatalf("seed register returned error: %v", err)
+	}
+
+	provider := &countingHumanProvider{result: humanverify.VerifyResult{Verified: true, Code: humanverify.CodeOK}}
+	verifier := humanverify.NewService(
+		humanverify.ServiceConfig{Enabled: true, ChallengeTTL: time.Minute},
+		provider,
+		humanverify.NewMemoryStore(),
+	)
+	identityController := identitycontroller.NewControllerWithVerifier(identity.NewService(store), session.NewStore(), verifier)
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+
+	requestBody := []byte(`{"username":"ADMIN","email":"ADMIN@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN","humanVerification":{"provider":"altcha","token":"valid-token"}}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("register request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+	if provider.verifies != 0 {
+		t.Fatalf("expected verifier not to run for duplicate identity, got %d calls", provider.verifies)
+	}
+}
+
+func TestRegisterEndpointMapsSessionSaveFailure(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	sessionStore := session.NewStore(session.Config{Storage: failingSessionStorage{err: errors.New("session storage unavailable")}})
+	identityController := identitycontroller.NewController(identity.NewService(store), sessionStore)
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+
+	requestBody := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN"}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("register request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d", resp.StatusCode)
+	}
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error envelope: %v", err)
+	}
+	if body.Data.Reason != identity.CodeSessionUnavailable {
+		t.Fatalf("expected session unavailable reason, got %q", body.Data.Reason)
+	}
+	if body.Message != "账号已创建，但自动登录失败，请直接登录。" {
+		t.Fatalf("expected session unavailable message, got %q", body.Message)
+	}
+	if len(store.users) != 1 {
+		t.Fatalf("expected account to be created before session failure, got %d users", len(store.users))
+	}
+}
+
+func TestRegisterEndpointMapsAuditFailureAfterAccountCreated(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	store.loginAuditErr = errors.New("audit unavailable")
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+
+	requestBody := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN"}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("register request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d", resp.StatusCode)
+	}
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error envelope: %v", err)
+	}
+	if body.Data.Reason != identity.CodeSessionUnavailable {
+		t.Fatalf("expected session unavailable reason, got %q", body.Data.Reason)
+	}
+	if body.Message != "账号已创建，但自动登录失败，请直接登录。" {
+		t.Fatalf("expected session unavailable message, got %q", body.Message)
+	}
+	if len(store.users) != 1 {
+		t.Fatalf("expected account to be created before audit failure, got %d users", len(store.users))
+	}
+}
+
 func TestRegisterEndpointReturnsFieldErrors(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()
@@ -331,6 +469,40 @@ func TestLoginEndpointReturnsActionableInvalidCredentials(t *testing.T) {
 	}
 	if body.Message != "登录失败：请检查用户名/邮箱和密码；如果还没有账号，请先注册。" {
 		t.Fatalf("expected actionable login message, got %q", body.Message)
+	}
+}
+
+func TestLoginEndpointRecordsAudit(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+
+	registerHTTPUser(t, app, "admin", "admin@example.com")
+
+	requestBody := []byte(`{"login":"admin","password":"correct horse battery staple"}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/login", bytes.NewReader(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "SForum Test Browser")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("login request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if len(store.loginAudits) != 2 {
+		t.Fatalf("expected register and login audits, got %#v", store.loginAudits)
+	}
+	audit := store.loginAudits[1]
+	if audit.Action != identity.AuditActionLogin {
+		t.Fatalf("expected login audit action, got %#v", audit)
+	}
+	if audit.UserID == 0 || audit.IPAddress == "" || audit.UserAgent != "SForum Test Browser" || audit.SessionHash == "" {
+		t.Fatalf("expected populated login audit, got %#v", audit)
 	}
 }
 
@@ -634,7 +806,7 @@ func TestCreateRoleEndpointRejectsMember(t *testing.T) {
 func TestWebOptionsEndpointReturnsPublicOptions(t *testing.T) {
 	cfg := testConfig()
 	optionStore := newHTTPFakeOptionStore()
-	optionsController := optionscontroller.NewController(options.NewService(optionStore), newHTTPFakeStore(), session.NewStore())
+	optionsController := optionscontroller.NewControllerWithStore(options.NewService(optionStore), newHTTPFakeStore(), session.NewStore())
 	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{optionsController}})
 
 	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/web-options", nil)
@@ -659,7 +831,7 @@ func TestWebOptionsEndpointReturnsPublicOptions(t *testing.T) {
 func TestWebOptionsUpdateRequiresAuth(t *testing.T) {
 	cfg := testConfig()
 	optionStore := newHTTPFakeOptionStore()
-	optionsController := optionscontroller.NewController(options.NewService(optionStore), newHTTPFakeStore(), session.NewStore())
+	optionsController := optionscontroller.NewControllerWithStore(options.NewService(optionStore), newHTTPFakeStore(), session.NewStore())
 	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{optionsController}})
 
 	req := httptest.NewRequest(nethttp.MethodPut, "/api/v1/web-options", bytes.NewReader([]byte(`{"name":"site.name","value":"Example Forum"}`)))
@@ -681,7 +853,7 @@ func TestWebOptionsUpdateAllowsSuperAdmin(t *testing.T) {
 	optionStore := newHTTPFakeOptionStore()
 	sessionStore := session.NewStore()
 	identityController := identitycontroller.NewController(identity.NewService(userStore), sessionStore)
-	optionsController := optionscontroller.NewController(options.NewService(optionStore), userStore, sessionStore)
+	optionsController := optionscontroller.NewControllerWithStore(options.NewService(optionStore), userStore, sessionStore)
 	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController, optionsController}})
 	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
 
@@ -777,13 +949,15 @@ func assertFieldMessage(t *testing.T, fields map[string][]string, field string, 
 }
 
 type httpFakeStore struct {
-	nextUserID  int64
-	nextRoleID  int64
-	users       map[int64]identity.CurrentUser
-	credentials map[int64]string
-	loginIndex  map[string]int64
-	roles       map[string]identity.Role
-	userRoleIDs map[int64][]int64
+	nextUserID    int64
+	nextRoleID    int64
+	users         map[int64]identity.CurrentUser
+	credentials   map[int64]string
+	loginIndex    map[string]int64
+	roles         map[string]identity.Role
+	userRoleIDs   map[int64][]int64
+	loginAudits   []identity.LoginAudit
+	loginAuditErr error
 }
 
 func newHTTPFakeStore() *httpFakeStore {
@@ -847,6 +1021,11 @@ func (s *httpFakeStore) GetRole(_ context.Context, roleKey string) (identity.Rol
 
 func (s *httpFakeStore) AssignRole(_ context.Context, userID int64, roleID int64) error {
 	s.userRoleIDs[userID] = append(s.userRoleIDs[userID], roleID)
+	return nil
+}
+
+func (s *httpFakeStore) LoadCurrentUserAccess(_ context.Context, current *identity.CurrentUser) error {
+	*current = s.withAccess(*current)
 	return nil
 }
 
@@ -921,6 +1100,14 @@ func (s *httpFakeStore) DeleteRole(_ context.Context, roleKey string) error {
 }
 
 func (s *httpFakeStore) ReplaceRolePermissions(context.Context, int64, string, []string) error {
+	return nil
+}
+
+func (s *httpFakeStore) RecordLoginAudit(_ context.Context, input identity.LoginAudit) error {
+	if s.loginAuditErr != nil {
+		return s.loginAuditErr
+	}
+	s.loginAudits = append(s.loginAudits, input)
 	return nil
 }
 
@@ -1007,4 +1194,65 @@ func (p httpFakeHumanProvider) Verify(context.Context, humanverify.VerifyRequest
 		return humanverify.VerifyResult{Verified: true, Code: humanverify.CodeOK}, nil
 	}
 	return p.result, nil
+}
+
+type countingHumanProvider struct {
+	result   humanverify.VerifyResult
+	verifies int
+}
+
+func (p *countingHumanProvider) Challenge(context.Context, humanverify.Purpose, humanverify.Subject) (humanverify.Challenge, error) {
+	return humanverify.Challenge{
+		Provider: humanverify.ProviderAltcha,
+		Purpose:  humanverify.PurposeRegister,
+		Payload:  map[string]any{"challenge": "fake"},
+	}, nil
+}
+
+func (p *countingHumanProvider) Verify(context.Context, humanverify.VerifyRequest) (humanverify.VerifyResult, error) {
+	p.verifies++
+	if p.result.Code == "" {
+		return humanverify.VerifyResult{Verified: true, Code: humanverify.CodeOK}, nil
+	}
+	return p.result, nil
+}
+
+type failingSessionStorage struct {
+	err error
+}
+
+func (s failingSessionStorage) GetWithContext(context.Context, string) ([]byte, error) {
+	return nil, nil
+}
+
+func (s failingSessionStorage) Get(string) ([]byte, error) {
+	return nil, nil
+}
+
+func (s failingSessionStorage) SetWithContext(context.Context, string, []byte, time.Duration) error {
+	return s.err
+}
+
+func (s failingSessionStorage) Set(string, []byte, time.Duration) error {
+	return s.err
+}
+
+func (s failingSessionStorage) DeleteWithContext(context.Context, string) error {
+	return nil
+}
+
+func (s failingSessionStorage) Delete(string) error {
+	return nil
+}
+
+func (s failingSessionStorage) ResetWithContext(context.Context) error {
+	return nil
+}
+
+func (s failingSessionStorage) Reset() error {
+	return nil
+}
+
+func (s failingSessionStorage) Close() error {
+	return nil
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-const { t } = useI18n()
+const { t, locale, locales } = useI18n()
 const localePath = useLocalePath()
+const switchLocalePath = useSwitchLocalePath()
 const adminRoutes = useAdminRoutes()
 const { user, refresh } = useAuthSession()
 const { siteName } = useWebOptions()
@@ -10,6 +11,10 @@ const router = useRouter()
 // 控制用户下拉菜单的显示
 const menuOpen = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
+
+// 控制语言切换下拉菜单的显示
+const langMenuOpen = ref(false)
+const langMenuRef = ref<HTMLElement | null>(null)
 
 // 点击页面其他区域关闭菜单
 onMounted(() => {
@@ -21,6 +26,9 @@ onUnmounted(() => {
 function onClickOutside(e: MouseEvent) {
   if (menuRef.value && !menuRef.value.contains(e.target as Node)) {
     menuOpen.value = false
+  }
+  if (langMenuRef.value && !langMenuRef.value.contains(e.target as Node)) {
+    langMenuOpen.value = false
   }
 }
 
@@ -64,6 +72,46 @@ const avatarLetter = computed(() =>
           {{ t('nav.home') }}
         </NuxtLink>
       </nav>
+
+      <!-- 语言切换 -->
+      <div ref="langMenuRef" class="navbar__lang">
+        <button
+          class="navbar__lang-btn"
+          :aria-label="t('nav.language')"
+          @click="langMenuOpen = !langMenuOpen"
+        >
+          <!-- 地球图标 -->
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M2 12h20"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <svg class="navbar__chevron" :class="{ 'navbar__chevron--open': langMenuOpen }" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+
+        <!-- 语言选择下拉菜单 -->
+        <Transition name="menu">
+          <div v-if="langMenuOpen" class="navbar__dropdown" role="menu">
+            <NuxtLink
+              v-for="loc in locales"
+              :key="loc.code"
+              :to="switchLocalePath(loc.code)"
+              class="navbar__dropdown-item navbar__dropdown-item--lang"
+              :class="{ 'navbar__dropdown-item--active': locale === loc.code }"
+              role="menuitem"
+              @click="langMenuOpen = false"
+            >
+              <span>{{ loc.name }}</span>
+              <!-- 当前语言打勾 -->
+              <svg v-if="locale === loc.code" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </NuxtLink>
+          </div>
+        </Transition>
+      </div>
 
       <!-- 右侧用户区 -->
       <div class="navbar__right">
@@ -218,6 +266,46 @@ const avatarLetter = computed(() =>
   color: #0f766e;
   background: #f0faf9;
   font-weight: 600;
+}
+
+/* ====== 语言切换 ====== */
+.navbar__lang {
+  position: relative;
+}
+
+.navbar__lang-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #e4e8ef;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  color: #4b5563;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  font-family: inherit;
+}
+
+.navbar__lang-btn:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+  color: #111827;
+}
+
+/* 语言选项 */
+.navbar__dropdown-item--lang {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.navbar__dropdown-item--active {
+  color: #0f766e;
+  font-weight: 700;
+  background: #f0faf9;
 }
 
 /* ====== 右侧区域 ====== */

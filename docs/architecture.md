@@ -72,10 +72,11 @@ data fetching, and Vite-backed development without splitting the frontend stack.
 - Cache/session/rate-limit store: Redis.
 - Redis client: `redis/go-redis/v9`; Fiber storage adapters may be used where
   they fit Fiber middleware.
-- Human verification: ALTCHA by default, with server-side Go verification and
-  Redis-backed replay protection/rate limits; keep a narrow provider interface
-  so Cloudflare Turnstile can be added later for deployments that want managed
-  bot detection.
+- Human verification: disabled by default, with ALTCHA as the first supported
+  self-hosted provider when deployments enable it. Verification remains
+  server-side in Go with Redis-backed replay protection/rate limits; keep a
+  narrow provider interface so Cloudflare Turnstile can be added later for
+  deployments that want managed bot detection.
 - Durable jobs and queues: River backed by PostgreSQL, wrapped by a small
   project-owned `app/Support/Jobs` package.
 - Search: Meilisearch with `meilisearch-go`, fed from PostgreSQL through a

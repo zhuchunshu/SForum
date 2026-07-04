@@ -1,5 +1,6 @@
 root = "."
 tmp_dir = "tmp"
+env_files = ["../../.env"]
 
 [build]
 cmd = "go build -o ./tmp/sforum-api ./cmd/api"

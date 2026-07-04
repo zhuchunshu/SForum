@@ -11,6 +11,7 @@ type RegistrationStatus = {
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
+const runtimeConfig = useRuntimeConfig()
 const { apiBaseUrl, request } = useApiClient()
 const { refresh, can } = useAuthSession()
 const { siteName } = useWebOptions()
@@ -23,6 +24,7 @@ const form = reactive({
 })
 const submitting = ref(false)
 const errorMessage = ref('')
+const sessionUnavailable = ref(false)
 const fieldErrors = ref<Record<string, string[]>>({})
 const humanVerificationToken = ref('')
 const altchaWidget = ref<AltchaWidgetElement | null>(null)
@@ -30,6 +32,13 @@ const altchaWidget = ref<AltchaWidgetElement | null>(null)
 const altchaConfiguration = JSON.stringify({
   hideLogo: true,
   hideFooter: true
+})
+const configuredHumanVerificationProvider = computed(() => {
+  const provider = String(runtimeConfig.public.humanVerificationProvider || 'disabled').trim().toLowerCase()
+  return provider === 'altcha' ? 'altcha' : 'disabled'
+})
+const humanVerificationEnabled = computed(() => {
+  return configuredHumanVerificationProvider.value === 'altcha' || Boolean(fieldError('humanVerification'))
 })
 const { data: registrationStatus } = await useAsyncData('auth-registration-status', async () => {
   try {
@@ -73,57 +82,44 @@ function fieldDescription(name: string) {
   return fieldError(name) ? `${name}-error` : undefined
 }
 
-function registerErrorMessage(error: unknown) {
-  const message = apiErrorMessage(error)
-  if (message) {
-    return message
-  }
-
-  switch (apiErrorReason(error)) {
-    case 'human_verification.required':
-      return t('errors.humanVerificationRequired')
-    case 'human_verification.invalid':
-      return t('errors.humanVerificationInvalid')
-    case 'human_verification.expired':
-      return t('errors.humanVerificationExpired')
-    case 'human_verification.replayed':
-      return t('errors.humanVerificationReplayed')
-    case 'rate_limit.exceeded':
-      return t('errors.rateLimited')
-    default:
-      return t('errors.registerFailed')
-  }
-}
-
 async function submitRegister() {
+  if (submitting.value) {
+    return
+  }
+
   errorMessage.value = ''
+  sessionUnavailable.value = false
   fieldErrors.value = {}
   submitting.value = true
-  const submittedHumanVerificationToken = humanVerificationToken.value
+  const submittedHumanVerificationToken = humanVerificationEnabled.value ? humanVerificationToken.value : ''
+  const body: Record<string, unknown> = {
+    username: form.username,
+    email: form.email,
+    password: form.password,
+    displayName: form.displayName,
+    locale: locale.value
+  }
+  if (humanVerificationEnabled.value) {
+    body.humanVerification = {
+      provider: 'altcha',
+      token: submittedHumanVerificationToken
+    }
+  }
 
   try {
     await request<CurrentUser>('/auth/register', {
       method: 'POST',
-      body: {
-        username: form.username,
-        email: form.email,
-        password: form.password,
-        displayName: form.displayName,
-        locale: locale.value,
-        humanVerification: {
-          provider: 'altcha',
-          token: submittedHumanVerificationToken
-        }
-      }
+      body
     })
     await refresh()
     await navigateTo(can('admin.access') ? adminRoutes.path('/') : localePath('/'))
   } catch (error) {
     fieldErrors.value = apiErrorFields(error)
-    if (submittedHumanVerificationToken || fieldError('humanVerification')) {
+    sessionUnavailable.value = apiErrorReason(error) === 'auth.session_unavailable'
+    if (humanVerificationEnabled.value && (submittedHumanVerificationToken || fieldError('humanVerification'))) {
       resetHumanVerification()
     }
-    errorMessage.value = registerErrorMessage(error)
+    errorMessage.value = registerErrorMessage(error, t)
   } finally {
     submitting.value = false
   }
@@ -200,7 +196,15 @@ async function submitRegister() {
             variant="danger"
             compact
             class="auth-alert"
-          />
+          >
+            <NuxtLink
+              v-if="sessionUnavailable"
+              :to="localePath('/login')"
+              class="auth-alert-action"
+            >
+              {{ t('auth.goLogin') }}
+            </NuxtLink>
+          </SFAlert>
 
           <div class="auth-field">
             <label class="auth-label" for="username-input">
@@ -280,7 +284,7 @@ async function submitRegister() {
             </p>
           </div>
 
-          <div class="auth-field">
+          <div v-if="humanVerificationEnabled" class="auth-field">
             <label id="human-verification-label" class="auth-label">
               {{ t('auth.humanVerification') }}
             </label>
@@ -490,6 +494,16 @@ async function submitRegister() {
 
 .auth-alert {
   margin-bottom: 16px;
+}
+
+.auth-alert-action {
+  display: inline-flex;
+  margin-top: 8px;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .auth-field {

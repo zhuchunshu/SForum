@@ -11,7 +11,10 @@ const (
 )
 
 const (
-	CodeRegisterInvalid = "auth.register_invalid"
+	CodeRegisterInvalid    = "auth.register_invalid"
+	CodeSessionUnavailable = "auth.session_unavailable"
+	AuditActionLogin       = "auth.login.success"
+	AuditActionRegister    = "auth.register.success"
 
 	FieldUsername          = "username"
 	FieldEmail             = "email"
@@ -75,4 +78,12 @@ type CurrentUser struct {
 
 type RegistrationStatus struct {
 	NextUserIsInitialSuperAdmin bool `json:"nextUserIsInitialSuperAdmin"`
+}
+
+type LoginAudit struct {
+	UserID      int64
+	Action      string
+	IPAddress   string
+	UserAgent   string
+	SessionHash string
 }

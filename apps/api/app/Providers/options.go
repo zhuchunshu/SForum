@@ -7,6 +7,7 @@ import (
 	optionscontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Options"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 )
 
 type OptionsProvider struct {
@@ -14,6 +15,10 @@ type OptionsProvider struct {
 }
 
 func NewOptionsProvider(store options.Store, users identity.ActorStore, sessions *session.Store) *OptionsProvider {
+	return NewOptionsProviderWithSessions(store, users, authsession.NewManager(sessions, authsession.Config{}))
+}
+
+func NewOptionsProviderWithSessions(store options.Store, users identity.ActorStore, sessions *authsession.Manager) *OptionsProvider {
 	return &OptionsProvider{
 		controller: optionscontroller.NewController(options.NewService(store), users, sessions),
 	}

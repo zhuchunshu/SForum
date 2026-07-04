@@ -10,21 +10,20 @@ Usage: ./scripts/dev.sh [options]
 
 Options:
   --build, --rebuild  Rebuild development images before starting.
-  --watch             Enable Docker Compose Watch explicitly.
-  --worker            Also start the background worker profile.
+  --no-migrate        Start dependency services without running migrations.
   --print-command     Print the resolved Docker Compose command and exit.
   -h, --help          Show this help message.
 
-Default mode reuses existing containers and images. Source changes reload
-through bind mounts, Nuxt/Vite HMR, and Air. The worker is opt-in during early
-development because it currently has no concrete job handlers and otherwise
-duplicates Go hot-reload work.
+Default mode starts only development dependency services: PostgreSQL, Redis,
+Meilisearch, and Mailpit. Run the frontend and backend locally with:
+
+  cd apps/web && bun run dev
+  cd apps/api && air
 USAGE
 }
 
 BUILD_ENABLED=0
-WATCH_ENABLED=0
-WORKER_ENABLED=0
+MIGRATE_ENABLED=1
 PRINT_COMMAND=0
 
 while [ "$#" -gt 0 ]; do
@@ -32,11 +31,13 @@ while [ "$#" -gt 0 ]; do
     --build | --rebuild)
       BUILD_ENABLED=1
       ;;
-    --watch)
-      WATCH_ENABLED=1
+    --no-migrate)
+      MIGRATE_ENABLED=0
       ;;
-    --worker | --with-worker)
-      WORKER_ENABLED=1
+    --watch | --worker | --with-worker)
+      echo "Option $1 is no longer supported by ./scripts/dev.sh."
+      echo "Start frontend/backend locally with 'bun run dev' and 'air'."
+      exit 1
       ;;
     --print-command)
       PRINT_COMMAND=1
@@ -69,148 +70,65 @@ if [ ! -f .env ]; then
   echo "Created .env from .env.example"
 fi
 
-ensure_env_key() {
-  local key="$1"
-  local value="$2"
-
-  if ! grep -q "^${key}=" .env; then
-    printf "\n%s=%s\n" "$key" "$value" >> .env
-  fi
-}
-
-set_env_key() {
-  local key="$1"
-  local value="$2"
-  local tmp_file
-
-  if grep -Fqx "${key}=${value}" .env; then
-    return
-  fi
-
-  tmp_file="$(mktemp)"
-  awk -v key="$key" -v value="$value" '
-    BEGIN { replaced = 0 }
-    $0 ~ "^" key "=" {
-      if (!replaced) {
-        print key "=" value
-        replaced = 1
-      }
-      next
-    }
-    { print }
-    END {
-      if (!replaced) {
-        print key "=" value
-      }
-    }
-  ' .env > "$tmp_file"
-  mv "$tmp_file" .env
-}
-
-replace_env_value() {
-  local key="$1"
-  local old_value="$2"
-  local new_value="$3"
-  local tmp_file
-
-  if grep -q "^${key}=${old_value}$" .env; then
-    tmp_file="$(mktemp)"
-    awk -v key="$key" -v old_value="$old_value" -v new_value="$new_value" '
-      $0 == key "=" old_value {
-        print key "=" new_value
-        next
-      }
-      { print }
-    ' .env > "$tmp_file"
-    mv "$tmp_file" .env
-  fi
-}
-
-ensure_env_key APP_LOCALE zh-CN
-ensure_env_key SUPPORTED_LOCALES zh-CN,en-US
-ensure_env_key APP_URL http://127.0.0.1:3000
-replace_env_value APP_URL http://localhost:3000 http://127.0.0.1:3000
-set_env_key NUXT_PUBLIC_API_BASE_URL /api/v1
-ensure_env_key NUXT_API_INTERNAL_BASE_URL http://api:8080/api/v1
-
 set -a
 . ./.env
 set +a
 
-if [ "$WATCH_ENABLED" -eq 1 ] && ! docker compose up --help | grep -q -- "--watch"; then
-  echo "Docker Compose Watch is not available in this Docker Compose version."
-  exit 1
-fi
-
-enable_compose_profile() {
-  local profile="$1"
-
-  case ",${COMPOSE_PROFILES:-}," in
-    *,"$profile",*)
-      ;;
-    *)
-      export COMPOSE_PROFILES="${COMPOSE_PROFILES:+${COMPOSE_PROFILES},}${profile}"
-      ;;
-  esac
-}
-
-compose_profile_enabled() {
-  local profile="$1"
-
-  case ",${COMPOSE_PROFILES:-}," in
-    *,"$profile",*)
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-if [ "$WORKER_ENABLED" -eq 1 ]; then
-  enable_compose_profile worker
-fi
-
-COMPOSE_ARGS=(-f compose.yaml -f compose.dev.yaml up --remove-orphans)
+COMPOSE_FILES=(-f compose.yaml -f compose.dev.yaml)
+DEPENDENCY_SERVICES=(postgres redis meilisearch mailpit)
+UP_ARGS=("${COMPOSE_FILES[@]}" up --remove-orphans --wait)
 if [ "$BUILD_ENABLED" -eq 1 ]; then
-  COMPOSE_ARGS+=(--build)
+  UP_ARGS+=(--build)
 fi
-if [ "$WATCH_ENABLED" -eq 1 ]; then
-  COMPOSE_ARGS+=(--watch)
-fi
+UP_ARGS+=("${DEPENDENCY_SERVICES[@]}")
 
-echo "Starting SForum development stack..."
+MIGRATE_DATABASE_URL="postgres://${POSTGRES_USER:-sforum}:${POSTGRES_PASSWORD:-sforum}@postgres:5432/${POSTGRES_DB:-sforum}?sslmode=disable"
+MIGRATE_PRINT_DATABASE_URL="postgres://${POSTGRES_USER:-sforum}:***@postgres:5432/${POSTGRES_DB:-sforum}?sslmode=disable"
+MIGRATE_ARGS=("${COMPOSE_FILES[@]}" run --rm --no-deps -e "DATABASE_URL=${MIGRATE_DATABASE_URL}")
+MIGRATE_PRINT_ARGS=("${COMPOSE_FILES[@]}" run --rm --no-deps -e "DATABASE_URL=${MIGRATE_PRINT_DATABASE_URL}")
 if [ "$BUILD_ENABLED" -eq 1 ]; then
-  echo "Mode: rebuild development images before starting"
-elif [ "$WATCH_ENABLED" -eq 1 ]; then
-  echo "Mode: fast start with explicit Docker Compose Watch"
-else
-  echo "Mode: fast start, no forced rebuild, no Compose Watch"
+  MIGRATE_ARGS+=(--build)
+  MIGRATE_PRINT_ARGS+=(--build)
 fi
-if compose_profile_enabled worker; then
-  echo "Worker: enabled"
+MIGRATE_ARGS+=(migrate)
+MIGRATE_PRINT_ARGS+=(migrate)
+
+echo "Starting SForum development dependencies..."
+if [ "$BUILD_ENABLED" -eq 1 ]; then
+  echo "Mode: rebuild migration image when needed"
 else
-  echo "Worker: disabled for faster API reloads; add --worker when testing jobs."
+  echo "Mode: fast dependency start, no forced rebuild"
 fi
-echo "Web: http://127.0.0.1:${WEB_PORT:-3000}"
-echo "Web health: http://127.0.0.1:${WEB_PORT:-3000}/health"
-echo "API health via web: http://127.0.0.1:${WEB_PORT:-3000}/api/v1/health"
-echo "Internal services stay on the Compose network: api, postgres, redis, meilisearch, mailpit"
-echo "Database migrations run before the API starts."
+echo "Postgres: 127.0.0.1:${POSTGRES_PORT:-15432}"
+echo "Redis: 127.0.0.1:${REDIS_PORT:-16379}"
+echo "Meilisearch: http://127.0.0.1:${MEILI_PORT:-17700}"
+echo "Mailpit: http://127.0.0.1:${MAILPIT_UI_PORT:-18025}"
+if [ "$MIGRATE_ENABLED" -eq 1 ]; then
+  echo "Database migrations run after PostgreSQL is healthy."
+else
+  echo "Database migrations skipped by --no-migrate."
+fi
+echo "Then run: cd apps/web && bun run dev"
+echo "Then run: cd apps/api && air"
 echo "Use './scripts/dev.sh --build' after Dockerfile or dependency changes."
 
 if [ "$PRINT_COMMAND" -eq 1 ]; then
-  if [ -n "${COMPOSE_PROFILES:-}" ]; then
-    printf "COMPOSE_PROFILES=%q " "$COMPOSE_PROFILES"
-  fi
   printf "docker compose"
-  printf " %q" "${COMPOSE_ARGS[@]}"
+  printf " %q" "${UP_ARGS[@]}"
   printf "\n"
+  if [ "$MIGRATE_ENABLED" -eq 1 ]; then
+    printf "docker compose"
+    printf " %q" "${MIGRATE_PRINT_ARGS[@]}"
+    printf "\n"
+  fi
   exit 0
 fi
 
-if ! compose_profile_enabled worker; then
-  docker compose -f compose.yaml -f compose.dev.yaml --profile worker stop worker >/dev/null 2>&1 || true
-fi
+# 旧开发流会留下 Compose 管理的前后端容器；先停掉，避免占用本机端口。
+docker compose "${COMPOSE_FILES[@]}" --profile worker stop web api worker >/dev/null 2>&1 || true
 
-docker compose "${COMPOSE_ARGS[@]}"
+docker compose "${UP_ARGS[@]}"
+
+if [ "$MIGRATE_ENABLED" -eq 1 ]; then
+  docker compose "${MIGRATE_ARGS[@]}"
+fi

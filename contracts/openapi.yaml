@@ -69,6 +69,20 @@ paths:
                           - 请先完成人机验证。
         "429":
           $ref: "#/components/responses/TooManyRequests"
+        "503":
+          description: Account was created but the server could not issue the automatic sign-in session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorResponse"
+              examples:
+                sessionUnavailable:
+                  summary: Automatic sign-in session could not be saved
+                  value:
+                    code: 503
+                    message: 账号已创建，但自动登录失败，请直接登录。
+                    data:
+                      reason: auth.session_unavailable
   /human-verification/challenge:
     get:
       summary: Create a human verification challenge
@@ -580,7 +594,6 @@ components:
         - username
         - email
         - password
-        - humanVerification
       properties:
         username:
           type: string
@@ -602,6 +615,7 @@ components:
           type: string
         humanVerification:
           $ref: "#/components/schemas/HumanVerification"
+          description: Required when the deployment enables human verification for registration.
     HumanVerification:
       type: object
       required:

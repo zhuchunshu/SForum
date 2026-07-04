@@ -54,6 +54,17 @@ func (s *PostgresStore) AnyUserExists(ctx context.Context) (bool, error) {
 	return s.queries.AnyUserExists(ctx)
 }
 
+func (s *PostgresStore) FindRegistrationConflicts(ctx context.Context, username string, email string) (RegistrationConflicts, error) {
+	row, err := s.queries.FindRegistrationConflicts(ctx, store.FindRegistrationConflictsParams{
+		Username: username,
+		Email:    email,
+	})
+	if err != nil {
+		return RegistrationConflicts{}, fmt.Errorf("find registration conflicts: %w", err)
+	}
+	return RegistrationConflicts{UsernameTaken: row.UsernameTaken, EmailTaken: row.EmailTaken}, nil
+}
+
 func (s *PostgresStore) GetCurrentUser(ctx context.Context, userID int64) (CurrentUser, error) {
 	row, err := s.queries.GetCurrentUser(ctx, userID)
 	if err != nil {
@@ -198,12 +209,42 @@ func (s *PostgresStore) ReplaceRolePermissions(ctx context.Context, actorUserID 
 	return nil
 }
 
+func (s *PostgresStore) RecordLoginAudit(ctx context.Context, input LoginAudit) error {
+	action := input.Action
+	if action == "" {
+		action = AuditActionLogin
+	}
+
+	metadata := auditMetadata(map[string]any{
+		"ipAddress":   input.IPAddress,
+		"userAgent":   input.UserAgent,
+		"sessionHash": input.SessionHash,
+	})
+	if err := s.queries.CreateAuditEvent(ctx, store.CreateAuditEventParams{
+		ActorUserID:  nullableInt8(input.UserID),
+		TargetUserID: nullableInt8(input.UserID),
+		Action:       action,
+		Metadata:     metadata,
+	}); err != nil {
+		return fmt.Errorf("audit login: %w", err)
+	}
+	return nil
+}
+
 func (s *PostgresStore) loadCurrentUserAccess(ctx context.Context, current *CurrentUser) error {
-	roleKeys, err := s.queries.ListUserRoleKeys(ctx, current.ID)
+	return loadCurrentUserAccess(ctx, s.queries, current)
+}
+
+func (s *postgresTxStore) LoadCurrentUserAccess(ctx context.Context, current *CurrentUser) error {
+	return loadCurrentUserAccess(ctx, s.queries, current)
+}
+
+func loadCurrentUserAccess(ctx context.Context, queries *store.Queries, current *CurrentUser) error {
+	roleKeys, err := queries.ListUserRoleKeys(ctx, current.ID)
 	if err != nil {
 		return fmt.Errorf("list current user roles: %w", err)
 	}
-	permissions, err := s.queries.ListUserPermissions(ctx, current.ID)
+	permissions, err := queries.ListUserPermissions(ctx, current.ID)
 	if err != nil {
 		return fmt.Errorf("list current user permissions: %w", err)
 	}

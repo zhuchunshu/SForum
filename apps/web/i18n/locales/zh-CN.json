@@ -6,7 +6,8 @@
     "register": "注册",
     "userMenu": "用户菜单",
     "admin": "管理后台",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "language": "语言"
   },
   "home": {
     "metaTitle": "{siteName} 社区首页",
@@ -190,6 +191,7 @@
   "errors": {
     "permissionDenied": "你没有权限执行此操作。",
     "registerFailed": "注册失败，请检查填写内容后重试。",
+    "sessionUnavailable": "账号已创建，但自动登录失败，请直接登录。",
     "loginFailed": "登录失败，请检查用户名/邮箱和密码；如果还没有账号，请先注册。",
     "humanVerificationRequired": "请先完成人机验证。",
     "humanVerificationInvalid": "人机验证失败，请重新验证。",

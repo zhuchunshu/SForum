@@ -1,4 +1,4 @@
-# Decision: ALTCHA Default Human Verification
+# Decision: ALTCHA Human Verification Provider
 
 ## Status
 
@@ -17,7 +17,9 @@ services are slow, blocked, or undesirable for privacy reasons.
 
 ## Decision
 
-Use ALTCHA as the default human-verification provider.
+Use ALTCHA as the first supported self-hosted human-verification provider.
+Runtime enforcement is disabled by default and must be enabled explicitly with
+`HUMAN_VERIFICATION_PROVIDER=altcha`.
 
 ALTCHA is used as one layer in a broader anti-automation design:
 
@@ -35,8 +37,10 @@ reCAPTCHA remain possible integrations but are not the default recommendation.
 
 ## Consequences
 
-- SForum can ship a privacy-friendly default that does not require browser or
-  API calls to third-party CAPTCHA services during normal verification.
+- SForum can ship a privacy-friendly, self-hosted verification option that does
+  not require browser or API calls to third-party CAPTCHA services when enabled.
+- Local and new deployments keep registration low-friction until the operator
+  explicitly enables human verification.
 - Redis becomes the short-lived store for challenge replay protection and rate
   limits.
 - Human verification must not be treated as complete bot protection. Forum

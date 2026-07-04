@@ -27,8 +27,20 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	if cfg.RedisPassword != "" {
 		t.Fatalf("expected empty redis password default, got %q", cfg.RedisPassword)
 	}
-	if cfg.HumanVerificationProvider != "altcha" {
-		t.Fatalf("expected altcha provider default, got %q", cfg.HumanVerificationProvider)
+	if cfg.SessionIdleTimeout != 30*24*time.Hour {
+		t.Fatalf("expected session idle timeout 30d, got %s", cfg.SessionIdleTimeout)
+	}
+	if cfg.SessionAbsoluteTimeout != 180*24*time.Hour {
+		t.Fatalf("expected session absolute timeout 180d, got %s", cfg.SessionAbsoluteTimeout)
+	}
+	if cfg.SessionRenewalInterval != 24*time.Hour {
+		t.Fatalf("expected session renewal interval 24h, got %s", cfg.SessionRenewalInterval)
+	}
+	if cfg.SessionHashSecret != "sforum-dev-session-hash-secret" {
+		t.Fatalf("expected development session hash secret default, got %q", cfg.SessionHashSecret)
+	}
+	if cfg.HumanVerificationProvider != "disabled" {
+		t.Fatalf("expected disabled human verification provider default, got %q", cfg.HumanVerificationProvider)
 	}
 	if cfg.AltchaSecret != "sforum-dev-altcha-secret" {
 		t.Fatalf("expected development altcha secret default, got %q", cfg.AltchaSecret)
@@ -71,6 +83,10 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 	t.Setenv("JOB_QUEUE_NOTIFICATIONS_WORKERS", "5")
 	t.Setenv("JOB_QUEUE_MAINTENANCE_WORKERS", "6")
 	t.Setenv("REDIS_PASSWORD", "secret")
+	t.Setenv("SESSION_IDLE_TIMEOUT", "12h")
+	t.Setenv("SESSION_ABSOLUTE_TIMEOUT", "240h")
+	t.Setenv("SESSION_RENEWAL_INTERVAL", "6h")
+	t.Setenv("SESSION_HASH_SECRET", "test-session-hash-secret")
 	t.Setenv("HUMAN_VERIFICATION_PROVIDER", "disabled")
 	t.Setenv("ALTCHA_SECRET", "test-altcha-secret")
 	t.Setenv("ALTCHA_CHALLENGE_TTL", "2m")
@@ -98,6 +114,18 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 	if cfg.RedisPassword != "secret" {
 		t.Fatalf("expected redis password from env, got %q", cfg.RedisPassword)
 	}
+	if cfg.SessionIdleTimeout != 12*time.Hour {
+		t.Fatalf("expected session idle timeout from env, got %s", cfg.SessionIdleTimeout)
+	}
+	if cfg.SessionAbsoluteTimeout != 240*time.Hour {
+		t.Fatalf("expected session absolute timeout from env, got %s", cfg.SessionAbsoluteTimeout)
+	}
+	if cfg.SessionRenewalInterval != 6*time.Hour {
+		t.Fatalf("expected session renewal interval from env, got %s", cfg.SessionRenewalInterval)
+	}
+	if cfg.SessionHashSecret != "test-session-hash-secret" {
+		t.Fatalf("expected session hash secret from env, got %q", cfg.SessionHashSecret)
+	}
 	if cfg.HumanVerificationProvider != "disabled" {
 		t.Fatalf("expected disabled provider from env, got %q", cfg.HumanVerificationProvider)
 	}
@@ -117,6 +145,9 @@ func TestLoadFallsBackForInvalidWorkerConfig(t *testing.T) {
 	t.Setenv("DATABASE_MAX_CONNS", "bad")
 	t.Setenv("WORKER_SHUTDOWN_TIMEOUT", "bad")
 	t.Setenv("JOB_QUEUE_SEARCH_WORKERS", "0")
+	t.Setenv("SESSION_IDLE_TIMEOUT", "bad")
+	t.Setenv("SESSION_ABSOLUTE_TIMEOUT", "0")
+	t.Setenv("SESSION_RENEWAL_INTERVAL", "bad")
 	t.Setenv("ALTCHA_CHALLENGE_TTL", "bad")
 	t.Setenv("ALTCHA_COST", "0")
 
@@ -131,10 +162,34 @@ func TestLoadFallsBackForInvalidWorkerConfig(t *testing.T) {
 	if cfg.JobQueueSearchWorkers != 6 {
 		t.Fatalf("expected non-positive queue workers to fall back, got %d", cfg.JobQueueSearchWorkers)
 	}
+	if cfg.SessionIdleTimeout != 30*24*time.Hour {
+		t.Fatalf("expected invalid session idle timeout to fall back, got %s", cfg.SessionIdleTimeout)
+	}
+	if cfg.SessionAbsoluteTimeout != 180*24*time.Hour {
+		t.Fatalf("expected non-positive session absolute timeout to fall back, got %s", cfg.SessionAbsoluteTimeout)
+	}
+	if cfg.SessionRenewalInterval != 24*time.Hour {
+		t.Fatalf("expected invalid session renewal interval to fall back, got %s", cfg.SessionRenewalInterval)
+	}
 	if cfg.AltchaChallengeTTL != 10*time.Minute {
 		t.Fatalf("expected invalid altcha ttl to fall back, got %s", cfg.AltchaChallengeTTL)
 	}
 	if cfg.AltchaCost != 1000 {
 		t.Fatalf("expected non-positive altcha cost to fall back, got %d", cfg.AltchaCost)
+	}
+}
+
+func TestLoadClampsSessionAbsoluteTimeoutToIdleTimeout(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("SESSION_IDLE_TIMEOUT", "24h")
+	t.Setenv("SESSION_ABSOLUTE_TIMEOUT", "1h")
+
+	cfg := Load()
+
+	if cfg.SessionIdleTimeout != 24*time.Hour {
+		t.Fatalf("expected session idle timeout 24h, got %s", cfg.SessionIdleTimeout)
+	}
+	if cfg.SessionAbsoluteTimeout != cfg.SessionIdleTimeout {
+		t.Fatalf("expected session absolute timeout to clamp to idle timeout, got %s", cfg.SessionAbsoluteTimeout)
 	}
 }
