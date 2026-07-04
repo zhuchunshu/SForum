@@ -52,6 +52,29 @@ if (!registerPage.includes('hideLogo: true')) {
 if (!registerPage.includes('hideFooter: true')) {
   throw new Error('Registration ALTCHA widget should hide the ALTCHA attribution footer');
 }
+if (!registerPage.includes("import type { AltchaWidgetElement } from 'altcha'")) {
+  throw new Error('Registration ALTCHA widget should use the official AltchaWidgetElement type');
+}
+if (!registerPage.includes('const altchaWidget = ref<AltchaWidgetElement | null>(null)')) {
+  throw new Error('Registration ALTCHA widget should keep a typed template ref');
+}
+if (!registerPage.includes('ref="altchaWidget"')) {
+  throw new Error('Registration ALTCHA widget should bind the template ref');
+}
+if (!registerPage.includes('altchaWidget.value?.reset()')) {
+  throw new Error('Registration ALTCHA widget should reset the widget instance, not only the token');
+}
+if (!registerPage.includes('const submittedHumanVerificationToken = humanVerificationToken.value')) {
+  throw new Error('Registration should remember whether a submitted ALTCHA token may have been consumed');
+}
+if (!registerPage.includes("submittedHumanVerificationToken || fieldError('humanVerification')")) {
+  throw new Error('Registration should reset ALTCHA after any failed submission that included a token');
+}
+
+const altchaWidgetTag = registerPage.match(/<altcha-widget[\s\S]*?\/>/)?.[0] || '';
+if (altchaWidgetTag.includes(':key=') || altchaWidgetTag.includes('v-if=')) {
+  throw new Error('Registration ALTCHA widget should reset in place instead of remounting');
+}
 
 for (const [name, content] of [
   ['login.vue', loginPage],

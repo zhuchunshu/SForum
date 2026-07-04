@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AltchaWidgetElement } from 'altcha'
 import type { CurrentUser } from '~/composables/useAuthSession'
 
 definePageMeta({ layout: 'auth' })
@@ -24,6 +25,7 @@ const submitting = ref(false)
 const errorMessage = ref('')
 const fieldErrors = ref<Record<string, string[]>>({})
 const humanVerificationToken = ref('')
+const altchaWidget = ref<AltchaWidgetElement | null>(null)
 // ALTCHA 仅从 configuration JSON 读取 hideLogo/hideFooter，自动刷新时也会沿用。
 const altchaConfiguration = JSON.stringify({
   hideLogo: true,
@@ -60,6 +62,7 @@ function handleAltchaStateChange(event: Event) {
 
 function resetHumanVerification() {
   humanVerificationToken.value = ''
+  altchaWidget.value?.reset()
 }
 
 function fieldError(name: string) {
@@ -96,6 +99,7 @@ async function submitRegister() {
   errorMessage.value = ''
   fieldErrors.value = {}
   submitting.value = true
+  const submittedHumanVerificationToken = humanVerificationToken.value
 
   try {
     await request<CurrentUser>('/auth/register', {
@@ -108,7 +112,7 @@ async function submitRegister() {
         locale: locale.value,
         humanVerification: {
           provider: 'altcha',
-          token: humanVerificationToken.value
+          token: submittedHumanVerificationToken
         }
       }
     })
@@ -116,7 +120,7 @@ async function submitRegister() {
     await navigateTo(can('admin.access') ? adminRoutes.path('/') : localePath('/'))
   } catch (error) {
     fieldErrors.value = apiErrorFields(error)
-    if (fieldError('humanVerification')) {
+    if (submittedHumanVerificationToken || fieldError('humanVerification')) {
       resetHumanVerification()
     }
     errorMessage.value = registerErrorMessage(error)
@@ -282,6 +286,7 @@ async function submitRegister() {
             </label>
             <ClientOnly>
               <altcha-widget
+                ref="altchaWidget"
                 :class="['auth-altcha', fieldError('humanVerification') ? 'auth-altcha--invalid' : '']"
                 :challenge="`${apiBaseUrl}/human-verification/challenge?purpose=register`"
                 :configuration="altchaConfiguration"
