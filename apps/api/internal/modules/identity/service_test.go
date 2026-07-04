@@ -27,6 +27,9 @@ func TestRegisterFirstUserAssignsSuperAdminAndMember(t *testing.T) {
 	if !slices.Contains(first.RoleKeys, RoleMember) {
 		t.Fatalf("expected first user to have member, got %v", first.RoleKeys)
 	}
+	if !slices.Contains(first.Permissions, PermissionAdminAccess) {
+		t.Fatalf("expected first user to have admin access permission, got %v", first.Permissions)
+	}
 	if !first.IsInitialSuperAdmin {
 		t.Fatal("expected first user to be initial super admin")
 	}
@@ -60,6 +63,9 @@ func TestRegisterSecondUserAssignsDefaultMember(t *testing.T) {
 	}
 	if !slices.Contains(second.RoleKeys, RoleMember) {
 		t.Fatalf("expected second user to have member, got %v", second.RoleKeys)
+	}
+	if !slices.Contains(second.Permissions, PermissionTopicCreate) {
+		t.Fatalf("expected second user to have topic create permission, got %v", second.Permissions)
 	}
 	if second.IsInitialSuperAdmin {
 		t.Fatal("expected second user not to be initial super admin")

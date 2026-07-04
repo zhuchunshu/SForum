@@ -90,7 +90,7 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUse
 		return CurrentUser{}, err
 	}
 
-	return current, nil
+	return s.store.GetCurrentUser(ctx, current.ID)
 }
 
 func (s *Service) Login(ctx context.Context, input LoginInput) (CurrentUser, error) {

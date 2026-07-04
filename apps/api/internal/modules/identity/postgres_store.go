@@ -201,6 +201,12 @@ func (s *PostgresStore) loadCurrentUserAccess(ctx context.Context, current *Curr
 	if err != nil {
 		return fmt.Errorf("list current user permissions: %w", err)
 	}
+	if roleKeys == nil {
+		roleKeys = []string{}
+	}
+	if permissions == nil {
+		permissions = []string{}
+	}
 	current.RoleKeys = roleKeys
 	current.Permissions = permissions
 	return nil
