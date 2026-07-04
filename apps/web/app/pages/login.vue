@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CurrentUser } from '~/composables/useAuthSession'
-import { useAdminRoutes } from '~/composables/useAdminRoutes'
+
+definePageMeta({ layout: 'auth' })
 
 const { t } = useI18n()
 const localePath = useLocalePath()

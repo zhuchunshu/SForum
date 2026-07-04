@@ -19,6 +19,7 @@ for (const file of requiredFiles) {
 
 const zh = JSON.parse(fs.readFileSync(path.resolve(root, 'apps/web/i18n/locales/zh-CN.json'), 'utf8'));
 const en = JSON.parse(fs.readFileSync(path.resolve(root, 'apps/web/i18n/locales/en-US.json'), 'utf8'));
+const registerPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/register.vue'), 'utf8');
 
 const requiredKeys = [
   ['auth', 'registerTitle'],
@@ -39,6 +40,16 @@ for (const keyPath of requiredKeys) {
   if (!valueAt(en, keyPath)) {
     throw new Error(`Missing en-US locale key: ${keyPath.join('.')}`);
   }
+}
+
+if (!registerPage.includes(':configuration=')) {
+  throw new Error('Registration ALTCHA widget should pass a configuration object');
+}
+if (!registerPage.includes('hideLogo: true')) {
+  throw new Error('Registration ALTCHA widget should hide the ALTCHA logo icon');
+}
+if (!registerPage.includes('hideFooter: true')) {
+  throw new Error('Registration ALTCHA widget should hide the ALTCHA attribution footer');
 }
 
 console.log('Identity UI validation passed.');

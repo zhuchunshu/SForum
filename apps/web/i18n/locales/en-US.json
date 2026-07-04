@@ -1,4 +1,13 @@
 {
+  "nav": {
+    "mainNav": "Main navigation",
+    "home": "Home",
+    "login": "Log in",
+    "register": "Register",
+    "userMenu": "User menu",
+    "admin": "Admin",
+    "logout": "Log out"
+  },
   "home": {
     "metaTitle": "Forum Foundation",
     "metaDescription": "The first SForum foundation includes Nuxt, Go Fiber, Docker Compose, and Simplified Chinese as the default multilingual baseline.",

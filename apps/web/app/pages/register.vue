@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CurrentUser } from '~/composables/useAuthSession'
-import { useAdminRoutes } from '~/composables/useAdminRoutes'
+
+definePageMeta({ layout: 'auth' })
 
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
@@ -17,6 +18,11 @@ const form = reactive({
 const submitting = ref(false)
 const errorMessage = ref('')
 const humanVerificationToken = ref('')
+// ALTCHA 仅从 configuration JSON 读取 hideLogo/hideFooter，自动刷新时也会沿用。
+const altchaConfiguration = JSON.stringify({
+  hideLogo: true,
+  hideFooter: true
+})
 
 useSeoMeta({
   title: t('auth.registerTitle')
@@ -225,6 +231,7 @@ async function submitRegister() {
               <altcha-widget
                 class="auth-altcha"
                 :challenge="`${apiBaseUrl}/human-verification/challenge?purpose=register`"
+                :configuration="altchaConfiguration"
                 :language="locale === 'zh-CN' ? 'zh-cn' : 'en'"
                 type="checkbox"
                 @verified="handleAltchaVerified"

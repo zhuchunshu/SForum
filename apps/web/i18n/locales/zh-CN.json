@@ -1,4 +1,13 @@
 {
+  "nav": {
+    "mainNav": "主导航",
+    "home": "首页",
+    "login": "登录",
+    "register": "注册",
+    "userMenu": "用户菜单",
+    "admin": "管理后台",
+    "logout": "退出登录"
+  },
   "home": {
     "metaTitle": "论坛基础架构",
     "metaDescription": "SForum 的第一版基础骨架已经包含 Nuxt、Go Fiber、Docker Compose 和默认简体中文多语言支持。",
