@@ -28,6 +28,29 @@ const activeTabLabel = computed(() => {
   return activeTab ? t(activeTab.labelKey) : t('admin.nav.dashboard')
 })
 
+// 监听路由变化，同步更新 activeTabId，解决 KeepAlive 缓存组件切换时 active 状态不更新的问题
+const route = useRoute()
+const resolveTabIdFromPath = (path: string) => {
+  const adminPrefix = adminRoutes.prefix
+  let cleanPath = path
+  const localeMatch = cleanPath.match(/^\/([a-zA-Z]{2}(-[a-zA-Z]{2})?)\//)
+  if (localeMatch) {
+    cleanPath = cleanPath.substring(localeMatch[0].length - 1)
+  }
+  if (cleanPath.startsWith(adminPrefix)) {
+    const childPath = cleanPath.substring(adminPrefix.length)
+    return childPath === '' ? '/' : childPath
+  }
+  return null
+}
+
+watch(() => route.path, (newPath) => {
+  const tabId = resolveTabIdFromPath(newPath)
+  if (tabId) {
+    adminTabs.activeTabId.value = tabId
+  }
+}, { immediate: true })
+
 // 无 Emoji，严格使用 i-lucide-
 // 支持多级折叠嵌套菜单
 const navigationItems = computed(() => [
