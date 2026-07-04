@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAdminTabs } from '~/composables/useAdminTabs'
+
 const localeHead = useLocaleHead({
   dir: true,
   lang: true,
@@ -6,6 +8,9 @@ const localeHead = useLocaleHead({
 })
 const { siteName, refresh } = useWebOptions()
 const startupOptionsTimeout = import.meta.dev ? 800 : 2000
+
+// 引入页签缓存控制列表
+const { cachedTabNames } = useAdminTabs()
 
 await useAsyncData('web-options', async () => {
   // 开发热重载时 API 可能还在编译，首屏先使用本地默认站点配置。
@@ -24,7 +29,7 @@ useHead(() => ({
 <template>
   <UApp>
     <NuxtLayout>
-      <NuxtPage />
+      <NuxtPage :keepalive="{ include: cachedTabNames }" />
     </NuxtLayout>
   </UApp>
 </template>
