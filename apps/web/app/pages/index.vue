@@ -153,6 +153,16 @@ const filteredThreads = computed(() => {
   return result
 })
 
+const ITEMS_PER_PAGE = 3
+const paginatedThreads = computed(() => {
+  const start = (currentPage.value - 1) * ITEMS_PER_PAGE
+  const end = start + ITEMS_PER_PAGE
+  return filteredThreads.value.slice(start, end)
+})
+const totalPages = computed(() => {
+  return Math.ceil(filteredThreads.value.length / ITEMS_PER_PAGE) || 1
+})
+
 // Watch tab selection to trigger mock loading skeleton
 watch(currentTab, (newVal, oldVal, onCleanup) => {
   currentPage.value = 1
@@ -282,7 +292,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
 
             <!-- Thread Items -->
             <template v-else-if="filteredThreads.length > 0">
-              <SFCard v-for="thread in filteredThreads" :key="thread.id" class="p-5 hover:border-[#CAD2DC] transition">
+              <SFCard v-for="thread in paginatedThreads" :key="thread.id" class="p-5 hover:border-[#CAD2DC] transition">
                 <SFFeedRow
                   :title="thread.title"
                   :excerpt="thread.excerpt"
@@ -315,7 +325,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
           <div v-if="filteredThreads.length > 0 && !isPending" class="flex justify-center pt-4">
             <SFPagination
               v-model:page="currentPage"
-              :total-pages="3"
+              :total-pages="totalPages"
             />
           </div>
         </section>
@@ -406,7 +416,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                   <a href="#" class="text-xs text-slate-700 hover:text-[#0F766E] hover:underline font-medium block truncate">
                     {{ topic.title }}
                   </a>
-                  <span class="text-[9px] text-slate-400 font-mono">{{ topic.replies }} 回复</span>
+                  <span class="text-[9px] text-slate-400 font-mono">{{ t('home.sidebar.repliesCount', { count: topic.replies }) }}</span>
                 </div>
               </li>
             </ul>

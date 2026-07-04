@@ -50,6 +50,7 @@
       "checkedInBtn": "Checked In",
       "checkedIn": "Checked in {days} d",
       "hotThreads": "Hot Discussions",
+      "repliesCount": "{count} replies",
       "forumStats": "Community Stats",
       "statThreads": "Total Threads",
       "statReplies": "Total Replies",

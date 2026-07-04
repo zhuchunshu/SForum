@@ -50,6 +50,7 @@
       "checkedInBtn": "已签到",
       "checkedIn": "已连续签到 {days} 天",
       "hotThreads": "热门讨论",
+      "repliesCount": "{count} 回复",
       "forumStats": "全站数据统计",
       "statThreads": "主题总数",
       "statReplies": "累计回复",
