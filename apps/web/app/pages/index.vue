@@ -199,13 +199,13 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
 
 <template>
   <main class="min-h-screen bg-[#F7F8FA] py-8">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <div class="grid grid-cols-12 gap-6">
+    <div class="max-w-[1376px] mx-auto px-4 sm:px-6">
+      <div class="grid grid-cols-1 md:grid-cols-[1fr_290px] lg:grid-cols-[270px_1fr_290px] gap-6">
         
         <!-- ======================================= -->
         <!-- 1. LEFT SIDEBAR: Navigation & Sections  -->
         <!-- ======================================= -->
-        <aside class="hidden lg:block lg:col-span-3 space-y-6">
+        <aside class="hidden lg:block space-y-6">
           <!-- Navigation Links -->
           <SFCard class="p-4">
             <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
@@ -256,7 +256,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
         <!-- ======================================= -->
         <!-- 2. MIDDLE COLUMN: Threads Feed Stream   -->
         <!-- ======================================= -->
-        <section class="col-span-12 md:col-span-9 lg:col-span-6 space-y-4">
+        <section class="space-y-4">
           <!-- Search & Filters -->
           <div class="space-y-3">
             <SFSearch
@@ -333,7 +333,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
         <!-- ======================================= -->
         <!-- 3. RIGHT SIDEBAR: Tools & Statistics     -->
         <!-- ======================================= -->
-        <aside class="hidden md:block md:col-span-3 space-y-6">
+        <aside class="hidden md:block space-y-6">
           <!-- User Status Panel -->
           <SFCard class="p-5 text-center">
             <template v-if="user">
