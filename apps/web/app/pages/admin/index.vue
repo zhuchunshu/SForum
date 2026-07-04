@@ -68,69 +68,75 @@ useSeoMeta({
 </script>
 
 <template>
-  <UDashboardNavbar :title="t('admin.home.title')" icon="i-lucide-layout-dashboard" class="border-b border-[var(--border-admin)] bg-[var(--bg-admin-card)] text-[var(--text-admin-main)]">
-    <template #right>
-      <UButton
-        :to="adminRoutes.path('/roles')"
-        color="neutral"
-        variant="outline"
-        leading-icon="i-lucide-shield-check"
-        class="border-[var(--border-admin)]"
-      >
-        {{ t('admin.home.rolesLink') }}
-      </UButton>
-    </template>
-  </UDashboardNavbar>
+  <!-- 局部标题 -->
+  <div class="mb-4">
+    <h2 class="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-zinc-100">
+      <UIcon name="i-lucide-layout-dashboard" class="size-5 text-teal-600 dark:text-teal-400" />
+      {{ t('admin.home.title') }}
+    </h2>
+  </div>
 
-  <UDashboardToolbar class="border-b border-[var(--border-admin)] bg-[var(--bg-admin-app)] text-[var(--text-admin-muted)]">
+  <!-- 整合原 navbar 按钮的统一 Toolbar -->
+  <UDashboardToolbar class="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg px-4 py-2.5 mb-6 text-slate-500 dark:text-zinc-400">
     <template #left>
-      <div class="flex min-w-0 items-center gap-2 text-sm text-[var(--text-admin-muted)]">
+      <div class="flex min-w-0 items-center gap-2 text-sm text-slate-500 dark:text-zinc-400">
         <UIcon name="i-lucide-lock-keyhole" class="size-4" />
         <span class="truncate">{{ t('admin.home.intro') }}</span>
       </div>
     </template>
     <template #right>
-      <UBadge color="neutral" variant="soft" class="border border-[var(--border-admin)]">
-        {{ adminRoutes.prefix }}
-      </UBadge>
+      <div class="flex items-center gap-3">
+        <UButton
+          :to="adminRoutes.path('/roles')"
+          color="neutral"
+          variant="outline"
+          leading-icon="i-lucide-shield-check"
+          class="border-slate-200 dark:border-zinc-700"
+        >
+          {{ t('admin.home.rolesLink') }}
+        </UButton>
+        <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-mono">
+          {{ adminRoutes.prefix }}
+        </UBadge>
+      </div>
     </template>
   </UDashboardToolbar>
 
-  <div class="flex flex-1 flex-col gap-6 p-4 sm:p-6 bg-[var(--bg-admin-app)]">
+  <div class="flex flex-col gap-6">
     <div class="grid gap-4 lg:grid-cols-3">
-      <UCard v-for="card in overviewCards" :key="card.label" class="border-[var(--border-admin)] bg-[var(--bg-admin-card)] text-[var(--text-admin-main)]">
+      <UCard v-for="card in overviewCards" :key="card.label" class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
-            <p class="text-sm text-[var(--text-admin-muted)]">
+            <p class="text-xs font-medium text-slate-500 dark:text-zinc-400">
               {{ card.label }}
             </p>
-            <p class="mt-2 truncate text-xl font-semibold text-[var(--text-admin-main)]">
+            <p class="mt-2 truncate text-xl font-bold text-slate-900 dark:text-white">
               {{ card.value }}
             </p>
           </div>
-          <span class="grid size-10 shrink-0 place-items-center rounded-md bg-[var(--bg-admin-app)] border border-[var(--border-admin)]">
+          <span class="grid size-10 shrink-0 place-items-center rounded-md bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
             <UIcon :name="card.icon" class="size-5" :class="card.tone" />
           </span>
         </div>
       </UCard>
     </div>
 
-    <UCard class="border-[var(--border-admin)] bg-[var(--bg-admin-card)] text-[var(--text-admin-main)]">
+    <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <div>
-            <h2 class="text-base font-semibold text-[var(--text-admin-main)]">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">
               {{ t('admin.home.nextTitle') }}
             </h2>
-            <p class="mt-1 text-sm text-[var(--text-admin-muted)]">
+            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
               {{ t('admin.home.nextIntro') }}
             </p>
           </div>
-          <UIcon name="i-lucide-list-checks" class="size-5 text-[var(--text-admin-muted)]" />
+          <UIcon name="i-lucide-list-checks" class="size-5 text-slate-400 dark:text-zinc-500" />
         </div>
       </template>
 
-      <div class="divide-y divide-[var(--border-admin)]">
+      <div class="divide-y divide-slate-100 dark:divide-zinc-800">
         <component
           :is="section.to ? 'NuxtLink' : 'div'"
           v-for="section in nextSections"
@@ -138,21 +144,21 @@ useSeoMeta({
           :to="section.to"
           class="flex items-center gap-4 py-4 first:pt-0 last:pb-0"
         >
-          <span class="grid size-10 shrink-0 place-items-center rounded-md bg-[var(--bg-admin-app)] border border-[var(--border-admin)]">
-            <UIcon :name="section.icon" class="size-5 text-[var(--text-admin-muted)]" />
+          <span class="grid size-10 shrink-0 place-items-center rounded-md bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
+            <UIcon :name="section.icon" class="size-5 text-slate-500 dark:text-zinc-400" />
           </span>
           <span class="min-w-0 flex-1">
-            <span class="block font-medium text-[var(--text-admin-main)]">
+            <span class="block font-semibold text-slate-900 dark:text-white text-sm">
               {{ section.title }}
             </span>
-            <span class="mt-1 block text-sm text-[var(--text-admin-muted)]">
+            <span class="mt-1 block text-xs text-slate-500 dark:text-zinc-400">
               {{ section.description }}
             </span>
           </span>
           <UIcon
             v-if="section.to"
             name="i-lucide-arrow-right"
-            class="size-4 shrink-0 text-[var(--text-admin-muted)]"
+            class="size-4 shrink-0 text-slate-400 dark:text-zinc-500"
           />
         </component>
       </div>

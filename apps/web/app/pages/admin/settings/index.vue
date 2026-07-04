@@ -58,31 +58,37 @@ async function submit() {
 </script>
 
 <template>
-  <UDashboardNavbar :title="t('admin.settings.title')" icon="i-lucide-settings-2" class="border-b border-[var(--border-admin)] bg-[var(--bg-admin-card)] text-[var(--text-admin-main)]">
+  <!-- 局部标题 -->
+  <div class="mb-4">
+    <h2 class="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-zinc-100">
+      <UIcon name="i-lucide-settings-2" class="size-5 text-teal-600 dark:text-teal-400" />
+      {{ t('admin.settings.title') }}
+    </h2>
+  </div>
+
+  <!-- 整合刷新按钮的统一 Toolbar -->
+  <UDashboardToolbar class="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg px-4 py-2.5 mb-6 text-slate-500 dark:text-zinc-400">
+    <template #left>
+      <div class="flex min-w-0 items-center gap-2 text-sm text-slate-500 dark:text-zinc-400">
+        <UIcon name="i-lucide-database" class="size-4" />
+        <span class="truncate">{{ t('admin.settings.intro') }}</span>
+      </div>
+    </template>
     <template #right>
       <UButton
         color="neutral"
         variant="outline"
         leading-icon="i-lucide-refresh-cw"
         :loading="pending"
-        class="border-[var(--border-admin)]"
+        class="border-slate-200 dark:border-zinc-700"
         @click="refresh()"
       >
         {{ t('admin.settings.refresh') }}
       </UButton>
     </template>
-  </UDashboardNavbar>
-
-  <UDashboardToolbar class="border-b border-[var(--border-admin)] bg-[var(--bg-admin-app)] text-[var(--text-admin-muted)]">
-    <template #left>
-      <div class="flex min-w-0 items-center gap-2 text-sm text-[var(--text-admin-muted)]">
-        <UIcon name="i-lucide-database" class="size-4" />
-        <span class="truncate">{{ t('admin.settings.intro') }}</span>
-      </div>
-    </template>
   </UDashboardToolbar>
 
-  <div class="flex flex-1 flex-col gap-4 p-4 sm:p-6 bg-[var(--bg-admin-app)]">
+  <div class="flex flex-col gap-4">
     <UAlert
       v-if="error"
       color="error"
@@ -91,18 +97,18 @@ async function submit() {
       :title="t('admin.settings.loadFailed')"
     />
 
-    <UCard class="border-[var(--border-admin)] bg-[var(--bg-admin-card)] text-[var(--text-admin-main)]">
+    <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <div>
-            <h2 class="text-base font-semibold text-[var(--text-admin-main)]">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">
               {{ t('admin.settings.basic.title') }}
             </h2>
-            <p class="mt-1 text-sm text-[var(--text-admin-muted)]">
+            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
               {{ t('admin.settings.basic.description') }}
             </p>
           </div>
-          <UBadge color="neutral" variant="soft" class="border border-[var(--border-admin)]">
+          <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-mono">
             site.name
           </UBadge>
         </div>
@@ -116,14 +122,16 @@ async function submit() {
             :placeholder="t('admin.settings.siteNamePlaceholder')"
             maxlength="80"
             required
+            class="w-full"
           />
         </UFormField>
 
-        <div class="flex justify-end">
+        <div class="flex justify-end mt-2">
           <UButton
             type="submit"
             leading-icon="i-lucide-save"
             :loading="saving"
+            class="bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-medium"
           >
             {{ t('admin.settings.save') }}
           </UButton>

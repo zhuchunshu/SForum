@@ -81,22 +81,16 @@ useSeoMeta({
 </script>
 
 <template>
-  <UDashboardNavbar :title="t('admin.roles.title')" icon="i-lucide-shield-check" class="border-b border-[var(--border-admin)] bg-[var(--bg-admin-card)] text-[var(--text-admin-main)]">
-    <template #right>
-      <UButton
-        color="neutral"
-        variant="outline"
-        leading-icon="i-lucide-refresh-cw"
-        :loading="pending"
-        class="border-[var(--border-admin)]"
-        @click="refresh()"
-      >
-        {{ t('admin.roles.refresh') }}
-      </UButton>
-    </template>
-  </UDashboardNavbar>
+  <!-- 局部标题 -->
+  <div class="mb-4">
+    <h2 class="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-zinc-100">
+      <UIcon name="i-lucide-shield-check" class="size-5 text-teal-600 dark:text-teal-400" />
+      {{ t('admin.roles.title') }}
+    </h2>
+  </div>
 
-  <UDashboardToolbar class="border-b border-[var(--border-admin)] bg-[var(--bg-admin-app)] text-[var(--text-admin-muted)]">
+  <!-- 整合刷新按钮与搜索栏的统一 Toolbar -->
+  <UDashboardToolbar class="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg px-4 py-2.5 mb-6 text-slate-500 dark:text-zinc-400">
     <template #left>
       <UInput
         v-model="search"
@@ -106,13 +100,25 @@ useSeoMeta({
       />
     </template>
     <template #right>
-      <UBadge color="neutral" variant="soft" class="border border-[var(--border-admin)]">
-        {{ t('admin.roles.count', { count: filteredRoles.length }) }}
-      </UBadge>
+      <div class="flex items-center gap-3">
+        <UButton
+          color="neutral"
+          variant="outline"
+          leading-icon="i-lucide-refresh-cw"
+          :loading="pending"
+          class="border-slate-200 dark:border-zinc-700"
+          @click="refresh()"
+        >
+          {{ t('admin.roles.refresh') }}
+        </UButton>
+        <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-medium">
+          {{ t('admin.roles.count', { count: filteredRoles.length }) }}
+        </UBadge>
+      </div>
     </template>
   </UDashboardToolbar>
 
-  <div class="flex flex-1 flex-col gap-4 p-4 sm:p-6 bg-[var(--bg-admin-app)]">
+  <div class="flex flex-col gap-4">
     <UAlert
       v-if="error"
       color="error"
@@ -121,7 +127,7 @@ useSeoMeta({
       :title="t('admin.roles.loadFailed')"
     />
 
-    <UCard v-else class="border-[var(--border-admin)] bg-[var(--bg-admin-card)] text-[var(--text-admin-main)]">
+    <UCard v-else class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
       <UTable
         :data="filteredRoles"
         :columns="columns"
@@ -129,22 +135,22 @@ useSeoMeta({
         :empty="t('admin.roles.empty')"
         :caption="t('admin.roles.caption')"
         sticky
-        class="max-h-[calc(100vh-13rem)]"
+        class="max-h-[calc(100vh-16rem)]"
       >
         <template #key-cell="{ row }">
-          <code class="rounded bg-[var(--bg-admin-app)] border border-[var(--border-admin)] px-2 py-1 text-xs font-medium text-[var(--text-admin-main)]">
+          <code class="rounded bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 px-2 py-1 text-xs font-semibold text-slate-900 dark:text-white">
             {{ row.original.key }}
           </code>
         </template>
 
         <template #alias-cell="{ row }">
-          <span class="font-medium text-[var(--text-admin-main)]">
+          <span class="font-semibold text-slate-900 dark:text-white text-sm">
             {{ row.original.alias }}
           </span>
         </template>
 
         <template #description-cell="{ row }">
-          <span class="text-[var(--text-admin-muted)]">
+          <span class="text-xs text-slate-500 dark:text-zinc-400">
             {{ row.original.description || t('admin.roles.noDescription') }}
           </span>
         </template>
