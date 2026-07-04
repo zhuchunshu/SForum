@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	nethttp "net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,7 +18,9 @@ import (
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	identitycontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Identity"
+	optionscontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Options"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -29,7 +32,8 @@ type apiEnvelope[T any] struct {
 }
 
 type apiErrorData struct {
-	Reason string `json:"reason"`
+	Reason string              `json:"reason"`
+	Fields map[string][]string `json:"fields"`
 }
 
 type healthResponse struct {
@@ -183,6 +187,7 @@ func TestRegisterEndpointRequiresHumanVerification(t *testing.T) {
 	if body.Data.Reason != humanverify.CodeRequired {
 		t.Fatalf("expected required reason, got %q", body.Data.Reason)
 	}
+	assertFieldMessage(t, body.Data.Fields, identity.FieldHumanVerification, "请先完成人机验证。")
 }
 
 func TestRegisterEndpointAcceptsHumanVerificationToken(t *testing.T) {
@@ -227,6 +232,105 @@ func TestRegisterEndpointAcceptsHumanVerificationToken(t *testing.T) {
 	}
 	if body.Data.Locale != "zh-CN" {
 		t.Fatalf("expected zh-CN locale, got %q", body.Data.Locale)
+	}
+}
+
+func TestRegisterEndpointReturnsFieldErrors(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+
+	requestBody := []byte(`{"username":" ","email":"not-an-email","password":"short","displayName":"Admin","locale":"zh-CN"}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("register request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error envelope: %v", err)
+	}
+	if body.Data.Reason != identity.CodeRegisterInvalid {
+		t.Fatalf("expected register invalid reason, got %q", body.Data.Reason)
+	}
+	if body.Message != "注册失败：请按标出的提示修改后再提交。" {
+		t.Fatalf("expected actionable register message, got %q", body.Message)
+	}
+	assertFieldMessage(t, body.Data.Fields, identity.FieldUsername, "请填写用户名。")
+	assertFieldMessage(t, body.Data.Fields, identity.FieldEmail, "邮箱格式不正确，请填写可接收邮件的地址。")
+	assertFieldMessage(t, body.Data.Fields, identity.FieldPassword, "密码至少需要 12 个字符。")
+}
+
+func TestRegisterEndpointReturnsDuplicateFieldErrors(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+
+	registerHTTPUser(t, app, "admin", "admin@example.com")
+
+	requestBody := []byte(`{"username":"ADMIN","email":"ADMIN@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN"}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("register request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error envelope: %v", err)
+	}
+	if body.Data.Reason != identity.CodeRegisterInvalid {
+		t.Fatalf("expected register invalid reason, got %q", body.Data.Reason)
+	}
+	assertFieldMessage(t, body.Data.Fields, identity.FieldUsername, "这个用户名已被使用，请换一个。")
+	assertFieldMessage(t, body.Data.Fields, identity.FieldEmail, "这个邮箱已经注册过，请直接登录或换一个邮箱。")
+}
+
+func TestLoginEndpointReturnsActionableInvalidCredentials(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+
+	registerHTTPUser(t, app, "admin", "admin@example.com")
+
+	requestBody := []byte(`{"login":"admin","password":"wrong password"}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/login", bytes.NewReader(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("login request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error envelope: %v", err)
+	}
+	if body.Data.Reason != "auth.invalid_credentials" {
+		t.Fatalf("expected invalid credentials reason, got %q", body.Data.Reason)
+	}
+	if body.Message != "登录失败：请检查用户名/邮箱和密码；如果还没有账号，请先注册。" {
+		t.Fatalf("expected actionable login message, got %q", body.Message)
 	}
 }
 
@@ -527,6 +631,81 @@ func TestCreateRoleEndpointRejectsMember(t *testing.T) {
 	}
 }
 
+func TestWebOptionsEndpointReturnsPublicOptions(t *testing.T) {
+	cfg := testConfig()
+	optionStore := newHTTPFakeOptionStore()
+	optionsController := optionscontroller.NewController(options.NewService(optionStore), newHTTPFakeStore(), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{optionsController}})
+
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/web-options", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("web options request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body apiEnvelope[[]options.Option]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode web options response: %v", err)
+	}
+	if len(body.Data) != 1 || body.Data[0].Name != options.NameSiteName || body.Data[0].Value != "SForum" {
+		t.Fatalf("unexpected web options response: %#v", body.Data)
+	}
+}
+
+func TestWebOptionsUpdateRequiresAuth(t *testing.T) {
+	cfg := testConfig()
+	optionStore := newHTTPFakeOptionStore()
+	optionsController := optionscontroller.NewController(options.NewService(optionStore), newHTTPFakeStore(), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{optionsController}})
+
+	req := httptest.NewRequest(nethttp.MethodPut, "/api/v1/web-options", bytes.NewReader([]byte(`{"name":"site.name","value":"Example Forum"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("update web option request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestWebOptionsUpdateAllowsSuperAdmin(t *testing.T) {
+	cfg := testConfig()
+	userStore := newHTTPFakeStore()
+	optionStore := newHTTPFakeOptionStore()
+	sessionStore := session.NewStore()
+	identityController := identitycontroller.NewController(identity.NewService(userStore), sessionStore)
+	optionsController := optionscontroller.NewController(options.NewService(optionStore), userStore, sessionStore)
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController, optionsController}})
+	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
+
+	req := httptest.NewRequest(nethttp.MethodPut, "/api/v1/web-options", bytes.NewReader([]byte(`{"name":"site.name","value":"Example Forum"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(adminCookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("update web option request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body apiEnvelope[options.Option]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode web option response: %v", err)
+	}
+	if body.Data.Name != options.NameSiteName || body.Data.Value != "Example Forum" {
+		t.Fatalf("unexpected updated web option: %#v", body.Data)
+	}
+}
+
 func testConfig() config.Config {
 	return config.Config{
 		AppName:          "SForum",
@@ -589,11 +768,20 @@ func assertRegistrationStatus(t *testing.T, app *fiber.App, expected bool) {
 	}
 }
 
+func assertFieldMessage(t *testing.T, fields map[string][]string, field string, expected string) {
+	t.Helper()
+	messages := fields[field]
+	if len(messages) != 1 || messages[0] != expected {
+		t.Fatalf("expected field %s message %q, got %#v", field, expected, messages)
+	}
+}
+
 type httpFakeStore struct {
 	nextUserID  int64
 	nextRoleID  int64
 	users       map[int64]identity.CurrentUser
 	credentials map[int64]string
+	loginIndex  map[string]int64
 	roles       map[string]identity.Role
 	userRoleIDs map[int64][]int64
 }
@@ -604,6 +792,7 @@ func newHTTPFakeStore() *httpFakeStore {
 		nextRoleID:  100,
 		users:       map[int64]identity.CurrentUser{},
 		credentials: map[int64]string{},
+		loginIndex:  map[string]int64{},
 		roles: map[string]identity.Role{
 			identity.RoleSuperAdmin: {ID: 1, Key: identity.RoleSuperAdmin, Alias: "超级管理员", IsEnabled: true},
 			identity.RoleMember:     {ID: 2, Key: identity.RoleMember, Alias: "普通会员", IsDefault: true, IsEnabled: true},
@@ -620,6 +809,13 @@ func (s *httpFakeStore) AnyUserExists(context.Context) (bool, error) {
 	return len(s.users) > 0, nil
 }
 
+func (s *httpFakeStore) FindRegistrationConflicts(_ context.Context, username string, email string) (identity.RegistrationConflicts, error) {
+	return identity.RegistrationConflicts{
+		UsernameTaken: s.loginIndex[strings.ToLower(username)] != 0,
+		EmailTaken:    s.loginIndex[strings.ToLower(email)] != 0,
+	}, nil
+}
+
 func (s *httpFakeStore) CreateUser(_ context.Context, input identity.CreateUserInput) (identity.CurrentUser, error) {
 	user := identity.CurrentUser{
 		ID:                  s.nextUserID,
@@ -631,6 +827,8 @@ func (s *httpFakeStore) CreateUser(_ context.Context, input identity.CreateUserI
 	}
 	s.nextUserID++
 	s.users[user.ID] = user
+	s.loginIndex[strings.ToLower(input.Username)] = user.ID
+	s.loginIndex[strings.ToLower(input.Email)] = user.ID
 	return user, nil
 }
 
@@ -660,8 +858,16 @@ func (s *httpFakeStore) GetCurrentUser(_ context.Context, userID int64) (identit
 	return s.withAccess(user), nil
 }
 
-func (s *httpFakeStore) GetCredentialByLogin(context.Context, string) (identity.CredentialUser, error) {
-	return identity.CredentialUser{}, errors.New("not implemented")
+func (s *httpFakeStore) GetCredentialByLogin(ctx context.Context, login string) (identity.CredentialUser, error) {
+	userID, ok := s.loginIndex[strings.ToLower(login)]
+	if !ok {
+		return identity.CredentialUser{}, errors.New("credential not found")
+	}
+	user, err := s.GetCurrentUser(ctx, userID)
+	if err != nil {
+		return identity.CredentialUser{}, err
+	}
+	return identity.CredentialUser{CurrentUser: user, PasswordHash: s.credentials[userID]}, nil
 }
 
 func (s *httpFakeStore) LoadActor(ctx context.Context, userID int64) (identity.Actor, error) {
@@ -731,6 +937,7 @@ func (s *httpFakeStore) withAccess(user identity.CurrentUser) identity.CurrentUs
 		if role.Key == identity.RoleSuperAdmin {
 			permissions[identity.PermissionAdminAccess] = true
 			permissions[identity.PermissionRoleManage] = true
+			permissions[identity.PermissionSettingsManage] = true
 		}
 	}
 
@@ -755,6 +962,27 @@ type routeProviderFunc func(api fiber.Router)
 
 func (fn routeProviderFunc) RegisterRoutes(api fiber.Router) {
 	fn(api)
+}
+
+type httpFakeOptionStore struct {
+	items map[string]string
+}
+
+func newHTTPFakeOptionStore() *httpFakeOptionStore {
+	return &httpFakeOptionStore{items: map[string]string{options.NameSiteName: "SForum"}}
+}
+
+func (s *httpFakeOptionStore) List(context.Context) ([]options.Option, error) {
+	items := make([]options.Option, 0, len(s.items))
+	for name, value := range s.items {
+		items = append(items, options.Option{Name: name, Value: value})
+	}
+	return items, nil
+}
+
+func (s *httpFakeOptionStore) Upsert(_ context.Context, input options.UpdateInput) (options.Option, error) {
+	s.items[input.Name] = input.Value
+	return options.Option{Name: input.Name, Value: input.Value}, nil
 }
 
 type httpFakeHumanProvider struct {

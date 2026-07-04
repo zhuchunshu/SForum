@@ -6,8 +6,8 @@ target workflow and the current first implementation slice.
 ## Goals
 
 - One command starts the full local development environment.
-- Local development includes PostgreSQL, Redis, Meilisearch, API, worker, and
-  Nuxt web app.
+- Local development includes PostgreSQL, Redis, Meilisearch, API, and Nuxt web
+  app by default, with the worker available through an explicit profile.
 - Frontend and backend code changes reload automatically.
 - Production deployment uses Docker Compose and a high-interaction `deploy.sh`
   script.
@@ -69,21 +69,22 @@ Expected behavior:
   `SUPPORTED_LOCALES=zh-CN,en-US`.
 - Starts all required services with Docker Compose, reusing existing
   development images by default.
-- Runs Goose database migrations automatically before API and worker startup.
+- Runs Goose database migrations automatically before API startup and before
+  worker startup when the worker profile is enabled.
 - Streams combined logs by default.
 - Prints local web URLs, internal service names, and useful follow-up commands.
 
 Recommended default Compose command inside `scripts/dev.sh`:
 
 ```sh
-docker compose -f compose.yaml -f compose.dev.yaml up
+docker compose -f compose.yaml -f compose.dev.yaml up --remove-orphans
 ```
 
 Rebuild development images explicitly after Dockerfile, dependency, or toolchain
 changes:
 
 ```sh
-docker compose -f compose.yaml -f compose.dev.yaml up --build
+docker compose -f compose.yaml -f compose.dev.yaml up --remove-orphans --build
 ```
 
 Enable Compose Watch only when deliberately testing watch rules:
@@ -92,11 +93,18 @@ Enable Compose Watch only when deliberately testing watch rules:
 ./scripts/dev.sh --watch
 ```
 
+Start the background worker when testing jobs:
+
+```sh
+./scripts/dev.sh --worker
+```
+
 ### Development Services
 
 - `web`: Nuxt dev server with Vite HMR.
 - `api`: Fiber API with Go hot reload.
-- `worker`: background worker with Go hot reload.
+- `worker`: optional background worker with Go hot reload, enabled by
+  `./scripts/dev.sh --worker`.
 - `postgres`: PostgreSQL with a named development volume.
 - `redis`: Redis with a named development volume or ephemeral storage.
 - `meilisearch`: Meilisearch with a named development volume.
@@ -108,6 +116,17 @@ Enable Compose Watch only when deliberately testing watch rules:
 - Nuxt uses its built-in Vite HMR.
 - Go services should use `air` in development containers.
 - Source bind mounts feed code changes into containers by default.
+- Development Go containers persist both `/root/.cache/go-build` and
+  `/go/pkg/mod` in named volumes so container recreates do not repeatedly
+  download modules.
+- Air writes temporary hot-reload binaries into named volumes instead of the
+  host bind mount, keeping reloads quieter and reducing Docker Desktop file
+  sharing overhead.
+- The idle worker is opt-in during early development because it otherwise
+  duplicates API rebuild work without consuming real jobs yet.
+- The web service is allowed to start before the API in development. SSR reads
+  startup site options with a short timeout and falls back to local defaults so
+  the site can open while the API is still compiling.
 - Web generated output directories such as `.output`, `.nitro`, coverage, and
   test reports are ignored by Nuxt/Vite watchers and optional Compose Watch.
 - `bun run build` and `bun run typecheck` use separate Nuxt temporary build

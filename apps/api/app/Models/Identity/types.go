@@ -10,6 +10,22 @@ const (
 	UserStatusBanned   UserStatus = "banned"
 )
 
+const (
+	CodeRegisterInvalid = "auth.register_invalid"
+
+	FieldUsername          = "username"
+	FieldEmail             = "email"
+	FieldPassword          = "password"
+	FieldHumanVerification = "humanVerification"
+
+	MessageUsernameRequired = "auth.username_required"
+	MessageEmailRequired    = "auth.email_required"
+	MessageEmailInvalid     = "auth.email_invalid"
+	MessagePasswordMin      = "auth.password_min_length"
+	MessageUsernameTaken    = "auth.username_taken"
+	MessageEmailTaken       = "auth.email_taken"
+)
+
 var (
 	ErrInvalidCredentials        = errors.New("identity: invalid credentials")
 	ErrPermissionDenied          = errors.New("identity: permission denied")
@@ -19,6 +35,20 @@ var (
 	ErrUsernameOrEmailNotUnique  = errors.New("identity: username or email is not unique")
 	ErrPasswordDoesNotMeetPolicy = errors.New("identity: password does not meet policy")
 )
+
+type FieldMessages map[string][]string
+
+type RegisterInvalidError struct {
+	Fields FieldMessages
+}
+
+func (e *RegisterInvalidError) Error() string {
+	return "identity: registration input is invalid"
+}
+
+func NewRegisterInvalid(fields FieldMessages) *RegisterInvalidError {
+	return &RegisterInvalidError{Fields: fields}
+}
 
 type Actor struct {
 	ID          int64

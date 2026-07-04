@@ -9,8 +9,8 @@
     "logout": "退出登录"
   },
   "home": {
-    "metaTitle": "SForum 社区首页",
-    "metaDescription": "SForum 是一个可维护、高性能的极简社区论坛。",
+    "metaTitle": "{siteName} 社区首页",
+    "metaDescription": "{siteName} 是一个可维护、高性能的极简社区论坛。",
     "searchPlaceholder": "搜索帖子标题、内容...",
     "filter": {
       "latest": "最新",
@@ -40,7 +40,7 @@
       "userCard": "个人中心",
       "userPosts": "帖子",
       "userLikes": "获赞",
-      "welcomeTitle": "欢迎来到 SForum",
+      "welcomeTitle": "欢迎来到 {siteName}",
       "welcomeDesc": "这里是一个认真讨论事情的地方。立即加入以和数千名创作者一同分享经验。",
       "loginBtn": "登录账号",
       "registerBtn": "注册新账号",
@@ -91,7 +91,7 @@
     "usernamePlaceholder": "cooluser123",
     "emailPlaceholder": "邮箱地址",
     "displayNamePlaceholder": "小明",
-    "passwordPlaceholder": "至少 8 位",
+    "passwordPlaceholder": "至少 12 个字符",
     "humanVerification": "人机验证",
     "humanVerificationLoading": "正在加载人机验证…",
     "brandHeadlineL1": "一个认真讨论",
@@ -114,6 +114,7 @@
       "dashboard": "仪表盘",
       "roles": "用户组",
       "rolesBadge": "RBAC",
+      "settings": "站点设置",
       "forumHome": "论坛首页"
     },
     "home": {
@@ -168,12 +169,28 @@
       "empty": "还没有可显示的用户组。",
       "loadFailed": "用户组加载失败。",
       "noDescription": "暂无说明"
+    },
+    "settings": {
+      "metaTitle": "站点设置",
+      "title": "站点设置",
+      "intro": "这些运行时设置存储在 web_options 表中，适合自建站点在后台调整。",
+      "refresh": "刷新",
+      "loadFailed": "站点设置加载失败。",
+      "saved": "站点设置已保存。",
+      "saveFailed": "站点设置保存失败。",
+      "save": "保存设置",
+      "siteName": "站点名称",
+      "siteNamePlaceholder": "例如：我的社区",
+      "basic": {
+        "title": "基础信息",
+        "description": "站点名称会用于导航、登录页和浏览器标题。"
+      }
     }
   },
   "errors": {
     "permissionDenied": "你没有权限执行此操作。",
     "registerFailed": "注册失败，请检查填写内容后重试。",
-    "loginFailed": "登录失败，请检查账号和密码。",
+    "loginFailed": "登录失败，请检查用户名/邮箱和密码；如果还没有账号，请先注册。",
     "humanVerificationRequired": "请先完成人机验证。",
     "humanVerificationInvalid": "人机验证失败，请重新验证。",
     "humanVerificationExpired": "人机验证已过期，请重新验证。",

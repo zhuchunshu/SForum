@@ -17,6 +17,10 @@ This is the entry point for project memory.
 - `scripts/dev.sh` now defaults to a faster bind-mount hot-reload loop without
   forced rebuilds or Compose Watch; use `--build` or `--watch` explicitly when
   needed.
+- Development startup now keeps Go module cache, Go build cache, and Air
+  temporary binaries in Docker named volumes. The idle worker is opt-in via
+  `./scripts/dev.sh --worker`, and the web service can render with fallback site
+  options while the API is still compiling.
 - Frontend build/typecheck commands use isolated Nuxt temporary directories and
   generated output is ignored by dev watchers to avoid repeated reloads.
 - Nuxt top-level `ignore` rules are intentionally narrower than Vite watcher
@@ -63,6 +67,10 @@ This is the entry point for project memory.
 - The registration page now reads `/api/v1/auth/registration-status` and, when
   no user exists yet, warns that the first registered user will become the
   super administrator.
+- Login/register error feedback is now user-actionable: login failures keep a
+  single generic `auth.invalid_credentials` reason for safety, while
+  registration validation returns localized `data.fields` messages for
+  username, email, password, and human verification.
 - Backend API code has migrated to a Laravel-style directory shape while
   staying Go-explicit: `cmd/api` is process-focused, `bootstrap` assembles the
   runtime, `app/Http` owns the HTTP kernel, `app/Http/Controllers/*` owns
@@ -81,6 +89,10 @@ This is the entry point for project memory.
   response must include integer `code`, localized `message`, and `data`; `code`
   equals the HTTP status code, and stable machine-readable reasons live under
   `data.reason`.
+- Runtime web options are now introduced through `web_options(name, value)`.
+  `site.name` defaults to `SForum`, is cached in the backend Options service,
+  is readable by the frontend through `useWebOptions().webOption()`, and can be
+  edited from the admin site settings page by users with `settings.manage`.
 
 ## Navigation
 
@@ -95,6 +107,8 @@ This is the entry point for project memory.
   human verification, and policy notes.
 - `modules/backend.md` - backend stack, module boundaries, jobs, and the
   Laravel-style Go/Fiber API directory structure.
+- `modules/options.md` - runtime site options, `web_options` boundaries, API
+  routes, and admin settings notes.
 - `decisions/2026-07-04-laravel-style-http-routing.md` - accepted backend
   composition, route registration, and Laravel-style API directory decision.
 - `decisions/2026-07-04-altcha-human-verification.md` - accepted ALTCHA human

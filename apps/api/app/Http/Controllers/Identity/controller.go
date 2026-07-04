@@ -286,7 +286,10 @@ func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 }
 
 func mapIdentityError(err error) error {
+	var registerErr *identity.RegisterInvalidError
 	switch {
+	case errors.As(err, &registerErr):
+		return apphttp.NewErrorWithFields(fiber.StatusUnprocessableEntity, identity.CodeRegisterInvalid, registerErr.Fields)
 	case errors.Is(err, identity.ErrInvalidCredentials):
 		return fiber.NewError(fiber.StatusUnauthorized, "auth.invalid_credentials")
 	case errors.Is(err, identity.ErrPermissionDenied):
@@ -307,17 +310,23 @@ func mapIdentityError(err error) error {
 func mapHumanVerificationError(err error) error {
 	switch {
 	case errors.Is(err, humanverify.ErrRateLimited):
-		return fiber.NewError(fiber.StatusTooManyRequests, humanverify.CodeRateLimited)
+		return apphttp.NewErrorWithFields(fiber.StatusTooManyRequests, humanverify.CodeRateLimited, mapHumanVerificationField(humanverify.CodeRateLimited))
 	case errors.Is(err, humanverify.ErrRequired):
-		return fiber.NewError(fiber.StatusUnprocessableEntity, humanverify.CodeRequired)
+		return apphttp.NewErrorWithFields(fiber.StatusUnprocessableEntity, humanverify.CodeRequired, mapHumanVerificationField(humanverify.CodeRequired))
 	case errors.Is(err, humanverify.ErrExpired):
-		return fiber.NewError(fiber.StatusUnprocessableEntity, humanverify.CodeExpired)
+		return apphttp.NewErrorWithFields(fiber.StatusUnprocessableEntity, humanverify.CodeExpired, mapHumanVerificationField(humanverify.CodeExpired))
 	case errors.Is(err, humanverify.ErrReplayed):
-		return fiber.NewError(fiber.StatusUnprocessableEntity, humanverify.CodeReplayed)
+		return apphttp.NewErrorWithFields(fiber.StatusUnprocessableEntity, humanverify.CodeReplayed, mapHumanVerificationField(humanverify.CodeReplayed))
 	case errors.Is(err, humanverify.ErrInvalid):
-		return fiber.NewError(fiber.StatusUnprocessableEntity, humanverify.CodeInvalid)
+		return apphttp.NewErrorWithFields(fiber.StatusUnprocessableEntity, humanverify.CodeInvalid, mapHumanVerificationField(humanverify.CodeInvalid))
 	default:
 		return err
+	}
+}
+
+func mapHumanVerificationField(message string) map[string][]string {
+	return map[string][]string{
+		identity.FieldHumanVerification: {message},
 	}
 }
 

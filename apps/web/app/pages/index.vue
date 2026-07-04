@@ -2,12 +2,13 @@
 const { t } = useI18n()
 const localePath = useLocalePath()
 const { user } = useAuthSession()
+const { siteName } = useWebOptions()
 
 useSeoMeta({
-  title: () => t('home.metaTitle'),
-  description: () => t('home.metaDescription'),
-  ogTitle: () => t('home.metaTitle'),
-  ogDescription: () => t('home.metaDescription'),
+  title: () => t('home.metaTitle', { siteName: siteName.value }),
+  description: () => t('home.metaDescription', { siteName: siteName.value }),
+  ogTitle: () => t('home.metaTitle', { siteName: siteName.value }),
+  ogDescription: () => t('home.metaDescription', { siteName: siteName.value }),
   ogType: 'website'
 })
 
@@ -57,7 +58,7 @@ const threads = computed<Thread[]>(() => [
   {
     id: 2,
     title: '关于论坛首页三栏布局设计的建议与吐槽收集帖',
-    excerpt: 'SForum 首页现已采用经典的三栏式门户布局，大家对目前的整体视觉、各个端上的响应式细节、以及组件排列有什么想法？欢迎在此帖畅所欲言，我们的设计师和开发者会每天跟进优化。',
+    excerpt: `${siteName.value} 首页现已采用经典的三栏式门户布局，大家对目前的整体视觉、各个端上的响应式细节、以及组件排列有什么想法？欢迎在此帖畅所欲言，我们的设计师和开发者会每天跟进优化。`,
     category: t('home.sidebar.secNotice'),
     categoryKey: 'notice',
     author: '管理员',
@@ -106,8 +107,8 @@ const threads = computed<Thread[]>(() => [
 ])
 
 // Mock Hot Discussions
-const hotTopics = ref([
-  { id: 1, title: '如何评价 SForum 刚刚发布的松石绿设计风格？', replies: 89 },
+const hotTopics = computed(() => [
+  { id: 1, title: `如何评价 ${siteName.value} 刚刚发布的松石绿设计风格？`, replies: 89 },
   { id: 2, title: '2026 年前端开发在大陆找工作现状探讨', replies: 74 },
   { id: 3, title: 'Go 语言新版本的并发控制特性有哪些升级？', replies: 56 },
   { id: 4, title: '写 Markdown 长文时，你更在乎预览同步还是编辑流顺畅？', replies: 38 },
@@ -360,7 +361,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                 <div class="w-12 h-12 bg-[#E6F4F1] text-[#0F766E] rounded-full flex items-center justify-center text-xl mx-auto">
                   💬
                 </div>
-                <h2 class="font-bold text-slate-800 text-sm">{{ t('home.sidebar.welcomeTitle') }}</h2>
+                <h2 class="font-bold text-slate-800 text-sm">{{ t('home.sidebar.welcomeTitle', { siteName }) }}</h2>
                 <p class="text-xs text-slate-600 leading-relaxed">{{ t('home.sidebar.welcomeDesc') }}</p>
                 <div class="grid grid-cols-2 gap-2 pt-2">
                   <NuxtLink :to="localePath('/login')" class="sf-button sf-button--ghost sf-button--sm block text-center">

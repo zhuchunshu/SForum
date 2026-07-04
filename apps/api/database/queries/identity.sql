@@ -1,6 +1,11 @@
 -- name: AnyUserExists :one
 SELECT EXISTS (SELECT 1 FROM users LIMIT 1)::boolean;
 
+-- name: FindRegistrationConflicts :one
+SELECT
+  EXISTS (SELECT 1 FROM users WHERE username_lower = lower($1))::boolean AS username_taken,
+  EXISTS (SELECT 1 FROM users WHERE email_lower = lower($2))::boolean AS email_taken;
+
 -- name: CreateUser :one
 INSERT INTO users (username, username_lower, email, email_lower, display_name, locale, is_initial_super_admin)
 VALUES ($1, lower($1), $2, lower($2), $3, $4, $5)

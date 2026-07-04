@@ -1,7 +1,9 @@
 <script setup lang="ts">
 const { t } = useI18n()
 const localePath = useLocalePath()
+const adminRoutes = useAdminRoutes()
 const { user, refresh } = useAuthSession()
+const { siteName } = useWebOptions()
 const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
 const router = useRouter()
 
@@ -53,7 +55,7 @@ const avatarLetter = computed(() =>
       <!-- Logo -->
       <NuxtLink :to="localePath('/')" class="navbar__logo">
         <div class="navbar__logo-mark">💬</div>
-        <span class="navbar__logo-text">SForum</span>
+        <span class="navbar__logo-text">{{ siteName }}</span>
       </NuxtLink>
 
       <!-- 主导航（占位，后续扩展版块） -->
@@ -109,7 +111,7 @@ const avatarLetter = computed(() =>
                 </div>
                 <div class="navbar__dropdown-divider" />
                 <NuxtLink
-                  :to="localePath('/admin')"
+                  :to="adminRoutes.path('/')"
                   class="navbar__dropdown-item"
                   role="menuitem"
                   @click="menuOpen = false"

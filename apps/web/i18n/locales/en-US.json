@@ -9,8 +9,8 @@
     "logout": "Log out"
   },
   "home": {
-    "metaTitle": "SForum Community",
-    "metaDescription": "SForum is a maintainable, high-performance minimalist community forum.",
+    "metaTitle": "{siteName} Community",
+    "metaDescription": "{siteName} is a maintainable, high-performance minimalist community forum.",
     "searchPlaceholder": "Search threads, content...",
     "filter": {
       "latest": "Latest",
@@ -40,7 +40,7 @@
       "userCard": "Profile",
       "userPosts": "Posts",
       "userLikes": "Likes",
-      "welcomeTitle": "Welcome to SForum",
+      "welcomeTitle": "Welcome to {siteName}",
       "welcomeDesc": "This is a place to discuss things seriously. Join today and start sharing with thousands of creators.",
       "loginBtn": "Log In",
       "registerBtn": "Register Account",
@@ -91,7 +91,7 @@
     "usernamePlaceholder": "cooluser123",
     "emailPlaceholder": "email address",
     "displayNamePlaceholder": "Jane Doe",
-    "passwordPlaceholder": "At least 8 characters",
+    "passwordPlaceholder": "At least 12 characters",
     "humanVerification": "Human verification",
     "humanVerificationLoading": "Loading human verification...",
     "brandHeadlineL1": "A place for",
@@ -114,6 +114,7 @@
       "dashboard": "Dashboard",
       "roles": "User groups",
       "rolesBadge": "RBAC",
+      "settings": "Site settings",
       "forumHome": "Forum home"
     },
     "home": {
@@ -168,12 +169,28 @@
       "empty": "No user groups to show yet.",
       "loadFailed": "User groups could not be loaded.",
       "noDescription": "No description"
+    },
+    "settings": {
+      "metaTitle": "Site Settings",
+      "title": "Site Settings",
+      "intro": "These runtime settings are stored in the web_options table for self-hosted sites to adjust in the admin area.",
+      "refresh": "Refresh",
+      "loadFailed": "Site settings could not be loaded.",
+      "saved": "Site settings saved.",
+      "saveFailed": "Site settings could not be saved.",
+      "save": "Save settings",
+      "siteName": "Site name",
+      "siteNamePlaceholder": "Example: My Community",
+      "basic": {
+        "title": "Basic information",
+        "description": "The site name is used in navigation, auth pages, and browser titles."
+      }
     }
   },
   "errors": {
     "permissionDenied": "You do not have permission to perform this action.",
     "registerFailed": "Registration failed. Check the form and try again.",
-    "loginFailed": "Login failed. Check your account and password.",
+    "loginFailed": "Login failed. Check your username/email and password, or register first if you do not have an account.",
     "humanVerificationRequired": "Please complete human verification first.",
     "humanVerificationInvalid": "Human verification failed. Please try again.",
     "humanVerificationExpired": "Human verification expired. Please verify again.",

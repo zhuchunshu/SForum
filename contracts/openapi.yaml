@@ -37,7 +37,36 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
         "422":
-          $ref: "#/components/responses/UnprocessableEntity"
+          description: Registration input or human verification is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorResponse"
+              examples:
+                invalidFields:
+                  summary: Registration fields need correction
+                  value:
+                    code: 422
+                    message: 注册失败：请按标出的提示修改后再提交。
+                    data:
+                      reason: auth.register_invalid
+                      fields:
+                        username:
+                          - 请填写用户名。
+                        email:
+                          - 邮箱格式不正确，请填写可接收邮件的地址。
+                        password:
+                          - 密码至少需要 12 个字符。
+                humanVerificationRequired:
+                  summary: Human verification is required
+                  value:
+                    code: 422
+                    message: 请先完成人机验证。
+                    data:
+                      reason: human_verification.required
+                      fields:
+                        humanVerification:
+                          - 请先完成人机验证。
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /human-verification/challenge:
@@ -119,6 +148,59 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseHealth"
+  /web-options:
+    get:
+      summary: List public runtime web options
+      operationId: listWebOptions
+      responses:
+        "200":
+          description: Public runtime options used by the web frontend.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseWebOptionList"
+    put:
+      summary: Update a runtime web option
+      operationId: updateWebOption
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebOptionInput"
+      responses:
+        "200":
+          description: Option updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseWebOption"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /web-options/{name}:
+    get:
+      summary: Get a public runtime web option
+      operationId: getWebOption
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Option name, such as site.name.
+      responses:
+        "200":
+          description: Public runtime option value.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseWebOption"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
   /roles:
     get:
       summary: List roles and user groups
@@ -285,8 +367,10 @@ components:
       properties:
         reason:
           type: string
+          description: Stable machine-readable reason code, such as auth.register_invalid.
         fields:
           type: object
+          description: Localized field-level messages keyed by request field name. Registration uses username, email, password, and humanVerification.
           additionalProperties:
             type: array
             items:
@@ -375,6 +459,28 @@ components:
           type: string
         data:
           $ref: "#/components/schemas/Health"
+    ApiResponseWebOption:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/WebOption"
+    ApiResponseWebOptionList:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebOption"
     Health:
       type: object
       required:
@@ -402,6 +508,30 @@ components:
         time:
           type: string
           format: date-time
+    WebOption:
+      type: object
+      required:
+        - name
+        - value
+      properties:
+        name:
+          type: string
+          examples: [site.name]
+        value:
+          type: string
+    WebOptionInput:
+      type: object
+      required:
+        - name
+        - value
+      properties:
+        name:
+          type: string
+          enum: [site.name]
+        value:
+          type: string
+          minLength: 1
+          maxLength: 80
     CurrentUser:
       type: object
       required:
@@ -454,14 +584,20 @@ components:
       properties:
         username:
           type: string
+          minLength: 1
+          description: Trimmed username. Must not be blank.
         email:
           type: string
           format: email
+          description: Trimmed email address. Must not be blank.
         password:
           type: string
           format: password
+          minLength: 12
+          description: Must contain at least 12 characters.
         displayName:
           type: string
+          description: Optional display name. Blank values default to username.
         locale:
           type: string
         humanVerification:

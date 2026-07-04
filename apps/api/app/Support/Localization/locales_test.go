@@ -32,6 +32,14 @@ func TestMessageReturnsLocalizedAPIMessages(t *testing.T) {
 	if got := Message("en-US", "auth.required"); got != "Please sign in first." {
 		t.Fatalf("expected English auth message, got %q", got)
 	}
+
+	if got := Message("zh-CN", "auth.password_min_length"); got != "密码至少需要 12 个字符。" {
+		t.Fatalf("expected Chinese password message, got %q", got)
+	}
+
+	if got := Message("en-US", "auth.register_invalid"); got != "Registration failed: fix the highlighted fields and submit again." {
+		t.Fatalf("expected English registration message, got %q", got)
+	}
 }
 
 func TestMessageFallsBackToDefaultLocaleAndKey(t *testing.T) {

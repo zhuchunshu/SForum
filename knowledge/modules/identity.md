@@ -26,6 +26,11 @@ Initial identity foundation is implemented.
   `/api/v1/human-verification/challenge?purpose=register` returns an ALTCHA v2
   challenge, and `/api/v1/auth/register` verifies the submitted
   `humanVerification` token before creating the user.
+- Registration validation now returns actionable field-level API errors under
+  `data.fields` for `username`, `email`, `password`, and `humanVerification`.
+  The stable reason for editable registration fields is
+  `auth.register_invalid`; login failures still use one generic
+  `auth.invalid_credentials` reason to avoid account enumeration.
 - Nuxt has login/register pages, an admin route middleware, an admin overview,
   and a first user-group list shell.
 
@@ -79,7 +84,8 @@ Initial identity foundation is implemented.
   the union of enabled role permissions.
 - `apps/api/app/Http/Controllers/Identity/controller.go` maps stable API error
   codes such as `auth.required`, `permission.denied`, and
-  `role.default_role_locked`.
+  `role.default_role_locked`; registration field errors use backend-localized
+  messages in `data.fields`.
 - `apps/api/app/Support/HumanVerify` owns the provider boundary, ALTCHA v2
   challenge/verification adapter, Redis-backed replay/rate-limit store, and
   in-memory test/local store.

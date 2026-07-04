@@ -11,24 +11,30 @@ services:
       SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-zh-CN,en-US}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: ${DATABASE_URL:-postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable}
+      GOMODCACHE: /go/pkg/mod
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
       - ./apps/api:/app
       - go_build_cache:/root/.cache/go-build
+      - go_module_cache:/go/pkg/mod
     restart: "no"
 
   api:
     build:
       target: dev
     command: ["air", "-c", ".air.toml"]
+    environment:
+      GOMODCACHE: /go/pkg/mod
     depends_on:
       migrate:
         condition: service_completed_successfully
     volumes:
       - ./apps/api:/app
       - go_build_cache:/root/.cache/go-build
+      - go_module_cache:/go/pkg/mod
+      - api_air_tmp:/app/tmp
     develop:
       watch:
         - action: sync
@@ -49,15 +55,21 @@ services:
           path: ./apps/api/go.sum
 
   worker:
+    profiles:
+      - worker
     build:
       target: dev
     command: ["air", "-c", ".air.worker.toml"]
+    environment:
+      GOMODCACHE: /go/pkg/mod
     depends_on:
       migrate:
         condition: service_completed_successfully
     volumes:
       - ./apps/api:/app
       - go_build_cache:/root/.cache/go-build
+      - go_module_cache:/go/pkg/mod
+      - worker_air_tmp:/app/tmp
     develop:
       watch:
         - action: sync
@@ -114,4 +126,7 @@ services:
 
 volumes:
   go_build_cache:
+  go_module_cache:
+  api_air_tmp:
+  worker_air_tmp:
   web_node_modules:

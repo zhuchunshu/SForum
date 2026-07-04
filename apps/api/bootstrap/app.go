@@ -13,6 +13,7 @@ import (
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
@@ -57,10 +58,12 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		CookieHTTPOnly: true,
 		CookieSameSite: "Lax",
 	})
-	identityProvider := providers.NewIdentityProviderWithVerifier(identity.NewPostgresStore(pool), sessionStore, humanVerifier)
+	identityStore := identity.NewPostgresStore(pool)
+	identityProvider := providers.NewIdentityProviderWithVerifier(identityStore, sessionStore, humanVerifier)
+	optionsProvider := providers.NewOptionsProvider(options.NewPostgresStore(pool), identityStore, sessionStore)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider},
+		RouteProviders: []httpserver.RouteProvider{identityProvider, optionsProvider},
 	})
 
 	return &API{

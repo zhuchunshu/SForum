@@ -6,6 +6,7 @@ cmd = "go build -o ./tmp/sforum-worker ./cmd/worker"
 bin = "./tmp/sforum-worker"
 include_ext = ["go"]
 exclude_dir = ["tmp", "vendor", "internal/store/sqlc"]
+exclude_regex = ["_test\\.go"]
 delay = 200
 stop_on_error = true
 send_interrupt = true

@@ -16,6 +16,7 @@ type ApiFetchOptions = {
   body?: ApiRequestBody
   credentials?: RequestCredentials
   headers?: Record<string, string>
+  timeout?: number
 }
 
 type ApiErrorEnvelopeLike = {
@@ -52,7 +53,8 @@ export function useApiClient() {
       method: options.method,
       body: options.body,
       credentials: options.credentials ?? 'include',
-      headers: apiHeaders(options.headers)
+      headers: apiHeaders(options.headers),
+      timeout: options.timeout
     })
 
     return envelope.data
@@ -94,4 +96,15 @@ export function apiErrorMessage(error: unknown) {
 export function apiErrorReason(error: unknown) {
   const reason = apiErrorEnvelope(error)?.data?.reason
   return typeof reason === 'string' ? reason : ''
+}
+
+export function apiErrorFields(error: unknown) {
+  const fields = apiErrorEnvelope(error)?.data?.fields
+  if (!fields || typeof fields !== 'object') {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(fields).filter(([, messages]) => Array.isArray(messages))
+  ) as Record<string, string[]>
 }

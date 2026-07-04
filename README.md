@@ -25,8 +25,19 @@ After dependencies are available, start the local stack with:
 ```
 
 The default path favors quick feedback by reusing existing development images
-and relying on bind mounts, Nuxt/Vite HMR, and Air. After Dockerfile or
-dependency changes, rebuild explicitly:
+and relying on bind mounts, Nuxt/Vite HMR, and Air. Go module/build caches and
+Air temporary binaries live in Docker named volumes so container recreates and
+reloads do not repeatedly redownload modules or write hot-reload binaries
+through the host bind mount.
+
+The background worker is disabled by default while it has no concrete job
+handlers. Start it only when testing jobs:
+
+```sh
+./scripts/dev.sh --worker
+```
+
+After Dockerfile or dependency changes, rebuild explicitly:
 
 ```sh
 ./scripts/dev.sh --build

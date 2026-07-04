@@ -12,6 +12,7 @@ const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
 const { apiBaseUrl, request } = useApiClient()
 const { refresh, can } = useAuthSession()
+const { siteName } = useWebOptions()
 
 const form = reactive({
   username: '',
@@ -21,6 +22,7 @@ const form = reactive({
 })
 const submitting = ref(false)
 const errorMessage = ref('')
+const fieldErrors = ref<Record<string, string[]>>({})
 const humanVerificationToken = ref('')
 // ALTCHA 仅从 configuration JSON 读取 hideLogo/hideFooter，自动刷新时也会沿用。
 const altchaConfiguration = JSON.stringify({
@@ -60,6 +62,14 @@ function resetHumanVerification() {
   humanVerificationToken.value = ''
 }
 
+function fieldError(name: string) {
+  return fieldErrors.value[name]?.[0] || ''
+}
+
+function fieldDescription(name: string) {
+  return fieldError(name) ? `${name}-error` : undefined
+}
+
 function registerErrorMessage(error: unknown) {
   const message = apiErrorMessage(error)
   if (message) {
@@ -84,6 +94,7 @@ function registerErrorMessage(error: unknown) {
 
 async function submitRegister() {
   errorMessage.value = ''
+  fieldErrors.value = {}
   submitting.value = true
 
   try {
@@ -104,6 +115,10 @@ async function submitRegister() {
     await refresh()
     await navigateTo(can('admin.access') ? adminRoutes.path('/') : localePath('/'))
   } catch (error) {
+    fieldErrors.value = apiErrorFields(error)
+    if (fieldError('humanVerification')) {
+      resetHumanVerification()
+    }
     errorMessage.value = registerErrorMessage(error)
   } finally {
     submitting.value = false
@@ -118,7 +133,7 @@ async function submitRegister() {
     <div class="auth-left">
       <NuxtLink :to="localePath('/')" class="auth-logo">
         <div class="auth-logo-mark">💬</div>
-        SForum
+        {{ siteName }}
       </NuxtLink>
 
       <div class="auth-left-body">
@@ -145,7 +160,7 @@ async function submitRegister() {
       </div>
 
       <p class="auth-left-footer">
-        © 2026 SForum
+        © 2026 {{ siteName }}
       </p>
     </div>
 
@@ -190,13 +205,18 @@ async function submitRegister() {
             <input
               id="username-input"
               v-model="form.username"
-              class="auth-input"
+              :class="['auth-input', fieldError('username') ? 'auth-input--invalid' : '']"
               type="text"
               name="username"
               :placeholder="t('auth.usernamePlaceholder')"
               autocomplete="username"
               required
+              :aria-invalid="fieldError('username') ? 'true' : undefined"
+              :aria-describedby="fieldDescription('username')"
             />
+            <p v-if="fieldError('username')" id="username-error" class="auth-field-message">
+              {{ fieldError('username') }}
+            </p>
           </div>
 
           <div class="auth-field">
@@ -206,13 +226,18 @@ async function submitRegister() {
             <input
               id="email-input"
               v-model="form.email"
-              class="auth-input"
+              :class="['auth-input', fieldError('email') ? 'auth-input--invalid' : '']"
               type="email"
               name="email"
               :placeholder="t('auth.emailPlaceholder')"
               autocomplete="email"
               required
+              :aria-invalid="fieldError('email') ? 'true' : undefined"
+              :aria-describedby="fieldDescription('email')"
             />
+            <p v-if="fieldError('email')" id="email-error" class="auth-field-message">
+              {{ fieldError('email') }}
+            </p>
           </div>
 
           <div class="auth-field">
@@ -237,26 +262,34 @@ async function submitRegister() {
             <input
               id="reg-password-input"
               v-model="form.password"
-              class="auth-input"
+              :class="['auth-input', fieldError('password') ? 'auth-input--invalid' : '']"
               type="password"
               name="password"
               :placeholder="t('auth.passwordPlaceholder')"
               autocomplete="new-password"
               required
+              :aria-invalid="fieldError('password') ? 'true' : undefined"
+              :aria-describedby="fieldDescription('password')"
             />
+            <p v-if="fieldError('password')" id="password-error" class="auth-field-message">
+              {{ fieldError('password') }}
+            </p>
           </div>
 
           <div class="auth-field">
-            <label class="auth-label">
+            <label id="human-verification-label" class="auth-label">
               {{ t('auth.humanVerification') }}
             </label>
             <ClientOnly>
               <altcha-widget
-                class="auth-altcha"
+                :class="['auth-altcha', fieldError('humanVerification') ? 'auth-altcha--invalid' : '']"
                 :challenge="`${apiBaseUrl}/human-verification/challenge?purpose=register`"
                 :configuration="altchaConfiguration"
                 :language="locale === 'zh-CN' ? 'zh-cn' : 'en'"
                 type="checkbox"
+                :aria-invalid="fieldError('humanVerification') ? 'true' : undefined"
+                :aria-labelledby="'human-verification-label'"
+                :aria-describedby="fieldDescription('humanVerification')"
                 @verified="handleAltchaVerified"
                 @expired="resetHumanVerification"
                 @statechange="handleAltchaStateChange"
@@ -267,6 +300,9 @@ async function submitRegister() {
                 </div>
               </template>
             </ClientOnly>
+            <p v-if="fieldError('humanVerification')" id="humanVerification-error" class="auth-field-message">
+              {{ fieldError('humanVerification') }}
+            </p>
           </div>
 
           <button class="auth-btn" type="submit" :disabled="submitting">
@@ -490,6 +526,23 @@ async function submitRegister() {
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
 }
 
+.auth-input--invalid,
+.auth-input--invalid:hover,
+.auth-input--invalid:focus {
+  border-color: #dc2626;
+}
+
+.auth-input--invalid:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.auth-field-message {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 /* 覆盖 WebKit 自动填充默认底色，保持注册表单白底。 */
 .auth-input:-webkit-autofill,
 .auth-input:-webkit-autofill:hover,
@@ -519,6 +572,10 @@ async function submitRegister() {
   --altcha-color-primary: #0f766e;
   --altcha-color-primary-content: #ffffff;
   --altcha-color-success: #0f766e;
+}
+
+.auth-altcha--invalid {
+  --altcha-border-color: #dc2626;
 }
 
 .auth-altcha-fallback {

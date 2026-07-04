@@ -13,6 +13,9 @@ site config and Nuxt i18n SEO `baseUrl`.
 Generated output directories are ignored by Nuxt/Vite development watchers, and
 `bun run build`/`bun run typecheck` use isolated Nuxt temporary directories so
 they do not disturb the active dev server state.
+During development startup and API hot reloads, the global site-options read
+uses a short timeout and falls back to local defaults so SSR can render the page
+while the API process is still compiling.
 Nuxt top-level ignores stay scoped to app-local generated output so Nuxt UI
 components under `node_modules/@nuxt/ui/dist` are still auto-imported.
 Nuxt UI remote font integration is disabled for now to avoid build-time network
@@ -27,12 +30,18 @@ SF inputs/search and the standalone login/register auth inputs now override
 WebKit browser autofill styling so saved credentials keep the intended white
 input surface, dark text, caret color, and focus ring instead of the default
 browser fill background.
+The registration page reads backend `data.fields` errors and shows field-level
+messages next to username, email, password, and human verification while keeping
+login failures as a single actionable top-level message.
 Admin pages use a dedicated `admin` Nuxt layout built from Nuxt UI Dashboard
 components (`UDashboardGroup`, `UDashboardSidebar`, `UDashboardPanel`,
 `UDashboardNavbar`, `UDashboardToolbar`) and Nuxt Icon lucide icons. The source
 directory remains `apps/web/app/pages/admin`, while Nuxt `pages:extend`
 rewrites the public URL prefix to `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`, with
 `/control-panel` as the default.
+Runtime site options are read through `useWebOptions()`. `site.name` now drives
+the navbar, auth pages, admin shell, and browser title template, with `SForum`
+as the fallback product name.
 
 ## Planned Stack
 
@@ -69,5 +78,7 @@ rewrites the public URL prefix to `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`, with
 - Add page skeletons for home, category list, topic detail, login, and profile.
 - Add protected admin pages under the configurable control-panel shell for user
   management, moderation, audit, and site settings.
+- Expand `useWebOptions()` only for settings that are safe for public frontend
+  reads; keep secrets and infrastructure config in environment variables.
 - Add SEO metadata conventions before real pages proliferate.
 - Start replacing static forum page sketches with the reusable `SF*` components.

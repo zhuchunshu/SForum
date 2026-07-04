@@ -87,3 +87,13 @@ changes, and `./scripts/dev.sh --watch` when deliberately testing Compose Watch
 rules. Frontend build/typecheck commands should use separate Nuxt temporary
 directories, and generated output directories should be ignored by development
 watchers so one-off commands do not trigger repeated reloads.
+
+## Update 2026-07-05 Dev Startup Speed
+
+During early development, `cmd/worker` is an idle runtime without concrete job
+handlers, so the default development script should not start it. Use
+`./scripts/dev.sh --worker` when testing jobs. Development Compose persists Go
+module cache, Go build cache, and Air temporary binaries in named volumes to
+avoid repeated dependency downloads and slow host-bind writes. In development,
+the web service may start before the API and SSR should use short startup
+timeouts with local defaults for non-critical site options.

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"log/slog"
 
 	"github.com/gofiber/fiber/v3"
@@ -10,6 +11,11 @@ func errorHandler(logger *slog.Logger) fiber.ErrorHandler {
 	return func(c fiber.Ctx, err error) error {
 		status := fiber.StatusInternalServerError
 		reason := "internal_error"
+		var apiErr *APIError
+
+		if errors.As(err, &apiErr) {
+			return ErrorResponseWithFields(c, apiErr.Status, apiErr.Reason, LocalizeFields(c, apiErr.Fields))
+		}
 
 		if fiberErr, ok := err.(*fiber.Error); ok {
 			status = fiberErr.Code

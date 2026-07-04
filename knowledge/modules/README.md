@@ -10,6 +10,7 @@ Current planned modules:
 - `identity.md`
 - `jobs.md`
 - `localization.md`
+- `options.md`
 - `search.md`
 
 Possible future modules:

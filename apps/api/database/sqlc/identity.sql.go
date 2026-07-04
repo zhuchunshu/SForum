@@ -38,6 +38,29 @@ func (q *Queries) AnyUserExists(ctx context.Context) (bool, error) {
 	return column_1, err
 }
 
+const findRegistrationConflicts = `-- name: FindRegistrationConflicts :one
+SELECT
+  EXISTS (SELECT 1 FROM users WHERE username_lower = lower($1))::boolean AS username_taken,
+  EXISTS (SELECT 1 FROM users WHERE email_lower = lower($2))::boolean AS email_taken
+`
+
+type FindRegistrationConflictsParams struct {
+	Username string
+	Email    string
+}
+
+type FindRegistrationConflictsRow struct {
+	UsernameTaken bool
+	EmailTaken    bool
+}
+
+func (q *Queries) FindRegistrationConflicts(ctx context.Context, arg FindRegistrationConflictsParams) (FindRegistrationConflictsRow, error) {
+	row := q.db.QueryRow(ctx, findRegistrationConflicts, arg.Username, arg.Email)
+	var i FindRegistrationConflictsRow
+	err := row.Scan(&i.UsernameTaken, &i.EmailTaken)
+	return i, err
+}
+
 const assignRoleToUser = `-- name: AssignRoleToUser :exec
 INSERT INTO user_roles (user_id, role_id)
 VALUES ($1, $2)

@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+	"net/mail"
 	"strings"
 )
 
@@ -36,11 +37,6 @@ func (s *Service) RegistrationStatus(ctx context.Context) (RegistrationStatus, e
 }
 
 func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUser, error) {
-	passwordHash, err := HashPassword(input.Password)
-	if err != nil {
-		return CurrentUser{}, err
-	}
-
 	username := strings.TrimSpace(input.Username)
 	email := strings.TrimSpace(input.Email)
 	displayName := strings.TrimSpace(input.DisplayName)
@@ -52,11 +48,29 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUse
 		locale = "zh-CN"
 	}
 
+	fields := validateRegisterInput(username, email, input.Password)
+	if len(fields) > 0 {
+		return CurrentUser{}, NewRegisterInvalid(fields)
+	}
+
+	passwordHash, err := HashPassword(input.Password)
+	if err != nil {
+		return CurrentUser{}, err
+	}
+
 	var current CurrentUser
 	err = s.store.WithBootstrapTx(ctx, func(ctx context.Context, tx TxStore) error {
 		hasAnyUser, err := tx.AnyUserExists(ctx)
 		if err != nil {
 			return err
+		}
+		conflicts, err := tx.FindRegistrationConflicts(ctx, username, email)
+		if err != nil {
+			return err
+		}
+		conflictFields := registrationConflictFields(conflicts)
+		if len(conflictFields) > 0 {
+			return NewRegisterInvalid(conflictFields)
 		}
 
 		current, err = tx.CreateUser(ctx, CreateUserInput{
@@ -100,6 +114,42 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUse
 	}
 
 	return s.store.GetCurrentUser(ctx, current.ID)
+}
+
+func validateRegisterInput(username string, email string, password string) FieldMessages {
+	fields := FieldMessages{}
+	if username == "" {
+		addFieldMessage(fields, FieldUsername, MessageUsernameRequired)
+	}
+	if email == "" {
+		addFieldMessage(fields, FieldEmail, MessageEmailRequired)
+	} else if !isValidEmail(email) {
+		addFieldMessage(fields, FieldEmail, MessageEmailInvalid)
+	}
+	if len([]rune(password)) < 12 {
+		addFieldMessage(fields, FieldPassword, MessagePasswordMin)
+	}
+	return fields
+}
+
+func isValidEmail(email string) bool {
+	parsed, err := mail.ParseAddress(email)
+	return err == nil && parsed.Address == email
+}
+
+func registrationConflictFields(conflicts RegistrationConflicts) FieldMessages {
+	fields := FieldMessages{}
+	if conflicts.UsernameTaken {
+		addFieldMessage(fields, FieldUsername, MessageUsernameTaken)
+	}
+	if conflicts.EmailTaken {
+		addFieldMessage(fields, FieldEmail, MessageEmailTaken)
+	}
+	return fields
+}
+
+func addFieldMessage(fields FieldMessages, field string, message string) {
+	fields[field] = append(fields[field], message)
 }
 
 func (s *Service) Login(ctx context.Context, input LoginInput) (CurrentUser, error) {

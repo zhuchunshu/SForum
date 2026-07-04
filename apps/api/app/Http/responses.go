@@ -19,6 +19,16 @@ type ErrorData struct {
 	Fields map[string][]string `json:"fields,omitempty"`
 }
 
+type APIError struct {
+	Status int
+	Reason string
+	Fields map[string][]string
+}
+
+func (e *APIError) Error() string {
+	return e.Reason
+}
+
 func JSON(c fiber.Ctx, status int, messageKey string, data any) error {
 	return c.Status(status).JSON(Response{
 		Code:    status,
@@ -39,6 +49,34 @@ func NoData(c fiber.Ctx) error {
 	return JSON(c, fiber.StatusOK, MessageOK, nil)
 }
 
+func NewError(status int, reason string) *APIError {
+	return &APIError{Status: status, Reason: reason}
+}
+
+func NewErrorWithFields(status int, reason string, fields map[string][]string) *APIError {
+	return &APIError{Status: status, Reason: reason, Fields: fields}
+}
+
+func LocalizeFields(c fiber.Ctx, fields map[string][]string) map[string][]string {
+	if len(fields) == 0 {
+		return nil
+	}
+
+	localized := make(map[string][]string, len(fields))
+	for field, keys := range fields {
+		messages := make([]string, 0, len(keys))
+		for _, key := range keys {
+			messages = append(messages, localization.Message(Locale(c), key))
+		}
+		localized[field] = messages
+	}
+	return localized
+}
+
 func ErrorResponse(c fiber.Ctx, status int, reason string) error {
 	return JSON(c, status, reason, ErrorData{Reason: reason})
+}
+
+func ErrorResponseWithFields(c fiber.Ctx, status int, reason string, fields map[string][]string) error {
+	return JSON(c, status, reason, ErrorData{Reason: reason, Fields: fields})
 }

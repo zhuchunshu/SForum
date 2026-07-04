@@ -46,6 +46,9 @@ owns domain logic.
   localized templates, and translation key conventions.
 - `humanverify`: shared provider boundary for ALTCHA challenge generation,
   server-side verification, stable result codes, and later provider swaps.
+- `options`: runtime site-facing settings stored in `web_options`, with typed
+  service validation, short-lived backend cache, public read endpoints, and
+  permission-protected admin updates.
 - `notifications`: deferred unless MVP requires it.
 
 ## HTTP Bootstrap And Routing

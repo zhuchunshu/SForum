@@ -30,6 +30,9 @@ Implemented so far:
   in idle mode. This avoids passing an empty worker bundle to River, which
   rejects startup with `at least one Worker must be added to the Workers
   bundle`.
+- In the development Compose stack, the idle worker is opt-in via
+  `./scripts/dev.sh --worker` so normal API reloads do not duplicate Go rebuild
+  work before real job handlers are wired.
 
 ## Planned Stack
 

@@ -3,11 +3,11 @@ package identity
 import "context"
 
 type Store interface {
+	ActorStore
 	WithBootstrapTx(ctx context.Context, fn func(context.Context, TxStore) error) error
 	AnyUserExists(ctx context.Context) (bool, error)
 	GetCurrentUser(ctx context.Context, userID int64) (CurrentUser, error)
 	GetCredentialByLogin(ctx context.Context, login string) (CredentialUser, error)
-	LoadActor(ctx context.Context, userID int64) (Actor, error)
 	ListRoles(ctx context.Context) ([]Role, error)
 	CreateRole(ctx context.Context, input RoleInput) (Role, error)
 	UpdateRole(ctx context.Context, roleKey string, input RoleInput) (Role, error)
@@ -15,8 +15,13 @@ type Store interface {
 	ReplaceRolePermissions(ctx context.Context, actorUserID int64, roleKey string, permissions []string) error
 }
 
+type ActorStore interface {
+	LoadActor(ctx context.Context, userID int64) (Actor, error)
+}
+
 type TxStore interface {
 	AnyUserExists(ctx context.Context) (bool, error)
+	FindRegistrationConflicts(ctx context.Context, username string, email string) (RegistrationConflicts, error)
 	CreateUser(ctx context.Context, input CreateUserInput) (CurrentUser, error)
 	CreateCredential(ctx context.Context, userID int64, passwordHash string) error
 	GetDefaultRole(ctx context.Context) (Role, error)
@@ -30,6 +35,11 @@ type CreateUserInput struct {
 	DisplayName         string
 	Locale              string
 	IsInitialSuperAdmin bool
+}
+
+type RegistrationConflicts struct {
+	UsernameTaken bool
+	EmailTaken    bool
 }
 
 type CredentialUser struct {

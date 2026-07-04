@@ -8,6 +8,7 @@ const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
 const { request } = useApiClient()
 const { refresh, can } = useAuthSession()
+const { siteName } = useWebOptions()
 
 const form = reactive({
   login: '',
@@ -49,7 +50,7 @@ async function submitLogin() {
     <div class="auth-left">
       <NuxtLink :to="localePath('/')" class="auth-logo">
         <div class="auth-logo-mark">💬</div>
-        SForum
+        {{ siteName }}
       </NuxtLink>
 
       <div class="auth-left-body">
@@ -76,7 +77,7 @@ async function submitLogin() {
       </div>
 
       <p class="auth-left-footer">
-        © 2026 SForum
+        © 2026 {{ siteName }}
       </p>
     </div>
 

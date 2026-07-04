@@ -45,7 +45,8 @@ const nextSections = computed(() => [
   {
     title: t('admin.home.next.settings.title'),
     description: t('admin.home.next.settings.description'),
-    icon: 'i-lucide-settings-2'
+    icon: 'i-lucide-settings-2',
+    to: adminRoutes.path('/settings')
   }
 ])
 

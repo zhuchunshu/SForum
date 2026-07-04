@@ -3,9 +3,11 @@ package identity
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -220,6 +222,17 @@ func (s *postgresTxStore) AnyUserExists(ctx context.Context) (bool, error) {
 	return s.queries.AnyUserExists(ctx)
 }
 
+func (s *postgresTxStore) FindRegistrationConflicts(ctx context.Context, username string, email string) (RegistrationConflicts, error) {
+	row, err := s.queries.FindRegistrationConflicts(ctx, store.FindRegistrationConflictsParams{
+		Username: username,
+		Email:    email,
+	})
+	if err != nil {
+		return RegistrationConflicts{}, fmt.Errorf("find registration conflicts: %w", err)
+	}
+	return RegistrationConflicts{UsernameTaken: row.UsernameTaken, EmailTaken: row.EmailTaken}, nil
+}
+
 func (s *postgresTxStore) CreateUser(ctx context.Context, input CreateUserInput) (CurrentUser, error) {
 	row, err := s.queries.CreateUser(ctx, store.CreateUserParams{
 		Username:            input.Username,
@@ -229,6 +242,9 @@ func (s *postgresTxStore) CreateUser(ctx context.Context, input CreateUserInput)
 		IsInitialSuperAdmin: input.IsInitialSuperAdmin,
 	})
 	if err != nil {
+		if fields := uniqueRegistrationFields(err); len(fields) > 0 {
+			return CurrentUser{}, NewRegisterInvalid(fields)
+		}
 		return CurrentUser{}, fmt.Errorf("create user: %w", err)
 	}
 	return CurrentUser{
@@ -303,4 +319,22 @@ func mapRole(id int64, key, alias, description string, isSystem, isDefault, isDe
 		IsDeletable: isDeletable,
 		IsEnabled:   isEnabled,
 	}
+}
+
+func uniqueRegistrationFields(err error) FieldMessages {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
+		return nil
+	}
+
+	fields := FieldMessages{}
+	switch pgErr.ConstraintName {
+	case "users_username_lower_key":
+		addFieldMessage(fields, FieldUsername, MessageUsernameTaken)
+	case "users_email_lower_key":
+		addFieldMessage(fields, FieldEmail, MessageEmailTaken)
+	default:
+		return nil
+	}
+	return fields
 }

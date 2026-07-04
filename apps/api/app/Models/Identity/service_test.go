@@ -3,7 +3,9 @@ package identity
 import (
 	"context"
 	"errors"
+	"reflect"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -102,6 +104,118 @@ func TestRegistrationStatusTracksBootstrapUser(t *testing.T) {
 	}
 }
 
+func TestRegisterRejectsInvalidFields(t *testing.T) {
+	service, _ := newTestService(t)
+
+	_, err := service.Register(testContext(t), RegisterInput{
+		Username: " ",
+		Email:    "not-an-email",
+		Password: "short",
+	})
+	fields := registerInvalidFields(t, err)
+	expected := FieldMessages{
+		FieldUsername: {MessageUsernameRequired},
+		FieldEmail:    {MessageEmailInvalid},
+		FieldPassword: {MessagePasswordMin},
+	}
+	if !reflect.DeepEqual(fields, expected) {
+		t.Fatalf("expected fields %#v, got %#v", expected, fields)
+	}
+}
+
+func TestRegisterRejectsMissingEmail(t *testing.T) {
+	service, _ := newTestService(t)
+
+	_, err := service.Register(testContext(t), RegisterInput{
+		Username: "admin",
+		Email:    " ",
+		Password: "correct horse battery staple",
+	})
+	fields := registerInvalidFields(t, err)
+	expected := FieldMessages{FieldEmail: {MessageEmailRequired}}
+	if !reflect.DeepEqual(fields, expected) {
+		t.Fatalf("expected fields %#v, got %#v", expected, fields)
+	}
+}
+
+func TestRegisterRejectsDuplicateUsernameAndEmail(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+
+	_, err := service.Register(ctx, RegisterInput{
+		Username: "admin",
+		Email:    "admin@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("first Register returned error: %v", err)
+	}
+
+	_, err = service.Register(ctx, RegisterInput{
+		Username: " admin ",
+		Email:    "ADMIN@example.com",
+		Password: "correct horse battery staple",
+	})
+	fields := registerInvalidFields(t, err)
+	expected := FieldMessages{
+		FieldUsername: {MessageUsernameTaken},
+		FieldEmail:    {MessageEmailTaken},
+	}
+	if !reflect.DeepEqual(fields, expected) {
+		t.Fatalf("expected fields %#v, got %#v", expected, fields)
+	}
+}
+
+func TestRegisterRejectsDuplicateUsername(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+
+	_, err := service.Register(ctx, RegisterInput{
+		Username: "admin",
+		Email:    "admin@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("first Register returned error: %v", err)
+	}
+
+	_, err = service.Register(ctx, RegisterInput{
+		Username: "ADMIN",
+		Email:    "new@example.com",
+		Password: "correct horse battery staple",
+	})
+	fields := registerInvalidFields(t, err)
+	expected := FieldMessages{FieldUsername: {MessageUsernameTaken}}
+	if !reflect.DeepEqual(fields, expected) {
+		t.Fatalf("expected fields %#v, got %#v", expected, fields)
+	}
+}
+
+func TestRegisterRejectsDuplicateEmail(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+
+	_, err := service.Register(ctx, RegisterInput{
+		Username: "admin",
+		Email:    "admin@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("first Register returned error: %v", err)
+	}
+
+	_, err = service.Register(ctx, RegisterInput{
+		Username: "member",
+		Email:    "ADMIN@example.com",
+		Password: "correct horse battery staple",
+	})
+	fields := registerInvalidFields(t, err)
+	expected := FieldMessages{FieldEmail: {MessageEmailTaken}}
+	if !reflect.DeepEqual(fields, expected) {
+		t.Fatalf("expected fields %#v, got %#v", expected, fields)
+	}
+}
+
 func TestLoginRejectsWrongPassword(t *testing.T) {
 	service, _ := newTestService(t)
 	ctx := testContext(t)
@@ -122,6 +236,15 @@ func TestLoginRejectsWrongPassword(t *testing.T) {
 	if !errors.Is(err, ErrInvalidCredentials) {
 		t.Fatalf("expected invalid credentials, got %v", err)
 	}
+}
+
+func registerInvalidFields(t *testing.T, err error) FieldMessages {
+	t.Helper()
+	var registerErr *RegisterInvalidError
+	if !errors.As(err, &registerErr) {
+		t.Fatalf("expected register invalid error, got %v", err)
+	}
+	return registerErr.Fields
 }
 
 func newTestService(t *testing.T) (*Service, *fakeStore) {
@@ -179,6 +302,13 @@ func (s *fakeStore) AnyUserExists(context.Context) (bool, error) {
 	return len(s.users) > 0, nil
 }
 
+func (s *fakeStore) FindRegistrationConflicts(_ context.Context, username string, email string) (RegistrationConflicts, error) {
+	return RegistrationConflicts{
+		UsernameTaken: s.loginIndex[strings.ToLower(username)] != 0,
+		EmailTaken:    s.loginIndex[strings.ToLower(email)] != 0,
+	}, nil
+}
+
 func (s *fakeStore) CreateUser(_ context.Context, input CreateUserInput) (CurrentUser, error) {
 	user := CurrentUser{
 		ID:                  s.nextUserID,
@@ -190,8 +320,8 @@ func (s *fakeStore) CreateUser(_ context.Context, input CreateUserInput) (Curren
 	}
 	s.nextUserID++
 	s.users[user.ID] = user
-	s.loginIndex[input.Username] = user.ID
-	s.loginIndex[input.Email] = user.ID
+	s.loginIndex[strings.ToLower(input.Username)] = user.ID
+	s.loginIndex[strings.ToLower(input.Email)] = user.ID
 	return user, nil
 }
 
@@ -226,7 +356,7 @@ func (s *fakeStore) GetCurrentUser(_ context.Context, userID int64) (CurrentUser
 }
 
 func (s *fakeStore) GetCredentialByLogin(_ context.Context, login string) (CredentialUser, error) {
-	userID, ok := s.loginIndex[login]
+	userID, ok := s.loginIndex[strings.ToLower(login)]
 	if !ok {
 		return CredentialUser{}, errors.New("credential not found")
 	}

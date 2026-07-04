@@ -7,6 +7,7 @@ const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
 const { user } = useAuthSession()
 const { request } = useApiClient()
+const { siteName } = useWebOptions()
 
 const displayName = computed(() => {
   return user.value?.displayName || user.value?.username || t('admin.shell.unknownUser')
@@ -28,6 +29,11 @@ const navigationItems = computed(() => [
       icon: 'i-lucide-shield-check',
       to: adminRoutes.path('/roles'),
       badge: t('admin.nav.rolesBadge')
+    },
+    {
+      label: t('admin.nav.settings'),
+      icon: 'i-lucide-settings-2',
+      to: adminRoutes.path('/settings')
     }
   ],
   [
@@ -90,14 +96,14 @@ async function signOut() {
         <NuxtLink
           :to="adminRoutes.path('/')"
           class="flex h-12 min-w-0 items-center gap-3 rounded-md px-2 text-highlighted hover:bg-elevated"
-          :aria-label="t('admin.shell.brand')"
+          :aria-label="siteName"
         >
           <span class="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-inverted">
             <UIcon name="i-lucide-message-square-text" class="size-4" />
           </span>
           <span v-if="!collapsed" class="min-w-0">
             <span class="block truncate text-sm font-semibold">
-              {{ t('admin.shell.brand') }}
+              {{ siteName }}
             </span>
             <span class="block truncate text-xs text-muted">
               {{ t('admin.shell.section') }}

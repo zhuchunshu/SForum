@@ -31,6 +31,9 @@ services:
     build:
       target: prod
     restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
     environment:
       APP_NAME: ${APP_NAME:-SForum}
       APP_ENV: ${APP_ENV:-production}
