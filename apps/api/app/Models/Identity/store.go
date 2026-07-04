@@ -4,6 +4,7 @@ import "context"
 
 type Store interface {
 	WithBootstrapTx(ctx context.Context, fn func(context.Context, TxStore) error) error
+	AnyUserExists(ctx context.Context) (bool, error)
 	GetCurrentUser(ctx context.Context, userID int64) (CurrentUser, error)
 	GetCredentialByLogin(ctx context.Context, login string) (CredentialUser, error)
 	LoadActor(ctx context.Context, userID int64) (Actor, error)

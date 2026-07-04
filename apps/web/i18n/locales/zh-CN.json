@@ -62,6 +62,7 @@
     "registerTitle": "注册账号",
     "registerEyebrow": "开放注册",
     "registerIntro": "填写以下信息，几秒即可完成",
+    "firstUserAdminNotice": "第一个注册的用户将会是超级管理员",
     "registerHeading": "创建账号",
     "loginTitle": "登录",
     "loginEyebrow": "论坛账号",

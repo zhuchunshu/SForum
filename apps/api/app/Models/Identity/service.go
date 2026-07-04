@@ -26,6 +26,15 @@ type LoginInput struct {
 	Password string
 }
 
+func (s *Service) RegistrationStatus(ctx context.Context) (RegistrationStatus, error) {
+	hasAnyUser, err := s.store.AnyUserExists(ctx)
+	if err != nil {
+		return RegistrationStatus{}, err
+	}
+
+	return RegistrationStatus{NextUserIsInitialSuperAdmin: !hasAnyUser}, nil
+}
+
 func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUser, error) {
 	passwordHash, err := HashPassword(input.Password)
 	if err != nil {

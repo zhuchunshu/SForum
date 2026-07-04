@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SForum Navbar Designs - Round 2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+      padding-bottom: 100px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+    h2 {
+      margin-bottom: 16px;
+      font-size: 20px;
+      font-weight: 600;
+      color: #374151;
+    }
+    .desc {
+      margin-bottom: 24px;
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .demo-section {
+      margin-bottom: 80px;
+    }
+    
+    /* Common utilities */
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .gap-2 { gap: 8px; }
+    .gap-4 { gap: 16px; }
+    .gap-6 { gap: 24px; }
+    .text-sm { font-size: 14px; }
+    .font-medium { font-weight: 500; }
+    .cursor-pointer { cursor: pointer; }
+    .h-full { height: 100%; }
+    
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      background: #0f766e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: white;
+    }
+    .logo-text {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #0f766e;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .search-mock {
+      background: #f3f4f6;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      color: #9ca3af;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 200px;
+    }
+
+    /* =========================================
+       Original 1: Minimalist SaaS
+       ========================================= */
+    .nav-orig-1 {
+      background: #ffffff;
+      border-bottom: 1px solid #e5e7eb;
+      height: 60px;
+      padding: 0 24px;
+    }
+    .nav-orig-1 .nav-link {
+      color: #6b7280;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .nav-orig-1 .nav-link:hover { color: #111827; }
+    .nav-orig-1 .nav-link.active { color: #111827; font-weight: 600; }
+    .nav-orig-1 .user-btn {
+      padding: 4px 12px 4px 4px;
+      border-radius: 20px;
+    }
+    .nav-orig-1 .user-btn:hover { background: #f3f4f6; }
+
+    /* =========================================
+       Original 3: Classic Accent
+       ========================================= */
+    .nav-orig-3 {
+      background: #ffffff;
+      border-top: 3px solid #0f766e;
+      border-bottom: 1px solid #e5e7eb;
+      height: 64px;
+      padding: 0 32px;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    .nav-orig-3 .nav-link {
+      display: inline-flex;
+      align-items: center;
+      height: 64px;
+      color: #4b5563;
+      text-decoration: none;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px;
+    }
+    .nav-orig-3 .nav-link:hover { color: #111827; border-bottom-color: #d1d5db; }
+    .nav-orig-3 .nav-link.active { color: #0f766e; border-bottom-color: #0f766e; font-weight: 600; }
+
+    /* =========================================
+       Combo 1: 极简顶边风 (Minimal base + Top Accent)
+       ========================================= */
+    .nav-combo-1 {
+      background: #ffffff;
+      border-top: 3px solid #0f766e;
+      border-bottom: 1px solid #e5e7eb;
+      height: 60px;
+      padding: 0 24px;
+    }
+    .nav-combo-1 .nav-link {
+      color: #6b7280;
+      text-decoration: none;
+    }
+    .nav-combo-1 .nav-link:hover { color: #111827; }
+    .nav-combo-1 .nav-link.active { color: #0f766e; font-weight: 600; }
+
+    /* =========================================
+       Combo 2: 极简下划线风 (Minimal base + Bottom Accent Line)
+       ========================================= */
+    .nav-combo-2 {
+      background: #ffffff;
+      border-bottom: 1px solid #e5e7eb;
+      height: 64px;
+      padding: 0 24px;
+    }
+    .nav-combo-2 .nav-link {
+      display: inline-flex;
+      align-items: center;
+      height: 64px;
+      color: #6b7280;
+      text-decoration: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .nav-combo-2 .nav-link:hover { color: #111827; }
+    .nav-combo-2 .nav-link.active { color: #111827; font-weight: 600; border-bottom-color: #0f766e; }
+
+    /* =========================================
+       Combo 3: 微色块风 (Minimal base + Soft Tint Accent)
+       ========================================= */
+    .nav-combo-3 {
+      background: #ffffff;
+      border-bottom: 1px solid #e5e7eb;
+      height: 60px;
+      padding: 0 24px;
+    }
+    .nav-combo-3 .nav-link {
+      padding: 6px 12px;
+      border-radius: 6px;
+      color: #6b7280;
+      text-decoration: none;
+    }
+    .nav-combo-3 .nav-link:hover { background: #f3f4f6; color: #111827; }
+    .nav-combo-3 .nav-link.active { background: #f0faf9; color: #0f766e; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  
+  <h1 style="font-size: 28px; margin-bottom: 40px;">保留的原始方案</h1>
+
+  <!-- 原始方案 1 -->
+  <div class="demo-section">
+    <h2>原始方案 1: 极简工具风</h2>
+    <p class="desc">全白底色，无多余线条，仅靠文字加粗标识当前页。</p>
+    <div class="nav-orig-1 flex items-center justify-between">
+      <div class="flex items-center gap-6">
+        <div class="flex items-center gap-2 cursor-pointer">
+          <div class="logo-mark">💬</div>
+          <span class="logo-text">SForum</span>
+        </div>
+        <nav class="flex items-center gap-6 text-sm font-medium" style="margin-left: 16px;">
+          <a href="#" class="nav-link active">首页</a>
+          <a href="#" class="nav-link">发现</a>
+          <a href="#" class="nav-link">标签</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="search-mock"><span>🔍</span> 搜索讨论...</div>
+        <div class="flex items-center gap-2 user-btn cursor-pointer">
+          <div class="avatar">U</div>
+          <span class="text-sm font-medium">User</span>
+          <span style="font-size: 10px; color: #9ca3af;">▼</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 原始方案 3 -->
+  <div class="demo-section">
+    <h2>原始方案 3: 经典主题色</h2>
+    <p class="desc">顶部粗绿线，Logo反色，Tab底部绿线。论坛味道浓厚。</p>
+    <div class="nav-orig-3 flex items-center justify-between">
+      <div class="flex items-center gap-6 h-full">
+        <div class="flex items-center gap-2 cursor-pointer" style="margin-right: 24px;">
+          <div class="logo-mark" style="background: transparent; color: #0f766e; border: 2px solid #0f766e; font-size: 16px;">💬</div>
+          <span class="logo-text" style="color: #0f766e;">SForum</span>
+        </div>
+        <nav class="flex items-center gap-6 text-sm font-medium h-full">
+          <a href="#" class="nav-link active">首页</a>
+          <a href="#" class="nav-link">发现</a>
+          <a href="#" class="nav-link">标签</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="search-mock" style="background: white; border-color: #d1d5db; border-radius: 20px;">
+          <span>🔍</span> 搜索讨论...
+        </div>
+        <div class="flex items-center gap-2 cursor-pointer" style="padding: 4px; border: 1px solid #e5e7eb; border-radius: 10px;">
+          <div class="avatar" style="border-radius: 6px;">U</div>
+          <span style="font-size: 10px; color: #6b7280; margin-right: 4px;">▼</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr style="border: 0; border-top: 1px dashed #d1d5db; margin: 60px 0;" />
+  <h1 style="font-size: 28px; margin-bottom: 40px;">新增的结合方案 (Combos)</h1>
+
+  <!-- 结合方案 A -->
+  <div class="demo-section">
+    <h2>Combo A: 极简基底 + 顶部强调线</h2>
+    <p class="desc">结构像方案1一样轻量（无下划线），但加上了方案3的顶部绿线。当前Tab的文字变绿。</p>
+    <div class="nav-combo-1 flex items-center justify-between">
+      <div class="flex items-center gap-6 h-full">
+        <div class="flex items-center gap-2 cursor-pointer">
+          <div class="logo-mark">💬</div>
+          <span class="logo-text">SForum</span>
+        </div>
+        <nav class="flex items-center gap-6 text-sm font-medium" style="margin-left: 16px;">
+          <a href="#" class="nav-link active">首页</a>
+          <a href="#" class="nav-link">发现</a>
+          <a href="#" class="nav-link">标签</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="search-mock"><span>🔍</span> 搜索讨论...</div>
+        <div class="flex items-center gap-2 user-btn cursor-pointer" style="padding: 4px; border-radius: 20px; transition: background 0.2s;">
+          <div class="avatar">U</div>
+          <span class="text-sm font-medium">User</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 结合方案 B -->
+  <div class="demo-section">
+    <h2>Combo B: 极简基底 + 底部强调线 (推荐)</h2>
+    <p class="desc">去掉了顶部厚重的绿线，保留全白干净的背景。但当前页的指示器采用了底部细绿线（类似 GitHub/Vercel 的指示方式）。</p>
+    <div class="nav-combo-2 flex items-center justify-between">
+      <div class="flex items-center gap-6 h-full">
+        <div class="flex items-center gap-2 cursor-pointer">
+          <div class="logo-mark">💬</div>
+          <span class="logo-text">SForum</span>
+        </div>
+        <nav class="flex items-center gap-6 text-sm font-medium h-full" style="margin-left: 16px;">
+          <a href="#" class="nav-link active">首页</a>
+          <a href="#" class="nav-link">发现</a>
+          <a href="#" class="nav-link">标签</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="search-mock"><span>🔍</span> 搜索讨论...</div>
+        <div class="flex items-center gap-2 cursor-pointer" style="padding: 4px; border-radius: 8px;">
+          <div class="avatar" style="border-radius: 8px;">U</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 结合方案 C -->
+  <div class="demo-section">
+    <h2>Combo C: 极简基底 + 微色块指示</h2>
+    <p class="desc">完全不要长线条。当前Tab采用极淡的主题色背景进行包裹，既清爽又能明确传达状态。</p>
+    <div class="nav-combo-3 flex items-center justify-between">
+      <div class="flex items-center gap-6 h-full">
+        <div class="flex items-center gap-2 cursor-pointer">
+          <div class="logo-mark" style="background: transparent; color: #0f766e; border: 2px solid #0f766e; font-size: 16px;">💬</div>
+          <span class="logo-text">SForum</span>
+        </div>
+        <nav class="flex items-center gap-2 text-sm font-medium" style="margin-left: 16px;">
+          <a href="#" class="nav-link active">首页</a>
+          <a href="#" class="nav-link">发现</a>
+          <a href="#" class="nav-link">标签</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="search-mock"><span>🔍</span> 搜索讨论...</div>
+        <div class="flex items-center gap-2 cursor-pointer" style="padding: 4px; border: 1px solid #e5e7eb; border-radius: 20px;">
+          <div class="avatar" style="width: 28px; height: 28px;">U</div>
+          <span style="font-size: 12px; margin-right: 6px; font-weight: 500;">User</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

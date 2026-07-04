@@ -60,6 +60,9 @@ This is the entry point for project memory.
   verifies ALTCHA payloads before account creation, stores replay/rate-limit
   state in Redis, and the Nuxt registration page sends the widget token through
   `humanVerification`.
+- The registration page now reads `/api/v1/auth/registration-status` and, when
+  no user exists yet, warns that the first registered user will become the
+  super administrator.
 - Backend API code has migrated to a Laravel-style directory shape while
   staying Go-explicit: `cmd/api` is process-focused, `bootstrap` assembles the
   runtime, `app/Http` owns the HTTP kernel, `app/Http/Controllers/*` owns
@@ -102,6 +105,8 @@ This is the entry point for project memory.
   configurable admin route prefix and Nuxt UI dashboard shell decision.
 - `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA
   implementation handoff.
+- `sessions/2026-07-04-registration-status-notice.md` - first-user
+  super-admin notice implementation handoff.
 - `sessions/2026-07-04-admin-foundation.md` - admin foundation implementation
   handoff.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -

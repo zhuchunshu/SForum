@@ -23,6 +23,10 @@ uppercase `SF` component names. The first component set is backed by
 `/components` route. That preview page now shows the components in expanded
 forum scenarios: publishing, moderation, member profile, feedback, lists, and
 state handling.
+SF inputs/search and the standalone login/register auth inputs now override
+WebKit browser autofill styling so saved credentials keep the intended white
+input surface, dark text, caret color, and focus ring instead of the default
+browser fill background.
 Admin pages use a dedicated `admin` Nuxt layout built from Nuxt UI Dashboard
 components (`UDashboardGroup`, `UDashboardSidebar`, `UDashboardPanel`,
 `UDashboardNavbar`, `UDashboardToolbar`) and Nuxt Icon lucide icons. The source

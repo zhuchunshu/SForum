@@ -484,6 +484,25 @@
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
 }
 
+/* 覆盖 WebKit 自动填充默认底色，保持组件输入框的白底与文字颜色。 */
+.sf-input__control:-webkit-autofill,
+.sf-input__control:-webkit-autofill:hover,
+.sf-input__control:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  -webkit-text-fill-color: var(--sf-fg);
+  caret-color: var(--sf-fg);
+  transition: background-color 9999s ease-out, color 9999s ease-out;
+}
+
+.sf-input__control:-webkit-autofill:focus {
+  border-color: var(--sf-accent);
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset, 0 0 0 3px rgba(15, 118, 110, 0.12);
+  box-shadow: 0 0 0 1000px #ffffff inset, 0 0 0 3px rgba(15, 118, 110, 0.12);
+  -webkit-text-fill-color: var(--sf-fg);
+  caret-color: var(--sf-fg);
+}
+
 .sf-input__control:disabled {
   cursor: not-allowed;
   background: var(--sf-muted);
@@ -750,6 +769,17 @@
   color: var(--sf-fg);
   font-size: 0.92rem;
   outline: 0;
+}
+
+.sf-search__input:-webkit-autofill,
+.sf-search__input:-webkit-autofill:hover,
+.sf-search__input:-webkit-autofill:focus,
+.sf-search__input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  -webkit-text-fill-color: var(--sf-fg);
+  caret-color: var(--sf-fg);
+  transition: background-color 9999s ease-out, color 9999s ease-out;
 }
 
 .sf-search__icon,

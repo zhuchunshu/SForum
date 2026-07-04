@@ -3,6 +3,10 @@ import type { CurrentUser } from '~/composables/useAuthSession'
 
 definePageMeta({ layout: 'auth' })
 
+type RegistrationStatus = {
+  nextUserIsInitialSuperAdmin: boolean
+}
+
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
@@ -23,6 +27,14 @@ const altchaConfiguration = JSON.stringify({
   hideLogo: true,
   hideFooter: true
 })
+const { data: registrationStatus } = await useAsyncData('auth-registration-status', async () => {
+  try {
+    return await request<RegistrationStatus>('/auth/registration-status')
+  } catch {
+    return { nextUserIsInitialSuperAdmin: false }
+  }
+})
+const isBootstrapRegistration = computed(() => registrationStatus.value?.nextUserIsInitialSuperAdmin === true)
 
 useSeoMeta({
   title: t('auth.registerTitle')
@@ -155,6 +167,14 @@ async function submitRegister() {
         <p class="auth-form-sub">{{ t('auth.registerIntro') }}</p>
 
         <form @submit.prevent="submitRegister">
+          <SFAlert
+            v-if="isBootstrapRegistration"
+            :title="t('auth.firstUserAdminNotice')"
+            variant="warning"
+            compact
+            class="auth-alert"
+          />
+
           <SFAlert
             v-if="errorMessage"
             :title="errorMessage"
@@ -468,6 +488,25 @@ async function submitRegister() {
 .auth-input:focus {
   border-color: #0f766e;
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+}
+
+/* 覆盖 WebKit 自动填充默认底色，保持注册表单白底。 */
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  box-shadow: 0 0 0 1000px #fff inset;
+  -webkit-text-fill-color: #111827;
+  caret-color: #111827;
+  transition: background-color 9999s ease-out, color 9999s ease-out;
+}
+
+.auth-input:-webkit-autofill:focus {
+  border-color: #0f766e;
+  -webkit-box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px rgba(15, 118, 110, 0.14);
+  box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px rgba(15, 118, 110, 0.14);
+  -webkit-text-fill-color: #111827;
+  caret-color: #111827;
 }
 
 .auth-input::placeholder { color: #d1d5db; }

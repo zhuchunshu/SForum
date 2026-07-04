@@ -6,6 +6,17 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /auth/registration-status:
+    get:
+      summary: Get public registration bootstrap status
+      operationId: getRegistrationStatus
+      responses:
+        "200":
+          description: Public registration state used by the registration page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRegistrationStatus"
   /auth/register:
     post:
       summary: Register a forum account
@@ -312,6 +323,16 @@ components:
           type: string
         data:
           $ref: "#/components/schemas/CurrentUser"
+    ApiResponseRegistrationStatus:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/RegistrationStatus"
     ApiResponseRole:
       type: object
       required: [code, message, data]
@@ -415,6 +436,14 @@ components:
           type: array
           items:
             type: string
+    RegistrationStatus:
+      type: object
+      required:
+        - nextUserIsInitialSuperAdmin
+      properties:
+        nextUserIsInitialSuperAdmin:
+          type: boolean
+          description: True when no user exists yet and the next successful registration will become the initial super administrator.
     RegisterRequest:
       type: object
       required:

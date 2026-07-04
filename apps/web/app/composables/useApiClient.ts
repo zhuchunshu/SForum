@@ -18,6 +18,19 @@ type ApiFetchOptions = {
   headers?: Record<string, string>
 }
 
+type ApiErrorEnvelopeLike = {
+  code?: unknown
+  message?: unknown
+  data?: unknown
+}
+
+type ApiFetchErrorLike = {
+  data?: unknown
+  response?: {
+    _data?: unknown
+  }
+}
+
 export function useApiClient() {
   const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
   const { locale } = useI18n()
@@ -48,12 +61,37 @@ export function useApiClient() {
   return { apiBaseUrl, apiHeaders, request }
 }
 
+function isApiEnvelope(value: unknown): value is ApiEnvelope<ApiErrorData> {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const envelope = value as ApiErrorEnvelopeLike
+  return typeof envelope.code === 'number' && typeof envelope.message === 'string'
+}
+
+function apiErrorEnvelope(error: unknown) {
+  if (isApiEnvelope(error)) {
+    return error
+  }
+
+  // ofetch/Nuxt 在不同链路里可能把后端 envelope 放在 data 或 response._data。
+  const fetchError = error as ApiFetchErrorLike
+  if (isApiEnvelope(fetchError.data)) {
+    return fetchError.data
+  }
+  if (isApiEnvelope(fetchError.response?._data)) {
+    return fetchError.response._data
+  }
+
+  return undefined
+}
+
 export function apiErrorMessage(error: unknown) {
-  const message = (error as { data?: { message?: unknown } })?.data?.message
-  return typeof message === 'string' ? message : ''
+  return apiErrorEnvelope(error)?.message || ''
 }
 
 export function apiErrorReason(error: unknown) {
-  const reason = (error as { data?: ApiEnvelope<ApiErrorData> })?.data?.data?.reason
+  const reason = apiErrorEnvelope(error)?.data?.reason
   return typeof reason === 'string' ? reason : ''
 }

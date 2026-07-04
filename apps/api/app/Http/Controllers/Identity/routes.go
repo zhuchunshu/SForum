@@ -6,6 +6,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/human-verification/challenge", h.humanVerificationChallenge)
 
 	auth := api.Group("/auth")
+	auth.Get("/registration-status", h.registrationStatus)
 	auth.Post("/register", h.register)
 	auth.Post("/login", h.login)
 	auth.Post("/logout", h.logout)

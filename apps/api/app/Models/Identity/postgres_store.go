@@ -48,6 +48,10 @@ func (s *PostgresStore) WithBootstrapTx(ctx context.Context, fn func(context.Con
 	return nil
 }
 
+func (s *PostgresStore) AnyUserExists(ctx context.Context) (bool, error) {
+	return s.queries.AnyUserExists(ctx)
+}
+
 func (s *PostgresStore) GetCurrentUser(ctx context.Context, userID int64) (CurrentUser, error) {
 	row, err := s.queries.GetCurrentUser(ctx, userID)
 	if err != nil {

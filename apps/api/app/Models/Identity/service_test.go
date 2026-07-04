@@ -72,6 +72,36 @@ func TestRegisterSecondUserAssignsDefaultMember(t *testing.T) {
 	}
 }
 
+func TestRegistrationStatusTracksBootstrapUser(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+
+	status, err := service.RegistrationStatus(ctx)
+	if err != nil {
+		t.Fatalf("RegistrationStatus returned error: %v", err)
+	}
+	if !status.NextUserIsInitialSuperAdmin {
+		t.Fatal("expected next user to be initial super admin before any user exists")
+	}
+
+	_, err = service.Register(ctx, RegisterInput{
+		Username: "admin",
+		Email:    "admin@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("Register returned error: %v", err)
+	}
+
+	status, err = service.RegistrationStatus(ctx)
+	if err != nil {
+		t.Fatalf("RegistrationStatus after register returned error: %v", err)
+	}
+	if status.NextUserIsInitialSuperAdmin {
+		t.Fatal("expected next user not to be initial super admin after a user exists")
+	}
+}
+
 func TestLoginRejectsWrongPassword(t *testing.T) {
 	service, _ := newTestService(t)
 	ctx := testContext(t)

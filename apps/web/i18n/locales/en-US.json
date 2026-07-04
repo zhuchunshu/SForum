@@ -62,6 +62,7 @@
     "registerTitle": "Register",
     "registerEyebrow": "Open registration",
     "registerIntro": "Fill in the details below — takes just a few seconds",
+    "firstUserAdminNotice": "The first registered user will become the super administrator.",
     "registerHeading": "Create an account",
     "loginTitle": "Log In",
     "loginEyebrow": "Forum account",

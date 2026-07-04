@@ -92,6 +92,14 @@ func (h *Controller) register(c fiber.Ctx) error {
 	return apphttp.Created(c, current)
 }
 
+func (h *Controller) registrationStatus(c fiber.Ctx) error {
+	status, err := h.service.RegistrationStatus(c.Context())
+	if err != nil {
+		return err
+	}
+	return apphttp.OK(c, status)
+}
+
 func (h *Controller) login(c fiber.Ctx) error {
 	var req loginRequest
 	if err := c.Bind().Body(&req); err != nil {
@@ -120,7 +128,8 @@ func (h *Controller) humanVerificationChallenge(c fiber.Ctx) error {
 	if err != nil {
 		return mapHumanVerificationError(err)
 	}
-	return apphttp.OK(c, challenge.Payload)
+	// ALTCHA widget 直接消费该端点，成功响应必须保持 ALTCHA 原始协议形状。
+	return c.Status(fiber.StatusOK).JSON(challenge.Payload)
 }
 
 func (h *Controller) logout(c fiber.Ctx) error {

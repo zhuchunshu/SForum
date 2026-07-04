@@ -370,6 +370,25 @@ async function submitLogin() {
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
 }
 
+/* 覆盖 WebKit 自动填充默认底色，保持登录表单白底。 */
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  box-shadow: 0 0 0 1000px #fff inset;
+  -webkit-text-fill-color: #111827;
+  caret-color: #111827;
+  transition: background-color 9999s ease-out, color 9999s ease-out;
+}
+
+.auth-input:-webkit-autofill:focus {
+  border-color: #0f766e;
+  -webkit-box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px rgba(15, 118, 110, 0.14);
+  box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px rgba(15, 118, 110, 0.14);
+  -webkit-text-fill-color: #111827;
+  caret-color: #111827;
+}
+
 .auth-input::placeholder { color: #d1d5db; }
 
 /* 提交按钮 */

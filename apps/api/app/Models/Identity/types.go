@@ -42,3 +42,7 @@ type CurrentUser struct {
 	RoleKeys            []string   `json:"roleKeys"`
 	Permissions         []string   `json:"permissions"`
 }
+
+type RegistrationStatus struct {
+	NextUserIsInitialSuperAdmin bool `json:"nextUserIsInitialSuperAdmin"`
+}

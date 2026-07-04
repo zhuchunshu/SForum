@@ -20,6 +20,7 @@ for (const file of requiredFiles) {
 const zh = JSON.parse(fs.readFileSync(path.resolve(root, 'apps/web/i18n/locales/zh-CN.json'), 'utf8'));
 const en = JSON.parse(fs.readFileSync(path.resolve(root, 'apps/web/i18n/locales/en-US.json'), 'utf8'));
 const registerPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/register.vue'), 'utf8');
+const loginPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/login.vue'), 'utf8');
 
 const requiredKeys = [
   ['auth', 'registerTitle'],
@@ -50,6 +51,21 @@ if (!registerPage.includes('hideLogo: true')) {
 }
 if (!registerPage.includes('hideFooter: true')) {
   throw new Error('Registration ALTCHA widget should hide the ALTCHA attribution footer');
+}
+
+for (const [name, content] of [
+  ['login.vue', loginPage],
+  ['register.vue', registerPage]
+]) {
+  if (!content.includes('.auth-input:-webkit-autofill')) {
+    throw new Error(`${name} should override browser autofill input background`);
+  }
+  if (!content.includes('-webkit-box-shadow')) {
+    throw new Error(`${name} autofill override should preserve the white input surface`);
+  }
+  if (!content.includes('-webkit-text-fill-color')) {
+    throw new Error(`${name} autofill override should preserve text color`);
+  }
 }
 
 console.log('Identity UI validation passed.');

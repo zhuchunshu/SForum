@@ -19,6 +19,9 @@ Initial identity foundation is implemented.
 - Browser sessions are backed by Redis through Fiber sessions.
 - API endpoints exist for registration, login, logout, current session, role
   listing, role creation/update/delete, and role permission replacement.
+- API exposes `/api/v1/auth/registration-status` so the registration page can
+  show when the next successful registration will become the initial
+  `super_admin`.
 - Registration now requires human verification in the default runtime path:
   `/api/v1/human-verification/challenge?purpose=register` returns an ALTCHA v2
   challenge, and `/api/v1/auth/register` verifies the submitted
@@ -69,7 +72,8 @@ Initial identity foundation is implemented.
 ## Implementation Notes
 
 - `apps/api/app/Models/Identity/service.go` owns registration, login,
-  current-user loading, actor loading, and role-management service checks.
+  registration status, current-user loading, actor loading, and role-management
+  service checks.
 - `apps/api/app/Models/Identity/policy.go` keeps permission checks small:
   `super_admin` receives all permissions while active, and other users rely on
   the union of enabled role permissions.
@@ -86,7 +90,8 @@ Initial identity foundation is implemented.
   for local/testing contexts where the caller intentionally bypasses this layer.
 - `apps/web/app/pages/register.vue` renders the ALTCHA widget client-side and
   maps `human_verification.*` and `rate_limit.exceeded` API error codes to
-  localized messages.
+  localized messages. It also reads `/api/v1/auth/registration-status` and
+  shows a first-user super-admin notice while no users exist.
 - Registration responses reload the current user after the bootstrap
   transaction so `roleKeys` and `permissions` serialize as arrays.
 - `contracts/openapi.yaml` documents the current auth and role endpoints.

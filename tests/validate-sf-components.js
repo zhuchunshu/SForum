@@ -46,6 +46,13 @@ const REQUIRED_CSS_SELECTORS = [
   '.sf-toggle'
 ];
 
+const REQUIRED_AUTOFILL_RULES = [
+  '.sf-input__control:-webkit-autofill',
+  '.sf-search__input:-webkit-autofill',
+  '-webkit-box-shadow',
+  '-webkit-text-fill-color'
+];
+
 const REQUIRED_DOC_ANCHORS = [
   '#foundations',
   '#feedback',
@@ -117,6 +124,12 @@ if (!fs.existsSync(CSS_FILE)) {
   for (const selector of REQUIRED_CSS_SELECTORS) {
     if (!css.includes(selector)) {
       fail(`CSS selector ${selector} is missing`);
+    }
+  }
+
+  for (const rule of REQUIRED_AUTOFILL_RULES) {
+    if (!css.includes(rule)) {
+      fail(`Component autofill rule ${rule} is missing`);
     }
   }
 

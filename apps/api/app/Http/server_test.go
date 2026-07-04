@@ -230,6 +230,17 @@ func TestRegisterEndpointAcceptsHumanVerificationToken(t *testing.T) {
 	}
 }
 
+func TestRegistrationStatusEndpointTracksBootstrapUser(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+
+	assertRegistrationStatus(t, app, true)
+	registerHTTPUser(t, app, "admin", "admin@example.com")
+	assertRegistrationStatus(t, app, false)
+}
+
 func TestHumanVerificationChallengeEndpoint(t *testing.T) {
 	cfg := testConfig()
 	verifier := humanverify.NewService(
@@ -250,15 +261,15 @@ func TestHumanVerificationChallengeEndpoint(t *testing.T) {
 	if resp.StatusCode != nethttp.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
-	var body apiEnvelope[map[string]string]
+	var body map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode challenge response: %v", err)
 	}
-	if body.Code != nethttp.StatusOK || body.Message != "OK" {
-		t.Fatalf("unexpected envelope: %#v", body)
+	if _, ok := body["code"]; ok {
+		t.Fatalf("challenge endpoint should return raw ALTCHA payload, got envelope-like response: %#v", body)
 	}
-	if body.Data["challenge"] != "fake" {
-		t.Fatalf("expected fake challenge, got %v", body.Data)
+	if body["challenge"] != "fake" {
+		t.Fatalf("expected fake challenge, got %v", body)
 	}
 }
 
@@ -551,6 +562,31 @@ func registerHTTPUser(t *testing.T, app *fiber.App, username, email string) *net
 		t.Fatal("expected register session cookie")
 	}
 	return cookies[0]
+}
+
+func assertRegistrationStatus(t *testing.T, app *fiber.App, expected bool) {
+	t.Helper()
+
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/auth/registration-status", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("registration status request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected registration status 200, got %d", resp.StatusCode)
+	}
+	var body apiEnvelope[identity.RegistrationStatus]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode registration status response: %v", err)
+	}
+	if body.Code != nethttp.StatusOK || body.Message != "OK" {
+		t.Fatalf("unexpected registration status envelope: %#v", body)
+	}
+	if body.Data.NextUserIsInitialSuperAdmin != expected {
+		t.Fatalf("expected nextUserIsInitialSuperAdmin=%v, got %v", expected, body.Data.NextUserIsInitialSuperAdmin)
+	}
 }
 
 type httpFakeStore struct {

@@ -140,8 +140,9 @@ const avatarLetter = computed(() =>
   position: sticky;
   top: 0;
   z-index: 50;
-  height: 52px;
+  height: 56px;
   background: #ffffff;
+  border-top: 3px solid #0f766e;
   border-bottom: 1px solid #e4e8ef;
   /* 轻微阴影，页面滚动时有层次感 */
   box-shadow: 0 1px 0 #e4e8ef;
@@ -175,11 +176,13 @@ const avatarLetter = computed(() =>
   width: 26px;
   height: 26px;
   border-radius: 7px;
-  background: #0f766e;
+  background: transparent;
+  border: 2px solid #0f766e;
+  color: #0f766e;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* ====== 主导航 ====== */
@@ -212,6 +215,7 @@ const avatarLetter = computed(() =>
 .navbar__nav-link.router-link-active {
   color: #0f766e;
   background: #f0faf9;
+  font-weight: 600;
 }
 
 /* ====== 右侧区域 ====== */
