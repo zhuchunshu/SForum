@@ -71,6 +71,10 @@ This is the entry point for project memory.
   queue support now lives under `apps/api/app/Support/Jobs`, `cmd/worker` uses
   `bootstrap.NewWorker`, and the first search job contract is
   `search.index_topic`.
+- Backend API responses now have an accepted envelope design: every API JSON
+  response must include integer `code`, localized `message`, and `data`; `code`
+  equals the HTTP status code, and stable machine-readable reasons live under
+  `data.reason`.
 
 ## Navigation
 
@@ -89,6 +93,8 @@ This is the entry point for project memory.
   composition, route registration, and Laravel-style API directory decision.
 - `decisions/2026-07-04-altcha-human-verification.md` - accepted ALTCHA human
   verification decision.
+- `decisions/2026-07-04-api-response-envelope-localized-message.md` - accepted
+  backend API envelope and localized message decision.
 - `decisions/2026-07-04-configurable-admin-control-panel.md` - accepted
   configurable admin route prefix and Nuxt UI dashboard shell decision.
 - `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA

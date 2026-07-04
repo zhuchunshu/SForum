@@ -388,8 +388,9 @@ notifications, email preferences, digest jobs, and delivery attempts.
 
 Owns backend locale negotiation, locale-aware email/notification templates,
 supported-locale configuration, and translation keys for server-originated
-messages. The API should return stable machine-readable error codes; Nuxt should
-localize normal UI and validation display from those codes.
+messages. Backend API responses should include localized `message` values, and
+Nuxt should display those messages first for API-originated prompts while using
+frontend catalogs for frontend-owned UI states.
 
 Default behavior:
 
@@ -417,12 +418,14 @@ Default behavior:
 - Public read routes should be optimized for SSR page needs: category lists,
   topic lists, topic detail, and user profile summaries.
 - Mutating routes should be under `/api/v1/*`, require session auth, and return
-  JSON problem-style errors with stable machine-readable codes.
+  the unified JSON API envelope.
 - Nuxt admin routes live in the same web app under protected routes such as
   `/admin/*`; the Fiber API remains the source of truth for permission checks.
-- API errors should include a stable `code` and may include a default
-  Simplified Chinese message. The frontend should map known codes to localized
-  UI text so English and future languages do not depend on backend prose.
+- API JSON responses must include integer `code`, localized `message`, and
+  `data`. `code` equals the HTTP status code. Stable machine-readable error
+  reasons live under `data.reason`.
+- The frontend should display API `message` first for API-originated prompts and
+  use `data.reason` for control flow or fallback behavior.
 - Requests should carry locale context through route, cookie, profile, or
   `Accept-Language`; responses that depend on locale should set appropriate
   cache variation rules.

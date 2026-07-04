@@ -29,14 +29,19 @@ Foundation scaffold exists:
 - Use stable translation keys in Vue pages, components, layouts, form messages,
   navigation, empty states, and admin UI.
 - Use localized routes and metadata for public SEO pages.
-- Map backend error codes to localized UI messages.
+- Send locale context with API requests, preferably through `Accept-Language`.
+- Display backend API `message` first for API-originated prompts and operation
+  results.
+- Use frontend catalog or fallback messages for client-side validation, network
+  failures, missing responses, static UI, and frontend-owned states.
 
 ## Backend Responsibilities
 
 - Define supported locales and fallback locale.
 - Negotiate locale from route, cookie, user profile, `Accept-Language`, then
   `zh-CN`.
-- Return stable error codes in API responses.
+- Return localized API `message` values in the unified response envelope.
+- Return stable machine-readable reason keys in `data.reason` for API errors.
 - Localize backend-owned emails, notifications, moderation reason labels, and
   seed/admin labels when they are rendered by the backend.
 - Store user locale preference separately from user-generated content.

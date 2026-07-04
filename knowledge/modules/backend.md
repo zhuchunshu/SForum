@@ -119,3 +119,7 @@ Route registration rules:
   single-use challenge tracking.
 - Define the first OpenAPI contract and schema migrations.
 - Add River and `app/Support/Jobs` after the jobs design is reviewed.
+- Implement the accepted API response envelope: every JSON API response uses
+  integer `code`, backend-localized `message`, and `data`; `code` equals the
+  HTTP status code, and stable machine-readable reason keys live in
+  `data.reason`.
