@@ -149,6 +149,8 @@ This is the entry point for project memory.
 - `decisions/2026-07-05-local-dev-dependencies-and-processes.md` - accepted
   local development split where Compose starts dependencies and frontend/API
   run as host processes.
+- `decisions/2026-07-05-admin-multitabs-and-layout-rules.md` - accepted admin
+  multitabs, topbar breadcrumbs, larger tabs, and nested menu rules decision.
 - `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA
   implementation handoff.
 - `sessions/2026-07-04-registration-status-notice.md` - first-user
@@ -168,6 +170,8 @@ This is the entry point for project memory.
   build/typecheck directory isolation, and local API port mismatch handoff.
 - `sessions/2026-07-05-nuxt-preview-script.md` - Nuxt production preview script
   fix for the unsupported `nuxi preview --host` flag.
+- `sessions/2026-07-05-admin-multitab-layout-upgrades.md` - admin multitabs,
+  global topbar, theme adaptive sidebar, and nested menu layout upgrades handoff.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -
   security verification design.
 - `../docs/development-and-deployment.md` - proposed local development,

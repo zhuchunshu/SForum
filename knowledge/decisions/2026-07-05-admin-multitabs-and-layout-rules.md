@@ -1,0 +1,62 @@
+# 2026-07-05 Admin Multi-Tabs and Layout Rules
+
+## Status
+
+Accepted.
+
+## Context
+
+SForum has refactored the admin dashboard into a premium multi-tab, dual-theme layout. To ensure that future development of new admin screens remains consistent, maintainable, and visual-standard compliant, we need a set of clear structural rules and conventions documented in the knowledge base.
+
+## Decision
+
+When developing new pages or sections in the SForum Admin Control Panel (`apps/web/app/pages/admin`), developers must follow these five design and technical rules:
+
+### 1. Page Component Structure (页面结构规范)
+- **Do not render** `<UDashboardNavbar>` in individual admin page components. The topbar is globally managed by the layout `admin.vue`.
+- **Render a local page header** section instead, e.g., `<div class="mb-4"><h2 class="text-xl font-bold flex items-center gap-2">...</h2></div>`.
+- **Use `<UDashboardToolbar>`** directly below the local header to wrap page actions (e.g., search inputs, refresh buttons, and action links in the `#right` slot). This unifies page density and visual layout.
+
+### 2. Multi-Tab Registration (多页签注册)
+- Every admin page must register itself as a tab in its `onMounted` hook.
+- Use `useAdminTabs().openTab(routePath, labelTranslationKey, iconString, componentName)`:
+  ```typescript
+  const adminTabs = useAdminTabs()
+  onMounted(() => {
+    adminTabs.openTab('/roles', 'admin.nav.roles', 'i-lucide-shield-check', 'AdminRoles')
+  })
+  ```
+
+### 3. Keep-Alive Component Caching (状态缓存与销毁)
+- All admin pages must declare their exact component name using `defineOptions` matching the `componentName` string passed to `openTab`:
+  ```typescript
+  defineOptions({
+    name: 'AdminRoles'
+  })
+  ```
+- This enables precise state caching when tabs are open, and automatically purges page memory and input states when the tab is closed by the user.
+
+### 4. Sidebar Theme Adaptivity and Nested Menus (侧边栏及多级菜单)
+- The sidebar background and text colors must adapt to the color theme (white background in light mode, dark zinc-950 in dark mode). Avoid inline dark overrides (e.g., `text-slate-400!`).
+- Sidebar menu configurations (`navigationItems`) support nested lists. Use the `children` array and `defaultOpen: true` to trigger automatic accordion folding:
+  ```typescript
+  {
+    label: 'System Config',
+    icon: 'i-lucide-settings-2',
+    defaultOpen: true,
+    children: [
+      { label: 'Site Settings', icon: 'i-lucide-sliders', to: adminRoutes.path('/settings') }
+    ]
+  }
+  ```
+- Any menu font-size or item padding overrides must be done via the `#sforum-admin-sidebar` CSS selector in `main.css`.
+
+### 5. Strict No-Emoji Policy (严禁 Emoji 图标)
+- All sidebar options, tabs, page headers, tables, buttons, and alert states **must not use emojis**.
+- Use Lucide icons (`i-lucide-*`) or project-approved icon bundles.
+
+## Consequences
+
+- New admin features can be quickly created by copying a template page that uses the layout and registering the tab in `onMounted`.
+- Page states (e.g. form fields) are preserved across tabs naturally.
+- The UI maintains a clean, modern SaaS hierarchy with a global topbar and tab navigation.
