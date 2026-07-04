@@ -8,7 +8,19 @@ helpers.
 
 ## Current Status
 
-Designed. No identity implementation exists yet.
+Initial identity foundation is implemented.
+
+- PostgreSQL migrations create users, credentials, roles, permissions, role
+  assignments, and audit events.
+- Seed data includes `super_admin`, the default `member` role, and initial
+  permission keys.
+- Registration is open. The first registered user becomes the protected initial
+  `super_admin`; later registrations receive `member`.
+- Browser sessions are backed by Redis through Fiber sessions.
+- API endpoints exist for registration, login, logout, current session, role
+  listing, role creation/update/delete, and role permission replacement.
+- Nuxt has login/register pages, an admin route middleware, an admin overview,
+  and a first user-group list shell.
 
 ## Architecture Decisions
 
@@ -30,7 +42,7 @@ Designed. No identity implementation exists yet.
   only after suspicious failure patterns.
 - Store challenge replay protection and rate-limit state in Redis.
 
-## Planned Tables
+## Implemented Tables
 
 - `users`
 - `user_credentials`
@@ -40,15 +52,28 @@ Designed. No identity implementation exists yet.
 - `user_roles`
 - `audit_events`
 
-## Planned Boundaries
+## Current Boundaries
 
 - Fiber API owns registration, login/logout, session loading, permission
   checks, human-verification enforcement, protected-user invariants, and audit
   writes.
-- Nuxt owns login/register pages, admin role-management UI, route guards, and
-  localized permission-denied and verification-failure messages.
+- Nuxt owns login/register pages, the first admin user-group UI shell, route
+  guards, and localized permission-denied messages.
 - Nuxt route guards are user-experience helpers only. API policy checks remain
   authoritative.
+
+## Implementation Notes
+
+- `apps/api/internal/modules/identity/service.go` owns registration, login,
+  current-user loading, actor loading, and role-management service checks.
+- `apps/api/internal/modules/identity/policy.go` keeps permission checks small:
+  `super_admin` receives all permissions while active, and other users rely on
+  the union of enabled role permissions.
+- `apps/api/internal/modules/identity/http.go` maps stable API error codes such
+  as `auth.required`, `permission.denied`, and `role.default_role_locked`.
+- Registration responses reload the current user after the bootstrap
+  transaction so `roleKeys` and `permissions` serialize as arrays.
+- `contracts/openapi.yaml` documents the current auth and role endpoints.
 
 ## Open Questions
 
@@ -61,11 +86,11 @@ Designed. No identity implementation exists yet.
 
 ## Next Steps
 
-- Add migrations for identity and RBAC tables.
-- Seed `super_admin`, `member`, and the initial permission list.
-- Implement concurrent-safe first-user registration.
 - Add ALTCHA challenge generation, server verification, Redis replay
   protection, and registration rate limits.
-- Add session middleware and current-user endpoint.
-- Add admin role-management API endpoints and UI after the identity foundation
-  works.
+- Add CSRF protection for cookie-authenticated unsafe requests.
+- Add account deletion/disable flows while preserving the initial
+  `super_admin` invariant.
+- Expand the admin role-management UI from list shell to editable role and
+  permission screens.
+- Decide exact username, email, password, and email-verification policies.
