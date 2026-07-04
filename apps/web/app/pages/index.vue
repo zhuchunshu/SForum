@@ -209,23 +209,23 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
         <aside class="hidden lg:block space-y-6">
           <!-- Navigation Links -->
           <SFCard flush class="p-4">
-            <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
               {{ t('home.sidebar.navTitle') }}
             </h2>
             <nav class="space-y-1" aria-label="首页辅助导航">
-              <NuxtLink :to="localePath('/')" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold bg-[#E6F4F1] text-[#0F766E]">
+              <NuxtLink :to="localePath('/')" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-bold bg-[#E6F4F1] text-[#0F766E]">
                 <span class="text-lg">🏠</span>
                 <span>{{ t('home.sidebar.navHome') }}</span>
               </NuxtLink>
-              <a href="#categories" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
+              <a href="#categories" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
                 <span class="text-lg">📂</span>
                 <span>{{ t('home.sidebar.navCategories') }}</span>
               </a>
-              <a href="#tags" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
+              <a href="#tags" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
                 <span class="text-lg">🏷️</span>
                 <span>{{ t('home.sidebar.navTags') }}</span>
               </a>
-              <a href="#members" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
+              <a href="#members" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
                 <span class="text-lg">👥</span>
                 <span>{{ t('home.sidebar.navMembers') }}</span>
               </a>
@@ -235,19 +235,19 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
           <!-- Categories Card -->
           <SFCard flush id="categories" class="p-4">
             <div class="flex justify-between items-center mb-3">
-              <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">
                 {{ t('home.sidebar.sections') }}
               </h2>
-              <SFBadge variant="neutral">{{ totalCategoryThreads }}</SFBadge>
+              <SFBadge variant="neutral" class="font-bold">{{ totalCategoryThreads }}</SFBadge>
             </div>
-            <ul class="space-y-2">
+            <ul class="space-y-1.5">
               <li v-for="cat in categories" :key="cat.key">
-                <a href="#" class="flex justify-between items-center px-3 py-1.5 rounded-lg text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition">
-                  <span class="flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#0F766E]"></span>
+                <a href="#" class="flex justify-between items-center px-3 py-2 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
+                  <span class="flex items-center gap-2.5">
+                    <span class="w-2 h-2 rounded-full bg-[#0F766E]"></span>
                     <span>{{ cat.name }}</span>
                   </span>
-                    <span class="text-xs text-slate-500 font-mono">{{ cat.count }}</span>
+                  <span class="text-xs text-slate-500 font-mono">{{ cat.count }}</span>
                 </a>
               </li>
             </ul>
