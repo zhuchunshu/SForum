@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminTabs } from '~/composables/useAdminTabs'
+import { useAdminPage } from '~/composables/useAdminPage'
 
 definePageMeta({
   middleware: 'admin',
@@ -62,7 +62,7 @@ type AdminUserList = {
 const { t } = useI18n()
 const { request } = useApiClient()
 const { permissionLabel, permissionDescription, permissionModuleLabel } = usePermissionText()
-const adminTabs = useAdminTabs()
+const adminPage = useAdminPage('/users')
 
 const search = ref('')
 const status = ref('')
@@ -86,7 +86,6 @@ const successMessage = ref('')
 const overrideModes = ['inherit', 'allow', 'deny'] as const
 
 onMounted(() => {
-  adminTabs.openTab('/users', 'admin.nav.userManagement', 'i-lucide-contact', 'AdminUsers')
   void loadInitialData()
 })
 
@@ -299,7 +298,7 @@ async function savePermissionOverrides() {
 <template>
   <div class="mb-4 flex flex-col gap-1">
     <h2 class="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-zinc-100">
-      <UIcon name="i-lucide-contact" class="size-5 text-teal-600 dark:text-teal-400" />
+      <UIcon :name="adminPage.icon" class="size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
       {{ t('admin.users.title') }}
     </h2>
     <p class="text-sm text-slate-500 dark:text-zinc-400">
@@ -319,7 +318,7 @@ async function savePermissionOverrides() {
         />
         <select
           v-model="status"
-          class="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-teal-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+          class="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-[var(--sf-accent)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
         >
           <option value="">{{ t('admin.users.allStatuses') }}</option>
           <option value="active">{{ t('admin.users.statusActive') }}</option>
@@ -328,7 +327,7 @@ async function savePermissionOverrides() {
         </select>
         <select
           v-model="roleKey"
-          class="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-teal-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+          class="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-[var(--sf-accent)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
         >
           <option value="">{{ t('admin.users.allRoles') }}</option>
           <option v-for="role in roleOptions" :key="role.key" :value="role.key">
@@ -476,11 +475,11 @@ async function savePermissionOverrides() {
             <label
               v-for="role in roles"
               :key="role.key"
-              class="flex min-h-14 cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm transition hover:border-teal-300 dark:border-zinc-800 dark:bg-zinc-950"
+              class="flex min-h-14 cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-950"
             >
               <input
                 type="checkbox"
-                class="mt-1 size-4 accent-teal-600"
+                class="mt-1 size-4 accent-[var(--sf-accent)]"
                 :checked="selectedRoleKeys.includes(role.key)"
                 @change="toggleRole(role.key)"
               >
@@ -540,7 +539,7 @@ async function savePermissionOverrides() {
                       type="button"
                       class="h-7 px-2.5 font-medium transition"
                       :class="permissionMode(permission.key) === mode
-                        ? 'rounded bg-white text-teal-700 shadow-sm dark:bg-zinc-800 dark:text-teal-300'
+                        ? 'rounded bg-white text-[var(--sf-accent)] shadow-sm dark:bg-zinc-800 dark:text-[var(--sf-accent-dark)]'
                         : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-100'"
                       :disabled="selectedUserIsSuperAdmin"
                       @click="setPermissionMode(permission.key, mode)"

@@ -17,36 +17,48 @@ When developing new pages or sections in the SForum Admin Control Panel (`apps/w
 - **Render a local page header** section instead, e.g., `<div class="mb-4"><h2 class="text-xl font-bold flex items-center gap-2">...</h2></div>`.
 - **Use `<UDashboardToolbar>`** directly below the local header to wrap page actions (e.g., search inputs, refresh buttons, and action links in the `#right` slot). This unifies page density and visual layout.
 
-### 2. Multi-Tab Registration (多页签注册)
-- Every admin page must register itself as a tab in its `onMounted` hook.
-- Use `useAdminTabs().openTab(routePath, labelTranslationKey, iconString, componentName)`:
+### 2. Low-Code Module Registration (低代码模块注册)
+- Every admin page must have one definition in
+  `apps/web/app/config/adminModules.ts`.
+- Page definitions own the route id, label translation key, Lucide icon,
+  keep-alive component name, optional badge key, and optional frontend-visible
+  permission requirements.
+- Page components register by id only with `useAdminPage(routePath)`:
   ```typescript
-  const adminTabs = useAdminTabs()
-  onMounted(() => {
-    adminTabs.openTab('/roles', 'admin.nav.roles', 'i-lucide-shield-check', 'AdminRoles')
-  })
+  const adminPage = useAdminPage('/roles')
   ```
+- Do not call `useAdminTabs().openTab(...)` directly from admin page
+  components; tab metadata must come from the registry.
 
 ### 3. Keep-Alive Component Caching (状态缓存与销毁)
-- All admin pages must declare their exact component name using `defineOptions` matching the `componentName` string passed to `openTab`:
+- All admin pages must declare their exact component name using
+  `defineOptions`, matching the registry `componentName`:
   ```typescript
   defineOptions({
     name: 'AdminRoles'
   })
   ```
 - This enables precise state caching when tabs are open, and automatically purges page memory and input states when the tab is closed by the user.
-- **Keep-Alive Navigation Synchronization**: Because pages are cached by `<KeepAlive>`, switching between already open tabs does not re-trigger the page's `onMounted` hook. To ensure the active tab indicator stays synchronized, the global `admin.vue` layout watches `route.path` and parses the current location into a valid tab ID using `resolveTabIdFromPath` to update `adminTabs.activeTabId.value` reactively.
+- **Keep-Alive Navigation Synchronization**: Because pages are cached by
+  `<KeepAlive>`, switching between already open tabs does not re-trigger page
+  setup. The global `admin.vue` layout watches `route.path`, resolves it with
+  `useAdminRoutes().routeId(...)`, and opens the matching registered page id.
 
 ### 4. Sidebar Theme Adaptivity and Nested Menus (侧边栏及多级菜单)
 - The sidebar background and text colors must adapt to the color theme (white background in light mode, dark zinc-950 in dark mode). Avoid inline dark overrides (e.g., `text-slate-400!`).
-- Sidebar menu configurations (`navigationItems`) support nested lists. Use the `children` array and `defaultOpen: true` to trigger automatic accordion folding:
+- Sidebar menu configuration belongs in `adminSidebarNavigation` inside
+  `apps/web/app/config/adminModules.ts`, not as a hard-coded array in
+  `admin.vue`.
+- Nested menu entries use the `children` array and `defaultOpen: true` to
+  trigger automatic accordion folding:
   ```typescript
   {
-    label: 'System Config',
+    type: 'folder',
+    labelKey: 'admin.nav.system',
     icon: 'i-lucide-settings-2',
     defaultOpen: true,
     children: [
-      { label: 'Site Settings', icon: 'i-lucide-sliders', to: adminRoutes.path('/settings') }
+      { type: 'page', pageId: '/settings' }
     ]
   }
   ```
@@ -70,6 +82,8 @@ When developing new pages or sections in the SForum Admin Control Panel (`apps/w
 
 ## Consequences
 
-- New admin features can be quickly created by copying a template page that uses the layout and registering the tab in `onMounted`.
+- New admin features can be quickly created by adding a registry page
+  definition, optionally adding it to `adminSidebarNavigation`, and calling
+  `useAdminPage('/id')` from the page.
 - Page states (e.g. form fields) are preserved across tabs naturally.
 - The UI maintains a clean, modern SaaS hierarchy with a global topbar and tab navigation.

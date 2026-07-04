@@ -107,6 +107,26 @@ Initial identity foundation is implemented.
 - Nuxt route guards are user-experience helpers only. API policy checks remain
   authoritative.
 
+## Permission-Aware Development Rules
+
+- Treat authorization as part of feature design. Before adding a route,
+  mutation, admin screen, data export, moderation action, background action, or
+  setting update, identify the actor, action, protected resource, and required
+  permission boundary.
+- Prefer existing permission keys and policy helpers. Add a new permission only
+  when it maps to a distinct admin-grantable capability, then update seed data,
+  permission catalog text, API contracts when relevant, and frontend permission
+  labels.
+- Keep permission checks on the API side for every protected operation. Nuxt
+  middleware, hidden menu items, disabled buttons, and localized denial messages
+  are helpful UI affordances, not security boundaries.
+- Cover both allowed and denied paths in tests for unsafe endpoints and admin
+  operations. Include direct user allow/deny behavior when a feature depends on
+  effective permissions.
+- Continue to preserve `super_admin` invariants: active super administrators
+  pass all policy checks, and direct permission overrides cannot be edited for
+  current `super_admin` users.
+
 ## Implementation Notes
 
 - `apps/api/app/Models/Identity/service.go` owns registration, login,

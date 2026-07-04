@@ -1,6 +1,7 @@
 import {
   joinAdminRoutePath,
-  normalizeAdminRoutePrefix
+  normalizeAdminRoutePrefix,
+  resolveAdminRouteChildPath
 } from '~/utils/adminRoutePrefix'
 
 export const useAdminRoutes = () => {
@@ -18,8 +19,13 @@ export const useAdminRoutes = () => {
     return adminPath
   }
 
+  const routeId = (routePath: string) => {
+    return resolveAdminRouteChildPath(prefix, routePath)
+  }
+
   return {
     prefix,
-    path
+    path,
+    routeId
   }
 }

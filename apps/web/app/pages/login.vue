@@ -194,7 +194,7 @@ async function submitLogin() {
   width: 28px;
   height: 28px;
   border-radius: 7px;
-  background: #0f766e;
+  background: var(--sf-accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -254,7 +254,7 @@ async function submitLogin() {
   font-size: 11px;
   flex-shrink: 0;
   margin-top: 1px;
-  color: #0f766e;
+  color: var(--sf-accent);
 }
 
 .auth-left-footer {
@@ -301,7 +301,7 @@ async function submitLogin() {
 /* 当前页高亮：login 页永远高亮登录 tab */
 .auth-tab--active {
   color: #111827;
-  border-bottom-color: #0f766e;
+  border-bottom-color: var(--sf-accent);
 }
 
 .auth-form-title {
@@ -370,8 +370,8 @@ async function submitLogin() {
 .auth-input:hover { border-color: #9ca3af; }
 
 .auth-input:focus {
-  border-color: #0f766e;
-  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+  border-color: var(--sf-accent);
+  box-shadow: 0 0 0 3px var(--sf-accent-focus);
 }
 
 /* 覆盖 WebKit 自动填充默认底色，保持登录表单白底。 */
@@ -386,9 +386,9 @@ async function submitLogin() {
 }
 
 .auth-input:-webkit-autofill:focus {
-  border-color: #0f766e;
-  -webkit-box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px rgba(15, 118, 110, 0.14);
-  box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px rgba(15, 118, 110, 0.14);
+  border-color: var(--sf-accent);
+  -webkit-box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px var(--sf-accent-focus);
+  box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px var(--sf-accent-focus);
   -webkit-text-fill-color: #111827;
   caret-color: #111827;
 }
@@ -402,7 +402,7 @@ async function submitLogin() {
   height: 40px;
   border: none;
   border-radius: 7px;
-  background: #0f766e;
+  background: var(--sf-accent);
   color: #fff;
   font-size: 14px;
   font-weight: 600;
@@ -414,8 +414,8 @@ async function submitLogin() {
 }
 
 .auth-btn:hover:not(:disabled) {
-  background: #0b5f59;
-  box-shadow: 0 4px 14px rgba(15, 118, 110, 0.25);
+  background: var(--sf-accent-hover);
+  box-shadow: 0 4px 14px rgb(var(--sf-accent-rgb) / 0.25);
 }
 
 .auth-btn:disabled {

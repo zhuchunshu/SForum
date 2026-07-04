@@ -3,6 +3,7 @@ package options
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,8 +38,8 @@ func TestServiceListsOnlyPublicOptions(t *testing.T) {
 			t.Fatalf("public list should not expose altcha secret: %#v", items)
 		}
 	}
-	if len(items) != 5 {
-		t.Fatalf("expected 5 public options, got %#v", items)
+	if len(items) != 9 {
+		t.Fatalf("expected 9 public options, got %#v", items)
 	}
 }
 
@@ -179,6 +180,66 @@ func TestServiceUpdateManyKeepsBlankSecretAndRequiresSecretForAltcha(t *testing.
 	}
 }
 
+func TestServicePersonalizationDefaultsAndValidation(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	actor := settingsActor()
+
+	theme, err := service.WebOption(context.Background(), NameAppearanceTheme)
+	if err != nil {
+		t.Fatalf("default theme returned error: %v", err)
+	}
+	if theme != "pine_teal" {
+		t.Fatalf("expected default pine teal theme, got %q", theme)
+	}
+
+	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAppearanceTheme, Value: "neon"}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("expected invalid custom theme, got %v", err)
+	}
+	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameFooterCopyrightZHCN, Value: stringsOfRunes("长", 201)}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("expected oversized footer copyright to be invalid, got %v", err)
+	}
+}
+
+func TestServiceNormalizesFooterLinks(t *testing.T) {
+	store := &fakeStore{}
+	service := NewServiceWithCacheTTL(store, time.Minute)
+	actor := settingsActor()
+	value := `[
+		{"key":"privacy","labels":{"zh-CN":"隐私","en-US":"Privacy"},"url":"/privacy"},
+		{"key":"guidelines","labels":{"zh-CN":"指南","en-US":"Guidelines"},"url":""},
+		{"key":"terms","labels":{"zh-CN":"条款","en-US":"Terms"},"url":"https://example.com/terms"}
+	]`
+
+	updated, err := service.Update(context.Background(), actor, UpdateInput{Name: NameFooterLinks, Value: value})
+	if err != nil {
+		t.Fatalf("Update footer links returned error: %v", err)
+	}
+
+	got := updated.Value
+	want := `[{"key":"terms","labels":{"zh-CN":"条款","en-US":"Terms"},"url":"https://example.com/terms"},{"key":"privacy","labels":{"zh-CN":"隐私","en-US":"Privacy"},"url":"/privacy"},{"key":"guidelines","labels":{"zh-CN":"指南","en-US":"Guidelines"},"url":""}]`
+	if got != want {
+		t.Fatalf("expected normalized footer links\nwant: %s\n got: %s", want, got)
+	}
+}
+
+func TestServiceRejectsInvalidFooterLinks(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	actor := settingsActor()
+
+	cases := []string{
+		`not-json`,
+		`[{"key":"terms","labels":{"zh-CN":"条款","en-US":"Terms"},"url":"mailto:test@example.com"},{"key":"privacy","labels":{"zh-CN":"隐私","en-US":"Privacy"},"url":"#"},{"key":"guidelines","labels":{"zh-CN":"指南","en-US":"Guidelines"},"url":"#"}]`,
+		`[{"key":"terms","labels":{"zh-CN":"","en-US":"Terms"},"url":"#"},{"key":"privacy","labels":{"zh-CN":"隐私","en-US":"Privacy"},"url":"#"},{"key":"guidelines","labels":{"zh-CN":"指南","en-US":"Guidelines"},"url":"#"}]`,
+		`[{"key":"terms","labels":{"zh-CN":"条款","en-US":"Terms"},"url":"#"},{"key":"terms","labels":{"zh-CN":"隐私","en-US":"Privacy"},"url":"#"},{"key":"guidelines","labels":{"zh-CN":"指南","en-US":"Guidelines"},"url":"#"}]`,
+	}
+
+	for _, value := range cases {
+		if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameFooterLinks, Value: value}); !errors.Is(err, ErrInvalidOption) {
+			t.Fatalf("expected invalid footer links for %s, got %v", value, err)
+		}
+	}
+}
+
 func TestServiceRejectsUnknownOrEmptyOption(t *testing.T) {
 	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
 	actor := settingsActor()
@@ -236,6 +297,14 @@ func adminSecret(items []AdminOption, name string) AdminOption {
 		}
 	}
 	return AdminOption{}
+}
+
+func stringsOfRunes(value string, count int) string {
+	var builder strings.Builder
+	for i := 0; i < count; i++ {
+		builder.WriteString(value)
+	}
+	return builder.String()
 }
 
 type fakeStore struct {

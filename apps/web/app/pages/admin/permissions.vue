@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminTabs } from '~/composables/useAdminTabs'
+import { useAdminPage } from '~/composables/useAdminPage'
 
 definePageMeta({
   middleware: 'admin',
@@ -42,7 +42,7 @@ type PermissionMatrix = {
 const { t } = useI18n()
 const { request } = useApiClient()
 const { permissionLabel, permissionDescription, permissionModuleLabel } = usePermissionText()
-const adminTabs = useAdminTabs()
+const adminPage = useAdminPage('/permissions')
 
 const roles = ref<Role[]>([])
 const matrix = ref<PermissionMatrix>({ permissions: [], roles: [] })
@@ -50,7 +50,6 @@ const pending = ref(false)
 const errorMessage = ref('')
 
 onMounted(() => {
-  adminTabs.openTab('/permissions', 'admin.nav.permissionManagement', 'i-lucide-shield-check', 'AdminPermissions')
   void loadData()
 })
 
@@ -101,7 +100,7 @@ function roleHasPermission(roleKey: string, permissionKey: string) {
 <template>
   <div class="mb-4 flex flex-col gap-1">
     <h2 class="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-zinc-100">
-      <UIcon name="i-lucide-shield-check" class="size-5 text-teal-600 dark:text-teal-400" />
+      <UIcon :name="adminPage.icon" class="size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
       {{ t('admin.permissions.title') }}
     </h2>
     <p class="text-sm text-slate-500 dark:text-zinc-400">
@@ -112,7 +111,7 @@ function roleHasPermission(roleKey: string, permissionKey: string) {
   <UDashboardToolbar class="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg px-4 py-2.5 mb-6 text-slate-500 dark:text-zinc-400">
     <template #left>
       <div class="flex items-center gap-2 text-sm">
-        <UIcon name="i-lucide-list-checks" class="size-4 text-teal-600 dark:text-teal-400" />
+        <UIcon name="i-lucide-list-checks" class="size-4 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
         <span>{{ t('admin.permissions.matrix') }}</span>
       </div>
     </template>
@@ -202,7 +201,7 @@ function roleHasPermission(roleKey: string, permissionKey: string) {
                     <span
                       class="inline-flex size-7 items-center justify-center rounded-full"
                       :class="roleHasPermission(role.key, permission.key)
-                        ? 'bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300'
+                        ? 'bg-[var(--sf-accent-soft)] text-[var(--sf-accent)] dark:bg-[rgb(var(--sf-accent-rgb)/0.15)] dark:text-[var(--sf-accent-dark)]'
                         : 'bg-slate-50 text-slate-300 dark:bg-zinc-950 dark:text-zinc-700'"
                     >
                       <UIcon :name="roleHasPermission(role.key, permission.key) ? 'i-lucide-check' : 'i-lucide-minus'" class="size-4" />

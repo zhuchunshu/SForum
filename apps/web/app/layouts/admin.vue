@@ -1,12 +1,28 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui/components/DropdownMenu.vue'
+import {
+  adminSidebarNavigation,
+  canAccessAdminPage,
+  findAdminPageDefinition,
+  type AdminNavigationEntry,
+  requireAdminPageDefinition
+} from '~/config/adminModules'
 import { useAdminRoutes } from '~/composables/useAdminRoutes'
 import { useAdminTabs } from '~/composables/useAdminTabs'
+
+type SidebarNavigationItem = {
+  label: string
+  icon: string
+  to?: string
+  badge?: string
+  defaultOpen?: boolean
+  children?: SidebarNavigationItem[]
+}
 
 const { t } = useI18n()
 const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
-const { user } = useAuthSession()
+const { user, can } = useAuthSession()
 const { request } = useApiClient()
 const { siteName } = useWebOptions()
 
@@ -25,85 +41,84 @@ const userInitial = computed(() => {
 // 计算当前激活标签页的标题，用于面包屑展示
 const activeTabLabel = computed(() => {
   const activeTab = adminTabs.tabs.value.find(tab => tab.id === adminTabs.activeTabId.value)
-  return activeTab ? t(activeTab.labelKey) : t('admin.nav.dashboard')
+  return activeTab ? t(activeTab.labelKey) : t(requireAdminPageDefinition('/').labelKey)
 })
 
-// 监听路由变化，同步更新 activeTabId，解决 KeepAlive 缓存组件切换时 active 状态不更新的问题
 const route = useRoute()
-const resolveTabIdFromPath = (path: string) => {
-  const adminPrefix = adminRoutes.prefix
-  let cleanPath = path
-  const localeMatch = cleanPath.match(/^\/([a-zA-Z]{2}(-[a-zA-Z]{2})?)\//)
-  if (localeMatch) {
-    cleanPath = cleanPath.substring(localeMatch[0].length - 1)
-  }
-  if (cleanPath.startsWith(adminPrefix)) {
-    const childPath = cleanPath.substring(adminPrefix.length)
-    return childPath === '' ? '/' : childPath
-  }
-  return null
-}
 
+// KeepAlive 页面不会重复 mounted，路由变化时用注册表同步当前 tab。
 watch(() => route.path, (newPath) => {
-  const tabId = resolveTabIdFromPath(newPath)
-  if (tabId) {
-    adminTabs.activeTabId.value = tabId
+  const tabId = adminRoutes.routeId(newPath)
+  const page = tabId ? findAdminPageDefinition(tabId) : null
+
+  if (page) {
+    adminTabs.openTab(page.id)
   }
 }, { immediate: true })
 
-// 无 Emoji，严格使用 i-lucide-
-// 支持多级折叠嵌套菜单
-const navigationItems = computed(() => [
-  [
-    {
-      label: t('admin.nav.dashboard'),
-      icon: 'i-lucide-layout-dashboard',
-      to: adminRoutes.path('/')
-    },
-    {
-      label: t('admin.nav.userPermission'),
-      icon: 'i-lucide-user-cog',
-      defaultOpen: true,
-      children: [
-        {
-          label: t('admin.nav.userManagement'),
-          icon: 'i-lucide-contact',
-          to: adminRoutes.path('/users')
-        },
-        {
-          label: t('admin.nav.userGroups'),
-          icon: 'i-lucide-users',
-          to: adminRoutes.path('/roles'),
-          badge: t('admin.nav.rolesBadge')
-        },
-        {
-          label: t('admin.nav.permissionManagement'),
-          icon: 'i-lucide-shield-check',
-          to: adminRoutes.path('/permissions')
-        }
-      ]
-    },
-    {
-      label: '系统配置',
-      icon: 'i-lucide-settings-2',
-      defaultOpen: true,
-      children: [
-        {
-          label: t('admin.nav.settings'),
-          icon: 'i-lucide-sliders',
-          to: adminRoutes.path('/settings')
-        }
-      ]
-    }
-  ],
-  [
-    {
-      label: t('admin.nav.forumHome'),
-      icon: 'i-lucide-house',
+const navigationItems = computed(() => {
+  return adminSidebarNavigation
+    .map(group => group
+      .map(entry => buildNavigationItem(entry))
+      .filter((item): item is SidebarNavigationItem => Boolean(item)))
+    .filter(group => group.length > 0)
+})
+
+function buildNavigationItem(entry: AdminNavigationEntry): SidebarNavigationItem | null {
+  if (entry.type === 'forum-home') {
+    return {
+      label: t(entry.labelKey),
+      icon: entry.icon,
       to: localePath('/')
     }
-  ]
-])
+  }
+
+  if (entry.type === 'folder') {
+    const children = entry.children
+      .map(child => buildNavigationItem(child))
+      .filter((item): item is SidebarNavigationItem => Boolean(item))
+
+    if (children.length === 0) {
+      return null
+    }
+
+    return {
+      label: t(entry.labelKey),
+      icon: entry.icon,
+      defaultOpen: entry.defaultOpen,
+      children
+    }
+  }
+
+  const page = findAdminPageDefinition(entry.pageId)
+  if (!page || !canAccessAdminPage(page, can)) {
+    return null
+  }
+
+  const badgeKey = entry.badgeKey || page.badgeKey
+
+  return {
+    label: t(page.labelKey),
+    icon: page.icon,
+    to: adminRoutes.path(page.id),
+    ...(badgeKey ? { badge: t(badgeKey) } : {})
+  }
+}
+
+const sidebarNavigationUi = {
+  list: 'flex flex-col gap-1',
+  item: 'min-w-0',
+  link: '!min-h-[42px] !gap-2 !rounded-md !px-3.5 !py-2 !text-[14.5px] !font-semibold !leading-tight',
+  linkLabel: '!leading-tight',
+  linkLeadingIcon: '!size-[18px]',
+  linkTrailingIcon: '!size-[17px]',
+  linkTrailingBadge: '!text-xs !px-2 !py-0.5',
+  childList: '!mt-1 !mb-2 !ms-5 !border-s !border-dashed !border-slate-200 dark:!border-zinc-800 !ps-3',
+  childItem: '!ps-0',
+  childLink: '!min-h-[36px] !gap-1.5 !rounded-md !px-3 !py-1.5 !text-[13.5px] !font-medium !leading-tight',
+  childLinkIcon: '!size-[15px]',
+  childLinkLabel: '!leading-tight'
+}
 
 const userMenuItems = computed<DropdownMenuItem[][]>(() => [
   [
@@ -122,7 +137,7 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
       to: localePath('/')
     },
     {
-      label: colorMode.value === 'dark' ? '切换至浅色模式' : '切换至深色模式',
+      label: themeToggleLabel.value,
       icon: colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon',
       onSelect: () => {
         colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
@@ -137,6 +152,10 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
     }
   ]
 ])
+
+const themeToggleLabel = computed(() => {
+  return colorMode.value === 'dark' ? t('admin.shell.lightMode') : t('admin.shell.darkMode')
+})
 
 async function signOut() {
   await request<null>('/auth/logout', {
@@ -156,24 +175,24 @@ async function signOut() {
       collapsible
       resizable
       :default-size="16"
-      :min-size="13"
+      :min-size="14"
       :max-size="22"
-      class="border-r border-slate-200 dark:border-zinc-800 bg-[var(--bg-admin-sidebar)] text-slate-600 dark:text-zinc-400"
+      class="sforum-admin-sidebar border-r border-slate-200 dark:border-zinc-800 bg-[var(--bg-admin-sidebar)] text-slate-600 dark:text-zinc-400"
     >
       <template #header="{ collapsed }">
         <NuxtLink
           :to="adminRoutes.path('/')"
-          class="flex h-12 min-w-0 items-center gap-3 rounded-md px-2 text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
+          class="flex h-[50px] min-w-0 items-center gap-2.5 rounded-md px-2 text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
           :aria-label="siteName"
         >
-          <span class="grid size-8 shrink-0 place-items-center rounded-md bg-teal-600 text-white">
-            <UIcon name="i-lucide-message-square-text" class="size-4" />
+          <span class="grid size-[30px] shrink-0 place-items-center rounded-md bg-[var(--sf-accent)] text-white">
+            <UIcon name="i-lucide-message-square-text" class="size-[17px]" />
           </span>
           <span v-if="!collapsed" class="min-w-0">
-            <span class="block truncate text-sm font-semibold text-slate-900 dark:text-white">
+            <span class="block truncate text-[14.5px] font-bold text-slate-900 dark:text-white">
               {{ siteName }}
             </span>
-            <span class="block truncate text-xs text-slate-500 dark:text-zinc-400">
+            <span class="block truncate text-xs font-medium text-slate-500 dark:text-zinc-400">
               {{ t('admin.shell.section') }}
             </span>
           </span>
@@ -189,6 +208,7 @@ async function signOut() {
           color="primary"
           orientation="vertical"
           class="-mx-2"
+          :ui="sidebarNavigationUi"
         />
       </template>
 
@@ -200,12 +220,12 @@ async function signOut() {
             color="neutral"
             variant="ghost"
             block
-            class="justify-start px-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
+            class="justify-start px-2 py-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
             @click="() => { colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark' }"
           >
             <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="size-4" />
-            <span class="text-sm font-medium">
-              {{ colorMode.value === 'dark' ? '浅色模式' : '深色模式' }}
+            <span class="text-sm font-semibold">
+              {{ themeToggleLabel }}
             </span>
           </UButton>
 
@@ -214,7 +234,7 @@ async function signOut() {
               color="neutral"
               variant="ghost"
               block
-              class="justify-start px-2 py-4 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
+              class="justify-start px-2 py-3.5 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
               :class="{ 'justify-center': collapsed }"
             >
               <UAvatar :text="userInitial" size="lg" class="shadow-sm border border-slate-100 dark:border-zinc-800" />
@@ -235,17 +255,19 @@ async function signOut() {
 
     <UDashboardPanel class="flex flex-col min-w-0 flex-1 bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100">
       <!-- 1. 置顶全局 Topbar -->
-      <!-- 1. 置顶全局 Topbar (高度调回 60px) -->
-      <div class="flex items-center justify-between h-[60px] px-6 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 z-20 transition-all">
-        <div class="flex items-center gap-2.5">
-          <span class="text-sm font-bold text-slate-900 dark:text-zinc-100 tracking-wide">SForum 控制台</span>
-          <span class="text-xs text-slate-300 dark:text-zinc-600">/</span>
-          <span class="text-xs font-semibold text-slate-600 dark:text-zinc-300">{{ activeTabLabel }}</span>
+      <div class="flex items-center justify-between h-[68px] sm:h-[76px] px-4 sm:px-8 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 z-20 transition-all">
+        <div class="flex min-w-0 items-center gap-2 sm:gap-3">
+          <span class="shrink-0 text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-wide">
+            {{ t('admin.shell.controlPanel', { siteName }) }}
+          </span>
+          <span class="shrink-0 text-sm text-slate-300 dark:text-zinc-600">/</span>
+          <span class="truncate text-sm sm:text-base font-semibold text-slate-600 dark:text-zinc-300">{{ activeTabLabel }}</span>
         </div>
-        <div class="flex items-center gap-4 text-xs">
-          <span class="inline-flex items-center gap-2 text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-950 px-3 py-1.5 rounded-full border border-slate-100 dark:border-zinc-800">
-            <span class="size-2 rounded-full bg-teal-600 dark:bg-teal-400 animate-pulse"></span>
-            管理员: <strong class="text-slate-800 dark:text-zinc-200 font-semibold">{{ user?.username }}</strong>
+        <div class="hidden sm:flex items-center gap-4 text-sm">
+          <span class="inline-flex items-center gap-2.5 text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-950 px-4 py-2.5 rounded-full border border-slate-100 dark:border-zinc-800">
+            <span class="size-2.5 rounded-full bg-[var(--sf-accent)] dark:bg-[var(--sf-accent-dark)] animate-pulse"></span>
+            {{ t('admin.shell.administratorLabel') }}:
+            <strong class="text-slate-800 dark:text-zinc-200 font-semibold">{{ user?.username }}</strong>
           </span>
         </div>
       </div>

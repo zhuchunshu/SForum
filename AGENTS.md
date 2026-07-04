@@ -14,6 +14,27 @@ SForum is intended to become a maintainable forum project. The current repositor
 - Keep changes scoped to the current task. Do not refactor unrelated areas just because they are nearby.
 - Record decisions in the knowledge base when they will matter to future sessions.
 
+## Permission-Aware Development
+
+The permission system is now part of the baseline architecture. When developing
+any new feature, keep authorization in mind from the design stage instead of
+adding it after the UI or endpoint is already complete.
+
+- Identify the actor, action, and protected resource for every new route,
+  mutation, admin screen, background action, or data export.
+- Decide whether the behavior is public, login-required, role/permission
+  protected, or reserved for `super_admin`.
+- Reuse existing permission keys and policy helpers before adding new
+  permissions. Add a new permission only when it represents a distinct product
+  capability that admins should be able to grant or deny.
+- Keep API policy checks authoritative. Frontend route guards, hidden buttons,
+  disabled controls, and permission-aware navigation are only user-experience
+  helpers.
+- For unsafe requests and admin operations, add or update tests that cover both
+  allowed and denied access paths.
+- When a feature adds new permission keys, update seed data, permission catalog
+  display text, OpenAPI/contracts when relevant, and the knowledge base.
+
 ## Frontend UI Conventions
 
 - Do not use emoji as UI icons, decorative symbols, status markers, or action indicators.
@@ -32,6 +53,7 @@ The following rules are repository-level instructions for AI coding agents:
 - 以破坏架构为耻，以遵循规范为荣。
 - 以假装理解为耻，以诚实无知为荣。
 - 以盲目修改为耻，以谨慎重构为荣。
+- 以遗忘权限为耻，以主动建模为荣。
 
 When writing code, keep the implementation simple and concise. Prefer built-in
 functions and mature existing APIs over custom code. Do not over-validate

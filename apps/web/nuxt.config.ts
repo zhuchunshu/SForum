@@ -68,6 +68,14 @@ export default defineNuxtConfig({
   ui: {
     fonts: false
   },
+  icon: {
+    provider: 'server',
+    fallbackToApi: false,
+    collections: ['lucide', 'tabler'],
+    serverBundle: {
+      collections: ['lucide', 'tabler']
+    }
+  },
   vite: {
     server: {
       watch: {

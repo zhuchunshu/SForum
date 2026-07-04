@@ -16,6 +16,7 @@ const REQUIRED_COMPONENTS = [
   'SFEditor',
   'SFEmptyState',
   'SFFeedRow',
+  'SFIconPicker',
   'SFInput',
   'SFPagination',
   'SFProgress',
@@ -36,6 +37,7 @@ const REQUIRED_CSS_SELECTORS = [
   '.sf-editor',
   '.sf-empty-state',
   '.sf-feed-row',
+  '.sf-icon-picker',
   '.sf-input',
   '.sf-pagination',
   '.sf-progress',
@@ -55,6 +57,7 @@ const REQUIRED_AUTOFILL_RULES = [
 
 const REQUIRED_DOC_ANCHORS = [
   '#foundations',
+  '#icons',
   '#feedback',
   '#forum',
   '#composer',
@@ -65,6 +68,7 @@ const REQUIRED_DOC_ANCHORS = [
 
 const REQUIRED_DOC_COPY = [
   '发布工作流',
+  'Icons 选择器',
   '审核与管理',
   '成员资料',
   '隐私设置',

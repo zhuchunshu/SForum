@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
-import { useAdminTabs } from '~/composables/useAdminTabs'
+import { useAdminPage } from '~/composables/useAdminPage'
 
 definePageMeta({
   middleware: 'admin',
@@ -33,7 +33,7 @@ const { t } = useI18n()
 const { request } = useApiClient()
 const { permissionLabel, permissionDescription, permissionModuleLabel } = usePermissionText()
 const search = ref('')
-const adminTabs = useAdminTabs()
+const adminPage = useAdminPage('/roles')
 
 const roles = ref<Role[]>([])
 const permissions = ref<Permission[]>([])
@@ -50,7 +50,6 @@ const errorMessage = ref('')
 const successMessage = ref('')
 
 onMounted(() => {
-  adminTabs.openTab('/roles', 'admin.nav.roles', 'i-lucide-shield-check', 'AdminRoles')
   void loadData()
 })
 
@@ -242,7 +241,7 @@ async function deleteRole() {
 <template>
   <div class="mb-4 flex flex-col gap-1">
     <h2 class="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-zinc-100">
-      <UIcon name="i-lucide-shield-check" class="size-5 text-teal-600 dark:text-teal-400" />
+      <UIcon :name="adminPage.icon" class="size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
       {{ t('admin.roles.title') }}
     </h2>
     <p class="text-sm text-slate-500 dark:text-zinc-400">
@@ -394,7 +393,7 @@ async function deleteRole() {
         />
         <textarea
           v-model="formDescription"
-          class="min-h-24 w-full resize-y rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+          class="min-h-24 w-full resize-y rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-[var(--sf-accent)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
           :placeholder="t('admin.roles.descriptionPlaceholder')"
         />
 
@@ -421,11 +420,11 @@ async function deleteRole() {
               <label
                 v-for="permission in group.items"
                 :key="permission.key"
-                class="flex cursor-pointer gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm transition hover:border-teal-300 dark:border-zinc-800 dark:bg-zinc-900"
+                class="flex cursor-pointer gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-900"
               >
                 <input
                   type="checkbox"
-                  class="mt-1 size-4 accent-teal-600"
+                  class="mt-1 size-4 accent-[var(--sf-accent)]"
                   :checked="formPermissionKeys.includes(permission.key)"
                   :disabled="permissionEditingLocked"
                   @change="togglePermission(permission.key)"

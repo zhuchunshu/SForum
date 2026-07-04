@@ -6,7 +6,7 @@ const localeHead = useLocaleHead({
   lang: true,
   seo: true
 })
-const { siteName, refresh: refreshWebOptions } = useWebOptions()
+const { siteName, appearanceTheme, refresh: refreshWebOptions } = useWebOptions()
 const { refresh: refreshAuthSession } = useAuthSession()
 const startupOptionsTimeout = import.meta.dev ? 800 : 2000
 
@@ -23,7 +23,10 @@ await useAsyncData('app-startup', async () => {
 })
 
 useHead(() => ({
-  htmlAttrs: localeHead.value.htmlAttrs,
+  htmlAttrs: {
+    ...localeHead.value.htmlAttrs,
+    'data-sforum-theme': appearanceTheme.value
+  },
   link: localeHead.value.link,
   meta: localeHead.value.meta,
   titleTemplate: (title) => title ? `${title} - ${siteName.value}` : siteName.value

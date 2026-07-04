@@ -381,7 +381,7 @@ async function submitRegister() {
   width: 28px;
   height: 28px;
   border-radius: 7px;
-  background: #0f766e;
+  background: var(--sf-accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -441,7 +441,7 @@ async function submitRegister() {
   font-size: 11px;
   flex-shrink: 0;
   margin-top: 1px;
-  color: #0f766e;
+  color: var(--sf-accent);
 }
 
 .auth-left-footer {
@@ -486,7 +486,7 @@ async function submitRegister() {
 
 .auth-tab--active {
   color: #111827;
-  border-bottom-color: #0f766e;
+  border-bottom-color: var(--sf-accent);
 }
 
 .auth-form-title {
@@ -553,8 +553,8 @@ async function submitRegister() {
 .auth-input:hover { border-color: #9ca3af; }
 
 .auth-input:focus {
-  border-color: #0f766e;
-  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+  border-color: var(--sf-accent);
+  box-shadow: 0 0 0 3px var(--sf-accent-focus);
 }
 
 .auth-input--invalid,
@@ -593,9 +593,9 @@ async function submitRegister() {
 }
 
 .auth-input:-webkit-autofill:focus {
-  border-color: #0f766e;
-  -webkit-box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px rgba(15, 118, 110, 0.14);
-  box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px rgba(15, 118, 110, 0.14);
+  border-color: var(--sf-accent);
+  -webkit-box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px var(--sf-accent-focus);
+  box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px var(--sf-accent-focus);
   -webkit-text-fill-color: #111827;
   caret-color: #111827;
 }
@@ -607,9 +607,9 @@ async function submitRegister() {
   --altcha-max-width: 100%;
   --altcha-border-radius: 7px;
   --altcha-border-color: #d1d5db;
-  --altcha-color-primary: #0f766e;
+  --altcha-color-primary: var(--sf-accent);
   --altcha-color-primary-content: #ffffff;
-  --altcha-color-success: #0f766e;
+  --altcha-color-success: var(--sf-accent);
 }
 
 .auth-altcha--invalid {
@@ -633,7 +633,7 @@ async function submitRegister() {
   height: 40px;
   border: none;
   border-radius: 7px;
-  background: #0f766e;
+  background: var(--sf-accent);
   color: #fff;
   font-size: 14px;
   font-weight: 600;
@@ -645,8 +645,8 @@ async function submitRegister() {
 }
 
 .auth-btn:hover:not(:disabled) {
-  background: #0b5f59;
-  box-shadow: 0 4px 14px rgba(15, 118, 110, 0.25);
+  background: var(--sf-accent-hover);
+  box-shadow: 0 4px 14px rgb(var(--sf-accent-rgb) / 0.25);
 }
 
 .auth-btn:disabled {

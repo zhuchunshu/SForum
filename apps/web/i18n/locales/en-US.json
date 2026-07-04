@@ -103,21 +103,51 @@
     "feature2": "Markdown support for long-form writing",
     "feature3": "Bilingual interface — switch anytime"
   },
+  "components": {
+    "iconPicker": {
+      "label": "Icon",
+      "hint": "Choose a Tabler or Nuxt Icon name; the saved value can be used directly by UIcon.",
+      "collectionLabel": "Icon source",
+      "searchPlaceholder": "Search by icon name or purpose",
+      "selected": "Selected icon",
+      "noSelection": "No icon selected",
+      "empty": "No matching icons.",
+      "customLabel": "Custom Nuxt Icon name",
+      "customPlaceholder": "Example: i-tabler-home or lucide:settings-2",
+      "useCustom": "Use",
+      "collections": {
+        "tabler": {
+          "label": "Tabler Icons",
+          "description": "Good for admin menus, categories, and status icons."
+        },
+        "nuxt": {
+          "label": "Nuxt Icon",
+          "description": "Compatible with Nuxt UI i-lucide-* / Iconify names."
+        }
+      }
+    }
+  },
   "admin": {
     "shell": {
       "brand": "SForum",
       "section": "Control panel",
+      "controlPanel": "{siteName} Control Panel",
       "unknownUser": "Administrator",
+      "administratorLabel": "Admin",
       "member": "Member",
       "visitForum": "Back to forum",
+      "lightMode": "Light mode",
+      "darkMode": "Dark mode",
       "signOut": "Sign out"
     },
     "nav": {
       "dashboard": "Dashboard",
+      "personalization": "Personalization",
       "roles": "User groups",
       "rolesBadge": "RBAC",
       "settings": "Site settings",
       "forumHome": "Forum home",
+      "system": "System",
       "userPermission": "Users & Permissions",
       "userManagement": "User management",
       "userGroups": "User groups",
@@ -345,6 +375,58 @@
         "manage": {
           "label": "Manage site settings",
           "description": "Edit runtime settings such as site name, languages, and human verification."
+        }
+      }
+    },
+    "personalization": {
+      "metaTitle": "Personalization",
+      "title": "Personalization",
+      "intro": "Configure the site theme, footer copy, and public footer links.",
+      "toolbar": "Appearance settings are delivered to public pages through runtime web_options.",
+      "refresh": "Refresh",
+      "loadFailed": "Personalization settings could not be loaded.",
+      "saved": "Personalization settings saved.",
+      "saveFailed": "Personalization settings could not be saved.",
+      "save": "Save personalization",
+      "theme": {
+        "title": "Theme preset",
+        "description": "Choose one main color preset for navigation, buttons, focus states, and admin accents."
+      },
+      "themes": {
+        "pine_teal": {
+          "label": "Pine teal",
+          "description": "The current default theme: calm, crisp, and suited to technical communities."
+        },
+        "ocean_blue": {
+          "label": "Ocean blue",
+          "description": "A steadier blue accent for knowledge bases and product communities."
+        },
+        "violet": {
+          "label": "Violet",
+          "description": "A recognizable theme for creative and design-oriented spaces."
+        },
+        "rose": {
+          "label": "Rose",
+          "description": "A more active accent for interest groups and lighter communities."
+        },
+        "amber": {
+          "label": "Amber",
+          "description": "A warm, visible theme for announcements and event-heavy spaces."
+        }
+      },
+      "footer": {
+        "title": "Footer content",
+        "description": "Customize copyright copy and fixed footer links. Copy supports {year} and {siteName} placeholders.",
+        "copyrightZh": "Chinese copyright copy",
+        "copyrightEn": "English copyright copy",
+        "links": "Footer links",
+        "labelZh": "Chinese label",
+        "labelEn": "English label",
+        "urlPlaceholder": "Example: /terms, https://example.com, or #",
+        "linkKeys": {
+          "terms": "Terms",
+          "privacy": "Privacy",
+          "guidelines": "Guidelines"
         }
       }
     },

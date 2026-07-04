@@ -36,6 +36,10 @@ uppercase `SF` component names. The first component set is backed by
 `/components` route. That preview page now shows the components in expanded
 forum scenarios: publishing, moderation, member profile, feedback, lists, and
 state handling.
+`SFIconPicker` is available for future admin/user setting forms that need an
+icon field. It supports Tabler Icons and the existing Nuxt Icon/Lucide naming,
+stores plain `i-tabler-*` or `i-lucide-*` strings, and `nuxt.config.ts`
+explicitly includes the local `lucide` and `tabler` icon collections.
 SF inputs/search and the standalone login/register auth inputs now override
 WebKit browser autofill styling so saved credentials keep the intended white
 input surface, dark text, caret color, and focus ring instead of the default
@@ -56,6 +60,11 @@ components (`UDashboardGroup`, `UDashboardSidebar`, `UDashboardPanel`,
 directory remains `apps/web/app/pages/admin`, while Nuxt `pages:extend`
 rewrites the public URL prefix to `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`, with
 `/control-panel` as the default.
+Admin modules now use a low-code registry in
+`apps/web/app/config/adminModules.ts`: sidebar entries, tab labels/icons,
+keep-alive component names, badges, and frontend-visible permission
+requirements are centralized there. Page components call `useAdminPage('/id')`
+instead of hand-writing `useAdminTabs().openTab(...)` metadata.
 The public forum navbar user dropdown no longer exposes the admin entry link,
 so the configurable admin prefix is not revealed from the regular logged-in UI.
 Runtime site options are read through `useWebOptions()`. Public options now
@@ -64,6 +73,10 @@ human-verification provider. `site.name` drives the navbar, auth pages, admin
 shell, and browser title template, with `SForum` as the fallback product name.
 Admin-only option reads and batch saves power the settings page tabs; ALTCHA
 secret values are never exposed to public frontend state.
+Personalization now reads `appearance.theme` and footer options from the same
+runtime option layer. The root app sets `data-sforum-theme` on `<html>`, CSS
+variables switch between the preset themes, and the admin personalization page
+edits the theme preset plus footer copyright/link content.
 Admin route middleware distinguishes real unauthenticated responses from
 temporary auth-service failures. A 401 or `auth.required` redirects to login;
 API restart/502/timeout cases show a temporary unavailable error instead of

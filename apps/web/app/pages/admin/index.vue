@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { useAdminPage } from '~/composables/useAdminPage'
 import { useAdminRoutes } from '~/composables/useAdminRoutes'
-import { useAdminTabs } from '~/composables/useAdminTabs'
 
 definePageMeta({
   middleware: 'admin',
@@ -14,19 +14,14 @@ defineOptions({
 
 const { t } = useI18n()
 const adminRoutes = useAdminRoutes()
-const adminTabs = useAdminTabs()
-
-// 挂载当前页签
-onMounted(() => {
-  adminTabs.openTab('/', 'admin.nav.dashboard', 'i-lucide-layout-dashboard', 'AdminIndex')
-})
+const adminPage = useAdminPage('/')
 
 const overviewCards = computed(() => [
   {
     label: t('admin.home.cards.access.label'),
     value: t('admin.home.cards.access.value'),
     icon: 'i-lucide-shield-check',
-    tone: 'text-teal-600 dark:text-teal-400'
+    tone: 'text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]'
   },
   {
     label: t('admin.home.cards.prefix.label'),
@@ -71,7 +66,7 @@ useSeoMeta({
   <!-- 局部标题 -->
   <div class="mb-4">
     <h2 class="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-zinc-100">
-      <UIcon name="i-lucide-layout-dashboard" class="size-5 text-teal-600 dark:text-teal-400" />
+      <UIcon :name="adminPage.icon" class="size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
       {{ t('admin.home.title') }}
     </h2>
   </div>

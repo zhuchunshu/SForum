@@ -2,6 +2,7 @@ package options
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"strconv"
 	"strings"
@@ -14,8 +15,23 @@ import (
 )
 
 const defaultCacheTTL = 30 * time.Second
+const footerCopyrightMaxRunes = 200
+const footerLinkLabelMaxRunes = 40
 
 var builtInLocales = []string{localization.DefaultLocale, "en-US"}
+var appearanceThemes = []string{"pine_teal", "ocean_blue", "violet", "rose", "amber"}
+var footerLinkKeys = []string{"terms", "privacy", "guidelines"}
+
+type footerLinkLabels struct {
+	ZHCN string `json:"zh-CN"`
+	ENUS string `json:"en-US"`
+}
+
+type footerLinkOption struct {
+	Key    string           `json:"key"`
+	Labels footerLinkLabels `json:"labels"`
+	URL    string           `json:"url"`
+}
 
 type Defaults struct {
 	SiteName                  string
@@ -51,6 +67,10 @@ var optionDefinitions = []optionDefinition{
 	{name: NameAltchaSecret, secret: true},
 	{name: NameAltchaChallengeTTL},
 	{name: NameAltchaCost},
+	{name: NameAppearanceTheme, public: true},
+	{name: NameFooterCopyrightZHCN, public: true},
+	{name: NameFooterCopyrightENUS, public: true},
+	{name: NameFooterLinks, public: true},
 }
 
 type Service struct {
@@ -361,6 +381,18 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	if _, ok := parsePositiveInt(coerced[NameAltchaCost]); !ok {
 		coerced[NameAltchaCost] = defaults[NameAltchaCost]
 	}
+	if _, ok := normalizeAppearanceTheme(coerced[NameAppearanceTheme]); !ok {
+		coerced[NameAppearanceTheme] = defaults[NameAppearanceTheme]
+	}
+	if _, ok := normalizeFooterCopyright(coerced[NameFooterCopyrightZHCN]); !ok {
+		coerced[NameFooterCopyrightZHCN] = defaults[NameFooterCopyrightZHCN]
+	}
+	if _, ok := normalizeFooterCopyright(coerced[NameFooterCopyrightENUS]); !ok {
+		coerced[NameFooterCopyrightENUS] = defaults[NameFooterCopyrightENUS]
+	}
+	if _, ok := normalizeFooterLinks(coerced[NameFooterLinks]); !ok {
+		coerced[NameFooterLinks] = defaults[NameFooterLinks]
+	}
 
 	return coerced
 }
@@ -375,6 +407,10 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameAltchaSecret:              "",
 		NameAltchaChallengeTTL:        (10 * time.Minute).String(),
 		NameAltchaCost:                "1000",
+		NameAppearanceTheme:           "pine_teal",
+		NameFooterCopyrightZHCN:       "© {year} {siteName}。保留所有权利。",
+		NameFooterCopyrightENUS:       "© {year} {siteName}. All rights reserved.",
+		NameFooterLinks:               defaultFooterLinksValue(),
 	}
 
 	if value := strings.TrimSpace(defaults.SiteName); value != "" {
@@ -464,6 +500,12 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 			return "", false
 		}
 		return strconv.Itoa(parsed), true
+	case NameAppearanceTheme:
+		return normalizeAppearanceTheme(value)
+	case NameFooterCopyrightZHCN, NameFooterCopyrightENUS:
+		return normalizeFooterCopyright(value)
+	case NameFooterLinks:
+		return normalizeFooterLinks(value)
 	default:
 		return "", false
 	}
@@ -496,6 +538,18 @@ func isValidValueSet(values map[string]string) bool {
 		return false
 	}
 	if _, ok := parsePositiveInt(values[NameAltchaCost]); !ok {
+		return false
+	}
+	if _, ok := normalizeAppearanceTheme(values[NameAppearanceTheme]); !ok {
+		return false
+	}
+	if _, ok := normalizeFooterCopyright(values[NameFooterCopyrightZHCN]); !ok {
+		return false
+	}
+	if _, ok := normalizeFooterCopyright(values[NameFooterCopyrightENUS]); !ok {
+		return false
+	}
+	if _, ok := normalizeFooterLinks(values[NameFooterLinks]); !ok {
 		return false
 	}
 	return true
@@ -598,4 +652,124 @@ func parsePositiveDuration(value string) (time.Duration, bool) {
 func parsePositiveInt(value string) (int, bool) {
 	parsed, err := strconv.Atoi(strings.TrimSpace(value))
 	return parsed, err == nil && parsed > 0
+}
+
+func normalizeAppearanceTheme(value string) (string, bool) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	for _, theme := range appearanceThemes {
+		if value == theme {
+			return theme, true
+		}
+	}
+	return "", false
+}
+
+func normalizeFooterCopyright(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	return value, len([]rune(value)) <= footerCopyrightMaxRunes
+}
+
+func defaultFooterLinksValue() string {
+	value, _ := marshalFooterLinks(defaultFooterLinks())
+	return value
+}
+
+func defaultFooterLinks() []footerLinkOption {
+	return []footerLinkOption{
+		{
+			Key:    "terms",
+			Labels: footerLinkLabels{ZHCN: "服务条款", ENUS: "Terms of Service"},
+			URL:    "#",
+		},
+		{
+			Key:    "privacy",
+			Labels: footerLinkLabels{ZHCN: "隐私政策", ENUS: "Privacy Policy"},
+			URL:    "#",
+		},
+		{
+			Key:    "guidelines",
+			Labels: footerLinkLabels{ZHCN: "社区指南", ENUS: "Guidelines"},
+			URL:    "#",
+		},
+	}
+}
+
+func normalizeFooterLinks(value string) (string, bool) {
+	var links []footerLinkOption
+	if err := json.Unmarshal([]byte(strings.TrimSpace(value)), &links); err != nil {
+		return "", false
+	}
+	if len(links) != len(footerLinkKeys) {
+		return "", false
+	}
+
+	byKey := map[string]footerLinkOption{}
+	for _, link := range links {
+		key := strings.TrimSpace(link.Key)
+		if !isFooterLinkKey(key) || byKey[key].Key != "" {
+			return "", false
+		}
+
+		normalized := footerLinkOption{
+			Key: key,
+			Labels: footerLinkLabels{
+				ZHCN: strings.TrimSpace(link.Labels.ZHCN),
+				ENUS: strings.TrimSpace(link.Labels.ENUS),
+			},
+			URL: strings.TrimSpace(link.URL),
+		}
+		if !isValidFooterLinkLabel(normalized.Labels.ZHCN) || !isValidFooterLinkLabel(normalized.Labels.ENUS) {
+			return "", false
+		}
+		if !isValidFooterURL(normalized.URL) {
+			return "", false
+		}
+		byKey[key] = normalized
+	}
+
+	ordered := make([]footerLinkOption, 0, len(footerLinkKeys))
+	for _, key := range footerLinkKeys {
+		link, ok := byKey[key]
+		if !ok {
+			return "", false
+		}
+		ordered = append(ordered, link)
+	}
+	return marshalFooterLinks(ordered)
+}
+
+func marshalFooterLinks(links []footerLinkOption) (string, bool) {
+	value, err := json.Marshal(links)
+	if err != nil {
+		return "", false
+	}
+	return string(value), true
+}
+
+func isFooterLinkKey(value string) bool {
+	for _, key := range footerLinkKeys {
+		if value == key {
+			return true
+		}
+	}
+	return false
+}
+
+func isValidFooterLinkLabel(value string) bool {
+	return value != "" && len([]rune(value)) <= footerLinkLabelMaxRunes
+}
+
+func isValidFooterURL(value string) bool {
+	if value == "" || value == "#" {
+		return true
+	}
+	if strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//") {
+		return true
+	}
+
+	parsed, err := url.Parse(value)
+	if err != nil || parsed == nil || parsed.Host == "" {
+		return false
+	}
+	return parsed.Scheme == "http" || parsed.Scheme == "https"
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AdminWebOption, WebOption } from '~/composables/useWebOptions'
-import { useAdminTabs } from '~/composables/useAdminTabs'
+import { useAdminPage } from '~/composables/useAdminPage'
 
 definePageMeta({
   middleware: 'admin',
@@ -16,11 +16,7 @@ type SettingsTab = 'basic' | 'verification'
 const { t } = useI18n()
 const toast = useToast()
 const { options, fetchAdminEnvelope, saveMany } = useWebOptions()
-const adminTabs = useAdminTabs()
-
-onMounted(() => {
-  adminTabs.openTab('/settings', 'admin.nav.settings', 'i-lucide-settings-2', 'AdminSettings')
-})
+const adminPage = useAdminPage('/settings')
 
 const activeTab = ref<SettingsTab>('basic')
 const savingBasic = ref(false)
@@ -231,7 +227,7 @@ function onLocaleToggle(locale: string, event: Event) {
 <template>
   <div class="mb-4">
     <h2 class="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-zinc-100">
-      <UIcon name="i-lucide-settings-2" class="size-5 text-teal-600 dark:text-teal-400" />
+      <UIcon :name="adminPage.icon" class="size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
       {{ t('admin.settings.title') }}
     </h2>
   </div>
@@ -333,7 +329,7 @@ function onLocaleToggle(locale: string, event: Event) {
           <UFormField :label="t('admin.settings.defaultLocale')" name="default-locale">
             <select
               v-model="form.defaultLocale"
-              class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             >
               <option
                 v-for="choice in localeChoices.filter((choice) => form.supportedLocales.includes(choice.value))"
@@ -354,7 +350,7 @@ function onLocaleToggle(locale: string, event: Event) {
               >
                 <input
                   type="checkbox"
-                  class="size-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                  class="size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
                   :checked="form.supportedLocales.includes(choice.value)"
                   @change="onLocaleToggle(choice.value, $event)"
                 />
@@ -401,7 +397,7 @@ function onLocaleToggle(locale: string, event: Event) {
           <UFormField :label="t('admin.settings.verification.provider')" name="verification-provider">
             <select
               v-model="form.humanVerificationProvider"
-              class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             >
               <option value="disabled">{{ t('admin.settings.verification.disabled') }}</option>
               <option value="altcha">{{ t('admin.settings.verification.altcha') }}</option>

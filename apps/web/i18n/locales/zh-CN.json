@@ -103,21 +103,51 @@
     "feature2": "支持 Markdown，写长文不再将就",
     "feature3": "中英文界面，随时切换"
   },
+  "components": {
+    "iconPicker": {
+      "label": "图标",
+      "hint": "选择 Tabler 或 Nuxt Icon 名称；保存值可直接用于 UIcon。",
+      "collectionLabel": "图标来源",
+      "searchPlaceholder": "搜索图标名称或用途",
+      "selected": "当前选择",
+      "noSelection": "尚未选择",
+      "empty": "没有匹配的图标。",
+      "customLabel": "自定义 Nuxt Icon 名称",
+      "customPlaceholder": "例如 i-tabler-home 或 lucide:settings-2",
+      "useCustom": "使用",
+      "collections": {
+        "tabler": {
+          "label": "Tabler Icons",
+          "description": "适合后台菜单、版块和状态图标。"
+        },
+        "nuxt": {
+          "label": "Nuxt Icon",
+          "description": "兼容 Nuxt UI 的 i-lucide-* / Iconify 名称。"
+        }
+      }
+    }
+  },
   "admin": {
     "shell": {
       "brand": "SForum",
       "section": "控制台",
+      "controlPanel": "{siteName} 控制台",
       "unknownUser": "管理员",
+      "administratorLabel": "管理员",
       "member": "成员",
       "visitForum": "返回论坛",
+      "lightMode": "浅色模式",
+      "darkMode": "深色模式",
       "signOut": "退出登录"
     },
     "nav": {
       "dashboard": "仪表盘",
+      "personalization": "个性化设置",
       "roles": "用户组",
       "rolesBadge": "RBAC",
       "settings": "站点设置",
       "forumHome": "论坛首页",
+      "system": "系统配置",
       "userPermission": "用户/权限",
       "userManagement": "用户管理",
       "userGroups": "用户组",
@@ -345,6 +375,58 @@
         "manage": {
           "label": "管理站点设置",
           "description": "修改站点名称、语言、人机验证等运行时设置。"
+        }
+      }
+    },
+    "personalization": {
+      "metaTitle": "个性化设置",
+      "title": "个性化设置",
+      "intro": "配置网站主题色、页脚文案与公共链接。",
+      "toolbar": "外观设置会通过 web_options 运行时下发到前台页面。",
+      "refresh": "刷新",
+      "loadFailed": "个性化设置加载失败。",
+      "saved": "个性化设置已保存。",
+      "saveFailed": "个性化设置保存失败。",
+      "save": "保存个性化设置",
+      "theme": {
+        "title": "主题预设",
+        "description": "选择一个主色预设，统一驱动导航、按钮、焦点和后台强调色。"
+      },
+      "themes": {
+        "pine_teal": {
+          "label": "松石绿",
+          "description": "当前默认主题，清爽克制，适合技术社区。"
+        },
+        "ocean_blue": {
+          "label": "海洋蓝",
+          "description": "更稳重的蓝色强调，适合知识库与产品社区。"
+        },
+        "violet": {
+          "label": "紫罗兰",
+          "description": "偏创作与设计感的高辨识度主题。"
+        },
+        "rose": {
+          "label": "玫瑰红",
+          "description": "更活跃的强调色，适合轻社区和兴趣小组。"
+        },
+        "amber": {
+          "label": "琥珀橙",
+          "description": "温暖醒目的主题，适合公告和活动氛围。"
+        }
+      },
+      "footer": {
+        "title": "页脚内容",
+        "description": "自定义版权文案和固定页脚链接；文案支持 {year} 与 {siteName} 占位符。",
+        "copyrightZh": "中文版权文案",
+        "copyrightEn": "英文版权文案",
+        "links": "页脚链接",
+        "labelZh": "中文链接名",
+        "labelEn": "英文链接名",
+        "urlPlaceholder": "例如 /terms、https://example.com 或 #",
+        "linkKeys": {
+          "terms": "服务条款",
+          "privacy": "隐私政策",
+          "guidelines": "社区指南"
         }
       }
     },

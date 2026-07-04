@@ -26,9 +26,12 @@ Initial runtime option support is implemented.
 - Updating options requires the existing `settings.manage` permission.
 - Nuxt composable `useWebOptions()` provides `webOption()`, `siteName`,
   `siteUrl`, `defaultLocale`, `supportedLocales`, `humanVerificationProvider`,
-  `refresh()`, `save()`, and admin batch helpers.
+  `appearanceTheme`, footer content helpers, `refresh()`, `save()`, and admin
+  batch helpers.
 - Admin page `apps/web/app/pages/admin/settings/index.vue` uses page-level tabs
   for basic site settings and CAPTCHA/human-verification settings.
+- Admin page `apps/web/app/pages/admin/personalization.vue` manages the
+  top-level personalization settings for theme presets and footer content.
 
 ## Boundaries
 
@@ -49,7 +52,9 @@ Initial runtime option support is implemented.
 ## Implementation Notes
 
 - Current public options are `site.name`, `site.url`, `site.default_locale`,
-  `site.supported_locales`, and `human_verification.provider`.
+  `site.supported_locales`, `human_verification.provider`,
+  `appearance.theme`, `footer.copyright.zh-CN`,
+  `footer.copyright.en-US`, and `footer.links`.
 - Current admin-only options are `human_verification.altcha.secret`,
   `human_verification.altcha.challenge_ttl`, and
   `human_verification.altcha.cost`.
@@ -64,6 +69,11 @@ Initial runtime option support is implemented.
   defaults if the API is temporarily unavailable.
 - Locale settings can only enable built-in locale catalogs (`zh-CN`, `en-US`);
   adding a new locale still requires adding frontend and backend translations.
+- Theme settings currently use a preset key (`pine_teal`, `ocean_blue`,
+  `violet`, `rose`, or `amber`) rather than arbitrary HEX colors.
+- Footer settings are frontend-safe public options: copyright text supports
+  `{year}` and `{siteName}`, and `footer.links` stores the fixed Terms,
+  Privacy, and Guidelines links as normalized JSON.
 
 ## Next Steps
 

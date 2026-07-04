@@ -193,7 +193,7 @@ const currentLocaleName = computed(() => {
   z-index: 50;
   height: 56px;
   background: #ffffff;
-  border-top: 3px solid #0f766e;
+  border-top: 3px solid var(--sf-accent);
   border-bottom: 1px solid #e4e8ef;
   /* 轻微阴影，页面滚动时有层次感 */
   box-shadow: 0 1px 0 #e4e8ef;
@@ -228,8 +228,8 @@ const currentLocaleName = computed(() => {
   height: 26px;
   border-radius: 7px;
   background: transparent;
-  border: 2px solid #0f766e;
-  color: #0f766e;
+  border: 2px solid var(--sf-accent);
+  color: var(--sf-accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -264,8 +264,8 @@ const currentLocaleName = computed(() => {
 
 /* NuxtLink 激活状态 */
 .navbar__nav-link.router-link-active {
-  color: #0f766e;
-  background: #f0faf9;
+  color: var(--sf-accent);
+  background: var(--sf-accent-soft);
   font-weight: 600;
 }
 
@@ -318,14 +318,14 @@ const currentLocaleName = computed(() => {
 }
 
 .navbar__dropdown-item--active {
-  color: #0f766e;
+  color: var(--sf-accent);
   font-weight: 600;
-  background: #f0faf9;
+  background: var(--sf-accent-soft);
 }
 
 .navbar__dropdown-item--active:hover {
-  background: #f0faf9;
-  color: #0f766e;
+  background: var(--sf-accent-soft);
+  color: var(--sf-accent);
 }
 
 /* ====== 右侧区域 ====== */
@@ -365,13 +365,13 @@ const currentLocaleName = computed(() => {
 }
 
 .navbar__btn--primary {
-  background: #0f766e;
+  background: var(--sf-accent);
   color: #ffffff;
 }
 
 .navbar__btn--primary:hover {
-  background: #0b5f59;
-  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.22);
+  background: var(--sf-accent-hover);
+  box-shadow: 0 2px 8px rgb(var(--sf-accent-rgb) / 0.22);
 }
 
 /* ====== 用户头像按钮 ====== */
@@ -402,7 +402,7 @@ const currentLocaleName = computed(() => {
   width: 24px;
   height: 24px;
   border-radius: 6px;
-  background: #0f766e;
+  background: var(--sf-accent);
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;

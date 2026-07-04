@@ -25,6 +25,7 @@ const composerTab = ref('write')
 const moderationTab = ref('queue')
 const profileTab = ref('overview')
 const currentPage = ref(2)
+const selectedIcon = ref('i-tabler-message-circle')
 const digestEnabled = ref(true)
 const mentionEnabled = ref(true)
 const anonymousDraft = ref(false)
@@ -82,6 +83,7 @@ const reviewBadges = [
 
 const navItems = [
   { href: '#foundations', label: '基础' },
+  { href: '#icons', label: '图标' },
   { href: '#feedback', label: '反馈' },
   { href: '#forum', label: '论坛' },
   { href: '#composer', label: '发布' },
@@ -111,7 +113,7 @@ const navItems = [
             dev only
           </SFBadge>
           <SFBadge variant="neutral">
-            17 components
+            18 components
           </SFBadge>
         </div>
       </header>
@@ -192,6 +194,47 @@ const navItems = [
                     description="禁用状态也应保持文字清晰可读。"
                     disabled
                   />
+                </div>
+              </div>
+            </SFCard>
+          </section>
+
+          <section id="icons" class="sf-component-section">
+            <SFCard title="Icons 选择器" subtitle="为后台设置、导航、版块和用户配置预留的图标选择控件">
+              <div class="sf-preview-grid">
+                <SFIconPicker v-model="selectedIcon" />
+                <div class="sf-preview-stack">
+                  <div class="sf-icon-picker-demo">
+                    <span class="sf-icon-picker-demo__icon">
+                      <UIcon :name="selectedIcon" class="sf-icon-picker-demo__svg" />
+                    </span>
+                    <div class="sf-icon-picker-demo__content">
+                      <p class="sf-icon-picker-demo__title">
+                        后台字段预览
+                      </p>
+                      <code class="sf-icon-picker-demo__value">{{ selectedIcon }}</code>
+                    </div>
+                  </div>
+                  <SFAlert
+                    title="保存值保持简单"
+                    description="后台配置只需要保存 i-tabler-* 或 i-lucide-* 字符串，渲染处直接交给 Nuxt Icon。"
+                    variant="info"
+                    compact
+                  />
+                  <div class="variant-grid">
+                    <SFButton>
+                      <template #leading>
+                        <UIcon :name="selectedIcon" class="size-4" />
+                      </template>
+                      保存图标
+                    </SFButton>
+                    <SFButton variant="ghost">
+                      <template #leading>
+                        <UIcon name="i-lucide-refresh-cw" class="size-4" />
+                      </template>
+                      重置
+                    </SFButton>
+                  </div>
                 </div>
               </div>
             </SFCard>

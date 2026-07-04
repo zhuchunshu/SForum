@@ -11,6 +11,10 @@ const (
 	NameAltchaSecret              = "human_verification.altcha.secret"
 	NameAltchaChallengeTTL        = "human_verification.altcha.challenge_ttl"
 	NameAltchaCost                = "human_verification.altcha.cost"
+	NameAppearanceTheme           = "appearance.theme"
+	NameFooterCopyrightZHCN       = "footer.copyright.zh-CN"
+	NameFooterCopyrightENUS       = "footer.copyright.en-US"
+	NameFooterLinks               = "footer.links"
 
 	CodeInvalid = "options.invalid"
 )

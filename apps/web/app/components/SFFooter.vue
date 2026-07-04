@@ -1,24 +1,47 @@
 <script setup lang="ts">
-// 获取 i18n 翻译实例与全局站点配置
-const { t } = useI18n()
-const { siteName } = useWebOptions()
+const { locale } = useI18n()
+const {
+  siteName,
+  footerCopyrightTemplate,
+  footerLinks,
+  footerLinkLabel
+} = useWebOptions()
 
 // 动态计算当前年份，以保证版权年份的正确性
 const currentYear = computed(() => new Date().getFullYear())
+const copyrightText = computed(() => {
+  return footerCopyrightTemplate(locale.value)
+    .replace(/\{year\}/g, String(currentYear.value))
+    .replace(/\{siteName\}/g, siteName.value)
+})
+const visibleLinks = computed(() => {
+  return footerLinks.value
+    .filter((link) => link.url.trim() !== '')
+    .map((link) => ({
+      key: link.key,
+      label: footerLinkLabel(link, locale.value),
+      url: link.url
+    }))
+})
 </script>
 
 <template>
   <footer class="sf-footer">
     <div class="sf-footer__inner">
       <!-- 版权信息 -->
-      <div class="sf-footer__copyright">
-        {{ t('footer.copyright', { year: currentYear, siteName: siteName }) }}
+      <div v-if="copyrightText" class="sf-footer__copyright">
+        {{ copyrightText }}
       </div>
       <!-- 辅助虚拟链接 -->
-      <div class="sf-footer__links">
-        <a href="#" class="sf-footer__link">{{ t('footer.terms') }}</a>
-        <a href="#" class="sf-footer__link">{{ t('footer.privacy') }}</a>
-        <a href="#" class="sf-footer__link">{{ t('footer.guidelines') }}</a>
+      <div v-if="visibleLinks.length" class="sf-footer__links">
+        <a
+          v-for="link in visibleLinks"
+          :key="link.key"
+          :href="link.url"
+          class="sf-footer__link"
+        >
+          {{ link.label }}
+        </a>
       </div>
     </div>
   </footer>
@@ -72,10 +95,10 @@ const currentYear = computed(() => new Date().getFullYear())
 
 /* 悬浮颜色变化，浅色模式为深松石绿，暗色模式为亮松石绿 */
 .sf-footer__link:hover {
-  color: #0f766e;
+  color: var(--sf-accent);
 }
 
 .dark .sf-footer__link:hover {
-  color: #2dd4bf;
+  color: var(--sf-accent-dark);
 }
 </style>

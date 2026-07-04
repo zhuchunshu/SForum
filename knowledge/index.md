@@ -58,6 +58,11 @@ This is the entry point for project memory.
   Icon lucide icons. Source files stay under `apps/web/app/pages/admin`, while
   Nuxt rewrites the public route prefix from `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`,
   defaulting to `/control-panel`.
+- Admin pages now use a low-code module registry under
+  `apps/web/app/config/adminModules.ts` for sidebar entries, tab metadata,
+  keep-alive component names, badges, and frontend-visible permission
+  requirements. Page components register with `useAdminPage('/id')` instead of
+  repeating tab/menu metadata.
 - The public forum navbar no longer shows an admin entry in the logged-in user
   dropdown, avoiding direct exposure of the configurable admin route prefix.
 - Identity and permissions architecture is accepted: SForum uses one user
@@ -71,6 +76,11 @@ This is the entry point for project memory.
   `super_admin` users still pass every policy check and cannot receive direct
   permission overrides. The admin UI now includes user management, editable
   user-group permissions, and a permission matrix.
+- Development guidelines now require permission-aware feature design: new
+  protected routes, mutations, admin screens, exports, setting updates, and
+  background action triggers must identify their actor/action/resource boundary,
+  keep API policy checks authoritative, and test allowed plus denied paths when
+  behavior is unsafe or admin-facing.
 - Security verification architecture is accepted: SForum keeps human
   verification disabled by default, with ALTCHA as the first supported
   self-hosted provider for registration, password-reset initiation, and later
@@ -134,6 +144,10 @@ This is the entry point for project memory.
   human-verification provider are frontend-safe runtime options. Admin-only
   settings include masked ALTCHA secret metadata plus ALTCHA TTL/cost, editable
   from the admin settings page by users with `settings.manage`.
+- Personalization settings extend runtime web options with `appearance.theme`
+  preset keys and frontend-safe footer content. The admin control panel now has
+  a top-level personalization page for choosing the theme preset and editing
+  footer copyright/link text.
 - The global footer has been implemented using the Option A (Single-line Minimalist) design direction, supporting dynamic copyright data, localized links (Terms, Privacy, Guidelines) mapped to placeholder links, and full Light/Dark mode responsiveness.
 
 ## Navigation
@@ -170,8 +184,12 @@ This is the entry point for project memory.
   Goose startup migrations for API and worker processes.
 - `decisions/2026-07-05-admin-multitabs-and-layout-rules.md` - accepted admin
   multitabs, topbar breadcrumbs, larger tabs, and nested menu rules decision.
+- `decisions/2026-07-05-admin-low-code-module-registry.md` - accepted
+  registry-driven admin page, sidebar, tab, and permission metadata decision.
 - `decisions/2026-07-05-user-permission-overrides.md` - accepted user-level
   permission override decision for precise admin-managed access.
+- `decisions/2026-07-05-appearance-theme-presets.md` - accepted first-version
+  runtime theme preset decision.
 - `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA
   implementation handoff.
 - `sessions/2026-07-04-registration-status-notice.md` - first-user
@@ -198,13 +216,20 @@ This is the entry point for project memory.
   fix for the unsupported `nuxi preview --host` flag.
 - `sessions/2026-07-05-admin-multitab-layout-upgrades.md` - admin multitabs,
   global topbar, theme adaptive sidebar, and nested menu layout upgrades handoff.
+- `sessions/2026-07-05-admin-low-code-module-registry.md` - registry-driven
+  admin sidebar/tab architecture handoff.
 - `sessions/2026-07-05-public-navbar-hide-admin-entry.md` - public navbar admin
   entry removal handoff.
 - `sessions/2026-07-05-admin-permission-management.md` - user-level permission
   overrides, admin users/roles/permissions UI, and API contract handoff.
+- `sessions/2026-07-04-permission-aware-development-guidelines.md` -
+  permission-aware feature development guideline handoff.
 - `sessions/2026-07-05-auth-session-restart-resilience.md` - frontend auth
   refresh behavior for API restart/session recovery resilience.
 - `sessions/2026-07-05-global-footer-implementation.md` - global footer implementation handoff.
+- `sessions/2026-07-05-personalization-settings.md` - theme preset and footer personalization implementation handoff.
+- `sessions/2026-07-05-icon-picker.md` - reusable Tabler/Nuxt Icon picker
+  implementation handoff.
 - `../docs/superpowers/specs/2026-07-05-global-footer-design.md` - global footer design spec.
 - `../docs/superpowers/plans/2026-07-05-global-footer.md` - global footer implementation plan.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -

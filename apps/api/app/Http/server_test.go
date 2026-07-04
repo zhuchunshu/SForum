@@ -10,6 +10,7 @@ import (
 	nethttp "net/http"
 	"net/http/httptest"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1011,11 +1012,14 @@ func TestWebOptionsEndpointReturnsPublicOptions(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode web options response: %v", err)
 	}
-	if len(body.Data) != 5 {
+	if len(body.Data) != 9 {
 		t.Fatalf("unexpected web options response: %#v", body.Data)
 	}
 	if optionValue(body.Data, options.NameSiteName) != "SForum" {
 		t.Fatalf("expected site name in public options, got %#v", body.Data)
+	}
+	if optionValue(body.Data, options.NameAppearanceTheme) != "pine_teal" {
+		t.Fatalf("expected default appearance theme in public options, got %#v", body.Data)
 	}
 	if optionValue(body.Data, options.NameAltchaSecret) != "" {
 		t.Fatalf("public web options should not expose altcha secret: %#v", body.Data)
@@ -1121,7 +1125,8 @@ func TestAdminWebOptionsMaskSecretAndSaveBatch(t *testing.T) {
 		t.Fatalf("expected masked secret in admin response, got %#v", secret)
 	}
 
-	body := []byte(`{"options":[{"name":"site.name","value":"Example Forum"},{"name":"site.default_locale","value":"en"},{"name":"site.supported_locales","value":"en-US"},{"name":"human_verification.provider","value":"altcha"},{"name":"human_verification.altcha.secret","value":""},{"name":"human_verification.altcha.challenge_ttl","value":"2m"},{"name":"human_verification.altcha.cost","value":"2000"}]}`)
+	footerLinks := `[{"key":"terms","labels":{"zh-CN":"条款","en-US":"Terms"},"url":"/terms"},{"key":"privacy","labels":{"zh-CN":"隐私","en-US":"Privacy"},"url":"/privacy"},{"key":"guidelines","labels":{"zh-CN":"指南","en-US":"Guidelines"},"url":"#"}]`
+	body := []byte(`{"options":[{"name":"site.name","value":"Example Forum"},{"name":"site.default_locale","value":"en"},{"name":"site.supported_locales","value":"en-US"},{"name":"human_verification.provider","value":"altcha"},{"name":"human_verification.altcha.secret","value":""},{"name":"human_verification.altcha.challenge_ttl","value":"2m"},{"name":"human_verification.altcha.cost","value":"2000"},{"name":"appearance.theme","value":"ocean_blue"},{"name":"footer.copyright.zh-CN","value":"© {year} 示例论坛"},{"name":"footer.copyright.en-US","value":"© {year} Example Forum"},{"name":"footer.links","value":` + strconv.Quote(footerLinks) + `}]}`)
 	updateReq := httptest.NewRequest(nethttp.MethodPut, "/api/v1/admin/web-options", bytes.NewReader(body))
 	updateReq.Header.Set("Content-Type", "application/json")
 	updateReq.AddCookie(adminCookie)
@@ -1146,6 +1151,12 @@ func TestAdminWebOptionsMaskSecretAndSaveBatch(t *testing.T) {
 	}
 	if got := adminOption(updateBody.Data, options.NameAltchaSecret); !got.SecretSet || got.Value != "" {
 		t.Fatalf("expected masked kept secret, got %#v", got)
+	}
+	if got := adminOption(updateBody.Data, options.NameAppearanceTheme).Value; got != "ocean_blue" {
+		t.Fatalf("expected saved appearance theme, got %q", got)
+	}
+	if got := adminOption(updateBody.Data, options.NameFooterLinks).Value; got != footerLinks {
+		t.Fatalf("expected saved footer links, got %q", got)
 	}
 }
 

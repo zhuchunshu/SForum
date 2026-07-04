@@ -25,12 +25,20 @@
   --text-main: #09090b;
   --text-muted: #71717a;
   --border-default: #e4e4e7;
+  --sf-accent: #0f766e;
+  --sf-accent-hover: #0b5f59;
+  --sf-accent-soft: #e6f4f1;
+  --sf-accent-soft-border: #b7ded8;
+  --sf-accent-dark: #2dd4bf;
+  --sf-accent-rgb: 15 118 110;
+  --sf-accent-focus: rgb(var(--sf-accent-rgb) / 0.18);
+  --sf-accent-contrast: #ffffff;
 
   /* 后台定制：浅色模式 */
   --bg-admin-sidebar: #ffffff; /* White Sidebar */
   --bg-admin-sidebar-hover: #f1f5f9; /* Slate 100 */
   --text-admin-sidebar: #334155; /* slate 700 - 更醒目 */
-  --text-admin-sidebar-active: #0f766e; /* Teal theme color */
+  --text-admin-sidebar-active: var(--sf-accent);
   
   --bg-admin-app: #f8fafc;
   --bg-admin-card: #ffffff;
@@ -49,12 +57,48 @@
   --bg-admin-sidebar: #09090b; /* Zinc 950 */
   --bg-admin-sidebar-hover: rgba(255, 255, 255, 0.03);
   --text-admin-sidebar: #cbd5e1; /* slate 300 - 更醒目 */
-  --text-admin-sidebar-active: #2dd4bf;
+  --text-admin-sidebar-active: var(--sf-accent-dark);
   
   --bg-admin-app: #09090b;
   --bg-admin-card: #18181b;
   --border-admin: rgba(39, 39, 42, 0.8); /* zinc 800 半透明 */
   --text-admin-main: #f4f4f5;
+}
+
+html[data-sforum-theme="ocean_blue"] {
+  --sf-accent: #2563eb;
+  --sf-accent-hover: #1d4ed8;
+  --sf-accent-soft: #eff6ff;
+  --sf-accent-soft-border: #bfdbfe;
+  --sf-accent-dark: #60a5fa;
+  --sf-accent-rgb: 37 99 235;
+}
+
+html[data-sforum-theme="violet"] {
+  --sf-accent: #7c3aed;
+  --sf-accent-hover: #6d28d9;
+  --sf-accent-soft: #f3e8ff;
+  --sf-accent-soft-border: #ddd6fe;
+  --sf-accent-dark: #a78bfa;
+  --sf-accent-rgb: 124 58 237;
+}
+
+html[data-sforum-theme="rose"] {
+  --sf-accent: #e11d48;
+  --sf-accent-hover: #be123c;
+  --sf-accent-soft: #fff1f2;
+  --sf-accent-soft-border: #fecdd3;
+  --sf-accent-dark: #fb7185;
+  --sf-accent-rgb: 225 29 72;
+}
+
+html[data-sforum-theme="amber"] {
+  --sf-accent: #d97706;
+  --sf-accent-hover: #b45309;
+  --sf-accent-soft: #fffbeb;
+  --sf-accent-soft-border: #fde68a;
+  --sf-accent-dark: #fbbf24;
+  --sf-accent-rgb: 217 119 6;
 }
 
 body {
@@ -205,17 +249,17 @@ h1:not([data-slot="title"]) {
 
 /* 后台侧栏在展开状态下保留更宽的阅读空间，同时不破坏折叠态。 */
 .sforum-admin-sidebar[data-collapsed="false"] {
-  min-width: 270px !important;
-  max-width: 270px !important;
+  min-width: 256px !important;
+  max-width: 256px !important;
 }
 
-/* 侧栏主菜单项：字号与高度调大，文字加粗，间距更舒展 */
+/* 侧栏主菜单项保持中等尺寸，避免挤压后台内容区。 */
 .sforum-admin-sidebar [data-slot="link"] {
-  min-height: 54px !important;
-  padding: 0.95rem 1.25rem !important;
-  border-radius: 12px !important;
-  font-size: 1.05rem !important; /* ~17px 大文字 */
-  font-weight: 700 !important; /* 更加加粗醒目 */
+  min-height: 42px !important;
+  padding: 0.5rem 0.875rem !important;
+  border-radius: 6px !important;
+  font-size: 0.90625rem !important;
+  font-weight: 600 !important;
   line-height: 1.25 !important;
 }
 
@@ -230,31 +274,31 @@ h1:not([data-slot="title"]) {
 
 .sforum-admin-sidebar [data-slot="linkLeadingIcon"],
 .sforum-admin-sidebar [data-slot="linkTrailingIcon"] {
-  width: 1.35rem !important; /* 调整为 21.6px */
-  height: 1.35rem !important;
+  width: 1.125rem !important;
+  height: 1.125rem !important;
 }
 
 /* 二级菜单保持从属感，但文字与点击区域也要足够大。 */
 .sforum-admin-sidebar ul[data-slot="childList"] {
-  margin-top: 0.4rem !important;
-  margin-bottom: 0.75rem !important;
-  border-left: 2px dashed rgba(148, 163, 184, 0.2) !important;
-  margin-left: 1.8rem !important;
-  padding-left: 1.35rem !important;
+  margin-top: 0.2rem !important;
+  margin-bottom: 0.5rem !important;
+  border-left: 1px dashed rgba(148, 163, 184, 0.25) !important;
+  margin-left: 1.2rem !important;
+  padding-left: 0.75rem !important;
 }
 
 .sforum-admin-sidebar ul[data-slot="childList"] [data-slot="link"] {
-  min-height: 46px !important;
-  padding: 0.75rem 1rem !important;
-  border-radius: 10px !important;
-  font-size: 0.925rem !important; /* 从 0.825rem 提升到 14.8px */
-  font-weight: 600 !important;
+  min-height: 36px !important;
+  padding: 0.375rem 0.75rem !important;
+  border-radius: 6px !important;
+  font-size: 0.84375rem !important;
+  font-weight: 500 !important;
 }
 
 .sforum-admin-sidebar ul[data-slot="childList"] [data-slot="linkLeadingIcon"],
 .sforum-admin-sidebar ul[data-slot="childList"] [data-slot="linkTrailingIcon"] {
-  width: 1.25rem !important;
-  height: 1.25rem !important;
+  width: 0.9375rem !important;
+  height: 0.9375rem !important;
 }
 
 /* 浅色模式下的软阴影卡片 */

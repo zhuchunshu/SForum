@@ -95,6 +95,10 @@ Route registration rules:
   service constructors, package `init` functions, or filesystem scanning.
 - Put middleware at the narrowest useful level: global, API group, or route
   group.
+- For every new non-public route, mutation, admin operation, export, or
+  background action trigger, decide and implement the required authorization
+  boundary in the API. Frontend guards may mirror the same permission for
+  usability, but backend policy checks remain authoritative.
 
 ## Jobs And Queues
 

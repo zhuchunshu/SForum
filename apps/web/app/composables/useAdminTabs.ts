@@ -1,4 +1,9 @@
 import { computed } from 'vue'
+import {
+  ADMIN_DASHBOARD_PAGE_ID,
+  type AdminPageDefinition,
+  requireAdminPageDefinition
+} from '~/config/adminModules'
 import { useAdminRoutes } from '~/composables/useAdminRoutes'
 
 export interface AdminTab {
@@ -12,16 +17,10 @@ export interface AdminTab {
 
 export const useAdminTabs = () => {
   const adminRoutes = useAdminRoutes()
+  const dashboardPage = requireAdminPageDefinition(ADMIN_DASHBOARD_PAGE_ID)
 
   const tabs = useState<AdminTab[]>('admin-tabs', () => [
-    {
-      id: '/',
-      labelKey: 'admin.nav.dashboard',
-      to: adminRoutes.path('/'),
-      icon: 'i-lucide-layout-dashboard',
-      closable: false,
-      componentName: 'AdminIndex'
-    }
+    createAdminTab(dashboardPage, adminRoutes.path)
   ])
 
   const activeTabId = useState<string>('admin-active-tab-id', () => '/')
@@ -30,19 +29,14 @@ export const useAdminTabs = () => {
     return tabs.value.map(tab => tab.componentName)
   })
 
-  const openTab = (id: string, labelKey: string, icon: string, componentName: string) => {
-    const existing = tabs.value.find(tab => tab.id === id)
+  const openTab = (id: string) => {
+    const page = requireAdminPageDefinition(id)
+    const existing = tabs.value.find(tab => tab.id === page.id)
     if (!existing) {
-      tabs.value.push({
-        id,
-        labelKey,
-        to: adminRoutes.path(id),
-        icon,
-        closable: id !== '/',
-        componentName
-      })
+      tabs.value.push(createAdminTab(page, adminRoutes.path))
     }
-    activeTabId.value = id
+    activeTabId.value = page.id
+    return page
   }
 
   const closeTab = (id: string) => {
@@ -64,16 +58,9 @@ export const useAdminTabs = () => {
 
   const resetTabs = () => {
     tabs.value = [
-      {
-        id: '/',
-        labelKey: 'admin.nav.dashboard',
-        to: adminRoutes.path('/'),
-        icon: 'i-lucide-layout-dashboard',
-        closable: false,
-        componentName: 'AdminIndex'
-      }
+      createAdminTab(dashboardPage, adminRoutes.path)
     ]
-    activeTabId.value = '/'
+    activeTabId.value = dashboardPage.id
   }
 
   return {
@@ -83,5 +70,16 @@ export const useAdminTabs = () => {
     openTab,
     closeTab,
     resetTabs
+  }
+}
+
+function createAdminTab(page: AdminPageDefinition, path: (childPath?: string) => string): AdminTab {
+  return {
+    id: page.id,
+    labelKey: page.labelKey,
+    to: path(page.id),
+    icon: page.icon,
+    closable: page.closable ?? page.id !== ADMIN_DASHBOARD_PAGE_ID,
+    componentName: page.componentName
   }
 }
