@@ -277,22 +277,36 @@ const currentLocaleName = computed(() => {
 .navbar__lang-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   height: 32px;
   padding: 0 8px;
-  border: 1px solid #e4e8ef;
-  border-radius: 8px;
-  background: #ffffff;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
   cursor: pointer;
   color: #4b5563;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s;
   font-family: inherit;
 }
 
 .navbar__lang-btn:hover {
-  border-color: #d1d5db;
-  background: #f9fafb;
+  background: #f3f4f6;
   color: #111827;
+}
+
+.navbar__lang-btn svg {
+  color: #6b7280;
+  transition: color 0.15s;
+}
+
+.navbar__lang-btn:hover svg {
+  color: #111827;
+}
+
+.navbar__lang-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: inherit;
 }
 
 /* 语言选项 */
@@ -305,8 +319,13 @@ const currentLocaleName = computed(() => {
 
 .navbar__dropdown-item--active {
   color: #0f766e;
-  font-weight: 700;
+  font-weight: 600;
   background: #f0faf9;
+}
+
+.navbar__dropdown-item--active:hover {
+  background: #f0faf9;
+  color: #0f766e;
 }
 
 /* ====== 右侧区域 ====== */
@@ -416,9 +435,9 @@ const currentLocaleName = computed(() => {
 /* ====== 下拉菜单 ====== */
 .navbar__dropdown {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 4px);
   right: 0;
-  min-width: 180px;
+  min-width: 150px;
   background: #ffffff;
   border: 1px solid #e4e8ef;
   border-radius: 10px;
@@ -426,6 +445,7 @@ const currentLocaleName = computed(() => {
   overflow: hidden;
   /* 防止点击内部元素触发 outside click */
   z-index: 100;
+  padding: 4px;
 }
 
 .navbar__dropdown-header {
@@ -452,18 +472,22 @@ const currentLocaleName = computed(() => {
 .navbar__dropdown-divider {
   height: 1px;
   background: #f3f4f6;
+  margin: 4px 0;
 }
 
 .navbar__dropdown-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
-  padding: 9px 14px;
+  padding: 8px 12px;
   font-size: 13px;
   font-weight: 500;
   color: #374151;
   text-decoration: none;
   background: transparent;
   border: none;
+  border-radius: 6px;
   text-align: left;
   cursor: pointer;
   font-family: inherit;
@@ -471,7 +495,7 @@ const currentLocaleName = computed(() => {
 }
 
 .navbar__dropdown-item:hover {
-  background: #f9fafb;
+  background: #f3f4f6;
   color: #111827;
 }
 
@@ -511,6 +535,11 @@ const currentLocaleName = computed(() => {
   }
 
   .navbar__btn--ghost {
+    display: none;
+  }
+
+  /* 移动端仅保留地球图标 */
+  .navbar__lang-text {
     display: none;
   }
 }
