@@ -111,7 +111,10 @@ function resetForm() {
     />
 
     <form class="flex flex-col" @submit.prevent="submit">
-      <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
+      <UCard 
+        class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
+        :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }"
+      >
         <template #header>
           <div class="flex items-center justify-between gap-3">
             <div>
@@ -140,15 +143,17 @@ function resetForm() {
             />
           </UFormField>
         </div>
-      </UCard>
 
-      <!-- 吸底保存组件 -->
-      <SFAdminFormFooter
-        :saving="saving"
-        :show-unsaved-alert="hasUnsavedChanges"
-        :submit-text="t('admin.settings.save')"
-        @reset="resetForm"
-      />
+        <template #footer>
+          <!-- 吸底保存组件，内置于 UCard 的 footer 中 -->
+          <SFAdminFormFooter
+            :saving="saving"
+            :show-unsaved-alert="hasUnsavedChanges"
+            :submit-text="t('admin.settings.save')"
+            @reset="resetForm"
+          />
+        </template>
+      </UCard>
     </form>
   </div>
 </template>

@@ -57,11 +57,15 @@ When developing new pages or sections in the SForum Admin Control Panel (`apps/w
 - Use Lucide icons (`i-lucide-*`) or project-approved icon bundles.
 
 ### 6. Standardized Form Actions & Sticky Footer (统一表单操作与吸底保存条)
-- **吸底布局规范**：所有后台配置页面、长表单编辑页面，若含有“保存”、“重置/取消”等操作，**严禁**直接平铺在卡片底部。
-- **统一使用 `SFAdminFormFooter`**：必须在 `<form>` 的底部引入 `<SFAdminFormFooter>` 组件。它会自动粘性吸附在内容视口底部，确保用户无需滚动页面即可执行保存。
+- **吸底布局规范**：所有后台配置页面、长表单编辑页面，若含有“保存”、“重置/取消”等操作，**严禁**在卡片下方单独分块或直接平铺在卡片底部。
+- **与卡片页脚融合**：必须将通用操作组件 `<SFAdminFormFooter>` 置于表单主卡片 `<UCard>` 的 `#footer` 插槽中，使其在视觉上与表单卡片融为一体。
+- **卡片页脚粘性吸底**：必须为 `UCard` 配置以下 `ui` 样式，实现页脚的高级毛玻璃粘性吸底效果：
+  ```html
+  :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }"
+  ```
 - **状态联动规范**：
   - 保存按钮必须绑定 `:loading="saving"`，防止重复提交。
-  - 表单的 Input/Select 在提交中应当伴随禁用，或通过 `disabled` 属性统一传递给 Footer。
+  - 表单在提交中（`saving` 为 `true` 时），其内部的输入框与动作按钮应处于不可用状态。
   - 按钮图标严格使用 `i-lucide-*`，遵循无 emoji 规范。
 
 ## Consequences

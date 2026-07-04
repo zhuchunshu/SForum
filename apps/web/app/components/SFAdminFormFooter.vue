@@ -26,7 +26,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="sticky bottom-0 z-20 mt-8 flex items-center justify-between px-6 py-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm shadow-lg transition-all">
+  <div class="flex items-center justify-between w-full">
     <!-- 左侧插槽或提示语 -->
     <div class="flex items-center gap-2 text-xs sm:text-sm text-slate-500 dark:text-zinc-400">
       <slot name="left">
@@ -48,7 +48,7 @@ const emit = defineEmits<{
           variant="outline"
           :leading-icon="resetIcon"
           :disabled="disabled || saving"
-          class="border-slate-200 dark:border-zinc-700 font-medium"
+          class="border-slate-200 dark:border-zinc-700 font-medium animate-fade-in"
           @click="emit('reset')"
         >
           {{ resetText || t('admin.form.reset') }}
