@@ -29,12 +29,12 @@
   /* 后台定制：浅色模式 */
   --bg-admin-sidebar: #ffffff; /* White Sidebar */
   --bg-admin-sidebar-hover: #f1f5f9; /* Slate 100 */
-  --text-admin-sidebar: #475569; /* Slate 600 */
+  --text-admin-sidebar: #334155; /* slate 700 - 更醒目 */
   --text-admin-sidebar-active: #0f766e; /* Teal theme color */
   
   --bg-admin-app: #f8fafc;
   --bg-admin-card: #ffffff;
-  --border-admin: #e2e8f0;
+  --border-admin: #f1f5f9; /* 更淡更精细的边框 */
   --text-admin-main: #0f172a;
 }
 
@@ -48,12 +48,12 @@
   /* 后台定制：深色模式 */
   --bg-admin-sidebar: #09090b; /* Zinc 950 */
   --bg-admin-sidebar-hover: rgba(255, 255, 255, 0.03);
-  --text-admin-sidebar: #71717a;
+  --text-admin-sidebar: #cbd5e1; /* slate 300 - 更醒目 */
   --text-admin-sidebar-active: #2dd4bf;
   
   --bg-admin-app: #09090b;
   --bg-admin-card: #18181b;
-  --border-admin: #27272a;
+  --border-admin: rgba(39, 39, 42, 0.8); /* zinc 800 半透明 */
   --text-admin-main: #f4f4f5;
 }
 
@@ -224,4 +224,69 @@ h1:not([data-slot="title"]) {
   padding-top: 0.45rem;
   padding-bottom: 0.45rem;
   font-size: 0.825rem;
+}
+
+/* ========================================================================= */
+/* SForum 后台管理现代雅致主题 (SaaS Elegant Theme) */
+/* ========================================================================= */
+
+/* 侧栏主链接容器样式升级：字号调大，间距更舒展 */
+#sforum-admin-sidebar [data-slot="link"] {
+  font-size: 0.925rem !important; /* 原为 0.875rem，稍微加大以更显眼 */
+  font-weight: 500 !important;
+  padding-top: 0.8rem !important;
+  padding-bottom: 0.8rem !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+/* 二级菜单虚线指示器高级感微调 */
+#sforum-admin-sidebar ul[data-slot="childList"] {
+  border-left: 1px dashed rgba(148, 163, 184, 0.2) !important;
+  margin-left: 1.4rem !important;
+  padding-left: 1.1rem !important;
+}
+
+/* 浅色模式下的软阴影卡片 */
+.elegant-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.015) !important;
+  border: 1px solid var(--border-admin) !important;
+}
+.dark .elegant-card {
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.04) !important;
+}
+.elegant-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.025) !important;
+}
+.dark .elegant-card:hover {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 现代背光彩虹毛玻璃图标容器 */
+.icon-glass-box {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.icon-glass-box::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.12;
+  background-color: currentColor;
+  border-radius: 12px;
+  transition: opacity 0.3s;
+}
+
+.icon-glass-box:hover::before {
+  opacity: 0.18;
 }
