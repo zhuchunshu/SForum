@@ -36,3 +36,14 @@
 - Whether the first implementation should include cookie/profile locale
   negotiation immediately or start with `Accept-Language` plus default locale.
 - Exact English wording for each initial backend API message.
+
+## Implementation Verification
+
+- Backend API responses now return `{ code, message, data }`.
+- Backend API `message` values are localized with `Accept-Language` support.
+- Nuxt API consumers unwrap `data` and prefer backend `message` for API errors.
+- Verification:
+  - `cd apps/api && go test ./... -count=1`
+  - `cd apps/web && bun run build`
+  - `cd apps/web && bun run typecheck`
+  - `./scripts/test.sh`
