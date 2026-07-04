@@ -6,7 +6,7 @@ const { t } = useI18n()
 const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
 const { user } = useAuthSession()
-const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
+const { request } = useApiClient()
 
 const displayName = computed(() => {
   return user.value?.displayName || user.value?.username || t('admin.shell.unknownUser')
@@ -66,9 +66,8 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
 ])
 
 async function signOut() {
-  await $fetch(`${apiBaseUrl}/auth/logout`, {
-    method: 'POST',
-    credentials: 'include'
+  await request<null>('/auth/logout', {
+    method: 'POST'
   }).catch(() => null)
 
   user.value = null

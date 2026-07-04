@@ -6,7 +6,7 @@ definePageMeta({ layout: 'auth' })
 const { t } = useI18n()
 const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
-const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
+const { request } = useApiClient()
 const { refresh, can } = useAuthSession()
 
 const form = reactive({
@@ -25,9 +25,8 @@ async function submitLogin() {
   submitting.value = true
 
   try {
-    await $fetch<CurrentUser>(`${apiBaseUrl}/auth/login`, {
+    await request<CurrentUser>('/auth/login', {
       method: 'POST',
-      credentials: 'include',
       body: {
         login: form.login,
         password: form.password
@@ -35,8 +34,8 @@ async function submitLogin() {
     })
     await refresh()
     await navigateTo(can('admin.access') ? adminRoutes.path('/') : localePath('/'))
-  } catch {
-    errorMessage.value = t('errors.loginFailed')
+  } catch (error) {
+    errorMessage.value = apiErrorMessage(error) || t('errors.loginFailed')
   } finally {
     submitting.value = false
   }

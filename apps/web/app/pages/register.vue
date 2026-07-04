@@ -6,7 +6,7 @@ definePageMeta({ layout: 'auth' })
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
-const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
+const { apiBaseUrl, request } = useApiClient()
 const { refresh, can } = useAuthSession()
 
 const form = reactive({
@@ -49,8 +49,12 @@ function resetHumanVerification() {
 }
 
 function registerErrorMessage(error: unknown) {
-  const code = (error as { data?: { code?: string } })?.data?.code
-  switch (code) {
+  const message = apiErrorMessage(error)
+  if (message) {
+    return message
+  }
+
+  switch (apiErrorReason(error)) {
     case 'human_verification.required':
       return t('errors.humanVerificationRequired')
     case 'human_verification.invalid':
@@ -71,9 +75,8 @@ async function submitRegister() {
   submitting.value = true
 
   try {
-    await $fetch<CurrentUser>(`${apiBaseUrl}/auth/register`, {
+    await request<CurrentUser>('/auth/register', {
       method: 'POST',
-      credentials: 'include',
       body: {
         username: form.username,
         email: form.email,

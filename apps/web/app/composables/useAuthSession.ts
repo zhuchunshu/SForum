@@ -12,15 +12,12 @@ export type CurrentUser = {
 export const useAuthSession = () => {
   const user = useState<CurrentUser | null>('auth:user', () => null)
   const pending = useState<boolean>('auth:pending', () => false)
-  const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
+  const { request } = useApiClient()
 
   const refresh = async () => {
     pending.value = true
     try {
-      user.value = await $fetch<CurrentUser>(`${apiBaseUrl}/auth/session`, {
-        credentials: 'include',
-        headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined
-      })
+      user.value = await request<CurrentUser>('/auth/session')
     } catch {
       user.value = null
     } finally {
