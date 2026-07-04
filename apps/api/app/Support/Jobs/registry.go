@@ -16,6 +16,10 @@ func (r *Registry) Add(registrar Registrar) {
 	r.registrars = append(r.registrars, registrar)
 }
 
+func (r *Registry) IsEmpty() bool {
+	return len(r.registrars) == 0
+}
+
 func (r *Registry) Build() (*river.Workers, error) {
 	workers := river.NewWorkers()
 	for _, registrar := range r.registrars {

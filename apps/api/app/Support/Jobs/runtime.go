@@ -19,9 +19,15 @@ func NewClient(pool *pgxpool.Pool, cfg Config, workers *river.Workers) (*Client,
 }
 
 func Start(ctx context.Context, client *Client) error {
+	if client == nil {
+		return nil
+	}
 	return client.Start(ctx)
 }
 
 func Stop(ctx context.Context, client *Client) error {
+	if client == nil {
+		return nil
+	}
 	return client.Stop(ctx)
 }

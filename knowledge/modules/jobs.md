@@ -20,11 +20,16 @@ Implemented so far:
 - `apps/api/app/Support/Jobs` wraps River queue config, dispatching, worker
   registration, and runtime startup.
 - `apps/api/bootstrap.NewWorker` opens the worker PostgreSQL pool, builds the
-  worker registry, and creates the River client.
+  worker registry, and creates the River client when at least one module has
+  registered job handlers.
 - `apps/api/cmd/worker` starts and gracefully stops the River-backed worker
   runtime.
 - `apps/api/app/Jobs/Search` defines the first typed job contract,
   `search.index_topic`, against a narrow `TopicIndexer` interface.
+- Until concrete module workers are injected, `cmd/worker` intentionally starts
+  in idle mode. This avoids passing an empty worker bundle to River, which
+  rejects startup with `at least one Worker must be added to the Workers
+  bundle`.
 
 ## Planned Stack
 
@@ -74,7 +79,8 @@ Implemented so far:
 
 ## Next Steps
 
-- Run River migrations before starting workers against a fresh database.
+- Run River migrations before enabling concrete workers against a fresh
+  database.
 - Wire real module registrations into `bootstrap.NewWorker` as domain jobs
   become available.
 - Implement the actual Meilisearch topic indexer and dispatch

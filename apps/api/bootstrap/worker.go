@@ -18,12 +18,17 @@ type Worker struct {
 }
 
 func NewWorker(ctx context.Context, cfg config.Config) (*Worker, error) {
+	registry := supportjobs.NewRegistry()
+	if registry.IsEmpty() {
+		// 当前队列基础设施已就绪，但业务模块的 worker 会随模块实现逐步注入。
+		return &Worker{}, nil
+	}
+
 	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL, cfg.WorkerDatabaseMaxConns)
 	if err != nil {
 		return nil, fmt.Errorf("postgres setup failed: %w", err)
 	}
 
-	registry := supportjobs.NewRegistry()
 	workers, err := registry.Build()
 	if err != nil {
 		pool.Close()
