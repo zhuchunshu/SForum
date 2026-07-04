@@ -1,0 +1,147 @@
+package localization
+
+import (
+	"sort"
+	"strconv"
+	"strings"
+)
+
+var messages = map[string]map[string]string{
+	"zh-CN": {
+		"ok":                              "OK",
+		"auth.required":                   "请先登录。",
+		"auth.invalid_credentials":        "账号或密码不正确。",
+		"permission.denied":               "没有权限执行此操作。",
+		"validation.invalid":              "请求参数不正确。",
+		"human_verification.required":     "请先完成人机验证。",
+		"human_verification.invalid":      "人机验证失败，请重新验证。",
+		"human_verification.expired":      "人机验证已过期，请重新验证。",
+		"human_verification.replayed":     "本次人机验证已使用，请重新验证。",
+		"rate_limit.exceeded":             "操作过于频繁，请稍后再试。",
+		"role.system_role_locked":         "系统角色不能执行此操作。",
+		"role.default_role_locked":        "默认角色不能执行此操作。",
+		"user.initial_super_admin_locked": "初始超级管理员不能执行此操作。",
+		"auth.password_policy":            "密码不符合安全要求。",
+		"not_found":                       "请求的资源不存在。",
+		"method_not_allowed":              "不支持当前请求方法。",
+		"internal_error":                  "服务器暂时不可用，请稍后再试。",
+	},
+	"en-US": {
+		"ok":                              "OK",
+		"auth.required":                   "Please sign in first.",
+		"auth.invalid_credentials":        "The account or password is incorrect.",
+		"permission.denied":               "You do not have permission to perform this action.",
+		"validation.invalid":              "The request parameters are invalid.",
+		"human_verification.required":     "Please complete human verification first.",
+		"human_verification.invalid":      "Human verification failed. Please try again.",
+		"human_verification.expired":      "Human verification expired. Please verify again.",
+		"human_verification.replayed":     "This human verification has already been used. Please verify again.",
+		"rate_limit.exceeded":             "Too many attempts. Please try again later.",
+		"role.system_role_locked":         "System roles cannot perform this action.",
+		"role.default_role_locked":        "The default role cannot perform this action.",
+		"user.initial_super_admin_locked": "The initial super administrator cannot perform this action.",
+		"auth.password_policy":            "The password does not meet the security policy.",
+		"not_found":                       "The requested resource does not exist.",
+		"method_not_allowed":              "This request method is not supported.",
+		"internal_error":                  "The server is temporarily unavailable. Please try again later.",
+	},
+}
+
+func Message(locale string, key string) string {
+	normalized := Normalize(locale, []string{"zh-CN", "en-US"})
+	if catalog, ok := messages[normalized]; ok {
+		if message, ok := catalog[key]; ok {
+			return message
+		}
+	}
+
+	if catalog, ok := messages[DefaultLocale]; ok {
+		if message, ok := catalog[key]; ok {
+			return message
+		}
+	}
+
+	return key
+}
+
+func NegotiateAcceptLanguage(header string, supported []string, fallback string) string {
+	fallback = Normalize(fallback, supported)
+	ranges := parseAcceptLanguage(header)
+	if len(ranges) == 0 {
+		return fallback
+	}
+
+	for _, item := range ranges {
+		if locale, ok := matchSupportedLocale(item.tag, supported); ok {
+			return locale
+		}
+	}
+
+	return fallback
+}
+
+func matchSupportedLocale(locale string, supported []string) (string, bool) {
+	candidate := strings.TrimSpace(locale)
+	if candidate == "" {
+		return "", false
+	}
+
+	if alias, ok := aliases[strings.ToLower(candidate)]; ok {
+		candidate = alias
+	}
+
+	for _, item := range supported {
+		if strings.EqualFold(candidate, item) {
+			return item, true
+		}
+	}
+
+	return "", false
+}
+
+type languageRange struct {
+	tag   string
+	q     float64
+	order int
+}
+
+func parseAcceptLanguage(header string) []languageRange {
+	parts := strings.Split(header, ",")
+	ranges := make([]languageRange, 0, len(parts))
+
+	for index, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		tag := part
+		q := 1.0
+		if semi := strings.Index(part, ";"); semi >= 0 {
+			tag = strings.TrimSpace(part[:semi])
+			for _, param := range strings.Split(part[semi+1:], ";") {
+				param = strings.TrimSpace(param)
+				if strings.HasPrefix(param, "q=") {
+					parsed, err := strconv.ParseFloat(strings.TrimPrefix(param, "q="), 64)
+					if err == nil {
+						q = parsed
+					}
+				}
+			}
+		}
+
+		if tag != "" && tag != "*" && q > 0 {
+			ranges = append(ranges, languageRange{tag: tag, q: q, order: index})
+		}
+	}
+
+	// Accept-Language 需要按 q 值优先，q 相同时保留浏览器发送顺序。
+	sort.SliceStable(ranges, func(i, j int) bool {
+		if ranges[i].q == ranges[j].q {
+			return ranges[i].order < ranges[j].order
+		}
+		return ranges[i].q > ranges[j].q
+	})
+
+	return ranges
+}
