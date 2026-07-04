@@ -6,6 +6,68 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /auth/register:
+    post:
+      summary: Register a forum account
+      operationId: registerAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Account created and session cookie issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /auth/login:
+    post:
+      summary: Log in with username or email
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Session cookie issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /auth/logout:
+    post:
+      summary: Destroy the current browser session
+      operationId: logout
+      responses:
+        "204":
+          description: Session destroyed.
+  /auth/session:
+    get:
+      summary: Get the current browser session user
+      operationId: getCurrentSession
+      responses:
+        "200":
+          description: Current authenticated forum user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /health:
     get:
       summary: Health check
@@ -42,3 +104,263 @@ paths:
                   time:
                     type: string
                     format: date-time
+  /roles:
+    get:
+      summary: List roles and user groups
+      operationId: listRoles
+      responses:
+        "200":
+          description: Roles visible to role managers.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Role"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      summary: Create a custom role
+      operationId: createRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleInput"
+      responses:
+        "201":
+          description: Role created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /roles/{roleKey}:
+    patch:
+      summary: Update a role alias and description
+      operationId: updateRole
+      parameters:
+        - $ref: "#/components/parameters/RoleKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleInput"
+      responses:
+        "200":
+          description: Role updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+    delete:
+      summary: Delete a custom role
+      operationId: deleteRole
+      parameters:
+        - $ref: "#/components/parameters/RoleKey"
+      responses:
+        "204":
+          description: Role deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /roles/{roleKey}/permissions:
+    put:
+      summary: Replace permissions assigned to a role
+      operationId: replaceRolePermissions
+      parameters:
+        - $ref: "#/components/parameters/RoleKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - permissions
+              properties:
+                permissions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "204":
+          description: Role permissions replaced.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+components:
+  parameters:
+    RoleKey:
+      name: roleKey
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Stable role key, such as member or moderator.
+  responses:
+    Unauthorized:
+      description: Authentication is required or credentials are invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Forbidden:
+      description: The current user does not have permission.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Conflict:
+      description: The request conflicts with a system invariant.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    UnprocessableEntity:
+      description: The request body is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+  schemas:
+    CurrentUser:
+      type: object
+      required:
+        - id
+        - username
+        - displayName
+        - locale
+        - status
+        - isInitialSuperAdmin
+        - roleKeys
+        - permissions
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        displayName:
+          type: string
+        locale:
+          type: string
+        status:
+          type: string
+          enum: [active, disabled, banned]
+        isInitialSuperAdmin:
+          type: boolean
+        roleKeys:
+          type: array
+          items:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        displayName:
+          type: string
+        locale:
+          type: string
+    LoginRequest:
+      type: object
+      required:
+        - login
+        - password
+      properties:
+        login:
+          type: string
+          description: Username or email address.
+        password:
+          type: string
+          format: password
+    Role:
+      type: object
+      required:
+        - id
+        - key
+        - alias
+        - description
+        - isSystem
+        - isDefault
+        - isDeletable
+        - isEnabled
+      properties:
+        id:
+          type: integer
+          format: int64
+        key:
+          type: string
+        alias:
+          type: string
+        description:
+          type: string
+        isSystem:
+          type: boolean
+        isDefault:
+          type: boolean
+        isDeletable:
+          type: boolean
+        isEnabled:
+          type: boolean
+    RoleInput:
+      type: object
+      properties:
+        key:
+          type: string
+        alias:
+          type: string
+        description:
+          type: string
+    Problem:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
