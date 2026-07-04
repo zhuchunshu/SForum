@@ -10,7 +10,7 @@ const { user } = useAuthSession()
 const { request } = useApiClient()
 const { siteName } = useWebOptions()
 
-// 引入多页签状态
+// 引入多页签状态与主题模式
 const adminTabs = useAdminTabs()
 const colorMode = useColorMode()
 
@@ -22,7 +22,14 @@ const userInitial = computed(() => {
   return displayName.value.trim().slice(0, 1).toUpperCase() || 'S'
 })
 
+// 计算当前激活标签页的标题，用于面包屑展示
+const activeTabLabel = computed(() => {
+  const activeTab = adminTabs.tabs.value.find(tab => tab.id === adminTabs.activeTabId.value)
+  return activeTab ? t(activeTab.labelKey) : t('admin.nav.dashboard')
+})
+
 // 无 Emoji，严格使用 i-lucide-
+// 支持多级折叠嵌套菜单
 const navigationItems = computed(() => [
   [
     {
@@ -31,15 +38,29 @@ const navigationItems = computed(() => [
       to: adminRoutes.path('/')
     },
     {
-      label: t('admin.nav.roles'),
+      label: '系统管理',
       icon: 'i-lucide-shield-check',
-      to: adminRoutes.path('/roles'),
-      badge: t('admin.nav.rolesBadge')
+      defaultOpen: true,
+      children: [
+        {
+          label: t('admin.nav.roles'),
+          icon: 'i-lucide-users',
+          to: adminRoutes.path('/roles'),
+          badge: t('admin.nav.rolesBadge')
+        }
+      ]
     },
     {
-      label: t('admin.nav.settings'),
+      label: '系统配置',
       icon: 'i-lucide-settings-2',
-      to: adminRoutes.path('/settings')
+      defaultOpen: true,
+      children: [
+        {
+          label: t('admin.nav.settings'),
+          icon: 'i-lucide-sliders',
+          to: adminRoutes.path('/settings')
+        }
+      ]
     }
   ],
   [
@@ -90,7 +111,7 @@ async function signOut() {
   }).catch(() => null)
 
   user.value = null
-  adminTabs.resetTabs() // 清理打开的页签
+  adminTabs.resetTabs()
   await navigateTo(localePath('/login'))
 }
 </script>
@@ -104,22 +125,22 @@ async function signOut() {
       :default-size="16"
       :min-size="13"
       :max-size="22"
-      class="border-r border-default bg-default/95 text-slate-400!"
+      class="border-r border-slate-200 dark:border-zinc-800 bg-[var(--bg-admin-sidebar)] text-slate-600 dark:text-zinc-400"
     >
       <template #header="{ collapsed }">
         <NuxtLink
           :to="adminRoutes.path('/')"
-          class="flex h-12 min-w-0 items-center gap-3 rounded-md px-2 text-white hover:bg-slate-800"
+          class="flex h-12 min-w-0 items-center gap-3 rounded-md px-2 text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
           :aria-label="siteName"
         >
           <span class="grid size-8 shrink-0 place-items-center rounded-md bg-teal-600 text-white">
             <UIcon name="i-lucide-message-square-text" class="size-4" />
           </span>
           <span v-if="!collapsed" class="min-w-0">
-            <span class="block truncate text-sm font-semibold text-white">
+            <span class="block truncate text-sm font-semibold text-slate-900 dark:text-white">
               {{ siteName }}
             </span>
-            <span class="block truncate text-xs text-slate-400">
+            <span class="block truncate text-xs text-slate-500 dark:text-zinc-400">
               {{ t('admin.shell.section') }}
             </span>
           </span>
@@ -132,21 +153,21 @@ async function signOut() {
           :collapsed="collapsed"
           tooltip
           highlight
-          color="neutral"
+          color="primary"
           orientation="vertical"
-          class="-mx-2 text-slate-400!"
+          class="-mx-2"
         />
       </template>
 
       <template #footer="{ collapsed }">
         <div class="flex flex-col gap-2 w-full">
-          <!-- 桌面端快捷切换主题按钮，方便在侧边栏直接点击 -->
+          <!-- 桌面端快捷切换主题按钮 -->
           <UButton
             v-if="!collapsed"
             color="neutral"
             variant="ghost"
             block
-            class="justify-start px-2 text-slate-400 hover:text-white"
+            class="justify-start px-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
             @click="() => { colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark' }"
           >
             <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="size-4" />
@@ -160,19 +181,19 @@ async function signOut() {
               color="neutral"
               variant="ghost"
               block
-              class="justify-start px-2 text-slate-400 hover:text-white"
+              class="justify-start px-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
               :class="{ 'justify-center': collapsed }"
             >
               <UAvatar :text="userInitial" size="sm" />
               <span v-if="!collapsed" class="min-w-0 flex-1 text-left">
-                <span class="block truncate text-sm font-medium text-white">
+                <span class="block truncate text-sm font-medium text-slate-900 dark:text-white">
                   {{ displayName }}
                 </span>
-                <span class="block truncate text-xs text-slate-400">
+                <span class="block truncate text-xs text-slate-500 dark:text-zinc-400">
                   {{ user?.roleKeys?.join(', ') || t('admin.shell.member') }}
                 </span>
               </span>
-              <UIcon v-if="!collapsed" name="i-lucide-chevrons-up-down" class="size-4 text-slate-500" />
+              <UIcon v-if="!collapsed" name="i-lucide-chevrons-up-down" class="size-4 text-slate-400 dark:text-zinc-500" />
             </UButton>
           </UDropdownMenu>
         </div>
@@ -180,23 +201,38 @@ async function signOut() {
     </UDashboardSidebar>
 
     <UDashboardPanel class="flex flex-col min-w-0 flex-1 bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100">
-      <!-- 多页签页签栏 -->
-      <div class="flex items-end h-[38px] px-3 gap-1 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 overflow-x-auto flex-shrink-0 select-none no-scrollbar">
+      <!-- 1. 置顶全局 Topbar -->
+      <div class="flex items-center justify-between h-[54px] px-6 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 z-20">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-semibold text-slate-900 dark:text-zinc-100">SForum 控制台</span>
+          <span class="text-xs text-slate-400 dark:text-zinc-500">/</span>
+          <span class="text-xs text-slate-500 dark:text-zinc-400">{{ activeTabLabel }}</span>
+        </div>
+        <div class="flex items-center gap-4 text-xs">
+          <span class="inline-flex items-center gap-1.5 text-slate-500 dark:text-zinc-400">
+            <span class="size-2 rounded-full bg-teal-600 dark:bg-teal-400"></span>
+            管理员: <strong class="text-slate-800 dark:text-zinc-200">{{ user?.username }}</strong>
+          </span>
+        </div>
+      </div>
+
+      <!-- 2. 多页签页签栏 (Taller tab bar: 44px) -->
+      <div class="flex items-end h-[44px] px-3 gap-1.5 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 overflow-x-auto flex-shrink-0 select-none no-scrollbar z-15">
         <div
           v-for="tab in adminTabs.tabs.value"
           :key="tab.id"
-          class="group inline-flex items-center gap-1.5 h-[30px] px-2.5 border border-b-0 border-slate-200 dark:border-zinc-800 mb-[-1px] rounded-t-md cursor-pointer transition-colors text-xs font-medium relative z-10"
+          class="group inline-flex items-center gap-1.5 h-[36px] px-4 border border-b-0 border-slate-200 dark:border-zinc-800 mb-[-1px] rounded-t-lg cursor-pointer transition-colors text-xs font-semibold relative z-10"
           :class="adminTabs.activeTabId.value === tab.id 
             ? 'bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 border-slate-200 dark:border-zinc-800' 
             : 'bg-transparent text-slate-500 dark:text-zinc-400 border-transparent hover:text-slate-900 dark:hover:text-zinc-100'"
           @click="navigateTo(tab.to)"
         >
-          <UIcon :name="tab.icon" class="size-3.5" />
+          <UIcon :name="tab.icon" class="size-4" />
           <span>{{ t(tab.labelKey) }}</span>
           
           <span
             v-if="tab.closable"
-            class="inline-flex items-center justify-center size-3.5 rounded-full text-slate-500 dark:text-zinc-400 hover:bg-red-500/20 hover:text-red-500 transition-colors"
+            class="inline-flex items-center justify-center size-4 rounded-full text-slate-500 dark:text-zinc-400 hover:bg-red-500/20 hover:text-red-500 transition-colors"
             @click.stop="adminTabs.closeTab(tab.id)"
           >
             <UIcon name="i-lucide-x" class="size-2.5" />
@@ -204,7 +240,8 @@ async function signOut() {
         </div>
       </div>
 
-      <div class="flex-1 overflow-y-auto flex flex-col">
+      <!-- 3. 内容区滚动面板 -->
+      <div class="flex-1 overflow-y-auto flex flex-col p-4 sm:p-6 bg-slate-50 dark:bg-zinc-950">
         <slot />
       </div>
     </UDashboardPanel>
