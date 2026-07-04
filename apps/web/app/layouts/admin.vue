@@ -235,12 +235,12 @@ async function signOut() {
 
     <UDashboardPanel class="flex flex-col min-w-0 flex-1 bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100">
       <!-- 1. 置顶全局 Topbar -->
-      <!-- 1. 置顶全局 Topbar (高度提升至 72px) -->
-      <div class="flex items-center justify-between h-[72px] px-6 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 z-20 transition-all">
+      <!-- 1. 置顶全局 Topbar (高度提升至 80px) -->
+      <div class="flex items-center justify-between h-[80px] px-6 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 z-20 transition-all">
         <div class="flex items-center gap-2.5">
-          <span class="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-wide">SForum 控制台</span>
+          <span class="text-lg font-extrabold text-slate-900 dark:text-zinc-100 tracking-wide">SForum 控制台</span>
           <span class="text-sm text-slate-300 dark:text-zinc-600">/</span>
-          <span class="text-sm font-semibold text-slate-600 dark:text-zinc-300">{{ activeTabLabel }}</span>
+          <span class="text-base font-bold text-slate-700 dark:text-zinc-200">{{ activeTabLabel }}</span>
         </div>
         <div class="flex items-center gap-4 text-xs">
           <span class="inline-flex items-center gap-2 text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-950 px-3 py-1.5 rounded-full border border-slate-100 dark:border-zinc-800">
@@ -250,26 +250,26 @@ async function signOut() {
         </div>
       </div>
 
-      <!-- 2. 多页签页签栏 (Taller tab bar: 44px) -->
-      <div class="flex items-end h-[44px] px-3 gap-1.5 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 overflow-x-auto flex-shrink-0 select-none no-scrollbar z-15">
+      <!-- 2. 多页签页签栏 (Taller tab bar: 52px) -->
+      <div class="flex items-end h-[52px] px-3 gap-1.5 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 overflow-x-auto flex-shrink-0 select-none no-scrollbar z-15">
         <div
           v-for="tab in adminTabs.tabs.value"
           :key="tab.id"
-          class="group inline-flex items-center gap-1.5 h-[36px] px-4 border border-b-0 border-slate-200 dark:border-zinc-800 mb-[-1px] rounded-t-lg cursor-pointer transition-colors text-xs font-semibold relative z-10"
+          class="group inline-flex items-center gap-2 h-[44px] px-5 border border-b-0 border-slate-200 dark:border-zinc-800 mb-[-1px] rounded-t-lg cursor-pointer transition-colors text-sm font-semibold relative z-10"
           :class="adminTabs.activeTabId.value === tab.id 
             ? 'bg-[var(--bg-admin-app)] text-slate-900 dark:text-zinc-100 border-slate-200 dark:border-zinc-800' 
             : 'bg-transparent text-slate-500 dark:text-zinc-400 border-transparent hover:text-slate-900 dark:hover:text-zinc-100'"
           @click="navigateTo(tab.to)"
         >
-          <UIcon :name="tab.icon" class="size-4" />
+          <UIcon :name="tab.icon" class="size-4.5" />
           <span>{{ t(tab.labelKey) }}</span>
           
           <span
             v-if="tab.closable"
-            class="inline-flex items-center justify-center size-4 rounded-full text-slate-500 dark:text-zinc-400 hover:bg-red-500/20 hover:text-red-500 transition-colors"
+            class="inline-flex items-center justify-center size-4.5 rounded-full text-slate-500 dark:text-zinc-400 hover:bg-red-500/20 hover:text-red-500 transition-colors"
             @click.stop="adminTabs.closeTab(tab.id)"
           >
-            <UIcon name="i-lucide-x" class="size-2.5" />
+            <UIcon name="i-lucide-x" class="size-3" />
           </span>
         </div>
       </div>

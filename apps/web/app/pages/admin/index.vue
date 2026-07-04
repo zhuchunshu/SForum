@@ -110,7 +110,7 @@ useSeoMeta({
             <p class="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
               {{ card.label }}
             </p>
-            <p class="mt-2.5 truncate text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            <p class="mt-2.5 truncate text-3xl font-black text-slate-900 dark:text-white tracking-tight">
               {{ card.value }}
             </p>
           </div>

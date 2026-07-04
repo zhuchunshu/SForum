@@ -230,33 +230,39 @@ h1:not([data-slot="title"]) {
 /* SForum 后台管理现代雅致主题 (SaaS Elegant Theme) */
 /* ========================================================================= */
 
+/* 侧栏总宽度加宽，做大做强 */
+#sforum-admin-sidebar {
+  width: 290px !important; /* 拓宽侧边栏以适配大字体 */
+}
+
 /* 侧栏主链接容器样式升级：字号调大，间距更舒展 */
 #sforum-admin-sidebar [data-slot="link"] {
-  font-size: 0.975rem !important; /* 原为 0.925rem，进一步加大 */
-  font-weight: 600 !important; /* 字体更显眼 */
-  padding-top: 0.85rem !important;
-  padding-bottom: 0.85rem !important;
-  padding-left: 1.1rem !important;
-  padding-right: 1.1rem !important;
+  font-size: 1.05rem !important; /* 原为 0.975rem，升级为 ~17px */
+  font-weight: 700 !important; /* 更加加粗显眼 */
+  padding-top: 0.95rem !important;
+  padding-bottom: 0.95rem !important;
+  padding-left: 1.25rem !important;
+  padding-right: 1.25rem !important;
 }
 
 /* 侧边栏图标加大，保证视觉主体显眼 */
 #sforum-admin-sidebar [data-slot="icon"] {
-  width: 1.25rem !important; /* 调整为 20px */
-  height: 1.25rem !important;
+  width: 1.45rem !important; /* 调整为 ~23px */
+  height: 1.45rem !important;
 }
 
 /* 二级菜单虚线指示器高级感微调 */
 #sforum-admin-sidebar ul[data-slot="childList"] {
-  border-left: 1px dashed rgba(148, 163, 184, 0.2) !important;
-  margin-left: 1.5rem !important;
-  padding-left: 1.2rem !important;
+  border-left: 2px dashed rgba(148, 163, 184, 0.2) !important;
+  margin-left: 1.7rem !important;
+  padding-left: 1.4rem !important;
 }
 
 #sforum-admin-sidebar ul[data-slot="childList"] [data-slot="link"] {
-  font-size: 0.875rem !important; /* 从 0.825rem 提升到 14px */
-  padding-top: 0.6rem !important;
-  padding-bottom: 0.6rem !important;
+  font-size: 0.95rem !important; /* 从 0.875rem 提升到 15.2px */
+  font-weight: 500 !important;
+  padding-top: 0.7rem !important;
+  padding-bottom: 0.7rem !important;
 }
 
 /* 浅色模式下的软阴影卡片 */
