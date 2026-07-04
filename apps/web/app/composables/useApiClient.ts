@@ -9,9 +9,11 @@ export type ApiErrorData = {
   fields?: Record<string, string[]>
 }
 
+type ApiRequestBody = BodyInit | Record<string, unknown> | null
+
 type ApiFetchOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
-  body?: unknown
+  body?: ApiRequestBody
   credentials?: RequestCredentials
   headers?: Record<string, string>
 }
