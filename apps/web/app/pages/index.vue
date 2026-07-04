@@ -292,21 +292,22 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
 
             <!-- Thread Items -->
             <template v-else-if="filteredThreads.length > 0">
-              <SFCard v-for="thread in paginatedThreads" :key="thread.id" class="p-5 hover:border-[#CAD2DC] transition">
-                <SFFeedRow
-                  :title="thread.title"
-                  :excerpt="thread.excerpt"
-                  :author="thread.author"
-                  :meta="thread.timeAgo"
-                  :replies="thread.replies"
-                  :views="thread.views"
-                  :score="thread.score"
-                  :badges="[
-                    ...(thread.isPinned ? [{ label: t('home.badge.pinned'), variant: 'danger' as const }] : []),
-                    ...(thread.isFeatured ? [{ label: t('home.badge.featured'), variant: 'success' as const }] : []),
-                    { label: thread.category, variant: 'primary' as const }
-                  ]"
-                />
+              <SFCard class="divide-y divide-slate-100 overflow-hidden">
+                <div v-for="thread in paginatedThreads" :key="thread.id">
+                  <SFFeedRow
+                    :title="thread.title"
+                    :author="thread.author"
+                    :meta="thread.timeAgo"
+                    :replies="thread.replies"
+                    :views="thread.views"
+                    :score="thread.score"
+                    :badges="[
+                      ...(thread.isPinned ? [{ label: t('home.badge.pinned'), variant: 'danger' as const }] : []),
+                      ...(thread.isFeatured ? [{ label: t('home.badge.featured'), variant: 'success' as const }] : []),
+                      { label: thread.category, variant: 'primary' as const }
+                    ]"
+                  />
+                </div>
               </SFCard>
             </template>
 
