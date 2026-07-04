@@ -235,12 +235,12 @@ async function signOut() {
 
     <UDashboardPanel class="flex flex-col min-w-0 flex-1 bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100">
       <!-- 1. 置顶全局 Topbar -->
-      <!-- 1. 置顶全局 Topbar (高度提升至 80px) -->
-      <div class="flex items-center justify-between h-[80px] px-6 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 z-20 transition-all">
+      <!-- 1. 置顶全局 Topbar (高度调回 60px) -->
+      <div class="flex items-center justify-between h-[60px] px-6 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 z-20 transition-all">
         <div class="flex items-center gap-2.5">
-          <span class="text-lg font-extrabold text-slate-900 dark:text-zinc-100 tracking-wide">SForum 控制台</span>
-          <span class="text-sm text-slate-300 dark:text-zinc-600">/</span>
-          <span class="text-base font-bold text-slate-700 dark:text-zinc-200">{{ activeTabLabel }}</span>
+          <span class="text-sm font-bold text-slate-900 dark:text-zinc-100 tracking-wide">SForum 控制台</span>
+          <span class="text-xs text-slate-300 dark:text-zinc-600">/</span>
+          <span class="text-xs font-semibold text-slate-600 dark:text-zinc-300">{{ activeTabLabel }}</span>
         </div>
         <div class="flex items-center gap-4 text-xs">
           <span class="inline-flex items-center gap-2 text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-950 px-3 py-1.5 rounded-full border border-slate-100 dark:border-zinc-800">
