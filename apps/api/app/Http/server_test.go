@@ -157,8 +157,8 @@ func TestRegisterEndpointRequiresHumanVerification(t *testing.T) {
 	identityController := identitycontroller.NewControllerWithVerifier(identity.NewService(store), session.NewStore(), verifier)
 	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 
-	body := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN"}`)
-	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(body))
+	requestBody := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN"}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(requestBody))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := app.Test(req)
@@ -170,12 +170,18 @@ func TestRegisterEndpointRequiresHumanVerification(t *testing.T) {
 	if resp.StatusCode != nethttp.StatusUnprocessableEntity {
 		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
-	var problem apiEnvelope[apiErrorData]
-	if err := json.NewDecoder(resp.Body).Decode(&problem); err != nil {
-		t.Fatalf("decode problem response: %v", err)
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error envelope: %v", err)
 	}
-	if problem.Data.Reason != humanverify.CodeRequired {
-		t.Fatalf("expected required code, got %q", problem.Data.Reason)
+	if body.Code != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("expected envelope code 422, got %d", body.Code)
+	}
+	if body.Message != "请先完成人机验证。" {
+		t.Fatalf("expected human verification message, got %q", body.Message)
+	}
+	if body.Data.Reason != humanverify.CodeRequired {
+		t.Fatalf("expected required reason, got %q", body.Data.Reason)
 	}
 }
 
@@ -336,6 +342,92 @@ func TestSessionEndpointReturnsLocalizedEnvelopeError(t *testing.T) {
 	}
 }
 
+func TestErrorEnvelopeFallsBackToDefaultLocale(t *testing.T) {
+	cfg := testConfig()
+	identityController := identitycontroller.NewController(identity.NewService(newHTTPFakeStore()), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/auth/session", nil)
+	req.Header.Set("Accept-Language", "fr-FR,fr;q=0.9")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("session request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error envelope: %v", err)
+	}
+	if body.Message != "请先登录。" {
+		t.Fatalf("expected Chinese fallback message, got %q", body.Message)
+	}
+}
+
+func TestMissingRouteReturnsNotFoundEnvelope(t *testing.T) {
+	cfg := testConfig()
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{})
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/missing-route", nil)
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("missing route request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error envelope: %v", err)
+	}
+	if body.Code != nethttp.StatusNotFound {
+		t.Fatalf("expected envelope code 404, got %d", body.Code)
+	}
+	if body.Data.Reason != "not_found" {
+		t.Fatalf("expected not_found reason, got %q", body.Data.Reason)
+	}
+	if body.Message != "请求的资源不存在。" {
+		t.Fatalf("expected not found message, got %q", body.Message)
+	}
+}
+
+func TestHealthEndpointRejectsUnsupportedMethod(t *testing.T) {
+	cfg := testConfig()
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{})
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/health", nil)
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("health method request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", resp.StatusCode)
+	}
+
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error envelope: %v", err)
+	}
+	if body.Code != nethttp.StatusMethodNotAllowed {
+		t.Fatalf("expected envelope code 405, got %d", body.Code)
+	}
+	if body.Data.Reason != "method_not_allowed" {
+		t.Fatalf("expected method_not_allowed reason, got %q", body.Data.Reason)
+	}
+	if body.Message != "不支持当前请求方法。" {
+		t.Fatalf("expected method not allowed message, got %q", body.Message)
+	}
+}
+
 func TestRolesEndpointRequiresAuth(t *testing.T) {
 	cfg := testConfig()
 	identityController := identitycontroller.NewController(identity.NewService(newHTTPFakeStore()), session.NewStore())
@@ -394,8 +486,8 @@ func TestCreateRoleEndpointRejectsMember(t *testing.T) {
 	registerHTTPUser(t, app, "admin", "admin@example.com")
 	memberCookie := registerHTTPUser(t, app, "member1", "member1@example.com")
 
-	body := []byte(`{"key":"moderator","alias":"版主","description":"管理内容"}`)
-	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/roles", bytes.NewReader(body))
+	requestBody := []byte(`{"key":"moderator","alias":"版主","description":"管理内容"}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/roles", bytes.NewReader(requestBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(memberCookie)
 
@@ -407,6 +499,20 @@ func TestCreateRoleEndpointRejectsMember(t *testing.T) {
 
 	if resp.StatusCode != nethttp.StatusForbidden {
 		t.Fatalf("expected 403, got %d", resp.StatusCode)
+	}
+
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error envelope: %v", err)
+	}
+	if body.Code != nethttp.StatusForbidden {
+		t.Fatalf("expected envelope code 403, got %d", body.Code)
+	}
+	if body.Message != "没有权限执行此操作。" {
+		t.Fatalf("expected permission denied message, got %q", body.Message)
+	}
+	if body.Data.Reason != "permission.denied" {
+		t.Fatalf("expected permission.denied reason, got %q", body.Data.Reason)
 	}
 }
 
