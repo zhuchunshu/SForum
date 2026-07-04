@@ -141,6 +141,9 @@ const filteredThreads = computed(() => {
   // 2. Filter / Sort by Tab
   if (currentTab.value === 'featured') {
     result = result.filter(t => t.isFeatured)
+  } else if (currentTab.value === 'following') {
+    const followedAuthors = ['尤雨溪小号', '蓝猫']
+    result = result.filter(t => followedAuthors.includes(t.author))
   } else if (currentTab.value === 'hot') {
     result.sort((a, b) => b.replies - a.replies)
   } else if (currentTab.value === 'latest') {
@@ -239,7 +242,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
         <!-- ======================================= -->
         <!-- 2. MIDDLE COLUMN: Threads Feed Stream   -->
         <!-- ======================================= -->
-        <section class="col-span-12 lg:col-span-6 space-y-4">
+        <section class="col-span-12 md:col-span-9 lg:col-span-6 space-y-4">
           <!-- Search & Filters -->
           <div class="space-y-3">
             <SFSearch
