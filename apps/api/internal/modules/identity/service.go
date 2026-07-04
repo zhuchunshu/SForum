@@ -113,3 +113,52 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (CurrentUser, err
 func (s *Service) CurrentUser(ctx context.Context, userID int64) (CurrentUser, error) {
 	return s.store.GetCurrentUser(ctx, userID)
 }
+
+func (s *Service) Actor(ctx context.Context, userID int64) (Actor, error) {
+	return s.store.LoadActor(ctx, userID)
+}
+
+func (s *Service) ListRoles(ctx context.Context, actor Actor) ([]Role, error) {
+	if !actor.Can(PermissionRoleManage) {
+		return nil, ErrPermissionDenied
+	}
+	return s.store.ListRoles(ctx)
+}
+
+func (s *Service) CreateRole(ctx context.Context, actor Actor, input RoleInput) (Role, error) {
+	if !actor.Can(PermissionRoleManage) {
+		return Role{}, ErrPermissionDenied
+	}
+	return s.store.CreateRole(ctx, input)
+}
+
+func (s *Service) UpdateRole(ctx context.Context, actor Actor, roleKey string, input RoleInput) (Role, error) {
+	if !actor.Can(PermissionRoleManage) {
+		return Role{}, ErrPermissionDenied
+	}
+	input.Key = roleKey
+	return s.store.UpdateRole(ctx, roleKey, input)
+}
+
+func (s *Service) DeleteRole(ctx context.Context, actor Actor, roleKey string) error {
+	if !actor.Can(PermissionRoleManage) {
+		return ErrPermissionDenied
+	}
+	if roleKey == RoleMember {
+		return ErrDefaultRoleLocked
+	}
+	if roleKey == RoleSuperAdmin {
+		return ErrSystemRoleLocked
+	}
+	return s.store.DeleteRole(ctx, roleKey)
+}
+
+func (s *Service) ReplaceRolePermissions(ctx context.Context, actor Actor, roleKey string, permissions []string) error {
+	if !actor.Can(PermissionRoleManage) {
+		return ErrPermissionDenied
+	}
+	if roleKey == RoleSuperAdmin {
+		return ErrSystemRoleLocked
+	}
+	return s.store.ReplaceRolePermissions(ctx, actor.ID, roleKey, permissions)
+}

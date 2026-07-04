@@ -24,6 +24,12 @@ func (h *Handler) RegisterRoutes(api fiber.Router) {
 	auth.Post("/login", h.login)
 	auth.Post("/logout", h.logout)
 	auth.Get("/session", h.session)
+
+	api.Get("/roles", h.listRoles)
+	api.Post("/roles", h.createRole)
+	api.Patch("/roles/:roleKey", h.updateRole)
+	api.Delete("/roles/:roleKey", h.deleteRole)
+	api.Put("/roles/:roleKey/permissions", h.replaceRolePermissions)
 }
 
 type registerRequest struct {
@@ -37,6 +43,16 @@ type registerRequest struct {
 type loginRequest struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
+}
+
+type roleRequest struct {
+	Key         string `json:"key"`
+	Alias       string `json:"alias"`
+	Description string `json:"description"`
+}
+
+type replaceRolePermissionsRequest struct {
+	Permissions []string `json:"permissions"`
 }
 
 func (h *Handler) register(c fiber.Ctx) error {
@@ -108,6 +124,91 @@ func (h *Handler) session(c fiber.Ctx) error {
 	return c.JSON(current)
 }
 
+func (h *Handler) listRoles(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	roles, err := h.service.ListRoles(c.Context(), actor)
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return c.JSON(roles)
+}
+
+func (h *Handler) createRole(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	var req roleRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+
+	role, err := h.service.CreateRole(c.Context(), actor, RoleInput{
+		Key:         req.Key,
+		Alias:       req.Alias,
+		Description: req.Description,
+	})
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return c.Status(fiber.StatusCreated).JSON(role)
+}
+
+func (h *Handler) updateRole(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	var req roleRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+
+	role, err := h.service.UpdateRole(c.Context(), actor, c.Params("roleKey"), RoleInput{
+		Alias:       req.Alias,
+		Description: req.Description,
+	})
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return c.JSON(role)
+}
+
+func (h *Handler) deleteRole(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	if err := h.service.DeleteRole(c.Context(), actor, c.Params("roleKey")); err != nil {
+		return mapIdentityError(err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (h *Handler) replaceRolePermissions(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	var req replaceRolePermissionsRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+
+	if err := h.service.ReplaceRolePermissions(c.Context(), actor, c.Params("roleKey"), req.Permissions); err != nil {
+		return mapIdentityError(err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 func (h *Handler) saveSessionUserID(c fiber.Ctx, userID int64) error {
 	sess, err := h.sessions.Get(c)
 	if err != nil {
@@ -131,6 +232,22 @@ func (h *Handler) sessionUserID(c fiber.Ctx) (int64, bool, error) {
 	default:
 		return 0, false, nil
 	}
+}
+
+func (h *Handler) actor(c fiber.Ctx) (Actor, error) {
+	userID, ok, err := h.sessionUserID(c)
+	if err != nil {
+		return Actor{}, err
+	}
+	if !ok {
+		return Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+	}
+
+	actor, err := h.service.Actor(c.Context(), userID)
+	if err != nil {
+		return Actor{}, mapIdentityError(err)
+	}
+	return actor, nil
 }
 
 func mapIdentityError(err error) error {
