@@ -10,6 +10,10 @@ background work.
 Foundation scaffold exists under `apps/api`.
 Jobs and queues architecture has been accepted. River backed by PostgreSQL is
 the first durable queue foundation.
+Backend HTTP composition now has an initial Laravel-inspired but Go-explicit
+implementation: `internal/bootstrap` assembles the API runtime,
+`internal/http` registers an ordered route-provider list, and identity owns its
+provider and routes files.
 
 ## Planned Stack
 
@@ -42,6 +46,39 @@ the first durable queue foundation.
 - `humanverify`: shared provider boundary for ALTCHA challenge generation,
   server-side verification, stable result codes, and later provider swaps.
 - `notifications`: deferred unless MVP requires it.
+
+## HTTP Bootstrap And Routing
+
+Borrow Laravel's organization where it helps humans navigate the backend:
+small entrypoints, a clear bootstrap layer, service providers, route files,
+middleware groups, and thin controllers. Keep the implementation Go-native and
+explicit; do not introduce a dynamic dependency container before the codebase
+needs one.
+
+Target ownership:
+
+- `cmd/api/main.go` starts and stops the process only.
+- `internal/bootstrap` wires config, logging, PostgreSQL, Redis, sessions,
+  module providers, route providers, jobs, and cleanup hooks.
+- `internal/http` owns Fiber app construction, global middleware, `/api/v1`,
+  health/system routes, JSON error shape, and route-provider interfaces.
+- `internal/modules/*/provider.go` builds each domain module from shared
+  dependencies.
+- `internal/modules/*/routes.go` declares that module's routes and route-group
+  middleware.
+- `internal/modules/*/http.go` keeps request DTOs, response DTOs, and thin
+  handlers.
+
+Route registration rules:
+
+- Use an explicit ordered provider list assembled in bootstrap.
+- Prefer a small `http.RouteProvider` interface over one dependency field per
+  module.
+- A module becomes reachable only when its provider is added to bootstrap.
+- Do not register routes from `cmd/*`, platform clients, database stores,
+  service constructors, package `init` functions, or filesystem scanning.
+- Put middleware at the narrowest useful level: global, API group, or route
+  group.
 
 ## Jobs And Queues
 

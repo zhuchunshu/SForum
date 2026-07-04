@@ -20,10 +20,12 @@ type healthResponse struct {
 	Time             time.Time `json:"time"`
 }
 
+type RouteProvider interface {
+	RegisterRoutes(api fiber.Router)
+}
+
 type Dependencies struct {
-	IdentityHandler interface {
-		RegisterRoutes(api fiber.Router)
-	}
+	RouteProviders []RouteProvider
 }
 
 func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.App {
@@ -43,8 +45,10 @@ func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.Ap
 func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 	api := app.Group("/api/v1")
 
-	if deps.IdentityHandler != nil {
-		deps.IdentityHandler.RegisterRoutes(api)
+	for _, provider := range deps.RouteProviders {
+		if provider != nil {
+			provider.RegisterRoutes(api)
+		}
 	}
 
 	api.Get("/health", func(c fiber.Ctx) error {

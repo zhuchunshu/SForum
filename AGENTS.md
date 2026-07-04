@@ -33,6 +33,12 @@ parameters, over-abstract, or add wrapper methods for simple behavior unless the
 same logic is reused in multiple places. Avoid nested helper chains for similar
 features; keep straightforward logic straightforward.
 
+Develop the habit of writing useful comments while coding. Prefer Chinese
+comments for project code unless surrounding code or external API conventions
+make English clearer. Comments should explain non-obvious intent, constraints,
+business rules, or tradeoffs; do not add empty comments that merely restate what
+the next line of code already says.
+
 ## Network And Dependency Commands
 
 The primary development environment may be in mainland China. Before running
@@ -61,7 +67,7 @@ Better pattern:
 - Keep routing, business logic, data access, validation, and presentation in separate modules once the codebase needs those boundaries.
 - Use small functions with explicit inputs and outputs.
 - Extract shared behavior when duplication becomes meaningful, not before.
-- Add comments only where they clarify non-obvious decisions.
+- Add useful comments, preferably in Chinese, where they clarify non-obvious intent, constraints, business rules, or tradeoffs.
 
 ## Library-First Development
 

@@ -18,6 +18,28 @@ import (
 	"github.com/inkedus/sforum/apps/api/internal/modules/identity"
 )
 
+func TestNewAppRegistersRouteProviders(t *testing.T) {
+	cfg := testConfig()
+	app := NewApp(cfg, slog.Default(), Dependencies{
+		RouteProviders: []RouteProvider{routeProviderFunc(func(api fiber.Router) {
+			api.Get("/probe", func(c fiber.Ctx) error {
+				return c.JSON(fiber.Map{"status": "registered"})
+			})
+		})},
+	})
+
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/probe", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("probe request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+}
+
 func TestHealthEndpoint(t *testing.T) {
 	cfg := config.Config{
 		AppName:          "SForum",
@@ -59,7 +81,7 @@ func TestRegisterEndpointCreatesSession(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()
 	identityHandler := identity.NewHandler(identity.NewService(store), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{IdentityHandler: identityHandler})
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityHandler}})
 
 	body := []byte(`{"username":"admin","email":"admin@example.com","password":"correct horse battery staple","displayName":"Admin","locale":"zh-CN"}`)
 	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/register", bytes.NewReader(body))
@@ -82,7 +104,7 @@ func TestRegisterEndpointCreatesSession(t *testing.T) {
 func TestSessionEndpointRequiresAuth(t *testing.T) {
 	cfg := testConfig()
 	identityHandler := identity.NewHandler(identity.NewService(newHTTPFakeStore()), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{IdentityHandler: identityHandler})
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityHandler}})
 	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/auth/session", nil)
 
 	resp, err := app.Test(req)
@@ -99,7 +121,7 @@ func TestSessionEndpointRequiresAuth(t *testing.T) {
 func TestRolesEndpointRequiresAuth(t *testing.T) {
 	cfg := testConfig()
 	identityHandler := identity.NewHandler(identity.NewService(newHTTPFakeStore()), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{IdentityHandler: identityHandler})
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityHandler}})
 	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/roles", nil)
 
 	resp, err := app.Test(req)
@@ -117,7 +139,7 @@ func TestCreateRoleEndpointAllowsSuperAdmin(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()
 	identityHandler := identity.NewHandler(identity.NewService(store), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{IdentityHandler: identityHandler})
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityHandler}})
 	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
 
 	body := []byte(`{"key":"moderator","alias":"版主","description":"管理内容"}`)
@@ -147,7 +169,7 @@ func TestCreateRoleEndpointRejectsMember(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()
 	identityHandler := identity.NewHandler(identity.NewService(store), session.NewStore())
-	app := NewApp(cfg, slog.Default(), Dependencies{IdentityHandler: identityHandler})
+	app := NewApp(cfg, slog.Default(), Dependencies{RouteProviders: []RouteProvider{identityHandler}})
 	registerHTTPUser(t, app, "admin", "admin@example.com")
 	memberCookie := registerHTTPUser(t, app, "member1", "member1@example.com")
 
@@ -364,4 +386,10 @@ func (s *httpFakeStore) roleByID(roleID int64) (identity.Role, bool) {
 		}
 	}
 	return identity.Role{}, false
+}
+
+type routeProviderFunc func(api fiber.Router)
+
+func (fn routeProviderFunc) RegisterRoutes(api fiber.Router) {
+	fn(api)
 }

@@ -44,6 +44,29 @@ libraries, frameworks, or services.
 - Follow-up: keep handlers thin and put domain logic in modules/services.
 - Sources: https://docs.gofiber.io/next/
 
+## Backend Composition And Routing
+
+- Problem: keep Fiber route registration, middleware, service construction, and
+  module boundaries understandable as identity, forum, moderation, search, and
+  jobs grow.
+- Options: keep route registration directly in `internal/http`, add a full DI
+  container, use package-level auto-registration, or adopt a Laravel-inspired
+  explicit bootstrap/provider/routes pattern.
+- Recommendation: use a Laravel-inspired organization with Go-explicit
+  dependencies. Keep `cmd/api` small, assemble shared infrastructure in
+  `internal/bootstrap`, let modules expose providers and route providers, and
+  keep route declarations in module-owned route files.
+- Reason: Laravel's route files, middleware groups, and service providers are
+  familiar and readable, but Go should keep dependencies visible instead of
+  relying on runtime magic. This avoids route sprawl without introducing a
+  general-purpose dependency container too early.
+- Follow-up: when backend edits settle, refactor route registration to an
+  explicit provider list and a small `http.RouteProvider` interface.
+- Sources: https://laravel.com/docs/13.x/routing,
+  https://laravel.com/docs/13.x/providers,
+  https://laravel.com/docs/13.x/lifecycle,
+  https://laravel.com/docs/13.x/middleware
+
 ## PostgreSQL Access
 
 - Problem: use PostgreSQL safely without hiding important forum queries behind

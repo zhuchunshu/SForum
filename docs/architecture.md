@@ -1,7 +1,7 @@
 # Architecture
 
-Status: proposed on 2026-07-03. This document defines the target shape before
-application code is added.
+Status: proposed on 2026-07-03 and updated as the scaffold evolves. This
+document defines the target shape for ongoing implementation.
 
 ## Architecture Goals
 
@@ -93,7 +93,7 @@ easy to run in CI.
 
 ## Repository Layout
 
-Target layout when implementation starts:
+Target layout as implementation grows:
 
 ```text
 .
@@ -124,6 +124,8 @@ Target layout when implementation starts:
 |       |   `-- worker/
 |       |-- internal/
 |       |   |-- bootstrap/
+|       |   |   |-- app.go
+|       |   |   `-- providers.go
 |       |   |-- config/
 |       |   |-- http/
 |       |   |   |-- middleware/
@@ -165,6 +167,11 @@ Notes:
 
 - `apps/web` is the Nuxt application. Keep forum business rules out of Nuxt
   server routes.
+- `apps/api/internal/bootstrap` is the API composition layer. It wires config,
+  logging, database clients, session stores, module providers, HTTP routes, and
+  worker dependencies. It should be the Go equivalent of Laravel's
+  `bootstrap/app.php`: explicit and easy to read, not a hidden dependency
+  container.
 - `apps/api/internal/modules/*` are vertical domain modules. A module can own
   handlers, request/response DTOs, service methods, policies, and repository
   interfaces for one domain area.
@@ -181,6 +188,51 @@ Notes:
   client for `apps/web` from this file once endpoints exist.
 - The earlier top-level `src/` placeholder was retired once the `apps/`
   structure was created.
+
+## Laravel-Inspired Backend Composition
+
+SForum should borrow Laravel's application organization where it improves
+readability: a small process entry, a visible bootstrap layer, explicit service
+providers, route files, middleware groups, and thin controllers. It should not
+try to recreate Laravel's dynamic container or PHP runtime behavior in Go.
+
+Recommended mapping:
+
+- `cmd/api/main.go`: process entry only. Load config, create the logger, call
+  `bootstrap.NewAPI(...)`, start Fiber, and handle graceful shutdown.
+- `internal/bootstrap`: application assembly. Open PostgreSQL/Redis clients,
+  build session stores, instantiate module providers, collect route providers,
+  and return the HTTP app plus cleanup hooks.
+- `internal/http`: HTTP kernel. Own Fiber configuration, global middleware,
+  `/api/v1` grouping, health/system routes, centralized JSON error handling,
+  and route-provider interfaces.
+- `internal/modules/<module>/provider.go`: module composition. Build the
+  module's store, service, policies, handlers, route provider, jobs, and seeds
+  using dependencies passed from bootstrap.
+- `internal/modules/<module>/routes.go`: module route declarations. Group
+  endpoints by user-facing capability, keep middleware close to the group it
+  protects, and call thin handler methods.
+- `internal/modules/<module>/http.go`: request/response DTOs and handler
+  methods. Handlers parse input, call services, map module errors to stable API
+  codes, and return responses.
+
+Route registration should be explicit and ordered. Prefer a small
+`http.RouteProvider` interface and an explicit provider list over package-level
+side effects, init-time registration, or filesystem scanning. A new module
+should become reachable only after bootstrap adds its provider to the list.
+
+Middleware belongs at the narrowest useful layer:
+
+- Global middleware: request IDs, panic recovery, logging, and safe defaults.
+- API group middleware: JSON/API conventions such as content negotiation,
+  stable error shape, rate limiting, CSRF for cookie-authenticated writes, and
+  locale negotiation when needed.
+- Route group middleware: authentication, permission checks, human verification,
+  and risk controls for specific capabilities.
+
+Do not register routes from `cmd/*`, platform packages, service constructors,
+or database stores. Those packages may provide dependencies, but route shape
+belongs to `internal/http` and module route files.
 
 ## Development And Deployment
 

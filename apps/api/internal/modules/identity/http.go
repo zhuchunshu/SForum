@@ -18,20 +18,6 @@ func NewHandler(service *Service, sessions *session.Store) *Handler {
 	return &Handler{service: service, sessions: sessions}
 }
 
-func (h *Handler) RegisterRoutes(api fiber.Router) {
-	auth := api.Group("/auth")
-	auth.Post("/register", h.register)
-	auth.Post("/login", h.login)
-	auth.Post("/logout", h.logout)
-	auth.Get("/session", h.session)
-
-	api.Get("/roles", h.listRoles)
-	api.Post("/roles", h.createRole)
-	api.Patch("/roles/:roleKey", h.updateRole)
-	api.Delete("/roles/:roleKey", h.deleteRole)
-	api.Put("/roles/:roleKey/permissions", h.replaceRolePermissions)
-}
-
 type registerRequest struct {
 	Username    string `json:"username"`
 	Email       string `json:"email"`
