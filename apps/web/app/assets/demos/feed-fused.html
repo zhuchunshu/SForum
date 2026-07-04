@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SForum Fused Feed Layout Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --sf-accent: #0f766e;
+      --sf-accent-hover: #0b5f59;
+      --sf-accent-soft: #e6f4f1;
+      --sf-surface: #f7f8fa;
+      --sf-card: #ffffff;
+      --sf-muted: #f3f6f9;
+      --sf-fg: #111827;
+      --sf-fg-secondary: #475569;
+      --sf-fg-tertiary: #64748b;
+      --sf-border: #e2e8f0;
+      --sf-border-light: #eef2f6;
+    }
+
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f8fafc;
+      color: var(--sf-fg);
+      padding-bottom: 120px;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+    
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--sf-fg);
+      margin-bottom: 8px;
+    }
+    
+    .intro {
+      font-size: 14px;
+      color: var(--sf-fg-secondary);
+      line-height: 1.6;
+      margin-bottom: 40px;
+      border-bottom: 1px solid var(--sf-border);
+      padding-bottom: 24px;
+    }
+
+    /* Common Components */
+    .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--sf-accent-soft);
+      color: var(--sf-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 13px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1;
+    }
+    .badge-primary { background: var(--sf-accent-soft); color: var(--sf-accent); }
+    .badge-danger { background: #fef2f2; color: #b91c1c; }
+    .badge-success { background: #ecfdf3; color: #15803d; }
+    
+    .thread-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--sf-fg);
+      line-height: 1.4;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .thread-title:hover {
+      color: var(--sf-accent);
+    }
+    
+    .thread-excerpt {
+      font-size: 13px;
+      color: var(--sf-fg-secondary);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    /* ========================================================
+       FUSED STYLE: 左头像 + 右标题/摘要 + 底部融合交互行
+       ======================================================== */
+    .fused-card {
+      background: #ffffff;
+      border: 1px solid var(--sf-border);
+      border-radius: 10px;
+      padding: 18px;
+      display: flex;
+      gap: 16px;
+      box-shadow: 0 1px 2px rgba(24, 36, 51, 0.02);
+      transition: all 0.15s ease;
+      margin-bottom: 16px;
+    }
+    .fused-card:hover {
+      border-color: #cad2dc;
+      box-shadow: 0 4px 12px rgba(24, 36, 51, 0.04);
+    }
+    
+    .fused-card__right {
+      flex-grow: 1;
+      min-width: 0;
+    }
+    
+    .fused-card__bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--sf-border-light);
+      padding-top: 12px;
+      margin-top: 8px;
+    }
+    
+    .fused-card__meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--sf-fg-tertiary);
+    }
+    
+    .fused-card__actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .action-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--sf-fg-secondary);
+      background: var(--sf-muted);
+      padding: 4px 10px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .action-tag:hover {
+      background: var(--sf-border-light);
+      color: var(--sf-fg);
+    }
+
+    .vote-action {
+      display: inline-flex;
+      align-items: center;
+      background: var(--sf-muted);
+      border-radius: 20px;
+      padding: 2px;
+    }
+    .vote-btn-sub {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 10px;
+      color: var(--sf-fg-secondary);
+      padding: 2px 6px;
+      border-radius: 10px;
+      transition: all 0.15s;
+    }
+    .vote-btn-sub:hover {
+      background: var(--sf-border-light);
+      color: var(--sf-accent);
+    }
+    .vote-val {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--sf-fg);
+      padding: 0 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>SForum 首页帖子信息流融合设计方案</h1>
+  <p class="intro">这里展示了将<b>原方案 B/C</b> 的底栏交互特征与 <b>方案 A-1</b> 结合头像的经典排版进行融合的全新设计。左侧展示用户头像，右侧依次展示标题和摘要，底部单行横向排开分类、作者、时间等元数据，以及带踩赞、回复与浏览数量的右侧交互操作区域。</p>
+
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    
+    <!-- Thread Item 1 -->
+    <div class="fused-card">
+      <div class="avatar">尤</div>
+      <div class="fused-card__right">
+        <h3 class="thread-title">Vue 3.5 新特性深度解析与最佳实践</h3>
+        <p class="thread-excerpt">Vue 3.5 版本引入了响应式解构性能提升、全新 useTemplateRef 机制以及对 custom elements 的增强支持。本文将结合生产实例探讨如何优化代码结构。</p>
+        <div class="fused-card__bottom">
+          <div class="fused-card__meta">
+            <span class="badge badge-primary">技术讨论</span>
+            <span style="font-weight:600; color:var(--sf-fg-secondary);">尤雨溪小号</span>
+            <span>• 10分钟前</span>
+          </div>
+          <div class="fused-card__actions">
+            <div class="vote-action">
+              <button class="vote-btn-sub">▲</button>
+              <span class="vote-val">45</span>
+              <button class="vote-btn-sub">▼</button>
+            </div>
+            <div class="action-tag">💬 28 条回复</div>
+            <div class="action-tag" style="background:transparent; cursor:default;">👁️ 412 浏览</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Thread Item 2 -->
+    <div class="fused-card">
+      <div class="avatar">管</div>
+      <div class="fused-card__right">
+        <h3 class="thread-title">关于论坛首页三栏布局设计的建议与吐槽收集帖</h3>
+        <p class="thread-excerpt">SForum 首页现已采用经典的三栏式门户布局，大家对目前的整体视觉、各个端上的响应式细节、以及组件排列有什么想法？欢迎在此帖畅所欲言。</p>
+        <div class="fused-card__bottom">
+          <div class="fused-card__meta">
+            <span class="badge badge-danger">置顶公告</span>
+            <span style="font-weight:600; color:var(--sf-fg-secondary);">管理员</span>
+            <span>• 1小时前</span>
+          </div>
+          <div class="fused-card__actions">
+            <div class="vote-action">
+              <button class="vote-btn-sub">▲</button>
+              <span class="vote-val">99</span>
+              <button class="vote-btn-sub">▼</button>
+            </div>
+            <div class="action-tag">💬 142 条回复</div>
+            <div class="action-tag" style="background:transparent; cursor:default;">👁️ 1.0k 浏览</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Thread Item 3 -->
+    <div class="fused-card">
+      <div class="avatar">蓝</div>
+      <div class="fused-card__right">
+        <h3 class="thread-title">用 Go Fiber v3 搭建高性能 API 的踩坑记录与性能分析</h3>
+        <p class="thread-excerpt">Go Fiber v3 目前在底层的 fasthttp 集成上有了更多改动。本文详细梳理了在处理中间件链条、大文件上传流式解析、Redis 连接池生命周期管理等场景下的常见坑点。</p>
+        <div class="fused-card__bottom">
+          <div class="fused-card__meta">
+            <span class="badge badge-primary">后端技术</span>
+            <span style="font-weight:600; color:var(--sf-fg-secondary);">蓝猫</span>
+            <span>• 2小时前</span>
+          </div>
+          <div class="fused-card__actions">
+            <div class="vote-action">
+              <button class="vote-btn-sub">▲</button>
+              <span class="vote-val">18</span>
+              <button class="vote-btn-sub">▼</button>
+            </div>
+            <div class="action-tag">💬 12 条回复</div>
+            <div class="action-tag" style="background:transparent; cursor:default;">👁️ 96 浏览</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

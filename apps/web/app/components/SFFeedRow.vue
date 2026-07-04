@@ -26,20 +26,27 @@ const props = withDefaults(defineProps<{
 
 <template>
   <article class="sf-feed-row">
-    <div class="sf-feed-row__score">
-      <strong>{{ score }}</strong>
-      <span>赞同</span>
+    <div class="sf-feed-row__avatar-wrapper">
+      <SFAvatar :name="author || '?'" size="sm" />
     </div>
-    <div>
-      <h3 class="sf-feed-row__title">
-        {{ title }}
-      </h3>
-      <p v-if="excerpt" class="sf-feed-row__excerpt">
-        {{ excerpt }}
-      </p>
-      <div class="sf-feed-row__meta">
-        <span v-if="author">{{ author }}</span>
-        <span v-if="meta">{{ meta }}</span>
+    <div class="sf-feed-row__content">
+      <div class="sf-feed-row__header">
+        <h3 class="sf-feed-row__title">
+          {{ title }}
+        </h3>
+        <div class="sf-feed-row__actions">
+          <div class="sf-feed-row__vote">
+            <button class="sf-feed-row__vote-btn">▲</button>
+            <span class="sf-feed-row__vote-val">{{ score }}</span>
+            <button class="sf-feed-row__vote-btn">▼</button>
+          </div>
+          <div class="sf-feed-row__action-tag">
+            💬 {{ replies }}
+          </div>
+        </div>
+      </div>
+      
+      <div class="sf-feed-row__meta-row">
         <span v-if="badges.length" class="sf-feed-row__badges">
           <SFBadge
             v-for="badge in badges"
@@ -49,11 +56,10 @@ const props = withDefaults(defineProps<{
             {{ badge.label }}
           </SFBadge>
         </span>
+        <span v-if="author" class="sf-feed-row__author">{{ author }}</span>
+        <span v-if="meta" class="sf-feed-row__time">• {{ meta }}</span>
+        <span v-if="views" class="sf-feed-row__views">👁️ {{ views }} 浏览</span>
       </div>
-    </div>
-    <div class="sf-feed-row__stats">
-      <span>{{ replies }} 回复</span>
-      <span>{{ views }} 浏览</span>
     </div>
   </article>
 </template>

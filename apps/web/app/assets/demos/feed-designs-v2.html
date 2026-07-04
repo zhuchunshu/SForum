@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SForum Feed Row UI Demos - Round 2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --sf-accent: #0f766e;
+      --sf-accent-hover: #0b5f59;
+      --sf-accent-soft: #e6f4f1;
+      --sf-surface: #f7f8fa;
+      --sf-card: #ffffff;
+      --sf-muted: #f3f6f9;
+      --sf-fg: #111827;
+      --sf-fg-secondary: #475569;
+      --sf-fg-tertiary: #64748b;
+      --sf-border: #e2e8f0;
+      --sf-border-light: #eef2f6;
+    }
+
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f8fafc;
+      color: var(--sf-fg);
+      padding-bottom: 120px;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+    
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--sf-fg);
+      margin-bottom: 8px;
+    }
+    
+    .intro {
+      font-size: 14px;
+      color: var(--sf-fg-secondary);
+      line-height: 1.6;
+      margin-bottom: 40px;
+      border-bottom: 1px solid var(--sf-border);
+      padding-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--sf-accent);
+      margin: 40px 0 20px;
+      border-left: 4px solid var(--sf-accent);
+      padding-left: 12px;
+    }
+
+    .demo-section {
+      margin-bottom: 40px;
+      background: #ffffff;
+      border: 1px solid var(--sf-border);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(24, 36, 51, 0.03);
+    }
+    
+    .demo-section h2 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--sf-fg);
+      margin-bottom: 6px;
+    }
+    
+    .demo-desc {
+      font-size: 13px;
+      color: var(--sf-fg-secondary);
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    /* Common Components */
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--sf-accent-soft);
+      color: var(--sf-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1;
+    }
+    .badge-primary { background: var(--sf-accent-soft); color: var(--sf-accent); }
+    .badge-danger { background: #fef2f2; color: #b91c1c; }
+    .badge-success { background: #ecfdf3; color: #15803d; }
+    
+    .thread-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--sf-fg);
+      line-height: 1.4;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .thread-title:hover {
+      color: var(--sf-accent);
+    }
+    .thread-excerpt {
+      font-size: 13px;
+      color: var(--sf-fg-secondary);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+    
+    .icon-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--sf-fg-tertiary);
+    }
+
+    /* ========================================================
+       STYLE 1: Clean Editorial (极简图文流)
+       ======================================================== */
+    .style-card-1 {
+      background: #ffffff;
+      border: 1px solid var(--sf-border);
+      border-radius: 8px;
+      padding: 18px;
+      display: flex;
+      gap: 16px;
+    }
+    .style-card-1__right {
+      flex-grow: 1;
+      min-width: 0;
+    }
+    .style-card-1__bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--sf-border-light);
+      padding-top: 12px;
+      margin-top: 6px;
+    }
+    .style-card-1__meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--sf-fg-tertiary);
+    }
+    .style-card-1__stats {
+      display: flex;
+      gap: 12px;
+    }
+
+    /* ========================================================
+       STYLE 2: Reddit/Dev.to modern (社交讨论流)
+       ======================================================== */
+    .style-card-2 {
+      background: #ffffff;
+      border: 1px solid var(--sf-border);
+      border-radius: 8px;
+      padding: 18px;
+    }
+    .style-card-2__header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--sf-fg-tertiary);
+      margin-bottom: 10px;
+    }
+    .style-card-2__actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .vote-pill {
+      display: inline-flex;
+      align-items: center;
+      background: var(--sf-muted);
+      border-radius: 20px;
+      padding: 2px 4px;
+      gap: 2px;
+    }
+    .vote-btn {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 11px;
+      color: var(--sf-fg-secondary);
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+    .vote-btn:hover { background: var(--sf-border); }
+    .vote-count { font-size: 11px; font-weight: 700; color: var(--sf-fg); }
+    
+    .action-pill {
+      display: inline-flex;
+      align-items: center;
+      background: var(--sf-muted);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--sf-fg-secondary);
+      gap: 4px;
+      cursor: pointer;
+    }
+    .action-pill:hover { background: var(--sf-border); }
+
+    /* ========================================================
+       STYLE 3: Split Bubble (分栏气泡流)
+       ======================================================== */
+    .style-card-3 {
+      background: #ffffff;
+      border: 1px solid var(--sf-border);
+      border-radius: 8px;
+      padding: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+    .style-card-3__left {
+      flex-grow: 1;
+      min-width: 0;
+    }
+    .style-card-3__meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--sf-fg-tertiary);
+      margin-top: 8px;
+    }
+    .style-card-3__right {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .stats-bubble {
+      background: var(--sf-muted);
+      padding: 8px 12px;
+      border-radius: 6px;
+      text-align: center;
+      min-width: 60px;
+      font-size: 11px;
+      color: var(--sf-fg-secondary);
+      line-height: 1.3;
+    }
+    .stats-bubble strong {
+      display: block;
+      font-size: 14px;
+      color: var(--sf-fg);
+      margin-bottom: 2px;
+    }
+    .stats-bubble.accent {
+      background: var(--sf-accent-soft);
+      color: var(--sf-accent);
+    }
+    .stats-bubble.accent strong { color: var(--sf-accent); }
+
+    /* ========================================================
+       NEW A-1: Clean Editorial Compact (极简无头像紧凑版)
+       ======================================================== */
+    .style-card-a1 {
+      background: #ffffff;
+      border: 1px solid var(--sf-border);
+      border-radius: 8px;
+      padding: 14px 18px;
+    }
+    .style-card-a1__header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--sf-fg-tertiary);
+      margin-bottom: 8px;
+    }
+    .style-card-a1__bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    /* ========================================================
+       NEW A-2: Clean Editorial Thumbnail (极简右侧缩略图版)
+       ======================================================== */
+    .style-card-a2 {
+      background: #ffffff;
+      border: 1px solid var(--sf-border);
+      border-radius: 8px;
+      padding: 18px;
+      display: flex;
+      gap: 18px;
+    }
+    .style-card-a2__content {
+      flex-grow: 1;
+      min-width: 0;
+    }
+    .style-card-a2__img-placeholder {
+      width: 80px;
+      height: 80px;
+      border-radius: 6px;
+      background: var(--sf-muted);
+      border: 1px solid var(--sf-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--sf-fg-tertiary);
+      flex-shrink: 0;
+    }
+
+    /* ========================================================
+       NEW B-1: Reddit Left Vote Panel (社交左侧赞同栏版)
+       ======================================================== */
+    .style-card-b1 {
+      background: #ffffff;
+      border: 1px solid var(--sf-border);
+      border-radius: 8px;
+      padding: 18px;
+      display: flex;
+      gap: 18px;
+    }
+    .style-card-b1__vote-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 6px 8px;
+      background: var(--sf-muted);
+      border-radius: 6px;
+      width: 44px;
+      align-self: flex-start;
+    }
+    .style-card-b1__vote-panel button {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--sf-fg-secondary);
+      padding: 4px;
+    }
+    .style-card-b1__vote-panel button:hover { color: var(--sf-accent); }
+    .style-card-b1__vote-panel .score {
+      font-weight: 700;
+      font-size: 13px;
+      margin: 2px 0;
+    }
+
+    /* ========================================================
+       NEW B-2: Interactive Action Bar (社交四键扁平交互版)
+       ======================================================== */
+    .style-card-b2 {
+      background: #ffffff;
+      border: 1px solid var(--sf-border);
+      border-radius: 8px;
+      padding: 18px 18px 8px;
+    }
+    .style-card-b2__actions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-top: 1px solid var(--sf-border-light);
+      padding-top: 8px;
+      margin-top: 10px;
+    }
+    .flat-btn {
+      background: transparent;
+      border: none;
+      color: var(--sf-fg-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .flat-btn:hover {
+      background: var(--sf-muted);
+      color: var(--sf-fg);
+    }
+
+    /* ========================================================
+       NEW C-1: Split Column Meta (分栏左侧固定元数据)
+       ======================================================== */
+    .style-card-c1 {
+      background: #ffffff;
+      border: 1px solid var(--sf-border);
+      border-radius: 8px;
+      padding: 18px;
+      display: grid;
+      grid-template-columns: 120px 1fr auto;
+      gap: 18px;
+      align-items: start;
+    }
+    .style-card-c1__meta {
+      font-size: 11px;
+      color: var(--sf-fg-secondary);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .style-card-c1__middle {
+      min-width: 0;
+    }
+
+    /* ========================================================
+       NEW C-2: Floating Accent Capsule (分栏左侧彩色竖线 & 合并胶囊)
+       ======================================================== */
+    .style-card-c2 {
+      background: #ffffff;
+      border: 1px solid var(--sf-border);
+      border-left: 3px solid var(--sf-accent);
+      border-radius: 4px 8px 8px 4px;
+      padding: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 0 1px 2px rgba(24, 36, 51, 0.02);
+    }
+    .stats-capsule {
+      background: var(--sf-muted);
+      border-radius: 20px;
+      padding: 4px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--sf-fg-secondary);
+      white-space: nowrap;
+    }
+    .stats-capsule strong {
+      color: var(--sf-fg);
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>SForum 首页帖子信息流 UI 延伸方案 (Round 2)</h1>
+  <p class="intro">这里保留了您认可的原方案 A/B/C，并根据这三种方案继续衍生、细化出了 6 个全新的优化版本。新版本进一步融合了无头像紧凑排版、缩略图展示、侧边问答赞同栏、扁平化操控组件等细节体验。</p>
+
+  <!-- ==========================================
+       SECTION 1: ORIGINALS
+       ========================================== -->
+  <div class="section-title">原始保留方案 (Originals)</div>
+
+  <!-- ORIGINAL A -->
+  <div class="demo-section">
+    <h2>方案 A：现代极简图文流 (Clean Editorial)</h2>
+    <p class="demo-desc">左侧圆形头像，中部标题与摘要，底部对齐元数据和清爽的小字号数据图标。</p>
+    <div class="style-card-1">
+      <div class="avatar">尤</div>
+      <div class="style-card-1__right">
+        <h3 class="thread-title">Vue 3.5 新特性深度解析与最佳实践</h3>
+        <p class="thread-excerpt">Vue 3.5 版本引入了响应式解构性能提升、全新 useTemplateRef 机制以及对 custom elements 的增强支持。本文将逐个分析这些优化点…</p>
+        <div class="style-card-1__bottom">
+          <div class="style-card-1__meta">
+            <span class="badge badge-primary">技术讨论</span>
+            <span>尤雨溪小号</span>
+            <span>• 10分钟前</span>
+          </div>
+          <div class="style-card-1__stats">
+            <span class="icon-text">👍 45</span>
+            <span class="icon-text">💬 28</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ORIGINAL B -->
+  <div class="demo-section">
+    <h2>方案 B：社交讨论聚合流 (Reddit / Dev.to Style)</h2>
+    <p class="demo-desc">顶部作者发帖状态，中部大字标题与摘要，底部置有醒目的上下赞同踩与评论药丸药丸。</p>
+    <div class="style-card-2">
+      <div class="style-card-2__header">
+        <div class="avatar" style="width:24px; height:24px; font-size:10px;">管</div>
+        <span style="font-weight:600; color:var(--sf-fg-secondary);">管理员</span>
+        <span class="badge badge-primary" style="padding:1px 6px;">官方公告</span>
+        <span>• 1小时前</span>
+      </div>
+      <h3 class="thread-title">关于论坛首页三栏布局设计的建议与吐槽收集帖</h3>
+      <p class="thread-excerpt">SForum 首页现已采用全新设计，大家对目前的整体视觉、各个端上的响应式细节、以及组件排列有什么想法？</p>
+      <div class="style-card-2__actions">
+        <div class="vote-pill">
+          <button class="vote-btn" style="color:var(--sf-accent);">▲</button>
+          <span class="vote-count">99</span>
+          <button class="vote-btn">▼</button>
+        </div>
+        <div class="action-pill">💬 142 条回复</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ORIGINAL C -->
+  <div class="demo-section">
+    <h2>方案 C：精简分栏气泡流 (Split Bubble)</h2>
+    <p class="demo-desc">利落左右分栏，左侧为标题与细字信息，右侧放置两个利落的独立状态圆角气泡。</p>
+    <div class="style-card-3">
+      <div class="style-card-3__left">
+        <h3 class="thread-title">用 Go Fiber v3 搭建高性能 API 的踩坑记录与性能分析</h3>
+        <p class="thread-excerpt">Go Fiber v3 目前在底层的 fasthttp 集成上有了更多改动。本文详细梳理了在处理中间件链条等场景下的常见坑点。</p>
+        <div class="style-card-3__meta">
+          <span class="badge badge-primary">后端技术</span>
+          <span>• 蓝猫 发布于 2小时前</span>
+        </div>
+      </div>
+      <div class="style-card-3__right">
+        <div class="stats-bubble accent">
+          <strong>18</strong>
+          <span>赞同</span>
+        </div>
+        <div class="stats-bubble">
+          <strong>12</strong>
+          <span>回复</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==========================================
+       SECTION 2: NEW EXTENSIONS
+       ========================================== -->
+  <div class="section-title">延伸优化方案 (New Extensions)</div>
+
+  <!-- VARIANT A-1 -->
+  <div class="demo-section">
+    <h2>方案 A-1：极简图文 + 无头像紧凑版</h2>
+    <p class="demo-desc">【基于 A 延伸】去除了左侧的圆形头像，采用经典的顶部紧凑元数据区，使纵向空间更加节省，文字对齐线完全一致，呈现极致精炼的报刊排版感。</p>
+    <div class="style-card-a1">
+      <div class="style-card-a1__header">
+        <span class="badge badge-primary">技术讨论</span>
+        <span style="font-weight: 500; color: var(--sf-fg-secondary);">尤雨溪小号</span>
+        <span>发布于 10分钟前</span>
+      </div>
+      <h3 class="thread-title">Vue 3.5 新特性深度解析与最佳实践</h3>
+      <p class="thread-excerpt">Vue 3.5 版本引入了响应式解构性能提升、全新 useTemplateRef 机制以及对 custom elements 的增强支持。</p>
+      <div class="style-card-a1__bottom">
+        <span style="font-size: 11px; color: var(--sf-fg-tertiary);">来自专栏：前端前沿</span>
+        <div style="display:flex; gap:12px;">
+          <span class="icon-text">👍 45</span>
+          <span class="icon-text">💬 28</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VARIANT A-2 -->
+  <div class="demo-section">
+    <h2>方案 A-2：极简图文 + 右侧轻量缩略图版</h2>
+    <p class="demo-desc">【基于 A 延伸】在右侧预留了一个比例卡片框（有缩略图时显示图片，无图片时作为对齐的微型卡片）。增加了帖子的视觉丰富度。</p>
+    <div class="style-card-a2">
+      <div class="style-card-a2__content">
+        <h3 class="thread-title">我的第一个毛玻璃插画作品，欢迎大家提意见！</h3>
+        <p class="thread-excerpt">使用 CSS backdrop-filter 和 SVG 混合发光渐变绘制了一款概念风格的后台卡片插图，大家感觉透明度和背景噪点会不会过重？</p>
+        <div class="style-card-1__meta" style="margin-top: 14px;">
+          <span class="badge badge-success">艺术创作</span>
+          <span>像素艺术家</span>
+          <span>• 3小时前</span>
+          <span style="margin-left:auto; display:flex; gap:10px;">
+            <span class="icon-text">👍 15</span>
+            <span class="icon-text">💬 8</span>
+          </span>
+        </div>
+      </div>
+      <div class="style-card-a2__img-placeholder">
+        <span>🖼️ 缩略图</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- VARIANT B-1 -->
+  <div class="demo-section">
+    <h2>方案 B-1：社交讨论 + 侧边赞同栏版</h2>
+    <p class="demo-desc">【基于 B 延伸】在帖子最左侧设置了一个专用的纵向踩赞栏，内容在右侧排布。突出技术问答与投票的效率。</p>
+    <div class="style-card-b1">
+      <div class="style-card-b1__vote-panel">
+        <button>▲</button>
+        <span class="score">18</span>
+        <button>▼</button>
+      </div>
+      <div style="flex-grow:1; min-width:0;">
+        <div class="style-card-2__header">
+          <span style="font-weight:600; color:var(--sf-fg-secondary);">蓝猫</span>
+          <span class="badge badge-primary" style="padding:1px 6px;">后端技术</span>
+          <span>• 2小时前</span>
+        </div>
+        <h3 class="thread-title">用 Go Fiber v3 搭建高性能 API 的踩坑记录与性能分析</h3>
+        <p class="thread-excerpt">Go Fiber v3 目前在底层的 fasthttp 集成上有了更多改动。本文详细梳理了在处理中间件链条等场景下的常见坑点。</p>
+        <div style="display:flex; gap:12px; margin-top:8px;">
+          <span class="icon-text">💬 12 条讨论回复</span>
+          <span class="icon-text">👁️ 96 浏览</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VARIANT B-2 -->
+  <div class="demo-section">
+    <h2>方案 B-2：社交讨论 + 四键扁平交互栏版</h2>
+    <p class="demo-desc">【基于 B 延伸】移除重底色的药丸气泡，在卡片底部设计了类似现代 SaaS 系统或推特风格的四列等宽扁平功能按钮（赞同、评论、分享、收藏）。</p>
+    <div class="style-card-b2">
+      <div class="style-card-2__header">
+        <div class="avatar" style="width:24px; height:24px; font-size:10px;">管</div>
+        <span style="font-weight:600; color:var(--sf-fg-secondary);">管理员</span>
+        <span class="badge badge-danger">置顶公告</span>
+        <span>• 1小时前</span>
+      </div>
+      <h3 class="thread-title">关于论坛首页三栏布局设计的建议与吐槽收集帖</h3>
+      <p class="thread-excerpt">给大家对目前的整体视觉、各个端上的响应式细节、以及组件排列有什么想法？欢迎在此帖畅所欲言。</p>
+      <div class="style-card-b2__actions">
+        <button class="flat-btn"><span>▲</span><span>99 赞同</span></button>
+        <button class="flat-btn"><span>💬</span><span>142 回复</span></button>
+        <button class="flat-btn"><span>🔗</span><span>分享</span></button>
+        <button class="flat-btn"><span>🔖</span><span>收藏</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VARIANT C-1 -->
+  <div class="demo-section">
+    <h2>方案 C-1：分栏气泡 + 左侧固定元数据列</h2>
+    <p class="demo-desc">【基于 C 延伸】最左侧是固定宽度的作者与时间列，中间是标题与摘要，最右侧是状态气泡。这一排版避免了小字元数据混杂在标题下的零乱感。</p>
+    <div class="style-card-c1">
+      <div class="style-card-c1__meta">
+        <span style="font-weight: 700; color: var(--sf-fg);">尤雨溪小号</span>
+        <span style="color: var(--sf-fg-tertiary);">10分钟前</span>
+        <span class="badge badge-primary" style="margin-top:4px; align-self: flex-start;">前端开发</span>
+      </div>
+      <div class="style-card-c1__middle">
+        <h3 class="thread-title">Vue 3.5 新特性深度解析与最佳实践</h3>
+        <p class="thread-excerpt">Vue 3.5 版本引入了响应式解构性能提升、全新 useTemplateRef 机制以及对 custom elements 的增强支持。</p>
+      </div>
+      <div class="style-card-3__right">
+        <div class="stats-bubble accent">
+          <strong>45</strong>
+          <span>赞同</span>
+        </div>
+        <div class="stats-bubble">
+          <strong>28</strong>
+          <span>回复</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VARIANT C-2 -->
+  <div class="demo-section">
+    <h2>方案 C-2：分栏气泡 + 左侧彩色竖线 & 合并胶囊</h2>
+    <p class="demo-desc">【基于 C 延伸】最左侧附带一条分类色线以增强版块归属感，右侧将各种热度数字融合成一个横向的一体化胶囊。视觉高度克制。</p>
+    <div class="style-card-c2">
+      <div class="style-card-3__left">
+        <h3 class="thread-title">用 Go Fiber v3 搭建高性能 API 的踩坑记录与性能分析</h3>
+        <p class="thread-excerpt">Go Fiber v3 目前在底层的 fasthttp 集成上有了更多改动。本文详细梳理了在处理中间件链条等场景下的常见坑点。</p>
+        <div class="style-card-3__meta">
+          <span>由 <strong>蓝猫</strong> 发布于 2小时前</span>
+        </div>
+      </div>
+      <div class="stats-capsule">
+        <span>👍 <strong>18</strong></span>
+        <span style="color: var(--sf-border);">|</span>
+        <span>💬 <strong>12</strong> 回复</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
