@@ -85,3 +85,4 @@ deploy/data/
 deploy/runtime/
 
 .superpowers
+.worktrees/
