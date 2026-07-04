@@ -191,6 +191,12 @@
         "title": "基础信息",
         "description": "站点名称会用于导航、登录页和浏览器标题。"
       }
+    },
+    "form": {
+      "save": "保存",
+      "saving": "保存中...",
+      "reset": "重置",
+      "unsavedChanges": "检测到有未保存的更改"
     }
   },
   "errors": {

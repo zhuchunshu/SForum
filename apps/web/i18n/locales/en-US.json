@@ -191,6 +191,12 @@
         "title": "Basic information",
         "description": "The site name is used in navigation, auth pages, and browser titles."
       }
+    },
+    "form": {
+      "save": "Save",
+      "saving": "Saving...",
+      "reset": "Reset",
+      "unsavedChanges": "Unsaved changes detected"
     }
   },
   "errors": {
