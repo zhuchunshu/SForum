@@ -14,9 +14,10 @@ Generated output directories are ignored by Nuxt/Vite development watchers, and
 `bun run build`/`bun run typecheck` use sibling Nuxt temporary directories
 (`.nuxt-build` and `.nuxt-typecheck`) so they do not disturb the active dev
 server state.
-`bun run preview` starts the generated Nitro server directly with
-`HOST=0.0.0.0 bun --env-file=../../.env .output/server/index.mjs`; this keeps
-local preview aligned with the root `.env` API target. The installed
+`bun run preview` starts `scripts/preview.mjs`, prints an SForum Web Preview
+startup banner, then imports the generated Nitro server entry at
+`.output/server/index.mjs`; this keeps local preview aligned with the root
+`.env` API target while avoiding edits to generated output. The installed
 `nuxi preview` command has no `--host` flag, and
 `nuxt preview --host 0.0.0.0` treats `0.0.0.0` as `ROOTDIR`.
 During development startup and API hot reloads, the global site-options read
