@@ -8,6 +8,7 @@ Current planned modules:
 - `backend.md`
 - `forum.md`
 - `identity.md`
+- `jobs.md`
 - `localization.md`
 - `search.md`
 

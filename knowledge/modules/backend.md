@@ -8,6 +8,8 @@ background work.
 ## Current Status
 
 Foundation scaffold exists under `apps/api`.
+Jobs and queues architecture has been accepted. River backed by PostgreSQL is
+the first durable queue foundation.
 
 ## Planned Stack
 
@@ -21,6 +23,7 @@ Foundation scaffold exists under `apps/api`.
 - `go-playground/validator/v10` for validation.
 - `log/slog` for structured logging.
 - Backend locale configuration for `zh-CN` default and `en-US` support.
+- River for durable PostgreSQL-backed jobs and worker queues.
 
 ## Planned Boundaries
 
@@ -29,14 +32,27 @@ Foundation scaffold exists under `apps/api`.
 - `forum`: categories, topics, posts, revisions, visibility, slugs.
 - `moderation`: reports, staff actions, audit trail, soft deletion.
 - `search`: Meilisearch settings, indexing jobs, rebuilds, search endpoints.
+- `jobs`: River-backed durable queue framework, dispatcher, worker runtime,
+  retry behavior, and shared job conventions.
 - `localization`: locale negotiation, supported locale config, server-owned
   localized templates, and translation key conventions.
 - `notifications`: deferred unless MVP requires it.
 
+## Jobs And Queues
+
+- Use River with PostgreSQL as the primary durable queue.
+- Do not use Redis as the first durable job store.
+- Enqueue jobs transactionally with domain writes when the job represents a
+  side effect of that write.
+- Keep job payloads small and ID-based.
+- Domain modules own their job handlers under `internal/modules/*/jobs`.
+- Shared queue runtime and dispatch helpers live under
+  `internal/platform/jobs`.
+- Initial queue names are `critical`, `default`, `search`, `mail`,
+  `notifications`, and `maintenance`.
+
 ## Open Questions
 
-- Whether search indexing uses a PostgreSQL outbox, a Redis-backed queue, or a
-  Postgres-native job library.
 - Final deployment target and runtime process model.
 - Whether backend emails and notifications need full English translation in MVP.
 - Exact username, email, password, and email-verification rules for open
@@ -52,3 +68,4 @@ Foundation scaffold exists under `apps/api`.
   bootstrapping, default `member` assignment, and admin-managed custom
   roles/user groups.
 - Define the first OpenAPI contract and schema migrations.
+- Add River and `internal/platform/jobs` after the jobs design is reviewed.

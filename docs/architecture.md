@@ -72,6 +72,8 @@ data fetching, and Vite-backed development without splitting the frontend stack.
 - Cache/session/rate-limit store: Redis.
 - Redis client: `redis/go-redis/v9`; Fiber storage adapters may be used where
   they fit Fiber middleware.
+- Durable jobs and queues: River backed by PostgreSQL, wrapped by a small
+  project-owned `internal/platform/jobs` package.
 - Search: Meilisearch with `meilisearch-go`, fed from PostgreSQL through a
   rebuildable indexer.
 - Validation: `go-playground/validator/v10` through Fiber's struct validator.
@@ -163,7 +165,8 @@ Notes:
   handlers, request/response DTOs, service methods, policies, and repository
   interfaces for one domain area.
 - `apps/api/internal/platform/*` wraps external systems and infrastructure
-  clients.
+  clients. `internal/platform/jobs` owns queue configuration, worker runtime,
+  dispatch helpers, and job test helpers.
 - `apps/api/internal/store/*` contains migrations, handwritten SQL, and
   generated `sqlc` code. Generated code should stay isolated from handwritten
   domain logic.
@@ -246,13 +249,47 @@ policy helpers instead of duplicating permission checks in handlers. Start with
 in-code policies for simple roles; evaluate Casbin only if the permission matrix
 grows beyond ordinary forum roles.
 
+### `jobs`
+
+Owns the shared background job framework, worker runtime, queue configuration,
+retry conventions, and dispatch API. SForum uses River with PostgreSQL as the
+primary durable queue foundation. Redis is not the first durable job store; it
+remains focused on sessions, cache, and rate limiting.
+
+The framework should feel Laravel-inspired at the module boundary: modules
+define typed jobs, dispatch jobs from services, run workers by queue, retry
+failed work, delay jobs, and keep failures visible. The implementation remains
+Go-native and explicit through a small `internal/platform/jobs` wrapper around
+River.
+
+Initial queue names:
+
+- `critical`
+- `default`
+- `search`
+- `mail`
+- `notifications`
+- `maintenance`
+
+Rules:
+
+- Enqueue durable jobs in the same PostgreSQL transaction as the domain write
+  whenever the job represents a side effect of that write.
+- Keep job payloads compact and ID-based.
+- Make handlers idempotent and retry-safe.
+- Re-read current state inside handlers before applying side effects.
+- Set worker concurrency per queue so slow external I/O cannot starve indexing
+  or critical jobs.
+- Chunk large rebuilds and fanout work into bounded jobs.
+
 ### `search`
 
 Owns Meilisearch index settings, indexing jobs, rebuilds, and search endpoints.
 Search indexes are derived data. PostgreSQL remains authoritative.
 
-Use an outbox-style table or durable job queue so post/topic changes can be
-committed with an indexing event and processed by `cmd/worker`.
+Use the River-backed durable job framework so post/topic changes can be
+committed with indexing jobs in the same PostgreSQL transaction and processed
+by `cmd/worker`.
 
 ### `notifications`
 

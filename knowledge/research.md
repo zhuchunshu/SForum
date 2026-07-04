@@ -108,6 +108,28 @@ libraries, frameworks, or services.
 - Sources: https://www.meilisearch.com/docs,
   https://github.com/meilisearch/meilisearch-go
 
+## Jobs And Queues
+
+- Problem: run search indexing, email delivery, notifications, cleanup, and
+  maintenance work with Laravel-like ergonomics while keeping Go runtime
+  behavior explicit and performance-first.
+- Options: River with PostgreSQL, Asynq with Redis, Watermill as a message
+  router, Temporal for durable workflows.
+- Recommendation: River backed by PostgreSQL as the primary durable queue.
+- Reason: PostgreSQL is already the source of truth, and River supports the
+  important first requirement: enqueueing jobs from the same transaction as
+  domain writes. That keeps post/topic writes and derived work such as search
+  indexing consistent without introducing Redis as a second durable system.
+- Follow-up: wrap River behind `internal/platform/jobs`; keep Redis available
+  for sessions/cache/rate limits and possible later non-critical fast-lane
+  jobs.
+- Sources: https://riverqueue.com/docs,
+  https://riverqueue.com/docs/transactional-enqueueing,
+  https://riverqueue.com/docs/unique-jobs,
+  https://github.com/hibiken/asynq,
+  https://watermill.io/docs/,
+  https://docs.temporal.io/develop/go/core-application
+
 ## User Content Rendering
 
 - Problem: render user-authored posts safely.

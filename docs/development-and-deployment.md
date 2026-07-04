@@ -329,6 +329,20 @@ Each app service should expose a health endpoint:
 
 Compose health checks should gate dependent services where practical.
 
+## Jobs And Worker Runtime
+
+The `worker` service is the durable background job runtime. It should consume
+River-backed PostgreSQL queues through `apps/api/internal/platform/jobs`.
+
+Initial named queues are `critical`, `default`, `search`, `mail`,
+`notifications`, and `maintenance`. Production deployments may run more than one
+worker container, but queue concurrency and PostgreSQL pool sizing must be
+configured deliberately before scaling out.
+
+Redis should not be treated as the first durable queue store. It remains the
+session, cache, and rate-limit backing service unless a later design introduces
+a clearly non-critical fast-lane queue.
+
 ## Backup Strategy
 
 Minimum viable production backup:
