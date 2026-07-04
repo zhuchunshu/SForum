@@ -46,6 +46,25 @@ const REQUIRED_CSS_SELECTORS = [
   '.sf-toggle'
 ];
 
+const REQUIRED_DOC_ANCHORS = [
+  '#foundations',
+  '#feedback',
+  '#forum',
+  '#composer',
+  '#moderation',
+  '#profile',
+  '#states'
+];
+
+const REQUIRED_DOC_COPY = [
+  '发布工作流',
+  '审核与管理',
+  '成员资料',
+  '隐私设置',
+  '加载与空状态',
+  '富编辑器状态'
+];
+
 let passed = true;
 
 function fail(message) {
@@ -112,6 +131,18 @@ if (!fs.existsSync(DOCS_PAGE)) {
   for (const componentName of ['SFAlert', 'SFBadge', 'SFToast', 'SFTabs']) {
     if (!docs.includes(componentName)) {
       fail(`components.vue does not preview ${componentName}`);
+    }
+  }
+
+  for (const anchor of REQUIRED_DOC_ANCHORS) {
+    if (!docs.includes(anchor)) {
+      fail(`components.vue is missing navigation anchor ${anchor}`);
+    }
+  }
+
+  for (const text of REQUIRED_DOC_COPY) {
+    if (!docs.includes(text)) {
+      fail(`components.vue is missing expanded scenario copy "${text}"`);
     }
   }
 

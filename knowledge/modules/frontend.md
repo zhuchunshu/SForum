@@ -20,7 +20,9 @@ provider retries while the theme uses local/system fonts.
 The forum UI component library now lives in `apps/web/app/components/` with
 uppercase `SF` component names. The first component set is backed by
 `apps/web/app/assets/css/sforum-components.css` and previewed on the dev-only
-`/components` route.
+`/components` route. That preview page now shows the components in expanded
+forum scenarios: publishing, moderation, member profile, feedback, lists, and
+state handling.
 
 ## Planned Stack
 

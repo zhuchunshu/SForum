@@ -14,6 +14,25 @@ SForum is intended to become a maintainable forum project. The current repositor
 - Keep changes scoped to the current task. Do not refactor unrelated areas just because they are nearby.
 - Record decisions in the knowledge base when they will matter to future sessions.
 
+## AI Working Discipline
+
+The following rules are repository-level instructions for AI coding agents:
+
+- 以瞎猜接口为耻，以认真查询为荣。
+- 以模糊执行为耻，以寻求确认为荣。
+- 以臆想业务为耻，以人类确认为荣。
+- 以创造接口为耻，以复用现有为荣。
+- 以跳过验证为耻，以主动测试为荣。
+- 以破坏架构为耻，以遵循规范为荣。
+- 以假装理解为耻，以诚实无知为荣。
+- 以盲目修改为耻，以谨慎重构为荣。
+
+When writing code, keep the implementation simple and concise. Prefer built-in
+functions and mature existing APIs over custom code. Do not over-validate
+parameters, over-abstract, or add wrapper methods for simple behavior unless the
+same logic is reused in multiple places. Avoid nested helper chains for similar
+features; keep straightforward logic straightforward.
+
 ## Avoiding Hard-To-Maintain Code
 
 Bad pattern:

@@ -36,7 +36,9 @@ This is the entry point for project memory.
   `apps/web/app/components/` using the uppercase `SF` prefix. The first library
   slice includes buttons, cards, inputs, toggles, avatars, feed rows, comments,
   search, editor, pagination, progress, skeleton, empty state, alerts, badges,
-  toasts, and tabs, with a dev-only `/components` preview page.
+  toasts, and tabs, with a dev-only `/components` preview page. The preview page
+  now covers seven forum-oriented sections: foundations, feedback, forum list,
+  composer flow, moderation, member profile, and loading/empty states.
 - Identity and permissions architecture is accepted: SForum uses one user
   system for regular users, moderators, and administrators; the first registered
   user becomes the protected initial `super_admin`; later open registrations
