@@ -33,6 +33,20 @@ parameters, over-abstract, or add wrapper methods for simple behavior unless the
 same logic is reused in multiple places. Avoid nested helper chains for similar
 features; keep straightforward logic straightforward.
 
+## Network And Dependency Commands
+
+The primary development environment may be in mainland China. Before running
+network-dependent package commands such as `go get`, `go mod tidy`,
+`bun install`, `bun add`, or similar dependency downloads, use the configured
+local proxy:
+
+```sh
+export https_proxy=http://127.0.0.1:7897 http_proxy=http://127.0.0.1:7897 all_proxy=socks5://127.0.0.1:7897
+```
+
+Keep this proxy setting in mind when retrying failed dependency commands that
+look like network, DNS, registry, or module download issues.
+
 ## Avoiding Hard-To-Maintain Code
 
 Bad pattern:
