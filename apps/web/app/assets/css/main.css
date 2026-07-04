@@ -104,7 +104,7 @@ a {
   font-size: 14px;
 }
 
-h1 {
+h1:not([data-slot="title"]) {
   margin: 0;
   font-size: clamp(32px, 5vw, 56px);
   line-height: 1.05;

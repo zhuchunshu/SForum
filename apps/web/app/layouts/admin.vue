@@ -179,16 +179,16 @@ async function signOut() {
       </template>
     </UDashboardSidebar>
 
-    <UDashboardPanel class="flex flex-col min-w-0 flex-1 bg-[var(--bg-admin-app)] text-[var(--text-admin-main)]">
+    <UDashboardPanel class="flex flex-col min-w-0 flex-1 bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100">
       <!-- 多页签页签栏 -->
-      <div class="flex items-end h-[38px] px-3 gap-1 bg-[var(--bg-admin-card)] border-b border-[var(--border-admin)] overflow-x-auto flex-shrink-0 select-none no-scrollbar">
+      <div class="flex items-end h-[38px] px-3 gap-1 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 overflow-x-auto flex-shrink-0 select-none no-scrollbar">
         <div
           v-for="tab in adminTabs.tabs.value"
           :key="tab.id"
-          class="group inline-flex items-center gap-1.5 h-[30px] px-2.5 border border-[var(--border-admin)] border-bottom-none rounded-t-md cursor-pointer transition-colors text-xs font-medium"
+          class="group inline-flex items-center gap-1.5 h-[30px] px-2.5 border border-b-0 border-slate-200 dark:border-zinc-800 mb-[-1px] rounded-t-md cursor-pointer transition-colors text-xs font-medium relative z-10"
           :class="adminTabs.activeTabId.value === tab.id 
-            ? 'bg-[var(--bg-admin-app)] text-[var(--text-admin-main)] border-b-[var(--bg-admin-app)] z-10' 
-            : 'bg-transparent text-[var(--text-admin-muted)] border-transparent hover:text-[var(--text-admin-main)]'"
+            ? 'bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 border-slate-200 dark:border-zinc-800' 
+            : 'bg-transparent text-slate-500 dark:text-zinc-400 border-transparent hover:text-slate-900 dark:hover:text-zinc-100'"
           @click="navigateTo(tab.to)"
         >
           <UIcon :name="tab.icon" class="size-3.5" />
@@ -196,7 +196,7 @@ async function signOut() {
           
           <span
             v-if="tab.closable"
-            class="inline-flex items-center justify-center size-3.5 rounded-full text-[var(--text-admin-muted)] hover:bg-red-500/20 hover:text-red-500 transition-colors"
+            class="inline-flex items-center justify-center size-3.5 rounded-full text-slate-500 dark:text-zinc-400 hover:bg-red-500/20 hover:text-red-500 transition-colors"
             @click.stop="adminTabs.closeTab(tab.id)"
           >
             <UIcon name="i-lucide-x" class="size-2.5" />
