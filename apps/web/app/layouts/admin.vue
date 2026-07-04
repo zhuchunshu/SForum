@@ -214,12 +214,12 @@ async function signOut() {
               color="neutral"
               variant="ghost"
               block
-              class="justify-start px-2 py-3 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
+              class="justify-start px-2 py-4 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
               :class="{ 'justify-center': collapsed }"
             >
-              <UAvatar :text="userInitial" size="md" class="shadow-sm border border-slate-100 dark:border-zinc-800" />
-              <span v-if="!collapsed" class="min-w-0 flex-1 text-left ml-1.5">
-                <span class="block truncate text-sm font-semibold text-slate-900 dark:text-white">
+              <UAvatar :text="userInitial" size="lg" class="shadow-sm border border-slate-100 dark:border-zinc-800" />
+              <span v-if="!collapsed" class="min-w-0 flex-1 text-left ml-2.5">
+                <span class="block truncate text-base font-bold text-slate-900 dark:text-white">
                   {{ displayName }}
                 </span>
                 <span class="block truncate text-xs text-slate-500 dark:text-zinc-400">
@@ -235,12 +235,12 @@ async function signOut() {
 
     <UDashboardPanel class="flex flex-col min-w-0 flex-1 bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100">
       <!-- 1. 置顶全局 Topbar -->
-      <!-- 1. 置顶全局 Topbar (高度提升至 64px) -->
-      <div class="flex items-center justify-between h-[64px] px-6 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 z-20 transition-all">
+      <!-- 1. 置顶全局 Topbar (高度提升至 72px) -->
+      <div class="flex items-center justify-between h-[72px] px-6 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 z-20 transition-all">
         <div class="flex items-center gap-2.5">
-          <span class="text-sm font-bold text-slate-900 dark:text-zinc-100 tracking-wide">SForum 控制台</span>
-          <span class="text-xs text-slate-300 dark:text-zinc-600">/</span>
-          <span class="text-xs font-semibold text-slate-600 dark:text-zinc-300">{{ activeTabLabel }}</span>
+          <span class="text-base font-bold text-slate-900 dark:text-zinc-100 tracking-wide">SForum 控制台</span>
+          <span class="text-sm text-slate-300 dark:text-zinc-600">/</span>
+          <span class="text-sm font-semibold text-slate-600 dark:text-zinc-300">{{ activeTabLabel }}</span>
         </div>
         <div class="flex items-center gap-4 text-xs">
           <span class="inline-flex items-center gap-2 text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-950 px-3 py-1.5 rounded-full border border-slate-100 dark:border-zinc-800">

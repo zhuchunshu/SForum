@@ -232,19 +232,31 @@ h1:not([data-slot="title"]) {
 
 /* 侧栏主链接容器样式升级：字号调大，间距更舒展 */
 #sforum-admin-sidebar [data-slot="link"] {
-  font-size: 0.925rem !important; /* 原为 0.875rem，稍微加大以更显眼 */
-  font-weight: 500 !important;
-  padding-top: 0.8rem !important;
-  padding-bottom: 0.8rem !important;
-  padding-left: 1rem !important;
-  padding-right: 1rem !important;
+  font-size: 0.975rem !important; /* 原为 0.925rem，进一步加大 */
+  font-weight: 600 !important; /* 字体更显眼 */
+  padding-top: 0.85rem !important;
+  padding-bottom: 0.85rem !important;
+  padding-left: 1.1rem !important;
+  padding-right: 1.1rem !important;
+}
+
+/* 侧边栏图标加大，保证视觉主体显眼 */
+#sforum-admin-sidebar [data-slot="icon"] {
+  width: 1.25rem !important; /* 调整为 20px */
+  height: 1.25rem !important;
 }
 
 /* 二级菜单虚线指示器高级感微调 */
 #sforum-admin-sidebar ul[data-slot="childList"] {
   border-left: 1px dashed rgba(148, 163, 184, 0.2) !important;
-  margin-left: 1.4rem !important;
-  padding-left: 1.1rem !important;
+  margin-left: 1.5rem !important;
+  padding-left: 1.2rem !important;
+}
+
+#sforum-admin-sidebar ul[data-slot="childList"] [data-slot="link"] {
+  font-size: 0.875rem !important; /* 从 0.825rem 提升到 14px */
+  padding-top: 0.6rem !important;
+  padding-bottom: 0.6rem !important;
 }
 
 /* 浅色模式下的软阴影卡片 */
