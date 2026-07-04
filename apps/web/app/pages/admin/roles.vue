@@ -1,9 +1,23 @@
 <script setup lang="ts">
 import type { ApiEnvelope } from '~/composables/useApiClient'
+import { useAdminTabs } from '~/composables/useAdminTabs'
 
 definePageMeta({
   middleware: 'admin',
   layout: 'admin'
+})
+
+defineOptions({
+  name: 'AdminRoles'
+})
+
+const { t } = useI18n()
+const { apiBaseUrl, apiHeaders } = useApiClient()
+const search = ref('')
+const adminTabs = useAdminTabs()
+
+onMounted(() => {
+  adminTabs.openTab('/roles', 'admin.nav.roles', 'i-lucide-shield-check', 'AdminRoles')
 })
 
 type Role = {
@@ -16,10 +30,6 @@ type Role = {
   isDeletable: boolean
   isEnabled: boolean
 }
-
-const { t } = useI18n()
-const { apiBaseUrl, apiHeaders } = useApiClient()
-const search = ref('')
 
 const { data: rolesEnvelope, pending, error, refresh } = await useFetch<ApiEnvelope<Role[]>>(`${apiBaseUrl}/roles`, {
   credentials: 'include',
@@ -71,13 +81,14 @@ useSeoMeta({
 </script>
 
 <template>
-  <UDashboardNavbar :title="t('admin.roles.title')" icon="i-lucide-shield-check">
+  <UDashboardNavbar :title="t('admin.roles.title')" icon="i-lucide-shield-check" class="border-b border-[var(--border-admin)] bg-[var(--bg-admin-card)] text-[var(--text-admin-main)]">
     <template #right>
       <UButton
         color="neutral"
         variant="outline"
         leading-icon="i-lucide-refresh-cw"
         :loading="pending"
+        class="border-[var(--border-admin)]"
         @click="refresh()"
       >
         {{ t('admin.roles.refresh') }}
@@ -85,7 +96,7 @@ useSeoMeta({
     </template>
   </UDashboardNavbar>
 
-  <UDashboardToolbar>
+  <UDashboardToolbar class="border-b border-[var(--border-admin)] bg-[var(--bg-admin-app)] text-[var(--text-admin-muted)]">
     <template #left>
       <UInput
         v-model="search"
@@ -95,13 +106,13 @@ useSeoMeta({
       />
     </template>
     <template #right>
-      <UBadge color="neutral" variant="soft">
+      <UBadge color="neutral" variant="soft" class="border border-[var(--border-admin)]">
         {{ t('admin.roles.count', { count: filteredRoles.length }) }}
       </UBadge>
     </template>
   </UDashboardToolbar>
 
-  <div class="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+  <div class="flex flex-1 flex-col gap-4 p-4 sm:p-6 bg-[var(--bg-admin-app)]">
     <UAlert
       v-if="error"
       color="error"
@@ -110,7 +121,7 @@ useSeoMeta({
       :title="t('admin.roles.loadFailed')"
     />
 
-    <UCard v-else>
+    <UCard v-else class="border-[var(--border-admin)] bg-[var(--bg-admin-card)] text-[var(--text-admin-main)]">
       <UTable
         :data="filteredRoles"
         :columns="columns"
@@ -121,19 +132,19 @@ useSeoMeta({
         class="max-h-[calc(100vh-13rem)]"
       >
         <template #key-cell="{ row }">
-          <code class="rounded bg-muted px-2 py-1 text-xs font-medium text-highlighted">
+          <code class="rounded bg-[var(--bg-admin-app)] border border-[var(--border-admin)] px-2 py-1 text-xs font-medium text-[var(--text-admin-main)]">
             {{ row.original.key }}
           </code>
         </template>
 
         <template #alias-cell="{ row }">
-          <span class="font-medium text-highlighted">
+          <span class="font-medium text-[var(--text-admin-main)]">
             {{ row.original.alias }}
           </span>
         </template>
 
         <template #description-cell="{ row }">
-          <span class="text-muted">
+          <span class="text-[var(--text-admin-muted)]">
             {{ row.original.description || t('admin.roles.noDescription') }}
           </span>
         </template>

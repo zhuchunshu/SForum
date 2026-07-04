@@ -1,12 +1,23 @@
 <script setup lang="ts">
+import { useAdminTabs } from '~/composables/useAdminTabs'
+
 definePageMeta({
   middleware: 'admin',
   layout: 'admin'
 })
 
+defineOptions({
+  name: 'AdminSettings'
+})
+
 const { t } = useI18n()
 const toast = useToast()
 const { options, fetchEnvelope, save } = useWebOptions()
+const adminTabs = useAdminTabs()
+
+onMounted(() => {
+  adminTabs.openTab('/settings', 'admin.nav.settings', 'i-lucide-settings-2', 'AdminSettings')
+})
 
 const siteName = ref(options.value['site.name'] || 'SForum')
 const saving = ref(false)
@@ -47,13 +58,14 @@ async function submit() {
 </script>
 
 <template>
-  <UDashboardNavbar :title="t('admin.settings.title')" icon="i-lucide-settings-2">
+  <UDashboardNavbar :title="t('admin.settings.title')" icon="i-lucide-settings-2" class="border-b border-[var(--border-admin)] bg-[var(--bg-admin-card)] text-[var(--text-admin-main)]">
     <template #right>
       <UButton
         color="neutral"
         variant="outline"
         leading-icon="i-lucide-refresh-cw"
         :loading="pending"
+        class="border-[var(--border-admin)]"
         @click="refresh()"
       >
         {{ t('admin.settings.refresh') }}
@@ -61,16 +73,16 @@ async function submit() {
     </template>
   </UDashboardNavbar>
 
-  <UDashboardToolbar>
+  <UDashboardToolbar class="border-b border-[var(--border-admin)] bg-[var(--bg-admin-app)] text-[var(--text-admin-muted)]">
     <template #left>
-      <div class="flex min-w-0 items-center gap-2 text-sm text-muted">
+      <div class="flex min-w-0 items-center gap-2 text-sm text-[var(--text-admin-muted)]">
         <UIcon name="i-lucide-database" class="size-4" />
         <span class="truncate">{{ t('admin.settings.intro') }}</span>
       </div>
     </template>
   </UDashboardToolbar>
 
-  <div class="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+  <div class="flex flex-1 flex-col gap-4 p-4 sm:p-6 bg-[var(--bg-admin-app)]">
     <UAlert
       v-if="error"
       color="error"
@@ -79,18 +91,18 @@ async function submit() {
       :title="t('admin.settings.loadFailed')"
     />
 
-    <UCard>
+    <UCard class="border-[var(--border-admin)] bg-[var(--bg-admin-card)] text-[var(--text-admin-main)]">
       <template #header>
         <div class="flex items-center justify-between gap-3">
           <div>
-            <h2 class="text-base font-semibold text-highlighted">
+            <h2 class="text-base font-semibold text-[var(--text-admin-main)]">
               {{ t('admin.settings.basic.title') }}
             </h2>
-            <p class="mt-1 text-sm text-muted">
+            <p class="mt-1 text-sm text-[var(--text-admin-muted)]">
               {{ t('admin.settings.basic.description') }}
             </p>
           </div>
-          <UBadge color="neutral" variant="soft">
+          <UBadge color="neutral" variant="soft" class="border border-[var(--border-admin)]">
             site.name
           </UBadge>
         </div>
