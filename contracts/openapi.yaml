@@ -22,7 +22,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CurrentUser"
+                $ref: "#/components/schemas/ApiResponseCurrentUser"
         "409":
           $ref: "#/components/responses/Conflict"
         "422":
@@ -47,7 +47,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AltchaChallenge"
+                $ref: "#/components/schemas/ApiResponseAltchaChallenge"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
         "429":
@@ -68,7 +68,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CurrentUser"
+                $ref: "#/components/schemas/ApiResponseCurrentUser"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "422":
@@ -78,8 +78,12 @@ paths:
       summary: Destroy the current browser session
       operationId: logout
       responses:
-        "204":
+        "200":
           description: Session destroyed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseNull"
   /auth/session:
     get:
       summary: Get the current browser session user
@@ -90,7 +94,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CurrentUser"
+                $ref: "#/components/schemas/ApiResponseCurrentUser"
         "401":
           $ref: "#/components/responses/Unauthorized"
   /health:
@@ -103,32 +107,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - name
-                  - status
-                  - environment
-                  - locale
-                  - supportedLocales
-                  - time
-                properties:
-                  name:
-                    type: string
-                  status:
-                    type: string
-                    enum: [ok]
-                  environment:
-                    type: string
-                  locale:
-                    type: string
-                    examples: [zh-CN]
-                  supportedLocales:
-                    type: array
-                    items:
-                      type: string
-                  time:
-                    type: string
-                    format: date-time
+                $ref: "#/components/schemas/ApiResponseHealth"
   /roles:
     get:
       summary: List roles and user groups
@@ -139,9 +118,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Role"
+                $ref: "#/components/schemas/ApiResponseRoleList"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -161,7 +138,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Role"
+                $ref: "#/components/schemas/ApiResponseRole"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -188,7 +165,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Role"
+                $ref: "#/components/schemas/ApiResponseRole"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -203,8 +180,12 @@ paths:
       parameters:
         - $ref: "#/components/parameters/RoleKey"
       responses:
-        "204":
+        "200":
           description: Role deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseNull"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -231,8 +212,12 @@ paths:
                   items:
                     type: string
       responses:
-        "204":
+        "200":
           description: Role permissions replaced.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseNull"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -256,32 +241,146 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Problem"
+            $ref: "#/components/schemas/ApiErrorResponse"
     Forbidden:
       description: The current user does not have permission.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Problem"
+            $ref: "#/components/schemas/ApiErrorResponse"
     Conflict:
       description: The request conflicts with a system invariant.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Problem"
+            $ref: "#/components/schemas/ApiErrorResponse"
     UnprocessableEntity:
       description: The request body is invalid.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Problem"
+            $ref: "#/components/schemas/ApiErrorResponse"
     TooManyRequests:
       description: Rate limit exceeded.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/Problem"
+            $ref: "#/components/schemas/ApiErrorResponse"
   schemas:
+    ApiErrorData:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+        fields:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    ApiErrorResponse:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/ApiErrorData"
+    ApiResponseNull:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+          examples: [200]
+        message:
+          type: string
+          examples: [OK]
+        data:
+          type: "null"
+    ApiResponseCurrentUser:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/CurrentUser"
+    ApiResponseRole:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/Role"
+    ApiResponseRoleList:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Role"
+    ApiResponseAltchaChallenge:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/AltchaChallenge"
+    ApiResponseHealth:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/Health"
+    Health:
+      type: object
+      required:
+        - name
+        - status
+        - environment
+        - locale
+        - supportedLocales
+        - time
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [ok]
+        environment:
+          type: string
+        locale:
+          type: string
+          examples: [zh-CN]
+        supportedLocales:
+          type: array
+          items:
+            type: string
+        time:
+          type: string
+          format: date-time
     CurrentUser:
       type: object
       required:
@@ -441,14 +540,4 @@ components:
         alias:
           type: string
         description:
-          type: string
-    Problem:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: string
-        message:
           type: string
