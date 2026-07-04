@@ -66,6 +66,23 @@ temporary auth-service failures. A 401 or `auth.required` redirects to login;
 API restart/502/timeout cases show a temporary unavailable error instead of
 forcing the user to sign in again.
 
+## Regression Notes
+
+### Auth Success Navigation And Route Middleware
+
+- Symptom to watch for: login/register API returns success, the form stops
+  submitting, but the page does not navigate and no user-facing error appears.
+- Known cause: Nuxt route middleware can run outside the same component setup
+  context as pages. Do not add `useI18n()` or other component-context-sensitive
+  composables directly inside `apps/web/app/middleware/admin.ts`; doing so once
+  blocked post-login navigation into the admin route.
+- Safe pattern: keep route middleware narrow. Use `useLocalePath()`,
+  `useAuthSession()`, and plain fallback text/errors there; put localized UI
+  messaging in pages/layouts/components where i18n context is stable.
+- Required verification after touching auth pages, `useAuthSession()`, or admin
+  middleware: run `bun test tests/useApiClient.test.ts`, `bun run typecheck`,
+  and browser-check both successful register and successful login navigation.
+
 ## Planned Stack
 
 - Bun for package management and scripts.
