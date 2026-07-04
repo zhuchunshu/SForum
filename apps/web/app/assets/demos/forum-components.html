@@ -28,6 +28,24 @@ tailwind.config = { theme: { extend: { colors: {
   .glass-nav { background: rgba(255,255,255,.82); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
   .pulse-dot { animation: pulse 2s ease-in-out infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+  
+  /* Scrollbar Utilities */
+  .scrollbar-none { scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  
+  /* Prose Styling for Markdown Editor & Thread Detail */
+  .prose h1 { font-size: 1.5rem; font-weight: 800; color: #0F172A; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+  .prose h2 { font-size: 1.25rem; font-weight: 700; color: #0F172A; margin-top: 1.25rem; margin-bottom: 0.5rem; }
+  .prose h3 { font-size: 1.1rem; font-weight: 600; color: #0F172A; margin-top: 1rem; margin-bottom: 0.5rem; }
+  .prose p { margin-bottom: 0.75rem; line-height: 1.6; }
+  .prose strong { font-weight: 700; color: #0F172A; }
+  .prose em { font-style: italic; }
+  .prose a { color: #0052FF; text-decoration: underline; font-weight: 500; }
+  .prose a:hover { color: #4D7CFF; }
+  .prose code { background: #F1F5F9; color: #0F172A; padding: 0.125rem 0.25rem; border-radius: 4px; font-family: monospace; font-size: 0.85em; }
+  .prose pre { background: #0F172A; color: #F8FAFC; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; font-family: monospace; font-size: 0.875rem; }
+  .prose pre code { background: transparent; color: inherit; padding: 0; font-size: inherit; }
+  .prose blockquote { border-left: 4px solid #0052FF; padding-left: 1rem; color: #475569; font-style: italic; margin: 1rem 0; background: #EEF2FF; padding-top: 0.5rem; padding-bottom: 0.5rem; border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
 </style>
 </head>
 <body class="antialiased text-fg">
@@ -37,16 +55,21 @@ tailwind.config = { theme: { extend: { colors: {
   <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
     <div class="flex items-center gap-8">
       <a href="#" class="font-bold text-xl tracking-tight">SForum</a>
-      <div class="hidden md:flex gap-1">
-        <a href="#nav" class="h-8 px-3 flex items-center rounded-lg bg-muted text-sm font-semibold">导航类</a>
-        <a href="#avatars" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition">头像</a>
-        <a href="#feed" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition">信息流</a>
-        <a href="#forms" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition">表单</a>
-        <a href="#comments" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition">评论</a>
-        <a href="#search" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition">搜索</a>
-        <a href="#profile" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition">个人页</a>
-        <a href="#interactions" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition">交互</a>
-        <a href="#lists" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition">榜单</a>
+      <div class="flex overflow-x-auto whitespace-nowrap gap-1 max-w-[calc(100vw-160px)] sm:max-w-[calc(100vw-220px)] md:max-w-none scrollbar-none">
+        <a href="#nav" class="h-8 px-3 flex items-center rounded-lg bg-muted text-sm font-semibold shrink-0">导航类</a>
+        <a href="#avatars" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition shrink-0">头像</a>
+        <a href="#feed" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition shrink-0">信息流</a>
+        <a href="#forms" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition shrink-0">表单</a>
+        <a href="#comments" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition shrink-0">评论</a>
+        <a href="#search" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition shrink-0">搜索</a>
+        <a href="#profile" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition shrink-0">个人页</a>
+        <a href="#interactions" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition shrink-0">交互</a>
+        <a href="#lists" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition shrink-0">榜单</a>
+        <a href="#editor" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition shrink-0">Editor</a>
+        <a href="#analytics" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition shrink-0">看板</a>
+        <a href="#badges" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition shrink-0">成就</a>
+        <a href="#poll" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition shrink-0">投票</a>
+        <a href="#thread" class="h-8 px-3 flex items-center rounded-lg text-sm text-fg-secondary hover:text-fg hover:bg-muted transition shrink-0">详情页</a>
       </div>
     </div>
     <div class="flex items-center gap-3">
@@ -862,11 +885,632 @@ tailwind.config = { theme: { extend: { colors: {
   </div>
 </section>
 
+<!-- ================================================================== -->
+<!-- SECTION 10: Markdown Editor -->
+<!-- ================================================================== -->
+<section id="editor" class="demo-section">
+  <div class="flex items-center gap-3 mb-8">
+    <span class="section-badge">Editor</span>
+    <h2 class="text-2xl font-bold tracking-tight">Markdown 编辑器</h2>
+  </div>
+  
+  <div class="card overflow-hidden">
+    <!-- Toolbar -->
+    <div class="flex items-center justify-between px-5 py-3 border-b border-border bg-muted/30">
+      <div class="flex items-center gap-1">
+        <button id="editor-btn-bold" class="h-8 w-8 rounded-lg flex items-center justify-center text-sm font-bold text-fg-secondary hover:bg-muted hover:text-fg transition" title="加粗">B</button>
+        <button id="editor-btn-italic" class="h-8 w-8 rounded-lg flex items-center justify-center text-sm italic font-semibold text-fg-secondary hover:bg-muted hover:text-fg transition" title="斜体">I</button>
+        <button id="editor-btn-link" class="h-8 w-8 rounded-lg flex items-center justify-center text-sm text-fg-secondary hover:bg-muted hover:text-fg transition" title="链接">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        </button>
+        <button id="editor-btn-code" class="h-8 w-8 rounded-lg flex items-center justify-center text-sm text-fg-secondary hover:bg-muted hover:text-fg transition" title="行内代码">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+        </button>
+        <button id="editor-btn-emoji" class="h-8 w-8 rounded-lg flex items-center justify-center text-sm text-fg-secondary hover:bg-muted hover:text-fg transition" title="插入表情">😀</button>
+      </div>
+      <div class="text-xs text-fg-tertiary">Markdown 实时预览</div>
+    </div>
+    
+    <!-- Split Layout -->
+    <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
+      <!-- Input Area -->
+      <div class="p-5">
+        <textarea id="editor-textarea" class="w-full h-80 bg-transparent text-sm font-mono focus:outline-none resize-none leading-relaxed text-fg" placeholder="输入 Markdown 格式文本，右边实时预览..."></textarea>
+      </div>
+      <!-- Preview Area -->
+      <div class="p-5 bg-surface/50 overflow-y-auto h-80">
+        <div id="editor-preview" class="prose prose-sm max-w-none text-fg-secondary"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SECTION 11: Analytics Dashboard -->
+<!-- ================================================================== -->
+<section id="analytics" class="demo-section">
+  <div class="flex items-center gap-3 mb-8">
+    <span class="section-badge">Analytics</span>
+    <h2 class="text-2xl font-bold tracking-tight">数据看板</h2>
+  </div>
+  
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Card 1: Today Active -->
+    <div class="card p-6 flex flex-col justify-between group transition-all duration-300 hover:translate-y-[-4px] hover:shadow-lg">
+      <div>
+        <div class="flex items-center justify-between text-xs font-bold text-fg-tertiary uppercase tracking-wider mb-2">
+          <span>今日活跃用户 / Today Active</span>
+          <span class="flex h-2 w-2 relative">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+          </span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span class="text-3xl font-extrabold tracking-tight">3,284</span>
+          <span class="text-xs font-bold text-green-600">+12.4%</span>
+        </div>
+      </div>
+      <div class="mt-4 pt-2">
+        <svg class="w-full h-14" viewBox="0 0 100 30" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="area-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#0052FF" stop-opacity="0.25" />
+              <stop offset="100%" stop-color="#0052FF" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+          <path d="M 0 30 C 15 18, 30 22, 45 12 C 60 14, 75 6, 90 4 L 100 8 L 100 30 Z" fill="url(#area-grad)" />
+          <path d="M 0 30 C 15 18, 30 22, 45 12 C 60 14, 75 6, 90 4 L 100 8" fill="none" stroke="#0052FF" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      </div>
+    </div>
+    
+    <!-- Card 2: New Threads -->
+    <div class="card p-6 flex flex-col justify-between group transition-all duration-300 hover:translate-y-[-4px] hover:shadow-lg">
+      <div>
+        <div class="flex items-center justify-between text-xs font-bold text-fg-tertiary uppercase tracking-wider mb-2">
+          <span>新增主题 / New Threads</span>
+          <span class="text-xs text-fg-tertiary">本周</span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span class="text-3xl font-extrabold tracking-tight">142</span>
+          <span class="text-xs font-bold text-green-600">+8.2%</span>
+        </div>
+      </div>
+      <div class="mt-4 pt-2">
+        <svg class="w-full h-14" viewBox="0 0 100 30" preserveAspectRatio="none">
+          <rect x="5" y="15" width="8" height="15" rx="1.5" fill="#E2E8F0" class="hover:fill-accent transition-colors duration-200" />
+          <rect x="18" y="10" width="8" height="20" rx="1.5" fill="#E2E8F0" class="hover:fill-accent transition-colors duration-200" />
+          <rect x="31" y="16" width="8" height="14" rx="1.5" fill="#E2E8F0" class="hover:fill-accent transition-colors duration-200" />
+          <rect x="44" y="6" width="8" height="24" rx="1.5" fill="#0052FF" />
+          <rect x="57" y="12" width="8" height="18" rx="1.5" fill="#E2E8F0" class="hover:fill-accent transition-colors duration-200" />
+          <rect x="70" y="4" width="8" height="26" rx="1.5" fill="#4D7CFF" />
+          <rect x="83" y="2" width="8" height="28" rx="1.5" fill="#0052FF" />
+        </svg>
+      </div>
+    </div>
+    
+    <!-- Card 3: Post Rate -->
+    <div class="card p-6 flex flex-col justify-between group transition-all duration-300 hover:translate-y-[-4px] hover:shadow-lg">
+      <div>
+        <div class="flex items-center justify-between text-xs font-bold text-fg-tertiary uppercase tracking-wider mb-2">
+          <span>发帖速率 / Post Rate</span>
+          <span class="flex items-center gap-1 text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded font-mono">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-500 pulse-dot"></span> LIVE
+          </span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span class="text-3xl font-extrabold tracking-tight">4.8<span class="text-sm font-semibold text-fg-secondary">/min</span></span>
+          <span class="text-xs font-bold text-green-600">正常</span>
+        </div>
+      </div>
+      <div class="mt-4 pt-2">
+        <svg class="w-full h-14" viewBox="0 0 100 30" preserveAspectRatio="none">
+          <path d="M 0 25 L 10 20 L 20 28 L 30 15 L 40 22 L 50 10 L 60 18 L 70 8 L 80 14 L 90 4 L 100 6" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="90" cy="4" r="2.5" fill="#10B981" class="animate-ping" />
+          <circle cx="90" cy="4" r="1.5" fill="#10B981" />
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SECTION 12: Badges & Achievement -->
+<!-- ================================================================== -->
+<section id="badges" class="demo-section">
+  <div class="flex items-center gap-3 mb-8">
+    <span class="section-badge">Badges</span>
+    <h2 class="text-2xl font-bold tracking-tight">成就勋章</h2>
+  </div>
+  
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Level progress card -->
+    <div class="card p-6 lg:col-span-1 flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-light flex items-center justify-center text-white font-extrabold text-lg">Lv.6</div>
+            <div>
+              <p class="font-bold text-sm">社区先锋</p>
+              <p class="text-xs text-fg-tertiary">距离下一等级还需 450 经验</p>
+            </div>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <div class="flex justify-between text-xs">
+            <span class="font-semibold text-fg-secondary">经验值进展</span>
+            <span class="font-bold text-accent">85% to Lv.7</span>
+          </div>
+          <div class="h-3 bg-muted rounded-full overflow-hidden">
+            <div class="w-[85%] bg-gradient-to-r from-accent to-accent-light h-full rounded-full transition-all duration-1000"></div>
+          </div>
+        </div>
+      </div>
+      <div class="text-[11px] text-fg-tertiary mt-4 pt-3 border-t border-border-light">
+        每日发布或采纳回答均可获得经验奖励。
+      </div>
+    </div>
+    
+    <!-- Grid of achievement badges -->
+    <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-6">
+      <!-- Gold Contributor -->
+      <div class="card p-5 flex flex-col items-center text-center transition-all duration-300 hover:scale-105 hover:shadow-lg hover:translate-y-[-4px] hover:border-amber-300 group relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-b from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div class="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+          <span class="text-2xl">🏆</span>
+        </div>
+        <h4 class="font-bold text-sm text-amber-600 mb-1.5">Gold Contributor</h4>
+        <p class="text-xs text-fg-secondary leading-relaxed">累计发表 50 篇高质量技术主题，获得官方编辑推荐。</p>
+      </div>
+      
+      <!-- Bug Hunter -->
+      <div class="card p-5 flex flex-col items-center text-center transition-all duration-300 hover:scale-105 hover:shadow-lg hover:translate-y-[-4px] hover:border-emerald-300 group relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-b from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div class="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+          <span class="text-2xl">🐛</span>
+        </div>
+        <h4 class="font-bold text-sm text-emerald-600 mb-1.5">Bug Hunter</h4>
+        <p class="text-xs text-fg-secondary leading-relaxed">向官方仓库提交 10 个以上有效 GitHub Issue 或 PR 修复。</p>
+      </div>
+      
+      <!-- Quick Helper -->
+      <div class="card p-5 flex flex-col items-center text-center transition-all duration-300 hover:scale-105 hover:shadow-lg hover:translate-y-[-4px] hover:border-purple-300 group relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-b from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div class="w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110 group-hover:shadow-[0_0_15px_rgba(139,92,246,0.3)]">
+          <span class="text-2xl">⚡</span>
+        </div>
+        <h4 class="font-bold text-sm text-purple-600 mb-1.5">Quick Helper</h4>
+        <p class="text-xs text-fg-secondary leading-relaxed">在问答板块，首个回答被采纳累计超过 20 次。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SECTION 13: Interactive Poll -->
+<!-- ================================================================== -->
+<section id="poll" class="demo-section">
+  <div class="flex items-center gap-3 mb-8">
+    <span class="section-badge">Poll</span>
+    <h2 class="text-2xl font-bold tracking-tight">投票组件</h2>
+  </div>
+  
+  <div class="max-w-2xl mx-auto">
+    <div class="card p-6 md:p-8">
+      <div class="flex items-start justify-between mb-6">
+        <div>
+          <span class="pill-tag bg-accent-soft text-accent mb-3">单选投票</span>
+          <h3 class="font-bold text-lg md:text-xl text-fg leading-snug">2026年你最喜欢的构建工具是？</h3>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-extrabold text-fg" id="poll-total-votes">124</p>
+          <p class="text-[10px] text-fg-tertiary uppercase tracking-wider">总票数</p>
+        </div>
+      </div>
+      
+      <!-- Poll Options -->
+      <div class="space-y-4" id="poll-options-container">
+        <!-- Option 1: Vite -->
+        <button class="poll-option-btn w-full text-left p-4 rounded-xl border border-border relative overflow-hidden transition-all duration-300 hover:border-accent hover:bg-muted/30 flex justify-between items-center group focus:outline-none" data-percentage="52">
+          <!-- Animated Progress Background -->
+          <div class="poll-progress-bg absolute left-0 top-0 bottom-0 bg-accent-soft/60 w-0 transition-all duration-1000 ease-out pointer-events-none"></div>
+          <span class="font-semibold text-sm text-fg-secondary z-10 transition-colors group-hover:text-fg">Vite</span>
+          <span class="poll-percentage-label text-sm font-bold text-accent z-10 opacity-0 transition-opacity duration-300">52%</span>
+        </button>
+        
+        <!-- Option 2: Bun -->
+        <button class="poll-option-btn w-full text-left p-4 rounded-xl border border-border relative overflow-hidden transition-all duration-300 hover:border-accent hover:bg-muted/30 flex justify-between items-center group focus:outline-none" data-percentage="28">
+          <div class="poll-progress-bg absolute left-0 top-0 bottom-0 bg-accent-soft/60 w-0 transition-all duration-1000 ease-out pointer-events-none"></div>
+          <span class="font-semibold text-sm text-fg-secondary z-10 transition-colors group-hover:text-fg">Bun</span>
+          <span class="poll-percentage-label text-sm font-bold text-accent z-10 opacity-0 transition-opacity duration-300">28%</span>
+        </button>
+        
+        <!-- Option 3: Turbopack -->
+        <button class="poll-option-btn w-full text-left p-4 rounded-xl border border-border relative overflow-hidden transition-all duration-300 hover:border-accent hover:bg-muted/30 flex justify-between items-center group focus:outline-none" data-percentage="20">
+          <div class="poll-progress-bg absolute left-0 top-0 bottom-0 bg-accent-soft/60 w-0 transition-all duration-1000 ease-out pointer-events-none"></div>
+          <span class="font-semibold text-sm text-fg-secondary z-10 transition-colors group-hover:text-fg">Turbopack</span>
+          <span class="poll-percentage-label text-sm font-bold text-accent z-10 opacity-0 transition-opacity duration-300">20%</span>
+        </button>
+      </div>
+      <p class="text-[11px] text-fg-tertiary mt-5 text-center" id="poll-info-msg">点击选项进行投票，投完后即可查看实时百分比占比。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<!-- SECTION 14: Thread Detail Layout -->
+<!-- ================================================================== -->
+<section id="thread" class="demo-section">
+  <div class="flex items-center gap-3 mb-8">
+    <span class="section-badge">Thread View</span>
+    <h2 class="text-2xl font-bold tracking-tight">话题详情页</h2>
+  </div>
+  
+  <div class="flex flex-col lg:flex-row gap-6">
+    <!-- Main content column (70% width) -->
+    <div class="w-full lg:w-[70%] space-y-6">
+      <div class="card p-6 md:p-8">
+        <!-- Breadcrumbs -->
+        <div class="flex items-center gap-1.5 text-xs text-fg-tertiary mb-4">
+          <a href="#" class="hover:text-accent transition">首页</a>
+          <span>/</span>
+          <a href="#" class="hover:text-accent transition">技术讨论</a>
+          <span>/</span>
+          <span class="font-medium text-fg-secondary">帖子正文</span>
+        </div>
+        
+        <!-- Thread Title -->
+        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-fg mb-4 leading-tight">Vue 3.5 响应式系统源码导读</h1>
+        
+        <!-- Author Info -->
+        <div class="flex items-center justify-between pb-5 border-b border-border mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-accent to-accent-light flex items-center justify-center text-white font-bold shadow-sm">林</div>
+            <div>
+              <p class="font-bold text-sm text-fg">林小峰</p>
+              <p class="text-xs text-fg-tertiary">发布于 2小时前 · 1.2k 次浏览</p>
+            </div>
+          </div>
+          <span class="pill-tag bg-accent-soft text-accent">精选导读</span>
+        </div>
+        
+        <!-- Rich Content -->
+        <div class="prose max-w-none text-fg-secondary space-y-4 leading-relaxed text-sm">
+          <p>Vue 3.5 版本对响应式系统（Reactive System）进行了一次大规模的底层重构，引入了双向链接（Twin-Link）树结构，并优化了依赖清理机制。这次改进显著提升了超大数组及高度嵌套对象场景下的内存管理与计算性能。</p>
+          
+          <h2 class="text-lg font-bold text-fg pt-4 pb-1">核心改动：双向链表依赖跟踪</h2>
+          <p>在之前的版本中，依赖跟踪是通过 <code>Dep</code> 和 <code>ReactiveEffect</code> 分别使用 <code>Set</code> 存储对方来实现的。这导致了多次内存分配，并在清理过期依赖时存在较高的 CPU 开销。3.5 使用了全新的双向链表结构：</p>
+          
+          <blockquote class="border-l-4 border-accent bg-accent-soft/30 pl-4 py-2 my-4 rounded-r-lg italic">
+            "通过将依赖关系建模为节点并在双向链表中维护，Vue 3.5 实现了 O(1) 的依赖清除与重组，使内存开销降低了近 56%。"
+          </blockquote>
+          
+          <p>我们可以看看底层的简化结构：</p>
+          
+          <pre class="bg-slate-900 text-slate-100 p-4 rounded-xl font-mono text-xs overflow-x-auto leading-normal my-4"><code>// 简化版双向依赖节点
+interface Link {
+  dep: Dep
+  effect: ReactiveEffect
+  prevDep?: Link
+  nextDep?: Link
+  prevEffect?: Link
+  nextEffect?: Link
+}</code></pre>
+          
+          <h2 class="text-lg font-bold text-fg pt-4 pb-1">总结与思考</h2>
+          <p>对于大部分业务开发者来说，Vue 3.5 的升级是完全透明的。但其底层对于性能和垃圾回收的归真追求，非常值得我们深入研究和学习。</p>
+        </div>
+        
+        <!-- Thread Actions -->
+        <div class="flex flex-wrap items-center justify-between gap-4 mt-8 pt-5 border-t border-border">
+          <div class="flex items-center gap-3">
+            <!-- Interative Like Button -->
+            <button id="thread-like-btn" class="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border text-sm font-semibold text-fg-secondary hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 transition-all duration-200">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+              <span>点赞</span>
+              <span id="thread-like-count" class="bg-muted px-1.5 py-0.5 rounded text-xs text-fg-tertiary">42</span>
+            </button>
+            
+            <button id="thread-bookmark-btn" class="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border text-sm font-semibold text-fg-secondary hover:bg-amber-50 hover:text-amber-500 hover:border-amber-200 transition-all duration-200">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+              <span id="thread-bookmark-text">收藏</span>
+            </button>
+          </div>
+          
+          <button id="thread-share-btn" class="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border text-sm font-semibold text-fg-secondary hover:bg-blue-50 hover:text-accent hover:border-blue-200 transition-all duration-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            <span>分享</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Sidebar column (30% width) -->
+    <div class="w-full lg:w-[30%] space-y-6">
+      <!-- Author profile card -->
+      <div class="card p-6 text-center">
+        <div class="w-16 h-16 rounded-full bg-gradient-to-br from-accent to-accent-light mx-auto flex items-center justify-center text-white font-extrabold text-2xl shadow-md mb-3">林</div>
+        <h4 class="font-bold text-base text-fg">林小峰</h4>
+        <p class="text-xs text-fg-tertiary">@linxiaofeng · 前端开发</p>
+        
+        <div class="my-4 py-3 border-y border-border-light grid grid-cols-2 text-center">
+          <div>
+            <p class="text-sm font-bold text-fg">847</p>
+            <p class="text-[10px] text-fg-tertiary uppercase">贡献分</p>
+          </div>
+          <div>
+            <p class="text-sm font-bold text-fg">1.2k</p>
+            <p class="text-[10px] text-fg-tertiary uppercase">粉丝</p>
+          </div>
+        </div>
+        
+        <button id="sidebar-follow-btn" class="w-full h-9 gradient-btn rounded-xl text-xs">+ 关注作者</button>
+      </div>
+      
+      <!-- Related topics list -->
+      <div class="card p-5">
+        <h4 class="font-bold text-xs text-fg-tertiary uppercase tracking-wider mb-3">相关话题</h4>
+        <div class="space-y-3">
+          <a href="#" class="block group">
+            <h5 class="text-xs font-semibold text-fg-secondary group-hover:text-accent transition line-clamp-1">Vue 3.5 Reactivity API 新增功能详解</h5>
+            <p class="text-[10px] text-fg-tertiary mt-0.5">14 个回复 · 2天前</p>
+          </a>
+          <a href="#" class="block group">
+            <h5 class="text-xs font-semibold text-fg-secondary group-hover:text-accent transition line-clamp-1">Pinia setup store 实战踩坑与优化</h5>
+            <p class="text-[10px] text-fg-tertiary mt-0.5">38 个回复 · 5天前</p>
+          </a>
+          <a href="#" class="block group">
+            <h5 class="text-xs font-semibold text-fg-secondary group-hover:text-accent transition line-clamp-1">Vite 6.0 升级指南与新生态体验</h5>
+            <p class="text-[10px] text-fg-tertiary mt-0.5">52 个回复 · 1周前</p>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 </main>
 
 <footer class="border-t border-border mt-20 py-8 text-center text-xs text-fg-tertiary">
   SForum UI 组件 Demo · High-Tech Boutique · 选定后拆为 Vue 组件
 </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // ==========================================
+  // 1. Markdown Editor Logic
+  // ==========================================
+  const editorTextarea = document.getElementById('editor-textarea');
+  const editorPreview = document.getElementById('editor-preview');
+  
+  const defaultMarkdown = `# SForum UI Markdown Editor
+
+这是一个**实时预览**的编辑器！你可以在左侧输入文本，右侧会立刻呈现格式化后的 HTML。
+
+## 支持的语法：
+- **粗体 / Bold**
+- *斜体 / Italic*
+- \`行内代码 / Inline Code\`
+- [SForum 官网](https://sforum.com)
+- \`\`\`
+// 代码块
+function hello() {
+  console.log("Welcome to SForum!");
+}
+\`\`\`
+
+> "保持代码简洁，这不仅是对自己负责，也是对团队的尊重。" — 社区指南
+
+试着在工具栏上点击按钮插入格式字符吧！`;
+
+  // Basic regex parser for Markdown
+  function renderMarkdown(text) {
+    if (!text) return '<p class="text-fg-tertiary">预览内容将在此处显示...</p>';
+    
+    // Escape HTML to prevent XSS
+    let html = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    
+    // Parse code blocks (```code```)
+    html = html.replace(/```([\s\S]+?)```/g, '<pre><code>$1</code></pre>');
+    
+    // Parse inline code (`code`)
+    html = html.replace(/`([^`\n]+?)`/g, '<code>$1</code>');
+    
+    // Parse bold (**text** or __text__)
+    html = html.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/__([^_]+?)__/g, '<strong>$1</strong>');
+    
+    // Parse italic (*text* or _text_)
+    html = html.replace(/\*([^*]+?)\*/g, '<em>$1</em>');
+    html = html.replace(/_([^_]+?)_/g, '<em>$1</em>');
+    
+    // Parse links ([text](url))
+    html = html.replace(/\[([^\]]+?)\]\(([^)]+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    
+    // Parse headers (# Header)
+    html = html.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+    html = html.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+    
+    // Parse blockquotes (> text)
+    html = html.replace(/^>\s+(.+)$/gm, '<blockquote>$1</blockquote>');
+    
+    // Wrap paragraphs (split by double newlines)
+    const blocks = html.split(/\n\n+/);
+    const processed = blocks.map(block => {
+      const trimmed = block.trim();
+      if (!trimmed) return '';
+      if (trimmed.startsWith('<pre>') || trimmed.startsWith('<h1>') || trimmed.startsWith('<h2>') || trimmed.startsWith('<h3>') || trimmed.startsWith('<blockquote>')) {
+        return trimmed;
+      }
+      return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
+    });
+    
+    return processed.join('\n');
+  }
+
+  function updatePreview() {
+    editorPreview.innerHTML = renderMarkdown(editorTextarea.value);
+  }
+
+  if (editorTextarea && editorPreview) {
+    editorTextarea.value = defaultMarkdown;
+    updatePreview();
+    editorTextarea.addEventListener('input', updatePreview);
+  }
+
+  // Helper to insert formatting characters
+  function insertFormatting(openTag, closeTag) {
+    if (!editorTextarea) return;
+    const start = editorTextarea.selectionStart;
+    const end = editorTextarea.selectionEnd;
+    const text = editorTextarea.value;
+    const selected = text.substring(start, end);
+    const replacement = openTag + selected + (closeTag || openTag);
+    editorTextarea.value = text.substring(0, start) + replacement + text.substring(end);
+    editorTextarea.focus();
+    
+    // Set selection
+    editorTextarea.selectionStart = start + openTag.length;
+    editorTextarea.selectionEnd = start + openTag.length + selected.length;
+    
+    updatePreview();
+  }
+
+  document.getElementById('editor-btn-bold')?.addEventListener('click', () => insertFormatting('**'));
+  document.getElementById('editor-btn-italic')?.addEventListener('click', () => insertFormatting('*'));
+  document.getElementById('editor-btn-link')?.addEventListener('click', () => insertFormatting('[', '](url)'));
+  document.getElementById('editor-btn-code')?.addEventListener('click', () => insertFormatting('`'));
+  document.getElementById('editor-btn-emoji')?.addEventListener('click', () => insertFormatting('😀', ''));
+
+  // ==========================================
+  // 2. Poll Logic
+  // ==========================================
+  const pollOptionBtns = document.querySelectorAll('.poll-option-btn');
+  const pollTotalVotesEl = document.getElementById('poll-total-votes');
+  const pollInfoMsgEl = document.getElementById('poll-info-msg');
+  let hasVoted = false;
+
+  pollOptionBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (hasVoted) return;
+      hasVoted = true;
+
+      // 1. Highlight selected option
+      btn.classList.add('border-accent', 'ring-2', 'ring-accent/20', 'bg-accent-soft/30');
+
+      // 2. Animate all option progress bars
+      pollOptionBtns.forEach(b => {
+        // Disable further hover/clicks
+        b.classList.add('pointer-events-none');
+        
+        const pct = b.getAttribute('data-percentage');
+        const progressBg = b.querySelector('.poll-progress-bg');
+        const pctLabel = b.querySelector('.poll-percentage-label');
+        
+        if (progressBg) {
+          progressBg.style.width = pct + '%';
+        }
+        if (pctLabel) {
+          pctLabel.classList.remove('opacity-0');
+        }
+      });
+
+      // 3. Increment total vote count
+      if (pollTotalVotesEl) {
+        let votes = parseInt(pollTotalVotesEl.textContent, 10);
+        pollTotalVotesEl.textContent = (votes + 1).toString();
+      }
+
+      // 4. Update status message
+      if (pollInfoMsgEl) {
+        pollInfoMsgEl.textContent = '感谢您的参与！您已投出宝贵的一票。';
+        pollInfoMsgEl.classList.remove('text-fg-tertiary');
+        pollInfoMsgEl.classList.add('text-green-600', 'font-semibold');
+      }
+    });
+  });
+
+  // ==========================================
+  // 3. Thread View Logic
+  // ==========================================
+  const threadLikeBtn = document.getElementById('thread-like-btn');
+  const threadLikeCount = document.getElementById('thread-like-count');
+  let isLiked = false;
+
+  threadLikeBtn?.addEventListener('click', () => {
+    if (!threadLikeCount) return;
+    let count = parseInt(threadLikeCount.textContent, 10);
+    
+    if (isLiked) {
+      isLiked = false;
+      count--;
+      threadLikeBtn.classList.remove('bg-rose-500', 'text-white', 'border-rose-500');
+      threadLikeBtn.classList.add('text-fg-secondary', 'border-border');
+    } else {
+      isLiked = true;
+      count++;
+      threadLikeBtn.classList.add('bg-rose-500', 'text-white', 'border-rose-500');
+      threadLikeBtn.classList.remove('text-fg-secondary', 'border-border');
+    }
+    threadLikeCount.textContent = count.toString();
+  });
+
+  const threadBookmarkBtn = document.getElementById('thread-bookmark-btn');
+  const threadBookmarkText = document.getElementById('thread-bookmark-text');
+  let isBookmarked = false;
+
+  threadBookmarkBtn?.addEventListener('click', () => {
+    if (!threadBookmarkText) return;
+    if (isBookmarked) {
+      isBookmarked = false;
+      threadBookmarkText.textContent = '收藏';
+      threadBookmarkBtn.classList.remove('bg-amber-500', 'text-white', 'border-amber-500');
+      threadBookmarkBtn.classList.add('text-fg-secondary', 'border-border');
+    } else {
+      isBookmarked = true;
+      threadBookmarkText.textContent = '已收藏';
+      threadBookmarkBtn.classList.add('bg-amber-500', 'text-white', 'border-amber-500');
+      threadBookmarkBtn.classList.remove('text-fg-secondary', 'border-border');
+    }
+  });
+
+  const threadShareBtn = document.getElementById('thread-share-btn');
+  threadShareBtn?.addEventListener('click', () => {
+    navigator.clipboard.writeText(window.location.href)
+      .then(() => {
+        const originalText = threadShareBtn.innerHTML;
+        threadShareBtn.innerHTML = '⚡ 已复制链接';
+        threadShareBtn.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
+        setTimeout(() => {
+          threadShareBtn.innerHTML = originalText;
+          threadShareBtn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
+        }, 2000);
+      })
+      .catch(err => {
+        console.error('Failed to copy link: ', err);
+      });
+  });
+
+  const sidebarFollowBtn = document.getElementById('sidebar-follow-btn');
+  let isFollowing = false;
+
+  sidebarFollowBtn?.addEventListener('click', () => {
+    if (isFollowing) {
+      isFollowing = false;
+      sidebarFollowBtn.textContent = '+ 关注作者';
+      sidebarFollowBtn.classList.remove('bg-slate-800', 'hover:bg-slate-900');
+    } else {
+      isFollowing = true;
+      sidebarFollowBtn.textContent = '已关注';
+      sidebarFollowBtn.classList.add('bg-slate-800', 'hover:bg-slate-900');
+    }
+  });
+});
+</script>
 
 </body>
 </html>
