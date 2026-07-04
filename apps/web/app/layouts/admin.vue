@@ -147,7 +147,7 @@ async function signOut() {
             variant="ghost"
             block
             class="justify-start px-2 text-slate-400 hover:text-white"
-            @click="colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'"
+            @click="() => { colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark' }"
           >
             <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="size-4" />
             <span class="text-sm font-medium">
