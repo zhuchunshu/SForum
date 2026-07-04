@@ -14,6 +14,12 @@ SForum is intended to become a maintainable forum project. The current repositor
 - Keep changes scoped to the current task. Do not refactor unrelated areas just because they are nearby.
 - Record decisions in the knowledge base when they will matter to future sessions.
 
+## Frontend UI Conventions
+
+- Do not use emoji as UI icons, decorative symbols, status markers, or action indicators.
+- Use icons from an icon library whenever an icon is needed. Current approved choices are Tabler Icons and Nuxt Icon.
+- Prefer the project's existing icon integration before adding a new icon package. Do not hand-roll inline SVG icons when an approved library icon exists.
+
 ## AI Working Discipline
 
 The following rules are repository-level instructions for AI coding agents:
