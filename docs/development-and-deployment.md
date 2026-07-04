@@ -69,8 +69,7 @@ Expected behavior:
   `SUPPORTED_LOCALES=zh-CN,en-US`.
 - Starts all required services with Docker Compose, reusing existing
   development images by default.
-- Runs database migrations automatically or prompts when destructive changes
-  are possible.
+- Runs Goose database migrations automatically before API and worker startup.
 - Streams combined logs by default.
 - Prints local web URLs, internal service names, and useful follow-up commands.
 
@@ -274,9 +273,9 @@ Default update flow:
 3. Run preflight checks.
 4. Pull or build images.
 5. Create PostgreSQL backup.
-6. Start infrastructure services.
-7. Run migrations.
-8. Start app services.
+6. Run migrations through the one-shot `migrate` Compose service.
+7. Start infrastructure and app services.
+8. Confirm service status.
 9. Run health checks.
 10. Print URLs, service status, and rollback hint.
 

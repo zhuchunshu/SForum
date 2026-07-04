@@ -1,4 +1,22 @@
 services:
+  migrate:
+    build:
+      context: ./apps/api
+      target: migrate
+    profiles:
+      - tools
+    environment:
+      APP_NAME: ${APP_NAME:-SForum}
+      APP_ENV: ${APP_ENV:-production}
+      APP_LOCALE: ${APP_LOCALE:-zh-CN}
+      SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-zh-CN,en-US}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: ${DATABASE_URL:-postgres://sforum:change-me@postgres:5432/sforum?sslmode=disable}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   api:
     build:
       target: api

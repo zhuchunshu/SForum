@@ -71,6 +71,10 @@ Target ownership:
   and persistence adapters.
 - `app/Support/*` wraps external systems and reusable infrastructure clients.
 - `database/*` owns migrations, handwritten SQL, and generated `sqlc` code.
+- Development Compose runs Goose migrations automatically through a one-shot
+  `migrate` service before API and worker startup. Production uses the same
+  migration binary from `deploy.sh` after backup and before app services are
+  updated.
 
 Route registration rules:
 

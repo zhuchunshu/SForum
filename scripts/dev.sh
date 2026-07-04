@@ -155,6 +155,7 @@ echo "Web: http://127.0.0.1:${WEB_PORT:-3000}"
 echo "Web health: http://127.0.0.1:${WEB_PORT:-3000}/health"
 echo "API health via web: http://127.0.0.1:${WEB_PORT:-3000}/api/v1/health"
 echo "Internal services stay on the Compose network: api, postgres, redis, meilisearch, mailpit"
+echo "Database migrations run before API and worker start."
 echo "Use './scripts/dev.sh --build' after Dockerfile or dependency changes."
 
 if [ "$PRINT_COMMAND" -eq 1 ]; then

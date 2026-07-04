@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SForum 登录 / 注册</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-left:    #f5f7fa;
+      --bg-right:   #ffffff;
+      --border:     #e4e8ef;
+      --accent:     #0f766e;
+      --accent-h:   #0b5f59;
+      --accent-soft:#e8f4f3;
+      --text:       #111827;
+      --text-dim:   #4b5563;
+      --text-muted: #9ca3af;
+      --input-b:    #d1d5db;
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    body { background: var(--bg-left); color: var(--text); min-height: 100vh; }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 100vh;
+    }
+
+    /* ====== 左侧 ====== */
+    .left {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 48px 52px;
+      background: var(--bg-left);
+      border-right: 1px solid var(--border);
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .left-body {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .left-headline {
+      font-size: clamp(26px, 2.6vw, 40px);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      color: var(--text);
+    }
+
+    .left-desc {
+      font-size: 15px;
+      color: var(--text-dim);
+      line-height: 1.75;
+      max-width: 340px;
+    }
+
+    .left-items {
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+    }
+
+    .left-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      font-size: 13.5px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    .left-item-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      color: var(--accent);
+    }
+
+    .left-footer {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ====== 右侧表单 ====== */
+    .right {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 40px;
+      background: var(--bg-right);
+    }
+
+    .form-wrap { width: 100%; max-width: 380px; }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+
+    .tab {
+      padding: 10px 0;
+      margin-right: 24px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: color 0.18s, border-color 0.18s;
+      margin-bottom: -1px;
+    }
+    .tab:hover { color: var(--text-dim); }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+    .form-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin-bottom: 5px;
+    }
+
+    .form-sub {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 26px;
+      line-height: 1.55;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+
+    .field-head { display: flex; justify-content: space-between; align-items: center; }
+
+    .label { font-size: 12px; font-weight: 600; color: #374151; }
+
+    .forgot {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .forgot:hover { color: var(--text-dim); }
+
+    .input {
+      height: 40px;
+      padding: 0 13px;
+      border: 1px solid var(--input-b);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .input:hover { border-color: #9ca3af; }
+    .input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(15,118,110,0.14);
+    }
+    .input::placeholder { color: #d1d5db; }
+
+    .btn {
+      width: 100%;
+      height: 40px;
+      border: none;
+      border-radius: 7px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      transition: background 0.18s, box-shadow 0.18s;
+      margin-top: 8px;
+    }
+    .btn:hover {
+      background: var(--accent-h);
+      box-shadow: 0 4px 14px rgba(15,118,110,0.25);
+    }
+
+    .switch-hint {
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .switch-hint a {
+      color: var(--text-dim);
+      font-weight: 600;
+      text-decoration: none;
+      border-bottom: 1px solid #d1d5db;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .switch-hint a:hover { color: var(--text); border-bottom-color: #9ca3af; }
+
+    .terms {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+    .terms a { color: var(--text-dim); text-decoration: none; border-bottom: 1px solid #e5e7eb; }
+
+    .fp { display: none; }
+    .fp.active { display: block; }
+
+    @media (max-width: 720px) {
+      .shell { grid-template-columns: 1fr; }
+      .left { display: none; }
+      .right { min-height: 100vh; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- 左侧 -->
+  <div class="left">
+    <div class="logo">
+      <div class="logo-mark">💬</div>
+      SForum
+    </div>
+
+    <div class="left-body">
+      <h1 class="left-headline">一个认真讨论<br/>事情的地方</h1>
+      <p class="left-desc">没有算法推荐，没有信息流噪音。按话题组织，每条回复都值得被读到。</p>
+      <div class="left-items">
+        <div class="left-item">
+          <div class="left-item-icon">✓</div>
+          <span>发帖不需要关注数，好内容自然会浮现</span>
+        </div>
+        <div class="left-item">
+          <div class="left-item-icon">✓</div>
+          <span>支持 Markdown，写长文不再将就</span>
+        </div>
+        <div class="left-item">
+          <div class="left-item-icon">✓</div>
+          <span>中英文界面，随时切换</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="left-footer">
+      © 2026 SForum · <a href="#" style="color:inherit;">服务条款</a> · <a href="#" style="color:inherit;">隐私政策</a>
+    </div>
+  </div>
+
+  <!-- 右侧表单 -->
+  <div class="right">
+    <div class="form-wrap">
+
+      <div class="tabs">
+        <button class="tab active" onclick="switchForm('login', this)">登录</button>
+        <button class="tab" onclick="switchForm('register', this)">注册</button>
+      </div>
+
+      <!-- 登录 -->
+      <div class="fp active" id="f-login">
+        <h2 class="form-title">欢迎回来</h2>
+        <p class="form-sub">用用户名或邮箱登录你的账号</p>
+        <div class="field">
+          <label class="label">用户名 / 邮箱</label>
+          <input class="input" type="text" placeholder="your@email.com" autocomplete="username" />
+        </div>
+        <div class="field">
+          <div class="field-head">
+            <label class="label">密码</label>
+            <a href="#" class="forgot">忘记密码</a>
+          </div>
+          <input class="input" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <button class="btn">登录</button>
+        <p class="switch-hint">没有账号？<a href="#" onclick="switchForm('register', document.querySelectorAll('.tab')[1]); return false;">注册一个</a></p>
+      </div>
+
+      <!-- 注册 -->
+      <div class="fp" id="f-register">
+        <h2 class="form-title">创建账号</h2>
+        <p class="form-sub">填写以下信息，几秒即可完成</p>
+        <div class="field">
+          <label class="label">用户名</label>
+          <input class="input" type="text" placeholder="cooluser123" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label class="label">邮箱地址</label>
+          <input class="input" type="email" placeholder="your@email.com" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label class="label">显示名称 <span style="color:var(--text-muted);font-weight:400;">（可选）</span></label>
+          <input class="input" type="text" placeholder="小明" />
+        </div>
+        <div class="field">
+          <label class="label">密码</label>
+          <input class="input" type="password" placeholder="至少 8 位" autocomplete="new-password" />
+        </div>
+        <button class="btn">创建账号</button>
+        <p class="terms">注册即代表你同意 <a href="#">服务条款</a> 与 <a href="#">隐私政策</a></p>
+        <p class="switch-hint" style="margin-top:10px;">已有账号？<a href="#" onclick="switchForm('login', document.querySelectorAll('.tab')[0]); return false;">直接登录</a></p>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function switchForm(form, btn) {
+    document.querySelectorAll('.fp').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('f-' + form).classList.add('active');
+    btn.classList.add('active');
+  }
+</script>
+</body>
+</html>

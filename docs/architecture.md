@@ -269,6 +269,9 @@ Summary:
 - `deploy.sh` should support English and Simplified Chinese prompts, first-time
   setup, deploy/update, migrations, backups, restore, logs, status, restart,
   stop, and rollback.
+- Development Compose runs Goose migrations through a one-shot `migrate`
+  service before API and worker startup. Production deployments run the same
+  migration binary explicitly after backup and before app services are updated.
 - Local and production environment files should default `APP_LOCALE` to
   `zh-CN` and list supported locales explicitly.
 - Local and production Compose stacks should publish only the `web` service on

@@ -75,7 +75,7 @@ t() {
       no_compose) echo "Docker Compose plugin is required." ;;
       invalid_public_api_base) echo "NUXT_PUBLIC_API_BASE_URL must be /api/v1 so only the web service needs a host port." ;;
       backup_first) echo "Creating backup before deploy..." ;;
-      no_migrations) echo "Migration runner is not wired yet; skipping for this foundation slice." ;;
+      migrations_running) echo "Running database migrations..." ;;
       rollback_later) echo "Rollback metadata is not available yet. This will be enabled when release image tags are introduced." ;;
       confirm_restore) echo "Type RESTORE to confirm database restore:" ;;
       backup_path) echo "Backup file path:" ;;
@@ -105,7 +105,7 @@ t() {
       no_compose) echo "需要 Docker Compose 插件。" ;;
       invalid_public_api_base) echo "NUXT_PUBLIC_API_BASE_URL 必须是 /api/v1，这样只有 web 服务需要宿主机端口。" ;;
       backup_first) echo "部署前正在创建备份..." ;;
-      no_migrations) echo "迁移执行器尚未接入；当前基础骨架阶段跳过。" ;;
+      migrations_running) echo "正在运行数据库迁移..." ;;
       rollback_later) echo "暂未记录可回滚版本；引入发布镜像标签后会启用。" ;;
       confirm_restore) echo "请输入 RESTORE 确认恢复数据库：" ;;
       backup_path) echo "备份文件路径：" ;;
@@ -177,14 +177,20 @@ deploy_update() {
   preflight
   echo "$(t backup_first)"
   ./deploy/scripts/backup-postgres.sh || true
+  run_migrations_command
   "${COMPOSE[@]}" up -d --build
   "${COMPOSE[@]}" ps
   print_web_url
 }
 
+run_migrations_command() {
+  echo "$(t migrations_running)"
+  "${COMPOSE[@]}" run --rm -T --build migrate
+}
+
 run_migrations() {
   preflight
-  echo "$(t no_migrations)"
+  run_migrations_command
 }
 
 create_backup() {

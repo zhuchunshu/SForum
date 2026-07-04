@@ -1,8 +1,31 @@
 services:
+  migrate:
+    build:
+      context: ./apps/api
+      target: dev
+    command: ["go", "run", "./cmd/migrate"]
+    environment:
+      APP_NAME: ${APP_NAME:-SForum}
+      APP_ENV: ${APP_ENV:-development}
+      APP_LOCALE: ${APP_LOCALE:-zh-CN}
+      SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-zh-CN,en-US}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: ${DATABASE_URL:-postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+      - go_build_cache:/root/.cache/go-build
+    restart: "no"
+
   api:
     build:
       target: dev
     command: ["air", "-c", ".air.toml"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - ./apps/api:/app
       - go_build_cache:/root/.cache/go-build
@@ -29,6 +52,9 @@ services:
     build:
       target: dev
     command: ["air", "-c", ".air.worker.toml"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - ./apps/api:/app
       - go_build_cache:/root/.cache/go-build
