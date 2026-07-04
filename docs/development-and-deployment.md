@@ -123,8 +123,15 @@ cd apps/api && air
   the site can open while the API is still compiling.
 - Web generated output directories such as `.output`, `.nitro`, coverage, and
   test reports are ignored by Nuxt/Vite watchers.
-- `bun run build` and `bun run typecheck` use separate Nuxt temporary build
-  directories so they do not churn the dev server's `.nuxt` state.
+- `bun run build` and `bun run typecheck` use sibling Nuxt temporary build
+  directories (`.nuxt-build` and `.nuxt-typecheck`) so they do not churn the
+  dev server's `.nuxt` state.
+- After `bun run build`, `bun run preview` starts the generated Nitro server
+  directly from `.output/server/index.mjs` with `HOST=0.0.0.0` and
+  `--env-file=../../.env`, so local preview uses the same internal API target
+  as development. The installed `nuxi preview` command does not expose a host
+  flag in this project version, so `nuxt preview --host 0.0.0.0` misreads
+  `0.0.0.0` as a root directory.
 - Nuxt UI's automatic remote font provider module is disabled until the product
   intentionally chooses web fonts, avoiding build-time network retries.
 - Compose Watch is not part of the default development loop now that frontend

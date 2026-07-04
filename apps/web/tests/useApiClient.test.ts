@@ -114,6 +114,8 @@ describe('register page submit guard', () => {
     page.resolveRegister()
     await firstSubmit
     await secondSubmit
+
+    expect(page.sessionUser()?.username).toBe('codex')
   })
 
   test('marks session unavailable errors for login guidance', async () => {
@@ -148,6 +150,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
     .replace(/export default /, 'return ')
 
   const requests: Array<{ path: string, options?: unknown }> = []
+  let sessionUser: { username?: string } | null = null
   let resolveRegister: (value?: unknown) => void = () => {}
 
   const request = (path: string, requestOptions?: unknown) => {
@@ -168,6 +171,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
     'definePageMeta',
     'useI18n',
     'useLocalePath',
+    'useRuntimeConfig',
     'useAdminRoutes',
     'useApiClient',
     'useAuthSession',
@@ -191,9 +195,15 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
     () => {},
     () => ({ t: (key: string) => key, locale: ref('zh-CN') }),
     () => (path: string) => path,
+    () => ({ public: { humanVerificationProvider: 'disabled' } }),
     () => ({ path: (path: string) => `/control-panel${path}` }),
     () => ({ apiBaseUrl: '/api/v1', request }),
-    () => ({ refresh: async () => {}, can: () => false }),
+    () => ({
+      setUser: (currentUser: { username?: string } | null) => {
+        sessionUser = currentUser
+      },
+      can: () => false
+    }),
     () => ({ siteName: 'SForum' }),
     async (_key: string, loader: () => Promise<unknown>) => ({ data: ref(await loader()) }),
     () => {},
@@ -210,6 +220,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
   return {
     context,
     registerRequests: () => requests.filter((request) => request.path === '/auth/register'),
-    resolveRegister: () => resolveRegister({})
+    resolveRegister: () => resolveRegister({ username: 'codex' }),
+    sessionUser: () => sessionUser
   }
 }

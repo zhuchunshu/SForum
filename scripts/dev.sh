@@ -103,6 +103,15 @@ echo "Postgres: 127.0.0.1:${POSTGRES_PORT:-15432}"
 echo "Redis: 127.0.0.1:${REDIS_PORT:-16379}"
 echo "Meilisearch: http://127.0.0.1:${MEILI_PORT:-17700}"
 echo "Mailpit: http://127.0.0.1:${MAILPIT_UI_PORT:-18025}"
+EXPECTED_NUXT_API_INTERNAL_BASE_URL="http://127.0.0.1:${HTTP_PORT:-8080}/api/v1"
+case "${NUXT_API_INTERNAL_BASE_URL:-}" in
+  http://127.0.0.1:* | http://localhost:*)
+    if [ "${NUXT_API_INTERNAL_BASE_URL}" != "$EXPECTED_NUXT_API_INTERNAL_BASE_URL" ]; then
+      echo "Warning: NUXT_API_INTERNAL_BASE_URL=${NUXT_API_INTERNAL_BASE_URL}"
+      echo "         but HTTP_PORT=${HTTP_PORT:-8080}; expected ${EXPECTED_NUXT_API_INTERNAL_BASE_URL} for host-run API."
+    fi
+    ;;
+esac
 if [ "$MIGRATE_ENABLED" -eq 1 ]; then
   echo "Database migrations run after PostgreSQL is healthy."
 else

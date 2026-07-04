@@ -25,9 +25,13 @@ export const useAuthSession = () => {
     }
   }
 
+  const setUser = (currentUser: CurrentUser | null) => {
+    user.value = currentUser
+  }
+
   const can = (permission: string) => {
     return Boolean(user.value?.permissions.includes(permission) || user.value?.roleKeys.includes('super_admin'))
   }
 
-  return { user, pending, refresh, can }
+  return { user, pending, refresh, setUser, can }
 }

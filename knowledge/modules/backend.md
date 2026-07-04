@@ -15,6 +15,9 @@ implementation: `bootstrap` assembles the API runtime, `app/Http` registers an
 ordered route-provider list, `app/Http/Controllers/*` owns thin controllers and
 route declarations, `app/Providers` owns provider wiring, and `app/Models/*`
 owns domain logic.
+API startup output now keeps Fiber's useful listen metadata but replaces the
+default Fiber ASCII banner with an SForum API banner through Fiber's
+`OnPreStartupMessage` hook.
 
 ## Planned Stack
 

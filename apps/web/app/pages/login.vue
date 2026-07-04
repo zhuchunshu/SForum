@@ -7,7 +7,7 @@ const { t } = useI18n()
 const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
 const { request } = useApiClient()
-const { refresh, can } = useAuthSession()
+const { setUser, can } = useAuthSession()
 const { siteName } = useWebOptions()
 
 const form = reactive({
@@ -24,22 +24,25 @@ useSeoMeta({
 async function submitLogin() {
   errorMessage.value = ''
   submitting.value = true
+  let currentUser: CurrentUser
 
   try {
-    await request<CurrentUser>('/auth/login', {
+    currentUser = await request<CurrentUser>('/auth/login', {
       method: 'POST',
       body: {
         login: form.login,
         password: form.password
       }
     })
-    await refresh()
-    await navigateTo(can('admin.access') ? adminRoutes.path('/') : localePath('/'))
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('errors.loginFailed')
+    return
   } finally {
     submitting.value = false
   }
+
+  setUser(currentUser)
+  await navigateTo(can('admin.access') ? adminRoutes.path('/') : localePath('/'))
 }
 </script>
 

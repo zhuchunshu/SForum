@@ -19,6 +19,8 @@ const humanVerificationProvider = normalizeHumanVerificationProvider(
 )
 const nuxtGeneratedIgnores = [
   '.nuxt/**',
+  '.nuxt-build/**',
+  '.nuxt-typecheck/**',
   '.output/**',
   '.nitro/**',
   '.vite/**',
@@ -30,6 +32,8 @@ const nuxtGeneratedIgnores = [
 
 const generatedOutputWatchIgnores = [
   '**/.nuxt/**',
+  '**/.nuxt-build/**',
+  '**/.nuxt-typecheck/**',
   '**/.output/**',
   '**/.nitro/**',
   '**/.vite/**',

@@ -11,8 +11,14 @@ Foundation scaffold exists under `apps/web`.
 The web container now passes `APP_URL` into Nuxt, and Nuxt uses it for the
 site config and Nuxt i18n SEO `baseUrl`.
 Generated output directories are ignored by Nuxt/Vite development watchers, and
-`bun run build`/`bun run typecheck` use isolated Nuxt temporary directories so
-they do not disturb the active dev server state.
+`bun run build`/`bun run typecheck` use sibling Nuxt temporary directories
+(`.nuxt-build` and `.nuxt-typecheck`) so they do not disturb the active dev
+server state.
+`bun run preview` starts the generated Nitro server directly with
+`HOST=0.0.0.0 bun --env-file=../../.env .output/server/index.mjs`; this keeps
+local preview aligned with the root `.env` API target. The installed
+`nuxi preview` command has no `--host` flag, and
+`nuxt preview --host 0.0.0.0` treats `0.0.0.0` as `ROOTDIR`.
 During development startup and API hot reloads, the global site-options read
 uses a short timeout and falls back to local defaults so SSR can render the page
 while the API process is still compiling.
@@ -33,6 +39,13 @@ browser fill background.
 The registration page reads backend `data.fields` errors and shows field-level
 messages next to username, email, password, and human verification while keeping
 login failures as a single actionable top-level message.
+The registration password input now always shows the current rule
+(`>= 12` characters) before submission. Login and registration success handlers
+store the `CurrentUser` returned by the API directly before navigating, so a
+successful account creation is not reclassified as a form failure if a later
+refresh/navigation step has trouble. `useApiClient()` reads locale from the
+Nuxt app i18n runtime instead of calling `useI18n()`, keeping it safe for route
+middleware such as the admin guard.
 Admin pages use a dedicated `admin` Nuxt layout built from Nuxt UI Dashboard
 components (`UDashboardGroup`, `UDashboardSidebar`, `UDashboardPanel`,
 `UDashboardNavbar`, `UDashboardToolbar`) and Nuxt Icon lucide icons. The source

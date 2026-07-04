@@ -93,6 +93,7 @@
     "emailPlaceholder": "email address",
     "displayNamePlaceholder": "Jane Doe",
     "passwordPlaceholder": "At least 12 characters",
+    "passwordHint": "Use at least 12 characters; a short phrase or several words works well.",
     "humanVerification": "Human verification",
     "humanVerificationLoading": "Loading human verification...",
     "brandHeadlineL1": "A place for",

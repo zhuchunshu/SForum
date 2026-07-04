@@ -13,7 +13,7 @@ const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
 const runtimeConfig = useRuntimeConfig()
 const { apiBaseUrl, request } = useApiClient()
-const { refresh, can } = useAuthSession()
+const { setUser, can } = useAuthSession()
 const { siteName } = useWebOptions()
 
 const form = reactive({
@@ -82,6 +82,10 @@ function fieldDescription(name: string) {
   return fieldError(name) ? `${name}-error` : undefined
 }
 
+const passwordDescription = computed(() => {
+  return ['password-hint', fieldDescription('password')].filter(Boolean).join(' ')
+})
+
 async function submitRegister() {
   if (submitting.value) {
     return
@@ -106,13 +110,12 @@ async function submitRegister() {
     }
   }
 
+  let currentUser: CurrentUser | null = null
   try {
-    await request<CurrentUser>('/auth/register', {
+    currentUser = await request<CurrentUser>('/auth/register', {
       method: 'POST',
       body
     })
-    await refresh()
-    await navigateTo(can('admin.access') ? adminRoutes.path('/') : localePath('/'))
   } catch (error) {
     fieldErrors.value = apiErrorFields(error)
     sessionUnavailable.value = apiErrorReason(error) === 'auth.session_unavailable'
@@ -123,6 +126,13 @@ async function submitRegister() {
   } finally {
     submitting.value = false
   }
+
+  if (!currentUser) {
+    return
+  }
+
+  setUser(currentUser)
+  await navigateTo(can('admin.access') ? adminRoutes.path('/') : localePath('/'))
 }
 </script>
 
@@ -277,8 +287,11 @@ async function submitRegister() {
               autocomplete="new-password"
               required
               :aria-invalid="fieldError('password') ? 'true' : undefined"
-              :aria-describedby="fieldDescription('password')"
+              :aria-describedby="passwordDescription"
             />
+            <p id="password-hint" class="auth-field-hint">
+              {{ t('auth.passwordHint') }}
+            </p>
             <p v-if="fieldError('password')" id="password-error" class="auth-field-message">
               {{ fieldError('password') }}
             </p>
@@ -558,6 +571,13 @@ async function submitRegister() {
 .auth-field-message {
   margin: 0;
   color: #b91c1c;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.auth-field-hint {
+  margin: 0;
+  color: #6b7280;
   font-size: 12px;
   line-height: 1.45;
 }

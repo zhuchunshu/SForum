@@ -33,6 +33,10 @@ func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.Ap
 		AppName:      cfg.AppName,
 		ErrorHandler: errorHandler(logger),
 	})
+	app.Hooks().OnPreStartupMessage(func(sm *fiber.PreStartupMessageData) error {
+		sm.BannerHeader = sforumStartupBanner
+		return nil
+	})
 
 	app.Use(requestid.New())
 	app.Use(recover.New())
@@ -63,3 +67,11 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 		})
 	})
 }
+
+const sforumStartupBanner = `
+   _____ ______
+  / ___// ____/___  _______  ______ ___
+  \__ \/ /_  / __ \/ ___/ / / / _  _  \
+ ___/ / __/ / /_/ / /  / /_/ / / / / / /
+/____/_/    \____/_/   \__,_/_/ /_/ /_/    SForum API
+--------------------------------------------------`

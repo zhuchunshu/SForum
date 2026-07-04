@@ -32,12 +32,18 @@ type ApiFetchErrorLike = {
   }
 }
 
+type RuntimeI18nLike = {
+  locale?: unknown
+}
+
 export function useApiClient() {
-  const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
-  const { locale } = useI18n()
+  const runtimeConfig = useRuntimeConfig()
+  const apiBaseUrl = runtimeConfig.public.apiBaseUrl as string
+  const i18n = useNuxtApp().$i18n as RuntimeI18nLike | undefined
 
   function apiLocale() {
-    return locale.value === 'en' ? 'en-US' : locale.value
+    const locale = localeString(i18n?.locale) || String(runtimeConfig.public.appLocale || 'zh-CN')
+    return locale === 'en' ? 'en-US' : locale
   }
 
   function apiHeaders(extra?: Record<string, string>) {
@@ -61,6 +67,17 @@ export function useApiClient() {
   }
 
   return { apiBaseUrl, apiHeaders, request }
+}
+
+function localeString(value: unknown) {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (value && typeof value === 'object' && 'value' in value) {
+    const refValue = (value as { value?: unknown }).value
+    return typeof refValue === 'string' ? refValue : ''
+  }
+  return ''
 }
 
 function isApiEnvelope(value: unknown): value is ApiEnvelope<ApiErrorData> {

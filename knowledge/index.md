@@ -22,8 +22,14 @@ This is the entry point for project memory.
 - Local frontend and backend processes read the repository root `.env`
   directly: Nuxt dev uses `--dotenv ../../.env`, and Air uses
   `env_files = ["../../.env"]`.
-- Frontend build/typecheck commands use isolated Nuxt temporary directories and
-  generated output is ignored by dev watchers to avoid repeated reloads.
+- Frontend build/typecheck commands use sibling Nuxt temporary directories
+  (`.nuxt-build` and `.nuxt-typecheck`) instead of nesting under the dev
+  server's `.nuxt`, and generated output is ignored by dev watchers to avoid
+  repeated reloads.
+- Frontend production preview runs the generated Nitro server directly through
+  `HOST=0.0.0.0 bun --env-file=../../.env .output/server/index.mjs`, because
+  the installed `nuxi preview` command does not support `--host` and misreads
+  the host value as `ROOTDIR`.
 - Nuxt top-level `ignore` rules are intentionally narrower than Vite watcher
   ignores so dependency packages such as `@nuxt/ui/dist` remain discoverable by
   Nuxt component auto-imports.
@@ -80,6 +86,11 @@ This is the entry point for project memory.
   the bootstrap transaction, and reports post-create session failures as
   `auth.session_unavailable` so users are guided to log in instead of retrying
   registration.
+- Login and registration pages now hydrate the frontend auth state directly
+  from the successful API response before navigating, avoiding an extra session
+  refresh and keeping admin-route middleware from misreporting a successful
+  registration as a form failure. The registration page also shows the current
+  password rule below the password input.
 - Browser authentication uses Redis-backed server sessions rather than
   JWT-first auth. Sessions now have a 30-day idle timeout, 180-day absolute
   timeout, 24-hour session-id renewal, login-time session reset, production
@@ -146,10 +157,17 @@ This is the entry point for project memory.
   handoff.
 - `sessions/2026-07-05-registration-verification-session-failure.md` -
   registration verification ordering and session-failure fix handoff.
+- `sessions/2026-07-05-registration-success-navigation.md` - registration
+  password hint, success-state hydration, and middleware-safe API locale
+  handoff.
 - `sessions/2026-07-05-local-dev-dependencies.md` - local dependency startup
   and host-process development handoff.
 - `sessions/2026-07-05-registration-altcha-default-disabled.md` -
   registration ALTCHA default-off implementation handoff.
+- `sessions/2026-07-05-nuxt-dev-open-delay.md` - Nuxt dev 503 loading page,
+  build/typecheck directory isolation, and local API port mismatch handoff.
+- `sessions/2026-07-05-nuxt-preview-script.md` - Nuxt production preview script
+  fix for the unsupported `nuxi preview --host` flag.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -
   security verification design.
 - `../docs/development-and-deployment.md` - proposed local development,

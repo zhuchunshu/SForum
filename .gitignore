@@ -43,11 +43,15 @@ apps/web/node_modules/
 
 # Nuxt, Nitro, Vite, and frontend build output
 .nuxt/
+.nuxt-build/
+.nuxt-typecheck/
 .output/
 .nitro/
 dist/
 coverage/
 apps/web/.nuxt/
+apps/web/.nuxt-build/
+apps/web/.nuxt-typecheck/
 apps/web/.output/
 apps/web/.nitro/
 apps/web/dist/
