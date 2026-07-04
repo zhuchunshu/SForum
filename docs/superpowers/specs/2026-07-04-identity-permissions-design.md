@@ -166,7 +166,8 @@ changes that would compromise this account.
 Registration should be open by default.
 
 1. User submits username, email, password, and locale preference.
-2. API validates input and rate limits the attempt.
+2. API validates input, rate limits the attempt, and verifies the required
+   human-verification token.
 3. API starts a PostgreSQL transaction.
 4. API takes a transaction-scoped bootstrap lock to prevent two concurrent
    first registrations.
@@ -181,6 +182,36 @@ Registration should be open by default.
 Email verification can be added later without changing the role model. If email
 verification is required before posting, the account may still be created with
 `member`, while post-creation permissions check verification status.
+
+## Human Verification And Anti-Automation
+
+SForum uses ALTCHA as the default human-verification provider for open
+registration and password-reset initiation. Verification is not a replacement
+for rate limiting or moderation; it is one layer that increases the cost of
+automated abuse.
+
+Backend responsibilities:
+
+- Generate fresh ALTCHA challenges from the Fiber API.
+- Verify submitted ALTCHA payloads on the server.
+- Store short-lived challenge/replay state in Redis.
+- Rate limit challenge generation and protected form submissions by IP,
+  account identifier, session, and action.
+- Return stable error codes such as `human_verification.required`,
+  `human_verification.invalid`, `human_verification.expired`,
+  `human_verification.replayed`, and `rate_limit.exceeded`.
+
+Frontend responsibilities:
+
+- Render the ALTCHA widget on registration.
+- Render it on password-reset initiation when that flow exists.
+- Render it on login only after the API reports a challenge is required for the
+  current risk state.
+- Localize all verification and rate-limit errors in Simplified Chinese and
+  English.
+
+Keep the backend provider interface narrow so a deployment can add Cloudflare
+Turnstile later without rewriting identity handlers.
 
 ## Authorization Flow
 
@@ -274,6 +305,10 @@ Backend tests should cover:
 - Second registration receives only the configured default role.
 - Concurrent first-registration attempts produce exactly one initial super
   administrator.
+- Registration requires a valid single-use human-verification token.
+- Replayed, expired, missing, or invalid human-verification tokens fail with
+  stable error codes.
+- Challenge generation and registration submission are rate limited.
 - `member` alias can change while `member` key cannot change.
 - `member` cannot be deleted while it is the default registration role.
 - The initial super administrator cannot be deleted, disabled, or stripped of
@@ -296,6 +331,7 @@ Frontend tests should cover:
 - Organization or tenant boundaries.
 - Social login.
 - Two-factor authentication.
+- Third-party CAPTCHA provider implementation.
 - Full notification/email delivery.
 - Casbin or another policy engine integration.
 

@@ -44,6 +44,10 @@ This is the entry point for project memory.
   user becomes the protected initial `super_admin`; later open registrations
   receive the undeletable default `member` role; admin-managed custom
   roles/user groups are supported.
+- Security verification architecture is accepted: SForum uses ALTCHA as the
+  default self-hosted human-verification provider for registration,
+  password-reset initiation, and later risk-based actions, paired with
+  Redis-backed rate limits and single-use challenge tracking.
 
 ## Navigation
 
@@ -55,7 +59,11 @@ This is the entry point for project memory.
 - `../docs/architecture.md` - proposed technical architecture and directory
   layout.
 - `modules/identity.md` - identity, registration, sessions, roles, permissions,
-  and policy notes.
+  human verification, and policy notes.
+- `decisions/2026-07-04-altcha-human-verification.md` - accepted ALTCHA human
+  verification decision.
+- `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -
+  security verification design.
 - `../docs/development-and-deployment.md` - proposed local development,
   hot-reload, Docker Compose, and production deployment workflow.
 - `../apps/web` - Nuxt web scaffold with default `zh-CN` localization.
@@ -80,3 +88,4 @@ This is the entry point for project memory.
 - Should English translations be mandatory for MVP launch or allowed to lag
   during internal development?
 - Should email verification be required before posting in MVP?
+- What default ALTCHA challenge expiration and work cost should production use?

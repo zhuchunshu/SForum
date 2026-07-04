@@ -72,6 +72,10 @@ data fetching, and Vite-backed development without splitting the frontend stack.
 - Cache/session/rate-limit store: Redis.
 - Redis client: `redis/go-redis/v9`; Fiber storage adapters may be used where
   they fit Fiber middleware.
+- Human verification: ALTCHA by default, with server-side Go verification and
+  Redis-backed replay protection/rate limits; keep a narrow provider interface
+  so Cloudflare Turnstile can be added later for deployments that want managed
+  bot detection.
 - Durable jobs and queues: River backed by PostgreSQL, wrapped by a small
   project-owned `internal/platform/jobs` package.
 - Search: Meilisearch with `meilisearch-go`, fed from PostgreSQL through a
@@ -217,6 +221,10 @@ Recommended MVP auth model:
 - Session ID regeneration on login and privilege escalation.
 - Password hashing with Argon2id from `golang.org/x/crypto`.
 - CSRF protection for cookie-authenticated writes.
+- ALTCHA-backed human verification for registration and password-reset
+  initiation, with risk-based challenges for suspicious login attempts.
+- Redis-backed rate limits and single-use challenge tracking for
+  anti-automation flows.
 - One `users` table for regular members, moderators, and administrators.
 - Open registration by default after bootstrapping.
 - The first registered user becomes the protected initial `super_admin`.
@@ -240,6 +248,12 @@ Recommended URL pattern:
 
 Keep the numeric topic ID in the URL for stable lookup and allow slug changes to
 redirect to the canonical URL.
+
+Forum write flows should be able to call the shared human-verification boundary
+for risk-based actions such as rapid replies, first posts from new users, or
+posts containing links. The first posting milestone can start with rate limits
+and email-verification gates; do not duplicate CAPTCHA logic inside forum
+handlers.
 
 ### `moderation`
 
@@ -318,7 +332,8 @@ Default behavior:
 - PostgreSQL owns canonical users, categories, topics, posts, revisions,
   reports, moderation events, and search outbox rows.
 - Redis owns ephemeral sessions, rate limits, temporary verification/password
-  reset attempts, and short-lived cache entries.
+  reset attempts, human-verification challenge state, replay-protection keys,
+  and short-lived cache entries.
 - Meilisearch owns public search documents that can be rebuilt from PostgreSQL.
 - Object storage should be S3-compatible when uploads enter scope. Use local
   MinIO in development and a hosted S3/R2-compatible service in production.

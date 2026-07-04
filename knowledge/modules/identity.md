@@ -3,7 +3,8 @@
 ## Purpose
 
 Owns users, credentials, sessions, registration, login/logout, roles,
-permissions, and policy helpers.
+permissions, human-verification requirements for identity flows, and policy
+helpers.
 
 ## Current Status
 
@@ -23,6 +24,11 @@ Designed. No identity implementation exists yet.
 - Effective permissions are the union of all enabled roles assigned to a user.
 - Start with database-backed RBAC and Go policy helpers; keep room to adopt
   Casbin if permissions become substantially more complex.
+- Use ALTCHA as the default human-verification provider for open registration
+  and password-reset initiation.
+- Do not challenge every login by default; require human verification for login
+  only after suspicious failure patterns.
+- Store challenge replay protection and rate-limit state in Redis.
 
 ## Planned Tables
 
@@ -37,9 +43,10 @@ Designed. No identity implementation exists yet.
 ## Planned Boundaries
 
 - Fiber API owns registration, login/logout, session loading, permission
-  checks, protected-user invariants, and audit writes.
+  checks, human-verification enforcement, protected-user invariants, and audit
+  writes.
 - Nuxt owns login/register pages, admin role-management UI, route guards, and
-  localized permission-denied messages.
+  localized permission-denied and verification-failure messages.
 - Nuxt route guards are user-experience helpers only. API policy checks remain
   authoritative.
 
@@ -48,6 +55,8 @@ Designed. No identity implementation exists yet.
 - Which exact username, email, and password rules should MVP registration use?
 - Should email verification be required before posting, or only before
   sensitive account recovery flows?
+- What ALTCHA challenge expiration and work cost should be the production
+  default?
 - Which role-management screens are required in the first admin milestone?
 
 ## Next Steps
@@ -55,6 +64,8 @@ Designed. No identity implementation exists yet.
 - Add migrations for identity and RBAC tables.
 - Seed `super_admin`, `member`, and the initial permission list.
 - Implement concurrent-safe first-user registration.
+- Add ALTCHA challenge generation, server verification, Redis replay
+  protection, and registration rate limits.
 - Add session middleware and current-user endpoint.
 - Add admin role-management API endpoints and UI after the identity foundation
   works.

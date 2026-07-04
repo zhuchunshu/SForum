@@ -80,6 +80,32 @@ libraries, frameworks, or services.
 - Sources: https://docs.gofiber.io/next/middleware/session/,
   https://github.com/redis/go-redis
 
+## Human Verification And Anti-Automation
+
+- Problem: open forum registration needs protection against automated account
+  creation, password-reset abuse, credential-stuffing pressure, and early spam
+  without making normal users solve hostile puzzles.
+- Options: ALTCHA, Cloudflare Turnstile, hCaptcha, reCAPTCHA, or custom
+  honeypots/rate limits only.
+- Recommendation: ALTCHA by default, with Redis-backed rate limits and
+  single-use challenge tracking. Keep a small provider interface so Turnstile
+  can be added later for deployments that already use Cloudflare and accept a
+  third-party managed service.
+- Reason: ALTCHA is self-hostable, privacy-focused, has official server-side
+  integration libraries including Go, supports server-generated challenges, and
+  can verify payloads without normal API calls to an external CAPTCHA service.
+  ALTCHA's own recommendations also call for single-use challenge tracking,
+  expiration, and rate limiting, which fits the existing Redis plan.
+- Follow-up: configure provider mode, HMAC secret, challenge expiration, and
+  work cost during identity implementation.
+- Sources: https://altcha.org/docs/v2/,
+  https://altcha.org/docs/v2/server-integration/,
+  https://altcha.org/docs/v2/security-recommendations/,
+  https://github.com/altcha-org/altcha-lib-go,
+  https://developers.cloudflare.com/turnstile/get-started/server-side-validation/,
+  https://docs.hcaptcha.com/,
+  https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
+
 ## Authorization And Roles
 
 - Problem: support one forum user system with regular members, moderators,

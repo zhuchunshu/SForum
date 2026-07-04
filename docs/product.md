@@ -27,6 +27,19 @@ Define the forum product clearly before implementation starts.
 - Administrators can manage custom roles/user groups and assign permissions to
   them.
 
+## Security And Abuse Prevention
+
+- Registration uses human verification by default.
+- SForum's default human-verification provider is ALTCHA.
+- Human verification is paired with rate limits; it is not the only anti-spam
+  control.
+- Login should stay low-friction for normal users and require human
+  verification only after suspicious failure patterns.
+- Password reset initiation should require human verification when that flow is
+  implemented.
+- New-user posting restrictions, link posting gates, and email-verification
+  policy remain product decisions for the first posting milestone.
+
 ## Localization
 
 - Product features must support multiple languages from the first

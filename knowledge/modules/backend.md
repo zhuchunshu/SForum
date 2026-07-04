@@ -19,6 +19,8 @@ the first durable queue foundation.
 - `sqlc` for query generation.
 - `goose` for migrations.
 - Redis through `redis/go-redis/v9`.
+- ALTCHA human verification through the official Go library, wrapped behind a
+  small provider interface.
 - Meilisearch through `meilisearch-go`.
 - `go-playground/validator/v10` for validation.
 - `log/slog` for structured logging.
@@ -28,7 +30,8 @@ the first durable queue foundation.
 ## Planned Boundaries
 
 - `identity`: users, credentials, sessions, profiles, registration, password
-  reset, email verification, roles, permissions, and policy helpers.
+  reset, email verification, roles, permissions, human-verification enforcement,
+  and policy helpers.
 - `forum`: categories, topics, posts, revisions, visibility, slugs.
 - `moderation`: reports, staff actions, audit trail, soft deletion.
 - `search`: Meilisearch settings, indexing jobs, rebuilds, search endpoints.
@@ -36,6 +39,8 @@ the first durable queue foundation.
   retry behavior, and shared job conventions.
 - `localization`: locale negotiation, supported locale config, server-owned
   localized templates, and translation key conventions.
+- `humanverify`: shared provider boundary for ALTCHA challenge generation,
+  server-side verification, stable result codes, and later provider swaps.
 - `notifications`: deferred unless MVP requires it.
 
 ## Jobs And Queues
@@ -67,5 +72,7 @@ the first durable queue foundation.
 - Use one user system with open registration, first-user `super_admin`
   bootstrapping, default `member` assignment, and admin-managed custom
   roles/user groups.
+- Use ALTCHA by default for human verification, backed by Redis rate limits and
+  single-use challenge tracking.
 - Define the first OpenAPI contract and schema migrations.
 - Add River and `internal/platform/jobs` after the jobs design is reviewed.
