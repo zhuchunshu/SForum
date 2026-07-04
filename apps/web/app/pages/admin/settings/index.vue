@@ -32,6 +32,10 @@ const { pending, error, refresh } = await useAsyncData('admin-web-options', asyn
   return envelope.data
 })
 
+// 检查是否有未保存的更改
+const initialSiteName = computed(() => options.value['site.name'] || 'SForum')
+const hasUnsavedChanges = computed(() => siteName.value !== initialSiteName.value)
+
 useSeoMeta({
   title: t('admin.settings.metaTitle')
 })
@@ -54,6 +58,15 @@ async function submit() {
   } finally {
     saving.value = false
   }
+}
+
+function resetForm() {
+  siteName.value = initialSiteName.value
+  toast.add({
+    color: 'neutral',
+    icon: 'i-lucide-rotate-ccw',
+    title: '已重置未保存的更改'
+  })
 }
 </script>
 
@@ -97,46 +110,45 @@ async function submit() {
       :title="t('admin.settings.loadFailed')"
     />
 
-    <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
-      <template #header>
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <h2 class="text-base font-bold text-slate-900 dark:text-white">
-              {{ t('admin.settings.basic.title') }}
-            </h2>
-            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
-              {{ t('admin.settings.basic.description') }}
-            </p>
+    <form class="flex flex-col" @submit.prevent="submit">
+      <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-bold text-slate-900 dark:text-white">
+                {{ t('admin.settings.basic.title') }}
+              </h2>
+              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.settings.basic.description') }}
+              </p>
+            </div>
+            <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-mono">
+              site.name
+            </UBadge>
           </div>
-          <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-mono">
-            site.name
-          </UBadge>
-        </div>
-      </template>
+        </template>
 
-      <form class="grid max-w-2xl gap-4" @submit.prevent="submit">
-        <UFormField :label="t('admin.settings.siteName')" name="site-name">
-          <UInput
-            v-model="siteName"
-            icon="i-lucide-message-square-text"
-            :placeholder="t('admin.settings.siteNamePlaceholder')"
-            maxlength="80"
-            required
-            class="w-full"
-          />
-        </UFormField>
-
-        <div class="flex justify-end mt-2">
-          <UButton
-            type="submit"
-            leading-icon="i-lucide-save"
-            :loading="saving"
-            class="bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-medium"
-          >
-            {{ t('admin.settings.save') }}
-          </UButton>
+        <div class="grid max-w-2xl gap-4">
+          <UFormField :label="t('admin.settings.siteName')" name="site-name">
+            <UInput
+              v-model="siteName"
+              icon="i-lucide-message-square-text"
+              :placeholder="t('admin.settings.siteNamePlaceholder')"
+              maxlength="80"
+              required
+              class="w-full"
+            />
+          </UFormField>
         </div>
-      </form>
-    </UCard>
+      </UCard>
+
+      <!-- 吸底保存组件 -->
+      <SFAdminFormFooter
+        :saving="saving"
+        :show-unsaved-alert="hasUnsavedChanges"
+        :submit-text="t('admin.settings.save')"
+        @reset="resetForm"
+      />
+    </form>
   </div>
 </template>
