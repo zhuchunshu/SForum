@@ -219,6 +219,9 @@ func TestRegisterEndpointAcceptsHumanVerificationToken(t *testing.T) {
 	if body.Data.Username != "admin" {
 		t.Fatalf("expected admin username, got %q", body.Data.Username)
 	}
+	if body.Data.Locale != "zh-CN" {
+		t.Fatalf("expected zh-CN locale, got %q", body.Data.Locale)
+	}
 }
 
 func TestHumanVerificationChallengeEndpoint(t *testing.T) {
