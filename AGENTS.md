@@ -137,3 +137,4 @@ Recommended handoff format:
 - Git repository initialized.
 - Documentation and knowledge-base skeleton created.
 - First application scaffold has been added under `apps/web` and `apps/api`.
+- The user manually starts the `apps/web` dev server (port 3000) during development. When port 3000 is occupied, assume it is the user's own running server — do not kill it without asking.
