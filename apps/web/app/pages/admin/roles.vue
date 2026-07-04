@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ApiEnvelope } from '~/composables/useApiClient'
+
 definePageMeta({
   middleware: 'admin',
   layout: 'admin'
@@ -16,15 +18,20 @@ type Role = {
 }
 
 const { t } = useI18n()
-const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
-const requestHeaders = import.meta.server ? useRequestHeaders(['cookie']) : undefined
+const { apiBaseUrl, apiHeaders } = useApiClient()
 const search = ref('')
 
-const { data: roles, pending, error, refresh } = await useFetch<Role[]>(`${apiBaseUrl}/roles`, {
+const { data: rolesEnvelope, pending, error, refresh } = await useFetch<ApiEnvelope<Role[]>>(`${apiBaseUrl}/roles`, {
   credentials: 'include',
-  headers: requestHeaders,
-  default: () => []
+  headers: apiHeaders(),
+  default: () => ({
+    code: 200,
+    message: 'OK',
+    data: []
+  })
 })
+
+const roles = computed(() => rolesEnvelope.value?.data ?? [])
 
 const columns = computed(() => [
   {
@@ -49,10 +56,10 @@ const filteredRoles = computed(() => {
   const keyword = search.value.trim().toLowerCase()
 
   if (!keyword) {
-    return roles.value ?? []
+    return roles.value
   }
 
-  return (roles.value ?? []).filter((role) => {
+  return roles.value.filter((role) => {
     return [role.key, role.alias, role.description]
       .some((value) => value.toLowerCase().includes(keyword))
   })
