@@ -18,15 +18,58 @@
 }
 
 :root {
-  color-scheme: light;
   font-family: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: #fcfcfd;
-  color: #09090b;
+  
+  /* 语义化基础变量：浅色模式 */
+  --bg-app: #fcfcfd;
+  --text-main: #09090b;
+  --text-muted: #71717a;
+  --border-default: #e4e4e7;
+
+  /* 后台定制：浅色模式 */
+  --bg-admin-sidebar: #0f172a; /* Slate 900 */
+  --bg-admin-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --text-admin-sidebar: #94a3b8;
+  --text-admin-sidebar-active: #2dd4bf;
+  
+  --bg-admin-app: #f8fafc;
+  --bg-admin-card: #ffffff;
+  --border-admin: #e2e8f0;
+  --text-admin-main: #0f172a;
+}
+
+.dark {
+  /* 语义化基础变量：深色模式 */
+  --bg-app: #09090b;
+  --text-main: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --border-default: #27272a;
+
+  /* 后台定制：深色模式 */
+  --bg-admin-sidebar: #09090b; /* Zinc 950 */
+  --bg-admin-sidebar-hover: rgba(255, 255, 255, 0.03);
+  --text-admin-sidebar: #71717a;
+  --text-admin-sidebar-active: #2dd4bf;
+  
+  --bg-admin-app: #09090b;
+  --bg-admin-card: #18181b;
+  --border-admin: #27272a;
+  --text-admin-main: #f4f4f5;
 }
 
 body {
   margin: 0;
-  background: #fcfcfd;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+/* 覆盖后台特定框架的默认边框和背景 */
+.border-default {
+  border-color: var(--border-admin);
+}
+.bg-default\/95 {
+  background-color: var(--bg-admin-sidebar);
 }
 
 a {
