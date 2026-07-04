@@ -44,13 +44,42 @@ WHERE user_roles.user_id = $1 AND roles.is_enabled = TRUE
 ORDER BY roles.key;
 
 -- name: ListUserPermissions :many
-SELECT DISTINCT permissions.key
-FROM user_roles
-JOIN roles ON roles.id = user_roles.role_id
-JOIN role_permissions ON role_permissions.role_id = roles.id
-JOIN permissions ON permissions.key = role_permissions.permission_key
-WHERE user_roles.user_id = $1 AND roles.is_enabled = TRUE
-ORDER BY permissions.key;
+WITH role_permission_keys AS (
+  SELECT DISTINCT permissions.key
+  FROM user_roles
+  JOIN roles ON roles.id = user_roles.role_id
+  JOIN role_permissions ON role_permissions.role_id = roles.id
+  JOIN permissions ON permissions.key = role_permissions.permission_key
+  WHERE user_roles.user_id = $1 AND roles.is_enabled = TRUE
+),
+allowed_permission_keys AS (
+  SELECT permission_key AS key
+  FROM user_permission_overrides
+  WHERE user_id = $1 AND effect = 'allow'
+),
+denied_permission_keys AS (
+  SELECT permission_key AS key
+  FROM user_permission_overrides
+  WHERE user_id = $1 AND effect = 'deny'
+),
+candidate_permission_keys AS (
+  SELECT key FROM role_permission_keys
+  UNION
+  SELECT key FROM allowed_permission_keys
+)
+SELECT candidate_permission_keys.key
+FROM candidate_permission_keys
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM denied_permission_keys
+  WHERE denied_permission_keys.key = candidate_permission_keys.key
+)
+ORDER BY candidate_permission_keys.key;
+
+-- name: ListPermissions :many
+SELECT key, module, description
+FROM permissions
+ORDER BY module ASC, key ASC;
 
 -- name: GetCurrentUser :one
 SELECT id, username, display_name, locale, status, is_initial_super_admin

@@ -45,8 +45,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, fmt.Errorf("redis session storage setup failed: %w", err)
 	}
 	humanVerifyStore := humanverify.NewRedisStore(humanverify.NewRedisClient(cfg.RedisAddr, cfg.RedisPassword))
-	humanVerifier, err := newHumanVerifyService(cfg, humanVerifyStore)
-	if err != nil {
+	optionStore := options.NewPostgresStore(pool)
+	optionsService := options.NewServiceWithDefaults(optionStore, optionsDefaultsFromConfig(cfg))
+	if err := optionsService.EnsureDefaults(ctx); err != nil {
 		if closeErr := humanVerifyStore.Close(); closeErr != nil {
 			logger.Warn("human verification redis close failed", "error", closeErr)
 		}
@@ -54,8 +55,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			logger.Warn("redis session storage close failed", "error", closeErr)
 		}
 		pool.Close()
-		return nil, err
+		return nil, fmt.Errorf("ensure runtime options defaults failed: %w", err)
 	}
+	humanVerifier := humanverify.NewRuntimeService(optionsService, humanVerifyStore, humanVerifyConfigFromConfig(cfg))
 
 	sessionStore := session.NewStore(session.Config{
 		Storage:         redisStorage,
@@ -74,10 +76,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	})
 	identityStore := identity.NewPostgresStore(pool)
 	identityProvider := providers.NewIdentityProviderWithAuthSessions(identityStore, authSessions, humanVerifier)
-	optionsProvider := providers.NewOptionsProviderWithSessions(options.NewPostgresStore(pool), identityStore, authSessions)
+	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
 		RouteProviders: []httpserver.RouteProvider{identityProvider, optionsProvider},
+		Options:        optionsService,
 	})
 
 	return &API{
@@ -119,25 +122,29 @@ func apiAddress(cfg config.Config) string {
 }
 
 func newHumanVerifyService(cfg config.Config, store humanverify.Store) (*humanverify.Service, error) {
-	switch strings.ToLower(strings.TrimSpace(cfg.HumanVerificationProvider)) {
-	case "", humanverify.ProviderDisabled:
-		return humanverify.NewDisabledService(), nil
-	case humanverify.ProviderAltcha:
-		return humanverify.NewService(
-			humanverify.ServiceConfig{
-				Enabled:         true,
-				ChallengeTTL:    cfg.AltchaChallengeTTL,
-				RateLimit:       60,
-				RateLimitWindow: time.Minute,
-			},
-			humanverify.NewAltchaProvider(humanverify.AltchaConfig{
-				Secret:       cfg.AltchaSecret,
-				Cost:         cfg.AltchaCost,
-				ChallengeTTL: cfg.AltchaChallengeTTL,
-			}),
-			store,
-		), nil
-	default:
-		return nil, fmt.Errorf("unsupported human verification provider %q", cfg.HumanVerificationProvider)
+	return humanverify.NewConfiguredService(humanVerifyConfigFromConfig(cfg), store)
+}
+
+func optionsDefaultsFromConfig(cfg config.Config) options.Defaults {
+	return options.Defaults{
+		SiteName:                  cfg.AppName,
+		SiteURL:                   cfg.AppURL,
+		DefaultLocale:             cfg.AppLocale,
+		SupportedLocales:          cfg.SupportedLocales,
+		HumanVerificationProvider: cfg.HumanVerificationProvider,
+		AltchaSecret:              cfg.AltchaSecret,
+		AltchaChallengeTTL:        cfg.AltchaChallengeTTL,
+		AltchaCost:                cfg.AltchaCost,
+	}
+}
+
+func humanVerifyConfigFromConfig(cfg config.Config) humanverify.RuntimeConfig {
+	return humanverify.RuntimeConfig{
+		Provider:        cfg.HumanVerificationProvider,
+		AltchaSecret:    cfg.AltchaSecret,
+		AltchaTTL:       cfg.AltchaChallengeTTL,
+		AltchaCost:      cfg.AltchaCost,
+		RateLimit:       60,
+		RateLimitWindow: time.Minute,
 	}
 }

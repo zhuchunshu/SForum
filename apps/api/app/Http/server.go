@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"log/slog"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -26,6 +28,7 @@ type RouteProvider interface {
 
 type Dependencies struct {
 	RouteProviders []RouteProvider
+	Options        *options.Service
 }
 
 func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.App {
@@ -40,7 +43,7 @@ func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.Ap
 
 	app.Use(requestid.New())
 	app.Use(recover.New())
-	app.Use(localeMiddleware(cfg))
+	app.Use(localeMiddleware(cfg, deps.Options))
 
 	registerRoutes(app, cfg, deps)
 
@@ -57,15 +60,35 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 	}
 
 	api.Get("/health", func(c fiber.Ctx) error {
+		settings := runtimeSettings(c.Context(), cfg, deps.Options)
 		return OK(c, healthResponse{
-			Name:             cfg.AppName,
+			Name:             settings.SiteName,
 			Status:           "ok",
 			Environment:      cfg.AppEnv,
-			Locale:           cfg.AppLocale,
-			SupportedLocales: cfg.SupportedLocales,
+			Locale:           settings.DefaultLocale,
+			SupportedLocales: settings.SupportedLocales,
 			Time:             time.Now().UTC(),
 		})
 	})
+}
+
+func runtimeSettings(ctx context.Context, cfg config.Config, service *options.Service) options.RuntimeSettings {
+	if service != nil {
+		if settings, err := service.RuntimeSettings(ctx); err == nil {
+			return settings
+		}
+	}
+	return fallbackRuntimeSettings(cfg)
+}
+
+func fallbackRuntimeSettings(cfg config.Config) options.RuntimeSettings {
+	return options.RuntimeSettings{
+		SiteName:                  cfg.AppName,
+		SiteURL:                   "",
+		DefaultLocale:             cfg.AppLocale,
+		SupportedLocales:          cfg.SupportedLocales,
+		HumanVerificationProvider: cfg.HumanVerificationProvider,
+	}
 }
 
 const sforumStartupBanner = `

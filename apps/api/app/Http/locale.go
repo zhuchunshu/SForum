@@ -3,18 +3,27 @@ package http
 import (
 	"github.com/gofiber/fiber/v3"
 
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Localization"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
 const requestLocaleKey = "sforum.locale"
 
-func localeMiddleware(cfg config.Config) fiber.Handler {
+func localeMiddleware(cfg config.Config, service *options.Service) fiber.Handler {
 	return func(c fiber.Ctx) error {
+		supported := cfg.SupportedLocales
+		fallback := cfg.AppLocale
+		if service != nil {
+			if settings, err := service.RuntimeSettings(c.Context()); err == nil {
+				supported = settings.SupportedLocales
+				fallback = settings.DefaultLocale
+			}
+		}
 		locale := localization.NegotiateAcceptLanguage(
 			c.Get("Accept-Language"),
-			cfg.SupportedLocales,
-			cfg.AppLocale,
+			supported,
+			fallback,
 		)
 		c.Locals(requestLocaleKey, locale)
 		return c.Next()

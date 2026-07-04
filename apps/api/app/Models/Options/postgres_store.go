@@ -40,6 +40,18 @@ func (s *PostgresStore) List(ctx context.Context) ([]Option, error) {
 	return options, nil
 }
 
+func (s *PostgresStore) InsertMissing(ctx context.Context, input UpdateInput) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO web_options (name, value)
+		VALUES ($1, $2)
+		ON CONFLICT (name) DO NOTHING
+	`, input.Name, input.Value)
+	if err != nil {
+		return fmt.Errorf("insert missing web option: %w", err)
+	}
+	return nil
+}
+
 func (s *PostgresStore) Upsert(ctx context.Context, input UpdateInput) (Option, error) {
 	var option Option
 	err := s.pool.QueryRow(ctx, `

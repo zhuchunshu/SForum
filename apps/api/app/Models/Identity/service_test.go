@@ -264,6 +264,29 @@ func TestLoginRejectsWrongPassword(t *testing.T) {
 	}
 }
 
+func TestLoginPropagatesCredentialStoreErrors(t *testing.T) {
+	service, store := newTestService(t)
+	ctx := testContext(t)
+
+	_, err := service.Register(ctx, RegisterInput{
+		Username: "admin",
+		Email:    "admin@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("Register returned error: %v", err)
+	}
+
+	store.credentialErr = errors.New("load current user access failed")
+	_, err = service.Login(ctx, LoginInput{
+		Login:    "admin",
+		Password: "correct horse battery staple",
+	})
+	if err == nil || errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("expected internal credential loading error, got %v", err)
+	}
+}
+
 func TestLoginRejectsDisabledUser(t *testing.T) {
 	service, store := newTestService(t)
 	ctx := testContext(t)
@@ -323,15 +346,17 @@ func newTestService(t *testing.T) (*Service, *fakeStore) {
 	t.Helper()
 
 	store := &fakeStore{
-		nextUserID:   1,
-		users:        map[int64]CurrentUser{},
-		credentials:  map[int64]string{},
-		loginIndex:   map[string]int64{},
-		roles:        map[string]Role{},
-		roleByID:     map[int64]Role{},
-		userRoleIDs:  map[int64][]int64{},
-		rolePerms:    map[int64][]string{},
-		nextCustomID: 100,
+		nextUserID:    1,
+		users:         map[int64]CurrentUser{},
+		userEmails:    map[int64]string{},
+		credentials:   map[int64]string{},
+		loginIndex:    map[string]int64{},
+		roles:         map[string]Role{},
+		roleByID:      map[int64]Role{},
+		userRoleIDs:   map[int64][]int64{},
+		rolePerms:     map[int64][]string{},
+		userOverrides: map[int64]PermissionOverrides{},
+		nextCustomID:  100,
 	}
 	store.seedRole(Role{ID: 1, Key: RoleSuperAdmin, Alias: "超级管理员", IsSystem: true, IsDeletable: false, IsEnabled: true})
 	store.seedRole(Role{ID: 2, Key: RoleMember, Alias: "普通会员", IsSystem: true, IsDefault: true, IsDeletable: false, IsEnabled: true})
@@ -351,13 +376,16 @@ type fakeStore struct {
 	nextUserID    int64
 	nextCustomID  int64
 	users         map[int64]CurrentUser
+	userEmails    map[int64]string
 	credentials   map[int64]string
 	loginIndex    map[string]int64
 	roles         map[string]Role
 	roleByID      map[int64]Role
 	userRoleIDs   map[int64][]int64
 	rolePerms     map[int64][]string
+	userOverrides map[int64]PermissionOverrides
 	loginAudits   []LoginAudit
+	credentialErr error
 	loadAccessErr error
 }
 
@@ -399,6 +427,7 @@ func (s *fakeStore) CreateUser(_ context.Context, input CreateUserInput) (Curren
 	}
 	s.nextUserID++
 	s.users[user.ID] = user
+	s.userEmails[user.ID] = input.Email
 	s.loginIndex[strings.ToLower(input.Username)] = user.ID
 	s.loginIndex[strings.ToLower(input.Email)] = user.ID
 	return user, nil
@@ -443,9 +472,12 @@ func (s *fakeStore) GetCurrentUser(_ context.Context, userID int64) (CurrentUser
 }
 
 func (s *fakeStore) GetCredentialByLogin(_ context.Context, login string) (CredentialUser, error) {
+	if s.credentialErr != nil {
+		return CredentialUser{}, s.credentialErr
+	}
 	userID, ok := s.loginIndex[strings.ToLower(login)]
 	if !ok {
-		return CredentialUser{}, errors.New("credential not found")
+		return CredentialUser{}, ErrCredentialNotFound
 	}
 	user, err := s.GetCurrentUser(context.Background(), userID)
 	if err != nil {
@@ -466,9 +498,55 @@ func (s *fakeStore) LoadActor(ctx context.Context, userID int64) (Actor, error) 
 	return Actor{ID: user.ID, Status: user.Status, RoleKeys: user.RoleKeys, Permissions: permissions}, nil
 }
 
+func (s *fakeStore) ListPermissions(context.Context) ([]Permission, error) {
+	permissions := make([]Permission, 0, len(SeedPermissions))
+	for _, permission := range SeedPermissions {
+		permissions = append(permissions, Permission{
+			Key:         permission.Key,
+			Module:      permission.Module,
+			Description: permission.Description,
+		})
+	}
+	return permissions, nil
+}
+
+func (s *fakeStore) ListPermissionMatrix(context.Context) (PermissionMatrix, error) {
+	permissions, _ := s.ListPermissions(context.Background())
+	roles := make([]RolePermissionSet, 0, len(s.roles))
+	for _, role := range s.roles {
+		roles = append(roles, RolePermissionSet{
+			RoleKey:        role.Key,
+			PermissionKeys: slices.Clone(s.rolePerms[role.ID]),
+		})
+	}
+	return PermissionMatrix{Permissions: permissions, Roles: roles}, nil
+}
+
+func (s *fakeStore) ListUsers(_ context.Context, input UserListInput) (AdminUserList, error) {
+	items := make([]AdminUserSummary, 0, len(s.users))
+	for _, user := range s.users {
+		items = append(items, s.adminSummary(user))
+	}
+	return AdminUserList{Items: items, Total: int64(len(items)), Page: input.Page, PerPage: input.PerPage}, nil
+}
+
+func (s *fakeStore) GetAdminUser(_ context.Context, userID int64) (AdminUserDetail, error) {
+	user, ok := s.users[userID]
+	if !ok {
+		return AdminUserDetail{}, errors.New("user not found")
+	}
+	user = s.withAccess(user)
+	return AdminUserDetail{
+		AdminUserSummary:    s.adminSummary(user),
+		Permissions:         slices.Clone(user.Permissions),
+		PermissionOverrides: s.cloneOverrides(userID),
+	}, nil
+}
+
 func (s *fakeStore) ListRoles(context.Context) ([]Role, error) {
 	roles := make([]Role, 0, len(s.roles))
 	for _, role := range s.roles {
+		role.PermissionKeys = slices.Clone(s.rolePerms[role.ID])
 		roles = append(roles, role)
 	}
 	return roles, nil
@@ -500,6 +578,27 @@ func (s *fakeStore) ReplaceRolePermissions(_ context.Context, _ int64, roleKey s
 	return nil
 }
 
+func (s *fakeStore) ReplaceUserRoles(_ context.Context, _ int64, targetUserID int64, roleKeys []string) (AdminUserDetail, error) {
+	roleIDs := make([]int64, 0, len(roleKeys))
+	for _, roleKey := range roleKeys {
+		role, ok := s.roles[roleKey]
+		if !ok {
+			return AdminUserDetail{}, errors.New("role not found")
+		}
+		roleIDs = append(roleIDs, role.ID)
+	}
+	s.userRoleIDs[targetUserID] = roleIDs
+	return s.GetAdminUser(context.Background(), targetUserID)
+}
+
+func (s *fakeStore) ReplaceUserPermissionOverrides(_ context.Context, _ int64, targetUserID int64, overrides PermissionOverrides) (AdminUserDetail, error) {
+	s.userOverrides[targetUserID] = PermissionOverrides{
+		Allow: slices.Clone(overrides.Allow),
+		Deny:  slices.Clone(overrides.Deny),
+	}
+	return s.GetAdminUser(context.Background(), targetUserID)
+}
+
 func (s *fakeStore) RecordLoginAudit(_ context.Context, input LoginAudit) error {
 	s.loginAudits = append(s.loginAudits, input)
 	return nil
@@ -516,6 +615,13 @@ func (s *fakeStore) withAccess(user CurrentUser) CurrentUser {
 			permissionSet[permission] = true
 		}
 	}
+	overrides := s.userOverrides[user.ID]
+	for _, permission := range overrides.Allow {
+		permissionSet[permission] = true
+	}
+	for _, permission := range overrides.Deny {
+		delete(permissionSet, permission)
+	}
 	permissions := make([]string, 0, len(permissionSet))
 	for permission := range permissionSet {
 		permissions = append(permissions, permission)
@@ -525,29 +631,55 @@ func (s *fakeStore) withAccess(user CurrentUser) CurrentUser {
 	return user
 }
 
+func (s *fakeStore) adminSummary(user CurrentUser) AdminUserSummary {
+	user = s.withAccess(user)
+	return AdminUserSummary{
+		ID:                  user.ID,
+		Username:            user.Username,
+		Email:               s.userEmails[user.ID],
+		DisplayName:         user.DisplayName,
+		Locale:              user.Locale,
+		Status:              user.Status,
+		IsInitialSuperAdmin: user.IsInitialSuperAdmin,
+		RoleKeys:            slices.Clone(user.RoleKeys),
+	}
+}
+
+func (s *fakeStore) cloneOverrides(userID int64) PermissionOverrides {
+	overrides := s.userOverrides[userID]
+	return PermissionOverrides{
+		Allow: slices.Clone(overrides.Allow),
+		Deny:  slices.Clone(overrides.Deny),
+	}
+}
+
 type fakeStoreSnapshot struct {
-	nextUserID   int64
-	nextCustomID int64
-	users        map[int64]CurrentUser
-	credentials  map[int64]string
-	loginIndex   map[string]int64
-	roles        map[string]Role
-	roleByID     map[int64]Role
-	userRoleIDs  map[int64][]int64
-	rolePerms    map[int64][]string
+	nextUserID    int64
+	nextCustomID  int64
+	users         map[int64]CurrentUser
+	userEmails    map[int64]string
+	credentials   map[int64]string
+	loginIndex    map[string]int64
+	roles         map[string]Role
+	roleByID      map[int64]Role
+	userRoleIDs   map[int64][]int64
+	rolePerms     map[int64][]string
+	userOverrides map[int64]PermissionOverrides
 }
 
 func (s *fakeStore) snapshot() fakeStoreSnapshot {
 	return fakeStoreSnapshot{
-		nextUserID:   s.nextUserID,
-		nextCustomID: s.nextCustomID,
-		users:        cloneIntCurrentUserMap(s.users),
-		credentials:  cloneIntStringMap(s.credentials),
-		loginIndex:   cloneStringIntMap(s.loginIndex),
-		roles:        cloneStringRoleMap(s.roles),
-		roleByID:     cloneIntRoleMap(s.roleByID),
-		userRoleIDs:  cloneIntIntSliceMap(s.userRoleIDs),
-		rolePerms:    cloneIntStringSliceMap(s.rolePerms),
+		nextUserID:    s.nextUserID,
+		nextCustomID:  s.nextCustomID,
+		users:         cloneIntCurrentUserMap(s.users),
+		userEmails:    cloneIntStringMap(s.userEmails),
+		credentials:   cloneIntStringMap(s.credentials),
+		loginIndex:    cloneStringIntMap(s.loginIndex),
+		roles:         cloneStringRoleMap(s.roles),
+		roleByID:      cloneIntRoleMap(s.roleByID),
+		userRoleIDs:   cloneIntIntSliceMap(s.userRoleIDs),
+		rolePerms:     cloneIntStringSliceMap(s.rolePerms),
+		userOverrides: cloneIntOverridesMap(s.userOverrides),
 	}
 }
 
@@ -555,12 +687,14 @@ func (s *fakeStore) restore(snapshot fakeStoreSnapshot) {
 	s.nextUserID = snapshot.nextUserID
 	s.nextCustomID = snapshot.nextCustomID
 	s.users = snapshot.users
+	s.userEmails = snapshot.userEmails
 	s.credentials = snapshot.credentials
 	s.loginIndex = snapshot.loginIndex
 	s.roles = snapshot.roles
 	s.roleByID = snapshot.roleByID
 	s.userRoleIDs = snapshot.userRoleIDs
 	s.rolePerms = snapshot.rolePerms
+	s.userOverrides = snapshot.userOverrides
 }
 
 func cloneIntCurrentUserMap(input map[int64]CurrentUser) map[int64]CurrentUser {
@@ -615,6 +749,17 @@ func cloneIntStringSliceMap(input map[int64][]string) map[int64][]string {
 	output := make(map[int64][]string, len(input))
 	for key, value := range input {
 		output[key] = slices.Clone(value)
+	}
+	return output
+}
+
+func cloneIntOverridesMap(input map[int64]PermissionOverrides) map[int64]PermissionOverrides {
+	output := make(map[int64]PermissionOverrides, len(input))
+	for key, value := range input {
+		output[key] = PermissionOverrides{
+			Allow: slices.Clone(value.Allow),
+			Deny:  slices.Clone(value.Deny),
+		}
 	}
 	return output
 }

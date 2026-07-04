@@ -273,8 +273,9 @@ Summary:
 - Development Compose runs Goose migrations through a one-shot `migrate`
   service before API and worker startup. Production deployments run the same
   migration binary explicitly after backup and before app services are updated.
-- Local and production environment files should default `APP_LOCALE` to
-  `zh-CN` and list supported locales explicitly.
+- Local and production environment files should provide first-run fallback
+  values for site URL, default locale, supported locales, and CAPTCHA settings;
+  operators manage the runtime values from the admin site settings page.
 - Local and production Compose stacks should publish only the `web` service on
   `127.0.0.1:${WEB_PORT}`. API, PostgreSQL, Redis, and Meilisearch stay on the
   Compose network.

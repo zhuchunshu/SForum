@@ -11,10 +11,9 @@ type RegistrationStatus = {
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
-const runtimeConfig = useRuntimeConfig()
 const { apiBaseUrl, request } = useApiClient()
 const { setUser, can } = useAuthSession()
-const { siteName } = useWebOptions()
+const { siteName, humanVerificationProvider } = useWebOptions()
 
 const form = reactive({
   username: '',
@@ -34,7 +33,7 @@ const altchaConfiguration = JSON.stringify({
   hideFooter: true
 })
 const configuredHumanVerificationProvider = computed(() => {
-  const provider = String(runtimeConfig.public.humanVerificationProvider || 'disabled').trim().toLowerCase()
+  const provider = humanVerificationProvider.value
   return provider === 'altcha' ? 'altcha' : 'disabled'
 })
 const humanVerificationEnabled = computed(() => {

@@ -8,7 +8,9 @@ const requiredFiles = [
   'apps/web/app/pages/register.vue',
   'apps/web/app/pages/login.vue',
   'apps/web/app/pages/admin/index.vue',
-  'apps/web/app/pages/admin/roles.vue'
+  'apps/web/app/pages/admin/roles.vue',
+  'apps/web/app/pages/admin/users.vue',
+  'apps/web/app/pages/admin/permissions.vue'
 ];
 
 for (const file of requiredFiles) {
@@ -27,11 +29,45 @@ const requiredKeys = [
   ['auth', 'loginTitle'],
   ['admin', 'home', 'title'],
   ['admin', 'roles', 'title'],
+  ['admin', 'roles', 'permissionEditor'],
+  ['admin', 'users', 'permissionSection'],
+  ['admin', 'users', 'overrideMode', 'deny'],
+  ['admin', 'permissions', 'matrix'],
   ['errors', 'permissionDenied']
 ];
 
 function valueAt(object, keyPath) {
   return keyPath.reduce((current, key) => current?.[key], object);
+}
+
+const adminUsersPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/admin/users.vue'), 'utf8');
+const adminRolesPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/admin/roles.vue'), 'utf8');
+const adminPermissionsPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/admin/permissions.vue'), 'utf8');
+
+for (const [name, content] of [
+  ['admin/users.vue', adminUsersPage],
+  ['admin/roles.vue', adminRolesPage],
+  ['admin/permissions.vue', adminPermissionsPage]
+]) {
+  if (!content.includes("layout: 'admin'")) {
+    throw new Error(`${name} should use the admin layout`);
+  }
+  if (!content.includes('UDashboardToolbar')) {
+    throw new Error(`${name} should render a dashboard toolbar`);
+  }
+  if (!content.includes('i-lucide-')) {
+    throw new Error(`${name} should use Nuxt Icon lucide icons`);
+  }
+}
+
+if (!adminUsersPage.includes('/permission-overrides')) {
+  throw new Error('Admin users page should manage per-user permission overrides');
+}
+if (!adminRolesPage.includes('/permissions')) {
+  throw new Error('Admin roles page should manage role permissions');
+}
+if (!adminPermissionsPage.includes('/permissions/matrix')) {
+  throw new Error('Admin permissions page should load the permission matrix');
 }
 
 for (const keyPath of requiredKeys) {
@@ -60,6 +96,12 @@ if (!registerPage.includes('const altchaWidget = ref<AltchaWidgetElement | null>
 }
 if (!registerPage.includes('humanVerificationEnabled')) {
   throw new Error('Registration ALTCHA widget should be guarded by the configured provider');
+}
+if (!registerPage.includes('humanVerificationProvider')) {
+  throw new Error('Registration ALTCHA widget should read the provider from runtime web options');
+}
+if (registerPage.includes('public.humanVerificationProvider')) {
+  throw new Error('Registration ALTCHA widget should not read provider from Nuxt public runtime config');
 }
 if (!registerPage.includes('ref="altchaWidget"')) {
   throw new Error('Registration ALTCHA widget should bind the template ref');

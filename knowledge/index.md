@@ -65,6 +65,12 @@ This is the entry point for project memory.
   user becomes the protected initial `super_admin`; later open registrations
   receive the undeletable default `member` role; admin-managed custom
   roles/user groups are supported.
+- The first admin permission management release is implemented: role RBAC now
+  supports per-user permission overrides where ordinary users inherit enabled
+  user-group permissions plus direct allows minus direct denies. Active
+  `super_admin` users still pass every policy check and cannot receive direct
+  permission overrides. The admin UI now includes user management, editable
+  user-group permissions, and a permission matrix.
 - Security verification architecture is accepted: SForum keeps human
   verification disabled by default, with ALTCHA as the first supported
   self-hosted provider for registration, password-reset initiation, and later
@@ -98,6 +104,9 @@ This is the entry point for project memory.
   timeout, 24-hour session-id renewal, login-time session reset, production
   Secure cookies, and login audit records with IP, User-Agent, time, and salted
   session hash.
+- Login credential lookup now distinguishes an actual missing credential from
+  internal credential-loading failures, so schema drift or database errors are
+  no longer misreported as wrong passwords.
 - Frontend auth refresh now preserves the current user state during transient
   API restart/timeout/gateway failures, restores browser sessions during app
   startup when the API is available, and only redirects to login on confirmed
@@ -121,9 +130,10 @@ This is the entry point for project memory.
   equals the HTTP status code, and stable machine-readable reasons live under
   `data.reason`.
 - Runtime web options are now introduced through `web_options(name, value)`.
-  `site.name` defaults to `SForum`, is cached in the backend Options service,
-  is readable by the frontend through `useWebOptions().webOption()`, and can be
-  edited from the admin site settings page by users with `settings.manage`.
+  Site name, site URL, default locale, enabled locales, and public
+  human-verification provider are frontend-safe runtime options. Admin-only
+  settings include masked ALTCHA secret metadata plus ALTCHA TTL/cost, editable
+  from the admin settings page by users with `settings.manage`.
 - The global footer has been implemented using the Option A (Single-line Minimalist) design direction, supporting dynamic copyright data, localized links (Terms, Privacy, Guidelines) mapped to placeholder links, and full Light/Dark mode responsiveness.
 
 ## Navigation
@@ -158,6 +168,8 @@ This is the entry point for project memory.
   run as host processes.
 - `decisions/2026-07-05-admin-multitabs-and-layout-rules.md` - accepted admin
   multitabs, topbar breadcrumbs, larger tabs, and nested menu rules decision.
+- `decisions/2026-07-05-user-permission-overrides.md` - accepted user-level
+  permission override decision for precise admin-managed access.
 - `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA
   implementation handoff.
 - `sessions/2026-07-04-registration-status-notice.md` - first-user
@@ -169,6 +181,9 @@ This is the entry point for project memory.
 - `sessions/2026-07-05-registration-success-navigation.md` - registration
   password hint, success-state hydration, and middleware-safe API locale
   handoff.
+- `sessions/2026-07-05-login-migration-mismatch-fix.md` - missing
+  `user_permission_overrides` migration root cause and login error-mapping
+  hardening handoff.
 - `sessions/2026-07-05-local-dev-dependencies.md` - local dependency startup
   and host-process development handoff.
 - `sessions/2026-07-05-registration-altcha-default-disabled.md` -
@@ -181,6 +196,8 @@ This is the entry point for project memory.
   global topbar, theme adaptive sidebar, and nested menu layout upgrades handoff.
 - `sessions/2026-07-05-public-navbar-hide-admin-entry.md` - public navbar admin
   entry removal handoff.
+- `sessions/2026-07-05-admin-permission-management.md` - user-level permission
+  overrides, admin users/roles/permissions UI, and API contract handoff.
 - `sessions/2026-07-05-auth-session-restart-resilience.md` - frontend auth
   refresh behavior for API restart/session recovery resilience.
 - `sessions/2026-07-05-global-footer-implementation.md` - global footer implementation handoff.

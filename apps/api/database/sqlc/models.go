@@ -65,6 +65,15 @@ type UserCredential struct {
 	UpdatedAt         pgtype.Timestamptz
 }
 
+type UserPermissionOverride struct {
+	UserID          int64
+	PermissionKey   string
+	Effect          string
+	UpdatedByUserID pgtype.Int8
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+}
+
 type UserRole struct {
 	UserID    int64
 	RoleID    int64

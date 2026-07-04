@@ -55,7 +55,12 @@ for (const authPage of ['apps/web/app/pages/login.vue', 'apps/web/app/pages/regi
   assert(!content.includes("? '/admin'"), `${authPage} should not hard-code the legacy /admin prefix`)
 }
 
-for (const adminPage of ['apps/web/app/pages/admin/index.vue', 'apps/web/app/pages/admin/roles.vue']) {
+for (const adminPage of [
+  'apps/web/app/pages/admin/index.vue',
+  'apps/web/app/pages/admin/roles.vue',
+  'apps/web/app/pages/admin/users.vue',
+  'apps/web/app/pages/admin/permissions.vue'
+]) {
   const content = read(adminPage)
   assert(content.includes("layout: 'admin'"), `${adminPage} should use the admin layout`)
   assert(content.includes('UDashboardToolbar'), `${adminPage} should render inside the Nuxt UI dashboard shell`)

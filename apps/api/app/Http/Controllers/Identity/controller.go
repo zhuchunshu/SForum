@@ -2,6 +2,7 @@ package identitycontroller
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
@@ -15,18 +16,18 @@ import (
 type Controller struct {
 	service      *identity.Service
 	authSessions *authsession.Manager
-	verifier     *humanverify.Service
+	verifier     humanverify.Verifier
 }
 
 func NewController(service *identity.Service, sessions *session.Store) *Controller {
 	return NewControllerWithVerifier(service, sessions, humanverify.NewDisabledService())
 }
 
-func NewControllerWithVerifier(service *identity.Service, sessions *session.Store, verifier *humanverify.Service) *Controller {
+func NewControllerWithVerifier(service *identity.Service, sessions *session.Store, verifier humanverify.Verifier) *Controller {
 	return NewControllerWithAuthSessions(service, authsession.NewManager(sessions, authsession.Config{}), verifier)
 }
 
-func NewControllerWithAuthSessions(service *identity.Service, sessions *authsession.Manager, verifier *humanverify.Service) *Controller {
+func NewControllerWithAuthSessions(service *identity.Service, sessions *authsession.Manager, verifier humanverify.Verifier) *Controller {
 	if verifier == nil {
 		verifier = humanverify.NewDisabledService()
 	}
@@ -60,6 +61,15 @@ type roleRequest struct {
 
 type replaceRolePermissionsRequest struct {
 	Permissions []string `json:"permissions"`
+}
+
+type replaceUserRolesRequest struct {
+	RoleKeys []string `json:"roleKeys"`
+}
+
+type replaceUserPermissionOverridesRequest struct {
+	Allow []string `json:"allow"`
+	Deny  []string `json:"deny"`
 }
 
 func (h *Controller) register(c fiber.Ctx) error {
@@ -177,6 +187,32 @@ func (h *Controller) session(c fiber.Ctx) error {
 	return apphttp.OK(c, current)
 }
 
+func (h *Controller) listPermissions(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	permissions, err := h.service.ListPermissions(c.Context(), actor)
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, permissions)
+}
+
+func (h *Controller) permissionMatrix(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	matrix, err := h.service.ListPermissionMatrix(c.Context(), actor)
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, matrix)
+}
+
 func (h *Controller) listRoles(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
@@ -188,6 +224,42 @@ func (h *Controller) listRoles(c fiber.Ctx) error {
 		return mapIdentityError(err)
 	}
 	return apphttp.OK(c, roles)
+}
+
+func (h *Controller) listUsers(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	users, err := h.service.ListUsers(c.Context(), actor, identity.UserListInput{
+		Page:    queryInt(c, "page"),
+		PerPage: queryInt(c, "perPage"),
+		Query:   c.Query("query"),
+		Status:  c.Query("status"),
+		RoleKey: c.Query("roleKey"),
+	})
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, users)
+}
+
+func (h *Controller) getUser(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	userID, err := paramInt64(c, "userID")
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	user, err := h.service.GetAdminUser(c.Context(), actor, userID)
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, user)
 }
 
 func (h *Controller) createRole(c fiber.Ctx) error {
@@ -262,6 +334,55 @@ func (h *Controller) replaceRolePermissions(c fiber.Ctx) error {
 	return apphttp.NoData(c)
 }
 
+func (h *Controller) replaceUserRoles(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	userID, err := paramInt64(c, "userID")
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+
+	var req replaceUserRolesRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+
+	user, err := h.service.ReplaceUserRoles(c.Context(), actor, userID, req.RoleKeys)
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, user)
+}
+
+func (h *Controller) replaceUserPermissionOverrides(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	userID, err := paramInt64(c, "userID")
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+
+	var req replaceUserPermissionOverridesRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+
+	user, err := h.service.ReplaceUserPermissionOverrides(c.Context(), actor, userID, identity.PermissionOverrides{
+		Allow: req.Allow,
+		Deny:  req.Deny,
+	})
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, user)
+}
+
 func (h *Controller) sessionUserID(c fiber.Ctx) (int64, bool, error) {
 	return h.authSessions.CurrentUserID(c)
 }
@@ -292,6 +413,18 @@ func (h *Controller) auditLogin(c fiber.Ctx, userID int64, action string, sessio
 	})
 }
 
+func queryInt(c fiber.Ctx, name string) int {
+	value, err := strconv.Atoi(c.Query(name))
+	if err != nil {
+		return 0
+	}
+	return value
+}
+
+func paramInt64(c fiber.Ctx, name string) (int64, error) {
+	return strconv.ParseInt(c.Params(name), 10, 64)
+}
+
 func mapIdentityError(err error) error {
 	var registerErr *identity.RegisterInvalidError
 	switch {
@@ -301,12 +434,20 @@ func mapIdentityError(err error) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "auth.invalid_credentials")
 	case errors.Is(err, identity.ErrPermissionDenied):
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	case errors.Is(err, identity.ErrInvalidPermission):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "permission.invalid")
+	case errors.Is(err, identity.ErrInvalidRole):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "role.invalid")
+	case errors.Is(err, identity.ErrPermissionOverrideConflict):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "permission.override_conflict")
 	case errors.Is(err, identity.ErrSystemRoleLocked):
 		return fiber.NewError(fiber.StatusConflict, "role.system_role_locked")
 	case errors.Is(err, identity.ErrDefaultRoleLocked):
 		return fiber.NewError(fiber.StatusConflict, "role.default_role_locked")
 	case errors.Is(err, identity.ErrInitialSuperAdminLocked):
 		return fiber.NewError(fiber.StatusConflict, "user.initial_super_admin_locked")
+	case errors.Is(err, identity.ErrSuperAdminOverridesLocked):
+		return fiber.NewError(fiber.StatusConflict, "user.super_admin_permissions_locked")
 	case errors.Is(err, identity.ErrPasswordDoesNotMeetPolicy):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "auth.password_policy")
 	default:

@@ -1,4 +1,4 @@
-import { apiErrorReason } from './useApiClient'
+import { apiErrorMessage, apiErrorReason } from './useApiClient'
 
 export type CurrentUser = {
   id: number
@@ -13,6 +13,12 @@ export type CurrentUser = {
 
 export type AuthSessionStatus = 'unknown' | 'authenticated' | 'guest' | 'unavailable'
 
+export type AuthRefreshError = {
+  message: string
+  reason: string
+  statusCode: number | null
+}
+
 type AuthRefreshOptions = {
   timeout?: number
 }
@@ -21,7 +27,7 @@ export const useAuthSession = () => {
   const user = useState<CurrentUser | null>('auth:user', () => null)
   const pending = useState<boolean>('auth:pending', () => false)
   const status = useState<AuthSessionStatus>('auth:status', () => 'unknown')
-  const lastRefreshError = useState<unknown | null>('auth:last-refresh-error', () => null)
+  const lastRefreshError = useState<AuthRefreshError | null>('auth:last-refresh-error', () => null)
   const { request } = useApiClient()
 
   const refresh = async (options: AuthRefreshOptions = {}) => {
@@ -40,7 +46,7 @@ export const useAuthSession = () => {
       } else {
         // API 重启或编译中的瞬时失败不等于退出登录，保留已有用户状态。
         status.value = 'unavailable'
-        lastRefreshError.value = error
+        lastRefreshError.value = serializeAuthRefreshError(error)
       }
     } finally {
       pending.value = false
@@ -86,6 +92,16 @@ function authErrorStatusCode(error: unknown) {
   }
 
   return undefined
+}
+
+function serializeAuthRefreshError(error: unknown): AuthRefreshError {
+  const fallbackMessage = error instanceof Error ? error.message : ''
+
+  return {
+    message: apiErrorMessage(error) || fallbackMessage || 'auth.session_refresh_failed',
+    reason: apiErrorReason(error) || '',
+    statusCode: authErrorStatusCode(error) ?? null
+  }
 }
 
 function asRecord(value: unknown) {

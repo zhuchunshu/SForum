@@ -31,6 +31,10 @@ type updateOptionRequest struct {
 	Value string `json:"value"`
 }
 
+type updateOptionsRequest struct {
+	Options []updateOptionRequest `json:"options"`
+}
+
 func (h *Controller) listPublic(c fiber.Ctx) error {
 	items, err := h.service.List(c.Context())
 	if err != nil {
@@ -45,6 +49,19 @@ func (h *Controller) getPublic(c fiber.Ctx) error {
 		return mapOptionsError(err)
 	}
 	return apphttp.OK(c, option)
+}
+
+func (h *Controller) listAdmin(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	options, err := h.service.ListAdmin(c.Context(), actor)
+	if err != nil {
+		return mapOptionsError(err)
+	}
+	return apphttp.OK(c, options)
 }
 
 func (h *Controller) update(c fiber.Ctx) error {
@@ -66,6 +83,29 @@ func (h *Controller) update(c fiber.Ctx) error {
 		return mapOptionsError(err)
 	}
 	return apphttp.OK(c, option)
+}
+
+func (h *Controller) updateAdmin(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+
+	var req updateOptionsRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+
+	inputs := make([]options.UpdateInput, 0, len(req.Options))
+	for _, item := range req.Options {
+		inputs = append(inputs, options.UpdateInput{Name: item.Name, Value: item.Value})
+	}
+
+	updated, err := h.service.UpdateMany(c.Context(), actor, inputs)
+	if err != nil {
+		return mapOptionsError(err)
+	}
+	return apphttp.OK(c, updated)
 }
 
 func (h *Controller) sessionUserID(c fiber.Ctx) (int64, bool, error) {

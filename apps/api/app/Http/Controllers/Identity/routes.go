@@ -12,9 +12,17 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	auth.Post("/logout", h.logout)
 	auth.Get("/session", h.session)
 
+	api.Get("/permissions", h.listPermissions)
+	api.Get("/permissions/matrix", h.permissionMatrix)
+
 	api.Get("/roles", h.listRoles)
 	api.Post("/roles", h.createRole)
 	api.Patch("/roles/:roleKey", h.updateRole)
 	api.Delete("/roles/:roleKey", h.deleteRole)
 	api.Put("/roles/:roleKey/permissions", h.replaceRolePermissions)
+
+	api.Get("/users", h.listUsers)
+	api.Get("/users/:userID", h.getUser)
+	api.Put("/users/:userID/roles", h.replaceUserRoles)
+	api.Put("/users/:userID/permission-overrides", h.replaceUserPermissionOverrides)
 }

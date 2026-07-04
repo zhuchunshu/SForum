@@ -19,8 +19,12 @@ func NewOptionsProvider(store options.Store, users identity.ActorStore, sessions
 }
 
 func NewOptionsProviderWithSessions(store options.Store, users identity.ActorStore, sessions *authsession.Manager) *OptionsProvider {
+	return NewOptionsProviderWithService(options.NewService(store), users, sessions)
+}
+
+func NewOptionsProviderWithService(service *options.Service, users identity.ActorStore, sessions *authsession.Manager) *OptionsProvider {
 	return &OptionsProvider{
-		controller: optionscontroller.NewController(options.NewService(store), users, sessions),
+		controller: optionscontroller.NewController(service, users, sessions),
 	}
 }
 

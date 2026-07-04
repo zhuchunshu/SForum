@@ -313,12 +313,12 @@ Use separate files:
 Important production variables:
 
 - `APP_ENV=production`
-- `APP_URL`
+- `APP_URL` (first-run fallback for runtime `site.url`)
 - `WEB_PORT`
 - `NUXT_PUBLIC_API_BASE_URL=/api/v1`
 - `NUXT_API_INTERNAL_BASE_URL=http://api:8080/api/v1`
-- `APP_LOCALE=zh-CN`
-- `SUPPORTED_LOCALES=zh-CN,en-US`
+- `APP_LOCALE=zh-CN` (first-run fallback for runtime default locale)
+- `SUPPORTED_LOCALES=zh-CN,en-US` (first-run fallback for enabled locales)
 - `POSTGRES_DB`
 - `POSTGRES_USER`
 - `POSTGRES_PASSWORD`

@@ -18,12 +18,14 @@ Initial identity foundation is implemented.
   `super_admin`; later registrations receive `member`.
 - Browser sessions are backed by Redis through Fiber sessions.
 - API endpoints exist for registration, login, logout, current session, role
-  listing, role creation/update/delete, and role permission replacement.
+  listing, role creation/update/delete, role permission replacement, permission
+  catalog/matrix reads, admin user listing/detail, user role replacement, and
+  user direct permission override replacement.
 - API exposes `/api/v1/auth/registration-status` so the registration page can
   show when the next successful registration will become the initial
   `super_admin`.
 - Registration human verification is supported but disabled by default. When
-  `HUMAN_VERIFICATION_PROVIDER=altcha` is set,
+  the admin CAPTCHA setting `human_verification.provider=altcha` is enabled,
   `/api/v1/human-verification/challenge?purpose=register` returns an ALTCHA v2
   challenge, and `/api/v1/auth/register` verifies the submitted
   `humanVerification` token only after editable registration fields and
@@ -48,8 +50,12 @@ Initial identity foundation is implemented.
   `audit_events` records with user id, action, IP address, User-Agent, and a
   salted session-id hash. The first version stores this for security/admin
   review and does not expose it to users yet.
+- Login now treats only an explicit missing credential as
+  `auth.invalid_credentials`; internal credential-loading errors, such as a
+  missing permission table after code/schema drift, bubble up instead of being
+  misreported as a wrong password.
 - Nuxt has login/register pages, an admin route middleware, an admin overview,
-  and a first user-group list shell.
+  user management, editable user-group management, and a permission matrix.
 
 ## Architecture Decisions
 
@@ -63,8 +69,13 @@ Initial identity foundation is implemented.
   it cannot be deleted while it is the default registration role.
 - Admin-managed custom roles are supported and can be presented as user groups.
 - Effective permissions are the union of all enabled roles assigned to a user.
+  For non-`super_admin` users this is now extended by direct user permission
+  overrides: enabled role permissions plus direct allows minus direct denies.
 - Start with database-backed RBAC and Go policy helpers; keep room to adopt
   Casbin if permissions become substantially more complex.
+- Keep resource-scoped ACL out of the first admin permissions release. Forum
+  category/topic scoped rules should be added only when concrete forum
+  workflows require them.
 - Keep human verification disabled by default; use ALTCHA as the first
   supported self-hosted provider for deployments that enable registration and
   password-reset checks.
@@ -83,6 +94,7 @@ Initial identity foundation is implemented.
 - `permissions`
 - `role_permissions`
 - `user_roles`
+- `user_permission_overrides`
 - `audit_events`
 
 ## Current Boundaries
@@ -98,15 +110,18 @@ Initial identity foundation is implemented.
 ## Implementation Notes
 
 - `apps/api/app/Models/Identity/service.go` owns registration, login,
-  registration status, current-user loading, actor loading, and role-management
-  service checks.
+  registration status, current-user loading, actor loading, role-management
+  checks, permission catalog/matrix reads, admin user reads, user role
+  replacement, and user direct permission override replacement.
 - `apps/api/app/Models/Identity/policy.go` keeps permission checks small:
   `super_admin` receives all permissions while active, and other users rely on
-  the union of enabled role permissions.
+  enabled role permissions plus user direct allows minus direct denies.
 - `apps/api/app/Http/Controllers/Identity/controller.go` maps stable API error
   codes such as `auth.required`, `permission.denied`, and
-  `role.default_role_locked`; registration field errors use backend-localized
-  messages in `data.fields`.
+  `role.default_role_locked`; permission management adds stable reasons such as
+  `permission.invalid`, `permission.override_conflict`, `role.invalid`, and
+  `user.super_admin_permissions_locked`. Registration field errors use
+  backend-localized messages in `data.fields`.
 - `apps/api/app/Support/AuthSession` owns authenticated browser session
   lifecycle: login session reset, current-user lookup, idle TTL refresh,
   periodic session-id renewal, logout destruction, and salted session-id hashes
@@ -114,13 +129,19 @@ Initial identity foundation is implemented.
 - `apps/api/app/Support/HumanVerify` owns the provider boundary, ALTCHA v2
   challenge/verification adapter, Redis-backed replay/rate-limit store, and
   in-memory test/local store.
+- If correct credentials return the generic login-failed message after identity
+  or permissions work, check `goose_db_version` and PostgreSQL logs first. A
+  local schema missing `202607050002_user_permission_overrides` caused
+  permission loading during login to fail before password verification results
+  could be surfaced accurately.
 - `apps/api/app/Providers/identity.go` wires the identity store, service, and
   controller into the ordered route-provider list.
-- `apps/api/bootstrap/app.go` wires the configured human-verification provider.
-  `HUMAN_VERIFICATION_PROVIDER=disabled` is the default; set it to `altcha` to
-  require ALTCHA.
+- `apps/api/bootstrap/app.go` wires a runtime human-verification service that
+  reads provider, ALTCHA secret, TTL, and cost from Options on each
+  challenge/verify request. Environment values remain first-run fallbacks for
+  seeding missing options.
 - `apps/web/app/pages/register.vue` renders the ALTCHA widget client-side only
-  when the public runtime provider is `altcha`, and maps
+  when public option `human_verification.provider` is `altcha`, and maps
   `human_verification.*`, `rate_limit.exceeded`, and
   `auth.session_unavailable` API error codes to localized messages. It also
   reads `/api/v1/auth/registration-status`, shows a first-user super-admin
@@ -142,9 +163,9 @@ Initial identity foundation is implemented.
 
 ## Next Steps
 
+- Add CSRF protection for cookie-authenticated unsafe requests.
 - Tune production ALTCHA challenge cost, expiration, and per-IP limits after
   testing on expected low-end client devices.
-- Add CSRF protection for cookie-authenticated unsafe requests.
 - Add admin/user-facing login history views when the account/security UI is
   built.
 - Add risk-based controls for new device/IP patterns, including optional

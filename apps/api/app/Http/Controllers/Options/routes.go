@@ -6,4 +6,6 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/web-options", h.listPublic)
 	api.Get("/web-options/:name", h.getPublic)
 	api.Put("/web-options", h.update)
+	api.Get("/admin/web-options", h.listAdmin)
+	api.Put("/admin/web-options", h.updateAdmin)
 }

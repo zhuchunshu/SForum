@@ -41,6 +41,7 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-SForum}
       APP_ENV: ${APP_ENV:-development}
+      APP_URL: ${APP_URL:-http://127.0.0.1:3000}
       APP_LOCALE: ${APP_LOCALE:-zh-CN}
       SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-zh-CN,en-US}
       LOG_LEVEL: ${LOG_LEVEL:-info}

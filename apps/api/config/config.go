@@ -13,6 +13,7 @@ import (
 type Config struct {
 	AppEnv                       string
 	AppName                      string
+	AppURL                       string
 	AppLocale                    string
 	SupportedLocales             []string
 	HTTPHost                     string
@@ -54,6 +55,7 @@ func Load() Config {
 	return Config{
 		AppEnv:                       env("APP_ENV", "development"),
 		AppName:                      env("APP_NAME", "SForum"),
+		AppURL:                       env("APP_URL", "http://127.0.0.1:3000"),
 		AppLocale:                    defaultLocale,
 		SupportedLocales:             supported,
 		HTTPHost:                     env("HTTP_HOST", "0.0.0.0"),

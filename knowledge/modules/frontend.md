@@ -58,9 +58,12 @@ rewrites the public URL prefix to `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`, with
 `/control-panel` as the default.
 The public forum navbar user dropdown no longer exposes the admin entry link,
 so the configurable admin prefix is not revealed from the regular logged-in UI.
-Runtime site options are read through `useWebOptions()`. `site.name` now drives
-the navbar, auth pages, admin shell, and browser title template, with `SForum`
-as the fallback product name.
+Runtime site options are read through `useWebOptions()`. Public options now
+include site name, site URL, default locale, enabled locales, and the public
+human-verification provider. `site.name` drives the navbar, auth pages, admin
+shell, and browser title template, with `SForum` as the fallback product name.
+Admin-only option reads and batch saves power the settings page tabs; ALTCHA
+secret values are never exposed to public frontend state.
 Admin route middleware distinguishes real unauthenticated responses from
 temporary auth-service failures. A 401 or `auth.required` redirects to login;
 API restart/502/timeout cases show a temporary unavailable error instead of
@@ -117,8 +120,8 @@ forcing the user to sign in again.
 - Expand the initial `zh-CN`/`en-US` catalogs as pages are added.
 - Add page skeletons for home, category list, topic detail, login, and profile.
 - Add protected admin pages under the configurable control-panel shell for user
-  management, moderation, audit, and site settings.
-- Expand `useWebOptions()` only for settings that are safe for public frontend
-  reads; keep secrets and infrastructure config in environment variables.
+  management, moderation, and audit.
+- Keep `useWebOptions()` public state limited to frontend-safe settings; use
+  admin-only endpoints for masked secret metadata and secret updates.
 - Add SEO metadata conventions before real pages proliferate.
 - Start replacing static forum page sketches with the reusable `SF*` components.

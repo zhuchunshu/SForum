@@ -12,6 +12,9 @@ Foundation scaffold exists:
 - Frontend locale catalogs under `apps/web/i18n/locales`.
 - Backend locale normalization under `apps/api/app/Support/Localization`.
 - Nuxt i18n SEO links use `APP_URL` as the base URL.
+- Runtime options now store the operator-selected default locale and enabled
+  locale list. Environment values are first-run fallbacks for missing option
+  rows.
 
 ## Requirements
 
@@ -37,7 +40,7 @@ Foundation scaffold exists:
 
 ## Backend Responsibilities
 
-- Define supported locales and fallback locale.
+- Define supported locale normalization and fallback locale behavior.
 - Negotiate locale from route, cookie, user profile, `Accept-Language`, then
   `zh-CN`.
 - Return localized API `message` values in the unified response envelope.
@@ -45,6 +48,9 @@ Foundation scaffold exists:
 - Localize backend-owned emails, notifications, moderation reason labels, and
   seed/admin labels when they are rendered by the backend.
 - Store user locale preference separately from user-generated content.
+- API request locale negotiation reads runtime `site.default_locale` and
+  `site.supported_locales`; if option loading fails, it falls back to startup
+  configuration.
 
 ## SEO Responsibilities
 
@@ -61,6 +67,8 @@ Foundation scaffold exists:
 - Should user-generated topics/posts allow an explicit content-language field in
   MVP?
 - Which locales should follow after `zh-CN` and `en-US`?
+- How should additional locale packs be installed once operators can select
+  more than the built-in catalogs?
 
 ## Next Steps
 

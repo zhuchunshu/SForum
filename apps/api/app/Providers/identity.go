@@ -18,11 +18,11 @@ func NewIdentityProvider(store identity.Store, sessions *session.Store) *Identit
 	return NewIdentityProviderWithVerifier(store, sessions, humanverify.NewDisabledService())
 }
 
-func NewIdentityProviderWithVerifier(store identity.Store, sessions *session.Store, verifier *humanverify.Service) *IdentityProvider {
+func NewIdentityProviderWithVerifier(store identity.Store, sessions *session.Store, verifier humanverify.Verifier) *IdentityProvider {
 	return NewIdentityProviderWithAuthSessions(store, authsession.NewManager(sessions, authsession.Config{}), verifier)
 }
 
-func NewIdentityProviderWithAuthSessions(store identity.Store, sessions *authsession.Manager, verifier *humanverify.Service) *IdentityProvider {
+func NewIdentityProviderWithAuthSessions(store identity.Store, sessions *authsession.Manager, verifier humanverify.Verifier) *IdentityProvider {
 	return &IdentityProvider{
 		controller: identitycontroller.NewControllerWithAuthSessions(identity.NewService(store), sessions, verifier),
 	}

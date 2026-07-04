@@ -30,13 +30,18 @@ const (
 )
 
 var (
-	ErrInvalidCredentials        = errors.New("identity: invalid credentials")
-	ErrPermissionDenied          = errors.New("identity: permission denied")
-	ErrSystemRoleLocked          = errors.New("identity: system role is locked")
-	ErrDefaultRoleLocked         = errors.New("identity: default role is locked")
-	ErrInitialSuperAdminLocked   = errors.New("identity: initial super admin is locked")
-	ErrUsernameOrEmailNotUnique  = errors.New("identity: username or email is not unique")
-	ErrPasswordDoesNotMeetPolicy = errors.New("identity: password does not meet policy")
+	ErrInvalidCredentials         = errors.New("identity: invalid credentials")
+	ErrCredentialNotFound         = errors.New("identity: credential not found")
+	ErrPermissionDenied           = errors.New("identity: permission denied")
+	ErrInvalidPermission          = errors.New("identity: invalid permission")
+	ErrInvalidRole                = errors.New("identity: invalid role")
+	ErrPermissionOverrideConflict = errors.New("identity: permission override conflict")
+	ErrSystemRoleLocked           = errors.New("identity: system role is locked")
+	ErrDefaultRoleLocked          = errors.New("identity: default role is locked")
+	ErrInitialSuperAdminLocked    = errors.New("identity: initial super admin is locked")
+	ErrSuperAdminOverridesLocked  = errors.New("identity: super admin permission overrides are locked")
+	ErrUsernameOrEmailNotUnique   = errors.New("identity: username or email is not unique")
+	ErrPasswordDoesNotMeetPolicy  = errors.New("identity: password does not meet policy")
 )
 
 type FieldMessages map[string][]string
@@ -86,4 +91,57 @@ type LoginAudit struct {
 	IPAddress   string
 	UserAgent   string
 	SessionHash string
+}
+
+type Permission struct {
+	Key         string `json:"key"`
+	Module      string `json:"module"`
+	Description string `json:"description"`
+}
+
+type RolePermissionSet struct {
+	RoleKey        string   `json:"roleKey"`
+	PermissionKeys []string `json:"permissionKeys"`
+}
+
+type PermissionMatrix struct {
+	Permissions []Permission        `json:"permissions"`
+	Roles       []RolePermissionSet `json:"roles"`
+}
+
+type PermissionOverrides struct {
+	Allow []string `json:"allow"`
+	Deny  []string `json:"deny"`
+}
+
+type AdminUserSummary struct {
+	ID                  int64      `json:"id"`
+	Username            string     `json:"username"`
+	Email               string     `json:"email"`
+	DisplayName         string     `json:"displayName"`
+	Locale              string     `json:"locale"`
+	Status              UserStatus `json:"status"`
+	IsInitialSuperAdmin bool       `json:"isInitialSuperAdmin"`
+	RoleKeys            []string   `json:"roleKeys"`
+}
+
+type AdminUserDetail struct {
+	AdminUserSummary
+	Permissions         []string            `json:"permissions"`
+	PermissionOverrides PermissionOverrides `json:"permissionOverrides"`
+}
+
+type UserListInput struct {
+	Page    int
+	PerPage int
+	Query   string
+	Status  string
+	RoleKey string
+}
+
+type AdminUserList struct {
+	Items   []AdminUserSummary `json:"items"`
+	Total   int64              `json:"total"`
+	Page    int                `json:"page"`
+	PerPage int                `json:"perPage"`
 }

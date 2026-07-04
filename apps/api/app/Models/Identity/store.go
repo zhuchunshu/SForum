@@ -9,11 +9,17 @@ type Store interface {
 	FindRegistrationConflicts(ctx context.Context, username string, email string) (RegistrationConflicts, error)
 	GetCurrentUser(ctx context.Context, userID int64) (CurrentUser, error)
 	GetCredentialByLogin(ctx context.Context, login string) (CredentialUser, error)
+	ListPermissions(ctx context.Context) ([]Permission, error)
+	ListPermissionMatrix(ctx context.Context) (PermissionMatrix, error)
+	ListUsers(ctx context.Context, input UserListInput) (AdminUserList, error)
+	GetAdminUser(ctx context.Context, userID int64) (AdminUserDetail, error)
 	ListRoles(ctx context.Context) ([]Role, error)
 	CreateRole(ctx context.Context, input RoleInput) (Role, error)
 	UpdateRole(ctx context.Context, roleKey string, input RoleInput) (Role, error)
 	DeleteRole(ctx context.Context, roleKey string) error
 	ReplaceRolePermissions(ctx context.Context, actorUserID int64, roleKey string, permissions []string) error
+	ReplaceUserRoles(ctx context.Context, actorUserID int64, targetUserID int64, roleKeys []string) (AdminUserDetail, error)
+	ReplaceUserPermissionOverrides(ctx context.Context, actorUserID int64, targetUserID int64, overrides PermissionOverrides) (AdminUserDetail, error)
 	RecordLoginAudit(ctx context.Context, input LoginAudit) error
 }
 
@@ -51,14 +57,15 @@ type CredentialUser struct {
 }
 
 type Role struct {
-	ID          int64  `json:"id"`
-	Key         string `json:"key"`
-	Alias       string `json:"alias"`
-	Description string `json:"description"`
-	IsSystem    bool   `json:"isSystem"`
-	IsDefault   bool   `json:"isDefault"`
-	IsDeletable bool   `json:"isDeletable"`
-	IsEnabled   bool   `json:"isEnabled"`
+	ID             int64    `json:"id"`
+	Key            string   `json:"key"`
+	Alias          string   `json:"alias"`
+	Description    string   `json:"description"`
+	IsSystem       bool     `json:"isSystem"`
+	IsDefault      bool     `json:"isDefault"`
+	IsDeletable    bool     `json:"isDeletable"`
+	IsEnabled      bool     `json:"isEnabled"`
+	PermissionKeys []string `json:"permissionKeys"`
 }
 
 type RoleInput struct {

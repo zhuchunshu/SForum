@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	nethttp "net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 	optionscontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Options"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -803,6 +805,192 @@ func TestCreateRoleEndpointRejectsMember(t *testing.T) {
 	}
 }
 
+func TestPermissionsEndpointRequiresAuth(t *testing.T) {
+	cfg := testConfig()
+	identityController := identitycontroller.NewController(identity.NewService(newHTTPFakeStore()), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/permissions", nil)
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("permissions request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestPermissionMatrixEndpointAllowsSuperAdmin(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
+
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/permissions/matrix", nil)
+	req.AddCookie(adminCookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("permission matrix request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body apiEnvelope[identity.PermissionMatrix]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode permission matrix response: %v", err)
+	}
+	if len(body.Data.Permissions) == 0 || len(body.Data.Roles) == 0 {
+		t.Fatalf("expected permissions and roles in matrix, got %#v", body.Data)
+	}
+}
+
+func TestUsersEndpointRejectsMember(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+	registerHTTPUser(t, app, "admin", "admin@example.com")
+	memberCookie := registerHTTPUser(t, app, "member1", "member1@example.com")
+
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/users", nil)
+	req.AddCookie(memberCookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("users request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403, got %d", resp.StatusCode)
+	}
+}
+
+func TestReplaceUserRolesEndpointAllowsSuperAdmin(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	store.roles["moderator"] = identity.Role{ID: 3, Key: "moderator", Alias: "版主", IsEnabled: true, IsDeletable: true}
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
+	registerHTTPUser(t, app, "member1", "member1@example.com")
+
+	requestBody := []byte(`{"roleKeys":["member","moderator"]}`)
+	req := httptest.NewRequest(nethttp.MethodPut, "/api/v1/users/2/roles", bytes.NewReader(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(adminCookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("replace user roles request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body apiEnvelope[identity.AdminUserDetail]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode user roles response: %v", err)
+	}
+	if !slices.Contains(body.Data.RoleKeys, "moderator") {
+		t.Fatalf("expected moderator role in response, got %v", body.Data.RoleKeys)
+	}
+}
+
+func TestReplaceUserPermissionOverridesEndpointAllowsSuperAdmin(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
+	registerHTTPUser(t, app, "member1", "member1@example.com")
+
+	requestBody := []byte(`{"allow":["admin.access"],"deny":["topic.create"]}`)
+	req := httptest.NewRequest(nethttp.MethodPut, "/api/v1/users/2/permission-overrides", bytes.NewReader(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(adminCookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("replace user permission overrides request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var body apiEnvelope[identity.AdminUserDetail]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode user permission overrides response: %v", err)
+	}
+	if !slices.Contains(body.Data.PermissionOverrides.Allow, identity.PermissionAdminAccess) {
+		t.Fatalf("expected admin access direct allow, got %#v", body.Data.PermissionOverrides)
+	}
+	if !slices.Contains(body.Data.Permissions, identity.PermissionAdminAccess) || slices.Contains(body.Data.Permissions, identity.PermissionTopicCreate) {
+		t.Fatalf("expected effective permissions to reflect allow/deny, got %v", body.Data.Permissions)
+	}
+}
+
+func TestInitialSuperAdminRoleLockEndpointReturnsConflict(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
+
+	req := httptest.NewRequest(nethttp.MethodPut, "/api/v1/users/1/roles", bytes.NewReader([]byte(`{"roleKeys":["member"]}`)))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(adminCookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("replace initial super admin roles request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusConflict {
+		t.Fatalf("expected 409, got %d", resp.StatusCode)
+	}
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode initial super admin lock response: %v", err)
+	}
+	if body.Data.Reason != "user.initial_super_admin_locked" {
+		t.Fatalf("expected initial super admin lock reason, got %q", body.Data.Reason)
+	}
+}
+
+func TestUserPermissionOverrideConflictEndpointReturnsUnprocessable(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
+	registerHTTPUser(t, app, "member1", "member1@example.com")
+
+	req := httptest.NewRequest(nethttp.MethodPut, "/api/v1/users/2/permission-overrides", bytes.NewReader([]byte(`{"allow":["post.create"],"deny":["post.create"]}`)))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(adminCookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("replace conflicting user permission overrides request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode permission override conflict response: %v", err)
+	}
+	if body.Data.Reason != "permission.override_conflict" {
+		t.Fatalf("expected permission override conflict reason, got %q", body.Data.Reason)
+	}
+}
+
 func TestWebOptionsEndpointReturnsPublicOptions(t *testing.T) {
 	cfg := testConfig()
 	optionStore := newHTTPFakeOptionStore()
@@ -823,8 +1011,14 @@ func TestWebOptionsEndpointReturnsPublicOptions(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode web options response: %v", err)
 	}
-	if len(body.Data) != 1 || body.Data[0].Name != options.NameSiteName || body.Data[0].Value != "SForum" {
+	if len(body.Data) != 5 {
 		t.Fatalf("unexpected web options response: %#v", body.Data)
+	}
+	if optionValue(body.Data, options.NameSiteName) != "SForum" {
+		t.Fatalf("expected site name in public options, got %#v", body.Data)
+	}
+	if optionValue(body.Data, options.NameAltchaSecret) != "" {
+		t.Fatalf("public web options should not expose altcha secret: %#v", body.Data)
 	}
 }
 
@@ -875,6 +1069,128 @@ func TestWebOptionsUpdateAllowsSuperAdmin(t *testing.T) {
 	}
 	if body.Data.Name != options.NameSiteName || body.Data.Value != "Example Forum" {
 		t.Fatalf("unexpected updated web option: %#v", body.Data)
+	}
+}
+
+func TestAdminWebOptionsRequireAuth(t *testing.T) {
+	cfg := testConfig()
+	optionStore := newHTTPFakeOptionStore()
+	optionsController := optionscontroller.NewControllerWithStore(options.NewService(optionStore), newHTTPFakeStore(), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{optionsController}})
+
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/admin/web-options", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("admin web options request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestAdminWebOptionsMaskSecretAndSaveBatch(t *testing.T) {
+	cfg := testConfig()
+	userStore := newHTTPFakeStore()
+	optionStore := newHTTPFakeOptionStore()
+	optionStore.items[options.NameAltchaSecret] = "existing-secret"
+	sessionStore := session.NewStore()
+	identityController := identitycontroller.NewController(identity.NewService(userStore), sessionStore)
+	optionsController := optionscontroller.NewControllerWithStore(options.NewService(optionStore), userStore, sessionStore)
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController, optionsController}})
+	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
+
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/admin/web-options", nil)
+	req.AddCookie(adminCookie)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("admin web options request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var listBody apiEnvelope[[]options.AdminOption]
+	if err := json.NewDecoder(resp.Body).Decode(&listBody); err != nil {
+		t.Fatalf("decode admin options response: %v", err)
+	}
+	secret := adminOption(listBody.Data, options.NameAltchaSecret)
+	if !secret.Secret || !secret.SecretSet || secret.Value != "" {
+		t.Fatalf("expected masked secret in admin response, got %#v", secret)
+	}
+
+	body := []byte(`{"options":[{"name":"site.name","value":"Example Forum"},{"name":"site.default_locale","value":"en"},{"name":"site.supported_locales","value":"en-US"},{"name":"human_verification.provider","value":"altcha"},{"name":"human_verification.altcha.secret","value":""},{"name":"human_verification.altcha.challenge_ttl","value":"2m"},{"name":"human_verification.altcha.cost","value":"2000"}]}`)
+	updateReq := httptest.NewRequest(nethttp.MethodPut, "/api/v1/admin/web-options", bytes.NewReader(body))
+	updateReq.Header.Set("Content-Type", "application/json")
+	updateReq.AddCookie(adminCookie)
+	updateResp, err := app.Test(updateReq)
+	if err != nil {
+		t.Fatalf("update admin web options request failed: %v", err)
+	}
+	defer updateResp.Body.Close()
+
+	if updateResp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", updateResp.StatusCode)
+	}
+	if optionStore.items[options.NameAltchaSecret] != "existing-secret" {
+		t.Fatalf("expected blank secret update to keep existing secret, got %q", optionStore.items[options.NameAltchaSecret])
+	}
+	var updateBody apiEnvelope[[]options.AdminOption]
+	if err := json.NewDecoder(updateResp.Body).Decode(&updateBody); err != nil {
+		t.Fatalf("decode updated admin options response: %v", err)
+	}
+	if got := adminOption(updateBody.Data, options.NameSiteDefaultLocale).Value; got != "en-US" {
+		t.Fatalf("expected normalized default locale, got %q", got)
+	}
+	if got := adminOption(updateBody.Data, options.NameAltchaSecret); !got.SecretSet || got.Value != "" {
+		t.Fatalf("expected masked kept secret, got %#v", got)
+	}
+}
+
+func TestRuntimeOptionsAffectHealthAndLocalizedResponses(t *testing.T) {
+	cfg := testConfig()
+	optionStore := newHTTPFakeOptionStore()
+	optionStore.items[options.NameSiteName] = "Runtime Forum"
+	optionStore.items[options.NameSiteDefaultLocale] = "en-US"
+	optionStore.items[options.NameSiteSupportedLocales] = "en-US"
+	optionsService := options.NewService(optionStore)
+	optionsController := optionscontroller.NewController(optionsService, newHTTPFakeStore(), authsession.NewManager(session.NewStore(), authsession.Config{}))
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{optionsController},
+		Options:        optionsService,
+	})
+
+	healthReq := httptest.NewRequest(nethttp.MethodGet, "/api/v1/health", nil)
+	healthResp, err := app.Test(healthReq)
+	if err != nil {
+		t.Fatalf("health request failed: %v", err)
+	}
+	defer healthResp.Body.Close()
+
+	var health apiEnvelope[healthResponse]
+	if err := json.NewDecoder(healthResp.Body).Decode(&health); err != nil {
+		t.Fatalf("decode health response: %v", err)
+	}
+	if health.Data.Name != "Runtime Forum" || health.Data.Locale != "en-US" || len(health.Data.SupportedLocales) != 1 {
+		t.Fatalf("expected runtime health settings, got %#v", health.Data)
+	}
+
+	req := httptest.NewRequest(nethttp.MethodPut, "/api/v1/web-options", bytes.NewReader([]byte(`{"name":"site.name","value":"Example Forum"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("localized unauthorized request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode localized unauthorized response: %v", err)
+	}
+	if body.Message != "Please sign in first." {
+		t.Fatalf("expected runtime default locale to localize auth error in English, got %q", body.Message)
 	}
 }
 
@@ -948,14 +1264,35 @@ func assertFieldMessage(t *testing.T, fields map[string][]string, field string, 
 	}
 }
 
+func optionValue(items []options.Option, name string) string {
+	for _, item := range items {
+		if item.Name == name {
+			return item.Value
+		}
+	}
+	return ""
+}
+
+func adminOption(items []options.AdminOption, name string) options.AdminOption {
+	for _, item := range items {
+		if item.Name == name {
+			return item
+		}
+	}
+	return options.AdminOption{}
+}
+
 type httpFakeStore struct {
 	nextUserID    int64
 	nextRoleID    int64
 	users         map[int64]identity.CurrentUser
+	userEmails    map[int64]string
 	credentials   map[int64]string
 	loginIndex    map[string]int64
 	roles         map[string]identity.Role
 	userRoleIDs   map[int64][]int64
+	rolePerms     map[int64][]string
+	userOverrides map[int64]identity.PermissionOverrides
 	loginAudits   []identity.LoginAudit
 	loginAuditErr error
 }
@@ -965,13 +1302,16 @@ func newHTTPFakeStore() *httpFakeStore {
 		nextUserID:  1,
 		nextRoleID:  100,
 		users:       map[int64]identity.CurrentUser{},
+		userEmails:  map[int64]string{},
 		credentials: map[int64]string{},
 		loginIndex:  map[string]int64{},
 		roles: map[string]identity.Role{
 			identity.RoleSuperAdmin: {ID: 1, Key: identity.RoleSuperAdmin, Alias: "超级管理员", IsEnabled: true},
 			identity.RoleMember:     {ID: 2, Key: identity.RoleMember, Alias: "普通会员", IsDefault: true, IsEnabled: true},
 		},
-		userRoleIDs: map[int64][]int64{},
+		userRoleIDs:   map[int64][]int64{},
+		rolePerms:     map[int64][]string{2: {identity.PermissionTopicCreate, identity.PermissionPostCreate}},
+		userOverrides: map[int64]identity.PermissionOverrides{},
 	}
 }
 
@@ -1001,6 +1341,7 @@ func (s *httpFakeStore) CreateUser(_ context.Context, input identity.CreateUserI
 	}
 	s.nextUserID++
 	s.users[user.ID] = user
+	s.userEmails[user.ID] = input.Email
 	s.loginIndex[strings.ToLower(input.Username)] = user.ID
 	s.loginIndex[strings.ToLower(input.Email)] = user.ID
 	return user, nil
@@ -1040,7 +1381,7 @@ func (s *httpFakeStore) GetCurrentUser(_ context.Context, userID int64) (identit
 func (s *httpFakeStore) GetCredentialByLogin(ctx context.Context, login string) (identity.CredentialUser, error) {
 	userID, ok := s.loginIndex[strings.ToLower(login)]
 	if !ok {
-		return identity.CredentialUser{}, errors.New("credential not found")
+		return identity.CredentialUser{}, identity.ErrCredentialNotFound
 	}
 	user, err := s.GetCurrentUser(ctx, userID)
 	if err != nil {
@@ -1061,9 +1402,55 @@ func (s *httpFakeStore) LoadActor(ctx context.Context, userID int64) (identity.A
 	return identity.Actor{ID: user.ID, Status: user.Status, RoleKeys: user.RoleKeys, Permissions: permissions}, nil
 }
 
+func (s *httpFakeStore) ListPermissions(context.Context) ([]identity.Permission, error) {
+	permissions := make([]identity.Permission, 0, len(identity.SeedPermissions))
+	for _, permission := range identity.SeedPermissions {
+		permissions = append(permissions, identity.Permission{
+			Key:         permission.Key,
+			Module:      permission.Module,
+			Description: permission.Description,
+		})
+	}
+	return permissions, nil
+}
+
+func (s *httpFakeStore) ListPermissionMatrix(context.Context) (identity.PermissionMatrix, error) {
+	permissions, _ := s.ListPermissions(context.Background())
+	roles := make([]identity.RolePermissionSet, 0, len(s.roles))
+	for _, role := range s.roles {
+		roles = append(roles, identity.RolePermissionSet{
+			RoleKey:        role.Key,
+			PermissionKeys: slices.Clone(s.rolePerms[role.ID]),
+		})
+	}
+	return identity.PermissionMatrix{Permissions: permissions, Roles: roles}, nil
+}
+
+func (s *httpFakeStore) ListUsers(_ context.Context, input identity.UserListInput) (identity.AdminUserList, error) {
+	items := make([]identity.AdminUserSummary, 0, len(s.users))
+	for _, user := range s.users {
+		items = append(items, s.adminSummary(user))
+	}
+	return identity.AdminUserList{Items: items, Total: int64(len(items)), Page: input.Page, PerPage: input.PerPage}, nil
+}
+
+func (s *httpFakeStore) GetAdminUser(_ context.Context, userID int64) (identity.AdminUserDetail, error) {
+	user, ok := s.users[userID]
+	if !ok {
+		return identity.AdminUserDetail{}, errors.New("user not found")
+	}
+	user = s.withAccess(user)
+	return identity.AdminUserDetail{
+		AdminUserSummary:    s.adminSummary(user),
+		Permissions:         slices.Clone(user.Permissions),
+		PermissionOverrides: s.cloneOverrides(userID),
+	}, nil
+}
+
 func (s *httpFakeStore) ListRoles(context.Context) ([]identity.Role, error) {
 	roles := make([]identity.Role, 0, len(s.roles))
 	for _, role := range s.roles {
+		role.PermissionKeys = slices.Clone(s.rolePerms[role.ID])
 		roles = append(roles, role)
 	}
 	return roles, nil
@@ -1099,8 +1486,31 @@ func (s *httpFakeStore) DeleteRole(_ context.Context, roleKey string) error {
 	return nil
 }
 
-func (s *httpFakeStore) ReplaceRolePermissions(context.Context, int64, string, []string) error {
+func (s *httpFakeStore) ReplaceRolePermissions(_ context.Context, _ int64, roleKey string, permissions []string) error {
+	role := s.roles[roleKey]
+	s.rolePerms[role.ID] = slices.Clone(permissions)
 	return nil
+}
+
+func (s *httpFakeStore) ReplaceUserRoles(_ context.Context, _ int64, targetUserID int64, roleKeys []string) (identity.AdminUserDetail, error) {
+	roleIDs := make([]int64, 0, len(roleKeys))
+	for _, roleKey := range roleKeys {
+		role, ok := s.roles[roleKey]
+		if !ok {
+			return identity.AdminUserDetail{}, errors.New("role not found")
+		}
+		roleIDs = append(roleIDs, role.ID)
+	}
+	s.userRoleIDs[targetUserID] = roleIDs
+	return s.GetAdminUser(context.Background(), targetUserID)
+}
+
+func (s *httpFakeStore) ReplaceUserPermissionOverrides(_ context.Context, _ int64, targetUserID int64, overrides identity.PermissionOverrides) (identity.AdminUserDetail, error) {
+	s.userOverrides[targetUserID] = identity.PermissionOverrides{
+		Allow: slices.Clone(overrides.Allow),
+		Deny:  slices.Clone(overrides.Deny),
+	}
+	return s.GetAdminUser(context.Background(), targetUserID)
 }
 
 func (s *httpFakeStore) RecordLoginAudit(_ context.Context, input identity.LoginAudit) error {
@@ -1126,6 +1536,16 @@ func (s *httpFakeStore) withAccess(user identity.CurrentUser) identity.CurrentUs
 			permissions[identity.PermissionRoleManage] = true
 			permissions[identity.PermissionSettingsManage] = true
 		}
+		for _, permission := range s.rolePerms[role.ID] {
+			permissions[permission] = true
+		}
+	}
+	overrides := s.userOverrides[user.ID]
+	for _, permission := range overrides.Allow {
+		permissions[permission] = true
+	}
+	for _, permission := range overrides.Deny {
+		delete(permissions, permission)
 	}
 
 	user.RoleKeys = roleKeys
@@ -1134,6 +1554,28 @@ func (s *httpFakeStore) withAccess(user identity.CurrentUser) identity.CurrentUs
 		user.Permissions = append(user.Permissions, permission)
 	}
 	return user
+}
+
+func (s *httpFakeStore) adminSummary(user identity.CurrentUser) identity.AdminUserSummary {
+	user = s.withAccess(user)
+	return identity.AdminUserSummary{
+		ID:                  user.ID,
+		Username:            user.Username,
+		Email:               s.userEmails[user.ID],
+		DisplayName:         user.DisplayName,
+		Locale:              user.Locale,
+		Status:              user.Status,
+		IsInitialSuperAdmin: user.IsInitialSuperAdmin,
+		RoleKeys:            slices.Clone(user.RoleKeys),
+	}
+}
+
+func (s *httpFakeStore) cloneOverrides(userID int64) identity.PermissionOverrides {
+	overrides := s.userOverrides[userID]
+	return identity.PermissionOverrides{
+		Allow: slices.Clone(overrides.Allow),
+		Deny:  slices.Clone(overrides.Deny),
+	}
 }
 
 func (s *httpFakeStore) roleByID(roleID int64) (identity.Role, bool) {
@@ -1165,6 +1607,16 @@ func (s *httpFakeOptionStore) List(context.Context) ([]options.Option, error) {
 		items = append(items, options.Option{Name: name, Value: value})
 	}
 	return items, nil
+}
+
+func (s *httpFakeOptionStore) InsertMissing(_ context.Context, input options.UpdateInput) error {
+	if s.items == nil {
+		s.items = map[string]string{}
+	}
+	if _, ok := s.items[input.Name]; !ok {
+		s.items[input.Name] = input.Value
+	}
+	return nil
 }
 
 func (s *httpFakeOptionStore) Upsert(_ context.Context, input options.UpdateInput) (options.Option, error) {

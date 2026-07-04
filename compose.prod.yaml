@@ -20,6 +20,8 @@ services:
   api:
     build:
       target: api
+    environment:
+      APP_URL: ${APP_URL:-https://forum.example.com}
     restart: unless-stopped
 
   worker:

@@ -215,6 +215,73 @@ paths:
                 $ref: "#/components/schemas/ApiResponseWebOption"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+  /admin/web-options:
+    get:
+      summary: List all runtime web options for administrators
+      operationId: listAdminWebOptions
+      responses:
+        "200":
+          description: Admin-visible runtime options. Secret values are masked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminWebOptionList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      summary: Update runtime web options in a batch
+      operationId: updateAdminWebOptions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebOptionBatchInput"
+      responses:
+        "200":
+          description: Options updated. Secret values are masked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminWebOptionList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /permissions:
+    get:
+      summary: List global permissions
+      operationId: listPermissions
+      responses:
+        "200":
+          description: Permission catalog visible to role or user managers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePermissionList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /permissions/matrix:
+    get:
+      summary: List role permission matrix
+      operationId: listPermissionMatrix
+      responses:
+        "200":
+          description: Permission catalog with permissions assigned to each role.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePermissionMatrix"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /roles:
     get:
       summary: List roles and user groups
@@ -333,6 +400,119 @@ paths:
           $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+  /users:
+    get:
+      summary: List users for administration
+      operationId: listAdminUsers
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: perPage
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: query
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, disabled, banned]
+        - name: roleKey
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paged admin user list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminUserList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /users/{userID}:
+    get:
+      summary: Get an admin user detail
+      operationId: getAdminUser
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+      responses:
+        "200":
+          description: User detail with effective permissions and direct overrides.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminUserDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /users/{userID}/roles:
+    put:
+      summary: Replace roles assigned to a user
+      operationId: replaceUserRoles
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRolesInput"
+      responses:
+        "200":
+          description: User roles replaced.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminUserDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /users/{userID}/permission-overrides:
+    put:
+      summary: Replace direct permission overrides for a user
+      operationId: replaceUserPermissionOverrides
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPermissionOverridesInput"
+      responses:
+        "200":
+          description: User direct permission overrides replaced.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminUserDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
 components:
   parameters:
     RoleKey:
@@ -342,6 +522,14 @@ components:
       schema:
         type: string
       description: Stable role key, such as member or moderator.
+    UserID:
+      name: userID
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Numeric user id.
   responses:
     Unauthorized:
       description: Authentication is required or credentials are invalid.
@@ -453,6 +641,48 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Role"
+    ApiResponsePermissionList:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Permission"
+    ApiResponsePermissionMatrix:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/PermissionMatrix"
+    ApiResponseAdminUserList:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/AdminUserList"
+    ApiResponseAdminUserDetail:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/AdminUserDetail"
     ApiResponseAltchaChallenge:
       type: object
       required: [code, message, data]
@@ -495,6 +725,18 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/WebOption"
+    ApiResponseAdminWebOptionList:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminWebOption"
     Health:
       type: object
       required:
@@ -533,6 +775,35 @@ components:
           examples: [site.name]
         value:
           type: string
+    AdminWebOption:
+      type: object
+      required:
+        - name
+        - value
+        - public
+        - secret
+        - secretSet
+      properties:
+        name:
+          type: string
+          enum:
+            - site.name
+            - site.url
+            - site.default_locale
+            - site.supported_locales
+            - human_verification.provider
+            - human_verification.altcha.secret
+            - human_verification.altcha.challenge_ttl
+            - human_verification.altcha.cost
+        value:
+          type: string
+          description: Empty for secret options; use secretSet to tell whether a secret is configured.
+        public:
+          type: boolean
+        secret:
+          type: boolean
+        secretSet:
+          type: boolean
     WebOptionInput:
       type: object
       required:
@@ -541,11 +812,44 @@ components:
       properties:
         name:
           type: string
-          enum: [site.name]
+          enum:
+            - site.name
+            - site.url
+            - site.default_locale
+            - site.supported_locales
+            - human_verification.provider
         value:
           type: string
           minLength: 1
-          maxLength: 80
+    WebOptionBatchInput:
+      type: object
+      required:
+        - options
+      properties:
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminWebOptionInput"
+    AdminWebOptionInput:
+      type: object
+      required:
+        - name
+        - value
+      properties:
+        name:
+          type: string
+          enum:
+            - site.name
+            - site.url
+            - site.default_locale
+            - site.supported_locales
+            - human_verification.provider
+            - human_verification.altcha.secret
+            - human_verification.altcha.challenge_ttl
+            - human_verification.altcha.cost
+        value:
+          type: string
+          description: For human_verification.altcha.secret, an empty value keeps the existing secret.
     CurrentUser:
       type: object
       required:
@@ -693,6 +997,7 @@ components:
         - isDefault
         - isDeletable
         - isEnabled
+        - permissionKeys
       properties:
         id:
           type: integer
@@ -711,6 +1016,10 @@ components:
           type: boolean
         isEnabled:
           type: boolean
+        permissionKeys:
+          type: array
+          items:
+            type: string
     RoleInput:
       type: object
       properties:
@@ -720,3 +1029,133 @@ components:
           type: string
         description:
           type: string
+    Permission:
+      type: object
+      required:
+        - key
+        - module
+        - description
+      properties:
+        key:
+          type: string
+        module:
+          type: string
+        description:
+          type: string
+    RolePermissionSet:
+      type: object
+      required:
+        - roleKey
+        - permissionKeys
+      properties:
+        roleKey:
+          type: string
+        permissionKeys:
+          type: array
+          items:
+            type: string
+    PermissionMatrix:
+      type: object
+      required:
+        - permissions
+        - roles
+      properties:
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Permission"
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RolePermissionSet"
+    PermissionOverrides:
+      type: object
+      required:
+        - allow
+        - deny
+      properties:
+        allow:
+          type: array
+          items:
+            type: string
+        deny:
+          type: array
+          items:
+            type: string
+    AdminUserSummary:
+      type: object
+      required:
+        - id
+        - username
+        - email
+        - displayName
+        - locale
+        - status
+        - isInitialSuperAdmin
+        - roleKeys
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        locale:
+          type: string
+        status:
+          type: string
+          enum: [active, disabled, banned]
+        isInitialSuperAdmin:
+          type: boolean
+        roleKeys:
+          type: array
+          items:
+            type: string
+    AdminUserDetail:
+      allOf:
+        - $ref: "#/components/schemas/AdminUserSummary"
+        - type: object
+          required:
+            - permissions
+            - permissionOverrides
+          properties:
+            permissions:
+              type: array
+              items:
+                type: string
+            permissionOverrides:
+              $ref: "#/components/schemas/PermissionOverrides"
+    AdminUserList:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - perPage
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminUserSummary"
+        total:
+          type: integer
+          format: int64
+        page:
+          type: integer
+        perPage:
+          type: integer
+    UserRolesInput:
+      type: object
+      required:
+        - roleKeys
+      properties:
+        roleKeys:
+          type: array
+          items:
+            type: string
+    UserPermissionOverridesInput:
+      $ref: "#/components/schemas/PermissionOverrides"

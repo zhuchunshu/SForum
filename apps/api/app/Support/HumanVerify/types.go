@@ -65,6 +65,11 @@ type Provider interface {
 	Verify(ctx context.Context, req VerifyRequest) (VerifyResult, error)
 }
 
+type Verifier interface {
+	Challenge(ctx context.Context, purpose Purpose, subject Subject) (Challenge, error)
+	Verify(ctx context.Context, req VerifyRequest) error
+}
+
 type Store interface {
 	MarkUsed(ctx context.Context, key string, ttl time.Duration) error
 	IncrementRate(ctx context.Context, key string, window time.Duration, limit int) (bool, error)
@@ -73,6 +78,15 @@ type Store interface {
 type ServiceConfig struct {
 	Enabled         bool
 	ChallengeTTL    time.Duration
+	RateLimit       int
+	RateLimitWindow time.Duration
+}
+
+type RuntimeConfig struct {
+	Provider        string
+	AltchaSecret    string
+	AltchaTTL       time.Duration
+	AltchaCost      int
 	RateLimit       int
 	RateLimitWindow time.Duration
 }
