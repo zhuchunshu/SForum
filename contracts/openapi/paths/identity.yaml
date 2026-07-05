@@ -1,0 +1,410 @@
+authRegistrationStatus:
+  get:
+    summary: Get public registration bootstrap status
+    operationId: getRegistrationStatus
+    responses:
+      '200':
+        description: Public registration state used by the registration page.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseRegistrationStatus"
+authRegister:
+  post:
+    summary: Register a forum account
+    operationId: registerAccount
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/RegisterRequest"
+    responses:
+      '201':
+        description: Account created and session cookie issued.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseCurrentUser"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        description: Registration input or human verification is invalid.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+            examples:
+              invalidFields:
+                summary: Registration fields need correction
+                value:
+                  code: 422
+                  message: 注册失败：请按标出的提示修改后再提交。
+                  data:
+                    reason: auth.register_invalid
+                    fields:
+                      username:
+                      - 请填写用户名。
+                      email:
+                      - 邮箱格式不正确，请填写可接收邮件的地址。
+                      password:
+                      - 密码至少需要 12 个字符。
+              humanVerificationRequired:
+                summary: Human verification is required
+                value:
+                  code: 422
+                  message: 请先完成人机验证。
+                  data:
+                    reason: human_verification.required
+                    fields:
+                      humanVerification:
+                      - 请先完成人机验证。
+      '429':
+        "$ref": "../components/responses.yaml#/TooManyRequests"
+      '503':
+        description: Account was created but the server could not issue the automatic sign-in session.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+            examples:
+              sessionUnavailable:
+                summary: Automatic sign-in session could not be saved
+                value:
+                  code: 503
+                  message: 账号已创建，但自动登录失败，请直接登录。
+                  data:
+                    reason: auth.session_unavailable
+humanVerificationChallenge:
+  get:
+    summary: Create a human verification challenge
+    operationId: createHumanVerificationChallenge
+    parameters:
+    - name: purpose
+      in: query
+      required: true
+      schema:
+        type: string
+        enum:
+        - register
+      description: Verification purpose for rate limits and replay scope.
+    responses:
+      '200':
+        description: ALTCHA challenge payload for the requested purpose.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAltchaChallenge"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '429':
+        "$ref": "../components/responses.yaml#/TooManyRequests"
+authLogin:
+  post:
+    summary: Log in with username or email
+    operationId: login
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/LoginRequest"
+    responses:
+      '200':
+        description: Session cookie issued.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseCurrentUser"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+authLogout:
+  post:
+    summary: Destroy the current browser session
+    operationId: logout
+    responses:
+      '200':
+        description: Session destroyed.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiResponseNull"
+authSession:
+  get:
+    summary: Get the current browser session user
+    operationId: getCurrentSession
+    responses:
+      '200':
+        description: Current authenticated forum user.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseCurrentUser"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+permissions:
+  get:
+    summary: List global permissions
+    operationId: listPermissions
+    responses:
+      '200':
+        description: Permission catalog visible to role or user managers.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponsePermissionList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+permissionMatrix:
+  get:
+    summary: List role permission matrix
+    operationId: listPermissionMatrix
+    responses:
+      '200':
+        description: Permission catalog with permissions assigned to each role.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponsePermissionMatrix"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+roles:
+  get:
+    summary: List roles and user groups
+    operationId: listRoles
+    responses:
+      '200':
+        description: Roles visible to role managers.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseRoleList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  post:
+    summary: Create a custom role
+    operationId: createRole
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/RoleInput"
+    responses:
+      '201':
+        description: Role created.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseRole"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+roleByKey:
+  patch:
+    summary: Update a role alias and description
+    operationId: updateRole
+    parameters:
+    - "$ref": "../components/parameters.yaml#/RoleKey"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/RoleInput"
+    responses:
+      '200':
+        description: Role updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseRole"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+  delete:
+    summary: Delete a custom role
+    operationId: deleteRole
+    parameters:
+    - "$ref": "../components/parameters.yaml#/RoleKey"
+    responses:
+      '200':
+        description: Role deleted.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiResponseNull"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+rolePermissions:
+  put:
+    summary: Replace permissions assigned to a role
+    operationId: replaceRolePermissions
+    parameters:
+    - "$ref": "../components/parameters.yaml#/RoleKey"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - permissions
+            properties:
+              permissions:
+                type: array
+                items:
+                  type: string
+    responses:
+      '200':
+        description: Role permissions replaced.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiResponseNull"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+users:
+  get:
+    summary: List users for administration
+    operationId: listAdminUsers
+    parameters:
+    - name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    - name: query
+      in: query
+      schema:
+        type: string
+    - name: status
+      in: query
+      schema:
+        type: string
+        enum:
+        - active
+        - disabled
+        - banned
+    - name: roleKey
+      in: query
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Paged admin user list.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAdminUserList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+userByID:
+  get:
+    summary: Get an admin user detail
+    operationId: getAdminUser
+    parameters:
+    - "$ref": "../components/parameters.yaml#/UserID"
+    responses:
+      '200':
+        description: User detail with effective permissions and direct overrides.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAdminUserDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+userRoles:
+  put:
+    summary: Replace roles assigned to a user
+    operationId: replaceUserRoles
+    parameters:
+    - "$ref": "../components/parameters.yaml#/UserID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/UserRolesInput"
+    responses:
+      '200':
+        description: User roles replaced.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAdminUserDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+userPermissionOverrides:
+  put:
+    summary: Replace direct permission overrides for a user
+    operationId: replaceUserPermissionOverrides
+    parameters:
+    - "$ref": "../components/parameters.yaml#/UserID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/UserPermissionOverridesInput"
+    responses:
+      '200':
+        description: User direct permission overrides replaced.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseAdminUserDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"

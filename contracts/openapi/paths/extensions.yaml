@@ -1,0 +1,106 @@
+adminExtensions:
+  get:
+    summary: List installed extensions and themes
+    operationId: listAdminExtensions
+    responses:
+      '200':
+        description: Installed extension list.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  post:
+    summary: Upload and install an extension ZIP archive
+    operationId: installAdminExtension
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+            - file
+            properties:
+              file:
+                type: string
+                format: binary
+    responses:
+      '201':
+        description: Extension archive installed but not automatically enabled.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminExtensionEnable:
+  post:
+    summary: Enable an installed extension or theme
+    operationId: enableAdminExtension
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Extension enabled after preflight checks.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminExtensionDisable:
+  post:
+    summary: Disable an installed extension or theme
+    operationId: disableAdminExtension
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Extension disabled.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+adminExtensionEvents:
+  get:
+    summary: List extension lifecycle events
+    operationId: listAdminExtensionEvents
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    responses:
+      '200':
+        description: Recent extension lifecycle events.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionEventList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"

@@ -1,0 +1,438 @@
+ApiResponseCurrentUser:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/CurrentUser"
+ApiResponseRegistrationStatus:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/RegistrationStatus"
+ApiResponseRole:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/Role"
+ApiResponseRoleList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/Role"
+ApiResponsePermissionList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/Permission"
+ApiResponsePermissionMatrix:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/PermissionMatrix"
+ApiResponseAdminUserList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AdminUserList"
+ApiResponseAdminUserDetail:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AdminUserDetail"
+ApiResponseAltchaChallenge:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AltchaChallenge"
+CurrentUser:
+  type: object
+  required:
+  - id
+  - username
+  - displayName
+  - locale
+  - status
+  - isInitialSuperAdmin
+  - roleKeys
+  - permissions
+  properties:
+    id:
+      type: integer
+      format: int64
+    username:
+      type: string
+    displayName:
+      type: string
+    locale:
+      type: string
+    status:
+      type: string
+      enum:
+      - active
+      - disabled
+      - banned
+    isInitialSuperAdmin:
+      type: boolean
+    roleKeys:
+      type: array
+      items:
+        type: string
+    permissions:
+      type: array
+      items:
+        type: string
+RegistrationStatus:
+  type: object
+  required:
+  - nextUserIsInitialSuperAdmin
+  properties:
+    nextUserIsInitialSuperAdmin:
+      type: boolean
+      description: True when no user exists yet and the next successful registration will become the initial super administrator.
+RegisterRequest:
+  type: object
+  required:
+  - username
+  - email
+  - password
+  properties:
+    username:
+      type: string
+      minLength: 1
+      description: Trimmed username. Must not be blank.
+    email:
+      type: string
+      format: email
+      description: Trimmed email address. Must not be blank.
+    password:
+      type: string
+      format: password
+      minLength: 12
+      description: Must contain at least 12 characters.
+    displayName:
+      type: string
+      description: Optional display name. Blank values default to username.
+    locale:
+      type: string
+    humanVerification:
+      "$ref": "#/HumanVerification"
+      description: Required when the deployment enables human verification for registration.
+HumanVerification:
+  type: object
+  required:
+  - provider
+  - token
+  properties:
+    provider:
+      type: string
+      enum:
+      - altcha
+    token:
+      type: string
+      description: Base64-encoded ALTCHA payload emitted by the widget.
+AltchaChallenge:
+  type: object
+  required:
+  - parameters
+  properties:
+    parameters:
+      type: object
+      required:
+      - algorithm
+      - nonce
+      - salt
+      - cost
+      - keyLength
+      - keyPrefix
+      properties:
+        algorithm:
+          type: string
+          examples:
+          - PBKDF2/SHA-256
+        nonce:
+          type: string
+        salt:
+          type: string
+        cost:
+          type: integer
+        keyLength:
+          type: integer
+        keyPrefix:
+          type: string
+        keySignature:
+          type: string
+        memoryCost:
+          type: integer
+        parallelism:
+          type: integer
+        expiresAt:
+          type: integer
+          format: int64
+        data:
+          type: object
+          additionalProperties: true
+    signature:
+      type: string
+LoginRequest:
+  type: object
+  required:
+  - login
+  - password
+  properties:
+    login:
+      type: string
+      description: Username or email address.
+    password:
+      type: string
+      format: password
+Role:
+  type: object
+  required:
+  - id
+  - key
+  - alias
+  - description
+  - isSystem
+  - isDefault
+  - isDeletable
+  - isEnabled
+  - permissionKeys
+  properties:
+    id:
+      type: integer
+      format: int64
+    key:
+      type: string
+    alias:
+      type: string
+    description:
+      type: string
+    isSystem:
+      type: boolean
+    isDefault:
+      type: boolean
+    isDeletable:
+      type: boolean
+    isEnabled:
+      type: boolean
+    permissionKeys:
+      type: array
+      items:
+        type: string
+RoleInput:
+  type: object
+  properties:
+    key:
+      type: string
+    alias:
+      type: string
+    description:
+      type: string
+Permission:
+  type: object
+  required:
+  - key
+  - module
+  - description
+  properties:
+    key:
+      type: string
+    module:
+      type: string
+    description:
+      type: string
+RolePermissionSet:
+  type: object
+  required:
+  - roleKey
+  - permissionKeys
+  properties:
+    roleKey:
+      type: string
+    permissionKeys:
+      type: array
+      items:
+        type: string
+PermissionMatrix:
+  type: object
+  required:
+  - permissions
+  - roles
+  properties:
+    permissions:
+      type: array
+      items:
+        "$ref": "#/Permission"
+    roles:
+      type: array
+      items:
+        "$ref": "#/RolePermissionSet"
+PermissionOverrides:
+  type: object
+  required:
+  - allow
+  - deny
+  properties:
+    allow:
+      type: array
+      items:
+        type: string
+    deny:
+      type: array
+      items:
+        type: string
+AdminUserSummary:
+  type: object
+  required:
+  - id
+  - username
+  - email
+  - displayName
+  - locale
+  - status
+  - isInitialSuperAdmin
+  - roleKeys
+  properties:
+    id:
+      type: integer
+      format: int64
+    username:
+      type: string
+    email:
+      type: string
+      format: email
+    displayName:
+      type: string
+    locale:
+      type: string
+    status:
+      type: string
+      enum:
+      - active
+      - disabled
+      - banned
+    isInitialSuperAdmin:
+      type: boolean
+    roleKeys:
+      type: array
+      items:
+        type: string
+AdminUserDetail:
+  allOf:
+  - "$ref": "#/AdminUserSummary"
+  - type: object
+    required:
+    - permissions
+    - permissionOverrides
+    properties:
+      permissions:
+        type: array
+        items:
+          type: string
+      permissionOverrides:
+        "$ref": "#/PermissionOverrides"
+AdminUserList:
+  type: object
+  required:
+  - items
+  - total
+  - page
+  - perPage
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/AdminUserSummary"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    perPage:
+      type: integer
+UserRolesInput:
+  type: object
+  required:
+  - roleKeys
+  properties:
+    roleKeys:
+      type: array
+      items:
+        type: string
+UserPermissionOverridesInput:
+  "$ref": "#/PermissionOverrides"

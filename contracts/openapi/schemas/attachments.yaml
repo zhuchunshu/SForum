@@ -1,0 +1,485 @@
+ApiResponseAttachment:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/Attachment"
+ApiResponseAdminAttachment:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AdminAttachment"
+ApiResponseAdminAttachmentList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AdminAttachmentList"
+ApiResponseAdminAttachmentDetail:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AdminAttachmentDetail"
+ApiResponseAttachmentSettings:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AttachmentSettings"
+ApiResponseAttachmentProbe:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AttachmentProbe"
+ApiResponseAttachmentCleanup:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AttachmentCleanupResult"
+AttachmentProvider:
+  type: string
+  enum:
+  - local
+  - aliyun_oss
+  - tencent_cos
+  - ftp
+  - sftp
+AttachmentStatus:
+  type: string
+  enum:
+  - active
+  - disabled
+  - deleted
+AttachmentVisibility:
+  type: string
+  enum:
+  - public
+  - private
+AttachmentOwner:
+  type: object
+  required:
+  - id
+  - username
+  - displayName
+  properties:
+    id:
+      type: integer
+      format: int64
+    username:
+      type: string
+    displayName:
+      type: string
+Attachment:
+  type: object
+  required:
+  - id
+  - publicId
+  - name
+  - contentType
+  - size
+  - url
+  - status
+  - provider
+  - referenceCount
+  - createdAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    publicId:
+      type: string
+    name:
+      type: string
+    contentType:
+      type: string
+    size:
+      type: integer
+      format: int64
+    url:
+      type: string
+    status:
+      "$ref": "#/AttachmentStatus"
+    provider:
+      "$ref": "#/AttachmentProvider"
+    owner:
+      "$ref": "#/AttachmentOwner"
+    referenceCount:
+      type: integer
+    createdAt:
+      type: string
+      format: date-time
+AdminAttachment:
+  allOf:
+  - "$ref": "#/Attachment"
+  - type: object
+    required:
+    - objectKey
+    - extension
+    - sha256
+    - visibility
+    properties:
+      objectKey:
+        type: string
+      extension:
+        type: string
+      sha256:
+        type: string
+      imageWidth:
+        type:
+        - integer
+        - 'null'
+      imageHeight:
+        type:
+        - integer
+        - 'null'
+      visibility:
+        "$ref": "#/AttachmentVisibility"
+      deletedAt:
+        type:
+        - string
+        - 'null'
+        format: date-time
+AdminAttachmentList:
+  type: object
+  required:
+  - items
+  - total
+  - page
+  - perPage
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/AdminAttachment"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    perPage:
+      type: integer
+AttachmentReference:
+  type: object
+  required:
+  - id
+  - attachmentId
+  - resourceType
+  - resourceId
+  - context
+  - createdAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    attachmentId:
+      type: integer
+      format: int64
+    resourceType:
+      type: string
+      examples:
+      - post
+      - topic
+      - avatar
+    resourceId:
+      type: integer
+      format: int64
+    context:
+      type: string
+    createdAt:
+      type: string
+      format: date-time
+AdminAttachmentDetail:
+  allOf:
+  - "$ref": "#/AdminAttachment"
+  - type: object
+    required:
+    - references
+    properties:
+      references:
+        type: array
+        items:
+          "$ref": "#/AttachmentReference"
+AttachmentSettings:
+  type: object
+  required:
+  - provider
+  - uploadEnabled
+  - pathTemplate
+  - publicBaseUrl
+  - maxFileSizeMb
+  - allowedExtensions
+  - allowedMimeTypes
+  - defaultVisibility
+  - cleanupOrphanAfterDays
+  - local
+  - aliyunOss
+  - tencentCos
+  - ftp
+  - sftp
+  properties:
+    provider:
+      "$ref": "#/AttachmentProvider"
+    uploadEnabled:
+      type: boolean
+    pathTemplate:
+      type: string
+      examples:
+      - "{yyyy}/{mm}/{dd}/{public_id}{ext}"
+    publicBaseUrl:
+      type: string
+    maxFileSizeMb:
+      type: integer
+      minimum: 1
+      maximum: 1024
+    allowedExtensions:
+      type: array
+      items:
+        type: string
+      examples:
+      - - ".jpg"
+        - ".jpeg"
+        - ".png"
+        - ".gif"
+        - ".webp"
+        - ".pdf"
+        - ".txt"
+        - ".zip"
+    allowedMimeTypes:
+      type: array
+      items:
+        type: string
+      examples:
+      - - image/jpeg
+        - image/png
+        - application/pdf
+    defaultVisibility:
+      "$ref": "#/AttachmentVisibility"
+    cleanupOrphanAfterDays:
+      type: integer
+      minimum: 1
+      maximum: 3650
+    local:
+      "$ref": "#/AttachmentLocalSettings"
+    aliyunOss:
+      "$ref": "#/AttachmentAliyunOSSSettings"
+    tencentCos:
+      "$ref": "#/AttachmentTencentCOSSettings"
+    ftp:
+      "$ref": "#/AttachmentFTPSettings"
+    sftp:
+      "$ref": "#/AttachmentSFTPSettings"
+AttachmentLocalSettings:
+  type: object
+  required:
+  - root
+  - publicPrefix
+  properties:
+    root:
+      type: string
+      description: Filesystem root for the local attachment provider. Relative paths resolve from the API process working directory.
+      examples:
+      - storage/app/attachments
+    publicPrefix:
+      type: string
+      description: Optional public URL prefix for locally stored objects.
+AttachmentAliyunOSSSettings:
+  type: object
+  required:
+  - endpoint
+  - bucket
+  - region
+  - accessKeyId
+  - accessKeySecretSet
+  properties:
+    endpoint:
+      type: string
+    bucket:
+      type: string
+    region:
+      type: string
+    accessKeyId:
+      type: string
+    accessKeySecret:
+      type: string
+      format: password
+      description: Blank on update keeps the existing secret.
+    accessKeySecretSet:
+      type: boolean
+AttachmentTencentCOSSettings:
+  type: object
+  required:
+  - region
+  - bucket
+  - secretId
+  - secretKeySet
+  - cdnDomain
+  properties:
+    region:
+      type: string
+    bucket:
+      type: string
+    secretId:
+      type: string
+    secretKey:
+      type: string
+      format: password
+      description: Blank on update keeps the existing secret.
+    secretKeySet:
+      type: boolean
+    cdnDomain:
+      type: string
+AttachmentFTPSettings:
+  type: object
+  required:
+  - host
+  - port
+  - username
+  - passwordSet
+  - rootPath
+  - passive
+  - explicitTls
+  - publicBaseUrl
+  properties:
+    host:
+      type: string
+    port:
+      type: integer
+      minimum: 1
+      maximum: 65535
+    username:
+      type: string
+    password:
+      type: string
+      format: password
+      description: Blank on update keeps the existing secret.
+    passwordSet:
+      type: boolean
+    rootPath:
+      type: string
+    passive:
+      type: boolean
+    explicitTls:
+      type: boolean
+    publicBaseUrl:
+      type: string
+AttachmentSFTPSettings:
+  type: object
+  required:
+  - host
+  - port
+  - username
+  - passwordSet
+  - privateKeySet
+  - passphraseSet
+  - rootPath
+  - hostKeyFingerprint
+  - publicBaseUrl
+  properties:
+    host:
+      type: string
+    port:
+      type: integer
+      minimum: 1
+      maximum: 65535
+    username:
+      type: string
+    password:
+      type: string
+      format: password
+      description: Blank on update keeps the existing secret.
+    passwordSet:
+      type: boolean
+    privateKey:
+      type: string
+      format: password
+      description: Blank on update keeps the existing private key.
+    privateKeySet:
+      type: boolean
+    passphrase:
+      type: string
+      format: password
+      description: Blank on update keeps the existing passphrase.
+    passphraseSet:
+      type: boolean
+    rootPath:
+      type: string
+    hostKeyFingerprint:
+      type: string
+    publicBaseUrl:
+      type: string
+AttachmentProbe:
+  type: object
+  required:
+  - provider
+  - ok
+  - message
+  properties:
+    provider:
+      "$ref": "#/AttachmentProvider"
+    ok:
+      type: boolean
+    message:
+      type: string
+AttachmentCleanupResult:
+  type: object
+  required:
+  - deleted
+  - failed
+  properties:
+    deleted:
+      type: integer
+    failed:
+      type: integer

@@ -1,0 +1,37 @@
+RoleKey:
+  name: roleKey
+  in: path
+  required: true
+  schema:
+    type: string
+  description: Stable role key, such as member or moderator.
+UserID:
+  name: userID
+  in: path
+  required: true
+  schema:
+    type: integer
+    format: int64
+  description: Numeric user id.
+AttachmentPublicID:
+  name: publicId
+  in: path
+  required: true
+  schema:
+    type: string
+  description: Public attachment identifier returned by upload.
+AttachmentID:
+  name: attachmentID
+  in: path
+  required: true
+  schema:
+    type: integer
+    format: int64
+  description: Numeric attachment id.
+ExtensionID:
+  name: extensionID
+  in: path
+  required: true
+  schema:
+    type: string
+  description: Stable extension id from sforum.extension.json.

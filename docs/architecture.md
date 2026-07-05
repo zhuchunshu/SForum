@@ -158,7 +158,11 @@ Target layout as implementation grows:
 |       |-- go.mod
 |       `-- sqlc.yaml
 |-- contracts/
-|   `-- openapi.yaml
+|   |-- openapi.yaml
+|   `-- openapi/
+|       |-- components/
+|       |-- paths/
+|       `-- schemas/
 |-- compose.yaml
 |-- compose.dev.yaml
 |-- compose.prod.yaml
@@ -202,8 +206,10 @@ Notes:
 - `apps/web/i18n/locales/*` contains frontend message catalogs. Start with
   `zh-CN` and `en-US`, and keep Simplified Chinese complete before adding or
   changing user-facing features.
-- `contracts/openapi.yaml` is the API contract. Generate TypeScript types or a
-  client for `apps/web` from this file once endpoints exist.
+- `contracts/openapi.yaml` is the API contract entrypoint. Module-owned path
+  items, schemas, shared parameters, and shared responses live under
+  `contracts/openapi/`. Generate TypeScript types or a client for `apps/web`
+  from the entrypoint once endpoints exist.
 - The earlier top-level `src/` placeholder was retired once the `apps/`
   structure was created.
 
@@ -429,6 +435,12 @@ Default behavior:
 - API JSON responses must include integer `code`, localized `message`, and
   `data`. `code` equals the HTTP status code. Stable machine-readable error
   reasons live under `data.reason`.
+- Keep OpenAPI modular: `contracts/openapi.yaml` should stay a small entrypoint,
+  with route operations in `contracts/openapi/paths/`, reusable schemas in
+  `contracts/openapi/schemas/`, and shared parameters/responses in
+  `contracts/openapi/components/`.
+- Validate split contract references with `ruby scripts/validate-openapi-refs.rb`
+  after changing OpenAPI files.
 - The frontend should display API `message` first for API-originated prompts and
   use `data.reason` for control flow or fallback behavior.
 - Requests should carry locale context through route, cookie, profile, or

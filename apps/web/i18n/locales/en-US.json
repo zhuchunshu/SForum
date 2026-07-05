@@ -261,6 +261,21 @@
       "settingsDescription": "Choose a storage provider and configure path templates, public domains, size limits, and file type rules.",
       "settingsSaved": "Attachment settings saved.",
       "settingsSaveFailed": "Attachment settings could not be saved.",
+      "restoreRecommended": "Restore recommended defaults",
+      "recommendedRestored": "Recommended defaults restored and saved.",
+      "recommendedRestoreFailed": "Recommended defaults could not be restored.",
+      "beginner": {
+        "title": "Beginner-friendly recommended defaults",
+        "description": "For a new site, local upload works out of the box: no cloud account is required, files use the default directory, and you can switch to OSS, COS, or SFTP later.",
+        "currentRecommended": "Currently using recommended defaults",
+        "restoreHint": "Not sure what to enter? Restore the recommended defaults in one click.",
+        "secretNote": "Restoring recommended defaults switches back to local upload and saves the default limits; saved cloud or remote-server secrets are not cleared by this action.",
+        "defaults": {
+          "local": "Local upload: storage/app/attachments",
+          "uploads": "Uploads enabled, 20 MB per file",
+          "safeTypes": "Common images, PDF, TXT, and ZIP allowed"
+        }
+      },
       "saveSettings": "Save attachment settings",
       "testConnection": "Test connection",
       "testPassed": "Storage connection is healthy.",

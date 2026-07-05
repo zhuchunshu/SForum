@@ -103,6 +103,22 @@ Route registration rules:
   boundary in the API. Frontend guards may mirror the same permission for
   usability, but backend policy checks remain authoritative.
 
+## API Contract
+
+`contracts/openapi.yaml` is the stable OpenAPI entrypoint for documentation and
+future generated clients. The handwritten contract source is split by module:
+
+- `contracts/openapi/paths/` owns route operations.
+- `contracts/openapi/schemas/` owns reusable request/response/domain schemas.
+- `contracts/openapi/components/` owns shared parameters and reusable error
+  responses.
+
+Keep route files aligned with `app/Http/Controllers/*` ownership. When an API
+endpoint changes, update its module path file, schemas, shared responses or
+parameters when needed, permission/security documentation, and frontend
+consumers/tests that depend on the shape. Run
+`ruby scripts/validate-openapi-refs.rb` after editing contract files.
+
 ## Jobs And Queues
 
 - Use River with PostgreSQL as the primary durable queue.
@@ -133,7 +149,8 @@ Route registration rules:
   roles/user groups.
 - Use ALTCHA by default for human verification, backed by Redis rate limits and
   single-use challenge tracking.
-- Define the first OpenAPI contract and schema migrations.
+- Keep the modular OpenAPI contract synchronized with route files and future
+  generated frontend clients.
 - Add River and `app/Support/Jobs` after the jobs design is reviewed.
 - Implement the accepted API response envelope: every JSON API response uses
   integer `code`, backend-localized `message`, and `data`; `code` equals the

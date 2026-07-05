@@ -1,0 +1,42 @@
+Unauthorized:
+  description: Authentication is required or credentials are invalid.
+  content:
+    application/json:
+      schema:
+        "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+Forbidden:
+  description: The current user does not have permission.
+  content:
+    application/json:
+      schema:
+        "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+Conflict:
+  description: The request conflicts with a system invariant.
+  content:
+    application/json:
+      schema:
+        "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+NotFound:
+  description: The requested resource was not found.
+  content:
+    application/json:
+      schema:
+        "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+UnprocessableEntity:
+  description: The request body is invalid.
+  content:
+    application/json:
+      schema:
+        "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+ServiceUnavailable:
+  description: A required backend service or storage provider is unavailable.
+  content:
+    application/json:
+      schema:
+        "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+TooManyRequests:
+  description: Rate limit exceeded.
+  content:
+    application/json:
+      schema:
+        "$ref": "../schemas/common.yaml#/ApiErrorResponse"

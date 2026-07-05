@@ -1,0 +1,321 @@
+ApiResponseWebOption:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/WebOption"
+ApiResponseWebOptionList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/WebOption"
+ApiResponseAdminWebOptionList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/AdminWebOption"
+WebOption:
+  type: object
+  required:
+  - name
+  - value
+  properties:
+    name:
+      type: string
+      examples:
+      - site.name
+    value:
+      type: string
+AdminWebOption:
+  type: object
+  required:
+  - name
+  - value
+  - public
+  - secret
+  - secretSet
+  properties:
+    name:
+      type: string
+      enum:
+      - site.name
+      - site.url
+      - site.default_locale
+      - site.supported_locales
+      - human_verification.provider
+      - human_verification.scenarios.register
+      - human_verification.scenarios.password_reset
+      - human_verification.scenarios.login_risk
+      - human_verification.scenarios.post_risk
+      - human_verification.altcha.secret
+      - human_verification.altcha.challenge_ttl
+      - human_verification.altcha.cost
+      - human_verification.altcha.widget.type
+      - human_verification.altcha.widget.auto
+      - human_verification.altcha.widget.display
+      - human_verification.altcha.widget.hide_logo
+      - human_verification.altcha.widget.hide_footer
+      - human_verification.altcha.widget.workers
+      - human_verification.altcha.widget.min_duration_ms
+      - appearance.theme
+      - footer.copyright.zh-CN
+      - footer.copyright.en-US
+      - footer.links
+      - seo.meta_title_template
+      - seo.meta_description
+      - seo.meta_keywords
+      - seo.og_image_url
+      - seo.twitter_card
+      - seo.twitter_site
+      - seo.allow_indexing
+      - seo.google_verification
+      - seo.bing_verification
+      - seo.baidu_verification
+      - seo.yandex_verification
+      - seo.robots.extra_allow
+      - seo.robots.extra_disallow
+      - seo.robots.block_ai_bots
+      - seo.robots.block_non_seo_bots
+      - seo.sitemap.enabled
+      - seo.sitemap.include_static_pages
+      - seo.sitemap.include_forum_content
+      - seo.schema_org.enabled
+      - seo.schema_org.search_action_enabled
+      - seo.schema_org.discussion_enabled
+      - seo.schema_org.organization_logo_url
+      - attachment.provider
+      - attachment.upload.enabled
+      - attachment.path_template
+      - attachment.public_base_url
+      - attachment.max_file_size_mb
+      - attachment.allowed_extensions
+      - attachment.allowed_mime_types
+      - attachment.default_visibility
+      - attachment.cleanup_orphan_after_days
+      - attachment.local.root
+      - attachment.local.public_prefix
+      - attachment.aliyun_oss.endpoint
+      - attachment.aliyun_oss.bucket
+      - attachment.aliyun_oss.region
+      - attachment.aliyun_oss.access_key_id
+      - attachment.aliyun_oss.access_key_secret
+      - attachment.tencent_cos.region
+      - attachment.tencent_cos.bucket
+      - attachment.tencent_cos.secret_id
+      - attachment.tencent_cos.secret_key
+      - attachment.tencent_cos.cdn_domain
+      - attachment.ftp.host
+      - attachment.ftp.port
+      - attachment.ftp.username
+      - attachment.ftp.password
+      - attachment.ftp.root_path
+      - attachment.ftp.passive
+      - attachment.ftp.explicit_tls
+      - attachment.ftp.public_base_url
+      - attachment.sftp.host
+      - attachment.sftp.port
+      - attachment.sftp.username
+      - attachment.sftp.password
+      - attachment.sftp.private_key
+      - attachment.sftp.passphrase
+      - attachment.sftp.root_path
+      - attachment.sftp.host_key_fingerprint
+      - attachment.sftp.public_base_url
+    value:
+      type: string
+      description: Empty for secret options; use secretSet to tell whether a secret is configured.
+    public:
+      type: boolean
+    secret:
+      type: boolean
+    secretSet:
+      type: boolean
+WebOptionInput:
+  type: object
+  required:
+  - name
+  - value
+  properties:
+    name:
+      type: string
+      enum:
+      - site.name
+      - site.url
+      - site.default_locale
+      - site.supported_locales
+      - human_verification.provider
+      - human_verification.scenarios.register
+      - human_verification.scenarios.password_reset
+      - human_verification.scenarios.login_risk
+      - human_verification.scenarios.post_risk
+      - human_verification.altcha.widget.type
+      - human_verification.altcha.widget.auto
+      - human_verification.altcha.widget.display
+      - human_verification.altcha.widget.hide_logo
+      - human_verification.altcha.widget.hide_footer
+      - human_verification.altcha.widget.workers
+      - human_verification.altcha.widget.min_duration_ms
+      - appearance.theme
+      - footer.copyright.zh-CN
+      - footer.copyright.en-US
+      - footer.links
+      - seo.meta_title_template
+      - seo.meta_description
+      - seo.meta_keywords
+      - seo.og_image_url
+      - seo.twitter_card
+      - seo.twitter_site
+      - seo.allow_indexing
+      - seo.google_verification
+      - seo.bing_verification
+      - seo.baidu_verification
+      - seo.yandex_verification
+      - seo.robots.extra_allow
+      - seo.robots.extra_disallow
+      - seo.robots.block_ai_bots
+      - seo.robots.block_non_seo_bots
+      - seo.sitemap.enabled
+      - seo.sitemap.include_static_pages
+      - seo.sitemap.include_forum_content
+      - seo.schema_org.enabled
+      - seo.schema_org.search_action_enabled
+      - seo.schema_org.discussion_enabled
+      - seo.schema_org.organization_logo_url
+      - attachment.upload.enabled
+      - attachment.max_file_size_mb
+      - attachment.allowed_extensions
+      - attachment.allowed_mime_types
+    value:
+      type: string
+      minLength: 1
+WebOptionBatchInput:
+  type: object
+  required:
+  - options
+  properties:
+    options:
+      type: array
+      items:
+        "$ref": "#/AdminWebOptionInput"
+AdminWebOptionInput:
+  type: object
+  required:
+  - name
+  - value
+  properties:
+    name:
+      type: string
+      enum:
+      - site.name
+      - site.url
+      - site.default_locale
+      - site.supported_locales
+      - human_verification.provider
+      - human_verification.scenarios.register
+      - human_verification.scenarios.password_reset
+      - human_verification.scenarios.login_risk
+      - human_verification.scenarios.post_risk
+      - human_verification.altcha.secret
+      - human_verification.altcha.challenge_ttl
+      - human_verification.altcha.cost
+      - appearance.theme
+      - footer.copyright.zh-CN
+      - footer.copyright.en-US
+      - footer.links
+      - seo.meta_title_template
+      - seo.meta_description
+      - seo.meta_keywords
+      - seo.og_image_url
+      - seo.twitter_card
+      - seo.twitter_site
+      - seo.allow_indexing
+      - seo.google_verification
+      - seo.bing_verification
+      - seo.baidu_verification
+      - seo.yandex_verification
+      - seo.robots.extra_allow
+      - seo.robots.extra_disallow
+      - seo.robots.block_ai_bots
+      - seo.robots.block_non_seo_bots
+      - seo.sitemap.enabled
+      - seo.sitemap.include_static_pages
+      - seo.sitemap.include_forum_content
+      - seo.schema_org.enabled
+      - seo.schema_org.search_action_enabled
+      - seo.schema_org.discussion_enabled
+      - seo.schema_org.organization_logo_url
+      - human_verification.altcha.widget.type
+      - human_verification.altcha.widget.auto
+      - human_verification.altcha.widget.display
+      - human_verification.altcha.widget.hide_logo
+      - human_verification.altcha.widget.hide_footer
+      - human_verification.altcha.widget.workers
+      - human_verification.altcha.widget.min_duration_ms
+      - attachment.provider
+      - attachment.upload.enabled
+      - attachment.path_template
+      - attachment.public_base_url
+      - attachment.max_file_size_mb
+      - attachment.allowed_extensions
+      - attachment.allowed_mime_types
+      - attachment.default_visibility
+      - attachment.cleanup_orphan_after_days
+      - attachment.local.root
+      - attachment.local.public_prefix
+      - attachment.aliyun_oss.endpoint
+      - attachment.aliyun_oss.bucket
+      - attachment.aliyun_oss.region
+      - attachment.aliyun_oss.access_key_id
+      - attachment.aliyun_oss.access_key_secret
+      - attachment.tencent_cos.region
+      - attachment.tencent_cos.bucket
+      - attachment.tencent_cos.secret_id
+      - attachment.tencent_cos.secret_key
+      - attachment.tencent_cos.cdn_domain
+      - attachment.ftp.host
+      - attachment.ftp.port
+      - attachment.ftp.username
+      - attachment.ftp.password
+      - attachment.ftp.root_path
+      - attachment.ftp.passive
+      - attachment.ftp.explicit_tls
+      - attachment.ftp.public_base_url
+      - attachment.sftp.host
+      - attachment.sftp.port
+      - attachment.sftp.username
+      - attachment.sftp.password
+      - attachment.sftp.private_key
+      - attachment.sftp.passphrase
+      - attachment.sftp.root_path
+      - attachment.sftp.host_key_fingerprint
+      - attachment.sftp.public_base_url
+    value:
+      type: string
+      description: For secret options, an empty value keeps the existing secret.

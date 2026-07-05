@@ -261,6 +261,21 @@
       "settingsDescription": "选择存储提供商，设置路径模板、访问域名、大小限制和文件类型规则。",
       "settingsSaved": "附件设置已保存。",
       "settingsSaveFailed": "附件设置保存失败。",
+      "restoreRecommended": "恢复推荐默认值",
+      "recommendedRestored": "已恢复并保存推荐默认值。",
+      "recommendedRestoreFailed": "推荐默认值恢复失败。",
+      "beginner": {
+        "title": "新手推荐默认配置",
+        "description": "刚建站时可以直接使用本地上传：不需要云存储账号，文件写入默认目录，后续再按需要切换 OSS、COS 或 SFTP。",
+        "currentRecommended": "当前为推荐默认值",
+        "restoreHint": "不确定怎么填时，可以一键恢复推荐默认值。",
+        "secretNote": "恢复推荐默认值会切回本地上传并保存默认限制；已保存的云存储或远程服务器密钥不会被这个操作清空。",
+        "defaults": {
+          "local": "本地上传：storage/app/attachments",
+          "uploads": "默认启用上传，单文件 20 MB",
+          "safeTypes": "允许常用图片、PDF、TXT、ZIP"
+        }
+      },
       "saveSettings": "保存附件设置",
       "testConnection": "测试连接",
       "testPassed": "存储连接正常。",

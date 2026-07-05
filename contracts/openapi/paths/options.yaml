@@ -1,0 +1,90 @@
+webOptions:
+  get:
+    summary: List public runtime web options
+    operationId: listWebOptions
+    responses:
+      '200':
+        description: Public runtime options used by the web frontend.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/options.yaml#/ApiResponseWebOptionList"
+  put:
+    summary: Update a runtime web option
+    operationId: updateWebOption
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/options.yaml#/WebOptionInput"
+    responses:
+      '200':
+        description: Option updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/options.yaml#/ApiResponseWebOption"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+webOptionByName:
+  get:
+    summary: Get a public runtime web option
+    operationId: getWebOption
+    parameters:
+    - name: name
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Option name, such as site.name.
+    responses:
+      '200':
+        description: Public runtime option value.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/options.yaml#/ApiResponseWebOption"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminWebOptions:
+  get:
+    summary: List all runtime web options for administrators
+    operationId: listAdminWebOptions
+    responses:
+      '200':
+        description: Admin-visible runtime options. Secret values are masked.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/options.yaml#/ApiResponseAdminWebOptionList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  put:
+    summary: Update runtime web options in a batch
+    operationId: updateAdminWebOptions
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/options.yaml#/WebOptionBatchInput"
+    responses:
+      '200':
+        description: Options updated. Secret values are masked.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/options.yaml#/ApiResponseAdminWebOptionList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"

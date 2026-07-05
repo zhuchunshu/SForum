@@ -14,6 +14,25 @@ SForum is intended to become a maintainable forum project. The current repositor
 - Keep changes scoped to the current task. Do not refactor unrelated areas just because they are nearby.
 - Record decisions in the knowledge base when they will matter to future sessions.
 
+## Beginner-Friendly Defaults
+
+Every new feature, admin screen, configuration flow, and user-facing workflow
+must be friendly to first-time operators and non-expert users from the first
+version.
+
+- Provide safe, working recommended defaults instead of requiring users to
+  understand every technical setting before the feature can be used.
+- Make the recommended path visually obvious in the UI with plain language,
+  concise helper text, and familiar controls.
+- Support one-click restoration to the recommended defaults for configurable
+  features. If restoring defaults would preserve secrets, credentials, or other
+  sensitive state, state that clearly in the UI.
+- Avoid empty required configuration screens unless the feature truly cannot
+  work without external credentials. In that case, explain the missing
+  credential and keep non-credential defaults filled in.
+- Add or update tests for default resolution and reset behavior when the
+  feature stores runtime options, preferences, or other configurable state.
+
 ## Permission-Aware Development
 
 The permission system is now part of the baseline architecture. When developing
@@ -34,6 +53,27 @@ adding it after the UI or endpoint is already complete.
   allowed and denied access paths.
 - When a feature adds new permission keys, update seed data, permission catalog
   display text, OpenAPI/contracts when relevant, and the knowledge base.
+
+## API Contract Workflow
+
+OpenAPI is the shared contract between the Go API, Nuxt consumers, tests, and
+future generated clients. Keep it modular as the product surface grows.
+
+- Treat `contracts/openapi.yaml` as the entrypoint and index only. Do not grow
+  it back into one giant handwritten contract file.
+- Put route operations in `contracts/openapi/paths/<module>.yaml`, reusable
+  schemas in `contracts/openapi/schemas/<module>.yaml`, and shared parameters
+  or responses in `contracts/openapi/components/`.
+- Split contract files by product/module ownership, such as identity, options,
+  attachments, extensions, and system health.
+- Use relative `$ref` values from the file that owns the reference. When moving
+  a schema or path item, update references at the same time instead of relying
+  on a later cleanup pass.
+- For every new or changed endpoint, update the OpenAPI path, request/response
+  schemas, error responses, permission/security notes when relevant, and any
+  frontend API typing or tests that depend on the shape.
+- Run `ruby scripts/validate-openapi-refs.rb` after editing OpenAPI files. Run
+  `./scripts/test.sh` when the contract change is part of feature work.
 
 ## Frontend UI Conventions
 

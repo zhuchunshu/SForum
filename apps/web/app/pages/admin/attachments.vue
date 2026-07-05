@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
+import {
+  createDefaultAttachmentSettings,
+  isRecommendedAttachmentSettings,
+  resetAttachmentSettingsToRecommended,
+  splitAttachmentSettingList,
+  type AttachmentProvider,
+  type AttachmentSettings
+} from '~/utils/attachmentSettings'
 
 definePageMeta({
   middleware: 'admin',
@@ -12,24 +20,6 @@ defineOptions({
 })
 
 type AttachmentTab = 'settings' | 'manager'
-type AttachmentProvider = 'local' | 'aliyun_oss' | 'tencent_cos' | 'ftp' | 'sftp'
-
-type AttachmentSettings = {
-  provider: AttachmentProvider
-  uploadEnabled: boolean
-  pathTemplate: string
-  publicBaseUrl: string
-  maxFileSizeMb: number
-  allowedExtensions: string[]
-  allowedMimeTypes: string[]
-  defaultVisibility: 'public' | 'private'
-  cleanupOrphanAfterDays: number
-  local: { root: string, publicPrefix: string }
-  aliyunOss: { endpoint: string, bucket: string, region: string, accessKeyId: string, accessKeySecret?: string, accessKeySecretSet: boolean }
-  tencentCos: { region: string, bucket: string, secretId: string, secretKey?: string, secretKeySet: boolean, cdnDomain: string }
-  ftp: { host: string, port: number, username: string, password?: string, passwordSet: boolean, rootPath: string, passive: boolean, explicitTls: boolean, publicBaseUrl: string }
-  sftp: { host: string, port: number, username: string, password?: string, passwordSet: boolean, privateKey?: string, privateKeySet: boolean, passphrase?: string, passphraseSet: boolean, rootPath: string, hostKeyFingerprint: string, publicBaseUrl: string }
-}
 
 type AttachmentOwner = {
   id: number
@@ -92,6 +82,7 @@ const adminPage = useAdminPage('/attachments')
 
 const activeTab = ref<AttachmentTab>('settings')
 const saving = ref(false)
+const restoring = ref(false)
 const testing = ref(false)
 const loadingAttachments = ref(false)
 const loadingDetail = ref(false)
@@ -113,7 +104,7 @@ const tabs = computed<Array<{ id: AttachmentTab, label: string, icon: string, en
   { id: 'manager', label: t('admin.attachments.tabs.manager'), icon: 'i-lucide-folder-search', enabled: canManageAttachments.value }
 ])
 
-const form = reactive(defaultSettings())
+const form = reactive(createDefaultAttachmentSettings())
 const list = ref<AttachmentList>({ items: [], total: 0, page: 1, perPage: 20 })
 const filters = reactive({
   query: '',
@@ -140,16 +131,24 @@ useSeoMeta({
 const allowedExtensionsText = computed({
   get: () => form.allowedExtensions.join(','),
   set: (value: string) => {
-    form.allowedExtensions = splitList(value)
+    form.allowedExtensions = splitAttachmentSettingList(value)
   }
 })
 
 const allowedMimeTypesText = computed({
   get: () => form.allowedMimeTypes.join(','),
   set: (value: string) => {
-    form.allowedMimeTypes = splitList(value)
+    form.allowedMimeTypes = splitAttachmentSettingList(value)
   }
 })
+
+const recommendedApplied = computed(() => isRecommendedAttachmentSettings(form))
+
+const beginnerDefaults = computed(() => [
+  { icon: 'i-lucide-hard-drive', label: t('admin.attachments.beginner.defaults.local') },
+  { icon: 'i-lucide-upload-cloud', label: t('admin.attachments.beginner.defaults.uploads') },
+  { icon: 'i-lucide-shield-check', label: t('admin.attachments.beginner.defaults.safeTypes') }
+])
 
 const pathPreview = computed(() => {
   const now = new Date()
@@ -175,17 +174,35 @@ watchEffect(() => {
 async function saveSettings() {
   saving.value = true
   try {
-    const updated = await request<AttachmentSettings>('/admin/attachment-settings', {
-      method: 'PUT',
-      body: settingsPayload()
-    })
-    applySettings(updated)
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.attachments.settingsSaved') })
+    await persistSettings(t('admin.attachments.settingsSaved'))
   } catch (error) {
     toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.attachments.settingsSaveFailed') })
   } finally {
     saving.value = false
   }
+}
+
+async function restoreRecommendedSettings() {
+  const previous = settingsPayload()
+  Object.assign(form, resetAttachmentSettingsToRecommended(form))
+  restoring.value = true
+  try {
+    await persistSettings(t('admin.attachments.recommendedRestored'))
+  } catch (error) {
+    applySettings(previous)
+    toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.attachments.recommendedRestoreFailed') })
+  } finally {
+    restoring.value = false
+  }
+}
+
+async function persistSettings(successTitle: string) {
+  const updated = await request<AttachmentSettings>('/admin/attachment-settings', {
+    method: 'PUT',
+    body: settingsPayload()
+  })
+  applySettings(updated)
+  toast.add({ color: 'success', icon: 'i-lucide-check', title: successTitle })
 }
 
 async function testConnection() {
@@ -293,7 +310,7 @@ async function copySelectedURL() {
 }
 
 function applySettings(settings: AttachmentSettings) {
-  Object.assign(form, defaultSettings(), settings)
+  Object.assign(form, createDefaultAttachmentSettings(), settings)
 }
 
 function settingsPayload(): AttachmentSettings {
@@ -311,29 +328,6 @@ function settingsPayload(): AttachmentSettings {
 
 function setActiveTab(tab: AttachmentTab) {
   activeTab.value = tab
-}
-
-function defaultSettings(): AttachmentSettings {
-  return {
-    provider: 'local',
-    uploadEnabled: true,
-    pathTemplate: '{yyyy}/{mm}/{dd}/{public_id}{ext}',
-    publicBaseUrl: '',
-    maxFileSizeMb: 20,
-    allowedExtensions: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.txt', '.zip'],
-    allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'application/zip'],
-    defaultVisibility: 'public',
-    cleanupOrphanAfterDays: 30,
-    local: { root: 'storage/app/attachments', publicPrefix: '' },
-    aliyunOss: { endpoint: '', bucket: '', region: '', accessKeyId: '', accessKeySecret: '', accessKeySecretSet: false },
-    tencentCos: { region: '', bucket: '', secretId: '', secretKey: '', secretKeySet: false, cdnDomain: '' },
-    ftp: { host: '', port: 21, username: '', password: '', passwordSet: false, rootPath: '/', passive: true, explicitTls: false, publicBaseUrl: '' },
-    sftp: { host: '', port: 22, username: '', password: '', passwordSet: false, privateKey: '', privateKeySet: false, passphrase: '', passphraseSet: false, rootPath: '/', hostKeyFingerprint: '', publicBaseUrl: '' }
-  }
-}
-
-function splitList(value: string) {
-  return value.split(',').map(item => item.trim()).filter(Boolean)
 }
 
 function statusColor(status: string) {
@@ -405,6 +399,56 @@ function isPreviewableImage(item: Attachment) {
   </div>
 
   <form v-if="activeTab === 'settings' && canManageSettings" class="flex flex-col" @submit.prevent="saveSettings">
+    <section class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div class="flex gap-3">
+          <div class="grid size-10 shrink-0 place-items-center rounded-lg bg-white text-emerald-700 shadow-sm dark:bg-emerald-900/60 dark:text-emerald-200">
+            <UIcon name="i-lucide-sparkles" class="size-5" />
+          </div>
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <h3 class="text-base font-bold text-emerald-950 dark:text-emerald-50">
+                {{ t('admin.attachments.beginner.title') }}
+              </h3>
+              <UBadge v-if="recommendedApplied" color="success" variant="soft">
+                {{ t('admin.attachments.beginner.currentRecommended') }}
+              </UBadge>
+            </div>
+            <p class="mt-1 max-w-3xl text-sm text-emerald-800 dark:text-emerald-200">
+              {{ t('admin.attachments.beginner.description') }}
+            </p>
+          </div>
+        </div>
+        <UButton
+          type="button"
+          color="primary"
+          variant="solid"
+          leading-icon="i-lucide-rotate-ccw"
+          :loading="restoring"
+          :disabled="saving || pending"
+          class="shrink-0"
+          @click="restoreRecommendedSettings"
+        >
+          {{ t('admin.attachments.restoreRecommended') }}
+        </UButton>
+      </div>
+
+      <div class="mt-4 grid gap-2 md:grid-cols-3">
+        <div
+          v-for="item in beginnerDefaults"
+          :key="item.label"
+          class="flex items-center gap-2 rounded-md border border-emerald-200 bg-white/80 px-3 py-2 dark:border-emerald-900/60 dark:bg-emerald-950/40"
+        >
+          <UIcon :name="item.icon" class="size-4 shrink-0 text-emerald-700 dark:text-emerald-200" />
+          <span class="text-xs font-medium text-emerald-900 dark:text-emerald-100">{{ item.label }}</span>
+        </div>
+      </div>
+
+      <p class="mt-3 text-xs text-emerald-700 dark:text-emerald-200">
+        {{ t('admin.attachments.beginner.secretNote') }}
+      </p>
+    </section>
+
     <UCard class="border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900" :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }">
       <template #header>
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -541,7 +585,26 @@ function isPreviewableImage(item: Attachment) {
       </div>
 
       <template #footer>
-        <SFAdminFormFooter :saving="saving" :submit-text="t('admin.attachments.saveSettings')" />
+        <SFAdminFormFooter
+          :saving="saving || restoring"
+          :disabled="pending"
+          :submit-text="t('admin.attachments.saveSettings')"
+          :reset-text="t('admin.attachments.restoreRecommended')"
+          reset-icon="i-lucide-rotate-ccw"
+          @reset="restoreRecommendedSettings"
+        >
+          <template #left>
+            <div class="flex items-center gap-2">
+              <UIcon
+                :name="recommendedApplied ? 'i-lucide-circle-check' : 'i-lucide-info'"
+                :class="recommendedApplied ? 'size-4 text-emerald-500' : 'size-4 text-slate-400'"
+              />
+              <span>
+                {{ recommendedApplied ? t('admin.attachments.beginner.currentRecommended') : t('admin.attachments.beginner.restoreHint') }}
+              </span>
+            </div>
+          </template>
+        </SFAdminFormFooter>
       </template>
     </UCard>
   </form>

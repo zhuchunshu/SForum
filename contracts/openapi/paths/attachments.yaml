@@ -1,0 +1,284 @@
+attachments:
+  post:
+    summary: Upload an attachment
+    operationId: uploadAttachment
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+            - file
+            properties:
+              file:
+                type: string
+                format: binary
+    responses:
+      '201':
+        description: Attachment uploaded through the API server.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/attachments.yaml#/ApiResponseAttachment"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+attachmentByPublicID:
+  get:
+    summary: Get attachment metadata
+    operationId: getAttachment
+    parameters:
+    - "$ref": "../components/parameters.yaml#/AttachmentPublicID"
+    responses:
+      '200':
+        description: Public attachment metadata allowed for the current actor.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/attachments.yaml#/ApiResponseAttachment"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+attachmentContent:
+  get:
+    summary: Download or render attachment content
+    operationId: getAttachmentContent
+    parameters:
+    - "$ref": "../components/parameters.yaml#/AttachmentPublicID"
+    responses:
+      '200':
+        description: Attachment bytes streamed from the configured provider.
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminAttachmentSettings:
+  get:
+    summary: Get attachment runtime settings
+    operationId: getAttachmentSettings
+    responses:
+      '200':
+        description: Attachment storage and upload settings. Secret values are masked.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentSettings"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  put:
+    summary: Update attachment runtime settings
+    operationId: updateAttachmentSettings
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/attachments.yaml#/AttachmentSettings"
+    responses:
+      '200':
+        description: Attachment settings updated. Blank secret fields keep existing secrets.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentSettings"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminAttachmentSettingsTest:
+  post:
+    summary: Test the active attachment storage provider
+    operationId: testAttachmentSettings
+    responses:
+      '200':
+        description: Provider probe result.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentProbe"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+adminAttachments:
+  get:
+    summary: List attachments for administration
+    operationId: listAdminAttachments
+    parameters:
+    - name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    - name: query
+      in: query
+      schema:
+        type: string
+    - name: provider
+      in: query
+      schema:
+        "$ref": "../schemas/attachments.yaml#/AttachmentProvider"
+    - name: status
+      in: query
+      schema:
+        "$ref": "../schemas/attachments.yaml#/AttachmentStatus"
+    - name: contentType
+      in: query
+      schema:
+        type: string
+    - name: ownerUserId
+      in: query
+      schema:
+        type: integer
+        format: int64
+    - name: referenceStatus
+      in: query
+      schema:
+        type: string
+        enum:
+        - referenced
+        - orphan
+    - name: createdFrom
+      in: query
+      schema:
+        type: string
+        format: date-time
+    - name: createdTo
+      in: query
+      schema:
+        type: string
+        format: date-time
+    responses:
+      '200':
+        description: Paged attachment list for governance.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/attachments.yaml#/ApiResponseAdminAttachmentList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+adminAttachmentCleanup:
+  post:
+    summary: Clean up deleted orphan attachments
+    operationId: cleanupAdminAttachments
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              limit:
+                type: integer
+                minimum: 1
+                maximum: 500
+    responses:
+      '200':
+        description: Cleanup result.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/attachments.yaml#/ApiResponseAttachmentCleanup"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+adminAttachmentByID:
+  get:
+    summary: Get attachment detail for administration
+    operationId: getAdminAttachment
+    parameters:
+    - "$ref": "../components/parameters.yaml#/AttachmentID"
+    responses:
+      '200':
+        description: Attachment detail including object key, checksum, and references.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/attachments.yaml#/ApiResponseAdminAttachmentDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+  patch:
+    summary: Update attachment status
+    operationId: updateAdminAttachment
+    parameters:
+    - "$ref": "../components/parameters.yaml#/AttachmentID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+            - status
+            properties:
+              status:
+                type: string
+                enum:
+                - active
+                - disabled
+    responses:
+      '200':
+        description: Attachment status updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/attachments.yaml#/ApiResponseAdminAttachment"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+  delete:
+    summary: Soft-delete an unreferenced attachment
+    operationId: deleteAdminAttachment
+    parameters:
+    - "$ref": "../components/parameters.yaml#/AttachmentID"
+    responses:
+      '200':
+        description: Attachment marked as deleted. Physical cleanup is handled by the orphan cleanup path.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/attachments.yaml#/ApiResponseAdminAttachment"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"

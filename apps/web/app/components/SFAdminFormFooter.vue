@@ -44,6 +44,7 @@ const emit = defineEmits<{
       <slot name="actions">
         <!-- 重置按钮 -->
         <UButton
+          type="button"
           color="neutral"
           variant="outline"
           :leading-icon="resetIcon"

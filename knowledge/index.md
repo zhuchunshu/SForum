@@ -81,6 +81,10 @@ This is the entry point for project memory.
   background action triggers must identify their actor/action/resource boundary,
   keep API policy checks authoritative, and test allowed plus denied paths when
   behavior is unsafe or admin-facing.
+- Development guidelines now require beginner-friendly defaults for new
+  features: configurable flows must ship with safe recommended defaults,
+  explain the recommended path in plain language, and support one-click
+  restoration to defaults.
 - Security verification architecture is accepted: SForum keeps human
   verification disabled by default, with ALTCHA as the first supported
   self-hosted provider for registration, password-reset initiation, and later
@@ -139,6 +143,11 @@ This is the entry point for project memory.
   response must include integer `code`, localized `message`, and `data`; `code`
   equals the HTTP status code, and stable machine-readable reasons live under
   `data.reason`.
+- OpenAPI has been modularized: `contracts/openapi.yaml` is now a small
+  entrypoint, with module-owned paths under `contracts/openapi/paths/`, schemas
+  under `contracts/openapi/schemas/`, shared components under
+  `contracts/openapi/components/`, and local reference validation through
+  `ruby scripts/validate-openapi-refs.rb`.
 - Runtime web options are now introduced through `web_options(name, value)`.
   Site name, site URL, default locale, enabled locales, and public
   human-verification provider plus verification scenario switches and ALTCHA
@@ -163,7 +172,9 @@ This is the entry point for project memory.
   `attachment.upload`/`attachment.manage`/`attachment.settings.manage`
   permissions, runtime provider settings in `web_options`, server-mediated
   upload APIs, local/Aliyun OSS/Tencent COS/FTP/SFTP storage adapters, admin
-  attachment governance, and orphan cleanup boundaries.
+  attachment governance, and orphan cleanup boundaries. The admin attachment
+  settings page now highlights a beginner-friendly local-upload recommended
+  configuration and can restore those defaults in one click.
 - The local attachment provider root is now the admin-only runtime option
   `attachment.local.root`, defaulting to `storage/app/attachments`; API process
   config no longer reads `ATTACHMENT_LOCAL_ROOT`.
@@ -191,6 +202,7 @@ This is the entry point for project memory.
   settings, permissions, upload flow, cleanup, API, and admin UI notes.
 - `modules/extensions.md` - extension package, plugin/theme manifest,
   lifecycle, permissions, storage, and runtime-boundary notes.
+- `../contracts/README.md` - modular OpenAPI contract editing guide.
 - `decisions/2026-07-04-laravel-style-http-routing.md` - accepted backend
   composition, route registration, and Laravel-style API directory decision.
 - `decisions/2026-07-04-altcha-human-verification.md` - accepted ALTCHA human
@@ -225,6 +237,8 @@ This is the entry point for project memory.
 - `decisions/2026-07-05-extension-plugin-theme-foundation.md` - accepted
   plugin/theme extension foundation, storage, permission, and runtime-boundary
   decision.
+- `decisions/2026-07-05-openapi-contract-modularization.md` - accepted
+  modular OpenAPI source layout and reference-validation workflow.
 - `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA
   implementation handoff.
 - `sessions/2026-07-04-registration-status-notice.md` - first-user
@@ -263,6 +277,8 @@ This is the entry point for project memory.
   validation sync, and attachment local-root runtime option handoff.
 - `sessions/2026-07-05-extension-system-foundation.md` - extension backend,
   admin UI, manifest, lifecycle, and runtime-boundary implementation handoff.
+- `sessions/2026-07-05-openapi-contract-modularization.md` - OpenAPI split,
+  validation script, and documentation handoff.
 - `sessions/2026-07-05-public-navbar-hide-admin-entry.md` - public navbar admin
   entry removal handoff.
 - `sessions/2026-07-05-admin-permission-management.md` - user-level permission

@@ -1,0 +1,177 @@
+ApiResponseExtension:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/Extension"
+ApiResponseExtensionList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/Extension"
+ApiResponseExtensionEventList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/ExtensionEvent"
+ExtensionType:
+  type: string
+  enum:
+  - plugin
+  - theme
+ExtensionStatus:
+  type: string
+  enum:
+  - installed
+  - enabled
+  - disabled
+ExtensionManifest:
+  type: object
+  required:
+  - id
+  - name
+  - version
+  - type
+  - sforumVersion
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    version:
+      type: string
+    type:
+      "$ref": "#/ExtensionType"
+    sforumVersion:
+      type: string
+    permissions:
+      type: array
+      items:
+        type: string
+    settings:
+      type: array
+      items:
+        type: object
+    migrations:
+      type: array
+      items:
+        type: object
+    backend:
+      type: object
+      properties:
+        entry:
+          type: string
+        rpc:
+          type: string
+    frontend:
+      type: object
+      properties:
+        layer:
+          type: string
+    adminPages:
+      type: array
+      items:
+        type: object
+    routes:
+      type: array
+      items:
+        type: object
+    hooks:
+      type: array
+      items:
+        type: object
+    jobs:
+      type: array
+      items:
+        type: object
+Extension:
+  type: object
+  required:
+  - id
+  - name
+  - version
+  - type
+  - status
+  - manifest
+  - packagePath
+  - installedAt
+  - updatedAt
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    version:
+      type: string
+    type:
+      "$ref": "#/ExtensionType"
+    status:
+      "$ref": "#/ExtensionStatus"
+    manifest:
+      "$ref": "#/ExtensionManifest"
+    packagePath:
+      type: string
+      description: Server-local package path, visible only to extension managers.
+    installedAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+ExtensionEvent:
+  type: object
+  required:
+  - id
+  - extensionId
+  - actorUserId
+  - action
+  - message
+  - createdAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    extensionId:
+      type: string
+    actorUserId:
+      type: integer
+      format: int64
+    action:
+      type: string
+      enum:
+      - installed
+      - enabled
+      - enable_failed
+      - disabled
+    message:
+      type: string
+    createdAt:
+      type: string
+      format: date-time

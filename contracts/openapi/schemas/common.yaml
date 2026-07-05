@@ -1,0 +1,87 @@
+ApiErrorData:
+  type: object
+  required:
+  - reason
+  properties:
+    reason:
+      type: string
+      description: Stable machine-readable reason code, such as auth.register_invalid.
+    fields:
+      type: object
+      description: Localized field-level messages keyed by request field name. Registration uses username, email, password, and humanVerification.
+      additionalProperties:
+        type: array
+        items:
+          type: string
+ApiErrorResponse:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ApiErrorData"
+ApiResponseNull:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+      examples:
+      - 200
+    message:
+      type: string
+      examples:
+      - OK
+    data:
+      type: 'null'
+ApiResponseHealth:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/Health"
+Health:
+  type: object
+  required:
+  - name
+  - status
+  - environment
+  - locale
+  - supportedLocales
+  - time
+  properties:
+    name:
+      type: string
+    status:
+      type: string
+      enum:
+      - ok
+    environment:
+      type: string
+    locale:
+      type: string
+      examples:
+      - zh-CN
+    supportedLocales:
+      type: array
+      items:
+        type: string
+    time:
+      type: string
+      format: date-time

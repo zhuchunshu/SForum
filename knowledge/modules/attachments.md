@@ -19,7 +19,9 @@ Attachment system foundation is implemented.
   `attachment_references`, and the attachment permissions.
 - Admin UI `apps/web/app/pages/admin/attachments.vue` is registered as the
   standalone top-level "Attachment settings" page with "Basic Configuration"
-  and "Attachment Management" tabs.
+  and "Attachment Management" tabs. The settings tab now leads with a
+  beginner-friendly recommended local-upload configuration and provides a
+  one-click restore-and-save action for the recommended defaults.
 - OpenAPI contract includes upload, metadata, content, admin settings, provider
   test, list, detail, update, soft delete, and cleanup endpoints.
 
@@ -53,6 +55,9 @@ local provider filesystem root.
 - `attachment.local.root` defines the local provider filesystem boundary. It
   defaults to `storage/app/attachments`; relative paths resolve from the API
   process working directory.
+- The recommended beginner configuration is local storage, uploads enabled,
+  20 MB per file, common image/PDF/TXT/ZIP allow-lists, public visibility, and
+  30-day orphan retention.
 - Admins with `attachment.settings.manage` can configure the local root, object
   path templates, and public URL prefixes. The API rejects empty paths,
   traversal segments, control characters, and angle brackets.
