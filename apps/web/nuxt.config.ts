@@ -69,6 +69,9 @@ export default defineNuxtConfig({
   ui: {
     fonts: false
   },
+  colorMode: {
+    classSuffix: ''
+  },
   icon: {
     provider: 'server',
     fallbackToApi: false,

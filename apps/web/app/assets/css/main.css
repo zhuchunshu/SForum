@@ -169,6 +169,13 @@ html[data-sforum-theme="amber"] {
   --sf-primary-950: #451a03;
 }
 
+html.dark {
+  /* 暗色模式下主色 soft 面需要避免复用浅色预设，尤其是 Alert 和后台状态标记。 */
+  --sf-accent-soft: rgb(var(--sf-accent-rgb) / 0.16) !important;
+  --sf-accent-soft-border: rgb(var(--sf-accent-rgb) / 0.35) !important;
+  --sf-accent-focus: rgb(var(--sf-accent-rgb) / 0.22) !important;
+}
+
 body {
   margin: 0;
   background-color: var(--bg-app);

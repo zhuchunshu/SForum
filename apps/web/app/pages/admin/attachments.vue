@@ -576,10 +576,10 @@ function isPreviewableImage(item: Attachment) {
         <aside class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
           <h3 class="font-bold text-slate-900 dark:text-zinc-100">{{ t('admin.attachments.summary') }}</h3>
           <dl class="mt-3 space-y-3">
-            <div><dt class="text-xs text-slate-500">{{ t('admin.attachments.provider') }}</dt><dd class="font-medium">{{ providerLabel(form.provider) }}</dd></div>
-            <div><dt class="text-xs text-slate-500">{{ t('admin.attachments.maxFileSize') }}</dt><dd class="font-medium">{{ form.maxFileSizeMb }} MB</dd></div>
-            <div><dt class="text-xs text-slate-500">{{ t('admin.attachments.defaultVisibility') }}</dt><dd class="font-medium">{{ t(`admin.attachments.visibility.${form.defaultVisibility}`) }}</dd></div>
-            <div><dt class="text-xs text-slate-500">{{ t('admin.attachments.allowedExtensions') }}</dt><dd class="break-words font-mono text-xs">{{ form.allowedExtensions.join(', ') }}</dd></div>
+            <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.provider') }}</dt><dd class="font-medium">{{ providerLabel(form.provider) }}</dd></div>
+            <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.maxFileSize') }}</dt><dd class="font-medium">{{ form.maxFileSizeMb }} MB</dd></div>
+            <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.defaultVisibility') }}</dt><dd class="font-medium">{{ t(`admin.attachments.visibility.${form.defaultVisibility}`) }}</dd></div>
+            <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.allowedExtensions') }}</dt><dd class="break-words font-mono text-xs">{{ form.allowedExtensions.join(', ') }}</dd></div>
           </dl>
         </aside>
       </div>
@@ -597,7 +597,7 @@ function isPreviewableImage(item: Attachment) {
             <div class="flex items-center gap-2">
               <UIcon
                 :name="recommendedApplied ? 'i-lucide-circle-check' : 'i-lucide-info'"
-                :class="recommendedApplied ? 'size-4 text-emerald-500' : 'size-4 text-slate-400'"
+                :class="recommendedApplied ? 'size-4 text-emerald-500' : 'size-4 text-slate-400 dark:text-zinc-500'"
               />
               <span>
                 {{ recommendedApplied ? t('admin.attachments.beginner.currentRecommended') : t('admin.attachments.beginner.restoreHint') }}
@@ -658,7 +658,7 @@ function isPreviewableImage(item: Attachment) {
                   </div>
                   <div class="min-w-0">
                     <div class="truncate font-medium text-slate-900 dark:text-zinc-100">{{ item.name }}</div>
-                    <div class="max-w-xs truncate font-mono text-xs text-slate-500">{{ item.contentType }}</div>
+                    <div class="max-w-xs truncate font-mono text-xs text-slate-500 dark:text-zinc-400">{{ item.contentType }}</div>
                   </div>
                 </div>
               </td>
@@ -666,7 +666,7 @@ function isPreviewableImage(item: Attachment) {
               <td class="px-3 py-3">{{ humanFileSize(item.size) }}</td>
               <td class="px-3 py-3">{{ item.referenceCount }}</td>
               <td class="px-3 py-3"><UBadge :color="statusColor(item.status)" variant="soft">{{ t(`admin.attachments.status.${item.status}`) }}</UBadge></td>
-              <td class="px-3 py-3 text-xs text-slate-500">{{ new Date(item.createdAt).toLocaleString() }}</td>
+              <td class="px-3 py-3 text-xs text-slate-500 dark:text-zinc-400">{{ new Date(item.createdAt).toLocaleString() }}</td>
             </tr>
           </tbody>
         </table>
@@ -680,19 +680,19 @@ function isPreviewableImage(item: Attachment) {
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <h3 class="truncate text-base font-bold text-slate-900 dark:text-zinc-100">{{ selected.name }}</h3>
-            <p class="mt-1 font-mono text-xs text-slate-500">{{ selected.publicId }}</p>
+            <p class="mt-1 font-mono text-xs text-slate-500 dark:text-zinc-400">{{ selected.publicId }}</p>
           </div>
           <UBadge :color="statusColor(selected.status)" variant="soft">{{ t(`admin.attachments.status.${selected.status}`) }}</UBadge>
         </div>
-        <div v-if="loadingDetail" class="mt-3 flex items-center gap-2 text-xs text-slate-500">
+        <div v-if="loadingDetail" class="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
           <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
           {{ t('admin.attachments.loadingDetail') }}
         </div>
         <dl class="mt-4 space-y-3 text-sm">
-          <div><dt class="text-xs text-slate-500">{{ t('admin.attachments.objectKey') }}</dt><dd class="break-all font-mono text-xs">{{ selected.objectKey }}</dd></div>
-          <div><dt class="text-xs text-slate-500">{{ t('admin.attachments.sha256') }}</dt><dd class="break-all font-mono text-xs">{{ selected.sha256 }}</dd></div>
-          <div><dt class="text-xs text-slate-500">{{ t('admin.attachments.owner') }}</dt><dd>{{ selected.owner?.displayName || selected.owner?.username || '-' }}</dd></div>
-          <div><dt class="text-xs text-slate-500">{{ t('admin.attachments.url') }}</dt><dd class="break-all font-mono text-xs">{{ selected.url }}</dd></div>
+          <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.objectKey') }}</dt><dd class="break-all font-mono text-xs">{{ selected.objectKey }}</dd></div>
+          <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.sha256') }}</dt><dd class="break-all font-mono text-xs">{{ selected.sha256 }}</dd></div>
+          <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.owner') }}</dt><dd>{{ selected.owner?.displayName || selected.owner?.username || '-' }}</dd></div>
+          <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.url') }}</dt><dd class="break-all font-mono text-xs">{{ selected.url }}</dd></div>
         </dl>
         <div class="mt-4 flex flex-wrap gap-2">
           <UButton color="neutral" variant="outline" leading-icon="i-lucide-external-link" :to="selected.url" target="_blank">{{ t('admin.attachments.open') }}</UButton>
@@ -706,7 +706,7 @@ function isPreviewableImage(item: Attachment) {
           <div v-if="selected.references.length > 0" class="mt-3 space-y-2">
             <div v-for="reference in selected.references" :key="reference.id" class="rounded-md border border-slate-200 p-3 text-xs dark:border-zinc-800">
               <div class="font-medium text-slate-900 dark:text-zinc-100">{{ reference.resourceType }} #{{ reference.resourceId }}</div>
-              <div class="mt-1 text-slate-500">{{ reference.context || t('admin.attachments.noReferenceContext') }}</div>
+              <div class="mt-1 text-slate-500 dark:text-zinc-400">{{ reference.context || t('admin.attachments.noReferenceContext') }}</div>
             </div>
           </div>
           <p v-else class="mt-3 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.noReferences') }}</p>

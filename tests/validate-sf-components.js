@@ -3,6 +3,7 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const COMPONENT_DIR = path.join(ROOT, 'apps/web/app/components');
+const MAIN_CSS_FILE = path.join(ROOT, 'apps/web/app/assets/css/main.css');
 const CSS_FILE = path.join(ROOT, 'apps/web/app/assets/css/sforum-components.css');
 const DOCS_PAGE = path.join(ROOT, 'apps/web/app/pages/components.vue');
 
@@ -53,6 +54,18 @@ const REQUIRED_AUTOFILL_RULES = [
   '.sf-search__input:-webkit-autofill',
   '-webkit-box-shadow',
   '-webkit-text-fill-color'
+];
+
+const REQUIRED_DARK_ALERT_RULES = [
+  '.dark .sf-alert--primary',
+  'background: rgb(var(--sf-accent-rgb) / 0.16)',
+  'border-color: rgb(var(--sf-accent-rgb) / 0.35)'
+];
+
+const REQUIRED_DARK_ACCENT_VARS = [
+  'html.dark',
+  '--sf-accent-soft: rgb(var(--sf-accent-rgb) / 0.16) !important',
+  '--sf-accent-soft-border: rgb(var(--sf-accent-rgb) / 0.35) !important'
 ];
 
 const REQUIRED_DOC_ANCHORS = [
@@ -137,7 +150,27 @@ if (!fs.existsSync(CSS_FILE)) {
     }
   }
 
+  for (const rule of REQUIRED_DARK_ALERT_RULES) {
+    if (!css.includes(rule)) {
+      fail(`Dark alert rule ${rule} is missing`);
+    }
+  }
+
   pass('component CSS entrypoint exists');
+}
+
+if (!fs.existsSync(MAIN_CSS_FILE)) {
+  fail('main.css is missing');
+} else {
+  const css = fs.readFileSync(MAIN_CSS_FILE, 'utf8');
+
+  for (const rule of REQUIRED_DARK_ACCENT_VARS) {
+    if (!css.includes(rule)) {
+      fail(`Dark accent variable rule ${rule} is missing`);
+    }
+  }
+
+  pass('global dark accent variables exist');
 }
 
 if (!fs.existsSync(DOCS_PAGE)) {

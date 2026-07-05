@@ -127,9 +127,13 @@ async function retry() {
   padding: 32px;
   border: 1px solid var(--sf-border);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--sf-card);
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
   text-align: center;
+}
+
+.dark .sforum-error-page__panel {
+  box-shadow: none;
 }
 
 .sforum-error-page__icon {

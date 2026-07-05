@@ -35,6 +35,10 @@ const { siteName } = useWebOptions()
 // 引入多页签状态与主题模式
 const adminTabs = useAdminTabs()
 const colorMode = useColorMode()
+const resolvedColorMode = ref<'light' | 'dark'>(
+  colorMode.value === 'dark' ? 'dark' : 'light'
+)
+let colorModeObserver: MutationObserver | null = null
 
 const displayName = computed(() => {
   return user.value?.displayName || user.value?.username || t('admin.shell.unknownUser')
@@ -42,6 +46,16 @@ const displayName = computed(() => {
 
 const userInitial = computed(() => {
   return displayName.value.trim().slice(0, 1).toUpperCase() || 'S'
+})
+
+const isDarkMode = computed(() => resolvedColorMode.value === 'dark')
+
+const themeToggleLabel = computed(() => {
+  return isDarkMode.value ? t('admin.shell.lightMode') : t('admin.shell.darkMode')
+})
+
+const themeToggleIcon = computed(() => {
+  return isDarkMode.value ? 'i-lucide-sun' : 'i-lucide-moon'
 })
 
 // 计算当前激活标签页的标题，用于面包屑展示
@@ -52,6 +66,27 @@ const activeTabLabel = computed(() => {
 
 const route = useRoute()
 const currentAdminPageId = computed(() => adminRoutes.routeId(route.path) || ADMIN_DASHBOARD_PAGE_ID)
+
+onMounted(() => {
+  syncResolvedColorMode()
+  colorModeObserver = new MutationObserver(syncResolvedColorMode)
+  colorModeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class']
+  })
+})
+
+onUnmounted(() => {
+  colorModeObserver?.disconnect()
+})
+
+watch(
+  () => colorMode.value,
+  () => {
+    syncResolvedColorMode()
+  },
+  { immediate: true }
+)
 
 // KeepAlive 页面不会重复 mounted，路由变化时用注册表同步当前 tab。
 watch(() => route.path, (newPath) => {
@@ -152,9 +187,9 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
     },
     {
       label: themeToggleLabel.value,
-      icon: colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon',
+      icon: themeToggleIcon.value,
       onSelect: () => {
-        colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
+        toggleColorMode()
       }
     },
     {
@@ -167,9 +202,25 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
   ]
 ])
 
-const themeToggleLabel = computed(() => {
-  return colorMode.value === 'dark' ? t('admin.shell.lightMode') : t('admin.shell.darkMode')
-})
+function syncResolvedColorMode() {
+  if (!import.meta.client) {
+    resolvedColorMode.value = colorMode.value === 'dark' ? 'dark' : 'light'
+    return
+  }
+
+  // Nuxt Color Mode 可能先改 <html> 类名再完成水合，后台按钮以真实页面类名为准。
+  resolvedColorMode.value =
+    colorMode.value === 'dark' ||
+    document.documentElement.classList.contains('dark')
+      ? 'dark'
+      : 'light'
+}
+
+function toggleColorMode() {
+  const nextMode = isDarkMode.value ? 'light' : 'dark'
+  colorMode.preference = nextMode
+  resolvedColorMode.value = nextMode
+}
 
 async function signOut() {
   await request<null>('/auth/logout', {
@@ -232,19 +283,24 @@ async function signOut() {
       <template #footer="{ collapsed }">
         <div class="flex flex-col gap-2 w-full">
           <!-- 桌面端快捷切换主题按钮 -->
-          <UButton
-            v-if="!collapsed"
-            color="neutral"
-            variant="ghost"
-            block
-            class="justify-start px-2 py-2 text-[var(--text-admin-sidebar)] hover:bg-[var(--bg-admin-sidebar-hover)] hover:text-[var(--text-admin-main)]"
-            @click="() => { colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark' }"
-          >
-            <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="size-4" />
-            <span class="text-sm font-semibold">
-              {{ themeToggleLabel }}
-            </span>
-          </UButton>
+          <ClientOnly>
+            <UButton
+              v-if="!collapsed"
+              color="neutral"
+              variant="ghost"
+              block
+              class="justify-start px-2 py-2 text-[var(--text-admin-sidebar)] hover:bg-[var(--bg-admin-sidebar-hover)] hover:text-[var(--text-admin-main)]"
+              @click="toggleColorMode"
+            >
+              <UIcon :name="themeToggleIcon" class="size-4" />
+              <span class="text-sm font-semibold">
+                {{ themeToggleLabel }}
+              </span>
+            </UButton>
+            <template #fallback>
+              <span v-if="!collapsed" class="block h-9 rounded-md" aria-hidden="true" />
+            </template>
+          </ClientOnly>
 
           <UDropdownMenu :items="userMenuItems" :content="{ side: 'top', align: 'start' }">
             <UButton
@@ -281,10 +337,10 @@ async function signOut() {
           <span class="truncate text-sm sm:text-base font-semibold text-slate-600 dark:text-zinc-300">{{ activeTabLabel }}</span>
         </div>
         <div class="hidden sm:flex items-center gap-4 text-sm">
-          <span class="inline-flex items-center gap-2.5 text-slate-600 dark:text-zinc-300 bg-[var(--sf-accent-soft)] px-4 py-2.5 rounded-full border border-[var(--sf-accent-soft-border)]">
-            <span class="size-2.5 rounded-full bg-[var(--sf-accent)] dark:bg-[var(--sf-accent-dark)] animate-pulse"></span>
+          <span class="inline-flex items-center gap-2.5 rounded-full border border-[var(--sf-accent-soft-border)] bg-[var(--sf-accent-soft)] px-4 py-2.5 text-slate-600 dark:border-[rgb(var(--sf-accent-rgb)/0.35)] dark:bg-[rgb(var(--sf-accent-rgb)/0.16)] dark:text-zinc-200">
+            <span class="size-2.5 rounded-full bg-[var(--sf-accent)] shadow-[0_0_0_4px_rgb(var(--sf-accent-rgb)/0.12)] dark:bg-[var(--sf-accent-dark)] dark:shadow-[0_0_0_4px_rgb(var(--sf-accent-rgb)/0.18)] animate-pulse"></span>
             {{ t('admin.shell.administratorLabel') }}:
-            <strong class="text-slate-800 dark:text-zinc-200 font-semibold">{{ user?.username }}</strong>
+            <strong class="font-semibold text-slate-800 dark:text-zinc-50">{{ user?.username }}</strong>
           </span>
         </div>
       </div>

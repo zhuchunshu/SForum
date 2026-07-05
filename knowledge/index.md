@@ -78,6 +78,11 @@ This is the entry point for project memory.
   user dismissal or resolution.
 - The public forum navbar no longer shows an admin entry in the logged-in user
   dropdown, avoiding direct exposure of the configurable admin route prefix.
+- The public forum navbar now has a client-rendered Light/Dark mode toggle
+  wired to Nuxt Color Mode. Public theme and SF component CSS include dark
+  semantic variables for the forum homepage surfaces, keeping navbar, cards,
+  search, feed rows, tabs, pagination, and footer chrome aligned with the
+  admin shell's `.dark` class.
 - Identity and permissions architecture is accepted: SForum uses one user
   system for regular users, moderators, and administrators; the first registered
   user becomes the protected initial `super_admin`; later open registrations

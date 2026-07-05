@@ -6,6 +6,7 @@ const { user, refresh } = useAuthSession()
 const { siteName } = useWebOptions()
 const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
 const router = useRouter()
+const colorMode = useColorMode()
 
 // 控制用户下拉菜单的显示
 const menuOpen = ref(false)
@@ -14,13 +15,24 @@ const menuRef = ref<HTMLElement | null>(null)
 // 控制语言切换下拉菜单的显示
 const langMenuOpen = ref(false)
 const langMenuRef = ref<HTMLElement | null>(null)
+const resolvedColorMode = ref<'light' | 'dark'>(
+  colorMode.value === 'dark' ? 'dark' : 'light'
+)
+let colorModeObserver: MutationObserver | null = null
 
 // 点击页面其他区域关闭菜单
 onMounted(() => {
   document.addEventListener('click', onClickOutside)
+  syncResolvedColorMode()
+  colorModeObserver = new MutationObserver(syncResolvedColorMode)
+  colorModeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class']
+  })
 })
 onUnmounted(() => {
   document.removeEventListener('click', onClickOutside)
+  colorModeObserver?.disconnect()
 })
 function onClickOutside(e: MouseEvent) {
   if (menuRef.value && !menuRef.value.contains(e.target as Node)) {
@@ -29,6 +41,28 @@ function onClickOutside(e: MouseEvent) {
   if (langMenuRef.value && !langMenuRef.value.contains(e.target as Node)) {
     langMenuOpen.value = false
   }
+}
+
+watch(
+  () => colorMode.value,
+  () => {
+    syncResolvedColorMode()
+  },
+  { immediate: true }
+)
+
+function syncResolvedColorMode() {
+  if (!import.meta.client) {
+    resolvedColorMode.value = colorMode.value === 'dark' ? 'dark' : 'light'
+    return
+  }
+
+  // Nuxt Color Mode 会先改 <html> 类名，再完成组件水合；按钮以真实页面类名为准。
+  resolvedColorMode.value =
+    colorMode.value === 'dark' ||
+    document.documentElement.classList.contains('dark')
+      ? 'dark'
+      : 'light'
 }
 
 // 退出登录
@@ -61,6 +95,20 @@ const currentLocaleName = computed(() => {
   )
   return typeof currentLoc === 'object' ? currentLoc.name : currentLoc || ''
 })
+
+const isDarkMode = computed(() => resolvedColorMode.value === 'dark')
+const themeToggleLabel = computed(() =>
+  isDarkMode.value ? t('nav.lightMode') : t('nav.darkMode')
+)
+const themeToggleIcon = computed(() =>
+  isDarkMode.value ? 'i-lucide-sun' : 'i-lucide-moon'
+)
+
+function toggleColorMode() {
+  const nextMode = isDarkMode.value ? 'light' : 'dark'
+  colorMode.preference = nextMode
+  resolvedColorMode.value = nextMode
+}
 </script>
 
 <template>
@@ -122,6 +170,23 @@ const currentLocaleName = computed(() => {
           </div>
         </Transition>
       </div>
+
+      <!-- 夜间模式切换 -->
+      <ClientOnly>
+        <button
+          type="button"
+          class="navbar__theme-btn"
+          :aria-label="themeToggleLabel"
+          :aria-pressed="isDarkMode ? 'true' : 'false'"
+          :title="themeToggleLabel"
+          @click="toggleColorMode"
+        >
+          <UIcon :name="themeToggleIcon" class="navbar__theme-icon" aria-hidden="true" />
+        </button>
+        <template #fallback>
+          <span class="navbar__theme-placeholder" aria-hidden="true" />
+        </template>
+      </ClientOnly>
 
       <!-- 右侧用户区 -->
       <div class="navbar__right">
@@ -312,6 +377,38 @@ const currentLocaleName = computed(() => {
 
 .navbar__lang-btn:hover .navbar__lang-icon {
   color: #111827;
+}
+
+.navbar__theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #4b5563;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.navbar__theme-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.navbar__theme-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.navbar__theme-placeholder {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
 }
 
 .navbar__lang-text {
@@ -525,6 +622,133 @@ const currentLocaleName = computed(() => {
 .navbar__dropdown-item--danger:hover {
   background: #fef2f2;
   color: #991b1b;
+}
+
+/* ====== 深色模式 ====== */
+.dark .navbar {
+  background: #09090b;
+  border-bottom-color: #27272a;
+  box-shadow: 0 1px 0 #27272a;
+}
+
+.dark .navbar__logo {
+  color: #f4f4f5;
+}
+
+.dark .navbar__logo-mark {
+  border-color: var(--sf-accent-dark);
+  color: var(--sf-accent-dark);
+}
+
+.dark .navbar__nav-link,
+.dark .navbar__lang-btn,
+.dark .navbar__theme-btn {
+  color: #d4d4d8;
+}
+
+.dark .navbar__nav-link:hover,
+.dark .navbar__lang-btn:hover,
+.dark .navbar__theme-btn:hover {
+  background: #18181b;
+  color: #ffffff;
+}
+
+.dark .navbar__nav-link.router-link-active {
+  color: var(--sf-accent-dark);
+  background: rgb(var(--sf-accent-rgb) / 0.2);
+}
+
+.dark .navbar__lang-btn svg,
+.dark .navbar__lang-icon {
+  color: #a1a1aa;
+}
+
+.dark .navbar__lang-btn:hover svg,
+.dark .navbar__lang-btn:hover .navbar__lang-icon {
+  color: #ffffff;
+}
+
+.dark .navbar__btn--ghost {
+  border-color: #3f3f46;
+  color: #d4d4d8;
+}
+
+.dark .navbar__btn--ghost:hover {
+  background: #18181b;
+  border-color: #52525b;
+  color: #ffffff;
+}
+
+.dark .navbar__btn--primary {
+  background: var(--sf-accent-dark);
+  color: #052e2b;
+}
+
+.dark .navbar__btn--primary:hover {
+  background: #5eead4;
+}
+
+.dark .navbar__avatar-btn {
+  border-color: #27272a;
+  background: #18181b;
+}
+
+.dark .navbar__avatar-btn:hover {
+  border-color: #3f3f46;
+  background: #27272a;
+}
+
+.dark .navbar__avatar {
+  background: var(--sf-accent-dark);
+  color: #052e2b;
+}
+
+.dark .navbar__username,
+.dark .navbar__dropdown-name {
+  color: #f4f4f5;
+}
+
+.dark .navbar__chevron,
+.dark .navbar__dropdown-username {
+  color: #a1a1aa;
+}
+
+.dark .navbar__dropdown {
+  background: #18181b;
+  border-color: #27272a;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.32);
+}
+
+.dark .navbar__dropdown-divider {
+  background: #27272a;
+}
+
+.dark .navbar__dropdown-item {
+  color: #d4d4d8;
+}
+
+.dark .navbar__dropdown-item:hover {
+  background: #27272a;
+  color: #ffffff;
+}
+
+.dark .navbar__dropdown-item--active {
+  color: var(--sf-accent-dark);
+  background: rgb(var(--sf-accent-rgb) / 0.2);
+}
+
+.dark .navbar__dropdown-item--active:hover {
+  color: var(--sf-accent-dark);
+  background: rgb(var(--sf-accent-rgb) / 0.26);
+}
+
+.dark .navbar__dropdown-item--danger {
+  color: #fca5a5;
+}
+
+.dark .navbar__dropdown-item--danger:hover {
+  background: rgba(127, 29, 29, 0.24);
+  color: #fecaca;
 }
 
 /* ====== 下拉动画 ====== */

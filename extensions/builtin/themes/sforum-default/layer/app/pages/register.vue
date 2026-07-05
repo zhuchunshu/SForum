@@ -385,8 +385,8 @@ async function submitRegister() {
   flex-direction: column;
   justify-content: space-between;
   padding: 48px 52px;
-  background: #f5f7fa;
-  border-right: 1px solid #e4e8ef;
+  background: var(--sf-muted);
+  border-right: 1px solid var(--sf-border);
 }
 
 .auth-logo {
@@ -395,7 +395,7 @@ async function submitRegister() {
   gap: 9px;
   font-size: 15px;
   font-weight: 700;
-  color: #111827;
+  color: var(--sf-fg);
   letter-spacing: -0.01em;
   text-decoration: none;
 }
@@ -422,13 +422,13 @@ async function submitRegister() {
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.15;
-  color: #111827;
+  color: var(--sf-fg);
   margin: 0;
 }
 
 .auth-desc {
   font-size: 15px;
-  color: #4b5563;
+  color: var(--sf-fg-secondary);
   line-height: 1.75;
   margin: 0;
   max-width: 340px;
@@ -448,7 +448,7 @@ async function submitRegister() {
   align-items: flex-start;
   gap: 11px;
   font-size: 13.5px;
-  color: #4b5563;
+  color: var(--sf-fg-secondary);
   line-height: 1.5;
 }
 
@@ -456,8 +456,8 @@ async function submitRegister() {
   width: 20px;
   height: 20px;
   border-radius: 5px;
-  border: 1px solid #d1d5db;
-  background: #fff;
+  border: 1px solid var(--sf-border);
+  background: var(--sf-card);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -469,7 +469,7 @@ async function submitRegister() {
 
 .auth-left-footer {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--sf-fg-tertiary);
   margin: 0;
 }
 
@@ -479,7 +479,7 @@ async function submitRegister() {
   align-items: center;
   justify-content: center;
   padding: 48px 40px;
-  background: #ffffff;
+  background: var(--sf-card);
 }
 
 .auth-form-wrap {
@@ -489,7 +489,7 @@ async function submitRegister() {
 
 .auth-tabs {
   display: flex;
-  border-bottom: 1px solid #e4e8ef;
+  border-bottom: 1px solid var(--sf-border);
   margin-bottom: 32px;
 }
 
@@ -498,17 +498,17 @@ async function submitRegister() {
   margin-right: 24px;
   margin-bottom: -1px;
   border-bottom: 2px solid transparent;
-  color: #9ca3af;
+  color: var(--sf-fg-tertiary);
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
   transition: color 0.18s, border-color 0.18s;
 }
 
-.auth-tab:hover { color: #4b5563; }
+.auth-tab:hover { color: var(--sf-fg-secondary); }
 
 .auth-tab--active {
-  color: #111827;
+  color: var(--sf-fg);
   border-bottom-color: var(--sf-accent);
 }
 
@@ -516,13 +516,13 @@ async function submitRegister() {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #111827;
+  color: var(--sf-fg);
   margin: 0 0 5px;
 }
 
 .auth-form-sub {
   font-size: 13px;
-  color: #4b5563;
+  color: var(--sf-fg-secondary);
   margin: 0 0 26px;
   line-height: 1.55;
 }
@@ -551,21 +551,21 @@ async function submitRegister() {
 .auth-label {
   font-size: 12px;
   font-weight: 600;
-  color: #374151;
+  color: var(--sf-fg-secondary);
 }
 
 .auth-label-optional {
   font-weight: 400;
-  color: #9ca3af;
+  color: var(--sf-fg-tertiary);
 }
 
 .auth-input {
   height: 40px;
   padding: 0 13px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--sf-border);
   border-radius: 7px;
-  background: #fff;
-  color: #111827;
+  background: var(--sf-card);
+  color: var(--sf-fg);
   font-size: 14px;
   font-family: inherit;
   outline: none;
@@ -573,7 +573,7 @@ async function submitRegister() {
   width: 100%;
 }
 
-.auth-input:hover { border-color: #9ca3af; }
+.auth-input:hover { border-color: var(--sf-fg-tertiary); }
 
 .auth-input:focus {
   border-color: var(--sf-accent);
@@ -599,37 +599,37 @@ async function submitRegister() {
 
 .auth-field-hint {
   margin: 0;
-  color: #6b7280;
+  color: var(--sf-fg-tertiary);
   font-size: 12px;
   line-height: 1.45;
 }
 
-/* 覆盖 WebKit 自动填充默认底色，保持注册表单白底。 */
+/* 覆盖 WebKit 自动填充默认底色，保持注册表单跟随当前主题表面。 */
 .auth-input:-webkit-autofill,
 .auth-input:-webkit-autofill:hover,
 .auth-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px #fff inset;
-  box-shadow: 0 0 0 1000px #fff inset;
-  -webkit-text-fill-color: #111827;
-  caret-color: #111827;
+  -webkit-box-shadow: 0 0 0 1000px var(--sf-card) inset;
+  box-shadow: 0 0 0 1000px var(--sf-card) inset;
+  -webkit-text-fill-color: var(--sf-fg);
+  caret-color: var(--sf-fg);
   transition: background-color 9999s ease-out, color 9999s ease-out;
 }
 
 .auth-input:-webkit-autofill:focus {
   border-color: var(--sf-accent);
-  -webkit-box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px var(--sf-accent-focus);
-  box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px var(--sf-accent-focus);
-  -webkit-text-fill-color: #111827;
-  caret-color: #111827;
+  -webkit-box-shadow: 0 0 0 1000px var(--sf-card) inset, 0 0 0 3px var(--sf-accent-focus);
+  box-shadow: 0 0 0 1000px var(--sf-card) inset, 0 0 0 3px var(--sf-accent-focus);
+  -webkit-text-fill-color: var(--sf-fg);
+  caret-color: var(--sf-fg);
 }
 
-.auth-input::placeholder { color: #d1d5db; }
+.auth-input::placeholder { color: var(--sf-fg-tertiary); }
 
 .auth-altcha {
   width: 100%;
   --altcha-max-width: 100%;
   --altcha-border-radius: 7px;
-  --altcha-border-color: #d1d5db;
+  --altcha-border-color: var(--sf-border);
   --altcha-color-primary: var(--sf-accent);
   --altcha-color-primary-content: #ffffff;
   --altcha-color-success: var(--sf-accent);
@@ -644,9 +644,9 @@ async function submitRegister() {
   display: flex;
   align-items: center;
   padding: 0 13px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--sf-border);
   border-radius: 7px;
-  color: #6b7280;
+  color: var(--sf-fg-tertiary);
   font-size: 13px;
 }
 
@@ -680,35 +680,35 @@ async function submitRegister() {
 .auth-terms {
   margin-top: 14px;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--sf-fg-tertiary);
   text-align: center;
   line-height: 1.6;
 }
 
 .auth-terms a {
-  color: #4b5563;
+  color: var(--sf-fg-secondary);
   text-decoration: none;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--sf-border);
 }
 
 .auth-switch {
   margin-top: 14px;
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--sf-fg-tertiary);
   text-align: center;
 }
 
 .auth-switch a {
-  color: #4b5563;
+  color: var(--sf-fg-secondary);
   font-weight: 600;
   text-decoration: none;
-  border-bottom: 1px solid #d1d5db;
+  border-bottom: 1px solid var(--sf-border);
   transition: color 0.15s, border-color 0.15s;
 }
 
 .auth-switch a:hover {
-  color: #111827;
-  border-bottom-color: #9ca3af;
+  color: var(--sf-fg);
+  border-bottom-color: var(--sf-fg-tertiary);
 }
 
 @media (max-width: 720px) {

@@ -161,15 +161,17 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
           <SFEmptyState icon-label="ZIP" :title="t('admin.extensions.emptyTitle')" :description="t('admin.extensions.emptyDescription')" />
         </div>
         <div v-else class="divide-y divide-slate-200 dark:divide-zinc-800">
-          <button
+          <div
             v-for="item in extensions"
             :key="item.id"
-            type="button"
-            class="grid w-full gap-4 px-4 py-4 text-left transition hover:bg-slate-50 md:grid-cols-[1fr_auto] dark:hover:bg-zinc-800/50"
+            class="grid gap-4 px-4 py-4 transition hover:bg-slate-50 md:grid-cols-[minmax(0,1fr)_auto] dark:hover:bg-zinc-800/50"
             :class="selected?.id === item.id ? 'bg-slate-50 dark:bg-zinc-800/50' : ''"
-            @click="selectedId = item.id"
           >
-            <div class="min-w-0">
+            <button
+              type="button"
+              class="min-w-0 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--sf-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-900"
+              @click="selectedId = item.id"
+            >
               <div class="flex flex-wrap items-center gap-2">
                 <UIcon :name="item.type === 'theme' ? 'i-lucide-palette' : 'i-lucide-blocks'" class="size-4 text-[var(--sf-accent)]" />
                 <h3 class="truncate text-sm font-semibold text-slate-900 dark:text-zinc-100">
@@ -185,14 +187,14 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
               <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
                 {{ item.id }} · v{{ item.version }} · {{ t('admin.extensions.capabilityCount', { count: capabilityCount(item) }) }}
               </p>
-            </div>
-            <div class="flex items-center gap-2">
+            </button>
+            <div class="flex items-center gap-2 md:justify-end">
               <UButton
                 v-if="item.type === 'plugin' && item.status !== 'enabled'"
                 size="sm"
                 icon="i-lucide-play"
                 :loading="busyId === item.id"
-                @click.stop="enableExtension(item)"
+                @click="enableExtension(item)"
               >
                 {{ t('admin.extensions.enable') }}
               </UButton>
@@ -203,7 +205,7 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 variant="subtle"
                 icon="i-lucide-pause"
                 :loading="busyId === item.id"
-                @click.stop="disableExtension(item)"
+                @click="disableExtension(item)"
               >
                 {{ t('admin.extensions.disable') }}
               </UButton>
@@ -223,7 +225,7 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 size="sm"
                 icon="i-lucide-rotate-ccw"
                 :loading="busyId === item.id"
-                @click.stop="activateTheme(item)"
+                @click="activateTheme(item)"
               >
                 {{ t('admin.extensions.restoreDefaultTheme') }}
               </UButton>
@@ -234,7 +236,7 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 variant="subtle"
                 icon="i-lucide-shield-check"
                 :loading="busyId === item.id"
-                @click.stop="verifyExtension(item)"
+                @click="verifyExtension(item)"
               >
                 {{ t('admin.extensions.verify') }}
               </UButton>
@@ -249,7 +251,7 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 {{ t('admin.extensions.activeTheme') }}
               </UButton>
             </div>
-          </button>
+          </div>
         </div>
       </div>
 

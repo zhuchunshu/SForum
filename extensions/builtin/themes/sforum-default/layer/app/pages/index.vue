@@ -252,23 +252,23 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
         <aside class="hidden lg:block space-y-6">
           <!-- Navigation Links -->
           <SFCard flush class="p-4">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 dark:text-zinc-500">
               {{ t('home.sidebar.navTitle') }}
             </h2>
             <nav class="space-y-1" aria-label="首页辅助导航">
-              <NuxtLink :to="localePath('/')" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-bold bg-[#E6F4F1] text-[#0F766E]">
+              <NuxtLink :to="localePath('/')" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-bold bg-[#E6F4F1] text-[#0F766E] dark:bg-teal-950/40 dark:text-teal-300">
                 <UIcon name="i-lucide-home" class="size-4.5 shrink-0" />
                 <span>{{ t('home.sidebar.navHome') }}</span>
               </NuxtLink>
-              <a href="#categories" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
+              <a href="#categories" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50">
                 <UIcon name="i-lucide-folder-open" class="size-4.5 shrink-0" />
                 <span>{{ t('home.sidebar.navCategories') }}</span>
               </a>
-              <a href="#tags" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
+              <a href="#tags" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50">
                 <UIcon name="i-lucide-tag" class="size-4.5 shrink-0" />
                 <span>{{ t('home.sidebar.navTags') }}</span>
               </a>
-              <a href="#members" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
+              <a href="#members" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50">
                 <UIcon name="i-lucide-users" class="size-4.5 shrink-0" />
                 <span>{{ t('home.sidebar.navMembers') }}</span>
               </a>
@@ -278,14 +278,14 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
           <!-- Categories Card -->
           <SFCard flush id="categories" class="p-4">
             <div class="flex justify-between items-center mb-3">
-              <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest dark:text-zinc-500">
                 {{ t('home.sidebar.sections') }}
               </h2>
               <SFBadge variant="neutral" class="font-bold">{{ totalCategoryThreads }}</SFBadge>
             </div>
             <ul class="space-y-1.5">
               <li v-for="(cat, idx) in categories" :key="cat.key">
-                <a href="#" class="flex justify-between items-center px-3 py-2 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
+                <a href="#" class="flex justify-between items-center px-3 py-2 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50">
                   <span class="flex items-center gap-2.5">
                     <span
                       class="w-2 h-2 rounded-full shrink-0"
@@ -293,7 +293,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                     ></span>
                     <span>{{ cat.name }}</span>
                   </span>
-                  <span class="text-xs text-slate-500 font-mono">{{ cat.count }}</span>
+                  <span class="text-xs text-slate-500 font-mono dark:text-zinc-400">{{ cat.count }}</span>
                 </a>
               </li>
             </ul>
@@ -339,7 +339,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
 
             <!-- Thread Items -->
             <template v-else-if="filteredThreads.length > 0">
-              <SFCard class="divide-y divide-slate-100 overflow-hidden">
+              <SFCard class="divide-y divide-slate-100 overflow-hidden dark:divide-zinc-800">
                 <div v-for="thread in paginatedThreads" :key="thread.id">
                   <SFFeedRow
                     :title="thread.title"
@@ -388,28 +388,28 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
             <template v-if="user">
               <div class="flex flex-col items-center gap-2">
                 <SFAvatar :name="user.displayName" size="lg" status="online" />
-                <h2 class="font-bold text-slate-800 text-lg mt-1">{{ user.displayName }}</h2>
-                <p class="text-sm text-slate-500">@{{ user.username }}</p>
+                <h2 class="font-bold text-slate-800 text-lg mt-1 dark:text-zinc-100">{{ user.displayName }}</h2>
+                <p class="text-sm text-slate-500 dark:text-zinc-400">@{{ user.username }}</p>
                 
-                <div class="grid grid-cols-2 gap-4 w-full mt-4 pt-4 border-t border-slate-100">
+                <div class="grid grid-cols-2 gap-4 w-full mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
                   <div>
-                    <span class="block text-base font-bold text-slate-800">12</span>
-                    <span class="text-xs text-slate-400 uppercase font-semibold">{{ t('home.sidebar.userPosts') }}</span>
+                    <span class="block text-base font-bold text-slate-800 dark:text-zinc-100">12</span>
+                    <span class="text-xs text-slate-400 uppercase font-semibold dark:text-zinc-500">{{ t('home.sidebar.userPosts') }}</span>
                   </div>
                   <div>
-                    <span class="block text-base font-bold text-slate-800">84</span>
-                    <span class="text-xs text-slate-400 uppercase font-semibold">{{ t('home.sidebar.userLikes') }}</span>
+                    <span class="block text-base font-bold text-slate-800 dark:text-zinc-100">84</span>
+                    <span class="text-xs text-slate-400 uppercase font-semibold dark:text-zinc-500">{{ t('home.sidebar.userLikes') }}</span>
                   </div>
                 </div>
               </div>
             </template>
             <template v-else>
               <div class="space-y-3">
-                <div class="w-12 h-12 bg-[#E6F4F1] text-[#0F766E] rounded-full flex items-center justify-center mx-auto">
+                <div class="w-12 h-12 bg-[#E6F4F1] text-[#0F766E] rounded-full flex items-center justify-center mx-auto dark:bg-teal-950/40 dark:text-teal-300">
                   <UIcon name="i-lucide-message-circle" class="size-5" />
                 </div>
-                <h2 class="font-bold text-slate-800 text-sm">{{ t('home.sidebar.welcomeTitle', { siteName }) }}</h2>
-                <p class="text-xs text-slate-600 leading-relaxed">{{ t('home.sidebar.welcomeDesc') }}</p>
+                <h2 class="font-bold text-slate-800 text-sm dark:text-zinc-100">{{ t('home.sidebar.welcomeTitle', { siteName }) }}</h2>
+                <p class="text-xs text-slate-600 leading-relaxed dark:text-zinc-400">{{ t('home.sidebar.welcomeDesc') }}</p>
                 <div class="grid grid-cols-2 gap-2 pt-2">
                   <NuxtLink :to="localePath('/login')" class="sf-button sf-button--ghost sf-button--sm block text-center">
                     {{ t('home.sidebar.loginBtn') }}
@@ -425,10 +425,10 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
           <!-- Check In Card -->
           <SFCard flush v-if="user" class="p-4 flex items-center justify-between gap-3">
             <div class="min-w-0">
-              <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide">
+              <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide dark:text-zinc-100">
                 {{ t('home.sidebar.checkIn') }}
               </h3>
-              <p class="text-xs text-slate-500 mt-1 truncate">
+              <p class="text-xs text-slate-500 mt-1 truncate dark:text-zinc-400">
                 {{ checkedIn ? t('home.sidebar.checkedIn', { days: checkInDays }) : t('home.sidebar.checkInDesc') }}
               </p>
             </div>
@@ -445,7 +445,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
 
           <!-- Hot Discussions Card -->
           <SFCard flush class="p-4" id="tags">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 dark:text-zinc-500">
               {{ t('home.sidebar.hotThreads') }}
             </h2>
             <ul class="space-y-3">
@@ -457,10 +457,10 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                   {{ hotTopicRank(index) }}
                 </span>
                 <div class="min-w-0 flex-1">
-                  <a href="#" class="text-sm text-slate-700 hover:text-[#0F766E] hover:underline font-medium block truncate">
+                  <a href="#" class="text-sm text-slate-700 hover:text-[#0F766E] hover:underline font-medium block truncate dark:text-zinc-300 dark:hover:text-teal-300">
                     {{ topic.title }}
                   </a>
-                  <span class="text-xs text-slate-400 font-mono mt-0.5 block">{{ t('home.sidebar.repliesCount', { count: topic.replies }) }}</span>
+                  <span class="text-xs text-slate-400 font-mono mt-0.5 block dark:text-zinc-500">{{ t('home.sidebar.repliesCount', { count: topic.replies }) }}</span>
                 </div>
               </li>
             </ul>
@@ -468,25 +468,25 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
 
           <!-- Forum Stats Card -->
           <SFCard flush class="p-4">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 dark:text-zinc-500">
               {{ t('home.sidebar.forumStats') }}
             </h2>
-            <ul class="space-y-2.5 text-sm text-slate-700 font-medium">
+            <ul class="space-y-2.5 text-sm text-slate-700 font-medium dark:text-zinc-300">
               <li class="flex justify-between py-0.5">
-                <span class="text-slate-500 font-normal">{{ t('home.sidebar.statThreads') }}</span>
-                <span class="font-semibold font-mono text-slate-800">4,284</span>
+                <span class="text-slate-500 font-normal dark:text-zinc-400">{{ t('home.sidebar.statThreads') }}</span>
+                <span class="font-semibold font-mono text-slate-800 dark:text-zinc-100">4,284</span>
               </li>
               <li class="flex justify-between py-0.5">
-                <span class="text-slate-500 font-normal">{{ t('home.sidebar.statReplies') }}</span>
-                <span class="font-semibold font-mono text-slate-800">23,109</span>
+                <span class="text-slate-500 font-normal dark:text-zinc-400">{{ t('home.sidebar.statReplies') }}</span>
+                <span class="font-semibold font-mono text-slate-800 dark:text-zinc-100">23,109</span>
               </li>
               <li class="flex justify-between py-0.5">
-                <span class="text-slate-500 font-normal">{{ t('home.sidebar.statMembers') }}</span>
-                <span class="font-semibold font-mono text-slate-800">894</span>
+                <span class="text-slate-500 font-normal dark:text-zinc-400">{{ t('home.sidebar.statMembers') }}</span>
+                <span class="font-semibold font-mono text-slate-800 dark:text-zinc-100">894</span>
               </li>
               <li class="flex justify-between py-0.5">
-                <span class="text-slate-500 font-normal">{{ t('home.sidebar.statOnline') }}</span>
-                <span class="font-semibold font-mono text-slate-800 flex items-center gap-2">
+                <span class="text-slate-500 font-normal dark:text-zinc-400">{{ t('home.sidebar.statOnline') }}</span>
+                <span class="font-semibold font-mono text-slate-800 flex items-center gap-2 dark:text-zinc-100">
                   <span class="w-2 h-2 rounded-full bg-green-400 pulse-dot"></span>
                   <span>1,024</span>
                 </span>

@@ -11,6 +11,17 @@
   --sf-border-light: #eef2f6;
 }
 
+.dark {
+  --sf-surface: #09090b;
+  --sf-card: #18181b;
+  --sf-muted: #27272a;
+  --sf-fg: #f4f4f5;
+  --sf-fg-secondary: #d4d4d8;
+  --sf-fg-tertiary: #a1a1aa;
+  --sf-border: #3f3f46;
+  --sf-border-light: #27272a;
+}
+
 .navbar,
 .sf-footer,
 .auth-shell {

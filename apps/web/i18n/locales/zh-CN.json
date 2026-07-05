@@ -7,7 +7,9 @@
     "userMenu": "用户菜单",
     "admin": "管理后台",
     "logout": "退出登录",
-    "language": "语言"
+    "language": "语言",
+    "lightMode": "切换到浅色模式",
+    "darkMode": "切换到夜间模式"
   },
   "home": {
     "metaTitle": "{siteName} 社区首页",

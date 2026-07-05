@@ -183,8 +183,8 @@ async function submitLogin() {
   flex-direction: column;
   justify-content: space-between;
   padding: 48px 52px;
-  background: #f5f7fa;
-  border-right: 1px solid #e4e8ef;
+  background: var(--sf-muted);
+  border-right: 1px solid var(--sf-border);
 }
 
 .auth-logo {
@@ -193,7 +193,7 @@ async function submitLogin() {
   gap: 9px;
   font-size: 15px;
   font-weight: 700;
-  color: #111827;
+  color: var(--sf-fg);
   letter-spacing: -0.01em;
   text-decoration: none;
 }
@@ -220,13 +220,13 @@ async function submitLogin() {
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.15;
-  color: #111827;
+  color: var(--sf-fg);
   margin: 0;
 }
 
 .auth-desc {
   font-size: 15px;
-  color: #4b5563;
+  color: var(--sf-fg-secondary);
   line-height: 1.75;
   margin: 0;
   max-width: 340px;
@@ -246,7 +246,7 @@ async function submitLogin() {
   align-items: flex-start;
   gap: 11px;
   font-size: 13.5px;
-  color: #4b5563;
+  color: var(--sf-fg-secondary);
   line-height: 1.5;
 }
 
@@ -254,8 +254,8 @@ async function submitLogin() {
   width: 20px;
   height: 20px;
   border-radius: 5px;
-  border: 1px solid #d1d5db;
-  background: #fff;
+  border: 1px solid var(--sf-border);
+  background: var(--sf-card);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -267,7 +267,7 @@ async function submitLogin() {
 
 .auth-left-footer {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--sf-fg-tertiary);
   margin: 0;
 }
 
@@ -277,7 +277,7 @@ async function submitLogin() {
   align-items: center;
   justify-content: center;
   padding: 48px 40px;
-  background: #ffffff;
+  background: var(--sf-card);
 }
 
 .auth-form-wrap {
@@ -288,7 +288,7 @@ async function submitLogin() {
 /* 页面 tab 导航 */
 .auth-tabs {
   display: flex;
-  border-bottom: 1px solid #e4e8ef;
+  border-bottom: 1px solid var(--sf-border);
   margin-bottom: 32px;
 }
 
@@ -297,18 +297,18 @@ async function submitLogin() {
   margin-right: 24px;
   margin-bottom: -1px;
   border-bottom: 2px solid transparent;
-  color: #9ca3af;
+  color: var(--sf-fg-tertiary);
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
   transition: color 0.18s, border-color 0.18s;
 }
 
-.auth-tab:hover { color: #4b5563; }
+.auth-tab:hover { color: var(--sf-fg-secondary); }
 
 /* 当前页高亮：login 页永远高亮登录 tab */
 .auth-tab--active {
-  color: #111827;
+  color: var(--sf-fg);
   border-bottom-color: var(--sf-accent);
 }
 
@@ -316,13 +316,13 @@ async function submitLogin() {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #111827;
+  color: var(--sf-fg);
   margin: 0 0 5px;
 }
 
 .auth-form-sub {
   font-size: 13px;
-  color: #4b5563;
+  color: var(--sf-fg-secondary);
   margin: 0 0 26px;
   line-height: 1.55;
 }
@@ -349,25 +349,25 @@ async function submitLogin() {
 .auth-label {
   font-size: 12px;
   font-weight: 600;
-  color: #374151;
+  color: var(--sf-fg-secondary);
 }
 
 .auth-forgot {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--sf-fg-tertiary);
   text-decoration: none;
   transition: color 0.15s;
 }
 
-.auth-forgot:hover { color: #4b5563; }
+.auth-forgot:hover { color: var(--sf-fg-secondary); }
 
 .auth-input {
   height: 40px;
   padding: 0 13px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--sf-border);
   border-radius: 7px;
-  background: #fff;
-  color: #111827;
+  background: var(--sf-card);
+  color: var(--sf-fg);
   font-size: 14px;
   font-family: inherit;
   outline: none;
@@ -375,33 +375,33 @@ async function submitLogin() {
   width: 100%;
 }
 
-.auth-input:hover { border-color: #9ca3af; }
+.auth-input:hover { border-color: var(--sf-fg-tertiary); }
 
 .auth-input:focus {
   border-color: var(--sf-accent);
   box-shadow: 0 0 0 3px var(--sf-accent-focus);
 }
 
-/* 覆盖 WebKit 自动填充默认底色，保持登录表单白底。 */
+/* 覆盖 WebKit 自动填充默认底色，保持登录表单跟随当前主题表面。 */
 .auth-input:-webkit-autofill,
 .auth-input:-webkit-autofill:hover,
 .auth-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px #fff inset;
-  box-shadow: 0 0 0 1000px #fff inset;
-  -webkit-text-fill-color: #111827;
-  caret-color: #111827;
+  -webkit-box-shadow: 0 0 0 1000px var(--sf-card) inset;
+  box-shadow: 0 0 0 1000px var(--sf-card) inset;
+  -webkit-text-fill-color: var(--sf-fg);
+  caret-color: var(--sf-fg);
   transition: background-color 9999s ease-out, color 9999s ease-out;
 }
 
 .auth-input:-webkit-autofill:focus {
   border-color: var(--sf-accent);
-  -webkit-box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px var(--sf-accent-focus);
-  box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px var(--sf-accent-focus);
-  -webkit-text-fill-color: #111827;
-  caret-color: #111827;
+  -webkit-box-shadow: 0 0 0 1000px var(--sf-card) inset, 0 0 0 3px var(--sf-accent-focus);
+  box-shadow: 0 0 0 1000px var(--sf-card) inset, 0 0 0 3px var(--sf-accent-focus);
+  -webkit-text-fill-color: var(--sf-fg);
+  caret-color: var(--sf-fg);
 }
 
-.auth-input::placeholder { color: #d1d5db; }
+.auth-input::placeholder { color: var(--sf-fg-tertiary); }
 
 /* 提交按钮 */
 .auth-btn {
@@ -435,21 +435,21 @@ async function submitLogin() {
 .auth-switch {
   margin-top: 20px;
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--sf-fg-tertiary);
   text-align: center;
 }
 
 .auth-switch a {
-  color: #4b5563;
+  color: var(--sf-fg-secondary);
   font-weight: 600;
   text-decoration: none;
-  border-bottom: 1px solid #d1d5db;
+  border-bottom: 1px solid var(--sf-border);
   transition: color 0.15s, border-color 0.15s;
 }
 
 .auth-switch a:hover {
-  color: #111827;
-  border-bottom-color: #9ca3af;
+  color: var(--sf-fg);
+  border-bottom-color: var(--sf-fg-tertiary);
 }
 
 @media (max-width: 720px) {

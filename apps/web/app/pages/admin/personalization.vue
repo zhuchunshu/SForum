@@ -466,7 +466,7 @@ function formSnapshot() {
             class="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/60 lg:grid-cols-[10rem_1fr_1fr_1.2fr]"
           >
             <div class="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-zinc-300">
-              <UIcon name="i-lucide-corner-down-right" class="size-4 text-slate-400" />
+              <UIcon name="i-lucide-corner-down-right" class="size-4 text-slate-400 dark:text-zinc-500" />
               {{ t(`admin.personalization.footer.linkKeys.${link.key}`) }}
             </div>
             <UInput

@@ -7,7 +7,9 @@
     "userMenu": "User menu",
     "admin": "Admin",
     "logout": "Log out",
-    "language": "Language"
+    "language": "Language",
+    "lightMode": "Switch to light mode",
+    "darkMode": "Switch to dark mode"
   },
   "home": {
     "metaTitle": "{siteName} Community",

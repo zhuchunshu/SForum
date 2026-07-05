@@ -97,6 +97,11 @@ states. Error feedback remains visible until users dismiss it or resolve the
 blocking issue.
 The public forum navbar user dropdown no longer exposes the admin entry link,
 so the configurable admin prefix is not revealed from the regular logged-in UI.
+The public forum navbar now includes a client-rendered Light/Dark mode toggle
+that uses Nuxt Color Mode's `.dark` class. The default theme and SF component
+CSS define dark semantic variables for public chrome, cards, search, feed rows,
+tabs, pagination, forms, and editor surfaces so the forum home page responds to
+the same color-mode state as the admin shell.
 Runtime site options are read through `useWebOptions()`. Public options now
 include site name, site URL, default locale, enabled locales, and the public
 human-verification provider. `site.name` drives the navbar, auth pages, admin
