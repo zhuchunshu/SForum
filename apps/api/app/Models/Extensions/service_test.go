@@ -194,6 +194,56 @@ func TestServiceEnableRunsPluginPreflightBeforeStatusChange(t *testing.T) {
 	}
 }
 
+func TestServiceEnableStartsRuntimeAndRollsBackOnStartFailure(t *testing.T) {
+	expected := errors.New("bind failed")
+	store := &fakeExtensionStore{items: map[string]Extension{
+		"demo.plugin": installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"}),
+	}}
+	runtime := &fakeRuntimeManager{startErr: expected}
+	service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
+
+	_, err := service.Enable(context.Background(), extensionManager(), "demo.plugin")
+	if !errors.Is(err, ErrRuntimeFailed) {
+		t.Fatalf("expected runtime failure, got %v", err)
+	}
+	if store.enabledID != "demo.plugin" || store.disabledID != "demo.plugin" {
+		t.Fatalf("expected enable then rollback disable, enabled=%q disabled=%q", store.enabledID, store.disabledID)
+	}
+	if len(runtime.started) != 1 || runtime.started[0] != "demo.plugin" {
+		t.Fatalf("expected runtime start attempt, got %#v", runtime.started)
+	}
+	if last := store.events[len(store.events)-1]; last.Action != EventEnableFailed || last.Message == "" {
+		t.Fatalf("expected enable failure event, got %#v", store.events)
+	}
+}
+
+func TestServiceDisableStopsRuntimeAndListDecoratesRuntimeStatus(t *testing.T) {
+	store := &fakeExtensionStore{items: map[string]Extension{
+		"demo.plugin": installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"}),
+	}}
+	store.items["demo.plugin"] = extensionWithStatus(store.items["demo.plugin"], StatusEnabled)
+	runtime := &fakeRuntimeManager{statuses: map[string]RuntimeStatus{
+		"demo.plugin": {State: RuntimeRunning, RouteCount: 1, HookCount: 1, ProviderCount: 1},
+	}}
+	service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
+
+	items, err := service.List(context.Background(), extensionManager())
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if items[0].Runtime == nil || items[0].Runtime.State != RuntimeRunning {
+		t.Fatalf("expected decorated runtime status, got %#v", items[0].Runtime)
+	}
+
+	_, err = service.Disable(context.Background(), extensionManager(), "demo.plugin")
+	if err != nil {
+		t.Fatalf("Disable returned error: %v", err)
+	}
+	if len(runtime.stopped) != 1 || runtime.stopped[0] != "demo.plugin" {
+		t.Fatalf("expected runtime stop, got %#v", runtime.stopped)
+	}
+}
+
 func TestServiceEnableRejectsThemesBecauseThemesUseActivation(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		"starter.theme": installedExtension("starter.theme", TypeTheme, ManifestBackend{}),
@@ -427,12 +477,48 @@ func uploadedExtension(id string, extensionType string) Extension {
 	return item
 }
 
+func extensionWithStatus(item Extension, status string) Extension {
+	item.Status = status
+	return item
+}
+
 type fakeRuntime struct {
 	err error
 }
 
 func (r fakeRuntime) Check(context.Context, Extension) error {
 	return r.err
+}
+
+type fakeRuntimeManager struct {
+	err      error
+	startErr error
+	started  []string
+	stopped  []string
+	statuses map[string]RuntimeStatus
+}
+
+func (r *fakeRuntimeManager) Check(context.Context, Extension) error {
+	return r.err
+}
+
+func (r *fakeRuntimeManager) Start(_ context.Context, extension Extension) error {
+	r.started = append(r.started, extension.ID)
+	return r.startErr
+}
+
+func (r *fakeRuntimeManager) Stop(_ context.Context, extension Extension) error {
+	r.stopped = append(r.stopped, extension.ID)
+	return nil
+}
+
+func (r *fakeRuntimeManager) Status(_ context.Context, extension Extension) RuntimeStatus {
+	if r.statuses != nil {
+		if status, ok := r.statuses[extension.ID]; ok {
+			return status
+		}
+	}
+	return RuntimeStatus{State: RuntimeStopped}
 }
 
 type fakeThemeBuilder struct {

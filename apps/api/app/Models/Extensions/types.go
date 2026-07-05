@@ -57,6 +57,7 @@ var (
 	ErrBuildFailed             = errors.New("extensions: build failed")
 	ErrThemeActivationRequired = errors.New("extensions: themes must be activated")
 	ErrThemeRuntimeUnavailable = errors.New("extensions: theme activation runtime unavailable")
+	ErrRuntimeFailed           = errors.New("extensions: runtime failed")
 )
 
 type Manifest struct {

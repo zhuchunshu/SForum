@@ -19,6 +19,13 @@ type RuntimePreflight interface {
 	Check(ctx context.Context, extension Extension) error
 }
 
+type RuntimeManager interface {
+	RuntimePreflight
+	Start(ctx context.Context, extension Extension) error
+	Stop(ctx context.Context, extension Extension) error
+	Status(ctx context.Context, extension Extension) RuntimeStatus
+}
+
 type ThemeBuilder interface {
 	Build(ctx context.Context, extension Extension) error
 }

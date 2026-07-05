@@ -25,7 +25,7 @@ type Service struct {
 	store         Store
 	extensionRoot string
 	builtinRoot   string
-	runtime       RuntimePreflight
+	runtime       RuntimeManager
 	themeBuilder  ThemeBuilder
 }
 
@@ -38,15 +38,31 @@ func NewServiceWithHooks(store Store, extensionRoot string, runtime RuntimePrefl
 }
 
 func NewServiceWithBuiltins(store Store, extensionRoot string, builtinRoot string) *Service {
-	return NewServiceWithBuiltinsAndHooks(store, extensionRoot, builtinRoot, nil, nil)
+	return NewServiceWithBuiltinsAndRuntime(store, extensionRoot, builtinRoot, nil, nil)
 }
 
 func NewServiceWithBuiltinsAndHooks(store Store, extensionRoot string, builtinRoot string, runtime RuntimePreflight, themeBuilder ThemeBuilder) *Service {
+	var manager RuntimeManager
+	if runtime != nil {
+		if full, ok := runtime.(RuntimeManager); ok {
+			manager = full
+		} else {
+			manager = preflightRuntimeManager{RuntimePreflight: runtime}
+		}
+	}
+	return NewServiceWithBuiltinsAndRuntime(store, extensionRoot, builtinRoot, manager, themeBuilder)
+}
+
+func NewServiceWithRuntime(store Store, extensionRoot string, runtime RuntimeManager, themeBuilder ThemeBuilder) *Service {
+	return NewServiceWithBuiltinsAndRuntime(store, extensionRoot, "", runtime, themeBuilder)
+}
+
+func NewServiceWithBuiltinsAndRuntime(store Store, extensionRoot string, builtinRoot string, runtime RuntimeManager, themeBuilder ThemeBuilder) *Service {
 	if strings.TrimSpace(extensionRoot) == "" {
 		extensionRoot = "storage/extensions"
 	}
 	if runtime == nil {
-		runtime = LocalRuntimePreflight{}
+		runtime = LocalRuntimeManager{}
 	}
 	if themeBuilder == nil {
 		themeBuilder = LocalThemeBuilder{}
@@ -77,6 +93,48 @@ func (LocalRuntimePreflight) Check(_ context.Context, extension Extension) error
 	return nil
 }
 
+type LocalRuntimeManager struct {
+	LocalRuntimePreflight
+}
+
+func (LocalRuntimeManager) Start(context.Context, Extension) error {
+	return nil
+}
+
+func (LocalRuntimeManager) Stop(context.Context, Extension) error {
+	return nil
+}
+
+func (LocalRuntimeManager) Status(_ context.Context, extension Extension) RuntimeStatus {
+	return RuntimeStatus{
+		State:         RuntimeStopped,
+		RouteCount:    len(extension.Manifest.Routes),
+		HookCount:     len(extension.Manifest.Hooks),
+		ProviderCount: len(extension.Manifest.Providers),
+	}
+}
+
+type preflightRuntimeManager struct {
+	RuntimePreflight
+}
+
+func (preflightRuntimeManager) Start(context.Context, Extension) error {
+	return nil
+}
+
+func (preflightRuntimeManager) Stop(context.Context, Extension) error {
+	return nil
+}
+
+func (preflightRuntimeManager) Status(_ context.Context, extension Extension) RuntimeStatus {
+	return RuntimeStatus{
+		State:         RuntimeStopped,
+		RouteCount:    len(extension.Manifest.Routes),
+		HookCount:     len(extension.Manifest.Hooks),
+		ProviderCount: len(extension.Manifest.Providers),
+	}
+}
+
 type LocalThemeBuilder struct{}
 
 func (LocalThemeBuilder) Build(_ context.Context, extension Extension) error {
@@ -98,7 +156,14 @@ func (s *Service) List(ctx context.Context, actor identity.Actor) ([]Extension, 
 	if !actor.Can(identity.PermissionExtensionManage) {
 		return nil, identity.ErrPermissionDenied
 	}
-	return s.store.List(ctx)
+	items, err := s.store.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for index := range items {
+		items[index] = s.decorateRuntime(ctx, items[index])
+	}
+	return items, nil
 }
 
 func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
@@ -218,7 +283,7 @@ func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, inpu
 		Action:      EventInstalled,
 		Message:     "Extension archive installed.",
 	})
-	return installed, nil
+	return s.decorateRuntime(ctx, installed), nil
 }
 
 func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
@@ -243,13 +308,20 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (
 	if err != nil {
 		return Extension{}, err
 	}
+	if enabled.Type == TypePlugin && enabled.Manifest.Backend.Entry != "" && s.runtime != nil {
+		if err := s.runtime.Start(ctx, enabled); err != nil {
+			_, _ = s.store.Disable(ctx, enabled.ID)
+			s.recordEnableFailure(ctx, actor, enabled.ID, err)
+			return Extension{}, fmt.Errorf("%w: %v", ErrRuntimeFailed, err)
+		}
+	}
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: enabled.ID,
 		ActorUserID: actor.ID,
 		Action:      EventEnabled,
 		Message:     "Extension enabled.",
 	})
-	return enabled, nil
+	return s.decorateRuntime(ctx, enabled), nil
 }
 
 func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
@@ -267,13 +339,16 @@ func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) 
 	if err != nil {
 		return Extension{}, err
 	}
+	if disabled.Type == TypePlugin && s.runtime != nil {
+		_ = s.runtime.Stop(ctx, disabled)
+	}
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: disabled.ID,
 		ActorUserID: actor.ID,
 		Action:      EventDisabled,
 		Message:     "Extension disabled.",
 	})
-	return disabled, nil
+	return s.decorateRuntime(ctx, disabled), nil
 }
 
 func (s *Service) VerifyExtension(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
@@ -299,7 +374,7 @@ func (s *Service) VerifyExtension(ctx context.Context, actor identity.Actor, id 
 		Action:      EventVerified,
 		Message:     "Extension preflight verified.",
 	})
-	return extension, nil
+	return s.decorateRuntime(ctx, extension), nil
 }
 
 func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
@@ -372,6 +447,14 @@ func (s *Service) recordEnableFailure(ctx context.Context, actor identity.Actor,
 		Action:      EventEnableFailed,
 		Message:     cause.Error(),
 	})
+}
+
+func (s *Service) decorateRuntime(ctx context.Context, item Extension) Extension {
+	if item.Type == TypePlugin && s.runtime != nil {
+		status := s.runtime.Status(ctx, item)
+		item.Runtime = &status
+	}
+	return item
 }
 
 type archiveFile struct {
