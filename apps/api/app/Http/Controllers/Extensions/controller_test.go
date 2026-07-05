@@ -3,6 +3,7 @@ package extensionscontroller
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -117,6 +118,9 @@ func TestControllerProxiesOnlyDeclaredPluginRoutesAfterHostAuthorization(t *test
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected public route 200, got %d", resp.StatusCode)
 	}
+	if body := responseBody(t, resp); body != "plugin-ok" {
+		t.Fatalf("expected plugin proxy body, got %q", body)
+	}
 
 	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/extensions/demo.plugin/profile", nil)
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -133,6 +137,9 @@ func TestControllerProxiesOnlyDeclaredPluginRoutesAfterHostAuthorization(t *test
 	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/extensions/demo.plugin/admin/reindex", managerCookie)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected permission route 200, got %d", resp.StatusCode)
+	}
+	if body := responseBody(t, resp); body != "plugin-ok" {
+		t.Fatalf("expected plugin proxy body, got %q", body)
 	}
 
 	resp = performExtensionRequest(t, app, http.MethodDelete, "/api/v1/extensions/demo.plugin/hello", managerCookie)
@@ -218,7 +225,7 @@ func newExtensionTestApp() (*fiber.App, *authsession.Manager, *controllerFakeSto
 			UpdatedAt:   time.Now(),
 		},
 	}}
-	controller := NewController(extensions.NewServiceWithHooks(store, "storage/extensions", nil, controllerThemeBuilder{}), users, manager)
+	controller := NewControllerWithGateway(extensions.NewServiceWithHooks(store, "storage/extensions", nil, controllerThemeBuilder{}), users, manager, controllerFakeGateway{})
 	loginProvider := extensionRouteProviderFunc(func(api fiber.Router) {
 		api.Post("/test-login/:id", func(c fiber.Ctx) error {
 			var id int64 = 1
@@ -268,6 +275,16 @@ func performExtensionRequest(t *testing.T, app *fiber.App, method string, path s
 	return resp
 }
 
+func responseBody(t *testing.T, resp *http.Response) string {
+	t.Helper()
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read response body: %v", err)
+	}
+	return string(body)
+}
+
 func extensionListContains(items []extensions.Extension, id string) bool {
 	for _, item := range items {
 		if item.ID == id {
@@ -289,6 +306,13 @@ type extensionRouteProviderFunc func(api fiber.Router)
 
 func (f extensionRouteProviderFunc) RegisterRoutes(api fiber.Router) {
 	f(api)
+}
+
+type controllerFakeGateway struct{}
+
+func (controllerFakeGateway) Proxy(c fiber.Ctx, input ProxyInput) error {
+	c.Status(http.StatusOK)
+	return c.SendString("plugin-ok")
 }
 
 type controllerThemeBuilder struct{}

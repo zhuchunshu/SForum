@@ -19,10 +19,25 @@ type Controller struct {
 	service  *extensions.Service
 	users    identity.ActorStore
 	sessions *authsession.Manager
+	gateway  RouteGateway
+}
+
+type ProxyInput struct {
+	Matched  extensions.MatchedRoute
+	Actor    identity.Actor
+	HasActor bool
+}
+
+type RouteGateway interface {
+	Proxy(c fiber.Ctx, input ProxyInput) error
 }
 
 func NewController(service *extensions.Service, users identity.ActorStore, sessions *authsession.Manager) *Controller {
-	return &Controller{service: service, users: users, sessions: sessions}
+	return NewControllerWithGateway(service, users, sessions, nil)
+}
+
+func NewControllerWithGateway(service *extensions.Service, users identity.ActorStore, sessions *authsession.Manager, gateway RouteGateway) *Controller {
+	return &Controller{service: service, users: users, sessions: sessions, gateway: gateway}
 }
 
 func (h *Controller) list(c fiber.Ctx) error {
@@ -161,7 +176,10 @@ func (h *Controller) proxyExtensionRoute(c fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 		}
 	}
-	return apphttp.OK(c, fiber.Map{"ok": true})
+	if h.gateway == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeRuntimeUnavailable)
+	}
+	return h.gateway.Proxy(c, ProxyInput{Matched: matched, Actor: actor, HasActor: hasActor})
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
