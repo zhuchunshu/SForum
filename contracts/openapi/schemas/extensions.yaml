@@ -95,6 +95,8 @@ ExtensionManifest:
           type: string
         rpc:
           type: string
+        protocolVersion:
+          type: integer
     frontend:
       type: object
       properties:
@@ -107,15 +109,96 @@ ExtensionManifest:
     routes:
       type: array
       items:
-        type: object
+        "$ref": "#/ExtensionManifestRoute"
     hooks:
       type: array
       items:
-        type: object
+        "$ref": "#/ExtensionManifestHook"
     jobs:
       type: array
       items:
         type: object
+    providers:
+      type: array
+      items:
+        "$ref": "#/ExtensionManifestProvider"
+ExtensionManifestRoute:
+  type: object
+  required:
+  - path
+  - methods
+  properties:
+    path:
+      type: string
+    methods:
+      type: array
+      items:
+        type: string
+        enum:
+        - GET
+        - HEAD
+        - OPTIONS
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+    access:
+      type: string
+      enum:
+      - public
+      - login
+      - permission
+    permission:
+      type: string
+    timeoutMs:
+      type: integer
+      minimum: 0
+ExtensionManifestHook:
+  type: object
+  required:
+  - name
+  properties:
+    name:
+      type: string
+ExtensionManifestProvider:
+  type: object
+  required:
+  - slot
+  - label
+  properties:
+    slot:
+      type: string
+    label:
+      type: string
+    timeoutMs:
+      type: integer
+      minimum: 0
+ExtensionRuntimeStatus:
+  type: object
+  required:
+  - state
+  - routeCount
+  - hookCount
+  - providerCount
+  properties:
+    state:
+      type: string
+      enum:
+      - stopped
+      - starting
+      - running
+      - failed
+    lastError:
+      type: string
+    startedAt:
+      type: string
+      format: date-time
+    routeCount:
+      type: integer
+    hookCount:
+      type: integer
+    providerCount:
+      type: integer
 Extension:
   type: object
   required:
@@ -150,6 +233,8 @@ Extension:
       type: boolean
     manifest:
       "$ref": "#/ExtensionManifest"
+    runtime:
+      "$ref": "#/ExtensionRuntimeStatus"
     packagePath:
       type: string
       description: Server-local package path, visible only to extension managers.

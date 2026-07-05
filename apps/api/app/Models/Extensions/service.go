@@ -488,6 +488,12 @@ func validateManifest(manifest Manifest) error {
 			return ErrInvalidManifest
 		}
 	}
+	if manifest.Backend.RPC != "" && manifest.Backend.RPC != "hashicorp-go-plugin" {
+		return ErrInvalidManifest
+	}
+	if manifest.Backend.ProtocolVersion < 0 || manifest.Backend.ProtocolVersion > 1 {
+		return ErrInvalidManifest
+	}
 	if manifest.Frontend.Layer != "" {
 		if _, ok := safeArchivePath(manifest.Frontend.Layer); !ok {
 			return ErrInvalidManifest
@@ -495,6 +501,47 @@ func validateManifest(manifest Manifest) error {
 	}
 	for _, migration := range manifest.Migrations {
 		if _, ok := safeArchivePath(migration.Path); !ok || !strings.HasSuffix(migration.Path, ".sql") {
+			return ErrInvalidManifest
+		}
+	}
+	for _, route := range manifest.Routes {
+		if route.Path == "" || !strings.HasPrefix(route.Path, "/") || strings.Contains(route.Path, "..") {
+			return ErrInvalidManifest
+		}
+		access := route.Access
+		if access == "" {
+			access = RouteAccessLogin
+		}
+		if access != RouteAccessPublic && access != RouteAccessLogin && access != RouteAccessPermission {
+			return ErrInvalidManifest
+		}
+		if len(route.Methods) == 0 {
+			return ErrInvalidManifest
+		}
+		for _, method := range route.Methods {
+			switch method {
+			case "GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE":
+			default:
+				return ErrInvalidManifest
+			}
+			if access == RouteAccessPublic && method != "GET" && method != "HEAD" && method != "OPTIONS" {
+				return ErrInvalidManifest
+			}
+		}
+		if access == RouteAccessPermission && (route.Permission == "" || !manifestHasPermission(manifest, route.Permission)) {
+			return ErrInvalidManifest
+		}
+		if route.TimeoutMS < 0 {
+			return ErrInvalidManifest
+		}
+	}
+	for _, hook := range manifest.Hooks {
+		if !knownHookPoint(hook.Name) {
+			return ErrInvalidManifest
+		}
+	}
+	for _, provider := range manifest.Providers {
+		if provider.Label == "" || !knownProviderSlot(provider.Slot) || provider.TimeoutMS < 0 {
 			return ErrInvalidManifest
 		}
 	}
@@ -509,7 +556,25 @@ func normalizeManifest(manifest Manifest) Manifest {
 	manifest.SForumVersion = strings.TrimSpace(manifest.SForumVersion)
 	manifest.Backend.Entry = strings.TrimSpace(manifest.Backend.Entry)
 	manifest.Backend.RPC = strings.TrimSpace(manifest.Backend.RPC)
+	if manifest.Backend.ProtocolVersion == 0 && manifest.Backend.RPC != "" {
+		manifest.Backend.ProtocolVersion = 1
+	}
 	manifest.Frontend.Layer = strings.TrimSpace(manifest.Frontend.Layer)
+	for index := range manifest.Routes {
+		manifest.Routes[index].Path = normalizeRoutePath(manifest.Routes[index].Path)
+		manifest.Routes[index].Access = strings.ToLower(strings.TrimSpace(manifest.Routes[index].Access))
+		manifest.Routes[index].Permission = strings.TrimSpace(manifest.Routes[index].Permission)
+		for methodIndex := range manifest.Routes[index].Methods {
+			manifest.Routes[index].Methods[methodIndex] = strings.ToUpper(strings.TrimSpace(manifest.Routes[index].Methods[methodIndex]))
+		}
+	}
+	for index := range manifest.Hooks {
+		manifest.Hooks[index].Name = strings.TrimSpace(manifest.Hooks[index].Name)
+	}
+	for index := range manifest.Providers {
+		manifest.Providers[index].Slot = strings.TrimSpace(manifest.Providers[index].Slot)
+		manifest.Providers[index].Label = strings.TrimSpace(manifest.Providers[index].Label)
+	}
 	return manifest
 }
 
@@ -530,6 +595,47 @@ func safeArchivePath(name string) (string, bool) {
 		return "", false
 	}
 	return clean, true
+}
+
+func normalizeRoutePath(value string) string {
+	value = strings.TrimSpace(strings.ReplaceAll(value, "\\", "/"))
+	if value == "" {
+		return ""
+	}
+	if strings.Contains(value, "..") {
+		return value
+	}
+	if !strings.HasPrefix(value, "/") {
+		value = "/" + value
+	}
+	return path.Clean(value)
+}
+
+func knownHookPoint(name string) bool {
+	switch name {
+	case "extension.enabled", "extension.disabled", "user.registered", "topic.before_create", "topic.created", "attachment.uploaded":
+		return true
+	default:
+		return false
+	}
+}
+
+func knownProviderSlot(slot string) bool {
+	switch slot {
+	case "search.provider", "attachment.storage.provider", "human_verification.provider", "auth.risk.provider", "editor.sanitizer.provider":
+		return true
+	default:
+		return false
+	}
+}
+
+func manifestHasPermission(manifest Manifest, permission string) bool {
+	for _, item := range manifest.Permissions {
+		if strings.TrimSpace(item) == permission {
+			return true
+		}
+	}
+	return false
 }
 
 func errorsIsNotExist(err error) bool {

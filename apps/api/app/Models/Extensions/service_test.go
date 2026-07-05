@@ -97,6 +97,75 @@ func TestServiceInstallArchiveRejectsReservedDefaultThemeID(t *testing.T) {
 	}
 }
 
+func TestServiceInstallArchiveValidatesRuntimeManifestDeclarations(t *testing.T) {
+	service := NewService(&fakeExtensionStore{}, t.TempDir())
+	actor := extensionManager()
+
+	valid := validManifest("runtime.plugin", TypePlugin)
+	_, err := service.InstallArchive(context.Background(), actor, ArchiveInput{
+		FileName: "runtime.zip",
+		Data: extensionArchive(t, valid,
+			zipFile{name: "backend/plugin", body: "#!/bin/sh\n"},
+		),
+	})
+	if err != nil {
+		t.Fatalf("expected runtime manifest to install, got %v", err)
+	}
+
+	cases := []struct {
+		name     string
+		manifest string
+	}{
+		{
+			name: "unsafe route path",
+			manifest: `{
+				"id":"bad.route","name":"Bad Route","version":"1.0.0","type":"plugin","sforumVersion":"^1.0.0",
+				"routes":[{"path":"../escape","methods":["GET"]}]
+			}`,
+		},
+		{
+			name: "public write route",
+			manifest: `{
+				"id":"bad.public","name":"Bad Public","version":"1.0.0","type":"plugin","sforumVersion":"^1.0.0",
+				"routes":[{"path":"/write","methods":["POST"],"access":"public"}]
+			}`,
+		},
+		{
+			name: "unknown hook",
+			manifest: `{
+				"id":"bad.hook","name":"Bad Hook","version":"1.0.0","type":"plugin","sforumVersion":"^1.0.0",
+				"hooks":[{"name":"topic.destroyed"}]
+			}`,
+		},
+		{
+			name: "unknown provider",
+			manifest: `{
+				"id":"bad.provider","name":"Bad Provider","version":"1.0.0","type":"plugin","sforumVersion":"^1.0.0",
+				"providers":[{"slot":"unknown.provider","label":"Unknown"}]
+			}`,
+		},
+		{
+			name: "permission route without manifest permission",
+			manifest: `{
+				"id":"bad.permission","name":"Bad Permission","version":"1.0.0","type":"plugin","sforumVersion":"^1.0.0",
+				"routes":[{"path":"/admin","methods":["POST"],"access":"permission","permission":"extension.bad.manage"}]
+			}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := service.InstallArchive(context.Background(), actor, ArchiveInput{
+				FileName: "bad.zip",
+				Data:     extensionArchive(t, tc.manifest),
+			})
+			if !errors.Is(err, ErrInvalidManifest) {
+				t.Fatalf("expected invalid manifest, got %v", err)
+			}
+		})
+	}
+}
+
 func TestServiceEnableRunsPluginPreflightBeforeStatusChange(t *testing.T) {
 	expected := errors.New("rpc handshake failed")
 	store := &fakeExtensionStore{items: map[string]Extension{

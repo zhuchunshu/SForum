@@ -16,6 +16,15 @@ const (
 	StatusEnabled   = "enabled"
 	StatusDisabled  = "disabled"
 
+	RuntimeStopped  = "stopped"
+	RuntimeStarting = "starting"
+	RuntimeRunning  = "running"
+	RuntimeFailed   = "failed"
+
+	RouteAccessPublic     = "public"
+	RouteAccessLogin      = "login"
+	RouteAccessPermission = "permission"
+
 	EventInstalled      = "installed"
 	EventBuiltinSynced  = "builtin_synced"
 	EventVerified       = "verified"
@@ -31,6 +40,10 @@ const (
 	CodeBuildFailed             = "extension.build_failed"
 	CodeThemeActivationRequired = "extension.theme_activation_required"
 	CodeThemeRuntimeUnavailable = "extension.theme_runtime_unavailable"
+	CodeRouteNotFound           = "extension.route_not_found"
+	CodeRouteMethodNotAllowed   = "extension.route_method_not_allowed"
+	CodeRuntimeUnavailable      = "extension.runtime_unavailable"
+	CodeRuntimeFailed           = "extension.runtime_failed"
 
 	SourceBuiltin  = "builtin"
 	SourceUploaded = "uploaded"
@@ -61,6 +74,7 @@ type Manifest struct {
 	Routes        []ManifestRoute     `json:"routes"`
 	Hooks         []ManifestHook      `json:"hooks"`
 	Jobs          []ManifestJob       `json:"jobs"`
+	Providers     []ManifestProvider  `json:"providers"`
 }
 
 type ManifestSetting struct {
@@ -75,8 +89,9 @@ type ManifestMigration struct {
 }
 
 type ManifestBackend struct {
-	Entry string `json:"entry"`
-	RPC   string `json:"rpc"`
+	Entry           string `json:"entry"`
+	RPC             string `json:"rpc"`
+	ProtocolVersion int    `json:"protocolVersion,omitempty"`
 }
 
 type ManifestFrontend struct {
@@ -90,8 +105,11 @@ type ManifestAdminPage struct {
 }
 
 type ManifestRoute struct {
-	Path    string   `json:"path"`
-	Methods []string `json:"methods"`
+	Path       string   `json:"path"`
+	Methods    []string `json:"methods"`
+	Access     string   `json:"access,omitempty"`
+	Permission string   `json:"permission,omitempty"`
+	TimeoutMS  int      `json:"timeoutMs,omitempty"`
 }
 
 type ManifestHook struct {
@@ -102,19 +120,35 @@ type ManifestJob struct {
 	Name string `json:"name"`
 }
 
+type ManifestProvider struct {
+	Slot      string `json:"slot"`
+	Label     string `json:"label"`
+	TimeoutMS int    `json:"timeoutMs,omitempty"`
+}
+
+type RuntimeStatus struct {
+	State         string     `json:"state"`
+	LastError     string     `json:"lastError,omitempty"`
+	StartedAt     *time.Time `json:"startedAt,omitempty"`
+	RouteCount    int        `json:"routeCount"`
+	HookCount     int        `json:"hookCount"`
+	ProviderCount int        `json:"providerCount"`
+}
+
 type Extension struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Version     string    `json:"version"`
-	Type        string    `json:"type"`
-	Status      string    `json:"status"`
-	Source      string    `json:"source"`
-	IsSystem    bool      `json:"isSystem"`
-	IsDeletable bool      `json:"isDeletable"`
-	Manifest    Manifest  `json:"manifest"`
-	PackagePath string    `json:"packagePath"`
-	InstalledAt time.Time `json:"installedAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Version     string         `json:"version"`
+	Type        string         `json:"type"`
+	Status      string         `json:"status"`
+	Source      string         `json:"source"`
+	IsSystem    bool           `json:"isSystem"`
+	IsDeletable bool           `json:"isDeletable"`
+	Manifest    Manifest       `json:"manifest"`
+	Runtime     *RuntimeStatus `json:"runtime,omitempty"`
+	PackagePath string         `json:"packagePath"`
+	InstalledAt time.Time      `json:"installedAt"`
+	UpdatedAt   time.Time      `json:"updatedAt"`
 }
 
 type ExtensionEvent struct {
