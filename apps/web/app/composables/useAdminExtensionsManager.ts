@@ -74,6 +74,20 @@ export const useAdminExtensionsManager = async () => {
     await lifecycle(item, 'disable')
   }
 
+  async function restartExtension(item: AdminExtension) {
+    busyId.value = item.id
+    try {
+      const updated = await request<AdminExtension>(`/admin/extensions/${item.id}/enable`, { method: 'POST', body: {} })
+      replaceExtension(updated)
+      await loadEvents(updated.id)
+      toast.add({ color: 'success', icon: 'i-lucide-refresh-cw', title: t('admin.extensions.restarted') })
+    } catch (error) {
+      toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.actionFailed') })
+    } finally {
+      busyId.value = ''
+    }
+  }
+
   async function verifyExtension(item: AdminExtension) {
     busyId.value = item.id
     try {
@@ -208,6 +222,7 @@ export const useAdminExtensionsManager = async () => {
     uploadArchive,
     enableExtension,
     disableExtension,
+    restartExtension,
     verifyExtension,
     activateTheme,
     loadEvents,

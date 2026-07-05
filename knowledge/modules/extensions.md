@@ -8,7 +8,8 @@ applied theme.
 
 ## Current Status
 
-The extension foundation is implemented with plugin/theme lifecycle separation.
+The extension foundation is implemented with plugin/theme lifecycle separation
+and plugin runtime v1.
 
 - `extension.manage` is the permission for uploading, verifying, enabling
   plugins, activating the protected default theme, and inspecting extensions.
@@ -36,8 +37,8 @@ The extension foundation is implemented with plugin/theme lifecycle separation.
     Nuxt Layer verification without applying it
   - `POST /api/v1/admin/extensions/:id/activate` for themes
   - `GET /api/v1/admin/extensions/:id/events`
-  - `ALL /api/v1/extensions/:extensionId/*` currently returns
-    `extension.route_unavailable` until runtime proxying is implemented.
+  - `ALL /api/v1/extensions/:extensionId/*` proxies declared enabled plugin
+    routes after host-side route matching and access checks.
 - The admin UI has an independent "Extensions" sidebar folder registered
   through the low-code admin module registry and protected by
   `extension.manage`. Its first submenu set is Overview, Plugins, Themes,
@@ -52,9 +53,10 @@ The extension foundation is implemented with plugin/theme lifecycle separation.
   configuration into `web_options`.
 - Extension archive files stay under `EXTENSION_ROOT`; do not expose them
   through public attachment URLs.
-- The first runtime foundation performs local preflight checks for backend
-  entries and Nuxt layer paths. It does not yet supervise long-running plugin
-  child processes, restart plugins, or proxy plugin HTTP routes.
+- Plugin runtime v1 uses HashiCorp go-plugin subprocess handshakes, starts
+  enabled plugin backends on API startup, proxies declared plugin routes under
+  `/api/v1/extensions/:extensionId/*`, emits lifecycle hooks, and exposes a
+  provider slot registry with built-in defaults.
 - Theme packages can declare a Nuxt Layer path, but v1 statically applies only
   `extensions/builtin/themes/sforum-default/layer` from the web Nuxt config.
   Uploaded theme activation must wait for a Nuxt rebuild, health-check, and
@@ -62,8 +64,7 @@ The extension foundation is implemented with plugin/theme lifecycle separation.
 - Keep plugin `Enable/Disable` separate from theme `Activate`. Do not call
   plugin runtime hooks when activating a theme.
 - Backend plugin packages can declare a backend entry and RPC protocol. The
-  current default preflight verifies the entry exists; a later RPC supervisor
-  should replace it to run a HashiCorp go-plugin compatible handshake.
+  first supported protocol is `hashicorp-go-plugin` protocol version 1.
 
 ## Permissions
 
@@ -80,12 +81,10 @@ The manifest file is `sforum.extension.json`.
 
 Important fields: `id`, `name`, `version`, `type`, `sforumVersion`,
 `permissions`, `settings`, `migrations`, `backend`, `frontend`, `adminPages`,
-`routes`, `hooks`, and `jobs`.
+`routes`, `hooks`, `jobs`, and `providers`.
 
 ## Next Steps
 
-- Add a real plugin runtime supervisor that starts/restarts child processes,
-  performs RPC handshakes, and proxies `/api/v1/extensions/:extensionId/*`.
 - Add a real theme activation worker that writes active Nuxt layer state,
   triggers web rebuild, runs a health check, and rolls back on failure. Only
   then should uploaded themes be activatable.

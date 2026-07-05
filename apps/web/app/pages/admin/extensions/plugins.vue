@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, filterExtensionsByType } from '~/utils/adminExtensions'
+import { canRestartPlugin, capabilityCount, filterExtensionsByType, runtimeCapabilitySummary, runtimeStatusLabelKey, type AdminRuntimeState } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -22,11 +22,25 @@ const {
   busyId,
   enableExtension,
   disableExtension,
+  restartExtension,
   statusColor,
   statusLabel
 } = await useAdminExtensionsManager()
 
 const plugins = computed(() => filterExtensionsByType(extensions.value, 'plugin'))
+
+function runtimeColor(state?: AdminRuntimeState) {
+  if (state === 'running') {
+    return 'success'
+  }
+  if (state === 'failed') {
+    return 'error'
+  }
+  if (state === 'starting') {
+    return 'warning'
+  }
+  return 'neutral'
+}
 
 useSeoMeta({
   title: t('admin.extensions.plugins.metaTitle')
@@ -86,9 +100,20 @@ useSeoMeta({
             <UBadge :color="statusColor(item.status)" variant="subtle">
               {{ statusLabel(item.status) }}
             </UBadge>
+            <UBadge :color="runtimeColor(item.runtime?.state)" variant="subtle">
+              {{ t(runtimeStatusLabelKey(item)) }}
+            </UBadge>
           </div>
           <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
             {{ item.id }} · v{{ item.version }} · {{ t('admin.extensions.capabilityCount', { count: capabilityCount(item) }) }}
+          </p>
+          <p class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-zinc-400">
+            <span>{{ t('admin.extensions.capability.routes', { count: runtimeCapabilitySummary(item).routes }) }}</span>
+            <span>{{ t('admin.extensions.capability.hooks', { count: runtimeCapabilitySummary(item).hooks }) }}</span>
+            <span>{{ t('admin.extensions.capability.providers', { count: runtimeCapabilitySummary(item).providers }) }}</span>
+          </p>
+          <p v-if="item.runtime?.lastError" class="mt-1 truncate text-xs text-red-600 dark:text-red-400">
+            {{ item.runtime.lastError }}
           </p>
         </div>
         <div class="flex items-center gap-2">
@@ -117,8 +142,10 @@ useSeoMeta({
             color="neutral"
             variant="ghost"
             icon="i-lucide-refresh-cw"
-            disabled
-            :title="t('admin.extensions.restartUnavailable')"
+            :disabled="!canRestartPlugin(item)"
+            :loading="busyId === item.id && canRestartPlugin(item)"
+            :title="canRestartPlugin(item) ? t('admin.extensions.restart') : t('admin.extensions.restartUnavailable')"
+            @click="restartExtension(item)"
           >
             {{ t('admin.extensions.restart') }}
           </UButton>

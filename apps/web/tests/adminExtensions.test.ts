@@ -2,12 +2,15 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   activeTheme,
+  canRestartPlugin,
   capabilityCount,
   extensionStats,
   filterExtensionsByType,
+  mergeExtensionEvents,
+  runtimeCapabilitySummary,
+  runtimeStatusLabelKey,
   themeActionState,
   themeStatusLabelKey,
-  mergeExtensionEvents,
   type AdminExtension,
   type AdminExtensionEvent
 } from '../app/utils/adminExtensions'
@@ -89,6 +92,30 @@ describe('admin extension helpers', () => {
     expect(capabilityCount(item)).toBe(8)
   })
 
+  test('summarizes runtime declarations and running state', () => {
+    const item = extension({
+      id: 'runtime.plugin',
+      name: 'Runtime Plugin',
+      type: 'plugin',
+      status: 'enabled',
+      manifest: {
+        routes: [{ path: '/hello', methods: ['GET'], access: 'public' }],
+        hooks: [{ name: 'extension.enabled' }],
+        providers: [{ slot: 'search.provider', label: 'Demo Search' }]
+      },
+      runtime: {
+        state: 'running',
+        routeCount: 1,
+        hookCount: 1,
+        providerCount: 1
+      }
+    })
+
+    expect(runtimeStatusLabelKey(item)).toBe('admin.extensions.runtime.running')
+    expect(runtimeCapabilitySummary(item)).toEqual({ routes: 1, hooks: 1, providers: 1 })
+    expect(canRestartPlugin(item)).toBe(true)
+  })
+
   test('merges extension event lists and sorts by newest first', () => {
     const events: Record<string, AdminExtensionEvent[]> = {
       'demo.plugin': [
@@ -115,6 +142,7 @@ function extension(input: {
   status?: 'installed' | 'enabled' | 'disabled'
   source?: AdminExtension['source']
   manifest?: Partial<AdminExtension['manifest']>
+  runtime?: Partial<NonNullable<AdminExtension['runtime']>>
 }): AdminExtension {
   return {
     ...baseExtension,
@@ -130,7 +158,8 @@ function extension(input: {
       type: input.type,
       sforumVersion: '^1.0.0',
       ...input.manifest
-    }
+    },
+    runtime: input.runtime as AdminExtension['runtime']
   } as AdminExtension
 }
 

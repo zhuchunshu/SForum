@@ -211,6 +211,7 @@
       "uploadFailed": "Extension upload failed.",
       "enabled": "Extension enabled.",
       "disabled": "Extension disabled.",
+      "restarted": "Plugin runtime restarted.",
       "verified": "Extension preflight verified.",
       "themeActivated": "Default theme restored as the active theme.",
       "themeActivationUnavailable": "Uploaded themes cannot be applied in this release.",
@@ -229,7 +230,7 @@
       "enable": "Enable",
       "disable": "Disable",
       "restart": "Restart",
-      "restartUnavailable": "Plugin runtime supervisor is not available yet, so restart is disabled.",
+      "restartUnavailable": "Plugin runtime is not running, so restart is disabled.",
       "verify": "Verify",
       "restoreDefaultTheme": "Restore default theme",
       "activeTheme": "Active theme",
@@ -246,6 +247,12 @@
         "disabled": "Disabled",
         "activeTheme": "Active theme"
       },
+      "runtime": {
+        "stopped": "Runtime stopped",
+        "starting": "Runtime starting",
+        "running": "Runtime running",
+        "failed": "Runtime failed"
+      },
       "detailTitle": "Extension details",
       "manifest": {
         "id": "Extension ID",
@@ -258,7 +265,8 @@
         "frontend": "Nuxt Layer",
         "routes": "{count} routes",
         "hooks": "{count} hooks",
-        "jobs": "{count} jobs"
+        "jobs": "{count} jobs",
+        "providers": "{count} providers"
       },
       "events": "Install log",
       "noEvents": "No events recorded yet.",

@@ -164,3 +164,57 @@ adminExtensionEvents:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+extensionPluginRoute:
+  parameters:
+  - "$ref": "../components/parameters.yaml#/ExtensionID"
+  - "$ref": "../components/parameters.yaml#/ExtensionPluginPath"
+  get:
+    summary: Invoke a declared plugin route
+    description: Proxies a plugin-declared GET route under /api/v1/extensions/{extensionID}/* after host-side manifest matching and access checks. Plugins cannot override core API routes.
+    responses:
+      '200':
+        description: Plugin-defined response.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '405':
+        description: Plugin route exists but does not declare this HTTP method.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+  post:
+    summary: Invoke a declared plugin route
+    description: Proxies a plugin-declared unsafe route only after the host verifies the current actor and any manifest-declared permission.
+    responses:
+      '200':
+        description: Plugin-defined response.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '405':
+        description: Plugin route exists but does not declare this HTTP method.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"

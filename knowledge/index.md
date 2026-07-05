@@ -207,7 +207,9 @@ This is the entry point for project memory.
   enable/disable semantics; themes use activation semantics with exactly one
   active theme. In v1 only the protected built-in `sforum.default-theme` Nuxt
   layer is actually applied, while uploaded themes can be installed and
-  verified but not activated.
+  verified but not activated. Plugin runtime v1 now starts enabled plugin
+  subprocesses through HashiCorp go-plugin, proxies declared plugin routes,
+  emits lifecycle hooks, and exposes provider slot defaults.
 - Runtime language pack management has an accepted design: add a system-menu
   admin "Language settings" page, `locale.manage`, ZIP language pack uploads
   with `sforum.locale.json`, package storage under `LOCALE_PACK_ROOT`/

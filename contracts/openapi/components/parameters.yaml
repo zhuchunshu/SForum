@@ -35,6 +35,13 @@ ExtensionID:
   schema:
     type: string
   description: Stable extension id from sforum.extension.json.
+ExtensionPluginPath:
+  name: pluginPath
+  in: path
+  required: true
+  schema:
+    type: string
+  description: Slash-separated plugin route path after the extension id. The host only proxies paths declared by that plugin manifest.
 TopicID:
   name: topicID
   in: path

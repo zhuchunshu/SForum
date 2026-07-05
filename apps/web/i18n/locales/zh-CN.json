@@ -211,6 +211,7 @@
       "uploadFailed": "扩展上传失败。",
       "enabled": "扩展已启用。",
       "disabled": "扩展已禁用。",
+      "restarted": "插件运行时已重启。",
       "verified": "扩展预检已通过。",
       "themeActivated": "默认主题已恢复为当前主题。",
       "themeActivationUnavailable": "当前版本还不能应用上传主题。",
@@ -229,7 +230,7 @@
       "enable": "启用",
       "disable": "禁用",
       "restart": "重启",
-      "restartUnavailable": "插件运行时 supervisor 尚未接入，暂不能重启。",
+      "restartUnavailable": "插件运行时未运行，暂不能重启。",
       "verify": "验证",
       "restoreDefaultTheme": "恢复默认主题",
       "activeTheme": "当前主题",
@@ -246,6 +247,12 @@
         "disabled": "已禁用",
         "activeTheme": "当前主题"
       },
+      "runtime": {
+        "stopped": "运行时已停止",
+        "starting": "运行时启动中",
+        "running": "运行时运行中",
+        "failed": "运行时失败"
+      },
       "detailTitle": "扩展详情",
       "manifest": {
         "id": "扩展 ID",
@@ -258,7 +265,8 @@
         "frontend": "Nuxt Layer",
         "routes": "{count} 条路由",
         "hooks": "{count} 个钩子",
-        "jobs": "{count} 个任务"
+        "jobs": "{count} 个任务",
+        "providers": "{count} 个服务提供方"
       },
       "events": "安装日志",
       "noEvents": "暂无事件记录。",

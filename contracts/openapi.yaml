@@ -84,6 +84,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionActivate"
   "/admin/extensions/{extensionID}/events":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEvents"
+  "/extensions/{extensionID}/{pluginPath}":
+    "$ref": "./openapi/paths/extensions.yaml#/extensionPluginRoute"
 components:
   parameters:
     RoleKey:
@@ -96,6 +98,8 @@ components:
       "$ref": "./openapi/components/parameters.yaml#/AttachmentID"
     ExtensionID:
       "$ref": "./openapi/components/parameters.yaml#/ExtensionID"
+    ExtensionPluginPath:
+      "$ref": "./openapi/components/parameters.yaml#/ExtensionPluginPath"
     TopicID:
       "$ref": "./openapi/components/parameters.yaml#/TopicID"
     CommentID:

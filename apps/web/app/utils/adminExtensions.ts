@@ -2,6 +2,7 @@ export type AdminExtensionType = 'plugin' | 'theme'
 export type AdminExtensionStatus = 'installed' | 'enabled' | 'disabled'
 export type AdminExtensionSource = 'builtin' | 'uploaded'
 export type AdminThemeActionState = 'active' | 'activateDefault' | 'verifyOnly'
+export type AdminRuntimeState = 'stopped' | 'starting' | 'running' | 'failed'
 
 export type AdminExtensionSetting = {
   key: string
@@ -18,12 +19,22 @@ export type AdminExtensionManifest = {
   permissions?: string[]
   settings?: AdminExtensionSetting[]
   migrations?: Array<{ path: string }>
-  backend?: { entry?: string, rpc?: string }
+  backend?: { entry?: string, rpc?: string, protocolVersion?: number }
   frontend?: { layer?: string }
   adminPages?: Array<{ path: string, label: string, permission?: string }>
-  routes?: Array<{ path: string, methods?: string[] }>
+  routes?: Array<{ path: string, methods?: string[], access?: 'public' | 'login' | 'permission', permission?: string, timeoutMs?: number }>
   hooks?: Array<{ name: string }>
   jobs?: Array<{ name: string }>
+  providers?: Array<{ slot: string, label: string, timeoutMs?: number }>
+}
+
+export type AdminExtensionRuntime = {
+  state: AdminRuntimeState
+  lastError?: string
+  startedAt?: string
+  routeCount: number
+  hookCount: number
+  providerCount: number
 }
 
 export type AdminExtension = {
@@ -36,6 +47,7 @@ export type AdminExtension = {
   isSystem?: boolean
   isDeletable?: boolean
   manifest: AdminExtensionManifest
+  runtime?: AdminExtensionRuntime
   packagePath: string
   installedAt: string
   updatedAt: string
@@ -106,8 +118,25 @@ export function capabilityCount(item: AdminExtension) {
     manifest.adminPages?.length || 0,
     manifest.routes?.length || 0,
     manifest.hooks?.length || 0,
-    manifest.jobs?.length || 0
+    manifest.jobs?.length || 0,
+    manifest.providers?.length || 0
   ].reduce((total, count) => total + count, 0)
+}
+
+export function runtimeStatusLabelKey(item: AdminExtension) {
+  return `admin.extensions.runtime.${item.runtime?.state || 'stopped'}`
+}
+
+export function runtimeCapabilitySummary(item: AdminExtension) {
+  return {
+    routes: item.runtime?.routeCount ?? item.manifest.routes?.length ?? 0,
+    hooks: item.runtime?.hookCount ?? item.manifest.hooks?.length ?? 0,
+    providers: item.runtime?.providerCount ?? item.manifest.providers?.length ?? 0
+  }
+}
+
+export function canRestartPlugin(item: AdminExtension) {
+  return item.type === 'plugin' && item.status === 'enabled' && Boolean(item.runtime)
 }
 
 export function mergeExtensionEvents(eventsByExtension: Record<string, AdminExtensionEvent[]>) {
