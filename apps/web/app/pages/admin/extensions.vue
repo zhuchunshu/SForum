@@ -64,8 +64,8 @@ const busyId = ref('')
 const events = ref<ExtensionEvent[]>([])
 const loadingEvents = ref(false)
 
-const { data: extensions, pending, error, refresh } = await useAsyncData('admin-extensions', () => request<Extension[]>('/admin/extensions'), {
-  default: () => []
+const { data: extensions, pending, error, refresh } = await useAsyncData<Extension[]>('admin-extensions', () => request<Extension[]>('/admin/extensions'), {
+  default: (): Extension[] => []
 })
 
 const selected = computed(() => extensions.value.find(item => item.id === selectedId.value) || extensions.value[0])
