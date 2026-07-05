@@ -29,8 +29,10 @@ The extension foundation is implemented.
   - `GET /api/v1/admin/extensions/:id/events`
   - `ALL /api/v1/extensions/:extensionId/*` currently returns
     `extension.route_unavailable` until runtime proxying is implemented.
-- The admin UI has a top-level "Extensions" page registered through the
-  low-code admin module registry and protected by `extension.manage`.
+- The admin UI has an independent "Extensions" sidebar folder registered
+  through the low-code admin module registry and protected by
+  `extension.manage`. Its first submenu set is Overview, Plugins, Themes,
+  Settings, and Event Log.
 
 ## Boundaries
 

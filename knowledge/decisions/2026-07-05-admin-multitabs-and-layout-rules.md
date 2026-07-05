@@ -80,6 +80,12 @@ When developing new pages or sections in the SForum Admin Control Panel (`apps/w
   - 表单在提交中（`saving` 为 `true` 时），其内部的输入框与动作按钮应处于不可用状态。
   - 按钮图标严格使用 `i-lucide-*`，遵循无 emoji 规范。
 
+### 7. Alert Auto-Dismiss Behavior (提示自动关闭)
+- 后台 alert、toast 或同类即时反馈组件，除 `error` 状态外，必须支持
+  10 秒自动关闭，避免成功、提示、警告信息长期占用操作空间。
+- `error` 状态必须保持可见，直到用户主动关闭、重新提交成功，或完成页面定义的阻塞问题处理。
+- 封装后台反馈工具或组件时，应把该行为作为默认值，页面代码只在确有业务原因时显式覆盖。
+
 ## Consequences
 
 - New admin features can be quickly created by adding a registry page

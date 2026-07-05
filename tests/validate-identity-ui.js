@@ -33,6 +33,11 @@ const requiredKeys = [
   ['admin', 'users', 'permissionSection'],
   ['admin', 'users', 'overrideMode', 'deny'],
   ['admin', 'permissions', 'matrix'],
+  ['admin', 'permissions', 'comparisonScope'],
+  ['admin', 'permissions', 'roleSearchPlaceholder'],
+  ['admin', 'permissions', 'onlyDifferences'],
+  ['admin', 'permissions', 'clearFilters'],
+  ['admin', 'permissions', 'noDifferences'],
   ['admin', 'permissionModules', 'identity'],
   ['admin', 'permissionCatalog', 'admin', 'access', 'label'],
   ['admin', 'permissionCatalog', 'role', 'manage', 'description'],
@@ -85,6 +90,27 @@ if (!adminRolesPage.includes('/permissions')) {
 }
 if (!adminPermissionsPage.includes('/permissions/matrix')) {
   throw new Error('Admin permissions page should load the permission matrix');
+}
+if (!adminPermissionsPage.includes('const ROLE_COMPARE_LIMIT = 5')) {
+  throw new Error('Admin permissions page should cap the default role comparison width');
+}
+if (!adminPermissionsPage.includes('const roleSearch = ref')) {
+  throw new Error('Admin permissions page should let admins search user groups before comparing permissions');
+}
+if (!adminPermissionsPage.includes('selectedRoleKeys')) {
+  throw new Error('Admin permissions page should support an explicit user-group comparison selection');
+}
+if (!adminPermissionsPage.includes('showOnlyDifferences')) {
+  throw new Error('Admin permissions page should support a differences-only permission audit mode');
+}
+if (!adminPermissionsPage.includes('visibleRoles')) {
+  throw new Error('Admin permissions page should render the matrix against the filtered comparison role set');
+}
+if (!adminPermissionsPage.includes('filteredPermissionGroups')) {
+  throw new Error('Admin permissions page should filter permission rows when differences-only mode is enabled');
+}
+if (adminPermissionsPage.includes('v-for="role in roles"')) {
+  throw new Error('Admin permissions page should not render every user group as a matrix column by default');
 }
 
 for (const keyPath of requiredKeys) {

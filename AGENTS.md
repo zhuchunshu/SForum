@@ -80,6 +80,9 @@ future generated clients. Keep it modular as the product surface grows.
 - Do not use emoji as UI icons, decorative symbols, status markers, or action indicators.
 - Use icons from an icon library whenever an icon is needed. Current approved choices are Tabler Icons and Nuxt Icon.
 - Prefer the project's existing icon integration before adding a new icon package. Do not hand-roll inline SVG icons when an approved library icon exists.
+- Admin alerts and toast-style feedback must support automatic dismissal after
+  10 seconds for non-error states. Error alerts must not auto-close; keep them
+  visible until the user dismisses them or resolves the blocking issue.
 
 ## AI Working Discipline
 

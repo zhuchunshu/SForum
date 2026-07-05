@@ -153,6 +153,11 @@
       "seo": "SEO 设置",
       "attachments": "附件设置",
       "extensions": "扩展管理",
+      "extensionOverview": "扩展总览",
+      "extensionPlugins": "插件管理",
+      "extensionThemes": "主题管理",
+      "extensionSettings": "扩展设置",
+      "extensionEvents": "事件日志",
       "forumHome": "论坛首页",
       "system": "系统配置",
       "userPermission": "用户/权限",
@@ -196,9 +201,9 @@
       }
     },
     "extensions": {
-      "metaTitle": "扩展管理",
-      "title": "扩展管理",
-      "intro": "上传、启用和管理插件与主题模板。扩展能力由 API 权限、安装预检和事件日志共同约束。",
+      "metaTitle": "扩展总览",
+      "title": "扩展总览",
+      "intro": "查看已安装插件与主题的整体状态，并上传符合 SForum manifest 规范的 ZIP 扩展包。",
       "refresh": "刷新",
       "upload": "上传 ZIP",
       "loadFailed": "扩展列表加载失败。",
@@ -243,7 +248,39 @@
         "jobs": "{count} 个任务"
       },
       "events": "安装日志",
-      "noEvents": "暂无事件记录。"
+      "noEvents": "暂无事件记录。",
+      "plugins": {
+        "metaTitle": "插件管理",
+        "title": "插件管理",
+        "intro": "管理声明为 plugin 的扩展包。插件启用前仍会经过后端入口预检与 API 权限检查。",
+        "count": "已安装 {count} 个插件",
+        "emptyTitle": "还没有安装插件",
+        "emptyDescription": "上传 type 为 plugin 的扩展 ZIP 后，就可以在这里启用或停用插件。"
+      },
+      "themes": {
+        "metaTitle": "主题管理",
+        "title": "主题管理",
+        "intro": "管理声明为 theme 的主题模板。当前版本会验证 Nuxt Layer 边界，后续再接入构建与回滚流程。",
+        "count": "已安装 {count} 个主题",
+        "emptyTitle": "还没有安装主题",
+        "emptyDescription": "上传 type 为 theme 的扩展 ZIP 后，就可以在这里启用或停用主题模板。"
+      },
+      "settings": {
+        "metaTitle": "扩展设置",
+        "title": "扩展设置",
+        "intro": "这里展示扩展 manifest 声明的设置项。运行时设置读写接口将在后续版本接入。",
+        "count": "发现 {count} 个设置声明",
+        "emptyTitle": "暂无扩展设置声明",
+        "emptyDescription": "已安装扩展的 manifest 暂未声明 settings 字段，因此当前没有可展示的扩展设置。"
+      },
+      "eventLog": {
+        "metaTitle": "扩展事件日志",
+        "title": "事件日志",
+        "intro": "汇总各扩展最近的安装、启用、停用和预检事件，便于排查生命周期状态。",
+        "count": "汇总 {count} 条事件",
+        "emptyTitle": "暂无扩展事件",
+        "emptyDescription": "安装或启用扩展后，生命周期事件会显示在这里。"
+      }
     },
     "attachments": {
       "metaTitle": "附件设置",
@@ -472,6 +509,16 @@
       "count": "{count} 项权限",
       "moduleCount": "{count} 项",
       "permission": "权限",
+      "comparisonScope": "对比范围",
+      "comparisonScopeHelp": "默认只展示前 {limit} 个匹配用户组，避免矩阵过宽；也可以手动选择要对比的用户组。",
+      "displayedRoles": "显示 {shown} / {total} 个用户组",
+      "roleSearchPlaceholder": "搜索用户组名称、标识或说明",
+      "onlyDifferences": "只看差异",
+      "clearFilters": "清除筛选",
+      "defaultRolePreview": "还有 {hidden} 个匹配用户组未显示；搜索或点选用户组后可精确对比，最多 {limit} 个。",
+      "roleLimitReached": "一次最多对比 {limit} 个用户组。",
+      "noMatchingRoles": "没有匹配的用户组。",
+      "noDifferences": "当前对比范围内没有权限差异。",
       "loading": "正在加载权限矩阵...",
       "empty": "还没有可显示的权限。",
       "loadFailed": "权限加载失败。",

@@ -102,9 +102,37 @@ export const adminPageDefinitions = [
   },
   {
     id: '/extensions',
-    labelKey: 'admin.nav.extensions',
-    icon: 'i-lucide-blocks',
+    labelKey: 'admin.nav.extensionOverview',
+    icon: 'i-lucide-layout-dashboard',
     componentName: 'AdminExtensions',
+    requiredPermissions: ['extension.manage']
+  },
+  {
+    id: '/extensions/plugins',
+    labelKey: 'admin.nav.extensionPlugins',
+    icon: 'i-lucide-plug',
+    componentName: 'AdminExtensionPlugins',
+    requiredPermissions: ['extension.manage']
+  },
+  {
+    id: '/extensions/themes',
+    labelKey: 'admin.nav.extensionThemes',
+    icon: 'i-lucide-palette',
+    componentName: 'AdminExtensionThemes',
+    requiredPermissions: ['extension.manage']
+  },
+  {
+    id: '/extensions/settings',
+    labelKey: 'admin.nav.extensionSettings',
+    icon: 'i-lucide-sliders-horizontal',
+    componentName: 'AdminExtensionSettings',
+    requiredPermissions: ['extension.manage']
+  },
+  {
+    id: '/extensions/events',
+    labelKey: 'admin.nav.extensionEvents',
+    icon: 'i-lucide-scroll-text',
+    componentName: 'AdminExtensionEvents',
     requiredPermissions: ['extension.manage']
   }
 ] as const satisfies readonly AdminPageDefinition[]
@@ -117,7 +145,6 @@ export const adminSidebarNavigation = [
       type: 'folder',
       labelKey: 'admin.nav.userPermission',
       icon: 'i-lucide-user-cog',
-      defaultOpen: true,
       children: [
         { type: 'page', pageId: '/users' },
         { type: 'page', pageId: '/roles' },
@@ -128,11 +155,21 @@ export const adminSidebarNavigation = [
       type: 'folder',
       labelKey: 'admin.nav.system',
       icon: 'i-lucide-settings-2',
-      defaultOpen: true,
       children: [
         { type: 'page', pageId: '/settings' },
-        { type: 'page', pageId: '/seo' },
-        { type: 'page', pageId: '/extensions' }
+        { type: 'page', pageId: '/seo' }
+      ]
+    },
+    {
+      type: 'folder',
+      labelKey: 'admin.nav.extensions',
+      icon: 'i-lucide-blocks',
+      children: [
+        { type: 'page', pageId: '/extensions' },
+        { type: 'page', pageId: '/extensions/plugins' },
+        { type: 'page', pageId: '/extensions/themes' },
+        { type: 'page', pageId: '/extensions/settings' },
+        { type: 'page', pageId: '/extensions/events' }
       ]
     },
     { type: 'page', pageId: '/attachments' }
@@ -169,6 +206,24 @@ export function requireAdminPageDefinition(id: string): AdminPageDefinition {
   }
 
   return page
+}
+
+export function isAdminNavigationEntryActive(entry: AdminNavigationEntry, pageId?: string | null): boolean {
+  const activePageId = normalizeAdminPageId(pageId)
+
+  if (entry.type === 'page') {
+    return normalizeAdminPageId(entry.pageId) === activePageId
+  }
+
+  if (entry.type === 'folder') {
+    return entry.children.some(child => isAdminNavigationEntryActive(child, activePageId))
+  }
+
+  return false
+}
+
+export function shouldOpenAdminNavigationEntry(entry: AdminNavigationEntry, pageId?: string | null): boolean {
+  return entry.type === 'folder' && (entry.defaultOpen === true || isAdminNavigationEntryActive(entry, pageId))
 }
 
 export function canAccessAdminPage(page: AdminPageDefinition, can: (permission: string) => boolean) {

@@ -153,6 +153,11 @@
       "seo": "SEO settings",
       "attachments": "Attachment settings",
       "extensions": "Extensions",
+      "extensionOverview": "Extension overview",
+      "extensionPlugins": "Plugin management",
+      "extensionThemes": "Theme management",
+      "extensionSettings": "Extension settings",
+      "extensionEvents": "Event log",
       "forumHome": "Forum home",
       "system": "System",
       "userPermission": "Users & Permissions",
@@ -196,9 +201,9 @@
       }
     },
     "extensions": {
-      "metaTitle": "Extensions",
-      "title": "Extensions",
-      "intro": "Upload, enable, and manage plugins and theme templates. Extension capabilities are bounded by API permissions, install preflight checks, and event logs.",
+      "metaTitle": "Extension overview",
+      "title": "Extension overview",
+      "intro": "Review installed plugins and themes, and upload ZIP extension packages with an SForum manifest.",
       "refresh": "Refresh",
       "upload": "Upload ZIP",
       "loadFailed": "Extensions could not be loaded.",
@@ -243,7 +248,39 @@
         "jobs": "{count} jobs"
       },
       "events": "Install log",
-      "noEvents": "No events recorded yet."
+      "noEvents": "No events recorded yet.",
+      "plugins": {
+        "metaTitle": "Plugin management",
+        "title": "Plugin management",
+        "intro": "Manage extension packages declared as plugins. Plugin activation still passes backend entry preflight and API permission checks.",
+        "count": "{count} plugin(s) installed",
+        "emptyTitle": "No plugins installed",
+        "emptyDescription": "Upload an extension ZIP with type plugin to enable or disable plugins here."
+      },
+      "themes": {
+        "metaTitle": "Theme management",
+        "title": "Theme management",
+        "intro": "Manage theme templates declared as themes. This release validates Nuxt Layer boundaries before future build and rollback flows are added.",
+        "count": "{count} theme(s) installed",
+        "emptyTitle": "No themes installed",
+        "emptyDescription": "Upload an extension ZIP with type theme to enable or disable theme templates here."
+      },
+      "settings": {
+        "metaTitle": "Extension settings",
+        "title": "Extension settings",
+        "intro": "This page shows settings declared by extension manifests. Runtime setting read/write APIs will be added in a later release.",
+        "count": "{count} setting declaration(s) found",
+        "emptyTitle": "No extension setting declarations",
+        "emptyDescription": "Installed extension manifests do not declare settings yet, so there is nothing to configure here."
+      },
+      "eventLog": {
+        "metaTitle": "Extension event log",
+        "title": "Event log",
+        "intro": "Aggregate recent install, enable, disable, and preflight events across extensions for lifecycle troubleshooting.",
+        "count": "{count} event(s) aggregated",
+        "emptyTitle": "No extension events",
+        "emptyDescription": "Lifecycle events will appear here after extensions are installed or enabled."
+      }
     },
     "attachments": {
       "metaTitle": "Attachment Settings",
@@ -472,6 +509,16 @@
       "count": "{count} permissions",
       "moduleCount": "{count} items",
       "permission": "Permission",
+      "comparisonScope": "Comparison scope",
+      "comparisonScopeHelp": "Shows only the first {limit} matching groups by default so the matrix stays readable. Select groups to compare them directly.",
+      "displayedRoles": "Showing {shown} / {total} groups",
+      "roleSearchPlaceholder": "Search group name, key, or description",
+      "onlyDifferences": "Differences only",
+      "clearFilters": "Clear filters",
+      "defaultRolePreview": "{hidden} matching group(s) are hidden. Search or select groups for an exact comparison, up to {limit}.",
+      "roleLimitReached": "You can compare up to {limit} groups at once.",
+      "noMatchingRoles": "No matching groups.",
+      "noDifferences": "No permission differences in the current comparison scope.",
       "loading": "Loading permission matrix...",
       "empty": "No permissions to show yet.",
       "loadFailed": "Permissions could not be loaded.",

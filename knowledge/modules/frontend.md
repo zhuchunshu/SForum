@@ -69,6 +69,13 @@ Admin modules now use a low-code registry in
 keep-alive component names, badges, and frontend-visible permission
 requirements are centralized there. Page components call `useAdminPage('/id')`
 instead of hand-writing `useAdminTabs().openTab(...)` metadata.
+Admin sidebar parent folders derive active/open state from the current admin
+route: only the matching parent opens initially, inactive folders stay
+collapsed by default, and the sidebar body scrolls independently when the menu
+list grows.
+Admin alert/toast feedback should auto-dismiss after 10 seconds for non-error
+states. Error feedback remains visible until users dismiss it or resolve the
+blocking issue.
 The public forum navbar user dropdown no longer exposes the admin entry link,
 so the configurable admin prefix is not revealed from the regular logged-in UI.
 Runtime site options are read through `useWebOptions()`. Public options now

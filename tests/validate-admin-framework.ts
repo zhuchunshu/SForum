@@ -49,13 +49,31 @@ const adminPageDefinitions = adminModulesModule.adminPageDefinitions as Array<{
   requiredPermissions?: string[]
   permissionMode?: string
 }>
+const isAdminNavigationEntryActive = adminModulesModule.isAdminNavigationEntryActive as (entry: unknown, pageId: string) => boolean
+const shouldOpenAdminNavigationEntry = adminModulesModule.shouldOpenAdminNavigationEntry as (entry: unknown, pageId: string) => boolean
 const adminPageIds = adminPageDefinitions.map(page => page.id)
-for (const requiredPageId of ['/', '/users', '/roles', '/permissions', '/settings', '/personalization', '/seo', '/attachments', '/extensions']) {
+for (const requiredPageId of [
+  '/',
+  '/users',
+  '/roles',
+  '/permissions',
+  '/settings',
+  '/personalization',
+  '/seo',
+  '/attachments',
+  '/extensions',
+  '/extensions/plugins',
+  '/extensions/themes',
+  '/extensions/settings',
+  '/extensions/events'
+]) {
   assert(adminPageIds.includes(requiredPageId), `Admin module registry should define ${requiredPageId}`)
 }
 assert(adminPageDefinitions.every(page => page.icon.startsWith('i-lucide-')), 'Admin page registry should use lucide icons')
 assert(adminPageDefinitions.find(page => page.id === '/permissions')?.permissionMode === 'any', 'Permission matrix should allow role.manage or user.manage')
-assert(adminPageDefinitions.find(page => page.id === '/extensions')?.requiredPermissions?.includes('extension.manage'), 'Extension manager should require extension.manage')
+for (const extensionPageId of ['/extensions', '/extensions/plugins', '/extensions/themes', '/extensions/settings', '/extensions/events']) {
+  assert(adminPageDefinitions.find(page => page.id === extensionPageId)?.requiredPermissions?.includes('extension.manage'), `${extensionPageId} should require extension.manage`)
+}
 
 const adminRoutesComposable = read('apps/web/app/composables/useAdminRoutes.ts')
 assert(adminRoutesComposable.includes('useI18n'), 'Admin routes should read the active locale directly')
@@ -87,7 +105,11 @@ const adminPagePathsById: Record<string, string> = {
   '/personalization': 'apps/web/app/pages/admin/personalization.vue',
   '/seo': 'apps/web/app/pages/admin/seo.vue',
   '/attachments': 'apps/web/app/pages/admin/attachments.vue',
-  '/extensions': 'apps/web/app/pages/admin/extensions.vue'
+  '/extensions': 'apps/web/app/pages/admin/extensions/index.vue',
+  '/extensions/plugins': 'apps/web/app/pages/admin/extensions/plugins.vue',
+  '/extensions/themes': 'apps/web/app/pages/admin/extensions/themes.vue',
+  '/extensions/settings': 'apps/web/app/pages/admin/extensions/settings.vue',
+  '/extensions/events': 'apps/web/app/pages/admin/extensions/events.vue'
 }
 
 for (const page of adminPageDefinitions) {
@@ -125,5 +147,35 @@ assert(adminModules.includes('i-lucide-palette'), 'Personalization menu should u
 assert(adminModules.includes('admin.nav.system'), 'Admin modules should expose the system navigation folder via translation key')
 assert(adminModules.includes('admin.nav.extensions'), 'Admin modules should expose the extension manager menu')
 assert(adminModules.includes('i-lucide-blocks'), 'Extension manager menu should use the blocks icon')
+assert(adminModules.includes('admin.nav.extensionOverview'), 'Admin modules should expose extension overview submenu')
+assert(adminModules.includes('admin.nav.extensionPlugins'), 'Admin modules should expose plugin manager submenu')
+assert(adminModules.includes('admin.nav.extensionThemes'), 'Admin modules should expose theme manager submenu')
+assert(adminModules.includes('admin.nav.extensionSettings'), 'Admin modules should expose extension settings submenu')
+assert(adminModules.includes('admin.nav.extensionEvents'), 'Admin modules should expose extension events submenu')
+
+const adminSidebarNavigation = adminModulesModule.adminSidebarNavigation as Array<Array<unknown>>
+const firstSidebarGroup = adminSidebarNavigation[0] as Array<{
+  type: string
+  labelKey?: string
+  children?: Array<{ type: string, pageId?: string }>
+}>
+const systemFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.system')
+assert(systemFolder, 'Admin sidebar should keep a system folder')
+assert(!systemFolder.children?.some(entry => entry.pageId === '/extensions'), 'System folder should not contain the extension overview page')
+const extensionFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensions')
+assert(extensionFolder, 'Admin sidebar should expose extensions as an independent folder')
+assert(extensionFolder.children?.map(entry => entry.pageId).join(',') === '/extensions,/extensions/plugins,/extensions/themes,/extensions/settings,/extensions/events', 'Extension folder should keep the approved submenu order')
+assert(typeof isAdminNavigationEntryActive === 'function', 'Admin navigation should expose an active-state helper')
+assert(typeof shouldOpenAdminNavigationEntry === 'function', 'Admin navigation should expose an initial-open helper')
+assert(isAdminNavigationEntryActive(extensionFolder, '/extensions/themes'), 'Extension folder should be active when one of its child pages is active')
+assert(!isAdminNavigationEntryActive(systemFolder, '/extensions/themes'), 'System folder should not be active for extension child pages')
+assert(shouldOpenAdminNavigationEntry(extensionFolder, '/extensions/themes'), 'Active sidebar folders should open initially')
+assert(!shouldOpenAdminNavigationEntry(systemFolder, '/extensions/themes'), 'Inactive sidebar folders should stay collapsed by default')
+assert(firstSidebarGroup
+  .filter(entry => entry.type === 'folder')
+  .every(entry => entry.defaultOpen !== true), 'Top-level admin sidebar folders should not all be configured as default-open')
+assert(adminLayout.includes('active: isActive'), 'Admin layout should pass active state to top-level folder items')
+assert(adminLayout.includes('shouldOpenAdminNavigationEntry(entry, currentAdminPageId)'), 'Admin layout should open only the active/default folder initially')
+assert(adminLayout.includes('class="min-h-0 flex-1 overflow-y-auto pr-1"'), 'Admin sidebar navigation should scroll independently when there are many menu items')
 
 console.log('Admin framework validation passed.')

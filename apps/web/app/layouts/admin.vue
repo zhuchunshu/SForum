@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui/components/DropdownMenu.vue'
 import {
+  ADMIN_DASHBOARD_PAGE_ID,
   adminSidebarNavigation,
   canAccessAdminPage,
   findAdminPageDefinition,
+  isAdminNavigationEntryActive,
   type AdminNavigationEntry,
-  requireAdminPageDefinition
+  requireAdminPageDefinition,
+  shouldOpenAdminNavigationEntry
 } from '~/config/adminModules'
 import { useAdminRoutes } from '~/composables/useAdminRoutes'
 import { useAdminTabs } from '~/composables/useAdminTabs'
@@ -15,7 +18,10 @@ type SidebarNavigationItem = {
   icon: string
   to?: string
   badge?: string
+  active?: boolean
   defaultOpen?: boolean
+  open?: boolean
+  value?: string
   children?: SidebarNavigationItem[]
 }
 
@@ -45,6 +51,7 @@ const activeTabLabel = computed(() => {
 })
 
 const route = useRoute()
+const currentAdminPageId = computed(() => adminRoutes.routeId(route.path) || ADMIN_DASHBOARD_PAGE_ID)
 
 // KeepAlive 页面不会重复 mounted，路由变化时用注册表同步当前 tab。
 watch(() => route.path, (newPath) => {
@@ -59,12 +66,12 @@ watch(() => route.path, (newPath) => {
 const navigationItems = computed(() => {
   return adminSidebarNavigation
     .map(group => group
-      .map(entry => buildNavigationItem(entry))
+      .map(entry => buildNavigationItem(entry, currentAdminPageId.value))
       .filter((item): item is SidebarNavigationItem => Boolean(item)))
     .filter(group => group.length > 0)
 })
 
-function buildNavigationItem(entry: AdminNavigationEntry): SidebarNavigationItem | null {
+function buildNavigationItem(entry: AdminNavigationEntry, currentAdminPageId: string): SidebarNavigationItem | null {
   if (entry.type === 'forum-home') {
     return {
       label: t(entry.labelKey),
@@ -75,17 +82,22 @@ function buildNavigationItem(entry: AdminNavigationEntry): SidebarNavigationItem
 
   if (entry.type === 'folder') {
     const children = entry.children
-      .map(child => buildNavigationItem(child))
+      .map(child => buildNavigationItem(child, currentAdminPageId))
       .filter((item): item is SidebarNavigationItem => Boolean(item))
 
     if (children.length === 0) {
       return null
     }
 
+    const isActive = isAdminNavigationEntryActive(entry, currentAdminPageId)
+
     return {
       label: t(entry.labelKey),
       icon: entry.icon,
+      value: entry.labelKey,
+      active: isActive,
       defaultOpen: entry.defaultOpen,
+      open: shouldOpenAdminNavigationEntry(entry, currentAdminPageId),
       children
     }
   }
@@ -101,6 +113,8 @@ function buildNavigationItem(entry: AdminNavigationEntry): SidebarNavigationItem
     label: t(page.labelKey),
     icon: page.icon,
     to: adminRoutes.path(page.id),
+    value: page.id,
+    active: isAdminNavigationEntryActive(entry, currentAdminPageId),
     ...(badgeKey ? { badge: t(badgeKey) } : {})
   }
 }
@@ -200,16 +214,19 @@ async function signOut() {
       </template>
 
       <template #default="{ collapsed }">
-        <UNavigationMenu
-          :items="navigationItems"
-          :collapsed="collapsed"
-          tooltip
-          highlight
-          color="primary"
-          orientation="vertical"
-          class="-mx-2"
-          :ui="sidebarNavigationUi"
-        />
+        <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+          <UNavigationMenu
+            :key="currentAdminPageId"
+            :items="navigationItems"
+            :collapsed="collapsed"
+            tooltip
+            highlight
+            color="primary"
+            orientation="vertical"
+            class="-mx-2"
+            :ui="sidebarNavigationUi"
+          />
+        </div>
       </template>
 
       <template #footer="{ collapsed }">

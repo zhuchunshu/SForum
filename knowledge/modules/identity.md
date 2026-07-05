@@ -56,7 +56,11 @@ Initial identity foundation is implemented.
   missing permission table after code/schema drift, bubble up instead of being
   misreported as a wrong password.
 - Nuxt has login/register pages, an admin route middleware, an admin overview,
-  user management, editable user-group management, and a permission matrix.
+  user management, editable user-group management, and a permission matrix. The
+  matrix is an audit/comparison view rather than the primary editor: it caps the
+  default displayed user groups, supports search and explicit comparison
+  selection, and can show only permissions that differ inside the current
+  comparison scope.
 
 ## Architecture Decisions
 

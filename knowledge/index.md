@@ -63,6 +63,9 @@ This is the entry point for project memory.
   keep-alive component names, badges, and frontend-visible permission
   requirements. Page components register with `useAdminPage('/id')` instead of
   repeating tab/menu metadata.
+- Admin UI feedback guidelines now require non-error alerts/toasts to support
+  10-second auto-dismiss behavior, while error feedback remains visible until
+  user dismissal or resolution.
 - The public forum navbar no longer shows an admin entry in the logged-in user
   dropdown, avoiding direct exposure of the configurable admin route prefix.
 - Identity and permissions architecture is accepted: SForum uses one user
@@ -75,7 +78,10 @@ This is the entry point for project memory.
   user-group permissions plus direct allows minus direct denies. Active
   `super_admin` users still pass every policy check and cannot receive direct
   permission overrides. The admin UI now includes user management, editable
-  user-group permissions, and a permission matrix.
+  user-group permissions, and a permission matrix. The permission matrix now
+  defaults to a limited user-group comparison view with search, explicit group
+  selection, and differences-only auditing so it stays readable as custom
+  user groups grow.
 - Development guidelines now require permission-aware feature design: new
   protected routes, mutations, admin screens, exports, setting updates, and
   background action triggers must identify their actor/action/resource boundary,
@@ -180,8 +186,8 @@ This is the entry point for project memory.
   config no longer reads `ATTACHMENT_LOCAL_ROOT`.
 - Extension system foundation is implemented: `extension.manage`, extension
   ZIP upload, `sforum.extension.json` manifest validation, dedicated extension
-  tables, lifecycle events, admin extension management page, `EXTENSION_ROOT`,
-  and reserved plugin/theme runtime boundaries.
+  tables, lifecycle events, independent admin extension submenu pages,
+  `EXTENSION_ROOT`, and reserved plugin/theme runtime boundaries.
 - Runtime language pack management has an accepted design: add a system-menu
   admin "Language settings" page, `locale.manage`, ZIP language pack uploads
   with `sforum.locale.json`, package storage under `LOCALE_PACK_ROOT`/
@@ -285,14 +291,21 @@ This is the entry point for project memory.
   validation sync, and attachment local-root runtime option handoff.
 - `sessions/2026-07-05-extension-system-foundation.md` - extension backend,
   admin UI, manifest, lifecycle, and runtime-boundary implementation handoff.
+- `sessions/2026-07-05-extension-admin-submenus.md` - extension admin sidebar
+  folder split into Overview, Plugins, Themes, Settings, and Event Log pages.
 - `sessions/2026-07-05-admin-language-settings-design.md` - runtime language
   pack and admin language settings design handoff.
+- `sessions/2026-07-05-admin-alert-autoclose-guideline.md` - admin alert/toast
+  guideline requiring 10-second auto-dismiss for non-error feedback.
 - `sessions/2026-07-05-openapi-contract-modularization.md` - OpenAPI split,
   validation script, and documentation handoff.
 - `sessions/2026-07-05-public-navbar-hide-admin-entry.md` - public navbar admin
   entry removal handoff.
 - `sessions/2026-07-05-admin-permission-management.md` - user-level permission
   overrides, admin users/roles/permissions UI, and API contract handoff.
+- `sessions/2026-07-05-permission-matrix-comparison-view.md` - permission
+  matrix scalability update with limited group comparison and differences-only
+  audit mode.
 - `sessions/2026-07-04-permission-aware-development-guidelines.md` -
   permission-aware feature development guideline handoff.
 - `sessions/2026-07-05-auth-session-restart-resilience.md` - frontend auth
