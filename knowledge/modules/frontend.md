@@ -75,8 +75,11 @@ Admin-only option reads and batch saves power the settings page tabs; ALTCHA
 secret values are never exposed to public frontend state.
 Personalization now reads `appearance.theme` and footer options from the same
 runtime option layer. The root app sets `data-sforum-theme` on `<html>`, CSS
-variables switch between the preset themes, and the admin personalization page
-edits the theme preset plus footer copyright/link content.
+variables switch between preset themes or controlled `custom:#rrggbb` colors,
+and the admin personalization page edits the theme plus footer copyright/link
+content. Nuxt UI's generated `--ui-color-primary-*` and `--ui-primary` tokens
+are bridged to the same runtime theme variables so admin sidebar highlights and
+`color="primary"` controls do not keep Nuxt UI's default green.
 Admin route middleware distinguishes real unauthenticated responses from
 temporary auth-service failures. A 401 or `auth.required` redirects to login;
 API restart/502/timeout cases show a temporary unavailable error instead of

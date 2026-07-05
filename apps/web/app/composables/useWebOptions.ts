@@ -11,7 +11,15 @@ export type AdminWebOption = WebOption & {
   secretSet: boolean
 }
 
-export type AppearanceTheme = 'pine_teal' | 'ocean_blue' | 'violet' | 'rose' | 'amber'
+export type AppearanceThemePreset = 'pine_teal' | 'ocean_blue' | 'violet' | 'rose' | 'amber'
+export type AppearanceTheme = AppearanceThemePreset | `custom:${string}`
+export type ResolvedAppearanceTheme = {
+  theme: AppearanceTheme
+  dataTheme: AppearanceThemePreset | 'custom'
+  customColor: string
+  cssVars: Record<string, string>
+  style: string
+}
 export type FooterLocale = 'zh-CN' | 'en-US'
 export type FooterLinkKey = 'terms' | 'privacy' | 'guidelines'
 
@@ -25,7 +33,10 @@ type RefreshOptions = {
   timeout?: number
 }
 
-export const appearanceThemes: AppearanceTheme[] = ['pine_teal', 'ocean_blue', 'violet', 'rose', 'amber']
+export const appearanceThemes: AppearanceThemePreset[] = ['pine_teal', 'ocean_blue', 'violet', 'rose', 'amber']
+export const defaultCustomThemeColor = '#2563eb'
+
+const customThemePrefix = 'custom:'
 
 const defaultFooterLinks: FooterLinkOption[] = [
   {
@@ -121,6 +132,7 @@ export const useWebOptions = () => {
   const defaultLocale = computed(() => webOption('site.default_locale', 'zh-CN'))
   const supportedLocales = computed(() => parseSupportedLocales(webOption('site.supported_locales', 'zh-CN,en-US')))
   const appearanceTheme = computed(() => parseAppearanceTheme(webOption('appearance.theme', 'pine_teal')))
+  const resolvedAppearanceTheme = computed(() => resolveAppearanceTheme(appearanceTheme.value))
   const footerCopyright = computed<Record<FooterLocale, string>>(() => ({
     'zh-CN': webOption('footer.copyright.zh-CN', fallbackOptions['footer.copyright.zh-CN']),
     'en-US': webOption('footer.copyright.en-US', fallbackOptions['footer.copyright.en-US'])
@@ -146,6 +158,7 @@ export const useWebOptions = () => {
     defaultLocale,
     supportedLocales,
     appearanceTheme,
+    resolvedAppearanceTheme,
     footerCopyright,
     footerLinks,
     humanVerificationProvider,
@@ -166,8 +179,7 @@ function parseSupportedLocales(value: string) {
 }
 
 function parseAppearanceTheme(value: string): AppearanceTheme {
-  const theme = value.trim().toLowerCase() as AppearanceTheme
-  return appearanceThemes.includes(theme) ? theme : 'pine_teal'
+  return normalizeAppearanceThemeValue(value)
 }
 
 function parseFooterLinks(value: string): FooterLinkOption[] {
@@ -225,4 +237,138 @@ function isFooterLinkKey(value: unknown): value is FooterLinkKey {
 
 function normalizeFooterLocale(localeCode: string): FooterLocale {
   return localeCode.toLowerCase().startsWith('en') ? 'en-US' : 'zh-CN'
+}
+
+export function normalizeAppearanceThemeValue(value: string | undefined): AppearanceTheme {
+  const raw = value?.trim().toLowerCase() || ''
+  if (isAppearanceThemePreset(raw)) {
+    return raw
+  }
+
+  if (raw.startsWith(customThemePrefix)) {
+    const color = normalizeHexColor(raw.slice(customThemePrefix.length))
+    return color ? (`${customThemePrefix}${color}` as AppearanceTheme) : 'pine_teal'
+  }
+
+  const color = normalizeHexColor(raw)
+  return color ? (`${customThemePrefix}${color}` as AppearanceTheme) : 'pine_teal'
+}
+
+export function isAppearanceThemePreset(value: string): value is AppearanceThemePreset {
+  return appearanceThemes.includes(value as AppearanceThemePreset)
+}
+
+export function buildCustomAppearanceThemeValue(color: string): AppearanceTheme {
+  return `${customThemePrefix}${normalizeHexColor(color) || defaultCustomThemeColor}` as AppearanceTheme
+}
+
+export function customColorFromAppearanceTheme(value: string): string | null {
+  const normalized = normalizeAppearanceThemeValue(value)
+  if (!normalized.startsWith(customThemePrefix)) {
+    return null
+  }
+  return normalizeHexColor(normalized.slice(customThemePrefix.length))
+}
+
+export function resolveAppearanceTheme(value: string): ResolvedAppearanceTheme {
+  const theme = normalizeAppearanceThemeValue(value)
+  const customColor = customColorFromAppearanceTheme(theme) || defaultCustomThemeColor
+
+  if (isAppearanceThemePreset(theme)) {
+    return {
+      theme,
+      dataTheme: theme,
+      customColor,
+      cssVars: {},
+      style: ''
+    }
+  }
+
+  const cssVars = buildCustomThemeVars(customColor)
+  return {
+    theme,
+    dataTheme: 'custom',
+    customColor,
+    cssVars,
+    style: cssVarsToStyle(cssVars)
+  }
+}
+
+export function normalizeHexColor(value: string | undefined): string | null {
+  const raw = value?.trim().toLowerCase().replace(/^#/, '') || ''
+  return /^[0-9a-f]{6}$/.test(raw) ? `#${raw}` : null
+}
+
+function buildCustomThemeVars(color: string): Record<string, string> {
+  const accent = normalizeHexColor(color) || defaultCustomThemeColor
+  const rgb = hexToRgb(accent)
+  const hover = mixHex(accent, '#000000', 0.16)
+  const dark = mixHex(accent, '#ffffff', 0.32)
+
+  return {
+    '--sf-accent': accent,
+    '--sf-accent-hover': hover,
+    '--sf-accent-soft': mixHex(accent, '#ffffff', 0.92),
+    '--sf-accent-soft-border': mixHex(accent, '#ffffff', 0.68),
+    '--sf-accent-dark': dark,
+    '--sf-accent-rgb': `${rgb.r} ${rgb.g} ${rgb.b}`,
+    '--sf-accent-contrast': relativeLuminance(rgb) > 0.55 ? '#111827' : '#ffffff',
+    '--sf-primary-50': mixHex(accent, '#ffffff', 0.94),
+    '--sf-primary-100': mixHex(accent, '#ffffff', 0.88),
+    '--sf-primary-200': mixHex(accent, '#ffffff', 0.72),
+    '--sf-primary-300': mixHex(accent, '#ffffff', 0.52),
+    '--sf-primary-400': mixHex(accent, '#ffffff', 0.28),
+    '--sf-primary-500': accent,
+    '--sf-primary-600': accent,
+    '--sf-primary-700': hover,
+    '--sf-primary-800': mixHex(accent, '#000000', 0.3),
+    '--sf-primary-900': mixHex(accent, '#000000', 0.45),
+    '--sf-primary-950': mixHex(accent, '#000000', 0.62)
+  }
+}
+
+function cssVarsToStyle(vars: Record<string, string>) {
+  return Object.entries(vars)
+    .map(([name, value]) => `${name}: ${value}`)
+    .join('; ')
+}
+
+type RGB = {
+  r: number
+  g: number
+  b: number
+}
+
+function hexToRgb(hex: string): RGB {
+  const value = (normalizeHexColor(hex) || defaultCustomThemeColor).slice(1)
+  return {
+    r: Number.parseInt(value.slice(0, 2), 16),
+    g: Number.parseInt(value.slice(2, 4), 16),
+    b: Number.parseInt(value.slice(4, 6), 16)
+  }
+}
+
+function mixHex(from: string, to: string, amount: number) {
+  const start = hexToRgb(from)
+  const end = hexToRgb(to)
+  const mix = (a: number, b: number) => Math.round(a + (b - a) * amount)
+  return rgbToHex({
+    r: mix(start.r, end.r),
+    g: mix(start.g, end.g),
+    b: mix(start.b, end.b)
+  })
+}
+
+function rgbToHex(rgb: RGB) {
+  return `#${[rgb.r, rgb.g, rgb.b].map((value) => value.toString(16).padStart(2, '0')).join('')}`
+}
+
+function relativeLuminance(rgb: RGB) {
+  const channel = (value: number) => {
+    const normalized = value / 255
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b)
 }

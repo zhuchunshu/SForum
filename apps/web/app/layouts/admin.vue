@@ -177,19 +177,19 @@ async function signOut() {
       :default-size="16"
       :min-size="14"
       :max-size="22"
-      class="sforum-admin-sidebar border-r border-slate-200 dark:border-zinc-800 bg-[var(--bg-admin-sidebar)] text-slate-600 dark:text-zinc-400"
+      class="sforum-admin-sidebar border-r border-[var(--border-admin)] bg-[var(--bg-admin-sidebar)] text-[var(--text-admin-sidebar)]"
     >
       <template #header="{ collapsed }">
         <NuxtLink
           :to="adminRoutes.path('/')"
-          class="flex h-[50px] min-w-0 items-center gap-2.5 rounded-md px-2 text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
+          class="flex h-[50px] min-w-0 items-center gap-2.5 rounded-md px-2 text-[var(--text-admin-main)] hover:bg-[var(--bg-admin-sidebar-hover)]"
           :aria-label="siteName"
         >
-          <span class="grid size-[30px] shrink-0 place-items-center rounded-md bg-[var(--sf-accent)] text-white">
+          <span class="grid size-[30px] shrink-0 place-items-center rounded-md bg-[var(--sf-accent)] text-[var(--sf-accent-contrast)]">
             <UIcon name="i-lucide-message-square-text" class="size-[17px]" />
           </span>
           <span v-if="!collapsed" class="min-w-0">
-            <span class="block truncate text-[14.5px] font-bold text-slate-900 dark:text-white">
+            <span class="block truncate text-[14.5px] font-bold text-[var(--text-admin-main)]">
               {{ siteName }}
             </span>
             <span class="block truncate text-xs font-medium text-slate-500 dark:text-zinc-400">
@@ -220,7 +220,7 @@ async function signOut() {
             color="neutral"
             variant="ghost"
             block
-            class="justify-start px-2 py-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
+            class="justify-start px-2 py-2 text-[var(--text-admin-sidebar)] hover:bg-[var(--bg-admin-sidebar-hover)] hover:text-[var(--text-admin-main)]"
             @click="() => { colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark' }"
           >
             <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="size-4" />
@@ -234,7 +234,7 @@ async function signOut() {
               color="neutral"
               variant="ghost"
               block
-              class="justify-start px-2 py-3.5 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
+              class="justify-start px-2 py-3.5 text-[var(--text-admin-sidebar)] hover:bg-[var(--bg-admin-sidebar-hover)] hover:text-[var(--text-admin-main)]"
               :class="{ 'justify-center': collapsed }"
             >
               <UAvatar :text="userInitial" size="lg" class="shadow-sm border border-slate-100 dark:border-zinc-800" />
@@ -253,9 +253,9 @@ async function signOut() {
       </template>
     </UDashboardSidebar>
 
-    <UDashboardPanel class="flex flex-col min-w-0 flex-1 bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100">
+    <UDashboardPanel class="flex flex-col min-w-0 flex-1 bg-[var(--bg-admin-app)] text-[var(--text-admin-main)]">
       <!-- 1. 置顶全局 Topbar -->
-      <div class="flex items-center justify-between h-[68px] sm:h-[76px] px-4 sm:px-8 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 z-20 transition-all">
+      <div class="flex items-center justify-between h-[68px] sm:h-[76px] px-4 sm:px-8 bg-[var(--bg-admin-card)] border-b border-[var(--border-admin)] flex-shrink-0 z-20 transition-all">
         <div class="flex min-w-0 items-center gap-2 sm:gap-3">
           <span class="shrink-0 text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-wide">
             {{ t('admin.shell.controlPanel', { siteName }) }}
@@ -264,7 +264,7 @@ async function signOut() {
           <span class="truncate text-sm sm:text-base font-semibold text-slate-600 dark:text-zinc-300">{{ activeTabLabel }}</span>
         </div>
         <div class="hidden sm:flex items-center gap-4 text-sm">
-          <span class="inline-flex items-center gap-2.5 text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-950 px-4 py-2.5 rounded-full border border-slate-100 dark:border-zinc-800">
+          <span class="inline-flex items-center gap-2.5 text-slate-600 dark:text-zinc-300 bg-[var(--sf-accent-soft)] px-4 py-2.5 rounded-full border border-[var(--sf-accent-soft-border)]">
             <span class="size-2.5 rounded-full bg-[var(--sf-accent)] dark:bg-[var(--sf-accent-dark)] animate-pulse"></span>
             {{ t('admin.shell.administratorLabel') }}:
             <strong class="text-slate-800 dark:text-zinc-200 font-semibold">{{ user?.username }}</strong>
@@ -273,14 +273,14 @@ async function signOut() {
       </div>
 
       <!-- 2. 多页签页签栏 (Taller tab bar: 52px) -->
-      <div class="flex items-end h-[52px] px-3 gap-1.5 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 overflow-x-auto flex-shrink-0 select-none no-scrollbar z-15">
+      <div class="flex items-end h-[52px] px-3 gap-1.5 bg-[var(--bg-admin-card)] border-b border-[var(--border-admin)] overflow-x-auto flex-shrink-0 select-none no-scrollbar z-15">
         <div
           v-for="tab in adminTabs.tabs.value"
           :key="tab.id"
-          class="group inline-flex items-center gap-2 h-[44px] px-5 border border-b-0 border-slate-200 dark:border-zinc-800 mb-[-1px] rounded-t-lg cursor-pointer transition-colors text-sm font-semibold relative z-10"
+          class="group inline-flex items-center gap-2 h-[44px] px-5 border border-b-0 border-[var(--border-admin)] mb-[-1px] rounded-t-lg cursor-pointer transition-colors text-sm font-semibold relative z-10"
           :class="adminTabs.activeTabId.value === tab.id 
-            ? 'bg-[var(--bg-admin-app)] text-slate-900 dark:text-zinc-100 border-slate-200 dark:border-zinc-800' 
-            : 'bg-transparent text-slate-500 dark:text-zinc-400 border-transparent hover:text-slate-900 dark:hover:text-zinc-100'"
+            ? 'bg-[var(--bg-admin-app)] text-[var(--sf-accent)] border-[var(--border-admin)]' 
+            : 'bg-transparent text-slate-500 dark:text-zinc-400 border-transparent hover:text-[var(--text-admin-main)]'"
           @click="navigateTo(tab.to)"
         >
           <UIcon :name="tab.icon" class="size-4.5" />

@@ -6,7 +6,7 @@ const localeHead = useLocaleHead({
   lang: true,
   seo: true
 })
-const { siteName, appearanceTheme, refresh: refreshWebOptions } = useWebOptions()
+const { siteName, resolvedAppearanceTheme, refresh: refreshWebOptions } = useWebOptions()
 const { refresh: refreshAuthSession } = useAuthSession()
 const startupOptionsTimeout = import.meta.dev ? 800 : 2000
 
@@ -22,15 +22,23 @@ await useAsyncData('app-startup', async () => {
   return true
 })
 
-useHead(() => ({
-  htmlAttrs: {
+useHead(() => {
+  const htmlAttrs: Record<string, string | undefined> = {
     ...localeHead.value.htmlAttrs,
-    'data-sforum-theme': appearanceTheme.value
-  },
-  link: localeHead.value.link,
-  meta: localeHead.value.meta,
-  titleTemplate: (title) => title ? `${title} - ${siteName.value}` : siteName.value
-}))
+    'data-sforum-theme': resolvedAppearanceTheme.value.dataTheme
+  }
+  const themeStyle = resolvedAppearanceTheme.value.style
+  if (themeStyle) {
+    htmlAttrs.style = [htmlAttrs.style, themeStyle].filter(Boolean).join('; ')
+  }
+
+  return {
+    htmlAttrs,
+    link: localeHead.value.link,
+    meta: localeHead.value.meta,
+    titleTemplate: (title) => title ? `${title} - ${siteName.value}` : siteName.value
+  }
+})
 </script>
 
 <template>

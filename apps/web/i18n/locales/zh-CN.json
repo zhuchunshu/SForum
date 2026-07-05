@@ -412,6 +412,11 @@
         "amber": {
           "label": "琥珀橙",
           "description": "温暖醒目的主题，适合公告和活动氛围。"
+        },
+        "custom": {
+          "label": "自定义配色",
+          "description": "使用颜色选择器设置站点主色，后台与前台会同步应用。",
+          "colorLabel": "选择自定义主题色"
         }
       },
       "footer": {

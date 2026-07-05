@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import {
   appearanceThemes,
+  buildCustomAppearanceThemeValue,
+  customColorFromAppearanceTheme,
+  defaultCustomThemeColor,
+  normalizeAppearanceThemeValue,
+  normalizeHexColor,
+  resolveAppearanceTheme,
   type AdminWebOption,
   type AppearanceTheme,
+  type AppearanceThemePreset,
   type FooterLinkKey,
   type FooterLinkOption,
   type WebOption
@@ -29,7 +36,7 @@ const toast = useToast()
 const { options, fetchAdminEnvelope, saveMany } = useWebOptions()
 const adminPage = useAdminPage('/personalization')
 
-const themePreviews: Record<AppearanceTheme, ThemePreview> = {
+const themePreviews: Record<AppearanceThemePreset, ThemePreview> = {
   pine_teal: { accent: '#0f766e', hover: '#0b5f59', soft: '#e6f4f1' },
   ocean_blue: { accent: '#2563eb', hover: '#1d4ed8', soft: '#eff6ff' },
   violet: { accent: '#7c3aed', hover: '#6d28d9', soft: '#f3e8ff' },
@@ -56,7 +63,8 @@ const defaultFooterLinks: FooterLinkOption[] = [
 ]
 
 const form = reactive({
-  theme: 'pine_teal' as AppearanceTheme,
+  themeMode: 'pine_teal' as AppearanceThemePreset | 'custom',
+  customColor: defaultCustomThemeColor,
   footerCopyrightZHCN: '© {year} {siteName}。保留所有权利。',
   footerCopyrightENUS: '© {year} {siteName}. All rights reserved.',
   footerLinks: cloneFooterLinks(defaultFooterLinks)
@@ -73,6 +81,21 @@ const themeChoices = computed(() => {
     description: t(`admin.personalization.themes.${theme}.description`),
     preview: themePreviews[theme]
   }))
+})
+
+const selectedAppearanceTheme = computed<AppearanceTheme>(() => {
+  return form.themeMode === 'custom'
+    ? buildCustomAppearanceThemeValue(form.customColor)
+    : form.themeMode
+})
+
+const customThemePreview = computed<ThemePreview>(() => {
+  const vars = resolveAppearanceTheme(buildCustomAppearanceThemeValue(form.customColor)).cssVars
+  return {
+    accent: vars['--sf-accent'] || defaultCustomThemeColor,
+    hover: vars['--sf-accent-hover'] || defaultCustomThemeColor,
+    soft: vars['--sf-accent-soft'] || '#eff6ff'
+  }
 })
 
 const hasChanges = computed(() => formSnapshot() !== savedSnapshot.value)
@@ -96,7 +119,7 @@ function applyAdminOptions(items: AdminWebOption[]) {
   }
 
   const map = Object.fromEntries(items.map((item) => [item.name, item]))
-  form.theme = normalizeTheme(map['appearance.theme']?.value)
+  applyThemeValue(map['appearance.theme']?.value)
   form.footerCopyrightZHCN = map['footer.copyright.zh-CN']?.value ?? defaultFooterText('zh-CN')
   form.footerCopyrightENUS = map['footer.copyright.en-US']?.value ?? defaultFooterText('en-US')
   form.footerLinks = parseFooterLinks(map['footer.links']?.value)
@@ -106,8 +129,9 @@ function applyAdminOptions(items: AdminWebOption[]) {
 async function savePersonalizationSettings() {
   saving.value = true
   try {
+    normalizeCustomColorInput()
     await saveAndApply([
-      { name: 'appearance.theme', value: form.theme },
+      { name: 'appearance.theme', value: selectedAppearanceTheme.value },
       { name: 'footer.copyright.zh-CN', value: form.footerCopyrightZHCN },
       { name: 'footer.copyright.en-US', value: form.footerCopyrightENUS },
       { name: 'footer.links', value: JSON.stringify(normalizedFooterLinks()) }
@@ -137,9 +161,19 @@ function resetForm() {
   applyAdminOptions(lastAdminItems.value)
 }
 
-function normalizeTheme(value: string | undefined): AppearanceTheme {
-  const theme = value?.trim().toLowerCase() as AppearanceTheme | undefined
-  return theme && appearanceThemes.includes(theme) ? theme : 'pine_teal'
+function applyThemeValue(value: string | undefined) {
+  const theme = normalizeAppearanceThemeValue(value)
+  const customColor = customColorFromAppearanceTheme(theme)
+  if (customColor) {
+    form.themeMode = 'custom'
+    form.customColor = customColor
+    return
+  }
+  form.themeMode = theme as AppearanceThemePreset
+}
+
+function normalizeCustomColorInput() {
+  form.customColor = normalizeHexColor(form.customColor) || defaultCustomThemeColor
 }
 
 function parseFooterLinks(value: string | undefined) {
@@ -228,7 +262,7 @@ function defaultFooterText(locale: 'zh-CN' | 'en-US') {
 
 function formSnapshot() {
   return JSON.stringify({
-    theme: form.theme,
+    theme: selectedAppearanceTheme.value,
     footerCopyrightZHCN: form.footerCopyrightZHCN,
     footerCopyrightENUS: form.footerCopyrightENUS,
     footerLinks: normalizedFooterLinks()
@@ -296,17 +330,17 @@ function formSnapshot() {
         </div>
       </template>
 
-      <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <label
           v-for="choice in themeChoices"
           :key="choice.value"
           class="group flex min-h-36 cursor-pointer flex-col justify-between gap-4 rounded-lg border bg-white p-4 text-sm transition dark:bg-zinc-950"
-          :class="form.theme === choice.value
+          :class="form.themeMode === choice.value
             ? 'border-[var(--sf-accent)] shadow-sm ring-2 ring-[var(--sf-accent-focus)]'
             : 'border-slate-200 hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800'"
         >
           <input
-            v-model="form.theme"
+            v-model="form.themeMode"
             class="sr-only"
             type="radio"
             name="appearance-theme"
@@ -324,6 +358,59 @@ function formSnapshot() {
             {{ choice.description }}
           </span>
         </label>
+
+        <div
+          class="group flex min-h-36 cursor-pointer flex-col justify-between gap-4 rounded-lg border bg-white p-4 text-sm transition dark:bg-zinc-950"
+          :class="form.themeMode === 'custom'
+            ? 'border-[var(--sf-accent)] shadow-sm ring-2 ring-[var(--sf-accent-focus)]'
+            : 'border-slate-200 hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800'"
+          role="radio"
+          tabindex="0"
+          :aria-checked="form.themeMode === 'custom'"
+          @click="form.themeMode = 'custom'"
+          @keydown.enter.prevent="form.themeMode = 'custom'"
+          @keydown.space.prevent="form.themeMode = 'custom'"
+        >
+          <input
+            v-model="form.themeMode"
+            class="sr-only"
+            type="radio"
+            name="appearance-theme"
+            value="custom"
+          >
+          <span class="flex items-center justify-between gap-3">
+            <span class="font-bold text-slate-900 dark:text-zinc-100">
+              {{ t('admin.personalization.themes.custom.label') }}
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="size-4 rounded-full border border-black/5" :style="{ background: customThemePreview.soft }"></span>
+              <span class="size-4 rounded-full border border-black/5" :style="{ background: customThemePreview.accent }"></span>
+              <span class="size-4 rounded-full border border-black/5" :style="{ background: customThemePreview.hover }"></span>
+            </span>
+          </span>
+          <span class="text-xs leading-5 text-slate-500 dark:text-zinc-400">
+            {{ t('admin.personalization.themes.custom.description') }}
+          </span>
+          <div class="flex items-center gap-2" @click.stop>
+            <input
+              v-model="form.customColor"
+              type="color"
+              class="h-9 w-12 shrink-0 cursor-pointer rounded-md border border-slate-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-900"
+              :aria-label="t('admin.personalization.themes.custom.colorLabel')"
+              @focus="form.themeMode = 'custom'"
+              @input="form.themeMode = 'custom'"
+            >
+            <UInput
+              v-model="form.customColor"
+              size="sm"
+              maxlength="7"
+              class="min-w-0 flex-1 font-mono"
+              :placeholder="defaultCustomThemeColor"
+              @focus="form.themeMode = 'custom'"
+              @blur="normalizeCustomColorInput"
+            />
+          </div>
+        </div>
       </div>
     </UCard>
 

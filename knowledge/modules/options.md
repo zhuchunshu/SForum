@@ -69,8 +69,9 @@ Initial runtime option support is implemented.
   defaults if the API is temporarily unavailable.
 - Locale settings can only enable built-in locale catalogs (`zh-CN`, `en-US`);
   adding a new locale still requires adding frontend and backend translations.
-- Theme settings currently use a preset key (`pine_teal`, `ocean_blue`,
-  `violet`, `rose`, or `amber`) rather than arbitrary HEX colors.
+- Theme settings use `appearance.theme` as a single public option. It accepts
+  preset keys (`pine_teal`, `ocean_blue`, `violet`, `rose`, or `amber`) and the
+  controlled custom format `custom:#rrggbb`.
 - Footer settings are frontend-safe public options: copyright text supports
   `{year}` and `{siteName}`, and `footer.links` stores the fixed Terms,
   Privacy, and Guidelines links as normalized JSON.

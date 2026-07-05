@@ -195,6 +195,16 @@ func TestServicePersonalizationDefaultsAndValidation(t *testing.T) {
 	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAppearanceTheme, Value: "neon"}); !errors.Is(err, ErrInvalidOption) {
 		t.Fatalf("expected invalid custom theme, got %v", err)
 	}
+	customTheme, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAppearanceTheme, Value: "custom:#4F46E5"})
+	if err != nil {
+		t.Fatalf("expected valid custom theme color, got %v", err)
+	}
+	if customTheme.Value != "custom:#4f46e5" {
+		t.Fatalf("expected normalized custom theme color, got %q", customTheme.Value)
+	}
+	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAppearanceTheme, Value: "custom:not-a-color"}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("expected invalid custom theme color, got %v", err)
+	}
 	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameFooterCopyrightZHCN, Value: stringsOfRunes("长", 201)}); !errors.Is(err, ErrInvalidOption) {
 		t.Fatalf("expected oversized footer copyright to be invalid, got %v", err)
 	}

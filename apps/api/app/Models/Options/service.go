@@ -17,6 +17,7 @@ import (
 const defaultCacheTTL = 30 * time.Second
 const footerCopyrightMaxRunes = 200
 const footerLinkLabelMaxRunes = 40
+const customAppearanceThemePrefix = "custom:"
 
 var builtInLocales = []string{localization.DefaultLocale, "en-US"}
 var appearanceThemes = []string{"pine_teal", "ocean_blue", "violet", "rose", "amber"}
@@ -661,7 +662,28 @@ func normalizeAppearanceTheme(value string) (string, bool) {
 			return theme, true
 		}
 	}
+
+	if strings.HasPrefix(value, customAppearanceThemePrefix) {
+		color, ok := normalizeAppearanceThemeColor(strings.TrimPrefix(value, customAppearanceThemePrefix))
+		if ok {
+			return customAppearanceThemePrefix + color, true
+		}
+	}
 	return "", false
+}
+
+func normalizeAppearanceThemeColor(value string) (string, bool) {
+	value = strings.TrimSpace(strings.ToLower(value))
+	value = strings.TrimPrefix(value, "#")
+	if len(value) != 6 {
+		return "", false
+	}
+	for _, char := range value {
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
+			return "", false
+		}
+	}
+	return "#" + value, true
 }
 
 func normalizeFooterCopyright(value string) (string, bool) {

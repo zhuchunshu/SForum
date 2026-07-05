@@ -145,9 +145,9 @@ This is the entry point for project memory.
   settings include masked ALTCHA secret metadata plus ALTCHA TTL/cost, editable
   from the admin settings page by users with `settings.manage`.
 - Personalization settings extend runtime web options with `appearance.theme`
-  preset keys and frontend-safe footer content. The admin control panel now has
-  a top-level personalization page for choosing the theme preset and editing
-  footer copyright/link text.
+  preset keys or `custom:#rrggbb` colors plus frontend-safe footer content. The
+  admin control panel now has a top-level personalization page for choosing the
+  theme, using a custom color picker, and editing footer copyright/link text.
 - The global footer has been implemented using the Option A (Single-line Minimalist) design direction, supporting dynamic copyright data, localized links (Terms, Privacy, Guidelines) mapped to placeholder links, and full Light/Dark mode responsiveness.
 
 ## Navigation
@@ -188,8 +188,8 @@ This is the entry point for project memory.
   registry-driven admin page, sidebar, tab, and permission metadata decision.
 - `decisions/2026-07-05-user-permission-overrides.md` - accepted user-level
   permission override decision for precise admin-managed access.
-- `decisions/2026-07-05-appearance-theme-presets.md` - accepted first-version
-  runtime theme preset decision.
+- `decisions/2026-07-05-appearance-theme-presets.md` - accepted runtime theme
+  preset and controlled custom color decision.
 - `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA
   implementation handoff.
 - `sessions/2026-07-04-registration-status-notice.md` - first-user
@@ -228,6 +228,8 @@ This is the entry point for project memory.
   refresh behavior for API restart/session recovery resilience.
 - `sessions/2026-07-05-global-footer-implementation.md` - global footer implementation handoff.
 - `sessions/2026-07-05-personalization-settings.md` - theme preset and footer personalization implementation handoff.
+- `sessions/2026-07-05-custom-theme-color.md` - custom theme color picker,
+  backend validation, and Nuxt UI primary-token bridge handoff.
 - `sessions/2026-07-05-icon-picker.md` - reusable Tabler/Nuxt Icon picker
   implementation handoff.
 - `../docs/superpowers/specs/2026-07-05-global-footer-design.md` - global footer design spec.

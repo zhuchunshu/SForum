@@ -4,17 +4,17 @@
 /* Tailwind CSS v4 Rebuild Trigger Comment - Scanned new demo routes */
 
 @theme {
-  --color-primary-50: var(--color-zinc-50);
-  --color-primary-100: var(--color-zinc-100);
-  --color-primary-200: var(--color-zinc-200);
-  --color-primary-300: var(--color-zinc-300);
-  --color-primary-400: var(--color-zinc-400);
-  --color-primary-500: var(--color-zinc-500);
-  --color-primary-600: var(--color-zinc-600);
-  --color-primary-700: var(--color-zinc-700);
-  --color-primary-800: var(--color-zinc-800);
-  --color-primary-900: var(--color-zinc-900);
-  --color-primary-950: var(--color-zinc-950);
+  --color-primary-50: var(--sf-primary-50);
+  --color-primary-100: var(--sf-primary-100);
+  --color-primary-200: var(--sf-primary-200);
+  --color-primary-300: var(--sf-primary-300);
+  --color-primary-400: var(--sf-primary-400);
+  --color-primary-500: var(--sf-primary-500);
+  --color-primary-600: var(--sf-primary-600);
+  --color-primary-700: var(--sf-primary-700);
+  --color-primary-800: var(--sf-primary-800);
+  --color-primary-900: var(--sf-primary-900);
+  --color-primary-950: var(--sf-primary-950);
 }
 
 :root {
@@ -33,6 +33,29 @@
   --sf-accent-rgb: 15 118 110;
   --sf-accent-focus: rgb(var(--sf-accent-rgb) / 0.18);
   --sf-accent-contrast: #ffffff;
+  --sf-primary-50: #f0fdfa;
+  --sf-primary-100: #ccfbf1;
+  --sf-primary-200: #99f6e4;
+  --sf-primary-300: #5eead4;
+  --sf-primary-400: #2dd4bf;
+  --sf-primary-500: #0f766e;
+  --sf-primary-600: #0f766e;
+  --sf-primary-700: #0b5f59;
+  --sf-primary-800: #115e59;
+  --sf-primary-900: #134e4a;
+  --sf-primary-950: #042f2e;
+  --ui-color-primary-50: var(--sf-primary-50);
+  --ui-color-primary-100: var(--sf-primary-100);
+  --ui-color-primary-200: var(--sf-primary-200);
+  --ui-color-primary-300: var(--sf-primary-300);
+  --ui-color-primary-400: var(--sf-primary-400);
+  --ui-color-primary-500: var(--sf-primary-500);
+  --ui-color-primary-600: var(--sf-primary-600);
+  --ui-color-primary-700: var(--sf-primary-700);
+  --ui-color-primary-800: var(--sf-primary-800);
+  --ui-color-primary-900: var(--sf-primary-900);
+  --ui-color-primary-950: var(--sf-primary-950);
+  --ui-primary: var(--ui-color-primary-500);
 
   /* 后台定制：浅色模式 */
   --bg-admin-sidebar: #ffffff; /* White Sidebar */
@@ -63,6 +86,7 @@
   --bg-admin-card: #18181b;
   --border-admin: rgba(39, 39, 42, 0.8); /* zinc 800 半透明 */
   --text-admin-main: #f4f4f5;
+  --ui-primary: var(--ui-color-primary-400);
 }
 
 html[data-sforum-theme="ocean_blue"] {
@@ -72,6 +96,17 @@ html[data-sforum-theme="ocean_blue"] {
   --sf-accent-soft-border: #bfdbfe;
   --sf-accent-dark: #60a5fa;
   --sf-accent-rgb: 37 99 235;
+  --sf-primary-50: #eff6ff;
+  --sf-primary-100: #dbeafe;
+  --sf-primary-200: #bfdbfe;
+  --sf-primary-300: #93c5fd;
+  --sf-primary-400: #60a5fa;
+  --sf-primary-500: #2563eb;
+  --sf-primary-600: #2563eb;
+  --sf-primary-700: #1d4ed8;
+  --sf-primary-800: #1e40af;
+  --sf-primary-900: #1e3a8a;
+  --sf-primary-950: #172554;
 }
 
 html[data-sforum-theme="violet"] {
@@ -81,6 +116,17 @@ html[data-sforum-theme="violet"] {
   --sf-accent-soft-border: #ddd6fe;
   --sf-accent-dark: #a78bfa;
   --sf-accent-rgb: 124 58 237;
+  --sf-primary-50: #f5f3ff;
+  --sf-primary-100: #ede9fe;
+  --sf-primary-200: #ddd6fe;
+  --sf-primary-300: #c4b5fd;
+  --sf-primary-400: #a78bfa;
+  --sf-primary-500: #7c3aed;
+  --sf-primary-600: #7c3aed;
+  --sf-primary-700: #6d28d9;
+  --sf-primary-800: #5b21b6;
+  --sf-primary-900: #4c1d95;
+  --sf-primary-950: #2e1065;
 }
 
 html[data-sforum-theme="rose"] {
@@ -90,6 +136,17 @@ html[data-sforum-theme="rose"] {
   --sf-accent-soft-border: #fecdd3;
   --sf-accent-dark: #fb7185;
   --sf-accent-rgb: 225 29 72;
+  --sf-primary-50: #fff1f2;
+  --sf-primary-100: #ffe4e6;
+  --sf-primary-200: #fecdd3;
+  --sf-primary-300: #fda4af;
+  --sf-primary-400: #fb7185;
+  --sf-primary-500: #e11d48;
+  --sf-primary-600: #e11d48;
+  --sf-primary-700: #be123c;
+  --sf-primary-800: #9f1239;
+  --sf-primary-900: #881337;
+  --sf-primary-950: #4c0519;
 }
 
 html[data-sforum-theme="amber"] {
@@ -99,6 +156,17 @@ html[data-sforum-theme="amber"] {
   --sf-accent-soft-border: #fde68a;
   --sf-accent-dark: #fbbf24;
   --sf-accent-rgb: 217 119 6;
+  --sf-primary-50: #fffbeb;
+  --sf-primary-100: #fef3c7;
+  --sf-primary-200: #fde68a;
+  --sf-primary-300: #fcd34d;
+  --sf-primary-400: #fbbf24;
+  --sf-primary-500: #d97706;
+  --sf-primary-600: #d97706;
+  --sf-primary-700: #b45309;
+  --sf-primary-800: #92400e;
+  --sf-primary-900: #78350f;
+  --sf-primary-950: #451a03;
 }
 
 body {

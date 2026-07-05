@@ -412,6 +412,11 @@
         "amber": {
           "label": "Amber",
           "description": "A warm, visible theme for announcements and event-heavy spaces."
+        },
+        "custom": {
+          "label": "Custom color",
+          "description": "Use the color picker to set the site accent; admin and public UI update together.",
+          "colorLabel": "Choose a custom theme color"
         }
       },
       "footer": {
