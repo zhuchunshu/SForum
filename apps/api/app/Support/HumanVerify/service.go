@@ -26,6 +26,9 @@ func NewService(cfg ServiceConfig, provider Provider, store Store) *Service {
 	if store == nil {
 		store = NewMemoryStore()
 	}
+	if cfg.EnabledPurposes != nil {
+		cfg.EnabledPurposes = copyPurposeMap(cfg.EnabledPurposes)
+	}
 	return &Service{
 		enabled:  cfg.Enabled,
 		cfg:      cfg,
@@ -43,7 +46,7 @@ func (s *Service) Enabled() bool {
 }
 
 func (s *Service) Challenge(ctx context.Context, purpose Purpose, subject Subject) (Challenge, error) {
-	if !s.Enabled() {
+	if !s.Enabled() || !s.purposeEnabled(purpose) {
 		return Challenge{Provider: ProviderDisabled, Purpose: purpose, Payload: map[string]any{}}, nil
 	}
 	if err := s.checkRate(ctx, "challenge", purpose, subject.IP); err != nil {
@@ -53,7 +56,7 @@ func (s *Service) Challenge(ctx context.Context, purpose Purpose, subject Subjec
 }
 
 func (s *Service) Verify(ctx context.Context, req VerifyRequest) error {
-	if !s.Enabled() {
+	if !s.Enabled() || !s.purposeEnabled(req.Purpose) {
 		return nil
 	}
 	req.Token = strings.TrimSpace(req.Token)
@@ -79,6 +82,13 @@ func (s *Service) Verify(ctx context.Context, req VerifyRequest) error {
 		return err
 	}
 	return nil
+}
+
+func (s *Service) purposeEnabled(purpose Purpose) bool {
+	if s == nil || s.cfg.EnabledPurposes == nil {
+		return true
+	}
+	return s.cfg.EnabledPurposes[purpose]
 }
 
 func (s *Service) checkRate(ctx context.Context, bucket string, purpose Purpose, subject string) error {
@@ -133,4 +143,12 @@ func ErrorCode(err error) string {
 func replayKey(req VerifyRequest) string {
 	sum := sha256.Sum256([]byte(string(req.Purpose) + "\x00" + req.Provider + "\x00" + req.Token))
 	return hex.EncodeToString(sum[:])
+}
+
+func copyPurposeMap(values map[Purpose]bool) map[Purpose]bool {
+	copied := make(map[Purpose]bool, len(values))
+	for key, value := range values {
+		copied[key] = value
+	}
+	return copied
 }

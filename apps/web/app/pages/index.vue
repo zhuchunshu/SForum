@@ -2,14 +2,13 @@
 const { t } = useI18n()
 const localePath = useLocalePath()
 const { user } = useAuthSession()
-const { siteName } = useWebOptions()
+const { siteName, seoSettings } = useWebOptions()
 
-useSeoMeta({
+useSForumSeo({
   title: () => t('home.metaTitle', { siteName: siteName.value }),
-  description: () => t('home.metaDescription', { siteName: siteName.value }),
-  ogTitle: () => t('home.metaTitle', { siteName: siteName.value }),
-  ogDescription: () => t('home.metaDescription', { siteName: siteName.value }),
-  ogType: 'website'
+  description: () => seoSettings.value.metaDescription || t('home.metaDescription', { siteName: siteName.value }),
+  type: 'website',
+  schema: { type: 'WebPage' }
 })
 
 // Mock Categories for Sidebar
@@ -199,7 +198,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
 </script>
 
 <template>
-  <main class="min-h-screen bg-[#F7F8FA] py-8">
+  <main class="min-h-screen py-8" style="background-color: var(--sf-surface)">
     <div class="max-w-[1376px] mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 md:grid-cols-[1fr_290px] lg:grid-cols-[270px_1fr_290px] gap-6">
         
@@ -214,19 +213,19 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
             </h2>
             <nav class="space-y-1" aria-label="首页辅助导航">
               <NuxtLink :to="localePath('/')" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-bold bg-[#E6F4F1] text-[#0F766E]">
-                <span class="text-lg">🏠</span>
+                <UIcon name="i-lucide-home" class="size-4.5 shrink-0" />
                 <span>{{ t('home.sidebar.navHome') }}</span>
               </NuxtLink>
               <a href="#categories" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
-                <span class="text-lg">📂</span>
+                <UIcon name="i-lucide-folder-open" class="size-4.5 shrink-0" />
                 <span>{{ t('home.sidebar.navCategories') }}</span>
               </a>
               <a href="#tags" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
-                <span class="text-lg">🏷️</span>
+                <UIcon name="i-lucide-tag" class="size-4.5 shrink-0" />
                 <span>{{ t('home.sidebar.navTags') }}</span>
               </a>
               <a href="#members" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
-                <span class="text-lg">👥</span>
+                <UIcon name="i-lucide-users" class="size-4.5 shrink-0" />
                 <span>{{ t('home.sidebar.navMembers') }}</span>
               </a>
             </nav>
@@ -241,10 +240,13 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
               <SFBadge variant="neutral" class="font-bold">{{ totalCategoryThreads }}</SFBadge>
             </div>
             <ul class="space-y-1.5">
-              <li v-for="cat in categories" :key="cat.key">
+              <li v-for="(cat, idx) in categories" :key="cat.key">
                 <a href="#" class="flex justify-between items-center px-3 py-2 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
                   <span class="flex items-center gap-2.5">
-                    <span class="w-2 h-2 rounded-full bg-[#0F766E]"></span>
+                    <span
+                      class="w-2 h-2 rounded-full shrink-0"
+                      :style="{ background: ['#0F766E','#8B5CF6','#F59E0B','#EF4444'][idx] || '#0F766E' }"
+                    ></span>
                     <span>{{ cat.name }}</span>
                   </span>
                   <span class="text-xs text-slate-500 font-mono">{{ cat.count }}</span>
@@ -297,6 +299,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                 <div v-for="thread in paginatedThreads" :key="thread.id">
                   <SFFeedRow
                     :title="thread.title"
+                    :excerpt="thread.excerpt"
                     :author="thread.author"
                     :meta="thread.timeAgo"
                     :replies="thread.replies"
@@ -358,8 +361,8 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
             </template>
             <template v-else>
               <div class="space-y-3">
-                <div class="w-12 h-12 bg-[#E6F4F1] text-[#0F766E] rounded-full flex items-center justify-center text-xl mx-auto">
-                  💬
+                <div class="w-12 h-12 bg-[#E6F4F1] text-[#0F766E] rounded-full flex items-center justify-center mx-auto">
+                  <UIcon name="i-lucide-message-circle" class="size-5" />
                 </div>
                 <h2 class="font-bold text-slate-800 text-sm">{{ t('home.sidebar.welcomeTitle', { siteName }) }}</h2>
                 <p class="text-xs text-slate-600 leading-relaxed">{{ t('home.sidebar.welcomeDesc') }}</p>

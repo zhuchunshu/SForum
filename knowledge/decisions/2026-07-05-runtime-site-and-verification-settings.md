@@ -15,7 +15,9 @@ frontend reads.
 ## Decision
 
 - Store site name, site URL, default locale, enabled locales, public
-  human-verification provider, and ALTCHA provider settings in `web_options`.
+  human-verification provider, human-verification scenario switches, ALTCHA
+  provider settings, and safe ALTCHA widget behavior settings in
+  `web_options`.
 - Keep `web_options(name, value)` as the storage shape and enforce known keys
   and typed validation in the Options service.
 - Treat environment variables as startup fallbacks for missing option rows, not
@@ -29,7 +31,8 @@ frontend reads.
 ## Consequences
 
 - Operators can switch default locale, enabled locales, site identity, and
-  CAPTCHA provider from the admin settings page.
+  CAPTCHA provider, protected CAPTCHA scenarios, and ALTCHA widget
+  type/trigger/display behavior from the admin settings page.
 - Enabling ALTCHA requires an existing or newly submitted secret.
 - Runtime language negotiation and human-verification behavior can change
   without an API restart.

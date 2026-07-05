@@ -21,6 +21,10 @@ const (
 	PermissionPostDeleteAny          = "post.delete_any"
 	PermissionModerationReportReview = "moderation.report_review"
 	PermissionSettingsManage         = "settings.manage"
+	PermissionSEOManage              = "seo.manage"
+	PermissionAttachmentUpload       = "attachment.upload"
+	PermissionAttachmentManage       = "attachment.manage"
+	PermissionAttachmentSettings     = "attachment.settings.manage"
 )
 
 type SeedPermission struct {
@@ -47,4 +51,8 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionPostDeleteAny, Module: "forum", Description: "Delete any post."},
 	{Key: PermissionModerationReportReview, Module: "moderation", Description: "Review moderation reports."},
 	{Key: PermissionSettingsManage, Module: "admin", Description: "Manage system settings."},
+	{Key: PermissionSEOManage, Module: "admin", Description: "Manage search engine optimization settings."},
+	{Key: PermissionAttachmentUpload, Module: "attachment", Description: "Upload attachments."},
+	{Key: PermissionAttachmentManage, Module: "attachment", Description: "Manage uploaded attachments."},
+	{Key: PermissionAttachmentSettings, Module: "attachment", Description: "Manage attachment storage and upload settings."},
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/session"
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
+	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
@@ -79,11 +80,13 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		HashSecret:      cfg.SessionHashSecret,
 	})
 	identityStore := identity.NewPostgresStore(pool)
+	attachmentStore := attachments.NewPostgresStore(pool)
 	identityProvider := providers.NewIdentityProviderWithAuthSessions(identityStore, authSessions, humanVerifier)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
+	attachmentsProvider := providers.NewAttachmentsProvider(attachmentStore, optionsService, identityStore, authSessions, cfg.AttachmentLocalRoot)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider, optionsProvider},
+		RouteProviders: []httpserver.RouteProvider{identityProvider, optionsProvider, attachmentsProvider},
 		Options:        optionsService,
 	})
 

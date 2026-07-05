@@ -141,7 +141,8 @@ This is the entry point for project memory.
   `data.reason`.
 - Runtime web options are now introduced through `web_options(name, value)`.
   Site name, site URL, default locale, enabled locales, and public
-  human-verification provider are frontend-safe runtime options. Admin-only
+  human-verification provider plus verification scenario switches and ALTCHA
+  widget behavior settings are frontend-safe runtime options. Admin-only
   settings include masked ALTCHA secret metadata plus ALTCHA TTL/cost, editable
   from the admin settings page by users with `settings.manage`.
 - Personalization settings extend runtime web options with `appearance.theme`
@@ -149,6 +150,16 @@ This is the entry point for project memory.
   admin control panel now has a top-level personalization page for choosing the
   theme, using a custom color picker, and editing footer copyright/link text.
 - The global footer has been implemented using the Option A (Single-line Minimalist) design direction, supporting dynamic copyright data, localized links (Terms, Privacy, Guidelines) mapped to placeholder links, and full Light/Dark mode responsiveness.
+- SEO Full-Chain v1 is implemented: `seo.manage` controls the SEO admin page,
+  typed `seo.*` runtime options cover meta/social, robots, sitemap, structured
+  data, and verification settings, and public Nuxt pages use runtime SEO helpers
+  with local/preview noindex protection.
+- Attachment system foundation is implemented: standalone admin top-level
+  "Attachment settings" page, `attachments` and `attachment_references` tables,
+  `attachment.upload`/`attachment.manage`/`attachment.settings.manage`
+  permissions, runtime provider settings in `web_options`, server-mediated
+  upload APIs, local/Aliyun OSS/Tencent COS/FTP/SFTP storage adapters, admin
+  attachment governance, and orphan cleanup boundaries.
 
 ## Navigation
 
@@ -165,6 +176,8 @@ This is the entry point for project memory.
   Laravel-style Go/Fiber API directory structure.
 - `modules/options.md` - runtime site options, `web_options` boundaries, API
   routes, and admin settings notes.
+- `modules/attachments.md` - attachment metadata, storage providers, runtime
+  settings, permissions, upload flow, cleanup, API, and admin UI notes.
 - `decisions/2026-07-04-laravel-style-http-routing.md` - accepted backend
   composition, route registration, and Laravel-style API directory decision.
 - `decisions/2026-07-04-altcha-human-verification.md` - accepted ALTCHA human
@@ -190,6 +203,10 @@ This is the entry point for project memory.
   permission override decision for precise admin-managed access.
 - `decisions/2026-07-05-appearance-theme-presets.md` - accepted runtime theme
   preset and controlled custom color decision.
+- `decisions/2026-07-05-seo-full-chain-v1.md` - accepted runtime SEO settings,
+  `seo.manage`, robots/sitemap integration, and local noindex strategy.
+- `decisions/2026-07-05-attachment-storage-providers.md` - accepted attachment
+  provider adapter strategy and first provider set.
 - `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA
   implementation handoff.
 - `sessions/2026-07-04-registration-status-notice.md` - first-user
@@ -218,6 +235,10 @@ This is the entry point for project memory.
   global topbar, theme adaptive sidebar, and nested menu layout upgrades handoff.
 - `sessions/2026-07-05-admin-low-code-module-registry.md` - registry-driven
   admin sidebar/tab architecture handoff.
+- `sessions/2026-07-05-seo-full-chain-v1.md` - SEO Full-Chain v1 implementation
+  handoff.
+- `sessions/2026-07-05-attachment-system-foundation.md` - attachment system
+  implementation handoff.
 - `sessions/2026-07-05-public-navbar-hide-admin-entry.md` - public navbar admin
   entry removal handoff.
 - `sessions/2026-07-05-admin-permission-management.md` - user-level permission
@@ -232,6 +253,10 @@ This is the entry point for project memory.
   backend validation, and Nuxt UI primary-token bridge handoff.
 - `sessions/2026-07-05-icon-picker.md` - reusable Tabler/Nuxt Icon picker
   implementation handoff.
+- `sessions/2026-07-05-altcha-layout-fix.md` - ALTCHA settings section layout fix handoff.
+- `sessions/2026-07-05-altcha-scenario-settings.md` - CAPTCHA scenario
+  switches, ALTCHA secret generation, TTL/cost guidance, and UI validation
+  handoff.
 - `../docs/superpowers/specs/2026-07-05-global-footer-design.md` - global footer design spec.
 - `../docs/superpowers/plans/2026-07-05-global-footer.md` - global footer implementation plan.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -

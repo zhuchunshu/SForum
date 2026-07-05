@@ -1012,14 +1012,17 @@ func TestWebOptionsEndpointReturnsPublicOptions(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode web options response: %v", err)
 	}
-	if len(body.Data) != 9 {
-		t.Fatalf("unexpected web options response: %#v", body.Data)
-	}
 	if optionValue(body.Data, options.NameSiteName) != "SForum" {
 		t.Fatalf("expected site name in public options, got %#v", body.Data)
 	}
+	if optionValue(body.Data, options.NameHumanVerificationRegister) != "enabled" {
+		t.Fatalf("expected register verification scenario in public options, got %#v", body.Data)
+	}
 	if optionValue(body.Data, options.NameAppearanceTheme) != "pine_teal" {
 		t.Fatalf("expected default appearance theme in public options, got %#v", body.Data)
+	}
+	if optionValue(body.Data, options.NameSEOTwitterCard) != "summary_large_image" {
+		t.Fatalf("expected SEO options in public response, got %#v", body.Data)
 	}
 	if optionValue(body.Data, options.NameAltchaSecret) != "" {
 		t.Fatalf("public web options should not expose altcha secret: %#v", body.Data)
@@ -1126,7 +1129,7 @@ func TestAdminWebOptionsMaskSecretAndSaveBatch(t *testing.T) {
 	}
 
 	footerLinks := `[{"key":"terms","labels":{"zh-CN":"条款","en-US":"Terms"},"url":"/terms"},{"key":"privacy","labels":{"zh-CN":"隐私","en-US":"Privacy"},"url":"/privacy"},{"key":"guidelines","labels":{"zh-CN":"指南","en-US":"Guidelines"},"url":"#"}]`
-	body := []byte(`{"options":[{"name":"site.name","value":"Example Forum"},{"name":"site.default_locale","value":"en"},{"name":"site.supported_locales","value":"en-US"},{"name":"human_verification.provider","value":"altcha"},{"name":"human_verification.altcha.secret","value":""},{"name":"human_verification.altcha.challenge_ttl","value":"2m"},{"name":"human_verification.altcha.cost","value":"2000"},{"name":"appearance.theme","value":"custom:#4F46E5"},{"name":"footer.copyright.zh-CN","value":"© {year} 示例论坛"},{"name":"footer.copyright.en-US","value":"© {year} Example Forum"},{"name":"footer.links","value":` + strconv.Quote(footerLinks) + `}]}`)
+	body := []byte(`{"options":[{"name":"site.name","value":"Example Forum"},{"name":"site.default_locale","value":"en"},{"name":"site.supported_locales","value":"en-US"},{"name":"human_verification.provider","value":"altcha"},{"name":"human_verification.scenarios.register","value":"enabled"},{"name":"human_verification.scenarios.login_risk","value":"enabled"},{"name":"human_verification.altcha.secret","value":""},{"name":"human_verification.altcha.challenge_ttl","value":"2m"},{"name":"human_verification.altcha.cost","value":"2000"},{"name":"human_verification.altcha.widget.type","value":"switch"},{"name":"human_verification.altcha.widget.auto","value":"onfocus"},{"name":"human_verification.altcha.widget.display","value":"floating"},{"name":"human_verification.altcha.widget.hide_logo","value":"disabled"},{"name":"human_verification.altcha.widget.hide_footer","value":"enabled"},{"name":"human_verification.altcha.widget.workers","value":"4"},{"name":"human_verification.altcha.widget.min_duration_ms","value":"1000"},{"name":"appearance.theme","value":"custom:#4F46E5"},{"name":"footer.copyright.zh-CN","value":"© {year} 示例论坛"},{"name":"footer.copyright.en-US","value":"© {year} Example Forum"},{"name":"footer.links","value":` + strconv.Quote(footerLinks) + `}]}`)
 	updateReq := httptest.NewRequest(nethttp.MethodPut, "/api/v1/admin/web-options", bytes.NewReader(body))
 	updateReq.Header.Set("Content-Type", "application/json")
 	updateReq.AddCookie(adminCookie)
@@ -1151,6 +1154,15 @@ func TestAdminWebOptionsMaskSecretAndSaveBatch(t *testing.T) {
 	}
 	if got := adminOption(updateBody.Data, options.NameAltchaSecret); !got.SecretSet || got.Value != "" {
 		t.Fatalf("expected masked kept secret, got %#v", got)
+	}
+	if got := adminOption(updateBody.Data, options.NameHumanVerificationLoginRisk).Value; got != "enabled" {
+		t.Fatalf("expected saved login risk scenario, got %q", got)
+	}
+	if got := adminOption(updateBody.Data, options.NameAltchaWidgetType).Value; got != "switch" {
+		t.Fatalf("expected saved widget type, got %q", got)
+	}
+	if got := adminOption(updateBody.Data, options.NameAltchaWidgetWorkers).Value; got != "4" {
+		t.Fatalf("expected saved widget workers, got %q", got)
 	}
 	if got := adminOption(updateBody.Data, options.NameAppearanceTheme).Value; got != "custom:#4f46e5" {
 		t.Fatalf("expected saved appearance theme, got %q", got)
@@ -1546,6 +1558,7 @@ func (s *httpFakeStore) withAccess(user identity.CurrentUser) identity.CurrentUs
 			permissions[identity.PermissionAdminAccess] = true
 			permissions[identity.PermissionRoleManage] = true
 			permissions[identity.PermissionSettingsManage] = true
+			permissions[identity.PermissionSEOManage] = true
 		}
 		for _, permission := range s.rolePerms[role.ID] {
 			permissions[permission] = true

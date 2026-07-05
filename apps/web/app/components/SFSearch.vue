@@ -31,7 +31,7 @@ function onInput(event: Event) {
 <template>
   <div class="sf-search">
     <label class="sf-search__box">
-      <span class="sf-search__icon" aria-hidden="true">⌕</span>
+      <UIcon name="i-lucide-search" class="sf-search__icon size-4.5 shrink-0" aria-hidden="true" />
       <input
         class="sf-search__input"
         type="search"

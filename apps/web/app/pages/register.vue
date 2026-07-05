@@ -13,7 +13,7 @@ const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
 const { apiBaseUrl, request } = useApiClient()
 const { setUser, can } = useAuthSession()
-const { siteName, humanVerificationProvider } = useWebOptions()
+const { siteName, humanVerificationEnabledFor, altchaWidgetSettings } = useWebOptions()
 
 const form = reactive({
   username: '',
@@ -27,17 +27,29 @@ const sessionUnavailable = ref(false)
 const fieldErrors = ref<Record<string, string[]>>({})
 const humanVerificationToken = ref('')
 const altchaWidget = ref<AltchaWidgetElement | null>(null)
-// ALTCHA 仅从 configuration JSON 读取 hideLogo/hideFooter，自动刷新时也会沿用。
-const altchaConfiguration = JSON.stringify({
-  hideLogo: true,
-  hideFooter: true
+const altchaConfiguration = computed(() => JSON.stringify({
+  hideLogo: altchaWidgetSettings.value.hideLogo,
+  hideFooter: altchaWidgetSettings.value.hideFooter,
+  minDuration: altchaWidgetSettings.value.minDuration
+}))
+const altchaWidgetType = computed(() => altchaWidgetSettings.value.type)
+const altchaWidgetAuto = computed(() => altchaWidgetSettings.value.auto)
+const altchaWidgetDisplay = computed(() => altchaWidgetSettings.value.display)
+const altchaWidgetWorkers = computed(() => altchaWidgetSettings.value.workers)
+const altchaWidgetClass = computed(() => [
+  'auth-altcha',
+  `auth-altcha--${altchaWidgetDisplay.value}`,
+  fieldError('humanVerification') ? 'auth-altcha--invalid' : ''
+].filter(Boolean))
+const altchaChallengeUrl = computed(() => {
+  return `${apiBaseUrl}/human-verification/challenge?purpose=register`
 })
-const configuredHumanVerificationProvider = computed(() => {
-  const provider = humanVerificationProvider.value
-  return provider === 'altcha' ? 'altcha' : 'disabled'
+const registerHumanVerificationEnabled = computed(() => {
+  // 前端只负责体验开关；API verifier 仍按同一场景配置做权威校验。
+  return humanVerificationEnabledFor('register')
 })
 const humanVerificationEnabled = computed(() => {
-  return configuredHumanVerificationProvider.value === 'altcha' || Boolean(fieldError('humanVerification'))
+  return registerHumanVerificationEnabled.value || Boolean(fieldError('humanVerification'))
 })
 const { data: registrationStatus } = await useAsyncData('auth-registration-status', async () => {
   try {
@@ -303,11 +315,14 @@ async function submitRegister() {
             <ClientOnly>
               <altcha-widget
                 ref="altchaWidget"
-                :class="['auth-altcha', fieldError('humanVerification') ? 'auth-altcha--invalid' : '']"
-                :challenge="`${apiBaseUrl}/human-verification/challenge?purpose=register`"
+                :class="altchaWidgetClass"
+                :challenge="altchaChallengeUrl"
                 :configuration="altchaConfiguration"
+                :auto="altchaWidgetAuto"
+                :display="altchaWidgetDisplay"
                 :language="locale === 'zh-CN' ? 'zh-cn' : 'en'"
-                type="checkbox"
+                :type="altchaWidgetType"
+                :workers="altchaWidgetWorkers"
                 :aria-invalid="fieldError('humanVerification') ? 'true' : undefined"
                 :aria-labelledby="'human-verification-label'"
                 :aria-describedby="fieldDescription('humanVerification')"

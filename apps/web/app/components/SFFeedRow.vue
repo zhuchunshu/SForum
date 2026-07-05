@@ -36,17 +36,23 @@ const props = withDefaults(defineProps<{
         </h3>
         <div class="sf-feed-row__actions">
           <div class="sf-feed-row__vote">
-            <button class="sf-feed-row__vote-btn">▲</button>
+            <button class="sf-feed-row__vote-btn" aria-label="赞同">
+              <UIcon name="i-lucide-chevron-up" class="size-3.5" />
+            </button>
             <span class="sf-feed-row__vote-val">{{ score }}</span>
-            <button class="sf-feed-row__vote-btn">▼</button>
+            <button class="sf-feed-row__vote-btn" aria-label="反对">
+              <UIcon name="i-lucide-chevron-down" class="size-3.5" />
+            </button>
           </div>
           <div class="sf-feed-row__action-tag">
-            💬 {{ replies }}
+            <UIcon name="i-lucide-message-circle" class="size-3.5" />
+            {{ replies }}
           </div>
         </div>
       </div>
       
       <div class="sf-feed-row__meta-row">
+        <span v-if="excerpt" class="sf-feed-row__excerpt">{{ excerpt }}</span>
         <span v-if="badges.length" class="sf-feed-row__badges">
           <SFBadge
             v-for="badge in badges"
@@ -58,7 +64,10 @@ const props = withDefaults(defineProps<{
         </span>
         <span v-if="author" class="sf-feed-row__author">{{ author }}</span>
         <span v-if="meta" class="sf-feed-row__time">• {{ meta }}</span>
-        <span v-if="views" class="sf-feed-row__views">👁️ {{ views }} 浏览</span>
+        <span v-if="views" class="sf-feed-row__views">
+          <UIcon name="i-lucide-eye" class="size-3.5" />
+          {{ views }} 浏览
+        </span>
       </div>
     </div>
   </article>

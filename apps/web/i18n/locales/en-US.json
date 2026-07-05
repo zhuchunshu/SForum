@@ -112,6 +112,10 @@
       "selected": "Selected icon",
       "noSelection": "No icon selected",
       "empty": "No matching icons.",
+      "loading": "Loading icons...",
+      "loadFailed": "Icon loading failed.",
+      "retry": "Retry",
+      "count": "Showing {shown} / {total}",
       "customLabel": "Custom Nuxt Icon name",
       "customPlaceholder": "Example: i-tabler-home or lucide:settings-2",
       "useCustom": "Use",
@@ -146,6 +150,8 @@
       "roles": "User groups",
       "rolesBadge": "RBAC",
       "settings": "Site settings",
+      "seo": "SEO settings",
+      "attachments": "Attachment settings",
       "forumHome": "Forum home",
       "system": "System",
       "userPermission": "Users & Permissions",
@@ -187,6 +193,123 @@
           "description": "Reserved for forum name, registration policy, and content policy."
         }
       }
+    },
+    "attachments": {
+      "metaTitle": "Attachment Settings",
+      "title": "Attachment Settings",
+      "intro": "Configure upload storage providers, access URLs, and attachment governance rules.",
+      "toolbar": "Attachment upload is controlled by API permissions; admin settings change runtime storage behavior.",
+      "refresh": "Refresh",
+      "settingsLoadFailed": "Attachment settings could not be loaded.",
+      "tabs": {
+        "label": "Attachment settings tabs",
+        "settings": "Basic Configuration",
+        "manager": "Attachment Management"
+      },
+      "settingsTitle": "Basic Configuration",
+      "settingsDescription": "Choose a storage provider and configure path templates, public domains, size limits, and file type rules.",
+      "settingsSaved": "Attachment settings saved.",
+      "settingsSaveFailed": "Attachment settings could not be saved.",
+      "saveSettings": "Save attachment settings",
+      "testConnection": "Test connection",
+      "testPassed": "Storage connection is healthy.",
+      "testFailed": "Storage connection test failed.",
+      "provider": "Storage provider",
+      "providers": {
+        "local": "Local upload",
+        "aliyunOss": "Alibaba Cloud OSS",
+        "tencentCos": "Tencent Cloud COS",
+        "ftp": "FTP",
+        "sftp": "Remote server SFTP"
+      },
+      "uploadEnabled": "Enable attachment uploads",
+      "uploadEnabledDescription": "When disabled, regular users cannot upload new attachments, while existing attachments remain accessible by permission.",
+      "maxFileSize": "Max file size",
+      "pathTemplate": "Upload path template",
+      "pathPreview": "Preview:",
+      "publicBaseUrl": "Public base URL",
+      "defaultVisibility": "Default visibility",
+      "visibility": {
+        "public": "Public",
+        "private": "Private"
+      },
+      "allowedExtensions": "Allowed extensions",
+      "allowedMimeTypes": "Allowed MIME types",
+      "cleanupDays": "Orphan retention days",
+      "localPublicPrefix": "Local public prefix",
+      "keepSecret": "Leave blank to keep the current secret",
+      "summary": "Configuration summary",
+      "aliyun": {
+        "endpoint": "Endpoint, e.g. https://oss-cn-hangzhou.aliyuncs.com",
+        "bucket": "Bucket name",
+        "region": "Region",
+        "accessKeyId": "AccessKey ID",
+        "accessKeySecret": "AccessKey Secret"
+      },
+      "tencent": {
+        "region": "Region, e.g. ap-guangzhou",
+        "bucket": "Bucket, e.g. example-1250000000",
+        "secretId": "SecretId",
+        "secretKey": "SecretKey",
+        "cdnDomain": "CDN or custom domain"
+      },
+      "remote": {
+        "host": "Server host",
+        "port": "Port",
+        "username": "Username",
+        "password": "Password",
+        "rootPath": "Remote root path",
+        "publicBaseUrl": "Public base URL"
+      },
+      "ftp": {
+        "passive": "Passive mode",
+        "explicitTls": "Explicit TLS"
+      },
+      "sftp": {
+        "privateKey": "SSH private key",
+        "passphrase": "Private key passphrase",
+        "hostKeyFingerprint": "Host key fingerprint"
+      },
+      "searchPlaceholder": "Search file name, ID, or object path",
+      "allProviders": "All providers",
+      "allStatuses": "All statuses",
+      "allReferences": "All reference states",
+      "referenced": "Referenced",
+      "orphan": "Orphan",
+      "filter": "Filter",
+      "cleanup": "Cleanup",
+      "cleanupFinished": "Cleanup finished: {deleted} deleted, {failed} failed.",
+      "cleanupFailed": "Cleanup failed.",
+      "empty": "No attachments yet.",
+      "selectOne": "Select an attachment to inspect it.",
+      "listLoadFailed": "Attachments could not be loaded.",
+      "detailLoadFailed": "Attachment details could not be loaded.",
+      "loadingDetail": "Loading attachment details...",
+      "updateFailed": "Attachment status could not be updated.",
+      "deleteFailed": "Attachment could not be deleted.",
+      "file": "File",
+      "size": "Size",
+      "references": "References",
+      "statusLabel": "Status",
+      "createdAt": "Created",
+      "status": {
+        "active": "Active",
+        "disabled": "Disabled",
+        "deleted": "Deleted"
+      },
+      "objectKey": "Object key",
+      "sha256": "SHA-256",
+      "owner": "Owner",
+      "url": "URL",
+      "open": "Open",
+      "copyLink": "Copy link",
+      "copied": "Link copied.",
+      "disable": "Disable",
+      "restore": "Restore",
+      "delete": "Delete",
+      "referencesTitle": "References",
+      "noReferences": "No business references yet.",
+      "noReferenceContext": "No reference context"
     },
     "roles": {
       "metaTitle": "User Groups",
@@ -290,7 +413,8 @@
       "admin": "Admin",
       "identity": "Users & Identity",
       "forum": "Forum Content",
-      "moderation": "Moderation"
+      "moderation": "Moderation",
+      "attachment": "Attachments"
     },
     "permissionCatalog": {
       "admin": {
@@ -375,6 +499,28 @@
         "manage": {
           "label": "Manage site settings",
           "description": "Edit runtime settings such as site name, languages, and human verification."
+        }
+      },
+      "seo": {
+        "manage": {
+          "label": "Manage SEO settings",
+          "description": "Edit search indexing, sitemap, structured data, and search platform verification."
+        }
+      },
+      "attachment": {
+        "upload": {
+          "label": "Upload attachments",
+          "description": "Allows signed-in users to upload attachments."
+        },
+        "manage": {
+          "label": "Manage attachments",
+          "description": "View, filter, disable, restore, delete, and clean up uploaded attachments."
+        },
+        "settings": {
+          "manage": {
+            "label": "Manage attachment settings",
+            "description": "Edit storage providers, upload limits, access URLs, and secret configuration."
+          }
         }
       }
     },
@@ -475,8 +621,195 @@
         "secretConfigured": "Secret configured",
         "secretMissing": "Secret missing",
         "challengeTTL": "Challenge TTL",
-        "cost": "Cost"
+        "challengeTTLHint": "Unit: minutes. Recommended: 20 minutes; 10 is stricter, while 30-60 fits slower forms.",
+        "minutesOption": "{count} min",
+        "cost": "Cost",
+        "costHint": "ALTCHA cost is the client-side PBKDF2 work factor. Higher values make user devices compute longer; start with 1000, then test 3000 or 5000 for higher-risk sites.",
+        "generateSecret": "Generate secret",
+        "showSecret": "Show secret",
+        "hideSecret": "Hide secret",
+        "secretHint": "Use a 32-byte random secret. A new secret replaces the current one only after saving; leaving this empty keeps the existing secret.",
+        "secretGenerated": "New ALTCHA secret generated. Save to apply it.",
+        "secretGenerateUnavailable": "This browser cannot generate secure random values.",
+        "scenarios": {
+          "title": "Enabled scenarios",
+          "description": "When the service is ALTCHA, these scenarios can require verification; API checks remain authoritative.",
+          "register": {
+            "label": "User registration",
+            "description": "Require verification before a new account submits the registration form."
+          },
+          "passwordReset": {
+            "label": "Password reset",
+            "description": "Require verification before account recovery or reset email requests once that flow is wired."
+          },
+          "loginRisk": {
+            "label": "Login risk",
+            "description": "Require verification for suspicious IPs, repeated failures, or new-device login risk."
+          },
+          "postRisk": {
+            "label": "Posting risk",
+            "description": "Require verification when publishing, replying, or high-frequency actions trigger risk controls."
+          }
+        },
+        "costOptions": {
+          "1000": "1000 light",
+          "3000": "3000 balanced",
+          "5000": "5000 stronger"
+        },
+        "widget": {
+          "title": "Client widget behavior",
+          "description": "These settings are delivered directly to the ALTCHA widget and control what users see and when verification starts.",
+          "type": "Interaction style",
+          "typeHint": "Checkbox is recommended. Switch is lighter; native follows browser controls more closely.",
+          "typeOptions": {
+            "native": "Native",
+            "checkbox": "Checkbox",
+            "switch": "Switch"
+          },
+          "auto": "Auto trigger",
+          "autoHint": "Keeping this off is recommended so users trigger verification intentionally; riskier forms can use focus or submit.",
+          "autoOptions": {
+            "off": "Off",
+            "onfocus": "On form focus",
+            "onload": "On page load",
+            "onsubmit": "On form submit"
+          },
+          "display": "Display mode",
+          "displayHint": "Standard is the safest default; floating or overlay can fit tighter forms.",
+          "displayOptions": {
+            "standard": "Standard",
+            "bar": "Bar",
+            "floating": "Floating",
+            "overlay": "Overlay",
+            "invisible": "Invisible"
+          },
+          "hideLogo": "Hide ALTCHA logo",
+          "hideLogoHint": "Keeps the registration form cleaner without changing server verification.",
+          "hideFooter": "Hide ALTCHA footer",
+          "hideFooterHint": "Hides the widget attribution footer while keeping the core verification flow.",
+          "workers": "Worker count",
+          "workersHint": "Recommended: 2. Higher values can finish faster but use more low-end device resources; range 1-16.",
+          "minDuration": "Minimum duration",
+          "minDurationHint": "Unit: milliseconds. Recommended: 500 for steady feedback; 0 adds no extra wait.",
+          "msOption": "{count} ms"
+        },
+        "config": {
+          "title": "Current ALTCHA configuration",
+          "description": "These are the settings SForum currently uses or fixes for the ALTCHA integration.",
+          "algorithm": "Algorithm",
+          "signature": "Signature",
+          "challengeEndpoint": "Challenge endpoint",
+          "widgetType": "Widget type",
+          "widgetAuto": "Auto trigger",
+          "widgetDisplay": "Display mode",
+          "replayProtection": "Replay protection",
+          "replayProtectionValue": "Redis single-use tokens",
+          "rateLimit": "Rate limit",
+          "rateLimitValue": "60 per IP per minute",
+          "clientWidget": "Client widget"
+        }
       }
+    },
+    "seo": {
+      "metaTitle": "SEO Settings",
+      "title": "SEO Settings",
+      "intro": "Control how search engines index your site and what appears in search results and social previews.",
+      "toolbar": "SEO settings are delivered to public pages through runtime web_options.",
+      "refresh": "Refresh",
+      "loadFailed": "SEO settings could not be loaded.",
+      "saved": "SEO settings saved.",
+      "saveFailed": "SEO settings could not be saved.",
+      "save": "Save SEO settings",
+      "tabs": {
+        "label": "SEO setting sections",
+        "overview": "Overview",
+        "meta": "Meta & Social",
+        "robots": "Indexing & Robots",
+        "sitemap": "Sitemap",
+        "schema": "Structured Data",
+        "verification": "Verification"
+      },
+      "sections": {
+        "overview": {
+          "title": "SEO Overview",
+          "description": "Review indexing, canonical, sitemap, and robots output."
+        },
+        "meta": {
+          "title": "Meta and Social Preview",
+          "description": "Configure title templates, descriptions, keywords, OG images, and Twitter Cards."
+        },
+        "robots": {
+          "title": "Indexing and Robots",
+          "description": "Control site indexing, robots.txt rules, and crawler boundaries."
+        },
+        "sitemap": {
+          "title": "Sitemap",
+          "description": "Control sitemap.xml generation and reserve forum-content indexing."
+        },
+        "schema": {
+          "title": "Structured Data",
+          "description": "Emit WebSite, Organization, search action, and discussion structured data."
+        },
+        "verification": {
+          "title": "Search Platform Verification",
+          "description": "Configure site verification meta tokens for search platforms."
+        }
+      },
+      "statusEnabled": "Enabled",
+      "statusDisabled": "Disabled",
+      "overview": {
+        "indexing": "Effective indexing",
+        "canonical": "Canonical",
+        "sitemap": "Sitemap",
+        "schema": "Schema.org"
+      },
+      "localProtectionTitle": "Local URL is automatically noindex",
+      "localProtectionDescription": "The current site URL points to a local or preview environment, so noindex is emitted even when indexing is enabled.",
+      "robotsPreview": "Robots preview",
+      "checklist": "Launch checklist",
+      "checkMetaDescription": "Default description is configured",
+      "checkOgImage": "Social sharing image is configured",
+      "checkSitemap": "Sitemap is enabled",
+      "checkSchema": "Structured data is enabled",
+      "metaTitleTemplate": "Meta title template",
+      "metaTitleTemplatePlaceholder": "e.g. {title} - {siteName}",
+      "metaDescription": "Meta description",
+      "metaDescriptionPlaceholder": "Default description shown in search results (max ~160 chars)",
+      "metaKeywords": "Meta keywords",
+      "metaKeywordsPlaceholder": "Comma-separated keywords, e.g. forum, community, tech",
+      "ogImageUrl": "OG image URL",
+      "ogImageUrlPlaceholder": "https://example.com/og-image.png",
+      "twitterCard": "Twitter Card",
+      "twitterCardLarge": "Large image card",
+      "twitterCardSummary": "Summary card",
+      "twitterSite": "Twitter account",
+      "allowIndexing": "Search engine indexing",
+      "allowIndexingDescription": "When enabled, production sites emit index/follow; local URLs remain noindex.",
+      "indexingEnabled": "Allow indexing",
+      "indexingDisabled": "Discourage indexing",
+      "extraAllow": "Extra allowed paths",
+      "extraDisallow": "Extra disallowed paths",
+      "blockAiBots": "Block common AI crawlers",
+      "blockNonSeoBots": "Block common non-SEO crawlers",
+      "sitemapEnabled": "Generate sitemap.xml",
+      "sitemapEnabledDescription": "Expose indexable URLs to search engines.",
+      "sitemapStaticPages": "Include static public pages",
+      "sitemapStaticPagesDescription": "Include the home page and enabled language entry points.",
+      "sitemapForumContent": "Include forum content",
+      "sitemapForumContentDescription": "Connects after category, topic, and profile read models are available.",
+      "sitemapUrl": "Sitemap URL",
+      "schemaEnabled": "Enable Schema.org",
+      "schemaEnabledDescription": "Emit JSON-LD structured data for public pages.",
+      "schemaSearchAction": "Enable site search action",
+      "schemaSearchActionDescription": "Help search engines understand the site search entry point.",
+      "schemaDiscussion": "Enable discussion structure",
+      "schemaDiscussionDescription": "Topic detail pages can emit DiscussionForumPosting.",
+      "organizationLogoUrl": "Organization logo URL",
+      "googleVerification": "Google site verification",
+      "googleVerificationPlaceholder": "Verification code from Google Search Console",
+      "bingVerification": "Bing site verification",
+      "baiduVerification": "Baidu site verification",
+      "yandexVerification": "Yandex site verification"
     },
     "form": {
       "save": "Save",

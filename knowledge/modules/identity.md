@@ -25,7 +25,8 @@ Initial identity foundation is implemented.
   show when the next successful registration will become the initial
   `super_admin`.
 - Registration human verification is supported but disabled by default. When
-  the admin CAPTCHA setting `human_verification.provider=altcha` is enabled,
+  the admin CAPTCHA settings `human_verification.provider=altcha` and
+  `human_verification.scenarios.register=enabled` are enabled,
   `/api/v1/human-verification/challenge?purpose=register` returns an ALTCHA v2
   challenge, and `/api/v1/auth/register` verifies the submitted
   `humanVerification` token only after editable registration fields and
@@ -161,7 +162,8 @@ Initial identity foundation is implemented.
   challenge/verify request. Environment values remain first-run fallbacks for
   seeding missing options.
 - `apps/web/app/pages/register.vue` renders the ALTCHA widget client-side only
-  when public option `human_verification.provider` is `altcha`, and maps
+  when public option `human_verification.provider` is `altcha`, reads the
+  public ALTCHA widget type/auto/display/worker/min-duration settings, and maps
   `human_verification.*`, `rate_limit.exceeded`, and
   `auth.session_unavailable` API error codes to localized messages. It also
   reads `/api/v1/auth/registration-status`, shows a first-user super-admin

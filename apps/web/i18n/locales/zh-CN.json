@@ -112,6 +112,10 @@
       "selected": "当前选择",
       "noSelection": "尚未选择",
       "empty": "没有匹配的图标。",
+      "loading": "正在加载图标...",
+      "loadFailed": "图标加载失败。",
+      "retry": "重试",
+      "count": "已显示 {shown} / {total}",
       "customLabel": "自定义 Nuxt Icon 名称",
       "customPlaceholder": "例如 i-tabler-home 或 lucide:settings-2",
       "useCustom": "使用",
@@ -146,6 +150,8 @@
       "roles": "用户组",
       "rolesBadge": "RBAC",
       "settings": "站点设置",
+      "seo": "SEO 设置",
+      "attachments": "附件设置",
       "forumHome": "论坛首页",
       "system": "系统配置",
       "userPermission": "用户/权限",
@@ -187,6 +193,123 @@
           "description": "为论坛名称、注册策略和内容策略预留入口。"
         }
       }
+    },
+    "attachments": {
+      "metaTitle": "附件设置",
+      "title": "附件设置",
+      "intro": "配置上传存储提供商、访问链接和附件治理规则。",
+      "toolbar": "附件上传由 API 权限控制，后台配置只影响运行时存储策略。",
+      "refresh": "刷新",
+      "settingsLoadFailed": "附件设置加载失败。",
+      "tabs": {
+        "label": "附件设置页签",
+        "settings": "基础配置",
+        "manager": "附件管理"
+      },
+      "settingsTitle": "基础配置",
+      "settingsDescription": "选择存储提供商，设置路径模板、访问域名、大小限制和文件类型规则。",
+      "settingsSaved": "附件设置已保存。",
+      "settingsSaveFailed": "附件设置保存失败。",
+      "saveSettings": "保存附件设置",
+      "testConnection": "测试连接",
+      "testPassed": "存储连接正常。",
+      "testFailed": "存储连接测试失败。",
+      "provider": "存储提供商",
+      "providers": {
+        "local": "本地上传",
+        "aliyunOss": "阿里云 OSS",
+        "tencentCos": "腾讯云 COS",
+        "ftp": "FTP",
+        "sftp": "远程服务器 SFTP"
+      },
+      "uploadEnabled": "启用附件上传",
+      "uploadEnabledDescription": "关闭后普通用户不能继续上传新附件，已有附件仍可按权限访问。",
+      "maxFileSize": "单文件大小上限",
+      "pathTemplate": "上传路径模板",
+      "pathPreview": "预览：",
+      "publicBaseUrl": "公共访问根地址",
+      "defaultVisibility": "默认可见性",
+      "visibility": {
+        "public": "公开",
+        "private": "私有"
+      },
+      "allowedExtensions": "允许扩展名",
+      "allowedMimeTypes": "允许 MIME 类型",
+      "cleanupDays": "孤儿附件保留天数",
+      "localPublicPrefix": "本地公开前缀",
+      "keepSecret": "留空表示保留当前密钥",
+      "summary": "配置摘要",
+      "aliyun": {
+        "endpoint": "Endpoint，例如 https://oss-cn-hangzhou.aliyuncs.com",
+        "bucket": "Bucket 名称",
+        "region": "地域",
+        "accessKeyId": "AccessKey ID",
+        "accessKeySecret": "AccessKey Secret"
+      },
+      "tencent": {
+        "region": "地域，例如 ap-guangzhou",
+        "bucket": "Bucket，例如 example-1250000000",
+        "secretId": "SecretId",
+        "secretKey": "SecretKey",
+        "cdnDomain": "CDN 域名或自定义域名"
+      },
+      "remote": {
+        "host": "服务器地址",
+        "port": "端口",
+        "username": "用户名",
+        "password": "密码",
+        "rootPath": "远程根路径",
+        "publicBaseUrl": "公开访问根地址"
+      },
+      "ftp": {
+        "passive": "被动模式",
+        "explicitTls": "显式 TLS"
+      },
+      "sftp": {
+        "privateKey": "SSH 私钥",
+        "passphrase": "私钥口令",
+        "hostKeyFingerprint": "主机密钥指纹"
+      },
+      "searchPlaceholder": "搜索文件名、ID 或对象路径",
+      "allProviders": "全部提供商",
+      "allStatuses": "全部状态",
+      "allReferences": "全部引用状态",
+      "referenced": "已引用",
+      "orphan": "孤儿文件",
+      "filter": "筛选",
+      "cleanup": "清理",
+      "cleanupFinished": "清理完成：删除 {deleted} 个，失败 {failed} 个。",
+      "cleanupFailed": "清理失败。",
+      "empty": "暂无附件。",
+      "selectOne": "选择一个附件查看详情。",
+      "listLoadFailed": "附件列表加载失败。",
+      "detailLoadFailed": "附件详情加载失败。",
+      "loadingDetail": "正在加载附件详情...",
+      "updateFailed": "附件状态更新失败。",
+      "deleteFailed": "附件删除失败。",
+      "file": "文件",
+      "size": "大小",
+      "references": "引用",
+      "statusLabel": "状态",
+      "createdAt": "创建时间",
+      "status": {
+        "active": "正常",
+        "disabled": "已禁用",
+        "deleted": "已删除"
+      },
+      "objectKey": "对象路径",
+      "sha256": "SHA-256",
+      "owner": "上传者",
+      "url": "访问地址",
+      "open": "打开",
+      "copyLink": "复制链接",
+      "copied": "链接已复制。",
+      "disable": "禁用",
+      "restore": "恢复",
+      "delete": "删除",
+      "referencesTitle": "引用记录",
+      "noReferences": "暂无业务引用。",
+      "noReferenceContext": "无引用上下文"
     },
     "roles": {
       "metaTitle": "用户组",
@@ -290,7 +413,8 @@
       "admin": "后台管理",
       "identity": "用户与身份",
       "forum": "论坛内容",
-      "moderation": "内容审核"
+      "moderation": "内容审核",
+      "attachment": "附件系统"
     },
     "permissionCatalog": {
       "admin": {
@@ -375,6 +499,28 @@
         "manage": {
           "label": "管理站点设置",
           "description": "修改站点名称、语言、人机验证等运行时设置。"
+        }
+      },
+      "seo": {
+        "manage": {
+          "label": "管理 SEO 设置",
+          "description": "修改搜索引擎索引、站点地图、结构化数据和搜索平台验证。"
+        }
+      },
+      "attachment": {
+        "upload": {
+          "label": "上传附件",
+          "description": "允许登录用户上传附件。"
+        },
+        "manage": {
+          "label": "管理附件",
+          "description": "查看、筛选、禁用、恢复、删除和清理已上传附件。"
+        },
+        "settings": {
+          "manage": {
+            "label": "管理附件设置",
+            "description": "修改附件存储提供商、上传限制、访问 URL 和密钥配置。"
+          }
         }
       }
     },
@@ -475,8 +621,195 @@
         "secretConfigured": "密钥已设置",
         "secretMissing": "密钥未设置",
         "challengeTTL": "挑战有效期",
-        "cost": "计算成本"
+        "challengeTTLHint": "单位为分钟。建议 20 分钟；10 分钟更严格，30-60 分钟适合填写较慢的表单。",
+        "minutesOption": "{count} 分钟",
+        "cost": "计算成本",
+        "costHint": "ALTCHA 的计算成本是客户端 PBKDF2 工作因子。数值越高，用户设备计算越久；建议先用 1000，风险较高时再测试 3000 或 5000。",
+        "generateSecret": "生成密钥",
+        "showSecret": "显示密钥",
+        "hideSecret": "隐藏密钥",
+        "secretHint": "建议使用 32 字节随机密钥。输入新密钥并保存后才会替换当前密钥；留空会保留原密钥。",
+        "secretGenerated": "已生成新的 ALTCHA 密钥，保存后生效。",
+        "secretGenerateUnavailable": "当前浏览器不支持安全随机数生成。",
+        "scenarios": {
+          "title": "启用场景",
+          "description": "总服务为 ALTCHA 时，下列场景会按需要求验证码；API 校验仍是最终边界。",
+          "register": {
+            "label": "用户注册",
+            "description": "新账号提交注册表单时要求完成验证码。"
+          },
+          "passwordReset": {
+            "label": "密码找回",
+            "description": "发起账号找回或重置邮件前要求验证码；对应流程接入后生效。"
+          },
+          "loginRisk": {
+            "label": "登录风险",
+            "description": "异常 IP、失败次数过多或新设备登录时可要求验证码。"
+          },
+          "postRisk": {
+            "label": "发帖风险",
+            "description": "发布、回复或高频操作触发风控时可要求验证码。"
+          }
+        },
+        "costOptions": {
+          "1000": "1000 轻量",
+          "3000": "3000 均衡",
+          "5000": "5000 更强"
+        },
+        "widget": {
+          "title": "前端组件行为",
+          "description": "这些配置会直接下发给 ALTCHA widget，控制用户看到的样式和触发时机。",
+          "type": "交互样式",
+          "typeHint": "建议使用复选框；开关更轻量，原生样式更接近浏览器控件。",
+          "typeOptions": {
+            "native": "原生",
+            "checkbox": "复选框",
+            "switch": "开关"
+          },
+          "auto": "自动触发",
+          "autoHint": "建议保持关闭，让用户明确触发；高风险表单可选择聚焦或提交时自动验证。",
+          "autoOptions": {
+            "off": "关闭",
+            "onfocus": "聚焦表单时",
+            "onload": "页面加载后",
+            "onsubmit": "提交表单时"
+          },
+          "display": "展示模式",
+          "displayHint": "标准模式最稳定；浮动/覆盖层适合空间紧张的表单。",
+          "displayOptions": {
+            "standard": "标准",
+            "bar": "底部/顶部条",
+            "floating": "浮动",
+            "overlay": "覆盖层",
+            "invisible": "不可见"
+          },
+          "hideLogo": "隐藏 ALTCHA 图标",
+          "hideLogoHint": "保持注册页更简洁，不影响服务端校验。",
+          "hideFooter": "隐藏 ALTCHA 页脚",
+          "hideFooterHint": "隐藏组件内 attribution 页脚，保留核心验证体验。",
+          "workers": "计算线程数",
+          "workersHint": "建议 2。数值越高越快，但低端设备占用更明显；范围 1-16。",
+          "minDuration": "最短验证时间",
+          "minDurationHint": "单位毫秒。建议 500，让快速设备也有稳定反馈；0 表示不额外等待。",
+          "msOption": "{count} ms"
+        },
+        "config": {
+          "title": "ALTCHA 当前配置",
+          "description": "以下是 SForum 当前 ALTCHA 集成正在使用或固定的配置项。",
+          "algorithm": "算法",
+          "signature": "签名",
+          "challengeEndpoint": "挑战接口",
+          "widgetType": "组件样式",
+          "widgetAuto": "自动触发",
+          "widgetDisplay": "展示模式",
+          "replayProtection": "重放保护",
+          "replayProtectionValue": "Redis 单次使用令牌",
+          "rateLimit": "频率限制",
+          "rateLimitValue": "每 IP 每分钟 60 次",
+          "clientWidget": "前端组件"
+        }
       }
+    },
+    "seo": {
+      "metaTitle": "SEO 设置",
+      "title": "SEO 设置",
+      "intro": "控制搜索引擎如何索引你的站点，以及搜索结果和社交预览中显示的内容。",
+      "toolbar": "SEO 设置会通过 web_options 运行时下发到前台页面。",
+      "refresh": "刷新",
+      "loadFailed": "SEO 设置加载失败。",
+      "saved": "SEO 设置已保存。",
+      "saveFailed": "SEO 设置保存失败。",
+      "save": "保存 SEO 设置",
+      "tabs": {
+        "label": "SEO 设置分区",
+        "overview": "总览",
+        "meta": "Meta 与社交",
+        "robots": "索引与 Robots",
+        "sitemap": "站点地图",
+        "schema": "结构化数据",
+        "verification": "站点验证"
+      },
+      "sections": {
+        "overview": {
+          "title": "SEO 总览",
+          "description": "查看当前索引状态、canonical、sitemap 和 robots 输出。"
+        },
+        "meta": {
+          "title": "Meta 与社交预览",
+          "description": "配置默认标题模板、描述、关键词、OG 图片和 Twitter Card。"
+        },
+        "robots": {
+          "title": "索引与 Robots",
+          "description": "控制全站索引、robots.txt 额外规则和爬虫访问边界。"
+        },
+        "sitemap": {
+          "title": "站点地图",
+          "description": "控制 sitemap.xml 的生成范围，为论坛内容索引预留入口。"
+        },
+        "schema": {
+          "title": "结构化数据",
+          "description": "输出 WebSite、Organization、搜索动作和论坛讨论结构化数据。"
+        },
+        "verification": {
+          "title": "搜索平台验证",
+          "description": "配置主流搜索平台的站点验证 meta token。"
+        }
+      },
+      "statusEnabled": "已启用",
+      "statusDisabled": "已关闭",
+      "overview": {
+        "indexing": "有效索引",
+        "canonical": "Canonical",
+        "sitemap": "Sitemap",
+        "schema": "Schema.org"
+      },
+      "localProtectionTitle": "本地地址已自动阻止索引",
+      "localProtectionDescription": "当前站点 URL 指向本地或预览环境，即使开启索引也会输出 noindex。",
+      "robotsPreview": "Robots 预览",
+      "checklist": "上线检查",
+      "checkMetaDescription": "已配置默认描述",
+      "checkOgImage": "已配置社交分享图片",
+      "checkSitemap": "已启用站点地图",
+      "checkSchema": "已启用结构化数据",
+      "metaTitleTemplate": "Meta 标题模板",
+      "metaTitleTemplatePlaceholder": "例如 {title} - {siteName}",
+      "metaDescription": "Meta 描述",
+      "metaDescriptionPlaceholder": "显示在搜索结果中的默认描述（最长约 160 字符）",
+      "metaKeywords": "Meta 关键词",
+      "metaKeywordsPlaceholder": "英文逗号分隔，例如 forum, community, tech",
+      "ogImageUrl": "OG 图片地址",
+      "ogImageUrlPlaceholder": "https://example.com/og-image.png",
+      "twitterCard": "Twitter Card",
+      "twitterCardLarge": "大图卡片",
+      "twitterCardSummary": "摘要卡片",
+      "twitterSite": "Twitter 账号",
+      "allowIndexing": "搜索引擎索引",
+      "allowIndexingDescription": "开启后，生产站点会输出 index/follow；本地地址仍会自动 noindex。",
+      "indexingEnabled": "允许索引",
+      "indexingDisabled": "阻止索引",
+      "extraAllow": "额外允许路径",
+      "extraDisallow": "额外禁止路径",
+      "blockAiBots": "阻止常见 AI 爬虫",
+      "blockNonSeoBots": "阻止常见非 SEO 爬虫",
+      "sitemapEnabled": "生成 sitemap.xml",
+      "sitemapEnabledDescription": "向搜索引擎公开可索引 URL 列表。",
+      "sitemapStaticPages": "包含静态公开页面",
+      "sitemapStaticPagesDescription": "包含首页和已启用语言的公开入口。",
+      "sitemapForumContent": "包含论坛内容",
+      "sitemapForumContentDescription": "分类、主题和资料页 read model 落地后接入。",
+      "sitemapUrl": "站点地图地址",
+      "schemaEnabled": "启用 Schema.org",
+      "schemaEnabledDescription": "为公开页面输出 JSON-LD 结构化数据。",
+      "schemaSearchAction": "启用站内搜索动作",
+      "schemaSearchActionDescription": "让搜索引擎理解站点搜索入口。",
+      "schemaDiscussion": "启用论坛讨论结构",
+      "schemaDiscussionDescription": "主题详情页可输出 DiscussionForumPosting。",
+      "organizationLogoUrl": "组织 Logo 地址",
+      "googleVerification": "Google 站点验证",
+      "googleVerificationPlaceholder": "Google Search Console 验证代码",
+      "bingVerification": "Bing 站点验证",
+      "baiduVerification": "百度站点验证",
+      "yandexVerification": "Yandex 站点验证"
     },
     "form": {
       "save": "保存",

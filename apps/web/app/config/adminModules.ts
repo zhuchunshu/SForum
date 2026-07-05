@@ -84,6 +84,21 @@ export const adminPageDefinitions = [
     icon: 'i-lucide-settings-2',
     componentName: 'AdminSettings',
     requiredPermissions: ['settings.manage']
+  },
+  {
+    id: '/seo',
+    labelKey: 'admin.nav.seo',
+    icon: 'i-lucide-search',
+    componentName: 'AdminSeo',
+    requiredPermissions: ['seo.manage']
+  },
+  {
+    id: '/attachments',
+    labelKey: 'admin.nav.attachments',
+    icon: 'i-lucide-paperclip',
+    componentName: 'AdminAttachments',
+    requiredPermissions: ['attachment.settings.manage', 'attachment.manage'],
+    permissionMode: 'any'
   }
 ] as const satisfies readonly AdminPageDefinition[]
 
@@ -108,9 +123,11 @@ export const adminSidebarNavigation = [
       icon: 'i-lucide-settings-2',
       defaultOpen: true,
       children: [
-        { type: 'page', pageId: '/settings' }
+        { type: 'page', pageId: '/settings' },
+        { type: 'page', pageId: '/seo' }
       ]
-    }
+    },
+    { type: 'page', pageId: '/attachments' }
   ],
   [
     {

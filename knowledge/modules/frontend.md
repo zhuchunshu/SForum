@@ -80,6 +80,11 @@ and the admin personalization page edits the theme plus footer copyright/link
 content. Nuxt UI's generated `--ui-color-primary-*` and `--ui-primary` tokens
 are bridged to the same runtime theme variables so admin sidebar highlights and
 `color="primary"` controls do not keep Nuxt UI's default green.
+SEO now reads runtime `seo.*` options through `useWebOptions()` and public pages
+should use `useSForumSeo()` for title templates, descriptions, canonical URLs,
+robots meta, Open Graph/Twitter tags, verification tags, and minimal JSON-LD.
+The Nuxt sitemap module uses a dynamic server source and robots.txt is extended
+through a Nitro hook. Local and preview URLs are always noindex.
 Admin route middleware distinguishes real unauthenticated responses from
 temporary auth-service failures. A 401 or `auth.required` redirects to login;
 API restart/502/timeout cases show a temporary unavailable error instead of

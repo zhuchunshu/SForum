@@ -34,6 +34,7 @@ func NewConfiguredService(cfg RuntimeConfig, store Store) (*Service, error) {
 			ServiceConfig{
 				Enabled:         true,
 				ChallengeTTL:    cfg.AltchaTTL,
+				EnabledPurposes: cfg.PurposeEnabled,
 				RateLimit:       cfg.RateLimit,
 				RateLimitWindow: cfg.RateLimitWindow,
 			},
@@ -86,6 +87,9 @@ func normalizeRuntimeConfig(cfg RuntimeConfig) RuntimeConfig {
 	}
 	if cfg.AltchaCost <= 0 {
 		cfg.AltchaCost = 1000
+	}
+	if cfg.PurposeEnabled != nil {
+		cfg.PurposeEnabled = copyPurposeMap(cfg.PurposeEnabled)
 	}
 	if cfg.RateLimitWindow <= 0 {
 		cfg.RateLimitWindow = time.Minute

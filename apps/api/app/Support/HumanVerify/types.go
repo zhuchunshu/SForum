@@ -78,6 +78,7 @@ type Store interface {
 type ServiceConfig struct {
 	Enabled         bool
 	ChallengeTTL    time.Duration
+	EnabledPurposes map[Purpose]bool
 	RateLimit       int
 	RateLimitWindow time.Duration
 }
@@ -87,6 +88,7 @@ type RuntimeConfig struct {
 	AltchaSecret    string
 	AltchaTTL       time.Duration
 	AltchaCost      int
+	PurposeEnabled  map[Purpose]bool
 	RateLimit       int
 	RateLimitWindow time.Duration
 }

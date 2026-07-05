@@ -91,6 +91,31 @@ export default defineNuxtConfig({
   schemaOrg: {
     enabled: false
   },
+  robots: {
+    credits: false,
+    header: false,
+    sitemap: '/sitemap.xml',
+    disallow: [
+      '/api/',
+      '/login',
+      '/register',
+      '/components',
+      adminRoutePrefix,
+      `${adminRoutePrefix}/`
+    ]
+  },
+  sitemap: {
+    credits: false,
+    includeAppSources: false,
+    sources: ['/api/_sitemap-urls'],
+    exclude: [
+      '/api/**',
+      '/login',
+      '/register',
+      '/components',
+      `${adminRoutePrefix}/**`
+    ]
+  },
   runtimeConfig: {
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || '/api/v1',

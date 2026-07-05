@@ -6,7 +6,7 @@ const localeHead = useLocaleHead({
   lang: true,
   seo: true
 })
-const { siteName, resolvedAppearanceTheme, refresh: refreshWebOptions } = useWebOptions()
+const { siteName, resolvedAppearanceTheme, seoSettings, refresh: refreshWebOptions } = useWebOptions()
 const { refresh: refreshAuthSession } = useAuthSession()
 const startupOptionsTimeout = import.meta.dev ? 800 : 2000
 
@@ -36,7 +36,9 @@ useHead(() => {
     htmlAttrs,
     link: localeHead.value.link,
     meta: localeHead.value.meta,
-    titleTemplate: (title) => title ? `${title} - ${siteName.value}` : siteName.value
+    titleTemplate: (title) => title
+      ? applySEOTitleTemplate(title, seoSettings.value.metaTitleTemplate, siteName.value)
+      : siteName.value
   }
 })
 </script>

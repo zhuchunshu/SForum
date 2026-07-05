@@ -22,6 +22,45 @@ export type ResolvedAppearanceTheme = {
 }
 export type FooterLocale = 'zh-CN' | 'en-US'
 export type FooterLinkKey = 'terms' | 'privacy' | 'guidelines'
+export type HumanVerificationScenario = 'register' | 'password_reset' | 'login_risk' | 'post_risk'
+export type AltchaWidgetType = 'native' | 'checkbox' | 'switch'
+export type AltchaWidgetAuto = 'off' | 'onfocus' | 'onload' | 'onsubmit'
+export type AltchaWidgetDisplay = 'standard' | 'bar' | 'floating' | 'overlay' | 'invisible'
+export type AltchaWidgetSettings = {
+  type: AltchaWidgetType
+  auto: AltchaWidgetAuto
+  display: AltchaWidgetDisplay
+  hideLogo: boolean
+  hideFooter: boolean
+  workers: number
+  minDuration: number
+}
+export type SEOTwitterCard = 'summary' | 'summary_large_image'
+
+export type SEOSettings = {
+  metaTitleTemplate: string
+  metaDescription: string
+  metaKeywords: string
+  ogImageUrl: string
+  twitterCard: SEOTwitterCard
+  twitterSite: string
+  allowIndexing: boolean
+  googleVerification: string
+  bingVerification: string
+  baiduVerification: string
+  yandexVerification: string
+  robotsExtraAllow: string[]
+  robotsExtraDisallow: string[]
+  blockAiBots: boolean
+  blockNonSeoBots: boolean
+  sitemapEnabled: boolean
+  sitemapIncludeStaticPages: boolean
+  sitemapIncludeForumContent: boolean
+  schemaOrgEnabled: boolean
+  schemaOrgSearchActionEnabled: boolean
+  schemaOrgDiscussionEnabled: boolean
+  schemaOrgOrganizationLogoUrl: string
+}
 
 export type FooterLinkOption = {
   key: FooterLinkKey
@@ -35,8 +74,20 @@ type RefreshOptions = {
 
 export const appearanceThemes: AppearanceThemePreset[] = ['pine_teal', 'ocean_blue', 'violet', 'rose', 'amber']
 export const defaultCustomThemeColor = '#2563eb'
+export const humanVerificationScenarios: HumanVerificationScenario[] = ['register', 'password_reset', 'login_risk', 'post_risk']
+export const altchaWidgetTypes: AltchaWidgetType[] = ['native', 'checkbox', 'switch']
+export const altchaWidgetAutoModes: AltchaWidgetAuto[] = ['off', 'onfocus', 'onload', 'onsubmit']
+export const altchaWidgetDisplays: AltchaWidgetDisplay[] = ['standard', 'bar', 'floating', 'overlay', 'invisible']
 
 const customThemePrefix = 'custom:'
+const enabledOption = 'enabled'
+const disabledOption = 'disabled'
+const humanVerificationScenarioDefaults: Record<HumanVerificationScenario, boolean> = {
+  register: true,
+  password_reset: false,
+  login_risk: false,
+  post_risk: false
+}
 
 const defaultFooterLinks: FooterLinkOption[] = [
   {
@@ -62,10 +113,43 @@ const fallbackOptions: Record<string, string> = {
   'site.default_locale': 'zh-CN',
   'site.supported_locales': 'zh-CN,en-US',
   'human_verification.provider': 'disabled',
+  'human_verification.scenarios.register': enabledOption,
+  'human_verification.scenarios.password_reset': disabledOption,
+  'human_verification.scenarios.login_risk': disabledOption,
+  'human_verification.scenarios.post_risk': disabledOption,
+  'human_verification.altcha.widget.type': 'checkbox',
+  'human_verification.altcha.widget.auto': 'off',
+  'human_verification.altcha.widget.display': 'standard',
+  'human_verification.altcha.widget.hide_logo': enabledOption,
+  'human_verification.altcha.widget.hide_footer': enabledOption,
+  'human_verification.altcha.widget.workers': '2',
+  'human_verification.altcha.widget.min_duration_ms': '500',
   'appearance.theme': 'pine_teal',
   'footer.copyright.zh-CN': '© {year} {siteName}。保留所有权利。',
   'footer.copyright.en-US': '© {year} {siteName}. All rights reserved.',
-  'footer.links': JSON.stringify(defaultFooterLinks)
+  'footer.links': JSON.stringify(defaultFooterLinks),
+  'seo.meta_title_template': '',
+  'seo.meta_description': '',
+  'seo.meta_keywords': '',
+  'seo.og_image_url': '',
+  'seo.twitter_card': 'summary_large_image',
+  'seo.twitter_site': '',
+  'seo.allow_indexing': 'enabled',
+  'seo.google_verification': '',
+  'seo.bing_verification': '',
+  'seo.baidu_verification': '',
+  'seo.yandex_verification': '',
+  'seo.robots.extra_allow': '',
+  'seo.robots.extra_disallow': '',
+  'seo.robots.block_ai_bots': disabledOption,
+  'seo.robots.block_non_seo_bots': disabledOption,
+  'seo.sitemap.enabled': enabledOption,
+  'seo.sitemap.include_static_pages': enabledOption,
+  'seo.sitemap.include_forum_content': disabledOption,
+  'seo.schema_org.enabled': enabledOption,
+  'seo.schema_org.search_action_enabled': enabledOption,
+  'seo.schema_org.discussion_enabled': enabledOption,
+  'seo.schema_org.organization_logo_url': ''
 }
 
 export const useWebOptions = () => {
@@ -142,6 +226,24 @@ export const useWebOptions = () => {
     const provider = webOption('human_verification.provider', 'disabled').trim().toLowerCase()
     return provider === 'altcha' ? 'altcha' : 'disabled'
   })
+  const humanVerificationScenarioSettings = computed<Record<HumanVerificationScenario, boolean>>(() => {
+    return Object.fromEntries(
+      humanVerificationScenarios.map((scenario) => [
+        scenario,
+        normalizeEnabledOption(
+          webOption(humanVerificationScenarioOptionName(scenario)),
+          humanVerificationScenarioDefaults[scenario]
+        )
+      ])
+    ) as Record<HumanVerificationScenario, boolean>
+  })
+  const altchaWidgetSettings = computed(() => resolveAltchaWidgetSettings(options.value))
+  const seoSettings = computed(() => resolveSEOSettings(options.value))
+  const seoIndexable = computed(() => isSEOIndexingAllowed(seoSettings.value, siteUrl.value))
+
+  function humanVerificationEnabledFor(scenario: HumanVerificationScenario) {
+    return humanVerificationProvider.value === 'altcha' && humanVerificationScenarioSettings.value[scenario]
+  }
 
   function footerCopyrightTemplate(localeCode: string) {
     return footerCopyright.value[normalizeFooterLocale(localeCode)]
@@ -162,6 +264,11 @@ export const useWebOptions = () => {
     footerCopyright,
     footerLinks,
     humanVerificationProvider,
+    humanVerificationScenarioSettings,
+    altchaWidgetSettings,
+    seoSettings,
+    seoIndexable,
+    humanVerificationEnabledFor,
     webOption,
     footerCopyrightTemplate,
     footerLinkLabel,
@@ -239,6 +346,97 @@ function normalizeFooterLocale(localeCode: string): FooterLocale {
   return localeCode.toLowerCase().startsWith('en') ? 'en-US' : 'zh-CN'
 }
 
+export function resolveSEOSettings(values: Record<string, string>): SEOSettings {
+  const option = (name: string) => values[name] ?? fallbackOptions[name] ?? ''
+  return {
+    metaTitleTemplate: option('seo.meta_title_template').trim(),
+    metaDescription: option('seo.meta_description').trim(),
+    metaKeywords: option('seo.meta_keywords').trim(),
+    ogImageUrl: option('seo.og_image_url').trim(),
+    twitterCard: normalizeSEOTwitterCard(option('seo.twitter_card')),
+    twitterSite: normalizeSEOTwitterSite(option('seo.twitter_site')),
+    allowIndexing: normalizeEnabledOption(option('seo.allow_indexing'), true),
+    googleVerification: normalizeSEOVerificationToken(option('seo.google_verification')),
+    bingVerification: normalizeSEOVerificationToken(option('seo.bing_verification')),
+    baiduVerification: normalizeSEOVerificationToken(option('seo.baidu_verification')),
+    yandexVerification: normalizeSEOVerificationToken(option('seo.yandex_verification')),
+    robotsExtraAllow: parseSEORobotsPathList(option('seo.robots.extra_allow')),
+    robotsExtraDisallow: parseSEORobotsPathList(option('seo.robots.extra_disallow')),
+    blockAiBots: normalizeEnabledOption(option('seo.robots.block_ai_bots')),
+    blockNonSeoBots: normalizeEnabledOption(option('seo.robots.block_non_seo_bots')),
+    sitemapEnabled: normalizeEnabledOption(option('seo.sitemap.enabled'), true),
+    sitemapIncludeStaticPages: normalizeEnabledOption(option('seo.sitemap.include_static_pages'), true),
+    sitemapIncludeForumContent: normalizeEnabledOption(option('seo.sitemap.include_forum_content')),
+    schemaOrgEnabled: normalizeEnabledOption(option('seo.schema_org.enabled'), true),
+    schemaOrgSearchActionEnabled: normalizeEnabledOption(option('seo.schema_org.search_action_enabled'), true),
+    schemaOrgDiscussionEnabled: normalizeEnabledOption(option('seo.schema_org.discussion_enabled'), true),
+    schemaOrgOrganizationLogoUrl: option('seo.schema_org.organization_logo_url').trim()
+  }
+}
+
+export function normalizeSEOTwitterCard(value: string | undefined): SEOTwitterCard {
+  return value?.trim().toLowerCase() === 'summary' ? 'summary' : 'summary_large_image'
+}
+
+export function normalizeSEOTwitterSite(value: string | undefined) {
+  const raw = value?.trim() || ''
+  if (!raw) {
+    return ''
+  }
+  const withoutAt = raw.replace(/^@+/, '')
+  return withoutAt ? `@${withoutAt}` : ''
+}
+
+export function normalizeSEOVerificationToken(value: string | undefined) {
+  const raw = value?.trim() || ''
+  if (!raw || raw.length > 120) {
+    return ''
+  }
+  return /[\s<>"']/.test(raw) ? '' : raw
+}
+
+export function parseSEORobotsPathList(value: string | undefined) {
+  const seen = new Set<string>()
+  return (value || '')
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter((item) => {
+      if (!item || !item.startsWith('/') || item.startsWith('//') || /[\s<>"']/.test(item) || seen.has(item)) {
+        return false
+      }
+      seen.add(item)
+      return true
+    })
+}
+
+export function isLocalSiteUrl(value: string | undefined) {
+  try {
+    const url = new URL(value || '')
+    return ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(url.hostname)
+  } catch {
+    return true
+  }
+}
+
+export function isSEOIndexingAllowed(settings: SEOSettings, siteUrl: string) {
+  return settings.allowIndexing && !isLocalSiteUrl(siteUrl)
+}
+
+export function applySEOTitleTemplate(title: string, template: string, siteName: string) {
+  const cleanTitle = title.trim()
+  const cleanSiteName = siteName.trim() || 'SForum'
+  const cleanTemplate = template.trim()
+  if (!cleanTitle) {
+    return cleanSiteName
+  }
+  if (!cleanTemplate) {
+    return `${cleanTitle} - ${cleanSiteName}`
+  }
+  return cleanTemplate
+    .replaceAll('{title}', cleanTitle)
+    .replaceAll('{siteName}', cleanSiteName)
+}
+
 export function normalizeAppearanceThemeValue(value: string | undefined): AppearanceTheme {
   const raw = value?.trim().toLowerCase() || ''
   if (isAppearanceThemePreset(raw)) {
@@ -297,6 +495,72 @@ export function resolveAppearanceTheme(value: string): ResolvedAppearanceTheme {
 export function normalizeHexColor(value: string | undefined): string | null {
   const raw = value?.trim().toLowerCase().replace(/^#/, '') || ''
   return /^[0-9a-f]{6}$/.test(raw) ? `#${raw}` : null
+}
+
+export function humanVerificationScenarioOptionName(scenario: HumanVerificationScenario) {
+  return `human_verification.scenarios.${scenario}`
+}
+
+export function resolveAltchaWidgetSettings(values: Record<string, string>): AltchaWidgetSettings {
+  const option = (name: string) => values[name] ?? fallbackOptions[name] ?? ''
+  return {
+    type: normalizeAltchaWidgetType(option('human_verification.altcha.widget.type')),
+    auto: normalizeAltchaWidgetAuto(option('human_verification.altcha.widget.auto')),
+    display: normalizeAltchaWidgetDisplay(option('human_verification.altcha.widget.display')),
+    hideLogo: normalizeEnabledOption(option('human_verification.altcha.widget.hide_logo'), true),
+    hideFooter: normalizeEnabledOption(option('human_verification.altcha.widget.hide_footer'), true),
+    workers: normalizeBoundedInteger(option('human_verification.altcha.widget.workers'), 2, 1, 16),
+    minDuration: normalizeBoundedInteger(option('human_verification.altcha.widget.min_duration_ms'), 500, 0, 10000)
+  }
+}
+
+export function normalizeAltchaWidgetType(value: string | undefined): AltchaWidgetType {
+  return normalizeStringChoice(value, altchaWidgetTypes, 'checkbox')
+}
+
+export function normalizeAltchaWidgetAuto(value: string | undefined): AltchaWidgetAuto {
+  return normalizeStringChoice(value, altchaWidgetAutoModes, 'off')
+}
+
+export function normalizeAltchaWidgetDisplay(value: string | undefined): AltchaWidgetDisplay {
+  return normalizeStringChoice(value, altchaWidgetDisplays, 'standard')
+}
+
+export function enabledOptionValue(enabled: boolean) {
+  return enabled ? enabledOption : disabledOption
+}
+
+export function normalizeEnabledOption(value: string | undefined, fallback = false) {
+  switch (value?.trim().toLowerCase()) {
+    case enabledOption:
+    case 'true':
+    case '1':
+    case 'yes':
+    case 'on':
+      return true
+    case disabledOption:
+    case 'false':
+    case '0':
+    case 'no':
+    case 'off':
+      return false
+    default:
+      return fallback
+  }
+}
+
+function normalizeStringChoice<T extends string>(value: string | undefined, choices: readonly T[], fallback: T): T {
+  const normalized = value?.trim().toLowerCase()
+  return choices.find((choice) => choice === normalized) || fallback
+}
+
+function normalizeBoundedInteger(value: string | undefined, fallback: number, min: number, max: number) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) {
+    return fallback
+  }
+  const normalized = Math.trunc(parsed)
+  return normalized >= min && normalized <= max ? normalized : fallback
 }
 
 function buildCustomThemeVars(color: string): Record<string, string> {

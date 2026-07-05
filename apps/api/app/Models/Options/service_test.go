@@ -8,6 +8,7 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 )
 
 func TestServiceReturnsDefaultSiteName(t *testing.T) {
@@ -38,8 +39,14 @@ func TestServiceListsOnlyPublicOptions(t *testing.T) {
 			t.Fatalf("public list should not expose altcha secret: %#v", items)
 		}
 	}
-	if len(items) != 9 {
-		t.Fatalf("expected 9 public options, got %#v", items)
+	if adminValueFromPublic(items, NameHumanVerificationRegister) != "enabled" {
+		t.Fatalf("expected public register verification scenario, got %#v", items)
+	}
+	if adminValueFromPublic(items, NameHumanVerificationLoginRisk) != "disabled" {
+		t.Fatalf("expected public login risk verification scenario, got %#v", items)
+	}
+	if adminValueFromPublic(items, NameSEOTwitterCard) != "summary_large_image" {
+		t.Fatalf("expected public SEO option default, got %#v", items)
 	}
 }
 
@@ -63,6 +70,25 @@ func TestServiceAdminListMasksSecrets(t *testing.T) {
 	}
 	if !secret.Secret || !secret.SecretSet || secret.Value != "" {
 		t.Fatalf("expected masked configured secret, got %#v", secret)
+	}
+	if adminValue(items, NameSEOMetaDescription) != "" {
+		t.Fatalf("settings actor should not see seo options: %#v", items)
+	}
+}
+
+func TestServiceAdminListAllowsSEOManagersToSeeSEOOptionsOnly(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+
+	items, err := service.ListAdmin(context.Background(), seoActor())
+	if err != nil {
+		t.Fatalf("ListAdmin returned error: %v", err)
+	}
+
+	if adminValue(items, NameSEOTwitterCard) != "summary_large_image" {
+		t.Fatalf("expected SEO option default, got %#v", items)
+	}
+	if adminValue(items, NameSiteName) != "" {
+		t.Fatalf("seo actor should not see settings options: %#v", items)
 	}
 }
 
@@ -180,6 +206,221 @@ func TestServiceUpdateManyKeepsBlankSecretAndRequiresSecretForAltcha(t *testing.
 	}
 }
 
+func TestServiceHumanVerificationScenarioOptions(t *testing.T) {
+	store := &fakeStore{items: map[string]string{
+		NameAltchaSecret: "existing-secret",
+	}}
+	service := NewServiceWithCacheTTL(store, time.Minute)
+	actor := settingsActor()
+
+	updated, err := service.UpdateMany(context.Background(), actor, []UpdateInput{
+		{Name: NameHumanVerificationProvider, Value: "altcha"},
+		{Name: NameHumanVerificationRegister, Value: "disabled"},
+		{Name: NameHumanVerificationLoginRisk, Value: "true"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateMany returned error: %v", err)
+	}
+	if got := adminValue(updated, NameHumanVerificationRegister); got != "disabled" {
+		t.Fatalf("expected disabled register scenario, got %q", got)
+	}
+	if got := adminValue(updated, NameHumanVerificationLoginRisk); got != "enabled" {
+		t.Fatalf("expected enabled login risk scenario, got %q", got)
+	}
+
+	cfg, err := service.HumanVerificationConfig(context.Background())
+	if err != nil {
+		t.Fatalf("HumanVerificationConfig returned error: %v", err)
+	}
+	if cfg.PurposeEnabled[humanverify.PurposeRegister] {
+		t.Fatal("expected register purpose to be disabled")
+	}
+	if !cfg.PurposeEnabled[humanverify.PurposeLoginRisk] {
+		t.Fatal("expected login risk purpose to be enabled")
+	}
+	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameHumanVerificationPostRisk, Value: "sometimes"}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("expected invalid scenario value, got %v", err)
+	}
+}
+
+func TestServiceAltchaWidgetOptions(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	actor := settingsActor()
+
+	updated, err := service.UpdateMany(context.Background(), actor, []UpdateInput{
+		{Name: NameAltchaWidgetType, Value: " switch "},
+		{Name: NameAltchaWidgetAuto, Value: "ONFOCUS"},
+		{Name: NameAltchaWidgetDisplay, Value: "floating"},
+		{Name: NameAltchaWidgetHideLogo, Value: "false"},
+		{Name: NameAltchaWidgetHideFooter, Value: "true"},
+		{Name: NameAltchaWidgetWorkers, Value: "4"},
+		{Name: NameAltchaWidgetMinDuration, Value: "1200"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateMany returned error: %v", err)
+	}
+	if got := adminValue(updated, NameAltchaWidgetType); got != "switch" {
+		t.Fatalf("expected normalized widget type, got %q", got)
+	}
+	if got := adminValue(updated, NameAltchaWidgetAuto); got != "onfocus" {
+		t.Fatalf("expected normalized auto mode, got %q", got)
+	}
+	if got := adminValue(updated, NameAltchaWidgetHideLogo); got != "disabled" {
+		t.Fatalf("expected hide logo boolean option, got %q", got)
+	}
+	if got := adminValue(updated, NameAltchaWidgetWorkers); got != "4" {
+		t.Fatalf("expected normalized workers, got %q", got)
+	}
+
+	cases := []UpdateInput{
+		{Name: NameAltchaWidgetType, Value: "button"},
+		{Name: NameAltchaWidgetAuto, Value: "always"},
+		{Name: NameAltchaWidgetDisplay, Value: "modal"},
+		{Name: NameAltchaWidgetWorkers, Value: "0"},
+		{Name: NameAltchaWidgetWorkers, Value: "17"},
+		{Name: NameAltchaWidgetMinDuration, Value: "-1"},
+		{Name: NameAltchaWidgetMinDuration, Value: "10001"},
+	}
+	for _, input := range cases {
+		if _, err := service.Update(context.Background(), actor, input); !errors.Is(err, ErrInvalidOption) {
+			t.Fatalf("expected invalid widget option for %#v, got %v", input, err)
+		}
+	}
+}
+
+func TestServiceSEOOptionsDefaultsAndValidation(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	actor := seoActor()
+
+	twitterCard, err := service.WebOption(context.Background(), NameSEOTwitterCard)
+	if err != nil {
+		t.Fatalf("default twitter card returned error: %v", err)
+	}
+	if twitterCard != "summary_large_image" {
+		t.Fatalf("expected default summary_large_image card, got %q", twitterCard)
+	}
+
+	updated, err := service.UpdateMany(context.Background(), actor, []UpdateInput{
+		{Name: NameSEOMetaTitleTemplate, Value: "  {title} - {siteName}  "},
+		{Name: NameSEOOGImageURL, Value: "https://example.com/og.png"},
+		{Name: NameSEOTwitterCard, Value: "summary"},
+		{Name: NameSEOTwitterSite, Value: "sforum_app"},
+		{Name: NameSEORobotsExtraDisallow, Value: "/admin\n/private"},
+		{Name: NameSEOBingVerification, Value: "bing-token"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateMany returned error: %v", err)
+	}
+	if got := adminValue(updated, NameSEOMetaTitleTemplate); got != "{title} - {siteName}" {
+		t.Fatalf("expected normalized title template, got %q", got)
+	}
+	if got := adminValue(updated, NameSEOTwitterSite); got != "@sforum_app" {
+		t.Fatalf("expected normalized twitter site, got %q", got)
+	}
+	if got := adminValue(updated, NameSEORobotsExtraDisallow); got != "/admin\n/private" {
+		t.Fatalf("expected normalized robots paths, got %q", got)
+	}
+
+	cases := []UpdateInput{
+		{Name: NameSEOOGImageURL, Value: "notaurl"},
+		{Name: NameSEOTwitterCard, Value: "large"},
+		{Name: NameSEORobotsExtraAllow, Value: "relative"},
+		{Name: NameSEOGoogleVerification, Value: "<script>"},
+		{Name: NameSEOMetaDescription, Value: stringsOfRunes("长", 321)},
+	}
+	for _, input := range cases {
+		if _, err := service.Update(context.Background(), actor, input); !errors.Is(err, ErrInvalidOption) {
+			t.Fatalf("expected invalid SEO option for %#v, got %v", input, err)
+		}
+	}
+}
+
+func TestServiceSEOOptionsRequireSEOManagePermission(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	settings := settingsActor()
+	seo := seoActor()
+
+	if _, err := service.Update(context.Background(), settings, UpdateInput{Name: NameSEOMetaDescription, Value: "desc"}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected settings actor to be denied SEO update, got %v", err)
+	}
+	if _, err := service.Update(context.Background(), seo, UpdateInput{Name: NameSiteName, Value: "Example"}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected SEO actor to be denied settings update, got %v", err)
+	}
+	if _, err := service.UpdateMany(context.Background(), seo, []UpdateInput{
+		{Name: NameSEOMetaDescription, Value: "desc"},
+		{Name: NameSiteName, Value: "Example"},
+	}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected mixed permission batch to be denied, got %v", err)
+	}
+	if _, err := service.Update(context.Background(), seo, UpdateInput{Name: NameSEOMetaDescription, Value: "desc"}); err != nil {
+		t.Fatalf("expected SEO actor to update SEO option, got %v", err)
+	}
+}
+
+func TestServiceAttachmentOptionsRequireAttachmentSettingsPermission(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+
+	if _, err := service.Update(context.Background(), settingsActor(), UpdateInput{Name: NameAttachmentMaxFileSizeMB, Value: "50"}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected settings actor to be denied attachment option update, got %v", err)
+	}
+
+	updated, err := service.Update(context.Background(), attachmentSettingsActor(), UpdateInput{Name: NameAttachmentMaxFileSizeMB, Value: "50"})
+	if err != nil {
+		t.Fatalf("expected attachment settings actor to update option: %v", err)
+	}
+	if updated.Value != "50" {
+		t.Fatalf("expected normalized max file size 50, got %q", updated.Value)
+	}
+}
+
+func TestServiceAttachmentOptionsMaskAndKeepSecrets(t *testing.T) {
+	store := &fakeStore{items: map[string]string{
+		NameAttachmentProvider:              "aliyun_oss",
+		NameAttachmentAliyunEndpoint:        "https://oss-cn-hangzhou.aliyuncs.com",
+		NameAttachmentAliyunBucket:          "sforum",
+		NameAttachmentAliyunAccessKeyID:     "access-key-id",
+		NameAttachmentAliyunAccessKeySecret: "existing-secret",
+	}}
+	service := NewServiceWithCacheTTL(store, time.Minute)
+	actor := attachmentSettingsActor()
+
+	updated, err := service.UpdateMany(context.Background(), actor, []UpdateInput{
+		{Name: NameAttachmentAliyunAccessKeySecret, Value: "   "},
+		{Name: NameAttachmentPathTemplate, Value: "files/{yyyy}/{public_id}{ext}"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateMany should keep existing attachment secret: %v", err)
+	}
+	if store.items[NameAttachmentAliyunAccessKeySecret] != "existing-secret" {
+		t.Fatalf("expected blank secret update to keep existing secret, got %q", store.items[NameAttachmentAliyunAccessKeySecret])
+	}
+	if item := adminSecret(updated, NameAttachmentAliyunAccessKeySecret); !item.Secret || !item.SecretSet || item.Value != "" {
+		t.Fatalf("expected masked existing attachment secret, got %#v", item)
+	}
+}
+
+func TestServiceAttachmentOptionsValidation(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	actor := attachmentSettingsActor()
+
+	cases := []UpdateInput{
+		{Name: NameAttachmentPathTemplate, Value: "../{public_id}{ext}"},
+		{Name: NameAttachmentPathTemplate, Value: "uploads/{ext}"},
+		{Name: NameAttachmentAllowedExtensions, Value: ".jpg,../sh"},
+		{Name: NameAttachmentAllowedMIMETypes, Value: "not-a-mime"},
+		{Name: NameAttachmentMaxFileSizeMB, Value: "0"},
+	}
+	for _, input := range cases {
+		if _, err := service.Update(context.Background(), actor, input); !errors.Is(err, ErrInvalidOption) {
+			t.Fatalf("expected invalid attachment option for %#v, got %v", input, err)
+		}
+	}
+
+	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAttachmentProvider, Value: "aliyun_oss"}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("expected cloud provider without required secrets to be invalid, got %v", err)
+	}
+}
+
 func TestServicePersonalizationDefaultsAndValidation(t *testing.T) {
 	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
 	actor := settingsActor()
@@ -291,7 +532,32 @@ func settingsActor() identity.Actor {
 	}
 }
 
+func seoActor() identity.Actor {
+	return identity.Actor{
+		ID:          1,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionSEOManage: true},
+	}
+}
+
+func attachmentSettingsActor() identity.Actor {
+	return identity.Actor{
+		ID:          1,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionAttachmentSettings: true},
+	}
+}
+
 func adminValue(items []AdminOption, name string) string {
+	for _, item := range items {
+		if item.Name == name {
+			return item.Value
+		}
+	}
+	return ""
+}
+
+func adminValueFromPublic(items []Option, name string) string {
 	for _, item := range items {
 		if item.Name == name {
 			return item.Value

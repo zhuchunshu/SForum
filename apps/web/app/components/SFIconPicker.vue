@@ -1,20 +1,36 @@
 <script setup lang="ts">
-type IconCollectionId = 'tabler' | 'nuxt'
-type IconSource = 'preset' | 'custom'
-
-type IconPreset = {
-  name: string
-  label: string
-  keywords: string[]
-}
+import { addCollection } from '@iconify/vue'
+import {
+  ICON_PICKER_PAGE_SIZE,
+  collectionFromName,
+  dedupeIconItems,
+  isNuxtIconName,
+  normalizeIconName,
+  type IconCollectionId,
+  type IconPickerItem,
+  type IconSource
+} from '~/utils/iconPicker'
 
 type IconCollection = {
   id: IconCollectionId
   prefix: string
   label: string
   description: string
-  icons: IconPreset[]
 }
+
+type IconifyCollectionId = 'lucide' | 'tabler'
+
+type IconCatalogResponse = {
+  collection: IconCollectionId
+  iconifyPrefix: IconifyCollectionId
+  page: number
+  pageSize: number
+  total: number
+  hasMore: boolean
+  items: IconPickerItem[]
+}
+
+type IconifyCollectionPayload = Parameters<typeof addCollection>[0]
 
 const props = withDefaults(defineProps<{
   modelValue?: string
@@ -43,76 +59,28 @@ const pickerId = computed(() => props.id || generatedId)
 const query = ref('')
 const customName = ref('')
 const activeCollectionId = ref<IconCollectionId>(collectionFromName(props.modelValue) || 'tabler')
+const loadedIcons = ref<IconPickerItem[]>([])
+const loadedPage = ref(0)
+const totalIcons = ref(0)
+const loadingIcons = ref(false)
+const iconLoadError = ref(false)
+const selectedIconRenderKey = ref(0)
 
-const tablerIcons: IconPreset[] = [
-  icon('i-tabler-layout-dashboard', 'layout-dashboard', ['dashboard', 'admin', '控制台', '仪表盘']),
-  icon('i-tabler-settings', 'settings', ['settings', 'config', '设置']),
-  icon('i-tabler-adjustments-horizontal', 'adjustments-horizontal', ['options', 'sliders', '配置']),
-  icon('i-tabler-user-circle', 'user-circle', ['user', 'profile', '用户']),
-  icon('i-tabler-user-cog', 'user-cog', ['admin', 'permission', '用户设置']),
-  icon('i-tabler-users', 'users', ['group', 'members', '用户组']),
-  icon('i-tabler-shield-lock', 'shield-lock', ['security', 'permission', '权限']),
-  icon('i-tabler-message-circle', 'message-circle', ['forum', 'topic', '帖子']),
-  icon('i-tabler-bell', 'bell', ['notice', 'notification', '通知']),
-  icon('i-tabler-search', 'search', ['find', 'query', '搜索']),
-  icon('i-tabler-tags', 'tags', ['tag', 'label', '标签']),
-  icon('i-tabler-folder', 'folder', ['category', 'board', '版块']),
-  icon('i-tabler-pin', 'pin', ['pinned', 'top', '置顶']),
-  icon('i-tabler-star', 'star', ['featured', 'favorite', '精华']),
-  icon('i-tabler-heart', 'heart', ['like', 'reaction', '喜欢']),
-  icon('i-tabler-photo', 'photo', ['image', 'media', '图片']),
-  icon('i-tabler-file-text', 'file-text', ['document', 'article', '文档']),
-  icon('i-tabler-book', 'book', ['docs', 'guide', '指南']),
-  icon('i-tabler-calendar', 'calendar', ['date', 'schedule', '日程']),
-  icon('i-tabler-mail', 'mail', ['email', 'inbox', '邮件']),
-  icon('i-tabler-database', 'database', ['data', 'storage', '数据库']),
-  icon('i-tabler-chart-bar', 'chart-bar', ['analytics', 'stats', '统计']),
-  icon('i-tabler-world', 'world', ['site', 'global', '站点']),
-  icon('i-tabler-language', 'language', ['locale', 'i18n', '语言']),
-  icon('i-tabler-plug-connected', 'plug-connected', ['integration', 'provider', '集成']),
-  icon('i-tabler-terminal-2', 'terminal-2', ['system', 'developer', '终端'])
-]
-
-const nuxtIcons: IconPreset[] = [
-  icon('i-lucide-layout-dashboard', 'layout-dashboard', ['dashboard', 'admin', '控制台', '仪表盘']),
-  icon('i-lucide-settings-2', 'settings-2', ['settings', 'config', '设置']),
-  icon('i-lucide-sliders-horizontal', 'sliders-horizontal', ['options', 'controls', '配置']),
-  icon('i-lucide-user-cog', 'user-cog', ['admin', 'permission', '用户设置']),
-  icon('i-lucide-contact', 'contact', ['user', 'profile', '用户']),
-  icon('i-lucide-users', 'users', ['group', 'members', '用户组']),
-  icon('i-lucide-shield-check', 'shield-check', ['security', 'permission', '权限']),
-  icon('i-lucide-message-square-text', 'message-square-text', ['forum', 'topic', '帖子']),
-  icon('i-lucide-list-checks', 'list-checks', ['checklist', 'matrix', '清单']),
-  icon('i-lucide-bell', 'bell', ['notice', 'notification', '通知']),
-  icon('i-lucide-search', 'search', ['find', 'query', '搜索']),
-  icon('i-lucide-tag', 'tag', ['tag', 'label', '标签']),
-  icon('i-lucide-house', 'house', ['home', 'forum', '首页']),
-  icon('i-lucide-lock-keyhole', 'lock-keyhole', ['security', 'locked', '锁定']),
-  icon('i-lucide-key-round', 'key-round', ['secret', 'token', '密钥']),
-  icon('i-lucide-palette', 'palette', ['theme', 'color', '主题']),
-  icon('i-lucide-image', 'image', ['image', 'media', '图片']),
-  icon('i-lucide-link', 'link', ['url', 'external', '链接']),
-  icon('i-lucide-database', 'database', ['data', 'storage', '数据库']),
-  icon('i-lucide-languages', 'languages', ['locale', 'i18n', '语言']),
-  icon('i-lucide-plug', 'plug', ['integration', 'provider', '集成']),
-  icon('i-lucide-save', 'save', ['persist', '保存']),
-  icon('i-lucide-refresh-cw', 'refresh-cw', ['reload', 'sync', '刷新'])
-]
+let iconLoadRequestId = 0
+let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 const collections = computed<IconCollection[]>(() => [
   {
     id: 'tabler',
     prefix: 'i-tabler-',
     label: t('components.iconPicker.collections.tabler.label'),
-    description: t('components.iconPicker.collections.tabler.description'),
-    icons: tablerIcons
+    description: t('components.iconPicker.collections.tabler.description')
   },
   {
     id: 'nuxt',
     prefix: 'i-lucide-',
     label: t('components.iconPicker.collections.nuxt.label'),
-    description: t('components.iconPicker.collections.nuxt.description'),
-    icons: nuxtIcons
+    description: t('components.iconPicker.collections.nuxt.description')
   }
 ])
 
@@ -127,16 +95,15 @@ const selectedIconName = computed(() => props.modelValue.trim())
 const selectedDisplayName = computed(() => selectedIconName.value || t('components.iconPicker.noSelection'))
 const normalizedCustomName = computed(() => normalizeIconName(customName.value, activeCollection.value.prefix))
 const canUseCustomName = computed(() => isNuxtIconName(normalizedCustomName.value))
-
-const filteredIcons = computed(() => {
-  const normalizedQuery = query.value.trim().toLowerCase()
-  if (!normalizedQuery) {
-    return activeCollection.value.icons
+const hasMoreIcons = computed(() => loadedIcons.value.length < totalIcons.value)
+const iconCountLabel = computed(() => {
+  if (totalIcons.value <= 0) {
+    return ''
   }
 
-  return activeCollection.value.icons.filter((item) => {
-    const searchText = [item.name, item.label, ...item.keywords].join(' ').toLowerCase()
-    return searchText.includes(normalizedQuery)
+  return t('components.iconPicker.count', {
+    shown: loadedIcons.value.length,
+    total: totalIcons.value
   })
 })
 
@@ -147,9 +114,24 @@ watch(() => props.modelValue, (value) => {
   }
 })
 
-function icon(name: string, label: string, keywords: string[]): IconPreset {
-  return { name, label, keywords }
-}
+watch([activeCollectionId, query], ([collection], [previousCollection]) => {
+  scheduleIconReload(collection === previousCollection ? 180 : 0)
+})
+
+watch(selectedIconName, () => {
+  void primeSelectedIcon()
+})
+
+onMounted(() => {
+  void loadIconPage({ reset: true })
+  void primeSelectedIcon()
+})
+
+onBeforeUnmount(() => {
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
+})
 
 function setActiveCollection(id: IconCollectionId) {
   if (!props.disabled) {
@@ -176,43 +158,142 @@ function selectCustomIcon() {
   selectIcon(normalizedCustomName.value, 'custom')
 }
 
-function normalizeIconName(value: string, fallbackPrefix: string) {
-  const rawValue = value.trim().toLowerCase()
-  if (!rawValue) {
-    return ''
+async function loadIconPage(options: { reset?: boolean } = {}) {
+  if (!import.meta.client) {
+    return
   }
 
-  if (rawValue.startsWith('i-')) {
-    return rawValue
+  if (loadingIcons.value && !options.reset) {
+    return
   }
 
-  if (/^[a-z0-9-]+:[a-z0-9-]+$/.test(rawValue)) {
-    const [collection, name] = rawValue.split(':')
-    return `i-${collection}-${name}`
+  const requestId = ++iconLoadRequestId
+  if (options.reset) {
+    loadedIcons.value = []
+    loadedPage.value = 0
+    totalIcons.value = 0
   }
 
-  if (/^[a-z0-9][a-z0-9-]*$/.test(rawValue)) {
-    return `${fallbackPrefix}${rawValue}`
-  }
+  loadingIcons.value = true
+  iconLoadError.value = false
 
-  return rawValue
+  try {
+    const nextPage = options.reset ? 1 : loadedPage.value + 1
+    const response = await $fetch<IconCatalogResponse>(`/api/icon-collections/${activeCollectionId.value}`, {
+      query: {
+        q: query.value.trim() || undefined,
+        page: nextPage,
+        pageSize: ICON_PICKER_PAGE_SIZE
+      }
+    })
+
+    if (requestId !== iconLoadRequestId) {
+      return
+    }
+
+    await primeIconifyData(response.items.map((item) => item.name))
+    if (requestId !== iconLoadRequestId) {
+      return
+    }
+
+    loadedIcons.value = options.reset
+      ? response.items
+      : dedupeIconItems([...loadedIcons.value, ...response.items])
+    loadedPage.value = response.page
+    totalIcons.value = response.total
+  } catch {
+    if (requestId === iconLoadRequestId) {
+      iconLoadError.value = true
+    }
+  } finally {
+    if (requestId === iconLoadRequestId) {
+      loadingIcons.value = false
+    }
+  }
 }
 
-function collectionFromName(value?: string): IconCollectionId | undefined {
-  const name = value?.trim().toLowerCase()
-  if (!name) {
-    return undefined
+async function primeSelectedIcon() {
+  if (!selectedIconName.value) {
+    return
   }
 
-  if (name.startsWith('i-tabler-') || name.startsWith('tabler:')) {
-    return 'tabler'
-  }
-
-  return 'nuxt'
+  await primeIconifyData([selectedIconName.value])
+  selectedIconRenderKey.value += 1
 }
 
-function isNuxtIconName(value: string) {
-  return value.startsWith('i-') && value.length > 2
+async function primeIconifyData(iconNames: string[]) {
+  if (!import.meta.client || iconNames.length === 0) {
+    return
+  }
+
+  const grouped = new Map<IconifyCollectionId, Set<string>>()
+  for (const iconName of iconNames) {
+    const iconifyName = toIconifyName(iconName)
+    if (!iconifyName) {
+      continue
+    }
+
+    const names = grouped.get(iconifyName.collection) || new Set<string>()
+    names.add(iconifyName.name)
+    grouped.set(iconifyName.collection, names)
+  }
+
+  await Promise.all([...grouped.entries()].map(async ([collection, names]) => {
+    const payload = await $fetch<IconifyCollectionPayload>(`/api/_nuxt_icon/${collection}.json`, {
+      query: {
+        icons: [...names].join(',')
+      }
+    })
+    if (payload?.prefix === collection && payload.icons) {
+      addCollection(payload)
+    }
+  }))
+}
+
+function toIconifyName(value: string): { collection: IconifyCollectionId, name: string } | undefined {
+  const name = value.trim().toLowerCase()
+  if (name.startsWith('i-tabler-')) {
+    return { collection: 'tabler', name: name.slice('i-tabler-'.length) }
+  }
+  if (name.startsWith('i-lucide-')) {
+    return { collection: 'lucide', name: name.slice('i-lucide-'.length) }
+  }
+  if (name.startsWith('tabler:')) {
+    return { collection: 'tabler', name: name.slice('tabler:'.length) }
+  }
+  if (name.startsWith('lucide:')) {
+    return { collection: 'lucide', name: name.slice('lucide:'.length) }
+  }
+  return undefined
+}
+
+function scheduleIconReload(delay: number) {
+  if (!import.meta.client) {
+    return
+  }
+
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
+
+  searchTimer = setTimeout(() => {
+    void loadIconPage({ reset: true })
+  }, delay)
+}
+
+function handleGridScroll(event: Event) {
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement) || loadingIcons.value || !hasMoreIcons.value) {
+    return
+  }
+
+  if (target.scrollTop + target.clientHeight >= target.scrollHeight - 64) {
+    void loadIconPage()
+  }
+}
+
+function reloadIcons() {
+  void loadIconPage({ reset: true })
 }
 </script>
 
@@ -232,6 +313,7 @@ function isNuxtIconName(value: string) {
         <span class="sf-icon-picker__preview-icon" aria-hidden="true">
           <UIcon
             v-if="selectedIconName"
+            :key="`${selectedIconName}-${selectedIconRenderKey}`"
             :name="selectedIconName"
             class="sf-icon-picker__preview-svg"
           />
@@ -276,9 +358,31 @@ function isNuxtIconName(value: string) {
         >
       </div>
 
-      <div class="sf-icon-picker__grid" role="listbox" :aria-label="activeCollection.label">
+      <div class="sf-icon-picker__meta" aria-live="polite">
+        <span v-if="iconLoadError" class="sf-icon-picker__status sf-icon-picker__status--error">
+          {{ t('components.iconPicker.loadFailed') }}
+        </span>
+        <span v-else-if="iconCountLabel" class="sf-icon-picker__status">
+          {{ iconCountLabel }}
+        </span>
+        <span v-else class="sf-icon-picker__status">
+          {{ t('components.iconPicker.loading') }}
+        </span>
         <button
-          v-for="item in filteredIcons"
+          v-if="iconLoadError"
+          type="button"
+          class="sf-icon-picker__retry"
+          :disabled="disabled || loadingIcons"
+          @click="reloadIcons"
+        >
+          <UIcon name="i-lucide-refresh-cw" class="sf-icon-picker__retry-icon" aria-hidden="true" />
+          <span>{{ t('components.iconPicker.retry') }}</span>
+        </button>
+      </div>
+
+      <div class="sf-icon-picker__grid" role="listbox" :aria-label="activeCollection.label" @scroll.passive="handleGridScroll">
+        <button
+          v-for="item in loadedIcons"
           :key="item.name"
           type="button"
           class="sf-icon-picker__option"
@@ -294,7 +398,12 @@ function isNuxtIconName(value: string) {
         </button>
       </div>
 
-      <p v-if="filteredIcons.length === 0" class="sf-icon-picker__empty">
+      <p v-if="loadingIcons" class="sf-icon-picker__loading">
+        <UIcon name="i-lucide-loader-circle" class="sf-icon-picker__loading-icon" aria-hidden="true" />
+        <span>{{ t('components.iconPicker.loading') }}</span>
+      </p>
+
+      <p v-else-if="loadedIcons.length === 0" class="sf-icon-picker__empty">
         {{ t('components.iconPicker.empty') }}
       </p>
 

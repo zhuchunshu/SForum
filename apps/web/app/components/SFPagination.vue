@@ -57,7 +57,7 @@ function go(value: number) {
       aria-label="上一页"
       @click="go(page - 1)"
     >
-      ‹
+      <UIcon name="i-lucide-chevron-left" class="size-4" />
     </button>
     <template v-for="item in pages" :key="item">
       <span v-if="typeof item !== 'number'" class="sf-pagination__item" aria-hidden="true">
@@ -80,7 +80,7 @@ function go(value: number) {
       aria-label="下一页"
       @click="go(page + 1)"
     >
-      ›
+      <UIcon name="i-lucide-chevron-right" class="size-4" />
     </button>
   </nav>
 </template>

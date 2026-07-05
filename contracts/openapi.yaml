@@ -252,6 +252,286 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+  /attachments:
+    post:
+      summary: Upload an attachment
+      operationId: uploadAttachment
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Attachment uploaded through the API server.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAttachment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /attachments/{publicId}:
+    get:
+      summary: Get attachment metadata
+      operationId: getAttachment
+      parameters:
+        - $ref: "#/components/parameters/AttachmentPublicID"
+      responses:
+        "200":
+          description: Public attachment metadata allowed for the current actor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAttachment"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /attachments/{publicId}/content:
+    get:
+      summary: Download or render attachment content
+      operationId: getAttachmentContent
+      parameters:
+        - $ref: "#/components/parameters/AttachmentPublicID"
+      responses:
+        "200":
+          description: Attachment bytes streamed from the configured provider.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /admin/attachment-settings:
+    get:
+      summary: Get attachment runtime settings
+      operationId: getAttachmentSettings
+      responses:
+        "200":
+          description: Attachment storage and upload settings. Secret values are masked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAttachmentSettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      summary: Update attachment runtime settings
+      operationId: updateAttachmentSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttachmentSettings"
+      responses:
+        "200":
+          description: Attachment settings updated. Blank secret fields keep existing secrets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAttachmentSettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /admin/attachment-settings/test:
+    post:
+      summary: Test the active attachment storage provider
+      operationId: testAttachmentSettings
+      responses:
+        "200":
+          description: Provider probe result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAttachmentProbe"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /admin/attachments:
+    get:
+      summary: List attachments for administration
+      operationId: listAdminAttachments
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: perPage
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: query
+          in: query
+          schema:
+            type: string
+        - name: provider
+          in: query
+          schema:
+            $ref: "#/components/schemas/AttachmentProvider"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/AttachmentStatus"
+        - name: contentType
+          in: query
+          schema:
+            type: string
+        - name: ownerUserId
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: referenceStatus
+          in: query
+          schema:
+            type: string
+            enum: [referenced, orphan]
+        - name: createdFrom
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: createdTo
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Paged attachment list for governance.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminAttachmentList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /admin/attachments/cleanup:
+    post:
+      summary: Clean up deleted orphan attachments
+      operationId: cleanupAdminAttachments
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 500
+      responses:
+        "200":
+          description: Cleanup result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAttachmentCleanup"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /admin/attachments/{attachmentID}:
+    get:
+      summary: Get attachment detail for administration
+      operationId: getAdminAttachment
+      parameters:
+        - $ref: "#/components/parameters/AttachmentID"
+      responses:
+        "200":
+          description: Attachment detail including object key, checksum, and references.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminAttachmentDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      summary: Update attachment status
+      operationId: updateAdminAttachment
+      parameters:
+        - $ref: "#/components/parameters/AttachmentID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [active, disabled]
+      responses:
+        "200":
+          description: Attachment status updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminAttachment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+    delete:
+      summary: Soft-delete an unreferenced attachment
+      operationId: deleteAdminAttachment
+      parameters:
+        - $ref: "#/components/parameters/AttachmentID"
+      responses:
+        "200":
+          description: Attachment marked as deleted. Physical cleanup is handled by the orphan cleanup path.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminAttachment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /permissions:
     get:
       summary: List global permissions
@@ -530,6 +810,21 @@ components:
         type: integer
         format: int64
       description: Numeric user id.
+    AttachmentPublicID:
+      name: publicId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Public attachment identifier returned by upload.
+    AttachmentID:
+      name: attachmentID
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Numeric attachment id.
   responses:
     Unauthorized:
       description: Authentication is required or credentials are invalid.
@@ -549,8 +844,20 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ApiErrorResponse"
+    NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
     UnprocessableEntity:
       description: The request body is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+    ServiceUnavailable:
+      description: A required backend service or storage provider is unavailable.
       content:
         application/json:
           schema:
@@ -737,6 +1044,76 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AdminWebOption"
+    ApiResponseAttachment:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/Attachment"
+    ApiResponseAdminAttachment:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/AdminAttachment"
+    ApiResponseAdminAttachmentList:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/AdminAttachmentList"
+    ApiResponseAdminAttachmentDetail:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/AdminAttachmentDetail"
+    ApiResponseAttachmentSettings:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/AttachmentSettings"
+    ApiResponseAttachmentProbe:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/AttachmentProbe"
+    ApiResponseAttachmentCleanup:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/AttachmentCleanupResult"
     Health:
       type: object
       required:
@@ -792,9 +1169,83 @@ components:
             - site.default_locale
             - site.supported_locales
             - human_verification.provider
+            - human_verification.scenarios.register
+            - human_verification.scenarios.password_reset
+            - human_verification.scenarios.login_risk
+            - human_verification.scenarios.post_risk
             - human_verification.altcha.secret
             - human_verification.altcha.challenge_ttl
             - human_verification.altcha.cost
+            - human_verification.altcha.widget.type
+            - human_verification.altcha.widget.auto
+            - human_verification.altcha.widget.display
+            - human_verification.altcha.widget.hide_logo
+            - human_verification.altcha.widget.hide_footer
+            - human_verification.altcha.widget.workers
+            - human_verification.altcha.widget.min_duration_ms
+            - appearance.theme
+            - footer.copyright.zh-CN
+            - footer.copyright.en-US
+            - footer.links
+            - seo.meta_title_template
+            - seo.meta_description
+            - seo.meta_keywords
+            - seo.og_image_url
+            - seo.twitter_card
+            - seo.twitter_site
+            - seo.allow_indexing
+            - seo.google_verification
+            - seo.bing_verification
+            - seo.baidu_verification
+            - seo.yandex_verification
+            - seo.robots.extra_allow
+            - seo.robots.extra_disallow
+            - seo.robots.block_ai_bots
+            - seo.robots.block_non_seo_bots
+            - seo.sitemap.enabled
+            - seo.sitemap.include_static_pages
+            - seo.sitemap.include_forum_content
+            - seo.schema_org.enabled
+            - seo.schema_org.search_action_enabled
+            - seo.schema_org.discussion_enabled
+            - seo.schema_org.organization_logo_url
+            - attachment.provider
+            - attachment.upload.enabled
+            - attachment.path_template
+            - attachment.public_base_url
+            - attachment.max_file_size_mb
+            - attachment.allowed_extensions
+            - attachment.allowed_mime_types
+            - attachment.default_visibility
+            - attachment.cleanup_orphan_after_days
+            - attachment.local.public_prefix
+            - attachment.aliyun_oss.endpoint
+            - attachment.aliyun_oss.bucket
+            - attachment.aliyun_oss.region
+            - attachment.aliyun_oss.access_key_id
+            - attachment.aliyun_oss.access_key_secret
+            - attachment.tencent_cos.region
+            - attachment.tencent_cos.bucket
+            - attachment.tencent_cos.secret_id
+            - attachment.tencent_cos.secret_key
+            - attachment.tencent_cos.cdn_domain
+            - attachment.ftp.host
+            - attachment.ftp.port
+            - attachment.ftp.username
+            - attachment.ftp.password
+            - attachment.ftp.root_path
+            - attachment.ftp.passive
+            - attachment.ftp.explicit_tls
+            - attachment.ftp.public_base_url
+            - attachment.sftp.host
+            - attachment.sftp.port
+            - attachment.sftp.username
+            - attachment.sftp.password
+            - attachment.sftp.private_key
+            - attachment.sftp.passphrase
+            - attachment.sftp.root_path
+            - attachment.sftp.host_key_fingerprint
+            - attachment.sftp.public_base_url
         value:
           type: string
           description: Empty for secret options; use secretSet to tell whether a secret is configured.
@@ -818,6 +1269,47 @@ components:
             - site.default_locale
             - site.supported_locales
             - human_verification.provider
+            - human_verification.scenarios.register
+            - human_verification.scenarios.password_reset
+            - human_verification.scenarios.login_risk
+            - human_verification.scenarios.post_risk
+            - human_verification.altcha.widget.type
+            - human_verification.altcha.widget.auto
+            - human_verification.altcha.widget.display
+            - human_verification.altcha.widget.hide_logo
+            - human_verification.altcha.widget.hide_footer
+            - human_verification.altcha.widget.workers
+            - human_verification.altcha.widget.min_duration_ms
+            - appearance.theme
+            - footer.copyright.zh-CN
+            - footer.copyright.en-US
+            - footer.links
+            - seo.meta_title_template
+            - seo.meta_description
+            - seo.meta_keywords
+            - seo.og_image_url
+            - seo.twitter_card
+            - seo.twitter_site
+            - seo.allow_indexing
+            - seo.google_verification
+            - seo.bing_verification
+            - seo.baidu_verification
+            - seo.yandex_verification
+            - seo.robots.extra_allow
+            - seo.robots.extra_disallow
+            - seo.robots.block_ai_bots
+            - seo.robots.block_non_seo_bots
+            - seo.sitemap.enabled
+            - seo.sitemap.include_static_pages
+            - seo.sitemap.include_forum_content
+            - seo.schema_org.enabled
+            - seo.schema_org.search_action_enabled
+            - seo.schema_org.discussion_enabled
+            - seo.schema_org.organization_logo_url
+            - attachment.upload.enabled
+            - attachment.max_file_size_mb
+            - attachment.allowed_extensions
+            - attachment.allowed_mime_types
         value:
           type: string
           minLength: 1
@@ -844,12 +1336,451 @@ components:
             - site.default_locale
             - site.supported_locales
             - human_verification.provider
+            - human_verification.scenarios.register
+            - human_verification.scenarios.password_reset
+            - human_verification.scenarios.login_risk
+            - human_verification.scenarios.post_risk
             - human_verification.altcha.secret
             - human_verification.altcha.challenge_ttl
             - human_verification.altcha.cost
+            - appearance.theme
+            - footer.copyright.zh-CN
+            - footer.copyright.en-US
+            - footer.links
+            - seo.meta_title_template
+            - seo.meta_description
+            - seo.meta_keywords
+            - seo.og_image_url
+            - seo.twitter_card
+            - seo.twitter_site
+            - seo.allow_indexing
+            - seo.google_verification
+            - seo.bing_verification
+            - seo.baidu_verification
+            - seo.yandex_verification
+            - seo.robots.extra_allow
+            - seo.robots.extra_disallow
+            - seo.robots.block_ai_bots
+            - seo.robots.block_non_seo_bots
+            - seo.sitemap.enabled
+            - seo.sitemap.include_static_pages
+            - seo.sitemap.include_forum_content
+            - seo.schema_org.enabled
+            - seo.schema_org.search_action_enabled
+            - seo.schema_org.discussion_enabled
+            - seo.schema_org.organization_logo_url
+            - human_verification.altcha.widget.type
+            - human_verification.altcha.widget.auto
+            - human_verification.altcha.widget.display
+            - human_verification.altcha.widget.hide_logo
+            - human_verification.altcha.widget.hide_footer
+            - human_verification.altcha.widget.workers
+            - human_verification.altcha.widget.min_duration_ms
+            - attachment.provider
+            - attachment.upload.enabled
+            - attachment.path_template
+            - attachment.public_base_url
+            - attachment.max_file_size_mb
+            - attachment.allowed_extensions
+            - attachment.allowed_mime_types
+            - attachment.default_visibility
+            - attachment.cleanup_orphan_after_days
+            - attachment.local.public_prefix
+            - attachment.aliyun_oss.endpoint
+            - attachment.aliyun_oss.bucket
+            - attachment.aliyun_oss.region
+            - attachment.aliyun_oss.access_key_id
+            - attachment.aliyun_oss.access_key_secret
+            - attachment.tencent_cos.region
+            - attachment.tencent_cos.bucket
+            - attachment.tencent_cos.secret_id
+            - attachment.tencent_cos.secret_key
+            - attachment.tencent_cos.cdn_domain
+            - attachment.ftp.host
+            - attachment.ftp.port
+            - attachment.ftp.username
+            - attachment.ftp.password
+            - attachment.ftp.root_path
+            - attachment.ftp.passive
+            - attachment.ftp.explicit_tls
+            - attachment.ftp.public_base_url
+            - attachment.sftp.host
+            - attachment.sftp.port
+            - attachment.sftp.username
+            - attachment.sftp.password
+            - attachment.sftp.private_key
+            - attachment.sftp.passphrase
+            - attachment.sftp.root_path
+            - attachment.sftp.host_key_fingerprint
+            - attachment.sftp.public_base_url
         value:
           type: string
-          description: For human_verification.altcha.secret, an empty value keeps the existing secret.
+          description: For secret options, an empty value keeps the existing secret.
+    AttachmentProvider:
+      type: string
+      enum: [local, aliyun_oss, tencent_cos, ftp, sftp]
+    AttachmentStatus:
+      type: string
+      enum: [active, disabled, deleted]
+    AttachmentVisibility:
+      type: string
+      enum: [public, private]
+    AttachmentOwner:
+      type: object
+      required:
+        - id
+        - username
+        - displayName
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        displayName:
+          type: string
+    Attachment:
+      type: object
+      required:
+        - id
+        - publicId
+        - name
+        - contentType
+        - size
+        - url
+        - status
+        - provider
+        - referenceCount
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        publicId:
+          type: string
+        name:
+          type: string
+        contentType:
+          type: string
+        size:
+          type: integer
+          format: int64
+        url:
+          type: string
+        status:
+          $ref: "#/components/schemas/AttachmentStatus"
+        provider:
+          $ref: "#/components/schemas/AttachmentProvider"
+        owner:
+          $ref: "#/components/schemas/AttachmentOwner"
+        referenceCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    AdminAttachment:
+      allOf:
+        - $ref: "#/components/schemas/Attachment"
+        - type: object
+          required:
+            - objectKey
+            - extension
+            - sha256
+            - visibility
+          properties:
+            objectKey:
+              type: string
+            extension:
+              type: string
+            sha256:
+              type: string
+            imageWidth:
+              type:
+                - integer
+                - "null"
+            imageHeight:
+              type:
+                - integer
+                - "null"
+            visibility:
+              $ref: "#/components/schemas/AttachmentVisibility"
+            deletedAt:
+              type:
+                - string
+                - "null"
+              format: date-time
+    AdminAttachmentList:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - perPage
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminAttachment"
+        total:
+          type: integer
+          format: int64
+        page:
+          type: integer
+        perPage:
+          type: integer
+    AttachmentReference:
+      type: object
+      required:
+        - id
+        - attachmentId
+        - resourceType
+        - resourceId
+        - context
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        attachmentId:
+          type: integer
+          format: int64
+        resourceType:
+          type: string
+          examples: [post, topic, avatar]
+        resourceId:
+          type: integer
+          format: int64
+        context:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    AdminAttachmentDetail:
+      allOf:
+        - $ref: "#/components/schemas/AdminAttachment"
+        - type: object
+          required:
+            - references
+          properties:
+            references:
+              type: array
+              items:
+                $ref: "#/components/schemas/AttachmentReference"
+    AttachmentSettings:
+      type: object
+      required:
+        - provider
+        - uploadEnabled
+        - pathTemplate
+        - publicBaseUrl
+        - maxFileSizeMb
+        - allowedExtensions
+        - allowedMimeTypes
+        - defaultVisibility
+        - cleanupOrphanAfterDays
+        - local
+        - aliyunOss
+        - tencentCos
+        - ftp
+        - sftp
+      properties:
+        provider:
+          $ref: "#/components/schemas/AttachmentProvider"
+        uploadEnabled:
+          type: boolean
+        pathTemplate:
+          type: string
+          examples: ["{yyyy}/{mm}/{dd}/{public_id}{ext}"]
+        publicBaseUrl:
+          type: string
+        maxFileSizeMb:
+          type: integer
+          minimum: 1
+          maximum: 1024
+        allowedExtensions:
+          type: array
+          items:
+            type: string
+          examples:
+            - [.jpg, .jpeg, .png, .gif, .webp, .pdf, .txt, .zip]
+        allowedMimeTypes:
+          type: array
+          items:
+            type: string
+          examples:
+            - [image/jpeg, image/png, application/pdf]
+        defaultVisibility:
+          $ref: "#/components/schemas/AttachmentVisibility"
+        cleanupOrphanAfterDays:
+          type: integer
+          minimum: 1
+          maximum: 3650
+        local:
+          $ref: "#/components/schemas/AttachmentLocalSettings"
+        aliyunOss:
+          $ref: "#/components/schemas/AttachmentAliyunOSSSettings"
+        tencentCos:
+          $ref: "#/components/schemas/AttachmentTencentCOSSettings"
+        ftp:
+          $ref: "#/components/schemas/AttachmentFTPSettings"
+        sftp:
+          $ref: "#/components/schemas/AttachmentSFTPSettings"
+    AttachmentLocalSettings:
+      type: object
+      required:
+        - publicPrefix
+      properties:
+        publicPrefix:
+          type: string
+          description: Optional public URL prefix for locally stored objects. The physical root comes from ATTACHMENT_LOCAL_ROOT.
+    AttachmentAliyunOSSSettings:
+      type: object
+      required:
+        - endpoint
+        - bucket
+        - region
+        - accessKeyId
+        - accessKeySecretSet
+      properties:
+        endpoint:
+          type: string
+        bucket:
+          type: string
+        region:
+          type: string
+        accessKeyId:
+          type: string
+        accessKeySecret:
+          type: string
+          format: password
+          description: Blank on update keeps the existing secret.
+        accessKeySecretSet:
+          type: boolean
+    AttachmentTencentCOSSettings:
+      type: object
+      required:
+        - region
+        - bucket
+        - secretId
+        - secretKeySet
+        - cdnDomain
+      properties:
+        region:
+          type: string
+        bucket:
+          type: string
+        secretId:
+          type: string
+        secretKey:
+          type: string
+          format: password
+          description: Blank on update keeps the existing secret.
+        secretKeySet:
+          type: boolean
+        cdnDomain:
+          type: string
+    AttachmentFTPSettings:
+      type: object
+      required:
+        - host
+        - port
+        - username
+        - passwordSet
+        - rootPath
+        - passive
+        - explicitTls
+        - publicBaseUrl
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+          description: Blank on update keeps the existing secret.
+        passwordSet:
+          type: boolean
+        rootPath:
+          type: string
+        passive:
+          type: boolean
+        explicitTls:
+          type: boolean
+        publicBaseUrl:
+          type: string
+    AttachmentSFTPSettings:
+      type: object
+      required:
+        - host
+        - port
+        - username
+        - passwordSet
+        - privateKeySet
+        - passphraseSet
+        - rootPath
+        - hostKeyFingerprint
+        - publicBaseUrl
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+          description: Blank on update keeps the existing secret.
+        passwordSet:
+          type: boolean
+        privateKey:
+          type: string
+          format: password
+          description: Blank on update keeps the existing private key.
+        privateKeySet:
+          type: boolean
+        passphrase:
+          type: string
+          format: password
+          description: Blank on update keeps the existing passphrase.
+        passphraseSet:
+          type: boolean
+        rootPath:
+          type: string
+        hostKeyFingerprint:
+          type: string
+        publicBaseUrl:
+          type: string
+    AttachmentProbe:
+      type: object
+      required:
+        - provider
+        - ok
+        - message
+      properties:
+        provider:
+          $ref: "#/components/schemas/AttachmentProvider"
+        ok:
+          type: boolean
+        message:
+          type: string
+    AttachmentCleanupResult:
+      type: object
+      required:
+        - deleted
+        - failed
+      properties:
+        deleted:
+          type: integer
+        failed:
+          type: integer
     CurrentUser:
       type: object
       required:

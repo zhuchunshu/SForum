@@ -12,16 +12,44 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Localization"
+	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
 const defaultCacheTTL = 30 * time.Second
 const footerCopyrightMaxRunes = 200
 const footerLinkLabelMaxRunes = 40
+const seoTitleTemplateMaxRunes = 120
+const seoDescriptionMaxRunes = 320
+const seoKeywordsMaxRunes = 200
+const seoVerificationMaxRunes = 120
+const seoTwitterSiteMaxRunes = 80
+const seoRobotsPathListMaxRunes = 1000
+const altchaWidgetMinDurationMin = 0
+const altchaWidgetMinDurationMax = 10000
+const altchaWidgetWorkersMin = 1
+const altchaWidgetWorkersMax = 16
 const customAppearanceThemePrefix = "custom:"
 
 var builtInLocales = []string{localization.DefaultLocale, "en-US"}
 var appearanceThemes = []string{"pine_teal", "ocean_blue", "violet", "rose", "amber"}
 var footerLinkKeys = []string{"terms", "privacy", "guidelines"}
+var seoTwitterCards = []string{"summary", "summary_large_image"}
+var altchaWidgetTypes = []string{"native", "checkbox", "switch"}
+var altchaWidgetAutoModes = []string{"off", "onfocus", "onload", "onsubmit"}
+var altchaWidgetDisplays = []string{"standard", "bar", "floating", "overlay", "invisible"}
+
+type humanVerificationScenario struct {
+	name           string
+	purpose        humanverify.Purpose
+	defaultEnabled bool
+}
+
+var humanVerificationScenarios = []humanVerificationScenario{
+	{name: NameHumanVerificationRegister, purpose: humanverify.PurposeRegister, defaultEnabled: true},
+	{name: NameHumanVerificationPasswordReset, purpose: humanverify.PurposePasswordReset},
+	{name: NameHumanVerificationLoginRisk, purpose: humanverify.PurposeLoginRisk},
+	{name: NameHumanVerificationPostRisk, purpose: humanverify.PurposePostRisk},
+}
 
 type footerLinkLabels struct {
 	ZHCN string `json:"zh-CN"`
@@ -54,24 +82,95 @@ type RuntimeSettings struct {
 }
 
 type optionDefinition struct {
-	name   string
-	public bool
-	secret bool
+	name             string
+	public           bool
+	secret           bool
+	managePermission string
 }
 
 var optionDefinitions = []optionDefinition{
-	{name: NameSiteName, public: true},
-	{name: NameSiteURL, public: true},
-	{name: NameSiteDefaultLocale, public: true},
-	{name: NameSiteSupportedLocales, public: true},
-	{name: NameHumanVerificationProvider, public: true},
-	{name: NameAltchaSecret, secret: true},
-	{name: NameAltchaChallengeTTL},
-	{name: NameAltchaCost},
-	{name: NameAppearanceTheme, public: true},
-	{name: NameFooterCopyrightZHCN, public: true},
-	{name: NameFooterCopyrightENUS, public: true},
-	{name: NameFooterLinks, public: true},
+	{name: NameSiteName, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameSiteURL, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameSiteDefaultLocale, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameSiteSupportedLocales, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameHumanVerificationProvider, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameHumanVerificationRegister, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameHumanVerificationPasswordReset, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameHumanVerificationLoginRisk, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameHumanVerificationPostRisk, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAltchaSecret, secret: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAltchaChallengeTTL, managePermission: identity.PermissionSettingsManage},
+	{name: NameAltchaCost, managePermission: identity.PermissionSettingsManage},
+	{name: NameAltchaWidgetType, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAltchaWidgetAuto, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAltchaWidgetDisplay, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAltchaWidgetHideLogo, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAltchaWidgetHideFooter, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAltchaWidgetWorkers, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAltchaWidgetMinDuration, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAppearanceTheme, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameFooterCopyrightZHCN, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameFooterCopyrightENUS, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameFooterLinks, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameSEOMetaTitleTemplate, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOMetaDescription, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOMetaKeywords, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOOGImageURL, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOTwitterCard, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOTwitterSite, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOAllowIndexing, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOGoogleVerification, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOBingVerification, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOBaiduVerification, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOYandexVerification, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEORobotsExtraAllow, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEORobotsExtraDisallow, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEORobotsBlockAIBots, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEORobotsBlockNonSEOBots, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOSitemapEnabled, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOSitemapIncludeStaticPages, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOSitemapIncludeForumContent, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOSchemaOrgEnabled, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOSchemaOrgSearchAction, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOSchemaOrgDiscussion, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameSEOSchemaOrgOrganizationLogo, public: true, managePermission: identity.PermissionSEOManage},
+	{name: NameAttachmentProvider, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentUploadEnabled, public: true, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentPathTemplate, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentPublicBaseURL, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentMaxFileSizeMB, public: true, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentAllowedExtensions, public: true, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentAllowedMIMETypes, public: true, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentDefaultVisibility, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentCleanupOrphanDays, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentLocalPublicPrefix, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentAliyunEndpoint, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentAliyunBucket, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentAliyunRegion, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentAliyunAccessKeyID, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentAliyunAccessKeySecret, secret: true, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentTencentRegion, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentTencentBucket, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentTencentSecretID, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentTencentSecretKey, secret: true, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentTencentCDNDomain, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentFTPHost, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentFTPPort, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentFTPUsername, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentFTPPassword, secret: true, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentFTPRootPath, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentFTPPassive, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentFTPExplicitTLS, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentFTPPublicBaseURL, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentSFTPHost, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentSFTPPort, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentSFTPUsername, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentSFTPPassword, secret: true, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentSFTPPrivateKey, secret: true, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentSFTPPassphrase, secret: true, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentSFTPRootPath, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentSFTPHostKeyFingerprint, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentSFTPPublicBaseURL, managePermission: identity.PermissionAttachmentSettings},
 }
 
 type Service struct {
@@ -135,7 +234,7 @@ func (s *Service) List(ctx context.Context) ([]Option, error) {
 }
 
 func (s *Service) ListAdmin(ctx context.Context, actor identity.Actor) ([]AdminOption, error) {
-	if !actor.Can(identity.PermissionSettingsManage) {
+	if !actorCanManageAnyOption(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 
@@ -143,7 +242,7 @@ func (s *Service) ListAdmin(ctx context.Context, actor identity.Actor) ([]AdminO
 	if err != nil {
 		return nil, err
 	}
-	return s.adminOptions(values), nil
+	return s.adminOptions(values, actor), nil
 }
 
 func (s *Service) Get(ctx context.Context, name string) (Option, error) {
@@ -185,6 +284,10 @@ func (s *Service) RuntimeSettings(ctx context.Context) (RuntimeSettings, error) 
 	}, nil
 }
 
+func (s *Service) InternalValues(ctx context.Context) (map[string]string, error) {
+	return s.loadMap(ctx)
+}
+
 func (s *Service) HumanVerificationConfig(ctx context.Context) (humanverify.RuntimeConfig, error) {
 	values, err := s.loadMap(ctx)
 	if err != nil {
@@ -193,11 +296,16 @@ func (s *Service) HumanVerificationConfig(ctx context.Context) (humanverify.Runt
 
 	ttl, _ := parsePositiveDuration(values[NameAltchaChallengeTTL])
 	cost, _ := parsePositiveInt(values[NameAltchaCost])
+	purposeEnabled := map[humanverify.Purpose]bool{}
+	for _, scenario := range humanVerificationScenarios {
+		purposeEnabled[scenario.purpose] = isEnabledOption(values[scenario.name])
+	}
 	return humanverify.RuntimeConfig{
 		Provider:        values[NameHumanVerificationProvider],
 		AltchaSecret:    values[NameAltchaSecret],
 		AltchaTTL:       ttl,
 		AltchaCost:      cost,
+		PurposeEnabled:  purposeEnabled,
 		RateLimit:       60,
 		RateLimitWindow: time.Minute,
 	}, nil
@@ -219,7 +327,7 @@ func (s *Service) Update(ctx context.Context, actor identity.Actor, input Update
 }
 
 func (s *Service) UpdateMany(ctx context.Context, actor identity.Actor, inputs []UpdateInput) ([]AdminOption, error) {
-	if !actor.Can(identity.PermissionSettingsManage) {
+	if !actorCanManageAnyOption(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 
@@ -232,8 +340,12 @@ func (s *Service) UpdateMany(ctx context.Context, actor identity.Actor, inputs [
 
 	for _, input := range inputs {
 		name := normalizeName(input.Name)
-		if !isKnownOption(name) {
+		definition, ok := optionDefinitionFor(name)
+		if !ok {
 			return nil, ErrInvalidOption
+		}
+		if !actor.Can(definition.managePermission) {
+			return nil, identity.ErrPermissionDenied
 		}
 		if isSecretOption(name) && strings.TrimSpace(input.Value) == "" {
 			continue
@@ -266,7 +378,7 @@ func (s *Service) UpdateMany(ctx context.Context, actor identity.Actor, inputs [
 	if err != nil {
 		return nil, err
 	}
-	return s.adminOptions(values), nil
+	return s.adminOptions(values, actor), nil
 }
 
 func (s *Service) Invalidate() {
@@ -318,9 +430,12 @@ func (s *Service) loadMap(ctx context.Context) (map[string]string, error) {
 	return copyValues(values), nil
 }
 
-func (s *Service) adminOptions(values map[string]string) []AdminOption {
+func (s *Service) adminOptions(values map[string]string, actor identity.Actor) []AdminOption {
 	items := make([]AdminOption, 0, len(optionDefinitions))
 	for _, definition := range optionDefinitions {
+		if !actor.Can(definition.managePermission) {
+			continue
+		}
 		value := values[definition.name]
 		if definition.secret {
 			items = append(items, AdminOption{
@@ -375,12 +490,45 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	if coerced[NameHumanVerificationProvider] == humanverify.ProviderAltcha && strings.TrimSpace(coerced[NameAltchaSecret]) == "" {
 		coerced[NameHumanVerificationProvider] = humanverify.ProviderDisabled
 	}
+	for _, scenario := range humanVerificationScenarios {
+		value, ok := normalizeEnabledOption(coerced[scenario.name])
+		if !ok {
+			coerced[scenario.name] = defaults[scenario.name]
+			continue
+		}
+		coerced[scenario.name] = value
+	}
 
 	if _, ok := parsePositiveDuration(coerced[NameAltchaChallengeTTL]); !ok {
 		coerced[NameAltchaChallengeTTL] = defaults[NameAltchaChallengeTTL]
 	}
 	if _, ok := parsePositiveInt(coerced[NameAltchaCost]); !ok {
 		coerced[NameAltchaCost] = defaults[NameAltchaCost]
+	}
+	if _, ok := normalizeAltchaWidgetType(coerced[NameAltchaWidgetType]); !ok {
+		coerced[NameAltchaWidgetType] = defaults[NameAltchaWidgetType]
+	}
+	if _, ok := normalizeAltchaWidgetAuto(coerced[NameAltchaWidgetAuto]); !ok {
+		coerced[NameAltchaWidgetAuto] = defaults[NameAltchaWidgetAuto]
+	}
+	if _, ok := normalizeAltchaWidgetDisplay(coerced[NameAltchaWidgetDisplay]); !ok {
+		coerced[NameAltchaWidgetDisplay] = defaults[NameAltchaWidgetDisplay]
+	}
+	if value, ok := normalizeEnabledOption(coerced[NameAltchaWidgetHideLogo]); ok {
+		coerced[NameAltchaWidgetHideLogo] = value
+	} else {
+		coerced[NameAltchaWidgetHideLogo] = defaults[NameAltchaWidgetHideLogo]
+	}
+	if value, ok := normalizeEnabledOption(coerced[NameAltchaWidgetHideFooter]); ok {
+		coerced[NameAltchaWidgetHideFooter] = value
+	} else {
+		coerced[NameAltchaWidgetHideFooter] = defaults[NameAltchaWidgetHideFooter]
+	}
+	if _, ok := parseBoundedInt(coerced[NameAltchaWidgetWorkers], altchaWidgetWorkersMin, altchaWidgetWorkersMax); !ok {
+		coerced[NameAltchaWidgetWorkers] = defaults[NameAltchaWidgetWorkers]
+	}
+	if _, ok := parseBoundedInt(coerced[NameAltchaWidgetMinDuration], altchaWidgetMinDurationMin, altchaWidgetMinDurationMax); !ok {
+		coerced[NameAltchaWidgetMinDuration] = defaults[NameAltchaWidgetMinDuration]
 	}
 	if _, ok := normalizeAppearanceTheme(coerced[NameAppearanceTheme]); !ok {
 		coerced[NameAppearanceTheme] = defaults[NameAppearanceTheme]
@@ -394,24 +542,135 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	if _, ok := normalizeFooterLinks(coerced[NameFooterLinks]); !ok {
 		coerced[NameFooterLinks] = defaults[NameFooterLinks]
 	}
+	for _, name := range seoEnabledOptionNames() {
+		value, ok := normalizeEnabledOption(coerced[name])
+		if !ok {
+			coerced[name] = defaults[name]
+			continue
+		}
+		coerced[name] = value
+	}
+	if _, ok := normalizeSEOTitleTemplate(coerced[NameSEOMetaTitleTemplate]); !ok {
+		coerced[NameSEOMetaTitleTemplate] = defaults[NameSEOMetaTitleTemplate]
+	}
+	if _, ok := normalizeBoundedText(coerced[NameSEOMetaDescription], seoDescriptionMaxRunes); !ok {
+		coerced[NameSEOMetaDescription] = defaults[NameSEOMetaDescription]
+	}
+	if _, ok := normalizeBoundedText(coerced[NameSEOMetaKeywords], seoKeywordsMaxRunes); !ok {
+		coerced[NameSEOMetaKeywords] = defaults[NameSEOMetaKeywords]
+	}
+	if _, ok := normalizeOptionalURL(coerced[NameSEOOGImageURL]); !ok {
+		coerced[NameSEOOGImageURL] = defaults[NameSEOOGImageURL]
+	}
+	if _, ok := normalizeSEOTwitterCard(coerced[NameSEOTwitterCard]); !ok {
+		coerced[NameSEOTwitterCard] = defaults[NameSEOTwitterCard]
+	}
+	if _, ok := normalizeSEOTwitterSite(coerced[NameSEOTwitterSite]); !ok {
+		coerced[NameSEOTwitterSite] = defaults[NameSEOTwitterSite]
+	}
+	for _, name := range seoVerificationOptionNames() {
+		if _, ok := normalizeSEOVerificationToken(coerced[name]); !ok {
+			coerced[name] = defaults[name]
+		}
+	}
+	if _, ok := normalizeSEORobotsPathList(coerced[NameSEORobotsExtraAllow]); !ok {
+		coerced[NameSEORobotsExtraAllow] = defaults[NameSEORobotsExtraAllow]
+	}
+	if _, ok := normalizeSEORobotsPathList(coerced[NameSEORobotsExtraDisallow]); !ok {
+		coerced[NameSEORobotsExtraDisallow] = defaults[NameSEORobotsExtraDisallow]
+	}
+	if _, ok := normalizeOptionalURL(coerced[NameSEOSchemaOrgOrganizationLogo]); !ok {
+		coerced[NameSEOSchemaOrgOrganizationLogo] = defaults[NameSEOSchemaOrgOrganizationLogo]
+	}
+	coerceAttachmentOptions(coerced, defaults)
 
 	return coerced
 }
 
 func normalizedDefaults(defaults Defaults) map[string]string {
 	values := map[string]string{
-		NameSiteName:                  "SForum",
-		NameSiteURL:                   "http://127.0.0.1:3000",
-		NameSiteDefaultLocale:         localization.DefaultLocale,
-		NameSiteSupportedLocales:      "zh-CN,en-US",
-		NameHumanVerificationProvider: humanverify.ProviderDisabled,
-		NameAltchaSecret:              "",
-		NameAltchaChallengeTTL:        (10 * time.Minute).String(),
-		NameAltchaCost:                "1000",
-		NameAppearanceTheme:           "pine_teal",
-		NameFooterCopyrightZHCN:       "© {year} {siteName}。保留所有权利。",
-		NameFooterCopyrightENUS:       "© {year} {siteName}. All rights reserved.",
-		NameFooterLinks:               defaultFooterLinksValue(),
+		NameSiteName:                         "SForum",
+		NameSiteURL:                          "http://127.0.0.1:3000",
+		NameSiteDefaultLocale:                localization.DefaultLocale,
+		NameSiteSupportedLocales:             "zh-CN,en-US",
+		NameHumanVerificationProvider:        humanverify.ProviderDisabled,
+		NameHumanVerificationRegister:        enabledOptionValue(true),
+		NameHumanVerificationPasswordReset:   enabledOptionValue(false),
+		NameHumanVerificationLoginRisk:       enabledOptionValue(false),
+		NameHumanVerificationPostRisk:        enabledOptionValue(false),
+		NameAltchaSecret:                     "",
+		NameAltchaChallengeTTL:               (10 * time.Minute).String(),
+		NameAltchaCost:                       "1000",
+		NameAltchaWidgetType:                 "checkbox",
+		NameAltchaWidgetAuto:                 "off",
+		NameAltchaWidgetDisplay:              "standard",
+		NameAltchaWidgetHideLogo:             enabledOptionValue(true),
+		NameAltchaWidgetHideFooter:           enabledOptionValue(true),
+		NameAltchaWidgetWorkers:              "2",
+		NameAltchaWidgetMinDuration:          "500",
+		NameAppearanceTheme:                  "pine_teal",
+		NameFooterCopyrightZHCN:              "© {year} {siteName}。保留所有权利。",
+		NameFooterCopyrightENUS:              "© {year} {siteName}. All rights reserved.",
+		NameFooterLinks:                      defaultFooterLinksValue(),
+		NameSEOMetaTitleTemplate:             "",
+		NameSEOMetaDescription:               "",
+		NameSEOMetaKeywords:                  "",
+		NameSEOOGImageURL:                    "",
+		NameSEOTwitterCard:                   "summary_large_image",
+		NameSEOTwitterSite:                   "",
+		NameSEOAllowIndexing:                 enabledOptionValue(true),
+		NameSEOGoogleVerification:            "",
+		NameSEOBingVerification:              "",
+		NameSEOBaiduVerification:             "",
+		NameSEOYandexVerification:            "",
+		NameSEORobotsExtraAllow:              "",
+		NameSEORobotsExtraDisallow:           "",
+		NameSEORobotsBlockAIBots:             enabledOptionValue(false),
+		NameSEORobotsBlockNonSEOBots:         enabledOptionValue(false),
+		NameSEOSitemapEnabled:                enabledOptionValue(true),
+		NameSEOSitemapIncludeStaticPages:     enabledOptionValue(true),
+		NameSEOSitemapIncludeForumContent:    enabledOptionValue(false),
+		NameSEOSchemaOrgEnabled:              enabledOptionValue(true),
+		NameSEOSchemaOrgSearchAction:         enabledOptionValue(true),
+		NameSEOSchemaOrgDiscussion:           enabledOptionValue(true),
+		NameSEOSchemaOrgOrganizationLogo:     "",
+		NameAttachmentProvider:               storage.ProviderLocal,
+		NameAttachmentUploadEnabled:          enabledOptionValue(true),
+		NameAttachmentPathTemplate:           "{yyyy}/{mm}/{dd}/{public_id}{ext}",
+		NameAttachmentPublicBaseURL:          "",
+		NameAttachmentMaxFileSizeMB:          "20",
+		NameAttachmentAllowedExtensions:      ".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.zip",
+		NameAttachmentAllowedMIMETypes:       "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/zip",
+		NameAttachmentDefaultVisibility:      "public",
+		NameAttachmentCleanupOrphanDays:      "30",
+		NameAttachmentLocalPublicPrefix:      "",
+		NameAttachmentAliyunEndpoint:         "",
+		NameAttachmentAliyunBucket:           "",
+		NameAttachmentAliyunRegion:           "",
+		NameAttachmentAliyunAccessKeyID:      "",
+		NameAttachmentAliyunAccessKeySecret:  "",
+		NameAttachmentTencentRegion:          "",
+		NameAttachmentTencentBucket:          "",
+		NameAttachmentTencentSecretID:        "",
+		NameAttachmentTencentSecretKey:       "",
+		NameAttachmentTencentCDNDomain:       "",
+		NameAttachmentFTPHost:                "",
+		NameAttachmentFTPPort:                "21",
+		NameAttachmentFTPUsername:            "",
+		NameAttachmentFTPPassword:            "",
+		NameAttachmentFTPRootPath:            "/",
+		NameAttachmentFTPPassive:             enabledOptionValue(true),
+		NameAttachmentFTPExplicitTLS:         enabledOptionValue(false),
+		NameAttachmentFTPPublicBaseURL:       "",
+		NameAttachmentSFTPHost:               "",
+		NameAttachmentSFTPPort:               "22",
+		NameAttachmentSFTPUsername:           "",
+		NameAttachmentSFTPPassword:           "",
+		NameAttachmentSFTPPrivateKey:         "",
+		NameAttachmentSFTPPassphrase:         "",
+		NameAttachmentSFTPRootPath:           "/",
+		NameAttachmentSFTPHostKeyFingerprint: "",
+		NameAttachmentSFTPPublicBaseURL:      "",
 	}
 
 	if value := strings.TrimSpace(defaults.SiteName); value != "" {
@@ -487,6 +746,8 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return strings.Join(locales, ","), true
 	case NameHumanVerificationProvider:
 		return normalizeHumanVerificationProvider(value)
+	case NameHumanVerificationRegister, NameHumanVerificationPasswordReset, NameHumanVerificationLoginRisk, NameHumanVerificationPostRisk:
+		return normalizeEnabledOption(value)
 	case NameAltchaSecret:
 		return value, true
 	case NameAltchaChallengeTTL:
@@ -501,12 +762,79 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 			return "", false
 		}
 		return strconv.Itoa(parsed), true
+	case NameAltchaWidgetType:
+		return normalizeAltchaWidgetType(value)
+	case NameAltchaWidgetAuto:
+		return normalizeAltchaWidgetAuto(value)
+	case NameAltchaWidgetDisplay:
+		return normalizeAltchaWidgetDisplay(value)
+	case NameAltchaWidgetHideLogo, NameAltchaWidgetHideFooter:
+		return normalizeEnabledOption(value)
+	case NameAltchaWidgetWorkers:
+		parsed, ok := parseBoundedInt(value, altchaWidgetWorkersMin, altchaWidgetWorkersMax)
+		if !ok {
+			return "", false
+		}
+		return strconv.Itoa(parsed), true
+	case NameAltchaWidgetMinDuration:
+		parsed, ok := parseBoundedInt(value, altchaWidgetMinDurationMin, altchaWidgetMinDurationMax)
+		if !ok {
+			return "", false
+		}
+		return strconv.Itoa(parsed), true
 	case NameAppearanceTheme:
 		return normalizeAppearanceTheme(value)
 	case NameFooterCopyrightZHCN, NameFooterCopyrightENUS:
 		return normalizeFooterCopyright(value)
 	case NameFooterLinks:
 		return normalizeFooterLinks(value)
+	case NameSEOMetaTitleTemplate:
+		return normalizeSEOTitleTemplate(value)
+	case NameSEOMetaDescription:
+		return normalizeBoundedText(value, seoDescriptionMaxRunes)
+	case NameSEOMetaKeywords:
+		return normalizeBoundedText(value, seoKeywordsMaxRunes)
+	case NameSEOOGImageURL, NameSEOSchemaOrgOrganizationLogo:
+		return normalizeOptionalURL(value)
+	case NameSEOTwitterCard:
+		return normalizeSEOTwitterCard(value)
+	case NameSEOTwitterSite:
+		return normalizeSEOTwitterSite(value)
+	case NameSEOAllowIndexing, NameSEORobotsBlockAIBots, NameSEORobotsBlockNonSEOBots, NameSEOSitemapEnabled, NameSEOSitemapIncludeStaticPages, NameSEOSitemapIncludeForumContent, NameSEOSchemaOrgEnabled, NameSEOSchemaOrgSearchAction, NameSEOSchemaOrgDiscussion:
+		return normalizeEnabledOption(value)
+	case NameSEOGoogleVerification, NameSEOBingVerification, NameSEOBaiduVerification, NameSEOYandexVerification:
+		return normalizeSEOVerificationToken(value)
+	case NameSEORobotsExtraAllow, NameSEORobotsExtraDisallow:
+		return normalizeSEORobotsPathList(value)
+	case NameAttachmentProvider:
+		return normalizeAttachmentProvider(value)
+	case NameAttachmentUploadEnabled, NameAttachmentFTPPassive, NameAttachmentFTPExplicitTLS:
+		return normalizeEnabledOption(value)
+	case NameAttachmentPathTemplate:
+		return normalizeAttachmentPathTemplate(value)
+	case NameAttachmentPublicBaseURL, NameAttachmentLocalPublicPrefix, NameAttachmentTencentCDNDomain, NameAttachmentFTPPublicBaseURL, NameAttachmentSFTPPublicBaseURL:
+		return normalizeOptionalURL(value)
+	case NameAttachmentMaxFileSizeMB:
+		return normalizeBoundedInt(value, 1, 1024)
+	case NameAttachmentAllowedExtensions:
+		return normalizeAttachmentExtensions(value)
+	case NameAttachmentAllowedMIMETypes:
+		return normalizeAttachmentMIMETypes(value)
+	case NameAttachmentDefaultVisibility:
+		return normalizeStringChoice(value, attachmentVisibilities)
+	case NameAttachmentCleanupOrphanDays:
+		return normalizeBoundedInt(value, 1, 3650)
+	case NameAttachmentFTPPort, NameAttachmentSFTPPort:
+		return normalizeBoundedInt(value, 1, 65535)
+	case NameAttachmentAliyunEndpoint, NameAttachmentAliyunBucket, NameAttachmentAliyunRegion, NameAttachmentAliyunAccessKeyID,
+		NameAttachmentTencentRegion, NameAttachmentTencentBucket, NameAttachmentTencentSecretID,
+		NameAttachmentFTPHost, NameAttachmentFTPUsername,
+		NameAttachmentSFTPHost, NameAttachmentSFTPUsername, NameAttachmentSFTPHostKeyFingerprint:
+		return normalizeBoundedText(value, attachmentProviderTextMaxRunes)
+	case NameAttachmentFTPRootPath, NameAttachmentSFTPRootPath:
+		return normalizeAttachmentRootPath(value)
+	case NameAttachmentAliyunAccessKeySecret, NameAttachmentTencentSecretKey, NameAttachmentFTPPassword, NameAttachmentSFTPPassword, NameAttachmentSFTPPrivateKey, NameAttachmentSFTPPassphrase:
+		return normalizeBoundedText(value, attachmentSecretMaxRunes)
 	default:
 		return "", false
 	}
@@ -535,10 +863,36 @@ func isValidValueSet(values map[string]string) bool {
 	if provider == humanverify.ProviderAltcha && strings.TrimSpace(values[NameAltchaSecret]) == "" {
 		return false
 	}
+	for _, scenario := range humanVerificationScenarios {
+		if _, ok := normalizeEnabledOption(values[scenario.name]); !ok {
+			return false
+		}
+	}
 	if _, ok := parsePositiveDuration(values[NameAltchaChallengeTTL]); !ok {
 		return false
 	}
 	if _, ok := parsePositiveInt(values[NameAltchaCost]); !ok {
+		return false
+	}
+	if _, ok := normalizeAltchaWidgetType(values[NameAltchaWidgetType]); !ok {
+		return false
+	}
+	if _, ok := normalizeAltchaWidgetAuto(values[NameAltchaWidgetAuto]); !ok {
+		return false
+	}
+	if _, ok := normalizeAltchaWidgetDisplay(values[NameAltchaWidgetDisplay]); !ok {
+		return false
+	}
+	if _, ok := normalizeEnabledOption(values[NameAltchaWidgetHideLogo]); !ok {
+		return false
+	}
+	if _, ok := normalizeEnabledOption(values[NameAltchaWidgetHideFooter]); !ok {
+		return false
+	}
+	if _, ok := parseBoundedInt(values[NameAltchaWidgetWorkers], altchaWidgetWorkersMin, altchaWidgetWorkersMax); !ok {
+		return false
+	}
+	if _, ok := parseBoundedInt(values[NameAltchaWidgetMinDuration], altchaWidgetMinDurationMin, altchaWidgetMinDurationMax); !ok {
 		return false
 	}
 	if _, ok := normalizeAppearanceTheme(values[NameAppearanceTheme]); !ok {
@@ -553,31 +907,77 @@ func isValidValueSet(values map[string]string) bool {
 	if _, ok := normalizeFooterLinks(values[NameFooterLinks]); !ok {
 		return false
 	}
+	if _, ok := normalizeSEOTitleTemplate(values[NameSEOMetaTitleTemplate]); !ok {
+		return false
+	}
+	if _, ok := normalizeBoundedText(values[NameSEOMetaDescription], seoDescriptionMaxRunes); !ok {
+		return false
+	}
+	if _, ok := normalizeBoundedText(values[NameSEOMetaKeywords], seoKeywordsMaxRunes); !ok {
+		return false
+	}
+	if _, ok := normalizeOptionalURL(values[NameSEOOGImageURL]); !ok {
+		return false
+	}
+	if _, ok := normalizeSEOTwitterCard(values[NameSEOTwitterCard]); !ok {
+		return false
+	}
+	if _, ok := normalizeSEOTwitterSite(values[NameSEOTwitterSite]); !ok {
+		return false
+	}
+	for _, name := range seoEnabledOptionNames() {
+		if _, ok := normalizeEnabledOption(values[name]); !ok {
+			return false
+		}
+	}
+	for _, name := range seoVerificationOptionNames() {
+		if _, ok := normalizeSEOVerificationToken(values[name]); !ok {
+			return false
+		}
+	}
+	if _, ok := normalizeSEORobotsPathList(values[NameSEORobotsExtraAllow]); !ok {
+		return false
+	}
+	if _, ok := normalizeSEORobotsPathList(values[NameSEORobotsExtraDisallow]); !ok {
+		return false
+	}
+	if _, ok := normalizeOptionalURL(values[NameSEOSchemaOrgOrganizationLogo]); !ok {
+		return false
+	}
+	if !isValidAttachmentOptions(values) {
+		return false
+	}
 	return true
 }
 
 func isKnownOption(name string) bool {
-	for _, definition := range optionDefinitions {
-		if definition.name == name {
-			return true
-		}
-	}
-	return false
+	_, ok := optionDefinitionFor(name)
+	return ok
 }
 
 func isPublicOption(name string) bool {
-	for _, definition := range optionDefinitions {
-		if definition.name == name {
-			return definition.public
-		}
-	}
-	return false
+	definition, ok := optionDefinitionFor(name)
+	return ok && definition.public
 }
 
 func isSecretOption(name string) bool {
+	definition, ok := optionDefinitionFor(name)
+	return ok && definition.secret
+}
+
+func optionDefinitionFor(name string) (optionDefinition, bool) {
 	for _, definition := range optionDefinitions {
 		if definition.name == name {
-			return definition.secret
+			return definition, true
+		}
+	}
+	return optionDefinition{}, false
+}
+
+func actorCanManageAnyOption(actor identity.Actor) bool {
+	for _, definition := range optionDefinitions {
+		if actor.Can(definition.managePermission) {
+			return true
 		}
 	}
 	return false
@@ -645,6 +1045,29 @@ func normalizeHumanVerificationProvider(value string) (string, bool) {
 	}
 }
 
+func normalizeEnabledOption(value string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "enabled", "true", "1", "yes", "on":
+		return enabledOptionValue(true), true
+	case "disabled", "false", "0", "no", "off":
+		return enabledOptionValue(false), true
+	default:
+		return "", false
+	}
+}
+
+func enabledOptionValue(enabled bool) string {
+	if enabled {
+		return "enabled"
+	}
+	return "disabled"
+}
+
+func isEnabledOption(value string) bool {
+	normalized, ok := normalizeEnabledOption(value)
+	return ok && normalized == enabledOptionValue(true)
+}
+
 func parsePositiveDuration(value string) (time.Duration, bool) {
 	duration, err := time.ParseDuration(strings.TrimSpace(value))
 	return duration, err == nil && duration > 0
@@ -653,6 +1076,51 @@ func parsePositiveDuration(value string) (time.Duration, bool) {
 func parsePositiveInt(value string) (int, bool) {
 	parsed, err := strconv.Atoi(strings.TrimSpace(value))
 	return parsed, err == nil && parsed > 0
+}
+
+func parseBoundedInt(value string, min int, max int) (int, bool) {
+	parsed, err := strconv.Atoi(strings.TrimSpace(value))
+	return parsed, err == nil && parsed >= min && parsed <= max
+}
+
+func normalizeAltchaWidgetType(value string) (string, bool) {
+	return normalizeChoice(value, altchaWidgetTypes)
+}
+
+func normalizeAltchaWidgetAuto(value string) (string, bool) {
+	return normalizeChoice(value, altchaWidgetAutoModes)
+}
+
+func normalizeAltchaWidgetDisplay(value string) (string, bool) {
+	return normalizeChoice(value, altchaWidgetDisplays)
+}
+
+func normalizeChoice(value string, allowed []string) (string, bool) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	for _, item := range allowed {
+		if value == item {
+			return item, true
+		}
+	}
+	return "", false
+}
+
+func normalizeStringChoice(value string, allowed []string) (string, bool) {
+	value = strings.TrimSpace(value)
+	for _, item := range allowed {
+		if strings.EqualFold(value, item) {
+			return item, true
+		}
+	}
+	return "", false
+}
+
+func normalizeBoundedInt(value string, min int, max int) (string, bool) {
+	parsed, ok := parseBoundedInt(value, min, max)
+	if !ok {
+		return "", false
+	}
+	return strconv.Itoa(parsed), true
 }
 
 func normalizeAppearanceTheme(value string) (string, bool) {
@@ -689,6 +1157,135 @@ func normalizeAppearanceThemeColor(value string) (string, bool) {
 func normalizeFooterCopyright(value string) (string, bool) {
 	value = strings.TrimSpace(value)
 	return value, len([]rune(value)) <= footerCopyrightMaxRunes
+}
+
+func normalizeSEOTitleTemplate(value string) (string, bool) {
+	return normalizeBoundedText(value, seoTitleTemplateMaxRunes)
+}
+
+func normalizeBoundedText(value string, maxRunes int) (string, bool) {
+	value = strings.TrimSpace(value)
+	return value, len([]rune(value)) <= maxRunes
+}
+
+func normalizeOptionalURL(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", true
+	}
+	if !isValidURL(value) {
+		return "", false
+	}
+	return value, true
+}
+
+func normalizeSEOTwitterCard(value string) (string, bool) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	for _, card := range seoTwitterCards {
+		if value == card {
+			return card, true
+		}
+	}
+	return "", false
+}
+
+func normalizeSEOTwitterSite(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", true
+	}
+	if len([]rune(value)) > seoTwitterSiteMaxRunes {
+		return "", false
+	}
+	if strings.HasPrefix(value, "@") {
+		value = strings.TrimPrefix(value, "@")
+	}
+	if value == "" {
+		return "", true
+	}
+	for _, char := range value {
+		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') && (char < '0' || char > '9') && char != '_' {
+			return "", false
+		}
+	}
+	return "@" + value, true
+}
+
+func normalizeSEOVerificationToken(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if len([]rune(value)) > seoVerificationMaxRunes {
+		return "", false
+	}
+	if value == "" {
+		return "", true
+	}
+	for _, char := range value {
+		if char <= ' ' || char == '<' || char == '>' || char == '"' || char == '\'' {
+			return "", false
+		}
+	}
+	return value, true
+}
+
+func normalizeSEORobotsPathList(value string) (string, bool) {
+	value = strings.ReplaceAll(value, "\r\n", "\n")
+	value = strings.ReplaceAll(value, "\r", "\n")
+	lines := strings.Split(strings.TrimSpace(value), "\n")
+	if strings.TrimSpace(value) == "" {
+		return "", true
+	}
+
+	normalized := make([]string, 0, len(lines))
+	seen := map[string]bool{}
+	for _, line := range lines {
+		path := strings.TrimSpace(line)
+		if path == "" {
+			continue
+		}
+		if !isValidRobotsPath(path) || seen[path] {
+			return "", false
+		}
+		seen[path] = true
+		normalized = append(normalized, path)
+	}
+
+	result := strings.Join(normalized, "\n")
+	return result, len([]rune(result)) <= seoRobotsPathListMaxRunes
+}
+
+func isValidRobotsPath(value string) bool {
+	if !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") {
+		return false
+	}
+	for _, char := range value {
+		if char <= ' ' || char == '<' || char == '>' || char == '"' || char == '\'' {
+			return false
+		}
+	}
+	return true
+}
+
+func seoEnabledOptionNames() []string {
+	return []string{
+		NameSEOAllowIndexing,
+		NameSEORobotsBlockAIBots,
+		NameSEORobotsBlockNonSEOBots,
+		NameSEOSitemapEnabled,
+		NameSEOSitemapIncludeStaticPages,
+		NameSEOSitemapIncludeForumContent,
+		NameSEOSchemaOrgEnabled,
+		NameSEOSchemaOrgSearchAction,
+		NameSEOSchemaOrgDiscussion,
+	}
+}
+
+func seoVerificationOptionNames() []string {
+	return []string{
+		NameSEOGoogleVerification,
+		NameSEOBingVerification,
+		NameSEOBaiduVerification,
+		NameSEOYandexVerification,
+	}
 }
 
 func defaultFooterLinksValue() string {

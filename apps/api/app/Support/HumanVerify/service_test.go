@@ -15,6 +15,32 @@ func TestDisabledServiceSkipsVerification(t *testing.T) {
 	}
 }
 
+func TestServiceSkipsDisabledPurpose(t *testing.T) {
+	service := NewService(
+		ServiceConfig{
+			Enabled:         true,
+			ChallengeTTL:    time.Minute,
+			EnabledPurposes: map[Purpose]bool{PurposeRegister: false, PurposeLoginRisk: true},
+		},
+		fakeProvider{},
+		NewMemoryStore(),
+	)
+
+	challenge, err := service.Challenge(context.Background(), PurposeRegister, Subject{})
+	if err != nil {
+		t.Fatalf("disabled purpose challenge returned error: %v", err)
+	}
+	if challenge.Provider != ProviderDisabled {
+		t.Fatalf("expected disabled challenge for register purpose, got %#v", challenge)
+	}
+	if err := service.Verify(context.Background(), VerifyRequest{Purpose: PurposeRegister}); err != nil {
+		t.Fatalf("disabled purpose verify should skip token requirement, got %v", err)
+	}
+	if err := service.Verify(context.Background(), VerifyRequest{Purpose: PurposeLoginRisk}); !errors.Is(err, ErrRequired) {
+		t.Fatalf("enabled purpose should still require a token, got %v", err)
+	}
+}
+
 func TestServiceRequiresTokenWhenEnabled(t *testing.T) {
 	service := NewService(ServiceConfig{Enabled: true, ChallengeTTL: time.Minute}, fakeProvider{}, NewMemoryStore())
 

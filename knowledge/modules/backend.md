@@ -52,6 +52,9 @@ default Fiber ASCII banner with an SForum API banner through Fiber's
 - `options`: runtime site-facing settings stored in `web_options`, with typed
   service validation, short-lived backend cache, public read endpoints, and
   permission-protected admin updates.
+- `attachments`: uploaded file metadata, storage provider settings, upload
+  validation, provider adapters, admin governance, attachment references, and
+  orphan cleanup.
 - `notifications`: deferred unless MVP requires it.
 
 ## HTTP Bootstrap And Routing

@@ -250,7 +250,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
       },
       can: () => false
     }),
-    () => ({ siteName: 'SForum', humanVerificationProvider: ref('disabled') }),
+    () => ({ siteName: 'SForum', humanVerificationEnabledFor: () => false }),
     async (_key: string, loader: () => Promise<unknown>) => ({ data: ref(await loader()) }),
     () => {},
     reactive,
