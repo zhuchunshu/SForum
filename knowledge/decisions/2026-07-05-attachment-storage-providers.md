@@ -18,7 +18,7 @@ adapters.
 
 First provider set:
 
-- Local filesystem under `ATTACHMENT_LOCAL_ROOT`.
+- Local filesystem under runtime option `attachment.local.root`.
 - Aliyun OSS via `github.com/aliyun/aliyun-oss-go-sdk/oss`.
 - Tencent Cloud COS via `github.com/tencentyun/cos-go-sdk-v5`.
 - FTP via `github.com/jlaffaye/ftp` v0.2.0.
@@ -36,8 +36,8 @@ direct-upload credentials or browser presigned upload flows.
 
 - Domain code depends on `StorageAdapter`, not provider SDKs.
 - Provider credentials stay in masked `web_options` secret fields.
-- Local filesystem writes stay bounded by `ATTACHMENT_LOCAL_ROOT`; admins only
-  configure object path templates and public URL prefixes.
+- Local filesystem writes stay bounded by `attachment.local.root`, which is an
+  admin-only runtime option validated by the API.
 - FTP remains available for older deployments, but SFTP is the preferred
   "remote server" provider.
 - Go CDK `blob`, WebDAV, rclone, direct upload, image processing, and virus

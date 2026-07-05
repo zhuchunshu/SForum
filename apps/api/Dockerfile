@@ -22,6 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /out/sforum-migrate ./cmd/migrate
 FROM alpine:3.22 AS api
 
 RUN apk add --no-cache ca-certificates
+WORKDIR /app
 COPY --from=build /out/sforum-api /usr/local/bin/sforum-api
 EXPOSE 8080
 CMD ["sforum-api"]
@@ -29,11 +30,13 @@ CMD ["sforum-api"]
 FROM alpine:3.22 AS worker
 
 RUN apk add --no-cache ca-certificates
+WORKDIR /app
 COPY --from=build /out/sforum-worker /usr/local/bin/sforum-worker
 CMD ["sforum-worker"]
 
 FROM alpine:3.22 AS migrate
 
 RUN apk add --no-cache ca-certificates
+WORKDIR /app
 COPY --from=build /out/sforum-migrate /usr/local/bin/sforum-migrate
 CMD ["sforum-migrate"]

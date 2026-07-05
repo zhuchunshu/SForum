@@ -50,7 +50,7 @@ const adminPageDefinitions = adminModulesModule.adminPageDefinitions as Array<{
   permissionMode?: string
 }>
 const adminPageIds = adminPageDefinitions.map(page => page.id)
-for (const requiredPageId of ['/', '/users', '/roles', '/permissions', '/settings', '/personalization']) {
+for (const requiredPageId of ['/', '/users', '/roles', '/permissions', '/settings', '/personalization', '/seo', '/attachments']) {
   assert(adminPageIds.includes(requiredPageId), `Admin module registry should define ${requiredPageId}`)
 }
 assert(adminPageDefinitions.every(page => page.icon.startsWith('i-lucide-')), 'Admin page registry should use lucide icons')
@@ -83,7 +83,9 @@ const adminPagePathsById: Record<string, string> = {
   '/users': 'apps/web/app/pages/admin/users.vue',
   '/permissions': 'apps/web/app/pages/admin/permissions.vue',
   '/settings': 'apps/web/app/pages/admin/settings/index.vue',
-  '/personalization': 'apps/web/app/pages/admin/personalization.vue'
+  '/personalization': 'apps/web/app/pages/admin/personalization.vue',
+  '/seo': 'apps/web/app/pages/admin/seo.vue',
+  '/attachments': 'apps/web/app/pages/admin/attachments.vue'
 }
 
 for (const page of adminPageDefinitions) {

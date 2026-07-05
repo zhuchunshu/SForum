@@ -97,7 +97,19 @@ func (a *LocalAdapter) SignedURL(_ context.Context, key string, _ time.Duration)
 }
 
 func (a *LocalAdapter) Probe(_ context.Context) error {
-	return os.MkdirAll(a.root, 0o750)
+	if err := os.MkdirAll(a.root, 0o750); err != nil {
+		return err
+	}
+	probe, err := os.CreateTemp(a.root, ".sforum-probe-*")
+	if err != nil {
+		return err
+	}
+	name := probe.Name()
+	if err := probe.Close(); err != nil {
+		_ = os.Remove(name)
+		return err
+	}
+	return os.Remove(name)
 }
 
 func (a *LocalAdapter) path(key string) (string, error) {

@@ -2,6 +2,7 @@ package config
 
 import (
 	"log/slog"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -71,6 +72,12 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	}
 	if cfg.JobQueueMaintenanceWorkers != 2 {
 		t.Fatalf("expected maintenance workers 2, got %d", cfg.JobQueueMaintenanceWorkers)
+	}
+}
+
+func TestConfigDoesNotExposeAttachmentLocalRootEnv(t *testing.T) {
+	if _, ok := reflect.TypeOf(Config{}).FieldByName("AttachmentLocalRoot"); ok {
+		t.Fatal("attachment local root should be managed by runtime options, not process environment config")
 	}
 }
 

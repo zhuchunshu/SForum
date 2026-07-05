@@ -47,12 +47,15 @@ permissions for navigation and tab usability.
 
 ## Runtime Configuration
 
-Attachment product configuration is stored in `web_options`; physical local
-storage root is intentionally environment-owned.
+Attachment product configuration is stored in `web_options`, including the
+local provider filesystem root.
 
-- `ATTACHMENT_LOCAL_ROOT` defines the local provider filesystem boundary.
-- Admins configure object path templates and public URL prefixes, not arbitrary
-  server filesystem roots.
+- `attachment.local.root` defines the local provider filesystem boundary. It
+  defaults to `storage/app/attachments`; relative paths resolve from the API
+  process working directory.
+- Admins with `attachment.settings.manage` can configure the local root, object
+  path templates, and public URL prefixes. The API rejects empty paths,
+  traversal segments, control characters, and angle brackets.
 - Secret options are masked in admin responses. Blank secret updates keep the
   existing value.
 - Public web options expose only upload knobs needed by the frontend:
@@ -70,6 +73,7 @@ Important runtime options:
 - `attachment.allowed_mime_types`
 - `attachment.default_visibility`
 - `attachment.cleanup_orphan_after_days`
+- `attachment.local.root`
 
 ## Storage Providers
 
@@ -86,7 +90,7 @@ SForum owns a small `StorageAdapter` interface:
 
 Supported providers in the first implementation:
 
-- `local`: local filesystem under `ATTACHMENT_LOCAL_ROOT`.
+- `local`: local filesystem under `attachment.local.root`.
 - `aliyun_oss`: Aliyun OSS through `github.com/aliyun/aliyun-oss-go-sdk/oss`.
 - `tencent_cos`: Tencent Cloud COS through
   `github.com/tencentyun/cos-go-sdk-v5`.

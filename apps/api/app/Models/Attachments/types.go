@@ -135,6 +135,7 @@ type AttachmentSettings struct {
 }
 
 type LocalSettings struct {
+	Root         string `json:"root"`
 	PublicPrefix string `json:"publicPrefix"`
 }
 

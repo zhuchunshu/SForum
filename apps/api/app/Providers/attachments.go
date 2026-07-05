@@ -14,9 +14,9 @@ type AttachmentsProvider struct {
 	controller *attachmentscontroller.Controller
 }
 
-func NewAttachmentsProvider(store attachments.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, localRoot string) *AttachmentsProvider {
+func NewAttachmentsProvider(store attachments.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager) *AttachmentsProvider {
 	return &AttachmentsProvider{
-		controller: attachmentscontroller.NewController(attachments.NewService(store, optionsService, localRoot), users, sessions),
+		controller: attachmentscontroller.NewController(attachments.NewService(store, optionsService), users, sessions),
 	}
 }
 

@@ -50,11 +50,10 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable}
       MIGRATE_ON_STARTUP: ${MIGRATE_ON_STARTUP:-true}
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
-      ATTACHMENT_LOCAL_ROOT: ${ATTACHMENT_LOCAL_ROOT:-/var/lib/sforum/uploads}
       MEILI_HOST: ${MEILI_HOST:-http://meilisearch:7700}
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-sforum-dev-meili-key}
     volumes:
-      - attachment_uploads:/var/lib/sforum/uploads
+      - attachment_uploads:/app/storage/app/attachments
     depends_on:
       postgres:
         condition: service_healthy
@@ -76,11 +75,10 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable}
       MIGRATE_ON_STARTUP: ${MIGRATE_ON_STARTUP:-true}
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
-      ATTACHMENT_LOCAL_ROOT: ${ATTACHMENT_LOCAL_ROOT:-/var/lib/sforum/uploads}
       MEILI_HOST: ${MEILI_HOST:-http://meilisearch:7700}
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-sforum-dev-meili-key}
     volumes:
-      - attachment_uploads:/var/lib/sforum/uploads
+      - attachment_uploads:/app/storage/app/attachments
     depends_on:
       postgres:
         condition: service_healthy

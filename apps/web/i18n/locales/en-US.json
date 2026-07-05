@@ -236,6 +236,8 @@
       "allowedExtensions": "Allowed extensions",
       "allowedMimeTypes": "Allowed MIME types",
       "cleanupDays": "Orphan retention days",
+      "localRoot": "Local storage root",
+      "localRootDescription": "Use a relative or absolute path; relative paths resolve from the API process working directory.",
       "localPublicPrefix": "Local public prefix",
       "keepSecret": "Leave blank to keep the current secret",
       "summary": "Configuration summary",

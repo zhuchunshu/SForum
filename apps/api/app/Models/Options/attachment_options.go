@@ -1,6 +1,7 @@
 package options
 
 import (
+	"path"
 	"strings"
 
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
@@ -25,6 +26,7 @@ func attachmentOptionNames() []string {
 		NameAttachmentAllowedMIMETypes,
 		NameAttachmentDefaultVisibility,
 		NameAttachmentCleanupOrphanDays,
+		NameAttachmentLocalRoot,
 		NameAttachmentLocalPublicPrefix,
 		NameAttachmentAliyunEndpoint,
 		NameAttachmentAliyunBucket,
@@ -194,6 +196,28 @@ func normalizeAttachmentRootPath(value string) (string, bool) {
 		return "", false
 	}
 	return value, true
+}
+
+func normalizeAttachmentLocalRoot(value string) (string, bool) {
+	value = strings.TrimSpace(strings.ReplaceAll(value, "\\", "/"))
+	if value == "" || len([]rune(value)) > attachmentProviderTextMaxRunes {
+		return "", false
+	}
+	for _, char := range value {
+		if char < 0x20 || char == 0x7f || char == '<' || char == '>' {
+			return "", false
+		}
+	}
+	for _, part := range strings.Split(value, "/") {
+		if part == ".." {
+			return "", false
+		}
+	}
+	cleaned := path.Clean(value)
+	if cleaned == "." || cleaned == "/" || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return "", false
+	}
+	return cleaned, true
 }
 
 func allNonBlank(values map[string]string, names ...string) bool {

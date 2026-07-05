@@ -83,7 +83,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	attachmentStore := attachments.NewPostgresStore(pool)
 	identityProvider := providers.NewIdentityProviderWithAuthSessions(identityStore, authSessions, humanVerifier)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
-	attachmentsProvider := providers.NewAttachmentsProvider(attachmentStore, optionsService, identityStore, authSessions, cfg.AttachmentLocalRoot)
+	attachmentsProvider := providers.NewAttachmentsProvider(attachmentStore, optionsService, identityStore, authSessions)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
 		RouteProviders: []httpserver.RouteProvider{identityProvider, optionsProvider, attachmentsProvider},

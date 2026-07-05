@@ -57,6 +57,7 @@ const (
 	NameAttachmentAllowedMIMETypes       = "attachment.allowed_mime_types"
 	NameAttachmentDefaultVisibility      = "attachment.default_visibility"
 	NameAttachmentCleanupOrphanDays      = "attachment.cleanup_orphan_after_days"
+	NameAttachmentLocalRoot              = "attachment.local.root"
 	NameAttachmentLocalPublicPrefix      = "attachment.local.public_prefix"
 	NameAttachmentAliyunEndpoint         = "attachment.aliyun_oss.endpoint"
 	NameAttachmentAliyunBucket           = "attachment.aliyun_oss.bucket"
