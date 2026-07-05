@@ -51,6 +51,13 @@ This is the entry point for project memory.
   toasts, and tabs, with a dev-only `/components` preview page. The preview page
   now covers seven forum-oriented sections: foundations, feedback, forum list,
   composer flow, moderation, member profile, and loading/empty states.
+- `SFEditor` is now a Tiptap-based editor with a custom toolbar, custom emoji
+  node, preview mode, Markdown source mode, native JSON inspection, and a
+  `content-change` payload for HTML/Markdown/native content previews.
+- Forum authored content has an accepted triple-storage direction:
+  `content_html_sanitized`, `content_markdown`, and `content_native_json`.
+  Client HTML remains untrusted; the API must accept allowlisted content,
+  regenerate derived formats, and sanitize display HTML before storage.
 - The SForum homepage now lives in the protected built-in default theme layer
   (`extensions/builtin/themes/sforum-default/layer/app/pages/index.vue`) and
   uses a wider max-w-[1376px] container with explicit column widths (Left
@@ -206,6 +213,12 @@ This is the entry point for project memory.
   with `sforum.locale.json`, package storage under `LOCALE_PACK_ROOT`/
   `storage/locale-packs` outside Git, dedicated `locale_pack*` tables, and
   frontend-only runtime message loading for the first release.
+- Forum backend foundation is implemented: `categories`, user-facing
+  `topics`, tree-shaped `comments`, shared content `posts`, and
+  `post_revisions` now exist in the API schema. The Go forum module renders
+  Markdown with `goldmark`, sanitizes HTML with `bluemonday`, exposes public
+  category/topic/comment APIs, and treats JSON content as schema-reserved but
+  not yet publishable.
 
 ## Navigation
 
@@ -214,6 +227,8 @@ This is the entry point for project memory.
 - `sessions/` - short handoffs from previous work sessions.
 - `glossary.md` - shared terms and domain language.
 - `research.md` - library and ecosystem research notes.
+- `decisions/2026-07-06-tiptap-editor-content-storage.md` - Tiptap editor,
+  triple content storage, and server-side XSS safety boundary.
 - `../docs/architecture.md` - proposed technical architecture and directory
   layout.
 - `modules/identity.md` - identity, registration, sessions, roles, permissions,
@@ -226,6 +241,8 @@ This is the entry point for project memory.
   settings, permissions, upload flow, cleanup, API, and admin UI notes.
 - `modules/extensions.md` - extension package, plugin/theme manifest,
   lifecycle, permissions, storage, and runtime-boundary notes.
+- `modules/forum.md` - categories, topics, tree comments, shared content
+  posts, API routes, and future frontend display decisions.
 - `../contracts/README.md` - modular OpenAPI contract editing guide.
 - `decisions/2026-07-04-laravel-style-http-routing.md` - accepted backend
   composition, route registration, and Laravel-style API directory decision.
@@ -269,6 +286,9 @@ This is the entry point for project memory.
   loading decision.
 - `decisions/2026-07-05-openapi-contract-modularization.md` - accepted
   modular OpenAPI source layout and reference-validation workflow.
+- `decisions/2026-07-06-forum-topics-comments-posts.md` - accepted forum
+  backend model where `topics` are user-facing posts, `comments` are tree
+  replies, and `posts` is the shared content table.
 - `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA
   implementation handoff.
 - `sessions/2026-07-04-registration-status-notice.md` - first-user
@@ -345,6 +365,8 @@ This is the entry point for project memory.
 - `sessions/2026-07-05-altcha-scenario-settings.md` - CAPTCHA scenario
   switches, ALTCHA secret generation, TTL/cost guidance, and UI validation
   handoff.
+- `sessions/2026-07-06-forum-backend-foundation.md` - forum schema,
+  renderer/sanitizer, routes, OpenAPI, and tree comment model handoff.
 - `../docs/superpowers/specs/2026-07-05-global-footer-design.md` - global footer design spec.
 - `../docs/superpowers/plans/2026-07-05-global-footer.md` - global footer implementation plan.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -

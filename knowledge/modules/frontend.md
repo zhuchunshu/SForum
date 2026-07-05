@@ -36,6 +36,13 @@ uppercase `SF` component names. The first component set is backed by
 `/components` route. That preview page now shows the components in expanded
 forum scenarios: publishing, moderation, member profile, feedback, lists, and
 state handling.
+`SFEditor` is now backed by Tiptap rather than a plain textarea. It keeps the
+existing `v-model` as Markdown for simple parent integration, emits a
+`content-change` payload containing HTML, Markdown, native Tiptap JSON, text,
+character count, word count, and empty state, and includes toolbar controls,
+custom emoji nodes, preview, Markdown source, and JSON inspection modes. The
+client HTML is only for preview and must be regenerated/sanitized by the API
+before storage.
 Public, non-admin UI is now owned by the protected built-in default theme layer
 at `extensions/builtin/themes/sforum-default/layer`. The root Nuxt app
 statically extends that layer. The layer owns the homepage, default layout,

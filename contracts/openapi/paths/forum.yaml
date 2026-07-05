@@ -1,0 +1,201 @@
+categories:
+  get:
+    summary: List public forum categories
+    operationId: listCategories
+    responses:
+      '200':
+        description: Public forum categories.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCategoryList"
+topics:
+  get:
+    summary: List public topics
+    operationId: listTopics
+    parameters:
+    - name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    - name: categorySlug
+      in: query
+      schema:
+        type: string
+    - name: query
+      in: query
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Paged public topic list.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseTopicList"
+  post:
+    summary: Create a topic
+    operationId: createTopic
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/forum.yaml#/CreateTopicRequest"
+    responses:
+      '201':
+        description: Topic created with shared post content.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseTopicDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+topicByID:
+  get:
+    summary: Get public topic detail
+    operationId: getTopic
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicID"
+    responses:
+      '200':
+        description: Public topic detail with shared post content.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseTopicDetail"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+topicComments:
+  get:
+    summary: List topic comments
+    operationId: listTopicComments
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicID"
+    - name: view
+      in: query
+      schema:
+        type: string
+        enum:
+        - tree
+        - flat
+        default: tree
+    - name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    responses:
+      '200':
+        description: Topic comments as a desktop tree or mobile-friendly flat list.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCommentList"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+  post:
+    summary: Create a topic comment
+    operationId: createTopicComment
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/forum.yaml#/CreateCommentRequest"
+    responses:
+      '201':
+        description: Comment created with shared post content.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseComment"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+commentReplies:
+  get:
+    summary: List direct replies for a comment
+    operationId: listCommentReplies
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CommentID"
+    responses:
+      '200':
+        description: Direct active replies.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCommentArray"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+commentByID:
+  patch:
+    summary: Update a comment's shared post content
+    operationId: updateComment
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CommentID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/forum.yaml#/UpdateCommentRequest"
+    responses:
+      '200':
+        description: Comment content updated and prior content revision stored.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseComment"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+  delete:
+    summary: Soft-delete a comment
+    operationId: deleteComment
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CommentID"
+    responses:
+      '200':
+        description: Comment soft-deleted.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseComment"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"

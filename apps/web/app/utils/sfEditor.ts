@@ -1,0 +1,236 @@
+import { CharacterCount } from '@tiptap/extension-character-count'
+import Image from '@tiptap/extension-image'
+import Link from '@tiptap/extension-link'
+import Placeholder from '@tiptap/extension-placeholder'
+import Underline from '@tiptap/extension-underline'
+import { Markdown } from '@tiptap/markdown'
+import StarterKit from '@tiptap/starter-kit'
+import {
+  createInlineMarkdownSpec,
+  mergeAttributes,
+  Node,
+  type JSONContent
+} from '@tiptap/vue-3'
+
+export type SForumEmojiItem = {
+  name: string
+  label: string
+  native: string
+}
+
+export type TiptapContentReader = {
+  getHTML: () => string
+  getMarkdown: () => string
+  getJSON: () => JSONContent
+  getText: () => string
+  storage: {
+    characterCount: {
+      characters: () => number
+      words: () => number
+    }
+  }
+  isEmpty: boolean
+}
+
+export type SFEditorContentPayload = {
+  html: string
+  markdown: string
+  native: JSONContent
+  text: string
+  characterCount: number
+  wordCount: number
+  isEmpty: boolean
+}
+
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    sforumEmoji: {
+      insertSForumEmoji: (emoji: SForumEmojiItem) => ReturnType
+    }
+  }
+}
+
+const sforumEmojiMarkdown = createInlineMarkdownSpec({
+  nodeName: 'sforumEmoji',
+  name: 'emoji',
+  selfClosing: true,
+  allowedAttributes: ['name', 'label', 'native']
+})
+
+export const SForumEmoji = Node.create({
+  name: 'sforumEmoji',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: false,
+
+  addAttributes() {
+    return {
+      name: {
+        default: ''
+      },
+      label: {
+        default: ''
+      },
+      native: {
+        default: ''
+      }
+    }
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'span[data-sforum-emoji]'
+      }
+    ]
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    const name = String(node.attrs.name || '')
+    const label = String(node.attrs.label || name)
+    const native = String(node.attrs.native || `:${name}:`)
+
+    return [
+      'span',
+      mergeAttributes(HTMLAttributes, {
+        class: 'sf-editor-emoji-node',
+        'data-sforum-emoji': name,
+        'data-label': label,
+        title: label
+      }),
+      native
+    ]
+  },
+
+  renderText({ node }) {
+    const name = String(node.attrs.name || '')
+    return String(node.attrs.native || `:${name}:`)
+  },
+
+  addCommands() {
+    return {
+      insertSForumEmoji:
+        emoji =>
+        ({ commands }) => commands.insertContent({
+          type: this.name,
+          attrs: emoji
+        })
+    }
+  },
+
+  ...sforumEmojiMarkdown
+})
+
+export const sforumEditorEmojiItems: SForumEmojiItem[] = [
+  { name: 'sparkles', label: '灵感', native: '✨' },
+  { name: 'clap', label: '赞同', native: '👏' },
+  { name: 'thinking', label: '思考', native: '🤔' },
+  { name: 'rocket', label: '推进', native: '🚀' },
+  { name: 'eyes', label: '关注', native: '👀' },
+  { name: 'party', label: '庆祝', native: '🎉' }
+]
+
+export function createSFEditorExtensions(options: {
+  placeholder: string
+  maxCharacters: number
+}) {
+  return [
+    StarterKit.configure({
+      link: false,
+      underline: false
+    }),
+    Underline,
+    Link.configure({
+      autolink: true,
+      linkOnPaste: true,
+      openOnClick: false,
+      defaultProtocol: 'https',
+      protocols: ['http', 'https', 'mailto'],
+      HTMLAttributes: {
+        rel: 'noopener noreferrer nofollow ugc',
+        target: '_blank'
+      },
+      isAllowedUri: allowedLinkUri
+    }),
+    Image.configure({
+      allowBase64: false,
+      HTMLAttributes: {
+        loading: 'lazy',
+        decoding: 'async',
+        referrerpolicy: 'no-referrer'
+      }
+    }),
+    SForumEmoji,
+    Placeholder.configure({
+      placeholder: options.placeholder
+    }),
+    CharacterCount.configure({
+      limit: options.maxCharacters,
+      wordCounter: text => text.trim().split(/\s+/).filter(Boolean).length
+    }),
+    Markdown.configure({
+      indentation: { style: 'space', size: 2 },
+      markedOptions: {
+        gfm: true,
+        breaks: false
+      }
+    })
+  ]
+}
+
+// 客户端只做交互层的基础限制；服务端仍必须重新生成并净化 HTML 后才能入库。
+function allowedLinkUri(url: string, context: {
+  defaultValidate: (url: string) => boolean
+}) {
+  const value = url.trim()
+
+  if ((value.startsWith('/') && !value.startsWith('//')) || value.startsWith('#')) {
+    return true
+  }
+
+  const normalized = normalizeUserUrl(url)
+  return Boolean(normalized && context.defaultValidate(normalized))
+}
+
+export function normalizeUserUrl(url: string) {
+  const value = url.trim()
+
+  if (!value) {
+    return ''
+  }
+
+  if ((value.startsWith('/') && !value.startsWith('//')) || value.startsWith('#')) {
+    return value
+  }
+
+  try {
+    const parsed = new URL(value)
+    return ['http:', 'https:', 'mailto:'].includes(parsed.protocol) ? parsed.href : ''
+  } catch {
+    try {
+      return new URL(`https://${value}`).href
+    } catch {
+      return ''
+    }
+  }
+}
+
+export function normalizeImageUrl(url: string) {
+  const value = normalizeUserUrl(url)
+
+  if (!value || value.startsWith('mailto:') || value.startsWith('#')) {
+    return ''
+  }
+
+  return value
+}
+
+export function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}

@@ -1,0 +1,416 @@
+ApiResponseCategoryList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/Category"
+ApiResponseTopicList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/TopicList"
+ApiResponseTopicDetail:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/TopicDetail"
+ApiResponseComment:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/Comment"
+ApiResponseCommentArray:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/Comment"
+ApiResponseCommentList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/CommentList"
+ContentInput:
+  type: object
+  required:
+  - rawContent
+  properties:
+    rawContent:
+      type: string
+    sourceFormat:
+      "$ref": "#/SourceFormat"
+      default: markdown
+    editorType:
+      type: string
+      default: markdown
+    editorVersion:
+      type: string
+      default: ''
+RenderedContent:
+  type: object
+  required:
+  - id
+  - rawContent
+  - htmlContent
+  - plainText
+  - excerpt
+  - sourceFormat
+  - editorType
+  - renderVersion
+  - contentHash
+  properties:
+    id:
+      type: integer
+      format: int64
+    rawContent:
+      type: string
+    htmlContent:
+      type: string
+    plainText:
+      type: string
+    excerpt:
+      type: string
+    sourceFormat:
+      "$ref": "#/SourceFormat"
+    editorType:
+      type: string
+    editorVersion:
+      type: string
+    renderVersion:
+      type: string
+    contentHash:
+      type: string
+SourceFormat:
+  type: string
+  enum:
+  - markdown
+  - html
+  - json
+TopicStatus:
+  type: string
+  enum:
+  - active
+  - locked
+  - hidden
+  - deleted
+CommentStatus:
+  type: string
+  enum:
+  - active
+  - hidden
+  - deleted
+Category:
+  type: object
+  required:
+  - id
+  - slug
+  - name
+  - description
+  - visibility
+  - topicCount
+  - commentCount
+  - createdAt
+  - updatedAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    slug:
+      type: string
+    name:
+      type: string
+    description:
+      type: string
+    visibility:
+      type: string
+      enum:
+      - public
+      - hidden
+    topicCount:
+      type: integer
+      format: int64
+    commentCount:
+      type: integer
+      format: int64
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+ForumUser:
+  type: object
+  required:
+  - id
+  - username
+  - displayName
+  properties:
+    id:
+      type: integer
+      format: int64
+    username:
+      type: string
+    displayName:
+      type: string
+TopicSummary:
+  type: object
+  required:
+  - id
+  - title
+  - slug
+  - status
+  - commentCount
+  - viewCount
+  - excerpt
+  - createdAt
+  - updatedAt
+  - lastActivityAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    categoryId:
+      type: integer
+      format: int64
+    categorySlug:
+      type: string
+    categoryName:
+      type: string
+    authorUserId:
+      type: integer
+      format: int64
+    author:
+      "$ref": "#/ForumUser"
+    title:
+      type: string
+    slug:
+      type: string
+    status:
+      "$ref": "#/TopicStatus"
+    isPinned:
+      type: boolean
+    commentCount:
+      type: integer
+      format: int64
+    viewCount:
+      type: integer
+      format: int64
+    excerpt:
+      type: string
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+    lastActivityAt:
+      type: string
+      format: date-time
+TopicDetail:
+  allOf:
+  - "$ref": "#/TopicSummary"
+  - type: object
+    required:
+    - content
+    properties:
+      content:
+        "$ref": "#/RenderedContent"
+TopicList:
+  type: object
+  required:
+  - items
+  - total
+  - page
+  - perPage
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/TopicSummary"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    perPage:
+      type: integer
+Comment:
+  type: object
+  required:
+  - id
+  - topicId
+  - authorUserId
+  - rootCommentId
+  - pathKey
+  - depth
+  - replyCount
+  - status
+  - content
+  - createdAt
+  - updatedAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    topicId:
+      type: integer
+      format: int64
+    authorUserId:
+      type: integer
+      format: int64
+    author:
+      "$ref": "#/ForumUser"
+    parentId:
+      type:
+      - integer
+      - 'null'
+      format: int64
+    rootCommentId:
+      type: integer
+      format: int64
+    pathKey:
+      type: string
+    depth:
+      type: integer
+    replyCount:
+      type: integer
+      format: int64
+    status:
+      "$ref": "#/CommentStatus"
+    content:
+      "$ref": "#/RenderedContent"
+    replyTo:
+      "$ref": "#/ReplyReference"
+    children:
+      type: array
+      items:
+        "$ref": "#/Comment"
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+ReplyReference:
+  type: object
+  required:
+  - id
+  - excerpt
+  - depth
+  properties:
+    id:
+      type: integer
+      format: int64
+    author:
+      "$ref": "#/ForumUser"
+    excerpt:
+      type: string
+    depth:
+      type: integer
+CommentList:
+  type: object
+  required:
+  - items
+  - total
+  - page
+  - perPage
+  - view
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/Comment"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    perPage:
+      type: integer
+    view:
+      type: string
+      enum:
+      - tree
+      - flat
+CreateTopicRequest:
+  type: object
+  required:
+  - title
+  - content
+  properties:
+    categorySlug:
+      type: string
+      default: general
+    title:
+      type: string
+    content:
+      "$ref": "#/ContentInput"
+CreateCommentRequest:
+  type: object
+  required:
+  - content
+  properties:
+    parentId:
+      type:
+      - integer
+      - 'null'
+      format: int64
+    content:
+      "$ref": "#/ContentInput"
+UpdateCommentRequest:
+  type: object
+  required:
+  - content
+  properties:
+    content:
+      "$ref": "#/ContentInput"

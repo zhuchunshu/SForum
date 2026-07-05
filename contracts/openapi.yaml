@@ -8,6 +8,18 @@ servers:
 paths:
   "/health":
     "$ref": "./openapi/paths/system.yaml#/health"
+  "/categories":
+    "$ref": "./openapi/paths/forum.yaml#/categories"
+  "/topics":
+    "$ref": "./openapi/paths/forum.yaml#/topics"
+  "/topics/{topicID}":
+    "$ref": "./openapi/paths/forum.yaml#/topicByID"
+  "/topics/{topicID}/comments":
+    "$ref": "./openapi/paths/forum.yaml#/topicComments"
+  "/comments/{commentID}/replies":
+    "$ref": "./openapi/paths/forum.yaml#/commentReplies"
+  "/comments/{commentID}":
+    "$ref": "./openapi/paths/forum.yaml#/commentByID"
   "/auth/registration-status":
     "$ref": "./openapi/paths/identity.yaml#/authRegistrationStatus"
   "/auth/register":
@@ -84,6 +96,10 @@ components:
       "$ref": "./openapi/components/parameters.yaml#/AttachmentID"
     ExtensionID:
       "$ref": "./openapi/components/parameters.yaml#/ExtensionID"
+    TopicID:
+      "$ref": "./openapi/components/parameters.yaml#/TopicID"
+    CommentID:
+      "$ref": "./openapi/components/parameters.yaml#/CommentID"
   responses:
     Unauthorized:
       "$ref": "./openapi/components/responses.yaml#/Unauthorized"
@@ -152,6 +168,18 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionList"
     ApiResponseExtensionEventList:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionEventList"
+    ApiResponseCategoryList:
+      "$ref": "./openapi/schemas/forum.yaml#/ApiResponseCategoryList"
+    ApiResponseTopicList:
+      "$ref": "./openapi/schemas/forum.yaml#/ApiResponseTopicList"
+    ApiResponseTopicDetail:
+      "$ref": "./openapi/schemas/forum.yaml#/ApiResponseTopicDetail"
+    ApiResponseComment:
+      "$ref": "./openapi/schemas/forum.yaml#/ApiResponseComment"
+    ApiResponseCommentArray:
+      "$ref": "./openapi/schemas/forum.yaml#/ApiResponseCommentArray"
+    ApiResponseCommentList:
+      "$ref": "./openapi/schemas/forum.yaml#/ApiResponseCommentList"
     ExtensionType:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionType"
     ExtensionStatus:
@@ -210,6 +238,38 @@ components:
       "$ref": "./openapi/schemas/attachments.yaml#/AttachmentProbe"
     AttachmentCleanupResult:
       "$ref": "./openapi/schemas/attachments.yaml#/AttachmentCleanupResult"
+    ContentInput:
+      "$ref": "./openapi/schemas/forum.yaml#/ContentInput"
+    RenderedContent:
+      "$ref": "./openapi/schemas/forum.yaml#/RenderedContent"
+    SourceFormat:
+      "$ref": "./openapi/schemas/forum.yaml#/SourceFormat"
+    TopicStatus:
+      "$ref": "./openapi/schemas/forum.yaml#/TopicStatus"
+    CommentStatus:
+      "$ref": "./openapi/schemas/forum.yaml#/CommentStatus"
+    Category:
+      "$ref": "./openapi/schemas/forum.yaml#/Category"
+    ForumUser:
+      "$ref": "./openapi/schemas/forum.yaml#/ForumUser"
+    TopicSummary:
+      "$ref": "./openapi/schemas/forum.yaml#/TopicSummary"
+    TopicDetail:
+      "$ref": "./openapi/schemas/forum.yaml#/TopicDetail"
+    TopicList:
+      "$ref": "./openapi/schemas/forum.yaml#/TopicList"
+    Comment:
+      "$ref": "./openapi/schemas/forum.yaml#/Comment"
+    ReplyReference:
+      "$ref": "./openapi/schemas/forum.yaml#/ReplyReference"
+    CommentList:
+      "$ref": "./openapi/schemas/forum.yaml#/CommentList"
+    CreateTopicRequest:
+      "$ref": "./openapi/schemas/forum.yaml#/CreateTopicRequest"
+    CreateCommentRequest:
+      "$ref": "./openapi/schemas/forum.yaml#/CreateCommentRequest"
+    UpdateCommentRequest:
+      "$ref": "./openapi/schemas/forum.yaml#/UpdateCommentRequest"
     CurrentUser:
       "$ref": "./openapi/schemas/identity.yaml#/CurrentUser"
     RegistrationStatus:

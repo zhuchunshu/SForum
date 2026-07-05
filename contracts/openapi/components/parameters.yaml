@@ -35,3 +35,19 @@ ExtensionID:
   schema:
     type: string
   description: Stable extension id from sforum.extension.json.
+TopicID:
+  name: topicID
+  in: path
+  required: true
+  schema:
+    type: integer
+    format: int64
+  description: Numeric topic id.
+CommentID:
+  name: commentID
+  in: path
+  required: true
+  schema:
+    type: integer
+    format: int64
+  description: Numeric comment id.

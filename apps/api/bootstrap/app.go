@@ -17,6 +17,7 @@ import (
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
@@ -81,6 +82,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		HashSecret:      cfg.SessionHashSecret,
 	})
 	identityStore := identity.NewPostgresStore(pool)
+	forumStore := forum.NewPostgresStore(pool)
 	attachmentStore := attachments.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
 	extensionService := extensions.NewServiceWithBuiltins(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
@@ -95,12 +97,13 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, fmt.Errorf("sync builtin extensions failed: %w", err)
 	}
 	identityProvider := providers.NewIdentityProviderWithAuthSessions(identityStore, authSessions, humanVerifier)
+	forumProvider := providers.NewForumProvider(forumStore, identityStore, authSessions)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProvider(attachmentStore, optionsService, identityStore, authSessions)
 	extensionsProvider := providers.NewExtensionsProvider(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider, optionsProvider, attachmentsProvider, extensionsProvider},
+		RouteProviders: []httpserver.RouteProvider{identityProvider, forumProvider, optionsProvider, attachmentsProvider, extensionsProvider},
 		Options:        optionsService,
 	})
 

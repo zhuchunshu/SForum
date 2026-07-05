@@ -32,7 +32,38 @@ const anonymousDraft = ref(false)
 const hideActivity = ref(false)
 const autoCloseQueue = ref(true)
 const replyDraft = ref('我建议把版块权限先抽象成角色能力矩阵，这样后续加审核流会更稳。')
-const longReplyDraft = ref('先把标题、分类、标签和正文拆成独立校验，再让发布按钮只关注最终提交状态。这样草稿保存、预览和审核提示都能复用同一份表单状态。')
+const longReplyDraft = ref(`## 编辑器组件验证
+
+这是 **SForum Tiptap** 的第一版编辑器，用来验证自定义 toolbar、表情节点和三格式内容输出。[emoji name="sparkles" label="灵感" native="✨"]
+
+> 客户端输出只用于草稿、预览和提交载荷，最终入库 HTML 必须由 API 重新生成并净化。
+
+- Markdown 会保留给编辑和审计
+- HTML 会在服务端净化后用于 SSR 展示
+- Tiptap JSON 会作为原生结构保存，方便后续支持附件、@提及和自定义节点
+`)
+
+type EditorPreviewPayload = {
+  html: string
+  markdown: string
+  native: unknown
+  text: string
+  characterCount: number
+  wordCount: number
+  isEmpty: boolean
+}
+
+const editorPreviewPayload = ref<EditorPreviewPayload | null>(null)
+
+const editorHtmlOutput = computed(() => editorPreviewPayload.value?.html || '')
+const editorMarkdownOutput = computed(() => editorPreviewPayload.value?.markdown || longReplyDraft.value)
+const editorNativeOutput = computed(() => {
+  if (!editorPreviewPayload.value) {
+    return '{}'
+  }
+
+  return JSON.stringify(editorPreviewPayload.value.native, null, 2)
+})
 
 const searchFilters = [
   { label: '全部', value: 'all' },
@@ -91,6 +122,10 @@ const navItems = [
   { href: '#profile', label: '成员' },
   { href: '#states', label: '状态' }
 ]
+
+function updateEditorPreview(payload: EditorPreviewPayload) {
+  editorPreviewPayload.value = payload
+}
 </script>
 
 <template>
@@ -390,7 +425,35 @@ const navItems = [
                   placeholder="补充背景、已尝试方案和期望结果..."
                   :rows="8"
                   hint="草稿每 30 秒自动保存"
+                  submit-label="发布主题"
+                  @content-change="updateEditorPreview"
                 />
+                <SFAlert
+                  title="内容安全边界"
+                  description="数据库保存 sanitized_html、markdown_source 和 native_json；客户端生成的 HTML 不直接信任，API 写入前必须按服务端规则重新渲染并净化。"
+                  variant="warning"
+                  compact
+                />
+                <div class="sf-editor-contract">
+                  <div class="sf-editor-contract__panel">
+                    <p class="sf-editor-contract__label">
+                      sanitized_html
+                    </p>
+                    <pre class="sf-editor-contract__code">{{ editorHtmlOutput }}</pre>
+                  </div>
+                  <div class="sf-editor-contract__panel">
+                    <p class="sf-editor-contract__label">
+                      markdown_source
+                    </p>
+                    <pre class="sf-editor-contract__code">{{ editorMarkdownOutput }}</pre>
+                  </div>
+                  <div class="sf-editor-contract__panel">
+                    <p class="sf-editor-contract__label">
+                      native_json
+                    </p>
+                    <pre class="sf-editor-contract__code">{{ editorNativeOutput }}</pre>
+                  </div>
+                </div>
                 <div class="variant-grid">
                   <SFButton>发布主题</SFButton>
                   <SFButton variant="secondary">保存草稿</SFButton>

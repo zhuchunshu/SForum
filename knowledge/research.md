@@ -189,13 +189,21 @@ libraries, frameworks, or services.
 ## User Content Rendering
 
 - Problem: render user-authored posts safely.
-- Options: raw HTML, WYSIWYG HTML plus sanitizer, Markdown plus sanitizer.
-- Recommendation: Markdown source rendered with `goldmark`, then sanitized with
-  `bluemonday`.
-- Reason: Markdown is easier to moderate, diff, store, and render consistently
-  for a forum MVP. Sanitization remains required even when Markdown is used.
-- Follow-up: choose allowed extensions and link policies before implementation.
-- Sources: https://github.com/yuin/goldmark,
+- Options: raw HTML, WYSIWYG HTML plus sanitizer, Markdown plus sanitizer,
+  Tiptap structured JSON with derived Markdown and sanitized HTML.
+- Recommendation: use Tiptap for the editor and persist accepted content as
+  sanitized HTML, Markdown, and native Tiptap JSON.
+- Reason: Tiptap gives SForum room for custom toolbar controls, custom emoji,
+  attachments, mentions, and future structured nodes. Markdown remains useful
+  for moderation and exports, while sanitized HTML keeps SSR rendering fast.
+- Safety rule: client-generated HTML is never canonical. The API must accept
+  only allowlisted content, regenerate HTML/Markdown from accepted content, and
+  sanitize display HTML with `bluemonday` before storage.
+- Follow-up: implement backend content normalization and XSS regression tests
+  before topic/post write endpoints ship.
+- Sources: https://tiptap.dev/docs/editor/getting-started/install/nuxt,
+  https://tiptap.dev/docs/editor/markdown,
+  https://tiptap.dev/docs/editor/extensions/custom-extensions,
   https://github.com/microcosm-cc/bluemonday
 
 ## Development And Deployment Orchestration
