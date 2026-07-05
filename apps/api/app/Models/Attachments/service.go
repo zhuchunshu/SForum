@@ -29,21 +29,19 @@ const defaultSignedURLTTL = 5 * time.Minute
 type Service struct {
 	store          Store
 	options        *options.Service
-	localRoot      string
 	adapterFactory func(storage.Config) (storage.Adapter, error)
 }
 
-func NewService(store Store, optionsService *options.Service, localRoot string) *Service {
+func NewService(store Store, optionsService *options.Service) *Service {
 	return &Service{
 		store:          store,
 		options:        optionsService,
-		localRoot:      localRoot,
 		adapterFactory: storage.NewAdapter,
 	}
 }
 
-func NewServiceWithAdapterFactory(store Store, optionsService *options.Service, localRoot string, factory func(storage.Config) (storage.Adapter, error)) *Service {
-	service := NewService(store, optionsService, localRoot)
+func NewServiceWithAdapterFactory(store Store, optionsService *options.Service, factory func(storage.Config) (storage.Adapter, error)) *Service {
+	service := NewService(store, optionsService)
 	if factory != nil {
 		service.adapterFactory = factory
 	}
@@ -322,7 +320,7 @@ func (s *Service) runtimeSettings(ctx context.Context) (AttachmentSettings, erro
 }
 
 func (s *Service) adapterForSettings(settings AttachmentSettings, provider string) (storage.Adapter, error) {
-	config := storageConfig(settings, s.localRoot)
+	config := storageConfig(settings)
 	config.Provider = provider
 	return s.adapterFactory(config)
 }
@@ -448,6 +446,7 @@ func settingsFromValues(values map[string]string, secrets map[string]bool) Attac
 		DefaultVisibility:      read(values, options.NameAttachmentDefaultVisibility, VisibilityPublic),
 		CleanupOrphanAfterDays: readInt(values, options.NameAttachmentCleanupOrphanDays, 30),
 		Local: LocalSettings{
+			Root:         read(values, options.NameAttachmentLocalRoot, "storage/app/attachments"),
 			PublicPrefix: read(values, options.NameAttachmentLocalPublicPrefix, ""),
 		},
 		AliyunOSS: AliyunOSSSettings{
@@ -505,6 +504,7 @@ func settingsUpdateInputs(settings AttachmentSettings) []options.UpdateInput {
 		{Name: options.NameAttachmentAllowedMIMETypes, Value: strings.Join(settings.AllowedMIMETypes, ",")},
 		{Name: options.NameAttachmentDefaultVisibility, Value: settings.DefaultVisibility},
 		{Name: options.NameAttachmentCleanupOrphanDays, Value: strconv.Itoa(settings.CleanupOrphanAfterDays)},
+		{Name: options.NameAttachmentLocalRoot, Value: settings.Local.Root},
 		{Name: options.NameAttachmentLocalPublicPrefix, Value: settings.Local.PublicPrefix},
 		{Name: options.NameAttachmentAliyunEndpoint, Value: settings.AliyunOSS.Endpoint},
 		{Name: options.NameAttachmentAliyunBucket, Value: settings.AliyunOSS.Bucket},
@@ -544,10 +544,10 @@ func settingsUpdateInputs(settings AttachmentSettings) []options.UpdateInput {
 	return inputs
 }
 
-func storageConfig(settings AttachmentSettings, localRoot string) storage.Config {
+func storageConfig(settings AttachmentSettings) storage.Config {
 	return storage.Config{
 		Provider:      settings.Provider,
-		LocalRoot:     localRoot,
+		LocalRoot:     settings.Local.Root,
 		PublicBaseURL: settings.PublicBaseURL,
 		Local: storage.LocalConfig{
 			PublicPrefix: settings.Local.PublicPrefix,

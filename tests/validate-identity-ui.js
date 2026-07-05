@@ -99,11 +99,14 @@ for (const keyPath of requiredKeys) {
 if (!registerPage.includes(':configuration=')) {
   throw new Error('Registration ALTCHA widget should pass a configuration object');
 }
-if (!registerPage.includes('hideLogo: true')) {
-  throw new Error('Registration ALTCHA widget should hide the ALTCHA logo icon');
+if (!registerPage.includes('hideLogo: altchaWidgetSettings.value.hideLogo')) {
+  throw new Error('Registration ALTCHA widget should read logo visibility from runtime settings');
 }
-if (!registerPage.includes('hideFooter: true')) {
-  throw new Error('Registration ALTCHA widget should hide the ALTCHA attribution footer');
+if (!registerPage.includes('hideFooter: altchaWidgetSettings.value.hideFooter')) {
+  throw new Error('Registration ALTCHA widget should read footer visibility from runtime settings');
+}
+if (!registerPage.includes('minDuration: altchaWidgetSettings.value.minDuration')) {
+  throw new Error('Registration ALTCHA widget should read minimum duration from runtime settings');
 }
 if (!registerPage.includes("import type { AltchaWidgetElement } from 'altcha'")) {
   throw new Error('Registration ALTCHA widget should use the official AltchaWidgetElement type');
@@ -114,8 +117,8 @@ if (!registerPage.includes('const altchaWidget = ref<AltchaWidgetElement | null>
 if (!registerPage.includes('humanVerificationEnabled')) {
   throw new Error('Registration ALTCHA widget should be guarded by the configured provider');
 }
-if (!registerPage.includes('humanVerificationProvider')) {
-  throw new Error('Registration ALTCHA widget should read the provider from runtime web options');
+if (!registerPage.includes("humanVerificationEnabledFor('register')")) {
+  throw new Error('Registration ALTCHA widget should read register scenario availability from runtime web options');
 }
 if (registerPage.includes('public.humanVerificationProvider')) {
   throw new Error('Registration ALTCHA widget should not read provider from Nuxt public runtime config');

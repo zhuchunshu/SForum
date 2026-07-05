@@ -17,8 +17,8 @@
 - Use a small internal `StorageAdapter` interface with thin provider adapters.
 - Treat "remote server" as SFTP in the first release, while keeping FTP as a
   compatibility provider.
-- Keep local filesystem root in `ATTACHMENT_LOCAL_ROOT`; admin settings manage
-  object paths and public URL prefixes only.
+- Keep local filesystem root in `attachment.local.root`; admin settings manage
+  the local root, object paths, and public URL prefixes.
 - Use server-mediated multipart upload for v1; direct browser upload is
   deferred.
 

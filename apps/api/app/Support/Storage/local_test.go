@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"strings"
 	"testing"
 )
@@ -92,5 +93,37 @@ func TestLocalAdapterRejectsUnsafeObjectKeys(t *testing.T) {
 func TestNewLocalAdapterRequiresRoot(t *testing.T) {
 	if _, err := NewLocalAdapter("", ""); !errors.Is(err, ErrInvalidConfig) {
 		t.Fatalf("expected invalid config, got %v", err)
+	}
+}
+
+func TestLocalAdapterProbeCreatesWritableRoot(t *testing.T) {
+	root := t.TempDir() + "/nested/attachments"
+	adapter, err := NewLocalAdapter(root, "")
+	if err != nil {
+		t.Fatalf("new local adapter: %v", err)
+	}
+
+	if err := adapter.Probe(context.Background()); err != nil {
+		t.Fatalf("probe local root: %v", err)
+	}
+	if info, err := os.Stat(root); err != nil || !info.IsDir() {
+		t.Fatalf("expected probe to create local root directory, info=%v err=%v", info, err)
+	}
+}
+
+func TestLocalAdapterProbeRequiresWritableRoot(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Chmod(root, 0o500); err != nil {
+		t.Fatalf("chmod root read-only: %v", err)
+	}
+	defer os.Chmod(root, 0o700)
+
+	adapter, err := NewLocalAdapter(root, "")
+	if err != nil {
+		t.Fatalf("new local adapter: %v", err)
+	}
+
+	if err := adapter.Probe(context.Background()); err == nil {
+		t.Fatal("expected probe to reject a non-writable local root")
 	}
 }

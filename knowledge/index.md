@@ -164,6 +164,9 @@ This is the entry point for project memory.
   permissions, runtime provider settings in `web_options`, server-mediated
   upload APIs, local/Aliyun OSS/Tencent COS/FTP/SFTP storage adapters, admin
   attachment governance, and orphan cleanup boundaries.
+- The local attachment provider root is now the admin-only runtime option
+  `attachment.local.root`, defaulting to `storage/app/attachments`; API process
+  config no longer reads `ATTACHMENT_LOCAL_ROOT`.
 - Extension system foundation is implemented: `extension.manage`, extension
   ZIP upload, `sforum.extension.json` manifest validation, dedicated extension
   tables, lifecycle events, admin extension management page, `EXTENSION_ROOT`,
@@ -217,6 +220,8 @@ This is the entry point for project memory.
   `seo.manage`, robots/sitemap integration, and local noindex strategy.
 - `decisions/2026-07-05-attachment-storage-providers.md` - accepted attachment
   provider adapter strategy and first provider set.
+- `decisions/2026-07-05-attachment-local-root-runtime-option.md` - accepted
+  local attachment root runtime option decision.
 - `decisions/2026-07-05-extension-plugin-theme-foundation.md` - accepted
   plugin/theme extension foundation, storage, permission, and runtime-boundary
   decision.
@@ -252,6 +257,10 @@ This is the entry point for project memory.
   handoff.
 - `sessions/2026-07-05-attachment-system-foundation.md` - attachment system
   implementation handoff.
+- `sessions/2026-07-05-attachment-local-root-runtime-option.md` - attachment
+  local root runtime option migration handoff.
+- `sessions/2026-07-05-test-baseline-fix.md` - test baseline fix, admin/identity
+  validation sync, and attachment local-root runtime option handoff.
 - `sessions/2026-07-05-extension-system-foundation.md` - extension backend,
   admin UI, manifest, lifecycle, and runtime-boundary implementation handoff.
 - `sessions/2026-07-05-public-navbar-hide-admin-entry.md` - public navbar admin

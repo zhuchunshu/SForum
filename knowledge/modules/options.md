@@ -101,10 +101,10 @@ Initial runtime option support is implemented.
   default meta/social tags, search platform verification tokens, robots
   additions, sitemap generation, and structured-data toggles. Runtime output
   still applies local/preview noindex protection based on `site.url`.
-- Attachment settings use `web_options` for product runtime behavior and
-  secret-masked provider credentials. The local provider filesystem root is not
-  stored there; it comes from `ATTACHMENT_LOCAL_ROOT` so the admin UI cannot
-  point uploads at arbitrary server paths.
+- Attachment settings use `web_options` for product runtime behavior,
+  secret-masked provider credentials, and the local provider filesystem root.
+  `attachment.local.root` defaults to `storage/app/attachments`; deployments
+  should mount storage there or update the option to a prepared writable path.
 - Locale settings can only enable built-in locale catalogs (`zh-CN`, `en-US`);
   adding a new locale still requires adding frontend and backend translations.
 - Theme settings use `appearance.theme` as a single public option. It accepts

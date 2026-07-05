@@ -373,6 +373,49 @@ func TestServiceAttachmentOptionsRequireAttachmentSettingsPermission(t *testing.
 	}
 }
 
+func TestServiceAttachmentLocalRootDefaultsAndValidation(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	actor := attachmentSettingsActor()
+
+	items, err := service.ListAdmin(context.Background(), actor)
+	if err != nil {
+		t.Fatalf("ListAdmin returned error: %v", err)
+	}
+	if got := adminValue(items, NameAttachmentLocalRoot); got != "storage/app/attachments" {
+		t.Fatalf("expected default attachment local root, got %q", got)
+	}
+
+	updated, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAttachmentLocalRoot, Value: " storage/forum-uploads "})
+	if err != nil {
+		t.Fatalf("expected relative attachment local root to be valid: %v", err)
+	}
+	if updated.Value != "storage/forum-uploads" {
+		t.Fatalf("expected normalized relative root, got %q", updated.Value)
+	}
+
+	updated, err = service.Update(context.Background(), actor, UpdateInput{Name: NameAttachmentLocalRoot, Value: "/srv/sforum/uploads"})
+	if err != nil {
+		t.Fatalf("expected absolute attachment local root to be valid: %v", err)
+	}
+	if updated.Value != "/srv/sforum/uploads" {
+		t.Fatalf("expected normalized absolute root, got %q", updated.Value)
+	}
+
+	cases := []string{
+		"",
+		"/",
+		"../uploads",
+		"storage/../uploads",
+		"storage/uploads\nnext",
+		"storage/<uploads>",
+	}
+	for _, value := range cases {
+		if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAttachmentLocalRoot, Value: value}); !errors.Is(err, ErrInvalidOption) {
+			t.Fatalf("expected invalid attachment local root %q, got %v", value, err)
+		}
+	}
+}
+
 func TestServiceAttachmentOptionsMaskAndKeepSecrets(t *testing.T) {
 	store := &fakeStore{items: map[string]string{
 		NameAttachmentProvider:              "aliyun_oss",

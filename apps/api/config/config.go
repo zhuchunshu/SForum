@@ -33,7 +33,6 @@ type Config struct {
 	AltchaSecret                 string
 	AltchaChallengeTTL           time.Duration
 	AltchaCost                   int
-	AttachmentLocalRoot          string
 	ExtensionRoot                string
 	MeiliHost                    string
 	MeiliMasterKey               string
@@ -78,7 +77,6 @@ func Load() Config {
 		AltchaSecret:                 env("ALTCHA_SECRET", "sforum-dev-altcha-secret"),
 		AltchaChallengeTTL:           envDuration("ALTCHA_CHALLENGE_TTL", 10*time.Minute),
 		AltchaCost:                   envPositiveInt("ALTCHA_COST", 1000),
-		AttachmentLocalRoot:          env("ATTACHMENT_LOCAL_ROOT", "/var/lib/sforum/uploads"),
 		ExtensionRoot:                env("EXTENSION_ROOT", "/var/lib/sforum/extensions"),
 		MeiliHost:                    env("MEILI_HOST", "http://meilisearch:7700"),
 		MeiliMasterKey:               env("MEILI_MASTER_KEY", "sforum-dev-meili-key"),

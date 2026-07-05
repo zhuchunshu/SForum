@@ -17,7 +17,7 @@ import (
 func TestServiceUploadStoresObjectAndMetadata(t *testing.T) {
 	store := &fakeAttachmentStore{}
 	adapter := &fakeStorageAdapter{publicBaseURL: "https://cdn.example.com"}
-	service := NewServiceWithAdapterFactory(store, newAttachmentOptions(nil), t.TempDir(), func(config storage.Config) (storage.Adapter, error) {
+	service := NewServiceWithAdapterFactory(store, newAttachmentOptions(nil), func(config storage.Config) (storage.Adapter, error) {
 		if config.Provider != storage.ProviderLocal {
 			t.Fatalf("expected local provider, got %q", config.Provider)
 		}
@@ -62,7 +62,7 @@ func TestServiceUploadDeletesRemoteObjectWhenMetadataCreateFails(t *testing.T) {
 	expected := errors.New("database unavailable")
 	store := &fakeAttachmentStore{createErr: expected}
 	adapter := &fakeStorageAdapter{}
-	service := NewServiceWithAdapterFactory(store, newAttachmentOptions(nil), t.TempDir(), func(storage.Config) (storage.Adapter, error) {
+	service := NewServiceWithAdapterFactory(store, newAttachmentOptions(nil), func(storage.Config) (storage.Adapter, error) {
 		return adapter, nil
 	})
 
@@ -81,7 +81,7 @@ func TestServiceUploadDeletesRemoteObjectWhenMetadataCreateFails(t *testing.T) {
 }
 
 func TestServiceUploadRequiresPermissionAndValidFileType(t *testing.T) {
-	service := NewServiceWithAdapterFactory(&fakeAttachmentStore{}, newAttachmentOptions(nil), t.TempDir(), func(storage.Config) (storage.Adapter, error) {
+	service := NewServiceWithAdapterFactory(&fakeAttachmentStore{}, newAttachmentOptions(nil), func(storage.Config) (storage.Adapter, error) {
 		return &fakeStorageAdapter{}, nil
 	})
 
@@ -113,7 +113,7 @@ func TestServiceCleanupUsesConfiguredRetentionWindow(t *testing.T) {
 	adapter := &fakeStorageAdapter{}
 	service := NewServiceWithAdapterFactory(store, newAttachmentOptions(map[string]string{
 		options.NameAttachmentCleanupOrphanDays: "7",
-	}), t.TempDir(), func(storage.Config) (storage.Adapter, error) {
+	}), func(storage.Config) (storage.Adapter, error) {
 		return adapter, nil
 	})
 
@@ -140,6 +140,39 @@ func TestServiceCleanupUsesConfiguredRetentionWindow(t *testing.T) {
 	}
 }
 
+func TestStorageConfigUsesSettingsLocalRoot(t *testing.T) {
+	settings := settingsFromValues(map[string]string{
+		options.NameAttachmentLocalRoot:         "storage/custom-attachments",
+		options.NameAttachmentLocalPublicPrefix: "/uploads",
+	}, nil)
+
+	config := storageConfig(settings)
+
+	if config.LocalRoot != "storage/custom-attachments" {
+		t.Fatalf("expected local root from settings, got %q", config.LocalRoot)
+	}
+	if config.Local.PublicPrefix != "/uploads" {
+		t.Fatalf("expected local public prefix from settings, got %q", config.Local.PublicPrefix)
+	}
+}
+
+func TestServiceUpdateSettingsPersistsLocalRoot(t *testing.T) {
+	optionStore := &fakeOptionStore{}
+	service := NewServiceWithAdapterFactory(&fakeAttachmentStore{}, options.NewServiceWithCacheTTL(optionStore, time.Minute), func(storage.Config) (storage.Adapter, error) {
+		return &fakeStorageAdapter{}, nil
+	})
+	settings := settingsFromValues(nil, nil)
+	settings.Local.Root = "storage/custom-attachments"
+
+	_, err := service.UpdateSettings(context.Background(), attachmentSettingsActor(), settings)
+	if err != nil {
+		t.Fatalf("UpdateSettings returned error: %v", err)
+	}
+	if got := optionStore.items[options.NameAttachmentLocalRoot]; got != "storage/custom-attachments" {
+		t.Fatalf("expected local root to be persisted, got %q", got)
+	}
+}
+
 func uploadActor() identity.Actor {
 	return identity.Actor{
 		ID:          42,
@@ -153,6 +186,14 @@ func manageActor() identity.Actor {
 		ID:          7,
 		Status:      identity.UserStatusActive,
 		Permissions: map[string]bool{identity.PermissionAttachmentManage: true},
+	}
+}
+
+func attachmentSettingsActor() identity.Actor {
+	return identity.Actor{
+		ID:          9,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionAttachmentSettings: true},
 	}
 }
 

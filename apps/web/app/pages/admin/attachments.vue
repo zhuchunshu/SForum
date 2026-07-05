@@ -24,7 +24,7 @@ type AttachmentSettings = {
   allowedMimeTypes: string[]
   defaultVisibility: 'public' | 'private'
   cleanupOrphanAfterDays: number
-  local: { publicPrefix: string }
+  local: { root: string, publicPrefix: string }
   aliyunOss: { endpoint: string, bucket: string, region: string, accessKeyId: string, accessKeySecret?: string, accessKeySecretSet: boolean }
   tencentCos: { region: string, bucket: string, secretId: string, secretKey?: string, secretKeySet: boolean, cdnDomain: string }
   ftp: { host: string, port: number, username: string, password?: string, passwordSet: boolean, rootPath: string, passive: boolean, explicitTls: boolean, publicBaseUrl: string }
@@ -301,6 +301,7 @@ function settingsPayload(): AttachmentSettings {
     ...form,
     allowedExtensions: [...form.allowedExtensions],
     allowedMimeTypes: [...form.allowedMimeTypes],
+    local: { ...form.local },
     aliyunOss: { ...form.aliyunOss },
     tencentCos: { ...form.tencentCos },
     ftp: { ...form.ftp },
@@ -323,7 +324,7 @@ function defaultSettings(): AttachmentSettings {
     allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'application/zip'],
     defaultVisibility: 'public',
     cleanupOrphanAfterDays: 30,
-    local: { publicPrefix: '' },
+    local: { root: 'storage/app/attachments', publicPrefix: '' },
     aliyunOss: { endpoint: '', bucket: '', region: '', accessKeyId: '', accessKeySecret: '', accessKeySecretSet: false },
     tencentCos: { region: '', bucket: '', secretId: '', secretKey: '', secretKeySet: false, cdnDomain: '' },
     ftp: { host: '', port: 21, username: '', password: '', passwordSet: false, rootPath: '/', passive: true, explicitTls: false, publicBaseUrl: '' },
@@ -477,6 +478,12 @@ function isPreviewableImage(item: Attachment) {
           </UFormField>
 
           <div v-if="form.provider === 'local'" class="grid gap-4 md:grid-cols-2">
+            <UFormField :label="t('admin.attachments.localRoot')" name="attachment-local-root">
+              <UInput v-model="form.local.root" icon="i-lucide-folder-tree" class="w-full font-mono" />
+              <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.attachments.localRootDescription') }}
+              </p>
+            </UFormField>
             <UFormField :label="t('admin.attachments.localPublicPrefix')" name="attachment-local-prefix">
               <UInput v-model="form.local.publicPrefix" type="url" icon="i-lucide-folder" class="w-full" />
             </UFormField>

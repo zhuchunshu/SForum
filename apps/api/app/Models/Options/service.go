@@ -143,6 +143,7 @@ var optionDefinitions = []optionDefinition{
 	{name: NameAttachmentAllowedMIMETypes, public: true, managePermission: identity.PermissionAttachmentSettings},
 	{name: NameAttachmentDefaultVisibility, managePermission: identity.PermissionAttachmentSettings},
 	{name: NameAttachmentCleanupOrphanDays, managePermission: identity.PermissionAttachmentSettings},
+	{name: NameAttachmentLocalRoot, managePermission: identity.PermissionAttachmentSettings},
 	{name: NameAttachmentLocalPublicPrefix, managePermission: identity.PermissionAttachmentSettings},
 	{name: NameAttachmentAliyunEndpoint, managePermission: identity.PermissionAttachmentSettings},
 	{name: NameAttachmentAliyunBucket, managePermission: identity.PermissionAttachmentSettings},
@@ -643,6 +644,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameAttachmentAllowedMIMETypes:       "image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/zip",
 		NameAttachmentDefaultVisibility:      "public",
 		NameAttachmentCleanupOrphanDays:      "30",
+		NameAttachmentLocalRoot:              "storage/app/attachments",
 		NameAttachmentLocalPublicPrefix:      "",
 		NameAttachmentAliyunEndpoint:         "",
 		NameAttachmentAliyunBucket:           "",
@@ -812,6 +814,8 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeEnabledOption(value)
 	case NameAttachmentPathTemplate:
 		return normalizeAttachmentPathTemplate(value)
+	case NameAttachmentLocalRoot:
+		return normalizeAttachmentLocalRoot(value)
 	case NameAttachmentPublicBaseURL, NameAttachmentLocalPublicPrefix, NameAttachmentTencentCDNDomain, NameAttachmentFTPPublicBaseURL, NameAttachmentSFTPPublicBaseURL:
 		return normalizeOptionalURL(value)
 	case NameAttachmentMaxFileSizeMB:

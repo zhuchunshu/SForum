@@ -41,7 +41,6 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-sforum}:${POSTGRES_PASSWORD:-sforum}@postgres:5432/${POSTGRES_DB:-sforum}?sslmode=disable
       REDIS_ADDR: redis:6379
       MEILI_HOST: http://meilisearch:7700
-      ATTACHMENT_LOCAL_ROOT: /var/lib/sforum/uploads
       GOMODCACHE: /go/pkg/mod
     depends_on:
       migrate:
@@ -51,7 +50,7 @@ services:
       - go_build_cache:/root/.cache/go-build
       - go_module_cache:/go/pkg/mod
       - api_air_tmp:/app/tmp
-      - attachment_uploads:/var/lib/sforum/uploads
+      - attachment_uploads:/app/storage/app/attachments
     develop:
       watch:
         - action: sync
@@ -81,7 +80,6 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-sforum}:${POSTGRES_PASSWORD:-sforum}@postgres:5432/${POSTGRES_DB:-sforum}?sslmode=disable
       REDIS_ADDR: redis:6379
       MEILI_HOST: http://meilisearch:7700
-      ATTACHMENT_LOCAL_ROOT: /var/lib/sforum/uploads
       GOMODCACHE: /go/pkg/mod
     depends_on:
       migrate:
@@ -91,7 +89,7 @@ services:
       - go_build_cache:/root/.cache/go-build
       - go_module_cache:/go/pkg/mod
       - worker_air_tmp:/app/tmp
-      - attachment_uploads:/var/lib/sforum/uploads
+      - attachment_uploads:/app/storage/app/attachments
     develop:
       watch:
         - action: sync

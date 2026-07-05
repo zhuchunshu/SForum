@@ -1490,6 +1490,7 @@ components:
             - attachment.allowed_mime_types
             - attachment.default_visibility
             - attachment.cleanup_orphan_after_days
+            - attachment.local.root
             - attachment.local.public_prefix
             - attachment.aliyun_oss.endpoint
             - attachment.aliyun_oss.bucket
@@ -1657,6 +1658,7 @@ components:
             - attachment.allowed_mime_types
             - attachment.default_visibility
             - attachment.cleanup_orphan_after_days
+            - attachment.local.root
             - attachment.local.public_prefix
             - attachment.aliyun_oss.endpoint
             - attachment.aliyun_oss.bucket
@@ -1900,11 +1902,16 @@ components:
     AttachmentLocalSettings:
       type: object
       required:
+        - root
         - publicPrefix
       properties:
+        root:
+          type: string
+          description: Filesystem root for the local attachment provider. Relative paths resolve from the API process working directory.
+          examples: [storage/app/attachments]
         publicPrefix:
           type: string
-          description: Optional public URL prefix for locally stored objects. The physical root comes from ATTACHMENT_LOCAL_ROOT.
+          description: Optional public URL prefix for locally stored objects.
     AttachmentAliyunOSSSettings:
       type: object
       required:

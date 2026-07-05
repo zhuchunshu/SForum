@@ -286,6 +286,8 @@
       "allowedExtensions": "允许扩展名",
       "allowedMimeTypes": "允许 MIME 类型",
       "cleanupDays": "孤儿附件保留天数",
+      "localRoot": "本地存储根目录",
+      "localRootDescription": "可填写相对路径或绝对路径；相对路径基于 API 进程工作目录。",
       "localPublicPrefix": "本地公开前缀",
       "keepSecret": "留空表示保留当前密钥",
       "summary": "配置摘要",
