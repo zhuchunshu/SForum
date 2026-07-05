@@ -943,7 +943,33 @@
     "humanVerificationInvalid": "人机验证失败，请重新验证。",
     "humanVerificationExpired": "人机验证已过期，请重新验证。",
     "humanVerificationReplayed": "本次验证已使用，请重新验证。",
-    "rateLimited": "操作过于频繁，请稍后再试。"
+    "rateLimited": "操作过于频繁，请稍后再试。",
+    "page": {
+      "statusLabel": "{statusCode} 错误",
+      "home": "返回首页",
+      "back": "返回上一页",
+      "retry": "刷新重试",
+      "notFound": {
+        "title": "这个讨论暂时不在这里",
+        "description": "可能是链接拼写错误，或内容已被移动。你可以回到首页继续浏览社区里的最新讨论。"
+      },
+      "forbidden": {
+        "title": "这里需要更多权限",
+        "description": "当前账号无法访问这个页面。如果你认为这是误判，请联系站点管理员检查权限设置。"
+      },
+      "server": {
+        "title": "服务器暂时没有回应好",
+        "description": "请求已经到达站点，但处理过程中遇到了问题。你可以刷新重试，或稍后再回来。"
+      },
+      "serviceUnavailable": {
+        "title": "服务正在恢复中",
+        "description": "站点的部分服务暂时不可用。请稍后刷新页面，已经打开的内容不会因此受到影响。"
+      },
+      "generic": {
+        "title": "页面遇到了一点问题",
+        "description": "当前页面没有按预期打开。你可以回到首页，或稍后再次尝试访问这个链接。"
+      }
+    }
   },
   "footer": {
     "copyright": "© {year} {siteName}。保留所有权利。",

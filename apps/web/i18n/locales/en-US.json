@@ -943,7 +943,33 @@
     "humanVerificationInvalid": "Human verification failed. Please try again.",
     "humanVerificationExpired": "Human verification expired. Please verify again.",
     "humanVerificationReplayed": "This verification has already been used. Please verify again.",
-    "rateLimited": "Too many attempts. Please try again later."
+    "rateLimited": "Too many attempts. Please try again later.",
+    "page": {
+      "statusLabel": "{statusCode} error",
+      "home": "Back to home",
+      "back": "Go back",
+      "retry": "Refresh and retry",
+      "notFound": {
+        "title": "This discussion is not here",
+        "description": "The link may be misspelled, or the content may have moved. Return home to continue browsing the latest community discussions."
+      },
+      "forbidden": {
+        "title": "This page needs more permission",
+        "description": "Your current account cannot access this page. Contact a site administrator if you think the permission is wrong."
+      },
+      "server": {
+        "title": "The server did not respond cleanly",
+        "description": "The request reached the site, but something went wrong while processing it. Refresh the page or try again shortly."
+      },
+      "serviceUnavailable": {
+        "title": "The service is recovering",
+        "description": "Part of the site is temporarily unavailable. Refresh shortly; content already open in your browser is not affected."
+      },
+      "generic": {
+        "title": "This page hit a problem",
+        "description": "The page did not open as expected. Return home or try this link again shortly."
+      }
+    }
   },
   "footer": {
     "copyright": "© {year} {siteName}. All rights reserved.",
