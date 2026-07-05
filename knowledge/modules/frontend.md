@@ -39,7 +39,11 @@ state handling.
 `SFIconPicker` is available for future admin/user setting forms that need an
 icon field. It supports Tabler Icons and the existing Nuxt Icon/Lucide naming,
 stores plain `i-tabler-*` or `i-lucide-*` strings, and `nuxt.config.ts`
-explicitly includes the local `lucide` and `tabler` icon collections.
+explicitly includes the local `lucide` and `tabler` icon collections. The
+picker loads the full local Tabler/Lucide catalog through the Nuxt server route
+`/api/icon-collections/:collection`, returns names in pages, and registers only
+the visible page's icon data with Iconify before rendering so thousands of
+icons are available without putting every SVG into the first client bundle.
 SF inputs/search and the standalone login/register auth inputs now override
 WebKit browser autofill styling so saved credentials keep the intended white
 input surface, dark text, caret color, and focus ring instead of the default

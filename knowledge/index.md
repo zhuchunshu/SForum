@@ -154,6 +154,10 @@ This is the entry point for project memory.
   typed `seo.*` runtime options cover meta/social, robots, sitemap, structured
   data, and verification settings, and public Nuxt pages use runtime SEO helpers
   with local/preview noindex protection.
+- `SFIconPicker` now loads the full local Tabler and Lucide catalogs through a
+  Nuxt server-side name catalog route, shows paged results, auto-loads more
+  icons when the picker grid scrolls near the bottom, and primes only visible
+  icon SVG data through the existing Nuxt Icon local endpoint.
 - Attachment system foundation is implemented: standalone admin top-level
   "Attachment settings" page, `attachments` and `attachment_references` tables,
   `attachment.upload`/`attachment.manage`/`attachment.settings.manage`
@@ -253,6 +257,8 @@ This is the entry point for project memory.
   backend validation, and Nuxt UI primary-token bridge handoff.
 - `sessions/2026-07-05-icon-picker.md` - reusable Tabler/Nuxt Icon picker
   implementation handoff.
+- `sessions/2026-07-05-icon-picker-full-catalog.md` - full catalog,
+  paginated, lazy-loading icon picker handoff.
 - `sessions/2026-07-05-altcha-layout-fix.md` - ALTCHA settings section layout fix handoff.
 - `sessions/2026-07-05-altcha-scenario-settings.md` - CAPTCHA scenario
   switches, ALTCHA secret generation, TTL/cost guidance, and UI validation
