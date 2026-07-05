@@ -583,6 +583,10 @@ func installedFilePath(extension Extension, manifestPath string) (string, bool) 
 	return target, strings.HasPrefix(target, root+string(os.PathSeparator))
 }
 
+func InstalledFilePathForRuntime(extension Extension, manifestPath string) (string, bool) {
+	return installedFilePath(extension, manifestPath)
+}
+
 func validateManifest(manifest Manifest) error {
 	if !manifestIDPattern.MatchString(manifest.ID) {
 		return ErrInvalidManifest
