@@ -213,6 +213,7 @@
         "enabled": "Enabled"
       },
       "installed": "Installed extensions",
+      "installedCount": "{count} extension(s) installed",
       "emptyTitle": "No extensions installed",
       "emptyDescription": "Upload a ZIP package with an SForum manifest to enable plugins or themes here.",
       "capabilityCount": "{count} capability declarations",
