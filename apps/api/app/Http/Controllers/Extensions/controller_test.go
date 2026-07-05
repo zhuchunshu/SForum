@@ -88,6 +88,64 @@ func TestControllerListsAndEnablesExtensionsForManager(t *testing.T) {
 	}
 }
 
+func TestControllerProxiesOnlyDeclaredPluginRoutesAfterHostAuthorization(t *testing.T) {
+	app, manager, store := newExtensionTestApp()
+	store.items["demo.plugin"] = extensions.Extension{
+		ID:      "demo.plugin",
+		Name:    "Demo Plugin",
+		Version: "1.0.0",
+		Type:    extensions.TypePlugin,
+		Status:  extensions.StatusEnabled,
+		Manifest: extensions.Manifest{
+			ID:            "demo.plugin",
+			Name:          "Demo Plugin",
+			Version:       "1.0.0",
+			Type:          extensions.TypePlugin,
+			SForumVersion: "^1.0.0",
+			Permissions:   []string{"extension.demo.manage"},
+			Routes: []extensions.ManifestRoute{
+				{Path: "/hello", Methods: []string{"GET"}, Access: extensions.RouteAccessPublic},
+				{Path: "/profile", Methods: []string{"GET"}, Access: extensions.RouteAccessLogin},
+				{Path: "/admin/reindex", Methods: []string{"POST"}, Access: extensions.RouteAccessPermission, Permission: "extension.demo.manage"},
+			},
+		},
+		InstalledAt: time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	resp := performExtensionRequest(t, app, http.MethodGet, "/api/v1/extensions/demo.plugin/hello", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected public route 200, got %d", resp.StatusCode)
+	}
+
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/extensions/demo.plugin/profile", nil)
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected login route 401, got %d", resp.StatusCode)
+	}
+
+	ordinaryCookie := loginExtensionUser(t, app, manager, 2)
+	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/extensions/demo.plugin/admin/reindex", ordinaryCookie)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected permission route 403, got %d", resp.StatusCode)
+	}
+
+	managerCookie := loginExtensionUser(t, app, manager, 1)
+	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/extensions/demo.plugin/admin/reindex", managerCookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected permission route 200, got %d", resp.StatusCode)
+	}
+
+	resp = performExtensionRequest(t, app, http.MethodDelete, "/api/v1/extensions/demo.plugin/hello", managerCookie)
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Fatalf("expected undeclared method 405, got %d", resp.StatusCode)
+	}
+
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/extensions/demo.plugin/missing", managerCookie)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected undeclared path 404, got %d", resp.StatusCode)
+	}
+}
+
 func TestControllerVerifiesAndActivatesThemesForManager(t *testing.T) {
 	app, manager, store := newExtensionTestApp()
 	cookie := loginExtensionUser(t, app, manager, 1)
@@ -120,7 +178,7 @@ func newExtensionTestApp() (*fiber.App, *authsession.Manager, *controllerFakeSto
 		1: {
 			ID:          1,
 			Status:      identity.UserStatusActive,
-			Permissions: map[string]bool{identity.PermissionExtensionManage: true},
+			Permissions: map[string]bool{identity.PermissionExtensionManage: true, "extension.demo.manage": true},
 		},
 		2: {ID: 2, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
 	}}

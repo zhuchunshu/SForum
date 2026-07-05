@@ -58,6 +58,9 @@ var (
 	ErrThemeActivationRequired = errors.New("extensions: themes must be activated")
 	ErrThemeRuntimeUnavailable = errors.New("extensions: theme activation runtime unavailable")
 	ErrRuntimeFailed           = errors.New("extensions: runtime failed")
+	ErrRouteNotFound           = errors.New("extensions: route not found")
+	ErrRouteMethodNotAllowed   = errors.New("extensions: route method not allowed")
+	ErrRuntimeUnavailable      = errors.New("extensions: runtime unavailable")
 )
 
 type Manifest struct {
@@ -134,6 +137,12 @@ type RuntimeStatus struct {
 	RouteCount    int        `json:"routeCount"`
 	HookCount     int        `json:"hookCount"`
 	ProviderCount int        `json:"providerCount"`
+}
+
+type MatchedRoute struct {
+	Extension Extension
+	Route     ManifestRoute
+	Path      string
 }
 
 type Extension struct {

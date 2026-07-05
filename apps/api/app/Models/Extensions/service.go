@@ -236,6 +236,33 @@ func (s *Service) Events(ctx context.Context, actor identity.Actor, extensionID 
 	return s.store.ListEvents(ctx, normalizeID(extensionID), limit)
 }
 
+func (s *Service) MatchRoute(ctx context.Context, extensionID string, method string, routePath string) (MatchedRoute, error) {
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return MatchedRoute{}, err
+	}
+	if extension.Type != TypePlugin || extension.Status != StatusEnabled {
+		return MatchedRoute{}, ErrRouteNotFound
+	}
+	normalizedPath := normalizeRoutePath(routePath)
+	pathExists := false
+	for _, route := range extension.Manifest.Routes {
+		if normalizeRoutePath(route.Path) != normalizedPath {
+			continue
+		}
+		pathExists = true
+		for _, allowed := range route.Methods {
+			if strings.EqualFold(allowed, method) {
+				return MatchedRoute{Extension: extension, Route: route, Path: normalizedPath}, nil
+			}
+		}
+	}
+	if pathExists {
+		return MatchedRoute{}, ErrRouteMethodNotAllowed
+	}
+	return MatchedRoute{}, ErrRouteNotFound
+}
+
 func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, input ArchiveInput) (Extension, error) {
 	if !actor.Can(identity.PermissionExtensionManage) {
 		return Extension{}, identity.ErrPermissionDenied

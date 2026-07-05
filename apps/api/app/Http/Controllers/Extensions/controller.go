@@ -134,12 +134,34 @@ func queryInt(c fiber.Ctx, name string, fallback int) int {
 	return value
 }
 
-func (h *Controller) routeUnavailable(c fiber.Ctx) error {
-	_, err := h.actor(c)
+func (h *Controller) proxyExtensionRoute(c fiber.Ctx) error {
+	routePath := "/" + c.Params("*")
+	matched, err := h.service.MatchRoute(c.Context(), c.Params("extensionId"), c.Method(), routePath)
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	actor, hasActor, err := h.optionalActor(c)
 	if err != nil {
 		return err
 	}
-	return fiber.NewError(fiber.StatusServiceUnavailable, "extension.route_unavailable")
+	access := matched.Route.Access
+	if access == "" {
+		access = extensions.RouteAccessLogin
+	}
+	switch access {
+	case extensions.RouteAccessLogin:
+		if !hasActor {
+			return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+		}
+	case extensions.RouteAccessPermission:
+		if !hasActor {
+			return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+		}
+		if !actor.Can(matched.Route.Permission) {
+			return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+		}
+	}
+	return apphttp.OK(c, fiber.Map{"ok": true})
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
@@ -151,6 +173,18 @@ func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 		return identity.Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
 	}
 	return h.users.LoadActor(c.Context(), userID)
+}
+
+func (h *Controller) optionalActor(c fiber.Ctx) (identity.Actor, bool, error) {
+	userID, ok, err := h.sessions.CurrentUserID(c)
+	if err != nil || !ok {
+		return identity.Actor{}, false, err
+	}
+	actor, err := h.users.LoadActor(c.Context(), userID)
+	if err != nil {
+		return identity.Actor{}, false, err
+	}
+	return actor, true, nil
 }
 
 func mapExtensionError(err error) error {
@@ -171,6 +205,14 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeThemeActivationRequired)
 	case errors.Is(err, extensions.ErrThemeRuntimeUnavailable):
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeThemeRuntimeUnavailable)
+	case errors.Is(err, extensions.ErrRouteNotFound):
+		return fiber.NewError(fiber.StatusNotFound, extensions.CodeRouteNotFound)
+	case errors.Is(err, extensions.ErrRouteMethodNotAllowed):
+		return fiber.NewError(fiber.StatusMethodNotAllowed, extensions.CodeRouteMethodNotAllowed)
+	case errors.Is(err, extensions.ErrRuntimeUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeRuntimeUnavailable)
+	case errors.Is(err, extensions.ErrRuntimeFailed):
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeRuntimeFailed)
 	default:
 		return err
 	}
