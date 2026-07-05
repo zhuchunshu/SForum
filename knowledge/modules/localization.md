@@ -15,6 +15,14 @@ Foundation scaffold exists:
 - Runtime options now store the operator-selected default locale and enabled
   locale list. Environment values are first-run fallbacks for missing option
   rows.
+- Runtime language pack management has an accepted design: operators will
+  upload ZIP language packs from an admin "Language settings" page, package
+  files will live under `LOCALE_PACK_ROOT`/`storage/locale-packs` outside Git,
+  and database tables will track package versions, provided locales, status,
+  and events.
+- The first language pack release will apply uploaded packages only to frontend
+  runtime UI messages. Backend message files are reserved in the package format,
+  but backend API envelope messages continue to use the built-in catalog.
 
 ## Requirements
 
@@ -51,6 +59,8 @@ Foundation scaffold exists:
 - API request locale negotiation reads runtime `site.default_locale` and
   `site.supported_locales`; if option loading fails, it falls back to startup
   configuration.
+- Once runtime packs are implemented, `site.supported_locales` should accept
+  built-in locales plus locales provided by enabled language packs.
 
 ## SEO Responsibilities
 
@@ -67,11 +77,13 @@ Foundation scaffold exists:
 - Should user-generated topics/posts allow an explicit content-language field in
   MVP?
 - Which locales should follow after `zh-CN` and `en-US`?
-- How should additional locale packs be installed once operators can select
-  more than the built-in catalogs?
+- When should uploaded backend message files become active for API envelope
+  messages, emails, notifications, and worker-owned templates?
 
 ## Next Steps
 
 - Expand locale coverage as user-facing pages are added.
 - Add backend locale config and profile preference field during identity schema
   design.
+- Implement the admin language settings page, `locale.manage`, runtime locale
+  pack tables, package upload/enable APIs, and frontend runtime message loader.

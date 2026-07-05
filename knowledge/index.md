@@ -182,6 +182,11 @@ This is the entry point for project memory.
   ZIP upload, `sforum.extension.json` manifest validation, dedicated extension
   tables, lifecycle events, admin extension management page, `EXTENSION_ROOT`,
   and reserved plugin/theme runtime boundaries.
+- Runtime language pack management has an accepted design: add a system-menu
+  admin "Language settings" page, `locale.manage`, ZIP language pack uploads
+  with `sforum.locale.json`, package storage under `LOCALE_PACK_ROOT`/
+  `storage/locale-packs` outside Git, dedicated `locale_pack*` tables, and
+  frontend-only runtime message loading for the first release.
 
 ## Navigation
 
@@ -237,6 +242,9 @@ This is the entry point for project memory.
 - `decisions/2026-07-05-extension-plugin-theme-foundation.md` - accepted
   plugin/theme extension foundation, storage, permission, and runtime-boundary
   decision.
+- `decisions/2026-07-05-runtime-language-pack-management.md` - accepted runtime
+  language pack storage, permission, admin page, and frontend runtime message
+  loading decision.
 - `decisions/2026-07-05-openapi-contract-modularization.md` - accepted
   modular OpenAPI source layout and reference-validation workflow.
 - `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA
@@ -277,6 +285,8 @@ This is the entry point for project memory.
   validation sync, and attachment local-root runtime option handoff.
 - `sessions/2026-07-05-extension-system-foundation.md` - extension backend,
   admin UI, manifest, lifecycle, and runtime-boundary implementation handoff.
+- `sessions/2026-07-05-admin-language-settings-design.md` - runtime language
+  pack and admin language settings design handoff.
 - `sessions/2026-07-05-openapi-contract-modularization.md` - OpenAPI split,
   validation script, and documentation handoff.
 - `sessions/2026-07-05-public-navbar-hide-admin-entry.md` - public navbar admin
