@@ -61,6 +61,12 @@ Initial identity foundation is implemented.
   default displayed user groups, supports search and explicit comparison
   selection, and can show only permissions that differ inside the current
   comparison scope.
+- Role/user-group creation and updates now trim role fields and reject blank
+  keys or aliases. Role keys are limited to stable ASCII path-safe identifiers;
+  the roles admin form shows visible field labels and blocks empty submissions
+  before calling the API. Migration `202607060002_role_input_constraints`
+  removes historical blank custom roles caused by the earlier missing
+  validation and adds database non-blank checks.
 
 ## Architecture Decisions
 
@@ -144,9 +150,9 @@ Initial identity foundation is implemented.
 - `apps/api/app/Http/Controllers/Identity/controller.go` maps stable API error
   codes such as `auth.required`, `permission.denied`, and
   `role.default_role_locked`; permission management adds stable reasons such as
-  `permission.invalid`, `permission.override_conflict`, `role.invalid`, and
-  `user.super_admin_permissions_locked`. Registration field errors use
-  backend-localized messages in `data.fields`.
+  `permission.invalid`, `permission.override_conflict`, `role.invalid`,
+  `role.invalid_input`, and `user.super_admin_permissions_locked`.
+  Registration field errors use backend-localized messages in `data.fields`.
 - `apps/api/app/Support/AuthSession` owns authenticated browser session
   lifecycle: login session reset, current-user lookup, idle TTL refresh,
   periodic session-id renewal, logout destruction, and salted session-id hashes
@@ -165,14 +171,16 @@ Initial identity foundation is implemented.
   reads provider, ALTCHA secret, TTL, and cost from Options on each
   challenge/verify request. Environment values remain first-run fallbacks for
   seeding missing options.
-- `apps/web/app/pages/register.vue` renders the ALTCHA widget client-side only
-  when public option `human_verification.provider` is `altcha`, reads the
-  public ALTCHA widget type/auto/display/worker/min-duration settings, and maps
-  `human_verification.*`, `rate_limit.exceeded`, and
-  `auth.session_unavailable` API error codes to localized messages. It also
-  reads `/api/v1/auth/registration-status`, shows a first-user super-admin
-  notice while no users exist, blocks repeated submit attempts while a request
-  is in flight, and resets the ALTCHA widget after verification failures.
+- The default theme registration page
+  (`extensions/builtin/themes/sforum-default/layer/app/pages/register.vue`)
+  renders the ALTCHA widget client-side only when public option
+  `human_verification.provider` is `altcha`, reads the public ALTCHA widget
+  type/auto/display/worker/min-duration settings, and maps
+  `human_verification.*`, `rate_limit.exceeded`, and `auth.session_unavailable`
+  API error codes to localized messages. It also reads
+  `/api/v1/auth/registration-status`, shows a first-user super-admin notice
+  while no users exist, blocks repeated submit attempts while a request is in
+  flight, and resets the ALTCHA widget after verification failures.
 - Registration builds and loads the returned current-user access inside the
   bootstrap transaction so response construction failures roll back account
   creation instead of leaving a created user behind a 500 response.

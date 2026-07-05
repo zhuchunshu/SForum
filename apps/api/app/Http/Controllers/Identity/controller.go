@@ -438,6 +438,8 @@ func mapIdentityError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "permission.invalid")
 	case errors.Is(err, identity.ErrInvalidRole):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "role.invalid")
+	case errors.Is(err, identity.ErrInvalidRoleInput):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "role.invalid_input")
 	case errors.Is(err, identity.ErrPermissionOverrideConflict):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "permission.override_conflict")
 	case errors.Is(err, identity.ErrSystemRoleLocked):

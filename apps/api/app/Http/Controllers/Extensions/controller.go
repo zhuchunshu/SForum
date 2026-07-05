@@ -90,6 +90,30 @@ func (h *Controller) disable(c fiber.Ctx) error {
 	return apphttp.OK(c, item)
 }
 
+func (h *Controller) verify(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	item, err := h.service.VerifyExtension(c.Context(), actor, c.Params("id"))
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, item)
+}
+
+func (h *Controller) activate(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	item, err := h.service.ActivateTheme(c.Context(), actor, c.Params("id"))
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, item)
+}
+
 func (h *Controller) events(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
@@ -143,6 +167,10 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodePreflightFailed)
 	case errors.Is(err, extensions.ErrBuildFailed):
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeBuildFailed)
+	case errors.Is(err, extensions.ErrThemeActivationRequired):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeThemeActivationRequired)
+	case errors.Is(err, extensions.ErrThemeRuntimeUnavailable):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeThemeRuntimeUnavailable)
 	default:
 		return err
 	}

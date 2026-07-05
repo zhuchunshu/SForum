@@ -36,6 +36,12 @@ uppercase `SF` component names. The first component set is backed by
 `/components` route. That preview page now shows the components in expanded
 forum scenarios: publishing, moderation, member profile, feedback, lists, and
 state handling.
+Public, non-admin UI is now owned by the protected built-in default theme layer
+at `extensions/builtin/themes/sforum-default/layer`. The root Nuxt app
+statically extends that layer. The layer owns the homepage, default layout,
+auth layout/pages, public navbar/footer, and public/auth chrome CSS. Core keeps
+admin pages/layout, auth/session logic, API clients, i18n catalogs, SEO
+helpers, permissions, and reusable component/composable infrastructure.
 `SFIconPicker` is available for future admin/user setting forms that need an
 icon field. It supports Tabler Icons and the existing Nuxt Icon/Lucide naming,
 stores plain `i-tabler-*` or `i-lucide-*` strings, and `nuxt.config.ts`
@@ -85,12 +91,15 @@ shell, and browser title template, with `SForum` as the fallback product name.
 Admin-only option reads and batch saves power the settings page tabs; ALTCHA
 secret values are never exposed to public frontend state.
 Personalization now reads `appearance.theme` and footer options from the same
-runtime option layer. The root app sets `data-sforum-theme` on `<html>`, CSS
-variables switch between preset themes or controlled `custom:#rrggbb` colors,
-and the admin personalization page edits the theme plus footer copyright/link
-content. Nuxt UI's generated `--ui-color-primary-*` and `--ui-primary` tokens
-are bridged to the same runtime theme variables so admin sidebar highlights and
-`color="primary"` controls do not keep Nuxt UI's default green.
+runtime option layer. `appearance.theme` remains the stored option key, but UI
+language calls it an appearance preset / 配色预设 to avoid confusing color
+presets with installable Nuxt Layer themes. The root app sets
+`data-sforum-theme` on `<html>`, CSS variables switch between preset colors or
+controlled `custom:#rrggbb` colors, and the admin personalization page edits
+the appearance preset plus footer copyright/link content. Nuxt UI's generated
+`--ui-color-primary-*` and `--ui-primary` tokens are bridged to the same
+runtime variables so admin sidebar highlights and `color="primary"` controls do
+not keep Nuxt UI's default green.
 SEO now reads runtime `seo.*` options through `useWebOptions()` and public pages
 should use `useSForumSeo()` for title templates, descriptions, canonical URLs,
 robots meta, Open Graph/Twitter tags, verification tags, and minimal JSON-LD.

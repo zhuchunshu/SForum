@@ -294,15 +294,36 @@ Role:
       type: array
       items:
         type: string
-RoleInput:
+RoleCreateInput:
   type: object
+  required:
+  - key
+  - alias
   properties:
     key:
       type: string
+      minLength: 1
+      pattern: "^[a-z0-9_.-]+$"
+      description: Stable role key used in URLs. Trimmed value may contain lowercase letters, numbers, dots, hyphens, or underscores.
     alias:
       type: string
+      minLength: 1
+      description: Display name shown to administrators and users. Trimmed value must not be blank.
     description:
       type: string
+      description: Optional role description.
+RoleUpdateInput:
+  type: object
+  required:
+  - alias
+  properties:
+    alias:
+      type: string
+      minLength: 1
+      description: Display name shown to administrators and users. Trimmed value must not be blank.
+    description:
+      type: string
+      description: Optional role description.
 Permission:
   type: object
   required:

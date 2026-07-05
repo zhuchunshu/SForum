@@ -211,19 +211,31 @@
       "uploadFailed": "扩展上传失败。",
       "enabled": "扩展已启用。",
       "disabled": "扩展已禁用。",
+      "verified": "扩展预检已通过。",
+      "themeActivated": "默认主题已恢复为当前主题。",
+      "themeActivationUnavailable": "当前版本还不能应用上传主题。",
       "actionFailed": "扩展操作失败。",
       "stats": {
         "plugins": "插件",
         "themes": "主题",
-        "enabled": "已启用"
+        "enabled": "已启用",
+        "enabledPlugins": "已启用插件"
       },
       "installed": "已安装扩展",
       "installedCount": "已安装 {count} 个扩展",
       "emptyTitle": "还没有安装扩展",
-      "emptyDescription": "上传符合 SForum manifest 规范的 ZIP 包后，就可以在这里启用插件或主题。",
+      "emptyDescription": "上传符合 SForum manifest 规范的 ZIP 包后，可以在这里启用插件或验证主题。",
       "capabilityCount": "{count} 项能力声明",
       "enable": "启用",
       "disable": "禁用",
+      "restart": "重启",
+      "restartUnavailable": "插件运行时 supervisor 尚未接入，暂不能重启。",
+      "verify": "验证",
+      "restoreDefaultTheme": "恢复默认主题",
+      "activeTheme": "当前主题",
+      "source": {
+        "builtin": "内置"
+      },
       "types": {
         "plugin": "插件",
         "theme": "主题"
@@ -231,7 +243,8 @@
       "status": {
         "installed": "已安装",
         "enabled": "已启用",
-        "disabled": "已禁用"
+        "disabled": "已禁用",
+        "activeTheme": "当前主题"
       },
       "detailTitle": "扩展详情",
       "manifest": {
@@ -260,10 +273,11 @@
       "themes": {
         "metaTitle": "主题管理",
         "title": "主题管理",
-        "intro": "管理声明为 theme 的主题模板。当前版本会验证 Nuxt Layer 边界，后续再接入构建与回滚流程。",
+        "intro": "管理声明为 theme 的主题包。当前版本只应用受保护的 SForum 默认主题，上传主题可验证但暂不能应用。",
         "count": "已安装 {count} 个主题",
         "emptyTitle": "还没有安装主题",
-        "emptyDescription": "上传 type 为 theme 的扩展 ZIP 后，就可以在这里启用或停用主题模板。"
+        "emptyDescription": "上传 type 为 theme 的扩展 ZIP 后，可以在这里验证 Nuxt Layer 边界；应用上传主题需要后续构建与回滚运行时。",
+        "runtimeUnavailable": "当前版本暂不应用上传主题；可以先验证包结构，等 Nuxt 重建、健康检查和回滚运行时接入后再激活。"
       },
       "settings": {
         "metaTitle": "扩展设置",
@@ -448,6 +462,9 @@
       "keyPlaceholder": "例如：moderator",
       "aliasPlaceholder": "例如：版主",
       "descriptionPlaceholder": "说明这个用户组适合哪些成员",
+      "validationFailed": "请先填写用户组标识和别名。",
+      "keyRequired": "请填写用户组标识。",
+      "aliasRequired": "请填写用户组别名。",
       "permissionEditor": "用户组权限",
       "permissionEditorHelp": "勾选后，该用户组的所有成员都会获得对应权限。",
       "superAdminPermissionLocked": "超级管理员用户组拥有全部权限，不能在这里修改权限集合。",
@@ -642,15 +659,16 @@
     "personalization": {
       "metaTitle": "个性化设置",
       "title": "个性化设置",
-      "intro": "配置网站主题色、页脚文案与公共链接。",
-      "toolbar": "外观设置会通过 web_options 运行时下发到前台页面。",
+      "intro": "配置配色预设、页脚文案与公共链接。",
+      "toolbar": "配色预设会通过 web_options 运行时下发到前台页面。",
       "refresh": "刷新",
       "loadFailed": "个性化设置加载失败。",
       "saved": "个性化设置已保存。",
       "saveFailed": "个性化设置保存失败。",
       "save": "保存个性化设置",
+      "appearancePreset": "配色预设",
       "theme": {
-        "title": "主题预设",
+        "title": "配色预设",
         "description": "选择一个主色预设，统一驱动导航、按钮、焦点和后台强调色。"
       },
       "themes": {
@@ -677,7 +695,7 @@
         "custom": {
           "label": "自定义配色",
           "description": "使用颜色选择器设置站点主色，后台与前台会同步应用。",
-          "colorLabel": "选择自定义主题色"
+          "colorLabel": "选择自定义配色"
         }
       },
       "footer": {

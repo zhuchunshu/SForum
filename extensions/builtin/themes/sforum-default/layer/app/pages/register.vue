@@ -153,7 +153,9 @@ async function submitRegister() {
     <!-- 左侧品牌区 -->
     <div class="auth-left">
       <NuxtLink :to="localePath('/')" class="auth-logo">
-        <div class="auth-logo-mark">💬</div>
+        <span class="auth-logo-mark" aria-hidden="true">
+          <UIcon name="i-lucide-message-circle" class="auth-logo-icon" />
+        </span>
         {{ siteName }}
       </NuxtLink>
 
@@ -166,15 +168,21 @@ async function submitRegister() {
         </p>
         <ul class="auth-features">
           <li class="auth-feature">
-            <span class="auth-feature-icon">✓</span>
+            <span class="auth-feature-icon" aria-hidden="true">
+              <UIcon name="i-lucide-check" class="auth-feature-icon-svg" />
+            </span>
             {{ t('auth.feature1') }}
           </li>
           <li class="auth-feature">
-            <span class="auth-feature-icon">✓</span>
+            <span class="auth-feature-icon" aria-hidden="true">
+              <UIcon name="i-lucide-check" class="auth-feature-icon-svg" />
+            </span>
             {{ t('auth.feature2') }}
           </li>
           <li class="auth-feature">
-            <span class="auth-feature-icon">✓</span>
+            <span class="auth-feature-icon" aria-hidden="true">
+              <UIcon name="i-lucide-check" class="auth-feature-icon-svg" />
+            </span>
             {{ t('auth.feature3') }}
           </li>
         </ul>

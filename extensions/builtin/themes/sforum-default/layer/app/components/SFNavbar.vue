@@ -69,7 +69,9 @@ const currentLocaleName = computed(() => {
 
       <!-- Logo -->
       <NuxtLink :to="localePath('/')" class="navbar__logo">
-        <div class="navbar__logo-mark">💬</div>
+        <div class="navbar__logo-mark" aria-hidden="true">
+          <UIcon name="i-lucide-message-circle" class="navbar__logo-icon" />
+        </div>
         <span class="navbar__logo-text">{{ siteName }}</span>
       </NuxtLink>
 
@@ -87,18 +89,14 @@ const currentLocaleName = computed(() => {
           :aria-label="t('nav.language')"
           @click="langMenuOpen = !langMenuOpen"
         >
-          <!-- 地球图标 -->
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M2 12h20"/>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-          </svg>
-          <!-- 语言文本 -->
+          <UIcon name="i-lucide-globe" class="navbar__lang-icon" aria-hidden="true" />
           <span class="navbar__lang-text">{{ currentLocaleName }}</span>
-          <!-- 下拉箭头 -->
-          <svg class="navbar__chevron" :class="{ 'navbar__chevron--open': langMenuOpen }" width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <UIcon
+            name="i-lucide-chevron-down"
+            class="navbar__chevron"
+            :class="{ 'navbar__chevron--open': langMenuOpen }"
+            aria-hidden="true"
+          />
         </button>
 
         <!-- 语言选择下拉菜单 -->
@@ -114,10 +112,12 @@ const currentLocaleName = computed(() => {
               @click="langMenuOpen = false"
             >
               <span>{{ loc.name }}</span>
-              <!-- 当前语言打勾 -->
-              <svg v-if="locale === loc.code" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
+              <UIcon
+                v-if="locale === loc.code"
+                name="i-lucide-check"
+                class="navbar__selected-icon"
+                aria-hidden="true"
+              />
             </NuxtLink>
           </div>
         </Transition>
@@ -147,17 +147,12 @@ const currentLocaleName = computed(() => {
             >
               <span class="navbar__avatar">{{ avatarLetter }}</span>
               <span class="navbar__username">{{ displayName }}</span>
-              <!-- 箭头图标 -->
-              <svg
+              <UIcon
+                name="i-lucide-chevron-down"
                 class="navbar__chevron"
                 :class="{ 'navbar__chevron--open': menuOpen }"
-                width="12" height="12"
-                viewBox="0 0 12 12"
-                fill="none"
                 aria-hidden="true"
-              >
-                <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              />
             </button>
 
             <!-- 下拉菜单 -->
@@ -236,6 +231,11 @@ const currentLocaleName = computed(() => {
   font-size: 14px;
 }
 
+.navbar__logo-icon {
+  width: 15px;
+  height: 15px;
+}
+
 /* ====== 主导航 ====== */
 .navbar__nav {
   display: flex;
@@ -300,6 +300,17 @@ const currentLocaleName = computed(() => {
 }
 
 .navbar__lang-btn:hover svg {
+  color: #111827;
+}
+
+.navbar__lang-icon {
+  width: 15px;
+  height: 15px;
+  color: #6b7280;
+  transition: color 0.15s;
+}
+
+.navbar__lang-btn:hover .navbar__lang-icon {
   color: #111827;
 }
 
@@ -423,9 +434,17 @@ const currentLocaleName = computed(() => {
 }
 
 .navbar__chevron {
+  width: 12px;
+  height: 12px;
   color: #9ca3af;
   flex-shrink: 0;
   transition: transform 0.18s;
+}
+
+.navbar__selected-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
 .navbar__chevron--open {

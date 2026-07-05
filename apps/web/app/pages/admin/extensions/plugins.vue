@@ -112,6 +112,16 @@ useSeoMeta({
           >
             {{ t('admin.extensions.disable') }}
           </UButton>
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-refresh-cw"
+            disabled
+            :title="t('admin.extensions.restartUnavailable')"
+          >
+            {{ t('admin.extensions.restart') }}
+          </UButton>
         </div>
       </div>
     </div>

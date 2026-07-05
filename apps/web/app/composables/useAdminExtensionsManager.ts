@@ -74,6 +74,35 @@ export const useAdminExtensionsManager = async () => {
     await lifecycle(item, 'disable')
   }
 
+  async function verifyExtension(item: AdminExtension) {
+    busyId.value = item.id
+    try {
+      const verified = await request<AdminExtension>(`/admin/extensions/${item.id}/verify`, { method: 'POST', body: {} })
+      replaceExtension(verified)
+      await loadEvents(verified.id)
+      toast.add({ color: 'success', icon: 'i-lucide-shield-check', title: t('admin.extensions.verified') })
+    } catch (error) {
+      toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.actionFailed') })
+    } finally {
+      busyId.value = ''
+    }
+  }
+
+  async function activateTheme(item: AdminExtension) {
+    busyId.value = item.id
+    try {
+      const activated = await request<AdminExtension>(`/admin/extensions/${item.id}/activate`, { method: 'POST', body: {} })
+      replaceExtension(activated)
+      await refresh()
+      await loadEvents(activated.id)
+      toast.add({ color: 'success', icon: 'i-lucide-palette', title: t('admin.extensions.themeActivated') })
+    } catch (error) {
+      toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.themeActivationUnavailable') })
+    } finally {
+      busyId.value = ''
+    }
+  }
+
   async function lifecycle(item: AdminExtension, action: 'enable' | 'disable') {
     busyId.value = item.id
     try {
@@ -179,6 +208,8 @@ export const useAdminExtensionsManager = async () => {
     uploadArchive,
     enableExtension,
     disableExtension,
+    verifyExtension,
+    activateTheme,
     loadEvents,
     loadAllEvents,
     statusColor,

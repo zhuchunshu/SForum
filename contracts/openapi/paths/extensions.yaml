@@ -43,13 +43,65 @@ adminExtensions:
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
 adminExtensionEnable:
   post:
-    summary: Enable an installed extension or theme
+    summary: Enable an installed plugin
     operationId: enableAdminExtension
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
     responses:
       '200':
-        description: Extension enabled after preflight checks.
+        description: Plugin enabled after preflight checks.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: Themes must use the activation endpoint instead of plugin enable.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminExtensionDisable:
+  post:
+    summary: Disable an installed plugin
+    operationId: disableAdminExtension
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Plugin disabled.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: Themes must use the activation endpoint instead of plugin disable.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+adminExtensionVerify:
+  post:
+    summary: Verify an installed plugin or theme package without applying it
+    operationId: verifyAdminExtension
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Extension preflight or Nuxt Layer verification completed.
         content:
           application/json:
             schema:
@@ -62,15 +114,15 @@ adminExtensionEnable:
         "$ref": "../components/responses.yaml#/NotFound"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
-adminExtensionDisable:
+adminExtensionActivate:
   post:
-    summary: Disable an installed extension or theme
-    operationId: disableAdminExtension
+    summary: Activate a theme
+    operationId: activateAdminExtensionTheme
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"
     responses:
       '200':
-        description: Extension disabled.
+        description: Built-in default theme restored as the active applied theme.
         content:
           application/json:
             schema:
@@ -81,6 +133,14 @@ adminExtensionDisable:
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: Uploaded theme activation is unavailable until theme rebuild, health-check, and rollback runtime exists.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
 adminExtensionEvents:
   get:
     summary: List extension lifecycle events

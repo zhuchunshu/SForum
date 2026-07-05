@@ -59,6 +59,7 @@ function rewriteAdminPageRoutes(pages: NuxtPage[]) {
 }
 
 export default defineNuxtConfig({
+  extends: ['../../extensions/builtin/themes/sforum-default/layer'],
   modules: ['@nuxt/ui', '@nuxtjs/i18n', '@nuxtjs/seo'],
   ssr: true,
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',

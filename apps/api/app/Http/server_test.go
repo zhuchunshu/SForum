@@ -768,6 +768,37 @@ func TestCreateRoleEndpointAllowsSuperAdmin(t *testing.T) {
 	}
 }
 
+func TestCreateRoleEndpointRejectsBlankInput(t *testing.T) {
+	cfg := testConfig()
+	store := newHTTPFakeStore()
+	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
+	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
+
+	requestBody := []byte(`{"key":"","alias":"","description":""}`)
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/roles", bytes.NewReader(requestBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(adminCookie)
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("create blank role request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+
+	var body apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode blank role error response: %v", err)
+	}
+	if body.Data.Reason != "role.invalid_input" {
+		t.Fatalf("expected role.invalid_input reason, got %q", body.Data.Reason)
+	}
+}
+
 func TestCreateRoleEndpointRejectsMember(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()

@@ -2,16 +2,17 @@
 
 ## Purpose
 
-Owns installable plugins and theme templates for SForum. The first foundation
-aims for a WordPress-like operator experience while keeping execution behind
-SForum-controlled extension points.
+Owns installable plugins and themes for SForum. Plugins are multi-enable
+runtime extensions. Themes are Nuxt Layer packages with exactly one active
+applied theme.
 
 ## Current Status
 
-The extension foundation is implemented.
+The extension foundation is implemented with plugin/theme lifecycle separation.
 
-- `extension.manage` is the new permission for uploading, enabling, disabling,
-  and inspecting extensions. It is seeded for `super_admin`.
+- `extension.manage` is the permission for uploading, verifying, enabling
+  plugins, activating the protected default theme, and inspecting extensions.
+  It is seeded for `super_admin`.
 - Extension packages are uploaded as ZIP archives through the admin API and
   must include a root `sforum.extension.json` manifest.
 - Backend model code validates manifest identity, type, version, compatibility
@@ -21,11 +22,19 @@ The extension foundation is implemented.
   attachment system.
 - Database tables: `extensions`, `extension_versions`, `extension_settings`,
   and `extension_events`.
+- Extension rows include source metadata: `source` (`builtin` or `uploaded`),
+  `is_system`, and `is_deletable`.
+- Startup sync reads `BUILTIN_EXTENSION_ROOT`, registers the protected built-in
+  `sforum.default-theme`, and repairs unsafe theme state so the built-in default
+  theme is active when no theme or an uploaded theme is active in v1.
 - Admin API routes:
   - `GET /api/v1/admin/extensions`
   - `POST /api/v1/admin/extensions`
-  - `POST /api/v1/admin/extensions/:id/enable`
-  - `POST /api/v1/admin/extensions/:id/disable`
+  - `POST /api/v1/admin/extensions/:id/enable` for plugins
+  - `POST /api/v1/admin/extensions/:id/disable` for plugins
+  - `POST /api/v1/admin/extensions/:id/verify` for plugin preflight or theme
+    Nuxt Layer verification without applying it
+  - `POST /api/v1/admin/extensions/:id/activate` for themes
   - `GET /api/v1/admin/extensions/:id/events`
   - `ALL /api/v1/extensions/:extensionId/*` currently returns
     `extension.route_unavailable` until runtime proxying is implemented.
@@ -33,6 +42,9 @@ The extension foundation is implemented.
   through the low-code admin module registry and protected by
   `extension.manage`. Its first submenu set is Overview, Plugins, Themes,
   Settings, and Event Log.
+- Theme rows show `enabled` as "current theme" rather than "enabled".
+  Uploaded themes can be verified but cannot be activated in v1; attempts
+  return `extension.theme_runtime_unavailable`.
 
 ## Boundaries
 
@@ -42,19 +54,22 @@ The extension foundation is implemented.
   through public attachment URLs.
 - The first runtime foundation performs local preflight checks for backend
   entries and Nuxt layer paths. It does not yet supervise long-running plugin
-  child processes or proxy plugin HTTP routes.
-- Theme packages can declare a Nuxt Layer path. Enabling a theme runs the
-  theme builder boundary before the database status changes. The current
-  default builder verifies the layer directory; a later deployment/build
-  supervisor should replace it to run the actual Nuxt rebuild and health check.
+  child processes, restart plugins, or proxy plugin HTTP routes.
+- Theme packages can declare a Nuxt Layer path, but v1 statically applies only
+  `extensions/builtin/themes/sforum-default/layer` from the web Nuxt config.
+  Uploaded theme activation must wait for a Nuxt rebuild, health-check, and
+  rollback runtime.
+- Keep plugin `Enable/Disable` separate from theme `Activate`. Do not call
+  plugin runtime hooks when activating a theme.
 - Backend plugin packages can declare a backend entry and RPC protocol. The
   current default preflight verifies the entry exists; a later RPC supervisor
   should replace it to run a HashiCorp go-plugin compatible handshake.
 
 ## Permissions
 
-- `extension.manage`: install and manage plugins and theme templates. Granted
-  to `super_admin` by migration and seed catalog.
+- `extension.manage`: install and manage plugins and themes. Granted to
+  `super_admin` by migration and seed catalog. No separate `theme.manage`
+  permission exists yet.
 
 Frontend visibility mirrors this permission for navigation only. API policy
 checks remain authoritative.
@@ -69,10 +84,11 @@ Important fields: `id`, `name`, `version`, `type`, `sforumVersion`,
 
 ## Next Steps
 
-- Add a real plugin runtime supervisor that starts child processes, performs
-  RPC handshakes, and proxies `/api/v1/extensions/:extensionId/*`.
+- Add a real plugin runtime supervisor that starts/restarts child processes,
+  performs RPC handshakes, and proxies `/api/v1/extensions/:extensionId/*`.
 - Add a real theme activation worker that writes active Nuxt layer state,
-  triggers web rebuild, runs a health check, and rolls back on failure.
+  triggers web rebuild, runs a health check, and rolls back on failure. Only
+  then should uploaded themes be activatable.
 - Implement extension settings CRUD from manifest-declared settings.
 - Add upgrade, rollback, and uninstall operations.
 - Add signature/trust metadata if SForum later ships an extension marketplace.

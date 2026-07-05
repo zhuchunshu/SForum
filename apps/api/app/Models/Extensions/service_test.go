@@ -85,6 +85,18 @@ func TestServiceInstallArchiveStoresManifestPackageAndEvent(t *testing.T) {
 	}
 }
 
+func TestServiceInstallArchiveRejectsReservedDefaultThemeID(t *testing.T) {
+	service := NewService(&fakeExtensionStore{}, t.TempDir())
+
+	_, err := service.InstallArchive(context.Background(), extensionManager(), ArchiveInput{
+		FileName: "default-theme.zip",
+		Data:     extensionArchive(t, validManifest(DefaultThemeID, TypeTheme)),
+	})
+	if !errors.Is(err, ErrInvalidManifest) {
+		t.Fatalf("expected reserved default theme id to be rejected, got %v", err)
+	}
+}
+
 func TestServiceEnableRunsPluginPreflightBeforeStatusChange(t *testing.T) {
 	expected := errors.New("rpc handshake failed")
 	store := &fakeExtensionStore{items: map[string]Extension{
@@ -113,29 +125,114 @@ func TestServiceEnableRunsPluginPreflightBeforeStatusChange(t *testing.T) {
 	}
 }
 
-func TestServiceEnableThemeBuildFailureKeepsPreviousActiveTheme(t *testing.T) {
-	expected := errors.New("nuxt build failed")
+func TestServiceEnableRejectsThemesBecauseThemesUseActivation(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		"starter.theme": installedExtension("starter.theme", TypeTheme, ManifestBackend{}),
 	}}
-	store.activeThemeID = "old.theme"
-	service := NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{err: expected})
+	service := NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{})
 
 	_, err := service.Enable(context.Background(), extensionManager(), "starter.theme")
+	if !errors.Is(err, ErrThemeActivationRequired) {
+		t.Fatalf("expected theme activation requirement, got %v", err)
+	}
+	if store.enabledID != "" {
+		t.Fatalf("theme should not be enabled through plugin lifecycle, got %q", store.enabledID)
+	}
+}
+
+func TestServiceVerifyExtensionChecksThemeLayerWithoutActivating(t *testing.T) {
+	expected := errors.New("nuxt layer missing")
+	store := &fakeExtensionStore{items: map[string]Extension{
+		"starter.theme": installedExtension("starter.theme", TypeTheme, ManifestBackend{}),
+	}}
+	service := NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{err: expected})
+
+	_, err := service.VerifyExtension(context.Background(), extensionManager(), "starter.theme")
 	if !errors.Is(err, ErrBuildFailed) {
 		t.Fatalf("expected build failure, got %v", err)
 	}
-	if store.activeThemeID != "old.theme" {
-		t.Fatalf("active theme changed after failed build: %q", store.activeThemeID)
+	if store.enabledID != "" || store.activeThemeID != "" {
+		t.Fatalf("verify should not activate theme, enabled=%q active=%q", store.enabledID, store.activeThemeID)
 	}
 
 	service = NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{})
-	enabled, err := service.Enable(context.Background(), extensionManager(), "starter.theme")
+	verified, err := service.VerifyExtension(context.Background(), extensionManager(), "starter.theme")
 	if err != nil {
-		t.Fatalf("Enable theme returned error: %v", err)
+		t.Fatalf("VerifyExtension returned error: %v", err)
 	}
-	if enabled.Status != StatusEnabled || store.activeThemeID != "starter.theme" {
-		t.Fatalf("expected starter.theme active, got enabled=%#v active=%q", enabled, store.activeThemeID)
+	if verified.Status != StatusInstalled || store.enabledID != "" || store.activeThemeID != "" {
+		t.Fatalf("verify should keep installed theme inactive, got verified=%#v enabled=%q active=%q", verified, store.enabledID, store.activeThemeID)
+	}
+	if last := store.events[len(store.events)-1]; last.Action != EventVerified {
+		t.Fatalf("expected verify event, got %#v", store.events)
+	}
+}
+
+func TestServiceActivateThemeAllowsOnlyBuiltinDefaultThemeInV1(t *testing.T) {
+	store := &fakeExtensionStore{items: map[string]Extension{
+		DefaultThemeID:  protectedBuiltinExtension(DefaultThemeID, TypeTheme),
+		"starter.theme": uploadedExtension("starter.theme", TypeTheme),
+	}}
+	service := NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{})
+
+	_, err := service.ActivateTheme(context.Background(), extensionManager(), "starter.theme")
+	if !errors.Is(err, ErrThemeRuntimeUnavailable) {
+		t.Fatalf("expected uploaded theme activation to be unavailable, got %v", err)
+	}
+	if store.activeThemeID != "" {
+		t.Fatalf("uploaded theme should not become active, got %q", store.activeThemeID)
+	}
+
+	active, err := service.ActivateTheme(context.Background(), extensionManager(), DefaultThemeID)
+	if err != nil {
+		t.Fatalf("ActivateTheme returned error: %v", err)
+	}
+	if active.Status != StatusEnabled || store.activeThemeID != DefaultThemeID {
+		t.Fatalf("expected default theme active, got active=%#v activeID=%q", active, store.activeThemeID)
+	}
+	if last := store.events[len(store.events)-1]; last.Action != EventThemeActivated {
+		t.Fatalf("expected theme activated event, got %#v", store.events)
+	}
+}
+
+func TestServiceEnsureDefaultThemeActiveRepairsUnsafeThemeState(t *testing.T) {
+	store := &fakeExtensionStore{items: map[string]Extension{
+		DefaultThemeID: protectedBuiltinExtension(DefaultThemeID, TypeTheme),
+		"starter.theme": {
+			ID:      "starter.theme",
+			Name:    "Starter Theme",
+			Version: "1.0.0",
+			Type:    TypeTheme,
+			Status:  StatusEnabled,
+			Source:  SourceUploaded,
+			Manifest: Manifest{
+				ID:            "starter.theme",
+				Name:          "Starter Theme",
+				Version:       "1.0.0",
+				Type:          TypeTheme,
+				SForumVersion: "^1.0.0",
+			},
+			InstalledAt: time.Now(),
+			UpdatedAt:   time.Now(),
+		},
+	}}
+	store.activeThemeID = "starter.theme"
+	service := NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{})
+
+	active, err := service.EnsureDefaultThemeActive(context.Background())
+	if err != nil {
+		t.Fatalf("EnsureDefaultThemeActive returned error: %v", err)
+	}
+	if active.ID != DefaultThemeID || store.activeThemeID != DefaultThemeID {
+		t.Fatalf("expected unsafe active theme repaired to default, got active=%#v activeID=%q", active, store.activeThemeID)
+	}
+
+	active, err = service.EnsureDefaultThemeActive(context.Background())
+	if err != nil {
+		t.Fatalf("EnsureDefaultThemeActive second call returned error: %v", err)
+	}
+	if active.ID != DefaultThemeID || store.activeThemeID != DefaultThemeID {
+		t.Fatalf("expected idempotent default active theme, got active=%#v activeID=%q", active, store.activeThemeID)
 	}
 }
 
@@ -244,6 +341,23 @@ func installedExtension(id string, extensionType string, backend ManifestBackend
 	}
 }
 
+func protectedBuiltinExtension(id string, extensionType string) Extension {
+	item := installedExtension(id, extensionType, ManifestBackend{})
+	item.Status = StatusEnabled
+	item.Source = SourceBuiltin
+	item.IsSystem = true
+	item.IsDeletable = false
+	return item
+}
+
+func uploadedExtension(id string, extensionType string) Extension {
+	item := installedExtension(id, extensionType, ManifestBackend{})
+	item.Source = SourceUploaded
+	item.IsSystem = false
+	item.IsDeletable = true
+	return item
+}
+
 type fakeRuntime struct {
 	err error
 }
@@ -291,12 +405,36 @@ func (s *fakeExtensionStore) SaveInstalled(_ context.Context, input SaveInstalle
 		Version:     input.Manifest.Version,
 		Type:        input.Manifest.Type,
 		Status:      StatusInstalled,
+		Source:      SourceUploaded,
+		IsDeletable: true,
 		Manifest:    input.Manifest,
 		PackagePath: input.PackagePath,
 		InstalledAt: time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 	s.saved = item
+	if s.items == nil {
+		s.items = map[string]Extension{}
+	}
+	s.items[item.ID] = item
+	return item, nil
+}
+
+func (s *fakeExtensionStore) SaveBuiltin(_ context.Context, input SaveBuiltinInput) (Extension, error) {
+	item := Extension{
+		ID:          input.Manifest.ID,
+		Name:        input.Manifest.Name,
+		Version:     input.Manifest.Version,
+		Type:        input.Manifest.Type,
+		Status:      StatusEnabled,
+		Source:      SourceBuiltin,
+		IsSystem:    true,
+		IsDeletable: false,
+		Manifest:    input.Manifest,
+		PackagePath: input.PackagePath,
+		InstalledAt: time.Now(),
+		UpdatedAt:   time.Now(),
+	}
 	if s.items == nil {
 		s.items = map[string]Extension{}
 	}
@@ -317,6 +455,39 @@ func (s *fakeExtensionStore) Enable(_ context.Context, id string, extensionType 
 		s.activeThemeID = id
 	}
 	return item, nil
+}
+
+func (s *fakeExtensionStore) ActivateTheme(_ context.Context, id string) (Extension, error) {
+	item, ok := s.items[id]
+	if !ok {
+		return Extension{}, ErrExtensionNotFound
+	}
+	for currentID, current := range s.items {
+		if current.Type == TypeTheme && current.ID != id && current.Status == StatusEnabled {
+			current.Status = StatusDisabled
+			current.UpdatedAt = time.Now()
+			s.items[currentID] = current
+		}
+	}
+	item.Status = StatusEnabled
+	item.UpdatedAt = time.Now()
+	s.items[id] = item
+	s.activeThemeID = id
+	return item, nil
+}
+
+func (s *fakeExtensionStore) ActiveTheme(context.Context) (Extension, error) {
+	if s.activeThemeID != "" {
+		if item, ok := s.items[s.activeThemeID]; ok {
+			return item, nil
+		}
+	}
+	for _, item := range s.items {
+		if item.Type == TypeTheme && item.Status == StatusEnabled {
+			return item, nil
+		}
+	}
+	return Extension{}, ErrExtensionNotFound
 }
 
 func (s *fakeExtensionStore) Disable(_ context.Context, id string) (Extension, error) {

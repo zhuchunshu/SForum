@@ -33,7 +33,7 @@ Initial runtime option support is implemented.
 - Admin page `apps/web/app/pages/admin/settings/index.vue` uses page-level tabs
   for basic site settings and CAPTCHA/human-verification settings.
 - Admin page `apps/web/app/pages/admin/personalization.vue` manages the
-  top-level personalization settings for theme presets and footer content.
+  top-level personalization settings for appearance presets and footer content.
 - Admin page `apps/web/app/pages/admin/seo.vue` manages runtime SEO settings
   across meta/social, indexing/robots, sitemap, structured data, verification,
   and diagnostics tabs.
@@ -45,7 +45,7 @@ Initial runtime option support is implemented.
 
 - Runtime options are for self-hosted operator-managed settings such as site
   identity, site URL, enabled locales, default locale, registration policy,
-  content policy, theme preferences, and CAPTCHA provider configuration.
+  content policy, appearance preferences, and CAPTCHA provider configuration.
 - Do not move infrastructure or secret settings into `web_options`: database
   URLs, Redis passwords, Meilisearch master keys, worker counts, ports, and
   build-time route prefixes should remain in environment config.
@@ -107,8 +107,10 @@ Initial runtime option support is implemented.
   should mount storage there or update the option to a prepared writable path.
 - Locale settings can only enable built-in locale catalogs (`zh-CN`, `en-US`);
   adding a new locale still requires adding frontend and backend translations.
-- Theme settings use `appearance.theme` as a single public option. It accepts
-  preset keys (`pine_teal`, `ocean_blue`, `violet`, `rose`, or `amber`) and the
+- Appearance preset settings use `appearance.theme` as a single public option.
+  The stored key is unchanged for compatibility, but user-facing UI/docs should
+  call it "配色预设 / appearance preset" rather than "theme". It accepts preset
+  keys (`pine_teal`, `ocean_blue`, `violet`, `rose`, or `amber`) and the
   controlled custom format `custom:#rrggbb`.
 - Footer settings are frontend-safe public options: copyright text supports
   `{year}` and `{siteName}`, and `footer.links` stores the fixed Terms,

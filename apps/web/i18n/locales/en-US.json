@@ -211,19 +211,31 @@
       "uploadFailed": "Extension upload failed.",
       "enabled": "Extension enabled.",
       "disabled": "Extension disabled.",
+      "verified": "Extension preflight verified.",
+      "themeActivated": "Default theme restored as the active theme.",
+      "themeActivationUnavailable": "Uploaded themes cannot be applied in this release.",
       "actionFailed": "Extension action failed.",
       "stats": {
         "plugins": "Plugins",
         "themes": "Themes",
-        "enabled": "Enabled"
+        "enabled": "Enabled",
+        "enabledPlugins": "Enabled plugins"
       },
       "installed": "Installed extensions",
       "installedCount": "{count} extension(s) installed",
       "emptyTitle": "No extensions installed",
-      "emptyDescription": "Upload a ZIP package with an SForum manifest to enable plugins or themes here.",
+      "emptyDescription": "Upload a ZIP package with an SForum manifest to enable plugins or verify themes here.",
       "capabilityCount": "{count} capability declarations",
       "enable": "Enable",
       "disable": "Disable",
+      "restart": "Restart",
+      "restartUnavailable": "Plugin runtime supervisor is not available yet, so restart is disabled.",
+      "verify": "Verify",
+      "restoreDefaultTheme": "Restore default theme",
+      "activeTheme": "Active theme",
+      "source": {
+        "builtin": "Built-in"
+      },
       "types": {
         "plugin": "Plugin",
         "theme": "Theme"
@@ -231,7 +243,8 @@
       "status": {
         "installed": "Installed",
         "enabled": "Enabled",
-        "disabled": "Disabled"
+        "disabled": "Disabled",
+        "activeTheme": "Active theme"
       },
       "detailTitle": "Extension details",
       "manifest": {
@@ -260,10 +273,11 @@
       "themes": {
         "metaTitle": "Theme management",
         "title": "Theme management",
-        "intro": "Manage theme templates declared as themes. This release validates Nuxt Layer boundaries before future build and rollback flows are added.",
+        "intro": "Manage packages declared as themes. This release only applies the protected SForum default theme; uploaded themes can be verified but not applied yet.",
         "count": "{count} theme(s) installed",
         "emptyTitle": "No themes installed",
-        "emptyDescription": "Upload an extension ZIP with type theme to enable or disable theme templates here."
+        "emptyDescription": "Upload an extension ZIP with type theme to verify Nuxt Layer boundaries. Applying uploaded themes requires the future build and rollback runtime.",
+        "runtimeUnavailable": "Uploaded themes are not applied in this release. You can verify package structure now; activation waits for Nuxt rebuild, health-check, and rollback runtime support."
       },
       "settings": {
         "metaTitle": "Extension settings",
@@ -448,6 +462,9 @@
       "keyPlaceholder": "Example: moderator",
       "aliasPlaceholder": "Example: Moderator",
       "descriptionPlaceholder": "Describe which members should use this group",
+      "validationFailed": "Enter a user group key and alias before saving.",
+      "keyRequired": "Enter a user group key.",
+      "aliasRequired": "Enter a user group alias.",
       "permissionEditor": "Group permissions",
       "permissionEditorHelp": "Checked permissions are granted to every member of this group.",
       "superAdminPermissionLocked": "The super administrator group has all permissions and cannot be edited here.",
@@ -642,15 +659,16 @@
     "personalization": {
       "metaTitle": "Personalization",
       "title": "Personalization",
-      "intro": "Configure the site theme, footer copy, and public footer links.",
-      "toolbar": "Appearance settings are delivered to public pages through runtime web_options.",
+      "intro": "Configure appearance presets, footer copy, and public footer links.",
+      "toolbar": "Appearance presets are delivered to public pages through runtime web_options.",
       "refresh": "Refresh",
       "loadFailed": "Personalization settings could not be loaded.",
       "saved": "Personalization settings saved.",
       "saveFailed": "Personalization settings could not be saved.",
       "save": "Save personalization",
+      "appearancePreset": "Appearance preset",
       "theme": {
-        "title": "Theme preset",
+        "title": "Appearance preset",
         "description": "Choose one main color preset for navigation, buttons, focus states, and admin accents."
       },
       "themes": {

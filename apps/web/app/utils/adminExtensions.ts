@@ -1,5 +1,7 @@
 export type AdminExtensionType = 'plugin' | 'theme'
 export type AdminExtensionStatus = 'installed' | 'enabled' | 'disabled'
+export type AdminExtensionSource = 'builtin' | 'uploaded'
+export type AdminThemeActionState = 'active' | 'activateDefault' | 'verifyOnly'
 
 export type AdminExtensionSetting = {
   key: string
@@ -30,6 +32,9 @@ export type AdminExtension = {
   version: string
   type: AdminExtensionType
   status: AdminExtensionStatus
+  source?: AdminExtensionSource
+  isSystem?: boolean
+  isDeletable?: boolean
   manifest: AdminExtensionManifest
   packagePath: string
   installedAt: string
@@ -48,7 +53,8 @@ export type AdminExtensionEvent = {
 export type AdminExtensionStats = {
   pluginCount: number
   themeCount: number
-  enabledCount: number
+  enabledPluginCount: number
+  activeThemeId: string
 }
 
 export type AdminExtensionSettingDeclaration = {
@@ -66,8 +72,29 @@ export function extensionStats(items: AdminExtension[]): AdminExtensionStats {
   return {
     pluginCount: filterExtensionsByType(items, 'plugin').length,
     themeCount: filterExtensionsByType(items, 'theme').length,
-    enabledCount: items.filter(item => item.status === 'enabled').length
+    enabledPluginCount: items.filter(item => item.type === 'plugin' && item.status === 'enabled').length,
+    activeThemeId: activeTheme(items)?.id || ''
   }
+}
+
+export function activeTheme(items: AdminExtension[]) {
+  return items.find(item => item.type === 'theme' && item.status === 'enabled')
+}
+
+export function themeStatusLabelKey(item: AdminExtension) {
+  return item.type === 'theme' && item.status === 'enabled'
+    ? 'admin.extensions.status.activeTheme'
+    : `admin.extensions.status.${item.status}`
+}
+
+export function themeActionState(item: AdminExtension): AdminThemeActionState {
+  if (item.status === 'enabled') {
+    return 'active'
+  }
+  if (item.id === 'sforum.default-theme' && item.source === 'builtin') {
+    return 'activateDefault'
+  }
+  return 'verifyOnly'
 }
 
 export function capabilityCount(item: AdminExtension) {

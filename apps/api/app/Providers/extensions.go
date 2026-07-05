@@ -13,9 +13,9 @@ type ExtensionsProvider struct {
 	controller *extensionscontroller.Controller
 }
 
-func NewExtensionsProvider(store extensions.Store, users identity.ActorStore, sessions *authsession.Manager, extensionRoot string) *ExtensionsProvider {
+func NewExtensionsProvider(store extensions.Store, users identity.ActorStore, sessions *authsession.Manager, extensionRoot string, builtinRoot string) *ExtensionsProvider {
 	return &ExtensionsProvider{
-		controller: extensionscontroller.NewController(extensions.NewService(store, extensionRoot), users, sessions),
+		controller: extensionscontroller.NewController(extensions.NewServiceWithBuiltins(store, extensionRoot, builtinRoot), users, sessions),
 	}
 }
 

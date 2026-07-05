@@ -58,6 +58,9 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	if cfg.ExtensionRoot != "/var/lib/sforum/extensions" {
 		t.Fatalf("expected extension root default, got %q", cfg.ExtensionRoot)
 	}
+	if cfg.BuiltinExtensionRoot != "../../extensions/builtin" {
+		t.Fatalf("expected builtin extension root default, got %q", cfg.BuiltinExtensionRoot)
+	}
 	if cfg.JobQueueCriticalWorkers != 4 {
 		t.Fatalf("expected critical workers 4, got %d", cfg.JobQueueCriticalWorkers)
 	}
@@ -106,6 +109,7 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 	t.Setenv("ALTCHA_CHALLENGE_TTL", "2m")
 	t.Setenv("ALTCHA_COST", "2000")
 	t.Setenv("EXTENSION_ROOT", "/srv/sforum/extensions")
+	t.Setenv("BUILTIN_EXTENSION_ROOT", "/srv/sforum/builtin-extensions")
 
 	cfg := Load()
 
@@ -158,6 +162,9 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 	}
 	if cfg.ExtensionRoot != "/srv/sforum/extensions" {
 		t.Fatalf("expected extension root from env, got %q", cfg.ExtensionRoot)
+	}
+	if cfg.BuiltinExtensionRoot != "/srv/sforum/builtin-extensions" {
+		t.Fatalf("expected builtin extension root from env, got %q", cfg.BuiltinExtensionRoot)
 	}
 }
 

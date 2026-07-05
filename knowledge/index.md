@@ -51,7 +51,10 @@ This is the entry point for project memory.
   toasts, and tabs, with a dev-only `/components` preview page. The preview page
   now covers seven forum-oriented sections: foundations, feedback, forum list,
   composer flow, moderation, member profile, and loading/empty states.
-- The SForum homepage (`apps/web/app/pages/index.vue`) has been optimized with a wider max-w-[1376px] container and explicit column widths (Left 270px, Middle flexible up to 720px, Right 290px) on desktop to improve readability and breathing room.
+- The SForum homepage now lives in the protected built-in default theme layer
+  (`extensions/builtin/themes/sforum-default/layer/app/pages/index.vue`) and
+  uses a wider max-w-[1376px] container with explicit column widths (Left
+  270px, Middle flexible up to 720px, Right 290px) on desktop.
 - The thread feed row component (`SFFeedRow.vue`) has been redesigned using a compact no-excerpt layout (Left author avatar, Right title and upvote/reply actions inline, and bottom row metadata/views), doubling the layout information density.
 - Sidebar accessibility was improved by fixing double padding via the `flush` property and updating text colors to `slate-500` and `slate-600` for higher contrast.
 - The admin foundation now uses a dedicated Nuxt UI Dashboard shell with Nuxt
@@ -82,6 +85,11 @@ This is the entry point for project memory.
   defaults to a limited user-group comparison view with search, explicit group
   selection, and differences-only auditing so it stays readable as custom
   user groups grow.
+- Role/user-group management now validates required fields at both the Nuxt
+  roles form and Go identity service boundary. Empty custom roles created by
+  the earlier missing validation are cleaned up by migration
+  `202607060002_role_input_constraints`, and the roles table has non-blank key
+  and alias checks.
 - Development guidelines now require permission-aware feature design: new
   protected routes, mutations, admin screens, exports, setting updates, and
   background action triggers must identify their actor/action/resource boundary,
@@ -162,8 +170,9 @@ This is the entry point for project memory.
   from the admin settings page by users with `settings.manage`.
 - Personalization settings extend runtime web options with `appearance.theme`
   preset keys or `custom:#rrggbb` colors plus frontend-safe footer content. The
-  admin control panel now has a top-level personalization page for choosing the
-  theme, using a custom color picker, and editing footer copyright/link text.
+  stored key remains `appearance.theme`, but UI language now calls it a
+  "配色预设 / appearance preset" to keep it distinct from installable Nuxt Layer
+  themes.
 - The global footer has been implemented using the Option A (Single-line Minimalist) design direction, supporting dynamic copyright data, localized links (Terms, Privacy, Guidelines) mapped to placeholder links, and full Light/Dark mode responsiveness.
 - SEO Full-Chain v1 is implemented: `seo.manage` controls the SEO admin page,
   typed `seo.*` runtime options cover meta/social, robots, sitemap, structured
@@ -187,7 +196,11 @@ This is the entry point for project memory.
 - Extension system foundation is implemented: `extension.manage`, extension
   ZIP upload, `sforum.extension.json` manifest validation, dedicated extension
   tables, lifecycle events, independent admin extension submenu pages,
-  `EXTENSION_ROOT`, and reserved plugin/theme runtime boundaries.
+  `EXTENSION_ROOT`, and reserved plugin/theme runtime boundaries. Plugins use
+  enable/disable semantics; themes use activation semantics with exactly one
+  active theme. In v1 only the protected built-in `sforum.default-theme` Nuxt
+  layer is actually applied, while uploaded themes can be installed and
+  verified but not activated.
 - Runtime language pack management has an accepted design: add a system-menu
   admin "Language settings" page, `locale.manage`, ZIP language pack uploads
   with `sforum.locale.json`, package storage under `LOCALE_PACK_ROOT`/
@@ -248,6 +261,9 @@ This is the entry point for project memory.
 - `decisions/2026-07-05-extension-plugin-theme-foundation.md` - accepted
   plugin/theme extension foundation, storage, permission, and runtime-boundary
   decision.
+- `decisions/2026-07-06-plugin-enable-theme-activate-default-theme.md` -
+  accepted plugin enable vs theme activate semantics and default-theme public
+  UI ownership.
 - `decisions/2026-07-05-runtime-language-pack-management.md` - accepted runtime
   language pack storage, permission, admin page, and frontend runtime message
   loading decision.
@@ -303,9 +319,16 @@ This is the entry point for project memory.
   entry removal handoff.
 - `sessions/2026-07-05-admin-permission-management.md` - user-level permission
   overrides, admin users/roles/permissions UI, and API contract handoff.
+- `sessions/2026-07-06-api-air-startup-speed.md` - API/worker Air config
+  watch-scope and deprecated `build.bin` cleanup handoff.
 - `sessions/2026-07-05-permission-matrix-comparison-view.md` - permission
   matrix scalability update with limited group comparison and differences-only
   audit mode.
+- `sessions/2026-07-06-role-input-validation.md` - roles page empty-create bug
+  fix, service/API validation, cleanup migration, OpenAPI update, and QA notes.
+- `sessions/2026-07-06-theme-boundary-activation.md` - plugin enable/theme
+  activate semantics, built-in default theme layer, and public UI ownership
+  handoff.
 - `sessions/2026-07-04-permission-aware-development-guidelines.md` -
   permission-aware feature development guideline handoff.
 - `sessions/2026-07-05-auth-session-restart-resilience.md` - frontend auth

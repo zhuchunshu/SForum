@@ -66,6 +66,10 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEnable"
   "/admin/extensions/{extensionID}/disable":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionDisable"
+  "/admin/extensions/{extensionID}/verify":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionVerify"
+  "/admin/extensions/{extensionID}/activate":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionActivate"
   "/admin/extensions/{extensionID}/events":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEvents"
 components:
@@ -152,6 +156,8 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionType"
     ExtensionStatus:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionStatus"
+    ExtensionSource:
+      "$ref": "./openapi/schemas/extensions.yaml#/ExtensionSource"
     ExtensionManifest:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionManifest"
     Extension:
@@ -218,8 +224,10 @@ components:
       "$ref": "./openapi/schemas/identity.yaml#/LoginRequest"
     Role:
       "$ref": "./openapi/schemas/identity.yaml#/Role"
-    RoleInput:
-      "$ref": "./openapi/schemas/identity.yaml#/RoleInput"
+    RoleCreateInput:
+      "$ref": "./openapi/schemas/identity.yaml#/RoleCreateInput"
+    RoleUpdateInput:
+      "$ref": "./openapi/schemas/identity.yaml#/RoleUpdateInput"
     Permission:
       "$ref": "./openapi/schemas/identity.yaml#/Permission"
     RolePermissionSet:

@@ -83,10 +83,21 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	identityStore := identity.NewPostgresStore(pool)
 	attachmentStore := attachments.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
+	extensionService := extensions.NewServiceWithBuiltins(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
+	if _, err := extensionService.SyncBuiltins(ctx); err != nil {
+		if closeErr := humanVerifyStore.Close(); closeErr != nil {
+			logger.Warn("human verification redis close failed", "error", closeErr)
+		}
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("sync builtin extensions failed: %w", err)
+	}
 	identityProvider := providers.NewIdentityProviderWithAuthSessions(identityStore, authSessions, humanVerifier)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProvider(attachmentStore, optionsService, identityStore, authSessions)
-	extensionsProvider := providers.NewExtensionsProvider(extensionStore, identityStore, authSessions, cfg.ExtensionRoot)
+	extensionsProvider := providers.NewExtensionsProvider(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
 		RouteProviders: []httpserver.RouteProvider{identityProvider, optionsProvider, attachmentsProvider, extensionsProvider},

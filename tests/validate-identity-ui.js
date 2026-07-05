@@ -2,11 +2,13 @@ const fs = require('fs');
 const path = require('path');
 
 const root = process.cwd();
+const registerPagePath = 'extensions/builtin/themes/sforum-default/layer/app/pages/register.vue';
+const loginPagePath = 'extensions/builtin/themes/sforum-default/layer/app/pages/login.vue';
 const requiredFiles = [
   'apps/web/app/composables/useAuthSession.ts',
   'apps/web/app/middleware/admin.ts',
-  'apps/web/app/pages/register.vue',
-  'apps/web/app/pages/login.vue',
+  registerPagePath,
+  loginPagePath,
   'apps/web/app/pages/admin/index.vue',
   'apps/web/app/pages/admin/roles.vue',
   'apps/web/app/pages/admin/users.vue',
@@ -21,8 +23,8 @@ for (const file of requiredFiles) {
 
 const zh = JSON.parse(fs.readFileSync(path.resolve(root, 'apps/web/i18n/locales/zh-CN.json'), 'utf8'));
 const en = JSON.parse(fs.readFileSync(path.resolve(root, 'apps/web/i18n/locales/en-US.json'), 'utf8'));
-const registerPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/register.vue'), 'utf8');
-const loginPage = fs.readFileSync(path.resolve(root, 'apps/web/app/pages/login.vue'), 'utf8');
+const registerPage = fs.readFileSync(path.resolve(root, registerPagePath), 'utf8');
+const loginPage = fs.readFileSync(path.resolve(root, loginPagePath), 'utf8');
 
 const requiredKeys = [
   ['auth', 'registerTitle'],
@@ -87,6 +89,15 @@ if (!adminUsersPage.includes('/permission-overrides')) {
 }
 if (!adminRolesPage.includes('/permissions')) {
   throw new Error('Admin roles page should manage role permissions');
+}
+if (!adminRolesPage.includes(':label="t(\'admin.roles.key\')"') || !adminRolesPage.includes('name="role-key"')) {
+  throw new Error('Admin roles page should show a visible label for the role key field');
+}
+if (!adminRolesPage.includes(':label="t(\'admin.roles.alias\')"') || !adminRolesPage.includes('name="role-alias"')) {
+  throw new Error('Admin roles page should show a visible label for the role alias field');
+}
+if (!adminRolesPage.includes('validateRoleForm')) {
+  throw new Error('Admin roles page should validate required role fields before saving');
 }
 if (!adminPermissionsPage.includes('/permissions/matrix')) {
   throw new Error('Admin permissions page should load the permission matrix');

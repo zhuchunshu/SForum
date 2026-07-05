@@ -1,0 +1,10 @@
+{
+  "id": "sforum.default-theme",
+  "name": "SForum Default Theme",
+  "version": "1.0.0",
+  "type": "theme",
+  "sforumVersion": "^1.0.0",
+  "frontend": {
+    "layer": "layer"
+  }
+}

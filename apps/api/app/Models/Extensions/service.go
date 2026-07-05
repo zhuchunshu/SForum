@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -23,6 +24,7 @@ var manifestIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{1,80}$`)
 type Service struct {
 	store         Store
 	extensionRoot string
+	builtinRoot   string
 	runtime       RuntimePreflight
 	themeBuilder  ThemeBuilder
 }
@@ -32,6 +34,14 @@ func NewService(store Store, extensionRoot string) *Service {
 }
 
 func NewServiceWithHooks(store Store, extensionRoot string, runtime RuntimePreflight, themeBuilder ThemeBuilder) *Service {
+	return NewServiceWithBuiltinsAndHooks(store, extensionRoot, "", runtime, themeBuilder)
+}
+
+func NewServiceWithBuiltins(store Store, extensionRoot string, builtinRoot string) *Service {
+	return NewServiceWithBuiltinsAndHooks(store, extensionRoot, builtinRoot, nil, nil)
+}
+
+func NewServiceWithBuiltinsAndHooks(store Store, extensionRoot string, builtinRoot string, runtime RuntimePreflight, themeBuilder ThemeBuilder) *Service {
 	if strings.TrimSpace(extensionRoot) == "" {
 		extensionRoot = "storage/extensions"
 	}
@@ -44,6 +54,7 @@ func NewServiceWithHooks(store Store, extensionRoot string, runtime RuntimePrefl
 	return &Service{
 		store:         store,
 		extensionRoot: extensionRoot,
+		builtinRoot:   strings.TrimSpace(builtinRoot),
 		runtime:       runtime,
 		themeBuilder:  themeBuilder,
 	}
@@ -90,6 +101,69 @@ func (s *Service) List(ctx context.Context, actor identity.Actor) ([]Extension, 
 	return s.store.List(ctx)
 }
 
+func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
+	if strings.TrimSpace(s.builtinRoot) == "" {
+		return nil, nil
+	}
+
+	groups := []struct {
+		dir           string
+		extensionType string
+	}{
+		{dir: "plugins", extensionType: TypePlugin},
+		{dir: "themes", extensionType: TypeTheme},
+	}
+	items := []Extension{}
+	for _, group := range groups {
+		root := filepath.Join(s.builtinRoot, group.dir)
+		entries, err := os.ReadDir(root)
+		if errorsIsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			manifestPath := filepath.Join(root, entry.Name(), ManifestFileName)
+			body, err := os.ReadFile(manifestPath)
+			if err != nil {
+				return nil, err
+			}
+			var manifest Manifest
+			if err := json.Unmarshal(body, &manifest); err != nil {
+				return nil, ErrInvalidManifest
+			}
+			manifest = normalizeManifest(manifest)
+			if manifest.Type != group.extensionType {
+				return nil, ErrInvalidManifest
+			}
+			if err := validateManifest(manifest); err != nil {
+				return nil, err
+			}
+			item, err := s.store.SaveBuiltin(ctx, SaveBuiltinInput{
+				Manifest:    manifest,
+				PackagePath: filepath.Dir(manifestPath),
+			})
+			if err != nil {
+				return nil, err
+			}
+			_, _ = s.store.CreateEvent(ctx, EventInput{
+				ExtensionID: item.ID,
+				Action:      EventBuiltinSynced,
+				Message:     "Built-in extension synchronized from Git.",
+			})
+			items = append(items, item)
+		}
+	}
+	if _, err := s.EnsureDefaultThemeActive(ctx); err != nil && !errors.Is(err, ErrExtensionNotFound) {
+		return nil, err
+	}
+	return items, nil
+}
+
 func (s *Service) Events(ctx context.Context, actor identity.Actor, extensionID string, limit int) ([]ExtensionEvent, error) {
 	if !actor.Can(identity.PermissionExtensionManage) {
 		return nil, identity.ErrPermissionDenied
@@ -111,6 +185,9 @@ func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, inpu
 	}
 	if err := validateManifest(manifest); err != nil {
 		return Extension{}, err
+	}
+	if manifest.ID == DefaultThemeID {
+		return Extension{}, ErrInvalidManifest
 	}
 
 	versionDir := filepath.Join(s.extensionRoot, manifest.ID, manifest.Version)
@@ -152,6 +229,9 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (
 	if err != nil {
 		return Extension{}, err
 	}
+	if extension.Type == TypeTheme {
+		return Extension{}, ErrThemeActivationRequired
+	}
 
 	if extension.Type == TypePlugin && extension.Manifest.Backend.Entry != "" && s.runtime != nil {
 		if err := s.runtime.Check(ctx, extension); err != nil {
@@ -159,13 +239,6 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (
 			return Extension{}, fmt.Errorf("%w: %v", ErrPreflightFailed, err)
 		}
 	}
-	if extension.Type == TypeTheme && extension.Manifest.Frontend.Layer != "" && s.themeBuilder != nil {
-		if err := s.themeBuilder.Build(ctx, extension); err != nil {
-			s.recordEnableFailure(ctx, actor, extension.ID, err)
-			return Extension{}, fmt.Errorf("%w: %v", ErrBuildFailed, err)
-		}
-	}
-
 	enabled, err := s.store.Enable(ctx, extension.ID, extension.Type)
 	if err != nil {
 		return Extension{}, err
@@ -183,7 +256,14 @@ func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) 
 	if !actor.Can(identity.PermissionExtensionManage) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
-	disabled, err := s.store.Disable(ctx, normalizeID(id))
+	extension, err := s.store.Get(ctx, normalizeID(id))
+	if err != nil {
+		return Extension{}, err
+	}
+	if extension.Type == TypeTheme {
+		return Extension{}, ErrThemeActivationRequired
+	}
+	disabled, err := s.store.Disable(ctx, extension.ID)
 	if err != nil {
 		return Extension{}, err
 	}
@@ -194,6 +274,95 @@ func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) 
 		Message:     "Extension disabled.",
 	})
 	return disabled, nil
+}
+
+func (s *Service) VerifyExtension(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
+	if !actor.Can(identity.PermissionExtensionManage) {
+		return Extension{}, identity.ErrPermissionDenied
+	}
+	extension, err := s.store.Get(ctx, normalizeID(id))
+	if err != nil {
+		return Extension{}, err
+	}
+	if err := s.verifyExtension(ctx, extension); err != nil {
+		_, _ = s.store.CreateEvent(ctx, EventInput{
+			ExtensionID: extension.ID,
+			ActorUserID: actor.ID,
+			Action:      EventEnableFailed,
+			Message:     err.Error(),
+		})
+		return Extension{}, err
+	}
+	_, _ = s.store.CreateEvent(ctx, EventInput{
+		ExtensionID: extension.ID,
+		ActorUserID: actor.ID,
+		Action:      EventVerified,
+		Message:     "Extension preflight verified.",
+	})
+	return extension, nil
+}
+
+func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
+	if !actor.Can(identity.PermissionExtensionManage) {
+		return Extension{}, identity.ErrPermissionDenied
+	}
+	extension, err := s.store.Get(ctx, normalizeID(id))
+	if err != nil {
+		return Extension{}, err
+	}
+	if extension.Type != TypeTheme {
+		return Extension{}, ErrThemeActivationRequired
+	}
+	if extension.ID != DefaultThemeID || extension.Source != SourceBuiltin {
+		return Extension{}, ErrThemeRuntimeUnavailable
+	}
+	if err := s.verifyExtension(ctx, extension); err != nil {
+		s.recordEnableFailure(ctx, actor, extension.ID, err)
+		return Extension{}, err
+	}
+	active, err := s.store.ActivateTheme(ctx, extension.ID)
+	if err != nil {
+		return Extension{}, err
+	}
+	_, _ = s.store.CreateEvent(ctx, EventInput{
+		ExtensionID: active.ID,
+		ActorUserID: actor.ID,
+		Action:      EventThemeActivated,
+		Message:     "Theme activated.",
+	})
+	return active, nil
+}
+
+func (s *Service) EnsureDefaultThemeActive(ctx context.Context) (Extension, error) {
+	active, err := s.store.ActiveTheme(ctx)
+	if err == nil && active.ID == DefaultThemeID && active.Source == SourceBuiltin {
+		return active, nil
+	}
+	defaultTheme, getErr := s.store.Get(ctx, DefaultThemeID)
+	if getErr != nil {
+		if err != nil {
+			return Extension{}, err
+		}
+		return Extension{}, getErr
+	}
+	if defaultTheme.Type != TypeTheme || defaultTheme.Source != SourceBuiltin {
+		return Extension{}, ErrInvalidManifest
+	}
+	return s.store.ActivateTheme(ctx, DefaultThemeID)
+}
+
+func (s *Service) verifyExtension(ctx context.Context, extension Extension) error {
+	if extension.Type == TypePlugin && extension.Manifest.Backend.Entry != "" && s.runtime != nil {
+		if err := s.runtime.Check(ctx, extension); err != nil {
+			return fmt.Errorf("%w: %v", ErrPreflightFailed, err)
+		}
+	}
+	if extension.Type == TypeTheme && extension.Manifest.Frontend.Layer != "" && s.themeBuilder != nil {
+		if err := s.themeBuilder.Build(ctx, extension); err != nil {
+			return fmt.Errorf("%w: %v", ErrBuildFailed, err)
+		}
+	}
+	return nil
 }
 
 func (s *Service) recordEnableFailure(ctx context.Context, actor identity.Actor, extensionID string, cause error) {
@@ -296,6 +465,10 @@ func installedFilePath(extension Extension, manifestPath string) (string, bool) 
 		return "", false
 	}
 	root := filepath.Join(filepath.Dir(extension.PackagePath), "files")
+	if extension.Source == SourceBuiltin {
+		// 内置扩展直接位于 Git 包目录；上传扩展才解压到相邻 files 目录。
+		root = filepath.Clean(extension.PackagePath)
+	}
 	target := filepath.Join(root, filepath.FromSlash(name))
 	return target, strings.HasPrefix(target, root+string(os.PathSeparator))
 }
@@ -357,4 +530,8 @@ func safeArchivePath(name string) (string, bool) {
 		return "", false
 	}
 	return clean, true
+}
+
+func errorsIsNotExist(err error) bool {
+	return err != nil && os.IsNotExist(err)
 }

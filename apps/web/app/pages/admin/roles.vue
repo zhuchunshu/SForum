@@ -48,6 +48,7 @@ const saving = ref(false)
 const deleting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const roleFormSubmitted = ref(false)
 
 onMounted(() => {
   void loadData()
@@ -107,6 +108,20 @@ const selectedTitle = computed(() => {
   return selectedRole.value?.alias || t('admin.roles.selectTitle')
 })
 
+const roleKeyError = computed(() => {
+  if (!roleFormSubmitted.value || !editingNew.value || formKey.value.trim()) {
+    return undefined
+  }
+  return t('admin.roles.keyRequired')
+})
+
+const roleAliasError = computed(() => {
+  if (!roleFormSubmitted.value || formAlias.value.trim()) {
+    return undefined
+  }
+  return t('admin.roles.aliasRequired')
+})
+
 useSeoMeta({
   title: t('admin.roles.metaTitle')
 })
@@ -141,6 +156,8 @@ function selectRole(role: Role) {
   formAlias.value = role.alias
   formDescription.value = role.description
   formPermissionKeys.value = [...role.permissionKeys]
+  roleFormSubmitted.value = false
+  errorMessage.value = ''
   successMessage.value = ''
 }
 
@@ -151,6 +168,8 @@ function startCreateRole() {
   formAlias.value = ''
   formDescription.value = ''
   formPermissionKeys.value = []
+  roleFormSubmitted.value = false
+  errorMessage.value = ''
   successMessage.value = ''
 }
 
@@ -165,10 +184,23 @@ function togglePermission(key: string) {
   formPermissionKeys.value = [...formPermissionKeys.value, key].sort()
 }
 
+function validateRoleForm() {
+  roleFormSubmitted.value = true
+  if ((editingNew.value && !formKey.value.trim()) || !formAlias.value.trim()) {
+    errorMessage.value = t('admin.roles.validationFailed')
+    return false
+  }
+  return true
+}
+
 async function saveRole() {
-  saving.value = true
   errorMessage.value = ''
   successMessage.value = ''
+  if (!validateRoleForm()) {
+    return
+  }
+
+  saving.value = true
   try {
     if (editingNew.value) {
       const role = await request<Role>('/roles', {
@@ -208,6 +240,7 @@ async function saveRole() {
     await loadData()
     successMessage.value = t('admin.roles.saved')
     editingNew.value = false
+    roleFormSubmitted.value = false
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.roles.saveFailed')
   } finally {
@@ -223,7 +256,7 @@ async function deleteRole() {
   errorMessage.value = ''
   successMessage.value = ''
   try {
-    await request<null>(`/roles/${selectedRole.value.key}`, {
+    await request<null>(`/roles/${encodeURIComponent(selectedRole.value.key)}`, {
       method: 'DELETE'
     })
     selectedRole.value = null
@@ -380,22 +413,30 @@ async function deleteRole() {
       </template>
 
       <div class="space-y-4">
-        <UInput
-          v-model="formKey"
-          icon="i-lucide-key-round"
-          :placeholder="t('admin.roles.keyPlaceholder')"
-          :disabled="!editingNew"
-        />
-        <UInput
-          v-model="formAlias"
-          icon="i-lucide-tag"
-          :placeholder="t('admin.roles.aliasPlaceholder')"
-        />
-        <textarea
-          v-model="formDescription"
-          class="min-h-24 w-full resize-y rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-[var(--sf-accent)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-          :placeholder="t('admin.roles.descriptionPlaceholder')"
-        />
+        <UFormField :label="t('admin.roles.key')" name="role-key" :error="roleKeyError">
+          <UInput
+            v-model="formKey"
+            icon="i-lucide-key-round"
+            :placeholder="t('admin.roles.keyPlaceholder')"
+            :disabled="!editingNew"
+            required
+          />
+        </UFormField>
+        <UFormField :label="t('admin.roles.alias')" name="role-alias" :error="roleAliasError">
+          <UInput
+            v-model="formAlias"
+            icon="i-lucide-tag"
+            :placeholder="t('admin.roles.aliasPlaceholder')"
+            required
+          />
+        </UFormField>
+        <UFormField :label="t('admin.roles.description')" name="role-description">
+          <textarea
+            v-model="formDescription"
+            class="min-h-24 w-full resize-y rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-[var(--sf-accent)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+            :placeholder="t('admin.roles.descriptionPlaceholder')"
+          />
+        </UFormField>
 
         <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/60">
           <div class="mb-3 flex items-start justify-between gap-3">

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, filterExtensionsByType } from '~/utils/adminExtensions'
+import { capabilityCount, filterExtensionsByType, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -20,13 +20,16 @@ const {
   error,
   refresh,
   busyId,
-  enableExtension,
-  disableExtension,
-  statusColor,
-  statusLabel
+  activateTheme,
+  verifyExtension,
+  statusColor
 } = await useAdminExtensionsManager()
 
 const themes = computed(() => filterExtensionsByType(extensions.value, 'theme'))
+
+function themeLabel(item: (typeof themes.value)[number]) {
+  return t(themeStatusLabelKey(item))
+}
 
 useSeoMeta({
   title: t('admin.extensions.themes.metaTitle')
@@ -84,33 +87,49 @@ useSeoMeta({
               {{ item.name }}
             </h3>
             <UBadge :color="statusColor(item.status)" variant="subtle">
-              {{ statusLabel(item.status) }}
+              {{ themeLabel(item) }}
+            </UBadge>
+            <UBadge v-if="item.source === 'builtin'" color="primary" variant="subtle" icon="i-lucide-shield-check">
+              {{ t('admin.extensions.source.builtin') }}
             </UBadge>
           </div>
           <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
             {{ item.id }} · v{{ item.version }} · {{ t('admin.extensions.capabilityCount', { count: capabilityCount(item) }) }}
           </p>
+          <p v-if="themeActionState(item) === 'verifyOnly'" class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+            {{ t('admin.extensions.themes.runtimeUnavailable') }}
+          </p>
         </div>
         <div class="flex items-center gap-2">
           <UButton
-            v-if="item.status !== 'enabled'"
+            v-if="themeActionState(item) === 'activateDefault'"
             size="sm"
-            icon="i-lucide-play"
+            icon="i-lucide-rotate-ccw"
             :loading="busyId === item.id"
-            @click="enableExtension(item)"
+            @click="activateTheme(item)"
           >
-            {{ t('admin.extensions.enable') }}
+            {{ t('admin.extensions.restoreDefaultTheme') }}
+          </UButton>
+          <UButton
+            v-else-if="themeActionState(item) === 'verifyOnly'"
+            size="sm"
+            color="neutral"
+            variant="subtle"
+            icon="i-lucide-shield-check"
+            :loading="busyId === item.id"
+            @click="verifyExtension(item)"
+          >
+            {{ t('admin.extensions.verify') }}
           </UButton>
           <UButton
             v-else
             size="sm"
-            color="neutral"
+            color="primary"
             variant="subtle"
-            icon="i-lucide-pause"
-            :loading="busyId === item.id"
-            @click="disableExtension(item)"
+            icon="i-lucide-check-circle-2"
+            disabled
           >
-            {{ t('admin.extensions.disable') }}
+            {{ t('admin.extensions.activeTheme') }}
           </UButton>
         </div>
       </div>

@@ -90,11 +90,16 @@ const productionEnvExample = read('.env.production.example')
 assert(envExample.includes('NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/control-panel'), '.env.example should document the admin route prefix')
 assert(productionEnvExample.includes('NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/control-panel'), '.env.production.example should document the admin route prefix')
 
-for (const authPage of ['apps/web/app/pages/login.vue', 'apps/web/app/pages/register.vue']) {
+for (const authPage of [
+  'extensions/builtin/themes/sforum-default/layer/app/pages/login.vue',
+  'extensions/builtin/themes/sforum-default/layer/app/pages/register.vue'
+]) {
   const content = read(authPage)
   assert(content.includes('useAdminRoutes'), `${authPage} should use the admin route helper`)
   assert(!content.includes("? '/admin'"), `${authPage} should not hard-code the legacy /admin prefix`)
 }
+assert(!existsSync(file('apps/web/app/pages/login.vue')), 'Login page should be owned by the default theme layer')
+assert(!existsSync(file('apps/web/app/pages/register.vue')), 'Register page should be owned by the default theme layer')
 
 const adminPagePathsById: Record<string, string> = {
   '/': 'apps/web/app/pages/admin/index.vue',

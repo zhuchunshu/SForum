@@ -325,7 +325,7 @@ function formSnapshot() {
             </p>
           </div>
           <UBadge color="neutral" variant="soft" class="border border-slate-200 font-mono dark:border-zinc-800">
-            appearance.theme
+            {{ t('admin.personalization.appearancePreset') }}
           </UBadge>
         </div>
       </template>

@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  activeTheme,
   capabilityCount,
   extensionStats,
   filterExtensionsByType,
+  themeActionState,
+  themeStatusLabelKey,
   mergeExtensionEvents,
   type AdminExtension,
   type AdminExtensionEvent
@@ -31,7 +34,7 @@ describe('admin extension helpers', () => {
     expect(filterExtensionsByType(items, 'theme').map(item => item.id)).toEqual(['demo.theme'])
   })
 
-  test('counts installed plugins, themes, and enabled extensions', () => {
+  test('counts installed plugins separately from active themes', () => {
     const items = [
       extension({ id: 'one.plugin', name: 'One Plugin', type: 'plugin', status: 'enabled' }),
       extension({ id: 'two.plugin', name: 'Two Plugin', type: 'plugin', status: 'disabled' }),
@@ -41,8 +44,30 @@ describe('admin extension helpers', () => {
     expect(extensionStats(items)).toEqual({
       pluginCount: 2,
       themeCount: 1,
-      enabledCount: 2
+      enabledPluginCount: 1,
+      activeThemeId: 'one.theme'
     })
+  })
+
+  test('identifies active theme and theme-specific UI state', () => {
+    const items = [
+      extension({ id: 'sforum.default-theme', name: 'SForum Default Theme', type: 'theme', status: 'enabled' }),
+      extension({ id: 'uploaded.theme', name: 'Uploaded Theme', type: 'theme', status: 'installed' })
+    ]
+    const inactiveDefaultTheme = extension({
+      id: 'sforum.default-theme',
+      name: 'SForum Default Theme',
+      type: 'theme',
+      status: 'disabled',
+      source: 'builtin'
+    })
+
+    expect(activeTheme(items)?.id).toBe('sforum.default-theme')
+    expect(themeStatusLabelKey(items[0])).toBe('admin.extensions.status.activeTheme')
+    expect(themeStatusLabelKey(items[1])).toBe('admin.extensions.status.installed')
+    expect(themeActionState(items[0])).toBe('active')
+    expect(themeActionState(inactiveDefaultTheme)).toBe('activateDefault')
+    expect(themeActionState(items[1])).toBe('verifyOnly')
   })
 
   test('counts manifest capability declarations', () => {
@@ -88,6 +113,7 @@ function extension(input: {
   name: string
   type: 'plugin' | 'theme'
   status?: 'installed' | 'enabled' | 'disabled'
+  source?: AdminExtension['source']
   manifest?: Partial<AdminExtension['manifest']>
 }): AdminExtension {
   return {
@@ -96,6 +122,7 @@ function extension(input: {
     name: input.name,
     type: input.type,
     status: input.status || 'installed',
+    source: input.source,
     manifest: {
       id: input.id,
       name: input.name,

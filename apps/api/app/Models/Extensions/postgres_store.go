@@ -74,6 +74,9 @@ func (s *PostgresStore) SaveInstalled(ctx context.Context, input SaveInstalledIn
 		SET type = EXCLUDED.type,
 		    name = EXCLUDED.name,
 		    status = 'installed',
+		    source = 'uploaded',
+		    is_system = false,
+		    is_deletable = true,
 		    updated_at = now()
 	`, input.Manifest.ID, input.Manifest.Type, input.Manifest.Name); err != nil {
 		return Extension{}, fmt.Errorf("upsert extension: %w", err)
@@ -105,6 +108,58 @@ func (s *PostgresStore) SaveInstalled(ctx context.Context, input SaveInstalledIn
 	return s.Get(ctx, input.Manifest.ID)
 }
 
+func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput) (Extension, error) {
+	manifestJSON, err := json.Marshal(input.Manifest)
+	if err != nil {
+		return Extension{}, fmt.Errorf("marshal builtin extension manifest: %w", err)
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Extension{}, fmt.Errorf("begin builtin extension sync: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO extensions (id, type, name, status, source, is_system, is_deletable)
+		VALUES ($1, $2, $3, 'enabled', 'builtin', true, false)
+		ON CONFLICT (id) DO UPDATE
+		SET type = EXCLUDED.type,
+		    name = EXCLUDED.name,
+		    source = 'builtin',
+		    is_system = true,
+		    is_deletable = false,
+		    updated_at = now()
+	`, input.Manifest.ID, input.Manifest.Type, input.Manifest.Name); err != nil {
+		return Extension{}, fmt.Errorf("upsert builtin extension: %w", err)
+	}
+
+	var versionID int64
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO extension_versions (extension_id, version, manifest, package_path)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (extension_id, version) DO UPDATE
+		SET manifest = EXCLUDED.manifest,
+		    package_path = EXCLUDED.package_path
+		RETURNING id
+	`, input.Manifest.ID, input.Manifest.Version, manifestJSON, input.PackagePath).Scan(&versionID); err != nil {
+		return Extension{}, fmt.Errorf("upsert builtin extension version: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE extensions
+		SET active_version_id = $2,
+		    updated_at = now()
+		WHERE id = $1
+	`, input.Manifest.ID, versionID); err != nil {
+		return Extension{}, fmt.Errorf("activate builtin extension version: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Extension{}, fmt.Errorf("commit builtin extension sync: %w", err)
+	}
+	return s.Get(ctx, input.Manifest.ID)
+}
+
 func (s *PostgresStore) Enable(ctx context.Context, id string, extensionType string) (Extension, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -132,6 +187,53 @@ func (s *PostgresStore) Enable(ctx context.Context, id string, extensionType str
 		return Extension{}, fmt.Errorf("commit extension enable: %w", err)
 	}
 	return s.Get(ctx, id)
+}
+
+func (s *PostgresStore) ActivateTheme(ctx context.Context, id string) (Extension, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Extension{}, fmt.Errorf("begin theme activation: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE extensions
+		SET status = 'disabled', updated_at = now()
+		WHERE type = 'theme' AND id <> $1 AND status = 'enabled'
+	`, id); err != nil {
+		return Extension{}, fmt.Errorf("disable previous active theme: %w", err)
+	}
+	command, err := tx.Exec(ctx, `
+		UPDATE extensions
+		SET status = 'enabled', updated_at = now()
+		WHERE id = $1 AND type = 'theme'
+	`, id)
+	if err != nil {
+		return Extension{}, fmt.Errorf("activate theme: %w", err)
+	}
+	if command.RowsAffected() == 0 {
+		return Extension{}, ErrExtensionNotFound
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Extension{}, fmt.Errorf("commit theme activation: %w", err)
+	}
+	return s.Get(ctx, id)
+}
+
+func (s *PostgresStore) ActiveTheme(ctx context.Context) (Extension, error) {
+	row := s.pool.QueryRow(ctx, extensionSelectSQL()+`
+		WHERE extensions.type = 'theme' AND extensions.status = 'enabled'
+		ORDER BY extensions.source = 'uploaded' DESC, extensions.updated_at DESC
+		LIMIT 1
+	`)
+	item, err := scanExtension(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Extension{}, ErrExtensionNotFound
+	}
+	if err != nil {
+		return Extension{}, err
+	}
+	return item, nil
 }
 
 func (s *PostgresStore) Disable(ctx context.Context, id string) (Extension, error) {
@@ -202,6 +304,7 @@ func (s *PostgresStore) ListEvents(ctx context.Context, extensionID string, limi
 func extensionSelectSQL() string {
 	return `
 		SELECT extensions.id, extensions.name, extensions.type, extensions.status,
+		  extensions.source, extensions.is_system, extensions.is_deletable,
 		  extension_versions.version, extension_versions.manifest, extension_versions.package_path,
 		  extension_versions.installed_at, extensions.updated_at
 		FROM extensions
@@ -221,6 +324,9 @@ func scanExtension(row extensionRow) (Extension, error) {
 		&item.Name,
 		&item.Type,
 		&item.Status,
+		&item.Source,
+		&item.IsSystem,
+		&item.IsDeletable,
 		&item.Version,
 		&manifestJSON,
 		&item.PackagePath,

@@ -35,6 +35,7 @@ var (
 	ErrPermissionDenied           = errors.New("identity: permission denied")
 	ErrInvalidPermission          = errors.New("identity: invalid permission")
 	ErrInvalidRole                = errors.New("identity: invalid role")
+	ErrInvalidRoleInput           = errors.New("identity: invalid role input")
 	ErrPermissionOverrideConflict = errors.New("identity: permission override conflict")
 	ErrSystemRoleLocked           = errors.New("identity: system role is locked")
 	ErrDefaultRoleLocked          = errors.New("identity: default role is locked")

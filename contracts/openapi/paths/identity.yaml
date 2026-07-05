@@ -197,7 +197,7 @@ roles:
       content:
         application/json:
           schema:
-            "$ref": "../schemas/identity.yaml#/RoleInput"
+            "$ref": "../schemas/identity.yaml#/RoleCreateInput"
     responses:
       '201':
         description: Role created.
@@ -224,7 +224,7 @@ roleByKey:
       content:
         application/json:
           schema:
-            "$ref": "../schemas/identity.yaml#/RoleInput"
+            "$ref": "../schemas/identity.yaml#/RoleUpdateInput"
     responses:
       '200':
         description: Role updated.

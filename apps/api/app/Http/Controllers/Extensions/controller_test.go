@@ -50,6 +50,16 @@ func TestControllerRequiresLoginAndExtensionManagePermission(t *testing.T) {
 	if body.Data.Reason != "permission.denied" {
 		t.Fatalf("expected permission.denied, got %q", body.Data.Reason)
 	}
+
+	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.theme/verify", cookie)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 verifying theme without extension.manage, got %d", resp.StatusCode)
+	}
+
+	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.theme/activate", nil)
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401 activating theme without session, got %d", resp.StatusCode)
+	}
 }
 
 func TestControllerListsAndEnablesExtensionsForManager(t *testing.T) {
@@ -65,7 +75,7 @@ func TestControllerListsAndEnablesExtensionsForManager(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&listBody); err != nil {
 		t.Fatalf("decode list response: %v", err)
 	}
-	if len(listBody.Data) != 1 || listBody.Data[0].ID != "demo.plugin" {
+	if len(listBody.Data) != 2 || !extensionListContains(listBody.Data, "demo.plugin") || !extensionListContains(listBody.Data, "demo.theme") {
 		t.Fatalf("unexpected extension list: %#v", listBody.Data)
 	}
 
@@ -75,6 +85,32 @@ func TestControllerListsAndEnablesExtensionsForManager(t *testing.T) {
 	}
 	if store.enabledID != "demo.plugin" {
 		t.Fatalf("expected store enable call for demo.plugin, got %q", store.enabledID)
+	}
+}
+
+func TestControllerVerifiesAndActivatesThemesForManager(t *testing.T) {
+	app, manager, store := newExtensionTestApp()
+	cookie := loginExtensionUser(t, app, manager, 1)
+
+	resp := performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.theme/verify", cookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 verify, got %d", resp.StatusCode)
+	}
+	if store.verifiedID != "demo.theme" {
+		t.Fatalf("expected store verify call for demo.theme, got %q", store.verifiedID)
+	}
+
+	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.theme/activate", cookie)
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected 409 uploaded theme activation unavailable, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var body testEnvelope[testErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode activation error envelope: %v", err)
+	}
+	if body.Data.Reason != extensions.CodeThemeRuntimeUnavailable {
+		t.Fatalf("expected theme runtime unavailable reason, got %q", body.Data.Reason)
 	}
 }
 
@@ -105,8 +141,26 @@ func newExtensionTestApp() (*fiber.App, *authsession.Manager, *controllerFakeSto
 			InstalledAt: time.Now(),
 			UpdatedAt:   time.Now(),
 		},
+		"demo.theme": {
+			ID:      "demo.theme",
+			Name:    "Demo Theme",
+			Version: "1.0.0",
+			Type:    extensions.TypeTheme,
+			Status:  extensions.StatusInstalled,
+			Source:  extensions.SourceUploaded,
+			Manifest: extensions.Manifest{
+				ID:            "demo.theme",
+				Name:          "Demo Theme",
+				Version:       "1.0.0",
+				Type:          extensions.TypeTheme,
+				SForumVersion: "^1.0.0",
+				Frontend:      extensions.ManifestFrontend{Layer: "layer"},
+			},
+			InstalledAt: time.Now(),
+			UpdatedAt:   time.Now(),
+		},
 	}}
-	controller := NewController(extensions.NewService(store, "storage/extensions"), users, manager)
+	controller := NewController(extensions.NewServiceWithHooks(store, "storage/extensions", nil, controllerThemeBuilder{}), users, manager)
 	loginProvider := extensionRouteProviderFunc(func(api fiber.Router) {
 		api.Post("/test-login/:id", func(c fiber.Ctx) error {
 			var id int64 = 1
@@ -156,6 +210,15 @@ func performExtensionRequest(t *testing.T, app *fiber.App, method string, path s
 	return resp
 }
 
+func extensionListContains(items []extensions.Extension, id string) bool {
+	for _, item := range items {
+		if item.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 type controllerActors struct {
 	actors map[int64]identity.Actor
 }
@@ -170,10 +233,17 @@ func (f extensionRouteProviderFunc) RegisterRoutes(api fiber.Router) {
 	f(api)
 }
 
+type controllerThemeBuilder struct{}
+
+func (controllerThemeBuilder) Build(context.Context, extensions.Extension) error {
+	return nil
+}
+
 type controllerFakeStore struct {
 	items      map[string]extensions.Extension
 	enabledID  string
 	disabledID string
+	verifiedID string
 	events     []extensions.ExtensionEvent
 }
 
@@ -200,6 +270,27 @@ func (s *controllerFakeStore) SaveInstalled(_ context.Context, input extensions.
 		Version:     input.Manifest.Version,
 		Type:        input.Manifest.Type,
 		Status:      extensions.StatusInstalled,
+		Source:      extensions.SourceUploaded,
+		IsDeletable: true,
+		Manifest:    input.Manifest,
+		PackagePath: input.PackagePath,
+		InstalledAt: time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	s.items[item.ID] = item
+	return item, nil
+}
+
+func (s *controllerFakeStore) SaveBuiltin(_ context.Context, input extensions.SaveBuiltinInput) (extensions.Extension, error) {
+	item := extensions.Extension{
+		ID:          input.Manifest.ID,
+		Name:        input.Manifest.Name,
+		Version:     input.Manifest.Version,
+		Type:        input.Manifest.Type,
+		Status:      extensions.StatusEnabled,
+		Source:      extensions.SourceBuiltin,
+		IsSystem:    true,
+		IsDeletable: false,
 		Manifest:    input.Manifest,
 		PackagePath: input.PackagePath,
 		InstalledAt: time.Now(),
@@ -225,7 +316,26 @@ func (s *controllerFakeStore) Disable(_ context.Context, id string) (extensions.
 	return item, nil
 }
 
+func (s *controllerFakeStore) ActivateTheme(_ context.Context, id string) (extensions.Extension, error) {
+	item := s.items[id]
+	item.Status = extensions.StatusEnabled
+	s.items[id] = item
+	return item, nil
+}
+
+func (s *controllerFakeStore) ActiveTheme(context.Context) (extensions.Extension, error) {
+	for _, item := range s.items {
+		if item.Type == extensions.TypeTheme && item.Status == extensions.StatusEnabled {
+			return item, nil
+		}
+	}
+	return extensions.Extension{}, extensions.ErrExtensionNotFound
+}
+
 func (s *controllerFakeStore) CreateEvent(_ context.Context, input extensions.EventInput) (extensions.ExtensionEvent, error) {
+	if input.Action == extensions.EventVerified {
+		s.verifiedID = input.ExtensionID
+	}
 	event := extensions.ExtensionEvent{ID: int64(len(s.events) + 1), ExtensionID: input.ExtensionID, ActorUserID: input.ActorUserID, Action: input.Action, Message: input.Message, CreatedAt: time.Now()}
 	s.events = append(s.events, event)
 	return event, nil

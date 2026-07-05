@@ -16,6 +16,10 @@ coverage/
 # Generated local caches
 .cache/
 
+# Local runtime data
+storage/app/attachments/
+app/Models/Attachments/storage/
+
 # OS and editor files
 .DS_Store
 .idea/

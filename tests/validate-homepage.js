@@ -2,7 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 const root = process.cwd();
-const indexPagePath = path.resolve(root, 'apps/web/app/pages/index.vue');
+const indexPagePath = path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/pages/index.vue');
+const nuxtConfigPath = path.resolve(root, 'apps/web/nuxt.config.ts');
+const themeCssPath = path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-theme.css');
 const zhLocalePath = path.resolve(root, 'apps/web/i18n/locales/zh-CN.json');
 const enLocalePath = path.resolve(root, 'apps/web/i18n/locales/en-US.json');
 
@@ -10,14 +12,35 @@ console.log('Validating SForum homepage implementation...\n');
 
 // 1. Verify files exist
 if (!fs.existsSync(indexPagePath)) {
-  throw new Error('index.vue is missing');
+  throw new Error('default theme index.vue is missing');
 }
-console.log('✓ index.vue file exists.');
+if (!fs.existsSync(themeCssPath)) {
+  throw new Error('default theme CSS is missing');
+}
+if (!fs.existsSync(nuxtConfigPath)) {
+  throw new Error('nuxt.config.ts is missing');
+}
+console.log('✓ default theme homepage and CSS files exist.');
 
 // 2. Read contents
 const indexContent = fs.readFileSync(indexPagePath, 'utf8');
+const nuxtConfig = fs.readFileSync(nuxtConfigPath, 'utf8');
+const themeCss = fs.readFileSync(themeCssPath, 'utf8');
 const zh = JSON.parse(fs.readFileSync(zhLocalePath, 'utf8'));
 const en = JSON.parse(fs.readFileSync(enLocalePath, 'utf8'));
+
+if (!nuxtConfig.includes('../../extensions/builtin/themes/sforum-default/layer')) {
+  throw new Error('apps/web/nuxt.config.ts should statically extend the built-in default theme layer');
+}
+if (!nuxtConfig.includes('extends')) {
+  throw new Error('apps/web/nuxt.config.ts should use Nuxt layers through extends');
+}
+console.log('✓ Nuxt config extends the built-in default theme layer.');
+
+if (!themeCss.includes('--sf-surface') || !themeCss.includes('.auth-shell') || !themeCss.includes('.navbar')) {
+  throw new Error('default theme CSS should own public surface, auth, and navbar styles');
+}
+console.log('✓ default theme CSS owns public surface, auth, and navbar styles.');
 
 // 3. Verify component usages in index.vue
 const requiredComponents = [
@@ -41,10 +64,10 @@ for (const comp of requiredComponents) {
 console.log('✓ index.vue uses all 10 required SF component library tags.');
 
 // 4. Verify SEO configurations
-if (!indexContent.includes('useSeoMeta') || !indexContent.includes('home.metaTitle')) {
-  throw new Error('index.vue should configure metadata with useSeoMeta and i18n keys');
+if (!indexContent.includes('useSForumSeo') || !indexContent.includes('home.metaTitle')) {
+  throw new Error('index.vue should configure metadata with useSForumSeo and i18n keys');
 }
-console.log('✓ index.vue contains useSeoMeta configuration.');
+console.log('✓ index.vue contains useSForumSeo configuration.');
 
 // 5. Verify translation keys in both languages
 const keyPaths = [
@@ -76,4 +99,4 @@ if (!indexContent.includes('max-w-[1376px]') || !indexContent.includes('lg:grid-
 }
 console.log('✓ 3-column responsive grid classes found in index.vue template.');
 
-console.log('\n🎉 SForum homepage validation PASSED!');
+console.log('\nSForum homepage validation PASSED!');

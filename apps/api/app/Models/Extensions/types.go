@@ -7,6 +7,7 @@ import (
 
 const (
 	ManifestFileName = "sforum.extension.json"
+	DefaultThemeID   = "sforum.default-theme"
 
 	TypePlugin = "plugin"
 	TypeTheme  = "theme"
@@ -15,24 +16,34 @@ const (
 	StatusEnabled   = "enabled"
 	StatusDisabled  = "disabled"
 
-	EventInstalled    = "installed"
-	EventEnabled      = "enabled"
-	EventEnableFailed = "enable_failed"
-	EventDisabled     = "disabled"
+	EventInstalled      = "installed"
+	EventBuiltinSynced  = "builtin_synced"
+	EventVerified       = "verified"
+	EventEnabled        = "enabled"
+	EventEnableFailed   = "enable_failed"
+	EventDisabled       = "disabled"
+	EventThemeActivated = "theme_activated"
 
-	CodeInvalidArchive  = "extension.archive_invalid"
-	CodeInvalidManifest = "extension.manifest_invalid"
-	CodeNotFound        = "extension.not_found"
-	CodePreflightFailed = "extension.preflight_failed"
-	CodeBuildFailed     = "extension.build_failed"
+	CodeInvalidArchive          = "extension.archive_invalid"
+	CodeInvalidManifest         = "extension.manifest_invalid"
+	CodeNotFound                = "extension.not_found"
+	CodePreflightFailed         = "extension.preflight_failed"
+	CodeBuildFailed             = "extension.build_failed"
+	CodeThemeActivationRequired = "extension.theme_activation_required"
+	CodeThemeRuntimeUnavailable = "extension.theme_runtime_unavailable"
+
+	SourceBuiltin  = "builtin"
+	SourceUploaded = "uploaded"
 )
 
 var (
-	ErrInvalidArchive    = errors.New("extensions: invalid archive")
-	ErrInvalidManifest   = errors.New("extensions: invalid manifest")
-	ErrExtensionNotFound = errors.New("extensions: not found")
-	ErrPreflightFailed   = errors.New("extensions: preflight failed")
-	ErrBuildFailed       = errors.New("extensions: build failed")
+	ErrInvalidArchive          = errors.New("extensions: invalid archive")
+	ErrInvalidManifest         = errors.New("extensions: invalid manifest")
+	ErrExtensionNotFound       = errors.New("extensions: not found")
+	ErrPreflightFailed         = errors.New("extensions: preflight failed")
+	ErrBuildFailed             = errors.New("extensions: build failed")
+	ErrThemeActivationRequired = errors.New("extensions: themes must be activated")
+	ErrThemeRuntimeUnavailable = errors.New("extensions: theme activation runtime unavailable")
 )
 
 type Manifest struct {
@@ -97,6 +108,9 @@ type Extension struct {
 	Version     string    `json:"version"`
 	Type        string    `json:"type"`
 	Status      string    `json:"status"`
+	Source      string    `json:"source"`
+	IsSystem    bool      `json:"isSystem"`
+	IsDeletable bool      `json:"isDeletable"`
 	Manifest    Manifest  `json:"manifest"`
 	PackagePath string    `json:"packagePath"`
 	InstalledAt time.Time `json:"installedAt"`
@@ -118,6 +132,11 @@ type ArchiveInput struct {
 }
 
 type SaveInstalledInput struct {
+	Manifest    Manifest
+	PackagePath string
+}
+
+type SaveBuiltinInput struct {
 	Manifest    Manifest
 	PackagePath string
 }

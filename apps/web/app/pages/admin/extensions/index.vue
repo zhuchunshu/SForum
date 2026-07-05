@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount } from '~/utils/adminExtensions'
+import { capabilityCount, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -32,6 +32,8 @@ const {
   uploadArchive,
   enableExtension,
   disableExtension,
+  activateTheme,
+  verifyExtension,
   loadEvents,
   statusColor,
   typeLabel,
@@ -54,6 +56,10 @@ async function refreshSelectedEvents() {
   if (selected.value) {
     await loadEvents(selected.value.id)
   }
+}
+
+function extensionStatusLabel(item: (typeof extensions.value)[number]) {
+  return item.type === 'theme' ? t(themeStatusLabelKey(item)) : statusLabel(item.status)
 }
 </script>
 
@@ -130,10 +136,10 @@ async function refreshSelectedEvents() {
       <div class="flex items-center justify-between gap-4">
         <div class="min-w-0">
           <p class="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
-            {{ t('admin.extensions.stats.enabled') }}
+            {{ t('admin.extensions.stats.enabledPlugins') }}
           </p>
           <p class="mt-2.5 truncate text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-            {{ stats.enabledCount }}
+            {{ stats.enabledPluginCount }}
           </p>
         </div>
         <span class="icon-glass-box shrink-0 text-green-600 dark:text-green-400">
@@ -170,7 +176,7 @@ async function refreshSelectedEvents() {
                   {{ item.name }}
                 </h3>
                 <UBadge :color="statusColor(item.status)" variant="subtle">
-                  {{ statusLabel(item.status) }}
+                  {{ extensionStatusLabel(item) }}
                 </UBadge>
                 <UBadge color="neutral" variant="outline">
                   {{ typeLabel(item.type) }}
@@ -182,7 +188,7 @@ async function refreshSelectedEvents() {
             </div>
             <div class="flex items-center gap-2">
               <UButton
-                v-if="item.status !== 'enabled'"
+                v-if="item.type === 'plugin' && item.status !== 'enabled'"
                 size="sm"
                 icon="i-lucide-play"
                 :loading="busyId === item.id"
@@ -191,7 +197,7 @@ async function refreshSelectedEvents() {
                 {{ t('admin.extensions.enable') }}
               </UButton>
               <UButton
-                v-else
+                v-else-if="item.type === 'plugin'"
                 size="sm"
                 color="neutral"
                 variant="subtle"
@@ -200,6 +206,47 @@ async function refreshSelectedEvents() {
                 @click.stop="disableExtension(item)"
               >
                 {{ t('admin.extensions.disable') }}
+              </UButton>
+              <UButton
+                v-if="item.type === 'plugin'"
+                size="sm"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-refresh-cw"
+                disabled
+                :title="t('admin.extensions.restartUnavailable')"
+              >
+                {{ t('admin.extensions.restart') }}
+              </UButton>
+              <UButton
+                v-else-if="themeActionState(item) === 'activateDefault'"
+                size="sm"
+                icon="i-lucide-rotate-ccw"
+                :loading="busyId === item.id"
+                @click.stop="activateTheme(item)"
+              >
+                {{ t('admin.extensions.restoreDefaultTheme') }}
+              </UButton>
+              <UButton
+                v-else-if="themeActionState(item) === 'verifyOnly'"
+                size="sm"
+                color="neutral"
+                variant="subtle"
+                icon="i-lucide-shield-check"
+                :loading="busyId === item.id"
+                @click.stop="verifyExtension(item)"
+              >
+                {{ t('admin.extensions.verify') }}
+              </UButton>
+              <UButton
+                v-else
+                size="sm"
+                color="primary"
+                variant="subtle"
+                icon="i-lucide-check-circle-2"
+                disabled
+              >
+                {{ t('admin.extensions.activeTheme') }}
               </UButton>
             </div>
           </button>

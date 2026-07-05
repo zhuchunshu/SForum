@@ -41,6 +41,38 @@ func TestNonAdminCannotManageRoles(t *testing.T) {
 	}
 }
 
+func TestCreateRoleRejectsBlankRequiredFields(t *testing.T) {
+	service, _ := newTestService(t)
+	admin := Actor{ID: 1, Status: UserStatusActive, RoleKeys: []string{RoleSuperAdmin}}
+
+	for _, input := range []RoleInput{
+		{Key: "", Alias: "版主"},
+		{Key: "moderator", Alias: ""},
+		{Key: "  ", Alias: "  "},
+	} {
+		if _, err := service.CreateRole(testContext(t), admin, input); err == nil {
+			t.Fatalf("expected CreateRole to reject blank fields for %#v", input)
+		}
+	}
+}
+
+func TestCreateRoleNormalizesInput(t *testing.T) {
+	service, _ := newTestService(t)
+	admin := Actor{ID: 1, Status: UserStatusActive, RoleKeys: []string{RoleSuperAdmin}}
+
+	role, err := service.CreateRole(testContext(t), admin, RoleInput{
+		Key:         " moderator ",
+		Alias:       " 版主 ",
+		Description: " 管理内容 ",
+	})
+	if err != nil {
+		t.Fatalf("CreateRole returned error: %v", err)
+	}
+	if role.Key != "moderator" || role.Alias != "版主" || role.Description != "管理内容" {
+		t.Fatalf("expected normalized role fields, got %#v", role)
+	}
+}
+
 func TestDirectAllowAddsUserPermission(t *testing.T) {
 	service, _ := newTestService(t)
 	ctx := testContext(t)

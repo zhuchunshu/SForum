@@ -34,6 +34,7 @@ type Config struct {
 	AltchaChallengeTTL           time.Duration
 	AltchaCost                   int
 	ExtensionRoot                string
+	BuiltinExtensionRoot         string
 	MeiliHost                    string
 	MeiliMasterKey               string
 	JobQueueCriticalWorkers      int
@@ -78,6 +79,7 @@ func Load() Config {
 		AltchaChallengeTTL:           envDuration("ALTCHA_CHALLENGE_TTL", 10*time.Minute),
 		AltchaCost:                   envPositiveInt("ALTCHA_COST", 1000),
 		ExtensionRoot:                env("EXTENSION_ROOT", "/var/lib/sforum/extensions"),
+		BuiltinExtensionRoot:         env("BUILTIN_EXTENSION_ROOT", "../../extensions/builtin"),
 		MeiliHost:                    env("MEILI_HOST", "http://meilisearch:7700"),
 		MeiliMasterKey:               env("MEILI_MASTER_KEY", "sforum-dev-meili-key"),
 		JobQueueCriticalWorkers:      envPositiveInt("JOB_QUEUE_CRITICAL_WORKERS", 4),

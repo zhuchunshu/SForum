@@ -266,15 +266,26 @@ func (s *Service) CreateRole(ctx context.Context, actor Actor, input RoleInput) 
 	if !actor.Can(PermissionRoleManage) {
 		return Role{}, ErrPermissionDenied
 	}
-	return s.store.CreateRole(ctx, input)
+	normalized := normalizeRoleInput(input)
+	if !validRoleInput(normalized) {
+		return Role{}, ErrInvalidRoleInput
+	}
+	return s.store.CreateRole(ctx, normalized)
 }
 
 func (s *Service) UpdateRole(ctx context.Context, actor Actor, roleKey string, input RoleInput) (Role, error) {
 	if !actor.Can(PermissionRoleManage) {
 		return Role{}, ErrPermissionDenied
 	}
-	input.Key = roleKey
-	return s.store.UpdateRole(ctx, roleKey, input)
+	normalized := normalizeRoleInput(RoleInput{
+		Key:         roleKey,
+		Alias:       input.Alias,
+		Description: input.Description,
+	})
+	if !validRoleInput(normalized) {
+		return Role{}, ErrInvalidRoleInput
+	}
+	return s.store.UpdateRole(ctx, normalized.Key, normalized)
 }
 
 func (s *Service) DeleteRole(ctx context.Context, actor Actor, roleKey string) error {
@@ -382,6 +393,35 @@ func normalizeKeyList(values []string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func normalizeRoleInput(input RoleInput) RoleInput {
+	return RoleInput{
+		Key:         strings.TrimSpace(input.Key),
+		Alias:       strings.TrimSpace(input.Alias),
+		Description: strings.TrimSpace(input.Description),
+	}
+}
+
+func validRoleInput(input RoleInput) bool {
+	if input.Key == "" || input.Alias == "" {
+		return false
+	}
+	// 用户组标识会出现在 URL 路径中，限制为稳定的 ASCII 标识，避免空路径段和转义问题。
+	for _, value := range input.Key {
+		if !isRoleKeyRune(value) {
+			return false
+		}
+	}
+	return true
+}
+
+func isRoleKeyRune(value rune) bool {
+	return value >= 'a' && value <= 'z' ||
+		value >= '0' && value <= '9' ||
+		value == '_' ||
+		value == '-' ||
+		value == '.'
 }
 
 func (s *Service) validatePermissions(ctx context.Context, keys []string) error {
