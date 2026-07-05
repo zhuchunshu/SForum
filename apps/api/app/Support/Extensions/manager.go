@@ -22,6 +22,7 @@ type Manager struct {
 	starter  Starter
 	statuses map[string]extensions.RuntimeStatus
 	targets  map[string]RouteTarget
+	running  map[string]extensions.Extension
 }
 
 func NewManager(config ManagerConfig) *Manager {
@@ -29,7 +30,7 @@ func NewManager(config ManagerConfig) *Manager {
 	if starter == nil {
 		starter = localStarter{}
 	}
-	return &Manager{starter: starter, statuses: map[string]extensions.RuntimeStatus{}, targets: map[string]RouteTarget{}}
+	return &Manager{starter: starter, statuses: map[string]extensions.RuntimeStatus{}, targets: map[string]RouteTarget{}, running: map[string]extensions.Extension{}}
 }
 
 func (m *Manager) Check(context.Context, extensions.Extension) error {
@@ -57,6 +58,7 @@ func (m *Manager) Start(ctx context.Context, extension extensions.Extension) err
 	now := time.Now().UTC()
 	m.mu.Lock()
 	m.targets[extension.ID] = target
+	m.running[extension.ID] = extension
 	m.statuses[extension.ID] = extensions.RuntimeStatus{
 		State:         extensions.RuntimeRunning,
 		StartedAt:     &now,
@@ -72,6 +74,7 @@ func (m *Manager) Stop(ctx context.Context, extension extensions.Extension) erro
 	err := m.starter.Stop(ctx, extension)
 	m.mu.Lock()
 	delete(m.targets, extension.ID)
+	delete(m.running, extension.ID)
 	m.statuses[extension.ID] = extensions.RuntimeStatus{
 		State:         extensions.RuntimeStopped,
 		RouteCount:    len(extension.Manifest.Routes),
@@ -105,10 +108,35 @@ func (m *Manager) RouteTarget(extensionID string) (RouteTarget, bool) {
 }
 
 func (m *Manager) Reconcile(ctx context.Context, items []extensions.Extension) {
+	enabled := map[string]extensions.Extension{}
 	for _, item := range items {
 		if item.Type == extensions.TypePlugin && item.Status == extensions.StatusEnabled && item.Manifest.Backend.Entry != "" {
+			enabled[item.ID] = item
 			_ = m.Start(ctx, item)
 		}
+	}
+	m.mu.RLock()
+	running := make([]extensions.Extension, 0, len(m.running))
+	for id, item := range m.running {
+		if _, ok := enabled[id]; !ok {
+			running = append(running, item)
+		}
+	}
+	m.mu.RUnlock()
+	for _, item := range running {
+		_ = m.Stop(ctx, item)
+	}
+}
+
+func (m *Manager) Close(ctx context.Context) {
+	m.mu.RLock()
+	running := make([]extensions.Extension, 0, len(m.running))
+	for _, item := range m.running {
+		running = append(running, item)
+	}
+	m.mu.RUnlock()
+	for _, item := range running {
+		_ = m.Stop(ctx, item)
 	}
 }
 

@@ -22,6 +22,7 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
@@ -34,6 +35,19 @@ type API struct {
 
 	closeOnce sync.Once
 	close     func()
+}
+
+type extensionRuntime interface {
+	extensions.RuntimeManager
+	RouteTarget(extensionID string) (extensionsruntime.RouteTarget, bool)
+	Reconcile(ctx context.Context, items []extensions.Extension)
+	Close(ctx context.Context)
+}
+
+var newExtensionRuntimeManager = func() extensionRuntime {
+	return extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
+		Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{}),
+	})
 }
 
 func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, error) {
@@ -85,8 +99,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	forumStore := forum.NewPostgresStore(pool)
 	attachmentStore := attachments.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
-	extensionService := extensions.NewServiceWithBuiltins(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
+	extensionRuntime := newExtensionRuntimeManager()
+	extensionService := extensions.NewServiceWithBuiltinsAndRuntime(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime, nil)
 	if _, err := extensionService.SyncBuiltins(ctx); err != nil {
+		extensionRuntime.Close(ctx)
 		if closeErr := humanVerifyStore.Close(); closeErr != nil {
 			logger.Warn("human verification redis close failed", "error", closeErr)
 		}
@@ -96,11 +112,24 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("sync builtin extensions failed: %w", err)
 	}
+	if items, err := extensionStore.List(ctx); err == nil {
+		extensionRuntime.Reconcile(ctx, items)
+	} else {
+		extensionRuntime.Close(ctx)
+		if closeErr := humanVerifyStore.Close(); closeErr != nil {
+			logger.Warn("human verification redis close failed", "error", closeErr)
+		}
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("list extensions for runtime reconciliation failed: %w", err)
+	}
 	identityProvider := providers.NewIdentityProviderWithAuthSessions(identityStore, authSessions, humanVerifier)
 	forumProvider := providers.NewForumProvider(forumStore, identityStore, authSessions)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProvider(attachmentStore, optionsService, identityStore, authSessions)
-	extensionsProvider := providers.NewExtensionsProvider(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
+	extensionsProvider := providers.NewExtensionsProviderWithRuntime(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
 		RouteProviders: []httpserver.RouteProvider{identityProvider, forumProvider, optionsProvider, attachmentsProvider, extensionsProvider},
@@ -111,6 +140,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		App:  app,
 		Addr: apiAddress(cfg),
 		close: func() {
+			extensionRuntime.Close(context.Background())
 			if err := redisStorage.Close(); err != nil {
 				logger.Warn("redis session storage close failed", "error", err)
 			}

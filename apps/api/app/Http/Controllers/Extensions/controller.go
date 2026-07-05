@@ -179,7 +179,10 @@ func (h *Controller) proxyExtensionRoute(c fiber.Ctx) error {
 	if h.gateway == nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeRuntimeUnavailable)
 	}
-	return h.gateway.Proxy(c, ProxyInput{Matched: matched, Actor: actor, HasActor: hasActor})
+	if err := h.gateway.Proxy(c, ProxyInput{Matched: matched, Actor: actor, HasActor: hasActor}); err != nil {
+		return mapExtensionError(err)
+	}
+	return nil
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
