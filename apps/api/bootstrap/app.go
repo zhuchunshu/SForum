@@ -16,6 +16,7 @@ import (
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
@@ -81,12 +82,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	})
 	identityStore := identity.NewPostgresStore(pool)
 	attachmentStore := attachments.NewPostgresStore(pool)
+	extensionStore := extensions.NewPostgresStore(pool)
 	identityProvider := providers.NewIdentityProviderWithAuthSessions(identityStore, authSessions, humanVerifier)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProvider(attachmentStore, optionsService, identityStore, authSessions, cfg.AttachmentLocalRoot)
+	extensionsProvider := providers.NewExtensionsProvider(extensionStore, identityStore, authSessions, cfg.ExtensionRoot)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider, optionsProvider, attachmentsProvider},
+		RouteProviders: []httpserver.RouteProvider{identityProvider, optionsProvider, attachmentsProvider, extensionsProvider},
 		Options:        optionsService,
 	})
 

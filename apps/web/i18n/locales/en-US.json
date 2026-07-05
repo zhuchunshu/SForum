@@ -152,6 +152,7 @@
       "settings": "Site settings",
       "seo": "SEO settings",
       "attachments": "Attachment settings",
+      "extensions": "Extensions",
       "forumHome": "Forum home",
       "system": "System",
       "userPermission": "Users & Permissions",
@@ -193,6 +194,55 @@
           "description": "Reserved for forum name, registration policy, and content policy."
         }
       }
+    },
+    "extensions": {
+      "metaTitle": "Extensions",
+      "title": "Extensions",
+      "intro": "Upload, enable, and manage plugins and theme templates. Extension capabilities are bounded by API permissions, install preflight checks, and event logs.",
+      "refresh": "Refresh",
+      "upload": "Upload ZIP",
+      "loadFailed": "Extensions could not be loaded.",
+      "uploaded": "Extension installed.",
+      "uploadFailed": "Extension upload failed.",
+      "enabled": "Extension enabled.",
+      "disabled": "Extension disabled.",
+      "actionFailed": "Extension action failed.",
+      "stats": {
+        "plugins": "Plugins",
+        "themes": "Themes",
+        "enabled": "Enabled"
+      },
+      "installed": "Installed extensions",
+      "emptyTitle": "No extensions installed",
+      "emptyDescription": "Upload a ZIP package with an SForum manifest to enable plugins or themes here.",
+      "capabilityCount": "{count} capability declarations",
+      "enable": "Enable",
+      "disable": "Disable",
+      "types": {
+        "plugin": "Plugin",
+        "theme": "Theme"
+      },
+      "status": {
+        "installed": "Installed",
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "detailTitle": "Extension details",
+      "manifest": {
+        "id": "Extension ID",
+        "version": "Version",
+        "sforum": "Compatible version"
+      },
+      "capabilities": "Capability declarations",
+      "capability": {
+        "backend": "Backend RPC",
+        "frontend": "Nuxt Layer",
+        "routes": "{count} routes",
+        "hooks": "{count} hooks",
+        "jobs": "{count} jobs"
+      },
+      "events": "Install log",
+      "noEvents": "No events recorded yet."
     },
     "attachments": {
       "metaTitle": "Attachment Settings",

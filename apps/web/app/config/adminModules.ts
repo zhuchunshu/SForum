@@ -99,6 +99,13 @@ export const adminPageDefinitions = [
     componentName: 'AdminAttachments',
     requiredPermissions: ['attachment.settings.manage', 'attachment.manage'],
     permissionMode: 'any'
+  },
+  {
+    id: '/extensions',
+    labelKey: 'admin.nav.extensions',
+    icon: 'i-lucide-blocks',
+    componentName: 'AdminExtensions',
+    requiredPermissions: ['extension.manage']
   }
 ] as const satisfies readonly AdminPageDefinition[]
 
@@ -124,7 +131,8 @@ export const adminSidebarNavigation = [
       defaultOpen: true,
       children: [
         { type: 'page', pageId: '/settings' },
-        { type: 'page', pageId: '/seo' }
+        { type: 'page', pageId: '/seo' },
+        { type: 'page', pageId: '/extensions' }
       ]
     },
     { type: 'page', pageId: '/attachments' }

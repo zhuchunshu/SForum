@@ -532,6 +532,112 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /admin/extensions:
+    get:
+      summary: List installed extensions and themes
+      operationId: listAdminExtensions
+      responses:
+        "200":
+          description: Installed extension list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseExtensionList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      summary: Upload and install an extension ZIP archive
+      operationId: installAdminExtension
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Extension archive installed but not automatically enabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseExtension"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /admin/extensions/{extensionID}/enable:
+    post:
+      summary: Enable an installed extension or theme
+      operationId: enableAdminExtension
+      parameters:
+        - $ref: "#/components/parameters/ExtensionID"
+      responses:
+        "200":
+          description: Extension enabled after preflight checks.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseExtension"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /admin/extensions/{extensionID}/disable:
+    post:
+      summary: Disable an installed extension or theme
+      operationId: disableAdminExtension
+      parameters:
+        - $ref: "#/components/parameters/ExtensionID"
+      responses:
+        "200":
+          description: Extension disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseExtension"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/extensions/{extensionID}/events:
+    get:
+      summary: List extension lifecycle events
+      operationId: listAdminExtensionEvents
+      parameters:
+        - $ref: "#/components/parameters/ExtensionID"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Recent extension lifecycle events.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseExtensionEventList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /permissions:
     get:
       summary: List global permissions
@@ -825,6 +931,13 @@ components:
         type: integer
         format: int64
       description: Numeric attachment id.
+    ExtensionID:
+      name: extensionID
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Stable extension id from sforum.extension.json.
   responses:
     Unauthorized:
       description: Authentication is required or credentials are invalid.
@@ -1114,6 +1227,165 @@ components:
           type: string
         data:
           $ref: "#/components/schemas/AttachmentCleanupResult"
+    ApiResponseExtension:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/Extension"
+    ApiResponseExtensionList:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Extension"
+    ApiResponseExtensionEventList:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtensionEvent"
+    ExtensionType:
+      type: string
+      enum: [plugin, theme]
+    ExtensionStatus:
+      type: string
+      enum: [installed, enabled, disabled]
+    ExtensionManifest:
+      type: object
+      required:
+        - id
+        - name
+        - version
+        - type
+        - sforumVersion
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+        type:
+          $ref: "#/components/schemas/ExtensionType"
+        sforumVersion:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        settings:
+          type: array
+          items:
+            type: object
+        migrations:
+          type: array
+          items:
+            type: object
+        backend:
+          type: object
+          properties:
+            entry:
+              type: string
+            rpc:
+              type: string
+        frontend:
+          type: object
+          properties:
+            layer:
+              type: string
+        adminPages:
+          type: array
+          items:
+            type: object
+        routes:
+          type: array
+          items:
+            type: object
+        hooks:
+          type: array
+          items:
+            type: object
+        jobs:
+          type: array
+          items:
+            type: object
+    Extension:
+      type: object
+      required:
+        - id
+        - name
+        - version
+        - type
+        - status
+        - manifest
+        - packagePath
+        - installedAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+        type:
+          $ref: "#/components/schemas/ExtensionType"
+        status:
+          $ref: "#/components/schemas/ExtensionStatus"
+        manifest:
+          $ref: "#/components/schemas/ExtensionManifest"
+        packagePath:
+          type: string
+          description: Server-local package path, visible only to extension managers.
+        installedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ExtensionEvent:
+      type: object
+      required:
+        - id
+        - extensionId
+        - actorUserId
+        - action
+        - message
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        extensionId:
+          type: string
+        actorUserId:
+          type: integer
+          format: int64
+        action:
+          type: string
+          enum: [installed, enabled, enable_failed, disabled]
+        message:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
     Health:
       type: object
       required:

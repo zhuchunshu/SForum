@@ -152,6 +152,7 @@
       "settings": "站点设置",
       "seo": "SEO 设置",
       "attachments": "附件设置",
+      "extensions": "扩展管理",
       "forumHome": "论坛首页",
       "system": "系统配置",
       "userPermission": "用户/权限",
@@ -193,6 +194,55 @@
           "description": "为论坛名称、注册策略和内容策略预留入口。"
         }
       }
+    },
+    "extensions": {
+      "metaTitle": "扩展管理",
+      "title": "扩展管理",
+      "intro": "上传、启用和管理插件与主题模板。扩展能力由 API 权限、安装预检和事件日志共同约束。",
+      "refresh": "刷新",
+      "upload": "上传 ZIP",
+      "loadFailed": "扩展列表加载失败。",
+      "uploaded": "扩展已安装。",
+      "uploadFailed": "扩展上传失败。",
+      "enabled": "扩展已启用。",
+      "disabled": "扩展已禁用。",
+      "actionFailed": "扩展操作失败。",
+      "stats": {
+        "plugins": "插件",
+        "themes": "主题",
+        "enabled": "已启用"
+      },
+      "installed": "已安装扩展",
+      "emptyTitle": "还没有安装扩展",
+      "emptyDescription": "上传符合 SForum manifest 规范的 ZIP 包后，就可以在这里启用插件或主题。",
+      "capabilityCount": "{count} 项能力声明",
+      "enable": "启用",
+      "disable": "禁用",
+      "types": {
+        "plugin": "插件",
+        "theme": "主题"
+      },
+      "status": {
+        "installed": "已安装",
+        "enabled": "已启用",
+        "disabled": "已禁用"
+      },
+      "detailTitle": "扩展详情",
+      "manifest": {
+        "id": "扩展 ID",
+        "version": "版本",
+        "sforum": "兼容版本"
+      },
+      "capabilities": "能力声明",
+      "capability": {
+        "backend": "后端 RPC",
+        "frontend": "Nuxt Layer",
+        "routes": "{count} 条路由",
+        "hooks": "{count} 个钩子",
+        "jobs": "{count} 个任务"
+      },
+      "events": "安装日志",
+      "noEvents": "暂无事件记录。"
     },
     "attachments": {
       "metaTitle": "附件设置",

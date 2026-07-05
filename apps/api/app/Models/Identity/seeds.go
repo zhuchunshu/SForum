@@ -25,6 +25,7 @@ const (
 	PermissionAttachmentUpload       = "attachment.upload"
 	PermissionAttachmentManage       = "attachment.manage"
 	PermissionAttachmentSettings     = "attachment.settings.manage"
+	PermissionExtensionManage        = "extension.manage"
 )
 
 type SeedPermission struct {
@@ -55,4 +56,5 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionAttachmentUpload, Module: "attachment", Description: "Upload attachments."},
 	{Key: PermissionAttachmentManage, Module: "attachment", Description: "Manage uploaded attachments."},
 	{Key: PermissionAttachmentSettings, Module: "attachment", Description: "Manage attachment storage and upload settings."},
+	{Key: PermissionExtensionManage, Module: "extension", Description: "Install and manage extensions and themes."},
 }

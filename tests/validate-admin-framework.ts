@@ -50,11 +50,12 @@ const adminPageDefinitions = adminModulesModule.adminPageDefinitions as Array<{
   permissionMode?: string
 }>
 const adminPageIds = adminPageDefinitions.map(page => page.id)
-for (const requiredPageId of ['/', '/users', '/roles', '/permissions', '/settings', '/personalization']) {
+for (const requiredPageId of ['/', '/users', '/roles', '/permissions', '/settings', '/personalization', '/seo', '/attachments', '/extensions']) {
   assert(adminPageIds.includes(requiredPageId), `Admin module registry should define ${requiredPageId}`)
 }
 assert(adminPageDefinitions.every(page => page.icon.startsWith('i-lucide-')), 'Admin page registry should use lucide icons')
 assert(adminPageDefinitions.find(page => page.id === '/permissions')?.permissionMode === 'any', 'Permission matrix should allow role.manage or user.manage')
+assert(adminPageDefinitions.find(page => page.id === '/extensions')?.requiredPermissions?.includes('extension.manage'), 'Extension manager should require extension.manage')
 
 const adminRoutesComposable = read('apps/web/app/composables/useAdminRoutes.ts')
 assert(adminRoutesComposable.includes('useI18n'), 'Admin routes should read the active locale directly')
@@ -83,7 +84,10 @@ const adminPagePathsById: Record<string, string> = {
   '/users': 'apps/web/app/pages/admin/users.vue',
   '/permissions': 'apps/web/app/pages/admin/permissions.vue',
   '/settings': 'apps/web/app/pages/admin/settings/index.vue',
-  '/personalization': 'apps/web/app/pages/admin/personalization.vue'
+  '/personalization': 'apps/web/app/pages/admin/personalization.vue',
+  '/seo': 'apps/web/app/pages/admin/seo.vue',
+  '/attachments': 'apps/web/app/pages/admin/attachments.vue',
+  '/extensions': 'apps/web/app/pages/admin/extensions.vue'
 }
 
 for (const page of adminPageDefinitions) {
@@ -119,5 +123,7 @@ assert(!adminLayout.includes('navigationItems = computed(() => ['), 'Admin layou
 assert(adminModules.includes('admin.nav.personalization'), 'Admin modules should expose the personalization top-level menu')
 assert(adminModules.includes('i-lucide-palette'), 'Personalization menu should use the palette icon')
 assert(adminModules.includes('admin.nav.system'), 'Admin modules should expose the system navigation folder via translation key')
+assert(adminModules.includes('admin.nav.extensions'), 'Admin modules should expose the extension manager menu')
+assert(adminModules.includes('i-lucide-blocks'), 'Extension manager menu should use the blocks icon')
 
 console.log('Admin framework validation passed.')

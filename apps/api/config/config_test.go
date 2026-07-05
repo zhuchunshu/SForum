@@ -54,6 +54,9 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	if cfg.AltchaCost != 1000 {
 		t.Fatalf("expected altcha cost 1000, got %d", cfg.AltchaCost)
 	}
+	if cfg.ExtensionRoot != "/var/lib/sforum/extensions" {
+		t.Fatalf("expected extension root default, got %q", cfg.ExtensionRoot)
+	}
 	if cfg.JobQueueCriticalWorkers != 4 {
 		t.Fatalf("expected critical workers 4, got %d", cfg.JobQueueCriticalWorkers)
 	}
@@ -95,6 +98,7 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 	t.Setenv("ALTCHA_SECRET", "test-altcha-secret")
 	t.Setenv("ALTCHA_CHALLENGE_TTL", "2m")
 	t.Setenv("ALTCHA_COST", "2000")
+	t.Setenv("EXTENSION_ROOT", "/srv/sforum/extensions")
 
 	cfg := Load()
 
@@ -144,6 +148,9 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 	}
 	if cfg.AltchaCost != 2000 {
 		t.Fatalf("expected altcha cost from env, got %d", cfg.AltchaCost)
+	}
+	if cfg.ExtensionRoot != "/srv/sforum/extensions" {
+		t.Fatalf("expected extension root from env, got %q", cfg.ExtensionRoot)
 	}
 }
 
