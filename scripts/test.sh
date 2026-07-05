@@ -22,5 +22,8 @@ fi
 echo "Running identity UI validation..."
 node tests/validate-identity-ui.js
 
+echo "Running homepage validation..."
+node tests/validate-homepage.js
+
 echo "Running SF component library validation..."
 node tests/validate-sf-components.js

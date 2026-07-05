@@ -102,6 +102,18 @@ const threads = computed<Thread[]>(() => [
     views: 45,
     score: 7,
     timeAgo: '5小时前'
+  },
+  {
+    id: 6,
+    title: '你们好吗',
+    excerpt: '下班路过海滩随手拍的，松石绿色的晚霞和海面真的让人心情平静。周末有空的话大家也可以多出门走走晒晒太阳。',
+    category: t('home.sidebar.secLife'),
+    categoryKey: 'life',
+    author: '追光者2',
+    replies: 3,
+    views: 45,
+    score: 7,
+    timeAgo: '5小时前'
   }
 ])
 
@@ -113,6 +125,38 @@ const hotTopics = computed(() => [
   { id: 4, title: '写 Markdown 长文时，你更在乎预览同步还是编辑流顺畅？', replies: 38 },
   { id: 5, title: 'ALTCHA 独立部署的真实资源消耗表现怎么样？', replies: 21 }
 ])
+const categoryDotColors = ['#0F766E', '#8B5CF6', '#F59E0B', '#EF4444'] as const
+
+// Vue 模板中的 v-for index 可能被推断为 string | number，集中转成数字避免模板隐式计算。
+function normalizedIndex(index: string | number) {
+  return typeof index === 'number' ? index : Number(index)
+}
+
+function categoryDotStyle(index: string | number) {
+  return {
+    background: categoryDotColors[normalizedIndex(index)] || categoryDotColors[0]
+  }
+}
+
+function hotTopicRank(index: string | number) {
+  return normalizedIndex(index) + 1
+}
+
+function hotTopicRankClass(index: string | number) {
+  const rankIndex = normalizedIndex(index)
+
+  if (rankIndex === 0) {
+    return 'bg-red-500 text-white'
+  }
+  if (rankIndex === 1) {
+    return 'bg-orange-400 text-white'
+  }
+  if (rankIndex === 2) {
+    return 'bg-yellow-400 text-slate-800'
+  }
+
+  return 'bg-slate-200 text-slate-600'
+}
 
 // Search & Filter state
 const searchQuery = ref('')
@@ -245,7 +289,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                   <span class="flex items-center gap-2.5">
                     <span
                       class="w-2 h-2 rounded-full shrink-0"
-                      :style="{ background: ['#0F766E','#8B5CF6','#F59E0B','#EF4444'][idx] || '#0F766E' }"
+                      :style="categoryDotStyle(idx)"
                     ></span>
                     <span>{{ cat.name }}</span>
                   </span>
@@ -408,14 +452,9 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
               <li v-for="(topic, index) in hotTopics" :key="topic.id" class="flex gap-3 items-start">
                 <span
                   class="w-[18px] h-[18px] rounded text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5 px-1"
-                  :class="[
-                    index === 0 ? 'bg-red-500 text-white' : '',
-                    index === 1 ? 'bg-orange-400 text-white' : '',
-                    index === 2 ? 'bg-yellow-400 text-slate-800' : '',
-                    index > 2 ? 'bg-slate-200 text-slate-600' : ''
-                  ]"
+                  :class="hotTopicRankClass(index)"
                 >
-                  {{ index + 1 }}
+                  {{ hotTopicRank(index) }}
                 </span>
                 <div class="min-w-0 flex-1">
                   <a href="#" class="text-sm text-slate-700 hover:text-[#0F766E] hover:underline font-medium block truncate">

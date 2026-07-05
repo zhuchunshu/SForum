@@ -168,6 +168,14 @@ export default defineNuxtConfig({
   hooks: {
     'pages:extend'(pages) {
       rewriteAdminPageRoutes(pages)
+    },
+    'prepare:types'(options) {
+      options.tsConfig.compilerOptions ||= {}
+      options.tsConfig.compilerOptions.paths ||= {}
+      // 主题 layer 位于 apps/web 外，TypeScript 不会从 layer 路径向下找到宿主依赖。
+      options.tsConfig.compilerOptions.paths.altcha = [
+        '../node_modules/altcha/dist/types/generic.d.ts'
+      ]
     }
   },
   ogImage: {

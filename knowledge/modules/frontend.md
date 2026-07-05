@@ -42,6 +42,12 @@ statically extends that layer. The layer owns the homepage, default layout,
 auth layout/pages, public navbar/footer, and public/auth chrome CSS. Core keeps
 admin pages/layout, auth/session logic, API clients, i18n catalogs, SEO
 helpers, permissions, and reusable component/composable infrastructure.
+Layer-owned global CSS is registered from the layer's own directory with an
+absolute `import.meta.url`-based path; do not use `~/assets/...` inside a layer
+config for theme assets because Nuxt resolves `~` against the host app.
+Layer pages that import package types may need host-provided type paths in
+`apps/web/nuxt.config.ts` because TypeScript resolves modules from the layer
+file location and will not naturally climb into `apps/web/node_modules`.
 `SFIconPicker` is available for future admin/user setting forms that need an
 icon field. It supports Tabler Icons and the existing Nuxt Icon/Lucide naming,
 stores plain `i-tabler-*` or `i-lucide-*` strings, and `nuxt.config.ts`

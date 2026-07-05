@@ -3,6 +3,7 @@ const path = require('path');
 
 const root = process.cwd();
 const indexPagePath = path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/pages/index.vue');
+const themeLayerConfigPath = path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/nuxt.config.ts');
 const nuxtConfigPath = path.resolve(root, 'apps/web/nuxt.config.ts');
 const themeCssPath = path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-theme.css');
 const zhLocalePath = path.resolve(root, 'apps/web/i18n/locales/zh-CN.json');
@@ -17,6 +18,9 @@ if (!fs.existsSync(indexPagePath)) {
 if (!fs.existsSync(themeCssPath)) {
   throw new Error('default theme CSS is missing');
 }
+if (!fs.existsSync(themeLayerConfigPath)) {
+  throw new Error('default theme layer nuxt.config.ts is missing');
+}
 if (!fs.existsSync(nuxtConfigPath)) {
   throw new Error('nuxt.config.ts is missing');
 }
@@ -24,6 +28,7 @@ console.log('✓ default theme homepage and CSS files exist.');
 
 // 2. Read contents
 const indexContent = fs.readFileSync(indexPagePath, 'utf8');
+const themeLayerConfig = fs.readFileSync(themeLayerConfigPath, 'utf8');
 const nuxtConfig = fs.readFileSync(nuxtConfigPath, 'utf8');
 const themeCss = fs.readFileSync(themeCssPath, 'utf8');
 const zh = JSON.parse(fs.readFileSync(zhLocalePath, 'utf8'));
@@ -41,6 +46,14 @@ if (!themeCss.includes('--sf-surface') || !themeCss.includes('.auth-shell') || !
   throw new Error('default theme CSS should own public surface, auth, and navbar styles');
 }
 console.log('✓ default theme CSS owns public surface, auth, and navbar styles.');
+
+if (themeLayerConfig.includes('~/assets/css/sforum-theme.css')) {
+  throw new Error('default theme layer CSS must resolve from the layer directory, not the host app ~/ alias');
+}
+if (!themeLayerConfig.includes('import.meta.url') || !themeLayerConfig.includes('sforum-theme.css')) {
+  throw new Error('default theme layer nuxt.config.ts should register sforum-theme.css with a layer-relative path');
+}
+console.log('✓ default theme layer CSS path is layer-relative.');
 
 // 3. Verify component usages in index.vue
 const requiredComponents = [
