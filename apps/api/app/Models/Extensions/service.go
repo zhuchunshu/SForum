@@ -114,6 +114,8 @@ func (LocalRuntimeManager) Status(_ context.Context, extension Extension) Runtim
 	}
 }
 
+func (LocalRuntimeManager) EmitHook(context.Context, string, map[string]any) {}
+
 type preflightRuntimeManager struct {
 	RuntimePreflight
 }
@@ -134,6 +136,8 @@ func (preflightRuntimeManager) Status(_ context.Context, extension Extension) Ru
 		ProviderCount: len(extension.Manifest.Providers),
 	}
 }
+
+func (preflightRuntimeManager) EmitHook(context.Context, string, map[string]any) {}
 
 type LocalThemeBuilder struct{}
 
@@ -348,6 +352,9 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (
 		Action:      EventEnabled,
 		Message:     "Extension enabled.",
 	})
+	if enabled.Type == TypePlugin && s.runtime != nil {
+		s.runtime.EmitHook(ctx, "extension.enabled", map[string]any{"extensionId": enabled.ID})
+	}
 	return s.decorateRuntime(ctx, enabled), nil
 }
 
@@ -375,6 +382,9 @@ func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) 
 		Action:      EventDisabled,
 		Message:     "Extension disabled.",
 	})
+	if disabled.Type == TypePlugin && s.runtime != nil {
+		s.runtime.EmitHook(ctx, "extension.disabled", map[string]any{"extensionId": disabled.ID})
+	}
 	return s.decorateRuntime(ctx, disabled), nil
 }
 

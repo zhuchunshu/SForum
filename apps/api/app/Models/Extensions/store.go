@@ -24,6 +24,7 @@ type RuntimeManager interface {
 	Start(ctx context.Context, extension Extension) error
 	Stop(ctx context.Context, extension Extension) error
 	Status(ctx context.Context, extension Extension) RuntimeStatus
+	EmitHook(ctx context.Context, name string, payload map[string]any)
 }
 
 type ThemeBuilder interface {

@@ -33,8 +33,9 @@ var (
 type ProtocolStarterConfig struct{}
 
 type ProtocolStarter struct {
-	mu      sync.Mutex
-	clients map[string]*plugin.Client
+	mu        sync.Mutex
+	clients   map[string]*plugin.Client
+	protocols map[string]PluginProtocol
 }
 
 type PluginProtocol interface {
@@ -65,7 +66,7 @@ type PluginHookResponse struct {
 type PluginEmptyRequest struct{}
 
 func NewProtocolStarter(ProtocolStarterConfig) *ProtocolStarter {
-	return &ProtocolStarter{clients: map[string]*plugin.Client{}}
+	return &ProtocolStarter{clients: map[string]*plugin.Client{}, protocols: map[string]PluginProtocol{}}
 }
 
 func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extension) (RouteTarget, error) {
@@ -131,10 +132,14 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	if s.clients == nil {
 		s.clients = map[string]*plugin.Client{}
 	}
+	if s.protocols == nil {
+		s.protocols = map[string]PluginProtocol{}
+	}
 	if previous := s.clients[extension.ID]; previous != nil {
 		previous.Kill()
 	}
 	s.clients[extension.ID] = client
+	s.protocols[extension.ID] = protocol
 	s.mu.Unlock()
 	return RouteTarget{BaseURL: target.BaseURL}, nil
 }
@@ -143,11 +148,26 @@ func (s *ProtocolStarter) Stop(_ context.Context, extension extensions.Extension
 	s.mu.Lock()
 	client := s.clients[extension.ID]
 	delete(s.clients, extension.ID)
+	delete(s.protocols, extension.ID)
 	s.mu.Unlock()
 	if client != nil {
 		client.Kill()
 	}
 	return nil
+}
+
+func (s *ProtocolStarter) InvokeHook(_ context.Context, extension extensions.Extension, input HookInput) HookResult {
+	s.mu.Lock()
+	protocol := s.protocols[extension.ID]
+	s.mu.Unlock()
+	if protocol == nil {
+		return HookResult{OK: false, Reason: "extension.runtime_unavailable", Message: "Plugin runtime is not available."}
+	}
+	response, err := protocol.InvokeHook(PluginHookRequest{Name: input.Name, Payload: input.Payload})
+	if err != nil {
+		return HookResult{OK: false, Reason: "extension.hook_failed", Message: err.Error()}
+	}
+	return HookResult{OK: response.OK, Reason: response.Reason, Message: response.Message}
 }
 
 func ServeProtocolPlugin(impl PluginProtocol) {

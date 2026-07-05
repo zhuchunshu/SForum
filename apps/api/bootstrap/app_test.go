@@ -84,6 +84,8 @@ func (fakeBootstrapExtensionRuntime) Status(context.Context, extensions.Extensio
 	return extensions.RuntimeStatus{State: extensions.RuntimeStopped}
 }
 
+func (fakeBootstrapExtensionRuntime) EmitHook(context.Context, string, map[string]any) {}
+
 func (fakeBootstrapExtensionRuntime) RouteTarget(string) (extensionsruntime.RouteTarget, bool) {
 	return extensionsruntime.RouteTarget{}, false
 }

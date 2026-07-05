@@ -15,6 +15,7 @@ type Starter interface {
 
 type ManagerConfig struct {
 	Starter Starter
+	HookBus *HookBus
 }
 
 type Manager struct {
@@ -23,6 +24,7 @@ type Manager struct {
 	statuses map[string]extensions.RuntimeStatus
 	targets  map[string]RouteTarget
 	running  map[string]extensions.Extension
+	hooks    *HookBus
 }
 
 func NewManager(config ManagerConfig) *Manager {
@@ -30,7 +32,15 @@ func NewManager(config ManagerConfig) *Manager {
 	if starter == nil {
 		starter = localStarter{}
 	}
-	return &Manager{starter: starter, statuses: map[string]extensions.RuntimeStatus{}, targets: map[string]RouteTarget{}, running: map[string]extensions.Extension{}}
+	hooks := config.HookBus
+	if hooks == nil {
+		var invoker HookInvoker
+		if candidate, ok := starter.(HookInvoker); ok {
+			invoker = candidate
+		}
+		hooks = NewHookBus(HookBusConfig{Invoker: invoker})
+	}
+	return &Manager{starter: starter, statuses: map[string]extensions.RuntimeStatus{}, targets: map[string]RouteTarget{}, running: map[string]extensions.Extension{}, hooks: hooks}
 }
 
 func (m *Manager) Check(context.Context, extensions.Extension) error {
@@ -67,6 +77,7 @@ func (m *Manager) Start(ctx context.Context, extension extensions.Extension) err
 		ProviderCount: len(extension.Manifest.Providers),
 	}
 	m.mu.Unlock()
+	m.hooks.Register(extension)
 	return nil
 }
 
@@ -82,6 +93,7 @@ func (m *Manager) Stop(ctx context.Context, extension extensions.Extension) erro
 		ProviderCount: len(extension.Manifest.Providers),
 	}
 	m.mu.Unlock()
+	m.hooks.Unregister(extension.ID)
 	return err
 }
 
@@ -138,6 +150,10 @@ func (m *Manager) Close(ctx context.Context) {
 	for _, item := range running {
 		_ = m.Stop(ctx, item)
 	}
+}
+
+func (m *Manager) EmitHook(ctx context.Context, name string, payload map[string]any) {
+	m.hooks.Emit(ctx, HookInput{Name: name, Payload: payload})
 }
 
 func (m *Manager) setStatus(extension extensions.Extension, status extensions.RuntimeStatus) {

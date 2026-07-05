@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"slices"
 	"testing"
 	"time"
 
@@ -241,6 +242,25 @@ func TestServiceDisableStopsRuntimeAndListDecoratesRuntimeStatus(t *testing.T) {
 	}
 	if len(runtime.stopped) != 1 || runtime.stopped[0] != "demo.plugin" {
 		t.Fatalf("expected runtime stop, got %#v", runtime.stopped)
+	}
+}
+
+func TestServiceEmitsPluginLifecycleHooks(t *testing.T) {
+	store := &fakeExtensionStore{items: map[string]Extension{
+		"demo.plugin": installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"}),
+	}}
+	runtime := &fakeRuntimeManager{}
+	service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
+
+	if _, err := service.Enable(context.Background(), extensionManager(), "demo.plugin"); err != nil {
+		t.Fatalf("Enable returned error: %v", err)
+	}
+	if _, err := service.Disable(context.Background(), extensionManager(), "demo.plugin"); err != nil {
+		t.Fatalf("Disable returned error: %v", err)
+	}
+	expected := []string{"extension.enabled", "extension.disabled"}
+	if !slices.Equal(runtime.hooks, expected) {
+		t.Fatalf("expected lifecycle hooks %#v, got %#v", expected, runtime.hooks)
 	}
 }
 
@@ -495,6 +515,7 @@ type fakeRuntimeManager struct {
 	startErr error
 	started  []string
 	stopped  []string
+	hooks    []string
 	statuses map[string]RuntimeStatus
 }
 
@@ -519,6 +540,10 @@ func (r *fakeRuntimeManager) Status(_ context.Context, extension Extension) Runt
 		}
 	}
 	return RuntimeStatus{State: RuntimeStopped}
+}
+
+func (r *fakeRuntimeManager) EmitHook(_ context.Context, name string, _ map[string]any) {
+	r.hooks = append(r.hooks, name)
 }
 
 type fakeThemeBuilder struct {
