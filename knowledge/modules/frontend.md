@@ -100,6 +100,11 @@ Admin route middleware distinguishes real unauthenticated responses from
 temporary auth-service failures. A 401 or `auth.required` redirects to login;
 API restart/502/timeout cases show a temporary unavailable error instead of
 forcing the user to sign in again.
+Nuxt now owns a project-specific global error page at `app/error.vue`. The
+first release uses the shared public SForum chrome for both forum and admin
+routes, renders the selected community empty-state style for `404`, `403`,
+`500`, and `503`, and keeps error pages `noindex` through the existing SEO
+helper.
 
 ## Regression Notes
 

@@ -18,6 +18,11 @@ owns domain logic.
 API startup output now keeps Fiber's useful listen metadata but replaces the
 default Fiber ASCII banner with an SForum API banner through Fiber's
 `OnPreStartupMessage` hook.
+Backend HTTP controllers now have a Go-explicit Laravel-style abort helper in
+`app/Http`: `Abort`, `AbortIf`, and `AbortUnless`. These helpers return the
+existing `*APIError` type instead of panicking, so Fiber's centralized error
+handler continues to emit localized SForum API envelopes with `code`,
+`message`, and `data.reason`.
 
 ## Planned Stack
 
