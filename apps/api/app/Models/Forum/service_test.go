@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
 
 func TestServiceCreateTopicRendersSharedPostContent(t *testing.T) {
@@ -44,6 +45,43 @@ func TestServiceCreateTopicRendersSharedPostContent(t *testing.T) {
 	}
 	if store.createdTopic.Slug == "" {
 		t.Fatal("expected generated slug")
+	}
+}
+
+func TestServiceCreateTopicAppliesBeforeCreateFilterAndEmitsCreatedEvent(t *testing.T) {
+	store := newServiceFakeStore()
+	publisher := &fakeEventPublisher{results: map[string]appevents.Result{
+		appevents.TopicBeforeCreate: {
+			OK: true,
+			Patch: map[string]any{
+				"title":        "Patched title",
+				"categorySlug": "general",
+			},
+		},
+	}}
+	service := NewServiceWithEvents(store, publisher)
+	actor := identity.Actor{
+		ID:          12,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionTopicCreate: true},
+	}
+
+	topic, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
+		Title: "Original title",
+		Content: ContentInput{
+			RawContent:   "正文",
+			SourceFormat: SourceFormatMarkdown,
+			EditorType:   EditorTypeMarkdown,
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateTopic returned error: %v", err)
+	}
+	if topic.Title != "Patched title" || store.createdTopic.CategorySlug != "general" {
+		t.Fatalf("expected patched topic input, got topic=%#v record=%#v", topic, store.createdTopic)
+	}
+	if !publisher.seen(appevents.TopicBeforeCreate) || !publisher.seen(appevents.TopicCreated) {
+		t.Fatalf("expected before/create events, got %#v", publisher.names)
 	}
 }
 
@@ -166,6 +204,28 @@ func containsUnsafeHTML(value string) bool {
 func stringsContains(value string, needle string) bool {
 	for index := 0; index+len(needle) <= len(value); index++ {
 		if value[index:index+len(needle)] == needle {
+			return true
+		}
+	}
+	return false
+}
+
+type fakeEventPublisher struct {
+	names   []string
+	results map[string]appevents.Result
+}
+
+func (p *fakeEventPublisher) Emit(_ context.Context, envelope appevents.Envelope) appevents.Result {
+	p.names = append(p.names, envelope.Name)
+	if result, ok := p.results[envelope.Name]; ok {
+		return result
+	}
+	return appevents.Result{OK: true}
+}
+
+func (p *fakeEventPublisher) seen(name string) bool {
+	for _, item := range p.names {
+		if item == name {
 			return true
 		}
 	}

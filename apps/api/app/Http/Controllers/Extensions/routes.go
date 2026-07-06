@@ -10,6 +10,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Post("/admin/extensions/:id/verify", h.verify)
 	api.Post("/admin/extensions/:id/activate", h.activate)
 	api.Get("/admin/extensions/:id/events", h.events)
+	api.Get("/admin/extensions/event-definitions", h.eventDefinitions)
+	api.Get("/admin/extensions/event-deliveries", h.eventDeliveries)
 
 	api.All("/extensions/:extensionId/*", h.proxyExtensionRoute)
 }

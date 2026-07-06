@@ -267,6 +267,7 @@
         "frontend": "Nuxt Layer",
         "routes": "{count} 条路由",
         "hooks": "{count} 个钩子",
+        "events": "{count} 个事件",
         "jobs": "{count} 个任务",
         "providers": "{count} 个服务提供方"
       },
@@ -301,10 +302,34 @@
       "eventLog": {
         "metaTitle": "扩展事件日志",
         "title": "事件日志",
-        "intro": "汇总各扩展最近的安装、启用、停用和预检事件，便于排查生命周期状态。",
+        "intro": "查看宿主事件点、插件监听投递记录，以及扩展生命周期审计。",
         "count": "汇总 {count} 条事件",
+        "definitionsTitle": "事件定义",
+        "definitionsCount": "{count} 个事件点",
+        "deliveriesTitle": "监听投递",
+        "deliveriesCount": "{count} 次投递尝试",
+        "auditTitle": "生命周期审计",
         "emptyTitle": "暂无扩展事件",
-        "emptyDescription": "安装或启用扩展后，生命周期事件会显示在这里。"
+        "emptyDescription": "安装或启用扩展后，生命周期事件会显示在这里。",
+        "emptyDeliveriesTitle": "暂无监听投递",
+        "emptyDeliveriesDescription": "已启用插件声明 events 且宿主模块发出事件后，监听投递记录会显示在这里。",
+        "emptyDefinitionsTitle": "暂无事件定义",
+        "emptyDefinitionsDescription": "宿主事件目录暂未加载成功。",
+        "payloadFields": "载荷：{fields}",
+        "patchFields": "可改：{fields}",
+        "noPatchFields": "不可修改字段",
+        "deliveryStatus": {
+          "queued": "排队中",
+          "running": "投递中",
+          "succeeded": "已成功",
+          "failed": "已失败",
+          "skipped": "已跳过"
+        },
+        "kind": {
+          "observe": "观察",
+          "validate": "校验",
+          "filter": "过滤"
+        }
       }
     },
     "attachments": {

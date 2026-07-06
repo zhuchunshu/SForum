@@ -177,6 +177,13 @@ func TestServiceInstallArchiveRequiresPureThemeLayerManifest(t *testing.T) {
 			}`,
 		},
 		{
+			name: "theme declares events",
+			manifest: `{
+				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
+				"events":[{"name":"topic.created","kind":"observe"}],"frontend":{"layer":"frontend/layer"}
+			}`,
+		},
+		{
 			name: "theme declares jobs",
 			manifest: `{
 				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
@@ -244,7 +251,7 @@ func TestServiceInstallArchiveValidatesRuntimeManifestDeclarations(t *testing.T)
 	actor := extensionManager()
 
 	valid := validManifest("runtime.plugin", TypePlugin)
-	_, err := service.InstallArchive(context.Background(), actor, ArchiveInput{
+	installed, err := service.InstallArchive(context.Background(), actor, ArchiveInput{
 		FileName: "runtime.zip",
 		Data: extensionArchive(t, valid,
 			zipFile{name: "backend/plugin", body: "#!/bin/sh\n"},
@@ -252,6 +259,24 @@ func TestServiceInstallArchiveValidatesRuntimeManifestDeclarations(t *testing.T)
 	})
 	if err != nil {
 		t.Fatalf("expected runtime manifest to install, got %v", err)
+	}
+	if events := DeclaredManifestEvents(installed.Manifest); len(events) != 1 || events[0].Name != "topic.created" {
+		t.Fatalf("expected hooks compatibility event declaration, got %#v", events)
+	}
+
+	eventManifest := `{
+		"id":"event.plugin","name":"Event Plugin","version":"1.0.0","type":"plugin","sforumVersion":"^1.0.0",
+		"events":[{"name":"topic.before_create","kind":"filter","timeoutMs":1000}]
+	}`
+	installed, err = service.InstallArchive(context.Background(), actor, ArchiveInput{
+		FileName: "event.zip",
+		Data:     extensionArchive(t, eventManifest),
+	})
+	if err != nil {
+		t.Fatalf("expected event manifest to install, got %v", err)
+	}
+	if events := DeclaredManifestEvents(installed.Manifest); len(events) != 1 || events[0].Kind != "filter" {
+		t.Fatalf("expected filter event declaration, got %#v", events)
 	}
 
 	cases := []struct {
@@ -284,6 +309,20 @@ func TestServiceInstallArchiveValidatesRuntimeManifestDeclarations(t *testing.T)
 			manifest: `{
 				"id":"bad.provider","name":"Bad Provider","version":"1.0.0","type":"plugin","sforumVersion":"^1.0.0",
 				"providers":[{"slot":"unknown.provider","label":"Unknown"}]
+			}`,
+		},
+		{
+			name: "unknown event",
+			manifest: `{
+				"id":"bad.event","name":"Bad Event","version":"1.0.0","type":"plugin","sforumVersion":"^1.0.0",
+				"events":[{"name":"topic.destroyed","kind":"observe"}]
+			}`,
+		},
+		{
+			name: "wrong event kind",
+			manifest: `{
+				"id":"bad.event.kind","name":"Bad Event Kind","version":"1.0.0","type":"plugin","sforumVersion":"^1.0.0",
+				"events":[{"name":"topic.before_create","kind":"observe"}]
 			}`,
 		},
 		{
@@ -839,6 +878,7 @@ type fakeExtensionStore struct {
 	disabledID    string
 	activeThemeID string
 	events        []ExtensionEvent
+	deliveries    []ExtensionEventDelivery
 }
 
 func (s *fakeExtensionStore) List(context.Context) ([]Extension, error) {
@@ -991,4 +1031,56 @@ func (s *fakeExtensionStore) CreateEvent(_ context.Context, input EventInput) (E
 
 func (s *fakeExtensionStore) ListEvents(context.Context, string, int) ([]ExtensionEvent, error) {
 	return s.events, nil
+}
+
+func (s *fakeExtensionStore) CreateEventDelivery(_ context.Context, input EventDeliveryInput) (ExtensionEventDelivery, error) {
+	delivery := ExtensionEventDelivery{
+		ID:            int64(len(s.deliveries) + 1),
+		ExtensionID:   input.ExtensionID,
+		EventName:     input.EventName,
+		EventKind:     input.EventKind,
+		Status:        input.Status,
+		Reason:        input.Reason,
+		Message:       input.Message,
+		CorrelationID: input.CorrelationID,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+	s.deliveries = append(s.deliveries, delivery)
+	return delivery, nil
+}
+
+func (s *fakeExtensionStore) UpdateEventDelivery(_ context.Context, input EventDeliveryUpdateInput) error {
+	for index := range s.deliveries {
+		if s.deliveries[index].ID == input.ID {
+			s.deliveries[index].Status = input.Status
+			s.deliveries[index].Reason = input.Reason
+			s.deliveries[index].Message = input.Message
+			s.deliveries[index].AttemptCount = input.AttemptCount
+			s.deliveries[index].UpdatedAt = time.Now()
+			if input.Completed {
+				completedAt := time.Now()
+				s.deliveries[index].CompletedAt = &completedAt
+			}
+			return nil
+		}
+	}
+	return ErrExtensionNotFound
+}
+
+func (s *fakeExtensionStore) ListEventDeliveries(_ context.Context, input EventDeliveryListInput) ([]ExtensionEventDelivery, error) {
+	items := []ExtensionEventDelivery{}
+	for _, delivery := range s.deliveries {
+		if input.ExtensionID != "" && delivery.ExtensionID != input.ExtensionID {
+			continue
+		}
+		if input.EventName != "" && delivery.EventName != input.EventName {
+			continue
+		}
+		if input.Status != "" && delivery.Status != input.Status {
+			continue
+		}
+		items = append(items, delivery)
+	}
+	return items, nil
 }

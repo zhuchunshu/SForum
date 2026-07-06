@@ -315,6 +315,109 @@ func (s *PostgresStore) ListEvents(ctx context.Context, extensionID string, limi
 	return events, nil
 }
 
+func (s *PostgresStore) CreateEventDelivery(ctx context.Context, input EventDeliveryInput) (ExtensionEventDelivery, error) {
+	status := input.Status
+	if status == "" {
+		status = DeliveryQueued
+	}
+	var delivery ExtensionEventDelivery
+	err := s.pool.QueryRow(ctx, `
+		INSERT INTO extension_event_deliveries
+		  (extension_id, event_name, event_kind, status, reason, message, correlation_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, extension_id, event_name, event_kind, status, reason, message,
+		  correlation_id, attempt_count, created_at, updated_at, completed_at
+	`, input.ExtensionID, input.EventName, input.EventKind, status, input.Reason, input.Message, input.CorrelationID).Scan(
+		&delivery.ID,
+		&delivery.ExtensionID,
+		&delivery.EventName,
+		&delivery.EventKind,
+		&delivery.Status,
+		&delivery.Reason,
+		&delivery.Message,
+		&delivery.CorrelationID,
+		&delivery.AttemptCount,
+		&delivery.CreatedAt,
+		&delivery.UpdatedAt,
+		&delivery.CompletedAt,
+	)
+	if err != nil {
+		return ExtensionEventDelivery{}, fmt.Errorf("create extension event delivery: %w", err)
+	}
+	return delivery, nil
+}
+
+func (s *PostgresStore) UpdateEventDelivery(ctx context.Context, input EventDeliveryUpdateInput) error {
+	completedSQL := "completed_at"
+	if input.Completed {
+		completedSQL = "now()"
+	}
+	command, err := s.pool.Exec(ctx, `
+		UPDATE extension_event_deliveries
+		SET status = $2,
+		    reason = $3,
+		    message = $4,
+		    attempt_count = $5,
+		    updated_at = now(),
+		    completed_at = `+completedSQL+`
+		WHERE id = $1
+	`, input.ID, input.Status, input.Reason, input.Message, input.AttemptCount)
+	if err != nil {
+		return fmt.Errorf("update extension event delivery: %w", err)
+	}
+	if command.RowsAffected() == 0 {
+		return ErrExtensionNotFound
+	}
+	return nil
+}
+
+func (s *PostgresStore) ListEventDeliveries(ctx context.Context, input EventDeliveryListInput) ([]ExtensionEventDelivery, error) {
+	limit := input.Limit
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, extension_id, event_name, event_kind, status, reason, message,
+		  correlation_id, attempt_count, created_at, updated_at, completed_at
+		FROM extension_event_deliveries
+		WHERE ($1 = '' OR extension_id = $1)
+		  AND ($2 = '' OR event_name = $2)
+		  AND ($3 = '' OR status = $3)
+		ORDER BY created_at DESC, id DESC
+		LIMIT $4
+	`, input.ExtensionID, input.EventName, input.Status, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list extension event deliveries: %w", err)
+	}
+	defer rows.Close()
+
+	deliveries := []ExtensionEventDelivery{}
+	for rows.Next() {
+		var delivery ExtensionEventDelivery
+		if err := rows.Scan(
+			&delivery.ID,
+			&delivery.ExtensionID,
+			&delivery.EventName,
+			&delivery.EventKind,
+			&delivery.Status,
+			&delivery.Reason,
+			&delivery.Message,
+			&delivery.CorrelationID,
+			&delivery.AttemptCount,
+			&delivery.CreatedAt,
+			&delivery.UpdatedAt,
+			&delivery.CompletedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan extension event delivery: %w", err)
+		}
+		deliveries = append(deliveries, delivery)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate extension event deliveries: %w", err)
+	}
+	return deliveries, nil
+}
+
 func extensionSelectSQL() string {
 	return `
 		SELECT extensions.id, extensions.name, extensions.type, extensions.status,

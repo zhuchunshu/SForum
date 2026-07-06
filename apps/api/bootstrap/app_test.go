@@ -6,6 +6,7 @@ import (
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/config"
@@ -40,12 +41,12 @@ func TestExtensionRuntimeFactoryCanBeReplacedForBootstrapTests(t *testing.T) {
 	defer func() { newExtensionRuntimeManager = original }()
 
 	called := false
-	newExtensionRuntimeManager = func() extensionRuntime {
+	newExtensionRuntimeManager = func(extensions.Store) extensionRuntime {
 		called = true
 		return fakeBootstrapExtensionRuntime{}
 	}
 
-	runtime := newExtensionRuntimeManager()
+	runtime := newExtensionRuntimeManager(nil)
 	runtime.Reconcile(context.Background(), []extensions.Extension{{
 		ID:     "demo.plugin",
 		Type:   extensions.TypePlugin,
@@ -85,6 +86,10 @@ func (fakeBootstrapExtensionRuntime) Status(context.Context, extensions.Extensio
 }
 
 func (fakeBootstrapExtensionRuntime) EmitHook(context.Context, string, map[string]any) {}
+
+func (fakeBootstrapExtensionRuntime) Emit(context.Context, appevents.Envelope) appevents.Result {
+	return appevents.Result{OK: true}
+}
 
 func (fakeBootstrapExtensionRuntime) RouteTarget(string) (extensionsruntime.RouteTarget, bool) {
 	return extensionsruntime.RouteTarget{}, false

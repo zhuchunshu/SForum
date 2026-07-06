@@ -22,6 +22,7 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
@@ -39,14 +40,16 @@ type API struct {
 
 type extensionRuntime interface {
 	extensions.RuntimeManager
+	appevents.Publisher
 	RouteTarget(extensionID string) (extensionsruntime.RouteTarget, bool)
 	Reconcile(ctx context.Context, items []extensions.Extension)
 	Close(ctx context.Context)
 }
 
-var newExtensionRuntimeManager = func() extensionRuntime {
+var newExtensionRuntimeManager = func(store extensions.Store) extensionRuntime {
 	return extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
-		Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{}),
+		Starter:       extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{}),
+		DeliveryStore: store,
 	})
 }
 
@@ -99,7 +102,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	forumStore := forum.NewPostgresStore(pool)
 	attachmentStore := attachments.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
-	extensionRuntime := newExtensionRuntimeManager()
+	extensionRuntime := newExtensionRuntimeManager(extensionStore)
 	extensionService := extensions.NewServiceWithBuiltinsAndRuntime(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime, nil)
 	if _, err := extensionService.SyncBuiltins(ctx); err != nil {
 		extensionRuntime.Close(ctx)
@@ -125,10 +128,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("list extensions for runtime reconciliation failed: %w", err)
 	}
-	identityProvider := providers.NewIdentityProviderWithAuthSessions(identityStore, authSessions, humanVerifier)
-	forumProvider := providers.NewForumProvider(forumStore, identityStore, authSessions)
+	identityProvider := providers.NewIdentityProviderWithEvents(identityStore, authSessions, humanVerifier, extensionRuntime)
+	forumProvider := providers.NewForumProviderWithEvents(forumStore, identityStore, authSessions, extensionRuntime)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
-	attachmentsProvider := providers.NewAttachmentsProvider(attachmentStore, optionsService, identityStore, authSessions)
+	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, extensionRuntime)
 	extensionsProvider := providers.NewExtensionsProviderWithRuntime(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{

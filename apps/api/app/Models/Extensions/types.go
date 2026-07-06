@@ -33,6 +33,12 @@ const (
 	EventDisabled       = "disabled"
 	EventThemeActivated = "theme_activated"
 
+	DeliveryQueued    = "queued"
+	DeliveryRunning   = "running"
+	DeliverySucceeded = "succeeded"
+	DeliveryFailed    = "failed"
+	DeliverySkipped   = "skipped"
+
 	CodeInvalidArchive          = "extension.archive_invalid"
 	CodeInvalidManifest         = "extension.manifest_invalid"
 	CodeNotFound                = "extension.not_found"
@@ -77,6 +83,7 @@ type Manifest struct {
 	AdminPages    []ManifestAdminPage `json:"adminPages"`
 	Routes        []ManifestRoute     `json:"routes"`
 	Hooks         []ManifestHook      `json:"hooks"`
+	Events        []ManifestEvent     `json:"events"`
 	Jobs          []ManifestJob       `json:"jobs"`
 	Providers     []ManifestProvider  `json:"providers"`
 }
@@ -120,6 +127,12 @@ type ManifestHook struct {
 	Name string `json:"name"`
 }
 
+type ManifestEvent struct {
+	Name      string `json:"name"`
+	Kind      string `json:"kind,omitempty"`
+	TimeoutMS int    `json:"timeoutMs,omitempty"`
+}
+
 type ManifestJob struct {
 	Name string `json:"name"`
 }
@@ -136,6 +149,7 @@ type RuntimeStatus struct {
 	StartedAt     *time.Time `json:"startedAt,omitempty"`
 	RouteCount    int        `json:"routeCount"`
 	HookCount     int        `json:"hookCount"`
+	EventCount    int        `json:"eventCount"`
 	ProviderCount int        `json:"providerCount"`
 }
 
@@ -170,6 +184,21 @@ type ExtensionEvent struct {
 	CreatedAt   time.Time `json:"createdAt"`
 }
 
+type ExtensionEventDelivery struct {
+	ID            int64      `json:"id"`
+	ExtensionID   string     `json:"extensionId"`
+	EventName     string     `json:"eventName"`
+	EventKind     string     `json:"eventKind"`
+	Status        string     `json:"status"`
+	Reason        string     `json:"reason"`
+	Message       string     `json:"message"`
+	CorrelationID string     `json:"correlationId"`
+	AttemptCount  int        `json:"attemptCount"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	UpdatedAt     time.Time  `json:"updatedAt"`
+	CompletedAt   *time.Time `json:"completedAt,omitempty"`
+}
+
 type ArchiveInput struct {
 	FileName string
 	Data     []byte
@@ -190,4 +219,30 @@ type EventInput struct {
 	ActorUserID int64
 	Action      string
 	Message     string
+}
+
+type EventDeliveryInput struct {
+	ExtensionID   string
+	EventName     string
+	EventKind     string
+	Status        string
+	Reason        string
+	Message       string
+	CorrelationID string
+}
+
+type EventDeliveryUpdateInput struct {
+	ID           int64
+	Status       string
+	Reason       string
+	Message      string
+	AttemptCount int
+	Completed    bool
+}
+
+type EventDeliveryListInput struct {
+	ExtensionID string
+	EventName   string
+	Status      string
+	Limit       int
 }

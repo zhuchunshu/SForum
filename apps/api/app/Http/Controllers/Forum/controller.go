@@ -10,6 +10,7 @@ import (
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
 
 type Controller struct {
@@ -170,7 +171,10 @@ func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 }
 
 func mapForumError(err error) error {
+	var rejected *appevents.RejectedError
 	switch {
+	case errors.As(err, &rejected):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, rejected.Reason)
 	case errors.Is(err, identity.ErrPermissionDenied):
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	case errors.Is(err, forum.ErrInvalidContent):

@@ -84,6 +84,10 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionActivate"
   "/admin/extensions/{extensionID}/events":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEvents"
+  "/admin/extensions/event-definitions":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEventDefinitions"
+  "/admin/extensions/event-deliveries":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEventDeliveries"
   "/extensions/{extensionID}/{pluginPath}":
     "$ref": "./openapi/paths/extensions.yaml#/extensionPluginRoute"
 components:
@@ -172,6 +176,10 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionList"
     ApiResponseExtensionEventList:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionEventList"
+    ApiResponseExtensionEventDefinitionList:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionEventDefinitionList"
+    ApiResponseExtensionEventDeliveryList:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionEventDeliveryList"
     ApiResponseCategoryList:
       "$ref": "./openapi/schemas/forum.yaml#/ApiResponseCategoryList"
     ApiResponseTopicList:
@@ -196,6 +204,10 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/Extension"
     ExtensionEvent:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionEvent"
+    ExtensionEventDefinition:
+      "$ref": "./openapi/schemas/extensions.yaml#/ExtensionEventDefinition"
+    ExtensionEventDelivery:
+      "$ref": "./openapi/schemas/extensions.yaml#/ExtensionEventDelivery"
     Health:
       "$ref": "./openapi/schemas/common.yaml#/Health"
     WebOption:

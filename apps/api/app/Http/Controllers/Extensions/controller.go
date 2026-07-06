@@ -141,6 +141,35 @@ func (h *Controller) events(c fiber.Ctx) error {
 	return apphttp.OK(c, items)
 }
 
+func (h *Controller) eventDefinitions(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.service.EventDefinitions(c.Context(), actor)
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, items)
+}
+
+func (h *Controller) eventDeliveries(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.service.EventDeliveries(c.Context(), actor, extensions.EventDeliveryListInput{
+		ExtensionID: c.Query("extensionId"),
+		EventName:   c.Query("eventName"),
+		Status:      c.Query("status"),
+		Limit:       queryInt(c, "limit", 50),
+	})
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, items)
+}
+
 func queryInt(c fiber.Ctx, name string, fallback int) int {
 	value, err := strconv.Atoi(c.Query(name))
 	if err != nil || value <= 0 {

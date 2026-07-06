@@ -267,6 +267,7 @@
         "frontend": "Nuxt Layer",
         "routes": "{count} routes",
         "hooks": "{count} hooks",
+        "events": "{count} events",
         "jobs": "{count} jobs",
         "providers": "{count} providers"
       },
@@ -301,10 +302,34 @@
       "eventLog": {
         "metaTitle": "Extension event log",
         "title": "Event log",
-        "intro": "Aggregate recent install, enable, disable, and preflight events across extensions for lifecycle troubleshooting.",
+        "intro": "Review host event points, plugin listener delivery attempts, and extension lifecycle audit entries.",
         "count": "{count} event(s) aggregated",
+        "definitionsTitle": "Event definitions",
+        "definitionsCount": "{count} event point(s)",
+        "deliveriesTitle": "Listener deliveries",
+        "deliveriesCount": "{count} delivery attempt(s)",
+        "auditTitle": "Lifecycle audit",
         "emptyTitle": "No extension events",
-        "emptyDescription": "Lifecycle events will appear here after extensions are installed or enabled."
+        "emptyDescription": "Lifecycle events will appear here after extensions are installed or enabled.",
+        "emptyDeliveriesTitle": "No listener deliveries",
+        "emptyDeliveriesDescription": "Plugin listener delivery attempts will appear after enabled plugins declare events and host modules emit them.",
+        "emptyDefinitionsTitle": "No event definitions",
+        "emptyDefinitionsDescription": "The host event catalog could not be loaded.",
+        "payloadFields": "Payload: {fields}",
+        "patchFields": "Patch: {fields}",
+        "noPatchFields": "No patch fields",
+        "deliveryStatus": {
+          "queued": "Queued",
+          "running": "Running",
+          "succeeded": "Succeeded",
+          "failed": "Failed",
+          "skipped": "Skipped"
+        },
+        "kind": {
+          "observe": "Observe",
+          "validate": "Validate",
+          "filter": "Filter"
+        }
       }
     },
     "attachments": {

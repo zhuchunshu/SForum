@@ -1,9 +1,13 @@
 import { computed, ref } from 'vue'
 import {
+  EXTENSION_DELIVERY_FETCH_LIMIT,
   EXTENSION_EVENT_FETCH_LIMIT,
   extensionStats,
+  mergeExtensionDeliveries,
   mergeExtensionEvents,
   type AdminExtension,
+  type AdminExtensionEventDefinition,
+  type AdminExtensionEventDelivery,
   type AdminExtensionEvent,
   type AdminExtensionStatus
 } from '~/utils/adminExtensions'
@@ -20,7 +24,11 @@ export const useAdminExtensionsManager = async () => {
   const busyId = ref('')
   const loadingEvents = ref(false)
   const loadingAllEvents = ref(false)
+  const loadingEventDefinitions = ref(false)
+  const loadingEventDeliveries = ref(false)
   const eventsByExtension = ref<Record<string, AdminExtensionEvent[]>>({})
+  const eventDefinitions = ref<AdminExtensionEventDefinition[]>([])
+  const eventDeliveries = ref<AdminExtensionEventDelivery[]>([])
 
   const {
     data,
@@ -36,6 +44,7 @@ export const useAdminExtensionsManager = async () => {
   const selected = computed(() => extensions.value.find(item => item.id === selectedId.value) || extensions.value[0])
   const selectedEvents = computed(() => selected.value ? eventsByExtension.value[selected.value.id] || [] : [])
   const aggregatedEvents = computed(() => mergeExtensionEvents(eventsByExtension.value))
+  const aggregatedDeliveries = computed(() => mergeExtensionDeliveries(eventDeliveries.value))
 
   function openUpload() {
     fileInput.value?.click()
@@ -173,6 +182,32 @@ export const useAdminExtensionsManager = async () => {
     }
   }
 
+  async function loadEventDefinitions() {
+    loadingEventDefinitions.value = true
+    try {
+      eventDefinitions.value = await request<AdminExtensionEventDefinition[]>('/admin/extensions/event-definitions')
+      return eventDefinitions.value
+    } catch {
+      eventDefinitions.value = []
+      return []
+    } finally {
+      loadingEventDefinitions.value = false
+    }
+  }
+
+  async function loadEventDeliveries(limit = EXTENSION_DELIVERY_FETCH_LIMIT) {
+    loadingEventDeliveries.value = true
+    try {
+      eventDeliveries.value = await request<AdminExtensionEventDelivery[]>(`/admin/extensions/event-deliveries?limit=${limit}`)
+      return eventDeliveries.value
+    } catch {
+      eventDeliveries.value = []
+      return []
+    } finally {
+      loadingEventDeliveries.value = false
+    }
+  }
+
   function replaceExtension(updated: AdminExtension) {
     const current = extensions.value.slice()
     const index = current.findIndex(item => item.id === updated.id)
@@ -216,8 +251,13 @@ export const useAdminExtensionsManager = async () => {
     busyId,
     loadingEvents,
     loadingAllEvents,
+    loadingEventDefinitions,
+    loadingEventDeliveries,
     eventsByExtension,
+    eventDefinitions,
+    eventDeliveries,
     aggregatedEvents,
+    aggregatedDeliveries,
     stats,
     openUpload,
     uploadArchive,
@@ -228,6 +268,8 @@ export const useAdminExtensionsManager = async () => {
     activateTheme,
     loadEvents,
     loadAllEvents,
+    loadEventDefinitions,
+    loadEventDeliveries,
     statusColor,
     typeLabel,
     statusLabel

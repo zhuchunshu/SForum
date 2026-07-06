@@ -219,7 +219,10 @@ This is the entry point for project memory.
   the active package path and installed manifest to still exist. Container
   images now copy built-in themes from the repository root into
   `/app/extensions/builtin`; theme manifests are strict Nuxt Layer packages and
-  cannot declare plugin/runtime/admin capabilities in v1.
+  cannot declare plugin/runtime/admin capabilities in v1. Plugin event and
+  extension-point v1 adds a host event catalog, manifest `events` declarations
+  with legacy `hooks` compatibility, delivery tracking, and the first
+  synchronous filter event for `topic.before_create`.
 - Runtime language pack management has an accepted design: add a system-menu
   admin "Language settings" page, `locale.manage`, ZIP language pack uploads
   with `sforum.locale.json`, package storage under `LOCALE_PACK_ROOT`/
@@ -293,6 +296,8 @@ This is the entry point for project memory.
 - `decisions/2026-07-06-plugin-enable-theme-activate-default-theme.md` -
   accepted plugin enable vs theme activate semantics and default-theme public
   UI ownership.
+- `decisions/2026-07-06-plugin-event-extension-points.md` - accepted explicit
+  plugin event, listener delivery, and filter extension-point architecture.
 - `decisions/2026-07-05-runtime-language-pack-management.md` - accepted runtime
   language pack storage, permission, admin page, and frontend runtime message
   loading decision.

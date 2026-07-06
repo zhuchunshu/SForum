@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
 
 func TestRegisterFirstUserAssignsSuperAdminAndMember(t *testing.T) {
@@ -34,6 +36,28 @@ func TestRegisterFirstUserAssignsSuperAdminAndMember(t *testing.T) {
 	}
 	if !first.IsInitialSuperAdmin {
 		t.Fatal("expected first user to be initial super admin")
+	}
+}
+
+func TestRegisterEmitsUserRegisteredEvent(t *testing.T) {
+	_, store := newTestService(t)
+	publisher := &fakeIdentityEventPublisher{}
+	service := NewServiceWithEvents(store, publisher)
+
+	current, err := service.Register(testContext(t), RegisterInput{
+		Username: "member",
+		Email:    "member@example.com",
+		Password: "correct horse battery staple",
+		Locale:   "zh-CN",
+	})
+	if err != nil {
+		t.Fatalf("Register returned error: %v", err)
+	}
+	if len(publisher.names) != 1 || publisher.names[0] != appevents.UserRegistered {
+		t.Fatalf("expected user.registered event, got %#v", publisher.names)
+	}
+	if publisher.payloads[0]["userId"] != current.ID {
+		t.Fatalf("expected payload user id %d, got %#v", current.ID, publisher.payloads[0])
 	}
 }
 
@@ -364,6 +388,17 @@ func newTestService(t *testing.T) (*Service, *fakeStore) {
 	store.rolePerms[2] = []string{PermissionTopicCreate, PermissionPostCreate}
 
 	return NewService(store), store
+}
+
+type fakeIdentityEventPublisher struct {
+	names    []string
+	payloads []map[string]any
+}
+
+func (p *fakeIdentityEventPublisher) Emit(_ context.Context, envelope appevents.Envelope) appevents.Result {
+	p.names = append(p.names, envelope.Name)
+	p.payloads = append(p.payloads, envelope.Payload)
+	return appevents.Result{OK: true}
 }
 
 func testContext(t *testing.T) context.Context {

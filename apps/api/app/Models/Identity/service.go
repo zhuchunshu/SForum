@@ -5,15 +5,24 @@ import (
 	"errors"
 	"net/mail"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
+
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
 
 type Service struct {
-	store Store
+	store  Store
+	events appevents.Publisher
 }
 
 func NewService(store Store) *Service {
-	return &Service{store: store}
+	return NewServiceWithEvents(store, nil)
+}
+
+func NewServiceWithEvents(store Store, publisher appevents.Publisher) *Service {
+	return &Service{store: store, events: appevents.EnsurePublisher(publisher)}
 }
 
 type RegisterInput struct {
@@ -122,6 +131,22 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUse
 	if err != nil {
 		return CurrentUser{}, err
 	}
+
+	s.events.Emit(ctx, appevents.Envelope{
+		Name:          appevents.UserRegistered,
+		Kind:          appevents.KindObserve,
+		ActorUserID:   current.ID,
+		ResourceType:  "user",
+		ResourceID:    strconv.FormatInt(current.ID, 10),
+		CorrelationID: appevents.NewID(),
+		Payload: map[string]any{
+			"userId":   current.ID,
+			"username": current.Username,
+			"email":    normalized.Email,
+			"locale":   current.Locale,
+		},
+		OccurredAt: time.Now().UTC(),
+	})
 
 	return current, nil
 }

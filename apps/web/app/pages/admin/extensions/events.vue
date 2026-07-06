@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { extensionEventPage } from '~/utils/adminExtensions'
+import { extensionDeliveryPage, extensionEventPage, type AdminExtensionDeliveryStatus, type AdminExtensionEventKind } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -15,16 +15,24 @@ defineOptions({
 const { t } = useI18n()
 const adminPage = useAdminPage('/extensions/events')
 const eventPage = ref(1)
+const deliveryPage = ref(1)
 const {
   extensions,
   pending,
   error,
   refresh,
+  eventDefinitions,
+  aggregatedDeliveries,
   aggregatedEvents,
+  loadingEventDefinitions,
+  loadingEventDeliveries,
   loadingAllEvents,
-  loadAllEvents
+  loadAllEvents,
+  loadEventDefinitions,
+  loadEventDeliveries
 } = await useAdminExtensionsManager()
 const eventPageInfo = computed(() => extensionEventPage(aggregatedEvents.value, eventPage.value))
+const deliveryPageInfo = computed(() => extensionDeliveryPage(aggregatedDeliveries.value, deliveryPage.value))
 
 useSeoMeta({
   title: t('admin.extensions.eventLog.metaTitle')
@@ -32,20 +40,57 @@ useSeoMeta({
 
 watch(() => extensions.value.map(item => item.id).join('|'), () => {
   eventPage.value = 1
+  deliveryPage.value = 1
   void loadAllEvents()
+  void loadEventDeliveries()
 }, { immediate: true })
+
+void loadEventDefinitions()
 
 watch(() => eventPageInfo.value.page, (page) => {
   eventPage.value = page
 })
 
+watch(() => deliveryPageInfo.value.page, (page) => {
+  deliveryPage.value = page
+})
+
 async function refreshEvents() {
   await refresh()
+  await loadEventDefinitions()
+  await loadEventDeliveries()
   await loadAllEvents()
 }
 
 function extensionName(id: string) {
   return extensions.value.find(item => item.id === id)?.name || id
+}
+
+function deliveryStatusColor(status: AdminExtensionDeliveryStatus) {
+  if (status === 'succeeded') {
+    return 'success'
+  }
+  if (status === 'failed') {
+    return 'error'
+  }
+  if (status === 'running' || status === 'queued') {
+    return 'warning'
+  }
+  return 'neutral'
+}
+
+function eventKindColor(kind: AdminExtensionEventKind) {
+  if (kind === 'filter') {
+    return 'primary'
+  }
+  if (kind === 'validate') {
+    return 'warning'
+  }
+  return 'neutral'
+}
+
+function fieldList(fields?: string[]) {
+  return fields?.length ? fields.join(', ') : '-'
 }
 </script>
 
@@ -64,11 +109,15 @@ function extensionName(id: string) {
     <template #left>
       <div class="flex min-w-0 items-center gap-2 text-sm">
         <UIcon name="i-lucide-scroll-text" class="size-4" />
+        <span class="truncate">{{ t('admin.extensions.eventLog.definitionsCount', { count: eventDefinitions.length }) }}</span>
+        <span class="text-slate-300 dark:text-zinc-700">/</span>
+        <span class="truncate">{{ t('admin.extensions.eventLog.deliveriesCount', { count: aggregatedDeliveries.length }) }}</span>
+        <span class="text-slate-300 dark:text-zinc-700">/</span>
         <span class="truncate">{{ t('admin.extensions.eventLog.count', { count: aggregatedEvents.length }) }}</span>
       </div>
     </template>
     <template #right>
-      <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending || loadingAllEvents" @click="refreshEvents">
+      <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending || loadingAllEvents || loadingEventDefinitions || loadingEventDeliveries" @click="refreshEvents">
         {{ t('admin.extensions.refresh') }}
       </UButton>
     </template>
@@ -83,7 +132,114 @@ function extensionName(id: string) {
     class="mb-6"
   />
 
-  <div class="rounded-lg border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+  <section class="mb-6 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-zinc-800">
+      <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+        {{ t('admin.extensions.eventLog.definitionsTitle') }}
+      </h3>
+      <UBadge color="neutral" variant="outline">
+        {{ t('admin.extensions.eventLog.definitionsCount', { count: eventDefinitions.length }) }}
+      </UBadge>
+    </div>
+    <div v-if="eventDefinitions.length === 0 && !loadingEventDefinitions" class="p-10">
+      <SFEmptyState icon-label="EVT" :title="t('admin.extensions.eventLog.emptyDefinitionsTitle')" :description="t('admin.extensions.eventLog.emptyDefinitionsDescription')" />
+    </div>
+    <div v-else class="divide-y divide-slate-200 dark:divide-zinc-800">
+      <div
+        v-for="definition in eventDefinitions"
+        :key="definition.name"
+        class="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1fr)_140px]"
+      >
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <UIcon name="i-lucide-radio" class="size-4 text-[var(--sf-accent)]" />
+            <h3 class="truncate text-sm font-semibold text-slate-900 dark:text-zinc-100">
+              {{ definition.name }}
+            </h3>
+            <UBadge :color="eventKindColor(definition.kind)" variant="subtle">
+              {{ t(`admin.extensions.eventLog.kind.${definition.kind}`) }}
+            </UBadge>
+          </div>
+          <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">
+            {{ definition.description }}
+          </p>
+          <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+            {{ t('admin.extensions.eventLog.payloadFields', { fields: fieldList(definition.payloadFields) }) }}
+          </p>
+          <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+            {{ definition.patchFields?.length ? t('admin.extensions.eventLog.patchFields', { fields: fieldList(definition.patchFields) }) : t('admin.extensions.eventLog.noPatchFields') }}
+          </p>
+        </div>
+        <div class="flex items-center text-xs text-slate-500 md:justify-end dark:text-zinc-400">
+          {{ definition.timeoutMs }}ms
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-6 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-zinc-800">
+      <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+        {{ t('admin.extensions.eventLog.deliveriesTitle') }}
+      </h3>
+      <UBadge color="neutral" variant="outline">
+        {{ t('admin.extensions.eventLog.deliveriesCount', { count: aggregatedDeliveries.length }) }}
+      </UBadge>
+    </div>
+    <div v-if="aggregatedDeliveries.length === 0 && !loadingEventDeliveries" class="p-10">
+      <SFEmptyState icon-label="RUN" :title="t('admin.extensions.eventLog.emptyDeliveriesTitle')" :description="t('admin.extensions.eventLog.emptyDeliveriesDescription')" />
+    </div>
+    <div v-else class="divide-y divide-slate-200 dark:divide-zinc-800">
+      <div
+        v-for="delivery in deliveryPageInfo.items"
+        :key="delivery.id"
+        class="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1fr)_220px]"
+      >
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <UIcon name="i-lucide-send" class="size-4 text-[var(--sf-accent)]" />
+            <h3 class="truncate text-sm font-semibold text-slate-900 dark:text-zinc-100">
+              {{ delivery.eventName }}
+            </h3>
+            <UBadge :color="eventKindColor(delivery.eventKind)" variant="subtle">
+              {{ t(`admin.extensions.eventLog.kind.${delivery.eventKind}`) }}
+            </UBadge>
+            <UBadge :color="deliveryStatusColor(delivery.status)" variant="subtle">
+              {{ t(`admin.extensions.eventLog.deliveryStatus.${delivery.status}`) }}
+            </UBadge>
+          </div>
+          <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
+            {{ extensionName(delivery.extensionId) }} · {{ delivery.correlationId }}
+          </p>
+          <p v-if="delivery.reason || delivery.message" class="mt-1 text-xs text-red-600 dark:text-red-400">
+            {{ delivery.reason || delivery.message }}
+          </p>
+        </div>
+        <div class="flex items-center text-xs text-slate-500 md:justify-end dark:text-zinc-400">
+          {{ new Date(delivery.createdAt).toLocaleString() }}
+        </div>
+      </div>
+      <div
+        v-if="deliveryPageInfo.totalPages > 1"
+        class="flex flex-col gap-3 px-4 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:text-zinc-400"
+      >
+        <span>
+          {{ t('admin.extensions.eventPageSummary', { start: deliveryPageInfo.start, end: deliveryPageInfo.end, count: deliveryPageInfo.total }) }}
+        </span>
+        <SFPagination v-model:page="deliveryPage" :total-pages="deliveryPageInfo.totalPages" />
+      </div>
+    </div>
+  </section>
+
+  <section class="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-zinc-800">
+      <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+        {{ t('admin.extensions.eventLog.auditTitle') }}
+      </h3>
+      <UBadge color="neutral" variant="outline">
+        {{ t('admin.extensions.eventLog.count', { count: aggregatedEvents.length }) }}
+      </UBadge>
+    </div>
     <div v-if="aggregatedEvents.length === 0 && !pending && !loadingAllEvents" class="p-10">
       <SFEmptyState icon-label="LOG" :title="t('admin.extensions.eventLog.emptyTitle')" :description="t('admin.extensions.eventLog.emptyDescription')" />
     </div>
@@ -124,5 +280,5 @@ function extensionName(id: string) {
         <SFPagination v-model:page="eventPage" :total-pages="eventPageInfo.totalPages" />
       </div>
     </div>
-  </div>
+  </section>
 </template>

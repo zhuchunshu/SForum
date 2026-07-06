@@ -41,6 +41,36 @@ ApiResponseExtensionEventList:
       type: array
       items:
         "$ref": "#/ExtensionEvent"
+ApiResponseExtensionEventDefinitionList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/ExtensionEventDefinition"
+ApiResponseExtensionEventDeliveryList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/ExtensionEventDelivery"
 ExtensionType:
   type: string
   enum:
@@ -59,7 +89,7 @@ ExtensionSource:
   - uploaded
 ExtensionManifest:
   type: object
-  description: SForum extension manifest. Plugin manifests may declare runtime, route, provider, settings, and admin capabilities. Theme manifests are Nuxt Layer packages; in v1 they must declare a non-empty frontend.layer and must not declare backend, routes, hooks, jobs, providers, migrations, adminPages, settings, or permissions.
+  description: SForum extension manifest. Plugin manifests may declare runtime, route, provider, settings, event, and admin capabilities. Theme manifests are Nuxt Layer packages; in v1 they must declare a non-empty frontend.layer and must not declare backend, routes, hooks, events, jobs, providers, migrations, adminPages, settings, or permissions.
   required:
   - id
   - name
@@ -125,6 +155,11 @@ ExtensionManifest:
       description: Plugin-only lifecycle or domain hook declarations. Theme manifests must omit hooks in v1.
       items:
         "$ref": "#/ExtensionManifestHook"
+    events:
+      type: array
+      description: Plugin-only event listener declarations. Theme manifests must omit events in v1. Legacy hooks are treated as observe/filter listeners according to the host event catalog.
+      items:
+        "$ref": "#/ExtensionManifestEvent"
     jobs:
       type: array
       description: Plugin-only background job declarations. Theme manifests must omit jobs in v1.
@@ -173,6 +208,22 @@ ExtensionManifestHook:
   properties:
     name:
       type: string
+ExtensionManifestEvent:
+  type: object
+  required:
+  - name
+  properties:
+    name:
+      type: string
+    kind:
+      type: string
+      enum:
+      - observe
+      - validate
+      - filter
+    timeoutMs:
+      type: integer
+      minimum: 0
 ExtensionManifestProvider:
   type: object
   required:
@@ -192,6 +243,7 @@ ExtensionRuntimeStatus:
   - state
   - routeCount
   - hookCount
+  - eventCount
   - providerCount
   properties:
     state:
@@ -209,6 +261,8 @@ ExtensionRuntimeStatus:
     routeCount:
       type: integer
     hookCount:
+      type: integer
+    eventCount:
       type: integer
     providerCount:
       type: integer
@@ -288,5 +342,86 @@ ExtensionEvent:
     message:
       type: string
     createdAt:
+      type: string
+      format: date-time
+ExtensionEventDefinition:
+  type: object
+  required:
+  - name
+  - kind
+  - description
+  - timeoutMs
+  properties:
+    name:
+      type: string
+    kind:
+      type: string
+      enum:
+      - observe
+      - validate
+      - filter
+    description:
+      type: string
+    payloadFields:
+      type: array
+      items:
+        type: string
+    patchFields:
+      type: array
+      items:
+        type: string
+    timeoutMs:
+      type: integer
+ExtensionEventDelivery:
+  type: object
+  required:
+  - id
+  - extensionId
+  - eventName
+  - eventKind
+  - status
+  - reason
+  - message
+  - correlationId
+  - attemptCount
+  - createdAt
+  - updatedAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    extensionId:
+      type: string
+    eventName:
+      type: string
+    eventKind:
+      type: string
+      enum:
+      - observe
+      - validate
+      - filter
+    status:
+      type: string
+      enum:
+      - queued
+      - running
+      - succeeded
+      - failed
+      - skipped
+    reason:
+      type: string
+    message:
+      type: string
+    correlationId:
+      type: string
+    attemptCount:
+      type: integer
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+    completedAt:
       type: string
       format: date-time

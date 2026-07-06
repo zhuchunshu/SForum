@@ -22,7 +22,7 @@ and plugin runtime v1.
 - Installed packages are stored under `EXTENSION_ROOT`, not in the public
   attachment system.
 - Database tables: `extensions`, `extension_versions`, `extension_settings`,
-  and `extension_events`.
+  `extension_events`, and `extension_event_deliveries`.
 - Extension rows include source metadata: `source` (`builtin` or `uploaded`),
   `is_system`, and `is_deletable`.
 - Startup sync reads `BUILTIN_EXTENSION_ROOT`, registers the protected built-in
@@ -49,6 +49,8 @@ and plugin runtime v1.
     Nuxt Layer verification without applying it
   - `POST /api/v1/admin/extensions/:id/activate` for themes
   - `GET /api/v1/admin/extensions/:id/events`
+  - `GET /api/v1/admin/extensions/event-definitions`
+  - `GET /api/v1/admin/extensions/event-deliveries`
   - `ALL /api/v1/extensions/:extensionId/*` proxies declared enabled plugin
     routes after host-side route matching and access checks.
 - The admin UI has an independent "Extensions" sidebar folder registered
@@ -69,6 +71,17 @@ and plugin runtime v1.
   enabled plugin backends on API startup, proxies declared plugin routes under
   `/api/v1/extensions/:extensionId/*`, emits lifecycle hooks, and exposes a
   provider slot registry with built-in defaults.
+- Plugin event and extension-point v1 keeps extension points explicit. Plugins
+  may declare first-class `events`; legacy `hooks` remain a compatibility alias.
+  Core route overriding and arbitrary monkey-patching are not allowed.
+  Replacement behavior must go through core-owned filter events or Provider
+  Slots. `topic.before_create` is the first synchronous filter event; lifecycle,
+  user registration, topic/comment creation, and attachment upload are observe
+  events with delivery tracking.
+- Event delivery attempts are recorded separately from lifecycle audit logs in
+  `extension_event_deliveries`. The runtime has River job args and worker
+  plumbing for durable async delivery, and falls back to inline delivery when no
+  dispatcher is configured.
 - Theme packages can declare a Nuxt Layer path, but v1 statically applies only
   `extensions/builtin/themes/sforum-default/layer` from the web Nuxt config.
   Uploaded theme activation must wait for a Nuxt rebuild, health-check, and
@@ -93,11 +106,11 @@ The manifest file is `sforum.extension.json`.
 
 Important fields: `id`, `name`, `version`, `type`, `sforumVersion`,
 `permissions`, `settings`, `migrations`, `backend`, `frontend`, `adminPages`,
-`routes`, `hooks`, `jobs`, and `providers`.
+`routes`, `hooks`, `events`, `jobs`, and `providers`.
 
 For `type: theme`, v1 accepts only Nuxt Layer packages. The manifest must
 declare a safe, non-empty `frontend.layer` path and must not declare plugin or
-admin capabilities: `backend`, `routes`, `hooks`, `jobs`, `providers`,
+admin capabilities: `backend`, `routes`, `hooks`, `events`, `jobs`, `providers`,
 `migrations`, `adminPages`, `settings`, or `permissions`. Invalid theme
 manifests use the existing 422 envelope with reason `extension.manifest_invalid`.
 

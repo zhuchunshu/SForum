@@ -11,6 +11,7 @@ import (
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
@@ -56,6 +57,38 @@ func TestServiceUploadStoresObjectAndMetadata(t *testing.T) {
 	if item.URL != "https://cdn.example.com/"+created.ObjectKey {
 		t.Fatalf("expected decorated public URL, got %q", item.URL)
 	}
+}
+
+func TestServiceUploadEmitsAttachmentUploadedEvent(t *testing.T) {
+	store := &fakeAttachmentStore{}
+	adapter := &fakeStorageAdapter{}
+	publisher := &fakeAttachmentEventPublisher{}
+	service := NewServiceWithAdapterFactory(store, newAttachmentOptions(nil), func(storage.Config) (storage.Adapter, error) {
+		return adapter, nil
+	})
+	service.events = publisher
+
+	_, err := service.Upload(context.Background(), uploadActor(), UploadInput{
+		OriginalName: "note.txt",
+		ContentType:  "text/plain",
+		SizeBytes:    int64(len("hello")),
+		File:         newReadSeekCloser("hello"),
+	})
+	if err != nil {
+		t.Fatalf("upload returned error: %v", err)
+	}
+	if len(publisher.names) != 1 || publisher.names[0] != appevents.AttachmentUploaded {
+		t.Fatalf("expected attachment uploaded event, got %#v", publisher.names)
+	}
+}
+
+type fakeAttachmentEventPublisher struct {
+	names []string
+}
+
+func (p *fakeAttachmentEventPublisher) Emit(_ context.Context, envelope appevents.Envelope) appevents.Result {
+	p.names = append(p.names, envelope.Name)
+	return appevents.Result{OK: true}
 }
 
 func TestServiceUploadDeletesRemoteObjectWhenMetadataCreateFails(t *testing.T) {

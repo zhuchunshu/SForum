@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
 
 const maxArchiveBytes = 50 * 1024 * 1024
@@ -109,7 +110,8 @@ func (LocalRuntimeManager) Status(_ context.Context, extension Extension) Runtim
 	return RuntimeStatus{
 		State:         RuntimeStopped,
 		RouteCount:    len(extension.Manifest.Routes),
-		HookCount:     len(extension.Manifest.Hooks),
+		HookCount:     len(manifestEvents(extension.Manifest)),
+		EventCount:    len(manifestEvents(extension.Manifest)),
 		ProviderCount: len(extension.Manifest.Providers),
 	}
 }
@@ -132,7 +134,8 @@ func (preflightRuntimeManager) Status(_ context.Context, extension Extension) Ru
 	return RuntimeStatus{
 		State:         RuntimeStopped,
 		RouteCount:    len(extension.Manifest.Routes),
-		HookCount:     len(extension.Manifest.Hooks),
+		HookCount:     len(manifestEvents(extension.Manifest)),
+		EventCount:    len(manifestEvents(extension.Manifest)),
 		ProviderCount: len(extension.Manifest.Providers),
 	}
 }
@@ -251,6 +254,21 @@ func (s *Service) Events(ctx context.Context, actor identity.Actor, extensionID 
 	return s.store.ListEvents(ctx, normalizeID(extensionID), limit)
 }
 
+func (s *Service) EventDefinitions(ctx context.Context, actor identity.Actor) ([]appevents.Definition, error) {
+	if !actor.Can(identity.PermissionExtensionManage) {
+		return nil, identity.ErrPermissionDenied
+	}
+	return appevents.Definitions(), nil
+}
+
+func (s *Service) EventDeliveries(ctx context.Context, actor identity.Actor, input EventDeliveryListInput) ([]ExtensionEventDelivery, error) {
+	if !actor.Can(identity.PermissionExtensionManage) {
+		return nil, identity.ErrPermissionDenied
+	}
+	input.ExtensionID = normalizeID(input.ExtensionID)
+	return s.store.ListEventDeliveries(ctx, input)
+}
+
 func (s *Service) MatchRoute(ctx context.Context, extensionID string, method string, routePath string) (MatchedRoute, error) {
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
@@ -362,7 +380,7 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (
 		Message:     "Extension enabled.",
 	})
 	if enabled.Type == TypePlugin && s.runtime != nil {
-		s.runtime.EmitHook(ctx, "extension.enabled", map[string]any{"extensionId": enabled.ID})
+		s.runtime.EmitHook(ctx, appevents.ExtensionEnabled, map[string]any{"extensionId": enabled.ID})
 	}
 	return s.decorateRuntime(ctx, enabled), nil
 }
@@ -392,7 +410,7 @@ func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) 
 		Message:     "Extension disabled.",
 	})
 	if disabled.Type == TypePlugin && s.runtime != nil {
-		s.runtime.EmitHook(ctx, "extension.disabled", map[string]any{"extensionId": disabled.ID})
+		s.runtime.EmitHook(ctx, appevents.ExtensionDisabled, map[string]any{"extensionId": disabled.ID})
 	}
 	return s.decorateRuntime(ctx, disabled), nil
 }
@@ -717,6 +735,28 @@ func validateManifest(manifest Manifest) error {
 			return ErrInvalidManifest
 		}
 	}
+	seenEvents := map[string]bool{}
+	for _, event := range manifestEvents(manifest) {
+		definition, ok := appevents.FindDefinition(event.Name)
+		if !ok {
+			return ErrInvalidManifest
+		}
+		kind := event.Kind
+		if kind == "" {
+			kind = definition.Kind
+		}
+		if kind != definition.Kind {
+			return ErrInvalidManifest
+		}
+		if event.TimeoutMS < 0 {
+			return ErrInvalidManifest
+		}
+		key := event.Name + ":" + kind
+		if seenEvents[key] {
+			return ErrInvalidManifest
+		}
+		seenEvents[key] = true
+	}
 	for _, provider := range manifest.Providers {
 		if provider.Label == "" || !knownProviderSlot(provider.Slot) || provider.TimeoutMS < 0 {
 			return ErrInvalidManifest
@@ -736,6 +776,7 @@ func isThemeManifestSupported(manifest Manifest) bool {
 		len(manifest.AdminPages) == 0 &&
 		len(manifest.Routes) == 0 &&
 		len(manifest.Hooks) == 0 &&
+		len(manifest.Events) == 0 &&
 		len(manifest.Jobs) == 0 &&
 		len(manifest.Providers) == 0
 }
@@ -762,6 +803,15 @@ func normalizeManifest(manifest Manifest) Manifest {
 	}
 	for index := range manifest.Hooks {
 		manifest.Hooks[index].Name = strings.TrimSpace(manifest.Hooks[index].Name)
+	}
+	for index := range manifest.Events {
+		manifest.Events[index].Name = strings.TrimSpace(manifest.Events[index].Name)
+		manifest.Events[index].Kind = strings.ToLower(strings.TrimSpace(manifest.Events[index].Kind))
+		if manifest.Events[index].Kind == "" {
+			if definition, ok := appevents.FindDefinition(manifest.Events[index].Name); ok {
+				manifest.Events[index].Kind = definition.Kind
+			}
+		}
 	}
 	for index := range manifest.Providers {
 		manifest.Providers[index].Slot = strings.TrimSpace(manifest.Providers[index].Slot)
@@ -804,12 +854,7 @@ func normalizeRoutePath(value string) string {
 }
 
 func knownHookPoint(name string) bool {
-	switch name {
-	case "extension.enabled", "extension.disabled", "user.registered", "topic.before_create", "topic.created", "attachment.uploaded":
-		return true
-	default:
-		return false
-	}
+	return appevents.Known(name)
 }
 
 func knownProviderSlot(slot string) bool {
@@ -828,6 +873,50 @@ func manifestHasPermission(manifest Manifest, permission string) bool {
 		}
 	}
 	return false
+}
+
+func manifestEvents(manifest Manifest) []ManifestEvent {
+	items := []ManifestEvent{}
+	seen := map[string]bool{}
+	for _, event := range manifest.Events {
+		name := strings.TrimSpace(event.Name)
+		if name == "" {
+			continue
+		}
+		kind := strings.ToLower(strings.TrimSpace(event.Kind))
+		if kind == "" {
+			if definition, ok := appevents.FindDefinition(name); ok {
+				kind = definition.Kind
+			}
+		}
+		key := name + ":" + kind
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		items = append(items, ManifestEvent{Name: name, Kind: kind, TimeoutMS: event.TimeoutMS})
+	}
+	for _, hook := range manifest.Hooks {
+		name := strings.TrimSpace(hook.Name)
+		if name == "" {
+			continue
+		}
+		definition, ok := appevents.FindDefinition(name)
+		if !ok {
+			continue
+		}
+		key := name + ":" + definition.Kind
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		items = append(items, ManifestEvent{Name: name, Kind: definition.Kind})
+	}
+	return items
+}
+
+func DeclaredManifestEvents(manifest Manifest) []ManifestEvent {
+	return manifestEvents(manifest)
 }
 
 func errorsIsNotExist(err error) bool {

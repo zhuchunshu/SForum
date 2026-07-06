@@ -3,9 +3,12 @@ package extensionsruntime
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
+	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
 
 func TestManagerTracksStartStopStatusAndRouteTargets(t *testing.T) {
@@ -46,6 +49,79 @@ func TestManagerRecordsStartFailure(t *testing.T) {
 	}
 }
 
+func TestManagerEmitsFilterEventsInStableOrderAndMergesPatches(t *testing.T) {
+	calls := []string{}
+	bus := NewHookBus(HookBusConfig{Invoker: HookInvokerFunc(func(_ context.Context, extension extensions.Extension, input HookInput) HookResult {
+		calls = append(calls, extension.ID+":"+input.Kind)
+		if extension.ID == "alpha.plugin" {
+			return HookResult{OK: true, Patch: map[string]any{"title": "patched"}}
+		}
+		return HookResult{OK: true, Patch: map[string]any{"categorySlug": "general"}}
+	})})
+	manager := NewManager(ManagerConfig{HookBus: bus})
+	beta := runtimeExtension("beta.plugin")
+	alpha := runtimeExtension("alpha.plugin")
+	for index := range beta.Manifest.Routes {
+		beta.Manifest.Routes[index].Access = extensions.RouteAccessLogin
+	}
+	alpha.Manifest.Events = []extensions.ManifestEvent{{Name: appevents.TopicBeforeCreate, Kind: appevents.KindFilter}}
+	beta.Manifest.Events = []extensions.ManifestEvent{{Name: appevents.TopicBeforeCreate, Kind: appevents.KindFilter}}
+	if err := manager.Start(context.Background(), beta); err != nil {
+		t.Fatalf("start beta: %v", err)
+	}
+	if err := manager.Start(context.Background(), alpha); err != nil {
+		t.Fatalf("start alpha: %v", err)
+	}
+
+	result := manager.Emit(context.Background(), appevents.Envelope{
+		Name:        appevents.TopicBeforeCreate,
+		Kind:        appevents.KindFilter,
+		PatchFields: []string{"title", "categorySlug"},
+		Payload:     map[string]any{"title": "original"},
+	})
+	if !result.OK {
+		t.Fatalf("expected filter event ok, got %#v", result)
+	}
+	if !slices.Equal(calls, []string{"alpha.plugin:filter", "beta.plugin:filter"}) {
+		t.Fatalf("unexpected call order: %#v", calls)
+	}
+	if result.Patch["title"] != "patched" || result.Patch["categorySlug"] != "general" {
+		t.Fatalf("unexpected merged patch: %#v", result.Patch)
+	}
+}
+
+func TestManagerRecordsObserveEventDeliveries(t *testing.T) {
+	store := &fakeDeliveryStore{}
+	bus := NewHookBus(HookBusConfig{Invoker: HookInvokerFunc(func(_ context.Context, _ extensions.Extension, input HookInput) HookResult {
+		if input.DeliveryID == 0 || input.CorrelationID == "" {
+			return HookResult{OK: false, Reason: "bad.delivery"}
+		}
+		return HookResult{OK: true}
+	})})
+	manager := NewManager(ManagerConfig{HookBus: bus, DeliveryStore: store})
+	extension := runtimeExtension("demo.plugin")
+	extension.Manifest.Events = []extensions.ManifestEvent{{Name: appevents.TopicCreated, Kind: appevents.KindObserve}}
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	result := manager.Emit(context.Background(), appevents.Envelope{
+		Name:          appevents.TopicCreated,
+		Kind:          appevents.KindObserve,
+		CorrelationID: "corr-1",
+		Payload:       map[string]any{"topicId": int64(42)},
+	})
+	if !result.OK {
+		t.Fatalf("expected observe event ok, got %#v", result)
+	}
+	if len(store.deliveries) != 1 {
+		t.Fatalf("expected one delivery, got %#v", store.deliveries)
+	}
+	if store.deliveries[0].Status != extensions.DeliverySucceeded || store.deliveries[0].AttemptCount != 1 {
+		t.Fatalf("expected succeeded delivery, got %#v", store.deliveries[0])
+	}
+}
+
 func runtimeExtension(id string) extensions.Extension {
 	return extensions.Extension{
 		ID:     id,
@@ -76,4 +152,41 @@ func (s fakeStarter) Start(context.Context, extensions.Extension) (RouteTarget, 
 
 func (s fakeStarter) Stop(context.Context, extensions.Extension) error {
 	return nil
+}
+
+type fakeDeliveryStore struct {
+	deliveries []extensions.ExtensionEventDelivery
+}
+
+func (s *fakeDeliveryStore) CreateEventDelivery(_ context.Context, input extensions.EventDeliveryInput) (extensions.ExtensionEventDelivery, error) {
+	delivery := extensions.ExtensionEventDelivery{
+		ID:            int64(len(s.deliveries) + 1),
+		ExtensionID:   input.ExtensionID,
+		EventName:     input.EventName,
+		EventKind:     input.EventKind,
+		Status:        input.Status,
+		CorrelationID: input.CorrelationID,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+	s.deliveries = append(s.deliveries, delivery)
+	return delivery, nil
+}
+
+func (s *fakeDeliveryStore) UpdateEventDelivery(_ context.Context, input extensions.EventDeliveryUpdateInput) error {
+	for index := range s.deliveries {
+		if s.deliveries[index].ID == input.ID {
+			s.deliveries[index].Status = input.Status
+			s.deliveries[index].Reason = input.Reason
+			s.deliveries[index].Message = input.Message
+			s.deliveries[index].AttemptCount = input.AttemptCount
+			s.deliveries[index].UpdatedAt = time.Now()
+			if input.Completed {
+				completed := time.Now()
+				s.deliveries[index].CompletedAt = &completed
+			}
+			return nil
+		}
+	}
+	return extensions.ErrExtensionNotFound
 }

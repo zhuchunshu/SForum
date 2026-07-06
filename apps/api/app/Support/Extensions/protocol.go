@@ -53,14 +53,20 @@ type PluginRouteTarget struct {
 }
 
 type PluginHookRequest struct {
-	Name    string
-	Payload map[string]any
+	Name          string
+	Kind          string
+	DeliveryID    int64
+	CorrelationID string
+	TimeoutMS     int
+	Payload       map[string]any
+	PatchFields   []string
 }
 
 type PluginHookResponse struct {
 	OK      bool
 	Reason  string
 	Message string
+	Patch   map[string]any
 }
 
 type PluginEmptyRequest struct{}
@@ -163,11 +169,19 @@ func (s *ProtocolStarter) InvokeHook(_ context.Context, extension extensions.Ext
 	if protocol == nil {
 		return HookResult{OK: false, Reason: "extension.runtime_unavailable", Message: "Plugin runtime is not available."}
 	}
-	response, err := protocol.InvokeHook(PluginHookRequest{Name: input.Name, Payload: input.Payload})
+	response, err := protocol.InvokeHook(PluginHookRequest{
+		Name:          input.Name,
+		Kind:          input.Kind,
+		DeliveryID:    input.DeliveryID,
+		CorrelationID: input.CorrelationID,
+		TimeoutMS:     int(input.Timeout / 1_000_000),
+		Payload:       input.Payload,
+		PatchFields:   input.PatchFields,
+	})
 	if err != nil {
 		return HookResult{OK: false, Reason: "extension.hook_failed", Message: err.Error()}
 	}
-	return HookResult{OK: response.OK, Reason: response.Reason, Message: response.Message}
+	return HookResult{OK: response.OK, Reason: response.Reason, Message: response.Message, Patch: response.Patch}
 }
 
 func ServeProtocolPlugin(impl PluginProtocol) {

@@ -2,19 +2,27 @@ package forum
 
 import (
 	"context"
+	"encoding/json"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
 
 type Service struct {
-	store Store
+	store  Store
+	events appevents.Publisher
 }
 
 func NewService(store Store) *Service {
-	return &Service{store: store}
+	return NewServiceWithEvents(store, nil)
+}
+
+func NewServiceWithEvents(store Store, publisher appevents.Publisher) *Service {
+	return &Service{store: store, events: appevents.EnsurePublisher(publisher)}
 }
 
 func (s *Service) ListCategories(ctx context.Context) ([]Category, error) {
@@ -37,6 +45,10 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	if !actor.Can(identity.PermissionTopicCreate) {
 		return TopicDetail{}, identity.ErrPermissionDenied
 	}
+	input, err := s.applyTopicBeforeCreate(ctx, actor, input)
+	if err != nil {
+		return TopicDetail{}, err
+	}
 	title := strings.TrimSpace(input.Title)
 	if title == "" {
 		return TopicDetail{}, ErrInvalidTopic
@@ -49,13 +61,32 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	if err != nil {
 		return TopicDetail{}, err
 	}
-	return s.store.CreateTopic(ctx, CreateTopicRecord{
+	created, err := s.store.CreateTopic(ctx, CreateTopicRecord{
 		CategorySlug: categorySlug,
 		AuthorUserID: actor.ID,
 		Title:        title,
 		Slug:         slugify(title),
 		Content:      content,
 	})
+	if err != nil {
+		return TopicDetail{}, err
+	}
+	s.events.Emit(ctx, appevents.Envelope{
+		Name:          appevents.TopicCreated,
+		Kind:          appevents.KindObserve,
+		ActorUserID:   actor.ID,
+		ResourceType:  "topic",
+		ResourceID:    strconv.FormatInt(created.ID, 10),
+		CorrelationID: appevents.NewID(),
+		Payload: map[string]any{
+			"topicId":      created.ID,
+			"authorUserId": actor.ID,
+			"categorySlug": created.CategorySlug,
+			"title":        created.Title,
+		},
+		OccurredAt: time.Now().UTC(),
+	})
+	return created, nil
 }
 
 func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input CreateCommentInput) (Comment, error) {
@@ -89,13 +120,87 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 	if err != nil {
 		return Comment{}, err
 	}
-	return s.store.CreateComment(ctx, CreateCommentRecord{
+	created, err := s.store.CreateComment(ctx, CreateCommentRecord{
 		TopicID:      input.TopicID,
 		AuthorUserID: actor.ID,
 		ParentID:     input.ParentID,
 		Parent:       parent,
 		Content:      content,
 	})
+	if err != nil {
+		return Comment{}, err
+	}
+	payload := map[string]any{
+		"commentId":    created.ID,
+		"topicId":      created.TopicID,
+		"authorUserId": actor.ID,
+	}
+	if created.ParentID != nil {
+		payload["parentId"] = *created.ParentID
+	}
+	s.events.Emit(ctx, appevents.Envelope{
+		Name:          appevents.CommentCreated,
+		Kind:          appevents.KindObserve,
+		ActorUserID:   actor.ID,
+		ResourceType:  "comment",
+		ResourceID:    strconv.FormatInt(created.ID, 10),
+		CorrelationID: appevents.NewID(),
+		Payload:       payload,
+		OccurredAt:    time.Now().UTC(),
+	})
+	return created, nil
+}
+
+func (s *Service) applyTopicBeforeCreate(ctx context.Context, actor identity.Actor, input CreateTopicInput) (CreateTopicInput, error) {
+	envelope := appevents.NewEnvelope(appevents.TopicBeforeCreate, map[string]any{
+		"actorUserId":  actor.ID,
+		"categorySlug": input.CategorySlug,
+		"title":        input.Title,
+		"content":      input.Content,
+	})
+	envelope.ActorUserID = actor.ID
+	envelope.ResourceType = "topic"
+	result := s.events.Emit(ctx, envelope)
+	if !result.OK {
+		return CreateTopicInput{}, appevents.Reject(result)
+	}
+	if len(result.Patch) == 0 {
+		return input, nil
+	}
+	if value, ok := result.Patch["categorySlug"].(string); ok {
+		input.CategorySlug = value
+	}
+	if value, ok := result.Patch["title"].(string); ok {
+		input.Title = value
+	}
+	if value, ok := contentInputFromPatch(result.Patch["content"]); ok {
+		input.Content = value
+	}
+	return input, nil
+}
+
+func contentInputFromPatch(value any) (ContentInput, bool) {
+	switch typed := value.(type) {
+	case ContentInput:
+		return typed, true
+	case *ContentInput:
+		if typed == nil {
+			return ContentInput{}, false
+		}
+		return *typed, true
+	case map[string]any:
+		body, err := json.Marshal(typed)
+		if err != nil {
+			return ContentInput{}, false
+		}
+		var content ContentInput
+		if err := json.Unmarshal(body, &content); err != nil {
+			return ContentInput{}, false
+		}
+		return content, true
+	default:
+		return ContentInput{}, false
+	}
 }
 
 func (s *Service) ListComments(ctx context.Context, input CommentListInput) (CommentList, error) {

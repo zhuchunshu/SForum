@@ -21,6 +21,7 @@ import (
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
@@ -29,19 +30,25 @@ const defaultSignedURLTTL = 5 * time.Minute
 type Service struct {
 	store          Store
 	options        *options.Service
+	events         appevents.Publisher
 	adapterFactory func(storage.Config) (storage.Adapter, error)
 }
 
 func NewService(store Store, optionsService *options.Service) *Service {
+	return NewServiceWithEvents(store, optionsService, nil)
+}
+
+func NewServiceWithEvents(store Store, optionsService *options.Service, publisher appevents.Publisher) *Service {
 	return &Service{
 		store:          store,
 		options:        optionsService,
+		events:         appevents.EnsurePublisher(publisher),
 		adapterFactory: storage.NewAdapter,
 	}
 }
 
 func NewServiceWithAdapterFactory(store Store, optionsService *options.Service, factory func(storage.Config) (storage.Adapter, error)) *Service {
-	service := NewService(store, optionsService)
+	service := NewServiceWithEvents(store, optionsService, nil)
 	if factory != nil {
 		service.adapterFactory = factory
 	}
@@ -115,6 +122,23 @@ func (s *Service) Upload(ctx context.Context, actor identity.Actor, input Upload
 		_ = adapter.Delete(ctx, objectKey)
 		return Attachment{}, err
 	}
+	s.events.Emit(ctx, appevents.Envelope{
+		Name:          appevents.AttachmentUploaded,
+		Kind:          appevents.KindObserve,
+		ActorUserID:   actor.ID,
+		ResourceType:  "attachment",
+		ResourceID:    strconv.FormatInt(created.ID, 10),
+		CorrelationID: appevents.NewID(),
+		Payload: map[string]any{
+			"attachmentId": created.ID,
+			"publicId":     created.PublicID,
+			"ownerUserId":  actor.ID,
+			"provider":     created.Provider,
+			"contentType":  created.ContentType,
+			"sizeBytes":    created.SizeBytes,
+		},
+		OccurredAt: time.Now().UTC(),
+	})
 	return s.decorateURL(ctx, created), nil
 }
 

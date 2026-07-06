@@ -3,6 +3,8 @@ export type AdminExtensionStatus = 'installed' | 'enabled' | 'disabled'
 export type AdminExtensionSource = 'builtin' | 'uploaded'
 export type AdminThemeActionState = 'active' | 'activateDefault' | 'verifyOnly'
 export type AdminRuntimeState = 'stopped' | 'starting' | 'running' | 'failed'
+export type AdminExtensionEventKind = 'observe' | 'validate' | 'filter'
+export type AdminExtensionDeliveryStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'skipped'
 
 export type AdminExtensionSetting = {
   key: string
@@ -24,6 +26,7 @@ export type AdminExtensionManifest = {
   adminPages?: Array<{ path: string, label: string, permission?: string }>
   routes?: Array<{ path: string, methods?: string[], access?: 'public' | 'login' | 'permission', permission?: string, timeoutMs?: number }>
   hooks?: Array<{ name: string }>
+  events?: Array<{ name: string, kind?: AdminExtensionEventKind, timeoutMs?: number }>
   jobs?: Array<{ name: string }>
   providers?: Array<{ slot: string, label: string, timeoutMs?: number }>
 }
@@ -34,6 +37,7 @@ export type AdminExtensionRuntime = {
   startedAt?: string
   routeCount: number
   hookCount: number
+  eventCount?: number
   providerCount: number
 }
 
@@ -62,6 +66,30 @@ export type AdminExtensionEvent = {
   createdAt: string
 }
 
+export type AdminExtensionEventDefinition = {
+  name: string
+  kind: AdminExtensionEventKind
+  description: string
+  payloadFields?: string[]
+  patchFields?: string[]
+  timeoutMs: number
+}
+
+export type AdminExtensionEventDelivery = {
+  id: number
+  extensionId: string
+  eventName: string
+  eventKind: AdminExtensionEventKind
+  status: AdminExtensionDeliveryStatus
+  reason: string
+  message: string
+  correlationId: string
+  attemptCount: number
+  createdAt: string
+  updatedAt: string
+  completedAt?: string
+}
+
 export type AdminExtensionStats = {
   pluginCount: number
   themeCount: number
@@ -71,6 +99,7 @@ export type AdminExtensionStats = {
 
 export const EXTENSION_EVENT_PAGE_SIZE = 8
 export const EXTENSION_EVENT_FETCH_LIMIT = 100
+export const EXTENSION_DELIVERY_FETCH_LIMIT = 100
 
 export type AdminExtensionSettingDeclaration = {
   extensionId: string
@@ -121,6 +150,7 @@ export function capabilityCount(item: AdminExtension) {
     manifest.adminPages?.length || 0,
     manifest.routes?.length || 0,
     manifest.hooks?.length || 0,
+    manifest.events?.length || 0,
     manifest.jobs?.length || 0,
     manifest.providers?.length || 0
   ].reduce((total, count) => total + count, 0)
@@ -133,7 +163,8 @@ export function runtimeStatusLabelKey(item: AdminExtension) {
 export function runtimeCapabilitySummary(item: AdminExtension) {
   return {
     routes: item.runtime?.routeCount ?? item.manifest.routes?.length ?? 0,
-    hooks: item.runtime?.hookCount ?? item.manifest.hooks?.length ?? 0,
+    hooks: item.runtime?.hookCount ?? declaredEventCount(item),
+    events: item.runtime?.eventCount ?? declaredEventCount(item),
     providers: item.runtime?.providerCount ?? item.manifest.providers?.length ?? 0
   }
 }
@@ -152,7 +183,32 @@ export function mergeExtensionEvents(eventsByExtension: Record<string, AdminExte
     })
 }
 
+export function mergeExtensionDeliveries(items: AdminExtensionEventDelivery[]) {
+  return items.slice().sort((left, right) => {
+    const timeDiff = Date.parse(right.createdAt) - Date.parse(left.createdAt)
+    return timeDiff || right.id - left.id
+  })
+}
+
 export function extensionEventPage(items: AdminExtensionEvent[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
+  const safePageSize = Math.max(1, Math.floor(pageSize))
+  const totalPages = Math.max(1, Math.ceil(items.length / safePageSize))
+  const currentPage = Math.min(totalPages, Math.max(1, Math.floor(page) || 1))
+  const start = items.length === 0 ? 0 : (currentPage - 1) * safePageSize + 1
+  const end = items.length === 0 ? 0 : Math.min(items.length, currentPage * safePageSize)
+
+  return {
+    items: items.slice(start === 0 ? 0 : start - 1, end),
+    page: currentPage,
+    pageSize: safePageSize,
+    totalPages,
+    start,
+    end,
+    total: items.length
+  }
+}
+
+export function extensionDeliveryPage(items: AdminExtensionEventDelivery[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
   const safePageSize = Math.max(1, Math.floor(pageSize))
   const totalPages = Math.max(1, Math.ceil(items.length / safePageSize))
   const currentPage = Math.min(totalPages, Math.max(1, Math.floor(page) || 1))
@@ -177,4 +233,15 @@ export function extensionSettingDeclarations(items: AdminExtension[]) {
     extensionType: item.type,
     setting
   })))
+}
+
+export function declaredEventCount(item: AdminExtension) {
+  const names = new Set<string>()
+  for (const event of item.manifest.events || []) {
+    names.add(`${event.name}:${event.kind || ''}`)
+  }
+  for (const hook of item.manifest.hooks || []) {
+    names.add(`${hook.name}:hook`)
+  }
+  return names.size
 }

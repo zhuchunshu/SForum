@@ -181,6 +181,61 @@ adminExtensionEvents:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+adminExtensionEventDefinitions:
+  get:
+    summary: List host-defined extension event points
+    operationId: listAdminExtensionEventDefinitions
+    responses:
+      '200':
+        description: Known extension event definitions and their listener semantics.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionEventDefinitionList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+adminExtensionEventDeliveries:
+  get:
+    summary: List plugin event delivery attempts
+    operationId: listAdminExtensionEventDeliveries
+    parameters:
+    - name: extensionId
+      in: query
+      schema:
+        type: string
+    - name: eventName
+      in: query
+      schema:
+        type: string
+    - name: status
+      in: query
+      schema:
+        type: string
+        enum:
+        - queued
+        - running
+        - succeeded
+        - failed
+        - skipped
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    responses:
+      '200':
+        description: Recent plugin event listener delivery attempts.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionEventDeliveryList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
 extensionPluginRoute:
   parameters:
   - "$ref": "../components/parameters.yaml#/ExtensionID"

@@ -19,6 +19,7 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -181,6 +182,47 @@ func TestControllerVerifiesAndActivatesThemesForManager(t *testing.T) {
 	}
 }
 
+func TestControllerListsExtensionEventDefinitionsAndDeliveries(t *testing.T) {
+	app, manager, store := newExtensionTestApp(t)
+	cookie := loginExtensionUser(t, app, manager, 1)
+	store.deliveries = []extensions.ExtensionEventDelivery{{
+		ID:            7,
+		ExtensionID:   "demo.plugin",
+		EventName:     appevents.TopicCreated,
+		EventKind:     appevents.KindObserve,
+		Status:        extensions.DeliverySucceeded,
+		CorrelationID: "corr-1",
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}}
+
+	resp := performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/event-definitions", cookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 event definitions, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var definitions testEnvelope[[]appevents.Definition]
+	if err := json.NewDecoder(resp.Body).Decode(&definitions); err != nil {
+		t.Fatalf("decode event definitions: %v", err)
+	}
+	if !eventDefinitionListContains(definitions.Data, appevents.TopicBeforeCreate) {
+		t.Fatalf("expected topic.before_create definition, got %#v", definitions.Data)
+	}
+
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/event-deliveries?extensionId=demo.plugin", cookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 event deliveries, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var deliveries testEnvelope[[]extensions.ExtensionEventDelivery]
+	if err := json.NewDecoder(resp.Body).Decode(&deliveries); err != nil {
+		t.Fatalf("decode event deliveries: %v", err)
+	}
+	if len(deliveries.Data) != 1 || deliveries.Data[0].EventName != appevents.TopicCreated {
+		t.Fatalf("unexpected deliveries: %#v", deliveries.Data)
+	}
+}
+
 func newExtensionTestApp(t *testing.T) (*fiber.App, *authsession.Manager, *controllerFakeStore) {
 	t.Helper()
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
@@ -322,6 +364,15 @@ func extensionListContains(items []extensions.Extension, id string) bool {
 	return false
 }
 
+func eventDefinitionListContains(items []appevents.Definition, name string) bool {
+	for _, item := range items {
+		if item.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 type controllerActors struct {
 	actors map[int64]identity.Actor
 }
@@ -355,6 +406,7 @@ type controllerFakeStore struct {
 	disabledID string
 	verifiedID string
 	events     []extensions.ExtensionEvent
+	deliveries []extensions.ExtensionEventDelivery
 }
 
 func (s *controllerFakeStore) List(context.Context) ([]extensions.Extension, error) {
@@ -466,4 +518,56 @@ func (s *controllerFakeStore) CreateEvent(_ context.Context, input extensions.Ev
 
 func (s *controllerFakeStore) ListEvents(context.Context, string, int) ([]extensions.ExtensionEvent, error) {
 	return s.events, nil
+}
+
+func (s *controllerFakeStore) CreateEventDelivery(_ context.Context, input extensions.EventDeliveryInput) (extensions.ExtensionEventDelivery, error) {
+	delivery := extensions.ExtensionEventDelivery{
+		ID:            int64(len(s.deliveries) + 1),
+		ExtensionID:   input.ExtensionID,
+		EventName:     input.EventName,
+		EventKind:     input.EventKind,
+		Status:        input.Status,
+		Reason:        input.Reason,
+		Message:       input.Message,
+		CorrelationID: input.CorrelationID,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+	s.deliveries = append(s.deliveries, delivery)
+	return delivery, nil
+}
+
+func (s *controllerFakeStore) UpdateEventDelivery(_ context.Context, input extensions.EventDeliveryUpdateInput) error {
+	for index := range s.deliveries {
+		if s.deliveries[index].ID == input.ID {
+			s.deliveries[index].Status = input.Status
+			s.deliveries[index].Reason = input.Reason
+			s.deliveries[index].Message = input.Message
+			s.deliveries[index].AttemptCount = input.AttemptCount
+			s.deliveries[index].UpdatedAt = time.Now()
+			if input.Completed {
+				completedAt := time.Now()
+				s.deliveries[index].CompletedAt = &completedAt
+			}
+			return nil
+		}
+	}
+	return extensions.ErrExtensionNotFound
+}
+
+func (s *controllerFakeStore) ListEventDeliveries(_ context.Context, input extensions.EventDeliveryListInput) ([]extensions.ExtensionEventDelivery, error) {
+	items := []extensions.ExtensionEventDelivery{}
+	for _, delivery := range s.deliveries {
+		if input.ExtensionID != "" && delivery.ExtensionID != input.ExtensionID {
+			continue
+		}
+		if input.EventName != "" && delivery.EventName != input.EventName {
+			continue
+		}
+		if input.Status != "" && delivery.Status != input.Status {
+			continue
+		}
+		items = append(items, delivery)
+	}
+	return items, nil
 }

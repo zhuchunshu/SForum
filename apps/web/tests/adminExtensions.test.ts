@@ -5,16 +5,19 @@ import {
   activeTheme,
   canRestartPlugin,
   capabilityCount,
+  extensionDeliveryPage,
   extensionEventPage,
   extensionStats,
   filterExtensionsByType,
+  mergeExtensionDeliveries,
   mergeExtensionEvents,
   runtimeCapabilitySummary,
   runtimeStatusLabelKey,
   themeActionState,
   themeStatusLabelKey,
   type AdminExtension,
-  type AdminExtensionEvent
+  type AdminExtensionEvent,
+  type AdminExtensionEventDelivery
 } from '../app/utils/adminExtensions'
 
 const baseExtension = {
@@ -87,11 +90,12 @@ describe('admin extension helpers', () => {
         adminPages: [{ path: '/demo', label: 'Demo' }],
         routes: [{ path: '/demo' }, { path: '/demo/:id' }],
         hooks: [{ name: 'topic.created' }],
+        events: [{ name: 'topic.before_create', kind: 'filter' }],
         jobs: [{ name: 'demo.sync' }]
       }
     })
 
-    expect(capabilityCount(item)).toBe(8)
+    expect(capabilityCount(item)).toBe(9)
   })
 
   test('summarizes runtime declarations and running state', () => {
@@ -103,18 +107,20 @@ describe('admin extension helpers', () => {
       manifest: {
         routes: [{ path: '/hello', methods: ['GET'], access: 'public' }],
         hooks: [{ name: 'extension.enabled' }],
+        events: [{ name: 'topic.created', kind: 'observe' }],
         providers: [{ slot: 'search.provider', label: 'Demo Search' }]
       },
       runtime: {
         state: 'running',
         routeCount: 1,
         hookCount: 1,
+        eventCount: 2,
         providerCount: 1
       }
     })
 
     expect(runtimeStatusLabelKey(item)).toBe('admin.extensions.runtime.running')
-    expect(runtimeCapabilitySummary(item)).toEqual({ routes: 1, hooks: 1, providers: 1 })
+    expect(runtimeCapabilitySummary(item)).toEqual({ routes: 1, hooks: 1, events: 2, providers: 1 })
     expect(canRestartPlugin(item)).toBe(true)
   })
 
@@ -159,6 +165,21 @@ describe('admin extension helpers', () => {
     expect(emptyPage.start).toBe(0)
     expect(emptyPage.end).toBe(0)
   })
+
+  test('merges and paginates extension event deliveries', () => {
+    const items = [
+      delivery({ id: 1, extensionId: 'demo.plugin', eventName: 'topic.created', createdAt: '2026-07-05T10:00:00Z' }),
+      delivery({ id: 2, extensionId: 'demo.plugin', eventName: 'topic.created', createdAt: '2026-07-05T12:00:00Z' }),
+      delivery({ id: 3, extensionId: 'demo.plugin', eventName: 'user.registered', createdAt: '2026-07-05T11:00:00Z' })
+    ]
+
+    const merged = mergeExtensionDeliveries(items)
+    const page = extensionDeliveryPage(merged, 1, 2)
+
+    expect(merged.map(item => item.id)).toEqual([2, 3, 1])
+    expect(page.items.map(item => item.id)).toEqual([2, 3])
+    expect(page.totalPages).toBe(2)
+  })
 })
 
 function extension(input: {
@@ -198,6 +219,24 @@ function event(input: {
   return {
     actorUserId: 1,
     message: '',
+    ...input
+  }
+}
+
+function delivery(input: {
+  id: number
+  extensionId: string
+  eventName: string
+  createdAt: string
+}): AdminExtensionEventDelivery {
+  return {
+    eventKind: 'observe',
+    status: 'succeeded',
+    reason: '',
+    message: '',
+    correlationId: `corr-${input.id}`,
+    attemptCount: 1,
+    updatedAt: input.createdAt,
     ...input
   }
 }
