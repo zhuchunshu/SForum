@@ -474,6 +474,9 @@ func (s *Service) EnsureDefaultThemeActive(ctx context.Context) (Extension, erro
 
 func (s *Service) verifyExtension(ctx context.Context, extension Extension) error {
 	if err := validateInstalledPackage(extension); err != nil {
+		if extension.Type == TypeTheme {
+			return fmt.Errorf("%w: %v", ErrBuildFailed, err)
+		}
 		return fmt.Errorf("%w: %v", ErrPreflightFailed, err)
 	}
 	if extension.Type == TypePlugin && extension.Manifest.Backend.Entry != "" && s.runtime != nil {
@@ -481,9 +484,15 @@ func (s *Service) verifyExtension(ctx context.Context, extension Extension) erro
 			return fmt.Errorf("%w: %v", ErrPreflightFailed, err)
 		}
 	}
-	if extension.Type == TypeTheme && extension.Manifest.Frontend.Layer != "" && s.themeBuilder != nil {
-		if err := s.themeBuilder.Build(ctx, extension); err != nil {
-			return fmt.Errorf("%w: %v", ErrBuildFailed, err)
+	if extension.Type == TypeTheme {
+		if strings.TrimSpace(extension.Manifest.Frontend.Layer) == "" {
+			return fmt.Errorf("%w: theme frontend layer is empty", ErrBuildFailed)
+		}
+		if s.themeBuilder != nil {
+			err := s.themeBuilder.Build(ctx, extension)
+			if err != nil {
+				return fmt.Errorf("%w: %v", ErrBuildFailed, err)
+			}
 		}
 	}
 	return nil
@@ -648,6 +657,9 @@ func validateManifest(manifest Manifest) error {
 	if manifest.Type != TypePlugin && manifest.Type != TypeTheme {
 		return ErrInvalidManifest
 	}
+	if manifest.Type == TypeTheme && !isThemeManifestSupported(manifest) {
+		return ErrInvalidManifest
+	}
 	if manifest.Backend.Entry != "" {
 		if _, ok := safeArchivePath(manifest.Backend.Entry); !ok {
 			return ErrInvalidManifest
@@ -711,6 +723,21 @@ func validateManifest(manifest Manifest) error {
 		}
 	}
 	return nil
+}
+
+func isThemeManifestSupported(manifest Manifest) bool {
+	if strings.TrimSpace(manifest.Frontend.Layer) == "" {
+		return false
+	}
+	return manifest.Backend == (ManifestBackend{}) &&
+		len(manifest.Permissions) == 0 &&
+		len(manifest.Settings) == 0 &&
+		len(manifest.Migrations) == 0 &&
+		len(manifest.AdminPages) == 0 &&
+		len(manifest.Routes) == 0 &&
+		len(manifest.Hooks) == 0 &&
+		len(manifest.Jobs) == 0 &&
+		len(manifest.Providers) == 0
 }
 
 func normalizeManifest(manifest Manifest) Manifest {

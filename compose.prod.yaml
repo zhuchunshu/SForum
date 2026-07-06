@@ -1,7 +1,8 @@
 services:
   migrate:
     build:
-      context: ./apps/api
+      context: .
+      dockerfile: apps/api/Dockerfile
       target: migrate
     profiles:
       - tools

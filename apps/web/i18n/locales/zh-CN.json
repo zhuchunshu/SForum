@@ -677,6 +677,7 @@
       "saved": "个性化设置已保存。",
       "saveFailed": "个性化设置保存失败。",
       "save": "保存个性化设置",
+      "restoreRecommended": "恢复推荐默认值",
       "appearancePreset": "配色预设",
       "theme": {
         "title": "配色预设",
@@ -685,7 +686,7 @@
       "themes": {
         "pine_teal": {
           "label": "松石绿",
-          "description": "当前默认主题，清爽克制，适合技术社区。"
+          "description": "推荐默认配色，清爽克制，适合技术社区。"
         },
         "ocean_blue": {
           "label": "海洋蓝",
@@ -693,7 +694,7 @@
         },
         "violet": {
           "label": "紫罗兰",
-          "description": "偏创作与设计感的高辨识度主题。"
+          "description": "偏创作与设计感的高辨识度配色。"
         },
         "rose": {
           "label": "玫瑰红",
@@ -701,7 +702,7 @@
         },
         "amber": {
           "label": "琥珀橙",
-          "description": "温暖醒目的主题，适合公告和活动氛围。"
+          "description": "温暖醒目的配色，适合公告和活动氛围。"
         },
         "custom": {
           "label": "自定义配色",

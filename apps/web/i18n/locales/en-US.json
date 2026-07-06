@@ -677,6 +677,7 @@
       "saved": "Personalization settings saved.",
       "saveFailed": "Personalization settings could not be saved.",
       "save": "Save personalization",
+      "restoreRecommended": "Restore recommended defaults",
       "appearancePreset": "Appearance preset",
       "theme": {
         "title": "Appearance preset",
@@ -685,7 +686,7 @@
       "themes": {
         "pine_teal": {
           "label": "Pine teal",
-          "description": "The current default theme: calm, crisp, and suited to technical communities."
+          "description": "The recommended default preset: calm, crisp, and suited to technical communities."
         },
         "ocean_blue": {
           "label": "Ocean blue",
@@ -693,7 +694,7 @@
         },
         "violet": {
           "label": "Violet",
-          "description": "A recognizable theme for creative and design-oriented spaces."
+          "description": "A recognizable preset for creative and design-oriented spaces."
         },
         "rose": {
           "label": "Rose",
@@ -701,12 +702,12 @@
         },
         "amber": {
           "label": "Amber",
-          "description": "A warm, visible theme for announcements and event-heavy spaces."
+          "description": "A warm, visible preset for announcements and event-heavy spaces."
         },
         "custom": {
           "label": "Custom color",
           "description": "Use the color picker to set the site accent; admin and public UI update together.",
-          "colorLabel": "Choose a custom theme color"
+          "colorLabel": "Choose a custom preset color"
         }
       },
       "footer": {

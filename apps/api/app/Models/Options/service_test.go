@@ -2,6 +2,7 @@ package options
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -474,6 +475,24 @@ func TestServicePersonalizationDefaultsAndValidation(t *testing.T) {
 	}
 	if theme != "pine_teal" {
 		t.Fatalf("expected default pine teal theme, got %q", theme)
+	}
+	footerCopyright, err := service.WebOption(context.Background(), NameFooterCopyrightZHCN)
+	if err != nil {
+		t.Fatalf("default footer copyright returned error: %v", err)
+	}
+	if footerCopyright != "© {year} {siteName}。保留所有权利。" {
+		t.Fatalf("expected recommended footer copyright, got %q", footerCopyright)
+	}
+	footerLinks, err := service.WebOption(context.Background(), NameFooterLinks)
+	if err != nil {
+		t.Fatalf("default footer links returned error: %v", err)
+	}
+	var links []footerLinkOption
+	if err := json.Unmarshal([]byte(footerLinks), &links); err != nil {
+		t.Fatalf("default footer links are invalid JSON: %v", err)
+	}
+	if len(links) != 3 || links[0].Key != "terms" || links[0].Labels.ZHCN != "服务条款" {
+		t.Fatalf("expected recommended footer links, got %#v", links)
 	}
 
 	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAppearanceTheme, Value: "neon"}); !errors.Is(err, ErrInvalidOption) {

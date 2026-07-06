@@ -15,6 +15,12 @@ adminExtensions:
         "$ref": "../components/responses.yaml#/Forbidden"
   post:
     summary: Upload and install an extension ZIP archive
+    description: >-
+      Uploads a ZIP archive containing sforum.extension.json. Theme ZIPs are
+      installable Nuxt Layer packages: type theme requires a safe non-empty
+      frontend.layer and cannot declare plugin/runtime/admin capabilities in v1.
+      Uploaded themes may be installed and verified, but cannot be activated
+      until the theme rebuild and rollback runtime exists.
     operationId: installAdminExtension
     requestBody:
       required: true
@@ -30,7 +36,7 @@ adminExtensions:
                 format: binary
     responses:
       '201':
-        description: Extension archive installed but not automatically enabled.
+        description: Extension archive installed but not automatically enabled or activated.
         content:
           application/json:
             schema:
@@ -40,7 +46,13 @@ adminExtensions:
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
       '422':
-        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+        description: >-
+          Invalid archive or manifest. Invalid theme manifests keep the normal
+          error envelope and use reason extension.manifest_invalid.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
 adminExtensionEnable:
   post:
     summary: Enable an installed plugin
@@ -96,6 +108,11 @@ adminExtensionDisable:
 adminExtensionVerify:
   post:
     summary: Verify an installed plugin or theme package without applying it
+    description: >-
+      Plugins run preflight checks. Themes run Nuxt Layer package verification
+      without applying the uploaded layer. Missing theme package files, missing
+      installed manifests, and missing layer paths return reason
+      extension.build_failed.
     operationId: verifyAdminExtension
     parameters:
     - "$ref": "../components/parameters.yaml#/ExtensionID"

@@ -2,11 +2,15 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   buildCustomAppearanceThemeValue,
+  cloneFooterLinks,
   enabledOptionValue,
   applySEOTitleTemplate,
   isSEOIndexingAllowed,
   normalizeAppearanceThemeValue,
   normalizeEnabledOption,
+  recommendedAppearanceTheme,
+  recommendedFooterCopyright,
+  recommendedFooterLinks,
   resolveAltchaWidgetSettings,
   normalizeSEOVerificationToken,
   parseSEORobotsPathList,
@@ -30,6 +34,17 @@ describe('appearance theme helpers', () => {
     expect(resolved.cssVars['--sf-accent']).toBe('#4f46e5')
     expect(resolved.cssVars['--sf-accent-rgb']).toBe('79 70 229')
     expect(resolved.style).toContain('--sf-primary-500: #4f46e5')
+  })
+
+  test('exports recommended personalization defaults', () => {
+    const links = cloneFooterLinks(recommendedFooterLinks)
+
+    expect(recommendedAppearanceTheme).toBe('pine_teal')
+    expect(recommendedFooterCopyright['zh-CN']).toContain('{year}')
+    expect(recommendedFooterCopyright['en-US']).toContain('{siteName}')
+    expect(links.map(link => link.key)).toEqual(['terms', 'privacy', 'guidelines'])
+    links[0].labels['zh-CN'] = 'Changed'
+    expect(recommendedFooterLinks[0].labels['zh-CN']).toBe('服务条款')
   })
 })
 

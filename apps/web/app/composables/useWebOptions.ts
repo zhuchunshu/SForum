@@ -73,6 +73,7 @@ type RefreshOptions = {
 }
 
 export const appearanceThemes: AppearanceThemePreset[] = ['pine_teal', 'ocean_blue', 'violet', 'rose', 'amber']
+export const recommendedAppearanceTheme: AppearanceThemePreset = 'pine_teal'
 export const defaultCustomThemeColor = '#2563eb'
 export const humanVerificationScenarios: HumanVerificationScenario[] = ['register', 'password_reset', 'login_risk', 'post_risk']
 export const altchaWidgetTypes: AltchaWidgetType[] = ['native', 'checkbox', 'switch']
@@ -89,7 +90,12 @@ const humanVerificationScenarioDefaults: Record<HumanVerificationScenario, boole
   post_risk: false
 }
 
-const defaultFooterLinks: FooterLinkOption[] = [
+export const recommendedFooterCopyright: Record<FooterLocale, string> = {
+  'zh-CN': '© {year} {siteName}。保留所有权利。',
+  'en-US': '© {year} {siteName}. All rights reserved.'
+}
+
+export const recommendedFooterLinks: FooterLinkOption[] = [
   {
     key: 'terms',
     labels: { 'zh-CN': '服务条款', 'en-US': 'Terms of Service' },
@@ -124,10 +130,10 @@ const fallbackOptions: Record<string, string> = {
   'human_verification.altcha.widget.hide_footer': enabledOption,
   'human_verification.altcha.widget.workers': '2',
   'human_verification.altcha.widget.min_duration_ms': '500',
-  'appearance.theme': 'pine_teal',
-  'footer.copyright.zh-CN': '© {year} {siteName}。保留所有权利。',
-  'footer.copyright.en-US': '© {year} {siteName}. All rights reserved.',
-  'footer.links': JSON.stringify(defaultFooterLinks),
+  'appearance.theme': recommendedAppearanceTheme,
+  'footer.copyright.zh-CN': recommendedFooterCopyright['zh-CN'],
+  'footer.copyright.en-US': recommendedFooterCopyright['en-US'],
+  'footer.links': JSON.stringify(recommendedFooterLinks),
   'seo.meta_title_template': '',
   'seo.meta_description': '',
   'seo.meta_keywords': '',
@@ -215,7 +221,7 @@ export const useWebOptions = () => {
   const siteUrl = computed(() => webOption('site.url', 'http://127.0.0.1:3000'))
   const defaultLocale = computed(() => webOption('site.default_locale', 'zh-CN'))
   const supportedLocales = computed(() => parseSupportedLocales(webOption('site.supported_locales', 'zh-CN,en-US')))
-  const appearanceTheme = computed(() => parseAppearanceTheme(webOption('appearance.theme', 'pine_teal')))
+  const appearanceTheme = computed(() => parseAppearanceTheme(webOption('appearance.theme', recommendedAppearanceTheme)))
   const resolvedAppearanceTheme = computed(() => resolveAppearanceTheme(appearanceTheme.value))
   const footerCopyright = computed<Record<FooterLocale, string>>(() => ({
     'zh-CN': webOption('footer.copyright.zh-CN', fallbackOptions['footer.copyright.zh-CN']),
@@ -293,20 +299,32 @@ function parseFooterLinks(value: string): FooterLinkOption[] {
   try {
     const parsed = JSON.parse(value)
     if (!Array.isArray(parsed)) {
-      return defaultFooterLinks
+      return cloneFooterLinks(recommendedFooterLinks)
     }
 
     const normalized = parsed
       .map(normalizeFooterLink)
       .filter((item): item is FooterLinkOption => item !== null)
-    if (normalized.length !== defaultFooterLinks.length) {
-      return defaultFooterLinks
+    if (normalized.length !== recommendedFooterLinks.length) {
+      return cloneFooterLinks(recommendedFooterLinks)
     }
 
     const byKey = new Map(normalized.map((item) => [item.key, item]))
-    return defaultFooterLinks.map((item) => byKey.get(item.key) || item)
+    return recommendedFooterLinks.map((item) => byKey.get(item.key) || cloneFooterLink(item))
   } catch {
-    return defaultFooterLinks
+    return cloneFooterLinks(recommendedFooterLinks)
+  }
+}
+
+export function cloneFooterLinks(links: FooterLinkOption[]) {
+  return links.map(cloneFooterLink)
+}
+
+export function cloneFooterLink(link: FooterLinkOption): FooterLinkOption {
+  return {
+    key: link.key,
+    labels: { ...link.labels },
+    url: link.url
   }
 }
 
@@ -445,11 +463,11 @@ export function normalizeAppearanceThemeValue(value: string | undefined): Appear
 
   if (raw.startsWith(customThemePrefix)) {
     const color = normalizeHexColor(raw.slice(customThemePrefix.length))
-    return color ? (`${customThemePrefix}${color}` as AppearanceTheme) : 'pine_teal'
+    return color ? (`${customThemePrefix}${color}` as AppearanceTheme) : recommendedAppearanceTheme
   }
 
   const color = normalizeHexColor(raw)
-  return color ? (`${customThemePrefix}${color}` as AppearanceTheme) : 'pine_teal'
+  return color ? (`${customThemePrefix}${color}` as AppearanceTheme) : recommendedAppearanceTheme
 }
 
 export function isAppearanceThemePreset(value: string): value is AppearanceThemePreset {

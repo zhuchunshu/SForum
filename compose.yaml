@@ -36,7 +36,8 @@ services:
 
   api:
     build:
-      context: ./apps/api
+      context: .
+      dockerfile: apps/api/Dockerfile
       target: api
     environment:
       APP_NAME: ${APP_NAME:-SForum}
@@ -52,8 +53,11 @@ services:
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
       MEILI_HOST: ${MEILI_HOST:-http://meilisearch:7700}
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-sforum-dev-meili-key}
+      EXTENSION_ROOT: ${EXTENSION_ROOT:-/var/lib/sforum/extensions}
+      BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
     volumes:
       - attachment_uploads:/app/storage/app/attachments
+      - extension_packages:/var/lib/sforum/extensions
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,7 +68,8 @@ services:
 
   worker:
     build:
-      context: ./apps/api
+      context: .
+      dockerfile: apps/api/Dockerfile
       target: worker
     environment:
       APP_NAME: ${APP_NAME:-SForum}
@@ -77,8 +82,11 @@ services:
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
       MEILI_HOST: ${MEILI_HOST:-http://meilisearch:7700}
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-sforum-dev-meili-key}
+      EXTENSION_ROOT: ${EXTENSION_ROOT:-/var/lib/sforum/extensions}
+      BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
     volumes:
       - attachment_uploads:/app/storage/app/attachments
+      - extension_packages:/var/lib/sforum/extensions
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,7 +97,8 @@ services:
 
   web:
     build:
-      context: ./apps/web
+      context: .
+      dockerfile: apps/web/Dockerfile
       target: prod
     environment:
       APP_NAME: ${APP_NAME:-SForum}
@@ -106,3 +115,4 @@ volumes:
   redis_data:
   meili_data:
   attachment_uploads:
+  extension_packages:

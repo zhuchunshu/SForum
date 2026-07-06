@@ -216,7 +216,10 @@ This is the entry point for project memory.
   subprocesses through HashiCorp go-plugin, proxies declared plugin routes,
   emits lifecycle hooks, and exposes provider slot defaults. Built-in sync
   prunes stale built-in extension rows, and verify/enable operations require
-  the active package path and installed manifest to still exist.
+  the active package path and installed manifest to still exist. Container
+  images now copy built-in themes from the repository root into
+  `/app/extensions/builtin`; theme manifests are strict Nuxt Layer packages and
+  cannot declare plugin/runtime/admin capabilities in v1.
 - Runtime language pack management has an accepted design: add a system-menu
   admin "Language settings" page, `locale.manage`, ZIP language pack uploads
   with `sforum.locale.json`, package storage under `LOCALE_PACK_ROOT`/

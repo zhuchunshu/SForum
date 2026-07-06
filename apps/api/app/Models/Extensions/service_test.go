@@ -100,6 +100,111 @@ func TestServiceInstallArchiveRejectsReservedDefaultThemeID(t *testing.T) {
 	}
 }
 
+func TestServiceInstallArchiveRequiresPureThemeLayerManifest(t *testing.T) {
+	service := NewService(&fakeExtensionStore{}, t.TempDir())
+	actor := extensionManager()
+
+	installed, err := service.InstallArchive(context.Background(), actor, ArchiveInput{
+		FileName: "starter-theme.zip",
+		Data: extensionArchive(t, validThemeManifest("starter.theme"),
+			zipFile{name: "frontend/layer/nuxt.config.ts", body: "export default defineNuxtConfig({})\n"},
+		),
+	})
+	if err != nil {
+		t.Fatalf("expected minimal theme manifest to install, got %v", err)
+	}
+	if installed.Type != TypeTheme || installed.Manifest.Frontend.Layer != "frontend/layer" {
+		t.Fatalf("unexpected installed theme: %#v", installed)
+	}
+
+	cases := []struct {
+		name     string
+		manifest string
+	}{
+		{
+			name: "missing frontend layer",
+			manifest: `{
+				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0"
+			}`,
+		},
+		{
+			name: "theme declares permissions",
+			manifest: `{
+				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
+				"permissions":["topic.create"],"frontend":{"layer":"frontend/layer"}
+			}`,
+		},
+		{
+			name: "theme declares settings",
+			manifest: `{
+				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
+				"settings":[{"key":"demo.enabled","label":"Enabled","type":"boolean"}],"frontend":{"layer":"frontend/layer"}
+			}`,
+		},
+		{
+			name: "theme declares migrations",
+			manifest: `{
+				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
+				"migrations":[{"path":"migrations/001.sql"}],"frontend":{"layer":"frontend/layer"}
+			}`,
+		},
+		{
+			name: "theme declares backend",
+			manifest: `{
+				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
+				"backend":{"entry":"backend/plugin","rpc":"hashicorp-go-plugin"},"frontend":{"layer":"frontend/layer"}
+			}`,
+		},
+		{
+			name: "theme declares admin pages",
+			manifest: `{
+				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
+				"adminPages":[{"path":"/demo","label":"Demo"}],"frontend":{"layer":"frontend/layer"}
+			}`,
+		},
+		{
+			name: "theme declares routes",
+			manifest: `{
+				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
+				"routes":[{"path":"/hello","methods":["GET"]}],"frontend":{"layer":"frontend/layer"}
+			}`,
+		},
+		{
+			name: "theme declares hooks",
+			manifest: `{
+				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
+				"hooks":[{"name":"topic.created"}],"frontend":{"layer":"frontend/layer"}
+			}`,
+		},
+		{
+			name: "theme declares jobs",
+			manifest: `{
+				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
+				"jobs":[{"name":"demo.sync"}],"frontend":{"layer":"frontend/layer"}
+			}`,
+		},
+		{
+			name: "theme declares providers",
+			manifest: `{
+				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
+				"providers":[{"slot":"search.provider","label":"Search"}],"frontend":{"layer":"frontend/layer"}
+			}`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := service.InstallArchive(context.Background(), actor, ArchiveInput{
+				FileName: "bad-theme.zip",
+				Data:     extensionArchive(t, tc.manifest),
+			})
+			if !errors.Is(err, ErrInvalidManifest) {
+				t.Fatalf("expected invalid theme manifest, got %v", err)
+			}
+		})
+	}
+}
+
 func TestServiceSyncBuiltinsPrunesRemovedBuiltinExtensions(t *testing.T) {
 	builtinRoot := t.TempDir()
 	themeRoot := filepath.Join(builtinRoot, "themes", "sforum-default")
@@ -364,6 +469,83 @@ func TestServiceVerifyExtensionChecksThemeLayerWithoutActivating(t *testing.T) {
 	}
 }
 
+func TestServiceVerifyThemeMissingPackageReturnsBuildFailed(t *testing.T) {
+	missing := uploadedExtension("ghost.theme", TypeTheme)
+	missing.PackagePath = filepath.Join(t.TempDir(), "ghost.theme", "1.0.0", "package.zip")
+	store := &fakeExtensionStore{items: map[string]Extension{
+		missing.ID: missing,
+	}}
+	service := NewServiceWithHooks(store, t.TempDir(), nil, nil)
+
+	_, err := service.VerifyExtension(context.Background(), extensionManager(), missing.ID)
+	if !errors.Is(err, ErrBuildFailed) {
+		t.Fatalf("expected missing theme package build failure, got %v", err)
+	}
+	if last := store.events[len(store.events)-1]; last.Action != EventEnableFailed || last.Message == "" {
+		t.Fatalf("expected verify failure event, got %#v", store.events)
+	}
+}
+
+func TestServiceVerifyThemeMissingManifestReturnsBuildFailed(t *testing.T) {
+	missing := uploadedExtension("manifestless.theme", TypeTheme)
+	root := filepath.Join(t.TempDir(), missing.ID, missing.Version)
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("create package root: %v", err)
+	}
+	missing.PackagePath = filepath.Join(root, "package.zip")
+	if err := os.WriteFile(missing.PackagePath, []byte("zip"), 0o600); err != nil {
+		t.Fatalf("write package archive: %v", err)
+	}
+	store := &fakeExtensionStore{items: map[string]Extension{
+		missing.ID: missing,
+	}}
+	service := NewServiceWithHooks(store, t.TempDir(), nil, nil)
+
+	_, err := service.VerifyExtension(context.Background(), extensionManager(), missing.ID)
+	if !errors.Is(err, ErrBuildFailed) {
+		t.Fatalf("expected missing theme manifest build failure, got %v", err)
+	}
+	if last := store.events[len(store.events)-1]; last.Action != EventEnableFailed || last.Message == "" {
+		t.Fatalf("expected verify failure event, got %#v", store.events)
+	}
+}
+
+func TestServiceVerifyThemeMissingManifestLayerReturnsBuildFailed(t *testing.T) {
+	theme := withInstalledPackage(t, installedExtension("layerless.theme", TypeTheme, ManifestBackend{}))
+	theme.Manifest.Frontend.Layer = ""
+	root := filepath.Dir(theme.PackagePath)
+	if err := writeManifest(root, theme.Manifest); err != nil {
+		t.Fatalf("rewrite uploaded manifest: %v", err)
+	}
+	store := &fakeExtensionStore{items: map[string]Extension{
+		theme.ID: theme,
+	}}
+	service := NewServiceWithHooks(store, t.TempDir(), nil, nil)
+
+	_, err := service.VerifyExtension(context.Background(), extensionManager(), theme.ID)
+	if !errors.Is(err, ErrBuildFailed) {
+		t.Fatalf("expected missing theme manifest layer build failure, got %v", err)
+	}
+	if last := store.events[len(store.events)-1]; last.Action != EventEnableFailed || last.Message == "" {
+		t.Fatalf("expected verify failure event, got %#v", store.events)
+	}
+}
+
+func TestServiceVerifyThemeMissingLayerReturnsBuildFailed(t *testing.T) {
+	store := &fakeExtensionStore{items: map[string]Extension{
+		"ghost.theme": withInstalledPackage(t, installedExtension("ghost.theme", TypeTheme, ManifestBackend{})),
+	}}
+	service := NewServiceWithHooks(store, t.TempDir(), nil, nil)
+
+	_, err := service.VerifyExtension(context.Background(), extensionManager(), "ghost.theme")
+	if !errors.Is(err, ErrBuildFailed) {
+		t.Fatalf("expected missing theme layer build failure, got %v", err)
+	}
+	if last := store.events[len(store.events)-1]; last.Action != EventEnableFailed || last.Message == "" {
+		t.Fatalf("expected verify failure event, got %#v", store.events)
+	}
+}
+
 func TestServiceActivateThemeAllowsOnlyBuiltinDefaultThemeInV1(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		DefaultThemeID:  withInstalledPackage(t, protectedBuiltinExtension(DefaultThemeID, TypeTheme)),
@@ -479,6 +661,17 @@ func validManifest(id string, extensionType string) string {
 		"routes": [{"path": "/hello", "methods": ["GET"]}],
 		"hooks": [{"name": "topic.created"}],
 		"jobs": [{"name": "demo.sync"}]
+	}`
+}
+
+func validThemeManifest(id string) string {
+	return `{
+		"id": "` + id + `",
+		"name": "Demo Theme",
+		"version": "1.0.0",
+		"type": "theme",
+		"sforumVersion": "^1.0.0",
+		"frontend": {"layer": "frontend/layer"}
 	}`
 }
 

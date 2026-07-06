@@ -30,9 +30,16 @@ and plugin runtime v1.
   theme is active when no theme or an uploaded theme is active in v1. It also
   prunes stale `source=builtin` rows whose manifest directories no longer exist
   under the current built-in extension tree.
+- Production and development Compose builds now use the repository root as the
+  API/web build context so images can copy `extensions/builtin`. API and worker
+  containers set `BUILTIN_EXTENSION_ROOT=/app/extensions/builtin`, store uploaded
+  archives under the persistent `extension_packages` volume mounted at
+  `/var/lib/sforum/extensions`, and keep attachment uploads separate.
 - Extension verify and plugin enable operations require the active package path
   and installed `sforum.extension.json` to still exist before changing runtime
-  state.
+  state. Theme verify reports missing packages, missing installed manifests, and
+  missing Nuxt Layer directories as `extension.build_failed`; plugins keep using
+  `extension.preflight_failed` for preflight failures.
 - Admin API routes:
   - `GET /api/v1/admin/extensions`
   - `POST /api/v1/admin/extensions`
@@ -87,6 +94,12 @@ The manifest file is `sforum.extension.json`.
 Important fields: `id`, `name`, `version`, `type`, `sforumVersion`,
 `permissions`, `settings`, `migrations`, `backend`, `frontend`, `adminPages`,
 `routes`, `hooks`, `jobs`, and `providers`.
+
+For `type: theme`, v1 accepts only Nuxt Layer packages. The manifest must
+declare a safe, non-empty `frontend.layer` path and must not declare plugin or
+admin capabilities: `backend`, `routes`, `hooks`, `jobs`, `providers`,
+`migrations`, `adminPages`, `settings`, or `permissions`. Invalid theme
+manifests use the existing 422 envelope with reason `extension.manifest_invalid`.
 
 ## Next Steps
 

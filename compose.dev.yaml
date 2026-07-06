@@ -13,7 +13,8 @@ services:
 
   migrate:
     build:
-      context: ./apps/api
+      context: .
+      dockerfile: apps/api/Dockerfile
       target: dev
     command: ["go", "run", "./cmd/migrate"]
     environment:
@@ -28,7 +29,7 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./apps/api:/app
+      - ./apps/api:/app/apps/api
       - go_build_cache:/root/.cache/go-build
       - go_module_cache:/go/pkg/mod
     restart: "no"
@@ -41,21 +42,25 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-sforum}:${POSTGRES_PASSWORD:-sforum}@postgres:5432/${POSTGRES_DB:-sforum}?sslmode=disable
       REDIS_ADDR: redis:6379
       MEILI_HOST: http://meilisearch:7700
+      EXTENSION_ROOT: /var/lib/sforum/extensions
+      BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
       GOMODCACHE: /go/pkg/mod
     depends_on:
       migrate:
         condition: service_completed_successfully
     volumes:
-      - ./apps/api:/app
+      - ./apps/api:/app/apps/api
+      - ./extensions/builtin:/app/extensions/builtin:ro
       - go_build_cache:/root/.cache/go-build
       - go_module_cache:/go/pkg/mod
-      - api_air_tmp:/app/tmp
-      - attachment_uploads:/app/storage/app/attachments
+      - api_air_tmp:/app/apps/api/tmp
+      - attachment_uploads:/app/apps/api/storage/app/attachments
+      - extension_packages:/var/lib/sforum/extensions
     develop:
       watch:
         - action: sync
           path: ./apps/api
-          target: /app
+          target: /app/apps/api
           ignore:
             - tmp/
             - bin/
@@ -80,21 +85,25 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-sforum}:${POSTGRES_PASSWORD:-sforum}@postgres:5432/${POSTGRES_DB:-sforum}?sslmode=disable
       REDIS_ADDR: redis:6379
       MEILI_HOST: http://meilisearch:7700
+      EXTENSION_ROOT: /var/lib/sforum/extensions
+      BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
       GOMODCACHE: /go/pkg/mod
     depends_on:
       migrate:
         condition: service_completed_successfully
     volumes:
-      - ./apps/api:/app
+      - ./apps/api:/app/apps/api
+      - ./extensions/builtin:/app/extensions/builtin:ro
       - go_build_cache:/root/.cache/go-build
       - go_module_cache:/go/pkg/mod
-      - worker_air_tmp:/app/tmp
-      - attachment_uploads:/app/storage/app/attachments
+      - worker_air_tmp:/app/apps/api/tmp
+      - attachment_uploads:/app/apps/api/storage/app/attachments
+      - extension_packages:/var/lib/sforum/extensions
     develop:
       watch:
         - action: sync
           path: ./apps/api
-          target: /app
+          target: /app/apps/api
           ignore:
             - tmp/
             - bin/
@@ -118,13 +127,14 @@ services:
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     volumes:
-      - ./apps/web:/app
-      - web_node_modules:/app/node_modules
+      - ./apps/web:/app/apps/web
+      - ./extensions/builtin:/app/extensions/builtin:ro
+      - web_node_modules:/app/apps/web/node_modules
     develop:
       watch:
         - action: sync
           path: ./apps/web
-          target: /app
+          target: /app/apps/web
           ignore:
             - .nuxt/
             - .output/
@@ -156,3 +166,4 @@ volumes:
   worker_air_tmp:
   web_node_modules:
   attachment_uploads:
+  extension_packages:

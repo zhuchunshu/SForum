@@ -59,6 +59,7 @@ ExtensionSource:
   - uploaded
 ExtensionManifest:
   type: object
+  description: SForum extension manifest. Plugin manifests may declare runtime, route, provider, settings, and admin capabilities. Theme manifests are Nuxt Layer packages; in v1 they must declare a non-empty frontend.layer and must not declare backend, routes, hooks, jobs, providers, migrations, adminPages, settings, or permissions.
   required:
   - id
   - name
@@ -78,18 +79,22 @@ ExtensionManifest:
       type: string
     permissions:
       type: array
+      description: Plugin-only permission keys. Theme manifests must omit permissions in v1.
       items:
         type: string
     settings:
       type: array
+      description: Plugin-only settings declarations. Theme manifests must omit settings in v1.
       items:
         type: object
     migrations:
       type: array
+      description: Plugin-only SQL migration declarations. Theme manifests must omit migrations in v1.
       items:
         type: object
     backend:
       type: object
+      description: Plugin-only backend runtime declaration. Theme manifests must omit backend runtime fields in v1.
       properties:
         entry:
           type: string
@@ -99,27 +104,35 @@ ExtensionManifest:
           type: integer
     frontend:
       type: object
+      description: Frontend package declaration. For type theme, layer is required and points to the Nuxt Layer root inside the ZIP package.
       properties:
         layer:
           type: string
+          minLength: 1
+          description: Safe relative path to a Nuxt Layer directory, such as frontend/layer. Required for type theme.
     adminPages:
       type: array
+      description: Plugin-only admin page declarations. Theme manifests must omit adminPages in v1.
       items:
         type: object
     routes:
       type: array
+      description: Plugin-only proxied route declarations. Theme manifests must omit routes in v1.
       items:
         "$ref": "#/ExtensionManifestRoute"
     hooks:
       type: array
+      description: Plugin-only lifecycle or domain hook declarations. Theme manifests must omit hooks in v1.
       items:
         "$ref": "#/ExtensionManifestHook"
     jobs:
       type: array
+      description: Plugin-only background job declarations. Theme manifests must omit jobs in v1.
       items:
         type: object
     providers:
       type: array
+      description: Plugin-only provider slot declarations. Theme manifests must omit providers in v1.
       items:
         "$ref": "#/ExtensionManifestProvider"
 ExtensionManifestRoute:

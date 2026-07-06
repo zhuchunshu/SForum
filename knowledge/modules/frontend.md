@@ -49,6 +49,13 @@ statically extends that layer. The layer owns the homepage, default layout,
 auth layout/pages, public navbar/footer, and public/auth chrome CSS. Core keeps
 admin pages/layout, auth/session logic, API clients, i18n catalogs, SEO
 helpers, permissions, and reusable component/composable infrastructure.
+Production and development web Docker images build from the repository root and
+copy `extensions/builtin` into `/app/extensions/builtin`, while keeping the web
+workdir at `/app/apps/web`; this preserves the static Nuxt layer reference
+`../../extensions/builtin/themes/sforum-default/layer` inside containers.
+The production Docker build creates a build-local `.nuxt -> .nuxt-build`
+symlink before `bun run build` because `tsconfig.json` still extends
+`./.nuxt/tsconfig.json` while the build script uses `NUXT_BUILD_DIR=.nuxt-build`.
 Layer-owned global CSS is registered from the layer's own directory with an
 absolute `import.meta.url`-based path; do not use `~/assets/...` inside a layer
 config for theme assets because Nuxt resolves `~` against the host app.
@@ -118,6 +125,10 @@ the appearance preset plus footer copyright/link content. Nuxt UI's generated
 `--ui-color-primary-*` and `--ui-primary` tokens are bridged to the same
 runtime variables so admin sidebar highlights and `color="primary"` controls do
 not keep Nuxt UI's default green.
+Recommended personalization defaults are shared from `useWebOptions()`:
+`appearance.theme=pine_teal`, the default bilingual footer copyright, and the
+Terms/Privacy/Guidelines footer links. The personalization reset action restores
+these recommended defaults instead of only reloading the last saved snapshot.
 SEO now reads runtime `seo.*` options through `useWebOptions()` and public pages
 should use `useSForumSeo()` for title templates, descriptions, canonical URLs,
 robots meta, Open Graph/Twitter tags, verification tags, and minimal JSON-LD.

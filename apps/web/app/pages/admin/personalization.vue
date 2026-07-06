@@ -2,10 +2,15 @@
 import {
   appearanceThemes,
   buildCustomAppearanceThemeValue,
+  cloneFooterLink,
+  cloneFooterLinks,
   customColorFromAppearanceTheme,
   defaultCustomThemeColor,
   normalizeAppearanceThemeValue,
   normalizeHexColor,
+  recommendedAppearanceTheme,
+  recommendedFooterCopyright,
+  recommendedFooterLinks,
   resolveAppearanceTheme,
   type AdminWebOption,
   type AppearanceTheme,
@@ -44,35 +49,16 @@ const themePreviews: Record<AppearanceThemePreset, ThemePreview> = {
   amber: { accent: '#d97706', hover: '#b45309', soft: '#fffbeb' }
 }
 
-const defaultFooterLinks: FooterLinkOption[] = [
-  {
-    key: 'terms',
-    labels: { 'zh-CN': '服务条款', 'en-US': 'Terms of Service' },
-    url: '#'
-  },
-  {
-    key: 'privacy',
-    labels: { 'zh-CN': '隐私政策', 'en-US': 'Privacy Policy' },
-    url: '#'
-  },
-  {
-    key: 'guidelines',
-    labels: { 'zh-CN': '社区指南', 'en-US': 'Guidelines' },
-    url: '#'
-  }
-]
-
 const form = reactive({
-  themeMode: 'pine_teal' as AppearanceThemePreset | 'custom',
+  themeMode: recommendedAppearanceTheme as AppearanceThemePreset | 'custom',
   customColor: defaultCustomThemeColor,
-  footerCopyrightZHCN: '© {year} {siteName}。保留所有权利。',
-  footerCopyrightENUS: '© {year} {siteName}. All rights reserved.',
-  footerLinks: cloneFooterLinks(defaultFooterLinks)
+  footerCopyrightZHCN: recommendedFooterCopyright['zh-CN'],
+  footerCopyrightENUS: recommendedFooterCopyright['en-US'],
+  footerLinks: cloneFooterLinks(recommendedFooterLinks)
 })
 
 const saving = ref(false)
 const savedSnapshot = ref('')
-const lastAdminItems = ref<AdminWebOption[]>([])
 
 const themeChoices = computed(() => {
   return appearanceThemes.map((theme) => ({
@@ -111,7 +97,6 @@ useSeoMeta({
 })
 
 function applyAdminOptions(items: AdminWebOption[]) {
-  lastAdminItems.value = items
   const publicOptions = items.filter((item) => item.public && !item.secret)
   options.value = {
     ...options.value,
@@ -158,7 +143,11 @@ async function saveAndApply(items: WebOption[]) {
 }
 
 function resetForm() {
-  applyAdminOptions(lastAdminItems.value)
+  form.themeMode = recommendedAppearanceTheme
+  form.customColor = defaultCustomThemeColor
+  form.footerCopyrightZHCN = recommendedFooterCopyright['zh-CN']
+  form.footerCopyrightENUS = recommendedFooterCopyright['en-US']
+  form.footerLinks = cloneFooterLinks(recommendedFooterLinks)
 }
 
 function applyThemeValue(value: string | undefined) {
@@ -178,13 +167,13 @@ function normalizeCustomColorInput() {
 
 function parseFooterLinks(value: string | undefined) {
   if (!value) {
-    return cloneFooterLinks(defaultFooterLinks)
+    return cloneFooterLinks(recommendedFooterLinks)
   }
 
   try {
     const parsed = JSON.parse(value)
     if (!Array.isArray(parsed)) {
-      return cloneFooterLinks(defaultFooterLinks)
+      return cloneFooterLinks(recommendedFooterLinks)
     }
     const byKey = new Map<FooterLinkKey, FooterLinkOption>()
     for (const item of parsed) {
@@ -193,12 +182,12 @@ function parseFooterLinks(value: string | undefined) {
         byKey.set(link.key, link)
       }
     }
-    if (byKey.size !== defaultFooterLinks.length) {
-      return cloneFooterLinks(defaultFooterLinks)
+    if (byKey.size !== recommendedFooterLinks.length) {
+      return cloneFooterLinks(recommendedFooterLinks)
     }
-    return defaultFooterLinks.map((link) => byKey.get(link.key) || cloneFooterLink(link))
+    return recommendedFooterLinks.map((link) => byKey.get(link.key) || cloneFooterLink(link))
   } catch {
-    return cloneFooterLinks(defaultFooterLinks)
+    return cloneFooterLinks(recommendedFooterLinks)
   }
 }
 
@@ -238,26 +227,12 @@ function normalizedFooterLinks() {
   }))
 }
 
-function cloneFooterLinks(links: FooterLinkOption[]) {
-  return links.map(cloneFooterLink)
-}
-
-function cloneFooterLink(link: FooterLinkOption): FooterLinkOption {
-  return {
-    key: link.key,
-    labels: { ...link.labels },
-    url: link.url
-  }
-}
-
 function isFooterLinkKey(value: unknown): value is FooterLinkKey {
   return value === 'terms' || value === 'privacy' || value === 'guidelines'
 }
 
 function defaultFooterText(locale: 'zh-CN' | 'en-US') {
-  return locale === 'en-US'
-    ? '© {year} {siteName}. All rights reserved.'
-    : '© {year} {siteName}。保留所有权利。'
+  return recommendedFooterCopyright[locale]
 }
 
 function formSnapshot() {
@@ -493,6 +468,7 @@ function formSnapshot() {
           :saving="saving"
           :show-unsaved-alert="hasChanges"
           :submit-text="t('admin.personalization.save')"
+          :reset-text="t('admin.personalization.restoreRecommended')"
           @reset="resetForm"
         />
       </template>
