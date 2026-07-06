@@ -56,7 +56,7 @@ adminExtensions:
 adminExtensionNavigation:
   get:
     summary: List extension admin navigation items
-    description: Returns core-container admin pages declared by enabled plugins and the active theme. All pages stay under the fixed Extensions namespace.
+    description: Returns explicit extension admin menu pages declared with menu true by enabled plugins and the active theme. All pages stay under the fixed Extensions namespace.
     operationId: listAdminExtensionNavigation
     responses:
       '200':

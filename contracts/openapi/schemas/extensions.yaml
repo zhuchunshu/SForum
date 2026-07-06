@@ -117,7 +117,7 @@ ExtensionSource:
   - uploaded
 ExtensionManifest:
   type: object
-  description: SForum extension manifest. Plugins may declare runtime, route, provider, settings, event, and admin capabilities. Themes are Nuxt Layer packages; in v1 they must declare a non-empty frontend.layer, may declare settings and adminPages, and must not declare backend, routes, hooks, events, jobs, providers, migrations, or permissions.
+  description: SForum extension manifest. Plugins may declare runtime, route, provider, settings, event, and admin capabilities. Themes are Nuxt Layer packages; in v1 they must declare a non-empty frontend.layer, may declare settings and admin or legacy adminPages, and must not declare backend, routes, hooks, events, jobs, providers, migrations, or permissions.
   required:
   - id
   - name
@@ -178,9 +178,11 @@ ExtensionManifest:
           type: string
           minLength: 1
           description: Safe relative path to a Nuxt Layer directory, such as frontend/layer. Required for type theme.
+    admin:
+      "$ref": "#/ExtensionManifestAdmin"
     adminPages:
       type: array
-      description: Core container admin page declarations. Pages are mounted under the fixed /admin/extensions/{extensionID}/pages namespace.
+      description: Legacy core-container admin page declarations. Prefer admin.pages for new manifests; legacy pages remain compatibility-mapped.
       items:
         "$ref": "#/ExtensionManifestAdminPage"
     routes:
@@ -238,6 +240,17 @@ ExtensionManifestSetting:
       type: string
     default:
       type: string
+ExtensionManifestAdmin:
+  type: object
+  description: Extension admin entry and page declarations. Manage resolves to entry, then settings, then first declared page, then the generated about page.
+  properties:
+    entry:
+      type: string
+      description: In-admin extension page path such as /settings. Must point to /about or a declared page.
+    pages:
+      type: array
+      items:
+        "$ref": "#/ExtensionManifestAdminPage"
 ExtensionManifestAdminPage:
   type: object
   required:
@@ -257,6 +270,10 @@ ExtensionManifestAdminPage:
       enum:
       - about
       - settings
+    menu:
+      type: boolean
+      default: false
+      description: Whether this page appears in admin sidebar navigation. Defaults to false.
     order:
       type: integer
       minimum: 0
