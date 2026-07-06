@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -31,7 +33,7 @@ type testErrorData struct {
 }
 
 func TestControllerRequiresLoginAndExtensionManagePermission(t *testing.T) {
-	app, manager, _ := newExtensionTestApp()
+	app, manager, _ := newExtensionTestApp(t)
 
 	resp := performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions", nil)
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -64,7 +66,7 @@ func TestControllerRequiresLoginAndExtensionManagePermission(t *testing.T) {
 }
 
 func TestControllerListsAndEnablesExtensionsForManager(t *testing.T) {
-	app, manager, store := newExtensionTestApp()
+	app, manager, store := newExtensionTestApp(t)
 	cookie := loginExtensionUser(t, app, manager, 1)
 
 	resp := performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions", cookie)
@@ -90,7 +92,7 @@ func TestControllerListsAndEnablesExtensionsForManager(t *testing.T) {
 }
 
 func TestControllerProxiesOnlyDeclaredPluginRoutesAfterHostAuthorization(t *testing.T) {
-	app, manager, store := newExtensionTestApp()
+	app, manager, store := newExtensionTestApp(t)
 	store.items["demo.plugin"] = extensions.Extension{
 		ID:      "demo.plugin",
 		Name:    "Demo Plugin",
@@ -154,7 +156,7 @@ func TestControllerProxiesOnlyDeclaredPluginRoutesAfterHostAuthorization(t *test
 }
 
 func TestControllerVerifiesAndActivatesThemesForManager(t *testing.T) {
-	app, manager, store := newExtensionTestApp()
+	app, manager, store := newExtensionTestApp(t)
 	cookie := loginExtensionUser(t, app, manager, 1)
 
 	resp := performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.theme/verify", cookie)
@@ -179,7 +181,8 @@ func TestControllerVerifiesAndActivatesThemesForManager(t *testing.T) {
 	}
 }
 
-func newExtensionTestApp() (*fiber.App, *authsession.Manager, *controllerFakeStore) {
+func newExtensionTestApp(t *testing.T) (*fiber.App, *authsession.Manager, *controllerFakeStore) {
+	t.Helper()
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
 	users := controllerActors{actors: map[int64]identity.Actor{
 		1: {
@@ -189,41 +192,46 @@ func newExtensionTestApp() (*fiber.App, *authsession.Manager, *controllerFakeSto
 		},
 		2: {ID: 2, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
 	}}
+	plugin := extensions.Extension{
+		ID:      "demo.plugin",
+		Name:    "Demo Plugin",
+		Version: "1.0.0",
+		Type:    extensions.TypePlugin,
+		Status:  extensions.StatusInstalled,
+		Source:  extensions.SourceUploaded,
+		Manifest: extensions.Manifest{
+			ID:            "demo.plugin",
+			Name:          "Demo Plugin",
+			Version:       "1.0.0",
+			Type:          extensions.TypePlugin,
+			SForumVersion: "^1.0.0",
+		},
+		InstalledAt: time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	plugin.PackagePath = controllerInstalledPackage(t, plugin.Manifest)
+	theme := extensions.Extension{
+		ID:      "demo.theme",
+		Name:    "Demo Theme",
+		Version: "1.0.0",
+		Type:    extensions.TypeTheme,
+		Status:  extensions.StatusInstalled,
+		Source:  extensions.SourceUploaded,
+		Manifest: extensions.Manifest{
+			ID:            "demo.theme",
+			Name:          "Demo Theme",
+			Version:       "1.0.0",
+			Type:          extensions.TypeTheme,
+			SForumVersion: "^1.0.0",
+			Frontend:      extensions.ManifestFrontend{Layer: "layer"},
+		},
+		InstalledAt: time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	theme.PackagePath = controllerInstalledPackage(t, theme.Manifest)
 	store := &controllerFakeStore{items: map[string]extensions.Extension{
-		"demo.plugin": {
-			ID:      "demo.plugin",
-			Name:    "Demo Plugin",
-			Version: "1.0.0",
-			Type:    extensions.TypePlugin,
-			Status:  extensions.StatusInstalled,
-			Manifest: extensions.Manifest{
-				ID:            "demo.plugin",
-				Name:          "Demo Plugin",
-				Version:       "1.0.0",
-				Type:          extensions.TypePlugin,
-				SForumVersion: "^1.0.0",
-			},
-			InstalledAt: time.Now(),
-			UpdatedAt:   time.Now(),
-		},
-		"demo.theme": {
-			ID:      "demo.theme",
-			Name:    "Demo Theme",
-			Version: "1.0.0",
-			Type:    extensions.TypeTheme,
-			Status:  extensions.StatusInstalled,
-			Source:  extensions.SourceUploaded,
-			Manifest: extensions.Manifest{
-				ID:            "demo.theme",
-				Name:          "Demo Theme",
-				Version:       "1.0.0",
-				Type:          extensions.TypeTheme,
-				SForumVersion: "^1.0.0",
-				Frontend:      extensions.ManifestFrontend{Layer: "layer"},
-			},
-			InstalledAt: time.Now(),
-			UpdatedAt:   time.Now(),
-		},
+		plugin.ID: plugin,
+		theme.ID:  theme,
 	}}
 	controller := NewControllerWithGateway(extensions.NewServiceWithHooks(store, "storage/extensions", nil, controllerThemeBuilder{}), users, manager, controllerFakeGateway{})
 	loginProvider := extensionRouteProviderFunc(func(api fiber.Router) {
@@ -240,6 +248,26 @@ func newExtensionTestApp() (*fiber.App, *authsession.Manager, *controllerFakeSto
 		RouteProviders: []apphttp.RouteProvider{controller, loginProvider},
 	})
 	return app, manager, store
+}
+
+func controllerInstalledPackage(t *testing.T, manifest extensions.Manifest) string {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), manifest.ID, manifest.Version)
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("create extension package root: %v", err)
+	}
+	packagePath := filepath.Join(root, "package.zip")
+	if err := os.WriteFile(packagePath, []byte("zip"), 0o600); err != nil {
+		t.Fatalf("write extension archive: %v", err)
+	}
+	body, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal extension manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, extensions.ManifestFileName), body, 0o600); err != nil {
+		t.Fatalf("write extension manifest: %v", err)
+	}
+	return packagePath
 }
 
 func loginExtensionUser(t *testing.T, app *fiber.App, _ *authsession.Manager, userID int64) *http.Cookie {
@@ -380,6 +408,19 @@ func (s *controllerFakeStore) SaveBuiltin(_ context.Context, input extensions.Sa
 	}
 	s.items[item.ID] = item
 	return item, nil
+}
+
+func (s *controllerFakeStore) PruneMissingBuiltins(_ context.Context, activeIDs []string) error {
+	active := map[string]bool{}
+	for _, id := range activeIDs {
+		active[id] = true
+	}
+	for id, item := range s.items {
+		if item.Source == extensions.SourceBuiltin && !active[id] {
+			delete(s.items, id)
+		}
+	}
+	return nil
 }
 
 func (s *controllerFakeStore) Enable(_ context.Context, id string, _ string) (extensions.Extension, error) {

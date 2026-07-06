@@ -271,6 +271,7 @@
         "providers": "{count} 个服务提供方"
       },
       "events": "安装日志",
+      "eventPageSummary": "显示 {start}-{end} / 共 {count} 条",
       "noEvents": "暂无事件记录。",
       "plugins": {
         "metaTitle": "插件管理",

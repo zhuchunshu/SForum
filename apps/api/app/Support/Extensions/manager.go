@@ -2,6 +2,8 @@ package extensionsruntime
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -43,7 +45,18 @@ func NewManager(config ManagerConfig) *Manager {
 	return &Manager{starter: starter, statuses: map[string]extensions.RuntimeStatus{}, targets: map[string]RouteTarget{}, running: map[string]extensions.Extension{}, hooks: hooks}
 }
 
-func (m *Manager) Check(context.Context, extensions.Extension) error {
+func (m *Manager) Check(_ context.Context, extension extensions.Extension) error {
+	if extension.Manifest.Backend.Entry == "" {
+		return nil
+	}
+	path, ok := extensions.InstalledFilePathForRuntime(extension, extension.Manifest.Backend.Entry)
+	if !ok {
+		return extensions.ErrInvalidManifest
+	}
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		return fmt.Errorf("backend entry %s is not available", extension.Manifest.Backend.Entry)
+	}
 	return nil
 }
 

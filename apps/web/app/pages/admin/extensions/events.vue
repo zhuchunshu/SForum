@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
+import { extensionEventPage } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -13,6 +14,7 @@ defineOptions({
 
 const { t } = useI18n()
 const adminPage = useAdminPage('/extensions/events')
+const eventPage = ref(1)
 const {
   extensions,
   pending,
@@ -22,14 +24,20 @@ const {
   loadingAllEvents,
   loadAllEvents
 } = await useAdminExtensionsManager()
+const eventPageInfo = computed(() => extensionEventPage(aggregatedEvents.value, eventPage.value))
 
 useSeoMeta({
   title: t('admin.extensions.eventLog.metaTitle')
 })
 
 watch(() => extensions.value.map(item => item.id).join('|'), () => {
+  eventPage.value = 1
   void loadAllEvents()
 }, { immediate: true })
+
+watch(() => eventPageInfo.value.page, (page) => {
+  eventPage.value = page
+})
 
 async function refreshEvents() {
   await refresh()
@@ -81,7 +89,7 @@ function extensionName(id: string) {
     </div>
     <div v-else class="divide-y divide-slate-200 dark:divide-zinc-800">
       <div
-        v-for="event in aggregatedEvents"
+        v-for="event in eventPageInfo.items"
         :key="`${event.extensionId}:${event.id}`"
         class="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1fr)_220px]"
       >
@@ -105,6 +113,15 @@ function extensionName(id: string) {
         <div class="flex items-center text-xs text-slate-500 md:justify-end dark:text-zinc-400">
           {{ new Date(event.createdAt).toLocaleString() }}
         </div>
+      </div>
+      <div
+        v-if="eventPageInfo.totalPages > 1"
+        class="flex flex-col gap-3 px-4 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:text-zinc-400"
+      >
+        <span>
+          {{ t('admin.extensions.eventPageSummary', { start: eventPageInfo.start, end: eventPageInfo.end, count: eventPageInfo.total }) }}
+        </span>
+        <SFPagination v-model:page="eventPage" :total-pages="eventPageInfo.totalPages" />
       </div>
     </div>
   </div>

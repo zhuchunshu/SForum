@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
+import { capabilityCount, extensionEventPage, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -14,6 +14,7 @@ defineOptions({
 
 const { t } = useI18n()
 const adminPage = useAdminPage('/extensions')
+const selectedEventPage = ref(1)
 
 const {
   extensions,
@@ -39,6 +40,7 @@ const {
   typeLabel,
   statusLabel
 } = await useAdminExtensionsManager()
+const selectedEventPageInfo = computed(() => extensionEventPage(selectedEvents.value, selectedEventPage.value))
 
 useSeoMeta({
   title: t('admin.extensions.metaTitle')
@@ -49,8 +51,13 @@ watch(selected, async (item) => {
     return
   }
   selectedId.value = item.id
+  selectedEventPage.value = 1
   await loadEvents(item.id)
 }, { immediate: true })
+
+watch(() => selectedEventPageInfo.value.page, (page) => {
+  selectedEventPage.value = page
+})
 
 async function refreshSelectedEvents() {
   if (selected.value) {
@@ -310,7 +317,7 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
             <p v-if="selectedEvents.length === 0" class="text-sm text-slate-500 dark:text-zinc-400">
               {{ t('admin.extensions.noEvents') }}
             </p>
-            <div v-for="event in selectedEvents" :key="event.id" class="rounded-md bg-slate-50 p-3 text-sm dark:bg-zinc-900">
+            <div v-for="event in selectedEventPageInfo.items" :key="event.id" class="rounded-md bg-slate-50 p-3 text-sm dark:bg-zinc-900">
               <div class="flex items-center justify-between gap-3">
                 <span class="font-medium text-slate-900 dark:text-zinc-100">{{ event.action }}</span>
                 <span class="text-xs text-slate-500 dark:text-zinc-400">{{ new Date(event.createdAt).toLocaleString() }}</span>
@@ -318,6 +325,15 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
               <p v-if="event.message" class="mt-1 text-slate-500 dark:text-zinc-400">
                 {{ event.message }}
               </p>
+            </div>
+            <div
+              v-if="selectedEventPageInfo.totalPages > 1"
+              class="flex flex-col gap-3 border-t border-slate-200 pt-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800 dark:text-zinc-400"
+            >
+              <span>
+                {{ t('admin.extensions.eventPageSummary', { start: selectedEventPageInfo.start, end: selectedEventPageInfo.end, count: selectedEventPageInfo.total }) }}
+              </span>
+              <SFPagination v-model:page="selectedEventPage" :total-pages="selectedEventPageInfo.totalPages" />
             </div>
           </div>
         </div>

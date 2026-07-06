@@ -160,6 +160,20 @@ func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput)
 	return s.Get(ctx, input.Manifest.ID)
 }
 
+func (s *PostgresStore) PruneMissingBuiltins(ctx context.Context, activeIDs []string) error {
+	if len(activeIDs) == 0 {
+		return nil
+	}
+	if _, err := s.pool.Exec(ctx, `
+		DELETE FROM extensions
+		WHERE source = 'builtin'
+		  AND NOT (id = ANY($1::text[]))
+	`, activeIDs); err != nil {
+		return fmt.Errorf("prune missing builtin extensions: %w", err)
+	}
+	return nil
+}
+
 func (s *PostgresStore) Enable(ctx context.Context, id string, extensionType string) (Extension, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {

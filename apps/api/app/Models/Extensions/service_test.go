@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 	"time"
@@ -98,6 +100,40 @@ func TestServiceInstallArchiveRejectsReservedDefaultThemeID(t *testing.T) {
 	}
 }
 
+func TestServiceSyncBuiltinsPrunesRemovedBuiltinExtensions(t *testing.T) {
+	builtinRoot := t.TempDir()
+	themeRoot := filepath.Join(builtinRoot, "themes", "sforum-default")
+	if err := os.MkdirAll(themeRoot, 0o755); err != nil {
+		t.Fatalf("create builtin theme root: %v", err)
+	}
+	defaultTheme := protectedBuiltinExtension(DefaultThemeID, TypeTheme)
+	defaultTheme.Manifest.Frontend = ManifestFrontend{Layer: "layer"}
+	defaultTheme.PackagePath = themeRoot
+	if err := writeManifest(themeRoot, defaultTheme.Manifest); err != nil {
+		t.Fatalf("write builtin theme manifest: %v", err)
+	}
+
+	stalePlugin := protectedBuiltinExtension("sforum.default", TypePlugin)
+	stalePlugin.Name = "SForum Default Plugin"
+	stalePlugin.Manifest.Name = stalePlugin.Name
+	stalePlugin.Manifest.Backend = ManifestBackend{RPC: "hashicorp-go-plugin"}
+	stalePlugin.PackagePath = filepath.Join(builtinRoot, "plugins", "sforum-default")
+	store := &fakeExtensionStore{items: map[string]Extension{
+		stalePlugin.ID: stalePlugin,
+	}}
+	service := NewServiceWithBuiltins(store, t.TempDir(), builtinRoot)
+
+	if _, err := service.SyncBuiltins(context.Background()); err != nil {
+		t.Fatalf("SyncBuiltins returned error: %v", err)
+	}
+	if _, ok := store.items[stalePlugin.ID]; ok {
+		t.Fatalf("expected stale builtin plugin to be pruned")
+	}
+	if item, ok := store.items[DefaultThemeID]; !ok || item.Source != SourceBuiltin {
+		t.Fatalf("expected current builtin theme to remain, got %#v", item)
+	}
+}
+
 func TestServiceInstallArchiveValidatesRuntimeManifestDeclarations(t *testing.T) {
 	service := NewService(&fakeExtensionStore{}, t.TempDir())
 	actor := extensionManager()
@@ -170,7 +206,7 @@ func TestServiceInstallArchiveValidatesRuntimeManifestDeclarations(t *testing.T)
 func TestServiceEnableRunsPluginPreflightBeforeStatusChange(t *testing.T) {
 	expected := errors.New("rpc handshake failed")
 	store := &fakeExtensionStore{items: map[string]Extension{
-		"demo.plugin": installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"}),
+		"demo.plugin": withInstalledPackage(t, installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"})),
 	}}
 	service := NewServiceWithHooks(store, t.TempDir(), fakeRuntime{err: expected}, nil)
 
@@ -195,10 +231,31 @@ func TestServiceEnableRunsPluginPreflightBeforeStatusChange(t *testing.T) {
 	}
 }
 
+func TestServiceEnableRejectsMissingInstalledPackage(t *testing.T) {
+	missing := uploadedExtension("ghost.plugin", TypePlugin)
+	missing.Manifest.Backend = ManifestBackend{}
+	missing.PackagePath = filepath.Join(t.TempDir(), "ghost.plugin", "1.0.0", "package.zip")
+	store := &fakeExtensionStore{items: map[string]Extension{
+		missing.ID: missing,
+	}}
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{}, nil)
+
+	_, err := service.Enable(context.Background(), extensionManager(), missing.ID)
+	if !errors.Is(err, ErrPreflightFailed) {
+		t.Fatalf("expected missing package preflight failure, got %v", err)
+	}
+	if store.enabledID != "" {
+		t.Fatalf("missing package should not enable extension, got %q", store.enabledID)
+	}
+	if last := store.events[len(store.events)-1]; last.Action != EventEnableFailed || last.Message == "" {
+		t.Fatalf("expected enable failure event, got %#v", store.events)
+	}
+}
+
 func TestServiceEnableStartsRuntimeAndRollsBackOnStartFailure(t *testing.T) {
 	expected := errors.New("bind failed")
 	store := &fakeExtensionStore{items: map[string]Extension{
-		"demo.plugin": installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"}),
+		"demo.plugin": withInstalledPackage(t, installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"})),
 	}}
 	runtime := &fakeRuntimeManager{startErr: expected}
 	service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
@@ -247,7 +304,7 @@ func TestServiceDisableStopsRuntimeAndListDecoratesRuntimeStatus(t *testing.T) {
 
 func TestServiceEmitsPluginLifecycleHooks(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
-		"demo.plugin": installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"}),
+		"demo.plugin": withInstalledPackage(t, installedExtension("demo.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"})),
 	}}
 	runtime := &fakeRuntimeManager{}
 	service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
@@ -282,7 +339,7 @@ func TestServiceEnableRejectsThemesBecauseThemesUseActivation(t *testing.T) {
 func TestServiceVerifyExtensionChecksThemeLayerWithoutActivating(t *testing.T) {
 	expected := errors.New("nuxt layer missing")
 	store := &fakeExtensionStore{items: map[string]Extension{
-		"starter.theme": installedExtension("starter.theme", TypeTheme, ManifestBackend{}),
+		"starter.theme": withInstalledPackage(t, installedExtension("starter.theme", TypeTheme, ManifestBackend{})),
 	}}
 	service := NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{err: expected})
 
@@ -309,7 +366,7 @@ func TestServiceVerifyExtensionChecksThemeLayerWithoutActivating(t *testing.T) {
 
 func TestServiceActivateThemeAllowsOnlyBuiltinDefaultThemeInV1(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
-		DefaultThemeID:  protectedBuiltinExtension(DefaultThemeID, TypeTheme),
+		DefaultThemeID:  withInstalledPackage(t, protectedBuiltinExtension(DefaultThemeID, TypeTheme)),
 		"starter.theme": uploadedExtension("starter.theme", TypeTheme),
 	}}
 	service := NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{})
@@ -456,6 +513,34 @@ func writeZipFile(t *testing.T, writer *zip.Writer, name string, body string) {
 	if _, err := io.WriteString(file, body); err != nil {
 		t.Fatalf("write zip file %s: %v", name, err)
 	}
+}
+
+func withInstalledPackage(t *testing.T, item Extension) Extension {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), item.ID, item.Version)
+	if item.Source == SourceBuiltin {
+		item.PackagePath = root
+		if err := os.MkdirAll(root, 0o755); err != nil {
+			t.Fatalf("create builtin package root: %v", err)
+		}
+		if err := writeManifest(root, item.Manifest); err != nil {
+			t.Fatalf("write builtin manifest: %v", err)
+		}
+		return item
+	}
+
+	item.Source = SourceUploaded
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("create uploaded package root: %v", err)
+	}
+	item.PackagePath = filepath.Join(root, "package.zip")
+	if err := os.WriteFile(item.PackagePath, []byte("zip"), 0o600); err != nil {
+		t.Fatalf("write uploaded package archive: %v", err)
+	}
+	if err := writeManifest(root, item.Manifest); err != nil {
+		t.Fatalf("write uploaded manifest: %v", err)
+	}
+	return item
 }
 
 func installedExtension(id string, extensionType string, backend ManifestBackend) Extension {
@@ -620,6 +705,19 @@ func (s *fakeExtensionStore) SaveBuiltin(_ context.Context, input SaveBuiltinInp
 	}
 	s.items[item.ID] = item
 	return item, nil
+}
+
+func (s *fakeExtensionStore) PruneMissingBuiltins(_ context.Context, activeIDs []string) error {
+	active := map[string]bool{}
+	for _, id := range activeIDs {
+		active[id] = true
+	}
+	for id, item := range s.items {
+		if item.Source == SourceBuiltin && !active[id] {
+			delete(s.items, id)
+		}
+	}
+	return nil
 }
 
 func (s *fakeExtensionStore) Enable(_ context.Context, id string, extensionType string) (Extension, error) {

@@ -7,6 +7,7 @@ type Store interface {
 	Get(ctx context.Context, id string) (Extension, error)
 	SaveInstalled(ctx context.Context, input SaveInstalledInput) (Extension, error)
 	SaveBuiltin(ctx context.Context, input SaveBuiltinInput) (Extension, error)
+	PruneMissingBuiltins(ctx context.Context, activeIDs []string) error
 	Enable(ctx context.Context, id string, extensionType string) (Extension, error)
 	Disable(ctx context.Context, id string) (Extension, error)
 	ActivateTheme(ctx context.Context, id string) (Extension, error)

@@ -214,7 +214,9 @@ This is the entry point for project memory.
   layer is actually applied, while uploaded themes can be installed and
   verified but not activated. Plugin runtime v1 now starts enabled plugin
   subprocesses through HashiCorp go-plugin, proxies declared plugin routes,
-  emits lifecycle hooks, and exposes provider slot defaults.
+  emits lifecycle hooks, and exposes provider slot defaults. Built-in sync
+  prunes stale built-in extension rows, and verify/enable operations require
+  the active package path and installed manifest to still exist.
 - Runtime language pack management has an accepted design: add a system-menu
   admin "Language settings" page, `locale.manage`, ZIP language pack uploads
   with `sforum.locale.json`, package storage under `LOCALE_PACK_ROOT`/
@@ -356,6 +358,8 @@ This is the entry point for project memory.
 - `sessions/2026-07-06-theme-boundary-activation.md` - plugin enable/theme
   activate semantics, built-in default theme layer, and public UI ownership
   handoff.
+- `sessions/2026-07-06-extension-stale-builtin-cleanup.md` - stale built-in
+  extension row pruning and package-existence preflight handoff.
 - `sessions/2026-07-04-permission-aware-development-guidelines.md` -
   permission-aware feature development guideline handoff.
 - `sessions/2026-07-05-auth-session-restart-resilience.md` - frontend auth

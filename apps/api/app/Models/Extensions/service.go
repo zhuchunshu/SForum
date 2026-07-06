@@ -183,6 +183,7 @@ func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
 		{dir: "themes", extensionType: TypeTheme},
 	}
 	items := []Extension{}
+	activeBuiltinIDs := map[string]bool{}
 	for _, group := range groups {
 		root := filepath.Join(s.builtinRoot, group.dir)
 		entries, err := os.ReadDir(root)
@@ -219,12 +220,22 @@ func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
 			if err != nil {
 				return nil, err
 			}
+			activeBuiltinIDs[item.ID] = true
 			_, _ = s.store.CreateEvent(ctx, EventInput{
 				ExtensionID: item.ID,
 				Action:      EventBuiltinSynced,
 				Message:     "Built-in extension synchronized from Git.",
 			})
 			items = append(items, item)
+		}
+	}
+	if len(activeBuiltinIDs) > 0 {
+		ids := make([]string, 0, len(activeBuiltinIDs))
+		for id := range activeBuiltinIDs {
+			ids = append(ids, id)
+		}
+		if err := s.store.PruneMissingBuiltins(ctx, ids); err != nil {
+			return nil, err
 		}
 	}
 	if _, err := s.EnsureDefaultThemeActive(ctx); err != nil && !errors.Is(err, ErrExtensionNotFound) {
@@ -329,11 +340,9 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (
 		return Extension{}, ErrThemeActivationRequired
 	}
 
-	if extension.Type == TypePlugin && extension.Manifest.Backend.Entry != "" && s.runtime != nil {
-		if err := s.runtime.Check(ctx, extension); err != nil {
-			s.recordEnableFailure(ctx, actor, extension.ID, err)
-			return Extension{}, fmt.Errorf("%w: %v", ErrPreflightFailed, err)
-		}
+	if err := s.verifyExtension(ctx, extension); err != nil {
+		s.recordEnableFailure(ctx, actor, extension.ID, err)
+		return Extension{}, err
 	}
 	enabled, err := s.store.Enable(ctx, extension.ID, extension.Type)
 	if err != nil {
@@ -464,6 +473,9 @@ func (s *Service) EnsureDefaultThemeActive(ctx context.Context) (Extension, erro
 }
 
 func (s *Service) verifyExtension(ctx context.Context, extension Extension) error {
+	if err := validateInstalledPackage(extension); err != nil {
+		return fmt.Errorf("%w: %v", ErrPreflightFailed, err)
+	}
 	if extension.Type == TypePlugin && extension.Manifest.Backend.Entry != "" && s.runtime != nil {
 		if err := s.runtime.Check(ctx, extension); err != nil {
 			return fmt.Errorf("%w: %v", ErrPreflightFailed, err)
@@ -473,6 +485,35 @@ func (s *Service) verifyExtension(ctx context.Context, extension Extension) erro
 		if err := s.themeBuilder.Build(ctx, extension); err != nil {
 			return fmt.Errorf("%w: %v", ErrBuildFailed, err)
 		}
+	}
+	return nil
+}
+
+func validateInstalledPackage(extension Extension) error {
+	packagePath := strings.TrimSpace(extension.PackagePath)
+	if packagePath == "" {
+		return fmt.Errorf("extension package path is empty")
+	}
+	if extension.Source == SourceBuiltin {
+		info, err := os.Stat(packagePath)
+		if err != nil || !info.IsDir() {
+			return fmt.Errorf("builtin extension package %s is not available", packagePath)
+		}
+		return requireInstalledManifest(packagePath)
+	}
+
+	info, err := os.Stat(packagePath)
+	if err != nil || info.IsDir() {
+		return fmt.Errorf("extension archive %s is not available", packagePath)
+	}
+	return requireInstalledManifest(filepath.Dir(packagePath))
+}
+
+func requireInstalledManifest(root string) error {
+	manifestPath := filepath.Join(root, ManifestFileName)
+	info, err := os.Stat(manifestPath)
+	if err != nil || info.IsDir() {
+		return fmt.Errorf("extension manifest %s is not available", manifestPath)
 	}
 	return nil
 }

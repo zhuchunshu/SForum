@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  EXTENSION_EVENT_PAGE_SIZE,
   activeTheme,
   canRestartPlugin,
   capabilityCount,
+  extensionEventPage,
   extensionStats,
   filterExtensionsByType,
   mergeExtensionEvents,
@@ -132,6 +134,30 @@ describe('admin extension helpers', () => {
       'demo.theme:installed',
       'demo.plugin:installed'
     ])
+  })
+
+  test('paginates extension events with at most eight rows per page', () => {
+    const items = Array.from({ length: 18 }, (_, index) => event({
+      id: index + 1,
+      extensionId: 'demo.plugin',
+      action: `event.${index + 1}`,
+      createdAt: '2026-07-05T10:00:00Z'
+    }))
+
+    const firstPage = extensionEventPage(items, 1)
+    const lastPage = extensionEventPage(items, 99)
+    const emptyPage = extensionEventPage([], 1)
+
+    expect(EXTENSION_EVENT_PAGE_SIZE).toBe(8)
+    expect(firstPage.items).toHaveLength(8)
+    expect(firstPage.start).toBe(1)
+    expect(firstPage.end).toBe(8)
+    expect(firstPage.totalPages).toBe(3)
+    expect(lastPage.page).toBe(3)
+    expect(lastPage.items.map(item => item.id)).toEqual([17, 18])
+    expect(emptyPage.totalPages).toBe(1)
+    expect(emptyPage.start).toBe(0)
+    expect(emptyPage.end).toBe(0)
   })
 })
 

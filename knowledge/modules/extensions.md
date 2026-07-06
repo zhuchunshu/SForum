@@ -27,7 +27,12 @@ and plugin runtime v1.
   `is_system`, and `is_deletable`.
 - Startup sync reads `BUILTIN_EXTENSION_ROOT`, registers the protected built-in
   `sforum.default-theme`, and repairs unsafe theme state so the built-in default
-  theme is active when no theme or an uploaded theme is active in v1.
+  theme is active when no theme or an uploaded theme is active in v1. It also
+  prunes stale `source=builtin` rows whose manifest directories no longer exist
+  under the current built-in extension tree.
+- Extension verify and plugin enable operations require the active package path
+  and installed `sforum.extension.json` to still exist before changing runtime
+  state.
 - Admin API routes:
   - `GET /api/v1/admin/extensions`
   - `POST /api/v1/admin/extensions`

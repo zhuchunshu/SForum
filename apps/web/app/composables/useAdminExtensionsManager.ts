@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import {
+  EXTENSION_EVENT_FETCH_LIMIT,
   extensionStats,
   mergeExtensionEvents,
   type AdminExtension,
@@ -135,7 +136,7 @@ export const useAdminExtensionsManager = async () => {
     }
   }
 
-  async function loadEvents(id: string, limit = 20) {
+  async function loadEvents(id: string, limit = EXTENSION_EVENT_FETCH_LIMIT) {
     loadingEvents.value = true
     try {
       const items = await request<AdminExtensionEvent[]>(`/admin/extensions/${id}/events?limit=${limit}`)
@@ -155,7 +156,7 @@ export const useAdminExtensionsManager = async () => {
     }
   }
 
-  async function loadAllEvents(limit = 20) {
+  async function loadAllEvents(limit = EXTENSION_EVENT_FETCH_LIMIT) {
     loadingAllEvents.value = true
     try {
       const entries = await Promise.all(extensions.value.map(async (item) => {

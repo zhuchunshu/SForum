@@ -271,6 +271,7 @@
         "providers": "{count} providers"
       },
       "events": "Install log",
+      "eventPageSummary": "Showing {start}-{end} of {count}",
       "noEvents": "No events recorded yet.",
       "plugins": {
         "metaTitle": "Plugin management",
