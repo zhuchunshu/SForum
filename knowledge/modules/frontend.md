@@ -99,6 +99,10 @@ Admin sidebar parent folders derive active/open state from the current admin
 route: only the matching parent opens initially, inactive folders stay
 collapsed by default, and the sidebar body scrolls independently when the menu
 list grows.
+The admin shell now includes a `database.manage`-gated database table manager
+under the System folder. It uses the existing admin registry, Nuxt UI controls,
+native dense tables, masked sensitive cells with per-cell reveal, and CSV
+export that keeps sensitive values masked.
 Dynamic extension admin pages under `/extensions/{id}/pages/*` are treated as
 route-backed custom admin tabs. The admin layout creates a temporary tab from
 the route when needed, activates existing custom tabs on route changes, and

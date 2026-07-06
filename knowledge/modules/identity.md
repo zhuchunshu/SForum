@@ -21,6 +21,9 @@ Initial identity foundation is implemented.
   listing, role creation/update/delete, role permission replacement, permission
   catalog/matrix reads, admin user listing/detail, user role replacement, and
   user direct permission override replacement.
+- The permission catalog includes `database.manage` for the read-only admin
+  database table manager. `super_admin` receives it by migration and policy as
+  part of the protected all-permissions role.
 - API exposes `/api/v1/auth/registration-status` so the registration page can
   show when the next successful registration will become the initial
   `super_admin`.

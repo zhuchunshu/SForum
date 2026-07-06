@@ -1,0 +1,180 @@
+adminDatabaseTables:
+  get:
+    summary: List database tables
+    operationId: listAdminDatabaseTables
+    responses:
+      '200':
+        description: Database tables visible to database managers.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/database.yaml#/ApiResponseDatabaseTableList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+adminDatabaseTable:
+  get:
+    summary: Get database table metadata
+    operationId: getAdminDatabaseTable
+    parameters:
+    - "$ref": "../components/parameters.yaml#/DatabaseSchema"
+    - "$ref": "../components/parameters.yaml#/DatabaseTable"
+    responses:
+      '200':
+        description: Columns, primary key, indexes, and constraints for one table.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/database.yaml#/ApiResponseDatabaseTableDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminDatabaseTableRows:
+  get:
+    summary: List database table rows
+    operationId: listAdminDatabaseTableRows
+    parameters:
+    - "$ref": "../components/parameters.yaml#/DatabaseSchema"
+    - "$ref": "../components/parameters.yaml#/DatabaseTable"
+    - name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    - name: sort
+      in: query
+      schema:
+        type: string
+    - name: direction
+      in: query
+      schema:
+        type: string
+        enum:
+        - asc
+        - desc
+    - name: filterColumn
+      in: query
+      schema:
+        type: string
+    - name: filterOperator
+      in: query
+      schema:
+        type: string
+        enum:
+        - eq
+        - contains
+        - is_null
+        - not_null
+    - name: filterValue
+      in: query
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Paged rows with sensitive cells masked by default.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/database.yaml#/ApiResponseDatabaseRows"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminDatabaseTableRowReveal:
+  get:
+    summary: Reveal one masked database cell
+    operationId: revealAdminDatabaseCell
+    parameters:
+    - "$ref": "../components/parameters.yaml#/DatabaseSchema"
+    - "$ref": "../components/parameters.yaml#/DatabaseTable"
+    - name: rowKey
+      in: query
+      required: true
+      schema:
+        type: string
+    - name: column
+      in: query
+      required: true
+      schema:
+        type: string
+    responses:
+      '200':
+        description: Single revealed sensitive cell value.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/database.yaml#/ApiResponseDatabaseReveal"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminDatabaseTableExport:
+  get:
+    summary: Export database table rows as CSV
+    operationId: exportAdminDatabaseTableCSV
+    parameters:
+    - "$ref": "../components/parameters.yaml#/DatabaseSchema"
+    - "$ref": "../components/parameters.yaml#/DatabaseTable"
+    - name: sort
+      in: query
+      schema:
+        type: string
+    - name: direction
+      in: query
+      schema:
+        type: string
+        enum:
+        - asc
+        - desc
+    - name: filterColumn
+      in: query
+      schema:
+        type: string
+    - name: filterOperator
+      in: query
+      schema:
+        type: string
+        enum:
+        - eq
+        - contains
+        - is_null
+        - not_null
+    - name: filterValue
+      in: query
+      schema:
+        type: string
+    responses:
+      '200':
+        description: CSV export with sensitive cells masked.
+        content:
+          text/csv:
+            schema:
+              type: string
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"

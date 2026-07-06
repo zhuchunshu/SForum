@@ -16,6 +16,7 @@ import (
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
+	database "github.com/zhuchunshu/sforum/apps/api/app/Models/Database"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
@@ -101,6 +102,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	identityStore := identity.NewPostgresStore(pool)
 	forumStore := forum.NewPostgresStore(pool)
 	attachmentStore := attachments.NewPostgresStore(pool)
+	databaseStore := database.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
 	extensionRuntime := newExtensionRuntimeManager(extensionStore)
 	extensionService := extensions.NewServiceWithBuiltinsAndRuntime(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime, nil)
@@ -132,10 +134,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	forumProvider := providers.NewForumProviderWithEvents(forumStore, identityStore, authSessions, extensionRuntime)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, extensionRuntime)
+	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
 	extensionsProvider := providers.NewExtensionsProviderWithRuntime(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider, forumProvider, optionsProvider, attachmentsProvider, extensionsProvider},
+		RouteProviders: []httpserver.RouteProvider{identityProvider, forumProvider, optionsProvider, attachmentsProvider, databaseProvider, extensionsProvider},
 		Options:        optionsService,
 	})
 

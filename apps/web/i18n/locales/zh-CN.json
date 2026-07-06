@@ -153,6 +153,7 @@
       "rolesBadge": "RBAC",
       "settings": "站点设置",
       "seo": "SEO 设置",
+      "database": "数据库表管理",
       "attachments": "附件设置",
       "extensions": "扩展管理",
       "extensionOverview": "扩展总览",
@@ -702,6 +703,12 @@
           "description": "修改搜索引擎索引、站点地图、结构化数据和搜索平台验证。"
         }
       },
+      "database": {
+        "manage": {
+          "label": "管理数据库表",
+          "description": "查看数据库表结构、索引、约束和只读行数据。"
+        }
+      },
       "attachment": {
         "upload": {
           "label": "上传附件",
@@ -717,6 +724,65 @@
             "description": "修改附件存储提供商、上传限制、访问 URL 和密钥配置。"
           }
         }
+      }
+    },
+    "database": {
+      "metaTitle": "数据库表管理",
+      "title": "数据库表管理",
+      "intro": "查看当前应用数据库的表结构、索引、约束和只读行数据。",
+      "searchPlaceholder": "搜索表名或 schema",
+      "refresh": "刷新",
+      "export": "导出 CSV",
+      "tables": "数据表",
+      "tableCount": "{count} 张表",
+      "columns": "字段",
+      "indexes": "索引",
+      "constraints": "约束",
+      "rows": "行数据",
+      "loading": "加载中...",
+      "emptyTables": "没有可显示的数据表。",
+      "emptyRows": "当前筛选条件下没有行数据。",
+      "loadFailed": "数据库表加载失败。",
+      "detailLoadFailed": "表详情加载失败。",
+      "rowsLoadFailed": "行数据加载失败。",
+      "revealFailed": "敏感值展开失败。",
+      "exportFailed": "CSV 导出失败。",
+      "schema": "Schema",
+      "table": "表名",
+      "kind": "类型",
+      "estimatedRows": "估算行数",
+      "size": "大小",
+      "comment": "备注",
+      "primaryKey": "主键",
+      "nullable": "可空",
+      "defaultValue": "默认值",
+      "sensitive": "敏感",
+      "filterColumn": "筛选字段",
+      "filterOperator": "筛选方式",
+      "filterValue": "筛选值",
+      "allColumns": "选择字段",
+      "applyFilter": "应用筛选",
+      "resetFilter": "重置",
+      "previous": "上一页",
+      "next": "下一页",
+      "page": "第 {page} 页",
+      "showValue": "显示原值",
+      "nullValue": "NULL",
+      "noComment": "无备注",
+      "noDefault": "无",
+      "yes": "是",
+      "no": "否",
+      "operators": {
+        "contains": "包含",
+        "eq": "等于",
+        "is_null": "为空",
+        "not_null": "不为空"
+      },
+      "kinds": {
+        "table": "表",
+        "partitioned_table": "分区表",
+        "view": "视图",
+        "materialized_view": "物化视图"
       }
     },
     "personalization": {

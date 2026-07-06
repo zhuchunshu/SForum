@@ -109,6 +109,10 @@ This is the entry point for project memory.
   background action triggers must identify their actor/action/resource boundary,
   keep API policy checks authoritative, and test allowed plus denied paths when
   behavior is unsafe or admin-facing.
+- Admin database table management is implemented as a core, read-only
+  PostgreSQL browser. It requires `database.manage`, excludes system schemas,
+  shows table metadata and paged rows, masks sensitive columns by default, and
+  allows one-cell reveal for primary-keyed rows.
 - Development guidelines now require beginner-friendly defaults for new
   features: configurable flows must ship with safe recommended defaults,
   explain the recommended path in plain language, and support one-click

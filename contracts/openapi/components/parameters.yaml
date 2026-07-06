@@ -57,4 +57,16 @@ CommentID:
   schema:
     type: integer
     format: int64
+DatabaseSchema:
+  name: schema
+  in: path
+  required: true
+  schema:
+    type: string
+DatabaseTable:
+  name: table
+  in: path
+  required: true
+  schema:
+    type: string
   description: Numeric comment id.

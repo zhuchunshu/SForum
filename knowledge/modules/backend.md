@@ -66,6 +66,10 @@ and provider interfaces while plugins implement provider/vendor behavior.
 - `attachments`: uploaded file metadata, storage provider settings, upload
   validation, provider adapters, admin governance, attachment references, and
   orphan cleanup.
+- `database`: core admin-only database table inspection for the current
+  PostgreSQL database. It is read-only in v1, uses catalog metadata to validate
+  table/column identifiers, excludes system schemas, masks sensitive values,
+  and requires `database.manage`.
 - `notifications`: framework-only until accepted product scope requires more;
   core may own events, preferences, delivery-attempt contracts, queue names, and
   provider slots, while concrete channels and fanout policy belong in plugins.
@@ -172,6 +176,8 @@ consumers/tests that depend on the shape. Run
   single-use challenge tracking.
 - Keep the modular OpenAPI contract synchronized with route files and future
   generated frontend clients.
+- Keep admin database management read-only unless a separate write-operation
+  design covers audit events, confirmations, and permission boundaries.
 - Add River and `app/Support/Jobs` after the jobs design is reviewed.
 - Implement the accepted API response envelope: every JSON API response uses
   integer `code`, backend-localized `message`, and `data`; `code` equals the

@@ -93,6 +93,13 @@ export const adminPageDefinitions = [
     requiredPermissions: ['seo.manage']
   },
   {
+    id: '/database',
+    labelKey: 'admin.nav.database',
+    icon: 'i-lucide-database',
+    componentName: 'AdminDatabase',
+    requiredPermissions: ['database.manage']
+  },
+  {
     id: '/attachments',
     labelKey: 'admin.nav.attachments',
     icon: 'i-lucide-paperclip',
@@ -157,7 +164,8 @@ export const adminSidebarNavigation = [
       icon: 'i-lucide-settings-2',
       children: [
         { type: 'page', pageId: '/settings' },
-        { type: 'page', pageId: '/seo' }
+        { type: 'page', pageId: '/seo' },
+        { type: 'page', pageId: '/database' }
       ]
     },
     {

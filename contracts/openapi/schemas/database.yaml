@@ -1,0 +1,230 @@
+ApiResponseDatabaseTableList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/DatabaseTableSummary"
+ApiResponseDatabaseTableDetail:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/DatabaseTableDetail"
+ApiResponseDatabaseRows:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/DatabaseRows"
+ApiResponseDatabaseReveal:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/DatabaseReveal"
+DatabaseTableSummary:
+  type: object
+  required:
+  - schema
+  - name
+  - kind
+  - estimatedRows
+  - sizeBytes
+  - comment
+  properties:
+    schema:
+      type: string
+    name:
+      type: string
+    kind:
+      type: string
+      enum:
+      - table
+      - partitioned_table
+      - view
+      - materialized_view
+    estimatedRows:
+      type: integer
+      format: int64
+    sizeBytes:
+      type: integer
+      format: int64
+    comment:
+      type: string
+DatabaseColumn:
+  type: object
+  required:
+  - name
+  - dataType
+  - nullable
+  - defaultValue
+  - isPrimaryKey
+  - isSensitive
+  properties:
+    name:
+      type: string
+    dataType:
+      type: string
+    nullable:
+      type: boolean
+    defaultValue:
+      type: string
+    isPrimaryKey:
+      type: boolean
+    isSensitive:
+      type: boolean
+DatabaseIndex:
+  type: object
+  required:
+  - name
+  - unique
+  - primary
+  - definition
+  properties:
+    name:
+      type: string
+    unique:
+      type: boolean
+    primary:
+      type: boolean
+    definition:
+      type: string
+DatabaseConstraint:
+  type: object
+  required:
+  - name
+  - type
+  - definition
+  properties:
+    name:
+      type: string
+    type:
+      type: string
+    definition:
+      type: string
+DatabaseTableDetail:
+  type: object
+  required:
+  - schema
+  - name
+  - kind
+  - columns
+  - primaryKey
+  - indexes
+  - constraints
+  properties:
+    schema:
+      type: string
+    name:
+      type: string
+    kind:
+      type: string
+    columns:
+      type: array
+      items:
+        "$ref": "#/DatabaseColumn"
+    primaryKey:
+      type: array
+      items:
+        type: string
+    indexes:
+      type: array
+      items:
+        "$ref": "#/DatabaseIndex"
+    constraints:
+      type: array
+      items:
+        "$ref": "#/DatabaseConstraint"
+DatabaseCell:
+  type: object
+  required:
+  - value
+  - sensitive
+  - masked
+  properties:
+    value:
+      nullable: true
+    sensitive:
+      type: boolean
+    masked:
+      type: boolean
+DatabaseRow:
+  type: object
+  required:
+  - values
+  properties:
+    rowKey:
+      type: string
+    values:
+      type: object
+      additionalProperties:
+        "$ref": "#/DatabaseCell"
+DatabaseRows:
+  type: object
+  required:
+  - columns
+  - rows
+  - page
+  - perPage
+  - hasNext
+  properties:
+    columns:
+      type: array
+      items:
+        "$ref": "#/DatabaseColumn"
+    rows:
+      type: array
+      items:
+        "$ref": "#/DatabaseRow"
+    page:
+      type: integer
+    perPage:
+      type: integer
+    hasNext:
+      type: boolean
+DatabaseReveal:
+  type: object
+  required:
+  - schema
+  - table
+  - column
+  - value
+  properties:
+    schema:
+      type: string
+    table:
+      type: string
+    column:
+      type: string
+    value:
+      nullable: true

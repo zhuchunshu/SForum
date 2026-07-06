@@ -153,6 +153,7 @@
       "rolesBadge": "RBAC",
       "settings": "Site settings",
       "seo": "SEO settings",
+      "database": "Database tables",
       "attachments": "Attachment settings",
       "extensions": "Extensions",
       "extensionOverview": "Extension overview",
@@ -702,6 +703,12 @@
           "description": "Edit search indexing, sitemap, structured data, and search platform verification."
         }
       },
+      "database": {
+        "manage": {
+          "label": "Manage database tables",
+          "description": "View database table structure, indexes, constraints, and read-only row data."
+        }
+      },
       "attachment": {
         "upload": {
           "label": "Upload attachments",
@@ -717,6 +724,65 @@
             "description": "Edit storage providers, upload limits, access URLs, and secret configuration."
           }
         }
+      }
+    },
+    "database": {
+      "metaTitle": "Database tables",
+      "title": "Database tables",
+      "intro": "View the current application database structure, indexes, constraints, and read-only row data.",
+      "searchPlaceholder": "Search table or schema",
+      "refresh": "Refresh",
+      "export": "Export CSV",
+      "tables": "Tables",
+      "tableCount": "{count} tables",
+      "columns": "Columns",
+      "indexes": "Indexes",
+      "constraints": "Constraints",
+      "rows": "Rows",
+      "loading": "Loading...",
+      "emptyTables": "No database tables to show.",
+      "emptyRows": "No rows match the current filters.",
+      "loadFailed": "Database tables could not be loaded.",
+      "detailLoadFailed": "Table details could not be loaded.",
+      "rowsLoadFailed": "Rows could not be loaded.",
+      "revealFailed": "Sensitive value could not be revealed.",
+      "exportFailed": "CSV export failed.",
+      "schema": "Schema",
+      "table": "Table",
+      "kind": "Type",
+      "estimatedRows": "Estimated rows",
+      "size": "Size",
+      "comment": "Comment",
+      "primaryKey": "Primary key",
+      "nullable": "Nullable",
+      "defaultValue": "Default",
+      "sensitive": "Sensitive",
+      "filterColumn": "Filter column",
+      "filterOperator": "Filter",
+      "filterValue": "Filter value",
+      "allColumns": "Choose column",
+      "applyFilter": "Apply filter",
+      "resetFilter": "Reset",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {page}",
+      "showValue": "Show value",
+      "nullValue": "NULL",
+      "noComment": "No comment",
+      "noDefault": "None",
+      "yes": "Yes",
+      "no": "No",
+      "operators": {
+        "contains": "Contains",
+        "eq": "Equals",
+        "is_null": "Is null",
+        "not_null": "Is not null"
+      },
+      "kinds": {
+        "table": "Table",
+        "partitioned_table": "Partitioned table",
+        "view": "View",
+        "materialized_view": "Materialized view"
       }
     },
     "personalization": {

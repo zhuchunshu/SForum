@@ -72,6 +72,16 @@ paths:
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentCleanup"
   "/admin/attachments/{attachmentID}":
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentByID"
+  "/admin/database/tables":
+    "$ref": "./openapi/paths/database.yaml#/adminDatabaseTables"
+  "/admin/database/tables/{schema}/{table}":
+    "$ref": "./openapi/paths/database.yaml#/adminDatabaseTable"
+  "/admin/database/tables/{schema}/{table}/rows":
+    "$ref": "./openapi/paths/database.yaml#/adminDatabaseTableRows"
+  "/admin/database/tables/{schema}/{table}/rows/reveal":
+    "$ref": "./openapi/paths/database.yaml#/adminDatabaseTableRowReveal"
+  "/admin/database/tables/{schema}/{table}/export.csv":
+    "$ref": "./openapi/paths/database.yaml#/adminDatabaseTableExport"
   "/admin/extensions":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensions"
   "/admin/extensions/navigation":
@@ -114,6 +124,10 @@ components:
       "$ref": "./openapi/components/parameters.yaml#/TopicID"
     CommentID:
       "$ref": "./openapi/components/parameters.yaml#/CommentID"
+    DatabaseSchema:
+      "$ref": "./openapi/components/parameters.yaml#/DatabaseSchema"
+    DatabaseTable:
+      "$ref": "./openapi/components/parameters.yaml#/DatabaseTable"
   responses:
     Unauthorized:
       "$ref": "./openapi/components/responses.yaml#/Unauthorized"
@@ -190,6 +204,14 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionNavigationList"
     ApiResponseExtensionSettings:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionSettings"
+    ApiResponseDatabaseTableList:
+      "$ref": "./openapi/schemas/database.yaml#/ApiResponseDatabaseTableList"
+    ApiResponseDatabaseTableDetail:
+      "$ref": "./openapi/schemas/database.yaml#/ApiResponseDatabaseTableDetail"
+    ApiResponseDatabaseRows:
+      "$ref": "./openapi/schemas/database.yaml#/ApiResponseDatabaseRows"
+    ApiResponseDatabaseReveal:
+      "$ref": "./openapi/schemas/database.yaml#/ApiResponseDatabaseReveal"
     ApiResponseCategoryList:
       "$ref": "./openapi/schemas/forum.yaml#/ApiResponseCategoryList"
     ApiResponseTopicList:
@@ -234,6 +256,24 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionEventDelivery"
     Health:
       "$ref": "./openapi/schemas/common.yaml#/Health"
+    DatabaseTableSummary:
+      "$ref": "./openapi/schemas/database.yaml#/DatabaseTableSummary"
+    DatabaseColumn:
+      "$ref": "./openapi/schemas/database.yaml#/DatabaseColumn"
+    DatabaseIndex:
+      "$ref": "./openapi/schemas/database.yaml#/DatabaseIndex"
+    DatabaseConstraint:
+      "$ref": "./openapi/schemas/database.yaml#/DatabaseConstraint"
+    DatabaseTableDetail:
+      "$ref": "./openapi/schemas/database.yaml#/DatabaseTableDetail"
+    DatabaseCell:
+      "$ref": "./openapi/schemas/database.yaml#/DatabaseCell"
+    DatabaseRow:
+      "$ref": "./openapi/schemas/database.yaml#/DatabaseRow"
+    DatabaseRows:
+      "$ref": "./openapi/schemas/database.yaml#/DatabaseRows"
+    DatabaseReveal:
+      "$ref": "./openapi/schemas/database.yaml#/DatabaseReveal"
     WebOption:
       "$ref": "./openapi/schemas/options.yaml#/WebOption"
     AdminWebOption:
