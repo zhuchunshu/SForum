@@ -23,6 +23,10 @@ Backend HTTP controllers now have a Go-explicit Laravel-style abort helper in
 existing `*APIError` type instead of panicking, so Fiber's centralized error
 handler continues to emit localized SForum API envelopes with `code`,
 `message`, and `data.reason`.
+Architecture guidance now treats SForum core as a host framework. Optional
+vertical systems such as payments, outbound mail delivery, notification
+channels, analytics, and vendor-specific integrations should be built as
+plugins or explicit provider-slot implementations by default.
 
 ## Planned Stack
 
@@ -60,7 +64,13 @@ handler continues to emit localized SForum API envelopes with `code`,
 - `attachments`: uploaded file metadata, storage provider settings, upload
   validation, provider adapters, admin governance, attachment references, and
   orphan cleanup.
-- `notifications`: deferred unless MVP requires it.
+- `notifications`: framework-only until accepted product scope requires more;
+  core may own events, preferences, delivery-attempt contracts, queue names, and
+  provider slots, while concrete channels and fanout policy belong in plugins.
+- `payments`: not a core module; core may define entitlement checks, payment
+  events, provider slots, and idempotent webhook gateway rules only after
+  product scope is confirmed. Gateway integrations and vendor-specific flows
+  belong in plugins.
 
 ## HTTP Bootstrap And Routing
 
@@ -139,7 +149,8 @@ consumers/tests that depend on the shape. Run
 ## Open Questions
 
 - Final deployment target and runtime process model.
-- Whether backend emails and notifications need full English translation in MVP.
+- Whether backend email or notification contracts need full English translation
+  in MVP before any mail/notification plugin ships.
 - Exact username, email, password, and email-verification rules for open
   registration.
 

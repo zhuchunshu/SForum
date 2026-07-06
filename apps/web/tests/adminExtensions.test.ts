@@ -7,6 +7,8 @@ import {
   capabilityCount,
   extensionDeliveryPage,
   extensionEventPage,
+  extensionAuthorName,
+  extensionAuthorWebsite,
   extensionStats,
   filterExtensionsByType,
   mergeExtensionDeliveries,
@@ -96,6 +98,36 @@ describe('admin extension helpers', () => {
     })
 
     expect(capabilityCount(item)).toBe(9)
+  })
+
+  test('resolves extension author display and website fallback', () => {
+    const item = extension({
+      id: 'author.plugin',
+      name: 'Author Plugin',
+      type: 'plugin',
+      manifest: {
+        url: 'https://example.com/plugins/author',
+        author: {
+          name: 'Demo Studio',
+          url: 'https://studio.example.com'
+        }
+      }
+    })
+    const fallback = extension({
+      id: 'fallback.theme',
+      name: 'Fallback Theme',
+      type: 'theme',
+      manifest: {
+        url: 'https://example.com/themes/fallback',
+        author: {
+          name: 'Theme Team'
+        }
+      }
+    })
+
+    expect(extensionAuthorName(item)).toBe('Demo Studio')
+    expect(extensionAuthorWebsite(item)).toBe('https://studio.example.com')
+    expect(extensionAuthorWebsite(fallback)).toBe('https://example.com/themes/fallback')
   })
 
   test('summarizes runtime declarations and running state', () => {

@@ -33,8 +33,8 @@
 - Categories and topics.
 - Posts and replies.
 - Basic moderation.
-- Localized UI, validation display, notifications/emails where present, and
-  localized seed/admin labels for shipped features.
+- Localized UI, validation display, plugin-backed notifications/mail where
+  present, and localized seed/admin labels for shipped features.
 - SEO-friendly category and topic pages.
 
 ## Milestone 3: Search And Operations
@@ -42,6 +42,8 @@
 - Meilisearch indexing and rebuild workflow.
 - Search UI.
 - Rate limits and abuse controls.
-- Notifications if product scope requires them.
+- Plugin-backed notification and mail providers if product scope requires them.
+- Payment and monetization integrations only after a plugin/provider-slot design
+  is accepted.
 - Production backup, restore, deploy status, logs, and rollback workflows in
   `deploy.sh`.

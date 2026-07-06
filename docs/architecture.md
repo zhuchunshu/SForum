@@ -12,6 +12,12 @@ document defines the target shape for ongoing implementation.
   deployable.
 - Use mature framework-native or ecosystem libraries before creating custom
   infrastructure.
+- Keep SForum core focused on the host framework, shared contracts, permissions,
+  extension runtime, and stable forum primitives instead of bundling every
+  optional product vertical.
+- Deliver deployment-specific systems such as payments, outbound mail delivery,
+  notification channels, analytics, and external integrations through plugins or
+  explicit provider slots by default.
 - Keep PostgreSQL as the source of truth; treat Redis and Meilisearch as
   supporting systems with rebuildable state.
 - Use Laravel-inspired organization where it helps readability, but keep Go
@@ -40,6 +46,57 @@ sessions, authorization, search indexing, and background work.
 
 Nuxt server routes may proxy or aggregate API calls for SSR ergonomics, but they
 must not become a second backend for forum domain logic.
+
+## Core Framework And Plugin-First Boundary
+
+SForum core is the host framework. It should provide the stable surface that a
+forum and its extensions need, while keeping optional business verticals outside
+the core runtime unless they are generic primitives.
+
+Core owns:
+
+- HTTP/SSR composition, API envelopes, OpenAPI contracts, localization, jobs,
+  migrations, options, health checks, and deployment conventions.
+- Identity, sessions, RBAC, API-authoritative policy checks, and permission
+  catalog plumbing.
+- Forum content primitives that define SForum as a forum: categories, topics,
+  comments, posts, revisions, visibility, moderation boundaries, and search
+  indexing contracts.
+- The extension manager, plugin runtime, event catalog, filter/validate points,
+  provider-slot registry, plugin route gateway, extension settings, and
+  developer scaffolding.
+- Small default or development adapters when they keep first-run behavior safe,
+  such as no-op providers, local test providers, or protected built-in plugins
+  that use the same extension APIs as uploaded plugins.
+
+Core must not grow full vertical implementations for capabilities that vary by
+deployment, vendor, or business model. These are plugin territory by default:
+
+- Payment gateways, subscriptions, paid memberships, invoices, refunds, order
+  ledgers, and payment webhooks.
+- Outbound mail provider implementations, SMTP/vendor credentials, digest
+  delivery, campaign delivery, and mail-specific retry policy.
+- Notification channels such as email, SMS, web push, chat integrations, and
+  product-specific notification fanout rules.
+- Analytics, third-party integrations, risk scoring providers, and alternative
+  provider implementations for search, storage, human verification, or
+  sanitization.
+
+When a new capability is needed, design the host extension point first:
+
+1. Define the actor, action, protected resource, and API policy boundary.
+2. Choose the narrowest host contract: observe event, validate/filter event,
+   provider slot, plugin route namespace, or extension-owned admin page.
+3. Keep plugin routes under `/api/v1/extensions/{extensionId}/*`; plugins cannot
+   override core routes or receive raw session cookies as authority.
+4. Store extension-owned configuration in `extension_settings`. Store active
+   provider selection in the owning core module only when host behavior depends
+   on that selection, and provide one-click restore to the built-in default.
+5. Put real provider or vendor logic in a plugin package. If SForum ships a
+   default implementation, ship it as a protected built-in plugin rather than a
+   hard-coded core service whenever practical.
+6. Record architectural choices in `knowledge/decisions/` when the boundary will
+   matter to future sessions.
 
 ## Chosen Stack
 
@@ -392,8 +449,22 @@ by `cmd/worker`.
 
 ### `notifications`
 
-Deferred for MVP unless needed early. Should own mention notifications, reply
-notifications, email preferences, digest jobs, and delivery attempts.
+Core notification work is framework-only unless a product milestone explicitly
+accepts more. Core may define notification events, preference contracts,
+delivery-attempt records, queue names, and provider slots. Channel
+implementations, digest policy, outbound mail delivery, SMS, web push, and
+third-party messaging integrations should be plugins, including protected
+built-in plugins if SForum later needs a bundled default.
+
+### `payments`
+
+Payments are not a core module. If paid memberships, subscriptions, donations,
+orders, invoices, or other monetization features enter scope, the core should
+first define the smallest host-owned contract it needs: permission keys,
+entitlement checks, events, idempotent webhook gateway rules, provider slots,
+and admin selection/reset behavior. Gateway integrations, payment records,
+refund flows, invoice rendering, and vendor-specific webhook handling belong in
+plugins by default.
 
 ### `localization`
 
@@ -510,7 +581,12 @@ Milestone 1 should establish architecture and tooling, not all forum features:
 
 - Production host target: which single VPS/container host should the Docker
   Compose deployment optimize for first?
-- Email provider for verification and notifications.
+- Which built-in plugin or provider slot should be implemented first for
+  transactional mail, if email verification or notification delivery enters the
+  MVP path?
+- Whether payments enter SForum scope at all, and if so which host-owned
+  entitlement or provider-slot contracts are required before a payment plugin
+  can be built safely.
 - Upload support and object storage provider.
 - Production backup destination and retention policy.
 - Exact MVP role-management screens and permission seed list.

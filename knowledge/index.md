@@ -228,6 +228,12 @@ This is the entry point for project memory.
   synchronous filter event for `topic.before_create`. The Go developer console
   at `apps/api/cmd/sforum` can scaffold plugins and themes interactively or via
   `--no-interaction`.
+- Architecture guidance now treats SForum core as the host framework rather
+  than a monolith of optional product verticals. Payments, outbound mail
+  delivery, notification channels, analytics, external integrations, and
+  vendor-specific provider behavior should be implemented as plugins by
+  default; core may add events, provider slots, policy checks, SDK helpers,
+  defaults, and protected built-in plugins to make those extensions practical.
 - Runtime language pack management has an accepted design: add a system-menu
   admin "Language settings" page, `locale.manage`, ZIP language pack uploads
   with `sforum.locale.json`, package storage under `LOCALE_PACK_ROOT`/

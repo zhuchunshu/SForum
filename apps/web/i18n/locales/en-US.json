@@ -229,6 +229,8 @@
       "emptyTitle": "No extensions installed",
       "emptyDescription": "Upload a ZIP package with an SForum manifest to enable plugins or verify themes here.",
       "capabilityCount": "{count} capability declarations",
+      "authorLinkLabel": "Author: {name}",
+      "authorWebsiteTitle": "Visit {name}'s website",
       "enable": "Enable",
       "disable": "Disable",
       "restart": "Restart",

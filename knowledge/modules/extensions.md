@@ -6,6 +6,13 @@ Owns installable plugins and themes for SForum. Plugins are multi-enable
 runtime extensions. Themes are Nuxt Layer packages with exactly one active
 applied theme.
 
+SForum core should stay framework-focused. Product verticals that vary by
+deployment or vendor, including payment gateways, outbound mail delivery,
+notification channels, analytics, and external integrations, should be
+implemented as plugins by default. Core may add explicit events, filters,
+provider slots, permission gates, admin selection/reset flows, SDK helpers, and
+protected built-in plugins when those make extension development practical.
+
 ## Current Status
 
 The extension foundation is implemented with plugin/theme lifecycle separation
@@ -100,6 +107,10 @@ and plugin runtime v1.
   plugin runtime hooks when activating a theme.
 - Backend plugin packages can declare a backend entry and RPC protocol. The
   first supported protocol is `hashicorp-go-plugin` protocol version 1.
+- Payment, mail, notification, analytics, and integration packages must not
+  override core routes or smuggle vendor-specific behavior into core modules.
+  They should use declared plugin routes, explicit host events, and provider
+  slots owned by the module whose behavior they extend.
 
 ## Permissions
 
@@ -143,5 +154,7 @@ targets `extensions/builtin/{plugins,themes}/{id}`.
 - Add a real theme activation worker that writes active Nuxt layer state,
   triggers web rebuild, runs a health check, and rolls back on failure. Only
   then should uploaded themes be activatable.
+- Add plugin author documentation for provider-slot based systems such as mail,
+  notifications, and payments before building those verticals.
 - Add upgrade, rollback, and uninstall operations.
 - Add signature/trust metadata if SForum later ships an extension marketplace.

@@ -10,8 +10,19 @@ Define the forum product clearly before implementation starts.
 - Topic/category model.
 - Posting, replying, editing, and moderation workflows.
 - Search and discovery.
-- Notifications.
+- Plugin-backed notifications and mail delivery.
+- Payment or monetization features only if a plugin/provider-slot design is
+  accepted first.
 - Administration.
+
+## Extensibility Product Boundary
+
+SForum should feel like a forum framework that can be extended for different
+communities. Product areas that vary by deployment or vendor, including payment
+gateways, outbound mail delivery, notification channels, analytics, and external
+integrations, should be implemented through plugins by default. Core product
+work may define the shared contracts, permissions, events, provider slots,
+defaults, and admin selection flows that make those plugins usable.
 
 ## Identity And Registration
 

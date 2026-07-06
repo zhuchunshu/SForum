@@ -229,6 +229,8 @@
       "emptyTitle": "还没有安装扩展",
       "emptyDescription": "上传符合 SForum manifest 规范的 ZIP 包后，可以在这里启用插件或验证主题。",
       "capabilityCount": "{count} 项能力声明",
+      "authorLinkLabel": "作者：{name}",
+      "authorWebsiteTitle": "访问 {name} 的网站",
       "enable": "启用",
       "disable": "禁用",
       "restart": "重启",

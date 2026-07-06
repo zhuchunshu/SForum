@@ -14,6 +14,28 @@ SForum is intended to become a maintainable forum project. The current repositor
 - Keep changes scoped to the current task. Do not refactor unrelated areas just because they are nearby.
 - Record decisions in the knowledge base when they will matter to future sessions.
 
+## Core Framework And Plugin-First Development
+
+SForum core is the host framework, not a place to accumulate every optional
+product vertical. New capabilities must be designed around stable framework
+contracts first.
+
+- Treat payments, outbound mail delivery, notification channels, analytics,
+  external integrations, provider-specific search/storage/security behavior,
+  and similar deployment-specific systems as plugins by default.
+- Core may add the narrow code that makes plugins practical: explicit events,
+  provider slots, typed payloads, permission checks, admin selection/reset UI,
+  SDK helpers, scaffolding, tests, no-op defaults, and development adapters.
+- Real provider or vendor logic should live in an extension package, including
+  protected built-in plugins when SForum needs a bundled default.
+- Do not let plugins override arbitrary core routes, monkey-patch core services,
+  read raw session cookies as authority, or bypass API policy checks. Core-owned
+  routes, events, filters, and provider slots are the only supported extension
+  points.
+- Before adding a core module for a new product area, write down why a plugin,
+  provider slot, or event is insufficient. Record architectural choices in
+  `knowledge/decisions/`.
+
 ## Beginner-Friendly Defaults
 
 Every new feature, admin screen, configuration flow, and user-facing workflow

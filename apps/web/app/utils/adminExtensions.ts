@@ -204,6 +204,14 @@ export function capabilityCount(item: AdminExtension) {
   ].reduce((total, count) => total + count, 0)
 }
 
+export function extensionAuthorName(item: AdminExtension) {
+  return item.manifest.author?.name?.trim() || ''
+}
+
+export function extensionAuthorWebsite(item: AdminExtension) {
+  return item.manifest.author?.url || item.manifest.url || ''
+}
+
 export function runtimeStatusLabelKey(item: AdminExtension) {
   return `admin.extensions.runtime.${item.runtime?.state || 'stopped'}`
 }

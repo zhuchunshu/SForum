@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, extensionAdminPageRoute, extensionEventPage, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
+import { capabilityCount, extensionAdminPageRoute, extensionAuthorName, extensionAuthorWebsite, extensionEventPage, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -175,27 +175,46 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
             class="grid gap-4 px-4 py-4 transition hover:bg-slate-50 md:grid-cols-[minmax(0,1fr)_auto] dark:hover:bg-zinc-800/50"
             :class="selected?.id === item.id ? 'bg-slate-50 dark:bg-zinc-800/50' : ''"
           >
-            <button
-              type="button"
-              class="min-w-0 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--sf-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-900"
-              @click="selectedId = item.id"
-            >
-              <div class="flex flex-wrap items-center gap-2">
-                <UIcon :name="item.type === 'theme' ? 'i-lucide-palette' : 'i-lucide-blocks'" class="size-4 text-[var(--sf-accent)]" />
-                <h3 class="truncate text-sm font-semibold text-slate-900 dark:text-zinc-100">
-                  {{ item.name }}
-                </h3>
-                <UBadge :color="statusColor(item.status)" variant="subtle">
-                  {{ extensionStatusLabel(item) }}
-                </UBadge>
-                <UBadge color="neutral" variant="outline">
-                  {{ typeLabel(item.type) }}
-                </UBadge>
-              </div>
-              <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
-                {{ item.id }} · v{{ item.version }} · {{ t('admin.extensions.capabilityCount', { count: capabilityCount(item) }) }}
-              </p>
-            </button>
+            <div class="min-w-0">
+              <button
+                type="button"
+                class="block w-full min-w-0 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--sf-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-900"
+                @click="selectedId = item.id"
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <UIcon :name="item.type === 'theme' ? 'i-lucide-palette' : 'i-lucide-blocks'" class="size-4 text-[var(--sf-accent)]" />
+                  <h3 class="truncate text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                    {{ item.name }}
+                  </h3>
+                  <UBadge :color="statusColor(item.status)" variant="subtle">
+                    {{ extensionStatusLabel(item) }}
+                  </UBadge>
+                  <UBadge color="neutral" variant="outline">
+                    {{ typeLabel(item.type) }}
+                  </UBadge>
+                </div>
+                <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
+                  {{ item.id }} · v{{ item.version }} · {{ t('admin.extensions.capabilityCount', { count: capabilityCount(item) }) }}
+                </p>
+              </button>
+              <a
+                v-if="extensionAuthorWebsite(item)"
+                :href="extensionAuthorWebsite(item)"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mt-2 inline-flex max-w-full items-center gap-1.5 rounded text-xs font-medium text-slate-500 transition hover:text-[var(--sf-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sf-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-zinc-400 dark:hover:text-[var(--sf-accent-dark)] dark:focus-visible:ring-offset-zinc-900"
+                :title="t('admin.extensions.authorWebsiteTitle', { name: extensionAuthorName(item) })"
+                :aria-label="t('admin.extensions.authorWebsiteTitle', { name: extensionAuthorName(item) })"
+              >
+                <UIcon name="i-lucide-user-round" class="size-3.5 shrink-0" />
+                <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: extensionAuthorName(item) }) }}</span>
+                <UIcon name="i-lucide-external-link" class="size-3 shrink-0" />
+              </a>
+              <span v-else-if="extensionAuthorName(item)" class="mt-2 inline-flex max-w-full items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
+                <UIcon name="i-lucide-user-round" class="size-3.5 shrink-0" />
+                <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: extensionAuthorName(item) }) }}</span>
+              </span>
+            </div>
             <div class="flex items-center gap-2 md:justify-end">
               <UButton
                 size="sm"

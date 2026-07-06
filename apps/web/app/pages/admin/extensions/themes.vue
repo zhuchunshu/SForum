@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, extensionAdminPageRoute, filterExtensionsByType, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
+import { capabilityCount, extensionAdminPageRoute, extensionAuthorName, extensionAuthorWebsite, filterExtensionsByType, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -97,6 +97,23 @@ useSeoMeta({
           <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
             {{ item.id }} · v{{ item.version }} · {{ t('admin.extensions.capabilityCount', { count: capabilityCount(item) }) }}
           </p>
+          <a
+            v-if="extensionAuthorWebsite(item)"
+            :href="extensionAuthorWebsite(item)"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="mt-2 inline-flex max-w-full items-center gap-1.5 rounded text-xs font-medium text-slate-500 transition hover:text-[var(--sf-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sf-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-zinc-400 dark:hover:text-[var(--sf-accent-dark)] dark:focus-visible:ring-offset-zinc-900"
+            :title="t('admin.extensions.authorWebsiteTitle', { name: extensionAuthorName(item) })"
+            :aria-label="t('admin.extensions.authorWebsiteTitle', { name: extensionAuthorName(item) })"
+          >
+            <UIcon name="i-lucide-user-round" class="size-3.5 shrink-0" />
+            <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: extensionAuthorName(item) }) }}</span>
+            <UIcon name="i-lucide-external-link" class="size-3 shrink-0" />
+          </a>
+          <span v-else-if="extensionAuthorName(item)" class="mt-2 inline-flex max-w-full items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
+            <UIcon name="i-lucide-user-round" class="size-3.5 shrink-0" />
+            <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: extensionAuthorName(item) }) }}</span>
+          </span>
           <p v-if="themeActionState(item) === 'verifyOnly'" class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
             {{ t('admin.extensions.themes.runtimeUnavailable') }}
           </p>

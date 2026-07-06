@@ -110,7 +110,8 @@ cd apps/api && air
 - `postgres`: PostgreSQL with a named development volume.
 - `redis`: Redis with a named development volume or ephemeral storage.
 - `meilisearch`: Meilisearch with a named development volume.
-- `mailpit`: optional local SMTP/web inbox for email testing.
+- `mailpit`: optional local SMTP/web inbox for plugin-backed mail testing; the
+  core app should not grow direct mail provider logic.
 - `minio`: optional local S3-compatible object storage once uploads exist.
 
 ### Hot Reload
@@ -331,7 +332,8 @@ Important production variables:
 - `MEILI_MASTER_KEY`
 - `SESSION_SECRET`
 - `CSRF_SECRET`
-- `SMTP_*`
+- Mail provider variables or extension settings only when a mail plugin is
+  installed. Avoid adding core `SMTP_*` settings for vendor-specific delivery.
 - `S3_*` once uploads exist.
 
 ## Health Checks
@@ -368,8 +370,10 @@ Worker queue concurrency is configured by environment variables:
 - `JOB_QUEUE_CRITICAL_WORKERS`: workers for small consistency-critical jobs.
 - `JOB_QUEUE_DEFAULT_WORKERS`: workers for ordinary background jobs.
 - `JOB_QUEUE_SEARCH_WORKERS`: workers for Meilisearch indexing and rebuilds.
-- `JOB_QUEUE_MAIL_WORKERS`: workers for outbound email delivery.
-- `JOB_QUEUE_NOTIFICATIONS_WORKERS`: workers for notification fanout.
+- `JOB_QUEUE_MAIL_WORKERS`: workers reserved for plugin-backed outbound mail
+  delivery.
+- `JOB_QUEUE_NOTIFICATIONS_WORKERS`: workers reserved for plugin-backed
+  notification fanout.
 - `JOB_QUEUE_MAINTENANCE_WORKERS`: workers for cleanup and scheduled
   maintenance jobs.
 
