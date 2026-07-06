@@ -34,6 +34,12 @@ func TestGeneratePluginScaffoldNonInteractive(t *testing.T) {
 	if manifest.Type != extensionmanifest.TypePlugin || manifest.Backend.Entry != "backend/plugin" {
 		t.Fatalf("unexpected plugin manifest: %#v", manifest)
 	}
+	if manifest.Admin.Entry != "/settings" || len(manifest.Admin.Pages) != 1 || manifest.Admin.Pages[0].Menu {
+		t.Fatalf("expected v2 plugin admin settings page without sidebar menu: %#v", manifest.Admin)
+	}
+	if len(manifest.AdminPages) != 0 {
+		t.Fatalf("new scaffolds should not use legacy adminPages: %#v", manifest.AdminPages)
+	}
 	if err := extensionmanifest.Validate(manifest); err != nil {
 		t.Fatalf("generated plugin manifest should validate: %v", err)
 	}
@@ -62,8 +68,11 @@ func TestGenerateThemeScaffoldNonInteractive(t *testing.T) {
 	if manifest.Type != extensionmanifest.TypeTheme || manifest.Frontend.Layer != "layer" {
 		t.Fatalf("unexpected theme manifest: %#v", manifest)
 	}
-	if len(manifest.AdminPages) == 0 || len(manifest.Settings) == 0 {
-		t.Fatalf("expected theme admin page and settings declarations: %#v", manifest)
+	if manifest.Admin.Entry != "/settings" || len(manifest.Admin.Pages) != 1 || len(manifest.Settings) == 0 {
+		t.Fatalf("expected theme v2 admin page and settings declarations: %#v", manifest)
+	}
+	if len(manifest.AdminPages) != 0 {
+		t.Fatalf("new theme scaffolds should not use legacy adminPages: %#v", manifest.AdminPages)
 	}
 	if err := extensionmanifest.Validate(manifest); err != nil {
 		t.Fatalf("generated theme manifest should validate: %v", err)

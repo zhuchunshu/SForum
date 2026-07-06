@@ -12,19 +12,19 @@ import (
 )
 
 type scaffoldManifest struct {
-	ID            string                                `json:"id"`
-	Name          string                                `json:"name"`
-	Description   string                                `json:"description"`
-	URL           string                                `json:"url"`
-	Author        extensionmanifest.ManifestAuthor      `json:"author"`
-	Version       string                                `json:"version"`
-	Type          string                                `json:"type"`
-	SForumVersion string                                `json:"sforumVersion"`
-	Permissions   []string                              `json:"permissions,omitempty"`
-	Settings      []extensionmanifest.ManifestSetting   `json:"settings,omitempty"`
-	Backend       *extensionmanifest.ManifestBackend    `json:"backend,omitempty"`
-	Frontend      *extensionmanifest.ManifestFrontend   `json:"frontend,omitempty"`
-	AdminPages    []extensionmanifest.ManifestAdminPage `json:"adminPages,omitempty"`
+	ID            string                              `json:"id"`
+	Name          string                              `json:"name"`
+	Description   string                              `json:"description"`
+	URL           string                              `json:"url"`
+	Author        extensionmanifest.ManifestAuthor    `json:"author"`
+	Version       string                              `json:"version"`
+	Type          string                              `json:"type"`
+	SForumVersion string                              `json:"sforumVersion"`
+	Permissions   []string                            `json:"permissions,omitempty"`
+	Settings      []extensionmanifest.ManifestSetting `json:"settings,omitempty"`
+	Backend       *extensionmanifest.ManifestBackend  `json:"backend,omitempty"`
+	Frontend      *extensionmanifest.ManifestFrontend `json:"frontend,omitempty"`
+	Admin         extensionmanifest.ManifestAdmin     `json:"admin,omitempty"`
 }
 
 func GenerateExtensionScaffold(opts makeOptions) (string, error) {
@@ -99,14 +99,17 @@ func buildManifest(opts makeOptions) scaffoldManifest {
 			Type:        "boolean",
 			Default:     "true",
 		}},
-		AdminPages: []extensionmanifest.ManifestAdminPage{{
-			Path:        "/settings",
-			Label:       "Settings",
-			Description: "Configure this extension.",
-			Icon:        "i-lucide-settings",
-			View:        "settings",
-			Order:       100,
-		}},
+		Admin: extensionmanifest.ManifestAdmin{
+			Entry: "/settings",
+			Pages: []extensionmanifest.ManifestAdminPage{{
+				Path:        "/settings",
+				Label:       "Settings",
+				Description: "Configure this extension.",
+				Icon:        "i-lucide-settings",
+				View:        "settings",
+				Order:       100,
+			}},
+		},
 	}
 	if opts.Kind == extensionmanifest.TypePlugin {
 		manifest.Permissions = []string{opts.ID + ".manage"}
