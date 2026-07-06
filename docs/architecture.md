@@ -13,8 +13,8 @@ document defines the target shape for ongoing implementation.
 - Use mature framework-native or ecosystem libraries before creating custom
   infrastructure.
 - Keep SForum core focused on the host framework, shared contracts, permissions,
-  extension runtime, and stable forum primitives instead of bundling every
-  optional product vertical.
+  extension runtime, stable forum primitives, and first-class extension
+  interfaces instead of bundling every optional product vertical.
 - Deliver deployment-specific systems such as payments, outbound mail delivery,
   notification channels, analytics, and external integrations through plugins or
   explicit provider slots by default.
@@ -72,8 +72,8 @@ Core owns:
 Core must not grow full vertical implementations for capabilities that vary by
 deployment, vendor, or business model. These are plugin territory by default:
 
-- Payment gateways, subscriptions, paid memberships, invoices, refunds, order
-  ledgers, and payment webhooks.
+- Payment provider integrations, provider-specific subscriptions, refunds,
+  invoice rendering, vendor ledgers, and vendor webhook parsing.
 - Outbound mail provider implementations, SMTP/vendor credentials, digest
   delivery, campaign delivery, and mail-specific retry policy.
 - Notification channels such as email, SMS, web push, chat integrations, and
@@ -82,20 +82,25 @@ deployment, vendor, or business model. These are plugin territory by default:
   provider implementations for search, storage, human verification, or
   sanitization.
 
-When a new capability is needed, design the host extension point first:
+When a new capability is needed, design the host framework contract first:
 
 1. Define the actor, action, protected resource, and API policy boundary.
-2. Choose the narrowest host contract: observe event, validate/filter event,
-   provider slot, plugin route namespace, or extension-owned admin page.
-3. Keep plugin routes under `/api/v1/extensions/{extensionId}/*`; plugins cannot
+2. Decide whether the capability needs a shared core model or only a lightweight
+   extension point. Shared models are appropriate when SForum must coordinate
+   state across plugins, such as payment intents, transaction records,
+   entitlement checks, webhook idempotency, or notification preferences.
+3. Choose the narrowest host contract: observe event, validate/filter event,
+   provider slot, plugin route namespace, extension-owned admin page, or a
+   small core framework module with provider interfaces.
+4. Keep plugin routes under `/api/v1/extensions/{extensionId}/*`; plugins cannot
    override core routes or receive raw session cookies as authority.
-4. Store extension-owned configuration in `extension_settings`. Store active
+5. Store extension-owned configuration in `extension_settings`. Store active
    provider selection in the owning core module only when host behavior depends
    on that selection, and provide one-click restore to the built-in default.
-5. Put real provider or vendor logic in a plugin package. If SForum ships a
+6. Put real provider or vendor logic in a plugin package. If SForum ships a
    default implementation, ship it as a protected built-in plugin rather than a
    hard-coded core service whenever practical.
-6. Record architectural choices in `knowledge/decisions/` when the boundary will
+7. Record architectural choices in `knowledge/decisions/` when the boundary will
    matter to future sessions.
 
 ## Chosen Stack
@@ -458,13 +463,28 @@ built-in plugins if SForum later needs a bundled default.
 
 ### `payments`
 
-Payments are not a core module. If paid memberships, subscriptions, donations,
-orders, invoices, or other monetization features enter scope, the core should
-first define the smallest host-owned contract it needs: permission keys,
-entitlement checks, events, idempotent webhook gateway rules, provider slots,
-and admin selection/reset behavior. Gateway integrations, payment records,
-refund flows, invoice rendering, and vendor-specific webhook handling belong in
-plugins by default.
+Payments need a core framework contract before any provider plugin is useful.
+If paid memberships, subscriptions, donations, orders, invoices, or other
+monetization features enter scope, SForum core should define the provider-neutral
+payment architecture:
+
+- Permission keys, entitlement checks, and policy helpers.
+- Provider-slot interfaces for creating payment intents, confirming/canceling
+  payments, querying provider status, and requesting refunds when the product
+  accepts refunds.
+- Canonical payment intent, transaction, refund, and webhook-delivery records
+  when SForum must reason about state across providers.
+- Idempotent webhook gateway rules, event publication, retry visibility, and
+  audit boundaries.
+- Admin provider selection, reset-to-default behavior, and operator-safe
+  configuration surfaces.
+
+Plugins extend the payment framework. They implement provider adapters,
+provider-specific transaction mapping, hosted checkout/session behavior,
+refund support, invoice rendering, webhook payload verification/parsing, and
+vendor-specific settings. Payment plugins must use the core provider slots and
+canonical records instead of creating parallel payment state that core cannot
+authorize, audit, or reconcile.
 
 ### `localization`
 

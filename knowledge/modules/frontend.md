@@ -99,6 +99,11 @@ Admin sidebar parent folders derive active/open state from the current admin
 route: only the matching parent opens initially, inactive folders stay
 collapsed by default, and the sidebar body scrolls independently when the menu
 list grows.
+Dynamic extension admin pages under `/extensions/{id}/pages/*` are treated as
+route-backed custom admin tabs. The admin layout creates a temporary tab from
+the route when needed, activates existing custom tabs on route changes, and
+keeps the Extensions sidebar folder open/active for those dynamic pages until
+the page component replaces the temporary label with manifest metadata.
 Admin alert/toast feedback should auto-dismiss after 10 seconds for non-error
 states. Error feedback remains visible until users dismiss it or resolve the
 blocking issue.

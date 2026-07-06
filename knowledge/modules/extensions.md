@@ -9,9 +9,12 @@ applied theme.
 SForum core should stay framework-focused. Product verticals that vary by
 deployment or vendor, including payment gateways, outbound mail delivery,
 notification channels, analytics, and external integrations, should be
-implemented as plugins by default. Core may add explicit events, filters,
-provider slots, permission gates, admin selection/reset flows, SDK helpers, and
-protected built-in plugins when those make extension development practical.
+implemented as plugins by default. Core must expose the contracts that make
+plugins practical: explicit events, filters, provider slots, permission gates,
+admin selection/reset flows, typed payloads, SDK helpers, and protected built-in
+plugins when useful. For areas such as payments, core may define canonical
+intents, transactions, refunds, webhook idempotency, and entitlement interfaces
+while provider-specific behavior remains in plugins.
 
 ## Current Status
 
@@ -142,8 +145,8 @@ manifests use the existing 422 envelope with reason `extension.manifest_invalid`
 
 `apps/api/cmd/sforum` provides a Laravel-artisan-style developer console.
 
-- `go run ./cmd/sforum make:plugin`
-- `go run ./cmd/sforum make:theme`
+- `./scripts/sforum.sh make:plugin`
+- `./scripts/sforum.sh make:theme`
 
 Both commands support interactive Huh forms and `--no-interaction` flag-driven
 generation. Default output is `extensions/dev/{plugins,themes}/{id}`; `--builtin`

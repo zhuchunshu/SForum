@@ -11,8 +11,8 @@ Define the forum product clearly before implementation starts.
 - Posting, replying, editing, and moderation workflows.
 - Search and discovery.
 - Plugin-backed notifications and mail delivery.
-- Payment or monetization features only if a plugin/provider-slot design is
-  accepted first.
+- Payment or monetization features only after the core payment framework and
+  plugin/provider contracts are accepted.
 - Administration.
 
 ## Extensibility Product Boundary
@@ -21,8 +21,12 @@ SForum should feel like a forum framework that can be extended for different
 communities. Product areas that vary by deployment or vendor, including payment
 gateways, outbound mail delivery, notification channels, analytics, and external
 integrations, should be implemented through plugins by default. Core product
-work may define the shared contracts, permissions, events, provider slots,
-defaults, and admin selection flows that make those plugins usable.
+work should define the shared contracts, canonical records, permissions, events,
+provider slots, defaults, and admin selection flows that make those plugins
+usable. For example, payment providers are plugins, but SForum core should
+define provider-neutral payment intents, transactions, refunds, webhook
+idempotency, entitlement checks, and provider interfaces before payment plugins
+are built.
 
 ## Identity And Registration
 

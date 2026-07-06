@@ -8,23 +8,23 @@ import (
 	"path/filepath"
 	"strings"
 
-	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 type scaffoldManifest struct {
-	ID            string                         `json:"id"`
-	Name          string                         `json:"name"`
-	Description   string                         `json:"description"`
-	URL           string                         `json:"url"`
-	Author        extensions.ManifestAuthor      `json:"author"`
-	Version       string                         `json:"version"`
-	Type          string                         `json:"type"`
-	SForumVersion string                         `json:"sforumVersion"`
-	Permissions   []string                       `json:"permissions,omitempty"`
-	Settings      []extensions.ManifestSetting   `json:"settings,omitempty"`
-	Backend       *extensions.ManifestBackend    `json:"backend,omitempty"`
-	Frontend      *extensions.ManifestFrontend   `json:"frontend,omitempty"`
-	AdminPages    []extensions.ManifestAdminPage `json:"adminPages,omitempty"`
+	ID            string                                `json:"id"`
+	Name          string                                `json:"name"`
+	Description   string                                `json:"description"`
+	URL           string                                `json:"url"`
+	Author        extensionmanifest.ManifestAuthor      `json:"author"`
+	Version       string                                `json:"version"`
+	Type          string                                `json:"type"`
+	SForumVersion string                                `json:"sforumVersion"`
+	Permissions   []string                              `json:"permissions,omitempty"`
+	Settings      []extensionmanifest.ManifestSetting   `json:"settings,omitempty"`
+	Backend       *extensionmanifest.ManifestBackend    `json:"backend,omitempty"`
+	Frontend      *extensionmanifest.ManifestFrontend   `json:"frontend,omitempty"`
+	AdminPages    []extensionmanifest.ManifestAdminPage `json:"adminPages,omitempty"`
 }
 
 func GenerateExtensionScaffold(opts makeOptions) (string, error) {
@@ -36,7 +36,7 @@ func GenerateExtensionScaffold(opts makeOptions) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if _, err := os.Stat(filepath.Join(target, extensions.ManifestFileName)); err == nil {
+	if _, err := os.Stat(filepath.Join(target, extensionmanifest.ManifestFileName)); err == nil {
 		return "", fmt.Errorf("extension scaffold already exists at %s", target)
 	}
 	if err := os.MkdirAll(target, 0o755); err != nil {
@@ -47,13 +47,13 @@ func GenerateExtensionScaffold(opts makeOptions) (string, error) {
 	if err := validateGeneratedManifest(manifest); err != nil {
 		return "", err
 	}
-	if err := writeJSON(filepath.Join(target, extensions.ManifestFileName), manifest); err != nil {
+	if err := writeJSON(filepath.Join(target, extensionmanifest.ManifestFileName), manifest); err != nil {
 		return "", err
 	}
 	if err := writeFile(filepath.Join(target, "README.md"), readmeBody(opts), 0o644); err != nil {
 		return "", err
 	}
-	if opts.Kind == extensions.TypePlugin {
+	if opts.Kind == extensionmanifest.TypePlugin {
 		return target, writePluginFiles(target, opts)
 	}
 	return target, writeThemeFiles(target, opts)
@@ -73,7 +73,7 @@ func normalizeMakeOptions(opts makeOptions) makeOptions {
 }
 
 func validateMakeOptions(opts makeOptions) error {
-	if opts.Kind != extensions.TypePlugin && opts.Kind != extensions.TypeTheme {
+	if opts.Kind != extensionmanifest.TypePlugin && opts.Kind != extensionmanifest.TypeTheme {
 		return errors.New("kind must be plugin or theme")
 	}
 	if opts.ID == "" || opts.Name == "" || opts.Description == "" || opts.URL == "" || opts.AuthorName == "" {
@@ -88,18 +88,18 @@ func buildManifest(opts makeOptions) scaffoldManifest {
 		Name:          opts.Name,
 		Description:   opts.Description,
 		URL:           opts.URL,
-		Author:        extensions.ManifestAuthor{Name: opts.AuthorName, URL: opts.AuthorURL, Email: opts.AuthorEmail},
+		Author:        extensionmanifest.ManifestAuthor{Name: opts.AuthorName, URL: opts.AuthorURL, Email: opts.AuthorEmail},
 		Version:       "0.1.0",
 		Type:          opts.Kind,
 		SForumVersion: "^1.0.0",
-		Settings: []extensions.ManifestSetting{{
+		Settings: []extensionmanifest.ManifestSetting{{
 			Key:         opts.ID + ".enabled",
 			Label:       "Enabled",
 			Description: "Enable this extension's recommended behavior.",
 			Type:        "boolean",
 			Default:     "true",
 		}},
-		AdminPages: []extensions.ManifestAdminPage{{
+		AdminPages: []extensionmanifest.ManifestAdminPage{{
 			Path:        "/settings",
 			Label:       "Settings",
 			Description: "Configure this extension.",
@@ -108,14 +108,14 @@ func buildManifest(opts makeOptions) scaffoldManifest {
 			Order:       100,
 		}},
 	}
-	if opts.Kind == extensions.TypePlugin {
+	if opts.Kind == extensionmanifest.TypePlugin {
 		manifest.Permissions = []string{opts.ID + ".manage"}
 		if opts.Backend {
-			manifest.Backend = &extensions.ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1}
+			manifest.Backend = &extensionmanifest.ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1}
 		}
 		return manifest
 	}
-	manifest.Frontend = &extensions.ManifestFrontend{Layer: "layer"}
+	manifest.Frontend = &extensionmanifest.ManifestFrontend{Layer: "layer"}
 	return manifest
 }
 
@@ -124,11 +124,11 @@ func validateGeneratedManifest(manifest scaffoldManifest) error {
 	if err != nil {
 		return err
 	}
-	var model extensions.Manifest
+	var model extensionmanifest.Manifest
 	if err := json.Unmarshal(body, &model); err != nil {
 		return err
 	}
-	return extensions.ValidateManifest(model)
+	return extensionmanifest.Validate(model)
 }
 
 func resolveOutputDir(opts makeOptions) (string, error) {
@@ -144,7 +144,7 @@ func resolveOutputDir(opts makeOptions) (string, error) {
 		source = "builtin"
 	}
 	group := "plugins"
-	if opts.Kind == extensions.TypeTheme {
+	if opts.Kind == extensionmanifest.TypeTheme {
 		group = "themes"
 	}
 	return filepath.Join(root, "extensions", source, group, opts.ID), nil

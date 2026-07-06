@@ -21,14 +21,22 @@ extension without arbitrary monkey-patching.
 
 - Treat SForum core as the host framework. Core owns identity, permissions,
   sessions, API contracts, forum primitives, jobs, localization, options,
-  deployment conventions, and the extension runtime.
-- Treat payments, outbound mail delivery, notification channels, analytics,
-  external integrations, and vendor-specific provider implementations as
-  plugins by default.
-- Allow core to add the narrow framework code that makes plugins practical:
+  deployment conventions, extension runtime, and first-class extension
+  interfaces.
+- Treat outbound mail delivery, notification channels, analytics, external
+  integrations, and vendor-specific provider implementations as plugins by
+  default.
+- Let core expose the narrow framework code that makes plugins practical:
   explicit events, validate/filter points, provider slots, typed payloads,
   permission gates, admin selection/reset flows, SDK helpers, scaffolding,
   tests, no-op defaults, development adapters, and protected built-in plugins.
+- When a product area needs shared state or lifecycle semantics across plugins,
+  core should define the provider-neutral architecture. Payment is the guiding
+  example: core may own payment intents, canonical transaction/refund records,
+  webhook idempotency, entitlement checks, provider interfaces, events, and
+  admin provider selection, while plugins implement provider adapters,
+  provider-specific transaction mapping, checkout/session behavior, invoice
+  rendering, webhook verification/parsing, and vendor settings.
 - Keep real provider and vendor logic in extension packages. A bundled default
   should use the same plugin APIs as uploaded plugins whenever practical.
 - Do not let plugins override arbitrary core routes, monkey-patch services,
@@ -41,7 +49,9 @@ extension without arbitrary monkey-patching.
 ## Consequences
 
 - Payment and mail work must start with host contracts and plugin authoring
-  ergonomics, not a core gateway or SMTP service.
+  ergonomics, not a hard-coded core gateway or SMTP service.
+- Payment architecture belongs in core when payments enter scope, but payment
+  providers and provider-specific transaction behavior belong in plugins.
 - Core may still contain small abstractions and developer tooling that reduce
   plugin complexity.
 - Built-in defaults can ship as protected built-in plugins, preserving a simple

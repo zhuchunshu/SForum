@@ -23,9 +23,15 @@ contracts first.
 - Treat payments, outbound mail delivery, notification channels, analytics,
   external integrations, provider-specific search/storage/security behavior,
   and similar deployment-specific systems as plugins by default.
-- Core may add the narrow code that makes plugins practical: explicit events,
-  provider slots, typed payloads, permission checks, admin selection/reset UI,
-  SDK helpers, scaffolding, tests, no-op defaults, and development adapters.
+- Core should expose the stable contracts that make plugins easy to build:
+  explicit events, provider slots, typed payloads, permission checks, admin
+  selection/reset UI, SDK helpers, scaffolding, tests, no-op defaults, and
+  development adapters.
+- When a product area needs shared semantics, such as payments, core may define
+  the framework model and lifecycle: payment intents, transaction records,
+  entitlement checks, webhook idempotency, provider interfaces, events, and
+  admin configuration contracts. Provider/vendor behavior still belongs in
+  plugins.
 - Real provider or vendor logic should live in an extension package, including
   protected built-in plugins when SForum needs a bundled default.
 - Do not let plugins override arbitrary core routes, monkey-patch core services,

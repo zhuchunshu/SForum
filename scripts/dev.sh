@@ -18,7 +18,7 @@ Default mode starts only development dependency services: PostgreSQL, Redis,
 Meilisearch, and Mailpit. Run the frontend and backend locally with:
 
   cd apps/web && bun run dev
-  cd apps/api && air
+  ./scripts/api-dev.sh
 USAGE
 }
 
@@ -36,7 +36,7 @@ while [ "$#" -gt 0 ]; do
       ;;
     --watch | --worker | --with-worker)
       echo "Option $1 is no longer supported by ./scripts/dev.sh."
-      echo "Start frontend/backend locally with 'bun run dev' and 'air'."
+      echo "Start frontend/backend locally with 'bun run dev' and './scripts/api-dev.sh'."
       exit 1
       ;;
     --print-command)
@@ -119,7 +119,7 @@ else
 fi
 echo "API/worker startup still follows MIGRATE_ON_STARTUP=${MIGRATE_ON_STARTUP:-true}."
 echo "Then run: cd apps/web && bun run dev"
-echo "Then run: cd apps/api && air"
+echo "Then run: ./scripts/api-dev.sh"
 echo "Use './scripts/dev.sh --build' after Dockerfile or dependency changes."
 
 if [ "$PRINT_COMMAND" -eq 1 ]; then

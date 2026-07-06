@@ -3,14 +3,16 @@ package extensions
 import (
 	"errors"
 	"time"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 const (
-	ManifestFileName = "sforum.extension.json"
+	ManifestFileName = extensionmanifest.ManifestFileName
 	DefaultThemeID   = "sforum.default-theme"
 
-	TypePlugin = "plugin"
-	TypeTheme  = "theme"
+	TypePlugin = extensionmanifest.TypePlugin
+	TypeTheme  = extensionmanifest.TypeTheme
 
 	StatusInstalled = "installed"
 	StatusEnabled   = "enabled"
@@ -21,9 +23,9 @@ const (
 	RuntimeRunning  = "running"
 	RuntimeFailed   = "failed"
 
-	RouteAccessPublic     = "public"
-	RouteAccessLogin      = "login"
-	RouteAccessPermission = "permission"
+	RouteAccessPublic     = extensionmanifest.RouteAccessPublic
+	RouteAccessLogin      = extensionmanifest.RouteAccessLogin
+	RouteAccessPermission = extensionmanifest.RouteAccessPermission
 
 	EventInstalled      = "installed"
 	EventBuiltinSynced  = "builtin_synced"
@@ -57,7 +59,7 @@ const (
 
 var (
 	ErrInvalidArchive          = errors.New("extensions: invalid archive")
-	ErrInvalidManifest         = errors.New("extensions: invalid manifest")
+	ErrInvalidManifest         = extensionmanifest.ErrInvalidManifest
 	ErrExtensionNotFound       = errors.New("extensions: not found")
 	ErrPreflightFailed         = errors.New("extensions: preflight failed")
 	ErrBuildFailed             = errors.New("extensions: build failed")
@@ -69,93 +71,18 @@ var (
 	ErrRuntimeUnavailable      = errors.New("extensions: runtime unavailable")
 )
 
-type Manifest struct {
-	ID            string              `json:"id"`
-	Name          string              `json:"name"`
-	Description   string              `json:"description"`
-	URL           string              `json:"url"`
-	Author        ManifestAuthor      `json:"author"`
-	Version       string              `json:"version"`
-	Type          string              `json:"type"`
-	SForumVersion string              `json:"sforumVersion"`
-	Permissions   []string            `json:"permissions"`
-	Settings      []ManifestSetting   `json:"settings"`
-	Migrations    []ManifestMigration `json:"migrations"`
-	Backend       ManifestBackend     `json:"backend"`
-	Frontend      ManifestFrontend    `json:"frontend"`
-	AdminPages    []ManifestAdminPage `json:"adminPages"`
-	Routes        []ManifestRoute     `json:"routes"`
-	Hooks         []ManifestHook      `json:"hooks"`
-	Events        []ManifestEvent     `json:"events"`
-	Jobs          []ManifestJob       `json:"jobs"`
-	Providers     []ManifestProvider  `json:"providers"`
-}
-
-type ManifestAuthor struct {
-	Name  string `json:"name"`
-	URL   string `json:"url,omitempty"`
-	Email string `json:"email,omitempty"`
-}
-
-type ManifestSetting struct {
-	Key         string `json:"key"`
-	Label       string `json:"label"`
-	Description string `json:"description,omitempty"`
-	Type        string `json:"type"`
-	Default     string `json:"default,omitempty"`
-}
-
-type ManifestMigration struct {
-	Path string `json:"path"`
-}
-
-type ManifestBackend struct {
-	Entry           string `json:"entry"`
-	RPC             string `json:"rpc"`
-	ProtocolVersion int    `json:"protocolVersion,omitempty"`
-}
-
-type ManifestFrontend struct {
-	Layer string `json:"layer"`
-}
-
-type ManifestAdminPage struct {
-	Path        string `json:"path"`
-	Label       string `json:"label"`
-	Description string `json:"description,omitempty"`
-	Icon        string `json:"icon,omitempty"`
-	View        string `json:"view,omitempty"`
-	Order       int    `json:"order,omitempty"`
-	Permission  string `json:"permission,omitempty"`
-}
-
-type ManifestRoute struct {
-	Path       string   `json:"path"`
-	Methods    []string `json:"methods"`
-	Access     string   `json:"access,omitempty"`
-	Permission string   `json:"permission,omitempty"`
-	TimeoutMS  int      `json:"timeoutMs,omitempty"`
-}
-
-type ManifestHook struct {
-	Name string `json:"name"`
-}
-
-type ManifestEvent struct {
-	Name      string `json:"name"`
-	Kind      string `json:"kind,omitempty"`
-	TimeoutMS int    `json:"timeoutMs,omitempty"`
-}
-
-type ManifestJob struct {
-	Name string `json:"name"`
-}
-
-type ManifestProvider struct {
-	Slot      string `json:"slot"`
-	Label     string `json:"label"`
-	TimeoutMS int    `json:"timeoutMs,omitempty"`
-}
+type Manifest = extensionmanifest.Manifest
+type ManifestAuthor = extensionmanifest.ManifestAuthor
+type ManifestSetting = extensionmanifest.ManifestSetting
+type ManifestMigration = extensionmanifest.ManifestMigration
+type ManifestBackend = extensionmanifest.ManifestBackend
+type ManifestFrontend = extensionmanifest.ManifestFrontend
+type ManifestAdminPage = extensionmanifest.ManifestAdminPage
+type ManifestRoute = extensionmanifest.ManifestRoute
+type ManifestHook = extensionmanifest.ManifestHook
+type ManifestEvent = extensionmanifest.ManifestEvent
+type ManifestJob = extensionmanifest.ManifestJob
+type ManifestProvider = extensionmanifest.ManifestProvider
 
 type RuntimeStatus struct {
 	State         string     `json:"state"`

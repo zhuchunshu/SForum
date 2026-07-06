@@ -193,6 +193,11 @@ export function normalizeAdminPageId(id?: string | null) {
   return `/${value.replace(/^\/+|\/+$/g, '')}`
 }
 
+export function isExtensionAdminPageId(id?: string | null) {
+  const pageId = normalizeAdminPageId(id)
+  return /^\/extensions\/[^/]+\/pages(?:\/|$)/.test(pageId)
+}
+
 export function findAdminPageDefinition(id: string): AdminPageDefinition | undefined {
   const pageId = normalizeAdminPageId(id)
   return adminPageDefinitions.find(page => page.id === pageId)
@@ -216,6 +221,10 @@ export function isAdminNavigationEntryActive(entry: AdminNavigationEntry, pageId
   }
 
   if (entry.type === 'folder') {
+    if (entry.labelKey === 'admin.nav.extensions' && isExtensionAdminPageId(activePageId)) {
+      return true
+    }
+
     return entry.children.some(child => isAdminNavigationEntryActive(child, activePageId))
   }
 

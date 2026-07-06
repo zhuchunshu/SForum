@@ -5,13 +5,14 @@ import {
   adminSidebarNavigation,
   canAccessAdminPage,
   findAdminPageDefinition,
+  isExtensionAdminPageId,
   isAdminNavigationEntryActive,
   type AdminNavigationEntry,
   requireAdminPageDefinition,
   shouldOpenAdminNavigationEntry
 } from '~/config/adminModules'
 import { useAdminRoutes } from '~/composables/useAdminRoutes'
-import { useAdminTabs } from '~/composables/useAdminTabs'
+import { type AdminTab, useAdminTabs } from '~/composables/useAdminTabs'
 import type { AdminExtensionNavigationItem } from '~/utils/adminExtensions'
 
 type SidebarNavigationItem = {
@@ -100,10 +101,23 @@ watch(
 // KeepAlive 页面不会重复 mounted，路由变化时用注册表同步当前 tab。
 watch(() => route.path, (newPath) => {
   const tabId = adminRoutes.routeId(newPath)
+  if (!tabId) {
+    return
+  }
+
   const page = tabId ? findAdminPageDefinition(tabId) : null
 
   if (page) {
     adminTabs.openTab(page.id)
+    return
+  }
+
+  if (adminTabs.activateTab(tabId)) {
+    return
+  }
+
+  if (isExtensionAdminPageId(tabId)) {
+    openExtensionRoutePlaceholderTab(tabId)
   }
 }, { immediate: true })
 
@@ -180,6 +194,37 @@ function buildExtensionNavigationItems(currentAdminPageId: string): SidebarNavig
   })
 }
 
+function openExtensionRoutePlaceholderTab(tabId: string) {
+  // 动态扩展页的正式标题需要等待扩展清单接口返回，路由层先创建临时 tab 保持 active 状态正确。
+  adminTabs.openCustomTab({
+    id: tabId,
+    label: extensionRouteFallbackLabel(tabId),
+    to: adminRoutes.path(tabId),
+    icon: 'i-lucide-blocks',
+    closable: true,
+    componentName: 'AdminExtensionDynamicPage'
+  })
+}
+
+function extensionRouteFallbackLabel(tabId: string) {
+  const match = tabId.match(/^\/extensions\/([^/]+)\/pages(?:\/(.*))?$/)
+  if (!match) {
+    return tabId
+  }
+
+  const extensionId = decodeRouteSegment(match[1] || 'extension')
+  const pagePath = match[2]?.split('/').filter(Boolean).pop() || 'about'
+  return `${extensionId} / ${decodeRouteSegment(pagePath)}`
+}
+
+function decodeRouteSegment(value: string | undefined) {
+  try {
+    return decodeURIComponent(value || '')
+  } catch {
+    return value || ''
+  }
+}
+
 const sidebarNavigationUi = {
   list: 'flex flex-col gap-1',
   item: 'min-w-0',
@@ -246,6 +291,11 @@ function toggleColorMode() {
   const nextMode = isDarkMode.value ? 'light' : 'dark'
   colorMode.preference = nextMode
   resolvedColorMode.value = nextMode
+}
+
+function navigateAdminTab(tab: AdminTab) {
+  adminTabs.activateTab(tab.id)
+  void navigateTo(tab.to)
 }
 
 async function signOut() {
@@ -380,7 +430,7 @@ async function signOut() {
           :class="adminTabs.activeTabId.value === tab.id 
             ? 'bg-[var(--bg-admin-app)] text-[var(--sf-accent)] border-[var(--border-admin)]' 
             : 'bg-transparent text-slate-500 dark:text-zinc-400 border-transparent hover:text-[var(--text-admin-main)]'"
-          @click="navigateTo(tab.to)"
+          @click="navigateAdminTab(tab)"
         >
           <UIcon :name="tab.icon" class="size-4.5" />
           <span>{{ tab.label || (tab.labelKey ? t(tab.labelKey) : '') }}</span>

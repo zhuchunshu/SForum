@@ -20,8 +20,10 @@ This is the entry point for project memory.
   containers, waits for dependencies, and runs migrations by default; use
   `--no-migrate` only when testing dependency startup.
 - Local frontend and backend processes read the repository root `.env`
-  directly: Nuxt dev uses `--dotenv ../../.env`, and Air uses
-  `env_files = ["../../.env"]`.
+  directly: Nuxt dev uses `--dotenv ../../.env`, Air uses
+  `env_files = ["../../.env"]`, and `./scripts/api-dev.sh` is the recommended
+  API entry because it loads `.env` and reports occupied API ports without
+  stopping user processes.
 - Frontend build/typecheck commands use sibling Nuxt temporary directories
   (`.nuxt-build` and `.nuxt-typecheck`) instead of nesting under the dev
   server's `.nuxt`, and generated output is ignored by dev watchers to avoid
@@ -229,11 +231,12 @@ This is the entry point for project memory.
   at `apps/api/cmd/sforum` can scaffold plugins and themes interactively or via
   `--no-interaction`.
 - Architecture guidance now treats SForum core as the host framework rather
-  than a monolith of optional product verticals. Payments, outbound mail
-  delivery, notification channels, analytics, external integrations, and
-  vendor-specific provider behavior should be implemented as plugins by
-  default; core may add events, provider slots, policy checks, SDK helpers,
-  defaults, and protected built-in plugins to make those extensions practical.
+  than a monolith of optional product verticals. Core should expose the stable
+  interfaces that make plugins easy to build: events, provider slots, typed
+  payloads, policy checks, SDK helpers, defaults, and protected built-in plugins.
+  For shared-state areas such as payments, core may define provider-neutral
+  intents, transactions, refunds, webhook idempotency, entitlements, and
+  provider interfaces while plugins implement provider/vendor behavior.
 - Runtime language pack management has an accepted design: add a system-menu
   admin "Language settings" page, `locale.manage`, ZIP language pack uploads
   with `sforum.locale.json`, package storage under `LOCALE_PACK_ROOT`/
@@ -369,6 +372,8 @@ This is the entry point for project memory.
   overrides, admin users/roles/permissions UI, and API contract handoff.
 - `sessions/2026-07-06-api-air-startup-speed.md` - API/worker Air config
   watch-scope and deprecated `build.bin` cleanup handoff.
+- `sessions/2026-07-06-go-run-startup-optimization.md` - `go run` startup
+  diagnosis, API/CLI helper scripts, and extension manifest dependency split.
 - `sessions/2026-07-05-permission-matrix-comparison-view.md` - permission
   matrix scalability update with limited group comparison and differences-only
   audit mode.

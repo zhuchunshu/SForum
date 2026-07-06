@@ -43,7 +43,7 @@
 - Search UI.
 - Rate limits and abuse controls.
 - Plugin-backed notification and mail providers if product scope requires them.
-- Payment and monetization integrations only after a plugin/provider-slot design
-  is accepted.
+- Payment and monetization integrations only after a core payment framework plus
+  plugin/provider-slot design is accepted.
 - Production backup, restore, deploy status, logs, and rollback workflows in
   `deploy.sh`.

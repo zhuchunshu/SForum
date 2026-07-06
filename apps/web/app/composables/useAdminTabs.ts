@@ -50,6 +50,16 @@ export const useAdminTabs = () => {
     activeTabId.value = tab.id
   }
 
+  const activateTab = (id: string) => {
+    const existing = tabs.value.find(tab => tab.id === id)
+    if (!existing) {
+      return false
+    }
+
+    activeTabId.value = existing.id
+    return true
+  }
+
   const closeTab = (id: string) => {
     if (id === '/') return
 
@@ -80,6 +90,7 @@ export const useAdminTabs = () => {
     cachedTabNames,
     openTab,
     openCustomTab,
+    activateTab,
     closeTab,
     resetTabs
   }

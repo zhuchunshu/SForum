@@ -51,6 +51,7 @@ const adminPageDefinitions = adminModulesModule.adminPageDefinitions as Array<{
 }>
 const isAdminNavigationEntryActive = adminModulesModule.isAdminNavigationEntryActive as (entry: unknown, pageId: string) => boolean
 const shouldOpenAdminNavigationEntry = adminModulesModule.shouldOpenAdminNavigationEntry as (entry: unknown, pageId: string) => boolean
+const isExtensionAdminPageId = adminModulesModule.isExtensionAdminPageId as (pageId: string) => boolean
 const adminPageIds = adminPageDefinitions.map(page => page.id)
 for (const requiredPageId of [
   '/',
@@ -172,15 +173,22 @@ assert(extensionFolder, 'Admin sidebar should expose extensions as an independen
 assert(extensionFolder.children?.map(entry => entry.pageId).join(',') === '/extensions,/extensions/plugins,/extensions/themes,/extensions/settings,/extensions/events', 'Extension folder should keep the approved submenu order')
 assert(typeof isAdminNavigationEntryActive === 'function', 'Admin navigation should expose an active-state helper')
 assert(typeof shouldOpenAdminNavigationEntry === 'function', 'Admin navigation should expose an initial-open helper')
+assert(typeof isExtensionAdminPageId === 'function', 'Admin navigation should identify dynamic extension admin pages')
+assert(isExtensionAdminPageId('/extensions/sforum.default-theme/pages/about'), 'Dynamic extension admin page ids should be recognized')
+assert(!isExtensionAdminPageId('/extensions/themes'), 'Static extension manager pages should not be treated as dynamic extension admin pages')
 assert(isAdminNavigationEntryActive(extensionFolder, '/extensions/themes'), 'Extension folder should be active when one of its child pages is active')
+assert(isAdminNavigationEntryActive(extensionFolder, '/extensions/sforum.default-theme/pages/about'), 'Extension folder should be active for dynamic extension admin pages')
 assert(!isAdminNavigationEntryActive(systemFolder, '/extensions/themes'), 'System folder should not be active for extension child pages')
 assert(shouldOpenAdminNavigationEntry(extensionFolder, '/extensions/themes'), 'Active sidebar folders should open initially')
+assert(shouldOpenAdminNavigationEntry(extensionFolder, '/extensions/sforum.default-theme/pages/about'), 'Extension folder should open for dynamic extension admin pages')
 assert(!shouldOpenAdminNavigationEntry(systemFolder, '/extensions/themes'), 'Inactive sidebar folders should stay collapsed by default')
 assert(firstSidebarGroup
   .filter(entry => entry.type === 'folder')
   .every(entry => entry.defaultOpen !== true), 'Top-level admin sidebar folders should not all be configured as default-open')
 assert(adminLayout.includes('active: isActive'), 'Admin layout should pass active state to top-level folder items')
 assert(adminLayout.includes('shouldOpenAdminNavigationEntry(entry, currentAdminPageId)'), 'Admin layout should open only the active/default folder initially')
+assert(adminLayout.includes('adminTabs.activateTab(tabId)'), 'Admin layout should activate existing custom tabs from the current route')
+assert(adminLayout.includes('openExtensionRoutePlaceholderTab(tabId)'), 'Admin layout should open route-backed placeholder tabs for dynamic extension pages')
 assert(adminLayout.includes('class="min-h-0 flex-1 overflow-y-auto pr-1"'), 'Admin sidebar navigation should scroll independently when there are many menu items')
 
 console.log('Admin framework validation passed.')

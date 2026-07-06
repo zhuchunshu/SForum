@@ -24,9 +24,11 @@ existing `*APIError` type instead of panicking, so Fiber's centralized error
 handler continues to emit localized SForum API envelopes with `code`,
 `message`, and `data.reason`.
 Architecture guidance now treats SForum core as a host framework. Optional
-vertical systems such as payments, outbound mail delivery, notification
-channels, analytics, and vendor-specific integrations should be built as
-plugins or explicit provider-slot implementations by default.
+vertical systems such as outbound mail delivery, notification channels,
+analytics, and vendor-specific integrations should be built as plugins or
+explicit provider-slot implementations by default. When a vertical needs shared
+state across plugins, such as payments, core should define the framework model
+and provider interfaces while plugins implement provider/vendor behavior.
 
 ## Planned Stack
 
@@ -67,10 +69,13 @@ plugins or explicit provider-slot implementations by default.
 - `notifications`: framework-only until accepted product scope requires more;
   core may own events, preferences, delivery-attempt contracts, queue names, and
   provider slots, while concrete channels and fanout policy belong in plugins.
-- `payments`: not a core module; core may define entitlement checks, payment
-  events, provider slots, and idempotent webhook gateway rules only after
-  product scope is confirmed. Gateway integrations and vendor-specific flows
-  belong in plugins.
+- `payments`: core framework boundary when product scope requires it. Core
+  should define provider-neutral payment intents, transactions, refunds,
+  webhook-delivery/idempotency records, entitlement checks, events, provider
+  slots, policy helpers, and admin provider selection/reset contracts. Gateway
+  integrations, provider-specific transaction mapping, checkout/session flows,
+  invoice rendering, webhook payload verification, and vendor settings belong
+  in plugins.
 
 ## HTTP Bootstrap And Routing
 

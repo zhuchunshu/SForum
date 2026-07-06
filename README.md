@@ -32,7 +32,7 @@ Run the frontend and API locally in separate terminals:
 
 ```sh
 cd apps/web && bun run dev
-cd apps/api && air
+./scripts/api-dev.sh
 ```
 
 After Dockerfile or dependency changes, rebuild the migration image explicitly:
