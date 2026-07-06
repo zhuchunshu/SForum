@@ -77,6 +77,7 @@ type ManifestSetting = extensionmanifest.ManifestSetting
 type ManifestMigration = extensionmanifest.ManifestMigration
 type ManifestBackend = extensionmanifest.ManifestBackend
 type ManifestFrontend = extensionmanifest.ManifestFrontend
+type ManifestAdmin = extensionmanifest.ManifestAdmin
 type ManifestAdminPage = extensionmanifest.ManifestAdminPage
 type ManifestRoute = extensionmanifest.ManifestRoute
 type ManifestHook = extensionmanifest.ManifestHook

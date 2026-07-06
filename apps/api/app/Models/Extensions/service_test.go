@@ -365,16 +365,26 @@ func TestServiceInstallArchiveValidatesRuntimeManifestDeclarations(t *testing.T)
 	}
 }
 
-func TestServiceNavigationUsesEnabledPluginsAndActiveTheme(t *testing.T) {
+func TestServiceNavigationUsesOnlyExplicitMenuPagesFromEnabledPluginsAndActiveTheme(t *testing.T) {
 	enabledPlugin := installedExtension("enabled.plugin", TypePlugin, ManifestBackend{})
 	enabledPlugin.Status = StatusEnabled
-	enabledPlugin.Manifest.AdminPages = []ManifestAdminPage{{Path: "/settings", Label: "Settings", View: "settings", Icon: "i-lucide-settings", Order: 20}}
+	enabledPlugin.Manifest.Admin = ManifestAdmin{
+		Entry: "/settings",
+		Pages: []ManifestAdminPage{
+			{Path: "/settings", Label: "Settings", View: "settings", Icon: "i-lucide-settings", Order: 20},
+			{Path: "/dashboard", Label: "Dashboard", View: "about", Icon: "i-lucide-layout-dashboard", Order: 10, Menu: true},
+		},
+	}
 	disabledPlugin := installedExtension("disabled.plugin", TypePlugin, ManifestBackend{})
 	disabledPlugin.Status = StatusDisabled
-	disabledPlugin.Manifest.AdminPages = []ManifestAdminPage{{Path: "/hidden", Label: "Hidden", View: "about"}}
+	disabledPlugin.Manifest.Admin = ManifestAdmin{
+		Pages: []ManifestAdminPage{{Path: "/hidden", Label: "Hidden", View: "about", Menu: true}},
+	}
 	activeTheme := installedExtension("active.theme", TypeTheme, ManifestBackend{})
 	activeTheme.Status = StatusEnabled
-	activeTheme.Manifest.AdminPages = []ManifestAdminPage{{Path: "/theme", Label: "Theme", View: "about", Order: 10}}
+	activeTheme.Manifest.Admin = ManifestAdmin{
+		Pages: []ManifestAdminPage{{Path: "/theme", Label: "Theme", View: "about", Order: 30, Menu: true}},
+	}
 	store := &fakeExtensionStore{items: map[string]Extension{
 		enabledPlugin.ID:  enabledPlugin,
 		disabledPlugin.ID: disabledPlugin,
@@ -386,11 +396,14 @@ func TestServiceNavigationUsesEnabledPluginsAndActiveTheme(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Navigation returned error: %v", err)
 	}
-	if !navigationContains(items, "enabled.plugin", "/about") || !navigationContains(items, "enabled.plugin", "/settings") {
-		t.Fatalf("expected enabled plugin pages, got %#v", items)
+	if navigationContains(items, "enabled.plugin", "/about") || navigationContains(items, "enabled.plugin", "/settings") {
+		t.Fatalf("generated and non-menu pages should not inject sidebar navigation: %#v", items)
 	}
-	if !navigationContains(items, "active.theme", "/about") || !navigationContains(items, "active.theme", "/theme") {
-		t.Fatalf("expected active theme pages, got %#v", items)
+	if !navigationContains(items, "enabled.plugin", "/dashboard") {
+		t.Fatalf("expected enabled plugin menu page, got %#v", items)
+	}
+	if !navigationContains(items, "active.theme", "/theme") {
+		t.Fatalf("expected active theme explicit menu page, got %#v", items)
 	}
 	if navigationContains(items, "disabled.plugin", "/hidden") {
 		t.Fatalf("disabled plugin should not inject sidebar navigation: %#v", items)

@@ -98,7 +98,13 @@ func TestControllerListsNavigationAndManagesExtensionSettings(t *testing.T) {
 	cookie := loginExtensionUser(t, app, manager, 1)
 	plugin := store.items["demo.plugin"]
 	plugin.Status = extensions.StatusEnabled
-	plugin.Manifest.AdminPages = []extensions.ManifestAdminPage{{Path: "/settings", Label: "Settings", View: "settings", Icon: "i-lucide-settings", Order: 10}}
+	plugin.Manifest.Admin = extensions.ManifestAdmin{
+		Entry: "/settings",
+		Pages: []extensions.ManifestAdminPage{
+			{Path: "/settings", Label: "Settings", View: "settings", Icon: "i-lucide-settings", Order: 10},
+			{Path: "/dashboard", Label: "Dashboard", View: "about", Icon: "i-lucide-layout-dashboard", Order: 5, Menu: true},
+		},
+	}
 	plugin.Manifest.Settings = []extensions.ManifestSetting{{Key: "demo.title", Label: "Title", Type: "text", Default: "Hello"}}
 	store.items[plugin.ID] = plugin
 	theme := store.items["demo.theme"]
@@ -114,7 +120,7 @@ func TestControllerListsNavigationAndManagesExtensionSettings(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&navigation); err != nil {
 		t.Fatalf("decode navigation: %v", err)
 	}
-	if !controllerNavigationContains(navigation.Data, "demo.plugin", "/settings") || !controllerNavigationContains(navigation.Data, "demo.theme", "/about") {
+	if !controllerNavigationContains(navigation.Data, "demo.plugin", "/dashboard") || controllerNavigationContains(navigation.Data, "demo.plugin", "/settings") || controllerNavigationContains(navigation.Data, "demo.theme", "/about") {
 		t.Fatalf("unexpected navigation items: %#v", navigation.Data)
 	}
 

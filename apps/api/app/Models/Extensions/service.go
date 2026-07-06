@@ -280,7 +280,7 @@ func (s *Service) Navigation(ctx context.Context, actor identity.Actor) ([]Exten
 		if !extensionInjectsAdminNavigation(item) {
 			continue
 		}
-		for _, page := range normalizedAdminPages(item.Manifest) {
+		for _, page := range normalizedMenuAdminPages(item.Manifest) {
 			navigation = append(navigation, ExtensionAdminNavigationItem{
 				ExtensionID:     item.ID,
 				ExtensionName:   item.Name,
@@ -782,7 +782,7 @@ func extensionInjectsAdminNavigation(extension Extension) bool {
 }
 
 func normalizedAdminPages(manifest Manifest) []ManifestAdminPage {
-	pages := make([]ManifestAdminPage, 0, len(manifest.AdminPages)+1)
+	pages := make([]ManifestAdminPage, 0, len(extensionmanifest.EffectiveAdminPages(manifest))+1)
 	pages = append(pages, ManifestAdminPage{
 		Path:        "/about",
 		Label:       manifest.Name,
@@ -791,17 +791,11 @@ func normalizedAdminPages(manifest Manifest) []ManifestAdminPage {
 		View:        "about",
 		Order:       0,
 	})
-	for _, page := range manifest.AdminPages {
+	for _, page := range extensionmanifest.EffectiveAdminPages(manifest) {
 		if strings.TrimSpace(page.Path) == "" {
 			continue
 		}
-		if page.Icon == "" {
-			page.Icon = defaultExtensionIcon(manifest.Type)
-		}
-		if page.View == "" {
-			page.View = "about"
-		}
-		pages = append(pages, page)
+		pages = append(pages, normalizeAdminPageForDisplay(manifest.Type, page))
 	}
 	sort.SliceStable(pages, func(left, right int) bool {
 		if pages[left].Order == pages[right].Order {
@@ -810,6 +804,39 @@ func normalizedAdminPages(manifest Manifest) []ManifestAdminPage {
 		return pages[left].Order < pages[right].Order
 	})
 	return pages
+}
+
+func normalizedMenuAdminPages(manifest Manifest) []ManifestAdminPage {
+	pages := make([]ManifestAdminPage, 0, len(extensionmanifest.MenuAdminPages(manifest)))
+	for _, page := range extensionmanifest.MenuAdminPages(manifest) {
+		if strings.TrimSpace(page.Path) == "" {
+			continue
+		}
+		pages = append(pages, normalizeAdminPageForDisplay(manifest.Type, page))
+	}
+	sort.SliceStable(pages, func(left, right int) bool {
+		if pages[left].Order == pages[right].Order {
+			return pages[left].Path < pages[right].Path
+		}
+		return pages[left].Order < pages[right].Order
+	})
+	return pages
+}
+
+func normalizeAdminPageForDisplay(extensionType string, page ManifestAdminPage) ManifestAdminPage {
+	page.Path = extensionmanifest.NormalizeRoutePath(page.Path)
+	page.Label = strings.TrimSpace(page.Label)
+	page.Description = strings.TrimSpace(page.Description)
+	page.Icon = strings.TrimSpace(page.Icon)
+	page.View = strings.TrimSpace(page.View)
+	page.Permission = strings.TrimSpace(page.Permission)
+	if page.Icon == "" {
+		page.Icon = defaultExtensionIcon(extensionType)
+	}
+	if page.View == "" {
+		page.View = "about"
+	}
+	return page
 }
 
 func defaultExtensionIcon(extensionType string) string {
