@@ -51,6 +51,28 @@ func TestServiceListsOnlyPublicOptions(t *testing.T) {
 	}
 }
 
+func TestServiceForumOptionsArePublicWithRecommendedDefaults(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+
+	items, err := service.List(context.Background())
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+
+	if got := adminValueFromPublic(items, NameForumDefaultCategorySlug); got != "general" {
+		t.Fatalf("expected public default category option, got %q", got)
+	}
+	if got := adminValueFromPublic(items, NameForumTagCreationMode); got != "controlled" {
+		t.Fatalf("expected public tag creation mode option, got %q", got)
+	}
+	if got := adminValueFromPublic(items, NameForumTagPublicPages); got != "enabled" {
+		t.Fatalf("expected public tag pages option, got %q", got)
+	}
+	if got := adminValueFromPublic(items, NameForumTagMaxPerTopic); got != "5" {
+		t.Fatalf("expected public max tags option, got %q", got)
+	}
+}
+
 func TestServiceAdminListMasksSecrets(t *testing.T) {
 	store := &fakeStore{items: map[string]string{
 		NameAltchaSecret: "secret",
@@ -374,6 +396,100 @@ func TestServiceAttachmentOptionsRequireAttachmentSettingsPermission(t *testing.
 	}
 }
 
+func TestServiceForumOptionsRequireForumPermissions(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+
+	categoryItems, err := service.ListAdmin(context.Background(), categoryManageActor())
+	if err != nil {
+		t.Fatalf("category manager ListAdmin returned error: %v", err)
+	}
+	if got := adminValue(categoryItems, NameForumDefaultCategorySlug); got != "general" {
+		t.Fatalf("expected category manager to see default category option, got %q", got)
+	}
+	if got := adminValue(categoryItems, NameForumTagCreationMode); got != "" {
+		t.Fatalf("category manager should not see tag option, got %q", got)
+	}
+
+	tagItems, err := service.ListAdmin(context.Background(), tagManageActor())
+	if err != nil {
+		t.Fatalf("tag manager ListAdmin returned error: %v", err)
+	}
+	if got := adminValue(tagItems, NameForumTagCreationMode); got != "controlled" {
+		t.Fatalf("expected tag manager to see creation mode option, got %q", got)
+	}
+	if got := adminValue(tagItems, NameForumTagPublicPages); got != "enabled" {
+		t.Fatalf("expected tag manager to see public pages option, got %q", got)
+	}
+	if got := adminValue(tagItems, NameForumTagMaxPerTopic); got != "5" {
+		t.Fatalf("expected tag manager to see max tags option, got %q", got)
+	}
+	if got := adminValue(tagItems, NameForumDefaultCategorySlug); got != "" {
+		t.Fatalf("tag manager should not see default category option, got %q", got)
+	}
+
+	if _, err := service.Update(context.Background(), settingsActor(), UpdateInput{Name: NameForumDefaultCategorySlug, Value: "support"}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected settings actor to be denied default category update, got %v", err)
+	}
+	if _, err := service.Update(context.Background(), categoryManageActor(), UpdateInput{Name: NameForumTagCreationMode, Value: "open"}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected category manager to be denied tag option update, got %v", err)
+	}
+}
+
+func TestServiceForumOptionsDefaultsAndValidation(t *testing.T) {
+	store := &fakeStore{}
+	service := NewServiceWithCacheTTL(store, time.Minute)
+
+	if err := service.EnsureDefaults(context.Background()); err != nil {
+		t.Fatalf("EnsureDefaults returned error: %v", err)
+	}
+	expected := map[string]string{
+		NameForumDefaultCategorySlug: "general",
+		NameForumTagCreationMode:     "controlled",
+		NameForumTagPublicPages:      "enabled",
+		NameForumTagMaxPerTopic:      "5",
+	}
+	for name, want := range expected {
+		if got := store.items[name]; got != want {
+			t.Fatalf("expected default %s=%q, got %q", name, want, got)
+		}
+	}
+
+	updated, err := service.UpdateMany(context.Background(), tagManageActor(), []UpdateInput{
+		{Name: NameForumTagCreationMode, Value: "OPEN"},
+		{Name: NameForumTagPublicPages, Value: "false"},
+		{Name: NameForumTagMaxPerTopic, Value: "0"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateMany returned error: %v", err)
+	}
+	if got := adminValue(updated, NameForumTagCreationMode); got != "open" {
+		t.Fatalf("expected normalized open mode, got %q", got)
+	}
+	if got := adminValue(updated, NameForumTagPublicPages); got != "disabled" {
+		t.Fatalf("expected disabled public pages, got %q", got)
+	}
+	if got := adminValue(updated, NameForumTagMaxPerTopic); got != "0" {
+		t.Fatalf("expected normalized max tags 0, got %q", got)
+	}
+
+	cases := []UpdateInput{
+		{Name: NameForumTagCreationMode, Value: "invite"},
+		{Name: NameForumTagMaxPerTopic, Value: "-1"},
+		{Name: NameForumTagMaxPerTopic, Value: "11"},
+		{Name: NameForumDefaultCategorySlug, Value: ""},
+		{Name: NameForumDefaultCategorySlug, Value: "不合法"},
+	}
+	for _, input := range cases {
+		actor := tagManageActor()
+		if input.Name == NameForumDefaultCategorySlug {
+			actor = categoryManageActor()
+		}
+		if _, err := service.Update(context.Background(), actor, input); !errors.Is(err, ErrInvalidOption) {
+			t.Fatalf("expected invalid forum option for %#v, got %v", input, err)
+		}
+	}
+}
+
 func TestServiceAttachmentLocalRootDefaultsAndValidation(t *testing.T) {
 	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
 	actor := attachmentSettingsActor()
@@ -607,6 +723,22 @@ func attachmentSettingsActor() identity.Actor {
 		ID:          1,
 		Status:      identity.UserStatusActive,
 		Permissions: map[string]bool{identity.PermissionAttachmentSettings: true},
+	}
+}
+
+func categoryManageActor() identity.Actor {
+	return identity.Actor{
+		ID:          1,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionCategoryManage: true},
+	}
+}
+
+func tagManageActor() identity.Actor {
+	return identity.Actor{
+		ID:          1,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionTagManage: true},
 	}
 }
 

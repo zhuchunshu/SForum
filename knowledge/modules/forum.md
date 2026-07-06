@@ -21,6 +21,10 @@ Backend foundation implemented on 2026-07-06.
   editor version, render version, and content hash.
 - `post_revisions` stores previous shared-content snapshots when comments are
   edited.
+- Taxonomy schema Task 1 adds `category_groups`, group/order/default-sort
+  fields on `categories`, core `tags`, `topic_tags`, and first-run runtime
+  options for default category and tag policy. Public/admin category and tag
+  APIs are still follow-up work.
 - Go domain logic lives under `apps/api/app/Models/Forum`; HTTP routes live
   under `apps/api/app/Http/Controllers/Forum`.
 
@@ -94,7 +98,6 @@ mobile comments with the D-style flat list plus "replying to" context labels.
 
 ## Open Questions
 
-- Whether tags are in MVP or deferred.
 - Edit grace period and revision visibility rules.
 - Whether votes/reactions exist in MVP.
 - When to add topic editing, deletion, locking, hiding, and pinning endpoints.

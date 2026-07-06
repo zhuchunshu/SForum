@@ -176,6 +176,15 @@ const firstSidebarGroup = adminSidebarNavigation[0] as Array<{
 }>
 const systemFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.system')
 assert(systemFolder, 'Admin sidebar should keep a system folder')
+assert(
+  !firstSidebarGroup.some(entry => entry.type === 'page' && entry.pageId === '/personalization'),
+  'Personalization should live under the system folder, not the top-level sidebar'
+)
+assert(systemFolder.children?.some(entry => entry.pageId === '/personalization'), 'System folder should contain the personalization page')
+assert(
+  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/personalization,/seo,/database',
+  'System folder should keep the approved settings submenu order'
+)
 assert(!systemFolder.children?.some(entry => entry.pageId === '/extensions'), 'System folder should not contain the extension overview page')
 const extensionFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensions')
 assert(extensionFolder, 'Admin sidebar should expose extensions as an independent folder')

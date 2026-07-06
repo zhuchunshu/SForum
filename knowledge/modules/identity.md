@@ -24,6 +24,10 @@ Initial identity foundation is implemented.
 - The permission catalog includes `database.manage` for the read-only admin
   database table manager. `super_admin` receives it by migration and policy as
   part of the protected all-permissions role.
+- The permission catalog includes `tag.manage` for forum tag creation,
+  approval, disabling, and policy management. Existing deployments receive it
+  through the forum taxonomy migration, and `super_admin` receives it by
+  default.
 - API exposes `/api/v1/auth/registration-status` so the registration page can
   show when the next successful registration will become the initial
   `super_admin`.

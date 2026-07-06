@@ -75,6 +75,8 @@ This is the entry point for project memory.
   keep-alive component names, badges, and frontend-visible permission
   requirements. Page components register with `useAdminPage('/id')` instead of
   repeating tab/menu metadata.
+- The admin personalization page remains on `/personalization`, but its
+  sidebar entry now lives inside the System configuration folder.
 - Admin UI feedback guidelines now require non-error alerts/toasts to support
   10-second auto-dismiss behavior, while error feedback remains visible until
   user dismissal or resolution.
@@ -163,6 +165,10 @@ This is the entry point for project memory.
   controllers and routes, `app/Providers` owns provider wiring,
   `app/Models/*` owns domain logic, and `database/*` owns migrations, SQL, and
   generated `sqlc` code.
+- Forum taxonomy Task 1 is implemented: `category_groups`, category ordering
+  and default-sort columns, `tags`, `topic_tags`, `tag.manage`, and public
+  runtime options for default category and tag policy now have schema/model
+  foundations and focused backend tests.
 - Goose migrations now run from a shared embedded migrator. API and worker
   processes run migrations at startup when `MIGRATE_ON_STARTUP=true`, guarded
   by Goose's PostgreSQL table lock. `scripts/dev.sh` and `deploy.sh` may still
@@ -408,6 +414,8 @@ This is the entry point for project memory.
   refresh behavior for API restart/session recovery resilience.
 - `sessions/2026-07-05-global-footer-implementation.md` - global footer implementation handoff.
 - `sessions/2026-07-05-personalization-settings.md` - theme preset and footer personalization implementation handoff.
+- `sessions/2026-07-07-admin-personalization-system-config.md` - admin
+  personalization sidebar move into the System configuration folder.
 - `sessions/2026-07-05-custom-theme-color.md` - custom theme color picker,
   backend validation, and Nuxt UI primary-token bridge handoff.
 - `sessions/2026-07-05-icon-picker.md` - reusable Tabler/Nuxt Icon picker

@@ -32,14 +32,19 @@ Initial runtime option support is implemented.
   batch helpers.
 - Admin page `apps/web/app/pages/admin/settings/index.vue` uses page-level tabs
   for basic site settings and CAPTCHA/human-verification settings.
-- Admin page `apps/web/app/pages/admin/personalization.vue` manages the
-  top-level personalization settings for appearance presets and footer content.
+- Admin page `apps/web/app/pages/admin/personalization.vue` manages
+  personalization settings for appearance presets and footer content from the
+  System configuration sidebar folder.
 - Admin page `apps/web/app/pages/admin/seo.vue` manages runtime SEO settings
   across meta/social, indexing/robots, sitemap, structured data, verification,
   and diagnostics tabs.
 - Admin page `apps/web/app/pages/admin/attachments.vue` manages attachment
   storage provider settings, upload limits, path templates, public URL
   settings, secret-bearing provider credentials, and attachment governance.
+- Forum taxonomy options now include the public default posting category slug
+  and public tag-policy controls. Updating `forum.default_category_slug`
+  requires `category.manage`; updating `forum.tags.*` options requires
+  `tag.manage`.
 
 ## Boundaries
 
@@ -74,6 +79,8 @@ Initial runtime option support is implemented.
   `human_verification.altcha.widget.workers`,
   `human_verification.altcha.widget.min_duration_ms`, `appearance.theme`,
   `footer.copyright.zh-CN`, `footer.copyright.en-US`, `footer.links`,
+  `forum.default_category_slug`, `forum.tags.creation_mode`,
+  `forum.tags.public_pages`, `forum.tags.max_per_topic`,
   `attachment.upload.enabled`, `attachment.max_file_size_mb`,
   `attachment.allowed_extensions`, and `attachment.allowed_mime_types`.
 - Current admin-only options are `human_verification.altcha.secret`,
@@ -115,6 +122,13 @@ Initial runtime option support is implemented.
 - Footer settings are frontend-safe public options: copyright text supports
   `{year}` and `{siteName}`, and `footer.links` stores the fixed Terms,
   Privacy, and Guidelines links as normalized JSON.
+- Forum taxonomy defaults are frontend-safe public options:
+  `forum.default_category_slug=general`,
+  `forum.tags.creation_mode=controlled`, `forum.tags.public_pages=enabled`,
+  and `forum.tags.max_per_topic=5`. The Options service validates tag creation
+  mode as `controlled`, `review`, or `open`; public tag pages as
+  enabled/disabled; max tags per topic as `0..10`; and default category as a
+  slug-shaped string.
 
 ## Next Steps
 

@@ -19,3 +19,18 @@ func TestFilesIncludesSQLMigrations(t *testing.T) {
 	}
 	t.Fatal("expected embedded SQL migrations")
 }
+
+func TestFilesIncludesForumTaxonomyMigration(t *testing.T) {
+	entries, err := fs.ReadDir(Files(), ".")
+	if err != nil {
+		t.Fatalf("read embedded migrations: %v", err)
+	}
+
+	const expected = "202607070003_forum_taxonomy.sql"
+	for _, entry := range entries {
+		if entry.Name() == expected {
+			return
+		}
+	}
+	t.Fatalf("expected embedded migration %s", expected)
+}

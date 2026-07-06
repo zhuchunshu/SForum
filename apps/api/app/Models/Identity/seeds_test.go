@@ -25,3 +25,18 @@ func TestDefaultPermissionsContainAdminAccess(t *testing.T) {
 		t.Fatal("expected admin.access seed permission")
 	}
 }
+
+func TestDefaultPermissionsContainTagManage(t *testing.T) {
+	found := false
+	for _, permission := range SeedPermissions {
+		if permission.Key == PermissionTagManage {
+			found = true
+			if permission.Module != "forum" {
+				t.Fatalf("expected tag.manage to belong to forum module, got %q", permission.Module)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("expected tag.manage seed permission")
+	}
+}

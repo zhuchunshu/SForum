@@ -9,6 +9,7 @@ const (
 	PermissionUserManage             = "user.manage"
 	PermissionUserBan                = "user.ban"
 	PermissionCategoryManage         = "category.manage"
+	PermissionTagManage              = "tag.manage"
 	PermissionTopicCreate            = "topic.create"
 	PermissionTopicEditAny           = "topic.edit_any"
 	PermissionTopicDeleteAny         = "topic.delete_any"
@@ -41,6 +42,7 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionUserManage, Module: "identity", Description: "Manage user accounts and assignments."},
 	{Key: PermissionUserBan, Module: "identity", Description: "Ban users from participating."},
 	{Key: PermissionCategoryManage, Module: "forum", Description: "Create and update categories."},
+	{Key: PermissionTagManage, Module: "forum", Description: "Create, approve, disable, and manage tags."},
 	{Key: PermissionTopicCreate, Module: "forum", Description: "Create topics."},
 	{Key: PermissionTopicEditAny, Module: "forum", Description: "Edit any topic."},
 	{Key: PermissionTopicDeleteAny, Module: "forum", Description: "Delete any topic."},

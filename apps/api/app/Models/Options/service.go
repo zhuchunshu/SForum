@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +29,8 @@ const altchaWidgetMinDurationMin = 0
 const altchaWidgetMinDurationMax = 10000
 const altchaWidgetWorkersMin = 1
 const altchaWidgetWorkersMax = 16
+const forumTagMaxPerTopicMin = 0
+const forumTagMaxPerTopicMax = 10
 const customAppearanceThemePrefix = "custom:"
 
 var builtInLocales = []string{localization.DefaultLocale, "en-US"}
@@ -37,6 +40,8 @@ var seoTwitterCards = []string{"summary", "summary_large_image"}
 var altchaWidgetTypes = []string{"native", "checkbox", "switch"}
 var altchaWidgetAutoModes = []string{"off", "onfocus", "onload", "onsubmit"}
 var altchaWidgetDisplays = []string{"standard", "bar", "floating", "overlay", "invisible"}
+var forumTagCreationModes = []string{"controlled", "review", "open"}
+var forumSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 type humanVerificationScenario struct {
 	name           string
@@ -112,6 +117,10 @@ var optionDefinitions = []optionDefinition{
 	{name: NameFooterCopyrightZHCN, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameFooterCopyrightENUS, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameFooterLinks, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumDefaultCategorySlug, public: true, managePermission: identity.PermissionCategoryManage},
+	{name: NameForumTagCreationMode, public: true, managePermission: identity.PermissionTagManage},
+	{name: NameForumTagPublicPages, public: true, managePermission: identity.PermissionTagManage},
+	{name: NameForumTagMaxPerTopic, public: true, managePermission: identity.PermissionTagManage},
 	{name: NameSEOMetaTitleTemplate, public: true, managePermission: identity.PermissionSEOManage},
 	{name: NameSEOMetaDescription, public: true, managePermission: identity.PermissionSEOManage},
 	{name: NameSEOMetaKeywords, public: true, managePermission: identity.PermissionSEOManage},
@@ -543,6 +552,20 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	if _, ok := normalizeFooterLinks(coerced[NameFooterLinks]); !ok {
 		coerced[NameFooterLinks] = defaults[NameFooterLinks]
 	}
+	if _, ok := normalizeForumSlug(coerced[NameForumDefaultCategorySlug]); !ok {
+		coerced[NameForumDefaultCategorySlug] = defaults[NameForumDefaultCategorySlug]
+	}
+	if _, ok := normalizeForumTagCreationMode(coerced[NameForumTagCreationMode]); !ok {
+		coerced[NameForumTagCreationMode] = defaults[NameForumTagCreationMode]
+	}
+	if value, ok := normalizeEnabledOption(coerced[NameForumTagPublicPages]); ok {
+		coerced[NameForumTagPublicPages] = value
+	} else {
+		coerced[NameForumTagPublicPages] = defaults[NameForumTagPublicPages]
+	}
+	if _, ok := parseBoundedInt(coerced[NameForumTagMaxPerTopic], forumTagMaxPerTopicMin, forumTagMaxPerTopicMax); !ok {
+		coerced[NameForumTagMaxPerTopic] = defaults[NameForumTagMaxPerTopic]
+	}
 	for _, name := range seoEnabledOptionNames() {
 		value, ok := normalizeEnabledOption(coerced[name])
 		if !ok {
@@ -613,6 +636,10 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameFooterCopyrightZHCN:              "© {year} {siteName}。保留所有权利。",
 		NameFooterCopyrightENUS:              "© {year} {siteName}. All rights reserved.",
 		NameFooterLinks:                      defaultFooterLinksValue(),
+		NameForumDefaultCategorySlug:         "general",
+		NameForumTagCreationMode:             "controlled",
+		NameForumTagPublicPages:              enabledOptionValue(true),
+		NameForumTagMaxPerTopic:              "5",
 		NameSEOMetaTitleTemplate:             "",
 		NameSEOMetaDescription:               "",
 		NameSEOMetaKeywords:                  "",
@@ -790,6 +817,14 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeFooterCopyright(value)
 	case NameFooterLinks:
 		return normalizeFooterLinks(value)
+	case NameForumDefaultCategorySlug:
+		return normalizeForumSlug(value)
+	case NameForumTagCreationMode:
+		return normalizeForumTagCreationMode(value)
+	case NameForumTagPublicPages:
+		return normalizeEnabledOption(value)
+	case NameForumTagMaxPerTopic:
+		return normalizeBoundedInt(value, forumTagMaxPerTopicMin, forumTagMaxPerTopicMax)
 	case NameSEOMetaTitleTemplate:
 		return normalizeSEOTitleTemplate(value)
 	case NameSEOMetaDescription:
@@ -909,6 +944,18 @@ func isValidValueSet(values map[string]string) bool {
 		return false
 	}
 	if _, ok := normalizeFooterLinks(values[NameFooterLinks]); !ok {
+		return false
+	}
+	if _, ok := normalizeForumSlug(values[NameForumDefaultCategorySlug]); !ok {
+		return false
+	}
+	if _, ok := normalizeForumTagCreationMode(values[NameForumTagCreationMode]); !ok {
+		return false
+	}
+	if _, ok := normalizeEnabledOption(values[NameForumTagPublicPages]); !ok {
+		return false
+	}
+	if _, ok := parseBoundedInt(values[NameForumTagMaxPerTopic], forumTagMaxPerTopicMin, forumTagMaxPerTopicMax); !ok {
 		return false
 	}
 	if _, ok := normalizeSEOTitleTemplate(values[NameSEOMetaTitleTemplate]); !ok {
@@ -1117,6 +1164,15 @@ func normalizeStringChoice(value string, allowed []string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func normalizeForumSlug(value string) (string, bool) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	return value, forumSlugPattern.MatchString(value)
+}
+
+func normalizeForumTagCreationMode(value string) (string, bool) {
+	return normalizeChoice(value, forumTagCreationModes)
 }
 
 func normalizeBoundedInt(value string, min int, max int) (string, bool) {

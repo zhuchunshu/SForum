@@ -147,7 +147,6 @@ export const adminPageDefinitions = [
 export const adminSidebarNavigation = [
   [
     { type: 'page', pageId: ADMIN_DASHBOARD_PAGE_ID },
-    { type: 'page', pageId: '/personalization' },
     {
       type: 'folder',
       labelKey: 'admin.nav.userPermission',
@@ -164,6 +163,7 @@ export const adminSidebarNavigation = [
       icon: 'i-lucide-settings-2',
       children: [
         { type: 'page', pageId: '/settings' },
+        { type: 'page', pageId: '/personalization' },
         { type: 'page', pageId: '/seo' },
         { type: 'page', pageId: '/database' }
       ]
