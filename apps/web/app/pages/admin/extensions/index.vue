@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, extensionAdminPageRoute, extensionAuthorName, extensionAuthorWebsite, extensionEventPage, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
+import { capabilityCount, extensionAuthorName, extensionAuthorWebsite, extensionEventPage, extensionManageRoute, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -221,7 +221,7 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 color="neutral"
                 variant="ghost"
                 icon="i-lucide-settings"
-                :to="adminRoutes.path(extensionAdminPageRoute(item.id))"
+                :to="adminRoutes.path(extensionManageRoute(item))"
               >
                 {{ t('admin.extensions.manage') }}
               </UButton>

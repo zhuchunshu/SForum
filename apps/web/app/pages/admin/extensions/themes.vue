@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, extensionAdminPageRoute, extensionAuthorName, extensionAuthorWebsite, filterExtensionsByType, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
+import { capabilityCount, extensionAuthorName, extensionAuthorWebsite, extensionManageRoute, filterExtensionsByType, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -124,7 +124,7 @@ useSeoMeta({
             color="neutral"
             variant="ghost"
             icon="i-lucide-settings"
-            :to="adminRoutes.path(extensionAdminPageRoute(item.id))"
+            :to="adminRoutes.path(extensionManageRoute(item))"
           >
             {{ t('admin.extensions.manage') }}
           </UButton>
