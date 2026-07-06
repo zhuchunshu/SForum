@@ -42,6 +42,7 @@ type Manifest struct {
 	Migrations    []ManifestMigration `json:"migrations"`
 	Backend       ManifestBackend     `json:"backend"`
 	Frontend      ManifestFrontend    `json:"frontend"`
+	Admin         ManifestAdmin       `json:"admin"`
 	AdminPages    []ManifestAdminPage `json:"adminPages"`
 	Routes        []ManifestRoute     `json:"routes"`
 	Hooks         []ManifestHook      `json:"hooks"`
@@ -78,12 +79,18 @@ type ManifestFrontend struct {
 	Layer string `json:"layer"`
 }
 
+type ManifestAdmin struct {
+	Entry string              `json:"entry,omitempty"`
+	Pages []ManifestAdminPage `json:"pages,omitempty"`
+}
+
 type ManifestAdminPage struct {
 	Path        string `json:"path"`
 	Label       string `json:"label"`
 	Description string `json:"description,omitempty"`
 	Icon        string `json:"icon,omitempty"`
 	View        string `json:"view,omitempty"`
+	Menu        bool   `json:"menu,omitempty"`
 	Order       int    `json:"order,omitempty"`
 	Permission  string `json:"permission,omitempty"`
 }
@@ -140,16 +147,8 @@ func Validate(manifest Manifest) error {
 			return ErrInvalidManifest
 		}
 	}
-	for _, page := range manifest.AdminPages {
-		if page.Path == "" || !strings.HasPrefix(page.Path, "/") || strings.Contains(page.Path, "..") || page.Label == "" {
-			return ErrInvalidManifest
-		}
-		if page.View != "" && page.View != "about" && page.View != "settings" {
-			return ErrInvalidManifest
-		}
-		if page.Order < 0 {
-			return ErrInvalidManifest
-		}
+	if err := validateAdminDeclaration(manifest); err != nil {
+		return err
 	}
 	if manifest.Type == TypeTheme && !isThemeManifestSupported(manifest) {
 		return ErrInvalidManifest
@@ -259,23 +258,15 @@ func Normalize(manifest Manifest) Manifest {
 		manifest.Settings[index].Type = strings.ToLower(strings.TrimSpace(manifest.Settings[index].Type))
 		manifest.Settings[index].Default = strings.TrimSpace(manifest.Settings[index].Default)
 	}
-	for index := range manifest.AdminPages {
-		manifest.AdminPages[index].Path = NormalizeRoutePath(manifest.AdminPages[index].Path)
-		manifest.AdminPages[index].Label = strings.TrimSpace(manifest.AdminPages[index].Label)
-		manifest.AdminPages[index].Description = strings.TrimSpace(manifest.AdminPages[index].Description)
-		manifest.AdminPages[index].Icon = strings.TrimSpace(manifest.AdminPages[index].Icon)
-		manifest.AdminPages[index].View = strings.ToLower(strings.TrimSpace(manifest.AdminPages[index].View))
-		if manifest.AdminPages[index].View == "" {
-			manifest.AdminPages[index].View = "about"
-		}
-		manifest.AdminPages[index].Permission = strings.TrimSpace(manifest.AdminPages[index].Permission)
-	}
 	manifest.Backend.Entry = strings.TrimSpace(manifest.Backend.Entry)
 	manifest.Backend.RPC = strings.TrimSpace(manifest.Backend.RPC)
 	if manifest.Backend.ProtocolVersion == 0 && manifest.Backend.RPC != "" {
 		manifest.Backend.ProtocolVersion = 1
 	}
 	manifest.Frontend.Layer = strings.TrimSpace(manifest.Frontend.Layer)
+	manifest.Admin.Entry = NormalizeRoutePath(manifest.Admin.Entry)
+	normalizeAdminPageSlice(manifest.Admin.Pages)
+	normalizeAdminPageSlice(manifest.AdminPages)
 	for index := range manifest.Routes {
 		manifest.Routes[index].Path = NormalizeRoutePath(manifest.Routes[index].Path)
 		manifest.Routes[index].Access = strings.ToLower(strings.TrimSpace(manifest.Routes[index].Access))
@@ -301,6 +292,86 @@ func Normalize(manifest Manifest) Manifest {
 		manifest.Providers[index].Label = strings.TrimSpace(manifest.Providers[index].Label)
 	}
 	return manifest
+}
+
+func normalizeAdminPageSlice(pages []ManifestAdminPage) {
+	for index := range pages {
+		pages[index].Path = NormalizeRoutePath(pages[index].Path)
+		pages[index].Label = strings.TrimSpace(pages[index].Label)
+		pages[index].Description = strings.TrimSpace(pages[index].Description)
+		pages[index].Icon = strings.TrimSpace(pages[index].Icon)
+		pages[index].View = strings.ToLower(strings.TrimSpace(pages[index].View))
+		if pages[index].View == "" {
+			pages[index].View = "about"
+		}
+		pages[index].Permission = strings.TrimSpace(pages[index].Permission)
+	}
+}
+
+func validateAdminDeclaration(manifest Manifest) error {
+	pages := EffectiveAdminPages(manifest)
+	for _, page := range pages {
+		if page.Path == "" || !strings.HasPrefix(page.Path, "/") || strings.Contains(page.Path, "..") || page.Label == "" {
+			return ErrInvalidManifest
+		}
+		if page.View != "" && page.View != "about" && page.View != "settings" {
+			return ErrInvalidManifest
+		}
+		if page.Order < 0 {
+			return ErrInvalidManifest
+		}
+	}
+	if manifest.Admin.Entry == "" {
+		return nil
+	}
+	if strings.Contains(manifest.Admin.Entry, "://") || !strings.HasPrefix(manifest.Admin.Entry, "/") || strings.Contains(manifest.Admin.Entry, "..") {
+		return ErrInvalidManifest
+	}
+	if manifest.Admin.Entry == "/about" {
+		return nil
+	}
+	for _, page := range pages {
+		if page.Path == manifest.Admin.Entry {
+			return nil
+		}
+	}
+	return ErrInvalidManifest
+}
+
+func EffectiveAdminPages(manifest Manifest) []ManifestAdminPage {
+	manifest = Normalize(manifest)
+	if len(manifest.Admin.Pages) > 0 {
+		return manifest.Admin.Pages
+	}
+	return manifest.AdminPages
+}
+
+func MenuAdminPages(manifest Manifest) []ManifestAdminPage {
+	pages := EffectiveAdminPages(manifest)
+	menuPages := make([]ManifestAdminPage, 0, len(pages))
+	for _, page := range pages {
+		if page.Menu {
+			menuPages = append(menuPages, page)
+		}
+	}
+	return menuPages
+}
+
+func AdminManagePath(manifest Manifest) string {
+	manifest = Normalize(manifest)
+	pages := EffectiveAdminPages(manifest)
+	if manifest.Admin.Entry != "" {
+		return manifest.Admin.Entry
+	}
+	for _, page := range pages {
+		if page.Path == "/settings" {
+			return page.Path
+		}
+	}
+	if len(pages) > 0 {
+		return pages[0].Path
+	}
+	return "/about"
 }
 
 func NormalizeID(id string) string {
