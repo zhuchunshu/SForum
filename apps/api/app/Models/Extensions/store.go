@@ -14,6 +14,9 @@ type Store interface {
 	ActiveTheme(ctx context.Context) (Extension, error)
 	CreateEvent(ctx context.Context, input EventInput) (ExtensionEvent, error)
 	ListEvents(ctx context.Context, extensionID string, limit int) ([]ExtensionEvent, error)
+	ListSettings(ctx context.Context, extensionID string) (map[string]string, error)
+	ReplaceSettings(ctx context.Context, extensionID string, values map[string]string) error
+	ResetSettings(ctx context.Context, extensionID string) error
 	CreateEventDelivery(ctx context.Context, input EventDeliveryInput) (ExtensionEventDelivery, error)
 	UpdateEventDelivery(ctx context.Context, input EventDeliveryUpdateInput) error
 	ListEventDeliveries(ctx context.Context, input EventDeliveryListInput) ([]ExtensionEventDelivery, error)

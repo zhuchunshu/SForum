@@ -72,6 +72,9 @@ var (
 type Manifest struct {
 	ID            string              `json:"id"`
 	Name          string              `json:"name"`
+	Description   string              `json:"description"`
+	URL           string              `json:"url"`
+	Author        ManifestAuthor      `json:"author"`
 	Version       string              `json:"version"`
 	Type          string              `json:"type"`
 	SForumVersion string              `json:"sforumVersion"`
@@ -88,11 +91,18 @@ type Manifest struct {
 	Providers     []ManifestProvider  `json:"providers"`
 }
 
+type ManifestAuthor struct {
+	Name  string `json:"name"`
+	URL   string `json:"url,omitempty"`
+	Email string `json:"email,omitempty"`
+}
+
 type ManifestSetting struct {
-	Key     string `json:"key"`
-	Label   string `json:"label"`
-	Type    string `json:"type"`
-	Default string `json:"default,omitempty"`
+	Key         string `json:"key"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
+	Type        string `json:"type"`
+	Default     string `json:"default,omitempty"`
 }
 
 type ManifestMigration struct {
@@ -110,9 +120,13 @@ type ManifestFrontend struct {
 }
 
 type ManifestAdminPage struct {
-	Path       string `json:"path"`
-	Label      string `json:"label"`
-	Permission string `json:"permission"`
+	Path        string `json:"path"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
+	Icon        string `json:"icon,omitempty"`
+	View        string `json:"view,omitempty"`
+	Order       int    `json:"order,omitempty"`
+	Permission  string `json:"permission,omitempty"`
 }
 
 type ManifestRoute struct {
@@ -182,6 +196,37 @@ type ExtensionEvent struct {
 	Action      string    `json:"action"`
 	Message     string    `json:"message"`
 	CreatedAt   time.Time `json:"createdAt"`
+}
+
+type ExtensionAdminNavigationItem struct {
+	ExtensionID     string `json:"extensionId"`
+	ExtensionName   string `json:"extensionName"`
+	ExtensionType   string `json:"extensionType"`
+	ExtensionStatus string `json:"extensionStatus"`
+	Path            string `json:"path"`
+	Label           string `json:"label"`
+	Description     string `json:"description"`
+	Icon            string `json:"icon"`
+	View            string `json:"view"`
+	Order           int    `json:"order"`
+}
+
+type ExtensionSettingValue struct {
+	Key         string `json:"key"`
+	Label       string `json:"label"`
+	Description string `json:"description"`
+	Type        string `json:"type"`
+	Default     string `json:"default"`
+	Value       string `json:"value"`
+}
+
+type ExtensionSettings struct {
+	ExtensionID string                  `json:"extensionId"`
+	Items       []ExtensionSettingValue `json:"items"`
+}
+
+type UpdateSettingsInput struct {
+	Values map[string]string `json:"values"`
 }
 
 type ExtensionEventDelivery struct {

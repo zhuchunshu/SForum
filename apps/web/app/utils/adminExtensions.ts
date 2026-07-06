@@ -9,12 +9,33 @@ export type AdminExtensionDeliveryStatus = 'queued' | 'running' | 'succeeded' | 
 export type AdminExtensionSetting = {
   key: string
   label: string
+  description?: string
   type: string
+  default?: string
+}
+
+export type AdminExtensionAuthor = {
+  name: string
+  url?: string
+  email?: string
+}
+
+export type AdminExtensionAdminPage = {
+  path: string
+  label: string
+  description?: string
+  icon?: string
+  view?: 'about' | 'settings'
+  order?: number
+  permission?: string
 }
 
 export type AdminExtensionManifest = {
   id: string
   name: string
+  description: string
+  url: string
+  author: AdminExtensionAuthor
   version: string
   type: AdminExtensionType
   sforumVersion: string
@@ -23,12 +44,39 @@ export type AdminExtensionManifest = {
   migrations?: Array<{ path: string }>
   backend?: { entry?: string, rpc?: string, protocolVersion?: number }
   frontend?: { layer?: string }
-  adminPages?: Array<{ path: string, label: string, permission?: string }>
+  adminPages?: AdminExtensionAdminPage[]
   routes?: Array<{ path: string, methods?: string[], access?: 'public' | 'login' | 'permission', permission?: string, timeoutMs?: number }>
   hooks?: Array<{ name: string }>
   events?: Array<{ name: string, kind?: AdminExtensionEventKind, timeoutMs?: number }>
   jobs?: Array<{ name: string }>
   providers?: Array<{ slot: string, label: string, timeoutMs?: number }>
+}
+
+export type AdminExtensionNavigationItem = {
+  extensionId: string
+  extensionName: string
+  extensionType: AdminExtensionType
+  extensionStatus: AdminExtensionStatus
+  path: string
+  label: string
+  description: string
+  icon: string
+  view: 'about' | 'settings'
+  order: number
+}
+
+export type AdminExtensionSettingValue = {
+  key: string
+  label: string
+  description?: string
+  type: string
+  default: string
+  value: string
+}
+
+export type AdminExtensionSettings = {
+  extensionId: string
+  items: AdminExtensionSettingValue[]
 }
 
 export type AdminExtensionRuntime = {
@@ -233,6 +281,63 @@ export function extensionSettingDeclarations(items: AdminExtension[]) {
     extensionType: item.type,
     setting
   })))
+}
+
+export function defaultExtensionIcon(type: AdminExtensionType) {
+  return type === 'theme' ? 'i-lucide-palette' : 'i-lucide-plug'
+}
+
+export function extensionAdminPages(item: AdminExtension): AdminExtensionAdminPage[] {
+  const pages: AdminExtensionAdminPage[] = [
+    {
+      path: '/about',
+      label: item.name,
+      description: item.manifest.description,
+      icon: defaultExtensionIcon(item.type),
+      view: 'about',
+      order: 0
+    }
+  ]
+
+  for (const page of item.manifest.adminPages || []) {
+    pages.push({
+      path: normalizeExtensionPagePath(page.path),
+      label: page.label,
+      description: page.description || item.manifest.description,
+      icon: page.icon || defaultExtensionIcon(item.type),
+      view: page.view || 'about',
+      order: page.order || 0,
+      permission: page.permission
+    })
+  }
+
+  return pages.sort((left, right) => {
+    const orderDiff = (left.order || 0) - (right.order || 0)
+    return orderDiff || left.path.localeCompare(right.path)
+  })
+}
+
+export function findExtensionAdminPage(item: AdminExtension, path: string) {
+  const normalized = normalizeExtensionPagePath(path)
+  return extensionAdminPages(item).find(page => normalizeExtensionPagePath(page.path) === normalized)
+}
+
+export function extensionAdminPageRoute(extensionId: string, pagePath = '/about') {
+  return `/extensions/${extensionId}/pages${normalizeExtensionPagePath(pagePath)}`
+}
+
+export function normalizeExtensionPagePath(path?: string | string[] | null) {
+  const raw = Array.isArray(path) ? path.join('/') : `${path || ''}`
+  const normalized = raw
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\/+|\/+$/g, '')
+
+  if (!normalized) {
+    return '/about'
+  }
+
+  return `/${normalized.split('/').filter(Boolean).join('/')}`
 }
 
 export function declaredEventCount(item: AdminExtension) {

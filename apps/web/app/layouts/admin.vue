@@ -12,6 +12,7 @@ import {
 } from '~/config/adminModules'
 import { useAdminRoutes } from '~/composables/useAdminRoutes'
 import { useAdminTabs } from '~/composables/useAdminTabs'
+import type { AdminExtensionNavigationItem } from '~/utils/adminExtensions'
 
 type SidebarNavigationItem = {
   label: string
@@ -31,6 +32,11 @@ const adminRoutes = useAdminRoutes()
 const { user, can } = useAuthSession()
 const { request } = useApiClient()
 const { siteName } = useWebOptions()
+const { data: extensionNavigation } = await useAsyncData<AdminExtensionNavigationItem[]>(
+  'admin-extension-navigation',
+  () => can('extension.manage') ? request<AdminExtensionNavigationItem[]>('/admin/extensions/navigation') : Promise.resolve([]),
+  { default: (): AdminExtensionNavigationItem[] => [] }
+)
 
 // 引入多页签状态与主题模式
 const adminTabs = useAdminTabs()
@@ -61,7 +67,10 @@ const themeToggleIcon = computed(() => {
 // 计算当前激活标签页的标题，用于面包屑展示
 const activeTabLabel = computed(() => {
   const activeTab = adminTabs.tabs.value.find(tab => tab.id === adminTabs.activeTabId.value)
-  return activeTab ? t(activeTab.labelKey) : t(requireAdminPageDefinition('/').labelKey)
+  if (activeTab?.label) {
+    return activeTab.label
+  }
+  return activeTab?.labelKey ? t(activeTab.labelKey) : t(requireAdminPageDefinition('/').labelKey)
 })
 
 const route = useRoute()
@@ -120,6 +129,10 @@ function buildNavigationItem(entry: AdminNavigationEntry, currentAdminPageId: st
       .map(child => buildNavigationItem(child, currentAdminPageId))
       .filter((item): item is SidebarNavigationItem => Boolean(item))
 
+    if (entry.labelKey === 'admin.nav.extensions') {
+      children.push(...buildExtensionNavigationItems(currentAdminPageId))
+    }
+
     if (children.length === 0) {
       return null
     }
@@ -152,6 +165,19 @@ function buildNavigationItem(entry: AdminNavigationEntry, currentAdminPageId: st
     active: isAdminNavigationEntryActive(entry, currentAdminPageId),
     ...(badgeKey ? { badge: t(badgeKey) } : {})
   }
+}
+
+function buildExtensionNavigationItems(currentAdminPageId: string): SidebarNavigationItem[] {
+  return (extensionNavigation.value || []).map((item) => {
+    const pageId = `/extensions/${item.extensionId}/pages${item.path}`
+    return {
+      label: item.label,
+      icon: item.icon || (item.extensionType === 'theme' ? 'i-lucide-palette' : 'i-lucide-plug'),
+      to: adminRoutes.path(pageId),
+      value: pageId,
+      active: currentAdminPageId === pageId
+    }
+  })
 }
 
 const sidebarNavigationUi = {
@@ -357,7 +383,7 @@ async function signOut() {
           @click="navigateTo(tab.to)"
         >
           <UIcon :name="tab.icon" class="size-4.5" />
-          <span>{{ t(tab.labelKey) }}</span>
+          <span>{{ tab.label || (tab.labelKey ? t(tab.labelKey) : '') }}</span>
           
           <span
             v-if="tab.closable"

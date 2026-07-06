@@ -315,6 +315,64 @@ func (s *PostgresStore) ListEvents(ctx context.Context, extensionID string, limi
 	return events, nil
 }
 
+func (s *PostgresStore) ListSettings(ctx context.Context, extensionID string) (map[string]string, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT name, value
+		FROM extension_settings
+		WHERE extension_id = $1
+		ORDER BY name
+	`, extensionID)
+	if err != nil {
+		return nil, fmt.Errorf("list extension settings: %w", err)
+	}
+	defer rows.Close()
+
+	values := map[string]string{}
+	for rows.Next() {
+		var name string
+		var value string
+		if err := rows.Scan(&name, &value); err != nil {
+			return nil, fmt.Errorf("scan extension setting: %w", err)
+		}
+		values[name] = value
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate extension settings: %w", err)
+	}
+	return values, nil
+}
+
+func (s *PostgresStore) ReplaceSettings(ctx context.Context, extensionID string, values map[string]string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin extension settings update: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, "DELETE FROM extension_settings WHERE extension_id = $1", extensionID); err != nil {
+		return fmt.Errorf("clear extension settings: %w", err)
+	}
+	for name, value := range values {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO extension_settings (extension_id, name, value)
+			VALUES ($1, $2, $3)
+		`, extensionID, name, value); err != nil {
+			return fmt.Errorf("save extension setting %s: %w", name, err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit extension settings update: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresStore) ResetSettings(ctx context.Context, extensionID string) error {
+	if _, err := s.pool.Exec(ctx, "DELETE FROM extension_settings WHERE extension_id = $1", extensionID); err != nil {
+		return fmt.Errorf("reset extension settings: %w", err)
+	}
+	return nil
+}
+
 func (s *PostgresStore) CreateEventDelivery(ctx context.Context, input EventDeliveryInput) (ExtensionEventDelivery, error) {
 	status := input.Status
 	if status == "" {

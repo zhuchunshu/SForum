@@ -1,6 +1,12 @@
 {
   "id": "sforum.default-theme",
   "name": "SForum Default Theme",
+  "description": "The protected default SForum public theme.",
+  "url": "https://sforum.local/themes/sforum-default",
+  "author": {
+    "name": "SForum Team",
+    "url": "https://sforum.local"
+  },
   "version": "1.0.0",
   "type": "theme",
   "sforumVersion": "^1.0.0",

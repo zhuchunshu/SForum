@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { canRestartPlugin, capabilityCount, filterExtensionsByType, runtimeCapabilitySummary, runtimeStatusLabelKey, type AdminRuntimeState } from '~/utils/adminExtensions'
+import { canRestartPlugin, capabilityCount, extensionAdminPageRoute, filterExtensionsByType, runtimeCapabilitySummary, runtimeStatusLabelKey, type AdminRuntimeState } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -14,6 +14,7 @@ defineOptions({
 
 const { t } = useI18n()
 const adminPage = useAdminPage('/extensions/plugins')
+const adminRoutes = useAdminRoutes()
 const {
   extensions,
   pending,
@@ -118,6 +119,15 @@ useSeoMeta({
           </p>
         </div>
         <div class="flex items-center gap-2">
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-settings"
+            :to="adminRoutes.path(extensionAdminPageRoute(item.id))"
+          >
+            {{ t('admin.extensions.manage') }}
+          </UButton>
           <UButton
             v-if="item.status !== 'enabled'"
             size="sm"

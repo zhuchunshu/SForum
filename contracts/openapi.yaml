@@ -74,6 +74,8 @@ paths:
     "$ref": "./openapi/paths/attachments.yaml#/adminAttachmentByID"
   "/admin/extensions":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensions"
+  "/admin/extensions/navigation":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionNavigation"
   "/admin/extensions/{extensionID}/enable":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEnable"
   "/admin/extensions/{extensionID}/disable":
@@ -84,6 +86,10 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionActivate"
   "/admin/extensions/{extensionID}/events":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEvents"
+  "/admin/extensions/{extensionID}/settings":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionSettings"
+  "/admin/extensions/{extensionID}/settings/reset":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionSettingsReset"
   "/admin/extensions/event-definitions":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEventDefinitions"
   "/admin/extensions/event-deliveries":
@@ -180,6 +186,10 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionEventDefinitionList"
     ApiResponseExtensionEventDeliveryList:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionEventDeliveryList"
+    ApiResponseExtensionNavigationList:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionNavigationList"
+    ApiResponseExtensionSettings:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionSettings"
     ApiResponseCategoryList:
       "$ref": "./openapi/schemas/forum.yaml#/ApiResponseCategoryList"
     ApiResponseTopicList:
@@ -200,8 +210,22 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionSource"
     ExtensionManifest:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionManifest"
+    ExtensionManifestAuthor:
+      "$ref": "./openapi/schemas/extensions.yaml#/ExtensionManifestAuthor"
+    ExtensionManifestSetting:
+      "$ref": "./openapi/schemas/extensions.yaml#/ExtensionManifestSetting"
+    ExtensionManifestAdminPage:
+      "$ref": "./openapi/schemas/extensions.yaml#/ExtensionManifestAdminPage"
     Extension:
       "$ref": "./openapi/schemas/extensions.yaml#/Extension"
+    ExtensionAdminNavigationItem:
+      "$ref": "./openapi/schemas/extensions.yaml#/ExtensionAdminNavigationItem"
+    ExtensionSettings:
+      "$ref": "./openapi/schemas/extensions.yaml#/ExtensionSettings"
+    ExtensionSettingValue:
+      "$ref": "./openapi/schemas/extensions.yaml#/ExtensionSettingValue"
+    ExtensionSettingsInput:
+      "$ref": "./openapi/schemas/extensions.yaml#/ExtensionSettingsInput"
     ExtensionEvent:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionEvent"
     ExtensionEventDefinition:

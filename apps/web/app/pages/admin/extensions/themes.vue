@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, filterExtensionsByType, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
+import { capabilityCount, extensionAdminPageRoute, filterExtensionsByType, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -14,6 +14,7 @@ defineOptions({
 
 const { t } = useI18n()
 const adminPage = useAdminPage('/extensions/themes')
+const adminRoutes = useAdminRoutes()
 const {
   extensions,
   pending,
@@ -101,6 +102,15 @@ useSeoMeta({
           </p>
         </div>
         <div class="flex items-center gap-2">
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-settings"
+            :to="adminRoutes.path(extensionAdminPageRoute(item.id))"
+          >
+            {{ t('admin.extensions.manage') }}
+          </UButton>
           <UButton
             v-if="themeActionState(item) === 'activateDefault'"
             size="sm"

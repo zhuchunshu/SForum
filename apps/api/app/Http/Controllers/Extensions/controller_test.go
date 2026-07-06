@@ -1,6 +1,7 @@
 package extensionscontroller
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -92,6 +93,69 @@ func TestControllerListsAndEnablesExtensionsForManager(t *testing.T) {
 	}
 }
 
+func TestControllerListsNavigationAndManagesExtensionSettings(t *testing.T) {
+	app, manager, store := newExtensionTestApp(t)
+	cookie := loginExtensionUser(t, app, manager, 1)
+	plugin := store.items["demo.plugin"]
+	plugin.Status = extensions.StatusEnabled
+	plugin.Manifest.AdminPages = []extensions.ManifestAdminPage{{Path: "/settings", Label: "Settings", View: "settings", Icon: "i-lucide-settings", Order: 10}}
+	plugin.Manifest.Settings = []extensions.ManifestSetting{{Key: "demo.title", Label: "Title", Type: "text", Default: "Hello"}}
+	store.items[plugin.ID] = plugin
+	theme := store.items["demo.theme"]
+	theme.Status = extensions.StatusEnabled
+	store.items[theme.ID] = theme
+
+	resp := performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/navigation", cookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 navigation, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var navigation testEnvelope[[]extensions.ExtensionAdminNavigationItem]
+	if err := json.NewDecoder(resp.Body).Decode(&navigation); err != nil {
+		t.Fatalf("decode navigation: %v", err)
+	}
+	if !controllerNavigationContains(navigation.Data, "demo.plugin", "/settings") || !controllerNavigationContains(navigation.Data, "demo.theme", "/about") {
+		t.Fatalf("unexpected navigation items: %#v", navigation.Data)
+	}
+
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/demo.plugin/settings", cookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 settings, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var settings testEnvelope[extensions.ExtensionSettings]
+	if err := json.NewDecoder(resp.Body).Decode(&settings); err != nil {
+		t.Fatalf("decode settings: %v", err)
+	}
+	if controllerSettingValue(settings.Data, "demo.title") != "Hello" {
+		t.Fatalf("expected default setting, got %#v", settings.Data)
+	}
+
+	resp = performExtensionJSONRequest(t, app, http.MethodPut, "/api/v1/admin/extensions/demo.plugin/settings", cookie, `{"values":{"demo.title":"Updated"}}`)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 update settings, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	if err := json.NewDecoder(resp.Body).Decode(&settings); err != nil {
+		t.Fatalf("decode updated settings: %v", err)
+	}
+	if controllerSettingValue(settings.Data, "demo.title") != "Updated" {
+		t.Fatalf("expected updated setting, got %#v", settings.Data)
+	}
+
+	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.plugin/settings/reset", cookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 reset settings, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	if err := json.NewDecoder(resp.Body).Decode(&settings); err != nil {
+		t.Fatalf("decode reset settings: %v", err)
+	}
+	if controllerSettingValue(settings.Data, "demo.title") != "Hello" {
+		t.Fatalf("expected default after reset, got %#v", settings.Data)
+	}
+}
+
 func TestControllerProxiesOnlyDeclaredPluginRoutesAfterHostAuthorization(t *testing.T) {
 	app, manager, store := newExtensionTestApp(t)
 	store.items["demo.plugin"] = extensions.Extension{
@@ -103,6 +167,9 @@ func TestControllerProxiesOnlyDeclaredPluginRoutesAfterHostAuthorization(t *test
 		Manifest: extensions.Manifest{
 			ID:            "demo.plugin",
 			Name:          "Demo Plugin",
+			Description:   "Demo plugin for controller tests.",
+			URL:           "https://example.com/demo-plugin",
+			Author:        extensions.ManifestAuthor{Name: "SForum Team", URL: "https://example.com", Email: "dev@example.com"},
 			Version:       "1.0.0",
 			Type:          extensions.TypePlugin,
 			SForumVersion: "^1.0.0",
@@ -244,6 +311,9 @@ func newExtensionTestApp(t *testing.T) (*fiber.App, *authsession.Manager, *contr
 		Manifest: extensions.Manifest{
 			ID:            "demo.plugin",
 			Name:          "Demo Plugin",
+			Description:   "Demo plugin for route tests.",
+			URL:           "https://example.com/demo-plugin",
+			Author:        extensions.ManifestAuthor{Name: "SForum Team", URL: "https://example.com", Email: "dev@example.com"},
 			Version:       "1.0.0",
 			Type:          extensions.TypePlugin,
 			SForumVersion: "^1.0.0",
@@ -262,6 +332,9 @@ func newExtensionTestApp(t *testing.T) (*fiber.App, *authsession.Manager, *contr
 		Manifest: extensions.Manifest{
 			ID:            "demo.theme",
 			Name:          "Demo Theme",
+			Description:   "Demo theme for controller tests.",
+			URL:           "https://example.com/demo-theme",
+			Author:        extensions.ManifestAuthor{Name: "SForum Team", URL: "https://example.com", Email: "dev@example.com"},
 			Version:       "1.0.0",
 			Type:          extensions.TypeTheme,
 			SForumVersion: "^1.0.0",
@@ -345,6 +418,20 @@ func performExtensionRequest(t *testing.T, app *fiber.App, method string, path s
 	return resp
 }
 
+func performExtensionJSONRequest(t *testing.T, app *fiber.App, method string, path string, cookie *http.Cookie, body string) *http.Response {
+	t.Helper()
+	req := httptest.NewRequest(method, path, bytes.NewReader([]byte(body)))
+	req.Header.Set("Content-Type", "application/json")
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("%s %s failed: %v", method, path, err)
+	}
+	return resp
+}
+
 func responseBody(t *testing.T, resp *http.Response) string {
 	t.Helper()
 	defer resp.Body.Close()
@@ -371,6 +458,24 @@ func eventDefinitionListContains(items []appevents.Definition, name string) bool
 		}
 	}
 	return false
+}
+
+func controllerNavigationContains(items []extensions.ExtensionAdminNavigationItem, extensionID string, pagePath string) bool {
+	for _, item := range items {
+		if item.ExtensionID == extensionID && item.Path == pagePath {
+			return true
+		}
+	}
+	return false
+}
+
+func controllerSettingValue(settings extensions.ExtensionSettings, key string) string {
+	for _, item := range settings.Items {
+		if item.Key == key {
+			return item.Value
+		}
+	}
+	return ""
 }
 
 type controllerActors struct {
@@ -405,6 +510,7 @@ type controllerFakeStore struct {
 	enabledID  string
 	disabledID string
 	verifiedID string
+	settings   map[string]map[string]string
 	events     []extensions.ExtensionEvent
 	deliveries []extensions.ExtensionEventDelivery
 }
@@ -518,6 +624,36 @@ func (s *controllerFakeStore) CreateEvent(_ context.Context, input extensions.Ev
 
 func (s *controllerFakeStore) ListEvents(context.Context, string, int) ([]extensions.ExtensionEvent, error) {
 	return s.events, nil
+}
+
+func (s *controllerFakeStore) ListSettings(_ context.Context, extensionID string) (map[string]string, error) {
+	if s.settings == nil {
+		return map[string]string{}, nil
+	}
+	values := map[string]string{}
+	for key, value := range s.settings[extensionID] {
+		values[key] = value
+	}
+	return values, nil
+}
+
+func (s *controllerFakeStore) ReplaceSettings(_ context.Context, extensionID string, values map[string]string) error {
+	if s.settings == nil {
+		s.settings = map[string]map[string]string{}
+	}
+	next := map[string]string{}
+	for key, value := range values {
+		next[key] = value
+	}
+	s.settings[extensionID] = next
+	return nil
+}
+
+func (s *controllerFakeStore) ResetSettings(_ context.Context, extensionID string) error {
+	if s.settings != nil {
+		delete(s.settings, extensionID)
+	}
+	return nil
 }
 
 func (s *controllerFakeStore) CreateEventDelivery(_ context.Context, input extensions.EventDeliveryInput) (extensions.ExtensionEventDelivery, error) {

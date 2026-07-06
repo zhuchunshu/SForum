@@ -71,6 +71,34 @@ ApiResponseExtensionEventDeliveryList:
       type: array
       items:
         "$ref": "#/ExtensionEventDelivery"
+ApiResponseExtensionNavigationList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/ExtensionAdminNavigationItem"
+ApiResponseExtensionSettings:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ExtensionSettings"
 ExtensionType:
   type: string
   enum:
@@ -89,10 +117,13 @@ ExtensionSource:
   - uploaded
 ExtensionManifest:
   type: object
-  description: SForum extension manifest. Plugin manifests may declare runtime, route, provider, settings, event, and admin capabilities. Theme manifests are Nuxt Layer packages; in v1 they must declare a non-empty frontend.layer and must not declare backend, routes, hooks, events, jobs, providers, migrations, adminPages, settings, or permissions.
+  description: SForum extension manifest. Plugins may declare runtime, route, provider, settings, event, and admin capabilities. Themes are Nuxt Layer packages; in v1 they must declare a non-empty frontend.layer, may declare settings and adminPages, and must not declare backend, routes, hooks, events, jobs, providers, migrations, or permissions.
   required:
   - id
   - name
+  - description
+  - url
+  - author
   - version
   - type
   - sforumVersion
@@ -101,6 +132,13 @@ ExtensionManifest:
       type: string
     name:
       type: string
+    description:
+      type: string
+    url:
+      type: string
+      format: uri
+    author:
+      "$ref": "#/ExtensionManifestAuthor"
     version:
       type: string
     type:
@@ -114,9 +152,9 @@ ExtensionManifest:
         type: string
     settings:
       type: array
-      description: Plugin-only settings declarations. Theme manifests must omit settings in v1.
+      description: Settings declarations for plugin or theme core container pages.
       items:
-        type: object
+        "$ref": "#/ExtensionManifestSetting"
     migrations:
       type: array
       description: Plugin-only SQL migration declarations. Theme manifests must omit migrations in v1.
@@ -142,9 +180,9 @@ ExtensionManifest:
           description: Safe relative path to a Nuxt Layer directory, such as frontend/layer. Required for type theme.
     adminPages:
       type: array
-      description: Plugin-only admin page declarations. Theme manifests must omit adminPages in v1.
+      description: Core container admin page declarations. Pages are mounted under the fixed /admin/extensions/{extensionID}/pages namespace.
       items:
-        type: object
+        "$ref": "#/ExtensionManifestAdminPage"
     routes:
       type: array
       description: Plugin-only proxied route declarations. Theme manifests must omit routes in v1.
@@ -170,6 +208,60 @@ ExtensionManifest:
       description: Plugin-only provider slot declarations. Theme manifests must omit providers in v1.
       items:
         "$ref": "#/ExtensionManifestProvider"
+ExtensionManifestAuthor:
+  type: object
+  required:
+  - name
+  properties:
+    name:
+      type: string
+    url:
+      type: string
+      format: uri
+    email:
+      type: string
+      format: email
+ExtensionManifestSetting:
+  type: object
+  required:
+  - key
+  - label
+  - type
+  properties:
+    key:
+      type: string
+    label:
+      type: string
+    description:
+      type: string
+    type:
+      type: string
+    default:
+      type: string
+ExtensionManifestAdminPage:
+  type: object
+  required:
+  - path
+  - label
+  properties:
+    path:
+      type: string
+    label:
+      type: string
+    description:
+      type: string
+    icon:
+      type: string
+    view:
+      type: string
+      enum:
+      - about
+      - settings
+    order:
+      type: integer
+      minimum: 0
+    permission:
+      type: string
 ExtensionManifestRoute:
   type: object
   required:
@@ -311,6 +403,86 @@ Extension:
     updatedAt:
       type: string
       format: date-time
+ExtensionAdminNavigationItem:
+  type: object
+  required:
+  - extensionId
+  - extensionName
+  - extensionType
+  - extensionStatus
+  - path
+  - label
+  - description
+  - icon
+  - view
+  - order
+  properties:
+    extensionId:
+      type: string
+    extensionName:
+      type: string
+    extensionType:
+      "$ref": "#/ExtensionType"
+    extensionStatus:
+      "$ref": "#/ExtensionStatus"
+    path:
+      type: string
+    label:
+      type: string
+    description:
+      type: string
+    icon:
+      type: string
+    view:
+      type: string
+      enum:
+      - about
+      - settings
+    order:
+      type: integer
+ExtensionSettings:
+  type: object
+  required:
+  - extensionId
+  - items
+  properties:
+    extensionId:
+      type: string
+    items:
+      type: array
+      items:
+        "$ref": "#/ExtensionSettingValue"
+ExtensionSettingValue:
+  type: object
+  required:
+  - key
+  - label
+  - description
+  - type
+  - default
+  - value
+  properties:
+    key:
+      type: string
+    label:
+      type: string
+    description:
+      type: string
+    type:
+      type: string
+    default:
+      type: string
+    value:
+      type: string
+ExtensionSettingsInput:
+  type: object
+  required:
+  - values
+  properties:
+    values:
+      type: object
+      additionalProperties:
+        type: string
 ExtensionEvent:
   type: object
   required:

@@ -8,7 +8,8 @@ import { useAdminRoutes } from '~/composables/useAdminRoutes'
 
 export interface AdminTab {
   id: string          // 相对路径，例如 '/', '/roles', '/settings'
-  labelKey: string    // 翻译键名，例如 'admin.nav.dashboard'
+  labelKey?: string   // 翻译键名，例如 'admin.nav.dashboard'
+  label?: string      // 动态扩展页等无需翻译的标题
   to: string          // 路由路径
   icon: string        // 统一使用 i-lucide- 图标
   closable: boolean
@@ -37,6 +38,16 @@ export const useAdminTabs = () => {
     }
     activeTabId.value = page.id
     return page
+  }
+
+  const openCustomTab = (tab: AdminTab) => {
+    const existing = tabs.value.find(item => item.id === tab.id)
+    if (!existing) {
+      tabs.value.push(tab)
+    } else {
+      Object.assign(existing, tab)
+    }
+    activeTabId.value = tab.id
   }
 
   const closeTab = (id: string) => {
@@ -68,6 +79,7 @@ export const useAdminTabs = () => {
     activeTabId,
     cachedTabNames,
     openTab,
+    openCustomTab,
     closeTab,
     resetTabs
   }

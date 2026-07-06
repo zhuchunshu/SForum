@@ -218,11 +218,16 @@ This is the entry point for project memory.
   prunes stale built-in extension rows, and verify/enable operations require
   the active package path and installed manifest to still exist. Container
   images now copy built-in themes from the repository root into
-  `/app/extensions/builtin`; theme manifests are strict Nuxt Layer packages and
-  cannot declare plugin/runtime/admin capabilities in v1. Plugin event and
+  `/app/extensions/builtin`; extension manifests now require `description`,
+  `url`, and `author` metadata. Plugins and themes can declare core-container
+  admin pages and extension settings under the fixed Extensions admin
+  namespace, while themes still cannot declare backend runtime, routes, hooks,
+  events, jobs, providers, migrations, or permissions in v1. Plugin event and
   extension-point v1 adds a host event catalog, manifest `events` declarations
   with legacy `hooks` compatibility, delivery tracking, and the first
-  synchronous filter event for `topic.before_create`.
+  synchronous filter event for `topic.before_create`. The Go developer console
+  at `apps/api/cmd/sforum` can scaffold plugins and themes interactively or via
+  `--no-interaction`.
 - Runtime language pack management has an accepted design: add a system-menu
   admin "Language settings" page, `locale.manage`, ZIP language pack uploads
   with `sforum.locale.json`, package storage under `LOCALE_PACK_ROOT`/

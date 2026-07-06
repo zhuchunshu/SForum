@@ -16,8 +16,9 @@ and plugin runtime v1.
   It is seeded for `super_admin`.
 - Extension packages are uploaded as ZIP archives through the admin API and
   must include a root `sforum.extension.json` manifest.
-- Backend model code validates manifest identity, type, version, compatibility
-  field, backend entry paths, frontend layer paths, migrations, and unsafe ZIP
+- Backend model code validates manifest identity, required description, URL,
+  author metadata, type, version, compatibility field, backend entry paths,
+  frontend layer paths, admin page declarations, migrations, and unsafe ZIP
   paths before writing files.
 - Installed packages are stored under `EXTENSION_ROOT`, not in the public
   attachment system.
@@ -49,6 +50,10 @@ and plugin runtime v1.
     Nuxt Layer verification without applying it
   - `POST /api/v1/admin/extensions/:id/activate` for themes
   - `GET /api/v1/admin/extensions/:id/events`
+  - `GET /api/v1/admin/extensions/navigation`
+  - `GET /api/v1/admin/extensions/:id/settings`
+  - `PUT /api/v1/admin/extensions/:id/settings`
+  - `POST /api/v1/admin/extensions/:id/settings/reset`
   - `GET /api/v1/admin/extensions/event-definitions`
   - `GET /api/v1/admin/extensions/event-deliveries`
   - `ALL /api/v1/extensions/:extensionId/*` proxies declared enabled plugin
@@ -56,7 +61,10 @@ and plugin runtime v1.
 - The admin UI has an independent "Extensions" sidebar folder registered
   through the low-code admin module registry and protected by
   `extension.manage`. Its first submenu set is Overview, Plugins, Themes,
-  Settings, and Event Log.
+  Settings, and Event Log. Enabled plugins and the active theme can inject
+  manifest-declared core-container admin pages under the fixed
+  `/extensions/{id}/pages/*` admin namespace; installed extensions also have a
+  "Manage" entry from plugin/theme list rows.
 - Theme rows show `enabled` as "current theme" rather than "enabled".
   Uploaded themes can be verified but cannot be activated in v1; attempts
   return `extension.theme_runtime_unavailable`.
@@ -64,7 +72,9 @@ and plugin runtime v1.
 ## Boundaries
 
 - Extension settings stay in `extension_settings`; do not put extension-owned
-  configuration into `web_options`.
+  configuration into `web_options`. Settings are resolved from
+  manifest-declared defaults plus stored values and can be reset to manifest
+  defaults.
 - Extension archive files stay under `EXTENSION_ROOT`; do not expose them
   through public attachment URLs.
 - Plugin runtime v1 uses HashiCorp go-plugin subprocess handshakes, starts
@@ -104,21 +114,34 @@ checks remain authoritative.
 
 The manifest file is `sforum.extension.json`.
 
-Important fields: `id`, `name`, `version`, `type`, `sforumVersion`,
-`permissions`, `settings`, `migrations`, `backend`, `frontend`, `adminPages`,
-`routes`, `hooks`, `events`, `jobs`, and `providers`.
+Required identity fields: `id`, `name`, `description`, `url`, `author`,
+`version`, `type`, and `sforumVersion`.
+
+Capability fields: `permissions`, `settings`, `migrations`, `backend`,
+`frontend`, `adminPages`, `routes`, `hooks`, `events`, `jobs`, and `providers`.
 
 For `type: theme`, v1 accepts only Nuxt Layer packages. The manifest must
-declare a safe, non-empty `frontend.layer` path and must not declare plugin or
-admin capabilities: `backend`, `routes`, `hooks`, `events`, `jobs`, `providers`,
-`migrations`, `adminPages`, `settings`, or `permissions`. Invalid theme
+declare a safe, non-empty `frontend.layer` path. Themes may declare `settings`
+and `adminPages` for core-container admin pages, but must not declare backend
+runtime or plugin execution capabilities: `backend`, `routes`, `hooks`,
+`events`, `jobs`, `providers`, `migrations`, or `permissions`. Invalid theme
 manifests use the existing 422 envelope with reason `extension.manifest_invalid`.
+
+## Developer Console
+
+`apps/api/cmd/sforum` provides a Laravel-artisan-style developer console.
+
+- `go run ./cmd/sforum make:plugin`
+- `go run ./cmd/sforum make:theme`
+
+Both commands support interactive Huh forms and `--no-interaction` flag-driven
+generation. Default output is `extensions/dev/{plugins,themes}/{id}`; `--builtin`
+targets `extensions/builtin/{plugins,themes}/{id}`.
 
 ## Next Steps
 
 - Add a real theme activation worker that writes active Nuxt layer state,
   triggers web rebuild, runs a health check, and rolls back on failure. Only
   then should uploaded themes be activatable.
-- Implement extension settings CRUD from manifest-declared settings.
 - Add upgrade, rollback, and uninstall operations.
 - Add signature/trust metadata if SForum later ships an extension marketplace.

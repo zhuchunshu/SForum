@@ -52,7 +52,91 @@ adminExtensions:
         content:
           application/json:
             schema:
+          "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+adminExtensionNavigation:
+  get:
+    summary: List extension admin navigation items
+    description: Returns core-container admin pages declared by enabled plugins and the active theme. All pages stay under the fixed Extensions namespace.
+    operationId: listAdminExtensionNavigation
+    responses:
+      '200':
+        description: Extension admin navigation items.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionNavigationList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+adminExtensionSettings:
+  get:
+    summary: Read extension settings
+    operationId: getAdminExtensionSettings
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Manifest-declared settings with stored values resolved over defaults.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionSettings"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+  put:
+    summary: Update extension settings
+    operationId: updateAdminExtensionSettings
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/extensions.yaml#/ExtensionSettingsInput"
+    responses:
+      '200':
+        description: Updated settings.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionSettings"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        description: Unknown setting key or invalid settings payload.
+        content:
+          application/json:
+            schema:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+adminExtensionSettingsReset:
+  post:
+    summary: Reset extension settings to manifest defaults
+    operationId: resetAdminExtensionSettings
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Settings after default resolution.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionSettings"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
 adminExtensionEnable:
   post:
     summary: Enable an installed plugin

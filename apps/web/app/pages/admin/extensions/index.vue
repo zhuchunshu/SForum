@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, extensionEventPage, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
+import { capabilityCount, extensionAdminPageRoute, extensionEventPage, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -14,6 +14,7 @@ defineOptions({
 
 const { t } = useI18n()
 const adminPage = useAdminPage('/extensions')
+const adminRoutes = useAdminRoutes()
 const selectedEventPage = ref(1)
 
 const {
@@ -196,6 +197,15 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
               </p>
             </button>
             <div class="flex items-center gap-2 md:justify-end">
+              <UButton
+                size="sm"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-settings"
+                :to="adminRoutes.path(extensionAdminPageRoute(item.id))"
+              >
+                {{ t('admin.extensions.manage') }}
+              </UButton>
               <UButton
                 v-if="item.type === 'plugin' && item.status !== 'enabled'"
                 size="sm"

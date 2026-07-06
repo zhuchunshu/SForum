@@ -8,10 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/mail"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
@@ -267,6 +270,93 @@ func (s *Service) EventDeliveries(ctx context.Context, actor identity.Actor, inp
 	}
 	input.ExtensionID = normalizeID(input.ExtensionID)
 	return s.store.ListEventDeliveries(ctx, input)
+}
+
+func (s *Service) Navigation(ctx context.Context, actor identity.Actor) ([]ExtensionAdminNavigationItem, error) {
+	if !actor.Can(identity.PermissionExtensionManage) {
+		return nil, identity.ErrPermissionDenied
+	}
+	items, err := s.store.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	navigation := []ExtensionAdminNavigationItem{}
+	for _, item := range items {
+		if !extensionInjectsAdminNavigation(item) {
+			continue
+		}
+		for _, page := range normalizedAdminPages(item.Manifest) {
+			navigation = append(navigation, ExtensionAdminNavigationItem{
+				ExtensionID:     item.ID,
+				ExtensionName:   item.Name,
+				ExtensionType:   item.Type,
+				ExtensionStatus: item.Status,
+				Path:            page.Path,
+				Label:           page.Label,
+				Description:     page.Description,
+				Icon:            page.Icon,
+				View:            page.View,
+				Order:           page.Order,
+			})
+		}
+	}
+	sort.SliceStable(navigation, func(left, right int) bool {
+		if navigation[left].Order == navigation[right].Order {
+			if navigation[left].ExtensionName == navigation[right].ExtensionName {
+				return navigation[left].Path < navigation[right].Path
+			}
+			return navigation[left].ExtensionName < navigation[right].ExtensionName
+		}
+		return navigation[left].Order < navigation[right].Order
+	})
+	return navigation, nil
+}
+
+func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionID string) (ExtensionSettings, error) {
+	if !actor.Can(identity.PermissionExtensionManage) {
+		return ExtensionSettings{}, identity.ErrPermissionDenied
+	}
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	values, err := s.store.ListSettings(ctx, extension.ID)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	return resolveExtensionSettings(extension, values), nil
+}
+
+func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, extensionID string, input UpdateSettingsInput) (ExtensionSettings, error) {
+	if !actor.Can(identity.PermissionExtensionManage) {
+		return ExtensionSettings{}, identity.ErrPermissionDenied
+	}
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	values, err := sanitizeSettingValues(extension.Manifest, input.Values)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	if err := s.store.ReplaceSettings(ctx, extension.ID, values); err != nil {
+		return ExtensionSettings{}, err
+	}
+	return resolveExtensionSettings(extension, values), nil
+}
+
+func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, extensionID string) (ExtensionSettings, error) {
+	if !actor.Can(identity.PermissionExtensionManage) {
+		return ExtensionSettings{}, identity.ErrPermissionDenied
+	}
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	if err := s.store.ResetSettings(ctx, extension.ID); err != nil {
+		return ExtensionSettings{}, err
+	}
+	return resolveExtensionSettings(extension, map[string]string{}), nil
 }
 
 func (s *Service) MatchRoute(ctx context.Context, extensionID string, method string, routePath string) (MatchedRoute, error) {
@@ -669,11 +759,35 @@ func validateManifest(manifest Manifest) error {
 	if !manifestIDPattern.MatchString(manifest.ID) {
 		return ErrInvalidManifest
 	}
-	if manifest.Name == "" || manifest.Version == "" || manifest.SForumVersion == "" {
+	if manifest.Name == "" || manifest.Description == "" || manifest.URL == "" || manifest.Author.Name == "" || manifest.Version == "" || manifest.SForumVersion == "" {
 		return ErrInvalidManifest
+	}
+	if !validHTTPURL(manifest.URL) || (manifest.Author.URL != "" && !validHTTPURL(manifest.Author.URL)) {
+		return ErrInvalidManifest
+	}
+	if manifest.Author.Email != "" {
+		if _, err := mail.ParseAddress(manifest.Author.Email); err != nil {
+			return ErrInvalidManifest
+		}
 	}
 	if manifest.Type != TypePlugin && manifest.Type != TypeTheme {
 		return ErrInvalidManifest
+	}
+	for _, setting := range manifest.Settings {
+		if setting.Key == "" || setting.Label == "" || setting.Type == "" || strings.Contains(setting.Key, " ") {
+			return ErrInvalidManifest
+		}
+	}
+	for _, page := range manifest.AdminPages {
+		if page.Path == "" || !strings.HasPrefix(page.Path, "/") || strings.Contains(page.Path, "..") || page.Label == "" {
+			return ErrInvalidManifest
+		}
+		if page.View != "" && page.View != "about" && page.View != "settings" {
+			return ErrInvalidManifest
+		}
+		if page.Order < 0 {
+			return ErrInvalidManifest
+		}
 	}
 	if manifest.Type == TypeTheme && !isThemeManifestSupported(manifest) {
 		return ErrInvalidManifest
@@ -765,15 +879,17 @@ func validateManifest(manifest Manifest) error {
 	return nil
 }
 
+func ValidateManifest(manifest Manifest) error {
+	return validateManifest(normalizeManifest(manifest))
+}
+
 func isThemeManifestSupported(manifest Manifest) bool {
 	if strings.TrimSpace(manifest.Frontend.Layer) == "" {
 		return false
 	}
 	return manifest.Backend == (ManifestBackend{}) &&
 		len(manifest.Permissions) == 0 &&
-		len(manifest.Settings) == 0 &&
 		len(manifest.Migrations) == 0 &&
-		len(manifest.AdminPages) == 0 &&
 		len(manifest.Routes) == 0 &&
 		len(manifest.Hooks) == 0 &&
 		len(manifest.Events) == 0 &&
@@ -784,9 +900,32 @@ func isThemeManifestSupported(manifest Manifest) bool {
 func normalizeManifest(manifest Manifest) Manifest {
 	manifest.ID = normalizeID(manifest.ID)
 	manifest.Name = strings.TrimSpace(manifest.Name)
+	manifest.Description = strings.TrimSpace(manifest.Description)
+	manifest.URL = strings.TrimSpace(manifest.URL)
+	manifest.Author.Name = strings.TrimSpace(manifest.Author.Name)
+	manifest.Author.URL = strings.TrimSpace(manifest.Author.URL)
+	manifest.Author.Email = strings.TrimSpace(manifest.Author.Email)
 	manifest.Version = strings.TrimSpace(manifest.Version)
 	manifest.Type = strings.ToLower(strings.TrimSpace(manifest.Type))
 	manifest.SForumVersion = strings.TrimSpace(manifest.SForumVersion)
+	for index := range manifest.Settings {
+		manifest.Settings[index].Key = strings.TrimSpace(manifest.Settings[index].Key)
+		manifest.Settings[index].Label = strings.TrimSpace(manifest.Settings[index].Label)
+		manifest.Settings[index].Description = strings.TrimSpace(manifest.Settings[index].Description)
+		manifest.Settings[index].Type = strings.ToLower(strings.TrimSpace(manifest.Settings[index].Type))
+		manifest.Settings[index].Default = strings.TrimSpace(manifest.Settings[index].Default)
+	}
+	for index := range manifest.AdminPages {
+		manifest.AdminPages[index].Path = normalizeRoutePath(manifest.AdminPages[index].Path)
+		manifest.AdminPages[index].Label = strings.TrimSpace(manifest.AdminPages[index].Label)
+		manifest.AdminPages[index].Description = strings.TrimSpace(manifest.AdminPages[index].Description)
+		manifest.AdminPages[index].Icon = strings.TrimSpace(manifest.AdminPages[index].Icon)
+		manifest.AdminPages[index].View = strings.ToLower(strings.TrimSpace(manifest.AdminPages[index].View))
+		if manifest.AdminPages[index].View == "" {
+			manifest.AdminPages[index].View = "about"
+		}
+		manifest.AdminPages[index].Permission = strings.TrimSpace(manifest.AdminPages[index].Permission)
+	}
 	manifest.Backend.Entry = strings.TrimSpace(manifest.Backend.Entry)
 	manifest.Backend.RPC = strings.TrimSpace(manifest.Backend.RPC)
 	if manifest.Backend.ProtocolVersion == 0 && manifest.Backend.RPC != "" {
@@ -873,6 +1012,96 @@ func manifestHasPermission(manifest Manifest, permission string) bool {
 		}
 	}
 	return false
+}
+
+func validHTTPURL(value string) bool {
+	parsed, err := url.ParseRequestURI(value)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return false
+	}
+	return parsed.Scheme == "http" || parsed.Scheme == "https"
+}
+
+func extensionInjectsAdminNavigation(extension Extension) bool {
+	if extension.Type == TypePlugin {
+		return extension.Status == StatusEnabled
+	}
+	return extension.Type == TypeTheme && extension.Status == StatusEnabled
+}
+
+func normalizedAdminPages(manifest Manifest) []ManifestAdminPage {
+	pages := make([]ManifestAdminPage, 0, len(manifest.AdminPages)+1)
+	pages = append(pages, ManifestAdminPage{
+		Path:        "/about",
+		Label:       manifest.Name,
+		Description: manifest.Description,
+		Icon:        defaultExtensionIcon(manifest.Type),
+		View:        "about",
+		Order:       0,
+	})
+	for _, page := range manifest.AdminPages {
+		if strings.TrimSpace(page.Path) == "" {
+			continue
+		}
+		if page.Icon == "" {
+			page.Icon = defaultExtensionIcon(manifest.Type)
+		}
+		if page.View == "" {
+			page.View = "about"
+		}
+		pages = append(pages, page)
+	}
+	sort.SliceStable(pages, func(left, right int) bool {
+		if pages[left].Order == pages[right].Order {
+			return pages[left].Path < pages[right].Path
+		}
+		return pages[left].Order < pages[right].Order
+	})
+	return pages
+}
+
+func defaultExtensionIcon(extensionType string) string {
+	if extensionType == TypeTheme {
+		return "i-lucide-palette"
+	}
+	return "i-lucide-plug"
+}
+
+func resolveExtensionSettings(extension Extension, values map[string]string) ExtensionSettings {
+	items := make([]ExtensionSettingValue, 0, len(extension.Manifest.Settings))
+	for _, setting := range extension.Manifest.Settings {
+		value := setting.Default
+		if values != nil {
+			if stored, ok := values[setting.Key]; ok {
+				value = stored
+			}
+		}
+		items = append(items, ExtensionSettingValue{
+			Key:         setting.Key,
+			Label:       setting.Label,
+			Description: setting.Description,
+			Type:        setting.Type,
+			Default:     setting.Default,
+			Value:       value,
+		})
+	}
+	return ExtensionSettings{ExtensionID: extension.ID, Items: items}
+}
+
+func sanitizeSettingValues(manifest Manifest, input map[string]string) (map[string]string, error) {
+	allowed := map[string]ManifestSetting{}
+	for _, setting := range manifest.Settings {
+		allowed[setting.Key] = setting
+	}
+	values := map[string]string{}
+	for key, value := range input {
+		key = strings.TrimSpace(key)
+		if _, ok := allowed[key]; !ok {
+			return nil, ErrInvalidManifest
+		}
+		values[key] = strings.TrimSpace(value)
+	}
+	return values, nil
 }
 
 func manifestEvents(manifest Manifest) []ManifestEvent {

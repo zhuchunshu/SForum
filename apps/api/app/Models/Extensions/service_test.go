@@ -100,7 +100,7 @@ func TestServiceInstallArchiveRejectsReservedDefaultThemeID(t *testing.T) {
 	}
 }
 
-func TestServiceInstallArchiveRequiresPureThemeLayerManifest(t *testing.T) {
+func TestServiceInstallArchiveAllowsThemeSettingsAndAdminPages(t *testing.T) {
 	service := NewService(&fakeExtensionStore{}, t.TempDir())
 	actor := extensionManager()
 
@@ -115,6 +115,31 @@ func TestServiceInstallArchiveRequiresPureThemeLayerManifest(t *testing.T) {
 	}
 	if installed.Type != TypeTheme || installed.Manifest.Frontend.Layer != "frontend/layer" {
 		t.Fatalf("unexpected installed theme: %#v", installed)
+	}
+
+	themeWithAdmin, err := service.InstallArchive(context.Background(), actor, ArchiveInput{
+		FileName: "starter-theme-admin.zip",
+		Data: extensionArchive(t, `{
+			"id":"starter.admin.theme",
+			"name":"Starter Admin Theme",
+			"description":"Theme with admin settings.",
+			"url":"https://example.com/starter-admin-theme",
+			"author":{"name":"SForum Team","url":"https://example.com","email":"dev@example.com"},
+			"version":"1.0.0",
+			"type":"theme",
+			"sforumVersion":"^1.0.0",
+			"settings":[{"key":"theme.banner","label":"Banner","type":"text","default":"Welcome"}],
+			"adminPages":[{"path":"/settings","label":"Settings","view":"settings","icon":"i-lucide-settings","order":10}],
+			"frontend":{"layer":"frontend/layer"}
+		}`,
+			zipFile{name: "frontend/layer/nuxt.config.ts", body: "export default defineNuxtConfig({})\n"},
+		),
+	})
+	if err != nil {
+		t.Fatalf("expected theme settings/admin page manifest to install, got %v", err)
+	}
+	if len(themeWithAdmin.Manifest.Settings) != 1 || len(themeWithAdmin.Manifest.AdminPages) != 1 {
+		t.Fatalf("expected theme settings and admin pages to be preserved, got %#v", themeWithAdmin.Manifest)
 	}
 
 	cases := []struct {
@@ -135,13 +160,6 @@ func TestServiceInstallArchiveRequiresPureThemeLayerManifest(t *testing.T) {
 			}`,
 		},
 		{
-			name: "theme declares settings",
-			manifest: `{
-				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
-				"settings":[{"key":"demo.enabled","label":"Enabled","type":"boolean"}],"frontend":{"layer":"frontend/layer"}
-			}`,
-		},
-		{
 			name: "theme declares migrations",
 			manifest: `{
 				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
@@ -153,13 +171,6 @@ func TestServiceInstallArchiveRequiresPureThemeLayerManifest(t *testing.T) {
 			manifest: `{
 				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
 				"backend":{"entry":"backend/plugin","rpc":"hashicorp-go-plugin"},"frontend":{"layer":"frontend/layer"}
-			}`,
-		},
-		{
-			name: "theme declares admin pages",
-			manifest: `{
-				"id":"bad.theme","name":"Bad Theme","version":"1.0.0","type":"theme","sforumVersion":"^1.0.0",
-				"adminPages":[{"path":"/demo","label":"Demo"}],"frontend":{"layer":"frontend/layer"}
 			}`,
 		},
 		{
@@ -265,7 +276,14 @@ func TestServiceInstallArchiveValidatesRuntimeManifestDeclarations(t *testing.T)
 	}
 
 	eventManifest := `{
-		"id":"event.plugin","name":"Event Plugin","version":"1.0.0","type":"plugin","sforumVersion":"^1.0.0",
+		"id":"event.plugin",
+		"name":"Event Plugin",
+		"description":"Event plugin.",
+		"url":"https://example.com/event-plugin",
+		"author":{"name":"SForum Team","url":"https://example.com","email":"dev@example.com"},
+		"version":"1.0.0",
+		"type":"plugin",
+		"sforumVersion":"^1.0.0",
 		"events":[{"name":"topic.before_create","kind":"filter","timeoutMs":1000}]
 	}`
 	installed, err = service.InstallArchive(context.Background(), actor, ArchiveInput{
@@ -344,6 +362,77 @@ func TestServiceInstallArchiveValidatesRuntimeManifestDeclarations(t *testing.T)
 				t.Fatalf("expected invalid manifest, got %v", err)
 			}
 		})
+	}
+}
+
+func TestServiceNavigationUsesEnabledPluginsAndActiveTheme(t *testing.T) {
+	enabledPlugin := installedExtension("enabled.plugin", TypePlugin, ManifestBackend{})
+	enabledPlugin.Status = StatusEnabled
+	enabledPlugin.Manifest.AdminPages = []ManifestAdminPage{{Path: "/settings", Label: "Settings", View: "settings", Icon: "i-lucide-settings", Order: 20}}
+	disabledPlugin := installedExtension("disabled.plugin", TypePlugin, ManifestBackend{})
+	disabledPlugin.Status = StatusDisabled
+	disabledPlugin.Manifest.AdminPages = []ManifestAdminPage{{Path: "/hidden", Label: "Hidden", View: "about"}}
+	activeTheme := installedExtension("active.theme", TypeTheme, ManifestBackend{})
+	activeTheme.Status = StatusEnabled
+	activeTheme.Manifest.AdminPages = []ManifestAdminPage{{Path: "/theme", Label: "Theme", View: "about", Order: 10}}
+	store := &fakeExtensionStore{items: map[string]Extension{
+		enabledPlugin.ID:  enabledPlugin,
+		disabledPlugin.ID: disabledPlugin,
+		activeTheme.ID:    activeTheme,
+	}}
+	service := NewService(store, t.TempDir())
+
+	items, err := service.Navigation(context.Background(), extensionManager())
+	if err != nil {
+		t.Fatalf("Navigation returned error: %v", err)
+	}
+	if !navigationContains(items, "enabled.plugin", "/about") || !navigationContains(items, "enabled.plugin", "/settings") {
+		t.Fatalf("expected enabled plugin pages, got %#v", items)
+	}
+	if !navigationContains(items, "active.theme", "/about") || !navigationContains(items, "active.theme", "/theme") {
+		t.Fatalf("expected active theme pages, got %#v", items)
+	}
+	if navigationContains(items, "disabled.plugin", "/hidden") {
+		t.Fatalf("disabled plugin should not inject sidebar navigation: %#v", items)
+	}
+}
+
+func TestServiceSettingsResolveUpdateAndResetDefaults(t *testing.T) {
+	item := installedExtension("settings.plugin", TypePlugin, ManifestBackend{})
+	item.Manifest.Settings = []ManifestSetting{
+		{Key: "demo.enabled", Label: "Enabled", Type: "boolean", Default: "true"},
+		{Key: "demo.title", Label: "Title", Type: "text", Default: "Hello"},
+	}
+	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
+	service := NewService(store, t.TempDir())
+
+	settings, err := service.Settings(context.Background(), extensionManager(), item.ID)
+	if err != nil {
+		t.Fatalf("Settings returned error: %v", err)
+	}
+	if settingValue(settings, "demo.title") != "Hello" {
+		t.Fatalf("expected default setting value, got %#v", settings)
+	}
+
+	updated, err := service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{Values: map[string]string{"demo.title": "Updated"}})
+	if err != nil {
+		t.Fatalf("UpdateSettings returned error: %v", err)
+	}
+	if settingValue(updated, "demo.title") != "Updated" {
+		t.Fatalf("expected updated setting value, got %#v", updated)
+	}
+
+	_, err = service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{Values: map[string]string{"unknown": "bad"}})
+	if !errors.Is(err, ErrInvalidManifest) {
+		t.Fatalf("expected invalid setting key, got %v", err)
+	}
+
+	reset, err := service.ResetSettings(context.Background(), extensionManager(), item.ID)
+	if err != nil {
+		t.Fatalf("ResetSettings returned error: %v", err)
+	}
+	if settingValue(reset, "demo.title") != "Hello" {
+		t.Fatalf("expected default after reset, got %#v", reset)
 	}
 }
 
@@ -688,6 +777,9 @@ func validManifest(id string, extensionType string) string {
 	return `{
 		"id": "` + id + `",
 		"name": "Demo Extension",
+		"description": "Demo extension for SForum tests.",
+		"url": "https://example.com/demo-extension",
+		"author": {"name": "SForum Team", "url": "https://example.com", "email": "dev@example.com"},
 		"version": "1.0.0",
 		"type": "` + extensionType + `",
 		"sforumVersion": "^1.0.0",
@@ -707,6 +799,9 @@ func validThemeManifest(id string) string {
 	return `{
 		"id": "` + id + `",
 		"name": "Demo Theme",
+		"description": "Demo theme for SForum tests.",
+		"url": "https://example.com/demo-theme",
+		"author": {"name": "SForum Team", "url": "https://example.com", "email": "dev@example.com"},
 		"version": "1.0.0",
 		"type": "theme",
 		"sforumVersion": "^1.0.0",
@@ -785,6 +880,9 @@ func installedExtension(id string, extensionType string, backend ManifestBackend
 		Manifest: Manifest{
 			ID:            id,
 			Name:          "Demo Extension",
+			Description:   "Demo extension for SForum tests.",
+			URL:           "https://example.com/demo-extension",
+			Author:        ManifestAuthor{Name: "SForum Team", URL: "https://example.com", Email: "dev@example.com"},
 			Version:       "1.0.0",
 			Type:          extensionType,
 			SForumVersion: "^1.0.0",
@@ -817,6 +915,24 @@ func uploadedExtension(id string, extensionType string) Extension {
 func extensionWithStatus(item Extension, status string) Extension {
 	item.Status = status
 	return item
+}
+
+func navigationContains(items []ExtensionAdminNavigationItem, extensionID string, pagePath string) bool {
+	for _, item := range items {
+		if item.ExtensionID == extensionID && item.Path == pagePath {
+			return true
+		}
+	}
+	return false
+}
+
+func settingValue(settings ExtensionSettings, key string) string {
+	for _, item := range settings.Items {
+		if item.Key == key {
+			return item.Value
+		}
+	}
+	return ""
 }
 
 type fakeRuntime struct {
@@ -877,6 +993,7 @@ type fakeExtensionStore struct {
 	enabledID     string
 	disabledID    string
 	activeThemeID string
+	settings      map[string]map[string]string
 	events        []ExtensionEvent
 	deliveries    []ExtensionEventDelivery
 }
@@ -1031,6 +1148,36 @@ func (s *fakeExtensionStore) CreateEvent(_ context.Context, input EventInput) (E
 
 func (s *fakeExtensionStore) ListEvents(context.Context, string, int) ([]ExtensionEvent, error) {
 	return s.events, nil
+}
+
+func (s *fakeExtensionStore) ListSettings(_ context.Context, extensionID string) (map[string]string, error) {
+	if s.settings == nil {
+		return map[string]string{}, nil
+	}
+	values := map[string]string{}
+	for key, value := range s.settings[extensionID] {
+		values[key] = value
+	}
+	return values, nil
+}
+
+func (s *fakeExtensionStore) ReplaceSettings(_ context.Context, extensionID string, values map[string]string) error {
+	if s.settings == nil {
+		s.settings = map[string]map[string]string{}
+	}
+	next := map[string]string{}
+	for key, value := range values {
+		next[key] = value
+	}
+	s.settings[extensionID] = next
+	return nil
+}
+
+func (s *fakeExtensionStore) ResetSettings(_ context.Context, extensionID string) error {
+	if s.settings != nil {
+		delete(s.settings, extensionID)
+	}
+	return nil
 }
 
 func (s *fakeExtensionStore) CreateEventDelivery(_ context.Context, input EventDeliveryInput) (ExtensionEventDelivery, error) {

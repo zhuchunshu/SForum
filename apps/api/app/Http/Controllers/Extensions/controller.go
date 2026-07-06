@@ -32,6 +32,10 @@ type RouteGateway interface {
 	Proxy(c fiber.Ctx, input ProxyInput) error
 }
 
+type updateSettingsRequest struct {
+	Values map[string]string `json:"values"`
+}
+
 func NewController(service *extensions.Service, users identity.ActorStore, sessions *authsession.Manager) *Controller {
 	return NewControllerWithGateway(service, users, sessions, nil)
 }
@@ -46,6 +50,18 @@ func (h *Controller) list(c fiber.Ctx) error {
 		return err
 	}
 	items, err := h.service.List(c.Context(), actor)
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, items)
+}
+
+func (h *Controller) navigation(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.service.Navigation(c.Context(), actor)
 	if err != nil {
 		return mapExtensionError(err)
 	}
@@ -168,6 +184,46 @@ func (h *Controller) eventDeliveries(c fiber.Ctx) error {
 		return mapExtensionError(err)
 	}
 	return apphttp.OK(c, items)
+}
+
+func (h *Controller) settings(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	settings, err := h.service.Settings(c.Context(), actor, c.Params("id"))
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, settings)
+}
+
+func (h *Controller) updateSettings(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var req updateSettingsRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	settings, err := h.service.UpdateSettings(c.Context(), actor, c.Params("id"), extensions.UpdateSettingsInput{Values: req.Values})
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, settings)
+}
+
+func (h *Controller) resetSettings(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	settings, err := h.service.ResetSettings(c.Context(), actor, c.Params("id"))
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, settings)
 }
 
 func queryInt(c fiber.Ctx, name string, fallback int) int {

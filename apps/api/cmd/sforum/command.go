@@ -1,0 +1,101 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+
+	"github.com/charmbracelet/huh"
+	"github.com/spf13/cobra"
+)
+
+type makeOptions struct {
+	Kind          string
+	ID            string
+	Name          string
+	Description   string
+	URL           string
+	AuthorName    string
+	AuthorURL     string
+	AuthorEmail   string
+	Out           string
+	Builtin       bool
+	NoInteraction bool
+	Backend       bool
+}
+
+func newRootCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "sforum",
+		Short: "SForum developer console",
+	}
+	cmd.AddCommand(newMakeCommand("plugin"), newMakeCommand("theme"))
+	return cmd
+}
+
+func newMakeCommand(kind string) *cobra.Command {
+	opts := makeOptions{Kind: kind}
+	commandName := "make:" + kind
+	cmd := &cobra.Command{
+		Use:   commandName,
+		Short: fmt.Sprintf("Create an SForum %s scaffold", kind),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !opts.NoInteraction {
+				if err := promptMakeOptions(&opts); err != nil {
+					return err
+				}
+			}
+			target, err := GenerateExtensionScaffold(opts)
+			if err != nil {
+				return err
+			}
+			cmd.Printf("Created %s scaffold at %s\n", kind, target)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&opts.ID, "id", "", "Extension id, such as acme.demo")
+	cmd.Flags().StringVar(&opts.Name, "name", "", "Display name")
+	cmd.Flags().StringVar(&opts.Description, "description", "", "Short description")
+	cmd.Flags().StringVar(&opts.URL, "url", "", "Official website URL")
+	cmd.Flags().StringVar(&opts.AuthorName, "author-name", "", "Author name")
+	cmd.Flags().StringVar(&opts.AuthorURL, "author-url", "", "Author website URL")
+	cmd.Flags().StringVar(&opts.AuthorEmail, "author-email", "", "Author email")
+	cmd.Flags().StringVar(&opts.Out, "out", "", "Output directory for this package")
+	cmd.Flags().BoolVar(&opts.Builtin, "builtin", false, "Create under extensions/builtin instead of extensions/dev")
+	cmd.Flags().BoolVar(&opts.NoInteraction, "no-interaction", false, "Disable interactive prompts")
+	if kind == "plugin" {
+		cmd.Flags().BoolVar(&opts.Backend, "backend", false, "Include a backend plugin stub")
+	}
+	return cmd
+}
+
+func promptMakeOptions(opts *makeOptions) error {
+	if opts == nil {
+		return errors.New("missing make options")
+	}
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().Title("Extension ID").Description("Use a stable id such as acme.demo.").Value(&opts.ID),
+			huh.NewInput().Title("Name").Value(&opts.Name),
+			huh.NewInput().Title("Description").Value(&opts.Description),
+			huh.NewInput().Title("Official URL").Value(&opts.URL),
+			huh.NewInput().Title("Author name").Value(&opts.AuthorName),
+			huh.NewInput().Title("Author URL").Value(&opts.AuthorURL),
+			huh.NewInput().Title("Author email").Value(&opts.AuthorEmail),
+		),
+	)
+	if opts.Kind == "plugin" {
+		form = huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().Title("Extension ID").Description("Use a stable id such as acme.demo.").Value(&opts.ID),
+				huh.NewInput().Title("Name").Value(&opts.Name),
+				huh.NewInput().Title("Description").Value(&opts.Description),
+				huh.NewInput().Title("Official URL").Value(&opts.URL),
+				huh.NewInput().Title("Author name").Value(&opts.AuthorName),
+				huh.NewInput().Title("Author URL").Value(&opts.AuthorURL),
+				huh.NewInput().Title("Author email").Value(&opts.AuthorEmail),
+				huh.NewConfirm().Title("Include backend stub?").Value(&opts.Backend),
+			),
+		)
+	}
+	return form.Run()
+}
