@@ -3,22 +3,10 @@ package bootstrap
 import (
 	"context"
 	"testing"
-
-	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
-func TestNewWorkerWithoutRegisteredJobsStartsIdle(t *testing.T) {
-	worker, err := NewWorker(context.Background(), config.Config{
-		DatabaseURL:            "://not-used-by-idle-worker",
-		WorkerDatabaseMaxConns: 1,
-	}, nil)
-	if err != nil {
-		t.Fatalf("new idle worker: %v", err)
-	}
-	if worker.Client != nil {
-		t.Fatal("expected idle worker to skip River client setup")
-	}
-
+func TestWorkerStartStopAllowNilClient(t *testing.T) {
+	worker := &Worker{}
 	if err := worker.Start(context.Background()); err != nil {
 		t.Fatalf("start idle worker: %v", err)
 	}

@@ -23,17 +23,26 @@ const (
 	RuntimeRunning  = "running"
 	RuntimeFailed   = "failed"
 
+	ThemeReleaseQueued     = "queued"
+	ThemeReleaseBuilding   = "building"
+	ThemeReleaseBuilt      = "built"
+	ThemeReleaseActivating = "activating"
+	ThemeReleaseActive     = "active"
+	ThemeReleaseFailed     = "failed"
+	ThemeReleaseRolledBack = "rolled_back"
+
 	RouteAccessPublic     = extensionmanifest.RouteAccessPublic
 	RouteAccessLogin      = extensionmanifest.RouteAccessLogin
 	RouteAccessPermission = extensionmanifest.RouteAccessPermission
 
-	EventInstalled      = "installed"
-	EventBuiltinSynced  = "builtin_synced"
-	EventVerified       = "verified"
-	EventEnabled        = "enabled"
-	EventEnableFailed   = "enable_failed"
-	EventDisabled       = "disabled"
-	EventThemeActivated = "theme_activated"
+	EventInstalled             = "installed"
+	EventBuiltinSynced         = "builtin_synced"
+	EventVerified              = "verified"
+	EventEnabled               = "enabled"
+	EventEnableFailed          = "enable_failed"
+	EventDisabled              = "disabled"
+	EventThemeActivated        = "theme_activated"
+	EventThemeActivationQueued = "theme_activation_queued"
 
 	DeliveryQueued    = "queued"
 	DeliveryRunning   = "running"
@@ -102,19 +111,50 @@ type MatchedRoute struct {
 }
 
 type Extension struct {
-	ID          string         `json:"id"`
-	Name        string         `json:"name"`
-	Version     string         `json:"version"`
-	Type        string         `json:"type"`
-	Status      string         `json:"status"`
-	Source      string         `json:"source"`
-	IsSystem    bool           `json:"isSystem"`
-	IsDeletable bool           `json:"isDeletable"`
-	Manifest    Manifest       `json:"manifest"`
-	Runtime     *RuntimeStatus `json:"runtime,omitempty"`
-	PackagePath string         `json:"packagePath"`
-	InstalledAt time.Time      `json:"installedAt"`
-	UpdatedAt   time.Time      `json:"updatedAt"`
+	ID           string         `json:"id"`
+	Name         string         `json:"name"`
+	Version      string         `json:"version"`
+	Type         string         `json:"type"`
+	Status       string         `json:"status"`
+	Source       string         `json:"source"`
+	IsSystem     bool           `json:"isSystem"`
+	IsDeletable  bool           `json:"isDeletable"`
+	Manifest     Manifest       `json:"manifest"`
+	Runtime      *RuntimeStatus `json:"runtime,omitempty"`
+	ThemeRelease *ThemeRelease  `json:"themeRelease,omitempty"`
+	PackagePath  string         `json:"packagePath"`
+	InstalledAt  time.Time      `json:"installedAt"`
+	UpdatedAt    time.Time      `json:"updatedAt"`
+}
+
+type ThemeRelease struct {
+	ID               int64      `json:"id"`
+	ExtensionID      string     `json:"extensionId"`
+	ExtensionVersion string     `json:"extensionVersion"`
+	Status           string     `json:"status"`
+	LayerPath        string     `json:"layerPath"`
+	ArtifactPath     string     `json:"artifactPath"`
+	ServerEntry      string     `json:"serverEntry"`
+	Message          string     `json:"message"`
+	BuildLog         string     `json:"buildLog,omitempty"`
+	CreatedAt        time.Time  `json:"createdAt"`
+	UpdatedAt        time.Time  `json:"updatedAt"`
+	ActivatedAt      *time.Time `json:"activatedAt,omitempty"`
+}
+
+type ThemeReleaseInput struct {
+	ExtensionID string
+	Version     string
+	LayerPath   string
+}
+
+type ThemeReleaseUpdate struct {
+	ID           int64
+	Status       string
+	ArtifactPath string
+	ServerEntry  string
+	Message      string
+	BuildLog     string
 }
 
 type ExtensionEvent struct {

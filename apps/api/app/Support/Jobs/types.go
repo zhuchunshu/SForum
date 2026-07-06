@@ -13,6 +13,7 @@ const (
 	QueueMail          = "mail"
 	QueueNotifications = "notifications"
 	QueueMaintenance   = "maintenance"
+	QueueTheme         = "theme"
 )
 
 type EnqueueOptions struct {

@@ -35,6 +35,12 @@ type Config struct {
 	AltchaCost                   int
 	ExtensionRoot                string
 	BuiltinExtensionRoot         string
+	ThemeReleaseRoot             string
+	ThemeWebRoot                 string
+	ThemeBunPath                 string
+	ThemeBuildTimeout            time.Duration
+	ThemePreviewTimeout          time.Duration
+	ThemePreviewPath             string
 	MeiliHost                    string
 	MeiliMasterKey               string
 	JobQueueCriticalWorkers      int
@@ -43,6 +49,7 @@ type Config struct {
 	JobQueueMailWorkers          int
 	JobQueueNotificationsWorkers int
 	JobQueueMaintenanceWorkers   int
+	JobQueueThemeWorkers         int
 	LogLevel                     slog.Level
 }
 
@@ -80,6 +87,12 @@ func Load() Config {
 		AltchaCost:                   envPositiveInt("ALTCHA_COST", 1000),
 		ExtensionRoot:                env("EXTENSION_ROOT", "/var/lib/sforum/extensions"),
 		BuiltinExtensionRoot:         env("BUILTIN_EXTENSION_ROOT", "../../extensions/builtin"),
+		ThemeReleaseRoot:             env("THEME_RELEASE_ROOT", "/var/lib/sforum/theme-releases"),
+		ThemeWebRoot:                 env("THEME_WEB_ROOT", "/app/apps/web"),
+		ThemeBunPath:                 env("THEME_BUN_PATH", "bun"),
+		ThemeBuildTimeout:            envDuration("THEME_BUILD_TIMEOUT", 5*time.Minute),
+		ThemePreviewTimeout:          envDuration("THEME_PREVIEW_TIMEOUT", 30*time.Second),
+		ThemePreviewPath:             env("THEME_PREVIEW_PATH", "/"),
 		MeiliHost:                    env("MEILI_HOST", "http://meilisearch:7700"),
 		MeiliMasterKey:               env("MEILI_MASTER_KEY", "sforum-dev-meili-key"),
 		JobQueueCriticalWorkers:      envPositiveInt("JOB_QUEUE_CRITICAL_WORKERS", 4),
@@ -88,6 +101,7 @@ func Load() Config {
 		JobQueueMailWorkers:          envPositiveInt("JOB_QUEUE_MAIL_WORKERS", 4),
 		JobQueueNotificationsWorkers: envPositiveInt("JOB_QUEUE_NOTIFICATIONS_WORKERS", 6),
 		JobQueueMaintenanceWorkers:   envPositiveInt("JOB_QUEUE_MAINTENANCE_WORKERS", 2),
+		JobQueueThemeWorkers:         envPositiveInt("JOB_QUEUE_THEME_WORKERS", 1),
 		LogLevel:                     parseLogLevel(env("LOG_LEVEL", "info")),
 	}
 }

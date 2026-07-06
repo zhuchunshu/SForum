@@ -33,7 +33,8 @@ and plugin runtime v1.
 - Installed packages are stored under `EXTENSION_ROOT`, not in the public
   attachment system.
 - Database tables: `extensions`, `extension_versions`, `extension_settings`,
-  `extension_events`, and `extension_event_deliveries`.
+  `extension_events`, `extension_event_deliveries`, and
+  `extension_theme_releases`.
 - Extension rows include source metadata: `source` (`builtin` or `uploaded`),
   `is_system`, and `is_deletable`.
 - Startup sync reads `BUILTIN_EXTENSION_ROOT`, registers the protected built-in
@@ -46,10 +47,11 @@ and plugin runtime v1.
   containers set `BUILTIN_EXTENSION_ROOT=/app/extensions/builtin`, store uploaded
   archives under the persistent `extension_packages` volume mounted at
   `/var/lib/sforum/extensions`, and keep attachment uploads separate.
-- Extension verify and plugin enable operations require the active package path
-  and installed `sforum.extension.json` to still exist before changing runtime
-  state. Theme verify reports missing packages, missing installed manifests, and
-  missing Nuxt Layer directories as `extension.build_failed`; plugins keep using
+- Extension verify, plugin enable, and uploaded theme activation operations
+  require the active package path and installed `sforum.extension.json` to still
+  exist before changing runtime state. Theme verify and queued activation report
+  missing packages, missing installed manifests, and missing Nuxt Layer
+  directories as `extension.build_failed`; plugins keep using
   `extension.preflight_failed` for preflight failures.
 - Admin API routes:
   - `GET /api/v1/admin/extensions`
@@ -57,8 +59,10 @@ and plugin runtime v1.
   - `POST /api/v1/admin/extensions/:id/enable` for plugins
   - `POST /api/v1/admin/extensions/:id/disable` for plugins
   - `POST /api/v1/admin/extensions/:id/verify` for plugin preflight or theme
-    Nuxt Layer verification without applying it
-  - `POST /api/v1/admin/extensions/:id/activate` for themes
+    Nuxt Layer verification
+  - `POST /api/v1/admin/extensions/:id/activate` for themes. Uploaded themes
+    return `202 Accepted` with a queued `themeRelease`; restoring the built-in
+    default theme remains immediate.
   - `GET /api/v1/admin/extensions/:id/events`
   - `GET /api/v1/admin/extensions/navigation`
   - `GET /api/v1/admin/extensions/:id/settings`
@@ -76,8 +80,11 @@ and plugin runtime v1.
   `/extensions/{id}/pages/*` admin namespace; installed extensions also have a
   "Manage" entry from plugin/theme list rows.
 - Theme rows show `enabled` as "current theme" rather than "enabled".
-  Uploaded themes can be verified but cannot be activated in v1; attempts
-  return `extension.theme_runtime_unavailable`.
+  Uploaded Nuxt Layer themes can now be activated through the self-hosted theme
+  runtime. Activation queues a River job, builds an isolated Nuxt/Nitro artifact,
+  health-checks a preview server, writes the active release file, and lets the
+  web runtime restart onto the selected artifact. Failed builds keep the
+  previous active theme running.
 - Extension Platform v2 direction is accepted. The target is a complete
   operator loop: upload, manifest inspection, permission/risk review, enable or
   activate, configure, observe logs/errors/event deliveries, disable or
@@ -112,14 +119,12 @@ and plugin runtime v1.
   `extension_event_deliveries`. The runtime has River job args and worker
   plumbing for durable async delivery, and falls back to inline delivery when no
   dispatcher is configured.
-- Theme packages can declare a Nuxt Layer path, but v1 statically applies only
-  `extensions/builtin/themes/sforum-default/layer` from the web Nuxt config.
-  Uploaded theme activation must wait for a Nuxt rebuild, health-check, and
-  rollback runtime.
-- Uploaded theme activation v2 must behave like a deployment pipeline:
-  manifest validation, temporary Nuxt build, health check, preview address,
-  administrator confirmation, atomic switch to the new frontend artifact, and
-  automatic rollback to the previous theme on failure.
+- Theme packages can declare a Nuxt Layer path. Uploaded theme activation is a
+  deployment-like pipeline: manifest validation, queued release row, temporary
+  Nuxt build, preview health check, atomic `current.json` switch, and web
+  supervisor restart onto the new Nitro server. Multi-node rollout, signed
+  marketplace trust, arbitrary theme dependency installation, and administrator
+  preview approval are still future work.
 - Keep plugin `Enable/Disable` separate from theme `Activate`. Do not call
   plugin runtime hooks when activating a theme.
 - Backend plugin packages can declare a backend entry and RPC protocol. The
@@ -213,10 +218,8 @@ targets `extensions/builtin/{plugins,themes}/{id}`.
   `mail.provider`, `notification.channel`, `payment.provider`,
   `search.provider`, `attachment.storage.provider`,
   `editor.sanitizer.provider`, and `auth.risk.provider`.
-- Add a real theme activation worker that writes active Nuxt layer state,
-  triggers web rebuild, runs a health check, exposes preview, performs an
-  atomic switch, and rolls back on failure. Only then should uploaded themes be
-  activatable.
+- Add preview/approval UI, richer build logs, uninstall cleanup, and explicit
+  rollback controls for theme releases.
 - Add plugin author documentation for provider-slot based systems such as mail,
   notifications, and payments before building those verticals.
 - Add upgrade, rollback, and uninstall operations.

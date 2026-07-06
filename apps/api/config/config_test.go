@@ -61,6 +61,24 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	if cfg.BuiltinExtensionRoot != "../../extensions/builtin" {
 		t.Fatalf("expected builtin extension root default, got %q", cfg.BuiltinExtensionRoot)
 	}
+	if cfg.ThemeReleaseRoot != "/var/lib/sforum/theme-releases" {
+		t.Fatalf("expected theme release root default, got %q", cfg.ThemeReleaseRoot)
+	}
+	if cfg.ThemeWebRoot != "/app/apps/web" {
+		t.Fatalf("expected theme web root default, got %q", cfg.ThemeWebRoot)
+	}
+	if cfg.ThemeBunPath != "bun" {
+		t.Fatalf("expected theme bun path default, got %q", cfg.ThemeBunPath)
+	}
+	if cfg.ThemeBuildTimeout != 5*time.Minute {
+		t.Fatalf("expected theme build timeout 5m, got %s", cfg.ThemeBuildTimeout)
+	}
+	if cfg.ThemePreviewTimeout != 30*time.Second {
+		t.Fatalf("expected theme preview timeout 30s, got %s", cfg.ThemePreviewTimeout)
+	}
+	if cfg.ThemePreviewPath != "/" {
+		t.Fatalf("expected theme preview path default, got %q", cfg.ThemePreviewPath)
+	}
 	if cfg.JobQueueCriticalWorkers != 4 {
 		t.Fatalf("expected critical workers 4, got %d", cfg.JobQueueCriticalWorkers)
 	}
@@ -78,6 +96,9 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	}
 	if cfg.JobQueueMaintenanceWorkers != 2 {
 		t.Fatalf("expected maintenance workers 2, got %d", cfg.JobQueueMaintenanceWorkers)
+	}
+	if cfg.JobQueueThemeWorkers != 1 {
+		t.Fatalf("expected theme workers 1, got %d", cfg.JobQueueThemeWorkers)
 	}
 }
 
@@ -99,6 +120,7 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 	t.Setenv("JOB_QUEUE_MAIL_WORKERS", "4")
 	t.Setenv("JOB_QUEUE_NOTIFICATIONS_WORKERS", "5")
 	t.Setenv("JOB_QUEUE_MAINTENANCE_WORKERS", "6")
+	t.Setenv("JOB_QUEUE_THEME_WORKERS", "7")
 	t.Setenv("REDIS_PASSWORD", "secret")
 	t.Setenv("SESSION_IDLE_TIMEOUT", "12h")
 	t.Setenv("SESSION_ABSOLUTE_TIMEOUT", "240h")
@@ -110,6 +132,12 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 	t.Setenv("ALTCHA_COST", "2000")
 	t.Setenv("EXTENSION_ROOT", "/srv/sforum/extensions")
 	t.Setenv("BUILTIN_EXTENSION_ROOT", "/srv/sforum/builtin-extensions")
+	t.Setenv("THEME_RELEASE_ROOT", "/srv/sforum/theme-releases")
+	t.Setenv("THEME_WEB_ROOT", "/srv/sforum/web")
+	t.Setenv("THEME_BUN_PATH", "/usr/local/bin/bun")
+	t.Setenv("THEME_BUILD_TIMEOUT", "7m")
+	t.Setenv("THEME_PREVIEW_TIMEOUT", "12s")
+	t.Setenv("THEME_PREVIEW_PATH", "/health")
 
 	cfg := Load()
 
@@ -130,7 +158,8 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 		cfg.JobQueueSearchWorkers != 3 ||
 		cfg.JobQueueMailWorkers != 4 ||
 		cfg.JobQueueNotificationsWorkers != 5 ||
-		cfg.JobQueueMaintenanceWorkers != 6 {
+		cfg.JobQueueMaintenanceWorkers != 6 ||
+		cfg.JobQueueThemeWorkers != 7 {
 		t.Fatalf("unexpected queue worker config: %+v", cfg)
 	}
 	if cfg.RedisPassword != "secret" {
@@ -166,6 +195,24 @@ func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 	if cfg.BuiltinExtensionRoot != "/srv/sforum/builtin-extensions" {
 		t.Fatalf("expected builtin extension root from env, got %q", cfg.BuiltinExtensionRoot)
 	}
+	if cfg.ThemeReleaseRoot != "/srv/sforum/theme-releases" {
+		t.Fatalf("expected theme release root from env, got %q", cfg.ThemeReleaseRoot)
+	}
+	if cfg.ThemeWebRoot != "/srv/sforum/web" {
+		t.Fatalf("expected theme web root from env, got %q", cfg.ThemeWebRoot)
+	}
+	if cfg.ThemeBunPath != "/usr/local/bin/bun" {
+		t.Fatalf("expected theme bun path from env, got %q", cfg.ThemeBunPath)
+	}
+	if cfg.ThemeBuildTimeout != 7*time.Minute {
+		t.Fatalf("expected theme build timeout from env, got %s", cfg.ThemeBuildTimeout)
+	}
+	if cfg.ThemePreviewTimeout != 12*time.Second {
+		t.Fatalf("expected theme preview timeout from env, got %s", cfg.ThemePreviewTimeout)
+	}
+	if cfg.ThemePreviewPath != "/health" {
+		t.Fatalf("expected theme preview path from env, got %q", cfg.ThemePreviewPath)
+	}
 }
 
 func TestLoadFallsBackForInvalidWorkerConfig(t *testing.T) {
@@ -174,6 +221,7 @@ func TestLoadFallsBackForInvalidWorkerConfig(t *testing.T) {
 	t.Setenv("MIGRATE_ON_STARTUP", "sometimes")
 	t.Setenv("WORKER_SHUTDOWN_TIMEOUT", "bad")
 	t.Setenv("JOB_QUEUE_SEARCH_WORKERS", "0")
+	t.Setenv("JOB_QUEUE_THEME_WORKERS", "0")
 	t.Setenv("SESSION_IDLE_TIMEOUT", "bad")
 	t.Setenv("SESSION_ABSOLUTE_TIMEOUT", "0")
 	t.Setenv("SESSION_RENEWAL_INTERVAL", "bad")
@@ -193,6 +241,9 @@ func TestLoadFallsBackForInvalidWorkerConfig(t *testing.T) {
 	}
 	if cfg.JobQueueSearchWorkers != 6 {
 		t.Fatalf("expected non-positive queue workers to fall back, got %d", cfg.JobQueueSearchWorkers)
+	}
+	if cfg.JobQueueThemeWorkers != 1 {
+		t.Fatalf("expected non-positive theme queue workers to fall back, got %d", cfg.JobQueueThemeWorkers)
 	}
 	if cfg.SessionIdleTimeout != 30*24*time.Hour {
 		t.Fatalf("expected invalid session idle timeout to fall back, got %s", cfg.SessionIdleTimeout)

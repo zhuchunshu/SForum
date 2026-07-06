@@ -19,8 +19,8 @@ adminExtensions:
       Uploads a ZIP archive containing sforum.extension.json. Theme ZIPs are
       installable Nuxt Layer packages: type theme requires a safe non-empty
       frontend.layer and cannot declare plugin/runtime/admin capabilities in v1.
-      Uploaded themes may be installed and verified, but cannot be activated
-      until the theme rebuild and rollback runtime exists.
+      Uploaded themes may be installed, verified, and queued for activation
+      through the theme rebuild and rollback runtime.
     operationId: installAdminExtension
     requestBody:
       required: true
@@ -228,18 +228,18 @@ adminExtensionActivate:
           application/json:
             schema:
               "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+      '202':
+        description: Uploaded theme activation accepted and queued for build.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
-      '409':
-        description: Uploaded theme activation is unavailable until theme rebuild, health-check, and rollback runtime exists.
-        content:
-          application/json:
-            schema:
-              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
 adminExtensionEvents:

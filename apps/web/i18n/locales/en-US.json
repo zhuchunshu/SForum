@@ -216,8 +216,9 @@
       "disabled": "Extension disabled.",
       "restarted": "Plugin runtime restarted.",
       "verified": "Extension preflight verified.",
-      "themeActivated": "Default theme restored as the active theme.",
-      "themeActivationUnavailable": "Uploaded themes cannot be applied in this release.",
+      "themeActivated": "Theme activated.",
+      "themeActivationQueued": "Theme build queued.",
+      "themeActivationUnavailable": "Theme activation failed.",
       "actionFailed": "Extension action failed.",
       "stats": {
         "plugins": "Plugins",
@@ -238,8 +239,19 @@
       "restartUnavailable": "Plugin runtime is not running, so restart is disabled.",
       "manage": "Manage",
       "verify": "Verify",
+      "activateTheme": "Activate theme",
+      "retryActivation": "Retry activation",
       "restoreDefaultTheme": "Restore default theme",
       "activeTheme": "Active theme",
+      "themeRelease": {
+        "queued": "Queued",
+        "building": "Building",
+        "built": "Built",
+        "activating": "Switching",
+        "active": "Active theme",
+        "failed": "Activation failed",
+        "rolled_back": "Rolled back"
+      },
       "source": {
         "builtin": "Built-in"
       },
@@ -289,11 +301,11 @@
       "themes": {
         "metaTitle": "Theme management",
         "title": "Theme management",
-        "intro": "Manage packages declared as themes. This release only applies the protected SForum default theme; uploaded themes can be verified but not applied yet.",
+        "intro": "Manage packages declared as themes. Uploaded themes are queued for build, health-check, and activation before becoming current.",
         "count": "{count} theme(s) installed",
         "emptyTitle": "No themes installed",
-        "emptyDescription": "Upload an extension ZIP with type theme to verify Nuxt Layer boundaries. Applying uploaded themes requires the future build and rollback runtime.",
-        "runtimeUnavailable": "Uploaded themes are not applied in this release. You can verify package structure now; activation waits for Nuxt rebuild, health-check, and rollback runtime support."
+        "emptyDescription": "Upload an extension ZIP with type theme to activate a Nuxt Layer theme here.",
+        "runtimeUnavailable": "Theme runtime is temporarily unavailable."
       },
       "settings": {
         "metaTitle": "Extension settings",

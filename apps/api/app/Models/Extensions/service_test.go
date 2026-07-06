@@ -687,20 +687,69 @@ func TestServiceVerifyThemeMissingLayerReturnsBuildFailed(t *testing.T) {
 	}
 }
 
-func TestServiceActivateThemeAllowsOnlyBuiltinDefaultThemeInV1(t *testing.T) {
+func TestThemeReleaseLifecycleStoresBuildState(t *testing.T) {
+	store := newFakeExtensionStore(map[string]Extension{
+		"starter.theme": withInstalledPackage(t, installedExtension("starter.theme", TypeTheme, ManifestBackend{})),
+	})
+	release, err := store.CreateThemeRelease(context.Background(), ThemeReleaseInput{
+		ExtensionID: "starter.theme",
+		Version:     "1.0.0",
+		LayerPath:   "/themes/starter/layer",
+	})
+	if err != nil {
+		t.Fatalf("create theme release: %v", err)
+	}
+	if release.Status != ThemeReleaseQueued {
+		t.Fatalf("expected queued release, got %q", release.Status)
+	}
+	updated, err := store.UpdateThemeRelease(context.Background(), ThemeReleaseUpdate{
+		ID:           release.ID,
+		Status:       ThemeReleaseBuilt,
+		ArtifactPath: "/var/lib/sforum/theme-releases/releases/1/.output",
+		Message:      "build passed",
+	})
+	if err != nil {
+		t.Fatalf("update theme release: %v", err)
+	}
+	if updated.Status != ThemeReleaseBuilt || updated.ArtifactPath == "" {
+		t.Fatalf("expected built artifact, got %#v", updated)
+	}
+	latest, err := store.LatestThemeRelease(context.Background(), "starter.theme")
+	if err != nil {
+		t.Fatalf("latest theme release: %v", err)
+	}
+	if latest.ID != release.ID {
+		t.Fatalf("expected latest release %d, got %d", release.ID, latest.ID)
+	}
+}
+
+func TestServiceActivateThemeQueuesUploadedThemeBuild(t *testing.T) {
+	store := newFakeExtensionStore(map[string]Extension{
+		"starter.theme": withInstalledPackage(t, installedExtension("starter.theme", TypeTheme, ManifestBackend{})),
+	})
+	dispatcher := &fakeThemeActivationDispatcher{}
+	service := NewServiceWithThemeActivation(store, t.TempDir(), "", LocalRuntimeManager{}, fakeThemeBuilder{}, dispatcher)
+
+	queued, err := service.ActivateTheme(context.Background(), extensionManager(), "starter.theme")
+	if err != nil {
+		t.Fatalf("ActivateTheme returned error: %v", err)
+	}
+	if queued.ThemeRelease == nil || queued.ThemeRelease.Status != ThemeReleaseQueued {
+		t.Fatalf("expected queued theme release, got %#v", queued.ThemeRelease)
+	}
+	if dispatcher.releaseID == 0 || dispatcher.extensionID != "starter.theme" {
+		t.Fatalf("expected activation dispatch, got release=%d extension=%q", dispatcher.releaseID, dispatcher.extensionID)
+	}
+	if store.activeThemeID == "starter.theme" {
+		t.Fatal("uploaded theme should not become active before worker completes")
+	}
+}
+
+func TestServiceActivateThemeRestoresBuiltinDefaultThemeImmediately(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
-		DefaultThemeID:  withInstalledPackage(t, protectedBuiltinExtension(DefaultThemeID, TypeTheme)),
-		"starter.theme": uploadedExtension("starter.theme", TypeTheme),
+		DefaultThemeID: withInstalledPackage(t, protectedBuiltinExtension(DefaultThemeID, TypeTheme)),
 	}}
 	service := NewServiceWithHooks(store, t.TempDir(), nil, fakeThemeBuilder{})
-
-	_, err := service.ActivateTheme(context.Background(), extensionManager(), "starter.theme")
-	if !errors.Is(err, ErrThemeRuntimeUnavailable) {
-		t.Fatalf("expected uploaded theme activation to be unavailable, got %v", err)
-	}
-	if store.activeThemeID != "" {
-		t.Fatalf("uploaded theme should not become active, got %q", store.activeThemeID)
-	}
 
 	active, err := service.ActivateTheme(context.Background(), extensionManager(), DefaultThemeID)
 	if err != nil {
@@ -1000,6 +1049,18 @@ func (b fakeThemeBuilder) Build(context.Context, Extension) error {
 	return b.err
 }
 
+type fakeThemeActivationDispatcher struct {
+	releaseID   int64
+	extensionID string
+	err         error
+}
+
+func (d *fakeThemeActivationDispatcher) EnqueueThemeActivation(_ context.Context, release ThemeRelease) error {
+	d.releaseID = release.ID
+	d.extensionID = release.ExtensionID
+	return d.err
+}
+
 type fakeExtensionStore struct {
 	items         map[string]Extension
 	saved         Extension
@@ -1009,6 +1070,12 @@ type fakeExtensionStore struct {
 	settings      map[string]map[string]string
 	events        []ExtensionEvent
 	deliveries    []ExtensionEventDelivery
+	releases      []ThemeRelease
+	nextReleaseID int64
+}
+
+func newFakeExtensionStore(items map[string]Extension) *fakeExtensionStore {
+	return &fakeExtensionStore{items: items}
 }
 
 func (s *fakeExtensionStore) List(context.Context) ([]Extension, error) {
@@ -1024,6 +1091,73 @@ func (s *fakeExtensionStore) Get(_ context.Context, id string) (Extension, error
 		return item, nil
 	}
 	return Extension{}, ErrExtensionNotFound
+}
+
+func (s *fakeExtensionStore) CreateThemeRelease(_ context.Context, input ThemeReleaseInput) (ThemeRelease, error) {
+	if _, ok := s.items[input.ExtensionID]; !ok {
+		return ThemeRelease{}, ErrExtensionNotFound
+	}
+	s.nextReleaseID++
+	now := time.Now()
+	release := ThemeRelease{
+		ID:               s.nextReleaseID,
+		ExtensionID:      input.ExtensionID,
+		ExtensionVersion: input.Version,
+		Status:           ThemeReleaseQueued,
+		LayerPath:        input.LayerPath,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+	s.releases = append(s.releases, release)
+	return release, nil
+}
+
+func (s *fakeExtensionStore) UpdateThemeRelease(_ context.Context, input ThemeReleaseUpdate) (ThemeRelease, error) {
+	for index := range s.releases {
+		if s.releases[index].ID != input.ID {
+			continue
+		}
+		if input.Status == ThemeReleaseActive {
+			for current := range s.releases {
+				if s.releases[current].Status == ThemeReleaseActive && s.releases[current].ID != input.ID {
+					s.releases[current].Status = ThemeReleaseRolledBack
+					s.releases[current].UpdatedAt = time.Now()
+				}
+			}
+			activatedAt := time.Now()
+			s.releases[index].ActivatedAt = &activatedAt
+		}
+		s.releases[index].Status = input.Status
+		if input.ArtifactPath != "" {
+			s.releases[index].ArtifactPath = input.ArtifactPath
+		}
+		if input.ServerEntry != "" {
+			s.releases[index].ServerEntry = input.ServerEntry
+		}
+		s.releases[index].Message = input.Message
+		s.releases[index].BuildLog = input.BuildLog
+		s.releases[index].UpdatedAt = time.Now()
+		return s.releases[index], nil
+	}
+	return ThemeRelease{}, ErrExtensionNotFound
+}
+
+func (s *fakeExtensionStore) LatestThemeRelease(_ context.Context, extensionID string) (ThemeRelease, error) {
+	for index := len(s.releases) - 1; index >= 0; index-- {
+		if s.releases[index].ExtensionID == extensionID {
+			return s.releases[index], nil
+		}
+	}
+	return ThemeRelease{}, ErrExtensionNotFound
+}
+
+func (s *fakeExtensionStore) ActiveThemeRelease(context.Context) (ThemeRelease, error) {
+	for index := len(s.releases) - 1; index >= 0; index-- {
+		if s.releases[index].Status == ThemeReleaseActive {
+			return s.releases[index], nil
+		}
+	}
+	return ThemeRelease{}, ErrExtensionNotFound
 }
 
 func (s *fakeExtensionStore) SaveInstalled(_ context.Context, input SaveInstalledInput) (Extension, error) {

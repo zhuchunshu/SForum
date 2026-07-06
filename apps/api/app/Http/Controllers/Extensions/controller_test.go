@@ -242,16 +242,16 @@ func TestControllerVerifiesAndActivatesThemesForManager(t *testing.T) {
 	}
 
 	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.theme/activate", cookie)
-	if resp.StatusCode != http.StatusConflict {
-		t.Fatalf("expected 409 uploaded theme activation unavailable, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("expected 202 uploaded theme activation queued, got %d", resp.StatusCode)
 	}
 	defer resp.Body.Close()
-	var body testEnvelope[testErrorData]
+	var body testEnvelope[extensions.Extension]
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		t.Fatalf("decode activation error envelope: %v", err)
+		t.Fatalf("decode activation response envelope: %v", err)
 	}
-	if body.Data.Reason != extensions.CodeThemeRuntimeUnavailable {
-		t.Fatalf("expected theme runtime unavailable reason, got %q", body.Data.Reason)
+	if body.Data.ThemeRelease == nil || body.Data.ThemeRelease.Status != extensions.ThemeReleaseQueued {
+		t.Fatalf("expected queued theme release, got %#v", body.Data.ThemeRelease)
 	}
 }
 
@@ -519,6 +519,7 @@ type controllerFakeStore struct {
 	settings   map[string]map[string]string
 	events     []extensions.ExtensionEvent
 	deliveries []extensions.ExtensionEventDelivery
+	releases   []extensions.ThemeRelease
 }
 
 func (s *controllerFakeStore) List(context.Context) ([]extensions.Extension, error) {
@@ -617,6 +618,62 @@ func (s *controllerFakeStore) ActiveTheme(context.Context) (extensions.Extension
 		}
 	}
 	return extensions.Extension{}, extensions.ErrExtensionNotFound
+}
+
+func (s *controllerFakeStore) CreateThemeRelease(_ context.Context, input extensions.ThemeReleaseInput) (extensions.ThemeRelease, error) {
+	if _, ok := s.items[input.ExtensionID]; !ok {
+		return extensions.ThemeRelease{}, extensions.ErrExtensionNotFound
+	}
+	now := time.Now()
+	release := extensions.ThemeRelease{
+		ID:               int64(len(s.releases) + 1),
+		ExtensionID:      input.ExtensionID,
+		ExtensionVersion: input.Version,
+		Status:           extensions.ThemeReleaseQueued,
+		LayerPath:        input.LayerPath,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+	s.releases = append(s.releases, release)
+	return release, nil
+}
+
+func (s *controllerFakeStore) UpdateThemeRelease(_ context.Context, input extensions.ThemeReleaseUpdate) (extensions.ThemeRelease, error) {
+	for index := range s.releases {
+		if s.releases[index].ID != input.ID {
+			continue
+		}
+		s.releases[index].Status = input.Status
+		if input.ArtifactPath != "" {
+			s.releases[index].ArtifactPath = input.ArtifactPath
+		}
+		if input.ServerEntry != "" {
+			s.releases[index].ServerEntry = input.ServerEntry
+		}
+		s.releases[index].Message = input.Message
+		s.releases[index].BuildLog = input.BuildLog
+		s.releases[index].UpdatedAt = time.Now()
+		return s.releases[index], nil
+	}
+	return extensions.ThemeRelease{}, extensions.ErrExtensionNotFound
+}
+
+func (s *controllerFakeStore) LatestThemeRelease(_ context.Context, extensionID string) (extensions.ThemeRelease, error) {
+	for index := len(s.releases) - 1; index >= 0; index-- {
+		if s.releases[index].ExtensionID == extensionID {
+			return s.releases[index], nil
+		}
+	}
+	return extensions.ThemeRelease{}, extensions.ErrExtensionNotFound
+}
+
+func (s *controllerFakeStore) ActiveThemeRelease(context.Context) (extensions.ThemeRelease, error) {
+	for index := len(s.releases) - 1; index >= 0; index-- {
+		if s.releases[index].Status == extensions.ThemeReleaseActive {
+			return s.releases[index], nil
+		}
+	}
+	return extensions.ThemeRelease{}, extensions.ErrExtensionNotFound
 }
 
 func (s *controllerFakeStore) CreateEvent(_ context.Context, input extensions.EventInput) (extensions.ExtensionEvent, error) {

@@ -17,6 +17,7 @@ func TestFromAppConfigBuildsRiverQueues(t *testing.T) {
 		JobQueueMailWorkers:          4,
 		JobQueueNotificationsWorkers: 5,
 		JobQueueMaintenanceWorkers:   6,
+		JobQueueThemeWorkers:         7,
 	})
 
 	queues := cfg.RiverQueues()
@@ -27,6 +28,7 @@ func TestFromAppConfigBuildsRiverQueues(t *testing.T) {
 	assertWorkers(t, queues, QueueMail, 4)
 	assertWorkers(t, queues, QueueNotifications, 5)
 	assertWorkers(t, queues, QueueMaintenance, 6)
+	assertWorkers(t, queues, QueueTheme, 7)
 }
 
 func TestFromAppConfigUsesSafeDefaults(t *testing.T) {
@@ -40,6 +42,7 @@ func TestFromAppConfigUsesSafeDefaults(t *testing.T) {
 	assertWorkers(t, queues, QueueMail, 4)
 	assertWorkers(t, queues, QueueNotifications, 6)
 	assertWorkers(t, queues, QueueMaintenance, 2)
+	assertWorkers(t, queues, QueueTheme, 1)
 }
 
 func TestEnqueueOptionsConvertToRiverInsertOpts(t *testing.T) {

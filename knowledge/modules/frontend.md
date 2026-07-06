@@ -44,15 +44,20 @@ custom emoji nodes, preview, Markdown source, and JSON inspection modes. The
 client HTML is only for preview and must be regenerated/sanitized by the API
 before storage.
 Public, non-admin UI is now owned by the protected built-in default theme layer
-at `extensions/builtin/themes/sforum-default/layer`. The root Nuxt app
-statically extends that layer. The layer owns the homepage, default layout,
-auth layout/pages, public navbar/footer, and public/auth chrome CSS. Core keeps
-admin pages/layout, auth/session logic, API clients, i18n catalogs, SEO
-helpers, permissions, and reusable component/composable infrastructure.
+at `extensions/builtin/themes/sforum-default/layer`. The root Nuxt app extends
+that fallback layer and can prepend an uploaded Nuxt Layer during release builds
+through `SFORUM_THEME_LAYER`. The layer owns the homepage, default layout, auth
+layout/pages, public navbar/footer, and public/auth chrome CSS. Core keeps admin
+pages/layout, auth/session logic, API clients, i18n catalogs, SEO helpers,
+permissions, and reusable component/composable infrastructure.
 Production and development web Docker images build from the repository root and
 copy `extensions/builtin` into `/app/extensions/builtin`, while keeping the web
 workdir at `/app/apps/web`; this preserves the static Nuxt layer reference
 `../../extensions/builtin/themes/sforum-default/layer` inside containers.
+The web production container runs `apps/web/scripts/runtime.mjs`, which watches
+`THEME_RELEASE_ROOT/current.json` through `SFORUM_THEME_RELEASE_ROOT` and starts
+the selected Nitro server. The default `.output` remains the fallback release
+when no uploaded theme is active.
 The production Docker build creates a build-local `.nuxt -> .nuxt-build`
 symlink before `bun run build` because `tsconfig.json` still extends
 `./.nuxt/tsconfig.json` while the build script uses `NUXT_BUILD_DIR=.nuxt-build`.

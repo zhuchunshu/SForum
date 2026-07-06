@@ -80,7 +80,31 @@ describe('admin extension helpers', () => {
     expect(themeStatusLabelKey(items[1])).toBe('admin.extensions.status.installed')
     expect(themeActionState(items[0])).toBe('active')
     expect(themeActionState(inactiveDefaultTheme)).toBe('activateDefault')
-    expect(themeActionState(items[1])).toBe('verifyOnly')
+    expect(themeActionState(items[1])).toBe('activate')
+    expect(themeActionState(extension({
+      id: 'queued.theme',
+      name: 'Queued Theme',
+      type: 'theme',
+      themeRelease: themeRelease('queued')
+    }))).toBe('queued')
+    expect(themeActionState(extension({
+      id: 'building.theme',
+      name: 'Building Theme',
+      type: 'theme',
+      themeRelease: themeRelease('building')
+    }))).toBe('building')
+    expect(themeActionState(extension({
+      id: 'activating.theme',
+      name: 'Activating Theme',
+      type: 'theme',
+      themeRelease: themeRelease('activating')
+    }))).toBe('activating')
+    expect(themeActionState(extension({
+      id: 'failed.theme',
+      name: 'Failed Theme',
+      type: 'theme',
+      themeRelease: themeRelease('failed')
+    }))).toBe('failed')
   })
 
   test('counts manifest capability declarations', () => {
@@ -262,6 +286,7 @@ function extension(input: {
   source?: AdminExtension['source']
   manifest?: Partial<AdminExtension['manifest']>
   runtime?: Partial<NonNullable<AdminExtension['runtime']>>
+  themeRelease?: AdminExtension['themeRelease']
 }): AdminExtension {
   return {
     ...baseExtension,
@@ -278,8 +303,21 @@ function extension(input: {
       sforumVersion: '^1.0.0',
       ...input.manifest
     },
-    runtime: input.runtime as AdminExtension['runtime']
+    runtime: input.runtime as AdminExtension['runtime'],
+    themeRelease: input.themeRelease
   } as AdminExtension
+}
+
+function themeRelease(status: NonNullable<AdminExtension['themeRelease']>['status']): NonNullable<AdminExtension['themeRelease']> {
+  return {
+    id: 1,
+    extensionId: 'demo.theme',
+    extensionVersion: '1.0.0',
+    status,
+    message: '',
+    createdAt: '2026-07-05T10:00:00Z',
+    updatedAt: '2026-07-05T10:00:00Z'
+  }
 }
 
 function event(input: {

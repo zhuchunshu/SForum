@@ -119,7 +119,13 @@ export const useAdminExtensionsManager = async () => {
       replaceExtension(activated)
       await refresh()
       await loadEvents(activated.id)
-      toast.add({ color: 'success', icon: 'i-lucide-palette', title: t('admin.extensions.themeActivated') })
+      toast.add({
+        color: activated.themeRelease?.status === 'queued' ? 'info' : 'success',
+        icon: activated.themeRelease?.status === 'queued' ? 'i-lucide-hourglass' : 'i-lucide-palette',
+        title: activated.themeRelease?.status === 'queued'
+          ? t('admin.extensions.themeActivationQueued')
+          : t('admin.extensions.themeActivated')
+      })
     } catch (error) {
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.themeActivationUnavailable') })
     } finally {

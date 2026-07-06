@@ -19,9 +19,12 @@ RUN ln -sfn .nuxt-build .nuxt && bun run build
 
 FROM oven/bun:1.3-alpine AS prod
 
-WORKDIR /app
+WORKDIR /app/apps/web
 ENV HOST=0.0.0.0
 ENV PORT=3000
+ENV SFORUM_THEME_RELEASE_ROOT=/var/lib/sforum/theme-releases
+COPY --from=deps /app/apps/web/node_modules ./node_modules
 COPY --from=build /app/apps/web/.output ./.output
+COPY apps/web/scripts ./scripts
 EXPOSE 3000
-CMD ["bun", ".output/server/index.mjs"]
+CMD ["bun", "scripts/runtime.mjs"]

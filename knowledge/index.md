@@ -216,9 +216,12 @@ This is the entry point for project memory.
   tables, lifecycle events, independent admin extension submenu pages,
   `EXTENSION_ROOT`, and reserved plugin/theme runtime boundaries. Plugins use
   enable/disable semantics; themes use activation semantics with exactly one
-  active theme. In v1 only the protected built-in `sforum.default-theme` Nuxt
-  layer is actually applied, while uploaded themes can be installed and
-  verified but not activated. Plugin runtime v1 now starts enabled plugin
+  active theme. Uploaded Nuxt Layer themes can now be activated through a
+  single-node self-hosted runtime: the API creates an `extension_theme_releases`
+  row and queues a River `extension.theme_activate` job, the worker builds an
+  isolated Nuxt/Nitro artifact and health-checks it, and the web supervisor
+  follows `theme-releases/current.json` to switch Nitro servers while keeping
+  the previous release available. Plugin runtime v1 now starts enabled plugin
   subprocesses through HashiCorp go-plugin, proxies declared plugin routes,
   emits lifecycle hooks, and exposes provider slot defaults. Built-in sync
   prunes stale built-in extension rows, and verify/enable operations require
@@ -240,8 +243,8 @@ This is the entry point for project memory.
   slots, events/filters, controlled routes, settings, and host-owned admin
   pages. Sidebar menu injection is opt-in through manifest metadata, `Manage`
   resolves to an in-admin route, `mail.provider` is the first recommended full
-  vertical slice, and uploaded theme activation must wait for a build,
-  health-check, preview, atomic switch, and rollback pipeline.
+  vertical slice, and theme activation still needs future preview approval,
+  richer build logs, rollback UI, and multi-node rollout support.
 - Architecture guidance now treats SForum core as the host framework rather
   than a monolith of optional product verticals. Core should expose the stable
   interfaces that make plugins easy to build: events, provider slots, typed
@@ -396,6 +399,9 @@ This is the entry point for project memory.
   handoff.
 - `sessions/2026-07-06-extension-stale-builtin-cleanup.md` - stale built-in
   extension row pruning and package-existence preflight handoff.
+- `sessions/2026-07-07-theme-activation-runtime.md` - uploaded theme
+  activation runtime, River job, web supervisor, Docker volume, admin states,
+  and verification notes.
 - `sessions/2026-07-04-permission-aware-development-guidelines.md` -
   permission-aware feature development guideline handoff.
 - `sessions/2026-07-05-auth-session-restart-resilience.md` - frontend auth

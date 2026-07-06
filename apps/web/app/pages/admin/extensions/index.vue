@@ -35,7 +35,6 @@ const {
   enableExtension,
   disableExtension,
   activateTheme,
-  verifyExtension,
   loadEvents,
   statusColor,
   typeLabel,
@@ -266,15 +265,34 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 {{ t('admin.extensions.restoreDefaultTheme') }}
               </UButton>
               <UButton
-                v-else-if="themeActionState(item) === 'verifyOnly'"
+                v-else-if="themeActionState(item) === 'activate'"
+                size="sm"
+                icon="i-lucide-play"
+                :loading="busyId === item.id"
+                @click="activateTheme(item)"
+              >
+                {{ t('admin.extensions.activateTheme') }}
+              </UButton>
+              <UButton
+                v-else-if="themeActionState(item) === 'failed'"
+                size="sm"
+                color="error"
+                variant="subtle"
+                icon="i-lucide-refresh-cw"
+                :loading="busyId === item.id"
+                @click="activateTheme(item)"
+              >
+                {{ t('admin.extensions.retryActivation') }}
+              </UButton>
+              <UButton
+                v-else-if="['queued', 'building', 'activating'].includes(themeActionState(item))"
                 size="sm"
                 color="neutral"
                 variant="subtle"
-                icon="i-lucide-shield-check"
-                :loading="busyId === item.id"
-                @click="verifyExtension(item)"
+                icon="i-lucide-hourglass"
+                disabled
               >
-                {{ t('admin.extensions.verify') }}
+                {{ t(`admin.extensions.themeRelease.${item.themeRelease?.status || 'queued'}`) }}
               </UButton>
               <UButton
                 v-else

@@ -25,5 +25,8 @@ node tests/validate-identity-ui.js
 echo "Running homepage validation..."
 node tests/validate-homepage.js
 
+echo "Running theme runtime validation..."
+node tests/validate-theme-runtime.js
+
 echo "Running SF component library validation..."
 node tests/validate-sf-components.js

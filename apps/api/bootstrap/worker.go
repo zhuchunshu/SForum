@@ -6,8 +6,11 @@ import (
 	"log/slog"
 	"sync"
 
+	extensionjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
+	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -23,15 +26,25 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 		return nil, err
 	}
 
-	registry := supportjobs.NewRegistry()
-	if registry.IsEmpty() {
-		// 当前队列基础设施已就绪，但业务模块的 worker 会随模块实现逐步注入。
-		return &Worker{}, nil
-	}
-
 	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL, cfg.WorkerDatabaseMaxConns)
 	if err != nil {
 		return nil, fmt.Errorf("postgres setup failed: %w", err)
+	}
+
+	registry := supportjobs.NewRegistry()
+	extensionStore := extensions.NewPostgresStore(pool)
+	themeBuilder := themeruntime.NewBuilder(themeruntime.Config{
+		ReleaseRoot:    cfg.ThemeReleaseRoot,
+		WebRoot:        cfg.ThemeWebRoot,
+		BunPath:        cfg.ThemeBunPath,
+		BuildTimeout:   cfg.ThemeBuildTimeout,
+		PreviewTimeout: cfg.ThemePreviewTimeout,
+		PreviewPath:    cfg.ThemePreviewPath,
+	})
+	extensionjobs.RegisterThemeActivationWorker(registry, extensionStore, themeBuilder)
+	if registry.IsEmpty() {
+		pool.Close()
+		return &Worker{}, nil
 	}
 
 	workers, err := registry.Build()

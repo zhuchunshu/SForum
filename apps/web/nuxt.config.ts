@@ -13,6 +13,12 @@ const adminRoutePrefix = normalizeAdminRoutePrefix(
   process.env.NUXT_PUBLIC_ADMIN_ROUTE_PREFIX ||
   process.env.ADMIN_ROUTE_PREFIX
 )
+const defaultThemeLayer = '../../extensions/builtin/themes/sforum-default/layer'
+const uploadedThemeLayer = process.env.SFORUM_THEME_LAYER?.trim()
+const themeLayers = uploadedThemeLayer
+  ? [uploadedThemeLayer, defaultThemeLayer]
+  : [defaultThemeLayer]
+const nitroOutputDir = process.env.SFORUM_NITRO_OUTPUT_DIR?.trim()
 const nuxtGeneratedIgnores = [
   '.nuxt/**',
   '.nuxt-build/**',
@@ -59,10 +65,11 @@ function rewriteAdminPageRoutes(pages: NuxtPage[]) {
 }
 
 export default defineNuxtConfig({
-  extends: ['../../extensions/builtin/themes/sforum-default/layer'],
+  extends: themeLayers,
   modules: ['@nuxt/ui', '@nuxtjs/i18n', '@nuxtjs/seo'],
   ssr: true,
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
+  nitro: nitroOutputDir ? { output: { dir: nitroOutputDir } } : {},
   ignore: nuxtGeneratedIgnores,
   css: ['~/assets/css/main.css', '~/assets/css/sforum-components.css'],
   devtools: { enabled: true },

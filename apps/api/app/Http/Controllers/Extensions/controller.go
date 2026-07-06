@@ -142,6 +142,9 @@ func (h *Controller) activate(c fiber.Ctx) error {
 	if err != nil {
 		return mapExtensionError(err)
 	}
+	if item.ThemeRelease != nil && item.ThemeRelease.Status == extensions.ThemeReleaseQueued {
+		return apphttp.JSON(c, fiber.StatusAccepted, apphttp.MessageOK, item)
+	}
 	return apphttp.OK(c, item)
 }
 

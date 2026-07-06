@@ -216,8 +216,9 @@
       "disabled": "扩展已禁用。",
       "restarted": "插件运行时已重启。",
       "verified": "扩展预检已通过。",
-      "themeActivated": "默认主题已恢复为当前主题。",
-      "themeActivationUnavailable": "当前版本还不能应用上传主题。",
+      "themeActivated": "主题已激活。",
+      "themeActivationQueued": "主题构建已排队。",
+      "themeActivationUnavailable": "主题激活失败。",
       "actionFailed": "扩展操作失败。",
       "stats": {
         "plugins": "插件",
@@ -238,8 +239,19 @@
       "restartUnavailable": "插件运行时未运行，暂不能重启。",
       "manage": "管理",
       "verify": "验证",
+      "activateTheme": "激活主题",
+      "retryActivation": "重试激活",
       "restoreDefaultTheme": "恢复默认主题",
       "activeTheme": "当前主题",
+      "themeRelease": {
+        "queued": "排队中",
+        "building": "构建中",
+        "built": "已构建",
+        "activating": "切换中",
+        "active": "当前主题",
+        "failed": "激活失败",
+        "rolled_back": "已回滚"
+      },
       "source": {
         "builtin": "内置"
       },
@@ -289,11 +301,11 @@
       "themes": {
         "metaTitle": "主题管理",
         "title": "主题管理",
-        "intro": "管理声明为 theme 的主题包。当前版本只应用受保护的 SForum 默认主题，上传主题可验证但暂不能应用。",
+        "intro": "管理声明为 theme 的主题包。上传主题会先排队构建、健康检查，再切换为当前主题。",
         "count": "已安装 {count} 个主题",
         "emptyTitle": "还没有安装主题",
-        "emptyDescription": "上传 type 为 theme 的扩展 ZIP 后，可以在这里验证 Nuxt Layer 边界；应用上传主题需要后续构建与回滚运行时。",
-        "runtimeUnavailable": "当前版本暂不应用上传主题；可以先验证包结构，等 Nuxt 重建、健康检查和回滚运行时接入后再激活。"
+        "emptyDescription": "上传 type 为 theme 的扩展 ZIP 后，可以在这里激活 Nuxt Layer 主题。",
+        "runtimeUnavailable": "主题运行时暂不可用。"
       },
       "settings": {
         "metaTitle": "扩展设置",

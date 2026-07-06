@@ -87,6 +87,13 @@ assert(nuxtConfig.includes('NUXT_PUBLIC_ADMIN_ROUTE_PREFIX'), 'Nuxt config shoul
 assert(nuxtConfig.includes('pages:extend'), 'Nuxt config should rewrite admin page routes')
 assert(nuxtConfig.includes('rewriteAdminPageRoutes'), 'Nuxt config should use a focused admin route rewrite helper')
 
+const adminExtensionsHelper = read('apps/web/app/utils/adminExtensions.ts')
+for (const requiredThemeState of ["'activate'", "'queued'", "'building'", "'activating'", "'failed'"]) {
+  assert(adminExtensionsHelper.includes(requiredThemeState), `Theme action state should include ${requiredThemeState}`)
+}
+assert(adminExtensionsHelper.includes('themeRelease?.status'), 'Theme action state should inspect latest theme release status')
+assert(!adminExtensionsHelper.includes("'verifyOnly'"), 'Theme action state should not keep the old verify-only runtime placeholder')
+
 const envExample = read('.env.example')
 const productionEnvExample = read('.env.production.example')
 assert(envExample.includes('NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/control-panel'), '.env.example should document the admin route prefix')

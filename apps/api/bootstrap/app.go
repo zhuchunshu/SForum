@@ -13,8 +13,10 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/extractors"
 	"github.com/gofiber/fiber/v3/middleware/session"
+	"github.com/riverqueue/river"
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
+	extensionjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	database "github.com/zhuchunshu/sforum/apps/api/app/Models/Database"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
@@ -26,6 +28,7 @@ import (
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
+	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
 	"github.com/zhuchunshu/sforum/apps/api/config"
@@ -105,8 +108,25 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	databaseStore := database.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
 	extensionRuntime := newExtensionRuntimeManager(extensionStore)
-	extensionService := extensions.NewServiceWithBuiltinsAndRuntime(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime, nil)
+	jobClient, err := supportjobs.NewClient(pool, supportjobs.FromAppConfig(cfg), river.NewWorkers())
+	if err != nil {
+		extensionRuntime.Close(ctx)
+		if closeErr := humanVerifyStore.Close(); closeErr != nil {
+			logger.Warn("human verification redis close failed", "error", closeErr)
+		}
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("job dispatcher setup failed: %w", err)
+	}
+	jobDispatcher := supportjobs.NewDispatcher(jobClient)
+	themeDispatcher := extensionjobs.ActivationDispatcherAdapter{Dispatcher: jobDispatcher}
+	extensionService := extensions.NewServiceWithThemeActivation(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime, nil, themeDispatcher)
 	if _, err := extensionService.SyncBuiltins(ctx); err != nil {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
 		extensionRuntime.Close(ctx)
 		if closeErr := humanVerifyStore.Close(); closeErr != nil {
 			logger.Warn("human verification redis close failed", "error", closeErr)
@@ -120,6 +140,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	if items, err := extensionStore.List(ctx); err == nil {
 		extensionRuntime.Reconcile(ctx, items)
 	} else {
+		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+			logger.Warn("job dispatcher stop failed", "error", stopErr)
+		}
 		extensionRuntime.Close(ctx)
 		if closeErr := humanVerifyStore.Close(); closeErr != nil {
 			logger.Warn("human verification redis close failed", "error", closeErr)
@@ -135,7 +158,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, extensionRuntime)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
-	extensionsProvider := providers.NewExtensionsProviderWithRuntime(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime)
+	extensionsProvider := providers.NewExtensionsProviderWithRuntimeAndThemeActivation(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime, themeDispatcher)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
 		RouteProviders: []httpserver.RouteProvider{identityProvider, forumProvider, optionsProvider, attachmentsProvider, databaseProvider, extensionsProvider},
@@ -146,6 +169,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		App:  app,
 		Addr: apiAddress(cfg),
 		close: func() {
+			if err := supportjobs.Stop(context.Background(), jobClient); err != nil {
+				logger.Warn("job dispatcher stop failed", "error", err)
+			}
 			extensionRuntime.Close(context.Background())
 			if err := redisStorage.Close(); err != nil {
 				logger.Warn("redis session storage close failed", "error", err)

@@ -27,10 +27,17 @@ func NewExtensionsProvider(store extensions.Store, users identity.ActorStore, se
 }
 
 func NewExtensionsProviderWithRuntime(store extensions.Store, users identity.ActorStore, sessions *authsession.Manager, extensionRoot string, builtinRoot string, runtime extensionRuntime) *ExtensionsProvider {
+	return NewExtensionsProviderWithRuntimeAndThemeActivation(store, users, sessions, extensionRoot, builtinRoot, runtime, nil)
+}
+
+func NewExtensionsProviderWithRuntimeAndThemeActivation(store extensions.Store, users identity.ActorStore, sessions *authsession.Manager, extensionRoot string, builtinRoot string, runtime extensionRuntime, dispatcher extensions.ThemeActivationDispatcher) *ExtensionsProvider {
 	service := extensions.NewServiceWithBuiltins(store, extensionRoot, builtinRoot)
+	if dispatcher != nil {
+		service = extensions.NewServiceWithThemeActivation(store, extensionRoot, builtinRoot, nil, nil, dispatcher)
+	}
 	var gateway extensionscontroller.RouteGateway
 	if runtime != nil {
-		service = extensions.NewServiceWithBuiltinsAndRuntime(store, extensionRoot, builtinRoot, runtime, nil)
+		service = extensions.NewServiceWithThemeActivation(store, extensionRoot, builtinRoot, runtime, nil, dispatcher)
 		gateway = extensionRouteGateway{runtime: runtime, gateway: extensionsruntime.NewRouteGateway()}
 	}
 	return &ExtensionsProvider{

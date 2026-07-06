@@ -1,7 +1,8 @@
 export type AdminExtensionType = 'plugin' | 'theme'
 export type AdminExtensionStatus = 'installed' | 'enabled' | 'disabled'
 export type AdminExtensionSource = 'builtin' | 'uploaded'
-export type AdminThemeActionState = 'active' | 'activateDefault' | 'verifyOnly'
+export type AdminThemeReleaseStatus = 'queued' | 'building' | 'built' | 'activating' | 'active' | 'failed' | 'rolled_back'
+export type AdminThemeActionState = 'active' | 'activateDefault' | 'activate' | 'queued' | 'building' | 'activating' | 'failed'
 export type AdminRuntimeState = 'stopped' | 'starting' | 'running' | 'failed'
 export type AdminExtensionEventKind = 'observe' | 'validate' | 'filter'
 export type AdminExtensionDeliveryStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'skipped'
@@ -96,6 +97,17 @@ export type AdminExtensionRuntime = {
   providerCount: number
 }
 
+export type AdminThemeRelease = {
+  id: number
+  extensionId: string
+  extensionVersion: string
+  status: AdminThemeReleaseStatus
+  message: string
+  createdAt: string
+  updatedAt: string
+  activatedAt?: string
+}
+
 export type AdminExtension = {
   id: string
   name: string
@@ -107,6 +119,7 @@ export type AdminExtension = {
   isDeletable?: boolean
   manifest: AdminExtensionManifest
   runtime?: AdminExtensionRuntime
+  themeRelease?: AdminThemeRelease
   packagePath: string
   installedAt: string
   updatedAt: string
@@ -193,7 +206,19 @@ export function themeActionState(item: AdminExtension): AdminThemeActionState {
   if (item.id === 'sforum.default-theme' && item.source === 'builtin') {
     return 'activateDefault'
   }
-  return 'verifyOnly'
+  if (item.themeRelease?.status === 'queued') {
+    return 'queued'
+  }
+  if (item.themeRelease?.status === 'building') {
+    return 'building'
+  }
+  if (item.themeRelease?.status === 'activating') {
+    return 'activating'
+  }
+  if (item.themeRelease?.status === 'failed') {
+    return 'failed'
+  }
+  return 'activate'
 }
 
 export function capabilityCount(item: AdminExtension) {

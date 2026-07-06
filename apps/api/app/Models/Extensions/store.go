@@ -12,6 +12,10 @@ type Store interface {
 	Disable(ctx context.Context, id string) (Extension, error)
 	ActivateTheme(ctx context.Context, id string) (Extension, error)
 	ActiveTheme(ctx context.Context) (Extension, error)
+	CreateThemeRelease(ctx context.Context, input ThemeReleaseInput) (ThemeRelease, error)
+	UpdateThemeRelease(ctx context.Context, input ThemeReleaseUpdate) (ThemeRelease, error)
+	LatestThemeRelease(ctx context.Context, extensionID string) (ThemeRelease, error)
+	ActiveThemeRelease(ctx context.Context) (ThemeRelease, error)
 	CreateEvent(ctx context.Context, input EventInput) (ExtensionEvent, error)
 	ListEvents(ctx context.Context, extensionID string, limit int) ([]ExtensionEvent, error)
 	ListSettings(ctx context.Context, extensionID string) (map[string]string, error)
@@ -36,4 +40,8 @@ type RuntimeManager interface {
 
 type ThemeBuilder interface {
 	Build(ctx context.Context, extension Extension) error
+}
+
+type ThemeActivationDispatcher interface {
+	EnqueueThemeActivation(ctx context.Context, release ThemeRelease) error
 }

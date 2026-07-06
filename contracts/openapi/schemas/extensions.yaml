@@ -375,6 +375,56 @@ ExtensionRuntimeStatus:
       type: integer
     providerCount:
       type: integer
+ThemeRelease:
+  type: object
+  required:
+  - id
+  - extensionId
+  - extensionVersion
+  - status
+  - layerPath
+  - artifactPath
+  - serverEntry
+  - message
+  - createdAt
+  - updatedAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    extensionId:
+      type: string
+    extensionVersion:
+      type: string
+    status:
+      type: string
+      enum:
+      - queued
+      - building
+      - built
+      - activating
+      - active
+      - failed
+      - rolled_back
+    layerPath:
+      type: string
+    artifactPath:
+      type: string
+    serverEntry:
+      type: string
+    message:
+      type: string
+    buildLog:
+      type: string
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+    activatedAt:
+      type: string
+      format: date-time
 Extension:
   type: object
   required:
@@ -411,6 +461,8 @@ Extension:
       "$ref": "#/ExtensionManifest"
     runtime:
       "$ref": "#/ExtensionRuntimeStatus"
+    themeRelease:
+      "$ref": "#/ThemeRelease"
     packagePath:
       type: string
       description: Server-local package path, visible only to extension managers.
@@ -528,6 +580,7 @@ ExtensionEvent:
       - enable_failed
       - disabled
       - theme_activated
+      - theme_activation_queued
     message:
       type: string
     createdAt:

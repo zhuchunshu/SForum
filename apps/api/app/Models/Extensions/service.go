@@ -21,11 +21,12 @@ import (
 const maxArchiveBytes = 50 * 1024 * 1024
 
 type Service struct {
-	store         Store
-	extensionRoot string
-	builtinRoot   string
-	runtime       RuntimeManager
-	themeBuilder  ThemeBuilder
+	store                     Store
+	extensionRoot             string
+	builtinRoot               string
+	runtime                   RuntimeManager
+	themeBuilder              ThemeBuilder
+	themeActivationDispatcher ThemeActivationDispatcher
 }
 
 func NewService(store Store, extensionRoot string) *Service {
@@ -73,6 +74,12 @@ func NewServiceWithBuiltinsAndRuntime(store Store, extensionRoot string, builtin
 		runtime:       runtime,
 		themeBuilder:  themeBuilder,
 	}
+}
+
+func NewServiceWithThemeActivation(store Store, extensionRoot string, builtinRoot string, runtime RuntimeManager, themeBuilder ThemeBuilder, dispatcher ThemeActivationDispatcher) *Service {
+	service := NewServiceWithBuiltinsAndRuntime(store, extensionRoot, builtinRoot, runtime, themeBuilder)
+	service.themeActivationDispatcher = dispatcher
+	return service
 }
 
 type LocalRuntimePreflight struct{}
@@ -538,7 +545,40 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 		return Extension{}, ErrThemeActivationRequired
 	}
 	if extension.ID != DefaultThemeID || extension.Source != SourceBuiltin {
-		return Extension{}, ErrThemeRuntimeUnavailable
+		if err := s.verifyExtension(ctx, extension); err != nil {
+			s.recordEnableFailure(ctx, actor, extension.ID, err)
+			return Extension{}, err
+		}
+		layerPath, ok := installedFilePath(extension, extension.Manifest.Frontend.Layer)
+		if !ok {
+			return Extension{}, fmt.Errorf("%w: theme layer is unavailable", ErrBuildFailed)
+		}
+		release, err := s.store.CreateThemeRelease(ctx, ThemeReleaseInput{
+			ExtensionID: extension.ID,
+			Version:     extension.Version,
+			LayerPath:   layerPath,
+		})
+		if err != nil {
+			return Extension{}, err
+		}
+		if s.themeActivationDispatcher != nil {
+			if err := s.themeActivationDispatcher.EnqueueThemeActivation(ctx, release); err != nil {
+				_, _ = s.store.UpdateThemeRelease(ctx, ThemeReleaseUpdate{
+					ID:      release.ID,
+					Status:  ThemeReleaseFailed,
+					Message: err.Error(),
+				})
+				return Extension{}, err
+			}
+		}
+		_, _ = s.store.CreateEvent(ctx, EventInput{
+			ExtensionID: extension.ID,
+			ActorUserID: actor.ID,
+			Action:      EventThemeActivationQueued,
+			Message:     "Theme activation queued.",
+		})
+		extension.ThemeRelease = &release
+		return extension, nil
 	}
 	if err := s.verifyExtension(ctx, extension); err != nil {
 		s.recordEnableFailure(ctx, actor, extension.ID, err)
@@ -643,6 +683,11 @@ func (s *Service) decorateRuntime(ctx context.Context, item Extension) Extension
 	if item.Type == TypePlugin && s.runtime != nil {
 		status := s.runtime.Status(ctx, item)
 		item.Runtime = &status
+	}
+	if item.Type == TypeTheme {
+		if release, err := s.store.LatestThemeRelease(ctx, item.ID); err == nil {
+			item.ThemeRelease = &release
+		}
 	}
 	return item
 }
