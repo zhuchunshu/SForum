@@ -230,6 +230,14 @@ This is the entry point for project memory.
   synchronous filter event for `topic.before_create`. The Go developer console
   at `apps/api/cmd/sforum` can scaffold plugins and themes interactively or via
   `--no-interaction`.
+- Extension Platform v2 direction is accepted: SForum should offer
+  WordPress-like operator ergonomics without copying WordPress' PHP include
+  runtime. Plugins extend core only through manifests, subprocess RPC, provider
+  slots, events/filters, controlled routes, settings, and host-owned admin
+  pages. Sidebar menu injection is opt-in through manifest metadata, `Manage`
+  resolves to an in-admin route, `mail.provider` is the first recommended full
+  vertical slice, and uploaded theme activation must wait for a build,
+  health-check, preview, atomic switch, and rollback pipeline.
 - Architecture guidance now treats SForum core as the host framework rather
   than a monolith of optional product verticals. Core should expose the stable
   interfaces that make plugins easy to build: events, provider slots, typed

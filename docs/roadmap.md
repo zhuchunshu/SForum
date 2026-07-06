@@ -47,3 +47,29 @@
   plugin/provider-slot design is accepted.
 - Production backup, restore, deploy status, logs, and rollback workflows in
   `deploy.sh`.
+
+## Extension Platform v2 Track
+
+This track can progress alongside the core forum milestones. The target is a
+WordPress-like operator experience on top of SForum's controlled Go API + Nuxt
+SSR extension model.
+
+- Make plugins truly usable end to end: install, manifest review, permissions
+  and risk display, subprocess startup, health checks, route proxying, settings,
+  logs, event deliveries, disable cleanup, and failed-enable rollback.
+- Use `mail.provider` as the first real vertical slice so Provider Slots,
+  secrets, no-op fallback, admin selection/reset UI, SDK examples, and
+  extension error reporting are exercised together.
+- Promote Provider Slots into first-class contracts, starting with mail,
+  notification channels, payments, search, attachment storage, editor
+  sanitization, and auth risk scoring.
+- Keep uploaded theme activation behind a build pipeline: validate, build in a
+  temporary location, health-check, preview, admin confirmation, atomic switch,
+  and rollback.
+- Complete lifecycle and developer experience: upgrade, rollback, uninstall,
+  migrations, dependency checks, compatibility checks, signatures, trusted
+  sources, marketplace metadata, local debugging, packaging, docs, and example
+  plugins.
+
+See `docs/extension-platform-v2.md` for the detailed product rules and staged
+plan.

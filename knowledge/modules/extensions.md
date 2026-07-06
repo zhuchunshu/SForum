@@ -78,6 +78,12 @@ and plugin runtime v1.
 - Theme rows show `enabled` as "current theme" rather than "enabled".
   Uploaded themes can be verified but cannot be activated in v1; attempts
   return `extension.theme_runtime_unavailable`.
+- Extension Platform v2 direction is accepted. The target is a complete
+  operator loop: upload, manifest inspection, permission/risk review, enable or
+  activate, configure, observe logs/errors/event deliveries, disable or
+  roll back, and restore safe defaults. SForum should feel WordPress-like to
+  site operators while keeping plugins and themes behind explicit Go API + Nuxt
+  SSR contracts.
 
 ## Boundaries
 
@@ -106,6 +112,10 @@ and plugin runtime v1.
   `extensions/builtin/themes/sforum-default/layer` from the web Nuxt config.
   Uploaded theme activation must wait for a Nuxt rebuild, health-check, and
   rollback runtime.
+- Uploaded theme activation v2 must behave like a deployment pipeline:
+  manifest validation, temporary Nuxt build, health check, preview address,
+  administrator confirmation, atomic switch to the new frontend artifact, and
+  automatic rollback to the previous theme on failure.
 - Keep plugin `Enable/Disable` separate from theme `Activate`. Do not call
   plugin runtime hooks when activating a theme.
 - Backend plugin packages can declare a backend entry and RPC protocol. The
@@ -134,6 +144,44 @@ Required identity fields: `id`, `name`, `description`, `url`, `author`,
 Capability fields: `permissions`, `settings`, `migrations`, `backend`,
 `frontend`, `adminPages`, `routes`, `hooks`, `events`, `jobs`, and `providers`.
 
+The v2 target admin declaration is an `admin` object. Existing top-level
+`adminPages` should be compatibility-mapped during migration.
+
+```json
+{
+  "admin": {
+    "entry": "/settings",
+    "pages": [
+      {
+        "path": "/settings",
+        "label": "设置",
+        "view": "settings",
+        "menu": false
+      },
+      {
+        "path": "/dashboard",
+        "label": "控制台",
+        "view": "content",
+        "menu": true,
+        "icon": "i-lucide-layout-dashboard",
+        "order": 100
+      }
+    ]
+  }
+}
+```
+
+`admin.entry` selects the list-row `Manage` destination. Manage resolution
+should prefer `admin.entry`, then a declared `/settings` page, then the first
+declared page, then a generated system detail page. The resolved destination
+must stay inside the admin shell and must not be an external URL.
+
+Sidebar entries are opt-in. `admin.pages[].menu` defaults to `false`; only
+`menu: true` pages should appear in sidebar navigation. Disabled plugins should
+not contribute runtime menu entries. Inactive themes may keep management pages
+available but must not take over public UI or inject sidebar entries by
+default.
+
 For `type: theme`, v1 accepts only Nuxt Layer packages. The manifest must
 declare a safe, non-empty `frontend.layer` path. Themes may declare `settings`
 and `adminPages` for core-container admin pages, but must not declare backend
@@ -154,10 +202,20 @@ targets `extensions/builtin/{plugins,themes}/{id}`.
 
 ## Next Steps
 
+- Make plugins truly usable with a real `mail.provider` plugin slice: manifest
+  risk review, subprocess startup, health checks, route proxying, settings,
+  logs, event delivery visibility, disable cleanup, and failed-enable rollback.
+- Promote Provider Slots into first-class contracts, starting with
+  `mail.provider`, `notification.channel`, `payment.provider`,
+  `search.provider`, `attachment.storage.provider`,
+  `editor.sanitizer.provider`, and `auth.risk.provider`.
 - Add a real theme activation worker that writes active Nuxt layer state,
-  triggers web rebuild, runs a health check, and rolls back on failure. Only
-  then should uploaded themes be activatable.
+  triggers web rebuild, runs a health check, exposes preview, performs an
+  atomic switch, and rolls back on failure. Only then should uploaded themes be
+  activatable.
 - Add plugin author documentation for provider-slot based systems such as mail,
   notifications, and payments before building those verticals.
 - Add upgrade, rollback, and uninstall operations.
-- Add signature/trust metadata if SForum later ships an extension marketplace.
+- Add plugin migration execution, dependency checks, SForum version
+  compatibility checks, signature/trust metadata, marketplace metadata, local
+  debugging, packaging, SDK docs, and example plugins.
