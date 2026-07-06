@@ -26,8 +26,14 @@ export type AdminExtensionAdminPage = {
   description?: string
   icon?: string
   view?: 'about' | 'settings'
+  menu?: boolean
   order?: number
   permission?: string
+}
+
+export type AdminExtensionAdmin = {
+  entry?: string
+  pages?: AdminExtensionAdminPage[]
 }
 
 export type AdminExtensionManifest = {
@@ -44,6 +50,7 @@ export type AdminExtensionManifest = {
   migrations?: Array<{ path: string }>
   backend?: { entry?: string, rpc?: string, protocolVersion?: number }
   frontend?: { layer?: string }
+  admin?: AdminExtensionAdmin
   adminPages?: AdminExtensionAdminPage[]
   routes?: Array<{ path: string, methods?: string[], access?: 'public' | 'login' | 'permission', permission?: string, timeoutMs?: number }>
   hooks?: Array<{ name: string }>
@@ -195,13 +202,17 @@ export function capabilityCount(item: AdminExtension) {
     manifest.permissions?.length || 0,
     manifest.settings?.length || 0,
     manifest.migrations?.length || 0,
-    manifest.adminPages?.length || 0,
+    effectiveManifestAdminPages(manifest).length,
     manifest.routes?.length || 0,
     manifest.hooks?.length || 0,
     manifest.events?.length || 0,
     manifest.jobs?.length || 0,
     manifest.providers?.length || 0
   ].reduce((total, count) => total + count, 0)
+}
+
+function effectiveManifestAdminPages(manifest: AdminExtensionManifest) {
+  return manifest.admin?.pages?.length ? manifest.admin.pages : manifest.adminPages || []
 }
 
 export function extensionAuthorName(item: AdminExtension) {
@@ -307,13 +318,14 @@ export function extensionAdminPages(item: AdminExtension): AdminExtensionAdminPa
     }
   ]
 
-  for (const page of item.manifest.adminPages || []) {
+  for (const page of effectiveManifestAdminPages(item.manifest)) {
     pages.push({
       path: normalizeExtensionPagePath(page.path),
       label: page.label,
       description: page.description || item.manifest.description,
       icon: page.icon || defaultExtensionIcon(item.type),
       view: page.view || 'about',
+      menu: page.menu === true,
       order: page.order || 0,
       permission: page.permission
     })
@@ -328,6 +340,26 @@ export function extensionAdminPages(item: AdminExtension): AdminExtensionAdminPa
 export function findExtensionAdminPage(item: AdminExtension, path: string) {
   const normalized = normalizeExtensionPagePath(path)
   return extensionAdminPages(item).find(page => normalizeExtensionPagePath(page.path) === normalized)
+}
+
+export function extensionManagePagePath(item: AdminExtension) {
+  const pages = extensionAdminPages(item)
+  const entry = normalizeExtensionPagePath(item.manifest.admin?.entry)
+  if (item.manifest.admin?.entry && pages.some(page => normalizeExtensionPagePath(page.path) === entry)) {
+    return entry
+  }
+
+  const settings = pages.find(page => normalizeExtensionPagePath(page.path) === '/settings')
+  if (settings) {
+    return '/settings'
+  }
+
+  const declared = pages.find(page => normalizeExtensionPagePath(page.path) !== '/about')
+  return declared?.path || '/about'
+}
+
+export function extensionManageRoute(item: AdminExtension) {
+  return extensionAdminPageRoute(item.id, extensionManagePagePath(item))
 }
 
 export function extensionAdminPageRoute(extensionId: string, pagePath = '/about') {

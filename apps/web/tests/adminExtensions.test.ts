@@ -5,12 +5,15 @@ import {
   activeTheme,
   canRestartPlugin,
   capabilityCount,
+  extensionAdminPages,
   extensionDeliveryPage,
   extensionEventPage,
   extensionAuthorName,
   extensionAuthorWebsite,
+  extensionManageRoute,
   extensionStats,
   filterExtensionsByType,
+  findExtensionAdminPage,
   mergeExtensionDeliveries,
   mergeExtensionEvents,
   runtimeCapabilitySummary,
@@ -98,6 +101,43 @@ describe('admin extension helpers', () => {
     })
 
     expect(capabilityCount(item)).toBe(9)
+  })
+
+  test('resolves v2 admin pages, manage route, and legacy adminPages fallback', () => {
+    const item = extension({
+      id: 'admin.plugin',
+      name: 'Admin Plugin',
+      type: 'plugin',
+      manifest: {
+        admin: {
+          entry: '/settings',
+          pages: [
+            { path: '/settings', label: 'Settings', view: 'settings' },
+            { path: '/dashboard', label: 'Dashboard', view: 'about', menu: true, icon: 'i-lucide-layout-dashboard', order: 20 }
+          ]
+        },
+        adminPages: [{ path: '/legacy', label: 'Legacy' }]
+      }
+    })
+    const legacy = extension({
+      id: 'legacy.plugin',
+      name: 'Legacy Plugin',
+      type: 'plugin',
+      manifest: {
+        adminPages: [{ path: '/settings', label: 'Legacy Settings', view: 'settings', menu: true }]
+      }
+    })
+    const generatedOnly = extension({
+      id: 'plain.plugin',
+      name: 'Plain Plugin',
+      type: 'plugin'
+    })
+
+    expect(extensionAdminPages(item).map(page => page.path)).toEqual(['/about', '/settings', '/dashboard'])
+    expect(findExtensionAdminPage(item, 'dashboard')?.label).toBe('Dashboard')
+    expect(extensionManageRoute(item)).toBe('/extensions/admin.plugin/pages/settings')
+    expect(extensionManageRoute(legacy)).toBe('/extensions/legacy.plugin/pages/settings')
+    expect(extensionManageRoute(generatedOnly)).toBe('/extensions/plain.plugin/pages/about')
   })
 
   test('resolves extension author display and website fallback', () => {
