@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, extensionAuthorName, extensionAuthorWebsite, extensionManageRoute, filterExtensionsByType, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
+import { capabilityCount, extensionAuthorName, extensionAuthorWebsite, extensionManageRoute, filterExtensionsByType, hasThemeActivationInProgress, themeActionState, themeActivationProgress, themeStatusLabelKey, type AdminExtension } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -26,10 +26,83 @@ const {
 } = await useAdminExtensionsManager()
 
 const themes = computed(() => filterExtensionsByType(extensions.value, 'theme'))
+const activationPolling = computed(() => hasThemeActivationInProgress(themes.value))
+const expandedLogReleaseIds = ref<Record<number, boolean>>({})
+let activationPollTimer: ReturnType<typeof setInterval> | null = null
 
 function themeLabel(item: (typeof themes.value)[number]) {
   return t(themeStatusLabelKey(item))
 }
+
+function releaseProgress(item: AdminExtension) {
+  return themeActivationProgress(item.themeRelease)
+}
+
+function themeBuildLog(item: AdminExtension) {
+  return item.themeRelease?.buildLog?.trim() || ''
+}
+
+function hasBuildLogToggle(item: AdminExtension) {
+  return Boolean(item.themeRelease && (themeBuildLog(item) || item.themeRelease.status === 'failed'))
+}
+
+function isBuildLogOpen(item: AdminExtension) {
+  const release = item.themeRelease
+  if (!release) {
+    return false
+  }
+  if (Object.prototype.hasOwnProperty.call(expandedLogReleaseIds.value, release.id)) {
+    return expandedLogReleaseIds.value[release.id]
+  }
+  return release.status === 'failed'
+}
+
+function toggleBuildLog(item: AdminExtension) {
+  const release = item.themeRelease
+  if (!release) {
+    return
+  }
+  expandedLogReleaseIds.value = {
+    ...expandedLogReleaseIds.value,
+    [release.id]: !isBuildLogOpen(item)
+  }
+}
+
+function startActivationPolling() {
+  if (activationPollTimer || !import.meta.client) {
+    return
+  }
+  activationPollTimer = setInterval(async () => {
+    if (pending.value) {
+      return
+    }
+    await refresh()
+  }, 2000)
+}
+
+function stopActivationPolling() {
+  if (!activationPollTimer) {
+    return
+  }
+  clearInterval(activationPollTimer)
+  activationPollTimer = null
+}
+
+watch(activationPolling, (active) => {
+  if (active) {
+    startActivationPolling()
+  } else {
+    stopActivationPolling()
+  }
+})
+
+onMounted(() => {
+  if (activationPolling.value) {
+    startActivationPolling()
+  }
+})
+
+onBeforeUnmount(stopActivationPolling)
 
 useSeoMeta({
   title: t('admin.extensions.themes.metaTitle')
@@ -116,6 +189,43 @@ useSeoMeta({
           <p v-if="item.themeRelease?.message" class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
             {{ item.themeRelease.message }}
           </p>
+          <div
+            v-if="releaseProgress(item)"
+            class="mt-3 max-w-xl rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/50"
+          >
+            <div class="mb-2 flex items-center justify-between gap-3 text-xs">
+              <span class="inline-flex min-w-0 items-center gap-1.5 font-medium text-slate-700 dark:text-zinc-200">
+                <UIcon :name="releaseProgress(item)?.icon || 'i-lucide-hourglass'" class="size-3.5 shrink-0" />
+                <span class="truncate">{{ t(releaseProgress(item)?.labelKey || 'admin.extensions.themeRelease.queued') }}</span>
+              </span>
+              <span class="tabular-nums text-slate-500 dark:text-zinc-400">
+                {{ releaseProgress(item)?.percent || 0 }}%
+              </span>
+            </div>
+            <UProgress
+              :model-value="releaseProgress(item)?.percent || 0"
+              :color="releaseProgress(item)?.color || 'neutral'"
+              size="sm"
+            />
+            <p class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+              {{ t(releaseProgress(item)?.detailKey || 'admin.extensions.themeProgress.queued') }}
+            </p>
+            <div v-if="hasBuildLogToggle(item)" class="mt-3">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                :icon="isBuildLogOpen(item) ? 'i-lucide-chevron-up' : 'i-lucide-file-text'"
+                @click="toggleBuildLog(item)"
+              >
+                {{ isBuildLogOpen(item) ? t('admin.extensions.hideBuildLog') : t('admin.extensions.viewBuildLog') }}
+              </UButton>
+              <pre
+                v-if="isBuildLogOpen(item)"
+                class="mt-2 max-h-48 overflow-auto rounded-md border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
+              >{{ themeBuildLog(item) || t('admin.extensions.emptyBuildLog') }}</pre>
+            </div>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <UButton

@@ -165,10 +165,11 @@ This is the entry point for project memory.
   controllers and routes, `app/Providers` owns provider wiring,
   `app/Models/*` owns domain logic, and `database/*` owns migrations, SQL, and
   generated `sqlc` code.
-- Forum taxonomy Task 1 is implemented: `category_groups`, category ordering
-  and default-sort columns, `tags`, `topic_tags`, `tag.manage`, and public
-  runtime options for default category and tag policy now have schema/model
-  foundations and focused backend tests.
+- Forum taxonomy Phase 1 is implemented: two-level category groups/categories,
+  core tags and topic-tag joins, configurable tag creation policy, public
+  category/tag filtering pages, admin category/tag/settings screens,
+  `category.manage`/`tag.manage` permission boundaries, forum events, and
+  modular OpenAPI coverage.
 - Goose migrations now run from a shared embedded migrator. API and worker
   processes run migrations at startup when `MIGRATE_ON_STARTUP=true`, guarded
   by Goose's PostgreSQL table lock. `scripts/dev.sh` and `deploy.sh` may still
@@ -227,12 +228,15 @@ This is the entry point for project memory.
   row and queues a River `extension.theme_activate` job, the worker builds an
   isolated Nuxt/Nitro artifact and health-checks it, and the web supervisor
   follows `theme-releases/current.json` to switch Nitro servers while keeping
-  the previous release available. Plugin runtime v1 now starts enabled plugin
-  subprocesses through HashiCorp go-plugin, proxies declared plugin routes,
-  emits lifecycle hooks, and exposes provider slot defaults. Built-in sync
-  prunes stale built-in extension rows, and verify/enable operations require
-  the active package path and installed manifest to still exist. Container
-  images now copy built-in themes from the repository root into
+  the previous release available. Uploaded themes are incremental Nuxt Layer
+  overlays: their files override the protected default theme, and missing
+  pages, layouts, components, or assets inherit from `sforum.default-theme`.
+  Plugin runtime v1 now starts enabled plugin subprocesses through HashiCorp
+  go-plugin, proxies declared plugin routes, emits lifecycle hooks, and exposes
+  provider slot defaults. Built-in sync prunes stale built-in extension rows,
+  and verify/enable operations require the active package path and installed
+  manifest to still exist. Container images now copy built-in themes from the
+  repository root into
   `/app/extensions/builtin`; extension manifests now require `description`,
   `url`, and `author` metadata. Plugins and themes can declare core-container
   admin pages and extension settings under the fixed Extensions admin
@@ -331,6 +335,8 @@ This is the entry point for project memory.
 - `decisions/2026-07-06-plugin-enable-theme-activate-default-theme.md` -
   accepted plugin enable vs theme activate semantics and default-theme public
   UI ownership.
+- `decisions/2026-07-07-incremental-theme-fallback.md` - accepted uploaded
+  theme incremental overlay behavior with the default theme as final fallback.
 - `decisions/2026-07-06-plugin-event-extension-points.md` - accepted explicit
   plugin event, listener delivery, and filter extension-point architecture.
 - `decisions/2026-07-05-runtime-language-pack-management.md` - accepted runtime
@@ -408,6 +414,8 @@ This is the entry point for project memory.
 - `sessions/2026-07-07-theme-activation-runtime.md` - uploaded theme
   activation runtime, River job, web supervisor, Docker volume, admin states,
   and verification notes.
+- `sessions/2026-07-07-incremental-theme-fallback.md` - incremental uploaded
+  theme overlay contract, fallback tests, and knowledge-base update.
 - `sessions/2026-07-04-permission-aware-development-guidelines.md` -
   permission-aware feature development guideline handoff.
 - `sessions/2026-07-05-auth-session-restart-resilience.md` - frontend auth

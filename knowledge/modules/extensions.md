@@ -122,9 +122,12 @@ and plugin runtime v1.
 - Theme packages can declare a Nuxt Layer path. Uploaded theme activation is a
   deployment-like pipeline: manifest validation, queued release row, temporary
   Nuxt build, preview health check, atomic `current.json` switch, and web
-  supervisor restart onto the new Nitro server. Multi-node rollout, signed
-  marketplace trust, arbitrary theme dependency installation, and administrator
-  preview approval are still future work.
+  supervisor restart onto the new Nitro server. The selected uploaded layer is
+  applied before the protected default theme layer, so themes may be incremental
+  overlays that omit public pages, layouts, components, or assets and inherit
+  them from `sforum.default-theme`. Multi-node rollout, signed marketplace
+  trust, arbitrary theme dependency installation, and administrator preview
+  approval are still future work.
 - Keep plugin `Enable/Disable` separate from theme `Activate`. Do not call
   plugin runtime hooks when activating a theme.
 - Backend plugin packages can declare a backend entry and RPC protocol. The
@@ -192,11 +195,14 @@ available but must not take over public UI or inject sidebar entries by
 default.
 
 For `type: theme`, v1 accepts only Nuxt Layer packages. The manifest must
-declare a safe, non-empty `frontend.layer` path. Themes may declare `settings`
-and `adminPages` for core-container admin pages, but must not declare backend
-runtime or plugin execution capabilities: `backend`, `routes`, `hooks`,
-`events`, `jobs`, `providers`, `migrations`, or `permissions`. Invalid theme
-manifests use the existing 422 envelope with reason `extension.manifest_invalid`.
+declare a safe, non-empty `frontend.layer` path. The layer directory must exist,
+but it may contain only the files the theme wants to override; missing files
+fall back to the protected default theme during Nuxt layer resolution. Themes
+may declare `settings` and `adminPages` for core-container admin pages, but must
+not declare backend runtime or plugin execution capabilities: `backend`,
+`routes`, `hooks`, `events`, `jobs`, `providers`, `migrations`, or
+`permissions`. Invalid theme manifests use the existing 422 envelope with reason
+`extension.manifest_invalid`.
 
 ## Developer Console
 

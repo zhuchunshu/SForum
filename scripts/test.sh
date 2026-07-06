@@ -28,5 +28,14 @@ node tests/validate-homepage.js
 echo "Running theme runtime validation..."
 node tests/validate-theme-runtime.js
 
+echo "Running theme activation progress validation..."
+node tests/validate-theme-activation-progress.js
+
+echo "Running development worker script validation..."
+node tests/validate-dev-worker-script.js
+
+echo "Running Signal Garden theme validation..."
+node tests/validate-signal-garden-theme.js
+
 echo "Running SF component library validation..."
 node tests/validate-sf-components.js

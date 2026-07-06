@@ -26,6 +26,7 @@ func NewController(service *forum.Service, users identity.ActorStore, sessions *
 type createTopicRequest struct {
 	CategorySlug string             `json:"categorySlug"`
 	Title        string             `json:"title"`
+	TagSlugs     []string           `json:"tagSlugs"`
 	Content      forum.ContentInput `json:"content"`
 }
 
@@ -46,11 +47,28 @@ func (h *Controller) categories(c fiber.Ctx) error {
 	return apphttp.OK(c, items)
 }
 
+func (h *Controller) categoryGroups(c fiber.Ctx) error {
+	items, err := h.service.ListCategoryGroups(c.Context())
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, items)
+}
+
+func (h *Controller) tags(c fiber.Ctx) error {
+	items, err := h.service.ListTags(c.Context(), false)
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, items)
+}
+
 func (h *Controller) topics(c fiber.Ctx) error {
 	list, err := h.service.ListTopics(c.Context(), forum.TopicListInput{
 		Page:         queryInt(c, "page"),
 		PerPage:      queryInt(c, "perPage"),
 		CategorySlug: c.Query("categorySlug"),
+		TagSlug:      c.Query("tagSlug"),
 		Query:        c.Query("query"),
 	})
 	if err != nil {
@@ -71,6 +89,7 @@ func (h *Controller) createTopic(c fiber.Ctx) error {
 	topic, err := h.service.CreateTopic(c.Context(), actor, forum.CreateTopicInput{
 		CategorySlug: req.CategorySlug,
 		Title:        req.Title,
+		TagSlugs:     req.TagSlugs,
 		Content:      req.Content,
 	})
 	if err != nil {
@@ -187,6 +206,12 @@ func mapForumError(err error) error {
 		return fiber.NewError(fiber.StatusNotFound, forum.CodeCommentNotFound)
 	case errors.Is(err, forum.ErrTopicClosed):
 		return fiber.NewError(fiber.StatusConflict, forum.CodeTopicClosed)
+	case errors.Is(err, forum.ErrInvalidTag):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidTag)
+	case errors.Is(err, forum.ErrTagNotFound):
+		return fiber.NewError(fiber.StatusNotFound, forum.CodeTagNotFound)
+	case errors.Is(err, forum.ErrInvalidSettings):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidSettings)
 	default:
 		return err
 	}

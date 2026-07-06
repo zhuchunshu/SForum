@@ -15,10 +15,12 @@ Options:
   -h, --help          Show this help message.
 
 Default mode starts only development dependency services: PostgreSQL, Redis,
-Meilisearch, and Mailpit. Run the frontend and backend locally with:
+Meilisearch, and Mailpit. Run the frontend, API, and background worker locally
+with:
 
   cd apps/web && bun run dev
   ./scripts/api-dev.sh
+  ./scripts/worker-dev.sh
 USAGE
 }
 
@@ -120,6 +122,7 @@ fi
 echo "API/worker startup still follows MIGRATE_ON_STARTUP=${MIGRATE_ON_STARTUP:-true}."
 echo "Then run: cd apps/web && bun run dev"
 echo "Then run: ./scripts/api-dev.sh"
+echo "For background jobs such as theme activation, also run: ./scripts/worker-dev.sh"
 echo "Use './scripts/dev.sh --build' after Dockerfile or dependency changes."
 
 if [ "$PRINT_COMMAND" -eq 1 ]; then

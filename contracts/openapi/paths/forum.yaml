@@ -9,6 +9,28 @@ categories:
           application/json:
             schema:
               "$ref": "../schemas/forum.yaml#/ApiResponseCategoryList"
+categoryGroups:
+  get:
+    summary: List public category groups
+    operationId: listCategoryGroups
+    responses:
+      '200':
+        description: Public category groups with nested public categories.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCategoryGroupList"
+tags:
+  get:
+    summary: List public active tags
+    operationId: listTags
+    responses:
+      '200':
+        description: Active public tags.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseTagList"
 topics:
   get:
     summary: List public topics
@@ -29,6 +51,7 @@ topics:
       in: query
       schema:
         type: string
+    - "$ref": "../components/parameters.yaml#/TagSlug"
     - name: query
       in: query
       schema:
@@ -62,6 +85,262 @@ topics:
         "$ref": "../components/responses.yaml#/Forbidden"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminForumCategoryGroups:
+  get:
+    summary: List category groups for admin management
+    operationId: adminListForumCategoryGroups
+    responses:
+      '200':
+        description: Category groups.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCategoryGroupList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  post:
+    summary: Create a category group
+    operationId: adminCreateForumCategoryGroup
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/forum.yaml#/CreateCategoryGroupRequest"
+    responses:
+      '201':
+        description: Category group created.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCategoryGroup"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminForumCategoryGroupByID:
+  patch:
+    summary: Update a category group
+    operationId: adminUpdateForumCategoryGroup
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CategoryGroupID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/forum.yaml#/UpdateCategoryGroupRequest"
+    responses:
+      '200':
+        description: Category group updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCategoryGroup"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminForumCategories:
+  get:
+    summary: List categories for admin management
+    operationId: adminListForumCategories
+    responses:
+      '200':
+        description: Categories.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCategoryList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  post:
+    summary: Create a category
+    operationId: adminCreateForumCategory
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/forum.yaml#/CreateCategoryRequest"
+    responses:
+      '201':
+        description: Category created.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCategory"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminForumCategoryByID:
+  patch:
+    summary: Update a category
+    operationId: adminUpdateForumCategory
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CategoryID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/forum.yaml#/UpdateCategoryRequest"
+    responses:
+      '200':
+        description: Category updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCategory"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminForumTags:
+  get:
+    summary: List tags for admin management
+    operationId: adminListForumTags
+    responses:
+      '200':
+        description: Tags including pending and disabled entries.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseTagList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  post:
+    summary: Create a tag
+    operationId: adminCreateForumTag
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/forum.yaml#/CreateTagRequest"
+    responses:
+      '201':
+        description: Tag created.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseTag"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminForumTagByID:
+  patch:
+    summary: Update a tag
+    operationId: adminUpdateForumTag
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TagID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/forum.yaml#/UpdateTagRequest"
+    responses:
+      '200':
+        description: Tag updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseTag"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminForumSettings:
+  get:
+    summary: Read forum taxonomy settings
+    operationId: adminGetForumSettings
+    responses:
+      '200':
+        description: Forum settings.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseForumSettings"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  put:
+    summary: Update forum taxonomy settings
+    operationId: adminUpdateForumSettings
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/forum.yaml#/UpdateForumSettingsRequest"
+    responses:
+      '200':
+        description: Forum settings updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseForumSettings"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminForumSettingsReset:
+  post:
+    summary: Reset forum taxonomy settings to recommended defaults
+    operationId: adminResetForumSettings
+    responses:
+      '200':
+        description: Forum settings reset.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseForumSettings"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
 topicByID:
   get:
     summary: Get public topic detail

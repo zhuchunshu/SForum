@@ -45,7 +45,7 @@ Phase 2 and Phase 3 are documented as follow-up boundaries only:
 - Test: `apps/api/database/migrations/embed_test.go`
 - Test: `apps/api/app/Models/Options/service_test.go`
 
-- [ ] **Step 1: Add the taxonomy migration**
+- [x] **Step 1: Add the taxonomy migration**
 
 Create `apps/api/database/migrations/202607070003_forum_taxonomy.sql` with this schema direction:
 
@@ -136,7 +136,7 @@ ALTER TABLE categories
 DROP TABLE IF EXISTS category_groups;
 ```
 
-- [ ] **Step 2: Add `tag.manage` permission**
+- [x] **Step 2: Add `tag.manage` permission**
 
 In `apps/api/app/Models/Identity/seeds.go`, add:
 
@@ -152,7 +152,7 @@ Add it to the forum permission catalog:
 
 Use the existing seed pattern so `super_admin` receives the permission. Do not remove or rename `category.manage`.
 
-- [ ] **Step 3: Add forum option names**
+- [x] **Step 3: Add forum option names**
 
 In `apps/api/app/Models/Options/types.go`, add:
 
@@ -163,7 +163,7 @@ NameForumTagPublicPages      = "forum.tags.public_pages"
 NameForumTagMaxPerTopic      = "forum.tags.max_per_topic"
 ```
 
-- [ ] **Step 4: Add option definitions and defaults**
+- [x] **Step 4: Add option definitions and defaults**
 
 In `apps/api/app/Models/Options/service.go`, add these definitions to `optionDefinitions`:
 
@@ -194,7 +194,7 @@ forum.default_category_slug: non-empty slug-shaped text
 
 Do not add a new dependency for slug validation. Reuse a small local regexp if no existing helper is reusable.
 
-- [ ] **Step 5: Add tests**
+- [x] **Step 5: Add tests**
 
 Add tests that prove:
 
@@ -224,7 +224,7 @@ Expected: PASS.
 - Test: `apps/api/app/Models/Forum/service_test.go`
 - Test: `apps/api/app/Support/Extensions/manager_test.go`
 
-- [ ] **Step 1: Add core forum taxonomy types**
+- [x] **Step 1: Add core forum taxonomy types**
 
 In `apps/api/app/Models/Forum/types.go`, add:
 
@@ -301,7 +301,7 @@ Extend `TopicListInput` with `TagSlug string`.
 
 Extend `CreateTopicInput` and `CreateTopicRecord` with `TagSlugs []string`.
 
-- [ ] **Step 2: Add store and settings interfaces**
+- [x] **Step 2: Add store and settings interfaces**
 
 In `store.go`, add:
 
@@ -331,7 +331,7 @@ type ResolveTopicTagsInput struct {
 
 Keep tag resolution in the store because it needs transactions and counters.
 
-- [ ] **Step 3: Resolve settings in service**
+- [x] **Step 3: Resolve settings in service**
 
 Modify `Service` to accept a `SettingsResolver`. Keep a nil-safe default resolver for tests:
 
@@ -375,7 +375,7 @@ Validate tags before rendering content:
 
 Call `ResolveTopicTags` through the store and pass the resolved tags to `CreateTopicRecord`.
 
-- [ ] **Step 4: Define exact tag creation behavior**
+- [x] **Step 4: Define exact tag creation behavior**
 
 Implement this behavior:
 
@@ -385,7 +385,7 @@ Implement this behavior:
 
 The store can return pending tags to the service, but public list/detail queries must only expose active tags.
 
-- [ ] **Step 5: Extend events**
+- [x] **Step 5: Extend events**
 
 In `apps/api/app/Support/Events/catalog.go`, update `topic.before_create` payload and patch fields to include `tagSlugs`.
 
@@ -413,7 +413,7 @@ Use clear names:
 "tag.updated"
 ```
 
-- [ ] **Step 6: Wire settings resolver in provider**
+- [x] **Step 6: Wire settings resolver in provider**
 
 In `apps/api/app/Providers/forum.go`, introduce a small adapter from the options service, for example:
 
@@ -427,7 +427,7 @@ It must read public/admin-safe values from `web_options`, normalize them to `For
 
 Update provider construction so bootstrap passes the options service to the forum provider. If bootstrap cannot pass it cleanly yet, add a temporary provider-level static resolver and leave a short Chinese comment explaining the compatibility boundary.
 
-- [ ] **Step 7: Add service tests**
+- [x] **Step 7: Add service tests**
 
 Add tests for:
 
@@ -456,7 +456,7 @@ Expected: PASS.
 - Test: `apps/api/app/Models/Forum/service_test.go`
 - Optional Test: add focused integration-style store tests only if existing test helpers already create PostgreSQL fixtures.
 
-- [ ] **Step 1: Read category groups**
+- [x] **Step 1: Read category groups**
 
 Add `ListCategoryGroups(ctx)`:
 
@@ -465,11 +465,11 @@ Add `ListCategoryGroups(ctx)`:
 - order categories by `position ASC, id ASC`
 - return empty `Categories` slices, not nil, for groups with no public categories
 
-- [ ] **Step 2: Extend category reads**
+- [x] **Step 2: Extend category reads**
 
 Update `ListCategories` to join `category_groups` and scan new category fields. Preserve `/api/v1/categories` compatibility by still returning a flat list.
 
-- [ ] **Step 3: Add tag reads**
+- [x] **Step 3: Add tag reads**
 
 Add `ListTags(ctx, includePending bool)`:
 
@@ -478,7 +478,7 @@ Add `ListTags(ctx, includePending bool)`:
 - order active tags by `topic_count DESC, name ASC, id ASC`
 - include pending/disabled in admin order by `status ASC, name ASC, id ASC`
 
-- [ ] **Step 4: Extend topic listing filters**
+- [x] **Step 4: Extend topic listing filters**
 
 In `ListTopics`, add `tagSlug` filtering:
 
@@ -498,7 +498,7 @@ AND (
 
 Adjust parameter positions carefully. Keep query filtering and category filtering intact.
 
-- [ ] **Step 5: Attach active tags to topic summaries**
+- [x] **Step 5: Attach active tags to topic summaries**
 
 After listing topics, load active tags for all listed topic IDs in one query and map them into `TopicSummary.Tags`.
 
@@ -506,7 +506,7 @@ For `GetTopic`, load active tags for that one topic and set `TopicDetail.Tags`.
 
 Avoid N+1 queries.
 
-- [ ] **Step 6: Create topics with tags transactionally**
+- [x] **Step 6: Create topics with tags transactionally**
 
 In `CreateTopic`, after inserting the topic:
 
@@ -518,7 +518,7 @@ In `CreateTopic`, after inserting the topic:
 
 If tag resolution fails, rollback the topic and post insert.
 
-- [ ] **Step 7: Implement tag resolution**
+- [x] **Step 7: Implement tag resolution**
 
 Implement `ResolveTopicTags` on `PostgresStore` using transaction-aware helpers. Because `CreateTopic` already owns a transaction, the helper should accept `pgx.Tx` internally and avoid opening a second transaction.
 
@@ -535,7 +535,7 @@ Rules:
 
 Set new tag `name` from the slug converted to a readable label by replacing `-` with spaces only. Do not invent localized names.
 
-- [ ] **Step 8: Add store-focused assertions through service fake and SQL review**
+- [x] **Step 8: Add store-focused assertions through service fake and SQL review**
 
 If no DB fixture helper exists, do not build one in this task. Cover behavior through service fake store tests and careful SQL review. The full `./scripts/test.sh` run will execute migration and compile checks.
 
@@ -557,7 +557,7 @@ Expected: PASS.
 - Test: `apps/api/app/Http/Controllers/Forum/controller_test.go`
 - Modify: `apps/api/app/Support/Localization/messages.go`
 
-- [ ] **Step 1: Add public routes**
+- [x] **Step 1: Add public routes**
 
 In `routes.go`, add:
 
@@ -568,7 +568,7 @@ api.Get("/tags", h.tags)
 
 Keep existing `/categories` route unchanged.
 
-- [ ] **Step 2: Extend public topic query**
+- [x] **Step 2: Extend public topic query**
 
 In `controller.go`, pass `tagSlug` to `TopicListInput`:
 
@@ -584,7 +584,7 @@ TagSlugs []string `json:"tagSlugs"`
 
 Pass it to `CreateTopicInput`.
 
-- [ ] **Step 3: Add public handlers**
+- [x] **Step 3: Add public handlers**
 
 Add handlers:
 
@@ -595,7 +595,7 @@ func (h *Controller) tags(c fiber.Ctx) error
 
 Both are public reads and should return `apphttp.OK`.
 
-- [ ] **Step 4: Map new forum errors**
+- [x] **Step 4: Map new forum errors**
 
 Extend `mapForumError`:
 
@@ -610,7 +610,7 @@ case errors.Is(err, forum.ErrInvalidSettings):
 
 Add localized messages in `messages.go` for these codes.
 
-- [ ] **Step 5: Add admin controller**
+- [x] **Step 5: Add admin controller**
 
 Create `admin_controller.go` in the same package. Keep it thin and call forum service methods. Required routes:
 
@@ -640,7 +640,7 @@ Authorization:
 
 Frontend route guards are not enough. API checks are authoritative.
 
-- [ ] **Step 6: Add admin service methods only as needed**
+- [x] **Step 6: Add admin service methods only as needed**
 
 Do not put admin SQL in the controller. Add service/store methods for:
 
@@ -651,7 +651,7 @@ Do not put admin SQL in the controller. Add service/store methods for:
 
 Use small request structs. Avoid a single generic "update everything" map.
 
-- [ ] **Step 7: Add controller tests**
+- [x] **Step 7: Add controller tests**
 
 Extend `controller_test.go`:
 
@@ -681,7 +681,7 @@ Expected: PASS.
 - Modify: `contracts/openapi/schemas/forum.yaml`
 - Modify: `contracts/openapi/components/parameters.yaml`
 
-- [ ] **Step 1: Add path entries**
+- [x] **Step 1: Add path entries**
 
 In `contracts/openapi.yaml`, add refs for:
 
@@ -708,11 +708,11 @@ In `contracts/openapi.yaml`, add refs for:
   "$ref": "./openapi/paths/forum.yaml#/adminForumSettingsReset"
 ```
 
-- [ ] **Step 2: Add parameters**
+- [x] **Step 2: Add parameters**
 
 In `components/parameters.yaml`, add `CategoryGroupID`, `CategoryID`, `TagID`, and `TagSlug`.
 
-- [ ] **Step 3: Extend public paths**
+- [x] **Step 3: Extend public paths**
 
 In `paths/forum.yaml`:
 
@@ -723,7 +723,7 @@ In `paths/forum.yaml`:
 
 All public reads return 200. Admin writes include 401, 403, 404, 409 where relevant, and 422.
 
-- [ ] **Step 4: Add schemas**
+- [x] **Step 4: Add schemas**
 
 In `schemas/forum.yaml`, add:
 
@@ -762,7 +762,7 @@ tags:
     "$ref": "#/TopicTagSummary"
 ```
 
-- [ ] **Step 5: Validate refs**
+- [x] **Step 5: Validate refs**
 
 Run:
 
@@ -783,7 +783,7 @@ Expected: no missing refs.
 - Modify: `apps/web/app/composables/useSForumSeo.ts` only if canonical/noindex helper cannot be expressed in the page
 - Test: `apps/web/tests/forumTaxonomy.test.ts`
 
-- [ ] **Step 1: Add frontend types**
+- [x] **Step 1: Add frontend types**
 
 Create `apps/web/app/utils/forumTaxonomy.ts` with TypeScript types matching the OpenAPI response shape:
 
@@ -809,7 +809,7 @@ export type ForumTag = {
 
 Add category group and topic summary types in the same file. Keep this file type-only plus small normalizers. Do not add fetch logic here.
 
-- [ ] **Step 2: Add API composable**
+- [x] **Step 2: Add API composable**
 
 Create `apps/web/app/composables/useForumApi.ts`:
 
@@ -818,7 +818,7 @@ Create `apps/web/app/composables/useForumApi.ts`:
 - return API envelope data
 - accept filters `{ categorySlug?: string, tagSlug?: string, query?: string, page?: number, perPage?: number }`
 
-- [ ] **Step 3: Replace homepage mocks with API data**
+- [x] **Step 3: Replace homepage mocks with API data**
 
 In the built-in theme homepage:
 
@@ -830,7 +830,7 @@ In the built-in theme homepage:
 
 Do not create marketing copy. The homepage remains the usable forum surface.
 
-- [ ] **Step 4: Add category page**
+- [x] **Step 4: Add category page**
 
 Create `/c/:categorySlug` page:
 
@@ -840,7 +840,7 @@ Create `/c/:categorySlug` page:
 - 404 if category is missing or hidden
 - title pattern: `{categoryName} - {siteName}`
 
-- [ ] **Step 5: Add tag page**
+- [x] **Step 5: Add tag page**
 
 Create `/tags/:tagSlug` page:
 
@@ -850,7 +850,7 @@ Create `/tags/:tagSlug` page:
 - 404 if the tag is missing or not active
 - title pattern: `#${tagName} - {siteName}`
 
-- [ ] **Step 6: Add frontend tests**
+- [x] **Step 6: Add frontend tests**
 
 In `apps/web/tests/forumTaxonomy.test.ts`, test:
 
@@ -879,7 +879,7 @@ Expected: PASS.
 - Modify: `apps/web/i18n/locales/en-US.json`
 - Test: `apps/web/tests/adminForum.test.ts`
 
-- [ ] **Step 1: Add admin navigation**
+- [x] **Step 1: Add admin navigation**
 
 In `adminModules.ts`, add a `Forum` folder with:
 
@@ -889,7 +889,7 @@ In `adminModules.ts`, add a `Forum` folder with:
 
 Use the existing low-code registry style.
 
-- [ ] **Step 2: Add admin API utility**
+- [x] **Step 2: Add admin API utility**
 
 Create `apps/web/app/utils/adminForum.ts`:
 
@@ -897,7 +897,7 @@ Create `apps/web/app/utils/adminForum.ts`:
 - pure normalizers for settings defaults
 - no component state in this file
 
-- [ ] **Step 3: Add category management page**
+- [x] **Step 3: Add category management page**
 
 Create `categories.vue` with:
 
@@ -913,7 +913,7 @@ Create `categories.vue` with:
 
 Do not add drag-and-drop in v1. Position numbers are enough.
 
-- [ ] **Step 4: Add tag management page**
+- [x] **Step 4: Add tag management page**
 
 Create `tags.vue` with:
 
@@ -925,7 +925,7 @@ Create `tags.vue` with:
 - show topic count
 - explain controlled/review/open modes briefly, but keep the actual mode switch on settings page
 
-- [ ] **Step 5: Add forum settings page**
+- [x] **Step 5: Add forum settings page**
 
 Create `settings.vue` with:
 
@@ -951,11 +951,11 @@ Recommended defaults:
 
 The UI may display these defaults, but the API remains authoritative.
 
-- [ ] **Step 6: Add i18n**
+- [x] **Step 6: Add i18n**
 
 Add Chinese and English labels under `admin.forum.*`. Do not use emoji.
 
-- [ ] **Step 7: Add frontend tests**
+- [x] **Step 7: Add frontend tests**
 
 Test pure utilities in `adminForum.test.ts`:
 
@@ -982,7 +982,7 @@ Expected: PASS.
 - Create: `knowledge/decisions/2026-07-07-forum-taxonomy-and-tag-policy.md`
 - Create: `knowledge/sessions/2026-07-07-real-forum-taxonomy-plan.md`
 
-- [ ] **Step 1: Update `AGENTS.md`**
+- [x] **Step 1: Update `AGENTS.md`**
 
 Add a short section near Beginner-Friendly Defaults or Core Framework:
 
@@ -999,7 +999,7 @@ support one-click restoration to recommended defaults for operator-facing
 configuration.
 ```
 
-- [ ] **Step 2: Update module notes**
+- [x] **Step 2: Update module notes**
 
 In `knowledge/modules/forum.md`, record:
 
@@ -1013,7 +1013,7 @@ In `knowledge/modules/forum.md`, record:
 
 In `knowledge/modules/search.md`, note that tag/category fields are now part of future Meilisearch document shape, but full indexing is still follow-up.
 
-- [ ] **Step 3: Add decision record**
+- [x] **Step 3: Add decision record**
 
 Create `knowledge/decisions/2026-07-07-forum-taxonomy-and-tag-policy.md` with:
 
@@ -1021,7 +1021,7 @@ Create `knowledge/decisions/2026-07-07-forum-taxonomy-and-tag-policy.md` with:
 - decision: category groups plus categories; core tags; configurable creation modes; public tag pages can be disabled
 - consequences: no role-scoped category permissions yet; search indexing follows later; plugins use events/settings
 
-- [ ] **Step 4: Add session handoff**
+- [x] **Step 4: Add session handoff**
 
 Create `knowledge/sessions/2026-07-07-real-forum-taxonomy-plan.md`:
 
@@ -1053,7 +1053,7 @@ Create `knowledge/sessions/2026-07-07-real-forum-taxonomy-plan.md`:
 **Files:**
 - No new files beyond previous tasks.
 
-- [ ] **Step 1: Run OpenAPI validation**
+- [x] **Step 1: Run OpenAPI validation**
 
 Run:
 
@@ -1063,7 +1063,7 @@ ruby scripts/validate-openapi-refs.rb
 
 Expected: no missing refs.
 
-- [ ] **Step 2: Run API tests**
+- [x] **Step 2: Run API tests**
 
 Run:
 
@@ -1074,7 +1074,7 @@ go test ./...
 
 Expected: PASS.
 
-- [ ] **Step 3: Run frontend typecheck**
+- [x] **Step 3: Run frontend typecheck**
 
 Run:
 
@@ -1085,7 +1085,7 @@ bun run typecheck
 
 Expected: PASS.
 
-- [ ] **Step 4: Run project test script**
+- [x] **Step 4: Run project test script**
 
 Run:
 

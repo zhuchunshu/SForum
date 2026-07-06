@@ -3,12 +3,23 @@ package forum
 import (
 	"context"
 	"fmt"
+
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 )
 
 type Store interface {
 	ListCategories(ctx context.Context) ([]Category, error)
+	ListCategoryGroups(ctx context.Context) ([]CategoryGroup, error)
+	ListTags(ctx context.Context, includePending bool) ([]Tag, error)
+	CreateCategoryGroup(ctx context.Context, input CreateCategoryGroupInput) (CategoryGroup, error)
+	UpdateCategoryGroup(ctx context.Context, input UpdateCategoryGroupInput) (CategoryGroup, error)
+	CreateCategory(ctx context.Context, input CreateCategoryInput) (Category, error)
+	UpdateCategory(ctx context.Context, input UpdateCategoryInput) (Category, error)
+	CreateTag(ctx context.Context, input CreateTagInput) (Tag, error)
+	UpdateTag(ctx context.Context, input UpdateTagInput) (Tag, error)
 	ListTopics(ctx context.Context, input TopicListInput) (TopicList, error)
 	GetTopic(ctx context.Context, topicID int64) (TopicDetail, error)
+	ResolveTopicTags(ctx context.Context, input ResolveTopicTagsInput) ([]TopicTagSummary, error)
 	CreateTopic(ctx context.Context, input CreateTopicRecord) (TopicDetail, error)
 	GetTopicForComment(ctx context.Context, topicID int64) (TopicSummary, error)
 	CreateComment(ctx context.Context, input CreateCommentRecord) (Comment, error)
@@ -17,6 +28,22 @@ type Store interface {
 	DeleteComment(ctx context.Context, commentID int64) (Comment, error)
 	ListComments(ctx context.Context, input CommentListInput) (CommentList, error)
 	ListCommentReplies(ctx context.Context, commentID int64) ([]Comment, error)
+}
+
+type SettingsResolver interface {
+	ForumSettings(ctx context.Context) (ForumSettings, error)
+}
+
+type SettingsManager interface {
+	SettingsResolver
+	UpdateForumSettings(ctx context.Context, actor identity.Actor, input UpdateForumSettingsInput) (ForumSettings, error)
+	ResetForumSettings(ctx context.Context, actor identity.Actor) (ForumSettings, error)
+}
+
+type ResolveTopicTagsInput struct {
+	ActorUserID  int64
+	Slugs        []string
+	CreationMode string
 }
 
 func CommentPositionForInsert(commentID int64, parent *CommentSummary) CommentPosition {

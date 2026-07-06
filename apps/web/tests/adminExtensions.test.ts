@@ -18,7 +18,9 @@ import {
   mergeExtensionEvents,
   runtimeCapabilitySummary,
   runtimeStatusLabelKey,
+  hasThemeActivationInProgress,
   themeActionState,
+  themeActivationProgress,
   themeStatusLabelKey,
   type AdminExtension,
   type AdminExtensionEvent,
@@ -105,6 +107,41 @@ describe('admin extension helpers', () => {
       type: 'theme',
       themeRelease: themeRelease('failed')
     }))).toBe('failed')
+  })
+
+  test('maps theme activation releases to progress display state', () => {
+    expect(themeActivationProgress(themeRelease('queued'))).toEqual({
+      percent: 10,
+      status: 'queued',
+      labelKey: 'admin.extensions.themeRelease.queued',
+      detailKey: 'admin.extensions.themeProgress.queued',
+      icon: 'i-lucide-hourglass',
+      color: 'info',
+      active: true
+    })
+    expect(themeActivationProgress(themeRelease('building')).percent).toBe(45)
+    expect(themeActivationProgress(themeRelease('activating')).percent).toBe(85)
+    expect(themeActivationProgress(themeRelease('active')).percent).toBe(100)
+    expect(themeActivationProgress(themeRelease('failed'))).toMatchObject({
+      percent: 100,
+      color: 'error',
+      active: false
+    })
+    expect(themeActivationProgress(undefined)).toBeNull()
+  })
+
+  test('detects whether any theme activation needs polling', () => {
+    const items = [
+      extension({ id: 'queued.theme', name: 'Queued Theme', type: 'theme', themeRelease: themeRelease('queued') }),
+      extension({ id: 'active.theme', name: 'Active Theme', type: 'theme', status: 'enabled', themeRelease: themeRelease('active') })
+    ]
+    const inactive = [
+      extension({ id: 'failed.theme', name: 'Failed Theme', type: 'theme', themeRelease: themeRelease('failed') }),
+      extension({ id: 'plain.theme', name: 'Plain Theme', type: 'theme' })
+    ]
+
+    expect(hasThemeActivationInProgress(items)).toBe(true)
+    expect(hasThemeActivationInProgress(inactive)).toBe(false)
   })
 
   test('counts manifest capability declarations', () => {

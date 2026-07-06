@@ -57,6 +57,36 @@ CommentID:
   schema:
     type: integer
     format: int64
+CategoryGroupID:
+  name: categoryGroupID
+  in: path
+  required: true
+  schema:
+    type: integer
+    format: int64
+  description: Numeric category group id.
+CategoryID:
+  name: categoryID
+  in: path
+  required: true
+  schema:
+    type: integer
+    format: int64
+  description: Numeric category id.
+TagID:
+  name: tagID
+  in: path
+  required: true
+  schema:
+    type: integer
+    format: int64
+  description: Numeric tag id.
+TagSlug:
+  name: tagSlug
+  in: query
+  schema:
+    type: string
+  description: Active tag slug used to filter public topics.
 DatabaseSchema:
   name: schema
   in: path

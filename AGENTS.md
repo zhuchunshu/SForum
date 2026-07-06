@@ -61,6 +61,17 @@ version.
 - Add or update tests for default resolution and reset behavior when the
   feature stores runtime options, preferences, or other configurable state.
 
+## Open-Source Framework Defaults
+
+SForum is an open-source forum framework for different operators. Core forum
+features must provide safe recommended defaults, but product behavior should
+remain configurable unless a security or integrity rule requires a hard
+boundary. Do not hard-code deployment-specific category names, tag policies,
+theme assumptions, provider choices, or public-page availability into services.
+Expose stable settings, events, provider slots, or admin controls instead, and
+support one-click restoration to recommended defaults for operator-facing
+configuration.
+
 ## Permission-Aware Development
 
 The permission system is now part of the baseline architecture. When developing

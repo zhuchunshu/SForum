@@ -13,7 +13,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/extractors"
 	"github.com/gofiber/fiber/v3/middleware/session"
-	"github.com/riverqueue/river"
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	extensionjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
@@ -108,7 +107,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	databaseStore := database.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
 	extensionRuntime := newExtensionRuntimeManager(extensionStore)
-	jobClient, err := supportjobs.NewClient(pool, supportjobs.FromAppConfig(cfg), river.NewWorkers())
+	jobClient, err := supportjobs.NewInsertOnlyClient(pool, supportjobs.FromAppConfig(cfg))
 	if err != nil {
 		extensionRuntime.Close(ctx)
 		if closeErr := humanVerifyStore.Close(); closeErr != nil {
@@ -154,7 +153,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, fmt.Errorf("list extensions for runtime reconciliation failed: %w", err)
 	}
 	identityProvider := providers.NewIdentityProviderWithEvents(identityStore, authSessions, humanVerifier, extensionRuntime)
-	forumProvider := providers.NewForumProviderWithEvents(forumStore, identityStore, authSessions, extensionRuntime)
+	forumProvider := providers.NewForumProviderWithOptionsAndEvents(forumStore, optionsService, identityStore, authSessions, extensionRuntime)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, extensionRuntime)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)

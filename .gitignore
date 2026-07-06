@@ -90,3 +90,5 @@ deploy/runtime/
 
 .superpowers
 .worktrees/
+extensions/dev
+storage/

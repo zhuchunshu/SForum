@@ -7,6 +7,10 @@ const (
 	TopicBeforeCreate  = "topic.before_create"
 	TopicCreated       = "topic.created"
 	CommentCreated     = "comment.created"
+	CategoryCreated    = "category.created"
+	CategoryUpdated    = "category.updated"
+	TagCreated         = "tag.created"
+	TagUpdated         = "tag.updated"
 	AttachmentUploaded = "attachment.uploaded"
 )
 
@@ -36,15 +40,43 @@ var definitions = []Definition{
 		Name:          TopicBeforeCreate,
 		Kind:          KindFilter,
 		Description:   "Runs before a topic is committed and may reject or patch allowlisted input.",
-		PayloadFields: []string{"actorUserId", "categorySlug", "title", "content"},
-		PatchFields:   []string{"categorySlug", "title", "content"},
+		PayloadFields: []string{"actorUserId", "categorySlug", "tagSlugs", "title", "content"},
+		PatchFields:   []string{"categorySlug", "tagSlugs", "title", "content"},
 		TimeoutMS:     DefaultSyncTimeoutMS,
 	},
 	{
 		Name:          TopicCreated,
 		Kind:          KindObserve,
 		Description:   "Emitted after a topic is committed.",
-		PayloadFields: []string{"topicId", "authorUserId", "categorySlug", "title"},
+		PayloadFields: []string{"topicId", "authorUserId", "categorySlug", "tagSlugs", "title"},
+		TimeoutMS:     DefaultAsyncTimeoutMS,
+	},
+	{
+		Name:          CategoryCreated,
+		Kind:          KindObserve,
+		Description:   "Emitted after a category is created.",
+		PayloadFields: []string{"categoryId", "categorySlug", "groupId"},
+		TimeoutMS:     DefaultAsyncTimeoutMS,
+	},
+	{
+		Name:          CategoryUpdated,
+		Kind:          KindObserve,
+		Description:   "Emitted after a category is updated.",
+		PayloadFields: []string{"categoryId", "categorySlug", "groupId"},
+		TimeoutMS:     DefaultAsyncTimeoutMS,
+	},
+	{
+		Name:          TagCreated,
+		Kind:          KindObserve,
+		Description:   "Emitted after a tag is created.",
+		PayloadFields: []string{"tagId", "tagSlug", "status"},
+		TimeoutMS:     DefaultAsyncTimeoutMS,
+	},
+	{
+		Name:          TagUpdated,
+		Kind:          KindObserve,
+		Description:   "Emitted after a tag is updated.",
+		PayloadFields: []string{"tagId", "tagSlug", "status"},
 		TimeoutMS:     DefaultAsyncTimeoutMS,
 	},
 	{

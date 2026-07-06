@@ -162,6 +162,10 @@
       "extensionSettings": "扩展设置",
       "extensionEvents": "事件日志",
       "forumHome": "论坛首页",
+      "forum": "论坛管理",
+      "forumCategories": "版块分类",
+      "forumTags": "标签管理",
+      "forumSettings": "论坛设置",
       "system": "系统配置",
       "userPermission": "用户/权限",
       "userManagement": "用户管理",
@@ -243,6 +247,9 @@
       "retryActivation": "重试激活",
       "restoreDefaultTheme": "恢复默认主题",
       "activeTheme": "当前主题",
+      "viewBuildLog": "查看构建日志",
+      "hideBuildLog": "收起构建日志",
+      "emptyBuildLog": "暂时没有构建日志。",
       "themeRelease": {
         "queued": "排队中",
         "building": "构建中",
@@ -251,6 +258,15 @@
         "active": "当前主题",
         "failed": "激活失败",
         "rolled_back": "已回滚"
+      },
+      "themeProgress": {
+        "queued": "正在等待后台 worker 领取任务。若长时间停留在这里，请确认本地 worker 正在运行。",
+        "building": "正在构建 Nuxt 主题发布包，期间当前主题会继续服务。",
+        "built": "构建已完成，正在准备切换。",
+        "activating": "正在写入当前发布并等待 Web 运行时切换。",
+        "active": "主题发布已经生效。",
+        "failed": "主题激活失败，查看构建日志后可重试。",
+        "rolled_back": "此发布已被后续主题替换。"
       },
       "source": {
         "builtin": "内置"
@@ -1085,6 +1101,128 @@
       "bingVerification": "Bing 站点验证",
       "baiduVerification": "百度站点验证",
       "yandexVerification": "Yandex 站点验证"
+    },
+    "common": {
+      "refresh": "刷新",
+      "reset": "重置",
+      "save": "保存",
+      "edit": "编辑"
+    },
+    "forum": {
+      "visibility": {
+        "public": "公开",
+        "hidden": "隐藏"
+      },
+      "sort": {
+        "latest": "最新",
+        "hot": "热门"
+      },
+      "tagStatus": {
+        "active": "已启用",
+        "pending": "待审核",
+        "disabled": "已停用"
+      },
+      "categories": {
+        "metaTitle": "版块分类",
+        "title": "版块分类",
+        "intro": "管理两级论坛版块结构：分组负责导航层级，分类负责主题归属。",
+        "loadFailed": "版块分类加载失败。",
+        "defaultsTitle": "推荐默认值",
+        "defaultsDescription": "新站点建议保留公开默认分组和综合讨论分类；后续可通过位置数字调整显示顺序。",
+        "createGroup": "新建分组",
+        "editGroup": "编辑分组",
+        "groupHelp": "分组用于组织一组分类，隐藏分组会从公开导航中移除。",
+        "createCategory": "新建分类",
+        "editCategory": "编辑分类",
+        "categoryHelp": "当前分类会放入「{group}」。公开分类可被成员浏览和发帖。",
+        "noGroupSelected": "未选择分组",
+        "slug": "Slug",
+        "name": "名称",
+        "description": "描述",
+        "visibility": "可见性",
+        "position": "排序位置",
+        "group": "所属分组",
+        "defaultSort": "默认排序",
+        "groupCreated": "分组已创建。",
+        "groupUpdated": "分组已更新。",
+        "groupSaveFailed": "分组保存失败。",
+        "categoryCreated": "分类已创建。",
+        "categoryUpdated": "分类已更新。",
+        "categorySaveFailed": "分类保存失败。",
+        "structure": "当前结构",
+        "structureHelp": "位置数字越小越靠前。v1 暂不提供拖拽排序。",
+        "positionValue": "位置：{value}",
+        "categoryMeta": "{topics} 个主题，{comments} 条回复，默认排序：{sort}，位置：{position}",
+        "emptyCategories": "这个分组还没有分类",
+        "emptyCategoriesDescription": "先在上方创建一个分类，让成员有明确的发帖归属。",
+        "emptyGroups": "还没有分组",
+        "emptyGroupsDescription": "先创建一个公开分组，再添加分类。"
+      },
+      "tags": {
+        "metaTitle": "标签管理",
+        "title": "标签管理",
+        "intro": "管理核心标签、待审核标签和已停用标签。",
+        "loadFailed": "标签列表加载失败。",
+        "policyTitle": "标签策略",
+        "policyDescription": "受控模式只允许使用已启用标签；审核模式允许成员提出待审核标签；开放模式允许成员直接创建启用标签。",
+        "create": "新建标签",
+        "edit": "编辑标签",
+        "formHelp": "保持标签短小、稳定、可复用，避免把一次性话题写成标签。",
+        "slug": "Slug",
+        "name": "名称",
+        "description": "描述",
+        "status": "状态",
+        "created": "标签已创建。",
+        "updated": "标签已更新。",
+        "saveFailed": "标签保存失败。",
+        "approved": "标签已通过审核。",
+        "disabled": "标签已停用。",
+        "statusFailed": "标签状态更新失败。",
+        "listTitle": "标签列表",
+        "listHelp": "按状态查看标签，待审核标签可以在这里通过或停用。",
+        "topicCount": "{count} 个主题",
+        "approve": "通过",
+        "disable": "停用",
+        "empty": "没有这个状态的标签",
+        "emptyDescription": "切换状态或新建一个标签。"
+      },
+      "settings": {
+        "metaTitle": "论坛设置",
+        "title": "论坛设置",
+        "intro": "配置默认发帖分类、标签创建策略和公开标签页。",
+        "loadFailed": "论坛设置加载失败。",
+        "recommendedTitle": "推荐配置",
+        "recommendedDescription": "推荐使用综合讨论作为默认分类，标签创建保持受控模式，公开标签页开启，每个主题最多 5 个标签。",
+        "formTitle": "分类与标签策略",
+        "formHelp": "这些设置面向开源部署者，应该保持安全可用且便于恢复推荐默认值。",
+        "defaultCategory": "默认发帖分类",
+        "tagCreationMode": "标签创建模式",
+        "tagCreationModeHelp": "决定成员在发帖时能否使用或创建新的标签。",
+        "modes": {
+          "controlled": {
+            "label": "受控",
+            "description": "成员只能使用已启用标签。"
+          },
+          "review": {
+            "label": "审核",
+            "description": "成员可以提出新标签，新标签等待管理员审核。"
+          },
+          "open": {
+            "label": "开放",
+            "description": "成员可以直接创建已启用标签。"
+          }
+        },
+        "publicTagPages": "公开标签页",
+        "publicTagPagesHelp": "开启后，访客可以访问 /tags/:tagSlug 查看标签主题列表。",
+        "maxTagsPerTopic": "每个主题最多标签数",
+        "maxTagsPerTopicHelp": "允许 0 到 10。设置为 0 表示发帖时不使用标签。",
+        "saved": "论坛设置已保存。",
+        "saveFailed": "论坛设置保存失败。",
+        "restored": "已恢复推荐默认设置。",
+        "restoreFailed": "恢复推荐默认设置失败。",
+        "unsaved": "检测到未保存的论坛设置更改",
+        "restoreRecommended": "恢复推荐默认值"
+      }
     },
     "form": {
       "save": "保存",

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	nethttp "net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -52,6 +53,48 @@ func TestControllerListsPublicForumData(t *testing.T) {
 	}
 }
 
+func TestControllerListsCategoryGroupsAndTags(t *testing.T) {
+	app, _, _ := newForumTestApp()
+
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/category-groups", nil, nil)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 category groups, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var groups forumTestEnvelope[[]forum.CategoryGroup]
+	if err := json.NewDecoder(resp.Body).Decode(&groups); err != nil {
+		t.Fatalf("decode category groups: %v", err)
+	}
+	if len(groups.Data) != 1 || len(groups.Data[0].Categories) != 1 || groups.Data[0].Categories[0].Slug != "general" {
+		t.Fatalf("unexpected category groups %#v", groups.Data)
+	}
+
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/tags", nil, nil)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 tags, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var tags forumTestEnvelope[[]forum.Tag]
+	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
+		t.Fatalf("decode tags: %v", err)
+	}
+	if len(tags.Data) != 1 || tags.Data[0].Slug != "go" || tags.Data[0].Status != forum.TagStatusActive {
+		t.Fatalf("unexpected tags %#v", tags.Data)
+	}
+}
+
+func TestControllerPassesTagSlugToTopicList(t *testing.T) {
+	app, _, store := newForumTestApp()
+
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics?tagSlug=nuxt", nil, nil)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 topics, got %d", resp.StatusCode)
+	}
+	if store.lastTopicList.TagSlug != "nuxt" {
+		t.Fatalf("expected tagSlug nuxt, got %#v", store.lastTopicList)
+	}
+}
+
 func TestControllerRequiresLoginAndPermissionToCreateTopic(t *testing.T) {
 	app, _, store := newForumTestApp()
 
@@ -82,6 +125,55 @@ func TestControllerRequiresLoginAndPermissionToCreateTopic(t *testing.T) {
 	}
 	if store.createdTopic.Title != "新帖子" {
 		t.Fatalf("expected store create topic call, got %#v", store.createdTopic)
+	}
+}
+
+func TestControllerCreateTopicAcceptsTagSlugs(t *testing.T) {
+	app, _, store := newForumTestApp()
+	cookie := loginForumUser(t, app, 1)
+
+	body := []byte(`{"categorySlug":"general","title":"带标签帖子","tagSlugs":["Go","nuxt"],"content":{"rawContent":"正文","sourceFormat":"markdown","editorType":"markdown"}}`)
+	resp := performForumRequest(t, app, nethttp.MethodPost, "/api/v1/topics", body, cookie)
+	if resp.StatusCode != nethttp.StatusCreated {
+		t.Fatalf("expected 201 create topic, got %d", resp.StatusCode)
+	}
+	if !stringSlicesEqual(store.createdTopic.TagSlugs, []string{"go", "nuxt"}) {
+		t.Fatalf("expected normalized tag slugs on create topic, got %#v", store.createdTopic.TagSlugs)
+	}
+}
+
+func TestControllerAdminForumPermissions(t *testing.T) {
+	app, _, _ := newForumTestApp()
+	body := []byte(`{"slug":"support","name":"支持","visibility":"public","position":1}`)
+
+	resp := performForumRequest(t, app, nethttp.MethodPost, "/api/v1/admin/forum/category-groups", body, nil)
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401 without login, got %d", resp.StatusCode)
+	}
+
+	cookie := loginForumUser(t, app, 2)
+	resp = performForumRequest(t, app, nethttp.MethodPost, "/api/v1/admin/forum/category-groups", body, cookie)
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 without category.manage, got %d", resp.StatusCode)
+	}
+
+	cookie = loginForumUser(t, app, 3)
+	resp = performForumRequest(t, app, nethttp.MethodPost, "/api/v1/admin/forum/tags", []byte(`{"slug":"go","name":"Go","status":"active"}`), cookie)
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 without tag.manage, got %d", resp.StatusCode)
+	}
+}
+
+func TestControllerAdminSettingsResetWithPermission(t *testing.T) {
+	app, _, store := newForumTestApp()
+	cookie := loginForumUser(t, app, 4)
+
+	resp := performForumRequest(t, app, nethttp.MethodPost, "/api/v1/admin/forum/settings/reset", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 settings reset, got %d", resp.StatusCode)
+	}
+	if !store.settingsReset {
+		t.Fatal("expected settings reset to reach service manager")
 	}
 }
 
@@ -123,16 +215,23 @@ func newForumTestApp() (*fiber.App, *authsession.Manager, *controllerForumStore)
 			identity.PermissionPostDeleteOwn: true,
 		}},
 		2: {ID: 2, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
+		3: {ID: 3, Status: identity.UserStatusActive, Permissions: map[string]bool{
+			identity.PermissionCategoryManage: true,
+		}},
+		4: {ID: 4, Status: identity.UserStatusActive, Permissions: map[string]bool{
+			identity.PermissionCategoryManage: true,
+			identity.PermissionTagManage:      true,
+		}},
 	}}
 	store := &controllerForumStore{}
-	controller := NewController(forum.NewService(store), users, manager)
+	controller := NewController(forum.NewServiceWithSettingsAndEvents(store, store, nil), users, manager)
 	loginProvider := forumRouteProviderFunc(func(api fiber.Router) {
 		api.Post("/test-login/:id", func(c fiber.Ctx) error {
-			userID := int64(1)
-			if c.Params("id") == "2" {
-				userID = 2
+			userID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+			if err != nil || userID == 0 {
+				userID = 1
 			}
-			_, err := manager.Start(c, userID)
+			_, err = manager.Start(c, userID)
 			return err
 		})
 	})
@@ -144,10 +243,7 @@ func newForumTestApp() (*fiber.App, *authsession.Manager, *controllerForumStore)
 
 func loginForumUser(t *testing.T, app *fiber.App, userID int64) *nethttp.Cookie {
 	t.Helper()
-	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/test-login/1", nil)
-	if userID == 2 {
-		req = httptest.NewRequest(nethttp.MethodPost, "/api/v1/test-login/2", nil)
-	}
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/test-login/"+strconv.FormatInt(userID, 10), nil)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("login request failed: %v", err)
@@ -201,13 +297,84 @@ func (f forumRouteProviderFunc) RegisterRoutes(api fiber.Router) {
 type controllerForumStore struct {
 	createdTopic    forum.CreateTopicRecord
 	lastCommentView string
+	lastTopicList   forum.TopicListInput
+	settingsReset   bool
 }
 
 func (s *controllerForumStore) ListCategories(context.Context) ([]forum.Category, error) {
 	return []forum.Category{{ID: 1, Slug: "general", Name: "综合讨论", Visibility: "public"}}, nil
 }
 
+func (s *controllerForumStore) ListCategoryGroups(context.Context) ([]forum.CategoryGroup, error) {
+	return []forum.CategoryGroup{{
+		ID:         1,
+		Slug:       "default",
+		Name:       "默认版块",
+		Visibility: "public",
+		Categories: []forum.Category{{ID: 1, Slug: "general", Name: "综合讨论", Visibility: "public"}},
+	}}, nil
+}
+
+func (s *controllerForumStore) ListTags(_ context.Context, includePending bool) ([]forum.Tag, error) {
+	if includePending {
+		return []forum.Tag{
+			{ID: 1, Slug: "go", Name: "Go", Status: forum.TagStatusActive},
+			{ID: 2, Slug: "pending", Name: "Pending", Status: forum.TagStatusPending},
+		}, nil
+	}
+	return []forum.Tag{{ID: 1, Slug: "go", Name: "Go", Status: forum.TagStatusActive}}, nil
+}
+
+func (s *controllerForumStore) CreateCategoryGroup(_ context.Context, input forum.CreateCategoryGroupInput) (forum.CategoryGroup, error) {
+	return forum.CategoryGroup{ID: 2, Slug: input.Slug, Name: input.Name, Description: input.Description, Visibility: input.Visibility, Position: input.Position}, nil
+}
+
+func (s *controllerForumStore) UpdateCategoryGroup(_ context.Context, input forum.UpdateCategoryGroupInput) (forum.CategoryGroup, error) {
+	item := forum.CategoryGroup{ID: input.ID, Slug: "default", Name: "默认版块", Visibility: "public"}
+	if input.Slug != nil {
+		item.Slug = *input.Slug
+	}
+	if input.Name != nil {
+		item.Name = *input.Name
+	}
+	return item, nil
+}
+
+func (s *controllerForumStore) CreateCategory(_ context.Context, input forum.CreateCategoryInput) (forum.Category, error) {
+	return forum.Category{ID: 2, GroupID: input.GroupID, Slug: input.Slug, Name: input.Name, Description: input.Description, Visibility: input.Visibility, Position: input.Position, DefaultSort: input.DefaultSort}, nil
+}
+
+func (s *controllerForumStore) UpdateCategory(_ context.Context, input forum.UpdateCategoryInput) (forum.Category, error) {
+	item := forum.Category{ID: input.ID, GroupID: 1, Slug: "general", Name: "综合讨论", Visibility: "public", DefaultSort: "latest"}
+	if input.Slug != nil {
+		item.Slug = *input.Slug
+	}
+	if input.Name != nil {
+		item.Name = *input.Name
+	}
+	return item, nil
+}
+
+func (s *controllerForumStore) CreateTag(_ context.Context, input forum.CreateTagInput) (forum.Tag, error) {
+	return forum.Tag{ID: 2, Slug: input.Slug, Name: input.Name, Description: input.Description, Status: input.Status}, nil
+}
+
+func (s *controllerForumStore) UpdateTag(_ context.Context, input forum.UpdateTagInput) (forum.Tag, error) {
+	item := forum.Tag{ID: input.ID, Slug: "go", Name: "Go", Status: forum.TagStatusActive}
+	if input.Slug != nil {
+		item.Slug = *input.Slug
+	}
+	if input.Name != nil {
+		item.Name = *input.Name
+	}
+	if input.Status != nil {
+		item.Status = *input.Status
+	}
+	return item, nil
+}
+
 func (s *controllerForumStore) ListTopics(_ context.Context, input forum.TopicListInput) (forum.TopicList, error) {
+	s.lastTopicList = input
 	return forum.TopicList{Items: []forum.TopicSummary{{ID: 10, Title: "公开帖子", Slug: "topic", Status: forum.TopicStatusActive}}, Total: 1, Page: input.Page, PerPage: input.PerPage}, nil
 }
 
@@ -222,6 +389,14 @@ func (s *controllerForumStore) CreateTopic(_ context.Context, input forum.Create
 		TopicSummary: forum.TopicSummary{ID: 10, AuthorUserID: input.AuthorUserID, Title: input.Title, Slug: input.Slug, Status: forum.TopicStatusActive},
 		Content:      input.Content,
 	}, nil
+}
+
+func (s *controllerForumStore) ResolveTopicTags(_ context.Context, input forum.ResolveTopicTagsInput) ([]forum.TopicTagSummary, error) {
+	items := make([]forum.TopicTagSummary, 0, len(input.Slugs))
+	for index, slug := range input.Slugs {
+		items = append(items, forum.TopicTagSummary{ID: int64(index + 1), Slug: slug, Name: slug, Status: forum.TagStatusActive})
+	}
+	return items, nil
 }
 
 func (s *controllerForumStore) GetTopicForComment(context.Context, int64) (forum.TopicSummary, error) {
@@ -259,6 +434,49 @@ func (s *controllerForumStore) ListComments(_ context.Context, input forum.Comme
 
 func (s *controllerForumStore) ListCommentReplies(context.Context, int64) ([]forum.Comment, error) {
 	return []forum.Comment{{ID: 21, TopicID: 10, Status: forum.CommentStatusActive}}, nil
+}
+
+func (s *controllerForumStore) ForumSettings(context.Context) (forum.ForumSettings, error) {
+	return forum.ForumSettings{
+		DefaultCategorySlug: "general",
+		TagCreationMode:     forum.TagCreationModeControlled,
+		TagPublicPages:      true,
+		TagMaxPerTopic:      5,
+	}, nil
+}
+
+func (s *controllerForumStore) UpdateForumSettings(_ context.Context, _ identity.Actor, input forum.UpdateForumSettingsInput) (forum.ForumSettings, error) {
+	settings, _ := s.ForumSettings(context.Background())
+	if input.DefaultCategorySlug != nil {
+		settings.DefaultCategorySlug = *input.DefaultCategorySlug
+	}
+	if input.TagCreationMode != nil {
+		settings.TagCreationMode = *input.TagCreationMode
+	}
+	if input.TagPublicPages != nil {
+		settings.TagPublicPages = *input.TagPublicPages
+	}
+	if input.TagMaxPerTopic != nil {
+		settings.TagMaxPerTopic = *input.TagMaxPerTopic
+	}
+	return settings, nil
+}
+
+func (s *controllerForumStore) ResetForumSettings(context.Context, identity.Actor) (forum.ForumSettings, error) {
+	s.settingsReset = true
+	return s.ForumSettings(context.Background())
+}
+
+func stringSlicesEqual(left []string, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 var _ = time.Time{}

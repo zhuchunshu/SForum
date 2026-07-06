@@ -8,7 +8,8 @@ read models.
 
 ## Current Status
 
-Backend foundation implemented on 2026-07-06.
+Backend foundation implemented on 2026-07-06. Real taxonomy slice implemented
+on 2026-07-07.
 
 - `categories` owns public forum sections. The first seed category is
   `general` / `综合讨论`.
@@ -21,18 +22,33 @@ Backend foundation implemented on 2026-07-06.
   editor version, render version, and content hash.
 - `post_revisions` stores previous shared-content snapshots when comments are
   edited.
-- Taxonomy schema Task 1 adds `category_groups`, group/order/default-sort
-  fields on `categories`, core `tags`, `topic_tags`, and first-run runtime
-  options for default category and tag policy. Public/admin category and tag
-  APIs are still follow-up work.
+- Taxonomy now uses two levels: `category_groups` contain ordered
+  `categories`. v1 category access is only `public` or `hidden`; role-scoped
+  category access is deferred.
+- Core tags live in `tags` with `active`, `pending`, and `disabled` statuses.
+  Topic/tag joins live in `topic_tags`, and topic summaries/details expose
+  active tag summaries.
+- Runtime forum settings live in `web_options`: default category slug, tag
+  creation mode, public tag pages, and max tags per topic. Recommended defaults
+  are configurable and resettable.
+- Tag creation modes are `controlled`, `review`, and `open`. Controlled mode
+  only allows approved tags, review mode creates pending tags, and open mode
+  creates active tags directly.
+- Public Nuxt pages now consume real forum data for the homepage, category
+  pages, and tag pages. Tag pages can be disabled through public runtime
+  options.
+- Admin UI includes category group/category management, tag management, and
+  forum settings under the low-code admin module registry.
 - Go domain logic lives under `apps/api/app/Models/Forum`; HTTP routes live
   under `apps/api/app/Http/Controllers/Forum`.
 
 ## Domain Shape
 
 - Category: groups topics and defines visibility defaults.
+- Category group: groups categories for navigation and operator management.
 - Topic: user-facing post/thread with title, slug, author, category, state,
   counters, and latest activity.
+- Tag: reusable topic label controlled by core settings and admin review.
 - Comment: arbitrary-depth tree reply under a topic.
 - Post: shared content record used by topics and comments. It is not the
   frontend "帖子" concept.
@@ -42,6 +58,7 @@ Backend foundation implemented on 2026-07-06.
 ## SEO URL Shape
 
 - Category: `/c/:categorySlug`
+- Tag: `/tags/:tagSlug`
 - Topic: `/t/:topicID/:topicSlug`
 
 The topic ID gives stable lookup. The slug is for readability and should
@@ -69,6 +86,8 @@ redirect to the canonical slug if changed.
 ## API Surface
 
 - `GET /api/v1/categories`
+- `GET /api/v1/category-groups`
+- `GET /api/v1/tags`
 - `GET /api/v1/topics`
 - `POST /api/v1/topics`
 - `GET /api/v1/topics/{topicID}`
@@ -77,11 +96,27 @@ redirect to the canonical slug if changed.
 - `GET /api/v1/comments/{commentID}/replies`
 - `PATCH /api/v1/comments/{commentID}`
 - `DELETE /api/v1/comments/{commentID}`
+- `GET /api/v1/admin/forum/category-groups`
+- `POST /api/v1/admin/forum/category-groups`
+- `PATCH /api/v1/admin/forum/category-groups/{groupID}`
+- `GET /api/v1/admin/forum/categories`
+- `POST /api/v1/admin/forum/categories`
+- `PATCH /api/v1/admin/forum/categories/{categoryID}`
+- `GET /api/v1/admin/forum/tags`
+- `POST /api/v1/admin/forum/tags`
+- `PATCH /api/v1/admin/forum/tags/{tagID}`
+- `GET /api/v1/admin/forum/settings`
+- `PUT /api/v1/admin/forum/settings`
+- `POST /api/v1/admin/forum/settings/reset`
 
 ## Permission Boundaries
 
 - Create topic: login required plus `topic.create`.
 - Create comment: login required plus existing `post.create`.
+- Manage category groups and categories: `category.manage`.
+- Manage tags and tag policy settings: `tag.manage`.
+- Manage forum settings: `category.manage` or `tag.manage`, with writes
+  limited to the permission that owns the changed values.
 - Edit comment: author with `post.edit_own`, or any user with
   `post.edit_any`.
 - Delete comment: author with `post.delete_own`, or any user with
@@ -89,6 +124,16 @@ redirect to the canonical slug if changed.
 - Future topic lock/pin/hide/delete endpoints should reuse the existing
   `topic.lock`, `topic.pin`, `topic.edit_any`, and `topic.delete_any`
   permissions.
+
+## Plugin Boundary
+
+- Core owns category groups, categories, tag semantics, topic-tag joins, public
+  routes, admin routes, runtime settings, and permission checks.
+- Plugins may react through explicit forum events and future provider slots, but
+  must not override core forum routes, mutate core taxonomy tables directly, or
+  bypass API policy checks.
+- Full search indexing, notification fanout, external analytics, and provider
+  integrations remain plugin/provider work unless core needs a stable contract.
 
 ## Comment Display Decision
 
@@ -101,13 +146,14 @@ mobile comments with the D-style flat list plus "replying to" context labels.
 - Edit grace period and revision visibility rules.
 - Whether votes/reactions exist in MVP.
 - When to add topic editing, deletion, locking, hiding, and pinning endpoints.
-- Whether category management ships as a backend-only API first or with an
-  admin UI.
 - How to reconcile the accepted future Tiptap/native-JSON decision with the v1
   shared `posts` table when the rich editor becomes a backend write path.
+- When to add tag merge history and taxonomy moderation workflow.
+- When to add role-scoped category permissions.
 
 ## Next Steps
 
-- Implement Nuxt consumers for the backend topic and comment APIs.
+- Implement topic detail/comment Nuxt consumers for the backend topic and
+  comment APIs.
 - Add topic moderation/admin endpoints when the moderation UI starts.
 - Wire topic/comment writes into the future Meilisearch indexer.

@@ -162,6 +162,10 @@
       "extensionSettings": "Extension settings",
       "extensionEvents": "Event log",
       "forumHome": "Forum home",
+      "forum": "Forum",
+      "forumCategories": "Categories",
+      "forumTags": "Tags",
+      "forumSettings": "Forum settings",
       "system": "System",
       "userPermission": "Users & Permissions",
       "userManagement": "User management",
@@ -243,6 +247,9 @@
       "retryActivation": "Retry activation",
       "restoreDefaultTheme": "Restore default theme",
       "activeTheme": "Active theme",
+      "viewBuildLog": "View build log",
+      "hideBuildLog": "Hide build log",
+      "emptyBuildLog": "No build log yet.",
       "themeRelease": {
         "queued": "Queued",
         "building": "Building",
@@ -251,6 +258,15 @@
         "active": "Active theme",
         "failed": "Activation failed",
         "rolled_back": "Rolled back"
+      },
+      "themeProgress": {
+        "queued": "Waiting for the background worker to pick up this task. If it stays here, confirm the local worker is running.",
+        "building": "Building the Nuxt theme release while the current theme keeps serving traffic.",
+        "built": "Build completed and the release is preparing to switch.",
+        "activating": "Writing the current release and waiting for the web runtime to switch.",
+        "active": "Theme release is active.",
+        "failed": "Theme activation failed. Review the build log, then retry.",
+        "rolled_back": "This release has been replaced by a newer theme release."
       },
       "source": {
         "builtin": "Built-in"
@@ -1085,6 +1101,128 @@
       "bingVerification": "Bing site verification",
       "baiduVerification": "Baidu site verification",
       "yandexVerification": "Yandex site verification"
+    },
+    "common": {
+      "refresh": "Refresh",
+      "reset": "Reset",
+      "save": "Save",
+      "edit": "Edit"
+    },
+    "forum": {
+      "visibility": {
+        "public": "Public",
+        "hidden": "Hidden"
+      },
+      "sort": {
+        "latest": "Latest",
+        "hot": "Hot"
+      },
+      "tagStatus": {
+        "active": "Active",
+        "pending": "Pending",
+        "disabled": "Disabled"
+      },
+      "categories": {
+        "metaTitle": "Forum categories",
+        "title": "Forum categories",
+        "intro": "Manage the two-level forum taxonomy: groups organize navigation, categories own topics.",
+        "loadFailed": "Forum categories could not be loaded.",
+        "defaultsTitle": "Recommended defaults",
+        "defaultsDescription": "New sites should keep a public default group and general discussion category; use position numbers to adjust order.",
+        "createGroup": "Create group",
+        "editGroup": "Edit group",
+        "groupHelp": "Groups organize categories. Hidden groups are removed from public navigation.",
+        "createCategory": "Create category",
+        "editCategory": "Edit category",
+        "categoryHelp": "This category belongs to {group}. Public categories can be browsed and posted to by members.",
+        "noGroupSelected": "No group selected",
+        "slug": "Slug",
+        "name": "Name",
+        "description": "Description",
+        "visibility": "Visibility",
+        "position": "Position",
+        "group": "Group",
+        "defaultSort": "Default sort",
+        "groupCreated": "Group created.",
+        "groupUpdated": "Group updated.",
+        "groupSaveFailed": "Group could not be saved.",
+        "categoryCreated": "Category created.",
+        "categoryUpdated": "Category updated.",
+        "categorySaveFailed": "Category could not be saved.",
+        "structure": "Current structure",
+        "structureHelp": "Smaller position numbers appear first. Drag-and-drop sorting is deferred for v1.",
+        "positionValue": "Position: {value}",
+        "categoryMeta": "{topics} topics, {comments} replies, default sort: {sort}, position: {position}",
+        "emptyCategories": "This group has no categories",
+        "emptyCategoriesDescription": "Create a category above so members have a clear place to post.",
+        "emptyGroups": "No groups yet",
+        "emptyGroupsDescription": "Create a public group first, then add categories."
+      },
+      "tags": {
+        "metaTitle": "Tag management",
+        "title": "Tag management",
+        "intro": "Manage active, pending, and disabled core tags.",
+        "loadFailed": "Tags could not be loaded.",
+        "policyTitle": "Tag policy",
+        "policyDescription": "Controlled mode only allows active tags; review mode lets members propose pending tags; open mode lets members create active tags directly.",
+        "create": "Create tag",
+        "edit": "Edit tag",
+        "formHelp": "Keep tags short, stable, and reusable. Avoid one-off topics as tags.",
+        "slug": "Slug",
+        "name": "Name",
+        "description": "Description",
+        "status": "Status",
+        "created": "Tag created.",
+        "updated": "Tag updated.",
+        "saveFailed": "Tag could not be saved.",
+        "approved": "Tag approved.",
+        "disabled": "Tag disabled.",
+        "statusFailed": "Tag status could not be updated.",
+        "listTitle": "Tag list",
+        "listHelp": "Review tags by status. Pending tags can be approved or disabled here.",
+        "topicCount": "{count} topics",
+        "approve": "Approve",
+        "disable": "Disable",
+        "empty": "No tags with this status",
+        "emptyDescription": "Switch status or create a tag."
+      },
+      "settings": {
+        "metaTitle": "Forum settings",
+        "title": "Forum settings",
+        "intro": "Configure the default posting category, tag policy, and public tag pages.",
+        "loadFailed": "Forum settings could not be loaded.",
+        "recommendedTitle": "Recommended configuration",
+        "recommendedDescription": "Recommended defaults use general discussion as the default category, controlled tag creation, public tag pages, and up to 5 tags per topic.",
+        "formTitle": "Category and tag policy",
+        "formHelp": "These settings are for open-source operators, so they should stay safe, useful, and easy to restore.",
+        "defaultCategory": "Default posting category",
+        "tagCreationMode": "Tag creation mode",
+        "tagCreationModeHelp": "Controls whether members can use or create new tags while posting.",
+        "modes": {
+          "controlled": {
+            "label": "Controlled",
+            "description": "Members can only use active tags."
+          },
+          "review": {
+            "label": "Review",
+            "description": "Members can propose new tags; new tags wait for approval."
+          },
+          "open": {
+            "label": "Open",
+            "description": "Members can create active tags directly."
+          }
+        },
+        "publicTagPages": "Public tag pages",
+        "publicTagPagesHelp": "When enabled, visitors can open /tags/:tagSlug to browse topics by tag.",
+        "maxTagsPerTopic": "Max tags per topic",
+        "maxTagsPerTopicHelp": "Allowed range is 0 to 10. Set 0 to disable tags during posting.",
+        "saved": "Forum settings saved.",
+        "saveFailed": "Forum settings could not be saved.",
+        "restored": "Recommended defaults restored.",
+        "restoreFailed": "Recommended defaults could not be restored.",
+        "unsaved": "Unsaved forum setting changes detected",
+        "restoreRecommended": "Restore recommended defaults"
+      }
     },
     "form": {
       "save": "Save",

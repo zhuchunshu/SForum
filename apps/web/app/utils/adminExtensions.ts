@@ -103,6 +103,7 @@ export type AdminThemeRelease = {
   extensionVersion: string
   status: AdminThemeReleaseStatus
   message: string
+  buildLog?: string
   createdAt: string
   updatedAt: string
   activatedAt?: string
@@ -219,6 +220,51 @@ export function themeActionState(item: AdminExtension): AdminThemeActionState {
     return 'failed'
   }
   return 'activate'
+}
+
+export function themeActivationProgress(release?: AdminThemeRelease | null) {
+  if (!release) {
+    return null
+  }
+
+  switch (release.status) {
+    case 'queued':
+      return themeProgressState(release.status, 10, 'info', 'i-lucide-hourglass', true)
+    case 'building':
+      return themeProgressState(release.status, 45, 'warning', 'i-lucide-hammer', true)
+    case 'built':
+      return themeProgressState(release.status, 70, 'warning', 'i-lucide-package-check', true)
+    case 'activating':
+      return themeProgressState(release.status, 85, 'warning', 'i-lucide-refresh-cw', true)
+    case 'active':
+      return themeProgressState(release.status, 100, 'success', 'i-lucide-check-circle-2', false)
+    case 'failed':
+      return themeProgressState(release.status, 100, 'error', 'i-lucide-triangle-alert', false)
+    case 'rolled_back':
+      return themeProgressState(release.status, 100, 'neutral', 'i-lucide-undo-2', false)
+  }
+}
+
+export function hasThemeActivationInProgress(items: AdminExtension[]) {
+  return items.some(item => themeActivationProgress(item.themeRelease)?.active)
+}
+
+function themeProgressState(
+  status: AdminThemeReleaseStatus,
+  percent: number,
+  color: 'info' | 'success' | 'warning' | 'error' | 'neutral',
+  icon: string,
+  active: boolean
+) {
+  return {
+    percent,
+    status,
+    labelKey: `admin.extensions.themeRelease.${status}`,
+    detailKey: `admin.extensions.themeProgress.${status}`,
+    icon,
+    color,
+    active
+  }
 }
 
 export function capabilityCount(item: AdminExtension) {

@@ -10,6 +10,10 @@ paths:
     "$ref": "./openapi/paths/system.yaml#/health"
   "/categories":
     "$ref": "./openapi/paths/forum.yaml#/categories"
+  "/category-groups":
+    "$ref": "./openapi/paths/forum.yaml#/categoryGroups"
+  "/tags":
+    "$ref": "./openapi/paths/forum.yaml#/tags"
   "/topics":
     "$ref": "./openapi/paths/forum.yaml#/topics"
   "/topics/{topicID}":
@@ -82,6 +86,22 @@ paths:
     "$ref": "./openapi/paths/database.yaml#/adminDatabaseTableRowReveal"
   "/admin/database/tables/{schema}/{table}/export.csv":
     "$ref": "./openapi/paths/database.yaml#/adminDatabaseTableExport"
+  "/admin/forum/category-groups":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumCategoryGroups"
+  "/admin/forum/category-groups/{categoryGroupID}":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumCategoryGroupByID"
+  "/admin/forum/categories":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumCategories"
+  "/admin/forum/categories/{categoryID}":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumCategoryByID"
+  "/admin/forum/tags":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumTags"
+  "/admin/forum/tags/{tagID}":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumTagByID"
+  "/admin/forum/settings":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumSettings"
+  "/admin/forum/settings/reset":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumSettingsReset"
   "/admin/extensions":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensions"
   "/admin/extensions/navigation":
@@ -124,6 +144,14 @@ components:
       "$ref": "./openapi/components/parameters.yaml#/TopicID"
     CommentID:
       "$ref": "./openapi/components/parameters.yaml#/CommentID"
+    CategoryGroupID:
+      "$ref": "./openapi/components/parameters.yaml#/CategoryGroupID"
+    CategoryID:
+      "$ref": "./openapi/components/parameters.yaml#/CategoryID"
+    TagID:
+      "$ref": "./openapi/components/parameters.yaml#/TagID"
+    TagSlug:
+      "$ref": "./openapi/components/parameters.yaml#/TagSlug"
     DatabaseSchema:
       "$ref": "./openapi/components/parameters.yaml#/DatabaseSchema"
     DatabaseTable:
@@ -214,6 +242,18 @@ components:
       "$ref": "./openapi/schemas/database.yaml#/ApiResponseDatabaseReveal"
     ApiResponseCategoryList:
       "$ref": "./openapi/schemas/forum.yaml#/ApiResponseCategoryList"
+    ApiResponseCategory:
+      "$ref": "./openapi/schemas/forum.yaml#/ApiResponseCategory"
+    ApiResponseCategoryGroup:
+      "$ref": "./openapi/schemas/forum.yaml#/ApiResponseCategoryGroup"
+    ApiResponseCategoryGroupList:
+      "$ref": "./openapi/schemas/forum.yaml#/ApiResponseCategoryGroupList"
+    ApiResponseTag:
+      "$ref": "./openapi/schemas/forum.yaml#/ApiResponseTag"
+    ApiResponseTagList:
+      "$ref": "./openapi/schemas/forum.yaml#/ApiResponseTagList"
+    ApiResponseForumSettings:
+      "$ref": "./openapi/schemas/forum.yaml#/ApiResponseForumSettings"
     ApiResponseTopicList:
       "$ref": "./openapi/schemas/forum.yaml#/ApiResponseTopicList"
     ApiResponseTopicDetail:

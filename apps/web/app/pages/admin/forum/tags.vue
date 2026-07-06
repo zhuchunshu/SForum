@@ -1,0 +1,311 @@
+<script setup lang="ts">
+import { apiErrorMessage } from '~/composables/useApiClient'
+import { useAdminPage } from '~/composables/useAdminPage'
+import {
+  createAdminForumApi,
+  createTagPayload,
+  forumTagStatusChoices,
+  type AdminForumTagPayload
+} from '~/utils/adminForum'
+import type { ForumTag, ForumTagStatus } from '~/utils/forumTaxonomy'
+
+definePageMeta({
+  middleware: 'admin',
+  layout: 'admin'
+})
+
+defineOptions({
+  name: 'AdminForumTags'
+})
+
+const { t } = useI18n()
+const toast = useToast()
+const { request } = useApiClient()
+const forumApi = createAdminForumApi(request)
+const adminPage = useAdminPage('/forum/tags')
+
+const activeStatus = ref<ForumTagStatus>('active')
+const editingTagId = ref<number | null>(null)
+const saving = ref(false)
+const updatingId = ref<number | null>(null)
+const form = reactive(createTagPayload())
+
+const { data: tags, pending, error, refresh } = await useAsyncData(
+  'admin-forum-tags',
+  () => forumApi.listTags(),
+  { default: () => [] as ForumTag[] }
+)
+
+useSeoMeta({
+  title: t('admin.forum.tags.metaTitle')
+})
+
+const tabs = computed(() => forumTagStatusChoices.map((status) => ({
+  status,
+  label: t(`admin.forum.tagStatus.${status}`),
+  count: tags.value.filter((tag) => tag.status === status).length
+})))
+
+const filteredTags = computed(() => tags.value.filter((tag) => tag.status === activeStatus.value))
+
+async function saveTag() {
+  saving.value = true
+  try {
+    if (editingTagId.value) {
+      await forumApi.updateTag(editingTagId.value, tagPayload())
+      successToast(t('admin.forum.tags.updated'))
+    } else {
+      await forumApi.createTag(tagPayload())
+      successToast(t('admin.forum.tags.created'))
+    }
+    resetForm()
+    await refresh()
+  } catch (error) {
+    errorToast(error, t('admin.forum.tags.saveFailed'))
+  } finally {
+    saving.value = false
+  }
+}
+
+async function setTagStatus(tag: ForumTag, status: ForumTagStatus) {
+  updatingId.value = tag.id
+  try {
+    await forumApi.updateTag(tag.id, { status })
+    successToast(status === 'active' ? t('admin.forum.tags.approved') : t('admin.forum.tags.disabled'))
+    await refresh()
+  } catch (error) {
+    errorToast(error, t('admin.forum.tags.statusFailed'))
+  } finally {
+    updatingId.value = null
+  }
+}
+
+function editTag(tag: ForumTag) {
+  editingTagId.value = tag.id
+  Object.assign(form, createTagPayload(tag))
+}
+
+function resetForm() {
+  editingTagId.value = null
+  Object.assign(form, createTagPayload({ status: activeStatus.value === 'disabled' ? 'active' : activeStatus.value }))
+}
+
+function setActiveStatus(status: ForumTagStatus) {
+  activeStatus.value = status
+}
+
+function tagPayload(): AdminForumTagPayload {
+  return {
+    slug: form.slug.trim(),
+    name: form.name.trim(),
+    description: form.description.trim(),
+    status: form.status
+  }
+}
+
+function successToast(title: string) {
+  toast.add({
+    color: 'success',
+    icon: 'i-lucide-check',
+    title,
+    duration: 10000
+  })
+}
+
+function errorToast(error: unknown, fallback: string) {
+  toast.add({
+    color: 'error',
+    icon: 'i-lucide-triangle-alert',
+    title: apiErrorMessage(error) || fallback
+  })
+}
+</script>
+
+<template>
+  <div class="mb-4">
+    <h2 class="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-zinc-100">
+      <UIcon :name="adminPage.icon" class="size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
+      {{ t('admin.forum.tags.title') }}
+    </h2>
+  </div>
+
+  <UDashboardToolbar class="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg px-4 py-2.5 mb-6 text-slate-500 dark:text-zinc-400">
+    <template #left>
+      <div class="flex min-w-0 items-center gap-2 text-sm text-slate-500 dark:text-zinc-400">
+        <UIcon name="i-lucide-tags" class="size-4" />
+        <span class="truncate">{{ t('admin.forum.tags.intro') }}</span>
+      </div>
+    </template>
+    <template #right>
+      <UButton
+        color="neutral"
+        variant="outline"
+        leading-icon="i-lucide-refresh-cw"
+        :loading="pending"
+        class="border-slate-200 dark:border-zinc-700"
+        @click="refresh()"
+      >
+        {{ t('admin.common.refresh') }}
+      </UButton>
+    </template>
+  </UDashboardToolbar>
+
+  <div class="grid gap-4">
+    <UAlert
+      v-if="error"
+      color="error"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      :title="t('admin.forum.tags.loadFailed')"
+    />
+
+    <UAlert
+      color="primary"
+      variant="soft"
+      icon="i-lucide-info"
+      :title="t('admin.forum.tags.policyTitle')"
+      :description="t('admin.forum.tags.policyDescription')"
+    />
+
+    <form @submit.prevent="saveTag">
+      <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">
+                {{ editingTagId ? t('admin.forum.tags.edit') : t('admin.forum.tags.create') }}
+              </h3>
+              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.forum.tags.formHelp') }}
+              </p>
+            </div>
+            <UBadge color="neutral" variant="soft" class="font-mono">
+              tags
+            </UBadge>
+          </div>
+        </template>
+
+        <div class="grid gap-4 lg:grid-cols-[1fr_1fr_1.4fr_auto]">
+          <UFormField :label="t('admin.forum.tags.slug')" name="tag-slug">
+            <UInput v-model="form.slug" icon="i-lucide-link" required class="w-full" placeholder="nuxt" />
+          </UFormField>
+          <UFormField :label="t('admin.forum.tags.name')" name="tag-name">
+            <UInput v-model="form.name" icon="i-lucide-tag" required class="w-full" />
+          </UFormField>
+          <UFormField :label="t('admin.forum.tags.description')" name="tag-description">
+            <UInput v-model="form.description" icon="i-lucide-file-text" class="w-full" />
+          </UFormField>
+          <UFormField :label="t('admin.forum.tags.status')" name="tag-status">
+            <select v-model="form.status" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
+              <option v-for="status in forumTagStatusChoices" :key="status" :value="status">
+                {{ t(`admin.forum.tagStatus.${status}`) }}
+              </option>
+            </select>
+          </UFormField>
+        </div>
+
+        <template #footer>
+          <div class="flex flex-wrap justify-end gap-2">
+            <UButton type="button" color="neutral" variant="ghost" leading-icon="i-lucide-rotate-ccw" @click="resetForm">
+              {{ t('admin.common.reset') }}
+            </UButton>
+            <UButton type="submit" leading-icon="i-lucide-save" :loading="saving">
+              {{ t('admin.common.save') }}
+            </UButton>
+          </div>
+        </template>
+      </UCard>
+    </form>
+
+    <UCard class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+      <template #header>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">
+              {{ t('admin.forum.tags.listTitle') }}
+            </h3>
+            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+              {{ t('admin.forum.tags.listHelp') }}
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              v-for="tab in tabs"
+              :key="tab.status"
+              type="button"
+              size="sm"
+              :color="activeStatus === tab.status ? 'primary' : 'neutral'"
+              :variant="activeStatus === tab.status ? 'solid' : 'outline'"
+              @click="setActiveStatus(tab.status)"
+            >
+              {{ tab.label }}
+              <UBadge color="neutral" variant="soft" class="ml-1">
+                {{ tab.count }}
+              </UBadge>
+            </UButton>
+          </div>
+        </div>
+      </template>
+
+      <div v-if="filteredTags.length" class="overflow-hidden rounded-lg border border-slate-200 dark:border-zinc-800">
+        <div
+          v-for="tag in filteredTags"
+          :key="tag.id"
+          class="grid gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 dark:border-zinc-800 lg:grid-cols-[1fr_auto]"
+        >
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-semibold text-slate-900 dark:text-zinc-100">#{{ tag.name }}</span>
+              <UBadge color="neutral" variant="soft" class="font-mono">
+                {{ tag.slug }}
+              </UBadge>
+              <UBadge :color="tag.status === 'active' ? 'success' : tag.status === 'pending' ? 'warning' : 'neutral'" variant="soft">
+                {{ t(`admin.forum.tagStatus.${tag.status}`) }}
+              </UBadge>
+            </div>
+            <p v-if="tag.description" class="mt-1 text-sm text-slate-500 dark:text-zinc-400">
+              {{ tag.description }}
+            </p>
+            <p class="mt-1 text-xs text-slate-400 dark:text-zinc-500">
+              {{ t('admin.forum.tags.topicCount', { count: tag.topicCount }) }}
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <UButton color="neutral" variant="ghost" size="sm" leading-icon="i-lucide-pencil" @click="editTag(tag)">
+              {{ t('admin.common.edit') }}
+            </UButton>
+            <UButton
+              v-if="tag.status === 'pending'"
+              color="success"
+              variant="outline"
+              size="sm"
+              leading-icon="i-lucide-check"
+              :loading="updatingId === tag.id"
+              @click="setTagStatus(tag, 'active')"
+            >
+              {{ t('admin.forum.tags.approve') }}
+            </UButton>
+            <UButton
+              v-if="tag.status !== 'disabled'"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              leading-icon="i-lucide-ban"
+              :loading="updatingId === tag.id"
+              @click="setTagStatus(tag, 'disabled')"
+            >
+              {{ t('admin.forum.tags.disable') }}
+            </UButton>
+          </div>
+        </div>
+      </div>
+
+      <SFEmptyState
+        v-else
+        icon-label="TAG"
+        :title="t('admin.forum.tags.empty')"
+        :description="t('admin.forum.tags.emptyDescription')"
+      />
+    </UCard>
+  </div>
+</template>

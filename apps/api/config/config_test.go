@@ -55,16 +55,16 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	if cfg.AltchaCost != 1000 {
 		t.Fatalf("expected altcha cost 1000, got %d", cfg.AltchaCost)
 	}
-	if cfg.ExtensionRoot != "/var/lib/sforum/extensions" {
+	if cfg.ExtensionRoot != "../../storage/extensions" {
 		t.Fatalf("expected extension root default, got %q", cfg.ExtensionRoot)
 	}
 	if cfg.BuiltinExtensionRoot != "../../extensions/builtin" {
 		t.Fatalf("expected builtin extension root default, got %q", cfg.BuiltinExtensionRoot)
 	}
-	if cfg.ThemeReleaseRoot != "/var/lib/sforum/theme-releases" {
+	if cfg.ThemeReleaseRoot != "../../storage/theme-releases" {
 		t.Fatalf("expected theme release root default, got %q", cfg.ThemeReleaseRoot)
 	}
-	if cfg.ThemeWebRoot != "/app/apps/web" {
+	if cfg.ThemeWebRoot != "../web" {
 		t.Fatalf("expected theme web root default, got %q", cfg.ThemeWebRoot)
 	}
 	if cfg.ThemeBunPath != "bun" {

@@ -108,6 +108,28 @@ export const adminPageDefinitions = [
     permissionMode: 'any'
   },
   {
+    id: '/forum/categories',
+    labelKey: 'admin.nav.forumCategories',
+    icon: 'i-lucide-folder-tree',
+    componentName: 'AdminForumCategories',
+    requiredPermissions: ['category.manage']
+  },
+  {
+    id: '/forum/tags',
+    labelKey: 'admin.nav.forumTags',
+    icon: 'i-lucide-tags',
+    componentName: 'AdminForumTags',
+    requiredPermissions: ['tag.manage']
+  },
+  {
+    id: '/forum/settings',
+    labelKey: 'admin.nav.forumSettings',
+    icon: 'i-lucide-sliders-horizontal',
+    componentName: 'AdminForumSettings',
+    requiredPermissions: ['category.manage', 'tag.manage'],
+    permissionMode: 'any'
+  },
+  {
     id: '/extensions',
     labelKey: 'admin.nav.extensionOverview',
     icon: 'i-lucide-layout-dashboard',
@@ -155,6 +177,16 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/users' },
         { type: 'page', pageId: '/roles' },
         { type: 'page', pageId: '/permissions' }
+      ]
+    },
+    {
+      type: 'folder',
+      labelKey: 'admin.nav.forum',
+      icon: 'i-lucide-message-square-text',
+      children: [
+        { type: 'page', pageId: '/forum/categories' },
+        { type: 'page', pageId: '/forum/tags' },
+        { type: 'page', pageId: '/forum/settings' }
       ]
     },
     {

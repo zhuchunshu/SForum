@@ -7,5 +7,6 @@ presentation. Core still owns admin UI, authentication/session logic, API
 clients, i18n catalogs, SEO helpers, permissions, and reusable `SF*`
 components.
 
-Uploaded themes may be installed and verified, but v1 cannot activate them
-until SForum has a Nuxt rebuild, health-check, and rollback runtime.
+Uploaded themes can be activated through SForum's single-node theme release
+runtime. Activation builds a Nuxt/Nitro artifact, health-checks it, and switches
+the web runtime after the release succeeds.

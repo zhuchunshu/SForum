@@ -35,6 +35,13 @@ cd apps/web && bun run dev
 ./scripts/api-dev.sh
 ```
 
+Background jobs, including uploaded theme activation, need the local worker in
+a third terminal:
+
+```sh
+./scripts/worker-dev.sh
+```
+
 After Dockerfile or dependency changes, rebuild the migration image explicitly:
 
 ```sh

@@ -7,7 +7,12 @@ Meilisearch.
 
 ## Current Status
 
-Planned. No application code has been added.
+Planned. No Meilisearch indexing code has been added.
+
+Forum taxonomy fields are now available from the core forum read models:
+category ID/slug/name, category group context, and active topic tag summaries.
+These fields should be part of future public search documents, but full index
+write/rebuild behavior remains follow-up work.
 
 ## Planned Approach
 
@@ -21,8 +26,8 @@ Planned. No application code has been added.
 
 ## Candidate Documents
 
-- `topics`: topic title, slug, category, author summary, tags, visibility,
-  latest activity, reply count.
+- `topics`: topic title, slug, category ID/slug/name, category group context,
+  active tags, author summary, visibility, latest activity, reply count.
 - `posts`: post body excerpt, topic/category references, author summary,
   created/updated timestamps, visibility.
 

@@ -13,6 +13,88 @@ ApiResponseCategoryList:
       type: array
       items:
         "$ref": "#/Category"
+ApiResponseCategory:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/Category"
+ApiResponseCategoryGroup:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/CategoryGroup"
+ApiResponseCategoryGroupList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/CategoryGroup"
+ApiResponseTag:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/Tag"
+ApiResponseTagList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/Tag"
+ApiResponseForumSettings:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ForumSettings"
 ApiResponseTopicList:
   type: object
   required:
@@ -149,7 +231,19 @@ CommentStatus:
   - active
   - hidden
   - deleted
-Category:
+TagStatus:
+  type: string
+  enum:
+  - active
+  - pending
+  - disabled
+TagCreationMode:
+  type: string
+  enum:
+  - controlled
+  - review
+  - open
+CategoryGroup:
   type: object
   required:
   - id
@@ -157,8 +251,8 @@ Category:
   - name
   - description
   - visibility
-  - topicCount
-  - commentCount
+  - position
+  - categories
   - createdAt
   - updatedAt
   properties:
@@ -176,6 +270,64 @@ Category:
       enum:
       - public
       - hidden
+    position:
+      type: integer
+    categories:
+      type: array
+      items:
+        "$ref": "#/Category"
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+Category:
+  type: object
+  required:
+  - id
+  - groupId
+  - groupSlug
+  - groupName
+  - slug
+  - name
+  - description
+  - visibility
+  - position
+  - defaultSort
+  - topicCount
+  - commentCount
+  - createdAt
+  - updatedAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    groupId:
+      type: integer
+      format: int64
+    groupSlug:
+      type: string
+    groupName:
+      type: string
+    slug:
+      type: string
+    name:
+      type: string
+    description:
+      type: string
+    visibility:
+      type: string
+      enum:
+      - public
+      - hidden
+    position:
+      type: integer
+    defaultSort:
+      type: string
+      enum:
+      - latest
+      - hot
     topicCount:
       type: integer
       format: int64
@@ -188,6 +340,73 @@ Category:
     updatedAt:
       type: string
       format: date-time
+Tag:
+  type: object
+  required:
+  - id
+  - slug
+  - name
+  - description
+  - status
+  - topicCount
+  - createdAt
+  - updatedAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    slug:
+      type: string
+    name:
+      type: string
+    description:
+      type: string
+    status:
+      "$ref": "#/TagStatus"
+    topicCount:
+      type: integer
+      format: int64
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+TopicTagSummary:
+  type: object
+  required:
+  - id
+  - slug
+  - name
+  - status
+  properties:
+    id:
+      type: integer
+      format: int64
+    slug:
+      type: string
+    name:
+      type: string
+    status:
+      "$ref": "#/TagStatus"
+ForumSettings:
+  type: object
+  required:
+  - defaultCategorySlug
+  - tagCreationMode
+  - tagPublicPages
+  - tagMaxPerTopic
+  properties:
+    defaultCategorySlug:
+      type: string
+    tagCreationMode:
+      "$ref": "#/TagCreationMode"
+    tagPublicPages:
+      type: boolean
+    tagMaxPerTopic:
+      type: integer
+      minimum: 0
+      maximum: 10
 ForumUser:
   type: object
   required:
@@ -245,6 +464,10 @@ TopicSummary:
     viewCount:
       type: integer
       format: int64
+    tags:
+      type: array
+      items:
+        "$ref": "#/TopicTagSummary"
     excerpt:
       type: string
     createdAt:
@@ -391,6 +614,11 @@ CreateTopicRequest:
     categorySlug:
       type: string
       default: general
+    tagSlugs:
+      type: array
+      maxItems: 10
+      items:
+        type: string
     title:
       type: string
     content:
@@ -414,3 +642,137 @@ UpdateCommentRequest:
   properties:
     content:
       "$ref": "#/ContentInput"
+CreateCategoryGroupRequest:
+  type: object
+  required:
+  - slug
+  - name
+  properties:
+    slug:
+      type: string
+    name:
+      type: string
+    description:
+      type: string
+      default: ''
+    visibility:
+      type: string
+      enum:
+      - public
+      - hidden
+      default: public
+    position:
+      type: integer
+      default: 0
+UpdateCategoryGroupRequest:
+  type: object
+  properties:
+    slug:
+      type: string
+    name:
+      type: string
+    description:
+      type: string
+    visibility:
+      type: string
+      enum:
+      - public
+      - hidden
+    position:
+      type: integer
+CreateCategoryRequest:
+  type: object
+  required:
+  - groupId
+  - slug
+  - name
+  properties:
+    groupId:
+      type: integer
+      format: int64
+    slug:
+      type: string
+    name:
+      type: string
+    description:
+      type: string
+      default: ''
+    visibility:
+      type: string
+      enum:
+      - public
+      - hidden
+      default: public
+    position:
+      type: integer
+      default: 0
+    defaultSort:
+      type: string
+      enum:
+      - latest
+      - hot
+      default: latest
+UpdateCategoryRequest:
+  type: object
+  properties:
+    groupId:
+      type: integer
+      format: int64
+    slug:
+      type: string
+    name:
+      type: string
+    description:
+      type: string
+    visibility:
+      type: string
+      enum:
+      - public
+      - hidden
+    position:
+      type: integer
+    defaultSort:
+      type: string
+      enum:
+      - latest
+      - hot
+CreateTagRequest:
+  type: object
+  required:
+  - slug
+  - name
+  properties:
+    slug:
+      type: string
+    name:
+      type: string
+    description:
+      type: string
+      default: ''
+    status:
+      "$ref": "#/TagStatus"
+      default: active
+UpdateTagRequest:
+  type: object
+  properties:
+    slug:
+      type: string
+    name:
+      type: string
+    description:
+      type: string
+    status:
+      "$ref": "#/TagStatus"
+UpdateForumSettingsRequest:
+  type: object
+  properties:
+    defaultCategorySlug:
+      type: string
+    tagCreationMode:
+      "$ref": "#/TagCreationMode"
+    tagPublicPages:
+      type: boolean
+    tagMaxPerTopic:
+      type: integer
+      minimum: 0
+      maximum: 10

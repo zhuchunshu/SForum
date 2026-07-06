@@ -90,6 +90,29 @@ func TestManagerEmitsFilterEventsInStableOrderAndMergesPatches(t *testing.T) {
 	}
 }
 
+func TestManagerAllowsTopicBeforeCreateTagSlugPatchFromCatalog(t *testing.T) {
+	bus := NewHookBus(HookBusConfig{Invoker: HookInvokerFunc(func(_ context.Context, _ extensions.Extension, _ HookInput) HookResult {
+		return HookResult{OK: true, Patch: map[string]any{"tagSlugs": []string{"patched"}}}
+	})})
+	manager := NewManager(ManagerConfig{HookBus: bus})
+	extension := runtimeExtension("tagger.plugin")
+	extension.Manifest.Events = []extensions.ManifestEvent{{Name: appevents.TopicBeforeCreate, Kind: appevents.KindFilter}}
+	if err := manager.Start(context.Background(), extension); err != nil {
+		t.Fatalf("start plugin: %v", err)
+	}
+
+	result := manager.Emit(context.Background(), appevents.NewEnvelope(appevents.TopicBeforeCreate, map[string]any{
+		"title":    "original",
+		"tagSlugs": []string{"original"},
+	}))
+	if !result.OK {
+		t.Fatalf("expected tagSlugs patch to be allowed, got %#v", result)
+	}
+	if got, ok := result.Patch["tagSlugs"].([]string); !ok || !slices.Equal(got, []string{"patched"}) {
+		t.Fatalf("unexpected tagSlugs patch: %#v", result.Patch["tagSlugs"])
+	}
+}
+
 func TestManagerRecordsObserveEventDeliveries(t *testing.T) {
 	store := &fakeDeliveryStore{}
 	bus := NewHookBus(HookBusConfig{Invoker: HookInvokerFunc(func(_ context.Context, _ extensions.Extension, input HookInput) HookResult {

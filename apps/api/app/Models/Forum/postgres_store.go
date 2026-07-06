@@ -22,10 +22,15 @@ func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
 
 func (s *PostgresStore) ListCategories(ctx context.Context) ([]Category, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, slug, name, description, visibility, topic_count, comment_count, created_at, updated_at
+		SELECT categories.id, categories.group_id, category_groups.slug, category_groups.name,
+		  categories.slug, categories.name, categories.description, categories.visibility,
+		  categories.position, categories.default_sort,
+		  categories.topic_count, categories.comment_count, categories.created_at, categories.updated_at
 		FROM categories
-		WHERE visibility = 'public'
-		ORDER BY is_system DESC, name ASC, id ASC
+		JOIN category_groups ON category_groups.id = categories.group_id
+		WHERE categories.visibility = 'public'
+		  AND category_groups.visibility = 'public'
+		ORDER BY category_groups.position ASC, categories.position ASC, categories.id ASC
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("list categories: %w", err)
@@ -46,15 +51,213 @@ func (s *PostgresStore) ListCategories(ctx context.Context) ([]Category, error) 
 	return items, nil
 }
 
+func (s *PostgresStore) ListCategoryGroups(ctx context.Context) ([]CategoryGroup, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT category_groups.id, category_groups.slug, category_groups.name,
+		  category_groups.description, category_groups.visibility, category_groups.position,
+		  category_groups.created_at, category_groups.updated_at,
+		  categories.id, categories.group_id, categories.slug, categories.name,
+		  categories.description, categories.visibility, categories.position,
+		  categories.default_sort, categories.topic_count, categories.comment_count,
+		  categories.created_at, categories.updated_at
+		FROM category_groups
+		LEFT JOIN categories
+		  ON categories.group_id = category_groups.id
+		 AND categories.visibility = 'public'
+		WHERE category_groups.visibility = 'public'
+		ORDER BY category_groups.position ASC, category_groups.id ASC,
+		  categories.position ASC, categories.id ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list category groups: %w", err)
+	}
+	defer rows.Close()
+
+	items := []CategoryGroup{}
+	indexByID := map[int64]int{}
+	for rows.Next() {
+		group, category, hasCategory, err := scanCategoryGroupRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		index, ok := indexByID[group.ID]
+		if !ok {
+			group.Categories = []Category{}
+			items = append(items, group)
+			index = len(items) - 1
+			indexByID[group.ID] = index
+		}
+		if hasCategory {
+			category.GroupSlug = items[index].Slug
+			category.GroupName = items[index].Name
+			items[index].Categories = append(items[index].Categories, category)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate category groups: %w", err)
+	}
+	return items, nil
+}
+
+func (s *PostgresStore) ListTags(ctx context.Context, includePending bool) ([]Tag, error) {
+	query := `
+		SELECT id, slug, name, description, status, topic_count, created_at, updated_at
+		FROM tags
+		WHERE status = 'active'
+		ORDER BY topic_count DESC, name ASC, id ASC
+	`
+	if includePending {
+		query = `
+			SELECT id, slug, name, description, status, topic_count, created_at, updated_at
+			FROM tags
+			WHERE status IN ('active', 'pending', 'disabled')
+			ORDER BY status ASC, name ASC, id ASC
+		`
+	}
+	rows, err := s.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("list tags: %w", err)
+	}
+	defer rows.Close()
+
+	items := []Tag{}
+	for rows.Next() {
+		item, err := scanTag(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate tags: %w", err)
+	}
+	return items, nil
+}
+
+func (s *PostgresStore) CreateCategoryGroup(ctx context.Context, input CreateCategoryGroupInput) (CategoryGroup, error) {
+	row := s.pool.QueryRow(ctx, `
+		INSERT INTO category_groups (slug, name, description, visibility, position)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, slug, name, description, visibility, position, created_at, updated_at
+	`, input.Slug, input.Name, input.Description, input.Visibility, input.Position)
+	return scanCategoryGroup(row)
+}
+
+func (s *PostgresStore) UpdateCategoryGroup(ctx context.Context, input UpdateCategoryGroupInput) (CategoryGroup, error) {
+	row := s.pool.QueryRow(ctx, `
+		UPDATE category_groups
+		SET slug = COALESCE($2::text, slug),
+		    name = COALESCE($3::text, name),
+		    description = COALESCE($4::text, description),
+		    visibility = COALESCE($5::text, visibility),
+		    position = COALESCE($6::integer, position),
+		    updated_at = now()
+		WHERE id = $1
+		RETURNING id, slug, name, description, visibility, position, created_at, updated_at
+	`, input.ID, nullableString(input.Slug), nullableString(input.Name), nullableString(input.Description), nullableString(input.Visibility), nullableInt(input.Position))
+	item, err := scanCategoryGroup(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return CategoryGroup{}, ErrTopicNotFound
+	}
+	return item, err
+}
+
+func (s *PostgresStore) CreateCategory(ctx context.Context, input CreateCategoryInput) (Category, error) {
+	row := s.pool.QueryRow(ctx, `
+		WITH inserted AS (
+		  INSERT INTO categories (group_id, slug, name, description, visibility, position, default_sort)
+		  VALUES ($1, $2, $3, $4, $5, $6, $7)
+		  RETURNING *
+		)
+		SELECT inserted.id, inserted.group_id, category_groups.slug, category_groups.name,
+		  inserted.slug, inserted.name, inserted.description, inserted.visibility,
+		  inserted.position, inserted.default_sort, inserted.topic_count,
+		  inserted.comment_count, inserted.created_at, inserted.updated_at
+		FROM inserted
+		JOIN category_groups ON category_groups.id = inserted.group_id
+	`, input.GroupID, input.Slug, input.Name, input.Description, input.Visibility, input.Position, input.DefaultSort)
+	return scanCategory(row)
+}
+
+func (s *PostgresStore) UpdateCategory(ctx context.Context, input UpdateCategoryInput) (Category, error) {
+	row := s.pool.QueryRow(ctx, `
+		WITH updated AS (
+		  UPDATE categories
+		  SET group_id = COALESCE($2::bigint, group_id),
+		      slug = COALESCE($3::text, slug),
+		      name = COALESCE($4::text, name),
+		      description = COALESCE($5::text, description),
+		      visibility = COALESCE($6::text, visibility),
+		      position = COALESCE($7::integer, position),
+		      default_sort = COALESCE($8::text, default_sort),
+		      updated_at = now()
+		  WHERE id = $1
+		  RETURNING *
+		)
+		SELECT updated.id, updated.group_id, category_groups.slug, category_groups.name,
+		  updated.slug, updated.name, updated.description, updated.visibility,
+		  updated.position, updated.default_sort, updated.topic_count,
+		  updated.comment_count, updated.created_at, updated.updated_at
+		FROM updated
+		JOIN category_groups ON category_groups.id = updated.group_id
+	`, input.ID, nullableInt64(input.GroupID), nullableString(input.Slug), nullableString(input.Name), nullableString(input.Description), nullableString(input.Visibility), nullableInt(input.Position), nullableString(input.DefaultSort))
+	item, err := scanCategory(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Category{}, ErrTopicNotFound
+	}
+	return item, err
+}
+
+func (s *PostgresStore) CreateTag(ctx context.Context, input CreateTagInput) (Tag, error) {
+	row := s.pool.QueryRow(ctx, `
+		INSERT INTO tags (slug, name, description, status, created_by_user_id)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, slug, name, description, status, topic_count, created_at, updated_at
+	`, input.Slug, input.Name, input.Description, input.Status, nullUserID(input.ActorUserID))
+	return scanTag(row)
+}
+
+func (s *PostgresStore) UpdateTag(ctx context.Context, input UpdateTagInput) (Tag, error) {
+	row := s.pool.QueryRow(ctx, `
+		UPDATE tags
+		SET slug = COALESCE($2::text, slug),
+		    name = COALESCE($3::text, name),
+		    description = COALESCE($4::text, description),
+		    status = COALESCE($5::text, status),
+		    reviewed_by_user_id = COALESCE($6::bigint, reviewed_by_user_id),
+		    reviewed_at = CASE WHEN $5::text IS NULL THEN reviewed_at ELSE now() END,
+		    updated_at = now()
+		WHERE id = $1
+		RETURNING id, slug, name, description, status, topic_count, created_at, updated_at
+	`, input.ID, nullableString(input.Slug), nullableString(input.Name), nullableString(input.Description), nullableString(input.Status), nullablePositiveInt64(input.ActorUserID))
+	item, err := scanTag(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Tag{}, ErrTagNotFound
+	}
+	return item, err
+}
+
 func (s *PostgresStore) ListTopics(ctx context.Context, input TopicListInput) (TopicList, error) {
 	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
 	query := strings.TrimSpace(input.Query)
 	categorySlug := strings.TrimSpace(input.CategorySlug)
+	tagSlug := strings.TrimSpace(input.TagSlug)
 	where := `
 		WHERE topics.status IN ('active', 'locked')
 		  AND categories.visibility = 'public'
 		  AND ($1 = '' OR categories.slug = $1)
 		  AND ($2 = '' OR topics.title ILIKE '%' || $2 || '%' OR posts.plain_text ILIKE '%' || $2 || '%')
+		  AND (
+		    $3 = ''
+		    OR EXISTS (
+		      SELECT 1
+		      FROM topic_tags
+		      JOIN tags ON tags.id = topic_tags.tag_id
+		      WHERE topic_tags.topic_id = topics.id
+		        AND tags.slug = $3
+		        AND tags.status = 'active'
+		    )
+		  )
 	`
 
 	var total int64
@@ -63,14 +266,14 @@ func (s *PostgresStore) ListTopics(ctx context.Context, input TopicListInput) (T
 		FROM topics
 		JOIN categories ON categories.id = topics.category_id
 		JOIN posts ON posts.id = topics.content_id
-	`+where, categorySlug, query).Scan(&total); err != nil {
+	`+where, categorySlug, query, tagSlug).Scan(&total); err != nil {
 		return TopicList{}, fmt.Errorf("count topics: %w", err)
 	}
 
 	rows, err := s.pool.Query(ctx, topicSummarySQL()+where+`
 		ORDER BY topics.is_pinned DESC, topics.last_activity_at DESC, topics.id DESC
-		LIMIT $3 OFFSET $4
-	`, categorySlug, query, input.PerPage, (input.Page-1)*input.PerPage)
+		LIMIT $4 OFFSET $5
+	`, categorySlug, query, tagSlug, input.PerPage, (input.Page-1)*input.PerPage)
 	if err != nil {
 		return TopicList{}, fmt.Errorf("list topics: %w", err)
 	}
@@ -86,6 +289,9 @@ func (s *PostgresStore) ListTopics(ctx context.Context, input TopicListInput) (T
 	}
 	if err := rows.Err(); err != nil {
 		return TopicList{}, fmt.Errorf("iterate topics: %w", err)
+	}
+	if err := s.attachActiveTagsToTopicSummaries(ctx, items); err != nil {
+		return TopicList{}, err
 	}
 	return TopicList{Items: items, Total: total, Page: input.Page, PerPage: input.PerPage}, nil
 }
@@ -103,7 +309,80 @@ func (s *PostgresStore) GetTopic(ctx context.Context, topicID int64) (TopicDetai
 	if err != nil {
 		return TopicDetail{}, fmt.Errorf("get topic: %w", err)
 	}
+	tags, err := s.activeTopicTags(ctx, []int64{topic.ID})
+	if err != nil {
+		return TopicDetail{}, err
+	}
+	topic.Tags = tags[topic.ID]
 	return topic, nil
+}
+
+func (s *PostgresStore) attachActiveTagsToTopicSummaries(ctx context.Context, items []TopicSummary) error {
+	if len(items) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	tags, err := s.activeTopicTags(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for index := range items {
+		items[index].Tags = tags[items[index].ID]
+	}
+	return nil
+}
+
+func (s *PostgresStore) activeTopicTags(ctx context.Context, topicIDs []int64) (map[int64][]TopicTagSummary, error) {
+	result := map[int64][]TopicTagSummary{}
+	if len(topicIDs) == 0 {
+		return result, nil
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT topic_tags.topic_id, tags.id, tags.slug, tags.name, tags.status
+		FROM topic_tags
+		JOIN tags ON tags.id = topic_tags.tag_id
+		WHERE topic_tags.topic_id = ANY($1)
+		  AND tags.status = 'active'
+		ORDER BY topic_tags.topic_id ASC, tags.name ASC, tags.id ASC
+	`, topicIDs)
+	if err != nil {
+		return nil, fmt.Errorf("list active topic tags: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var topicID int64
+		var tag TopicTagSummary
+		if err := rows.Scan(&topicID, &tag.ID, &tag.Slug, &tag.Name, &tag.Status); err != nil {
+			return nil, fmt.Errorf("scan active topic tag: %w", err)
+		}
+		result[topicID] = append(result[topicID], tag)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate active topic tags: %w", err)
+	}
+	return result, nil
+}
+
+func (s *PostgresStore) ResolveTopicTags(ctx context.Context, input ResolveTopicTagsInput) ([]TopicTagSummary, error) {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("begin resolve topic tags: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+	tags, err := resolveTopicTags(ctx, tx, input)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit resolve topic tags: %w", err)
+	}
+	return tags, nil
 }
 
 func (s *PostgresStore) CreateTopic(ctx context.Context, input CreateTopicRecord) (TopicDetail, error) {
@@ -146,10 +425,128 @@ func (s *PostgresStore) CreateTopic(ctx context.Context, input CreateTopicRecord
 	`, categoryID); err != nil {
 		return TopicDetail{}, fmt.Errorf("update category topic count: %w", err)
 	}
+	tags := input.Tags
+	if len(tags) == 0 && len(input.TagSlugs) > 0 {
+		tags, err = resolveTopicTags(ctx, tx, ResolveTopicTagsInput{
+			ActorUserID:  input.AuthorUserID,
+			Slugs:        input.TagSlugs,
+			CreationMode: input.TagCreationMode,
+		})
+		if err != nil {
+			return TopicDetail{}, err
+		}
+	}
+	if err := attachTopicTags(ctx, tx, topicID, tags); err != nil {
+		return TopicDetail{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return TopicDetail{}, fmt.Errorf("commit create topic: %w", err)
 	}
 	return s.GetTopic(ctx, topicID)
+}
+
+func resolveTopicTags(ctx context.Context, tx pgx.Tx, input ResolveTopicTagsInput) ([]TopicTagSummary, error) {
+	mode := strings.TrimSpace(input.CreationMode)
+	switch mode {
+	case TagCreationModeControlled, TagCreationModeReview, TagCreationModeOpen:
+	default:
+		return nil, ErrInvalidSettings
+	}
+	slugs, err := normalizeTopicTagSlugs(input.Slugs, 10)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]TopicTagSummary, 0, len(slugs))
+	for _, slug := range slugs {
+		tag, found, err := loadTagForUpdate(ctx, tx, slug)
+		if err != nil {
+			return nil, err
+		}
+		if found {
+			if tag.Status == TagStatusDisabled || (tag.Status == TagStatusPending && mode == TagCreationModeControlled) {
+				return nil, ErrInvalidTag
+			}
+			items = append(items, tag)
+			continue
+		}
+
+		switch mode {
+		case TagCreationModeControlled:
+			return nil, ErrInvalidTag
+		case TagCreationModeReview:
+			tag, err = insertTag(ctx, tx, input.ActorUserID, slug, TagStatusPending)
+		case TagCreationModeOpen:
+			tag, err = insertTag(ctx, tx, input.ActorUserID, slug, TagStatusActive)
+		}
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, tag)
+	}
+	return items, nil
+}
+
+func loadTagForUpdate(ctx context.Context, tx pgx.Tx, slug string) (TopicTagSummary, bool, error) {
+	var tag TopicTagSummary
+	err := tx.QueryRow(ctx, `
+		SELECT id, slug, name, status
+		FROM tags
+		WHERE slug = $1
+		FOR UPDATE
+	`, slug).Scan(&tag.ID, &tag.Slug, &tag.Name, &tag.Status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return TopicTagSummary{}, false, nil
+	}
+	if err != nil {
+		return TopicTagSummary{}, false, fmt.Errorf("load tag: %w", err)
+	}
+	return tag, true, nil
+}
+
+func insertTag(ctx context.Context, tx pgx.Tx, actorUserID int64, slug string, status string) (TopicTagSummary, error) {
+	name := strings.ReplaceAll(slug, "-", " ")
+	var tag TopicTagSummary
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO tags (slug, name, status, created_by_user_id)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, slug, name, status
+	`, slug, name, status, nullUserID(actorUserID)).Scan(&tag.ID, &tag.Slug, &tag.Name, &tag.Status); err != nil {
+		return TopicTagSummary{}, fmt.Errorf("insert tag: %w", err)
+	}
+	return tag, nil
+}
+
+func attachTopicTags(ctx context.Context, tx pgx.Tx, topicID int64, tags []TopicTagSummary) error {
+	for _, tag := range tags {
+		if tag.ID <= 0 {
+			continue
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO topic_tags (topic_id, tag_id)
+			VALUES ($1, $2)
+			ON CONFLICT DO NOTHING
+		`, topicID, tag.ID); err != nil {
+			return fmt.Errorf("attach topic tag: %w", err)
+		}
+		if tag.Status != TagStatusActive {
+			continue
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE tags
+			SET topic_count = topic_count + 1, updated_at = now()
+			WHERE id = $1 AND status = 'active'
+		`, tag.ID); err != nil {
+			return fmt.Errorf("update tag topic count: %w", err)
+		}
+	}
+	return nil
+}
+
+func nullUserID(userID int64) any {
+	if userID <= 0 {
+		return nil
+	}
+	return userID
 }
 
 func (s *PostgresStore) GetTopicForComment(ctx context.Context, topicID int64) (TopicSummary, error) {
@@ -456,10 +853,149 @@ type rowScanner interface {
 
 func scanCategory(row rowScanner) (Category, error) {
 	var item Category
-	if err := row.Scan(&item.ID, &item.Slug, &item.Name, &item.Description, &item.Visibility, &item.TopicCount, &item.CommentCount, &item.CreatedAt, &item.UpdatedAt); err != nil {
+	if err := row.Scan(
+		&item.ID,
+		&item.GroupID,
+		&item.GroupSlug,
+		&item.GroupName,
+		&item.Slug,
+		&item.Name,
+		&item.Description,
+		&item.Visibility,
+		&item.Position,
+		&item.DefaultSort,
+		&item.TopicCount,
+		&item.CommentCount,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	); err != nil {
 		return Category{}, fmt.Errorf("scan category: %w", err)
 	}
 	return item, nil
+}
+
+func scanCategoryGroup(row rowScanner) (CategoryGroup, error) {
+	var item CategoryGroup
+	if err := row.Scan(
+		&item.ID,
+		&item.Slug,
+		&item.Name,
+		&item.Description,
+		&item.Visibility,
+		&item.Position,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	); err != nil {
+		return CategoryGroup{}, fmt.Errorf("scan category group: %w", err)
+	}
+	item.Categories = []Category{}
+	return item, nil
+}
+
+func scanCategoryGroupRow(row rowScanner) (CategoryGroup, Category, bool, error) {
+	var group CategoryGroup
+	var categoryID sql.NullInt64
+	var categoryGroupID sql.NullInt64
+	var categorySlug sql.NullString
+	var categoryName sql.NullString
+	var categoryDescription sql.NullString
+	var categoryVisibility sql.NullString
+	var categoryPosition sql.NullInt64
+	var categoryDefaultSort sql.NullString
+	var categoryTopicCount sql.NullInt64
+	var categoryCommentCount sql.NullInt64
+	var categoryCreatedAt sql.NullTime
+	var categoryUpdatedAt sql.NullTime
+
+	if err := row.Scan(
+		&group.ID,
+		&group.Slug,
+		&group.Name,
+		&group.Description,
+		&group.Visibility,
+		&group.Position,
+		&group.CreatedAt,
+		&group.UpdatedAt,
+		&categoryID,
+		&categoryGroupID,
+		&categorySlug,
+		&categoryName,
+		&categoryDescription,
+		&categoryVisibility,
+		&categoryPosition,
+		&categoryDefaultSort,
+		&categoryTopicCount,
+		&categoryCommentCount,
+		&categoryCreatedAt,
+		&categoryUpdatedAt,
+	); err != nil {
+		return CategoryGroup{}, Category{}, false, fmt.Errorf("scan category group: %w", err)
+	}
+	if !categoryID.Valid {
+		return group, Category{}, false, nil
+	}
+	category := Category{
+		ID:           categoryID.Int64,
+		GroupID:      categoryGroupID.Int64,
+		GroupSlug:    group.Slug,
+		GroupName:    group.Name,
+		Slug:         categorySlug.String,
+		Name:         categoryName.String,
+		Description:  categoryDescription.String,
+		Visibility:   categoryVisibility.String,
+		Position:     int(categoryPosition.Int64),
+		DefaultSort:  categoryDefaultSort.String,
+		TopicCount:   categoryTopicCount.Int64,
+		CommentCount: categoryCommentCount.Int64,
+		CreatedAt:    categoryCreatedAt.Time,
+		UpdatedAt:    categoryUpdatedAt.Time,
+	}
+	return group, category, true, nil
+}
+
+func scanTag(row rowScanner) (Tag, error) {
+	var item Tag
+	if err := row.Scan(
+		&item.ID,
+		&item.Slug,
+		&item.Name,
+		&item.Description,
+		&item.Status,
+		&item.TopicCount,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	); err != nil {
+		return Tag{}, fmt.Errorf("scan tag: %w", err)
+	}
+	return item, nil
+}
+
+func nullableString(value *string) any {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
+
+func nullableInt(value *int) any {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
+
+func nullableInt64(value *int64) any {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
+
+func nullablePositiveInt64(value int64) any {
+	if value <= 0 {
+		return nil
+	}
+	return value
 }
 
 func topicSummarySQL() string {

@@ -85,6 +85,183 @@ func TestServiceCreateTopicAppliesBeforeCreateFilterAndEmitsCreatedEvent(t *test
 	}
 }
 
+func TestServiceCreateTopicUsesConfiguredDefaultCategory(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{
+		settings: ForumSettings{
+			DefaultCategorySlug: "support",
+			TagCreationMode:     TagCreationModeControlled,
+			TagPublicPages:      true,
+			TagMaxPerTopic:      5,
+		},
+	}, nil)
+	actor := topicCreator()
+
+	_, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
+		Title:   "默认分类",
+		Content: validMarkdownContent("正文"),
+	})
+	if err != nil {
+		t.Fatalf("CreateTopic returned error: %v", err)
+	}
+	if store.createdTopic.CategorySlug != "support" {
+		t.Fatalf("expected configured default category, got %q", store.createdTopic.CategorySlug)
+	}
+}
+
+func TestServiceCreateTopicNormalizesAndDeduplicatesTagSlugs(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+	actor := topicCreator()
+
+	_, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
+		CategorySlug: "general",
+		Title:        "标签规范化",
+		TagSlugs:     []string{" Go ", "go", "Nuxt-UI", "", "nuxt-ui"},
+		Content:      validMarkdownContent("正文"),
+	})
+	if err != nil {
+		t.Fatalf("CreateTopic returned error: %v", err)
+	}
+	if !stringSlicesEqual(store.createdTopic.TagSlugs, []string{"go", "nuxt-ui"}) {
+		t.Fatalf("expected normalized tag slugs on create record, got %#v", store.createdTopic.TagSlugs)
+	}
+	if store.createdTopic.TagCreationMode != TagCreationModeControlled {
+		t.Fatalf("expected tag creation mode on create record, got %q", store.createdTopic.TagCreationMode)
+	}
+	if store.resolveTagsCalled {
+		t.Fatal("service should defer tag resolution to the store create transaction")
+	}
+}
+
+func TestServiceCreateTopicControlledModeRejectsUnknownTags(t *testing.T) {
+	store := newServiceFakeStore()
+	store.resolveTagsErr = ErrInvalidTag
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+	actor := topicCreator()
+
+	_, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
+		CategorySlug: "general",
+		Title:        "受控标签",
+		TagSlugs:     []string{"unknown"},
+		Content:      validMarkdownContent("正文"),
+	})
+	if !errors.Is(err, ErrInvalidTag) {
+		t.Fatalf("expected ErrInvalidTag, got %v", err)
+	}
+	if store.createdTopic.Title != "" {
+		t.Fatalf("topic should not be created after invalid tag, got %#v", store.createdTopic)
+	}
+}
+
+func TestServiceCreateTopicAllowsReviewAndOpenTagCreationModes(t *testing.T) {
+	cases := []struct {
+		name   string
+		mode   string
+		status string
+	}{
+		{name: "review", mode: TagCreationModeReview, status: TagStatusPending},
+		{name: "open", mode: TagCreationModeOpen, status: TagStatusActive},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newServiceFakeStore()
+			store.resolvedTags = []TopicTagSummary{{ID: 2, Slug: "new-tag", Name: "new tag", Status: tc.status}}
+			settings := testForumSettings()
+			settings.TagCreationMode = tc.mode
+			service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+
+			topic, err := service.CreateTopic(context.Background(), topicCreator(), CreateTopicInput{
+				CategorySlug: "general",
+				Title:        "标签模式",
+				TagSlugs:     []string{"new-tag"},
+				Content:      validMarkdownContent("正文"),
+			})
+			if err != nil {
+				t.Fatalf("CreateTopic returned error: %v", err)
+			}
+			if store.createdTopic.TagCreationMode != tc.mode {
+				t.Fatalf("expected creation mode %q on create record, got %q", tc.mode, store.createdTopic.TagCreationMode)
+			}
+			if len(topic.Tags) != 1 || topic.Tags[0].Status != tc.status {
+				t.Fatalf("expected resolved tag status %q, got %#v", tc.status, topic.Tags)
+			}
+		})
+	}
+}
+
+func TestServiceCreateTopicRejectsTooManyTags(t *testing.T) {
+	settings := testForumSettings()
+	settings.TagMaxPerTopic = 1
+	store := newServiceFakeStore()
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+
+	_, err := service.CreateTopic(context.Background(), topicCreator(), CreateTopicInput{
+		CategorySlug: "general",
+		Title:        "太多标签",
+		TagSlugs:     []string{"one", "two"},
+		Content:      validMarkdownContent("正文"),
+	})
+	if !errors.Is(err, ErrInvalidTag) {
+		t.Fatalf("expected ErrInvalidTag, got %v", err)
+	}
+	if store.resolveTagsCalled {
+		t.Fatal("tag resolution should not run after max tag validation fails")
+	}
+}
+
+func TestServiceCreateTopicBeforeCreateCanPatchTagSlugs(t *testing.T) {
+	store := newServiceFakeStore()
+	publisher := &fakeEventPublisher{results: map[string]appevents.Result{
+		appevents.TopicBeforeCreate: {
+			OK:    true,
+			Patch: map[string]any{"tagSlugs": []string{"patched-tag"}},
+		},
+	}}
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+
+	_, err := service.CreateTopic(context.Background(), topicCreator(), CreateTopicInput{
+		CategorySlug: "general",
+		Title:        "事件补丁",
+		TagSlugs:     []string{"original"},
+		Content:      validMarkdownContent("正文"),
+	})
+	if err != nil {
+		t.Fatalf("CreateTopic returned error: %v", err)
+	}
+	if !stringSlicesEqual(store.createdTopic.TagSlugs, []string{"patched-tag"}) {
+		t.Fatalf("expected patched tag slugs, got %#v", store.createdTopic.TagSlugs)
+	}
+	if store.resolveTagsCalled {
+		t.Fatal("service should not resolve patched tag slugs before CreateTopic")
+	}
+}
+
+func TestServiceCreateTopicCreatedEventIncludesTagSlugs(t *testing.T) {
+	store := newServiceFakeStore()
+	publisher := &fakeEventPublisher{}
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, publisher)
+
+	_, err := service.CreateTopic(context.Background(), topicCreator(), CreateTopicInput{
+		CategorySlug: "general",
+		Title:        "创建事件",
+		TagSlugs:     []string{"go", "nuxt"},
+		Content:      validMarkdownContent("正文"),
+	})
+	if err != nil {
+		t.Fatalf("CreateTopic returned error: %v", err)
+	}
+	envelope, ok := publisher.envelope(appevents.TopicCreated)
+	if !ok {
+		t.Fatalf("expected topic.created event, got %#v", publisher.names)
+	}
+	payload, ok := envelope.Payload["tagSlugs"].([]string)
+	if !ok || !stringSlicesEqual(payload, []string{"go", "nuxt"}) {
+		t.Fatalf("expected tag slugs in created event, got %#v", envelope.Payload["tagSlugs"])
+	}
+}
+
 func TestCommentPositionForInsertSupportsArbitraryDepth(t *testing.T) {
 	parent := CommentSummary{
 		ID:            7,
@@ -211,12 +388,14 @@ func stringsContains(value string, needle string) bool {
 }
 
 type fakeEventPublisher struct {
-	names   []string
-	results map[string]appevents.Result
+	names     []string
+	envelopes []appevents.Envelope
+	results   map[string]appevents.Result
 }
 
 func (p *fakeEventPublisher) Emit(_ context.Context, envelope appevents.Envelope) appevents.Result {
 	p.names = append(p.names, envelope.Name)
+	p.envelopes = append(p.envelopes, envelope)
 	if result, ok := p.results[envelope.Name]; ok {
 		return result
 	}
@@ -232,11 +411,57 @@ func (p *fakeEventPublisher) seen(name string) bool {
 	return false
 }
 
+func (p *fakeEventPublisher) envelope(name string) (appevents.Envelope, bool) {
+	for _, item := range p.envelopes {
+		if item.Name == name {
+			return item, true
+		}
+	}
+	return appevents.Envelope{}, false
+}
+
+func topicCreator() identity.Actor {
+	return identity.Actor{
+		ID:          12,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionTopicCreate: true},
+	}
+}
+
+func validMarkdownContent(value string) ContentInput {
+	return ContentInput{RawContent: value, SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown}
+}
+
+func testForumSettings() ForumSettings {
+	return ForumSettings{
+		DefaultCategorySlug: "general",
+		TagCreationMode:     TagCreationModeControlled,
+		TagPublicPages:      true,
+		TagMaxPerTopic:      5,
+	}
+}
+
+type fakeSettingsResolver struct {
+	settings ForumSettings
+	err      error
+}
+
+func (r fakeSettingsResolver) ForumSettings(context.Context) (ForumSettings, error) {
+	if r.err != nil {
+		return ForumSettings{}, r.err
+	}
+	return r.settings, nil
+}
+
 type serviceFakeStore struct {
-	nextID          int64
-	createdTopic    CreateTopicRecord
-	topicForComment TopicSummary
-	commentSummary  CommentSummary
+	nextID            int64
+	createdTopic      CreateTopicRecord
+	topicForComment   TopicSummary
+	commentSummary    CommentSummary
+	resolvedTags      []TopicTagSummary
+	resolveTagsErr    error
+	resolveTagsCalled bool
+	resolvedTagsInput ResolveTopicTagsInput
 }
 
 func newServiceFakeStore() *serviceFakeStore {
@@ -250,6 +475,38 @@ func (s *serviceFakeStore) ListCategories(context.Context) ([]Category, error) {
 	return nil, nil
 }
 
+func (s *serviceFakeStore) ListCategoryGroups(context.Context) ([]CategoryGroup, error) {
+	return nil, nil
+}
+
+func (s *serviceFakeStore) ListTags(context.Context, bool) ([]Tag, error) {
+	return nil, nil
+}
+
+func (s *serviceFakeStore) CreateCategoryGroup(_ context.Context, input CreateCategoryGroupInput) (CategoryGroup, error) {
+	return CategoryGroup{ID: 1, Slug: input.Slug, Name: input.Name, Description: input.Description, Visibility: input.Visibility, Position: input.Position}, nil
+}
+
+func (s *serviceFakeStore) UpdateCategoryGroup(_ context.Context, input UpdateCategoryGroupInput) (CategoryGroup, error) {
+	return CategoryGroup{ID: input.ID, Slug: "default", Name: "默认版块", Visibility: "public"}, nil
+}
+
+func (s *serviceFakeStore) CreateCategory(_ context.Context, input CreateCategoryInput) (Category, error) {
+	return Category{ID: 1, GroupID: input.GroupID, Slug: input.Slug, Name: input.Name, Description: input.Description, Visibility: input.Visibility, Position: input.Position, DefaultSort: input.DefaultSort}, nil
+}
+
+func (s *serviceFakeStore) UpdateCategory(_ context.Context, input UpdateCategoryInput) (Category, error) {
+	return Category{ID: input.ID, GroupID: 1, Slug: "general", Name: "综合讨论", Visibility: "public", DefaultSort: "latest"}, nil
+}
+
+func (s *serviceFakeStore) CreateTag(_ context.Context, input CreateTagInput) (Tag, error) {
+	return Tag{ID: 1, Slug: input.Slug, Name: input.Name, Description: input.Description, Status: input.Status}, nil
+}
+
+func (s *serviceFakeStore) UpdateTag(_ context.Context, input UpdateTagInput) (Tag, error) {
+	return Tag{ID: input.ID, Slug: "go", Name: "Go", Status: TagStatusActive}, nil
+}
+
 func (s *serviceFakeStore) ListTopics(context.Context, TopicListInput) (TopicList, error) {
 	return TopicList{}, nil
 }
@@ -259,6 +516,15 @@ func (s *serviceFakeStore) GetTopic(context.Context, int64) (TopicDetail, error)
 }
 
 func (s *serviceFakeStore) CreateTopic(_ context.Context, input CreateTopicRecord) (TopicDetail, error) {
+	tags := input.Tags
+	if len(tags) == 0 && len(input.TagSlugs) > 0 {
+		var err error
+		tags, err = s.topicTags(input.TagSlugs)
+		if err != nil {
+			return TopicDetail{}, err
+		}
+		input.Tags = tags
+	}
 	input.ID = s.nextID
 	s.nextID++
 	input.Content.ID = s.nextID
@@ -272,9 +538,35 @@ func (s *serviceFakeStore) CreateTopic(_ context.Context, input CreateTopicRecor
 			Title:        input.Title,
 			Slug:         input.Slug,
 			Status:       TopicStatusActive,
+			Tags:         tags,
 		},
 		Content: input.Content,
 	}, nil
+}
+
+func (s *serviceFakeStore) ResolveTopicTags(_ context.Context, input ResolveTopicTagsInput) ([]TopicTagSummary, error) {
+	s.resolveTagsCalled = true
+	s.resolvedTagsInput = input
+	return s.topicTags(input.Slugs)
+}
+
+func (s *serviceFakeStore) topicTags(slugs []string) ([]TopicTagSummary, error) {
+	if s.resolveTagsErr != nil {
+		return nil, s.resolveTagsErr
+	}
+	if s.resolvedTags != nil {
+		return s.resolvedTags, nil
+	}
+	items := make([]TopicTagSummary, 0, len(slugs))
+	for index, slug := range slugs {
+		items = append(items, TopicTagSummary{
+			ID:     int64(index + 1),
+			Slug:   slug,
+			Name:   slug,
+			Status: TagStatusActive,
+		})
+	}
+	return items, nil
 }
 
 func (s *serviceFakeStore) GetTopicForComment(context.Context, int64) (TopicSummary, error) {
@@ -323,4 +615,16 @@ func (s *serviceFakeStore) ListComments(context.Context, CommentListInput) (Comm
 
 func (s *serviceFakeStore) ListCommentReplies(context.Context, int64) ([]Comment, error) {
 	return nil, nil
+}
+
+func stringSlicesEqual(left []string, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }

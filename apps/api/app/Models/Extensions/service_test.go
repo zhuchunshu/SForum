@@ -610,6 +610,41 @@ func TestServiceVerifyExtensionChecksThemeLayerWithoutActivating(t *testing.T) {
 	}
 }
 
+func TestServiceVerifyThemeAllowsIncrementalLayerWithoutPublicPages(t *testing.T) {
+	root := t.TempDir()
+	theme := uploadedExtension("incremental.theme", TypeTheme)
+	packageRoot := filepath.Join(root, theme.ID, theme.Version)
+	layerRoot := filepath.Join(packageRoot, "files", "frontend", "layer")
+	if err := os.MkdirAll(layerRoot, 0o755); err != nil {
+		t.Fatalf("create theme layer: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(layerRoot, "nuxt.config.ts"), []byte("export default defineNuxtConfig({})\n"), 0o644); err != nil {
+		t.Fatalf("write theme layer config: %v", err)
+	}
+	theme.PackagePath = filepath.Join(packageRoot, "package.zip")
+	if err := os.WriteFile(theme.PackagePath, []byte("zip"), 0o600); err != nil {
+		t.Fatalf("write uploaded package archive: %v", err)
+	}
+	if err := writeManifest(packageRoot, theme.Manifest); err != nil {
+		t.Fatalf("write uploaded manifest: %v", err)
+	}
+	store := &fakeExtensionStore{items: map[string]Extension{
+		theme.ID: theme,
+	}}
+	service := NewServiceWithHooks(store, t.TempDir(), nil, LocalThemeBuilder{})
+
+	verified, err := service.VerifyExtension(context.Background(), extensionManager(), theme.ID)
+	if err != nil {
+		t.Fatalf("incremental theme layer should verify through the default theme fallback: %v", err)
+	}
+	if verified.Status != StatusInstalled || store.activeThemeID != "" {
+		t.Fatalf("verify should keep incremental theme inactive, got verified=%#v active=%q", verified, store.activeThemeID)
+	}
+	if last := store.events[len(store.events)-1]; last.Action != EventVerified {
+		t.Fatalf("expected verify event, got %#v", store.events)
+	}
+}
+
 func TestServiceVerifyThemeMissingPackageReturnsBuildFailed(t *testing.T) {
 	missing := uploadedExtension("ghost.theme", TypeTheme)
 	missing.PackagePath = filepath.Join(t.TempDir(), "ghost.theme", "1.0.0", "package.zip")

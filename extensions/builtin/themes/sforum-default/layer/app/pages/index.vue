@@ -1,8 +1,18 @@
 <script setup lang="ts">
+import {
+  forumTopicPath,
+  type ForumCategory,
+  type ForumCategoryGroup,
+  type ForumTag,
+  type ForumTopicList,
+  type ForumTopicSummary
+} from '~/utils/forumTaxonomy'
+
 const { t } = useI18n()
 const localePath = useLocalePath()
 const { user } = useAuthSession()
 const { siteName, seoSettings } = useWebOptions()
+const forumApi = useForumApi()
 
 useSForumSeo({
   title: () => t('home.metaTitle', { siteName: siteName.value }),
@@ -11,121 +21,13 @@ useSForumSeo({
   schema: { type: 'WebPage' }
 })
 
-// Mock Categories for Sidebar
-interface Category {
-  name: string
-  key: string
-  count: number
-}
-const categories = computed<Category[]>(() => [
-  { name: t('home.sidebar.secTech'), key: 'tech', count: 184 },
-  { name: t('home.sidebar.secCreative'), key: 'creative', count: 42 },
-  { name: t('home.sidebar.secLife'), key: 'life', count: 96 },
-  { name: t('home.sidebar.secNotice'), key: 'notice', count: 8 }
-])
-
-// Mock Active Threads for Information Flow
-interface Thread {
-  id: number
-  title: string
-  excerpt: string
-  category: string
-  categoryKey: string
-  author: string
-  replies: number
-  views: number
-  score: number
-  timeAgo: string
-  isPinned?: boolean
-  isFeatured?: boolean
-}
-const threads = computed<Thread[]>(() => [
-  {
-    id: 1,
-    title: 'Vue 3.5 新特性深度解析与最佳实践',
-    excerpt: 'Vue 3.5 版本引入了响应式解构性能提升、全新 useTemplateRef 机制以及对 custom elements 的增强支持。本文将逐个分析这些优化点，并结合生产实例探讨如何优化现有的代码仓库结构…',
-    category: t('home.sidebar.secTech'),
-    categoryKey: 'tech',
-    author: '尤雨溪小号',
-    replies: 28,
-    views: 412,
-    score: 45,
-    timeAgo: '10分钟前',
-    isPinned: true,
-    isFeatured: true
-  },
-  {
-    id: 2,
-    title: '关于论坛首页三栏布局设计的建议与吐槽收集帖',
-    excerpt: `${siteName.value} 首页现已采用经典的三栏式门户布局，大家对目前的整体视觉、各个端上的响应式细节、以及组件排列有什么想法？欢迎在此帖畅所欲言，我们的设计师和开发者会每天跟进优化。`,
-    category: t('home.sidebar.secNotice'),
-    categoryKey: 'notice',
-    author: '管理员',
-    replies: 142,
-    views: 1024,
-    score: 99,
-    timeAgo: '1小时前',
-    isPinned: true
-  },
-  {
-    id: 3,
-    title: '用 Go Fiber v3 搭建高性能 API 的踩坑记录与性能分析',
-    excerpt: 'Go Fiber v3 目前在底层的 fasthttp 集成上有了更多改动。本文详细梳理了在处理中间件链条、大文件上传流式解析、Redis 连接池生命周期管理等场景下的常见坑点，以及最终的压测对比数据。',
-    category: t('home.sidebar.secTech'),
-    categoryKey: 'tech',
-    author: '蓝猫',
-    replies: 12,
-    views: 96,
-    score: 18,
-    timeAgo: '2小时前'
-  },
-  {
-    id: 4,
-    title: '我的第一个毛玻璃插画作品，欢迎大家提意见！',
-    excerpt: '使用 CSS backdrop-filter 和 SVG 混合发光渐变绘制了一款概念风格的后台卡片插图，大家感觉透明度和背景噪点会不会过重？',
-    category: t('home.sidebar.secCreative'),
-    categoryKey: 'creative',
-    author: '像素艺术家',
-    replies: 8,
-    views: 64,
-    score: 15,
-    timeAgo: '3小时前'
-  },
-  {
-    id: 5,
-    title: '今天天气不错，分享一下我们这里的日落美景',
-    excerpt: '下班路过海滩随手拍的，松石绿色的晚霞和海面真的让人心情平静。周末有空的话大家也可以多出门走走晒晒太阳。',
-    category: t('home.sidebar.secLife'),
-    categoryKey: 'life',
-    author: '追光者',
-    replies: 3,
-    views: 45,
-    score: 7,
-    timeAgo: '5小时前'
-  },
-  {
-    id: 6,
-    title: '你们好吗',
-    excerpt: '下班路过海滩随手拍的，松石绿色的晚霞和海面真的让人心情平静。周末有空的话大家也可以多出门走走晒晒太阳。',
-    category: t('home.sidebar.secLife'),
-    categoryKey: 'life',
-    author: '追光者2',
-    replies: 3,
-    views: 45,
-    score: 7,
-    timeAgo: '5小时前'
-  }
-])
-
-// Mock Hot Discussions
-const hotTopics = computed(() => [
-  { id: 1, title: `如何评价 ${siteName.value} 刚刚发布的松石绿设计风格？`, replies: 89 },
-  { id: 2, title: '2026 年前端开发在大陆找工作现状探讨', replies: 74 },
-  { id: 3, title: 'Go 语言新版本的并发控制特性有哪些升级？', replies: 56 },
-  { id: 4, title: '写 Markdown 长文时，你更在乎预览同步还是编辑流顺畅？', replies: 38 },
-  { id: 5, title: 'ALTCHA 独立部署的真实资源消耗表现怎么样？', replies: 21 }
-])
 const categoryDotColors = ['#0F766E', '#8B5CF6', '#F59E0B', '#EF4444'] as const
+const ITEMS_PER_PAGE = 10
+
+type FeedBadge = {
+  label: string
+  variant?: 'neutral' | 'primary' | 'info' | 'success' | 'warning' | 'danger'
+}
 
 // Vue 模板中的 v-for index 可能被推断为 string | number，集中转成数字避免模板隐式计算。
 function normalizedIndex(index: string | number) {
@@ -160,71 +62,65 @@ function hotTopicRankClass(index: string | number) {
 
 // Search & Filter state
 const searchQuery = ref('')
+const selectedCategorySlug = ref('')
+const selectedTagSlug = ref('')
 const currentTab = ref('latest')
 const currentPage = ref(1)
-const isPending = ref(false)
+
+const emptyTopicList = (): ForumTopicList => ({
+  items: [],
+  total: 0,
+  page: 1,
+  perPage: ITEMS_PER_PAGE
+})
+
+const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
+  'forum-home-category-groups',
+  () => forumApi.listCategoryGroups(),
+  { default: () => [] as ForumCategoryGroup[] }
+)
+
+const { data: activeTags, pending: tagsPending } = await useAsyncData(
+  'forum-home-tags',
+  async () => (await forumApi.listTags()).filter((tag) => tag.status === 'active'),
+  { default: () => [] as ForumTag[] }
+)
+
+const topicFilters = computed(() => ({
+  categorySlug: selectedCategorySlug.value,
+  tagSlug: selectedTagSlug.value,
+  query: searchQuery.value,
+  page: currentPage.value,
+  perPage: ITEMS_PER_PAGE
+}))
+
+const { data: topicList, pending: topicsPending } = await useAsyncData(
+  'forum-home-topics',
+  () => forumApi.listTopics(topicFilters.value),
+  {
+    default: emptyTopicList,
+    watch: [topicFilters]
+  }
+)
 
 // SFTabs configuration
 const tabItems = computed(() => [
   { label: t('home.filter.latest'), value: 'latest' },
-  { label: t('home.filter.hot'), value: 'hot' },
-  { label: t('home.filter.featured'), value: 'featured' },
-  { label: t('home.filter.following'), value: 'following', disabled: !user.value }
+  { label: t('home.filter.hot'), value: 'hot', disabled: true },
+  { label: t('home.filter.featured'), value: 'featured', disabled: true },
+  { label: t('home.filter.following'), value: 'following', disabled: true }
 ])
 
-// Computed filtered threads based on Search and Tab selection
-const filteredThreads = computed(() => {
-  let result = [...threads.value]
-  
-  // 1. Filter by Search Query
-  if (searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(t => t.title.toLowerCase().includes(query) || t.excerpt.toLowerCase().includes(query))
-  }
-  
-  // 2. Filter / Sort by Tab
-  if (currentTab.value === 'featured') {
-    result = result.filter(t => t.isFeatured)
-  } else if (currentTab.value === 'following') {
-    const followedAuthors = ['尤雨溪小号', '蓝猫']
-    result = result.filter(t => followedAuthors.includes(t.author))
-  } else if (currentTab.value === 'hot') {
-    result.sort((a, b) => b.replies - a.replies)
-  } else if (currentTab.value === 'latest') {
-    // Default mock sequence matches latest
-  }
-  
-  return result
-})
-
-const ITEMS_PER_PAGE = 3
-const paginatedThreads = computed(() => {
-  const start = (currentPage.value - 1) * ITEMS_PER_PAGE
-  const end = start + ITEMS_PER_PAGE
-  return filteredThreads.value.slice(start, end)
-})
+const categories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
+const topics = computed(() => topicList.value.items)
+const isPending = computed(() => categoriesPending.value || tagsPending.value || topicsPending.value)
 const totalPages = computed(() => {
-  return Math.ceil(filteredThreads.value.length / ITEMS_PER_PAGE) || 1
+  return Math.ceil(topicList.value.total / Math.max(topicList.value.perPage, 1)) || 1
 })
-
-// Watch tab selection to trigger mock loading skeleton
-watch(currentTab, (newVal, oldVal, onCleanup) => {
-  currentPage.value = 1
-  isPending.value = true
-  const timer = setTimeout(() => {
-    isPending.value = false
-  }, 400)
-  onCleanup(() => clearTimeout(timer))
-})
-
-// Watch search query to trigger mock loading skeleton
-watch(searchQuery, (newVal, oldVal, onCleanup) => {
-  currentPage.value = 1
-  isPending.value = true
-  const timer = setTimeout(() => {
-    isPending.value = false
-  }, 300)
-  onCleanup(() => clearTimeout(timer))
+const hotTopics = computed(() => {
+  return [...topics.value]
+    .sort((a, b) => b.commentCount - a.commentCount)
+    .slice(0, 5)
 })
 
 // Daily check-in status
@@ -238,7 +134,60 @@ function handleCheckIn() {
 }
 
 // Categories count total
-const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) => acc + cur.count, 0))
+const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) => acc + cur.topicCount, 0))
+const totalCategoryComments = computed(() => categories.value.reduce((acc, cur) => acc + cur.commentCount, 0))
+
+watch([searchQuery, selectedCategorySlug, selectedTagSlug], () => {
+  if (currentPage.value !== 1) {
+    currentPage.value = 1
+  }
+})
+
+function selectCategory(category: ForumCategory) {
+  selectedCategorySlug.value = selectedCategorySlug.value === category.slug ? '' : category.slug
+}
+
+function selectTag(tag: ForumTag) {
+  selectedTagSlug.value = selectedTagSlug.value === tag.slug ? '' : tag.slug
+}
+
+function categoryButtonClass(category: ForumCategory) {
+  return selectedCategorySlug.value === category.slug
+    ? 'bg-[#E6F4F1] text-[#0F766E] dark:bg-teal-950/40 dark:text-teal-300'
+    : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50'
+}
+
+function tagButtonClass(tag: ForumTag) {
+  return selectedTagSlug.value === tag.slug
+    ? 'border-[#0F766E] bg-[#E6F4F1] text-[#0F766E] dark:border-teal-700 dark:bg-teal-950/40 dark:text-teal-300'
+    : 'border-slate-200 text-slate-700 hover:border-[#0F766E] hover:text-[#0F766E] dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-teal-600 dark:hover:text-teal-300'
+}
+
+function topicAuthor(topic: ForumTopicSummary) {
+  return topic.author?.displayName || topic.author?.username || `#${topic.authorUserId}`
+}
+
+function topicMeta(topic: ForumTopicSummary) {
+  return formatShortDate(topic.lastActivityAt || topic.createdAt)
+}
+
+function topicBadges(topic: ForumTopicSummary): FeedBadge[] {
+  return [
+    ...(topic.isPinned ? [{ label: t('home.badge.pinned'), variant: 'danger' as const }] : []),
+    { label: topic.categoryName, variant: 'primary' as const },
+    ...(topic.tags || []).map((tag) => ({ label: `#${tag.name}`, variant: 'neutral' as const }))
+  ]
+}
+
+function formatShortDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
 </script>
 
 <template>
@@ -284,8 +233,13 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
               <SFBadge variant="neutral" class="font-bold">{{ totalCategoryThreads }}</SFBadge>
             </div>
             <ul class="space-y-1.5">
-              <li v-for="(cat, idx) in categories" :key="cat.key">
-                <a href="#" class="flex justify-between items-center px-3 py-2 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50">
+              <li v-for="(cat, idx) in categories" :key="cat.slug">
+                <button
+                  type="button"
+                  class="flex w-full justify-between items-center px-3 py-2 rounded-lg text-[14px] font-medium transition"
+                  :class="categoryButtonClass(cat)"
+                  @click="selectCategory(cat)"
+                >
                   <span class="flex items-center gap-2.5">
                     <span
                       class="w-2 h-2 rounded-full shrink-0"
@@ -293,8 +247,8 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                     ></span>
                     <span>{{ cat.name }}</span>
                   </span>
-                  <span class="text-xs text-slate-500 font-mono dark:text-zinc-400">{{ cat.count }}</span>
-                </a>
+                  <span class="text-xs text-slate-500 font-mono dark:text-zinc-400">{{ cat.topicCount }}</span>
+                </button>
               </li>
             </ul>
           </SFCard>
@@ -338,23 +292,24 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
             </template>
 
             <!-- Thread Items -->
-            <template v-else-if="filteredThreads.length > 0">
+            <template v-else-if="topics.length > 0">
               <SFCard class="divide-y divide-slate-100 overflow-hidden dark:divide-zinc-800">
-                <div v-for="thread in paginatedThreads" :key="thread.id">
-                  <SFFeedRow
-                    :title="thread.title"
-                    :excerpt="thread.excerpt"
-                    :author="thread.author"
-                    :meta="thread.timeAgo"
-                    :replies="thread.replies"
-                    :views="thread.views"
-                    :score="thread.score"
-                    :badges="[
-                      ...(thread.isPinned ? [{ label: t('home.badge.pinned'), variant: 'danger' as const }] : []),
-                      ...(thread.isFeatured ? [{ label: t('home.badge.featured'), variant: 'success' as const }] : []),
-                      { label: thread.category, variant: 'primary' as const }
-                    ]"
-                  />
+                <div v-for="topic in topics" :key="topic.id">
+                  <NuxtLink
+                    :to="localePath(forumTopicPath(topic))"
+                    class="block transition hover:bg-slate-50 dark:hover:bg-zinc-900/60"
+                  >
+                    <SFFeedRow
+                      :title="topic.title"
+                      :excerpt="topic.excerpt"
+                      :author="topicAuthor(topic)"
+                      :meta="topicMeta(topic)"
+                      :replies="topic.commentCount"
+                      :views="topic.viewCount"
+                      :score="0"
+                      :badges="topicBadges(topic)"
+                    />
+                  </NuxtLink>
                 </div>
               </SFCard>
             </template>
@@ -371,7 +326,7 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
           </div>
 
           <!-- Pagination -->
-          <div v-if="filteredThreads.length > 0 && !isPending" class="flex justify-center pt-4">
+          <div v-if="topics.length > 0 && !isPending" class="flex justify-center pt-4">
             <SFPagination
               v-model:page="currentPage"
               :total-pages="totalPages"
@@ -393,11 +348,11 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                 
                 <div class="grid grid-cols-2 gap-4 w-full mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
                   <div>
-                    <span class="block text-base font-bold text-slate-800 dark:text-zinc-100">12</span>
+                    <span class="block text-base font-bold text-slate-800 dark:text-zinc-100">--</span>
                     <span class="text-xs text-slate-400 uppercase font-semibold dark:text-zinc-500">{{ t('home.sidebar.userPosts') }}</span>
                   </div>
                   <div>
-                    <span class="block text-base font-bold text-slate-800 dark:text-zinc-100">84</span>
+                    <span class="block text-base font-bold text-slate-800 dark:text-zinc-100">--</span>
                     <span class="text-xs text-slate-400 uppercase font-semibold dark:text-zinc-500">{{ t('home.sidebar.userLikes') }}</span>
                   </div>
                 </div>
@@ -443,12 +398,39 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
             </SFButton>
           </SFCard>
 
-          <!-- Hot Discussions Card -->
+          <!-- Tags Card -->
           <SFCard flush class="p-4" id="tags">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 dark:text-zinc-500">
+              {{ t('home.sidebar.navTags') }}
+            </h2>
+            <div v-if="activeTags.length" class="flex flex-wrap gap-2">
+              <button
+                v-for="tag in activeTags"
+                :key="tag.slug"
+                type="button"
+                class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition"
+                :class="tagButtonClass(tag)"
+                @click="selectTag(tag)"
+              >
+                <span>#{{ tag.name }}</span>
+                <span class="font-mono text-[11px] opacity-70">{{ tag.topicCount }}</span>
+              </button>
+            </div>
+            <div v-else class="py-4">
+              <SFEmptyState
+                icon-label="TAG"
+                :title="t('home.emptyState.title')"
+                :description="t('home.emptyState.description')"
+              />
+            </div>
+          </SFCard>
+
+          <!-- Hot Discussions Card -->
+          <SFCard flush class="p-4">
             <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 dark:text-zinc-500">
               {{ t('home.sidebar.hotThreads') }}
             </h2>
-            <ul class="space-y-3">
+            <ul v-if="hotTopics.length" class="space-y-3">
               <li v-for="(topic, index) in hotTopics" :key="topic.id" class="flex gap-3 items-start">
                 <span
                   class="w-[18px] h-[18px] rounded text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5 px-1"
@@ -457,13 +439,19 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
                   {{ hotTopicRank(index) }}
                 </span>
                 <div class="min-w-0 flex-1">
-                  <a href="#" class="text-sm text-slate-700 hover:text-[#0F766E] hover:underline font-medium block truncate dark:text-zinc-300 dark:hover:text-teal-300">
+                  <NuxtLink :to="localePath(forumTopicPath(topic))" class="text-sm text-slate-700 hover:text-[#0F766E] hover:underline font-medium block truncate dark:text-zinc-300 dark:hover:text-teal-300">
                     {{ topic.title }}
-                  </a>
-                  <span class="text-xs text-slate-400 font-mono mt-0.5 block dark:text-zinc-500">{{ t('home.sidebar.repliesCount', { count: topic.replies }) }}</span>
+                  </NuxtLink>
+                  <span class="text-xs text-slate-400 font-mono mt-0.5 block dark:text-zinc-500">{{ t('home.sidebar.repliesCount', { count: topic.commentCount }) }}</span>
                 </div>
               </li>
             </ul>
+            <SFEmptyState
+              v-else
+              icon-label="HOT"
+              :title="t('home.emptyState.title')"
+              :description="t('home.emptyState.description')"
+            />
           </SFCard>
 
           <!-- Forum Stats Card -->
@@ -474,21 +462,21 @@ const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) =
             <ul class="space-y-2.5 text-sm text-slate-700 font-medium dark:text-zinc-300">
               <li class="flex justify-between py-0.5">
                 <span class="text-slate-500 font-normal dark:text-zinc-400">{{ t('home.sidebar.statThreads') }}</span>
-                <span class="font-semibold font-mono text-slate-800 dark:text-zinc-100">4,284</span>
+                <span class="font-semibold font-mono text-slate-800 dark:text-zinc-100">{{ topicList.total || totalCategoryThreads }}</span>
               </li>
               <li class="flex justify-between py-0.5">
                 <span class="text-slate-500 font-normal dark:text-zinc-400">{{ t('home.sidebar.statReplies') }}</span>
-                <span class="font-semibold font-mono text-slate-800 dark:text-zinc-100">23,109</span>
+                <span class="font-semibold font-mono text-slate-800 dark:text-zinc-100">{{ totalCategoryComments }}</span>
               </li>
               <li class="flex justify-between py-0.5">
                 <span class="text-slate-500 font-normal dark:text-zinc-400">{{ t('home.sidebar.statMembers') }}</span>
-                <span class="font-semibold font-mono text-slate-800 dark:text-zinc-100">894</span>
+                <span class="font-semibold font-mono text-slate-800 dark:text-zinc-100">--</span>
               </li>
               <li class="flex justify-between py-0.5">
                 <span class="text-slate-500 font-normal dark:text-zinc-400">{{ t('home.sidebar.statOnline') }}</span>
                 <span class="font-semibold font-mono text-slate-800 flex items-center gap-2 dark:text-zinc-100">
                   <span class="w-2 h-2 rounded-full bg-green-400 pulse-dot"></span>
-                  <span>1,024</span>
+                  <span>--</span>
                 </span>
               </li>
             </ul>

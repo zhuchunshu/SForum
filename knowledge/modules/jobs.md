@@ -19,6 +19,12 @@ Implemented so far:
 
 - `apps/api/app/Support/Jobs` wraps River queue config, dispatching, worker
   registration, and runtime startup.
+- SForum's database migrator now runs River's official migrator after Goose
+  application migrations, so fresh databases get River queue tables before API
+  or worker processes enqueue jobs.
+- API processes create an insert-only River client for dispatching jobs without
+  registering worker handlers. Worker processes still build a real worker
+  registry and own job execution.
 - `apps/api/bootstrap.NewWorker` opens the worker PostgreSQL pool, builds the
   worker registry, and creates the River client when at least one module has
   registered job handlers.
@@ -77,13 +83,9 @@ Implemented so far:
 - Whether the first scheduler uses River-native periodic features or a small
   SForum scheduler that enqueues ordinary durable jobs.
 - Which observability metrics are required before production launch.
-- Whether River migrations should stay as an explicit CLI command or be wrapped
-  by the future SForum migrate command.
 
 ## Next Steps
 
-- Run River migrations before enabling concrete workers against a fresh
-  database.
 - Wire real module registrations into `bootstrap.NewWorker` as domain jobs
   become available.
 - Implement the actual Meilisearch topic indexer and dispatch

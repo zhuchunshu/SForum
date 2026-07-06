@@ -50,6 +50,12 @@ through `SFORUM_THEME_LAYER`. The layer owns the homepage, default layout, auth
 layout/pages, public navbar/footer, and public/auth chrome CSS. Core keeps admin
 pages/layout, auth/session logic, API clients, i18n catalogs, SEO helpers,
 permissions, and reusable component/composable infrastructure.
+Uploaded themes are incremental overlays. When `SFORUM_THEME_LAYER` is set,
+`apps/web/nuxt.config.ts` extends `[uploadedThemeLayer, defaultThemeLayer]` so
+the uploaded layer can override public pages, layouts, components, and assets,
+while missing files continue to resolve from `sforum.default-theme`. The
+declared layer directory itself must still exist; only files inside it may be
+omitted and inherited from the default theme.
 Production and development web Docker images build from the repository root and
 copy `extensions/builtin` into `/app/extensions/builtin`, while keeping the web
 workdir at `/app/apps/web`; this preserves the static Nuxt layer reference
