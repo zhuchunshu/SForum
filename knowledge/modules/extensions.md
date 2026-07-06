@@ -84,6 +84,10 @@ and plugin runtime v1.
   roll back, and restore safe defaults. SForum should feel WordPress-like to
   site operators while keeping plugins and themes behind explicit Go API + Nuxt
   SSR contracts.
+- Extension admin manifest v2 is implemented for management entry and sidebar
+  behavior: new manifests may declare `admin.entry` and `admin.pages[]`,
+  legacy `adminPages` remains compatible, `Manage` resolves inside the admin
+  shell, and sidebar injection requires explicit `menu: true`.
 
 ## Boundaries
 
@@ -144,7 +148,7 @@ Required identity fields: `id`, `name`, `description`, `url`, `author`,
 Capability fields: `permissions`, `settings`, `migrations`, `backend`,
 `frontend`, `adminPages`, `routes`, `hooks`, `events`, `jobs`, and `providers`.
 
-The v2 target admin declaration is an `admin` object. Existing top-level
+The v2 admin declaration is an `admin` object. Existing top-level
 `adminPages` should be compatibility-mapped during migration.
 
 ```json
