@@ -614,6 +614,11 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 	if err != nil {
 		return Extension{}, err
 	}
+	// 切回默认主题前，把上一个上传主题遗留的 active release 置为 rolled_back，
+	// 否则前端会继续把它当作"当前主题"显示 100% 进度，与实际渲染的默认主题不一致。
+	if err := s.rollBackActiveThemeRelease(ctx); err != nil {
+		return Extension{}, err
+	}
 	// 恢复默认主题是同步路径，没有 worker 会再写 current.json。
 	// 这里主动写一个 default 状态，让前端运行时（runtime.mjs / dev supervisor）
 	// 能感知到"切回默认主题"，而不是继续显示上一个上传主题。
@@ -650,6 +655,26 @@ func (s *Service) EnsureDefaultThemeActive(ctx context.Context) (Extension, erro
 		return Extension{}, ErrInvalidManifest
 	}
 	return s.store.ActivateTheme(ctx, DefaultThemeID)
+}
+
+// rollBackActiveThemeRelease 把当前 active 的上传主题 release 置为 rolled_back。
+// 调用方是"切回默认主题"的同步路径：worker 不会再走一次 release 状态机，
+// 所以这里要主动清理遗留的 active release，避免前端继续显示旧的"当前主题"。
+// 没有 active release（比如首次激活默认主题）时静默返回 nil。
+func (s *Service) rollBackActiveThemeRelease(ctx context.Context) error {
+	current, err := s.store.ActiveThemeRelease(ctx)
+	if err != nil {
+		if errors.Is(err, ErrExtensionNotFound) {
+			return nil
+		}
+		return err
+	}
+	_, err = s.store.UpdateThemeRelease(ctx, ThemeReleaseUpdate{
+		ID:      current.ID,
+		Status:  ThemeReleaseRolledBack,
+		Message: "Rolled back because the default theme was activated.",
+	})
+	return err
 }
 
 func (s *Service) verifyExtension(ctx context.Context, extension Extension) error {

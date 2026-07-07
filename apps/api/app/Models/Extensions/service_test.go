@@ -824,6 +824,35 @@ func TestServiceActivateThemeRestoresBuiltinDefaultWritesCurrentFile(t *testing.
 	}
 }
 
+// 切回默认主题（同步路径）必须把之前 active 的上传主题 release 置为 rolled_back，
+// 否则前端会继续把它当作"当前主题"显示 100% 进度。
+func TestServiceActivateThemeRestoresBuiltinRollsBackUploadedRelease(t *testing.T) {
+	store := &fakeExtensionStore{items: map[string]Extension{
+		DefaultThemeID: withInstalledPackage(t, protectedBuiltinExtension(DefaultThemeID, TypeTheme)),
+	}}
+	// 预置一条 signal-garden 的 active release，模拟"切回默认"之前的状态。
+	store.releases = append(store.releases, ThemeRelease{
+		ID:          42,
+		ExtensionID: "sforum.signal-garden",
+		Status:      ThemeReleaseActive,
+	})
+	service := NewServiceWithThemeActivationWithOptions(store, t.TempDir(), "", LocalRuntimeManager{}, fakeThemeBuilder{}, nil)
+
+	_, err := service.ActivateTheme(context.Background(), extensionManager(), DefaultThemeID)
+	if err != nil {
+		t.Fatalf("ActivateTheme returned error: %v", err)
+	}
+	var rolledBack *ThemeRelease
+	for i := range store.releases {
+		if store.releases[i].ID == 42 {
+			rolledBack = &store.releases[i]
+		}
+	}
+	if rolledBack == nil || rolledBack.Status != ThemeReleaseRolledBack {
+		t.Fatalf("expected uploaded release #42 rolled back, got %#v", store.releases)
+	}
+}
+
 func TestServiceEnsureDefaultThemeActiveRepairsUnsafeThemeState(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		DefaultThemeID: protectedBuiltinExtension(DefaultThemeID, TypeTheme),

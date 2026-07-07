@@ -42,3 +42,22 @@
 - 同样的进程组 kill 修复应用到 `runtime.mjs`（生产侧，防御性，Nitro 可能也派生子进程）。
 
 **验证**：清理旧孤儿进程 + 重启 supervisor 后，切换主题双向均即时生效。`./scripts/test.sh` 全绿。
+
+### Bug：切回默认主题后，旧上传主题仍显示"当前主题 100%"
+
+**现象**：切回默认主题后前台已正确渲染默认主题，但后台主题列表里旧的上传主题仍显示"当前主题"标签和 100% 绿色进度条。
+
+**根因**：默认主题激活走同步路径（`Service.ActivateTheme` 的 builtin 分支），只更新了 `extensions` 表状态和 `current.json`，**没有回滚 `extension_theme_releases` 表里遗留的 active release**。前端 UI 根据 `themeRelease.status === 'active'` 判断"当前主题"，所以旧 release 永远停在 active，与实际渲染状态不一致。
+
+三方状态不一致的现场：
+- `current.json` = `mode:default`（运行时正确）
+- `extensions` 表 = `sforum.default-theme` enabled（DB 主题状态正确）
+- `extension_theme_releases` = release #20 仍 `active`（❌ 应为 rolled_back）
+
+**修复**：
+- 新增 `Service.rollBackActiveThemeRelease(ctx)`：取当前 active release，置为 `rolled_back`；无 active release 时静默返回。
+- 默认主题激活分支在 `store.ActivateTheme` 后、写 `current.json` 前调用它。
+- 测试：`TestServiceActivateThemeRestoresBuiltinRollsBackUploadedRelease` 预置 active release，断言激活默认主题后变 rolled_back。
+- 对历史遗留数据做一次性补偿（SQL 把 `status='active'` 改为 `rolled_back`）。
+
+**验证**：`go test ./app/Models/Extensions` 全绿，含新测试。
