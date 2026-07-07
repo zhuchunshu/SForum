@@ -62,8 +62,19 @@ workdir at `/app/apps/web`; this preserves the static Nuxt layer reference
 `../../extensions/builtin/themes/sforum-default/layer` inside containers.
 The web production container runs `apps/web/scripts/runtime.mjs`, which watches
 `THEME_RELEASE_ROOT/current.json` through `SFORUM_THEME_RELEASE_ROOT` and starts
-the selected Nitro server. The default `.output` remains the fallback release
-when no uploaded theme is active.
+the selected Nitro server. `current.json` carries `mode` (`uploaded` or
+`default`), an absolute `server` path for uploaded releases, and a `layerPath`
+for local dev. `runtime.mjs` resolves relative `server` paths against the
+release root, keeps the old child running when a candidate is missing, and
+falls back to the default `.output` when `mode === 'default'` or the file is
+absent.
+Locally, `bun run dev` runs `apps/web/scripts/dev-theme-runtime.mjs`, a
+theme-aware supervisor that reads the same `current.json`, injects
+`SFORUM_THEME_LAYER` from `layerPath`, and restarts the inner `nuxt dev`
+(spawned via `bun run dev:plain`) when the active theme changes.
+`bun run dev:plain` runs raw `nuxt dev` as an escape hatch for troubleshooting.
+`bun run preview` only serves the fixed `.output` build and does not follow
+admin theme switching.
 The production Docker build creates a build-local `.nuxt -> .nuxt-build`
 symlink before `bun run build` because `tsconfig.json` still extends
 `./.nuxt/tsconfig.json` while the build script uses `NUXT_BUILD_DIR=.nuxt-build`.

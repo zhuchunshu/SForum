@@ -131,6 +131,14 @@ and plugin runtime v1.
   them from `sforum.default-theme`. Multi-node rollout, signed marketplace
   trust, arbitrary theme dependency installation, and administrator preview
   approval are still future work.
+- `theme-releases/current.json` is the single runtime theme selection signal and
+  is consumed by both production `runtime.mjs` and local `dev-theme-runtime.mjs`.
+  Uploaded activation writes `mode: "uploaded"` with absolute `server`
+  (built Nitro entry for production) and `layerPath` (Nuxt Layer source for
+  local dev). Restoring the built-in default theme (synchronous API path) writes
+  `mode: "default"` with no `server`/`layerPath`, so both runtimes fall back to
+  the default `.output` / default theme layer. Legacy `{ "server": "..." }`
+  files remain compatible.
 - Keep plugin `Enable/Disable` separate from theme `Activate`. Do not call
   plugin runtime hooks when activating a theme.
 - Backend plugin packages can declare a backend entry and RPC protocol. The

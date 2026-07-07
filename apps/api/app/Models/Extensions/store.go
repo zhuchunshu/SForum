@@ -1,6 +1,10 @@
 package extensions
 
-import "context"
+import (
+	"context"
+
+	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
+)
 
 type Store interface {
 	List(ctx context.Context) ([]Extension, error)
@@ -44,4 +48,11 @@ type ThemeBuilder interface {
 
 type ThemeActivationDispatcher interface {
 	EnqueueThemeActivation(ctx context.Context, release ThemeRelease) error
+}
+
+// ThemeCurrentWriter 负责写 theme-releases/current.json。
+// 生产 runtime.mjs 与本地 dev supervisor 都依赖这个文件来切换主题，
+// 因此恢复默认主题（同步路径）也需要更新它，而不只是改 DB 状态。
+type ThemeCurrentWriter interface {
+	WriteCurrent(ctx context.Context, current themeruntime.CurrentRelease) error
 }

@@ -220,8 +220,8 @@
       "disabled": "Extension disabled.",
       "restarted": "Plugin runtime restarted.",
       "verified": "Extension preflight verified.",
-      "themeActivated": "Theme activated.",
-      "themeActivationQueued": "Theme build queued.",
+      "themeActivated": "Theme activated. The frontend runtime is using this theme; local dev will apply it after the automatic restart.",
+      "themeActivationQueued": "Theme build queued. The frontend runtime will switch automatically after the build finishes; local dev will apply it after the automatic restart.",
       "themeActivationUnavailable": "Theme activation failed.",
       "actionFailed": "Extension action failed.",
       "stats": {
@@ -264,7 +264,7 @@
         "building": "Building the Nuxt theme release while the current theme keeps serving traffic.",
         "built": "Build completed and the release is preparing to switch.",
         "activating": "Writing the current release and waiting for the web runtime to switch.",
-        "active": "Theme release is active.",
+        "active": "The frontend runtime is using this theme; local dev will apply it after the automatic restart.",
         "failed": "Theme activation failed. Review the build log, then retry.",
         "rolled_back": "This release has been replaced by a newer theme release."
       },

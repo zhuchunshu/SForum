@@ -16,6 +16,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
 )
 
 const maxArchiveBytes = 50 * 1024 * 1024
@@ -27,6 +28,19 @@ type Service struct {
 	runtime                   RuntimeManager
 	themeBuilder              ThemeBuilder
 	themeActivationDispatcher ThemeActivationDispatcher
+	themeCurrentWriter        ThemeCurrentWriter
+}
+
+// ServiceOption 用于在保留现有构造函数签名的同时注入可选依赖。
+// 目前仅用于给 API 进程（同步恢复默认主题路径）注入 ThemeCurrentWriter。
+type ServiceOption func(*Service)
+
+// WithThemeCurrentWriter 让 ActivateTheme 在恢复内置默认主题（同步路径）
+// 时写入 current.json 的 default 状态，供前端运行时感知"切回默认"。
+func WithThemeCurrentWriter(writer ThemeCurrentWriter) ServiceOption {
+	return func(s *Service) {
+		s.themeCurrentWriter = writer
+	}
 }
 
 func NewService(store Store, extensionRoot string) *Service {
@@ -79,6 +93,18 @@ func NewServiceWithBuiltinsAndRuntime(store Store, extensionRoot string, builtin
 func NewServiceWithThemeActivation(store Store, extensionRoot string, builtinRoot string, runtime RuntimeManager, themeBuilder ThemeBuilder, dispatcher ThemeActivationDispatcher) *Service {
 	service := NewServiceWithBuiltinsAndRuntime(store, extensionRoot, builtinRoot, runtime, themeBuilder)
 	service.themeActivationDispatcher = dispatcher
+	return service
+}
+
+// NewServiceWithThemeActivationWithOptions 在 NewServiceWithThemeActivation 基础上
+// 注入可选依赖（如 ThemeCurrentWriter），保持原有调用方签名不变。
+func NewServiceWithThemeActivationWithOptions(store Store, extensionRoot string, builtinRoot string, runtime RuntimeManager, themeBuilder ThemeBuilder, dispatcher ThemeActivationDispatcher, options ...ServiceOption) *Service {
+	service := NewServiceWithThemeActivation(store, extensionRoot, builtinRoot, runtime, themeBuilder, dispatcher)
+	for _, option := range options {
+		if option != nil {
+			option(service)
+		}
+	}
 	return service
 }
 
@@ -587,6 +613,17 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 	active, err := s.store.ActivateTheme(ctx, extension.ID)
 	if err != nil {
 		return Extension{}, err
+	}
+	// 恢复默认主题是同步路径，没有 worker 会再写 current.json。
+	// 这里主动写一个 default 状态，让前端运行时（runtime.mjs / dev supervisor）
+	// 能感知到"切回默认主题"，而不是继续显示上一个上传主题。
+	if s.themeCurrentWriter != nil {
+		if err := s.themeCurrentWriter.WriteCurrent(ctx, themeruntime.CurrentRelease{
+			ExtensionID: DefaultThemeID,
+			Mode:        themeruntime.CurrentModeDefault,
+		}); err != nil {
+			return Extension{}, err
+		}
 	}
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: active.ID,

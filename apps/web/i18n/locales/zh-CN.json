@@ -220,8 +220,8 @@
       "disabled": "扩展已禁用。",
       "restarted": "插件运行时已重启。",
       "verified": "扩展预检已通过。",
-      "themeActivated": "主题已激活。",
-      "themeActivationQueued": "主题构建已排队。",
+      "themeActivated": "主题已激活。前台运行时正在使用该主题；本地 dev 会自动重启后生效。",
+      "themeActivationQueued": "主题构建已排队。构建完成后前台运行时会自动切换；本地 dev 会自动重启后生效。",
       "themeActivationUnavailable": "主题激活失败。",
       "actionFailed": "扩展操作失败。",
       "stats": {
@@ -264,7 +264,7 @@
         "building": "正在构建 Nuxt 主题发布包，期间当前主题会继续服务。",
         "built": "构建已完成，正在准备切换。",
         "activating": "正在写入当前发布并等待 Web 运行时切换。",
-        "active": "主题发布已经生效。",
+        "active": "前台运行时正在使用该主题；本地 dev 会自动重启后生效。",
         "failed": "主题激活失败，查看构建日志后可重试。",
         "rolled_back": "此发布已被后续主题替换。"
       },

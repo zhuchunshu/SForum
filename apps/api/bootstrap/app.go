@@ -30,6 +30,7 @@ import (
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
+	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -125,7 +126,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 	jobDispatcher := supportjobs.NewDispatcher(jobClient)
 	themeDispatcher := extensionjobs.ActivationDispatcherAdapter{Dispatcher: jobDispatcher}
-	extensionService := extensions.NewServiceWithThemeActivation(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime, nil, themeDispatcher)
+	// API 进程同步路径（恢复默认主题）也需要写 current.json。
+	// 这里构造一个仅用于 WriteCurrent 的 builder，不参与主题构建（构建仍由 worker 完成）。
+	themeCurrentWriter := themeruntime.NewBuilder(themeruntime.Config{ReleaseRoot: cfg.ThemeReleaseRoot})
+	extensionService := extensions.NewServiceWithThemeActivationWithOptions(
+		extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot,
+		extensionRuntime, nil, themeDispatcher,
+		extensions.WithThemeCurrentWriter(themeCurrentWriter),
+	)
 	if _, err := extensionService.SyncBuiltins(ctx); err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -161,7 +169,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, extensionRuntime)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
-	extensionsProvider := providers.NewExtensionsProviderWithRuntimeAndThemeActivation(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime, themeDispatcher)
+	extensionsProvider := providers.NewExtensionsProviderWithRuntimeAndThemeActivation(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime, themeDispatcher, extensions.WithThemeCurrentWriter(themeCurrentWriter))
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
 		RouteProviders: []httpserver.RouteProvider{identityProvider, forumProvider, optionsProvider, attachmentsProvider, databaseProvider, extensionsProvider},

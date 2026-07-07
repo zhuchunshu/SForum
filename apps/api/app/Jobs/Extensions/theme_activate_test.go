@@ -55,6 +55,15 @@ func TestActivateThemeWorkerMarksReleaseActive(t *testing.T) {
 	if builder.current.ExtensionID != "starter.theme" {
 		t.Fatalf("expected current release write, got %#v", builder.current)
 	}
+	if builder.current.Mode != themeruntime.CurrentModeUploaded {
+		t.Fatalf("expected uploaded current mode, got %q", builder.current.Mode)
+	}
+	if builder.current.Server != "/tmp/out/server/index.mjs" {
+		t.Fatalf("expected current server entry, got %q", builder.current.Server)
+	}
+	if builder.current.LayerPath != "/tmp/layer" {
+		t.Fatalf("expected current layer path, got %q", builder.current.LayerPath)
+	}
 }
 
 func TestActivateThemeWorkerMarksReleaseFailedWithCanceledJobContext(t *testing.T) {

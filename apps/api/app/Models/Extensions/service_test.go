@@ -13,6 +13,7 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
 )
 
 func TestServiceInstallArchiveRequiresExtensionManagePermission(t *testing.T) {
@@ -798,6 +799,31 @@ func TestServiceActivateThemeRestoresBuiltinDefaultThemeImmediately(t *testing.T
 	}
 }
 
+func TestServiceActivateThemeRestoresBuiltinDefaultWritesCurrentFile(t *testing.T) {
+	store := &fakeExtensionStore{items: map[string]Extension{
+		DefaultThemeID: withInstalledPackage(t, protectedBuiltinExtension(DefaultThemeID, TypeTheme)),
+	}}
+	writer := &fakeThemeCurrentWriter{}
+	service := NewServiceWithThemeActivationWithOptions(store, t.TempDir(), "", LocalRuntimeManager{}, fakeThemeBuilder{}, nil, WithThemeCurrentWriter(writer))
+
+	active, err := service.ActivateTheme(context.Background(), extensionManager(), DefaultThemeID)
+	if err != nil {
+		t.Fatalf("ActivateTheme returned error: %v", err)
+	}
+	if active.ID != DefaultThemeID {
+		t.Fatalf("expected default theme active, got %#v", active)
+	}
+	if writer.current.ExtensionID != DefaultThemeID {
+		t.Fatalf("expected default current extensionId, got %#v", writer.current)
+	}
+	if writer.current.Mode != themeruntime.CurrentModeDefault {
+		t.Fatalf("expected default current mode, got %q", writer.current.Mode)
+	}
+	if writer.current.Server != "" || writer.current.LayerPath != "" {
+		t.Fatalf("default current must not carry server/layerPath, got %#v", writer.current)
+	}
+}
+
 func TestServiceEnsureDefaultThemeActiveRepairsUnsafeThemeState(t *testing.T) {
 	store := &fakeExtensionStore{items: map[string]Extension{
 		DefaultThemeID: protectedBuiltinExtension(DefaultThemeID, TypeTheme),
@@ -1094,6 +1120,16 @@ func (d *fakeThemeActivationDispatcher) EnqueueThemeActivation(_ context.Context
 	d.releaseID = release.ID
 	d.extensionID = release.ExtensionID
 	return d.err
+}
+
+type fakeThemeCurrentWriter struct {
+	current themeruntime.CurrentRelease
+	err     error
+}
+
+func (w *fakeThemeCurrentWriter) WriteCurrent(_ context.Context, current themeruntime.CurrentRelease) error {
+	w.current = current
+	return w.err
 }
 
 type fakeExtensionStore struct {

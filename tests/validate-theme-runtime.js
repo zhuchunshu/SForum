@@ -4,6 +4,7 @@ const path = require('path')
 const root = path.resolve(__dirname, '..')
 const nuxtConfig = fs.readFileSync(path.join(root, 'apps/web/nuxt.config.ts'), 'utf8')
 const runtimeScript = fs.readFileSync(path.join(root, 'apps/web/scripts/runtime.mjs'), 'utf8')
+const devRuntimeScript = fs.readFileSync(path.join(root, 'apps/web/scripts/dev-theme-runtime.mjs'), 'utf8')
 const webPackage = JSON.parse(fs.readFileSync(path.join(root, 'apps/web/package.json'), 'utf8'))
 
 function assertIncludes(source, pattern, message) {
@@ -36,9 +37,21 @@ assertIncludes(runtimeScript, 'SFORUM_THEME_RELEASE_ROOT', 'runtime script must 
 assertIncludes(runtimeScript, 'current.json', 'runtime script must watch current.json')
 assertIncludes(runtimeScript, 'spawn', 'runtime script must spawn the selected Nitro server')
 assertIncludes(runtimeScript, 'fs.watch', 'runtime script must watch release changes')
+assertIncludes(runtimeScript, "mode === 'default'", 'runtime script must handle default mode in current.json')
+assertIncludes(runtimeScript, 'path.isAbsolute', 'runtime script must resolve relative server paths')
+assertIncludes(runtimeScript, 'fallbackServer', 'runtime script must provide a fallback server helper')
 assertIncludes(webPackage.scripts.build, 'nuxt build', 'web build script must run Nuxt build')
 if (webPackage.scripts.build.includes('NUXT_BUILD_DIR=.nuxt-build')) {
   throw new Error('web build script must not override the theme worker NUXT_BUILD_DIR environment')
 }
+assertIncludes(webPackage.scripts.dev, 'dev-theme-runtime.mjs', 'web dev must use the theme-aware supervisor')
+assertIncludes(webPackage.scripts['dev:plain'], 'nuxt dev --host 0.0.0.0 --dotenv ../../.env', 'web dev:plain must keep raw Nuxt dev')
+assertIncludes(webPackage.scripts['theme:runtime'], 'scripts/runtime.mjs', 'theme:runtime must run production theme supervisor')
+assertIncludes(devRuntimeScript, 'SFORUM_THEME_LAYER', 'dev supervisor must inject SFORUM_THEME_LAYER')
+assertIncludes(devRuntimeScript, 'current.json', 'dev supervisor must read current.json')
+assertIncludes(devRuntimeScript, 'fs.watch', 'dev supervisor must watch release changes')
+assertIncludes(devRuntimeScript, 'dev:plain', 'dev supervisor must spawn dev:plain')
+assertIncludes(devRuntimeScript, 'SIGTERM', 'dev supervisor must handle SIGTERM to clean up children')
+assertIncludes(devRuntimeScript, "mode === 'default'", 'dev supervisor must honor default mode in current.json')
 
 console.log('Theme runtime validation passed.')

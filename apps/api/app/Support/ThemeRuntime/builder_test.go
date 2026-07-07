@@ -2,6 +2,7 @@ package themeruntime
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,20 +19,113 @@ func TestBuilderWritesCurrentReleaseAtomically(t *testing.T) {
 	if err := os.WriteFile(server, []byte("console.log('ok')\n"), 0o644); err != nil {
 		t.Fatalf("write server: %v", err)
 	}
+	layer := filepath.Join(root, "storage", "extensions", "starter.theme", "1.0.0", "files", "layer")
+	if err := os.MkdirAll(layer, 0o755); err != nil {
+		t.Fatalf("mkdir layer: %v", err)
+	}
 	builder := NewBuilder(Config{ReleaseRoot: root})
 	if err := builder.WriteCurrent(context.Background(), CurrentRelease{
 		ReleaseID:   1,
 		ExtensionID: "starter.theme",
+		Mode:        CurrentModeUploaded,
 		Server:      server,
+		LayerPath:   layer,
 	}); err != nil {
 		t.Fatalf("write current: %v", err)
 	}
+	var current CurrentRelease
 	raw, err := os.ReadFile(filepath.Join(root, "current.json"))
 	if err != nil {
 		t.Fatalf("read current: %v", err)
 	}
-	if !strings.Contains(string(raw), "starter.theme") || !strings.Contains(string(raw), server) {
-		t.Fatalf("current.json missing release data: %s", raw)
+	if err := json.Unmarshal(raw, &current); err != nil {
+		t.Fatalf("decode current: %v", err)
+	}
+	if current.ExtensionID != "starter.theme" {
+		t.Fatalf("unexpected extensionId: %q", current.ExtensionID)
+	}
+	if current.Mode != CurrentModeUploaded {
+		t.Fatalf("expected uploaded mode, got %q", current.Mode)
+	}
+	if current.Server != server {
+		t.Fatalf("expected absolute server path %q, got %q", server, current.Server)
+	}
+	if !filepath.IsAbs(current.Server) {
+		t.Fatalf("server must be absolute, got %q", current.Server)
+	}
+	if current.LayerPath != layer {
+		t.Fatalf("expected layerPath %q, got %q", layer, current.LayerPath)
+	}
+	if !filepath.IsAbs(current.LayerPath) {
+		t.Fatalf("layerPath must be absolute, got %q", current.LayerPath)
+	}
+	if current.ActivatedAt == "" {
+		t.Fatal("expected non-empty activatedAt")
+	}
+}
+
+func TestBuilderWritesDefaultCurrentRelease(t *testing.T) {
+	root := t.TempDir()
+	builder := NewBuilder(Config{ReleaseRoot: root})
+	if err := builder.WriteCurrent(context.Background(), CurrentRelease{
+		ExtensionID: DefaultThemeExtensionID,
+		Mode:        CurrentModeDefault,
+	}); err != nil {
+		t.Fatalf("write default current: %v", err)
+	}
+	var current CurrentRelease
+	raw, err := os.ReadFile(filepath.Join(root, "current.json"))
+	if err != nil {
+		t.Fatalf("read current: %v", err)
+	}
+	if err := json.Unmarshal(raw, &current); err != nil {
+		t.Fatalf("decode default current: %v", err)
+	}
+	if current.ExtensionID != DefaultThemeExtensionID {
+		t.Fatalf("expected default theme extension id, got %q", current.ExtensionID)
+	}
+	if current.Mode != CurrentModeDefault {
+		t.Fatalf("expected default mode, got %q", current.Mode)
+	}
+	if current.Server != "" || current.LayerPath != "" {
+		t.Fatalf("default current must omit server/layerPath, got %#v", current)
+	}
+	if current.ActivatedAt == "" {
+		t.Fatal("expected non-empty activatedAt for default current")
+	}
+}
+
+func TestBuilderNormalizesRelativeCurrentPaths(t *testing.T) {
+	root, err := os.MkdirTemp("", "sforum-theme-current-*")
+	if err != nil {
+		t.Fatalf("mkdir temp root: %v", err)
+	}
+	defer os.RemoveAll(root)
+	builder := NewBuilder(Config{ReleaseRoot: root})
+	// 传入相对路径，WriteCurrent 应转成绝对路径写入。
+	if err := builder.WriteCurrent(context.Background(), CurrentRelease{
+		ExtensionID: "starter.theme",
+		Server:      filepath.Join("releases", "2", ".output", "server", "index.mjs"),
+		LayerPath:   filepath.Join("storage", "extensions", "layer"),
+	}); err != nil {
+		t.Fatalf("write current with relative paths: %v", err)
+	}
+	var current CurrentRelease
+	raw, err := os.ReadFile(filepath.Join(root, "current.json"))
+	if err != nil {
+		t.Fatalf("read current: %v", err)
+	}
+	if err := json.Unmarshal(raw, &current); err != nil {
+		t.Fatalf("decode current: %v", err)
+	}
+	if !filepath.IsAbs(current.Server) {
+		t.Fatalf("relative server must be absolutized, got %q", current.Server)
+	}
+	if !filepath.IsAbs(current.LayerPath) {
+		t.Fatalf("relative layerPath must be absolutized, got %q", current.LayerPath)
+	}
+	if current.Mode != CurrentModeUploaded {
+		t.Fatalf("server+layerPath present should infer uploaded mode, got %q", current.Mode)
 	}
 }
 

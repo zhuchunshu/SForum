@@ -236,6 +236,14 @@ This is the entry point for project memory.
   active. Uploaded themes are incremental Nuxt Layer overlays: their files
   override the protected default theme, and missing pages, layouts, components,
   or assets inherit from `sforum.default-theme`.
+  Theme runtime now converges on `theme-releases/current.json` as the single
+  selection signal for both production and local dev. `current.json` carries
+  `mode` (`uploaded`/`default`), an absolute `server` (Nitro entry for
+  production runtime.mjs), and an absolute `layerPath` (Nuxt Layer source for
+  local dev). Restoring the built-in default theme now writes a `default`
+  current.json synchronously from the API service, and local `bun run dev` is a
+  theme-aware supervisor (`dev-theme-runtime.mjs`) that restarts `nuxt dev`
+  with the active layer when `current.json` changes.
   Plugin runtime v1 now starts enabled plugin subprocesses through HashiCorp
   go-plugin, proxies declared plugin routes, emits lifecycle hooks, and exposes
   provider slot defaults. Built-in sync prunes stale built-in extension rows,
@@ -302,6 +310,9 @@ This is the entry point for project memory.
   lifecycle, permissions, storage, and runtime-boundary notes.
 - `modules/forum.md` - categories, topics, tree comments, shared content
   posts, API routes, and future frontend display decisions.
+- `legacy-sforum-feature-gap.md` - inventory of SForum-old features that are
+  not yet implemented in the rewrite, grouped by migration impact and suggested
+  build order.
 - `../contracts/README.md` - modular OpenAPI contract editing guide.
 - `decisions/2026-07-04-laravel-style-http-routing.md` - accepted backend
   composition, route registration, and Laravel-style API directory decision.
@@ -421,6 +432,9 @@ This is the entry point for project memory.
   and verification notes.
 - `sessions/2026-07-07-incremental-theme-fallback.md` - incremental uploaded
   theme overlay contract, fallback tests, and knowledge-base update.
+- `sessions/2026-07-07-theme-runtime-convergence.md` - `current.json` 新契约
+  (`mode`/`server`/`layerPath`)、默认主题同步写 current、dev 主题感知 supervisor、
+  runtime.mjs 健壮化、i18n 文案修正 handoff。
 - `sessions/2026-07-04-permission-aware-development-guidelines.md` -
   permission-aware feature development guideline handoff.
 - `sessions/2026-07-05-auth-session-restart-resilience.md` - frontend auth

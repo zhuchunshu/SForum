@@ -28,6 +28,17 @@ type Builder struct {
 	config Config
 }
 
+// current.json 的主题选择模式。
+// uploaded：上传主题激活，需要携带 server/layerPath 供运行时定位产物与 layer。
+// default：恢复内置默认主题，仅写 extensionId/mode，运行时回退到默认 .output。
+const (
+	CurrentModeUploaded = "uploaded"
+	CurrentModeDefault  = "default"
+
+	// DefaultThemeExtensionID 是受保护的内置默认主题标识，与 extensions.DefaultThemeID 对齐。
+	DefaultThemeExtensionID = "sforum.default-theme"
+)
+
 type BuildInput struct {
 	ReleaseID   int64
 	ExtensionID string
@@ -40,10 +51,15 @@ type BuildResult struct {
 	BuildLog     string
 }
 
+// CurrentRelease 是 theme-releases/current.json 的数据契约。
+// 生产 runtime.mjs 读 server 切换 Nitro 子进程；本地 dev supervisor 读 layerPath
+// 决定 SFORUM_THEME_LAYER。default 模式下两者为空，运行时各自回退到默认产物。
 type CurrentRelease struct {
-	ReleaseID   int64  `json:"releaseId"`
+	ReleaseID   int64  `json:"releaseId,omitempty"`
 	ExtensionID string `json:"extensionId"`
-	Server      string `json:"server"`
+	Mode        string `json:"mode,omitempty"`
+	Server      string `json:"server,omitempty"`
+	LayerPath   string `json:"layerPath,omitempty"`
 	ActivatedAt string `json:"activatedAt"`
 }
 
@@ -165,6 +181,30 @@ func joinLogs(parts ...string) string {
 }
 
 func (b *Builder) WriteCurrent(_ context.Context, current CurrentRelease) error {
+	// 默认主题的 extensionId 兜底，避免空值写进 current.json。
+	if current.ExtensionID == "" {
+		current.ExtensionID = DefaultThemeExtensionID
+	}
+	// mode 兜底：携带 server 或 layerPath 视为上传主题，否则为默认主题。
+	// 这样调用方只需在恢复默认主题时传 mode=default，其它路径可省略。
+	if current.Mode == "" {
+		if current.Server != "" || current.LayerPath != "" {
+			current.Mode = CurrentModeUploaded
+		} else {
+			current.Mode = CurrentModeDefault
+		}
+	}
+	// 路径一律写成绝对路径，避免不同进程 cwd 不一致导致 runtime/dev 找不到文件。
+	if current.Server != "" {
+		if abs, err := filepath.Abs(current.Server); err == nil {
+			current.Server = abs
+		}
+	}
+	if current.LayerPath != "" {
+		if abs, err := filepath.Abs(current.LayerPath); err == nil {
+			current.LayerPath = abs
+		}
+	}
 	current.ActivatedAt = time.Now().UTC().Format(time.RFC3339)
 	if err := os.MkdirAll(b.config.ReleaseRoot, 0o755); err != nil {
 		return fmt.Errorf("create release root: %w", err)

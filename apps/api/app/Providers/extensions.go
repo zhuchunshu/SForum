@@ -30,14 +30,17 @@ func NewExtensionsProviderWithRuntime(store extensions.Store, users identity.Act
 	return NewExtensionsProviderWithRuntimeAndThemeActivation(store, users, sessions, extensionRoot, builtinRoot, runtime, nil)
 }
 
-func NewExtensionsProviderWithRuntimeAndThemeActivation(store extensions.Store, users identity.ActorStore, sessions *authsession.Manager, extensionRoot string, builtinRoot string, runtime extensionRuntime, dispatcher extensions.ThemeActivationDispatcher) *ExtensionsProvider {
+// NewExtensionsProviderWithRuntimeAndThemeActivation 构造处理扩展 API 路由的 provider。
+// 可选的 ServiceOption（如 WithThemeCurrentWriter）让 provider 构造出的 service
+// 也具备写 current.json 的能力，与 bootstrap 里 SyncBuiltins 用的 service 行为一致。
+func NewExtensionsProviderWithRuntimeAndThemeActivation(store extensions.Store, users identity.ActorStore, sessions *authsession.Manager, extensionRoot string, builtinRoot string, runtime extensionRuntime, dispatcher extensions.ThemeActivationDispatcher, options ...extensions.ServiceOption) *ExtensionsProvider {
 	service := extensions.NewServiceWithBuiltins(store, extensionRoot, builtinRoot)
 	if dispatcher != nil {
-		service = extensions.NewServiceWithThemeActivation(store, extensionRoot, builtinRoot, nil, nil, dispatcher)
+		service = extensions.NewServiceWithThemeActivationWithOptions(store, extensionRoot, builtinRoot, nil, nil, dispatcher, options...)
 	}
 	var gateway extensionscontroller.RouteGateway
 	if runtime != nil {
-		service = extensions.NewServiceWithThemeActivation(store, extensionRoot, builtinRoot, runtime, nil, dispatcher)
+		service = extensions.NewServiceWithThemeActivationWithOptions(store, extensionRoot, builtinRoot, runtime, nil, dispatcher, options...)
 		gateway = extensionRouteGateway{runtime: runtime, gateway: extensionsruntime.NewRouteGateway()}
 	}
 	return &ExtensionsProvider{

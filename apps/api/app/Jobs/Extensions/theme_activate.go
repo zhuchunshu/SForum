@@ -104,7 +104,9 @@ func (w *ActivateThemeWorker) Work(ctx context.Context, job *river.Job[ActivateT
 	if err := w.Builder.WriteCurrent(ctx, themeruntime.CurrentRelease{
 		ReleaseID:   release.ID,
 		ExtensionID: extension.ID,
+		Mode:        themeruntime.CurrentModeUploaded,
 		Server:      result.ServerEntry,
+		LayerPath:   release.LayerPath,
 	}); err != nil {
 		return w.failThemeRelease(ctx, release.ID, err, result)
 	}
