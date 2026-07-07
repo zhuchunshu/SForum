@@ -1274,5 +1274,38 @@
     "terms": "Terms of Service",
     "privacy": "Privacy Policy",
     "guidelines": "Guidelines"
+  },
+  "topicDetail": {
+    "metaDescription": "View topic details and join the discussion.",
+    "notFound": {
+      "title": "Topic not found or removed",
+      "description": "This topic may have been deleted or hidden by a moderator."
+    },
+    "badge": {
+      "pinned": "Pinned",
+      "locked": "Locked"
+    },
+    "commentsTitle": "Comments ({count})",
+    "viewTree": "Tree",
+    "viewFlat": "Flat",
+    "edited": "edited",
+    "emptyComments": {
+      "title": "No comments yet",
+      "description": "Be the first to comment."
+    },
+    "lockedNotice": "This topic is locked and no longer accepts comments.",
+    "edit": "Edit",
+    "delete": "Delete",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "hide": "Hide",
+    "confirmDelete": "Delete this topic?",
+    "actionFailed": "Action failed, please try again.",
+    "lockToggled": "Topic lock state updated.",
+    "pinToggled": "Topic pin state updated.",
+    "hidden": "Topic hidden.",
+    "reply": "Reply"
   }
 }

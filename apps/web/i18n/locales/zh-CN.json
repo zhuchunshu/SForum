@@ -1274,5 +1274,38 @@
     "terms": "服务条款",
     "privacy": "隐私政策",
     "guidelines": "社区指南"
+  },
+  "topicDetail": {
+    "metaDescription": "查看社区话题详情并参与讨论。",
+    "notFound": {
+      "title": "话题不存在或已被移除",
+      "description": "该话题可能已被删除或被版主隐藏。"
+    },
+    "badge": {
+      "pinned": "置顶",
+      "locked": "已锁定"
+    },
+    "commentsTitle": "评论 ({count})",
+    "viewTree": "树状",
+    "viewFlat": "平铺",
+    "edited": "已编辑",
+    "emptyComments": {
+      "title": "还没有评论",
+      "description": "成为第一个发表评论的人。"
+    },
+    "lockedNotice": "该话题已锁定，暂不接受新评论。",
+    "edit": "编辑",
+    "delete": "删除",
+    "lock": "锁定",
+    "unlock": "解锁",
+    "pin": "置顶",
+    "unpin": "取消置顶",
+    "hide": "隐藏",
+    "confirmDelete": "确定要删除这个话题吗？",
+    "actionFailed": "操作失败，请稍后重试。",
+    "lockToggled": "话题锁定状态已更新。",
+    "pinToggled": "话题置顶状态已更新。",
+    "hidden": "话题已隐藏。",
+    "reply": "回复"
   }
 }

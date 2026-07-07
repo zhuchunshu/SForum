@@ -101,6 +101,85 @@ export type ForumTopicDetail = ForumTopicSummary & {
   content: ForumRenderedContent
 }
 
+export type ForumCommentStatus = 'active' | 'hidden' | 'deleted'
+
+export type ForumReplyReference = {
+  id: number
+  author?: ForumUserSummary
+  excerpt: string
+  depth: number
+}
+
+// 评论节点。tree 视图下 children 为嵌套回复；flat 视图下 children 为空。
+export type ForumComment = {
+  id: number
+  topicId: number
+  authorUserId: number
+  author?: ForumUserSummary
+  parentId?: number | null
+  rootCommentId: number
+  pathKey: string
+  depth: number
+  replyCount: number
+  status: ForumCommentStatus
+  content: ForumRenderedContent
+  replyTo?: ForumReplyReference
+  children?: ForumComment[]
+  createdAt: string
+  updatedAt: string
+}
+
+export type ForumCommentList = {
+  items: ForumComment[]
+  total: number
+  page: number
+  perPage: number
+  view: 'tree' | 'flat'
+}
+
+// 主题生命周期动作结果。
+export type ForumTopicAction = {
+  topicId: number
+  status: ForumTopicStatus
+  isPinned: boolean
+}
+
+// 编辑器提交给后端的正文输入。rawContent 为 markdown 源文本。
+export type ForumContentInput = {
+  rawContent: string
+  sourceFormat?: 'markdown' | 'html'
+  editorType?: string
+  editorVersion?: string
+}
+
+// 更新主题输入，所有字段可选；未提供即不修改。
+export type ForumTopicUpdateInput = {
+  categorySlug?: string
+  title?: string
+  tagSlugs?: string[]
+  content?: ForumContentInput
+}
+
+export type ForumCommentListView = 'tree' | 'flat'
+
+export type ForumCommentListQuery = {
+  view?: ForumCommentListView
+  page?: number
+  perPage?: number
+}
+
+// 主题生命周期动作枚举，与后端 TopicAction 常量保持一致。
+export const FORUM_TOPIC_ACTIONS = {
+  hide: 'hide',
+  restore: 'restore',
+  lock: 'lock',
+  unlock: 'unlock',
+  pin: 'pin',
+  unpin: 'unpin'
+} as const
+
+export type ForumTopicActionKey = keyof typeof FORUM_TOPIC_ACTIONS
+
 export type ForumTopicList = {
   items: ForumTopicSummary[]
   total: number
@@ -177,6 +256,29 @@ export function forumTagPath(slug: string) {
 
 export function forumTopicPath(topic: Pick<ForumTopicSummary, 'id' | 'slug'>) {
   return `/t/${topic.id}/${encodeURIComponent(topic.slug)}`
+}
+
+export function forumUserProfilePath(username: string) {
+  return `/u/${encodeURIComponent(username)}`
+}
+
+// 构建评论列表查询参数，仅写入非空字段。
+export function buildForumCommentQuery(query: ForumCommentListQuery = {}) {
+  const params: Record<string, string> = {}
+  if (query.view === 'tree' || query.view === 'flat') {
+    params.view = query.view
+  }
+  addPositiveNumberQuery(params, 'page', query.page)
+  addPositiveNumberQuery(params, 'perPage', query.perPage)
+  return params
+}
+
+// 统一取作者展示名：优先 displayName，其次 username，最后回退用户 ID。
+export function forumAuthorName(user: ForumUserSummary | undefined, fallbackUserId: number) {
+  if (user) {
+    return user.displayName || user.username || `#${fallbackUserId}`
+  }
+  return `#${fallbackUserId}`
 }
 
 function addStringQuery(query: Record<string, string>, key: string, value: string | undefined) {
