@@ -21,6 +21,7 @@ type Config struct {
 	DatabaseURL                  string
 	MigrateOnStartup             bool
 	DatabaseMaxConns             int32
+	EmbedWorkerInAPI             bool
 	WorkerDatabaseMaxConns       int32
 	WorkerShutdownTimeout        time.Duration
 	RedisAddr                    string
@@ -54,6 +55,7 @@ type Config struct {
 }
 
 func Load() Config {
+	appEnv := env("APP_ENV", "development")
 	supported := localization.ParseSupportedLocales(env("SUPPORTED_LOCALES", "zh-CN,en-US"))
 	defaultLocale := localization.Normalize(env("APP_LOCALE", localization.DefaultLocale), supported)
 	sessionIdleTimeout := envDuration("SESSION_IDLE_TIMEOUT", 30*24*time.Hour)
@@ -63,7 +65,7 @@ func Load() Config {
 	}
 
 	return Config{
-		AppEnv:                       env("APP_ENV", "development"),
+		AppEnv:                       appEnv,
 		AppName:                      env("APP_NAME", "SForum"),
 		AppURL:                       env("APP_URL", "http://127.0.0.1:3000"),
 		AppLocale:                    defaultLocale,
@@ -73,6 +75,7 @@ func Load() Config {
 		DatabaseURL:                  env("DATABASE_URL", "postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable"),
 		MigrateOnStartup:             envBool("MIGRATE_ON_STARTUP", true),
 		DatabaseMaxConns:             int32(envPositiveInt("DATABASE_MAX_CONNS", 10)),
+		EmbedWorkerInAPI:             envBool("EMBED_WORKER_IN_API", strings.EqualFold(appEnv, "development")),
 		WorkerDatabaseMaxConns:       int32(envPositiveInt("WORKER_DATABASE_MAX_CONNS", 10)),
 		WorkerShutdownTimeout:        envDuration("WORKER_SHUTDOWN_TIMEOUT", 30*time.Second),
 		RedisAddr:                    env("REDIS_ADDR", "redis:6379"),

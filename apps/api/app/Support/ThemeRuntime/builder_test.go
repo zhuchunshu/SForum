@@ -46,3 +46,46 @@ func TestBuilderRejectsMissingLayer(t *testing.T) {
 		t.Fatal("expected missing layer error")
 	}
 }
+
+func TestBuilderIncludesPreviewOutputInBuildLogOnHealthCheckFailure(t *testing.T) {
+	root := t.TempDir()
+	webRoot := t.TempDir()
+	layerRoot := t.TempDir()
+	fakeBun := filepath.Join(root, "fake-bun")
+	script := `#!/bin/sh
+if [ "$1" = "run" ] && [ "$2" = "build" ]; then
+  mkdir -p "$SFORUM_NITRO_OUTPUT_DIR/server"
+  printf "console.log('preview')\n" > "$SFORUM_NITRO_OUTPUT_DIR/server/index.mjs"
+  echo "build ok"
+  exit 0
+fi
+echo "preview boot failed"
+exit 1
+`
+	if err := os.WriteFile(fakeBun, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake bun: %v", err)
+	}
+	builder := NewBuilder(Config{
+		ReleaseRoot:    root,
+		WebRoot:        webRoot,
+		BunPath:        fakeBun,
+		BuildTimeout:   time.Second,
+		PreviewTimeout: 50 * time.Millisecond,
+	})
+
+	result, err := builder.Build(context.Background(), BuildInput{
+		ReleaseID:   1,
+		ExtensionID: "starter.theme",
+		LayerPath:   layerRoot,
+	})
+
+	if err == nil {
+		t.Fatal("expected preview health check failure")
+	}
+	if !strings.Contains(result.BuildLog, "build ok") {
+		t.Fatalf("expected build output in build log, got %q", result.BuildLog)
+	}
+	if !strings.Contains(result.BuildLog, "preview boot failed") {
+		t.Fatalf("expected preview output in build log, got %q", result.BuildLog)
+	}
+}

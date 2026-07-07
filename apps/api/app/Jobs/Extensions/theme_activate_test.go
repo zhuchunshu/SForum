@@ -2,6 +2,8 @@ package extensionjobs
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/riverqueue/river"
@@ -18,6 +20,14 @@ func TestActivateThemeArgsKindAndOptions(t *testing.T) {
 	opts := args.EnqueueOptions()
 	if opts.Queue != "theme" || opts.MaxAttempts != 1 || !opts.Unique.ByArgs {
 		t.Fatalf("unexpected enqueue options: %#v", opts)
+	}
+}
+
+func TestActivateThemeWorkerUsesThemeBuilderTimeoutInsteadOfRiverDefault(t *testing.T) {
+	worker := ActivateThemeWorker{}
+
+	if timeout := worker.Timeout(&river.Job[ActivateThemeArgs]{}); timeout != -1 {
+		t.Fatalf("expected theme activation worker to disable River's default job timeout, got %s", timeout)
 	}
 }
 
@@ -47,10 +57,40 @@ func TestActivateThemeWorkerMarksReleaseActive(t *testing.T) {
 	}
 }
 
+func TestActivateThemeWorkerMarksReleaseFailedWithCanceledJobContext(t *testing.T) {
+	store := &fakeThemeStore{
+		extension:            extensions.Extension{ID: "starter.theme", Version: "1.0.0", Type: extensions.TypeTheme},
+		release:              extensions.ThemeRelease{ID: 7, ExtensionID: "starter.theme", Status: extensions.ThemeReleaseQueued, LayerPath: "/tmp/layer"},
+		respectContextCancel: true,
+	}
+	builder := &fakeThemeBuilder{
+		result: themeruntime.BuildResult{BuildLog: "partial build output"},
+		err:    errors.New("theme build failed: signal: killed"),
+	}
+	worker := ActivateThemeWorker{Store: store, Builder: builder}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := worker.Work(ctx, &river.Job[ActivateThemeArgs]{
+		Args: ActivateThemeArgs{ReleaseID: 7, ExtensionID: "starter.theme"},
+	})
+
+	if err == nil || !strings.Contains(err.Error(), "signal: killed") {
+		t.Fatalf("expected build failure to be returned, got %v", err)
+	}
+	if store.release.Status != extensions.ThemeReleaseFailed {
+		t.Fatalf("expected failed release after canceled job context, got %#v", store.release)
+	}
+	if store.release.BuildLog != "partial build output" {
+		t.Fatalf("expected partial build log to be preserved, got %q", store.release.BuildLog)
+	}
+}
+
 type fakeThemeStore struct {
-	extension     extensions.Extension
-	release       extensions.ThemeRelease
-	activeThemeID string
+	extension            extensions.Extension
+	release              extensions.ThemeRelease
+	activeThemeID        string
+	respectContextCancel bool
 }
 
 func (s *fakeThemeStore) Get(_ context.Context, id string) (extensions.Extension, error) {
@@ -69,7 +109,10 @@ func (s *fakeThemeStore) ActivateTheme(_ context.Context, id string) (extensions
 	return s.extension, nil
 }
 
-func (s *fakeThemeStore) UpdateThemeRelease(_ context.Context, input extensions.ThemeReleaseUpdate) (extensions.ThemeRelease, error) {
+func (s *fakeThemeStore) UpdateThemeRelease(ctx context.Context, input extensions.ThemeReleaseUpdate) (extensions.ThemeRelease, error) {
+	if s.respectContextCancel && ctx.Err() != nil {
+		return extensions.ThemeRelease{}, ctx.Err()
+	}
 	if input.ID != s.release.ID {
 		return extensions.ThemeRelease{}, extensions.ErrExtensionNotFound
 	}

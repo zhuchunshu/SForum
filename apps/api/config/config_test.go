@@ -102,6 +102,36 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	}
 }
 
+func TestLoadEnablesEmbeddedWorkerForDevelopmentOnlyByDefault(t *testing.T) {
+	t.Setenv("APP_ENV", "development")
+	development := Load()
+	if !development.EmbedWorkerInAPI {
+		t.Fatal("expected development api to embed the worker by default")
+	}
+
+	t.Setenv("APP_ENV", "production")
+	production := Load()
+	if production.EmbedWorkerInAPI {
+		t.Fatal("expected production api to keep worker as a separate process by default")
+	}
+}
+
+func TestLoadAllowsEmbeddedWorkerOverride(t *testing.T) {
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("EMBED_WORKER_IN_API", "false")
+	disabled := Load()
+	if disabled.EmbedWorkerInAPI {
+		t.Fatal("expected env override to disable embedded api worker")
+	}
+
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("EMBED_WORKER_IN_API", "true")
+	enabled := Load()
+	if !enabled.EmbedWorkerInAPI {
+		t.Fatal("expected env override to enable embedded api worker")
+	}
+}
+
 func TestConfigDoesNotExposeAttachmentLocalRootEnv(t *testing.T) {
 	if _, ok := reflect.TypeOf(Config{}).FieldByName("AttachmentLocalRoot"); ok {
 		t.Fatal("attachment local root should be managed by runtime options, not process environment config")

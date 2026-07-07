@@ -85,6 +85,9 @@ and plugin runtime v1.
   health-checks a preview server, writes the active release file, and lets the
   web runtime restart onto the selected artifact. Failed builds keep the
   previous active theme running.
+- The admin extension overview now mirrors the Themes page for uploaded theme
+  activation progress: queued/building/switching rows show status text,
+  percent progress, helper copy, and short polling while a release is active.
 - Extension Platform v2 direction is accepted. The target is a complete
   operator loop: upload, manifest inspection, permission/risk review, enable or
   activate, configure, observe logs/errors/event deliveries, disable or

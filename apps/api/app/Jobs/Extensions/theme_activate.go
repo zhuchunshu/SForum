@@ -2,7 +2,9 @@ package extensionjobs
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/riverqueue/river"
 
@@ -46,6 +48,13 @@ type ActivateThemeWorker struct {
 	Builder ThemeBuilder
 }
 
+const themeReleaseUpdateTimeout = 10 * time.Second
+
+func (w *ActivateThemeWorker) Timeout(*river.Job[ActivateThemeArgs]) time.Duration {
+	// 主题构建已有 ThemeRuntime 自己的构建/预览超时；这里关闭 River 的 1 分钟默认 job timeout。
+	return -1
+}
+
 func (w *ActivateThemeWorker) Work(ctx context.Context, job *river.Job[ActivateThemeArgs]) error {
 	if w.Store == nil {
 		return fmt.Errorf("theme activation worker requires store")
@@ -67,50 +76,44 @@ func (w *ActivateThemeWorker) Work(ctx context.Context, job *river.Job[ActivateT
 	if release.ID != job.Args.ReleaseID {
 		return fmt.Errorf("theme release mismatch: job=%d latest=%d", job.Args.ReleaseID, release.ID)
 	}
-	_, _ = w.Store.UpdateThemeRelease(ctx, extensions.ThemeReleaseUpdate{
+	if _, err := w.updateThemeRelease(ctx, extensions.ThemeReleaseUpdate{
 		ID:      release.ID,
 		Status:  extensions.ThemeReleaseBuilding,
 		Message: "Building theme release.",
-	})
+	}); err != nil {
+		return err
+	}
 	result, err := w.Builder.Build(ctx, themeruntime.BuildInput{
 		ReleaseID:   release.ID,
 		ExtensionID: extension.ID,
 		LayerPath:   release.LayerPath,
 	})
 	if err != nil {
-		_, _ = w.Store.UpdateThemeRelease(ctx, extensions.ThemeReleaseUpdate{
-			ID:       release.ID,
-			Status:   extensions.ThemeReleaseFailed,
-			Message:  err.Error(),
-			BuildLog: result.BuildLog,
-		})
-		return err
+		return w.failThemeRelease(ctx, release.ID, err, result)
 	}
-	_, _ = w.Store.UpdateThemeRelease(ctx, extensions.ThemeReleaseUpdate{
+	if _, err := w.updateThemeRelease(ctx, extensions.ThemeReleaseUpdate{
 		ID:           release.ID,
 		Status:       extensions.ThemeReleaseActivating,
 		ArtifactPath: result.ArtifactPath,
 		ServerEntry:  result.ServerEntry,
 		Message:      "Switching active web release.",
 		BuildLog:     result.BuildLog,
-	})
+	}); err != nil {
+		return err
+	}
 	if err := w.Builder.WriteCurrent(ctx, themeruntime.CurrentRelease{
 		ReleaseID:   release.ID,
 		ExtensionID: extension.ID,
 		Server:      result.ServerEntry,
 	}); err != nil {
-		_, _ = w.Store.UpdateThemeRelease(ctx, extensions.ThemeReleaseUpdate{
-			ID:       release.ID,
-			Status:   extensions.ThemeReleaseFailed,
-			Message:  err.Error(),
-			BuildLog: result.BuildLog,
-		})
-		return err
+		return w.failThemeRelease(ctx, release.ID, err, result)
 	}
-	if _, err := w.Store.ActivateTheme(ctx, extension.ID); err != nil {
-		return err
+	activationCtx, cancel := themeReleaseContext(ctx)
+	defer cancel()
+	if _, err := w.Store.ActivateTheme(activationCtx, extension.ID); err != nil {
+		return w.failThemeRelease(ctx, release.ID, err, result)
 	}
-	_, err = w.Store.UpdateThemeRelease(ctx, extensions.ThemeReleaseUpdate{
+	_, err = w.updateThemeRelease(ctx, extensions.ThemeReleaseUpdate{
 		ID:           release.ID,
 		Status:       extensions.ThemeReleaseActive,
 		ArtifactPath: result.ArtifactPath,
@@ -119,6 +122,33 @@ func (w *ActivateThemeWorker) Work(ctx context.Context, job *river.Job[ActivateT
 		BuildLog:     result.BuildLog,
 	})
 	return err
+}
+
+func (w *ActivateThemeWorker) updateThemeRelease(ctx context.Context, input extensions.ThemeReleaseUpdate) (extensions.ThemeRelease, error) {
+	updateCtx, cancel := themeReleaseContext(ctx)
+	defer cancel()
+	release, err := w.Store.UpdateThemeRelease(updateCtx, input)
+	if err != nil {
+		return extensions.ThemeRelease{}, fmt.Errorf("update theme release %d to %s: %w", input.ID, input.Status, err)
+	}
+	return release, nil
+}
+
+func (w *ActivateThemeWorker) failThemeRelease(ctx context.Context, releaseID int64, cause error, result themeruntime.BuildResult) error {
+	_, updateErr := w.updateThemeRelease(ctx, extensions.ThemeReleaseUpdate{
+		ID:       releaseID,
+		Status:   extensions.ThemeReleaseFailed,
+		Message:  cause.Error(),
+		BuildLog: result.BuildLog,
+	})
+	if updateErr != nil {
+		return errors.Join(cause, updateErr)
+	}
+	return cause
+}
+
+func themeReleaseContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), themeReleaseUpdateTimeout)
 }
 
 func RegisterThemeActivationWorker(registry *supportjobs.Registry, store ThemeStore, builder ThemeBuilder) {

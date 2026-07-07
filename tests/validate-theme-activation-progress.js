@@ -3,6 +3,7 @@ const path = require('path')
 
 const root = path.resolve(__dirname, '..')
 const themesPagePath = path.join(root, 'apps/web/app/pages/admin/extensions/themes.vue')
+const overviewPagePath = path.join(root, 'apps/web/app/pages/admin/extensions/index.vue')
 const zhLocalePath = path.join(root, 'apps/web/i18n/locales/zh-CN.json')
 const enLocalePath = path.join(root, 'apps/web/i18n/locales/en-US.json')
 
@@ -19,6 +20,13 @@ assert(themesPage.includes('setInterval'), 'themes page must poll while activati
 assert(themesPage.includes('clearInterval'), 'themes page must stop polling when no activation is in progress')
 assert(themesPage.includes('UProgress'), 'themes page must render a progress bar for theme activation')
 assert(themesPage.includes('buildLog'), 'themes page must expose theme release build logs')
+
+const overviewPage = fs.readFileSync(overviewPagePath, 'utf8')
+assert(overviewPage.includes('themeActivationProgress'), 'extensions overview page must use theme activation progress helper')
+assert(overviewPage.includes('hasThemeActivationInProgress'), 'extensions overview page must detect in-progress activations')
+assert(overviewPage.includes('setInterval'), 'extensions overview page must poll while activation is in progress')
+assert(overviewPage.includes('clearInterval'), 'extensions overview page must stop polling when no activation is in progress')
+assert(overviewPage.includes('UProgress'), 'extensions overview page must render a progress bar for theme activation')
 
 for (const localePath of [zhLocalePath, enLocalePath]) {
   const locale = fs.readFileSync(localePath, 'utf8')

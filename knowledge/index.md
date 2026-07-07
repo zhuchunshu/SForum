@@ -23,7 +23,10 @@ This is the entry point for project memory.
   directly: Nuxt dev uses `--dotenv ../../.env`, Air uses
   `env_files = ["../../.env"]`, and `./scripts/api-dev.sh` is the recommended
   API entry because it loads `.env` and reports occupied API ports without
-  stopping user processes.
+  stopping user processes. In development, the API embeds the background worker
+  by default through `EMBED_WORKER_IN_API=true`, so running API `air` also
+  consumes queued jobs such as uploaded theme activation. Production keeps API
+  and worker processes separate by default.
 - Frontend build/typecheck commands use sibling Nuxt temporary directories
   (`.nuxt-build` and `.nuxt-typecheck`) instead of nesting under the dev
   server's `.nuxt`, and generated output is ignored by dev watchers to avoid
@@ -228,9 +231,11 @@ This is the entry point for project memory.
   row and queues a River `extension.theme_activate` job, the worker builds an
   isolated Nuxt/Nitro artifact and health-checks it, and the web supervisor
   follows `theme-releases/current.json` to switch Nitro servers while keeping
-  the previous release available. Uploaded themes are incremental Nuxt Layer
-  overlays: their files override the protected default theme, and missing
-  pages, layouts, components, or assets inherit from `sforum.default-theme`.
+  the previous release available. The Themes page and Extensions overview both
+  show queued/building/switching progress and poll while a theme activation is
+  active. Uploaded themes are incremental Nuxt Layer overlays: their files
+  override the protected default theme, and missing pages, layouts, components,
+  or assets inherit from `sforum.default-theme`.
   Plugin runtime v1 now starts enabled plugin subprocesses through HashiCorp
   go-plugin, proxies declared plugin routes, emits lifecycle hooks, and exposes
   provider slot defaults. Built-in sync prunes stale built-in extension rows,

@@ -26,7 +26,7 @@ Start the local dependency services first:
 
 The script starts PostgreSQL, Redis, Meilisearch, and Mailpit with Docker
 Compose, waits for healthy services, and runs database migrations by default.
-It does not start the frontend, API, or worker.
+It does not start the frontend or API.
 
 Run the frontend and API locally in separate terminals:
 
@@ -35,8 +35,9 @@ cd apps/web && bun run dev
 ./scripts/api-dev.sh
 ```
 
-Background jobs, including uploaded theme activation, need the local worker in
-a third terminal:
+In development, the API process embeds the background worker, so uploaded theme
+activation and other queued jobs run when `air` starts the API. To mimic the
+production split, disable `EMBED_WORKER_IN_API` and run the worker manually:
 
 ```sh
 ./scripts/worker-dev.sh

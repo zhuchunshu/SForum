@@ -19,7 +19,8 @@ assert(workerScript.includes('cmd/worker') || workerScript.includes('sforum-work
 assert(workerScript.includes('THEME_WEB_ROOT'), 'worker-dev.sh must set or preserve THEME_WEB_ROOT for local theme builds')
 
 const readme = fs.readFileSync(readmePath, 'utf8')
-assert(readme.includes('./scripts/worker-dev.sh'), 'README must document the local worker command')
-assert(readme.includes('theme activation') || readme.includes('主题激活'), 'README should connect the worker to theme activation')
+assert(readme.includes('EMBED_WORKER_IN_API'), 'README must document the embedded worker switch')
+assert(readme.includes('./scripts/worker-dev.sh'), 'README must document the optional local worker command')
+assert(readme.includes('production split') || readme.includes('生产拆分'), 'README should explain that worker-dev is for split-process development')
 
 console.log('Development worker script validation passed.')

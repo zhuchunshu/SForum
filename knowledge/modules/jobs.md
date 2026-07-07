@@ -22,9 +22,11 @@ Implemented so far:
 - SForum's database migrator now runs River's official migrator after Goose
   application migrations, so fresh databases get River queue tables before API
   or worker processes enqueue jobs.
-- API processes create an insert-only River client for dispatching jobs without
-  registering worker handlers. Worker processes still build a real worker
-  registry and own job execution.
+- API processes create an insert-only River client for dispatching jobs. In
+  development, the API also embeds the worker runtime by default through
+  `EMBED_WORKER_IN_API=true`, so a local `air` API process consumes queued jobs
+  such as uploaded theme activation. Production keeps this disabled by default
+  and uses the standalone worker process.
 - `apps/api/bootstrap.NewWorker` opens the worker PostgreSQL pool, builds the
   worker registry, and creates the River client when at least one module has
   registered job handlers.
@@ -36,9 +38,9 @@ Implemented so far:
   in idle mode. This avoids passing an empty worker bundle to River, which
   rejects startup with `at least one Worker must be added to the Workers
   bundle`.
-- In the development Compose stack, the idle worker is opt-in via
-  `./scripts/dev.sh --worker` so normal API reloads do not duplicate Go rebuild
-  work before real job handlers are wired.
+- `scripts/worker-dev.sh` remains available when a developer intentionally
+  disables `EMBED_WORKER_IN_API` and wants to mimic the production
+  API/worker split.
 
 ## Planned Stack
 

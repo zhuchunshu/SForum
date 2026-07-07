@@ -15,12 +15,14 @@ Options:
   -h, --help          Show this help message.
 
 Default mode starts only development dependency services: PostgreSQL, Redis,
-Meilisearch, and Mailpit. Run the frontend, API, and background worker locally
-with:
+Meilisearch, and Mailpit. Run the frontend and API locally with:
 
   cd apps/web && bun run dev
   ./scripts/api-dev.sh
-  ./scripts/worker-dev.sh
+
+In development, the API embeds the background worker by default. Use
+./scripts/worker-dev.sh only when you intentionally disable EMBED_WORKER_IN_API
+and want a separate worker process.
 USAGE
 }
 
@@ -119,10 +121,11 @@ if [ "$MIGRATE_ENABLED" -eq 1 ]; then
 else
   echo "One-shot database migrations skipped by --no-migrate."
 fi
-echo "API/worker startup still follows MIGRATE_ON_STARTUP=${MIGRATE_ON_STARTUP:-true}."
+echo "API startup still follows MIGRATE_ON_STARTUP=${MIGRATE_ON_STARTUP:-true}."
+echo "Embedded API worker: ${EMBED_WORKER_IN_API:-development default}"
 echo "Then run: cd apps/web && bun run dev"
 echo "Then run: ./scripts/api-dev.sh"
-echo "For background jobs such as theme activation, also run: ./scripts/worker-dev.sh"
+echo "Background jobs run inside the development API unless EMBED_WORKER_IN_API=false."
 echo "Use './scripts/dev.sh --build' after Dockerfile or dependency changes."
 
 if [ "$PRINT_COMMAND" -eq 1 ]; then

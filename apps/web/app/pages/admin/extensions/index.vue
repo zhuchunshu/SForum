@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, extensionAuthorName, extensionAuthorWebsite, extensionEventPage, extensionManageRoute, themeActionState, themeStatusLabelKey } from '~/utils/adminExtensions'
+import { capabilityCount, extensionAuthorName, extensionAuthorWebsite, extensionEventPage, extensionManageRoute, hasThemeActivationInProgress, themeActionState, themeActivationProgress, themeStatusLabelKey } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -41,18 +41,20 @@ const {
   statusLabel
 } = await useAdminExtensionsManager()
 const selectedEventPageInfo = computed(() => extensionEventPage(selectedEvents.value, selectedEventPage.value))
+const activationPolling = computed(() => hasThemeActivationInProgress(extensions.value))
+let activationPollTimer: ReturnType<typeof setInterval> | null = null
 
 useSeoMeta({
   title: t('admin.extensions.metaTitle')
 })
 
-watch(selected, async (item) => {
-  if (!item) {
+watch(() => selected.value?.id, async (id) => {
+  if (!id) {
     return
   }
-  selectedId.value = item.id
+  selectedId.value = id
   selectedEventPage.value = 1
-  await loadEvents(item.id)
+  await loadEvents(id)
 }, { immediate: true })
 
 watch(() => selectedEventPageInfo.value.page, (page) => {
@@ -68,6 +70,46 @@ async function refreshSelectedEvents() {
 function extensionStatusLabel(item: (typeof extensions.value)[number]) {
   return item.type === 'theme' ? t(themeStatusLabelKey(item)) : statusLabel(item.status)
 }
+
+function releaseProgress(item: (typeof extensions.value)[number]) {
+  return themeActivationProgress(item.themeRelease)
+}
+
+function startActivationPolling() {
+  if (activationPollTimer || !import.meta.client) {
+    return
+  }
+  activationPollTimer = setInterval(async () => {
+    if (pending.value) {
+      return
+    }
+    await refresh()
+  }, 2000)
+}
+
+function stopActivationPolling() {
+  if (!activationPollTimer) {
+    return
+  }
+  clearInterval(activationPollTimer)
+  activationPollTimer = null
+}
+
+watch(activationPolling, (active) => {
+  if (active) {
+    startActivationPolling()
+  } else {
+    stopActivationPolling()
+  }
+})
+
+onMounted(() => {
+  if (activationPolling.value) {
+    startActivationPolling()
+  }
+})
+
+onBeforeUnmount(stopActivationPolling)
 </script>
 
 <template>
@@ -213,6 +255,31 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                 <UIcon name="i-lucide-user-round" class="size-3.5 shrink-0" />
                 <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: extensionAuthorName(item) }) }}</span>
               </span>
+              <p v-if="item.themeRelease?.message" class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                {{ item.themeRelease.message }}
+              </p>
+              <div
+                v-if="item.type === 'theme' && releaseProgress(item)"
+                class="mt-3 max-w-xl rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/50"
+              >
+                <div class="mb-2 flex items-center justify-between gap-3 text-xs">
+                  <span class="inline-flex min-w-0 items-center gap-1.5 font-medium text-slate-700 dark:text-zinc-200">
+                    <UIcon :name="releaseProgress(item)?.icon || 'i-lucide-hourglass'" class="size-3.5 shrink-0" />
+                    <span class="truncate">{{ t(releaseProgress(item)?.labelKey || 'admin.extensions.themeRelease.queued') }}</span>
+                  </span>
+                  <span class="tabular-nums text-slate-500 dark:text-zinc-400">
+                    {{ releaseProgress(item)?.percent || 0 }}%
+                  </span>
+                </div>
+                <UProgress
+                  :model-value="releaseProgress(item)?.percent || 0"
+                  :color="releaseProgress(item)?.color || 'neutral'"
+                  size="sm"
+                />
+                <p class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                  {{ t(releaseProgress(item)?.detailKey || 'admin.extensions.themeProgress.queued') }}
+                </p>
+              </div>
             </div>
             <div class="flex items-center gap-2 md:justify-end">
               <UButton

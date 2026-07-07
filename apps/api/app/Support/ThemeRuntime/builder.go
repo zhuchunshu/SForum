@@ -1,6 +1,7 @@
 package themeruntime
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -95,16 +97,18 @@ func (b *Builder) Build(ctx context.Context, input BuildInput) (BuildResult, err
 	if _, err := os.Stat(server); err != nil {
 		return BuildResult{ArtifactPath: artifactPath, BuildLog: string(output)}, fmt.Errorf("theme server entry missing: %w", err)
 	}
-	if err := b.HealthCheck(ctx, server); err != nil {
-		return BuildResult{ArtifactPath: artifactPath, ServerEntry: server, BuildLog: string(output)}, err
+	previewLog, err := b.HealthCheck(ctx, server)
+	buildLog := joinLogs(string(output), previewLog)
+	if err != nil {
+		return BuildResult{ArtifactPath: artifactPath, ServerEntry: server, BuildLog: buildLog}, err
 	}
-	return BuildResult{ArtifactPath: artifactPath, ServerEntry: server, BuildLog: string(output)}, nil
+	return BuildResult{ArtifactPath: artifactPath, ServerEntry: server, BuildLog: buildLog}, nil
 }
 
-func (b *Builder) HealthCheck(ctx context.Context, server string) error {
+func (b *Builder) HealthCheck(ctx context.Context, server string) (string, error) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return fmt.Errorf("reserve preview port: %w", err)
+		return "", fmt.Errorf("reserve preview port: %w", err)
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
 	_ = listener.Close()
@@ -113,10 +117,11 @@ func (b *Builder) HealthCheck(ctx context.Context, server string) error {
 	defer cancel()
 	cmd := exec.CommandContext(previewCtx, b.config.BunPath, server)
 	cmd.Env = append(os.Environ(), "HOST=127.0.0.1", "PORT="+strconv.Itoa(port))
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	var output bytes.Buffer
+	cmd.Stdout = &output
+	cmd.Stderr = &output
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("start theme preview: %w", err)
+		return output.String(), fmt.Errorf("start theme preview: %w", err)
 	}
 	defer func() {
 		_ = cmd.Process.Kill()
@@ -130,14 +135,33 @@ func (b *Builder) HealthCheck(ctx context.Context, server string) error {
 		resp, err := http.DefaultClient.Do(req)
 		if err == nil && resp.StatusCode < http.StatusInternalServerError {
 			_ = resp.Body.Close()
-			return nil
+			return output.String(), nil
 		}
 		if resp != nil {
 			_ = resp.Body.Close()
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-	return fmt.Errorf("theme preview health check failed")
+	return output.String(), fmt.Errorf("theme preview health check failed")
+}
+
+func joinLogs(parts ...string) string {
+	var builder strings.Builder
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if builder.Len() > 0 {
+			builder.WriteString("\n")
+		}
+		builder.WriteString(part)
+	}
+	if builder.Len() == 0 {
+		return ""
+	}
+	builder.WriteString("\n")
+	return builder.String()
 }
 
 func (b *Builder) WriteCurrent(_ context.Context, current CurrentRelease) error {

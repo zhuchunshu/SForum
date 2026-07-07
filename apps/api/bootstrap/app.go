@@ -56,6 +56,10 @@ var newExtensionRuntimeManager = func(store extensions.Store) extensionRuntime {
 	})
 }
 
+func shouldEmbedWorkerInAPI(cfg config.Config) bool {
+	return cfg.EmbedWorkerInAPI
+}
+
 func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, error) {
 	if err := runStartupMigrations(ctx, cfg, logger); err != nil {
 		return nil, err
@@ -164,10 +168,53 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Options:        optionsService,
 	})
 
+	var embeddedWorker *Worker
+	if shouldEmbedWorkerInAPI(cfg) {
+		embeddedWorker, err = newWorkerWithPool(cfg, pool)
+		if err != nil {
+			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+				logger.Warn("job dispatcher stop failed", "error", stopErr)
+			}
+			extensionRuntime.Close(ctx)
+			if closeErr := humanVerifyStore.Close(); closeErr != nil {
+				logger.Warn("human verification redis close failed", "error", closeErr)
+			}
+			if closeErr := redisStorage.Close(); closeErr != nil {
+				logger.Warn("redis session storage close failed", "error", closeErr)
+			}
+			pool.Close()
+			return nil, fmt.Errorf("embedded worker setup failed: %w", err)
+		}
+		if err := embeddedWorker.Start(ctx); err != nil {
+			embeddedWorker.Close()
+			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
+				logger.Warn("job dispatcher stop failed", "error", stopErr)
+			}
+			extensionRuntime.Close(ctx)
+			if closeErr := humanVerifyStore.Close(); closeErr != nil {
+				logger.Warn("human verification redis close failed", "error", closeErr)
+			}
+			if closeErr := redisStorage.Close(); closeErr != nil {
+				logger.Warn("redis session storage close failed", "error", closeErr)
+			}
+			pool.Close()
+			return nil, fmt.Errorf("embedded worker start failed: %w", err)
+		}
+		logger.InfoContext(ctx, "embedded api worker started")
+	}
+
 	return &API{
 		App:  app,
 		Addr: apiAddress(cfg),
 		close: func() {
+			if embeddedWorker != nil {
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.WorkerShutdownTimeout)
+				defer cancel()
+				if err := embeddedWorker.Stop(shutdownCtx); err != nil {
+					logger.Warn("embedded worker stop failed", "error", err)
+				}
+				embeddedWorker.Close()
+			}
 			if err := supportjobs.Stop(context.Background(), jobClient); err != nil {
 				logger.Warn("job dispatcher stop failed", "error", err)
 			}
