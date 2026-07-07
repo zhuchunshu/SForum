@@ -309,6 +309,19 @@ This is the entry point for project memory.
   and counters as real user data. It is append-only (random username/email
   suffixes), triggers no events, and reads `DATABASE_URL` from the
   environment or `--database-url` (config.Load does not read `.env`).
+- Backend+frontend performance hardening (2026-07-08) covers the network and
+  connection layers beyond the earlier search/cache read-path work:
+  `ListComments` now uses SQL pagination (flat `LIMIT/OFFSET`; tree uses
+  root-comment pagination + descendant batch fetch) instead of loading all
+  comments into memory; Fiber sets `ReadTimeout`/`WriteTimeout`/`IdleTimeout`/
+  `BodyLimit` and registers `compress` + `limiter` (write-only rate limiting
+  via Redis storage); Redis humanverify+cache clients merged into one
+  `sharedRedisClient` with explicit pool/timeout config; PG pool exposes
+  MinConns/Idle/Lifetime/ConnectTimeout; Meilisearch client gets
+  `http.Client.Timeout`; frontend adds `routeRules` (swr for public pages,
+  SPA for form/admin pages), `compressPublicAssets`, static-asset
+  `Cache-Control`, `SFEditor`/`SFIconPicker` lazy loading, and `@nuxt/image`
+  for `SFAvatar`. See `decisions/2026-07-08-performance-hardening.md`.
 
 ## Navigation
 
@@ -479,8 +492,15 @@ This is the entry point for project memory.
 - `decisions/2026-07-08-search-cache-deep-pagination.md` - accepted Meilisearch
   full-text search integration, Redis CachedStore read cache, and deep-paging
   clamp decision.
+- `decisions/2026-07-08-performance-hardening.md` - accepted backend+frontend
+  performance hardening: ListComments SQL pagination, Fiber timeout/compress/
+  limiter, Redis client merge, PG pool tuning, Meili timeout, routeRules, lazy
+  loading, @nuxt/image.
 - `sessions/2026-07-08-search-cache-deep-pagination.md` - search/cache/deep-paging
   hardening implementation handoff.
+- `sessions/2026-07-08-performance-hardening.md` - performance hardening
+  implementation handoff (backend network/connection layers + frontend
+  caching/rendering/image optimization).
 - `sessions/2026-07-07-admin-personalization-system-config.md` - admin
   personalization sidebar move into the System configuration folder.
 - `sessions/2026-07-05-custom-theme-color.md` - custom theme color picker,

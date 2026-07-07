@@ -72,7 +72,13 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, err
 	}
 
-	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL, cfg.DatabaseMaxConns)
+	pool, err := postgres.NewPoolWithOptions(ctx, cfg.DatabaseURL, postgres.PoolOptions{
+		MaxConns:          cfg.DatabaseMaxConns,
+		MinConns:          cfg.DatabaseMinConns,
+		MaxConnIdleTime:   cfg.DatabaseMaxConnIdleTime,
+		MaxConnLifetime:   cfg.DatabaseMaxConnLifetime,
+		ConnectTimeout:    cfg.DatabaseConnectTimeout,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("postgres setup failed: %w", err)
 	}
@@ -82,13 +88,22 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("redis session storage setup failed: %w", err)
 	}
-	humanVerifyStore := humanverify.NewRedisStore(humanverify.NewRedisClient(cfg.RedisAddr, cfg.RedisPassword))
+	// 共享 Redis client：humanverify 与 forum 业务读缓存复用同一连接池，避免多套连接。
+	// session storage 走 fiber Storage 接口（内部封装独立连接），不参与合并。
+	sharedRedisClient := humanverify.NewRedisClient(cfg.RedisAddr, cfg.RedisPassword, humanverify.RedisClientOptions{
+		PoolSize:        cfg.RedisPoolSize,
+		MinIdleConns:    cfg.RedisMinIdleConns,
+		DialTimeout:     cfg.RedisDialTimeout,
+		ReadTimeout:     cfg.RedisReadTimeout,
+		WriteTimeout:    cfg.RedisWriteTimeout,
+		ConnMaxIdleTime: cfg.RedisConnMaxIdleTime,
+		ConnMaxLifetime: cfg.RedisConnMaxLifetime,
+	})
+	humanVerifyStore := humanverify.NewRedisStore(sharedRedisClient)
 	optionStore := options.NewPostgresStore(pool)
 	optionsService := options.NewServiceWithDefaults(optionStore, optionsDefaultsFromConfig(cfg))
 	if err := optionsService.EnsureDefaults(ctx); err != nil {
-		if closeErr := humanVerifyStore.Close(); closeErr != nil {
-			logger.Warn("human verification redis close failed", "error", closeErr)
-		}
+		sharedRedisClient.Close()
 		if closeErr := redisStorage.Close(); closeErr != nil {
 			logger.Warn("redis session storage close failed", "error", closeErr)
 		}
@@ -115,10 +130,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	identityStore := identity.NewPostgresStore(pool)
 	adminOverviewStore := adminoverview.NewPostgresStore(pool)
 	forumStore := forum.NewPostgresStore(pool)
-	// 业务读缓存：复用 session 同款 Redis client，避免多套连接。
+	// 业务读缓存复用 sharedRedisClient（与 humanverify 共享连接池）。
 	// 失败不阻断启动——缓存为可重建的派生数据，降级为直连 PG。
-	cacheClient := humanverify.NewRedisClient(cfg.RedisAddr, cfg.RedisPassword)
-	forumCachedStore := forum.NewCachedStore(forumStore, cache.NewRedisCache(cacheClient))
+	forumCachedStore := forum.NewCachedStore(forumStore, cache.NewRedisCache(sharedRedisClient))
 	profileStore := profile.NewPostgresStore(pool)
 	moderationStore := moderation.NewPostgresStore(pool)
 	attachmentStore := attachments.NewPostgresStore(pool)
@@ -128,9 +142,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	jobClient, err := supportjobs.NewInsertOnlyClient(pool, supportjobs.FromAppConfig(cfg))
 	if err != nil {
 		extensionRuntime.Close(ctx)
-		if closeErr := humanVerifyStore.Close(); closeErr != nil {
-			logger.Warn("human verification redis close failed", "error", closeErr)
-		}
+		sharedRedisClient.Close()
 		if closeErr := redisStorage.Close(); closeErr != nil {
 			logger.Warn("redis session storage close failed", "error", closeErr)
 		}
@@ -152,9 +164,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
 		}
 		extensionRuntime.Close(ctx)
-		if closeErr := humanVerifyStore.Close(); closeErr != nil {
-			logger.Warn("human verification redis close failed", "error", closeErr)
-		}
+		sharedRedisClient.Close()
 		if closeErr := redisStorage.Close(); closeErr != nil {
 			logger.Warn("redis session storage close failed", "error", closeErr)
 		}
@@ -168,9 +178,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
 		}
 		extensionRuntime.Close(ctx)
-		if closeErr := humanVerifyStore.Close(); closeErr != nil {
-			logger.Warn("human verification redis close failed", "error", closeErr)
-		}
+		sharedRedisClient.Close()
 		if closeErr := redisStorage.Close(); closeErr != nil {
 			logger.Warn("redis session storage close failed", "error", closeErr)
 		}
@@ -189,7 +197,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	adminOverviewProvider := providers.NewAdminOverviewProvider(adminOverviewStore, adminoverview.NewRuntimeCollector(time.Now().UTC(), pool), identityStore, authSessions)
 	// 搜索：API 进程持有只入队的 indexer（EnqueueIndex/EnqueueDelete）和查询用的 search service。
 	// Meilisearch client 不可达时，索引调度静默失败、搜索端点返回 503，主流程不受影响。
-	meiliClient := search.NewClient(cfg.MeiliHost, cfg.MeiliMasterKey)
+	meiliClient := search.NewClientWithTimeout(cfg.MeiliHost, cfg.MeiliMasterKey, cfg.MeiliTimeout)
 	searchIndexer := search.NewIndexer(meiliClient, nil, jobDispatcher)
 	searchService := search.NewService(meiliClient)
 	// 搜索索引重建：forumStore 提供 ListAllTopicIDs（TopicIDSource），
@@ -206,6 +214,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
 		RouteProviders: []httpserver.RouteProvider{identityProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, attachmentsProvider, databaseProvider, extensionsProvider},
 		Options:        optionsService,
+		Storage:        redisStorage,
 	})
 
 	var embeddedWorker *Worker
@@ -216,9 +225,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 				logger.Warn("job dispatcher stop failed", "error", stopErr)
 			}
 			extensionRuntime.Close(ctx)
-			if closeErr := humanVerifyStore.Close(); closeErr != nil {
-				logger.Warn("human verification redis close failed", "error", closeErr)
-			}
+			sharedRedisClient.Close()
 			if closeErr := redisStorage.Close(); closeErr != nil {
 				logger.Warn("redis session storage close failed", "error", closeErr)
 			}
@@ -231,9 +238,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 				logger.Warn("job dispatcher stop failed", "error", stopErr)
 			}
 			extensionRuntime.Close(ctx)
-			if closeErr := humanVerifyStore.Close(); closeErr != nil {
-				logger.Warn("human verification redis close failed", "error", closeErr)
-			}
+			sharedRedisClient.Close()
 			if closeErr := redisStorage.Close(); closeErr != nil {
 				logger.Warn("redis session storage close failed", "error", closeErr)
 			}
@@ -262,11 +267,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			if err := redisStorage.Close(); err != nil {
 				logger.Warn("redis session storage close failed", "error", err)
 			}
-			if err := humanVerifyStore.Close(); err != nil {
-				logger.Warn("human verification redis close failed", "error", err)
-			}
-			if err := cacheClient.Close(); err != nil {
-				logger.Warn("forum cache redis close failed", "error", err)
+			// sharedRedisClient 被 humanverify 与 forum 缓存共用，关闭一次即可。
+			if err := sharedRedisClient.Close(); err != nil {
+				logger.Warn("shared redis client close failed", "error", err)
 			}
 			pool.Close()
 		},

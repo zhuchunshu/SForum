@@ -7,6 +7,8 @@ export default defineEventHandler(async (event) => {
 
   const url = getRequestURL(event)
   if (staticAssetPattern.test(url.pathname)) {
+    // 带扩展名的静态资源（_nuxt/** 带 hash 文件名）永久缓存，减轻重复回源。
+    setHeader(event, 'cache-control', 'public, max-age=31536000, immutable')
     return
   }
 

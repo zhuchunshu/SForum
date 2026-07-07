@@ -13,6 +13,7 @@
   "dependencies": {
     "@iconify-json/lucide": "^1.2.116",
     "@iconify-json/tabler": "^1.2.35",
+    "@nuxt/image": "^2.0.0",
     "@nuxt/ui": "latest",
     "@nuxtjs/i18n": "latest",
     "@nuxtjs/seo": "latest",

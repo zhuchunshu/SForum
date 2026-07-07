@@ -653,7 +653,7 @@ async function submitReport() {
                 >
                   <!-- 内联编辑器（替换正文） -->
                   <template v-if="editingCommentId === comment.id">
-                    <SFEditor
+                    <LazySFEditor
                       v-model="editingMarkdown"
                       :placeholder="t('topicDetail.editPlaceholder')"
                       :submit-label="t('topicDetail.saveEdit')"
@@ -706,7 +706,7 @@ async function submitReport() {
 
                   <!-- 嵌套回复编辑器 -->
                   <template v-if="replyingTo && replyingTo.id === comment.id">
-                    <SFEditor
+                    <LazySFEditor
                       v-model="nestedReplyMarkdown"
                       :placeholder="t('topicDetail.replyPlaceholder')"
                       :submit-label="t('topicDetail.submitReply')"
@@ -758,7 +758,7 @@ async function submitReport() {
             <h3 class="text-sm font-semibold text-slate-700 mb-3 dark:text-zinc-300">
               {{ t('topicDetail.replyTitle') }}
             </h3>
-            <SFEditor
+            <LazySFEditor
               v-model="replyMarkdown"
               :placeholder="t('topicDetail.replyPlaceholder')"
               :submit-label="replySubmitting ? t('topicDetail.submitting') : t('topicDetail.submitReply')"

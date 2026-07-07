@@ -11,6 +11,9 @@
 package search
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/meilisearch/meilisearch-go"
 )
 
@@ -20,4 +23,17 @@ const IndexUID = "sforum_topics"
 // NewClient 创建 Meilisearch 客户端。host 为空时使用默认本地地址。
 func NewClient(host, apiKey string) meilisearch.ServiceManager {
 	return meilisearch.New(host, meilisearch.WithAPIKey(apiKey))
+}
+
+// NewClientWithTimeout 创建带请求总超时的 Meilisearch 客户端。
+// meilisearch-go 没有 WithTimeout 选项，必须通过 WithCustomClient 注入
+// 自定义 http.Client 来设置 Timeout。timeout <= 0 时不设超时（兼容旧行为）。
+func NewClientWithTimeout(host, apiKey string, timeout time.Duration) meilisearch.ServiceManager {
+	if timeout <= 0 {
+		return NewClient(host, apiKey)
+	}
+	return meilisearch.New(host,
+		meilisearch.WithAPIKey(apiKey),
+		meilisearch.WithCustomClient(&http.Client{Timeout: timeout}),
+	)
 }

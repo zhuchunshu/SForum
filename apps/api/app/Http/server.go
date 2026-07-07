@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/compress"
+	"github.com/gofiber/fiber/v3/middleware/limiter"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 
@@ -29,12 +31,18 @@ type RouteProvider interface {
 type Dependencies struct {
 	RouteProviders []RouteProvider
 	Options        *options.Service
+	// Storage 用于分布式限流。为 nil 时 limiter 退化为进程内存限流。
+	Storage fiber.Storage
 }
 
 func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName:      cfg.AppName,
 		ErrorHandler: errorHandler(logger),
+		ReadTimeout:  cfg.HTTPReadTimeout,
+		WriteTimeout: cfg.HTTPWriteTimeout,
+		IdleTimeout:  cfg.HTTPIdleTimeout,
+		BodyLimit:    cfg.HTTPBodyLimit,
 	})
 	app.Hooks().OnPreStartupMessage(func(sm *fiber.PreStartupMessageData) error {
 		sm.BannerHeader = sforumStartupBanner
@@ -43,6 +51,25 @@ func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.Ap
 
 	app.Use(requestid.New())
 	app.Use(recover.New())
+	// 响应压缩：根据 Accept-Encoding 自动 brotli/gzip，降低带宽占用。
+	app.Use(compress.New(compress.Config{Level: compress.Level(cfg.CompressLevel)}))
+	// 写接口限流：跳过 GET/HEAD/OPTIONS，按 IP 限制单位时间内的写操作次数。
+	// Storage 注入时为分布式限流（多实例共享），否则退化为进程内存限流。
+	if cfg.LimiterWriteMax > 0 && cfg.LimiterWindow > 0 {
+		app.Use(limiter.New(limiter.Config{
+			Storage:    deps.Storage,
+			Max:        cfg.LimiterWriteMax,
+			Expiration: cfg.LimiterWindow,
+			Next: func(c fiber.Ctx) bool {
+				// 只限写方法，读请求直接放行（读路径已有缓存挡）。
+				switch c.Method() {
+				case fiber.MethodGet, fiber.MethodHead, fiber.MethodOptions:
+					return true
+				}
+				return false
+			},
+		}))
+	}
 	app.Use(localeMiddleware(cfg, deps.Options))
 
 	registerRoutes(app, cfg, deps)

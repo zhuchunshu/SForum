@@ -237,7 +237,7 @@ function updateEditorPreview(payload: EditorPreviewPayload) {
           <section id="icons" class="sf-component-section">
             <SFCard title="Icons 选择器" subtitle="为后台设置、导航、版块和用户配置预留的图标选择控件">
               <div class="sf-preview-grid">
-                <SFIconPicker v-model="selectedIcon" />
+                <LazySFIconPicker v-model="selectedIcon" />
                 <div class="sf-preview-stack">
                   <div class="sf-icon-picker-demo">
                     <span class="sf-icon-picker-demo__icon">
@@ -377,7 +377,7 @@ function updateEditorPreview(payload: EditorPreviewPayload) {
                   content="这个方向靠谱，我会把 topic summary 和 permission scope 分开建模。"
                   :depth="1"
                 />
-                <SFEditor v-model="replyDraft" />
+                <LazySFEditor v-model="replyDraft" />
               </div>
             </SFCard>
           </section>
@@ -420,7 +420,7 @@ function updateEditorPreview(payload: EditorPreviewPayload) {
                     />
                   </div>
                 </div>
-                <SFEditor
+                <LazySFEditor
                   v-model="longReplyDraft"
                   placeholder="补充背景、已尝试方案和期望结果..."
                   :rows="8"

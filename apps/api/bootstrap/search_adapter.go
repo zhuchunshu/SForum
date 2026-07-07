@@ -181,7 +181,7 @@ func (a searchServiceAdapter) Search(ctx context.Context, input forumcontroller.
 // indexer 需要读取主题详情：用基础 forum.Service（static settings，无 cache/indexer）
 // 作为 reader。Meilisearch client 在 worker 启动时幂等建索引。
 func registerSearchWorkers(registry *supportjobs.Registry, cfg config.Config, pool *pgxpool.Pool) {
-	meiliClient := search.NewClient(cfg.MeiliHost, cfg.MeiliMasterKey)
+	meiliClient := search.NewClientWithTimeout(cfg.MeiliHost, cfg.MeiliMasterKey, cfg.MeiliTimeout)
 	// EnsureIndex 失败只告警不阻断：索引设置可由后续任务补齐。
 	if err := search.EnsureIndex(context.Background(), meiliClient); err != nil {
 		slog.Warn("search: ensure index failed (worker will still start)", "err", err)

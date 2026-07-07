@@ -18,14 +18,34 @@ type Config struct {
 	SupportedLocales             []string
 	HTTPHost                     string
 	HTTPPort                     string
+	HTTPReadTimeout              time.Duration
+	HTTPWriteTimeout             time.Duration
+	HTTPIdleTimeout              time.Duration
+	HTTPBodyLimit                int
+	CompressLevel                int
 	DatabaseURL                  string
 	MigrateOnStartup             bool
 	DatabaseMaxConns             int32
+	DatabaseMinConns             int32
+	DatabaseMaxConnIdleTime      time.Duration
+	DatabaseMaxConnLifetime      time.Duration
+	DatabaseConnectTimeout       time.Duration
 	EmbedWorkerInAPI             bool
 	WorkerDatabaseMaxConns       int32
+	WorkerDatabaseMinConns       int32
+	WorkerDatabaseMaxConnIdleTime time.Duration
+	WorkerDatabaseMaxConnLifetime time.Duration
+	WorkerDatabaseConnectTimeout  time.Duration
 	WorkerShutdownTimeout        time.Duration
 	RedisAddr                    string
 	RedisPassword                string
+	RedisPoolSize                int
+	RedisMinIdleConns            int
+	RedisDialTimeout             time.Duration
+	RedisReadTimeout             time.Duration
+	RedisWriteTimeout            time.Duration
+	RedisConnMaxIdleTime         time.Duration
+	RedisConnMaxLifetime         time.Duration
 	SessionIdleTimeout           time.Duration
 	SessionAbsoluteTimeout       time.Duration
 	SessionRenewalInterval       time.Duration
@@ -44,6 +64,9 @@ type Config struct {
 	ThemePreviewPath             string
 	MeiliHost                    string
 	MeiliMasterKey               string
+	MeiliTimeout                 time.Duration
+	LimiterWriteMax              int
+	LimiterWindow                time.Duration
 	JobQueueCriticalWorkers      int
 	JobQueueDefaultWorkers       int
 	JobQueueSearchWorkers        int
@@ -72,14 +95,34 @@ func Load() Config {
 		SupportedLocales:             supported,
 		HTTPHost:                     env("HTTP_HOST", "0.0.0.0"),
 		HTTPPort:                     env("HTTP_PORT", "8080"),
-		DatabaseURL:                  env("DATABASE_URL", "postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable"),
-		MigrateOnStartup:             envBool("MIGRATE_ON_STARTUP", true),
-		DatabaseMaxConns:             int32(envPositiveInt("DATABASE_MAX_CONNS", 10)),
-		EmbedWorkerInAPI:             envBool("EMBED_WORKER_IN_API", strings.EqualFold(appEnv, "development")),
-		WorkerDatabaseMaxConns:       int32(envPositiveInt("WORKER_DATABASE_MAX_CONNS", 10)),
-		WorkerShutdownTimeout:        envDuration("WORKER_SHUTDOWN_TIMEOUT", 30*time.Second),
+		HTTPReadTimeout:              envDuration("HTTP_READ_TIMEOUT", 10*time.Second),
+		HTTPWriteTimeout:             envDuration("HTTP_WRITE_TIMEOUT", 20*time.Second),
+		HTTPIdleTimeout:              envDuration("HTTP_IDLE_TIMEOUT", 120*time.Second),
+		HTTPBodyLimit:                envPositiveInt("HTTP_BODY_LIMIT", 4*1024*1024),
+		CompressLevel:                compressLevelFromEnv(env("COMPRESS_LEVEL", "default")),
+		DatabaseURL:                   env("DATABASE_URL", "postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable"),
+		MigrateOnStartup:              envBool("MIGRATE_ON_STARTUP", true),
+		DatabaseMaxConns:              int32(envPositiveInt("DATABASE_MAX_CONNS", 10)),
+		DatabaseMinConns:              int32(envPositiveInt("DATABASE_MIN_CONNS", 2)),
+		DatabaseMaxConnIdleTime:       envDuration("DATABASE_MAX_CONN_IDLE_TIME", 30*time.Minute),
+		DatabaseMaxConnLifetime:       envDuration("DATABASE_MAX_CONN_LIFETIME", time.Hour),
+		DatabaseConnectTimeout:        envDuration("DATABASE_CONNECT_TIMEOUT", 10*time.Second),
+		EmbedWorkerInAPI:              envBool("EMBED_WORKER_IN_API", strings.EqualFold(appEnv, "development")),
+		WorkerDatabaseMaxConns:        int32(envPositiveInt("WORKER_DATABASE_MAX_CONNS", 10)),
+		WorkerDatabaseMinConns:        int32(envPositiveInt("WORKER_DATABASE_MIN_CONNS", 2)),
+		WorkerDatabaseMaxConnIdleTime: envDuration("WORKER_DATABASE_MAX_CONN_IDLE_TIME", 30*time.Minute),
+		WorkerDatabaseMaxConnLifetime: envDuration("WORKER_DATABASE_MAX_CONN_LIFETIME", time.Hour),
+		WorkerDatabaseConnectTimeout:  envDuration("WORKER_DATABASE_CONNECT_TIMEOUT", 10*time.Second),
+		WorkerShutdownTimeout:         envDuration("WORKER_SHUTDOWN_TIMEOUT", 30*time.Second),
 		RedisAddr:                    env("REDIS_ADDR", "redis:6379"),
 		RedisPassword:                env("REDIS_PASSWORD", ""),
+		RedisPoolSize:                envPositiveInt("REDIS_POOL_SIZE", 20),
+		RedisMinIdleConns:            envPositiveInt("REDIS_MIN_IDLE_CONNS", 5),
+		RedisDialTimeout:             envDuration("REDIS_DIAL_TIMEOUT", 5*time.Second),
+		RedisReadTimeout:             envDuration("REDIS_READ_TIMEOUT", 3*time.Second),
+		RedisWriteTimeout:            envDuration("REDIS_WRITE_TIMEOUT", 3*time.Second),
+		RedisConnMaxIdleTime:         envDuration("REDIS_CONN_MAX_IDLE_TIME", 30*time.Minute),
+		RedisConnMaxLifetime:         envDuration("REDIS_CONN_MAX_LIFETIME", time.Hour),
 		SessionIdleTimeout:           sessionIdleTimeout,
 		SessionAbsoluteTimeout:       sessionAbsoluteTimeout,
 		SessionRenewalInterval:       envDuration("SESSION_RENEWAL_INTERVAL", 24*time.Hour),
@@ -98,6 +141,9 @@ func Load() Config {
 		ThemePreviewPath:             env("THEME_PREVIEW_PATH", "/"),
 		MeiliHost:                    env("MEILI_HOST", "http://meilisearch:7700"),
 		MeiliMasterKey:               env("MEILI_MASTER_KEY", "sforum-dev-meili-key"),
+		MeiliTimeout:                 envDuration("MEILI_TIMEOUT", 5*time.Second),
+		LimiterWriteMax:              envPositiveInt("LIMITER_WRITE_MAX", 30),
+		LimiterWindow:                envDuration("LIMITER_WINDOW", time.Minute),
 		JobQueueCriticalWorkers:      envPositiveInt("JOB_QUEUE_CRITICAL_WORKERS", 4),
 		JobQueueDefaultWorkers:       envPositiveInt("JOB_QUEUE_DEFAULT_WORKERS", 8),
 		JobQueueSearchWorkers:        envPositiveInt("JOB_QUEUE_SEARCH_WORKERS", 6),
@@ -162,6 +208,21 @@ func envDuration(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return parsed
+}
+
+// compressLevelFromEnv 把环境变量字符串映射为 fiber compress Level。
+// fiber compress: 0=LevelDefault, 1=LevelBestSpeed, 2=LevelBestCompression, -1=LevelDisabled。
+func compressLevelFromEnv(value string) int {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "disabled", "off", "none":
+		return -1
+	case "best_speed", "speed", "fast":
+		return 1
+	case "best_compression", "compression", "max":
+		return 2
+	default:
+		return 0
+	}
 }
 
 func parseLogLevel(value string) slog.Level {

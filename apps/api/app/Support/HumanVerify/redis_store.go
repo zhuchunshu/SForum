@@ -16,11 +16,48 @@ func NewRedisStore(client *redis.Client) *RedisStore {
 	return &RedisStore{client: client, prefix: "humanverify:"}
 }
 
-func NewRedisClient(addr string, password string) *redis.Client {
-	return redis.NewClient(&redis.Options{
+// RedisClientOptions 封装 go-redis 连接池与超时的可配置项。
+// 零值字段会走 go-redis 默认值，与改造前行为兼容。
+type RedisClientOptions struct {
+	PoolSize        int
+	MinIdleConns    int
+	DialTimeout     time.Duration
+	ReadTimeout     time.Duration
+	WriteTimeout    time.Duration
+	ConnMaxIdleTime time.Duration
+	ConnMaxLifetime time.Duration
+}
+
+// NewRedisClient 创建 go-redis 客户端。opts 为零值时与原行为一致（全默认）。
+// 该函数被 humanverify 与 forum 缓存层共用，调用方应传入同一个 client
+// 以复用连接池（见 bootstrap/app.go）。
+func NewRedisClient(addr string, password string, opts RedisClientOptions) *redis.Client {
+	options := &redis.Options{
 		Addr:     addr,
 		Password: password,
-	})
+	}
+	if opts.PoolSize > 0 {
+		options.PoolSize = opts.PoolSize
+	}
+	if opts.MinIdleConns > 0 {
+		options.MinIdleConns = opts.MinIdleConns
+	}
+	if opts.DialTimeout > 0 {
+		options.DialTimeout = opts.DialTimeout
+	}
+	if opts.ReadTimeout > 0 {
+		options.ReadTimeout = opts.ReadTimeout
+	}
+	if opts.WriteTimeout > 0 {
+		options.WriteTimeout = opts.WriteTimeout
+	}
+	if opts.ConnMaxIdleTime > 0 {
+		options.ConnMaxIdleTime = opts.ConnMaxIdleTime
+	}
+	if opts.ConnMaxLifetime > 0 {
+		options.ConnMaxLifetime = opts.ConnMaxLifetime
+	}
+	return redis.NewClient(options)
 }
 
 func (s *RedisStore) MarkUsed(ctx context.Context, key string, ttl time.Duration) error {

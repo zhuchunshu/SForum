@@ -171,6 +171,8 @@ mobile comments with the D-style flat list plus "replying to" context labels.
   `EnqueueDelete`，hide/delete 删索引，其余重索引；调度失败只记 slog 不中断。
   依赖解耦：forum 定义窄接口 `TopicSearchIndexer`，search 实现；search → searchjobs
   单向依赖。前端首页 `SFSearch` 搜索框关键词非空时调 `searchTopics`。
+  Meilisearch 客户端通过 `NewClientWithTimeout` 注入 `http.Client.Timeout`（默认 5s），
+  避免 Meili 宕机时请求挂起。
   **后台重建**：`search.manage` 权限，`POST/GET /admin/forum/search/reindex`
   （触发/进度）+ `GET /admin/forum/search/reindex/runs`（历史）。
   `search.ReindexManager` 扫描 `forum.Store.ListAllTopicIDs` → 分批
@@ -180,11 +182,19 @@ mobile comments with the D-style flat list plus "replying to" context labels.
 - **Redis 读缓存**：`app/Support/Cache` 提供 `Cache` 接口 + `MemoryCache`/
   `RedisCache`。`forum.CachedStore` 嵌入 `Store` 接口装饰，缓存分类/分组/标签
   （60s）、主题详情（30s）、主题列表（15s）。失效用 generation 方案（写时递增版本号，
-  读 key 含 generation），主题详情按 topicID 精确 Delete。
+  读 key 含 generation），主题详情按 topicID 精确 Delete。Redis 客户端由
+  bootstrap 合并为单一 `sharedRedisClient`（humanverify 与 cache 共用），显式配置
+  PoolSize/超时（见 `decisions/2026-07-08-performance-hardening.md`）。
 - **深翻页 clamp**：`normalizePage` 增加 `maxTopicPage=200`，消除深分页 OFFSET 扫描。
+  评论端点 `page` 参数 OpenAPI 也补了 `maximum: 200`。
+- **ListComments SQL 分页改造**（2026-07-08 性能加固）：原实现全量加载 topic 全部
+  active 评论再内存分页，已改为：flat 视图直接 SQL `LIMIT/OFFSET`；tree 视图三步
+  查询（根评论分页 → `root_comment_id = ANY(...)` 批量拉子孙 → 内存建树）。语义
+  不变（Total/Items/view），前端零改动。
 - 测试覆盖：`cached_store_test.go`（hit/miss/失效/降级）、
   `service_index_test.go`（各写流程索引调度 + nil/失败降级 + query 拒绝 + 分页 clamp）、
-  controller search 端点 + query 引导错误测试。决策记录见
+  `service_test.go` ListComments view 校验/默认值/非法值、controller search 端点 +
+  query 引导错误测试。决策记录见
   `decisions/2026-07-08-search-cache-deep-pagination.md`。
 
 ## Topic Lifecycle (Core Forum V1)

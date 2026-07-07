@@ -67,10 +67,50 @@ function rewriteAdminPageRoutes(pages: NuxtPage[]) {
 
 export default defineNuxtConfig({
   extends: themeLayers,
-  modules: ['@nuxt/ui', '@nuxtjs/i18n', '@nuxtjs/seo'],
+  modules: ['@nuxt/ui', '@nuxtjs/i18n', '@nuxtjs/seo', '@nuxt/image'],
   ssr: true,
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
-  nitro: nitroOutputDir ? { output: { dir: nitroOutputDir } } : {},
+  nitro: {
+    // 静态资源（带 hash 的 _nuxt 文件）压缩为 brotli + gzip。
+    compressPublicAssets: { brotli: true, gzip: true },
+    // 路由级渲染模式与缓存：公开内容页走 stale-while-revalidate，表单/管理页走 SPA。
+    // i18n strategy=prefix_except_default，zh-CN 无前缀，en 带前缀，需同时覆盖两套路径。
+    routeRules: {
+      // 公开内容页：短到中等 swr，命中缓存的同时保持最终一致。
+      '/': { swr: 600 },
+      '/en': { swr: 600 },
+      '/c/**': { swr: 600 },
+      '/en/c/**': { swr: 600 },
+      '/tags/**': { swr: 600 },
+      '/en/tags/**': { swr: 600 },
+      '/u/**': { swr: 3600 },
+      '/en/u/**': { swr: 3600 },
+      '/t/**': { swr: 60 },
+      '/en/t/**': { swr: 60 },
+      // 表单/认证/设置页：纯 SPA，无需 SSR 开销，也无需 SEO。
+      '/login': { ssr: false },
+      '/en/login': { ssr: false },
+      '/register': { ssr: false },
+      '/en/register': { ssr: false },
+      '/forgot-password': { ssr: false },
+      '/en/forgot-password': { ssr: false },
+      '/reset-password': { ssr: false },
+      '/en/reset-password': { ssr: false },
+      '/settings/**': { ssr: false },
+      '/en/settings/**': { ssr: false },
+      '/topics/new': { ssr: false },
+      '/en/topics/new': { ssr: false },
+      '/t/**/edit': { ssr: false },
+      '/en/t/**/edit': { ssr: false },
+      // 管理后台：SPA + 禁止索引。
+      [`${adminRoutePrefix}/**`]: { ssr: false, robots: { index: false } },
+      '/components': { ssr: false, robots: { index: false } },
+      // 静态图标目录：数据完全静态，长缓存。
+      '/api/icon-collections/**': { cache: { maxAge: 86400 } },
+      '/api/_sitemap-urls': { cache: { maxAge: 600 } }
+    },
+    ...(nitroOutputDir ? { output: { dir: nitroOutputDir } } : {})
+  },
   ignore: nuxtGeneratedIgnores,
   css: ['~/assets/css/main.css', '~/assets/css/sforum-components.css'],
   devtools: { enabled: true },
@@ -86,6 +126,18 @@ export default defineNuxtConfig({
     collections: ['lucide', 'tabler'],
     serverBundle: {
       collections: ['lucide', 'tabler']
+    }
+  },
+  image: {
+    // 头像与用户上传图片优化：默认 webp 格式，惰性加载。
+    format: ['webp'],
+    quality: 80,
+    // 头像尺寸预设，SFAvatar 按 size prop 选用对应宽度。
+    screens: {
+      xs: 48,
+      sm: 96,
+      md: 128,
+      lg: 256
     }
   },
   vite: {

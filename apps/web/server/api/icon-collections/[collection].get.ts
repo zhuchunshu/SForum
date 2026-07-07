@@ -11,5 +11,7 @@ export default defineEventHandler((event) => {
     })
   }
 
+  // 图标目录数据完全静态（来自 @iconify-json 包），浏览器/CDN 可长缓存。
+  setHeader(event, 'cache-control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400')
   return getIconCatalogPage(collection, getQuery(event))
 })

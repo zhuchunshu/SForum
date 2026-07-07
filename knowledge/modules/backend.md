@@ -38,6 +38,25 @@ runtime memory/heap/GC/goroutines, pgx pool stats, community counts,
 attachments, moderation, extensions, 7-day trends, top categories, and
 server-generated safe action summaries.
 
+Performance hardening (2026-07-08) covers the network and connection layers
+beyond the earlier search/cache read-path work:
+
+- **Fiber config**: `server.go` now sets `ReadTimeout`/`WriteTimeout`/
+  `IdleTimeout`/`BodyLimit` and registers `compress` (brotli/gzip) and `limiter`
+  middleware. Limiter skips GET/HEAD/OPTIONS and rate-limits writes per IP via
+  Redis storage. All defaults are env-tunable (`HTTP_READ_TIMEOUT`,
+  `COMPRESS_LEVEL`, `LIMITER_WRITE_MAX`, etc.).
+- **Redis**: `humanverify.NewRedisClient` accepts `RedisClientOptions`
+  (PoolSize/MinIdleConns/Dial/Read/Write/ConnMaxIdleTime/ConnMaxLifetime).
+  `bootstrap/app.go` merges the humanverify and forum-cache clients into one
+  `sharedRedisClient`; session storage stays separate. Close-chain leak fixed.
+- **PostgreSQL**: `postgres.NewPoolWithOptions` + `PoolOptions` expose
+  MinConns/MaxConnIdleTime/MaxConnLifetime/ConnectTimeout for both API and
+  worker pools.
+- **Meilisearch**: `search.NewClientWithTimeout` injects `http.Client.Timeout`
+  (default 5s); `go mod tidy` promoted `meilisearch-go` to a direct dependency.
+- Decision record: `decisions/2026-07-08-performance-hardening.md`.
+
 ## Planned Stack
 
 - Go 1.25+.

@@ -19,6 +19,13 @@ const props = withDefaults(defineProps<{
   status: undefined
 })
 
+// 头像尺寸到像素的映射，用于 NuxtImg 的 width/height 和 sizes 预设。
+const sizePixels: Record<AvatarSize, number> = {
+  sm: 48,
+  md: 96,
+  lg: 256
+}
+
 const initials = computed(() => {
   const source = props.name.trim()
   if (!source) {
@@ -41,12 +48,18 @@ const avatarClass = computed(() => [
 
 <template>
   <span :class="avatarClass">
-    <img
+    <NuxtImg
       v-if="src"
       class="sf-avatar__image"
       :src="src"
       :alt="alt || name"
-    >
+      :width="sizePixels[size]"
+      :height="sizePixels[size]"
+      :sizes="`${sizePixels[size]}px`"
+      format="webp"
+      loading="lazy"
+      decoding="async"
+    />
     <span v-else>{{ initials }}</span>
     <span
       v-if="status"

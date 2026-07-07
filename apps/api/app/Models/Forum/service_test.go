@@ -648,6 +648,10 @@ type serviceFakeStore struct {
 	resolveTagsErr    error
 	resolveTagsCalled bool
 	resolvedTagsInput ResolveTopicTagsInput
+	// ListComments 可配置返回值与调用记录，供分页/view 校验测试断言。
+	listCommentsResult CommentList
+	listCommentsInput  CommentListInput
+	listCommentsCalled bool
 }
 
 func newServiceFakeStore() *serviceFakeStore {
@@ -838,8 +842,10 @@ func (s *serviceFakeStore) DeleteComment(context.Context, int64) (Comment, error
 	return Comment{}, nil
 }
 
-func (s *serviceFakeStore) ListComments(context.Context, CommentListInput) (CommentList, error) {
-	return CommentList{}, nil
+func (s *serviceFakeStore) ListComments(_ context.Context, input CommentListInput) (CommentList, error) {
+	s.listCommentsCalled = true
+	s.listCommentsInput = input
+	return s.listCommentsResult, nil
 }
 
 func (s *serviceFakeStore) ListCommentReplies(context.Context, int64) ([]Comment, error) {
@@ -856,4 +862,56 @@ func stringSlicesEqual(left []string, right []string) bool {
 		}
 	}
 	return true
+}
+
+// TestServiceListCommentsDefaultsToTreeView 验证空 view 默认为 tree 并透传给 Store。
+func TestServiceListCommentsDefaultsToTreeView(t *testing.T) {
+	store := newServiceFakeStore()
+	store.listCommentsResult = CommentList{Items: []Comment{{ID: 1}}, Total: 1, View: "tree"}
+	service := NewService(store)
+
+	result, err := service.ListComments(context.Background(), CommentListInput{TopicID: 10})
+	if err != nil {
+		t.Fatalf("ListComments returned error: %v", err)
+	}
+	if !store.listCommentsCalled {
+		t.Fatal("expected ListComments to be called on store")
+	}
+	if store.listCommentsInput.View != "tree" {
+		t.Fatalf("expected default view 'tree', got %q", store.listCommentsInput.View)
+	}
+	if result.View != "tree" {
+		t.Fatalf("expected result view 'tree', got %q", result.View)
+	}
+}
+
+// TestServiceListCommentsRejectsInvalidView 验证非法 view 值被拒绝。
+func TestServiceListCommentsRejectsInvalidView(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewService(store)
+
+	if _, err := service.ListComments(context.Background(), CommentListInput{TopicID: 1, View: "nested"}); err == nil {
+		t.Fatal("expected error for invalid view, got nil")
+	}
+	if store.listCommentsCalled {
+		t.Fatal("expected store.ListComments NOT to be called for invalid view")
+	}
+}
+
+// TestServiceListCommentsPassesFlatView 验证 flat view 透传。
+func TestServiceListCommentsPassesFlatView(t *testing.T) {
+	store := newServiceFakeStore()
+	store.listCommentsResult = CommentList{Items: []Comment{{ID: 1}, {ID: 2}}, Total: 2, View: "flat"}
+	service := NewService(store)
+
+	result, err := service.ListComments(context.Background(), CommentListInput{TopicID: 5, View: "flat"})
+	if err != nil {
+		t.Fatalf("ListComments returned error: %v", err)
+	}
+	if store.listCommentsInput.View != "flat" {
+		t.Fatalf("expected view 'flat', got %q", store.listCommentsInput.View)
+	}
+	if result.View != "flat" || result.Total != 2 {
+		t.Fatalf("unexpected result: %+v", result)
+	}
 }

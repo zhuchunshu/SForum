@@ -228,7 +228,7 @@ function onEditorSubmit(payload: { markdown: string }) {
             <label class="block text-sm font-semibold text-slate-700 mb-2 dark:text-zinc-300">
               {{ t('composer.bodyLabel') }}
             </label>
-            <SFEditor
+            <LazySFEditor
               v-model="bodyMarkdown"
               :placeholder="t('composer.bodyPlaceholder')"
               :submit-label="submitLabel"

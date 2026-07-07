@@ -242,7 +242,7 @@ const markdownCheatsheet = computed(() => [
               <span class="text-rose-500">*</span>
             </label>
             <p class="text-xs text-slate-400 dark:text-zinc-500 mb-2">{{ t('composer.bodyHint') }}</p>
-            <SFEditor
+            <LazySFEditor
               v-model="bodyMarkdown"
               :placeholder="t('composer.bodyPlaceholder')"
               :submit-label="submitLabel"

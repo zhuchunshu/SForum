@@ -653,10 +653,14 @@ func stringSliceFromPatch(value any) ([]string, bool) {
 }
 
 func (s *Service) ListComments(ctx context.Context, input CommentListInput) (CommentList, error) {
-	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
 	if input.View == "" {
 		input.View = "tree"
 	}
+	// view 枚举校验：非法值直接拒绝，避免 SQL 层走到默认 tree 分支而前端预期不符。
+	if input.View != "tree" && input.View != "flat" {
+		return CommentList{}, ErrInvalidTopic
+	}
+	// 分页归一化交给 Store 层统一处理（ListTopics 同模式），避免双重 clamp。
 	return s.store.ListComments(ctx, input)
 }
 

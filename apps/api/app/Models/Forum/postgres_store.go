@@ -1056,35 +1056,117 @@ func (s *PostgresStore) DeleteComment(ctx context.Context, commentID int64) (Com
 
 func (s *PostgresStore) ListComments(ctx context.Context, input CommentListInput) (CommentList, error) {
 	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
+	offset := (input.Page - 1) * input.PerPage
+
+	if input.View == "flat" {
+		return s.listCommentsFlat(ctx, input, offset)
+	}
+	return s.listCommentsTree(ctx, input, offset)
+}
+
+// listCommentsFlat 直接对全部 active 评论按 path_key 做 SQL 分页。
+// 复用 comments_topic_path_idx(topic_id, path_key)；Total 为该 topic 的 active 评论总数。
+func (s *PostgresStore) listCommentsFlat(ctx context.Context, input CommentListInput, offset int) (CommentList, error) {
+	var total int64
+	if err := s.pool.QueryRow(ctx, `
+		SELECT count(*) FROM comments
+		WHERE topic_id = $1 AND status = 'active'
+	`, input.TopicID).Scan(&total); err != nil {
+		return CommentList{}, fmt.Errorf("count comments: %w", err)
+	}
+
 	rows, err := s.pool.Query(ctx, commentSelectSQL()+`
 		WHERE comments.topic_id = $1 AND comments.status = 'active'
 		ORDER BY comments.path_key ASC, comments.id ASC
-	`, input.TopicID)
+		LIMIT $2 OFFSET $3
+	`, input.TopicID, input.PerPage, offset)
 	if err != nil {
 		return CommentList{}, fmt.Errorf("list comments: %w", err)
 	}
 	defer rows.Close()
 
-	comments := []Comment{}
+	items, err := scanComments(rows)
+	if err != nil {
+		return CommentList{}, err
+	}
+	return CommentList{Items: items, Total: total, Page: input.Page, PerPage: input.PerPage, View: "flat"}, nil
+}
+
+// listCommentsTree 采用"根评论分页 + 子孙批量拉取"两步查询，避免全量加载：
+//  1. 对根评论(parent_comment_id IS NULL)按 path_key 分页，复用 comments_topic_root_idx
+//     部分索引(status='active')。Total 为根评论数，与改造前 buildCommentTree 后的语义一致。
+//  2. 取当页根评论 ID，用 root_comment_id = ANY(...) 批量拉取这些根的全部子孙
+//     (同样命中 comments_topic_root_idx)，再在内存中 buildCommentTree。
+//
+// 这样单次请求只加载当页 perPage 个根讨论线的数据，而非整个 topic 的全部评论。
+func (s *PostgresStore) listCommentsTree(ctx context.Context, input CommentListInput, offset int) (CommentList, error) {
+	var total int64
+	if err := s.pool.QueryRow(ctx, `
+		SELECT count(*) FROM comments
+		WHERE topic_id = $1 AND status = 'active' AND parent_comment_id IS NULL
+	`, input.TopicID).Scan(&total); err != nil {
+		return CommentList{}, fmt.Errorf("count root comments: %w", err)
+	}
+
+	// 第一步：拉当页根评论。
+	rootRows, err := s.pool.Query(ctx, commentSelectSQL()+`
+		WHERE comments.topic_id = $1 AND comments.status = 'active' AND comments.parent_comment_id IS NULL
+		ORDER BY comments.path_key ASC, comments.id ASC
+		LIMIT $2 OFFSET $3
+	`, input.TopicID, input.PerPage, offset)
+	if err != nil {
+		return CommentList{}, fmt.Errorf("list root comments: %w", err)
+	}
+	roots, err := scanComments(rootRows)
+	rootRows.Close()
+	if err != nil {
+		return CommentList{}, err
+	}
+	if len(roots) == 0 {
+		return CommentList{Items: []Comment{}, Total: total, Page: input.Page, PerPage: input.PerPage, View: "tree"}, nil
+	}
+
+	// 第二步：拉这些根评论的全部子孙。root_comment_id 已在写入时写死（见 CommentPositionForInsert）。
+	rootIDs := make([]int64, 0, len(roots))
+	for _, r := range roots {
+		rootIDs = append(rootIDs, r.ID)
+	}
+	descRows, err := s.pool.Query(ctx, commentSelectSQL()+`
+		WHERE comments.topic_id = $1 AND comments.status = 'active'
+		  AND comments.parent_comment_id IS NOT NULL
+		  AND comments.root_comment_id = ANY($2::bigint[])
+		ORDER BY comments.path_key ASC, comments.id ASC
+	`, input.TopicID, rootIDs)
+	if err != nil {
+		return CommentList{}, fmt.Errorf("list comment descendants: %w", err)
+	}
+	descendants, err := scanComments(descRows)
+	descRows.Close()
+	if err != nil {
+		return CommentList{}, err
+	}
+
+	all := make([]Comment, 0, len(roots)+len(descendants))
+	all = append(all, roots...)
+	all = append(all, descendants...)
+	tree := buildCommentTree(all)
+	return CommentList{Items: tree, Total: total, Page: input.Page, PerPage: input.PerPage, View: "tree"}, nil
+}
+
+// scanComments 扫描 rows 到 []Comment，统一处理 rows.Err 与遍历错误。
+func scanComments(rows pgx.Rows) ([]Comment, error) {
+	items := []Comment{}
 	for rows.Next() {
 		comment, err := scanComment(rows)
 		if err != nil {
-			return CommentList{}, err
+			return nil, err
 		}
-		comments = append(comments, comment)
+		items = append(items, comment)
 	}
 	if err := rows.Err(); err != nil {
-		return CommentList{}, fmt.Errorf("iterate comments: %w", err)
+		return nil, fmt.Errorf("iterate comments: %w", err)
 	}
-
-	if input.View == "flat" {
-		paged := pageComments(comments, input.Page, input.PerPage)
-		return CommentList{Items: paged, Total: int64(len(comments)), Page: input.Page, PerPage: input.PerPage, View: "flat"}, nil
-	}
-
-	tree := buildCommentTree(comments)
-	paged := pageComments(tree, input.Page, input.PerPage)
-	return CommentList{Items: paged, Total: int64(len(tree)), Page: input.Page, PerPage: input.PerPage, View: "tree"}, nil
+	return items, nil
 }
 
 func (s *PostgresStore) ListCommentReplies(ctx context.Context, commentID int64) ([]Comment, error) {
@@ -1585,14 +1667,3 @@ func buildCommentTree(items []Comment) []Comment {
 	return roots
 }
 
-func pageComments(items []Comment, page int, perPage int) []Comment {
-	start := (page - 1) * perPage
-	if start >= len(items) {
-		return []Comment{}
-	}
-	end := start + perPage
-	if end > len(items) {
-		end = len(items)
-	}
-	return items[start:end]
-}

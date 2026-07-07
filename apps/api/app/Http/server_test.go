@@ -70,6 +70,82 @@ func TestNewAppRegistersRouteProviders(t *testing.T) {
 	}
 }
 
+// TestCompressMiddlewareGzipsResponse 验证 compress 中间件对声明 Accept-Encoding: gzip
+// 的请求返回 gzip 压缩响应。
+func TestCompressMiddlewareGzipsResponse(t *testing.T) {
+	cfg := testConfig()
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{routeProviderFunc(func(api fiber.Router) {
+			api.Get("/bulk", func(c fiber.Ctx) error {
+				// 返回足够长的内容以触发压缩（compress 中间件对小响应可能跳过）。
+				payload := strings.Repeat("SForum-compress-test-", 200)
+				return c.SendString(payload)
+			})
+		})},
+	})
+
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/bulk", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("bulk request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.Header.Get("Content-Encoding") != "gzip" {
+		t.Fatalf("expected gzip Content-Encoding, got %q", resp.Header.Get("Content-Encoding"))
+	}
+}
+
+// TestLimiterBlocksExcessiveWriteRequests 验证写接口限流：超过 Max 的写请求返回 429，
+// 而读请求不受限。用进程内存 storage（deps.Storage 为 nil）避免依赖 Redis。
+func TestLimiterBlocksExcessiveWriteRequests(t *testing.T) {
+	cfg := testConfig()
+	cfg.LimiterWriteMax = 2
+	cfg.LimiterWindow = time.Minute
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{routeProviderFunc(func(api fiber.Router) {
+			api.Post("/write", func(c fiber.Ctx) error { return c.SendString("ok") })
+			api.Get("/read", func(c fiber.Ctx) error { return c.SendString("ok") })
+		})},
+	})
+
+	// 两次写请求应通过。
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/write", nil)
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("write request %d failed: %v", i, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != nethttp.StatusOK {
+			t.Fatalf("expected write %d to pass with 200, got %d", i, resp.StatusCode)
+		}
+	}
+
+	// 第三次写请求应被限流为 429。
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/write", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("third write request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusTooManyRequests {
+		t.Fatalf("expected third write to be limited with 429, got %d", resp.StatusCode)
+	}
+
+	// 读请求不受限流影响。
+	readReq := httptest.NewRequest(nethttp.MethodGet, "/api/v1/read", nil)
+	readResp, err := app.Test(readReq)
+	if err != nil {
+		t.Fatalf("read request failed: %v", err)
+	}
+	defer readResp.Body.Close()
+	if readResp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected read request to pass with 200, got %d", readResp.StatusCode)
+	}
+}
+
 func TestHealthEndpoint(t *testing.T) {
 	cfg := config.Config{
 		AppName:          "SForum",
@@ -1254,6 +1330,14 @@ func testConfig() config.Config {
 		AppEnv:           "test",
 		AppLocale:        "zh-CN",
 		SupportedLocales: []string{"zh-CN", "en-US"},
+		HTTPReadTimeout:  10 * time.Second,
+		HTTPWriteTimeout: 20 * time.Second,
+		HTTPIdleTimeout:  120 * time.Second,
+		HTTPBodyLimit:    4 * 1024 * 1024,
+		CompressLevel:    0,
+		// 测试用宽松限流（60 次/分钟），避免正常测试断言被限流干扰。
+		LimiterWriteMax: 60,
+		LimiterWindow:   time.Minute,
 	}
 }
 

@@ -28,7 +28,13 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 		return nil, err
 	}
 
-	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL, cfg.WorkerDatabaseMaxConns)
+	pool, err := postgres.NewPoolWithOptions(ctx, cfg.DatabaseURL, postgres.PoolOptions{
+		MaxConns:          cfg.WorkerDatabaseMaxConns,
+		MinConns:          cfg.WorkerDatabaseMinConns,
+		MaxConnIdleTime:   cfg.WorkerDatabaseMaxConnIdleTime,
+		MaxConnLifetime:   cfg.WorkerDatabaseMaxConnLifetime,
+		ConnectTimeout:    cfg.WorkerDatabaseConnectTimeout,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("postgres setup failed: %w", err)
 	}
