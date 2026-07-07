@@ -7,8 +7,10 @@ import fs from 'node:fs'
 
 import {
   createThemeProxy,
+  formatPublicDevUrl,
   healthCheckTcp,
   healthCheckUnix,
+  isNuxtDevAddressLine,
   makeTarget,
   parseDevPort,
   replaceTarget,
@@ -91,6 +93,22 @@ describe('theme-proxy: parseDevPort', () => {
     expect(parseDevPort('  ➜  Network:  http://192.168.1.5:3000/')).toBeNull()
     expect(parseDevPort('some random log')).toBeNull()
     expect(parseDevPort(null as unknown as string)).toBeNull()
+  })
+})
+
+describe('theme-proxy: dev startup display helpers', () => {
+  test('把通配监听地址显示成可访问的本机 URL', () => {
+    expect(formatPublicDevUrl('0.0.0.0', 3000)).toBe('http://127.0.0.1:3000/')
+    expect(formatPublicDevUrl('::', 3000)).toBe('http://127.0.0.1:3000/')
+    expect(formatPublicDevUrl('localhost', 3100)).toBe('http://localhost:3100/')
+    expect(formatPublicDevUrl('::1', 3100)).toBe('http://[::1]:3100/')
+  })
+
+  test('识别 Nuxt 子进程的内部地址行，避免把临时端口显示成访问端口', () => {
+    expect(isNuxtDevAddressLine('  ➜  Local:    http://0.0.0.0:53721/')).toBe(true)
+    expect(isNuxtDevAddressLine('  ➜  Network:  http://192.168.1.5:53721/')).toBe(true)
+    expect(isNuxtDevAddressLine('  ➜  Network:  use --host to expose')).toBe(false)
+    expect(isNuxtDevAddressLine('[sforum-dev-runtime] switched nuxt dev')).toBe(false)
   })
 })
 

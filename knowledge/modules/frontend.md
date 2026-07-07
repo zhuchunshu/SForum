@@ -71,7 +71,11 @@ absent.
 Locally, `bun run dev` runs `apps/web/scripts/dev-theme-runtime.mjs`, a
 theme-aware supervisor that reads the same `current.json`, injects
 `SFORUM_THEME_LAYER` from `layerPath`, and restarts the inner `nuxt dev`
-(spawned via `bun run dev:plain`) when the active theme changes.
+(spawned via `bun run dev:plain`) when the active theme changes. The supervisor
+loads the repository root `.env`, uses `PORT` or `WEB_PORT` for its fixed public
+proxy port, prints that public URL, and suppresses Nuxt child-process
+Local/Network lines so internal random `PORT=0` addresses are not mistaken for
+the frontend access port.
 `bun run dev:plain` runs raw `nuxt dev` as an escape hatch for troubleshooting.
 `bun run preview` only serves the fixed `.output` build and does not follow
 admin theme switching.

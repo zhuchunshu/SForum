@@ -20,13 +20,15 @@ This is the entry point for project memory.
   containers, waits for dependencies, and runs migrations by default; use
   `--no-migrate` only when testing dependency startup.
 - Local frontend and backend processes read the repository root `.env`
-  directly: Nuxt dev uses `--dotenv ../../.env`, Air uses
-  `env_files = ["../../.env"]`, and `./scripts/api-dev.sh` is the recommended
-  API entry because it loads `.env` and reports occupied API ports without
-  stopping user processes. In development, the API embeds the background worker
-  by default through `EMBED_WORKER_IN_API=true`, so running API `air` also
-  consumes queued jobs such as uploaded theme activation. Production keeps API
-  and worker processes separate by default.
+  directly: the frontend dev supervisor loads it with `bun --env-file=../../.env`
+  and exposes `PORT`/`WEB_PORT` through its fixed proxy, Nuxt dev still uses
+  `--dotenv ../../.env`, Air uses `env_files = ["../../.env"]`, and
+  `./scripts/api-dev.sh` is the recommended API entry because it loads `.env`
+  and reports occupied API ports without stopping user processes. In
+  development, the API embeds the background worker by default through
+  `EMBED_WORKER_IN_API=true`, so running API `air` also consumes queued jobs
+  such as uploaded theme activation. Production keeps API and worker processes
+  separate by default.
 - Frontend build/typecheck commands use sibling Nuxt temporary directories
   (`.nuxt-build` and `.nuxt-typecheck`) instead of nesting under the dev
   server's `.nuxt`, and generated output is ignored by dev watchers to avoid

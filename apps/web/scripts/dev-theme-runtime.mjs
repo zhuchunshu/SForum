@@ -19,7 +19,9 @@ import path from 'node:path'
 
 import {
   createThemeProxy,
+  formatPublicDevUrl,
   healthCheckTcp,
+  isNuxtDevAddressLine,
   parseDevPort,
   replaceTarget,
 } from './theme-proxy.mjs'
@@ -27,8 +29,9 @@ import {
 const releaseRoot = process.env.SFORUM_THEME_RELEASE_ROOT || path.resolve(process.cwd(), '../../storage/theme-releases')
 const currentFile = path.join(releaseRoot, 'current.json')
 const bunPath = process.env.SFORUM_BUN_PATH || 'bun'
-const externalPort = Number(process.env.PORT || '3000')
+const externalPort = Number(process.env.PORT || process.env.WEB_PORT || '3000')
 const externalHost = process.env.HOST || '0.0.0.0'
+const publicDevUrl = formatPublicDevUrl(externalHost, externalPort)
 // 健康检查总超时：nuxt dev 冷启动可能要几十秒，给足时间。
 const healthTimeoutMs = Number(process.env.SFORUM_THEME_HEALTH_TIMEOUT || '120000')
 
@@ -137,7 +140,6 @@ async function switchTo(nextLayer, reason) {
       // 扫描每一行 stdout，匹配到监听端口就 resolve，并把后续 stdout 透传给父进程。
       let pending = ''
       candidate.stdout.on('data', (chunk) => {
-        process.stdout.write(chunk)
         pending += chunk.toString()
         let nl
         while ((nl = pending.indexOf('\n')) >= 0) {
@@ -147,7 +149,16 @@ async function switchTo(nextLayer, reason) {
           if (parsed) {
             resolvePort(parsed)
           }
+          if (!isNuxtDevAddressLine(line)) {
+            process.stdout.write(`${line}\n`)
+          }
         }
+      })
+      candidate.stdout.on('end', () => {
+        if (pending && !isNuxtDevAddressLine(pending)) {
+          process.stdout.write(pending)
+        }
+        pending = ''
       })
       return candidate
     },
@@ -164,7 +175,7 @@ async function switchTo(nextLayer, reason) {
   child = result.child
   if (result.ok) {
     activeLayer = nextLayer
-    console.log(`[sforum-dev-runtime] (${reason}) switched nuxt dev`)
+    console.log(`[sforum-dev-runtime] (${reason}) switched nuxt dev; public URL: ${publicDevUrl}`)
     // 主动重启场景下（非 current.json 变化）：进程已退出会触发 exit，
     // 这里 child 仍存活时无需额外处理；崩溃由 exit 回调兜底重拉。
     child.removeAllListeners('exit')
@@ -243,6 +254,7 @@ async function main() {
   fs.mkdirSync(releaseRoot, { recursive: true })
   await proxy.listen()
   console.log(`[sforum-dev-runtime] proxy listening on ${externalHost}:${externalPort}`)
+  console.log(`[sforum-dev-runtime] public URL: ${publicDevUrl}`)
   fs.watch(releaseRoot, scheduleRestart)
   process.on('SIGTERM', async () => {
     stopChild(child)

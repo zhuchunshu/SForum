@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/dev-theme-runtime.mjs",
+    "dev": "bun --env-file=../../.env scripts/dev-theme-runtime.mjs",
     "dev:plain": "nuxt dev --host 0.0.0.0 --dotenv ../../.env",
     "build": "NUXT_BUILD_DIR=${NUXT_BUILD_DIR:-.nuxt-build} nuxt build",
     "preview": "HOST=0.0.0.0 bun --env-file=../../.env scripts/preview.mjs",

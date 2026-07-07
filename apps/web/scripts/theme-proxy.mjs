@@ -307,8 +307,9 @@ function sleep(ms) {
 // 因为 supervisor 在本机代理，用回环最稳。
 export function parseDevPort(line) {
   if (typeof line !== 'string') return null
+  const cleanLine = stripAnsi(line)
   // 匹配 "Local:" 行的 URL，host 部分兼容 IPv6 方括号写法。
-  const m = line.match(/Local:\s+https?:\/\/(\[[^\]]+\]|[^:/]+):(\d+)/)
+  const m = cleanLine.match(/Local:\s+https?:\/\/(\[[^\]]+\]|[^:/]+):(\d+)/)
   if (!m) return null
   let host = m[1]
   const port = Number(m[2])
@@ -321,4 +322,31 @@ export function parseDevPort(line) {
     host = '127.0.0.1'
   }
   return { host, port }
+}
+
+// 开发 supervisor 对外监听的是代理端口，Nuxt 子进程的 Local/Network 行只表示
+// 内部临时端口。隐藏这些行，避免终端把内部端口误导成用户访问入口。
+export function isNuxtDevAddressLine(line) {
+  if (typeof line !== 'string') return false
+  const cleanLine = stripAnsi(line)
+  return /^\s*➜\s+(Local|Network):\s+https?:\/\/(\[[^\]]+\]|[^:/]+):\d+/.test(cleanLine)
+}
+
+export function formatPublicDevUrl(host, port) {
+  const displayPort = Number(port) || 3000
+  let displayHost = String(host || '127.0.0.1').trim()
+  if (displayHost.startsWith('[') && displayHost.endsWith(']')) {
+    displayHost = displayHost.slice(1, -1)
+  }
+  if (!displayHost || displayHost === '0.0.0.0' || displayHost === '::') {
+    displayHost = '127.0.0.1'
+  }
+  if (displayHost.includes(':')) {
+    displayHost = `[${displayHost}]`
+  }
+  return `http://${displayHost}:${displayPort}/`
+}
+
+function stripAnsi(value) {
+  return value.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '')
 }
