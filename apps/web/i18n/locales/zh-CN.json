@@ -12,7 +12,8 @@
     "darkMode": "切换到夜间模式",
     "newTopic": "发帖",
     "myProfile": "我的资料",
-    "profileSettings": "资料设置"
+    "profileSettings": "资料设置",
+    "mailSettings": "邮件设置"
   },
   "home": {
     "metaTitle": "{siteName} 社区首页",
@@ -95,7 +96,7 @@
     "privacy": "隐私政策",
     "loginNamePlaceholder": "用户名或邮箱",
     "usernamePlaceholder": "cooluser123",
-    "emailPlaceholder": "邮箱地址",
+    "emailPlaceholder": "your@email.com",
     "displayNamePlaceholder": "小明",
     "passwordPlaceholder": "至少 12 个字符",
     "passwordHint": "密码至少需要 12 个字符；建议使用短句或多个单词组合。",
@@ -106,7 +107,26 @@
     "brandDesc": "没有算法推荐，没有信息流噪音。按话题组织，每条回复都值得被读到。",
     "feature1": "发帖不需要关注数，好内容自然会浮现",
     "feature2": "支持 Markdown，写长文不再将就",
-    "feature3": "中英文界面，随时切换"
+    "feature3": "中英文界面，随时切换",
+    "forgotPasswordDesc": "输入你的注册邮箱，我们将发送密码重置链接。",
+    "forgotPasswordFailed": "请求失败，请稍后重试。",
+    "forgotPasswordSent": "重置邮件已发送（如该邮箱存在）",
+    "forgotPasswordSentDesc": "如果该邮箱已注册，你将收到一封包含重置链接的邮件。请检查收件箱和垃圾邮件。",
+    "sendResetLink": "发送重置链接",
+    "resetPassword": "重置密码",
+    "resetPasswordDesc": "设置你的新密码。",
+    "resetPasswordFailed": "重置失败，令牌可能已失效或过期。",
+    "resetPasswordSuccess": "密码已重置",
+    "resetPasswordSuccessDesc": "你现在可以使用新密码登录。",
+    "resetTokenMissing": "缺少重置令牌。请通过邮件中的链接访问本页。",
+    "newPassword": "新密码",
+    "newPasswordPlaceholder": "至少 12 个字符",
+    "confirmPassword": "确认新密码",
+    "confirmPasswordPlaceholder": "再次输入新密码",
+    "passwordsDoNotMatch": "两次输入的密码不一致。",
+    "passwordPolicyHint": "密码至少 12 个字符。",
+    "backToLogin": "返回登录",
+    "submitting": "提交中..."
   },
   "components": {
     "iconPicker": {
@@ -1232,6 +1252,34 @@
       "saving": "保存中...",
       "reset": "重置",
       "unsavedChanges": "检测到有未保存的更改"
+    },
+    "mailSettings": {
+      "title": "邮件设置",
+      "description": "配置论坛的邮件投递方式，用于密码重置等通知。",
+      "provider": "投递方式",
+      "providerHint": "开发环境默认 dev_log（写入日志）；生产环境应配置 SMTP。",
+      "fromAddress": "发件地址",
+      "fromName": "发件人名称",
+      "smtpTitle": "SMTP 配置",
+      "smtpHost": "SMTP 主机",
+      "smtpPort": "SMTP 端口",
+      "smtpUsername": "SMTP 用户名",
+      "smtpPassword": "SMTP 密码",
+      "smtpEncryption": "加密方式",
+      "passwordSetHint": "已设置（留空保留原值）",
+      "passwordPreservedHint": "重置或留空时保留已存的密码。",
+      "save": "保存设置",
+      "saving": "保存中...",
+      "saved": "邮件设置已保存。",
+      "saveFailed": "保存失败，请稍后重试。",
+      "loadFailed": "加载邮件设置失败。",
+      "testTitle": "发送测试邮件",
+      "testDesc": "向指定地址发送一封测试邮件，验证投递配置是否生效。",
+      "testRecipientPlaceholder": "test@example.com",
+      "sendTest": "发送测试",
+      "testing": "发送中...",
+      "testSent": "测试邮件已发送，请查收。",
+      "testFailed": "测试邮件发送失败，请检查 SMTP 配置。"
     }
   },
   "errors": {

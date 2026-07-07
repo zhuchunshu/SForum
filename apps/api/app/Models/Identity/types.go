@@ -43,6 +43,7 @@ var (
 	ErrSuperAdminOverridesLocked  = errors.New("identity: super admin permission overrides are locked")
 	ErrUsernameOrEmailNotUnique   = errors.New("identity: username or email is not unique")
 	ErrPasswordDoesNotMeetPolicy  = errors.New("identity: password does not meet policy")
+	ErrPasswordResetTokenNotFound = errors.New("identity: password reset token not found or expired")
 )
 
 type FieldMessages map[string][]string

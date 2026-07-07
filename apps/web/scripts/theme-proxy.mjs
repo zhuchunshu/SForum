@@ -7,8 +7,6 @@
 // - 生产：子进程监听 unix socket（NITRO_UNIX_SOCKET），healthCheckUnix 探测。
 // - 开发：子进程监听 TCP 临时端口（PORT=0），healthCheckTcp 探测。
 import http from 'node:http'
-import net from 'node:net'
-import { once } from 'node:events'
 
 const DEFAULT_HEALTH_PATH = '/'
 
@@ -79,17 +77,18 @@ export function createThemeProxy({ externalPort = 3000, host = '0.0.0.0' } = {})
 // 把一个入站请求转发到 target upstream，流式 pipe 请求体与响应体，
 // 支持 SSE / 长连接 / 大文件上传。
 function forwardRequest(target, req, res) {
-  // unix socket 与 TCP 的差别仅在 createConnection 的入参。
-  const createConnection = target.socketPath
-    ? () => net.connect(target.socketPath)
-    : () => net.connect(target.port, target.host)
+  // unix socket 用 Node 原生 socketPath 选项（createConnection 选项在此场景不可靠）；
+  // TCP 用 host/port。两种地址类型在请求选项上分叉，其余转发逻辑一致。
+  const targetOpts = target.socketPath
+    ? { socketPath: target.socketPath }
+    : { host: target.host, port: target.port }
 
   const proxyReq = http.request(
     {
+      ...targetOpts,
       method: req.method,
       path: req.url,
       headers: buildForwardHeaders(req),
-      createConnection,
     },
     (proxyRes) => {
       res.writeHead(proxyRes.statusCode, proxyRes.headers)
@@ -107,9 +106,11 @@ function forwardRequest(target, req, res) {
     }
   })
 
-  // 客户端提前断开时，主动中止上游请求，避免句柄泄漏。
-  req.on('close', () => {
-    if (!proxyReq.destroyed) {
+  // 客户端提前断开（响应还没结束）时，主动中止上游请求，避免句柄泄漏。
+  // 注意必须用 res 的 close 事件而非 req 的，且只在响应未完成时中止：
+  // 否则 keep-alive 的 GET 请求体读完后 req 立刻 close，会把刚建好的上游连接也毁了。
+  res.on('close', () => {
+    if (!res.writableEnded && !proxyReq.destroyed) {
       proxyReq.destroy()
     }
   })
@@ -164,7 +165,9 @@ export async function replaceTarget({
   }
 
   try {
-    await withTimeout(healthCheck(), healthTimeoutMs)
+    // healthCheck 接收 candidate 并负责把候选实际监听的地址写到 candidate._target，
+    // 切换成功后 proxy.setTarget 会读取这个地址。
+    await withTimeout(healthCheck(candidate), healthTimeoutMs)
   } catch (err) {
     // 候选不可用：杀掉候选，保留旧 child 继续服务。
     onHealthFailed(err)
@@ -267,14 +270,15 @@ function probeTcp(target, probePath) {
 }
 
 // 探测 unix socket upstream：一次 GET，状态码 <500 视为健康。
+// 用 Node 原生 socketPath 选项发起请求（createConnection 在 unix socket 场景不可靠）。
 function probeUnix(target, probePath) {
   return new Promise((resolve, reject) => {
     const req = http.request(
       {
         method: 'GET',
         path: probePath,
+        socketPath: target.socketPath,
         timeout: 2000,
-        createConnection: () => net.connect(target.socketPath),
       },
       (res) => {
         res.resume()
@@ -318,6 +322,3 @@ export function parseDevPort(line) {
   }
   return { host, port }
 }
-
-// once 导出保留，便于测试复用 events API（目前未直接使用，预留）。
-export { once }

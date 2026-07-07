@@ -29,6 +29,7 @@ import (
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
 	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
@@ -166,7 +167,15 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("list extensions for runtime reconciliation failed: %w", err)
 	}
-	identityProvider := providers.NewIdentityProviderWithEvents(identityStore, authSessions, humanVerifier, extensionRuntime)
+	// 邮件服务与密码重置：mail resolver 复用 options.Service（实现 mail.Resolver）。
+	mailService := mail.NewService(optionsService, logger)
+	siteName, _ := optionsService.SiteName(ctx)
+	siteURL, _ := optionsService.WebOption(ctx, "site.url")
+	passwordResetService := identity.NewPasswordResetService(identityStore, mailService, identity.PasswordResetConfig{
+		SiteName: siteName,
+		SiteURL:  siteURL,
+	})
+	identityProvider := providers.NewIdentityProviderWithPasswordReset(identityStore, authSessions, humanVerifier, extensionRuntime, passwordResetService, mailService, optionsService)
 	forumProvider := providers.NewForumProviderWithOptionsAndEvents(forumStore, optionsService, identityStore, authSessions, extensionRuntime)
 	profileProvider := providers.NewProfileProvider(profileStore, identityStore, authSessions)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)

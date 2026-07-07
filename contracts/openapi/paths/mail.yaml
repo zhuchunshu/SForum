@@ -1,0 +1,27 @@
+adminMailTest:
+  post:
+    summary: Send a test mail to verify delivery configuration
+    operationId: adminMailTest
+    security:
+    - cookieAuth: []
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/mail.yaml#/MailTestRequest"
+    responses:
+      '200':
+        description: Test mail accepted for delivery.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/mail.yaml#/ApiResponseMailTest"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"

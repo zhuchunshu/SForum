@@ -457,3 +457,60 @@ UserRolesInput:
         type: string
 UserPermissionOverridesInput:
   "$ref": "#/PermissionOverrides"
+PasswordResetRequest:
+  type: object
+  required:
+  - email
+  properties:
+    email:
+      type: string
+      format: email
+    humanVerification:
+      "$ref": "#/HumanVerification"
+PasswordResetConfirmRequest:
+  type: object
+  required:
+  - token
+  - newPassword
+  properties:
+    token:
+      type: string
+    newPassword:
+      type: string
+      minLength: 12
+ApiResponsePasswordResetSent:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: object
+      required:
+      - sent
+      properties:
+        sent:
+          type: boolean
+ApiResponsePasswordResetConfirmed:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: object
+      required:
+      - reset
+      properties:
+        reset:
+          type: boolean

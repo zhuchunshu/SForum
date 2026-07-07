@@ -86,6 +86,13 @@ export const adminPageDefinitions = [
     requiredPermissions: ['settings.manage']
   },
   {
+    id: '/settings/mail',
+    labelKey: 'admin.nav.mailSettings',
+    icon: 'i-lucide-mail',
+    componentName: 'AdminMailSettings',
+    requiredPermissions: ['settings.manage']
+  },
+  {
     id: '/seo',
     labelKey: 'admin.nav.seo',
     icon: 'i-lucide-search',

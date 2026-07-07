@@ -12,7 +12,8 @@
     "darkMode": "Switch to dark mode",
     "newTopic": "New Topic",
     "myProfile": "My profile",
-    "profileSettings": "Profile settings"
+    "profileSettings": "Profile settings",
+    "mailSettings": "Mail settings"
   },
   "home": {
     "metaTitle": "{siteName} Community",
@@ -95,7 +96,7 @@
     "privacy": "Privacy Policy",
     "loginNamePlaceholder": "username or email",
     "usernamePlaceholder": "cooluser123",
-    "emailPlaceholder": "email address",
+    "emailPlaceholder": "your@email.com",
     "displayNamePlaceholder": "Jane Doe",
     "passwordPlaceholder": "At least 12 characters",
     "passwordHint": "Use at least 12 characters; a short phrase or several words works well.",
@@ -106,7 +107,26 @@
     "brandDesc": "No algorithm, no noise. Organized by topic — every reply is worth reading.",
     "feature1": "Good posts rise on merit, not follower count",
     "feature2": "Markdown support for long-form writing",
-    "feature3": "Bilingual interface — switch anytime"
+    "feature3": "Bilingual interface — switch anytime",
+    "forgotPasswordDesc": "Enter your registered email and we will send a password reset link.",
+    "forgotPasswordFailed": "Request failed, please try again.",
+    "forgotPasswordSent": "Reset email sent (if the address exists)",
+    "forgotPasswordSentDesc": "If that email is registered, you will receive a message with a reset link. Check your inbox and spam folder.",
+    "sendResetLink": "Send reset link",
+    "resetPassword": "Reset password",
+    "resetPasswordDesc": "Set your new password.",
+    "resetPasswordFailed": "Reset failed; the token may be invalid or expired.",
+    "resetPasswordSuccess": "Password reset",
+    "resetPasswordSuccessDesc": "You can now sign in with your new password.",
+    "resetTokenMissing": "Missing reset token. Please use the link from your email.",
+    "newPassword": "New password",
+    "newPasswordPlaceholder": "At least 12 characters",
+    "confirmPassword": "Confirm new password",
+    "confirmPasswordPlaceholder": "Re-enter new password",
+    "passwordsDoNotMatch": "Passwords do not match.",
+    "passwordPolicyHint": "Password must be at least 12 characters.",
+    "backToLogin": "Back to login",
+    "submitting": "Submitting..."
   },
   "components": {
     "iconPicker": {
@@ -1232,6 +1252,34 @@
       "saving": "Saving...",
       "reset": "Reset",
       "unsavedChanges": "Unsaved changes detected"
+    },
+    "mailSettings": {
+      "title": "Mail settings",
+      "description": "Configure how the forum delivers mail for password resets and other notifications.",
+      "provider": "Provider",
+      "providerHint": "Dev defaults to dev_log (writes to logs); production should configure SMTP.",
+      "fromAddress": "From address",
+      "fromName": "From name",
+      "smtpTitle": "SMTP configuration",
+      "smtpHost": "SMTP host",
+      "smtpPort": "SMTP port",
+      "smtpUsername": "SMTP username",
+      "smtpPassword": "SMTP password",
+      "smtpEncryption": "Encryption",
+      "passwordSetHint": "Already set (leave blank to keep)",
+      "passwordPreservedHint": "Reset or blank keeps the stored password.",
+      "save": "Save settings",
+      "saving": "Saving...",
+      "saved": "Mail settings saved.",
+      "saveFailed": "Save failed, please try again.",
+      "loadFailed": "Failed to load mail settings.",
+      "testTitle": "Send test mail",
+      "testDesc": "Send a test message to verify delivery configuration.",
+      "testRecipientPlaceholder": "test@example.com",
+      "sendTest": "Send test",
+      "testing": "Sending...",
+      "testSent": "Test mail sent. Check the inbox.",
+      "testFailed": "Test mail failed. Check your SMTP settings."
     }
   },
   "errors": {

@@ -139,7 +139,7 @@ async function submitLogin() {
               <label class="auth-label" for="password-input">
                 {{ t('auth.password') }}
               </label>
-              <a href="#" class="auth-forgot">{{ t('auth.forgotPassword') }}</a>
+              <NuxtLink :to="localePath('/forgot-password')" class="auth-forgot">{{ t('auth.forgotPassword') }}</NuxtLink>
             </div>
             <input
               id="password-input"

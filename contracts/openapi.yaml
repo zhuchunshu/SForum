@@ -52,6 +52,12 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/authLogout"
   "/auth/session":
     "$ref": "./openapi/paths/identity.yaml#/authSession"
+  "/auth/password-reset/request":
+    "$ref": "./openapi/paths/identity.yaml#/passwordResetRequest"
+  "/auth/password-reset/confirm":
+    "$ref": "./openapi/paths/identity.yaml#/passwordResetConfirm"
+  "/admin/mail/test":
+    "$ref": "./openapi/paths/mail.yaml#/adminMailTest"
   "/permissions":
     "$ref": "./openapi/paths/identity.yaml#/permissions"
   "/permissions/matrix":

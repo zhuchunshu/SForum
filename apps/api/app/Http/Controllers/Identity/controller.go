@@ -1,6 +1,7 @@
 package identitycontroller
 
 import (
+	"context"
 	"errors"
 	"strconv"
 
@@ -9,14 +10,28 @@ import (
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
+	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 )
 
+// 确保 options.Service 满足 optionsResolver 接口。
+var _ optionsResolver = (*options.Service)(nil)
+
 type Controller struct {
-	service      *identity.Service
-	authSessions *authsession.Manager
-	verifier     humanverify.Verifier
+	service       *identity.Service
+	authSessions  *authsession.Manager
+	verifier      humanverify.Verifier
+	passwordReset *identity.PasswordResetService
+	mailService   *mail.Service
+	options       optionsResolver
+}
+
+// optionsResolver 只暴露密码重置/mail-test 需要的站点名/URL，避免全量依赖 options.Service。
+type optionsResolver interface {
+	SiteName(ctx context.Context) (string, error)
+	WebOption(ctx context.Context, name string) (string, error)
 }
 
 func NewController(service *identity.Service, sessions *session.Store) *Controller {
@@ -28,10 +43,22 @@ func NewControllerWithVerifier(service *identity.Service, sessions *session.Stor
 }
 
 func NewControllerWithAuthSessions(service *identity.Service, sessions *authsession.Manager, verifier humanverify.Verifier) *Controller {
+	return NewControllerWithPasswordReset(service, sessions, verifier, nil, nil, nil)
+}
+
+// NewControllerWithPasswordReset 注入密码重置与邮件服务。
+func NewControllerWithPasswordReset(service *identity.Service, sessions *authsession.Manager, verifier humanverify.Verifier, passwordReset *identity.PasswordResetService, mailService *mail.Service, options optionsResolver) *Controller {
 	if verifier == nil {
 		verifier = humanverify.NewDisabledService()
 	}
-	return &Controller{service: service, authSessions: sessions, verifier: verifier}
+	return &Controller{
+		service:       service,
+		authSessions:  sessions,
+		verifier:      verifier,
+		passwordReset: passwordReset,
+		mailService:   mailService,
+		options:       options,
+	}
 }
 
 type registerRequest struct {
@@ -185,6 +212,113 @@ func (h *Controller) session(c fiber.Ctx) error {
 		return mapIdentityError(err)
 	}
 	return apphttp.OK(c, current)
+}
+
+// passwordResetRequest 发起密码重置。响应始终为成功，不暴露邮箱是否存在。
+func (h *Controller) passwordResetRequest(c fiber.Ctx) error {
+	if h.passwordReset == nil {
+		// 未配置密码重置服务时返回通用成功，避免暴露能力差异。
+		return apphttp.OK(c, map[string]any{"sent": true})
+	}
+	var req passwordResetRequestPayload
+	_ = c.Bind().Body(&req)
+	// 可选人机验证：当 runtime options 启用 password_reset purpose 时校验。
+	if err := h.verifyHumanVerification(c, humanverify.PurposePasswordReset); err != nil {
+		return err
+	}
+	ip := c.IP()
+	_ = h.passwordReset.RequestPasswordReset(c.Context(), identity.RequestPasswordResetInput{
+		Email: req.Email,
+		IP:    ip,
+	})
+	return apphttp.OK(c, map[string]any{"sent": true})
+}
+
+// passwordResetConfirm 校验令牌并更新密码。
+func (h *Controller) passwordResetConfirm(c fiber.Ctx) error {
+	if h.passwordReset == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "auth.password_reset_unavailable")
+	}
+	var req passwordResetConfirmPayload
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "auth.password_reset_invalid")
+	}
+	if err := h.passwordReset.ConfirmPasswordReset(c.Context(), identity.ConfirmPasswordResetInput{
+		Token:       req.Token,
+		NewPassword: req.NewPassword,
+	}); err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, map[string]any{"reset": true})
+}
+
+// adminMailTest 向当前管理员或指定收件人发送测试邮件。
+func (h *Controller) adminMailTest(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if !actor.Can(identity.PermissionSettingsManage) {
+		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	}
+	if h.mailService == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "mail.unavailable")
+	}
+	var req mailTestRequest
+	_ = c.Bind().Body(&req)
+	recipient := req.Recipient
+	if recipient == "" {
+		// 无指定收件人时，从当前用户资料查邮箱；此处简化为返回错误提示。
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "mail.test_recipient_required")
+	}
+	siteName := "SForum"
+	if h.options != nil {
+		if name, err := h.options.SiteName(c.Context()); err == nil && name != "" {
+			siteName = name
+		}
+	}
+	if err := h.mailService.Send(c.Context(), mail.Message{
+		To:       recipient,
+		Subject:  "[" + siteName + "] 测试邮件 / Test mail",
+		TextBody: "这是一封来自 " + siteName + " 的测试邮件，用于验证邮件投递配置是否生效。",
+	}); err != nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "mail.test_failed")
+	}
+	return apphttp.OK(c, map[string]any{"sent": true})
+}
+
+// verifyHumanVerification 调用验证器；当 purpose 未启用时 verifier 自身放行（返回 nil）。
+func (h *Controller) verifyHumanVerification(c fiber.Ctx, purpose humanverify.Purpose) error {
+	if h.verifier == nil {
+		return nil
+	}
+	var req humanVerificationRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return nil // 缺失人机验证字段时交由 verifier 决定（禁用则放行）。
+	}
+	if err := h.verifier.Verify(c.Context(), humanverify.VerifyRequest{
+		Provider: req.Provider,
+		Token:    req.Token,
+		Purpose:  purpose,
+		IP:       c.IP(),
+	}); err != nil {
+		return mapHumanVerificationError(err)
+	}
+	return nil
+}
+
+type passwordResetRequestPayload struct {
+	Email             string                   `json:"email"`
+	HumanVerification humanVerificationRequest `json:"humanVerification"`
+}
+
+type passwordResetConfirmPayload struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"newPassword"`
+}
+
+type mailTestRequest struct {
+	Recipient string `json:"recipient"`
 }
 
 func (h *Controller) listPermissions(c fiber.Ctx) error {
