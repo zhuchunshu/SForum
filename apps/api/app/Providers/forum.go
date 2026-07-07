@@ -34,6 +34,16 @@ func NewForumProviderWithOptionsAndEvents(store forum.Store, optionsService *opt
 	}
 }
 
+// NewForumProviderWithSearch 注入缓存装饰、搜索索引调度、搜索查询与索引重建服务。
+// store 应为已用 forum.NewCachedStore 装饰过的 store（或裸 store）。
+// searchService/reindexer 为 nil 时对应端点返回 503。
+func NewForumProviderWithSearch(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher, indexer forum.TopicSearchIndexer, searchService forumcontroller.SearchService, reindexer forumcontroller.ReindexService) *ForumProvider {
+	service := forum.NewServiceWithIndexer(store, ForumSettingsResolver{options: optionsService}, publisher, indexer)
+	return &ForumProvider{
+		controller: forumcontroller.NewControllerWithSearch(service, searchService, reindexer, users, sessions),
+	}
+}
+
 func (p *ForumProvider) RegisterRoutes(api fiber.Router) {
 	p.controller.RegisterRoutes(api)
 }

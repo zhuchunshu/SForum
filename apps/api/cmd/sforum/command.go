@@ -28,7 +28,7 @@ func newRootCommand() *cobra.Command {
 		Use:   "sforum",
 		Short: "SForum developer console",
 	}
-	cmd.AddCommand(newMakeCommand("plugin"), newMakeCommand("theme"))
+	cmd.AddCommand(newMakeCommand("plugin"), newMakeCommand("theme"), newSeedCommand())
 	return cmd
 }
 

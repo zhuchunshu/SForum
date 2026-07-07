@@ -29,6 +29,14 @@ analytics, and vendor-specific integrations should be built as plugins or
 explicit provider-slot implementations by default. When a vertical needs shared
 state across plugins, such as payments, core should define the framework model
 and provider interfaces while plugins implement provider/vendor behavior.
+Admin overview is a core read-only backend module under
+`app/Models/AdminOverview`, `app/Http/Controllers/AdminOverview`, and
+`app/Providers/admin_overview.go`. `GET /api/v1/admin/overview` requires an
+authenticated actor with `admin.access`, combines PostgreSQL aggregate counts
+with a Go runtime snapshot, and returns one stable payload for the admin home:
+runtime memory/heap/GC/goroutines, pgx pool stats, community counts,
+attachments, moderation, extensions, 7-day trends, top categories, and
+server-generated safe action summaries.
 
 ## Planned Stack
 

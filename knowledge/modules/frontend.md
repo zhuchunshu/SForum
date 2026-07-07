@@ -116,11 +116,22 @@ components (`UDashboardGroup`, `UDashboardSidebar`, `UDashboardPanel`,
 directory remains `apps/web/app/pages/admin`, while Nuxt `pages:extend`
 rewrites the public URL prefix to `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`, with
 `/control-panel` as the default.
+The admin layout now renders a dedicated `SFAdminFooter` inside the main
+content scroll area. It splits the footer into left-side SForum copyright and
+right-side official product summary copy, separate from the public/theme-layer
+`SFFooter` and its configurable operator footer links.
 Admin modules now use a low-code registry in
 `apps/web/app/config/adminModules.ts`: sidebar entries, tab labels/icons,
 keep-alive component names, badges, and frontend-visible permission
 requirements are centralized there. Page components call `useAdminPage('/id')`
 instead of hand-writing `useAdminTabs().openTab(...)` metadata.
+The admin index route now renders the "均衡指挥台 / Balanced Command Center"
+from `GET /api/v1/admin/overview` rather than faning out to several admin
+module endpoints. It keeps `useAdminPage('/')` and `UDashboardToolbar`, shows
+API memory, posts, users, action summaries, CSS-only 7-day trend bars, runtime
+status, content health, top categories, and quick module links. Formatting
+helpers in `app/utils/adminOverview.ts` intentionally avoid locale-dependent
+date/number output so SSR and client hydration stay stable.
 Admin sidebar parent folders derive active/open state from the current admin
 route: only the matching parent opens initially, inactive folders stay
 collapsed by default, and the sidebar body scrolls independently when the menu
@@ -238,3 +249,35 @@ helper.
   admin-only endpoints for masked secret metadata and secret updates.
 - Add SEO metadata conventions before real pages proliferate.
 - Start replacing static forum page sketches with the reusable `SF*` components.
+
+## Rich-Text Prose And Content Layout (2026-07-08)
+
+Topic body and comment HTML previously rendered with an undefined `.sf-prose`
+class, so headings, paragraphs, code blocks, lists, tables, and images fell
+back to browser defaults and looked unstyled.
+
+- Installed `@tailwindcss/typography` (dev dependency) and enabled it in
+  `main.css` via `@plugin "@tailwindcss/typography";` (Tailwind v4 CSS-first
+  syntax; the project has no `tailwind.config`).
+- Defined `.sf-prose` in `main.css` as a themed wrapper around `@apply prose`:
+  accent-colored links and inline code, dark-mode aware, bordered pre/img,
+  accent left-border on blockquotes. The class is shared by the topic detail
+  body and `SFComment` HTML.
+- Both the topic detail page and the composer page moved from `max-w-3xl` /
+  `max-w-4xl` centered single columns to `max-w-[1200px]` matching the navbar's
+  `max-width: 1200px`, so page content aligns with the navbar edges on wide
+  screens.
+- Both pages now use a two-column grid `grid-cols-[1fr_300px]` on `lg+` with a
+  `lg:sticky lg:top-20` sidebar. Topic detail sidebar shows author card and
+  topic stats; composer sidebar shows writing tips and a Markdown cheat sheet.
+  Below `lg` the sidebar hides and content stacks single-column.
+- Composer inputs now reuse the global `.sf-input__control` classes and the
+  `SFInput` component for the title field; the page-scoped `.sf-input` override
+  that hardcoded hex colors (`#0f766e`, `#ffffff`, `#18181b`) was removed so
+  inputs follow design tokens and theme switching. The category `<select>`
+  stays native because `SFInput` does not support select.
+
+Note: adding the `@plugin` directive to `main.css` requires a dev server
+restart to take effect; Vite HMR does not reliably pick up new Tailwind
+plugin dependencies. The compiled CSS was verified to contain all `prose`
+rules after restart.

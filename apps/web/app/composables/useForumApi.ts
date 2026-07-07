@@ -1,5 +1,6 @@
 import {
   buildForumCommentQuery,
+  buildForumSearchQuery,
   buildForumTopicQuery,
   type ForumCategoryGroup,
   type ForumComment,
@@ -12,6 +13,7 @@ import {
   type ForumTopicDetail,
   type ForumTopicFilters,
   type ForumTopicList,
+  type ForumTopicSearchFilters,
   type ForumTopicUpdateInput
 } from '~/utils/forumTaxonomy'
 
@@ -28,6 +30,11 @@ export function useForumApi() {
 
   function listTopics(filters: ForumTopicFilters = {}) {
     return request<ForumTopicList>(pathWithQuery('/topics', buildForumTopicQuery(filters)))
+  }
+
+  // 关键词检索走专用搜索端点（Meilisearch），避免 topics 列表的 ILIKE 全表扫描。
+  function searchTopics(filters: ForumTopicSearchFilters) {
+    return request<ForumTopicList>(pathWithQuery('/search', buildForumSearchQuery(filters)))
   }
 
   function getTopic(topicId: number) {
@@ -90,6 +97,7 @@ export function useForumApi() {
     listCategoryGroups,
     listTags,
     listTopics,
+    searchTopics,
     getTopic,
     listTopicComments,
     createTopicComment,

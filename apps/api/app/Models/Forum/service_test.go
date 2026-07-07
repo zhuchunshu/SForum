@@ -698,6 +698,11 @@ func (s *serviceFakeStore) ListTopics(context.Context, TopicListInput) (TopicLis
 	return TopicList{}, nil
 }
 
+// ListAllTopicIDs 默认返回一个可预测的 ID 列表，供重建相关测试断言。
+func (s *serviceFakeStore) ListAllTopicIDs(context.Context) ([]int64, error) {
+	return []int64{1, 2, 3}, nil
+}
+
 func (s *serviceFakeStore) GetTopic(context.Context, int64) (TopicDetail, error) {
 	return TopicDetail{}, nil
 }

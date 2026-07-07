@@ -455,7 +455,7 @@ async function submitReport() {
 
 <template>
   <main class="min-h-screen py-8" style="background-color: var(--sf-surface)">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6">
+    <div class="max-w-[1376px] mx-auto px-4 sm:px-6">
       <!-- 错误 / 未找到 -->
       <SFCard v-if="topicError && !topic" class="p-10">
         <SFEmptyState
@@ -465,8 +465,29 @@ async function submitReport() {
       </SFCard>
 
       <template v-else-if="topic">
+        <!-- 面包屑 -->
+        <nav class="text-sm text-slate-400 dark:text-zinc-500 mb-4 flex items-center gap-1.5">
+          <NuxtLink :to="localePath('/')" class="hover:text-[color:var(--sf-accent)]">
+            {{ t('topicDetail.breadcrumbHome') }}
+          </NuxtLink>
+          <UIcon name="i-lucide-chevron-right" class="size-3" />
+          <NuxtLink
+            v-if="topic.categorySlug"
+            :to="categoryPath(topic.categorySlug)"
+            class="hover:text-[color:var(--sf-accent)]"
+          >
+            {{ topic.categoryName }}
+          </NuxtLink>
+          <span v-else>{{ topic.categoryName }}</span>
+        </nav>
+
+        <!-- 双栏:正文 + 侧边栏 -->
+        <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 items-start">
+
+        <!-- 主栏:主题头 + 评论区 -->
+        <div class="min-w-0">
         <!-- 主题头部 -->
-        <SFCard class="p-6 mb-4">
+        <SFCard class="p-6 sm:p-8 mb-4">
           <div class="flex flex-wrap items-center gap-2 mb-3">
             <NuxtLink :to="categoryPath(topic.categorySlug)">
               <SFBadge variant="primary">{{ topic.categoryName }}</SFBadge>
@@ -481,11 +502,11 @@ async function submitReport() {
             </SFBadge>
           </div>
 
-          <h1 class="text-2xl font-bold text-slate-900 dark:text-zinc-50 mb-3">
+          <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50 tracking-tight mb-4 leading-tight">
             {{ topic.title }}
           </h1>
 
-          <div class="flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-zinc-400 mb-4">
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500 dark:text-zinc-400 pb-4 mb-5 border-b border-slate-100 dark:border-zinc-800">
             <component
               :is="authorPath ? 'NuxtLink' : 'span'"
               :to="authorPath"
@@ -505,11 +526,11 @@ async function submitReport() {
             </span>
           </div>
 
-          <!-- 正文（后端已 sanitize） -->
-          <div class="sf-prose text-slate-800 dark:text-zinc-200" v-html="topic.content.htmlContent" />
+          <!-- 正文（后端已 sanitize）:sf-prose 由 @tailwindcss/typography 提供 -->
+          <div class="sf-prose" v-html="topic.content.htmlContent" />
 
           <!-- 标签 -->
-          <div v-if="topic.tags && topic.tags.length" class="flex flex-wrap gap-2 mt-4">
+          <div v-if="topic.tags && topic.tags.length" class="flex flex-wrap gap-1.5 mt-6 pt-4 border-t border-slate-100 dark:border-zinc-800">
             <NuxtLink v-for="tag in topic.tags" :key="tag.id" :to="tagPath(tag.slug)">
               <SFBadge variant="neutral">#{{ tag.name }}</SFBadge>
             </NuxtLink>
@@ -762,6 +783,56 @@ async function submitReport() {
             closable
           />
         </section>
+        </div><!-- /主栏 -->
+
+        <!-- 侧边栏:sticky 跟随,lg 以上显示 -->
+        <aside class="hidden lg:block lg:sticky lg:top-20 space-y-4">
+          <!-- 作者卡 -->
+          <SFCard class="p-4">
+            <div class="flex items-center gap-3">
+              <SFAvatar :name="authorName" size="md" />
+              <div class="min-w-0">
+                <component
+                  :is="authorPath ? 'NuxtLink' : 'span'"
+                  :to="authorPath"
+                  class="block font-semibold text-sm truncate hover:text-[color:var(--sf-accent)]"
+                >
+                  {{ authorName }}
+                </component>
+                <p class="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">{{ t('topicDetail.authorLabel') }}</p>
+              </div>
+            </div>
+          </SFCard>
+
+          <!-- 话题统计 -->
+          <SFCard class="p-4">
+            <h3 class="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-3">
+              {{ t('topicDetail.statsTitle') }}
+            </h3>
+            <dl class="space-y-2.5 text-sm">
+              <div class="flex items-center justify-between">
+                <dt class="text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
+                  <UIcon name="i-lucide-eye" class="size-3.5" />{{ t('topicDetail.statsViews') }}
+                </dt>
+                <dd class="font-medium text-slate-700 dark:text-zinc-200">{{ topic.viewCount }}</dd>
+              </div>
+              <div class="flex items-center justify-between">
+                <dt class="text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
+                  <UIcon name="i-lucide-message-circle" class="size-3.5" />{{ t('topicDetail.statsComments') }}
+                </dt>
+                <dd class="font-medium text-slate-700 dark:text-zinc-200">{{ topic.commentCount }}</dd>
+              </div>
+              <div class="flex items-center justify-between">
+                <dt class="text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
+                  <UIcon name="i-lucide-calendar" class="size-3.5" />{{ t('topicDetail.statsCreated') }}
+                </dt>
+                <dd class="font-medium text-slate-700 dark:text-zinc-200 text-xs">{{ formatDate(topic.createdAt) }}</dd>
+              </div>
+            </dl>
+          </SFCard>
+        </aside>
+
+        </div><!-- /双栏 grid -->
       </template>
     </div>
 

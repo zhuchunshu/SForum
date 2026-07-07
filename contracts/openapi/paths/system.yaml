@@ -8,4 +8,21 @@ health:
         content:
           application/json:
             schema:
-              "$ref": "../schemas/common.yaml#/ApiResponseHealth"
+              "$ref": "../schemas/system.yaml#/ApiResponseHealth"
+adminOverview:
+  get:
+    summary: Get admin overview dashboard metrics
+    operationId: getAdminOverview
+    security:
+    - cookieAuth: []
+    responses:
+      '200':
+        description: Aggregated system, community, moderation, attachment, and extension metrics for the admin overview dashboard.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/system.yaml#/ApiResponseAdminOverview"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"

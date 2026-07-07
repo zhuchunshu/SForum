@@ -168,7 +168,9 @@
       "visitForum": "Back to forum",
       "lightMode": "Light mode",
       "darkMode": "Dark mode",
-      "signOut": "Sign out"
+      "signOut": "Sign out",
+      "footerCopyright": "© {year} SForum. All rights reserved.",
+      "footerProductSummary": "Official open-source forum framework"
     },
     "nav": {
       "dashboard": "Dashboard",
@@ -194,40 +196,107 @@
       "userPermission": "Users & Permissions",
       "userManagement": "User management",
       "userGroups": "User groups",
-      "permissionManagement": "Permission management"
+      "permissionManagement": "Permission management",
+      "search": "Search Index"
     },
     "home": {
-      "metaTitle": "Admin",
-      "title": "Admin overview",
-      "intro": "Admin tools use the same forum account system, with every management action controlled by API permissions.",
-      "rolesLink": "View user groups",
-      "cards": {
-        "access": {
-          "label": "Access control",
-          "value": "Enabled"
+      "metaTitle": "Balanced Command Center",
+      "title": "Balanced Command Center",
+      "intro": "See forum runtime health, community activity, and admin work that needs attention in one screen.",
+      "refresh": "Refresh",
+      "loadFailed": "Failed to load the admin overview",
+      "toolbar": {
+        "loading": "Loading admin overview...",
+        "generatedAt": "Last {days} days · Updated {time}"
+      },
+      "kpi": {
+        "memory": {
+          "label": "API memory",
+          "meta": "Heap allocated {heap}"
         },
-        "prefix": {
-          "label": "Admin entry"
+        "topics": {
+          "label": "Posts",
+          "meta": "{topics} topics · {comments} replies"
         },
-        "stack": {
-          "label": "UI stack",
-          "value": "Nuxt UI + Nuxt Icon"
+        "users": {
+          "label": "Users",
+          "meta": "{active} active"
+        },
+        "actions": {
+          "label": "Needs attention",
+          "meta": "{reports} moderation items"
         }
       },
-      "nextTitle": "Admin modules",
-      "nextIntro": "Admin features will connect here as permissions are added.",
-      "next": {
-        "roles": {
-          "title": "Groups and permissions",
-          "description": "Review system groups, custom groups, and the default member role."
+      "trend": {
+        "title": "7-day community trends",
+        "description": "Topics, replies, and new users over the last {days} days.",
+        "topics": "Topics",
+        "comments": "Replies",
+        "users": "Users"
+      },
+      "runtime": {
+        "title": "System runtime status",
+        "description": "API process and database connection pool status.",
+        "uptime": "Uptime",
+        "goroutines": "Goroutines",
+        "gc": "GC count",
+        "database": "Database connections"
+      },
+      "health": {
+        "title": "Content health",
+        "activeUsers": "Active users",
+        "activeUsersSub": "{active} / {total} users can use the forum",
+        "activeTopics": "Visible topics",
+        "activeTopicsSub": "{active} / {total} topics are visible",
+        "attachments": "Available attachments",
+        "attachmentsSub": "{orphan} orphan · {size} total"
+      },
+      "actionsTitle": "Action summary",
+      "actions": {
+        "moderation_queue": {
+          "title": "Moderation queue",
+          "description": "{count} reports are open or under review."
         },
-        "audit": {
-          "title": "Moderation log",
-          "description": "Reserved for future staff actions and security review."
+        "pending_tags": {
+          "title": "Pending tags",
+          "description": "{count} tags need admin approval."
         },
-        "settings": {
-          "title": "Site settings",
-          "description": "Reserved for forum name, registration policy, and content policy."
+        "orphan_attachments": {
+          "title": "Orphan attachments",
+          "description": "{count} attachments are not referenced by content."
+        },
+        "failed_extension_events": {
+          "title": "Extension failures",
+          "description": "{count} extension events or theme releases failed."
+        },
+        "theme_release_progress": {
+          "title": "Theme release in progress",
+          "description": "{count} theme release tasks are still running."
+        }
+      },
+      "topCategories": {
+        "title": "Top categories",
+        "topicUnit": "topics",
+        "emptyTitle": "No category data yet",
+        "emptyDescription": "Active categories will appear here after topics are published."
+      },
+      "quickTitle": "Quick links",
+      "quick": {
+        "users": {
+          "title": "User management",
+          "description": "{count} users"
+        },
+        "forum": {
+          "title": "Categories",
+          "description": "{count} categories"
+        },
+        "moderation": {
+          "title": "Moderation",
+          "description": "{count} pending"
+        },
+        "extensions": {
+          "title": "Extensions",
+          "description": "{count} installed"
         }
       }
     },
@@ -1323,6 +1392,49 @@
         "title": "No reports",
         "description": "No pending reports match the current filters."
       }
+    },
+    "search": {
+      "title": "Search Index Management",
+      "description": "Rebuild the Meilisearch full-text search index. Search results may be incomplete during rebuild and will recover automatically on completion.",
+      "current": {
+        "title": "Current Rebuild",
+        "status": {
+          "running": "In Progress",
+          "completed": "Completed",
+          "failed": "Failed"
+        },
+        "total": "Total",
+        "processed": "Processed",
+        "remaining": "Remaining",
+        "percent": "Progress",
+        "startedAt": "Started At",
+        "finishedAt": "Finished At"
+      },
+      "action": {
+        "reindex": "Rebuild Index",
+        "reindexing": "Rebuilding...",
+        "confirmTitle": "Confirm Search Index Rebuild",
+        "confirmDescription": "This will scan all topics and rewrite the search index. For tens of millions of records this may take several minutes to tens of minutes, during which search results may be incomplete. Continue?",
+        "confirm": "Start Rebuild",
+        "cancel": "Cancel"
+      },
+      "history": {
+        "title": "History",
+        "empty": "No rebuild records",
+        "columns": {
+          "id": "ID",
+          "status": "Status",
+          "total": "Total",
+          "startedAt": "Started At",
+          "finishedAt": "Finished At"
+        }
+      },
+      "toast": {
+        "started": "Search index rebuild started",
+        "alreadyRunning": "A rebuild is already in progress",
+        "failed": "Search service unavailable, please check Meilisearch configuration",
+        "completed": "Search index rebuild completed"
+      }
     }
   },
   "errors": {
@@ -1413,7 +1525,13 @@
     "submitReply": "Post reply",
     "submitting": "Submitting...",
     "deleting": "Deleting...",
-    "report": "Report"
+    "report": "Report",
+    "breadcrumbHome": "Home",
+    "authorLabel": "Author",
+    "statsTitle": "Topic info",
+    "statsViews": "Views",
+    "statsComments": "Replies",
+    "statsCreated": "Posted"
   },
   "composer": {
     "metaTitle": "New Topic",
@@ -1438,7 +1556,25 @@
     "permissionDenied": {
       "title": "No permission to post",
       "description": "Your account does not have permission to create topics."
-    }
+    },
+    "subtitle": "A clear description gets better answers.",
+    "breadcrumbHome": "Home",
+    "categoryHint": "Pick the closest category to reach the right audience.",
+    "titleHint": "Summarize in one line, ideally 10–50 characters.",
+    "tagsHint": "Up to 5. Press Enter or comma to add.",
+    "bodyHint": "Markdown and rich text. Wrap code in triple backticks.",
+    "tipsTitle": "Writing tips",
+    "tip1": "Be specific in the title. Avoid vague words like \"help\".",
+    "tip2": "Give context and goal first, then code or errors.",
+    "tip3": "Wrap code in ``` to preserve indentation.",
+    "tip4": "Choose the right category and tags for better reach.",
+    "markdownTitle": "Markdown cheat sheet",
+    "mdHeading": "Heading",
+    "mdBold": "Bold",
+    "mdList": "List",
+    "mdCode": "Code block",
+    "mdQuote": "Quote",
+    "mdLink": "Link"
   },
   "profile": {
     "metaDescription": "View a community member's public profile.",

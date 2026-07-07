@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
+/* 富文本正文排版：@tailwindcss/typography 提供 prose 基础，再用 .sf-prose 覆盖为主色风格。 */
+@plugin "@tailwindcss/typography";
+
 /* Tailwind CSS v4 Rebuild Trigger Comment - Scanned new demo routes */
 
 @theme {
@@ -174,6 +177,27 @@ html.dark {
   --sf-accent-soft: rgb(var(--sf-accent-rgb) / 0.16) !important;
   --sf-accent-soft-border: rgb(var(--sf-accent-rgb) / 0.35) !important;
   --sf-accent-focus: rgb(var(--sf-accent-rgb) / 0.22) !important;
+}
+
+/*
+ * .sf-prose：话题正文 / 评论 HTML 的排版容器。
+ * 基于 @tailwindcss/typography 的 prose，覆盖为主色（teal）风格，适配深浅双模式。
+ * 用于 <div class="sf-prose" v-html="..." />。
+ */
+.sf-prose {
+  @apply prose prose-slate dark:prose-invert max-w-none
+         prose-headings:font-semibold prose-headings:tracking-tight
+         prose-a:text-[color:var(--sf-accent)] prose-a:no-underline hover:prose-a:underline
+         prose-strong:font-semibold
+         prose-code:before:content-none prose-code:after:content-none
+         prose-code:rounded prose-code:bg-slate-100 prose-code:dark:bg-zinc-800
+         prose-code:px-1.5 prose-code:py-0.5 prose-code:text-[0.875em]
+         prose-code:font-medium prose-code:text-[color:var(--sf-accent)]
+         prose-code:break-words
+         prose-pre:bg-slate-900 prose-pre:dark:bg-zinc-950 prose-pre:border prose-pre:border-slate-800 prose-pre:dark:border-zinc-800
+         prose-img:rounded-lg prose-img:border prose-img:border-slate-200 prose-img:dark:border-zinc-800
+         prose-blockquote:border-[color:var(--sf-accent)] prose-blockquote:not-italic prose-blockquote:font-normal
+         prose-li:marker:text-slate-400 prose-table:text-sm;
 }
 
 body {

@@ -3,6 +3,7 @@ package forum
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,6 +17,8 @@ type Service struct {
 	store    Store
 	settings SettingsResolver
 	events   appevents.Publisher
+	// indexer 触发 Meilisearch 索引调度；nil 表示不索引（搜索为派生数据，可重建）。
+	indexer TopicSearchIndexer
 }
 
 func NewService(store Store) *Service {
@@ -31,6 +34,35 @@ func NewServiceWithSettingsAndEvents(store Store, settings SettingsResolver, pub
 		settings = staticSettingsResolver{}
 	}
 	return &Service{store: store, settings: settings, events: appevents.EnsurePublisher(publisher)}
+}
+
+// NewServiceWithIndexer 在标准构造基础上注入搜索索引调度器。
+// indexer 为 nil 时自动降级（不索引），保证旧调用方与测试零破坏。
+func NewServiceWithIndexer(store Store, settings SettingsResolver, publisher appevents.Publisher, indexer TopicSearchIndexer) *Service {
+	svc := NewServiceWithSettingsAndEvents(store, settings, publisher)
+	svc.indexer = indexer
+	return svc
+}
+
+// indexTopic 在主题写流程成功后触发 Meilisearch 索引调度。
+// 失败只记日志不中断主流程：搜索是可从 PG 重建的派生数据。
+func (s *Service) indexTopic(ctx context.Context, topicID int64) {
+	if s.indexer == nil || topicID <= 0 {
+		return
+	}
+	if err := s.indexer.EnqueueIndex(ctx, topicID); err != nil {
+		slog.ErrorContext(ctx, "forum: enqueue topic index failed", "topicId", topicID, "err", err)
+	}
+}
+
+// deleteTopicIndex 在主题删除/隐藏后触发 Meilisearch 删除调度。
+func (s *Service) deleteTopicIndex(ctx context.Context, topicID int64) {
+	if s.indexer == nil || topicID <= 0 {
+		return
+	}
+	if err := s.indexer.EnqueueDelete(ctx, topicID); err != nil {
+		slog.ErrorContext(ctx, "forum: enqueue topic index delete failed", "topicId", topicID, "err", err)
+	}
 }
 
 type staticSettingsResolver struct{}
@@ -217,6 +249,11 @@ func (s *Service) ResetForumSettings(ctx context.Context, actor identity.Actor) 
 }
 
 func (s *Service) ListTopics(ctx context.Context, input TopicListInput) (TopicList, error) {
+	// 关键词检索已迁移到专用搜索端点（GET /api/v1/search）。
+	// 旧 ILIKE 全表扫描在千万级数据下不可接受；这里明确拒绝并引导调用方。
+	if strings.TrimSpace(input.Query) != "" {
+		return TopicList{}, ErrUseSearchEndpoint
+	}
 	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
 	return s.store.ListTopics(ctx, input)
 }
@@ -226,6 +263,13 @@ func (s *Service) GetTopic(ctx context.Context, topicID int64) (TopicDetail, err
 		return TopicDetail{}, ErrTopicNotFound
 	}
 	return s.store.GetTopic(ctx, topicID)
+}
+
+// GetTopicForSearch 返回用于搜索索引的主题快照。
+// 复用公开可见性过滤的 GetTopic：若主题已 hidden/deleted，返回 ErrTopicNotFound，
+// 调用方（search.Indexer）据此清理索引项，实现优雅降级。
+func (s *Service) GetTopicForSearch(ctx context.Context, topicID int64) (TopicDetail, error) {
+	return s.GetTopic(ctx, topicID)
 }
 
 func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input CreateTopicInput) (TopicDetail, error) {
@@ -284,6 +328,7 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 		},
 		OccurredAt: time.Now().UTC(),
 	})
+	s.indexTopic(ctx, created.ID)
 	return created, nil
 }
 
@@ -359,6 +404,7 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 		payload["tagSlugs"] = record.TagSlugs
 	}
 	s.emitTopicEvent(ctx, appevents.TopicUpdated, actor.ID, updated.ID, payload)
+	s.indexTopic(ctx, updated.ID)
 	return updated, nil
 }
 
@@ -381,6 +427,8 @@ func (s *Service) DeleteTopic(ctx context.Context, actor identity.Actor, topicID
 		"topicId":     topicID,
 		"actorUserId": actor.ID,
 	})
+	// 软删后从搜索索引移除，避免命中已删除主题。
+	s.deleteTopicIndex(ctx, topicID)
 	return deleted, nil
 }
 
@@ -436,6 +484,13 @@ func (s *Service) ApplyTopicAction(ctx context.Context, actor identity.Actor, in
 		s.emitTopicEvent(ctx, appevents.TopicPinned, actor.ID, input.TopicID, actionEvent)
 	case TopicActionUnpin:
 		s.emitTopicEvent(ctx, appevents.TopicUnpinned, actor.ID, input.TopicID, actionEvent)
+	}
+	// 隐藏从搜索索引移除；恢复/锁定/置顶等需重建文档（status 用于过滤与排序）。
+	switch input.Action {
+	case TopicActionHide:
+		s.deleteTopicIndex(ctx, input.TopicID)
+	case TopicActionRestore, TopicActionLock, TopicActionUnlock, TopicActionPin, TopicActionUnpin:
+		s.indexTopic(ctx, input.TopicID)
 	}
 	return result, nil
 }
@@ -517,6 +572,8 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 		Payload:       payload,
 		OccurredAt:    time.Now().UTC(),
 	})
+	// 新评论更新了主题 last_activity_at，需重新索引以刷新搜索排序。
+	s.indexTopic(ctx, created.TopicID)
 	return created, nil
 }
 
@@ -963,9 +1020,17 @@ func validateTopicAction(action string) (string, error) {
 	}
 }
 
+// maxTopicPage 限制主题列表的深翻页，避免 OFFSET 跳过大量行时的性能退化。
+// 用户极少翻到 200 页之后；SEO 抓取深度可由 sitemap 单独控制。
+const maxTopicPage = 200
+
 func normalizePage(page int, perPage int) (int, int) {
 	if page <= 0 {
 		page = 1
+	}
+	// 深翻页 clamp：超过上限的请求视为末页，消除 OFFSET 千万行扫描风险。
+	if page > maxTopicPage {
+		page = maxTopicPage
 	}
 	if perPage <= 0 {
 		perPage = 20

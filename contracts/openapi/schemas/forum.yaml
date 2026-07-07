@@ -108,6 +108,19 @@ ApiResponseTopicList:
       type: string
     data:
       "$ref": "#/TopicList"
+ApiResponseSearchOutput:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/SearchOutput"
 ApiResponseTopicDetail:
   type: object
   required:
@@ -507,6 +520,155 @@ TopicList:
       type: integer
     perPage:
       type: integer
+SearchOutput:
+  type: object
+  required:
+  - items
+  - total
+  - page
+  - perPage
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/SearchItem"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    perPage:
+      type: integer
+SearchItem:
+  type: object
+  required:
+  - id
+  - title
+  - slug
+  - status
+  - isPinned
+  - commentCount
+  - viewCount
+  - categoryId
+  - categorySlug
+  - categoryName
+  - authorUserId
+  properties:
+    id:
+      type: integer
+      format: int64
+    title:
+      type: string
+    excerpt:
+      type: string
+    categoryId:
+      type: integer
+      format: int64
+    categorySlug:
+      type: string
+    categoryName:
+      type: string
+    authorUserId:
+      type: integer
+      format: int64
+    authorUsername:
+      type: string
+    authorDisplayName:
+      type: string
+    slug:
+      type: string
+    status:
+      type: string
+    isPinned:
+      type: boolean
+    commentCount:
+      type: integer
+      format: int64
+    viewCount:
+      type: integer
+      format: int64
+    tagSlugs:
+      type: array
+      items:
+        type: string
+ReindexRun:
+  type: object
+  required:
+  - id
+  - total
+  - status
+  - startedAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    total:
+      type: integer
+      format: int64
+    status:
+      type: string
+      enum: [running, completed, failed]
+    startedAt:
+      type: string
+      format: date-time
+    finishedAt:
+      type: string
+      format: date-time
+      nullable: true
+    startedByUserId:
+      type: integer
+      format: int64
+      nullable: true
+    error:
+      type: string
+ReindexStatus:
+  allOf:
+  - "$ref": "#/ReindexRun"
+  - type: object
+    required: [processed, remaining, percent]
+    properties:
+      processed:
+        type: integer
+        format: int64
+      remaining:
+        type: integer
+        format: int64
+      percent:
+        type: integer
+        minimum: 0
+        maximum: 100
+ApiResponseReindexRun:
+  type: object
+  required: [code, message, data]
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ReindexRun"
+ApiResponseReindexStatus:
+  type: object
+  required: [code, message, data]
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ReindexStatus"
+ApiResponseReindexRunList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/ReindexRun"
 Comment:
   type: object
   required:

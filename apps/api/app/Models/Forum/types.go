@@ -1,6 +1,7 @@
 package forum
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -49,6 +50,10 @@ const (
 	CodeTagNotFound     = "forum.tag_not_found"
 	CodeInvalidSettings = "forum.settings_invalid"
 	CodeInvalidAction   = "forum.topic_action_invalid"
+	CodeUseSearch       = "forum.use_search_endpoint"
+	CodeReindexRunning  = "forum.reindex_running"        // 已有重建在进行
+	CodeReindexNoRun    = "forum.reindex_no_run"         // 尚无重建记录
+	CodeSearchUnavailable = "forum.search_unavailable"   // 搜索服务不可用
 )
 
 var (
@@ -61,7 +66,19 @@ var (
 	ErrTagNotFound     = errors.New("forum: tag not found")
 	ErrInvalidSettings = errors.New("forum: invalid settings")
 	ErrInvalidAction   = errors.New("forum: invalid topic action")
+	// ErrUseSearchEndpoint 表示 topics 列表不再支持关键词检索，应改用专用搜索端点。
+	ErrUseSearchEndpoint = errors.New("forum: use search endpoint")
 )
+
+// TopicSearchIndexer 是 forum 包对搜索索引调度的抽象。
+// 由 search 支持包实现并注入 Service，避免 forum 反向依赖 job/meilisearch。
+// 实现应异步（入队）且对调用方安全；nil 时 Service 自动降级为不索引。
+type TopicSearchIndexer interface {
+	// EnqueueIndex 调度重新索引指定主题（用于创建/更新/评论/恢复/置顶等）。
+	EnqueueIndex(ctx context.Context, topicID int64) error
+	// EnqueueDelete 调度从索引移除指定主题（用于删除/隐藏）。
+	EnqueueDelete(ctx context.Context, topicID int64) error
+}
 
 type ContentInput struct {
 	RawContent    string `json:"rawContent"`

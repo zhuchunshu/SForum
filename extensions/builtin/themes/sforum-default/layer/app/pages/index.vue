@@ -94,9 +94,23 @@ const topicFilters = computed(() => ({
   perPage: ITEMS_PER_PAGE
 }))
 
+// 搜索关键词非空时走专用搜索端点（Meilisearch），否则走常规主题列表。
+// 两条路径返回结构一致（ForumTopicList），下游渲染无需区分。
 const { data: topicList, pending: topicsPending } = await useAsyncData(
   'forum-home-topics',
-  () => forumApi.listTopics(topicFilters.value),
+  () => {
+    const trimmed = searchQuery.value.trim()
+    if (trimmed) {
+      return forumApi.searchTopics({
+        query: trimmed,
+        categorySlug: selectedCategorySlug.value,
+        tagSlug: selectedTagSlug.value,
+        page: currentPage.value,
+        perPage: ITEMS_PER_PAGE
+      })
+    }
+    return forumApi.listTopics(topicFilters.value)
+  },
   {
     default: emptyTopicList,
     watch: [topicFilters]

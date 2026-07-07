@@ -296,6 +296,33 @@ func (s *PostgresStore) ListTopics(ctx context.Context, input TopicListInput) (T
 	return TopicList{Items: items, Total: total, Page: input.Page, PerPage: input.PerPage}, nil
 }
 
+// ListAllTopicIDs 扫描全部可公开索引的主题 ID（active/locked）。
+// 只 SELECT id、无 JOIN，专为搜索索引批量重建设计，千万级数据下为顺序扫描秒级完成。
+func (s *PostgresStore) ListAllTopicIDs(ctx context.Context) ([]int64, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id FROM topics
+		WHERE status IN ('active', 'locked')
+		ORDER BY id ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list all topic ids: %w", err)
+	}
+	defer rows.Close()
+
+	ids := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan topic id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate topic ids: %w", err)
+	}
+	return ids, nil
+}
+
 func (s *PostgresStore) GetTopic(ctx context.Context, topicID int64) (TopicDetail, error) {
 	row := s.pool.QueryRow(ctx, topicDetailSQL()+`
 		WHERE topics.id = $1

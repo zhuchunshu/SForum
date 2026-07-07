@@ -94,8 +94,28 @@ export function createAdminForumApi(request: AdminForumRequester) {
     resetSettings: async () => normalizeForumSettings(await request<ForumSettings>('/admin/forum/settings/reset', {
       method: 'POST',
       body: {}
-    }))
+    })),
+    reindexSearch: () => request<ReindexRun>('/admin/forum/search/reindex', { method: 'POST', body: {} }),
+    getReindexStatus: () => request<ReindexStatus>('/admin/forum/search/reindex'),
+    listReindexRuns: () => request<ReindexRun[]>('/admin/forum/search/reindex/runs')
   }
+}
+
+// 搜索索引重建运行记录。
+export type ReindexRun = {
+  id: number
+  total: number
+  status: 'running' | 'completed' | 'failed'
+  startedAt: string
+  finishedAt?: string | null
+  startedByUserId?: number
+  error?: string
+}
+
+export type ReindexStatus = ReindexRun & {
+  processed: number
+  remaining: number
+  percent: number
 }
 
 export function createDefaultForumSettings(): ForumSettings {

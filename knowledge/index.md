@@ -120,6 +120,13 @@ This is the entry point for project memory.
   PostgreSQL browser. It requires `database.manage`, excludes system schemas,
   shows table metadata and paged rows, masks sensitive columns by default, and
   allows one-cell reveal for primary-keyed rows.
+- Admin home now uses a one-shot `GET /api/v1/admin/overview` command-center
+  feed requiring `admin.access`. The endpoint aggregates runtime API memory,
+  Go heap/GC/goroutine data, database pool stats, users, topics/posts,
+  attachments, moderation, extensions, 7-day trends, top categories, and
+  server-generated safe action summaries. The Nuxt admin index renders this as
+  the bilingual "均衡指挥台 / Balanced Command Center" using Nuxt UI Dashboard
+  cards and CSS-only trend bars.
 - Development guidelines now require beginner-friendly defaults for new
   features: configurable flows must ship with safe recommended defaults,
   explain the recommended path in plain language, and support one-click
@@ -288,6 +295,20 @@ This is the entry point for project memory.
   Markdown with `goldmark`, sanitizes HTML with `bluemonday`, exposes public
   category/topic/comment APIs, and treats JSON content as schema-reserved but
   not yet publishable.
+- 千万级数据读路径加固已实现：Meilisearch 全文搜索完整接入（新增
+  `app/Support/Search` 包、`GET /api/v1/search` 端点、forum.Service 事务后调度
+  `search.index_topic`/`search.delete_topic` job、首页搜索框走专用端点），
+  消除 `ListTopics` 的 ILIKE 全表扫描；Redis 缓存层（`app/Support/Cache` +
+  `forum.CachedStore` 装饰器，缓存分类/标签/主题详情/主题列表，generation 失效）；
+  OFFSET 深翻页 clamp（`maxTopicPage=200`）。详见
+  `decisions/2026-07-08-search-cache-deep-pagination.md`。
+- The `sforum seed:forum` CLI command (`apps/api/cmd/sforum`) now generates
+  fake forum data (users + topics + comments) for local development and
+  testing by reusing the identity/forum Service layer, so seeded data shares
+  the same password hashing, Markdown rendering, slug, comment-tree path_key,
+  and counters as real user data. It is append-only (random username/email
+  suffixes), triggers no events, and reads `DATABASE_URL` from the
+  environment or `--database-url` (config.Load does not read `.env`).
 
 ## Navigation
 
@@ -453,7 +474,13 @@ This is the entry point for project memory.
 - `sessions/2026-07-05-auth-session-restart-resilience.md` - frontend auth
   refresh behavior for API restart/session recovery resilience.
 - `sessions/2026-07-05-global-footer-implementation.md` - global footer implementation handoff.
-- `sessions/2026-07-05-personalization-settings.md` - theme preset and footer personalization implementation handoff.
+- `sessions/2026-07-05-personalization-settings.md` - theme preset and footer
+  personalization implementation handoff.
+- `decisions/2026-07-08-search-cache-deep-pagination.md` - accepted Meilisearch
+  full-text search integration, Redis CachedStore read cache, and deep-paging
+  clamp decision.
+- `sessions/2026-07-08-search-cache-deep-pagination.md` - search/cache/deep-paging
+  hardening implementation handoff.
 - `sessions/2026-07-07-admin-personalization-system-config.md` - admin
   personalization sidebar move into the System configuration folder.
 - `sessions/2026-07-05-custom-theme-color.md` - custom theme color picker,
@@ -468,6 +495,8 @@ This is the entry point for project memory.
   handoff.
 - `sessions/2026-07-06-forum-backend-foundation.md` - forum schema,
   renderer/sanitizer, routes, OpenAPI, and tree comment model handoff.
+- `sessions/2026-07-08-seed-forum-command.md` - `sforum seed:forum` 假数据生成
+  命令（用户/主题/评论）实现、用法、性能实测与端到端验证 handoff。
 - `../docs/superpowers/specs/2026-07-05-global-footer-design.md` - global footer design spec.
 - `../docs/superpowers/plans/2026-07-05-global-footer.md` - global footer implementation plan.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -

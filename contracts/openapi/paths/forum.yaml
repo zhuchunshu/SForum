@@ -31,6 +31,48 @@ tags:
           application/json:
             schema:
               "$ref": "../schemas/forum.yaml#/ApiResponseTagList"
+search:
+  get:
+    summary: Search topics by keyword (Meilisearch-backed)
+    description: |
+      基于 Meilisearch 的主题全文检索，支持 categorySlug/tagSlug 过滤。
+      仅返回 active/locked 公开主题。关键词检索已从 GET /topics 迁移至此端点，
+      以避免 PostgreSQL ILIKE 在千万级数据下的全表扫描。
+    operationId: searchTopics
+    parameters:
+    - name: query
+      in: query
+      required: true
+      description: 搜索关键词。
+      schema:
+        type: string
+    - name: page
+      in: query
+      description: 页码，最大 200。
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    - name: categorySlug
+      in: query
+      schema:
+        type: string
+    - "$ref": "../components/parameters.yaml#/TagSlug"
+    responses:
+      '200':
+        description: 关键词检索结果。
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseSearchOutput"
+      '503':
+        description: 搜索服务不可用（Meilisearch 未配置或不可达）。
 topics:
   get:
     summary: List public topics
@@ -38,9 +80,11 @@ topics:
     parameters:
     - name: page
       in: query
+      description: 页码，最大 200。超过上限的深翻页请求会被 clamp 到末页，避免深分页扫描退化。
       schema:
         type: integer
         minimum: 1
+        maximum: 200
     - name: perPage
       in: query
       schema:
@@ -54,6 +98,7 @@ topics:
     - "$ref": "../components/parameters.yaml#/TagSlug"
     - name: query
       in: query
+      description: 已废弃。关键词检索请改用 GET /api/v1/search；topics 列表不再支持关键词过滤。
       schema:
         type: string
     responses:
@@ -337,6 +382,63 @@ adminForumSettingsReset:
           application/json:
             schema:
               "$ref": "../schemas/forum.yaml#/ApiResponseForumSettings"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+adminForumSearchReindex:
+  post:
+    summary: Trigger a full search index rebuild
+    description: |
+      扫描所有可公开索引的主题，批量入队 search.index_topic job 重建 Meilisearch 索引。
+      同一时刻只允许一个 running run，并发触发返回 409。需 search.manage 权限。
+    operationId: adminReindexSearch
+    responses:
+      '200':
+        description: 重建已触发，返回本次 run 记录。
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseReindexRun"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        description: 已有重建正在进行。
+      '503':
+        description: 搜索服务不可用。
+  get:
+    summary: Get current rebuild status
+    description: 返回最近一次重建的实时进度（含已处理/剩余/百分比）。需 search.manage 权限。
+    operationId: adminReindexSearchStatus
+    responses:
+      '200':
+        description: 当前重建进度。
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseReindexStatus"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        description: 尚无重建记录。
+      '503':
+        description: 搜索服务不可用。
+adminForumSearchReindexRuns:
+  get:
+    summary: List rebuild run history
+    description: 返回最近的重建运行记录（默认 20 条）。需 search.manage 权限。
+    operationId: adminListReindexRuns
+    responses:
+      '200':
+        description: 重建历史列表。
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseReindexRunList"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':

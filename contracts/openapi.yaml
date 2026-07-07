@@ -8,12 +8,16 @@ servers:
 paths:
   "/health":
     "$ref": "./openapi/paths/system.yaml#/health"
+  "/admin/overview":
+    "$ref": "./openapi/paths/system.yaml#/adminOverview"
   "/categories":
     "$ref": "./openapi/paths/forum.yaml#/categories"
   "/category-groups":
     "$ref": "./openapi/paths/forum.yaml#/categoryGroups"
   "/tags":
     "$ref": "./openapi/paths/forum.yaml#/tags"
+  "/search":
+    "$ref": "./openapi/paths/forum.yaml#/search"
   "/topics":
     "$ref": "./openapi/paths/forum.yaml#/topics"
   "/topics/{topicID}":
@@ -130,6 +134,10 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/adminForumSettings"
   "/admin/forum/settings/reset":
     "$ref": "./openapi/paths/forum.yaml#/adminForumSettingsReset"
+  "/admin/forum/search/reindex":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumSearchReindex"
+  "/admin/forum/search/reindex/runs":
+    "$ref": "./openapi/paths/forum.yaml#/adminForumSearchReindexRuns"
   "/admin/extensions":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensions"
   "/admin/extensions/navigation":
@@ -225,7 +233,9 @@ components:
     ApiResponseAltchaChallenge:
       "$ref": "./openapi/schemas/identity.yaml#/ApiResponseAltchaChallenge"
     ApiResponseHealth:
-      "$ref": "./openapi/schemas/common.yaml#/ApiResponseHealth"
+      "$ref": "./openapi/schemas/system.yaml#/ApiResponseHealth"
+    ApiResponseAdminOverview:
+      "$ref": "./openapi/schemas/system.yaml#/ApiResponseAdminOverview"
     ApiResponseWebOption:
       "$ref": "./openapi/schemas/options.yaml#/ApiResponseWebOption"
     ApiResponseWebOptionList:

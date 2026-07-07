@@ -177,6 +177,13 @@ export const adminPageDefinitions = [
     icon: 'i-lucide-scroll-text',
     componentName: 'AdminExtensionEvents',
     requiredPermissions: ['extension.manage']
+  },
+  {
+    id: '/search',
+    labelKey: 'admin.nav.search',
+    icon: 'i-lucide-search',
+    componentName: 'AdminSearch',
+    requiredPermissions: ['search.manage']
   }
 ] as const satisfies readonly AdminPageDefinition[]
 
@@ -211,7 +218,8 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/settings' },
         { type: 'page', pageId: '/personalization' },
         { type: 'page', pageId: '/seo' },
-        { type: 'page', pageId: '/database' }
+        { type: 'page', pageId: '/database' },
+        { type: 'page', pageId: '/search' }
       ]
     },
     {

@@ -119,15 +119,27 @@ async function submit(payload?: { markdown?: string }) {
 function onEditorSubmit(payload: { markdown: string }) {
   submit({ markdown: payload.markdown })
 }
+
+// 侧栏:发帖要点与 Markdown 速查(走 i18n,中英文都支持)。
+const composerTips = computed(() => [
+  t('composer.tip1'),
+  t('composer.tip2'),
+  t('composer.tip3'),
+  t('composer.tip4')
+])
+const markdownCheatsheet = computed(() => [
+  { label: t('composer.mdHeading'), syntax: '# 标题' },
+  { label: t('composer.mdBold'), syntax: '**粗体**' },
+  { label: t('composer.mdList'), syntax: '- 项目' },
+  { label: t('composer.mdCode'), syntax: '```go```' },
+  { label: t('composer.mdQuote'), syntax: '> 引用' },
+  { label: t('composer.mdLink'), syntax: '[文字](url)' }
+])
 </script>
 
 <template>
   <main class="min-h-screen py-8" style="background-color: var(--sf-surface)">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6">
-      <h1 class="text-2xl font-bold text-slate-900 mb-6 dark:text-zinc-50">
-        {{ t('composer.title') }}
-      </h1>
-
+    <div class="max-w-[1376px] mx-auto px-4 sm:px-6">
       <!-- 无权限提示 -->
       <SFCard v-if="!canCreate" class="p-8">
         <SFEmptyState
@@ -138,6 +150,23 @@ function onEditorSubmit(payload: { markdown: string }) {
       </SFCard>
 
       <template v-else>
+        <!-- 双栏:表单 + 侧边栏 -->
+        <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 items-start">
+
+        <!-- 主栏 -->
+        <div class="min-w-0">
+        <!-- 轻量页头:面包屑 + 副标题,不再放大标题(navbar 已在) -->
+        <div class="mb-5">
+          <nav class="text-sm text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
+            <NuxtLink :to="localePath('/')" class="hover:text-[color:var(--sf-accent)]">
+              {{ t('composer.breadcrumbHome') }}
+            </NuxtLink>
+            <UIcon name="i-lucide-chevron-right" class="size-3" />
+            <span>{{ t('composer.title') }}</span>
+          </nav>
+          <p class="text-sm text-slate-500 dark:text-zinc-400 mt-2">{{ t('composer.subtitle') }}</p>
+        </div>
+
         <!-- 全局错误（不自动消失） -->
         <SFAlert
           v-if="errorMessage"
@@ -148,44 +177,44 @@ function onEditorSubmit(payload: { markdown: string }) {
           @close="errorMessage = ''"
         />
 
-        <SFCard class="p-6 space-y-5">
-          <!-- 分类选择 -->
+        <SFCard class="p-6 sm:p-8 space-y-6">
+          <!-- 分类选择(SFInput 不支持 select,保留原生但复用全局 .sf-input__control 样式) -->
           <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-2 dark:text-zinc-300">
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-zinc-300">
               {{ t('composer.categoryLabel') }}
+              <span class="text-rose-500">*</span>
             </label>
-            <select
-              v-model="selectedCategorySlug"
-              class="sf-input w-full"
-            >
-              <option value="">{{ t('composer.categoryDefault') }}</option>
-              <option v-for="cat in categories" :key="cat.id" :value="cat.slug">
-                {{ cat.name }}
-              </option>
-            </select>
+            <p class="text-xs text-slate-400 dark:text-zinc-500 mb-2">{{ t('composer.categoryHint') }}</p>
+            <div class="relative">
+              <select
+                v-model="selectedCategorySlug"
+                class="sf-input__control sf-input__control--md w-full appearance-none pr-9"
+              >
+                <option value="">{{ t('composer.categoryDefault') }}</option>
+                <option v-for="cat in categories" :key="cat.id" :value="cat.slug">
+                  {{ cat.name }}
+                </option>
+              </select>
+              <UIcon name="i-lucide-chevron-down" class="size-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
           </div>
 
-          <!-- 标题 -->
-          <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-2 dark:text-zinc-300">
-              {{ t('composer.titleLabel') }}
-            </label>
-            <input
-              v-model="title"
-              type="text"
-              class="sf-input w-full"
-              :placeholder="t('composer.titlePlaceholder')"
-            >
-            <p v-if="fieldErrors.title" class="text-sm text-red-600 mt-1 dark:text-red-400">
-              {{ fieldErrors.title.join(', ') }}
-            </p>
-          </div>
+          <!-- 标题(复用 SFInput 组件) -->
+          <SFInput
+            v-model="title"
+            :label="t('composer.titleLabel')"
+            :placeholder="t('composer.titlePlaceholder')"
+            :hint="t('composer.titleHint')"
+            :error="fieldErrors.title?.join(', ')"
+            required
+          />
 
           <!-- 标签 -->
           <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-2 dark:text-zinc-300">
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-zinc-300">
               {{ t('composer.tagsLabel') }}
             </label>
+            <p class="text-xs text-slate-400 dark:text-zinc-500 mb-2">{{ t('composer.tagsHint') }}</p>
             <div v-if="tagDraft.length" class="flex flex-wrap gap-2 mb-2">
               <SFBadge v-for="slug in tagDraft" :key="slug" variant="neutral">
                 #{{ slug }}
@@ -197,7 +226,7 @@ function onEditorSubmit(payload: { markdown: string }) {
             <input
               v-model="tagInput"
               type="text"
-              class="sf-input w-full"
+              class="sf-input__control sf-input__control--md w-full"
               :placeholder="t('composer.tagsPlaceholder')"
               @keydown.enter="onTagEnter"
             >
@@ -208,9 +237,11 @@ function onEditorSubmit(payload: { markdown: string }) {
 
           <!-- 正文编辑器 -->
           <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-2 dark:text-zinc-300">
+            <label class="block text-sm font-semibold text-slate-700 mb-1.5 dark:text-zinc-300">
               {{ t('composer.bodyLabel') }}
+              <span class="text-rose-500">*</span>
             </label>
+            <p class="text-xs text-slate-400 dark:text-zinc-500 mb-2">{{ t('composer.bodyHint') }}</p>
             <SFEditor
               v-model="bodyMarkdown"
               :placeholder="t('composer.bodyPlaceholder')"
@@ -220,29 +251,40 @@ function onEditorSubmit(payload: { markdown: string }) {
             />
           </div>
         </SFCard>
+        </div><!-- /主栏 -->
+
+        <!-- 侧边栏:sticky 跟随 -->
+        <aside class="hidden lg:block lg:sticky lg:top-20 space-y-4">
+          <!-- 发帖要点 -->
+          <SFCard class="p-4">
+            <h3 class="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+              <UIcon name="i-lucide-lightbulb" class="size-3.5 text-[color:var(--sf-accent)]" />
+              {{ t('composer.tipsTitle') }}
+            </h3>
+            <ul class="space-y-2.5 text-sm">
+              <li v-for="tip in composerTips" :key="tip" class="flex gap-2">
+                <UIcon name="i-lucide-circle-dot" class="size-3.5 text-[color:var(--sf-accent)] mt-0.5 flex-none" />
+                <span class="text-slate-600 dark:text-zinc-300">{{ tip }}</span>
+              </li>
+            </ul>
+          </SFCard>
+
+          <!-- Markdown 速查 -->
+          <SFCard class="p-4">
+            <h3 class="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-3">
+              {{ t('composer.markdownTitle') }}
+            </h3>
+            <dl class="space-y-2 text-xs">
+              <div v-for="item in markdownCheatsheet" :key="item.label" class="flex justify-between gap-2">
+                <dt class="text-slate-400 dark:text-zinc-500">{{ item.label }}</dt>
+                <dd class="font-mono text-slate-600 dark:text-zinc-300">{{ item.syntax }}</dd>
+              </div>
+            </dl>
+          </SFCard>
+        </aside>
+
+        </div><!-- /双栏 grid -->
       </template>
     </div>
   </main>
 </template>
-
-<style scoped>
-.sf-input {
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.95rem;
-  background: #ffffff;
-  color: #111827;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.sf-input:focus {
-  border-color: #0f766e;
-  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
-}
-:global(.dark) .sf-input {
-  background: #18181b;
-  border-color: #3f3f46;
-  color: #f4f4f5;
-}
-</style>

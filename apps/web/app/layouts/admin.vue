@@ -448,6 +448,7 @@ async function signOut() {
       <!-- 3. 内容区滚动面板 -->
       <div class="flex-1 overflow-y-auto flex flex-col p-4 sm:p-6 bg-[var(--bg-admin-app)]">
         <slot />
+        <SFAdminFooter />
       </div>
     </UDashboardPanel>
   </UDashboardGroup>
