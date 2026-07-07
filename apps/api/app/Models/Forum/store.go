@@ -21,7 +21,13 @@ type Store interface {
 	GetTopic(ctx context.Context, topicID int64) (TopicDetail, error)
 	ResolveTopicTags(ctx context.Context, input ResolveTopicTagsInput) ([]TopicTagSummary, error)
 	CreateTopic(ctx context.Context, input CreateTopicRecord) (TopicDetail, error)
+	UpdateTopic(ctx context.Context, input UpdateTopicRecord) (TopicDetail, error)
+	DeleteTopic(ctx context.Context, topicID int64) (TopicDetail, error)
+	ApplyTopicAction(ctx context.Context, input TopicLifecycleInput) (TopicLifecycleRecord, error)
 	GetTopicForComment(ctx context.Context, topicID int64) (TopicSummary, error)
+	// GetTopicForAction 加载主题摘要（含 author/status），不做公开可见性过滤，
+	// 用于更新/删除/生命周期动作的权限判定。
+	GetTopicForAction(ctx context.Context, topicID int64) (TopicSummary, error)
 	CreateComment(ctx context.Context, input CreateCommentRecord) (Comment, error)
 	GetCommentSummary(ctx context.Context, commentID int64) (CommentSummary, error)
 	UpdateComment(ctx context.Context, input UpdateCommentRecord) (Comment, error)

@@ -1,6 +1,7 @@
 package forumcontroller
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 
@@ -28,6 +29,14 @@ type createTopicRequest struct {
 	Title        string             `json:"title"`
 	TagSlugs     []string           `json:"tagSlugs"`
 	Content      forum.ContentInput `json:"content"`
+}
+
+// updateTopicRequest: 所有字段均可选，nil 表示不改。categorySlug/tagSlugs 为空切片表示清空标签。
+type updateTopicRequest struct {
+	CategorySlug *string             `json:"categorySlug"`
+	Title        *string             `json:"title"`
+	TagSlugs     []string            `json:"tagSlugs"`
+	Content      *forum.ContentInput `json:"content"`
 }
 
 type createCommentRequest struct {
@@ -104,6 +113,102 @@ func (h *Controller) topic(c fiber.Ctx) error {
 		return mapForumError(err)
 	}
 	return apphttp.OK(c, topic)
+}
+
+func (h *Controller) updateTopic(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var req updateTopicRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidTopic)
+	}
+	// 区分 tagSlugs 字段"缺失"与"显式空数组"：仅当请求体里出现了 tagSlugs 才替换标签。
+	hasTagSlugs, err := bodyHasKey(c, "tagSlugs")
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidTopic)
+	}
+	input := forum.UpdateTopicInput{
+		TopicID:      int64(paramInt(c, "topicID")),
+		CategorySlug: req.CategorySlug,
+		Title:        req.Title,
+		Content:      req.Content,
+	}
+	if hasTagSlugs {
+		input.TagSlugs = req.TagSlugs
+	}
+	topic, err := h.service.UpdateTopic(c.Context(), actor, input)
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, topic)
+}
+
+// bodyHasKey 判断 JSON 请求体是否包含指定顶层字段，用于区分"未提供"与"显式 null/空"。
+func bodyHasKey(c fiber.Ctx, key string) (bool, error) {
+	body := c.Body()
+	if len(body) == 0 {
+		return false, nil
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return false, err
+	}
+	_, ok := raw[key]
+	return ok, nil
+}
+
+func (h *Controller) deleteTopic(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	topic, err := h.service.DeleteTopic(c.Context(), actor, int64(paramInt(c, "topicID")))
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, topic)
+}
+
+// topicAction 是统一的主题生命周期处理入口，对应 hide/restore/lock/unlock/pin/unpin。
+func (h *Controller) topicAction(c fiber.Ctx, action string) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	result, err := h.service.ApplyTopicAction(c.Context(), actor, forum.TopicLifecycleInput{
+		TopicID: int64(paramInt(c, "topicID")),
+		Action:  action,
+	})
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, result)
+}
+
+func (h *Controller) hideTopic(c fiber.Ctx) error {
+	return h.topicAction(c, forum.TopicActionHide)
+}
+
+func (h *Controller) restoreTopic(c fiber.Ctx) error {
+	return h.topicAction(c, forum.TopicActionRestore)
+}
+
+func (h *Controller) lockTopic(c fiber.Ctx) error {
+	return h.topicAction(c, forum.TopicActionLock)
+}
+
+func (h *Controller) unlockTopic(c fiber.Ctx) error {
+	return h.topicAction(c, forum.TopicActionUnlock)
+}
+
+func (h *Controller) pinTopic(c fiber.Ctx) error {
+	return h.topicAction(c, forum.TopicActionPin)
+}
+
+func (h *Controller) unpinTopic(c fiber.Ctx) error {
+	return h.topicAction(c, forum.TopicActionUnpin)
 }
 
 func (h *Controller) comments(c fiber.Ctx) error {
@@ -212,6 +317,8 @@ func mapForumError(err error) error {
 		return fiber.NewError(fiber.StatusNotFound, forum.CodeTagNotFound)
 	case errors.Is(err, forum.ErrInvalidSettings):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidSettings)
+	case errors.Is(err, forum.ErrInvalidAction):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidAction)
 	default:
 		return err
 	}

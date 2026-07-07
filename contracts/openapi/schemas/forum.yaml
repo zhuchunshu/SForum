@@ -642,6 +642,50 @@ UpdateCommentRequest:
   properties:
     content:
       "$ref": "#/ContentInput"
+UpdateTopicRequest:
+  type: object
+  description: |
+    All fields optional. Omitted fields are left unchanged.
+    An explicit empty `tagSlugs` array clears tags; an absent key leaves tags unchanged.
+  properties:
+    categorySlug:
+      type: string
+    title:
+      type: string
+    tagSlugs:
+      type: array
+      maxItems: 10
+      items:
+        type: string
+    content:
+      "$ref": "#/ContentInput"
+TopicAction:
+  type: object
+  required:
+  - topicId
+  - status
+  - isPinned
+  properties:
+    topicId:
+      type: integer
+      format: int64
+    status:
+      "$ref": "#/TopicStatus"
+    isPinned:
+      type: boolean
+ApiResponseTopicAction:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/TopicAction"
 CreateCategoryGroupRequest:
   type: object
   required:

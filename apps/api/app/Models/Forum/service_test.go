@@ -374,6 +374,188 @@ func TestServiceUpdateCommentRejectsUnauthorizedActor(t *testing.T) {
 	}
 }
 
+// --- Topic lifecycle tests ---
+
+func TestServiceUpdateTopicAllowsOwnerAndEditor(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostEditOwn: true}}
+	editor := identity.Actor{ID: 20, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditAny: true}}
+
+	title := "新标题"
+	content := ContentInput{RawContent: "新正文", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown}
+	if _, err := service.UpdateTopic(context.Background(), owner, UpdateTopicInput{TopicID: 7, Title: &title, Content: &content}); err != nil {
+		t.Fatalf("expected owner to update topic, got %v", err)
+	}
+	if store.updatedTopic.Title != "新标题" {
+		t.Fatalf("expected updated title, got %#v", store.updatedTopic)
+	}
+	if _, err := service.UpdateTopic(context.Background(), editor, UpdateTopicInput{TopicID: 7, Title: &title}); err != nil {
+		t.Fatalf("expected editor to update topic, got %v", err)
+	}
+}
+
+func TestServiceUpdateTopicRejectsUnauthorizedActor(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	service := NewService(store)
+	actor := identity.Actor{ID: 13, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
+
+	_, err := service.UpdateTopic(context.Background(), actor, UpdateTopicInput{TopicID: 7, Title: strPtr("x")})
+	if !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected permission denied, got %v", err)
+	}
+}
+
+func TestServiceUpdateTopicRejectsEmptyTitle(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostEditOwn: true}}
+
+	empty := "  "
+	_, err := service.UpdateTopic(context.Background(), owner, UpdateTopicInput{TopicID: 7, Title: &empty})
+	if !errors.Is(err, ErrInvalidTopic) {
+		t.Fatalf("expected ErrInvalidTopic, got %v", err)
+	}
+}
+
+func TestServiceDeleteTopicAllowsOwnerAndModerator(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	service := NewService(store)
+	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostDeleteOwn: true}}
+	moderator := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicDeleteAny: true}}
+
+	if _, err := service.DeleteTopic(context.Background(), owner, 7); err != nil {
+		t.Fatalf("expected owner to delete topic, got %v", err)
+	}
+	if store.deletedTopicID != 7 {
+		t.Fatalf("expected deleted topic id 7, got %d", store.deletedTopicID)
+	}
+	if _, err := service.DeleteTopic(context.Background(), moderator, 7); err != nil {
+		t.Fatalf("expected moderator to delete topic, got %v", err)
+	}
+}
+
+func TestServiceDeleteTopicRejectsUnauthorizedActor(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	service := NewService(store)
+	actor := identity.Actor{ID: 13, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
+
+	_, err := service.DeleteTopic(context.Background(), actor, 7)
+	if !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected permission denied, got %v", err)
+	}
+}
+
+func TestServiceApplyTopicActionEnforcesPermissions(t *testing.T) {
+	cases := []struct {
+		name       string
+		action     string
+		permission string
+	}{
+		{name: "hide", action: TopicActionHide, permission: identity.PermissionTopicDeleteAny},
+		{name: "restore", action: TopicActionRestore, permission: identity.PermissionTopicDeleteAny},
+		{name: "lock", action: TopicActionLock, permission: identity.PermissionTopicLock},
+		{name: "unlock", action: TopicActionUnlock, permission: identity.PermissionTopicLock},
+		{name: "pin", action: TopicActionPin, permission: identity.PermissionTopicPin},
+		{name: "unpin", action: TopicActionUnpin, permission: identity.PermissionTopicPin},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name+"/allowed", func(t *testing.T) {
+			store := newServiceFakeStore()
+			store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+			service := NewService(store)
+			actor := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{tc.permission: true}}
+
+			result, err := service.ApplyTopicAction(context.Background(), actor, TopicLifecycleInput{TopicID: 7, Action: tc.action})
+			if err != nil {
+				t.Fatalf("expected %s to succeed with permission, got %v", tc.name, err)
+			}
+			if result.TopicID != 7 {
+				t.Fatalf("expected topic id 7, got %d", result.TopicID)
+			}
+			if store.appliedAction != tc.action {
+				t.Fatalf("expected store action %s, got %s", tc.action, store.appliedAction)
+			}
+		})
+		t.Run(tc.name+"/denied", func(t *testing.T) {
+			store := newServiceFakeStore()
+			store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+			service := NewService(store)
+			actor := identity.Actor{ID: 13, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
+
+			_, err := service.ApplyTopicAction(context.Background(), actor, TopicLifecycleInput{TopicID: 7, Action: tc.action})
+			if !errors.Is(err, identity.ErrPermissionDenied) {
+				t.Fatalf("expected permission denied for %s, got %v", tc.name, err)
+			}
+			if store.appliedAction != "" {
+				t.Fatalf("store should not apply action when denied, got %s", store.appliedAction)
+			}
+		})
+	}
+}
+
+func TestServiceApplyTopicActionRejectsInvalidAction(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	service := NewService(store)
+	actor := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicLock: true}}
+
+	_, err := service.ApplyTopicAction(context.Background(), actor, TopicLifecycleInput{TopicID: 7, Action: "bogus"})
+	if !errors.Is(err, ErrInvalidAction) {
+		t.Fatalf("expected ErrInvalidAction, got %v", err)
+	}
+}
+
+func TestServiceApplyTopicActionBlocksActionsOnHiddenTopic(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusHidden}
+	service := NewService(store)
+	actor := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicLock: true}}
+
+	_, err := service.ApplyTopicAction(context.Background(), actor, TopicLifecycleInput{TopicID: 7, Action: TopicActionLock})
+	if !errors.Is(err, ErrTopicNotFound) {
+		t.Fatalf("expected ErrTopicNotFound on hidden topic, got %v", err)
+	}
+}
+
+func TestServiceApplyTopicActionAllowsRestoreOnHiddenTopic(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusHidden}
+	service := NewService(store)
+	actor := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicDeleteAny: true}}
+
+	result, err := service.ApplyTopicAction(context.Background(), actor, TopicLifecycleInput{TopicID: 7, Action: TopicActionRestore})
+	if err != nil {
+		t.Fatalf("expected restore on hidden topic, got %v", err)
+	}
+	if result.Status != TopicStatusActive {
+		t.Fatalf("expected active status after restore, got %s", result.Status)
+	}
+}
+
+func TestServiceTopicActionEmitsEvents(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	publisher := &fakeEventPublisher{}
+	service := NewServiceWithEvents(store, publisher)
+	actor := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicLock: true}}
+
+	if _, err := service.ApplyTopicAction(context.Background(), actor, TopicLifecycleInput{TopicID: 7, Action: TopicActionLock}); err != nil {
+		t.Fatalf("lock failed: %v", err)
+	}
+	if !publisher.seen(appevents.TopicLocked) {
+		t.Fatalf("expected topic.locked event, got %#v", publisher.names)
+	}
+}
+
+func strPtr(value string) *string { return &value }
+
 func containsUnsafeHTML(value string) bool {
 	return stringsContains(value, "<script") || stringsContains(value, "javascript:")
 }
@@ -457,6 +639,10 @@ type serviceFakeStore struct {
 	nextID            int64
 	createdTopic      CreateTopicRecord
 	topicForComment   TopicSummary
+	actionTopic       TopicSummary
+	updatedTopic      UpdateTopicRecord
+	deletedTopicID    int64
+	appliedAction     string
 	commentSummary    CommentSummary
 	resolvedTags      []TopicTagSummary
 	resolveTagsErr    error
@@ -468,6 +654,7 @@ func newServiceFakeStore() *serviceFakeStore {
 	return &serviceFakeStore{
 		nextID:          1,
 		topicForComment: TopicSummary{ID: 1, Status: TopicStatusActive},
+		actionTopic:     TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive},
 	}
 }
 
@@ -571,6 +758,43 @@ func (s *serviceFakeStore) topicTags(slugs []string) ([]TopicTagSummary, error) 
 
 func (s *serviceFakeStore) GetTopicForComment(context.Context, int64) (TopicSummary, error) {
 	return s.topicForComment, nil
+}
+
+func (s *serviceFakeStore) GetTopicForAction(context.Context, int64) (TopicSummary, error) {
+	return s.actionTopic, nil
+}
+
+func (s *serviceFakeStore) UpdateTopic(_ context.Context, input UpdateTopicRecord) (TopicDetail, error) {
+	s.updatedTopic = input
+	title := input.Title
+	if title == "" {
+		title = "原标题"
+	}
+	return TopicDetail{
+		TopicSummary: TopicSummary{ID: input.TopicID, Title: title, Status: TopicStatusActive},
+		Content:      input.Content,
+	}, nil
+}
+
+func (s *serviceFakeStore) DeleteTopic(_ context.Context, topicID int64) (TopicDetail, error) {
+	s.deletedTopicID = topicID
+	return TopicDetail{TopicSummary: TopicSummary{ID: topicID, Status: TopicStatusDeleted}}, nil
+}
+
+func (s *serviceFakeStore) ApplyTopicAction(_ context.Context, input TopicLifecycleInput) (TopicLifecycleRecord, error) {
+	s.appliedAction = input.Action
+	status := TopicStatusActive
+	isPinned := false
+	switch input.Action {
+	case TopicActionHide:
+		status = TopicStatusHidden
+	case TopicActionLock:
+		status = TopicStatusLocked
+	case TopicActionPin, TopicActionUnpin:
+		status = s.actionTopic.Status
+		isPinned = input.Action == TopicActionPin
+	}
+	return TopicLifecycleRecord{TopicID: input.TopicID, Status: status, IsPinned: isPinned}, nil
 }
 
 func (s *serviceFakeStore) CreateComment(_ context.Context, input CreateCommentRecord) (Comment, error) {

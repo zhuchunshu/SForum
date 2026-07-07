@@ -6,6 +6,14 @@ const (
 	UserRegistered     = "user.registered"
 	TopicBeforeCreate  = "topic.before_create"
 	TopicCreated       = "topic.created"
+	TopicUpdated       = "topic.updated"
+	TopicDeleted       = "topic.deleted"
+	TopicHidden        = "topic.hidden"
+	TopicRestored      = "topic.restored"
+	TopicLocked        = "topic.locked"
+	TopicUnlocked      = "topic.unlocked"
+	TopicPinned        = "topic.pinned"
+	TopicUnpinned      = "topic.unpinned"
 	CommentCreated     = "comment.created"
 	CategoryCreated    = "category.created"
 	CategoryUpdated    = "category.updated"
@@ -49,6 +57,62 @@ var definitions = []Definition{
 		Kind:          KindObserve,
 		Description:   "Emitted after a topic is committed.",
 		PayloadFields: []string{"topicId", "authorUserId", "categorySlug", "tagSlugs", "title"},
+		TimeoutMS:     DefaultAsyncTimeoutMS,
+	},
+	{
+		Name:          TopicUpdated,
+		Kind:          KindObserve,
+		Description:   "Emitted after a topic's content or taxonomy is updated.",
+		PayloadFields: []string{"topicId", "actorUserId", "title", "categorySlug", "tagSlugs"},
+		TimeoutMS:     DefaultAsyncTimeoutMS,
+	},
+	{
+		Name:          TopicDeleted,
+		Kind:          KindObserve,
+		Description:   "Emitted after a topic is soft-deleted.",
+		PayloadFields: []string{"topicId", "actorUserId"},
+		TimeoutMS:     DefaultAsyncTimeoutMS,
+	},
+	{
+		Name:          TopicHidden,
+		Kind:          KindObserve,
+		Description:   "Emitted after a topic is hidden by a moderator.",
+		PayloadFields: []string{"topicId", "actorUserId"},
+		TimeoutMS:     DefaultAsyncTimeoutMS,
+	},
+	{
+		Name:          TopicRestored,
+		Kind:          KindObserve,
+		Description:   "Emitted after a hidden or deleted topic is restored to active.",
+		PayloadFields: []string{"topicId", "actorUserId"},
+		TimeoutMS:     DefaultAsyncTimeoutMS,
+	},
+	{
+		Name:          TopicLocked,
+		Kind:          KindObserve,
+		Description:   "Emitted after a topic is locked.",
+		PayloadFields: []string{"topicId", "actorUserId"},
+		TimeoutMS:     DefaultAsyncTimeoutMS,
+	},
+	{
+		Name:          TopicUnlocked,
+		Kind:          KindObserve,
+		Description:   "Emitted after a topic is unlocked.",
+		PayloadFields: []string{"topicId", "actorUserId"},
+		TimeoutMS:     DefaultAsyncTimeoutMS,
+	},
+	{
+		Name:          TopicPinned,
+		Kind:          KindObserve,
+		Description:   "Emitted after a topic is pinned.",
+		PayloadFields: []string{"topicId", "actorUserId"},
+		TimeoutMS:     DefaultAsyncTimeoutMS,
+	},
+	{
+		Name:          TopicUnpinned,
+		Kind:          KindObserve,
+		Description:   "Emitted after a topic is unpinned.",
+		PayloadFields: []string{"topicId", "actorUserId"},
 		TimeoutMS:     DefaultAsyncTimeoutMS,
 	},
 	{

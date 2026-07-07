@@ -445,6 +445,295 @@ func (s *PostgresStore) CreateTopic(ctx context.Context, input CreateTopicRecord
 	return s.GetTopic(ctx, topicID)
 }
 
+func (s *PostgresStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord) (TopicDetail, error) {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return TopicDetail{}, fmt.Errorf("begin update topic: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	// 锁定主题行，确认存在且未删除。
+	var categoryID int64
+	var contentID int64
+	var status string
+	if err := tx.QueryRow(ctx, `
+		SELECT category_id, content_id, status
+		FROM topics
+		WHERE id = $1 AND status <> 'deleted'
+		FOR UPDATE
+	`, input.TopicID).Scan(&categoryID, &contentID, &status); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return TopicDetail{}, ErrTopicNotFound
+		}
+		return TopicDetail{}, fmt.Errorf("lock topic for update: %w", err)
+	}
+
+	// 更新分类。
+	if input.CategorySlug != "" {
+		var newCategoryID int64
+		if err := tx.QueryRow(ctx, `
+			SELECT id FROM categories WHERE slug = $1 AND visibility = 'public'
+		`, input.CategorySlug).Scan(&newCategoryID); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return TopicDetail{}, ErrInvalidTopic
+			}
+			return TopicDetail{}, fmt.Errorf("load update topic category: %w", err)
+		}
+		if newCategoryID != categoryID {
+			if _, err := tx.Exec(ctx, `
+				UPDATE categories SET topic_count = topic_count - 1, updated_at = now() WHERE id = $1
+			`, categoryID); err != nil {
+				return TopicDetail{}, fmt.Errorf("decrement old category count: %w", err)
+			}
+			if _, err := tx.Exec(ctx, `
+				UPDATE categories SET topic_count = topic_count + 1, updated_at = now() WHERE id = $1
+			`, newCategoryID); err != nil {
+				return TopicDetail{}, fmt.Errorf("increment new category count: %w", err)
+			}
+			categoryID = newCategoryID
+		}
+	}
+
+	// 更新正文：先存历史版本再覆盖 posts 记录。
+	if input.HasContent {
+		if err := createPostRevision(ctx, tx, contentID, input.EditorUserID); err != nil {
+			return TopicDetail{}, err
+		}
+		if err := updatePost(ctx, tx, contentID, input.EditorUserID, input.Content); err != nil {
+			return TopicDetail{}, err
+		}
+	}
+
+	// 更新主题标题/slug（标题变更时同步 slug）。
+	if input.Title != "" {
+		if _, err := tx.Exec(ctx, `
+			UPDATE topics
+			SET title = $2, slug = $3, updated_at = now(), last_activity_at = now()
+			WHERE id = $1
+		`, input.TopicID, input.Title, input.Slug); err != nil {
+			return TopicDetail{}, fmt.Errorf("update topic title: %w", err)
+		}
+	} else if _, err := tx.Exec(ctx, `
+		UPDATE topics SET updated_at = now() WHERE id = $1
+	`, input.TopicID); err != nil {
+		return TopicDetail{}, fmt.Errorf("touch topic: %w", err)
+	}
+
+	// 更新分类外键（若分类变更）。
+	if input.CategorySlug != "" {
+		if _, err := tx.Exec(ctx, `
+			UPDATE topics SET category_id = $2 WHERE id = $1
+		`, input.TopicID, categoryID); err != nil {
+			return TopicDetail{}, fmt.Errorf("update topic category: %w", err)
+		}
+	}
+
+	// 更新标签（若传入 tagSlugs，全量替换）。
+	if input.TagSlugs != nil {
+		if err := replaceTopicTags(ctx, tx, input.TopicID, input.TagSlugs, input.TagCreationMode, input.EditorUserID); err != nil {
+			return TopicDetail{}, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return TopicDetail{}, fmt.Errorf("commit update topic: %w", err)
+	}
+	return s.GetTopic(ctx, input.TopicID)
+}
+
+// replaceTopicTags 全量替换主题标签：删除旧关联、解绑旧标签计数、重新解析并附加新标签。
+func replaceTopicTags(ctx context.Context, tx pgx.Tx, topicID int64, slugs []string, creationMode string, actorUserID int64) error {
+	// 减去旧标签计数（仅 active 标签）。
+	if _, err := tx.Exec(ctx, `
+		UPDATE tags
+		SET topic_count = GREATEST(topic_count - 1, 0), updated_at = now()
+		FROM topic_tags
+		WHERE topic_tags.topic_id = $1
+		  AND topic_tags.tag_id = tags.id
+		  AND tags.status = 'active'
+	`, topicID); err != nil {
+		return fmt.Errorf("decrement old tag counts: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		DELETE FROM topic_tags WHERE topic_id = $1
+	`, topicID); err != nil {
+		return fmt.Errorf("clear topic tags: %w", err)
+	}
+	tags, err := resolveTopicTags(ctx, tx, ResolveTopicTagsInput{
+		ActorUserID:  actorUserID,
+		Slugs:        slugs,
+		CreationMode: creationMode,
+	})
+	if err != nil {
+		return err
+	}
+	return attachTopicTags(ctx, tx, topicID, tags)
+}
+
+func (s *PostgresStore) DeleteTopic(ctx context.Context, topicID int64) (TopicDetail, error) {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return TopicDetail{}, fmt.Errorf("begin delete topic: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	var categoryID int64
+	if err := tx.QueryRow(ctx, `
+		UPDATE topics
+		SET status = 'deleted', deleted_at = COALESCE(deleted_at, now()), updated_at = now()
+		WHERE id = $1 AND status <> 'deleted'
+		RETURNING category_id
+	`, topicID).Scan(&categoryID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return TopicDetail{}, ErrTopicNotFound
+		}
+		return TopicDetail{}, fmt.Errorf("soft delete topic: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE categories SET topic_count = GREATEST(topic_count - 1, 0), updated_at = now() WHERE id = $1
+	`, categoryID); err != nil {
+		return TopicDetail{}, fmt.Errorf("decrement category count on delete: %w", err)
+	}
+
+	// 读取删除后的主题快照（不做公开可见性过滤）。
+	row := tx.QueryRow(ctx, topicDetailSQL()+`
+		WHERE topics.id = $1
+	`, topicID)
+	topic, err := scanTopicDetail(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return TopicDetail{}, ErrTopicNotFound
+		}
+		return TopicDetail{}, fmt.Errorf("get deleted topic: %w", err)
+	}
+	tags, err := s.activeTopicTags(ctx, []int64{topic.ID})
+	if err != nil {
+		return TopicDetail{}, err
+	}
+	topic.Tags = tags[topic.ID]
+
+	if err := tx.Commit(ctx); err != nil {
+		return TopicDetail{}, fmt.Errorf("commit delete topic: %w", err)
+	}
+	return topic, nil
+}
+
+func (s *PostgresStore) ApplyTopicAction(ctx context.Context, input TopicLifecycleInput) (TopicLifecycleRecord, error) {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return TopicLifecycleRecord{}, fmt.Errorf("begin topic action: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	// 锁定主题，确认存在。
+	var status string
+	if err := tx.QueryRow(ctx, `
+		SELECT status FROM topics WHERE id = $1 FOR UPDATE
+	`, input.TopicID).Scan(&status); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return TopicLifecycleRecord{}, ErrTopicNotFound
+		}
+		return TopicLifecycleRecord{}, fmt.Errorf("lock topic for action: %w", err)
+	}
+
+	var setStatus string
+	var hasStatusUpdate bool
+	var setPinned *bool
+	switch input.Action {
+	case TopicActionHide:
+		setStatus = TopicStatusHidden
+		hasStatusUpdate = true
+	case TopicActionRestore:
+		setStatus = TopicStatusActive
+		hasStatusUpdate = true
+	case TopicActionLock:
+		setStatus = TopicStatusLocked
+		hasStatusUpdate = true
+	case TopicActionUnlock:
+		setStatus = TopicStatusActive
+		hasStatusUpdate = true
+	case TopicActionPin:
+		pinned := true
+		setPinned = &pinned
+	case TopicActionUnpin:
+		pinned := false
+		setPinned = &pinned
+	default:
+		return TopicLifecycleRecord{}, ErrInvalidAction
+	}
+
+	// restore 时重置 deleted_at/locked_at，并恢复为 active；其它动作不触碰 deleted_at。
+	if input.Action == TopicActionRestore {
+		if _, err := tx.Exec(ctx, `
+			UPDATE topics
+			SET status = $2, deleted_at = NULL, locked_at = NULL,
+			    is_pinned = COALESCE($3::boolean, is_pinned), updated_at = now(), last_activity_at = now()
+			WHERE id = $1
+		`, input.TopicID, setStatus, nullableBool(setPinned)); err != nil {
+			return TopicLifecycleRecord{}, fmt.Errorf("restore topic: %w", err)
+		}
+	} else if hasStatusUpdate {
+		// 隐藏/锁定/解锁：按动作维护 locked_at 时间戳。
+		var lockedExpr string
+		switch input.Action {
+		case TopicActionHide:
+			lockedExpr = "locked_at"
+		case TopicActionLock:
+			lockedExpr = "now()"
+		case TopicActionUnlock:
+			lockedExpr = "NULL"
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE topics
+			SET status = $2, locked_at = `+lockedExpr+`,
+			    is_pinned = COALESCE($3::boolean, is_pinned), updated_at = now(), last_activity_at = now()
+			WHERE id = $1
+		`, input.TopicID, setStatus, nullableBool(setPinned)); err != nil {
+			return TopicLifecycleRecord{}, fmt.Errorf("update topic status: %w", err)
+		}
+	} else if setPinned != nil {
+		// pin/unpin：维护 pinned_at，并更新 last_activity。
+		var pinnedAtExpr string
+		if *setPinned {
+			pinnedAtExpr = "now()"
+		} else {
+			pinnedAtExpr = "NULL"
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE topics
+			SET is_pinned = $2, pinned_at = `+pinnedAtExpr+`, updated_at = now()
+			WHERE id = $1
+		`, input.TopicID, *setPinned); err != nil {
+			return TopicLifecycleRecord{}, fmt.Errorf("update topic pin: %w", err)
+		}
+	}
+
+	var result TopicLifecycleRecord
+	if err := tx.QueryRow(ctx, `
+		SELECT id, status, is_pinned FROM topics WHERE id = $1
+	`, input.TopicID).Scan(&result.TopicID, &result.Status, &result.IsPinned); err != nil {
+		return TopicLifecycleRecord{}, fmt.Errorf("read topic after action: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return TopicLifecycleRecord{}, fmt.Errorf("commit topic action: %w", err)
+	}
+	return result, nil
+}
+
+func nullableBool(value *bool) any {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
+
 func resolveTopicTags(ctx context.Context, tx pgx.Tx, input ResolveTopicTagsInput) ([]TopicTagSummary, error) {
 	mode := strings.TrimSpace(input.CreationMode)
 	switch mode {
@@ -559,6 +848,22 @@ func (s *PostgresStore) GetTopicForComment(ctx context.Context, topicID int64) (
 	}
 	if err != nil {
 		return TopicSummary{}, fmt.Errorf("get topic for comment: %w", err)
+	}
+	return topic, nil
+}
+
+// GetTopicForAction 加载主题摘要（含 author/status），不做公开可见性过滤，
+// 用于更新/删除/生命周期动作的权限判定。
+func (s *PostgresStore) GetTopicForAction(ctx context.Context, topicID int64) (TopicSummary, error) {
+	row := s.pool.QueryRow(ctx, topicSummarySQL()+`
+		WHERE topics.id = $1
+	`, topicID)
+	topic, err := scanTopicSummary(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return TopicSummary{}, ErrTopicNotFound
+	}
+	if err != nil {
+		return TopicSummary{}, fmt.Errorf("get topic for action: %w", err)
 	}
 	return topic, nil
 }

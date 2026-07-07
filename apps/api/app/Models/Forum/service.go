@@ -287,6 +287,177 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	return created, nil
 }
 
+func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input UpdateTopicInput) (TopicDetail, error) {
+	if input.TopicID <= 0 {
+		return TopicDetail{}, ErrTopicNotFound
+	}
+	topic, err := s.store.GetTopicForAction(ctx, input.TopicID)
+	if err != nil {
+		return TopicDetail{}, err
+	}
+	if !canEditTopic(actor, topic) {
+		return TopicDetail{}, identity.ErrPermissionDenied
+	}
+
+	settings, err := s.resolvedSettings(ctx)
+	if err != nil {
+		return TopicDetail{}, err
+	}
+
+	record := UpdateTopicRecord{
+		TopicID:        input.TopicID,
+		EditorUserID:   actor.ID,
+		TagCreationMode: settings.TagCreationMode,
+	}
+
+	if input.Title != nil {
+		title := strings.TrimSpace(*input.Title)
+		if title == "" {
+			return TopicDetail{}, ErrInvalidTopic
+		}
+		record.Title = title
+		record.Slug = slugify(title)
+	}
+
+	if input.CategorySlug != nil {
+		categorySlug, ok := normalizeAdminSlug(*input.CategorySlug)
+		if !ok {
+			return TopicDetail{}, ErrInvalidTopic
+		}
+		record.CategorySlug = categorySlug
+	}
+
+	if input.TagSlugs != nil {
+		tagSlugs, err := normalizeTopicTagSlugs(input.TagSlugs, settings.TagMaxPerTopic)
+		if err != nil {
+			return TopicDetail{}, err
+		}
+		record.TagSlugs = tagSlugs
+	}
+
+	if input.Content != nil {
+		content, err := RenderContent(*input.Content)
+		if err != nil {
+			return TopicDetail{}, err
+		}
+		record.HasContent = true
+		record.Content = content
+	}
+
+	updated, err := s.store.UpdateTopic(ctx, record)
+	if err != nil {
+		return TopicDetail{}, err
+	}
+
+	payload := map[string]any{
+		"topicId":      updated.ID,
+		"actorUserId":  actor.ID,
+		"title":        updated.Title,
+		"categorySlug": updated.CategorySlug,
+	}
+	if len(record.TagSlugs) > 0 {
+		payload["tagSlugs"] = record.TagSlugs
+	}
+	s.emitTopicEvent(ctx, appevents.TopicUpdated, actor.ID, updated.ID, payload)
+	return updated, nil
+}
+
+func (s *Service) DeleteTopic(ctx context.Context, actor identity.Actor, topicID int64) (TopicDetail, error) {
+	if topicID <= 0 {
+		return TopicDetail{}, ErrTopicNotFound
+	}
+	topic, err := s.store.GetTopicForAction(ctx, topicID)
+	if err != nil {
+		return TopicDetail{}, err
+	}
+	if !canDeleteTopic(actor, topic) {
+		return TopicDetail{}, identity.ErrPermissionDenied
+	}
+	deleted, err := s.store.DeleteTopic(ctx, topicID)
+	if err != nil {
+		return TopicDetail{}, err
+	}
+	s.emitTopicEvent(ctx, appevents.TopicDeleted, actor.ID, topicID, map[string]any{
+		"topicId":     topicID,
+		"actorUserId": actor.ID,
+	})
+	return deleted, nil
+}
+
+func (s *Service) ApplyTopicAction(ctx context.Context, actor identity.Actor, input TopicLifecycleInput) (TopicLifecycleRecord, error) {
+	if input.TopicID <= 0 {
+		return TopicLifecycleRecord{}, ErrTopicNotFound
+	}
+	if _, err := validateTopicAction(input.Action); err != nil {
+		return TopicLifecycleRecord{}, err
+	}
+	topic, err := s.store.GetTopicForAction(ctx, input.TopicID)
+	if err != nil {
+		return TopicLifecycleRecord{}, err
+	}
+
+	// 按动作类型判定权限。
+	switch input.Action {
+	case TopicActionHide, TopicActionRestore:
+		if !canManageTopicVisibility(actor) {
+			return TopicLifecycleRecord{}, identity.ErrPermissionDenied
+		}
+	case TopicActionLock, TopicActionUnlock:
+		if !actor.Can(identity.PermissionTopicLock) {
+			return TopicLifecycleRecord{}, identity.ErrPermissionDenied
+		}
+	case TopicActionPin, TopicActionUnpin:
+		if !actor.Can(identity.PermissionTopicPin) {
+			return TopicLifecycleRecord{}, identity.ErrPermissionDenied
+		}
+	}
+
+	// restore 可作用于 hidden 或 deleted 主题；其它动作仅作用于可见主题。
+	if input.Action != TopicActionRestore && (topic.Status == TopicStatusHidden || topic.Status == TopicStatusDeleted) {
+		return TopicLifecycleRecord{}, ErrTopicNotFound
+	}
+
+	result, err := s.store.ApplyTopicAction(ctx, input)
+	if err != nil {
+		return TopicLifecycleRecord{}, err
+	}
+
+	actionEvent := map[string]any{"topicId": input.TopicID, "actorUserId": actor.ID}
+	switch input.Action {
+	case TopicActionHide:
+		s.emitTopicEvent(ctx, appevents.TopicHidden, actor.ID, input.TopicID, actionEvent)
+	case TopicActionRestore:
+		s.emitTopicEvent(ctx, appevents.TopicRestored, actor.ID, input.TopicID, actionEvent)
+	case TopicActionLock:
+		s.emitTopicEvent(ctx, appevents.TopicLocked, actor.ID, input.TopicID, actionEvent)
+	case TopicActionUnlock:
+		s.emitTopicEvent(ctx, appevents.TopicUnlocked, actor.ID, input.TopicID, actionEvent)
+	case TopicActionPin:
+		s.emitTopicEvent(ctx, appevents.TopicPinned, actor.ID, input.TopicID, actionEvent)
+	case TopicActionUnpin:
+		s.emitTopicEvent(ctx, appevents.TopicUnpinned, actor.ID, input.TopicID, actionEvent)
+	}
+	return result, nil
+}
+
+// emitTopicEvent 发送主题相关 observe 事件的统一辅助，确保 ResourceType 等元信息一致。
+func (s *Service) emitTopicEvent(ctx context.Context, name string, actorID, topicID int64, extra map[string]any) {
+	payload := map[string]any{}
+	for key, value := range extra {
+		payload[key] = value
+	}
+	s.events.Emit(ctx, appevents.Envelope{
+		Name:          name,
+		Kind:          appevents.KindObserve,
+		ActorUserID:   actorID,
+		ResourceType:  "topic",
+		ResourceID:    strconv.FormatInt(topicID, 10),
+		CorrelationID: appevents.NewID(),
+		Payload:       payload,
+		OccurredAt:    time.Now().UTC(),
+	})
+}
+
 func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input CreateCommentInput) (Comment, error) {
 	if !actor.Can(identity.PermissionPostCreate) {
 		return Comment{}, identity.ErrPermissionDenied
@@ -749,6 +920,47 @@ func canDeleteComment(actor identity.Actor, comment CommentSummary) bool {
 		return true
 	}
 	return comment.AuthorUserID == actor.ID && actor.Can(identity.PermissionPostDeleteOwn)
+}
+
+// canEditTopic: 作者凭 post.edit_own 可编辑自己的主题，版主任意编辑凭 topic.edit_any。
+func canEditTopic(actor identity.Actor, topic TopicSummary) bool {
+	if actor.Can(identity.PermissionTopicEditAny) {
+		return true
+	}
+	return topic.AuthorUserID == actor.ID && actor.Can(identity.PermissionPostEditOwn)
+}
+
+// canDeleteTopic: 作者凭 post.delete_own 可软删自己的主题，
+// 版主凭 topic.delete_any 可软删/隐藏/恢复任意主题。
+func canDeleteTopic(actor identity.Actor, topic TopicSummary) bool {
+	if actor.Can(identity.PermissionTopicDeleteAny) {
+		return true
+	}
+	return topic.AuthorUserID == actor.ID && actor.Can(identity.PermissionPostDeleteOwn)
+}
+
+// canManageTopicVisibility: hide/restore 需要 topic.delete_any。
+func canManageTopicVisibility(actor identity.Actor) bool {
+	return actor.Can(identity.PermissionTopicDeleteAny)
+}
+
+// validateTopicAction 校验动作合法，返回该动作对应的主题状态。
+func validateTopicAction(action string) (string, error) {
+	switch action {
+	case TopicActionHide:
+		return TopicStatusHidden, nil
+	case TopicActionRestore:
+		return TopicStatusActive, nil
+	case TopicActionLock:
+		return TopicStatusLocked, nil
+	case TopicActionUnlock:
+		return TopicStatusActive, nil
+	case TopicActionPin, TopicActionUnpin:
+		// pin/unpin 只改 is_pinned，不改 status，这里返回空表示不更新 status。
+		return "", nil
+	default:
+		return "", ErrInvalidAction
+	}
 }
 
 func normalizePage(page int, perPage int) (int, int) {
