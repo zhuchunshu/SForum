@@ -119,7 +119,9 @@ const adminPagePathsById: Record<string, string> = {
   '/users': 'apps/web/app/pages/admin/users.vue',
   '/permissions': 'apps/web/app/pages/admin/permissions.vue',
   '/settings': 'apps/web/app/pages/admin/settings/index.vue',
+  '/settings/mail': 'apps/web/app/pages/admin/settings/mail.vue',
   '/personalization': 'apps/web/app/pages/admin/personalization.vue',
+  '/moderation': 'apps/web/app/pages/admin/moderation.vue',
   '/seo': 'apps/web/app/pages/admin/seo.vue',
   '/database': 'apps/web/app/pages/admin/database.vue',
   '/attachments': 'apps/web/app/pages/admin/attachments.vue',
@@ -130,7 +132,8 @@ const adminPagePathsById: Record<string, string> = {
   '/extensions/plugins': 'apps/web/app/pages/admin/extensions/plugins.vue',
   '/extensions/themes': 'apps/web/app/pages/admin/extensions/themes.vue',
   '/extensions/settings': 'apps/web/app/pages/admin/extensions/settings.vue',
-  '/extensions/events': 'apps/web/app/pages/admin/extensions/events.vue'
+  '/extensions/events': 'apps/web/app/pages/admin/extensions/events.vue',
+  '/search': 'apps/web/app/pages/admin/search.vue'
 }
 
 for (const page of adminPageDefinitions) {
@@ -148,6 +151,9 @@ for (const page of adminPageDefinitions) {
 
 const adminLayout = read('apps/web/app/layouts/admin.vue')
 const adminModules = read('apps/web/app/config/adminModules.ts')
+const adminFooterPath = 'apps/web/app/components/SFAdminFooter.vue'
+assert(existsSync(file(adminFooterPath)), 'Admin shell should have a dedicated global footer component')
+const adminFooter = read(adminFooterPath)
 for (const requiredComponent of [
   'UDashboardGroup',
   'UDashboardSidebar',
@@ -161,6 +167,15 @@ for (const requiredComponent of [
 assert(adminLayout.includes('i-lucide-'), 'Admin layout should use Nuxt Icon lucide icons')
 assert(adminLayout.includes('adminSidebarNavigation'), 'Admin layout should build sidebar navigation from the module registry')
 assert(adminLayout.includes('canAccessAdminPage'), 'Admin layout should hide registry pages by frontend-visible permissions')
+assert(adminLayout.includes('<SFAdminFooter />'), 'Admin layout should render the dedicated global footer')
+assert(!adminLayout.includes('<SFFooter'), 'Admin layout should not reuse the public site footer')
+assert(adminFooter.includes('data-testid="sforum-admin-footer"'), 'Admin footer should expose a stable test id')
+assert(adminFooter.includes('data-testid="sforum-admin-footer-left"'), 'Admin footer should expose a stable left content area')
+assert(adminFooter.includes('data-testid="sforum-admin-footer-right"'), 'Admin footer should expose a stable right content area')
+assert(adminFooter.includes('admin.shell.footerCopyright'), 'Admin footer should use admin shell i18n copy')
+assert(adminFooter.includes('admin.shell.footerProductSummary'), 'Admin footer should render official product summary copy')
+assert(adminFooter.includes('justify-between'), 'Admin footer content should be split across left and right sides')
+assert(adminFooter.includes('new Date().getFullYear()'), 'Admin footer should render the current copyright year')
 assert(!adminLayout.includes("label: '系统配置'"), 'Admin layout should not hard-code Chinese sidebar labels')
 assert(!adminLayout.includes('navigationItems = computed(() => ['), 'Admin layout should not hard-code sidebar menu arrays')
 assert(adminModules.includes('admin.nav.personalization'), 'Admin modules should expose the personalization top-level menu')
@@ -188,13 +203,16 @@ assert(
 )
 assert(systemFolder.children?.some(entry => entry.pageId === '/personalization'), 'System folder should contain the personalization page')
 assert(
-  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/personalization,/seo,/database',
+  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/personalization,/seo,/database,/search',
   'System folder should keep the approved settings submenu order'
 )
 assert(!systemFolder.children?.some(entry => entry.pageId === '/extensions'), 'System folder should not contain the extension overview page')
 const extensionFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensions')
 assert(extensionFolder, 'Admin sidebar should expose extensions as an independent folder')
 assert(extensionFolder.children?.map(entry => entry.pageId).join(',') === '/extensions,/extensions/plugins,/extensions/themes,/extensions/settings,/extensions/events', 'Extension folder should keep the approved submenu order')
+const extensionEventsPage = read('apps/web/app/pages/admin/extensions/events.vue')
+assert(extensionEventsPage.includes('data-testid="admin-extension-events-page"'), 'Extension event log page should expose a stable page wrapper for layout checks')
+assert(extensionEventsPage.includes('data-testid="admin-extension-events-page" class="min-w-0 shrink-0"'), 'Extension event log page wrapper should not shrink inside the admin flex scroll container')
 assert(typeof isAdminNavigationEntryActive === 'function', 'Admin navigation should expose an active-state helper')
 assert(typeof shouldOpenAdminNavigationEntry === 'function', 'Admin navigation should expose an initial-open helper')
 assert(typeof isExtensionAdminPageId === 'function', 'Admin navigation should identify dynamic extension admin pages')

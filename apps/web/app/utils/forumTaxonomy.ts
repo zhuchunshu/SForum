@@ -195,6 +195,15 @@ export type ForumTopicFilters = {
   perPage?: number
 }
 
+// 搜索输入：query 为关键词，必填；其余为可选过滤与分页。
+export type ForumTopicSearchFilters = {
+  query: string
+  categorySlug?: string
+  tagSlug?: string
+  page?: number
+  perPage?: number
+}
+
 export const recommendedForumSettings: ForumSettings = {
   defaultCategorySlug: 'general',
   tagCreationMode: 'controlled',
@@ -241,6 +250,18 @@ export function buildForumTopicQuery(filters: ForumTopicFilters = {}) {
   addStringQuery(query, 'categorySlug', filters.categorySlug)
   addStringQuery(query, 'tagSlug', filters.tagSlug)
   addStringQuery(query, 'query', filters.query)
+  addPositiveNumberQuery(query, 'page', filters.page)
+  addPositiveNumberQuery(query, 'perPage', filters.perPage)
+  return query
+}
+
+// 构造搜索端点（GET /search）的 query。不复用 buildForumTopicQuery，
+// 因 search 要求 query 必填，且语义独立于列表。
+export function buildForumSearchQuery(filters: ForumTopicSearchFilters) {
+  const query: Record<string, string> = {}
+  addStringQuery(query, 'query', filters.query)
+  addStringQuery(query, 'categorySlug', filters.categorySlug)
+  addStringQuery(query, 'tagSlug', filters.tagSlug)
   addPositiveNumberQuery(query, 'page', filters.page)
   addPositiveNumberQuery(query, 'perPage', filters.perPage)
   return query

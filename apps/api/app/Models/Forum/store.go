@@ -18,6 +18,9 @@ type Store interface {
 	CreateTag(ctx context.Context, input CreateTagInput) (Tag, error)
 	UpdateTag(ctx context.Context, input UpdateTagInput) (Tag, error)
 	ListTopics(ctx context.Context, input TopicListInput) (TopicList, error)
+	// ListAllTopicIDs 返回所有可公开索引的主题 ID（active/locked），
+	// 用于搜索索引批量重建。仅 SELECT id，无 JOIN，千万级秒扫。
+	ListAllTopicIDs(ctx context.Context) ([]int64, error)
 	GetTopic(ctx context.Context, topicID int64) (TopicDetail, error)
 	ResolveTopicTags(ctx context.Context, input ResolveTopicTagsInput) ([]TopicTagSummary, error)
 	CreateTopic(ctx context.Context, input CreateTopicRecord) (TopicDetail, error)

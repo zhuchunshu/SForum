@@ -54,6 +54,7 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool) (*Worker, error) {
 		PreviewPath:    cfg.ThemePreviewPath,
 	})
 	extensionjobs.RegisterThemeActivationWorker(registry, extensionStore, themeBuilder)
+	registerSearchWorkers(registry, cfg, pool)
 	if registry.IsEmpty() {
 		return &Worker{}, nil
 	}

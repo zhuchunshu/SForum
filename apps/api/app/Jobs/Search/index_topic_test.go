@@ -10,12 +10,18 @@ import (
 )
 
 type fakeTopicIndexer struct {
-	topicID int64
-	err     error
+	indexedIDs []int64
+	deletedIDs []int64
+	err        error
 }
 
-func (f *fakeTopicIndexer) IndexTopic(ctx context.Context, topicID int64) error {
-	f.topicID = topicID
+func (f *fakeTopicIndexer) IndexTopic(_ context.Context, topicID int64) error {
+	f.indexedIDs = append(f.indexedIDs, topicID)
+	return f.err
+}
+
+func (f *fakeTopicIndexer) DeleteTopic(_ context.Context, topicID int64) error {
+	f.deletedIDs = append(f.deletedIDs, topicID)
 	return f.err
 }
 
@@ -48,8 +54,8 @@ func TestIndexTopicWorkerCallsIndexer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("work: %v", err)
 	}
-	if indexer.topicID != 42 {
-		t.Fatalf("expected topic 42, got %d", indexer.topicID)
+	if len(indexer.indexedIDs) != 1 || indexer.indexedIDs[0] != 42 {
+		t.Fatalf("expected topic 42 indexed, got %v", indexer.indexedIDs)
 	}
 }
 
@@ -74,5 +80,45 @@ func TestRegisterAddsWorker(t *testing.T) {
 	}
 	if workers == nil {
 		t.Fatal("expected workers bundle")
+	}
+}
+
+func TestDeleteTopicArgsKindAndOptions(t *testing.T) {
+	args := DeleteTopicArgs{TopicID: 7}
+	if args.Kind() != "search.delete_topic" {
+		t.Fatalf("expected search.delete_topic kind, got %q", args.Kind())
+	}
+	opts := args.EnqueueOptions()
+	if opts.Queue != supportjobs.QueueSearch {
+		t.Fatalf("expected search queue, got %q", opts.Queue)
+	}
+	if opts.MaxAttempts != 10 {
+		t.Fatalf("expected max attempts 10, got %d", opts.MaxAttempts)
+	}
+}
+
+func TestDeleteTopicWorkerCallsIndexer(t *testing.T) {
+	indexer := &fakeTopicIndexer{}
+	worker := &DeleteTopicWorker{Indexer: indexer}
+
+	err := worker.Work(context.Background(), &river.Job[DeleteTopicArgs]{
+		Args: DeleteTopicArgs{TopicID: 9},
+	})
+	if err != nil {
+		t.Fatalf("work: %v", err)
+	}
+	if len(indexer.deletedIDs) != 1 || indexer.deletedIDs[0] != 9 {
+		t.Fatalf("expected topic 9 deleted, got %v", indexer.deletedIDs)
+	}
+}
+
+func TestDeleteTopicWorkerRejectsInvalidTopicID(t *testing.T) {
+	worker := &DeleteTopicWorker{Indexer: &fakeTopicIndexer{}}
+
+	err := worker.Work(context.Background(), &river.Job[DeleteTopicArgs]{
+		Args: DeleteTopicArgs{TopicID: 0},
+	})
+	if err == nil {
+		t.Fatal("expected invalid topic id error")
 	}
 }

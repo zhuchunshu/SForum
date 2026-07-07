@@ -295,9 +295,16 @@ function toggleColorMode() {
   align-items: center;
   gap: 8px;
   height: 100%;
-  max-width: 1200px;
+  /* 与首页/详情页内容容器一致，保证 topbar 左右边缘对齐。 */
+  max-width: 1376px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 16px;
+}
+/* sm 以上用 24px，和页面容器的 px-4 sm:px-6 对齐。 */
+@media (min-width: 640px) {
+  .navbar__inner {
+    padding: 0 24px;
+  }
 }
 
 /* ====== Logo ====== */

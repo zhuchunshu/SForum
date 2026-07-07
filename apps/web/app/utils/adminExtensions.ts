@@ -329,24 +329,18 @@ export function mergeExtensionDeliveries(items: AdminExtensionEventDelivery[]) {
 }
 
 export function extensionEventPage(items: AdminExtensionEvent[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
-  const safePageSize = Math.max(1, Math.floor(pageSize))
-  const totalPages = Math.max(1, Math.ceil(items.length / safePageSize))
-  const currentPage = Math.min(totalPages, Math.max(1, Math.floor(page) || 1))
-  const start = items.length === 0 ? 0 : (currentPage - 1) * safePageSize + 1
-  const end = items.length === 0 ? 0 : Math.min(items.length, currentPage * safePageSize)
-
-  return {
-    items: items.slice(start === 0 ? 0 : start - 1, end),
-    page: currentPage,
-    pageSize: safePageSize,
-    totalPages,
-    start,
-    end,
-    total: items.length
-  }
+  return extensionItemsPage(items, page, pageSize)
 }
 
 export function extensionDeliveryPage(items: AdminExtensionEventDelivery[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
+  return extensionItemsPage(items, page, pageSize)
+}
+
+export function extensionDefinitionPage(items: AdminExtensionEventDefinition[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
+  return extensionItemsPage(items, page, pageSize)
+}
+
+function extensionItemsPage<T>(items: T[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
   const safePageSize = Math.max(1, Math.floor(pageSize))
   const totalPages = Math.max(1, Math.ceil(items.length / safePageSize))
   const currentPage = Math.min(totalPages, Math.max(1, Math.floor(page) || 1))

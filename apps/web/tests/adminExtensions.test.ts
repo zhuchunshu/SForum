@@ -7,6 +7,7 @@ import {
   capabilityCount,
   extensionAdminPages,
   extensionDeliveryPage,
+  extensionDefinitionPage,
   extensionEventPage,
   extensionAuthorName,
   extensionAuthorWebsite,
@@ -24,6 +25,7 @@ import {
   themeStatusLabelKey,
   type AdminExtension,
   type AdminExtensionEvent,
+  type AdminExtensionEventDefinition,
   type AdminExtensionEventDelivery
 } from '../app/utils/adminExtensions'
 
@@ -313,6 +315,20 @@ describe('admin extension helpers', () => {
     expect(page.items.map(item => item.id)).toEqual([2, 3])
     expect(page.totalPages).toBe(2)
   })
+
+  test('paginates extension event definitions', () => {
+    const items = Array.from({ length: 19 }, (_, index) => definition(`event.${index + 1}`))
+
+    const firstPage = extensionDefinitionPage(items, 1)
+    const lastPage = extensionDefinitionPage(items, 99)
+
+    expect(firstPage.items).toHaveLength(8)
+    expect(firstPage.start).toBe(1)
+    expect(firstPage.end).toBe(8)
+    expect(firstPage.totalPages).toBe(3)
+    expect(lastPage.page).toBe(3)
+    expect(lastPage.items.map(item => item.name)).toEqual(['event.17', 'event.18', 'event.19'])
+  })
 })
 
 function extension(input: {
@@ -385,5 +401,16 @@ function delivery(input: {
     attemptCount: 1,
     updatedAt: input.createdAt,
     ...input
+  }
+}
+
+function definition(name: string): AdminExtensionEventDefinition {
+  return {
+    name,
+    kind: 'observe',
+    description: `${name} description`,
+    payloadFields: ['extensionId'],
+    patchFields: [],
+    timeoutMs: 5000
   }
 }

@@ -1,0 +1,357 @@
+ApiResponseHealth:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/Health"
+Health:
+  type: object
+  required:
+  - name
+  - status
+  - environment
+  - locale
+  - supportedLocales
+  - time
+  properties:
+    name:
+      type: string
+    status:
+      type: string
+      enum:
+      - ok
+    environment:
+      type: string
+    locale:
+      type: string
+      examples:
+      - zh-CN
+    supportedLocales:
+      type: array
+      items:
+        type: string
+    time:
+      type: string
+      format: date-time
+ApiResponseAdminOverview:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AdminOverview"
+AdminOverview:
+  type: object
+  required:
+  - generatedAt
+  - windowDays
+  - runtime
+  - community
+  - attachments
+  - moderation
+  - extensions
+  - trends
+  - topCategories
+  - actions
+  properties:
+    generatedAt:
+      type: string
+      format: date-time
+    windowDays:
+      type: integer
+      enum:
+      - 7
+    runtime:
+      "$ref": "#/AdminOverviewRuntime"
+    community:
+      "$ref": "#/AdminOverviewCommunity"
+    attachments:
+      "$ref": "#/AdminOverviewAttachments"
+    moderation:
+      "$ref": "#/AdminOverviewModeration"
+    extensions:
+      "$ref": "#/AdminOverviewExtensions"
+    trends:
+      "$ref": "#/AdminOverviewTrends"
+    topCategories:
+      type: array
+      items:
+        "$ref": "#/AdminOverviewCategoryActivity"
+    actions:
+      type: array
+      items:
+        "$ref": "#/AdminOverviewAction"
+AdminOverviewRuntime:
+  type: object
+  required:
+  - startedAt
+  - uptimeSeconds
+  - memoryBytes
+  - heapAllocBytes
+  - heapSysBytes
+  - goroutineCount
+  - gcCount
+  - lastGcPauseNs
+  - database
+  properties:
+    startedAt:
+      type: string
+      format: date-time
+    uptimeSeconds:
+      type: integer
+      format: int64
+    memoryBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Go runtime Sys memory for the API process.
+    heapAllocBytes:
+      type: integer
+      format: int64
+      minimum: 0
+    heapSysBytes:
+      type: integer
+      format: int64
+      minimum: 0
+    goroutineCount:
+      type: integer
+      minimum: 0
+    gcCount:
+      type: integer
+      minimum: 0
+    lastGcPauseNs:
+      type: integer
+      format: int64
+      minimum: 0
+    database:
+      "$ref": "#/AdminOverviewDatabaseRuntime"
+AdminOverviewDatabaseRuntime:
+  type: object
+  required:
+  - maxConnections
+  - totalConnections
+  - acquiredConnections
+  - idleConnections
+  properties:
+    maxConnections:
+      type: integer
+      minimum: 0
+    totalConnections:
+      type: integer
+      minimum: 0
+    acquiredConnections:
+      type: integer
+      minimum: 0
+    idleConnections:
+      type: integer
+      minimum: 0
+AdminOverviewCommunity:
+  type: object
+  additionalProperties: false
+  properties:
+    userCount:
+      type: integer
+      format: int64
+    activeUserCount:
+      type: integer
+      format: int64
+    disabledUserCount:
+      type: integer
+      format: int64
+    bannedUserCount:
+      type: integer
+      format: int64
+    topicCount:
+      type: integer
+      format: int64
+    activeTopicCount:
+      type: integer
+      format: int64
+    lockedTopicCount:
+      type: integer
+      format: int64
+    hiddenTopicCount:
+      type: integer
+      format: int64
+    deletedTopicCount:
+      type: integer
+      format: int64
+    commentCount:
+      type: integer
+      format: int64
+    postCount:
+      type: integer
+      format: int64
+    categoryCount:
+      type: integer
+      format: int64
+    tagCount:
+      type: integer
+      format: int64
+    pendingTagCount:
+      type: integer
+      format: int64
+    totalViews:
+      type: integer
+      format: int64
+AdminOverviewAttachments:
+  type: object
+  additionalProperties: false
+  properties:
+    totalCount:
+      type: integer
+      format: int64
+    activeCount:
+      type: integer
+      format: int64
+    disabledCount:
+      type: integer
+      format: int64
+    deletedCount:
+      type: integer
+      format: int64
+    orphanCount:
+      type: integer
+      format: int64
+    totalBytes:
+      type: integer
+      format: int64
+AdminOverviewModeration:
+  type: object
+  additionalProperties: false
+  properties:
+    openCount:
+      type: integer
+      format: int64
+    reviewingCount:
+      type: integer
+      format: int64
+    resolvedCount:
+      type: integer
+      format: int64
+    rejectedCount:
+      type: integer
+      format: int64
+AdminOverviewExtensions:
+  type: object
+  additionalProperties: false
+  properties:
+    totalCount:
+      type: integer
+      format: int64
+    enabledCount:
+      type: integer
+      format: int64
+    pluginCount:
+      type: integer
+      format: int64
+    themeCount:
+      type: integer
+      format: int64
+    installedPluginRuntimeCount:
+      type: integer
+      format: int64
+    failedEventCount:
+      type: integer
+      format: int64
+    pendingThemeReleaseCount:
+      type: integer
+      format: int64
+    failedThemeReleaseCount:
+      type: integer
+      format: int64
+    activeThemeReleaseCount:
+      type: integer
+      format: int64
+AdminOverviewTrends:
+  type: object
+  required:
+  - days
+  properties:
+    days:
+      type: array
+      items:
+        "$ref": "#/AdminOverviewTrendDay"
+AdminOverviewTrendDay:
+  type: object
+  required:
+  - date
+  - topicCount
+  - commentCount
+  - userCount
+  properties:
+    date:
+      type: string
+      format: date
+    topicCount:
+      type: integer
+      format: int64
+    commentCount:
+      type: integer
+      format: int64
+    userCount:
+      type: integer
+      format: int64
+AdminOverviewCategoryActivity:
+  type: object
+  required:
+  - id
+  - slug
+  - name
+  - topicCount
+  - commentCount
+  properties:
+    id:
+      type: integer
+      format: int64
+    slug:
+      type: string
+    name:
+      type: string
+    topicCount:
+      type: integer
+      format: int64
+    commentCount:
+      type: integer
+      format: int64
+AdminOverviewAction:
+  type: object
+  required:
+  - key
+  - count
+  - severity
+  - route
+  properties:
+    key:
+      type: string
+      enum:
+      - moderation_queue
+      - pending_tags
+      - orphan_attachments
+      - failed_extension_events
+      - theme_release_progress
+    count:
+      type: integer
+      format: int64
+    severity:
+      type: string
+      enum:
+      - success
+      - info
+      - warning
+      - danger
+    route:
+      type: string

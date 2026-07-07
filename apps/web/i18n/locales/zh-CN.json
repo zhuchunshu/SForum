@@ -168,7 +168,9 @@
       "visitForum": "返回论坛",
       "lightMode": "浅色模式",
       "darkMode": "深色模式",
-      "signOut": "退出登录"
+      "signOut": "退出登录",
+      "footerCopyright": "© {year} SForum",
+      "footerProductSummary": "高性能模块化开源论坛框架"
     },
     "nav": {
       "dashboard": "仪表盘",
@@ -178,6 +180,7 @@
       "settings": "站点设置",
       "seo": "SEO 设置",
       "database": "数据库表管理",
+      "search": "搜索索引",
       "attachments": "附件设置",
       "extensions": "扩展管理",
       "extensionOverview": "扩展总览",
@@ -197,37 +200,103 @@
       "permissionManagement": "权限管理"
     },
     "home": {
-      "metaTitle": "管理后台",
-      "title": "后台总览",
-      "intro": "后台使用同一套论坛账号体系，所有管理能力由 API 权限控制。",
-      "rolesLink": "查看用户组",
-      "cards": {
-        "access": {
-          "label": "访问控制",
-          "value": "已启用"
+      "metaTitle": "均衡指挥台",
+      "title": "均衡指挥台",
+      "intro": "用一屏掌握论坛运行状态、社区活跃度和需要处理的后台事项。",
+      "refresh": "刷新",
+      "loadFailed": "后台总览加载失败",
+      "toolbar": {
+        "loading": "正在读取后台总览...",
+        "generatedAt": "最近 {days} 天 · 更新于 {time}"
+      },
+      "kpi": {
+        "memory": {
+          "label": "API 内存",
+          "meta": "Heap 已用 {heap}"
         },
-        "prefix": {
-          "label": "后台入口"
+        "topics": {
+          "label": "帖子",
+          "meta": "主题 {topics} · 回复 {comments}"
         },
-        "stack": {
-          "label": "界面组件",
-          "value": "Nuxt UI + Nuxt Icon"
+        "users": {
+          "label": "用户",
+          "meta": "活跃 {active}"
+        },
+        "actions": {
+          "label": "待处理",
+          "meta": "审核队列 {reports}"
         }
       },
-      "nextTitle": "管理模块",
-      "nextIntro": "按权限逐步接入后台功能。",
-      "next": {
-        "roles": {
-          "title": "用户组与权限",
-          "description": "查看系统用户组、自定义用户组和默认成员身份。"
+      "trend": {
+        "title": "最近 7 天社区趋势",
+        "description": "最近 {days} 天的主题、回复和新用户。",
+        "topics": "主题",
+        "comments": "回复",
+        "users": "用户"
+      },
+      "runtime": {
+        "title": "系统运行状态",
+        "description": "API 进程与数据库连接池状态。",
+        "uptime": "运行时间",
+        "goroutines": "Goroutines",
+        "gc": "GC 次数",
+        "database": "数据库连接"
+      },
+      "health": {
+        "title": "内容健康",
+        "activeUsers": "活跃用户占比",
+        "activeUsersSub": "{active} / {total} 用户可正常使用",
+        "activeTopics": "可见主题占比",
+        "activeTopicsSub": "{active} / {total} 主题对外可见",
+        "attachments": "附件可用占比",
+        "attachmentsSub": "孤儿 {orphan} · 总量 {size}"
+      },
+      "actionsTitle": "待办摘要",
+      "actions": {
+        "moderation_queue": {
+          "title": "审核队列",
+          "description": "{count} 条举报等待处理或正在复核。"
         },
-        "audit": {
-          "title": "审核记录",
-          "description": "为后续版主管理与安全审计预留入口。"
+        "pending_tags": {
+          "title": "待审核标签",
+          "description": "{count} 个标签等待管理员确认。"
         },
-        "settings": {
-          "title": "站点设置",
-          "description": "为论坛名称、注册策略和内容策略预留入口。"
+        "orphan_attachments": {
+          "title": "孤儿附件",
+          "description": "{count} 个附件暂未被内容引用。"
+        },
+        "failed_extension_events": {
+          "title": "扩展失败事件",
+          "description": "{count} 条扩展事件或主题发布失败。"
+        },
+        "theme_release_progress": {
+          "title": "主题发布中",
+          "description": "{count} 个主题发布任务仍在进行。"
+        }
+      },
+      "topCategories": {
+        "title": "热门版块",
+        "topicUnit": "主题",
+        "emptyTitle": "暂无版块数据",
+        "emptyDescription": "创建版块并发布主题后，这里会显示活跃版块。"
+      },
+      "quickTitle": "快捷入口",
+      "quick": {
+        "users": {
+          "title": "用户管理",
+          "description": "共 {count} 个用户"
+        },
+        "forum": {
+          "title": "版块分类",
+          "description": "共 {count} 个版块"
+        },
+        "moderation": {
+          "title": "内容审核",
+          "description": "{count} 条待处理"
+        },
+        "extensions": {
+          "title": "扩展管理",
+          "description": "共 {count} 个扩展"
         }
       }
     },
@@ -759,6 +828,12 @@
         "manage": {
           "label": "管理数据库表",
           "description": "查看数据库表结构、索引、约束和只读行数据。"
+        }
+      },
+      "search": {
+        "manage": {
+          "label": "管理搜索索引",
+          "description": "重建搜索索引、查看重建进度与历史。"
         }
       },
       "attachment": {
@@ -1323,6 +1398,49 @@
         "title": "暂无举报",
         "description": "当前过滤条件下没有待处理的举报。"
       }
+    },
+    "search": {
+      "title": "搜索索引管理",
+      "description": "重建 Meilisearch 全文搜索索引。重建期间搜索结果可能不完整，完成后自动恢复。",
+      "current": {
+        "title": "当前重建",
+        "status": {
+          "running": "进行中",
+          "completed": "已完成",
+          "failed": "失败"
+        },
+        "total": "总数",
+        "processed": "已处理",
+        "remaining": "剩余",
+        "percent": "进度",
+        "startedAt": "开始时间",
+        "finishedAt": "完成时间"
+      },
+      "action": {
+        "reindex": "重建索引",
+        "reindexing": "重建中...",
+        "confirmTitle": "确认重建搜索索引",
+        "confirmDescription": "将扫描所有主题并重新写入搜索索引。千万级数据可能需要数分钟到数十分钟，期间搜索结果可能不完整。确定继续吗？",
+        "confirm": "开始重建",
+        "cancel": "取消"
+      },
+      "history": {
+        "title": "历史记录",
+        "empty": "暂无重建记录",
+        "columns": {
+          "id": "ID",
+          "status": "状态",
+          "total": "总数",
+          "startedAt": "开始时间",
+          "finishedAt": "完成时间"
+        }
+      },
+      "toast": {
+        "started": "搜索索引重建已开始",
+        "alreadyRunning": "已有重建任务在进行中",
+        "failed": "搜索服务不可用，请检查 Meilisearch 配置",
+        "completed": "搜索索引重建已完成"
+      }
     }
   },
   "errors": {
@@ -1413,7 +1531,13 @@
     "submitReply": "发布回复",
     "submitting": "提交中...",
     "deleting": "删除中...",
-    "report": "举报"
+    "report": "举报",
+    "breadcrumbHome": "首页",
+    "authorLabel": "作者",
+    "statsTitle": "话题信息",
+    "statsViews": "浏览",
+    "statsComments": "回复",
+    "statsCreated": "发布于"
   },
   "composer": {
     "metaTitle": "发布新话题",
@@ -1438,7 +1562,25 @@
     "permissionDenied": {
       "title": "没有发帖权限",
       "description": "你的账号当前没有发布话题的权限。"
-    }
+    },
+    "subtitle": "清晰的问题描述更容易获得有价值的回复。",
+    "breadcrumbHome": "首页",
+    "categoryHint": "选择最贴近话题的分类，帮助精准推送给感兴趣的人。",
+    "titleHint": "用一句话概括问题，建议 10–50 字。",
+    "tagsHint": "最多 5 个，用回车或逗号添加。",
+    "bodyHint": "支持 Markdown 和富文本，代码用三个反引号包裹。",
+    "tipsTitle": "写好帖子的要点",
+    "tip1": "标题要具体，避免“求助”“跪求”这类模糊词。",
+    "tip2": "正文先说背景和目标，再贴报错或代码。",
+    "tip3": "代码用 ``` 包裹，保留缩进和换行。",
+    "tip4": "选对分类和标签，问题推送更精准。",
+    "markdownTitle": "Markdown 速查",
+    "mdHeading": "标题",
+    "mdBold": "粗体",
+    "mdList": "列表",
+    "mdCode": "代码块",
+    "mdQuote": "引用",
+    "mdLink": "链接"
   },
   "profile": {
     "metaDescription": "查看社区成员的公开资料。",

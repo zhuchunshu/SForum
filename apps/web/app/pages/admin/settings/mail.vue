@@ -16,7 +16,7 @@ const { t } = useI18n()
 const { fetchAdminEnvelope, saveMany } = useWebOptions()
 const { request } = useApiClient()
 
-useAdminPage('/settings/mail')
+const adminPage = useAdminPage('/settings/mail')
 
 // 邮件选项名称常量。
 const NAME_PROVIDER = 'mail.provider'
@@ -148,12 +148,27 @@ const testRecipient = ref(fromAddress.value)
   <div class="space-y-4">
     <header>
       <h1 class="text-xl font-bold text-slate-900 dark:text-zinc-50">
+        <UIcon :name="adminPage.icon" class="mr-2 inline-block size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
         {{ t('admin.mailSettings.title') }}
       </h1>
       <p class="text-sm text-slate-500 mt-1 dark:text-zinc-400">
         {{ t('admin.mailSettings.description') }}
       </p>
     </header>
+
+    <UDashboardToolbar class="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg px-4 py-2.5 text-slate-500 dark:text-zinc-400">
+      <template #left>
+        <div class="flex min-w-0 items-center gap-2 text-sm">
+          <UIcon name="i-lucide-mail-check" class="size-4" />
+          <span class="truncate">{{ t('admin.mailSettings.description') }}</span>
+        </div>
+      </template>
+      <template #right>
+        <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="load">
+          {{ t('admin.home.refresh') }}
+        </UButton>
+      </template>
+    </UDashboardToolbar>
 
     <SFAlert v-if="successMessage" variant="success" :title="successMessage" />
     <SFAlert v-if="errorMessage" variant="danger" :title="errorMessage" closable @close="errorMessage = ''" />

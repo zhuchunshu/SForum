@@ -88,6 +88,11 @@ and plugin runtime v1.
 - The admin extension overview now mirrors the Themes page for uploaded theme
   activation progress: queued/building/switching rows show status text,
   percent progress, helper copy, and short polling while a release is active.
+- The admin Event Log page uses a non-shrinking page wrapper inside the admin
+  scroll panel, so long event-definition and audit sections expand normally
+  instead of being clipped by the dashboard flex layout. Event definitions,
+  delivery attempts, and lifecycle audit rows are paginated independently, with
+  long event names, IDs, and error messages wrapping instead of being truncated.
 - Extension Platform v2 direction is accepted. The target is a complete
   operator loop: upload, manifest inspection, permission/risk review, enable or
   activate, configure, observe logs/errors/event deliveries, disable or

@@ -158,6 +158,35 @@ mobile comments with the D-style flat list plus "replying to" context labels.
 - Add topic moderation/admin endpoints when the moderation UI starts.
 - Wire topic/comment writes into the future Meilisearch indexer.
 
+## Search, Cache, And Deep-Pagination (2026-07-08)
+
+千万级数据读路径加固已实现：
+
+- **Meilisearch 全文搜索**：`app/Support/Search` 包提供
+  `Indexer`（实现 `forum.TopicSearchIndexer` 与 `searchjobs.TopicIndexer`）
+  与 `Service.Search`。新增 `GET /api/v1/search`（query/page/perPage/categorySlug/
+  tagSlug），直接查 Meilisearch，不过 PG。`ListTopics` 的 `query` 非空分支改为
+  返回 `ErrUseSearchEndpoint`（400），引导前端走专用端点。主题写流程（Create/
+  Update/Delete/ApplyTopicAction/CreateComment）事务后 `EnqueueIndex`/
+  `EnqueueDelete`，hide/delete 删索引，其余重索引；调度失败只记 slog 不中断。
+  依赖解耦：forum 定义窄接口 `TopicSearchIndexer`，search 实现；search → searchjobs
+  单向依赖。前端首页 `SFSearch` 搜索框关键词非空时调 `searchTopics`。
+  **后台重建**：`search.manage` 权限，`POST/GET /admin/forum/search/reindex`
+  （触发/进度）+ `GET /admin/forum/search/reindex/runs`（历史）。
+  `search.ReindexManager` 扫描 `forum.Store.ListAllTopicIDs` → 分批
+  `Dispatcher.EnqueueMany`（River InsertMany）→ `search_reindex_runs` 状态表记录。
+  进度实时查 `river_job` 剩余数；并发重建被拒（保证进度精确）；后台
+  `/admin/search` 页面带进度条 + 2s 轮询 + 历史。
+- **Redis 读缓存**：`app/Support/Cache` 提供 `Cache` 接口 + `MemoryCache`/
+  `RedisCache`。`forum.CachedStore` 嵌入 `Store` 接口装饰，缓存分类/分组/标签
+  （60s）、主题详情（30s）、主题列表（15s）。失效用 generation 方案（写时递增版本号，
+  读 key 含 generation），主题详情按 topicID 精确 Delete。
+- **深翻页 clamp**：`normalizePage` 增加 `maxTopicPage=200`，消除深分页 OFFSET 扫描。
+- 测试覆盖：`cached_store_test.go`（hit/miss/失效/降级）、
+  `service_index_test.go`（各写流程索引调度 + nil/失败降级 + query 拒绝 + 分页 clamp）、
+  controller search 端点 + query 引导错误测试。决策记录见
+  `decisions/2026-07-08-search-cache-deep-pagination.md`。
+
 ## Topic Lifecycle (Core Forum V1)
 
 Topic lifecycle is implemented in `apps/api/app/Models/Forum` and exposed via

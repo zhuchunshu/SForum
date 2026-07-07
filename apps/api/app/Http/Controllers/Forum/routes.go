@@ -6,6 +6,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/category-groups", h.categoryGroups)
 	api.Get("/categories", h.categories)
 	api.Get("/tags", h.tags)
+	api.Get("/search", h.search)
 	api.Get("/topics", h.topics)
 	api.Post("/topics", h.createTopic)
 	api.Get("/topics/:topicID", h.topic)
@@ -36,4 +37,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	admin.Get("/settings", h.adminSettings)
 	admin.Put("/settings", h.adminUpdateSettings)
 	admin.Post("/settings/reset", h.adminResetSettings)
+	admin.Post("/search/reindex", h.adminReindexSearch)
+	admin.Get("/search/reindex", h.adminReindexStatus)
+	admin.Get("/search/reindex/runs", h.adminReindexRuns)
 }

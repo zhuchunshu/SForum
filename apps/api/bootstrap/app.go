@@ -16,6 +16,7 @@ import (
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	extensionjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
+	adminoverview "github.com/zhuchunshu/sforum/apps/api/app/Models/AdminOverview"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	database "github.com/zhuchunshu/sforum/apps/api/app/Models/Database"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
@@ -26,6 +27,7 @@ import (
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	cache "github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
@@ -33,6 +35,7 @@ import (
 	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
+	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
 	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -110,7 +113,12 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		HashSecret:      cfg.SessionHashSecret,
 	})
 	identityStore := identity.NewPostgresStore(pool)
+	adminOverviewStore := adminoverview.NewPostgresStore(pool)
 	forumStore := forum.NewPostgresStore(pool)
+	// 业务读缓存：复用 session 同款 Redis client，避免多套连接。
+	// 失败不阻断启动——缓存为可重建的派生数据，降级为直连 PG。
+	cacheClient := humanverify.NewRedisClient(cfg.RedisAddr, cfg.RedisPassword)
+	forumCachedStore := forum.NewCachedStore(forumStore, cache.NewRedisCache(cacheClient))
 	profileStore := profile.NewPostgresStore(pool)
 	moderationStore := moderation.NewPostgresStore(pool)
 	attachmentStore := attachments.NewPostgresStore(pool)
@@ -178,7 +186,16 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		SiteURL:  siteURL,
 	})
 	identityProvider := providers.NewIdentityProviderWithPasswordReset(identityStore, authSessions, humanVerifier, extensionRuntime, passwordResetService, mailService, optionsService)
-	forumProvider := providers.NewForumProviderWithOptionsAndEvents(forumStore, optionsService, identityStore, authSessions, extensionRuntime)
+	adminOverviewProvider := providers.NewAdminOverviewProvider(adminOverviewStore, adminoverview.NewRuntimeCollector(time.Now().UTC(), pool), identityStore, authSessions)
+	// 搜索：API 进程持有只入队的 indexer（EnqueueIndex/EnqueueDelete）和查询用的 search service。
+	// Meilisearch client 不可达时，索引调度静默失败、搜索端点返回 503，主流程不受影响。
+	meiliClient := search.NewClient(cfg.MeiliHost, cfg.MeiliMasterKey)
+	searchIndexer := search.NewIndexer(meiliClient, nil, jobDispatcher)
+	searchService := search.NewService(meiliClient)
+	// 搜索索引重建：forumStore 提供 ListAllTopicIDs（TopicIDSource），
+	// reindexStore 记录运行状态，dispatcher 批量入队 IndexTopicArgs。
+	reindexManager := search.NewReindexManager(forumStore, search.NewPostgresReindexStore(pool), jobDispatcher)
+	forumProvider := providers.NewForumProviderWithSearch(forumCachedStore, optionsService, identityStore, authSessions, extensionRuntime, searchIndexer, searchServiceAdapter{inner: searchService}, reindexServiceAdapter{inner: reindexManager})
 	profileProvider := providers.NewProfileProvider(profileStore, identityStore, authSessions)
 	moderationProvider := providers.NewModerationProvider(moderationStore, forumStore, identityStore, authSessions)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
@@ -187,7 +204,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	extensionsProvider := providers.NewExtensionsProviderWithRuntimeAndThemeActivation(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime, themeDispatcher, extensions.WithThemeCurrentWriter(themeCurrentWriter))
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, attachmentsProvider, databaseProvider, extensionsProvider},
+		RouteProviders: []httpserver.RouteProvider{identityProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, attachmentsProvider, databaseProvider, extensionsProvider},
 		Options:        optionsService,
 	})
 
@@ -247,6 +264,9 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			}
 			if err := humanVerifyStore.Close(); err != nil {
 				logger.Warn("human verification redis close failed", "error", err)
+			}
+			if err := cacheClient.Close(); err != nil {
+				logger.Warn("forum cache redis close failed", "error", err)
 			}
 			pool.Close()
 		},

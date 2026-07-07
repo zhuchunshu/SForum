@@ -5,6 +5,7 @@ import (
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 )
 
 type categoryGroupRequest struct {
@@ -289,4 +290,61 @@ func (h *Controller) adminResetSettings(c fiber.Ctx) error {
 		return mapForumError(err)
 	}
 	return apphttp.OK(c, settings)
+}
+
+// adminReindexSearch 触发一次搜索索引全量重建。需 search.manage 权限。
+func (h *Controller) adminReindexSearch(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if !actor.Can(identity.PermissionSearchManage) {
+		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	}
+	if h.reindexer == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "forum.search_unavailable")
+	}
+	run, err := h.reindexer.Reindex(c.Context(), actor.ID)
+	if err != nil {
+		return mapReindexError(err)
+	}
+	return apphttp.OK(c, run)
+}
+
+// adminReindexStatus 返回当前重建的实时进度。需 search.manage 权限。
+func (h *Controller) adminReindexStatus(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if !actor.Can(identity.PermissionSearchManage) {
+		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	}
+	if h.reindexer == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "forum.search_unavailable")
+	}
+	status, err := h.reindexer.ReindexStatus(c.Context())
+	if err != nil {
+		return mapReindexError(err)
+	}
+	return apphttp.OK(c, status)
+}
+
+// adminReindexRuns 返回重建历史。需 search.manage 权限。
+func (h *Controller) adminReindexRuns(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if !actor.Can(identity.PermissionSearchManage) {
+		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	}
+	if h.reindexer == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "forum.search_unavailable")
+	}
+	runs, err := h.reindexer.ListReindexRuns(c.Context())
+	if err != nil {
+		return mapReindexError(err)
+	}
+	return apphttp.OK(c, runs)
 }

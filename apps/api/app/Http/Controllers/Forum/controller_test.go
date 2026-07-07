@@ -491,6 +491,10 @@ func (s *controllerForumStore) ListTopics(_ context.Context, input forum.TopicLi
 	return forum.TopicList{Items: []forum.TopicSummary{{ID: 10, Title: "公开帖子", Slug: "topic", Status: forum.TopicStatusActive}}, Total: 1, Page: input.Page, PerPage: input.PerPage}, nil
 }
 
+func (s *controllerForumStore) ListAllTopicIDs(context.Context) ([]int64, error) {
+	return []int64{10}, nil
+}
+
 func (s *controllerForumStore) GetTopic(context.Context, int64) (forum.TopicDetail, error) {
 	return forum.TopicDetail{TopicSummary: forum.TopicSummary{ID: 10, Title: "公开帖子", Slug: "topic", Status: forum.TopicStatusActive}}, nil
 }
@@ -619,3 +623,220 @@ func stringSlicesEqual(left []string, right []string) bool {
 }
 
 var _ = time.Time{}
+
+// --- 搜索端点测试 ---
+
+// fakeSearchService 记录搜索请求并返回预设结果。
+type fakeSearchService struct {
+	lastInput SearchInput
+	result    SearchOutput
+	err       error
+}
+
+func (f *fakeSearchService) Search(_ context.Context, input SearchInput) (SearchOutput, error) {
+	f.lastInput = input
+	return f.result, f.err
+}
+
+// newForumTestAppWithSearch 构造带 search service 的测试 app。
+func newForumTestAppWithSearch(searchSvc SearchService) (*fiber.App, *controllerForumStore) {
+	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
+	users := controllerForumActors{actors: map[int64]identity.Actor{
+		1: {ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
+	}}
+	store := &controllerForumStore{}
+	controller := NewControllerWithSearch(forum.NewServiceWithSettingsAndEvents(store, store, nil), searchSvc, nil, users, manager)
+	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{controller},
+	})
+	return app, store
+}
+
+func TestControllerSearchEndpoint(t *testing.T) {
+	svc := &fakeSearchService{result: SearchOutput{
+		Items:   []SearchItem{{ID: 1, Title: "Go 指南", Slug: "go-guide"}},
+		Total:   1,
+		Page:    1,
+		PerPage: 20,
+	}}
+	app, _ := newForumTestAppWithSearch(svc)
+
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/search?query=go", nil, nil)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 search, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var out forumTestEnvelope[SearchOutput]
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode search: %v", err)
+	}
+	if len(out.Data.Items) != 1 || out.Data.Items[0].Title != "Go 指南" {
+		t.Fatalf("unexpected search items %#v", out.Data.Items)
+	}
+	if svc.lastInput.Query != "go" {
+		t.Fatalf("expected query 'go', got %q", svc.lastInput.Query)
+	}
+}
+
+func TestControllerSearchWithoutServiceReturns503(t *testing.T) {
+	// 无 search service 时应返回 503。
+	app, _ := newForumTestAppWithSearch(nil)
+
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/search?query=go", nil, nil)
+	if resp.StatusCode != nethttp.StatusServiceUnavailable {
+		t.Fatalf("expected 503 when search unavailable, got %d", resp.StatusCode)
+	}
+}
+
+func TestControllerTopicsRejectsQuery(t *testing.T) {
+	// topics 列表带 query 应返回 400，引导走 /search。
+	app, _, _ := newForumTestApp()
+
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics?query=keyword", nil, nil)
+	if resp.StatusCode != nethttp.StatusBadRequest {
+		t.Fatalf("expected 400 for topics with query, got %d", resp.StatusCode)
+	}
+}
+
+// --- 搜索重建端点测试 ---
+
+type fakeReindexService struct {
+	reindexRun    ReindexRunOutput
+	reindexErr    error
+	statusOutput  ReindexStatusOutput
+	statusErr     error
+	runsOutput    []ReindexRunOutput
+	reindexCalled bool
+}
+
+func (f *fakeReindexService) Reindex(_ context.Context, _ int64) (ReindexRunOutput, error) {
+	f.reindexCalled = true
+	return f.reindexRun, f.reindexErr
+}
+
+func (f *fakeReindexService) ReindexStatus(_ context.Context) (ReindexStatusOutput, error) {
+	return f.statusOutput, f.statusErr
+}
+
+func (f *fakeReindexService) ListReindexRuns(_ context.Context) ([]ReindexRunOutput, error) {
+	return f.runsOutput, nil
+}
+
+// newForumTestAppWithReindex 构造带 reindex service 的测试 app。
+// actor 6 拥有 search.manage 权限。
+func newForumTestAppWithReindex(reindexer ReindexService) *fiber.App {
+	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
+	users := controllerForumActors{actors: map[int64]identity.Actor{
+		6: {ID: 6, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionSearchManage: true}},
+		7: {ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
+	}}
+	store := &controllerForumStore{}
+	controller := NewControllerWithSearch(forum.NewServiceWithSettingsAndEvents(store, store, nil), nil, reindexer, users, manager)
+	loginProvider := forumRouteProviderFunc(func(api fiber.Router) {
+		api.Post("/test-login/:id", func(c fiber.Ctx) error {
+			userID, _ := strconv.ParseInt(c.Params("id"), 10, 64)
+			if userID == 0 {
+				userID = 6
+			}
+			_, err := manager.Start(c, userID)
+			return err
+		})
+	})
+	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{controller, loginProvider},
+	})
+	return app
+}
+
+func TestControllerReindexRequiresLogin(t *testing.T) {
+	app := newForumTestAppWithReindex(&fakeReindexService{})
+
+	resp := performForumRequest(t, app, nethttp.MethodPost, "/api/v1/admin/forum/search/reindex", []byte(`{}`), nil)
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401 without login, got %d", resp.StatusCode)
+	}
+}
+
+func TestControllerReindexRequiresPermission(t *testing.T) {
+	app := newForumTestAppWithReindex(&fakeReindexService{})
+
+	cookie := loginForumUser(t, app, 7) // 无 search.manage
+	resp := performForumRequest(t, app, nethttp.MethodPost, "/api/v1/admin/forum/search/reindex", []byte(`{}`), cookie)
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 without permission, got %d", resp.StatusCode)
+	}
+}
+
+func TestControllerReindexTriggersRebuild(t *testing.T) {
+	svc := &fakeReindexService{reindexRun: ReindexRunOutput{ID: 1, Total: 5, Status: "running"}}
+	app := newForumTestAppWithReindex(svc)
+
+	cookie := loginForumUser(t, app, 6)
+	resp := performForumRequest(t, app, nethttp.MethodPost, "/api/v1/admin/forum/search/reindex", []byte(`{}`), cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if !svc.reindexCalled {
+		t.Fatal("expected Reindex to be called")
+	}
+	defer resp.Body.Close()
+	var out forumTestEnvelope[ReindexRunOutput]
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if out.Data.ID != 1 || out.Data.Total != 5 {
+		t.Fatalf("unexpected run %#v", out.Data)
+	}
+}
+
+func TestControllerReindexStatusReturnsProgress(t *testing.T) {
+	svc := &fakeReindexService{statusOutput: ReindexStatusOutput{
+		ReindexRunOutput: ReindexRunOutput{ID: 2, Total: 10, Status: "running"},
+		Processed:        7, Remaining: 3, Percent: 70,
+	}}
+	app := newForumTestAppWithReindex(svc)
+
+	cookie := loginForumUser(t, app, 6)
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/admin/forum/search/reindex", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var out forumTestEnvelope[ReindexStatusOutput]
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if out.Data.Percent != 70 || out.Data.Processed != 7 {
+		t.Fatalf("unexpected status %#v", out.Data)
+	}
+}
+
+func TestControllerReindexRunsReturnsHistory(t *testing.T) {
+	svc := &fakeReindexService{runsOutput: []ReindexRunOutput{{ID: 1, Total: 5, Status: "completed"}}}
+	app := newForumTestAppWithReindex(svc)
+
+	cookie := loginForumUser(t, app, 6)
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/admin/forum/search/reindex/runs", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var out forumTestEnvelope[[]ReindexRunOutput]
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(out.Data) != 1 || out.Data[0].Status != "completed" {
+		t.Fatalf("unexpected runs %#v", out.Data)
+	}
+}
+
+func TestControllerReindexWithoutServiceReturns503(t *testing.T) {
+	// reindexer 为 nil 时应返回 503。
+	app := newForumTestAppWithReindex(nil)
+
+	cookie := loginForumUser(t, app, 6)
+	resp := performForumRequest(t, app, nethttp.MethodPost, "/api/v1/admin/forum/search/reindex", []byte(`{}`), cookie)
+	if resp.StatusCode != nethttp.StatusServiceUnavailable {
+		t.Fatalf("expected 503 when reindexer nil, got %d", resp.StatusCode)
+	}
+}

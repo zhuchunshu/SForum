@@ -13,7 +13,7 @@ defineOptions({
 })
 
 const { t } = useI18n()
-useAdminPage('/moderation')
+const adminPage = useAdminPage('/moderation')
 
 const moderationApi = useModerationApi()
 
@@ -122,12 +122,27 @@ watch([statusFilter, typeFilter], () => {
   <div class="space-y-4">
     <header>
       <h1 class="text-xl font-bold text-slate-900 dark:text-zinc-50">
+        <UIcon :name="adminPage.icon" class="mr-2 inline-block size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]" />
         {{ t('admin.moderation.title') }}
       </h1>
       <p class="text-sm text-slate-500 mt-1 dark:text-zinc-400">
         {{ t('admin.moderation.description') }}
       </p>
     </header>
+
+    <UDashboardToolbar class="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg px-4 py-2.5 text-slate-500 dark:text-zinc-400">
+      <template #left>
+        <div class="flex min-w-0 items-center gap-2 text-sm">
+          <UIcon name="i-lucide-shield-alert" class="size-4" />
+          <span class="truncate">{{ t('admin.moderation.description') }}</span>
+        </div>
+      </template>
+      <template #right>
+        <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="refresh()">
+          {{ t('admin.home.refresh') }}
+        </UButton>
+      </template>
+    </UDashboardToolbar>
 
     <SFAlert v-if="errorMessage" variant="danger" :title="errorMessage" closable @close="errorMessage = ''" />
 

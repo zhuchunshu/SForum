@@ -89,6 +89,18 @@ export default defineNuxtConfig({
     }
   },
   vite: {
+    // 预声明会被运行时 import 的依赖，让 Vite 冷启动就预打包好。
+    // 否则浏览器首次打开页面时才扫描发现这些 CJS 依赖（altcha）或 devtools 子依赖，
+    // 触发 full page reload，叠加成肉眼可见的“网页卡住”。
+    optimizeDeps: {
+      include: [
+        'altcha',
+        'altcha/i18n/en',
+        'altcha/i18n/zh-cn',
+        '@vue/devtools-core',
+        '@vue/devtools-kit'
+      ]
+    },
     server: {
       watch: {
         ignored: generatedOutputWatchIgnores
