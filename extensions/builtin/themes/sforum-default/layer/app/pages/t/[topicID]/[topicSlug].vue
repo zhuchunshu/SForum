@@ -230,6 +230,11 @@ function commentActions(comment: ForumComment) {
   return actions
 }
 
+// 评论行内的"举报"按钮（独立于 actions，避免占用回复入口）。
+function canReportComment() {
+  return Boolean(reportUser.value)
+}
+
 // 评论是否可被当前用户编辑/删除。
 const { canEditComment, canDeleteComment } = usePermissions()
 function isCommentEditable(comment: ForumComment) {
@@ -391,6 +396,61 @@ async function submitNestedReply(comment: ForumComment, payload?: { markdown?: s
 function onNestedReplySubmit(comment: ForumComment) {
   return (payload: { markdown: string }) => submitNestedReply(comment, { markdown: payload.markdown })
 }
+
+// 举报对话框：支持举报主题或评论。同一时刻只展开一个。
+const reportingTarget = ref<{ type: 'topic' | 'comment'; id: number } | null>(null)
+const reportReason = ref<string>('')
+const reportBody = ref('')
+const reportSubmitting = ref(false)
+const reportError = ref('')
+const reportSuccess = ref(false)
+const moderationApi = useModerationApi()
+const { user: reportUser } = useAuthSession()
+
+const reportReasonOptions = [
+  { label: t('moderation.reason.spam'), value: 'spam' },
+  { label: t('moderation.reason.abuse'), value: 'abuse' },
+  { label: t('moderation.reason.illegal'), value: 'illegal' },
+  { label: t('moderation.reason.off_topic'), value: 'off_topic' },
+  { label: t('moderation.reason.other'), value: 'other' }
+]
+
+function openReportDialog(target: { type: 'topic' | 'comment'; id: number }) {
+  if (!reportUser.value) {
+    return
+  }
+  reportingTarget.value = target
+  reportReason.value = ''
+  reportBody.value = ''
+  reportError.value = ''
+  reportSuccess.value = false
+}
+
+function closeReportDialog() {
+  reportingTarget.value = null
+}
+
+async function submitReport() {
+  if (!reportingTarget.value || !reportReason.value || reportSubmitting.value) {
+    return
+  }
+  reportSubmitting.value = true
+  reportError.value = ''
+  try {
+    await moderationApi.createReport({
+      targetType: reportingTarget.value.type,
+      targetId: reportingTarget.value.id,
+      reasonCode: reportReason.value as 'spam' | 'abuse' | 'illegal' | 'off_topic' | 'other',
+      body: reportBody.value
+    })
+    reportSuccess.value = true
+    setTimeout(() => closeReportDialog(), 2000)
+  } catch (error) {
+    reportError.value = apiErrorMessage(error) || t('moderation.reportFailed')
+  } finally {
+    reportSubmitting.value = false
+  }
+}
 </script>
 
 <template>
@@ -508,6 +568,15 @@ function onNestedReplySubmit(comment: ForumComment) {
               <UIcon name="i-lucide-eye-off" class="size-4" />
               <span>{{ t('topicDetail.hide') }}</span>
             </SFButton>
+            <SFButton
+              v-if="reportUser"
+              variant="ghost"
+              size="sm"
+              @click="openReportDialog({ type: 'topic', id: topic.id })"
+            >
+              <UIcon name="i-lucide-flag" class="size-4" />
+              <span>{{ t('topicDetail.report') }}</span>
+            </SFButton>
           </div>
 
           <!-- 动作错误（不自动消失） -->
@@ -601,6 +670,16 @@ function onNestedReplySubmit(comment: ForumComment) {
                         <UIcon name="i-lucide-trash-2" class="size-3.5" />
                         <span>{{ deletingCommentId === comment.id ? t('topicDetail.deleting') : t('topicDetail.delete') }}</span>
                       </button>
+                      <button
+                        v-if="canReportComment()"
+                        type="button"
+                        class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-[#0F766E] dark:text-zinc-400 dark:hover:text-teal-300"
+                        :aria-label="t('topicDetail.report')"
+                        @click="openReportDialog({ type: 'comment', id: comment.id })"
+                      >
+                        <UIcon name="i-lucide-flag" class="size-3.5" />
+                        <span>{{ t('topicDetail.report') }}</span>
+                      </button>
                     </div>
                   </template>
 
@@ -685,5 +764,163 @@ function onNestedReplySubmit(comment: ForumComment) {
         </section>
       </template>
     </div>
+
+    <!-- 举报对话框 -->
+    <Teleport to="body">
+      <div v-if="reportingTarget" class="sf-modal-overlay" @click.self="closeReportDialog">
+        <div class="sf-modal" role="dialog" aria-modal="true">
+          <div class="sf-modal__header">
+            <h2 class="text-lg font-bold text-slate-900 dark:text-zinc-50">
+              {{ t('moderation.reportTitle') }}
+            </h2>
+            <button type="button" class="sf-modal__close" :aria-label="t('moderation.close')" @click="closeReportDialog">
+              <UIcon name="i-lucide-x" class="size-5" />
+            </button>
+          </div>
+          <div v-if="reportSuccess" class="sf-modal__body">
+            <SFAlert variant="success" :title="t('moderation.reportSubmitted')" />
+          </div>
+          <div v-else class="sf-modal__body space-y-4">
+            <SFAlert v-if="reportError" variant="danger" :title="reportError" closable @close="reportError = ''" />
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2 dark:text-zinc-300">
+                {{ t('moderation.reasonLabel') }}
+              </label>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="opt in reportReasonOptions"
+                  :key="opt.value"
+                  type="button"
+                  class="sf-modal__reason"
+                  :class="{ 'sf-modal__reason--active': reportReason === opt.value }"
+                  @click="reportReason = opt.value"
+                >
+                  {{ opt.label }}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2 dark:text-zinc-300">
+                {{ t('moderation.bodyLabel') }}
+              </label>
+              <textarea
+                v-model="reportBody"
+                rows="3"
+                maxlength="2000"
+                class="sf-modal__textarea"
+                :placeholder="t('moderation.bodyPlaceholder')"
+              />
+            </div>
+          </div>
+          <div v-if="!reportSuccess" class="sf-modal__footer">
+            <SFButton variant="ghost" size="sm" :disabled="reportSubmitting" @click="closeReportDialog">
+              {{ t('moderation.cancel') }}
+            </SFButton>
+            <SFButton variant="primary" size="sm" :disabled="!reportReason || reportSubmitting" @click="submitReport">
+              {{ reportSubmitting ? t('moderation.submitting') : t('moderation.submit') }}
+            </SFButton>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </main>
 </template>
+
+<style scoped>
+.sf-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 1rem;
+}
+.sf-modal {
+  background: #ffffff;
+  border-radius: 0.75rem;
+  width: 100%;
+  max-width: 28rem;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+:global(.dark) .sf-modal {
+  background: #18181b;
+}
+.sf-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+:global(.dark) .sf-modal__header {
+  border-bottom-color: #27272a;
+}
+.sf-modal__close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0.25rem;
+}
+.sf-modal__body {
+  padding: 1.25rem;
+}
+.sf-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #f3f4f6;
+}
+:global(.dark) .sf-modal__footer {
+  border-top-color: #27272a;
+}
+.sf-modal__reason {
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  background: #ffffff;
+  color: #374151;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.sf-modal__reason--active {
+  border-color: #0f766e;
+  background: #e6f4f1;
+  color: #0f766e;
+}
+:global(.dark) .sf-modal__reason {
+  background: #18181b;
+  border-color: #3f3f46;
+  color: #d4d4d8;
+}
+:global(.dark) .sf-modal__reason--active {
+  border-color: #14b8a6;
+  background: rgba(20, 184, 166, 0.15);
+  color: #5eead4;
+}
+.sf-modal__textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  background: #ffffff;
+  color: #111827;
+  outline: none;
+  resize: vertical;
+}
+.sf-modal__textarea:focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+:global(.dark) .sf-modal__textarea {
+  background: #18181b;
+  border-color: #3f3f46;
+  color: #f4f4f5;
+}
+</style>

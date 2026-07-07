@@ -13,7 +13,8 @@
     "newTopic": "New Topic",
     "myProfile": "My profile",
     "profileSettings": "Profile settings",
-    "mailSettings": "Mail settings"
+    "mailSettings": "Mail settings",
+    "moderation": "Moderation"
   },
   "home": {
     "metaTitle": "{siteName} Community",
@@ -1280,6 +1281,48 @@
       "testing": "Sending...",
       "testSent": "Test mail sent. Check the inbox.",
       "testFailed": "Test mail failed. Check your SMTP settings."
+    },
+    "moderation": {
+      "title": "Moderation queue",
+      "description": "Process user-submitted reports, update status, and record review notes.",
+      "filterStatus": "Status",
+      "filterType": "Type",
+      "statusAll": "All statuses",
+      "typeAll": "All types",
+      "typeTopic": "Topic",
+      "typeComment": "Comment",
+      "statusOpen": "Open",
+      "statusReviewing": "Reviewing",
+      "statusResolved": "Resolved",
+      "statusRejected": "Rejected",
+      "status": {
+        "open": "Open",
+        "reviewing": "Reviewing",
+        "resolved": "Resolved",
+        "rejected": "Rejected"
+      },
+      "type": {
+        "topic": "Topic",
+        "comment": "Comment"
+      },
+      "reason": {
+        "spam": "Spam",
+        "abuse": "Abuse",
+        "illegal": "Illegal content",
+        "off_topic": "Off topic",
+        "other": "Other"
+      },
+      "viewTarget": "View target",
+      "reviewNotePlaceholder": "Review note...",
+      "saveNote": "Save note",
+      "markReviewing": "Mark reviewing",
+      "markResolved": "Mark resolved",
+      "markRejected": "Reject",
+      "updateFailed": "Update failed, please try again.",
+      "empty": {
+        "title": "No reports",
+        "description": "No pending reports match the current filters."
+      }
     }
   },
   "errors": {
@@ -1369,7 +1412,8 @@
     "replyPlaceholder": "Write your reply...",
     "submitReply": "Post reply",
     "submitting": "Submitting...",
-    "deleting": "Deleting..."
+    "deleting": "Deleting...",
+    "report": "Report"
   },
   "composer": {
     "metaTitle": "New Topic",
@@ -1428,5 +1472,24 @@
     "saving": "Saving...",
     "saved": "Profile saved.",
     "saveFailed": "Save failed, please try again."
+  },
+  "moderation": {
+    "reportTitle": "Report content",
+    "reasonLabel": "Select a reason",
+    "bodyLabel": "Additional details (optional)",
+    "bodyPlaceholder": "Provide more context for reviewers...",
+    "submit": "Submit report",
+    "submitting": "Submitting...",
+    "cancel": "Cancel",
+    "close": "Close",
+    "reportSubmitted": "Report submitted. Thank you.",
+    "reportFailed": "Report failed, please try again.",
+    "reason": {
+      "spam": "Spam",
+      "abuse": "Abuse",
+      "illegal": "Illegal content",
+      "off_topic": "Off topic",
+      "other": "Other"
+    }
   }
 }

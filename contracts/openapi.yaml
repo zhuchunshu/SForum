@@ -58,6 +58,12 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/passwordResetConfirm"
   "/admin/mail/test":
     "$ref": "./openapi/paths/mail.yaml#/adminMailTest"
+  "/moderation/reports":
+    "$ref": "./openapi/paths/moderation.yaml#/moderationReports"
+  "/admin/moderation/reports":
+    "$ref": "./openapi/paths/moderation.yaml#/adminModerationReports"
+  "/admin/moderation/reports/{reportID}":
+    "$ref": "./openapi/paths/moderation.yaml#/adminModerationReportByID"
   "/permissions":
     "$ref": "./openapi/paths/identity.yaml#/permissions"
   "/permissions/matrix":

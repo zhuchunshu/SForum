@@ -80,7 +80,15 @@ TagID:
   schema:
     type: integer
     format: int64
-  description: Numeric tag id.
+    description: Numeric tag id.
+ReportID:
+  name: reportID
+  in: path
+  required: true
+  schema:
+    type: integer
+    format: int64
+  description: Numeric moderation report id.
 TagSlug:
   name: tagSlug
   in: query
