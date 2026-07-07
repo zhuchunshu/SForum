@@ -1,0 +1,53 @@
+profileByUsername:
+  get:
+    summary: Read a public member profile
+    operationId: getPublicProfile
+    parameters:
+    - name: username
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Member username.
+    responses:
+      '200':
+        description: Public profile with stats and recent topics.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/profile.yaml#/ApiResponsePublicProfile"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+myProfile:
+  get:
+    summary: Read the current user's editable profile
+    operationId: getMyProfile
+    responses:
+      '200':
+        description: Current user profile.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/profile.yaml#/ApiResponsePublicProfile"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+  put:
+    summary: Update the current user's editable profile
+    operationId: updateMyProfile
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/profile.yaml#/UpdateProfileRequest"
+    responses:
+      '200':
+        description: Updated profile.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/profile.yaml#/ApiResponseProfile"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"

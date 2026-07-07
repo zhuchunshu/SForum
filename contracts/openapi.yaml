@@ -38,6 +38,10 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/commentByID"
   "/auth/registration-status":
     "$ref": "./openapi/paths/identity.yaml#/authRegistrationStatus"
+  "/profiles/{username}":
+    "$ref": "./openapi/paths/profile.yaml#/profileByUsername"
+  "/profile":
+    "$ref": "./openapi/paths/profile.yaml#/myProfile"
   "/auth/register":
     "$ref": "./openapi/paths/identity.yaml#/authRegister"
   "/human-verification/challenge":
@@ -282,6 +286,16 @@ components:
       "$ref": "./openapi/schemas/forum.yaml#/UpdateTopicRequest"
     TopicAction:
       "$ref": "./openapi/schemas/forum.yaml#/TopicAction"
+    Profile:
+      "$ref": "./openapi/schemas/profile.yaml#/Profile"
+    PublicProfile:
+      "$ref": "./openapi/schemas/profile.yaml#/PublicProfile"
+    UpdateProfileRequest:
+      "$ref": "./openapi/schemas/profile.yaml#/UpdateProfileRequest"
+    ApiResponseProfile:
+      "$ref": "./openapi/schemas/profile.yaml#/ApiResponseProfile"
+    ApiResponsePublicProfile:
+      "$ref": "./openapi/schemas/profile.yaml#/ApiResponsePublicProfile"
     ExtensionType:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionType"
     ExtensionStatus:

@@ -1152,11 +1152,12 @@ func createPostRevision(ctx context.Context, tx pgx.Tx, postID int64, editorUser
 	return nil
 }
 
-type rowScanner interface {
+// RowScanner 是行扫描抽象，供 store 内部及跨模型复用（如 Profile 复用主题摘要扫描）。
+type RowScanner interface {
 	Scan(dest ...any) error
 }
 
-func scanCategory(row rowScanner) (Category, error) {
+func scanCategory(row RowScanner) (Category, error) {
 	var item Category
 	if err := row.Scan(
 		&item.ID,
@@ -1179,7 +1180,7 @@ func scanCategory(row rowScanner) (Category, error) {
 	return item, nil
 }
 
-func scanCategoryGroup(row rowScanner) (CategoryGroup, error) {
+func scanCategoryGroup(row RowScanner) (CategoryGroup, error) {
 	var item CategoryGroup
 	if err := row.Scan(
 		&item.ID,
@@ -1197,7 +1198,7 @@ func scanCategoryGroup(row rowScanner) (CategoryGroup, error) {
 	return item, nil
 }
 
-func scanCategoryGroupRow(row rowScanner) (CategoryGroup, Category, bool, error) {
+func scanCategoryGroupRow(row RowScanner) (CategoryGroup, Category, bool, error) {
 	var group CategoryGroup
 	var categoryID sql.NullInt64
 	var categoryGroupID sql.NullInt64
@@ -1258,7 +1259,7 @@ func scanCategoryGroupRow(row rowScanner) (CategoryGroup, Category, bool, error)
 	return group, category, true, nil
 }
 
-func scanTag(row rowScanner) (Tag, error) {
+func scanTag(row RowScanner) (Tag, error) {
 	var item Tag
 	if err := row.Scan(
 		&item.ID,
@@ -1334,7 +1335,7 @@ func topicDetailSQL() string {
 	`
 }
 
-func scanTopicSummary(row rowScanner) (TopicSummary, error) {
+func scanTopicSummary(row RowScanner) (TopicSummary, error) {
 	var topic TopicSummary
 	var authorID sql.NullInt64
 	var username sql.NullString
@@ -1367,7 +1368,12 @@ func scanTopicSummary(row rowScanner) (TopicSummary, error) {
 	return topic, nil
 }
 
-func scanTopicDetail(row rowScanner) (TopicDetail, error) {
+// ScanTopicSummary 导出主题摘要扫描，供 Profile 等跨模型复用同一 SELECT 列布局。
+func ScanTopicSummary(row RowScanner) (TopicSummary, error) {
+	return scanTopicSummary(row)
+}
+
+func scanTopicDetail(row RowScanner) (TopicDetail, error) {
 	var detail TopicDetail
 	var authorID sql.NullInt64
 	var username sql.NullString
@@ -1410,7 +1416,7 @@ func scanTopicDetail(row rowScanner) (TopicDetail, error) {
 	return detail, nil
 }
 
-func scanCommentSummary(row rowScanner) (CommentSummary, error) {
+func scanCommentSummary(row RowScanner) (CommentSummary, error) {
 	var summary CommentSummary
 	var authorID sql.NullInt64
 	var parentID sql.NullInt64
@@ -1463,7 +1469,7 @@ func getCommentByID(ctx context.Context, q interface {
 	return comment, nil
 }
 
-func scanComment(row rowScanner) (Comment, error) {
+func scanComment(row RowScanner) (Comment, error) {
 	var comment Comment
 	var authorID sql.NullInt64
 	var username sql.NullString

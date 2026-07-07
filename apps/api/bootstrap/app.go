@@ -22,6 +22,7 @@ import (
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
@@ -108,6 +109,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	})
 	identityStore := identity.NewPostgresStore(pool)
 	forumStore := forum.NewPostgresStore(pool)
+	profileStore := profile.NewPostgresStore(pool)
 	attachmentStore := attachments.NewPostgresStore(pool)
 	databaseStore := database.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
@@ -166,13 +168,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 	identityProvider := providers.NewIdentityProviderWithEvents(identityStore, authSessions, humanVerifier, extensionRuntime)
 	forumProvider := providers.NewForumProviderWithOptionsAndEvents(forumStore, optionsService, identityStore, authSessions, extensionRuntime)
+	profileProvider := providers.NewProfileProvider(profileStore, identityStore, authSessions)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, extensionRuntime)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
 	extensionsProvider := providers.NewExtensionsProviderWithRuntimeAndThemeActivation(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime, themeDispatcher, extensions.WithThemeCurrentWriter(themeCurrentWriter))
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider, forumProvider, optionsProvider, attachmentsProvider, databaseProvider, extensionsProvider},
+		RouteProviders: []httpserver.RouteProvider{identityProvider, forumProvider, profileProvider, optionsProvider, attachmentsProvider, databaseProvider, extensionsProvider},
 		Options:        optionsService,
 	})
 

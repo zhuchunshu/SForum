@@ -10,7 +10,9 @@
     "language": "Language",
     "lightMode": "Switch to light mode",
     "darkMode": "Switch to dark mode",
-    "newTopic": "New Topic"
+    "newTopic": "New Topic",
+    "myProfile": "My profile",
+    "profileSettings": "Profile settings"
   },
   "home": {
     "metaTitle": "{siteName} Community",
@@ -1345,5 +1347,38 @@
       "title": "No permission to post",
       "description": "Your account does not have permission to create topics."
     }
+  },
+  "profile": {
+    "metaDescription": "View a community member's public profile.",
+    "notFound": {
+      "title": "User not found",
+      "description": "This username does not exist or the account is not active."
+    },
+    "topicCount": "Topics",
+    "commentCount": "Comments",
+    "joinedAt": "Joined",
+    "location": "Location",
+    "editProfile": "Edit profile",
+    "recentTopics": "Recent topics",
+    "replies": "replies"
+  },
+  "profileSettings": {
+    "metaTitle": "Profile settings",
+    "metaDescription": "Edit your public profile.",
+    "title": "Profile settings",
+    "username": "Username",
+    "usernameHint": "Username cannot be changed yet.",
+    "bio": "Bio",
+    "bioPlaceholder": "Tell us about yourself...",
+    "signature": "Signature",
+    "signaturePlaceholder": "Shown below your posts",
+    "location": "Location",
+    "locationPlaceholder": "Your city",
+    "website": "Website",
+    "websiteHint": "Enter a full URL including http:// or https://.",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Profile saved.",
+    "saveFailed": "Save failed, please try again."
   }
 }
