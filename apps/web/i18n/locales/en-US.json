@@ -9,7 +9,8 @@
     "logout": "Log out",
     "language": "Language",
     "lightMode": "Switch to light mode",
-    "darkMode": "Switch to dark mode"
+    "darkMode": "Switch to dark mode",
+    "newTopic": "New Topic"
   },
   "home": {
     "metaTitle": "{siteName} Community",
@@ -1306,6 +1307,43 @@
     "lockToggled": "Topic lock state updated.",
     "pinToggled": "Topic pin state updated.",
     "hidden": "Topic hidden.",
-    "reply": "Reply"
+    "reply": "Reply",
+    "replyFailed": "Reply failed, please try again.",
+    "editFailed": "Edit failed, please try again.",
+    "deleteFailed": "Delete failed, please try again.",
+    "confirmCommentDelete": "Delete this comment?",
+    "editPlaceholder": "Edit your comment...",
+    "saveEdit": "Save",
+    "cancel": "Cancel",
+    "replyTitle": "Post a reply",
+    "replyPlaceholder": "Write your reply...",
+    "submitReply": "Post reply",
+    "submitting": "Submitting...",
+    "deleting": "Deleting..."
+  },
+  "composer": {
+    "metaTitle": "New Topic",
+    "metaDescription": "Write and publish a new community topic.",
+    "title": "New Topic",
+    "editTitle": "Edit Topic",
+    "categoryLabel": "Category",
+    "categoryDefault": "Select a category (defaults to General)",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Enter topic title",
+    "tagsLabel": "Tags",
+    "tagsPlaceholder": "Type a tag and press Enter (up to 5)",
+    "tagInvalid": "Tags may only contain lowercase letters, digits, and hyphens.",
+    "tagLimit": "You can add up to 5 tags.",
+    "removeTag": "Remove tag",
+    "bodyLabel": "Body",
+    "bodyPlaceholder": "Write what you want to share...",
+    "submit": "Publish",
+    "save": "Save",
+    "submitting": "Submitting...",
+    "submitFailed": "Publish failed, please try again.",
+    "permissionDenied": {
+      "title": "No permission to post",
+      "description": "Your account does not have permission to create topics."
+    }
   }
 }

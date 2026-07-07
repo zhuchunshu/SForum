@@ -7,6 +7,10 @@ const { siteName } = useWebOptions()
 const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
 const router = useRouter()
 const colorMode = useColorMode()
+const { can } = usePermissions()
+
+// 仅对有发帖权限的登录用户显示“发帖”入口。
+const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 
 // 控制用户下拉菜单的显示
 const menuOpen = ref(false)
@@ -127,6 +131,14 @@ function toggleColorMode() {
       <nav class="navbar__nav" :aria-label="t('nav.mainNav')">
         <NuxtLink :to="localePath('/')" class="navbar__nav-link">
           {{ t('nav.home') }}
+        </NuxtLink>
+        <NuxtLink
+          v-if="canCreateTopic"
+          :to="localePath('/topics/new')"
+          class="navbar__nav-link navbar__nav-link--create"
+        >
+          <UIcon name="i-lucide-plus" class="size-4" />
+          <span>{{ t('nav.newTopic') }}</span>
         </NuxtLink>
       </nav>
 

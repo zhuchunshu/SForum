@@ -9,7 +9,8 @@
     "logout": "退出登录",
     "language": "语言",
     "lightMode": "切换到浅色模式",
-    "darkMode": "切换到夜间模式"
+    "darkMode": "切换到夜间模式",
+    "newTopic": "发帖"
   },
   "home": {
     "metaTitle": "{siteName} 社区首页",
@@ -1306,6 +1307,43 @@
     "lockToggled": "话题锁定状态已更新。",
     "pinToggled": "话题置顶状态已更新。",
     "hidden": "话题已隐藏。",
-    "reply": "回复"
+    "reply": "回复",
+    "replyFailed": "回复失败，请稍后重试。",
+    "editFailed": "编辑失败，请稍后重试。",
+    "deleteFailed": "删除失败，请稍后重试。",
+    "confirmCommentDelete": "确定要删除这条评论吗？",
+    "editPlaceholder": "编辑评论内容...",
+    "saveEdit": "保存修改",
+    "cancel": "取消",
+    "replyTitle": "发表回复",
+    "replyPlaceholder": "写下你的回复...",
+    "submitReply": "发布回复",
+    "submitting": "提交中...",
+    "deleting": "删除中..."
+  },
+  "composer": {
+    "metaTitle": "发布新话题",
+    "metaDescription": "撰写并发布一个新的社区话题。",
+    "title": "发布话题",
+    "editTitle": "编辑话题",
+    "categoryLabel": "分类",
+    "categoryDefault": "选择分类（默认综合讨论）",
+    "titleLabel": "标题",
+    "titlePlaceholder": "请输入话题标题",
+    "tagsLabel": "标签",
+    "tagsPlaceholder": "输入标签后回车添加（最多 5 个）",
+    "tagInvalid": "标签只能包含小写字母、数字和连字符。",
+    "tagLimit": "最多添加 5 个标签。",
+    "removeTag": "移除标签",
+    "bodyLabel": "正文",
+    "bodyPlaceholder": "写下你想分享的内容...",
+    "submit": "发布",
+    "save": "保存",
+    "submitting": "提交中...",
+    "submitFailed": "发布失败，请稍后重试。",
+    "permissionDenied": {
+      "title": "没有发帖权限",
+      "description": "你的账号当前没有发布话题的权限。"
+    }
   }
 }

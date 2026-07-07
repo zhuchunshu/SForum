@@ -23,6 +23,20 @@ const { siteName } = useWebOptions()
 const forumApi = useForumApi()
 const { can, canEditTopic, canDeleteTopic } = usePermissions()
 
+// 顶级回复编辑器状态。
+const replyMarkdown = ref('')
+const replySubmitting = ref(false)
+const replyError = ref('')
+const showReplyError = ref(false)
+const showReplyEditor = computed(() => Boolean(topic.value && topic.value.status !== 'locked' && can(FORUM_PERMISSIONS.postCreate)))
+
+// 评论编辑/删除状态：同一时刻只允许一个内联编辑器或回复目标。
+const editingCommentId = ref<number | null>(null)
+const editingMarkdown = ref('')
+const editingSubmitting = ref(false)
+const editingError = ref('')
+const deletingCommentId = ref<number | null>(null)
+
 const topicID = computed(() => Number(route.params.topicID))
 const topicSlug = computed(() => String(route.params.topicSlug ?? ''))
 
@@ -209,19 +223,173 @@ watch(showActionError, (visible) => {
 })
 
 function commentActions(comment: ForumComment) {
-  const actions = []
+  const actions: { label: string; value: string; icon?: string }[] = []
   if (canReplyToComments.value) {
     actions.push({ label: t('topicDetail.reply'), value: 'reply', icon: 'i-lucide-reply' })
   }
   return actions
 }
 
+// 评论是否可被当前用户编辑/删除。
+const { canEditComment, canDeleteComment } = usePermissions()
+function isCommentEditable(comment: ForumComment) {
+  return canEditComment(comment)
+}
+function isCommentDeletable(comment: ForumComment) {
+  return canDeleteComment(comment)
+}
+
+function handleCommentClick(comment: ForumComment, value: string) {
+  if (value === 'reply') {
+    startReply(comment)
+  }
+}
+
 // 回复：仅在主题未锁定且当前用户有 post.create 时允许。
-const { can: canPermission } = usePermissions()
-const canReplyToComments = computed(() => Boolean(topic.value && topic.value.status !== 'locked' && canPermission(FORUM_PERMISSIONS.postCreate)))
+const canReplyToComments = computed(() => Boolean(topic.value && topic.value.status !== 'locked' && can(FORUM_PERMISSIONS.postCreate)))
 
 async function handleCommentAction(_value: string) {
   // 回复入口由 Task 3 的内联编辑器处理；这里先预留。
+}
+
+// 提交顶级回复。
+async function submitReply(payload?: { markdown?: string }) {
+  if (!topic.value || replySubmitting.value) {
+    return
+  }
+  const markdown = payload?.markdown ?? replyMarkdown.value
+  if (!markdown.trim()) {
+    return
+  }
+  replySubmitting.value = true
+  replyError.value = ''
+  showReplyError.value = false
+  try {
+    await forumApi.createTopicComment(topic.value.id, {
+      rawContent: markdown,
+      sourceFormat: 'markdown',
+      editorType: 'tiptap',
+      editorVersion: 'sf-editor-v1'
+    })
+    replyMarkdown.value = ''
+    await refreshComments()
+  } catch (error) {
+    replyError.value = apiErrorMessage(error) || t('topicDetail.replyFailed')
+    showReplyError.value = true
+  } finally {
+    replySubmitting.value = false
+  }
+}
+
+function onReplyEditorSubmit(payload: { markdown: string }) {
+  submitReply({ markdown: payload.markdown })
+}
+
+// 评论编辑。
+function startEditComment(comment: ForumComment) {
+  editingCommentId.value = comment.id
+  editingMarkdown.value = comment.content.rawContent
+  editingError.value = ''
+}
+
+function cancelEditComment() {
+  editingCommentId.value = null
+  editingMarkdown.value = ''
+  editingError.value = ''
+}
+
+async function saveCommentEdit(comment: ForumComment, payload?: { markdown?: string }) {
+  const markdown = payload?.markdown ?? editingMarkdown.value
+  if (!markdown.trim() || editingSubmitting.value) {
+    return
+  }
+  editingSubmitting.value = true
+  editingError.value = ''
+  try {
+    await forumApi.updateComment(comment.id, {
+      rawContent: markdown,
+      sourceFormat: 'markdown',
+      editorType: 'tiptap',
+      editorVersion: 'sf-editor-v1'
+    })
+    cancelEditComment()
+    await refreshComments()
+  } catch (error) {
+    editingError.value = apiErrorMessage(error) || t('topicDetail.editFailed')
+  } finally {
+    editingSubmitting.value = false
+  }
+}
+
+function onCommentEditSubmit(comment: ForumComment) {
+  return (payload: { markdown: string }) => saveCommentEdit(comment, { markdown: payload.markdown })
+}
+
+// 评论删除（软删）。
+async function deleteComment(comment: ForumComment) {
+  if (deletingCommentId.value) {
+    return
+  }
+  if (!window.confirm(t('topicDetail.confirmCommentDelete'))) {
+    return
+  }
+  deletingCommentId.value = comment.id
+  try {
+    await forumApi.deleteComment(comment.id)
+    await refreshComments()
+  } catch (error) {
+    replyError.value = apiErrorMessage(error) || t('topicDetail.deleteFailed')
+    showReplyError.value = true
+  } finally {
+    deletingCommentId.value = null
+  }
+}
+
+// 内联回复目标：点击评论的"回复"后展开一个编辑器，提交时带 parentId。
+const replyingTo = ref<ForumComment | null>(null)
+const nestedReplyMarkdown = ref('')
+const nestedReplySubmitting = ref(false)
+
+function startReply(comment: ForumComment) {
+  // 同一时刻只展开一个回复编辑器。
+  cancelEditComment()
+  replyingTo.value = comment
+  nestedReplyMarkdown.value = ''
+}
+
+function cancelReply() {
+  replyingTo.value = null
+  nestedReplyMarkdown.value = ''
+}
+
+async function submitNestedReply(comment: ForumComment, payload?: { markdown?: string }) {
+  if (!topic.value || nestedReplySubmitting.value) {
+    return
+  }
+  const markdown = payload?.markdown ?? nestedReplyMarkdown.value
+  if (!markdown.trim()) {
+    return
+  }
+  nestedReplySubmitting.value = true
+  try {
+    await forumApi.createTopicComment(topic.value.id, {
+      rawContent: markdown,
+      sourceFormat: 'markdown',
+      editorType: 'tiptap',
+      editorVersion: 'sf-editor-v1'
+    }, comment.id)
+    cancelReply()
+    await refreshComments()
+  } catch (error) {
+    replyError.value = apiErrorMessage(error) || t('topicDetail.replyFailed')
+    showReplyError.value = true
+  } finally {
+    nestedReplySubmitting.value = false
+  }
+}
+
+function onNestedReplySubmit(comment: ForumComment) {
+  return (payload: { markdown: string }) => submitNestedReply(comment, { markdown: payload.markdown })
 }
 </script>
 
@@ -381,34 +549,94 @@ async function handleCommentAction(_value: string) {
           <!-- 评论列表 -->
           <template v-else-if="comments.length">
             <SFCard class="p-5 space-y-5">
-              <SFComment
-                v-for="comment in comments"
-                :key="comment.id"
-                :author="commentAuthorName(comment)"
-                :author-link="commentAuthorPath(comment)"
-                :html-content="comment.content.htmlContent"
-                :meta="commentMeta(comment)"
-                :depth="0"
-                :reply-to="comment.replyTo ? { author: forumAuthorName(comment.replyTo.author, comment.replyTo.id), excerpt: comment.replyTo.excerpt } : undefined"
-                :actions="commentActions(comment)"
-                @action="handleCommentAction"
-              >
-                <!-- 嵌套子评论（tree 视图） -->
-                <template v-if="comment.children && comment.children.length">
-                  <SFComment
-                    v-for="child in comment.children"
-                    :key="child.id"
-                    :author="commentAuthorName(child)"
-                    :author-link="commentAuthorPath(child)"
-                    :html-content="child.content.htmlContent"
-                    :meta="commentMeta(child)"
-                    :depth="1"
-                    :reply-to="child.replyTo ? { author: forumAuthorName(child.replyTo.author, child.replyTo.id), excerpt: child.replyTo.excerpt } : undefined"
-                    :actions="commentActions(child)"
-                    @action="handleCommentAction"
-                  />
-                </template>
-              </SFComment>
+              <div v-for="comment in comments" :key="comment.id" class="space-y-2">
+                <SFComment
+                  :author="commentAuthorName(comment)"
+                  :author-link="commentAuthorPath(comment)"
+                  :html-content="editingCommentId === comment.id ? undefined : comment.content.htmlContent"
+                  :content="editingCommentId === comment.id ? '' : undefined"
+                  :meta="commentMeta(comment)"
+                  :depth="0"
+                  :reply-to="comment.replyTo ? { author: forumAuthorName(comment.replyTo.author, comment.replyTo.id), excerpt: comment.replyTo.excerpt } : undefined"
+                  :actions="commentActions(comment)"
+                  @action="(value: string) => handleCommentClick(comment, value)"
+                >
+                  <!-- 内联编辑器（替换正文） -->
+                  <template v-if="editingCommentId === comment.id">
+                    <SFEditor
+                      v-model="editingMarkdown"
+                      :placeholder="t('topicDetail.editPlaceholder')"
+                      :submit-label="t('topicDetail.saveEdit')"
+                      :disabled="editingSubmitting"
+                      :error="editingError"
+                      @submit="onCommentEditSubmit(comment)"
+                    />
+                    <div class="flex gap-2 mt-2">
+                      <SFButton variant="ghost" size="sm" :disabled="editingSubmitting" @click="cancelEditComment">
+                        {{ t('topicDetail.cancel') }}
+                      </SFButton>
+                    </div>
+                  </template>
+                  <!-- 评论操作按钮 -->
+                  <template v-else>
+                    <div v-if="isCommentEditable(comment) || isCommentDeletable(comment)" class="flex gap-2 mt-2">
+                      <button
+                        v-if="isCommentEditable(comment)"
+                        type="button"
+                        class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-[#0F766E] dark:text-zinc-400 dark:hover:text-teal-300"
+                        :aria-label="t('topicDetail.edit')"
+                        @click="startEditComment(comment)"
+                      >
+                        <UIcon name="i-lucide-pencil" class="size-3.5" />
+                        <span>{{ t('topicDetail.edit') }}</span>
+                      </button>
+                      <button
+                        v-if="isCommentDeletable(comment)"
+                        type="button"
+                        class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
+                        :aria-label="t('topicDetail.delete')"
+                        :disabled="deletingCommentId === comment.id"
+                        @click="deleteComment(comment)"
+                      >
+                        <UIcon name="i-lucide-trash-2" class="size-3.5" />
+                        <span>{{ deletingCommentId === comment.id ? t('topicDetail.deleting') : t('topicDetail.delete') }}</span>
+                      </button>
+                    </div>
+                  </template>
+
+                  <!-- 嵌套回复编辑器 -->
+                  <template v-if="replyingTo && replyingTo.id === comment.id">
+                    <SFEditor
+                      v-model="nestedReplyMarkdown"
+                      :placeholder="t('topicDetail.replyPlaceholder')"
+                      :submit-label="t('topicDetail.submitReply')"
+                      :disabled="nestedReplySubmitting"
+                      @submit="onNestedReplySubmit(comment)"
+                    />
+                    <div class="flex gap-2 mt-2">
+                      <SFButton variant="ghost" size="sm" :disabled="nestedReplySubmitting" @click="cancelReply">
+                        {{ t('topicDetail.cancel') }}
+                      </SFButton>
+                    </div>
+                  </template>
+
+                  <!-- 嵌套子评论（tree 视图） -->
+                  <template v-if="comment.children && comment.children.length && editingCommentId !== comment.id">
+                    <SFComment
+                      v-for="child in comment.children"
+                      :key="child.id"
+                      :author="commentAuthorName(child)"
+                      :author-link="commentAuthorPath(child)"
+                      :html-content="editingCommentId === child.id ? undefined : child.content.htmlContent"
+                      :meta="commentMeta(child)"
+                      :depth="1"
+                      :reply-to="child.replyTo ? { author: forumAuthorName(child.replyTo.author, child.replyTo.id), excerpt: child.replyTo.excerpt } : undefined"
+                      :actions="commentActions(child)"
+                      @action="(value: string) => handleCommentClick(child, value)"
+                    />
+                  </template>
+                </SFComment>
+              </div>
             </SFCard>
 
             <!-- 分页 -->
@@ -422,6 +650,28 @@ async function handleCommentAction(_value: string) {
             <SFEmptyState
               :title="t('topicDetail.emptyComments.title')"
               :description="t('topicDetail.emptyComments.description')"
+            />
+          </SFCard>
+
+          <!-- 顶级回复编辑器 -->
+          <SFCard v-if="showReplyEditor" class="p-5">
+            <h3 class="text-sm font-semibold text-slate-700 mb-3 dark:text-zinc-300">
+              {{ t('topicDetail.replyTitle') }}
+            </h3>
+            <SFEditor
+              v-model="replyMarkdown"
+              :placeholder="t('topicDetail.replyPlaceholder')"
+              :submit-label="replySubmitting ? t('topicDetail.submitting') : t('topicDetail.submitReply')"
+              :disabled="replySubmitting"
+              @submit="onReplyEditorSubmit"
+            />
+            <SFAlert
+              v-if="showReplyError"
+              variant="danger"
+              :title="replyError"
+              closable
+              class="mt-3"
+              @close="showReplyError = false"
             />
           </SFCard>
 
