@@ -157,3 +157,41 @@ mobile comments with the D-style flat list plus "replying to" context labels.
   comment APIs.
 - Add topic moderation/admin endpoints when the moderation UI starts.
 - Wire topic/comment writes into the future Meilisearch indexer.
+
+## Topic Lifecycle (Core Forum V1)
+
+Topic lifecycle is implemented in `apps/api/app/Models/Forum` and exposed via
+the public API:
+
+- `PATCH /api/v1/topics/{topicID}` updates title/category/tags/content. Title
+  changes regenerate the slug. Content changes preserve the triple-storage
+  rule: prior content is copied to `post_revisions` before the `posts` row is
+  overwritten.
+- `DELETE /api/v1/topics/{topicID}` soft-deletes (status `deleted`, sets
+  `deleted_at`, decrements category `topic_count`).
+- `POST /api/v1/topics/{topicID}/{hide|restore|lock|unlock|pin|unpin}` apply
+  status/pin transitions. `restore` clears `deleted_at`/`locked_at`.
+
+Permission model reuses existing keys: own edit needs `post.edit_own`,
+any edit needs `topic.edit_any`, own delete needs `post.delete_own`,
+any delete/hide/restore needs `topic.delete_any`, lock/unlock needs
+`topic.lock`, pin/unpin needs `topic.pin`.
+
+Public reads are limited to `active` and `locked` topics; hidden/deleted
+topics return 404 on public detail and are excluded from public lists. Locked
+topics remain readable but reject new comments with `forum.topic_closed`.
+
+Events: `topic.updated`, `topic.deleted`, `topic.hidden`, `topic.restored`,
+`topic.locked`, `topic.unlocked`, `topic.pinned`, `topic.unpinned` are emitted
+as observe events (see `app/Support/Events/catalog.go`).
+
+`GetTopicForAction` loads a topic summary without public visibility filtering
+for permission checks. `ScanTopicSummary`/`RowScanner` are exported so the
+Profile model reuses the same SELECT column layout for recent-topic lists.
+
+Frontend: `/t/:topicID/:topicSlug` renders topic detail with canonical slug
+redirect (301 SSR / replace client), sanitized HTML, comment tree/flat views,
+reply editor, and permission-aware action buttons. `/topics/new` and
+`/t/:topicID/:topicSlug/edit` provide composer and edit flows using
+`SFEditor` (submits markdown with `sourceFormat=markdown`,
+`editorType=tiptap`).
