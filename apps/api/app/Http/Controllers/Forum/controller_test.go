@@ -177,6 +177,109 @@ func TestControllerAdminSettingsResetWithPermission(t *testing.T) {
 	}
 }
 
+func TestControllerUpdateTopicRequiresLoginAndPermission(t *testing.T) {
+	app, _, _ := newForumTestApp()
+	body := []byte(`{"title":"新标题"}`)
+
+	// 未登录 -> 401。
+	resp := performForumRequest(t, app, nethttp.MethodPatch, "/api/v1/topics/10", body, nil)
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401 without session, got %d", resp.StatusCode)
+	}
+
+	// 登录但无编辑权限 -> 403。
+	cookie := loginForumUser(t, app, 2)
+	resp = performForumRequest(t, app, nethttp.MethodPatch, "/api/v1/topics/10", body, cookie)
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 without edit permission, got %d", resp.StatusCode)
+	}
+}
+
+func TestControllerUpdateTopicAllowsModerator(t *testing.T) {
+	app, _, store := newForumTestApp()
+	cookie := loginForumUser(t, app, 5) // 版主，含 topic.edit_any。
+
+	body := []byte(`{"title":"版主编辑标题","categorySlug":"general","tagSlugs":["go"]}`)
+	resp := performForumRequest(t, app, nethttp.MethodPatch, "/api/v1/topics/10", body, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 update topic, got %d", resp.StatusCode)
+	}
+	if store.updatedTopic.Title != "版主编辑标题" {
+		t.Fatalf("expected title update, got %#v", store.updatedTopic)
+	}
+}
+
+func TestControllerDeleteTopicRequiresPermission(t *testing.T) {
+	app, _, store := newForumTestApp()
+
+	// 未登录 -> 401。
+	resp := performForumRequest(t, app, nethttp.MethodDelete, "/api/v1/topics/10", nil, nil)
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401 without session, got %d", resp.StatusCode)
+	}
+
+	// 无权限 -> 403。
+	cookie := loginForumUser(t, app, 2)
+	resp = performForumRequest(t, app, nethttp.MethodDelete, "/api/v1/topics/10", nil, cookie)
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 without delete permission, got %d", resp.StatusCode)
+	}
+
+	// 版主 -> 200。
+	cookie = loginForumUser(t, app, 5)
+	resp = performForumRequest(t, app, nethttp.MethodDelete, "/api/v1/topics/10", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 delete topic, got %d", resp.StatusCode)
+	}
+	if store.deletedTopicID != 10 {
+		t.Fatalf("expected deleted topic id 10, got %d", store.deletedTopicID)
+	}
+}
+
+func TestControllerTopicActionRequiresPermission(t *testing.T) {
+	actions := []string{"hide", "restore", "lock", "unlock", "pin", "unpin"}
+
+	for _, action := range actions {
+		t.Run(action+"/denied", func(t *testing.T) {
+			app, _, _ := newForumTestApp()
+			// 无权限用户 -> 403。
+			cookie := loginForumUser(t, app, 2)
+			resp := performForumRequest(t, app, nethttp.MethodPost, "/api/v1/topics/10/"+action, nil, cookie)
+			if resp.StatusCode != nethttp.StatusForbidden {
+				t.Fatalf("expected 403 for %s without permission, got %d", action, resp.StatusCode)
+			}
+		})
+		t.Run(action+"/unauthenticated", func(t *testing.T) {
+			app, _, _ := newForumTestApp()
+			resp := performForumRequest(t, app, nethttp.MethodPost, "/api/v1/topics/10/"+action, nil, nil)
+			if resp.StatusCode != nethttp.StatusUnauthorized {
+				t.Fatalf("expected 401 for %s without session, got %d", action, resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestControllerTopicActionAllowsModerator(t *testing.T) {
+	app, _, store := newForumTestApp()
+	cookie := loginForumUser(t, app, 5)
+
+	resp := performForumRequest(t, app, nethttp.MethodPost, "/api/v1/topics/10/lock", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 lock, got %d", resp.StatusCode)
+	}
+	if store.appliedAction != forum.TopicActionLock {
+		t.Fatalf("expected applied action lock, got %s", store.appliedAction)
+	}
+
+	resp = performForumRequest(t, app, nethttp.MethodPost, "/api/v1/topics/10/pin", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 pin, got %d", resp.StatusCode)
+	}
+	if store.appliedAction != forum.TopicActionPin {
+		t.Fatalf("expected applied action pin, got %s", store.appliedAction)
+	}
+}
+
 func TestControllerPassesTreeAndFlatCommentViews(t *testing.T) {
 	app, _, store := newForumTestApp()
 
@@ -221,6 +324,12 @@ func newForumTestApp() (*fiber.App, *authsession.Manager, *controllerForumStore)
 		4: {ID: 4, Status: identity.UserStatusActive, Permissions: map[string]bool{
 			identity.PermissionCategoryManage: true,
 			identity.PermissionTagManage:      true,
+		}},
+		5: {ID: 5, Status: identity.UserStatusActive, Permissions: map[string]bool{
+			identity.PermissionTopicEditAny:   true,
+			identity.PermissionTopicDeleteAny: true,
+			identity.PermissionTopicLock:      true,
+			identity.PermissionTopicPin:       true,
 		}},
 	}}
 	store := &controllerForumStore{}
@@ -296,6 +405,10 @@ func (f forumRouteProviderFunc) RegisterRoutes(api fiber.Router) {
 
 type controllerForumStore struct {
 	createdTopic    forum.CreateTopicRecord
+	updatedTopic    forum.UpdateTopicRecord
+	deletedTopicID  int64
+	appliedAction   string
+	actionTopic     forum.TopicSummary
 	lastCommentView string
 	lastTopicList   forum.TopicListInput
 	settingsReset   bool
@@ -391,6 +504,25 @@ func (s *controllerForumStore) CreateTopic(_ context.Context, input forum.Create
 	}, nil
 }
 
+func (s *controllerForumStore) UpdateTopic(_ context.Context, input forum.UpdateTopicRecord) (forum.TopicDetail, error) {
+	s.updatedTopic = input
+	title := input.Title
+	if title == "" {
+		title = "公开帖子"
+	}
+	return forum.TopicDetail{TopicSummary: forum.TopicSummary{ID: input.TopicID, Title: title, Slug: "topic", Status: forum.TopicStatusActive}}, nil
+}
+
+func (s *controllerForumStore) DeleteTopic(_ context.Context, topicID int64) (forum.TopicDetail, error) {
+	s.deletedTopicID = topicID
+	return forum.TopicDetail{TopicSummary: forum.TopicSummary{ID: topicID, Status: forum.TopicStatusDeleted}}, nil
+}
+
+func (s *controllerForumStore) ApplyTopicAction(_ context.Context, input forum.TopicLifecycleInput) (forum.TopicLifecycleRecord, error) {
+	s.appliedAction = input.Action
+	return forum.TopicLifecycleRecord{TopicID: input.TopicID, Status: forum.TopicStatusActive, IsPinned: input.Action == forum.TopicActionPin}, nil
+}
+
 func (s *controllerForumStore) ResolveTopicTags(_ context.Context, input forum.ResolveTopicTagsInput) ([]forum.TopicTagSummary, error) {
 	items := make([]forum.TopicTagSummary, 0, len(input.Slugs))
 	for index, slug := range input.Slugs {
@@ -401,6 +533,13 @@ func (s *controllerForumStore) ResolveTopicTags(_ context.Context, input forum.R
 
 func (s *controllerForumStore) GetTopicForComment(context.Context, int64) (forum.TopicSummary, error) {
 	return forum.TopicSummary{ID: 10, Status: forum.TopicStatusActive}, nil
+}
+
+func (s *controllerForumStore) GetTopicForAction(context.Context, int64) (forum.TopicSummary, error) {
+	if s.actionTopic.ID == 0 {
+		return forum.TopicSummary{ID: 10, AuthorUserID: 1, Status: forum.TopicStatusActive}, nil
+	}
+	return s.actionTopic, nil
 }
 
 func (s *controllerForumStore) CreateComment(_ context.Context, input forum.CreateCommentRecord) (forum.Comment, error) {

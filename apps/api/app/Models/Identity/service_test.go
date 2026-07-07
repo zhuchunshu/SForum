@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
@@ -407,21 +408,29 @@ func testContext(t *testing.T) context.Context {
 }
 
 type fakeStore struct {
-	mu            sync.Mutex
-	nextUserID    int64
-	nextCustomID  int64
-	users         map[int64]CurrentUser
-	userEmails    map[int64]string
-	credentials   map[int64]string
-	loginIndex    map[string]int64
-	roles         map[string]Role
-	roleByID      map[int64]Role
-	userRoleIDs   map[int64][]int64
-	rolePerms     map[int64][]string
-	userOverrides map[int64]PermissionOverrides
-	loginAudits   []LoginAudit
-	credentialErr error
-	loadAccessErr error
+	mu                   sync.Mutex
+	nextUserID           int64
+	nextCustomID         int64
+	users                map[int64]CurrentUser
+	userEmails           map[int64]string
+	credentials          map[int64]string
+	loginIndex           map[string]int64
+	roles                map[string]Role
+	roleByID             map[int64]Role
+	userRoleIDs          map[int64][]int64
+	rolePerms            map[int64][]string
+	userOverrides        map[int64]PermissionOverrides
+	loginAudits          []LoginAudit
+	credentialErr        error
+	loadAccessErr        error
+	// 密码重置测试钩子。
+	createdResetToken      CreatePasswordResetTokenInput
+	consumedResetTokenHash string
+	consumeResetTokenErr   error
+	consumeResetUserID     int64
+	passwordUpdated        bool
+	updatedPasswordHash    string
+	updatedPasswordUserID  int64
 }
 
 func (s *fakeStore) seedRole(role Role) {
@@ -636,6 +645,32 @@ func (s *fakeStore) ReplaceUserPermissionOverrides(_ context.Context, _ int64, t
 
 func (s *fakeStore) RecordLoginAudit(_ context.Context, input LoginAudit) error {
 	s.loginAudits = append(s.loginAudits, input)
+	return nil
+}
+
+func (s *fakeStore) CreatePasswordResetToken(_ context.Context, input CreatePasswordResetTokenInput) (PasswordResetToken, error) {
+	s.createdResetToken = input
+	return PasswordResetToken{
+		ID:        1,
+		UserID:    input.UserID,
+		TokenHash: input.TokenHash,
+		ExpiresAt: input.ExpiresAt,
+		CreatedAt: time.Now().UTC(),
+	}, nil
+}
+
+func (s *fakeStore) ConsumePasswordResetToken(_ context.Context, tokenHash string) (int64, error) {
+	if s.consumeResetTokenErr != nil {
+		return 0, s.consumeResetTokenErr
+	}
+	s.consumedResetTokenHash = tokenHash
+	s.passwordUpdated = true
+	return s.consumeResetUserID, nil
+}
+
+func (s *fakeStore) UpdateUserPassword(_ context.Context, userID int64, passwordHash string) error {
+	s.updatedPasswordHash = passwordHash
+	s.updatedPasswordUserID = userID
 	return nil
 }
 

@@ -1,0 +1,114 @@
+Profile:
+  type: object
+  required:
+  - userId
+  - bio
+  - signature
+  - location
+  - websiteUrl
+  - createdAt
+  - updatedAt
+  properties:
+    userId:
+      type: integer
+      format: int64
+    bio:
+      type: string
+    signature:
+      type: string
+    location:
+      type: string
+    websiteUrl:
+      type: string
+    avatarAttachmentId:
+      type:
+      - integer
+      - 'null'
+      format: int64
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+PublicProfile:
+  type: object
+  required:
+  - userId
+  - username
+  - displayName
+  - profile
+  - topicCount
+  - commentCount
+  - recentTopics
+  - joinedAt
+  properties:
+    userId:
+      type: integer
+      format: int64
+    username:
+      type: string
+    displayName:
+      type: string
+    profile:
+      "$ref": "#/Profile"
+    topicCount:
+      type: integer
+      format: int64
+    commentCount:
+      type: integer
+      format: int64
+    recentTopics:
+      type: array
+      items:
+        "$ref": "../schemas/forum.yaml#/TopicSummary"
+    joinedAt:
+      type: string
+      format: date-time
+UpdateProfileRequest:
+  type: object
+  description: All fields optional. Omitted fields are left unchanged.
+  properties:
+    bio:
+      type: string
+      maxLength: 500
+    signature:
+      type: string
+      maxLength: 200
+    location:
+      type: string
+      maxLength: 100
+    websiteUrl:
+      type: string
+      maxLength: 200
+    avatarAttachmentId:
+      type:
+      - integer
+      - 'null'
+      format: int64
+ApiResponseProfile:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/Profile"
+ApiResponsePublicProfile:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/PublicProfile"

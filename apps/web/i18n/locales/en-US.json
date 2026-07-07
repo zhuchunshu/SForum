@@ -9,7 +9,12 @@
     "logout": "Log out",
     "language": "Language",
     "lightMode": "Switch to light mode",
-    "darkMode": "Switch to dark mode"
+    "darkMode": "Switch to dark mode",
+    "newTopic": "New Topic",
+    "myProfile": "My profile",
+    "profileSettings": "Profile settings",
+    "mailSettings": "Mail settings",
+    "moderation": "Moderation"
   },
   "home": {
     "metaTitle": "{siteName} Community",
@@ -92,7 +97,7 @@
     "privacy": "Privacy Policy",
     "loginNamePlaceholder": "username or email",
     "usernamePlaceholder": "cooluser123",
-    "emailPlaceholder": "email address",
+    "emailPlaceholder": "your{'@'}email.com",
     "displayNamePlaceholder": "Jane Doe",
     "passwordPlaceholder": "At least 12 characters",
     "passwordHint": "Use at least 12 characters; a short phrase or several words works well.",
@@ -103,7 +108,26 @@
     "brandDesc": "No algorithm, no noise. Organized by topic — every reply is worth reading.",
     "feature1": "Good posts rise on merit, not follower count",
     "feature2": "Markdown support for long-form writing",
-    "feature3": "Bilingual interface — switch anytime"
+    "feature3": "Bilingual interface — switch anytime",
+    "forgotPasswordDesc": "Enter your registered email and we will send a password reset link.",
+    "forgotPasswordFailed": "Request failed, please try again.",
+    "forgotPasswordSent": "Reset email sent (if the address exists)",
+    "forgotPasswordSentDesc": "If that email is registered, you will receive a message with a reset link. Check your inbox and spam folder.",
+    "sendResetLink": "Send reset link",
+    "resetPassword": "Reset password",
+    "resetPasswordDesc": "Set your new password.",
+    "resetPasswordFailed": "Reset failed; the token may be invalid or expired.",
+    "resetPasswordSuccess": "Password reset",
+    "resetPasswordSuccessDesc": "You can now sign in with your new password.",
+    "resetTokenMissing": "Missing reset token. Please use the link from your email.",
+    "newPassword": "New password",
+    "newPasswordPlaceholder": "At least 12 characters",
+    "confirmPassword": "Confirm new password",
+    "confirmPasswordPlaceholder": "Re-enter new password",
+    "passwordsDoNotMatch": "Passwords do not match.",
+    "passwordPolicyHint": "Password must be at least 12 characters.",
+    "backToLogin": "Back to login",
+    "submitting": "Submitting..."
   },
   "components": {
     "iconPicker": {
@@ -1229,6 +1253,76 @@
       "saving": "Saving...",
       "reset": "Reset",
       "unsavedChanges": "Unsaved changes detected"
+    },
+    "mailSettings": {
+      "title": "Mail settings",
+      "description": "Configure how the forum delivers mail for password resets and other notifications.",
+      "provider": "Provider",
+      "providerHint": "Dev defaults to dev_log (writes to logs); production should configure SMTP.",
+      "fromAddress": "From address",
+      "fromName": "From name",
+      "smtpTitle": "SMTP configuration",
+      "smtpHost": "SMTP host",
+      "smtpPort": "SMTP port",
+      "smtpUsername": "SMTP username",
+      "smtpPassword": "SMTP password",
+      "smtpEncryption": "Encryption",
+      "passwordSetHint": "Already set (leave blank to keep)",
+      "passwordPreservedHint": "Reset or blank keeps the stored password.",
+      "save": "Save settings",
+      "saving": "Saving...",
+      "saved": "Mail settings saved.",
+      "saveFailed": "Save failed, please try again.",
+      "loadFailed": "Failed to load mail settings.",
+      "testTitle": "Send test mail",
+      "testDesc": "Send a test message to verify delivery configuration.",
+      "testRecipientPlaceholder": "test{'@'}example.com",
+      "sendTest": "Send test",
+      "testing": "Sending...",
+      "testSent": "Test mail sent. Check the inbox.",
+      "testFailed": "Test mail failed. Check your SMTP settings."
+    },
+    "moderation": {
+      "title": "Moderation queue",
+      "description": "Process user-submitted reports, update status, and record review notes.",
+      "filterStatus": "Status",
+      "filterType": "Type",
+      "statusAll": "All statuses",
+      "typeAll": "All types",
+      "typeTopic": "Topic",
+      "typeComment": "Comment",
+      "statusOpen": "Open",
+      "statusReviewing": "Reviewing",
+      "statusResolved": "Resolved",
+      "statusRejected": "Rejected",
+      "status": {
+        "open": "Open",
+        "reviewing": "Reviewing",
+        "resolved": "Resolved",
+        "rejected": "Rejected"
+      },
+      "type": {
+        "topic": "Topic",
+        "comment": "Comment"
+      },
+      "reason": {
+        "spam": "Spam",
+        "abuse": "Abuse",
+        "illegal": "Illegal content",
+        "off_topic": "Off topic",
+        "other": "Other"
+      },
+      "viewTarget": "View target",
+      "reviewNotePlaceholder": "Review note...",
+      "saveNote": "Save note",
+      "markReviewing": "Mark reviewing",
+      "markResolved": "Mark resolved",
+      "markRejected": "Reject",
+      "updateFailed": "Update failed, please try again.",
+      "empty": {
+        "title": "No reports",
+        "description": "No pending reports match the current filters."
+      }
     }
   },
   "errors": {
@@ -1274,5 +1368,128 @@
     "terms": "Terms of Service",
     "privacy": "Privacy Policy",
     "guidelines": "Guidelines"
+  },
+  "topicDetail": {
+    "metaDescription": "View topic details and join the discussion.",
+    "notFound": {
+      "title": "Topic not found or removed",
+      "description": "This topic may have been deleted or hidden by a moderator."
+    },
+    "badge": {
+      "pinned": "Pinned",
+      "locked": "Locked"
+    },
+    "commentsTitle": "Comments ({count})",
+    "viewTree": "Tree",
+    "viewFlat": "Flat",
+    "edited": "edited",
+    "emptyComments": {
+      "title": "No comments yet",
+      "description": "Be the first to comment."
+    },
+    "lockedNotice": "This topic is locked and no longer accepts comments.",
+    "edit": "Edit",
+    "delete": "Delete",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "hide": "Hide",
+    "confirmDelete": "Delete this topic?",
+    "actionFailed": "Action failed, please try again.",
+    "lockToggled": "Topic lock state updated.",
+    "pinToggled": "Topic pin state updated.",
+    "hidden": "Topic hidden.",
+    "reply": "Reply",
+    "replyFailed": "Reply failed, please try again.",
+    "editFailed": "Edit failed, please try again.",
+    "deleteFailed": "Delete failed, please try again.",
+    "confirmCommentDelete": "Delete this comment?",
+    "editPlaceholder": "Edit your comment...",
+    "saveEdit": "Save",
+    "cancel": "Cancel",
+    "replyTitle": "Post a reply",
+    "replyPlaceholder": "Write your reply...",
+    "submitReply": "Post reply",
+    "submitting": "Submitting...",
+    "deleting": "Deleting...",
+    "report": "Report"
+  },
+  "composer": {
+    "metaTitle": "New Topic",
+    "metaDescription": "Write and publish a new community topic.",
+    "title": "New Topic",
+    "editTitle": "Edit Topic",
+    "categoryLabel": "Category",
+    "categoryDefault": "Select a category (defaults to General)",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Enter topic title",
+    "tagsLabel": "Tags",
+    "tagsPlaceholder": "Type a tag and press Enter (up to 5)",
+    "tagInvalid": "Tags may only contain lowercase letters, digits, and hyphens.",
+    "tagLimit": "You can add up to 5 tags.",
+    "removeTag": "Remove tag",
+    "bodyLabel": "Body",
+    "bodyPlaceholder": "Write what you want to share...",
+    "submit": "Publish",
+    "save": "Save",
+    "submitting": "Submitting...",
+    "submitFailed": "Publish failed, please try again.",
+    "permissionDenied": {
+      "title": "No permission to post",
+      "description": "Your account does not have permission to create topics."
+    }
+  },
+  "profile": {
+    "metaDescription": "View a community member's public profile.",
+    "notFound": {
+      "title": "User not found",
+      "description": "This username does not exist or the account is not active."
+    },
+    "topicCount": "Topics",
+    "commentCount": "Comments",
+    "joinedAt": "Joined",
+    "location": "Location",
+    "editProfile": "Edit profile",
+    "recentTopics": "Recent topics",
+    "replies": "replies"
+  },
+  "profileSettings": {
+    "metaTitle": "Profile settings",
+    "metaDescription": "Edit your public profile.",
+    "title": "Profile settings",
+    "username": "Username",
+    "usernameHint": "Username cannot be changed yet.",
+    "bio": "Bio",
+    "bioPlaceholder": "Tell us about yourself...",
+    "signature": "Signature",
+    "signaturePlaceholder": "Shown below your posts",
+    "location": "Location",
+    "locationPlaceholder": "Your city",
+    "website": "Website",
+    "websiteHint": "Enter a full URL including http:// or https://.",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Profile saved.",
+    "saveFailed": "Save failed, please try again."
+  },
+  "moderation": {
+    "reportTitle": "Report content",
+    "reasonLabel": "Select a reason",
+    "bodyLabel": "Additional details (optional)",
+    "bodyPlaceholder": "Provide more context for reviewers...",
+    "submit": "Submit report",
+    "submitting": "Submitting...",
+    "cancel": "Cancel",
+    "close": "Close",
+    "reportSubmitted": "Report submitted. Thank you.",
+    "reportFailed": "Report failed, please try again.",
+    "reason": {
+      "spam": "Spam",
+      "abuse": "Abuse",
+      "illegal": "Illegal content",
+      "off_topic": "Off topic",
+      "other": "Other"
+    }
   }
 }

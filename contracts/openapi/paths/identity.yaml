@@ -144,6 +144,52 @@ authSession:
               "$ref": "../schemas/identity.yaml#/ApiResponseCurrentUser"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
+passwordResetRequest:
+  post:
+    summary: Request a password reset email
+    description: |
+      Always returns success regardless of whether the email exists,
+      to avoid leaking account existence. Rate-limited; optionally
+      protected by human verification when the password_reset purpose is enabled.
+    operationId: requestPasswordReset
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/PasswordResetRequest"
+    responses:
+      '200':
+        description: Request accepted (generic).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponsePasswordResetSent"
+      '429':
+        "$ref": "../components/responses.yaml#/TooManyRequests"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+passwordResetConfirm:
+  post:
+    summary: Confirm a password reset with a token and new password
+    operationId: confirmPasswordReset
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/identity.yaml#/PasswordResetConfirmRequest"
+    responses:
+      '200':
+        description: Password updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponsePasswordResetConfirmed"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
 permissions:
   get:
     summary: List global permissions

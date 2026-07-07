@@ -18,6 +18,18 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/topics"
   "/topics/{topicID}":
     "$ref": "./openapi/paths/forum.yaml#/topicByID"
+  "/topics/{topicID}/hide":
+    "$ref": "./openapi/paths/forum.yaml#/topicHide"
+  "/topics/{topicID}/restore":
+    "$ref": "./openapi/paths/forum.yaml#/topicRestore"
+  "/topics/{topicID}/lock":
+    "$ref": "./openapi/paths/forum.yaml#/topicLock"
+  "/topics/{topicID}/unlock":
+    "$ref": "./openapi/paths/forum.yaml#/topicUnlock"
+  "/topics/{topicID}/pin":
+    "$ref": "./openapi/paths/forum.yaml#/topicPin"
+  "/topics/{topicID}/unpin":
+    "$ref": "./openapi/paths/forum.yaml#/topicUnpin"
   "/topics/{topicID}/comments":
     "$ref": "./openapi/paths/forum.yaml#/topicComments"
   "/comments/{commentID}/replies":
@@ -26,6 +38,10 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/commentByID"
   "/auth/registration-status":
     "$ref": "./openapi/paths/identity.yaml#/authRegistrationStatus"
+  "/profiles/{username}":
+    "$ref": "./openapi/paths/profile.yaml#/profileByUsername"
+  "/profile":
+    "$ref": "./openapi/paths/profile.yaml#/myProfile"
   "/auth/register":
     "$ref": "./openapi/paths/identity.yaml#/authRegister"
   "/human-verification/challenge":
@@ -36,6 +52,18 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/authLogout"
   "/auth/session":
     "$ref": "./openapi/paths/identity.yaml#/authSession"
+  "/auth/password-reset/request":
+    "$ref": "./openapi/paths/identity.yaml#/passwordResetRequest"
+  "/auth/password-reset/confirm":
+    "$ref": "./openapi/paths/identity.yaml#/passwordResetConfirm"
+  "/admin/mail/test":
+    "$ref": "./openapi/paths/mail.yaml#/adminMailTest"
+  "/moderation/reports":
+    "$ref": "./openapi/paths/moderation.yaml#/moderationReports"
+  "/admin/moderation/reports":
+    "$ref": "./openapi/paths/moderation.yaml#/adminModerationReports"
+  "/admin/moderation/reports/{reportID}":
+    "$ref": "./openapi/paths/moderation.yaml#/adminModerationReportByID"
   "/permissions":
     "$ref": "./openapi/paths/identity.yaml#/permissions"
   "/permissions/matrix":
@@ -264,6 +292,22 @@ components:
       "$ref": "./openapi/schemas/forum.yaml#/ApiResponseCommentArray"
     ApiResponseCommentList:
       "$ref": "./openapi/schemas/forum.yaml#/ApiResponseCommentList"
+    ApiResponseTopicAction:
+      "$ref": "./openapi/schemas/forum.yaml#/ApiResponseTopicAction"
+    UpdateTopicRequest:
+      "$ref": "./openapi/schemas/forum.yaml#/UpdateTopicRequest"
+    TopicAction:
+      "$ref": "./openapi/schemas/forum.yaml#/TopicAction"
+    Profile:
+      "$ref": "./openapi/schemas/profile.yaml#/Profile"
+    PublicProfile:
+      "$ref": "./openapi/schemas/profile.yaml#/PublicProfile"
+    UpdateProfileRequest:
+      "$ref": "./openapi/schemas/profile.yaml#/UpdateProfileRequest"
+    ApiResponseProfile:
+      "$ref": "./openapi/schemas/profile.yaml#/ApiResponseProfile"
+    ApiResponsePublicProfile:
+      "$ref": "./openapi/schemas/profile.yaml#/ApiResponsePublicProfile"
     ExtensionType:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionType"
     ExtensionStatus:

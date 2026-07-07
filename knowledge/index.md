@@ -309,7 +309,12 @@ This is the entry point for project memory.
 - `modules/extensions.md` - extension package, plugin/theme manifest,
   lifecycle, permissions, storage, and runtime-boundary notes.
 - `modules/forum.md` - categories, topics, tree comments, shared content
-  posts, API routes, and future frontend display decisions.
+  posts, API routes, topic lifecycle, and frontend display decisions.
+- `modules/profile.md` - member public profiles and current-user profile
+  settings.
+- `modules/mail.md` - mail provider contract, runtime options, and password
+  reset mail flow.
+- `modules/moderation.md` - user reports and admin moderation queue.
 - `legacy-sforum-feature-gap.md` - inventory of SForum-old features that are
   not yet implemented in the rewrite, grouped by migration impact and suggested
   build order.
@@ -363,6 +368,9 @@ This is the entry point for project memory.
 - `decisions/2026-07-06-forum-topics-comments-posts.md` - accepted forum
   backend model where `topics` are user-facing posts, `comments` are tree
   replies, and `posts` is the shared content table.
+- `decisions/2026-07-07-mail-provider-contract.md` - accepted mail provider
+  contract (`mail.Provider` interface with noop/dev_log/smtp built-ins) and
+  runtime option resolution for password reset and notifications.
 - `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA
   implementation handoff.
 - `sessions/2026-07-04-registration-status-notice.md` - first-user
@@ -435,6 +443,9 @@ This is the entry point for project memory.
 - `sessions/2026-07-07-theme-runtime-convergence.md` - `current.json` 新契约
   (`mode`/`server`/`layerPath`)、默认主题同步写 current、dev 主题感知 supervisor、
   runtime.mjs 健壮化、i18n 文案修正 handoff。
+- `sessions/2026-07-07-core-forum-v1.md` - Core Forum V1 implementation
+  handoff: topic lifecycle, detail/composer UI, profiles, mail + password
+  reset, moderation reports, and full verification results.
 - `sessions/2026-07-04-permission-aware-development-guidelines.md` -
   permission-aware feature development guideline handoff.
 - `sessions/2026-07-05-auth-session-restart-resilience.md` - frontend auth

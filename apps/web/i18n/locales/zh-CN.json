@@ -9,7 +9,12 @@
     "logout": "退出登录",
     "language": "语言",
     "lightMode": "切换到浅色模式",
-    "darkMode": "切换到夜间模式"
+    "darkMode": "切换到夜间模式",
+    "newTopic": "发帖",
+    "myProfile": "我的资料",
+    "profileSettings": "资料设置",
+    "mailSettings": "邮件设置",
+    "moderation": "审核"
   },
   "home": {
     "metaTitle": "{siteName} 社区首页",
@@ -92,7 +97,7 @@
     "privacy": "隐私政策",
     "loginNamePlaceholder": "用户名或邮箱",
     "usernamePlaceholder": "cooluser123",
-    "emailPlaceholder": "邮箱地址",
+    "emailPlaceholder": "your{'@'}email.com",
     "displayNamePlaceholder": "小明",
     "passwordPlaceholder": "至少 12 个字符",
     "passwordHint": "密码至少需要 12 个字符；建议使用短句或多个单词组合。",
@@ -103,7 +108,26 @@
     "brandDesc": "没有算法推荐，没有信息流噪音。按话题组织，每条回复都值得被读到。",
     "feature1": "发帖不需要关注数，好内容自然会浮现",
     "feature2": "支持 Markdown，写长文不再将就",
-    "feature3": "中英文界面，随时切换"
+    "feature3": "中英文界面，随时切换",
+    "forgotPasswordDesc": "输入你的注册邮箱，我们将发送密码重置链接。",
+    "forgotPasswordFailed": "请求失败，请稍后重试。",
+    "forgotPasswordSent": "重置邮件已发送（如该邮箱存在）",
+    "forgotPasswordSentDesc": "如果该邮箱已注册，你将收到一封包含重置链接的邮件。请检查收件箱和垃圾邮件。",
+    "sendResetLink": "发送重置链接",
+    "resetPassword": "重置密码",
+    "resetPasswordDesc": "设置你的新密码。",
+    "resetPasswordFailed": "重置失败，令牌可能已失效或过期。",
+    "resetPasswordSuccess": "密码已重置",
+    "resetPasswordSuccessDesc": "你现在可以使用新密码登录。",
+    "resetTokenMissing": "缺少重置令牌。请通过邮件中的链接访问本页。",
+    "newPassword": "新密码",
+    "newPasswordPlaceholder": "至少 12 个字符",
+    "confirmPassword": "确认新密码",
+    "confirmPasswordPlaceholder": "再次输入新密码",
+    "passwordsDoNotMatch": "两次输入的密码不一致。",
+    "passwordPolicyHint": "密码至少 12 个字符。",
+    "backToLogin": "返回登录",
+    "submitting": "提交中..."
   },
   "components": {
     "iconPicker": {
@@ -1229,6 +1253,76 @@
       "saving": "保存中...",
       "reset": "重置",
       "unsavedChanges": "检测到有未保存的更改"
+    },
+    "mailSettings": {
+      "title": "邮件设置",
+      "description": "配置论坛的邮件投递方式，用于密码重置等通知。",
+      "provider": "投递方式",
+      "providerHint": "开发环境默认 dev_log（写入日志）；生产环境应配置 SMTP。",
+      "fromAddress": "发件地址",
+      "fromName": "发件人名称",
+      "smtpTitle": "SMTP 配置",
+      "smtpHost": "SMTP 主机",
+      "smtpPort": "SMTP 端口",
+      "smtpUsername": "SMTP 用户名",
+      "smtpPassword": "SMTP 密码",
+      "smtpEncryption": "加密方式",
+      "passwordSetHint": "已设置（留空保留原值）",
+      "passwordPreservedHint": "重置或留空时保留已存的密码。",
+      "save": "保存设置",
+      "saving": "保存中...",
+      "saved": "邮件设置已保存。",
+      "saveFailed": "保存失败，请稍后重试。",
+      "loadFailed": "加载邮件设置失败。",
+      "testTitle": "发送测试邮件",
+      "testDesc": "向指定地址发送一封测试邮件，验证投递配置是否生效。",
+      "testRecipientPlaceholder": "test{'@'}example.com",
+      "sendTest": "发送测试",
+      "testing": "发送中...",
+      "testSent": "测试邮件已发送，请查收。",
+      "testFailed": "测试邮件发送失败，请检查 SMTP 配置。"
+    },
+    "moderation": {
+      "title": "审核队列",
+      "description": "处理用户提交的举报，更新状态并记录审核备注。",
+      "filterStatus": "状态",
+      "filterType": "类型",
+      "statusAll": "全部状态",
+      "typeAll": "全部类型",
+      "typeTopic": "主题",
+      "typeComment": "评论",
+      "statusOpen": "待处理",
+      "statusReviewing": "审核中",
+      "statusResolved": "已处理",
+      "statusRejected": "已驳回",
+      "status": {
+        "open": "待处理",
+        "reviewing": "审核中",
+        "resolved": "已处理",
+        "rejected": "已驳回"
+      },
+      "type": {
+        "topic": "主题",
+        "comment": "评论"
+      },
+      "reason": {
+        "spam": "垃圾广告",
+        "abuse": "辱骂攻击",
+        "illegal": "违法内容",
+        "off_topic": "偏离主题",
+        "other": "其他"
+      },
+      "viewTarget": "查看目标",
+      "reviewNotePlaceholder": "审核备注...",
+      "saveNote": "保存备注",
+      "markReviewing": "标记审核中",
+      "markResolved": "标记已处理",
+      "markRejected": "驳回",
+      "updateFailed": "更新失败，请稍后重试。",
+      "empty": {
+        "title": "暂无举报",
+        "description": "当前过滤条件下没有待处理的举报。"
+      }
     }
   },
   "errors": {
@@ -1274,5 +1368,128 @@
     "terms": "服务条款",
     "privacy": "隐私政策",
     "guidelines": "社区指南"
+  },
+  "topicDetail": {
+    "metaDescription": "查看社区话题详情并参与讨论。",
+    "notFound": {
+      "title": "话题不存在或已被移除",
+      "description": "该话题可能已被删除或被版主隐藏。"
+    },
+    "badge": {
+      "pinned": "置顶",
+      "locked": "已锁定"
+    },
+    "commentsTitle": "评论 ({count})",
+    "viewTree": "树状",
+    "viewFlat": "平铺",
+    "edited": "已编辑",
+    "emptyComments": {
+      "title": "还没有评论",
+      "description": "成为第一个发表评论的人。"
+    },
+    "lockedNotice": "该话题已锁定，暂不接受新评论。",
+    "edit": "编辑",
+    "delete": "删除",
+    "lock": "锁定",
+    "unlock": "解锁",
+    "pin": "置顶",
+    "unpin": "取消置顶",
+    "hide": "隐藏",
+    "confirmDelete": "确定要删除这个话题吗？",
+    "actionFailed": "操作失败，请稍后重试。",
+    "lockToggled": "话题锁定状态已更新。",
+    "pinToggled": "话题置顶状态已更新。",
+    "hidden": "话题已隐藏。",
+    "reply": "回复",
+    "replyFailed": "回复失败，请稍后重试。",
+    "editFailed": "编辑失败，请稍后重试。",
+    "deleteFailed": "删除失败，请稍后重试。",
+    "confirmCommentDelete": "确定要删除这条评论吗？",
+    "editPlaceholder": "编辑评论内容...",
+    "saveEdit": "保存修改",
+    "cancel": "取消",
+    "replyTitle": "发表回复",
+    "replyPlaceholder": "写下你的回复...",
+    "submitReply": "发布回复",
+    "submitting": "提交中...",
+    "deleting": "删除中...",
+    "report": "举报"
+  },
+  "composer": {
+    "metaTitle": "发布新话题",
+    "metaDescription": "撰写并发布一个新的社区话题。",
+    "title": "发布话题",
+    "editTitle": "编辑话题",
+    "categoryLabel": "分类",
+    "categoryDefault": "选择分类（默认综合讨论）",
+    "titleLabel": "标题",
+    "titlePlaceholder": "请输入话题标题",
+    "tagsLabel": "标签",
+    "tagsPlaceholder": "输入标签后回车添加（最多 5 个）",
+    "tagInvalid": "标签只能包含小写字母、数字和连字符。",
+    "tagLimit": "最多添加 5 个标签。",
+    "removeTag": "移除标签",
+    "bodyLabel": "正文",
+    "bodyPlaceholder": "写下你想分享的内容...",
+    "submit": "发布",
+    "save": "保存",
+    "submitting": "提交中...",
+    "submitFailed": "发布失败，请稍后重试。",
+    "permissionDenied": {
+      "title": "没有发帖权限",
+      "description": "你的账号当前没有发布话题的权限。"
+    }
+  },
+  "profile": {
+    "metaDescription": "查看社区成员的公开资料。",
+    "notFound": {
+      "title": "用户不存在",
+      "description": "该用户名不存在或账号未激活。"
+    },
+    "topicCount": "主题",
+    "commentCount": "评论",
+    "joinedAt": "加入时间",
+    "location": "位置",
+    "editProfile": "编辑资料",
+    "recentTopics": "最近主题",
+    "replies": "回复"
+  },
+  "profileSettings": {
+    "metaTitle": "资料设置",
+    "metaDescription": "编辑你的公开资料。",
+    "title": "资料设置",
+    "username": "用户名",
+    "usernameHint": "用户名暂不支持修改。",
+    "bio": "简介",
+    "bioPlaceholder": "介绍一下你自己...",
+    "signature": "个性签名",
+    "signaturePlaceholder": "显示在你的发言下方",
+    "location": "位置",
+    "locationPlaceholder": "你所在的城市",
+    "website": "网站",
+    "websiteHint": "请填写完整的网址，包含 http:// 或 https://。",
+    "save": "保存",
+    "saving": "保存中...",
+    "saved": "资料已保存。",
+    "saveFailed": "保存失败，请稍后重试。"
+  },
+  "moderation": {
+    "reportTitle": "举报内容",
+    "reasonLabel": "选择举报原因",
+    "bodyLabel": "补充说明（可选）",
+    "bodyPlaceholder": "提供更多上下文帮助审核...",
+    "submit": "提交举报",
+    "submitting": "提交中...",
+    "cancel": "取消",
+    "close": "关闭",
+    "reportSubmitted": "举报已提交，感谢你的反馈。",
+    "reportFailed": "举报失败，请稍后重试。",
+    "reason": {
+      "spam": "垃圾广告",
+      "abuse": "辱骂攻击",
+      "illegal": "违法内容",
+      "off_topic": "偏离主题",
+      "other": "其他"
+    }
   }
 }

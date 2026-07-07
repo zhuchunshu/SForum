@@ -131,6 +131,17 @@ and plugin runtime v1.
   them from `sforum.default-theme`. Multi-node rollout, signed marketplace
   trust, arbitrary theme dependency installation, and administrator preview
   approval are still future work.
+- Theme switching is zero-downtime (blue-green). The web supervisor
+  (`apps/web/scripts/theme-proxy.mjs`, shared by production `runtime.mjs` and
+  local `dev-theme-runtime.mjs`) runs a built-in reverse proxy that owns the
+  external port (PORT, default 3000). Child processes listen on a separate
+  address: production uses a per-release unix socket via
+  `NITRO_UNIX_SOCKET` (Nitro `node-server` does not honor `PORT=0`); local dev
+  uses `PORT=0` and the supervisor parses the listening port from nuxt dev
+  stdout. On `current.json` change the supervisor spawns the new child, waits
+  for its health check to pass, then atomically swaps the proxy upstream and
+  drains the old child, so traffic is never interrupted. A candidate that fails
+  health check leaves the old child serving.
 - `theme-releases/current.json` is the single runtime theme selection signal and
   is consumed by both production `runtime.mjs` and local `dev-theme-runtime.mjs`.
   Uploaded activation writes `mode: "uploaded"` with absolute `server`

@@ -1,0 +1,96 @@
+moderationReports:
+  post:
+    summary: Report a topic or comment
+    operationId: createReport
+    security:
+    - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/moderation.yaml#/CreateReportRequest"
+    responses:
+      '201':
+        description: Report created.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/moderation.yaml#/ApiResponseReport"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminModerationReports:
+  get:
+    summary: List moderation reports for review
+    operationId: listModerationReports
+    security:
+    - cookieAuth: []
+    parameters:
+    - name: status
+      in: query
+      schema:
+        "$ref": "../schemas/moderation.yaml#/ReportStatus"
+    - name: targetType
+      in: query
+      schema:
+        "$ref": "../schemas/moderation.yaml#/ReportTargetType"
+    - name: reporterId
+      in: query
+      schema:
+        type: integer
+        format: int64
+    - name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    responses:
+      '200':
+        description: Paged report list.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/moderation.yaml#/ApiResponseReportList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+adminModerationReportByID:
+  patch:
+    summary: Update a report status and review note
+    operationId: updateModerationReport
+    security:
+    - cookieAuth: []
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ReportID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/moderation.yaml#/UpdateReportRequest"
+    responses:
+      '200':
+        description: Report updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/moderation.yaml#/ApiResponseReport"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"

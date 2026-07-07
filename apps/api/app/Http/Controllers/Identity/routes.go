@@ -11,6 +11,11 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	auth.Post("/login", h.login)
 	auth.Post("/logout", h.logout)
 	auth.Get("/session", h.session)
+	auth.Post("/password-reset/request", h.passwordResetRequest)
+	auth.Post("/password-reset/confirm", h.passwordResetConfirm)
+
+	// 邮件测试：管理员验证 SMTP 配置是否生效。
+	api.Post("/admin/mail/test", h.adminMailTest)
 
 	api.Get("/permissions", h.listPermissions)
 	api.Get("/permissions/matrix", h.permissionMatrix)

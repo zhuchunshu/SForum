@@ -21,13 +21,16 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
 	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
@@ -108,6 +111,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	})
 	identityStore := identity.NewPostgresStore(pool)
 	forumStore := forum.NewPostgresStore(pool)
+	profileStore := profile.NewPostgresStore(pool)
+	moderationStore := moderation.NewPostgresStore(pool)
 	attachmentStore := attachments.NewPostgresStore(pool)
 	databaseStore := database.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
@@ -164,15 +169,25 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("list extensions for runtime reconciliation failed: %w", err)
 	}
-	identityProvider := providers.NewIdentityProviderWithEvents(identityStore, authSessions, humanVerifier, extensionRuntime)
+	// 邮件服务与密码重置：mail resolver 复用 options.Service（实现 mail.Resolver）。
+	mailService := mail.NewService(optionsService, logger)
+	siteName, _ := optionsService.SiteName(ctx)
+	siteURL, _ := optionsService.WebOption(ctx, "site.url")
+	passwordResetService := identity.NewPasswordResetService(identityStore, mailService, identity.PasswordResetConfig{
+		SiteName: siteName,
+		SiteURL:  siteURL,
+	})
+	identityProvider := providers.NewIdentityProviderWithPasswordReset(identityStore, authSessions, humanVerifier, extensionRuntime, passwordResetService, mailService, optionsService)
 	forumProvider := providers.NewForumProviderWithOptionsAndEvents(forumStore, optionsService, identityStore, authSessions, extensionRuntime)
+	profileProvider := providers.NewProfileProvider(profileStore, identityStore, authSessions)
+	moderationProvider := providers.NewModerationProvider(moderationStore, forumStore, identityStore, authSessions)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, extensionRuntime)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
 	extensionsProvider := providers.NewExtensionsProviderWithRuntimeAndThemeActivation(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime, themeDispatcher, extensions.WithThemeCurrentWriter(themeCurrentWriter))
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider, forumProvider, optionsProvider, attachmentsProvider, databaseProvider, extensionsProvider},
+		RouteProviders: []httpserver.RouteProvider{identityProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, attachmentsProvider, databaseProvider, extensionsProvider},
 		Options:        optionsService,
 	})
 

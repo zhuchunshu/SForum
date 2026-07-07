@@ -1,0 +1,37 @@
+MailProvider:
+  type: string
+  enum:
+  - dev_log
+  - smtp
+  - noop
+MailEncryption:
+  type: string
+  enum:
+  - none
+  - starttls
+  - tls
+MailTestRequest:
+  type: object
+  properties:
+    recipient:
+      type: string
+      format: email
+      description: Recipient email address for the test mail.
+ApiResponseMailTest:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: object
+      required:
+      - sent
+      properties:
+        sent:
+          type: boolean

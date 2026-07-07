@@ -1575,6 +1575,18 @@ func (s *httpFakeStore) RecordLoginAudit(_ context.Context, input identity.Login
 	return nil
 }
 
+func (s *httpFakeStore) CreatePasswordResetToken(_ context.Context, input identity.CreatePasswordResetTokenInput) (identity.PasswordResetToken, error) {
+	return identity.PasswordResetToken{ID: 1, UserID: input.UserID, TokenHash: input.TokenHash, ExpiresAt: input.ExpiresAt}, nil
+}
+
+func (s *httpFakeStore) ConsumePasswordResetToken(_ context.Context, _ string) (int64, error) {
+	return 0, identity.ErrPasswordResetTokenNotFound
+}
+
+func (s *httpFakeStore) UpdateUserPassword(_ context.Context, _ int64, _ string) error {
+	return nil
+}
+
 func (s *httpFakeStore) withAccess(user identity.CurrentUser) identity.CurrentUser {
 	roleIDs := s.userRoleIDs[user.ID]
 	roleKeys := make([]string, 0, len(roleIDs))

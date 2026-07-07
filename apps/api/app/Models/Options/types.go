@@ -91,6 +91,16 @@ const (
 	NameAttachmentSFTPHostKeyFingerprint = "attachment.sftp.host_key_fingerprint"
 	NameAttachmentSFTPPublicBaseURL      = "attachment.sftp.public_base_url"
 
+	// 邮件运行时选项。
+	NameMailProvider           = "mail.provider"
+	NameMailFromAddress        = "mail.from_address"
+	NameMailFromName           = "mail.from_name"
+	NameMailSMTPHost           = "mail.smtp.host"
+	NameMailSMTPPort           = "mail.smtp.port"
+	NameMailSMTPUsername       = "mail.smtp.username"
+	NameMailSMTPPassword       = "mail.smtp.password"
+	NameMailSMTPEncryption     = "mail.smtp.encryption"
+
 	CodeInvalid = "options.invalid"
 )
 

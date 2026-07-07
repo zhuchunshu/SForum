@@ -7,6 +7,10 @@ const { siteName } = useWebOptions()
 const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
 const router = useRouter()
 const colorMode = useColorMode()
+const { can } = usePermissions()
+
+// 仅对有发帖权限的登录用户显示“发帖”入口。
+const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 
 // 控制用户下拉菜单的显示
 const menuOpen = ref(false)
@@ -128,6 +132,14 @@ function toggleColorMode() {
         <NuxtLink :to="localePath('/')" class="navbar__nav-link">
           {{ t('nav.home') }}
         </NuxtLink>
+        <NuxtLink
+          v-if="canCreateTopic"
+          :to="localePath('/topics/new')"
+          class="navbar__nav-link navbar__nav-link--create"
+        >
+          <UIcon name="i-lucide-plus" class="size-4" />
+          <span>{{ t('nav.newTopic') }}</span>
+        </NuxtLink>
       </nav>
 
       <!-- 语言切换 -->
@@ -227,6 +239,25 @@ function toggleColorMode() {
                   <span class="navbar__dropdown-name">{{ displayName }}</span>
                   <span class="navbar__dropdown-username">@{{ user.username }}</span>
                 </div>
+                <div class="navbar__dropdown-divider" />
+                <NuxtLink
+                  :to="localePath(`/u/${user.username}`)"
+                  class="navbar__dropdown-item"
+                  role="menuitem"
+                  @click="menuOpen = false"
+                >
+                  <UIcon name="i-lucide-user" class="size-3.5" />
+                  <span>{{ t('nav.myProfile') }}</span>
+                </NuxtLink>
+                <NuxtLink
+                  :to="localePath('/settings/profile')"
+                  class="navbar__dropdown-item"
+                  role="menuitem"
+                  @click="menuOpen = false"
+                >
+                  <UIcon name="i-lucide-settings" class="size-3.5" />
+                  <span>{{ t('nav.profileSettings') }}</span>
+                </NuxtLink>
                 <div class="navbar__dropdown-divider" />
                 <button
                   class="navbar__dropdown-item navbar__dropdown-item--danger"

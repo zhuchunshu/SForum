@@ -86,6 +86,20 @@ export const adminPageDefinitions = [
     requiredPermissions: ['settings.manage']
   },
   {
+    id: '/settings/mail',
+    labelKey: 'admin.nav.mailSettings',
+    icon: 'i-lucide-mail',
+    componentName: 'AdminMailSettings',
+    requiredPermissions: ['settings.manage']
+  },
+  {
+    id: '/moderation',
+    labelKey: 'admin.nav.moderation',
+    icon: 'i-lucide-shield-alert',
+    componentName: 'AdminModeration',
+    requiredPermissions: ['moderation.report_review']
+  },
+  {
     id: '/seo',
     labelKey: 'admin.nav.seo',
     icon: 'i-lucide-search',

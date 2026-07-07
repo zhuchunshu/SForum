@@ -1,0 +1,144 @@
+ReportTargetType:
+  type: string
+  enum:
+  - topic
+  - comment
+ReportReasonCode:
+  type: string
+  enum:
+  - spam
+  - abuse
+  - illegal
+  - off_topic
+  - other
+ReportStatus:
+  type: string
+  enum:
+  - open
+  - reviewing
+  - resolved
+  - rejected
+Report:
+  type: object
+  required:
+  - id
+  - targetType
+  - targetId
+  - reasonCode
+  - body
+  - status
+  - reviewNote
+  - createdAt
+  - updatedAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    reporterUserId:
+      type: integer
+      format: int64
+    reporterName:
+      type: string
+    targetType:
+      "$ref": "#/ReportTargetType"
+    targetId:
+      type: integer
+      format: int64
+    reasonCode:
+      "$ref": "#/ReportReasonCode"
+    body:
+      type: string
+    status:
+      "$ref": "#/ReportStatus"
+    reviewerUserId:
+      type:
+      - integer
+      - 'null'
+      format: int64
+    reviewerName:
+      type: string
+    reviewNote:
+      type: string
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+    resolvedAt:
+      type:
+      - string
+      - 'null'
+      format: date-time
+ReportList:
+  type: object
+  required:
+  - items
+  - total
+  - page
+  - perPage
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/Report"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    perPage:
+      type: integer
+CreateReportRequest:
+  type: object
+  required:
+  - targetType
+  - targetId
+  - reasonCode
+  properties:
+    targetType:
+      "$ref": "#/ReportTargetType"
+    targetId:
+      type: integer
+      format: int64
+    reasonCode:
+      "$ref": "#/ReportReasonCode"
+    body:
+      type: string
+      maxLength: 2000
+UpdateReportRequest:
+  type: object
+  required:
+  - status
+  properties:
+    status:
+      "$ref": "#/ReportStatus"
+    reviewNote:
+      type: string
+      maxLength: 2000
+ApiResponseReport:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/Report"
+ApiResponseReportList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ReportList"

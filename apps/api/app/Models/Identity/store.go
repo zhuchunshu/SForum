@@ -21,6 +21,10 @@ type Store interface {
 	ReplaceUserRoles(ctx context.Context, actorUserID int64, targetUserID int64, roleKeys []string) (AdminUserDetail, error)
 	ReplaceUserPermissionOverrides(ctx context.Context, actorUserID int64, targetUserID int64, overrides PermissionOverrides) (AdminUserDetail, error)
 	RecordLoginAudit(ctx context.Context, input LoginAudit) error
+	// 密码重置：创建令牌、消费令牌、更新密码哈希。
+	CreatePasswordResetToken(ctx context.Context, input CreatePasswordResetTokenInput) (PasswordResetToken, error)
+	ConsumePasswordResetToken(ctx context.Context, tokenHash string) (int64, error)
+	UpdateUserPassword(ctx context.Context, userID int64, passwordHash string) error
 }
 
 type ActorStore interface {

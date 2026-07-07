@@ -31,6 +31,15 @@ const (
 	TagCreationModeReview     = "review"
 	TagCreationModeOpen       = "open"
 
+	// 主题生命周期动作。hide/restore 归版主（topic.delete_any），
+	// lock/unlock 归 topic.lock，pin/unpin 归 topic.pin。
+	TopicActionHide    = "hide"
+	TopicActionRestore = "restore"
+	TopicActionLock    = "lock"
+	TopicActionUnlock  = "unlock"
+	TopicActionPin     = "pin"
+	TopicActionUnpin   = "unpin"
+
 	CodeInvalidContent  = "forum.content_invalid"
 	CodeInvalidTopic    = "forum.topic_invalid"
 	CodeTopicNotFound   = "forum.topic_not_found"
@@ -39,6 +48,7 @@ const (
 	CodeInvalidTag      = "forum.tag_invalid"
 	CodeTagNotFound     = "forum.tag_not_found"
 	CodeInvalidSettings = "forum.settings_invalid"
+	CodeInvalidAction   = "forum.topic_action_invalid"
 )
 
 var (
@@ -50,6 +60,7 @@ var (
 	ErrInvalidTag      = errors.New("forum: invalid tag")
 	ErrTagNotFound     = errors.New("forum: tag not found")
 	ErrInvalidSettings = errors.New("forum: invalid settings")
+	ErrInvalidAction   = errors.New("forum: invalid topic action")
 )
 
 type ContentInput struct {
@@ -176,6 +187,42 @@ type CreateTopicRecord struct {
 	TagCreationMode string
 	Tags            []TopicTagSummary
 	Content         RenderedContent
+}
+
+// UpdateTopicInput 是作者或版主更新主题时提交的输入。content 为可选：
+// 不传则只更新标题/分类/标签，传则按 triple-storage 规则重新渲染并写入 post_revisions。
+type UpdateTopicInput struct {
+	TopicID       int64
+	CategorySlug  *string
+	Title         *string
+	TagSlugs      []string
+	Content       *ContentInput
+}
+
+// UpdateTopicRecord 是 store 层更新主题的内部记录。content 为 nil 时表示不改正文。
+type UpdateTopicRecord struct {
+	TopicID       int64
+	EditorUserID  int64
+	CategorySlug  string
+	Title         string
+	Slug          string
+	TagSlugs      []string
+	TagCreationMode string
+	HasContent    bool
+	Content       RenderedContent
+}
+
+// TopicLifecycleInput 描述一次主题生命周期动作（hide/restore/lock/unlock/pin/unpin）。
+type TopicLifecycleInput struct {
+	TopicID int64
+	Action  string
+}
+
+// TopicLifecycleRecord 是 store 层执行生命周期动作后的主题快照。
+type TopicLifecycleRecord struct {
+	TopicID  int64
+	Status   string
+	IsPinned bool
 }
 
 type TopicTagSummary struct {
