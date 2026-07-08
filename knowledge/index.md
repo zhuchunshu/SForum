@@ -501,6 +501,9 @@ This is the entry point for project memory.
 - `sessions/2026-07-08-performance-hardening.md` - performance hardening
   implementation handoff (backend network/connection layers + frontend
   caching/rendering/image optimization).
+- `sessions/2026-07-08-cold-start-race-white-screen-502.md` - supervisor
+  cold-start race fix: proxy listened before nuxt dev/Nitro ready, causing
+  SPA login page white screen and form 502 on first access after startup.
 - `sessions/2026-07-07-admin-personalization-system-config.md` - admin
   personalization sidebar move into the System configuration folder.
 - `sessions/2026-07-05-custom-theme-color.md` - custom theme color picker,

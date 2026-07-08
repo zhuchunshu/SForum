@@ -252,10 +252,8 @@ function scheduleRestart() {
 
 async function main() {
   fs.mkdirSync(releaseRoot, { recursive: true })
-  await proxy.listen()
-  console.log(`[sforum-dev-runtime] proxy listening on ${externalHost}:${externalPort}`)
-  console.log(`[sforum-dev-runtime] public URL: ${publicDevUrl}`)
-  fs.watch(releaseRoot, scheduleRestart)
+  // 先注册信号处理：启动期间收到信号也要能优雅退出。
+  // proxy.close() 在未 listen 时调用是安全的（server.close 直接回调）。
   process.on('SIGTERM', async () => {
     stopChild(child)
     child = null
@@ -268,7 +266,18 @@ async function main() {
     await proxy.close()
     process.exit(0)
   })
+  // 先启动 nuxt dev 子进程并等它通过健康检查，再对外监听。
+  // 否则冷启动窗口期 activeTarget===null，所有请求返回 502，
+  // SPA 页面（如 /login）拿不到 entry.async.js 就白屏。
   await startDev('startup')
+  if (!proxy.getTarget()) {
+    console.error('[sforum-dev-runtime] initial nuxt dev did not become ready; exiting')
+    process.exit(1)
+  }
+  await proxy.listen()
+  console.log(`[sforum-dev-runtime] proxy listening on ${externalHost}:${externalPort}`)
+  console.log(`[sforum-dev-runtime] public URL: ${publicDevUrl}`)
+  fs.watch(releaseRoot, scheduleRestart)
 }
 
 main().catch((err) => {
