@@ -275,8 +275,58 @@ export function forumTagPath(slug: string) {
   return `/tags/${encodeURIComponent(slug)}`
 }
 
-export function forumTopicPath(topic: Pick<ForumTopicSummary, 'id' | 'slug'>) {
-  return `/t/${topic.id}/${encodeURIComponent(topic.slug)}`
+// 帖子 URL 形态枚举。与 useWebOptions 的 TopicUrlMode 保持一致；
+// 此处独立声明以保持 forumTaxonomy 为纯工具模块（不依赖 Nuxt auto-import）。
+export type TopicUrlMode = 'id_slug' | 'id' | 'slug'
+
+// previewTopicSlug 在前端预览标题对应的 slug（与后端 slugify 主逻辑对齐：
+// 转小写、非 [a-z0-9-] 字符替换为 -、首尾去 -）。仅用于编辑保存后跳转的预期路径；
+// 若后端因全局唯一追加了 -2/-3 后缀，详情页 canonical 会 301 到真实 slug。
+export function previewTopicSlug(title: string): string {
+  const slug = title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  return slug || 'topic'
+}
+
+export function forumTopicPath(
+  topic: Pick<ForumTopicSummary, 'id' | 'slug'>,
+  mode: TopicUrlMode = 'id_slug'
+) {
+  switch (mode) {
+    case 'id':
+      return `/t/${topic.id}`
+    case 'slug':
+      return `/t/${encodeURIComponent(topic.slug)}`
+    default:
+      return `/t/${topic.id}/${encodeURIComponent(topic.slug)}`
+  }
+}
+
+// parseTopicPath 解析 catch-all 详情页路由参数为帖子定位键。
+// 返回值：id 模式下为 { topicId }；slug 模式下为 { slug }；
+// id_slug 模式下为 { topicId, slug }。无法识别时返回 null（调用方应 404）。
+export function parseTopicPath(
+  segments: string[] | readonly string[] | undefined,
+  mode: TopicUrlMode = 'id_slug'
+): { topicId?: number, slug?: string } | null {
+  const parts = (segments ? [...segments] : []).filter((s) => s !== '')
+  if (parts.length === 0) {
+    return null
+  }
+  const first = parts[0]!
+  if (mode === 'id') {
+    const topicId = Number(first)
+    return Number.isInteger(topicId) && topicId > 0 ? { topicId } : null
+  }
+  if (mode === 'slug') {
+    return { slug: decodeURIComponent(first) }
+  }
+  // id_slug：期望 [id, slug]
+  const topicId = Number(first)
+  if (!Number.isInteger(topicId) || topicId <= 0) {
+    return null
+  }
+  const rest = parts.slice(1).join('/')
+  return { topicId, slug: rest ? decodeURIComponent(rest) : '' }
 }
 
 export function forumUserProfilePath(username: string) {
@@ -302,30 +352,41 @@ export function forumAuthorName(user: ForumUserSummary | undefined, fallbackUser
   return `#${fallbackUserId}`
 }
 
-// 递归统计一条评论的所有后代总数（含各层级），用于折叠按钮文案"展开 N 条回复"。
-// 不含评论自身。无 children 或空 children 返回 0。
-export function countCommentDescendants(comment: ForumComment | null | undefined): number {
-  if (!comment || !comment.children || comment.children.length === 0) {
-    return 0
+// 扁平化评论树：把 tree 视图返回的嵌套 children 拍平成一维列表。
+// 扁平列表布局（无缩进无树）：每条评论平铺，回复对象靠各自的 replyTo 引用块表达。
+//
+// 规则：
+// - 根评论（depth=0）照常保留；非根评论如果后端没给 replyTo，
+//   用其父评论补一个 replyTo（人名 + 摘要），保证每条回复都能看出"回复的是谁"。
+// - 拍平顺序按 children 原始顺序深度优先（保留讨论时间线）。
+export function flattenCommentTree(roots: ForumComment[]): ForumComment[] {
+  const result: ForumComment[] = []
+  const walk = (list: ForumComment[], parent: ForumComment | null) => {
+    for (const c of list) {
+      // 非根评论且后端未填充 replyTo：用父评论补上引用信息。
+      if (parent && !c.replyTo) {
+        const parentName = parent.author?.displayName
+          || parent.author?.username
+          || `#${parent.authorUserId}`
+        result.push({
+          ...c,
+          replyTo: {
+            id: parent.id,
+            author: parent.author,
+            excerpt: parent.content.excerpt,
+            depth: parent.depth
+          }
+        })
+      } else {
+        result.push(c)
+      }
+      if (c.children && c.children.length > 0) {
+        walk(c.children, c)
+      }
+    }
   }
-  let total = 0
-  for (const child of comment.children) {
-    total += 1 + countCommentDescendants(child)
-  }
-  return total
-}
-
-// 判断一条评论是否应默认折叠其子评论。
-// 规则：直接子评论数 ≥ threshold 时折叠（任意层级）。threshold 默认 4。
-// 用于评论树渲染时的初始折叠状态，避免热门分支刷屏。
-export function shouldCollapseByDefault(
-  comment: ForumComment | null | undefined,
-  threshold = 4
-): boolean {
-  if (!comment || !comment.children) {
-    return false
-  }
-  return comment.children.length >= threshold
+  walk(roots, null)
+  return result
 }
 
 function addStringQuery(query: Record<string, string>, key: string, value: string | undefined) {

@@ -12,6 +12,8 @@ const { t } = useI18n()
 const localePath = useLocalePath()
 const { user } = useAuthSession()
 const { siteName, seoSettings } = useWebOptions()
+// 帖子 URL 形态：列表卡片链接按当前模式生成。
+const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const forumApi = useForumApi()
 
 useSForumSeo({
@@ -310,7 +312,7 @@ function formatShortDate(value: string) {
               <SFCard class="divide-y divide-slate-100 overflow-hidden dark:divide-zinc-800">
                 <div v-for="topic in topics" :key="topic.id">
                   <NuxtLink
-                    :to="localePath(forumTopicPath(topic))"
+                    :to="localePath(forumTopicPath(topic, topicUrlMode))"
                     class="block transition hover:bg-slate-50 dark:hover:bg-zinc-900/60"
                   >
                     <SFFeedRow
@@ -453,7 +455,7 @@ function formatShortDate(value: string) {
                   {{ hotTopicRank(index) }}
                 </span>
                 <div class="min-w-0 flex-1">
-                  <NuxtLink :to="localePath(forumTopicPath(topic))" class="text-sm text-slate-700 hover:text-[#0F766E] hover:underline font-medium block truncate dark:text-zinc-300 dark:hover:text-teal-300">
+                  <NuxtLink :to="localePath(forumTopicPath(topic, topicUrlMode))" class="text-sm text-slate-700 hover:text-[#0F766E] hover:underline font-medium block truncate dark:text-zinc-300 dark:hover:text-teal-300">
                     {{ topic.title }}
                   </NuxtLink>
                   <span class="text-xs text-slate-400 font-mono mt-0.5 block dark:text-zinc-500">{{ t('home.sidebar.repliesCount', { count: topic.commentCount }) }}</span>

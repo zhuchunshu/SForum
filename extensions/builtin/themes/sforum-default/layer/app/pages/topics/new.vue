@@ -12,7 +12,8 @@ definePageMeta({
 
 const { t } = useI18n()
 const localePath = useLocalePath()
-const { siteName } = useWebOptions()
+const { siteName, seoSettings } = useWebOptions()
+const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const forumApi = useForumApi()
 const { can } = usePermissions()
 
@@ -108,7 +109,7 @@ async function submit(payload?: { markdown?: string }) {
       editorVersion: 'sf-editor-v1'
     })
     submitState.value = 'success'
-    await navigateTo(localePath(forumTopicPath(created)))
+    await navigateTo(localePath(forumTopicPath(created, topicUrlMode.value)))
   } catch (error) {
     submitState.value = 'error'
     errorMessage.value = apiErrorMessage(error) || t('composer.submitFailed')

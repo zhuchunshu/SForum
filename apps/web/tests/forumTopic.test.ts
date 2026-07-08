@@ -2,11 +2,11 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   buildForumCommentQuery,
-  countCommentDescendants,
+  flattenCommentTree,
   forumAuthorName,
   forumTopicPath,
   forumUserProfilePath,
-  shouldCollapseByDefault,
+  parseTopicPath,
   FORUM_TOPIC_ACTIONS,
   type ForumComment,
   type ForumCommentListQuery
@@ -16,6 +16,16 @@ describe('forum topic helpers', () => {
   test('builds canonical topic path with encoded slug', () => {
     expect(forumTopicPath({ id: 42, slug: 'hello-world' })).toBe('/t/42/hello-world')
     expect(forumTopicPath({ id: 7, slug: '你好 世界' })).toBe('/t/7/' + encodeURIComponent('你好 世界'))
+  })
+
+  test('builds topic path per configured url mode', () => {
+    const topic = { id: 42, slug: 'hello-world' }
+    // 默认 id_slug
+    expect(forumTopicPath(topic)).toBe('/t/42/hello-world')
+    // 纯 id
+    expect(forumTopicPath(topic, 'id')).toBe('/t/42')
+    // 纯 slug
+    expect(forumTopicPath(topic, 'slug')).toBe('/t/hello-world')
   })
 
   test('builds user profile path', () => {
@@ -51,6 +61,35 @@ describe('forum topic helpers', () => {
   })
 })
 
+describe('parseTopicPath', () => {
+  test('id_slug mode parses [id, slug] segments', () => {
+    expect(parseTopicPath(['42', 'hello-world'], 'id_slug')).toEqual({ topicId: 42, slug: 'hello-world' })
+    // 缺少 slug 段时仍返回 id（详情页可据此加载再规范化重定向）。
+    expect(parseTopicPath(['42'], 'id_slug')).toEqual({ topicId: 42, slug: '' })
+  })
+
+  test('id mode parses single numeric segment', () => {
+    expect(parseTopicPath(['42'], 'id')).toEqual({ topicId: 42 })
+    // 非数字视为无效。
+    expect(parseTopicPath(['hello'], 'id')).toBeNull()
+  })
+
+  test('slug mode parses single slug segment', () => {
+    expect(parseTopicPath(['hello-world'], 'slug')).toEqual({ slug: 'hello-world' })
+    // 编码后的 slug 应被解码。
+    expect(parseTopicPath([encodeURIComponent('你好 世界')], 'slug')).toEqual({ slug: '你好 世界' })
+  })
+
+  test('rejects empty segments', () => {
+    expect(parseTopicPath([], 'id_slug')).toBeNull()
+    expect(parseTopicPath(undefined, 'id_slug')).toBeNull()
+  })
+
+  test('id_slug rejects non-numeric leading segment', () => {
+    expect(parseTopicPath(['abc', 'slug'], 'id_slug')).toBeNull()
+  })
+})
+
 // 构造最小可用评论节点（仅填必填字段），children 可选。
 function makeComment(children: ForumComment[] = []): ForumComment {
   return {
@@ -79,54 +118,57 @@ function makeComment(children: ForumComment[] = []): ForumComment {
   }
 }
 
-describe('comment tree collapse helpers', () => {
-  test('countCommentDescendants returns 0 for leaf or empty children', () => {
-    expect(countCommentDescendants(null)).toBe(0)
-    expect(countCommentDescendants(undefined)).toBe(0)
-    expect(countCommentDescendants(makeComment())).toBe(0)
-    expect(countCommentDescendants(makeComment([]))).toBe(0)
+describe('flattenCommentTree', () => {
+  test('returns empty array for empty input', () => {
+    expect(flattenCommentTree([])).toEqual([])
   })
 
-  test('countCommentDescendants counts all descendants recursively', () => {
-    // 树形结构：根有 2 个直接子评论；第一个子评论又有 1 个孙评论。
-    // 后代总数 = 2（直接） + 1（孙） = 3
-    const tree = makeComment([
+  test('flattens a flat list of root comments unchanged', () => {
+    const roots = [makeComment(), makeComment()]
+    const flat = flattenCommentTree(roots)
+    expect(flat).toHaveLength(2)
+    expect(flat[0].id).toBe(roots[0].id)
+    expect(flat[1].id).toBe(roots[1].id)
+  })
+
+  test('flattens nested children into a single flat list', () => {
+    // 根 → 子 → 孙（3层），拍平后应是 3 条
+    const root = makeComment([makeComment([makeComment()])])
+    const flat = flattenCommentTree([root])
+    expect(flat).toHaveLength(3)
+  })
+
+  test('fills replyTo from parent for children missing replyTo', () => {
+    // 子评论没有 replyTo，扁平化后应补上父评论作为引用
+    const root = makeComment([makeComment()])
+    const flat = flattenCommentTree([root])
+    // flat[0] 是根，flat[1] 是子
+    expect(flat[1].replyTo).toBeDefined()
+    expect(flat[1].replyTo?.id).toBe(root.id)
+  })
+
+  test('preserves existing replyTo when backend already filled it', () => {
+    const childWithReplyTo = makeComment()
+    childWithReplyTo.replyTo = {
+      id: 999,
+      author: undefined,
+      excerpt: '后端给的引用',
+      depth: 0
+    }
+    const root = makeComment([childWithReplyTo])
+    const flat = flattenCommentTree([root])
+    // 已有 replyTo 不应被覆盖
+    expect(flat[1].replyTo?.id).toBe(999)
+    expect(flat[1].replyTo?.excerpt).toBe('后端给的引用')
+  })
+
+  test('handles multiple roots with mixed nesting', () => {
+    // 两个根：一个有回复，一个没有
+    const roots = [
       makeComment([makeComment()]),
       makeComment()
-    ])
-    expect(countCommentDescendants(tree)).toBe(3)
-  })
-
-  test('countCommentDescendants handles deep nesting', () => {
-    // 4 层深的单链：根 → 子 → 孙 → 曾孙。后代总数 = 3
-    const deep = makeComment([makeComment([makeComment([makeComment()])])])
-    expect(countCommentDescendants(deep)).toBe(3)
-  })
-
-  test('shouldCollapseByDefault returns false below threshold', () => {
-    // 3 个直接子评论 < 默认阈值 4，不折叠
-    expect(shouldCollapseByDefault(makeComment([makeComment(), makeComment(), makeComment()]))).toBe(false)
-  })
-
-  test('shouldCollapseByDefault returns true at or above threshold', () => {
-    // 4 个直接子评论 = 阈值，折叠
-    const four = makeComment([makeComment(), makeComment(), makeComment(), makeComment()])
-    expect(shouldCollapseByDefault(four)).toBe(true)
-    // 5 个，折叠
-    const five = makeComment([makeComment(), makeComment(), makeComment(), makeComment(), makeComment()])
-    expect(shouldCollapseByDefault(five)).toBe(true)
-  })
-
-  test('shouldCollapseByDefault respects custom threshold', () => {
-    // 阈值 2：2 个子评论即折叠
-    const two = makeComment([makeComment(), makeComment()])
-    expect(shouldCollapseByDefault(two, 2)).toBe(true)
-    expect(shouldCollapseByDefault(two, 4)).toBe(false)
-  })
-
-  test('shouldCollapseByDefault returns false for null/undefined/leaf', () => {
-    expect(shouldCollapseByDefault(null)).toBe(false)
-    expect(shouldCollapseByDefault(undefined)).toBe(false)
-    expect(shouldCollapseByDefault(makeComment())).toBe(false)
+    ]
+    const flat = flattenCommentTree(roots)
+    expect(flat).toHaveLength(3)
   })
 })

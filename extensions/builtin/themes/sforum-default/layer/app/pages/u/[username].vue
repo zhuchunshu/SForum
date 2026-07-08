@@ -10,7 +10,8 @@ definePageMeta({ public: true })
 const route = useRoute()
 const { t } = useI18n()
 const localePath = useLocalePath()
-const { siteName } = useWebOptions()
+const { siteName, seoSettings } = useWebOptions()
+const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const profileApi = useProfileApi()
 
 const username = computed(() => String(route.params.username ?? ''))
@@ -120,7 +121,7 @@ function topicAuthor(topic: ForumTopicSummary) {
             <NuxtLink
               v-for="topic in profile.recentTopics"
               :key="topic.id"
-              :to="localePath(forumTopicPath(topic))"
+              :to="localePath(forumTopicPath(topic, topicUrlMode))"
               class="block p-4 transition hover:bg-slate-50 dark:hover:bg-zinc-900/60"
             >
               <p class="font-medium text-slate-800 dark:text-zinc-100">{{ topic.title }}</p>

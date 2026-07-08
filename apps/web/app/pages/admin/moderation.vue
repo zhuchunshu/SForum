@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { forumTopicPath } from '~/utils/forumTaxonomy'
 import { useAdminPage } from '~/composables/useAdminPage'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import type { ModerationReport, ModerationReportStatus, ModerationTargetType } from '~/composables/useModerationApi'
@@ -72,9 +73,10 @@ function formatDate(value: string) {
 }
 
 function targetPath(report: ModerationReport) {
-  // 审核员快速跳转：topic 跳到主题页，comment 暂无直达页（可跳到所属主题）。
+  // 审核员快速跳转：仅有 targetId，用 id 模式生成稳定链接，
+  // 详情页对 id 形态不重定向（即便站点配置为 id_slug / slug，也会被 301 规范化）。
   if (report.targetType === 'topic') {
-    return `/t/${report.targetId}/-`
+    return forumTopicPath({ id: report.targetId, slug: '-' }, 'id')
   }
   return ''
 }

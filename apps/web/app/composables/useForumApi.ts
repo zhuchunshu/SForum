@@ -41,6 +41,11 @@ export function useForumApi() {
     return request<ForumTopicDetail>(`/topics/${topicId}`)
   }
 
+  // 按 slug 查询主题：仅 "纯 slug" URL 模式使用，对应后端 GET /topics/by-slug/:slug。
+  function getTopicBySlug(slug: string) {
+    return request<ForumTopicDetail>(`/topics/by-slug/${encodeURIComponent(slug)}`)
+  }
+
   function listTopicComments(topicId: number, query: ForumCommentListQuery = {}) {
     return request<ForumCommentList>(pathWithQuery(`/topics/${topicId}/comments`, buildForumCommentQuery(query)))
   }
@@ -99,6 +104,7 @@ export function useForumApi() {
     listTopics,
     searchTopics,
     getTopic,
+    getTopicBySlug,
     listTopicComments,
     createTopicComment,
     updateComment,

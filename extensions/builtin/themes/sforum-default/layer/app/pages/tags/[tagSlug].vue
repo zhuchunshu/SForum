@@ -12,6 +12,7 @@ const { t } = useI18n()
 const localePath = useLocalePath()
 const route = useRoute()
 const { siteName, seoSettings, webOption } = useWebOptions()
+const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const forumApi = useForumApi()
 
 const ITEMS_PER_PAGE = 10
@@ -178,7 +179,7 @@ function formatShortDate(value: string) {
               <SFCard class="divide-y divide-slate-100 overflow-hidden dark:divide-zinc-800">
                 <div v-for="topic in topics" :key="topic.id">
                   <NuxtLink
-                    :to="localePath(forumTopicPath(topic))"
+                    :to="localePath(forumTopicPath(topic, topicUrlMode))"
                     class="block transition hover:bg-slate-50 dark:hover:bg-zinc-900/60"
                   >
                     <SFFeedRow

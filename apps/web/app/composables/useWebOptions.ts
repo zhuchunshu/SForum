@@ -1,4 +1,7 @@
 import type { ApiEnvelope } from '~/composables/useApiClient'
+// TopicUrlMode 的权威定义在 forumTaxonomy（纯工具模块）；此处复用以避免
+// Nuxt auto-import 的重复类型声明警告。
+import type { TopicUrlMode } from '~/utils/forumTaxonomy'
 
 export type WebOption = {
   name: string
@@ -49,6 +52,10 @@ export type PasswordRequirement = {
 }
 export type SEOTwitterCard = 'summary' | 'summary_large_image'
 
+// 帖子详情页 URL 形态枚举与推荐默认值。TopicUrlMode 类型复用自 forumTaxonomy。
+export const topicUrlModes: TopicUrlMode[] = ['id_slug', 'id', 'slug']
+export const recommendedTopicUrlMode: TopicUrlMode = 'id_slug'
+
 export type SEOSettings = {
   metaTitleTemplate: string
   metaDescription: string
@@ -72,6 +79,7 @@ export type SEOSettings = {
   schemaOrgSearchActionEnabled: boolean
   schemaOrgDiscussionEnabled: boolean
   schemaOrgOrganizationLogoUrl: string
+  topicUrlMode: TopicUrlMode
 }
 
 export type FooterLinkOption = {
@@ -185,7 +193,8 @@ const fallbackOptions: Record<string, string> = {
   'seo.schema_org.enabled': enabledOption,
   'seo.schema_org.search_action_enabled': enabledOption,
   'seo.schema_org.discussion_enabled': enabledOption,
-  'seo.schema_org.organization_logo_url': ''
+  'seo.schema_org.organization_logo_url': '',
+  'seo.topic_url_mode': recommendedTopicUrlMode
 }
 
 export const useWebOptions = () => {
@@ -277,6 +286,8 @@ export const useWebOptions = () => {
   const passwordPolicy = computed(() => resolvePasswordPolicy(options.value))
   const seoSettings = computed(() => resolveSEOSettings(options.value))
   const seoIndexable = computed(() => isSEOIndexingAllowed(seoSettings.value, siteUrl.value))
+  // 帖子 URL 形态：列表/详情/SEO 链接生成均依赖此值。
+  const topicUrlMode = computed<TopicUrlMode>(() => seoSettings.value.topicUrlMode)
 
   function humanVerificationEnabledFor(scenario: HumanVerificationScenario) {
     return humanVerificationProvider.value === 'altcha' && humanVerificationScenarioSettings.value[scenario]
@@ -306,6 +317,7 @@ export const useWebOptions = () => {
     passwordPolicy,
     seoSettings,
     seoIndexable,
+    topicUrlMode,
     humanVerificationEnabledFor,
     webOption,
     footerCopyrightTemplate,
@@ -420,8 +432,15 @@ export function resolveSEOSettings(values: Record<string, string>): SEOSettings 
     schemaOrgEnabled: normalizeEnabledOption(option('seo.schema_org.enabled'), true),
     schemaOrgSearchActionEnabled: normalizeEnabledOption(option('seo.schema_org.search_action_enabled'), true),
     schemaOrgDiscussionEnabled: normalizeEnabledOption(option('seo.schema_org.discussion_enabled'), true),
-    schemaOrgOrganizationLogoUrl: option('seo.schema_org.organization_logo_url').trim()
+    schemaOrgOrganizationLogoUrl: option('seo.schema_org.organization_logo_url').trim(),
+    topicUrlMode: normalizeTopicUrlMode(option('seo.topic_url_mode'))
   }
+}
+
+// normalizeTopicUrlMode 将存储值归一为合法枚举，非法值回退默认 id_slug。
+export function normalizeTopicUrlMode(value: string | undefined): TopicUrlMode {
+  const raw = value?.trim().toLowerCase() as TopicUrlMode
+  return topicUrlModes.includes(raw) ? raw : recommendedTopicUrlMode
 }
 
 export function normalizeSEOTwitterCard(value: string | undefined): SEOTwitterCard {
