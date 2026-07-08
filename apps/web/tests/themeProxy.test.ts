@@ -288,3 +288,125 @@ describe('theme-proxy: healthCheckTcp 与 healthCheckUnix', () => {
     try { fs.unlinkSync(sockPath) } catch { /* already gone */ }
   })
 })
+
+// 起一个支持 WebSocket upgrade 的伪造上游：
+// upgrade 事件签名 (req, socket, head)。握手回 101，随后把 req 头记录下来供断言，
+// 并在隧道里 echo 一段标记字节，让客户端能验证双向 socket 真的被透传。
+function startWsUpstream(
+  marker: string,
+  listenOpts: { port?: number; socketPath?: string },
+): Promise<{ server: http.Server; port?: number; lastUpgrade: () => http.IncomingMessage | null }> {
+  return new Promise(async (resolve, reject) => {
+    let lastUpgrade: http.IncomingMessage | null = null
+    const server = http.createServer((_req, res) => {
+      // 非 upgrade 的普通请求兜底返回 200，供 healthCheck 用。
+      res.writeHead(200)
+      res.end('ok')
+    })
+    server.on('upgrade', (req, socket) => {
+      lastUpgrade = req
+      socket.write(
+        'HTTP/1.1 101 Switching Protocols\r\n' +
+          'Upgrade: websocket\r\n' +
+          'Connection: Upgrade\r\n' +
+          `\r\n${marker}`,
+      )
+    })
+    server.on('error', reject)
+    if (listenOpts.socketPath) {
+      try { fs.unlinkSync(listenOpts.socketPath) } catch { /* 不存在无所谓 */ }
+      server.listen(listenOpts.socketPath, () => resolve({ server, lastUpgrade: () => lastUpgrade }))
+    } else {
+      const port = listenOpts.port ?? (await freePort())
+      server.listen(port, '127.0.0.1', () => resolve({ server, port, lastUpgrade: () => lastUpgrade }))
+    }
+  })
+}
+
+// 用原始 socket 手搓一次 WebSocket 握手，返回 upstream 隧道里收到的首段数据与底层 socket。
+// 不引第三方 ws 库，与现有测试零依赖风格一致。
+function rawUpgrade(
+  port: number,
+  opts: { path?: string; headers?: Record<string, string> } = {},
+): Promise<{ firstByte: string; socket: net.Socket }> {
+  return new Promise((resolve, reject) => {
+    const socket = net.connect(port, '127.0.0.1')
+    let settled = false
+    socket.on('error', (err) => {
+      if (!settled) reject(err)
+    })
+    socket.on('close', () => {
+      if (!settled) reject(new Error('socket closed before handshake data arrived'))
+    })
+    socket.on('data', (chunk) => {
+      // 跳过 101 响应头，取隧道体首段作为 marker。
+      settled = true
+      const text = chunk.toString()
+      const sep = text.indexOf('\r\n\r\n')
+      const firstByte = sep >= 0 ? text.slice(sep + 4) : text
+      resolve({ firstByte, socket })
+    })
+    let raw = `GET ${opts.path || '/'} HTTP/1.1\r\n` +
+      'Host: localhost\r\n' +
+      'Upgrade: websocket\r\n' +
+      'Connection: Upgrade\r\n'
+    for (const [key, value] of Object.entries(opts.headers || {})) {
+      raw += `${key}: ${value}\r\n`
+    }
+    raw += '\r\n'
+    socket.write(raw)
+  })
+}
+
+// supervisor 必须用 node 跑：bun 的 node:http 兼容层在 'upgrade' 事件里
+// socket.write 会静默丢数据（bun#28157），客户端收不到 101。
+// 用 bun 运行测试时跳过这些用例（运行时缺陷，非实现问题），仅由 node 覆盖。
+const isBun = typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined'
+const wsDescribe = isBun ? describe.skip : describe
+
+wsDescribe('theme-proxy: WebSocket upgrade 转发（需 node 运行时）', () => {
+  test('TCP upstream 的 WS 握手被透传，且补全 X-Forwarded-For', async () => {
+    const upstream = await startWsUpstream('ws-tcp', {})
+    const proxy = createThemeProxy({ externalPort: await freePort(), host: '127.0.0.1' })
+    await proxy.listen()
+    const proxyPort = (proxy.server.address() as net.AddressInfo).port
+    proxy.setTarget(makeTarget({ host: '127.0.0.1', port: upstream.port! }))
+
+    const { firstByte, socket } = await rawUpgrade(proxyPort)
+    expect(firstByte).toBe('ws-tcp')
+    // upstream 收到了补全的 X-Forwarded-For（含代理本机地址）。
+    expect(upstream.lastUpgrade()?.headers['x-forwarded-for']).toMatch(/127\.0\.0\.1$/)
+    // upgrade 头被原样透传。
+    expect(upstream.lastUpgrade()?.headers['upgrade']).toBe('websocket')
+
+    socket.destroy()
+    await close(upstream.server)
+    await close(proxy.server)
+  })
+
+  test('activeTarget 未就绪时 WS 连接被销毁', async () => {
+    const proxy = createThemeProxy({ externalPort: await freePort(), host: '127.0.0.1' })
+    await proxy.listen()
+    const proxyPort = (proxy.server.address() as net.AddressInfo).port
+    // 故意不 setTarget，模拟冷启动窗口。
+    await expect(rawUpgrade(proxyPort)).rejects.toThrow()
+    await close(proxy.server)
+  })
+
+  test('unix socket upstream 的 WS 握手也被透传（生产路径）', async () => {
+    const sockPath = path.join(os.tmpdir(), `sforum-ws-test-${Date.now()}.sock`)
+    const upstream = await startWsUpstream('ws-unix', { socketPath: sockPath })
+    const proxy = createThemeProxy({ externalPort: await freePort(), host: '127.0.0.1' })
+    await proxy.listen()
+    const proxyPort = (proxy.server.address() as net.AddressInfo).port
+    proxy.setTarget(makeTarget({ socketPath: sockPath }))
+
+    const { firstByte, socket } = await rawUpgrade(proxyPort)
+    expect(firstByte).toBe('ws-unix')
+
+    socket.destroy()
+    await close(upstream.server)
+    await close(proxy.server)
+    try { fs.unlinkSync(sockPath) } catch { /* already gone */ }
+  })
+})

@@ -1552,6 +1552,8 @@
     "submitting": "提交中...",
     "deleting": "删除中...",
     "report": "举报",
+    "collapse": "收起",
+    "expand": "展开 {n} 条回复",
     "breadcrumbHome": "首页",
     "authorLabel": "作者",
     "statsTitle": "话题信息",

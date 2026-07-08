@@ -1546,6 +1546,8 @@
     "submitting": "Submitting...",
     "deleting": "Deleting...",
     "report": "Report",
+    "collapse": "Collapse",
+    "expand": "Show {n} more replies",
     "breadcrumbHome": "Home",
     "authorLabel": "Author",
     "statsTitle": "Topic info",

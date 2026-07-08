@@ -107,4 +107,4 @@ DatabaseTable:
   required: true
   schema:
     type: string
-  description: Numeric comment id.
+  description: Database table name.

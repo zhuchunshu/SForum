@@ -302,6 +302,32 @@ export function forumAuthorName(user: ForumUserSummary | undefined, fallbackUser
   return `#${fallbackUserId}`
 }
 
+// 递归统计一条评论的所有后代总数（含各层级），用于折叠按钮文案"展开 N 条回复"。
+// 不含评论自身。无 children 或空 children 返回 0。
+export function countCommentDescendants(comment: ForumComment | null | undefined): number {
+  if (!comment || !comment.children || comment.children.length === 0) {
+    return 0
+  }
+  let total = 0
+  for (const child of comment.children) {
+    total += 1 + countCommentDescendants(child)
+  }
+  return total
+}
+
+// 判断一条评论是否应默认折叠其子评论。
+// 规则：直接子评论数 ≥ threshold 时折叠（任意层级）。threshold 默认 4。
+// 用于评论树渲染时的初始折叠状态，避免热门分支刷屏。
+export function shouldCollapseByDefault(
+  comment: ForumComment | null | undefined,
+  threshold = 4
+): boolean {
+  if (!comment || !comment.children) {
+    return false
+  }
+  return comment.children.length >= threshold
+}
+
 function addStringQuery(query: Record<string, string>, key: string, value: string | undefined) {
   const normalized = value?.trim()
   if (normalized) {

@@ -7,6 +7,7 @@
 // - 生产：子进程监听 unix socket（NITRO_UNIX_SOCKET），healthCheckUnix 探测。
 // - 开发：子进程监听 TCP 临时端口（PORT=0），healthCheckTcp 探测。
 import http from 'node:http'
+import net from 'node:net'
 
 const DEFAULT_HEALTH_PATH = '/'
 
@@ -34,6 +35,25 @@ export function createThemeProxy({ externalPort = 3000, host = '0.0.0.0' } = {})
       return
     }
     forwardRequest(target, req, res)
+  })
+
+  // 转发 HTTP 升级（WebSocket）请求。Nuxt/Vite 的 HMR 依赖与页面同源的 WS，
+  // 而 supervisor 对外只有一个端口，浏览器会向代理端口发起 upgrade 握手；
+  // 不转发 upgrade，HMR 就完全失效（改文件不热更新）。
+  // 这里不能用 http.request：它只处理 request/response 语义，101 之后的字节流
+  // 必须以原始 socket 隧道透传，所以用 net.connect 打到 upstream 再双向 pipe。
+  //
+  // 注意：supervisor 必须用 node 运行。bun 的 node:http 兼容层在 'upgrade' 事件里
+  // socket.write 会静默丢数据（bun#28157 / bun#9882），导致客户端收不到 101。
+  // 见 apps/web/package.json 的 dev 脚本（node --env-file ...）。
+  server.on('upgrade', (req, socket, head) => {
+    const target = activeTarget
+    if (!target) {
+      // upstream 未就绪：直接销毁，浏览器 HMR client 会按自身退避策略重试。
+      socket.destroy()
+      return
+    }
+    forwardUpgrade(target, req, socket, head)
   })
 
   // 把 server.listen 包装成 Promise，方便 supervisor 启动时 await。
@@ -116,6 +136,58 @@ function forwardRequest(target, req, res) {
   })
 
   req.pipe(proxyReq)
+}
+
+// 转发 HTTP 升级（WebSocket）请求到 upstream。与 forwardRequest 对称，
+// 但走原始 socket 隧道：连上 upstream 后把客户端发来的 upgrade 请求行 + headers
+// 原样写入 upstream，再把两端 socket 双向 pipe，101 之后的 WS 帧透传。
+// 同时覆盖 TCP（dev: nuxt dev）与 unix socket（生产: Nitro）两种 upstream，
+// 让开发期 Vite HMR 和生产期 app 级 WS 都能正常工作。
+//
+// 依赖 node 运行时：bun 在 'upgrade' 事件里 socket.write 会静默丢数据，
+// 在 bun 下本函数无效。supervisor 用 node 跑即避开此问题。
+function forwardUpgrade(target, req, socket, head) {
+  // 与 forwardRequest 同样的地址分叉：socketPath 走 unix socket，否则 TCP。
+  const connectOpts = target.socketPath
+    ? { path: target.socketPath }
+    : { host: target.host, port: target.port }
+
+  const upstream = net.connect(connectOpts)
+
+  const cleanup = () => {
+    socket.destroy()
+    upstream.destroy()
+  }
+
+  upstream.on('error', () => {
+    // upstream 连接失败：销毁客户端 socket，HMR client 会自动重试。
+    cleanup()
+  })
+  socket.on('error', cleanup)
+
+  upstream.on('connect', () => {
+    // 连接建立后，先回写 head 里早到的字节（upgrade 事件可能携带已读到的数据）。
+    if (head && head.length) {
+      upstream.write(head)
+    }
+    // 重组原始请求行 + headers，原样发给 upstream。补 X-Forwarded-* 链便于
+    // upstream 侧日志/鉴权；其余头（含 host、connection、upgrade 等）透传，
+    // 保证 WS 子协议与握手语义不被破坏。
+    const forwardHeaders = buildForwardHeaders(req)
+    let raw = `${req.method} ${req.url} HTTP/1.1\r\n`
+    for (const [key, value] of Object.entries(forwardHeaders)) {
+      raw += `${key}: ${value}\r\n`
+    }
+    raw += '\r\n'
+    upstream.write(raw)
+    // 双向 pipe：此后任一端的数据（含 101 响应及 WS 帧）透传到对端。
+    // 任一端关闭/出错时销毁另一端，避免句柄泄漏。
+    socket.pipe(upstream)
+    upstream.pipe(socket)
+  })
+  // 客户端或 upstream 任一端正常关闭时也兜底销毁，与上面 error 路径统一。
+  socket.on('close', () => upstream.destroy())
+  upstream.on('close', () => socket.destroy())
 }
 
 // 组装转发 header：透传原始 header，并维护 X-Forwarded-* 链。

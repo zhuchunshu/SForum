@@ -223,9 +223,24 @@ watch(showActionError, (visible) => {
 })
 
 function commentActions(comment: ForumComment) {
+  // 操作按钮内聚进 SFComment 的 actions，替代之前硬编码在模板里的按钮。
+  // 颜色由 .sf-comment__action 统一用 --sf-* token 控制（之前硬编码 teal-300/slate-500 违反主题规范）。
   const actions: { label: string; value: string; icon?: string }[] = []
   if (canReplyToComments.value) {
     actions.push({ label: t('topicDetail.reply'), value: 'reply', icon: 'i-lucide-reply' })
+  }
+  if (isCommentEditable(comment)) {
+    actions.push({ label: t('topicDetail.edit'), value: 'edit', icon: 'i-lucide-pencil' })
+  }
+  if (isCommentDeletable(comment)) {
+    actions.push({
+      label: deletingCommentId.value === comment.id ? t('topicDetail.deleting') : t('topicDetail.delete'),
+      value: 'delete',
+      icon: 'i-lucide-trash-2'
+    })
+  }
+  if (canReportComment()) {
+    actions.push({ label: t('topicDetail.report'), value: 'report', icon: 'i-lucide-flag' })
   }
   return actions
 }
@@ -245,8 +260,15 @@ function isCommentDeletable(comment: ForumComment) {
 }
 
 function handleCommentClick(comment: ForumComment, value: string) {
+  // 评论操作分发：由 SFComment 的 actions 触发，替代之前硬编码在模板里的按钮。
   if (value === 'reply') {
     startReply(comment)
+  } else if (value === 'edit') {
+    startEditComment(comment)
+  } else if (value === 'delete') {
+    deleteComment(comment)
+  } else if (value === 'report') {
+    openReportDialog({ type: 'comment', id: comment.id })
   }
 }
 
@@ -326,10 +348,6 @@ async function saveCommentEdit(comment: ForumComment, payload?: { markdown?: str
   }
 }
 
-function onCommentEditSubmit(comment: ForumComment) {
-  return (payload: { markdown: string }) => saveCommentEdit(comment, { markdown: payload.markdown })
-}
-
 // 评论删除（软删）。
 async function deleteComment(comment: ForumComment) {
   if (deletingCommentId.value) {
@@ -393,9 +411,58 @@ async function submitNestedReply(comment: ForumComment, payload?: { markdown?: s
   }
 }
 
-function onNestedReplySubmit(comment: ForumComment) {
-  return (payload: { markdown: string }) => submitNestedReply(comment, { markdown: payload.markdown })
+// 评论内联编辑器渲染器：provide 给 SFComment 递归树，让任意层级的评论都能在原位
+// 渲染编辑/回复编辑器。用 h() 构造 vnode，替代递归 slot 透传（避免 Volar 类型循环）。
+// 顶层评论的编辑器也走这条路径，保证整棵树行为一致。
+// key 与 SFComment.vue 内 inject 的字符串保持一致。
+const COMMENT_EDITOR_RENDERER_KEY = 'sforum-comment-editor-renderer'
+const SFEditorComponent = resolveComponent('LazySFEditor')
+const SFButtonComponent = resolveComponent('SFButton')
+const commentEditorRenderer = (comment: ForumComment | null) => {
+  if (!comment) return null
+  const nodes: unknown[] = []
+  // 编辑态
+  if (editingCommentId.value === comment.id) {
+    nodes.push(
+      h(SFEditorComponent, {
+        modelValue: editingMarkdown.value,
+        'onUpdate:modelValue': (v: string) => { editingMarkdown.value = v },
+        placeholder: t('topicDetail.editPlaceholder'),
+        submitLabel: t('topicDetail.saveEdit'),
+        disabled: editingSubmitting.value,
+        error: editingError.value,
+        onSubmit: () => saveCommentEdit(comment)
+      }),
+      h('div', { class: 'flex gap-2 mt-2' }, [
+        h(SFButtonComponent, {
+          variant: 'ghost', size: 'sm', disabled: editingSubmitting.value,
+          onClick: cancelEditComment
+        }, () => t('topicDetail.cancel'))
+      ])
+    )
+  }
+  // 回复态
+  if (replyingTo.value && replyingTo.value.id === comment.id) {
+    nodes.push(
+      h(SFEditorComponent, {
+        modelValue: nestedReplyMarkdown.value,
+        'onUpdate:modelValue': (v: string) => { nestedReplyMarkdown.value = v },
+        placeholder: t('topicDetail.replyPlaceholder'),
+        submitLabel: t('topicDetail.submitReply'),
+        disabled: nestedReplySubmitting.value,
+        onSubmit: () => submitNestedReply(comment)
+      }),
+      h('div', { class: 'flex gap-2 mt-2' }, [
+        h(SFButtonComponent, {
+          variant: 'ghost', size: 'sm', disabled: nestedReplySubmitting.value,
+          onClick: cancelReply
+        }, () => t('topicDetail.cancel'))
+      ])
+    )
+  }
+  return nodes.length ? nodes : null
 }
+provide(COMMENT_EDITOR_RENDERER_KEY, commentEditorRenderer)
 
 // 举报对话框：支持举报主题或评论。同一时刻只展开一个。
 const reportingTarget = ref<{ type: 'topic' | 'comment'; id: number } | null>(null)
@@ -639,104 +706,25 @@ async function submitReport() {
           <!-- 评论列表 -->
           <template v-else-if="comments.length">
             <SFCard class="p-5 space-y-5">
-              <div v-for="comment in comments" :key="comment.id" class="space-y-2">
-                <SFComment
-                  :author="commentAuthorName(comment)"
-                  :author-link="commentAuthorPath(comment)"
-                  :html-content="editingCommentId === comment.id ? undefined : comment.content.htmlContent"
-                  :content="editingCommentId === comment.id ? '' : undefined"
-                  :meta="commentMeta(comment)"
-                  :depth="0"
-                  :reply-to="comment.replyTo ? { author: forumAuthorName(comment.replyTo.author, comment.replyTo.id), excerpt: comment.replyTo.excerpt } : undefined"
-                  :actions="commentActions(comment)"
-                  @action="(value: string) => handleCommentClick(comment, value)"
-                >
-                  <!-- 内联编辑器（替换正文） -->
-                  <template v-if="editingCommentId === comment.id">
-                    <LazySFEditor
-                      v-model="editingMarkdown"
-                      :placeholder="t('topicDetail.editPlaceholder')"
-                      :submit-label="t('topicDetail.saveEdit')"
-                      :disabled="editingSubmitting"
-                      :error="editingError"
-                      @submit="onCommentEditSubmit(comment)"
-                    />
-                    <div class="flex gap-2 mt-2">
-                      <SFButton variant="ghost" size="sm" :disabled="editingSubmitting" @click="cancelEditComment">
-                        {{ t('topicDetail.cancel') }}
-                      </SFButton>
-                    </div>
-                  </template>
-                  <!-- 评论操作按钮 -->
-                  <template v-else>
-                    <div v-if="isCommentEditable(comment) || isCommentDeletable(comment)" class="flex gap-2 mt-2">
-                      <button
-                        v-if="isCommentEditable(comment)"
-                        type="button"
-                        class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-[#0F766E] dark:text-zinc-400 dark:hover:text-teal-300"
-                        :aria-label="t('topicDetail.edit')"
-                        @click="startEditComment(comment)"
-                      >
-                        <UIcon name="i-lucide-pencil" class="size-3.5" />
-                        <span>{{ t('topicDetail.edit') }}</span>
-                      </button>
-                      <button
-                        v-if="isCommentDeletable(comment)"
-                        type="button"
-                        class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
-                        :aria-label="t('topicDetail.delete')"
-                        :disabled="deletingCommentId === comment.id"
-                        @click="deleteComment(comment)"
-                      >
-                        <UIcon name="i-lucide-trash-2" class="size-3.5" />
-                        <span>{{ deletingCommentId === comment.id ? t('topicDetail.deleting') : t('topicDetail.delete') }}</span>
-                      </button>
-                      <button
-                        v-if="canReportComment()"
-                        type="button"
-                        class="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-[#0F766E] dark:text-zinc-400 dark:hover:text-teal-300"
-                        :aria-label="t('topicDetail.report')"
-                        @click="openReportDialog({ type: 'comment', id: comment.id })"
-                      >
-                        <UIcon name="i-lucide-flag" class="size-3.5" />
-                        <span>{{ t('topicDetail.report') }}</span>
-                      </button>
-                    </div>
-                  </template>
-
-                  <!-- 嵌套回复编辑器 -->
-                  <template v-if="replyingTo && replyingTo.id === comment.id">
-                    <LazySFEditor
-                      v-model="nestedReplyMarkdown"
-                      :placeholder="t('topicDetail.replyPlaceholder')"
-                      :submit-label="t('topicDetail.submitReply')"
-                      :disabled="nestedReplySubmitting"
-                      @submit="onNestedReplySubmit(comment)"
-                    />
-                    <div class="flex gap-2 mt-2">
-                      <SFButton variant="ghost" size="sm" :disabled="nestedReplySubmitting" @click="cancelReply">
-                        {{ t('topicDetail.cancel') }}
-                      </SFButton>
-                    </div>
-                  </template>
-
-                  <!-- 嵌套子评论（tree 视图） -->
-                  <template v-if="comment.children && comment.children.length && editingCommentId !== comment.id">
-                    <SFComment
-                      v-for="child in comment.children"
-                      :key="child.id"
-                      :author="commentAuthorName(child)"
-                      :author-link="commentAuthorPath(child)"
-                      :html-content="editingCommentId === child.id ? undefined : child.content.htmlContent"
-                      :meta="commentMeta(child)"
-                      :depth="1"
-                      :reply-to="child.replyTo ? { author: forumAuthorName(child.replyTo.author, child.replyTo.id), excerpt: child.replyTo.excerpt } : undefined"
-                      :actions="commentActions(child)"
-                      @action="(value: string) => handleCommentClick(child, value)"
-                    />
-                  </template>
-                </SFComment>
-              </div>
+              <!-- 递归评论树：SFComment 内部自递归渲染 children（含任意深度 + 折叠）。
+                   操作按钮（回复/编辑/删除/举报）通过 commentActions 动态生成，颜色走 --sf-* token。
+                   内联编辑器/回复编辑器由本页 provide 的 commentEditorRenderer 在评论原位渲染（任意层级）。 -->
+              <SFComment
+                v-for="comment in comments"
+                :key="comment.id"
+                :comment="comment"
+                :author="commentAuthorName(comment)"
+                :author-link="commentAuthorPath(comment)"
+                :html-content="editingCommentId === comment.id ? undefined : comment.content.htmlContent"
+                :content="editingCommentId === comment.id ? '' : undefined"
+                :meta="commentMeta(comment)"
+                :depth="0"
+                :reply-to="comment.replyTo ? { author: forumAuthorName(comment.replyTo.author, comment.replyTo.id), excerpt: comment.replyTo.excerpt } : undefined"
+                :actions="commentActions(comment)"
+                :comment-meta-builder="commentMeta"
+                :comment-author-link-builder="commentAuthorPath"
+                @action-comment="(c: ForumComment, value: string) => handleCommentClick(c, value)"
+              />
             </SFCard>
 
             <!-- 分页 -->
