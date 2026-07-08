@@ -611,8 +611,18 @@ export function passwordPolicyProgress(password: string, policy: PasswordPolicy)
   if (requirements.length === 0) {
     return 0
   }
-  const met = requirements.filter(item => item.met).length
-  return Math.round((met / requirements.length) * 100)
+  const passwordLength = Array.from(password).length
+  const lengthScore = passwordLength > policy.maxLength
+    ? 0
+    : Math.min(passwordLength / policy.minLength, 1)
+  // 长度是连续体验分；字符类型要求仍按是否满足计分。
+  const score = requirements.reduce((total, item) => {
+    if (item.key === 'length') {
+      return total + lengthScore
+    }
+    return total + (item.met ? 1 : 0)
+  }, 0)
+  return Math.round((score / requirements.length) * 100)
 }
 
 export function normalizeAltchaWidgetType(value: string | undefined): AltchaWidgetType {

@@ -73,7 +73,7 @@ export default defineNuxtConfig({
   nitro: {
     // 静态资源（带 hash 的 _nuxt 文件）压缩为 brotli + gzip。
     compressPublicAssets: { brotli: true, gzip: true },
-    // 路由级渲染模式与缓存：公开内容页走 stale-while-revalidate，登录/注册保持 SSR 避免空壳白屏。
+    // 路由级渲染模式与缓存：公开内容页走 stale-while-revalidate，全部页面保持 SSR 彻底避免空壳白屏。
     // i18n strategy=prefix_except_default，zh-CN 无前缀，en 带前缀，需同时覆盖两套路径。
     routeRules: {
       // 公开内容页：短到中等 swr，命中缓存的同时保持最终一致。
@@ -94,9 +94,10 @@ export default defineNuxtConfig({
       '/en/topics/new': { cache: false, robots: { index: false } },
       '/t/:topicID/:topicSlug/edit': { cache: false, robots: { index: false } },
       '/en/t/:topicID/:topicSlug/edit': { cache: false, robots: { index: false } },
-      // 管理后台：SPA + 禁止索引。
-      [`${adminRoutePrefix}/**`]: { ssr: false, robots: { index: false } },
-      '/components': { ssr: false, robots: { index: false } },
+      // 管理后台：SSR + 禁缓存 + 禁止索引。未登录由 admin 中间件服务端重定向到 /login，不再返回空壳。
+      [`${adminRoutePrefix}/**`]: { cache: false, robots: { index: false } },
+      // 组件预览页：SSR（生产环境直接渲染 404 错误页，不再先返回空壳）。
+      '/components': { robots: { index: false } },
       // 静态图标目录：数据完全静态，长缓存。
       '/api/icon-collections/**': { cache: { maxAge: 86400 } },
       '/api/_sitemap-urls': { cache: { maxAge: 600 } }

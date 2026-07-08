@@ -110,6 +110,10 @@ Toast, then navigate, so a successful account creation is not reclassified as a
 form failure if a later refresh/navigation step has trouble. `useApiClient()`
 reads locale from the Nuxt app i18n runtime instead of calling `useI18n()`,
 keeping it safe for route middleware such as the admin guard.
+Password readiness progress now uses gradual length scoring against the active
+password policy, so the recommended length-only default shows intermediate
+progress instead of jumping from 0% to 100%; backend policy validation remains
+authoritative.
 Login, registration, forgot-password, reset-password, and ordinary protected
 user workflows (`/settings/**`, `/topics/new`,
 `/t/:topicID/:topicSlug/edit`, plus English prefixes) remain server-rendered

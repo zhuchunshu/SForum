@@ -130,6 +130,14 @@ describe('password policy helpers', () => {
     expect(strong.every(item => item.met)).toBe(true)
     expect(passwordPolicyProgress('Passw0rd!', policy)).toBe(100)
   })
+
+  test('shows gradual length progress for the recommended password policy', () => {
+    const policy = resolvePasswordPolicy({})
+
+    expect(passwordPolicyProgress('', policy)).toBe(0)
+    expect(passwordPolicyProgress('phrase', policy)).toBe(50)
+    expect(passwordPolicyProgress('long phrase!', policy)).toBe(100)
+  })
 })
 
 describe('seo option helpers', () => {

@@ -176,6 +176,9 @@ This is the entry point for project memory.
   `requiresAuth` stay server-rendered, disable route cache, and redirect
   missing users to login even when the auth API is temporarily unavailable,
   while the stricter admin guard may show a temporary unavailable error.
+  Admin and component-preview pages are now also server-rendered (the last
+  `ssr: false` routes were removed), so the entire site renders first-paint
+  HTML and never serves an empty SPA shell.
 - Backend API code has migrated to a Laravel-style directory shape while
   staying Go-explicit: `cmd/api` is process-focused, `bootstrap` assembles the
   runtime, `app/Http` owns the HTTP kernel, `app/Http/Controllers/*` owns
@@ -324,7 +327,7 @@ This is the entry point for project memory.
   `sharedRedisClient` with explicit pool/timeout config; PG pool exposes
   MinConns/Idle/Lifetime/ConnectTimeout; Meilisearch client gets
   `http.Client.Timeout`; frontend adds `routeRules` (swr for public pages,
-  SPA for form/admin pages), `compressPublicAssets`, static-asset
+  full SSR for auth/admin/protected pages to avoid empty-shell white screens), `compressPublicAssets`, static-asset
   `Cache-Control`, `SFEditor`/`SFIconPicker` lazy loading, and `@nuxt/image`
   for `SFAvatar`. See `decisions/2026-07-08-performance-hardening.md`.
 
@@ -528,6 +531,8 @@ This is the entry point for project memory.
 - `sessions/2026-07-08-auth-success-toast-guideline.md` - login/register
   success Toasts, auth page test harness path fix, theme-aware success Toast
   styling, and broader frontend Toast feedback guideline.
+- `sessions/2026-07-08-admin-ssr-no-white-screen.md` - 移除全站最后的
+  `ssr: false`（后台 + 组件预览页），全部页面 SSR 彻底杜绝空壳白屏。
 - `../docs/superpowers/specs/2026-07-05-global-footer-design.md` - global footer design spec.
 - `../docs/superpowers/plans/2026-07-05-global-footer.md` - global footer implementation plan.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -
