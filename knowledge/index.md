@@ -222,7 +222,11 @@ This is the entry point for project memory.
 - SEO Full-Chain v1 is implemented: `seo.manage` controls the SEO admin page,
   typed `seo.*` runtime options cover meta/social, robots, sitemap, structured
   data, and verification settings, and public Nuxt pages use runtime SEO helpers
-  with local/preview noindex protection.
+  with local/preview noindex protection. The topic detail URL shape is
+  configurable via `seo.topic_url_mode` (`id_slug`|`id`|`slug`, default
+  `id_slug`); the detail page is a catch-all `/t/[...path]` with SSR canonical
+  301, and switching modes redirects old URLs to the new canonical path.
+  Decision: `knowledge/decisions/2026-07-09-configurable-topic-url-mode.md`.
 - `SFIconPicker` now loads the full local Tabler and Lucide catalogs through a
   Nuxt server-side name catalog route, shows paged results, auto-loads more
   icons when the picker grid scrolls near the bottom, and primes only visible

@@ -59,10 +59,24 @@ on 2026-07-07.
 
 - Category: `/c/:categorySlug`
 - Tag: `/tags/:tagSlug`
-- Topic: `/t/:topicID/:topicSlug`
+- Topic: `/t/<path>` — 详情页为 catch-all 路由（`t/[...path].vue`），具体形态由
+  `seo.topic_url_mode` 选项控制，管理员可在 SEO 设置页切换：
 
-The topic ID gives stable lookup. The slug is for readability and should
-redirect to the canonical slug if changed.
+| 模式 | 形态 | 后端查找 |
+|---|---|---|
+| `id_slug`（默认） | `/t/123/hello-world` | `GET /topics/:topicID`（按 ID） |
+| `id` | `/t/123` | `GET /topics/:topicID`（按 ID） |
+| `slug` | `/t/hello-world` | `GET /topics/by-slug/:slug`（按 slug，需全局唯一） |
+
+URL 规范化：详情页在 SSR 入口按当前 mode 计算 canonical 路径，与请求路径
+不符时直接 301（SSR）/ replace（客户端）。触发场景包括：模式切换后的旧 URL、
+slug 变更后的旧 slug、`id` 模式下多余的 slug 段。编辑入口为 `?edit=1` query
+（避免 catch-all 嵌套子路由的渲染出口问题）。
+
+`slug` 模式要求 slug 全局唯一：迁移 `202607090001` 把 `topics.slug` 升级为
+UNIQUE 索引（先去重），创建/改标题时 `Service.ensureUniqueTopicSlug` 在冲突时
+追加 `-2`/`-3` 后缀。`id_slug`/`id` 模式不依赖唯一约束。
+
 
 ## Content Rules
 
@@ -228,9 +242,10 @@ as observe events (see `app/Support/Events/catalog.go`).
 for permission checks. `ScanTopicSummary`/`RowScanner` are exported so the
 Profile model reuses the same SELECT column layout for recent-topic lists.
 
-Frontend: `/t/:topicID/:topicSlug` renders topic detail with canonical slug
-redirect (301 SSR / replace client), sanitized HTML, comment tree/flat views,
-reply editor, and permission-aware action buttons. `/topics/new` and
-`/t/:topicID/:topicSlug/edit` provide composer and edit flows using
-`SFEditor` (submits markdown with `sourceFormat=markdown`,
-`editorType=tiptap`).
+Frontend: `/t/[...path]` renders topic detail (catch-all, shape controlled by
+`seo.topic_url_mode`) with canonical redirect (301 SSR / replace client),
+sanitized HTML, comment tree/flat views, reply editor, and permission-aware
+action buttons. `/topics/new` provides the composer flow; topic editing is
+entered via `?edit=1` query on the detail page and renders `SFTopicEditor`.
+Composer and editor use `SFEditor` (submits markdown with
+`sourceFormat=markdown`, `editorType=tiptap`).
