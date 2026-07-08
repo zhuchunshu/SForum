@@ -129,6 +129,21 @@ const tabItems = computed(() => [
 
 const categories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
 const topics = computed(() => topicList.value.items)
+const activeCategory = computed(() => {
+  return categories.value.find((category) => category.slug === selectedCategorySlug.value)
+})
+const activeTag = computed(() => {
+  return activeTags.value.find((tag) => tag.slug === selectedTagSlug.value)
+})
+const feedTitle = computed(() => {
+  if (activeCategory.value) {
+    return activeCategory.value.name
+  }
+  if (activeTag.value) {
+    return `#${activeTag.value.name}`
+  }
+  return t('home.sidebar.navHome')
+})
 const isPending = computed(() => categoriesPending.value || tagsPending.value || topicsPending.value)
 const totalPages = computed(() => {
   return Math.ceil(topicList.value.total / Math.max(topicList.value.perPage, 1)) || 1
@@ -207,217 +222,60 @@ function formatShortDate(value: string) {
 </script>
 
 <template>
-  <main class="min-h-screen py-8" style="background-color: var(--sf-surface)">
-    <div class="max-w-[1376px] mx-auto px-4 sm:px-6">
-      <div class="grid grid-cols-1 md:grid-cols-[1fr_290px] lg:grid-cols-[270px_1fr_290px] gap-6">
-        
-        <!-- ======================================= -->
-        <!-- 1. LEFT SIDEBAR: Navigation & Sections  -->
-        <!-- ======================================= -->
-        <aside class="hidden lg:block space-y-6">
-          <!-- Navigation Links -->
-          <SFCard flush class="p-4">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 dark:text-zinc-500">
-              {{ t('home.sidebar.navTitle') }}
+  <main class="sforum-home">
+    <div class="sforum-home__inner">
+      <div class="sforum-home__layout grid grid-cols-1 gap-4 lg:grid-cols-[240px_minmax(0,1fr)_262px]">
+        <aside class="sforum-home__left sforum-home__rail hidden lg:grid lg:sticky lg:top-6">
+          <section class="sforum-home__rail-card">
+            <h2 class="sforum-home__rail-title">
+              <span>{{ t('home.sidebar.navTitle') }}</span>
             </h2>
-            <nav class="space-y-1" aria-label="首页辅助导航">
-              <NuxtLink :to="localePath('/')" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-bold bg-[#E6F4F1] text-[#0F766E] dark:bg-teal-950/40 dark:text-teal-300">
-                <UIcon name="i-lucide-home" class="size-4.5 shrink-0" />
+            <nav class="grid gap-1" aria-label="首页辅助导航">
+              <NuxtLink :to="localePath('/')" class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold bg-[#E6F4F1] text-[#0F766E] dark:bg-teal-950/40 dark:text-teal-300">
+                <UIcon name="i-lucide-home" class="size-4 shrink-0" />
                 <span>{{ t('home.sidebar.navHome') }}</span>
               </NuxtLink>
-              <a href="#categories" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50">
-                <UIcon name="i-lucide-folder-open" class="size-4.5 shrink-0" />
-                <span>{{ t('home.sidebar.navCategories') }}</span>
-              </a>
-              <a href="#tags" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50">
-                <UIcon name="i-lucide-tag" class="size-4.5 shrink-0" />
-                <span>{{ t('home.sidebar.navTags') }}</span>
-              </a>
-              <a href="#members" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50">
-                <UIcon name="i-lucide-users" class="size-4.5 shrink-0" />
-                <span>{{ t('home.sidebar.navMembers') }}</span>
-              </a>
+              <button type="button" class="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 opacity-60 dark:text-zinc-300" disabled>
+                <UIcon name="i-lucide-flame" class="size-4 shrink-0" />
+                <span>{{ t('home.filter.hot') }}</span>
+              </button>
+              <button type="button" class="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 opacity-60 dark:text-zinc-300" disabled>
+                <UIcon name="i-lucide-star" class="size-4 shrink-0" />
+                <span>{{ t('home.filter.featured') }}</span>
+              </button>
+              <button type="button" class="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 opacity-60 dark:text-zinc-300" disabled>
+                <UIcon name="i-lucide-at-sign" class="size-4 shrink-0" />
+                <span>{{ t('home.filter.following') }}</span>
+              </button>
             </nav>
-          </SFCard>
+          </section>
 
-          <!-- Categories Card -->
-          <SFCard flush id="categories" class="p-4">
-            <div class="flex justify-between items-center mb-3">
-              <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest dark:text-zinc-500">
-                {{ t('home.sidebar.sections') }}
-              </h2>
-              <SFBadge variant="neutral" class="font-bold">{{ totalCategoryThreads }}</SFBadge>
-            </div>
-            <ul class="space-y-1.5">
+          <section class="sforum-home__rail-card" id="categories">
+            <h2 class="sforum-home__rail-title">
+              <span>{{ t('home.sidebar.sections') }}</span>
+              <span class="font-mono">{{ totalCategoryThreads }}</span>
+            </h2>
+            <ul class="grid gap-1">
               <li v-for="(cat, idx) in categories" :key="cat.slug">
                 <button
                   type="button"
-                  class="flex w-full justify-between items-center px-3 py-2 rounded-lg text-[14px] font-medium transition"
+                  class="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold transition"
                   :class="categoryButtonClass(cat)"
                   @click="selectCategory(cat)"
                 >
-                  <span class="flex items-center gap-2.5">
-                    <span
-                      class="w-2 h-2 rounded-full shrink-0"
-                      :style="categoryDotStyle(idx)"
-                    ></span>
-                    <span>{{ cat.name }}</span>
+                  <span class="flex min-w-0 items-center gap-2">
+                    <span class="size-2 shrink-0 rounded-full" :style="categoryDotStyle(idx)" />
+                    <span class="truncate">{{ cat.name }}</span>
                   </span>
-                  <span class="text-xs text-slate-500 font-mono dark:text-zinc-400">{{ cat.topicCount }}</span>
+                  <span class="font-mono text-xs opacity-70">{{ cat.topicCount }}</span>
                 </button>
               </li>
             </ul>
-          </SFCard>
-        </aside>
+          </section>
 
-        <!-- ======================================= -->
-        <!-- 2. MIDDLE COLUMN: Threads Feed Stream   -->
-        <!-- ======================================= -->
-        <section class="space-y-4">
-          <!-- Search & Filters -->
-          <div class="space-y-3">
-            <SFSearch
-              v-model="searchQuery"
-              :placeholder="t('home.searchPlaceholder')"
-              id="feed-search"
-            />
-            
-            <div class="flex items-center justify-between">
-              <SFTabs
-                v-model="currentTab"
-                :items="tabItems"
-                aria-label="帖子排序切换"
-              />
-            </div>
-          </div>
-
-          <!-- Loader / List / Empty State -->
-          <div class="space-y-3" id="feed-list-container">
-            <!-- Loading Skeleton -->
-            <template v-if="isPending">
-              <SFCard v-for="i in 3" :key="i" class="p-5">
-                <SFSkeleton width="30%" height="1.25rem" class="mb-3" />
-                <SFSkeleton width="100%" class="mb-2" />
-                <SFSkeleton width="80%" class="mb-4" />
-                <div class="flex items-center gap-3">
-                  <SFSkeleton width="24px" height="24px" shape="circle" />
-                  <SFSkeleton width="15%" />
-                  <SFSkeleton width="10%" class="ml-auto" />
-                </div>
-              </SFCard>
-            </template>
-
-            <!-- Thread Items -->
-            <template v-else-if="topics.length > 0">
-              <SFCard class="divide-y divide-slate-100 overflow-hidden dark:divide-zinc-800">
-                <div v-for="topic in topics" :key="topic.id">
-                  <NuxtLink
-                    :to="localePath(forumTopicPath(topic, topicUrlMode))"
-                    class="block transition hover:bg-slate-50 dark:hover:bg-zinc-900/60"
-                  >
-                    <SFFeedRow
-                      :title="topic.title"
-                      :excerpt="topic.excerpt"
-                      :author="topicAuthor(topic)"
-                      :meta="topicMeta(topic)"
-                      :replies="topic.commentCount"
-                      :views="topic.viewCount"
-                      :score="0"
-                      :badges="topicBadges(topic)"
-                    />
-                  </NuxtLink>
-                </div>
-              </SFCard>
-            </template>
-
-            <!-- Empty State -->
-            <template v-else>
-              <SFCard class="p-12 flex justify-center">
-                <SFEmptyState
-                  :title="t('home.emptyState.title')"
-                  :description="t('home.emptyState.description')"
-                />
-              </SFCard>
-            </template>
-          </div>
-
-          <!-- Pagination -->
-          <div v-if="topics.length > 0 && !isPending" class="flex justify-center pt-4">
-            <SFPagination
-              v-model:page="currentPage"
-              :total-pages="totalPages"
-            />
-          </div>
-        </section>
-
-        <!-- ======================================= -->
-        <!-- 3. RIGHT SIDEBAR: Tools & Statistics     -->
-        <!-- ======================================= -->
-        <aside class="hidden md:block space-y-6">
-          <!-- User Status Panel -->
-          <SFCard flush class="p-5 text-center">
-            <template v-if="user">
-              <div class="flex flex-col items-center gap-2">
-                <SFAvatar :name="user.displayName" size="lg" status="online" />
-                <h2 class="font-bold text-slate-800 text-lg mt-1 dark:text-zinc-100">{{ user.displayName }}</h2>
-                <p class="text-sm text-slate-500 dark:text-zinc-400">@{{ user.username }}</p>
-                
-                <div class="grid grid-cols-2 gap-4 w-full mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
-                  <div>
-                    <span class="block text-base font-bold text-slate-800 dark:text-zinc-100">--</span>
-                    <span class="text-xs text-slate-400 uppercase font-semibold dark:text-zinc-500">{{ t('home.sidebar.userPosts') }}</span>
-                  </div>
-                  <div>
-                    <span class="block text-base font-bold text-slate-800 dark:text-zinc-100">--</span>
-                    <span class="text-xs text-slate-400 uppercase font-semibold dark:text-zinc-500">{{ t('home.sidebar.userLikes') }}</span>
-                  </div>
-                </div>
-              </div>
-            </template>
-            <template v-else>
-              <div class="space-y-3">
-                <div class="w-12 h-12 bg-[#E6F4F1] text-[#0F766E] rounded-full flex items-center justify-center mx-auto dark:bg-teal-950/40 dark:text-teal-300">
-                  <UIcon name="i-lucide-message-circle" class="size-5" />
-                </div>
-                <h2 class="font-bold text-slate-800 text-sm dark:text-zinc-100">{{ t('home.sidebar.welcomeTitle', { siteName }) }}</h2>
-                <p class="text-xs text-slate-600 leading-relaxed dark:text-zinc-400">{{ t('home.sidebar.welcomeDesc') }}</p>
-                <div class="grid grid-cols-2 gap-2 pt-2">
-                  <NuxtLink :to="localePath('/login')" class="sf-button sf-button--ghost sf-button--sm block text-center">
-                    {{ t('home.sidebar.loginBtn') }}
-                  </NuxtLink>
-                  <NuxtLink :to="localePath('/register')" class="sf-button sf-button--primary sf-button--sm block text-center">
-                    {{ t('home.sidebar.registerBtn') }}
-                  </NuxtLink>
-                </div>
-              </div>
-            </template>
-          </SFCard>
-
-          <!-- Check In Card -->
-          <SFCard flush v-if="user" class="p-4 flex items-center justify-between gap-3">
-            <div class="min-w-0">
-              <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide dark:text-zinc-100">
-                {{ t('home.sidebar.checkIn') }}
-              </h3>
-              <p class="text-xs text-slate-500 mt-1 truncate dark:text-zinc-400">
-                {{ checkedIn ? t('home.sidebar.checkedIn', { days: checkInDays }) : t('home.sidebar.checkInDesc') }}
-              </p>
-            </div>
-            <SFButton
-              :variant="checkedIn ? 'ghost' : 'primary'"
-              size="sm"
-              :disabled="checkedIn"
-              @click="handleCheckIn"
-              class="transition-transform active:scale-95 shrink-0"
-            >
-              {{ checkedIn ? t('home.sidebar.checkedInBtn') : t('home.sidebar.checkInBtn') }}
-            </SFButton>
-          </SFCard>
-
-          <!-- Tags Card -->
-          <SFCard flush class="p-4" id="tags">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 dark:text-zinc-500">
-              {{ t('home.sidebar.navTags') }}
+          <section class="sforum-home__rail-card" id="tags">
+            <h2 class="sforum-home__rail-title">
+              <span>{{ t('home.sidebar.navTags') }}</span>
             </h2>
             <div v-if="activeTags.length" class="flex flex-wrap gap-2">
               <button
@@ -432,84 +290,197 @@ function formatShortDate(value: string) {
                 <span class="font-mono text-[11px] opacity-70">{{ tag.topicCount }}</span>
               </button>
             </div>
-            <div v-else class="py-4">
-              <SFEmptyState
-                icon-label="TAG"
-                :title="t('home.emptyState.title')"
-                :description="t('home.emptyState.description')"
-              />
-            </div>
-          </SFCard>
-
-          <!-- Hot Discussions Card -->
-          <SFCard flush class="p-4">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 dark:text-zinc-500">
-              {{ t('home.sidebar.hotThreads') }}
-            </h2>
-            <ul v-if="hotTopics.length" class="space-y-3">
-              <li v-for="(topic, index) in hotTopics" :key="topic.id" class="flex gap-3 items-start">
-                <span
-                  class="w-[18px] h-[18px] rounded text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5 px-1"
-                  :class="hotTopicRankClass(index)"
-                >
-                  {{ hotTopicRank(index) }}
-                </span>
-                <div class="min-w-0 flex-1">
-                  <NuxtLink :to="localePath(forumTopicPath(topic, topicUrlMode))" class="text-sm text-slate-700 hover:text-[#0F766E] hover:underline font-medium block truncate dark:text-zinc-300 dark:hover:text-teal-300">
-                    {{ topic.title }}
-                  </NuxtLink>
-                  <span class="text-xs text-slate-400 font-mono mt-0.5 block dark:text-zinc-500">{{ t('home.sidebar.repliesCount', { count: topic.commentCount }) }}</span>
-                </div>
-              </li>
-            </ul>
             <SFEmptyState
               v-else
-              icon-label="HOT"
+              icon-label="TAG"
               :title="t('home.emptyState.title')"
               :description="t('home.emptyState.description')"
             />
-          </SFCard>
-
-          <!-- Forum Stats Card -->
-          <SFCard flush class="p-4">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 dark:text-zinc-500">
-              {{ t('home.sidebar.forumStats') }}
-            </h2>
-            <ul class="space-y-2.5 text-sm text-slate-700 font-medium dark:text-zinc-300">
-              <li class="flex justify-between py-0.5">
-                <span class="text-slate-500 font-normal dark:text-zinc-400">{{ t('home.sidebar.statThreads') }}</span>
-                <span class="font-semibold font-mono text-slate-800 dark:text-zinc-100">{{ topicList.total || totalCategoryThreads }}</span>
-              </li>
-              <li class="flex justify-between py-0.5">
-                <span class="text-slate-500 font-normal dark:text-zinc-400">{{ t('home.sidebar.statReplies') }}</span>
-                <span class="font-semibold font-mono text-slate-800 dark:text-zinc-100">{{ totalCategoryComments }}</span>
-              </li>
-              <li class="flex justify-between py-0.5">
-                <span class="text-slate-500 font-normal dark:text-zinc-400">{{ t('home.sidebar.statMembers') }}</span>
-                <span class="font-semibold font-mono text-slate-800 dark:text-zinc-100">--</span>
-              </li>
-              <li class="flex justify-between py-0.5">
-                <span class="text-slate-500 font-normal dark:text-zinc-400">{{ t('home.sidebar.statOnline') }}</span>
-                <span class="font-semibold font-mono text-slate-800 flex items-center gap-2 dark:text-zinc-100">
-                  <span class="w-2 h-2 rounded-full bg-green-400 pulse-dot"></span>
-                  <span>--</span>
-                </span>
-              </li>
-            </ul>
-          </SFCard>
+          </section>
         </aside>
 
+        <section class="sforum-home__main grid gap-4">
+          <div class="sforum-home__mobile-filters lg:hidden">
+            <SFCard flush class="p-3">
+              <div class="flex gap-2 overflow-x-auto pb-1">
+                <button
+                  v-for="(cat, idx) in categories"
+                  :key="cat.slug"
+                  type="button"
+                  class="inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition"
+                  :class="categoryButtonClass(cat)"
+                  @click="selectCategory(cat)"
+                >
+                  <span class="size-2 rounded-full" :style="categoryDotStyle(idx)" />
+                  <span>{{ cat.name }}</span>
+                </button>
+              </div>
+              <div v-if="activeTags.length" class="mt-2 flex gap-2 overflow-x-auto pb-1">
+                <button
+                  v-for="tag in activeTags"
+                  :key="tag.slug"
+                  type="button"
+                  class="inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition"
+                  :class="tagButtonClass(tag)"
+                  @click="selectTag(tag)"
+                >
+                  <span>#{{ tag.name }}</span>
+                  <span class="font-mono text-[11px] opacity-70">{{ tag.topicCount }}</span>
+                </button>
+              </div>
+            </SFCard>
+          </div>
+
+          <div class="sforum-topic-table">
+            <header class="sforum-topic-table__toolbar">
+              <div class="sforum-topic-table__top">
+                <h1 class="sforum-topic-table__title">
+                  {{ feedTitle }}
+                </h1>
+                <SFTabs v-model="currentTab" :items="tabItems" aria-label="帖子排序切换" />
+              </div>
+              <div class="sforum-topic-table__filters">
+                <SFSearch
+                  v-model="searchQuery"
+                  :placeholder="t('home.searchPlaceholder')"
+                  id="feed-search"
+                />
+                <div v-if="selectedCategorySlug || selectedTagSlug" class="flex flex-wrap gap-2">
+                  <SFBadge v-if="activeCategory" variant="primary">
+                    {{ activeCategory.name }}
+                  </SFBadge>
+                  <SFBadge v-if="activeTag" variant="neutral">
+                    #{{ activeTag.name }}
+                  </SFBadge>
+                </div>
+              </div>
+            </header>
+
+            <div id="feed-list-container" class="sforum-topic-table__rows divide-y divide-slate-100 dark:divide-zinc-800">
+              <template v-if="isPending">
+                <div v-for="i in 6" :key="i" class="px-4 py-3">
+                  <SFSkeleton :lines="2" />
+                </div>
+              </template>
+
+              <template v-else-if="topics.length > 0">
+                <NuxtLink
+                  v-for="topic in topics"
+                  :key="topic.id"
+                  :to="localePath(forumTopicPath(topic, topicUrlMode))"
+                  class="block transition hover:bg-slate-50 dark:hover:bg-zinc-900/60"
+                >
+                  <SFFeedRow
+                    layout="table"
+                    :show-avatar="false"
+                    :title="topic.title"
+                    :author="topicAuthor(topic)"
+                    :meta="topicMeta(topic)"
+                    :replies="topic.commentCount"
+                    :views="topic.viewCount"
+                    :score="0"
+                    :badges="topicBadges(topic)"
+                    :last-activity-label="topicMeta(topic)"
+                    :last-actor="topicAuthor(topic)"
+                  />
+                </NuxtLink>
+              </template>
+
+              <div v-else class="flex justify-center px-4 py-12">
+                <SFEmptyState
+                  :title="t('home.emptyState.title')"
+                  :description="t('home.emptyState.description')"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div v-if="topics.length > 0 && !isPending" class="flex justify-center pt-2">
+            <SFPagination v-model:page="currentPage" :total-pages="totalPages" />
+          </div>
+        </section>
+
+        <aside class="sforum-home__right sforum-home__rail hidden md:grid lg:sticky lg:top-6">
+          <section class="sforum-home__rail-card text-center">
+            <template v-if="user">
+              <div class="flex flex-col items-center gap-2">
+                <SFAvatar :name="user.displayName" size="lg" status="online" />
+                <h2 class="mt-1 text-base font-bold text-slate-800 dark:text-zinc-100">{{ user.displayName }}</h2>
+                <p class="text-sm text-slate-500 dark:text-zinc-400">@{{ user.username }}</p>
+              </div>
+            </template>
+            <template v-else>
+              <div class="grid gap-3">
+                <div class="mx-auto grid size-11 place-items-center rounded-full bg-[#E6F4F1] text-[#0F766E] dark:bg-teal-950/40 dark:text-teal-300">
+                  <UIcon name="i-lucide-message-circle" class="size-5" />
+                </div>
+                <h2 class="text-sm font-bold text-slate-800 dark:text-zinc-100">{{ t('home.sidebar.welcomeTitle', { siteName }) }}</h2>
+                <p class="text-xs leading-relaxed text-slate-600 dark:text-zinc-400">{{ t('home.sidebar.welcomeDesc') }}</p>
+                <div class="grid grid-cols-2 gap-2">
+                  <NuxtLink :to="localePath('/login')" class="sf-button sf-button--ghost sf-button--sm block text-center">
+                    {{ t('home.sidebar.loginBtn') }}
+                  </NuxtLink>
+                  <NuxtLink :to="localePath('/register')" class="sf-button sf-button--primary sf-button--sm block text-center">
+                    {{ t('home.sidebar.registerBtn') }}
+                  </NuxtLink>
+                </div>
+              </div>
+            </template>
+          </section>
+
+          <section v-if="user" class="sforum-home__rail-card flex items-center justify-between gap-3">
+            <div class="min-w-0 text-left">
+              <h3 class="text-sm font-bold text-slate-800 dark:text-zinc-100">{{ t('home.sidebar.checkIn') }}</h3>
+              <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
+                {{ checkedIn ? t('home.sidebar.checkedIn', { days: checkInDays }) : t('home.sidebar.checkInDesc') }}
+              </p>
+            </div>
+            <SFButton :variant="checkedIn ? 'ghost' : 'primary'" size="sm" :disabled="checkedIn" @click="handleCheckIn">
+              {{ checkedIn ? t('home.sidebar.checkedInBtn') : t('home.sidebar.checkInBtn') }}
+            </SFButton>
+          </section>
+
+          <section class="sforum-home__rail-card">
+            <h2 class="sforum-home__rail-title">
+              <span>{{ t('home.sidebar.hotThreads') }}</span>
+            </h2>
+            <ul v-if="hotTopics.length" class="grid gap-3">
+              <li v-for="(topic, index) in hotTopics" :key="topic.id" class="flex items-start gap-3">
+                <span class="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded px-1 text-[10px] font-bold" :class="hotTopicRankClass(index)">
+                  {{ hotTopicRank(index) }}
+                </span>
+                <div class="min-w-0 flex-1">
+                  <NuxtLink :to="localePath(forumTopicPath(topic, topicUrlMode))" class="block truncate text-sm font-semibold text-slate-700 hover:text-[#0F766E] hover:underline dark:text-zinc-300 dark:hover:text-teal-300">
+                    {{ topic.title }}
+                  </NuxtLink>
+                  <span class="mt-0.5 block font-mono text-xs text-slate-400 dark:text-zinc-500">{{ t('home.sidebar.repliesCount', { count: topic.commentCount }) }}</span>
+                </div>
+              </li>
+            </ul>
+            <SFEmptyState v-else icon-label="HOT" :title="t('home.emptyState.title')" :description="t('home.emptyState.description')" />
+          </section>
+
+          <section class="sforum-home__rail-card">
+            <h2 class="sforum-home__rail-title">
+              <span>{{ t('home.sidebar.forumStats') }}</span>
+            </h2>
+            <ul class="grid gap-2.5 text-sm text-slate-700 dark:text-zinc-300">
+              <li class="flex justify-between gap-3">
+                <span class="text-slate-500 dark:text-zinc-400">{{ t('home.sidebar.statThreads') }}</span>
+                <span class="font-mono font-semibold text-slate-800 dark:text-zinc-100">{{ topicList.total || totalCategoryThreads }}</span>
+              </li>
+              <li class="flex justify-between gap-3">
+                <span class="text-slate-500 dark:text-zinc-400">{{ t('home.sidebar.statReplies') }}</span>
+                <span class="font-mono font-semibold text-slate-800 dark:text-zinc-100">{{ totalCategoryComments }}</span>
+              </li>
+              <li class="flex justify-between gap-3">
+                <span class="text-slate-500 dark:text-zinc-400">{{ t('home.sidebar.statMembers') }}</span>
+                <span class="font-mono font-semibold text-slate-800 dark:text-zinc-100">--</span>
+              </li>
+            </ul>
+          </section>
+        </aside>
       </div>
     </div>
   </main>
 </template>
-
-<style scoped>
-.pulse-dot {
-  animation: pulse 2.4s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .4; }
-}
-</style>
