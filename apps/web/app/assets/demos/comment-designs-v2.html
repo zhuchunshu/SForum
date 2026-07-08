@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-sforum-theme="default">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SForum · 评论布局方案 v2</title>
+<style>
+/* ============ 主题 token（与项目对齐） ============ */
+:root {
+  --sf-accent: #0f766e; --sf-accent-hover: #0b5f59;
+  --sf-accent-soft: #e6f4f1; --sf-accent-soft-border: #b7ded8;
+  --sf-accent-rgb: 15 118 110;
+  --sf-surface: #f7f8fa; --sf-card: #ffffff; --sf-muted: #f3f6f9;
+  --sf-fg: #111827; --sf-fg-secondary: #475569; --sf-fg-tertiary: #64748b;
+  --sf-border: #e2e8f0; --sf-border-light: #eef2f6;
+  --sf-danger: #b91c1c; --sf-danger-soft: #fef2f2;
+}
+.dark {
+  color-scheme: dark;
+  --sf-accent-soft: rgb(var(--sf-accent-rgb) / 0.16);
+  --sf-accent-soft-border: rgb(var(--sf-accent-rgb) / 0.35);
+  --sf-surface: #09090b; --sf-card: #18181b; --sf-muted: #27272a;
+  --sf-fg: #f4f4f5; --sf-fg-secondary: #d4d4d8; --sf-fg-tertiary: #a1a1aa;
+  --sf-border: #3f3f46; --sf-border-light: #27272a;
+  --sf-danger-soft: rgba(185,28,28,.2);
+}
+html[data-sforum-theme="ocean_blue"]{ --sf-accent:#2563eb; --sf-accent-hover:#1d4ed8; --sf-accent-soft:#eff6ff; --sf-accent-soft-border:#bfdbfe; --sf-accent-rgb:37 99 235; }
+html[data-sforum-theme="violet"]{ --sf-accent:#7c3aed; --sf-accent-hover:#6d28d9; --sf-accent-soft:#f5f3ff; --sf-accent-soft-border:#ddd6fe; --sf-accent-rgb:124 58 237; }
+html[data-sforum-theme="rose"]{ --sf-accent:#e11d48; --sf-accent-hover:#be123c; --sf-accent-soft:#fff1f2; --sf-accent-soft-border:#fecdd3; --sf-accent-rgb:225 29 72; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--sf-surface);color:var(--sf-fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.icon{width:1em;height:1em;display:inline-block;vertical-align:-0.15em;stroke-width:2;stroke:currentColor;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* 工具栏 */
+.toolbar{position:sticky;top:0;z-index:50;background:var(--sf-card);border-bottom:1px solid var(--sf-border);padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.toolbar h1{margin:0;font-size:15px;font-weight:800}
+.toolbar h1 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--sf-accent);margin-right:8px;vertical-align:1px}
+.toolbar h1 small{font-weight:600;color:var(--sf-fg-tertiary);font-size:12px;margin-left:8px}
+.toolbar .spacer{flex:1}
+.toolbar select,.toolbar button.ctrl{font:inherit;font-size:13px;background:var(--sf-muted);color:var(--sf-fg);border:1px solid var(--sf-border);border-radius:8px;padding:6px 10px;cursor:pointer}
+
+/* tabs */
+.tabs{background:var(--sf-card);border-bottom:1px solid var(--sf-border);padding:0 24px;display:flex;gap:4px;position:sticky;top:57px;z-index:40;overflow-x:auto}
+.tab{padding:14px 16px;font-size:14px;font-weight:600;color:var(--sf-fg-tertiary);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s}
+.tab:hover{color:var(--sf-fg-secondary)}
+.tab.active{color:var(--sf-accent);border-bottom-color:var(--sf-accent)}
+.tab .badge{font-size:11px;font-weight:700;color:var(--sf-fg-tertiary);margin-left:6px}
+.tab.active .badge{color:var(--sf-accent)}
+
+/* main */
+.main{max-width:760px;margin:0 auto;padding:28px 24px 80px}
+.scheme{display:none}
+.scheme.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.scheme-head{margin-bottom:24px}
+.scheme-head .label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sf-accent)}
+.scheme-head h2{margin:6px 0 8px;font-size:22px;font-weight:800;letter-spacing:-.02em}
+.scheme-head p{margin:0;color:var(--sf-fg-secondary);font-size:14px;max-width:60ch}
+.scheme-head .pc{margin:14px 0 0;display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--sf-fg-tertiary)}
+.scheme-head .pc b{color:var(--sf-fg-secondary)}
+
+/* 通用元素 */
+.avatar{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--sf-accent);color:#fff;font-weight:800;font-size:14px}
+.avatar.sm{width:28px;height:28px;font-size:11px}
+.avatar.xs{width:20px;height:20px;font-size:9px}
+.author{font-weight:700;font-size:14px;color:var(--sf-fg)}
+.author:hover{color:var(--sf-accent)}
+.meta{color:var(--sf-fg-tertiary);font-size:12px}
+.content{color:var(--sf-fg-secondary);font-size:14.5px;line-height:1.65}
+.content b{color:var(--sf-fg);font-weight:700}
+
+/* 引用 pill：人名 + 被回复内容预览。一行内显示，内容过长省略号截断。
+   点击高亮/滚动到被回复的原评论。 */
+.reply-pill{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:12.5px;color:var(--sf-fg-secondary);
+  background:var(--sf-accent-soft);border:1px solid var(--sf-accent-soft-border);
+  padding:3px 10px;border-radius:8px;margin:0 0 4px;
+  cursor:pointer;max-width:100%;transition:background .15s;
+}
+.reply-pill:hover{background:var(--sf-accent-soft-border)}
+.reply-pill .rp-icon{color:var(--sf-accent);flex-shrink:0}
+.reply-pill .rp-name{font-weight:700;color:var(--sf-accent);white-space:nowrap;flex-shrink:0}
+.reply-pill .rp-sep{color:var(--sf-fg-tertiary);flex-shrink:0}
+.reply-pill .rp-excerpt{color:var(--sf-fg-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.reply-pill .rp-excerpt:empty{display:none}
+.reply-pill .rp-sep:empty{display:none}
+.op-tag{font-size:10px;font-weight:800;color:var(--sf-accent);background:var(--sf-accent-soft);border:1px solid var(--sf-accent-soft-border);padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:1px}
+
+.act{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--sf-fg-tertiary);background:none;border:none;cursor:pointer;padding:5px 8px;border-radius:6px;transition:color .15s,background .15s}
+.act:hover{color:var(--sf-accent);background:var(--sf-accent-soft)}
+
+/* ===================================================================
+   方案 E · 扁平对话流（无缩进，回复用 @提及 pill）
+   彻底去掉树和竖线。所有评论一条流，回复靠"@某人"小药丸标记。
+   =================================================================== */
+.scheme-e .cmt{display:flex;gap:12px;padding:16px 0;border-top:1px solid var(--sf-border-light)}
+.scheme-e .cmt:first-child{border-top:none;padding-top:0}
+.scheme-e .body{flex:1;min-width:0}
+.scheme-e .head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.scheme-e .actions{display:flex;gap:2px;margin-top:6px}
+
+/* ===================================================================
+   方案 F · 卡片气泡流（每条独立卡片，回复内嵌小卡片）
+   每条根评论是独立圆角卡片；回复用更小的浅底卡片内嵌。
+   视觉边界最清晰，最像现代社媒。
+   =================================================================== */
+.scheme-f .cmt-card{background:var(--sf-card);border:1px solid var(--sf-border);border-radius:14px;padding:16px;margin-bottom:14px;transition:border-color .15s,box-shadow .15s}
+.scheme-f .cmt-card:hover{border-color:var(--sf-accent-soft-border);box-shadow:0 4px 16px rgba(0,0,0,.04)}
+.scheme-f .cmt{display:flex;gap:12px}
+.scheme-f .body{flex:1;min-width:0}
+.scheme-f .head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.scheme-f .actions{display:flex;gap:2px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--sf-border-light)}
+.scheme-f .replies{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.scheme-f .reply-card{background:var(--sf-muted);border-radius:10px;padding:12px 14px;display:flex;gap:10px}
+.scheme-f .reply-card:hover{background:var(--sf-accent-soft)}
+
+/* ===================================================================
+   方案 G · 两级对话（根评论 + 回复区，回复区全部平铺）
+   严格的"两级"：根评论是主位，下面所有回复（不管嵌套多深）
+   统一平铺在一个浅灰回复区里，回复用"@某人"标记对象。
+   最适合当前这种"25条根评论、每条1-2回复"的数据。
+   =================================================================== */
+.scheme-g .thread{padding:18px 0;border-top:1px solid var(--sf-border)}
+.scheme-g .thread:first-child{border-top:none;padding-top:0}
+.scheme-g .root{display:flex;gap:12px}
+.scheme-g .root .body{flex:1;min-width:0}
+.scheme-g .root .head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.scheme-g .root .actions{display:flex;gap:2px;margin-top:8px}
+.scheme-g .reply-zone{margin-top:12px;margin-left:48px;background:var(--sf-muted);border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+.scheme-g .reply{display:flex;gap:8px;align-items:flex-start;padding:6px 0}
+.scheme-g .reply + .reply{border-top:1px solid var(--sf-border-light);padding-top:8px;margin-top:2px}
+.scheme-g .reply .body{flex:1;min-width:0}
+.scheme-g .reply .head{display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap}
+
+/* ===================================================================
+   方案 H · 极简列表（头像+名字+内容一行流，回复折叠成"展开N条"）
+   最紧凑。每条评论占最小空间，有回复的显示"展开 N 条回复"按钮，
+   点开后回复也是紧凑列表。信息密度最高。
+   =================================================================== */
+.scheme-h .cmt{display:flex;gap:10px;padding:14px 0;border-top:1px solid var(--sf-border-light)}
+.scheme-h .cmt:first-child{border-top:none;padding-top:0}
+.scheme-h .body{flex:1;min-width:0}
+.scheme-h .line1{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
+.scheme-h .actions{display:inline-flex;gap:2px;margin-top:4px}
+.scheme-h .expand-replies{margin-top:6px;margin-left:38px;font-size:13px;font-weight:600;color:var(--sf-accent);background:var(--sf-accent-soft);border:1px solid var(--sf-accent-soft-border);border-radius:8px;padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;width:fit-content}
+.scheme-h .expand-replies:hover{background:var(--sf-accent);color:#fff}
+.scheme-h .replies{margin-top:8px;margin-left:38px;display:none;flex-direction:column;gap:0}
+.scheme-h .replies.open{display:flex}
+.scheme-h .reply{display:flex;gap:8px;padding:10px 12px;border-radius:8px}
+.scheme-h .reply:hover{background:var(--sf-muted)}
+.scheme-h .reply .body{flex:1;min-width:0}
+.scheme-h .reply .line1{display:flex;align-items:baseline;gap:6px;margin-bottom:1px;flex-wrap:wrap}
+
+/* ===================================================================
+   方案 E2 · 扁平流 + 内联引用（药丸嵌在正文首行，更紧凑）
+   与 E 区别：药丸和正文贴在一起（同一段落），不是独立一行。
+   更省垂直空间，信息更聚合。
+   =================================================================== */
+.scheme-e2 .cmt{display:flex;gap:12px;padding:16px 0;border-top:1px solid var(--sf-border-light)}
+.scheme-e2 .cmt:first-child{border-top:none;padding-top:0}
+.scheme-e2 .body{flex:1;min-width:0}
+.scheme-e2 .head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.scheme-e2 .content{margin-top:2px}
+.scheme-e2 .actions{display:flex;gap:2px;margin-top:6px}
+/* 内联药丸：更小，和正文紧贴 */
+.scheme-e2 .reply-inline{
+  display:inline; font-size:12px; color:var(--sf-accent);
+  background:var(--sf-accent-soft); border:1px solid var(--sf-accent-soft-border);
+  padding:1px 7px; border-radius:5px; margin-right:4px; font-weight:600;
+  cursor:pointer; vertical-align:1px;
+}
+.scheme-e2 .reply-inline:hover{background:var(--sf-accent);color:#fff;border-color:var(--sf-accent)}
+.scheme-e2 .reply-inline .ri-excerpt{color:var(--sf-fg-tertiary);font-weight:400}
+
+/* ===================================================================
+   方案 E3 · 扁平流 + 左侧色条引用块（更醒目，带左侧 accent 竖条）
+   与 E 区别：引用不是药丸而是左侧带 accent 竖条的引用块，
+   人名和内容分两行，视觉上更像"引用了一段话"。
+   回复关系最醒目。
+   =================================================================== */
+.scheme-e3 .cmt{display:flex;gap:12px;padding:16px 0;border-top:1px solid var(--sf-border-light)}
+.scheme-e3 .cmt:first-child{border-top:none;padding-top:0}
+.scheme-e3 .body{flex:1;min-width:0}
+.scheme-e3 .head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.scheme-e3 .actions{display:flex;gap:2px;margin-top:6px}
+/* 引用块：左侧 accent 竖条 + soft 底，人名单独一行加粗 */
+.scheme-e3 .quote-block{
+  margin:4px 0 6px; padding:8px 12px;
+  border-left:3px solid var(--sf-accent); background:var(--sf-accent-soft);
+  border-radius:0 8px 8px 0; cursor:pointer; transition:background .15s;
+}
+.scheme-e3 .quote-block:hover{background:var(--sf-accent-soft-border)}
+.scheme-e3 .quote-block .qb-name{font-size:12.5px;font-weight:700;color:var(--sf-accent);display:block;margin-bottom:2px}
+.scheme-e3 .quote-block .qb-text{font-size:13px;color:var(--sf-fg-tertiary);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* ===================================================================
+   方案 E4 · 扁平流 + 气泡卡片引用（引用包在圆角小卡片里，最精致）
+   与 E 区别：引用是一个完整的圆角小卡片（带柔和阴影），
+   里面头像+人名+内容预览。最精致但占空间略多。
+   =================================================================== */
+.scheme-e4 .cmt{display:flex;gap:12px;padding:16px 0;border-top:1px solid var(--sf-border-light)}
+.scheme-e4 .cmt:first-child{border-top:none;padding-top:0}
+.scheme-e4 .body{flex:1;min-width:0}
+.scheme-e4 .head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.scheme-e4 .actions{display:flex;gap:2px;margin-top:6px}
+/* 引用卡片：圆角 + 柔和阴影 + 头像 */
+.scheme-e4 .quote-card{
+  display:flex;gap:8px;align-items:flex-start;
+  margin:4px 0 6px; padding:8px 10px;
+  background:var(--sf-card); border:1px solid var(--sf-border);
+  border-radius:10px; cursor:pointer;
+  box-shadow:0 1px 3px rgba(0,0,0,.04); transition:border-color .15s,box-shadow .15s;
+}
+.scheme-e4 .quote-card:hover{border-color:var(--sf-accent-soft-border);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.scheme-e4 .quote-card .qc-avatar{width:22px;height:22px;border-radius:50%;background:var(--sf-muted);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--sf-fg-tertiary);flex-shrink:0}
+.scheme-e4 .quote-card .qc-info{min-width:0;flex:1}
+.scheme-e4 .quote-card .qc-name{font-size:12px;font-weight:700;color:var(--sf-accent);margin-bottom:1px}
+.scheme-e4 .quote-card .qc-text{font-size:12.5px;color:var(--sf-fg-tertiary);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* 底部说明 */
+.footnote{margin-top:48px;padding:18px 20px;border:1px dashed var(--sf-border);border-radius:12px;font-size:13px;color:var(--sf-fg-tertiary);line-height:1.75}
+.footnote b{color:var(--sf-fg-secondary)}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1><span class="dot"></span>SForum 评论布局 <small>v2 · 重新设计</small></h1>
+  <div class="spacer"></div>
+  <select id="themeSelect">
+    <option value="default">Teal</option>
+    <option value="ocean_blue">Blue</option>
+    <option value="violet">Violet</option>
+    <option value="rose">Rose</option>
+  </select>
+  <button class="ctrl" id="darkToggle">深浅色</button>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" data-scheme="e">方案 E · 扁平药丸<span class="badge">已选</span></button>
+  <button class="tab" data-scheme="e2">E2 · 内联引用<span class="badge">紧凑</span></button>
+  <button class="tab" data-scheme="e3">E3 · 色条引用块<span class="badge">醒目</span></button>
+  <button class="tab" data-scheme="e4">E4 · 卡片引用<span class="badge">精致</span></button>
+  <button class="tab" data-scheme="f">方案 F · 卡片气泡<span class="badge">社媒</span></button>
+  <button class="tab" data-scheme="g">方案 G · 两级对话<span class="badge">备选</span></button>
+  <button class="tab" data-scheme="h">方案 H · 极简折叠<span class="badge">紧凑</span></button>
+</div>
+
+<div class="main">
+
+<!-- ================================================================ -->
+<!-- 方案 E · 扁平对话流 -->
+<!-- ================================================================ -->
+<section class="scheme scheme-e active" data-scheme="e">
+  <div class="scheme-head">
+    <div class="label">方案 E</div>
+    <h2>扁平对话流（彻底去树）</h2>
+    <p>所有评论一条竖直流，<b>完全没有缩进、没有竖线、没有树</b>。回复对象用"@某人"小药丸标记，点击可跳转。最干净，永远不会"乱"。</p>
+    <div class="pc"><div><b>适合</b>：讨论线性、回复不深的场景</div><div><b>缺点</b>：丢失讨论分支结构</div></div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar">林</div>
+    <div class="body">
+      <div class="head"><a class="author">林晚秋</a><span class="op-tag">楼主</span><span class="meta">· 2小时前</span></div>
+      <div class="content">已赞，期待后续更新。权限模型那部分讲得很清楚。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">墨</div>
+    <div class="body">
+      <div class="head"><a class="author">墨白</a><span class="meta">· 1小时前</span></div>
+      <div class="reply-pill"><svg class="icon rp-icon" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M20 14l-5-5 5-5M4 9h11a5 5 0 0 1 5 5v2"/></svg><span class="rp-name">林晚秋</span><span class="rp-sep">：</span><span class="rp-excerpt">已赞，期待后续更新。</span></div>
+      <div class="content">建议加上一些具体的例子会更清楚。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">江</div>
+    <div class="body">
+      <div class="head"><a class="author">江寻</a><span class="meta">· 58分钟前</span></div>
+      <div class="reply-pill"><svg class="icon rp-icon" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M20 14l-5-5 5-5M4 9h11a5 5 0 0 1 5 5v2"/></svg><span class="rp-name">墨白</span><span class="rp-sep">：</span><span class="rp-excerpt">建议加上一些具体的例子会更清楚。</span></div>
+      <div class="content">同感，我也想看具体例子。另外这个和 RBAC 的取舍怎么定的？</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">林</div>
+    <div class="body">
+      <div class="head"><a class="author">林晚秋</a><span class="op-tag">楼主</span><span class="meta">· 50分钟前</span></div>
+      <div class="reply-pill"><svg class="icon rp-icon" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M20 14l-5-5 5-5M4 9h11a5 5 0 0 1 5 5v2"/></svg><span class="rp-name">江寻</span><span class="rp-sep">：</span><span class="rp-excerpt">同感，我也想看具体例子。另外这个和 RBAC 的取舍怎么定的？</span></div>
+      <div class="content">我们最终选了 RBAC 做底座，ABAC 的部分场景用 override 补。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar">沈</div>
+    <div class="body">
+      <div class="head"><a class="author">沈砚</a><span class="meta">· 30分钟前</span></div>
+      <div class="content">提个 UI 建议：深色模式下引用块对比度偏低，建议把竖线宽度提到 3px。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- 方案 E2 · 扁平流 + 内联引用（药丸贴正文，最紧凑） -->
+<!-- ================================================================ -->
+<section class="scheme scheme-e2" data-scheme="e2">
+  <div class="scheme-head">
+    <div class="label">方案 E2</div>
+    <h2>扁平流 · 内联引用（最紧凑）</h2>
+    <p>和 E 一样无树平铺，但引用药丸<b>嵌在正文开头</b>（同一个段落里），不单独占一行。最省垂直空间，人名和正文贴得最近。</p>
+    <div class="pc"><div><b>vs E</b>：药丸更小、贴正文、不单独成行</div><div><b>适合</b>：回复密集、想压缩长度</div></div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar">林</div>
+    <div class="body">
+      <div class="head"><a class="author">林晚秋</a><span class="op-tag">楼主</span><span class="meta">· 2小时前</span></div>
+      <div class="content">已赞，期待后续更新。权限模型那部分讲得很清楚。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">墨</div>
+    <div class="body">
+      <div class="head"><a class="author">墨白</a><span class="meta">· 1小时前</span></div>
+      <div class="content"><span class="reply-inline">↩ 林晚秋 <span class="ri-excerpt">已赞，期待…</span></span>建议加上一些具体的例子会更清楚。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">江</div>
+    <div class="body">
+      <div class="head"><a class="author">江寻</a><span class="meta">· 58分钟前</span></div>
+      <div class="content"><span class="reply-inline">↩ 墨白 <span class="ri-excerpt">建议加上具体的例子…</span></span>同感，我也想看具体例子。另外这个和 RBAC 的取舍怎么定的？</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">林</div>
+    <div class="body">
+      <div class="head"><a class="author">林晚秋</a><span class="op-tag">楼主</span><span class="meta">· 50分钟前</span></div>
+      <div class="content"><span class="reply-inline">↩ 江寻 <span class="ri-excerpt">和 RBAC 的取舍…</span></span>我们最终选了 RBAC 做底座，ABAC 的部分场景用 override 补。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- 方案 E3 · 扁平流 + 左侧色条引用块（最醒目） -->
+<!-- ================================================================ -->
+<section class="scheme scheme-e3" data-scheme="e3">
+  <div class="scheme-head">
+    <div class="label">方案 E3</div>
+    <h2>扁平流 · 色条引用块（最醒目）</h2>
+    <p>无树平铺，引用用<b>左侧 accent 竖条 + soft 底的引用块</b>，人名和内容分两行。回复关系在所有方案里最醒目，像"引用了一段原话"。</p>
+    <div class="pc"><div><b>vs E</b>：药丸换成完整引用块，更醒目但占两行</div><div><b>适合</b>：回复关系需要一眼看清</div></div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar">林</div>
+    <div class="body">
+      <div class="head"><a class="author">林晚秋</a><span class="op-tag">楼主</span><span class="meta">· 2小时前</span></div>
+      <div class="content">已赞，期待后续更新。权限模型那部分讲得很清楚。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">墨</div>
+    <div class="body">
+      <div class="head"><a class="author">墨白</a><span class="meta">· 1小时前</span></div>
+      <div class="quote-block">
+        <span class="qb-name">林晚秋</span>
+        <span class="qb-text">已赞，期待后续更新。权限模型那部分讲得很清楚。</span>
+      </div>
+      <div class="content">建议加上一些具体的例子会更清楚。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">江</div>
+    <div class="body">
+      <div class="head"><a class="author">江寻</a><span class="meta">· 58分钟前</span></div>
+      <div class="quote-block">
+        <span class="qb-name">墨白</span>
+        <span class="qb-text">建议加上一些具体的例子会更清楚。</span>
+      </div>
+      <div class="content">同感，我也想看具体例子。另外这个和 RBAC 的取舍怎么定的？</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">林</div>
+    <div class="body">
+      <div class="head"><a class="author">林晚秋</a><span class="op-tag">楼主</span><span class="meta">· 50分钟前</span></div>
+      <div class="quote-block">
+        <span class="qb-name">江寻</span>
+        <span class="qb-text">同感，我也想看具体例子。另外这个和 RBAC 的取舍怎么定的？</span>
+      </div>
+      <div class="content">我们最终选了 RBAC 做底座，ABAC 的部分场景用 override 补。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- 方案 E4 · 扁平流 + 卡片引用（最精致，带头像） -->
+<!-- ================================================================ -->
+<section class="scheme scheme-e4" data-scheme="e4">
+  <div class="scheme-head">
+    <div class="label">方案 E4</div>
+    <h2>扁平流 · 卡片引用（最精致）</h2>
+    <p>无树平铺，引用是一个<b>完整的圆角小卡片</b>（带柔和阴影），里面有头像 + 人名 + 内容预览。视觉最精致，信息最全，但占空间略多。</p>
+    <div class="pc"><div><b>vs E</b>：药丸换成带头像的卡片，最精致但最大</div><div><b>适合</b>：追求质感、不在乎空间</div></div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar">林</div>
+    <div class="body">
+      <div class="head"><a class="author">林晚秋</a><span class="op-tag">楼主</span><span class="meta">· 2小时前</span></div>
+      <div class="content">已赞，期待后续更新。权限模型那部分讲得很清楚。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">墨</div>
+    <div class="body">
+      <div class="head"><a class="author">墨白</a><span class="meta">· 1小时前</span></div>
+      <div class="quote-card">
+        <div class="qc-avatar">林</div>
+        <div class="qc-info">
+          <div class="qc-name">林晚秋</div>
+          <div class="qc-text">已赞，期待后续更新。权限模型那部分讲得很清楚。</div>
+        </div>
+      </div>
+      <div class="content">建议加上一些具体的例子会更清楚。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">江</div>
+    <div class="body">
+      <div class="head"><a class="author">江寻</a><span class="meta">· 58分钟前</span></div>
+      <div class="quote-card">
+        <div class="qc-avatar">墨</div>
+        <div class="qc-info">
+          <div class="qc-name">墨白</div>
+          <div class="qc-text">建议加上一些具体的例子会更清楚。</div>
+        </div>
+      </div>
+      <div class="content">同感，我也想看具体例子。另外这个和 RBAC 的取舍怎么定的？</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">林</div>
+    <div class="body">
+      <div class="head"><a class="author">林晚秋</a><span class="op-tag">楼主</span><span class="meta">· 50分钟前</span></div>
+      <div class="quote-card">
+        <div class="qc-avatar">江</div>
+        <div class="qc-info">
+          <div class="qc-name">江寻</div>
+          <div class="qc-text">同感，我也想看具体例子。另外这个和 RBAC 的取舍怎么定的？</div>
+        </div>
+      </div>
+      <div class="content">我们最终选了 RBAC 做底座，ABAC 的部分场景用 override 补。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- 方案 F · 卡片气泡流 -->
+<!-- ================================================================ -->
+<section class="scheme scheme-f" data-scheme="f">
+  <div class="scheme-head">
+    <div class="label">方案 F</div>
+    <h2>卡片气泡流（现代社媒风）</h2>
+    <p>每条根评论是<b>独立圆角卡片</b>，边界最清晰。回复用更小的浅底卡片内嵌在根卡片下方。视觉上每条评论都是独立单元，不会糊在一起。</p>
+    <div class="pc"><div><b>适合</b>：追求现代感、边界清晰</div><div><b>缺点</b>：卡片多时占空间</div></div>
+  </div>
+
+  <div class="cmt-card">
+    <div class="cmt">
+      <div class="avatar">林</div>
+      <div class="body">
+        <div class="head"><a class="author">林晚秋</a><span class="op-tag">楼主</span><span class="meta">· 2小时前</span></div>
+        <div class="content">已赞，期待后续更新。权限模型那部分讲得很清楚。</div>
+        <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+      </div>
+    </div>
+    <div class="replies">
+      <div class="reply-card">
+        <div class="avatar sm">墨</div>
+        <div class="body">
+          <div class="head"><a class="author">墨白</a><span class="meta">· 1小时前</span></div>
+          <div class="content"><span class="reply-pill">林晚秋</span>建议加上一些具体的例子会更清楚。</div>
+        </div>
+      </div>
+      <div class="reply-card">
+        <div class="avatar sm">江</div>
+        <div class="body">
+          <div class="head"><a class="author">江寻</a><span class="meta">· 58分钟前</span></div>
+          <div class="content"><span class="reply-pill">墨白</span>同感，另外这个和 RBAC 的取舍怎么定的？</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cmt-card">
+    <div class="cmt">
+      <div class="avatar">沈</div>
+      <div class="body">
+        <div class="head"><a class="author">沈砚</a><span class="meta">· 30分钟前</span></div>
+        <div class="content">提个 UI 建议：深色模式下引用块对比度偏低，建议把竖线宽度提到 3px。</div>
+        <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cmt-card">
+    <div class="cmt">
+      <div class="avatar">苏</div>
+      <div class="body">
+        <div class="head"><a class="author">苏黎</a><span class="meta">· 20分钟前</span></div>
+        <div class="content">移动端窄屏缩进会吃掉正文宽度，建议小屏封顶更早。</div>
+        <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+      </div>
+    </div>
+    <div class="replies">
+      <div class="reply-card">
+        <div class="avatar sm">何</div>
+        <div class="body">
+          <div class="head"><a class="author">何川</a><span class="meta">· 15分钟前</span></div>
+          <div class="content"><span class="reply-pill">苏黎</span>+1，现在 SFComment 已经封顶 4 层了。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- 方案 G · 两级对话（推荐） -->
+<!-- ================================================================ -->
+<section class="scheme scheme-g" data-scheme="g">
+  <div class="scheme-head">
+    <div class="label">方案 G（推荐）</div>
+    <h2>两级对话（根评论 + 回复区平铺）</h2>
+    <p>严格的<b>只有两级</b>：根评论是主位，下面<b>所有回复（不管原本嵌套多深）统一平铺</b>在一个浅灰回复区里。回复用"@某人"标记对象。这种结构对当前"多条根评论、每条少量回复"的数据最友好。</p>
+    <div class="pc"><div><b>适合</b>：论坛最常见的讨论形态</div><div><b>优点</b>：结构稳定、永远不会乱、回复脉络清晰</div></div>
+  </div>
+
+  <!-- 帖子 1：有回复 -->
+  <div class="thread">
+    <div class="root">
+      <div class="avatar">林</div>
+      <div class="body">
+        <div class="head"><a class="author">林晚秋</a><span class="op-tag">楼主</span><span class="meta">· 2小时前</span></div>
+        <div class="content">已赞，期待后续更新。权限模型那部分讲得很清楚。</div>
+        <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+      </div>
+    </div>
+    <div class="reply-zone">
+      <div class="reply">
+        <div class="avatar xs">墨</div>
+        <div class="body">
+          <div class="head"><a class="author">墨白</a><span class="meta">· 1小时前</span></div>
+          <div class="content"><span class="reply-pill">林晚秋</span>建议加上一些具体的例子会更清楚。</div>
+        </div>
+      </div>
+      <div class="reply">
+        <div class="avatar xs">江</div>
+        <div class="body">
+          <div class="head"><a class="author">江寻</a><span class="meta">· 58分钟前</span></div>
+          <div class="content"><span class="reply-pill">墨白</span>同感，另外这个和 RBAC 的取舍怎么定的？</div>
+        </div>
+      </div>
+      <div class="reply">
+        <div class="avatar xs">林</div>
+        <div class="body">
+          <div class="head"><a class="author">林晚秋</a><span class="op-tag">楼主</span><span class="meta">· 50分钟前</span></div>
+          <div class="content"><span class="reply-pill">江寻</span>最终选了 RBAC 做底座，ABAC 场景用 override 补。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 帖子 2：无回复 -->
+  <div class="thread">
+    <div class="root">
+      <div class="avatar">沈</div>
+      <div class="body">
+        <div class="head"><a class="author">沈砚</a><span class="meta">· 30分钟前</span></div>
+        <div class="content">提个 UI 建议：深色模式下引用块对比度偏低，建议把竖线宽度提到 3px。</div>
+        <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 帖子 3：有回复 -->
+  <div class="thread">
+    <div class="root">
+      <div class="avatar">苏</div>
+      <div class="body">
+        <div class="head"><a class="author">苏黎</a><span class="meta">· 20分钟前</span></div>
+        <div class="content">移动端窄屏缩进会吃掉正文宽度，建议小屏封顶更早。</div>
+        <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+      </div>
+    </div>
+    <div class="reply-zone">
+      <div class="reply">
+        <div class="avatar xs">何</div>
+        <div class="body">
+          <div class="head"><a class="author">何川</a><span class="meta">· 15分钟前</span></div>
+          <div class="content"><span class="reply-pill">苏黎</span>+1，现在 SFComment 已经封顶 4 层了。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<!-- 方案 H · 极简折叠 -->
+<!-- ================================================================ -->
+<section class="scheme scheme-h" data-scheme="h">
+  <div class="scheme-head">
+    <div class="label">方案 H</div>
+    <h2>极简折叠（信息密度最高）</h2>
+    <p>每条评论占最小空间，紧凑排列。<b>有回复的显示"展开 N 条回复"按钮</b>，默认收起，点开后回复也是紧凑列表。25 条根评论也不会显得很长。</p>
+    <div class="pc"><div><b>适合</b>：评论多、想控制页面长度</div><div><b>缺点</b>：多一步点击</div></div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">林</div>
+    <div class="body">
+      <div class="line1"><a class="author">林晚秋</a><span class="op-tag">楼主</span><span class="meta">2小时前</span></div>
+      <div class="content">已赞，期待后续更新。权限模型那部分讲得很清楚。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+      <button class="expand-replies" onclick="this.nextElementSibling.classList.toggle('open')">
+        <svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>展开 3 条回复
+      </button>
+      <div class="replies">
+        <div class="reply">
+          <div class="avatar xs">墨</div>
+          <div class="body">
+            <div class="line1"><a class="author">墨白</a><span class="meta">1小时前</span></div>
+            <div class="content"><span class="reply-pill">林晚秋</span>建议加上一些具体的例子会更清楚。</div>
+          </div>
+        </div>
+        <div class="reply">
+          <div class="avatar xs">江</div>
+          <div class="body">
+            <div class="line1"><a class="author">江寻</a><span class="meta">58分钟前</span></div>
+            <div class="content"><span class="reply-pill">墨白</span>同感，另外这个和 RBAC 取舍怎么定的？</div>
+          </div>
+        </div>
+        <div class="reply">
+          <div class="avatar xs">林</div>
+          <div class="body">
+            <div class="line1"><a class="author">林晚秋</a><span class="op-tag">楼主</span><span class="meta">50分钟前</span></div>
+            <div class="content"><span class="reply-pill">江寻</span>选了 RBAC 做底座，ABAC 用 override 补。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">沈</div>
+    <div class="body">
+      <div class="line1"><a class="author">沈砚</a><span class="meta">30分钟前</span></div>
+      <div class="content">提个 UI 建议：深色模式下引用块对比度偏低，建议把竖线宽度提到 3px。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">苏</div>
+    <div class="body">
+      <div class="line1"><a class="author">苏黎</a><span class="meta">20分钟前</span></div>
+      <div class="content">移动端窄屏缩进会吃掉正文宽度，建议小屏封顶更早。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+      <button class="expand-replies" onclick="this.nextElementSibling.classList.toggle('open')">
+        <svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>展开 1 条回复
+      </button>
+      <div class="replies">
+        <div class="reply">
+          <div class="avatar xs">何</div>
+          <div class="body">
+            <div class="line1"><a class="author">何川</a><span class="meta">15分钟前</span></div>
+            <div class="content"><span class="reply-pill">苏黎</span>+1，现在 SFComment 已经封顶 4 层了。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cmt">
+    <div class="avatar sm">许</div>
+    <div class="body">
+      <div class="line1"><a class="author">许之南</a><span class="meta">10分钟前</span></div>
+      <div class="content">这个对齐方式很关键，之前缩进只是 marginLeft 没有竖线，层级完全看不出来。</div>
+      <div class="actions"><button class="act"><svg class="icon" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h13a5 5 0 0 1 5 5v2"/></svg>回复</button></div>
+    </div>
+  </div>
+</section>
+
+<div class="footnote">
+  <b>这 4 套方案的共同点</b>：都<b>放弃了深层缩进树</b>（那是你觉得乱的根源）。区别在于"回复怎么组织"：<br>
+  <b>E</b> 全平铺、<b>F</b> 卡片包裹、<b>G</b> 根评论+回复区两级、<b>H</b> 折叠收起。选一个我就按它重新实现。<br><br>
+  <b>我的推荐：方案 G</b>。它对当前数据（多条根评论、每条少量回复）最自然，结构稳定不会乱，回复脉络靠"@某人"药丸清晰可读。
+</div>
+
+</div>
+
+<script>
+const tabs=document.querySelectorAll('.tab'),schemes=document.querySelectorAll('.scheme');
+tabs.forEach(t=>t.addEventListener('click',()=>{const s=t.dataset.scheme;tabs.forEach(x=>x.classList.toggle('active',x===t));schemes.forEach(x=>x.classList.toggle('active',x.dataset.scheme===s));window.scrollTo({top:0,behavior:'smooth'})}));
+document.getElementById('themeSelect').addEventListener('change',e=>document.documentElement.setAttribute('data-sforum-theme',e.target.value));
+document.getElementById('darkToggle').addEventListener('click',()=>document.documentElement.classList.toggle('dark'));
+</script>
+</body>
+</html>

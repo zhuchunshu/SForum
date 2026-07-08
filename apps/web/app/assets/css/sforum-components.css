@@ -1384,135 +1384,60 @@
   color: var(--sf-accent);
 }
 
-/* 回复引用块：被回复的作者 + 内容摘要。之前完全没有样式，靠浏览器默认 blockquote 裸奔。 */
-.sf-comment__reply-to {
+/*
+ * 评论：扁平列表布局（E3 方案）。
+ * 所有评论（含深层回复）平铺，无缩进、无竖线树。
+ * 评论之间用细分隔线区分。回复对象用左侧 accent 竖条引用块表达。
+ */
+.sf-comment--flat {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.75rem;
   align-items: flex-start;
-  margin: 0.35rem 0 0;
-  padding: 0.4rem 0.6rem;
-  border-left: 2px solid var(--sf-accent);
-  background: var(--sf-accent-soft);
-  border-radius: 0 6px 6px 0;
-  font-size: 0.78rem;
-  line-height: 1.5;
-  color: var(--sf-fg-secondary);
+  padding: 1rem 0;
 }
-
-.sf-comment__reply-to-author {
-  font-weight: 800;
-  color: var(--sf-fg);
-  white-space: nowrap;
+.sf-comment--flat + .sf-comment--flat {
+  border-top: 1px solid var(--sf-border-light);
 }
-
-.sf-comment__reply-to-excerpt {
-  color: var(--sf-fg-tertiary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+.sf-comment__avatar-link {
+  flex-shrink: 0;
 }
 
 /*
- * 子评论容器（树级回复核心）。
- * 之前完全没有样式，递归嵌套时层级关系看不出来。
- * 用左侧连续竖线 + 缩进表达层级，竖线落在父头像中线（头像 sm=2rem → 中线 1rem，加 gap 略偏移）。
- * hover 时只高亮当前层的竖线（用子选择器，避免深层冒泡导致外层跟着变色）。
+ * 回复引用块（E3 核心）：左侧 accent 竖条 + soft 底，人名/内容分两行。
+ * 人名加粗 accent 色，内容预览灰色最多两行省略。
  */
-.sf-comment__children {
-  margin-top: 0.75rem;
-  margin-left: 1.0625rem;   /* 让竖线落在父头像中线 */
-  padding-left: 1.0625rem;
-  border-left: 2px solid var(--sf-border);
-  transition: border-color 0.15s ease;
-}
-
-/* 仅当鼠标直接悬停在本层容器（非更深的后代）时高亮本层竖线 */
-.sf-comment__children:hover {
-  border-left-color: var(--sf-accent-soft-border);
-}
-
-/* 嵌套层之间的竖线，越深越淡，避免视觉噪声 */
-.sf-comment__children .sf-comment__children {
-  border-left-color: var(--sf-border-light);
-}
-
-.sf-comment__children .sf-comment__children:hover {
-  border-left-color: var(--sf-accent-soft-border);
-}
-
-/* 子评论之间用细分隔线区分，顶层容器无分隔（顶层的分隔由父布局负责） */
-.sf-comment__children > .sf-comment {
-  padding: 0.625rem 0;
-}
-
-.sf-comment__children > .sf-comment + .sf-comment {
-  border-top: 1px solid var(--sf-border-light);
-}
-
-/* 根评论（顶层评论）之间加分隔：比子评论细线更醒目，让多条根评论边界清晰。
-   详情页评论容器 .sf-comment-list 的直接子评论即根评论。 */
-.sf-comment-list > .sf-comment {
-  padding-bottom: 1.25rem;
-}
-
-.sf-comment-list > .sf-comment + .sf-comment {
-  margin-top: 1.25rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--sf-border);
-}
-
-/* 折叠态：隐藏子评论容器 */
-.sf-comment--collapsed > .sf-comment__body > .sf-comment__children {
-  display: none;
-}
-
-/* 折叠按钮 */
-.sf-comment__toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  border: 0;
-  background: transparent;
-  color: var(--sf-fg-tertiary);
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0.3rem 0.5rem;
-  border-radius: 6px;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-
-.sf-comment__toggle:hover {
-  color: var(--sf-accent);
+.sf-comment__reply-to {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0.3rem 0 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--sf-accent);
   background: var(--sf-accent-soft);
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+  transition: background 0.15s ease;
 }
-
-/* 折叠态：按钮更醒目，提示用户此处有收起的回复 */
-.sf-comment--collapsed > .sf-comment__body .sf-comment__toggle {
+.sf-comment__reply-to:hover {
+  background: var(--sf-accent-soft-border);
+}
+.sf-comment__reply-to-icon {
+  color: var(--sf-accent);
+  margin-bottom: 0.1rem;
+}
+.sf-comment__reply-to-author {
+  font-size: 0.8rem;
+  font-weight: 700;
   color: var(--sf-accent);
 }
-
-.sf-comment__toggle-icon {
-  transition: transform 0.15s ease;
-}
-
-/* 折叠态箭头朝右，展开态朝下 */
-.sf-comment--collapsed > .sf-comment__body .sf-comment__toggle-icon {
-  transform: rotate(-90deg);
-}
-
-/* 操作区：折叠按钮与其它 action 并排 */
-.sf-comment__actions .sf-comment__toggle {
-  margin-left: 0.2rem;
-}
-
-/* 深层评论头像略小，减少深层缩进的视觉挤压（配合 depth 封顶 4） */
-.sf-comment__children .sf-comment .sf-avatar {
-  width: 1.75rem;
-  height: 1.75rem;
-  font-size: 0.7rem;
+.sf-comment__reply-to-excerpt {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--sf-fg-tertiary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .sf-editor {
