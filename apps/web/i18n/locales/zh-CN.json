@@ -103,6 +103,13 @@
     "displayNamePlaceholder": "小明",
     "passwordPlaceholder": "至少 12 个字符",
     "passwordHint": "密码至少需要 12 个字符；建议使用短句或多个单词组合。",
+    "passwordStrength": "密码合格度",
+    "passwordRequirementLength": "长度在 {min}-{max} 个字符之间",
+    "passwordRequirementLowercase": "包含小写字母",
+    "passwordRequirementUppercase": "包含大写字母",
+    "passwordRequirementNumber": "包含数字",
+    "passwordRequirementSymbol": "包含符号",
+    "passwordPolicySummary": "建议使用较长短句；当前规则要求 {min}-{max} 个字符。",
     "humanVerification": "人机验证",
     "humanVerificationLoading": "正在加载人机验证…",
     "brandHeadlineL1": "一个认真讨论",
@@ -999,7 +1006,17 @@
       },
       "basic": {
         "title": "基础信息",
-        "description": "站点名称、地址和语言会用于导航、登录页、浏览器标题和 API 响应。"
+        "description": "站点名称、地址和语言会用于导航、登录页、浏览器标题和 API 响应。",
+        "accountSecurityTitle": "账号安全",
+        "accountSecurityDescription": "密码策略会影响新注册和密码重置；推荐默认值优先鼓励长密码短句。",
+        "passwordMinLength": "最小长度",
+        "passwordMaxLength": "最大长度",
+        "passwordRequireLowercase": "要求小写字母",
+        "passwordRequireUppercase": "要求大写字母",
+        "passwordRequireNumber": "要求数字",
+        "passwordRequireSymbol": "要求符号",
+        "passwordRecommended": "推荐默认值：12-128 个字符，不强制字符组合。",
+        "restorePasswordDefaults": "恢复密码推荐默认值"
       },
       "verification": {
         "title": "人机验证",

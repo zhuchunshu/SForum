@@ -103,6 +103,13 @@
     "displayNamePlaceholder": "Jane Doe",
     "passwordPlaceholder": "At least 12 characters",
     "passwordHint": "Use at least 12 characters; a short phrase or several words works well.",
+    "passwordStrength": "Password readiness",
+    "passwordRequirementLength": "Between {min} and {max} characters",
+    "passwordRequirementLowercase": "Contains a lowercase letter",
+    "passwordRequirementUppercase": "Contains an uppercase letter",
+    "passwordRequirementNumber": "Contains a number",
+    "passwordRequirementSymbol": "Contains a symbol",
+    "passwordPolicySummary": "Use a longer phrase; current policy requires {min}-{max} characters.",
     "humanVerification": "Human verification",
     "humanVerificationLoading": "Loading human verification...",
     "brandHeadlineL1": "A place for",
@@ -993,7 +1000,17 @@
       },
       "basic": {
         "title": "Basic information",
-        "description": "The site name, URL, and languages are used in navigation, auth pages, browser titles, and API responses."
+        "description": "The site name, URL, and languages are used in navigation, auth pages, browser titles, and API responses.",
+        "accountSecurityTitle": "Account security",
+        "accountSecurityDescription": "Password policy affects new registrations and password resets; the recommended default favors longer passphrases.",
+        "passwordMinLength": "Minimum length",
+        "passwordMaxLength": "Maximum length",
+        "passwordRequireLowercase": "Require lowercase letter",
+        "passwordRequireUppercase": "Require uppercase letter",
+        "passwordRequireNumber": "Require number",
+        "passwordRequireSymbol": "Require symbol",
+        "passwordRecommended": "Recommended default: 12-128 characters, no forced composition.",
+        "restorePasswordDefaults": "Restore password defaults"
       },
       "verification": {
         "title": "Human verification",

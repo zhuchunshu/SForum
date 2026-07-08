@@ -13,7 +13,8 @@ import {
   altchaWidgetTypes,
   enabledOptionValue,
   humanVerificationScenarioOptionName,
-  normalizeEnabledOption
+  normalizeEnabledOption,
+  recommendedPasswordPolicy
 } from '~/composables/useWebOptions'
 import { useAdminPage } from '~/composables/useAdminPage'
 
@@ -112,6 +113,12 @@ const form = reactive({
   siteUrl: options.value['site.url'] || 'http://127.0.0.1:3000',
   defaultLocale: options.value['site.default_locale'] || 'zh-CN',
   supportedLocales: parseLocaleList(options.value['site.supported_locales'] || 'zh-CN,en-US'),
+  passwordMinLength: recommendedPasswordPolicy.minLength,
+  passwordMaxLength: recommendedPasswordPolicy.maxLength,
+  passwordRequireLowercase: recommendedPasswordPolicy.requireLowercase,
+  passwordRequireUppercase: recommendedPasswordPolicy.requireUppercase,
+  passwordRequireNumber: recommendedPasswordPolicy.requireNumber,
+  passwordRequireSymbol: recommendedPasswordPolicy.requireSymbol,
   humanVerificationProvider: normalizeProvider(options.value['human_verification.provider']),
   humanVerificationScenarios: {
     register: normalizeEnabledOption(options.value[humanVerificationScenarioOptionName('register')], true),
@@ -167,12 +174,24 @@ const initialSiteName = computed(() => adminOptionsMap.value['site.name']?.value
 const initialSiteUrl = computed(() => adminOptionsMap.value['site.url']?.value || 'http://127.0.0.1:3000')
 const initialDefaultLocale = computed(() => adminOptionsMap.value['site.default_locale']?.value || 'zh-CN')
 const initialSupportedLocales = computed(() => parseLocaleList(adminOptionsMap.value['site.supported_locales']?.value || 'zh-CN,en-US'))
+const initialPasswordMinLength = computed(() => boundedInteger(adminOptionsMap.value['identity.password.min_length']?.value, recommendedPasswordPolicy.minLength, 8, 128))
+const initialPasswordMaxLength = computed(() => boundedInteger(adminOptionsMap.value['identity.password.max_length']?.value, recommendedPasswordPolicy.maxLength, 64, 512))
+const initialPasswordRequireLowercase = computed(() => normalizeEnabledOption(adminOptionsMap.value['identity.password.require_lowercase']?.value, recommendedPasswordPolicy.requireLowercase))
+const initialPasswordRequireUppercase = computed(() => normalizeEnabledOption(adminOptionsMap.value['identity.password.require_uppercase']?.value, recommendedPasswordPolicy.requireUppercase))
+const initialPasswordRequireNumber = computed(() => normalizeEnabledOption(adminOptionsMap.value['identity.password.require_number']?.value, recommendedPasswordPolicy.requireNumber))
+const initialPasswordRequireSymbol = computed(() => normalizeEnabledOption(adminOptionsMap.value['identity.password.require_symbol']?.value, recommendedPasswordPolicy.requireSymbol))
 
 const hasBasicChanges = computed(() => {
   return form.siteName !== initialSiteName.value ||
          form.siteUrl !== initialSiteUrl.value ||
          form.defaultLocale !== initialDefaultLocale.value ||
-         JSON.stringify(form.supportedLocales) !== JSON.stringify(initialSupportedLocales.value)
+         JSON.stringify(form.supportedLocales) !== JSON.stringify(initialSupportedLocales.value) ||
+         form.passwordMinLength !== initialPasswordMinLength.value ||
+         form.passwordMaxLength !== initialPasswordMaxLength.value ||
+         form.passwordRequireLowercase !== initialPasswordRequireLowercase.value ||
+         form.passwordRequireUppercase !== initialPasswordRequireUppercase.value ||
+         form.passwordRequireNumber !== initialPasswordRequireNumber.value ||
+         form.passwordRequireSymbol !== initialPasswordRequireSymbol.value
 })
 
 // 验证配置对比与重置
@@ -220,6 +239,12 @@ function applyAdminOptions(items: AdminWebOption[]) {
   if (!form.supportedLocales.includes(form.defaultLocale)) {
     form.defaultLocale = form.supportedLocales[0] || 'zh-CN'
   }
+  form.passwordMinLength = boundedInteger(map['identity.password.min_length']?.value, recommendedPasswordPolicy.minLength, 8, 128)
+  form.passwordMaxLength = boundedInteger(map['identity.password.max_length']?.value, recommendedPasswordPolicy.maxLength, 64, 512)
+  form.passwordRequireLowercase = normalizeEnabledOption(map['identity.password.require_lowercase']?.value, recommendedPasswordPolicy.requireLowercase)
+  form.passwordRequireUppercase = normalizeEnabledOption(map['identity.password.require_uppercase']?.value, recommendedPasswordPolicy.requireUppercase)
+  form.passwordRequireNumber = normalizeEnabledOption(map['identity.password.require_number']?.value, recommendedPasswordPolicy.requireNumber)
+  form.passwordRequireSymbol = normalizeEnabledOption(map['identity.password.require_symbol']?.value, recommendedPasswordPolicy.requireSymbol)
   form.humanVerificationProvider = normalizeProvider(map['human_verification.provider']?.value)
   form.humanVerificationScenarios = readScenarioSettings(map)
   form.altchaSecret = ''
@@ -236,13 +261,24 @@ function applyAdminOptions(items: AdminWebOption[]) {
 }
 
 async function saveBasicSettings() {
+  form.passwordMinLength = boundedInteger(form.passwordMinLength, recommendedPasswordPolicy.minLength, 8, 128)
+  form.passwordMaxLength = boundedInteger(form.passwordMaxLength, recommendedPasswordPolicy.maxLength, 64, 512)
+  if (form.passwordMaxLength < form.passwordMinLength) {
+    form.passwordMaxLength = form.passwordMinLength
+  }
   savingBasic.value = true
   try {
     await saveAndApply([
       { name: 'site.name', value: form.siteName },
       { name: 'site.url', value: form.siteUrl },
       { name: 'site.default_locale', value: form.defaultLocale },
-      { name: 'site.supported_locales', value: form.supportedLocales.join(',') }
+      { name: 'site.supported_locales', value: form.supportedLocales.join(',') },
+      { name: 'identity.password.min_length', value: String(form.passwordMinLength) },
+      { name: 'identity.password.max_length', value: String(form.passwordMaxLength) },
+      { name: 'identity.password.require_lowercase', value: enabledOptionValue(form.passwordRequireLowercase) },
+      { name: 'identity.password.require_uppercase', value: enabledOptionValue(form.passwordRequireUppercase) },
+      { name: 'identity.password.require_number', value: enabledOptionValue(form.passwordRequireNumber) },
+      { name: 'identity.password.require_symbol', value: enabledOptionValue(form.passwordRequireSymbol) }
     ])
     toast.add({
       color: 'success',
@@ -313,10 +349,30 @@ function resetBasicForm() {
   form.siteUrl = initialSiteUrl.value
   form.defaultLocale = initialDefaultLocale.value
   form.supportedLocales = [...initialSupportedLocales.value]
+  form.passwordMinLength = initialPasswordMinLength.value
+  form.passwordMaxLength = initialPasswordMaxLength.value
+  form.passwordRequireLowercase = initialPasswordRequireLowercase.value
+  form.passwordRequireUppercase = initialPasswordRequireUppercase.value
+  form.passwordRequireNumber = initialPasswordRequireNumber.value
+  form.passwordRequireSymbol = initialPasswordRequireSymbol.value
   toast.add({
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
     title: '已重置基础设置更改'
+  })
+}
+
+function restoreRecommendedPasswordPolicy() {
+  form.passwordMinLength = recommendedPasswordPolicy.minLength
+  form.passwordMaxLength = recommendedPasswordPolicy.maxLength
+  form.passwordRequireLowercase = recommendedPasswordPolicy.requireLowercase
+  form.passwordRequireUppercase = recommendedPasswordPolicy.requireUppercase
+  form.passwordRequireNumber = recommendedPasswordPolicy.requireNumber
+  form.passwordRequireSymbol = recommendedPasswordPolicy.requireSymbol
+  toast.add({
+    color: 'neutral',
+    icon: 'i-lucide-rotate-ccw',
+    title: t('admin.settings.basic.restorePasswordDefaults')
   })
 }
 
@@ -618,6 +674,114 @@ function onLocaleToggle(locale: string, event: Event) {
               </label>
             </div>
           </UFormField>
+
+          <section class="space-y-4 border-t border-slate-200 pt-4 dark:border-zinc-800">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.settings.basic.accountSecurityTitle') }}
+                </h3>
+                <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.settings.basic.accountSecurityDescription') }}
+                </p>
+              </div>
+              <UButton
+                type="button"
+                color="neutral"
+                variant="outline"
+                leading-icon="i-lucide-rotate-ccw"
+                class="shrink-0"
+                @click="restoreRecommendedPasswordPolicy"
+              >
+                {{ t('admin.settings.basic.restorePasswordDefaults') }}
+              </UButton>
+            </div>
+
+            <UAlert
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-info"
+              :title="t('admin.settings.basic.passwordRecommended')"
+            />
+
+            <div class="grid gap-4 md:grid-cols-2">
+              <UFormField :label="t('admin.settings.basic.passwordMinLength')" name="password-min-length">
+                <UInput
+                  v-model.number="form.passwordMinLength"
+                  icon="i-lucide-ruler"
+                  type="number"
+                  inputmode="numeric"
+                  min="8"
+                  max="128"
+                  step="1"
+                  required
+                  class="w-full"
+                  @keydown="blockNonIntegerKey"
+                />
+              </UFormField>
+
+              <UFormField :label="t('admin.settings.basic.passwordMaxLength')" name="password-max-length">
+                <UInput
+                  v-model.number="form.passwordMaxLength"
+                  icon="i-lucide-ruler"
+                  type="number"
+                  inputmode="numeric"
+                  min="64"
+                  max="512"
+                  step="1"
+                  required
+                  class="w-full"
+                  @keydown="blockNonIntegerKey"
+                />
+              </UFormField>
+            </div>
+
+            <div class="grid gap-3 md:grid-cols-2">
+              <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-950/60">
+                <input
+                  v-model="form.passwordRequireLowercase"
+                  type="checkbox"
+                  class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
+                />
+                <span class="font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.settings.basic.passwordRequireLowercase') }}
+                </span>
+              </label>
+
+              <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-950/60">
+                <input
+                  v-model="form.passwordRequireUppercase"
+                  type="checkbox"
+                  class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
+                />
+                <span class="font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.settings.basic.passwordRequireUppercase') }}
+                </span>
+              </label>
+
+              <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-950/60">
+                <input
+                  v-model="form.passwordRequireNumber"
+                  type="checkbox"
+                  class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
+                />
+                <span class="font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.settings.basic.passwordRequireNumber') }}
+                </span>
+              </label>
+
+              <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-950/60">
+                <input
+                  v-model="form.passwordRequireSymbol"
+                  type="checkbox"
+                  class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
+                />
+                <span class="font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.settings.basic.passwordRequireSymbol') }}
+                </span>
+              </label>
+            </div>
+          </section>
         </div>
 
         <template #footer>

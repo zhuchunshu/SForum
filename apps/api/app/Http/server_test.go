@@ -483,7 +483,7 @@ func TestRegisterEndpointReturnsFieldErrors(t *testing.T) {
 	}
 	assertFieldMessage(t, body.Data.Fields, identity.FieldUsername, "请填写用户名。")
 	assertFieldMessage(t, body.Data.Fields, identity.FieldEmail, "邮箱格式不正确，请填写可接收邮件的地址。")
-	assertFieldMessage(t, body.Data.Fields, identity.FieldPassword, "密码至少需要 12 个字符。")
+	assertFieldMessage(t, body.Data.Fields, identity.FieldPassword, "密码长度低于当前站点要求。")
 }
 
 func TestRegisterEndpointReturnsDuplicateFieldErrors(t *testing.T) {

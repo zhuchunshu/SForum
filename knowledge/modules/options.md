@@ -31,7 +31,7 @@ Initial runtime option support is implemented.
   `appearanceTheme`, footer content helpers, `refresh()`, `save()`, and admin
   batch helpers.
 - Admin page `apps/web/app/pages/admin/settings/index.vue` uses page-level tabs
-  for basic site settings and CAPTCHA/human-verification settings.
+  for basic site settings, account password policy, and CAPTCHA/human-verification settings.
 - Admin page `apps/web/app/pages/admin/personalization.vue` manages
   personalization settings for appearance presets and footer content from the
   System configuration sidebar folder.
@@ -77,7 +77,10 @@ Initial runtime option support is implemented.
   `human_verification.altcha.widget.hide_logo`,
   `human_verification.altcha.widget.hide_footer`,
   `human_verification.altcha.widget.workers`,
-  `human_verification.altcha.widget.min_duration_ms`, `appearance.theme`,
+  `human_verification.altcha.widget.min_duration_ms`, `identity.password.min_length`,
+  `identity.password.max_length`, `identity.password.require_lowercase`,
+  `identity.password.require_uppercase`, `identity.password.require_number`,
+  `identity.password.require_symbol`, `appearance.theme`,
   `footer.copyright.zh-CN`, `footer.copyright.en-US`, `footer.links`,
   `forum.default_category_slug`, `forum.tags.creation_mode`,
   `forum.tags.public_pages`, `forum.tags.max_per_topic`,
@@ -129,6 +132,12 @@ Initial runtime option support is implemented.
   mode as `controlled`, `review`, or `open`; public tag pages as
   enabled/disabled; max tags per topic as `0..10`; and default category as a
   slug-shaped string.
+- Password policy defaults are frontend-safe public options:
+  `identity.password.min_length=12`, `identity.password.max_length=128`, and
+  all composition requirements disabled. The Options service validates minimum
+  length as `8..128`, maximum length as `64..512`, requires
+  `max_length >= min_length`, and normalizes composition toggles to
+  `enabled`/`disabled`.
 
 ## Next Steps
 

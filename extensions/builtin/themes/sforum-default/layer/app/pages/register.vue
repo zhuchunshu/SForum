@@ -14,7 +14,7 @@ const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
 const { apiBaseUrl, request } = useApiClient()
 const { setUser, can } = useAuthSession()
-const { siteName, humanVerificationEnabledFor, altchaWidgetSettings } = useWebOptions()
+const { siteName, humanVerificationEnabledFor, altchaWidgetSettings, passwordPolicy } = useWebOptions()
 
 const form = reactive({
   username: '',
@@ -107,6 +107,31 @@ function fieldDescription(name: string) {
 const passwordDescription = computed(() => {
   return ['password-hint', fieldDescription('password')].filter(Boolean).join(' ')
 })
+const passwordProgress = computed(() => passwordPolicyProgress(form.password, passwordPolicy.value))
+const passwordRequirementRows = computed(() => {
+  return passwordPolicyRequirements(form.password, passwordPolicy.value).map(item => ({
+    ...item,
+    label: passwordRequirementLabel(item.key)
+  }))
+})
+
+function passwordRequirementLabel(key: string) {
+  switch (key) {
+    case 'lowercase':
+      return t('auth.passwordRequirementLowercase')
+    case 'uppercase':
+      return t('auth.passwordRequirementUppercase')
+    case 'number':
+      return t('auth.passwordRequirementNumber')
+    case 'symbol':
+      return t('auth.passwordRequirementSymbol')
+    default:
+      return t('auth.passwordRequirementLength', {
+        min: passwordPolicy.value.minLength,
+        max: passwordPolicy.value.maxLength
+      })
+  }
+}
 
 async function submitRegister() {
   if (submitting.value) {
@@ -325,9 +350,24 @@ async function submitRegister() {
               :aria-invalid="fieldError('password') ? 'true' : undefined"
               :aria-describedby="passwordDescription"
             />
-            <p id="password-hint" class="auth-field-hint">
-              {{ t('auth.passwordHint') }}
-            </p>
+            <div id="password-hint" class="auth-password-policy">
+              <div class="auth-password-policy__header">
+                <span>{{ t('auth.passwordStrength') }}</span>
+                <span>{{ passwordProgress }}%</span>
+              </div>
+              <div class="auth-password-policy__bar" aria-hidden="true">
+                <span :style="{ width: `${passwordProgress}%` }" />
+              </div>
+              <p class="auth-field-hint">
+                {{ t('auth.passwordPolicySummary', { min: passwordPolicy.minLength, max: passwordPolicy.maxLength }) }}
+              </p>
+              <ul class="auth-password-policy__list">
+                <li v-for="item in passwordRequirementRows" :key="item.key" :class="{ 'is-met': item.met }">
+                  <UIcon :name="item.met ? 'i-lucide-check' : 'i-lucide-circle'" class="auth-password-policy__icon" />
+                  <span>{{ item.label }}</span>
+                </li>
+              </ul>
+            </div>
             <p v-if="fieldError('password')" id="password-error" class="auth-field-message">
               {{ fieldError('password') }}
             </p>
@@ -619,6 +659,67 @@ async function submitRegister() {
   color: var(--sf-fg-tertiary);
   font-size: 12px;
   line-height: 1.45;
+}
+
+.auth-password-policy {
+  display: grid;
+  gap: 7px;
+  margin-top: 1px;
+}
+
+.auth-password-policy__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--sf-fg-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.auth-password-policy__bar {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--sf-muted);
+  border: 1px solid var(--sf-border);
+}
+
+.auth-password-policy__bar span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: var(--sf-accent);
+  transition: width 0.18s ease;
+}
+
+.auth-password-policy__list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--sf-fg-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.auth-password-policy__list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+}
+
+.auth-password-policy__list li.is-met {
+  color: var(--sf-accent);
+}
+
+.auth-password-policy__icon {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
 }
 
 /* 覆盖 WebKit 自动填充默认底色，保持注册表单跟随当前主题表面。 */

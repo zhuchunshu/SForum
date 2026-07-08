@@ -48,7 +48,7 @@ authRegister:
                       email:
                       - 邮箱格式不正确，请填写可接收邮件的地址。
                       password:
-                      - 密码至少需要 12 个字符。
+                      - 密码不符合当前站点密码策略。
               humanVerificationRequired:
                 summary: Human verification is required
                 value:

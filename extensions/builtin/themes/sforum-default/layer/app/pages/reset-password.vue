@@ -5,7 +5,7 @@ definePageMeta({ public: true })
 
 const route = useRoute()
 const { t } = useI18n()
-const { siteName } = useWebOptions()
+const { siteName, passwordPolicy } = useWebOptions()
 const { request } = useApiClient()
 
 useSForumSeo({
@@ -24,7 +24,33 @@ const errorMessage = ref('')
 const fieldError = ref('')
 
 const passwordsMatch = computed(() => newPassword.value === confirmPassword.value)
-const canSubmit = computed(() => token.value !== '' && newPassword.value.length >= 12 && passwordsMatch.value && !submitting.value)
+const passwordProgress = computed(() => passwordPolicyProgress(newPassword.value, passwordPolicy.value))
+const passwordRequirementRows = computed(() => {
+  return passwordPolicyRequirements(newPassword.value, passwordPolicy.value).map(item => ({
+    ...item,
+    label: passwordRequirementLabel(item.key)
+  }))
+})
+const newPasswordMeetsPolicy = computed(() => passwordRequirementRows.value.every(item => item.met))
+const canSubmit = computed(() => token.value !== '' && newPasswordMeetsPolicy.value && passwordsMatch.value && !submitting.value)
+
+function passwordRequirementLabel(key: string) {
+  switch (key) {
+    case 'lowercase':
+      return t('auth.passwordRequirementLowercase')
+    case 'uppercase':
+      return t('auth.passwordRequirementUppercase')
+    case 'number':
+      return t('auth.passwordRequirementNumber')
+    case 'symbol':
+      return t('auth.passwordRequirementSymbol')
+    default:
+      return t('auth.passwordRequirementLength', {
+        min: passwordPolicy.value.minLength,
+        max: passwordPolicy.value.maxLength
+      })
+  }
+}
 
 async function submit() {
   if (!canSubmit.value) {
@@ -84,8 +110,23 @@ async function submit() {
             :placeholder="t('auth.newPasswordPlaceholder')"
           >
           <p class="text-xs text-slate-400 mt-1 dark:text-zinc-500">
-            {{ t('auth.passwordPolicyHint') }}
+            {{ t('auth.passwordPolicySummary', { min: passwordPolicy.minLength, max: passwordPolicy.maxLength }) }}
           </p>
+          <div class="reset-password-policy">
+            <div class="reset-password-policy__header">
+              <span>{{ t('auth.passwordStrength') }}</span>
+              <span>{{ passwordProgress }}%</span>
+            </div>
+            <div class="reset-password-policy__bar" aria-hidden="true">
+              <span :style="{ width: `${passwordProgress}%` }" />
+            </div>
+            <ul class="reset-password-policy__list">
+              <li v-for="item in passwordRequirementRows" :key="item.key" :class="{ 'is-met': item.met }">
+                <UIcon :name="item.met ? 'i-lucide-check' : 'i-lucide-circle'" class="reset-password-policy__icon" />
+                <span>{{ item.label }}</span>
+              </li>
+            </ul>
+          </div>
         </div>
         <div class="mb-4">
           <label class="block text-sm font-semibold text-slate-700 mb-2 dark:text-zinc-300">
@@ -128,5 +169,67 @@ async function submit() {
   background: #18181b;
   border-color: #3f3f46;
   color: #f4f4f5;
+}
+.reset-password-policy {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+.reset-password-policy__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.reset-password-policy__bar {
+  height: 0.35rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+.reset-password-policy__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sf-accent);
+  transition: width 0.18s ease;
+}
+.reset-password-policy__list {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #64748b;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+.reset-password-policy__list li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.125rem;
+}
+.reset-password-policy__list li.is-met {
+  color: var(--sf-accent);
+}
+.reset-password-policy__icon {
+  width: 0.8125rem;
+  height: 0.8125rem;
+  flex: 0 0 0.8125rem;
+}
+:global(.dark) .reset-password-policy__header {
+  color: #d4d4d8;
+}
+:global(.dark) .reset-password-policy__bar {
+  background: #27272a;
+  border-color: #3f3f46;
+}
+:global(.dark) .reset-password-policy__list {
+  color: #a1a1aa;
 }
 </style>

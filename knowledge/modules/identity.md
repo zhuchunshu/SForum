@@ -62,6 +62,10 @@ Initial identity foundation is implemented.
   `auth.invalid_credentials`; internal credential-loading errors, such as a
   missing permission table after code/schema drift, bubble up instead of being
   misreported as a wrong password.
+- Password policy is now runtime configurable through public
+  `identity.password.*` options. Registration and password reset confirmation
+  share the same backend `PasswordPolicy` validator; password hashing only owns
+  Argon2id hashing and no longer hard-codes product policy.
 - Nuxt has login/register pages, an admin route middleware, an admin overview,
   user management, editable user-group management, and a permission matrix. The
   matrix is an audit/comparison view rather than the primary editor: it caps the
@@ -150,7 +154,10 @@ Initial identity foundation is implemented.
 - `apps/api/app/Models/Identity/service.go` owns registration, login,
   registration status, current-user loading, actor loading, role-management
   checks, permission catalog/matrix reads, admin user reads, user role
-  replacement, and user direct permission override replacement.
+  replacement, user direct permission override replacement, and configurable
+  password policy enforcement for registration.
+- `apps/api/app/Models/Identity/password.go` owns Argon2id hashing plus the
+  shared `PasswordPolicy` model used before password creation/update.
 - `apps/api/app/Models/Identity/policy.go` keeps permission checks small:
   `super_admin` receives all permissions while active, and other users rely on
   enabled role permissions plus user direct allows minus direct denies.

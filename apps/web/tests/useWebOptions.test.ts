@@ -9,9 +9,13 @@ import {
   isSEOIndexingAllowed,
   normalizeAppearanceThemeValue,
   normalizeEnabledOption,
+  passwordPolicyProgress,
+  passwordPolicyRequirements,
+  recommendedPasswordPolicy,
   recommendedAppearanceTheme,
   recommendedFooterCopyright,
   recommendedFooterLinks,
+  resolvePasswordPolicy,
   resolveAltchaWidgetSettings,
   normalizeSEOVerificationToken,
   parseSEORobotsPathList,
@@ -99,6 +103,32 @@ describe('human verification option helpers', () => {
     expect(fallback.display).toBe('standard')
     expect(fallback.workers).toBe(2)
     expect(fallback.minDuration).toBe(500)
+  })
+})
+
+describe('password policy helpers', () => {
+  test('resolves recommended password policy defaults', () => {
+    const policy = resolvePasswordPolicy({})
+
+    expect(policy).toEqual(recommendedPasswordPolicy)
+  })
+
+  test('computes password requirements and progress', () => {
+    const policy = resolvePasswordPolicy({
+      'identity.password.min_length': '8',
+      'identity.password.max_length': '64',
+      'identity.password.require_uppercase': 'enabled',
+      'identity.password.require_number': 'enabled',
+      'identity.password.require_symbol': 'enabled'
+    })
+
+    const weak = passwordPolicyRequirements('lowercase', policy)
+    expect(weak.filter(item => item.met).map(item => item.key)).toEqual(['length'])
+    expect(passwordPolicyProgress('lowercase', policy)).toBe(25)
+
+    const strong = passwordPolicyRequirements('Passw0rd!', policy)
+    expect(strong.every(item => item.met)).toBe(true)
+    expect(passwordPolicyProgress('Passw0rd!', policy)).toBe(100)
   })
 })
 

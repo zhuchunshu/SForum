@@ -33,8 +33,12 @@ func TestMessageReturnsLocalizedAPIMessages(t *testing.T) {
 		t.Fatalf("expected English auth message, got %q", got)
 	}
 
-	if got := Message("zh-CN", "auth.password_min_length"); got != "密码至少需要 12 个字符。" {
+	if got := Message("zh-CN", "auth.password_min_length"); got != "密码长度低于当前站点要求。" {
 		t.Fatalf("expected Chinese password message, got %q", got)
+	}
+
+	if got := Message("en-US", "auth.password_symbol"); got != "Include a symbol in your password." {
+		t.Fatalf("expected English password symbol message, got %q", got)
 	}
 
 	if got := Message("en-US", "auth.register_invalid"); got != "Registration failed: fix the highlighted fields and submit again." {

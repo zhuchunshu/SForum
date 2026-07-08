@@ -88,6 +88,12 @@ AdminWebOption:
       - footer.copyright.zh-CN
       - footer.copyright.en-US
       - footer.links
+      - identity.password.min_length
+      - identity.password.max_length
+      - identity.password.require_lowercase
+      - identity.password.require_uppercase
+      - identity.password.require_number
+      - identity.password.require_symbol
       - seo.meta_title_template
       - seo.meta_description
       - seo.meta_keywords
@@ -186,6 +192,12 @@ WebOptionInput:
       - footer.copyright.zh-CN
       - footer.copyright.en-US
       - footer.links
+      - identity.password.min_length
+      - identity.password.max_length
+      - identity.password.require_lowercase
+      - identity.password.require_uppercase
+      - identity.password.require_number
+      - identity.password.require_symbol
       - seo.meta_title_template
       - seo.meta_description
       - seo.meta_keywords
@@ -249,6 +261,12 @@ AdminWebOptionInput:
       - footer.copyright.zh-CN
       - footer.copyright.en-US
       - footer.links
+      - identity.password.min_length
+      - identity.password.max_length
+      - identity.password.require_lowercase
+      - identity.password.require_uppercase
+      - identity.password.require_number
+      - identity.password.require_symbol
       - seo.meta_title_template
       - seo.meta_description
       - seo.meta_keywords

@@ -20,4 +20,19 @@ describe('auth route rendering', () => {
       expect(config).not.toMatch(new RegExp(`['"]${escapedRoute}['"]\\s*:\\s*\\{[^}]*ssr\\s*:\\s*false`))
     }
   })
+
+  test('wires password policy feedback into registration and reset forms', () => {
+    const registerPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/register.vue', import.meta.url), 'utf8')
+    const resetPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/reset-password.vue', import.meta.url), 'utf8')
+    const zhCN = readFileSync(new URL('../i18n/locales/zh-CN.json', import.meta.url), 'utf8')
+    const enUS = readFileSync(new URL('../i18n/locales/en-US.json', import.meta.url), 'utf8')
+
+    for (const source of [registerPage, resetPage]) {
+      expect(source).toContain('passwordPolicyRequirements')
+      expect(source).toContain('passwordPolicyProgress')
+      expect(source).toContain('auth.passwordStrength')
+    }
+    expect(zhCN).toContain('passwordRequirementSymbol')
+    expect(enUS).toContain('passwordRequirementSymbol')
+  })
 })

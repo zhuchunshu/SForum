@@ -35,6 +35,18 @@ export type AltchaWidgetSettings = {
   workers: number
   minDuration: number
 }
+export type PasswordPolicy = {
+  minLength: number
+  maxLength: number
+  requireLowercase: boolean
+  requireUppercase: boolean
+  requireNumber: boolean
+  requireSymbol: boolean
+}
+export type PasswordRequirement = {
+  key: 'length' | 'lowercase' | 'uppercase' | 'number' | 'symbol'
+  met: boolean
+}
 export type SEOTwitterCard = 'summary' | 'summary_large_image'
 
 export type SEOSettings = {
@@ -79,6 +91,14 @@ export const humanVerificationScenarios: HumanVerificationScenario[] = ['registe
 export const altchaWidgetTypes: AltchaWidgetType[] = ['native', 'checkbox', 'switch']
 export const altchaWidgetAutoModes: AltchaWidgetAuto[] = ['off', 'onfocus', 'onload', 'onsubmit']
 export const altchaWidgetDisplays: AltchaWidgetDisplay[] = ['standard', 'bar', 'floating', 'overlay', 'invisible']
+export const recommendedPasswordPolicy: PasswordPolicy = {
+  minLength: 12,
+  maxLength: 128,
+  requireLowercase: false,
+  requireUppercase: false,
+  requireNumber: false,
+  requireSymbol: false
+}
 
 const customThemePrefix = 'custom:'
 const enabledOption = 'enabled'
@@ -134,6 +154,12 @@ const fallbackOptions: Record<string, string> = {
   'footer.copyright.zh-CN': recommendedFooterCopyright['zh-CN'],
   'footer.copyright.en-US': recommendedFooterCopyright['en-US'],
   'footer.links': JSON.stringify(recommendedFooterLinks),
+  'identity.password.min_length': String(recommendedPasswordPolicy.minLength),
+  'identity.password.max_length': String(recommendedPasswordPolicy.maxLength),
+  'identity.password.require_lowercase': disabledOption,
+  'identity.password.require_uppercase': disabledOption,
+  'identity.password.require_number': disabledOption,
+  'identity.password.require_symbol': disabledOption,
   'forum.default_category_slug': 'general',
   'forum.tags.creation_mode': 'controlled',
   'forum.tags.public_pages': enabledOption,
@@ -248,6 +274,7 @@ export const useWebOptions = () => {
     ) as Record<HumanVerificationScenario, boolean>
   })
   const altchaWidgetSettings = computed(() => resolveAltchaWidgetSettings(options.value))
+  const passwordPolicy = computed(() => resolvePasswordPolicy(options.value))
   const seoSettings = computed(() => resolveSEOSettings(options.value))
   const seoIndexable = computed(() => isSEOIndexingAllowed(seoSettings.value, siteUrl.value))
 
@@ -276,6 +303,7 @@ export const useWebOptions = () => {
     humanVerificationProvider,
     humanVerificationScenarioSettings,
     altchaWidgetSettings,
+    passwordPolicy,
     seoSettings,
     seoIndexable,
     humanVerificationEnabledFor,
@@ -534,6 +562,57 @@ export function resolveAltchaWidgetSettings(values: Record<string, string>): Alt
     workers: normalizeBoundedInteger(option('human_verification.altcha.widget.workers'), 2, 1, 16),
     minDuration: normalizeBoundedInteger(option('human_verification.altcha.widget.min_duration_ms'), 500, 0, 10000)
   }
+}
+
+export function resolvePasswordPolicy(values: Record<string, string>): PasswordPolicy {
+  const option = (name: string) => values[name] ?? fallbackOptions[name] ?? ''
+  const minLength = normalizeBoundedInteger(option('identity.password.min_length'), recommendedPasswordPolicy.minLength, 8, 128)
+  const maxLength = normalizeBoundedInteger(option('identity.password.max_length'), recommendedPasswordPolicy.maxLength, 64, 512)
+  if (maxLength < minLength) {
+    return { ...recommendedPasswordPolicy }
+  }
+
+  return {
+    minLength,
+    maxLength,
+    requireLowercase: normalizeEnabledOption(option('identity.password.require_lowercase')),
+    requireUppercase: normalizeEnabledOption(option('identity.password.require_uppercase')),
+    requireNumber: normalizeEnabledOption(option('identity.password.require_number')),
+    requireSymbol: normalizeEnabledOption(option('identity.password.require_symbol'))
+  }
+}
+
+export function passwordPolicyRequirements(password: string, policy: PasswordPolicy): PasswordRequirement[] {
+  const length = Array.from(password).length
+  const requirements: PasswordRequirement[] = [
+    {
+      key: 'length',
+      met: length >= policy.minLength && length <= policy.maxLength
+    }
+  ]
+
+  if (policy.requireLowercase) {
+    requirements.push({ key: 'lowercase', met: /\p{Ll}/u.test(password) })
+  }
+  if (policy.requireUppercase) {
+    requirements.push({ key: 'uppercase', met: /\p{Lu}/u.test(password) })
+  }
+  if (policy.requireNumber) {
+    requirements.push({ key: 'number', met: /\p{N}/u.test(password) })
+  }
+  if (policy.requireSymbol) {
+    requirements.push({ key: 'symbol', met: /[\p{P}\p{S}]/u.test(password) })
+  }
+  return requirements
+}
+
+export function passwordPolicyProgress(password: string, policy: PasswordPolicy) {
+  const requirements = passwordPolicyRequirements(password, policy)
+  if (requirements.length === 0) {
+    return 0
+  }
+  const met = requirements.filter(item => item.met).length
+  return Math.round((met / requirements.length) * 100)
 }
 
 export function normalizeAltchaWidgetType(value: string | undefined): AltchaWidgetType {
