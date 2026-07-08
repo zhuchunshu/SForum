@@ -1131,6 +1131,7 @@
         "robots": "Indexing & Robots",
         "sitemap": "Sitemap",
         "schema": "Structured Data",
+        "permalinks": "Permalinks",
         "verification": "Verification"
       },
       "sections": {
@@ -1153,6 +1154,10 @@
         "schema": {
           "title": "Structured Data",
           "description": "Emit WebSite, Organization, search action, and discussion structured data."
+        },
+        "permalinks": {
+          "title": "Permalink Structure",
+          "description": "Choose the URL shape for topic detail pages. Switching modes 301-redirects old URLs to the new canonical path."
         },
         "verification": {
           "title": "Search Platform Verification",
@@ -1213,7 +1218,16 @@
       "googleVerificationPlaceholder": "Verification code from Google Search Console",
       "bingVerification": "Bing site verification",
       "baiduVerification": "Baidu site verification",
-      "yandexVerification": "Yandex site verification"
+      "yandexVerification": "Yandex site verification",
+      "topicUrlMode": "Topic URL shape",
+      "topicUrlModeHelp": "Choose the URL shape for topic detail pages. ID+slug is the most robust default; slug-only is shortest but requires globally-unique slugs; ID-only is stable but not human-readable. Switching modes 301-redirects old URLs to the new canonical path.",
+      "topicUrlModeIdSlug": "ID + slug (recommended)",
+      "topicUrlModeIdSlugHelp": "e.g. /t/123/hello-world. Stable lookup by ID plus a readable, SEO-friendly slug.",
+      "topicUrlModeId": "ID only",
+      "topicUrlModeIdHelp": "e.g. /t/123. Most stable and permanent, but not human-readable and weaker for SEO.",
+      "topicUrlModeSlug": "Slug only",
+      "topicUrlModeSlugHelp": "e.g. /t/hello-world. Shortest and cleanest, but requires globally-unique slugs; renames rely on canonical redirects.",
+      "topicUrlModeSlugWarning": "Slug-only mode requires globally-unique slugs. The system auto-appends -2/-3 suffixes on collisions; existing duplicate slugs are de-duplicated before switching to this mode."
     },
     "common": {
       "refresh": "Refresh",

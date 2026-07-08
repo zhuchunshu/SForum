@@ -1137,6 +1137,7 @@
         "robots": "索引与 Robots",
         "sitemap": "站点地图",
         "schema": "结构化数据",
+        "permalinks": "链接结构",
         "verification": "站点验证"
       },
       "sections": {
@@ -1159,6 +1160,10 @@
         "schema": {
           "title": "结构化数据",
           "description": "输出 WebSite、Organization、搜索动作和论坛讨论结构化数据。"
+        },
+        "permalinks": {
+          "title": "链接结构",
+          "description": "配置帖子详情页的 URL 形态。切换模式后旧 URL 会自动 301 重定向到新规范路径。"
         },
         "verification": {
           "title": "搜索平台验证",
@@ -1219,7 +1224,16 @@
       "googleVerificationPlaceholder": "Google Search Console 验证代码",
       "bingVerification": "Bing 站点验证",
       "baiduVerification": "百度站点验证",
-      "yandexVerification": "Yandex 站点验证"
+      "yandexVerification": "Yandex 站点验证",
+      "topicUrlMode": "帖子链接形态",
+      "topicUrlModeHelp": "选择帖子详情页的 URL 形态。默认 ID+slug 最稳健；纯 slug 最简洁但要求 slug 全局唯一；纯 ID 最稳定但缺少可读性。切换模式后，旧 URL 会自动 301 重定向到新规范路径。",
+      "topicUrlModeIdSlug": "ID + slug（推荐）",
+      "topicUrlModeIdSlugHelp": "形如 /t/123/hello-world。ID 保证稳定查找，slug 提供可读性与 SEO。",
+      "topicUrlModeId": "纯 ID",
+      "topicUrlModeIdHelp": "形如 /t/123。最稳定、永不失效，但 URL 无可读性，SEO 略弱。",
+      "topicUrlModeSlug": "纯 slug",
+      "topicUrlModeSlugHelp": "形如 /t/hello-world。最短最简洁，但需 slug 全局唯一；改标题时旧链接依赖规范化重定向。",
+      "topicUrlModeSlugWarning": "纯 slug 模式要求 slug 全局唯一。系统会在 slug 冲突时自动追加 -2/-3 后缀；切换到此模式前，现有重复 slug 会被自动去重。"
     },
     "common": {
       "refresh": "刷新",

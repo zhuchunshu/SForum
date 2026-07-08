@@ -4,11 +4,15 @@ import {
   isLocalSiteUrl,
   normalizeEnabledOption,
   normalizeSEOTwitterCard,
+  normalizeTopicUrlMode,
   parseSEORobotsPathList,
+  recommendedTopicUrlMode,
   type AdminWebOption,
   type SEOTwitterCard,
   type WebOption
 } from '~/composables/useWebOptions'
+// TopicUrlMode 复用自 forumTaxonomy（useWebOptions 再导出）。
+import type { TopicUrlMode } from '~/utils/forumTaxonomy'
 import { useAdminPage } from '~/composables/useAdminPage'
 
 definePageMeta({
@@ -20,7 +24,7 @@ defineOptions({
   name: 'AdminSeo'
 })
 
-type SeoTab = 'overview' | 'meta' | 'robots' | 'sitemap' | 'schema' | 'verification'
+type SeoTab = 'overview' | 'meta' | 'robots' | 'sitemap' | 'schema' | 'verification' | 'permalinks'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -54,14 +58,23 @@ const form = reactive({
   schemaOrgEnabled: true,
   schemaOrgSearchActionEnabled: true,
   schemaOrgDiscussionEnabled: true,
-  schemaOrgOrganizationLogoUrl: ''
+  schemaOrgOrganizationLogoUrl: '',
+  // 帖子 URL 形态：id_slug（默认）/ id / slug。
+  topicUrlMode: recommendedTopicUrlMode
 })
+
+const topicUrlModeOptions = computed<Array<{ value: TopicUrlMode, preview: string, label: string, description: string }>>(() => [
+  { value: 'id_slug', preview: '/t/123/hello-world', label: t('admin.seo.topicUrlModeIdSlug'), description: t('admin.seo.topicUrlModeIdSlugHelp') },
+  { value: 'id', preview: '/t/123', label: t('admin.seo.topicUrlModeId'), description: t('admin.seo.topicUrlModeIdHelp') },
+  { value: 'slug', preview: '/t/hello-world', label: t('admin.seo.topicUrlModeSlug'), description: t('admin.seo.topicUrlModeSlugHelp') }
+])
 
 const tabs = computed<Array<{ id: SeoTab, label: string, icon: string }>>(() => [
   { id: 'overview', label: t('admin.seo.tabs.overview'), icon: 'i-lucide-gauge' },
   { id: 'meta', label: t('admin.seo.tabs.meta'), icon: 'i-lucide-file-text' },
   { id: 'robots', label: t('admin.seo.tabs.robots'), icon: 'i-lucide-bot' },
   { id: 'sitemap', label: t('admin.seo.tabs.sitemap'), icon: 'i-lucide-map' },
+  { id: 'permalinks', label: t('admin.seo.tabs.permalinks'), icon: 'i-lucide-link' },
   { id: 'schema', label: t('admin.seo.tabs.schema'), icon: 'i-lucide-braces' },
   { id: 'verification', label: t('admin.seo.tabs.verification'), icon: 'i-lucide-badge-check' }
 ])
@@ -167,6 +180,7 @@ function applyAdminOptions(items: AdminWebOption[]) {
   form.schemaOrgSearchActionEnabled = enabled(map, 'seo.schema_org.search_action_enabled', true)
   form.schemaOrgDiscussionEnabled = enabled(map, 'seo.schema_org.discussion_enabled', true)
   form.schemaOrgOrganizationLogoUrl = read(map, 'seo.schema_org.organization_logo_url')
+  form.topicUrlMode = normalizeTopicUrlMode(read(map, 'seo.topic_url_mode', recommendedTopicUrlMode))
   savedSnapshot.value = formSnapshot()
 }
 
@@ -226,7 +240,8 @@ function payload(): WebOption[] {
     { name: 'seo.schema_org.enabled', value: enabledOptionValue(form.schemaOrgEnabled) },
     { name: 'seo.schema_org.search_action_enabled', value: enabledOptionValue(form.schemaOrgSearchActionEnabled) },
     { name: 'seo.schema_org.discussion_enabled', value: enabledOptionValue(form.schemaOrgDiscussionEnabled) },
-    { name: 'seo.schema_org.organization_logo_url', value: form.schemaOrgOrganizationLogoUrl }
+    { name: 'seo.schema_org.organization_logo_url', value: form.schemaOrgOrganizationLogoUrl },
+    { name: 'seo.topic_url_mode', value: form.topicUrlMode }
   ]
 }
 
@@ -492,6 +507,35 @@ function absoluteUrl(path: string) {
           <UFormField :label="t('admin.seo.organizationLogoUrl')" name="seo-schema-logo-url">
             <UInput v-model="form.schemaOrgOrganizationLogoUrl" icon="i-lucide-image-up" type="url" placeholder="https://example.com/logo.png" maxlength="500" class="w-full" />
           </UFormField>
+        </div>
+
+        <!-- 链接结构：帖子详情页 URL 形态 -->
+        <div v-else-if="activeTab === 'permalinks'" class="grid max-w-3xl gap-4">
+          <p class="text-sm text-slate-500 dark:text-zinc-400">{{ t('admin.seo.topicUrlModeHelp') }}</p>
+          <div class="grid gap-3">
+            <button
+              v-for="mode in topicUrlModeOptions"
+              :key="mode.value"
+              type="button"
+              class="flex items-start gap-3 rounded-lg border p-4 text-left transition"
+              :class="form.topicUrlMode === mode.value ? 'border-[#0F766E] bg-[#E6F4F1] dark:border-teal-700 dark:bg-teal-950/40' : 'border-slate-200 hover:border-[#0F766E] dark:border-zinc-800 dark:hover:border-teal-700'"
+              @click="form.topicUrlMode = mode.value"
+            >
+              <UIcon
+                :name="form.topicUrlMode === mode.value ? 'i-lucide-circle-check' : 'i-lucide-circle'"
+                class="mt-0.5 size-5 shrink-0"
+                :class="form.topicUrlMode === mode.value ? 'text-[#0F766E] dark:text-teal-400' : 'text-slate-400 dark:text-zinc-500'"
+              />
+              <span class="min-w-0">
+                <span class="block text-sm font-semibold text-slate-900 dark:text-zinc-100">{{ mode.label }}</span>
+                <code class="mt-1 block text-xs text-slate-500 dark:text-zinc-400">{{ mode.preview }}</code>
+                <span class="mt-1 block text-xs text-slate-500 dark:text-zinc-400">{{ mode.description }}</span>
+              </span>
+            </button>
+          </div>
+          <p v-if="form.topicUrlMode === 'slug'" class="text-xs text-amber-600 dark:text-amber-400">
+            {{ t('admin.seo.topicUrlModeSlugWarning') }}
+          </p>
         </div>
 
         <div v-else class="grid max-w-3xl gap-4">
