@@ -155,6 +155,17 @@ AdminWebOption:
       - attachment.sftp.root_path
       - attachment.sftp.host_key_fingerprint
       - attachment.sftp.public_base_url
+      - avatar.allow_upload
+      - avatar.default_provider
+      - avatar.gravatar_base_url
+      - avatar.gravatar_hash_algorithm
+      - avatar.default_static_url
+      - avatar.max_size_kb
+      - avatar.max_dimension
+      - avatar.allow_gif
+      - avatar.compress_enabled
+      - avatar.target_dimension
+      - avatar.compress_quality
     value:
       type: string
       description: Empty for secret options; use secretSet to tell whether a secret is configured.
@@ -225,6 +236,13 @@ WebOptionInput:
       - attachment.max_file_size_mb
       - attachment.allowed_extensions
       - attachment.allowed_mime_types
+      - avatar.allow_upload
+      - avatar.default_provider
+      - avatar.gravatar_base_url
+      - avatar.gravatar_hash_algorithm
+      - avatar.max_size_kb
+      - avatar.allow_gif
+      - avatar.compress_enabled
     value:
       type: string
       minLength: 1
@@ -335,6 +353,17 @@ AdminWebOptionInput:
       - attachment.sftp.root_path
       - attachment.sftp.host_key_fingerprint
       - attachment.sftp.public_base_url
+      - avatar.allow_upload
+      - avatar.default_provider
+      - avatar.gravatar_base_url
+      - avatar.gravatar_hash_algorithm
+      - avatar.default_static_url
+      - avatar.max_size_kb
+      - avatar.max_dimension
+      - avatar.allow_gif
+      - avatar.compress_enabled
+      - avatar.target_dimension
+      - avatar.compress_quality
     value:
       type: string
       description: For secret options, an empty value keeps the existing secret.

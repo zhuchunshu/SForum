@@ -48,6 +48,8 @@ paths:
     "$ref": "./openapi/paths/profile.yaml#/profileByUsername"
   "/profile":
     "$ref": "./openapi/paths/profile.yaml#/myProfile"
+  "/profile/avatar":
+    "$ref": "./openapi/paths/profile.yaml#/myProfileAvatar"
   "/auth/register":
     "$ref": "./openapi/paths/identity.yaml#/authRegister"
   "/human-verification/challenge":
@@ -312,6 +314,8 @@ components:
       "$ref": "./openapi/schemas/forum.yaml#/TopicAction"
     Profile:
       "$ref": "./openapi/schemas/profile.yaml#/Profile"
+    AvatarView:
+      "$ref": "./openapi/schemas/profile.yaml#/AvatarView"
     PublicProfile:
       "$ref": "./openapi/schemas/profile.yaml#/PublicProfile"
     UpdateProfileRequest:

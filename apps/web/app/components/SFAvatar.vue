@@ -2,10 +2,17 @@
 type AvatarSize = 'sm' | 'md' | 'lg'
 type AvatarShape = 'circle' | 'square'
 type AvatarStatus = 'online' | 'idle' | 'offline'
+type AvatarView = {
+  kind: 'uploaded' | 'initials' | 'gravatar' | 'static'
+  url: string
+  attachmentId?: number | null
+  alt: string
+}
 
 const props = withDefaults(defineProps<{
   name?: string
   src?: string
+  avatar?: AvatarView | null
   alt?: string
   size?: AvatarSize
   shape?: AvatarShape
@@ -44,15 +51,29 @@ const avatarClass = computed(() => [
   `sf-avatar--${props.size}`,
   `sf-avatar--${props.shape}`
 ].join(' '))
+
+const imageSrc = computed(() => props.avatar?.url || props.src || '')
+const imageAlt = computed(() => props.alt || props.avatar?.alt || props.name)
+const usePlainImage = computed(() => /^https?:\/\//i.test(imageSrc.value))
 </script>
 
 <template>
   <span :class="avatarClass">
-    <NuxtImg
-      v-if="src"
+    <img
+      v-if="imageSrc && usePlainImage"
       class="sf-avatar__image"
-      :src="src"
-      :alt="alt || name"
+      :src="imageSrc"
+      :alt="imageAlt"
+      :width="sizePixels[size]"
+      :height="sizePixels[size]"
+      loading="lazy"
+      decoding="async"
+    >
+    <NuxtImg
+      v-else-if="imageSrc"
+      class="sf-avatar__image"
+      :src="imageSrc"
+      :alt="imageAlt"
       :width="sizePixels[size]"
       :height="sizePixels[size]"
       :sizes="`${sizePixels[size]}px`"

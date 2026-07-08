@@ -204,7 +204,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// reindexStore 记录运行状态，dispatcher 批量入队 IndexTopicArgs。
 	reindexManager := search.NewReindexManager(forumStore, search.NewPostgresReindexStore(pool), jobDispatcher)
 	forumProvider := providers.NewForumProviderWithSearch(forumCachedStore, optionsService, identityStore, authSessions, extensionRuntime, searchIndexer, searchServiceAdapter{inner: searchService}, reindexServiceAdapter{inner: reindexManager})
-	profileProvider := providers.NewProfileProvider(profileStore, identityStore, authSessions)
+	avatarAttachmentService := attachments.NewServiceWithEvents(attachmentStore, optionsService, extensionRuntime)
+	profileProvider := providers.NewProfileProviderWithAvatar(profileStore, identityStore, authSessions, avatarAttachmentService, optionsService)
 	moderationProvider := providers.NewModerationProvider(moderationStore, forumStore, identityStore, authSessions)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, extensionRuntime)

@@ -51,10 +51,40 @@ export type PasswordRequirement = {
   met: boolean
 }
 export type SEOTwitterCard = 'summary' | 'summary_large_image'
+export type AvatarDefaultProvider = 'initials' | 'gravatar' | 'static'
+export type AvatarGravatarHashAlgorithm = 'sha256' | 'md5'
+export type AvatarSettings = {
+  allowUpload: boolean
+  defaultProvider: AvatarDefaultProvider
+  gravatarBaseUrl: string
+  gravatarHashAlgorithm: AvatarGravatarHashAlgorithm
+  defaultStaticUrl: string
+  maxSizeKb: number
+  maxDimension: number
+  allowGif: boolean
+  compressEnabled: boolean
+  targetDimension: number
+  compressQuality: number
+}
 
 // 帖子详情页 URL 形态枚举与推荐默认值。TopicUrlMode 类型复用自 forumTaxonomy。
 export const topicUrlModes: TopicUrlMode[] = ['id_slug', 'id', 'slug']
 export const recommendedTopicUrlMode: TopicUrlMode = 'id_slug'
+export const avatarDefaultProviders: AvatarDefaultProvider[] = ['initials', 'gravatar', 'static']
+export const avatarHashAlgorithms: AvatarGravatarHashAlgorithm[] = ['sha256', 'md5']
+export const recommendedAvatarSettings: AvatarSettings = {
+  allowUpload: true,
+  defaultProvider: 'initials',
+  gravatarBaseUrl: 'https://gravatar.com/avatar/',
+  gravatarHashAlgorithm: 'sha256',
+  defaultStaticUrl: '',
+  maxSizeKb: 2048,
+  maxDimension: 2048,
+  allowGif: false,
+  compressEnabled: true,
+  targetDimension: 256,
+  compressQuality: 85
+}
 
 export type SEOSettings = {
   metaTitleTemplate: string
@@ -194,7 +224,18 @@ const fallbackOptions: Record<string, string> = {
   'seo.schema_org.search_action_enabled': enabledOption,
   'seo.schema_org.discussion_enabled': enabledOption,
   'seo.schema_org.organization_logo_url': '',
-  'seo.topic_url_mode': recommendedTopicUrlMode
+  'seo.topic_url_mode': recommendedTopicUrlMode,
+  'avatar.allow_upload': enabledOption,
+  'avatar.default_provider': recommendedAvatarSettings.defaultProvider,
+  'avatar.gravatar_base_url': recommendedAvatarSettings.gravatarBaseUrl,
+  'avatar.gravatar_hash_algorithm': recommendedAvatarSettings.gravatarHashAlgorithm,
+  'avatar.default_static_url': recommendedAvatarSettings.defaultStaticUrl,
+  'avatar.max_size_kb': String(recommendedAvatarSettings.maxSizeKb),
+  'avatar.max_dimension': String(recommendedAvatarSettings.maxDimension),
+  'avatar.allow_gif': disabledOption,
+  'avatar.compress_enabled': enabledOption,
+  'avatar.target_dimension': String(recommendedAvatarSettings.targetDimension),
+  'avatar.compress_quality': String(recommendedAvatarSettings.compressQuality)
 }
 
 export const useWebOptions = () => {
@@ -285,6 +326,7 @@ export const useWebOptions = () => {
   const altchaWidgetSettings = computed(() => resolveAltchaWidgetSettings(options.value))
   const passwordPolicy = computed(() => resolvePasswordPolicy(options.value))
   const seoSettings = computed(() => resolveSEOSettings(options.value))
+  const avatarSettings = computed(() => resolveAvatarSettings(options.value))
   const seoIndexable = computed(() => isSEOIndexingAllowed(seoSettings.value, siteUrl.value))
   // 帖子 URL 形态：列表/详情/SEO 链接生成均依赖此值。
   const topicUrlMode = computed<TopicUrlMode>(() => seoSettings.value.topicUrlMode)
@@ -316,6 +358,7 @@ export const useWebOptions = () => {
     altchaWidgetSettings,
     passwordPolicy,
     seoSettings,
+    avatarSettings,
     seoIndexable,
     topicUrlMode,
     humanVerificationEnabledFor,
@@ -441,6 +484,46 @@ export function resolveSEOSettings(values: Record<string, string>): SEOSettings 
 export function normalizeTopicUrlMode(value: string | undefined): TopicUrlMode {
   const raw = value?.trim().toLowerCase() as TopicUrlMode
   return topicUrlModes.includes(raw) ? raw : recommendedTopicUrlMode
+}
+
+export function resolveAvatarSettings(values: Record<string, string>): AvatarSettings {
+  const option = (name: string) => values[name] ?? fallbackOptions[name] ?? ''
+  return {
+    allowUpload: normalizeEnabledOption(option('avatar.allow_upload'), recommendedAvatarSettings.allowUpload),
+    defaultProvider: normalizeAvatarDefaultProvider(option('avatar.default_provider')),
+    gravatarBaseUrl: normalizeAvatarBaseUrl(option('avatar.gravatar_base_url')),
+    gravatarHashAlgorithm: normalizeAvatarHashAlgorithm(option('avatar.gravatar_hash_algorithm')),
+    defaultStaticUrl: option('avatar.default_static_url').trim(),
+    maxSizeKb: normalizeBoundedInteger(option('avatar.max_size_kb'), recommendedAvatarSettings.maxSizeKb, 1, 10240),
+    maxDimension: normalizeBoundedInteger(option('avatar.max_dimension'), recommendedAvatarSettings.maxDimension, 32, 4096),
+    allowGif: normalizeEnabledOption(option('avatar.allow_gif'), recommendedAvatarSettings.allowGif),
+    compressEnabled: normalizeEnabledOption(option('avatar.compress_enabled'), recommendedAvatarSettings.compressEnabled),
+    targetDimension: normalizeBoundedInteger(option('avatar.target_dimension'), recommendedAvatarSettings.targetDimension, 32, 4096),
+    compressQuality: normalizeBoundedInteger(option('avatar.compress_quality'), recommendedAvatarSettings.compressQuality, 1, 100)
+  }
+}
+
+export function normalizeAvatarDefaultProvider(value: string | undefined): AvatarDefaultProvider {
+  const raw = value?.trim().toLowerCase() as AvatarDefaultProvider
+  return avatarDefaultProviders.includes(raw) ? raw : recommendedAvatarSettings.defaultProvider
+}
+
+export function normalizeAvatarHashAlgorithm(value: string | undefined): AvatarGravatarHashAlgorithm {
+  const raw = value?.trim().toLowerCase() as AvatarGravatarHashAlgorithm
+  return avatarHashAlgorithms.includes(raw) ? raw : recommendedAvatarSettings.gravatarHashAlgorithm
+}
+
+export function normalizeAvatarBaseUrl(value: string | undefined) {
+  const raw = value?.trim() || recommendedAvatarSettings.gravatarBaseUrl
+  try {
+    const url = new URL(raw)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return recommendedAvatarSettings.gravatarBaseUrl
+    }
+    return raw.replace(/\/+$/, '') + '/'
+  } catch {
+    return recommendedAvatarSettings.gravatarBaseUrl
+  }
 }
 
 export function normalizeSEOTwitterCard(value: string | undefined): SEOTwitterCard {

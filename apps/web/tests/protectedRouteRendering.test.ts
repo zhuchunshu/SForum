@@ -9,8 +9,8 @@ describe('protected route rendering', () => {
       '/en/settings/**',
       '/topics/new',
       '/en/topics/new',
-      '/t/:topicID/:topicSlug/edit',
-      '/en/t/:topicID/:topicSlug/edit'
+      '/t/**',
+      '/en/t/**'
     ]
 
     for (const route of protectedRoutes) {
@@ -26,8 +26,8 @@ describe('protected route rendering', () => {
       '/en/settings/**',
       '/topics/new',
       '/en/topics/new',
-      '/t/:topicID/:topicSlug/edit',
-      '/en/t/:topicID/:topicSlug/edit'
+      '/t/**',
+      '/en/t/**'
     ]
 
     for (const route of protectedRoutes) {

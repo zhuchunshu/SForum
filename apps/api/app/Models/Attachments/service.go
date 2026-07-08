@@ -1,13 +1,14 @@
 package attachments
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"image"
 	_ "image/gif"
-	_ "image/jpeg"
+	"image/jpeg"
 	_ "image/png"
 	"io"
 	"net/http"
@@ -18,6 +19,8 @@ import (
 	"time"
 
 	"context"
+
+	"github.com/disintegration/imaging"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
@@ -78,11 +81,50 @@ func (s *Service) Upload(ctx context.Context, actor identity.Actor, input Upload
 	if err != nil {
 		return Attachment{}, err
 	}
+	return s.storePreparedUpload(ctx, actor, settings, preparedUpload{
+		Reader:     input.File,
+		SizeBytes:  input.SizeBytes,
+		Metadata:   metadata,
+		Visibility: settings.DefaultVisibility,
+	})
+}
+
+func (s *Service) UploadAvatar(ctx context.Context, actor identity.Actor, input UploadInput) (Attachment, error) {
+	if !actor.Can(identity.PermissionAttachmentUpload) {
+		return Attachment{}, identity.ErrPermissionDenied
+	}
+	avatarOptions, err := s.options.AvatarOptions(ctx)
+	if err != nil {
+		return Attachment{}, err
+	}
+	if !avatarOptions.AllowUpload {
+		return Attachment{}, ErrUploadDisabled
+	}
+	settings, err := s.runtimeSettings(ctx)
+	if err != nil {
+		return Attachment{}, err
+	}
+	prepared, err := prepareAvatarUpload(input, avatarOptions)
+	if err != nil {
+		return Attachment{}, err
+	}
+	prepared.Visibility = VisibilityPublic
+	return s.storePreparedUpload(ctx, actor, settings, prepared)
+}
+
+type preparedUpload struct {
+	Reader     io.Reader
+	SizeBytes  int64
+	Metadata   uploadMetadata
+	Visibility string
+}
+
+func (s *Service) storePreparedUpload(ctx context.Context, actor identity.Actor, settings AttachmentSettings, prepared preparedUpload) (Attachment, error) {
 	publicID, err := randomPublicID()
 	if err != nil {
 		return Attachment{}, err
 	}
-	objectKey, err := renderObjectKey(settings.PathTemplate, publicID, metadata.Extension, time.Now())
+	objectKey, err := renderObjectKey(settings.PathTemplate, publicID, prepared.Metadata.Extension, time.Now())
 	if err != nil {
 		return Attachment{}, err
 	}
@@ -91,15 +133,12 @@ func (s *Service) Upload(ctx context.Context, actor identity.Actor, input Upload
 		return Attachment{}, ErrStorageUnavailable
 	}
 
-	if _, err := input.File.Seek(0, io.SeekStart); err != nil {
-		return Attachment{}, err
-	}
 	hash := sha256.New()
-	reader := io.TeeReader(input.File, hash)
+	reader := io.TeeReader(prepared.Reader, hash)
 	if err := adapter.Put(ctx, objectKey, storage.PutInput{
 		Reader:      reader,
-		Size:        input.SizeBytes,
-		ContentType: metadata.ContentType,
+		Size:        prepared.SizeBytes,
+		ContentType: prepared.Metadata.ContentType,
 	}); err != nil {
 		return Attachment{}, err
 	}
@@ -109,14 +148,14 @@ func (s *Service) Upload(ctx context.Context, actor identity.Actor, input Upload
 		OwnerUserID:  actor.ID,
 		Provider:     settings.Provider,
 		ObjectKey:    objectKey,
-		OriginalName: metadata.OriginalName,
-		ContentType:  metadata.ContentType,
-		Extension:    metadata.Extension,
-		SizeBytes:    input.SizeBytes,
+		OriginalName: prepared.Metadata.OriginalName,
+		ContentType:  prepared.Metadata.ContentType,
+		Extension:    prepared.Metadata.Extension,
+		SizeBytes:    prepared.SizeBytes,
 		SHA256:       hex.EncodeToString(hash.Sum(nil)),
-		ImageWidth:   metadata.ImageWidth,
-		ImageHeight:  metadata.ImageHeight,
-		Visibility:   settings.DefaultVisibility,
+		ImageWidth:   prepared.Metadata.ImageWidth,
+		ImageHeight:  prepared.Metadata.ImageHeight,
+		Visibility:   prepared.Visibility,
 	})
 	if err != nil {
 		_ = adapter.Delete(ctx, objectKey)
@@ -416,6 +455,135 @@ func inspectUpload(input UploadInput, settings AttachmentSettings) (uploadMetada
 		ImageWidth:   width,
 		ImageHeight:  height,
 	}, nil
+}
+
+func prepareAvatarUpload(input UploadInput, avatarOptions options.AvatarOptions) (preparedUpload, error) {
+	name := strings.TrimSpace(filepath.Base(input.OriginalName))
+	if name == "" || name == "." || input.File == nil || input.SizeBytes <= 0 {
+		return preparedUpload{}, ErrInvalidAttachment
+	}
+	maxBytes := int64(avatarOptions.MaxSizeKB) * 1024
+	if maxBytes <= 0 || input.SizeBytes > maxBytes {
+		return preparedUpload{}, ErrInvalidAttachment
+	}
+
+	config, format, err := decodeImageConfig(input.File)
+	if err != nil {
+		return preparedUpload{}, ErrInvalidAttachment
+	}
+	if config.Width <= 0 || config.Height <= 0 || config.Width > avatarOptions.MaxDimension || config.Height > avatarOptions.MaxDimension {
+		return preparedUpload{}, ErrInvalidAttachment
+	}
+
+	width := config.Width
+	height := config.Height
+	contentType, extension, ok := avatarFormatMetadata(format)
+	if !ok {
+		return preparedUpload{}, ErrInvalidAttachment
+	}
+	if format == "gif" {
+		if !avatarOptions.AllowGIF {
+			return preparedUpload{}, ErrInvalidAttachment
+		}
+		if _, err := input.File.Seek(0, io.SeekStart); err != nil {
+			return preparedUpload{}, err
+		}
+		return preparedUpload{
+			Reader:    input.File,
+			SizeBytes: input.SizeBytes,
+			Metadata: uploadMetadata{
+				OriginalName: normalizedAvatarName(name, extension),
+				ContentType:  contentType,
+				Extension:    extension,
+				ImageWidth:   &width,
+				ImageHeight:  &height,
+			},
+		}, nil
+	}
+
+	if !avatarOptions.CompressEnabled {
+		if _, err := input.File.Seek(0, io.SeekStart); err != nil {
+			return preparedUpload{}, err
+		}
+		return preparedUpload{
+			Reader:    input.File,
+			SizeBytes: input.SizeBytes,
+			Metadata: uploadMetadata{
+				OriginalName: normalizedAvatarName(name, extension),
+				ContentType:  contentType,
+				Extension:    extension,
+				ImageWidth:   &width,
+				ImageHeight:  &height,
+			},
+		}, nil
+	}
+
+	if _, err := input.File.Seek(0, io.SeekStart); err != nil {
+		return preparedUpload{}, err
+	}
+	img, err := imaging.Decode(input.File, imaging.AutoOrientation(true))
+	if err != nil {
+		return preparedUpload{}, ErrInvalidAttachment
+	}
+	target := avatarOptions.TargetDimension
+	if target <= 0 {
+		target = 256
+	}
+	processed := imaging.Fill(img, target, target, imaging.Center, imaging.Lanczos)
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, processed, &jpeg.Options{Quality: avatarOptions.CompressQuality}); err != nil {
+		return preparedUpload{}, err
+	}
+	if int64(buf.Len()) > maxBytes {
+		return preparedUpload{}, ErrInvalidAttachment
+	}
+	width = target
+	height = target
+	extension = ".jpg"
+	contentType = "image/jpeg"
+	return preparedUpload{
+		Reader:    bytes.NewReader(buf.Bytes()),
+		SizeBytes: int64(buf.Len()),
+		Metadata: uploadMetadata{
+			OriginalName: normalizedAvatarName(name, extension),
+			ContentType:  contentType,
+			Extension:    extension,
+			ImageWidth:   &width,
+			ImageHeight:  &height,
+		},
+	}, nil
+}
+
+func decodeImageConfig(file ReadSeekCloser) (image.Config, string, error) {
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return image.Config{}, "", err
+	}
+	config, format, err := image.DecodeConfig(io.LimitReader(file, 8*1024*1024))
+	if _, seekErr := file.Seek(0, io.SeekStart); seekErr != nil && err == nil {
+		err = seekErr
+	}
+	return config, strings.ToLower(format), err
+}
+
+func avatarFormatMetadata(format string) (string, string, bool) {
+	switch strings.ToLower(format) {
+	case "jpeg":
+		return "image/jpeg", ".jpg", true
+	case "png":
+		return "image/png", ".png", true
+	case "gif":
+		return "image/gif", ".gif", true
+	default:
+		return "", "", false
+	}
+}
+
+func normalizedAvatarName(name string, extension string) string {
+	base := strings.TrimSuffix(strings.TrimSpace(filepath.Base(name)), filepath.Ext(name))
+	if base == "" || base == "." {
+		base = "avatar"
+	}
+	return base + extension
 }
 
 func renderObjectKey(template string, publicID string, extension string, now time.Time) (string, error) {

@@ -5,8 +5,16 @@ export type ProfileData = {
   location: string
   websiteUrl: string
   avatarAttachmentId?: number | null
+  avatar: AvatarView
   createdAt: string
   updatedAt: string
+}
+
+export type AvatarView = {
+  kind: 'uploaded' | 'initials' | 'gravatar' | 'static'
+  url: string
+  attachmentId?: number | null
+  alt: string
 }
 
 export type PublicProfile = {
@@ -43,5 +51,15 @@ export function useProfileApi() {
     return request<ProfileData>('/profile', { method: 'PUT', body: input })
   }
 
-  return { getPublicProfile, getMyProfile, updateMyProfile }
+  function uploadAvatar(file: File) {
+    const body = new FormData()
+    body.append('file', file)
+    return request<ProfileData>('/profile/avatar', { method: 'POST', body })
+  }
+
+  function deleteAvatar() {
+    return request<ProfileData>('/profile/avatar', { method: 'DELETE' })
+  }
+
+  return { getPublicProfile, getMyProfile, updateMyProfile, uploadAvatar, deleteAvatar }
 }

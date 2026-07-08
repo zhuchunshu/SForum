@@ -1,3 +1,28 @@
+AvatarView:
+  type: object
+  required:
+  - kind
+  - url
+  - alt
+  properties:
+    kind:
+      type: string
+      enum:
+      - uploaded
+      - initials
+      - gravatar
+      - static
+    url:
+      type: string
+      description: Empty when kind is initials and no image URL should be loaded.
+    attachmentId:
+      type:
+      - integer
+      - 'null'
+      format: int64
+      description: Present for uploaded avatars.
+    alt:
+      type: string
 Profile:
   type: object
   required:
@@ -6,6 +31,7 @@ Profile:
   - signature
   - location
   - websiteUrl
+  - avatar
   - createdAt
   - updatedAt
   properties:
@@ -25,6 +51,9 @@ Profile:
       - integer
       - 'null'
       format: int64
+      description: Deprecated compatibility field. Use avatar.attachmentId and the dedicated avatar endpoints for changes.
+    avatar:
+      "$ref": "#/AvatarView"
     createdAt:
       type: string
       format: date-time

@@ -2,7 +2,8 @@
 definePageMeta({ requiresAuth: true })
 
 const { t } = useI18n()
-const { siteName } = useWebOptions()
+const toast = useToast()
+const { siteName, avatarSettings } = useWebOptions()
 const profileApi = useProfileApi()
 
 useSForumSeo({
@@ -22,6 +23,9 @@ const bio = ref('')
 const signature = ref('')
 const location = ref('')
 const websiteUrl = ref('')
+const avatarInput = ref<HTMLInputElement | null>(null)
+const avatarBusy = ref(false)
+const avatarError = ref('')
 
 // 首次加载后填充表单。
 watchEffect(() => {
@@ -40,6 +44,16 @@ const successMessage = ref('')
 const fieldErrors = ref<Record<string, string[]>>({})
 
 const canSave = computed(() => saveState.value !== 'saving' && !pending.value)
+const currentAvatar = computed(() => profile.value?.profile.avatar || null)
+const avatarAccept = computed(() => avatarSettings.value.allowGif ? 'image/jpeg,image/png,image/gif' : 'image/jpeg,image/png')
+const avatarHint = computed(() => {
+  const types = avatarSettings.value.allowGif ? 'JPG / PNG / GIF' : 'JPG / PNG'
+  return t('profileSettings.avatarHint', {
+    types,
+    size: avatarSettings.value.maxSizeKb,
+    dimension: avatarSettings.value.maxDimension
+  })
+})
 
 async function save() {
   if (!canSave.value) {
@@ -50,12 +64,15 @@ async function save() {
   successMessage.value = ''
   fieldErrors.value = {}
   try {
-    await profileApi.updateMyProfile({
+    const updated = await profileApi.updateMyProfile({
       bio: bio.value,
       signature: signature.value,
       location: location.value,
       websiteUrl: websiteUrl.value
     })
+    if (profile.value) {
+      profile.value = { ...profile.value, profile: updated }
+    }
     saveState.value = 'success'
     successMessage.value = t('profileSettings.saved')
     // 10 秒后自动关闭成功提示。
@@ -68,6 +85,60 @@ async function save() {
     saveState.value = 'error'
     errorMessage.value = apiErrorMessage(error) || t('profileSettings.saveFailed')
     fieldErrors.value = apiErrorFields(error)
+  }
+}
+
+function openAvatarPicker() {
+  avatarError.value = ''
+  avatarInput.value?.click()
+}
+
+async function uploadAvatar(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || avatarBusy.value) {
+    return
+  }
+  avatarError.value = ''
+  if (file.size > avatarSettings.value.maxSizeKb * 1024) {
+    avatarError.value = t('profileSettings.avatarTooLarge', { size: avatarSettings.value.maxSizeKb })
+    return
+  }
+  if (!avatarSettings.value.allowGif && file.type === 'image/gif') {
+    avatarError.value = t('profileSettings.avatarGifDisabled')
+    return
+  }
+  avatarBusy.value = true
+  try {
+    const updated = await profileApi.uploadAvatar(file)
+    if (profile.value) {
+      profile.value = { ...profile.value, profile: updated }
+    }
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('profileSettings.avatarUploaded') })
+  } catch (error) {
+    avatarError.value = apiErrorMessage(error) || t('profileSettings.avatarUploadFailed')
+  } finally {
+    avatarBusy.value = false
+  }
+}
+
+async function removeAvatar() {
+  if (avatarBusy.value) {
+    return
+  }
+  avatarError.value = ''
+  avatarBusy.value = true
+  try {
+    const updated = await profileApi.deleteAvatar()
+    if (profile.value) {
+      profile.value = { ...profile.value, profile: updated }
+    }
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('profileSettings.avatarRemoved') })
+  } catch (error) {
+    avatarError.value = apiErrorMessage(error) || t('profileSettings.avatarRemoveFailed')
+  } finally {
+    avatarBusy.value = false
   }
 }
 </script>
@@ -97,6 +168,32 @@ async function save() {
       />
 
       <SFCard class="p-6 space-y-5">
+        <div v-if="profile" class="flex flex-col gap-4 rounded-lg border border-slate-200 p-4 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex min-w-0 items-center gap-4">
+            <SFAvatar :name="profile.displayName" :avatar="currentAvatar" size="lg" />
+            <div class="min-w-0">
+              <h2 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                {{ t('profileSettings.avatar') }}
+              </h2>
+              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                {{ avatarSettings.allowUpload ? avatarHint : t('profileSettings.avatarUploadDisabled') }}
+              </p>
+              <p v-if="avatarError" class="mt-2 text-sm text-red-600 dark:text-red-400">
+                {{ avatarError }}
+              </p>
+            </div>
+          </div>
+          <div class="flex shrink-0 flex-wrap gap-2">
+            <input ref="avatarInput" class="hidden" type="file" :accept="avatarAccept" @change="uploadAvatar">
+            <SFButton variant="secondary" size="sm" :disabled="!avatarSettings.allowUpload || avatarBusy" :loading="avatarBusy" @click="openAvatarPicker">
+              {{ t('profileSettings.avatarUpload') }}
+            </SFButton>
+            <SFButton v-if="profile.profile.avatarAttachmentId" variant="ghost" size="sm" :disabled="avatarBusy" @click="removeAvatar">
+              {{ t('profileSettings.avatarRemove') }}
+            </SFButton>
+          </div>
+        </div>
+
         <!-- 显示名（只读，展示当前值） -->
         <div v-if="profile">
           <label class="block text-sm font-semibold text-slate-700 mb-2 dark:text-zinc-300">

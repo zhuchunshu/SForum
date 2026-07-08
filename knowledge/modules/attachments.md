@@ -111,6 +111,11 @@ upload and presigned upload credentials are intentionally deferred.
 - Upload requires a logged-in active actor with `attachment.upload`.
 - The API enforces configured max size, allowed extensions, and allowed MIME
   types.
+- Avatar uploads reuse the attachment storage pipeline, but apply avatar
+  runtime rules (`avatar.max_size_kb`, `avatar.max_dimension`,
+  `avatar.allow_gif`, `avatar.compress_enabled`, `avatar.target_dimension`,
+  and `avatar.compress_quality`) instead of the general attachment allow-list.
+  Avatar attachments are always stored with public visibility.
 - The service generates a random public id and object key from the configured
   path template, streams the object to the provider, and computes SHA-256 during
   upload.
@@ -119,6 +124,9 @@ upload and presigned upload credentials are intentionally deferred.
 - Admin delete is soft delete. Orphan cleanup only physically deletes rows with
   `status = deleted`, `reference_count = 0`, and `deleted_at` older than
   `attachment.cleanup_orphan_after_days`.
+- Profile avatar replacement writes `attachment_references` with resource
+  `user` and context `avatar`, decrementing the old avatar reference and
+  incrementing the new one so referenced avatars are not orphan-cleaned.
 - `attachments.cleanup_orphans` is defined as a River maintenance job contract;
   worker wiring can be enabled when the worker process begins registering
   module jobs.
@@ -128,6 +136,8 @@ upload and presigned upload credentials are intentionally deferred.
 User-facing:
 
 - `POST /api/v1/attachments`
+- `POST /api/v1/profile/avatar` for avatar-specific image upload and profile
+  attachment.
 - `GET /api/v1/attachments/:publicId`
 - `GET /api/v1/attachments/:publicId/content`
 
@@ -154,7 +164,8 @@ Current focused coverage includes:
   MIME/extension validation, secret mask, and blank-secret retention;
 - local adapter put/open/stat/delete and unsafe key rejection;
 - upload metadata creation, SHA-256 calculation, remote rollback on DB failure,
-  permission denial, invalid extension, and cleanup retention cutoff;
+  permission denial, invalid extension, avatar JPEG compression/public
+  visibility, GIF rejection when disabled, and cleanup retention cutoff;
 - existing backend HTTP/options/identity tests;
 - frontend typecheck and Bun tests.
 

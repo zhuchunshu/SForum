@@ -4,6 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"image"
+	"image/color"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"strings"
 	"testing"
@@ -139,6 +144,91 @@ func TestServiceUploadRequiresPermissionAndValidFileType(t *testing.T) {
 	}
 }
 
+func TestServiceUploadAvatarCompressesJPEGAndStoresPublicAttachment(t *testing.T) {
+	store := &fakeAttachmentStore{}
+	adapter := &fakeStorageAdapter{}
+	service := NewServiceWithAdapterFactory(store, newAttachmentOptions(map[string]string{
+		options.NameAvatarTargetDimension: "128",
+		options.NameAvatarMaxDimension:    "512",
+		options.NameAvatarCompressEnabled: "enabled",
+	}), func(storage.Config) (storage.Adapter, error) {
+		return adapter, nil
+	})
+	original := testJPEG(320, 240)
+
+	item, err := service.UploadAvatar(context.Background(), uploadActor(), UploadInput{
+		OriginalName: "avatar.jpg",
+		ContentType:  "image/jpeg",
+		SizeBytes:    int64(len(original)),
+		File:         newReadSeekCloserBytes(original),
+	})
+	if err != nil {
+		t.Fatalf("UploadAvatar returned error: %v", err)
+	}
+	if len(store.creates) != 1 {
+		t.Fatalf("expected one attachment create, got %d", len(store.creates))
+	}
+	created := store.creates[0]
+	if created.Visibility != VisibilityPublic || created.ContentType != "image/jpeg" || created.Extension != ".jpg" {
+		t.Fatalf("unexpected avatar metadata: %#v", created)
+	}
+	if created.SizeBytes != int64(len(adapter.putBytes)) || item.SizeBytes != int64(len(adapter.putBytes)) {
+		t.Fatalf("expected compressed size metadata to match stored bytes, create=%d item=%d body=%d", created.SizeBytes, item.SizeBytes, len(adapter.putBytes))
+	}
+	config, format, err := image.DecodeConfig(bytes.NewReader(adapter.putBytes))
+	if err != nil {
+		t.Fatalf("decode compressed avatar: %v", err)
+	}
+	if format != "jpeg" || config.Width != 128 || config.Height != 128 {
+		t.Fatalf("expected 128x128 jpeg avatar, got format=%s size=%dx%d", format, config.Width, config.Height)
+	}
+}
+
+func TestServiceUploadAvatarRejectsCompressedOutputOverLimit(t *testing.T) {
+	service := NewServiceWithAdapterFactory(&fakeAttachmentStore{}, newAttachmentOptions(map[string]string{
+		options.NameAvatarMaxSizeKB:         "1",
+		options.NameAvatarTargetDimension:   "256",
+		options.NameAvatarCompressEnabled:   "enabled",
+		options.NameAvatarCompressQuality:   "100",
+		options.NameAvatarMaxDimension:      "512",
+		options.NameAttachmentPathTemplate:  "{public_id}{ext}",
+		options.NameAttachmentUploadEnabled: "enabled",
+	}), func(storage.Config) (storage.Adapter, error) {
+		return &fakeStorageAdapter{}, nil
+	})
+	body := testPNG(64, 64)
+	if len(body) > 1024 {
+		t.Fatalf("test fixture must be under 1KB before compression, got %d bytes", len(body))
+	}
+
+	_, err := service.UploadAvatar(context.Background(), uploadActor(), UploadInput{
+		OriginalName: "avatar.png",
+		ContentType:  "image/png",
+		SizeBytes:    int64(len(body)),
+		File:         newReadSeekCloserBytes(body),
+	})
+	if !errors.Is(err, ErrInvalidAttachment) {
+		t.Fatalf("expected compressed avatar over limit to be rejected, got %v", err)
+	}
+}
+
+func TestServiceUploadAvatarRejectsGIFWhenDisabled(t *testing.T) {
+	service := NewServiceWithAdapterFactory(&fakeAttachmentStore{}, newAttachmentOptions(nil), func(storage.Config) (storage.Adapter, error) {
+		return &fakeStorageAdapter{}, nil
+	})
+	body := testGIF()
+
+	_, err := service.UploadAvatar(context.Background(), uploadActor(), UploadInput{
+		OriginalName: "avatar.gif",
+		ContentType:  "image/gif",
+		SizeBytes:    int64(len(body)),
+		File:         newReadSeekCloserBytes(body),
+	})
+	if !errors.Is(err, ErrInvalidAttachment) {
+		t.Fatalf("expected GIF to be rejected while avatar.allow_gif is disabled, got %v", err)
+	}
+}
+
 func TestServiceCleanupUsesConfiguredRetentionWindow(t *testing.T) {
 	store := &fakeAttachmentStore{
 		cleanupItems: []Attachment{{ID: 1, Provider: storage.ProviderLocal, ObjectKey: "old.txt"}},
@@ -243,12 +333,54 @@ func newReadSeekCloser(value string) *readSeekCloser {
 	return &readSeekCloser{Reader: bytes.NewReader([]byte(value))}
 }
 
+func newReadSeekCloserBytes(value []byte) *readSeekCloser {
+	return &readSeekCloser{Reader: bytes.NewReader(value)}
+}
+
 func (r *readSeekCloser) Close() error { return nil }
+
+func testJPEG(width int, height int) []byte {
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			img.Set(x, y, color.RGBA{R: uint8(x % 255), G: uint8(y % 255), B: 180, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 95}); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
+
+func testGIF() []byte {
+	img := image.NewPaletted(image.Rect(0, 0, 32, 32), []color.Color{color.White, color.Black})
+	var buf bytes.Buffer
+	if err := gif.Encode(&buf, img, nil); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
+
+func testPNG(width int, height int) []byte {
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			img.Set(x, y, color.RGBA{R: uint8(x % 255), G: uint8(y % 255), B: 120, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
 
 type fakeStorageAdapter struct {
 	publicBaseURL string
 	putKey        string
 	putBody       string
+	putBytes      []byte
 	deletedKey    string
 }
 
@@ -259,6 +391,7 @@ func (a *fakeStorageAdapter) Put(_ context.Context, key string, input storage.Pu
 	}
 	a.putKey = key
 	a.putBody = string(body)
+	a.putBytes = body
 	return nil
 }
 

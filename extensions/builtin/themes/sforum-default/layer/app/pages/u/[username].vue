@@ -62,7 +62,7 @@ function topicAuthor(topic: ForumTopicSummary) {
         <!-- 资料头部 -->
         <SFCard class="p-6 mb-4">
           <div class="flex items-center gap-4 mb-4">
-            <SFAvatar :name="displayName" size="lg" />
+            <SFAvatar :name="displayName" :avatar="profile.profile.avatar" size="lg" />
             <div>
               <h1 class="text-xl font-bold text-slate-900 dark:text-zinc-50">
                 {{ displayName }}

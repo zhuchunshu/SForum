@@ -14,8 +14,10 @@ import {
   passwordPolicyRequirements,
   recommendedPasswordPolicy,
   recommendedAppearanceTheme,
+  recommendedAvatarSettings,
   recommendedFooterCopyright,
   recommendedFooterLinks,
+  resolveAvatarSettings,
   resolvePasswordPolicy,
   resolveAltchaWidgetSettings,
   normalizeSEOVerificationToken,
@@ -147,6 +149,49 @@ describe('password policy helpers', () => {
     expect(passwordPolicyProgressLevel(51)).toBe('medium')
     expect(passwordPolicyProgressLevel(99)).toBe('medium')
     expect(passwordPolicyProgressLevel(100)).toBe('strong')
+  })
+})
+
+describe('avatar option helpers', () => {
+  test('resolves recommended avatar settings by default', () => {
+    expect(resolveAvatarSettings({})).toEqual(recommendedAvatarSettings)
+  })
+
+  test('normalizes avatar provider, source, and upload limits', () => {
+    const settings = resolveAvatarSettings({
+      'avatar.allow_upload': 'disabled',
+      'avatar.default_provider': 'gravatar',
+      'avatar.gravatar_base_url': 'https://avatar.example.com/base',
+      'avatar.gravatar_hash_algorithm': 'md5',
+      'avatar.max_size_kb': '512',
+      'avatar.allow_gif': 'enabled',
+      'avatar.compress_enabled': 'disabled'
+    })
+
+    expect(settings.allowUpload).toBe(false)
+    expect(settings.defaultProvider).toBe('gravatar')
+    expect(settings.gravatarBaseUrl).toBe('https://avatar.example.com/base/')
+    expect(settings.gravatarHashAlgorithm).toBe('md5')
+    expect(settings.maxSizeKb).toBe(512)
+    expect(settings.allowGif).toBe(true)
+    expect(settings.compressEnabled).toBe(false)
+
+    const fallback = resolveAvatarSettings({
+      'avatar.default_provider': 'identicon',
+      'avatar.gravatar_base_url': 'javascript:alert(1)',
+      'avatar.gravatar_hash_algorithm': 'sha1',
+      'avatar.max_size_kb': '99999',
+      'avatar.max_dimension': '0',
+      'avatar.target_dimension': '9000',
+      'avatar.compress_quality': '101'
+    })
+    expect(fallback.defaultProvider).toBe(recommendedAvatarSettings.defaultProvider)
+    expect(fallback.gravatarBaseUrl).toBe(recommendedAvatarSettings.gravatarBaseUrl)
+    expect(fallback.gravatarHashAlgorithm).toBe(recommendedAvatarSettings.gravatarHashAlgorithm)
+    expect(fallback.maxSizeKb).toBe(recommendedAvatarSettings.maxSizeKb)
+    expect(fallback.maxDimension).toBe(recommendedAvatarSettings.maxDimension)
+    expect(fallback.targetDimension).toBe(recommendedAvatarSettings.targetDimension)
+    expect(fallback.compressQuality).toBe(recommendedAvatarSettings.compressQuality)
   })
 })
 

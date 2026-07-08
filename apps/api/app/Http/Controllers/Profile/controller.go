@@ -7,8 +7,9 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
-	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
+	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 )
 
@@ -74,6 +75,45 @@ func (h *Controller) updateMyProfile(c fiber.Ctx) error {
 	return apphttp.OK(c, updated)
 }
 
+func (h *Controller) uploadAvatar(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, profile.CodeProfileInvalid)
+	}
+	file, err := fileHeader.Open()
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	updated, err := h.service.UploadAvatar(c.Context(), actor, attachments.UploadInput{
+		OriginalName: fileHeader.Filename,
+		ContentType:  fileHeader.Header.Get("Content-Type"),
+		SizeBytes:    fileHeader.Size,
+		File:         file,
+	})
+	if err != nil {
+		return mapProfileError(err)
+	}
+	return apphttp.OK(c, updated)
+}
+
+func (h *Controller) deleteAvatar(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	updated, err := h.service.DeleteAvatar(c.Context(), actor)
+	if err != nil {
+		return mapProfileError(err)
+	}
+	return apphttp.OK(c, updated)
+}
+
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 	userID, ok, err := h.sessions.CurrentUserID(c)
 	if err != nil {
@@ -93,6 +133,14 @@ func mapProfileError(err error) error {
 		return fiber.NewError(fiber.StatusNotFound, profile.CodeProfileNotFound)
 	case errors.Is(err, profile.ErrProfileInvalid):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, profile.CodeProfileInvalid)
+	case errors.Is(err, profile.ErrAvatarUploadDisabled):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, profile.CodeAvatarUploadDisabled)
+	case errors.Is(err, attachments.ErrUploadDisabled):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, profile.CodeAvatarUploadDisabled)
+	case errors.Is(err, attachments.ErrInvalidAttachment):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, profile.CodeProfileInvalid)
+	case errors.Is(err, attachments.ErrStorageUnavailable):
+		return fiber.NewError(fiber.StatusServiceUnavailable, attachments.CodeStorageUnavailable)
 	default:
 		return err
 	}

@@ -208,6 +208,7 @@ var optionDefinitions = []optionDefinition{
 	{name: NameAvatarAllowUpload, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameAvatarDefaultProvider, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameAvatarGravatarBaseURL, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAvatarGravatarHashAlgorithm, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameAvatarDefaultStaticURL, managePermission: identity.PermissionSettingsManage},
 	{name: NameAvatarMaxSizeKB, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameAvatarMaxDimension, managePermission: identity.PermissionSettingsManage},
@@ -875,16 +876,17 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameMailSMTPPassword:   "",
 		NameMailSMTPEncryption: "starttls",
 		// 头像：默认 identicon（离线可用，符合"开箱即用"原则）；上传与压缩默认开启。
-		NameAvatarAllowUpload:      enabledOptionValue(true),
-		NameAvatarDefaultProvider:  AvatarProviderIdenticon,
-		NameAvatarGravatarBaseURL:  "https://www.gravatar.com/avatar/",
-		NameAvatarDefaultStaticURL: "",
-		NameAvatarMaxSizeKB:        strconv.Itoa(avatarMaxSizeKBDefault),
-		NameAvatarMaxDimension:     strconv.Itoa(avatarMaxDimensionDefault),
-		NameAvatarAllowGIF:         enabledOptionValue(true),
-		NameAvatarCompressEnabled:  enabledOptionValue(true),
-		NameAvatarTargetDimension:  strconv.Itoa(avatarTargetDimensionDefault),
-		NameAvatarCompressQuality:  strconv.Itoa(avatarCompressQualityDefault),
+		NameAvatarAllowUpload:           enabledOptionValue(true),
+		NameAvatarDefaultProvider:       AvatarProviderInitials,
+		NameAvatarGravatarBaseURL:       "https://gravatar.com/avatar/",
+		NameAvatarGravatarHashAlgorithm: AvatarHashSHA256,
+		NameAvatarDefaultStaticURL:      "",
+		NameAvatarMaxSizeKB:             strconv.Itoa(avatarMaxSizeKBDefault),
+		NameAvatarMaxDimension:          strconv.Itoa(avatarMaxDimensionDefault),
+		NameAvatarAllowGIF:              enabledOptionValue(false),
+		NameAvatarCompressEnabled:       enabledOptionValue(true),
+		NameAvatarTargetDimension:       strconv.Itoa(avatarTargetDimensionDefault),
+		NameAvatarCompressQuality:       strconv.Itoa(avatarCompressQualityDefault),
 	}
 
 	if value := strings.TrimSpace(defaults.SiteName); value != "" {
@@ -1084,6 +1086,8 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeAvatarProvider(value)
 	case NameAvatarGravatarBaseURL:
 		return normalizeAvatarGravatarBaseURL(value)
+	case NameAvatarGravatarHashAlgorithm:
+		return normalizeAvatarHashAlgorithm(value)
 	case NameAvatarDefaultStaticURL:
 		return normalizeOptionalURL(value)
 	case NameAvatarMaxSizeKB:

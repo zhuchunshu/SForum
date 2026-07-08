@@ -12,6 +12,11 @@ Member public profiles and current-user profile settings.
   `attachments(id)` set null on delete; `created_at`/`updated_at`.
 - Sparse by design: no background images, custom code, birthday, phone,
   follow counts, or gamification fields.
+- Profile responses include an `avatar` view object with `kind`, `url`,
+  `attachmentId`, and `alt`. Uploaded avatars win; otherwise the service falls
+  back to the configured default provider (`initials`, `gravatar`, or
+  `static`). The older `avatarAttachmentId` field remains for compatibility,
+  but avatar changes should use the dedicated avatar endpoints.
 
 ### Endpoints
 
@@ -20,8 +25,13 @@ Member public profiles and current-user profile settings.
 - `GET /api/v1/profile` current user's editable profile (login required).
 - `PUT /api/v1/profile` update current user's profile (login required,
   current-user only). Validates length limits and website URL shape
-  (`http://`/`https://`). Avatar upload requires an existing attachment owned
-  by the actor and writes an `attachment_references` row (future).
+  (`http://`/`https://`). It still accepts `avatarAttachmentId` for
+  compatibility, but new avatar changes should use the dedicated endpoints.
+- `POST /api/v1/profile/avatar` uploads and sets the current user's avatar.
+  The actor must be logged in, active, have `attachment.upload`, and the runtime
+  option `avatar.allow_upload` must be enabled.
+- `DELETE /api/v1/profile/avatar` removes the uploaded avatar and returns the
+  profile decorated with the configured fallback avatar.
 
 Profile update is login-required and current-user only; no admin profile
 editor in V1.
@@ -29,7 +39,9 @@ editor in V1.
 ## Frontend
 
 - `/u/{username}` public profile page with summary and recent topics.
-- `/settings/profile` current-user settings page with safe defaults and a
-  clear save flow (success auto-dismisses after 10s; errors do not).
+- `/settings/profile` current-user settings page with avatar preview,
+  upload/remove controls, safe defaults, and a clear save flow (success
+  auto-dismisses after 10s; errors do not).
 - Navbar user menu links to public profile and profile settings.
-- `useProfileApi` composable + `ProfileData`/`PublicProfile` types.
+- `useProfileApi` composable + `AvatarView`/`ProfileData`/`PublicProfile`
+  types.

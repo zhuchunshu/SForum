@@ -93,6 +93,13 @@ export const adminPageDefinitions = [
     requiredPermissions: ['settings.manage']
   },
   {
+    id: '/settings/avatar',
+    labelKey: 'admin.nav.avatarSettings',
+    icon: 'i-lucide-user-round-cog',
+    componentName: 'AdminAvatarSettings',
+    requiredPermissions: ['settings.manage']
+  },
+  {
     id: '/moderation',
     labelKey: 'admin.nav.moderation',
     icon: 'i-lucide-shield-alert',
@@ -216,6 +223,7 @@ export const adminSidebarNavigation = [
       icon: 'i-lucide-settings-2',
       children: [
         { type: 'page', pageId: '/settings' },
+        { type: 'page', pageId: '/settings/avatar' },
         { type: 'page', pageId: '/personalization' },
         { type: 'page', pageId: '/seo' },
         { type: 'page', pageId: '/database' },

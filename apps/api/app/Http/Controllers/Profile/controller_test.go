@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"mime/multipart"
 	nethttp "net/http"
 	"net/http/httptest"
 	"strconv"
@@ -14,9 +15,9 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/session"
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
-	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -87,13 +88,31 @@ func TestControllerUpdateProfileRejectsInvalidWebsite(t *testing.T) {
 	}
 }
 
+func TestControllerUploadAvatarRequiresLogin(t *testing.T) {
+	app, _, _ := newProfileTestApp()
+	resp := performProfileRequest(t, app, nethttp.MethodPost, "/api/v1/profile/avatar", nil, nil)
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401 without login, got %d", resp.StatusCode)
+	}
+}
+
+func TestControllerUploadAvatarRequiresAttachmentUploadPermission(t *testing.T) {
+	app, _, _ := newProfileTestApp()
+	cookie := loginProfileUser(t, app, 7)
+	body, contentType := multipartAvatarBody(t)
+	resp := performProfileMultipartRequest(t, app, nethttp.MethodPost, "/api/v1/profile/avatar", body, contentType, cookie)
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 without attachment.upload, got %d", resp.StatusCode)
+	}
+}
+
 func newProfileTestApp() (*fiber.App, *authsession.Manager, *profileFakeStore) {
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
 	users := profileFakeActors{actors: map[int64]identity.Actor{
 		7: {ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
 	}}
 	store := &profileFakeStore{
-		user:   profile.UserProfileSummary{UserID: 7, Username: "alice", DisplayName: "Alice"},
+		user:    profile.UserProfileSummary{UserID: 7, Username: "alice", DisplayName: "Alice"},
 		profile: profile.Profile{UserID: 7, Bio: "hello"},
 		stats:   profile.ProfileStats{TopicCount: 3, CommentCount: 12},
 	}
@@ -128,6 +147,23 @@ func loginProfileUser(t *testing.T, app *fiber.App, userID int64) *nethttp.Cooki
 	return resp.Cookies()[0]
 }
 
+func multipartAvatarBody(t *testing.T) ([]byte, string) {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "avatar.jpg")
+	if err != nil {
+		t.Fatalf("create multipart file: %v", err)
+	}
+	if _, err := part.Write([]byte("not-a-real-image")); err != nil {
+		t.Fatalf("write multipart file: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+	return body.Bytes(), writer.FormDataContentType()
+}
+
 func performProfileRequest(t *testing.T, app *fiber.App, method, path string, body []byte, cookie *nethttp.Cookie) *nethttp.Response {
 	t.Helper()
 	var reader *bytes.Reader
@@ -140,6 +176,20 @@ func performProfileRequest(t *testing.T, app *fiber.App, method, path string, bo
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("%s %s failed: %v", method, path, err)
+	}
+	return resp
+}
+
+func performProfileMultipartRequest(t *testing.T, app *fiber.App, method, path string, body []byte, contentType string, cookie *nethttp.Cookie) *nethttp.Response {
+	t.Helper()
+	req := httptest.NewRequest(method, path, bytes.NewReader(body))
+	req.Header.Set("Content-Type", contentType)
 	if cookie != nil {
 		req.AddCookie(cookie)
 	}
@@ -177,6 +227,16 @@ func (s *profileFakeStore) GetProfile(context.Context, int64) (profile.Profile, 
 func (s *profileFakeStore) UpsertProfile(_ context.Context, input profile.Profile) (profile.Profile, error) {
 	s.upserted = input
 	return input, nil
+}
+
+func (s *profileFakeStore) SetAvatarAttachment(_ context.Context, userID int64, attachmentID *int64, actorUserID int64) (profile.Profile, error) {
+	s.profile.UserID = userID
+	s.profile.AvatarAttachmentID = attachmentID
+	return s.profile, nil
+}
+
+func (s *profileFakeStore) GetAvatarAttachment(context.Context, int64) (profile.AvatarAttachment, error) {
+	return profile.AvatarAttachment{}, profile.ErrProfileInvalid
 }
 
 func (s *profileFakeStore) GetUserSummaryByUsername(context.Context, string) (profile.UserProfileSummary, error) {

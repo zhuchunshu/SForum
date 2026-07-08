@@ -239,6 +239,12 @@ This is the entry point for project memory.
   attachment governance, and orphan cleanup boundaries. The admin attachment
   settings page now highlights a beginner-friendly local-upload recommended
   configuration and can restore those defaults in one click.
+- Avatar strategy is implemented as profile-owned behavior on top of
+  attachments: uploaded public avatars take priority; otherwise profiles fall
+  back to configurable `initials`, `gravatar`, or `static` sources. Avatar
+  runtime options live under `avatar.*`, default to local initials plus enabled
+  upload/compression, and are managed from System configuration with
+  `settings.manage`.
 - The local attachment provider root is now the admin-only runtime option
   `attachment.local.root`, defaulting to `storage/app/attachments`; API process
   config no longer reads `ATTACHMENT_LOCAL_ROOT`.
@@ -419,6 +425,9 @@ This is the entry point for project memory.
 - `decisions/2026-07-07-mail-provider-contract.md` - accepted mail provider
   contract (`mail.Provider` interface with noop/dev_log/smtp built-ins) and
   runtime option resolution for password reset and notifications.
+- `decisions/2026-07-09-avatar-system.md` - accepted avatar strategy system:
+  uploaded avatars over initials/Gravatar/static fallbacks, avatar-specific
+  attachment processing, and `imaging` for JPEG/PNG compression.
 - `sessions/2026-07-04-altcha-human-verification-implementation.md` - ALTCHA
   implementation handoff.
 - `sessions/2026-07-04-registration-status-notice.md` - first-user
@@ -537,6 +546,8 @@ This is the entry point for project memory.
   styling, and broader frontend Toast feedback guideline.
 - `sessions/2026-07-08-admin-ssr-no-white-screen.md` - 移除全站最后的
   `ssr: false`（后台 + 组件预览页），全部页面 SSR 彻底杜绝空壳白屏。
+- `sessions/2026-07-09-avatar-system.md` - avatar strategy implementation,
+  admin/profile UI, OpenAPI/docs, and `/t/**` query-edit cache hardening.
 - `../docs/superpowers/specs/2026-07-05-global-footer-design.md` - global footer design spec.
 - `../docs/superpowers/plans/2026-07-05-global-footer.md` - global footer implementation plan.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -

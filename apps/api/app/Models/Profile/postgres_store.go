@@ -58,9 +58,115 @@ func (s *PostgresStore) UpsertProfile(ctx context.Context, input Profile) (Profi
 	return profile, nil
 }
 
+func (s *PostgresStore) SetAvatarAttachment(ctx context.Context, userID int64, attachmentID *int64, actorUserID int64) (Profile, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Profile{}, fmt.Errorf("begin set avatar attachment: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if attachmentID != nil {
+		if err := validateAvatarAttachment(ctx, tx, userID, *attachmentID); err != nil {
+			return Profile{}, err
+		}
+	}
+
+	oldRows, err := tx.Query(ctx, `
+		SELECT attachment_id
+		FROM attachment_references
+		WHERE resource_type = 'user' AND resource_id = $1 AND context = 'avatar'
+	`, userID)
+	if err != nil {
+		return Profile{}, fmt.Errorf("list old avatar references: %w", err)
+	}
+	oldIDs := []int64{}
+	for oldRows.Next() {
+		var id int64
+		if err := oldRows.Scan(&id); err != nil {
+			oldRows.Close()
+			return Profile{}, fmt.Errorf("scan old avatar reference: %w", err)
+		}
+		oldIDs = append(oldIDs, id)
+	}
+	if err := oldRows.Err(); err != nil {
+		oldRows.Close()
+		return Profile{}, fmt.Errorf("iterate old avatar references: %w", err)
+	}
+	oldRows.Close()
+
+	if _, err := tx.Exec(ctx, `
+		DELETE FROM attachment_references
+		WHERE resource_type = 'user' AND resource_id = $1 AND context = 'avatar'
+	`, userID); err != nil {
+		return Profile{}, fmt.Errorf("delete old avatar references: %w", err)
+	}
+	if len(oldIDs) > 0 {
+		if _, err := tx.Exec(ctx, `
+			UPDATE attachments
+			SET reference_count = GREATEST(reference_count - 1, 0), updated_at = now()
+			WHERE id = ANY($1)
+		`, oldIDs); err != nil {
+			return Profile{}, fmt.Errorf("decrement old avatar references: %w", err)
+		}
+	}
+
+	if attachmentID != nil {
+		tag, err := tx.Exec(ctx, `
+			INSERT INTO attachment_references (attachment_id, resource_type, resource_id, context, created_by_user_id)
+			VALUES ($1, 'user', $2, 'avatar', $3)
+			ON CONFLICT DO NOTHING
+		`, *attachmentID, userID, nullableActorID(actorUserID))
+		if err != nil {
+			return Profile{}, fmt.Errorf("insert avatar reference: %w", err)
+		}
+		if tag.RowsAffected() > 0 {
+			if _, err := tx.Exec(ctx, `
+				UPDATE attachments
+				SET reference_count = reference_count + 1, updated_at = now()
+				WHERE id = $1
+			`, *attachmentID); err != nil {
+				return Profile{}, fmt.Errorf("increment avatar reference: %w", err)
+			}
+		}
+	}
+
+	row := tx.QueryRow(ctx, `
+		INSERT INTO user_profiles (user_id, avatar_attachment_id)
+		VALUES ($1, $2)
+		ON CONFLICT (user_id) DO UPDATE
+		  SET avatar_attachment_id = EXCLUDED.avatar_attachment_id,
+		      updated_at = now()
+		RETURNING user_id, bio, signature, location, website_url, avatar_attachment_id, created_at, updated_at
+	`, userID, nullableInt64(attachmentID))
+	profile, err := scanProfile(row)
+	if err != nil {
+		return Profile{}, fmt.Errorf("upsert avatar profile: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Profile{}, fmt.Errorf("commit set avatar attachment: %w", err)
+	}
+	return profile, nil
+}
+
+func (s *PostgresStore) GetAvatarAttachment(ctx context.Context, attachmentID int64) (AvatarAttachment, error) {
+	row := s.pool.QueryRow(ctx, `
+		SELECT id, public_id, owner_user_id, content_type, status
+		FROM attachments
+		WHERE id = $1
+	`, attachmentID)
+	attachment, err := scanAvatarAttachment(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return AvatarAttachment{}, ErrProfileInvalid
+	}
+	if err != nil {
+		return AvatarAttachment{}, fmt.Errorf("get avatar attachment: %w", err)
+	}
+	return attachment, nil
+}
+
 func (s *PostgresStore) GetUserSummaryByUsername(ctx context.Context, username string) (UserProfileSummary, error) {
 	row := s.pool.QueryRow(ctx, `
-		SELECT id, username, display_name, created_at
+		SELECT id, username, email, display_name, created_at
 		FROM users
 		WHERE username_lower = $1 AND status = 'active'
 	`, strings.ToLower(strings.TrimSpace(username)))
@@ -76,7 +182,7 @@ func (s *PostgresStore) GetUserSummaryByUsername(ctx context.Context, username s
 
 func (s *PostgresStore) GetUserSummaryByID(ctx context.Context, userID int64) (UserProfileSummary, error) {
 	row := s.pool.QueryRow(ctx, `
-		SELECT id, username, display_name, created_at
+		SELECT id, username, email, display_name, created_at
 		FROM users
 		WHERE id = $1
 	`, userID)
@@ -173,10 +279,25 @@ func scanProfile(row profileScanner) (Profile, error) {
 
 func scanUserSummary(row profileScanner) (UserProfileSummary, error) {
 	var summary UserProfileSummary
-	if err := row.Scan(&summary.UserID, &summary.Username, &summary.DisplayName, &summary.JoinedAt); err != nil {
+	if err := row.Scan(&summary.UserID, &summary.Username, &summary.Email, &summary.DisplayName, &summary.JoinedAt); err != nil {
 		return UserProfileSummary{}, err
 	}
 	return summary, nil
+}
+
+func scanAvatarAttachment(row profileScanner) (AvatarAttachment, error) {
+	var attachment AvatarAttachment
+	var ownerID sql.NullInt64
+	if err := row.Scan(&attachment.ID, &attachment.PublicID, &ownerID, &attachment.ContentType, &attachment.Status); err != nil {
+		return AvatarAttachment{}, err
+	}
+	if ownerID.Valid {
+		attachment.OwnerUserID = ownerID.Int64
+	}
+	if attachment.PublicID != "" {
+		attachment.URL = "/api/v1/attachments/" + attachment.PublicID + "/content"
+	}
+	return attachment, nil
 }
 
 func nullableInt64(value *int64) any {
@@ -184,4 +305,29 @@ func nullableInt64(value *int64) any {
 		return nil
 	}
 	return *value
+}
+
+func nullableActorID(value int64) any {
+	if value <= 0 {
+		return nil
+	}
+	return value
+}
+
+func validateAvatarAttachment(ctx context.Context, tx pgx.Tx, userID int64, attachmentID int64) error {
+	attachment, err := scanAvatarAttachment(tx.QueryRow(ctx, `
+		SELECT id, public_id, owner_user_id, content_type, status
+		FROM attachments
+		WHERE id = $1
+	`, attachmentID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrProfileInvalid
+	}
+	if err != nil {
+		return fmt.Errorf("validate avatar attachment: %w", err)
+	}
+	if attachment.OwnerUserID != userID || attachment.Status != "active" || !strings.HasPrefix(strings.ToLower(attachment.ContentType), "image/") {
+		return ErrProfileInvalid
+	}
+	return nil
 }

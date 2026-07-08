@@ -92,6 +92,75 @@ func TestServicePasswordPolicyOptionsArePublicWithRecommendedDefaults(t *testing
 	}
 }
 
+func TestServiceAvatarOptionsArePublicWithRecommendedDefaults(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+
+	items, err := service.List(context.Background())
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	resolved, err := service.AvatarOptions(context.Background())
+	if err != nil {
+		t.Fatalf("AvatarOptions returned error: %v", err)
+	}
+
+	if got := adminValueFromPublic(items, NameAvatarAllowUpload); got != "enabled" {
+		t.Fatalf("expected avatar uploads enabled by default, got %q", got)
+	}
+	if got := adminValueFromPublic(items, NameAvatarDefaultProvider); got != AvatarProviderInitials {
+		t.Fatalf("expected initials default provider, got %q", got)
+	}
+	if got := adminValueFromPublic(items, NameAvatarGravatarHashAlgorithm); got != AvatarHashSHA256 {
+		t.Fatalf("expected sha256 gravatar hash default, got %q", got)
+	}
+	if got := adminValueFromPublic(items, NameAvatarAllowGIF); got != "disabled" {
+		t.Fatalf("expected GIF disabled by default, got %q", got)
+	}
+	if resolved.DefaultProvider != AvatarProviderInitials || resolved.GravatarHashAlgorithm != AvatarHashSHA256 {
+		t.Fatalf("unexpected resolved avatar options: %#v", resolved)
+	}
+	if resolved.MaxSizeKB != 2048 || resolved.MaxDimension != 2048 || resolved.TargetDimension != 256 || resolved.CompressQuality != 85 {
+		t.Fatalf("unexpected avatar numeric defaults: %#v", resolved)
+	}
+}
+
+func TestServiceAvatarOptionsValidation(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	actor := settingsActor()
+
+	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAvatarDefaultProvider, Value: "identicon"}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("expected identicon provider to be invalid, got %v", err)
+	}
+	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAvatarGravatarHashAlgorithm, Value: "sha1"}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("expected invalid gravatar hash algorithm, got %v", err)
+	}
+	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAvatarGravatarBaseURL, Value: "javascript:alert(1)"}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("expected invalid gravatar base URL, got %v", err)
+	}
+	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameAvatarDefaultProvider, Value: AvatarProviderStatic}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("expected static provider without default URL to be invalid, got %v", err)
+	}
+
+	updated, err := service.UpdateMany(context.Background(), actor, []UpdateInput{
+		{Name: NameAvatarDefaultProvider, Value: AvatarProviderStatic},
+		{Name: NameAvatarDefaultStaticURL, Value: "https://cdn.example.com/avatar.png"},
+		{Name: NameAvatarGravatarHashAlgorithm, Value: AvatarHashMD5},
+		{Name: NameAvatarAllowGIF, Value: "true"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateMany returned error: %v", err)
+	}
+	if got := adminValue(updated, NameAvatarDefaultProvider); got != AvatarProviderStatic {
+		t.Fatalf("expected static provider, got %q", got)
+	}
+	if got := adminValue(updated, NameAvatarGravatarHashAlgorithm); got != AvatarHashMD5 {
+		t.Fatalf("expected md5 hash algorithm, got %q", got)
+	}
+	if got := adminValue(updated, NameAvatarAllowGIF); got != "enabled" {
+		t.Fatalf("expected normalized GIF toggle, got %q", got)
+	}
+}
+
 func TestServicePasswordPolicyOptionsValidation(t *testing.T) {
 	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
 	actor := settingsActor()

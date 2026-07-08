@@ -11,6 +11,10 @@ type Store interface {
 	GetProfile(ctx context.Context, userID int64) (Profile, error)
 	// UpsertProfile 写入或更新用户资料行。
 	UpsertProfile(ctx context.Context, input Profile) (Profile, error)
+	// SetAvatarAttachment 设置用户头像附件，并维护 attachment_references/reference_count。
+	SetAvatarAttachment(ctx context.Context, userID int64, attachmentID *int64, actorUserID int64) (Profile, error)
+	// GetAvatarAttachment 读取头像附件展示所需的最小信息。
+	GetAvatarAttachment(ctx context.Context, attachmentID int64) (AvatarAttachment, error)
 	// GetUserSummaryByUsername 按用户名加载用户基本信息。
 	GetUserSummaryByUsername(ctx context.Context, username string) (UserProfileSummary, error)
 	// GetUserSummaryByID 按用户 ID 加载用户基本信息。
@@ -23,10 +27,10 @@ type Store interface {
 
 // NormalizeProfile 是 service 层规范化输入后的资料写入库的中间结构。
 type NormalizeProfile struct {
-	UserID            int64
-	Bio               *string
-	Signature         *string
-	Location          *string
-	WebsiteURL        *string
+	UserID             int64
+	Bio                *string
+	Signature          *string
+	Location           *string
+	WebsiteURL         *string
 	AvatarAttachmentID *int64
 }

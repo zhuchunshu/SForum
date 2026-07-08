@@ -41,6 +41,11 @@ Initial runtime option support is implemented.
 - Admin page `apps/web/app/pages/admin/attachments.vue` manages attachment
   storage provider settings, upload limits, path templates, public URL
   settings, secret-bearing provider credentials, and attachment governance.
+- Admin page `apps/web/app/pages/admin/settings/avatar.vue` manages avatar
+  default source, Gravatar base URL/hash algorithm, upload/GIF switches,
+  upload size and dimension limits, compression target size/quality, and
+  one-click restoration to recommended defaults. It is guarded by
+  `settings.manage`.
 - Forum taxonomy options now include the public default posting category slug
   and public tag-policy controls. Updating `forum.default_category_slug`
   requires `category.manage`; updating `forum.tags.*` options requires
@@ -62,6 +67,9 @@ Initial runtime option support is implemented.
   the Options service instead of adding per-option columns prematurely.
 - Expose only settings that are safe for the frontend to read through public
   `GET /web-options` responses.
+- Avatar settings are product behavior, not attachment-provider settings. They
+  live in `web_options` under `avatar.*`, use `settings.manage`, and keep
+  provider-specific storage behavior in the attachment module.
 
 ## Implementation Notes
 
@@ -85,12 +93,18 @@ Initial runtime option support is implemented.
   `forum.default_category_slug`, `forum.tags.creation_mode`,
   `forum.tags.public_pages`, `forum.tags.max_per_topic`,
   `attachment.upload.enabled`, `attachment.max_file_size_mb`,
-  `attachment.allowed_extensions`, and `attachment.allowed_mime_types`.
+  `attachment.allowed_extensions`, `attachment.allowed_mime_types`,
+  `avatar.allow_upload`, `avatar.default_provider`,
+  `avatar.gravatar_base_url`, `avatar.gravatar_hash_algorithm`,
+  `avatar.max_size_kb`, `avatar.allow_gif`, and
+  `avatar.compress_enabled`.
 - Current admin-only options are `human_verification.altcha.secret`,
   `human_verification.altcha.challenge_ttl`,
   `human_verification.altcha.cost`, attachment provider selection, path
-  template, public base URL, default visibility, cleanup retention, and all
-  provider-specific credential/connection options.
+  template, public base URL, default visibility, cleanup retention, all
+  provider-specific credential/connection options, and avatar-only processing
+  knobs `avatar.default_static_url`, `avatar.max_dimension`,
+  `avatar.target_dimension`, and `avatar.compress_quality`.
 - Startup environment values are treated as first-run defaults/fallbacks.
   `bootstrap.NewAPI` calls `EnsureDefaults` so missing option rows are inserted
   without overwriting existing admin-managed values.
@@ -138,6 +152,11 @@ Initial runtime option support is implemented.
   length as `8..128`, maximum length as `64..512`, requires
   `max_length >= min_length`, and normalizes composition toggles to
   `enabled`/`disabled`.
+- Avatar defaults are upload enabled, local initials fallback, Gravatar base
+  URL `https://gravatar.com/avatar/`, Gravatar hash `sha256`, GIF disabled,
+  compression enabled, max upload 2048 KB, source max edge 2048 px, output
+  256x256, and JPEG quality 85. `static` fallback is valid only when
+  `avatar.default_static_url` is configured.
 
 ## Next Steps
 

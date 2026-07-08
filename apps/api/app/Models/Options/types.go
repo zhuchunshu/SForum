@@ -100,16 +100,17 @@ const (
 	NameAttachmentSFTPPublicBaseURL      = "attachment.sftp.public_base_url"
 
 	// 头像运行时选项。统一头像策略：用户上传优先，否则按 default_provider 回退。
-	NameAvatarAllowUpload       = "avatar.allow_upload"
-	NameAvatarDefaultProvider   = "avatar.default_provider"
-	NameAvatarGravatarBaseURL   = "avatar.gravatar_base_url"
-	NameAvatarDefaultStaticURL  = "avatar.default_static_url"
-	NameAvatarMaxSizeKB         = "avatar.max_size_kb"
-	NameAvatarMaxDimension      = "avatar.max_dimension"
-	NameAvatarAllowGIF          = "avatar.allow_gif"
-	NameAvatarCompressEnabled   = "avatar.compress_enabled"
-	NameAvatarTargetDimension   = "avatar.target_dimension"
-	NameAvatarCompressQuality   = "avatar.compress_quality"
+	NameAvatarAllowUpload           = "avatar.allow_upload"
+	NameAvatarDefaultProvider       = "avatar.default_provider"
+	NameAvatarGravatarBaseURL       = "avatar.gravatar_base_url"
+	NameAvatarGravatarHashAlgorithm = "avatar.gravatar_hash_algorithm"
+	NameAvatarDefaultStaticURL      = "avatar.default_static_url"
+	NameAvatarMaxSizeKB             = "avatar.max_size_kb"
+	NameAvatarMaxDimension          = "avatar.max_dimension"
+	NameAvatarAllowGIF              = "avatar.allow_gif"
+	NameAvatarCompressEnabled       = "avatar.compress_enabled"
+	NameAvatarTargetDimension       = "avatar.target_dimension"
+	NameAvatarCompressQuality       = "avatar.compress_quality"
 
 	// 邮件运行时选项。
 	NameMailProvider       = "mail.provider"
