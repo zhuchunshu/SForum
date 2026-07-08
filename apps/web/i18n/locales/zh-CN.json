@@ -998,6 +998,7 @@
       "tabs": {
         "label": "设置分类",
         "basic": "基础设置",
+        "accountSecurity": "账号安全",
         "verification": "验证码"
       },
       "locale": {

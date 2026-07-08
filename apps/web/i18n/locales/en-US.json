@@ -992,6 +992,7 @@
       "tabs": {
         "label": "Settings sections",
         "basic": "Basic settings",
+        "accountSecurity": "Account security",
         "verification": "Verification"
       },
       "locale": {

@@ -27,7 +27,7 @@ defineOptions({
   name: 'AdminSettings'
 })
 
-type SettingsTab = 'basic' | 'verification'
+type SettingsTab = 'basic' | 'accountSecurity' | 'verification'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -36,6 +36,7 @@ const adminPage = useAdminPage('/settings')
 
 const activeTab = ref<SettingsTab>('basic')
 const savingBasic = ref(false)
+const savingAccountSecurity = ref(false)
 const savingVerification = ref(false)
 const showAltchaSecret = ref(false)
 
@@ -65,6 +66,7 @@ const localeChoices = computed(() => [
 
 const tabs = computed<Array<{ id: SettingsTab, label: string, icon: string }>>(() => [
   { id: 'basic', label: t('admin.settings.tabs.basic'), icon: 'i-lucide-sliders-horizontal' },
+  { id: 'accountSecurity', label: t('admin.settings.tabs.accountSecurity'), icon: 'i-lucide-shield' },
   { id: 'verification', label: t('admin.settings.tabs.verification'), icon: 'i-lucide-shield-check' }
 ])
 
@@ -185,8 +187,12 @@ const hasBasicChanges = computed(() => {
   return form.siteName !== initialSiteName.value ||
          form.siteUrl !== initialSiteUrl.value ||
          form.defaultLocale !== initialDefaultLocale.value ||
-         JSON.stringify(form.supportedLocales) !== JSON.stringify(initialSupportedLocales.value) ||
-         form.passwordMinLength !== initialPasswordMinLength.value ||
+         JSON.stringify(form.supportedLocales) !== JSON.stringify(initialSupportedLocales.value)
+})
+
+// 账号安全(密码策略)变更检测,独立于基础信息 tab
+const hasAccountSecurityChanges = computed(() => {
+  return form.passwordMinLength !== initialPasswordMinLength.value ||
          form.passwordMaxLength !== initialPasswordMaxLength.value ||
          form.passwordRequireLowercase !== initialPasswordRequireLowercase.value ||
          form.passwordRequireUppercase !== initialPasswordRequireUppercase.value ||
@@ -261,18 +267,40 @@ function applyAdminOptions(items: AdminWebOption[]) {
 }
 
 async function saveBasicSettings() {
-  form.passwordMinLength = boundedInteger(form.passwordMinLength, recommendedPasswordPolicy.minLength, 8, 128)
-  form.passwordMaxLength = boundedInteger(form.passwordMaxLength, recommendedPasswordPolicy.maxLength, 64, 512)
-  if (form.passwordMaxLength < form.passwordMinLength) {
-    form.passwordMaxLength = form.passwordMinLength
-  }
   savingBasic.value = true
   try {
     await saveAndApply([
       { name: 'site.name', value: form.siteName },
       { name: 'site.url', value: form.siteUrl },
       { name: 'site.default_locale', value: form.defaultLocale },
-      { name: 'site.supported_locales', value: form.supportedLocales.join(',') },
+      { name: 'site.supported_locales', value: form.supportedLocales.join(',') }
+    ])
+    toast.add({
+      color: 'success',
+      icon: 'i-lucide-check',
+      title: t('admin.settings.saved')
+    })
+  } catch (error) {
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-triangle-alert',
+      title: apiErrorMessage(error) || t('admin.settings.saveFailed')
+    })
+  } finally {
+    savingBasic.value = false
+  }
+}
+
+// 账号安全(密码策略)独立保存,提交 identity.password.* 选项
+async function saveAccountSecuritySettings() {
+  form.passwordMinLength = boundedInteger(form.passwordMinLength, recommendedPasswordPolicy.minLength, 8, 128)
+  form.passwordMaxLength = boundedInteger(form.passwordMaxLength, recommendedPasswordPolicy.maxLength, 64, 512)
+  if (form.passwordMaxLength < form.passwordMinLength) {
+    form.passwordMaxLength = form.passwordMinLength
+  }
+  savingAccountSecurity.value = true
+  try {
+    await saveAndApply([
       { name: 'identity.password.min_length', value: String(form.passwordMinLength) },
       { name: 'identity.password.max_length', value: String(form.passwordMaxLength) },
       { name: 'identity.password.require_lowercase', value: enabledOptionValue(form.passwordRequireLowercase) },
@@ -292,7 +320,7 @@ async function saveBasicSettings() {
       title: apiErrorMessage(error) || t('admin.settings.saveFailed')
     })
   } finally {
-    savingBasic.value = false
+    savingAccountSecurity.value = false
   }
 }
 
@@ -349,6 +377,15 @@ function resetBasicForm() {
   form.siteUrl = initialSiteUrl.value
   form.defaultLocale = initialDefaultLocale.value
   form.supportedLocales = [...initialSupportedLocales.value]
+  toast.add({
+    color: 'neutral',
+    icon: 'i-lucide-rotate-ccw',
+    title: '已重置基础设置更改'
+  })
+}
+
+// 账号安全(密码策略)独立重置
+function resetAccountSecurityForm() {
   form.passwordMinLength = initialPasswordMinLength.value
   form.passwordMaxLength = initialPasswordMaxLength.value
   form.passwordRequireLowercase = initialPasswordRequireLowercase.value
@@ -358,7 +395,7 @@ function resetBasicForm() {
   toast.add({
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
-    title: '已重置基础设置更改'
+    title: '已重置账号安全更改'
   })
 }
 
@@ -674,114 +711,6 @@ function onLocaleToggle(locale: string, event: Event) {
               </label>
             </div>
           </UFormField>
-
-          <section class="space-y-4 border-t border-slate-200 pt-4 dark:border-zinc-800">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
-                  {{ t('admin.settings.basic.accountSecurityTitle') }}
-                </h3>
-                <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-zinc-400">
-                  {{ t('admin.settings.basic.accountSecurityDescription') }}
-                </p>
-              </div>
-              <UButton
-                type="button"
-                color="neutral"
-                variant="outline"
-                leading-icon="i-lucide-rotate-ccw"
-                class="shrink-0"
-                @click="restoreRecommendedPasswordPolicy"
-              >
-                {{ t('admin.settings.basic.restorePasswordDefaults') }}
-              </UButton>
-            </div>
-
-            <UAlert
-              color="neutral"
-              variant="soft"
-              icon="i-lucide-info"
-              :title="t('admin.settings.basic.passwordRecommended')"
-            />
-
-            <div class="grid gap-4 md:grid-cols-2">
-              <UFormField :label="t('admin.settings.basic.passwordMinLength')" name="password-min-length">
-                <UInput
-                  v-model.number="form.passwordMinLength"
-                  icon="i-lucide-ruler"
-                  type="number"
-                  inputmode="numeric"
-                  min="8"
-                  max="128"
-                  step="1"
-                  required
-                  class="w-full"
-                  @keydown="blockNonIntegerKey"
-                />
-              </UFormField>
-
-              <UFormField :label="t('admin.settings.basic.passwordMaxLength')" name="password-max-length">
-                <UInput
-                  v-model.number="form.passwordMaxLength"
-                  icon="i-lucide-ruler"
-                  type="number"
-                  inputmode="numeric"
-                  min="64"
-                  max="512"
-                  step="1"
-                  required
-                  class="w-full"
-                  @keydown="blockNonIntegerKey"
-                />
-              </UFormField>
-            </div>
-
-            <div class="grid gap-3 md:grid-cols-2">
-              <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-950/60">
-                <input
-                  v-model="form.passwordRequireLowercase"
-                  type="checkbox"
-                  class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
-                />
-                <span class="font-semibold text-slate-900 dark:text-zinc-100">
-                  {{ t('admin.settings.basic.passwordRequireLowercase') }}
-                </span>
-              </label>
-
-              <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-950/60">
-                <input
-                  v-model="form.passwordRequireUppercase"
-                  type="checkbox"
-                  class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
-                />
-                <span class="font-semibold text-slate-900 dark:text-zinc-100">
-                  {{ t('admin.settings.basic.passwordRequireUppercase') }}
-                </span>
-              </label>
-
-              <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-950/60">
-                <input
-                  v-model="form.passwordRequireNumber"
-                  type="checkbox"
-                  class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
-                />
-                <span class="font-semibold text-slate-900 dark:text-zinc-100">
-                  {{ t('admin.settings.basic.passwordRequireNumber') }}
-                </span>
-              </label>
-
-              <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-950/60">
-                <input
-                  v-model="form.passwordRequireSymbol"
-                  type="checkbox"
-                  class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
-                />
-                <span class="font-semibold text-slate-900 dark:text-zinc-100">
-                  {{ t('admin.settings.basic.passwordRequireSymbol') }}
-                </span>
-              </label>
-            </div>
-          </section>
         </div>
 
         <template #footer>
@@ -790,6 +719,139 @@ function onLocaleToggle(locale: string, event: Event) {
             :show-unsaved-alert="hasBasicChanges"
             :submit-text="t('admin.settings.save')"
             @reset="resetBasicForm"
+          />
+        </template>
+      </UCard>
+    </form>
+
+    <!-- 账号安全(密码策略)Tab -->
+    <form v-else-if="activeTab === 'accountSecurity'" class="flex flex-col" @submit.prevent="saveAccountSecuritySettings">
+      <UCard
+        class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
+        :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }"
+      >
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-bold text-slate-900 dark:text-white">
+                {{ t('admin.settings.basic.accountSecurityTitle') }}
+              </h2>
+              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.settings.basic.accountSecurityDescription') }}
+              </p>
+            </div>
+            <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-mono">
+              identity.password.*
+            </UBadge>
+          </div>
+        </template>
+
+        <div class="space-y-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <UAlert
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-info"
+              :title="t('admin.settings.basic.passwordRecommended')"
+              class="flex-1"
+            />
+            <UButton
+              type="button"
+              color="neutral"
+              variant="outline"
+              leading-icon="i-lucide-rotate-ccw"
+              class="shrink-0"
+              @click="restoreRecommendedPasswordPolicy"
+            >
+              {{ t('admin.settings.basic.restorePasswordDefaults') }}
+            </UButton>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <UFormField :label="t('admin.settings.basic.passwordMinLength')" name="password-min-length">
+              <UInput
+                v-model.number="form.passwordMinLength"
+                icon="i-lucide-ruler"
+                type="number"
+                inputmode="numeric"
+                min="8"
+                max="128"
+                step="1"
+                required
+                class="w-full"
+                @keydown="blockNonIntegerKey"
+              />
+            </UFormField>
+
+            <UFormField :label="t('admin.settings.basic.passwordMaxLength')" name="password-max-length">
+              <UInput
+                v-model.number="form.passwordMaxLength"
+                icon="i-lucide-ruler"
+                type="number"
+                inputmode="numeric"
+                min="64"
+                max="512"
+                step="1"
+                required
+                class="w-full"
+                @keydown="blockNonIntegerKey"
+              />
+            </UFormField>
+          </div>
+
+          <div class="grid gap-3 md:grid-cols-2">
+            <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input
+                v-model="form.passwordRequireLowercase"
+                type="checkbox"
+                class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
+              />
+              <span class="font-semibold text-slate-900 dark:text-zinc-100">
+                {{ t('admin.settings.basic.passwordRequireLowercase') }}
+              </span>
+            </label>
+
+            <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input
+                v-model="form.passwordRequireUppercase"
+                type="checkbox"
+                class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
+              />
+              <span class="font-semibold text-slate-900 dark:text-zinc-100">
+                {{ t('admin.settings.basic.passwordRequireUppercase') }}
+              </span>
+            </label>
+
+            <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input
+                v-model="form.passwordRequireNumber"
+                type="checkbox"
+                class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
+              />
+              <span class="font-semibold text-slate-900 dark:text-zinc-100">
+                {{ t('admin.settings.basic.passwordRequireNumber') }}
+              </span>
+            </label>
+
+            <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm transition hover:border-[var(--sf-accent-soft-border)] dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input
+                v-model="form.passwordRequireSymbol"
+                type="checkbox"
+                class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
+              />
+              <span class="font-semibold text-slate-900 dark:text-zinc-100">
+                {{ t('admin.settings.basic.passwordRequireSymbol') }}
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <template #footer>
+          <SFAdminFormFooter
+            :saving="savingAccountSecurity"
+            :show-unsaved-alert="hasAccountSecurityChanges"
+            :submit-text="t('admin.settings.save')"
+            @reset="resetAccountSecurityForm"
           />
         </template>
       </UCard>
