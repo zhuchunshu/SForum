@@ -92,8 +92,6 @@ export default defineNuxtConfig({
       '/en/settings/**': { cache: false, robots: { index: false } },
       '/topics/new': { cache: false, robots: { index: false } },
       '/en/topics/new': { cache: false, robots: { index: false } },
-      '/t/:topicID/:topicSlug/edit': { cache: false, robots: { index: false } },
-      '/en/t/:topicID/:topicSlug/edit': { cache: false, robots: { index: false } },
       // 管理后台：SSR + 禁缓存 + 禁止索引。未登录由 admin 中间件服务端重定向到 /login，不再返回空壳。
       [`${adminRoutePrefix}/**`]: { cache: false, robots: { index: false } },
       // 组件预览页：SSR（生产环境直接渲染 404 错误页，不再先返回空壳）。

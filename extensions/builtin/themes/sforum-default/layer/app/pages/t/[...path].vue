@@ -5,6 +5,7 @@ import {
   forumTagPath,
   forumTopicPath,
   forumUserProfilePath,
+  parseTopicPath,
   FORUM_TOPIC_ACTIONS,
   type ForumComment,
   type ForumCommentList,
@@ -19,7 +20,9 @@ definePageMeta({
 const route = useRoute()
 const { t } = useI18n()
 const localePath = useLocalePath()
-const { siteName } = useWebOptions()
+const { siteName, seoSettings } = useWebOptions()
+// 当前帖子 URL 形态：决定 catch-all 解析方式与规范化目标。
+const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const forumApi = useForumApi()
 const { can, canEditTopic, canDeleteTopic } = usePermissions()
 
@@ -37,29 +40,51 @@ const editingSubmitting = ref(false)
 const editingError = ref('')
 const deletingCommentId = ref<number | null>(null)
 
-const topicID = computed(() => Number(route.params.topicID))
-const topicSlug = computed(() => String(route.params.topicSlug ?? ''))
+// catch-all 路由参数解析：按当前 mode 把 /t/<...> 段解析为定位键。
+// id_slug → { topicId, slug }；id → { topicId }；slug → { slug }。
+// [...path] 恒为数组，但 vue-router 类型宽松，统一归一为 string[]。
+const pathSegments = computed<string[]>(() => {
+  const raw = route.params.path
+  if (Array.isArray(raw)) {
+    return raw
+  }
+  return raw ? [String(raw)] : []
+})
+const parsedPath = computed(() => parseTopicPath(pathSegments.value, topicUrlMode.value))
+const topicID = computed(() => parsedPath.value?.topicId ?? 0)
+const topicSlug = computed(() => parsedPath.value?.slug ?? '')
 
-// canonical slug 校验：若 URL slug 与实际 topic.slug 不同则 301 到规范路径。
-const canonicalPath = computed(() => forumTopicPath({ id: topicID.value, slug: topicSlug.value }))
-
+// 按 mode 选择加载方式：slug 模式按 slug 查（后端 /topics/by-slug），其余按 id 查。
 const { data: topic, error: topicError } = await useAsyncData(
-  () => `forum-topic-${topicID.value}`,
-  () => forumApi.getTopic(topicID.value),
+  () => `forum-topic-${topicUrlMode.value}-${topicID.value || topicSlug.value}`,
+  async () => {
+    if (topicUrlMode.value === 'slug') {
+      if (!topicSlug.value) {
+        return null
+      }
+      return forumApi.getTopicBySlug(topicSlug.value)
+    }
+    if (topicID.value <= 0) {
+      return null
+    }
+    return forumApi.getTopic(topicID.value)
+  },
   {
     // 后端对 hidden/deleted 主题返回 404，这里正常抛错由 error 页处理。
     default: () => null as ForumTopicDetail | null
   }
 )
 
-// 拿到真实 slug 后做 canonical 重定向。
+// 规范化：URL 形态/slug 与当前 mode 下的规范路径不符时，301（SSR）/ replace（客户端）。
+// 触发场景：模式切换后的旧 URL、slug 变更后的旧 slug、id 模式下多余的 slug 段。
+// 编辑态（?edit=1）时保留 query，避免规范化时丢失编辑意图。
 watchEffect(() => {
   if (!topic.value) {
     return
   }
-  const expected = topic.value.slug
-  if (topicSlug.value && expected && topicSlug.value !== expected) {
-    const target = localePath(forumTopicPath({ id: topicID.value, slug: expected }))
+  const targetPath = localePath(forumTopicPath(topic.value, topicUrlMode.value))
+  if (targetPath !== route.path) {
+    const target = isEditing.value ? { path: targetPath, query: { edit: '1' } } : targetPath
     if (import.meta.server) {
       navigateTo(target, { redirectCode: 301 })
     } else {
@@ -68,19 +93,43 @@ watchEffect(() => {
   }
 })
 
+// canonical 用当前 mode 的规范路径（与上面的规范化目标一致）。
+const canonicalPath = computed(() => topic.value ? forumTopicPath(topic.value, topicUrlMode.value) : (route.path))
+
 useSForumSeo({
-  title: () => topic.value ? `${topic.value.title} - ${siteName.value}` : siteName.value,
+  title: () => {
+    if (!topic.value) {
+      return siteName.value
+    }
+    return isEditing.value ? `${t('composer.editTitle')} - ${siteName.value}` : `${topic.value.title} - ${siteName.value}`
+  },
   description: () => topic.value?.content.excerpt || t('topicDetail.metaDescription'),
   type: 'article',
   path: () => canonicalPath.value,
-  noindex: () => !topic.value,
-  schema: () => topic.value ? {
+  // 编辑态不索引；主题未加载也不索引。
+  noindex: () => !topic.value || isEditing.value,
+  schema: () => (topic.value && !isEditing.value) ? {
     type: 'DiscussionForumPosting',
     datePublished: topic.value.createdAt,
     dateModified: topic.value.updatedAt,
     authorName: forumAuthorName(topic.value.author, topic.value.authorUserId)
   } : undefined
 })
+
+// 编辑模式：通过 ?edit=1 query 进入（避免 catch-all 嵌套子路由问题）。
+// 需登录；未登录时全局 auth 中间件会重定向到登录页。
+const isEditing = computed(() => route.query.edit !== undefined && route.query.edit !== null)
+
+// 编辑保存成功后跳回规范详情路径（用新 slug，规范化兜底 -2 后缀）。
+async function onTopicSaved(updated: ForumTopicDetail) {
+  topic.value = updated
+  await navigateTo(localePath(forumTopicPath(updated, topicUrlMode.value)))
+}
+
+function cancelEditing() {
+  // 去掉 ?edit 后回到详情视图。
+  navigateTo({ path: route.path, query: { ...route.query, edit: undefined } })
+}
 
 // 评论数据：默认 tree 视图。
 const commentPage = ref(1)
@@ -91,12 +140,15 @@ const commentQuery = computed(() => ({
   perPage: 20
 }))
 
+// 评论查询基于已加载主题的真实 id（slug 模式下 topicID 可能为 0，必须用 topic.value.id）。
+const loadedTopicID = computed(() => topic.value?.id ?? topicID.value)
 const { data: commentData, pending: commentsPending, refresh: refreshComments } = await useAsyncData(
-  () => `forum-topic-comments-${topicID.value}-${commentView.value}-${commentPage.value}`,
-  () => forumApi.listTopicComments(topicID.value, commentQuery.value),
+  () => `forum-topic-comments-${loadedTopicID.value}-${commentView.value}-${commentPage.value}`,
+  () => forumApi.listTopicComments(loadedTopicID.value, commentQuery.value),
   {
     default: () => ({ items: [], total: 0, page: 1, perPage: 20, view: commentView.value }) as ForumCommentList,
-    watch: [commentQuery]
+    // topic 加载完成（id 变化）或翻页/视图切换时重新拉取。
+    watch: [() => loadedTopicID.value, commentQuery]
   }
 )
 
@@ -531,6 +583,18 @@ async function submitReport() {
         />
       </SFCard>
 
+      <!-- 编辑模式：通过 ?edit=1 切入，渲染独立编辑器组件。 -->
+      <div v-else-if="topic && isEditing" class="max-w-3xl">
+        <h1 class="text-2xl font-bold text-slate-900 mb-6 dark:text-zinc-50">
+          {{ t('composer.editTitle') }}
+        </h1>
+        <SFTopicEditor
+          :topic="topic"
+          @saved="onTopicSaved"
+          @cancel="cancelEditing"
+        />
+      </div>
+
       <template v-else-if="topic">
         <!-- 面包屑 -->
         <nav class="text-sm text-slate-400 dark:text-zinc-500 mb-4 flex items-center gap-1.5">
@@ -612,7 +676,7 @@ async function submitReport() {
               v-if="canEditTopic(topic)"
               variant="ghost"
               size="sm"
-              :to="localePath(`/t/${topic.id}/${topic.slug}/edit`)"
+              :to="`${localePath(forumTopicPath(topic, topicUrlMode))}?edit=1`"
             >
               <UIcon name="i-lucide-pencil" class="size-4" />
               <span>{{ t('topicDetail.edit') }}</span>
