@@ -25,7 +25,7 @@ async function refreshStartupState() {
 if (import.meta.server) {
   await useAsyncData('app-startup', refreshStartupState)
 } else {
-  // 认证页和设置页是 SPA，客户端启动刷新不能挡住第一屏挂载。
+  // 客户端启动刷新不能挡住首屏挂载；SSR 页面已有首屏 HTML，SPA 管理页也应先显示壳层。
   void useAsyncData('app-startup', refreshStartupState, {
     server: false,
     lazy: true

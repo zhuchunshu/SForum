@@ -110,13 +110,19 @@ Toast, then navigate, so a successful account creation is not reclassified as a
 form failure if a later refresh/navigation step has trouble. `useApiClient()`
 reads locale from the Nuxt app i18n runtime instead of calling `useI18n()`,
 keeping it safe for route middleware such as the admin guard.
-Login, registration, forgot-password, and reset-password pages now remain
-server-rendered instead of SPA-only. The root app still waits for startup web
-options/auth refresh during SSR, but client startup refresh runs lazily so
-`ssr: false` routes such as settings, posting, editing, and admin screens do
-not hold the first client render behind API calls. This prevents public auth
-pages from serving an empty `#__nuxt` shell and showing a white screen while
-the client bundle or startup refresh is still pending.
+Login, registration, forgot-password, reset-password, and ordinary protected
+user workflows (`/settings/**`, `/topics/new`,
+`/t/:topicID/:topicSlug/edit`, plus English prefixes) remain server-rendered
+instead of SPA-only and explicitly disable route cache. A global
+`auth.global.ts` middleware consumes `requiresAuth` page metadata and redirects
+missing users to the locale-aware login page; if the auth API is temporarily
+unavailable and there is no cached user, these ordinary user pages still
+degrade to login rather than a 503 shell. The root app still waits for startup
+web options/auth refresh during SSR, but client startup refresh runs lazily so
+SPA admin/component-preview routes do not hold the first client render behind
+API calls. This prevents public auth and ordinary protected user pages from
+serving an empty `#__nuxt` shell and showing a white screen while the client
+bundle or startup refresh is still pending.
 Admin pages use a dedicated `admin` Nuxt layout built from Nuxt UI Dashboard
 components (`UDashboardGroup`, `UDashboardSidebar`, `UDashboardPanel`,
 `UDashboardNavbar`, `UDashboardToolbar`) and Nuxt Icon lucide icons. The source

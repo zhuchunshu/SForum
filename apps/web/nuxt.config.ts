@@ -87,14 +87,13 @@ export default defineNuxtConfig({
       '/en/u/**': { swr: 3600 },
       '/t/**': { swr: 60 },
       '/en/t/**': { swr: 60 },
-      // 登录/注册/密码找回页保持 SSR，这样 JS 尚未执行时也能先显示表单。
-      // 设置页、发帖页和编辑页依赖登录态与交互状态，继续作为 SPA。
-      '/settings/**': { ssr: false },
-      '/en/settings/**': { ssr: false },
-      '/topics/new': { ssr: false },
-      '/en/topics/new': { ssr: false },
-      '/t/**/edit': { ssr: false },
-      '/en/t/**/edit': { ssr: false },
+      // 登录/注册/密码找回与受保护用户页保持 SSR，受保护页显式禁缓存，避免继承公开内容页 SWR。
+      '/settings/**': { cache: false, robots: { index: false } },
+      '/en/settings/**': { cache: false, robots: { index: false } },
+      '/topics/new': { cache: false, robots: { index: false } },
+      '/en/topics/new': { cache: false, robots: { index: false } },
+      '/t/:topicID/:topicSlug/edit': { cache: false, robots: { index: false } },
+      '/en/t/:topicID/:topicSlug/edit': { cache: false, robots: { index: false } },
       // 管理后台：SPA + 禁止索引。
       [`${adminRoutePrefix}/**`]: { ssr: false, robots: { index: false } },
       '/components': { ssr: false, robots: { index: false } },

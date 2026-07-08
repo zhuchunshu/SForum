@@ -172,7 +172,10 @@ This is the entry point for project memory.
 - Frontend auth refresh now preserves the current user state during transient
   API restart/timeout/gateway failures, restores browser sessions during app
   startup when the API is available, and only redirects to login on confirmed
-  401/`auth.required` responses.
+  401/`auth.required` responses. Ordinary protected user pages with
+  `requiresAuth` stay server-rendered, disable route cache, and redirect
+  missing users to login even when the auth API is temporarily unavailable,
+  while the stricter admin guard may show a temporary unavailable error.
 - Backend API code has migrated to a Laravel-style directory shape while
   staying Go-explicit: `cmd/api` is process-focused, `bootstrap` assembles the
   runtime, `app/Http` owns the HTTP kernel, `app/Http/Controllers/*` owns
