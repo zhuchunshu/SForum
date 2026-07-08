@@ -13,6 +13,10 @@ const props = withDefaults(defineProps<{
   replies?: number
   views?: number
   badges?: FeedBadge[]
+  layout?: 'compact' | 'table'
+  lastActivityLabel?: string
+  lastActor?: string
+  showAvatar?: boolean
 }>(), {
   excerpt: undefined,
   author: undefined,
@@ -20,21 +24,34 @@ const props = withDefaults(defineProps<{
   score: 0,
   replies: 0,
   views: 0,
-  badges: () => []
+  badges: () => [],
+  layout: 'compact',
+  lastActivityLabel: undefined,
+  lastActor: undefined,
+  showAvatar: true
 })
+
+const rowClass = computed(() => [
+  'sf-feed-row',
+  props.layout === 'table' ? 'sf-feed-row--table' : 'sf-feed-row--compact'
+].join(' '))
+
+const resolvedLastActor = computed(() => props.lastActor || props.author || '')
+const resolvedLastActivity = computed(() => props.lastActivityLabel || props.meta || '')
 </script>
 
 <template>
-  <article class="sf-feed-row">
-    <div class="sf-feed-row__avatar-wrapper">
+  <article :class="rowClass">
+    <div v-if="showAvatar" class="sf-feed-row__avatar-wrapper">
       <SFAvatar :name="author || '?'" size="sm" />
     </div>
+
     <div class="sf-feed-row__content">
       <div class="sf-feed-row__header">
         <h3 class="sf-feed-row__title">
           {{ title }}
         </h3>
-        <div class="sf-feed-row__actions">
+        <div v-if="layout === 'compact'" class="sf-feed-row__actions">
           <div class="sf-feed-row__vote">
             <button class="sf-feed-row__vote-btn" aria-label="赞同">
               <UIcon name="i-lucide-chevron-up" class="size-3.5" />
@@ -50,9 +67,9 @@ const props = withDefaults(defineProps<{
           </div>
         </div>
       </div>
-      
+
       <div class="sf-feed-row__meta-row">
-        <span v-if="excerpt" class="sf-feed-row__excerpt">{{ excerpt }}</span>
+        <span v-if="excerpt && layout === 'compact'" class="sf-feed-row__excerpt">{{ excerpt }}</span>
         <span v-if="badges.length" class="sf-feed-row__badges">
           <SFBadge
             v-for="badge in badges"
@@ -64,11 +81,29 @@ const props = withDefaults(defineProps<{
         </span>
         <span v-if="author" class="sf-feed-row__author">{{ author }}</span>
         <span v-if="meta" class="sf-feed-row__time">• {{ meta }}</span>
-        <span v-if="views" class="sf-feed-row__views">
+        <span v-if="views && layout === 'compact'" class="sf-feed-row__views">
           <UIcon name="i-lucide-eye" class="size-3.5" />
           {{ views }} 浏览
         </span>
       </div>
     </div>
+
+    <template v-if="layout === 'table'">
+      <div class="sf-feed-row__stat sf-feed-row__stat--replies" aria-label="回复数">
+        <span class="sf-feed-row__stat-value">{{ replies }}</span>
+        <span class="sf-feed-row__stat-label">回复</span>
+      </div>
+      <div class="sf-feed-row__stat sf-feed-row__stat--views" aria-label="浏览数">
+        <span class="sf-feed-row__stat-value">{{ views }}</span>
+        <span class="sf-feed-row__stat-label">浏览</span>
+      </div>
+      <div class="sf-feed-row__last-activity">
+        <SFAvatar v-if="resolvedLastActor" :name="resolvedLastActor" size="sm" />
+        <span class="sf-feed-row__last-copy">
+          <span v-if="resolvedLastActor" class="sf-feed-row__last-actor">{{ resolvedLastActor }}</span>
+          <span v-if="resolvedLastActivity" class="sf-feed-row__last-time">{{ resolvedLastActivity }}</span>
+        </span>
+      </div>
+    </template>
   </article>
 </template>
