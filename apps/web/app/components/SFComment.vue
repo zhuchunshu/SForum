@@ -64,10 +64,18 @@ const emit = defineEmits<{
   toggle: [comment: ForumComment, collapsed: boolean]
 }>()
 
-// 缩进：封顶 4 层，避免深层挤压正文宽度。
+// 最大视觉缩进层级：超过此层级的评论不再继续缩进，改为平铺在同级，
+// 用"回复 @父作者"引用块表达回复对象（类似 Reddit Mobile / Discord）。
+// 避免深层讨论把正文挤压成窄条、竖线拉得又细又长。
+const MAX_INDENT_DEPTH = 1
+
+// 缩进：封顶 MAX_INDENT_DEPTH 层。
 const commentIndent = computed(() => ({
-  marginLeft: `${Math.min(Math.max(props.depth, 0), 4) * 1.25}rem`
+  marginLeft: `${Math.min(Math.max(props.depth, 0), MAX_INDENT_DEPTH) * 1.25}rem`
 }))
+
+// 是否已到达缩进封顶层：本层及更深的评论用引用块表达回复对象。
+const isAtMaxIndent = computed(() => props.depth >= MAX_INDENT_DEPTH)
 
 // 后端已用 bluemonday sanitize，前端可直接 v-html 渲染。
 const showHtml = computed(() => Boolean(props.htmlContent))
@@ -76,6 +84,24 @@ const showHtml = computed(() => Boolean(props.htmlContent))
 const commentNode = computed(() => props.comment ?? null)
 const children = computed<ForumComment[]>(() => commentNode.value?.children ?? [])
 const hasChildren = computed(() => children.value.length > 0)
+
+// 扁平化后代：到达缩进封顶层后，不再一层层嵌套竖线容器，
+// 而是把整条后代链（子、孙、曾孙…）拍平成一个列表，全部平铺在同一容器里，
+// 靠各自的"回复 @某某"引用块表达回复对象。这样视觉上只有一层缩进，不再有深窄竖线。
+const flattenedDescendants = computed<ForumComment[]>(() => {
+  if (!isAtMaxIndent.value || !commentNode.value) return []
+  const result: ForumComment[] = []
+  const walk = (list: ForumComment[]) => {
+    for (const c of list) {
+      result.push(c)
+      if (c.children && c.children.length > 0) {
+        walk(c.children)
+      }
+    }
+  }
+  walk(children.value)
+  return result
+})
 
 // 后代总数（递归统计所有层级），用于折叠按钮文案"展开 N 条回复"。
 const descendantCount = computed(() => countCommentDescendants(commentNode.value))
@@ -142,9 +168,21 @@ function childAuthorLink(c: ForumComment): string {
   return props.commentAuthorLinkBuilder ? props.commentAuthorLinkBuilder(c) : ''
 }
 function childReplyTo(c: ForumComment): { author?: string; excerpt?: string } | undefined {
-  if (!c.replyTo) return undefined
-  const name = c.replyTo.author?.displayName || c.replyTo.author?.username
-  return { author: name, excerpt: c.replyTo.excerpt }
+  // 优先用后端提供的 replyTo 引用（flat 视图或后端已填充）。
+  if (c.replyTo) {
+    const name = c.replyTo.author?.displayName || c.replyTo.author?.username
+    return { author: name, excerpt: c.replyTo.excerpt }
+  }
+  // 子评论深度达到缩进封顶层：即使后端没给 replyTo，也用父评论（当前节点）构造引用块，
+  // 让深层回复明确"回复的是谁"，替代缩进层级表达。
+  // 判断依据是子评论 c 的 depth（不是当前组件 depth）。
+  if (c.depth >= MAX_INDENT_DEPTH && commentNode.value) {
+    const parentName = commentNode.value.author?.displayName
+      || commentNode.value.author?.username
+      || `#${commentNode.value.authorUserId}`
+    return { author: parentName, excerpt: commentNode.value.content.excerpt }
+  }
+  return undefined
 }
 
 // 透传事件给上层，保持递归树的事件冒泡。
@@ -236,30 +274,59 @@ const InlineEditorHost = () => {
         </button>
       </div>
 
-      <!-- 嵌套子评论：递归渲染。tree 视图下父评论承载子评论。
-           Vue 递归组件靠文件名自引用（SFComment → <SFComment>）。 -->
+      <!-- 嵌套子评论：
+           - 未到缩进封顶层：递归渲染竖线树（带 border-left 容器）。
+           - 到达封顶层：把所有后代扁平化平铺，不再嵌套竖线容器，
+             靠"回复 @某某"引用块表达回复对象，避免深窄竖线。 -->
       <div v-if="hasChildren && !isCollapsed" class="sf-comment__children">
-        <SFComment
-          v-for="child in children"
-          :key="child.id"
-          :comment="child"
-          :author="childAuthor(child)"
-          :author-link="childAuthorLink(child)"
-          :html-content="child.content.htmlContent"
-          :meta="childMeta(child)"
-          :depth="depth + 1"
-          :reply-to="childReplyTo(child)"
-          :actions="actions"
-          :collapsed-threshold="collapsedThreshold"
-          :comment-meta-builder="commentMetaBuilder"
-          :comment-author-link-builder="commentAuthorLinkBuilder"
-          @action-comment="bubbleActionComment"
-          @reply="bubbleReply"
-          @edit="bubbleEdit"
-          @delete="bubbleDelete"
-          @report="bubbleReport"
-          @toggle="bubbleToggle"
-        />
+        <!-- 封顶层：扁平化平铺所有后代 -->
+        <template v-if="isAtMaxIndent">
+          <SFComment
+            v-for="descendant in flattenedDescendants"
+            :key="descendant.id"
+            :comment="descendant"
+            :author="childAuthor(descendant)"
+            :author-link="childAuthorLink(descendant)"
+            :html-content="descendant.content.htmlContent"
+            :meta="childMeta(descendant)"
+            :depth="depth"
+            :reply-to="childReplyTo(descendant)"
+            :actions="actions"
+            :collapsed-threshold="collapsedThreshold"
+            :comment-meta-builder="commentMetaBuilder"
+            :comment-author-link-builder="commentAuthorLinkBuilder"
+            @action-comment="bubbleActionComment"
+            @reply="bubbleReply"
+            @edit="bubbleEdit"
+            @delete="bubbleDelete"
+            @report="bubbleReport"
+            @toggle="bubbleToggle"
+          />
+        </template>
+        <!-- 非封顶层：递归竖线树 -->
+        <template v-else>
+          <SFComment
+            v-for="child in children"
+            :key="child.id"
+            :comment="child"
+            :author="childAuthor(child)"
+            :author-link="childAuthorLink(child)"
+            :html-content="child.content.htmlContent"
+            :meta="childMeta(child)"
+            :depth="depth + 1"
+            :reply-to="childReplyTo(child)"
+            :actions="actions"
+            :collapsed-threshold="collapsedThreshold"
+            :comment-meta-builder="commentMetaBuilder"
+            :comment-author-link-builder="commentAuthorLinkBuilder"
+            @action-comment="bubbleActionComment"
+            @reply="bubbleReply"
+            @edit="bubbleEdit"
+            @delete="bubbleDelete"
+            @report="bubbleReport"
+            @toggle="bubbleToggle"
+          />
+        </template>
       </div>
     </div>
   </article>

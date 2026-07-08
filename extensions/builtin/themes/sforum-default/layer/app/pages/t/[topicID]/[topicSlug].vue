@@ -705,7 +705,7 @@ async function submitReport() {
 
           <!-- 评论列表 -->
           <template v-else-if="comments.length">
-            <SFCard class="p-5 space-y-5">
+            <SFCard class="sf-comment-list p-5">
               <!-- 递归评论树：SFComment 内部自递归渲染 children（含任意深度 + 折叠）。
                    操作按钮（回复/编辑/删除/举报）通过 commentActions 动态生成，颜色走 --sf-* token。
                    内联编辑器/回复编辑器由本页 provide 的 commentEditorRenderer 在评论原位渲染（任意层级）。 -->

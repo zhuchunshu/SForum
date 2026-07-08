@@ -1451,6 +1451,18 @@
   border-top: 1px solid var(--sf-border-light);
 }
 
+/* 根评论（顶层评论）之间加分隔：比子评论细线更醒目，让多条根评论边界清晰。
+   详情页评论容器 .sf-comment-list 的直接子评论即根评论。 */
+.sf-comment-list > .sf-comment {
+  padding-bottom: 1.25rem;
+}
+
+.sf-comment-list > .sf-comment + .sf-comment {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--sf-border);
+}
+
 /* 折叠态：隐藏子评论容器 */
 .sf-comment--collapsed > .sf-comment__body > .sf-comment__children {
   display: none;
