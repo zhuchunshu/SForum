@@ -25,6 +25,8 @@ const fieldError = ref('')
 
 const passwordsMatch = computed(() => newPassword.value === confirmPassword.value)
 const passwordProgress = computed(() => passwordPolicyProgress(newPassword.value, passwordPolicy.value))
+// 进度条颜色档位：空=中性灰、弱=红、中=黄、强(100%)=主题色。
+const passwordProgressLevel = computed(() => passwordPolicyProgressLevel(passwordProgress.value))
 const passwordRequirementRows = computed(() => {
   return passwordPolicyRequirements(newPassword.value, passwordPolicy.value).map(item => ({
     ...item,
@@ -115,9 +117,9 @@ async function submit() {
           <div class="reset-password-policy">
             <div class="reset-password-policy__header">
               <span>{{ t('auth.passwordStrength') }}</span>
-              <span>{{ passwordProgress }}%</span>
+              <span :class="['reset-password-policy__value', `is-${passwordProgressLevel}`]">{{ passwordProgress }}%</span>
             </div>
-            <div class="reset-password-policy__bar" aria-hidden="true">
+            <div class="reset-password-policy__bar" :class="[`is-${passwordProgressLevel}`]" aria-hidden="true">
               <span :style="{ width: `${passwordProgress}%` }" />
             </div>
             <ul class="reset-password-policy__list">
@@ -195,8 +197,30 @@ async function submit() {
   display: block;
   height: 100%;
   border-radius: inherit;
+  background: #cbd5e1;
+  transition: width 0.18s ease, background-color 0.18s ease;
+}
+/* 进度条按合格度分档变色：弱=亮红、中=亮琥珀、强=主题色；空输入保持中性灰。
+   弱/中档用亮色阶而非 --sf-danger/--sf-warning：后者偏暗、色相接近，
+   大色块上难辨（红↔棕橙糊在一起）。 */
+.reset-password-policy__bar.is-weak span {
+  background: #ef4444;
+}
+.reset-password-policy__bar.is-medium span {
+  background: #f59e0b;
+}
+.reset-password-policy__bar.is-strong span {
   background: var(--sf-accent);
-  transition: width 0.18s ease;
+}
+/* 百分比文字与进度条同档变色，保持视觉一致。 */
+.reset-password-policy__value.is-weak {
+  color: var(--sf-danger);
+}
+.reset-password-policy__value.is-medium {
+  color: var(--sf-warning);
+}
+.reset-password-policy__value.is-strong {
+  color: var(--sf-accent);
 }
 .reset-password-policy__list {
   display: grid;

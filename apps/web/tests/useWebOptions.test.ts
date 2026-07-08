@@ -10,6 +10,7 @@ import {
   normalizeAppearanceThemeValue,
   normalizeEnabledOption,
   passwordPolicyProgress,
+  passwordPolicyProgressLevel,
   passwordPolicyRequirements,
   recommendedPasswordPolicy,
   recommendedAppearanceTheme,
@@ -137,6 +138,15 @@ describe('password policy helpers', () => {
     expect(passwordPolicyProgress('', policy)).toBe(0)
     expect(passwordPolicyProgress('phrase', policy)).toBe(50)
     expect(passwordPolicyProgress('long phrase!', policy)).toBe(100)
+  })
+
+  test('maps password progress to color level', () => {
+    expect(passwordPolicyProgressLevel(0)).toBe('empty')
+    expect(passwordPolicyProgressLevel(1)).toBe('weak')
+    expect(passwordPolicyProgressLevel(50)).toBe('weak')
+    expect(passwordPolicyProgressLevel(51)).toBe('medium')
+    expect(passwordPolicyProgressLevel(99)).toBe('medium')
+    expect(passwordPolicyProgressLevel(100)).toBe('strong')
   })
 })
 

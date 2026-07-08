@@ -625,6 +625,17 @@ export function passwordPolicyProgress(password: string, policy: PasswordPolicy)
   return Math.round((score / requirements.length) * 100)
 }
 
+export type PasswordProgressLevel = 'empty' | 'weak' | 'medium' | 'strong'
+
+// 按合格度分数返回语义级别，用于进度条颜色分档：
+// 空=中性灰、弱=红、中=黄、强(100%)=主题色。仅依赖百分比，与计分逻辑解耦。
+export function passwordPolicyProgressLevel(progress: number): PasswordProgressLevel {
+  if (progress >= 100) return 'strong'
+  if (progress >= 51) return 'medium'
+  if (progress >= 1) return 'weak'
+  return 'empty'
+}
+
 export function normalizeAltchaWidgetType(value: string | undefined): AltchaWidgetType {
   return normalizeStringChoice(value, altchaWidgetTypes, 'checkbox')
 }

@@ -108,6 +108,8 @@ const passwordDescription = computed(() => {
   return ['password-hint', fieldDescription('password')].filter(Boolean).join(' ')
 })
 const passwordProgress = computed(() => passwordPolicyProgress(form.password, passwordPolicy.value))
+// 进度条颜色档位：空=中性灰、弱=红、中=黄、强(100%)=主题色。
+const passwordProgressLevel = computed(() => passwordPolicyProgressLevel(passwordProgress.value))
 const passwordRequirementRows = computed(() => {
   return passwordPolicyRequirements(form.password, passwordPolicy.value).map(item => ({
     ...item,
@@ -353,9 +355,9 @@ async function submitRegister() {
             <div id="password-hint" class="auth-password-policy">
               <div class="auth-password-policy__header">
                 <span>{{ t('auth.passwordStrength') }}</span>
-                <span>{{ passwordProgress }}%</span>
+                <span :class="['auth-password-policy__value', `is-${passwordProgressLevel}`]">{{ passwordProgress }}%</span>
               </div>
-              <div class="auth-password-policy__bar" aria-hidden="true">
+              <div class="auth-password-policy__bar" :class="[`is-${passwordProgressLevel}`]" aria-hidden="true">
                 <span :style="{ width: `${passwordProgress}%` }" />
               </div>
               <p class="auth-field-hint">
@@ -690,8 +692,30 @@ async function submitRegister() {
   height: 100%;
   min-width: 0;
   border-radius: inherit;
+  background: var(--sf-muted);
+  transition: width 0.18s ease, background-color 0.18s ease;
+}
+/* 进度条按合格度分档变色：弱=亮红、中=亮琥珀、强=主题色；空输入保持中性灰。
+   弱/中档用亮色阶而非 --sf-danger/--sf-warning：后者偏暗、色相接近，
+   大色块上难辨（红↔棕橙糊在一起）。 */
+.auth-password-policy__bar.is-weak span {
+  background: #ef4444;
+}
+.auth-password-policy__bar.is-medium span {
+  background: #f59e0b;
+}
+.auth-password-policy__bar.is-strong span {
   background: var(--sf-accent);
-  transition: width 0.18s ease;
+}
+/* 百分比文字与进度条同档变色，保持视觉一致。 */
+.auth-password-policy__value.is-weak {
+  color: var(--sf-danger);
+}
+.auth-password-policy__value.is-medium {
+  color: var(--sf-warning);
+}
+.auth-password-policy__value.is-strong {
+  color: var(--sf-accent);
 }
 
 .auth-password-policy__list {
