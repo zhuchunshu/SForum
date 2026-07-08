@@ -2276,7 +2276,7 @@
 }
 
 @media (max-width: 700px) {
-  .sf-feed-row--table {
+  .sf-feed-row.sf-feed-row--table {
     grid-template-columns: minmax(0, 1fr) minmax(3rem, auto);
     min-height: 3.75rem;
     padding: 0.7rem 0.8rem;

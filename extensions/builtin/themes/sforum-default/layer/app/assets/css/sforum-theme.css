@@ -104,7 +104,6 @@
 }
 
 .sforum-home__rail {
-  display: grid;
   gap: 0.75rem;
 }
 
@@ -129,7 +128,6 @@
 }
 
 .sforum-home__mobile-filters {
-  display: grid;
   gap: 0.75rem;
 }
 
@@ -161,6 +159,13 @@
   font-size: 1.05rem;
   font-weight: 850;
   line-height: 1.25;
+}
+
+.sforum-topic-table .sforum-topic-table__title {
+  font-size: 1.05rem;
+  font-weight: 850;
+  line-height: 1.25;
+  letter-spacing: 0;
 }
 
 .sforum-topic-table__filters {
