@@ -163,6 +163,8 @@ var optionDefinitions = []optionDefinition{
 	{name: NameSEOSchemaOrgSearchAction, public: true, managePermission: identity.PermissionSEOManage},
 	{name: NameSEOSchemaOrgDiscussion, public: true, managePermission: identity.PermissionSEOManage},
 	{name: NameSEOSchemaOrgOrganizationLogo, public: true, managePermission: identity.PermissionSEOManage},
+	// 帖子 URL 形态：public（前端 SSR 需读取以拼接链接），SEO 管理权限可改。
+	{name: NameSEOTopicURLMode, public: true, managePermission: identity.PermissionSEOManage},
 	{name: NameAttachmentProvider, managePermission: identity.PermissionAttachmentSettings},
 	{name: NameAttachmentUploadEnabled, public: true, managePermission: identity.PermissionAttachmentSettings},
 	{name: NameAttachmentPathTemplate, managePermission: identity.PermissionAttachmentSettings},
@@ -201,6 +203,18 @@ var optionDefinitions = []optionDefinition{
 	{name: NameAttachmentSFTPRootPath, managePermission: identity.PermissionAttachmentSettings},
 	{name: NameAttachmentSFTPHostKeyFingerprint, managePermission: identity.PermissionAttachmentSettings},
 	{name: NameAttachmentSFTPPublicBaseURL, managePermission: identity.PermissionAttachmentSettings},
+	// 头像：allow_upload/default_provider/gravatar_base_url/max_size_kb/allow_gif/compress_enabled 对前端公开，
+	// 用于客户端预校验上传；default_static_url/max_dimension/target_dimension/compress_quality 仅供后台管理。
+	{name: NameAvatarAllowUpload, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAvatarDefaultProvider, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAvatarGravatarBaseURL, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAvatarDefaultStaticURL, managePermission: identity.PermissionSettingsManage},
+	{name: NameAvatarMaxSizeKB, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAvatarMaxDimension, managePermission: identity.PermissionSettingsManage},
+	{name: NameAvatarAllowGIF, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAvatarCompressEnabled, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameAvatarTargetDimension, managePermission: identity.PermissionSettingsManage},
+	{name: NameAvatarCompressQuality, managePermission: identity.PermissionSettingsManage},
 }
 
 type Service struct {
@@ -694,8 +708,12 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	if _, ok := normalizeOptionalURL(coerced[NameSEOSchemaOrgOrganizationLogo]); !ok {
 		coerced[NameSEOSchemaOrgOrganizationLogo] = defaults[NameSEOSchemaOrgOrganizationLogo]
 	}
+	if _, ok := normalizeChoice(coerced[NameSEOTopicURLMode], []string{"id_slug", "id", "slug"}); !ok {
+		coerced[NameSEOTopicURLMode] = defaults[NameSEOTopicURLMode]
+	}
 	coerceAttachmentOptions(coerced, defaults)
 	coerceMailOptions(coerced, defaults)
+	coerceAvatarOptions(coerced, defaults)
 
 	return coerced
 }
@@ -808,6 +826,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameSEOSchemaOrgSearchAction:         enabledOptionValue(true),
 		NameSEOSchemaOrgDiscussion:           enabledOptionValue(true),
 		NameSEOSchemaOrgOrganizationLogo:     "",
+		NameSEOTopicURLMode:                  "id_slug",
 		NameAttachmentProvider:               storage.ProviderLocal,
 		NameAttachmentUploadEnabled:          enabledOptionValue(true),
 		NameAttachmentPathTemplate:           "{yyyy}/{mm}/{dd}/{public_id}{ext}",
@@ -855,6 +874,17 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameMailSMTPUsername:   "",
 		NameMailSMTPPassword:   "",
 		NameMailSMTPEncryption: "starttls",
+		// 头像：默认 identicon（离线可用，符合"开箱即用"原则）；上传与压缩默认开启。
+		NameAvatarAllowUpload:      enabledOptionValue(true),
+		NameAvatarDefaultProvider:  AvatarProviderIdenticon,
+		NameAvatarGravatarBaseURL:  "https://www.gravatar.com/avatar/",
+		NameAvatarDefaultStaticURL: "",
+		NameAvatarMaxSizeKB:        strconv.Itoa(avatarMaxSizeKBDefault),
+		NameAvatarMaxDimension:     strconv.Itoa(avatarMaxDimensionDefault),
+		NameAvatarAllowGIF:         enabledOptionValue(true),
+		NameAvatarCompressEnabled:  enabledOptionValue(true),
+		NameAvatarTargetDimension:  strconv.Itoa(avatarTargetDimensionDefault),
+		NameAvatarCompressQuality:  strconv.Itoa(avatarCompressQualityDefault),
 	}
 
 	if value := strings.TrimSpace(defaults.SiteName); value != "" {
@@ -1004,6 +1034,9 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeSEOVerificationToken(value)
 	case NameSEORobotsExtraAllow, NameSEORobotsExtraDisallow:
 		return normalizeSEORobotsPathList(value)
+	case NameSEOTopicURLMode:
+		// 帖子 URL 形态枚举，大小写归一后白名单校验。
+		return normalizeChoice(value, []string{"id_slug", "id", "slug"})
 	case NameAttachmentProvider:
 		return normalizeAttachmentProvider(value)
 	case NameAttachmentUploadEnabled, NameAttachmentFTPPassive, NameAttachmentFTPExplicitTLS:
@@ -1045,6 +1078,22 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeBoundedText(value, attachmentSecretMaxRunes)
 	case NameMailFromAddress, NameMailFromName, NameMailSMTPHost, NameMailSMTPUsername:
 		return normalizeBoundedText(value, 200)
+	case NameAvatarAllowUpload, NameAvatarAllowGIF, NameAvatarCompressEnabled:
+		return normalizeEnabledOption(value)
+	case NameAvatarDefaultProvider:
+		return normalizeAvatarProvider(value)
+	case NameAvatarGravatarBaseURL:
+		return normalizeAvatarGravatarBaseURL(value)
+	case NameAvatarDefaultStaticURL:
+		return normalizeOptionalURL(value)
+	case NameAvatarMaxSizeKB:
+		return normalizeBoundedInt(value, avatarMaxSizeKBMin, avatarMaxSizeKBMax)
+	case NameAvatarMaxDimension:
+		return normalizeBoundedInt(value, avatarDimensionMin, avatarDimensionMax)
+	case NameAvatarTargetDimension:
+		return normalizeBoundedInt(value, avatarDimensionMin, avatarDimensionMax)
+	case NameAvatarCompressQuality:
+		return normalizeBoundedInt(value, avatarCompressQualityMin, avatarCompressQualityMax)
 	default:
 		return "", false
 	}
@@ -1206,6 +1255,9 @@ func isValidValueSet(values map[string]string) bool {
 		return false
 	}
 	if !isValidAttachmentOptions(values) {
+		return false
+	}
+	if !isValidAvatarOptions(values) {
 		return false
 	}
 	return true

@@ -401,6 +401,15 @@ func TestServiceSEOOptionsDefaultsAndValidation(t *testing.T) {
 		t.Fatalf("expected default summary_large_image card, got %q", twitterCard)
 	}
 
+	// seo.topic_url_mode 默认 id_slug。
+	mode, err := service.WebOption(context.Background(), NameSEOTopicURLMode)
+	if err != nil {
+		t.Fatalf("default topic url mode returned error: %v", err)
+	}
+	if mode != "id_slug" {
+		t.Fatalf("expected default topic url mode id_slug, got %q", mode)
+	}
+
 	updated, err := service.UpdateMany(context.Background(), actor, []UpdateInput{
 		{Name: NameSEOMetaTitleTemplate, Value: "  {title} - {siteName}  "},
 		{Name: NameSEOOGImageURL, Value: "https://example.com/og.png"},
@@ -408,6 +417,8 @@ func TestServiceSEOOptionsDefaultsAndValidation(t *testing.T) {
 		{Name: NameSEOTwitterSite, Value: "sforum_app"},
 		{Name: NameSEORobotsExtraDisallow, Value: "/admin\n/private"},
 		{Name: NameSEOBingVerification, Value: "bing-token"},
+		// 帖子 URL 模式：合法枚举 slug 被接受，大小写归一。
+		{Name: NameSEOTopicURLMode, Value: " SLUG "},
 	})
 	if err != nil {
 		t.Fatalf("UpdateMany returned error: %v", err)
@@ -421,6 +432,9 @@ func TestServiceSEOOptionsDefaultsAndValidation(t *testing.T) {
 	if got := adminValue(updated, NameSEORobotsExtraDisallow); got != "/admin\n/private" {
 		t.Fatalf("expected normalized robots paths, got %q", got)
 	}
+	if got := adminValue(updated, NameSEOTopicURLMode); got != "slug" {
+		t.Fatalf("expected normalized topic url mode slug, got %q", got)
+	}
 
 	cases := []UpdateInput{
 		{Name: NameSEOOGImageURL, Value: "notaurl"},
@@ -428,6 +442,8 @@ func TestServiceSEOOptionsDefaultsAndValidation(t *testing.T) {
 		{Name: NameSEORobotsExtraAllow, Value: "relative"},
 		{Name: NameSEOGoogleVerification, Value: "<script>"},
 		{Name: NameSEOMetaDescription, Value: stringsOfRunes("长", 321)},
+		// 帖子 URL 模式必须是合法枚举之一。
+		{Name: NameSEOTopicURLMode, Value: "category"},
 	}
 	for _, input := range cases {
 		if _, err := service.Update(context.Background(), actor, input); !errors.Is(err, ErrInvalidOption) {

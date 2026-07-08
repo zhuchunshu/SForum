@@ -20,6 +20,8 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/search"
   "/topics":
     "$ref": "./openapi/paths/forum.yaml#/topics"
+  "/topics/by-slug/{slug}":
+    "$ref": "./openapi/paths/forum.yaml#/topicBySlug"
   "/topics/{topicID}":
     "$ref": "./openapi/paths/forum.yaml#/topicByID"
   "/topics/{topicID}/hide":

@@ -9,6 +9,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/search", h.search)
 	api.Get("/topics", h.topics)
 	api.Post("/topics", h.createTopic)
+	// 注意：by-slug 必须先于 :topicID 注册，否则 "by-slug" 会被当作 topicID 捕获。
+	api.Get("/topics/by-slug/:slug", h.topicBySlug)
 	api.Get("/topics/:topicID", h.topic)
 	api.Patch("/topics/:topicID", h.updateTopic)
 	api.Delete("/topics/:topicID", h.deleteTopic)

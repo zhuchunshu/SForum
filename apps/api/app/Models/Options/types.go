@@ -58,6 +58,8 @@ const (
 	NameSEOSchemaOrgSearchAction         = "seo.schema_org.search_action_enabled"
 	NameSEOSchemaOrgDiscussion           = "seo.schema_org.discussion_enabled"
 	NameSEOSchemaOrgOrganizationLogo     = "seo.schema_org.organization_logo_url"
+	// 帖子详情页 URL 形态：id_slug | id | slug。默认 id_slug。
+	NameSEOTopicURLMode                  = "seo.topic_url_mode"
 	NameAttachmentProvider               = "attachment.provider"
 	NameAttachmentUploadEnabled          = "attachment.upload.enabled"
 	NameAttachmentPathTemplate           = "attachment.path_template"
@@ -96,6 +98,18 @@ const (
 	NameAttachmentSFTPRootPath           = "attachment.sftp.root_path"
 	NameAttachmentSFTPHostKeyFingerprint = "attachment.sftp.host_key_fingerprint"
 	NameAttachmentSFTPPublicBaseURL      = "attachment.sftp.public_base_url"
+
+	// 头像运行时选项。统一头像策略：用户上传优先，否则按 default_provider 回退。
+	NameAvatarAllowUpload       = "avatar.allow_upload"
+	NameAvatarDefaultProvider   = "avatar.default_provider"
+	NameAvatarGravatarBaseURL   = "avatar.gravatar_base_url"
+	NameAvatarDefaultStaticURL  = "avatar.default_static_url"
+	NameAvatarMaxSizeKB         = "avatar.max_size_kb"
+	NameAvatarMaxDimension      = "avatar.max_dimension"
+	NameAvatarAllowGIF          = "avatar.allow_gif"
+	NameAvatarCompressEnabled   = "avatar.compress_enabled"
+	NameAvatarTargetDimension   = "avatar.target_dimension"
+	NameAvatarCompressQuality   = "avatar.compress_quality"
 
 	// 邮件运行时选项。
 	NameMailProvider       = "mail.provider"

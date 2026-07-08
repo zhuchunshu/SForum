@@ -116,6 +116,7 @@ AdminWebOption:
       - seo.schema_org.search_action_enabled
       - seo.schema_org.discussion_enabled
       - seo.schema_org.organization_logo_url
+      - seo.topic_url_mode
       - attachment.provider
       - attachment.upload.enabled
       - attachment.path_template

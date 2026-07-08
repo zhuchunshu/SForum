@@ -22,6 +22,12 @@ type Store interface {
 	// 用于搜索索引批量重建。仅 SELECT id，无 JOIN，千万级秒扫。
 	ListAllTopicIDs(ctx context.Context) ([]int64, error)
 	GetTopic(ctx context.Context, topicID int64) (TopicDetail, error)
+	// GetTopicBySlug 按全局唯一 slug 查询公开主题（active/locked），
+	// 仅供 "纯 slug" URL 模式使用。依赖 topics_slug_unique_idx 保证唯一。
+	GetTopicBySlug(ctx context.Context, slug string) (TopicDetail, error)
+	// TopicSlugExists 检查 slug 是否已被其它主题占用（排除 excludeTopicID 自身），
+	// 用于创建/更新时确保 slug 全局唯一。
+	TopicSlugExists(ctx context.Context, slug string, excludeTopicID int64) (bool, error)
 	ResolveTopicTags(ctx context.Context, input ResolveTopicTagsInput) ([]TopicTagSummary, error)
 	CreateTopic(ctx context.Context, input CreateTopicRecord) (TopicDetail, error)
 	UpdateTopic(ctx context.Context, input UpdateTopicRecord) (TopicDetail, error)

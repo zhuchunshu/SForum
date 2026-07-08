@@ -209,6 +209,16 @@ func (h *Controller) topic(c fiber.Ctx) error {
 	return apphttp.OK(c, topic)
 }
 
+// topicBySlug 处理 "纯 slug" URL 模式下的公开主题查询。
+// 路由参数 :slug 由前端 forumTopicPath 在 slug 模式下产出。
+func (h *Controller) topicBySlug(c fiber.Ctx) error {
+	topic, err := h.service.GetTopicBySlug(c.Context(), c.Params("slug"))
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, topic)
+}
+
 func (h *Controller) updateTopic(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {

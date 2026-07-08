@@ -48,6 +48,50 @@ func TestServiceCreateTopicRendersSharedPostContent(t *testing.T) {
 	}
 }
 
+// 验证 slug 全局唯一化：当目标 slug 已被占用时，自动追加 -2/-3 后缀。
+func TestServiceCreateTopicDeduplicatesSlugOnCollision(t *testing.T) {
+	store := newServiceFakeStore()
+	// 预置占用：hello-world 与 hello-world-2 均已存在，期望最终得到 hello-world-3。
+	store.existingSlugs = map[string]bool{"hello-world": true, "hello-world-2": true}
+	service := NewService(store)
+	actor := identity.Actor{
+		ID:          12,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionTopicCreate: true},
+	}
+
+	topic, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
+		CategorySlug: "general",
+		Title:        "Hello World",
+		Content: ContentInput{
+			RawContent:   "正文",
+			SourceFormat: SourceFormatMarkdown,
+			EditorType:   EditorTypeMarkdown,
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateTopic returned error: %v", err)
+	}
+	if topic.Slug != "hello-world-3" {
+		t.Fatalf("expected deduplicated slug hello-world-3, got %q", topic.Slug)
+	}
+
+	// 无冲突时直接使用原始 slug。
+	store2 := newServiceFakeStore()
+	service2 := NewService(store2)
+	topic2, err := service2.CreateTopic(context.Background(), actor, CreateTopicInput{
+		CategorySlug: "general",
+		Title:        "Hello World",
+		Content: ContentInput{RawContent: "正文", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
+	})
+	if err != nil {
+		t.Fatalf("CreateTopic returned error: %v", err)
+	}
+	if topic2.Slug != "hello-world" {
+		t.Fatalf("expected slug hello-world when no collision, got %q", topic2.Slug)
+	}
+}
+
 func TestServiceCreateTopicAppliesBeforeCreateFilterAndEmitsCreatedEvent(t *testing.T) {
 	store := newServiceFakeStore()
 	publisher := &fakeEventPublisher{results: map[string]appevents.Result{
@@ -652,6 +696,8 @@ type serviceFakeStore struct {
 	listCommentsResult CommentList
 	listCommentsInput  CommentListInput
 	listCommentsCalled bool
+	// existingSlugs 模拟已占用的 slug 集合，供 TopicSlugExists 判重。
+	existingSlugs map[string]bool
 }
 
 func newServiceFakeStore() *serviceFakeStore {
@@ -709,6 +755,17 @@ func (s *serviceFakeStore) ListAllTopicIDs(context.Context) ([]int64, error) {
 
 func (s *serviceFakeStore) GetTopic(context.Context, int64) (TopicDetail, error) {
 	return TopicDetail{}, nil
+}
+
+func (s *serviceFakeStore) GetTopicBySlug(context.Context, string) (TopicDetail, error) {
+	return TopicDetail{}, nil
+}
+
+func (s *serviceFakeStore) TopicSlugExists(_ context.Context, slug string, excludeTopicID int64) (bool, error) {
+	if s.existingSlugs == nil {
+		return false, nil
+	}
+	return s.existingSlugs[slug], nil
 }
 
 func (s *serviceFakeStore) CreateTopic(_ context.Context, input CreateTopicRecord) (TopicDetail, error) {

@@ -502,6 +502,24 @@ topicByID:
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+topicBySlug:
+  get:
+    summary: Get public topic detail by slug
+    description: |
+      按 slug 查询公开主题。仅当站点 seo.topic_url_mode = slug（纯 slug URL 模式）
+      时使用，slug 全局唯一（依赖 topics_slug_unique_idx）。
+    operationId: getTopicBySlug
+    parameters:
+    - "$ref": "../components/parameters.yaml#/TopicSlug"
+    responses:
+      '200':
+        description: Public topic detail with shared post content.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseTopicDetail"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
 topicHide:
   post:
     summary: Hide a topic from public view

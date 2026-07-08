@@ -344,6 +344,48 @@ func (s *PostgresStore) GetTopic(ctx context.Context, topicID int64) (TopicDetai
 	return topic, nil
 }
 
+// GetTopicBySlug 按全局唯一 slug 查询公开主题。slug 维度的查找复用
+// topicDetailSQL() 与同样的可见性过滤。slug 为空或无匹配时返回 ErrTopicNotFound。
+func (s *PostgresStore) GetTopicBySlug(ctx context.Context, slug string) (TopicDetail, error) {
+	if strings.TrimSpace(slug) == "" {
+		return TopicDetail{}, ErrTopicNotFound
+	}
+	row := s.pool.QueryRow(ctx, topicDetailSQL()+`
+		WHERE topics.slug = $1
+		  AND topics.status IN ('active', 'locked')
+		  AND categories.visibility = 'public'
+	`, slug)
+	topic, err := scanTopicDetail(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return TopicDetail{}, ErrTopicNotFound
+	}
+	if err != nil {
+		return TopicDetail{}, fmt.Errorf("get topic by slug: %w", err)
+	}
+	tags, err := s.activeTopicTags(ctx, []int64{topic.ID})
+	if err != nil {
+		return TopicDetail{}, err
+	}
+	topic.Tags = tags[topic.ID]
+	return topic, nil
+}
+
+// TopicSlugExists 检查 slug 是否已被占用。统计所有状态（含 hidden/deleted）的主题，
+// 避免删除/隐藏主题后其 slug 被新主题复用造成 URL 歧义。excludeTopicID 用于更新时排除自身。
+func (s *PostgresStore) TopicSlugExists(ctx context.Context, slug string, excludeTopicID int64) (bool, error) {
+	if strings.TrimSpace(slug) == "" {
+		return false, nil
+	}
+	var exists bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM topics WHERE slug = $1 AND ($2 = 0 OR id <> $2))
+	`, slug, excludeTopicID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("topic slug exists: %w", err)
+	}
+	return exists, nil
+}
+
 func (s *PostgresStore) attachActiveTagsToTopicSummaries(ctx context.Context, items []TopicSummary) error {
 	if len(items) == 0 {
 		return nil

@@ -35,6 +35,7 @@ const (
 
 	// 缓存 key 前缀。
 	prefixTopicDetail = "forum:topic:"
+	prefixTopicBySlug = "forum:topic-slug:"
 	prefixTopicsList  = "forum:topics:"
 	prefixCatsList    = "forum:cats"
 	prefixGroupsList  = "forum:groups"
@@ -141,6 +142,26 @@ func (s *CachedStore) GetTopic(ctx context.Context, topicID int64) (TopicDetail,
 	return out, nil
 }
 
+// GetTopicBySlug 缓存按 slug 查询的主题详情。slug 模式下访问量高，缓存命中可减少 DB 压力。
+func (s *CachedStore) GetTopicBySlug(ctx context.Context, slug string) (TopicDetail, error) {
+	key := prefixTopicBySlug + slug
+	var out TopicDetail
+	if s.loadJSON(ctx, key, &out) {
+		return out, nil
+	}
+	out, err := s.Store.GetTopicBySlug(ctx, slug)
+	if err != nil {
+		return TopicDetail{}, err
+	}
+	s.saveJSON(ctx, key, out, ttlTopicDetail)
+	return out, nil
+}
+
+// TopicSlugExists 不缓存：写路径的实时唯一性校验，必须读最新数据。
+func (s *CachedStore) TopicSlugExists(ctx context.Context, slug string, excludeTopicID int64) (bool, error) {
+	return s.Store.TopicSlugExists(ctx, slug, excludeTopicID)
+}
+
 func (s *CachedStore) ListTopics(ctx context.Context, input TopicListInput) (TopicList, error) {
 	gen := s.currentGen(ctx, genTopics)
 	key := fmt.Sprintf("%s%s:%s:%s:%d:%d", prefixTopicsList, gen, input.CategorySlug, input.TagSlug, input.Page, input.PerPage)
@@ -165,6 +186,7 @@ func (s *CachedStore) CreateTopic(ctx context.Context, input CreateTopicRecord) 
 	}
 	s.invalidateTopics(ctx)
 	s.invalidateTaxonomy(ctx)
+	s.invalidateTopicBySlug(ctx, out.Slug)
 	return out, nil
 }
 
@@ -176,6 +198,7 @@ func (s *CachedStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord) 
 	s.invalidateTopicDetail(ctx, input.TopicID)
 	s.invalidateTopics(ctx)
 	s.invalidateTaxonomy(ctx)
+	s.invalidateTopicBySlug(ctx, out.Slug)
 	return out, nil
 }
 
@@ -185,6 +208,7 @@ func (s *CachedStore) DeleteTopic(ctx context.Context, topicID int64) (TopicDeta
 		return out, err
 	}
 	s.invalidateTopicDetail(ctx, topicID)
+	s.invalidateTopicBySlug(ctx, out.Slug)
 	s.invalidateTopics(ctx)
 	s.invalidateTaxonomy(ctx)
 	return out, nil
@@ -281,6 +305,15 @@ func (s *CachedStore) invalidateTaxonomy(ctx context.Context) {
 
 func (s *CachedStore) invalidateTopicDetail(ctx context.Context, topicID int64) {
 	_ = s.cache.Delete(ctx, fmt.Sprintf("%s%d", prefixTopicDetail, topicID))
+}
+
+// invalidateTopicBySlug 清除按 slug 缓存的详情条目。用于写操作后保证 slug 维度缓存及时更新；
+// 旧 slug 的残留条目依赖 TTL（30s）自然过期，规范化 301 兜底。
+func (s *CachedStore) invalidateTopicBySlug(ctx context.Context, slug string) {
+	if slug == "" {
+		return
+	}
+	_ = s.cache.Delete(ctx, prefixTopicBySlug+slug)
 }
 
 // --- JSON 序列化辅助 ---

@@ -50,6 +50,15 @@ TopicID:
     type: integer
     format: int64
   description: Numeric topic id.
+TopicSlug:
+  name: slug
+  in: path
+  required: true
+  schema:
+    type: string
+  description: |
+    全局唯一的主题 slug。仅当站点配置 seo.topic_url_mode = slug 时由前端
+    生成此路径；其它模式下应使用 GET /topics/{topicID}。
 CommentID:
   name: commentID
   in: path

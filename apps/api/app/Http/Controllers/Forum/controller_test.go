@@ -499,6 +499,14 @@ func (s *controllerForumStore) GetTopic(context.Context, int64) (forum.TopicDeta
 	return forum.TopicDetail{TopicSummary: forum.TopicSummary{ID: 10, Title: "公开帖子", Slug: "topic", Status: forum.TopicStatusActive}}, nil
 }
 
+func (s *controllerForumStore) GetTopicBySlug(context.Context, string) (forum.TopicDetail, error) {
+	return forum.TopicDetail{TopicSummary: forum.TopicSummary{ID: 10, Title: "公开帖子", Slug: "topic", Status: forum.TopicStatusActive}}, nil
+}
+
+func (s *controllerForumStore) TopicSlugExists(context.Context, string, int64) (bool, error) {
+	return false, nil
+}
+
 func (s *controllerForumStore) CreateTopic(_ context.Context, input forum.CreateTopicRecord) (forum.TopicDetail, error) {
 	s.createdTopic = input
 	input.Content.ID = 100

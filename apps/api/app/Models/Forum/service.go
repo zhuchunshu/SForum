@@ -265,6 +265,15 @@ func (s *Service) GetTopic(ctx context.Context, topicID int64) (TopicDetail, err
 	return s.store.GetTopic(ctx, topicID)
 }
 
+// GetTopicBySlug 按 slug 查询主题。仅 "纯 slug" URL 模式使用，
+// 依赖 topics_slug_unique_idx 保证全局唯一。空 slug 直接返回未找到。
+func (s *Service) GetTopicBySlug(ctx context.Context, slug string) (TopicDetail, error) {
+	if strings.TrimSpace(slug) == "" {
+		return TopicDetail{}, ErrTopicNotFound
+	}
+	return s.store.GetTopicBySlug(ctx, slug)
+}
+
 // GetTopicForSearch 返回用于搜索索引的主题快照。
 // 复用公开可见性过滤的 GetTopic：若主题已 hidden/deleted，返回 ErrTopicNotFound，
 // 调用方（search.Indexer）据此清理索引项，实现优雅降级。
@@ -300,11 +309,16 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	if err != nil {
 		return TopicDetail{}, err
 	}
+	// slug 全局唯一化：冲突时追加 -2/-3 后缀。
+	topicSlug, err := s.ensureUniqueTopicSlug(ctx, slugify(title), 0)
+	if err != nil {
+		return TopicDetail{}, err
+	}
 	created, err := s.store.CreateTopic(ctx, CreateTopicRecord{
 		CategorySlug:    categorySlug,
 		AuthorUserID:    actor.ID,
 		Title:           title,
-		Slug:            slugify(title),
+		Slug:            topicSlug,
 		TagSlugs:        tagSlugs,
 		TagCreationMode: settings.TagCreationMode,
 		Content:         content,
@@ -361,7 +375,12 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 			return TopicDetail{}, ErrInvalidTopic
 		}
 		record.Title = title
-		record.Slug = slugify(title)
+		// 改标题时重新生成 slug 并保证全局唯一（排除自身）。
+		uniqueSlug, err := s.ensureUniqueTopicSlug(ctx, slugify(title), input.TopicID)
+		if err != nil {
+			return TopicDetail{}, err
+		}
+		record.Slug = uniqueSlug
 	}
 
 	if input.CategorySlug != nil {
@@ -1083,6 +1102,24 @@ func slugify(value string) string {
 	}
 	hash := strconv.FormatUint(uint64(fnv32(value)), 36)
 	return "topic-" + hash
+}
+
+// ensureUniqueTopicSlug 在 slug 全局唯一的约束下生成不冲突的 slug。
+// 冲突时按 Discourse/Flarum 惯例追加 -2、-3... 后缀。excludeTopicID 用于
+// 更新主题时排除自身 slug。新建主题传 0。
+func (s *Service) ensureUniqueTopicSlug(ctx context.Context, desired string, excludeTopicID int64) (string, error) {
+	base := desired
+	candidate := base
+	for suffix := 2; ; suffix++ {
+		exists, err := s.store.TopicSlugExists(ctx, candidate, excludeTopicID)
+		if err != nil {
+			return "", err
+		}
+		if !exists {
+			return candidate, nil
+		}
+		candidate = base + "-" + strconv.Itoa(suffix)
+	}
 }
 
 func fnv32(value string) uint32 {
