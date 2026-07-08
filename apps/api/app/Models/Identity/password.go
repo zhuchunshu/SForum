@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -19,11 +20,77 @@ const (
 	passwordKeyBytes  = uint32(32)
 )
 
-func HashPassword(password string) (string, error) {
-	if len([]rune(password)) < 12 {
-		return "", ErrPasswordDoesNotMeetPolicy
+const (
+	RecommendedPasswordMinLength = 12
+	RecommendedPasswordMaxLength = 128
+)
+
+type PasswordPolicy struct {
+	MinLength        int
+	MaxLength        int
+	RequireLowercase bool
+	RequireUppercase bool
+	RequireNumber    bool
+	RequireSymbol    bool
+}
+
+func RecommendedPasswordPolicy() PasswordPolicy {
+	return PasswordPolicy{MinLength: RecommendedPasswordMinLength, MaxLength: RecommendedPasswordMaxLength}
+}
+
+func (p PasswordPolicy) Normalized() PasswordPolicy {
+	if p.MinLength <= 0 {
+		p.MinLength = RecommendedPasswordMinLength
+	}
+	if p.MaxLength <= 0 {
+		p.MaxLength = RecommendedPasswordMaxLength
+	}
+	if p.MaxLength < p.MinLength {
+		p.MaxLength = p.MinLength
+	}
+	return p
+}
+
+func (p PasswordPolicy) Validate(password string) FieldMessages {
+	p = p.Normalized()
+	fields := FieldMessages{}
+	length := len([]rune(password))
+	if length < p.MinLength {
+		addFieldMessage(fields, FieldPassword, MessagePasswordMin)
+	}
+	if length > p.MaxLength {
+		addFieldMessage(fields, FieldPassword, MessagePasswordMax)
 	}
 
+	var hasLower, hasUpper, hasNumber, hasSymbol bool
+	for _, r := range password {
+		switch {
+		case unicode.IsLower(r):
+			hasLower = true
+		case unicode.IsUpper(r):
+			hasUpper = true
+		case unicode.IsNumber(r):
+			hasNumber = true
+		case unicode.IsPunct(r) || unicode.IsSymbol(r):
+			hasSymbol = true
+		}
+	}
+	if p.RequireLowercase && !hasLower {
+		addFieldMessage(fields, FieldPassword, MessagePasswordLowercase)
+	}
+	if p.RequireUppercase && !hasUpper {
+		addFieldMessage(fields, FieldPassword, MessagePasswordUppercase)
+	}
+	if p.RequireNumber && !hasNumber {
+		addFieldMessage(fields, FieldPassword, MessagePasswordNumber)
+	}
+	if p.RequireSymbol && !hasSymbol {
+		addFieldMessage(fields, FieldPassword, MessagePasswordSymbol)
+	}
+	return fields
+}
+
+func HashPassword(password string) (string, error) {
 	salt := make([]byte, passwordSaltBytes)
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("read password salt: %w", err)

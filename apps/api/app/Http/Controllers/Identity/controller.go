@@ -32,6 +32,7 @@ type Controller struct {
 type optionsResolver interface {
 	SiteName(ctx context.Context) (string, error)
 	WebOption(ctx context.Context, name string) (string, error)
+	PasswordPolicy(ctx context.Context) (identity.PasswordPolicy, error)
 }
 
 func NewController(service *identity.Service, sessions *session.Store) *Controller {

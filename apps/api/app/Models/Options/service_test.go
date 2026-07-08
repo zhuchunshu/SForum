@@ -73,6 +73,84 @@ func TestServiceForumOptionsArePublicWithRecommendedDefaults(t *testing.T) {
 	}
 }
 
+func TestServicePasswordPolicyOptionsArePublicWithRecommendedDefaults(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+
+	items, err := service.List(context.Background())
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+
+	if got := adminValueFromPublic(items, NameIdentityPasswordMinLength); got != "12" {
+		t.Fatalf("expected public min length default, got %q", got)
+	}
+	if got := adminValueFromPublic(items, NameIdentityPasswordMaxLength); got != "128" {
+		t.Fatalf("expected public max length default, got %q", got)
+	}
+	if got := adminValueFromPublic(items, NameIdentityPasswordRequireUppercase); got != "disabled" {
+		t.Fatalf("expected uppercase disabled default, got %q", got)
+	}
+}
+
+func TestServicePasswordPolicyOptionsValidation(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	actor := settingsActor()
+
+	updated, err := service.UpdateMany(context.Background(), actor, []UpdateInput{
+		{Name: NameIdentityPasswordMinLength, Value: "14"},
+		{Name: NameIdentityPasswordMaxLength, Value: "160"},
+		{Name: NameIdentityPasswordRequireLowercase, Value: "true"},
+		{Name: NameIdentityPasswordRequireNumber, Value: "enabled"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateMany returned error: %v", err)
+	}
+	if got := adminValue(updated, NameIdentityPasswordMinLength); got != "14" {
+		t.Fatalf("expected min length 14, got %q", got)
+	}
+	if got := adminValue(updated, NameIdentityPasswordRequireLowercase); got != "enabled" {
+		t.Fatalf("expected lowercase enabled, got %q", got)
+	}
+
+	cases := []UpdateInput{
+		{Name: NameIdentityPasswordMinLength, Value: "7"},
+		{Name: NameIdentityPasswordMinLength, Value: "129"},
+		{Name: NameIdentityPasswordMaxLength, Value: "63"},
+		{Name: NameIdentityPasswordMaxLength, Value: "513"},
+		{Name: NameIdentityPasswordRequireSymbol, Value: "sometimes"},
+	}
+	for _, input := range cases {
+		if _, err := service.Update(context.Background(), actor, input); !errors.Is(err, ErrInvalidOption) {
+			t.Fatalf("expected invalid password option for %#v, got %v", input, err)
+		}
+	}
+
+	if _, err := service.UpdateMany(context.Background(), actor, []UpdateInput{
+		{Name: NameIdentityPasswordMinLength, Value: "80"},
+		{Name: NameIdentityPasswordMaxLength, Value: "64"},
+	}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("expected max below min to be invalid, got %v", err)
+	}
+}
+
+func TestServiceResolvesPasswordPolicy(t *testing.T) {
+	store := &fakeStore{items: map[string]string{
+		NameIdentityPasswordMinLength:        "14",
+		NameIdentityPasswordMaxLength:        "160",
+		NameIdentityPasswordRequireUppercase: "enabled",
+		NameIdentityPasswordRequireSymbol:    "enabled",
+	}}
+	service := NewServiceWithCacheTTL(store, time.Minute)
+
+	policy, err := service.PasswordPolicy(context.Background())
+	if err != nil {
+		t.Fatalf("PasswordPolicy returned error: %v", err)
+	}
+	if policy.MinLength != 14 || policy.MaxLength != 160 || !policy.RequireUppercase || !policy.RequireSymbol {
+		t.Fatalf("unexpected policy: %#v", policy)
+	}
+}
+
 func TestServiceAdminListMasksSecrets(t *testing.T) {
 	store := &fakeStore{items: map[string]string{
 		NameAltchaSecret: "secret",

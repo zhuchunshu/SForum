@@ -13,16 +13,16 @@ import (
 // newResetFakeStore 构造一个预置用户的密码重置测试 store。
 func newResetFakeStore() *fakeStore {
 	store := &fakeStore{
-		nextUserID:   100,
-		users:        map[int64]CurrentUser{},
-		userEmails:   map[int64]string{},
-		credentials:  map[int64]string{},
-		loginIndex:   map[string]int64{},
-		roles:        map[string]Role{},
-		roleByID:     map[int64]Role{},
-		userRoleIDs:  map[int64][]int64{},
-		rolePerms:    map[int64][]string{},
-		userOverrides: map[int64]PermissionOverrides{},
+		nextUserID:         100,
+		users:              map[int64]CurrentUser{},
+		userEmails:         map[int64]string{},
+		credentials:        map[int64]string{},
+		loginIndex:         map[string]int64{},
+		roles:              map[string]Role{},
+		roleByID:           map[int64]Role{},
+		userRoleIDs:        map[int64][]int64{},
+		rolePerms:          map[int64][]string{},
+		userOverrides:      map[int64]PermissionOverrides{},
 		consumeResetUserID: 42,
 	}
 	store.users[42] = CurrentUser{ID: 42, Username: "alice", DisplayName: "Alice", Status: UserStatusActive}
@@ -110,8 +110,29 @@ func TestPasswordResetConfirmRejectsWeakPassword(t *testing.T) {
 	service := NewPasswordResetService(store, nil, PasswordResetConfig{})
 
 	err := service.ConfirmPasswordReset(context.Background(), ConfirmPasswordResetInput{Token: "some-token", NewPassword: "short"})
-	if !errors.Is(err, ErrPasswordDoesNotMeetPolicy) {
-		t.Fatalf("expected password policy error, got %v", err)
+	fields := registerInvalidFields(t, err)
+	if !fieldMessagesContain(fields, FieldPassword, MessagePasswordMin) {
+		t.Fatalf("expected password min policy error, got %#v", fields)
+	}
+}
+
+func TestPasswordResetConfirmUsesConfiguredPasswordPolicy(t *testing.T) {
+	store := newResetFakeStore()
+	service := NewPasswordResetServiceWithPasswordPolicy(store, nil, PasswordResetConfig{}, staticPasswordPolicyResolver{policy: PasswordPolicy{
+		MinLength:     8,
+		MaxLength:     64,
+		RequireSymbol: true,
+	}})
+
+	err := service.ConfirmPasswordReset(context.Background(), ConfirmPasswordResetInput{Token: "some-token", NewPassword: "longenough"})
+	fields := registerInvalidFields(t, err)
+	if !fieldMessagesContain(fields, FieldPassword, MessagePasswordSymbol) {
+		t.Fatalf("expected symbol policy error, got %#v", fields)
+	}
+
+	err = service.ConfirmPasswordReset(context.Background(), ConfirmPasswordResetInput{Token: "some-token", NewPassword: "long-enough!"})
+	if err != nil {
+		t.Fatalf("expected password reset to accept configured policy: %v", err)
 	}
 }
 

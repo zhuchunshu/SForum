@@ -21,12 +21,17 @@ const (
 	FieldPassword          = "password"
 	FieldHumanVerification = "humanVerification"
 
-	MessageUsernameRequired = "auth.username_required"
-	MessageEmailRequired    = "auth.email_required"
-	MessageEmailInvalid     = "auth.email_invalid"
-	MessagePasswordMin      = "auth.password_min_length"
-	MessageUsernameTaken    = "auth.username_taken"
-	MessageEmailTaken       = "auth.email_taken"
+	MessageUsernameRequired  = "auth.username_required"
+	MessageEmailRequired     = "auth.email_required"
+	MessageEmailInvalid      = "auth.email_invalid"
+	MessagePasswordMin       = "auth.password_min_length"
+	MessagePasswordMax       = "auth.password_max_length"
+	MessagePasswordLowercase = "auth.password_lowercase"
+	MessagePasswordUppercase = "auth.password_uppercase"
+	MessagePasswordNumber    = "auth.password_number"
+	MessagePasswordSymbol    = "auth.password_symbol"
+	MessageUsernameTaken     = "auth.username_taken"
+	MessageEmailTaken        = "auth.email_taken"
 )
 
 var (

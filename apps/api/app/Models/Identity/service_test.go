@@ -148,6 +148,38 @@ func TestRegisterRejectsInvalidFields(t *testing.T) {
 	}
 }
 
+func TestRegisterUsesConfiguredPasswordPolicy(t *testing.T) {
+	_, store := newTestService(t)
+	service := NewServiceWithPasswordPolicy(store, staticPasswordPolicyResolver{policy: PasswordPolicy{
+		MinLength:        8,
+		MaxLength:        64,
+		RequireUppercase: true,
+		RequireNumber:    true,
+	}})
+
+	err := service.ValidateRegister(context.Background(), RegisterInput{
+		Username: "alice",
+		Email:    "alice@example.com",
+		Password: "lowercaseonly",
+	})
+	fields := registerInvalidFields(t, err)
+	if !fieldMessagesContain(fields, FieldPassword, MessagePasswordUppercase) {
+		t.Fatalf("expected uppercase policy error, got %#v", fields)
+	}
+	if !fieldMessagesContain(fields, FieldPassword, MessagePasswordNumber) {
+		t.Fatalf("expected number policy error, got %#v", fields)
+	}
+
+	_, err = service.Register(context.Background(), RegisterInput{
+		Username: "alice",
+		Email:    "alice@example.com",
+		Password: "Alice123",
+	})
+	if err != nil {
+		t.Fatalf("expected password matching configured policy to register: %v", err)
+	}
+}
+
 func TestRegisterRejectsMissingEmail(t *testing.T) {
 	service, _ := newTestService(t)
 
@@ -367,6 +399,15 @@ func registerInvalidFields(t *testing.T, err error) FieldMessages {
 	return registerErr.Fields
 }
 
+type staticPasswordPolicyResolver struct {
+	policy PasswordPolicy
+	err    error
+}
+
+func (r staticPasswordPolicyResolver) PasswordPolicy(context.Context) (PasswordPolicy, error) {
+	return r.policy, r.err
+}
+
 func newTestService(t *testing.T) (*Service, *fakeStore) {
 	t.Helper()
 
@@ -408,21 +449,21 @@ func testContext(t *testing.T) context.Context {
 }
 
 type fakeStore struct {
-	mu                   sync.Mutex
-	nextUserID           int64
-	nextCustomID         int64
-	users                map[int64]CurrentUser
-	userEmails           map[int64]string
-	credentials          map[int64]string
-	loginIndex           map[string]int64
-	roles                map[string]Role
-	roleByID             map[int64]Role
-	userRoleIDs          map[int64][]int64
-	rolePerms            map[int64][]string
-	userOverrides        map[int64]PermissionOverrides
-	loginAudits          []LoginAudit
-	credentialErr        error
-	loadAccessErr        error
+	mu            sync.Mutex
+	nextUserID    int64
+	nextCustomID  int64
+	users         map[int64]CurrentUser
+	userEmails    map[int64]string
+	credentials   map[int64]string
+	loginIndex    map[string]int64
+	roles         map[string]Role
+	roleByID      map[int64]Role
+	userRoleIDs   map[int64][]int64
+	rolePerms     map[int64][]string
+	userOverrides map[int64]PermissionOverrides
+	loginAudits   []LoginAudit
+	credentialErr error
+	loadAccessErr error
 	// 密码重置测试钩子。
 	createdResetToken      CreatePasswordResetTokenInput
 	consumedResetTokenHash string

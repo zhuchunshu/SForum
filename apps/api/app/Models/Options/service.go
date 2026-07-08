@@ -32,6 +32,10 @@ const altchaWidgetWorkersMin = 1
 const altchaWidgetWorkersMax = 16
 const forumTagMaxPerTopicMin = 0
 const forumTagMaxPerTopicMax = 10
+const passwordMinLengthMin = 8
+const passwordMinLengthMax = 128
+const passwordMaxLengthMin = 64
+const passwordMaxLengthMax = 512
 const customAppearanceThemePrefix = "custom:"
 
 var builtInLocales = []string{localization.DefaultLocale, "en-US"}
@@ -118,6 +122,12 @@ var optionDefinitions = []optionDefinition{
 	{name: NameFooterCopyrightZHCN, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameFooterCopyrightENUS, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameFooterLinks, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameIdentityPasswordMinLength, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameIdentityPasswordMaxLength, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameIdentityPasswordRequireLowercase, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameIdentityPasswordRequireUppercase, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameIdentityPasswordRequireNumber, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameIdentityPasswordRequireSymbol, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameForumDefaultCategorySlug, public: true, managePermission: identity.PermissionCategoryManage},
 	{name: NameForumTagCreationMode, public: true, managePermission: identity.PermissionTagManage},
 	{name: NameForumTagPublicPages, public: true, managePermission: identity.PermissionTagManage},
@@ -304,6 +314,24 @@ func (s *Service) RuntimeSettings(ctx context.Context) (RuntimeSettings, error) 
 	}, nil
 }
 
+func (s *Service) PasswordPolicy(ctx context.Context) (identity.PasswordPolicy, error) {
+	values, err := s.loadMap(ctx)
+	if err != nil {
+		return identity.PasswordPolicy{}, err
+	}
+
+	minLength, _ := strictAtoi(values[NameIdentityPasswordMinLength])
+	maxLength, _ := strictAtoi(values[NameIdentityPasswordMaxLength])
+	return identity.PasswordPolicy{
+		MinLength:        minLength,
+		MaxLength:        maxLength,
+		RequireLowercase: isEnabledOption(values[NameIdentityPasswordRequireLowercase]),
+		RequireUppercase: isEnabledOption(values[NameIdentityPasswordRequireUppercase]),
+		RequireNumber:    isEnabledOption(values[NameIdentityPasswordRequireNumber]),
+		RequireSymbol:    isEnabledOption(values[NameIdentityPasswordRequireSymbol]),
+	}.Normalized(), nil
+}
+
 func (s *Service) InternalValues(ctx context.Context) (map[string]string, error) {
 	return s.loadMap(ctx)
 }
@@ -324,11 +352,11 @@ func (s *Service) MailOptions(ctx context.Context) (mail.RuntimeOptions, error) 
 		FromAddress: values[NameMailFromAddress],
 		FromName:    values[NameMailFromName],
 		SMTP: mail.SMTPConfig{
-			Host:       values[NameMailSMTPHost],
-			Port:       port,
-			Username:   values[NameMailSMTPUsername],
-			Password:   values[NameMailSMTPPassword],
-			Encryption: values[NameMailSMTPEncryption],
+			Host:        values[NameMailSMTPHost],
+			Port:        port,
+			Username:    values[NameMailSMTPUsername],
+			Password:    values[NameMailSMTPPassword],
+			Encryption:  values[NameMailSMTPEncryption],
 			FromAddress: values[NameMailFromAddress],
 			FromName:    values[NameMailFromName],
 		},
@@ -611,6 +639,7 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	if _, ok := normalizeFooterLinks(coerced[NameFooterLinks]); !ok {
 		coerced[NameFooterLinks] = defaults[NameFooterLinks]
 	}
+	coercePasswordPolicyOptions(coerced, defaults)
 	if _, ok := normalizeForumSlug(coerced[NameForumDefaultCategorySlug]); !ok {
 		coerced[NameForumDefaultCategorySlug] = defaults[NameForumDefaultCategorySlug]
 	}
@@ -671,6 +700,28 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	return coerced
 }
 
+func coercePasswordPolicyOptions(coerced, defaults map[string]string) {
+	if _, ok := parseBoundedInt(coerced[NameIdentityPasswordMinLength], passwordMinLengthMin, passwordMinLengthMax); !ok {
+		coerced[NameIdentityPasswordMinLength] = defaults[NameIdentityPasswordMinLength]
+	}
+	if _, ok := parseBoundedInt(coerced[NameIdentityPasswordMaxLength], passwordMaxLengthMin, passwordMaxLengthMax); !ok {
+		coerced[NameIdentityPasswordMaxLength] = defaults[NameIdentityPasswordMaxLength]
+	}
+	minLength, minOK := strictAtoi(coerced[NameIdentityPasswordMinLength])
+	maxLength, maxOK := strictAtoi(coerced[NameIdentityPasswordMaxLength])
+	if !minOK || !maxOK || maxLength < minLength {
+		coerced[NameIdentityPasswordMinLength] = defaults[NameIdentityPasswordMinLength]
+		coerced[NameIdentityPasswordMaxLength] = defaults[NameIdentityPasswordMaxLength]
+	}
+	for _, name := range passwordPolicyBooleanOptionNames() {
+		if value, ok := normalizeEnabledOption(coerced[name]); ok {
+			coerced[name] = value
+		} else {
+			coerced[name] = defaults[name]
+		}
+	}
+}
+
 // coerceMailOptions 确保邮件选项始终落在推荐默认值上，避免无效 provider/encryption。
 func coerceMailOptions(coerced, defaults map[string]string) {
 	if value, ok := normalizeMailProvider(coerced[NameMailProvider]); ok {
@@ -725,6 +776,12 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameFooterCopyrightZHCN:              "© {year} {siteName}。保留所有权利。",
 		NameFooterCopyrightENUS:              "© {year} {siteName}. All rights reserved.",
 		NameFooterLinks:                      defaultFooterLinksValue(),
+		NameIdentityPasswordMinLength:        strconv.Itoa(identity.RecommendedPasswordMinLength),
+		NameIdentityPasswordMaxLength:        strconv.Itoa(identity.RecommendedPasswordMaxLength),
+		NameIdentityPasswordRequireLowercase: enabledOptionValue(false),
+		NameIdentityPasswordRequireUppercase: enabledOptionValue(false),
+		NameIdentityPasswordRequireNumber:    enabledOptionValue(false),
+		NameIdentityPasswordRequireSymbol:    enabledOptionValue(false),
 		NameForumDefaultCategorySlug:         "general",
 		NameForumTagCreationMode:             "controlled",
 		NameForumTagPublicPages:              enabledOptionValue(true),
@@ -915,6 +972,12 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeFooterCopyright(value)
 	case NameFooterLinks:
 		return normalizeFooterLinks(value)
+	case NameIdentityPasswordMinLength:
+		return normalizeBoundedInt(value, passwordMinLengthMin, passwordMinLengthMax)
+	case NameIdentityPasswordMaxLength:
+		return normalizeBoundedInt(value, passwordMaxLengthMin, passwordMaxLengthMax)
+	case NameIdentityPasswordRequireLowercase, NameIdentityPasswordRequireUppercase, NameIdentityPasswordRequireNumber, NameIdentityPasswordRequireSymbol:
+		return normalizeEnabledOption(value)
 	case NameForumDefaultCategorySlug:
 		return normalizeForumSlug(value)
 	case NameForumTagCreationMode:
@@ -1082,6 +1145,16 @@ func isValidValueSet(values map[string]string) bool {
 	}
 	if _, ok := normalizeFooterLinks(values[NameFooterLinks]); !ok {
 		return false
+	}
+	minLength, minOK := parseBoundedInt(values[NameIdentityPasswordMinLength], passwordMinLengthMin, passwordMinLengthMax)
+	maxLength, maxOK := parseBoundedInt(values[NameIdentityPasswordMaxLength], passwordMaxLengthMin, passwordMaxLengthMax)
+	if !minOK || !maxOK || maxLength < minLength {
+		return false
+	}
+	for _, name := range passwordPolicyBooleanOptionNames() {
+		if _, ok := normalizeEnabledOption(values[name]); !ok {
+			return false
+		}
 	}
 	if _, ok := normalizeForumSlug(values[NameForumDefaultCategorySlug]); !ok {
 		return false
@@ -1473,6 +1546,15 @@ func seoEnabledOptionNames() []string {
 		NameSEOSchemaOrgEnabled,
 		NameSEOSchemaOrgSearchAction,
 		NameSEOSchemaOrgDiscussion,
+	}
+}
+
+func passwordPolicyBooleanOptionNames() []string {
+	return []string{
+		NameIdentityPasswordRequireLowercase,
+		NameIdentityPasswordRequireUppercase,
+		NameIdentityPasswordRequireNumber,
+		NameIdentityPasswordRequireSymbol,
 	}
 }
 

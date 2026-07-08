@@ -26,19 +26,27 @@ type PasswordResetConfig struct {
 
 // PasswordResetService 协调密码重置：生成令牌、投递邮件、校验与消费令牌、更新密码。
 type PasswordResetService struct {
-	store     Store
-	mailer    *mail.Service
-	config    PasswordResetConfig
+	store            Store
+	mailer           *mail.Service
+	config           PasswordResetConfig
+	passwordPolicies PasswordPolicyResolver
 }
 
 func NewPasswordResetService(store Store, mailer *mail.Service, config PasswordResetConfig) *PasswordResetService {
+	return NewPasswordResetServiceWithPasswordPolicy(store, mailer, config, nil)
+}
+
+func NewPasswordResetServiceWithPasswordPolicy(store Store, mailer *mail.Service, config PasswordResetConfig, resolver PasswordPolicyResolver) *PasswordResetService {
 	if config.TokenLifetime <= 0 {
 		config.TokenLifetime = 30 * time.Minute
 	}
 	if config.ResetPathBase == "" {
 		config.ResetPathBase = "/reset-password?token="
 	}
-	return &PasswordResetService{store: store, mailer: mailer, config: config}
+	if resolver == nil {
+		resolver = staticRecommendedPasswordPolicy{}
+	}
+	return &PasswordResetService{store: store, mailer: mailer, config: config, passwordPolicies: resolver}
 }
 
 // RequestPasswordResetInput 是发起密码重置的入参。
@@ -115,6 +123,13 @@ func (s *PasswordResetService) ConfirmPasswordReset(ctx context.Context, input C
 	token := strings.TrimSpace(input.Token)
 	if token == "" {
 		return ErrPasswordResetTokenNotFound
+	}
+	policy, err := s.passwordPolicies.PasswordPolicy(ctx)
+	if err != nil {
+		return err
+	}
+	if fields := policy.Validate(input.NewPassword); len(fields) > 0 {
+		return NewRegisterInvalid(fields)
 	}
 	hash := hashResetToken(token)
 	userID, err := s.store.ConsumePasswordResetToken(ctx, hash)

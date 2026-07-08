@@ -73,11 +73,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 
 	pool, err := postgres.NewPoolWithOptions(ctx, cfg.DatabaseURL, postgres.PoolOptions{
-		MaxConns:          cfg.DatabaseMaxConns,
-		MinConns:          cfg.DatabaseMinConns,
-		MaxConnIdleTime:   cfg.DatabaseMaxConnIdleTime,
-		MaxConnLifetime:   cfg.DatabaseMaxConnLifetime,
-		ConnectTimeout:    cfg.DatabaseConnectTimeout,
+		MaxConns:        cfg.DatabaseMaxConns,
+		MinConns:        cfg.DatabaseMinConns,
+		MaxConnIdleTime: cfg.DatabaseMaxConnIdleTime,
+		MaxConnLifetime: cfg.DatabaseMaxConnLifetime,
+		ConnectTimeout:  cfg.DatabaseConnectTimeout,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("postgres setup failed: %w", err)
@@ -189,10 +189,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	mailService := mail.NewService(optionsService, logger)
 	siteName, _ := optionsService.SiteName(ctx)
 	siteURL, _ := optionsService.WebOption(ctx, "site.url")
-	passwordResetService := identity.NewPasswordResetService(identityStore, mailService, identity.PasswordResetConfig{
+	passwordResetService := identity.NewPasswordResetServiceWithPasswordPolicy(identityStore, mailService, identity.PasswordResetConfig{
 		SiteName: siteName,
 		SiteURL:  siteURL,
-	})
+	}, optionsService)
 	identityProvider := providers.NewIdentityProviderWithPasswordReset(identityStore, authSessions, humanVerifier, extensionRuntime, passwordResetService, mailService, optionsService)
 	adminOverviewProvider := providers.NewAdminOverviewProvider(adminOverviewStore, adminoverview.NewRuntimeCollector(time.Now().UTC(), pool), identityStore, authSessions)
 	// 搜索：API 进程持有只入队的 indexer（EnqueueIndex/EnqueueDelete）和查询用的 search service。

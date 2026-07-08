@@ -13,8 +13,9 @@ import (
 )
 
 type Service struct {
-	store  Store
-	events appevents.Publisher
+	store            Store
+	events           appevents.Publisher
+	passwordPolicies PasswordPolicyResolver
 }
 
 func NewService(store Store) *Service {
@@ -22,7 +23,32 @@ func NewService(store Store) *Service {
 }
 
 func NewServiceWithEvents(store Store, publisher appevents.Publisher) *Service {
-	return &Service{store: store, events: appevents.EnsurePublisher(publisher)}
+	return NewServiceWithEventsAndPasswordPolicy(store, publisher, nil)
+}
+
+func NewServiceWithPasswordPolicy(store Store, resolver PasswordPolicyResolver) *Service {
+	return NewServiceWithEventsAndPasswordPolicy(store, nil, resolver)
+}
+
+func NewServiceWithEventsAndPasswordPolicy(store Store, publisher appevents.Publisher, resolver PasswordPolicyResolver) *Service {
+	if resolver == nil {
+		resolver = staticRecommendedPasswordPolicy{}
+	}
+	return &Service{
+		store:            store,
+		events:           appevents.EnsurePublisher(publisher),
+		passwordPolicies: resolver,
+	}
+}
+
+type PasswordPolicyResolver interface {
+	PasswordPolicy(ctx context.Context) (PasswordPolicy, error)
+}
+
+type staticRecommendedPasswordPolicy struct{}
+
+func (staticRecommendedPasswordPolicy) PasswordPolicy(context.Context) (PasswordPolicy, error) {
+	return RecommendedPasswordPolicy(), nil
 }
 
 type RegisterInput struct {
@@ -49,7 +75,11 @@ func (s *Service) RegistrationStatus(ctx context.Context) (RegistrationStatus, e
 
 func (s *Service) ValidateRegister(ctx context.Context, input RegisterInput) error {
 	normalized := normalizeRegisterInput(input)
-	fields := validateRegisterInput(normalized.Username, normalized.Email, input.Password)
+	policy, err := s.passwordPolicies.PasswordPolicy(ctx)
+	if err != nil {
+		return err
+	}
+	fields := validateRegisterInput(normalized.Username, normalized.Email, input.Password, policy)
 	if len(fields) > 0 {
 		return NewRegisterInvalid(fields)
 	}
@@ -67,7 +97,11 @@ func (s *Service) ValidateRegister(ctx context.Context, input RegisterInput) err
 func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUser, error) {
 	normalized := normalizeRegisterInput(input)
 
-	fields := validateRegisterInput(normalized.Username, normalized.Email, input.Password)
+	policy, err := s.passwordPolicies.PasswordPolicy(ctx)
+	if err != nil {
+		return CurrentUser{}, err
+	}
+	fields := validateRegisterInput(normalized.Username, normalized.Email, input.Password, policy)
 	if len(fields) > 0 {
 		return CurrentUser{}, NewRegisterInvalid(fields)
 	}
@@ -177,7 +211,7 @@ func normalizeRegisterInput(input RegisterInput) normalizedRegisterInput {
 	}
 }
 
-func validateRegisterInput(username string, email string, password string) FieldMessages {
+func validateRegisterInput(username string, email string, password string, policy PasswordPolicy) FieldMessages {
 	fields := FieldMessages{}
 	if username == "" {
 		addFieldMessage(fields, FieldUsername, MessageUsernameRequired)
@@ -187,8 +221,8 @@ func validateRegisterInput(username string, email string, password string) Field
 	} else if !isValidEmail(email) {
 		addFieldMessage(fields, FieldEmail, MessageEmailInvalid)
 	}
-	if len([]rune(password)) < 12 {
-		addFieldMessage(fields, FieldPassword, MessagePasswordMin)
+	for field, messages := range policy.Validate(password) {
+		fields[field] = append(fields[field], messages...)
 	}
 	return fields
 }

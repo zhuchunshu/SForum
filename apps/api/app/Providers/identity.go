@@ -39,7 +39,7 @@ func NewIdentityProviderWithEvents(store identity.Store, sessions *authsession.M
 // NewIdentityProviderWithPasswordReset 注入密码重置与邮件服务。
 func NewIdentityProviderWithPasswordReset(store identity.Store, sessions *authsession.Manager, verifier humanverify.Verifier, publisher appevents.Publisher, passwordReset *identity.PasswordResetService, mailService *mail.Service, options optionsResolver) *IdentityProvider {
 	return &IdentityProvider{
-		controller: identitycontroller.NewControllerWithPasswordReset(identity.NewServiceWithEvents(store, publisher), sessions, verifier, passwordReset, mailService, options),
+		controller: identitycontroller.NewControllerWithPasswordReset(identity.NewServiceWithEventsAndPasswordPolicy(store, publisher, options), sessions, verifier, passwordReset, mailService, options),
 	}
 }
 
@@ -47,6 +47,7 @@ func NewIdentityProviderWithPasswordReset(store identity.Store, sessions *authse
 type optionsResolver interface {
 	SiteName(ctx context.Context) (string, error)
 	WebOption(ctx context.Context, name string) (string, error)
+	PasswordPolicy(ctx context.Context) (identity.PasswordPolicy, error)
 }
 
 func (p *IdentityProvider) RegisterRoutes(api fiber.Router) {
