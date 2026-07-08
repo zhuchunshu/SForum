@@ -9,6 +9,7 @@ type RegistrationStatus = {
 }
 
 const { t, locale } = useI18n()
+const toast = useToast()
 const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
 const { apiBaseUrl, request } = useApiClient()
@@ -63,6 +64,16 @@ const isBootstrapRegistration = computed(() => registrationStatus.value?.nextUse
 useSeoMeta({
   title: t('auth.registerTitle')
 })
+
+function registerSuccessTitle() {
+  const title = t('auth.registerSuccess')
+  if (title !== 'auth.registerSuccess') {
+    return title
+  }
+  return locale.value.toLowerCase().startsWith('en')
+    ? 'Registration successful. Welcome aboard.'
+    : '注册成功，欢迎加入。'
+}
 
 function handleAltchaVerified(event: Event) {
   const detail = (event as CustomEvent<{ payload?: string }>).detail
@@ -143,6 +154,12 @@ async function submitRegister() {
   }
 
   setUser(currentUser)
+  toast.add({
+    color: 'success',
+    icon: 'i-lucide-check',
+    title: registerSuccessTitle(),
+    duration: 10000
+  })
   await navigateTo(can('admin.access') ? adminRoutes.path('/') : localePath('/'))
 }
 </script>

@@ -609,7 +609,19 @@ function buildCustomThemeVars(color: string): Record<string, string> {
     '--sf-primary-700': hover,
     '--sf-primary-800': mixHex(accent, '#000000', 0.3),
     '--sf-primary-900': mixHex(accent, '#000000', 0.45),
-    '--sf-primary-950': mixHex(accent, '#000000', 0.62)
+    '--sf-primary-950': mixHex(accent, '#000000', 0.62),
+    // Nuxt UI 的 success 色槽用于成功 Toast，保持与当前外观主色一致。
+    '--ui-color-success-50': 'var(--sf-primary-50)',
+    '--ui-color-success-100': 'var(--sf-primary-100)',
+    '--ui-color-success-200': 'var(--sf-primary-200)',
+    '--ui-color-success-300': 'var(--sf-primary-300)',
+    '--ui-color-success-400': 'var(--sf-primary-400)',
+    '--ui-color-success-500': 'var(--sf-primary-500)',
+    '--ui-color-success-600': 'var(--sf-primary-600)',
+    '--ui-color-success-700': 'var(--sf-primary-700)',
+    '--ui-color-success-800': 'var(--sf-primary-800)',
+    '--ui-color-success-900': 'var(--sf-primary-900)',
+    '--ui-color-success-950': 'var(--sf-primary-950)'
   }
 }
 

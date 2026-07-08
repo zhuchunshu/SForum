@@ -73,7 +73,7 @@ export default defineNuxtConfig({
   nitro: {
     // 静态资源（带 hash 的 _nuxt 文件）压缩为 brotli + gzip。
     compressPublicAssets: { brotli: true, gzip: true },
-    // 路由级渲染模式与缓存：公开内容页走 stale-while-revalidate，表单/管理页走 SPA。
+    // 路由级渲染模式与缓存：公开内容页走 stale-while-revalidate，登录/注册保持 SSR 避免空壳白屏。
     // i18n strategy=prefix_except_default，zh-CN 无前缀，en 带前缀，需同时覆盖两套路径。
     routeRules: {
       // 公开内容页：短到中等 swr，命中缓存的同时保持最终一致。
@@ -87,15 +87,8 @@ export default defineNuxtConfig({
       '/en/u/**': { swr: 3600 },
       '/t/**': { swr: 60 },
       '/en/t/**': { swr: 60 },
-      // 表单/认证/设置页：纯 SPA，无需 SSR 开销，也无需 SEO。
-      '/login': { ssr: false },
-      '/en/login': { ssr: false },
-      '/register': { ssr: false },
-      '/en/register': { ssr: false },
-      '/forgot-password': { ssr: false },
-      '/en/forgot-password': { ssr: false },
-      '/reset-password': { ssr: false },
-      '/en/reset-password': { ssr: false },
+      // 登录/注册/密码找回页保持 SSR，这样 JS 尚未执行时也能先显示表单。
+      // 设置页、发帖页和编辑页依赖登录态与交互状态，继续作为 SPA。
       '/settings/**': { ssr: false },
       '/en/settings/**': { ssr: false },
       '/topics/new': { ssr: false },

@@ -58,7 +58,20 @@
   --ui-color-primary-800: var(--sf-primary-800);
   --ui-color-primary-900: var(--sf-primary-900);
   --ui-color-primary-950: var(--sf-primary-950);
+  /* Nuxt UI 的 success 色主要用于成功 Toast，跟随后台外观主色。 */
+  --ui-color-success-50: var(--sf-primary-50);
+  --ui-color-success-100: var(--sf-primary-100);
+  --ui-color-success-200: var(--sf-primary-200);
+  --ui-color-success-300: var(--sf-primary-300);
+  --ui-color-success-400: var(--sf-primary-400);
+  --ui-color-success-500: var(--sf-primary-500);
+  --ui-color-success-600: var(--sf-primary-600);
+  --ui-color-success-700: var(--sf-primary-700);
+  --ui-color-success-800: var(--sf-primary-800);
+  --ui-color-success-900: var(--sf-primary-900);
+  --ui-color-success-950: var(--sf-primary-950);
   --ui-primary: var(--ui-color-primary-500);
+  --ui-success: var(--ui-color-success-500);
 
   /* 后台定制：浅色模式 */
   --bg-admin-sidebar: #ffffff; /* White Sidebar */
@@ -90,6 +103,7 @@
   --border-admin: rgba(39, 39, 42, 0.8); /* zinc 800 半透明 */
   --text-admin-main: #f4f4f5;
   --ui-primary: var(--ui-color-primary-400);
+  --ui-success: var(--ui-color-success-400);
 }
 
 html[data-sforum-theme="ocean_blue"] {

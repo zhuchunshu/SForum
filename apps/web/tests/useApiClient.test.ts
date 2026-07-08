@@ -152,6 +152,21 @@ describe('register page submit guard', () => {
     expect(page.sessionUser()?.username).toBe('codex')
   })
 
+  test('shows a success toast after successful registration', async () => {
+    const page = await loadRegisterPageForSubmitTest()
+
+    const submit = page.context.submitRegister()
+    page.resolveRegister()
+    await submit
+
+    expect(page.toasts()).toContainEqual(expect.objectContaining({
+      color: 'success',
+      icon: 'i-lucide-check',
+      title: '注册成功，欢迎加入。',
+      duration: 10000
+    }))
+  })
+
   test('marks session unavailable errors for login guidance', async () => {
     const page = await loadRegisterPageForSubmitTest({
       registerError: {
@@ -181,10 +196,28 @@ describe('login page navigation', () => {
     expect(page.sessionUser()?.username).toBe('admin')
     expect(page.navigations()).toEqual(['/control-panel'])
   })
+
+  test('shows a success toast after successful login', async () => {
+    const page = await loadLoginPageForSubmitTest()
+
+    await page.context.submitLogin()
+
+    expect(page.toasts()).toContainEqual(expect.objectContaining({
+      color: 'success',
+      icon: 'i-lucide-check',
+      title: '登录成功，欢迎回来。',
+      duration: 10000
+    }))
+  })
 })
 
+const defaultThemePagesUrl = new URL(
+  '../../../extensions/builtin/themes/sforum-default/layer/app/pages/',
+  import.meta.url
+)
+
 async function loadRegisterPageForSubmitTest(options: { registerError?: unknown } = {}) {
-  const source = readFileSync(new URL('../app/pages/register.vue', import.meta.url), 'utf8')
+  const source = readFileSync(new URL('register.vue', defaultThemePagesUrl), 'utf8')
   const { descriptor } = parse(source, { filename: 'register.vue' })
   const compiled = compileScript(descriptor, { id: 'register-submit-test' }).content
   const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'browser' })
@@ -196,6 +229,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
     .replace(/export default /, 'return ')
 
   const requests: Array<{ path: string, options?: unknown }> = []
+  const toasts: unknown[] = []
   let sessionUser: { username?: string } | null = null
   let resolveRegister: (value?: unknown) => void = () => {}
 
@@ -216,6 +250,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
     '__vue',
     'definePageMeta',
     'useI18n',
+    'useToast',
     'useLocalePath',
     'useRuntimeConfig',
     'useAdminRoutes',
@@ -240,6 +275,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
     },
     () => {},
     () => ({ t: (key: string) => key, locale: ref('zh-CN') }),
+    () => ({ add: (toast: unknown) => toasts.push(toast) }),
     () => (path: string) => path,
     () => ({ public: { humanVerificationProvider: 'disabled' } }),
     () => ({ path: (path: string) => `/control-panel${path}` }),
@@ -267,12 +303,13 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
     context,
     registerRequests: () => requests.filter((request) => request.path === '/auth/register'),
     resolveRegister: () => resolveRegister({ username: 'codex' }),
-    sessionUser: () => sessionUser
+    sessionUser: () => sessionUser,
+    toasts: () => toasts
   }
 }
 
 async function loadLoginPageForSubmitTest() {
-  const source = readFileSync(new URL('../app/pages/login.vue', import.meta.url), 'utf8')
+  const source = readFileSync(new URL('login.vue', defaultThemePagesUrl), 'utf8')
   const { descriptor } = parse(source, { filename: 'login.vue' })
   const compiled = compileScript(descriptor, { id: 'login-submit-test' }).content
   const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'browser' })
@@ -285,6 +322,7 @@ async function loadLoginPageForSubmitTest() {
 
   const requests: Array<{ path: string, options?: unknown }> = []
   const navigations: string[] = []
+  const toasts: unknown[] = []
   let sessionUser: { username?: string, roleKeys?: string[], permissions?: string[] } | null = null
 
   const request = (path: string, requestOptions?: unknown) => {
@@ -300,6 +338,7 @@ async function loadLoginPageForSubmitTest() {
     '__vue',
     'definePageMeta',
     'useI18n',
+    'useToast',
     'useLocalePath',
     'useAdminRoutes',
     'useApiClient',
@@ -317,7 +356,8 @@ async function loadLoginPageForSubmitTest() {
       defineComponent: (options: unknown) => options
     },
     () => {},
-    () => ({ t: (key: string) => key }),
+    () => ({ t: (key: string) => key, locale: ref('zh-CN') }),
+    () => ({ add: (toast: unknown) => toasts.push(toast) }),
     () => (path: string) => path,
     () => ({ path: (path: string) => path === '/' ? '/control-panel' : `/control-panel${path}` }),
     () => ({ request }),
@@ -347,6 +387,7 @@ async function loadLoginPageForSubmitTest() {
     context,
     loginRequests: () => requests.filter((request) => request.path === '/auth/login'),
     navigations: () => navigations,
-    sessionUser: () => sessionUser
+    sessionUser: () => sessionUser,
+    toasts: () => toasts
   }
 }

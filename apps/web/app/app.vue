@@ -13,14 +13,24 @@ const startupOptionsTimeout = import.meta.dev ? 800 : 2000
 // 引入页签缓存控制列表
 const { cachedTabNames } = useAdminTabs()
 
-await useAsyncData('app-startup', async () => {
+async function refreshStartupState() {
   // 开发热重载时 API 可能还在编译，首屏先使用本地默认状态。
   await Promise.all([
     refreshWebOptions({ timeout: startupOptionsTimeout }).catch(() => null),
     refreshAuthSession({ timeout: startupOptionsTimeout })
   ])
   return true
-})
+}
+
+if (import.meta.server) {
+  await useAsyncData('app-startup', refreshStartupState)
+} else {
+  // 认证页和设置页是 SPA，客户端启动刷新不能挡住第一屏挂载。
+  void useAsyncData('app-startup', refreshStartupState, {
+    server: false,
+    lazy: true
+  })
+}
 
 useHead(() => {
   const htmlAttrs: Record<string, string | undefined> = {

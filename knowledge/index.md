@@ -82,9 +82,11 @@ This is the entry point for project memory.
   repeating tab/menu metadata.
 - The admin personalization page remains on `/personalization`, but its
   sidebar entry now lives inside the System configuration folder.
-- Admin UI feedback guidelines now require non-error alerts/toasts to support
-  10-second auto-dismiss behavior, while error feedback remains visible until
-  user dismissal or resolution.
+- UI feedback guidelines now favor Toasts for user-triggered success,
+  completion, copy, upload, export, reset, queued-job, and authentication
+  success states. Non-error alerts/toasts support 10-second auto-dismiss
+  behavior, while blocking errors and field-level validation remain visible
+  until user dismissal or resolution.
 - The public forum navbar no longer shows an admin entry in the logged-in user
   dropdown, avoiding direct exposure of the configurable admin route prefix.
 - The public forum navbar now has a client-rendered Light/Dark mode toggle
@@ -520,6 +522,9 @@ This is the entry point for project memory.
   renderer/sanitizer, routes, OpenAPI, and tree comment model handoff.
 - `sessions/2026-07-08-seed-forum-command.md` - `sforum seed:forum` 假数据生成
   命令（用户/主题/评论）实现、用法、性能实测与端到端验证 handoff。
+- `sessions/2026-07-08-auth-success-toast-guideline.md` - login/register
+  success Toasts, auth page test harness path fix, theme-aware success Toast
+  styling, and broader frontend Toast feedback guideline.
 - `../docs/superpowers/specs/2026-07-05-global-footer-design.md` - global footer design spec.
 - `../docs/superpowers/plans/2026-07-05-global-footer.md` - global footer implementation plan.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -

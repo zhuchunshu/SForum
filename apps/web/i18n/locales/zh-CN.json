@@ -83,6 +83,8 @@
     "loginName": "用户名 / 邮箱",
     "submitRegister": "创建账号",
     "submitLogin": "登录",
+    "registerSuccess": "注册成功，欢迎加入。",
+    "loginSuccess": "登录成功，欢迎回来。",
     "registering": "注册中…",
     "loggingIn": "登录中…",
     "haveAccount": "已有账号？",

@@ -105,11 +105,18 @@ messages next to username, email, password, and human verification while keeping
 login failures as a single actionable top-level message.
 The registration password input now always shows the current rule
 (`>= 12` characters) before submission. Login and registration success handlers
-store the `CurrentUser` returned by the API directly before navigating, so a
-successful account creation is not reclassified as a form failure if a later
-refresh/navigation step has trouble. `useApiClient()` reads locale from the
-Nuxt app i18n runtime instead of calling `useI18n()`, keeping it safe for route
-middleware such as the admin guard.
+store the `CurrentUser` returned by the API directly, show a 10-second success
+Toast, then navigate, so a successful account creation is not reclassified as a
+form failure if a later refresh/navigation step has trouble. `useApiClient()`
+reads locale from the Nuxt app i18n runtime instead of calling `useI18n()`,
+keeping it safe for route middleware such as the admin guard.
+Login, registration, forgot-password, and reset-password pages now remain
+server-rendered instead of SPA-only. The root app still waits for startup web
+options/auth refresh during SSR, but client startup refresh runs lazily so
+`ssr: false` routes such as settings, posting, editing, and admin screens do
+not hold the first client render behind API calls. This prevents public auth
+pages from serving an empty `#__nuxt` shell and showing a white screen while
+the client bundle or startup refresh is still pending.
 Admin pages use a dedicated `admin` Nuxt layout built from Nuxt UI Dashboard
 components (`UDashboardGroup`, `UDashboardSidebar`, `UDashboardPanel`,
 `UDashboardNavbar`, `UDashboardToolbar`) and Nuxt Icon lucide icons. The source
@@ -148,9 +155,15 @@ route-backed custom admin tabs. The admin layout creates a temporary tab from
 the route when needed, activates existing custom tabs on route changes, and
 keeps the Extensions sidebar folder open/active for those dynamic pages until
 the page component replaces the temporary label with manifest metadata.
-Admin alert/toast feedback should auto-dismiss after 10 seconds for non-error
-states. Error feedback remains visible until users dismiss it or resolve the
-blocking issue.
+UI feedback should favor Toasts for user-triggered success and completion
+states: authentication success, create/update/delete success, saved settings,
+restored defaults, uploads, exports, copied values, queued jobs, and similar
+actions should normally show a short Toast. Non-error alerts/toasts should
+auto-dismiss after 10 seconds. Blocking errors, field-level validation, and
+guidance the user must act on should remain visible near the relevant form or
+page state; error Toasts may be used for non-blocking failures but must not
+replace field-level messages or auto-close. Success Toast styling should follow
+the active SForum appearance/theme tokens and admin personalization settings.
 The public forum navbar user dropdown no longer exposes the admin entry link,
 so the configurable admin prefix is not revealed from the regular logged-in UI.
 The public forum navbar now includes a client-rendered Light/Dark mode toggle
@@ -173,7 +186,10 @@ controlled `custom:#rrggbb` colors, and the admin personalization page edits
 the appearance preset plus footer copyright/link content. Nuxt UI's generated
 `--ui-color-primary-*` and `--ui-primary` tokens are bridged to the same
 runtime variables so admin sidebar highlights and `color="primary"` controls do
-not keep Nuxt UI's default green.
+not keep Nuxt UI's default green. Nuxt UI's `success` token family is also
+bridged to the active SForum primary color so success Toasts and other
+`color="success"` UI feedback follow the selected appearance preset/custom
+color.
 Recommended personalization defaults are shared from `useWebOptions()`:
 `appearance.theme=pine_teal`, the default bilingual footer copyright, and the
 Terms/Privacy/Guidelines footer links. The personalization reset action restores

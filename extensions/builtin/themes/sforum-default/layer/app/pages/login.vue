@@ -3,7 +3,8 @@ import type { CurrentUser } from '~/composables/useAuthSession'
 
 definePageMeta({ layout: 'auth' })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const toast = useToast()
 const localePath = useLocalePath()
 const adminRoutes = useAdminRoutes()
 const { request } = useApiClient()
@@ -20,6 +21,16 @@ const errorMessage = ref('')
 useSeoMeta({
   title: t('auth.loginTitle')
 })
+
+function loginSuccessTitle() {
+  const title = t('auth.loginSuccess')
+  if (title !== 'auth.loginSuccess') {
+    return title
+  }
+  return locale.value.toLowerCase().startsWith('en')
+    ? 'Signed in successfully. Welcome back.'
+    : '登录成功，欢迎回来。'
+}
 
 async function submitLogin() {
   errorMessage.value = ''
@@ -42,6 +53,12 @@ async function submitLogin() {
   }
 
   setUser(currentUser)
+  toast.add({
+    color: 'success',
+    icon: 'i-lucide-check',
+    title: loginSuccessTitle(),
+    duration: 10000
+  })
   await navigateTo(can('admin.access') ? adminRoutes.path('/') : localePath('/'))
 }
 </script>

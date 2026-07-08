@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 
 import {
   buildCustomAppearanceThemeValue,
@@ -34,6 +35,16 @@ describe('appearance theme helpers', () => {
     expect(resolved.cssVars['--sf-accent']).toBe('#4f46e5')
     expect(resolved.cssVars['--sf-accent-rgb']).toBe('79 70 229')
     expect(resolved.style).toContain('--sf-primary-500: #4f46e5')
+    expect(resolved.cssVars['--ui-color-success-500']).toBe('var(--sf-primary-500)')
+  })
+
+  test('bridges Nuxt UI success tokens to the active SForum theme color', () => {
+    const css = readFileSync(new URL('../app/assets/css/main.css', import.meta.url), 'utf8')
+
+    expect(css).toContain('--ui-color-success-500: var(--sf-primary-500);')
+    expect(css).toContain('--ui-color-success-400: var(--sf-primary-400);')
+    expect(css).toContain('--ui-success: var(--ui-color-success-500);')
+    expect(css).toContain('--ui-success: var(--ui-color-success-400);')
   })
 
   test('exports recommended personalization defaults', () => {

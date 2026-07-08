@@ -83,6 +83,8 @@
     "loginName": "Username or email",
     "submitRegister": "Create account",
     "submitLogin": "Log in",
+    "registerSuccess": "Registration successful. Welcome aboard.",
+    "loginSuccess": "Signed in successfully. Welcome back.",
     "registering": "Creating account…",
     "loggingIn": "Logging in…",
     "haveAccount": "Already have an account?",

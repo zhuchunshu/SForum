@@ -119,9 +119,20 @@ future generated clients. Keep it modular as the product surface grows.
 - Do not use emoji as UI icons, decorative symbols, status markers, or action indicators.
 - Use icons from an icon library whenever an icon is needed. Current approved choices are Tabler Icons and Nuxt Icon.
 - Prefer the project's existing icon integration before adding a new icon package. Do not hand-roll inline SVG icons when an approved library icon exists.
-- Admin alerts and toast-style feedback must support automatic dismissal after
-  10 seconds for non-error states. Error alerts must not auto-close; keep them
-  visible until the user dismisses them or resolves the blocking issue.
+- Use Toast feedback generously for user-triggered actions that succeed,
+  complete, start a background task, copy data, reset settings, or save
+  changes. Authentication success, create/update/delete success, restore
+  defaults, uploads, exports, and queued jobs should normally show a Toast.
+- Toast success styling must follow the active SForum appearance/theme tokens
+  and admin personalization settings instead of Nuxt UI's default success
+  green.
+- Keep blocking errors, field-level validation, and guidance that the user must
+  read next to the relevant form or page state. Error Toasts are appropriate for
+  non-blocking operation failures, but must not replace field-level messages.
+- Alerts and toast-style feedback must support automatic dismissal after 10
+  seconds for non-error states. Error alerts and error Toasts must not
+  auto-close; keep them visible until the user dismisses them or resolves the
+  blocking issue.
 
 ## AI Working Discipline
 
