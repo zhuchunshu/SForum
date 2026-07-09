@@ -10,6 +10,10 @@ import http from 'node:http'
 import net from 'node:net'
 
 const DEFAULT_HEALTH_PATH = '/'
+const browserExtensionSourceMapPaths = new Set([
+  '/content.css.map',
+  '/sidebar.css.map',
+])
 
 // 构造一个 upstream 目标描述。socketPath 非空表示走 unix socket，
 // 否则按 TCP host:port 处理。两种地址类型在代理转发时分别处理。
@@ -28,6 +32,14 @@ export function createThemeProxy({ externalPort = 3000, host = '0.0.0.0' } = {})
   let activeTarget = null
 
   const server = http.createServer((req, res) => {
+    if (isKnownBrowserExtensionSourceMapRequest(req)) {
+      // 部分 Chrome 扩展会把注入样式的 sourceMappingURL 解析到站点根路径。
+      // 这些请求不是 SForum 静态资源，直接吞掉可避免 Nuxt Router 反复输出无匹配告警。
+      res.writeHead(204, { 'cache-control': 'no-store' })
+      res.end()
+      return
+    }
+
     const target = activeTarget
     if (!target) {
       res.writeHead(502, { 'content-type': 'text/plain; charset=utf-8' })
@@ -394,6 +406,14 @@ export function parseDevPort(line) {
     host = '127.0.0.1'
   }
   return { host, port }
+}
+
+function isKnownBrowserExtensionSourceMapRequest(req) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return false
+  }
+  const pathname = String(req.url || '').split('?')[0]
+  return browserExtensionSourceMapPaths.has(pathname)
 }
 
 // 开发 supervisor 对外监听的是代理端口，Nuxt 子进程的 Local/Network 行只表示

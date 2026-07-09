@@ -1,3 +1,5 @@
+import { notifyApiConnectionError } from './useApiConnectionError'
+
 export type ApiEnvelope<T> = {
   code: number
   message: string
@@ -135,8 +137,14 @@ export function useApiClient() {
       return await send()
     } catch (error) {
       if (canRefreshCsrf && unsafe && !callerProvidedCsrf && apiErrorReason(error) === 'csrf.invalid') {
-        return await send(true)
+        try {
+          return await send(true)
+        } catch (retryError) {
+          notifyApiConnectionError(retryError, path)
+          throw retryError
+        }
       }
+      notifyApiConnectionError(error, path)
       throw error
     }
   }

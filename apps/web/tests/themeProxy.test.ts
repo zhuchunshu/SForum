@@ -159,6 +159,17 @@ describe('theme-proxy: createThemeProxy 透传与 502', () => {
     expect(seen.headers['x-forwarded-for']).toContain('10.0.0.1')
     expect(seen.headers['x-forwarded-for']).toMatch(/127\.0\.0\.1$/)
   })
+
+  test('吞掉已知浏览器扩展注入样式的 sourcemap 探测', async () => {
+    const before = upstream.requests.length
+
+    const contentMap = await request(proxyPort, { path: '/content.css.map' })
+    const sidebarMap = await request(proxyPort, { path: '/sidebar.css.map' })
+
+    expect(contentMap.status).toBe(204)
+    expect(sidebarMap.status).toBe(204)
+    expect(upstream.requests).toHaveLength(before)
+  })
 })
 
 describe('theme-proxy: 无 upstream 时返回 502', () => {

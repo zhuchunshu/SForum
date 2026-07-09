@@ -58,5 +58,6 @@ useHead(() => {
     <NuxtLayout>
       <NuxtPage :keepalive="{ include: cachedTabNames }" />
     </NuxtLayout>
+    <SFApiConnectionModal />
   </UApp>
 </template>

@@ -4,7 +4,10 @@ This file is the shared working agreement for SForum. Read it before starting an
 
 ## Project Intent
 
-SForum is intended to become a maintainable forum project. The current repository is intentionally documentation-first: do not add application code until the stack, module boundaries, and first milestone are agreed.
+SForum is a maintainable, plugin-first, open-source forum framework. Core is
+the host framework; product verticals and provider/vendor behavior live in
+extensions. The repository is past scaffolding and actively implementing core
+forum, identity, admin, and extension systems.
 
 ## Working Principles
 
@@ -13,6 +16,91 @@ SForum is intended to become a maintainable forum project. The current repositor
 - Split long implementations across multiple focused files. Avoid placing more than 1000 lines in one file unless there is a strong, documented reason.
 - Keep changes scoped to the current task. Do not refactor unrelated areas just because they are nearby.
 - Record decisions in the knowledge base when they will matter to future sessions.
+
+## Stack And Directory Map
+
+Monorepo with a Go API plus a Nuxt web app, plus shared contracts, extensions,
+knowledge base, and tests.
+
+- `apps/api` — Go 1.25 API + background worker. Module path
+  `github.com/zhuchunshu/sforum/apps/api`. Laravel-style Go layout:
+  - `cmd/` — `api` (HTTP server), `worker` (River queue worker), `migrate`
+    (embedded Goose migrator), `sforum` (developer CLI; scaffolds
+    plugins/themes, runs `seed:forum`).
+  - `bootstrap/` — runtime assembly; `NewWorker` for the worker process.
+  - `app/Http/` — HTTP kernel, controllers, and route registration
+    (`app/Http/Controllers/*`).
+  - `app/Models/` — domain logic and services.
+  - `app/Providers/` — provider wiring (mail provider slot, attachment
+    storage adapters, search, cache, etc.).
+  - `app/Support/` — cross-cutting infra: `Jobs` (River durable queue),
+    `Search` (Meilisearch), `Cache` (Redis CachedStore decorator).
+  - `database/` — `migrations/` (Goose SQL), `migrator/` (shared embedded
+    migrator), `queries/` + `sqlc/` (sqlc-generated code; config in
+    `sqlc.yaml`).
+  - `config/` — runtime config loaders. `config.Load` does NOT read `.env`;
+    the dev scripts source `.env` and export vars explicitly.
+- `apps/web` — Nuxt 4 / Vue 3 / Nuxt UI 4 frontend (package name
+  `@sforum/web`). SSR-first (no `ssr: false` remains anywhere). Key deps:
+  Bun, Tailwind, `@nuxtjs/i18n`, Tiptap, DOMPurify, altcha,
+  `@iconify-json/tabler` + `@iconify-json/lucide`. App code lives under
+  `apps/web/app/{components,composables,pages,layouts,middleware,plugins,config}`
+  with the uppercase `SF` prefix component library, and admin pages under
+  `apps/web/app/pages/admin`. i18n default locale `zh-CN`, secondary `en-US`.
+- `contracts/` — modular OpenAPI contract. `openapi.yaml` is the entrypoint
+  index only; paths in `openapi/paths/<module>.yaml`, schemas in
+  `openapi/schemas/<module>.yaml`, shared components in `openapi/components/`.
+- `extensions/` — `builtin/` (protected built-in plugins/themes, including
+  the default theme `sforum-default`) and `dev/` (development extensions).
+  Container images copy built-in themes to `/app/extensions/builtin`.
+- `knowledge/` — project memory: `index.md`, `modules/`, `decisions/`,
+  `sessions/`, `glossary.md`, `research.md`. Read before sensitive work.
+- `tests/` — repo-level validation scripts (Playwright/Node) that hit the
+  running dev servers.
+- `scripts/` — dev/test orchestration shell scripts (see Commands below).
+- `docs/`, `deploy/`, `compose*.yaml`, `deploy.sh` — deployment and ops.
+- Runtime deps via Compose: PostgreSQL, Redis, Meilisearch, Mailpit.
+
+## Commands
+
+Run from the repo root unless noted. Before any `go get`/`go mod tidy`/
+`bun install`/`bun add` network command, set the local proxy:
+`export https_proxy=http://127.0.0.1:7897 http_proxy=http://127.0.0.1:7897 all_proxy=socks5://127.0.0.1:7897`
+
+Development (the user runs `apps/web` dev server manually on port 3000 — do
+not kill it):
+
+- `./scripts/dev.sh` — start only dev dependencies (PostgreSQL, Redis,
+  Meilisearch, Mailpit) via Compose and run migrations. `--build` rebuilds,
+  `--no-migrate` skips migrations. Stops old Compose-managed frontend/backend
+  containers first.
+- `cd apps/web && bun run dev` — theme-aware Nuxt dev supervisor
+  (`scripts/dev-theme-runtime.mjs`) that restarts `nuxt dev` with the active
+  theme layer when `theme-releases/current.json` changes.
+- `./scripts/api-dev.sh` — run the API with `air` (hot reload). Refuses to
+  start if the API port is already in use; never stops a user process. In
+  dev the API embeds the worker (`EMBED_WORKER_IN_API=true`).
+- `./scripts/worker-dev.sh` — standalone worker via `.air.worker.toml`; only
+  needed when `EMBED_WORKER_IN_API=false`.
+
+Build, typecheck, lint, test:
+
+- `cd apps/web && bun run build` — Nuxt build (uses `NUXT_BUILD_DIR=.nuxt-build`).
+- `cd apps/web && bun run typecheck` — Nuxt typecheck (uses
+  `NUXT_BUILD_DIR=.nuxt-typecheck`).
+- `cd apps/web && bun run dev:plain` — plain `nuxt dev` bypassing the theme
+  supervisor.
+- `cd apps/api && go build ./...` / `go test ./...` — Go build and tests.
+- `./scripts/test.sh` — full repo test gate: `go test ./...`, OpenAPI ref
+  validation, Nuxt typecheck, and all `tests/validate-*.js|.ts` scripts.
+- `ruby scripts/validate-openapi-refs.rb` — validate OpenAPI `$ref`s after
+  editing any contract file.
+
+CLI:
+
+- `cd apps/api && go run ./cmd/sforum` — developer console: scaffold
+  plugins/themes, `seed:forum` fake data. `seed:forum` is append-only,
+  triggers no events, reads `DATABASE_URL` from env or `--database-url`.
 
 ## Core Framework And Plugin-First Development
 
@@ -162,17 +250,11 @@ the next line of code already says.
 
 ## Network And Dependency Commands
 
-The primary development environment may be in mainland China. Before running
-network-dependent package commands such as `go get`, `go mod tidy`,
-`bun install`, `bun add`, or similar dependency downloads, use the configured
-local proxy:
-
-```sh
-export https_proxy=http://127.0.0.1:7897 http_proxy=http://127.0.0.1:7897 all_proxy=socks5://127.0.0.1:7897
-```
-
-Keep this proxy setting in mind when retrying failed dependency commands that
-look like network, DNS, registry, or module download issues.
+The primary development environment may be in mainland China. The required
+local proxy for all network-dependent package commands (`go get`,
+`go mod tidy`, `bun install`, `bun add`, etc.) is listed at the top of the
+Commands section above — set it before running such commands and re-apply it
+when retrying network, DNS, registry, or module-download failures.
 
 ## Avoiding Hard-To-Maintain Code
 
@@ -255,7 +337,15 @@ Recommended handoff format:
 
 ## Current Status
 
-- Git repository initialized.
-- Documentation and knowledge-base skeleton created.
-- First application scaffold has been added under `apps/web` and `apps/api`.
-- The user manually starts the `apps/web` dev server (port 3000) during development. When port 3000 is occupied, assume it is the user's own running server — do not kill it without asking.
+- Actively implementing core forum, identity/RBAC, admin, attachment,
+  extension (plugin/theme), SEO, mail, moderation, and search systems. See
+  `knowledge/index.md` for the authoritative, frequently-updated status.
+- Stack is decided and in place: Nuxt 4/Vue 3/Nuxt UI/Bun frontend; Go Fiber
+  v3, PostgreSQL, Redis, Meilisearch backend; River durable queue; Goose
+  migrations; sqlc; Redis-backed server sessions.
+- The user manually starts the `apps/web` dev server (port 3000) during
+  development. When port 3000 is occupied, assume it is the user's own
+  running server — do not kill it without asking.
+- Always read `knowledge/index.md` and the relevant `knowledge/modules/`
+  note before changing sensitive areas, and update the knowledge base when
+  finishing work (see Knowledge Base Workflow).

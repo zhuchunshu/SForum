@@ -1552,6 +1552,13 @@
     "humanVerificationExpired": "Human verification expired. Please verify again.",
     "humanVerificationReplayed": "This verification has already been used. Please verify again.",
     "rateLimited": "Too many attempts. Please try again later.",
+    "apiConnection": {
+      "title": "Cannot connect to the backend API",
+      "description": "This request could not reach the backend service. The API may be starting, restarting, or temporarily unavailable; content already open in this page is not lost.",
+      "status": "Error status: {statusCode}",
+      "dismiss": "Got it",
+      "retry": "Refresh and retry"
+    },
     "page": {
       "statusLabel": "{statusCode} error",
       "home": "Back to home",

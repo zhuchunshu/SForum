@@ -4,6 +4,7 @@ import { parse, compileScript } from '@vue/compiler-sfc'
 import { computed, reactive, ref } from 'vue'
 
 import { apiErrorFields, apiErrorMessage, apiErrorReason, useApiClient } from '../app/composables/useApiClient'
+import { isApiConnectionError, useApiConnectionError } from '../app/composables/useApiConnectionError'
 import { isUnauthenticatedAuthError } from '../app/composables/useAuthSession'
 import { registerErrorMessage } from '../app/utils/registerErrors'
 
@@ -68,6 +69,38 @@ describe('api error helpers', () => {
   })
 })
 
+describe('api connection error helpers', () => {
+  test('detects backend api gateway and network failures', () => {
+    expect(isApiConnectionError({
+      response: {
+        status: 502,
+        _data: {
+          code: 502,
+          message: 'Bad Gateway',
+          data: { reason: 'server.unavailable' }
+        }
+      }
+    })).toBe(true)
+
+    expect(isApiConnectionError(new TypeError('Failed to fetch'))).toBe(true)
+  })
+
+  test('does not treat business validation errors as api connection failures', () => {
+    expect(isApiConnectionError({
+      data: {
+        code: 422,
+        message: '请检查填写内容。',
+        data: {
+          reason: 'auth.register_invalid',
+          fields: {
+            email: ['邮箱格式不正确。']
+          }
+        }
+      }
+    })).toBe(false)
+  })
+})
+
 describe('useApiClient CSRF handling', () => {
   test('primes a csrf token before the first unsafe browser request', async () => {
     const calls: Array<{ url: string, options?: { method?: string, headers?: Record<string, string> } }> = []
@@ -129,6 +162,63 @@ describe('useApiClient CSRF handling', () => {
     expect(postAttempts).toBe(2)
     expect(postHeaders[0]?.['X-Csrf-Token']).toBe('stale-token')
     expect(postHeaders[1]?.['X-Csrf-Token']).toBe('fresh-token')
+  })
+})
+
+describe('useApiClient global connection error state', () => {
+  test('opens the global api connection modal state after a backend api connection failure', async () => {
+    const csrfCookie = ref('')
+    const stateStore = createStateStore()
+
+    await withApiClientGlobals(csrfCookie, async () => {
+      globalThis.useState = stateStore.useState
+      globalThis.$fetch = async () => {
+        throw {
+          response: {
+            status: 502,
+            _data: {
+              code: 502,
+              message: 'Bad Gateway',
+              data: { reason: 'server.unavailable' }
+            }
+          }
+        }
+      }
+
+      const { request } = useApiClient()
+      await expect(request('/admin/overview')).rejects.toBeDefined()
+
+      const { state } = useApiConnectionError()
+      expect(state.value.open).toBe(true)
+      expect(state.value.statusCode).toBe(502)
+      expect(state.value.path).toBe('/admin/overview')
+    })
+  })
+
+  test('keeps the global api connection modal state closed for business errors', async () => {
+    const csrfCookie = ref('')
+    const stateStore = createStateStore()
+
+    await withApiClientGlobals(csrfCookie, async () => {
+      globalThis.useState = stateStore.useState
+      globalThis.$fetch = async () => {
+        throw {
+          data: {
+            code: 422,
+            message: '请检查填写内容。',
+            data: {
+              reason: 'auth.register_invalid'
+            }
+          }
+        }
+      }
+
+      const { request } = useApiClient()
+      await expect(request('/auth/register', { method: 'POST' })).rejects.toBeDefined()
+
+      const { state } = useApiConnectionError()
+      expect(state.value.open).toBe(false)
+    })
   })
 })
 
@@ -461,6 +551,7 @@ async function withApiClientGlobals(csrfCookie: { value: string }, run: () => Pr
   const originalUseRuntimeConfig = globalThis.useRuntimeConfig
   const originalUseNuxtApp = globalThis.useNuxtApp
   const originalUseCookie = globalThis.useCookie
+  const originalUseState = globalThis.useState
 
   globalThis.useRuntimeConfig = () => ({
     public: {
@@ -487,5 +578,19 @@ async function withApiClientGlobals(csrfCookie: { value: string }, run: () => Pr
     globalThis.useRuntimeConfig = originalUseRuntimeConfig
     globalThis.useNuxtApp = originalUseNuxtApp
     globalThis.useCookie = originalUseCookie
+    globalThis.useState = originalUseState
+  }
+}
+
+function createStateStore() {
+  const states = new Map<string, { value: unknown }>()
+
+  return {
+    useState: <T>(key: string, init: () => T) => {
+      if (!states.has(key)) {
+        states.set(key, ref(init()))
+      }
+      return states.get(key) as { value: T }
+    }
   }
 }

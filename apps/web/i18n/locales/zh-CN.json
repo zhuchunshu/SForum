@@ -1558,6 +1558,13 @@
     "humanVerificationExpired": "人机验证已过期，请重新验证。",
     "humanVerificationReplayed": "本次验证已使用，请重新验证。",
     "rateLimited": "操作过于频繁，请稍后再试。",
+    "apiConnection": {
+      "title": "无法连接后端 API",
+      "description": "当前请求没有连上后端服务。可能是 API 正在启动、重启或暂时不可用；已打开的页面内容不会因此丢失。",
+      "status": "错误状态：{statusCode}",
+      "dismiss": "我知道了",
+      "retry": "刷新重试"
+    },
     "page": {
       "statusLabel": "{statusCode} 错误",
       "home": "返回首页",

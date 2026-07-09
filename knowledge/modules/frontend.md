@@ -219,6 +219,13 @@ Admin route middleware distinguishes real unauthenticated responses from
 temporary auth-service failures. A 401 or `auth.required` redirects to login;
 API restart/502/timeout cases show a temporary unavailable error instead of
 forcing the user to sign in again.
+Client-side API requests made through `useApiClient().request` now detect
+backend API connectivity failures globally. Gateway/runtime failures such as
+502/503/504, `server.unavailable`, browser `Failed to fetch`, and timeout-style
+network errors open a persistent `SFApiConnectionModal` from the root app shell.
+Business errors such as 401, 422, field validation, CSRF recovery, and other
+backend envelopes remain owned by the calling page so field-level guidance and
+auth redirects keep their existing behavior.
 Nuxt now owns a project-specific global error page at `app/error.vue`. The
 first release uses the shared public SForum chrome for both forum and admin
 routes, renders the selected community empty-state style for `404`, `403`,
