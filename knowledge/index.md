@@ -194,6 +194,10 @@ This is the entry point for project memory.
   category/tag filtering pages, admin category/tag/settings screens,
   `category.manage`/`tag.manage` permission boundaries, forum events, and
   modular OpenAPI coverage.
+- Admin taxonomy management now supports configurable icons and icon colors for
+  categories and tags. The fields are stored on `categories` and `tags`,
+  exposed through existing admin taxonomy endpoints, and previewed only in the
+  admin category/tag lists for this release.
 - Goose migrations now run from a shared embedded migrator. API and worker
   processes run migrations at startup when `MIGRATE_ON_STARTUP=true`, guarded
   by Goose's PostgreSQL table lock. `scripts/dev.sh` and `deploy.sh` may still
@@ -579,6 +583,8 @@ This is the entry point for project memory.
   `ssr: false`（后台 + 组件预览页），全部页面 SSR 彻底杜绝空壳白屏。
 - `sessions/2026-07-09-avatar-system.md` - avatar strategy implementation,
   admin/profile UI, OpenAPI/docs, and `/t/**` query-edit cache hardening.
+- `sessions/2026-07-10-admin-taxonomy-icon-color.md` - admin category/tag icon
+  and icon color configuration plus admin-list preview handoff.
 - `../docs/superpowers/specs/2026-07-05-global-footer-design.md` - global footer design spec.
 - `../docs/superpowers/plans/2026-07-05-global-footer.md` - global footer implementation plan.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -

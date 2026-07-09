@@ -39,6 +39,9 @@ on 2026-07-07.
   options.
 - Admin UI includes category group/category management, tag management, and
   forum settings under the low-code admin module registry.
+- Admin-managed categories and tags have optional `icon` and `iconColor`
+  visual fields for backend configuration and admin-list previews. Public theme
+  pages do not consume these fields yet.
 - Go domain logic lives under `apps/api/app/Models/Forum`; HTTP routes live
   under `apps/api/app/Http/Controllers/Forum`.
 
@@ -128,6 +131,8 @@ UNIQUE 索引（先去重），创建/改标题时 `Service.ensureUniqueTopicSlu
 - `GET /api/v1/admin/forum/tags`
 - `POST /api/v1/admin/forum/tags`
 - `PATCH /api/v1/admin/forum/tags/{tagID}`
+- Admin category/tag create and update payloads accept optional `icon` and
+  `iconColor` fields for backend visual configuration.
 - `GET /api/v1/admin/forum/settings`
 - `PUT /api/v1/admin/forum/settings`
 - `POST /api/v1/admin/forum/settings/reset`
