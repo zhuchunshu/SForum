@@ -61,14 +61,19 @@ This is the entry point for project memory.
 - `SFEditor` is now a Tiptap-based editor with a custom toolbar, custom emoji
   node, preview mode, Markdown source mode, native JSON inspection, and a
   `content-change` payload for HTML/Markdown/native content previews.
+- The default topic composer submits editor Markdown under the backend
+  `content` request field and accepts Unicode tag slugs, so Chinese tags can be
+  used directly while publishing.
 - Forum authored content has an accepted triple-storage direction:
   `content_html_sanitized`, `content_markdown`, and `content_native_json`.
   Client HTML remains untrusted; the API must accept allowlisted content,
   regenerate derived formats, and sanitize display HTML before storage.
 - The SForum homepage now lives in the protected built-in default theme layer
   (`extensions/builtin/themes/sforum-default/layer/app/pages/index.vue`) and
-  uses a wider max-w-[1376px] container with explicit column widths (Left
-  270px, Middle flexible up to 720px, Right 290px) on desktop.
+  directly implements the accepted A redesign direction: an A-style internal
+  topbar, 1520px shell, 238px left rail, compact notice/tabs, and dense
+  table-oriented topic feed. The homepage opts out of the public default
+  layout so the global `SFNavbar` does not duplicate the A topbar.
 - The default-theme homepage feed now uses client-side infinite scrolling
   instead of visible page-number pagination. The first page remains SSR-loaded,
   the loaded feed is preserved through Nuxt state for hydration, and desktop
@@ -174,12 +179,15 @@ This is the entry point for project memory.
   internal credential-loading failures, so schema drift or database errors are
   no longer misreported as wrong passwords.
 - Frontend auth refresh now preserves the current user state during transient
-  API restart/timeout/gateway failures, restores browser sessions during app
-  startup when the API is available, and only redirects to login on confirmed
-  401/`auth.required` responses. Ordinary protected user pages with
+  API restart/timeout/gateway failures, restores browser sessions during
+  browser startup when the API is available, and only redirects to login on
+  confirmed 401/`auth.required` responses. Root-app SSR refreshes web options
+  only so public SWR pages do not cache user-specific auth payload. Ordinary
+  protected user pages with
   `requiresAuth` stay server-rendered, disable route cache, and redirect
   missing users to login even when the auth API is temporarily unavailable,
-  while the stricter admin guard may show a temporary unavailable error.
+  and the admin guard now follows the same no-Nuxt-error fallback instead of
+  rendering a 503 error page.
   Admin and component-preview pages are now also server-rendered (the last
   `ssr: false` routes were removed), so the entire site renders first-paint
   HTML and never serves an empty SPA shell.
@@ -193,7 +201,8 @@ This is the entry point for project memory.
   core tags and topic-tag joins, configurable tag creation policy, public
   category/tag filtering pages, admin category/tag/settings screens,
   `category.manage`/`tag.manage` permission boundaries, forum events, and
-  modular OpenAPI coverage.
+  modular OpenAPI coverage. Tag slugs accept Unicode letters/numbers plus
+  hyphens; category/default-category slugs remain ASCII.
 - Admin taxonomy management now supports configurable icons and icon colors for
   categories and tags. The fields are stored on `categories` and `tags`,
   exposed through existing admin taxonomy endpoints, and previewed only in the
@@ -253,6 +262,10 @@ This is the entry point for project memory.
   runtime options live under `avatar.*`, default to local initials plus enabled
   upload/compression, and are managed from System configuration with
   `settings.manage`.
+- Current-user and forum author summaries now carry the same `AvatarView`
+  shape. First-party frontend user-avatar surfaces should render through
+  `SFAvatar` with that view instead of hand-written initials, `UAvatar`, or
+  ad-hoc URL props.
 - The local attachment provider root is now the admin-only runtime option
   `attachment.local.root`, defaulting to `storage/app/attachments`; API process
   config no longer reads `ATTACHMENT_LOCAL_ROOT`.
@@ -585,6 +598,11 @@ This is the entry point for project memory.
   admin/profile UI, OpenAPI/docs, and `/t/**` query-edit cache hardening.
 - `sessions/2026-07-10-admin-taxonomy-icon-color.md` - admin category/tag icon
   and icon color configuration plus admin-list preview handoff.
+- `decisions/2026-07-10-account-security-sessions.md` - accepted account security /
+  login device management: `user_sessions` directory table, stable opaque `sid`,
+  next-request revocation, revoke-one/revoke-others, `identity.sessions.max_devices`.
+- `sessions/2026-07-10-account-security-sessions.md` - account security / login
+  device management implementation handoff.
 - `../docs/superpowers/specs/2026-07-05-global-footer-design.md` - global footer design spec.
 - `../docs/superpowers/plans/2026-07-05-global-footer.md` - global footer implementation plan.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -

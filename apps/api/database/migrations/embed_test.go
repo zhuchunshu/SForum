@@ -42,6 +42,21 @@ func TestFilesIncludesForumTaxonomyMigration(t *testing.T) {
 	t.Fatalf("expected embedded migration %s", expected)
 }
 
+func TestFilesIncludesUserSessionsMigration(t *testing.T) {
+	entries, err := fs.ReadDir(Files(), ".")
+	if err != nil {
+		t.Fatalf("read embedded migrations: %v", err)
+	}
+
+	const expected = "202607100002_user_sessions.sql"
+	for _, entry := range entries {
+		if entry.Name() == expected {
+			return
+		}
+	}
+	t.Fatalf("expected embedded migration %s", expected)
+}
+
 func TestEmbeddedSQLMigrationsParseWithGoose(t *testing.T) {
 	db := openNoopMigrationDB(t)
 	defer db.Close()

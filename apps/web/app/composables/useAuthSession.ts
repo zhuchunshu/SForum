@@ -1,4 +1,5 @@
 import { apiErrorMessage, apiErrorReason } from './useApiClient'
+import type { AvatarView } from './useProfileApi'
 
 export type CurrentUser = {
   id: number
@@ -7,6 +8,7 @@ export type CurrentUser = {
   locale: string
   status: 'active' | 'disabled' | 'banned'
   isInitialSuperAdmin: boolean
+  avatar: AvatarView
   roleKeys: string[]
   permissions: string[]
 }

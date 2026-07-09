@@ -14,6 +14,7 @@ import {
   type ForumTopicDetail,
   type ForumTopicExtensionAction,
   type ForumTopicFilters,
+  type ForumTopicCreateInput,
   type ForumTopicList,
   type ForumTopicSearchFilters,
   type ForumTopicUpdateInput
@@ -74,14 +75,26 @@ export function useForumApi() {
     return request<ForumComment[]>(`/comments/${commentId}/replies`)
   }
 
-  function createTopic(input: ForumContentInput & {
-    title: string
-    categorySlug?: string
-    tagSlugs?: string[]
-  }) {
+  function createTopic(input: ForumTopicCreateInput) {
+    const {
+      rawContent,
+      sourceFormat,
+      editorType,
+      editorVersion,
+      ...topicInput
+    } = input
+
     return request<ForumTopicDetail>('/topics', {
       method: 'POST',
-      body: input
+      body: {
+        ...topicInput,
+        content: {
+          rawContent,
+          sourceFormat,
+          editorType,
+          editorVersion
+        }
+      }
     })
   }
 

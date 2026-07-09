@@ -27,7 +27,9 @@ on 2026-07-07.
   category access is deferred.
 - Core tags live in `tags` with `active`, `pending`, and `disabled` statuses.
   Topic/tag joins live in `topic_tags`, and topic summaries/details expose
-  active tag summaries.
+  active tag summaries. Tag slugs accept Unicode letters/numbers plus hyphens,
+  so Chinese tags can be created and filtered directly; category and topic URL
+  slugs remain ASCII-oriented.
 - Runtime forum settings live in `web_options`: default category slug, tag
   creation mode, public tag pages, and max tags per topic. Recommended defaults
   are configurable and resettable.
@@ -37,6 +39,9 @@ on 2026-07-07.
 - Public Nuxt pages now consume real forum data for the homepage, category
   pages, and tag pages. Tag pages can be disabled through public runtime
   options.
+- Topic and comment author summaries include the shared `AvatarView` contract,
+  including reply reference authors when present. Frontend forum surfaces should
+  pass `author.avatar` into `SFAvatar` directly.
 - Admin UI includes category group/category management, tag management, and
   forum settings under the low-code admin module registry.
 - Admin-managed categories and tags have optional `icon` and `iconColor`

@@ -1534,6 +1534,24 @@
   overflow: hidden;
 }
 
+.sf-comment__children {
+  display: grid;
+  gap: 0;
+  margin-top: 0.8rem;
+  margin-left: 1rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--sf-border);
+}
+
+.sf-comment__children > .sf-comment--flat {
+  padding-top: 0.75rem;
+  padding-bottom: 0.2rem;
+}
+
+.sf-comment__children > .sf-comment--flat + .sf-comment--flat {
+  border-top: 1px solid var(--sf-border-light);
+}
+
 .sf-editor {
   --sf-editor-min-height: 10.8rem;
   overflow: hidden;
@@ -2298,6 +2316,11 @@
   .sf-feed-row--table .sf-feed-row__author,
   .sf-feed-row--table .sf-feed-row__time {
     display: none;
+  }
+
+  .sf-comment__children {
+    margin-left: 0.35rem;
+    padding-left: 0.75rem;
   }
 }
 

@@ -10,14 +10,21 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 )
 
 type PostgresStore struct {
-	pool *pgxpool.Pool
+	pool          *pgxpool.Pool
+	avatarBuilder *avatar.ViewBuilder
 }
 
 func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
-	return &PostgresStore{pool: pool}
+	return NewPostgresStoreWithAvatar(pool, nil)
+}
+
+func NewPostgresStoreWithAvatar(pool *pgxpool.Pool, avatarOptions avatar.OptionResolver) *PostgresStore {
+	return &PostgresStore{pool: pool, avatarBuilder: avatar.NewViewBuilder(avatarOptions)}
 }
 
 func (s *PostgresStore) ListCategories(ctx context.Context) ([]Category, error) {
@@ -288,7 +295,7 @@ func (s *PostgresStore) ListTopics(ctx context.Context, input TopicListInput) (T
 
 	items := []TopicSummary{}
 	for rows.Next() {
-		item, err := scanTopicSummary(rows)
+		item, err := scanTopicSummaryWithAvatar(rows, s.avatarBuilder)
 		if err != nil {
 			return TopicList{}, err
 		}
@@ -336,7 +343,7 @@ func (s *PostgresStore) GetTopic(ctx context.Context, topicID int64) (TopicDetai
 		  AND topics.status IN ('active', 'locked')
 		  AND categories.visibility = 'public'
 	`, topicID)
-	topic, err := scanTopicDetail(row)
+	topic, err := scanTopicDetailWithAvatar(row, s.avatarBuilder)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return TopicDetail{}, ErrTopicNotFound
 	}
@@ -362,7 +369,7 @@ func (s *PostgresStore) GetTopicBySlug(ctx context.Context, slug string) (TopicD
 		  AND topics.status IN ('active', 'locked')
 		  AND categories.visibility = 'public'
 	`, slug)
-	topic, err := scanTopicDetail(row)
+	topic, err := scanTopicDetailWithAvatar(row, s.avatarBuilder)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return TopicDetail{}, ErrTopicNotFound
 	}
@@ -679,7 +686,7 @@ func (s *PostgresStore) DeleteTopic(ctx context.Context, topicID int64) (TopicDe
 	row := tx.QueryRow(ctx, topicDetailSQL()+`
 		WHERE topics.id = $1
 	`, topicID)
-	topic, err := scanTopicDetail(row)
+	topic, err := scanTopicDetailWithAvatar(row, s.avatarBuilder)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return TopicDetail{}, ErrTopicNotFound
@@ -918,7 +925,7 @@ func (s *PostgresStore) GetTopicForComment(ctx context.Context, topicID int64) (
 	row := s.pool.QueryRow(ctx, topicSummarySQL()+`
 		WHERE topics.id = $1
 	`, topicID)
-	topic, err := scanTopicSummary(row)
+	topic, err := scanTopicSummaryWithAvatar(row, s.avatarBuilder)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return TopicSummary{}, ErrTopicNotFound
 	}
@@ -934,7 +941,7 @@ func (s *PostgresStore) GetTopicForAction(ctx context.Context, topicID int64) (T
 	row := s.pool.QueryRow(ctx, topicSummarySQL()+`
 		WHERE topics.id = $1
 	`, topicID)
-	topic, err := scanTopicSummary(row)
+	topic, err := scanTopicSummaryWithAvatar(row, s.avatarBuilder)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return TopicSummary{}, ErrTopicNotFound
 	}
@@ -1015,7 +1022,7 @@ func (s *PostgresStore) CreateComment(ctx context.Context, input CreateCommentRe
 		return Comment{}, fmt.Errorf("update category comment count: %w", err)
 	}
 
-	comment, err := getCommentByID(ctx, tx, commentID)
+	comment, err := getCommentByID(ctx, tx, commentID, s.avatarBuilder)
 	if err != nil {
 		return Comment{}, err
 	}
@@ -1076,7 +1083,7 @@ func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRe
 		return Comment{}, fmt.Errorf("touch comment: %w", err)
 	}
 
-	comment, err := getCommentByID(ctx, tx, input.CommentID)
+	comment, err := getCommentByID(ctx, tx, input.CommentID, s.avatarBuilder)
 	if err != nil {
 		return Comment{}, err
 	}
@@ -1100,7 +1107,7 @@ func (s *PostgresStore) DeleteComment(ctx context.Context, commentID int64) (Com
 		}
 		return Comment{}, fmt.Errorf("delete comment: %w", err)
 	}
-	return getCommentByID(ctx, s.pool, updatedID)
+	return getCommentByID(ctx, s.pool, updatedID, s.avatarBuilder)
 }
 
 func (s *PostgresStore) ListComments(ctx context.Context, input CommentListInput) (CommentList, error) {
@@ -1134,7 +1141,7 @@ func (s *PostgresStore) listCommentsFlat(ctx context.Context, input CommentListI
 	}
 	defer rows.Close()
 
-	items, err := scanComments(rows)
+	items, err := scanCommentsWithAvatar(rows, s.avatarBuilder)
 	if err != nil {
 		return CommentList{}, err
 	}
@@ -1166,7 +1173,7 @@ func (s *PostgresStore) listCommentsTree(ctx context.Context, input CommentListI
 	if err != nil {
 		return CommentList{}, fmt.Errorf("list root comments: %w", err)
 	}
-	roots, err := scanComments(rootRows)
+	roots, err := scanCommentsWithAvatar(rootRows, s.avatarBuilder)
 	rootRows.Close()
 	if err != nil {
 		return CommentList{}, err
@@ -1189,7 +1196,7 @@ func (s *PostgresStore) listCommentsTree(ctx context.Context, input CommentListI
 	if err != nil {
 		return CommentList{}, fmt.Errorf("list comment descendants: %w", err)
 	}
-	descendants, err := scanComments(descRows)
+	descendants, err := scanCommentsWithAvatar(descRows, s.avatarBuilder)
 	descRows.Close()
 	if err != nil {
 		return CommentList{}, err
@@ -1204,9 +1211,13 @@ func (s *PostgresStore) listCommentsTree(ctx context.Context, input CommentListI
 
 // scanComments 扫描 rows 到 []Comment，统一处理 rows.Err 与遍历错误。
 func scanComments(rows pgx.Rows) ([]Comment, error) {
+	return scanCommentsWithAvatar(rows, nil)
+}
+
+func scanCommentsWithAvatar(rows pgx.Rows, builder *avatar.ViewBuilder) ([]Comment, error) {
 	items := []Comment{}
 	for rows.Next() {
-		comment, err := scanComment(rows)
+		comment, err := scanCommentWithAvatar(rows, builder)
 		if err != nil {
 			return nil, err
 		}
@@ -1230,7 +1241,7 @@ func (s *PostgresStore) ListCommentReplies(ctx context.Context, commentID int64)
 
 	items := []Comment{}
 	for rows.Next() {
-		comment, err := scanComment(rows)
+		comment, err := scanCommentWithAvatar(rows, s.avatarBuilder)
 		if err != nil {
 			return nil, err
 		}
@@ -1475,7 +1486,10 @@ func nullablePositiveInt64(value int64) any {
 func topicSummarySQL() string {
 	return `
 		SELECT topics.id, topics.category_id, categories.slug, categories.name,
-		  topics.author_user_id, users.username, users.display_name,
+		  topics.author_user_id, users.username, users.display_name, users.email,
+		  author_profiles.avatar_attachment_id,
+		  author_attachments.id, author_attachments.public_id, author_attachments.owner_user_id,
+		  author_attachments.content_type, author_attachments.status,
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
 		  topics.comment_count, topics.view_count, posts.excerpt,
 		  topics.created_at, topics.updated_at, topics.last_activity_at
@@ -1483,13 +1497,18 @@ func topicSummarySQL() string {
 		JOIN categories ON categories.id = topics.category_id
 		JOIN posts ON posts.id = topics.content_id
 		LEFT JOIN users ON users.id = topics.author_user_id
+		LEFT JOIN user_profiles author_profiles ON author_profiles.user_id = users.id
+		LEFT JOIN attachments author_attachments ON author_attachments.id = author_profiles.avatar_attachment_id
 	`
 }
 
 func topicDetailSQL() string {
 	return `
 		SELECT topics.id, topics.category_id, categories.slug, categories.name,
-		  topics.author_user_id, users.username, users.display_name,
+		  topics.author_user_id, users.username, users.display_name, users.email,
+		  author_profiles.avatar_attachment_id,
+		  author_attachments.id, author_attachments.public_id, author_attachments.owner_user_id,
+		  author_attachments.content_type, author_attachments.status,
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
 		  topics.comment_count, topics.view_count, posts.excerpt,
 		  topics.created_at, topics.updated_at, topics.last_activity_at,
@@ -1500,6 +1519,8 @@ func topicDetailSQL() string {
 		JOIN categories ON categories.id = topics.category_id
 		JOIN posts ON posts.id = topics.content_id
 		LEFT JOIN users ON users.id = topics.author_user_id
+		LEFT JOIN user_profiles author_profiles ON author_profiles.user_id = users.id
+		LEFT JOIN attachments author_attachments ON author_attachments.id = author_profiles.avatar_attachment_id
 	`
 }
 
@@ -1531,7 +1552,7 @@ func scanTopicSummary(row RowScanner) (TopicSummary, error) {
 	}
 	if authorID.Valid {
 		topic.AuthorUserID = authorID.Int64
-		topic.Author = &UserSummary{ID: authorID.Int64, Username: username.String, DisplayName: displayName.String}
+		topic.Author = userSummaryWithAvatar(nil, authorID, username, displayName, sql.NullString{}, sql.NullInt64{}, sql.NullInt64{}, sql.NullString{}, sql.NullInt64{}, sql.NullString{}, sql.NullString{})
 	}
 	return topic, nil
 }
@@ -1539,6 +1560,99 @@ func scanTopicSummary(row RowScanner) (TopicSummary, error) {
 // ScanTopicSummary 导出主题摘要扫描，供 Profile 等跨模型复用同一 SELECT 列布局。
 func ScanTopicSummary(row RowScanner) (TopicSummary, error) {
 	return scanTopicSummary(row)
+}
+
+func userSummaryWithAvatar(builder *avatar.ViewBuilder, userID sql.NullInt64, username sql.NullString, displayName sql.NullString, email sql.NullString, avatarAttachmentID sql.NullInt64, attachmentID sql.NullInt64, attachmentPublicID sql.NullString, attachmentOwnerID sql.NullInt64, attachmentContentType sql.NullString, attachmentStatus sql.NullString) *UserSummary {
+	if !userID.Valid {
+		return nil
+	}
+	if builder == nil {
+		builder = avatar.NewViewBuilder(nil)
+	}
+	user := UserSummary{
+		ID:          userID.Int64,
+		Username:    username.String,
+		DisplayName: displayName.String,
+	}
+	user.Avatar = builder.AvatarView(context.Background(), avatar.User{
+		UserID:      user.ID,
+		Username:    user.Username,
+		DisplayName: user.DisplayName,
+		Email:       email.String,
+	}, avatarSourceFromSQL(avatarAttachmentID, attachmentID, attachmentPublicID, attachmentOwnerID, attachmentContentType, attachmentStatus))
+	return &user
+}
+
+func avatarSourceFromSQL(avatarAttachmentID sql.NullInt64, attachmentID sql.NullInt64, attachmentPublicID sql.NullString, attachmentOwnerID sql.NullInt64, attachmentContentType sql.NullString, attachmentStatus sql.NullString) avatar.Source {
+	source := avatar.Source{}
+	if avatarAttachmentID.Valid && avatarAttachmentID.Int64 > 0 {
+		id := avatarAttachmentID.Int64
+		source.AttachmentID = &id
+	}
+	if attachmentID.Valid && attachmentID.Int64 > 0 {
+		source.Attachment = &avatar.Attachment{
+			ID:          attachmentID.Int64,
+			PublicID:    attachmentPublicID.String,
+			OwnerUserID: nullableInt64FromSQL(attachmentOwnerID),
+			ContentType: attachmentContentType.String,
+			Status:      attachmentStatus.String,
+		}
+	}
+	return source
+}
+
+func nullableInt64FromSQL(value sql.NullInt64) int64 {
+	if value.Valid {
+		return value.Int64
+	}
+	return 0
+}
+
+func scanTopicSummaryWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (TopicSummary, error) {
+	var topic TopicSummary
+	var authorID sql.NullInt64
+	var username sql.NullString
+	var displayName sql.NullString
+	var email sql.NullString
+	var avatarAttachmentID sql.NullInt64
+	var attachmentID sql.NullInt64
+	var attachmentPublicID sql.NullString
+	var attachmentOwnerID sql.NullInt64
+	var attachmentContentType sql.NullString
+	var attachmentStatus sql.NullString
+	if err := row.Scan(
+		&topic.ID,
+		&topic.CategoryID,
+		&topic.CategorySlug,
+		&topic.CategoryName,
+		&authorID,
+		&username,
+		&displayName,
+		&email,
+		&avatarAttachmentID,
+		&attachmentID,
+		&attachmentPublicID,
+		&attachmentOwnerID,
+		&attachmentContentType,
+		&attachmentStatus,
+		&topic.Title,
+		&topic.Slug,
+		&topic.Status,
+		&topic.IsPinned,
+		&topic.CommentCount,
+		&topic.ViewCount,
+		&topic.Excerpt,
+		&topic.CreatedAt,
+		&topic.UpdatedAt,
+		&topic.LastActivityAt,
+	); err != nil {
+		return TopicSummary{}, err
+	}
+	if authorID.Valid {
+		topic.AuthorUserID = authorID.Int64
+		topic.Author = userSummaryWithAvatar(builder, authorID, username, displayName, email, avatarAttachmentID, attachmentID, attachmentPublicID, attachmentOwnerID, attachmentContentType, attachmentStatus)
+	}
+	return topic, nil
 }
 
 func scanTopicDetail(row RowScanner) (TopicDetail, error) {
@@ -1579,7 +1693,64 @@ func scanTopicDetail(row RowScanner) (TopicDetail, error) {
 	}
 	if authorID.Valid {
 		detail.AuthorUserID = authorID.Int64
-		detail.Author = &UserSummary{ID: authorID.Int64, Username: username.String, DisplayName: displayName.String}
+		detail.Author = userSummaryWithAvatar(nil, authorID, username, displayName, sql.NullString{}, sql.NullInt64{}, sql.NullInt64{}, sql.NullString{}, sql.NullInt64{}, sql.NullString{}, sql.NullString{})
+	}
+	return detail, nil
+}
+
+func scanTopicDetailWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (TopicDetail, error) {
+	var detail TopicDetail
+	var authorID sql.NullInt64
+	var username sql.NullString
+	var displayName sql.NullString
+	var email sql.NullString
+	var avatarAttachmentID sql.NullInt64
+	var attachmentID sql.NullInt64
+	var attachmentPublicID sql.NullString
+	var attachmentOwnerID sql.NullInt64
+	var attachmentContentType sql.NullString
+	var attachmentStatus sql.NullString
+	if err := row.Scan(
+		&detail.ID,
+		&detail.CategoryID,
+		&detail.CategorySlug,
+		&detail.CategoryName,
+		&authorID,
+		&username,
+		&displayName,
+		&email,
+		&avatarAttachmentID,
+		&attachmentID,
+		&attachmentPublicID,
+		&attachmentOwnerID,
+		&attachmentContentType,
+		&attachmentStatus,
+		&detail.Title,
+		&detail.Slug,
+		&detail.Status,
+		&detail.IsPinned,
+		&detail.CommentCount,
+		&detail.ViewCount,
+		&detail.Excerpt,
+		&detail.CreatedAt,
+		&detail.UpdatedAt,
+		&detail.LastActivityAt,
+		&detail.Content.ID,
+		&detail.Content.RawContent,
+		&detail.Content.HTMLContent,
+		&detail.Content.PlainText,
+		&detail.Content.Excerpt,
+		&detail.Content.SourceFormat,
+		&detail.Content.EditorType,
+		&detail.Content.EditorVersion,
+		&detail.Content.RenderVersion,
+		&detail.Content.ContentHash,
+	); err != nil {
+		return TopicDetail{}, err
+	}
+	if authorID.Valid {
+		detail.AuthorUserID = authorID.Int64
+		detail.Author = userSummaryWithAvatar(builder, authorID, username, displayName, email, avatarAttachmentID, attachmentID, attachmentPublicID, attachmentOwnerID, attachmentContentType, attachmentStatus)
 	}
 	return detail, nil
 }
@@ -1603,31 +1774,41 @@ func scanCommentSummary(row RowScanner) (CommentSummary, error) {
 func commentSelectSQL() string {
 	return `
 		SELECT comments.id, comments.topic_id, comments.author_user_id,
-		  users.username, users.display_name,
+		  users.username, users.display_name, users.email,
+		  author_profiles.avatar_attachment_id,
+		  author_attachments.id, author_attachments.public_id, author_attachments.owner_user_id,
+		  author_attachments.content_type, author_attachments.status,
 		  comments.parent_comment_id, COALESCE(comments.root_comment_id, comments.id),
 		  comments.path_key, comments.depth, comments.reply_count, comments.status,
 		  posts.id, posts.raw_content, posts.html_content, posts.plain_text,
 		  posts.excerpt, posts.source_format, posts.editor_type, posts.editor_version,
 		  posts.render_version, posts.content_hash,
 		  parent_comments.id, parent_posts.excerpt, parent_comments.depth,
-		  parent_users.id, parent_users.username, parent_users.display_name,
+		  parent_users.id, parent_users.username, parent_users.display_name, parent_users.email,
+		  parent_profiles.avatar_attachment_id,
+		  parent_attachments.id, parent_attachments.public_id, parent_attachments.owner_user_id,
+		  parent_attachments.content_type, parent_attachments.status,
 		  comments.created_at, comments.updated_at
 		FROM comments
 		JOIN posts ON posts.id = comments.content_id
 		LEFT JOIN users ON users.id = comments.author_user_id
+		LEFT JOIN user_profiles author_profiles ON author_profiles.user_id = users.id
+		LEFT JOIN attachments author_attachments ON author_attachments.id = author_profiles.avatar_attachment_id
 		LEFT JOIN comments parent_comments ON parent_comments.id = comments.parent_comment_id
 		LEFT JOIN posts parent_posts ON parent_posts.id = parent_comments.content_id
 		LEFT JOIN users parent_users ON parent_users.id = parent_comments.author_user_id
+		LEFT JOIN user_profiles parent_profiles ON parent_profiles.user_id = parent_users.id
+		LEFT JOIN attachments parent_attachments ON parent_attachments.id = parent_profiles.avatar_attachment_id
 	`
 }
 
 func getCommentByID(ctx context.Context, q interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
-}, commentID int64) (Comment, error) {
+}, commentID int64, builder *avatar.ViewBuilder) (Comment, error) {
 	row := q.QueryRow(ctx, commentSelectSQL()+`
 		WHERE comments.id = $1
 	`, commentID)
-	comment, err := scanComment(row)
+	comment, err := scanCommentWithAvatar(row, builder)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Comment{}, ErrCommentNotFound
 	}
@@ -1638,10 +1819,21 @@ func getCommentByID(ctx context.Context, q interface {
 }
 
 func scanComment(row RowScanner) (Comment, error) {
+	return scanCommentWithAvatar(row, nil)
+}
+
+func scanCommentWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Comment, error) {
 	var comment Comment
 	var authorID sql.NullInt64
 	var username sql.NullString
 	var displayName sql.NullString
+	var email sql.NullString
+	var avatarAttachmentID sql.NullInt64
+	var attachmentID sql.NullInt64
+	var attachmentPublicID sql.NullString
+	var attachmentOwnerID sql.NullInt64
+	var attachmentContentType sql.NullString
+	var attachmentStatus sql.NullString
 	var parentID sql.NullInt64
 	var parentCommentID sql.NullInt64
 	var parentExcerpt sql.NullString
@@ -1649,6 +1841,13 @@ func scanComment(row RowScanner) (Comment, error) {
 	var parentAuthorID sql.NullInt64
 	var parentUsername sql.NullString
 	var parentDisplayName sql.NullString
+	var parentEmail sql.NullString
+	var parentAvatarAttachmentID sql.NullInt64
+	var parentAttachmentID sql.NullInt64
+	var parentAttachmentPublicID sql.NullString
+	var parentAttachmentOwnerID sql.NullInt64
+	var parentAttachmentContentType sql.NullString
+	var parentAttachmentStatus sql.NullString
 
 	if err := row.Scan(
 		&comment.ID,
@@ -1656,6 +1855,13 @@ func scanComment(row RowScanner) (Comment, error) {
 		&authorID,
 		&username,
 		&displayName,
+		&email,
+		&avatarAttachmentID,
+		&attachmentID,
+		&attachmentPublicID,
+		&attachmentOwnerID,
+		&attachmentContentType,
+		&attachmentStatus,
 		&parentID,
 		&comment.RootCommentID,
 		&comment.PathKey,
@@ -1678,6 +1884,13 @@ func scanComment(row RowScanner) (Comment, error) {
 		&parentAuthorID,
 		&parentUsername,
 		&parentDisplayName,
+		&parentEmail,
+		&parentAvatarAttachmentID,
+		&parentAttachmentID,
+		&parentAttachmentPublicID,
+		&parentAttachmentOwnerID,
+		&parentAttachmentContentType,
+		&parentAttachmentStatus,
 		&comment.CreatedAt,
 		&comment.UpdatedAt,
 	); err != nil {
@@ -1685,7 +1898,7 @@ func scanComment(row RowScanner) (Comment, error) {
 	}
 	if authorID.Valid {
 		comment.AuthorUserID = authorID.Int64
-		comment.Author = &UserSummary{ID: authorID.Int64, Username: username.String, DisplayName: displayName.String}
+		comment.Author = userSummaryWithAvatar(builder, authorID, username, displayName, email, avatarAttachmentID, attachmentID, attachmentPublicID, attachmentOwnerID, attachmentContentType, attachmentStatus)
 	}
 	if parentID.Valid {
 		comment.ParentID = &parentID.Int64
@@ -1693,7 +1906,7 @@ func scanComment(row RowScanner) (Comment, error) {
 	if parentCommentID.Valid {
 		replyTo := &ReplyReference{ID: parentCommentID.Int64, Excerpt: parentExcerpt.String, Depth: int(parentDepth.Int64)}
 		if parentAuthorID.Valid {
-			replyTo.Author = &UserSummary{ID: parentAuthorID.Int64, Username: parentUsername.String, DisplayName: parentDisplayName.String}
+			replyTo.Author = userSummaryWithAvatar(builder, parentAuthorID, parentUsername, parentDisplayName, parentEmail, parentAvatarAttachmentID, parentAttachmentID, parentAttachmentPublicID, parentAttachmentOwnerID, parentAttachmentContentType, parentAttachmentStatus)
 		}
 		comment.ReplyTo = replyTo
 	}

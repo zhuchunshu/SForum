@@ -82,6 +82,38 @@ func (passwordResetFakeStore) GetUserTokenVersion(context.Context, int64) (int64
 }
 func (passwordResetFakeStore) IncrementUserTokenVersion(context.Context, int64) error { return nil }
 
+// 会话目录方法：密码重置测试路径不触发，零值返回以满足接口。
+func (passwordResetFakeStore) CreateSession(context.Context, authsession.SessionRecordInput) error {
+	return nil
+}
+func (passwordResetFakeStore) IsSessionRevoked(context.Context, int64, string) (bool, error) {
+	return false, nil
+}
+func (passwordResetFakeStore) ListUserSessions(context.Context, int64, string, bool, int, int) (identity.SessionListResult, error) {
+	return identity.SessionListResult{}, nil
+}
+func (passwordResetFakeStore) RevokeSession(context.Context, int64, string, string) error {
+	return nil
+}
+func (passwordResetFakeStore) RevokeOtherSessions(context.Context, int64, string, string) (int, error) {
+	return 0, nil
+}
+func (passwordResetFakeStore) RevokeUserSessions(context.Context, int64, string) (int, error) {
+	return 0, nil
+}
+func (passwordResetFakeStore) DeleteOldRevokedSessions(context.Context, int) (int, error) {
+	return 0, nil
+}
+func (passwordResetFakeStore) EnforceMaxSessions(context.Context, int64, string, int) (int, error) {
+	return 0, nil
+}
+func (passwordResetFakeStore) TouchSessionLastSeen(context.Context, int64, string) error {
+	return nil
+}
+func (passwordResetFakeStore) HasSessionFingerprint(context.Context, int64, string) (bool, error) {
+	return false, nil
+}
+
 // passwordResetTxStore 仅满足 identity.TxStore（WithBootstrapTx 回调入参）。
 type passwordResetTxStore struct{}
 

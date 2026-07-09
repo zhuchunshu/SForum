@@ -51,10 +51,6 @@ const displayName = computed(() => {
   return user.value?.displayName || user.value?.username || t('admin.shell.unknownUser')
 })
 
-const userInitial = computed(() => {
-  return displayName.value.trim().slice(0, 1).toUpperCase() || 'S'
-})
-
 const isDarkMode = computed(() => resolvedColorMode.value === 'dark')
 
 const themeToggleLabel = computed(() => {
@@ -244,9 +240,6 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
   [
     {
       label: displayName.value,
-      avatar: {
-        text: userInitial.value
-      },
       type: 'label'
     }
   ],
@@ -386,7 +379,7 @@ async function signOut() {
               class="justify-start px-2 py-3.5 text-[var(--text-admin-sidebar)] hover:bg-[var(--bg-admin-sidebar-hover)] hover:text-[var(--text-admin-main)]"
               :class="{ 'justify-center': collapsed }"
             >
-              <UAvatar :text="userInitial" size="lg" class="shadow-sm border border-slate-100 dark:border-zinc-800" />
+              <SFAvatar :name="displayName" :avatar="user?.avatar" size="md" class="shadow-sm border border-slate-100 dark:border-zinc-800" />
               <span v-if="!collapsed" class="min-w-0 flex-1 text-left ml-2.5">
                 <span class="block truncate text-base font-bold text-slate-900 dark:text-white">
                   {{ displayName }}

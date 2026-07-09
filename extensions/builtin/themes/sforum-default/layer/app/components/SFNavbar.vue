@@ -86,9 +86,6 @@ async function logout() {
 const displayName = computed(() =>
   user.value?.displayName || user.value?.username || ''
 )
-const avatarLetter = computed(() =>
-  displayName.value.charAt(0).toUpperCase()
-)
 
 // 当前语言的名称，比如 "简体中文" 或 "English"
 const currentLocaleName = computed(() => {
@@ -220,7 +217,7 @@ function toggleColorMode() {
               :aria-expanded="menuOpen"
               @click="menuOpen = !menuOpen"
             >
-              <span class="navbar__avatar">{{ avatarLetter }}</span>
+              <SFAvatar :name="displayName" :avatar="user.avatar" size="sm" shape="square" />
               <span class="navbar__username">{{ displayName }}</span>
               <UIcon
                 name="i-lucide-chevron-down"
@@ -542,20 +539,6 @@ function toggleColorMode() {
   background: #f9fafb;
 }
 
-.navbar__avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  background: var(--sf-accent);
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
 .navbar__username {
   font-size: 13px;
   font-weight: 600;
@@ -732,11 +715,6 @@ function toggleColorMode() {
 .dark .navbar__avatar-btn:hover {
   border-color: #3f3f46;
   background: #27272a;
-}
-
-.dark .navbar__avatar {
-  background: var(--sf-accent-dark);
-  color: #052e2b;
 }
 
 .dark .navbar__username,

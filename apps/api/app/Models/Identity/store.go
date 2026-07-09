@@ -1,6 +1,10 @@
 package identity
 
-import "context"
+import (
+	"context"
+
+	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+)
 
 type Store interface {
 	ActorStore
@@ -28,6 +32,22 @@ type Store interface {
 	// 令牌版本号：用于密码重置/封禁后使旧会话失效（M8）。
 	GetUserTokenVersion(ctx context.Context, userID int64) (int64, error)
 	IncrementUserTokenVersion(ctx context.Context, userID int64) error
+	// 会话目录：登记/查询/下线设备（user_sessions 表）。
+	// CreateSession 直接满足 authsession.SessionStore 接口（结构化匹配）。
+	CreateSession(ctx context.Context, input authsession.SessionRecordInput) error
+	IsSessionRevoked(ctx context.Context, userID int64, sid string) (bool, error)
+	ListUserSessions(ctx context.Context, userID int64, currentSID string, includeHistory bool, page int, perPage int) (SessionListResult, error)
+	RevokeSession(ctx context.Context, userID int64, sid string, reason string) error
+	RevokeOtherSessions(ctx context.Context, userID int64, currentSID string, reason string) (int, error)
+	// RevokeUserSessions 下线某用户的全部活跃会话（管理员强制下线），返回下线条数。
+	RevokeUserSessions(ctx context.Context, userID int64, reason string) (int, error)
+	EnforceMaxSessions(ctx context.Context, userID int64, currentSID string, maxDevices int) (int, error)
+	TouchSessionLastSeen(ctx context.Context, userID int64, sid string) error
+	// HasSessionFingerprint 判断该用户是否有活跃会话匹配给定指纹（当前按 user_agent_raw 等值匹配）。
+	// 用于风险登录：未命中表示新设备。调用方应传入与 CreateSession 时一致的（已截断的）UA。
+	HasSessionFingerprint(ctx context.Context, userID int64, fingerprint string) (bool, error)
+	// DeleteOldRevokedSessions 清理已下线超过保留期的历史会话行（periodic job 调用）。
+	DeleteOldRevokedSessions(ctx context.Context, keepDays int) (int, error)
 }
 
 type ActorStore interface {

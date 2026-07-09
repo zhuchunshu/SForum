@@ -1,6 +1,11 @@
 package identity
 
-import "errors"
+import (
+	"errors"
+	"time"
+
+	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
+)
 
 type UserStatus string
 
@@ -51,7 +56,46 @@ var (
 	ErrUsernameOrEmailNotUnique   = errors.New("identity: username or email is not unique")
 	ErrPasswordDoesNotMeetPolicy  = errors.New("identity: password does not meet policy")
 	ErrPasswordResetTokenNotFound = errors.New("identity: password reset token not found or expired")
+	// 会话目录：要操作的会话不存在或不属于当前用户（含越权访问别人的 sid）。
+	ErrSessionNotFound = errors.New("identity: session not found")
+	// 管理员试图强制下线自己的全部设备（应改用 logout）。
+	ErrSelfSessionRevoke = errors.New("identity: cannot revoke own sessions via admin path")
+	// 非超管管理员试图强制下线超管用户的设备，超管账户受保护（与 ReplaceUserRoles 的保护对称）。
+	ErrSuperAdminSessionLocked = errors.New("identity: super admin sessions cannot be revoked by non-super-admin")
 )
+
+// 会话下线原因（写入 user_sessions.revoke_reason）。
+const (
+	RevokeReasonLogout        = "logout"
+	RevokeReasonDevice        = "revoke_device"
+	RevokeReasonOthers        = "revoke_others"
+	RevokeReasonMaxExceeded   = "max_exceeded"
+	RevokeReasonPasswordReset = "password_reset"
+)
+
+// SessionRecord 是 user_sessions 一行的领域视图，用于设备列表/历史展示。
+// 注意：不包含任何可用于劫持会话的凭证（无 cookie session id、无 raw token）；
+// SID 是 server 生成的 opaque 标识，仅用于指定「下线哪一条」，无法用来登录。
+type SessionRecord struct {
+	ID           string     `json:"id"`           // opaque 会话标识，前端用来指定下线哪一条
+	DeviceName   string     `json:"deviceName"`   // 由 UA 解析的展示名，如 "Chrome on macOS"
+	Browser      string     `json:"browser"`      // 浏览器名
+	OS           string     `json:"os"`           // 操作系统名
+	IPPrefix     string     `json:"ipPrefix"`     // 脱敏 IP 前缀，如 "1.2.3.*"
+	CreatedAt    time.Time  `json:"createdAt"`    // 登录时间
+	LastSeenAt   time.Time  `json:"lastSeenAt"`   // 最后活跃时间
+	IsCurrent    bool       `json:"isCurrent"`    // 是否当前请求所在设备
+	RevokedAt    *time.Time `json:"revokedAt"`    // 历史记录里可见的下线时间
+	RevokeReason string     `json:"revokeReason"` // 下线原因
+}
+
+// SessionListResult 是设备列表/历史的分页结果。
+type SessionListResult struct {
+	Items   []SessionRecord `json:"items"`
+	Total   int64           `json:"total"`
+	Page    int             `json:"page"`
+	PerPage int             `json:"perPage"`
+}
 
 type FieldMessages map[string][]string
 
@@ -80,14 +124,15 @@ type PostSummary struct {
 }
 
 type CurrentUser struct {
-	ID                  int64      `json:"id"`
-	Username            string     `json:"username"`
-	DisplayName         string     `json:"displayName"`
-	Locale              string     `json:"locale"`
-	Status              UserStatus `json:"status"`
-	IsInitialSuperAdmin bool       `json:"isInitialSuperAdmin"`
-	RoleKeys            []string   `json:"roleKeys"`
-	Permissions         []string   `json:"permissions"`
+	ID                  int64       `json:"id"`
+	Username            string      `json:"username"`
+	DisplayName         string      `json:"displayName"`
+	Avatar              avatar.View `json:"avatar"`
+	Locale              string      `json:"locale"`
+	Status              UserStatus  `json:"status"`
+	IsInitialSuperAdmin bool        `json:"isInitialSuperAdmin"`
+	RoleKeys            []string    `json:"roleKeys"`
+	Permissions         []string    `json:"permissions"`
 }
 
 type RegistrationStatus struct {

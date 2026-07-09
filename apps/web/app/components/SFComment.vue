@@ -7,7 +7,11 @@ export const COMMENT_EDITOR_RENDERER_KEY = 'sforum-comment-editor-renderer'
 </script>
 
 <script setup lang="ts">
-import type { ForumComment } from '~/utils/forumTaxonomy'
+import {
+  forumAuthorName,
+  type ForumComment
+} from '~/utils/forumTaxonomy'
+import type { AvatarView } from '~/composables/useProfileApi'
 
 type CommentAction = {
   label: string
@@ -26,10 +30,13 @@ const props = withDefaults(defineProps<{
   htmlContent?: string
   authorLink?: string
   meta?: string
-  avatar?: string
+  avatar?: AvatarView | null
   // 被回复的评论引用：E3 方案用左侧 accent 竖条引用块展示，人名 + 内容预览分两行。
   replyTo?: { author?: string; excerpt?: string }
   actions?: CommentAction[]
+  commentMetaBuilder?: (comment: ForumComment) => string
+  commentAuthorLinkBuilder?: (comment: ForumComment) => string
+  commentActionsBuilder?: (comment: ForumComment) => CommentAction[]
 }>(), {
   comment: undefined,
   content: '',
@@ -40,11 +47,15 @@ const props = withDefaults(defineProps<{
   replyTo: undefined,
   actions: () => [
     { label: '回复', value: 'reply', icon: 'i-lucide-reply' }
-  ]
+  ],
+  commentMetaBuilder: undefined,
+  commentAuthorLinkBuilder: undefined,
+  commentActionsBuilder: undefined
 })
 
 const emit = defineEmits<{
   action: [value: string]
+  actionComment: [comment: ForumComment, value: string]
 }>()
 
 // 后端已用 bluemonday sanitize，前端可直接 v-html 渲染。
@@ -52,10 +63,44 @@ const showHtml = computed(() => Boolean(props.htmlContent))
 
 // 当前评论节点：用于内联编辑器/回复编辑器匹配（inject renderer 据此判断原位渲染）。
 const commentNode = computed(() => props.comment ?? null)
+const childComments = computed(() => props.comment?.children || [])
 
 // 操作按钮点击。
 function onAction(actionItem: CommentAction) {
   emit('action', actionItem.value)
+  if (props.comment) {
+    emit('actionComment', props.comment, actionItem.value)
+  }
+}
+
+function childAuthorName(comment: ForumComment) {
+  return forumAuthorName(comment.author, comment.authorUserId)
+}
+
+function childMeta(comment: ForumComment) {
+  return props.commentMetaBuilder?.(comment) || ''
+}
+
+function childAuthorLink(comment: ForumComment) {
+  return props.commentAuthorLinkBuilder?.(comment) || ''
+}
+
+function childActions(comment: ForumComment) {
+  return props.commentActionsBuilder?.(comment) || props.actions
+}
+
+function childReplyTo(comment: ForumComment) {
+  if (!comment.replyTo) {
+    return undefined
+  }
+  return {
+    author: forumAuthorName(comment.replyTo.author, comment.replyTo.id),
+    excerpt: comment.replyTo.excerpt
+  }
+}
+
+function forwardChildAction(comment: ForumComment, value: string) {
+  emit('actionComment', comment, value)
 }
 
 // 内联编辑器渲染：优先用父级 provide 的 renderer（评论列表原位编辑/回复），
@@ -81,9 +126,9 @@ const InlineEditorHost = () => {
       :to="authorLink"
       class="sf-comment__avatar-link"
     >
-      <SFAvatar :name="author" :src="avatar" size="sm" />
+      <SFAvatar :name="author" :avatar="avatar" size="sm" />
     </component>
-    <SFAvatar v-else :name="author" :src="avatar" size="sm" />
+    <SFAvatar v-else :name="author" :avatar="avatar" size="sm" />
     <div class="sf-comment__body">
       <header class="sf-comment__header">
         <component
@@ -123,6 +168,25 @@ const InlineEditorHost = () => {
           <UIcon v-if="actionItem.icon" :name="actionItem.icon" class="size-3.5" />
           <span>{{ actionItem.label }}</span>
         </button>
+      </div>
+
+      <div v-if="childComments.length" class="sf-comment__children">
+        <SFComment
+          v-for="child in childComments"
+          :key="child.id"
+          :comment="child"
+          :author="childAuthorName(child)"
+          :avatar="child.author?.avatar"
+          :author-link="childAuthorLink(child)"
+          :html-content="child.content.htmlContent"
+          :meta="childMeta(child)"
+          :reply-to="childReplyTo(child)"
+          :actions="childActions(child)"
+          :comment-meta-builder="commentMetaBuilder"
+          :comment-author-link-builder="commentAuthorLinkBuilder"
+          :comment-actions-builder="commentActionsBuilder"
+          @action-comment="forwardChildAction"
+        />
       </div>
     </div>
   </article>

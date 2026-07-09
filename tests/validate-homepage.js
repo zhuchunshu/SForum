@@ -55,16 +55,10 @@ if (!themeLayerConfig.includes('import.meta.url') || !themeLayerConfig.includes(
 }
 console.log('✓ default theme layer CSS path is layer-relative.');
 
-// 3. Verify component usages in index.vue
 const requiredComponents = [
   'SFCard',
   'SFSearch',
-  'SFTabs',
-  'SFFeedRow',
-  'SFPagination',
   'SFAvatar',
-  'SFBadge',
-  'SFButton',
   'SFEmptyState',
   'SFSkeleton'
 ];
@@ -107,9 +101,9 @@ for (const pathArr of keyPaths) {
 console.log('✓ All 6 required homepage locale key paths validated in both zh-CN and en-US bundles.');
 
 // 6. Verify layout grids
-if (!indexContent.includes('max-w-[1376px]') || !indexContent.includes('lg:grid-cols-[270px_1fr_290px]') || !indexContent.includes('md:grid-cols-[1fr_290px]')) {
+if (!indexContent.includes('sforum-home') || !indexContent.includes('sforum-home__layout') || !indexContent.includes('sforum-home__left') || !indexContent.includes('sforum-home__main')) {
   throw new Error('index.vue layout grid configuration is missing or incorrect');
 }
-console.log('✓ 3-column responsive grid classes found in index.vue template.');
+console.log('✓ Compact layout grid classes found in index.vue template.');
 
 console.log('\nSForum homepage validation PASSED!');

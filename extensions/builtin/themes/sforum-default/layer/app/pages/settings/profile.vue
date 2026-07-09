@@ -150,6 +150,24 @@ async function removeAvatar() {
         {{ t('profileSettings.title') }}
       </h1>
 
+      <!-- 账号设置子导航：在资料设置与账号安全间切换 -->
+      <div class="flex gap-2 mb-6">
+        <NuxtLink
+          to="/settings/profile"
+          class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900"
+        >
+          <UIcon name="i-lucide-user" />
+          {{ t('profileSettings.title') }}
+        </NuxtLink>
+        <NuxtLink
+          to="/settings/security"
+          class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900"
+        >
+          <UIcon name="i-lucide-shield-check" />
+          {{ t('accountSecurity.title') }}
+        </NuxtLink>
+      </div>
+
       <!-- 成功提示（自动消失） -->
       <SFAlert
         v-if="successMessage"

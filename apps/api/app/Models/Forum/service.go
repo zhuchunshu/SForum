@@ -939,7 +939,7 @@ func normalizeUpdateCategoryInput(input UpdateCategoryInput) (UpdateCategoryInpu
 }
 
 func normalizeCreateTagInput(input CreateTagInput) (CreateTagInput, error) {
-	slug, ok := normalizeAdminSlug(input.Slug)
+	slug, ok := normalizeTagSlug(input.Slug)
 	if !ok {
 		return CreateTagInput{}, ErrInvalidTag
 	}
@@ -973,7 +973,7 @@ func normalizeUpdateTagInput(input UpdateTagInput) (UpdateTagInput, error) {
 		return UpdateTagInput{}, ErrInvalidTag
 	}
 	if input.Slug != nil {
-		value, ok := normalizeAdminSlug(*input.Slug)
+		value, ok := normalizeTagSlug(*input.Slug)
 		if !ok {
 			return UpdateTagInput{}, ErrInvalidTag
 		}
@@ -1038,6 +1038,11 @@ func normalizeUpdateForumSettingsInput(input UpdateForumSettingsInput) (UpdateFo
 }
 
 func normalizeAdminSlug(value string) (string, bool) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	return value, adminSlugPattern.MatchString(value)
+}
+
+func normalizeTagSlug(value string) (string, bool) {
 	value = strings.ToLower(strings.TrimSpace(value))
 	return value, tagSlugPattern.MatchString(value)
 }
@@ -1174,7 +1179,8 @@ func normalizePage(page int, perPage int) (int, int) {
 }
 
 var nonSlugChars = regexp.MustCompile(`[^a-z0-9]+`)
-var tagSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+var adminSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+var tagSlugPattern = regexp.MustCompile(`^[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*$`)
 var taxonomyIconPattern = regexp.MustCompile(`^i-[a-z0-9]+-[a-z0-9][a-z0-9-]*$`)
 var taxonomyIconColorPattern = regexp.MustCompile(`^#[0-9a-f]{6}$`)
 
@@ -1185,11 +1191,11 @@ func normalizeTopicTagSlugs(values []string, max int) ([]string, error) {
 	slugs := make([]string, 0, len(values))
 	seen := map[string]bool{}
 	for _, value := range values {
-		slug := strings.ToLower(strings.TrimSpace(value))
+		slug, ok := normalizeTagSlug(value)
 		if slug == "" {
 			continue
 		}
-		if !tagSlugPattern.MatchString(slug) {
+		if !ok {
 			return nil, ErrInvalidTag
 		}
 		if seen[slug] {

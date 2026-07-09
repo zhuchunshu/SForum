@@ -146,6 +146,11 @@ func (s *PasswordResetService) ConfirmPasswordReset(ctx context.Context, input C
 	// M8：递增令牌版本号，使该用户所有旧会话立即失效（含攻击者已持有的会话）。
 	// 失败不阻塞密码重置本身（密码已更新），仅记录错误。
 	_ = s.store.IncrementUserTokenVersion(ctx, userID)
+	// 同步撤销 user_sessions 目录：令牌版本号让旧会话在 CurrentUserID 失效，
+	// 但目录表里这些会话仍是 revoked_at IS NULL，会导致设备列表显示失真、
+	// EnforceMaxSessions 把幽灵会话计入活跃数而误踢真活跃设备。
+	// 这里把它们标记为 password_reset，保持目录与真实鉴权状态一致。best-effort。
+	_, _ = s.store.RevokeUserSessions(ctx, userID, RevokeReasonPasswordReset)
 	return nil
 }
 

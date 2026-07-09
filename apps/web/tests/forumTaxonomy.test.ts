@@ -7,6 +7,8 @@ import {
   forumTopicExtensionActionRequestPath,
   forumCategoryPath,
   forumTagPath,
+  isForumTagSlug,
+  normalizeForumTagSlugInput,
   parseForumTagPublicPagesOption
 } from '../app/utils/forumTaxonomy'
 
@@ -32,6 +34,15 @@ describe('forum taxonomy helpers', () => {
   test('builds category and tag route paths', () => {
     expect(forumCategoryPath('general')).toBe('/c/general')
     expect(forumTagPath('nuxt')).toBe('/tags/nuxt')
+    expect(forumTagPath('中文标签')).toBe('/tags/' + encodeURIComponent('中文标签'))
+  })
+
+  test('normalizes forum tag slug input with Chinese characters', () => {
+    expect(normalizeForumTagSlugInput(' 中文标签 ')).toBe('中文标签')
+    expect(normalizeForumTagSlugInput('Nuxt-UI')).toBe('nuxt-ui')
+    expect(isForumTagSlug('中文标签')).toBe(true)
+    expect(isForumTagSlug('中文 标签')).toBe(false)
+    expect(isForumTagSlug('bad_tag')).toBe(false)
   })
 
   test('formats safe topic extension actions', () => {

@@ -628,8 +628,8 @@ async function submitReport() {
 </script>
 
 <template>
-  <main class="min-h-screen py-8" style="background-color: var(--sf-surface)">
-    <div class="max-w-[1376px] mx-auto px-4 sm:px-6">
+  <main class="sforum-topic-page">
+    <div class="sforum-topic-page__inner">
       <!-- 错误 / 未找到 -->
       <SFCard v-if="topicError && !topic" class="p-10">
         <SFEmptyState
@@ -651,29 +651,40 @@ async function submitReport() {
       </div>
 
       <template v-else-if="topic">
-        <!-- 面包屑 -->
-        <nav class="text-sm text-slate-400 dark:text-zinc-500 mb-4 flex items-center gap-1.5">
-          <NuxtLink :to="localePath('/')" class="hover:text-[color:var(--sf-accent)]">
-            {{ t('topicDetail.breadcrumbHome') }}
-          </NuxtLink>
-          <UIcon name="i-lucide-chevron-right" class="size-3" />
-          <NuxtLink
-            v-if="topic.categorySlug"
-            :to="categoryPath(topic.categorySlug)"
-            class="hover:text-[color:var(--sf-accent)]"
-          >
-            {{ topic.categoryName }}
-          </NuxtLink>
-          <span v-else>{{ topic.categoryName }}</span>
-        </nav>
-
-        <!-- 双栏:正文 + 侧边栏 -->
-        <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 items-start">
+        <div class="sforum-topic-page__shell">
+        <aside class="sforum-topic-page__action-rail" aria-label="主题快捷操作">
+          <button type="button" class="sforum-topic-page__rail-button sforum-topic-page__rail-button--active" :aria-label="t('topicDetail.statsComments')">
+            <span>{{ topic.commentCount }}</span>
+            <UIcon name="i-lucide-message-circle" class="size-4" />
+          </button>
+          <button type="button" class="sforum-topic-page__rail-button" :aria-label="t('topicDetail.statsViews')">
+            <span>{{ topic.viewCount }}</span>
+            <UIcon name="i-lucide-eye" class="size-4" />
+          </button>
+          <button v-if="reportUser" type="button" class="sforum-topic-page__rail-button" :aria-label="t('topicDetail.report')" @click="openReportDialog({ type: 'topic', id: topic.id })">
+            <UIcon name="i-lucide-flag" class="size-4" />
+          </button>
+        </aside>
 
         <!-- 主栏:主题头 + 评论区 -->
-        <div class="min-w-0">
+        <div class="sforum-topic-page__content">
         <!-- 主题头部 -->
-        <SFCard class="p-6 sm:p-8 mb-4">
+        <article class="sforum-topic-page__article">
+          <!-- 面包屑 -->
+          <nav class="sforum-topic-page__breadcrumbs">
+            <NuxtLink :to="localePath('/')">
+              {{ t('topicDetail.breadcrumbHome') }}
+            </NuxtLink>
+            <UIcon name="i-lucide-chevron-right" class="size-3" />
+            <NuxtLink
+              v-if="topic.categorySlug"
+              :to="categoryPath(topic.categorySlug)"
+            >
+              {{ topic.categoryName }}
+            </NuxtLink>
+            <span v-else>{{ topic.categoryName }}</span>
+          </nav>
+
           <div class="flex flex-wrap items-center gap-2 mb-3">
             <NuxtLink :to="categoryPath(topic.categorySlug)">
               <SFBadge variant="primary">{{ topic.categoryName }}</SFBadge>
@@ -688,17 +699,17 @@ async function submitReport() {
             </SFBadge>
           </div>
 
-          <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-zinc-50 tracking-tight mb-4 leading-tight">
+          <h1 class="sforum-topic-page__title">
             {{ topic.title }}
           </h1>
 
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500 dark:text-zinc-400 pb-4 mb-5 border-b border-slate-100 dark:border-zinc-800">
+          <div class="sforum-topic-page__byline">
             <component
               :is="authorPath ? 'NuxtLink' : 'span'"
               :to="authorPath"
-              class="inline-flex items-center gap-2 font-medium text-slate-700 hover:text-[#0F766E] dark:text-zinc-300 dark:hover:text-teal-300"
+              class="inline-flex items-center gap-2 font-bold text-slate-700 hover:text-[color:var(--sf-accent)] dark:text-zinc-300 dark:hover:text-teal-300"
             >
-              <SFAvatar :name="authorName" size="sm" />
+              <SFAvatar :name="authorName" :avatar="topic.author?.avatar" size="sm" />
               <span>{{ authorName }}</span>
             </component>
             <span>{{ formatDate(topic.createdAt) }}</span>
@@ -713,7 +724,7 @@ async function submitReport() {
           </div>
 
           <!-- 正文（后端已 sanitize）:sf-prose 由 @tailwindcss/typography 提供；v-highlight 负责代码块语法高亮 -->
-          <div class="sf-prose" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
+          <div class="sforum-topic-page__prose sf-prose" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
 
           <!-- 标签 -->
           <div v-if="topic.tags && topic.tags.length" class="flex flex-wrap gap-1.5 mt-6 pt-4 border-t border-slate-100 dark:border-zinc-800">
@@ -725,7 +736,7 @@ async function submitReport() {
           <!-- 版主/作者动作区 -->
           <div
             v-if="canEditTopic(topic) || canDeleteTopic(topic) || canLock || canPin || canModerate || extensionActions.length"
-            class="flex flex-wrap items-center gap-2 mt-6 pt-4 border-t border-slate-100 dark:border-zinc-800"
+            class="sforum-topic-page__actions"
           >
             <SFButton
               v-if="canEditTopic(topic)"
@@ -810,12 +821,12 @@ async function submitReport() {
             class="mt-3"
             @close="showActionError = false"
           />
-        </SFCard>
+        </article>
 
         <!-- 评论区域 -->
-        <section class="space-y-4">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-bold text-slate-800 dark:text-zinc-100">
+        <section class="sforum-topic-comments">
+          <div class="sforum-topic-comments__header">
+            <h2>
               {{ t('topicDetail.commentsTitle', { count: commentTotal }) }}
             </h2>
             <SFTabs
@@ -830,7 +841,7 @@ async function submitReport() {
 
           <!-- 评论加载骨架 -->
           <template v-if="commentsPending">
-            <SFCard v-for="i in 3" :key="i" class="p-4">
+            <SFCard v-for="i in 3" :key="i" class="sforum-topic-comments__card p-4">
               <SFSkeleton width="20%" height="1rem" class="mb-2" />
               <SFSkeleton width="90%" class="mb-1" />
               <SFSkeleton width="70%" />
@@ -839,7 +850,7 @@ async function submitReport() {
 
           <!-- 评论列表 -->
           <template v-else-if="comments.length">
-            <SFCard class="sf-comment-list p-5">
+            <SFCard class="sforum-topic-comments__card sf-comment-list p-5">
               <!-- 递归评论树：SFComment 内部自递归渲染 children（含任意深度 + 折叠）。
                    操作按钮（回复/编辑/删除/举报）通过 commentActions 动态生成，颜色走 --sf-* token。
                    内联编辑器/回复编辑器由本页 provide 的 commentEditorRenderer 在评论原位渲染（任意层级）。 -->
@@ -848,6 +859,7 @@ async function submitReport() {
                 :key="comment.id"
                 :comment="comment"
                 :author="commentAuthorName(comment)"
+                :avatar="comment.author?.avatar"
                 :author-link="commentAuthorPath(comment)"
                 :html-content="editingCommentId === comment.id ? undefined : comment.content.htmlContent"
                 :content="editingCommentId === comment.id ? '' : undefined"
@@ -857,6 +869,7 @@ async function submitReport() {
                 :actions="commentActions(comment)"
                 :comment-meta-builder="commentMeta"
                 :comment-author-link-builder="commentAuthorPath"
+                :comment-actions-builder="commentActions"
                 @action-comment="(c: ForumComment, value: string) => handleCommentClick(c, value)"
               />
             </SFCard>
@@ -868,7 +881,7 @@ async function submitReport() {
           </template>
 
           <!-- 空评论 -->
-          <SFCard v-else class="p-10">
+          <SFCard v-else class="sforum-topic-comments__card p-10">
             <SFEmptyState
               :title="t('topicDetail.emptyComments.title')"
               :description="t('topicDetail.emptyComments.description')"
@@ -876,7 +889,7 @@ async function submitReport() {
           </SFCard>
 
           <!-- 顶级回复编辑器 -->
-          <SFCard v-if="showReplyEditor" class="p-5">
+          <SFCard v-if="showReplyEditor" class="sforum-topic-comments__card sforum-topic-comments__reply p-5">
             <h3 class="text-sm font-semibold text-slate-700 mb-3 dark:text-zinc-300">
               {{ t('topicDetail.replyTitle') }}
             </h3>
@@ -908,11 +921,11 @@ async function submitReport() {
         </div><!-- /主栏 -->
 
         <!-- 侧边栏:sticky 跟随,lg 以上显示 -->
-        <aside class="hidden lg:block lg:sticky lg:top-20 space-y-4">
+        <aside class="sforum-topic-page__summary hidden lg:grid lg:sticky lg:top-6">
           <!-- 作者卡 -->
-          <SFCard class="p-4">
+          <SFCard class="sforum-topic-page__summary-card p-4">
             <div class="flex items-center gap-3">
-              <SFAvatar :name="authorName" size="md" />
+              <SFAvatar :name="authorName" :avatar="topic.author?.avatar" size="md" />
               <div class="min-w-0">
                 <component
                   :is="authorPath ? 'NuxtLink' : 'span'"
@@ -927,7 +940,7 @@ async function submitReport() {
           </SFCard>
 
           <!-- 话题统计 -->
-          <SFCard class="p-4">
+          <SFCard class="sforum-topic-page__summary-card p-4">
             <h3 class="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-3">
               {{ t('topicDetail.statsTitle') }}
             </h3>

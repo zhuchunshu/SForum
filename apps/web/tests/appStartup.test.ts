@@ -4,8 +4,18 @@ import { parse, compileScript } from '@vue/compiler-sfc'
 import { ref } from 'vue'
 
 describe('app startup rendering', () => {
+  test('does not embed auth state during root app SSR startup', async () => {
+    const page = loadAppComponentForStartupTest({ server: true })
+
+    await page.component.setup({}, { expose: () => {} })
+
+    expect(page.loaderStarted()).toBe(true)
+    expect(page.webOptionsRefreshStarted()).toBe(true)
+    expect(page.authRefreshStarted()).toBe(false)
+  })
+
   test('does not block client setup while startup refresh is still pending', async () => {
-    const page = loadAppComponentForStartupTest()
+    const page = loadAppComponentForStartupTest({ server: false })
     const setupPromise = page.component.setup({}, { expose: () => {} })
 
     const result = await Promise.race([
@@ -13,14 +23,19 @@ describe('app startup rendering', () => {
       new Promise(resolve => setTimeout(() => resolve('pending'), 25))
     ])
 
-    expect(page.loaderStarted()).toBe(true)
+    expect(page.loaderStarted()).toBe(false)
+    expect(page.webOptionsRefreshStarted()).toBe(false)
+    expect(page.authRefreshStarted()).toBe(false)
+    expect(result).toBe('resolved')
+
+    await page.runMounted()
+
     expect(page.webOptionsRefreshStarted()).toBe(true)
     expect(page.authRefreshStarted()).toBe(true)
-    expect(result).toBe('resolved')
   })
 })
 
-function loadAppComponentForStartupTest() {
+function loadAppComponentForStartupTest(options: { server: boolean }) {
   const source = readFileSync(new URL('../app/app.vue', import.meta.url), 'utf8')
   const { descriptor } = parse(source, { filename: 'app.vue' })
   const compiled = compileScript(descriptor, { id: 'app-startup-test' }).content
@@ -32,12 +47,13 @@ function loadAppComponentForStartupTest() {
     )
     .replace(/import\s+\{\s*useAdminTabs\s*\}\s+from\s+['"]~\/composables\/useAdminTabs['"];?\n*/, '')
     .replaceAll('import.meta.dev', 'true')
-    .replaceAll('import.meta.server', 'false')
+    .replaceAll('import.meta.server', options.server ? 'true' : 'false')
     .replace(/export default /, 'return ')
 
   let loaderStarted = false
   let webOptionsRefreshStarted = false
   let authRefreshStarted = false
+  const mountedCallbacks: Array<() => void | Promise<void>> = []
   const never = new Promise(() => {})
 
   const factory = new Function(
@@ -49,6 +65,7 @@ function loadAppComponentForStartupTest() {
     'useAsyncData',
     'useHead',
     'applySEOTitleTemplate',
+    'onMounted',
     executable
   )
 
@@ -64,13 +81,13 @@ function loadAppComponentForStartupTest() {
       seoSettings: ref({ metaTitleTemplate: '' }),
       refresh: () => {
         webOptionsRefreshStarted = true
-        return never
+        return options.server ? Promise.resolve(true) : never
       }
     }),
     () => ({
       refresh: () => {
         authRefreshStarted = true
-        return never
+        return options.server ? Promise.resolve(true) : never
       }
     }),
     () => ({ cachedTabNames: ref([]) }),
@@ -79,13 +96,22 @@ function loadAppComponentForStartupTest() {
       return loader()
     },
     () => {},
-    () => ''
+    () => '',
+    (callback: () => void | Promise<void>) => {
+      mountedCallbacks.push(callback)
+    }
   )
 
   return {
     component,
     loaderStarted: () => loaderStarted,
     webOptionsRefreshStarted: () => webOptionsRefreshStarted,
-    authRefreshStarted: () => authRefreshStarted
+    authRefreshStarted: () => authRefreshStarted,
+    runMounted: async () => {
+      for (const callback of mountedCallbacks) {
+        void callback()
+      }
+      await Promise.resolve()
+    }
   }
 }

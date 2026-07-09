@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
 
@@ -37,6 +39,9 @@ func TestRegisterFirstUserAssignsSuperAdminAndMember(t *testing.T) {
 	}
 	if !first.IsInitialSuperAdmin {
 		t.Fatal("expected first user to be initial super admin")
+	}
+	if first.Avatar.Kind != avatar.KindInitials || first.Avatar.Alt != "Admin" {
+		t.Fatalf("expected current user initials avatar, got %#v", first.Avatar)
 	}
 }
 
@@ -479,6 +484,33 @@ type fakeStore struct {
 	updatedPasswordUserID  int64
 	// 令牌版本号（M8）测试钩子。
 	tokenVersions map[int64]int64
+	// 会话目录测试钩子。
+	sessions       []fakeSessionRow
+	revokeCalls    []fakeRevokeCall
+	enforceCalls   []int // 每次调用传入的 maxDevices
+	sessionRevoked map[string]bool
+}
+
+type fakeSessionRow struct {
+	userID       int64
+	sid          string
+	sessionHash  string
+	deviceName   string
+	browser      string
+	os           string
+	userAgentRaw string
+	ipPrefix     string
+	createdAt    time.Time
+	lastSeenAt   time.Time
+	revokedAt    *time.Time
+	revokeReason string
+}
+
+type fakeRevokeCall struct {
+	userID int64
+	sid    string
+	reason string
+	others bool
 }
 
 func (s *fakeStore) seedRole(role Role) {
@@ -508,7 +540,7 @@ func (s *fakeStore) FindRegistrationConflicts(_ context.Context, username string
 	}, nil
 }
 
-func (s *fakeStore) CreateUser(_ context.Context, input CreateUserInput) (CurrentUser, error) {
+func (s *fakeStore) CreateUser(ctx context.Context, input CreateUserInput) (CurrentUser, error) {
 	user := CurrentUser{
 		ID:                  s.nextUserID,
 		Username:            input.Username,
@@ -517,6 +549,12 @@ func (s *fakeStore) CreateUser(_ context.Context, input CreateUserInput) (Curren
 		Status:              UserStatusActive,
 		IsInitialSuperAdmin: input.IsInitialSuperAdmin,
 	}
+	user.Avatar = avatar.NewViewBuilder(nil).AvatarView(ctx, avatar.User{
+		UserID:      user.ID,
+		Username:    user.Username,
+		DisplayName: user.DisplayName,
+		Email:       input.Email,
+	}, avatar.Source{})
 	s.nextUserID++
 	s.users[user.ID] = user
 	s.userEmails[user.ID] = input.Email
@@ -737,6 +775,181 @@ func (s *fakeStore) IncrementUserTokenVersion(_ context.Context, userID int64) e
 	}
 	s.tokenVersions[userID]++
 	return nil
+}
+
+func (s *fakeStore) CreateSession(_ context.Context, input authsession.SessionRecordInput) error {
+	now := time.Now().UTC()
+	// 对齐 PostgresStore 的 ON CONFLICT (sid) DO NOTHING：sid 碰撞时返回错误而非覆盖。
+	for _, row := range s.sessions {
+		if row.sid == input.SID {
+			return errors.New("create user session: sid already exists (collision or duplicate)")
+		}
+	}
+	s.sessions = append(s.sessions, fakeSessionRow{
+		userID: input.UserID, sid: input.SID, sessionHash: input.SessionHash,
+		deviceName: input.DeviceName, browser: input.Browser, os: input.OS,
+		userAgentRaw: input.UserAgentRaw, ipPrefix: input.IPPrefix,
+		createdAt: now, lastSeenAt: now,
+	})
+	return nil
+}
+
+func (s *fakeStore) IsSessionRevoked(_ context.Context, userID int64, sid string) (bool, error) {
+	for _, row := range s.sessions {
+		if row.userID == userID && row.sid == sid {
+			return row.revokedAt != nil, nil
+		}
+	}
+	return true, nil // 不存在则保守视为已撤销
+}
+
+func (s *fakeStore) ListUserSessions(_ context.Context, userID int64, currentSID string, includeHistory bool, page int, perPage int) (SessionListResult, error) {
+	page, perPage = normalizeSessionPage(page, perPage)
+	var filtered []fakeSessionRow
+	for _, row := range s.sessions {
+		if row.userID != userID {
+			continue
+		}
+		if !includeHistory && row.revokedAt != nil {
+			continue
+		}
+		filtered = append(filtered, row)
+	}
+	total := int64(len(filtered))
+	items := []SessionRecord{}
+	for _, row := range filtered {
+		items = append(items, SessionRecord{
+			ID: row.sid, DeviceName: row.deviceName, Browser: row.browser, OS: row.os,
+			IPPrefix: row.ipPrefix, CreatedAt: row.createdAt, LastSeenAt: row.lastSeenAt,
+			IsCurrent: row.sid == currentSID, RevokedAt: row.revokedAt, RevokeReason: row.revokeReason,
+		})
+	}
+	return SessionListResult{Items: items, Total: total, Page: page, PerPage: perPage}, nil
+}
+
+func (s *fakeStore) RevokeSession(_ context.Context, userID int64, sid string, reason string) error {
+	s.revokeCalls = append(s.revokeCalls, fakeRevokeCall{userID: userID, sid: sid, reason: reason})
+	for i, row := range s.sessions {
+		if row.userID == userID && row.sid == sid {
+			if row.revokedAt != nil {
+				return nil // 已下线，幂等
+			}
+			now := time.Now().UTC()
+			s.sessions[i].revokedAt = &now
+			s.sessions[i].revokeReason = reason
+			return nil
+		}
+	}
+	return ErrSessionNotFound
+}
+
+func (s *fakeStore) RevokeOtherSessions(_ context.Context, userID int64, currentSID string, reason string) (int, error) {
+	s.revokeCalls = append(s.revokeCalls, fakeRevokeCall{userID: userID, sid: currentSID, reason: reason, others: true})
+	count := 0
+	now := time.Now().UTC()
+	for i, row := range s.sessions {
+		if row.userID == userID && row.sid != currentSID && row.revokedAt == nil {
+			s.sessions[i].revokedAt = &now
+			s.sessions[i].revokeReason = reason
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (s *fakeStore) RevokeUserSessions(_ context.Context, userID int64, reason string) (int, error) {
+	s.revokeCalls = append(s.revokeCalls, fakeRevokeCall{userID: userID, reason: reason})
+	count := 0
+	now := time.Now().UTC()
+	for i, row := range s.sessions {
+		if row.userID == userID && row.revokedAt == nil {
+			s.sessions[i].revokedAt = &now
+			s.sessions[i].revokeReason = reason
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (s *fakeStore) DeleteOldRevokedSessions(_ context.Context, keepDays int) (int, error) {
+	if keepDays < 1 {
+		keepDays = 30
+	}
+	cutoff := time.Now().UTC().AddDate(0, 0, -keepDays)
+	kept := s.sessions[:0]
+	deleted := 0
+	for _, row := range s.sessions {
+		if row.revokedAt != nil && row.revokedAt.Before(cutoff) {
+			deleted++
+			continue
+		}
+		kept = append(kept, row)
+	}
+	s.sessions = kept
+	return deleted, nil
+}
+
+func (s *fakeStore) EnforceMaxSessions(_ context.Context, userID int64, currentSID string, maxDevices int) (int, error) {
+	s.enforceCalls = append(s.enforceCalls, maxDevices)
+	if maxDevices <= 0 {
+		return 0, nil
+	}
+	if currentSID == "" {
+		return 0, nil
+	}
+	// 收集除 currentSID 外的该用户活跃会话，按 lastSeenAt 排序。
+	var active []fakeSessionRow
+	for _, row := range s.sessions {
+		if row.userID == userID && row.revokedAt == nil && row.sid != currentSID {
+			active = append(active, row)
+		}
+	}
+	if len(active)+1 <= maxDevices {
+		return 0, nil
+	}
+	// 按 lastSeenAt 降序排序（最新在前）。
+	for i := 0; i < len(active)-1; i++ {
+		for j := i + 1; j < len(active); j++ {
+			if active[j].lastSeenAt.After(active[i].lastSeenAt) {
+				active[i], active[j] = active[j], active[i]
+			}
+		}
+	}
+	// 保留最新的 maxDevices-1 个，踢掉其余的。
+	kicked := active[maxDevices-1:]
+	kickedSet := map[string]bool{}
+	for _, row := range kicked {
+		kickedSet[row.sid] = true
+	}
+	now := time.Now().UTC()
+	count := 0
+	for i, row := range s.sessions {
+		if row.userID == userID && kickedSet[row.sid] {
+			s.sessions[i].revokedAt = &now
+			s.sessions[i].revokeReason = RevokeReasonMaxExceeded
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (s *fakeStore) TouchSessionLastSeen(_ context.Context, userID int64, sid string) error {
+	for i, row := range s.sessions {
+		if row.userID == userID && row.sid == sid && row.revokedAt == nil {
+			s.sessions[i].lastSeenAt = time.Now().UTC()
+			return nil
+		}
+	}
+	return nil
+}
+
+func (s *fakeStore) HasSessionFingerprint(_ context.Context, userID int64, fingerprint string) (bool, error) {
+	for _, row := range s.sessions {
+		if row.userID == userID && row.userAgentRaw == fingerprint && row.revokedAt == nil {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (s *fakeStore) withAccess(user CurrentUser) CurrentUser {

@@ -1,6 +1,10 @@
 package options
 
-import "errors"
+import (
+	"errors"
+
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+)
 
 const (
 	NameSiteName                         = "site.name"
@@ -32,6 +36,11 @@ const (
 	NameIdentityPasswordRequireUppercase = "identity.password.require_uppercase"
 	NameIdentityPasswordRequireNumber    = "identity.password.require_number"
 	NameIdentityPasswordRequireSymbol    = "identity.password.require_symbol"
+	// 最大活跃浏览器会话数（设备数上限）。非 public（仅后端登录时读取），admin 可调。
+	// 引用 identity 包的权威定义，避免同值两处定义导致漂移（Fix #11）。
+	NameIdentitySessionsMaxDevices       = identity.NameSessionsMaxDevices
+	// 已下线历史会话的保留天数，超过后由 periodic job 清理。非 public。
+	NameIdentitySessionsKeepDays         = identity.NameSessionsKeepDays
 	NameForumDefaultCategorySlug         = "forum.default_category_slug"
 	NameForumTagCreationMode             = "forum.tags.creation_mode"
 	NameForumTagPublicPages              = "forum.tags.public_pages"

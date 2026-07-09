@@ -71,6 +71,12 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/authLogout"
   "/auth/session":
     "$ref": "./openapi/paths/identity.yaml#/authSession"
+  "/auth/sessions":
+    "$ref": "./openapi/paths/identity.yaml#/authSessions"
+  "/auth/sessions/revoke-others":
+    "$ref": "./openapi/paths/identity.yaml#/authSessionRevokeOthers"
+  "/auth/sessions/{sessionId}":
+    "$ref": "./openapi/paths/identity.yaml#/authSessionByID"
   "/auth/password-reset/request":
     "$ref": "./openapi/paths/identity.yaml#/passwordResetRequest"
   "/auth/password-reset/confirm":
@@ -101,6 +107,8 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/userRoles"
   "/users/{userID}/permission-overrides":
     "$ref": "./openapi/paths/identity.yaml#/userPermissionOverrides"
+  "/users/{userID}/sessions/revoke":
+    "$ref": "./openapi/paths/identity.yaml#/adminUserRevokeSessions"
   "/web-options":
     "$ref": "./openapi/paths/options.yaml#/webOptions"
   "/web-options/{name}":
@@ -235,6 +243,10 @@ components:
       "$ref": "./openapi/schemas/common.yaml#/ApiResponseNull"
     ApiResponseCurrentUser:
       "$ref": "./openapi/schemas/identity.yaml#/ApiResponseCurrentUser"
+    ApiResponseLoginSessionList:
+      "$ref": "./openapi/schemas/identity.yaml#/ApiResponseLoginSessionList"
+    ApiResponseRevokeOthers:
+      "$ref": "./openapi/schemas/identity.yaml#/ApiResponseRevokeOthers"
     ApiResponseRegistrationStatus:
       "$ref": "./openapi/schemas/identity.yaml#/ApiResponseRegistrationStatus"
     ApiResponseRole:

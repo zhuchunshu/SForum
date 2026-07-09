@@ -120,6 +120,7 @@ const adminPagePathsById: Record<string, string> = {
   '/permissions': 'apps/web/app/pages/admin/permissions.vue',
   '/settings': 'apps/web/app/pages/admin/settings/index.vue',
   '/settings/mail': 'apps/web/app/pages/admin/settings/mail.vue',
+  '/settings/avatar': 'apps/web/app/pages/admin/settings/avatar.vue',
   '/personalization': 'apps/web/app/pages/admin/personalization.vue',
   '/moderation': 'apps/web/app/pages/admin/moderation.vue',
   '/seo': 'apps/web/app/pages/admin/seo.vue',
@@ -133,6 +134,7 @@ const adminPagePathsById: Record<string, string> = {
   '/extensions/themes': 'apps/web/app/pages/admin/extensions/themes.vue',
   '/extensions/settings': 'apps/web/app/pages/admin/extensions/settings.vue',
   '/extensions/events': 'apps/web/app/pages/admin/extensions/events.vue',
+  '/extensions/contributions': 'apps/web/app/pages/admin/extensions/contributions.vue',
   '/search': 'apps/web/app/pages/admin/search.vue'
 }
 
@@ -203,13 +205,13 @@ assert(
 )
 assert(systemFolder.children?.some(entry => entry.pageId === '/personalization'), 'System folder should contain the personalization page')
 assert(
-  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/personalization,/seo,/database,/search',
+  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/avatar,/personalization,/seo,/database,/search',
   'System folder should keep the approved settings submenu order'
 )
 assert(!systemFolder.children?.some(entry => entry.pageId === '/extensions'), 'System folder should not contain the extension overview page')
 const extensionFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensions')
 assert(extensionFolder, 'Admin sidebar should expose extensions as an independent folder')
-assert(extensionFolder.children?.map(entry => entry.pageId).join(',') === '/extensions,/extensions/plugins,/extensions/themes,/extensions/settings,/extensions/events', 'Extension folder should keep the approved submenu order')
+assert(extensionFolder.children?.map(entry => entry.pageId).join(',') === '/extensions,/extensions/plugins,/extensions/themes,/extensions/settings,/extensions/events,/extensions/contributions', 'Extension folder should keep the approved submenu order')
 const extensionEventsPage = read('apps/web/app/pages/admin/extensions/events.vue')
 assert(extensionEventsPage.includes('data-testid="admin-extension-events-page"'), 'Extension event log page should expose a stable page wrapper for layout checks')
 assert(extensionEventsPage.includes('data-testid="admin-extension-events-page" class="min-w-0 shrink-0"'), 'Extension event log page wrapper should not shrink inside the admin flex scroll container')

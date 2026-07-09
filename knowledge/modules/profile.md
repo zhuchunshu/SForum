@@ -17,6 +17,9 @@ Member public profiles and current-user profile settings.
   back to the configured default provider (`initials`, `gravatar`, or
   `static`). The older `avatarAttachmentId` field remains for compatibility,
   but avatar changes should use the dedicated avatar endpoints.
+- Avatar view construction is shared through the neutral
+  `apps/api/app/Support/Avatar` builder so Identity and Forum summaries reuse
+  the same fallback behavior without importing the Profile model package.
 
 ### Endpoints
 
@@ -45,3 +48,5 @@ editor in V1.
 - Navbar user menu links to public profile and profile settings.
 - `useProfileApi` composable + `AvatarView`/`ProfileData`/`PublicProfile`
   types.
+- `AvatarView` is also used by auth current-user state and forum author
+  summaries; first-party UI should pass it into `SFAvatar`.

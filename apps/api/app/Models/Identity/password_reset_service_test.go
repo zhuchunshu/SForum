@@ -95,6 +95,34 @@ func TestPasswordResetConfirmUpdatesPassword(t *testing.T) {
 	}
 }
 
+// TestPasswordResetConfirmRevokesSessionDirectory 验证：密码重置成功后，除了递增令牌版本号
+// 让旧会话鉴权失效，还要同步撤销 user_sessions 目录，避免设备列表显示失真与
+// EnforceMaxSessions 把幽灵会话计入活跃数。
+func TestPasswordResetConfirmRevokesSessionDirectory(t *testing.T) {
+	store := newResetFakeStore()
+	service := NewPasswordResetService(store, nil, PasswordResetConfig{})
+
+	err := service.ConfirmPasswordReset(context.Background(), ConfirmPasswordResetInput{
+		Token:       "some-token",
+		NewPassword: "a-very-strong-password",
+	})
+	if err != nil {
+		t.Fatalf("expected confirm success, got %v", err)
+	}
+
+	// 应有一条针对该用户的目录撤销调用，reason 为 password_reset。
+	var found bool
+	for _, call := range store.revokeCalls {
+		if call.userID == 42 && call.reason == RevokeReasonPasswordReset && !call.others {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected RevokeUserSessions(42, password_reset) to be called, revokeCalls=%#v", store.revokeCalls)
+	}
+}
+
 func TestPasswordResetConfirmRejectsMissingToken(t *testing.T) {
 	store := newResetFakeStore()
 	service := NewPasswordResetService(store, nil, PasswordResetConfig{})

@@ -155,6 +155,33 @@ func TestServiceDecoratesGravatarAvatarWithConfiguredHash(t *testing.T) {
 	}
 }
 
+func TestAvatarBuilderPrefersUploadedAttachment(t *testing.T) {
+	builder := NewAvatarViewBuilder(newProfileAvatarOptions(nil))
+	avatarID := int64(88)
+	view := builder.AvatarView(context.Background(), AvatarUser{
+		UserID:      7,
+		Username:    "alice",
+		DisplayName: "Alice",
+		Email:       "alice@example.com",
+	}, AvatarSource{
+		AttachmentID: &avatarID,
+		Attachment: &AvatarAttachment{
+			ID:       avatarID,
+			PublicID: "avatar-public",
+			Status:   attachments.StatusActive,
+		},
+	})
+	if view.Kind != AvatarKindUploaded || view.URL != "/api/v1/attachments/avatar-public/content" {
+		t.Fatalf("expected uploaded avatar URL, got %#v", view)
+	}
+	if view.AttachmentID == nil || *view.AttachmentID != avatarID {
+		t.Fatalf("expected uploaded avatar attachment id %d, got %#v", avatarID, view.AttachmentID)
+	}
+	if view.Alt != "Alice" {
+		t.Fatalf("expected display-name alt, got %q", view.Alt)
+	}
+}
+
 func TestServiceUploadAvatarRequiresPermissionAndAvatarSwitch(t *testing.T) {
 	store := &fakeStore{
 		user:    UserProfileSummary{UserID: 7, Username: "alice", DisplayName: "Alice"},

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
@@ -14,6 +15,7 @@ import (
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
+	useragent "github.com/zhuchunshu/sforum/apps/api/app/Support/UserAgent"
 )
 
 // 确保 options.Service 满足 optionsResolver 接口。
@@ -135,12 +137,16 @@ func (h *Controller) register(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
 	}
+	h.applySessionDeviceInfo(c, current.ID, pendingSession)
 	if err := h.auditLogin(c, current.ID, identity.AuditActionRegister, pendingSession.Info().Hash); err != nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
 	}
 	if err := pendingSession.Save(); err != nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, identity.CodeSessionUnavailable)
 	}
+	// 登录成功后强制最大活跃设备数，best-effort 踢出最旧设备（失败不阻塞登录）。
+	// 传入本次登录的 sid，确保当前设备永不被踢。
+	h.enforceMaxSessions(c, current.ID, pendingSession.Info().SID)
 
 	return apphttp.Created(c, current)
 }
@@ -168,12 +174,16 @@ func (h *Controller) login(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	h.applySessionDeviceInfo(c, current.ID, pendingSession)
 	if err := h.auditLogin(c, current.ID, identity.AuditActionLogin, pendingSession.Info().Hash); err != nil {
 		return err
 	}
 	if err := pendingSession.Save(); err != nil {
 		return err
 	}
+	// 登录成功后强制最大活跃设备数，best-effort 踢出最旧设备（失败不阻塞登录）。
+	// 传入本次登录的 sid，确保当前设备永不被踢。
+	h.enforceMaxSessions(c, current.ID, pendingSession.Info().SID)
 
 	return apphttp.OK(c, current)
 }
@@ -235,7 +245,8 @@ func (h *Controller) passwordResetRequest(c fiber.Ctx) error {
 	}
 	ip := c.IP()
 	_ = h.passwordReset.RequestPasswordReset(c.Context(), identity.RequestPasswordResetInput{
-		Email: req.Email,
+		// 规范化邮箱：trim 后传给 service，与 register/login 路径的输入处理保持一致。
+		Email: strings.TrimSpace(req.Email),
 		IP:    ip,
 	})
 	return apphttp.OK(c, map[string]any{"sent": true})
@@ -534,6 +545,114 @@ func (h *Controller) auditLogin(c fiber.Ctx, userID int64, action string, sessio
 	})
 }
 
+// applySessionDeviceInfo 解析请求 UA/IP 并设置到 pending 会话，Save 时写入会话目录。
+func (h *Controller) applySessionDeviceInfo(c fiber.Ctx, userID int64, pending *authsession.Pending) {
+	if pending == nil {
+		return
+	}
+	info := useragent.Parse(c.Get(fiber.HeaderUserAgent), c.IP())
+	pending.SetDeviceInfo(authsession.SessionRecordInput{
+		UserID:       userID,
+		DeviceName:   info.DeviceName,
+		Browser:      info.Browser,
+		OS:           info.OS,
+		UserAgentRaw: info.UserAgentRaw,
+		IPPrefix:     info.IPPrefix,
+	})
+}
+
+// enforceMaxSessions 读取 max_devices 配置并在登录后踢出超额设备。best-effort。
+// currentSID 是本次登录的会话标识，一定不会被踢，保证刚登录的设备立即可用。
+func (h *Controller) enforceMaxSessions(c fiber.Ctx, userID int64, currentSID string) {
+	maxDevices := identity.RecommendedMaxDevices
+	if h.options != nil {
+		if raw, err := h.options.WebOption(c.Context(), identity.NameSessionsMaxDevices); err == nil && raw != "" {
+			if parsed, err := strconv.Atoi(raw); err == nil {
+				maxDevices = parsed
+			}
+		}
+	}
+	_, _ = h.service.EnforceMaxSessions(c.Context(), userID, currentSID, maxDevices)
+}
+
+// listSessions 返回当前用户的活跃设备列表（含 isCurrent 标记）。
+// 自服务：actor 只能看自己的会话；越权由 store 层 user_id 过滤保证。
+func (h *Controller) listSessions(c fiber.Ctx) error {
+	userID, ok, err := h.sessionUserID(c)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+	}
+	currentSID, _ := h.authSessions.CurrentSID(c)
+	// includeHistory=true 含已下线的历史记录；与 OpenAPI 契约一致，仅接受该参数名。
+	includeHistory := c.Query("includeHistory") == "true"
+
+	result, err := h.service.ListSessions(c.Context(), userID, currentSID, includeHistory, queryInt(c, "page"), queryInt(c, "perPage"))
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, result)
+}
+
+// revokeSession 下线当前用户的单个设备（由 path 传入 sid）。
+// 越权保护：传别人的 sid 会因 store 层 user_id 不匹配返回 ErrSessionNotFound → 404，
+// 不泄漏该 sid 是否属于他人。
+func (h *Controller) revokeSession(c fiber.Ctx) error {
+	userID, ok, err := h.sessionUserID(c)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+	}
+	sid := strings.TrimSpace(c.Params("sessionId"))
+	if sid == "" {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	if err := h.service.RevokeSession(c.Context(), userID, sid); err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.NoData(c)
+}
+
+// revokeOtherSessions 下线除当前设备外的所有其他设备。
+func (h *Controller) revokeOtherSessions(c fiber.Ctx) error {
+	userID, ok, err := h.sessionUserID(c)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+	}
+	currentSID, _ := h.authSessions.CurrentSID(c)
+	count, err := h.service.RevokeOtherSessions(c.Context(), userID, currentSID)
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, map[string]any{"revoked": count})
+}
+
+// adminRevokeUserSessions 管理员强制下线目标用户的全部设备。
+// 权限：user.manage；禁止对自己操作（下线自己请用 logout）。
+// 鉴权在 service 层为权威，此处 actor 解析失败返回 401/403。
+func (h *Controller) adminRevokeUserSessions(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	targetUserID, err := paramInt64(c, "userID")
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	count, err := h.service.AdminRevokeUserSessions(c.Context(), actor, targetUserID)
+	if err != nil {
+		return mapIdentityError(err)
+	}
+	return apphttp.OK(c, map[string]any{"revoked": count})
+}
+
 func queryInt(c fiber.Ctx, name string) int {
 	value, err := strconv.Atoi(c.Query(name))
 	if err != nil {
@@ -577,6 +696,12 @@ func mapIdentityError(err error) error {
 		return fiber.NewError(fiber.StatusForbidden, "user.super_admin_grant_restricted")
 	case errors.Is(err, identity.ErrPasswordDoesNotMeetPolicy):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "auth.password_policy")
+	case errors.Is(err, identity.ErrSessionNotFound):
+		return fiber.NewError(fiber.StatusNotFound, "auth.session_not_found")
+	case errors.Is(err, identity.ErrSelfSessionRevoke):
+		return fiber.NewError(fiber.StatusBadRequest, "auth.cannot_revoke_own_sessions")
+	case errors.Is(err, identity.ErrSuperAdminSessionLocked):
+		return fiber.NewError(fiber.StatusForbidden, "auth.super_admin_session_locked")
 	default:
 		return err
 	}

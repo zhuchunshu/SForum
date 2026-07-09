@@ -2,15 +2,13 @@ package profile
 
 import (
 	"context"
-	"crypto/md5"
-	"crypto/sha256"
-	"encoding/hex"
 	"strings"
 
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 )
 
 type Service struct {
@@ -27,12 +25,18 @@ type AvatarOptionResolver interface {
 	AvatarOptions(ctx context.Context) (options.AvatarOptions, error)
 }
 
+type AvatarViewBuilder = avatar.ViewBuilder
+
 func NewService(store Store) *Service {
 	return &Service{store: store}
 }
 
 func NewServiceWithAvatar(store Store, uploader AvatarUploader, avatarOptions AvatarOptionResolver) *Service {
 	return &Service{store: store, avatarUploader: uploader, avatarOptions: avatarOptions}
+}
+
+func NewAvatarViewBuilder(avatarOptions AvatarOptionResolver) *AvatarViewBuilder {
+	return avatar.NewViewBuilder(avatarOptionResolverAdapter{inner: avatarOptions})
 }
 
 // GetPublicProfile 返回公开资料页聚合数据。
@@ -193,79 +197,79 @@ func (s *Service) DeleteAvatar(ctx context.Context, actor identity.Actor) (Profi
 }
 
 func (s *Service) decorateProfile(ctx context.Context, user UserProfileSummary, profile Profile) Profile {
-	profile.Avatar = s.avatarView(ctx, user, profile)
+	profile.Avatar = NewAvatarViewBuilder(s.avatarOptions).AvatarView(ctx, AvatarUser{
+		UserID:      user.UserID,
+		Username:    user.Username,
+		DisplayName: user.DisplayName,
+		Email:       user.Email,
+	}, s.avatarSource(ctx, profile))
 	return profile
 }
 
-func (s *Service) avatarView(ctx context.Context, user UserProfileSummary, profile Profile) AvatarView {
-	alt := avatarAlt(user)
-	if profile.AvatarAttachmentID != nil && *profile.AvatarAttachmentID > 0 {
-		if attachment, err := s.store.GetAvatarAttachment(ctx, *profile.AvatarAttachmentID); err == nil && attachment.Status == attachments.StatusActive {
-			id := attachment.ID
-			url := strings.TrimSpace(attachment.URL)
-			if url == "" && attachment.PublicID != "" {
-				url = "/api/v1/attachments/" + attachment.PublicID + "/content"
-			}
-			return AvatarView{Kind: AvatarKindUploaded, URL: url, AttachmentID: &id, Alt: alt}
-		}
+func (s *Service) avatarSource(ctx context.Context, profile Profile) AvatarSource {
+	source := AvatarSource{AttachmentID: profile.AvatarAttachmentID}
+	if profile.AvatarAttachmentID == nil || *profile.AvatarAttachmentID <= 0 {
+		return source
 	}
-
-	avatarOptions, err := s.resolveAvatarOptions(ctx)
-	if err != nil {
-		return AvatarView{Kind: AvatarKindInitials, Alt: alt}
+	if attachment, err := s.store.GetAvatarAttachment(ctx, *profile.AvatarAttachmentID); err == nil {
+		source.Attachment = &attachment
 	}
-	switch avatarOptions.DefaultProvider {
-	case options.AvatarProviderGravatar:
-		if hash := gravatarHash(user.Email, avatarOptions.GravatarHashAlgorithm); hash != "" {
-			return AvatarView{Kind: AvatarKindGravatar, URL: avatarOptions.GravatarBaseURL + hash, Alt: alt}
-		}
-	case options.AvatarProviderStatic:
-		if url := strings.TrimSpace(avatarOptions.DefaultStaticURL); url != "" {
-			return AvatarView{Kind: AvatarKindStatic, URL: url, Alt: alt}
-		}
-	}
-	return AvatarView{Kind: AvatarKindInitials, Alt: alt}
+	return source
 }
 
 func (s *Service) resolveAvatarOptions(ctx context.Context) (options.AvatarOptions, error) {
 	if s.avatarOptions == nil {
-		return options.AvatarOptions{
-			AllowUpload:           true,
-			DefaultProvider:       options.AvatarProviderInitials,
-			GravatarBaseURL:       "https://gravatar.com/avatar/",
-			GravatarHashAlgorithm: options.AvatarHashSHA256,
-			MaxSizeKB:             2048,
-			MaxDimension:          2048,
-			AllowGIF:              false,
-			CompressEnabled:       true,
-			TargetDimension:       256,
-			CompressQuality:       85,
-		}, nil
+		return defaultAvatarOptions(), nil
 	}
 	return s.avatarOptions.AvatarOptions(ctx)
 }
 
-func avatarAlt(user UserProfileSummary) string {
-	if value := strings.TrimSpace(user.DisplayName); value != "" {
-		return value
-	}
-	if value := strings.TrimSpace(user.Username); value != "" {
-		return value
-	}
-	return "User"
+type avatarOptionResolverAdapter struct {
+	inner AvatarOptionResolver
 }
 
-func gravatarHash(email string, algorithm string) string {
-	normalized := strings.ToLower(strings.TrimSpace(email))
-	if normalized == "" {
-		return ""
+func (r avatarOptionResolverAdapter) AvatarOptions(ctx context.Context) (avatar.Options, error) {
+	if r.inner == nil {
+		return avatar.DefaultOptions(), nil
 	}
-	if algorithm == options.AvatarHashMD5 {
-		sum := md5.Sum([]byte(normalized))
-		return hex.EncodeToString(sum[:])
+	resolved, err := r.inner.AvatarOptions(ctx)
+	if err != nil {
+		return avatar.Options{}, err
 	}
-	sum := sha256.Sum256([]byte(normalized))
-	return hex.EncodeToString(sum[:])
+	return avatarOptionsFromRuntime(resolved), nil
+}
+
+func avatarOptionsFromRuntime(input options.AvatarOptions) avatar.Options {
+	return avatar.Options{
+		AllowUpload:           input.AllowUpload,
+		DefaultProvider:       input.DefaultProvider,
+		GravatarBaseURL:       input.GravatarBaseURL,
+		GravatarHashAlgorithm: input.GravatarHashAlgorithm,
+		DefaultStaticURL:      input.DefaultStaticURL,
+		MaxSizeKB:             input.MaxSizeKB,
+		MaxDimension:          input.MaxDimension,
+		AllowGIF:              input.AllowGIF,
+		CompressEnabled:       input.CompressEnabled,
+		TargetDimension:       input.TargetDimension,
+		CompressQuality:       input.CompressQuality,
+	}
+}
+
+func defaultAvatarOptions() options.AvatarOptions {
+	defaults := avatar.DefaultOptions()
+	return options.AvatarOptions{
+		AllowUpload:           defaults.AllowUpload,
+		DefaultProvider:       defaults.DefaultProvider,
+		GravatarBaseURL:       defaults.GravatarBaseURL,
+		GravatarHashAlgorithm: defaults.GravatarHashAlgorithm,
+		DefaultStaticURL:      defaults.DefaultStaticURL,
+		MaxSizeKB:             defaults.MaxSizeKB,
+		MaxDimension:          defaults.MaxDimension,
+		AllowGIF:              defaults.AllowGIF,
+		CompressEnabled:       defaults.CompressEnabled,
+		TargetDimension:       defaults.TargetDimension,
+		CompressQuality:       defaults.CompressQuality,
+	}
 }
 
 // normalizeUpdateProfileInput 规范化并校验输入字段。

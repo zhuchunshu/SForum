@@ -6,8 +6,21 @@ import (
 	"testing"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
+
+func TestForumUserSummaryCarriesAvatarView(t *testing.T) {
+	user := UserSummary{
+		ID:          7,
+		Username:    "alice",
+		DisplayName: "Alice",
+		Avatar:      avatar.View{Kind: avatar.KindInitials, Alt: "Alice"},
+	}
+	if user.Avatar.Kind != avatar.KindInitials || user.Avatar.Alt != "Alice" {
+		t.Fatalf("expected avatar view on forum user summary, got %#v", user.Avatar)
+	}
+}
 
 func TestServiceCreateTopicRendersSharedPostContent(t *testing.T) {
 	store := newServiceFakeStore()
@@ -175,6 +188,25 @@ func TestServiceCreateTopicNormalizesAndDeduplicatesTagSlugs(t *testing.T) {
 	}
 	if store.resolveTagsCalled {
 		t.Fatal("service should defer tag resolution to the store create transaction")
+	}
+}
+
+func TestServiceCreateTopicAllowsChineseTagSlugs(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
+	actor := topicCreator()
+
+	_, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
+		CategorySlug: "general",
+		Title:        "中文标签",
+		TagSlugs:     []string{" 中文标签 ", "中文标签", "Nuxt-UI"},
+		Content:      validMarkdownContent("正文"),
+	})
+	if err != nil {
+		t.Fatalf("CreateTopic returned error: %v", err)
+	}
+	if !stringSlicesEqual(store.createdTopic.TagSlugs, []string{"中文标签", "nuxt-ui"}) {
+		t.Fatalf("expected normalized Chinese tag slugs on create record, got %#v", store.createdTopic.TagSlugs)
 	}
 }
 
@@ -418,6 +450,28 @@ func TestServiceNormalizesTagIconColor(t *testing.T) {
 	}
 	if updated.Icon != "" || updated.IconColor != "#0f766e" {
 		t.Fatalf("expected update to clear icon and normalize color, got icon=%q color=%q", updated.Icon, updated.IconColor)
+	}
+}
+
+func TestServiceCreateTagAllowsChineseSlug(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewService(store)
+	actor := identity.Actor{
+		ID:          1,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionTagManage: true},
+	}
+
+	created, err := service.CreateTag(context.Background(), actor, CreateTagInput{
+		Slug:   " 中文标签 ",
+		Name:   "中文标签",
+		Status: TagStatusActive,
+	})
+	if err != nil {
+		t.Fatalf("CreateTag returned error: %v", err)
+	}
+	if created.Slug != "中文标签" || store.createdTag.Slug != "中文标签" {
+		t.Fatalf("expected Chinese tag slug to be accepted and trimmed, got created=%#v store=%#v", created, store.createdTag)
 	}
 }
 

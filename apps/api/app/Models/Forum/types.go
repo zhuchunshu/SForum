@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 )
 
 const (
@@ -151,9 +153,10 @@ type Tag struct {
 }
 
 type UserSummary struct {
-	ID          int64  `json:"id"`
-	Username    string `json:"username"`
-	DisplayName string `json:"displayName"`
+	ID          int64       `json:"id"`
+	Username    string      `json:"username"`
+	DisplayName string      `json:"displayName"`
+	Avatar      avatar.View `json:"avatar"`
 }
 
 type TopicListInput struct {

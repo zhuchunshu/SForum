@@ -50,6 +50,9 @@ Initial identity foundation is implemented.
 - Browser auth remains Redis-backed server session, not JWT-first. Sessions use
   HTTP-only SameSite=Lax cookies, secure cookies in production, 30-day idle
   timeout, 180-day absolute timeout, and 24-hour session-id renewal by default.
+- `CurrentUser` responses now include `avatar` as the shared `AvatarView`
+  contract. Navbar/admin chrome should render the session user's avatar from
+  this field via `SFAvatar`.
 - Nuxt treats only 401/`auth.required` from `/auth/session` as logged out.
   Transient API restart, timeout, or gateway failures keep the existing
   frontend user state and surface auth service unavailability instead of
@@ -118,6 +121,10 @@ Initial identity foundation is implemented.
 - `user_roles`
 - `user_permission_overrides`
 - `audit_events`
+- `user_sessions` — 活跃会话/登录设备目录。`sid` 是 server 生成的稳定 opaque 标识
+  （非 cookie 凭证），`session_hash` 是 cookie session id 的 HMAC（仅审计关联）。不存
+  raw session id / token。支撑「活跃设备列表 / 登录历史 / 下线单个 / 下线其他」。
+  见 `decisions/2026-07-10-account-security-sessions.md`。
 
 ## Current Boundaries
 
@@ -181,6 +188,14 @@ Initial identity foundation is implemented.
   could be surfaced accurately.
 - `apps/api/app/Providers/identity.go` wires the identity store, service, and
   controller into the ordered route-provider list.
+- 账号安全 / 登录设备管理：`user_sessions` 表（migration
+  `202607100002_user_sessions.sql`）、`identity/sessions.go`（store SQL）、
+  `identity/session_service.go`（列表/revoke/enforce max 领域逻辑）、
+  `Support/AuthSession/manager.go`（`SessionStore` 接口 + `sid` payload + revoke
+  校验 + `CurrentSID`）、`Support/UserAgent`（UA/IP 解析与脱敏）。前端
+  `useAccountSecurityApi` composable + `settings/security.vue` 用户页 + admin
+  settings accountSecurity tab 的 `identity.sessions.max_devices`。决策见
+  `decisions/2026-07-10-account-security-sessions.md`。
 - `apps/api/bootstrap/app.go` wires a runtime human-verification service that
   reads provider, ALTCHA secret, TTL, and cost from Options on each
   challenge/verify request. Environment values remain first-run fallbacks for
@@ -211,14 +226,15 @@ Initial identity foundation is implemented.
 
 ## Next Steps
 
-- Add CSRF protection for cookie-authenticated unsafe requests.
+- Add CSRF protection for cookie-authenticated unsafe requests. *(Done —
+  `decisions/2026-07-09-security-fixes.md`.)*
 - Tune production ALTCHA challenge cost, expiration, and per-IP limits after
   testing on expected low-end client devices.
-- Add user-facing account security views for login history and active devices,
-  backed by a server-side session/device model that can revoke one device, all
-  other devices, or all sessions without exposing raw session ids.
-- Add admin-configurable max active browser sessions with beginner-friendly
-  defaults and reset-to-recommended behavior.
+- User-facing account security views for login history and active devices
+  (revoke one / revoke others, max-device config) are now implemented — see
+  `decisions/2026-07-10-account-security-sessions.md`. Follow-ups: consider
+  caching `IsSessionRevoked` to reduce hot-path cost, and admin force-revoke
+  of other users' devices behind a permission boundary.
 - Add risk-based controls for new device/IP patterns, including optional
   reauthentication or human verification.
 - Extend the same human-verification boundary to password-reset initiation and

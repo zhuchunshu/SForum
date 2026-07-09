@@ -13,22 +13,27 @@ const startupOptionsTimeout = import.meta.dev ? 800 : 2000
 // 引入页签缓存控制列表
 const { cachedTabNames } = useAdminTabs()
 
-async function refreshStartupState() {
+async function refreshStartupState(options: { restoreAuth: boolean }) {
   // 开发热重载时 API 可能还在编译，首屏先使用本地默认状态。
-  await Promise.all([
-    refreshWebOptions({ timeout: startupOptionsTimeout }).catch(() => null),
-    refreshAuthSession({ timeout: startupOptionsTimeout })
-  ])
+  const tasks: Array<Promise<unknown>> = [
+    refreshWebOptions({ timeout: startupOptionsTimeout }).catch(() => null)
+  ]
+
+  if (options.restoreAuth) {
+    tasks.push(refreshAuthSession({ timeout: startupOptionsTimeout }))
+  }
+
+  await Promise.all(tasks)
   return true
 }
 
 if (import.meta.server) {
-  await useAsyncData('app-startup', refreshStartupState)
+  // 公共页可能被 Nitro SWR 缓存，SSR 阶段不能把当前用户写进可复用 payload。
+  await useAsyncData('app-startup', () => refreshStartupState({ restoreAuth: false }))
 } else {
-  // 客户端启动刷新不能挡住首屏挂载；SSR 页面已有首屏 HTML，SPA 管理页也应先显示壳层。
-  void useAsyncData('app-startup', refreshStartupState, {
-    server: false,
-    lazy: true
+  // 浏览器挂载后再恢复会话，避免复用 SSR 的 app-startup payload 时跳过 auth 刷新。
+  onMounted(() => {
+    void refreshStartupState({ restoreAuth: true })
   })
 }
 

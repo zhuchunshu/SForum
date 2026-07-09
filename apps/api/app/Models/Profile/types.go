@@ -5,6 +5,7 @@ import (
 	"time"
 
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
+	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 )
 
 const (
@@ -33,12 +34,7 @@ const (
 )
 
 // AvatarView 是前端和主题渲染头像所需的稳定视图。
-type AvatarView struct {
-	Kind         string `json:"kind"`
-	URL          string `json:"url"`
-	AttachmentID *int64 `json:"attachmentId,omitempty"`
-	Alt          string `json:"alt"`
-}
+type AvatarView = avatar.View
 
 // Profile 是用户资料行（user_profiles）。
 type Profile struct {
@@ -89,11 +85,10 @@ type ProfileStats struct {
 	CommentCount int64
 }
 
-type AvatarAttachment struct {
-	ID          int64
-	PublicID    string
-	OwnerUserID int64
-	ContentType string
-	Status      string
-	URL         string
-}
+type AvatarAttachment = avatar.Attachment
+
+// AvatarUser 是头像视图构建所需的最小用户信息。
+type AvatarUser = avatar.User
+
+// AvatarSource 是调用方已解析好的头像来源，避免列表页逐项回查 profile。
+type AvatarSource = avatar.Source

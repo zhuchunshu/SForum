@@ -454,3 +454,116 @@ userPermissionOverrides:
         "$ref": "../components/responses.yaml#/Conflict"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminUserRevokeSessions:
+  post:
+    summary: Admin force-revoke all of a user's devices
+    description: |
+      Requires `user.manage`. Revokes every active session belonging to the
+      target user (e.g. after a security event). An operator cannot revoke
+      their own sessions through this endpoint (use logout instead) and
+      receives 400 `auth.cannot_revoke_own_sessions`.
+    operationId: adminRevokeUserSessions
+    parameters:
+    - "$ref": "../components/parameters.yaml#/UserID"
+    responses:
+      '200':
+        description: Target user's sessions revoked.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseRevokeOthers"
+      '400':
+        description: Attempted to revoke own sessions (reason auth.cannot_revoke_own_sessions).
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+authSessions:
+  get:
+    summary: List the current user's login sessions / active devices
+    description: |
+      Self-service: returns the caller's own sessions only. Requires an authenticated
+      session (auth.required). Never exposes raw session ids or auth credentials; the
+      `id` is an opaque handle used solely to target a device for revocation.
+      Pass `includeHistory=true` to include revoked sessions (login history).
+    operationId: listAuthSessions
+    parameters:
+    - name: includeHistory
+      in: query
+      required: false
+      schema:
+        type: boolean
+        default: false
+    - name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    - name: perPage
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+    responses:
+      '200':
+        description: Session list for the current user.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseLoginSessionList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+authSessionRevokeOthers:
+  post:
+    summary: Revoke all other devices except the current one
+    description: |
+      Self-service: revokes every active session belonging to the caller except the
+      one making the request. Requires an authenticated session (auth.required).
+    operationId: revokeOtherAuthSessions
+    responses:
+      '200':
+        description: Other sessions revoked.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/identity.yaml#/ApiResponseRevokeOthers"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+authSessionByID:
+  delete:
+    summary: Revoke a single device
+    description: |
+      Self-service: revokes one of the caller's own sessions by opaque id. A sid that
+      does not belong to the caller returns 404 (auth.session_not_found) and does not
+      leak whether it belongs to someone else. Requires an authenticated session.
+    operationId: revokeAuthSession
+    parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Opaque session id (not an auth credential).
+    responses:
+      '200':
+        description: Session revoked.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiResponseNull"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '404':
+        description: Session not found or does not belong to the caller (reason auth.session_not_found).
+        content:
+          application/json:
+            schema:
+              "$ref": "../components/responses.yaml#/NotFound"
+              description: Not used directly; see referenced NotFound response.

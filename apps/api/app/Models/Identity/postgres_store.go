@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,20 +12,31 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 	store "github.com/zhuchunshu/sforum/apps/api/database/sqlc"
 )
 
 type PostgresStore struct {
-	pool    *pgxpool.Pool
-	queries *store.Queries
+	pool          *pgxpool.Pool
+	queries       *store.Queries
+	avatarBuilder *avatar.ViewBuilder
 }
 
 type postgresTxStore struct {
-	queries *store.Queries
+	queries       *store.Queries
+	avatarBuilder *avatar.ViewBuilder
 }
 
 func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
-	return &PostgresStore{pool: pool, queries: store.New(pool)}
+	return NewPostgresStoreWithAvatar(pool, nil)
+}
+
+func NewPostgresStoreWithAvatar(pool *pgxpool.Pool, avatarOptions avatar.OptionResolver) *PostgresStore {
+	return &PostgresStore{
+		pool:          pool,
+		queries:       store.New(pool),
+		avatarBuilder: avatar.NewViewBuilder(avatarOptions),
+	}
 }
 
 func (s *PostgresStore) WithBootstrapTx(ctx context.Context, fn func(context.Context, TxStore) error) error {
@@ -40,7 +52,7 @@ func (s *PostgresStore) WithBootstrapTx(ctx context.Context, fn func(context.Con
 		return fmt.Errorf("lock identity bootstrap: %w", err)
 	}
 
-	txStore := &postgresTxStore{queries: s.queries.WithTx(tx)}
+	txStore := &postgresTxStore{queries: s.queries.WithTx(tx), avatarBuilder: s.avatarBuilder}
 	if err := fn(ctx, txStore); err != nil {
 		return err
 	}
@@ -66,18 +78,19 @@ func (s *PostgresStore) FindRegistrationConflicts(ctx context.Context, username 
 }
 
 func (s *PostgresStore) GetCurrentUser(ctx context.Context, userID int64) (CurrentUser, error) {
-	row, err := s.queries.GetCurrentUser(ctx, userID)
+	current, err := scanCurrentUserWithAvatar(ctx, s.avatarBuilder, s.pool.QueryRow(ctx, `
+		SELECT users.id, users.username, users.display_name, users.email, users.locale,
+		       users.status, users.is_initial_super_admin,
+		       user_profiles.avatar_attachment_id,
+		       attachments.id, attachments.public_id, attachments.owner_user_id,
+		       attachments.content_type, attachments.status
+		FROM users
+		LEFT JOIN user_profiles ON user_profiles.user_id = users.id
+		LEFT JOIN attachments ON attachments.id = user_profiles.avatar_attachment_id
+		WHERE users.id = $1
+	`, userID))
 	if err != nil {
 		return CurrentUser{}, fmt.Errorf("get current user: %w", err)
-	}
-
-	current := CurrentUser{
-		ID:                  row.ID,
-		Username:            row.Username,
-		DisplayName:         row.DisplayName,
-		Locale:              row.Locale,
-		Status:              UserStatus(row.Status),
-		IsInitialSuperAdmin: row.IsInitialSuperAdmin,
 	}
 	if err := s.loadCurrentUserAccess(ctx, &current); err != nil {
 		return CurrentUser{}, err
@@ -86,26 +99,131 @@ func (s *PostgresStore) GetCurrentUser(ctx context.Context, userID int64) (Curre
 }
 
 func (s *PostgresStore) GetCredentialByLogin(ctx context.Context, login string) (CredentialUser, error) {
-	row, err := s.queries.GetUserCredentialByLogin(ctx, login)
+	current, passwordHash, err := scanCredentialUserWithAvatar(ctx, s.avatarBuilder, s.pool.QueryRow(ctx, `
+		SELECT users.id, users.username, users.display_name, users.email, users.locale,
+		       users.status, users.is_initial_super_admin, user_credentials.password_hash,
+		       user_profiles.avatar_attachment_id,
+		       attachments.id, attachments.public_id, attachments.owner_user_id,
+		       attachments.content_type, attachments.status
+		FROM users
+		JOIN user_credentials ON user_credentials.user_id = users.id
+		LEFT JOIN user_profiles ON user_profiles.user_id = users.id
+		LEFT JOIN attachments ON attachments.id = user_profiles.avatar_attachment_id
+		WHERE users.username_lower = lower($1) OR users.email_lower = lower($1)
+	`, login))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return CredentialUser{}, ErrCredentialNotFound
 		}
 		return CredentialUser{}, fmt.Errorf("get user credential: %w", err)
 	}
-
-	current := CurrentUser{
-		ID:                  row.ID,
-		Username:            row.Username,
-		DisplayName:         row.DisplayName,
-		Locale:              row.Locale,
-		Status:              UserStatus(row.Status),
-		IsInitialSuperAdmin: row.IsInitialSuperAdmin,
-	}
 	if err := s.loadCurrentUserAccess(ctx, &current); err != nil {
 		return CredentialUser{}, err
 	}
-	return CredentialUser{CurrentUser: current, PasswordHash: row.PasswordHash}, nil
+	return CredentialUser{CurrentUser: current, PasswordHash: passwordHash}, nil
+}
+
+type currentUserAvatarScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanCurrentUserWithAvatar(ctx context.Context, builder *avatar.ViewBuilder, row currentUserAvatarScanner) (CurrentUser, error) {
+	var current CurrentUser
+	var email string
+	var status string
+	var avatarAttachmentID sql.NullInt64
+	var attachmentID sql.NullInt64
+	var attachmentPublicID sql.NullString
+	var attachmentOwnerID sql.NullInt64
+	var attachmentContentType sql.NullString
+	var attachmentStatus sql.NullString
+	if err := row.Scan(
+		&current.ID,
+		&current.Username,
+		&current.DisplayName,
+		&email,
+		&current.Locale,
+		&status,
+		&current.IsInitialSuperAdmin,
+		&avatarAttachmentID,
+		&attachmentID,
+		&attachmentPublicID,
+		&attachmentOwnerID,
+		&attachmentContentType,
+		&attachmentStatus,
+	); err != nil {
+		return CurrentUser{}, err
+	}
+	current.Status = UserStatus(status)
+	current.Avatar = currentUserAvatar(ctx, builder, current, email, avatarAttachmentID, attachmentID, attachmentPublicID, attachmentOwnerID, attachmentContentType, attachmentStatus)
+	return current, nil
+}
+
+func scanCredentialUserWithAvatar(ctx context.Context, builder *avatar.ViewBuilder, row currentUserAvatarScanner) (CurrentUser, string, error) {
+	var current CurrentUser
+	var email string
+	var status string
+	var passwordHash string
+	var avatarAttachmentID sql.NullInt64
+	var attachmentID sql.NullInt64
+	var attachmentPublicID sql.NullString
+	var attachmentOwnerID sql.NullInt64
+	var attachmentContentType sql.NullString
+	var attachmentStatus sql.NullString
+	if err := row.Scan(
+		&current.ID,
+		&current.Username,
+		&current.DisplayName,
+		&email,
+		&current.Locale,
+		&status,
+		&current.IsInitialSuperAdmin,
+		&passwordHash,
+		&avatarAttachmentID,
+		&attachmentID,
+		&attachmentPublicID,
+		&attachmentOwnerID,
+		&attachmentContentType,
+		&attachmentStatus,
+	); err != nil {
+		return CurrentUser{}, "", err
+	}
+	current.Status = UserStatus(status)
+	current.Avatar = currentUserAvatar(ctx, builder, current, email, avatarAttachmentID, attachmentID, attachmentPublicID, attachmentOwnerID, attachmentContentType, attachmentStatus)
+	return current, passwordHash, nil
+}
+
+func currentUserAvatar(ctx context.Context, builder *avatar.ViewBuilder, current CurrentUser, email string, avatarAttachmentID sql.NullInt64, attachmentID sql.NullInt64, attachmentPublicID sql.NullString, attachmentOwnerID sql.NullInt64, attachmentContentType sql.NullString, attachmentStatus sql.NullString) avatar.View {
+	if builder == nil {
+		builder = avatar.NewViewBuilder(nil)
+	}
+	source := avatar.Source{}
+	if avatarAttachmentID.Valid && avatarAttachmentID.Int64 > 0 {
+		id := avatarAttachmentID.Int64
+		source.AttachmentID = &id
+	}
+	if attachmentID.Valid && attachmentID.Int64 > 0 {
+		source.Attachment = &avatar.Attachment{
+			ID:          attachmentID.Int64,
+			PublicID:    attachmentPublicID.String,
+			OwnerUserID: nullableSQLInt64Value(attachmentOwnerID),
+			ContentType: attachmentContentType.String,
+			Status:      attachmentStatus.String,
+		}
+	}
+	return builder.AvatarView(ctx, avatar.User{
+		UserID:      current.ID,
+		Username:    current.Username,
+		DisplayName: current.DisplayName,
+		Email:       email,
+	}, source)
+}
+
+func nullableSQLInt64Value(value sql.NullInt64) int64 {
+	if value.Valid {
+		return value.Int64
+	}
+	return 0
 }
 
 func (s *PostgresStore) LoadActor(ctx context.Context, userID int64) (Actor, error) {
@@ -631,14 +749,16 @@ func (s *postgresTxStore) CreateUser(ctx context.Context, input CreateUserInput)
 		}
 		return CurrentUser{}, fmt.Errorf("create user: %w", err)
 	}
-	return CurrentUser{
+	current := CurrentUser{
 		ID:                  row.ID,
 		Username:            row.Username,
 		DisplayName:         row.DisplayName,
 		Locale:              row.Locale,
 		Status:              UserStatus(row.Status),
 		IsInitialSuperAdmin: row.IsInitialSuperAdmin,
-	}, nil
+	}
+	current.Avatar = currentUserAvatar(ctx, s.avatarBuilder, current, input.Email, sql.NullInt64{}, sql.NullInt64{}, sql.NullString{}, sql.NullInt64{}, sql.NullString{}, sql.NullString{})
+	return current, nil
 }
 
 func (s *postgresTxStore) CreateCredential(ctx context.Context, userID int64, passwordHash string) error {

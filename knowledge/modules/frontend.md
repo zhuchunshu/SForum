@@ -23,9 +23,10 @@ startup banner, then imports the generated Nitro server entry at
 During development startup and API hot reloads, the global site-options read
 uses a short timeout and falls back to local defaults so SSR can render the page
 while the API process is still compiling.
-App startup also attempts to restore the current browser session from
-`/auth/session`; transient API failures mark auth as temporarily unavailable
-without clearing the cached user state.
+App startup splits cache-safe SSR work from browser-only auth restoration:
+SSR refreshes frontend-safe web options only, while browser `onMounted`
+restores the current session from `/auth/session`. Transient API failures mark
+auth as temporarily unavailable without clearing the cached user state.
 Nuxt top-level ignores stay scoped to app-local generated output so Nuxt UI
 components under `node_modules/@nuxt/ui/dist` are still auto-imported.
 Nuxt UI remote font integration is disabled for now to avoid build-time network
@@ -36,6 +37,11 @@ uppercase `SF` component names. The first component set is backed by
 `/components` route. That preview page now shows the components in expanded
 forum scenarios: publishing, moderation, member profile, feedback, lists, and
 state handling.
+`SFAvatar` is the required first-party user avatar renderer. Real user chrome,
+topic lists, topic detail authors, and comments should pass `AvatarView`
+through `:avatar` instead of using `UAvatar`, hand-written initials, or raw URL
+props. Name-only `SFAvatar` usage is kept for component demos and generic
+fallback examples.
 `SFEditor` is now backed by Tiptap rather than a plain textarea. It keeps the
 existing `v-model` as Markdown for simple parent integration, emits a
 `content-change` payload containing HTML, Markdown, native Tiptap JSON, text,
@@ -43,6 +49,10 @@ character count, word count, and empty state, and includes toolbar controls,
 custom emoji nodes, preview, Markdown source, and JSON inspection modes. The
 client HTML is only for preview and must be regenerated/sanitized by the API
 before storage.
+The topic composer sends `SFEditor` Markdown through `useForumApi.createTopic`,
+which wraps editor fields under the backend `content` contract. Composer tag
+input accepts Unicode letters/numbers plus hyphens, matching backend tag slug
+validation for Chinese tag names.
 Public, non-admin UI is now owned by the protected built-in default theme layer
 at `extensions/builtin/themes/sforum-default/layer`. The root Nuxt app extends
 that fallback layer and can prepend an uploaded Nuxt Layer during release builds
@@ -56,6 +66,15 @@ client scroll uses `IntersectionObserver` to append later pages. The loaded
 feed and total are initialized from `topicList.value` into Nuxt `useState` so
 the SSR rows survive hydration in development payload mode. Desktop homepage
 side rails remain sticky but are viewport-bounded with internal scrolling.
+The default-theme homepage visual shell now follows the accepted A
+Linux.do-inspired direction directly. `index.vue` opts out of the public
+default layout (`layout: false`) and renders its own compact A-style topbar,
+1520px shell, 238px left rail, notice, tabs, and dense table-oriented topic
+rows; it then renders `SFFooter` manually below the homepage shell. Homepage
+accent states, notice surfaces, category dots, selected tabs, badges, and
+scrollbars map through `--sf-accent*` / `--sf-accent-rgb`, with local light and
+dark A-style surface tokens so color mode changes do not alter the information
+hierarchy.
 Uploaded themes are incremental overlays. When `SFORUM_THEME_LAYER` is set,
 `apps/web/nuxt.config.ts` extends `[uploadedThemeLayer, defaultThemeLayer]` so
 the uploaded layer can override public pages, layouts, components, and assets,
@@ -128,11 +147,11 @@ instead of SPA-only and explicitly disable route cache. A global
 missing users to the locale-aware login page; if the auth API is temporarily
 unavailable and there is no cached user, these ordinary user pages still
 degrade to login rather than a 503 shell. The root app still waits for startup
-web options/auth refresh during SSR, but client startup refresh runs lazily so
-SPA admin/component-preview routes do not hold the first client render behind
-API calls. This prevents public auth and ordinary protected user pages from
-serving an empty `#__nuxt` shell and showing a white screen while the client
-bundle or startup refresh is still pending.
+web options during SSR, but it does not refresh auth during SSR because public
+SWR pages must not cache user-specific payload. Browser startup refresh runs on
+mount so SPA admin/component-preview routes do not hold the first client render
+behind API calls and cached public pages can still restore valid sessions after
+hydration.
 Admin pages use a dedicated `admin` Nuxt layout built from Nuxt UI Dashboard
 components (`UDashboardGroup`, `UDashboardSidebar`, `UDashboardPanel`,
 `UDashboardNavbar`, `UDashboardToolbar`) and Nuxt Icon lucide icons. The source
@@ -216,9 +235,11 @@ robots meta, Open Graph/Twitter tags, verification tags, and minimal JSON-LD.
 The Nuxt sitemap module uses a dynamic server source and robots.txt is extended
 through a Nitro hook. Local and preview URLs are always noindex.
 Admin route middleware distinguishes real unauthenticated responses from
-temporary auth-service failures. A 401 or `auth.required` redirects to login;
-API restart/502/timeout cases show a temporary unavailable error instead of
-forcing the user to sign in again.
+temporary auth-service failures through `useAuthSession()`. A missing user
+after refresh redirects to the locale-aware login page even when the auth API is
+temporarily unavailable, so API restart/502/timeout cases do not render a Nuxt
+503 error page. Cached current users are preserved and continue through the
+admin permission check.
 Client-side API requests made through `useApiClient().request` now detect
 backend API connectivity failures globally. Gateway/runtime failures such as
 502/503/504, `server.unavailable`, browser `Failed to fetch`, and timeout-style
@@ -265,6 +286,40 @@ helper.
 - Required verification after touching auth pages, `useAuthSession()`, or admin
   middleware: run `bun test tests/useApiClient.test.ts`, `bun run typecheck`,
   and browser-check both successful register and successful login navigation.
+
+### Public SWR Pages And Auth State
+
+- Symptom to watch for: after logging in, refreshing a public cached page such
+  as `/` appears logged out, while visiting the admin area still shows the
+  session correctly.
+- Known cause: public routeRules such as `swr: 600` can serve a cached Nuxt
+  payload. Never write `auth:user` into root-app SSR payload on public pages,
+  or a cached guest payload can hide a valid browser session and a cached user
+  payload risks leaking user-specific chrome.
+- Safe pattern: `app.vue` refreshes only web options during SSR and restores
+  auth in browser `onMounted`; protected/admin route middleware remains
+  responsible for server-side auth checks on cache-disabled routes.
+- Required verification after touching app startup/auth cache behavior: run
+  `bun test apps/web/tests/appStartup.test.ts apps/web/tests/useApiClient.test.ts
+  apps/web/tests/protectedRouteRendering.test.ts apps/web/tests/adminRouteRendering.test.ts`,
+  then browser-check a public cached page and an authenticated protected route
+  when a logged-in browser session is available.
+
+### SSR Directives For Rendered Content
+
+- Symptom to watch for: SSR topic/comment pages fail with
+  `Cannot read properties of undefined (reading 'getSSRProps')` from Vue
+  server renderer.
+- Known cause: a template uses a custom directive such as `v-highlight`, but
+  the directive is registered only by a `.client.ts` plugin. SSR still compiles
+  the directive usage and expects a server-side directive object.
+- Safe pattern: keep `apps/web/app/plugins/highlight.client.ts` for real
+  highlight.js DOM scanning and `apps/web/app/plugins/highlight.server.ts` as
+  the no-op SSR placeholder with `getSSRProps`.
+- Required verification after touching rendered-content directives: run
+  `bun test tests/defaultThemeTopicPage.test.ts`, `bun run typecheck`, and an
+  SSR smoke request such as `curl -sS --max-time 20 -o /tmp/sforum-topic.html
+  -w '%{http_code} %{size_download}\n' http://127.0.0.1:3000/t/5999`.
 
 ## Planned Stack
 

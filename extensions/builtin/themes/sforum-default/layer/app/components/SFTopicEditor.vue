@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {
+  isForumTagSlug,
+  normalizeForumTagSlugInput,
   type ForumCategoryGroup,
   type ForumTopicDetail,
   type ForumTopicTagSummary
@@ -70,11 +72,12 @@ const canSubmit = computed(() => {
 })
 
 function addTag() {
-  const raw = tagInput.value.trim().toLowerCase()
+  const raw = normalizeForumTagSlugInput(tagInput.value)
   if (!raw) {
     return
   }
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(raw)) {
+  // 标签 slug 支持 Unicode 字母/数字与连字符，便于中文社区直接使用中文标签。
+  if (!isForumTagSlug(raw)) {
     fieldErrors.value.tagSlugs = [t('composer.tagInvalid')]
     return
   }

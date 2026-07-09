@@ -177,6 +177,7 @@ function formatShortDate(value: string) {
                       :title="topic.title"
                       :excerpt="topic.excerpt"
                       :author="topicAuthor(topic)"
+                      :avatar="topic.author?.avatar"
                       :meta="topicMeta(topic)"
                       :replies="topic.commentCount"
                       :views="topic.viewCount"

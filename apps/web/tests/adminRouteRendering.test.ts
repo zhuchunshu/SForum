@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
+import { ref } from 'vue'
 
 describe('admin route rendering', () => {
   test('does not configure any route as SPA-only to avoid empty-shell white screens', () => {
@@ -22,4 +23,74 @@ describe('admin route rendering', () => {
     // admin 路由是动态 key（模板字符串），验证其配置块包含 cache: false。
     expect(config).toMatch(/adminRoutePrefix.*\*\*.*\{[^}]*cache\s*:\s*false/)
   })
+
+  test('redirects to login instead of rendering a Nuxt error when auth service is unavailable', async () => {
+    const status = ref('unknown')
+    const actions = {
+      navigations: [] as string[],
+      errors: [] as unknown[],
+      aborts: [] as unknown[]
+    }
+    const middleware = loadAdminMiddleware({
+      useAuthSession: () => ({
+        user: ref(null),
+        status,
+        refresh: async () => {
+          status.value = 'unavailable'
+          return null
+        },
+        can: () => false
+      }),
+      navigateTo: async (path: string) => {
+        actions.navigations.push(path)
+        return { type: 'navigate', path }
+      },
+      createError: (error: unknown) => {
+        actions.errors.push(error)
+        return error
+      },
+      abortNavigation: (error: unknown) => {
+        actions.aborts.push(error)
+        return { type: 'abort', error }
+      }
+    })
+
+    await middleware()
+
+    expect(actions.errors).toEqual([])
+    expect(actions.aborts).toEqual([])
+    expect(actions.navigations).toEqual(['/login'])
+  })
 })
+
+function loadAdminMiddleware(globals: {
+  useAuthSession: () => unknown
+  navigateTo: (path: string) => unknown
+  createError: (error: unknown) => unknown
+  abortNavigation: (error: unknown) => unknown
+}) {
+  const source = readFileSync(new URL('../app/middleware/admin.ts', import.meta.url), 'utf8')
+  const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'browser' })
+  const executable = transpiler.transformSync(source)
+    .replaceAll('import.meta.dev', 'true')
+    .replace(/export default /, 'return ')
+
+  const factory = new Function(
+    'defineNuxtRouteMiddleware',
+    'useLocalePath',
+    'useAuthSession',
+    'navigateTo',
+    'createError',
+    'abortNavigation',
+    executable
+  )
+
+  return factory(
+    (middleware: () => Promise<unknown>) => middleware,
+    () => (path: string) => path,
+    globals.useAuthSession,
+    globals.navigateTo,
+    globals.createError,
+    globals.abortNavigation
+  ) as () => Promise<unknown>
+}

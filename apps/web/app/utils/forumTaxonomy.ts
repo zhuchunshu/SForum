@@ -1,3 +1,5 @@
+import type { AvatarView } from '~/composables/useProfileApi'
+
 export type ForumTagCreationMode = 'controlled' | 'review' | 'open'
 export type ForumTagStatus = 'active' | 'pending' | 'disabled'
 export type ForumVisibility = 'public' | 'hidden'
@@ -59,6 +61,7 @@ export type ForumUserSummary = {
   id: number
   username: string
   displayName: string
+  avatar: AvatarView
 }
 
 export type ForumTopicTagSummary = {
@@ -177,6 +180,12 @@ export type ForumTopicUpdateInput = {
   content?: ForumContentInput
 }
 
+export type ForumTopicCreateInput = ForumContentInput & {
+  title: string
+  categorySlug?: string
+  tagSlugs?: string[]
+}
+
 export type ForumCommentListView = 'tree' | 'flat'
 
 export type ForumCommentListQuery = {
@@ -290,6 +299,17 @@ export function forumCategoryPath(slug: string) {
 
 export function forumTagPath(slug: string) {
   return `/tags/${encodeURIComponent(slug)}`
+}
+
+const forumTagSlugPattern = /^[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*$/u
+
+export function normalizeForumTagSlugInput(value: string) {
+  return value.trim().toLowerCase()
+}
+
+export function isForumTagSlug(value: string) {
+  const normalized = normalizeForumTagSlugInput(value)
+  return normalized !== '' && forumTagSlugPattern.test(normalized)
 }
 
 // 帖子 URL 形态枚举。与 useWebOptions 的 TopicUrlMode 保持一致；

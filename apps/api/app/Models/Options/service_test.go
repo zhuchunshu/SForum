@@ -92,6 +92,54 @@ func TestServicePasswordPolicyOptionsArePublicWithRecommendedDefaults(t *testing
 	}
 }
 
+// TestServiceSessionsMaxDevicesDefaultNotPublic 验证：max_devices 默认值为推荐值 5，
+// 且不暴露给公开 options 列表（仅后端登录时读取）。
+func TestServiceSessionsMaxDevicesDefaultNotPublic(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	actor := settingsActor()
+
+	adminItems, err := service.ListAdmin(context.Background(), actor)
+	if err != nil {
+		t.Fatalf("ListAdmin returned error: %v", err)
+	}
+	if got := adminValue(adminItems, NameIdentitySessionsMaxDevices); got != "5" {
+		t.Fatalf("expected max_devices default 5, got %q", got)
+	}
+
+	// 不应出现在公开 options 列表里。
+	publicItems, err := service.List(context.Background())
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	for _, item := range publicItems {
+		if item.Name == NameIdentitySessionsMaxDevices {
+			t.Fatalf("expected max_devices to be non-public, but it appeared in public options")
+		}
+	}
+}
+
+// TestServiceSessionsMaxDevicesValidation 验证：合法值（1-20）可更新，越界值被拒绝。
+func TestServiceSessionsMaxDevicesValidation(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	actor := settingsActor()
+
+	// 合法值可更新。
+	updated, err := service.Update(context.Background(), actor, UpdateInput{Name: NameIdentitySessionsMaxDevices, Value: "3"})
+	if err != nil {
+		t.Fatalf("Update returned error: %v", err)
+	}
+	if got := updated.Value; got != "3" {
+		t.Fatalf("expected max_devices 3, got %q", got)
+	}
+
+	// 越界值被拒绝。
+	for _, invalid := range []string{"0", "-1", "21", "abc", ""} {
+		if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameIdentitySessionsMaxDevices, Value: invalid}); !errors.Is(err, ErrInvalidOption) {
+			t.Fatalf("expected invalid max_devices %q to be rejected, got %v", invalid, err)
+		}
+	}
+}
+
 func TestServiceAvatarOptionsArePublicWithRecommendedDefaults(t *testing.T) {
 	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
 

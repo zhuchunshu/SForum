@@ -12,10 +12,21 @@ import (
 type Client = river.Client[pgx.Tx]
 
 func NewClient(pool *pgxpool.Pool, cfg Config, workers *river.Workers) (*Client, error) {
-	return river.NewClient(riverpgxv5.New(pool), &river.Config{
+	return NewClientWithPeriodic(pool, cfg, workers, nil)
+}
+
+// NewClientWithPeriodic 创建支持周期任务（PeriodicJobs）的 worker client。
+// periodicJobs 为 nil/空时退化为普通 NewClient 行为（向后兼容）。
+// 周期任务不经过队列调度，由 River 按 cron 周期触发；需在 worker 进程（非 insert-only）注册。
+func NewClientWithPeriodic(pool *pgxpool.Pool, cfg Config, workers *river.Workers, periodicJobs []*river.PeriodicJob) (*Client, error) {
+	rcfg := &river.Config{
 		Queues:  cfg.RiverQueues(),
 		Workers: workers,
-	})
+	}
+	if len(periodicJobs) > 0 {
+		rcfg.PeriodicJobs = periodicJobs
+	}
+	return river.NewClient(riverpgxv5.New(pool), rcfg)
 }
 
 func NewInsertOnlyClient(pool *pgxpool.Pool, _ Config) (*Client, error) {

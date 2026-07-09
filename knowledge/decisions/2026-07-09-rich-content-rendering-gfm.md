@@ -64,6 +64,11 @@ Apply three coordinated changes; do **not** batch-rerender existing posts.
   `pre code` blocks inside the bound element and highlights them. It uses
   `highlight.js/lib/core` with ~14 common languages registered by alias to
   control bundle size; unregistered languages fall back to auto-detection.
+- A companion server plugin `apps/web/app/plugins/highlight.server.ts`
+  registers the same directive with a no-op `getSSRProps`. Keep this server
+  placeholder whenever SSR pages/components use `v-highlight`; otherwise Vue's
+  server renderer receives an undefined directive and throws while reading
+  `getSSRProps`.
 - `apps/web/app/assets/css/highlight-theme.css` defines teal-harmonized token
   colors for light/dark, registered in `nuxt.config.ts`.
 - `v-highlight` is attached to the three `v-html` content containers: the
@@ -86,6 +91,8 @@ Apply three coordinated changes; do **not** batch-rerender existing posts.
   scope here, must be written).
 - Adding a new highlight.js language requires registering it in
   `highlight.client.ts`.
+- Do not make `v-highlight` client-only unless all SSR template usage is also
+  removed or guarded.
 
 ## Sources
 

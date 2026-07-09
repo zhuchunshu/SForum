@@ -128,6 +128,7 @@ CurrentUser:
   - locale
   - status
   - isInitialSuperAdmin
+  - avatar
   - roleKeys
   - permissions
   properties:
@@ -148,6 +149,8 @@ CurrentUser:
       - banned
     isInitialSuperAdmin:
       type: boolean
+    avatar:
+      "$ref": "../schemas/profile.yaml#/AvatarView"
     roleKeys:
       type: array
       items:
@@ -514,3 +517,97 @@ ApiResponsePasswordResetConfirmed:
       properties:
         reset:
           type: boolean
+
+# 账号安全 / 登录设备管理。opaque 会话标识，非认证凭证，仅用于指定下线哪一条。
+LoginSession:
+  type: object
+  required:
+  - id
+  - deviceName
+  - browser
+  - os
+  - ipPrefix
+  - createdAt
+  - lastSeenAt
+  - isCurrent
+  properties:
+    id:
+      type: string
+      description: Opaque session id (not an auth credential). Used to target a device for revocation.
+    deviceName:
+      type: string
+      description: Display name parsed from User-Agent, e.g. "Chrome on macOS".
+    browser:
+      type: string
+    os:
+      type: string
+    ipPrefix:
+      type: string
+      description: Masked IP prefix, e.g. "1.2.3.*".
+    createdAt:
+      type: string
+      format: date-time
+    lastSeenAt:
+      type: string
+      format: date-time
+    isCurrent:
+      type: boolean
+      description: Whether this is the device making the current request.
+    revokedAt:
+      type: string
+      format: date-time
+      nullable: true
+      description: Present (in history view) when the session has been revoked.
+    revokeReason:
+      type: string
+      description: Why the session was revoked (logout / revoke_device / revoke_others / max_exceeded / password_reset).
+LoginSessionList:
+  type: object
+  required:
+  - items
+  - total
+  - page
+  - perPage
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/LoginSession"
+    total:
+      type: integer
+    page:
+      type: integer
+    perPage:
+      type: integer
+ApiResponseLoginSessionList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/LoginSessionList"
+ApiResponseRevokeOthers:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: object
+      required:
+      - revoked
+      properties:
+        revoked:
+          type: integer
+          description: Number of other sessions that were revoked.

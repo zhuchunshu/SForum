@@ -121,6 +121,10 @@ const form = reactive({
   passwordRequireUppercase: recommendedPasswordPolicy.requireUppercase,
   passwordRequireNumber: recommendedPasswordPolicy.requireNumber,
   passwordRequireSymbol: recommendedPasswordPolicy.requireSymbol,
+  // 最大活跃设备数（identity.sessions.max_devices），默认 5（与后端 RecommendedMaxDevices 对齐）。
+  sessionsMaxDevices: 5,
+  // 已下线历史会话保留天数（identity.sessions.keep_days），默认 30。
+  sessionsKeepDays: 30,
   humanVerificationProvider: normalizeProvider(options.value['human_verification.provider']),
   humanVerificationScenarios: {
     register: normalizeEnabledOption(options.value[humanVerificationScenarioOptionName('register')], true),
@@ -182,6 +186,8 @@ const initialPasswordRequireLowercase = computed(() => normalizeEnabledOption(ad
 const initialPasswordRequireUppercase = computed(() => normalizeEnabledOption(adminOptionsMap.value['identity.password.require_uppercase']?.value, recommendedPasswordPolicy.requireUppercase))
 const initialPasswordRequireNumber = computed(() => normalizeEnabledOption(adminOptionsMap.value['identity.password.require_number']?.value, recommendedPasswordPolicy.requireNumber))
 const initialPasswordRequireSymbol = computed(() => normalizeEnabledOption(adminOptionsMap.value['identity.password.require_symbol']?.value, recommendedPasswordPolicy.requireSymbol))
+const initialSessionsMaxDevices = computed(() => boundedInteger(adminOptionsMap.value['identity.sessions.max_devices']?.value, 5, 1, 20))
+const initialSessionsKeepDays = computed(() => boundedInteger(adminOptionsMap.value['identity.sessions.keep_days']?.value, 30, 1, 365))
 
 const hasBasicChanges = computed(() => {
   return form.siteName !== initialSiteName.value ||
@@ -197,7 +203,9 @@ const hasAccountSecurityChanges = computed(() => {
          form.passwordRequireLowercase !== initialPasswordRequireLowercase.value ||
          form.passwordRequireUppercase !== initialPasswordRequireUppercase.value ||
          form.passwordRequireNumber !== initialPasswordRequireNumber.value ||
-         form.passwordRequireSymbol !== initialPasswordRequireSymbol.value
+         form.passwordRequireSymbol !== initialPasswordRequireSymbol.value ||
+         form.sessionsMaxDevices !== initialSessionsMaxDevices.value ||
+         form.sessionsKeepDays !== initialSessionsKeepDays.value
 })
 
 // 验证配置对比与重置
@@ -251,6 +259,8 @@ function applyAdminOptions(items: AdminWebOption[]) {
   form.passwordRequireUppercase = normalizeEnabledOption(map['identity.password.require_uppercase']?.value, recommendedPasswordPolicy.requireUppercase)
   form.passwordRequireNumber = normalizeEnabledOption(map['identity.password.require_number']?.value, recommendedPasswordPolicy.requireNumber)
   form.passwordRequireSymbol = normalizeEnabledOption(map['identity.password.require_symbol']?.value, recommendedPasswordPolicy.requireSymbol)
+  form.sessionsMaxDevices = boundedInteger(map['identity.sessions.max_devices']?.value, 5, 1, 20)
+  form.sessionsKeepDays = boundedInteger(map['identity.sessions.keep_days']?.value, 30, 1, 365)
   form.humanVerificationProvider = normalizeProvider(map['human_verification.provider']?.value)
   form.humanVerificationScenarios = readScenarioSettings(map)
   form.altchaSecret = ''
@@ -298,6 +308,9 @@ async function saveAccountSecuritySettings() {
   if (form.passwordMaxLength < form.passwordMinLength) {
     form.passwordMaxLength = form.passwordMinLength
   }
+  // 最大活跃设备数 clamp 到 1-20。
+  form.sessionsMaxDevices = boundedInteger(form.sessionsMaxDevices, 5, 1, 20)
+  form.sessionsKeepDays = boundedInteger(form.sessionsKeepDays, 30, 1, 365)
   savingAccountSecurity.value = true
   try {
     await saveAndApply([
@@ -306,7 +319,9 @@ async function saveAccountSecuritySettings() {
       { name: 'identity.password.require_lowercase', value: enabledOptionValue(form.passwordRequireLowercase) },
       { name: 'identity.password.require_uppercase', value: enabledOptionValue(form.passwordRequireUppercase) },
       { name: 'identity.password.require_number', value: enabledOptionValue(form.passwordRequireNumber) },
-      { name: 'identity.password.require_symbol', value: enabledOptionValue(form.passwordRequireSymbol) }
+      { name: 'identity.password.require_symbol', value: enabledOptionValue(form.passwordRequireSymbol) },
+      { name: 'identity.sessions.max_devices', value: String(form.sessionsMaxDevices) },
+      { name: 'identity.sessions.keep_days', value: String(form.sessionsKeepDays) }
     ])
     toast.add({
       color: 'success',
@@ -392,6 +407,8 @@ function resetAccountSecurityForm() {
   form.passwordRequireUppercase = initialPasswordRequireUppercase.value
   form.passwordRequireNumber = initialPasswordRequireNumber.value
   form.passwordRequireSymbol = initialPasswordRequireSymbol.value
+  form.sessionsMaxDevices = initialSessionsMaxDevices.value
+  form.sessionsKeepDays = initialSessionsKeepDays.value
   toast.add({
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
@@ -406,6 +423,9 @@ function restoreRecommendedPasswordPolicy() {
   form.passwordRequireUppercase = recommendedPasswordPolicy.requireUppercase
   form.passwordRequireNumber = recommendedPasswordPolicy.requireNumber
   form.passwordRequireSymbol = recommendedPasswordPolicy.requireSymbol
+  // 同时恢复最大活跃设备数到推荐默认。
+  form.sessionsMaxDevices = 5
+  form.sessionsKeepDays = 30
   toast.add({
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
@@ -844,6 +864,47 @@ function onLocaleToggle(locale: string, event: Event) {
               </span>
             </label>
           </div>
+
+          <!-- 最大活跃设备数：超出时登录会自动下线最旧设备 -->
+          <UFormField
+            :label="t('admin.settings.basic.sessionsMaxDevices')"
+            :description="t('admin.settings.basic.sessionsMaxDevicesHint')"
+            name="sessions-max-devices"
+            class="pt-2"
+          >
+            <UInput
+              v-model.number="form.sessionsMaxDevices"
+              icon="i-lucide-devices"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              max="20"
+              step="1"
+              required
+              class="w-full max-w-xs"
+              @keydown="blockNonIntegerKey"
+            />
+          </UFormField>
+
+          <!-- 历史会话保留天数：超过后由后台定期任务清理 -->
+          <UFormField
+            :label="t('admin.settings.basic.sessionsKeepDays')"
+            :description="t('admin.settings.basic.sessionsKeepDaysHint')"
+            name="sessions-keep-days"
+          >
+            <UInput
+              v-model.number="form.sessionsKeepDays"
+              icon="i-lucide-calendar-clock"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              max="365"
+              step="1"
+              required
+              class="w-full max-w-xs"
+              @keydown="blockNonIntegerKey"
+            />
+          </UFormField>
         </div>
 
         <template #footer>

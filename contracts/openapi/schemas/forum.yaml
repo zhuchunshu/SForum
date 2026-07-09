@@ -442,6 +442,7 @@ ForumUser:
   - id
   - username
   - displayName
+  - avatar
   properties:
     id:
       type: integer
@@ -450,6 +451,8 @@ ForumUser:
       type: string
     displayName:
       type: string
+    avatar:
+      "$ref": "../schemas/profile.yaml#/AvatarView"
 TopicSummary:
   type: object
   required:

@@ -81,6 +81,7 @@ const pending = ref(false)
 const detailPending = ref(false)
 const savingRoles = ref(false)
 const savingOverrides = ref(false)
+const revokingSessions = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const overrideModes = ['inherit', 'allow', 'deny'] as const
@@ -293,6 +294,26 @@ async function savePermissionOverrides() {
     savingOverrides.value = false
   }
 }
+
+// 管理员强制下线目标用户的全部设备（user.manage；禁止对自己操作）。
+async function revokeUserSessions() {
+  if (!selectedUser.value || revokingSessions.value) {
+    return
+  }
+  revokingSessions.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+  try {
+    const result = await request<{ revoked: number }>(`/users/${selectedUser.value.id}/sessions/revoke`, {
+      method: 'POST'
+    })
+    successMessage.value = t('admin.users.sessionsRevoked', { count: result.revoked })
+  } catch (error) {
+    errorMessage.value = apiErrorMessage(error) || t('admin.users.revokeSessionsFailed')
+  } finally {
+    revokingSessions.value = false
+  }
+}
 </script>
 
 <template>
@@ -451,6 +472,29 @@ async function savePermissionOverrides() {
       </header>
 
       <div class="space-y-5 px-5 py-5">
+        <!-- 账号安全：强制下线该用户全部设备 -->
+        <section class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                {{ t('admin.users.sessionSection') }}
+              </h4>
+              <p class="text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.users.sessionSectionHelp') }}
+              </p>
+            </div>
+            <UButton
+              color="error"
+              variant="soft"
+              leading-icon="i-lucide-log-out"
+              :loading="revokingSessions"
+              @click="revokeUserSessions"
+            >
+              {{ t('admin.users.revokeSessions') }}
+            </UButton>
+          </div>
+        </section>
+
         <section class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">
           <div class="mb-4 flex items-center justify-between gap-3">
             <div>

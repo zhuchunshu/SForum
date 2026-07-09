@@ -28,9 +28,10 @@ import (
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 	cache "github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
-	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
@@ -132,7 +133,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		CookiePath:      "/",
 		CookieSecure:    shouldUseSecureCookie(cfg),
 	})
-	identityStore := identity.NewPostgresStore(pool)
+	avatarOptions := avatarOptionsAdapter{options: optionsService}
+	identityStore := identity.NewPostgresStoreWithAvatar(pool, avatarOptions)
 	authSessions := authsession.NewManager(sessionStore, authsession.Config{
 		RenewalInterval: cfg.SessionRenewalInterval,
 		HashSecret:      cfg.SessionHashSecret,
@@ -140,9 +142,12 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		TokenVersion: func(ctx context.Context, userID int64) (int64, error) {
 			return identityStore.GetUserTokenVersion(ctx, userID)
 		},
+		// 会话目录：登录时登记设备、CurrentUserID 校验是否被下线、logout 时标记。
+		// identityStore 满足 authsession.SessionStore 接口（结构化匹配）。
+		SessionStore: identityStore,
 	})
 	adminOverviewStore := adminoverview.NewPostgresStore(pool)
-	forumStore := forum.NewPostgresStore(pool)
+	forumStore := forum.NewPostgresStoreWithAvatar(pool, avatarOptions)
 	// 业务读缓存复用 sharedRedisClient（与 humanverify 共享连接池）。
 	// 失败不阻断启动——缓存为可重建的派生数据，降级为直连 PG。
 	forumCachedStore := forum.NewCachedStore(forumStore, cache.NewRedisCache(sharedRedisClient))
@@ -243,7 +248,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 
 	var embeddedWorker *Worker
 	if shouldEmbedWorkerInAPI(cfg) {
-		embeddedWorker, err = newWorkerWithPool(cfg, pool)
+		embeddedWorker, err = newWorkerWithPool(cfg, pool, logger)
 		if err != nil {
 			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 				logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -338,6 +343,33 @@ func apiAddress(cfg config.Config) string {
 
 func newHumanVerifyService(cfg config.Config, store humanverify.Store) (*humanverify.Service, error) {
 	return humanverify.NewConfiguredService(humanVerifyConfigFromConfig(cfg), store)
+}
+
+type avatarOptionsAdapter struct {
+	options *options.Service
+}
+
+func (a avatarOptionsAdapter) AvatarOptions(ctx context.Context) (avatar.Options, error) {
+	if a.options == nil {
+		return avatar.DefaultOptions(), nil
+	}
+	resolved, err := a.options.AvatarOptions(ctx)
+	if err != nil {
+		return avatar.Options{}, err
+	}
+	return avatar.Options{
+		AllowUpload:           resolved.AllowUpload,
+		DefaultProvider:       resolved.DefaultProvider,
+		GravatarBaseURL:       resolved.GravatarBaseURL,
+		GravatarHashAlgorithm: resolved.GravatarHashAlgorithm,
+		DefaultStaticURL:      resolved.DefaultStaticURL,
+		MaxSizeKB:             resolved.MaxSizeKB,
+		MaxDimension:          resolved.MaxDimension,
+		AllowGIF:              resolved.AllowGIF,
+		CompressEnabled:       resolved.CompressEnabled,
+		TargetDimension:       resolved.TargetDimension,
+		CompressQuality:       resolved.CompressQuality,
+	}, nil
 }
 
 func optionsDefaultsFromConfig(cfg config.Config) options.Defaults {

@@ -1686,6 +1686,38 @@ func (s *httpFakeStore) IncrementUserTokenVersion(_ context.Context, _ int64) er
 	return nil
 }
 
+// 会话目录方法：HTTP 启动测试路径不触发会话目录功能，零值返回以满足接口。
+func (s *httpFakeStore) CreateSession(_ context.Context, _ authsession.SessionRecordInput) error {
+	return nil
+}
+func (s *httpFakeStore) IsSessionRevoked(_ context.Context, _ int64, _ string) (bool, error) {
+	return false, nil
+}
+func (s *httpFakeStore) ListUserSessions(_ context.Context, _ int64, _ string, _ bool, _ int, _ int) (identity.SessionListResult, error) {
+	return identity.SessionListResult{}, nil
+}
+func (s *httpFakeStore) RevokeSession(_ context.Context, _ int64, _ string, _ string) error {
+	return nil
+}
+func (s *httpFakeStore) RevokeOtherSessions(_ context.Context, _ int64, _ string, _ string) (int, error) {
+	return 0, nil
+}
+func (s *httpFakeStore) RevokeUserSessions(_ context.Context, _ int64, _ string) (int, error) {
+	return 0, nil
+}
+func (s *httpFakeStore) DeleteOldRevokedSessions(_ context.Context, _ int) (int, error) {
+	return 0, nil
+}
+func (s *httpFakeStore) EnforceMaxSessions(_ context.Context, _ int64, _ string, _ int) (int, error) {
+	return 0, nil
+}
+func (s *httpFakeStore) TouchSessionLastSeen(_ context.Context, _ int64, _ string) error {
+	return nil
+}
+func (s *httpFakeStore) HasSessionFingerprint(_ context.Context, _ int64, _ string) (bool, error) {
+	return false, nil
+}
+
 func (s *httpFakeStore) withAccess(user identity.CurrentUser) identity.CurrentUser {
 	roleIDs := s.userRoleIDs[user.ID]
 	roleKeys := make([]string, 0, len(roleIDs))

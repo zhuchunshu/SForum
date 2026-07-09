@@ -37,6 +37,12 @@ const passwordMinLengthMin = 8
 const passwordMinLengthMax = 128
 const passwordMaxLengthMin = 64
 const passwordMaxLengthMax = 512
+// 最大活跃设备数取值范围，与 identity.NormalizeMaxDevices 对齐。
+const sessionsMaxDevicesMin = 1
+const sessionsMaxDevicesMax = 20
+// 历史会话保留天数取值范围（1-365）。
+const sessionsKeepDaysMin = 1
+const sessionsKeepDaysMax = 365
 const customAppearanceThemePrefix = "custom:"
 
 var builtInLocales = []string{localization.DefaultLocale, "en-US"}
@@ -129,6 +135,10 @@ var optionDefinitions = []optionDefinition{
 	{name: NameIdentityPasswordRequireUppercase, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameIdentityPasswordRequireNumber, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameIdentityPasswordRequireSymbol, public: true, managePermission: identity.PermissionSettingsManage},
+	// 最大活跃设备数：非 public（仅后端登录时读取，不暴露给前端），admin 通过 settings.manage 调整。
+	{name: NameIdentitySessionsMaxDevices, public: false, managePermission: identity.PermissionSettingsManage},
+	// 历史会话保留天数：非 public，periodic job 据此清理。
+	{name: NameIdentitySessionsKeepDays, public: false, managePermission: identity.PermissionSettingsManage},
 	{name: NameForumDefaultCategorySlug, public: true, managePermission: identity.PermissionCategoryManage},
 	{name: NameForumTagCreationMode, public: true, managePermission: identity.PermissionTagManage},
 	{name: NameForumTagPublicPages, public: true, managePermission: identity.PermissionTagManage},
@@ -696,6 +706,12 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	if _, ok := parseBoundedInt(coerced[NameForumTagMaxPerTopic], forumTagMaxPerTopicMin, forumTagMaxPerTopicMax); !ok {
 		coerced[NameForumTagMaxPerTopic] = defaults[NameForumTagMaxPerTopic]
 	}
+	if _, ok := parseBoundedInt(coerced[NameIdentitySessionsMaxDevices], sessionsMaxDevicesMin, sessionsMaxDevicesMax); !ok {
+		coerced[NameIdentitySessionsMaxDevices] = defaults[NameIdentitySessionsMaxDevices]
+	}
+	if _, ok := parseBoundedInt(coerced[NameIdentitySessionsKeepDays], sessionsKeepDaysMin, sessionsKeepDaysMax); !ok {
+		coerced[NameIdentitySessionsKeepDays] = defaults[NameIdentitySessionsKeepDays]
+	}
 	for _, name := range seoEnabledOptionNames() {
 		value, ok := normalizeEnabledOption(coerced[name])
 		if !ok {
@@ -828,6 +844,8 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameIdentityPasswordRequireUppercase: enabledOptionValue(false),
 		NameIdentityPasswordRequireNumber:    enabledOptionValue(false),
 		NameIdentityPasswordRequireSymbol:    enabledOptionValue(false),
+		NameIdentitySessionsMaxDevices:       strconv.Itoa(identity.RecommendedMaxDevices),
+		NameIdentitySessionsKeepDays:         strconv.Itoa(identity.RecommendedSessionsKeepDays),
 		NameForumDefaultCategorySlug:         "general",
 		NameForumTagCreationMode:             "controlled",
 		NameForumTagPublicPages:              enabledOptionValue(true),
@@ -1037,6 +1055,11 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeBoundedInt(value, passwordMaxLengthMin, passwordMaxLengthMax)
 	case NameIdentityPasswordRequireLowercase, NameIdentityPasswordRequireUppercase, NameIdentityPasswordRequireNumber, NameIdentityPasswordRequireSymbol:
 		return normalizeEnabledOption(value)
+	case NameIdentitySessionsMaxDevices:
+		// 限制在 1-20；非法值返回 false，上游保留默认值（beginner-friendly：配置错误不致功能失效）。
+		return normalizeBoundedInt(value, sessionsMaxDevicesMin, sessionsMaxDevicesMax)
+	case NameIdentitySessionsKeepDays:
+		return normalizeBoundedInt(value, sessionsKeepDaysMin, sessionsKeepDaysMax)
 	case NameForumDefaultCategorySlug:
 		return normalizeForumSlug(value)
 	case NameForumTagCreationMode:

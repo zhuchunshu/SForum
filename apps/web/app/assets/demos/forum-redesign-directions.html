@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SForum · 首页 / 帖子 / 评论 UI 候选稿</title>
+  <link rel="stylesheet" href="./forum-redesign-directions.css" />
+  <link rel="stylesheet" href="./forum-redesign-directions-variants.css" />
+</head>
+<body>
+  <div class="shell">
+    <header class="demo-toolbar">
+      <div class="brand"><span class="brand-mark">SF</span><span>SForum UI 候选稿</span></div>
+      <div class="segmented" role="group" aria-label="选择方案">
+        <button type="button" data-direction-tab="a" aria-pressed="true">A Linux.do 紧凑</button>
+        <button type="button" data-direction-tab="b" aria-pressed="false">B 阅读优先</button>
+        <button type="button" data-direction-tab="c" aria-pressed="false">C 社区工作台</button>
+      </div>
+      <div class="demo-note">首页、帖子内容页、评论展示均可切换查看</div>
+    </header>
+
+    <section class="direction dir-a is-active" data-direction="a">
+      <div class="direction-header">
+        <div class="direction-title">
+          <h1>A · Linux.do 紧凑派</h1>
+          <p>参考 Linux.do / Discourse 的高密度列表：左侧导航、顶部提示条、主题表格、参与头像和活动列。</p>
+        </div>
+        <div class="screen-tabs" role="group" aria-label="A 页面切换">
+          <button type="button" data-screen-tab="home" aria-pressed="true">首页</button>
+          <button type="button" data-screen-tab="topic" aria-pressed="false">帖子内容页</button>
+        </div>
+      </div>
+      <div class="screen is-active" data-screen="home">
+        <header class="topbar">
+          <a class="site-logo" href="#"><span class="logo-dot">SF</span><span>SForum</span></a>
+          <nav class="top-links" aria-label="主导航">
+            <a class="active" href="#">最新</a>
+            <a href="#">排行榜</a>
+            <a href="#">热门</a>
+            <a href="#">类别</a>
+            <a href="#">标签</a>
+          </nav>
+          <div class="top-actions">
+            <input class="search" type="search" placeholder="搜索帖子、标签、用户" />
+            <button class="btn primary" type="button">发帖</button>
+          </div>
+        </header>
+        <div class="layout-compact">
+          <aside class="left-nav" aria-label="社区导航">
+            <button class="btn primary compose-wide" type="button">新建主题</button>
+            <div class="side-group">导航</div>
+            <a class="side-link active" href="#"><span>话题</span><span class="side-count">66</span></a>
+            <a class="side-link" href="#"><span>关于</span><span class="side-count">3</span></a>
+            <a class="side-link" href="#"><span>我的帖子</span><span class="side-count">12</span></a>
+            <a class="side-link" href="#"><span>近期活动</span><span class="side-count">48</span></a>
+            <div class="side-group">类别</div>
+            <a class="side-link" href="#"><span>开发调优</span><span class="side-count">128</span></a>
+            <a class="side-link" href="#"><span>资源荟萃</span><span class="side-count">95</span></a>
+            <a class="side-link" href="#"><span>站务反馈</span><span class="side-count">41</span></a>
+            <a class="side-link" href="#"><span>闲聊茶馆</span><span class="side-count">76</span></a>
+          </aside>
+          <main class="content-area">
+            <div class="notice">真诚、友善、团结、专业，共建你我引以为荣的社区。</div>
+            <div class="feed-tabs" role="tablist">
+              <button class="active" type="button">最新</button>
+              <button type="button">新</button>
+              <button type="button">未读</button>
+              <button type="button">排行</button>
+              <button type="button">我的帖子</button>
+            </div>
+            <section class="topic-table" aria-label="主题列表">
+              <div class="topic-head">
+                <span>话题</span><span>回复</span><span>活动</span>
+              </div>
+              <article class="topic-row">
+                <div class="topic-main">
+                  <a class="topic-title" href="#">今天升级后发帖功能好像有点问题</a>
+                  <div class="topic-meta">
+                    <span class="badge">综合讨论</span><span class="truncate">种子用户40 · 复现路径和截图已经补充</span>
+                  </div>
+                </div>
+                <div class="participant-stack" aria-label="参与用户">
+                  <span class="avatar sm">种</span><span class="avatar sm">林</span><span class="avatar sm">沈</span>
+                </div>
+                <div class="topic-activity">1 分钟</div>
+              </article>
+              <article class="topic-row">
+                <div class="topic-main">
+                  <a class="topic-title" href="#">分享一段我写的糟糕代码，求重构建议</a>
+                  <div class="topic-meta">
+                    <span class="badge neutral">开发调优</span><span class="truncate">种子用户21 · 34 回复 · 1.9k 浏览</span>
+                  </div>
+                </div>
+                <div class="participant-stack">
+                  <span class="avatar sm">周</span><span class="avatar sm">余</span><span class="avatar sm">唐</span><span class="avatar sm">I</span>
+                </div>
+                <div class="topic-activity">6 分钟</div>
+              </article>
+              <article class="topic-row">
+                <div class="topic-main">
+                  <a class="topic-title" href="#">推荐几本最近读完的好书</a>
+                  <div class="topic-meta">
+                    <span class="badge warn">精华</span><span class="truncate">种子用户11 · 37 回复 · 长线程</span>
+                  </div>
+                </div>
+                <div class="participant-stack">
+                  <span class="avatar sm">李</span><span class="avatar sm">许</span><span class="avatar sm">高</span>
+                </div>
+                <div class="topic-activity">28 分钟</div>
+              </article>
+              <article class="topic-row">
+                <div class="topic-main">
+                  <a class="topic-title" href="#">部署到生产环境时踩过的坑</a>
+                  <div class="topic-meta">
+                    <span class="badge neutral">资源荟萃</span><span class="truncate">种子用户14 · 44 回复 · 持续更新</span>
+                  </div>
+                </div>
+                <div class="participant-stack">
+                  <span class="avatar sm">陈</span><span class="avatar sm">韩</span><span class="avatar sm">叶</span>
+                </div>
+                <div class="topic-activity">42 分钟</div>
+              </article>
+              <article class="topic-row">
+                <div class="topic-main">
+                  <a class="topic-title" href="#">关于暗色模式的一些设计思考</a>
+                  <div class="topic-meta">
+                    <span class="badge">综合讨论</span><span class="truncate">种子用户19 · 23 回复 · 875 浏览</span>
+                  </div>
+                </div>
+                <div class="participant-stack">
+                  <span class="avatar sm">宋</span><span class="avatar sm">罗</span>
+                </div>
+                <div class="topic-activity">1 小时</div>
+              </article>
+            </section>
+          </main>
+        </div>
+      </div>
+      <div class="screen" data-screen="topic">
+        <header class="topbar">
+          <a class="site-logo" href="#"><span class="logo-dot">SF</span><span>SForum</span></a>
+          <nav class="top-links" aria-label="面包屑"><a href="#">首页</a><a class="active" href="#">综合讨论</a></nav>
+          <div class="top-actions"><button class="btn" type="button">收藏</button><button class="btn primary" type="button">回复</button></div>
+        </header>
+        <main class="topic-shell">
+          <article class="article-panel">
+            <nav class="breadcrumbs"><span>首页</span><span>/</span><span>综合讨论</span></nav>
+            <h1 class="article-title">今天升级后发帖功能好像有点问题</h1>
+            <div class="article-byline">
+              <span class="avatar">种</span><strong>种子用户40</strong><span>发布于 2026-07-10 02:14</span><span>47 回复</span><span>2.1k 浏览</span>
+            </div>
+            <div class="prose">
+              <p>升级之后发帖流程整体可用，但编辑器切换预览再返回编辑时，光标位置会跳到开头。标题输入、标签选择和发布按钮本身都没有报错。</p>
+              <p>我倾向先把复现路径收敛到编辑器状态同步，不要急着改接口。下面是我本地看到的状态片段：</p>
+              <pre>content-change -> markdown updated
+preview toggled -> selection reset
+submit payload -> ok</pre>
+              <p>如果大家也遇到，请补充浏览器、系统版本以及是否开启了主题层。</p>
+            </div>
+          </article>
+          <aside class="side-panel">
+            <h3>主题状态</h3>
+            <div class="stat-grid">
+              <div class="stat-box"><strong>47</strong><span>回复</span></div>
+              <div class="stat-box"><strong>2.1k</strong><span>浏览</span></div>
+              <div class="stat-box"><strong>8</strong><span>参与</span></div>
+              <div class="stat-box"><strong>1m</strong><span>最新活动</span></div>
+            </div>
+          </aside>
+          <section class="comments" aria-label="评论">
+            <div class="comments-headline"><h2>评论 47</h2><button class="btn" type="button">树形</button></div>
+            <div class="comment-panel">
+              <article class="comment">
+                <span class="avatar">林</span>
+                <div class="comment-body">
+                  <div class="comment-meta"><span class="comment-author">林晚秋</span><span>2 分钟前</span></div>
+                  <p class="comment-copy">我这边也能复现。看起来不是发布接口问题，而是编辑器内部把 HTML 预览态同步回 Markdown 时重建了文档。</p>
+                  <div class="comment-actions"><button type="button">回复</button><button type="button">赞同 14</button></div>
+                  <div class="comment-nested">
+                    <article class="comment">
+                      <span class="avatar">沈</span>
+                      <div class="comment-body">
+                        <div class="comment-meta"><span class="comment-author">沈既明</span><span>刚刚</span></div>
+                        <blockquote class="quote">回复 林晚秋：编辑器内部把 HTML 预览态同步回 Markdown...</blockquote>
+                        <p class="comment-copy">同意，建议先加一个 selection preserve 的回归测试，再看 Tiptap 插件事件顺序。</p>
+                        <div class="comment-actions"><button type="button">回复</button><button type="button">赞同 5</button></div>
+                      </div>
+                    </article>
+                  </div>
+                </div>
+              </article>
+              <article class="comment">
+                <span class="avatar">周</span>
+                <div class="comment-body">
+                  <div class="comment-meta"><span class="comment-author">周青</span><span>8 分钟前</span></div>
+                  <p class="comment-copy">我用纯 Markdown 模式暂时绕过去了。这个页面结构如果能把楼主信息和回复入口固定在右侧，会比现在更好找。</p>
+                  <div class="comment-actions"><button type="button">回复</button><button type="button">赞同 9</button></div>
+                </div>
+              </article>
+            </div>
+            <div class="reply-panel">
+              <textarea placeholder="写下你的回复"></textarea>
+              <div class="reply-foot"><button class="btn primary" type="button">发布回复</button></div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </section>
+
+    <section class="direction dir-b" data-direction="b">
+      <div class="direction-header">
+        <div class="direction-title">
+          <h1>B · 阅读优先派</h1>
+          <p>减少表格感，首页像精选讨论流；帖子页把正文变成第一主角，评论是安静的阅读流。</p>
+        </div>
+        <div class="screen-tabs" role="group" aria-label="B 页面切换">
+          <button type="button" data-screen-tab="home" aria-pressed="true">首页</button>
+          <button type="button" data-screen-tab="topic" aria-pressed="false">帖子内容页</button>
+        </div>
+      </div>
+      <div class="screen is-active" data-screen="home">
+        <header class="topbar">
+          <a class="site-logo" href="#"><span class="logo-dot">SF</span><span>SForum</span></a>
+          <nav class="top-links"><a class="active" href="#">发现</a><a href="#">最新</a><a href="#">精华</a><a href="#">标签</a></nav>
+          <div class="top-actions"><input class="search" type="search" placeholder="搜索讨论" /><button class="btn primary" type="button">写帖子</button></div>
+        </header>
+        <main class="layout-editorial">
+          <div class="editorial-grid">
+            <section>
+              <article class="editorial-hero">
+                <div>
+                  <span class="badge">今日焦点</span>
+                  <h2>社区升级后，哪些交互最影响发帖体验？</h2>
+                  <p>把分散在回复里的复现路径、设计建议和修复方案集中起来，让读者进入帖子前就知道这场讨论的价值。</p>
+                </div>
+                <div class="hero-meter"><strong>47</strong><span>条高质量回复，最新活动 1 分钟前</span></div>
+              </article>
+              <article class="story-card">
+                <div>
+                  <h3>推荐几本最近读完的好书</h3>
+                  <p>从工程管理到界面设计，几位成员补充了短评和适合阅读的场景。</p>
+                  <div class="story-stats"><span>种子用户11</span><span>37 回复</span><span>精华</span></div>
+                </div>
+                <div class="score-tile"><strong>92</strong><span>热度</span></div>
+              </article>
+              <article class="story-card">
+                <div>
+                  <h3>分享一个我最近在用的效率工具</h3>
+                  <p>楼主给出完整工作流，回复里补充了替代方案和隐私注意事项。</p>
+                  <div class="story-stats"><span>种子用户22</span><span>26 回复</span><span>工具</span></div>
+                </div>
+                <div class="score-tile"><strong>78</strong><span>热度</span></div>
+              </article>
+              <article class="story-card">
+                <div>
+                  <h3>部署到生产环境时踩过的坑</h3>
+                  <p>偏长线的经验帖，适合沉淀成知识库链接和后续最佳实践。</p>
+                  <div class="story-stats"><span>种子用户14</span><span>44 回复</span><span>运维</span></div>
+                </div>
+                <div class="score-tile"><strong>81</strong><span>热度</span></div>
+              </article>
+            </section>
+            <aside class="editorial-side">
+              <section class="side-panel">
+                <h3>热门讨论</h3>
+                <ul class="dock-list">
+                  <li><span class="rank">1</span><span>今天升级后发帖功能好像有点问题</span></li>
+                  <li><span class="rank">2</span><span>关于暗色模式的一些设计思考</span></li>
+                  <li><span class="rank">3</span><span>分享一段糟糕代码，求重构建议</span></li>
+                </ul>
+              </section>
+              <section class="side-panel">
+                <h3>社区状态</h3>
+                <div class="stat-grid">
+                  <div class="stat-box"><strong>66</strong><span>主题</span></div>
+                  <div class="stat-box"><strong>312</strong><span>回复</span></div>
+                </div>
+              </section>
+            </aside>
+          </div>
+        </main>
+      </div>
+      <div class="screen" data-screen="topic">
+        <header class="topbar">
+          <a class="site-logo" href="#"><span class="logo-dot">SF</span><span>SForum</span></a>
+          <nav class="top-links"><a href="#">首页</a><a class="active" href="#">综合讨论</a></nav>
+          <div class="top-actions"><button class="btn primary" type="button">回复</button></div>
+        </header>
+        <main class="topic-shell reading">
+          <article class="article-panel">
+            <nav class="breadcrumbs"><span>综合讨论</span><span>/</span><span>发帖体验</span></nav>
+            <h1 class="article-title">今天升级后发帖功能好像有点问题</h1>
+            <div class="article-byline">
+              <span class="avatar">种</span><strong>种子用户40</strong><span>02:14</span><span>已编辑</span>
+            </div>
+            <div class="prose">
+              <p>升级之后发帖流程整体可用，但编辑器切换预览再返回编辑时，光标位置会跳到开头。这个问题看起来不大，但会打断长帖作者的写作节奏。</p>
+              <p>我希望先确认是不是所有主题层都会触发，然后再把问题收束到编辑器的状态同步逻辑。</p>
+              <pre>preview -> markdown
+cursor -> reset
+draft -> preserved</pre>
+              <p>下面的回复里我会继续补充复现截图，也欢迎大家贴浏览器版本。</p>
+            </div>
+            <div class="comments-headline"><h2>评论 47</h2><button class="btn" type="button">最新</button></div>
+            <div class="comments">
+              <article class="comment-panel comment">
+                <span class="avatar">林</span>
+                <div class="comment-body">
+                  <div class="comment-meta"><span class="comment-author">林晚秋</span><span>2 分钟前</span></div>
+                  <p class="comment-copy">这个问题可以把“预览态”和“编辑态”做成同一份文档状态，只切换展示层，不重建编辑器。</p>
+                  <div class="comment-actions"><button type="button">回复</button><button type="button">赞同 14</button></div>
+                  <div class="comment-nested">
+                    <article class="comment">
+                      <span class="avatar">沈</span>
+                      <div class="comment-body">
+                        <div class="comment-meta"><span class="comment-author">沈既明</span><span>刚刚</span></div>
+                        <blockquote class="quote">回复 林晚秋：只切换展示层，不重建编辑器。</blockquote>
+                        <p class="comment-copy">这个方向好，也更容易保留撤销历史。</p>
+                      </div>
+                    </article>
+                  </div>
+                </div>
+              </article>
+              <article class="comment-panel comment">
+                <span class="avatar">周</span>
+                <div class="comment-body">
+                  <div class="comment-meta"><span class="comment-author">周青</span><span>8 分钟前</span></div>
+                  <p class="comment-copy">正文这块如果做成更宽的阅读栏，代码块和长段落会舒服很多。</p>
+                  <div class="comment-actions"><button type="button">回复</button><button type="button">赞同 9</button></div>
+                </div>
+              </article>
+            </div>
+          </article>
+          <aside class="floating-toc">
+            <a class="toc-link" href="#">问题描述</a>
+            <a class="toc-link" href="#">复现路径</a>
+            <a class="toc-link" href="#">评论讨论</a>
+            <a class="toc-link" href="#">发布回复</a>
+          </aside>
+        </main>
+      </div>
+    </section>
+
+    <section class="direction dir-c" data-direction="c">
+      <div class="direction-header">
+        <div class="direction-title">
+          <h1>C · 社区工作台派</h1>
+          <p>更像可长期在线的社区应用：左侧极简 rail、中间讨论流、右侧实时热榜和个人状态。</p>
+        </div>
+        <div class="screen-tabs" role="group" aria-label="C 页面切换">
+          <button type="button" data-screen-tab="home" aria-pressed="true">首页</button>
+          <button type="button" data-screen-tab="topic" aria-pressed="false">帖子内容页</button>
+        </div>
+      </div>
+      <div class="screen is-active" data-screen="home">
+        <header class="topbar">
+          <a class="site-logo" href="#"><span class="logo-dot">SF</span><span>SForum</span></a>
+          <nav class="top-links"><a class="active" href="#">工作台</a><a href="#">最新</a><a href="#">收藏</a></nav>
+          <div class="top-actions"><input class="search" type="search" placeholder="搜索社区内容" /><button class="btn primary" type="button">发布</button></div>
+        </header>
+        <div class="workbench">
+          <aside class="rail" aria-label="快捷导航">
+            <a class="rail-item active" href="#">话</a>
+            <a class="rail-item" href="#">热</a>
+            <a class="rail-item" href="#">标</a>
+            <a class="rail-item" href="#">我</a>
+          </aside>
+          <main class="work-main">
+            <div class="command-bar">
+              <input class="search" type="search" placeholder="搜索帖子标题、内容或作者" />
+              <button class="btn primary" type="button">新主题</button>
+            </div>
+            <div class="filter-strip">
+              <button class="chip active" type="button">全部</button>
+              <button class="chip" type="button">开发调优</button>
+              <button class="chip" type="button">资源荟萃</button>
+              <button class="chip" type="button">站务反馈</button>
+              <button class="chip" type="button">只看精华</button>
+            </div>
+            <article class="pulse-row">
+              <div class="heat">47</div>
+              <div>
+                <h3>今天升级后发帖功能好像有点问题</h3>
+                <p>编辑器切换预览后光标跳到开头，已有多人补充复现。</p>
+              </div>
+              <div class="metric"><strong>1m</strong><span>最新活动</span></div>
+            </article>
+            <article class="pulse-row">
+              <div class="heat">37</div>
+              <div>
+                <h3>推荐几本最近读完的好书</h3>
+                <p>工程管理、产品设计和开源社区相关书单持续补充中。</p>
+              </div>
+              <div class="metric"><strong>28m</strong><span>最新活动</span></div>
+            </article>
+            <article class="pulse-row">
+              <div class="heat">44</div>
+              <div>
+                <h3>部署到生产环境时踩过的坑</h3>
+                <p>收集了构建、迁移、代理和缓存失效的真实问题。</p>
+              </div>
+              <div class="metric"><strong>42m</strong><span>最新活动</span></div>
+            </article>
+            <article class="pulse-row">
+              <div class="heat">26</div>
+              <div>
+                <h3>分享一个我最近在用的效率工具</h3>
+                <p>围绕自动化、隐私和跨平台同步展开讨论。</p>
+              </div>
+              <div class="metric"><strong>1h</strong><span>最新活动</span></div>
+            </article>
+          </main>
+          <aside class="right-dock">
+            <section class="dock-block">
+              <h3>我的状态</h3>
+              <div class="article-byline" style="border:0;padding:0;">
+                <span class="avatar lg">I</span>
+                <div><strong>inkedus</strong><br /><span>今日已签到 · 连续 4 天</span></div>
+              </div>
+            </section>
+            <section class="dock-block">
+              <h3>热榜</h3>
+              <ul class="dock-list">
+                <li><span class="rank">1</span><span>发帖功能异常排查</span></li>
+                <li><span class="rank">2</span><span>暗色模式设计思考</span></li>
+                <li><span class="rank">3</span><span>糟糕代码重构建议</span></li>
+              </ul>
+            </section>
+            <section class="dock-block">
+              <h3>站点统计</h3>
+              <div class="stat-grid">
+                <div class="stat-box"><strong>66</strong><span>主题</span></div>
+                <div class="stat-box"><strong>312</strong><span>回复</span></div>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </div>
+      <div class="screen" data-screen="topic">
+        <header class="topbar">
+          <a class="site-logo" href="#"><span class="logo-dot">SF</span><span>SForum</span></a>
+          <nav class="top-links"><a href="#">工作台</a><a class="active" href="#">主题</a></nav>
+          <div class="top-actions"><button class="btn" type="button">跟进</button><button class="btn primary" type="button">回复</button></div>
+        </header>
+        <main class="topic-shell work">
+          <aside class="reaction-rail" aria-label="主题操作">
+            <button class="react-btn active" type="button">47</button>
+            <button class="react-btn" type="button">藏</button>
+            <button class="react-btn" type="button">报</button>
+          </aside>
+          <article class="article-panel">
+            <nav class="breadcrumbs"><span>工作台</span><span>/</span><span>综合讨论</span></nav>
+            <h1 class="article-title">今天升级后发帖功能好像有点问题</h1>
+            <div class="article-byline">
+              <span class="avatar">种</span><strong>种子用户40</strong><span>2 分钟前更新</span><span class="badge">跟进中</span>
+            </div>
+            <div class="prose">
+              <p>升级之后发帖流程整体可用，但编辑器切换预览再返回编辑时，光标位置会跳到开头。</p>
+              <p>这版更适合产品型社区：右侧保留上下文，左侧固定操作，评论区保持清爽但每条回复都有明确行动。</p>
+              <pre>expected: selection restored
+actual: selection starts at 0</pre>
+            </div>
+            <div class="comments-headline"><h2>评论 47</h2><button class="btn" type="button">按时间</button></div>
+            <div class="comments">
+              <article class="comment-panel comment">
+                <span class="avatar">林</span>
+                <div class="comment-body">
+                  <div class="comment-meta"><span class="comment-author">林晚秋</span><span>2 分钟前</span><span class="badge neutral">可复现</span></div>
+                  <p class="comment-copy">我把两个主题层都试了一遍，默认主题和上传主题都会触发，应该不是 CSS 层问题。</p>
+                  <div class="comment-actions"><button type="button">回复</button><button type="button">转为任务</button><button type="button">赞同 14</button></div>
+                </div>
+              </article>
+              <article class="comment-panel comment">
+                <span class="avatar">沈</span>
+                <div class="comment-body">
+                  <div class="comment-meta"><span class="comment-author">沈既明</span><span>刚刚</span></div>
+                  <blockquote class="quote">回复 林晚秋：默认主题和上传主题都会触发。</blockquote>
+                  <p class="comment-copy">那就可以直接从编辑器事件链入手，先补测试再修。</p>
+                  <div class="comment-actions"><button type="button">回复</button><button type="button">赞同 5</button></div>
+                </div>
+              </article>
+            </div>
+          </article>
+          <aside class="right-dock">
+            <section class="dock-block">
+              <h3>跟进摘要</h3>
+              <ul class="dock-list">
+                <li><span class="rank">1</span><span>预览切换后光标丢失</span></li>
+                <li><span class="rank">2</span><span>默认主题与上传主题均可复现</span></li>
+                <li><span class="rank">3</span><span>建议补 selection 测试</span></li>
+              </ul>
+            </section>
+            <section class="dock-block">
+              <h3>参与者</h3>
+              <div class="participant-stack" style="justify-content:flex-start;">
+                <span class="avatar sm">林</span><span class="avatar sm">沈</span><span class="avatar sm">周</span><span class="avatar sm">唐</span><span class="avatar sm">I</span>
+              </div>
+            </section>
+          </aside>
+        </main>
+      </div>
+    </section>
+  </div>
+  <script src="./forum-redesign-directions.js"></script>
+</body>
+</html>

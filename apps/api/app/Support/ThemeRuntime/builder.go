@@ -131,6 +131,7 @@ func (b *Builder) HealthCheck(ctx context.Context, server string) (string, error
 
 	previewCtx, cancel := context.WithTimeout(ctx, b.config.PreviewTimeout)
 	defer cancel()
+
 	cmd := exec.CommandContext(previewCtx, b.config.BunPath, server)
 	cmd.Env = append(os.Environ(), "HOST=127.0.0.1", "PORT="+strconv.Itoa(port))
 	var output bytes.Buffer
@@ -139,26 +140,38 @@ func (b *Builder) HealthCheck(ctx context.Context, server string) (string, error
 	if err := cmd.Start(); err != nil {
 		return output.String(), fmt.Errorf("start theme preview: %w", err)
 	}
-	defer func() {
-		_ = cmd.Process.Kill()
-		_, _ = cmd.Process.Wait()
+
+	waitChan := make(chan error, 1)
+	go func() {
+		waitChan <- cmd.Wait()
 	}()
 
 	url := "http://127.0.0.1:" + strconv.Itoa(port) + b.config.PreviewPath
-	deadline := time.Now().Add(b.config.PreviewTimeout)
-	for time.Now().Before(deadline) {
-		req, _ := http.NewRequestWithContext(previewCtx, http.MethodGet, url, nil)
-		resp, err := http.DefaultClient.Do(req)
-		if err == nil && resp.StatusCode < http.StatusInternalServerError {
-			_ = resp.Body.Close()
-			return output.String(), nil
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case err := <-waitChan:
+			return output.String(), fmt.Errorf("theme preview process exited prematurely: %w", err)
+		case <-previewCtx.Done():
+			_ = cmd.Process.Kill()
+			<-waitChan
+			return output.String(), fmt.Errorf("theme preview health check timed out: %w", previewCtx.Err())
+		case <-ticker.C:
+			req, _ := http.NewRequestWithContext(previewCtx, http.MethodGet, url, nil)
+			resp, err := http.DefaultClient.Do(req)
+			if err == nil && resp.StatusCode < http.StatusInternalServerError {
+				_ = resp.Body.Close()
+				_ = cmd.Process.Kill()
+				<-waitChan
+				return output.String(), nil
+			}
+			if resp != nil {
+				_ = resp.Body.Close()
+			}
 		}
-		if resp != nil {
-			_ = resp.Body.Close()
-		}
-		time.Sleep(500 * time.Millisecond)
 	}
-	return output.String(), fmt.Errorf("theme preview health check failed")
 }
 
 func joinLogs(parts ...string) string {

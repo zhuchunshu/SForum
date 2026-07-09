@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { AvatarView } from '~/composables/useProfileApi'
+
 type FeedBadge = {
   label: string
   variant?: 'neutral' | 'primary' | 'info' | 'success' | 'warning' | 'danger'
@@ -8,6 +10,7 @@ const props = withDefaults(defineProps<{
   title: string
   excerpt?: string
   author?: string
+  avatar?: AvatarView | null
   meta?: string
   score?: number
   replies?: number
@@ -16,10 +19,12 @@ const props = withDefaults(defineProps<{
   layout?: 'compact' | 'table'
   lastActivityLabel?: string
   lastActor?: string
+  lastActorAvatar?: AvatarView | null
   showAvatar?: boolean
 }>(), {
   excerpt: undefined,
   author: undefined,
+  avatar: undefined,
   meta: undefined,
   score: 0,
   replies: 0,
@@ -28,6 +33,7 @@ const props = withDefaults(defineProps<{
   layout: 'compact',
   lastActivityLabel: undefined,
   lastActor: undefined,
+  lastActorAvatar: undefined,
   showAvatar: true
 })
 
@@ -43,7 +49,7 @@ const resolvedLastActivity = computed(() => props.lastActivityLabel || props.met
 <template>
   <article :class="rowClass">
     <div v-if="showAvatar" class="sf-feed-row__avatar-wrapper">
-      <SFAvatar :name="author || '?'" size="sm" />
+      <SFAvatar :name="author || '?'" :avatar="avatar" size="sm" />
     </div>
 
     <div class="sf-feed-row__content">
@@ -98,7 +104,7 @@ const resolvedLastActivity = computed(() => props.lastActivityLabel || props.met
         <span class="sf-feed-row__stat-label">浏览</span>
       </div>
       <div class="sf-feed-row__last-activity">
-        <SFAvatar v-if="resolvedLastActor" :name="resolvedLastActor" size="sm" />
+        <SFAvatar v-if="resolvedLastActor" :name="resolvedLastActor" :avatar="lastActorAvatar || avatar" size="sm" />
         <span class="sf-feed-row__last-copy">
           <span v-if="resolvedLastActor" class="sf-feed-row__last-actor">{{ resolvedLastActor }}</span>
           <span v-if="resolvedLastActivity" class="sf-feed-row__last-time">{{ resolvedLastActivity }}</span>
