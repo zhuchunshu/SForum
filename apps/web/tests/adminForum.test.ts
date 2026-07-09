@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 
 import {
   adminPageDefinitions,
@@ -73,6 +74,34 @@ describe('admin forum helpers', () => {
       name: 'Go',
       icon: 'i-lucide-tag',
       iconColor: '#2563eb'
+    })
+  })
+
+  test('wires taxonomy visual controls into admin category and tag pages', () => {
+    const categoriesPage = readFileSync(new URL('../app/pages/admin/forum/categories.vue', import.meta.url), 'utf8')
+    const tagsPage = readFileSync(new URL('../app/pages/admin/forum/tags.vue', import.meta.url), 'utf8')
+    const zhCN = JSON.parse(readFileSync(new URL('../i18n/locales/zh-CN.json', import.meta.url), 'utf8'))
+    const enUS = JSON.parse(readFileSync(new URL('../i18n/locales/en-US.json', import.meta.url), 'utf8'))
+
+    expect(categoriesPage).toContain('LazySFIconPicker')
+    expect(categoriesPage).toContain('icon: categoryForm.icon.trim()')
+    expect(categoriesPage).toContain('iconColor: categoryForm.iconColor.trim()')
+    expect(categoriesPage).toContain('categoryPreviewIcon(category)')
+    expect(categoriesPage).toContain('taxonomyPreviewColor(category.iconColor)')
+
+    expect(tagsPage).toContain('LazySFIconPicker')
+    expect(tagsPage).toContain('icon: form.icon.trim()')
+    expect(tagsPage).toContain('iconColor: form.iconColor.trim()')
+    expect(tagsPage).toContain('tagPreviewIcon(tag)')
+    expect(tagsPage).toContain('taxonomyPreviewColor(tag.iconColor)')
+
+    expect(zhCN.admin.forum.visual).toMatchObject({
+      icon: '图标',
+      iconColor: '图标颜色'
+    })
+    expect(enUS.admin.forum.visual).toMatchObject({
+      icon: 'Icon',
+      iconColor: 'Icon color'
     })
   })
 

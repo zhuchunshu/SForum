@@ -1325,6 +1325,13 @@
         "pending": "待审核",
         "disabled": "已停用"
       },
+      "visual": {
+        "icon": "图标",
+        "iconHelp": "用于后台列表预览的分类或标签图标。",
+        "iconColor": "图标颜色",
+        "defaultAccent": "默认主题色",
+        "clearColor": "清空颜色"
+      },
       "categories": {
         "metaTitle": "版块分类",
         "title": "版块分类",

@@ -58,6 +58,31 @@ const selectedGroupName = computed(() => {
   return groups.value.find((group) => group.id === categoryForm.groupId)?.name || t('admin.forum.categories.noGroupSelected')
 })
 
+const defaultCategoryIcon = 'i-lucide-folder-open'
+
+function categoryPreviewIcon(category: Pick<ForumCategory, 'icon'> | AdminForumCategoryPayload) {
+  return category.icon || defaultCategoryIcon
+}
+
+function taxonomyPreviewColor(value: string) {
+  return value || 'var(--sf-accent)'
+}
+
+function colorInputValue(value: string) {
+  return /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#0f766e'
+}
+
+function setCategoryColor(event: Event) {
+  const target = event.target
+  if (target instanceof HTMLInputElement) {
+    categoryForm.iconColor = target.value.toLowerCase()
+  }
+}
+
+function clearCategoryColor() {
+  categoryForm.iconColor = ''
+}
+
 async function saveGroup() {
   savingGroup.value = true
   try {
@@ -132,6 +157,8 @@ function categoryPayload(): AdminForumCategoryPayload {
     slug: categoryForm.slug.trim(),
     name: categoryForm.name.trim(),
     description: categoryForm.description.trim(),
+    icon: categoryForm.icon.trim(),
+    iconColor: categoryForm.iconColor.trim(),
     visibility: categoryForm.visibility,
     position: Number(categoryForm.position) || 0,
     defaultSort: categoryForm.defaultSort
@@ -302,6 +329,37 @@ function errorToast(error: unknown, fallback: string) {
               <UTextarea v-model="categoryForm.description" autoresize class="w-full" />
             </UFormField>
 
+            <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+              <LazySFIconPicker
+                v-model="categoryForm.icon"
+                :label="t('admin.forum.visual.icon')"
+                :hint="t('admin.forum.visual.iconHelp')"
+              />
+              <UFormField :label="t('admin.forum.visual.iconColor')" name="category-icon-color">
+                <div class="grid gap-2">
+                  <div class="flex items-center gap-2">
+                    <input
+                      :value="colorInputValue(categoryForm.iconColor)"
+                      type="color"
+                      class="h-10 w-12 rounded-md border border-slate-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-950"
+                      :aria-label="t('admin.forum.visual.iconColor')"
+                      @input="setCategoryColor"
+                    >
+                    <UInput v-model="categoryForm.iconColor" placeholder="#0f766e" class="min-w-0 flex-1" />
+                  </div>
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="inline-flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
+                      <UIcon :name="categoryPreviewIcon(categoryForm)" class="size-4" :style="{ color: taxonomyPreviewColor(categoryForm.iconColor) }" />
+                      {{ categoryForm.iconColor || t('admin.forum.visual.defaultAccent') }}
+                    </span>
+                    <UButton type="button" size="xs" color="neutral" variant="ghost" leading-icon="i-lucide-x" @click="clearCategoryColor">
+                      {{ t('admin.forum.visual.clearColor') }}
+                    </UButton>
+                  </div>
+                </div>
+              </UFormField>
+            </div>
+
             <div class="grid gap-4 md:grid-cols-3">
               <UFormField :label="t('admin.forum.categories.visibility')" name="category-visibility">
                 <select v-model="categoryForm.visibility" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
@@ -393,7 +451,15 @@ function errorToast(error: unknown, fallback: string) {
             >
               <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="font-semibold text-slate-900 dark:text-zinc-100">{{ category.name }}</span>
+                  <span class="inline-flex min-w-0 items-center gap-2 font-semibold text-slate-900 dark:text-zinc-100">
+                    <UIcon
+                      :name="categoryPreviewIcon(category)"
+                      class="size-4 shrink-0"
+                      :style="{ color: taxonomyPreviewColor(category.iconColor) }"
+                      aria-hidden="true"
+                    />
+                    <span class="truncate">{{ category.name }}</span>
+                  </span>
                   <UBadge :color="category.visibility === 'public' ? 'success' : 'neutral'" variant="soft">
                     {{ t(`admin.forum.visibility.${category.visibility}`) }}
                   </UBadge>

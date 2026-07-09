@@ -48,6 +48,31 @@ const tabs = computed(() => forumTagStatusChoices.map((status) => ({
 
 const filteredTags = computed(() => tags.value.filter((tag) => tag.status === activeStatus.value))
 
+const defaultTagIcon = 'i-lucide-tag'
+
+function tagPreviewIcon(tag: Pick<ForumTag, 'icon'> | AdminForumTagPayload) {
+  return tag.icon || defaultTagIcon
+}
+
+function taxonomyPreviewColor(value: string) {
+  return value || 'var(--sf-accent)'
+}
+
+function colorInputValue(value: string) {
+  return /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#0f766e'
+}
+
+function setTagColor(event: Event) {
+  const target = event.target
+  if (target instanceof HTMLInputElement) {
+    form.iconColor = target.value.toLowerCase()
+  }
+}
+
+function clearTagColor() {
+  form.iconColor = ''
+}
+
 async function saveTag() {
   saving.value = true
   try {
@@ -99,6 +124,8 @@ function tagPayload(): AdminForumTagPayload {
     slug: form.slug.trim(),
     name: form.name.trim(),
     description: form.description.trim(),
+    icon: form.icon.trim(),
+    iconColor: form.iconColor.trim(),
     status: form.status
   }
 }
@@ -204,6 +231,37 @@ function errorToast(error: unknown, fallback: string) {
           </UFormField>
         </div>
 
+        <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+          <LazySFIconPicker
+            v-model="form.icon"
+            :label="t('admin.forum.visual.icon')"
+            :hint="t('admin.forum.visual.iconHelp')"
+          />
+          <UFormField :label="t('admin.forum.visual.iconColor')" name="tag-icon-color">
+            <div class="grid gap-2">
+              <div class="flex items-center gap-2">
+                <input
+                  :value="colorInputValue(form.iconColor)"
+                  type="color"
+                  class="h-10 w-12 rounded-md border border-slate-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-950"
+                  :aria-label="t('admin.forum.visual.iconColor')"
+                  @input="setTagColor"
+                >
+                <UInput v-model="form.iconColor" placeholder="#2563eb" class="min-w-0 flex-1" />
+              </div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="inline-flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
+                  <UIcon :name="tagPreviewIcon(form)" class="size-4" :style="{ color: taxonomyPreviewColor(form.iconColor) }" />
+                  {{ form.iconColor || t('admin.forum.visual.defaultAccent') }}
+                </span>
+                <UButton type="button" size="xs" color="neutral" variant="ghost" leading-icon="i-lucide-x" @click="clearTagColor">
+                  {{ t('admin.forum.visual.clearColor') }}
+                </UButton>
+              </div>
+            </div>
+          </UFormField>
+        </div>
+
         <template #footer>
           <div class="flex flex-wrap justify-end gap-2">
             <UButton type="button" color="neutral" variant="ghost" leading-icon="i-lucide-rotate-ccw" @click="resetForm">
@@ -255,7 +313,15 @@ function errorToast(error: unknown, fallback: string) {
         >
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="font-semibold text-slate-900 dark:text-zinc-100">#{{ tag.name }}</span>
+              <span class="inline-flex min-w-0 items-center gap-2 font-semibold text-slate-900 dark:text-zinc-100">
+                <UIcon
+                  :name="tagPreviewIcon(tag)"
+                  class="size-4 shrink-0"
+                  :style="{ color: taxonomyPreviewColor(tag.iconColor) }"
+                  aria-hidden="true"
+                />
+                <span class="truncate">#{{ tag.name }}</span>
+              </span>
               <UBadge color="neutral" variant="soft" class="font-mono">
                 {{ tag.slug }}
               </UBadge>

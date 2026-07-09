@@ -1319,6 +1319,13 @@
         "pending": "Pending",
         "disabled": "Disabled"
       },
+      "visual": {
+        "icon": "Icon",
+        "iconHelp": "Icon used for the admin list preview.",
+        "iconColor": "Icon color",
+        "defaultAccent": "Default accent",
+        "clearColor": "Clear color"
+      },
       "categories": {
         "metaTitle": "Forum categories",
         "title": "Forum categories",
