@@ -306,6 +306,150 @@ func TestServiceCreateTopicCreatedEventIncludesTagSlugs(t *testing.T) {
 	}
 }
 
+func TestServiceNormalizesCategoryIconColor(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewService(store)
+	actor := identity.Actor{
+		ID:          1,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionCategoryManage: true},
+	}
+
+	created, err := service.CreateCategory(context.Background(), actor, CreateCategoryInput{
+		GroupID:     1,
+		Slug:        " General ",
+		Name:        " 综合讨论 ",
+		Visibility:  "public",
+		DefaultSort: "latest",
+		Icon:        " I-Tabler-Message-Circle ",
+		IconColor:   " #0F766E ",
+	})
+	if err != nil {
+		t.Fatalf("CreateCategory returned error: %v", err)
+	}
+	if created.Icon != "i-tabler-message-circle" || created.IconColor != "#0f766e" {
+		t.Fatalf("expected normalized category visual fields, got icon=%q color=%q", created.Icon, created.IconColor)
+	}
+	if store.createdCategory.Icon != "i-tabler-message-circle" || store.createdCategory.IconColor != "#0f766e" {
+		t.Fatalf("expected normalized visual fields passed to store, got %#v", store.createdCategory)
+	}
+
+	icon := " i-lucide-folder-open "
+	color := ""
+	updated, err := service.UpdateCategory(context.Background(), actor, UpdateCategoryInput{
+		ID:        1,
+		Icon:      &icon,
+		IconColor: &color,
+	})
+	if err != nil {
+		t.Fatalf("UpdateCategory returned error: %v", err)
+	}
+	if updated.Icon != "i-lucide-folder-open" || updated.IconColor != "" {
+		t.Fatalf("expected update to normalize and clear visual fields, got icon=%q color=%q", updated.Icon, updated.IconColor)
+	}
+}
+
+func TestServiceRejectsInvalidCategoryIconColor(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewService(store)
+	actor := identity.Actor{
+		ID:          1,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionCategoryManage: true},
+	}
+
+	_, err := service.CreateCategory(context.Background(), actor, CreateCategoryInput{
+		GroupID:     1,
+		Slug:        "general",
+		Name:        "综合讨论",
+		Visibility:  "public",
+		DefaultSort: "latest",
+		Icon:        "javascript:alert",
+	})
+	if !errors.Is(err, ErrInvalidTopic) {
+		t.Fatalf("expected ErrInvalidTopic for invalid category icon, got %v", err)
+	}
+
+	badColor := "teal"
+	_, err = service.UpdateCategory(context.Background(), actor, UpdateCategoryInput{
+		ID:        1,
+		IconColor: &badColor,
+	})
+	if !errors.Is(err, ErrInvalidTopic) {
+		t.Fatalf("expected ErrInvalidTopic for invalid category color, got %v", err)
+	}
+}
+
+func TestServiceNormalizesTagIconColor(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewService(store)
+	actor := identity.Actor{
+		ID:          1,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionTagManage: true},
+	}
+
+	created, err := service.CreateTag(context.Background(), actor, CreateTagInput{
+		Slug:      " Go ",
+		Name:      " Go ",
+		Status:    TagStatusActive,
+		Icon:      " I-Lucide-Tag ",
+		IconColor: " #2563EB ",
+	})
+	if err != nil {
+		t.Fatalf("CreateTag returned error: %v", err)
+	}
+	if created.Icon != "i-lucide-tag" || created.IconColor != "#2563eb" {
+		t.Fatalf("expected normalized tag visual fields, got icon=%q color=%q", created.Icon, created.IconColor)
+	}
+	if store.createdTag.Icon != "i-lucide-tag" || store.createdTag.IconColor != "#2563eb" {
+		t.Fatalf("expected normalized visual fields passed to store, got %#v", store.createdTag)
+	}
+
+	icon := ""
+	color := "#0f766e"
+	updated, err := service.UpdateTag(context.Background(), actor, UpdateTagInput{
+		ID:        1,
+		Icon:      &icon,
+		IconColor: &color,
+	})
+	if err != nil {
+		t.Fatalf("UpdateTag returned error: %v", err)
+	}
+	if updated.Icon != "" || updated.IconColor != "#0f766e" {
+		t.Fatalf("expected update to clear icon and normalize color, got icon=%q color=%q", updated.Icon, updated.IconColor)
+	}
+}
+
+func TestServiceRejectsInvalidTagIconColor(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewService(store)
+	actor := identity.Actor{
+		ID:          1,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionTagManage: true},
+	}
+
+	_, err := service.CreateTag(context.Background(), actor, CreateTagInput{
+		Slug:   "go",
+		Name:   "Go",
+		Status: TagStatusActive,
+		Icon:   "lucide:tag",
+	})
+	if !errors.Is(err, ErrInvalidTag) {
+		t.Fatalf("expected ErrInvalidTag for invalid tag icon, got %v", err)
+	}
+
+	badColor := "#12345g"
+	_, err = service.UpdateTag(context.Background(), actor, UpdateTagInput{
+		ID:        1,
+		IconColor: &badColor,
+	})
+	if !errors.Is(err, ErrInvalidTag) {
+		t.Fatalf("expected ErrInvalidTag for invalid tag color, got %v", err)
+	}
+}
+
 func TestServiceGetTopicDecoratesExtensionActions(t *testing.T) {
 	store := newServiceFakeStore()
 	service := NewServiceWithTopicExtensionActions(store, staticSettingsResolver{}, nil, nil, fakeTopicActionProvider{
@@ -738,6 +882,10 @@ func (p fakeTopicActionProvider) TopicExtensionActions(context.Context) ([]Topic
 
 type serviceFakeStore struct {
 	nextID            int64
+	createdCategory   CreateCategoryInput
+	updatedCategory   UpdateCategoryInput
+	createdTag        CreateTagInput
+	updatedTag        UpdateTagInput
 	createdTopic      CreateTopicRecord
 	topicForComment   TopicSummary
 	actionTopic       TopicSummary
@@ -792,19 +940,37 @@ func (s *serviceFakeStore) UpdateCategoryGroup(_ context.Context, input UpdateCa
 }
 
 func (s *serviceFakeStore) CreateCategory(_ context.Context, input CreateCategoryInput) (Category, error) {
-	return Category{ID: 1, GroupID: input.GroupID, Slug: input.Slug, Name: input.Name, Description: input.Description, Visibility: input.Visibility, Position: input.Position, DefaultSort: input.DefaultSort}, nil
+	s.createdCategory = input
+	return Category{ID: 1, GroupID: input.GroupID, Slug: input.Slug, Name: input.Name, Description: input.Description, Visibility: input.Visibility, Position: input.Position, DefaultSort: input.DefaultSort, Icon: input.Icon, IconColor: input.IconColor}, nil
 }
 
 func (s *serviceFakeStore) UpdateCategory(_ context.Context, input UpdateCategoryInput) (Category, error) {
-	return Category{ID: input.ID, GroupID: 1, Slug: "general", Name: "综合讨论", Visibility: "public", DefaultSort: "latest"}, nil
+	s.updatedCategory = input
+	item := Category{ID: input.ID, GroupID: 1, Slug: "general", Name: "综合讨论", Visibility: "public", DefaultSort: "latest"}
+	if input.Icon != nil {
+		item.Icon = *input.Icon
+	}
+	if input.IconColor != nil {
+		item.IconColor = *input.IconColor
+	}
+	return item, nil
 }
 
 func (s *serviceFakeStore) CreateTag(_ context.Context, input CreateTagInput) (Tag, error) {
-	return Tag{ID: 1, Slug: input.Slug, Name: input.Name, Description: input.Description, Status: input.Status}, nil
+	s.createdTag = input
+	return Tag{ID: 1, Slug: input.Slug, Name: input.Name, Description: input.Description, Status: input.Status, Icon: input.Icon, IconColor: input.IconColor}, nil
 }
 
 func (s *serviceFakeStore) UpdateTag(_ context.Context, input UpdateTagInput) (Tag, error) {
-	return Tag{ID: input.ID, Slug: "go", Name: "Go", Status: TagStatusActive}, nil
+	s.updatedTag = input
+	item := Tag{ID: input.ID, Slug: "go", Name: "Go", Status: TagStatusActive}
+	if input.Icon != nil {
+		item.Icon = *input.Icon
+	}
+	if input.IconColor != nil {
+		item.IconColor = *input.IconColor
+	}
+	return item, nil
 }
 
 func (s *serviceFakeStore) ListTopics(context.Context, TopicListInput) (TopicList, error) {

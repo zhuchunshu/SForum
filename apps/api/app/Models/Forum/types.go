@@ -114,6 +114,8 @@ type Category struct {
 	Slug         string    `json:"slug"`
 	Name         string    `json:"name"`
 	Description  string    `json:"description"`
+	Icon         string    `json:"icon"`
+	IconColor    string    `json:"iconColor"`
 	Visibility   string    `json:"visibility"`
 	Position     int       `json:"position"`
 	DefaultSort  string    `json:"defaultSort"`
@@ -140,6 +142,8 @@ type Tag struct {
 	Slug        string    `json:"slug"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
+	Icon        string    `json:"icon"`
+	IconColor   string    `json:"iconColor"`
 	Status      string    `json:"status"`
 	TopicCount  int64     `json:"topicCount"`
 	CreatedAt   time.Time `json:"createdAt"`
@@ -295,6 +299,8 @@ type CreateCategoryInput struct {
 	Slug        string
 	Name        string
 	Description string
+	Icon        string
+	IconColor   string
 	Visibility  string
 	Position    int
 	DefaultSort string
@@ -306,6 +312,8 @@ type UpdateCategoryInput struct {
 	Slug        *string
 	Name        *string
 	Description *string
+	Icon        *string
+	IconColor   *string
 	Visibility  *string
 	Position    *int
 	DefaultSort *string
@@ -315,6 +323,8 @@ type CreateTagInput struct {
 	Slug        string
 	Name        string
 	Description string
+	Icon        string
+	IconColor   string
 	Status      string
 	ActorUserID int64
 }
@@ -324,6 +334,8 @@ type UpdateTagInput struct {
 	Slug        *string
 	Name        *string
 	Description *string
+	Icon        *string
+	IconColor   *string
 	Status      *string
 	ActorUserID int64
 }

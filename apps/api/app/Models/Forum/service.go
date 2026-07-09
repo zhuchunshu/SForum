@@ -867,6 +867,16 @@ func normalizeCreateCategoryInput(input CreateCategoryInput) (CreateCategoryInpu
 	input.Slug = slug
 	input.Name = name
 	input.Description = strings.TrimSpace(input.Description)
+	icon, ok := normalizeTaxonomyIcon(input.Icon)
+	if !ok {
+		return CreateCategoryInput{}, ErrInvalidTopic
+	}
+	iconColor, ok := normalizeTaxonomyIconColor(input.IconColor)
+	if !ok {
+		return CreateCategoryInput{}, ErrInvalidTopic
+	}
+	input.Icon = icon
+	input.IconColor = iconColor
 	input.Visibility = visibility
 	input.DefaultSort = sort
 	return input, nil
@@ -896,6 +906,20 @@ func normalizeUpdateCategoryInput(input UpdateCategoryInput) (UpdateCategoryInpu
 	if input.Description != nil {
 		value := strings.TrimSpace(*input.Description)
 		input.Description = &value
+	}
+	if input.Icon != nil {
+		value, ok := normalizeTaxonomyIcon(*input.Icon)
+		if !ok {
+			return UpdateCategoryInput{}, ErrInvalidTopic
+		}
+		input.Icon = &value
+	}
+	if input.IconColor != nil {
+		value, ok := normalizeTaxonomyIconColor(*input.IconColor)
+		if !ok {
+			return UpdateCategoryInput{}, ErrInvalidTopic
+		}
+		input.IconColor = &value
 	}
 	if input.Visibility != nil {
 		value, ok := normalizeCategoryVisibility(*input.Visibility)
@@ -930,6 +954,16 @@ func normalizeCreateTagInput(input CreateTagInput) (CreateTagInput, error) {
 	input.Slug = slug
 	input.Name = name
 	input.Description = strings.TrimSpace(input.Description)
+	icon, ok := normalizeTaxonomyIcon(input.Icon)
+	if !ok {
+		return CreateTagInput{}, ErrInvalidTag
+	}
+	iconColor, ok := normalizeTaxonomyIconColor(input.IconColor)
+	if !ok {
+		return CreateTagInput{}, ErrInvalidTag
+	}
+	input.Icon = icon
+	input.IconColor = iconColor
 	input.Status = status
 	return input, nil
 }
@@ -955,6 +989,20 @@ func normalizeUpdateTagInput(input UpdateTagInput) (UpdateTagInput, error) {
 	if input.Description != nil {
 		value := strings.TrimSpace(*input.Description)
 		input.Description = &value
+	}
+	if input.Icon != nil {
+		value, ok := normalizeTaxonomyIcon(*input.Icon)
+		if !ok {
+			return UpdateTagInput{}, ErrInvalidTag
+		}
+		input.Icon = &value
+	}
+	if input.IconColor != nil {
+		value, ok := normalizeTaxonomyIconColor(*input.IconColor)
+		if !ok {
+			return UpdateTagInput{}, ErrInvalidTag
+		}
+		input.IconColor = &value
 	}
 	if input.Status != nil {
 		value, ok := normalizeTagStatus(*input.Status)
@@ -992,6 +1040,22 @@ func normalizeUpdateForumSettingsInput(input UpdateForumSettingsInput) (UpdateFo
 func normalizeAdminSlug(value string) (string, bool) {
 	value = strings.ToLower(strings.TrimSpace(value))
 	return value, tagSlugPattern.MatchString(value)
+}
+
+func normalizeTaxonomyIcon(value string) (string, bool) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "", true
+	}
+	return value, taxonomyIconPattern.MatchString(value)
+}
+
+func normalizeTaxonomyIconColor(value string) (string, bool) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "", true
+	}
+	return value, taxonomyIconColorPattern.MatchString(value)
 }
 
 func normalizeCategoryVisibility(value string) (string, bool) {
@@ -1111,6 +1175,8 @@ func normalizePage(page int, perPage int) (int, int) {
 
 var nonSlugChars = regexp.MustCompile(`[^a-z0-9]+`)
 var tagSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+var taxonomyIconPattern = regexp.MustCompile(`^i-[a-z0-9]+-[a-z0-9][a-z0-9-]*$`)
+var taxonomyIconColorPattern = regexp.MustCompile(`^#[0-9a-f]{6}$`)
 
 func normalizeTopicTagSlugs(values []string, max int) ([]string, error) {
 	if max < 0 || max > 10 {
