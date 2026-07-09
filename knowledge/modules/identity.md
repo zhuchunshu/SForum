@@ -214,8 +214,11 @@ Initial identity foundation is implemented.
 - Add CSRF protection for cookie-authenticated unsafe requests.
 - Tune production ALTCHA challenge cost, expiration, and per-IP limits after
   testing on expected low-end client devices.
-- Add admin/user-facing login history views when the account/security UI is
-  built.
+- Add user-facing account security views for login history and active devices,
+  backed by a server-side session/device model that can revoke one device, all
+  other devices, or all sessions without exposing raw session ids.
+- Add admin-configurable max active browser sessions with beginner-friendly
+  defaults and reset-to-recommended behavior.
 - Add risk-based controls for new device/IP patterns, including optional
   reauthentication or human verification.
 - Extend the same human-verification boundary to password-reset initiation and

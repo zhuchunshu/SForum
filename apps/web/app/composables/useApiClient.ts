@@ -22,6 +22,7 @@ type ApiFetchOptions = {
 const UNSAFE_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE'])
 const CSRF_COOKIE_NAME = 'csrf_'
 const CSRF_HEADER_NAME = 'X-Csrf-Token'
+const CSRF_PRIME_PATH = '/health'
 
 type ApiErrorEnvelopeLike = {
   code?: unknown
@@ -80,24 +81,64 @@ export function useApiClient() {
     return useCookie<string>(CSRF_COOKIE_NAME).value || ''
   }
 
-  async function request<T>(path: string, options: ApiFetchOptions = {}) {
-    const headers = apiHeaders(options.headers)
-    // unsafe 方法必须携带 CSRF token（double-submit：cookie 值 == X-Csrf-Token header）。
-    if (options.method && UNSAFE_METHODS.has(options.method)) {
-      const token = csrfToken()
-      if (token && !headers[CSRF_HEADER_NAME]) {
-        headers[CSRF_HEADER_NAME] = token
-      }
+  async function refreshCsrfToken() {
+    if (import.meta.server) {
+      return csrfToken()
     }
-    const envelope = await $fetch<ApiEnvelope<T>>(`${apiBaseUrl}${path}`, {
-      method: options.method,
-      body: options.body,
-      credentials: options.credentials ?? 'include',
-      headers,
-      timeout: options.timeout
+
+    await $fetch<ApiEnvelope<unknown>>(`${apiBaseUrl}${CSRF_PRIME_PATH}`, {
+      credentials: 'include',
+      headers: apiHeaders(),
+      timeout: 2000
     })
 
-    return envelope.data
+    return csrfToken()
+  }
+
+  async function request<T>(path: string, options: ApiFetchOptions = {}) {
+    const method = options.method?.toUpperCase()
+    const unsafe = Boolean(method && UNSAFE_METHODS.has(method))
+    const callerProvidedCsrf = Boolean(options.headers?.[CSRF_HEADER_NAME])
+    const canRefreshCsrf = !import.meta.server
+
+    async function requestHeaders(refreshToken: boolean) {
+      // 首次进入页面或 token 过期时，先用安全 GET 让后端种/刷新 double-submit cookie。
+      if (canRefreshCsrf && unsafe && !callerProvidedCsrf && (refreshToken || !csrfToken())) {
+        await refreshCsrfToken()
+      }
+
+      const headers = apiHeaders(options.headers)
+      // unsafe 方法必须携带 CSRF token（double-submit：cookie 值 == X-Csrf-Token header）。
+      if (unsafe && !callerProvidedCsrf) {
+        const token = csrfToken()
+        if (token) {
+          headers[CSRF_HEADER_NAME] = token
+        }
+      }
+      return headers
+    }
+
+    async function send(refreshToken = false) {
+      const headers = await requestHeaders(refreshToken)
+      const envelope = await $fetch<ApiEnvelope<T>>(`${apiBaseUrl}${path}`, {
+        method: options.method,
+        body: options.body,
+        credentials: options.credentials ?? 'include',
+        headers,
+        timeout: options.timeout
+      })
+
+      return envelope.data
+    }
+
+    try {
+      return await send()
+    } catch (error) {
+      if (canRefreshCsrf && unsafe && !callerProvidedCsrf && apiErrorReason(error) === 'csrf.invalid') {
+        return await send(true)
+      }
+      throw error
+    }
   }
 
   return { apiBaseUrl, apiHeaders, request }

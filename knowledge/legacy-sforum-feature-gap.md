@@ -18,6 +18,16 @@ Reviewed on 2026-07-07:
 - Current SForum knowledge notes under `knowledge/modules/` and current route
   controllers under `apps/api/app/Http/Controllers`.
 
+Reviewed on 2026-07-10:
+
+- Old user auth/session implementation:
+  `app/Plugins/User/src/AuthGuard.php`, `src/Auth.php`,
+  `src/Models/UsersAuth.php`, `src/Controller/Api/AuthOffline*`, and
+  `app/Themes/CodeFec/resources/views/user/setting/auth.blade.php`.
+- Old admin account-security settings:
+  `resources/views/setting/user/core.blade.php` and
+  `resources/views/setting/user/sign.blade.php`.
+
 ## Current Rewrite Baseline
 
 Already implemented or mostly covered in the current SForum:
@@ -78,6 +88,56 @@ after the first serious data migration.
 | Topic keywords | `/keywords` pages and topic keyword links | Current tags may cover some use cases; no separate keywords | Decide whether to merge old keywords into tags or add a lightweight alias/search feature |
 | Polls/votes | `topic_vote` table | No poll/vote module | Defer unless legacy sites depend on it heavily |
 | Topic options | Disable comments, only-author view, topic unlock exemptions | No equivalent runtime model | Rebuild only after topic lifecycle and permissions are stable |
+
+## Legacy Auth And Session Lessons
+
+Old SForum has a useful product shape for account security, but its code should
+not be copied into the rewrite.
+
+What is worth learning:
+
+- Every successful login creates a durable `users_auth` row with user id,
+  random token, login IP, User-Agent, and timestamps. This doubles as login
+  history and the active-device list.
+- `core_user_session_num` is an admin setting for how many devices may remain
+  online at once. Login keeps the newest N records and removes older ones.
+- The user account page lists login time, browser, operating system, masked IP,
+  IP region, and marks the current device.
+- Users can take a single device offline, or take every other device offline
+  while preserving the current one.
+- Offline actions require an email verification code valid for 10 minutes.
+- Admin settings also expose switches around registration/login verification,
+  third-party login, email verification, max online devices, and optional IP/UA
+  binding checks.
+
+What the rewrite should avoid:
+
+- Do not expose raw session tokens in HTML or emails. Use opaque session ids on
+  the server and return only short display fingerprints to the UI.
+- Do not import old `users_auth` rows as active security state. Treat them as
+  historical audit data at most.
+- Do not bind normal sessions strictly to IP by default; mobile networks and
+  proxies make that fragile. Prefer risk signals, recent-login notices, and
+  reauthentication for sensitive actions.
+- Do not let naming drift make settings ambiguous. Use positive option names
+  such as `identity.session.bind_user_agent` or `identity.session.max_devices`.
+
+Suggested rewrite direction:
+
+- Add a first-class `user_sessions` or `identity_sessions` model tied to the
+  existing Redis browser session flow, storing only a salted session hash,
+  display fingerprint, IP prefix, User-Agent summary, created/last-seen times,
+  revoked time, and revoke reason.
+- Keep Redis-backed browser sessions as the authority for first-party auth, but
+  index sessions by user id so the API can revoke a single device, all other
+  devices, or all sessions after password reset/security events.
+- Move max-device behavior into beginner-friendly runtime options, with safe
+  defaults and one-click reset on the admin settings page.
+- Add user-facing account security UI before data migration: login history,
+  active devices, current-device marker, revoke-device action, and revoke-other
+  devices action.
+- Add admin-facing audit/search later under a protected permission boundary
+  such as `user.manage` or a narrower future account-security permission.
 
 ## Plugin-Or-Framework Gaps
 

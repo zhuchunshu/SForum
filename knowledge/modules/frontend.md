@@ -227,6 +227,23 @@ helper.
 
 ## Regression Notes
 
+### CSRF Token Bootstrapping
+
+- Symptom to watch for: the first form submit on login, registration, password
+  reset, or admin pages returns `csrf.invalid` even though the page was loaded
+  from the same site.
+- Known cause: SSR-side API reads may not deliver the backend `Set-Cookie`
+  header to the browser before the first client-side unsafe request, and a
+  long-lived page may hold an expired `csrf_` cookie.
+- Safe pattern: route all unsafe API requests through `useApiClient().request`.
+  It now primes `csrf_` with `GET /api/v1/health` when the browser has no token,
+  adds `X-Csrf-Token`, and retries once after a backend `csrf.invalid` by
+  refreshing the token. Do not bypass it with raw `$fetch` for cookie-authenticated
+  writes.
+- Required verification after touching CSRF/request plumbing: run
+  `bun test tests/useApiClient.test.ts`, `bun run typecheck`, and the backend
+  CSRF tests in `go test ./app/Http`.
+
 ### Auth Success Navigation And Route Middleware
 
 - Symptom to watch for: login/register API returns success, the form stops

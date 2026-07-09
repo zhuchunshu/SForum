@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { parse, compileScript } from '@vue/compiler-sfc'
 import { computed, reactive, ref } from 'vue'
 
-import { apiErrorFields, apiErrorMessage, apiErrorReason } from '../app/composables/useApiClient'
+import { apiErrorFields, apiErrorMessage, apiErrorReason, useApiClient } from '../app/composables/useApiClient'
 import { isUnauthenticatedAuthError } from '../app/composables/useAuthSession'
 import { registerErrorMessage } from '../app/utils/registerErrors'
 
@@ -65,6 +65,70 @@ describe('api error helpers', () => {
       username: ['请填写用户名。'],
       email: ['邮箱格式不正确。']
     })
+  })
+})
+
+describe('useApiClient CSRF handling', () => {
+  test('primes a csrf token before the first unsafe browser request', async () => {
+    const calls: Array<{ url: string, options?: { method?: string, headers?: Record<string, string> } }> = []
+    const csrfCookie = ref('')
+
+    await withApiClientGlobals(csrfCookie, async () => {
+      globalThis.$fetch = async (url: string, options?: { method?: string, headers?: Record<string, string> }) => {
+        calls.push({ url, options })
+        if (url === '/api/v1/health') {
+          csrfCookie.value = 'fresh-token'
+          return { code: 200, message: 'ok', data: {} }
+        }
+        return { code: 200, message: 'ok', data: { saved: true } }
+      }
+
+      const { request } = useApiClient()
+      await request('/admin/web-options', {
+        method: 'PUT',
+        body: { options: [] }
+      })
+    })
+
+    expect(calls.map((call) => call.url)).toEqual(['/api/v1/health', '/api/v1/admin/web-options'])
+    expect(calls[1].options?.headers?.['X-Csrf-Token']).toBe('fresh-token')
+  })
+
+  test('refreshes csrf token and retries once after csrf.invalid', async () => {
+    const postHeaders: Array<Record<string, string> | undefined> = []
+    const csrfCookie = ref('stale-token')
+    let postAttempts = 0
+
+    await withApiClientGlobals(csrfCookie, async () => {
+      globalThis.$fetch = async (url: string, options?: { method?: string, headers?: Record<string, string> }) => {
+        if (url === '/api/v1/health') {
+          csrfCookie.value = 'fresh-token'
+          return { code: 200, message: 'ok', data: {} }
+        }
+        postAttempts += 1
+        postHeaders.push(options?.headers)
+        if (postAttempts === 1) {
+          throw {
+            data: {
+              code: 403,
+              message: 'CSRF token invalid.',
+              data: { reason: 'csrf.invalid' }
+            }
+          }
+        }
+        return { code: 200, message: 'ok', data: { saved: true } }
+      }
+
+      const { request } = useApiClient()
+      await request('/admin/web-options', {
+        method: 'PUT',
+        body: { options: [] }
+      })
+    })
+
+    expect(postAttempts).toBe(2)
+    expect(postHeaders[0]?.['X-Csrf-Token']).toBe('stale-token')
+    expect(postHeaders[1]?.['X-Csrf-Token']).toBe('fresh-token')
   })
 })
 
@@ -389,5 +453,39 @@ async function loadLoginPageForSubmitTest() {
     navigations: () => navigations,
     sessionUser: () => sessionUser,
     toasts: () => toasts
+  }
+}
+
+async function withApiClientGlobals(csrfCookie: { value: string }, run: () => Promise<void>) {
+  const originalFetch = globalThis.$fetch
+  const originalUseRuntimeConfig = globalThis.useRuntimeConfig
+  const originalUseNuxtApp = globalThis.useNuxtApp
+  const originalUseCookie = globalThis.useCookie
+
+  globalThis.useRuntimeConfig = () => ({
+    public: {
+      apiBaseUrl: '/api/v1',
+      appLocale: 'zh-CN'
+    }
+  })
+  globalThis.useNuxtApp = () => ({
+    $i18n: {
+      locale: ref('zh-CN')
+    }
+  })
+  globalThis.useCookie = (name: string) => {
+    if (name !== 'csrf_') {
+      throw new Error(`unexpected cookie ${name}`)
+    }
+    return csrfCookie
+  }
+
+  try {
+    await run()
+  } finally {
+    globalThis.$fetch = originalFetch
+    globalThis.useRuntimeConfig = originalUseRuntimeConfig
+    globalThis.useNuxtApp = originalUseNuxtApp
+    globalThis.useCookie = originalUseCookie
   }
 }
