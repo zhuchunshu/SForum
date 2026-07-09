@@ -11,6 +11,7 @@ import (
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 )
 
@@ -118,8 +119,21 @@ func (h *Controller) content(c fiber.Ctx) error {
 		return mapAttachmentError(err)
 	}
 	c.Set(fiber.HeaderContentType, item.ContentType)
-	c.Set(fiber.HeaderContentDisposition, `inline; filename="`+strings.ReplaceAll(item.OriginalName, `"`, "")+`"`)
+	// 安全头：阻止 MIME 嗅探；主动内容类型（HTML/SVG/JS 等）强制下载而非内联渲染，
+	// 避免公开附件形成同源存储型 XSS（即便入库时 denylist 被绕过，此处兜底）。
+	c.Set("X-Content-Type-Options", "nosniff")
+	c.Set(fiber.HeaderContentDisposition, attachmentContentDisposition(item.ContentType, item.OriginalName))
 	return c.SendStream(reader)
+}
+
+// attachmentContentDisposition 按 MIME 决定内联或强制下载，并安全拼装文件名。
+// 主动内容类型强制 attachment，杜绝同源 XSS；文件名中的双引号被剔除以防注入。
+func attachmentContentDisposition(contentType, originalName string) string {
+	disposition := "inline"
+	if options.IsAttachmentActiveContentType(contentType) {
+		disposition = "attachment"
+	}
+	return disposition + `; filename="` + strings.ReplaceAll(originalName, `"`, "") + `"`
 }
 
 func (h *Controller) settings(c fiber.Ctx) error {

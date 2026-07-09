@@ -1,0 +1,37 @@
+package attachmentscontroller
+
+import "testing"
+
+// TestAttachmentContentDispositionForcesDownloadOnActiveContent 验证 content 响应对
+// 主动内容类型强制下载（attachment），对安全类型保持内联（inline）。
+// 这是审计 P2 附件主动内容风险的响应层兜底防护。
+func TestAttachmentContentDispositionForcesDownloadOnActiveContent(t *testing.T) {
+	for _, mime := range []string{"text/html", "image/svg+xml", "application/javascript"} {
+		got := attachmentContentDisposition(mime, "file.html")
+		if want := `attachment; filename="file.html"`; got != want {
+			t.Fatalf("active content %q: disposition = %q, want %q", mime, got, want)
+		}
+	}
+}
+
+// TestAttachmentContentDispositionInlinesSafeContent 验证安全 MIME 保持 inline，
+// 不误伤正常图片/PDF/文本附件的浏览体验。
+func TestAttachmentContentDispositionInlinesSafeContent(t *testing.T) {
+	for _, mime := range []string{"image/png", "image/jpeg", "application/pdf", "text/plain"} {
+		got := attachmentContentDisposition(mime, "photo.png")
+		if want := `inline; filename="photo.png"`; got != want {
+			t.Fatalf("safe content %q: disposition = %q, want %q", mime, got, want)
+		}
+	}
+}
+
+// TestAttachmentContentDispositionSanitizesFilename 验证文件名中的双引号被剔除，
+// 防止通过文件名注入额外的 disposition 参数。
+func TestAttachmentContentDispositionSanitizesFilename(t *testing.T) {
+	got := attachmentContentDisposition("image/png", `evil".txt`)
+	// 期望双引号被移除：filename 段内只保留闭合引号，无内嵌引号。
+	want := `inline; filename="evil.txt"`
+	if got != want {
+		t.Fatalf("unsanitized filename, got %q, want %q", got, want)
+	}
+}

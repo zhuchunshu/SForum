@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { apiErrorMessage } from '~/composables/useApiClient'
+import type { AltchaWidgetElement } from 'altcha'
 
 definePageMeta({ public: true })
 
-const { t } = useI18n()
-const { siteName } = useWebOptions()
-const { request } = useApiClient()
+const { t, locale } = useI18n()
+const { siteName, humanVerificationEnabledFor, altchaWidgetSettings } = useWebOptions()
+const { apiBaseUrl, request } = useApiClient()
 
 useSForumSeo({
   title: () => `${t('auth.forgotPassword')} - ${siteName.value}`,
@@ -17,6 +17,59 @@ const email = ref('')
 const submitting = ref(false)
 const submitted = ref(false)
 const errorMessage = ref('')
+const fieldErrors = ref<Record<string, string[]>>({})
+
+// 人机验证：当运营者启用 password_reset 场景时接入 ALTCHA，与注册页保持一致。
+const humanVerificationToken = ref('')
+const altchaWidget = ref<AltchaWidgetElement | null>(null)
+const altchaConfiguration = computed(() => JSON.stringify({
+  hideLogo: altchaWidgetSettings.value.hideLogo,
+  hideFooter: altchaWidgetSettings.value.hideFooter,
+  minDuration: altchaWidgetSettings.value.minDuration
+}))
+const altchaWidgetType = computed(() => altchaWidgetSettings.value.type)
+const altchaWidgetAuto = computed(() => altchaWidgetSettings.value.auto)
+const altchaWidgetDisplay = computed(() => altchaWidgetSettings.value.display)
+const altchaWidgetWorkers = computed(() => altchaWidgetSettings.value.workers)
+const altchaChallengeUrl = computed(() => {
+  return `${apiBaseUrl}/human-verification/challenge?purpose=password_reset`
+})
+const passwordResetHumanVerificationEnabled = computed(() => {
+  // 前端只负责体验开关；API verifier 仍按同一场景配置做权威校验。
+  return humanVerificationEnabledFor('password_reset')
+})
+const humanVerificationEnabled = computed(() => {
+  return passwordResetHumanVerificationEnabled.value || Boolean(fieldError('humanVerification'))
+})
+
+function fieldError(name: string) {
+  return fieldErrors.value[name]?.[0] || ''
+}
+
+function fieldDescription(name: string) {
+  return fieldError(name) ? `${name}-error` : undefined
+}
+
+function handleAltchaVerified(event: Event) {
+  const detail = (event as CustomEvent<{ payload?: string }>).detail
+  humanVerificationToken.value = detail?.payload || ''
+}
+
+function handleAltchaStateChange(event: Event) {
+  const detail = (event as CustomEvent<{ state?: string, payload?: string }>).detail
+  if (detail?.state === 'verified' && detail.payload) {
+    humanVerificationToken.value = detail.payload
+    return
+  }
+  if (detail?.state === 'expired' || detail?.state === 'error' || detail?.state === 'unverified') {
+    humanVerificationToken.value = ''
+  }
+}
+
+function resetHumanVerification() {
+  humanVerificationToken.value = ''
+  altchaWidget.value?.reset()
+}
 
 async function submit() {
   if (submitting.value || !email.value.trim()) {
@@ -24,14 +77,27 @@ async function submit() {
   }
   submitting.value = true
   errorMessage.value = ''
+  fieldErrors.value = {}
+  const submittedHumanVerificationToken = humanVerificationEnabled.value ? humanVerificationToken.value : ''
+  const body: Record<string, unknown> = { email: email.value.trim() }
+  if (humanVerificationEnabled.value) {
+    body.humanVerification = {
+      provider: 'altcha',
+      token: submittedHumanVerificationToken
+    }
+  }
   try {
     await request('/auth/password-reset/request', {
       method: 'POST',
-      body: { email: email.value.trim() }
+      body
     })
     // 无论邮箱是否存在都显示成功提示（隐私保护）。
     submitted.value = true
   } catch (error) {
+    fieldErrors.value = apiErrorFields(error)
+    if (humanVerificationEnabled.value && (submittedHumanVerificationToken || fieldError('humanVerification'))) {
+      resetHumanVerification()
+    }
     errorMessage.value = apiErrorMessage(error) || t('auth.forgotPasswordFailed')
   } finally {
     submitting.value = false
@@ -70,6 +136,39 @@ async function submit() {
             @keydown.enter="submit"
           >
         </div>
+
+        <div v-if="humanVerificationEnabled" class="mb-4">
+          <label id="human-verification-label" class="block text-sm font-semibold text-slate-700 mb-2 dark:text-zinc-300">
+            {{ t('auth.humanVerification') }}
+          </label>
+          <ClientOnly>
+            <altcha-widget
+              ref="altchaWidget"
+              :challenge="altchaChallengeUrl"
+              :configuration="altchaConfiguration"
+              :auto="altchaWidgetAuto"
+              :display="altchaWidgetDisplay"
+              :language="locale === 'zh-CN' ? 'zh-cn' : 'en'"
+              :type="altchaWidgetType"
+              :workers="altchaWidgetWorkers"
+              :aria-invalid="fieldError('humanVerification') ? 'true' : undefined"
+              :aria-labelledby="'human-verification-label'"
+              :aria-describedby="fieldDescription('humanVerification')"
+              @verified="handleAltchaVerified"
+              @expired="resetHumanVerification"
+              @statechange="handleAltchaStateChange"
+            />
+            <template #fallback>
+              <p class="text-sm text-slate-500 dark:text-zinc-400">
+                {{ t('auth.humanVerificationLoading') }}
+              </p>
+            </template>
+          </ClientOnly>
+          <p v-if="fieldError('humanVerification')" id="humanVerification-error" class="text-sm text-red-600 mt-2 dark:text-red-400">
+            {{ fieldError('humanVerification') }}
+          </p>
+        </div>
+
         <SFButton variant="primary" class="w-full" :disabled="submitting || !email.trim()" @click="submit">
           {{ submitting ? t('auth.submitting') : t('auth.sendResetLink') }}
         </SFButton>

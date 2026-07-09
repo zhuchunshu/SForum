@@ -138,6 +138,20 @@ func TestConfigDoesNotExposeAttachmentLocalRootEnv(t *testing.T) {
 	}
 }
 
+// TestConfigDoesNotExposePhantomSessionOrCSRFFields 防止文档/示例中残留的
+// SESSION_SECRET、CSRF_SECRET 被误当成真实配置字段。
+// 实际生效的是 SESSION_HASH_SECRET；CSRF 功能落地前不应出现对应字段。
+func TestConfigDoesNotExposePhantomSessionOrCSRFFields(t *testing.T) {
+	for _, field := range []string{"SessionSecret", "CSRFSecret"} {
+		if _, ok := reflect.TypeOf(Config{}).FieldByName(field); ok {
+			t.Fatalf("Config should not expose phantom field %q; use SessionHashSecret and wait for CSRF middleware", field)
+		}
+	}
+	if _, ok := reflect.TypeOf(Config{}).FieldByName("SessionHashSecret"); !ok {
+		t.Fatal("Config should expose SessionHashSecret (the actually-read env var)")
+	}
+}
+
 func TestLoadParsesWorkerConfigFromEnv(t *testing.T) {
 	t.Setenv("APP_ENV", "test")
 	t.Setenv("DATABASE_MAX_CONNS", "17")

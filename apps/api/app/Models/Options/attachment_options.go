@@ -15,6 +15,28 @@ const attachmentSecretMaxRunes = 8000
 var attachmentProviders = []string{storage.ProviderLocal, storage.ProviderAliyunOSS, storage.ProviderTencentCOS, storage.ProviderFTP, storage.ProviderSFTP}
 var attachmentVisibilities = []string{"public", "private"}
 
+// attachmentActiveContentDenylist 是禁止作为公开附件存储的"主动内容"MIME 类型。
+// 这些类型在浏览器同源 inline 响应下可执行脚本/HTML，构成存储型 XSS 或同源脚本执行面，
+// 因此无论运营者如何配置允许列表都不应入库。content 响应层亦对它们强制下载作为兜底。
+var attachmentActiveContentDenylist = map[string]bool{
+	"text/html":              true,
+	"text/xml":               true,
+	"application/xhtml+xml":  true,
+	"application/xml":         true,
+	"image/svg+xml":          true,
+	"application/javascript": true,
+	"text/javascript":        true,
+	"application/ecmascript": true,
+	"text/ecmascript":        true,
+}
+
+// IsAttachmentActiveContentType 判断给定 MIME 是否属于主动内容类型，
+// 供附件 content 响应决定是否强制下载（attachment）而非内联渲染（inline）。
+func IsAttachmentActiveContentType(mimeType string) bool {
+	_, blocked := attachmentActiveContentDenylist[strings.ToLower(strings.TrimSpace(mimeType))]
+	return blocked
+}
+
 func attachmentOptionNames() []string {
 	return []string{
 		NameAttachmentProvider,
@@ -168,17 +190,22 @@ func normalizeAttachmentMIMETypes(value string) (string, bool) {
 		if len(segments) != 2 || segments[0] == "" || segments[1] == "" {
 			return "", false
 		}
-		for _, segment := range segments {
-			if segment == "*" {
-				continue
-			}
-			for _, char := range segment {
-				if (char < 'a' || char > 'z') && (char < '0' || char > '9') && char != '-' && char != '+' && char != '.' {
-					return "", false
+			for _, segment := range segments {
+				if segment == "*" {
+					continue
+				}
+				for _, char := range segment {
+					if (char < 'a' || char > 'z') && (char < '0' || char > '9') && char != '-' && char != '+' && char != '.' {
+						return "", false
+					}
 				}
 			}
-		}
-		if !seen[item] {
+			// 主动内容类型（HTML/SVG/JS 等）硬封禁：公开附件以同源 inline 响应返回，
+			// 允许这些类型会直接形成存储型 XSS。运营者不可通过允许列表放开。
+			if attachmentActiveContentDenylist[item] {
+				return "", false
+			}
+			if !seen[item] {
 			seen[item] = true
 			items = append(items, item)
 		}

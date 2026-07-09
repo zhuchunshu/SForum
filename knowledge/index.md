@@ -327,6 +327,19 @@ This is the entry point for project memory.
   and counters as real user data. It is append-only (random username/email
   suffixes), triggers no events, and reads `DATABASE_URL` from the
   environment or `--database-url` (config.Load does not read `.env`).
+- A full security audit was completed on 2026-07-09 across auth/session/perm,
+  data access, file upload/storage, frontend XSS, and config/deploy. Findings
+  are tracked as a checkbox backlog in
+  `decisions/2026-07-09-security-audit.md` (2 Critical, 6 High, 10 Medium,
+  6 Low), prioritized C1/C2/H1 first. Confirmed-safe points are recorded to
+  avoid re-auditing.
+- A follow-up security review (`docs/security-review-2026-07-09.md`) flagged
+  6 issues; 4 were fixed on 2026-07-09 (P1 comment visibility bypass,
+  P2 password-reset human verification, P2 production config mismatch,
+  P2 attachment active-content risk), 1 (P3 avatar attachment ID) was
+  verified as a non-issue (store layer already validates ownership/status/
+  type), and CSRF is deferred to its own milestone. Decisions in
+  `decisions/2026-07-09-security-fixes.md`.
 - Backend+frontend performance hardening (2026-07-08) covers the network and
   connection layers beyond the earlier search/cache read-path work:
   `ListComments` now uses SQL pagination (flat `LIMIT/OFFSET`; tree uses
@@ -541,6 +554,10 @@ This is the entry point for project memory.
   renderer/sanitizer, routes, OpenAPI, and tree comment model handoff.
 - `sessions/2026-07-08-seed-forum-command.md` - `sforum seed:forum` 假数据生成
   命令（用户/主题/评论）实现、用法、性能实测与端到端验证 handoff。
+- `decisions/2026-07-09-security-audit.md` - 全栈安全审计结果与修复待办清单
+  （2 Critical / 6 High / 10 Medium / 6 Low，含已确认安全项与修复优先级）。
+- `decisions/2026-07-09-security-fixes.md` - 安全审阅 4 项修复决策（评论可见性、
+  密码重置人机验证、生产配置、附件主动内容）、P3 订正、CSRF 延后说明。
 - `sessions/2026-07-08-auth-success-toast-guideline.md` - login/register
   success Toasts, auth page test harness path fix, theme-aware success Toast
   styling, and broader frontend Toast feedback guideline.

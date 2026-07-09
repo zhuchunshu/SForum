@@ -330,11 +330,14 @@ Important production variables:
 - `POSTGRES_PASSWORD`
 - `REDIS_PASSWORD`
 - `MEILI_MASTER_KEY`
-- `SESSION_SECRET`
-- `CSRF_SECRET`
+- `SESSION_HASH_SECRET` (session signing secret; must be a high-entropy random value in production)
 - Mail provider variables or extension settings only when a mail plugin is
   installed. Avoid adding core `SMTP_*` settings for vendor-specific delivery.
 - `S3_*` once uploads exist.
+
+> Note: CSRF protection for cookie-authenticated writes is not yet
+> implemented. A `CSRF_SECRET` variable has no effect today; it will be
+> introduced together with CSRF middleware in a future milestone.
 
 ## Health Checks
 

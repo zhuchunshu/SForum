@@ -17,11 +17,16 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
+    # 启用 AOF 持久化与密码认证。默认开发密码与 .env.production.example 保持一致，
+    # 外部无密码 Redis 时需将 REDIS_PASSWORD 置空并同步移除 --requirepass。
+    command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-sforum-dev-redis}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # $$ 转义让密码在容器内解析，而非被 compose 提前插值。
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -51,6 +56,12 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable}
       MIGRATE_ON_STARTUP: ${MIGRATE_ON_STARTUP:-true}
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-sforum-dev-redis}
+      SESSION_HASH_SECRET: ${SESSION_HASH_SECRET:-sforum-dev-session-hash-secret}
+      HUMAN_VERIFICATION_PROVIDER: ${HUMAN_VERIFICATION_PROVIDER:-disabled}
+      ALTCHA_SECRET: ${ALTCHA_SECRET:-sforum-dev-altcha-secret}
+      ALTCHA_CHALLENGE_TTL: ${ALTCHA_CHALLENGE_TTL:-10m}
+      ALTCHA_COST: ${ALTCHA_COST:-1000}
       MEILI_HOST: ${MEILI_HOST:-http://meilisearch:7700}
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-sforum-dev-meili-key}
       EXTENSION_ROOT: ${EXTENSION_ROOT:-/var/lib/sforum/extensions}
@@ -82,6 +93,12 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable}
       MIGRATE_ON_STARTUP: ${MIGRATE_ON_STARTUP:-true}
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-sforum-dev-redis}
+      SESSION_HASH_SECRET: ${SESSION_HASH_SECRET:-sforum-dev-session-hash-secret}
+      HUMAN_VERIFICATION_PROVIDER: ${HUMAN_VERIFICATION_PROVIDER:-disabled}
+      ALTCHA_SECRET: ${ALTCHA_SECRET:-sforum-dev-altcha-secret}
+      ALTCHA_CHALLENGE_TTL: ${ALTCHA_CHALLENGE_TTL:-10m}
+      ALTCHA_COST: ${ALTCHA_COST:-1000}
       MEILI_HOST: ${MEILI_HOST:-http://meilisearch:7700}
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-sforum-dev-meili-key}
       EXTENSION_ROOT: ${EXTENSION_ROOT:-/var/lib/sforum/extensions}

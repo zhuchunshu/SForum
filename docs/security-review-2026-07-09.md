@@ -8,11 +8,13 @@
 
 ## 结论摘要
 
-本次审阅发现 6 个值得优先处理的问题：
+本次审阅发现 6 个条目，其中 **5 个经核验属实**、**1 个经核验不成立**：
 
 - 2 个 P1：CSRF 防护缺失、评论接口绕过主题/分类可见性。
 - 3 个 P2：密码重置人机验证启用后失效、生产 Redis/session 配置错配、附件主动内容风险。
-- 1 个 P3：资料更新接口可直接写入任意头像附件 ID。
+- 1 个 P3（经核验不成立）：原报告称资料更新接口可直接写入任意头像附件 ID；实际 `Profile/postgres_store.go` 的 `validateAvatarAttachment` 已在同一事务内校验附件存在、owner==actor、status==active、`image/*`，越权引用他人/不存在/非图片/非 active 附件均返回 `ErrProfileInvalid`。降级为可选的纵深防御优化。
+
+> 更正记录（2026-07-09）：P3 原始判断基于 service 层归一化只校验 `avatarAttachmentId > 0`，遗漏了 store 层事务内的归属/状态/类型校验。详见下方 P3 章节订正。
 
 ## Findings
 
@@ -168,32 +170,37 @@
 - 若未来需要预览 SVG/HTML，应放到隔离域名或 sandbox 响应策略下。
 - 后台配置 UI 应提示允许主动内容的风险。
 
-### P3: 资料更新接口可直接写入任意头像附件 ID
+### P3: 资料更新接口头像附件 ID（经核验：原判断不成立，降级为可选优化）
 
 **影响**
 
-普通资料更新接口接受 `avatarAttachmentId` 并只校验其为正数，然后写入用户资料。手工 API 请求可能把头像指向不存在的附件、他人的附件、非 active 附件或非头像用途附件。当前影响偏低，但在头像展示和附件权限继续扩展后会变成更明显的完整性问题。
+经二次核验，原始判断「可直接写入任意头像附件 ID」**不成立**。
+
+普通资料更新接口接受 `avatarAttachmentId`，service 层归一化确实只校验其为正数，但 store 层在写入头像引用前已在同一事务内做完整校验：
+
+- 附件必须存在（`SELECT ... FROM attachments WHERE id = $1`）。
+- `owner_user_id` 必须等于当前用户。
+- `status` 必须为 `active`。
+- `content_type` 必须以 `image/` 开头。
+
+任一不满足返回 `ErrProfileInvalid`，越权引用他人附件、不存在附件、非 active 或非图片附件均被拦截。因此不存在完整性缺陷，仅作为可选纵深防御优化项保留。
 
 **证据**
 
 - `apps/api/app/Http/Controllers/Profile/controller.go`
-  - `updateProfileRequest` 接受 `avatarAttachmentId`。
-  - `updateMyProfile` 直接传入 service。
+  - `updateProfileRequest` 接受 `avatarAttachmentId`，透传 service。
 - `apps/api/app/Models/Profile/service.go`
-  - `normalizeUpdateProfileInput` 只校验 `avatarAttachmentId > 0`。
-  - `UpdateMyProfile` 合并后直接 `UpsertProfile`。
-- `apps/api/app/Models/Profile/store.go`
-  - profile store interface 当前没有头像附件归属/状态校验入口。
+  - `normalizeUpdateProfileInput` 仅校验 `avatarAttachmentId > 0`。
+  - `UpdateMyProfile` 在 `avatarAttachmentId != nil` 时调用 `s.store.SetAvatarAttachment(ctx, actor.ID, attachmentID, actor.ID)`，传入 `actor.ID` 作为归属校验基准。
+- `apps/api/app/Models/Profile/postgres_store.go`
+  - `SetAvatarAttachment` 在事务内调用 `validateAvatarAttachment(ctx, tx, userID, attachmentID)`。
+  - `validateAvatarAttachment` 查询 `SELECT id, public_id, owner_user_id, content_type, status FROM attachments WHERE id = $1`，校验 `attachment.OwnerUserID != userID || attachment.Status != "active" || !strings.HasPrefix(... "image/")` → `ErrProfileInvalid`。
 
-**建议**
+**建议（可选纵深防御，非缺陷修复）**
 
-- 资料更新接口不要直接接受任意 `avatarAttachmentId`，或在写入前校验：
-  - 附件存在。
-  - 附件状态 active。
-  - 附件 owner 是当前用户。
-  - 附件用途/类型符合头像规则。
-- 更推荐只允许专门的头像上传/设置流程修改头像附件引用。
-- 增加越权引用他人附件、引用不存在附件、引用 disabled/deleted 附件的拒绝测试。
+- 可在 service 层提前校验归属/状态，减少一次事务往返（当前已由 store 层保证正确性）。
+- 或收敛到专门的头像上传/设置流程，让资料更新接口不接受裸 `avatarAttachmentId`。
+- `validateAvatarAttachment` 已有完备逻辑，可补充对应的单元测试固定其拒绝行为。
 
 ## 修复优先级建议
 
@@ -202,7 +209,7 @@
 3. 修复密码重置人机验证，避免安全开关一打开就造成用户锁死。
 4. 纠正生产配置样例，降低部署踩坑概率。
 5. 收紧附件响应策略，避免后续运营配置扩大攻击面。
-6. 收敛头像附件写入路径，保持资料数据完整性。
+6. P3 头像附件写入经核验不构成缺陷，store 层已有归属/状态/类型校验；如需可选优化见 P3 章节，优先级最低。
 
 ## 验证建议
 
@@ -210,7 +217,7 @@
   - 增加 forum store/service 测试，覆盖隐藏主题、删除主题、隐藏分类的 comments/replies。
   - 增加 identity controller/service 测试，覆盖 password_reset human verification。
   - 增加 attachment content response 测试，覆盖危险 MIME 的 disposition/header。
-  - 增加 profile update 测试，覆盖头像附件归属与状态。
+  - 增加 profile update 测试，覆盖头像附件归属与状态。（P3 经核验 store 层已有校验，此测试为补充固定，非缺陷修复。）
 - 集成：
   - 在 CSRF 落地后覆盖带 token、缺 token、错误 token、错误 Origin 的 unsafe 请求。
   - 更新 OpenAPI 契约，标注 unsafe cookie-auth endpoints 的 CSRF 要求。
@@ -219,5 +226,7 @@
 
 ## 备注
 
-- 本报告只整理审阅发现，没有实施修复。
-- 当前工作区存在未提交改动；修复前建议先确认这些改动是否属于正在进行的头像/附件配置工作，避免覆盖他人修改。
+- 本报告初稿只整理审阅发现，未实施修复。后续修复进展见各章节订正说明。
+- P1 评论可见性、P2 密码重置人机验证、P2 生产配置、P2 附件主动内容风险 已于 2026-07-09 修复；CSRF 单独一期。
+- P3 经核验不成立，store 层事务内已有归属/状态/类型校验。
+- 本报告核验阶段为只读静态审阅，未修改业务代码。

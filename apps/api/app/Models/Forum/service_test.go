@@ -687,15 +687,21 @@ type serviceFakeStore struct {
 	updatedTopic      UpdateTopicRecord
 	deletedTopicID    int64
 	appliedAction     string
-	commentSummary    CommentSummary
-	resolvedTags      []TopicTagSummary
-	resolveTagsErr    error
-	resolveTagsCalled bool
-	resolvedTagsInput ResolveTopicTagsInput
+	commentSummary     CommentSummary
+	commentSummaryErr  error
+	resolvedTags       []TopicTagSummary
+	resolveTagsErr     error
+	resolveTagsCalled  bool
+	resolvedTagsInput  ResolveTopicTagsInput
+	// GetTopic 可配置返回错误，供评论可见性兜底测试模拟隐藏/不可见主题。
+	getTopicErr error
 	// ListComments 可配置返回值与调用记录，供分页/view 校验测试断言。
 	listCommentsResult CommentList
 	listCommentsInput  CommentListInput
 	listCommentsCalled bool
+	// ListCommentReplies 可配置返回值与调用记录，供回复可见性兜底测试断言。
+	listCommentRepliesResult  []Comment
+	listCommentRepliesCalled  bool
 	// existingSlugs 模拟已占用的 slug 集合，供 TopicSlugExists 判重。
 	existingSlugs map[string]bool
 }
@@ -754,6 +760,9 @@ func (s *serviceFakeStore) ListAllTopicIDs(context.Context) ([]int64, error) {
 }
 
 func (s *serviceFakeStore) GetTopic(context.Context, int64) (TopicDetail, error) {
+	if s.getTopicErr != nil {
+		return TopicDetail{}, s.getTopicErr
+	}
 	return TopicDetail{}, nil
 }
 
@@ -883,7 +892,7 @@ func (s *serviceFakeStore) CreateComment(_ context.Context, input CreateCommentR
 }
 
 func (s *serviceFakeStore) GetCommentSummary(context.Context, int64) (CommentSummary, error) {
-	return s.commentSummary, nil
+	return s.commentSummary, s.commentSummaryErr
 }
 
 func (s *serviceFakeStore) UpdateComment(_ context.Context, input UpdateCommentRecord) (Comment, error) {
@@ -906,7 +915,8 @@ func (s *serviceFakeStore) ListComments(_ context.Context, input CommentListInpu
 }
 
 func (s *serviceFakeStore) ListCommentReplies(context.Context, int64) ([]Comment, error) {
-	return nil, nil
+	s.listCommentRepliesCalled = true
+	return s.listCommentRepliesResult, nil
 }
 
 func stringSlicesEqual(left []string, right []string) bool {
@@ -970,5 +980,93 @@ func TestServiceListCommentsPassesFlatView(t *testing.T) {
 	}
 	if result.View != "flat" || result.Total != 2 {
 		t.Fatalf("unexpected result: %+v", result)
+	}
+}
+
+// TestServiceListCommentsBlocksHiddenTopic 验证可见性兜底：
+// 当主题不可见（隐藏/删除/非公开分类）时，GetTopic 返回 ErrTopicNotFound，
+// 评论列表应直接返回该错误，且不调用 store.ListComments，避免泄漏隐藏主题内容。
+func TestServiceListCommentsBlocksHiddenTopic(t *testing.T) {
+	store := newServiceFakeStore()
+	store.getTopicErr = ErrTopicNotFound
+	service := NewService(store)
+
+	_, err := service.ListComments(context.Background(), CommentListInput{TopicID: 10, View: "tree"})
+	if !errors.Is(err, ErrTopicNotFound) {
+		t.Fatalf("expected ErrTopicNotFound, got %v", err)
+	}
+	if store.listCommentsCalled {
+		t.Fatal("expected store.ListComments NOT to be called for hidden topic")
+	}
+}
+
+// TestServiceListCommentsAllowsVisibleTopic 验证可见主题正常透传到评论查询。
+func TestServiceListCommentsAllowsVisibleTopic(t *testing.T) {
+	store := newServiceFakeStore()
+	store.listCommentsResult = CommentList{Items: []Comment{{ID: 1}}, Total: 1, View: "tree"}
+	service := NewService(store)
+
+	result, err := service.ListComments(context.Background(), CommentListInput{TopicID: 10, View: "tree"})
+	if err != nil {
+		t.Fatalf("ListComments returned error: %v", err)
+	}
+	if !store.listCommentsCalled {
+		t.Fatal("expected store.ListComments to be called for visible topic")
+	}
+	if result.Total != 1 {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+}
+
+// TestServiceListCommentRepliesBlocksMissingComment 验证回复路径兜底：
+// 父评论不存在时返回 ErrCommentNotFound，且不调用 store.ListCommentReplies。
+func TestServiceListCommentRepliesBlocksMissingComment(t *testing.T) {
+	store := newServiceFakeStore()
+	store.commentSummaryErr = ErrCommentNotFound
+	service := NewService(store)
+
+	_, err := service.ListCommentReplies(context.Background(), 42)
+	if !errors.Is(err, ErrCommentNotFound) {
+		t.Fatalf("expected ErrCommentNotFound, got %v", err)
+	}
+	if store.listCommentRepliesCalled {
+		t.Fatal("expected store.ListCommentReplies NOT to be called for missing comment")
+	}
+}
+
+// TestServiceListCommentRepliesBlocksHiddenTopic 验证回复路径兜底：
+// 父评论存在但其所属主题不可见时返回 ErrTopicNotFound，
+// 避免通过枚举 commentID 读取隐藏主题的回复。
+func TestServiceListCommentRepliesBlocksHiddenTopic(t *testing.T) {
+	store := newServiceFakeStore()
+	store.commentSummary = CommentSummary{ID: 42, TopicID: 10, Status: CommentStatusActive}
+	store.getTopicErr = ErrTopicNotFound
+	service := NewService(store)
+
+	_, err := service.ListCommentReplies(context.Background(), 42)
+	if !errors.Is(err, ErrTopicNotFound) {
+		t.Fatalf("expected ErrTopicNotFound, got %v", err)
+	}
+	if store.listCommentRepliesCalled {
+		t.Fatal("expected store.ListCommentReplies NOT to be called for hidden topic")
+	}
+}
+
+// TestServiceListCommentRepliesAllowsVisibleTopic 验证可见主题的回复正常返回。
+func TestServiceListCommentRepliesAllowsVisibleTopic(t *testing.T) {
+	store := newServiceFakeStore()
+	store.commentSummary = CommentSummary{ID: 42, TopicID: 10, Status: CommentStatusActive}
+	store.listCommentRepliesResult = []Comment{{ID: 43}, {ID: 44}}
+	service := NewService(store)
+
+	items, err := service.ListCommentReplies(context.Background(), 42)
+	if err != nil {
+		t.Fatalf("ListCommentReplies returned error: %v", err)
+	}
+	if !store.listCommentRepliesCalled {
+		t.Fatal("expected store.ListCommentReplies to be called for visible topic")
+	}
+	if len(items) != 2 {
+		t.Fatalf("unexpected items: %+v", items)
 	}
 }

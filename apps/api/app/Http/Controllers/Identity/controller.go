@@ -224,8 +224,14 @@ func (h *Controller) passwordResetRequest(c fiber.Ctx) error {
 	var req passwordResetRequestPayload
 	_ = c.Bind().Body(&req)
 	// 可选人机验证：当 runtime options 启用 password_reset purpose 时校验。
-	if err := h.verifyHumanVerification(c, humanverify.PurposePasswordReset); err != nil {
-		return err
+	// 直接读取首次绑定的 req.HumanVerification，避免对同一 body 二次绑定导致嵌套 token 丢失。
+	if err := h.verifier.Verify(c.Context(), humanverify.VerifyRequest{
+		Provider: req.HumanVerification.Provider,
+		Token:    req.HumanVerification.Token,
+		Purpose:  humanverify.PurposePasswordReset,
+		IP:       c.IP(),
+	}); err != nil {
+		return mapHumanVerificationError(err)
 	}
 	ip := c.IP()
 	_ = h.passwordReset.RequestPasswordReset(c.Context(), identity.RequestPasswordResetInput{
@@ -286,26 +292,6 @@ func (h *Controller) adminMailTest(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusServiceUnavailable, "mail.test_failed")
 	}
 	return apphttp.OK(c, map[string]any{"sent": true})
-}
-
-// verifyHumanVerification 调用验证器；当 purpose 未启用时 verifier 自身放行（返回 nil）。
-func (h *Controller) verifyHumanVerification(c fiber.Ctx, purpose humanverify.Purpose) error {
-	if h.verifier == nil {
-		return nil
-	}
-	var req humanVerificationRequest
-	if err := c.Bind().Body(&req); err != nil {
-		return nil // 缺失人机验证字段时交由 verifier 决定（禁用则放行）。
-	}
-	if err := h.verifier.Verify(c.Context(), humanverify.VerifyRequest{
-		Provider: req.Provider,
-		Token:    req.Token,
-		Purpose:  purpose,
-		IP:       c.IP(),
-	}); err != nil {
-		return mapHumanVerificationError(err)
-	}
-	return nil
 }
 
 type passwordResetRequestPayload struct {

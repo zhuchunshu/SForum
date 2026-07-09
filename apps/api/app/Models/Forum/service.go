@@ -679,6 +679,13 @@ func (s *Service) ListComments(ctx context.Context, input CommentListInput) (Com
 	if input.View != "tree" && input.View != "flat" {
 		return CommentList{}, ErrInvalidTopic
 	}
+	// 可见性兜底：评论列表查询本身不过滤主题状态/分类可见性，
+	// 这里复用 GetTopic 的公开可见性规则（status IN active/locked 且分类 public），
+	// 隐藏/删除主题或非公开分类统一返回 ErrTopicNotFound，与主题详情页一致，
+	// 避免评论接口成为隐藏主题内容的泄漏通道。
+	if _, err := s.store.GetTopic(ctx, input.TopicID); err != nil {
+		return CommentList{}, err
+	}
 	// 分页归一化交给 Store 层统一处理（ListTopics 同模式），避免双重 clamp。
 	return s.store.ListComments(ctx, input)
 }
@@ -686,6 +693,16 @@ func (s *Service) ListComments(ctx context.Context, input CommentListInput) (Com
 func (s *Service) ListCommentReplies(ctx context.Context, commentID int64) ([]Comment, error) {
 	if commentID <= 0 {
 		return nil, ErrCommentNotFound
+	}
+	// 可见性兜底：回复查询只按 parent_comment_id 过滤，无法自证主题是否公开可见。
+	// 先经评论摘要追溯到所属主题，再复用 GetTopic 的公开可见性规则。
+	// 评论不存在或主题不可见时统一返回 404，避免通过枚举 commentID 读取隐藏主题的回复。
+	summary, err := s.store.GetCommentSummary(ctx, commentID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.store.GetTopic(ctx, summary.TopicID); err != nil {
+		return nil, err
 	}
 	return s.store.ListCommentReplies(ctx, commentID)
 }
