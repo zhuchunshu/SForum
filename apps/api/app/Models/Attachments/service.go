@@ -216,6 +216,9 @@ func (s *Service) List(ctx context.Context, actor identity.Actor, input Attachme
 	if !actor.Can(identity.PermissionAttachmentManage) {
 		return AttachmentList{}, identity.ErrPermissionDenied
 	}
+	// M6/L4：转义 LIKE/ILIKE 元字符，配合 store SQL 的 ESCAPE '\'，防止通配符失控匹配。
+	input.Query = escapeLike(strings.TrimSpace(input.Query))
+	input.ContentType = escapeLike(strings.TrimSpace(input.ContentType))
 	list, err := s.store.List(ctx, input)
 	if err != nil {
 		return AttachmentList{}, err

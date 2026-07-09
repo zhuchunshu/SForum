@@ -1,6 +1,7 @@
 package authsession
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -12,22 +13,31 @@ import (
 )
 
 const (
-	sessionUserIDKey     = "user_id"
-	sessionCreatedAtKey  = "created_at"
-	sessionRenewedAtKey  = "renewed_at"
-	sessionLoginIPKey    = "login_ip"
-	sessionLoginAgentKey = "login_user_agent"
+	sessionUserIDKey      = "user_id"
+	sessionCreatedAtKey   = "created_at"
+	sessionRenewedAtKey   = "renewed_at"
+	sessionLoginIPKey     = "login_ip"
+	sessionLoginAgentKey  = "login_user_agent"
+	sessionTokenVersionKey = "token_version"
 )
+
+// TokenVersionSource 返回用户当前的令牌版本号。
+// 用于会话失效校验（M8）：session 存储创建时的版本号，校验时与用户当前版本比对，
+// 不一致（如密码重置后递增了版本号）则视为会话失效。
+// 为 nil 时跳过版本校验（向后兼容测试场景）。
+type TokenVersionSource func(ctx context.Context, userID int64) (int64, error)
 
 type Config struct {
 	RenewalInterval time.Duration
 	HashSecret      string
+	TokenVersion    TokenVersionSource
 }
 
 type Manager struct {
 	store           *session.Store
 	renewalInterval time.Duration
 	hashSecret      []byte
+	tokenVersion    TokenVersionSource
 	now             func() time.Time
 }
 
@@ -54,6 +64,7 @@ func NewManager(store *session.Store, cfg Config) *Manager {
 		store:           store,
 		renewalInterval: cfg.RenewalInterval,
 		hashSecret:      []byte(cfg.HashSecret),
+		tokenVersion:    cfg.TokenVersion,
 		now:             func() time.Time { return time.Now().UTC() },
 	}
 }
@@ -85,6 +96,12 @@ func (m *Manager) Begin(c fiber.Ctx, userID int64) (*Pending, error) {
 	sess.Set(sessionRenewedAtKey, now)
 	sess.Set(sessionLoginIPKey, truncate(c.IP(), 128))
 	sess.Set(sessionLoginAgentKey, truncate(c.Get(fiber.HeaderUserAgent), 512))
+	// 记录创建会话时的令牌版本号，供后续 CurrentUserID 比对以实现会话失效（M8）。
+	if m.tokenVersion != nil {
+		if version, err := m.tokenVersion(c.Context(), userID); err == nil {
+			sess.Set(sessionTokenVersionKey, version)
+		}
+	}
 
 	return &Pending{
 		manager: m,
@@ -102,6 +119,19 @@ func (m *Manager) CurrentUserID(c fiber.Ctx) (int64, bool, error) {
 	userID, ok := sessionUserID(sess.Get(sessionUserIDKey))
 	if !ok {
 		return 0, false, nil
+	}
+
+	// 令牌版本号校验（M8）：session 版本与用户当前版本不一致则视为会话失效，
+	// 用于密码重置/封禁后使旧会话立即失效。版本号缺失（旧 session 或未配置 source）时跳过。
+	if m.tokenVersion != nil {
+		sessionVersion, _ := sess.Get(sessionTokenVersionKey).(int64)
+		currentVersion, err := m.tokenVersion(c.Context(), userID)
+		if err != nil {
+			return 0, false, nil
+		}
+		if sessionVersion != currentVersion {
+			return 0, false, nil
+		}
 	}
 
 	if err := m.refresh(sess); err != nil {

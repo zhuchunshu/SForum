@@ -186,6 +186,13 @@ export const adminPageDefinitions = [
     requiredPermissions: ['extension.manage']
   },
   {
+    id: '/extensions/contributions',
+    labelKey: 'admin.nav.extensionContributions',
+    icon: 'i-lucide-blocks',
+    componentName: 'AdminExtensionContributions',
+    requiredPermissions: ['extension.manage']
+  },
+  {
     id: '/search',
     labelKey: 'admin.nav.search',
     icon: 'i-lucide-search',
@@ -239,7 +246,8 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/extensions/plugins' },
         { type: 'page', pageId: '/extensions/themes' },
         { type: 'page', pageId: '/extensions/settings' },
-        { type: 'page', pageId: '/extensions/events' }
+        { type: 'page', pageId: '/extensions/events' },
+        { type: 'page', pageId: '/extensions/contributions' }
       ]
     },
     { type: 'page', pageId: '/attachments' }

@@ -585,13 +585,14 @@ func TestLoginEndpointRecordsAudit(t *testing.T) {
 	}
 }
 
-func TestRegistrationStatusEndpointTracksBootstrapUser(t *testing.T) {
+func TestRegistrationStatusEndpointDoesNotLeakBootstrap(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()
 	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
 	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 
-	assertRegistrationStatus(t, app, true)
+	// bootstrap 窗口（无用户）也不暴露 NextUserIsInitialSuperAdmin（M4：防首用户劫持信息泄漏）。
+	assertRegistrationStatus(t, app, false)
 	registerHTTPUser(t, app, "admin", "admin@example.com")
 	assertRegistrationStatus(t, app, false)
 }
@@ -1042,31 +1043,35 @@ func TestReplaceUserPermissionOverridesEndpointAllowsSuperAdmin(t *testing.T) {
 	}
 }
 
-func TestInitialSuperAdminRoleLockEndpointReturnsConflict(t *testing.T) {
+// TestSelfRoleChangeEndpointReturnsForbidden 验证 H1：用户修改自己的角色返回 403。
+// （原 TestInitialSuperAdminRoleLockEndpointReturnsConflict 因 H1 的 self-change 优先
+// 检查而调整；initial-super-admin-lock 的 409 映射由 model 层
+// TestInitialSuperAdminCannotLoseSuperAdminRole 用另一个 super_admin actor 覆盖。）
+func TestSelfRoleChangeEndpointReturnsForbidden(t *testing.T) {
 	cfg := testConfig()
 	store := newHTTPFakeStore()
 	identityController := identitycontroller.NewController(identity.NewService(store), session.NewStore())
 	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{RouteProviders: []apphttp.RouteProvider{identityController}})
 	adminCookie := registerHTTPUser(t, app, "admin", "admin@example.com")
 
+	// admin（ID 1）操作自己的角色 → H1 self-change 拒绝（403）。
 	req := httptest.NewRequest(nethttp.MethodPut, "/api/v1/users/1/roles", bytes.NewReader([]byte(`{"roleKeys":["member"]}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(adminCookie)
 	resp, err := app.Test(req)
 	if err != nil {
-		t.Fatalf("replace initial super admin roles request failed: %v", err)
+		t.Fatalf("self role change request failed: %v", err)
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != nethttp.StatusConflict {
-		t.Fatalf("expected 409, got %d", resp.StatusCode)
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected self-change 403, got %d", resp.StatusCode)
 	}
 	var body apiEnvelope[apiErrorData]
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		t.Fatalf("decode initial super admin lock response: %v", err)
+		t.Fatalf("decode self-change response: %v", err)
 	}
-	if body.Data.Reason != "user.initial_super_admin_locked" {
-		t.Fatalf("expected initial super admin lock reason, got %q", body.Data.Reason)
+	if body.Data.Reason != "user.cannot_change_self_roles" {
+		t.Fatalf("expected self-change reason, got %q", body.Data.Reason)
 	}
 }
 
@@ -1338,6 +1343,8 @@ func testConfig() config.Config {
 		// 测试用宽松限流（60 次/分钟），避免正常测试断言被限流干扰。
 		LimiterWriteMax: 60,
 		LimiterWindow:   time.Minute,
+		// 业务测试不校验 CSRF；CSRF 行为由专门的中间件测试覆盖。
+		CSRFEnabled: false,
 	}
 }
 
@@ -1671,6 +1678,14 @@ func (s *httpFakeStore) UpdateUserPassword(_ context.Context, _ int64, _ string)
 	return nil
 }
 
+func (s *httpFakeStore) GetUserTokenVersion(_ context.Context, _ int64) (int64, error) {
+	return 0, nil
+}
+
+func (s *httpFakeStore) IncrementUserTokenVersion(_ context.Context, _ int64) error {
+	return nil
+}
+
 func (s *httpFakeStore) withAccess(user identity.CurrentUser) identity.CurrentUser {
 	roleIDs := s.userRoleIDs[user.ID]
 	roleKeys := make([]string, 0, len(roleIDs))
@@ -1742,6 +1757,187 @@ type routeProviderFunc func(api fiber.Router)
 
 func (fn routeProviderFunc) RegisterRoutes(api fiber.Router) {
 	fn(api)
+}
+
+// csrfTestApp 构造一个启用 CSRF 的测试应用，注册 GET /safe 与 POST /write 探测路由。
+// TrustedOrigins 设为测试 origin，用于校验 Origin 检查逻辑。
+func csrfTestApp(trustedOrigins ...string) *fiber.App {
+	cfg := testConfig()
+	cfg.CSRFEnabled = true
+	cfg.CSRFTrustedOrigins = trustedOrigins
+	return apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{routeProviderFunc(func(api fiber.Router) {
+			api.Get("/safe", func(c fiber.Ctx) error { return c.SendString("ok") })
+			api.Post("/write", func(c fiber.Ctx) error { return c.SendString("ok") })
+		})},
+	})
+}
+
+// csrfTokenFromResponse 从响应的 Set-Cookie 中提取 csrf_ token 值。
+func csrfTokenFromResponse(t *testing.T, resp *nethttp.Response) string {
+	t.Helper()
+	for _, c := range resp.Cookies() {
+		if c.Name == "csrf_" {
+			return c.Value
+		}
+	}
+	t.Fatal("expected csrf_ cookie in response")
+	return ""
+}
+
+// TestCSRFMintsTokenOnSafeRequest 验证 GET 请求（安全方法）种下 csrf_ cookie，
+// 且安全方法本身不要求 token。
+func TestCSRFMintsTokenOnSafeRequest(t *testing.T) {
+	app := csrfTestApp("https://forum.example.com")
+
+	req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/safe", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("safe request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected GET /safe 200, got %d", resp.StatusCode)
+	}
+	if csrfTokenFromResponse(t, resp) == "" {
+		t.Fatal("expected non-empty csrf_ token cookie")
+	}
+}
+
+// TestCSRFRejectsUnsafeRequestWithoutToken 验证 unsafe 请求缺 token + 无 cookie → 403。
+func TestCSRFRejectsUnsafeRequestWithoutToken(t *testing.T) {
+	app := csrfTestApp("https://forum.example.com")
+
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/write", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("write request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected POST without token 403, got %d", resp.StatusCode)
+	}
+}
+
+// TestCSRFAcceptsUnsafeRequestWithValidToken 验证完整允许路径：
+// GET 种 token → POST 携带匹配 cookie + X-Csrf-Token header → 200。
+func TestCSRFAcceptsUnsafeRequestWithValidToken(t *testing.T) {
+	app := csrfTestApp("https://forum.example.com")
+
+	// 1. GET 种 csrf_ cookie。
+	getReq := httptest.NewRequest(nethttp.MethodGet, "/api/v1/safe", nil)
+	getResp, err := app.Test(getReq)
+	if err != nil {
+		t.Fatalf("safe request failed: %v", err)
+	}
+	token := csrfTokenFromResponse(t, getResp)
+	getResp.Body.Close()
+
+	// 2. POST 带匹配 cookie + header。
+	postReq := httptest.NewRequest(nethttp.MethodPost, "/api/v1/write", nil)
+	postReq.AddCookie(&nethttp.Cookie{Name: "csrf_", Value: token})
+	postReq.Header.Set("X-Csrf-Token", token)
+	postResp, err := app.Test(postReq)
+	if err != nil {
+		t.Fatalf("write request failed: %v", err)
+	}
+	defer postResp.Body.Close()
+	if postResp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected POST with valid token 200, got %d", postResp.StatusCode)
+	}
+}
+
+// TestCSRFRejectsMismatchedToken 验证 cookie 与 header 不匹配 → 403。
+func TestCSRFRejectsMismatchedToken(t *testing.T) {
+	app := csrfTestApp("https://forum.example.com")
+
+	postReq := httptest.NewRequest(nethttp.MethodPost, "/api/v1/write", nil)
+	postReq.AddCookie(&nethttp.Cookie{Name: "csrf_", Value: "real-token"})
+	postReq.Header.Set("X-Csrf-Token", "different-token")
+	postResp, err := app.Test(postReq)
+	if err != nil {
+		t.Fatalf("write request failed: %v", err)
+	}
+	defer postResp.Body.Close()
+	if postResp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected mismatched token 403, got %d", postResp.StatusCode)
+	}
+}
+
+// TestCSRFRewritesErrorToEnvelope 验证自定义 ErrorHandler 把 CSRF 错误映射为统一 envelope。
+func TestCSRFRewritesErrorToEnvelope(t *testing.T) {
+	app := csrfTestApp("https://forum.example.com")
+
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/write", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("write request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	var envelope apiEnvelope[apiErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode envelope: %v", err)
+	}
+	if envelope.Code != nethttp.StatusForbidden {
+		t.Fatalf("expected code 403, got %d", envelope.Code)
+	}
+	if envelope.Data.Reason != "csrf.invalid" {
+		t.Fatalf("expected reason csrf.invalid, got %q", envelope.Data.Reason)
+	}
+}
+
+// TestCSRFRejectsUntrustedOrigin 验证 Origin 校验：
+// 带有效 token 但 Origin 不在 TrustedOrigins 中 → 403（csrf.origin_invalid）。
+func TestCSRFRejectsUntrustedOrigin(t *testing.T) {
+	app := csrfTestApp("https://forum.example.com")
+
+	// GET 种 token。
+	getReq := httptest.NewRequest(nethttp.MethodGet, "/api/v1/safe", nil)
+	getResp, _ := app.Test(getReq)
+	token := csrfTokenFromResponse(t, getResp)
+	getResp.Body.Close()
+
+	// POST 带未授权 Origin。
+	postReq := httptest.NewRequest(nethttp.MethodPost, "/api/v1/write", nil)
+	postReq.AddCookie(&nethttp.Cookie{Name: "csrf_", Value: token})
+	postReq.Header.Set("X-Csrf-Token", token)
+	postReq.Header.Set("Origin", "https://evil.example.com")
+	postResp, err := app.Test(postReq)
+	if err != nil {
+		t.Fatalf("write request failed: %v", err)
+	}
+	defer postResp.Body.Close()
+	if postResp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected untrusted origin 403, got %d", postResp.StatusCode)
+	}
+	var envelope apiEnvelope[apiErrorData]
+	_ = json.NewDecoder(postResp.Body).Decode(&envelope)
+	if envelope.Data.Reason != "csrf.origin_invalid" {
+		t.Fatalf("expected reason csrf.origin_invalid, got %q", envelope.Data.Reason)
+	}
+}
+
+// TestCSRFAcceptsTrustedOrigin 验证带有效 token + 匹配 TrustedOrigin 的请求通过。
+func TestCSRFAcceptsTrustedOrigin(t *testing.T) {
+	app := csrfTestApp("https://forum.example.com")
+
+	getReq := httptest.NewRequest(nethttp.MethodGet, "/api/v1/safe", nil)
+	getResp, _ := app.Test(getReq)
+	token := csrfTokenFromResponse(t, getResp)
+	getResp.Body.Close()
+
+	postReq := httptest.NewRequest(nethttp.MethodPost, "/api/v1/write", nil)
+	postReq.AddCookie(&nethttp.Cookie{Name: "csrf_", Value: token})
+	postReq.Header.Set("X-Csrf-Token", token)
+	postReq.Header.Set("Origin", "https://forum.example.com")
+	postResp, err := app.Test(postReq)
+	if err != nil {
+		t.Fatalf("write request failed: %v", err)
+	}
+	defer postResp.Body.Close()
+	if postResp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected trusted origin 200, got %d", postResp.StatusCode)
+	}
 }
 
 type httpFakeOptionStore struct {

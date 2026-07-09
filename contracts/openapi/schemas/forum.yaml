@@ -501,6 +501,41 @@ TopicDetail:
     properties:
       content:
         "$ref": "#/RenderedContent"
+      extensionActions:
+        type: array
+        description: Safe host-rendered extension action descriptors from enabled plugins. Executing an action still calls the extension route proxy and its policy checks.
+        items:
+          "$ref": "#/TopicExtensionAction"
+TopicExtensionAction:
+  type: object
+  required:
+  - extensionId
+  - id
+  - method
+  - url
+  properties:
+    extensionId:
+      type: string
+    id:
+      type: string
+    label:
+      type: object
+      additionalProperties:
+        type: string
+    icon:
+      type: string
+    method:
+      type: string
+      enum:
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+    url:
+      type: string
+      description: API-relative plugin route path such as /extensions/demo.plugin/topic-actions/bookmark.
+    confirm:
+      type: boolean
 TopicList:
   type: object
   required:

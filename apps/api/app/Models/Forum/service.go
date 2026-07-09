@@ -14,9 +14,10 @@ import (
 )
 
 type Service struct {
-	store    Store
-	settings SettingsResolver
-	events   appevents.Publisher
+	store        Store
+	settings     SettingsResolver
+	events       appevents.Publisher
+	topicActions TopicExtensionActionProvider
 	// indexer 触发 Meilisearch 索引调度；nil 表示不索引（搜索为派生数据，可重建）。
 	indexer TopicSearchIndexer
 }
@@ -41,6 +42,12 @@ func NewServiceWithSettingsAndEvents(store Store, settings SettingsResolver, pub
 func NewServiceWithIndexer(store Store, settings SettingsResolver, publisher appevents.Publisher, indexer TopicSearchIndexer) *Service {
 	svc := NewServiceWithSettingsAndEvents(store, settings, publisher)
 	svc.indexer = indexer
+	return svc
+}
+
+func NewServiceWithTopicExtensionActions(store Store, settings SettingsResolver, publisher appevents.Publisher, indexer TopicSearchIndexer, topicActions TopicExtensionActionProvider) *Service {
+	svc := NewServiceWithIndexer(store, settings, publisher, indexer)
+	svc.topicActions = topicActions
 	return svc
 }
 
@@ -262,7 +269,11 @@ func (s *Service) GetTopic(ctx context.Context, topicID int64) (TopicDetail, err
 	if topicID <= 0 {
 		return TopicDetail{}, ErrTopicNotFound
 	}
-	return s.store.GetTopic(ctx, topicID)
+	topic, err := s.store.GetTopic(ctx, topicID)
+	if err != nil {
+		return TopicDetail{}, err
+	}
+	return s.decorateTopicExtensionActions(ctx, topic), nil
 }
 
 // GetTopicBySlug 按 slug 查询主题。仅 "纯 slug" URL 模式使用，
@@ -271,7 +282,24 @@ func (s *Service) GetTopicBySlug(ctx context.Context, slug string) (TopicDetail,
 	if strings.TrimSpace(slug) == "" {
 		return TopicDetail{}, ErrTopicNotFound
 	}
-	return s.store.GetTopicBySlug(ctx, slug)
+	topic, err := s.store.GetTopicBySlug(ctx, slug)
+	if err != nil {
+		return TopicDetail{}, err
+	}
+	return s.decorateTopicExtensionActions(ctx, topic), nil
+}
+
+func (s *Service) decorateTopicExtensionActions(ctx context.Context, topic TopicDetail) TopicDetail {
+	if s.topicActions == nil {
+		return topic
+	}
+	actions, err := s.topicActions.TopicExtensionActions(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "forum: resolve topic extension actions failed", "err", err)
+		return topic
+	}
+	topic.ExtensionActions = actions
+	return topic
 }
 
 // GetTopicForSearch 返回用于搜索索引的主题快照。
@@ -364,8 +392,8 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 	}
 
 	record := UpdateTopicRecord{
-		TopicID:        input.TopicID,
-		EditorUserID:   actor.ID,
+		TopicID:         input.TopicID,
+		EditorUserID:    actor.ID,
 		TagCreationMode: settings.TagCreationMode,
 	}
 

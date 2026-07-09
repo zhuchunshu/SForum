@@ -11,6 +11,7 @@ import (
 
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 	"golang.org/x/net/html"
 )
 
@@ -36,7 +37,10 @@ func RenderContent(input ContentInput) (RenderedContent, error) {
 	switch sourceFormat {
 	case SourceFormatMarkdown:
 		var buffer bytes.Buffer
-		if err := goldmark.Convert([]byte(safeRaw), &buffer); err != nil {
+		// 启用 GFM 扩展：表格、删除线、自动链接、任务列表。
+		// 与前端 Tiptap 编辑器的 gfm:true 保持一致，避免"编辑器预览 ≠ 发布结果"。
+		md := goldmark.New(goldmark.WithExtensions(extension.GFM))
+		if err := md.Convert([]byte(safeRaw), &buffer); err != nil {
 			return RenderedContent{}, err
 		}
 		renderedHTML = sanitizeHTML(buffer.String())
@@ -82,10 +86,28 @@ func stripUnsafeHTMLBlocks(value string) string {
 	return value
 }
 
+// codeClassPattern 匹配 goldmark 代码块输出的 language-<lang> class，供 highlight.js 精确识别语言。
+// 仅允许字母/数字与少量符号，避免 class 成为属性注入入口。
+var codeClassPattern = regexp.MustCompile(`^language-[a-z0-9+#.-]+$`)
+
+// checkboxTypePattern 仅允许 type="checkbox"，用于 GFM 任务列表（TaskList 输出只读 checkbox）。
+var checkboxTypePattern = regexp.MustCompile(`^checkbox$`)
+
 func sanitizeHTML(value string) string {
 	policy := bluemonday.UGCPolicy()
 	policy.RequireNoFollowOnLinks(true)
 	policy.RequireNoReferrerOnLinks(true)
+
+	// 保留代码块 language-* class，供前端 highlight.js 识别语言。
+	policy.AllowAttrs("class").Matching(codeClassPattern).OnElements("code")
+
+	// 放开 GFM 任务列表的 checkbox：仅允许 type=checkbox，且只保留 checked/disabled。
+	// 事件属性（onclick 等）与非 checkbox input 仍会被 bluemonday 剔除，放开是收敛的。
+	policy.AllowElements("input")
+	policy.AllowAttrs("type").Matching(checkboxTypePattern).OnElements("input")
+	policy.AllowAttrs("checked").OnElements("input")
+	policy.AllowAttrs("disabled").OnElements("input")
+
 	return policy.Sanitize(value)
 }
 

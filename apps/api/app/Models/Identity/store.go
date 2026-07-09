@@ -25,6 +25,9 @@ type Store interface {
 	CreatePasswordResetToken(ctx context.Context, input CreatePasswordResetTokenInput) (PasswordResetToken, error)
 	ConsumePasswordResetToken(ctx context.Context, tokenHash string) (int64, error)
 	UpdateUserPassword(ctx context.Context, userID int64, passwordHash string) error
+	// 令牌版本号：用于密码重置/封禁后使旧会话失效（M8）。
+	GetUserTokenVersion(ctx context.Context, userID int64) (int64, error)
+	IncrementUserTokenVersion(ctx context.Context, userID int64) error
 }
 
 type ActorStore interface {

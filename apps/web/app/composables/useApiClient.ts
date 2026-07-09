@@ -19,6 +19,10 @@ type ApiFetchOptions = {
   timeout?: number
 }
 
+const UNSAFE_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE'])
+const CSRF_COOKIE_NAME = 'csrf_'
+const CSRF_HEADER_NAME = 'X-Csrf-Token'
+
 type ApiErrorEnvelopeLike = {
   code?: unknown
   message?: unknown
@@ -46,20 +50,50 @@ export function useApiClient() {
     return locale === 'en' ? 'en-US' : locale
   }
 
-  function apiHeaders(extra?: Record<string, string>) {
-    return {
-      ...(import.meta.server ? useRequestHeaders(['cookie']) : {}),
-      'Accept-Language': apiLocale(),
-      ...extra
+  function apiHeaders(extra?: Record<string, string>): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Accept-Language': apiLocale()
     }
+    if (import.meta.server) {
+      const cookie = useRequestHeaders(['cookie']).cookie
+      if (cookie) {
+        headers.cookie = cookie
+      }
+    }
+    return { ...headers, ...extra }
+  }
+
+  // csrfToken 读取后端在 GET 请求种下的 csrf_ cookie：
+  // client 端用 useCookie 读浏览器 cookie；server 端（SSR）从透传的请求 cookie 头解析。
+  // 返回空字符串表示无 token（首次访问尚未种下，unsafe 请求会被后端拒绝，正常流程先有 GET）。
+  function csrfToken(): string {
+    if (import.meta.server) {
+      const raw = useRequestHeaders(['cookie']).cookie || ''
+      for (const part of raw.split(';')) {
+        const [k, ...rest] = part.trim().split('=')
+        if (k === CSRF_COOKIE_NAME) {
+          return decodeURIComponent(rest.join('='))
+        }
+      }
+      return ''
+    }
+    return useCookie<string>(CSRF_COOKIE_NAME).value || ''
   }
 
   async function request<T>(path: string, options: ApiFetchOptions = {}) {
+    const headers = apiHeaders(options.headers)
+    // unsafe 方法必须携带 CSRF token（double-submit：cookie 值 == X-Csrf-Token header）。
+    if (options.method && UNSAFE_METHODS.has(options.method)) {
+      const token = csrfToken()
+      if (token && !headers[CSRF_HEADER_NAME]) {
+        headers[CSRF_HEADER_NAME] = token
+      }
+    }
     const envelope = await $fetch<ApiEnvelope<T>>(`${apiBaseUrl}${path}`, {
       method: options.method,
       body: options.body,
       credentials: options.credentials ?? 'include',
-      headers: apiHeaders(options.headers),
+      headers,
       timeout: options.timeout
     })
 

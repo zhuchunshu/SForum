@@ -344,7 +344,7 @@ func newForumTestApp() (*fiber.App, *authsession.Manager, *controllerForumStore)
 			return err
 		})
 	})
-	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
+	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{controller, loginProvider},
 	})
 	return app, manager, store
@@ -654,7 +654,7 @@ func newForumTestAppWithSearch(searchSvc SearchService) (*fiber.App, *controller
 	}}
 	store := &controllerForumStore{}
 	controller := NewControllerWithSearch(forum.NewServiceWithSettingsAndEvents(store, store, nil), searchSvc, nil, users, manager)
-	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
+	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{controller},
 	})
 	return app, store
@@ -750,7 +750,7 @@ func newForumTestAppWithReindex(reindexer ReindexService) *fiber.App {
 			return err
 		})
 	})
-	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
+	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{controller, loginProvider},
 	})
 	return app

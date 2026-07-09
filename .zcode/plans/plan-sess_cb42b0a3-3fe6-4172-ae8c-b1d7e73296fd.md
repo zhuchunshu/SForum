@@ -1,107 +1,74 @@
-# CSRF 防护实施计划（独立安全里程碑）
+# 全栈安全审计剩余 23 条修复计划
 
-## 范围与决策（已与你确认）
-- 保护**全部** unsafe 方法端点（含 login/register/password-reset，防登录型 CSRF）。
-- token 状态存**共享 Redis fiber.Storage**（`deps.Storage`，与 session 同源）。
-- 信任源用**新增 `CSRF_TRUSTED_ORIGINS` 环境变量**（逗号分隔，支持 `https://*.example.com` 通配符），默认从 `APP_URL` 派生。
-- 采用 Fiber v3 自带 `middleware/csrf`（已在 go.mod v3.0.0-rc.3 中），double-submit cookie + Origin/Referer 校验，header `X-Csrf-Token`。
-- 复用现有 `useApiClient` 单一入口注入 token；修掉 `SFNavbar.vue` 绕过 `request` 的 logout 调用。
+## 核实结论
+三个 Explore agent 逐条核实了实际代码：23 条全部仍存在（L6 是 by-design 文档项）。工作区的未提交改动是 Contributions 功能，与 C1 无关，可同分支改（不同区域）。决策已确认：C1 直接改、H2 用 AES-GCM、M8 用 token 版本号。
 
-## 关键架构事实（来自代码核验）
-- API 在 Nuxt 代理后，收到的 Host 是内部地址（`api:8080`），Origin 是公开站点。**必须**把公开 origin 加入 `TrustedOrigins`，否则每个 unsafe 请求 403。
-- CSRF 中间件在 GET/HEAD/OPTIONS 时种下可读的 `csrf_` cookie（非 HTTPOnly，默认 SameSite=Lax）；unsafe 方法要求 `X-Csrf-Token` header == cookie 值，且 token 在 storage 中有效。
-- **注意**：非 HTTPS 且无 Origin 时，中间件跳过 Origin/Referer 校验（csrf.go:138-141），仍做 token 校验。double-submit token 是核心防线，Origin 是纵深防御。
-- session cookie 是 HTTPOnly（SPA 读不到），所以必须用独立的、可读的 `csrf_` cookie。
-- 中间件默认 `ErrorHandler` 返回 `fiber.ErrForbidden`(403)，会被现有 `errorHandler` 接住。我自定义 ErrorHandler 返回统一 envelope reason（如 `csrf.invalid`），与项目 `permission.denied`/`rate_limit.exceeded` 风格一致。
-- **配置字段名不能叫 `CSRFSecret`**——`config_test.go:144` 有守卫测试明确禁止该名字（防幽灵字段）。新字段命名为 `CSRFTrustedOrigins []string`。
+## 分批策略（按子系统聚合）
+23 条按子系统分 6 批，每批内部高内聚。顺序按风险与依赖：先 Critical/High，再 Medium，最后 Low。每批改完即测。
 
 ---
 
-## 修复 1：后端配置（新增信任源字段）
+## 批次 A：配置与密钥（C2 + M5 + M9）
+高内聚：都改 config/bootstrap 的 secret/部署安全。
 
-**文件**：`apps/api/config/config.go`
-- Config struct 新增字段 `CSRFTrustedOrigins []string`（config.go:13-78 struct 内）。
-- `Load()` 新增读取：新增 env 列表解析辅助 `envStringSlice(key, defaultRaw)`（逗号分隔 + trim + 去空），读 `CSRF_TRUSTED_ORIGINS`。当该环境变量未设置时，默认从 `APP_URL` 派生（用 `url.Parse` 取 `scheme://host`，APP_URL 为空则默认空列表）。
-- 在 config_test.go 增 `envStringSlice` 单测 + `CSRF_TRUSTED_ORIGINS` 读取测试。
+- **C2 生产密钥强制校验**：`config/config.go` 新增 `validateProductionSecrets(cfg)`，当 `AppEnv=="production"` 时校验 `SessionHashSecret`/`AltchaSecret`/`MeiliMasterKey` 非空且非占位词（`change-me`/`sforum-dev-*`），失败则 `Load()` panic 拒绝启动。在 `cmd/api/main.go` 调用。`config_test.go` 覆盖：生产+默认值→panic、生产+有效值→通过、非生产+默认值→通过。
+- **M5 DB sslmode**：`config.go` 默认 DATABASE_URL 改 `sslmode=require`（开发本地无 TLS 时显式覆盖为 disable）；`.env.production.example`、`compose.prod.yaml`、docs 改 `sslmode=require`。`compose.yaml`/`compose.dev.yaml` 保留 disable（开发环境）。config_test 更新默认值断言。
+- **M9 session Secure 不依赖字符串**：`bootstrap/app.go:124` 改为检测 `APP_URL` 是否 `https://` scheme 决定 CookieSecure（生产兜底仍保留 `AppEnv=="production"` 时强制 true）。bootstrap_test 覆盖。
 
-**文件**：`apps/api/config/config_test.go`
-- 更新 `TestConfigDoesNotExposePhantomSessionOrCSRFFields`（config_test.go:144）：该测试断言不存在 `CSRFSecret` 字段——保持不变（我们用 `CSRFTrustedOrigins`，不叫 `CSRFSecret`），所以这个守卫测试**继续通过、无需改动**。但我会加一个测试断言 `CSRFTrustedOrigins` 字段存在且能从环境读取。
+## 批次 B：身份与权限（H1 + M4 + M8 + L1）
+高内聚：都改 Identity service/controller/session。
 
-## 修复 2：后端 CSRF 中间件注册
+- **H1 防自我提权**：`Identity/service.go` `ReplaceUserRoles`/`ReplaceUserPermissionOverrides` 加：(1) `actor.ID == targetUserID` 拒绝（自改）；(2) 授予/操作 super_admin 角色要求 actor 本身是 super_admin。新增 sentinel error。service_test 覆盖：member 提权自己→拒、member 授他人 super_admin→拒、super_admin 操作→通过。
+- **M4 registration-status 信息泄漏**：`Identity/service.go` `RegistrationStatus` 对未认证请求不返回 `NextUserIsInitialSuperAdmin`（无用户时返回 false 或不包含该字段）。controller/routes 已无认证，service 层处理。service_test 覆盖。
+- **M8 token 版本号**：session 数据加 `token_version`，users 表加 `current_token_version`（migration）；`AuthSession.Manager.CurrentUserID` 校验 session token_version == user current_token_version，不一致视为无会话；密码重置成功时 `store.IncrementUserTokenVersion`。涉及 migration + store + manager + password_reset_service。manager_test 覆盖。
+- **L1 登录时序对齐**：`Identity/service.go` Login 用户不存在时执行一次 dummy argon2（预生成固定 dummy hash）对齐时序。service_test 覆盖（用短超时断言两条路径耗时接近，或断言走了 dummy 验证）。
 
-**文件**：`apps/api/app/Http/server.go`
-- import 新增 `github.com/gofiber/fiber/v3/middleware/csrf`。
-- 在 `NewApp` 中（locale 之后、`registerRoutes` 之前，约 server.go:73）注册 CSRF。**但需在 `/api/v1` group 上注册**以便 GET 也能种 cookie——更准确的做法：在 `registerRoutes` 内 `api := app.Group("/api/v1")` 之后、provider 循环之前 `api.Use(csrf.New(...))`。这样 GET 路由（含 `/auth/session`）会种 token，health 路由（也是 GET，且不受 CSRF 影响）不受干扰。
-- CSRF 配置：
-  - `Storage: deps.Storage`（共享 Redis）。
-  - `CookieName: "csrf_"`（默认）、`CookieSameSite: "Lax"`、`CookieSecure: strings.EqualFold(cfg.AppEnv, "production")`（与 session 一致，生产走 HTTPS）、`CookieHTTPOnly: false`（SPA 必须能读）、`CookiePath: "/"`。
-  - `TrustedOrigins: cfg.CSRFTrustedOrigins`。
-  - `Extractor: extractors.FromHeader("X-Csrf-Token")`（默认）。
-  - 自定义 `ErrorHandler`：把 CSRF 错误映射成统一 envelope，reason 用 `csrf.invalid`（token 缺失/不匹配）/`csrf.origin_invalid`（Origin 不匹配），status 403，走 `apphttp.NewErrorWithFields` 与项目其他错误一致。
-- **重要**：CSRF 中间件需访问 `deps.Storage` 与 `cfg`——`NewApp` 已有这两个参数，直接用。locale 中间件已是同样模式（`localeMiddleware(cfg, deps.Options)`）。
-- 中文注释说明：为何 group 级注册、为何 TrustedOrigins 必须配代理后的公开 origin、生产 CookieSecure。
+## 批次 C：扩展安全（C1）
+独立子系统，与 Contributions 改动同文件不同区域。
 
-## 修复 3：前端 token 注入（单一入口）
+- **C1 Version 路径穿越**：`ExtensionManifest/manifest.go` `Validate` 新增 `manifestVersionPattern = ^[a-zA-Z0-9][a-zA-Z0-9._+\-~]{0,63}$`（禁止 `/`、`\`、纯 `.`/`..`），校验 Version。`manifest_test.go` 覆盖危险值拒绝。`Models/Extensions/service.go` `extractArchiveFiles` 常规文件 mode 掩码为 `0644`（仅 backend entry 恢复可执行位）。service_test 覆盖 mode。
 
-**文件**：`apps/web/app/composables/useApiClient.ts`
-- `apiHeaders()`（line 49）改造：对非 GET/HEAD 请求，读取 `csrf_` cookie 并附加 `X-Csrf-Token` header。读取方式：
-  - client 端：`useCookie('csrf_').value`（Nuxt 自动 cookie，同源可读）。
-  - server 端（SSR）：从已透传的 `useRequestHeaders(['cookie'])`（line 51 已有）中解析 `csrf_`，避免 SSR 阶段丢失 token。新增小 helper `csrfTokenFromContext()` 处理两端的取值。
-- 由于 `apiHeaders` 被 `request`、`useWebOptions.fetchEnvelope`、`database.vue` 三处共用，一处改造即覆盖。
-- **保证首次 GET 种 token**：SPA 首屏会调 `/auth/session`（GET，app.vue 启动），后端种下 `csrf_` cookie，后续 unsafe 请求自动带上。无需专门的 token 端点。
+## 批次 D：存储与凭证（H2）
+独立子系统（Options 加密 + Storage SFTP）。
 
-**文件**：`extensions/builtin/themes/sforum-default/layer/app/components/SFNavbar.vue`（line 76）
-- 当前 logout 用裸 `$fetch` 绕过 `request`，不带任何 header。改为调用 `useApiClient` 的 `request('/auth/logout', { method: 'POST' })`，让 CSRF header 自动注入。这是审计标记的"两个绕过点"之一。
+- **H2a AES-GCM 静态加密**：新增 `Support/Crypto` 包（AES-256-GCM 加解密 helper），密钥来自 `APP_OPTION_ENC_KEY`（config 新字段）。`Options/postgres_store.go` 写入时加密 secret 选项、`InternalValues` 解密。提供一次性迁移（启动时检测明文 secret 值并自动加密重写）。bootstrap 注入密钥。crypto_test + options store_test 覆盖。C2 一并校验生产 `APP_OPTION_ENC_KEY` 非空。
+- **H2b SFTP 强制主机密钥**：`Storage/sftp.go` 空指纹时拒绝连接（返回错误）而非 `InsecureIgnoreHostKey`。sftp_test 覆盖。
 
-## 修复 4：部署配置同步
+## 批次 E：内容与响应安全（H3 + H4 + H6 + M7 + L2）
+跨前后端，但都属"内容/响应防护"主题。
 
-**文件**：`compose.yaml`
-- api/worker environment 新增 `CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}`（默认空，由 APP_URL 派生）。
+- **H3 前端 DOMPurify**：`apps/web` 新增 `dompurify` 依赖；`SFComment.vue`、`t/[...path].vue` 的 `v-html` 前用 DOMPurify 净化（白名单与服务端 bluemonday 对齐）。新增 `utils/sfSanitize.ts` 统一入口。typecheck 通过。
+- **H4 安全响应头**：`deploy/caddy/Caddyfile` 加 `header { Strict-Transport-Security; X-Content-Type-Options nosniff; X-Frame-Options DENY; Referrer-Policy strict-origin-when-cross-origin }`；CSP 按 Nuxt 实际需要配置。API 侧评估是否也加全局中间件（目前附件有 nosniff，其余无）。
+- **H6 容器降权**：`apps/api/Dockerfile`（api/worker/migrate 三 stage）、`apps/web/Dockerfile`（prod stage）加 `addgroup`/`adduser` + `chown` 工作目录与挂载点 + `USER sforum`。
+- **M7 websiteUrl 前端兜底**：`u/[username].vue` 的 `:href` 前用 `normalizeUserUrl`/scheme 白名单校验（服务端已有 `isValidWebsiteURL`，前端补纵深防御）。
+- **L2 EXIF 清洗**：`Attachments/service.go` `inspectUpload` 对图片附件存储前重编码去除 EXIF（或用 imaging 库）。注意：avatar 路径已 OK，只改通用附件路径。attachments service_test 覆盖。
 
-**文件**：`.env.production.example`
-- 新增 `CSRF_TRUSTED_ORIGINS=https://forum.example.com`（与 APP_URL 一致，注释说明多域名/通配符写法，以及代理后必须配置的原因）。
+## 批次 F：健壮性与性能（M2 + M3 + M6 + M10 + L3 + L4 + L5 + L6）
+杂项加固。
 
-**文件**：`docs/development-and-deployment.md`
-- Important production variables 列表新增 `CSRF_TRUSTED_ORIGINS`，注明"API 在反向代理后时必须列出公开站点 origin，否则所有写请求被 CSRF 拒绝"。更新现有 CSRF 备注（之前写的是"待落地"）。
-
-**文件**：`docs/security-review-2026-07-09.md`
-- 更新 P1 CSRF 条目为已修复，备注实施方式与 CSRF_TRUSTED_ORIGINS 配置要求。
-
-## 修复 5：OpenAPI 契约标注
-
-CSRF 不改变请求/响应 schema，但 unsafe cookie-auth 端点现在要求 `X-Csrf-Token` header + `csrf_` cookie。在 OpenAPI 安全层面标注：
-- 在 `contracts/openapi/openapi.yaml`（或 index）的 security scheme 处补充说明 unsafe 端点需 CSRF token，或在每个 path 的 unsafe operation 添加 `parameters` 中的 `X-Csrf-Token`（可选 header）。倾向于在文档/描述层说明而非每个 operation 重复加参数，避免契约膨胀。先看现有 security scheme 结构再定具体写法。
+- **M2 端点级限流**：`Identity/controller.go` login/register/password-reset 加按 IP 失败计数 + 临时锁定（复用 Redis storage 或 limiter，加专门 middleware/helper）。配置化阈值。
+- **M3 ALTCHA 两阶段**：`Identity/controller.go` register 改为 `Verify`（不 MarkUsed）→ Register 成功后 `MarkUsed`；或冲突时退还 token。需 HumanVerify 暴露不消费的验证方法。
+- **M6 LIKE 转义 + page cap**：Identity/Database/Attachments postgres_store 的 LIKE 转义 `%`/`_` + `ESCAPE '\'`；Identity/Attachments/Database `normalizePage` 加 `maxPage`（对齐 Forum 的 200）。
+- **M10 前端依赖固定**：`apps/web/package.json` 的 `latest` 改为具体版本（从 bun.lock 读取当前锁定的版本）。
+- **L3 paramInt 一致**：`Forum/controller.go` `paramInt`/`queryInt` 返回 error→422（对齐 Identity）。
+- **L4**：与 M6 同批（LIKE 转义）。
+- **L5 FTP/SFTP Exists 错误**：`Storage/ftp.go`/`sftp.go` Exists 返回真实错误，调用方决定。
+- **L6**：文档化 super_admin deny 不生效（policy.go 注释 + 知识库），不改代码。
 
 ---
 
-## 修复 6：测试（允许/拒绝路径全覆盖）
-
-**后端中间件测试**（`apps/api/app/Http/server_test.go`，仿 `TestLimiterBlocksExcessiveWriteRequests` server_test.go:102）：
-- 新增 CSRF 中间件测试组，用 `testConfig()` + `routeProviderFunc` 注册 `GET /safe` 与 `POST /write` 探测路由：
-  1. `GET /safe` 无 token → 200，且响应种下 `csrf_` cookie（捕获 `resp.Cookies()` 按 name 选）。
-  2. `POST /write` 无 token + 无 csrf cookie → 403（`csrf.invalid`）。
-  3. `POST /write` 有 csrf cookie 但缺 header → 403。
-  4. `POST /write` cookie + 匹配 `X-Csrf-Token` header → 200。
-  5. `POST /write` cookie + 错误 header → 403。
-  6. Origin 校验：`POST /write` 带正确 token + 匹配 TrustedOrigin → 200；带未授权 Origin → 403（`csrf.origin_invalid`）。
-- cookie 处理沿用现有 `req.AddCookie` 模式（按 name 选 cookie，非 `Cookies()[0]`，因可能多 cookie）。
-
-**后端 controller 回归测试**：
-- `Forum/controller_test.go`、`Identity/controller_test.go` 现有测试若用 `apphttp.NewApp` 构建应用，会自动带 CSRF 中间件。需检查这些测试的 unsafe 请求是否会因缺 token 而失败——若失败，提供测试辅助在 unsafe 请求前先 GET 种 token 再带上（封装成 helper，避免每个测试手写）。**这是关键工作量点**：评估现有 controller 测试改造成本，可能需要一个 `withCSRFToken(t, app, req)` 测试 helper。
-- Identity controller_test.go（本批新建的 password-reset 测试）同样需适配。
-
-**config 测试**：`envStringSlice` 解析、`CSRF_TRUSTED_ORIGINS` 读取、默认从 APP_URL 派生。
-
-**前端**：typecheck 通过即可（CSRF 注入是运行时行为，无单测框架，靠手动 dev server 验证）。
-
-## 收尾
-- 知识库：新增/更新 `knowledge/decisions/2026-07-09-security-fixes.md` 记录 CSRF 决策（Fiber 自带中间件、double-submit、CSRF_TRUSTED_ORIGINS、覆盖 login/register 防登录型 CSRF、Redis storage）；更新 `knowledge/index.md` 状态。
-- 运行 `./scripts/test.sh` 全套 + `ruby scripts/validate-openapi-refs.rb`。
-- 提交前 `git status` 确认范围。
+## 收尾（每批通用）
+- 每批改完跑 `go test ./受影响包/` + 受影响前端 typecheck。
+- 全部完成后跑 `./scripts/test.sh` + `ruby scripts/validate-openapi-refs.rb`。
+- 勾选 `knowledge/decisions/2026-07-09-security-audit.md` 对应条目并加修复说明。
+- 知识库：每批追加决策到 `2026-07-09-security-fixes.md`，更新 index。
+- M4/M6/M7 若涉及契约字段语义变更，同步 OpenAPI。
 
 ## 风险与注意
-- **现有 controller 测试可能大面积受影响**：它们用 `apphttp.NewApp`，CSRF 中间件启用后 unsafe 请求需带 token。这是最大不确定项，需先跑一次看失败范围，再用 helper 统一适配。如果改造量过大，备选方案是让 CSRF 中间件在 `AppEnv=="test"` 时通过 `Next` 跳过——但**不推荐**（会削弱 CSRF 的测试覆盖）；优先用 helper 适配。
-- **SSR token 透传**：SSR 阶段后端种的 csrf_ cookie 需透传回 API（首屏 GET 在 SSR 执行）。需验证 `useRequestHeaders(['cookie'])` 是否包含上游种的 csrf_，可能需要在 Nitro 侧处理 set-cookie 透传。这是前端验证重点。
-- **首次访问无 token**：用户首次访问、cookie 尚未种下时，不能发起 unsafe 请求。正常流程（先加载页面→GET 种 token→再交互）天然满足，但需确认无页面在首屏就 POST。
-- **代理后 c.Scheme()**：若代理未透传 X-Forwarded-Proto，API 可能误判为 HTTP，导致 HTTPS 的 Referer 兜底失效（但 token 校验仍生效）。建议在文档提示反向代理透传该头。
-- 不擅自 kill 用户在 3000 端口的 dev server；前端验证由用户人工确认。
+- **C1 与 Contributions 同文件**：改 manifest.go Validate 的 Version 区域（:162-169、:290），Contributions 改的是 :276 validateContributions 和新增类型。提交时你需自行合并（不同区域，冲突概率低）。
+- **H2a 迁移**：首次启动需把存量明文 secret 加密重写，需保证幂等（已加密的不重复处理）。
+- **M8 token 版本**：需 DB migration 加列，且所有 session 创建路径写入版本号——涉及面较广，仔细核对 session 创建点。
+- **L2 EXIF 重编码**：通用附件图片重编码会改变文件字节与可能的大小/尺寸校验逻辑，需确认不破坏现有 attachment 流程（avatar 已用 imaging 库，可复用）。
+- **M10 锁定版本**：从 bun.lock 读取精确版本，避免引入破坏性升级。
+- 不擅自 kill 3000 端口 dev server；前端改动由你人工验证。
+- 全程不提交不推送，改动留工作区。

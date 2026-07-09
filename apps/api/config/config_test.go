@@ -103,6 +103,19 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	}
 }
 
+// setValidProductionSecrets 给生产环境测试补上有效密钥，避免触发 validateProductionSecrets。
+func setValidProductionSecrets(t *testing.T) {
+	t.Helper()
+	for k, v := range map[string]string{
+		"SESSION_HASH_SECRET": "prod-valid-session-secret",
+		"ALTCHA_SECRET":       "prod-valid-altcha-secret",
+		"MEILI_MASTER_KEY":    "prod-valid-meili-key",
+		"APP_OPTION_ENC_KEY":  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+	} {
+		t.Setenv(k, v)
+	}
+}
+
 func TestLoadEnablesEmbeddedWorkerForDevelopmentOnlyByDefault(t *testing.T) {
 	t.Setenv("APP_ENV", "development")
 	development := Load()
@@ -111,6 +124,7 @@ func TestLoadEnablesEmbeddedWorkerForDevelopmentOnlyByDefault(t *testing.T) {
 	}
 
 	t.Setenv("APP_ENV", "production")
+	setValidProductionSecrets(t)
 	production := Load()
 	if production.EmbedWorkerInAPI {
 		t.Fatal("expected production api to keep worker as a separate process by default")
@@ -126,6 +140,7 @@ func TestLoadAllowsEmbeddedWorkerOverride(t *testing.T) {
 	}
 
 	t.Setenv("APP_ENV", "production")
+	setValidProductionSecrets(t)
 	t.Setenv("EMBED_WORKER_IN_API", "true")
 	enabled := Load()
 	if !enabled.EmbedWorkerInAPI {
@@ -360,5 +375,50 @@ func TestOriginsFromAppURLHandlesInvalidInput(t *testing.T) {
 		if got := originsFromAppURL(input); got != nil {
 			t.Fatalf("originsFromAppURL(%q) = %#v, want nil", input, got)
 		}
+	}
+}
+
+// TestLoadRejectsInsecureSecretsInProduction 验证生产环境使用默认/占位密钥时拒绝启动。
+func TestLoadRejectsInsecureSecretsInProduction(t *testing.T) {
+	// 不设任何 secret 环境变量 → 全部命中占位默认值。
+	os.Unsetenv("SESSION_HASH_SECRET")
+	os.Unsetenv("ALTCHA_SECRET")
+	os.Unsetenv("MEILI_MASTER_KEY")
+	os.Unsetenv("APP_OPTION_ENC_KEY")
+	t.Setenv("APP_ENV", "production")
+
+	// 设 placeholder 也应被拒。
+	t.Setenv("SESSION_HASH_SECRET", "change-me")
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected Load to panic when production secrets are insecure, got no panic")
+		}
+	}()
+	Load()
+}
+
+// TestLoadAcceptsValidSecretsInProduction 验证生产环境配置有效密钥时正常加载。
+func TestLoadAcceptsValidSecretsInProduction(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	setValidProductionSecrets(t)
+
+	cfg := Load()
+	if cfg.SessionHashSecret != "prod-valid-session-secret" {
+		t.Fatalf("expected configured session secret, got %q", cfg.SessionHashSecret)
+	}
+}
+
+// TestLoadDoesNotValidateSecretsInDevelopment 验证非生产环境允许默认密钥（开发友好）。
+func TestLoadDoesNotValidateSecretsInDevelopment(t *testing.T) {
+	t.Setenv("APP_ENV", "development")
+	os.Unsetenv("SESSION_HASH_SECRET")
+	os.Unsetenv("ALTCHA_SECRET")
+	os.Unsetenv("MEILI_MASTER_KEY")
+	os.Unsetenv("APP_OPTION_ENC_KEY")
+
+	cfg := Load() // 不应 panic
+	if cfg.SessionHashSecret != "sforum-dev-session-hash-secret" {
+		t.Fatalf("expected dev default secret, got %q", cfg.SessionHashSecret)
 	}
 }

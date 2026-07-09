@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
@@ -55,6 +56,9 @@ type Config struct {
 	AltchaSecret                 string
 	AltchaChallengeTTL           time.Duration
 	AltchaCost                   int
+	// OptionEncryptionKey 是 web_options 中敏感值（云存储凭证/SFTP 私钥等）AES-GCM 加密的密钥（hex 编码）。
+	// 生产环境必须显式配置；缺失或为占位词时启动会被拒绝。
+	OptionEncryptionKey          string
 	ExtensionRoot                string
 	BuiltinExtensionRoot         string
 	ThemeReleaseRoot             string
@@ -72,6 +76,9 @@ type Config struct {
 	// API 在反向代理后看到的 Host 是内部地址，而 Origin 是公开站点，二者不匹配会被拒绝，
 	// 因此必须显式列出公开站点。支持 https://*.example.com 通配符子域。
 	CSRFTrustedOrigins           []string
+	// CSRFEnabled 控制 CSRF 中间件是否启用，默认 true（生产启用）。
+	// 测试场景显式置 false 以避免每个测试请求都需携带 token。
+	CSRFEnabled                  bool
 	JobQueueCriticalWorkers      int
 	JobQueueDefaultWorkers       int
 	JobQueueSearchWorkers        int
@@ -97,7 +104,7 @@ func Load() Config {
 		csrfOrigins = originsFromAppURL(env("APP_URL", ""))
 	}
 
-	return Config{
+	cfg := Config{
 		AppEnv:                       appEnv,
 		AppName:                      env("APP_NAME", "SForum"),
 		AppURL:                       env("APP_URL", "http://127.0.0.1:3000"),
@@ -110,7 +117,8 @@ func Load() Config {
 		HTTPIdleTimeout:              envDuration("HTTP_IDLE_TIMEOUT", 120*time.Second),
 		HTTPBodyLimit:                envPositiveInt("HTTP_BODY_LIMIT", 4*1024*1024),
 		CompressLevel:                compressLevelFromEnv(env("COMPRESS_LEVEL", "default")),
-		DatabaseURL:                   env("DATABASE_URL", "postgres://sforum:sforum@postgres:5432/sforum?sslmode=disable"),
+		// 默认启用 TLS（sslmode=require）；本地开发无 TLS 的 Postgres 需显式设置 sslmode=disable。
+		DatabaseURL:                   env("DATABASE_URL", "postgres://sforum:sforum@postgres:5432/sforum?sslmode=require"),
 		MigrateOnStartup:              envBool("MIGRATE_ON_STARTUP", true),
 		DatabaseMaxConns:              int32(envPositiveInt("DATABASE_MAX_CONNS", 10)),
 		DatabaseMinConns:              int32(envPositiveInt("DATABASE_MIN_CONNS", 2)),
@@ -141,6 +149,7 @@ func Load() Config {
 		AltchaSecret:                 env("ALTCHA_SECRET", "sforum-dev-altcha-secret"),
 		AltchaChallengeTTL:           envDuration("ALTCHA_CHALLENGE_TTL", 10*time.Minute),
 		AltchaCost:                   envPositiveInt("ALTCHA_COST", 1000),
+		OptionEncryptionKey:          env("APP_OPTION_ENC_KEY", ""),
 		ExtensionRoot:                env("EXTENSION_ROOT", "../../storage/extensions"),
 		BuiltinExtensionRoot:         env("BUILTIN_EXTENSION_ROOT", "../../extensions/builtin"),
 		ThemeReleaseRoot:             env("THEME_RELEASE_ROOT", "../../storage/theme-releases"),
@@ -155,6 +164,7 @@ func Load() Config {
 		LimiterWriteMax:              envPositiveInt("LIMITER_WRITE_MAX", 30),
 		LimiterWindow:                envDuration("LIMITER_WINDOW", time.Minute),
 		CSRFTrustedOrigins:           csrfOrigins,
+		CSRFEnabled:                  envBool("CSRF_ENABLED", true),
 		JobQueueCriticalWorkers:      envPositiveInt("JOB_QUEUE_CRITICAL_WORKERS", 4),
 		JobQueueDefaultWorkers:       envPositiveInt("JOB_QUEUE_DEFAULT_WORKERS", 8),
 		JobQueueSearchWorkers:        envPositiveInt("JOB_QUEUE_SEARCH_WORKERS", 6),
@@ -163,6 +173,40 @@ func Load() Config {
 		JobQueueMaintenanceWorkers:   envPositiveInt("JOB_QUEUE_MAINTENANCE_WORKERS", 2),
 		JobQueueThemeWorkers:         envPositiveInt("JOB_QUEUE_THEME_WORKERS", 1),
 		LogLevel:                     parseLogLevel(env("LOG_LEVEL", "info")),
+	}
+	validateProductionSecrets(cfg)
+	return cfg
+}
+
+// insecureSecretValues 是已知的不安全默认/占位值，生产环境不得使用。
+var insecureSecretValues = map[string]bool{
+	"":                              true,
+	"change-me":                     true,
+	"sforum-dev-session-hash-secret": true,
+	"sforum-dev-altcha-secret":      true,
+	"sforum-dev-meili-key":          true,
+}
+
+// validateProductionSecrets 在生产环境校验关键密钥非空且非占位词。
+// 任一不满足直接 panic 拒绝启动，避免运维忘记配置导致生产静默回退到公开默认值。
+func validateProductionSecrets(cfg Config) {
+	if !strings.EqualFold(cfg.AppEnv, "production") {
+		return
+	}
+	type secretCheck struct {
+		name string
+		val  string
+	}
+	checks := []secretCheck{
+		{"SESSION_HASH_SECRET", cfg.SessionHashSecret},
+		{"ALTCHA_SECRET", cfg.AltchaSecret},
+		{"MEILI_MASTER_KEY", cfg.MeiliMasterKey},
+		{"APP_OPTION_ENC_KEY", cfg.OptionEncryptionKey},
+	}
+	for _, c := range checks {
+		if insecureSecretValues[strings.TrimSpace(c.val)] {
+			panic(fmt.Sprintf("config: %s must be set to a secure value in production (got empty/placeholder default)", c.name))
+		}
 	}
 }
 

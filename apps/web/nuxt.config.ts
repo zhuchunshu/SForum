@@ -104,7 +104,7 @@ export default defineNuxtConfig({
     ...(nitroOutputDir ? { output: { dir: nitroOutputDir } } : {})
   },
   ignore: nuxtGeneratedIgnores,
-  css: ['~/assets/css/main.css', '~/assets/css/sforum-components.css'],
+  css: ['~/assets/css/main.css', '~/assets/css/sforum-components.css', '~/assets/css/highlight-theme.css'],
   devtools: { enabled: true },
   ui: {
     fonts: false

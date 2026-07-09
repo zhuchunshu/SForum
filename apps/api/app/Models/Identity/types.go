@@ -46,6 +46,8 @@ var (
 	ErrDefaultRoleLocked          = errors.New("identity: default role is locked")
 	ErrInitialSuperAdminLocked    = errors.New("identity: initial super admin is locked")
 	ErrSuperAdminOverridesLocked  = errors.New("identity: super admin permission overrides are locked")
+	ErrSelfRoleChange             = errors.New("identity: actors cannot change their own roles or overrides")
+	ErrSuperAdminGrantRestricted  = errors.New("identity: only super admin can grant or manage super_admin role")
 	ErrUsernameOrEmailNotUnique   = errors.New("identity: username or email is not unique")
 	ErrPasswordDoesNotMeetPolicy  = errors.New("identity: password does not meet policy")
 	ErrPasswordResetTokenNotFound = errors.New("identity: password reset token not found or expired")

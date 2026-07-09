@@ -571,6 +571,10 @@ func mapIdentityError(err error) error {
 		return fiber.NewError(fiber.StatusConflict, "user.initial_super_admin_locked")
 	case errors.Is(err, identity.ErrSuperAdminOverridesLocked):
 		return fiber.NewError(fiber.StatusConflict, "user.super_admin_permissions_locked")
+	case errors.Is(err, identity.ErrSelfRoleChange):
+		return fiber.NewError(fiber.StatusForbidden, "user.cannot_change_self_roles")
+	case errors.Is(err, identity.ErrSuperAdminGrantRestricted):
+		return fiber.NewError(fiber.StatusForbidden, "user.super_admin_grant_restricted")
 	case errors.Is(err, identity.ErrPasswordDoesNotMeetPolicy):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "auth.password_policy")
 	default:

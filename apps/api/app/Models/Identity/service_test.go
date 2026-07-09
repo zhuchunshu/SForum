@@ -99,16 +99,20 @@ func TestRegisterSecondUserAssignsDefaultMember(t *testing.T) {
 	}
 }
 
-func TestRegistrationStatusTracksBootstrapUser(t *testing.T) {
+// TestRegistrationStatusDoesNotLeakBootstrapState 验证 M4：公开的 registration-status 端点
+// 不再返回 NextUserIsInitialSuperAdmin=true，无论系统是否已有用户，
+// 消除"首注册窗口、下个注册者成 super_admin"这一首用户劫持的信息面。
+func TestRegistrationStatusDoesNotLeakBootstrapState(t *testing.T) {
 	service, _ := newTestService(t)
 	ctx := testContext(t)
 
+	// bootstrap 窗口（无用户）也不暴露 true。
 	status, err := service.RegistrationStatus(ctx)
 	if err != nil {
 		t.Fatalf("RegistrationStatus returned error: %v", err)
 	}
-	if !status.NextUserIsInitialSuperAdmin {
-		t.Fatal("expected next user to be initial super admin before any user exists")
+	if status.NextUserIsInitialSuperAdmin {
+		t.Fatal("expected NextUserIsInitialSuperAdmin to be false before any user exists (no bootstrap leak)")
 	}
 
 	_, err = service.Register(ctx, RegisterInput{
@@ -120,12 +124,13 @@ func TestRegistrationStatusTracksBootstrapUser(t *testing.T) {
 		t.Fatalf("Register returned error: %v", err)
 	}
 
+	// 有用户后同样不暴露。
 	status, err = service.RegistrationStatus(ctx)
 	if err != nil {
 		t.Fatalf("RegistrationStatus after register returned error: %v", err)
 	}
 	if status.NextUserIsInitialSuperAdmin {
-		t.Fatal("expected next user not to be initial super admin after a user exists")
+		t.Fatal("expected NextUserIsInitialSuperAdmin to be false after a user exists")
 	}
 }
 
@@ -472,6 +477,8 @@ type fakeStore struct {
 	passwordUpdated        bool
 	updatedPasswordHash    string
 	updatedPasswordUserID  int64
+	// 令牌版本号（M8）测试钩子。
+	tokenVersions map[int64]int64
 }
 
 func (s *fakeStore) seedRole(role Role) {
@@ -712,6 +719,23 @@ func (s *fakeStore) ConsumePasswordResetToken(_ context.Context, tokenHash strin
 func (s *fakeStore) UpdateUserPassword(_ context.Context, userID int64, passwordHash string) error {
 	s.updatedPasswordHash = passwordHash
 	s.updatedPasswordUserID = userID
+	return nil
+}
+
+// GetUserTokenVersion 返回内存中记录的令牌版本号（M8 测试用）。
+func (s *fakeStore) GetUserTokenVersion(_ context.Context, userID int64) (int64, error) {
+	if s.tokenVersions == nil {
+		return 0, nil
+	}
+	return s.tokenVersions[userID], nil
+}
+
+// IncrementUserTokenVersion 递增内存令牌版本号（M8 测试用）。
+func (s *fakeStore) IncrementUserTokenVersion(_ context.Context, userID int64) error {
+	if s.tokenVersions == nil {
+		s.tokenVersions = map[int64]int64{}
+	}
+	s.tokenVersions[userID]++
 	return nil
 }
 

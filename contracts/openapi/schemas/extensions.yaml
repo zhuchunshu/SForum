@@ -86,6 +86,36 @@ ApiResponseExtensionNavigationList:
       type: array
       items:
         "$ref": "#/ExtensionAdminNavigationItem"
+ApiResponseContributionPointDefinitionList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/ContributionPointDefinition"
+ApiResponseEffectiveContributionList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/EffectiveContribution"
 ApiResponseExtensionSettings:
   type: object
   required:
@@ -210,6 +240,11 @@ ExtensionManifest:
       description: Plugin-only provider slot declarations. Theme manifests must omit providers in v1.
       items:
         "$ref": "#/ExtensionManifestProvider"
+    contributions:
+      type: array
+      description: Plugin-only declarative contributions to host-owned typed points. Theme manifests must omit contributions in v1.
+      items:
+        "$ref": "#/ExtensionManifestContribution"
 ExtensionManifestAuthor:
   type: object
   required:
@@ -346,6 +381,59 @@ ExtensionManifestProvider:
     timeoutMs:
       type: integer
       minimum: 0
+ExtensionManifestContribution:
+  type: object
+  required:
+  - point
+  - id
+  - label
+  - payload
+  properties:
+    point:
+      type: string
+      enum:
+      - forum.topic.actions
+    id:
+      type: string
+      description: Unique contribution id within this extension and point.
+    order:
+      type: integer
+      minimum: 0
+      default: 0
+    label:
+      type: object
+      additionalProperties:
+        type: string
+      description: Localized user-facing labels, typically zh-CN and en-US.
+    icon:
+      type: string
+      description: Nuxt Icon name with approved i-lucide- or i-tabler- prefix.
+    payload:
+      "$ref": "#/ExtensionContributionPayload"
+ExtensionContributionPayload:
+  type: object
+  description: Payload for forum.topic.actions. Only extensionRoute descriptors are accepted in this first slice.
+  required:
+  - type
+  - method
+  - path
+  properties:
+    type:
+      type: string
+      enum:
+      - extensionRoute
+    method:
+      type: string
+      enum:
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+    path:
+      type: string
+      description: Safe plugin route path under /api/v1/extensions/{extensionId}; must start with / and must not target /api or external URLs.
+    confirm:
+      type: boolean
 ExtensionRuntimeStatus:
   type: object
   required:
@@ -509,6 +597,61 @@ ExtensionAdminNavigationItem:
       - settings
     order:
       type: integer
+ContributionPointDefinition:
+  type: object
+  required:
+  - id
+  - owner
+  - kind
+  - description
+  - payloadType
+  properties:
+    id:
+      type: string
+      enum:
+      - forum.topic.actions
+    owner:
+      type: string
+    kind:
+      type: string
+    description:
+      type: string
+    payloadType:
+      type: string
+      enum:
+      - extensionRoute
+EffectiveContribution:
+  type: object
+  required:
+  - extensionId
+  - extensionName
+  - extensionType
+  - point
+  - id
+  - order
+  properties:
+    extensionId:
+      type: string
+    extensionName:
+      type: string
+    extensionType:
+      "$ref": "#/ExtensionType"
+    point:
+      type: string
+      enum:
+      - forum.topic.actions
+    id:
+      type: string
+    order:
+      type: integer
+    label:
+      type: object
+      additionalProperties:
+        type: string
+    icon:
+      type: string
+    payload:
+      "$ref": "#/ExtensionContributionPayload"
 ExtensionSettings:
   type: object
   required:

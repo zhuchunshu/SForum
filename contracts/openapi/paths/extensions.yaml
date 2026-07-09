@@ -69,6 +69,38 @@ adminExtensionNavigation:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+adminExtensionContributionPoints:
+  get:
+    summary: List host-defined extension contribution points
+    description: Requires extension.manage. Returns the core-owned typed contribution point catalog; plugins may only declare contributions to known points.
+    operationId: listAdminExtensionContributionPoints
+    responses:
+      '200':
+        description: Known contribution points.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseContributionPointDefinitionList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+adminExtensionContributions:
+  get:
+    summary: List active extension contributions
+    description: Requires extension.manage. Returns effective contributions from enabled plugins only; disabled plugins and inactive themes do not affect runtime behavior.
+    operationId: listAdminExtensionContributions
+    responses:
+      '200':
+        description: Active contribution descriptors sorted by order, extension id, and contribution id.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseEffectiveContributionList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
 adminExtensionSettings:
   get:
     summary: Read extension settings

@@ -138,7 +138,7 @@ func TestExportCSVReturnsCSVWithMaskedSensitiveCells(t *testing.T) {
 func newDatabaseTestApp(actor identity.Actor, store *databaseHTTPStore) (*fiber.App, *http.Cookie) {
 	sessions := authsession.NewManager(session.NewStore(), authsession.Config{})
 	controller := NewController(dbmodel.NewService(store), databaseHTTPActorStore{actor: actor}, sessions)
-	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}, nil, apphttp.Dependencies{
+	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}, nil, apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{
 			routeProviderFunc(func(api fiber.Router) {
 				api.Post("/test-login", func(c fiber.Ctx) error {

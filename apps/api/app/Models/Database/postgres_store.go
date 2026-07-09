@@ -330,8 +330,8 @@ func filterClause(input RowsInput, args *[]any) string {
 		*args = append(*args, input.FilterValue)
 		return fmt.Sprintf("%s::text = $%d", column, len(*args))
 	case "contains":
-		*args = append(*args, "%"+input.FilterValue+"%")
-		return fmt.Sprintf("%s::text ILIKE $%d", column, len(*args))
+		*args = append(*args, "%"+escapeLike(input.FilterValue)+"%")
+		return fmt.Sprintf("%s::text ILIKE $%d ESCAPE '\\'", column, len(*args))
 	case "is_null":
 		return fmt.Sprintf("%s IS NULL", column)
 	case "not_null":
@@ -339,6 +339,14 @@ func filterClause(input RowsInput, args *[]any) string {
 	default:
 		return ""
 	}
+}
+
+// escapeLike 转义 SQL LIKE/ILIKE 元字符，配合 ESCAPE '\' 使用（M6/L4）。
+func escapeLike(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, `%`, `\%`)
+	value = strings.ReplaceAll(value, `_`, `\_`)
+	return value
 }
 
 func orderClause(input RowsInput, detail TableDetail) string {

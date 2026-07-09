@@ -99,6 +99,19 @@ export type ForumRenderedContent = {
 
 export type ForumTopicDetail = ForumTopicSummary & {
   content: ForumRenderedContent
+  extensionActions?: ForumTopicExtensionAction[]
+}
+
+export type ForumTopicExtensionActionMethod = 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+
+export type ForumTopicExtensionAction = {
+  extensionId: string
+  id: string
+  label?: Record<string, string>
+  icon?: string
+  method: ForumTopicExtensionActionMethod
+  url: string
+  confirm?: boolean
 }
 
 export type ForumCommentStatus = 'active' | 'hidden' | 'deleted'
@@ -381,6 +394,35 @@ function parsePositiveInteger(value: string) {
 
 export function forumUserProfilePath(username: string) {
   return `/u/${encodeURIComponent(username)}`
+}
+
+export function forumTopicExtensionActionLabel(action: ForumTopicExtensionAction, locale = 'zh-CN') {
+  const labels = action.label || {}
+  return labels[locale] || labels['zh-CN'] || labels['en-US'] || Object.values(labels).find(Boolean) || action.id
+}
+
+export function forumTopicExtensionActionRequestPath(action: Pick<ForumTopicExtensionAction, 'url'>) {
+  const url = `${action.url || ''}`.trim()
+  if (!url.startsWith('/extensions/') || url.includes('://') || url.includes('..') || url.startsWith('/api')) {
+    return ''
+  }
+  return url
+}
+
+export function forumTopicExtensionActionRequest(action: ForumTopicExtensionAction, topicId: number) {
+  const path = forumTopicExtensionActionRequestPath(action)
+  if (!path || !Number.isInteger(topicId) || topicId <= 0 || !isTopicExtensionActionMethod(action.method)) {
+    return null
+  }
+  return {
+    path,
+    method: action.method,
+    body: { topicId }
+  }
+}
+
+function isTopicExtensionActionMethod(value: string): value is ForumTopicExtensionActionMethod {
+  return value === 'POST' || value === 'PUT' || value === 'PATCH' || value === 'DELETE'
 }
 
 // 构建评论列表查询参数，仅写入非空字段。

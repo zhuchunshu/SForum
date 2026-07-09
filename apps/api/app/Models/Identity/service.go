@@ -64,13 +64,17 @@ type LoginInput struct {
 	Password string
 }
 
+// RegistrationStatus 返回注册相关状态。该端点公开可访问（注册页加载时调用），
+// 因此不通过它暴露"系统处于首注册窗口、下个注册者成 super_admin"这一敏感的 bootstrap 状态——
+// 首注册的 super_admin 提升由 Register 路径内的 advisory lock 保证，无需提前告知调用方。
+// 这里恒定返回 NextUserIsInitialSuperAdmin=false，消除首用户劫持的信息面。
 func (s *Service) RegistrationStatus(ctx context.Context) (RegistrationStatus, error) {
-	hasAnyUser, err := s.store.AnyUserExists(ctx)
+	// 仅校验 store 可达性；返回值不再依赖是否有用户存在。
+	_, err := s.store.AnyUserExists(ctx)
 	if err != nil {
 		return RegistrationStatus{}, err
 	}
-
-	return RegistrationStatus{NextUserIsInitialSuperAdmin: !hasAnyUser}, nil
+	return RegistrationStatus{NextUserIsInitialSuperAdmin: false}, nil
 }
 
 func (s *Service) ValidateRegister(ctx context.Context, input RegisterInput) error {
@@ -253,6 +257,11 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (CurrentUser, err
 		if !errors.Is(err, ErrCredentialNotFound) {
 			return CurrentUser{}, err
 		}
+		// L1 时序对齐：用户不存在时也跑一次等价 argon2 验证，
+		// 使两条失败路径耗时一致，消除用户名枚举的时序侧信道。
+		if dummy, dErr := dummyPasswordHash(); dErr == nil {
+			_, _ = VerifyPassword(input.Password, dummy)
+		}
 		return CurrentUser{}, ErrInvalidCredentials
 	}
 
@@ -308,7 +317,7 @@ func (s *Service) ListUsers(ctx context.Context, actor Actor, input UserListInpu
 		return AdminUserList{}, ErrPermissionDenied
 	}
 	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
-	input.Query = strings.TrimSpace(input.Query)
+	input.Query = escapeLike(strings.TrimSpace(input.Query))
 	input.Status = strings.TrimSpace(input.Status)
 	input.RoleKey = strings.TrimSpace(input.RoleKey)
 	return s.store.ListUsers(ctx, input)
@@ -378,6 +387,10 @@ func (s *Service) ReplaceUserRoles(ctx context.Context, actor Actor, targetUserI
 	if !actor.Can(PermissionUserManage) {
 		return AdminUserDetail{}, ErrPermissionDenied
 	}
+	// 防自我提权：禁止修改自己的角色，避免 user.manage 持有者给自己加 super_admin。
+	if actor.ID == targetUserID {
+		return AdminUserDetail{}, ErrSelfRoleChange
+	}
 
 	target, err := s.store.GetAdminUser(ctx, targetUserID)
 	if err != nil {
@@ -387,6 +400,10 @@ func (s *Service) ReplaceUserRoles(ctx context.Context, actor Actor, targetUserI
 	normalized := normalizeKeyList(roleKeys)
 	if target.IsInitialSuperAdmin && !containsString(normalized, RoleSuperAdmin) {
 		return AdminUserDetail{}, ErrInitialSuperAdminLocked
+	}
+	// 授予 super_admin 角色要求操作者本身已是 super_admin，防止 user.manage 持有者越权提权他人。
+	if containsString(normalized, RoleSuperAdmin) && !actor.IsSuperAdmin() {
+		return AdminUserDetail{}, ErrSuperAdminGrantRestricted
 	}
 	if err := s.validateRoles(ctx, normalized); err != nil {
 		return AdminUserDetail{}, err
@@ -398,6 +415,10 @@ func (s *Service) ReplaceUserRoles(ctx context.Context, actor Actor, targetUserI
 func (s *Service) ReplaceUserPermissionOverrides(ctx context.Context, actor Actor, targetUserID int64, overrides PermissionOverrides) (AdminUserDetail, error) {
 	if !actor.Can(PermissionUserManage) {
 		return AdminUserDetail{}, ErrPermissionDenied
+	}
+	// 防自我提权：禁止修改自己的权限覆盖。
+	if actor.ID == targetUserID {
+		return AdminUserDetail{}, ErrSelfRoleChange
 	}
 
 	target, err := s.store.GetAdminUser(ctx, targetUserID)
@@ -426,9 +447,16 @@ func canManagePermissions(actor Actor) bool {
 	return actor.Can(PermissionRoleManage) || actor.Can(PermissionUserManage)
 }
 
+// maxAdminListPage 限制后台列表的最大页数（M6），避免深 OFFSET 全表扫描 DoS，与 Forum 对齐。
+const maxAdminListPage = 200
+
 func normalizePage(page int, perPage int) (int, int) {
 	if page < 1 {
 		page = 1
+	}
+	// M6：限制最大页数，避免管理员接口被滥用进行深分页 DoS。
+	if page > maxAdminListPage {
+		page = maxAdminListPage
 	}
 	if perPage < 1 {
 		perPage = 20
@@ -437,6 +465,15 @@ func normalizePage(page int, perPage int) (int, int) {
 		perPage = 100
 	}
 	return page, perPage
+}
+
+// escapeLike 转义 SQL LIKE 的元字符（\、%、_），配合查询中的 ESCAPE '\' 使用（M6/L4），
+// 防止用户输入的通配符触发失控的全表模式匹配。
+func escapeLike(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, `%`, `\%`)
+	value = strings.ReplaceAll(value, `_`, `\_`)
+	return value
 }
 
 func normalizeKeyList(values []string) []string {

@@ -5,6 +5,8 @@ import {
   extensionStats,
   mergeExtensionDeliveries,
   mergeExtensionEvents,
+  type AdminContributionPointDefinition,
+  type AdminEffectiveContribution,
   type AdminExtension,
   type AdminExtensionEventDefinition,
   type AdminExtensionEventDelivery,
@@ -26,9 +28,13 @@ export const useAdminExtensionsManager = async () => {
   const loadingAllEvents = ref(false)
   const loadingEventDefinitions = ref(false)
   const loadingEventDeliveries = ref(false)
+  const loadingContributionPoints = ref(false)
+  const loadingContributions = ref(false)
   const eventsByExtension = ref<Record<string, AdminExtensionEvent[]>>({})
   const eventDefinitions = ref<AdminExtensionEventDefinition[]>([])
   const eventDeliveries = ref<AdminExtensionEventDelivery[]>([])
+  const contributionPoints = ref<AdminContributionPointDefinition[]>([])
+  const contributions = ref<AdminEffectiveContribution[]>([])
 
   const {
     data,
@@ -214,6 +220,32 @@ export const useAdminExtensionsManager = async () => {
     }
   }
 
+  async function loadContributionPoints() {
+    loadingContributionPoints.value = true
+    try {
+      contributionPoints.value = await request<AdminContributionPointDefinition[]>('/admin/extensions/contribution-points')
+      return contributionPoints.value
+    } catch {
+      contributionPoints.value = []
+      return []
+    } finally {
+      loadingContributionPoints.value = false
+    }
+  }
+
+  async function loadContributions() {
+    loadingContributions.value = true
+    try {
+      contributions.value = await request<AdminEffectiveContribution[]>('/admin/extensions/contributions')
+      return contributions.value
+    } catch {
+      contributions.value = []
+      return []
+    } finally {
+      loadingContributions.value = false
+    }
+  }
+
   function replaceExtension(updated: AdminExtension) {
     const current = extensions.value.slice()
     const index = current.findIndex(item => item.id === updated.id)
@@ -259,9 +291,13 @@ export const useAdminExtensionsManager = async () => {
     loadingAllEvents,
     loadingEventDefinitions,
     loadingEventDeliveries,
+    loadingContributionPoints,
+    loadingContributions,
     eventsByExtension,
     eventDefinitions,
     eventDeliveries,
+    contributionPoints,
+    contributions,
     aggregatedEvents,
     aggregatedDeliveries,
     stats,
@@ -276,6 +312,8 @@ export const useAdminExtensionsManager = async () => {
     loadAllEvents,
     loadEventDefinitions,
     loadEventDeliveries,
+    loadContributionPoints,
+    loadContributions,
     statusColor,
     typeLabel,
     statusLabel

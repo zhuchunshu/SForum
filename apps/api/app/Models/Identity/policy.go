@@ -20,6 +20,9 @@ func (a Actor) Can(permission string) bool {
 	if !a.IsActive() {
 		return false
 	}
+	// 注意（L6）：super_admin 在此处直接返回 true，绕过 DB 层的 deny 覆盖逻辑。
+	// 这是设计决策——super_admin 在权限系统内是全能的，无法通过 deny 覆盖限制。
+	// 运维若想限制某账户，应改用非 super_admin 角色 + deny 覆盖，而非对 super_admin 设 deny。
 	if a.IsSuperAdmin() {
 		return true
 	}

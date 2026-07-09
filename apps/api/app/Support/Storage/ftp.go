@@ -94,7 +94,11 @@ func (a *FTPAdapter) Exists(ctx context.Context, key string) (bool, error) {
 	if err == nil {
 		return true, nil
 	}
-	return false, nil
+	// L5：区分"不存在"与"传输故障"。FTP 无标准 not-found 错误，字符串匹配常见 550 响应。
+	if strings.Contains(strings.ToLower(err.Error()), "550") {
+		return false, nil
+	}
+	return false, err
 }
 
 func (a *FTPAdapter) PublicURL(key string) string {

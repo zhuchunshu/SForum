@@ -88,15 +88,19 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 	// 供 SPA 读取后随 unsafe 请求回传 X-Csrf-Token header。
 	// TrustedOrigins 必须包含公开站点 origin：API 在反向代理后看到的 Host 是内部地址，
 	// 而 Origin 是公开站点，二者不匹配会被默认拒绝。默认从 APP_URL 派生。
-	api.Use(csrf.New(csrf.Config{
-		Storage:         deps.Storage,
-		CookieSameSite:  fiber.CookieSameSiteLaxMode,
-		CookieSecure:    strings.EqualFold(cfg.AppEnv, "production"),
-		CookieHTTPOnly:  false, // SPA 必须能读取 csrf_ cookie 以回传 token
-		CookiePath:      "/",
-		TrustedOrigins:  cfg.CSRFTrustedOrigins,
-		ErrorHandler:    csrfErrorHandler,
-	}))
+	// CSRF 防护仅在配置启用时生效；测试场景通过 CSRF_ENABLED=false 显式关闭，
+	// 避免每个测试请求都要携带 token。生产默认启用。
+	if cfg.CSRFEnabled {
+		api.Use(csrf.New(csrf.Config{
+			Storage:         deps.Storage,
+			CookieSameSite:  fiber.CookieSameSiteLaxMode,
+			CookieSecure:    strings.EqualFold(cfg.AppEnv, "production"),
+			CookieHTTPOnly:  false, // SPA 必须能读取 csrf_ cookie 以回传 token
+			CookiePath:      "/",
+			TrustedOrigins:  cfg.CSRFTrustedOrigins,
+			ErrorHandler:    csrfErrorHandler,
+		}))
+	}
 
 	for _, provider := range deps.RouteProviders {
 		if provider != nil {

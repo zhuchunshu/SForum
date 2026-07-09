@@ -234,9 +234,16 @@ func isSensitiveColumn(name string) bool {
 	})
 }
 
+// maxRowsPage 限制 DB 浏览器列表的最大页数（M6），避免深 OFFSET 全表扫描 DoS。
+const maxRowsPage = 200
+
 func normalizeRowsInput(input RowsInput, detail TableDetail, maxRows int) (RowsInput, error) {
 	if input.Page <= 0 {
 		input.Page = 1
+	}
+	// M6：限制最大页数。
+	if input.Page > maxRowsPage {
+		input.Page = maxRowsPage
 	}
 	if input.PerPage <= 0 {
 		input.PerPage = defaultPerPage

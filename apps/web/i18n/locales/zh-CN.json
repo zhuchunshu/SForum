@@ -204,6 +204,7 @@
       "extensionThemes": "主题管理",
       "extensionSettings": "扩展设置",
       "extensionEvents": "事件日志",
+      "extensionContributions": "扩展点",
       "forumHome": "论坛首页",
       "forum": "论坛管理",
       "forumCategories": "版块分类",
@@ -487,6 +488,20 @@
         "count": "发现 {count} 个设置声明",
         "emptyTitle": "暂无扩展设置声明",
         "emptyDescription": "已安装扩展的 manifest 暂未声明 settings 字段，因此当前没有可展示的扩展设置。"
+      },
+      "contributions": {
+        "metaTitle": "扩展点",
+        "title": "扩展点",
+        "intro": "查看宿主开放的类型化扩展点，以及当前已启用插件贡献的安全描述项。",
+        "pointsTitle": "宿主扩展点",
+        "activeTitle": "生效贡献项",
+        "pointsCount": "{count} 个扩展点",
+        "activeCount": "{count} 个生效项",
+        "emptyPointsTitle": "暂无扩展点定义",
+        "emptyPointsDescription": "宿主扩展点目录暂未加载成功。",
+        "emptyActiveTitle": "暂无生效贡献项",
+        "emptyActiveDescription": "启用声明 contributions 的插件后，生效项会显示在这里。",
+        "order": "顺序 {order}"
       },
       "dynamic": {
         "loading": "正在加载扩展信息...",
@@ -1604,6 +1619,8 @@
     "hide": "隐藏",
     "confirmDelete": "确定要删除这个话题吗？",
     "actionFailed": "操作失败，请稍后重试。",
+    "confirmExtensionAction": "确定要执行“{action}”吗？",
+    "extensionActionFailed": "扩展动作执行失败，请稍后重试。",
     "lockToggled": "话题锁定状态已更新。",
     "pinToggled": "话题置顶状态已更新。",
     "hidden": "话题已隐藏。",

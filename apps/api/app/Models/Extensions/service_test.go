@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -221,6 +222,92 @@ func TestServiceInstallArchiveAllowsThemeSettingsAndAdminPages(t *testing.T) {
 				t.Fatalf("expected invalid theme manifest, got %v", err)
 			}
 		})
+	}
+}
+
+func TestServiceListsContributionPointsAndEffectiveContributions(t *testing.T) {
+	store := &fakeExtensionStore{items: map[string]Extension{}}
+	service := NewService(store, t.TempDir())
+	store.items["beta.plugin"] = contributionTestPlugin("beta.plugin", StatusEnabled, []ManifestContribution{
+		topicActionContribution(t, "beta.later", 200, "/topic-actions/later"),
+	})
+	store.items["alpha.plugin"] = contributionTestPlugin("alpha.plugin", StatusEnabled, []ManifestContribution{
+		topicActionContribution(t, "alpha.first", 100, "/topic-actions/first"),
+		topicActionContribution(t, "alpha.same", 200, "/topic-actions/same"),
+	})
+	store.items["disabled.plugin"] = contributionTestPlugin("disabled.plugin", StatusDisabled, []ManifestContribution{
+		topicActionContribution(t, "disabled.hidden", 1, "/topic-actions/hidden"),
+	})
+	store.items["theme.demo"] = Extension{
+		ID:      "theme.demo",
+		Name:    "Theme Demo",
+		Version: "1.0.0",
+		Type:    TypeTheme,
+		Status:  StatusEnabled,
+		Manifest: Manifest{
+			ID:            "theme.demo",
+			Name:          "Theme Demo",
+			Description:   "Theme demo.",
+			URL:           "https://example.com/theme",
+			Author:        ManifestAuthor{Name: "SForum Team"},
+			Version:       "1.0.0",
+			Type:          TypeTheme,
+			SForumVersion: "^1.0.0",
+			Frontend:      ManifestFrontend{Layer: "layer"},
+		},
+	}
+
+	points, err := service.ContributionPoints(context.Background(), extensionManager())
+	if err != nil {
+		t.Fatalf("ContributionPoints returned error: %v", err)
+	}
+	if len(points) != 1 || points[0].ID != "forum.topic.actions" {
+		t.Fatalf("unexpected contribution points: %#v", points)
+	}
+
+	contributions, err := service.Contributions(context.Background(), extensionManager())
+	if err != nil {
+		t.Fatalf("Contributions returned error: %v", err)
+	}
+	if got := contributionIDs(contributions); !slices.Equal(got, []string{"alpha.plugin:alpha.first", "alpha.plugin:alpha.same", "beta.plugin:beta.later"}) {
+		t.Fatalf("unexpected contribution order: %#v", got)
+	}
+	if contributions[0].ExtensionName != "Alpha Plugin" || contributions[0].Point != "forum.topic.actions" {
+		t.Fatalf("unexpected contribution metadata: %#v", contributions[0])
+	}
+}
+
+func TestServiceEffectiveContributionsResolveWithoutAdminActor(t *testing.T) {
+	store := &fakeExtensionStore{items: map[string]Extension{}}
+	service := NewService(store, t.TempDir())
+	store.items["beta.plugin"] = contributionTestPlugin("beta.plugin", StatusEnabled, []ManifestContribution{
+		topicActionContribution(t, "beta.later", 200, "/topic-actions/later"),
+	})
+	store.items["alpha.plugin"] = contributionTestPlugin("alpha.plugin", StatusEnabled, []ManifestContribution{
+		topicActionContribution(t, "alpha.first", 100, "/topic-actions/first"),
+	})
+	store.items["disabled.plugin"] = contributionTestPlugin("disabled.plugin", StatusDisabled, []ManifestContribution{
+		topicActionContribution(t, "disabled.hidden", 1, "/topic-actions/hidden"),
+	})
+
+	contributions, err := service.EffectiveContributions(context.Background())
+	if err != nil {
+		t.Fatalf("EffectiveContributions returned error: %v", err)
+	}
+	if got := contributionIDs(contributions); !slices.Equal(got, []string{"alpha.plugin:alpha.first", "beta.plugin:beta.later"}) {
+		t.Fatalf("unexpected runtime contribution order: %#v", got)
+	}
+}
+
+func TestServiceContributionInspectionRequiresExtensionManage(t *testing.T) {
+	service := NewService(&fakeExtensionStore{}, t.TempDir())
+	actor := identity.Actor{ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
+
+	if _, err := service.ContributionPoints(context.Background(), actor); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected permission denied for contribution points, got %v", err)
+	}
+	if _, err := service.Contributions(context.Background(), actor); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected permission denied for contributions, got %v", err)
 	}
 }
 
@@ -1062,6 +1149,64 @@ func uploadedExtension(id string, extensionType string) Extension {
 	item.IsSystem = false
 	item.IsDeletable = true
 	return item
+}
+
+func contributionTestPlugin(id string, status string, contributions []ManifestContribution) Extension {
+	name := "Demo Plugin"
+	if id == "alpha.plugin" {
+		name = "Alpha Plugin"
+	}
+	if id == "beta.plugin" {
+		name = "Beta Plugin"
+	}
+	return Extension{
+		ID:      id,
+		Name:    name,
+		Version: "1.0.0",
+		Type:    TypePlugin,
+		Status:  status,
+		Manifest: Manifest{
+			ID:            id,
+			Name:          name,
+			Description:   "Contribution test plugin.",
+			URL:           "https://example.com/" + id,
+			Author:        ManifestAuthor{Name: "SForum Team"},
+			Version:       "1.0.0",
+			Type:          TypePlugin,
+			SForumVersion: "^1.0.0",
+			Contributions: contributions,
+		},
+		InstalledAt: time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+}
+
+func topicActionContribution(t *testing.T, id string, order int, routePath string) ManifestContribution {
+	t.Helper()
+	payload, err := json.Marshal(TopicActionContributionPayload{
+		Type:   "extensionRoute",
+		Method: "POST",
+		Path:   routePath,
+	})
+	if err != nil {
+		t.Fatalf("marshal topic action payload: %v", err)
+	}
+	return ManifestContribution{
+		Point:   "forum.topic.actions",
+		ID:      id,
+		Order:   order,
+		Label:   map[string]string{"zh-CN": "动作", "en-US": "Action"},
+		Icon:    "i-lucide-bookmark",
+		Payload: payload,
+	}
+}
+
+func contributionIDs(items []EffectiveContribution) []string {
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ExtensionID+":"+item.ID)
+	}
+	return ids
 }
 
 func extensionWithStatus(item Extension, status string) Extension {

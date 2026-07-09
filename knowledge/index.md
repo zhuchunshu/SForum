@@ -290,7 +290,10 @@ This is the entry point for project memory.
   with legacy `hooks` compatibility, delivery tracking, and the first
   synchronous filter event for `topic.before_create`. The Go developer console
   at `apps/api/cmd/sforum` can scaffold plugins and themes interactively or via
-  `--no-interaction`.
+  `--no-interaction`. Typed extension contributions are now implemented as a
+  host-owned ordered registry inspired by old SForum's Itf mechanism: manifests
+  may declare safe `contributions[]`, admins can inspect contribution points and
+  active contributions, and `forum.topic.actions` is the first runtime consumer.
 - Extension Platform v2 direction is accepted: SForum should offer
   WordPress-like operator ergonomics without copying WordPress' PHP include
   runtime. Plugins extend core only through manifests, subprocess RPC, provider
@@ -338,11 +341,16 @@ This is the entry point for project memory.
   6 Low), prioritized C1/C2/H1 first. Confirmed-safe points are recorded to
   avoid re-auditing.
 - A follow-up security review (`docs/security-review-2026-07-09.md`) flagged
-  6 issues; 4 were fixed on 2026-07-09 (P1 comment visibility bypass,
+  6 issues; all 5 verified ones are now fixed: P1 comment visibility bypass,
   P2 password-reset human verification, P2 production config mismatch,
-  P2 attachment active-content risk), 1 (P3 avatar attachment ID) was
-  verified as a non-issue (store layer already validates ownership/status/
-  type), and CSRF is deferred to its own milestone. Decisions in
+  P2 attachment active-content risk (first batch), and P1 CSRF protection
+  (separate milestone using Fiber v3 csrf middleware + double-submit cookie,
+  `CSRF_TRUSTED_ORIGINS` config). 1 (P3 avatar attachment ID) was verified as
+  a non-issue (store layer already validates ownership/status/type). Decisions
+  in `decisions/2026-07-09-security-fixes.md`. The full-stack audit backlog
+  (`decisions/2026-07-09-security-audit.md`) saw 20 of 23 remaining items
+  fixed on 2026-07-09 (C1/C2, H1/H2/H3/H4/H6, M4-M10 except M2/M3, L1/L3-L6),
+  with L2/M2/M3 deferred as documented in
   `decisions/2026-07-09-security-fixes.md`.
 - Backend+frontend performance hardening (2026-07-08) covers the network and
   connection layers beyond the earlier search/cache read-path work:
@@ -560,8 +568,10 @@ This is the entry point for project memory.
   命令（用户/主题/评论）实现、用法、性能实测与端到端验证 handoff。
 - `decisions/2026-07-09-security-audit.md` - 全栈安全审计结果与修复待办清单
   （2 Critical / 6 High / 10 Medium / 6 Low，含已确认安全项与修复优先级）。
-- `decisions/2026-07-09-security-fixes.md` - 安全审阅 4 项修复决策（评论可见性、
-  密码重置人机验证、生产配置、附件主动内容）、P3 订正、CSRF 延后说明。
+- `decisions/2026-07-09-security-fixes.md` - 安全修复两批决策：第一批安全审阅
+  5 项（评论可见性、密码重置人机验证、生产配置、附件主动内容、CSRF 防护）+ P3 订正；
+  第二批全栈审计修复 20 项（C1/C2、H1-H4/H6、M4-M10 除 M2/M3、L1/L3-L6），
+  L2/M2/M3 降级待办。
 - `sessions/2026-07-08-auth-success-toast-guideline.md` - login/register
   success Toasts, auth page test harness path fix, theme-aware success Toast
   styling, and broader frontend Toast feedback guideline.

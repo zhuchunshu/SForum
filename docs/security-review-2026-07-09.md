@@ -8,12 +8,14 @@
 
 ## 结论摘要
 
-本次审阅发现 6 个条目，其中 **5 个经核验属实**、**1 个经核验不成立**：
+本次审阅发现 6 个条目，其中 **5 个经核验属实并已全部修复**、**1 个经核验不成立**：
 
-- 2 个 P1：CSRF 防护缺失、评论接口绕过主题/分类可见性。
-- 3 个 P2：密码重置人机验证启用后失效、生产 Redis/session 配置错配、附件主动内容风险。
+- 2 个 P1（已修复）：CSRF 防护缺失、评论接口绕过主题/分类可见性。
+- 3 个 P2（已修复）：密码重置人机验证启用后失效、生产 Redis/session 配置错配、附件主动内容风险。
 - 1 个 P3（经核验不成立）：原报告称资料更新接口可直接写入任意头像附件 ID；实际 `Profile/postgres_store.go` 的 `validateAvatarAttachment` 已在同一事务内校验附件存在、owner==actor、status==active、`image/*`，越权引用他人/不存在/非图片/非 active 附件均返回 `ErrProfileInvalid`。降级为可选的纵深防御优化。
 
+> 修复记录（2026-07-09）：5 个属实问题分两批修复——评论可见性/密码重置 HV/生产配置/附件主动内容（第一批），CSRF 防护（独立里程碑）。详见各章节「已修复」说明与 `knowledge/decisions/2026-07-09-security-fixes.md`。
+>
 > 更正记录（2026-07-09）：P3 原始判断基于 service 层归一化只校验 `avatarAttachmentId > 0`，遗漏了 store 层事务内的归属/状态/类型校验。详见下方 P3 章节订正。
 
 ## Findings
@@ -47,6 +49,8 @@
 - 推荐使用同步器 token 或 double-submit token；同时可叠加严格 Origin/Referer 校验。
 - API 侧必须作为权威防线，前端隐藏按钮或路由守卫不能替代。
 - 增加允许和拒绝路径测试，覆盖普通成员与管理员 unsafe 操作。
+
+**已修复（2026-07-09）**：采用 Fiber v3 自带 `middleware/csrf`，double-submit cookie（`csrf_`）+ `X-Csrf-Token` header，状态存共享 Redis storage，覆盖全部 unsafe 方法（含 login/register/password-reset，防登录型 CSRF）。注册在 `/api/v1` group，GET 请求种下可读 cookie 供 SPA 读取回传。新增 `CSRF_TRUSTED_ORIGINS` 配置（逗号分隔，默认从 `APP_URL` 派生），解决代理后 Host 与公开 Origin 不匹配的问题。前端 `useApiClient` 自动注入 header，修复 `SFNavbar` logout 绕过点。7 个中间件测试覆盖允许/拒绝/token/Origin/envelope 路径。生产部署必须在 `CSRF_TRUSTED_ORIGINS` 列出公开站点，否则所有写请求被拒。
 
 ### P1: 评论和回复接口可绕过主题/分类可见性
 
@@ -227,6 +231,6 @@
 ## 备注
 
 - 本报告初稿只整理审阅发现，未实施修复。后续修复进展见各章节订正说明。
-- P1 评论可见性、P2 密码重置人机验证、P2 生产配置、P2 附件主动内容风险 已于 2026-07-09 修复；CSRF 单独一期。
+- P1 评论可见性、P2 密码重置人机验证、P2 生产配置、P2 附件主动内容风险、P1 CSRF 防护 已于 2026-07-09 全部修复。
 - P3 经核验不成立，store 层事务内已有归属/状态/类型校验。
 - 本报告核验阶段为只读静态审阅，未修改业务代码。

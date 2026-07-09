@@ -6,6 +6,7 @@ export type AdminThemeActionState = 'active' | 'activateDefault' | 'activate' | 
 export type AdminRuntimeState = 'stopped' | 'starting' | 'running' | 'failed'
 export type AdminExtensionEventKind = 'observe' | 'validate' | 'filter'
 export type AdminExtensionDeliveryStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'skipped'
+export type AdminContributionPayloadType = 'extensionRoute'
 
 export type AdminExtensionSetting = {
   key: string
@@ -58,6 +59,24 @@ export type AdminExtensionManifest = {
   events?: Array<{ name: string, kind?: AdminExtensionEventKind, timeoutMs?: number }>
   jobs?: Array<{ name: string }>
   providers?: Array<{ slot: string, label: string, timeoutMs?: number }>
+  contributions?: AdminManifestContribution[]
+}
+
+export type AdminManifestContribution = {
+  point: string
+  id: string
+  order?: number
+  label?: Record<string, string>
+  icon?: string
+  payload?: AdminContributionPayload
+}
+
+export type AdminContributionPayload = {
+  type?: AdminContributionPayloadType | string
+  method?: string
+  path?: string
+  confirm?: boolean
+  [key: string]: unknown
 }
 
 export type AdminExtensionNavigationItem = {
@@ -157,6 +176,26 @@ export type AdminExtensionEventDelivery = {
   createdAt: string
   updatedAt: string
   completedAt?: string
+}
+
+export type AdminContributionPointDefinition = {
+  id: string
+  owner: string
+  kind: string
+  description: string
+  payloadType: string
+}
+
+export type AdminEffectiveContribution = {
+  extensionId: string
+  extensionName: string
+  extensionType: AdminExtensionType
+  point: string
+  id: string
+  order: number
+  label?: Record<string, string>
+  icon?: string
+  payload?: AdminContributionPayload
 }
 
 export type AdminExtensionStats = {
@@ -278,7 +317,8 @@ export function capabilityCount(item: AdminExtension) {
     manifest.hooks?.length || 0,
     manifest.events?.length || 0,
     manifest.jobs?.length || 0,
-    manifest.providers?.length || 0
+    manifest.providers?.length || 0,
+    manifest.contributions?.length || 0
   ].reduce((total, count) => total + count, 0)
 }
 
@@ -338,6 +378,23 @@ export function extensionDeliveryPage(items: AdminExtensionEventDelivery[], page
 
 export function extensionDefinitionPage(items: AdminExtensionEventDefinition[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
   return extensionItemsPage(items, page, pageSize)
+}
+
+export function extensionContributionPage(items: AdminEffectiveContribution[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
+  return extensionItemsPage(items, page, pageSize)
+}
+
+export function extensionContributionLabel(item: AdminEffectiveContribution, locale = 'zh-CN') {
+  const labels = item.label || {}
+  return labels[locale] || labels['zh-CN'] || labels['en-US'] || Object.values(labels).find(Boolean) || item.id
+}
+
+export function extensionContributionPayloadSummary(item: AdminEffectiveContribution) {
+  const payload = item.payload || {}
+  const parts = [payload.type, payload.method, payload.path]
+    .map(value => `${value || ''}`.trim())
+    .filter(Boolean)
+  return parts.length ? parts.join(' ') : '-'
 }
 
 function extensionItemsPage<T>(items: T[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {

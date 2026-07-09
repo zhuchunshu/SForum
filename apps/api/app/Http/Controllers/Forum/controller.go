@@ -450,11 +450,15 @@ func mapReindexError(err error) error {
 	}
 }
 
+// queryInt 解析查询参数为 int，解析失败返回 0（L3）。
+// 注意：与 Identity paramInt64 返回 error→422 不同，这里静默返回 0，
+// 依赖下游 service 的 ID<=0 → 404/422 兜底保证安全（如 GetTopic 对 topicID<=0 返回未找到）。
 func queryInt(c fiber.Ctx, key string) int {
 	value, _ := strconv.Atoi(c.Query(key))
 	return value
 }
 
+// paramInt 解析路径参数为 int，解析失败返回 0（L3），安全兜底同 queryInt。
 func paramInt(c fiber.Ctx, key string) int {
 	value, _ := strconv.Atoi(c.Params(key))
 	return value

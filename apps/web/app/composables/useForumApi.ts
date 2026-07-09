@@ -2,6 +2,7 @@ import {
   buildForumCommentQuery,
   buildForumSearchQuery,
   buildForumTopicQuery,
+  forumTopicExtensionActionRequest,
   type ForumCategoryGroup,
   type ForumComment,
   type ForumCommentList,
@@ -11,6 +12,7 @@ import {
   type ForumTopicAction,
   type ForumTopicActionKey,
   type ForumTopicDetail,
+  type ForumTopicExtensionAction,
   type ForumTopicFilters,
   type ForumTopicList,
   type ForumTopicSearchFilters,
@@ -98,6 +100,17 @@ export function useForumApi() {
     return request<ForumTopicAction>(`/topics/${topicId}/${action}`, { method: 'POST' })
   }
 
+  function applyTopicExtensionAction(topicId: number, action: ForumTopicExtensionAction) {
+    const input = forumTopicExtensionActionRequest(action, topicId)
+    if (!input) {
+      throw new Error('Invalid topic extension action')
+    }
+    return request<unknown>(input.path, {
+      method: input.method,
+      body: input.body
+    })
+  }
+
   return {
     listCategoryGroups,
     listTags,
@@ -113,7 +126,8 @@ export function useForumApi() {
     createTopic,
     updateTopic,
     deleteTopic,
-    applyTopicAction
+    applyTopicAction,
+    applyTopicExtensionAction
   }
 }
 

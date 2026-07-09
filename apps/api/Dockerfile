@@ -30,28 +30,39 @@ COPY extensions/builtin /app/extensions/builtin
 
 FROM alpine:3.22 AS api
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates && \
+	# H6：容器以非 root 用户运行，RCE/路径穿越后权限受限。
+	addgroup -S sforum && adduser -S -G sforum sforum && \
+	mkdir -p /app/storage/app/attachments /var/lib/sforum/extensions /var/lib/sforum/theme-releases && \
+	chown -R sforum:sforum /app /var/lib/sforum
 WORKDIR /app
-COPY --from=build /out/sforum-api /usr/local/bin/sforum-api
-COPY --from=build /app/extensions/builtin /app/extensions/builtin
+COPY --from=build --chown=sforum:sforum /out/sforum-api /usr/local/bin/sforum-api
+COPY --from=build --chown=sforum:sforum /app/extensions/builtin /app/extensions/builtin
+USER sforum
 EXPOSE 8080
 CMD ["sforum-api"]
 
 FROM oven/bun:1.3-alpine AS worker
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates && \
+	addgroup -S sforum && adduser -S -G sforum sforum && \
+	mkdir -p /app/storage/app/attachments /var/lib/sforum/extensions /var/lib/sforum/theme-releases /app/apps/web && \
+	chown -R sforum:sforum /app /var/lib/sforum
 WORKDIR /app
-COPY --from=build /out/sforum-worker /usr/local/bin/sforum-worker
-COPY --from=build /app/extensions/builtin /app/extensions/builtin
-COPY --from=webdeps /app/apps/web /app/apps/web
+COPY --from=build --chown=sforum:sforum /out/sforum-worker /usr/local/bin/sforum-worker
+COPY --from=build --chown=sforum:sforum /app/extensions/builtin /app/extensions/builtin
+COPY --from=webdeps --chown=sforum:sforum /app/apps/web /app/apps/web
 ENV THEME_WEB_ROOT=/app/apps/web
 ENV THEME_BUN_PATH=bun
 ENV THEME_RELEASE_ROOT=/var/lib/sforum/theme-releases
+USER sforum
 CMD ["sforum-worker"]
 
 FROM alpine:3.22 AS migrate
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates && \
+	addgroup -S sforum && adduser -S -G sforum sforum
 WORKDIR /app
 COPY --from=build /out/sforum-migrate /usr/local/bin/sforum-migrate
+USER sforum
 CMD ["sforum-migrate"]

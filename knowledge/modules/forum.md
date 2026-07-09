@@ -88,8 +88,15 @@ UNIQUE 索引（先去重），创建/改标题时 `Service.ensureUniqueTopicSlu
 - `json` is reserved in the schema for future structured editors, but the API
   rejects JSON publishing until a Tiptap/native-JSON acceptance contract exists.
 - Render Markdown with `goldmark`; sanitize display HTML with `bluemonday`.
-- Client-generated HTML remains untrusted. The API owns final rendering and
-  sanitization before storage.
+- goldmark runs with the **GFM extension set** (tables, strikethrough,
+  autolinks, task lists), matching the editor's `gfm: true`. The sanitizer
+  keeps `class="language-<lang>"` on `<code>` and read-only
+  `<input type="checkbox">` for task lists; both are regex-gated so non-
+  checkbox inputs and event-handler attributes are still stripped.
+- The frontend highlights code blocks with `highlight.js` via a `v-highlight`
+  directive on the topic body, comment bodies, and editor preview.
+- `RenderVersion` is `goldmark-bluemonday-v2`; existing posts keep their old
+  HTML until next edit (no batch re-render).
 - Keep edit history through `post_revisions` for comment edits. Topic editing
   endpoints are deferred.
 - Hide deleted or moderation-only content from public SSR pages, sitemap, and

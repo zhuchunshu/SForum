@@ -95,7 +95,7 @@ function topicAuthor(topic: ForumTopicSummary) {
           </p>
           <a
             v-if="profile.profile.websiteUrl"
-            :href="profile.profile.websiteUrl"
+            :href="safeUrl(profile.profile.websiteUrl)"
             target="_blank"
             rel="noopener noreferrer nofollow"
             class="inline-flex items-center gap-1 text-sm text-[#0F766E] hover:underline dark:text-teal-300"

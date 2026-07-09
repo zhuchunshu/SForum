@@ -92,3 +92,25 @@ func fieldMessagesContain(fields FieldMessages, field string, message string) bo
 	}
 	return false
 }
+
+// TestDummyPasswordHashForTimingAlignment 验证 L1：dummy hash 用于登录时序对齐。
+// 它必须是合法的 argon2id 格式（VerifyPassword 不报错），且对任意密码验证结果为 false。
+func TestDummyPasswordHashForTimingAlignment(t *testing.T) {
+	hash, err := dummyPasswordHash()
+	if err != nil {
+		t.Fatalf("dummyPasswordHash returned error: %v", err)
+	}
+	// 重复调用应返回缓存的同一 hash（sync.Once 复用）。
+	hash2, _ := dummyPasswordHash()
+	if hash != hash2 {
+		t.Fatal("expected dummyPasswordHash to return cached hash on second call")
+	}
+	// 对任意密码验证结果为 false，但不报错（格式合法，会跑完 argon2）。
+	ok, err := VerifyPassword("any-password", hash)
+	if err != nil {
+		t.Fatalf("VerifyPassword on dummy hash returned error: %v", err)
+	}
+	if ok {
+		t.Fatal("expected dummy hash to never verify any password")
+	}
+}

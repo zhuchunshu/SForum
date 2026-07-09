@@ -206,7 +206,27 @@ func writeThemeFiles(target string, opts makeOptions) error {
 }
 
 func readmeBody(opts makeOptions) string {
-	return "# " + opts.Name + "\n\n" + opts.Description + "\n\n- ID: `" + opts.ID + "`\n- Type: `" + opts.Kind + "`\n- Website: " + opts.URL + "\n"
+	body := "# " + opts.Name + "\n\n" + opts.Description + "\n\n- ID: `" + opts.ID + "`\n- Type: `" + opts.Kind + "`\n- Website: " + opts.URL + "\n"
+	if opts.Kind == extensionmanifest.TypePlugin {
+		body += "\n## Optional Contribution Example\n\n"
+		body += "The generated manifest does not enable demo contributions by default. After you implement and declare the matching extension route, you can add a host-rendered topic action like this:\n\n"
+		body += "```json\n"
+		body += "{\n"
+		body += "  \"routes\": [{\"path\": \"/topic-actions/bookmark\", \"methods\": [\"POST\"], \"access\": \"login\"}],\n"
+		body += "  \"contributions\": [\n"
+		body += "    {\n"
+		body += "      \"point\": \"forum.topic.actions\",\n"
+		body += "      \"id\": \"" + opts.ID + ".bookmark\",\n"
+		body += "      \"order\": 200,\n"
+		body += "      \"label\": {\"zh-CN\": \"收藏\", \"en-US\": \"Bookmark\"},\n"
+		body += "      \"icon\": \"i-lucide-bookmark\",\n"
+		body += "      \"payload\": {\"type\": \"extensionRoute\", \"method\": \"POST\", \"path\": \"/topic-actions/bookmark\", \"confirm\": true}\n"
+		body += "    }\n"
+		body += "  ]\n"
+		body += "}\n"
+		body += "```\n"
+	}
+	return body
 }
 
 func pluginBackendReadme(opts makeOptions) string {

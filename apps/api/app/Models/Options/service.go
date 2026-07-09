@@ -12,6 +12,7 @@ import (
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Localization"
 	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
@@ -222,6 +223,8 @@ type Service struct {
 	store    Store
 	cacheTTL time.Duration
 	defaults map[string]string
+	// cipher 加密敏感 option 值（云存储/SSH/FTP 凭证），nil/透明时为明文（开发环境）。
+	cipher *crypto.OptionCipher
 
 	mu        sync.RWMutex
 	cached    map[string]string
@@ -249,6 +252,13 @@ func NewServiceWithDefaultsAndCacheTTL(store Store, defaults Defaults, cacheTTL 
 		cacheTTL: cacheTTL,
 		defaults: normalizedDefaults(defaults),
 	}
+}
+
+// WithCipher 注入敏感值加密器（H2a）。返回 Service 自身以便链式调用。
+// 未调用时 cipher 为 nil，敏感值以明文存储（开发环境兼容）。
+func (s *Service) WithCipher(c *crypto.OptionCipher) *Service {
+	s.cipher = c
+	return s
 }
 
 func (s *Service) EnsureDefaults(ctx context.Context) error {
@@ -480,10 +490,22 @@ func (s *Service) UpdateMany(ctx context.Context, actor identity.Actor, inputs [
 		if !ok {
 			continue
 		}
+		// H2a：敏感值在写入前加密（数据库只存密文）。
+		if isSecretOption(name) {
+			encrypted, err := s.encryptValue(value)
+			if err != nil {
+				return nil, err
+			}
+			value = encrypted
+		}
 		if _, err := s.store.Upsert(ctx, UpdateInput{Name: name, Value: value}); err != nil {
 			return nil, err
 		}
 	}
+	// 写入后让缓存失效，下次读取重新从 DB 解密加载。
+	s.mu.Lock()
+	s.cached = nil
+	s.mu.Unlock()
 
 	s.Invalidate()
 	values, err := s.loadMap(ctx)
@@ -530,7 +552,12 @@ func (s *Service) loadMap(ctx context.Context) (map[string]string, error) {
 		if !isKnownOption(name) {
 			continue
 		}
-		value, ok := normalizeOptionValue(name, row.Value)
+		// H2a：敏感值在读取时解密（DB 存密文，内存/缓存存明文），在 normalize 之前解密以校验明文长度。
+		rawValue := row.Value
+		if isSecretOption(name) {
+			rawValue = s.decryptValue(rawValue)
+		}
+		value, ok := normalizeOptionValue(name, rawValue)
 		if ok {
 			values[name] = value
 		}
@@ -1280,6 +1307,27 @@ func isPublicOption(name string) bool {
 func isSecretOption(name string) bool {
 	definition, ok := optionDefinitionFor(name)
 	return ok && definition.secret
+}
+
+// encryptValue 加密敏感值；未配置 cipher 时透明返回原文（开发环境）。
+func (s *Service) encryptValue(value string) (string, error) {
+	if s.cipher == nil {
+		return value, nil
+	}
+	return s.cipher.Encrypt(value)
+}
+
+// decryptValue 解密敏感值；未配置 cipher 或值为明文时透明返回原文（兼容历史明文）。
+func (s *Service) decryptValue(value string) string {
+	if s.cipher == nil {
+		return value
+	}
+	decrypted, err := s.cipher.Decrypt(value)
+	if err != nil {
+		// 解密失败（密钥轮换/数据损坏）时回退原文，避免单个坏值拖垮全部 options 读取。
+		return value
+	}
+	return decrypted
 }
 
 func optionDefinitionFor(name string) (optionDefinition, bool) {

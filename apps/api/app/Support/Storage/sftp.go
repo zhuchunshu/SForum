@@ -6,9 +6,11 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -115,7 +117,11 @@ func (a *SFTPAdapter) Exists(ctx context.Context, key string) (bool, error) {
 	if err == nil {
 		return true, nil
 	}
-	return false, nil
+	// L5：区分"不存在"与"传输故障"，sftp 客户端对不存在文件返回 os.ErrNotExist。
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
 }
 
 func (a *SFTPAdapter) PublicURL(key string) string {
@@ -192,7 +198,11 @@ func (a *SFTPAdapter) authMethods() ([]ssh.AuthMethod, error) {
 func (a *SFTPAdapter) hostKeyCallback() ssh.HostKeyCallback {
 	expected := normalizeFingerprint(a.config.HostKeyFingerprint)
 	if expected == "" {
-		return ssh.InsecureIgnoreHostKey()
+		// H2b：空指纹时不再回退到 InsecureIgnoreHostKey（会暴露于 MITM），
+		// 而是返回拒绝所有密钥的 callback，强制运营者显式配置主机密钥指纹。
+		return func(hostname string, _ net.Addr, _ ssh.PublicKey) error {
+			return fmt.Errorf("sftp host key fingerprint not configured; set attachment.sftp.host_key_fingerprint to connect securely to %s", hostname)
+		}
 	}
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		actual := normalizeFingerprint(ssh.FingerprintSHA256(key))

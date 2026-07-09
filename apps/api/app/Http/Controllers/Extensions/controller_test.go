@@ -296,6 +296,62 @@ func TestControllerListsExtensionEventDefinitionsAndDeliveries(t *testing.T) {
 	}
 }
 
+func TestControllerListsContributionPointsAndContributions(t *testing.T) {
+	app, manager, store := newExtensionTestApp(t)
+	cookie := loginExtensionUser(t, app, manager, 1)
+	plugin := store.items["demo.plugin"]
+	plugin.Status = extensions.StatusEnabled
+	plugin.Manifest.Contributions = []extensions.ManifestContribution{{
+		Point: "forum.topic.actions",
+		ID:    "demo.bookmark",
+		Order: 100,
+		Label: map[string]string{
+			"zh-CN": "收藏",
+			"en-US": "Bookmark",
+		},
+		Icon:    "i-lucide-bookmark",
+		Payload: json.RawMessage(`{"type":"extensionRoute","method":"POST","path":"/topic-actions/bookmark"}`),
+	}}
+	store.items[plugin.ID] = plugin
+
+	resp := performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/contribution-points", nil)
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401 without session, got %d", resp.StatusCode)
+	}
+
+	ordinaryCookie := loginExtensionUser(t, app, manager, 2)
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/contributions", ordinaryCookie)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 without extension.manage, got %d", resp.StatusCode)
+	}
+
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/contribution-points", cookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 contribution points, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var points testEnvelope[[]extensions.ContributionPointDefinition]
+	if err := json.NewDecoder(resp.Body).Decode(&points); err != nil {
+		t.Fatalf("decode contribution points: %v", err)
+	}
+	if len(points.Data) != 1 || points.Data[0].ID != "forum.topic.actions" {
+		t.Fatalf("unexpected contribution points: %#v", points.Data)
+	}
+
+	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/contributions", cookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 contributions, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var contributions testEnvelope[[]extensions.EffectiveContribution]
+	if err := json.NewDecoder(resp.Body).Decode(&contributions); err != nil {
+		t.Fatalf("decode contributions: %v", err)
+	}
+	if len(contributions.Data) != 1 || contributions.Data[0].ExtensionID != "demo.plugin" || contributions.Data[0].ID != "demo.bookmark" {
+		t.Fatalf("unexpected contributions: %#v", contributions.Data)
+	}
+}
+
 func newExtensionTestApp(t *testing.T) (*fiber.App, *authsession.Manager, *controllerFakeStore) {
 	t.Helper()
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
@@ -365,7 +421,7 @@ func newExtensionTestApp(t *testing.T) (*fiber.App, *authsession.Manager, *contr
 			return err
 		})
 	})
-	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
+	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{controller, loginProvider},
 	})
 	return app, manager, store

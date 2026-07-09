@@ -13,7 +13,9 @@ const (
 
 	EditorTypeMarkdown = "markdown"
 
-	RenderVersion = "goldmark-bluemonday-v1"
+	// v2 启用 goldmark GFM 扩展（表格/删除线/自动链接/任务列表）并放开对应 sanitizer 规则。
+	// 存量帖子保留 v1 HTML，下次编辑时自然升级到 v2（不做批量重渲染）。
+	RenderVersion = "goldmark-bluemonday-v2"
 
 	TopicStatusActive  = "active"
 	TopicStatusLocked  = "locked"
@@ -41,19 +43,19 @@ const (
 	TopicActionPin     = "pin"
 	TopicActionUnpin   = "unpin"
 
-	CodeInvalidContent  = "forum.content_invalid"
-	CodeInvalidTopic    = "forum.topic_invalid"
-	CodeTopicNotFound   = "forum.topic_not_found"
-	CodeCommentNotFound = "forum.comment_not_found"
-	CodeTopicClosed     = "forum.topic_closed"
-	CodeInvalidTag      = "forum.tag_invalid"
-	CodeTagNotFound     = "forum.tag_not_found"
-	CodeInvalidSettings = "forum.settings_invalid"
-	CodeInvalidAction   = "forum.topic_action_invalid"
-	CodeUseSearch       = "forum.use_search_endpoint"
-	CodeReindexRunning  = "forum.reindex_running"        // 已有重建在进行
-	CodeReindexNoRun    = "forum.reindex_no_run"         // 尚无重建记录
-	CodeSearchUnavailable = "forum.search_unavailable"   // 搜索服务不可用
+	CodeInvalidContent    = "forum.content_invalid"
+	CodeInvalidTopic      = "forum.topic_invalid"
+	CodeTopicNotFound     = "forum.topic_not_found"
+	CodeCommentNotFound   = "forum.comment_not_found"
+	CodeTopicClosed       = "forum.topic_closed"
+	CodeInvalidTag        = "forum.tag_invalid"
+	CodeTagNotFound       = "forum.tag_not_found"
+	CodeInvalidSettings   = "forum.settings_invalid"
+	CodeInvalidAction     = "forum.topic_action_invalid"
+	CodeUseSearch         = "forum.use_search_endpoint"
+	CodeReindexRunning    = "forum.reindex_running"    // 已有重建在进行
+	CodeReindexNoRun      = "forum.reindex_no_run"     // 尚无重建记录
+	CodeSearchUnavailable = "forum.search_unavailable" // 搜索服务不可用
 )
 
 var (
@@ -78,6 +80,10 @@ type TopicSearchIndexer interface {
 	EnqueueIndex(ctx context.Context, topicID int64) error
 	// EnqueueDelete 调度从索引移除指定主题（用于删除/隐藏）。
 	EnqueueDelete(ctx context.Context, topicID int64) error
+}
+
+type TopicExtensionActionProvider interface {
+	TopicExtensionActions(ctx context.Context) ([]TopicExtensionAction, error)
 }
 
 type ContentInput struct {
@@ -183,7 +189,18 @@ type TopicSummary struct {
 
 type TopicDetail struct {
 	TopicSummary
-	Content RenderedContent `json:"content"`
+	Content          RenderedContent        `json:"content"`
+	ExtensionActions []TopicExtensionAction `json:"extensionActions,omitempty"`
+}
+
+type TopicExtensionAction struct {
+	ExtensionID string            `json:"extensionId"`
+	ID          string            `json:"id"`
+	Label       map[string]string `json:"label,omitempty"`
+	Icon        string            `json:"icon,omitempty"`
+	Method      string            `json:"method"`
+	URL         string            `json:"url"`
+	Confirm     bool              `json:"confirm,omitempty"`
 }
 
 type CreateTopicInput struct {
@@ -209,24 +226,24 @@ type CreateTopicRecord struct {
 // UpdateTopicInput 是作者或版主更新主题时提交的输入。content 为可选：
 // 不传则只更新标题/分类/标签，传则按 triple-storage 规则重新渲染并写入 post_revisions。
 type UpdateTopicInput struct {
-	TopicID       int64
-	CategorySlug  *string
-	Title         *string
-	TagSlugs      []string
-	Content       *ContentInput
+	TopicID      int64
+	CategorySlug *string
+	Title        *string
+	TagSlugs     []string
+	Content      *ContentInput
 }
 
 // UpdateTopicRecord 是 store 层更新主题的内部记录。content 为 nil 时表示不改正文。
 type UpdateTopicRecord struct {
-	TopicID       int64
-	EditorUserID  int64
-	CategorySlug  string
-	Title         string
-	Slug          string
-	TagSlugs      []string
+	TopicID         int64
+	EditorUserID    int64
+	CategorySlug    string
+	Title           string
+	Slug            string
+	TagSlugs        []string
 	TagCreationMode string
-	HasContent    bool
-	Content       RenderedContent
+	HasContent      bool
+	Content         RenderedContent
 }
 
 // TopicLifecycleInput 描述一次主题生命周期动作（hide/restore/lock/unlock/pin/unpin）。

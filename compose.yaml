@@ -58,10 +58,12 @@ services:
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-sforum-dev-redis}
       SESSION_HASH_SECRET: ${SESSION_HASH_SECRET:-sforum-dev-session-hash-secret}
+      APP_OPTION_ENC_KEY: ${APP_OPTION_ENC_KEY:-}
       HUMAN_VERIFICATION_PROVIDER: ${HUMAN_VERIFICATION_PROVIDER:-disabled}
       ALTCHA_SECRET: ${ALTCHA_SECRET:-sforum-dev-altcha-secret}
       ALTCHA_CHALLENGE_TTL: ${ALTCHA_CHALLENGE_TTL:-10m}
       ALTCHA_COST: ${ALTCHA_COST:-1000}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
       MEILI_HOST: ${MEILI_HOST:-http://meilisearch:7700}
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-sforum-dev-meili-key}
       EXTENSION_ROOT: ${EXTENSION_ROOT:-/var/lib/sforum/extensions}
@@ -95,10 +97,12 @@ services:
       REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-sforum-dev-redis}
       SESSION_HASH_SECRET: ${SESSION_HASH_SECRET:-sforum-dev-session-hash-secret}
+      APP_OPTION_ENC_KEY: ${APP_OPTION_ENC_KEY:-}
       HUMAN_VERIFICATION_PROVIDER: ${HUMAN_VERIFICATION_PROVIDER:-disabled}
       ALTCHA_SECRET: ${ALTCHA_SECRET:-sforum-dev-altcha-secret}
       ALTCHA_CHALLENGE_TTL: ${ALTCHA_CHALLENGE_TTL:-10m}
       ALTCHA_COST: ${ALTCHA_COST:-1000}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
       MEILI_HOST: ${MEILI_HOST:-http://meilisearch:7700}
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-sforum-dev-meili-key}
       EXTENSION_ROOT: ${EXTENSION_ROOT:-/var/lib/sforum/extensions}

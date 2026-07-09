@@ -4,7 +4,7 @@ const localePath = useLocalePath()
 const switchLocalePath = useSwitchLocalePath()
 const { user, refresh } = useAuthSession()
 const { siteName } = useWebOptions()
-const apiBaseUrl = useRuntimeConfig().public.apiBaseUrl as string
+const { request } = useApiClient()
 const router = useRouter()
 const colorMode = useColorMode()
 const { can } = usePermissions()
@@ -73,10 +73,8 @@ function syncResolvedColorMode() {
 async function logout() {
   menuOpen.value = false
   try {
-    await $fetch(`${apiBaseUrl}/auth/logout`, {
-      method: 'POST',
-      credentials: 'include'
-    })
+    // 经 useApiClient.request，自动携带 CSRF token 与凭据。
+    await request('/auth/logout', { method: 'POST' })
   } catch {
     // 即使接口失败也清空本地状态
   }

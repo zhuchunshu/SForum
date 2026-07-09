@@ -203,6 +203,7 @@
       "extensionThemes": "Theme management",
       "extensionSettings": "Extension settings",
       "extensionEvents": "Event log",
+      "extensionContributions": "Extension points",
       "forumHome": "Forum home",
       "forum": "Forum",
       "forumCategories": "Categories",
@@ -487,6 +488,20 @@
         "count": "{count} setting declaration(s) found",
         "emptyTitle": "No extension setting declarations",
         "emptyDescription": "Installed extension manifests do not declare settings yet, so there is nothing to configure here."
+      },
+      "contributions": {
+        "metaTitle": "Extension points",
+        "title": "Extension points",
+        "intro": "Review host-owned typed extension points and safe descriptors contributed by enabled plugins.",
+        "pointsTitle": "Host extension points",
+        "activeTitle": "Active contributions",
+        "pointsCount": "{count} point(s)",
+        "activeCount": "{count} active item(s)",
+        "emptyPointsTitle": "No extension point definitions",
+        "emptyPointsDescription": "The host contribution point catalog could not be loaded.",
+        "emptyActiveTitle": "No active contributions",
+        "emptyActiveDescription": "Enabled plugins that declare contributions will appear here.",
+        "order": "Order {order}"
       },
       "dynamic": {
         "loading": "Loading extension information...",
@@ -1598,6 +1613,8 @@
     "hide": "Hide",
     "confirmDelete": "Delete this topic?",
     "actionFailed": "Action failed, please try again.",
+    "confirmExtensionAction": "Run “{action}”?",
+    "extensionActionFailed": "Extension action failed, please try again.",
     "lockToggled": "Topic lock state updated.",
     "pinToggled": "Topic pin state updated.",
     "hidden": "Topic hidden.",

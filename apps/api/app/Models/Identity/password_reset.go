@@ -89,6 +89,34 @@ func (s *PostgresStore) UpdateUserPassword(ctx context.Context, userID int64, pa
 	return nil
 }
 
+// GetUserTokenVersion 返回用户当前的令牌版本号，用于会话失效校验（M8）。
+func (s *PostgresStore) GetUserTokenVersion(ctx context.Context, userID int64) (int64, error) {
+	var version int64
+	err := s.pool.QueryRow(ctx, `
+		SELECT current_token_version FROM users WHERE id = $1
+	`, userID).Scan(&version)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrCredentialNotFound
+	}
+	if err != nil {
+		return 0, fmt.Errorf("get user token version: %w", err)
+	}
+	return version, nil
+}
+
+// IncrementUserTokenVersion 递增用户令牌版本号，使该用户所有旧会话失效（M8）。
+// 用于密码重置成功后，让攻击者已持有的旧会话不再有效。
+func (s *PostgresStore) IncrementUserTokenVersion(ctx context.Context, userID int64) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE users SET current_token_version = current_token_version + 1, updated_at = now()
+		WHERE id = $1
+	`, userID)
+	if err != nil {
+		return fmt.Errorf("increment user token version: %w", err)
+	}
+	return nil
+}
+
 // CreatePasswordResetTokenInput 是创建重置令牌的入参。
 type CreatePasswordResetTokenInput struct {
 	UserID        int64

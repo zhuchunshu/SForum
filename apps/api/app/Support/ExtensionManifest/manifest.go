@@ -1,6 +1,7 @@
 package extensionmanifest
 
 import (
+	"encoding/json"
 	"errors"
 	"net/mail"
 	"net/url"
@@ -26,29 +27,34 @@ var (
 	ErrInvalidManifest = errors.New("extensions: invalid manifest")
 
 	manifestIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{1,80}$`)
+	// manifestVersionPattern 约束 Version 字段，防止 "../../../tmp/evil" 之类的路径穿越
+	// 在 filepath.Join(extensionRoot, id, version) 时逃逸出 extensionRoot（C1）。
+	// 允许语义化版本常见字符，禁止 / \ 与纯 . / .. 。
+	manifestVersionPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._+\-~]{0,63}$`)
 )
 
 type Manifest struct {
-	ID            string              `json:"id"`
-	Name          string              `json:"name"`
-	Description   string              `json:"description"`
-	URL           string              `json:"url"`
-	Author        ManifestAuthor      `json:"author"`
-	Version       string              `json:"version"`
-	Type          string              `json:"type"`
-	SForumVersion string              `json:"sforumVersion"`
-	Permissions   []string            `json:"permissions"`
-	Settings      []ManifestSetting   `json:"settings"`
-	Migrations    []ManifestMigration `json:"migrations"`
-	Backend       ManifestBackend     `json:"backend"`
-	Frontend      ManifestFrontend    `json:"frontend"`
-	Admin         ManifestAdmin       `json:"admin"`
-	AdminPages    []ManifestAdminPage `json:"adminPages"`
-	Routes        []ManifestRoute     `json:"routes"`
-	Hooks         []ManifestHook      `json:"hooks"`
-	Events        []ManifestEvent     `json:"events"`
-	Jobs          []ManifestJob       `json:"jobs"`
-	Providers     []ManifestProvider  `json:"providers"`
+	ID            string                 `json:"id"`
+	Name          string                 `json:"name"`
+	Description   string                 `json:"description"`
+	URL           string                 `json:"url"`
+	Author        ManifestAuthor         `json:"author"`
+	Version       string                 `json:"version"`
+	Type          string                 `json:"type"`
+	SForumVersion string                 `json:"sforumVersion"`
+	Permissions   []string               `json:"permissions"`
+	Settings      []ManifestSetting      `json:"settings"`
+	Migrations    []ManifestMigration    `json:"migrations"`
+	Backend       ManifestBackend        `json:"backend"`
+	Frontend      ManifestFrontend       `json:"frontend"`
+	Admin         ManifestAdmin          `json:"admin"`
+	AdminPages    []ManifestAdminPage    `json:"adminPages"`
+	Routes        []ManifestRoute        `json:"routes"`
+	Hooks         []ManifestHook         `json:"hooks"`
+	Events        []ManifestEvent        `json:"events"`
+	Jobs          []ManifestJob          `json:"jobs"`
+	Providers     []ManifestProvider     `json:"providers"`
+	Contributions []ManifestContribution `json:"contributions"`
 }
 
 type ManifestAuthor struct {
@@ -123,12 +129,50 @@ type ManifestProvider struct {
 	TimeoutMS int    `json:"timeoutMs,omitempty"`
 }
 
+type ManifestContribution struct {
+	Point   string            `json:"point"`
+	ID      string            `json:"id"`
+	Order   int               `json:"order,omitempty"`
+	Label   map[string]string `json:"label,omitempty"`
+	Icon    string            `json:"icon,omitempty"`
+	Payload json.RawMessage   `json:"payload,omitempty"`
+}
+
+type TopicActionContributionPayload struct {
+	Type    string `json:"type"`
+	Method  string `json:"method"`
+	Path    string `json:"path"`
+	Confirm bool   `json:"confirm,omitempty"`
+}
+
+type ContributionPointDefinition struct {
+	ID          string `json:"id"`
+	Owner       string `json:"owner"`
+	Kind        string `json:"kind"`
+	Description string `json:"description"`
+	PayloadType string `json:"payloadType"`
+}
+
+func ContributionPointDefinitions() []ContributionPointDefinition {
+	return []ContributionPointDefinition{{
+		ID:          "forum.topic.actions",
+		Owner:       "forum",
+		Kind:        "action",
+		Description: "Topic detail action descriptors rendered by the host UI.",
+		PayloadType: "extensionRoute",
+	}}
+}
+
 func Validate(manifest Manifest) error {
 	manifest = Normalize(manifest)
 	if !manifestIDPattern.MatchString(manifest.ID) {
 		return ErrInvalidManifest
 	}
 	if manifest.Name == "" || manifest.Description == "" || manifest.URL == "" || manifest.Author.Name == "" || manifest.Version == "" || manifest.SForumVersion == "" {
+		return ErrInvalidManifest
+	}
+	// C1：Version 严格约束，防止路径穿越逃逸 extensionRoot。
+	if !manifestVersionPattern.MatchString(manifest.Version) {
 		return ErrInvalidManifest
 	}
 	if !validHTTPURL(manifest.URL) || (manifest.Author.URL != "" && !validHTTPURL(manifest.Author.URL)) {
@@ -237,6 +281,9 @@ func Validate(manifest Manifest) error {
 			return ErrInvalidManifest
 		}
 	}
+	if err := validateContributions(manifest); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -290,6 +337,9 @@ func Normalize(manifest Manifest) Manifest {
 	for index := range manifest.Providers {
 		manifest.Providers[index].Slot = strings.TrimSpace(manifest.Providers[index].Slot)
 		manifest.Providers[index].Label = strings.TrimSpace(manifest.Providers[index].Label)
+	}
+	for index := range manifest.Contributions {
+		manifest.Contributions[index] = normalizeContribution(manifest.Contributions[index])
 	}
 	return manifest
 }
@@ -459,7 +509,122 @@ func isThemeManifestSupported(manifest Manifest) bool {
 		len(manifest.Hooks) == 0 &&
 		len(manifest.Events) == 0 &&
 		len(manifest.Jobs) == 0 &&
-		len(manifest.Providers) == 0
+		len(manifest.Providers) == 0 &&
+		len(manifest.Contributions) == 0
+}
+
+func normalizeContribution(contribution ManifestContribution) ManifestContribution {
+	contribution.Point = strings.TrimSpace(contribution.Point)
+	contribution.ID = NormalizeID(contribution.ID)
+	contribution.Icon = strings.TrimSpace(contribution.Icon)
+	if contribution.Label != nil {
+		labels := make(map[string]string, len(contribution.Label))
+		for locale, value := range contribution.Label {
+			locale = strings.TrimSpace(locale)
+			value = strings.TrimSpace(value)
+			if locale != "" && value != "" {
+				labels[locale] = value
+			}
+		}
+		contribution.Label = labels
+	}
+	if contribution.Point == "forum.topic.actions" && len(contribution.Payload) > 0 {
+		var payload TopicActionContributionPayload
+		if err := json.Unmarshal(contribution.Payload, &payload); err == nil {
+			payload.Type = strings.TrimSpace(payload.Type)
+			payload.Method = strings.ToUpper(strings.TrimSpace(payload.Method))
+			payload.Path = strings.TrimSpace(strings.ReplaceAll(payload.Path, "\\", "/"))
+			if !strings.Contains(payload.Path, "://") {
+				payload.Path = NormalizeRoutePath(payload.Path)
+			}
+			if normalized, err := json.Marshal(payload); err == nil {
+				contribution.Payload = normalized
+			}
+		}
+	}
+	return contribution
+}
+
+func validateContributions(manifest Manifest) error {
+	seen := map[string]bool{}
+	for _, contribution := range manifest.Contributions {
+		if contribution.Point == "" || contribution.ID == "" || !knownContributionPoint(contribution.Point) {
+			return ErrInvalidManifest
+		}
+		key := contribution.Point + ":" + contribution.ID
+		if seen[key] {
+			return ErrInvalidManifest
+		}
+		seen[key] = true
+		if contribution.Order < 0 {
+			return ErrInvalidManifest
+		}
+		if contribution.Icon != "" && !allowedContributionIcon(contribution.Icon) {
+			return ErrInvalidManifest
+		}
+		if len(contribution.Label) == 0 {
+			return ErrInvalidManifest
+		}
+		for locale, label := range contribution.Label {
+			if strings.TrimSpace(locale) == "" || strings.TrimSpace(label) == "" {
+				return ErrInvalidManifest
+			}
+		}
+		switch contribution.Point {
+		case "forum.topic.actions":
+			if err := validateTopicActionContributionPayload(contribution.Payload); err != nil {
+				return err
+			}
+		default:
+			return ErrInvalidManifest
+		}
+	}
+	return nil
+}
+
+func knownContributionPoint(point string) bool {
+	for _, definition := range ContributionPointDefinitions() {
+		if definition.ID == point {
+			return true
+		}
+	}
+	return false
+}
+
+func allowedContributionIcon(icon string) bool {
+	return strings.HasPrefix(icon, "i-lucide-") || strings.HasPrefix(icon, "i-tabler-")
+}
+
+func validateTopicActionContributionPayload(raw json.RawMessage) error {
+	if len(raw) == 0 {
+		return ErrInvalidManifest
+	}
+	var payload TopicActionContributionPayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return ErrInvalidManifest
+	}
+	if payload.Type != "extensionRoute" {
+		return ErrInvalidManifest
+	}
+	switch payload.Method {
+	case "POST", "PUT", "PATCH", "DELETE":
+	default:
+		return ErrInvalidManifest
+	}
+	if !safeContributionRoutePath(payload.Path) {
+		return ErrInvalidManifest
+	}
+	return nil
+}
+
+func safeContributionRoutePath(value string) bool {
+	if value == "" || !strings.HasPrefix(value, "/") || value == "/" {
+		return false
+	}
+	if strings.Contains(value, "://") || strings.Contains(value, "..") {
+		return false
+	}
+	return value != "/api" && !strings.HasPrefix(value, "/api/")
 }
 
 func knownProviderSlot(slot string) bool {

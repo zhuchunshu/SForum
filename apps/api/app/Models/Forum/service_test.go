@@ -82,7 +82,7 @@ func TestServiceCreateTopicDeduplicatesSlugOnCollision(t *testing.T) {
 	topic2, err := service2.CreateTopic(context.Background(), actor, CreateTopicInput{
 		CategorySlug: "general",
 		Title:        "Hello World",
-		Content: ContentInput{RawContent: "正文", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
+		Content:      ContentInput{RawContent: "正文", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
 	})
 	if err != nil {
 		t.Fatalf("CreateTopic returned error: %v", err)
@@ -303,6 +303,51 @@ func TestServiceCreateTopicCreatedEventIncludesTagSlugs(t *testing.T) {
 	payload, ok := envelope.Payload["tagSlugs"].([]string)
 	if !ok || !stringSlicesEqual(payload, []string{"go", "nuxt"}) {
 		t.Fatalf("expected tag slugs in created event, got %#v", envelope.Payload["tagSlugs"])
+	}
+}
+
+func TestServiceGetTopicDecoratesExtensionActions(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewServiceWithTopicExtensionActions(store, staticSettingsResolver{}, nil, nil, fakeTopicActionProvider{
+		actions: []TopicExtensionAction{{
+			ExtensionID: "demo.plugin",
+			ID:          "demo.bookmark",
+			Label:       map[string]string{"zh-CN": "收藏", "en-US": "Bookmark"},
+			Icon:        "i-lucide-bookmark",
+			Method:      "POST",
+			URL:         "/extensions/demo.plugin/topic-actions/bookmark",
+			Confirm:     true,
+		}},
+	})
+
+	topic, err := service.GetTopic(context.Background(), 42)
+	if err != nil {
+		t.Fatalf("GetTopic returned error: %v", err)
+	}
+	if len(topic.ExtensionActions) != 1 || topic.ExtensionActions[0].ID != "demo.bookmark" {
+		t.Fatalf("expected topic extension action, got %#v", topic.ExtensionActions)
+	}
+}
+
+func TestServiceGetTopicBySlugDecoratesExtensionActions(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewServiceWithTopicExtensionActions(store, staticSettingsResolver{}, nil, nil, fakeTopicActionProvider{
+		actions: []TopicExtensionAction{{
+			ExtensionID: "demo.plugin",
+			ID:          "demo.share",
+			Label:       map[string]string{"zh-CN": "分享"},
+			Icon:        "i-lucide-share-2",
+			Method:      "POST",
+			URL:         "/extensions/demo.plugin/topic-actions/share",
+		}},
+	})
+
+	topic, err := service.GetTopicBySlug(context.Background(), "hello-world")
+	if err != nil {
+		t.Fatalf("GetTopicBySlug returned error: %v", err)
+	}
+	if len(topic.ExtensionActions) != 1 || topic.ExtensionActions[0].ID != "demo.share" {
+		t.Fatalf("expected slug topic extension action, got %#v", topic.ExtensionActions)
 	}
 }
 
@@ -679,6 +724,18 @@ func (r fakeSettingsResolver) ForumSettings(context.Context) (ForumSettings, err
 	return r.settings, nil
 }
 
+type fakeTopicActionProvider struct {
+	actions []TopicExtensionAction
+	err     error
+}
+
+func (p fakeTopicActionProvider) TopicExtensionActions(context.Context) ([]TopicExtensionAction, error) {
+	if p.err != nil {
+		return nil, p.err
+	}
+	return p.actions, nil
+}
+
 type serviceFakeStore struct {
 	nextID            int64
 	createdTopic      CreateTopicRecord
@@ -687,12 +744,12 @@ type serviceFakeStore struct {
 	updatedTopic      UpdateTopicRecord
 	deletedTopicID    int64
 	appliedAction     string
-	commentSummary     CommentSummary
-	commentSummaryErr  error
-	resolvedTags       []TopicTagSummary
-	resolveTagsErr     error
-	resolveTagsCalled  bool
-	resolvedTagsInput  ResolveTopicTagsInput
+	commentSummary    CommentSummary
+	commentSummaryErr error
+	resolvedTags      []TopicTagSummary
+	resolveTagsErr    error
+	resolveTagsCalled bool
+	resolvedTagsInput ResolveTopicTagsInput
 	// GetTopic 可配置返回错误，供评论可见性兜底测试模拟隐藏/不可见主题。
 	getTopicErr error
 	// ListComments 可配置返回值与调用记录，供分页/view 校验测试断言。
@@ -700,8 +757,8 @@ type serviceFakeStore struct {
 	listCommentsInput  CommentListInput
 	listCommentsCalled bool
 	// ListCommentReplies 可配置返回值与调用记录，供回复可见性兜底测试断言。
-	listCommentRepliesResult  []Comment
-	listCommentRepliesCalled  bool
+	listCommentRepliesResult []Comment
+	listCommentRepliesCalled bool
 	// existingSlugs 模拟已占用的 slug 集合，供 TopicSlugExists 判重。
 	existingSlugs map[string]bool
 }

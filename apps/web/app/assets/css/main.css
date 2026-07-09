@@ -194,8 +194,9 @@ html.dark {
 }
 
 /*
- * .sf-prose：话题正文 / 评论 HTML 的排版容器。
+ * .sf-prose：话题正文 / 评论 HTML 的排版容器（A · Classic Teal 精修版）。
  * 基于 @tailwindcss/typography 的 prose，覆盖为主色（teal）风格，适配深浅双模式。
+ * 细节规则放在下方普通 CSS 中，便于与 highlight.js token span、GFM 表格横向滚动等共存。
  * 用于 <div class="sf-prose" v-html="..." />。
  */
 .sf-prose {
@@ -204,15 +205,110 @@ html.dark {
          prose-a:text-[color:var(--sf-accent)] prose-a:no-underline hover:prose-a:underline
          prose-strong:font-semibold
          prose-code:before:content-none prose-code:after:content-none
-         prose-code:rounded prose-code:bg-slate-100 prose-code:dark:bg-zinc-800
-         prose-code:px-1.5 prose-code:py-0.5 prose-code:text-[0.875em]
-         prose-code:font-medium prose-code:text-[color:var(--sf-accent)]
-         prose-code:break-words
-         prose-pre:bg-slate-900 prose-pre:dark:bg-zinc-950 prose-pre:border prose-pre:border-slate-800 prose-pre:dark:border-zinc-800
          prose-img:rounded-lg prose-img:border prose-img:border-slate-200 prose-img:dark:border-zinc-800
-         prose-blockquote:border-[color:var(--sf-accent)] prose-blockquote:not-italic prose-blockquote:font-normal
-         prose-li:marker:text-slate-400 prose-table:text-sm;
+         prose-li:marker:text-[color:var(--sf-accent)];
+  line-height: 1.75;
 }
+
+/* 行内代码：主色软底（代码块内的 code 由下方 pre 规则重置为透明） */
+.sf-prose :where(code) {
+  font-family: var(--font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace);
+  font-size: 0.86em;
+  background: color-mix(in srgb, var(--sf-accent) 8%, transparent);
+  color: var(--sf-accent);
+  padding: 0.18em 0.42em;
+  border-radius: 5px;
+  font-weight: 500;
+  word-break: break-word;
+}
+.dark .sf-prose :where(code) {
+  background: color-mix(in srgb, var(--sf-accent) 18%, transparent);
+}
+
+/* 代码块：深色背景，留出空间给 highlight.js token 着色 */
+.sf-prose :where(pre) {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 18px 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  overflow-x: auto;
+  font-size: 0.86em;
+  line-height: 1.6;
+  margin: 1.4em 0;
+}
+.dark .sf-prose :where(pre) {
+  background: #09090b;
+  border-color: var(--border-default);
+}
+/* pre 内的 code 恢复为透明，让 hljs token 配色生效 */
+.sf-prose :where(pre) :where(code),
+.sf-prose :where(pre) code.hljs {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: 1em;
+  font-weight: 400;
+}
+
+/* 引用块：主色竖线，退后一步不抢戏 */
+.sf-prose :where(blockquote) {
+  border-left: 3px solid var(--sf-accent);
+  color: #475569;
+  font-style: normal;
+  font-weight: inherit;
+  padding-left: 1.1em;
+  margin: 1.4em 0;
+}
+.dark .sf-prose :where(blockquote) {
+  color: #a1a1aa;
+}
+
+/* GFM 表格：细线 + 斑马纹，窄屏横向滚动避免撑破版心 */
+.sf-prose :where(table) {
+  width: 100%;
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+  font-size: 0.92em;
+  margin: 1.4em 0;
+}
+.sf-prose :where(th),
+.sf-prose :where(td) {
+  border: 1px solid var(--border-default);
+  padding: 0.55em 0.8em;
+  text-align: left;
+  white-space: nowrap;
+}
+.sf-prose :where(th) {
+  background: color-mix(in srgb, var(--text-main) 4%, transparent);
+  font-weight: 600;
+}
+.sf-prose :where(tr:nth-child(even)) :where(td) {
+  background: color-mix(in srgb, var(--text-main) 2%, transparent);
+}
+
+/* GFM 任务列表 checkbox：禁用原生列表标记，让 checkbox 对齐 */
+.sf-prose :where(ul:has(input[type="checkbox"])) {
+  list-style: none;
+  padding-left: 0.5em;
+}
+.sf-prose :where(li:has(input[type="checkbox"])) {
+  list-style: none;
+}
+.sf-prose :where(input[type="checkbox"]) {
+  margin-right: 0.5em;
+  vertical-align: middle;
+  accent-color: var(--sf-accent);
+}
+
+/* 分隔线与图片 */
+.sf-prose :where(hr) {
+  border: 0;
+  border-top: 1px solid var(--border-default);
+  margin: 2em 0;
+}
+
 
 body {
   margin: 0;

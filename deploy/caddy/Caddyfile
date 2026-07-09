@@ -1,4 +1,17 @@
 {$APP_DOMAIN} {
 	encode zstd gzip
+
+	# H4：浏览器层安全响应头。
+	header {
+		# 强制 HTTPS（生产域名），预防降级攻击。
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# 阻止 MIME 嗅探（与 API 侧附件 nosniff 呼应）。
+		X-Content-Type-Options "nosniff"
+		# 禁止被任意站点嵌入框架，防点击劫持。
+		X-Frame-Options "DENY"
+		# 仅在同源请求中发送 Referer，避免泄漏完整 URL 到第三方。
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
 	reverse_proxy 127.0.0.1:{$WEB_PORT:3000}
 }

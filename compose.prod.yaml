@@ -12,7 +12,7 @@ services:
       APP_LOCALE: ${APP_LOCALE:-zh-CN}
       SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-zh-CN,en-US}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      DATABASE_URL: ${DATABASE_URL:-postgres://sforum:change-me@postgres:5432/sforum?sslmode=disable}
+      DATABASE_URL: ${DATABASE_URL:-postgres://sforum:change-me@postgres:5432/sforum?sslmode=require}
     depends_on:
       postgres:
         condition: service_healthy

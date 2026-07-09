@@ -178,7 +178,7 @@ func (s *PostgresStore) ListUsers(ctx context.Context, input UserListInput) (Adm
 	const countSQL = `
 		SELECT count(*)
 		FROM users
-		WHERE ($1 = '' OR username_lower LIKE '%' || lower($1) || '%' OR email_lower LIKE '%' || lower($1) || '%' OR lower(display_name) LIKE '%' || lower($1) || '%')
+		WHERE ($1 = '' OR username_lower LIKE '%' || lower($1) || '%' ESCAPE '\' OR email_lower LIKE '%' || lower($1) || '%' ESCAPE '\' OR lower(display_name) LIKE '%' || lower($1) || '%' ESCAPE '\')
 		  AND ($2 = '' OR status = $2)
 		  AND ($3 = '' OR EXISTS (
 		    SELECT 1
@@ -190,7 +190,7 @@ func (s *PostgresStore) ListUsers(ctx context.Context, input UserListInput) (Adm
 	const listSQL = `
 		SELECT id, username, email, display_name, locale, status, is_initial_super_admin
 		FROM users
-		WHERE ($1 = '' OR username_lower LIKE '%' || lower($1) || '%' OR email_lower LIKE '%' || lower($1) || '%' OR lower(display_name) LIKE '%' || lower($1) || '%')
+		WHERE ($1 = '' OR username_lower LIKE '%' || lower($1) || '%' ESCAPE '\' OR email_lower LIKE '%' || lower($1) || '%' ESCAPE '\' OR lower(display_name) LIKE '%' || lower($1) || '%' ESCAPE '\')
 		  AND ($2 = '' OR status = $2)
 		  AND ($3 = '' OR EXISTS (
 		    SELECT 1

@@ -189,6 +189,30 @@ func (h *Controller) eventDeliveries(c fiber.Ctx) error {
 	return apphttp.OK(c, items)
 }
 
+func (h *Controller) contributionPoints(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.service.ContributionPoints(c.Context(), actor)
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, items)
+}
+
+func (h *Controller) contributions(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.service.Contributions(c.Context(), actor)
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, items)
+}
+
 func (h *Controller) settings(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {

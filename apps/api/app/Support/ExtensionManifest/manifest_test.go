@@ -136,3 +136,216 @@ func TestLegacyAdminPagesRemainCompatible(t *testing.T) {
 		t.Fatalf("expected legacy explicit menu page, got %#v", menuPages)
 	}
 }
+
+func TestManifestContributionsNormalizeAndValidateTopicAction(t *testing.T) {
+	body := []byte(`{
+		"id":"demo.plugin",
+		"name":"Demo Plugin",
+		"description":"Demo plugin.",
+		"url":"https://example.com/demo",
+		"author":{"name":"Demo Studio"},
+		"version":"1.0.0",
+		"type":"plugin",
+		"sforumVersion":"^1.0.0",
+		"contributions":[
+			{
+				"point":" forum.topic.actions ",
+				"id":" Bookmark.Action ",
+				"order":200,
+				"label":{"zh-CN":"收藏","en-US":"Bookmark"},
+				"icon":" i-lucide-bookmark ",
+				"payload":{
+					"type":"extensionRoute",
+					"method":"post",
+					"path":"topic-actions/bookmark",
+					"confirm":true
+				}
+			}
+		]
+	}`)
+
+	var manifest Manifest
+	if err := json.Unmarshal(body, &manifest); err != nil {
+		t.Fatalf("decode manifest: %v", err)
+	}
+	normalized := Normalize(manifest)
+	if len(normalized.Contributions) != 1 {
+		t.Fatalf("expected one contribution, got %#v", normalized.Contributions)
+	}
+	contribution := normalized.Contributions[0]
+	if contribution.Point != "forum.topic.actions" || contribution.ID != "bookmark.action" || contribution.Icon != "i-lucide-bookmark" {
+		t.Fatalf("contribution was not normalized: %#v", contribution)
+	}
+	var payload TopicActionContributionPayload
+	if err := json.Unmarshal(contribution.Payload, &payload); err != nil {
+		t.Fatalf("decode normalized payload: %v", err)
+	}
+	if payload.Method != "POST" || payload.Path != "/topic-actions/bookmark" || !payload.Confirm {
+		t.Fatalf("payload was not normalized: %#v", payload)
+	}
+	if err := Validate(manifest); err != nil {
+		t.Fatalf("valid contribution manifest should validate: %v", err)
+	}
+}
+
+func TestManifestContributionsRejectUnsafeDeclarations(t *testing.T) {
+	base := Manifest{
+		ID:            "demo.plugin",
+		Name:          "Demo Plugin",
+		Description:   "Demo plugin.",
+		URL:           "https://example.com/demo",
+		Author:        ManifestAuthor{Name: "Demo Studio"},
+		Version:       "1.0.0",
+		Type:          TypePlugin,
+		SForumVersion: "^1.0.0",
+	}
+	valid := ManifestContribution{
+		Point: "forum.topic.actions",
+		ID:    "demo.bookmark",
+		Label: map[string]string{"zh-CN": "收藏", "en-US": "Bookmark"},
+		Icon:  "i-lucide-bookmark",
+		Payload: json.RawMessage(`{
+			"type":"extensionRoute",
+			"method":"POST",
+			"path":"/topic-actions/bookmark"
+		}`),
+	}
+
+	cases := []struct {
+		name         string
+		contribution ManifestContribution
+		extra        []ManifestContribution
+	}{
+		{
+			name: "unknown contribution point",
+			contribution: func() ManifestContribution {
+				next := valid
+				next.Point = "forum.unknown"
+				return next
+			}(),
+		},
+		{
+			name:         "duplicate point and id inside one manifest",
+			contribution: valid,
+			extra:        []ManifestContribution{valid},
+		},
+		{
+			name: "missing point",
+			contribution: func() ManifestContribution {
+				next := valid
+				next.Point = ""
+				return next
+			}(),
+		},
+		{
+			name: "missing id",
+			contribution: func() ManifestContribution {
+				next := valid
+				next.ID = ""
+				return next
+			}(),
+		},
+		{
+			name: "external payload path",
+			contribution: func() ManifestContribution {
+				next := valid
+				next.Payload = json.RawMessage(`{"type":"extensionRoute","method":"POST","path":"https://example.com/action"}`)
+				return next
+			}(),
+		},
+		{
+			name: "payload path traversal",
+			contribution: func() ManifestContribution {
+				next := valid
+				next.Payload = json.RawMessage(`{"type":"extensionRoute","method":"POST","path":"/../action"}`)
+				return next
+			}(),
+		},
+		{
+			name: "payload path targets core api",
+			contribution: func() ManifestContribution {
+				next := valid
+				next.Payload = json.RawMessage(`{"type":"extensionRoute","method":"POST","path":"/api/v1/topics/1"}`)
+				return next
+			}(),
+		},
+		{
+			name: "unknown method",
+			contribution: func() ManifestContribution {
+				next := valid
+				next.Payload = json.RawMessage(`{"type":"extensionRoute","method":"GET","path":"/topic-actions/bookmark"}`)
+				return next
+			}(),
+		},
+		{
+			name: "unknown payload type",
+			contribution: func() ManifestContribution {
+				next := valid
+				next.Payload = json.RawMessage(`{"type":"rawHtml","method":"POST","path":"/topic-actions/bookmark"}`)
+				return next
+			}(),
+		},
+		{
+			name: "unsupported icon prefix",
+			contribution: func() ManifestContribution {
+				next := valid
+				next.Icon = "i-custom-bookmark"
+				return next
+			}(),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			manifest := base
+			manifest.Contributions = append([]ManifestContribution{tc.contribution}, tc.extra...)
+			if err := Validate(manifest); !errors.Is(err, ErrInvalidManifest) {
+				t.Fatalf("expected invalid manifest, got %v", err)
+			}
+		})
+	}
+}
+
+// validBaseManifest 构造一个最小合法 manifest，供 C1 Version 校验测试复用。
+func validBaseManifest() Manifest {
+	return Manifest{
+		ID:            "demo.plugin",
+		Name:          "Demo",
+		Description:   "Demo plugin.",
+		URL:           "https://example.com/demo",
+		Author:        ManifestAuthor{Name: "Demo"},
+		Version:       "1.0.0",
+		Type:          "plugin",
+		SForumVersion: "^1.0.0",
+	}
+}
+
+// TestManifestVersionRejectsPathTraversal 验证 C1：危险 Version 值（路径穿越）被拒绝。
+func TestManifestVersionRejectsPathTraversal(t *testing.T) {
+	dangerous := []string{
+		"../../../tmp/evil",
+		"..",
+		"/absolute/path",
+		"with/slash",
+		"back\\slash",
+	}
+	for _, v := range dangerous {
+		m := validBaseManifest()
+		m.Version = v
+		if err := Validate(m); !errors.Is(err, ErrInvalidManifest) {
+			t.Fatalf("expected Version %q to be rejected, got %v", v, err)
+		}
+	}
+}
+
+// TestManifestVersionAcceptsValidSemver 验证 C1：合法版本号仍被接受。
+func TestManifestVersionAcceptsValidSemver(t *testing.T) {
+	valid := []string{"1.0.0", "2.5.1-beta.1", "1.0.0+build.123", "0.0.1", "v1.2.3", "1.0"}
+	for _, v := range valid {
+		m := validBaseManifest()
+		m.Version = v
+		if err := Validate(m); err != nil {
+			t.Fatalf("expected Version %q to be accepted, got %v", v, err)
+		}
+	}
+}

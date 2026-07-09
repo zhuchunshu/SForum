@@ -68,6 +68,8 @@ and plugin runtime v1.
   - `GET /api/v1/admin/extensions/:id/settings`
   - `PUT /api/v1/admin/extensions/:id/settings`
   - `POST /api/v1/admin/extensions/:id/settings/reset`
+  - `GET /api/v1/admin/extensions/contribution-points`
+  - `GET /api/v1/admin/extensions/contributions`
   - `GET /api/v1/admin/extensions/event-definitions`
   - `GET /api/v1/admin/extensions/event-deliveries`
   - `ALL /api/v1/extensions/:extensionId/*` proxies declared enabled plugin
@@ -75,7 +77,7 @@ and plugin runtime v1.
 - The admin UI has an independent "Extensions" sidebar folder registered
   through the low-code admin module registry and protected by
   `extension.manage`. Its first submenu set is Overview, Plugins, Themes,
-  Settings, and Event Log. Enabled plugins and the active theme can inject
+  Settings, Event Log, and Extension Points. Enabled plugins and the active theme can inject
   manifest-declared core-container admin pages under the fixed
   `/extensions/{id}/pages/*` admin namespace; installed extensions also have a
   "Manage" entry from plugin/theme list rows.
@@ -103,6 +105,11 @@ and plugin runtime v1.
   behavior: new manifests may declare `admin.entry` and `admin.pages[]`,
   legacy `adminPages` remains compatible, `Manage` resolves inside the admin
   shell, and sidebar injection requires explicit `menu: true`.
+- Typed extension contributions are implemented as an Itf-inspired but
+  host-owned registry. Plugins may declare `contributions[]` to known points;
+  core validates payloads, resolves effective enabled-plugin contributions,
+  exposes read-only admin inspection, and the first runtime consumer is
+  `forum.topic.actions`.
 
 ## Boundaries
 
@@ -123,6 +130,12 @@ and plugin runtime v1.
   Slots. `topic.before_create` is the first synchronous filter event; lifecycle,
   user registration, topic/comment creation, and attachment upload are observe
   events with delivery tracking.
+- Declarative contributions are separate from events, filters, provider slots,
+  and routes. Contributions are ordered descriptors that a host-owned consumer
+  interprets; they do not execute code, override routes, render raw HTML, or
+  bypass API policy checks. The first point, `forum.topic.actions`, maps
+  enabled plugin descriptors to topic-page buttons that call declared extension
+  routes through the normal route proxy.
 - Event delivery attempts are recorded separately from lifecycle audit logs in
   `extension_event_deliveries`. The runtime has River job args and worker
   plumbing for durable async delivery, and falls back to inline delivery when no
@@ -181,7 +194,8 @@ Required identity fields: `id`, `name`, `description`, `url`, `author`,
 `version`, `type`, and `sforumVersion`.
 
 Capability fields: `permissions`, `settings`, `migrations`, `backend`,
-`frontend`, `adminPages`, `routes`, `hooks`, `events`, `jobs`, and `providers`.
+`frontend`, `adminPages`, `routes`, `hooks`, `events`, `jobs`, `providers`, and
+`contributions`.
 
 The v2 admin declaration is an `admin` object. Existing top-level
 `adminPages` should be compatibility-mapped during migration.
@@ -227,9 +241,9 @@ but it may contain only the files the theme wants to override; missing files
 fall back to the protected default theme during Nuxt layer resolution. Themes
 may declare `settings` and `adminPages` for core-container admin pages, but must
 not declare backend runtime or plugin execution capabilities: `backend`,
-`routes`, `hooks`, `events`, `jobs`, `providers`, `migrations`, or
-`permissions`. Invalid theme manifests use the existing 422 envelope with reason
-`extension.manifest_invalid`.
+`routes`, `hooks`, `events`, `jobs`, `providers`, `contributions`,
+`migrations`, or `permissions`. Invalid theme manifests use the existing 422
+envelope with reason `extension.manifest_invalid`.
 
 ## Developer Console
 

@@ -46,11 +46,17 @@
 
 ## 延后项
 
-### CSRF 防护（P1）
+### CSRF 防护（P1）— 独立里程碑，已实施
 
-- **决策**：单独一期，不纳入本批。
-- **理由**：工程量最大（新增中间件 + token 生成/校验 + 覆盖所有 unsafe cookie-auth 路由 + 前端 token 注入 + 允许/拒绝路径测试），与业务修复混在一个 PR 会增大审查面与回滚风险。`knowledge/decisions/2026-07-05-browser-session-jwt-strategy.md` 已记录 production-ready 前必须完成。
-- **范围**：本批未触及 CSRF 相关代码与配置，`CSRF_SECRET` 从样例移除避免误导。
+- **决策**：采用 Fiber v3 自带 `middleware/csrf`，double-submit cookie（`csrf_`）+ `X-Csrf-Token` header，状态存共享 Redis storage，覆盖全部 unsafe 方法（含 login/register/password-reset，防登录型 CSRF）。作为独立里程碑在第一批修复之后落地。
+- **理由**：工程量最大，独立交付降低审查面与回滚风险。`knowledge/decisions/2026-07-05-browser-session-jwt-strategy.md` 已记录 production-ready 前必须完成。复用框架自带中间件而非自研（AGENTS.md 库优先）。
+- **实现**：
+  - `app/Http/server.go`：CSRF 注册在 `/api/v1` group（GET 也经过，以便种 cookie）；`CSRFEnabled` 配置开关（默认 true，测试显式 false）。
+  - `config/config.go`：`CSRFTrustedOrigins []string`（逗号分隔，默认从 APP_URL 派生），`envStringSlice` helper；字段名刻意避开 `CSRFSecret`（config_test.go 有守卫禁止幽灵字段）。
+  - 自定义 `csrfErrorHandler` 把错误映射为统一 envelope reason（`csrf.invalid` / `csrf.origin_invalid`）。
+  - 前端 `useApiClient.request` 自动注入 `X-Csrf-Token`（client 用 useCookie，SSR 从透传 cookie 头解析）；修复 `SFNavbar.vue` 绕过 request 的 logout。
+  - 部署：compose/.env/docs 同步 `CSRF_TRUSTED_ORIGINS`；OpenAPI `info.description` 文档化 CSRF 要求。
+- **关键架构约束**：API 在 Nuxt 代理后看到的 Host 是内部地址，Origin 是公开站点，二者不匹配会被默认拒绝——TrustedOrigins 必须含公开站点。非 HTTPS 无 Origin 时中间件跳过 Origin/Referer 校验但 token 校验仍生效（double-submit 是核心防线）。
 
 ## 测试覆盖
 
@@ -58,9 +64,44 @@
 - Identity controller：3 个新测试（HV 禁用放行、启用缺 token 拒绝、嵌套 token 通过）。
 - Options：4 个新测试（denylist 拒绝、安全/通配接受、混合列表原子拒绝、IsAttachmentActiveContentType）。
 - Attachments controller：3 个新测试（主动内容强制下载、安全内容 inline、文件名净化）。
-- config：1 个新测试（断言无 SessionSecret/CSRFSecret 幽灵字段）。
+- config：5 个测试（CSRF 字段守卫、CSRF_TRUSTED_ORIGINS 解析、APP_URL 派生、originsFromAppURL 无效输入、envStringSlice）。
+- CSRF 中间件：7 个测试（GET 种 token、unsafe 无 token 拒绝、有效 token 通过、不匹配拒绝、envelope 映射、未授权 Origin 拒绝、授权 Origin 通过）。
+- 现有 controller/server 测试通过 `CSRFEnabled: false` 显式 opt-out（业务测试不重复 CSRF 逻辑）。
 
 ## Open Questions
 
-- CSRF 一期是否采用 Origin 校验 + 双提交 token，还是迁移 token-based Bearer 鉴权？（见 security-audit.md Open Questions）
-- compose Redis `--requirepass` 改变了默认部署行为，是否需要在 release notes 显式提示升级注意？
+- compose Redis `--requirepass` 与 CSRF_TRUSTED_ORIGINS 改变了默认部署行为，是否需要在 release notes 显式提示升级注意？
+- SSR 阶段后端种的 csrf_ cookie 透传回客户端浏览器的链路需人工 dev server 验证（Nitro 是否转发 set-cookie）。
+- 是否要给 OpenAPI 每个 unsafe operation 显式加 X-Csrf-Token header 参数（目前仅文档化，避免契约膨胀）。
+
+## 第二批：全栈安全审计修复（C/H/M/L）
+
+承接 `decisions/2026-07-09-security-audit.md` 的全栈审计 backlog，本批处理剩余 23 项中的 20 项（3 项因需独立重构降级）。
+
+### 已修复（20 项）
+
+- **C1 扩展 Version 路径穿越**：`manifest.go` 新增 `manifestVersionPattern` 校验 `Version`，`service.go` `extractArchiveFiles` 常规文件统一 `0644` 掩码丢弃执行位。测试覆盖危险值拒绝/合法版本接受。
+- **C2 生产密钥强制校验**：`config.go` `validateProductionSecrets` 在 `AppEnv=="production"` 时校验 `SessionHashSecret`/`AltchaSecret`/`MeiliMasterKey`/`APP_OPTION_ENC_KEY` 非空且非占位词，失败 panic 拒绝启动。
+- **H1 防自我提权**：Identity service `ReplaceUserRoles`/`ReplaceUserPermissionOverrides` 加 `actor.ID==targetUserID` 拒绝（`ErrSelfRoleChange`）+ 授予 `super_admin` 要求 actor 本身是 `super_admin`（`ErrSuperAdminGrantRestricted`）。
+- **H2a option 敏感值 AES-GCM 加密**：新增 `Support/Crypto` 包（`OptionCipher`），Options service 写入加密/读取解密，bootstrap 注入 `APP_OPTION_ENC_KEY`。透明模式兼容开发环境，明文历史值兼容解密。
+- **H2b SFTP 强制主机密钥**：空指纹不再回退 `InsecureIgnoreHostKey`，改为拒绝连接。
+- **H3 前端 DOMPurify**：新增 `dompurify` 依赖 + `utils/sfSanitize.ts`，`SFComment`/`SFEditor`/topic 页 `v-html` 前净化（client 端 DOMPurify，SSR 信任服务端 bluemonday）。
+- **H4 安全响应头**：`Caddyfile` 加 HSTS/`X-Content-Type-Options`/`X-Frame-Options`/`Referrer-Policy`。
+- **H6 容器降权**：api/worker/migrate/web Dockerfile 加非 root `sforum` 用户 + `chown` + `USER`。
+- **M4 registration-status 不泄漏**：恒定返回 `NextUserIsInitialSuperAdmin=false`，消除首用户劫持信息面。
+- **M5 DB sslmode**：默认与生产模板改为 `sslmode=require`。
+- **M6+L4 LIKE 转义 + page cap**：Identity/Attachments/Database 的 LIKE 加 `escapeLike` + `ESCAPE '\'`；`normalizePage` 加 `maxPage=200`。
+- **M7 websiteUrl scheme 兜底**：前端 `utils/sfUrl.ts` `safeUrl` 仅允许 `http`/`https`/`mailto`。
+- **M8 token 版本号会话失效**：migration 加 `users.current_token_version`，AuthSession Manager 注入 `TokenVersionSource`，session 存版本号、`CurrentUserID` 比对，密码重置递增版本号使旧会话失效。
+- **M9 session Secure**：bootstrap `shouldUseSecureCookie` 检测 `APP_URL` https scheme（生产强制 true）。
+- **M10 前端依赖固定**：`package.json` 的 `latest` 改为 caret 精确版本（nuxt `^4.4.8` 等）。
+- **L1 登录时序对齐**：用户不存在时跑 dummy argon2 对齐时序。
+- **L3 paramInt 注释**说明安全兜底。
+- **L5 FTP/SFTP Exists 返回真实错误**区分不存在与故障。
+- **L6 policy.go 注释**文档化 `super_admin` deny 不生效（设计决策）。
+
+### 降级待办（3 项，需独立重构）
+
+- **L2 通用附件 EXIF 清洗**：avatar 已重编码去 EXIF；通用附件需重构上传字节流，降级。
+- **M2 端点级限流**：需 Redis 失败计数器基础设施，独立功能工程；当前靠全局 `LIMITER_WRITE_MAX` 缓解。
+- **M3 ALTCHA 两阶段验证**：需重构 `HumanVerify` 接口，影响所有调用方；非安全漏洞（仅配额浪费）。

@@ -488,7 +488,8 @@ function submitContent() {
       <div
         v-show="viewMode === 'preview'"
         class="sf-editor__preview"
-        v-html="currentPayload.html"
+        v-highlight
+        v-html="sanitizeHtml(currentPayload.html)"
       />
 
       <textarea

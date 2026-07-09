@@ -1,0 +1,75 @@
+/*
+ * highlight.js 自定义配色：与 SForum teal 主题协调，适配浅/暗双模式。
+ * 仅着色 token span（hljs-keyword 等）与 .hljs 文本默认色；
+ * 代码块 <pre> 背景仍由 .sf-prose 的 prose-pre / 编辑器预览样式提供，这里不重复设置背景。
+ */
+
+/* ---- 浅色模式：深色背景上的高对比 token ---- */
+.sf-prose pre code.hljs,
+.sf-editor__preview pre code.hljs {
+  color: #e2e8f0;
+  background: transparent;
+  padding: 0;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #64748b;
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-meta .hljs-keyword {
+  color: #5eead4; /* teal-300 */
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition {
+  color: #86efac; /* green-300 */
+}
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet {
+  color: #fde68a; /* amber-200 */
+}
+.hljs-title,
+.hljs-title.function_,
+.hljs-section,
+.hljs-name {
+  color: #7dd3fc; /* sky-300 */
+}
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-property {
+  color: #f9a8d4; /* pink-300 */
+}
+.hljs-type,
+.hljs-built_in,
+.hljs-class .hljs-title {
+  color: #c4b5fd; /* violet-300 */
+}
+.hljs-tag {
+  color: #94a3b8;
+}
+.hljs-deletion {
+  color: #fda4af;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 700;
+}
+
+/* ---- 暗色模式：token 配色在更深的背景上保持清晰 ---- */
+.dark .sf-prose pre code.hljs,
+.dark .sf-editor__preview pre code.hljs {
+  color: #e2e8f0;
+}
+.dark .hljs-comment,
+.dark .hljs-quote {
+  color: #64748b;
+}

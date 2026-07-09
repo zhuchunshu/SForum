@@ -331,13 +331,21 @@ Important production variables:
 - `REDIS_PASSWORD`
 - `MEILI_MASTER_KEY`
 - `SESSION_HASH_SECRET` (session signing secret; must be a high-entropy random value in production)
+- `CSRF_TRUSTED_ORIGINS` (comma-separated public site origins trusted by the
+  CSRF middleware, e.g. `https://forum.example.com`; supports
+  `https://*.example.com` wildcard subdomains. When the API runs behind the
+  Nuxt reverse proxy the API sees an internal Host while the browser sends the
+  public site as `Origin` — the public origin **must** be listed here or every
+  unsafe request is rejected. Defaults to the origin derived from `APP_URL`.)
 - Mail provider variables or extension settings only when a mail plugin is
   installed. Avoid adding core `SMTP_*` settings for vendor-specific delivery.
 - `S3_*` once uploads exist.
 
-> Note: CSRF protection for cookie-authenticated writes is not yet
-> implemented. A `CSRF_SECRET` variable has no effect today; it will be
-> introduced together with CSRF middleware in a future milestone.
+> Note: CSRF protection uses a double-submit cookie (`csrf_`) plus an
+> `X-Csrf-Token` header, backed by the shared Redis storage. The frontend reads
+> the cookie and echoes it on unsafe requests via `useApiClient`. The reverse
+> proxy should forward `X-Forwarded-Proto` so HTTPS Origin/Referer fallback
+> works correctly.
 
 ## Health Checks
 

@@ -110,7 +110,7 @@ func newModerationTestApp() (*fiber.App, *authsession.Manager, *moderationFakeSt
 			return err
 		})
 	})
-	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
+	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{controller, loginProvider},
 	})
 	return app, manager, store

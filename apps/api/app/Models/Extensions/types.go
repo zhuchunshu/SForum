@@ -1,6 +1,7 @@
 package extensions
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -93,6 +94,9 @@ type ManifestHook = extensionmanifest.ManifestHook
 type ManifestEvent = extensionmanifest.ManifestEvent
 type ManifestJob = extensionmanifest.ManifestJob
 type ManifestProvider = extensionmanifest.ManifestProvider
+type ManifestContribution = extensionmanifest.ManifestContribution
+type TopicActionContributionPayload = extensionmanifest.TopicActionContributionPayload
+type ContributionPointDefinition = extensionmanifest.ContributionPointDefinition
 
 type RuntimeStatus struct {
 	State         string     `json:"state"`
@@ -177,6 +181,18 @@ type ExtensionAdminNavigationItem struct {
 	Icon            string `json:"icon"`
 	View            string `json:"view"`
 	Order           int    `json:"order"`
+}
+
+type EffectiveContribution struct {
+	ExtensionID   string            `json:"extensionId"`
+	ExtensionName string            `json:"extensionName"`
+	ExtensionType string            `json:"extensionType"`
+	Point         string            `json:"point"`
+	ID            string            `json:"id"`
+	Order         int               `json:"order"`
+	Label         map[string]string `json:"label,omitempty"`
+	Icon          string            `json:"icon,omitempty"`
+	Payload       json.RawMessage   `json:"payload,omitempty"`
 }
 
 type ExtensionSettingValue struct {

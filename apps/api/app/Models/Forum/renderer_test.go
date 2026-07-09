@@ -68,3 +68,84 @@ func TestRenderContentRejectsInvalidInput(t *testing.T) {
 		})
 	}
 }
+
+// TestRenderMarkdownRendersGFM 验证 goldmark GFM 扩展的四种产物在 sanitize 后仍然保留：
+// 表格、删除线、自动链接、任务列表 checkbox，以及代码块的 language-* class。
+func TestRenderMarkdownRendersGFM(t *testing.T) {
+	rendered, err := RenderContent(ContentInput{
+		RawContent: `| 名称 | 值 |
+| --- | --- |
+| a | 1 |
+
+~~删除线~~ <https://example.com>
+
+- [ ] 待办
+- [x] 完成
+
+` + "```go" + `
+func main(){}
+` + "```",
+		SourceFormat: SourceFormatMarkdown,
+		EditorType:   EditorTypeMarkdown,
+	})
+	if err != nil {
+		t.Fatalf("RenderContent returned error: %v", err)
+	}
+	html := rendered.HTMLContent
+
+	// 表格
+	for _, want := range []string{"<table>", "<th>", "<td>"} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("expected GFM table to contain %q, got %q", want, html)
+		}
+	}
+	// 删除线
+	if !strings.Contains(html, "<del>") {
+		t.Fatalf("expected <del> for strikethrough, got %q", html)
+	}
+	// 自动链接（裸 URL → <a href>）
+	if !strings.Contains(html, `<a href="https://example.com"`) {
+		t.Fatalf("expected autolinked <a href>, got %q", html)
+	}
+	// 任务列表 checkbox（含 checked 状态）
+	if !strings.Contains(html, `<input checked="" disabled="" type="checkbox">`) {
+		t.Fatalf("expected checked tasklist checkbox, got %q", html)
+	}
+	if !strings.Contains(html, `<input disabled="" type="checkbox">`) {
+		t.Fatalf("expected unchecked tasklist checkbox, got %q", html)
+	}
+	// 代码块 language-* class（供前端 highlight.js 识别语言）
+	if !strings.Contains(html, `class="language-go"`) {
+		t.Fatalf("expected code block language-go class, got %q", html)
+	}
+	// 渲染版本应为 v2
+	if rendered.RenderVersion != "goldmark-bluemonday-v2" {
+		t.Fatalf("expected RenderVersion goldmark-bluemonday-v2, got %q", rendered.RenderVersion)
+	}
+}
+
+// TestRenderSanitizerIsConservative 验证放开 checkbox input 后 sanitizer 仍然收敛：
+// 非 checkbox 的 input 被剔除，事件属性被剔除。
+func TestRenderSanitizerIsConservative(t *testing.T) {
+	rendered, err := RenderContent(ContentInput{
+		RawContent:   `<input type="text"><input type="checkbox" onclick="alert(1)">文本`,
+		SourceFormat: SourceFormatHTML,
+		EditorType:   "html",
+	})
+	if err != nil {
+		t.Fatalf("RenderContent returned error: %v", err)
+	}
+	html := rendered.HTMLContent
+	// type=text 的 input 应被剔除
+	if strings.Contains(html, `type="text"`) {
+		t.Fatalf("expected type=text input to be stripped, got %q", html)
+	}
+	// 事件属性应被剔除
+	if strings.Contains(html, "onclick") {
+		t.Fatalf("expected onclick to be stripped, got %q", html)
+	}
+	// 仅剩 type=checkbox 的 input（无事件属性）
+	if !strings.Contains(html, `<input type="checkbox">`) {
+		t.Fatalf("expected a clean checkbox input to remain, got %q", html)
+	}
+}

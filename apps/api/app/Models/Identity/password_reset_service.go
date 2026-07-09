@@ -143,6 +143,9 @@ func (s *PasswordResetService) ConfirmPasswordReset(ctx context.Context, input C
 	if err := s.store.UpdateUserPassword(ctx, userID, newHash); err != nil {
 		return err
 	}
+	// M8：递增令牌版本号，使该用户所有旧会话立即失效（含攻击者已持有的会话）。
+	// 失败不阻塞密码重置本身（密码已更新），仅记录错误。
+	_ = s.store.IncrementUserTokenVersion(ctx, userID)
 	return nil
 }
 

@@ -3,6 +3,7 @@ import {
   forumAuthorName,
   forumCategoryPath,
   forumTagPath,
+  forumTopicExtensionActionLabel,
   forumTopicPath,
   forumUserProfilePath,
   parseTopicPath,
@@ -11,6 +12,7 @@ import {
   type ForumComment,
   type ForumCommentList,
   type ForumTopicDetail,
+  type ForumTopicExtensionAction,
   type TopicPathLookup
 } from '~/utils/forumTaxonomy'
 
@@ -20,7 +22,7 @@ definePageMeta({
 })
 
 const route = useRoute()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const localePath = useLocalePath()
 const { siteName, seoSettings } = useWebOptions()
 // 当前帖子 URL 形态：决定 catch-all 解析方式与规范化目标。
@@ -242,6 +244,8 @@ const canPin = computed(() => can(FORUM_PERMISSIONS.topicPin))
 const canModerate = computed(() => can(FORUM_PERMISSIONS.topicDeleteAny))
 const isLocked = computed(() => topic.value?.status === 'locked')
 const isPinned = computed(() => Boolean(topic.value?.isPinned))
+const extensionActions = computed(() => topic.value?.extensionActions || [])
+const extensionActionRunning = ref('')
 
 async function runTopicAction(action: keyof typeof FORUM_TOPIC_ACTIONS, successMessageKey: string) {
   if (!topic.value) {
@@ -259,6 +263,40 @@ async function runTopicAction(action: keyof typeof FORUM_TOPIC_ACTIONS, successM
     actionError.value = apiErrorMessage(error) || t('topicDetail.actionFailed')
     showActionError.value = true
     return
+  }
+  actionState.value = 'idle'
+}
+
+function topicExtensionActionKey(action: ForumTopicExtensionAction) {
+  return `${action.extensionId}:${action.id}`
+}
+
+function topicExtensionActionLabel(action: ForumTopicExtensionAction) {
+  return forumTopicExtensionActionLabel(action, String(locale.value || 'zh-CN'))
+}
+
+async function runTopicExtensionAction(action: ForumTopicExtensionAction) {
+  if (!topic.value) {
+    return
+  }
+  const label = topicExtensionActionLabel(action)
+  if (action.confirm && !window.confirm(t('topicDetail.confirmExtensionAction', { action: label }))) {
+    return
+  }
+  actionState.value = 'pending'
+  actionError.value = ''
+  showActionError.value = false
+  extensionActionRunning.value = topicExtensionActionKey(action)
+  try {
+    await forumApi.applyTopicExtensionAction(topic.value.id, action)
+    topic.value = await forumApi.getTopic(topic.value.id)
+  } catch (error) {
+    actionState.value = 'error'
+    actionError.value = apiErrorMessage(error) || t('topicDetail.extensionActionFailed')
+    showActionError.value = true
+    return
+  } finally {
+    extensionActionRunning.value = ''
   }
   actionState.value = 'idle'
 }
@@ -674,8 +712,8 @@ async function submitReport() {
             </span>
           </div>
 
-          <!-- 正文（后端已 sanitize）:sf-prose 由 @tailwindcss/typography 提供 -->
-          <div class="sf-prose" v-html="topic.content.htmlContent" />
+          <!-- 正文（后端已 sanitize）:sf-prose 由 @tailwindcss/typography 提供；v-highlight 负责代码块语法高亮 -->
+          <div class="sf-prose" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
 
           <!-- 标签 -->
           <div v-if="topic.tags && topic.tags.length" class="flex flex-wrap gap-1.5 mt-6 pt-4 border-t border-slate-100 dark:border-zinc-800">
@@ -686,7 +724,7 @@ async function submitReport() {
 
           <!-- 版主/作者动作区 -->
           <div
-            v-if="canEditTopic(topic) || canDeleteTopic(topic) || canLock || canPin || canModerate"
+            v-if="canEditTopic(topic) || canDeleteTopic(topic) || canLock || canPin || canModerate || extensionActions.length"
             class="flex flex-wrap items-center gap-2 mt-6 pt-4 border-t border-slate-100 dark:border-zinc-800"
           >
             <SFButton
@@ -745,6 +783,21 @@ async function submitReport() {
             >
               <UIcon name="i-lucide-flag" class="size-4" />
               <span>{{ t('topicDetail.report') }}</span>
+            </SFButton>
+            <SFButton
+              v-for="action in extensionActions"
+              :key="topicExtensionActionKey(action)"
+              variant="ghost"
+              size="sm"
+              :disabled="actionState === 'pending'"
+              @click="runTopicExtensionAction(action)"
+            >
+              <UIcon
+                :name="action.icon || 'i-lucide-plug'"
+                class="size-4"
+                :class="{ 'animate-spin': extensionActionRunning === topicExtensionActionKey(action) }"
+              />
+              <span>{{ topicExtensionActionLabel(action) }}</span>
             </SFButton>
           </div>
 

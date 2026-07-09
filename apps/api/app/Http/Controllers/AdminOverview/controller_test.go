@@ -110,7 +110,7 @@ func newOverviewTestApp(actor identity.Actor, store *overviewHTTPStore) (*fiber.
 		overviewHTTPActorStore{actor: actor},
 		sessions,
 	)
-	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}, nil, apphttp.Dependencies{
+	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}, nil, apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{
 			routeProviderFunc(func(api fiber.Router) {
 				api.Post("/test-login", func(c fiber.Ctx) error {

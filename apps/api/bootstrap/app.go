@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +30,7 @@ import (
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	cache "github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
@@ -101,7 +103,12 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	})
 	humanVerifyStore := humanverify.NewRedisStore(sharedRedisClient)
 	optionStore := options.NewPostgresStore(pool)
-	optionsService := options.NewServiceWithDefaults(optionStore, optionsDefaultsFromConfig(cfg))
+	// H2a：构造敏感值加密器；未配置 APP_OPTION_ENC_KEY 时为透明模式（开发环境），生产由 C2 强制要求。
+	optionCipher, err := crypto.NewOptionCipher(cfg.OptionEncryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("create option cipher: %w", err)
+	}
+	optionsService := options.NewServiceWithDefaults(optionStore, optionsDefaultsFromConfig(cfg)).WithCipher(optionCipher)
 	if err := optionsService.EnsureDefaults(ctx); err != nil {
 		sharedRedisClient.Close()
 		if closeErr := redisStorage.Close(); closeErr != nil {
@@ -112,6 +119,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 	humanVerifier := humanverify.NewRuntimeService(optionsService, humanVerifyStore, humanVerifyConfigFromConfig(cfg))
 
+	// CookieSecure：生产环境强制 true；此外当 APP_URL 是 https 时也启用，
+	// 避免 APP_ENV=staging 等"非 production 但走 HTTPS"的部署误把 Secure 关掉导致 cookie 走 HTTP。
 	sessionStore := session.NewStore(session.Config{
 		Storage:         redisStorage,
 		KeyGenerator:    secureSessionID,
@@ -121,13 +130,17 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		CookieHTTPOnly:  true,
 		CookieSameSite:  fiber.CookieSameSiteLaxMode,
 		CookiePath:      "/",
-		CookieSecure:    strings.EqualFold(cfg.AppEnv, "production"),
+		CookieSecure:    shouldUseSecureCookie(cfg),
 	})
+	identityStore := identity.NewPostgresStore(pool)
 	authSessions := authsession.NewManager(sessionStore, authsession.Config{
 		RenewalInterval: cfg.SessionRenewalInterval,
 		HashSecret:      cfg.SessionHashSecret,
+		// M8：注入令牌版本号来源，使密码重置/封禁后旧会话失效。
+		TokenVersion: func(ctx context.Context, userID int64) (int64, error) {
+			return identityStore.GetUserTokenVersion(ctx, userID)
+		},
 	})
-	identityStore := identity.NewPostgresStore(pool)
 	adminOverviewStore := adminoverview.NewPostgresStore(pool)
 	forumStore := forum.NewPostgresStore(pool)
 	// 业务读缓存复用 sharedRedisClient（与 humanverify 共享连接池）。
@@ -203,7 +216,17 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// 搜索索引重建：forumStore 提供 ListAllTopicIDs（TopicIDSource），
 	// reindexStore 记录运行状态，dispatcher 批量入队 IndexTopicArgs。
 	reindexManager := search.NewReindexManager(forumStore, search.NewPostgresReindexStore(pool), jobDispatcher)
-	forumProvider := providers.NewForumProviderWithSearch(forumCachedStore, optionsService, identityStore, authSessions, extensionRuntime, searchIndexer, searchServiceAdapter{inner: searchService}, reindexServiceAdapter{inner: reindexManager})
+	forumProvider := providers.NewForumProviderWithSearchAndTopicActions(
+		forumCachedStore,
+		optionsService,
+		identityStore,
+		authSessions,
+		extensionRuntime,
+		searchIndexer,
+		searchServiceAdapter{inner: searchService},
+		reindexServiceAdapter{inner: reindexManager},
+		providers.NewExtensionTopicActionProvider(extensionService),
+	)
 	avatarAttachmentService := attachments.NewServiceWithEvents(attachmentStore, optionsService, extensionRuntime)
 	profileProvider := providers.NewProfileProviderWithAvatar(profileStore, identityStore, authSessions, avatarAttachmentService, optionsService)
 	moderationProvider := providers.NewModerationProvider(moderationStore, forumStore, identityStore, authSessions)
@@ -283,6 +306,19 @@ func secureSessionID() string {
 		panic(fmt.Errorf("generate session id: %w", err))
 	}
 	return base64.RawURLEncoding.EncodeToString(token[:])
+}
+
+// shouldUseSecureCookie 决定 session/CSRF cookie 是否带 Secure 标志。
+// 生产环境（AppEnv=="production"）强制启用；此外当 APP_URL 是 https 时也启用，
+// 避免 staging 等"非 production 但走 HTTPS"的部署因环境字符串漏配而把 cookie 走 HTTP。
+func shouldUseSecureCookie(cfg config.Config) bool {
+	if strings.EqualFold(cfg.AppEnv, "production") {
+		return true
+	}
+	if parsed, err := url.Parse(strings.TrimSpace(cfg.AppURL)); err == nil {
+		return strings.EqualFold(parsed.Scheme, "https")
+	}
+	return false
 }
 
 func (api *API) Close() {

@@ -77,6 +77,10 @@ func (passwordResetFakeStore) ConsumePasswordResetToken(context.Context, string)
 	return 0, nil
 }
 func (passwordResetFakeStore) UpdateUserPassword(context.Context, int64, string) error { return nil }
+func (passwordResetFakeStore) GetUserTokenVersion(context.Context, int64) (int64, error) {
+	return 0, nil
+}
+func (passwordResetFakeStore) IncrementUserTokenVersion(context.Context, int64) error { return nil }
 
 // passwordResetTxStore 仅满足 identity.TxStore（WithBootstrapTx 回调入参）。
 type passwordResetTxStore struct{}
@@ -123,7 +127,7 @@ func newIdentityTestApp(t *testing.T, verifier humanverify.Verifier) *fiber.App 
 		nil, // mailService: 未知邮箱不触发投递
 		nil, // options: 密码重置请求路径不读取站点名
 	)
-	app := apphttp.NewApp(config.Config{}, slog.Default(), apphttp.Dependencies{
+	app := apphttp.NewApp(config.Config{CSRFEnabled: false}, slog.Default(), apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{controller},
 	})
 	return app

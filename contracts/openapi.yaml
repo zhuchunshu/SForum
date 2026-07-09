@@ -2,7 +2,18 @@ openapi: 3.1.0
 info:
   title: SForum API
   version: 0.1.0
-  description: Initial API contract for the SForum foundation.
+  description: |
+    Initial API contract for the SForum foundation.
+
+    ## CSRF Protection
+
+    All unsafe methods (POST/PUT/PATCH/DELETE) under `/api/v1` are protected by
+    a double-submit CSRF token. The server sets a readable `csrf_` cookie on any
+    safe (GET/HEAD/OPTIONS) request; clients must echo its value in an
+    `X-Csrf-Token` header on every unsafe request. Missing or mismatched tokens
+    are rejected with `403` and reason `csrf.invalid`; untrusted `Origin`/
+    `Referer` are rejected with reason `csrf.origin_invalid`. Trusted origins
+    are configured via `CSRF_TRUSTED_ORIGINS` (defaults to the `APP_URL` origin).
 servers:
 - url: "/api/v1"
 paths:
@@ -146,6 +157,10 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensions"
   "/admin/extensions/navigation":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionNavigation"
+  "/admin/extensions/contribution-points":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionContributionPoints"
+  "/admin/extensions/contributions":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionContributions"
   "/admin/extensions/{extensionID}/enable":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEnable"
   "/admin/extensions/{extensionID}/disable":

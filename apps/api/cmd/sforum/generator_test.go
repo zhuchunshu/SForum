@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
@@ -39,6 +40,16 @@ func TestGeneratePluginScaffoldNonInteractive(t *testing.T) {
 	}
 	if len(manifest.AdminPages) != 0 {
 		t.Fatalf("new scaffolds should not use legacy adminPages: %#v", manifest.AdminPages)
+	}
+	if len(manifest.Contributions) != 0 {
+		t.Fatalf("new plugin scaffolds should not enable demo contributions by default: %#v", manifest.Contributions)
+	}
+	readme, err := os.ReadFile(filepath.Join(target, "README.md"))
+	if err != nil {
+		t.Fatalf("read generated README: %v", err)
+	}
+	if !strings.Contains(string(readme), "forum.topic.actions") || !strings.Contains(string(readme), "\"contributions\"") {
+		t.Fatalf("expected README to document contribution example, got:\n%s", readme)
 	}
 	if err := extensionmanifest.Validate(manifest); err != nil {
 		t.Fatalf("generated plugin manifest should validate: %v", err)

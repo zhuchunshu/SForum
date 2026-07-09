@@ -2,6 +2,7 @@ package providers
 
 import (
 	"context"
+	"encoding/json"
 	"regexp"
 	"strconv"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	forumcontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Forum"
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
@@ -38,10 +40,99 @@ func NewForumProviderWithOptionsAndEvents(store forum.Store, optionsService *opt
 // store 应为已用 forum.NewCachedStore 装饰过的 store（或裸 store）。
 // searchService/reindexer 为 nil 时对应端点返回 503。
 func NewForumProviderWithSearch(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher, indexer forum.TopicSearchIndexer, searchService forumcontroller.SearchService, reindexer forumcontroller.ReindexService) *ForumProvider {
-	service := forum.NewServiceWithIndexer(store, ForumSettingsResolver{options: optionsService}, publisher, indexer)
+	return NewForumProviderWithSearchAndTopicActions(store, optionsService, users, sessions, publisher, indexer, searchService, reindexer, nil)
+}
+
+func NewForumProviderWithSearchAndTopicActions(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher, indexer forum.TopicSearchIndexer, searchService forumcontroller.SearchService, reindexer forumcontroller.ReindexService, topicActions forum.TopicExtensionActionProvider) *ForumProvider {
+	service := forum.NewServiceWithTopicExtensionActions(store, ForumSettingsResolver{options: optionsService}, publisher, indexer, topicActions)
 	return &ForumProvider{
 		controller: forumcontroller.NewControllerWithSearch(service, searchService, reindexer, users, sessions),
 	}
+}
+
+type EffectiveContributionSource interface {
+	EffectiveContributions(ctx context.Context) ([]extensions.EffectiveContribution, error)
+}
+
+type ExtensionTopicActionProvider struct {
+	source EffectiveContributionSource
+}
+
+func NewExtensionTopicActionProvider(source EffectiveContributionSource) ExtensionTopicActionProvider {
+	return ExtensionTopicActionProvider{source: source}
+}
+
+func (p ExtensionTopicActionProvider) TopicExtensionActions(ctx context.Context) ([]forum.TopicExtensionAction, error) {
+	if p.source == nil {
+		return nil, nil
+	}
+	contributions, err := p.source.EffectiveContributions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	actions := make([]forum.TopicExtensionAction, 0, len(contributions))
+	for _, contribution := range contributions {
+		if contribution.Point != "forum.topic.actions" {
+			continue
+		}
+		payload, ok := topicActionPayload(contribution)
+		if !ok {
+			continue
+		}
+		actions = append(actions, forum.TopicExtensionAction{
+			ExtensionID: contribution.ExtensionID,
+			ID:          contribution.ID,
+			Label:       copyContributionLabel(contribution.Label),
+			Icon:        contribution.Icon,
+			Method:      payload.Method,
+			URL:         "/extensions/" + contribution.ExtensionID + payload.Path,
+			Confirm:     payload.Confirm,
+		})
+	}
+	return actions, nil
+}
+
+func topicActionPayload(contribution extensions.EffectiveContribution) (extensions.TopicActionContributionPayload, bool) {
+	var payload extensions.TopicActionContributionPayload
+	if err := json.Unmarshal(contribution.Payload, &payload); err != nil {
+		return payload, false
+	}
+	payload.Type = strings.TrimSpace(payload.Type)
+	payload.Method = strings.ToUpper(strings.TrimSpace(payload.Method))
+	payload.Path = strings.TrimSpace(strings.ReplaceAll(payload.Path, "\\", "/"))
+	if payload.Type != "extensionRoute" {
+		return payload, false
+	}
+	switch payload.Method {
+	case "POST", "PUT", "PATCH", "DELETE":
+	default:
+		return payload, false
+	}
+	if !safeTopicActionPath(payload.Path) {
+		return payload, false
+	}
+	return payload, true
+}
+
+func safeTopicActionPath(value string) bool {
+	if value == "" || !strings.HasPrefix(value, "/") || value == "/" {
+		return false
+	}
+	if strings.Contains(value, "://") || strings.Contains(value, "..") {
+		return false
+	}
+	return value != "/api" && !strings.HasPrefix(value, "/api/")
+}
+
+func copyContributionLabel(labels map[string]string) map[string]string {
+	if len(labels) == 0 {
+		return nil
+	}
+	copied := make(map[string]string, len(labels))
+	for locale, label := range labels {
+		copied[locale] = label
+	}
+	return copied
 }
 
 func (p *ForumProvider) RegisterRoutes(api fiber.Router) {

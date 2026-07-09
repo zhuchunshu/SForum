@@ -5,6 +5,9 @@ import {
   activeTheme,
   canRestartPlugin,
   capabilityCount,
+  extensionContributionLabel,
+  extensionContributionPage,
+  extensionContributionPayloadSummary,
   extensionAdminPages,
   extensionDeliveryPage,
   extensionDefinitionPage,
@@ -23,6 +26,7 @@ import {
   themeActionState,
   themeActivationProgress,
   themeStatusLabelKey,
+  type AdminEffectiveContribution,
   type AdminExtension,
   type AdminExtensionEvent,
   type AdminExtensionEventDefinition,
@@ -259,6 +263,27 @@ describe('admin extension helpers', () => {
     expect(canRestartPlugin(item)).toBe(true)
   })
 
+  test('formats extension contributions for admin inspection', () => {
+    const items: AdminEffectiveContribution[] = [
+      contribution({ extensionId: 'beta.plugin', id: 'beta.action', order: 200, label: { 'en-US': 'Beta' } }),
+      contribution({ extensionId: 'alpha.plugin', id: 'alpha.action', order: 100, label: { 'zh-CN': '甲' } })
+    ]
+
+    const page = extensionContributionPage(items, 1, 1)
+
+    expect(page).toMatchObject({
+      page: 1,
+      totalPages: 2,
+      start: 1,
+      end: 1,
+      total: 2
+    })
+    expect(page.items.map(item => item.id)).toEqual(['beta.action'])
+    expect(extensionContributionLabel(items[1], 'zh-CN')).toBe('甲')
+    expect(extensionContributionLabel(items[0], 'zh-CN')).toBe('Beta')
+    expect(extensionContributionPayloadSummary(items[0])).toBe('extensionRoute POST /topic-actions/beta')
+  })
+
   test('merges extension event lists and sorts by newest first', () => {
     const events: Record<string, AdminExtensionEvent[]> = {
       'demo.plugin': [
@@ -370,6 +395,25 @@ function themeRelease(status: NonNullable<AdminExtension['themeRelease']>['statu
     message: '',
     createdAt: '2026-07-05T10:00:00Z',
     updatedAt: '2026-07-05T10:00:00Z'
+  }
+}
+
+function contribution(overrides: Partial<AdminEffectiveContribution>): AdminEffectiveContribution {
+  return {
+    extensionId: 'demo.plugin',
+    extensionName: 'Demo Plugin',
+    extensionType: 'plugin',
+    point: 'forum.topic.actions',
+    id: 'demo.action',
+    order: 100,
+    label: { 'zh-CN': '动作', 'en-US': 'Action' },
+    icon: 'i-lucide-bookmark',
+    payload: {
+      type: 'extensionRoute',
+      method: 'POST',
+      path: `/topic-actions/${overrides.id?.split('.')[0] || 'demo'}`
+    },
+    ...overrides
   }
 }
 

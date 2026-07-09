@@ -183,6 +183,47 @@ The source of truth should still be manifest declarations. SDK calls can
 generate or validate manifest entries, but core should build menus from the
 manifest.
 
+## Typed Contributions
+
+Typed contributions borrow the useful ergonomics from old SForum's `Itf`
+pattern without copying the global PHP hook model.
+
+Plugins may declare ordered `contributions[]` in `sforum.extension.json`.
+Core owns the known contribution-point catalog, validates each payload, and
+resolves effective runtime contributions from enabled plugins only. Consumers
+remain explicit: the owning module decides how to interpret a payload and what
+is safe to render.
+
+The first contribution point is `forum.topic.actions`:
+
+```json
+{
+  "routes": [
+    {"path": "/topic-actions/bookmark", "methods": ["POST"], "access": "login"}
+  ],
+  "contributions": [
+    {
+      "point": "forum.topic.actions",
+      "id": "demo.bookmark",
+      "order": 200,
+      "label": {"zh-CN": "收藏", "en-US": "Bookmark"},
+      "icon": "i-lucide-bookmark",
+      "payload": {
+        "type": "extensionRoute",
+        "method": "POST",
+        "path": "/topic-actions/bookmark",
+        "confirm": true
+      }
+    }
+  ]
+}
+```
+
+Contribution descriptors cannot contain raw HTML, frontend component paths,
+callbacks, core API paths, external URLs, or route overrides. Topic action
+execution still goes through `/api/v1/extensions/{extensionId}/*`, so plugin
+route access checks remain authoritative.
+
 ## Roadmap
 
 ### Phase 1: Make Plugins Truly Usable

@@ -60,10 +60,10 @@ func (s *PostgresStore) List(ctx context.Context, input AttachmentListInput) (At
 	input.ReferenceStatus = strings.TrimSpace(input.ReferenceStatus)
 
 	where := `
-		WHERE ($1 = '' OR attachments.public_id = $1 OR attachments.original_name ILIKE '%' || $1 || '%' OR attachments.object_key ILIKE '%' || $1 || '%')
+		WHERE ($1 = '' OR attachments.public_id = $1 OR attachments.original_name ILIKE '%' || $1 || '%' ESCAPE '\' OR attachments.object_key ILIKE '%' || $1 || '%' ESCAPE '\')
 		  AND ($2 = '' OR attachments.provider = $2)
 		  AND ($3 = '' OR attachments.status = $3)
-		  AND ($4 = '' OR attachments.content_type ILIKE $4 || '%')
+		  AND ($4 = '' OR attachments.content_type ILIKE $4 || '%' ESCAPE '\')
 		  AND ($5 = 0 OR attachments.owner_user_id = $5)
 		  AND ($6 = '' OR ($6 = 'referenced' AND attachments.reference_count > 0) OR ($6 = 'orphan' AND attachments.reference_count = 0))
 		  AND ($7::timestamptz IS NULL OR attachments.created_at >= $7)
@@ -281,9 +281,15 @@ func scanAttachment(row rowScanner) (Attachment, error) {
 	return attachment, nil
 }
 
+// maxAdminListPage 限制后台附件列表的最大页数（M6），避免深 OFFSET DoS。
+const maxAdminListPage = 200
+
 func normalizePage(page int, perPage int) (int, int) {
 	if page < 1 {
 		page = 1
+	}
+	if page > maxAdminListPage {
+		page = maxAdminListPage
 	}
 	if perPage < 1 {
 		perPage = 20
@@ -292,6 +298,14 @@ func normalizePage(page int, perPage int) (int, int) {
 		perPage = 100
 	}
 	return page, perPage
+}
+
+// escapeLike 转义 SQL LIKE/ILIKE 元字符，配合 ESCAPE '\' 使用（M6/L4）。
+func escapeLike(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, `%`, `\%`)
+	value = strings.ReplaceAll(value, `_`, `\_`)
+	return value
 }
 
 func nullableTime(value interface{ IsZero() bool }) any {

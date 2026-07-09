@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"golang.org/x/crypto/argon2"
@@ -101,6 +102,25 @@ func HashPassword(password string) (string, error) {
 	encodedKey := base64.RawStdEncoding.EncodeToString(key)
 
 	return fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s", passwordMemory, passwordTime, passwordThreads, encodedSalt, encodedKey), nil
+}
+
+// dummyPasswordHash 用于登录时序对齐：当用户不存在时，仍对提交的密码跑一次等价 argon2 验证，
+// 使"用户不存在"与"密码错误"两条路径耗时一致，消除用户名枚举的时序侧信道。
+// 用 sync.Once 懒生成，避免影响进程启动。
+var (
+	dummyHashOnce sync.Once
+	dummyHash     string
+	dummyHashErr  error
+)
+
+// dummyPasswordHash 返回一个合法格式的 argon2id hash（对任意密码验证结果均为 false）。
+// 首次调用时生成，后续复用同一 hash。
+func dummyPasswordHash() (string, error) {
+	dummyHashOnce.Do(func() {
+		// 生成一个真实的 argon2id hash 作为 dummy；VerifyPassword 会正常跑完 argon2 但比对必然不匹配。
+		dummyHash, dummyHashErr = HashPassword("sforum-dummy-do-not-match")
+	})
+	return dummyHash, dummyHashErr
 }
 
 func VerifyPassword(password string, encodedHash string) (bool, error) {

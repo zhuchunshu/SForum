@@ -130,9 +130,10 @@ func TestInitialSuperAdminCannotLoseSuperAdminRole(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Register returned error: %v", err)
 	}
-	admin := Actor{ID: adminUser.ID, Status: UserStatusActive, RoleKeys: []string{RoleSuperAdmin}}
+	// 用另一个 super_admin（不同 ID）操作 initial super_admin target，避免触发 self-change 检查。
+	otherSuperAdmin := Actor{ID: adminUser.ID + 100, Status: UserStatusActive, RoleKeys: []string{RoleSuperAdmin}}
 
-	_, err = service.ReplaceUserRoles(ctx, admin, adminUser.ID, []string{RoleMember})
+	_, err = service.ReplaceUserRoles(ctx, otherSuperAdmin, adminUser.ID, []string{RoleMember})
 	if err != ErrInitialSuperAdminLocked {
 		t.Fatalf("expected initial super admin lock, got %v", err)
 	}
@@ -178,9 +179,10 @@ func TestSuperAdminPermissionOverridesAreLocked(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Register returned error: %v", err)
 	}
-	admin := Actor{ID: adminUser.ID, Status: UserStatusActive, RoleKeys: []string{RoleSuperAdmin}}
+	// 用另一个 super_admin（不同 ID）操作 target，避免 self-change 检查。
+	otherSuperAdmin := Actor{ID: adminUser.ID + 100, Status: UserStatusActive, RoleKeys: []string{RoleSuperAdmin}}
 
-	_, err = service.ReplaceUserPermissionOverrides(ctx, admin, adminUser.ID, PermissionOverrides{
+	_, err = service.ReplaceUserPermissionOverrides(ctx, otherSuperAdmin, adminUser.ID, PermissionOverrides{
 		Deny: []string{PermissionAdminAccess},
 	})
 	if err != ErrSuperAdminOverridesLocked {
@@ -206,4 +208,86 @@ func registerMemberForPermissionTest(t *testing.T, service *Service, ctx context
 		t.Fatalf("second Register returned error: %v", err)
 	}
 	return member
+}
+
+// TestUserManagerCannotChangeOwnRoles 验证 H1：持有 user.manage 的非 super_admin
+// 不能修改自己的角色，防止自我提权到 super_admin。
+func TestUserManagerCannotChangeOwnRoles(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+	// manager 有 user.manage 权限但不是 super_admin。
+	manager := Actor{ID: 50, Status: UserStatusActive, Permissions: map[string]bool{PermissionUserManage: true}}
+
+	_, err := service.ReplaceUserRoles(ctx, manager, 50, []string{RoleSuperAdmin})
+	if err != ErrSelfRoleChange {
+		t.Fatalf("expected ErrSelfRoleChange, got %v", err)
+	}
+}
+
+// TestUserManagerCannotChangeOwnOverrides 验证 H1：禁止改自己的权限覆盖。
+func TestUserManagerCannotChangeOwnOverrides(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+	manager := Actor{ID: 50, Status: UserStatusActive, Permissions: map[string]bool{PermissionUserManage: true}}
+
+	_, err := service.ReplaceUserPermissionOverrides(ctx, manager, 50, PermissionOverrides{
+		Allow: []string{PermissionAdminAccess},
+	})
+	if err != ErrSelfRoleChange {
+		t.Fatalf("expected ErrSelfRoleChange, got %v", err)
+	}
+}
+
+// TestNonSuperAdminCannotGrantSuperAdminRole 验证 H1：非 super_admin 的 user.manage
+// 持有者不能把 super_admin 角色授予他人（即使 target 不是自己）。
+func TestNonSuperAdminCannotGrantSuperAdminRole(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+	// 先注册一个首 super_admin（让 store 里有 super_admin 角色），再注册一个普通 member 作为 target。
+	_, _ = service.Register(ctx, RegisterInput{
+		Username: "firstadmin",
+		Email:    "firstadmin@example.com",
+		Password: "correct horse battery staple",
+	})
+	target, err := service.Register(ctx, RegisterInput{
+		Username: "target",
+		Email:    "target@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("Register returned error: %v", err)
+	}
+	// manager 有 user.manage 但非 super_admin，尝试给 target 加 super_admin。
+	manager := Actor{ID: 60, Status: UserStatusActive, Permissions: map[string]bool{PermissionUserManage: true}}
+
+	_, err = service.ReplaceUserRoles(ctx, manager, target.ID, []string{RoleSuperAdmin})
+	if err != ErrSuperAdminGrantRestricted {
+		t.Fatalf("expected ErrSuperAdminGrantRestricted, got %v", err)
+	}
+}
+
+// TestSuperAdminCanGrantSuperAdminRole 验证 H1：super_admin 可以把 super_admin 授予他人。
+func TestSuperAdminCanGrantSuperAdminRole(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+	_, _ = service.Register(ctx, RegisterInput{
+		Username: "firstadmin",
+		Email:    "firstadmin@example.com",
+		Password: "correct horse battery staple",
+	})
+	target, err := service.Register(ctx, RegisterInput{
+		Username: "target2",
+		Email:    "target2@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("Register returned error: %v", err)
+	}
+	// 另一个 super_admin（ID 与 target 不同）操作 target。
+	superAdmin := Actor{ID: 70, Status: UserStatusActive, RoleKeys: []string{RoleSuperAdmin}}
+
+	_, err = service.ReplaceUserRoles(ctx, superAdmin, target.ID, []string{RoleSuperAdmin})
+	if err != nil {
+		t.Fatalf("expected super_admin to grant super_admin role, got %v", err)
+	}
 }

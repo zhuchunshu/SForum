@@ -5,6 +5,8 @@ import "github.com/gofiber/fiber/v3"
 func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/admin/extensions", h.list)
 	api.Get("/admin/extensions/navigation", h.navigation)
+	api.Get("/admin/extensions/contribution-points", h.contributionPoints)
+	api.Get("/admin/extensions/contributions", h.contributions)
 	api.Post("/admin/extensions", h.install)
 	api.Post("/admin/extensions/:id/enable", h.enable)
 	api.Post("/admin/extensions/:id/disable", h.disable)

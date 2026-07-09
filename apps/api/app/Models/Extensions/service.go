@@ -300,6 +300,57 @@ func (s *Service) EventDeliveries(ctx context.Context, actor identity.Actor, inp
 	return s.store.ListEventDeliveries(ctx, input)
 }
 
+func (s *Service) ContributionPoints(_ context.Context, actor identity.Actor) ([]ContributionPointDefinition, error) {
+	if !actor.Can(identity.PermissionExtensionManage) {
+		return nil, identity.ErrPermissionDenied
+	}
+	return extensionmanifest.ContributionPointDefinitions(), nil
+}
+
+func (s *Service) Contributions(ctx context.Context, actor identity.Actor) ([]EffectiveContribution, error) {
+	if !actor.Can(identity.PermissionExtensionManage) {
+		return nil, identity.ErrPermissionDenied
+	}
+	return s.EffectiveContributions(ctx)
+}
+
+func (s *Service) EffectiveContributions(ctx context.Context) ([]EffectiveContribution, error) {
+	items, err := s.store.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	contributions := []EffectiveContribution{}
+	for _, item := range items {
+		if item.Type != TypePlugin || item.Status != StatusEnabled {
+			continue
+		}
+		manifest := normalizeManifest(item.Manifest)
+		for _, contribution := range manifest.Contributions {
+			contributions = append(contributions, EffectiveContribution{
+				ExtensionID:   item.ID,
+				ExtensionName: item.Name,
+				ExtensionType: item.Type,
+				Point:         contribution.Point,
+				ID:            contribution.ID,
+				Order:         contribution.Order,
+				Label:         contribution.Label,
+				Icon:          contribution.Icon,
+				Payload:       contribution.Payload,
+			})
+		}
+	}
+	sort.SliceStable(contributions, func(left, right int) bool {
+		if contributions[left].Order != contributions[right].Order {
+			return contributions[left].Order < contributions[right].Order
+		}
+		if contributions[left].ExtensionID != contributions[right].ExtensionID {
+			return contributions[left].ExtensionID < contributions[right].ExtensionID
+		}
+		return contributions[left].ID < contributions[right].ID
+	})
+	return contributions, nil
+}
+
 func (s *Service) Navigation(ctx context.Context, actor identity.Actor) ([]ExtensionAdminNavigationItem, error) {
 	if !actor.Can(identity.PermissionExtensionManage) {
 		return nil, identity.ErrPermissionDenied
@@ -828,11 +879,9 @@ func extractArchiveFiles(versionDir string, files []archiveFile) error {
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 			return err
 		}
-		mode := file.mode.Perm()
-		if mode == 0 {
-			mode = 0o644
-		}
-		if err := os.WriteFile(target, file.body, mode); err != nil {
+		// C1：常规文件统一掩码为 0644，丢弃 ZIP 条目携带的执行位/setuid/setgid，
+		// 避免恶意扩展植入可执行脚本。backend entry 通过 runtime 加载，不依赖文件执行位。
+		if err := os.WriteFile(target, file.body, 0o644); err != nil {
 			return err
 		}
 	}
