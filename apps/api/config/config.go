@@ -2,6 +2,7 @@ package config
 
 import (
 	"log/slog"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -67,6 +68,10 @@ type Config struct {
 	MeiliTimeout                 time.Duration
 	LimiterWriteMax              int
 	LimiterWindow                time.Duration
+	// CSRFTrustedOrigins 是 CSRF 中间件信任的来源站点 origin 列表（如 https://forum.example.com）。
+	// API 在反向代理后看到的 Host 是内部地址，而 Origin 是公开站点，二者不匹配会被拒绝，
+	// 因此必须显式列出公开站点。支持 https://*.example.com 通配符子域。
+	CSRFTrustedOrigins           []string
 	JobQueueCriticalWorkers      int
 	JobQueueDefaultWorkers       int
 	JobQueueSearchWorkers        int
@@ -85,6 +90,11 @@ func Load() Config {
 	sessionAbsoluteTimeout := envDuration("SESSION_ABSOLUTE_TIMEOUT", 180*24*time.Hour)
 	if sessionAbsoluteTimeout < sessionIdleTimeout {
 		sessionAbsoluteTimeout = sessionIdleTimeout
+	}
+	// CSRF 信任源：优先读 CSRF_TRUSTED_ORIGINS；未配置时从 APP_URL 派生 scheme://host 作为默认。
+	csrfOrigins := envStringSlice("CSRF_TRUSTED_ORIGINS")
+	if len(csrfOrigins) == 0 {
+		csrfOrigins = originsFromAppURL(env("APP_URL", ""))
 	}
 
 	return Config{
@@ -144,6 +154,7 @@ func Load() Config {
 		MeiliTimeout:                 envDuration("MEILI_TIMEOUT", 5*time.Second),
 		LimiterWriteMax:              envPositiveInt("LIMITER_WRITE_MAX", 30),
 		LimiterWindow:                envDuration("LIMITER_WINDOW", time.Minute),
+		CSRFTrustedOrigins:           csrfOrigins,
 		JobQueueCriticalWorkers:      envPositiveInt("JOB_QUEUE_CRITICAL_WORKERS", 4),
 		JobQueueDefaultWorkers:       envPositiveInt("JOB_QUEUE_DEFAULT_WORKERS", 8),
 		JobQueueSearchWorkers:        envPositiveInt("JOB_QUEUE_SEARCH_WORKERS", 6),
@@ -208,6 +219,39 @@ func envDuration(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return parsed
+}
+
+// envStringSlice 读取逗号分隔的字符串列表，逐项 trim 并丢弃空项与重复项。
+func envStringSlice(key string) []string {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return nil
+	}
+	seen := map[string]bool{}
+	items := []string{}
+	for _, part := range strings.Split(raw, ",") {
+		item := strings.TrimSpace(part)
+		if item == "" || seen[item] {
+			continue
+		}
+		seen[item] = true
+		items = append(items, item)
+	}
+	return items
+}
+
+// originsFromAppURL 从 APP_URL 派生 origin（scheme://host），作为 CSRF 信任源默认值。
+// 解析失败或为空时返回 nil，交由上层按空信任源处理。
+func originsFromAppURL(appURL string) []string {
+	appURL = strings.TrimSpace(appURL)
+	if appURL == "" {
+		return nil
+	}
+	parsed, err := url.Parse(appURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return nil
+	}
+	return []string{parsed.Scheme + "://" + parsed.Host}
 }
 
 // compressLevelFromEnv 把环境变量字符串映射为 fiber compress Level。

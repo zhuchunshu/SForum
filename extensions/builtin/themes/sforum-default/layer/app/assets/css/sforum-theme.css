@@ -107,6 +107,19 @@
   gap: 0.75rem;
 }
 
+.sforum-home__rail::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sforum-home__rail::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sforum-home__rail::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.28);
+}
+
 .sforum-home__rail-card {
   padding: 0.85rem;
   border: 1px solid var(--sf-border);
@@ -177,11 +190,41 @@
   min-width: 0;
 }
 
+.sforum-topic-table__infinite-state {
+  display: grid;
+  place-items: center;
+  gap: 0.5rem;
+  min-height: 3.25rem;
+  padding: 0.85rem;
+  border-top: 1px solid var(--sf-border-light);
+  color: var(--sf-fg-tertiary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.sforum-topic-table__sentinel {
+  display: block;
+  width: 100%;
+  height: 1px;
+}
+
 @media (min-width: 768px) {
   .sf-footer__inner {
     flex-direction: row;
     justify-content: space-between;
     padding: 1.5rem 2rem;
     gap: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sforum-home__rail {
+    max-height: calc(100vh - 3rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 0.15rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(15, 118, 110, 0.28) transparent;
   }
 }

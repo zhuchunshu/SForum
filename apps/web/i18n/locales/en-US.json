@@ -34,6 +34,12 @@
       "title": "No matching threads found",
       "description": "Try switching keywords or selecting another category filter."
     },
+    "feed": {
+      "loadingMore": "Loading more discussions...",
+      "loadMoreFailed": "Failed to load more discussions.",
+      "retryLoadMore": "Retry",
+      "end": "You are all caught up"
+    },
     "sidebar": {
       "navTitle": "Navigation",
       "navHome": "Home",

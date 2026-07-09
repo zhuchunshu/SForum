@@ -50,6 +50,12 @@ through `SFORUM_THEME_LAYER`. The layer owns the homepage, default layout, auth
 layout/pages, public navbar/footer, and public/auth chrome CSS. Core keeps admin
 pages/layout, auth/session logic, API clients, i18n catalogs, SEO helpers,
 permissions, and reusable component/composable infrastructure.
+The default-theme homepage uses infinite scrolling for the central topic feed:
+page 1 is still SSR-loaded through the existing forum topic/search APIs, while
+client scroll uses `IntersectionObserver` to append later pages. The loaded
+feed and total are initialized from `topicList.value` into Nuxt `useState` so
+the SSR rows survive hydration in development payload mode. Desktop homepage
+side rails remain sticky but are viewport-bounded with internal scrolling.
 Uploaded themes are incremental overlays. When `SFORUM_THEME_LAYER` is set,
 `apps/web/nuxt.config.ts` extends `[uploadedThemeLayer, defaultThemeLayer]` so
 the uploaded layer can override public pages, layouts, components, and assets,

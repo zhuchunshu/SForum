@@ -69,6 +69,10 @@ This is the entry point for project memory.
   (`extensions/builtin/themes/sforum-default/layer/app/pages/index.vue`) and
   uses a wider max-w-[1376px] container with explicit column widths (Left
   270px, Middle flexible up to 720px, Right 290px) on desktop.
+- The default-theme homepage feed now uses client-side infinite scrolling
+  instead of visible page-number pagination. The first page remains SSR-loaded,
+  the loaded feed is preserved through Nuxt state for hydration, and desktop
+  side rails are sticky with viewport-bounded internal scrolling.
 - The thread feed row component (`SFFeedRow.vue`) has been redesigned using a compact no-excerpt layout (Left author avatar, Right title and upvote/reply actions inline, and bottom row metadata/views), doubling the layout information density.
 - Sidebar accessibility was improved by fixing double padding via the `flush` property and updating text colors to `slate-500` and `slate-600` for higher contrast.
 - The admin foundation now uses a dedicated Nuxt UI Dashboard shell with Nuxt

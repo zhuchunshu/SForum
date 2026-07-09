@@ -45,6 +45,22 @@ describe('default theme homepage layout contract', () => {
     expect(source).not.toContain(':excerpt="topic.excerpt"')
   })
 
+  test('uses automatic feed loading instead of visible homepage pagination', () => {
+    const source = homepage()
+
+    expect(source).toContain('loadMoreTrigger')
+    expect(source).toContain('IntersectionObserver')
+    expect(source).toContain('loadMoreTopics')
+    expect(source).toContain("useState<ForumTopicSummary[]>('forum-home-loaded-topics'")
+    expect(source).toContain('() => topicList.value.items')
+    expect(source).toContain('() => topicList.value.total')
+    expect(source).toContain("'forum-home-loaded-feed-key'")
+    expect(source).toContain('shouldIgnoreClientEmptyHydration')
+    expect(source).toContain('activeFeedKey.value === loadedFeedKey.value')
+    expect(source).toContain('sforum-topic-table__infinite-state')
+    expect(source).not.toContain('<SFPagination')
+  })
+
   test('feed row exposes table layout props without removing compact defaults', () => {
     const source = feedRow()
 
@@ -73,5 +89,8 @@ describe('default theme homepage layout contract', () => {
     expect(themeSource).toContain('.sforum-home__rail')
     expect(themeSource).toContain('.sforum-topic-table')
     expect(themeSource).toContain('.sforum-home__mobile-filters')
+    expect(themeSource).toContain('max-height: calc(100vh - 3rem);')
+    expect(themeSource).toContain('overflow-y: auto;')
+    expect(themeSource).toContain('overscroll-behavior: contain;')
   })
 })

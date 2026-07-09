@@ -67,7 +67,6 @@ const searchQuery = ref('')
 const selectedCategorySlug = ref('')
 const selectedTagSlug = ref('')
 const currentTab = ref('latest')
-const currentPage = ref(1)
 
 const emptyTopicList = (): ForumTopicList => ({
   items: [],
@@ -92,32 +91,55 @@ const topicFilters = computed(() => ({
   categorySlug: selectedCategorySlug.value,
   tagSlug: selectedTagSlug.value,
   query: searchQuery.value,
-  page: currentPage.value,
+  page: 1,
   perPage: ITEMS_PER_PAGE
 }))
+
+const activeFeedKey = computed(() => [
+  searchQuery.value.trim(),
+  selectedCategorySlug.value,
+  selectedTagSlug.value
+].join('\u001F'))
+
+function loadTopicPage(page: number) {
+  const trimmed = searchQuery.value.trim()
+  if (trimmed) {
+    return forumApi.searchTopics({
+      query: trimmed,
+      categorySlug: selectedCategorySlug.value,
+      tagSlug: selectedTagSlug.value,
+      page,
+      perPage: ITEMS_PER_PAGE
+    })
+  }
+
+  return forumApi.listTopics({
+    categorySlug: selectedCategorySlug.value,
+    tagSlug: selectedTagSlug.value,
+    page,
+    perPage: ITEMS_PER_PAGE
+  })
+}
 
 // 搜索关键词非空时走专用搜索端点（Meilisearch），否则走常规主题列表。
 // 两条路径返回结构一致（ForumTopicList），下游渲染无需区分。
 const { data: topicList, pending: topicsPending } = await useAsyncData(
   'forum-home-topics',
-  () => {
-    const trimmed = searchQuery.value.trim()
-    if (trimmed) {
-      return forumApi.searchTopics({
-        query: trimmed,
-        categorySlug: selectedCategorySlug.value,
-        tagSlug: selectedTagSlug.value,
-        page: currentPage.value,
-        perPage: ITEMS_PER_PAGE
-      })
-    }
-    return forumApi.listTopics(topicFilters.value)
-  },
+  () => loadTopicPage(1),
   {
     default: emptyTopicList,
     watch: [topicFilters]
   }
 )
+
+const loadedTopics = useState<ForumTopicSummary[]>('forum-home-loaded-topics', () => topicList.value.items)
+const loadedTopicTotal = useState<number>('forum-home-topic-total', () => topicList.value.total)
+const loadedFeedKey = useState<string>('forum-home-loaded-feed-key', () => activeFeedKey.value)
+const nextPage = ref(2)
+const isLoadingMore = ref(false)
+const loadMoreError = ref('')
+const loadMoreTrigger = ref<HTMLElement | null>(null)
+const hasLoadedAllPages = ref(false)
 
 // SFTabs configuration
 const tabItems = computed(() => [
@@ -128,7 +150,7 @@ const tabItems = computed(() => [
 ])
 
 const categories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
-const topics = computed(() => topicList.value.items)
+const topics = computed(() => loadedTopics.value)
 const activeCategory = computed(() => {
   return categories.value.find((category) => category.slug === selectedCategorySlug.value)
 })
@@ -145,9 +167,7 @@ const feedTitle = computed(() => {
   return t('home.sidebar.navHome')
 })
 const isPending = computed(() => categoriesPending.value || tagsPending.value || topicsPending.value)
-const totalPages = computed(() => {
-  return Math.ceil(topicList.value.total / Math.max(topicList.value.perPage, 1)) || 1
-})
+const hasMoreTopics = computed(() => !hasLoadedAllPages.value && loadedTopics.value.length < loadedTopicTotal.value)
 const hotTopics = computed(() => {
   return [...topics.value]
     .sort((a, b) => b.commentCount - a.commentCount)
@@ -168,10 +188,99 @@ function handleCheckIn() {
 const totalCategoryThreads = computed(() => categories.value.reduce((acc, cur) => acc + cur.topicCount, 0))
 const totalCategoryComments = computed(() => categories.value.reduce((acc, cur) => acc + cur.commentCount, 0))
 
-watch([searchQuery, selectedCategorySlug, selectedTagSlug], () => {
-  if (currentPage.value !== 1) {
-    currentPage.value = 1
+function replaceLoadedTopics(list: ForumTopicList) {
+  loadedTopics.value = list.items
+  loadedTopicTotal.value = list.total
+  loadedFeedKey.value = activeFeedKey.value
+  nextPage.value = Math.max(2, list.page + 1)
+  loadMoreError.value = ''
+  hasLoadedAllPages.value = list.items.length >= list.total || list.items.length < list.perPage
+}
+
+function shouldIgnoreClientEmptyHydration(list: ForumTopicList) {
+  return import.meta.client
+    && activeFeedKey.value === loadedFeedKey.value
+    && loadedTopics.value.length > 0
+    && loadedTopicTotal.value > 0
+    && list.items.length === 0
+    && list.total === 0
+}
+
+watch(topicList, (list) => {
+  if (shouldIgnoreClientEmptyHydration(list)) {
+    return
   }
+  replaceLoadedTopics(list)
+}, { immediate: true })
+
+async function loadMoreTopics(forceRetry = false) {
+  if (isPending.value || isLoadingMore.value || !hasMoreTopics.value) {
+    return
+  }
+  if (loadMoreError.value && !forceRetry) {
+    return
+  }
+
+  const feedKey = activeFeedKey.value
+  const page = nextPage.value
+  isLoadingMore.value = true
+  loadMoreError.value = ''
+
+  try {
+    const nextList = await loadTopicPage(page)
+    if (feedKey !== activeFeedKey.value) {
+      return
+    }
+
+    const existingIds = new Set(loadedTopics.value.map((topic) => topic.id))
+    const newTopics = nextList.items.filter((topic) => !existingIds.has(topic.id))
+    loadedTopics.value = [...loadedTopics.value, ...newTopics]
+    loadedTopicTotal.value = Math.max(loadedTopicTotal.value, nextList.total)
+    loadedFeedKey.value = activeFeedKey.value
+    nextPage.value = Math.max(page + 1, nextList.page + 1)
+    hasLoadedAllPages.value = nextList.items.length === 0
+      || nextList.items.length < nextList.perPage
+      || loadedTopics.value.length >= loadedTopicTotal.value
+  } catch {
+    if (feedKey === activeFeedKey.value) {
+      loadMoreError.value = 'home.feed.loadMoreFailed'
+    }
+  } finally {
+    if (feedKey === activeFeedKey.value) {
+      isLoadingMore.value = false
+    }
+  }
+}
+
+let loadMoreObserver: IntersectionObserver | null = null
+let stopLoadMoreTriggerWatch: (() => void) | null = null
+
+onMounted(() => {
+  if (typeof IntersectionObserver === 'undefined') {
+    return
+  }
+
+  loadMoreObserver = new IntersectionObserver((entries) => {
+    if (entries.some((entry) => entry.isIntersecting)) {
+      void loadMoreTopics()
+    }
+  }, {
+    rootMargin: '360px 0px'
+  })
+
+  stopLoadMoreTriggerWatch = watch(loadMoreTrigger, (element, previousElement) => {
+    if (previousElement) {
+      loadMoreObserver?.unobserve(previousElement)
+    }
+    if (element) {
+      loadMoreObserver?.observe(element)
+    }
+  }, { immediate: true })
+})
+
+onBeforeUnmount(() => {
+  stopLoadMoreTriggerWatch?.()
+  loadMoreObserver?.disconnect()
 })
 
 function selectCategory(category: ForumCategory) {
@@ -393,10 +502,22 @@ function formatShortDate(value: string) {
                 />
               </div>
             </div>
-          </div>
 
-          <div v-if="topics.length > 0 && !isPending" class="flex justify-center pt-2">
-            <SFPagination v-model:page="currentPage" :total-pages="totalPages" />
+            <div
+              v-if="topics.length > 0 && !isPending"
+              ref="loadMoreTrigger"
+              class="sforum-topic-table__infinite-state"
+            >
+              <span v-if="isLoadingMore">{{ t('home.feed.loadingMore') }}</span>
+              <template v-else-if="loadMoreError">
+                <span>{{ t(loadMoreError) }}</span>
+                <button type="button" class="sf-button sf-button--ghost sf-button--sm" @click="loadMoreTopics(true)">
+                  {{ t('home.feed.retryLoadMore') }}
+                </button>
+              </template>
+              <span v-else-if="!hasMoreTopics">{{ t('home.feed.end') }}</span>
+              <span v-else class="sforum-topic-table__sentinel" aria-hidden="true" />
+            </div>
           </div>
         </section>
 
@@ -467,7 +588,7 @@ function formatShortDate(value: string) {
             <ul class="grid gap-2.5 text-sm text-slate-700 dark:text-zinc-300">
               <li class="flex justify-between gap-3">
                 <span class="text-slate-500 dark:text-zinc-400">{{ t('home.sidebar.statThreads') }}</span>
-                <span class="font-mono font-semibold text-slate-800 dark:text-zinc-100">{{ topicList.total || totalCategoryThreads }}</span>
+                <span class="font-mono font-semibold text-slate-800 dark:text-zinc-100">{{ loadedTopicTotal || totalCategoryThreads }}</span>
               </li>
               <li class="flex justify-between gap-3">
                 <span class="text-slate-500 dark:text-zinc-400">{{ t('home.sidebar.statReplies') }}</span>

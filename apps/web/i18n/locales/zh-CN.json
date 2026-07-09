@@ -34,6 +34,12 @@
       "title": "未找到匹配的话题",
       "description": "尝试换个关键词或者选择其他过滤器分类看看。"
     },
+    "feed": {
+      "loadingMore": "正在加载更多讨论...",
+      "loadMoreFailed": "加载更多失败。",
+      "retryLoadMore": "重试",
+      "end": "已经到底了"
+    },
     "sidebar": {
       "navTitle": "导航",
       "navHome": "论坛首页",

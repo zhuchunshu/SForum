@@ -2,11 +2,14 @@ package http
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/compress"
+	"github.com/gofiber/fiber/v3/middleware/csrf"
 	"github.com/gofiber/fiber/v3/middleware/limiter"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
@@ -80,6 +83,21 @@ func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.Ap
 func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 	api := app.Group("/api/v1")
 
+	// CSRF 防护：double-submit cookie + Origin/Referer 校验，保护所有 unsafe 方法。
+	// 注册在 /api/v1 group 上，使 GET（如 /auth/session）也能种下可读的 csrf_ cookie，
+	// 供 SPA 读取后随 unsafe 请求回传 X-Csrf-Token header。
+	// TrustedOrigins 必须包含公开站点 origin：API 在反向代理后看到的 Host 是内部地址，
+	// 而 Origin 是公开站点，二者不匹配会被默认拒绝。默认从 APP_URL 派生。
+	api.Use(csrf.New(csrf.Config{
+		Storage:         deps.Storage,
+		CookieSameSite:  fiber.CookieSameSiteLaxMode,
+		CookieSecure:    strings.EqualFold(cfg.AppEnv, "production"),
+		CookieHTTPOnly:  false, // SPA 必须能读取 csrf_ cookie 以回传 token
+		CookiePath:      "/",
+		TrustedOrigins:  cfg.CSRFTrustedOrigins,
+		ErrorHandler:    csrfErrorHandler,
+	}))
+
 	for _, provider := range deps.RouteProviders {
 		if provider != nil {
 			provider.RegisterRoutes(api)
@@ -115,6 +133,22 @@ func fallbackRuntimeSettings(cfg config.Config) options.RuntimeSettings {
 		DefaultLocale:             cfg.AppLocale,
 		SupportedLocales:          cfg.SupportedLocales,
 		HumanVerificationProvider: cfg.HumanVerificationProvider,
+	}
+}
+
+// csrfErrorHandler 把 CSRF 中间件的错误映射为统一 envelope reason。
+// token 缺失/不匹配 → csrf.invalid；Origin/Referer 不匹配 → csrf.origin_invalid。
+// 返回 *APIError 由全局 errorHandler 渲染成 {code,message,data:{reason}} 结构。
+func csrfErrorHandler(_ fiber.Ctx, err error) error {
+	switch {
+	case errors.Is(err, csrf.ErrOriginNoMatch),
+		errors.Is(err, csrf.ErrOriginInvalid),
+		errors.Is(err, csrf.ErrRefererNoMatch),
+		errors.Is(err, csrf.ErrRefererInvalid),
+		errors.Is(err, csrf.ErrRefererNotFound):
+		return NewError(fiber.StatusForbidden, "csrf.origin_invalid")
+	default:
+		return NewError(fiber.StatusForbidden, "csrf.invalid")
 	}
 }
 

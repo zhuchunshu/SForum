@@ -2,6 +2,7 @@ package config
 
 import (
 	"log/slog"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -318,5 +319,46 @@ func TestLoadClampsSessionAbsoluteTimeoutToIdleTimeout(t *testing.T) {
 	}
 	if cfg.SessionAbsoluteTimeout != cfg.SessionIdleTimeout {
 		t.Fatalf("expected session absolute timeout to clamp to idle timeout, got %s", cfg.SessionAbsoluteTimeout)
+	}
+}
+
+// TestLoadCSRFTrustedOriginsFromEnv 验证 CSRF_TRUSTED_ORIGINS 逗号分隔解析与去重/去空白。
+func TestLoadCSRFTrustedOriginsFromEnv(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("CSRF_TRUSTED_ORIGINS", " https://a.example.com ,https://b.example.com, https://a.example.com ,")
+
+	cfg := Load()
+
+	want := []string{"https://a.example.com", "https://b.example.com"}
+	if len(cfg.CSRFTrustedOrigins) != len(want) {
+		t.Fatalf("expected %d origins, got %#v", len(want), cfg.CSRFTrustedOrigins)
+	}
+	for i, o := range want {
+		if cfg.CSRFTrustedOrigins[i] != o {
+			t.Fatalf("origin %d = %q, want %q (full: %#v)", i, cfg.CSRFTrustedOrigins[i], o, cfg.CSRFTrustedOrigins)
+		}
+	}
+}
+
+// TestLoadCSRFTrustedOriginsDefaultsFromAppURL 验证未配置 CSRF_TRUSTED_ORIGINS 时，
+// 从 APP_URL 派生 scheme://host 作为默认信任源（代理后 API 看到的 Host 与公开站点不同）。
+func TestLoadCSRFTrustedOriginsDefaultsFromAppURL(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("APP_URL", "https://forum.example.com/some/path")
+	os.Unsetenv("CSRF_TRUSTED_ORIGINS")
+
+	cfg := Load()
+
+	if len(cfg.CSRFTrustedOrigins) != 1 || cfg.CSRFTrustedOrigins[0] != "https://forum.example.com" {
+		t.Fatalf("expected default origin https://forum.example.com, got %#v", cfg.CSRFTrustedOrigins)
+	}
+}
+
+// TestOriginsFromAppURLHandlesInvalidInput 验证无效 APP_URL 不产生 origin。
+func TestOriginsFromAppURLHandlesInvalidInput(t *testing.T) {
+	for _, input := range []string{"", "   ", "not-a-url", "/relative/path"} {
+		if got := originsFromAppURL(input); got != nil {
+			t.Fatalf("originsFromAppURL(%q) = %#v, want nil", input, got)
+		}
 	}
 }
