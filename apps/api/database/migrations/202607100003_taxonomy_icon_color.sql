@@ -1,0 +1,17 @@
+-- +goose Up
+ALTER TABLE categories
+  ADD COLUMN icon TEXT NOT NULL DEFAULT '',
+  ADD COLUMN icon_color TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE tags
+  ADD COLUMN icon TEXT NOT NULL DEFAULT '',
+  ADD COLUMN icon_color TEXT NOT NULL DEFAULT '';
+
+-- +goose Down
+ALTER TABLE tags
+  DROP COLUMN IF EXISTS icon_color,
+  DROP COLUMN IF EXISTS icon;
+
+ALTER TABLE categories
+  DROP COLUMN IF EXISTS icon_color,
+  DROP COLUMN IF EXISTS icon;

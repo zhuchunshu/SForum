@@ -23,7 +23,8 @@ func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
 func (s *PostgresStore) ListCategories(ctx context.Context) ([]Category, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT categories.id, categories.group_id, category_groups.slug, category_groups.name,
-		  categories.slug, categories.name, categories.description, categories.visibility,
+		  categories.slug, categories.name, categories.description, categories.icon, categories.icon_color,
+		  categories.visibility,
 		  categories.position, categories.default_sort,
 		  categories.topic_count, categories.comment_count, categories.created_at, categories.updated_at
 		FROM categories
@@ -57,7 +58,7 @@ func (s *PostgresStore) ListCategoryGroups(ctx context.Context) ([]CategoryGroup
 		  category_groups.description, category_groups.visibility, category_groups.position,
 		  category_groups.created_at, category_groups.updated_at,
 		  categories.id, categories.group_id, categories.slug, categories.name,
-		  categories.description, categories.visibility, categories.position,
+		  categories.description, categories.icon, categories.icon_color, categories.visibility, categories.position,
 		  categories.default_sort, categories.topic_count, categories.comment_count,
 		  categories.created_at, categories.updated_at
 		FROM category_groups
@@ -101,14 +102,14 @@ func (s *PostgresStore) ListCategoryGroups(ctx context.Context) ([]CategoryGroup
 
 func (s *PostgresStore) ListTags(ctx context.Context, includePending bool) ([]Tag, error) {
 	query := `
-		SELECT id, slug, name, description, status, topic_count, created_at, updated_at
+		SELECT id, slug, name, description, icon, icon_color, status, topic_count, created_at, updated_at
 		FROM tags
 		WHERE status = 'active'
 		ORDER BY topic_count DESC, name ASC, id ASC
 	`
 	if includePending {
 		query = `
-			SELECT id, slug, name, description, status, topic_count, created_at, updated_at
+			SELECT id, slug, name, description, icon, icon_color, status, topic_count, created_at, updated_at
 			FROM tags
 			WHERE status IN ('active', 'pending', 'disabled')
 			ORDER BY status ASC, name ASC, id ASC
@@ -165,17 +166,18 @@ func (s *PostgresStore) UpdateCategoryGroup(ctx context.Context, input UpdateCat
 func (s *PostgresStore) CreateCategory(ctx context.Context, input CreateCategoryInput) (Category, error) {
 	row := s.pool.QueryRow(ctx, `
 		WITH inserted AS (
-		  INSERT INTO categories (group_id, slug, name, description, visibility, position, default_sort)
-		  VALUES ($1, $2, $3, $4, $5, $6, $7)
+		  INSERT INTO categories (group_id, slug, name, description, icon, icon_color, visibility, position, default_sort)
+		  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		  RETURNING *
 		)
 		SELECT inserted.id, inserted.group_id, category_groups.slug, category_groups.name,
-		  inserted.slug, inserted.name, inserted.description, inserted.visibility,
+		  inserted.slug, inserted.name, inserted.description, inserted.icon, inserted.icon_color,
+		  inserted.visibility,
 		  inserted.position, inserted.default_sort, inserted.topic_count,
 		  inserted.comment_count, inserted.created_at, inserted.updated_at
 		FROM inserted
 		JOIN category_groups ON category_groups.id = inserted.group_id
-	`, input.GroupID, input.Slug, input.Name, input.Description, input.Visibility, input.Position, input.DefaultSort)
+	`, input.GroupID, input.Slug, input.Name, input.Description, input.Icon, input.IconColor, input.Visibility, input.Position, input.DefaultSort)
 	return scanCategory(row)
 }
 
@@ -187,20 +189,23 @@ func (s *PostgresStore) UpdateCategory(ctx context.Context, input UpdateCategory
 		      slug = COALESCE($3::text, slug),
 		      name = COALESCE($4::text, name),
 		      description = COALESCE($5::text, description),
-		      visibility = COALESCE($6::text, visibility),
-		      position = COALESCE($7::integer, position),
-		      default_sort = COALESCE($8::text, default_sort),
+		      icon = COALESCE($6::text, icon),
+		      icon_color = COALESCE($7::text, icon_color),
+		      visibility = COALESCE($8::text, visibility),
+		      position = COALESCE($9::integer, position),
+		      default_sort = COALESCE($10::text, default_sort),
 		      updated_at = now()
 		  WHERE id = $1
 		  RETURNING *
 		)
 		SELECT updated.id, updated.group_id, category_groups.slug, category_groups.name,
-		  updated.slug, updated.name, updated.description, updated.visibility,
+		  updated.slug, updated.name, updated.description, updated.icon, updated.icon_color,
+		  updated.visibility,
 		  updated.position, updated.default_sort, updated.topic_count,
 		  updated.comment_count, updated.created_at, updated.updated_at
 		FROM updated
 		JOIN category_groups ON category_groups.id = updated.group_id
-	`, input.ID, nullableInt64(input.GroupID), nullableString(input.Slug), nullableString(input.Name), nullableString(input.Description), nullableString(input.Visibility), nullableInt(input.Position), nullableString(input.DefaultSort))
+	`, input.ID, nullableInt64(input.GroupID), nullableString(input.Slug), nullableString(input.Name), nullableString(input.Description), nullableString(input.Icon), nullableString(input.IconColor), nullableString(input.Visibility), nullableInt(input.Position), nullableString(input.DefaultSort))
 	item, err := scanCategory(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Category{}, ErrTopicNotFound
@@ -210,10 +215,10 @@ func (s *PostgresStore) UpdateCategory(ctx context.Context, input UpdateCategory
 
 func (s *PostgresStore) CreateTag(ctx context.Context, input CreateTagInput) (Tag, error) {
 	row := s.pool.QueryRow(ctx, `
-		INSERT INTO tags (slug, name, description, status, created_by_user_id)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, slug, name, description, status, topic_count, created_at, updated_at
-	`, input.Slug, input.Name, input.Description, input.Status, nullUserID(input.ActorUserID))
+		INSERT INTO tags (slug, name, description, icon, icon_color, status, created_by_user_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, slug, name, description, icon, icon_color, status, topic_count, created_at, updated_at
+	`, input.Slug, input.Name, input.Description, input.Icon, input.IconColor, input.Status, nullUserID(input.ActorUserID))
 	return scanTag(row)
 }
 
@@ -223,13 +228,15 @@ func (s *PostgresStore) UpdateTag(ctx context.Context, input UpdateTagInput) (Ta
 		SET slug = COALESCE($2::text, slug),
 		    name = COALESCE($3::text, name),
 		    description = COALESCE($4::text, description),
-		    status = COALESCE($5::text, status),
-		    reviewed_by_user_id = COALESCE($6::bigint, reviewed_by_user_id),
-		    reviewed_at = CASE WHEN $5::text IS NULL THEN reviewed_at ELSE now() END,
+		    icon = COALESCE($5::text, icon),
+		    icon_color = COALESCE($6::text, icon_color),
+		    status = COALESCE($7::text, status),
+		    reviewed_by_user_id = COALESCE($8::bigint, reviewed_by_user_id),
+		    reviewed_at = CASE WHEN $7::text IS NULL THEN reviewed_at ELSE now() END,
 		    updated_at = now()
 		WHERE id = $1
-		RETURNING id, slug, name, description, status, topic_count, created_at, updated_at
-	`, input.ID, nullableString(input.Slug), nullableString(input.Name), nullableString(input.Description), nullableString(input.Status), nullablePositiveInt64(input.ActorUserID))
+		RETURNING id, slug, name, description, icon, icon_color, status, topic_count, created_at, updated_at
+	`, input.ID, nullableString(input.Slug), nullableString(input.Name), nullableString(input.Description), nullableString(input.Icon), nullableString(input.IconColor), nullableString(input.Status), nullablePositiveInt64(input.ActorUserID))
 	item, err := scanTag(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Tag{}, ErrTagNotFound
@@ -1318,6 +1325,8 @@ func scanCategory(row RowScanner) (Category, error) {
 		&item.Slug,
 		&item.Name,
 		&item.Description,
+		&item.Icon,
+		&item.IconColor,
 		&item.Visibility,
 		&item.Position,
 		&item.DefaultSort,
@@ -1356,6 +1365,8 @@ func scanCategoryGroupRow(row RowScanner) (CategoryGroup, Category, bool, error)
 	var categorySlug sql.NullString
 	var categoryName sql.NullString
 	var categoryDescription sql.NullString
+	var categoryIcon sql.NullString
+	var categoryIconColor sql.NullString
 	var categoryVisibility sql.NullString
 	var categoryPosition sql.NullInt64
 	var categoryDefaultSort sql.NullString
@@ -1378,6 +1389,8 @@ func scanCategoryGroupRow(row RowScanner) (CategoryGroup, Category, bool, error)
 		&categorySlug,
 		&categoryName,
 		&categoryDescription,
+		&categoryIcon,
+		&categoryIconColor,
 		&categoryVisibility,
 		&categoryPosition,
 		&categoryDefaultSort,
@@ -1399,6 +1412,8 @@ func scanCategoryGroupRow(row RowScanner) (CategoryGroup, Category, bool, error)
 		Slug:         categorySlug.String,
 		Name:         categoryName.String,
 		Description:  categoryDescription.String,
+		Icon:         categoryIcon.String,
+		IconColor:    categoryIconColor.String,
 		Visibility:   categoryVisibility.String,
 		Position:     int(categoryPosition.Int64),
 		DefaultSort:  categoryDefaultSort.String,
@@ -1417,6 +1432,8 @@ func scanTag(row RowScanner) (Tag, error) {
 		&item.Slug,
 		&item.Name,
 		&item.Description,
+		&item.Icon,
+		&item.IconColor,
 		&item.Status,
 		&item.TopicCount,
 		&item.CreatedAt,
@@ -1708,4 +1725,3 @@ func buildCommentTree(items []Comment) []Comment {
 	}
 	return roots
 }
-
