@@ -29,6 +29,8 @@ type categoryRequest struct {
 	Slug        string `json:"slug"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Icon        string `json:"icon"`
+	IconColor   string `json:"iconColor"`
 	Visibility  string `json:"visibility"`
 	Position    int    `json:"position"`
 	DefaultSort string `json:"defaultSort"`
@@ -39,6 +41,8 @@ type updateCategoryRequest struct {
 	Slug        *string `json:"slug"`
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
+	Icon        *string `json:"icon"`
+	IconColor   *string `json:"iconColor"`
 	Visibility  *string `json:"visibility"`
 	Position    *int    `json:"position"`
 	DefaultSort *string `json:"defaultSort"`
@@ -48,6 +52,8 @@ type tagRequest struct {
 	Slug        string `json:"slug"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Icon        string `json:"icon"`
+	IconColor   string `json:"iconColor"`
 	Status      string `json:"status"`
 }
 
@@ -55,6 +61,8 @@ type updateTagRequest struct {
 	Slug        *string `json:"slug"`
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
+	Icon        *string `json:"icon"`
+	IconColor   *string `json:"iconColor"`
 	Status      *string `json:"status"`
 }
 
@@ -154,6 +162,8 @@ func (h *Controller) adminCreateCategory(c fiber.Ctx) error {
 		Slug:        req.Slug,
 		Name:        req.Name,
 		Description: req.Description,
+		Icon:        req.Icon,
+		IconColor:   req.IconColor,
 		Visibility:  req.Visibility,
 		Position:    req.Position,
 		DefaultSort: req.DefaultSort,
@@ -179,6 +189,8 @@ func (h *Controller) adminUpdateCategory(c fiber.Ctx) error {
 		Slug:        req.Slug,
 		Name:        req.Name,
 		Description: req.Description,
+		Icon:        req.Icon,
+		IconColor:   req.IconColor,
 		Visibility:  req.Visibility,
 		Position:    req.Position,
 		DefaultSort: req.DefaultSort,
@@ -217,6 +229,8 @@ func (h *Controller) adminCreateTag(c fiber.Ctx) error {
 		Slug:        req.Slug,
 		Name:        req.Name,
 		Description: req.Description,
+		Icon:        req.Icon,
+		IconColor:   req.IconColor,
 		Status:      req.Status,
 	})
 	if err != nil {
@@ -239,6 +253,8 @@ func (h *Controller) adminUpdateTag(c fiber.Ctx) error {
 		Slug:        req.Slug,
 		Name:        req.Name,
 		Description: req.Description,
+		Icon:        req.Icon,
+		IconColor:   req.IconColor,
 		Status:      req.Status,
 	})
 	if err != nil {

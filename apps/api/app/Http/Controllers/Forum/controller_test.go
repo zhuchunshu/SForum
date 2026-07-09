@@ -164,6 +164,39 @@ func TestControllerAdminForumPermissions(t *testing.T) {
 	}
 }
 
+func TestControllerAdminForumVisualFields(t *testing.T) {
+	app, _, _ := newForumTestApp()
+	cookie := loginForumUser(t, app, 4)
+
+	categoryBody := []byte(`{"groupId":1,"slug":"support","name":"支持","visibility":"public","defaultSort":"latest","icon":"i-tabler-help","iconColor":"#0f766e"}`)
+	resp := performForumRequest(t, app, nethttp.MethodPost, "/api/v1/admin/forum/categories", categoryBody, cookie)
+	if resp.StatusCode != nethttp.StatusCreated {
+		t.Fatalf("expected 201 create category, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var categoryOut forumTestEnvelope[forum.Category]
+	if err := json.NewDecoder(resp.Body).Decode(&categoryOut); err != nil {
+		t.Fatalf("decode category: %v", err)
+	}
+	if categoryOut.Data.Icon != "i-tabler-help" || categoryOut.Data.IconColor != "#0f766e" {
+		t.Fatalf("expected category visual fields in response, got %#v", categoryOut.Data)
+	}
+
+	tagBody := []byte(`{"slug":"go","name":"Go","status":"active","icon":"i-lucide-tag","iconColor":"#2563eb"}`)
+	resp = performForumRequest(t, app, nethttp.MethodPost, "/api/v1/admin/forum/tags", tagBody, cookie)
+	if resp.StatusCode != nethttp.StatusCreated {
+		t.Fatalf("expected 201 create tag, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var tagOut forumTestEnvelope[forum.Tag]
+	if err := json.NewDecoder(resp.Body).Decode(&tagOut); err != nil {
+		t.Fatalf("decode tag: %v", err)
+	}
+	if tagOut.Data.Icon != "i-lucide-tag" || tagOut.Data.IconColor != "#2563eb" {
+		t.Fatalf("expected tag visual fields in response, got %#v", tagOut.Data)
+	}
+}
+
 func TestControllerAdminSettingsResetWithPermission(t *testing.T) {
 	app, _, store := newForumTestApp()
 	cookie := loginForumUser(t, app, 4)
@@ -454,7 +487,7 @@ func (s *controllerForumStore) UpdateCategoryGroup(_ context.Context, input foru
 }
 
 func (s *controllerForumStore) CreateCategory(_ context.Context, input forum.CreateCategoryInput) (forum.Category, error) {
-	return forum.Category{ID: 2, GroupID: input.GroupID, Slug: input.Slug, Name: input.Name, Description: input.Description, Visibility: input.Visibility, Position: input.Position, DefaultSort: input.DefaultSort}, nil
+	return forum.Category{ID: 2, GroupID: input.GroupID, Slug: input.Slug, Name: input.Name, Description: input.Description, Icon: input.Icon, IconColor: input.IconColor, Visibility: input.Visibility, Position: input.Position, DefaultSort: input.DefaultSort}, nil
 }
 
 func (s *controllerForumStore) UpdateCategory(_ context.Context, input forum.UpdateCategoryInput) (forum.Category, error) {
@@ -465,11 +498,17 @@ func (s *controllerForumStore) UpdateCategory(_ context.Context, input forum.Upd
 	if input.Name != nil {
 		item.Name = *input.Name
 	}
+	if input.Icon != nil {
+		item.Icon = *input.Icon
+	}
+	if input.IconColor != nil {
+		item.IconColor = *input.IconColor
+	}
 	return item, nil
 }
 
 func (s *controllerForumStore) CreateTag(_ context.Context, input forum.CreateTagInput) (forum.Tag, error) {
-	return forum.Tag{ID: 2, Slug: input.Slug, Name: input.Name, Description: input.Description, Status: input.Status}, nil
+	return forum.Tag{ID: 2, Slug: input.Slug, Name: input.Name, Description: input.Description, Icon: input.Icon, IconColor: input.IconColor, Status: input.Status}, nil
 }
 
 func (s *controllerForumStore) UpdateTag(_ context.Context, input forum.UpdateTagInput) (forum.Tag, error) {
@@ -479,6 +518,12 @@ func (s *controllerForumStore) UpdateTag(_ context.Context, input forum.UpdateTa
 	}
 	if input.Name != nil {
 		item.Name = *input.Name
+	}
+	if input.Icon != nil {
+		item.Icon = *input.Icon
+	}
+	if input.IconColor != nil {
+		item.IconColor = *input.IconColor
 	}
 	if input.Status != nil {
 		item.Status = *input.Status

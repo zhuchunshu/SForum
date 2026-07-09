@@ -305,6 +305,8 @@ Category:
   - slug
   - name
   - description
+  - icon
+  - iconColor
   - visibility
   - position
   - defaultSort
@@ -329,6 +331,12 @@ Category:
       type: string
     description:
       type: string
+    icon:
+      type: string
+      description: Nuxt Icon name such as i-tabler-message-circle. Empty string means no custom icon.
+    iconColor:
+      type: string
+      description: Hex color such as '#0f766e'. Empty string means use the admin theme accent.
     visibility:
       type: string
       enum:
@@ -360,6 +368,8 @@ Tag:
   - slug
   - name
   - description
+  - icon
+  - iconColor
   - status
   - topicCount
   - createdAt
@@ -374,6 +384,12 @@ Tag:
       type: string
     description:
       type: string
+    icon:
+      type: string
+      description: Nuxt Icon name such as i-tabler-tag. Empty string means no custom icon.
+    iconColor:
+      type: string
+      description: Hex color such as '#2563eb'. Empty string means use the admin theme accent.
     status:
       "$ref": "#/TagStatus"
     topicCount:
@@ -938,6 +954,12 @@ CreateCategoryRequest:
     description:
       type: string
       default: ''
+    icon:
+      type: string
+      default: ''
+    iconColor:
+      type: string
+      default: ''
     visibility:
       type: string
       enum:
@@ -965,6 +987,10 @@ UpdateCategoryRequest:
       type: string
     description:
       type: string
+    icon:
+      type: string
+    iconColor:
+      type: string
     visibility:
       type: string
       enum:
@@ -990,6 +1016,12 @@ CreateTagRequest:
     description:
       type: string
       default: ''
+    icon:
+      type: string
+      default: ''
+    iconColor:
+      type: string
+      default: ''
     status:
       "$ref": "#/TagStatus"
       default: active
@@ -1001,6 +1033,10 @@ UpdateTagRequest:
     name:
       type: string
     description:
+      type: string
+    icon:
+      type: string
+    iconColor:
       type: string
     status:
       "$ref": "#/TagStatus"
