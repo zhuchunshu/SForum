@@ -7,6 +7,7 @@ import {
   forumTopicPath,
   forumUserProfilePath,
   parseTopicPath,
+  topicPathLookupCandidates,
   FORUM_TOPIC_ACTIONS,
   type ForumComment,
   type ForumCommentListQuery
@@ -87,6 +88,27 @@ describe('parseTopicPath', () => {
 
   test('id_slug rejects non-numeric leading segment', () => {
     expect(parseTopicPath(['abc', 'slug'], 'id_slug')).toBeNull()
+  })
+})
+
+describe('topicPathLookupCandidates', () => {
+  test('recognizes old id_slug paths while current mode is slug', () => {
+    expect(topicPathLookupCandidates(['42', 'hello-world'], 'slug')).toEqual([
+      { kind: 'id', topicId: 42 }
+    ])
+  })
+
+  test('falls back from slug to id for ambiguous numeric single segment', () => {
+    expect(topicPathLookupCandidates(['42'], 'slug')).toEqual([
+      { kind: 'slug', slug: '42' },
+      { kind: 'id', topicId: 42 }
+    ])
+  })
+
+  test('recognizes old slug paths while current mode is id based', () => {
+    expect(topicPathLookupCandidates(['hello-world'], 'id_slug')).toEqual([
+      { kind: 'slug', slug: 'hello-world' }
+    ])
   })
 })
 

@@ -278,6 +278,9 @@ export function forumTagPath(slug: string) {
 // 帖子 URL 形态枚举。与 useWebOptions 的 TopicUrlMode 保持一致；
 // 此处独立声明以保持 forumTaxonomy 为纯工具模块（不依赖 Nuxt auto-import）。
 export type TopicUrlMode = 'id_slug' | 'id' | 'slug'
+export type TopicPathLookup =
+  | { kind: 'id', topicId: number }
+  | { kind: 'slug', slug: string }
 
 // previewTopicSlug 在前端预览标题对应的 slug（与后端 slugify 主逻辑对齐：
 // 转小写、非 [a-z0-9-] 字符替换为 -、首尾去 -）。仅用于编辑保存后跳转的预期路径；
@@ -327,6 +330,53 @@ export function parseTopicPath(
   }
   const rest = parts.slice(1).join('/')
   return { topicId, slug: rest ? decodeURIComponent(rest) : '' }
+}
+
+// 为详情页生成有序查询候选。当前 URL 模式的规范形态优先，同时兼容切换模式前
+// 留下的 id、id+slug、slug 三种旧链接，再由详情页统一跳转到当前 canonical。
+export function topicPathLookupCandidates(
+  segments: string[] | readonly string[] | undefined,
+  mode: TopicUrlMode = 'id_slug'
+): TopicPathLookup[] {
+  const parts = (segments ? [...segments] : []).filter((s) => s !== '')
+  if (parts.length === 0) {
+    return []
+  }
+
+  const candidates: TopicPathLookup[] = []
+  const first = parts[0]!
+  const topicId = parsePositiveInteger(first)
+  const addID = () => {
+    if (topicId && !candidates.some((item) => item.kind === 'id' && item.topicId === topicId)) {
+      candidates.push({ kind: 'id', topicId })
+    }
+  }
+  const addSlug = (raw: string) => {
+    const slug = decodeURIComponent(raw)
+    if (slug && !candidates.some((item) => item.kind === 'slug' && item.slug === slug)) {
+      candidates.push({ kind: 'slug', slug })
+    }
+  }
+
+  if (parts.length >= 2) {
+    addID()
+    return candidates
+  }
+
+  if (mode === 'slug') {
+    addSlug(first)
+    addID()
+    return candidates
+  }
+
+  addID()
+  addSlug(first)
+  return candidates
+}
+
+function parsePositiveInteger(value: string) {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0
 }
 
 export function forumUserProfilePath(username: string) {

@@ -69,9 +69,11 @@ on 2026-07-07.
 | `slug` | `/t/hello-world` | `GET /topics/by-slug/:slug`（按 slug，需全局唯一） |
 
 URL 规范化：详情页在 SSR 入口按当前 mode 计算 canonical 路径，与请求路径
-不符时直接 301（SSR）/ replace（客户端）。触发场景包括：模式切换后的旧 URL、
-slug 变更后的旧 slug、`id` 模式下多余的 slug 段。编辑入口为 `?edit=1` query
-（避免 catch-all 嵌套子路由的渲染出口问题）。
+不符时直接 301（SSR）/ replace（客户端）。详情页先通过
+`topicPathLookupCandidates` 生成有序查询候选，兼容当前模式和切换模式前遗留的
+`id`、`id_slug`、`slug` 旧链接；只有 404 会尝试下一个候选，API/网络错误不被吞掉。
+触发场景包括：模式切换后的旧 URL、slug 变更后的旧 slug、`id` 模式下多余的
+slug 段。编辑入口为 `?edit=1` query（避免 catch-all 嵌套子路由的渲染出口问题）。
 
 `slug` 模式要求 slug 全局唯一：迁移 `202607090001` 把 `topics.slug` 升级为
 UNIQUE 索引（先去重），创建/改标题时 `Service.ensureUniqueTopicSlug` 在冲突时

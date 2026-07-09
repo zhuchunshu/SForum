@@ -6,10 +6,12 @@ import {
   forumTopicPath,
   forumUserProfilePath,
   parseTopicPath,
+  topicPathLookupCandidates,
   FORUM_TOPIC_ACTIONS,
   type ForumComment,
   type ForumCommentList,
-  type ForumTopicDetail
+  type ForumTopicDetail,
+  type TopicPathLookup
 } from '~/utils/forumTaxonomy'
 
 definePageMeta({
@@ -51,29 +53,48 @@ const pathSegments = computed<string[]>(() => {
   return raw ? [String(raw)] : []
 })
 const parsedPath = computed(() => parseTopicPath(pathSegments.value, topicUrlMode.value))
-const topicID = computed(() => parsedPath.value?.topicId ?? 0)
-const topicSlug = computed(() => parsedPath.value?.slug ?? '')
+const topicLookups = computed(() => topicPathLookupCandidates(pathSegments.value, topicUrlMode.value))
+const topicLookupKey = computed(() => topicLookups.value.map((item) => item.kind === 'id' ? `id:${item.topicId}` : `slug:${item.slug}`).join('|'))
+const topicID = computed(() => parsedPath.value?.topicId ?? topicLookups.value.find((item) => item.kind === 'id')?.topicId ?? 0)
 
-// 按 mode 选择加载方式：slug 模式按 slug 查（后端 /topics/by-slug），其余按 id 查。
+// 按 URL 候选顺序加载主题：当前 mode 的规范形态优先，旧的 id/id+slug/slug 链接作为回退。
 const { data: topic, error: topicError } = await useAsyncData(
-  () => `forum-topic-${topicUrlMode.value}-${topicID.value || topicSlug.value}`,
-  async () => {
-    if (topicUrlMode.value === 'slug') {
-      if (!topicSlug.value) {
-        return null
-      }
-      return forumApi.getTopicBySlug(topicSlug.value)
-    }
-    if (topicID.value <= 0) {
-      return null
-    }
-    return forumApi.getTopic(topicID.value)
-  },
+  () => `forum-topic-${topicUrlMode.value}-${topicLookupKey.value}`,
+  () => loadTopicFromCandidates(topicLookups.value),
   {
     // 后端对 hidden/deleted 主题返回 404，这里正常抛错由 error 页处理。
     default: () => null as ForumTopicDetail | null
   }
 )
+
+async function loadTopicFromCandidates(candidates: TopicPathLookup[]) {
+  let lastNotFound: unknown
+  for (const candidate of candidates) {
+    try {
+      return candidate.kind === 'id'
+        ? await forumApi.getTopic(candidate.topicId)
+        : await forumApi.getTopicBySlug(candidate.slug)
+    } catch (error) {
+      if (!isTopicLookupNotFound(error)) {
+        throw error
+      }
+      lastNotFound = error
+    }
+  }
+  if (lastNotFound) {
+    throw lastNotFound
+  }
+  return null
+}
+
+function isTopicLookupNotFound(error: unknown) {
+  const candidate = error as { statusCode?: unknown, status?: unknown, response?: { status?: unknown } }
+  return candidate.statusCode === 404 || candidate.status === 404 || candidate.response?.status === 404
+}
+
+// 编辑模式：通过 ?edit=1 query 进入（避免 catch-all 嵌套子路由问题）。
+// 需登录；未登录时全局 auth 中间件会重定向到登录页。
+const isEditing = computed(() => route.query.edit !== undefined && route.query.edit !== null)
 
 // 规范化：URL 形态/slug 与当前 mode 下的规范路径不符时，301（SSR）/ replace（客户端）。
 // 触发场景：模式切换后的旧 URL、slug 变更后的旧 slug、id 模式下多余的 slug 段。
@@ -115,10 +136,6 @@ useSForumSeo({
     authorName: forumAuthorName(topic.value.author, topic.value.authorUserId)
   } : undefined
 })
-
-// 编辑模式：通过 ?edit=1 query 进入（避免 catch-all 嵌套子路由问题）。
-// 需登录；未登录时全局 auth 中间件会重定向到登录页。
-const isEditing = computed(() => route.query.edit !== undefined && route.query.edit !== null)
 
 // 编辑保存成功后跳回规范详情路径（用新 slug，规范化兜底 -2 后缀）。
 async function onTopicSaved(updated: ForumTopicDetail) {
