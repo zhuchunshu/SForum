@@ -32,6 +32,8 @@ export type AdminForumCategoryPayload = {
   slug: string
   name: string
   description: string
+  icon: string
+  iconColor: string
   visibility: ForumVisibility
   position: number
   defaultSort: ForumDefaultSort
@@ -41,6 +43,8 @@ export type AdminForumTagPayload = {
   slug: string
   name: string
   description: string
+  icon: string
+  iconColor: string
   status: ForumTagStatus
 }
 
@@ -154,6 +158,8 @@ export function createCategoryPayload(groupId = 0, overrides: Partial<AdminForum
     slug: '',
     name: '',
     description: '',
+    icon: '',
+    iconColor: '',
     visibility: 'public',
     position: 0,
     defaultSort: 'latest',
@@ -166,6 +172,8 @@ export function createTagPayload(overrides: Partial<AdminForumTagPayload> = {}):
     slug: '',
     name: '',
     description: '',
+    icon: '',
+    iconColor: '',
     status: 'active',
     ...overrides
   }

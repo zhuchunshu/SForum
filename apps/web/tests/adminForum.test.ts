@@ -6,7 +6,9 @@ import {
   type AdminNavigationFolderEntry
 } from '../app/config/adminModules'
 import {
+  createCategoryPayload,
   createDefaultForumSettings,
+  createTagPayload,
   normalizeForumSettings
 } from '../app/utils/adminForum'
 
@@ -25,6 +27,53 @@ describe('admin forum helpers', () => {
       tagPublicPages: 'maybe',
       tagMaxPerTopic: '99'
     })).toEqual(createDefaultForumSettings())
+  })
+
+  test('creates taxonomy payloads with visual field defaults', () => {
+    expect(createCategoryPayload(2)).toEqual({
+      groupId: 2,
+      slug: '',
+      name: '',
+      description: '',
+      icon: '',
+      iconColor: '',
+      visibility: 'public',
+      position: 0,
+      defaultSort: 'latest'
+    })
+
+    expect(createCategoryPayload(2, {
+      slug: 'support',
+      name: 'Support',
+      icon: 'i-tabler-help',
+      iconColor: '#0f766e'
+    })).toMatchObject({
+      slug: 'support',
+      name: 'Support',
+      icon: 'i-tabler-help',
+      iconColor: '#0f766e'
+    })
+
+    expect(createTagPayload()).toEqual({
+      slug: '',
+      name: '',
+      description: '',
+      icon: '',
+      iconColor: '',
+      status: 'active'
+    })
+
+    expect(createTagPayload({
+      slug: 'go',
+      name: 'Go',
+      icon: 'i-lucide-tag',
+      iconColor: '#2563eb'
+    })).toMatchObject({
+      slug: 'go',
+      name: 'Go',
+      icon: 'i-lucide-tag',
+      iconColor: '#2563eb'
+    })
   })
 
   test('defines permission-aware forum admin pages', () => {

@@ -19,6 +19,8 @@ export type ForumCategory = {
   slug: string
   name: string
   description: string
+  icon: string
+  iconColor: string
   visibility: ForumVisibility
   position: number
   defaultSort: ForumDefaultSort
@@ -45,6 +47,8 @@ export type ForumTag = {
   slug: string
   name: string
   description: string
+  icon: string
+  iconColor: string
   status: ForumTagStatus
   topicCount: number
   createdAt: string
