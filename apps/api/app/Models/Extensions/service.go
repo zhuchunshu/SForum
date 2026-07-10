@@ -16,6 +16,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
 )
 
@@ -247,9 +248,15 @@ func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
 			if err := validateManifest(manifest); err != nil {
 				return nil, err
 			}
+			packageRoot := filepath.Dir(manifestPath)
+			snapshot, err := extensionpackage.SnapshotBuiltin(packageRoot, s.extensionRoot)
+			if err != nil {
+				return nil, err
+			}
 			item, err := s.store.SaveBuiltin(ctx, SaveBuiltinInput{
-				Manifest:    manifest,
-				PackagePath: filepath.Dir(manifestPath),
+				Manifest:      manifest,
+				PackagePath:   snapshot.Root,
+				PackageDigest: snapshot.Digest,
 			})
 			if err != nil {
 				return nil, err
@@ -484,24 +491,27 @@ func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, inpu
 		return Extension{}, ErrInvalidManifest
 	}
 
-	versionDir := filepath.Join(s.extensionRoot, manifest.ID, manifest.Version)
-	if err := os.MkdirAll(filepath.Join(versionDir, "files"), 0o755); err != nil {
+	manifestJSON, err := json.Marshal(manifest)
+	if err != nil {
 		return Extension{}, err
 	}
-	packagePath := filepath.Join(versionDir, "package.zip")
-	if err := os.WriteFile(packagePath, input.Data, 0o600); err != nil {
-		return Extension{}, err
+	packageFiles := make([]extensionpackage.File, 0, len(files))
+	for _, file := range files {
+		packageFiles = append(packageFiles, extensionpackage.File{
+			Path: file.name,
+			Mode: file.mode,
+			Body: file.body,
+		})
 	}
-	if err := writeManifest(versionDir, manifest); err != nil {
-		return Extension{}, err
-	}
-	if err := extractArchiveFiles(versionDir, files); err != nil {
+	snapshot, err := extensionpackage.SnapshotUploaded(s.extensionRoot, manifestJSON, packageFiles)
+	if err != nil {
 		return Extension{}, err
 	}
 
 	installed, err := s.store.SaveInstalled(ctx, SaveInstalledInput{
-		Manifest:    manifest,
-		PackagePath: packagePath,
+		Manifest:      manifest,
+		PackagePath:   snapshot.Root,
+		PackageDigest: snapshot.Digest,
 	})
 	if err != nil {
 		return Extension{}, err
@@ -759,6 +769,13 @@ func validateInstalledPackage(extension Extension) error {
 	if packagePath == "" {
 		return fmt.Errorf("extension package path is empty")
 	}
+	if strings.TrimSpace(extension.PackageDigest) != "" {
+		info, err := os.Stat(packagePath)
+		if err != nil || !info.IsDir() {
+			return fmt.Errorf("extension package snapshot %s is not available", packagePath)
+		}
+		return requireInstalledManifest(packagePath)
+	}
 	if extension.Source == SourceBuiltin {
 		info, err := os.Stat(packagePath)
 		if err != nil || !info.IsDir() {
@@ -826,6 +843,9 @@ func readArchive(data []byte) (Manifest, []archiveFile, error) {
 		if !ok {
 			return Manifest{}, nil, ErrInvalidArchive
 		}
+		if file.Mode()&os.ModeSymlink != 0 {
+			return Manifest{}, nil, ErrInvalidArchive
+		}
 		if file.FileInfo().IsDir() {
 			continue
 		}
@@ -869,34 +889,15 @@ func writeManifest(versionDir string, manifest Manifest) error {
 	return os.WriteFile(filepath.Join(versionDir, ManifestFileName), body, 0o600)
 }
 
-func extractArchiveFiles(versionDir string, files []archiveFile) error {
-	root := filepath.Join(versionDir, "files")
-	for _, file := range files {
-		target := filepath.Join(root, filepath.FromSlash(file.name))
-		if !strings.HasPrefix(target, root+string(os.PathSeparator)) {
-			return ErrInvalidArchive
-		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return err
-		}
-		// C1：常规文件统一掩码为 0644，丢弃 ZIP 条目携带的执行位/setuid/setgid，
-		// 避免恶意扩展植入可执行脚本。backend entry 通过 runtime 加载，不依赖文件执行位。
-		if err := os.WriteFile(target, file.body, 0o644); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func installedFilePath(extension Extension, manifestPath string) (string, bool) {
 	name, ok := safeArchivePath(manifestPath)
 	if !ok {
 		return "", false
 	}
-	root := filepath.Join(filepath.Dir(extension.PackagePath), "files")
-	if extension.Source == SourceBuiltin {
-		// 内置扩展直接位于 Git 包目录；上传扩展才解压到相邻 files 目录。
-		root = filepath.Clean(extension.PackagePath)
+	root := filepath.Clean(extension.PackagePath)
+	if strings.TrimSpace(extension.PackageDigest) == "" && extension.Source != SourceBuiltin {
+		// 仅旧版上传包使用 package.zip 旁边的 files 目录；内容寻址快照直接以 PackagePath 为根。
+		root = filepath.Join(filepath.Dir(extension.PackagePath), "files")
 	}
 	target := filepath.Join(root, filepath.FromSlash(name))
 	return target, strings.HasPrefix(target, root+string(os.PathSeparator))

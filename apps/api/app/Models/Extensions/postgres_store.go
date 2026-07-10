@@ -82,15 +82,14 @@ func (s *PostgresStore) SaveInstalled(ctx context.Context, input SaveInstalledIn
 		return Extension{}, fmt.Errorf("upsert extension: %w", err)
 	}
 
-	var versionID int64
-	if err := tx.QueryRow(ctx, `
-		INSERT INTO extension_versions (extension_id, version, manifest, package_path)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (extension_id, version) DO UPDATE
-		SET manifest = EXCLUDED.manifest,
-		    package_path = EXCLUDED.package_path
-		RETURNING id
-	`, input.Manifest.ID, input.Manifest.Version, manifestJSON, input.PackagePath).Scan(&versionID); err != nil {
+	versionID, err := ensureExtensionVersion(ctx, tx, extensionVersionInput{
+		ExtensionID:   input.Manifest.ID,
+		Version:       input.Manifest.Version,
+		ManifestJSON:  manifestJSON,
+		PackagePath:   input.PackagePath,
+		PackageDigest: input.PackageDigest,
+	})
+	if err != nil {
 		return Extension{}, fmt.Errorf("upsert extension version: %w", err)
 	}
 
@@ -134,15 +133,14 @@ func (s *PostgresStore) SaveBuiltin(ctx context.Context, input SaveBuiltinInput)
 		return Extension{}, fmt.Errorf("upsert builtin extension: %w", err)
 	}
 
-	var versionID int64
-	if err := tx.QueryRow(ctx, `
-		INSERT INTO extension_versions (extension_id, version, manifest, package_path)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (extension_id, version) DO UPDATE
-		SET manifest = EXCLUDED.manifest,
-		    package_path = EXCLUDED.package_path
-		RETURNING id
-	`, input.Manifest.ID, input.Manifest.Version, manifestJSON, input.PackagePath).Scan(&versionID); err != nil {
+	versionID, err := ensureExtensionVersion(ctx, tx, extensionVersionInput{
+		ExtensionID:   input.Manifest.ID,
+		Version:       input.Manifest.Version,
+		ManifestJSON:  manifestJSON,
+		PackagePath:   input.PackagePath,
+		PackageDigest: input.PackageDigest,
+	})
+	if err != nil {
 		return Extension{}, fmt.Errorf("upsert builtin extension version: %w", err)
 	}
 
@@ -541,7 +539,8 @@ func extensionSelectSQL() string {
 	return `
 		SELECT extensions.id, extensions.name, extensions.type, extensions.status,
 		  extensions.source, extensions.is_system, extensions.is_deletable,
-		  extension_versions.version, extension_versions.manifest, extension_versions.package_path,
+		  extension_versions.version, extension_versions.manifest, extension_versions.package_digest,
+		  extension_versions.package_path,
 		  extension_versions.installed_at, extensions.updated_at
 		FROM extensions
 		JOIN extension_versions ON extension_versions.id = extensions.active_version_id
@@ -565,6 +564,7 @@ func scanExtension(row extensionRow) (Extension, error) {
 		&item.IsDeletable,
 		&item.Version,
 		&manifestJSON,
+		&item.PackageDigest,
 		&item.PackagePath,
 		&item.InstalledAt,
 		&item.UpdatedAt,
@@ -575,6 +575,39 @@ func scanExtension(row extensionRow) (Extension, error) {
 		return Extension{}, fmt.Errorf("decode extension manifest: %w", err)
 	}
 	return item, nil
+}
+
+type extensionVersionInput struct {
+	ExtensionID   string
+	Version       string
+	ManifestJSON  []byte
+	PackagePath   string
+	PackageDigest string
+}
+
+// ensureExtensionVersion 以完整包摘要区分同版本的不可变安装内容。
+// 完全相同的三元组只复用原记录，不允许后续安装覆盖已批准的清单或包路径。
+func ensureExtensionVersion(ctx context.Context, tx pgx.Tx, input extensionVersionInput) (int64, error) {
+	var versionID int64
+	err := tx.QueryRow(ctx, `
+		WITH inserted AS (
+			INSERT INTO extension_versions (
+				extension_id, version, manifest, package_path, package_digest
+			)
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (extension_id, version, package_digest) DO NOTHING
+			RETURNING id
+		)
+		SELECT id FROM inserted
+		UNION ALL
+		SELECT id
+		FROM extension_versions
+		WHERE extension_id = $1
+		  AND version = $2
+		  AND package_digest = $5
+		LIMIT 1
+	`, input.ExtensionID, input.Version, input.ManifestJSON, input.PackagePath, input.PackageDigest).Scan(&versionID)
+	return versionID, err
 }
 
 type themeReleaseScanner interface {

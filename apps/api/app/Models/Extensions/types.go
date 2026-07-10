@@ -115,20 +115,21 @@ type MatchedRoute struct {
 }
 
 type Extension struct {
-	ID           string         `json:"id"`
-	Name         string         `json:"name"`
-	Version      string         `json:"version"`
-	Type         string         `json:"type"`
-	Status       string         `json:"status"`
-	Source       string         `json:"source"`
-	IsSystem     bool           `json:"isSystem"`
-	IsDeletable  bool           `json:"isDeletable"`
-	Manifest     Manifest       `json:"manifest"`
-	Runtime      *RuntimeStatus `json:"runtime,omitempty"`
-	ThemeRelease *ThemeRelease  `json:"themeRelease,omitempty"`
-	PackagePath  string         `json:"packagePath"`
-	InstalledAt  time.Time      `json:"installedAt"`
-	UpdatedAt    time.Time      `json:"updatedAt"`
+	ID            string         `json:"id"`
+	Name          string         `json:"name"`
+	Version       string         `json:"version"`
+	Type          string         `json:"type"`
+	Status        string         `json:"status"`
+	Source        string         `json:"source"`
+	IsSystem      bool           `json:"isSystem"`
+	IsDeletable   bool           `json:"isDeletable"`
+	Manifest      Manifest       `json:"manifest"`
+	Runtime       *RuntimeStatus `json:"runtime,omitempty"`
+	ThemeRelease  *ThemeRelease  `json:"themeRelease,omitempty"`
+	PackageDigest string         `json:"packageDigest"`
+	PackagePath   string         `json:"packagePath"`
+	InstalledAt   time.Time      `json:"installedAt"`
+	UpdatedAt     time.Time      `json:"updatedAt"`
 }
 
 type ThemeRelease struct {
@@ -234,13 +235,15 @@ type ArchiveInput struct {
 }
 
 type SaveInstalledInput struct {
-	Manifest    Manifest
-	PackagePath string
+	Manifest      Manifest
+	PackagePath   string
+	PackageDigest string
 }
 
 type SaveBuiltinInput struct {
-	Manifest    Manifest
-	PackagePath string
+	Manifest      Manifest
+	PackagePath   string
+	PackageDigest string
 }
 
 type EventInput struct {

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -61,9 +62,25 @@ func TestServiceInstallArchiveValidatesManifestAndSafeZipPaths(t *testing.T) {
 	}
 }
 
+func TestServiceInstallArchiveRejectsZipSymlink(t *testing.T) {
+	service := NewService(&fakeExtensionStore{}, t.TempDir())
+
+	_, err := service.InstallArchive(context.Background(), extensionManager(), ArchiveInput{
+		FileName: "symlink.zip",
+		Data: extensionArchive(t, validManifest("demo.plugin", TypePlugin),
+			zipFile{name: "backend/plugin", body: "../../outside", mode: os.ModeSymlink | 0o777},
+		),
+	})
+
+	if !errors.Is(err, ErrInvalidArchive) {
+		t.Fatalf("expected symlink entry to be an invalid archive, got %v", err)
+	}
+}
+
 func TestServiceInstallArchiveStoresManifestPackageAndEvent(t *testing.T) {
 	store := &fakeExtensionStore{}
-	service := NewService(store, t.TempDir())
+	extensionRoot := t.TempDir()
+	service := NewService(store, extensionRoot)
 
 	installed, err := service.InstallArchive(context.Background(), extensionManager(), ArchiveInput{
 		FileName: "sample.zip",
@@ -82,11 +99,74 @@ func TestServiceInstallArchiveStoresManifestPackageAndEvent(t *testing.T) {
 	if store.saved.Manifest.ID != "demo.plugin" || store.saved.Manifest.Type != TypePlugin {
 		t.Fatalf("manifest was not saved: %#v", store.saved.Manifest)
 	}
-	if store.saved.PackagePath == "" {
-		t.Fatal("expected package path to be stored")
+	if store.saved.PackagePath == "" || store.saved.PackageDigest == "" {
+		t.Fatalf("expected snapshot path and digest to be stored: %#v", store.saved)
+	}
+	if installed.PackagePath != store.saved.PackagePath || installed.PackageDigest != store.saved.PackageDigest {
+		t.Fatalf("installed extension did not propagate snapshot identity: installed=%#v saved=%#v", installed, store.saved)
+	}
+	packageInfo, err := os.Stat(installed.PackagePath)
+	if err != nil || !packageInfo.IsDir() {
+		t.Fatalf("expected package path to be a snapshot directory, info=%#v err=%v", packageInfo, err)
+	}
+	if _, err := os.Stat(filepath.Join(installed.PackagePath, ManifestFileName)); err != nil {
+		t.Fatalf("expected canonical manifest in snapshot root: %v", err)
+	}
+	backendPath, ok := installedFilePath(installed, "backend/plugin")
+	if !ok || backendPath != filepath.Join(installed.PackagePath, "backend", "plugin") {
+		t.Fatalf("digest-backed extension path did not resolve from snapshot root: path=%q ok=%t", backendPath, ok)
+	}
+	if body, err := os.ReadFile(backendPath); err != nil || string(body) != "#!/bin/sh\n" {
+		t.Fatalf("unexpected snapshotted backend: body=%q err=%v", body, err)
+	}
+	if _, err := os.Stat(filepath.Join(installed.PackagePath, "package.zip")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("snapshot must not retain the uploaded ZIP wrapper, got %v", err)
 	}
 	if len(store.events) != 1 || store.events[0].Action != EventInstalled {
 		t.Fatalf("expected install event, got %#v", store.events)
+	}
+}
+
+func TestServiceInstallArchiveKeepsDifferentContentForSameIDAndVersion(t *testing.T) {
+	store := &fakeExtensionStore{}
+	service := NewService(store, t.TempDir())
+	manifest := validManifest("changed.plugin", TypePlugin)
+
+	first, err := service.InstallArchive(context.Background(), extensionManager(), ArchiveInput{
+		FileName: "first.zip",
+		Data: extensionArchive(t, manifest,
+			zipFile{name: "README.md", body: "first"},
+		),
+	})
+	if err != nil {
+		t.Fatalf("install first package: %v", err)
+	}
+	second, err := service.InstallArchive(context.Background(), extensionManager(), ArchiveInput{
+		FileName: "second.zip",
+		Data: extensionArchive(t, manifest,
+			zipFile{name: "README.md", body: "second"},
+		),
+	})
+	if err != nil {
+		t.Fatalf("install changed package: %v", err)
+	}
+
+	if first.PackageDigest == "" || second.PackageDigest == "" {
+		t.Fatalf("expected both package digests: first=%#v second=%#v", first, second)
+	}
+	if first.PackageDigest == second.PackageDigest || first.PackagePath == second.PackagePath {
+		t.Fatalf("different package content reused one snapshot: first=%#v second=%#v", first, second)
+	}
+	firstBody, err := os.ReadFile(filepath.Join(first.PackagePath, "README.md"))
+	if err != nil {
+		t.Fatalf("read first immutable package: %v", err)
+	}
+	secondBody, err := os.ReadFile(filepath.Join(second.PackagePath, "README.md"))
+	if err != nil {
+		t.Fatalf("read second immutable package: %v", err)
+	}
+	if string(firstBody) != "first" || string(secondBody) != "second" {
+		t.Fatalf("package snapshots were overwritten: first=%q second=%q", firstBody, secondBody)
 	}
 }
 
@@ -342,6 +422,49 @@ func TestServiceSyncBuiltinsPrunesRemovedBuiltinExtensions(t *testing.T) {
 	}
 	if item, ok := store.items[DefaultThemeID]; !ok || item.Source != SourceBuiltin {
 		t.Fatalf("expected current builtin theme to remain, got %#v", item)
+	}
+}
+
+func TestServiceSyncBuiltinsStoresImmutableSnapshotIdentity(t *testing.T) {
+	builtinRoot := t.TempDir()
+	extensionRoot := t.TempDir()
+	themeRoot := filepath.Join(builtinRoot, "themes", "sforum-default")
+	defaultTheme := protectedBuiltinExtension(DefaultThemeID, TypeTheme)
+	defaultTheme.Manifest.Frontend = ManifestFrontend{Layer: "layer"}
+	if err := os.MkdirAll(filepath.Join(themeRoot, "layer"), 0o755); err != nil {
+		t.Fatalf("create builtin theme layer: %v", err)
+	}
+	if err := writeManifest(themeRoot, defaultTheme.Manifest); err != nil {
+		t.Fatalf("write builtin theme manifest: %v", err)
+	}
+	const sourceBody = "export default defineNuxtConfig({})\n"
+	sourceLayer := filepath.Join(themeRoot, "layer", "nuxt.config.ts")
+	if err := os.WriteFile(sourceLayer, []byte(sourceBody), 0o644); err != nil {
+		t.Fatalf("write builtin theme layer: %v", err)
+	}
+	store := &fakeExtensionStore{items: map[string]Extension{}}
+	service := NewServiceWithBuiltins(store, extensionRoot, builtinRoot)
+
+	if _, err := service.SyncBuiltins(context.Background()); err != nil {
+		t.Fatalf("SyncBuiltins returned error: %v", err)
+	}
+	saved := store.items[DefaultThemeID]
+	if saved.PackagePath == "" || saved.PackageDigest == "" {
+		t.Fatalf("expected builtin snapshot identity, got %#v", saved)
+	}
+	if saved.PackagePath == themeRoot || !strings.HasPrefix(saved.PackagePath, filepath.Clean(extensionRoot)+string(os.PathSeparator)) {
+		t.Fatalf("builtin package was not copied below extension root: source=%q saved=%q", themeRoot, saved.PackagePath)
+	}
+	snapshotLayer := filepath.Join(saved.PackagePath, "layer", "nuxt.config.ts")
+	if err := os.WriteFile(sourceLayer, []byte("changed after sync"), 0o644); err != nil {
+		t.Fatalf("change builtin source after sync: %v", err)
+	}
+	body, err := os.ReadFile(snapshotLayer)
+	if err != nil {
+		t.Fatalf("read builtin snapshot layer: %v", err)
+	}
+	if string(body) != sourceBody {
+		t.Fatalf("builtin snapshot changed with source tree: %q", body)
 	}
 }
 
@@ -1051,6 +1174,7 @@ func validThemeManifest(id string) string {
 type zipFile struct {
 	name string
 	body string
+	mode os.FileMode
 }
 
 func extensionArchive(t *testing.T, manifest string, files ...zipFile) []byte {
@@ -1059,10 +1183,10 @@ func extensionArchive(t *testing.T, manifest string, files ...zipFile) []byte {
 	var buffer bytes.Buffer
 	writer := zip.NewWriter(&buffer)
 	if manifest != "" {
-		writeZipFile(t, writer, ManifestFileName, manifest)
+		writeZipFile(t, writer, zipFile{name: ManifestFileName, body: manifest})
 	}
 	for _, file := range files {
-		writeZipFile(t, writer, file.name, file.body)
+		writeZipFile(t, writer, file)
 	}
 	if err := writer.Close(); err != nil {
 		t.Fatalf("close zip: %v", err)
@@ -1070,14 +1194,18 @@ func extensionArchive(t *testing.T, manifest string, files ...zipFile) []byte {
 	return buffer.Bytes()
 }
 
-func writeZipFile(t *testing.T, writer *zip.Writer, name string, body string) {
+func writeZipFile(t *testing.T, writer *zip.Writer, file zipFile) {
 	t.Helper()
-	file, err := writer.Create(name)
-	if err != nil {
-		t.Fatalf("create zip file %s: %v", name, err)
+	header := &zip.FileHeader{Name: file.name, Method: zip.Deflate}
+	if file.mode != 0 {
+		header.SetMode(file.mode)
 	}
-	if _, err := io.WriteString(file, body); err != nil {
-		t.Fatalf("write zip file %s: %v", name, err)
+	entry, err := writer.CreateHeader(header)
+	if err != nil {
+		t.Fatalf("create zip file %s: %v", file.name, err)
+	}
+	if _, err := io.WriteString(entry, file.body); err != nil {
+		t.Fatalf("write zip file %s: %v", file.name, err)
 	}
 }
 
@@ -1407,17 +1535,18 @@ func (s *fakeExtensionStore) ActiveThemeRelease(context.Context) (ThemeRelease, 
 
 func (s *fakeExtensionStore) SaveInstalled(_ context.Context, input SaveInstalledInput) (Extension, error) {
 	item := Extension{
-		ID:          input.Manifest.ID,
-		Name:        input.Manifest.Name,
-		Version:     input.Manifest.Version,
-		Type:        input.Manifest.Type,
-		Status:      StatusInstalled,
-		Source:      SourceUploaded,
-		IsDeletable: true,
-		Manifest:    input.Manifest,
-		PackagePath: input.PackagePath,
-		InstalledAt: time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:            input.Manifest.ID,
+		Name:          input.Manifest.Name,
+		Version:       input.Manifest.Version,
+		Type:          input.Manifest.Type,
+		Status:        StatusInstalled,
+		Source:        SourceUploaded,
+		IsDeletable:   true,
+		Manifest:      input.Manifest,
+		PackageDigest: input.PackageDigest,
+		PackagePath:   input.PackagePath,
+		InstalledAt:   time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 	s.saved = item
 	if s.items == nil {
@@ -1429,18 +1558,19 @@ func (s *fakeExtensionStore) SaveInstalled(_ context.Context, input SaveInstalle
 
 func (s *fakeExtensionStore) SaveBuiltin(_ context.Context, input SaveBuiltinInput) (Extension, error) {
 	item := Extension{
-		ID:          input.Manifest.ID,
-		Name:        input.Manifest.Name,
-		Version:     input.Manifest.Version,
-		Type:        input.Manifest.Type,
-		Status:      StatusEnabled,
-		Source:      SourceBuiltin,
-		IsSystem:    true,
-		IsDeletable: false,
-		Manifest:    input.Manifest,
-		PackagePath: input.PackagePath,
-		InstalledAt: time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:            input.Manifest.ID,
+		Name:          input.Manifest.Name,
+		Version:       input.Manifest.Version,
+		Type:          input.Manifest.Type,
+		Status:        StatusEnabled,
+		Source:        SourceBuiltin,
+		IsSystem:      true,
+		IsDeletable:   false,
+		Manifest:      input.Manifest,
+		PackageDigest: input.PackageDigest,
+		PackagePath:   input.PackagePath,
+		InstalledAt:   time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 	if s.items == nil {
 		s.items = map[string]Extension{}
