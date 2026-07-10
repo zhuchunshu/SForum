@@ -235,6 +235,11 @@ This is the entry point for project memory.
   widget behavior settings are frontend-safe runtime options. Admin-only
   settings include masked ALTCHA secret metadata plus ALTCHA TTL/cost, editable
   from the admin settings page by users with `settings.manage`.
+- Public forum pagination is operator-configurable through
+  `forum.pagination.topics_per_page` and
+  `forum.pagination.comments_per_page`. Both recommended defaults are 20;
+  topic, search, and comment APIs resolve them when `perPage` is omitted, while
+  explicit values remain capped at 100.
 - Personalization settings extend runtime web options with `appearance.theme`
   preset keys or `custom:#rrggbb` colors plus frontend-safe footer content. The
   stored key remains `appearance.theme`, but UI language now calls it a

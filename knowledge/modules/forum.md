@@ -33,6 +33,11 @@ on 2026-07-07.
 - Runtime forum settings live in `web_options`: default category slug, tag
   creation mode, public tag pages, and max tags per topic. Recommended defaults
   are configurable and resettable.
+- Public pagination defaults are server-authoritative runtime settings:
+  `forum.pagination.topics_per_page` and
+  `forum.pagination.comments_per_page` both default to 20 and accept 1-100.
+  Omitted `perPage` values use the relevant setting; explicit positive values
+  remain caller overrides capped at 100. Admin and internal lists are excluded.
 - Tag creation modes are `controlled`, `review`, and `open`. Controlled mode
   only allows approved tags, review mode creates pending tags, and open mode
   creates active tags directly.

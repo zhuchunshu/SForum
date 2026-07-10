@@ -50,6 +50,11 @@ Initial runtime option support is implemented.
   and public tag-policy controls. Updating `forum.default_category_slug`
   requires `category.manage`; updating `forum.tags.*` options requires
   `tag.manage`.
+- Forum pagination options are public runtime values named
+  `forum.pagination.topics_per_page` and
+  `forum.pagination.comments_per_page`. Both default to 20, accept 1-100,
+  require `settings.manage` to update, and participate in the forum settings
+  one-click reset.
 
 ## Boundaries
 
