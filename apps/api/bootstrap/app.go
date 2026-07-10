@@ -195,6 +195,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot,
 		extensionRuntime, nil, themeDispatcher,
 		extensions.WithThemeCurrentWriter(themeCurrentWriter),
+		extensions.WithWebReleaseLifecycle(frontendService, webReleaseService),
 	)
 	if _, err := extensionService.SyncBuiltins(ctx); err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {

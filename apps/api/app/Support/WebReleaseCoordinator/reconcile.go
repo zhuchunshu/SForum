@@ -39,7 +39,7 @@ func (c *Coordinator) reconcileLocked(ctx context.Context) error {
 	}
 	if checkpoint == CheckpointPending {
 		if err := c.runtime.Prepare(ctx, detail); err != nil {
-			return c.fail(ctx, detail, "web_release.runtime_prepare_failed", err, false)
+			return c.fail(ctx, detail, "web_release.runtime_prepare_failed", err, false, false)
 		}
 		if err := c.store.SetCheckpoint(ctx, detail.ID, checkpoint, CheckpointRuntimePrepared); err != nil {
 			return err
@@ -47,17 +47,24 @@ func (c *Coordinator) reconcileLocked(ctx context.Context) error {
 		checkpoint = CheckpointRuntimePrepared
 	}
 	if checkpoint == CheckpointRuntimePrepared {
-		if err := c.store.ApplyEffects(ctx, detail, true); err != nil {
-			return c.fail(ctx, detail, "web_release.effect_commit_failed", err, true)
+		if effectsBeforeSwitch(detail) {
+			if err := c.store.ApplyEffects(ctx, detail, true); err != nil {
+				return c.fail(ctx, detail, "web_release.effect_commit_failed", err, true, false)
+			}
+			if err := c.store.SetCheckpoint(ctx, detail.ID, checkpoint, CheckpointEffectsCommitted); err != nil {
+				return err
+			}
+			checkpoint = CheckpointEffectsCommitted
+		} else {
+			if err := c.store.SetCheckpoint(ctx, detail.ID, checkpoint, CheckpointEffectsDeferred); err != nil {
+				return err
+			}
+			checkpoint = CheckpointEffectsDeferred
 		}
-		if err := c.store.SetCheckpoint(ctx, detail.ID, checkpoint, CheckpointEffectsCommitted); err != nil {
-			return err
-		}
-		checkpoint = CheckpointEffectsCommitted
 	}
-	if checkpoint == CheckpointEffectsCommitted {
+	if checkpoint == CheckpointEffectsCommitted || checkpoint == CheckpointEffectsDeferred {
 		if err := c.pointers.WriteCurrent(ctx, currentRelease(detail)); err != nil {
-			return c.fail(ctx, detail, "web_release.pointer_write_failed", err, true)
+			return c.fail(ctx, detail, "web_release.pointer_write_failed", err, effectsBeforeSwitch(detail), true)
 		}
 		if err := c.store.SetCheckpoint(ctx, detail.ID, checkpoint, CheckpointPointerWritten); err != nil {
 			return err
@@ -66,7 +73,7 @@ func (c *Coordinator) reconcileLocked(ctx context.Context) error {
 	}
 
 	if failure, err := c.pointers.ReadFailure(ctx, detail.ID); err == nil {
-		return c.fail(ctx, detail, failure.Reason, errors.New(failure.Message), true)
+		return c.fail(ctx, detail, failure.Reason, errors.New(failure.Message), effectsBeforeSwitch(detail), true)
 	}
 	active, err := c.pointers.ReadActive(ctx)
 	if err != nil {
@@ -76,6 +83,11 @@ func (c *Coordinator) reconcileLocked(ctx context.Context) error {
 		return nil
 	}
 	if checkpoint == CheckpointPointerWritten {
+		if !effectsBeforeSwitch(detail) {
+			if err := c.store.ApplyEffects(ctx, detail, true); err != nil {
+				return c.fail(ctx, detail, "web_release.effect_commit_failed", err, true, true)
+			}
+		}
 		if err := c.store.SetCheckpoint(ctx, detail.ID, checkpoint, CheckpointSupervisorActive); err != nil {
 			return err
 		}
@@ -85,7 +97,7 @@ func (c *Coordinator) reconcileLocked(ctx context.Context) error {
 		return fmt.Errorf("unknown web release checkpoint %q", checkpoint)
 	}
 	if err := c.runtime.Finalize(ctx, detail); err != nil {
-		return c.fail(ctx, detail, "web_release.runtime_finalize_failed", err, true)
+		return c.fail(ctx, detail, "web_release.runtime_finalize_failed", err, true, true)
 	}
 	if err := c.store.FinalizeRevocations(ctx, detail.ID); err != nil {
 		return err
@@ -99,10 +111,12 @@ func (c *Coordinator) reconcileLocked(ctx context.Context) error {
 	return err
 }
 
-func (c *Coordinator) fail(ctx context.Context, detail extensions.WebReleaseDetail, reason string, cause error, compensate bool) error {
+func (c *Coordinator) fail(ctx context.Context, detail extensions.WebReleaseDetail, reason string, cause error, compensate, restore bool) error {
 	if compensate {
 		_ = c.store.ApplyEffects(ctx, detail, false)
 		_ = c.runtime.Compensate(ctx, detail)
+	}
+	if restore {
 		_ = c.pointers.RestorePrevious(ctx, detail)
 	}
 	_, transitionErr := c.store.Transition(ctx, extensions.WebReleaseTransitionInput{
@@ -114,6 +128,18 @@ func (c *Coordinator) fail(ctx context.Context, detail extensions.WebReleaseDeta
 		return errors.Join(cause, transitionErr)
 	}
 	return cause
+}
+
+func effectsBeforeSwitch(detail extensions.WebReleaseDetail) bool {
+	if len(detail.Effects) == 0 {
+		return false
+	}
+	for _, effect := range detail.Effects {
+		if effect.PreviousStatus == extensions.StatusEnabled || effect.TargetStatus != extensions.StatusEnabled {
+			return false
+		}
+	}
+	return true
 }
 
 func currentRelease(detail extensions.WebReleaseDetail) webreleaseruntime.CurrentRelease {

@@ -8,6 +8,7 @@ import {
   type AdminContributionPointDefinition,
   type AdminEffectiveContribution,
   type AdminExtension,
+  type AdminExtensionOperation,
   type AdminExtensionEventDefinition,
   type AdminExtensionEventDelivery,
   type AdminExtensionEvent,
@@ -93,9 +94,9 @@ export const useAdminExtensionsManager = async () => {
   async function restartExtension(item: AdminExtension) {
     busyId.value = item.id
     try {
-      const updated = await request<AdminExtension>(`/admin/extensions/${item.id}/enable`, { method: 'POST', body: {} })
-      replaceExtension(updated)
-      await loadEvents(updated.id)
+      const operation = await request<AdminExtensionOperation>(`/admin/extensions/${item.id}/enable`, { method: 'POST', body: {} })
+      replaceExtension(operation.extension)
+      await loadEvents(operation.extension.id)
       toast.add({ color: 'success', icon: 'i-lucide-refresh-cw', title: t('admin.extensions.restarted') })
     } catch (error) {
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.actionFailed') })
@@ -121,14 +122,15 @@ export const useAdminExtensionsManager = async () => {
   async function activateTheme(item: AdminExtension) {
     busyId.value = item.id
     try {
-      const activated = await request<AdminExtension>(`/admin/extensions/${item.id}/activate`, { method: 'POST', body: {} })
+      const operation = await request<AdminExtensionOperation>(`/admin/extensions/${item.id}/activate`, { method: 'POST', body: {} })
+      const activated = operation.extension
       replaceExtension(activated)
       await refresh()
       await loadEvents(activated.id)
       toast.add({
-        color: activated.themeRelease?.status === 'queued' ? 'info' : 'success',
-        icon: activated.themeRelease?.status === 'queued' ? 'i-lucide-hourglass' : 'i-lucide-palette',
-        title: activated.themeRelease?.status === 'queued'
+        color: operation.queued ? 'info' : 'success',
+        icon: operation.queued ? 'i-lucide-hourglass' : 'i-lucide-palette',
+        title: operation.queued
           ? t('admin.extensions.themeActivationQueued')
           : t('admin.extensions.themeActivated')
       })
@@ -142,13 +144,14 @@ export const useAdminExtensionsManager = async () => {
   async function lifecycle(item: AdminExtension, action: 'enable' | 'disable') {
     busyId.value = item.id
     try {
-      const updated = await request<AdminExtension>(`/admin/extensions/${item.id}/${action}`, { method: 'POST', body: {} })
+      const operation = await request<AdminExtensionOperation>(`/admin/extensions/${item.id}/${action}`, { method: 'POST', body: {} })
+      const updated = operation.extension
       replaceExtension(updated)
       await loadEvents(updated.id)
       toast.add({
-        color: 'success',
-        icon: action === 'enable' ? 'i-lucide-play' : 'i-lucide-pause',
-        title: action === 'enable' ? t('admin.extensions.enabled') : t('admin.extensions.disabled')
+        color: operation.queued ? 'info' : 'success',
+        icon: operation.queued ? 'i-lucide-hourglass' : (action === 'enable' ? 'i-lucide-play' : 'i-lucide-pause'),
+        title: operation.queued ? t('admin.extensions.themeActivationQueued') : (action === 'enable' ? t('admin.extensions.enabled') : t('admin.extensions.disabled'))
       })
     } catch (error) {
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.actionFailed') })

@@ -11,6 +11,7 @@ import (
 
 func TestCoordinatorActivatesOnlyAfterMatchingSupervisorAcknowledgement(t *testing.T) {
 	store := newCoordinatorStore(extensions.WebReleaseReady, CheckpointPending)
+	store.detail.Effects = pluginEnableEffects()
 	runtime := &fakeCoordinatorRuntime{}
 	pointers := &fakePointerStore{}
 	coordinator := New(store, runtime, pointers, directLocker{})
@@ -39,6 +40,7 @@ func TestCoordinatorActivatesOnlyAfterMatchingSupervisorAcknowledgement(t *testi
 
 func TestCoordinatorCompensatesFailureExactlyOnce(t *testing.T) {
 	store := newCoordinatorStore(extensions.WebReleaseActivating, CheckpointPointerWritten)
+	store.detail.Effects = pluginEnableEffects()
 	runtime := &fakeCoordinatorRuntime{}
 	pointers := &fakePointerStore{failure: webreleaseruntime.Failure{ReleaseID: 7, Reason: "web_release.start_failed", Message: "unhealthy"}}
 	coordinator := New(store, runtime, pointers, directLocker{})
@@ -55,6 +57,12 @@ func TestCoordinatorCompensatesFailureExactlyOnce(t *testing.T) {
 	if store.backward != 1 || runtime.compensate != 1 {
 		t.Fatal("final release was compensated more than once")
 	}
+}
+
+func pluginEnableEffects() []extensions.WebReleaseExtensionEffect {
+	return []extensions.WebReleaseExtensionEffect{{
+		ExtensionID: "demo.plugin", PreviousStatus: extensions.StatusDisabled, TargetStatus: extensions.StatusEnabled,
+	}}
 }
 
 func TestCoordinatorResumesAfterEffectsCommitWithoutRepeatingSideEffects(t *testing.T) {
@@ -114,6 +122,32 @@ func TestCoordinatorResumesSupervisorActiveCheckpoint(t *testing.T) {
 	}
 	if store.detail.Status != extensions.WebReleaseActive || runtime.prepare != 0 || store.forward != 0 || pointers.writes != 0 || runtime.finalize != 1 {
 		t.Fatalf("supervisor checkpoint recovery repeated work: store=%#v runtime=%#v pointers=%#v", store, runtime, pointers)
+	}
+}
+
+func TestCoordinatorDefersDisableEffectsUntilSupervisorAcknowledges(t *testing.T) {
+	store := newCoordinatorStore(extensions.WebReleaseReady, CheckpointPending)
+	store.detail.Effects = []extensions.WebReleaseExtensionEffect{{
+		ExtensionID: "demo.plugin", PreviousStatus: extensions.StatusEnabled, TargetStatus: extensions.StatusDisabled,
+	}}
+	runtime := &fakeCoordinatorRuntime{}
+	pointers := &fakePointerStore{}
+	coordinator := New(store, runtime, pointers, directLocker{})
+
+	if err := coordinator.Reconcile(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if store.forward != 0 {
+		t.Fatalf("disable effect committed before supervisor acknowledgement: %d", store.forward)
+	}
+	pointers.active = webreleaseruntime.ActiveRelease{
+		ReleaseID: store.detail.ID, CompositionHash: store.detail.CompositionHash, ArtifactDigest: store.detail.ArtifactDigest,
+	}
+	if err := coordinator.Reconcile(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if store.forward != 1 || runtime.finalize != 1 || store.detail.Status != extensions.WebReleaseActive {
+		t.Fatalf("disable effect was not finalized after acknowledgement: store=%#v runtime=%#v", store, runtime)
 	}
 }
 

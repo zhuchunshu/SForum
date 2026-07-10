@@ -14,6 +14,7 @@ import (
 const (
 	CheckpointPending          = "pending"
 	CheckpointRuntimePrepared  = "runtime_prepared"
+	CheckpointEffectsDeferred  = "effects_deferred"
 	CheckpointEffectsCommitted = "effects_committed"
 	CheckpointPointerWritten   = "pointer_written"
 	CheckpointSupervisorActive = "supervisor_active"

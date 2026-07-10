@@ -181,7 +181,13 @@ adminExtensionEnable:
         content:
           application/json:
             schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
+      '202':
+        description: Trusted plugin frontend Web Release queued.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
@@ -208,7 +214,13 @@ adminExtensionDisable:
         content:
           application/json:
             schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
+      '202':
+        description: Safe Web Release without the plugin frontend queued.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
@@ -238,7 +250,7 @@ adminExtensionVerify:
         content:
           application/json:
             schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
@@ -259,7 +271,7 @@ adminExtensionActivate:
         content:
           application/json:
             schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
       '202':
         description: Uploaded theme activation accepted and queued for build.
         content:

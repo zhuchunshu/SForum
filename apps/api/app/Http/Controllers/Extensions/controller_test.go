@@ -246,12 +246,12 @@ func TestControllerVerifiesAndActivatesThemesForManager(t *testing.T) {
 		t.Fatalf("expected 202 uploaded theme activation queued, got %d", resp.StatusCode)
 	}
 	defer resp.Body.Close()
-	var body testEnvelope[extensions.Extension]
+	var body testEnvelope[extensions.ExtensionOperation]
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode activation response envelope: %v", err)
 	}
-	if body.Data.ThemeRelease == nil || body.Data.ThemeRelease.Status != extensions.ThemeReleaseQueued {
-		t.Fatalf("expected queued theme release, got %#v", body.Data.ThemeRelease)
+	if !body.Data.Queued || body.Data.Extension.ThemeRelease == nil || body.Data.Extension.ThemeRelease.Status != extensions.ThemeReleaseQueued {
+		t.Fatalf("expected queued theme release operation, got %#v", body.Data)
 	}
 }
 

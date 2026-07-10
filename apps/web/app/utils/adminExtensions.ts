@@ -145,6 +145,20 @@ export type AdminExtension = {
   updatedAt: string
 }
 
+export type AdminWebReleaseSummary = {
+  id: number
+  status: string
+  compositionHash: string
+  reloadMode: string
+}
+
+export type AdminExtensionOperation = {
+  extension: AdminExtension
+  frontend?: unknown
+  webRelease?: AdminWebReleaseSummary
+  queued: boolean
+}
+
 export type AdminExtensionEvent = {
   id: number
   extensionId: string

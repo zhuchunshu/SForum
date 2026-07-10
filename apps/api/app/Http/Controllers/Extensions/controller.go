@@ -125,11 +125,11 @@ func (h *Controller) enable(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	item, err := h.service.Enable(c.Context(), actor, c.Params("id"))
+	item, err := h.service.EnableOperation(c.Context(), actor, c.Params("id"))
 	if err != nil {
 		return mapExtensionError(err)
 	}
-	return apphttp.OK(c, item)
+	return extensionOperationResponse(c, item)
 }
 
 func (h *Controller) disable(c fiber.Ctx) error {
@@ -137,11 +137,11 @@ func (h *Controller) disable(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	item, err := h.service.Disable(c.Context(), actor, c.Params("id"))
+	item, err := h.service.DisableOperation(c.Context(), actor, c.Params("id"))
 	if err != nil {
 		return mapExtensionError(err)
 	}
-	return apphttp.OK(c, item)
+	return extensionOperationResponse(c, item)
 }
 
 func (h *Controller) verify(c fiber.Ctx) error {
@@ -161,14 +161,18 @@ func (h *Controller) activate(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	item, err := h.service.ActivateTheme(c.Context(), actor, c.Params("id"))
+	item, err := h.service.ActivateThemeOperation(c.Context(), actor, c.Params("id"))
 	if err != nil {
 		return mapExtensionError(err)
 	}
-	if item.ThemeRelease != nil && item.ThemeRelease.Status == extensions.ThemeReleaseQueued {
-		return apphttp.JSON(c, fiber.StatusAccepted, apphttp.MessageOK, item)
+	return extensionOperationResponse(c, item)
+}
+
+func extensionOperationResponse(c fiber.Ctx, operation extensions.ExtensionOperation) error {
+	if operation.Queued {
+		return apphttp.JSON(c, fiber.StatusAccepted, apphttp.MessageOK, operation)
 	}
-	return apphttp.OK(c, item)
+	return apphttp.OK(c, operation)
 }
 
 func (h *Controller) events(c fiber.Ctx) error {

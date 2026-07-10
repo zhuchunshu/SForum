@@ -30,6 +30,8 @@ type Service struct {
 	themeBuilder              ThemeBuilder
 	themeActivationDispatcher ThemeActivationDispatcher
 	themeCurrentWriter        ThemeCurrentWriter
+	frontendLifecycle         ExtensionFrontendLifecycle
+	webReleaseLifecycle       FrontendReleaseManager
 }
 
 // ServiceOption 用于在保留现有构造函数签名的同时注入可选依赖。
@@ -41,6 +43,14 @@ type ServiceOption func(*Service)
 func WithThemeCurrentWriter(writer ThemeCurrentWriter) ServiceOption {
 	return func(s *Service) {
 		s.themeCurrentWriter = writer
+	}
+}
+
+// WithWebReleaseLifecycle 将会改变完整 Web composition 的扩展操作交给统一发布流水线。
+func WithWebReleaseLifecycle(frontend ExtensionFrontendLifecycle, releases FrontendReleaseManager) ServiceOption {
+	return func(s *Service) {
+		s.frontendLifecycle = frontend
+		s.webReleaseLifecycle = releases
 	}
 }
 
