@@ -1,4 +1,5 @@
 import type { NuxtPage } from 'nuxt/schema'
+import { resolve } from 'node:path'
 import {
   LEGACY_ADMIN_ROUTE_PREFIX,
   normalizeAdminRoutePrefix
@@ -20,6 +21,13 @@ const themeLayers = uploadedThemeLayer
   ? [uploadedThemeLayer, defaultThemeLayer]
   : [defaultThemeLayer]
 const nitroOutputDir = process.env.SFORUM_NITRO_OUTPUT_DIR?.trim()
+const adminRegistryRoot = process.env.SFORUM_ADMIN_REGISTRY_ROOT?.trim()
+const adminMetadataPath = adminRegistryRoot
+  ? resolve(adminRegistryRoot, 'metadata.ts')
+  : resolve('app/runtime/admin-extensions/empty-metadata.ts')
+const adminRegistryPath = adminRegistryRoot
+  ? resolve(adminRegistryRoot, 'registry.client.ts')
+  : resolve('app/runtime/admin-extensions/empty-registry.client.ts')
 const publicHomepageRouteRule = {
   cache: false,
   headers: {
@@ -73,6 +81,12 @@ function rewriteAdminPageRoutes(pages: NuxtPage[]) {
 
 export default defineNuxtConfig({
   extends: themeLayers,
+  alias: {
+    '@sforum/admin-sdk/internal': resolve('packages/admin-sdk/src/internal.ts'),
+    '@sforum/admin-sdk': resolve('packages/admin-sdk/src/index.ts'),
+    '#sforum/admin-extension-metadata': adminMetadataPath,
+    '#sforum/admin-extension-registry': adminRegistryPath
+  },
   modules: ['@nuxt/ui', '@nuxtjs/i18n', '@nuxtjs/seo', '@nuxt/image'],
   ssr: true,
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
@@ -140,6 +154,9 @@ export default defineNuxtConfig({
     }
   },
   vite: {
+    resolve: {
+      dedupe: ['vue', 'vue-router', 'nuxt', '@nuxt/ui', '@sforum/admin-sdk']
+    },
     // 预声明会被运行时 import 的依赖，让 Vite 冷启动就预打包好。
     // 否则浏览器首次打开页面时才扫描发现这些 CJS 依赖（altcha）或 devtools 子依赖，
     // 触发 full page reload，叠加成肉眼可见的“网页卡住”。

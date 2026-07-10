@@ -24,6 +24,7 @@ FROM oven/bun:1.3-alpine AS webdeps
 
 WORKDIR /app/apps/web
 COPY apps/web/package.json apps/web/bun.lock ./
+COPY apps/web/packages/admin-sdk/package.json ./packages/admin-sdk/package.json
 RUN bun install --frozen-lockfile
 COPY apps/web/ ./
 COPY extensions/builtin /app/extensions/builtin

@@ -2,6 +2,9 @@
   "name": "@sforum/web",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "node --env-file=../../.env scripts/dev-theme-runtime.mjs",
     "dev:plain": "nuxt dev --host 0.0.0.0 --dotenv ../../.env",
@@ -11,6 +14,7 @@
     "typecheck": "NUXT_BUILD_DIR=.nuxt-typecheck nuxt typecheck"
   },
   "dependencies": {
+    "@sforum/admin-sdk": "workspace:*",
     "@iconify-json/lucide": "^1.2.116",
     "@iconify-json/tabler": "^1.2.35",
     "@nuxt/image": "^2.0.0",
