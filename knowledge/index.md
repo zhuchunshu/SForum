@@ -324,6 +324,18 @@ This is the entry point for project memory.
   resolves to an in-admin route, `mail.provider` is the first recommended full
   vertical slice, and theme activation still needs future preview approval,
   richer build logs, rollback UI, and multi-node rollout support.
+- Trusted admin plugin runtime architecture is accepted but not implemented.
+  Uploaded plugin Vue components will be treated as fully trusted, client-only
+  admin code: a `super_admin` grant is bound to the exact package digest,
+  validated manifest contributions provide SSR-safe slot metadata, a generated
+  static registry maps component IDs, and one unified Web Release Runtime owns
+  the active theme plus trusted plugin set. Workers build artifacts, the API
+  coordinates plugin runtime and activation, and the web supervisor publishes
+  the actual active acknowledgement. The River job monitoring module is a
+  separate follow-up project and will register the first production component
+  slots. Decision:
+  `decisions/2026-07-10-trusted-admin-plugin-runtime.md`; specification:
+  `../docs/superpowers/specs/2026-07-10-trusted-admin-plugin-runtime-design.md`.
 - Architecture guidance now treats SForum core as the host framework rather
   than a monolith of optional product verticals. Core should expose the stable
   interfaces that make plugins easy to build: events, provider slots, typed
@@ -454,6 +466,9 @@ This is the entry point for project memory.
 - `decisions/2026-07-05-extension-plugin-theme-foundation.md` - accepted
   plugin/theme extension foundation, storage, permission, and runtime-boundary
   decision.
+- `decisions/2026-07-10-trusted-admin-plugin-runtime.md` - accepted build-time
+  trusted admin component runtime, digest grants, manifest contribution
+  metadata, and unified Web Release ownership; implementation is pending.
 - `decisions/2026-07-06-plugin-enable-theme-activate-default-theme.md` -
   accepted plugin enable vs theme activate semantics and default-theme public
   UI ownership.

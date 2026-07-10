@@ -110,6 +110,17 @@ and plugin runtime v1.
   core validates payloads, resolves effective enabled-plugin contributions,
   exposes read-only admin inspection, and the first runtime consumer is
   `forum.topic.actions`.
+- Trusted admin plugin components have an accepted design but are not yet
+  implemented. The design treats arbitrary Vue components as fully trusted,
+  client-only code; keeps SSR-safe slot metadata in manifest contributions;
+  binds `super_admin` approval to the package digest; generates a static Nuxt
+  registry; and unifies theme and plugin inputs under WebReleaseRuntime. The
+  worker builds immutable artifacts, the API owns activation and plugin
+  runtime state, and the web supervisor acknowledges the actual proxy target.
+  The job monitoring module remains a separate follow-up and will be the first
+  production component-slot consumer. See
+  `decisions/2026-07-10-trusted-admin-plugin-runtime.md` and
+  `docs/superpowers/specs/2026-07-10-trusted-admin-plugin-runtime-design.md`.
 
 ## Boundaries
 
@@ -136,6 +147,12 @@ and plugin runtime v1.
   bypass API policy checks. The first point, `forum.topic.actions`, maps
   enabled plugin descriptors to topic-page buttons that call declared extension
   routes through the normal route proxy.
+- The accepted trusted-component direction does not turn all contributions
+  into executable UI. Descriptor points remain host-rendered. A core module
+  must explicitly declare a trusted admin component point with typed manifest
+  metadata and context; only a digest-approved Web Release may attach its
+  client component mapping. Plugins still cannot create points, override core
+  routes, execute components during SSR, or inject into public theme UI.
 - Event delivery attempts are recorded separately from lifecycle audit logs in
   `extension_event_deliveries`. The runtime has River job args and worker
   plumbing for durable async delivery, and falls back to inline delivery when no
@@ -259,6 +276,11 @@ generation. Default output is `extensions/dev/{plugins,themes}/{id}`; `--builtin
 targets `extensions/builtin/{plugins,themes}/{id}`.
 
 ## Next Steps
+
+- Implement the trusted admin plugin runtime specification before starting the
+  River job monitoring module that consumes its first production slots.
+- Generalize the current theme artifact builder and supervisor contract into a
+  unified Web Release Runtime without regressing existing theme activation.
 
 - Make plugins truly usable with a real `mail.provider` plugin slice: manifest
   risk review, subprocess startup, health checks, route proxying, settings,
