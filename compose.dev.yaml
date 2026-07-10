@@ -45,6 +45,7 @@ services:
       EXTENSION_ROOT: /var/lib/sforum/extensions
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
       THEME_RELEASE_ROOT: /var/lib/sforum/theme-releases
+      WEB_RELEASE_ROOT: /var/lib/sforum/theme-releases
       GOMODCACHE: /go/pkg/mod
     depends_on:
       migrate:
@@ -90,6 +91,9 @@ services:
       EXTENSION_ROOT: /var/lib/sforum/extensions
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
       THEME_RELEASE_ROOT: /var/lib/sforum/theme-releases
+      WEB_RELEASE_ROOT: /var/lib/sforum/theme-releases
+      WEB_RELEASE_WEB_ROOT: /app/apps/web
+      WEB_RELEASE_BUN_PATH: bun
       THEME_WEB_ROOT: /app/apps/web
       THEME_BUN_PATH: bun
       GOMODCACHE: /go/pkg/mod
@@ -131,6 +135,7 @@ services:
     environment:
       NUXT_API_INTERNAL_BASE_URL: http://api:8080/api/v1
       SFORUM_THEME_RELEASE_ROOT: /var/lib/sforum/theme-releases
+      SFORUM_WEB_RELEASE_ROOT: /var/lib/sforum/theme-releases
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     volumes:
