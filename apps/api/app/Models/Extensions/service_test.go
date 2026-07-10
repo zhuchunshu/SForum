@@ -77,6 +77,53 @@ func TestServiceInstallArchiveRejectsZipSymlink(t *testing.T) {
 	}
 }
 
+func TestServiceInstallArchiveRejectsAmbiguousZipEntries(t *testing.T) {
+	tests := []struct {
+		name  string
+		files []zipFile
+	}{
+		{
+			name: "duplicate normalized path",
+			files: []zipFile{
+				{name: "frontend//Cell.vue", body: "first"},
+				{name: "frontend/Cell.vue", body: "second"},
+			},
+		},
+		{
+			name: "file and directory collision",
+			files: []zipFile{
+				{name: "assets", body: "file"},
+				{name: "assets/icon.svg", body: "icon"},
+			},
+		},
+		{
+			name: "duplicate manifest",
+			files: []zipFile{
+				{name: ManifestFileName, body: validManifest("other.plugin", TypePlugin)},
+			},
+		},
+		{
+			name: "special file mode",
+			files: []zipFile{
+				{name: "frontend/channel", body: "special", mode: os.ModeNamedPipe | 0o644},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := NewService(&fakeExtensionStore{}, t.TempDir())
+			_, err := service.InstallArchive(context.Background(), extensionManager(), ArchiveInput{
+				FileName: "ambiguous.zip",
+				Data:     extensionArchive(t, validManifest("demo.plugin", TypePlugin), test.files...),
+			})
+			if !errors.Is(err, ErrInvalidArchive) {
+				t.Fatalf("expected invalid archive, got %v", err)
+			}
+		})
+	}
+}
+
 func TestServiceInstallArchiveStoresManifestPackageAndEvent(t *testing.T) {
 	store := &fakeExtensionStore{}
 	extensionRoot := t.TempDir()
@@ -706,6 +753,62 @@ func TestServiceEnableRejectsMissingInstalledPackage(t *testing.T) {
 	}
 	if last := store.events[len(store.events)-1]; last.Action != EventEnableFailed || last.Message == "" {
 		t.Fatalf("expected enable failure event, got %#v", store.events)
+	}
+}
+
+func TestServiceEnableRejectsTamperedDigestBackedPackage(t *testing.T) {
+	tests := []struct {
+		name   string
+		tamper func(t *testing.T, snapshotRoot string)
+	}{
+		{
+			name: "changed file bytes",
+			tamper: func(t *testing.T, snapshotRoot string) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(snapshotRoot, "README.md"), []byte("tampered"), 0o644); err != nil {
+					t.Fatalf("tamper snapshot file: %v", err)
+				}
+			},
+		},
+		{
+			name: "snapshot root replaced by symlink",
+			tamper: func(t *testing.T, snapshotRoot string) {
+				t.Helper()
+				realRoot := snapshotRoot + ".real"
+				if err := os.Rename(snapshotRoot, realRoot); err != nil {
+					t.Fatalf("move snapshot root: %v", err)
+				}
+				if err := os.Symlink(realRoot, snapshotRoot); err != nil {
+					t.Fatalf("replace snapshot root with symlink: %v", err)
+				}
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			store := &fakeExtensionStore{}
+			runtime := &fakeRuntimeManager{}
+			service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
+			installed, err := service.InstallArchive(context.Background(), extensionManager(), ArchiveInput{
+				FileName: "digest.zip",
+				Data: extensionArchive(t, validManifest("digest.plugin", TypePlugin),
+					zipFile{name: "README.md", body: "approved"},
+				),
+			})
+			if err != nil {
+				t.Fatalf("install digest-backed package: %v", err)
+			}
+			test.tamper(t, installed.PackagePath)
+
+			_, err = service.Enable(context.Background(), extensionManager(), installed.ID)
+			if !errors.Is(err, ErrPreflightFailed) {
+				t.Fatalf("expected tampered package preflight failure, got %v", err)
+			}
+			if store.enabledID != "" || len(runtime.started) != 0 {
+				t.Fatalf("tampered package reached runtime: enabled=%q started=%#v", store.enabledID, runtime.started)
+			}
+		})
 	}
 }
 

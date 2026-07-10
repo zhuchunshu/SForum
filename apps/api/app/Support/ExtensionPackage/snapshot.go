@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -115,8 +116,6 @@ func SnapshotUploaded(destinationRoot string, manifestBody []byte, files []File)
 func SnapshotBuiltin(sourceRoot string, destinationRoot string) (Snapshot, error) {
 	type sourceFile struct {
 		path string
-		full string
-		mode fs.FileMode
 	}
 
 	rootInfo, err := os.Lstat(sourceRoot)
@@ -129,14 +128,26 @@ func SnapshotBuiltin(sourceRoot string, destinationRoot string) (Snapshot, error
 	if !rootInfo.IsDir() {
 		return Snapshot{}, fmt.Errorf("%w: builtin root %s", ErrNonRegular, sourceRoot)
 	}
+	packageRoot, err := os.OpenRoot(sourceRoot)
+	if err != nil {
+		return Snapshot{}, err
+	}
+	defer packageRoot.Close()
+	openedRootInfo, err := packageRoot.Stat(".")
+	if err != nil {
+		return Snapshot{}, err
+	}
+	if !os.SameFile(rootInfo, openedRootInfo) {
+		return Snapshot{}, fmt.Errorf("%w: builtin root changed while opening %s", ErrNonRegular, sourceRoot)
+	}
 
 	validated := make([]sourceFile, 0)
 	seen := make(map[string]struct{})
-	err = filepath.WalkDir(sourceRoot, func(current string, entry fs.DirEntry, walkErr error) error {
+	err = fs.WalkDir(packageRoot.FS(), ".", func(current string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
-		if current == sourceRoot {
+		if current == "." {
 			return nil
 		}
 		info, err := entry.Info()
@@ -144,7 +155,7 @@ func SnapshotBuiltin(sourceRoot string, destinationRoot string) (Snapshot, error
 			return err
 		}
 		if info.Mode()&fs.ModeSymlink != 0 {
-			return fmt.Errorf("%w: %s", ErrSymlink, current)
+			return fmt.Errorf("%w: %s", ErrSymlink, filepath.Join(sourceRoot, filepath.FromSlash(current)))
 		}
 		if info.IsDir() {
 			return nil
@@ -152,19 +163,15 @@ func SnapshotBuiltin(sourceRoot string, destinationRoot string) (Snapshot, error
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("%w: %s", ErrNonRegular, current)
 		}
-		relative, err := filepath.Rel(sourceRoot, current)
-		if err != nil {
-			return err
-		}
-		normalized, ok := canonicalRelativePath(relative)
+		normalized, ok := canonicalRelativePath(current)
 		if !ok {
-			return fmt.Errorf("%w: %s", ErrInvalidPath, relative)
+			return fmt.Errorf("%w: %s", ErrInvalidPath, current)
 		}
 		if _, duplicate := seen[normalized]; duplicate {
 			return fmt.Errorf("%w: duplicate normalized path %s", ErrInvalidPath, normalized)
 		}
 		seen[normalized] = struct{}{}
-		validated = append(validated, sourceFile{path: normalized, full: current, mode: info.Mode()})
+		validated = append(validated, sourceFile{path: normalized})
 		return nil
 	})
 	if err != nil {
@@ -174,17 +181,7 @@ func SnapshotBuiltin(sourceRoot string, destinationRoot string) (Snapshot, error
 	var manifestBody []byte
 	files := make([]File, 0, len(validated))
 	for _, source := range validated {
-		info, err := os.Lstat(source.full)
-		if err != nil {
-			return Snapshot{}, err
-		}
-		if info.Mode()&fs.ModeSymlink != 0 {
-			return Snapshot{}, fmt.Errorf("%w: %s", ErrSymlink, source.full)
-		}
-		if !info.Mode().IsRegular() {
-			return Snapshot{}, fmt.Errorf("%w: %s", ErrNonRegular, source.full)
-		}
-		body, err := os.ReadFile(source.full)
+		body, mode, err := readRootRegularFile(packageRoot, source.path)
 		if err != nil {
 			return Snapshot{}, err
 		}
@@ -192,12 +189,50 @@ func SnapshotBuiltin(sourceRoot string, destinationRoot string) (Snapshot, error
 			manifestBody = body
 			continue
 		}
-		files = append(files, File{Path: source.path, Mode: info.Mode(), Body: body})
+		files = append(files, File{Path: source.path, Mode: mode, Body: body})
 	}
 	if manifestBody == nil {
 		return Snapshot{}, fmt.Errorf("%w: missing %s", ErrInvalidManifest, extensionmanifest.ManifestFileName)
 	}
 	return SnapshotUploaded(destinationRoot, manifestBody, files)
+}
+
+func readRootRegularFile(root *os.Root, name string) ([]byte, fs.FileMode, error) {
+	before, err := root.Lstat(name)
+	if err != nil {
+		return nil, 0, err
+	}
+	if before.Mode()&fs.ModeSymlink != 0 {
+		return nil, 0, fmt.Errorf("%w: %s", ErrSymlink, name)
+	}
+	if !before.Mode().IsRegular() {
+		return nil, 0, fmt.Errorf("%w: %s", ErrNonRegular, name)
+	}
+
+	handle, err := root.Open(name)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer handle.Close()
+	opened, err := handle.Stat()
+	if err != nil {
+		return nil, 0, err
+	}
+	if !opened.Mode().IsRegular() || !os.SameFile(before, opened) {
+		return nil, 0, fmt.Errorf("%w: file changed while opening %s", ErrNonRegular, name)
+	}
+	body, err := io.ReadAll(handle)
+	if err != nil {
+		return nil, 0, err
+	}
+	after, err := handle.Stat()
+	if err != nil {
+		return nil, 0, err
+	}
+	if !os.SameFile(opened, after) || int64(len(body)) != after.Size() {
+		return nil, 0, fmt.Errorf("%w: file changed while reading %s", ErrNonRegular, name)
+	}
+	return body, after.Mode(), nil
 }
 
 func normalizeManifest(body []byte) (extensionmanifest.Manifest, string, error) {

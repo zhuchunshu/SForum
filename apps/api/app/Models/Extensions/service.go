@@ -505,6 +505,14 @@ func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, inpu
 	}
 	snapshot, err := extensionpackage.SnapshotUploaded(s.extensionRoot, manifestJSON, packageFiles)
 	if err != nil {
+		switch {
+		case errors.Is(err, extensionpackage.ErrInvalidManifest):
+			return Extension{}, ErrInvalidManifest
+		case errors.Is(err, extensionpackage.ErrInvalidPath),
+			errors.Is(err, extensionpackage.ErrNonRegular),
+			errors.Is(err, extensionpackage.ErrSymlink):
+			return Extension{}, ErrInvalidArchive
+		}
 		return Extension{}, err
 	}
 
@@ -770,11 +778,21 @@ func validateInstalledPackage(extension Extension) error {
 		return fmt.Errorf("extension package path is empty")
 	}
 	if strings.TrimSpace(extension.PackageDigest) != "" {
-		info, err := os.Stat(packagePath)
-		if err != nil || !info.IsDir() {
+		info, err := os.Lstat(packagePath)
+		if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
 			return fmt.Errorf("extension package snapshot %s is not available", packagePath)
 		}
-		return requireInstalledManifest(packagePath)
+		if err := requireInstalledManifest(packagePath); err != nil {
+			return err
+		}
+		digest, err := extensionpackage.DigestTree(packagePath)
+		if err != nil {
+			return fmt.Errorf("extension package snapshot %s is invalid: %w", packagePath, err)
+		}
+		if digest != extension.PackageDigest {
+			return fmt.Errorf("extension package snapshot %s digest does not match its installed version", packagePath)
+		}
+		return nil
 	}
 	if extension.Source == SourceBuiltin {
 		info, err := os.Stat(packagePath)
@@ -837,6 +855,7 @@ func readArchive(data []byte) (Manifest, []archiveFile, error) {
 	var manifest Manifest
 	manifestFound := false
 	files := []archiveFile{}
+	seen := map[string]struct{}{}
 	var total uint64
 	for _, file := range reader.File {
 		name, ok := safeArchivePath(file.Name)
@@ -849,6 +868,10 @@ func readArchive(data []byte) (Manifest, []archiveFile, error) {
 		if file.FileInfo().IsDir() {
 			continue
 		}
+		if _, duplicate := seen[name]; duplicate {
+			return Manifest{}, nil, ErrInvalidArchive
+		}
+		seen[name] = struct{}{}
 		total += file.UncompressedSize64
 		if total > maxArchiveBytes {
 			return Manifest{}, nil, ErrInvalidArchive
