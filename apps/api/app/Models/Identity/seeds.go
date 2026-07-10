@@ -20,7 +20,10 @@ const (
 	PermissionPostEditAny            = "post.edit_any"
 	PermissionPostDeleteOwn          = "post.delete_own"
 	PermissionPostDeleteAny          = "post.delete_any"
-	PermissionModerationReportReview = "moderation.report_review"
+	PermissionModerationManage       = "moderation.manage"
+	PermissionModerationReview       = "moderation.review"
+	// PermissionModerationReportReview 保留为源码兼容别名；数据库权限已迁移为 moderation.review。
+	PermissionModerationReportReview = PermissionModerationReview
 	PermissionSettingsManage         = "settings.manage"
 	PermissionSEOManage              = "seo.manage"
 	PermissionAttachmentUpload       = "attachment.upload"
@@ -29,6 +32,8 @@ const (
 	PermissionExtensionManage        = "extension.manage"
 	PermissionDatabaseManage         = "database.manage"
 	PermissionSearchManage           = "search.manage"
+	PermissionJobsView               = "jobs.view"
+	PermissionJobsManage             = "jobs.manage"
 )
 
 type SeedPermission struct {
@@ -54,7 +59,8 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionPostEditAny, Module: "forum", Description: "Edit any post."},
 	{Key: PermissionPostDeleteOwn, Module: "forum", Description: "Delete own posts."},
 	{Key: PermissionPostDeleteAny, Module: "forum", Description: "Delete any post."},
-	{Key: PermissionModerationReportReview, Module: "moderation", Description: "Review moderation reports."},
+	{Key: PermissionModerationManage, Module: "moderation", Description: "Manage moderation settings and audit history."},
+	{Key: PermissionModerationReview, Module: "moderation", Description: "Review pending content and moderation reports."},
 	{Key: PermissionSettingsManage, Module: "admin", Description: "Manage system settings."},
 	{Key: PermissionSEOManage, Module: "admin", Description: "Manage search engine optimization settings."},
 	{Key: PermissionAttachmentUpload, Module: "attachment", Description: "Upload attachments."},
@@ -63,4 +69,6 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionExtensionManage, Module: "extension", Description: "Install and manage extensions and themes."},
 	{Key: PermissionDatabaseManage, Module: "admin", Description: "Browse database tables and rows."},
 	{Key: PermissionSearchManage, Module: "search", Description: "Rebuild and manage the search index."},
+	{Key: PermissionJobsView, Module: "jobs", Description: "View background jobs, queues, failures, and worker activity."},
+	{Key: PermissionJobsManage, Module: "jobs", Description: "Retry, cancel, pause, and resume background job processing."},
 }

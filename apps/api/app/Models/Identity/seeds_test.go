@@ -40,3 +40,22 @@ func TestDefaultPermissionsContainTagManage(t *testing.T) {
 		t.Fatal("expected tag.manage seed permission")
 	}
 }
+
+func TestModerationPermissionsRemainIndependent(t *testing.T) {
+	found := map[string]bool{}
+	for _, permission := range SeedPermissions {
+		if permission.Module == "moderation" {
+			found[permission.Key] = true
+		}
+	}
+
+	if !found[PermissionModerationManage] {
+		t.Fatal("expected moderation.manage seed permission")
+	}
+	if !found[PermissionModerationReview] {
+		t.Fatal("expected moderation.review seed permission")
+	}
+	if PermissionModerationManage == PermissionModerationReview {
+		t.Fatal("moderation permissions must remain independent")
+	}
+}
