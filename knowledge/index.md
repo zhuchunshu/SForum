@@ -220,6 +220,11 @@ This is the entry point for project memory.
   queue support now lives under `apps/api/app/Support/Jobs`, `cmd/worker` uses
   `bootstrap.NewWorker`, and the first search job contract is
   `search.index_topic`.
+- The Jobs operator workbench is implemented under the admin shell with
+  `jobs.view`/`jobs.manage`, River queue state counts, bounded job inspection,
+  retry/cancel and pause/resume controls, plus the first production trusted
+  Vue slots: `admin.jobs.table.columns`, `admin.jobs.row.actions`, and
+  `admin.jobs.detail.sections`.
 - Backend API responses now have an accepted envelope design: every API JSON
   response must include integer `code`, localized `message`, and `data`; `code`
   equals the HTTP status code, and stable machine-readable reasons live under

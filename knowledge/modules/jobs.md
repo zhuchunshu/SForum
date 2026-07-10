@@ -3,7 +3,7 @@
 ## Purpose
 
 Owns SForum's background job framework, queue runtime, job dispatch API, worker
-configuration, retry behavior, and operational conventions.
+configuration, retry behavior, operational conventions, and admin observability.
 
 Domain modules own their individual jobs. This module owns the shared platform
 surface that makes those jobs consistent.
@@ -11,53 +11,51 @@ surface that makes those jobs consistent.
 ## Current Status
 
 Architecture accepted on 2026-07-04. Foundation implementation started on
-2026-07-04.
+2026-07-04; the operator workbench and trusted component slots were completed
+on 2026-07-11.
 
 The selected durable queue foundation is River backed by PostgreSQL.
 
-Implemented so far:
+Implemented platform foundation:
 
 - `apps/api/app/Support/Jobs` wraps River queue config, dispatching, worker
   registration, and runtime startup.
-- SForum's database migrator now runs River's official migrator after Goose
-  application migrations, so fresh databases get River queue tables before API
-  or worker processes enqueue jobs.
-- API processes create an insert-only River client for dispatching jobs. In
-  development, the API also embeds the worker runtime by default through
-  `EMBED_WORKER_IN_API=true`, so a local `air` API process consumes queued jobs
-  such as uploaded theme activation. Production keeps this disabled by default
-  and uses the standalone worker process.
+- SForum's database migrator runs River's official migrator after Goose, so a
+  fresh database receives River tables before API or worker enqueueing.
+- API processes create an insert-only River client. Development embeds workers
+  by default through `EMBED_WORKER_IN_API=true`; production uses the standalone
+  worker process by default.
 - `apps/api/bootstrap.NewWorker` opens the worker PostgreSQL pool, builds the
-  worker registry, and creates the River client when at least one module has
-  registered job handlers.
-- `apps/api/cmd/worker` starts and gracefully stops the River-backed worker
-  runtime.
-- `apps/api/app/Jobs/Search` defines the first typed job contract,
-  `search.index_topic`, against a narrow `TopicIndexer` interface.
-- Until concrete module workers are injected, `cmd/worker` intentionally starts
-  in idle mode. This avoids passing an empty worker bundle to River, which
-  rejects startup with `at least one Worker must be added to the Workers
-  bundle`.
-- `scripts/worker-dev.sh` remains available when a developer intentionally
-  disables `EMBED_WORKER_IN_API` and wants to mimic the production
-  API/worker split.
+  worker registry, and creates the River client when handlers are registered.
+- `apps/api/cmd/worker` starts and gracefully stops the River runtime. An empty
+  registry intentionally stays idle because River rejects an empty bundle.
+- `apps/api/app/Jobs/Search` owns `search.index_topic`; other domain modules own
+  their typed job contracts and handlers.
+- `scripts/worker-dev.sh` supports an intentional local API/worker split.
 
-## Planned Stack
+## Operator Workbench
 
-- River for durable PostgreSQL-backed jobs.
-- PostgreSQL as the authoritative job store.
-- `pgx/v5` and the existing database pool for transactional enqueueing.
-- `log/slog` for worker logs.
-- Redis only for sessions/cache/rate limits and possible later non-critical
-  fast-lane jobs.
+- Admin route: `/control-panel/jobs`, respecting the configurable admin prefix.
+- API routes under `/api/v1/admin/jobs` expose overview, a bounded newest-job
+  list, detail, retry, cancel, queue pause, and queue resume.
+- `jobs.view` protects read operations; `jobs.manage` protects mutations. Both
+  are granted to `super_admin` by default. API policy checks are authoritative.
+- The UI shows state counts, queue backlog/running/failure counts, filters,
+  attempts, arguments, errors, and permission-aware controls.
+- River's official client performs mutations; SForum does not implement a
+  competing queue state machine.
+- Read queries are deliberately bounded to the newest 100 matching jobs.
 
-## Planned Boundaries
+## Trusted Component Slots
 
-- `apps/api/app/Support/Jobs`: queue configuration, River client setup,
-  dispatch helpers, worker registry, runtime startup, logging middleware,
-  timeout handling, and test helpers.
-- `apps/api/cmd/worker`: process entrypoint for consuming jobs.
-- `apps/api/app/Jobs/*`: module-owned job args and handlers.
+Jobs owns the first production trusted admin component points:
+
+- `admin.jobs.table.columns`
+- `admin.jobs.row.actions`
+- `admin.jobs.detail.sections`
+
+Plugins may render digest-approved client components there, but cannot bypass
+`jobs.manage`, override core routes, or mutate River tables directly.
 
 ## Queue Names
 
@@ -68,29 +66,48 @@ Implemented so far:
 - `notifications`: reply, mention, and digest fanout.
 - `maintenance`: cleanup and scheduled maintenance work.
 
+## Platform Boundaries
+
+- Planned and implemented stack: River, PostgreSQL, `pgx/v5`, and `log/slog`.
+- River and PostgreSQL are the durable queue and authoritative job store.
+- `pgx/v5` and the existing database pool support transactional enqueueing.
+- `apps/api/app/Support/Jobs` owns shared config, dispatch, worker registration,
+  runtime startup, queue configuration, timeout behavior, and test helpers.
+- `apps/api/cmd/worker` owns the standalone consumer process.
+- `apps/api/app/Jobs/*` contains module-owned args and handlers.
+- Redis remains for sessions/cache/rate limits, not durable job authority.
+
 ## Rules
 
 - Enqueue jobs in the same PostgreSQL transaction as the domain write whenever
   the job represents a side effect of that write.
-- Keep job payloads compact and ID-based.
-- Re-read current state inside handlers.
-- Make every job idempotent and retry-safe.
-- Set queue concurrency deliberately so slow external I/O cannot block search
-  or critical jobs.
-- Chunk large rebuilds into bounded jobs.
-- Do not put secrets in job args.
+- Keep job payloads compact and ID-based; do not put secrets in job args.
+- Re-read current state inside handlers and make jobs idempotent/retry-safe.
+- Set queue concurrency deliberately and chunk large rebuilds into bounded jobs.
+- The admin list is capped at the 100 newest matches. Add cursor UI only when
+  operator demand justifies a larger history surface.
 
-## Open Questions
+## Maintenance And Retention
 
-- Whether the first scheduler uses River-native periodic features or a small
-  SForum scheduler that enqueues ordinary durable jobs.
-- Which observability metrics are required before production launch.
+- River periodic jobs provide the scheduler for current maintenance work.
+- Web Release cleanup runs daily on `maintenance`.
+- It always retains the active artifact, its rollback target, and the five
+  newest successful artifacts.
+- Failed and superseded artifacts are eligible after seven days; build logs
+  are cleared after thirty days. Release rows, events, and immutable extension
+  snapshots remain as durable history.
+
+## Resolved Questions
+
+- The first scheduler uses River-native periodic jobs rather than a competing
+  SForum scheduler.
+- The first operator observability surface is the Jobs workbench. Metrics and
+  export formats remain demand-driven follow-up work.
 
 ## Next Steps
 
-- Wire real module registrations into `bootstrap.NewWorker` as domain jobs
-  become available.
-- Implement the actual Meilisearch topic indexer and dispatch
-  `search.index_topic` transactionally from future topic writes.
-- Add integration tests for transactional enqueueing once forum write services
-  exist.
+- Wire additional module registrations into `bootstrap.NewWorker` as domain
+  jobs are introduced.
+- Keep transactional enqueue integration coverage alongside domain writes.
+- Add operational metrics/export only after stable self-hosted semantics are
+  established.

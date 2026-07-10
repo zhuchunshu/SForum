@@ -110,15 +110,14 @@ and plugin runtime v1.
   core validates payloads, resolves effective enabled-plugin contributions,
   exposes read-only admin inspection, and the first runtime consumer is
   `forum.topic.actions`.
-- Trusted admin plugin components have an accepted design but are not yet
-  implemented. The design treats arbitrary Vue components as fully trusted,
+- Trusted admin plugin components are implemented. The runtime treats arbitrary Vue components as fully trusted,
   client-only code; keeps SSR-safe slot metadata in manifest contributions;
   binds `super_admin` approval to the package digest; generates a static Nuxt
   registry; and unifies theme and plugin inputs under WebReleaseRuntime. The
   worker builds immutable artifacts, the API owns activation and plugin
   runtime state, and the web supervisor acknowledges the actual proxy target.
-  The job monitoring module remains a separate follow-up and will be the first
-  production component-slot consumer. See
+  The job monitoring module is the first production component-slot consumer,
+  owning table-column, row-action, and detail-section slots. See
   `decisions/2026-07-10-trusted-admin-plugin-runtime.md` and
   `docs/superpowers/specs/2026-07-10-trusted-admin-plugin-runtime-design.md`.
 

@@ -1,5 +1,14 @@
 # Frontend Module
 
+## Trusted Admin Runtime
+
+Admin extension components are client-only static imports generated into an
+immutable Web Release. SSR renders validated metadata/placeholders only. The
+host provides independent error boundaries, third-failure session quarantine,
+extension-scoped localization/API/navigation/Toast capabilities, and a stale
+admin-tab release monitor. Jobs is the first production consumer through its
+column, row-action, and detail-section slots.
+
 ## Purpose
 
 Owns the Nuxt web application, SSR pages, UI composition, frontend routing,
