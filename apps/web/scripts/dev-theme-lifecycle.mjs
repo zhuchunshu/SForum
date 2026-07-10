@@ -100,3 +100,169 @@ export async function stopProcessGroup(child, {
     throw new Error(`process group ${pid} did not exit after SIGKILL`)
   }
 }
+
+export function createDevThemeLifecycle({
+  readSelection,
+  launchChild,
+  stopChild,
+  setTarget,
+  logger = console,
+  onFatal = (error) => logger.error('[sforum-dev-runtime] recovery failed:', error.message),
+  onActive = () => {},
+  recoveryDelayMs = 1000,
+  setTimeoutFn = setTimeout,
+  clearTimeoutFn = clearTimeout,
+}) {
+  let activeChild = null
+  let activeSelection = null
+  let startingChild = null
+  let lastHealthySelection = null
+  let desiredSelection = null
+  let restartRequested = false
+  let restartPromise = null
+  let recoveryTimer = null
+  let shuttingDown = false
+
+  function installActive(started, selection, reason) {
+    const installedChild = started.child
+    activeChild = installedChild
+    activeSelection = selection
+    lastHealthySelection = selection
+    setTarget(started.target)
+    onActive(selection, reason)
+
+    // 旧进程可能在新进程安装后才发出 exit，只允许当前实例清空活跃状态。
+    installedChild.once('exit', (code, signal) => {
+      if (activeChild !== installedChild) return
+
+      activeChild = null
+      activeSelection = null
+      setTarget(null)
+      if (shuttingDown) return
+
+      logger.error(`[sforum-dev-runtime] nuxt dev exited code=${code ?? ''} signal=${signal ?? ''}`)
+      recoveryTimer = setTimeoutFn(() => {
+        recoveryTimer = null
+        void requestRestart('nuxt-dev-restart').catch(onFatal)
+      }, recoveryDelayMs)
+    })
+  }
+
+  async function launchHealthy(selection, reason) {
+    const launch = launchChild(selection, reason)
+    startingChild = launch.child
+    try {
+      const target = await launch.ready
+      if (shuttingDown) {
+        await stopChild(launch.child)
+        return null
+      }
+      return { child: launch.child, target }
+    } catch (error) {
+      await stopChild(launch.child)
+      if (shuttingDown) return null
+      throw error
+    } finally {
+      if (startingChild === launch.child) startingChild = null
+    }
+  }
+
+  async function runRestartLoop(initialReason) {
+    let reason = initialReason
+    while (restartRequested && !shuttingDown) {
+      restartRequested = false
+      const requestedSelection = desiredSelection
+
+      if (
+        activeChild &&
+        themeSelectionKey(activeSelection) === themeSelectionKey(requestedSelection)
+      ) {
+        reason = 'pending current.json change'
+        continue
+      }
+
+      const previousChild = activeChild
+      activeChild = null
+      activeSelection = null
+      setTarget(null)
+      if (previousChild) await stopChild(previousChild)
+      if (shuttingDown) return
+
+      let started
+      try {
+        started = await launchHealthy(requestedSelection, reason)
+      } catch (error) {
+        logger.error(`[sforum-dev-runtime] (${reason}) candidate failed: ${error.message}`)
+        if (restartRequested) {
+          reason = 'newer current.json change'
+          continue
+        }
+        if (
+          !lastHealthySelection ||
+          themeSelectionKey(lastHealthySelection) === themeSelectionKey(requestedSelection)
+        ) {
+          throw error
+        }
+
+        try {
+          started = await launchHealthy(lastHealthySelection, 'last-known-good rollback')
+        } catch (rollbackError) {
+          throw new AggregateError(
+            [error, rollbackError],
+            'requested theme and last-known-good theme both failed to start',
+          )
+        }
+        if (!started) return
+        installActive(started, lastHealthySelection, 'last-known-good rollback')
+        reason = 'pending current.json change'
+        continue
+      }
+
+      if (!started) return
+      // 候选启动期间若选择已变化，避免短暂发布一个已经过期的主题。
+      if (
+        restartRequested &&
+        themeSelectionKey(desiredSelection) !== themeSelectionKey(requestedSelection)
+      ) {
+        await stopChild(started.child)
+        reason = 'newer current.json change'
+        continue
+      }
+
+      installActive(started, requestedSelection, reason)
+      reason = 'pending current.json change'
+    }
+  }
+
+  async function requestRestart(reason = 'current.json changed') {
+    if (shuttingDown) return
+    desiredSelection = readSelection()
+    restartRequested = true
+    if (!restartPromise) {
+      restartPromise = runRestartLoop(reason).finally(() => {
+        restartPromise = null
+      })
+    }
+    return restartPromise
+  }
+
+  async function shutdown() {
+    if (shuttingDown) return
+    shuttingDown = true
+    restartRequested = false
+    if (recoveryTimer) {
+      clearTimeoutFn(recoveryTimer)
+      recoveryTimer = null
+    }
+    setTarget(null)
+
+    const children = [...new Set([startingChild, activeChild].filter(Boolean))]
+    startingChild = null
+    activeChild = null
+    activeSelection = null
+    await Promise.allSettled(children.map((child) => stopChild(child)))
+    if (restartPromise) await restartPromise.catch(() => {})
+  }
+
+  return { requestRestart, shutdown }
+}
