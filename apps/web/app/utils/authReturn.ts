@@ -13,6 +13,8 @@ export function normalizeAuthReturnPath(candidate: unknown): string | null {
     }
 
     const pathname = decodeURI(url.pathname)
+    decodeURI(url.search)
+    decodeURI(url.hash)
     if (AUTH_PAGE_PATTERN.test(pathname)) {
       return null
     }

@@ -17,6 +17,14 @@ describe('normalizeAuthReturnPath', () => {
     expect(normalizeAuthReturnPath('/%E0%A4%A')).toBeNull()
   })
 
+  test('rejects malformed percent encoding in query strings', () => {
+    expect(normalizeAuthReturnPath('/safe?next=%E0%A4%A')).toBeNull()
+  })
+
+  test('rejects malformed percent encoding in hashes', () => {
+    expect(normalizeAuthReturnPath('/safe#%E0%A4%A')).toBeNull()
+  })
+
   test('rejects absent and non-string candidates', () => {
     expect(normalizeAuthReturnPath(undefined)).toBeNull()
     expect(normalizeAuthReturnPath(['/settings'])).toBeNull()
