@@ -19,6 +19,7 @@ import (
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
+	webreleaseruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/WebReleaseRuntime"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -35,11 +36,11 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 	}
 
 	pool, err := postgres.NewPoolWithOptions(ctx, cfg.DatabaseURL, postgres.PoolOptions{
-		MaxConns:          cfg.WorkerDatabaseMaxConns,
-		MinConns:          cfg.WorkerDatabaseMinConns,
-		MaxConnIdleTime:   cfg.WorkerDatabaseMaxConnIdleTime,
-		MaxConnLifetime:   cfg.WorkerDatabaseMaxConnLifetime,
-		ConnectTimeout:    cfg.WorkerDatabaseConnectTimeout,
+		MaxConns:        cfg.WorkerDatabaseMaxConns,
+		MinConns:        cfg.WorkerDatabaseMinConns,
+		MaxConnIdleTime: cfg.WorkerDatabaseMaxConnIdleTime,
+		MaxConnLifetime: cfg.WorkerDatabaseMaxConnLifetime,
+		ConnectTimeout:  cfg.WorkerDatabaseConnectTimeout,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("postgres setup failed: %w", err)
@@ -57,6 +58,7 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) (*Worker, error) {
 	registry := supportjobs.NewRegistry()
 	extensionStore := extensions.NewPostgresStore(pool)
+	webReleaseStore := extensions.NewPostgresWebReleaseStore(pool)
 	themeBuilder := themeruntime.NewBuilder(themeruntime.Config{
 		ReleaseRoot:    cfg.ThemeReleaseRoot,
 		WebRoot:        cfg.ThemeWebRoot,
@@ -66,6 +68,17 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		PreviewPath:    cfg.ThemePreviewPath,
 	})
 	extensionjobs.RegisterThemeActivationWorker(registry, extensionStore, themeBuilder)
+	webReleaseBuilder := webreleaseruntime.NewBuilder(webreleaseruntime.Config{
+		ReleaseRoot:    cfg.WebReleaseRoot,
+		WebRoot:        cfg.WebReleaseWebRoot,
+		ExtensionRoot:  cfg.ExtensionRoot,
+		BunPath:        cfg.WebReleaseBunPath,
+		BuildTimeout:   cfg.WebReleaseBuildTimeout,
+		PreviewTimeout: cfg.WebReleasePreviewTimeout,
+		PreviewPath:    cfg.WebReleasePreviewPath,
+		HostPeers:      webreleaseruntime.HostPeers(),
+	})
+	extensionjobs.RegisterWebReleaseBuildWorker(registry, webReleaseStore, webReleaseBuilder, postgres.NewAdvisoryLocker(pool))
 	registerSearchWorkers(registry, cfg, pool)
 	// 周期任务通过返回值显式传递，避免用包级全局变量在多次构造（独立 worker + API 内嵌
 	// worker）之间互相覆盖或丢失注册。

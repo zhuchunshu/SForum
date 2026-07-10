@@ -1,5 +1,7 @@
 import type { NuxtPage } from 'nuxt/schema'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { adminExtensionGuard, type AdminExtensionGuardPolicy } from './build/admin-extension-guard'
 import {
   LEGACY_ADMIN_ROUTE_PREFIX,
   normalizeAdminRoutePrefix
@@ -28,6 +30,9 @@ const adminMetadataPath = adminRegistryRoot
 const adminRegistryPath = adminRegistryRoot
   ? resolve(adminRegistryRoot, 'registry.client.ts')
   : resolve('app/runtime/admin-extensions/empty-registry.client.ts')
+const adminGuardPolicy = adminRegistryRoot
+  ? JSON.parse(readFileSync(resolve(adminRegistryRoot, '..', 'guard-policy.json'), 'utf8')) as AdminExtensionGuardPolicy
+  : undefined
 const publicHomepageRouteRule = {
   cache: false,
   headers: {
@@ -154,6 +159,7 @@ export default defineNuxtConfig({
     }
   },
   vite: {
+    plugins: adminGuardPolicy ? [adminExtensionGuard(adminGuardPolicy)] : [],
     resolve: {
       dedupe: ['vue', 'vue-router', 'nuxt', '@nuxt/ui', '@sforum/admin-sdk']
     },

@@ -31,6 +31,19 @@ func TestActivateThemeWorkerUsesThemeBuilderTimeoutInsteadOfRiverDefault(t *test
 	}
 }
 
+func TestLegacyThemeWorkerDelegatesWithoutBuildingOrSwitching(t *testing.T) {
+	adapter := &fakeLegacyThemeReleaseAdapter{}
+	worker := &ActivateThemeWorker{WebReleases: adapter}
+	job := &river.Job[ActivateThemeArgs]{Args: ActivateThemeArgs{ReleaseID: 19, ExtensionID: "demo.theme"}}
+
+	if err := worker.Work(context.Background(), job); err != nil {
+		t.Fatal(err)
+	}
+	if adapter.releaseID != 19 || adapter.extensionID != "demo.theme" {
+		t.Fatalf("legacy adapter did not receive job identity: %#v", adapter)
+	}
+}
+
 func TestActivateThemeWorkerMarksReleaseActive(t *testing.T) {
 	store := &fakeThemeStore{
 		extension: extensions.Extension{ID: "starter.theme", Version: "1.0.0", Type: extensions.TypeTheme},
@@ -100,6 +113,17 @@ type fakeThemeStore struct {
 	release              extensions.ThemeRelease
 	activeThemeID        string
 	respectContextCancel bool
+}
+
+type fakeLegacyThemeReleaseAdapter struct {
+	releaseID   int64
+	extensionID string
+}
+
+func (a *fakeLegacyThemeReleaseAdapter) QueueLegacyThemeRelease(_ context.Context, releaseID int64, extensionID string) error {
+	a.releaseID = releaseID
+	a.extensionID = extensionID
+	return nil
 }
 
 func (s *fakeThemeStore) Get(_ context.Context, id string) (extensions.Extension, error) {

@@ -44,8 +44,13 @@ func (ActivateThemeArgs) EnqueueOptions() supportjobs.EnqueueOptions {
 
 type ActivateThemeWorker struct {
 	river.WorkerDefaults[ActivateThemeArgs]
-	Store   ThemeStore
-	Builder ThemeBuilder
+	Store       ThemeStore
+	Builder     ThemeBuilder
+	WebReleases LegacyThemeWebReleaseAdapter
+}
+
+type LegacyThemeWebReleaseAdapter interface {
+	QueueLegacyThemeRelease(context.Context, int64, string) error
 }
 
 const themeReleaseUpdateTimeout = 10 * time.Second
@@ -56,6 +61,9 @@ func (w *ActivateThemeWorker) Timeout(*river.Job[ActivateThemeArgs]) time.Durati
 }
 
 func (w *ActivateThemeWorker) Work(ctx context.Context, job *river.Job[ActivateThemeArgs]) error {
+	if w.WebReleases != nil {
+		return w.WebReleases.QueueLegacyThemeRelease(ctx, job.Args.ReleaseID, job.Args.ExtensionID)
+	}
 	if w.Store == nil {
 		return fmt.Errorf("theme activation worker requires store")
 	}
@@ -153,9 +161,13 @@ func themeReleaseContext(ctx context.Context) (context.Context, context.CancelFu
 	return context.WithTimeout(context.WithoutCancel(ctx), themeReleaseUpdateTimeout)
 }
 
-func RegisterThemeActivationWorker(registry *supportjobs.Registry, store ThemeStore, builder ThemeBuilder) {
+func RegisterThemeActivationWorker(registry *supportjobs.Registry, store ThemeStore, builder ThemeBuilder, adapters ...LegacyThemeWebReleaseAdapter) {
+	var adapter LegacyThemeWebReleaseAdapter
+	if len(adapters) > 0 {
+		adapter = adapters[0]
+	}
 	registry.Add(func(workers *river.Workers) error {
-		return river.AddWorkerSafely[ActivateThemeArgs](workers, &ActivateThemeWorker{Store: store, Builder: builder})
+		return river.AddWorkerSafely[ActivateThemeArgs](workers, &ActivateThemeWorker{Store: store, Builder: builder, WebReleases: adapter})
 	})
 }
 

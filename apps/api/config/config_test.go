@@ -80,6 +80,9 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	if cfg.ThemePreviewPath != "/" {
 		t.Fatalf("expected theme preview path default, got %q", cfg.ThemePreviewPath)
 	}
+	if cfg.WebReleaseRoot != cfg.ThemeReleaseRoot || cfg.WebReleaseWebRoot != cfg.ThemeWebRoot || cfg.WebReleaseBunPath != cfg.ThemeBunPath {
+		t.Fatalf("web release defaults must retain theme compatibility: %#v", cfg)
+	}
 	if cfg.JobQueueCriticalWorkers != 4 {
 		t.Fatalf("expected critical workers 4, got %d", cfg.JobQueueCriticalWorkers)
 	}
@@ -319,6 +322,37 @@ func TestLoadFallsBackForInvalidWorkerConfig(t *testing.T) {
 	}
 	if cfg.AltchaCost != 1000 {
 		t.Fatalf("expected non-positive altcha cost to fall back, got %d", cfg.AltchaCost)
+	}
+}
+
+func TestLoadPrefersWebReleaseConfigOverLegacyThemeConfig(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("THEME_RELEASE_ROOT", "/legacy/releases")
+	t.Setenv("THEME_WEB_ROOT", "/legacy/web")
+	t.Setenv("THEME_BUN_PATH", "/legacy/bun")
+	t.Setenv("THEME_BUILD_TIMEOUT", "7m")
+	t.Setenv("THEME_PREVIEW_TIMEOUT", "12s")
+	t.Setenv("WEB_RELEASE_ROOT", "/web/releases")
+	t.Setenv("WEB_RELEASE_WEB_ROOT", "/web/source")
+	t.Setenv("WEB_RELEASE_BUN_PATH", "/web/bun")
+	t.Setenv("WEB_RELEASE_BUILD_TIMEOUT", "9m")
+	t.Setenv("WEB_RELEASE_PREVIEW_TIMEOUT", "18s")
+
+	cfg := Load()
+	if cfg.WebReleaseRoot != "/web/releases" || cfg.ThemeReleaseRoot != cfg.WebReleaseRoot {
+		t.Fatalf("unexpected release root fallback: web=%q theme=%q", cfg.WebReleaseRoot, cfg.ThemeReleaseRoot)
+	}
+	if cfg.WebReleaseWebRoot != "/web/source" || cfg.ThemeWebRoot != cfg.WebReleaseWebRoot {
+		t.Fatalf("unexpected web root fallback: web=%q theme=%q", cfg.WebReleaseWebRoot, cfg.ThemeWebRoot)
+	}
+	if cfg.WebReleaseBunPath != "/web/bun" || cfg.ThemeBunPath != cfg.WebReleaseBunPath {
+		t.Fatalf("unexpected bun path fallback: web=%q theme=%q", cfg.WebReleaseBunPath, cfg.ThemeBunPath)
+	}
+	if cfg.WebReleaseBuildTimeout != 9*time.Minute || cfg.ThemeBuildTimeout != cfg.WebReleaseBuildTimeout {
+		t.Fatalf("unexpected build timeout: web=%s theme=%s", cfg.WebReleaseBuildTimeout, cfg.ThemeBuildTimeout)
+	}
+	if cfg.WebReleasePreviewTimeout != 18*time.Second || cfg.ThemePreviewTimeout != cfg.WebReleasePreviewTimeout {
+		t.Fatalf("unexpected preview timeout: web=%s theme=%s", cfg.WebReleasePreviewTimeout, cfg.ThemePreviewTimeout)
 	}
 }
 
