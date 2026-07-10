@@ -19,4 +19,13 @@ const navbar = read('extensions/builtin/themes/sforum-default/layer/app/componen
 assert(navbar.includes('FORUM_PERMISSIONS.moderationReview'), 'Public moderator entry must require moderation.review')
 assert(navbar.includes("localePath('/moderation')"), 'Public moderator entry must link to /moderation')
 
+const adminPage = read('apps/web/app/pages/admin/moderation.vue')
+assert(adminPage.includes('ModerationSettingsForm'), 'Admin moderation page must render the settings form')
+assert(adminPage.includes('ModerationDecisionTable'), 'Admin moderation page must render audit history')
+const settingsForm = read('apps/web/app/components/moderation/ModerationSettingsForm.vue')
+assert(settingsForm.includes("value: 'rules'"), 'Settings form must expose rules mode')
+assert(settingsForm.includes('reviewNewUsers'), 'Settings form must expose the new-user rule')
+assert(settingsForm.includes('reviewExternalLinks'), 'Settings form must expose the external-link rule')
+assert(settingsForm.includes('resetSettings'), 'Settings form must support restoring defaults')
+
 console.log('Moderation workbench validation passed')
