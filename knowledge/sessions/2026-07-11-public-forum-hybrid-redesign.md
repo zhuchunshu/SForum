@@ -13,6 +13,9 @@
 - `SFComment` now exposes explicit tree/flat and depth contracts, uses one
   desktop branch inset, collapses deep descendants once, and visually flattens
   all depths on mobile without losing ancestry or reply context.
+- Corrected the homepage after visual review to match the selected C demo:
+  74px dark icon rail, pulse-card discussion stream, and 290px real-data
+  activity dock. The earlier 208px two-column table interpretation was removed.
 
 ## Decisions
 

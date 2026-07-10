@@ -62,7 +62,7 @@ if (!topicRow.includes(':avatar="topic.author?.avatar"') || !topicRow.includes('
   throw new Error('SFHomeTopicRow must render only real topic summary metadata')
 }
 
-for (const token of ['grid-template-columns: 208px minmax(0, 1fr);', 'min-height: 40px;', 'overflow-wrap: anywhere;', 'prefers-reduced-motion: reduce']) {
+for (const token of ['grid-template-columns: 74px minmax(0, 1fr) 290px;', '.sforum-home__dock', '.sf-home-topic-row__heat', 'min-height: 40px;', 'overflow-wrap: anywhere;', 'prefers-reduced-motion: reduce']) {
   if (!homeCss.includes(token)) {
     throw new Error(`sforum-home.css is missing: ${token}`)
   }

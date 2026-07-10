@@ -128,6 +128,8 @@ const totalTopics = computed(() => {
   }
   return hasActiveFilters.value ? 0 : loadedTopicTotal.value
 })
+const dockTopics = computed(() => topics.value.slice(0, 3))
+const loadedReplyTotal = computed(() => topics.value.reduce((total, topic) => total + Number(topic.commentCount), 0))
 
 function replaceLoadedTopics(list: ForumTopicList) {
   const seen = new Set<number>()
@@ -342,11 +344,6 @@ onBeforeUnmount(() => {
 <template>
   <main class="sforum-home">
     <div class="sforum-home__inner">
-      <div class="sforum-home__notice" role="note">
-        <UIcon name="i-lucide-shield-check" class="size-4" aria-hidden="true" />
-        <span>{{ t('home.notice') }}</span>
-      </div>
-
       <div class="sforum-home__layout">
         <SFHomeNavigation
           :categories="categories"
@@ -398,12 +395,6 @@ onBeforeUnmount(() => {
               <UIcon name="i-lucide-x" class="size-3.5" aria-hidden="true" />
               {{ t('home.clearFilters') }}
             </button>
-          </div>
-
-          <div class="sforum-home__columns" aria-hidden="true">
-            <span>{{ t('home.feed.topicColumn') }}</span>
-            <span>{{ t('home.feed.repliesColumn') }}</span>
-            <span>{{ t('home.feed.activityColumn') }}</span>
           </div>
 
           <div id="feed-list-container" class="sforum-home__topics">
@@ -458,6 +449,43 @@ onBeforeUnmount(() => {
             <span v-else class="sforum-home__sentinel" aria-hidden="true" />
           </div>
         </section>
+
+        <aside class="sforum-home__dock" :aria-label="t('home.dock.title')">
+          <section class="sforum-home__dock-block sforum-home__dock-notice" role="note">
+            <UIcon name="i-lucide-shield-check" class="size-5" aria-hidden="true" />
+            <p>{{ t('home.notice') }}</p>
+          </section>
+
+          <section class="sforum-home__dock-block">
+            <h2>{{ t('home.dock.latestActivity') }}</h2>
+            <ol class="sforum-home__dock-list">
+              <li v-for="(topic, index) in dockTopics" :key="topic.id">
+                <span class="sforum-home__dock-rank">{{ Number(index) + 1 }}</span>
+                <NuxtLink :to="localePath(forumTopicPath(topic, topicUrlMode))">
+                  {{ topic.title }}
+                </NuxtLink>
+              </li>
+            </ol>
+          </section>
+
+          <section class="sforum-home__dock-block">
+            <h2>{{ t('home.dock.overview') }}</h2>
+            <dl class="sforum-home__stats">
+              <div>
+                <dd>{{ totalTopics }}</dd>
+                <dt>{{ t('home.dock.topics') }}</dt>
+              </div>
+              <div>
+                <dd>{{ categories.length }}</dd>
+                <dt>{{ t('home.dock.categories') }}</dt>
+              </div>
+              <div>
+                <dd>{{ loadedReplyTotal }}</dd>
+                <dt>{{ t('home.dock.loadedReplies') }}</dt>
+              </div>
+            </dl>
+          </section>
+        </aside>
       </div>
     </div>
   </main>

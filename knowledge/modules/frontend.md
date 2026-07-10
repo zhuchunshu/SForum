@@ -67,8 +67,10 @@ feed and total are initialized from `topicList.value` into Nuxt `useState` so
 the SSR rows survive hydration in development payload mode. Desktop homepage
 side rails remain sticky but are viewport-bounded with internal scrolling.
 The default-theme public forum follows the approved C / SForum Hybrid
-direction. The homepage uses the shared default layout and `SFNavbar`, a 208px
-taxonomy rail, and compact topic rows without a decorative statistics sidebar.
+direction. The homepage uses the shared default layout and `SFNavbar`, a 74px
+dark taxonomy rail, pulse-card topic feed, and 290px activity dock. The dock is
+restricted to real latest-topic and aggregate data; it does not fabricate hot
+rankings, check-ins, participant state, or personal metrics.
 Search, category, and tag filters are reflected in the URL; search is debounced
 and stale requests are rejected before they can replace newer results. Base
 homepage responses retain shared-cache headers, while `/` and `/en` query

@@ -79,23 +79,24 @@ merely to suggest future functionality.
 
 ### Homepage
 
-Desktop uses a two-column shell:
+Desktop follows the approved C community-workbench demo with a three-column
+shell:
 
-- 208px category/navigation rail;
-- flexible topic feed with a readable maximum width.
+- 74px dark category/navigation rail;
+- flexible pulse-card topic feed;
+- 290px community activity dock.
 
-There is no right statistics sidebar and no marketing hero. A concise community
-notice may sit below the header. The rail contains only real destinations and
-real counts. It becomes a compact category/filter entry on small screens.
+The dock may show only API-backed latest activity, category/topic counts, and
+other honest aggregates. It must not invent a hot ranking, check-in streak, or
+personal status when those contracts do not exist. The rail becomes a compact
+category/filter entry and the dock disappears on smaller screens.
 
-Each topic row contains:
+Each pulse-card topic row contains:
 
-- author avatar or stable topic identity anchor;
+- reply-count heat block as the stable scanning anchor;
 - title;
-- category and optional tags;
-- one concise metadata/context line;
-- reply count;
-- relative last activity.
+- author avatar/name, category, and optional tags in one context line;
+- relative last activity in a dedicated metric column.
 
 Participant avatars are conditional. They may be shown only after a typed API
 read model provides real participants. Until then, omit the stack rather than

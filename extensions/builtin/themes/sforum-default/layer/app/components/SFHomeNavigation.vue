@@ -16,8 +16,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-function categoryDotStyle(category: ForumCategory) {
-  return category.iconColor ? { backgroundColor: category.iconColor } : undefined
+function categoryIcon(category: ForumCategory) {
+  return category.icon?.startsWith('i-') ? category.icon : 'i-lucide-hash'
 }
 
 function selectFromMenu(event: Event) {
@@ -48,7 +48,6 @@ function selectFromMenu(event: Event) {
     </div>
 
     <nav class="sf-home-navigation__desktop" :aria-label="t('home.categories')">
-      <p class="sf-home-navigation__heading">{{ t('home.categories') }}</p>
       <div v-if="pending" class="sf-home-navigation__pending">
         <SFSkeleton v-for="item in 4" :key="item" :lines="1" />
       </div>
@@ -58,13 +57,11 @@ function selectFromMenu(event: Event) {
           class="sf-home-navigation__item"
           :class="{ 'is-active': !selectedCategorySlug }"
           :aria-pressed="!selectedCategorySlug"
+          :title="t('home.allTopics')"
           @click="emit('select-category', '')"
         >
-          <span class="sf-home-navigation__name">
-            <UIcon name="i-lucide-messages-square" class="size-4" aria-hidden="true" />
-            <span>{{ t('home.allTopics') }}</span>
-          </span>
-          <span class="sf-home-navigation__count">{{ totalTopics }}</span>
+          <UIcon name="i-lucide-messages-square" class="sf-home-navigation__icon" aria-hidden="true" />
+          <span class="sr-only">{{ t('home.allTopics') }}</span>
         </button>
 
         <button
@@ -74,13 +71,16 @@ function selectFromMenu(event: Event) {
           class="sf-home-navigation__item"
           :class="{ 'is-active': selectedCategorySlug === category.slug }"
           :aria-pressed="selectedCategorySlug === category.slug"
+          :title="category.name"
           @click="emit('select-category', category.slug)"
         >
-          <span class="sf-home-navigation__name">
-            <span class="sf-home-navigation__dot" :style="categoryDotStyle(category)" />
-            <span>{{ category.name }}</span>
-          </span>
-          <span class="sf-home-navigation__count">{{ category.topicCount }}</span>
+          <UIcon
+            :name="categoryIcon(category)"
+            class="sf-home-navigation__icon"
+            :style="category.iconColor ? { color: category.iconColor } : undefined"
+            aria-hidden="true"
+          />
+          <span class="sr-only">{{ category.name }}</span>
         </button>
       </template>
     </nav>

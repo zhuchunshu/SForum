@@ -13,17 +13,21 @@ const authorName = computed(() => forumAuthorName(props.topic.author, props.topi
 
 <template>
   <NuxtLink :to="to" class="sf-home-topic-row">
-    <SFAvatar
-      class="sf-home-topic-row__avatar"
-      :name="authorName"
-      :avatar="topic.author?.avatar"
-      alt=""
-      size="sm"
-    />
+    <div class="sf-home-topic-row__heat" :aria-label="t('home.feed.replyCount', { count: topic.commentCount })">
+      {{ topic.commentCount }}
+    </div>
 
     <div class="sf-home-topic-row__body">
       <h2 class="sf-home-topic-row__title">{{ topic.title }}</h2>
-      <div class="sf-home-topic-row__taxonomy">
+      <div class="sf-home-topic-row__context">
+        <SFAvatar
+          class="sf-home-topic-row__avatar"
+          :name="authorName"
+          :avatar="topic.author?.avatar"
+          alt=""
+          size="xs"
+        />
+        <span class="sf-home-topic-row__author">{{ authorName }}</span>
         <span class="sf-home-topic-row__category">{{ topic.categoryName }}</span>
         <span v-if="topic.isPinned" class="sf-home-topic-row__pinned">
           <UIcon name="i-lucide-pin" class="size-3.5" aria-hidden="true" />
@@ -33,15 +37,11 @@ const authorName = computed(() => forumAuthorName(props.topic.author, props.topi
           #{{ tag.name }}
         </span>
       </div>
-      <p class="sf-home-topic-row__author">{{ authorName }}</p>
     </div>
 
-    <div class="sf-home-topic-row__replies">
-      <strong>{{ topic.commentCount }}</strong>
-      <span>{{ t('home.feed.repliesColumn') }}</span>
+    <div class="sf-home-topic-row__metric">
+      <time :datetime="topic.lastActivityAt || topic.createdAt">{{ activityLabel }}</time>
+      <span>{{ t('home.feed.latestActivity') }}</span>
     </div>
-    <time class="sf-home-topic-row__activity" :datetime="topic.lastActivityAt || topic.createdAt">
-      {{ activityLabel }}
-    </time>
   </NuxtLink>
 </template>

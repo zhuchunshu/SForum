@@ -33,6 +33,9 @@ describe('default theme hybrid homepage contract', () => {
     expect(page).toContain('class="sforum-home"')
     expect(page).toContain('<SFHomeNavigation')
     expect(page).toContain('<SFHomeTopicRow')
+    expect(page).toContain('class="sforum-home__dock"')
+    expect(page).toContain('dockTopics')
+    expect(page).toContain('loadedReplyTotal')
     expect(page).not.toContain('layout: false')
     expect(page).not.toContain('sforum-home__topbar')
     expect(page).not.toContain('<SFFooter')
@@ -148,7 +151,7 @@ describe('default theme hybrid homepage contract', () => {
     expect(middleware).toContain("setHeader(event, 'cache-control', 'no-store')")
   })
 
-  test('registers a focused neutral and responsive homepage visual system', () => {
+  test('registers the responsive C workbench visual system', () => {
     const config = layerConfig()
     const home = homepageCss()
     const theme = themeCss()
@@ -158,13 +161,17 @@ describe('default theme hybrid homepage contract', () => {
     const tagListStyles = home.match(/\.sforum-home__tag-list \{[\s\S]*?\n\}/)?.[0] || ''
 
     expect(config).toContain('sforum-home.css')
-    expect(home).toContain('grid-template-columns: 208px minmax(0, 1fr);')
+    expect(home).toContain('grid-template-columns: 74px minmax(0, 1fr) 290px;')
+    expect(home).toContain('.sforum-home__dock')
+    expect(home).toContain('.sf-home-topic-row__heat')
+    expect(home).toContain('.sf-home-topic-row__metric')
+    expect(home).toContain('--sforum-home-secondary: #bd5b43;')
     expect(home).toContain('.sforum-home .sforum-home__heading h1')
     expect(home).toContain('min-height: 40px;')
     expect(home).toContain('overflow-wrap: anywhere;')
     expect(home).toContain('prefers-reduced-motion: reduce')
     expect(home).toContain('.dark .sforum-home')
-    expect(home).not.toContain('grid-template-columns: 176px minmax(0, 1fr);')
+    expect(home).not.toContain('grid-template-columns: 208px minmax(0, 1fr);')
     expect(mobileStyles).toContain('.sforum-home__load-error .sf-button')
     expect(mobileStyles).toContain('.sforum-home__infinite-state .sf-button')
     expect(mobileStyles).toContain('.sforum-home__empty .sf-button')
@@ -196,6 +203,10 @@ describe('default theme hybrid homepage contract', () => {
       expect(messages.home.emptyState.filteredDescription).toBeString()
       expect(messages.home.feed.loadMoreFailed).toBeString()
       expect(messages.home.feed.retryLoadMore).toBeString()
+      expect(messages.home.feed.latestActivity).toBeString()
+      expect(messages.home.feed.replyCount).toBeString()
+      expect(messages.home.dock.latestActivity).toBeString()
+      expect(messages.home.dock.overview).toBeString()
     }
   })
 })

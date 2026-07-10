@@ -30,6 +30,14 @@
     "tags": "标签",
     "clearFilters": "清除筛选",
     "searchResults": "“{query}”的搜索结果",
+    "dock": {
+      "title": "社区动态",
+      "latestActivity": "最新动态",
+      "overview": "社区概览",
+      "topics": "主题",
+      "categories": "分类",
+      "loadedReplies": "当前回复"
+    },
     "filter": {
       "latest": "最新",
       "new": "新",
@@ -61,6 +69,8 @@
       "topicColumn": "话题",
       "repliesColumn": "回复",
       "activityColumn": "活动",
+      "latestActivity": "最新活动",
+      "replyCount": "{count} 条回复",
       "views": "浏览",
       "activityMinutes": "{count} 分钟",
       "activityHours": "{count} 小时",

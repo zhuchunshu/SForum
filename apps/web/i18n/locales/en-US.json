@@ -30,6 +30,14 @@
     "tags": "Tags",
     "clearFilters": "Clear filters",
     "searchResults": "Results for “{query}”",
+    "dock": {
+      "title": "Community activity",
+      "latestActivity": "Latest activity",
+      "overview": "Community overview",
+      "topics": "Topics",
+      "categories": "Categories",
+      "loadedReplies": "Loaded replies"
+    },
     "filter": {
       "latest": "Latest",
       "new": "New",
@@ -61,6 +69,8 @@
       "topicColumn": "Topic",
       "repliesColumn": "Replies",
       "activityColumn": "Activity",
+      "latestActivity": "Latest activity",
+      "replyCount": "{count} replies",
       "views": "views",
       "activityMinutes": "{count} min",
       "activityHours": "{count} h",
