@@ -18,6 +18,7 @@ type WebReleaseStore interface {
 	CreateWebRelease(context.Context, WebReleaseCreateInput) (WebRelease, error)
 	CreateWebReleaseTx(context.Context, pgx.Tx, WebReleaseCreateInput) (WebRelease, error)
 	TransitionWebRelease(context.Context, WebReleaseTransitionInput) (WebRelease, error)
+	ActiveWebRelease(context.Context) (WebRelease, error)
 	WebRelease(context.Context, int64) (WebReleaseDetail, error)
 	ListWebReleases(context.Context, WebReleaseListInput) (WebReleasePage, error)
 	RecordWebReleaseDependencySnapshot(context.Context, WebReleaseDependencySnapshotInput) error

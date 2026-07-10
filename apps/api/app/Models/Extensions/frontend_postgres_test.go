@@ -230,6 +230,68 @@ func TestPostgresFrontendTrustStoreRejectsInvalidStoredJSON(t *testing.T) {
 	}
 }
 
+func TestPostgresFrontendTrustStoreListsHistoricalLiveGrants(t *testing.T) {
+	first := frontendGrantFixture()
+	second := first
+	second.ID = 13
+	second.ExtensionVersion = "2.0.0"
+	db := &fakeFrontendTrustDB{queryResults: []pgx.Rows{&frontendGrantRows{rows: []pgx.Row{
+		frontendGrantTestRow(first),
+		frontendGrantTestRow(second),
+	}}}}
+
+	items, err := newPostgresFrontendTrustStore(db).LiveFrontendGrants(context.Background(), first.ExtensionID)
+	if err != nil {
+		t.Fatalf("list live frontend grants: %v", err)
+	}
+	if len(items) != 2 || items[0].ID != first.ID || items[1].ID != second.ID {
+		t.Fatalf("historical live grants were not returned: %#v", items)
+	}
+	if len(db.queries) != 1 || !strings.Contains(db.queries[0].sql, "revoked_at IS NULL") || db.queries[0].args[0] != first.ExtensionID {
+		t.Fatalf("unexpected live grants query: %#v", db.queries)
+	}
+}
+
+func TestPostgresFrontendTrustStoreBulkRequestsAndDirectlyFinalizes(t *testing.T) {
+	grant := frontendGrantFixture()
+	requestedAt := grant.GrantedAt.Add(time.Hour)
+	grant.RevocationRequestedAt = &requestedAt
+	grant.RevocationRequestedByUserID = 7
+	db := &fakeFrontendTrustDB{
+		queryResults: []pgx.Rows{&frontendGrantRows{rows: []pgx.Row{frontendGrantTestRow(grant)}}},
+		rows:         []pgx.Row{frontendGrantTestRow(grant)},
+	}
+	store := newPostgresFrontendTrustStore(db)
+
+	items, err := store.RequestAllFrontendRevocations(context.Background(), 9)
+	if err != nil {
+		t.Fatalf("request all frontend revocations: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("unexpected bulk revocation result: %#v", items)
+	}
+	bulkSQL := compactSQL(db.queries[0].sql)
+	for _, clause := range []string{
+		"WHEN revocation_requested_at IS NULL THEN $1",
+		"revocation_requested_at = COALESCE(revocation_requested_at, now())",
+		"WHERE revoked_at IS NULL",
+	} {
+		if !strings.Contains(bulkSQL, clause) {
+			t.Fatalf("bulk revocation SQL missing %q: %s", clause, bulkSQL)
+		}
+	}
+
+	if _, err := store.FinalizeFrontendRevocation(context.Background(), FrontendFinalizeInput{
+		ExtensionID: grant.ExtensionID, ExtensionVersion: grant.ExtensionVersion, PackageDigest: grant.PackageDigest,
+	}); err != nil {
+		t.Fatalf("finalize frontend revocation: %v", err)
+	}
+	finalizeSQL := compactSQL(db.queries[1].sql)
+	if !strings.Contains(finalizeSQL, "revocation_requested_at IS NOT NULL") || !strings.Contains(finalizeSQL, "revoked_at IS NULL") {
+		t.Fatalf("direct finalize is not pending-state CAS: %s", finalizeSQL)
+	}
+}
+
 func frontendGrantFixture() FrontendTrustGrant {
 	return FrontendTrustGrant{
 		ID:                 12,
@@ -250,11 +312,13 @@ type frontendTrustQuery struct {
 }
 
 type fakeFrontendTrustDB struct {
-	rows    []pgx.Row
-	queries []frontendTrustQuery
-	execs   []frontendTrustQuery
-	execTag pgconn.CommandTag
-	execErr error
+	rows         []pgx.Row
+	queryResults []pgx.Rows
+	queryErr     error
+	queries      []frontendTrustQuery
+	execs        []frontendTrustQuery
+	execTag      pgconn.CommandTag
+	execErr      error
 }
 
 func (db *fakeFrontendTrustDB) QueryRow(_ context.Context, sql string, args ...any) pgx.Row {
@@ -267,6 +331,19 @@ func (db *fakeFrontendTrustDB) QueryRow(_ context.Context, sql string, args ...a
 	return row
 }
 
+func (db *fakeFrontendTrustDB) Query(_ context.Context, sql string, args ...any) (pgx.Rows, error) {
+	db.queries = append(db.queries, frontendTrustQuery{sql: sql, args: args})
+	if db.queryErr != nil {
+		return nil, db.queryErr
+	}
+	if len(db.queryResults) == 0 {
+		return nil, errors.New("unexpected Query")
+	}
+	rows := db.queryResults[0]
+	db.queryResults = db.queryResults[1:]
+	return rows, nil
+}
+
 func (db *fakeFrontendTrustDB) Exec(_ context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
 	db.execs = append(db.execs, frontendTrustQuery{sql: sql, args: args})
 	return db.execTag, db.execErr
@@ -277,6 +354,36 @@ type frontendTrustRowFunc func(dest ...any) error
 func (row frontendTrustRowFunc) Scan(dest ...any) error {
 	return row(dest...)
 }
+
+type frontendGrantRows struct {
+	rows   []pgx.Row
+	index  int
+	closed bool
+	err    error
+}
+
+func (rows *frontendGrantRows) Close()     { rows.closed = true }
+func (rows *frontendGrantRows) Err() error { return rows.err }
+func (rows *frontendGrantRows) CommandTag() pgconn.CommandTag {
+	return pgconn.NewCommandTag("SELECT 0")
+}
+func (rows *frontendGrantRows) FieldDescriptions() []pgconn.FieldDescription { return nil }
+func (rows *frontendGrantRows) Next() bool {
+	if rows.index >= len(rows.rows) {
+		return false
+	}
+	rows.index++
+	return true
+}
+func (rows *frontendGrantRows) Scan(dest ...any) error {
+	if rows.index < 1 || rows.index > len(rows.rows) {
+		return errors.New("Scan called without Next")
+	}
+	return rows.rows[rows.index-1].Scan(dest...)
+}
+func (rows *frontendGrantRows) Values() ([]any, error) { return nil, errors.New("unexpected Values") }
+func (rows *frontendGrantRows) RawValues() [][]byte    { return nil }
+func (rows *frontendGrantRows) Conn() *pgx.Conn        { return nil }
 
 func frontendTrustErrorRow(err error) pgx.Row {
 	return frontendTrustRowFunc(func(...any) error { return err })

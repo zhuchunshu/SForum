@@ -92,6 +92,13 @@ type WebReleaseDetail struct {
 	Events     []WebReleaseEvent           `json:"events"`
 }
 
+type WebReleaseSummary struct {
+	ID              int64            `json:"id"`
+	Status          WebReleaseStatus `json:"status"`
+	CompositionHash string           `json:"compositionHash"`
+	ReloadMode      string           `json:"reloadMode"`
+}
+
 type WebReleasePage struct {
 	Items   []WebRelease `json:"items"`
 	Total   int64        `json:"total"`
