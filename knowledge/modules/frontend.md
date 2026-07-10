@@ -68,9 +68,13 @@ the SSR rows survive hydration in development payload mode. Desktop homepage
 side rails remain sticky but are viewport-bounded with internal scrolling.
 The default-theme public forum follows the approved C / SForum Hybrid
 direction. The homepage uses the shared default layout and `SFNavbar`, a 74px
-dark taxonomy rail, pulse-card topic feed, and 290px activity dock. The dock is
+dark taxonomy rail, pulse-card topic feed, and 310px activity dock. The dock is
 restricted to real latest-topic and aggregate data; it does not fabricate hot
 rankings, check-ins, participant state, or personal metrics.
+Pulse cards use the API topic excerpt rather than fabricated summaries or an
+author-avatar metadata row. At a 1425px browser content width the measured
+desktop tracks are 74px / 1003px / 310px and cards are 971px by 88px, matching
+the approved C demo geometry.
 Search, category, and tag filters are reflected in the URL; search is debounced
 and stale requests are rejected before they can replace newer results. Base
 homepage responses retain shared-cache headers, while `/` and `/en` query

@@ -14,8 +14,13 @@
   desktop branch inset, collapses deep descendants once, and visually flattens
   all depths on mobile without losing ancestry or reply context.
 - Corrected the homepage after visual review to match the selected C demo:
-  74px dark icon rail, pulse-card discussion stream, and 290px real-data
+  74px dark icon rail, pulse-card discussion stream, and 310px real-data
   activity dock. The earlier 208px two-column table interpretation was removed.
+- A second side-by-side fidelity pass rendered the original demo and production
+  at 1440x900. Production now uses the demo's exact canvas, border, text, and
+  muted colors; 19px outer gutter; 360px command search; always-visible real
+  category chips; API topic excerpts; two-cell dock stats; and a functional
+  login-to-post fallback for guests.
 
 ## Decisions
 

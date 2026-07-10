@@ -84,7 +84,7 @@ shell:
 
 - 74px dark category/navigation rail;
 - flexible pulse-card topic feed;
-- 290px community activity dock.
+- 310px community activity dock.
 
 The dock may show only API-backed latest activity, category/topic counts, and
 other honest aggregates. It must not invent a hot ranking, check-in streak, or
@@ -95,7 +95,7 @@ Each pulse-card topic row contains:
 
 - reply-count heat block as the stable scanning anchor;
 - title;
-- author avatar/name, category, and optional tags in one context line;
+- one concise API-backed topic excerpt;
 - relative last activity in a dedicated metric column.
 
 Participant avatars are conditional. They may be shown only after a typed API

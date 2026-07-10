@@ -34,6 +34,7 @@ describe('default theme hybrid homepage contract', () => {
     expect(page).toContain('<SFHomeNavigation')
     expect(page).toContain('<SFHomeTopicRow')
     expect(page).toContain('class="sforum-home__dock"')
+    expect(page).toContain("t('home.loginToPost')")
     expect(page).toContain('dockTopics')
     expect(page).toContain('loadedReplyTotal')
     expect(page).not.toContain('layout: false')
@@ -63,11 +64,8 @@ describe('default theme hybrid homepage contract', () => {
     expect(row).toContain('topic: ForumTopicSummary')
     expect(row).toContain('to: string')
     expect(row).toContain('activityLabel: string')
-    expect(row).toContain('<SFAvatar')
-    expect(row).toContain(':avatar="topic.author?.avatar"')
+    expect(row).toContain('topic.excerpt')
     expect(row).toContain('topic.commentCount')
-    expect(row).toContain('topic.categoryName')
-    expect(row).toContain('topic.tags')
     expect(row).not.toContain('participants')
     expect(row).not.toContain('$fetch')
     expect(row).not.toContain('useForumApi')
@@ -161,7 +159,7 @@ describe('default theme hybrid homepage contract', () => {
     const tagListStyles = home.match(/\.sforum-home__tag-list \{[\s\S]*?\n\}/)?.[0] || ''
 
     expect(config).toContain('sforum-home.css')
-    expect(home).toContain('grid-template-columns: 74px minmax(0, 1fr) 290px;')
+    expect(home).toContain('grid-template-columns: 74px minmax(0, 1fr) 310px;')
     expect(home).toContain('.sforum-home__dock')
     expect(home).toContain('.sf-home-topic-row__heat')
     expect(home).toContain('.sf-home-topic-row__metric')
@@ -205,6 +203,8 @@ describe('default theme hybrid homepage contract', () => {
       expect(messages.home.feed.retryLoadMore).toBeString()
       expect(messages.home.feed.latestActivity).toBeString()
       expect(messages.home.feed.replyCount).toBeString()
+      expect(messages.home.filter.all).toBeString()
+      expect(messages.home.loginToPost).toBeString()
       expect(messages.home.dock.latestActivity).toBeString()
       expect(messages.home.dock.overview).toBeString()
     }

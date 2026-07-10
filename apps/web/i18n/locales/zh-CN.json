@@ -30,6 +30,7 @@
     "tags": "标签",
     "clearFilters": "清除筛选",
     "searchResults": "“{query}”的搜索结果",
+    "loginToPost": "登录发帖",
     "dock": {
       "title": "社区动态",
       "latestActivity": "最新动态",
@@ -39,6 +40,7 @@
       "loadedReplies": "当前回复"
     },
     "filter": {
+      "all": "全部",
       "latest": "最新",
       "new": "新",
       "unread": "未读",

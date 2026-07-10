@@ -25,6 +25,7 @@ const router = useRouter()
 const localePath = useLocalePath()
 const { siteName, seoSettings } = useWebOptions()
 const forumApi = useForumApi()
+const { can } = usePermissions()
 
 useSForumSeo({
   title: () => t('home.metaTitle', { siteName: siteName.value }),
@@ -40,6 +41,7 @@ const topicDataKey = computed(() => `forum-home-topics:${activeFeedKey.value}`)
 const searchDraft = ref(committedFilters.value.query)
 const selectedCategorySlug = computed(() => committedFilters.value.categorySlug)
 const selectedTagSlug = computed(() => committedFilters.value.tagSlug)
+const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const renderedAt = useState<number>('forum-home-rendered-at', () => Date.now())
 let feedGeneration = 0
 
@@ -355,12 +357,7 @@ onBeforeUnmount(() => {
 
         <section class="sforum-home__feed" aria-labelledby="forum-feed-title">
           <header class="sforum-home__feed-header">
-            <div class="sforum-home__heading">
-              <h1 id="forum-feed-title">{{ feedTitle }}</h1>
-              <p v-if="committedFilters.query" class="sforum-home__search-context">
-                {{ t('home.searchResults', { query: committedFilters.query }) }}
-              </p>
-            </div>
+            <h1 id="forum-feed-title" class="sr-only">{{ feedTitle }}</h1>
             <SFSearch
               v-model="searchDraft"
               class="sforum-home__search"
@@ -368,11 +365,50 @@ onBeforeUnmount(() => {
               :aria-label="t('nav.search')"
               @submit="submitSearch"
             />
+            <NuxtLink
+              v-if="canCreateTopic"
+              :to="localePath('/topics/new')"
+              class="sforum-home__new-topic"
+            >
+              <UIcon name="i-lucide-square-pen" class="size-4" aria-hidden="true" />
+              {{ t('nav.newTopic') }}
+            </NuxtLink>
+            <NuxtLink
+              v-else
+              :to="localePath('/login')"
+              class="sforum-home__new-topic"
+            >
+              <UIcon name="i-lucide-log-in" class="size-4" aria-hidden="true" />
+              {{ t('home.loginToPost') }}
+            </NuxtLink>
           </header>
 
-          <div v-if="activeTags.length || hasActiveFilters" class="sforum-home__filters" :aria-busy="tagsPending">
-            <span v-if="activeTags.length" class="sforum-home__filter-label">{{ t('home.tags') }}</span>
-            <div v-if="activeTags.length" class="sforum-home__tag-list">
+          <p v-if="committedFilters.query" class="sforum-home__search-context">
+            {{ t('home.searchResults', { query: committedFilters.query }) }}
+          </p>
+
+          <div v-if="categories.length || activeTags.length || hasActiveFilters" class="sforum-home__filters" :aria-busy="tagsPending">
+            <div class="sforum-home__tag-list">
+              <button
+                type="button"
+                class="sforum-home__tag"
+                :class="{ 'is-active': !selectedCategorySlug && !selectedTagSlug }"
+                :aria-pressed="!selectedCategorySlug && !selectedTagSlug"
+                @click="selectCategory('')"
+              >
+                {{ t('home.filter.all') }}
+              </button>
+              <button
+                v-for="category in categories"
+                :key="category.slug"
+                type="button"
+                class="sforum-home__tag"
+                :class="{ 'is-active': selectedCategorySlug === category.slug }"
+                :aria-pressed="selectedCategorySlug === category.slug"
+                @click="selectCategory(category.slug)"
+              >
+                {{ category.name }}
+              </button>
               <button
                 v-for="tag in activeTags"
                 :key="tag.slug"
@@ -383,7 +419,6 @@ onBeforeUnmount(() => {
                 @click="selectTag(tag.slug)"
               >
                 <span>#{{ tag.name }}</span>
-                <span class="sforum-home__tag-count">{{ tag.topicCount }}</span>
               </button>
             </div>
             <button
@@ -474,10 +509,6 @@ onBeforeUnmount(() => {
               <div>
                 <dd>{{ totalTopics }}</dd>
                 <dt>{{ t('home.dock.topics') }}</dt>
-              </div>
-              <div>
-                <dd>{{ categories.length }}</dd>
-                <dt>{{ t('home.dock.categories') }}</dt>
               </div>
               <div>
                 <dd>{{ loadedReplyTotal }}</dd>

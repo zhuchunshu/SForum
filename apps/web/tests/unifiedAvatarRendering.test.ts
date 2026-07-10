@@ -17,7 +17,7 @@ describe('unified avatar rendering contract', () => {
     expect(adminLayout).not.toContain('<UAvatar')
   })
 
-  test('forum topic and comment surfaces pass AvatarView into SFAvatar', () => {
+  test('forum surfaces that show avatars pass AvatarView into SFAvatar', () => {
     const avatar = source('../app/components/SFAvatar.vue')
     const homepageRow = source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFHomeTopicRow.vue')
     const topicPage = source('../../../extensions/builtin/themes/sforum-default/layer/app/pages/t/[...path].vue')
@@ -25,8 +25,8 @@ describe('unified avatar rendering contract', () => {
     const feedRow = source('../app/components/SFFeedRow.vue')
     const comment = source('../app/components/SFComment.vue')
 
-    expect(homepageRow).toContain(':avatar="topic.author?.avatar"')
-    expect(homepageRow).toContain('alt=""')
+    expect(homepageRow).toContain('topic.excerpt')
+    expect(homepageRow).not.toContain('<SFAvatar')
     expect(homepageRow).not.toContain(':aria-label="t(\'home.feed.repliesColumn\')"')
     expect(homepageRow).not.toContain('participants')
     expect(avatar).toContain('props.alt ?? props.avatar?.alt ?? props.name')

@@ -70,7 +70,7 @@ This is the entry point for project memory.
   regenerate derived formats, and sanitize display HTML before storage.
 - The protected built-in default theme now implements the approved C / SForum
   Hybrid public-forum direction. The homepage uses the shared public layout and
-  `SFNavbar`, a 74px dark taxonomy rail, pulse-card topic feed, 290px real-data
+  `SFNavbar`, a 74px dark taxonomy rail, pulse-card topic feed, 310px real-data
   activity dock, URL-backed filters, and SSR-first infinite scrolling. Topic detail
   uses an unframed 820px reading column with a 190px sticky progress rail;
   comments keep their complete tree while limiting desktop indentation to one

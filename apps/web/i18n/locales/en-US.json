@@ -30,6 +30,7 @@
     "tags": "Tags",
     "clearFilters": "Clear filters",
     "searchResults": "Results for “{query}”",
+    "loginToPost": "Sign in to post",
     "dock": {
       "title": "Community activity",
       "latestActivity": "Latest activity",
@@ -39,6 +40,7 @@
       "loadedReplies": "Loaded replies"
     },
     "filter": {
+      "all": "All",
       "latest": "Latest",
       "new": "New",
       "unread": "Unread",
