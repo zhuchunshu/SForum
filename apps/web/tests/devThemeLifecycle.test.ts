@@ -103,9 +103,69 @@ describe('stopProcessGroup', () => {
 
     expect(signals).toEqual(['SIGTERM', 'SIGKILL'])
   })
+
+  test('treats EPERM existence probes as alive while waiting for group exit', async () => {
+    const signals: string[] = []
+    let probes = 0
+    let polls = 0
+
+    await stopProcessGroup({ pid: 43 }, {
+      graceMs: Number.POSITIVE_INFINITY,
+      pollMs: 1,
+      signalGroup: (_pid, signal) => { signals.push(signal) },
+      groupExists: () => {
+        probes += 1
+        if (probes === 1) {
+          throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' })
+        }
+        return false
+      },
+      sleepFn: async () => { polls += 1 },
+    })
+
+    expect(probes).toBe(2)
+    expect(polls).toBe(1)
+    expect(signals).toEqual(['SIGTERM'])
+  })
 })
 
 describe('createDevThemeLifecycle', () => {
+  test('fails initial startup without retrying when the first child is unhealthy', async () => {
+    const selection = { mode: 'default', layerPath: '' }
+    const startupError = new Error('initial child unhealthy')
+    const children: FakeChild[] = []
+    const stopped: FakeChild[] = []
+    const scheduled: Array<() => void> = []
+    const lifecycle = createDevThemeLifecycle({
+      readSelection: () => selection,
+      launchChild: () => {
+        const child = new FakeChild(90 + children.length)
+        children.push(child)
+        return { child, ready: Promise.reject(startupError) }
+      },
+      stopChild: async (child) => { stopped.push(child) },
+      setTarget: () => {},
+      logger: { error: () => {} },
+      setTimeoutFn: (callback) => {
+        scheduled.push(callback)
+        return callback
+      },
+      clearTimeoutFn: () => {},
+    })
+
+    let rejected: unknown
+    try {
+      await lifecycle.requestRestart('startup')
+    } catch (error) {
+      rejected = error
+    }
+
+    expect(rejected).toBe(startupError)
+    expect(children).toHaveLength(1)
+    expect(stopped).toEqual(children)
+    expect(scheduled).toHaveLength(0)
+  })
+
   test('stops the active child before launching its replacement', async () => {
     let selection = { mode: 'default', layerPath: '' }
     const launches: Array<{
@@ -247,6 +307,282 @@ describe('createDevThemeLifecycle', () => {
 
     expect(launchedModes).toEqual(['default', 'uploaded', 'default'])
     expect(targets.at(-1)).toEqual(target(4403))
+  })
+
+  test('rejects candidate cleanup failure without launching last-known-good rollback', async () => {
+    let selection = { mode: 'default', layerPath: '' }
+    const readinessError = new Error('candidate readiness failed')
+    const cleanupError = new Error('candidate cleanup failed')
+    const launches: Array<{ selection: typeof selection, child: FakeChild }> = []
+    const scheduled: Array<() => void> = []
+    const lifecycle = createDevThemeLifecycle({
+      readSelection: () => selection,
+      launchChild: (nextSelection) => {
+        const child = new FakeChild(480 + launches.length)
+        launches.push({ selection: nextSelection, child })
+        return {
+          child,
+          ready: launches.length === 2
+            ? Promise.reject(readinessError)
+            : Promise.resolve(target(4480 + launches.length)),
+        }
+      },
+      stopChild: async (child) => {
+        if (child === launches[1]?.child) throw cleanupError
+      },
+      setTarget: () => {},
+      logger: { error: () => {} },
+      setTimeoutFn: (callback) => {
+        scheduled.push(callback)
+        return callback
+      },
+      clearTimeoutFn: () => {},
+    })
+
+    await lifecycle.requestRestart('startup')
+    selection = { mode: 'uploaded', layerPath: '/tmp/broken-theme' }
+
+    let rejected: unknown
+    try {
+      await lifecycle.requestRestart('switch')
+    } catch (error) {
+      rejected = error
+    }
+
+    expect(rejected).toBeInstanceOf(AggregateError)
+    expect((rejected as AggregateError).errors).toEqual([readinessError, cleanupError])
+    expect(launches.map((item) => item.selection.mode)).toEqual(['default', 'uploaded'])
+    expect(scheduled).toHaveLength(0)
+  })
+
+  test('rejects when both the requested theme and last-known-good rollback fail', async () => {
+    let selection = { mode: 'default', layerPath: '' }
+    const requestedError = new Error('requested theme unhealthy')
+    const rollbackError = new Error('rollback unhealthy')
+    const launches: Array<{ selection: typeof selection, child: FakeChild }> = []
+    const lifecycle = createDevThemeLifecycle({
+      readSelection: () => selection,
+      launchChild: (nextSelection) => {
+        const child = new FakeChild(490 + launches.length)
+        launches.push({ selection: nextSelection, child })
+        const ready = launches.length === 1
+          ? Promise.resolve(target(4491))
+          : Promise.reject(launches.length === 2 ? requestedError : rollbackError)
+        return { child, ready }
+      },
+      stopChild: async () => {},
+      setTarget: () => {},
+      logger: { error: () => {} },
+    })
+
+    await lifecycle.requestRestart('startup')
+    selection = { mode: 'uploaded', layerPath: '/tmp/broken-theme' }
+
+    let rejected: unknown
+    try {
+      await lifecycle.requestRestart('switch')
+    } catch (error) {
+      rejected = error
+    }
+
+    expect(rejected).toBeInstanceOf(AggregateError)
+    expect((rejected as AggregateError).message).toBe(
+      'requested theme and last-known-good theme both failed to start',
+    )
+    expect((rejected as AggregateError).errors).toEqual([requestedError, rollbackError])
+    expect(launches.map((item) => item.selection.mode)).toEqual([
+      'default',
+      'uploaded',
+      'default',
+    ])
+  })
+
+  test('awaits unexpected active-child cleanup before launching recovery', async () => {
+    const selection = { mode: 'default', layerPath: '' }
+    const children: FakeChild[] = []
+    const stopped: FakeChild[] = []
+    const scheduled: Array<() => void> = []
+    const stopGate = deferred<void>()
+    const lifecycle = createDevThemeLifecycle({
+      readSelection: () => selection,
+      launchChild: () => {
+        const child = new FakeChild(500 + children.length)
+        children.push(child)
+        return { child, ready: Promise.resolve(target(4500 + children.length)) }
+      },
+      stopChild: async (child) => {
+        stopped.push(child)
+        await stopGate.promise
+      },
+      setTarget: () => {},
+      logger: { error: () => {} },
+      recoveryDelayMs: 0,
+      setTimeoutFn: (callback) => {
+        scheduled.push(callback)
+        return callback
+      },
+      clearTimeoutFn: () => {},
+    })
+
+    await lifecycle.requestRestart('startup')
+    children[0].emit('exit', 1, null)
+    await waitFor(() => stopped.length === 1)
+
+    expect(stopped).toEqual([children[0]])
+    expect(children).toHaveLength(1)
+    expect(scheduled).toHaveLength(0)
+
+    stopGate.resolve()
+    await waitFor(() => scheduled.length === 1)
+    expect(children).toHaveLength(1)
+
+    scheduled[0]()
+    await waitFor(() => children.length === 2)
+    await lifecycle.shutdown()
+  })
+
+  test('serializes external restart requests behind in-flight crash cleanup', async () => {
+    let selection = { mode: 'default', layerPath: '' }
+    const launches: Array<{ selection: typeof selection, child: FakeChild }> = []
+    const scheduled: Array<() => void> = []
+    const stopGate = deferred<void>()
+    let cleanupStarted = false
+    const lifecycle = createDevThemeLifecycle({
+      readSelection: () => selection,
+      launchChild: (nextSelection) => {
+        const child = new FakeChild(525 + launches.length)
+        launches.push({ selection: nextSelection, child })
+        return { child, ready: Promise.resolve(target(4525 + launches.length)) }
+      },
+      stopChild: async (child) => {
+        if (child !== launches[0].child) return
+        cleanupStarted = true
+        await stopGate.promise
+      },
+      setTarget: () => {},
+      logger: { error: () => {} },
+      recoveryDelayMs: 0,
+      setTimeoutFn: (callback) => {
+        scheduled.push(callback)
+        return callback
+      },
+      clearTimeoutFn: () => {},
+    })
+
+    await lifecycle.requestRestart('startup')
+    launches[0].child.emit('exit', 1, null)
+    await waitFor(() => cleanupStarted)
+
+    selection = { mode: 'uploaded', layerPath: '/tmp/theme-after-crash' }
+    const switching = lifecycle.requestRestart('current.json changed')
+    await Promise.resolve()
+    expect(launches).toHaveLength(1)
+    expect(scheduled).toHaveLength(0)
+
+    stopGate.resolve()
+    await switching
+    expect(launches.map((item) => item.selection.mode)).toEqual(['default', 'uploaded'])
+    expect(scheduled).toHaveLength(1)
+
+    scheduled[0]()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(launches).toHaveLength(2)
+    await lifecycle.shutdown()
+  })
+
+  test('reports crash cleanup failure and rejects a waiting restart without relaunching', async () => {
+    const selection = { mode: 'default', layerPath: '' }
+    const cleanupError = new Error('descendants survived leader exit')
+    const children: FakeChild[] = []
+    const fatalErrors: Error[] = []
+    const scheduled: Array<() => void> = []
+    const cleanupGate = deferred<void>()
+    let cleanupStarted = false
+    const lifecycle = createDevThemeLifecycle({
+      readSelection: () => selection,
+      launchChild: () => {
+        const child = new FakeChild(550 + children.length)
+        children.push(child)
+        return { child, ready: Promise.resolve(target(4550 + children.length)) }
+      },
+      stopChild: async () => {
+        cleanupStarted = true
+        await cleanupGate.promise
+      },
+      setTarget: () => {},
+      logger: { error: () => {} },
+      onFatal: (error) => { fatalErrors.push(error) },
+      recoveryDelayMs: 0,
+      setTimeoutFn: (callback) => {
+        scheduled.push(callback)
+        return callback
+      },
+      clearTimeoutFn: () => {},
+    })
+
+    await lifecycle.requestRestart('startup')
+    children[0].emit('exit', 1, null)
+    await waitFor(() => cleanupStarted)
+
+    const restarting = lifecycle.requestRestart('current.json changed')
+    await Promise.resolve()
+    expect(children).toHaveLength(1)
+    expect(scheduled).toHaveLength(0)
+
+    cleanupGate.reject(cleanupError)
+    let rejected: unknown
+    try {
+      await restarting
+    } catch (error) {
+      rejected = error
+    }
+    await waitFor(() => fatalErrors.length === 1)
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(rejected).toBe(cleanupError)
+    expect(fatalErrors).toEqual([cleanupError])
+    expect(children).toHaveLength(1)
+    expect(scheduled).toHaveLength(0)
+    await lifecycle.shutdown()
+  })
+
+  test('shutdown awaits in-flight crash cleanup and prevents recovery launch', async () => {
+    const selection = { mode: 'default', layerPath: '' }
+    const children: FakeChild[] = []
+    const stopGate = deferred<void>()
+    let cleanupStarted = false
+    let shutdownSettled = false
+    const lifecycle = createDevThemeLifecycle({
+      readSelection: () => selection,
+      launchChild: () => {
+        const child = new FakeChild(600 + children.length)
+        children.push(child)
+        return { child, ready: Promise.resolve(target(4600 + children.length)) }
+      },
+      stopChild: async () => {
+        cleanupStarted = true
+        await stopGate.promise
+      },
+      setTarget: () => {},
+      logger: { error: () => {} },
+      recoveryDelayMs: 0,
+    })
+
+    await lifecycle.requestRestart('startup')
+    children[0].emit('exit', 1, null)
+    await waitFor(() => cleanupStarted)
+
+    const shutdown = lifecycle.shutdown().then(() => { shutdownSettled = true })
+    await new Promise((resolve) => setTimeout(resolve, 1))
+    expect(shutdownSettled).toBe(false)
+    expect(children).toHaveLength(1)
+
+    stopGate.resolve()
+    await shutdown
+    await new Promise((resolve) => setTimeout(resolve, 1))
+    expect(children).toHaveLength(1)
   })
 
   test('coalesces duplicate events and recovers one unexpected active-child exit', async () => {

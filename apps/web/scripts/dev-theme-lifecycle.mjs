@@ -72,11 +72,16 @@ async function waitForGroupExit(pid, timeoutMs, {
   sleepFn,
 }) {
   const deadline = Date.now() + timeoutMs
-  while (groupExists(pid)) {
+  while (true) {
+    try {
+      if (!groupExists(pid)) return true
+    } catch (error) {
+      // macOS 可能在进程组 leader 已退出但尚未回收时返回 EPERM，此时组仍需等待。
+      if (error.code !== 'EPERM') throw error
+    }
     if (Date.now() >= deadline) return false
     await sleepFn(Math.min(pollMs, Math.max(0, deadline - Date.now())))
   }
-  return true
 }
 
 export async function stopProcessGroup(child, {
@@ -101,6 +106,16 @@ export async function stopProcessGroup(child, {
   }
 }
 
+class CandidateCleanupError extends AggregateError {
+  constructor(readinessError, cleanupError) {
+    super(
+      [readinessError, cleanupError],
+      'candidate failed to start and its process group could not be stopped',
+    )
+    this.name = 'CandidateCleanupError'
+  }
+}
+
 export function createDevThemeLifecycle({
   readSelection,
   launchChild,
@@ -121,6 +136,7 @@ export function createDevThemeLifecycle({
   let restartRequested = false
   let restartPromise = null
   let recoveryTimer = null
+  let crashCleanupPromise = null
   let shuttingDown = false
 
   function installActive(started, selection, reason) {
@@ -141,10 +157,29 @@ export function createDevThemeLifecycle({
       if (shuttingDown) return
 
       logger.error(`[sforum-dev-runtime] nuxt dev exited code=${code ?? ''} signal=${signal ?? ''}`)
-      recoveryTimer = setTimeoutFn(() => {
-        recoveryTimer = null
-        void requestRestart('nuxt-dev-restart').catch(onFatal)
-      }, recoveryDelayMs)
+      const cleanupPromise = (async () => {
+        try {
+          await stopChild(installedChild)
+        } catch (error) {
+          onFatal(error)
+          throw error
+        }
+        if (shuttingDown) return
+
+        recoveryTimer = setTimeoutFn(() => {
+          recoveryTimer = null
+          void requestRestart('nuxt-dev-restart').catch(onFatal)
+        }, recoveryDelayMs)
+      })()
+      crashCleanupPromise = cleanupPromise
+      void cleanupPromise.then(
+        () => {
+          if (crashCleanupPromise === cleanupPromise) crashCleanupPromise = null
+        },
+        () => {
+          if (crashCleanupPromise === cleanupPromise) crashCleanupPromise = null
+        },
+      )
     })
   }
 
@@ -159,7 +194,11 @@ export function createDevThemeLifecycle({
       }
       return { child: launch.child, target }
     } catch (error) {
-      await stopChild(launch.child)
+      try {
+        await stopChild(launch.child)
+      } catch (cleanupError) {
+        throw new CandidateCleanupError(error, cleanupError)
+      }
       if (shuttingDown) return null
       throw error
     } finally {
@@ -170,6 +209,10 @@ export function createDevThemeLifecycle({
   async function runRestartLoop(initialReason) {
     let reason = initialReason
     while (restartRequested && !shuttingDown) {
+      const crashCleanup = crashCleanupPromise
+      if (crashCleanup) await crashCleanup
+      if (shuttingDown) return
+
       restartRequested = false
       const requestedSelection = desiredSelection
 
@@ -193,6 +236,7 @@ export function createDevThemeLifecycle({
         started = await launchHealthy(requestedSelection, reason)
       } catch (error) {
         logger.error(`[sforum-dev-runtime] (${reason}) candidate failed: ${error.message}`)
+        if (error instanceof CandidateCleanupError) throw error
         if (restartRequested) {
           reason = 'newer current.json change'
           continue
@@ -257,10 +301,14 @@ export function createDevThemeLifecycle({
     setTarget(null)
 
     const children = [...new Set([startingChild, activeChild].filter(Boolean))]
+    const crashCleanup = crashCleanupPromise
     startingChild = null
     activeChild = null
     activeSelection = null
-    await Promise.allSettled(children.map((child) => stopChild(child)))
+    await Promise.allSettled([
+      ...children.map((child) => stopChild(child)),
+      ...(crashCleanup ? [crashCleanup] : []),
+    ])
     if (restartPromise) await restartPromise.catch(() => {})
   }
 
