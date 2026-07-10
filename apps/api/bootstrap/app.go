@@ -272,10 +272,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, extensionRuntime)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
+	jobsProvider := providers.NewJobsProvider(pool, jobClient, identityStore, authSessions)
 	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService, webReleaseAdminService)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, attachmentsProvider, databaseProvider, extensionsProvider},
+		RouteProviders: []httpserver.RouteProvider{identityProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, attachmentsProvider, databaseProvider, jobsProvider, extensionsProvider},
 		Options:        optionsService,
 		Storage:        redisStorage,
 	})

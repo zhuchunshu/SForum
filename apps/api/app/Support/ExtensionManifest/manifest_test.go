@@ -3,19 +3,20 @@ package extensionmanifest
 import (
 	"encoding/json"
 	"errors"
-	"strings"
 	"testing"
 )
 
-func TestContributionPointDefinitionsContainOnlyProductionDescriptors(t *testing.T) {
+func TestContributionPointDefinitionsContainJobsProductionSlots(t *testing.T) {
 	points := ContributionPointDefinitions()
-	if len(points) != 1 || points[0].ID != "forum.topic.actions" || points[0].Kind != ContributionPointKindDescriptor {
-		t.Fatalf("unexpected production contribution catalog: %#v", points)
-	}
+	want := map[string]bool{"forum.topic.actions": true, "admin.jobs.table.columns": true, "admin.jobs.row.actions": true, "admin.jobs.detail.sections": true}
 	for _, point := range points {
-		if strings.HasPrefix(point.ID, "admin.jobs.") || point.ID == "admin.test.fixture" || point.Kind == ContributionPointKindComponent {
-			t.Fatalf("trusted component point leaked into the infrastructure catalog: %#v", point)
+		delete(want, point.ID)
+		if point.ID == "admin.test.fixture" {
+			t.Fatal("test point leaked into production catalog")
 		}
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing production contribution points: %#v", want)
 	}
 }
 

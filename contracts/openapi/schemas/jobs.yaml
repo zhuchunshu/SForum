@@ -1,0 +1,48 @@
+Job:
+  type: object
+  required: [id, kind, queue, state, attempt, maxAttempts, priority, args, metadata, tags, errors, attemptedBy, createdAt, scheduledAt]
+  properties:
+    id: { type: integer, format: int64 }
+    kind: { type: string }
+    queue: { type: string }
+    state: { type: string, enum: [available, cancelled, completed, discarded, pending, retryable, running, scheduled] }
+    attempt: { type: integer }
+    maxAttempts: { type: integer }
+    priority: { type: integer }
+    args: { type: object, additionalProperties: true }
+    metadata: { type: object, additionalProperties: true }
+    tags: { type: array, items: { type: string } }
+    errors: { type: array, items: { type: object, additionalProperties: true } }
+    attemptedBy: { type: array, items: { type: string } }
+    createdAt: { type: string, format: date-time }
+    scheduledAt: { type: string, format: date-time }
+    attemptedAt: { type: string, format: date-time }
+    finalizedAt: { type: string, format: date-time }
+JobQueue:
+  type: object
+  required: [name, updatedAt, available, running, failed]
+  properties:
+    name: { type: string }
+    pausedAt: { type: string, format: date-time }
+    updatedAt: { type: string, format: date-time }
+    available: { type: integer, format: int64 }
+    running: { type: integer, format: int64 }
+    failed: { type: integer, format: int64 }
+JobsOverview:
+  type: object
+  required: [counts, queues]
+  properties:
+    counts: { type: object, additionalProperties: { type: integer, format: int64 } }
+    queues: { type: array, items: { "$ref": "#/JobQueue" } }
+ApiResponseJob:
+  type: object
+  required: [code, message, data]
+  properties: { code: { type: integer }, message: { type: string }, data: { "$ref": "#/Job" } }
+ApiResponseJobList:
+  type: object
+  required: [code, message, data]
+  properties: { code: { type: integer }, message: { type: string }, data: { type: array, items: { "$ref": "#/Job" } } }
+ApiResponseJobsOverview:
+  type: object
+  required: [code, message, data]
+  properties: { code: { type: integer }, message: { type: string }, data: { "$ref": "#/JobsOverview" } }

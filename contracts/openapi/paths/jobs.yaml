@@ -1,0 +1,50 @@
+adminJobsOverview:
+  get:
+    summary: Inspect background queue health
+    description: Requires `jobs.view`.
+    responses:
+      '200': { description: Queue and state counts, content: { application/json: { schema: { "$ref": "../schemas/jobs.yaml#/ApiResponseJobsOverview" } } } }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+adminJobs:
+  get:
+    summary: List background jobs
+    description: Requires `jobs.view`; returns at most 100 newest matching River jobs.
+    parameters:
+    - { name: queue, in: query, schema: { type: string } }
+    - { name: kind, in: query, schema: { type: string } }
+    - { name: state, in: query, schema: { type: string } }
+    - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+    responses:
+      '200': { description: Jobs, content: { application/json: { schema: { "$ref": "../schemas/jobs.yaml#/ApiResponseJobList" } } } }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+adminJob:
+  get:
+    summary: Inspect a background job
+    description: Requires `jobs.view`.
+    responses:
+      '200': { description: Job detail, content: { application/json: { schema: { "$ref": "../schemas/jobs.yaml#/ApiResponseJob" } } } }
+      '404': { "$ref": "../components/responses.yaml#/NotFound" }
+adminJobRetry:
+  post:
+    summary: Retry a background job
+    description: Requires `jobs.manage`.
+    responses:
+      '200': { description: Retried job, content: { application/json: { schema: { "$ref": "../schemas/jobs.yaml#/ApiResponseJob" } } } }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+adminJobCancel:
+  post:
+    summary: Cancel a background job
+    description: Requires `jobs.manage`.
+    responses:
+      '200': { description: Cancelled job, content: { application/json: { schema: { "$ref": "../schemas/jobs.yaml#/ApiResponseJob" } } } }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+adminJobQueuePause:
+  post:
+    summary: Pause a River queue
+    description: Requires `jobs.manage`.
+    responses: { '200': { description: Queue paused }, '403': { "$ref": "../components/responses.yaml#/Forbidden" } }
+adminJobQueueResume:
+  post:
+    summary: Resume a River queue
+    description: Requires `jobs.manage`.
+    responses: { '200': { description: Queue resumed }, '403': { "$ref": "../components/responses.yaml#/Forbidden" } }

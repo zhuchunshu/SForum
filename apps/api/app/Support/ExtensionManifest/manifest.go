@@ -155,13 +155,12 @@ type ContributionPointDefinition struct {
 }
 
 func ContributionPointDefinitions() []ContributionPointDefinition {
-	return []ContributionPointDefinition{{
-		ID:          "forum.topic.actions",
-		Owner:       "forum",
-		Kind:        ContributionPointKindDescriptor,
-		Description: "Topic detail action descriptors rendered by the host UI.",
-		PayloadType: "extensionRoute",
-	}}
+	return []ContributionPointDefinition{
+		{ID: "forum.topic.actions", Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Topic detail action descriptors rendered by the host UI.", PayloadType: "extensionRoute"},
+		{ID: "admin.jobs.table.columns", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered as job table columns.", PayloadType: "adminComponent"},
+		{ID: "admin.jobs.row.actions", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered beside core job actions.", PayloadType: "adminComponent"},
+		{ID: "admin.jobs.detail.sections", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered in job detail.", PayloadType: "adminComponent"},
+	}
 }
 
 func Validate(manifest Manifest) error {

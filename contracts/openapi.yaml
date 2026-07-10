@@ -21,6 +21,20 @@ paths:
     "$ref": "./openapi/paths/system.yaml#/health"
   "/admin/overview":
     "$ref": "./openapi/paths/system.yaml#/adminOverview"
+  "/admin/jobs/overview":
+    "$ref": "./openapi/paths/jobs.yaml#/adminJobsOverview"
+  "/admin/jobs":
+    "$ref": "./openapi/paths/jobs.yaml#/adminJobs"
+  "/admin/jobs/{id}":
+    "$ref": "./openapi/paths/jobs.yaml#/adminJob"
+  "/admin/jobs/{id}/retry":
+    "$ref": "./openapi/paths/jobs.yaml#/adminJobRetry"
+  "/admin/jobs/{id}/cancel":
+    "$ref": "./openapi/paths/jobs.yaml#/adminJobCancel"
+  "/admin/jobs/queues/{name}/pause":
+    "$ref": "./openapi/paths/jobs.yaml#/adminJobQueuePause"
+  "/admin/jobs/queues/{name}/resume":
+    "$ref": "./openapi/paths/jobs.yaml#/adminJobQueueResume"
   "/categories":
     "$ref": "./openapi/paths/forum.yaml#/categories"
   "/category-groups":
