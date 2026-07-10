@@ -68,16 +68,21 @@ This is the entry point for project memory.
   `content_html_sanitized`, `content_markdown`, and `content_native_json`.
   Client HTML remains untrusted; the API must accept allowlisted content,
   regenerate derived formats, and sanitize display HTML before storage.
-- The SForum homepage now lives in the protected built-in default theme layer
-  (`extensions/builtin/themes/sforum-default/layer/app/pages/index.vue`) and
-  directly implements the accepted A redesign direction: an A-style internal
-  topbar, 1520px shell, 238px left rail, compact notice/tabs, and dense
-  table-oriented topic feed. The homepage opts out of the public default
-  layout so the global `SFNavbar` does not duplicate the A topbar.
+- The protected built-in default theme now implements the approved C / SForum
+  Hybrid public-forum direction. The homepage uses the shared public layout and
+  `SFNavbar`, a 208px taxonomy rail, compact API-backed topic rows, URL-backed
+  search/category/tag filters, and SSR-first infinite scrolling. Topic detail
+  uses an unframed 820px reading column with a 190px sticky progress rail;
+  comments keep their complete tree while limiting desktop indentation to one
+  branch level and visually flattening all depths on mobile.
 - The default-theme homepage feed now uses client-side infinite scrolling
   instead of visible page-number pagination. The first page remains SSR-loaded,
   the loaded feed is preserved through Nuxt state for hydration, and desktop
   side rails are sticky with viewport-bounded internal scrolling.
+- Base homepage responses keep shared-cache headers, while homepage query
+  variants disable Nitro payload caching and return `cache-control: no-store`.
+  This avoids the root-route payload file-key collision that otherwise causes
+  `EISDIR` errors for URLs such as `/?q=...`.
 - The thread feed row component (`SFFeedRow.vue`) has been redesigned using a compact no-excerpt layout (Left author avatar, Right title and upvote/reply actions inline, and bottom row metadata/views), doubling the layout information density.
 - Sidebar accessibility was improved by fixing double padding via the `flush` property and updating text colors to `slate-500` and `slate-600` for higher contrast.
 - The admin foundation now uses a dedicated Nuxt UI Dashboard shell with Nuxt

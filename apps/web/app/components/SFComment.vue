@@ -11,6 +11,10 @@ import {
   forumAuthorName,
   type ForumComment
 } from '~/utils/forumTaxonomy'
+import {
+  commentBranchPresentation,
+  type CommentPresentationMode
+} from '~/utils/forumCommentPresentation'
 import type { AvatarView } from '~/composables/useProfileApi'
 
 type CommentAction = {
@@ -20,10 +24,11 @@ type CommentAction = {
 }
 
 const props = withDefaults(defineProps<{
-  // 当前评论节点：仅用于内联编辑器/回复编辑器匹配（扁平布局不再用它做树渲染）。
-  // 父页面扁平化后逐条传入，编辑器 renderer 据此判断是否在原位渲染编辑框。
+  // 当前评论节点同时承载内联编辑器匹配和 tree 模式的递归数据。
   comment?: ForumComment
-  // 纯展示 props。扁平列表布局，不再递归渲染子评论。
+  presentation?: CommentPresentationMode
+  depth?: number
+  collapseFromDepth?: number
   author: string
   // content 为纯文本（组件预览/历史用法）；htmlContent 优先，渲染后端已 sanitize 的 HTML。
   content?: string
@@ -39,6 +44,9 @@ const props = withDefaults(defineProps<{
   commentActionsBuilder?: (comment: ForumComment) => CommentAction[]
 }>(), {
   comment: undefined,
+  presentation: 'flat',
+  depth: 0,
+  collapseFromDepth: 2,
   content: '',
   htmlContent: undefined,
   authorLink: undefined,
@@ -58,12 +66,27 @@ const emit = defineEmits<{
   actionComment: [comment: ForumComment, value: string]
 }>()
 
+const { t } = useI18n()
+
 // 后端已用 bluemonday sanitize，前端可直接 v-html 渲染。
 const showHtml = computed(() => Boolean(props.htmlContent))
 
 // 当前评论节点：用于内联编辑器/回复编辑器匹配（inject renderer 据此判断原位渲染）。
 const commentNode = computed(() => props.comment ?? null)
 const childComments = computed(() => props.comment?.children || [])
+const branchPresentation = computed(() => commentBranchPresentation(
+  props.presentation,
+  props.depth,
+  childComments.value,
+  props.collapseFromDepth
+))
+const branchExpanded = ref(false)
+const branchId = `sf-comment-branch-${useId()}`
+const branchVisible = computed(() => !branchPresentation.value.collapsible || branchExpanded.value)
+
+function toggleBranch() {
+  branchExpanded.value = !branchExpanded.value
+}
 
 // 操作按钮点击。
 function onAction(actionItem: CommentAction) {
@@ -106,7 +129,6 @@ function forwardChildAction(comment: ForumComment, value: string) {
 // 内联编辑器渲染：优先用父级 provide 的 renderer（评论列表原位编辑/回复），
 // 否则用本组件的 #editor slot（components.vue 预览页场景）。
 const injectedEditorRenderer = inject<CommentEditorRenderer | null>(COMMENT_EDITOR_RENDERER_KEY, null)
-const hasEditorSlot = computed(() => Boolean(useSlots().editor))
 const InlineEditorHost = () => {
   const node = commentNode.value
   if (!node || !injectedEditorRenderer) return null
@@ -117,77 +139,117 @@ const InlineEditorHost = () => {
 </script>
 
 <template>
-  <!-- 扁平列表布局：所有评论平铺，无缩进无树。
-       回复对象用左侧 accent 竖条引用块表达（E3 方案）。 -->
-  <article class="sf-comment sf-comment--flat">
-    <component
-      :is="authorLink ? 'NuxtLink' : 'div'"
-      v-if="authorLink"
-      :to="authorLink"
-      class="sf-comment__avatar-link"
+  <div
+    class="sf-comment"
+    :class="[
+      `sf-comment--${presentation}`,
+      { 'sf-comment--indented': branchPresentation.indentation === 1 }
+    ]"
+    :data-comment-depth="depth"
+    :data-visual-depth="branchPresentation.indentation"
+  >
+    <article class="sf-comment__entry">
+      <component
+        :is="authorLink ? 'NuxtLink' : 'div'"
+        v-if="authorLink"
+        :to="authorLink"
+        class="sf-comment__avatar-link"
+      >
+        <SFAvatar :name="author" :avatar="avatar" size="sm" />
+      </component>
+      <SFAvatar v-else :name="author" :avatar="avatar" size="sm" />
+      <div class="sf-comment__body">
+        <header class="sf-comment__header">
+          <component
+            :is="authorLink ? 'NuxtLink' : 'span'"
+            :to="authorLink"
+            class="sf-comment__author"
+          >
+            {{ author }}
+          </component>
+          <span v-if="meta" class="sf-comment__meta">{{ meta }}</span>
+        </header>
+
+        <blockquote v-if="replyTo" class="sf-comment__reply-to">
+          <span class="sf-comment__reply-to-label">
+            <UIcon name="i-lucide-corner-up-left" class="sf-comment__reply-to-icon size-3.5 shrink-0" aria-hidden="true" />
+            <span class="sf-comment__reply-to-author">
+              {{ t('topicDetail.reply') }}<template v-if="replyTo.author"> @{{ replyTo.author }}</template>
+            </span>
+          </span>
+          <span v-if="replyTo.excerpt" class="sf-comment__reply-to-excerpt">{{ replyTo.excerpt }}</span>
+        </blockquote>
+
+        <div v-if="showHtml" class="sf-comment__content sf-prose" v-highlight v-html="sanitizeHtml(htmlContent)" />
+        <p v-else class="sf-comment__content">
+          {{ content }}
+        </p>
+
+        <!-- 内联编辑器/回复编辑器 -->
+        <InlineEditorHost v-if="injectedEditorRenderer" />
+        <slot v-else name="editor" :comment="commentNode" />
+
+        <div v-if="actions.length" class="sf-comment__actions">
+          <button
+            v-for="actionItem in actions"
+            :key="actionItem.value"
+            type="button"
+            class="sf-comment__action"
+            @click="onAction(actionItem)"
+          >
+            <UIcon v-if="actionItem.icon" :name="actionItem.icon" class="size-3.5" aria-hidden="true" />
+            <span>{{ actionItem.label }}</span>
+          </button>
+        </div>
+      </div>
+    </article>
+
+    <button
+      v-if="branchPresentation.collapsible"
+      type="button"
+      class="sf-comment__disclosure"
+      :aria-expanded="branchExpanded"
+      :aria-controls="branchId"
+      @click="toggleBranch"
     >
-      <SFAvatar :name="author" :avatar="avatar" size="sm" />
-    </component>
-    <SFAvatar v-else :name="author" :avatar="avatar" size="sm" />
-    <div class="sf-comment__body">
-      <header class="sf-comment__header">
-        <component
-          :is="authorLink ? 'NuxtLink' : 'span'"
-          :to="authorLink"
-          class="sf-comment__author"
-        >
-          {{ author }}
-        </component>
-        <span v-if="meta" class="sf-comment__meta">{{ meta }}</span>
-      </header>
+      <UIcon
+        :name="branchExpanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+        class="size-4"
+        aria-hidden="true"
+      />
+      <span>
+        {{ branchExpanded
+          ? t('topicDetail.collapse')
+          : t('topicDetail.expand', { n: branchPresentation.followUpCount }) }}
+      </span>
+    </button>
 
-      <!-- E3：左侧 accent 竖条引用块。人名加粗 accent 色，内容预览灰色，最多两行省略。 -->
-      <blockquote v-if="replyTo" class="sf-comment__reply-to">
-        <UIcon name="i-lucide-corner-up-left" class="sf-comment__reply-to-icon size-3.5 shrink-0" />
-        <span v-if="replyTo.author" class="sf-comment__reply-to-author">{{ replyTo.author }}</span>
-        <span v-if="replyTo.excerpt" class="sf-comment__reply-to-excerpt">{{ replyTo.excerpt }}</span>
-      </blockquote>
-
-      <div v-if="showHtml" class="sf-comment__content sf-prose" v-highlight v-html="sanitizeHtml(htmlContent)" />
-      <p v-else class="sf-comment__content">
-        {{ content }}
-      </p>
-
-      <!-- 内联编辑器/回复编辑器 -->
-      <InlineEditorHost v-if="injectedEditorRenderer" />
-      <slot v-else name="editor" :comment="commentNode" />
-
-      <div v-if="actions.length" class="sf-comment__actions">
-        <button
-          v-for="actionItem in actions"
-          :key="actionItem.value"
-          type="button"
-          class="sf-comment__action"
-          @click="onAction(actionItem)"
-        >
-          <UIcon v-if="actionItem.icon" :name="actionItem.icon" class="size-3.5" />
-          <span>{{ actionItem.label }}</span>
-        </button>
-      </div>
-
-      <div v-if="childComments.length" class="sf-comment__children">
-        <SFComment
-          v-for="child in childComments"
-          :key="child.id"
-          :comment="child"
-          :author="childAuthorName(child)"
-          :avatar="child.author?.avatar"
-          :author-link="childAuthorLink(child)"
-          :html-content="child.content.htmlContent"
-          :meta="childMeta(child)"
-          :reply-to="childReplyTo(child)"
-          :actions="childActions(child)"
-          :comment-meta-builder="commentMetaBuilder"
-          :comment-author-link-builder="commentAuthorLinkBuilder"
-          :comment-actions-builder="commentActionsBuilder"
-          @action-comment="forwardChildAction"
-        />
-      </div>
+    <div
+      v-if="presentation === 'tree' && childComments.length"
+      :id="branchId"
+      class="sf-comment__branch"
+      :class="{ 'sf-comment__branch--connected': branchPresentation.connectionRail }"
+      :hidden="!branchVisible"
+    >
+      <SFComment
+        v-for="child in childComments"
+        :key="child.id"
+        :comment="child"
+        :presentation="presentation"
+        :depth="depth + 1"
+        :collapse-from-depth="collapseFromDepth"
+        :author="childAuthorName(child)"
+        :avatar="child.author?.avatar"
+        :author-link="childAuthorLink(child)"
+        :html-content="child.content.htmlContent"
+        :meta="childMeta(child)"
+        :reply-to="childReplyTo(child)"
+        :actions="childActions(child)"
+        :comment-meta-builder="commentMetaBuilder"
+        :comment-author-link-builder="commentAuthorLinkBuilder"
+        :comment-actions-builder="commentActionsBuilder"
+        @action-comment="forwardChildAction"
+      />
     </div>
-  </article>
+  </div>
 </template>

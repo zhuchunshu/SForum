@@ -2,8 +2,8 @@
 
 ## Status
 
-Approved visual direction on 2026-07-10. Written specification pending final
-user review.
+Approved on 2026-07-10 and implemented in the protected built-in default theme
+on 2026-07-11.
 
 This specification supersedes
 `docs/superpowers/specs/2026-07-10-forum-ui-redesign-design.md` and its Option A

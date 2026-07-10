@@ -1,5 +1,7 @@
 /* SForum Component Library */
 
+@import './sforum-comment.css';
+
 :root {
   --sf-accent: #0f766e;
   --sf-accent-hover: #0b5f59;
@@ -1418,140 +1420,6 @@
   font-weight: 700;
 }
 
-.sf-comment {
-  display: flex;
-  gap: 0.75rem;
-  min-width: 0;
-  max-width: 100%;
-  align-items: flex-start;
-}
-
-.sf-comment__body {
-  min-width: 0;
-  flex: 1 1 auto;
-  padding-bottom: 0.9rem;
-  border-bottom: 1px solid var(--sf-border-light);
-}
-
-.sf-comment__header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  align-items: baseline;
-}
-
-.sf-comment__author {
-  color: var(--sf-fg);
-  font-size: 0.86rem;
-  font-weight: 800;
-}
-
-.sf-comment__meta {
-  color: var(--sf-fg-tertiary);
-  font-size: 0.74rem;
-}
-
-.sf-comment__content {
-  margin: 0.35rem 0 0;
-  color: var(--sf-fg-secondary);
-  font-size: 0.87rem;
-  line-height: 1.6;
-}
-
-.sf-comment__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.7rem;
-  margin-top: 0.5rem;
-}
-
-.sf-comment__action {
-  border: 0;
-  background: transparent;
-  color: var(--sf-fg-tertiary);
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.sf-comment__action:hover {
-  color: var(--sf-accent);
-}
-
-/*
- * 评论：扁平列表布局（E3 方案）。
- * 所有评论（含深层回复）平铺，无缩进、无竖线树。
- * 评论之间用细分隔线区分。回复对象用左侧 accent 竖条引用块表达。
- */
-.sf-comment--flat {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  padding: 1rem 0;
-}
-.sf-comment--flat + .sf-comment--flat {
-  border-top: 1px solid var(--sf-border-light);
-}
-.sf-comment__avatar-link {
-  flex-shrink: 0;
-}
-
-/*
- * 回复引用块（E3 核心）：左侧 accent 竖条 + soft 底，人名/内容分两行。
- * 人名加粗 accent 色，内容预览灰色最多两行省略。
- */
-.sf-comment__reply-to {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  margin: 0.3rem 0 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-left: 3px solid var(--sf-accent);
-  background: var(--sf-accent-soft);
-  border-radius: 0 8px 8px 0;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.sf-comment__reply-to:hover {
-  background: var(--sf-accent-soft-border);
-}
-.sf-comment__reply-to-icon {
-  color: var(--sf-accent);
-  margin-bottom: 0.1rem;
-}
-.sf-comment__reply-to-author {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--sf-accent);
-}
-.sf-comment__reply-to-excerpt {
-  font-size: 0.8rem;
-  line-height: 1.5;
-  color: var(--sf-fg-tertiary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.sf-comment__children {
-  display: grid;
-  gap: 0;
-  margin-top: 0.8rem;
-  margin-left: 1rem;
-  padding-left: 1rem;
-  border-left: 2px solid var(--sf-border);
-}
-
-.sf-comment__children > .sf-comment--flat {
-  padding-top: 0.75rem;
-  padding-bottom: 0.2rem;
-}
-
-.sf-comment__children > .sf-comment--flat + .sf-comment--flat {
-  border-top: 1px solid var(--sf-border-light);
-}
-
 .sf-editor {
   --sf-editor-min-height: 10.8rem;
   overflow: hidden;
@@ -2318,10 +2186,6 @@
     display: none;
   }
 
-  .sf-comment__children {
-    margin-left: 0.35rem;
-    padding-left: 0.75rem;
-  }
 }
 
 @media (max-width: 860px) {

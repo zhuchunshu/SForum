@@ -21,6 +21,7 @@ describe('unified avatar rendering contract', () => {
     const avatar = source('../app/components/SFAvatar.vue')
     const homepageRow = source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFHomeTopicRow.vue')
     const topicPage = source('../../../extensions/builtin/themes/sforum-default/layer/app/pages/t/[...path].vue')
+    const topicHeading = source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFTopicHeading.vue')
     const feedRow = source('../app/components/SFFeedRow.vue')
     const comment = source('../app/components/SFComment.vue')
 
@@ -30,7 +31,7 @@ describe('unified avatar rendering contract', () => {
     expect(homepageRow).not.toContain('participants')
     expect(avatar).toContain('props.alt ?? props.avatar?.alt ?? props.name')
     expect(avatar).toContain(":aria-hidden=\"isDecorative ? 'true' : undefined\"")
-    expect(topicPage).toContain(':avatar="topic.author?.avatar"')
+    expect(topicHeading).toContain(':avatar="topic.author?.avatar"')
     expect(topicPage).toContain(':avatar="comment.author?.avatar"')
     expect(feedRow).toContain('avatar?: AvatarView | null')
     expect(feedRow).toContain(':avatar="avatar"')

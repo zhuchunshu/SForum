@@ -20,6 +20,12 @@ const themeLayers = uploadedThemeLayer
   ? [uploadedThemeLayer, defaultThemeLayer]
   : [defaultThemeLayer]
 const nitroOutputDir = process.env.SFORUM_NITRO_OUTPUT_DIR?.trim()
+const publicHomepageRouteRule = {
+  cache: false,
+  headers: {
+    'cache-control': 's-maxage=600, stale-while-revalidate'
+  }
+} as const
 const nuxtGeneratedIgnores = [
   '.nuxt/**',
   '.nuxt-build/**',
@@ -77,8 +83,9 @@ export default defineNuxtConfig({
     // i18n strategy=prefix_except_default，zh-CN 无前缀，en 带前缀，需同时覆盖两套路径。
     routeRules: {
       // 公开内容页：短到中等 swr，命中缓存的同时保持最终一致。
-      '/': { swr: 600 },
-      '/en': { swr: 600 },
+      // 根路由的 query 变体由 middleware 设为 no-store；基础页仍交给 CDN 做 SWR。
+      '/': publicHomepageRouteRule,
+      '/en': publicHomepageRouteRule,
       '/c/**': { swr: 600 },
       '/en/c/**': { swr: 600 },
       '/tags/**': { swr: 600 },

@@ -7,10 +7,18 @@ const topicPage = () => readFileSync(
 )
 
 const sourceFile = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
-const themeCss = () => readFileSync(
-  new URL('../../../extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-theme.css', import.meta.url),
+const themeFile = (path: string) => readFileSync(
+  new URL(`../../../extensions/builtin/themes/sforum-default/layer/${path}`, import.meta.url),
   'utf8'
 )
+
+const topicComponentNames = [
+  'SFTopicHeading',
+  'SFTopicProgressRail',
+  'SFTopicActionMenu',
+  'SFCommentStreamControls',
+  'SFReportDialog'
+] as const
 
 describe('default theme topic page contract', () => {
   test('declares edit mode before immediate effects read it', () => {
@@ -42,23 +50,64 @@ describe('default theme topic page contract', () => {
     expect(serverPluginSource).toContain('getSSRProps')
   })
 
-  test('uses the fused reading layout, action rail, summary dock, and redesigned comments', () => {
+  test('composes focused presentational components without moving route policy into them', () => {
     const source = topicPage()
-    const css = themeCss()
 
-    expect(source).toContain('sforum-topic-page')
+    for (const name of topicComponentNames) {
+      const path = `app/components/${name}.vue`
+      expect(existsSync(new URL(`../../../extensions/builtin/themes/sforum-default/layer/${path}`, import.meta.url))).toBe(true)
+      expect(source).toContain(`<${name}`)
+
+      const component = themeFile(path)
+      expect(component).not.toContain('useForumApi(')
+      expect(component).not.toContain('useModerationApi(')
+      expect(component).not.toContain('usePermissions(')
+    }
+  })
+
+  test('preserves routing, SEO, rich-content, editor, and extension boundaries', () => {
+    const source = topicPage()
+
+    expect(source).toContain('topicPathLookupCandidates(')
+    expect(source).toContain('navigateTo(target, { redirectCode: 301 })')
+    expect(source).toContain('useSForumSeo({')
+    expect(source).toContain('sanitizeHtml(topic.content.htmlContent)')
+    expect(source).toContain('v-highlight')
+    expect(source).toContain('<SFTopicEditor')
+    expect(source).toContain('applyTopicExtensionAction')
+  })
+
+  test('uses one reading column and a true post-count progress rail', () => {
+    const source = topicPage()
+
     expect(source).toContain('sforum-topic-page__shell')
-    expect(source).toContain('sforum-topic-page__action-rail')
-    expect(source).toContain('sforum-topic-page__article')
-    expect(source).toContain('sforum-topic-page__summary')
-    expect(source).toContain('sforum-topic-comments')
-    expect(source).toContain('sforum-topic-comments__card')
+    expect(source).toContain('sforum-topic-page__reading')
+    expect(source).toContain(':total-posts="topic.commentCount + 1"')
+    expect(source).not.toContain('sforum-topic-page__action-rail')
+    expect(source).not.toContain('sforum-topic-page__summary')
+    expect(source).not.toContain('statsTitle')
+    expect(source.split('\n').length).toBeLessThan(1000)
+  })
 
-    expect(css).toContain('.sforum-topic-page__shell')
-    expect(css).toContain('.sforum-topic-page__action-rail')
-    expect(css).toContain('.sforum-topic-page__article')
-    expect(css).toContain('.sforum-topic-page__summary')
-    expect(css).toContain('.sforum-topic-comments__card')
-    expect(css).toContain('.sf-comment__reply-to')
+  test('keeps mutation errors persistent and passes explicit comment presentation', () => {
+    const source = topicPage()
+
+    expect(source).not.toContain('watch(showActionError')
+    expect(source).toContain(':presentation="commentView"')
+    expect(source).toContain(':depth="0"')
+    expect(source).toContain(':collapse-from-depth="2"')
+  })
+
+  test('registers the focused 820px plus 190px responsive topic stylesheet', () => {
+    const config = themeFile('nuxt.config.ts')
+    const css = themeFile('app/assets/css/sforum-topic.css')
+
+    expect(config).toContain('sforum-topic.css')
+    expect(css).toContain('grid-template-columns: minmax(0, 820px) 190px')
+    expect(css).toContain('position: sticky')
+    expect(css).toContain('overflow-wrap: anywhere')
+    expect(css).toContain('min-height: 40px')
+    expect(css).not.toContain('.sforum-topic-page__action-rail')
+    expect(css).not.toContain('.sforum-topic-page__summary')
   })
 })

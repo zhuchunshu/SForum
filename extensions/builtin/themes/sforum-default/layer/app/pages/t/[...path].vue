@@ -15,6 +15,7 @@ import {
   type ForumTopicExtensionAction,
   type TopicPathLookup
 } from '~/utils/forumTaxonomy'
+import { buildTopicActionMenuItems } from '~/utils/forumTopicPresentation'
 
 definePageMeta({
   // 主题详情对所有人可见（公开读限定 active/locked）。
@@ -29,6 +30,16 @@ const { siteName, seoSettings } = useWebOptions()
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const forumApi = useForumApi()
 const { can, canEditTopic, canDeleteTopic } = usePermissions()
+const toast = useToast()
+
+function showSuccessToast(title: string) {
+  toast.add({
+    color: 'success',
+    icon: 'i-lucide-check',
+    title,
+    duration: 10000
+  })
+}
 
 // 顶级回复编辑器状态。
 const replyMarkdown = ref('')
@@ -142,6 +153,7 @@ useSForumSeo({
 // 编辑保存成功后跳回规范详情路径（用新 slug，规范化兜底 -2 后缀）。
 async function onTopicSaved(updated: ForumTopicDetail) {
   topic.value = updated
+  showSuccessToast(t('topicDetail.topicUpdated'))
   await navigateTo(localePath(forumTopicPath(updated, topicUrlMode.value)))
 }
 
@@ -158,10 +170,13 @@ const commentQuery = computed(() => ({
   page: commentPage.value,
   perPage: 20
 }))
+watch(commentView, () => {
+  commentPage.value = 1
+}, { flush: 'sync' })
 
 // 评论查询基于已加载主题的真实 id（slug 模式下 topicID 可能为 0，必须用 topic.value.id）。
 const loadedTopicID = computed(() => topic.value?.id ?? topicID.value)
-const { data: commentData, pending: commentsPending, refresh: refreshComments } = await useAsyncData(
+const { data: commentData, pending: commentsPending, error: commentsError, refresh: refreshComments } = await useAsyncData(
   () => `forum-topic-comments-${loadedTopicID.value}-${commentView.value}-${commentPage.value}`,
   () => forumApi.listTopicComments(loadedTopicID.value, commentQuery.value),
   {
@@ -174,23 +189,6 @@ const { data: commentData, pending: commentsPending, refresh: refreshComments } 
 const comments = computed(() => commentData.value.items)
 const commentTotal = computed(() => commentData.value.total)
 const commentTotalPages = computed(() => Math.ceil(commentTotal.value / Math.max(commentData.value.perPage, 1)) || 1)
-
-// 主题状态标签。
-type TopicBadge = { label: string; variant: 'neutral' | 'primary' | 'info' | 'success' | 'warning' | 'danger' }
-function topicBadges(): TopicBadge[] {
-  if (!topic.value) {
-    return []
-  }
-  const badges: TopicBadge[] = []
-  if (topic.value.isPinned) {
-    badges.push({ label: t('topicDetail.badge.pinned'), variant: 'danger' })
-  }
-  badges.push({ label: topic.value.categoryName, variant: 'primary' })
-  if (topic.value.status === 'locked') {
-    badges.push({ label: t('topicDetail.badge.locked'), variant: 'warning' })
-  }
-  return badges
-}
 
 const authorName = computed(() => topic.value ? forumAuthorName(topic.value.author, topic.value.authorUserId) : '')
 const authorPath = computed(() => {
@@ -208,12 +206,22 @@ function categoryPath(slug: string) {
   return localePath(forumCategoryPath(slug))
 }
 
+const headingTags = computed(() => (topic.value?.tags || []).map(tag => ({
+  id: tag.id,
+  name: tag.name,
+  to: tagPath(tag.slug)
+})))
+
 function formatDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) {
     return ''
   }
-  return date.toLocaleString()
+  return new Intl.DateTimeFormat(String(locale.value || 'zh-CN'), {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC'
+  }).format(date)
 }
 
 function commentAuthorName(comment: ForumComment) {
@@ -258,6 +266,7 @@ async function runTopicAction(action: keyof typeof FORUM_TOPIC_ACTIONS, successM
     await forumApi.applyTopicAction(topic.value.id, action)
     // 刷新主题以拿到最新状态。
     topic.value = await forumApi.getTopic(topic.value.id)
+    showSuccessToast(t(successMessageKey))
   } catch (error) {
     actionState.value = 'error'
     actionError.value = apiErrorMessage(error) || t('topicDetail.actionFailed')
@@ -290,6 +299,7 @@ async function runTopicExtensionAction(action: ForumTopicExtensionAction) {
   try {
     await forumApi.applyTopicExtensionAction(topic.value.id, action)
     topic.value = await forumApi.getTopic(topic.value.id)
+    showSuccessToast(t('topicDetail.extensionActionCompleted'))
   } catch (error) {
     actionState.value = 'error'
     actionError.value = apiErrorMessage(error) || t('topicDetail.extensionActionFailed')
@@ -309,8 +319,11 @@ async function deleteTopic() {
     return
   }
   actionState.value = 'pending'
+  actionError.value = ''
+  showActionError.value = false
   try {
     await forumApi.deleteTopic(topic.value.id)
+    showSuccessToast(t('topicDetail.topicDeleted'))
     await navigateTo(localePath('/'))
   } catch (error) {
     actionState.value = 'error'
@@ -318,16 +331,6 @@ async function deleteTopic() {
     showActionError.value = true
   }
 }
-
-// 自动关闭非错误 toast 10s。错误不自动关闭。
-watch(showActionError, (visible) => {
-  if (!visible) {
-    return
-  }
-  setTimeout(() => {
-    showActionError.value = false
-  }, 10000)
-})
 
 function commentActions(comment: ForumComment) {
   // 操作按钮内聚进 SFComment 的 actions，替代之前硬编码在模板里的按钮。
@@ -407,6 +410,7 @@ async function submitReply(payload?: { markdown?: string }) {
     })
     replyMarkdown.value = ''
     await refreshComments()
+    showSuccessToast(t('topicDetail.replyPosted'))
   } catch (error) {
     replyError.value = apiErrorMessage(error) || t('topicDetail.replyFailed')
     showReplyError.value = true
@@ -448,6 +452,7 @@ async function saveCommentEdit(comment: ForumComment, payload?: { markdown?: str
     })
     cancelEditComment()
     await refreshComments()
+    showSuccessToast(t('topicDetail.commentUpdated'))
   } catch (error) {
     editingError.value = apiErrorMessage(error) || t('topicDetail.editFailed')
   } finally {
@@ -467,6 +472,7 @@ async function deleteComment(comment: ForumComment) {
   try {
     await forumApi.deleteComment(comment.id)
     await refreshComments()
+    showSuccessToast(t('topicDetail.commentDeleted'))
   } catch (error) {
     replyError.value = apiErrorMessage(error) || t('topicDetail.deleteFailed')
     showReplyError.value = true
@@ -510,6 +516,7 @@ async function submitNestedReply(comment: ForumComment, payload?: { markdown?: s
     }, comment.id)
     cancelReply()
     await refreshComments()
+    showSuccessToast(t('topicDetail.replyPosted'))
   } catch (error) {
     replyError.value = apiErrorMessage(error) || t('topicDetail.replyFailed')
     showReplyError.value = true
@@ -589,6 +596,94 @@ const reportReasonOptions = [
   { label: t('moderation.reason.other'), value: 'other' }
 ]
 
+const topicActionItems = computed(() => {
+  if (!topic.value) {
+    return []
+  }
+  return buildTopicActionMenuItems({
+    canEdit: canEditTopic(topic.value),
+    canDelete: canDeleteTopic(topic.value),
+    canLock: canLock.value,
+    canPin: canPin.value,
+    canModerate: canModerate.value,
+    canReport: Boolean(reportUser.value),
+    locked: isLocked.value,
+    pinned: isPinned.value,
+    hidden: topic.value.status === 'hidden',
+    labels: {
+      edit: t('topicDetail.edit'),
+      delete: t('topicDetail.delete'),
+      lock: t('topicDetail.lock'),
+      unlock: t('topicDetail.unlock'),
+      pin: t('topicDetail.pin'),
+      unpin: t('topicDetail.unpin'),
+      hide: t('topicDetail.hide'),
+      restore: t('topicDetail.restore'),
+      report: t('topicDetail.report')
+    },
+    extensions: extensionActions.value.map(action => ({
+      extensionId: action.extensionId,
+      id: action.id,
+      label: topicExtensionActionLabel(action),
+      icon: action.icon,
+      confirm: action.confirm
+    }))
+  })
+})
+
+async function handleTopicActionSelect(id: string) {
+  if (!topic.value) {
+    return
+  }
+  if (id === 'edit') {
+    await navigateTo({ path: localePath(forumTopicPath(topic.value, topicUrlMode.value)), query: { edit: '1' } })
+    return
+  }
+  if (id === 'delete') {
+    await deleteTopic()
+    return
+  }
+  if (id === 'report') {
+    openReportDialog({ type: 'topic', id: topic.value.id })
+    return
+  }
+  if (id.startsWith('extension:')) {
+    const action = extensionActions.value.find(candidate => id === `extension:${candidate.extensionId}:${candidate.id}`)
+    if (action) {
+      await runTopicExtensionAction(action)
+    }
+    return
+  }
+  if (id in FORUM_TOPIC_ACTIONS) {
+    const successKey = id === 'lock' || id === 'unlock'
+      ? 'topicDetail.lockToggled'
+      : id === 'pin' || id === 'unpin'
+        ? 'topicDetail.pinToggled'
+        : 'topicDetail.hidden'
+    await runTopicAction(id as keyof typeof FORUM_TOPIC_ACTIONS, successKey)
+  }
+}
+
+function scrollToElement(id: string) {
+  if (!import.meta.client) {
+    return
+  }
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function startTopLevelReply() {
+  if (!showReplyEditor.value) {
+    return
+  }
+  scrollToElement('topic-reply-editor')
+}
+
+async function jumpToLatest() {
+  commentPage.value = commentTotalPages.value
+  await nextTick()
+  scrollToElement('topic-latest')
+}
+
 function openReportDialog(target: { type: 'topic' | 'comment'; id: number }) {
   if (!reportUser.value) {
     return
@@ -652,165 +747,27 @@ async function submitReport() {
 
       <template v-else-if="topic">
         <div class="sforum-topic-page__shell">
-        <aside class="sforum-topic-page__action-rail" aria-label="主题快捷操作">
-          <button type="button" class="sforum-topic-page__rail-button sforum-topic-page__rail-button--active" :aria-label="t('topicDetail.statsComments')">
-            <span>{{ topic.commentCount }}</span>
-            <UIcon name="i-lucide-message-circle" class="size-4" />
-          </button>
-          <button type="button" class="sforum-topic-page__rail-button" :aria-label="t('topicDetail.statsViews')">
-            <span>{{ topic.viewCount }}</span>
-            <UIcon name="i-lucide-eye" class="size-4" />
-          </button>
-          <button v-if="reportUser" type="button" class="sforum-topic-page__rail-button" :aria-label="t('topicDetail.report')" @click="openReportDialog({ type: 'topic', id: topic.id })">
-            <UIcon name="i-lucide-flag" class="size-4" />
-          </button>
-        </aside>
-
-        <!-- 主栏:主题头 + 评论区 -->
-        <div class="sforum-topic-page__content">
-        <!-- 主题头部 -->
-        <article class="sforum-topic-page__article">
-          <!-- 面包屑 -->
-          <nav class="sforum-topic-page__breadcrumbs">
-            <NuxtLink :to="localePath('/')">
-              {{ t('topicDetail.breadcrumbHome') }}
-            </NuxtLink>
-            <UIcon name="i-lucide-chevron-right" class="size-3" />
-            <NuxtLink
-              v-if="topic.categorySlug"
-              :to="categoryPath(topic.categorySlug)"
-            >
-              {{ topic.categoryName }}
-            </NuxtLink>
-            <span v-else>{{ topic.categoryName }}</span>
-          </nav>
-
-          <div class="flex flex-wrap items-center gap-2 mb-3">
-            <NuxtLink :to="categoryPath(topic.categorySlug)">
-              <SFBadge variant="primary">{{ topic.categoryName }}</SFBadge>
-            </NuxtLink>
-            <SFBadge v-if="topic.isPinned" variant="danger">
-              <UIcon name="i-lucide-pin" class="size-3.5" />
-              {{ t('topicDetail.badge.pinned') }}
-            </SFBadge>
-            <SFBadge v-if="isLocked" variant="warning">
-              <UIcon name="i-lucide-lock" class="size-3.5" />
-              {{ t('topicDetail.badge.locked') }}
-            </SFBadge>
-          </div>
-
-          <h1 class="sforum-topic-page__title">
-            {{ topic.title }}
-          </h1>
-
-          <div class="sforum-topic-page__byline">
-            <component
-              :is="authorPath ? 'NuxtLink' : 'span'"
-              :to="authorPath"
-              class="inline-flex items-center gap-2 font-bold text-slate-700 hover:text-[color:var(--sf-accent)] dark:text-zinc-300 dark:hover:text-teal-300"
-            >
-              <SFAvatar :name="authorName" :avatar="topic.author?.avatar" size="sm" />
-              <span>{{ authorName }}</span>
-            </component>
-            <span>{{ formatDate(topic.createdAt) }}</span>
-            <span class="inline-flex items-center gap-1">
-              <UIcon name="i-lucide-message-circle" class="size-3.5" />
-              {{ topic.commentCount }}
-            </span>
-            <span class="inline-flex items-center gap-1">
-              <UIcon name="i-lucide-eye" class="size-3.5" />
-              {{ topic.viewCount }}
-            </span>
+          <div class="sforum-topic-page__reading">
+        <article id="topic-start" class="sforum-topic-page__article">
+          <div class="sforum-topic-page__heading-row">
+            <SFTopicHeading
+              :topic="topic"
+              :author-name="authorName"
+              :author-to="authorPath"
+              :category-to="categoryPath(topic.categorySlug)"
+              :tags="headingTags"
+              :published-label="formatDate(topic.createdAt)"
+            />
+            <SFTopicActionMenu
+              :items="topicActionItems"
+              :pending="actionState === 'pending'"
+              :running-id="extensionActionRunning ? `extension:${extensionActionRunning}` : ''"
+              @select="handleTopicActionSelect"
+            />
           </div>
 
           <!-- 正文（后端已 sanitize）:sf-prose 由 @tailwindcss/typography 提供；v-highlight 负责代码块语法高亮 -->
           <div class="sforum-topic-page__prose sf-prose" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
-
-          <!-- 标签 -->
-          <div v-if="topic.tags && topic.tags.length" class="flex flex-wrap gap-1.5 mt-6 pt-4 border-t border-slate-100 dark:border-zinc-800">
-            <NuxtLink v-for="tag in topic.tags" :key="tag.id" :to="tagPath(tag.slug)">
-              <SFBadge variant="neutral">#{{ tag.name }}</SFBadge>
-            </NuxtLink>
-          </div>
-
-          <!-- 版主/作者动作区 -->
-          <div
-            v-if="canEditTopic(topic) || canDeleteTopic(topic) || canLock || canPin || canModerate || extensionActions.length"
-            class="sforum-topic-page__actions"
-          >
-            <SFButton
-              v-if="canEditTopic(topic)"
-              variant="ghost"
-              size="sm"
-              :to="`${localePath(forumTopicPath(topic, topicUrlMode))}?edit=1`"
-            >
-              <UIcon name="i-lucide-pencil" class="size-4" />
-              <span>{{ t('topicDetail.edit') }}</span>
-            </SFButton>
-            <SFButton
-              v-if="canDeleteTopic(topic)"
-              variant="ghost"
-              size="sm"
-              @click="deleteTopic"
-            >
-              <UIcon name="i-lucide-trash-2" class="size-4" />
-              <span>{{ t('topicDetail.delete') }}</span>
-            </SFButton>
-            <SFButton
-              v-if="canLock"
-              variant="ghost"
-              size="sm"
-              :disabled="actionState === 'pending'"
-              @click="runTopicAction(isLocked ? 'unlock' : 'lock', 'topicDetail.lockToggled')"
-            >
-              <UIcon :name="isLocked ? 'i-lucide-lock-open' : 'i-lucide-lock'" class="size-4" />
-              <span>{{ isLocked ? t('topicDetail.unlock') : t('topicDetail.lock') }}</span>
-            </SFButton>
-            <SFButton
-              v-if="canPin"
-              variant="ghost"
-              size="sm"
-              :disabled="actionState === 'pending'"
-              @click="runTopicAction(isPinned ? 'unpin' : 'pin', 'topicDetail.pinToggled')"
-            >
-              <UIcon :name="isPinned ? 'i-lucide-pin-off' : 'i-lucide-pin'" class="size-4" />
-              <span>{{ isPinned ? t('topicDetail.unpin') : t('topicDetail.pin') }}</span>
-            </SFButton>
-            <SFButton
-              v-if="canModerate && !isLocked"
-              variant="ghost"
-              size="sm"
-              :disabled="actionState === 'pending'"
-              @click="runTopicAction('hide', 'topicDetail.hidden')"
-            >
-              <UIcon name="i-lucide-eye-off" class="size-4" />
-              <span>{{ t('topicDetail.hide') }}</span>
-            </SFButton>
-            <SFButton
-              v-if="reportUser"
-              variant="ghost"
-              size="sm"
-              @click="openReportDialog({ type: 'topic', id: topic.id })"
-            >
-              <UIcon name="i-lucide-flag" class="size-4" />
-              <span>{{ t('topicDetail.report') }}</span>
-            </SFButton>
-            <SFButton
-              v-for="action in extensionActions"
-              :key="topicExtensionActionKey(action)"
-              variant="ghost"
-              size="sm"
-              :disabled="actionState === 'pending'"
-              @click="runTopicExtensionAction(action)"
-            >
-              <UIcon
-                :name="action.icon || 'i-lucide-plug'"
-                class="size-4"
-                :class="{ 'animate-spin': extensionActionRunning === topicExtensionActionKey(action) }"
-              />
-              <span>{{ topicExtensionActionLabel(action) }}</span>
-            </SFButton>
-          </div>
 
           <!-- 动作错误（不自动消失） -->
           <SFAlert
@@ -823,34 +780,40 @@ async function submitReport() {
           />
         </article>
 
+        <button
+          v-if="showReplyEditor"
+          type="button"
+          class="sforum-topic-page__mobile-reply"
+          @click="startTopLevelReply"
+        >
+          <UIcon name="i-lucide-reply" class="size-4" aria-hidden="true" />
+          {{ t('topicDetail.reply') }}
+        </button>
+
         <!-- 评论区域 -->
-        <section class="sforum-topic-comments">
-          <div class="sforum-topic-comments__header">
-            <h2>
-              {{ t('topicDetail.commentsTitle', { count: commentTotal }) }}
-            </h2>
-            <SFTabs
-              v-model="commentView"
-              :items="[
-                { label: t('topicDetail.viewTree'), value: 'tree' },
-                { label: t('topicDetail.viewFlat'), value: 'flat' }
-              ]"
-              aria-label="评论视图切换"
-            />
+        <section id="topic-latest" class="sforum-topic-comments">
+          <SFCommentStreamControls v-model="commentView" :count="topic.commentCount" />
+
+          <div v-if="commentsError" class="sforum-topic-comments__error">
+            <SFAlert variant="danger" :title="t('topicDetail.commentsLoadFailed')" />
+            <SFButton variant="ghost" size="sm" @click="refreshComments">
+              <UIcon name="i-lucide-refresh-cw" class="size-4" aria-hidden="true" />
+              {{ t('topicDetail.retryComments') }}
+            </SFButton>
           </div>
 
           <!-- 评论加载骨架 -->
-          <template v-if="commentsPending">
-            <SFCard v-for="i in 3" :key="i" class="sforum-topic-comments__card p-4">
+          <template v-if="commentsPending && !comments.length">
+            <div v-for="i in 3" :key="i" class="sforum-topic-comments__skeleton">
               <SFSkeleton width="20%" height="1rem" class="mb-2" />
               <SFSkeleton width="90%" class="mb-1" />
               <SFSkeleton width="70%" />
-            </SFCard>
+            </div>
           </template>
 
           <!-- 评论列表 -->
           <template v-else-if="comments.length">
-            <SFCard class="sforum-topic-comments__card sf-comment-list p-5">
+            <div class="sforum-topic-comments__stream sf-comment-list">
               <!-- 递归评论树：SFComment 内部自递归渲染 children（含任意深度 + 折叠）。
                    操作按钮（回复/编辑/删除/举报）通过 commentActions 动态生成，颜色走 --sf-* token。
                    内联编辑器/回复编辑器由本页 provide 的 commentEditorRenderer 在评论原位渲染（任意层级）。 -->
@@ -864,7 +827,9 @@ async function submitReport() {
                 :html-content="editingCommentId === comment.id ? undefined : comment.content.htmlContent"
                 :content="editingCommentId === comment.id ? '' : undefined"
                 :meta="commentMeta(comment)"
+                :presentation="commentView"
                 :depth="0"
+                :collapse-from-depth="2"
                 :reply-to="comment.replyTo ? { author: forumAuthorName(comment.replyTo.author, comment.replyTo.id), excerpt: comment.replyTo.excerpt } : undefined"
                 :actions="commentActions(comment)"
                 :comment-meta-builder="commentMeta"
@@ -872,7 +837,7 @@ async function submitReport() {
                 :comment-actions-builder="commentActions"
                 @action-comment="(c: ForumComment, value: string) => handleCommentClick(c, value)"
               />
-            </SFCard>
+            </div>
 
             <!-- 分页 -->
             <div v-if="commentTotalPages > 1" class="flex justify-center pt-2">
@@ -881,16 +846,16 @@ async function submitReport() {
           </template>
 
           <!-- 空评论 -->
-          <SFCard v-else class="sforum-topic-comments__card p-10">
+          <div v-else-if="!commentsError" class="sforum-topic-comments__empty">
             <SFEmptyState
               :title="t('topicDetail.emptyComments.title')"
               :description="t('topicDetail.emptyComments.description')"
             />
-          </SFCard>
+          </div>
 
           <!-- 顶级回复编辑器 -->
-          <SFCard v-if="showReplyEditor" class="sforum-topic-comments__card sforum-topic-comments__reply p-5">
-            <h3 class="text-sm font-semibold text-slate-700 mb-3 dark:text-zinc-300">
+          <section v-if="showReplyEditor" id="topic-reply-editor" class="sforum-topic-comments__reply">
+            <h3>
               {{ t('topicDetail.replyTitle') }}
             </h3>
             <LazySFEditor
@@ -908,7 +873,7 @@ async function submitReport() {
               class="mt-3"
               @close="showReplyError = false"
             />
-          </SFCard>
+          </section>
 
           <!-- 锁定提示 -->
           <SFAlert
@@ -918,215 +883,38 @@ async function submitReport() {
             closable
           />
         </section>
-        </div><!-- /主栏 -->
+          </div>
 
-        <!-- 侧边栏:sticky 跟随,lg 以上显示 -->
-        <aside class="sforum-topic-page__summary hidden lg:grid lg:sticky lg:top-6">
-          <!-- 作者卡 -->
-          <SFCard class="sforum-topic-page__summary-card p-4">
-            <div class="flex items-center gap-3">
-              <SFAvatar :name="authorName" :avatar="topic.author?.avatar" size="md" />
-              <div class="min-w-0">
-                <component
-                  :is="authorPath ? 'NuxtLink' : 'span'"
-                  :to="authorPath"
-                  class="block font-semibold text-sm truncate hover:text-[color:var(--sf-accent)]"
-                >
-                  {{ authorName }}
-                </component>
-                <p class="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">{{ t('topicDetail.authorLabel') }}</p>
-              </div>
-            </div>
-          </SFCard>
-
-          <!-- 话题统计 -->
-          <SFCard class="sforum-topic-page__summary-card p-4">
-            <h3 class="text-xs font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-3">
-              {{ t('topicDetail.statsTitle') }}
-            </h3>
-            <dl class="space-y-2.5 text-sm">
-              <div class="flex items-center justify-between">
-                <dt class="text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
-                  <UIcon name="i-lucide-eye" class="size-3.5" />{{ t('topicDetail.statsViews') }}
-                </dt>
-                <dd class="font-medium text-slate-700 dark:text-zinc-200">{{ topic.viewCount }}</dd>
-              </div>
-              <div class="flex items-center justify-between">
-                <dt class="text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
-                  <UIcon name="i-lucide-message-circle" class="size-3.5" />{{ t('topicDetail.statsComments') }}
-                </dt>
-                <dd class="font-medium text-slate-700 dark:text-zinc-200">{{ topic.commentCount }}</dd>
-              </div>
-              <div class="flex items-center justify-between">
-                <dt class="text-slate-400 dark:text-zinc-500 flex items-center gap-1.5">
-                  <UIcon name="i-lucide-calendar" class="size-3.5" />{{ t('topicDetail.statsCreated') }}
-                </dt>
-                <dd class="font-medium text-slate-700 dark:text-zinc-200 text-xs">{{ formatDate(topic.createdAt) }}</dd>
-              </div>
-            </dl>
-          </SFCard>
-        </aside>
-
-        </div><!-- /双栏 grid -->
+          <SFTopicProgressRail
+            :current-page="commentPage"
+            :total-pages="commentTotalPages"
+            :total-posts="topic.commentCount + 1"
+            :first-label="formatDate(topic.createdAt)"
+            :latest-label="formatDate(topic.lastActivityAt || topic.updatedAt)"
+            :can-reply="showReplyEditor"
+            :locked="isLocked"
+            :pending="replySubmitting"
+            @reply="startTopLevelReply"
+            @first="scrollToElement('topic-start')"
+            @latest="jumpToLatest"
+          />
+        </div>
       </template>
     </div>
 
-    <!-- 举报对话框 -->
-    <Teleport to="body">
-      <div v-if="reportingTarget" class="sf-modal-overlay" @click.self="closeReportDialog">
-        <div class="sf-modal" role="dialog" aria-modal="true">
-          <div class="sf-modal__header">
-            <h2 class="text-lg font-bold text-slate-900 dark:text-zinc-50">
-              {{ t('moderation.reportTitle') }}
-            </h2>
-            <button type="button" class="sf-modal__close" :aria-label="t('moderation.close')" @click="closeReportDialog">
-              <UIcon name="i-lucide-x" class="size-5" />
-            </button>
-          </div>
-          <div v-if="reportSuccess" class="sf-modal__body">
-            <SFAlert variant="success" :title="t('moderation.reportSubmitted')" />
-          </div>
-          <div v-else class="sf-modal__body space-y-4">
-            <SFAlert v-if="reportError" variant="danger" :title="reportError" closable @close="reportError = ''" />
-            <div>
-              <label class="block text-sm font-semibold text-slate-700 mb-2 dark:text-zinc-300">
-                {{ t('moderation.reasonLabel') }}
-              </label>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="opt in reportReasonOptions"
-                  :key="opt.value"
-                  type="button"
-                  class="sf-modal__reason"
-                  :class="{ 'sf-modal__reason--active': reportReason === opt.value }"
-                  @click="reportReason = opt.value"
-                >
-                  {{ opt.label }}
-                </button>
-              </div>
-            </div>
-            <div>
-              <label class="block text-sm font-semibold text-slate-700 mb-2 dark:text-zinc-300">
-                {{ t('moderation.bodyLabel') }}
-              </label>
-              <textarea
-                v-model="reportBody"
-                rows="3"
-                maxlength="2000"
-                class="sf-modal__textarea"
-                :placeholder="t('moderation.bodyPlaceholder')"
-              />
-            </div>
-          </div>
-          <div v-if="!reportSuccess" class="sf-modal__footer">
-            <SFButton variant="ghost" size="sm" :disabled="reportSubmitting" @click="closeReportDialog">
-              {{ t('moderation.cancel') }}
-            </SFButton>
-            <SFButton variant="primary" size="sm" :disabled="!reportReason || reportSubmitting" @click="submitReport">
-              {{ reportSubmitting ? t('moderation.submitting') : t('moderation.submit') }}
-            </SFButton>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <SFReportDialog
+      :open="Boolean(reportingTarget)"
+      :reasons="reportReasonOptions"
+      :reason="reportReason"
+      :body="reportBody"
+      :submitting="reportSubmitting"
+      :error="reportError"
+      :success="reportSuccess"
+      @update:reason="reportReason = $event"
+      @update:body="reportBody = $event"
+      @dismiss-error="reportError = ''"
+      @close="closeReportDialog"
+      @submit="submitReport"
+    />
   </main>
 </template>
-
-<style scoped>
-.sf-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-  padding: 1rem;
-}
-.sf-modal {
-  background: #ffffff;
-  border-radius: 0.75rem;
-  width: 100%;
-  max-width: 28rem;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-}
-:global(.dark) .sf-modal {
-  background: #18181b;
-}
-.sf-modal__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid #f3f4f6;
-}
-:global(.dark) .sf-modal__header {
-  border-bottom-color: #27272a;
-}
-.sf-modal__close {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: #6b7280;
-  padding: 0.25rem;
-}
-.sf-modal__body {
-  padding: 1.25rem;
-}
-.sf-modal__footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  padding: 1rem 1.25rem;
-  border-top: 1px solid #f3f4f6;
-}
-:global(.dark) .sf-modal__footer {
-  border-top-color: #27272a;
-}
-.sf-modal__reason {
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.85rem;
-  background: #ffffff;
-  color: #374151;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-.sf-modal__reason--active {
-  border-color: #0f766e;
-  background: #e6f4f1;
-  color: #0f766e;
-}
-:global(.dark) .sf-modal__reason {
-  background: #18181b;
-  border-color: #3f3f46;
-  color: #d4d4d8;
-}
-:global(.dark) .sf-modal__reason--active {
-  border-color: #14b8a6;
-  background: rgba(20, 184, 166, 0.15);
-  color: #5eead4;
-}
-.sf-modal__textarea {
-  width: 100%;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.9rem;
-  background: #ffffff;
-  color: #111827;
-  outline: none;
-  resize: vertical;
-}
-.sf-modal__textarea:focus {
-  border-color: #0f766e;
-  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
-}
-:global(.dark) .sf-modal__textarea {
-  background: #18181b;
-  border-color: #3f3f46;
-  color: #f4f4f5;
-}
-</style>

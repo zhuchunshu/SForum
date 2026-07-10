@@ -10,6 +10,7 @@ const layerConfig = () => source('../../../extensions/builtin/themes/sforum-defa
 const homepageCss = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-home.css')
 const themeCss = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-theme.css')
 const seoComposable = () => source('../app/composables/useSForumSeo.ts')
+const homeQueryCacheMiddleware = () => source('../server/middleware/home-query-cache.ts')
 
 function relativeLuminance(hex: string) {
   const channels = hex.slice(1).match(/.{2}/g)?.map((part) => Number.parseInt(part, 16) / 255) || []
@@ -131,6 +132,20 @@ describe('default theme hybrid homepage contract', () => {
 
     expect(source).toContain('/?q={search_term_string}')
     expect(source).not.toContain('/search?q={search_term_string}')
+  })
+
+  test('keeps the base homepage on SWR while query variants render without payload caching', () => {
+    const config = source('../nuxt.config.ts')
+    const middleware = homeQueryCacheMiddleware()
+
+    expect(config).toContain("'/': publicHomepageRouteRule")
+    expect(config).toContain("cache: false")
+    expect(config).toContain("'cache-control': 's-maxage=600, stale-while-revalidate'")
+    expect(middleware).toContain("url.pathname !== '/' && url.pathname !== '/en'")
+    expect(middleware).toContain('!url.search')
+    expect(middleware).toContain('routeRules.cache = false')
+    expect(middleware).toContain('routeRules.swr = false')
+    expect(middleware).toContain("setHeader(event, 'cache-control', 'no-store')")
   })
 
   test('registers a focused neutral and responsive homepage visual system', () => {

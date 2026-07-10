@@ -66,15 +66,28 @@ client scroll uses `IntersectionObserver` to append later pages. The loaded
 feed and total are initialized from `topicList.value` into Nuxt `useState` so
 the SSR rows survive hydration in development payload mode. Desktop homepage
 side rails remain sticky but are viewport-bounded with internal scrolling.
-The default-theme homepage visual shell now follows the accepted A
-Linux.do-inspired direction directly. `index.vue` opts out of the public
-default layout (`layout: false`) and renders its own compact A-style topbar,
-1520px shell, 238px left rail, notice, tabs, and dense table-oriented topic
-rows; it then renders `SFFooter` manually below the homepage shell. Homepage
-accent states, notice surfaces, category dots, selected tabs, badges, and
-scrollbars map through `--sf-accent*` / `--sf-accent-rgb`, with local light and
-dark A-style surface tokens so color mode changes do not alter the information
-hierarchy.
+The default-theme public forum follows the approved C / SForum Hybrid
+direction. The homepage uses the shared default layout and `SFNavbar`, a 208px
+taxonomy rail, and compact topic rows without a decorative statistics sidebar.
+Search, category, and tag filters are reflected in the URL; search is debounced
+and stale requests are rejected before they can replace newer results. Base
+homepage responses retain shared-cache headers, while `/` and `/en` query
+variants are marked `no-store` by `server/middleware/home-query-cache.ts` to
+avoid Nitro's root-route payload file-key collision.
+
+Topic detail uses an unframed 820px reading column plus a 190px sticky progress
+rail on desktop. `SFTopicHeading`, `SFTopicProgressRail`,
+`SFTopicActionMenu`, `SFCommentStreamControls`, and `SFReportDialog` own focused
+presentation concerns; the route still owns loading, routing, SEO, permissions,
+mutations, and plugin action orchestration. On mobile the rail is hidden and
+the essential reply action returns to normal document flow.
+
+`SFComment` has an explicit `presentation`, `depth`, and
+`collapseFromDepth` contract. Tree mode renders one branch rail/inset on
+desktop, collapses depth-two descendants once at the boundary, and preserves a
+direct non-interactive reply reference. Mobile clears every recursive inset;
+flat mode never recurses. Rich content containers, code, and images must remain
+bounded so no comment depth can widen the document viewport.
 Uploaded themes are incremental overlays. When `SFORUM_THEME_LAYER` is set,
 `apps/web/nuxt.config.ts` extends `[uploadedThemeLayer, defaultThemeLayer]` so
 the uploaded layer can override public pages, layouts, components, and assets,
