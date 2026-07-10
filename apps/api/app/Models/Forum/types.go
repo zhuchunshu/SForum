@@ -278,6 +278,8 @@ type ForumSettings struct {
 	TagCreationMode     string `json:"tagCreationMode"`
 	TagPublicPages      bool   `json:"tagPublicPages"`
 	TagMaxPerTopic      int    `json:"tagMaxPerTopic"`
+	TopicsPerPage       int    `json:"topicsPerPage"`
+	CommentsPerPage     int    `json:"commentsPerPage"`
 }
 
 type CreateCategoryGroupInput struct {
@@ -348,6 +350,8 @@ type UpdateForumSettingsInput struct {
 	TagCreationMode     *string
 	TagPublicPages      *bool
 	TagMaxPerTopic      *int
+	TopicsPerPage       *int
+	CommentsPerPage     *int
 }
 
 type CommentListInput struct {

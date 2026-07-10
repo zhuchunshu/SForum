@@ -150,6 +150,8 @@ func TestServiceCreateTopicUsesConfiguredDefaultCategory(t *testing.T) {
 			TagCreationMode:     TagCreationModeControlled,
 			TagPublicPages:      true,
 			TagMaxPerTopic:      5,
+			TopicsPerPage:       20,
+			CommentsPerPage:     20,
 		},
 	}, nil)
 	actor := topicCreator()
@@ -284,6 +286,34 @@ func TestServiceCreateTopicRejectsTooManyTags(t *testing.T) {
 	}
 	if store.resolveTagsCalled {
 		t.Fatal("tag resolution should not run after max tag validation fails")
+	}
+}
+
+func TestServiceForumPaginationSettingsValidationAndPermission(t *testing.T) {
+	settings := testForumSettings()
+	manager := &fakeSettingsManager{settings: settings}
+	service := NewServiceWithSettingsAndEvents(newServiceFakeStore(), manager, nil)
+	categoryActor := identity.Actor{Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionCategoryManage: true}}
+	settingsActor := identity.Actor{Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionSettingsManage: true}}
+
+	topicsPerPage := 30
+	if _, err := service.UpdateForumSettings(context.Background(), categoryActor, UpdateForumSettingsInput{TopicsPerPage: &topicsPerPage}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("category manager pagination update error = %v, want permission denied", err)
+	}
+	if _, err := service.UpdateForumSettings(context.Background(), settingsActor, UpdateForumSettingsInput{TopicsPerPage: &topicsPerPage}); err != nil {
+		t.Fatalf("settings manager pagination update: %v", err)
+	}
+	if manager.updated.TopicsPerPage == nil || *manager.updated.TopicsPerPage != 30 {
+		t.Fatalf("updated topicsPerPage = %#v", manager.updated.TopicsPerPage)
+	}
+
+	for _, value := range []int{0, 101} {
+		if _, err := service.UpdateForumSettings(context.Background(), settingsActor, UpdateForumSettingsInput{CommentsPerPage: &value}); !errors.Is(err, ErrInvalidSettings) {
+			t.Fatalf("commentsPerPage=%d error = %v, want invalid settings", value, err)
+		}
+	}
+	if _, err := service.ResetForumSettings(context.Background(), settingsActor); err != nil {
+		t.Fatalf("settings manager reset: %v", err)
 	}
 }
 
@@ -907,6 +937,8 @@ func testForumSettings() ForumSettings {
 		TagCreationMode:     TagCreationModeControlled,
 		TagPublicPages:      true,
 		TagMaxPerTopic:      5,
+		TopicsPerPage:       20,
+		CommentsPerPage:     20,
 	}
 }
 
@@ -920,6 +952,24 @@ func (r fakeSettingsResolver) ForumSettings(context.Context) (ForumSettings, err
 		return ForumSettings{}, r.err
 	}
 	return r.settings, nil
+}
+
+type fakeSettingsManager struct {
+	settings ForumSettings
+	updated  UpdateForumSettingsInput
+}
+
+func (m *fakeSettingsManager) ForumSettings(context.Context) (ForumSettings, error) {
+	return m.settings, nil
+}
+
+func (m *fakeSettingsManager) UpdateForumSettings(_ context.Context, _ identity.Actor, input UpdateForumSettingsInput) (ForumSettings, error) {
+	m.updated = input
+	return m.settings, nil
+}
+
+func (m *fakeSettingsManager) ResetForumSettings(context.Context, identity.Actor) (ForumSettings, error) {
+	return m.settings, nil
 }
 
 type fakeTopicActionProvider struct {

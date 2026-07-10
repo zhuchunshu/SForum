@@ -84,6 +84,8 @@ func defaultForumSettings() ForumSettings {
 		TagCreationMode:     TagCreationModeControlled,
 		TagPublicPages:      true,
 		TagMaxPerTopic:      5,
+		TopicsPerPage:       20,
+		CommentsPerPage:     20,
 	}
 }
 
@@ -231,6 +233,9 @@ func (s *Service) UpdateForumSettings(ctx context.Context, actor identity.Actor,
 		return ForumSettings{}, identity.ErrPermissionDenied
 	}
 	if (input.TagCreationMode != nil || input.TagPublicPages != nil || input.TagMaxPerTopic != nil) && !actor.Can(identity.PermissionTagManage) {
+		return ForumSettings{}, identity.ErrPermissionDenied
+	}
+	if (input.TopicsPerPage != nil || input.CommentsPerPage != nil) && !actor.Can(identity.PermissionSettingsManage) {
 		return ForumSettings{}, identity.ErrPermissionDenied
 	}
 	manager, ok := s.settings.(SettingsManager)
@@ -785,11 +790,12 @@ func isValidForumSettings(settings ForumSettings) bool {
 	default:
 		return false
 	}
-	return settings.TagMaxPerTopic >= 0 && settings.TagMaxPerTopic <= 10
+	return settings.TagMaxPerTopic >= 0 && settings.TagMaxPerTopic <= 10 &&
+		validForumPageSize(settings.TopicsPerPage) && validForumPageSize(settings.CommentsPerPage)
 }
 
 func canManageForumSettings(actor identity.Actor) bool {
-	return actor.Can(identity.PermissionCategoryManage) || actor.Can(identity.PermissionTagManage)
+	return actor.Can(identity.PermissionCategoryManage) || actor.Can(identity.PermissionTagManage) || actor.Can(identity.PermissionSettingsManage)
 }
 
 func normalizeCreateCategoryGroupInput(input CreateCategoryGroupInput) (CreateCategoryGroupInput, error) {
@@ -1034,7 +1040,17 @@ func normalizeUpdateForumSettingsInput(input UpdateForumSettingsInput) (UpdateFo
 	if input.TagMaxPerTopic != nil && (*input.TagMaxPerTopic < 0 || *input.TagMaxPerTopic > 10) {
 		return UpdateForumSettingsInput{}, ErrInvalidSettings
 	}
+	if input.TopicsPerPage != nil && !validForumPageSize(*input.TopicsPerPage) {
+		return UpdateForumSettingsInput{}, ErrInvalidSettings
+	}
+	if input.CommentsPerPage != nil && !validForumPageSize(*input.CommentsPerPage) {
+		return UpdateForumSettingsInput{}, ErrInvalidSettings
+	}
 	return input, nil
+}
+
+func validForumPageSize(value int) bool {
+	return value >= 1 && value <= 100
 }
 
 func normalizeAdminSlug(value string) (string, bool) {
