@@ -13,7 +13,7 @@ to that original destination after authentication.
   the requested route.
 - Login and registration always navigate to the admin home for users with
   `admin.access`, otherwise to the forum home.
-- The default and Signal Garden themes implement this behavior separately.
+- Auth pages previously implemented fixed post-auth navigation separately.
 
 ## Approaches Considered
 
@@ -47,11 +47,15 @@ The global auth middleware and admin middleware append the requested `to.fullPat
 as `redirect` when sending a guest to login. They must not overwrite an existing
 safe destination or create an auth-page loop.
 
-Login and registration pages in both bundled themes use the shared resolver:
+The host `guest` middleware owns authenticated auth-page entry behavior. It
+refreshes unknown session state, leaves guest or unavailable sessions on the
+page, and sends authenticated visitors through the shared resolver before page
+setup completes. Theme auth pages inherit this behavior when they opt into the
+middleware; the tracked default-theme login and registration pages do so in
+this change.
 
-- On entry, once session state is known, an authenticated user immediately
-  navigates to the resolved destination.
-- After successful login or registration, the same destination is used.
+- After successful login or registration, tracked default-theme pages update
+  frontend session state and use the same destination.
 - No admin-specific fallback is applied. A user with admin access returns to
   the admin area only when that area was the explicit original destination;
   otherwise they return to their forum context or the forum home.
@@ -78,10 +82,12 @@ Add focused unit coverage for the shared resolver:
 - Prefer explicit redirect over referrer and use home as the final fallback.
 - Preserve locale-aware internal paths.
 
-Update route rendering/source tests to verify both auth middlewares preserve
-`to.fullPath` and both bundled themes use the shared navigation behavior for
-already-authenticated visits and successful login/registration. Run the
-frontend auth test set and Nuxt typecheck.
+Update route rendering/source tests to verify both protected-route middlewares
+preserve `to.fullPath`, the host `guest` middleware handles authenticated entry,
+and the tracked default-theme pages use it plus shared post-auth navigation.
+Development-theme auth pages remain ignored/untracked in this repository; when
+such pages are tracked, they obtain entry handling by opting into `guest`.
+Run the frontend auth test set and Nuxt typecheck.
 
 ## Scope
 

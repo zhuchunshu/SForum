@@ -75,6 +75,15 @@ Initial identity foundation is implemented.
   default displayed user groups, supports search and explicit comparison
   selection, and can show only permissions that differ inside the current
   comparison scope.
+- Protected Nuxt routes preserve `to.fullPath` in the login `redirect` query.
+  Auth return navigation accepts only validated local absolute paths, rejects
+  external, protocol-relative, malformed, and login/register destinations, and
+  resolves explicit redirect, same-origin client referrer, then localized home.
+  The tracked default-theme login/register pages opt into the host `guest`
+  middleware, which refreshes unknown session state and returns authenticated
+  visitors before page setup; successful login/registration updates session
+  state and uses the same replace-style return navigation. Development themes
+  inherit this entry behavior when their auth pages opt into `guest` middleware.
 - Role/user-group creation and updates now trim role fields and reject blank
   keys or aliases. Role keys are limited to stable ASCII path-safe identifiers;
   the roles admin form shows visible field labels and blocks empty submissions
@@ -135,6 +144,8 @@ Initial identity foundation is implemented.
   guards, and localized permission-denied messages.
 - Nuxt route guards are user-experience helpers only. API policy checks remain
   authoritative.
+- Auth return navigation is frontend-only and does not add or change an API or
+  permission boundary.
 
 ## Permission-Aware Development Rules
 
