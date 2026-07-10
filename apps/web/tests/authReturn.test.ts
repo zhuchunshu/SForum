@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 
 import {
   normalizeAuthReturnPath,
@@ -49,5 +50,25 @@ describe('resolveAuthReturnPath', () => {
   test('falls back to localized home and ultimately the root path', () => {
     expect(resolveAuthReturnPath(undefined, '/login', '/en')).toBe('/en')
     expect(resolveAuthReturnPath(undefined, '/login', 'https://evil.example')).toBe('/')
+  })
+})
+
+describe('useAuthReturnNavigation source contract', () => {
+  test('resolves a safe return destination and replaces the auth history entry', () => {
+    const source = readFileSync(
+      new URL('../app/composables/useAuthReturnNavigation.ts', import.meta.url),
+      'utf8'
+    )
+
+    expect(source).toContain('const route = useRoute()')
+    expect(source).toContain('const localePath = useLocalePath()')
+    expect(source).toContain('const referrerPath = ref<string>()')
+    expect(source).toContain('if (import.meta.client && document.referrer)')
+    expect(source).toContain('const referrer = new URL(document.referrer)')
+    expect(source).toContain('referrer.origin === window.location.origin')
+    expect(source).toContain('`${referrer.pathname}${referrer.search}${referrer.hash}`')
+    expect(source).toContain("resolveAuthReturnPath(route.query.redirect, referrerPath.value, localePath('/'))")
+    expect(source).toContain('navigateTo(destination.value, { replace: true })')
+    expect(source).toContain('return { destination, returnFromAuth }')
   })
 })
