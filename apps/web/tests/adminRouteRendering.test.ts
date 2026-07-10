@@ -12,7 +12,7 @@ describe('admin route rendering', () => {
   test('renders admin and component-preview pages via SSR', () => {
     const config = readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
     // admin 路由（模板字符串 key）不再带 ssr: false。
-    expect(config).toMatch(/adminRoutePrefix[^}]*\*\*/)
+    expect(config).toMatch(/\[`\$\{adminRoutePrefix\}\/\*\*`\]/)
     expect(config).not.toMatch(/adminRoutePrefix[^}]*ssr\s*:\s*false/)
     // 组件预览页不再带 ssr: false。
     expect(config).not.toMatch(/['"`]\/components['"`]\s*:\s*\{[^}]*ssr\s*:\s*false/)
@@ -27,7 +27,7 @@ describe('admin route rendering', () => {
   test('redirects to login instead of rendering a Nuxt error when auth service is unavailable', async () => {
     const status = ref('unknown')
     const actions = {
-      navigations: [] as string[],
+      navigations: [] as unknown[],
       errors: [] as unknown[],
       aborts: [] as unknown[]
     }
@@ -41,9 +41,9 @@ describe('admin route rendering', () => {
         },
         can: () => false
       }),
-      navigateTo: async (path: string) => {
-        actions.navigations.push(path)
-        return { type: 'navigate', path }
+      navigateTo: async (route: unknown) => {
+        actions.navigations.push(route)
+        return { type: 'navigate', route }
       },
       createError: (error: unknown) => {
         actions.errors.push(error)
@@ -55,17 +55,20 @@ describe('admin route rendering', () => {
       }
     })
 
-    await middleware()
+    await middleware({ fullPath: '/control-panel/extensions?page=2' })
 
     expect(actions.errors).toEqual([])
     expect(actions.aborts).toEqual([])
-    expect(actions.navigations).toEqual(['/login'])
+    expect(actions.navigations).toEqual([{
+      path: '/login',
+      query: { redirect: '/control-panel/extensions?page=2' }
+    }])
   })
 })
 
 function loadAdminMiddleware(globals: {
   useAuthSession: () => unknown
-  navigateTo: (path: string) => unknown
+  navigateTo: (route: unknown) => unknown
   createError: (error: unknown) => unknown
   abortNavigation: (error: unknown) => unknown
 }) {
@@ -86,11 +89,11 @@ function loadAdminMiddleware(globals: {
   )
 
   return factory(
-    (middleware: () => Promise<unknown>) => middleware,
+    (middleware: (to: { fullPath: string }) => Promise<unknown>) => middleware,
     () => (path: string) => path,
     globals.useAuthSession,
     globals.navigateTo,
     globals.createError,
     globals.abortNavigation
-  ) as () => Promise<unknown>
+  ) as (to: { fullPath: string }) => Promise<unknown>
 }

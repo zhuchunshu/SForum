@@ -52,6 +52,7 @@ describe('protected route rendering', () => {
 
     expect(source).not.toContain("status.value === 'unavailable'")
     expect(source).not.toContain('abortNavigation(createError')
-    expect(source).toContain("navigateTo(localePath('/login'))")
+    expect(source).toContain("path: localePath('/login')")
+    expect(source).toContain('query: { redirect: to.fullPath }')
   })
 })

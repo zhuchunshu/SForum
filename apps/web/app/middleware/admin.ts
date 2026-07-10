@@ -1,4 +1,4 @@
-export default defineNuxtRouteMiddleware(async () => {
+export default defineNuxtRouteMiddleware(async (to) => {
   const localePath = useLocalePath()
   const { user, refresh, can } = useAuthSession()
 
@@ -8,7 +8,10 @@ export default defineNuxtRouteMiddleware(async () => {
 
   if (!user.value) {
     // 认证服务短暂不可用时不要升级成 Nuxt 错误页；没有可用会话则退回登录页。
-    return navigateTo(localePath('/login'))
+    return navigateTo({
+      path: localePath('/login'),
+      query: { redirect: to.fullPath }
+    })
   }
 
   if (!can('admin.access')) {

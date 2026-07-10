@@ -15,5 +15,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   // 普通用户页不暴露受保护内容；认证服务短暂不可用时也降级到登录页，避免 SSR 503 或空白体验。
-  return navigateTo(localePath('/login'))
+  return navigateTo({
+    path: localePath('/login'),
+    query: { redirect: to.fullPath }
+  })
 })
