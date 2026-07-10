@@ -143,6 +143,18 @@ type ForumSettingsResolver struct {
 	options *options.Service
 }
 
+func NewForumSettingsResolver(optionsService *options.Service) ForumSettingsResolver {
+	return ForumSettingsResolver{options: optionsService}
+}
+
+func (r ForumSettingsResolver) TopicPageSize(ctx context.Context) (int, error) {
+	settings, err := r.ForumSettings(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return settings.TopicsPerPage, nil
+}
+
 func (r ForumSettingsResolver) ForumSettings(ctx context.Context) (forum.ForumSettings, error) {
 	settings := recommendedForumSettings()
 	if r.options == nil {

@@ -266,7 +266,15 @@ func (s *Service) ListTopics(ctx context.Context, input TopicListInput) (TopicLi
 	if strings.TrimSpace(input.Query) != "" {
 		return TopicList{}, ErrUseSearchEndpoint
 	}
-	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
+	defaultPerPage := 20
+	if input.PerPage <= 0 {
+		settings, err := s.resolvedSettings(ctx)
+		if err != nil {
+			return TopicList{}, err
+		}
+		defaultPerPage = settings.TopicsPerPage
+	}
+	input.Page, input.PerPage = normalizePageWithDefault(input.Page, input.PerPage, defaultPerPage)
 	return s.store.ListTopics(ctx, input)
 }
 
@@ -719,7 +727,15 @@ func (s *Service) ListComments(ctx context.Context, input CommentListInput) (Com
 	if _, err := s.store.GetTopic(ctx, input.TopicID); err != nil {
 		return CommentList{}, err
 	}
-	// 分页归一化交给 Store 层统一处理（ListTopics 同模式），避免双重 clamp。
+	defaultPerPage := 20
+	if input.PerPage <= 0 {
+		settings, err := s.resolvedSettings(ctx)
+		if err != nil {
+			return CommentList{}, err
+		}
+		defaultPerPage = settings.CommentsPerPage
+	}
+	input.Page, input.PerPage = normalizePageWithDefault(input.Page, input.PerPage, defaultPerPage)
 	return s.store.ListComments(ctx, input)
 }
 
@@ -1178,6 +1194,10 @@ func validateTopicAction(action string) (string, error) {
 const maxTopicPage = 200
 
 func normalizePage(page int, perPage int) (int, int) {
+	return normalizePageWithDefault(page, perPage, 20)
+}
+
+func normalizePageWithDefault(page int, perPage int, defaultPerPage int) (int, int) {
 	if page <= 0 {
 		page = 1
 	}
@@ -1186,7 +1206,7 @@ func normalizePage(page int, perPage int) (int, int) {
 		page = maxTopicPage
 	}
 	if perPage <= 0 {
-		perPage = 20
+		perPage = defaultPerPage
 	}
 	if perPage > 100 {
 		perPage = 100

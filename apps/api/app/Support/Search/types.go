@@ -19,28 +19,34 @@ type TopicIDSource interface {
 	ListAllTopicIDs(ctx context.Context) ([]int64, error)
 }
 
+// TopicPageSizeResolver supplies the operator-configured default without
+// coupling Search to the Forum package.
+type TopicPageSizeResolver interface {
+	TopicPageSize(ctx context.Context) (int, error)
+}
+
 // TopicSearchDoc 是写入 Meilisearch 的主题文档结构。字段与 forum.TopicSummary 对齐，
 // 但独立声明以解耦。tagSlugs 用数组供 Meilisearch 过滤。
 type TopicSearchDoc struct {
-	ID                 int64     `json:"id"`
-	Title              string    `json:"title"`
-	Excerpt            string    `json:"excerpt"`
-	PlainText          string    `json:"plainText"` // 用于全文检索的纯文本正文
-	CategoryID         int64     `json:"categoryId"`
-	CategorySlug       string    `json:"categorySlug"`
-	CategoryName       string    `json:"categoryName"`
-	AuthorUserID       int64     `json:"authorUserId"`
-	AuthorUsername     string    `json:"authorUsername"`
-	AuthorDisplayName  string    `json:"authorDisplayName"`
-	Slug               string    `json:"slug"`
-	Status             string    `json:"status"`
-	IsPinned           bool      `json:"isPinned"`
-	CommentCount       int64     `json:"commentCount"`
-	ViewCount          int64     `json:"viewCount"`
-	TagSlugs           []string  `json:"tagSlugs"`
-	CreatedAt          time.Time `json:"createdAt"`
-	UpdatedAt          time.Time `json:"updatedAt"`
-	LastActivityAt     time.Time `json:"lastActivityAt"`
+	ID                int64     `json:"id"`
+	Title             string    `json:"title"`
+	Excerpt           string    `json:"excerpt"`
+	PlainText         string    `json:"plainText"` // 用于全文检索的纯文本正文
+	CategoryID        int64     `json:"categoryId"`
+	CategorySlug      string    `json:"categorySlug"`
+	CategoryName      string    `json:"categoryName"`
+	AuthorUserID      int64     `json:"authorUserId"`
+	AuthorUsername    string    `json:"authorUsername"`
+	AuthorDisplayName string    `json:"authorDisplayName"`
+	Slug              string    `json:"slug"`
+	Status            string    `json:"status"`
+	IsPinned          bool      `json:"isPinned"`
+	CommentCount      int64     `json:"commentCount"`
+	ViewCount         int64     `json:"viewCount"`
+	TagSlugs          []string  `json:"tagSlugs"`
+	CreatedAt         time.Time `json:"createdAt"`
+	UpdatedAt         time.Time `json:"updatedAt"`
+	LastActivityAt    time.Time `json:"lastActivityAt"`
 }
 
 // SearchInput 是搜索请求的归一化输入。

@@ -250,7 +250,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// Meilisearch client 不可达时，索引调度静默失败、搜索端点返回 503，主流程不受影响。
 	meiliClient := search.NewClientWithTimeout(cfg.MeiliHost, cfg.MeiliMasterKey, cfg.MeiliTimeout)
 	searchIndexer := search.NewIndexer(meiliClient, nil, jobDispatcher)
-	searchService := search.NewService(meiliClient)
+	forumSettingsResolver := providers.NewForumSettingsResolver(optionsService)
+	searchService := search.NewService(meiliClient, forumSettingsResolver)
 	// 搜索索引重建：forumStore 提供 ListAllTopicIDs（TopicIDSource），
 	// reindexStore 记录运行状态，dispatcher 批量入队 IndexTopicArgs。
 	reindexManager := search.NewReindexManager(forumStore, search.NewPostgresReindexStore(pool), jobDispatcher)

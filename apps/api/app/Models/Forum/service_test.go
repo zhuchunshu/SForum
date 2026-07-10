@@ -317,6 +317,40 @@ func TestServiceForumPaginationSettingsValidationAndPermission(t *testing.T) {
 	}
 }
 
+func TestServiceUsesConfiguredPaginationDefaultsAndExplicitOverrides(t *testing.T) {
+	settings := testForumSettings()
+	settings.TopicsPerPage = 30
+	settings.CommentsPerPage = 40
+	store := newServiceFakeStore()
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+
+	if _, err := service.ListTopics(context.Background(), TopicListInput{}); err != nil {
+		t.Fatalf("ListTopics default: %v", err)
+	}
+	if store.listTopicsInput.PerPage != 30 {
+		t.Fatalf("topic perPage = %d, want 30", store.listTopicsInput.PerPage)
+	}
+	if _, err := service.ListTopics(context.Background(), TopicListInput{PerPage: 12}); err != nil {
+		t.Fatalf("ListTopics explicit: %v", err)
+	}
+	if store.listTopicsInput.PerPage != 12 {
+		t.Fatalf("explicit topic perPage = %d, want 12", store.listTopicsInput.PerPage)
+	}
+
+	if _, err := service.ListComments(context.Background(), CommentListInput{TopicID: 10}); err != nil {
+		t.Fatalf("ListComments default: %v", err)
+	}
+	if store.listCommentsInput.PerPage != 40 {
+		t.Fatalf("comment perPage = %d, want 40", store.listCommentsInput.PerPage)
+	}
+	if _, err := service.ListComments(context.Background(), CommentListInput{TopicID: 10, PerPage: 150}); err != nil {
+		t.Fatalf("ListComments explicit: %v", err)
+	}
+	if store.listCommentsInput.PerPage != 100 {
+		t.Fatalf("clamped comment perPage = %d, want 100", store.listCommentsInput.PerPage)
+	}
+}
+
 func TestServiceCreateTopicBeforeCreateCanPatchTagSlugs(t *testing.T) {
 	store := newServiceFakeStore()
 	publisher := &fakeEventPublisher{results: map[string]appevents.Result{
@@ -1008,6 +1042,7 @@ type serviceFakeStore struct {
 	listCommentsResult CommentList
 	listCommentsInput  CommentListInput
 	listCommentsCalled bool
+	listTopicsInput    TopicListInput
 	// ListCommentReplies 可配置返回值与调用记录，供回复可见性兜底测试断言。
 	listCommentRepliesResult []Comment
 	listCommentRepliesCalled bool
@@ -1077,7 +1112,8 @@ func (s *serviceFakeStore) UpdateTag(_ context.Context, input UpdateTagInput) (T
 	return item, nil
 }
 
-func (s *serviceFakeStore) ListTopics(context.Context, TopicListInput) (TopicList, error) {
+func (s *serviceFakeStore) ListTopics(_ context.Context, input TopicListInput) (TopicList, error) {
+	s.listTopicsInput = input
 	return TopicList{}, nil
 }
 

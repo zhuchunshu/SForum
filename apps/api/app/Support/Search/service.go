@@ -11,17 +11,18 @@ import (
 // Service 提供面向公众的主题搜索查询。
 // 搜索路径完全不碰 PostgreSQL，直接查询 Meilisearch。
 type Service struct {
-	client meilisearch.ServiceManager
+	client    meilisearch.ServiceManager
+	pageSizes TopicPageSizeResolver
 }
 
-func NewService(client meilisearch.ServiceManager) *Service {
-	return &Service{client: client}
+func NewService(client meilisearch.ServiceManager, pageSizes TopicPageSizeResolver) *Service {
+	return &Service{client: client, pageSizes: pageSizes}
 }
 
 // maxSearchPage 限制搜索的深翻页，与 forum.normalizePage 的上限保持一致语义。
 const maxSearchPage = 200
 
-func normalizeSearchPage(page, perPage int) (int, int) {
+func normalizeSearchPage(page, perPage, defaultPerPage int) (int, int) {
 	if page <= 0 {
 		page = 1
 	}
@@ -29,7 +30,7 @@ func normalizeSearchPage(page, perPage int) (int, int) {
 		page = maxSearchPage
 	}
 	if perPage <= 0 {
-		perPage = 20
+		perPage = defaultPerPage
 	}
 	if perPage > 100 {
 		perPage = 100
@@ -40,7 +41,15 @@ func normalizeSearchPage(page, perPage int) (int, int) {
 // Search 执行关键词检索，支持 categorySlug/tagSlug/status 过滤。
 // 仅返回 active/locked 状态的公开主题（与 forum 公开列表一致）。
 func (s *Service) Search(ctx context.Context, input SearchInput) (SearchResult, error) {
-	input.Page, input.PerPage = normalizeSearchPage(input.Page, input.PerPage)
+	defaultPerPage := 20
+	if input.PerPage <= 0 && s.pageSizes != nil {
+		var err error
+		defaultPerPage, err = s.pageSizes.TopicPageSize(ctx)
+		if err != nil {
+			return SearchResult{}, err
+		}
+	}
+	input.Page, input.PerPage = normalizeSearchPage(input.Page, input.PerPage, defaultPerPage)
 	query := strings.TrimSpace(input.Query)
 
 	// 构造 Meilisearch filter 表达式：仅公开状态 + 可选分类/标签过滤。
