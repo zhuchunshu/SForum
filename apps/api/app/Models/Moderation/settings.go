@@ -51,6 +51,23 @@ type SettingsStore interface {
 	ResetSettings(ctx context.Context, settings Settings, actorUserID int64) (Settings, error)
 }
 
+func (s *PostgresStore) ResolvePublication(ctx context.Context, userID int64, rawContent, siteURL string) (bool, []string, error) {
+	settings, err := s.GetSettings(ctx)
+	if err != nil {
+		return false, nil, err
+	}
+	var userCreatedAt time.Time
+	if err := s.pool.QueryRow(ctx, `SELECT created_at FROM users WHERE id = $1`, userID).Scan(&userCreatedAt); err != nil {
+		return false, nil, err
+	}
+	decision := settings.Evaluate(PublicationInput{
+		UserCreatedAt: userCreatedAt,
+		RawContent:    rawContent,
+		SiteURL:       siteURL,
+	})
+	return decision.Pending, decision.Triggers, nil
+}
+
 func RecommendedSettings() Settings {
 	return Settings{
 		Mode:                ModeOff,

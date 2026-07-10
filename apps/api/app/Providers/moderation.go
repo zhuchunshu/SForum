@@ -4,9 +4,9 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	moderationcontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Moderation"
-	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 )
 
@@ -19,6 +19,18 @@ func NewModerationProvider(store moderation.Store, forumStore forum.Store, users
 	return &ModerationProvider{
 		controller: moderationcontroller.NewController(moderation.NewService(store, validator), users, sessions),
 	}
+}
+
+type ModerationWorkbenchStore interface {
+	moderation.Store
+	moderation.SettingsStore
+	moderation.WorkbenchStore
+}
+
+func NewModerationWorkbenchProvider(store ModerationWorkbenchStore, forumStore forum.Store, users identity.ActorStore, sessions *authsession.Manager) *ModerationProvider {
+	validator := moderation.NewForumTargetValidator(forumStore)
+	service := moderation.NewServiceWithWorkbench(store, validator, store, store)
+	return &ModerationProvider{controller: moderationcontroller.NewController(service, users, sessions)}
 }
 
 func (p *ModerationProvider) RegisterRoutes(api fiber.Router) {

@@ -255,7 +255,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	// 搜索索引重建：forumStore 提供 ListAllTopicIDs（TopicIDSource），
 	// reindexStore 记录运行状态，dispatcher 批量入队 IndexTopicArgs。
 	reindexManager := search.NewReindexManager(forumStore, search.NewPostgresReindexStore(pool), jobDispatcher)
-	forumProvider := providers.NewForumProviderWithSearchAndTopicActions(
+	forumProvider := providers.NewForumProviderWithSearchTopicActionsAndPublicationPolicy(
 		forumCachedStore,
 		optionsService,
 		identityStore,
@@ -265,10 +265,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		searchServiceAdapter{inner: searchService},
 		reindexServiceAdapter{inner: reindexManager},
 		providers.NewExtensionTopicActionProvider(extensionService),
+		providers.NewModerationPublicationPolicy(moderationStore, optionsService),
 	)
 	avatarAttachmentService := attachments.NewServiceWithEvents(attachmentStore, optionsService, extensionRuntime)
 	profileProvider := providers.NewProfileProviderWithAvatar(profileStore, identityStore, authSessions, avatarAttachmentService, optionsService)
-	moderationProvider := providers.NewModerationProvider(moderationStore, forumStore, identityStore, authSessions)
+	moderationProvider := providers.NewModerationWorkbenchProvider(moderationStore, forumStore, identityStore, authSessions)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, extensionRuntime)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)

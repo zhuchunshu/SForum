@@ -44,10 +44,43 @@ func NewForumProviderWithSearch(store forum.Store, optionsService *options.Servi
 }
 
 func NewForumProviderWithSearchAndTopicActions(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher, indexer forum.TopicSearchIndexer, searchService forumcontroller.SearchService, reindexer forumcontroller.ReindexService, topicActions forum.TopicExtensionActionProvider) *ForumProvider {
-	service := forum.NewServiceWithTopicExtensionActions(store, ForumSettingsResolver{options: optionsService}, publisher, indexer, topicActions)
+	return NewForumProviderWithSearchTopicActionsAndPublicationPolicy(store, optionsService, users, sessions, publisher, indexer, searchService, reindexer, topicActions, nil)
+}
+
+func NewForumProviderWithSearchTopicActionsAndPublicationPolicy(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher, indexer forum.TopicSearchIndexer, searchService forumcontroller.SearchService, reindexer forumcontroller.ReindexService, topicActions forum.TopicExtensionActionProvider, publicationPolicy forum.PublicationPolicy) *ForumProvider {
+	service := forum.NewServiceWithExtensionsAndPublicationPolicy(store, ForumSettingsResolver{options: optionsService}, publisher, indexer, topicActions, publicationPolicy)
 	return &ForumProvider{
 		controller: forumcontroller.NewControllerWithSearch(service, searchService, reindexer, users, sessions),
 	}
+}
+
+type ModerationPublicationResolver interface {
+	ResolvePublication(ctx context.Context, userID int64, rawContent, siteURL string) (bool, []string, error)
+}
+
+type ModerationPublicationPolicy struct {
+	resolver ModerationPublicationResolver
+	options  *options.Service
+}
+
+func NewModerationPublicationPolicy(resolver ModerationPublicationResolver, optionsService *options.Service) ModerationPublicationPolicy {
+	return ModerationPublicationPolicy{resolver: resolver, options: optionsService}
+}
+
+func (policy ModerationPublicationPolicy) EvaluatePublication(ctx context.Context, input forum.PublicationInput) (forum.PublicationDecision, error) {
+	if policy.resolver == nil {
+		return forum.PublicationDecision{}, nil
+	}
+	siteURL := ""
+	if policy.options != nil {
+		value, err := policy.options.WebOption(ctx, options.NameSiteURL)
+		if err != nil {
+			return forum.PublicationDecision{}, err
+		}
+		siteURL = value
+	}
+	pending, triggers, err := policy.resolver.ResolvePublication(ctx, input.ActorUserID, input.RawContent, siteURL)
+	return forum.PublicationDecision{Pending: pending, Triggers: triggers}, err
 }
 
 type EffectiveContributionSource interface {

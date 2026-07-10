@@ -8,8 +8,91 @@ import (
 )
 
 type Service struct {
-	store          Store
+	store           Store
 	targetValidator TargetValidator
+	settingsStore   SettingsStore
+	workbenchStore  WorkbenchStore
+}
+
+func NewServiceWithWorkbench(store Store, validator TargetValidator, settingsStore SettingsStore, workbenchStore WorkbenchStore) *Service {
+	return &Service{store: store, targetValidator: validator, settingsStore: settingsStore, workbenchStore: workbenchStore}
+}
+
+func (s *Service) GetSettings(ctx context.Context, actor identity.Actor) (Settings, error) {
+	if !actor.Can(identity.PermissionModerationManage) {
+		return Settings{}, identity.ErrPermissionDenied
+	}
+	return s.settingsStore.GetSettings(ctx)
+}
+
+func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, settings Settings) (Settings, error) {
+	if !actor.Can(identity.PermissionModerationManage) {
+		return Settings{}, identity.ErrPermissionDenied
+	}
+	if err := settings.Validate(); err != nil {
+		return Settings{}, err
+	}
+	return s.settingsStore.SaveSettings(ctx, settings, actor.ID)
+}
+
+func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor) (Settings, error) {
+	if !actor.Can(identity.PermissionModerationManage) {
+		return Settings{}, identity.ErrPermissionDenied
+	}
+	return s.settingsStore.ResetSettings(ctx, RecommendedSettings(), actor.ID)
+}
+
+func (s *Service) QueueCounts(ctx context.Context, actor identity.Actor) (QueueCounts, error) {
+	if !actor.Can(identity.PermissionModerationReview) {
+		return QueueCounts{}, identity.ErrPermissionDenied
+	}
+	return s.workbenchStore.QueueCounts(ctx)
+}
+
+func (s *Service) ListPending(ctx context.Context, actor identity.Actor, input WorkbenchListInput) (PendingList, error) {
+	if !actor.Can(identity.PermissionModerationReview) {
+		return PendingList{}, identity.ErrPermissionDenied
+	}
+	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
+	return s.workbenchStore.ListPending(ctx, input)
+}
+
+func (s *Service) ListReportItems(ctx context.Context, actor identity.Actor, input WorkbenchListInput) (ReportItemList, error) {
+	if !actor.Can(identity.PermissionModerationReview) {
+		return ReportItemList{}, identity.ErrPermissionDenied
+	}
+	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
+	return s.workbenchStore.ListReportItems(ctx, input)
+}
+
+func (s *Service) ListDecisions(ctx context.Context, actor identity.Actor, input DecisionListInput, admin bool) (DecisionList, error) {
+	permission := identity.PermissionModerationReview
+	if admin {
+		permission = identity.PermissionModerationManage
+	}
+	if !actor.Can(permission) {
+		return DecisionList{}, identity.ErrPermissionDenied
+	}
+	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
+	return s.workbenchStore.ListDecisions(ctx, input)
+}
+
+func (s *Service) GetReviewContext(ctx context.Context, actor identity.Actor, input ReviewContextInput) (ReviewContext, error) {
+	if !actor.Can(identity.PermissionModerationReview) {
+		return ReviewContext{}, identity.ErrPermissionDenied
+	}
+	return s.workbenchStore.GetReviewContext(ctx, input)
+}
+
+func (s *Service) SubmitDecision(ctx context.Context, actor identity.Actor, input DecisionInput) (Decision, error) {
+	if !actor.Can(identity.PermissionModerationReview) {
+		return Decision{}, identity.ErrPermissionDenied
+	}
+	if err := validateDecision(&input); err != nil {
+		return Decision{}, err
+	}
+	input.ReviewerUserID = actor.ID
+	return s.workbenchStore.SubmitDecision(ctx, input)
 }
 
 func NewService(store Store, validator TargetValidator) *Service {

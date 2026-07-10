@@ -117,6 +117,53 @@ func TestUpdateReportRejectsInvalidStatus(t *testing.T) {
 	}
 }
 
+func TestModerationManagementAndReviewPermissionsRemainIndependent(t *testing.T) {
+	store := &fakeWorkbenchStore{}
+	service := NewServiceWithWorkbench(&fakeStore{}, nil, store, store)
+	manager := identity.Actor{ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionModerationManage: true}}
+	reviewer := identity.Actor{ID: 8, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionModerationReview: true}}
+
+	if _, err := service.GetSettings(context.Background(), reviewer); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("review permission must not grant settings access: %v", err)
+	}
+	if _, err := service.QueueCounts(context.Background(), manager); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("manage permission must not grant review access: %v", err)
+	}
+	if _, err := service.GetSettings(context.Background(), manager); err != nil {
+		t.Fatalf("manager should read settings: %v", err)
+	}
+	if _, err := service.QueueCounts(context.Background(), reviewer); err != nil {
+		t.Fatalf("reviewer should read queue counts: %v", err)
+	}
+}
+
+func TestSubmitDecisionRequiresNoteForDestructiveActions(t *testing.T) {
+	store := &fakeWorkbenchStore{}
+	service := NewServiceWithWorkbench(&fakeStore{}, nil, store, store)
+	reviewer := identity.Actor{ID: 8, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionModerationReview: true}}
+
+	for _, action := range []string{ActionReject, ActionHideAndClose, ActionDeleteAndClose} {
+		_, err := service.SubmitDecision(context.Background(), reviewer, DecisionInput{
+			Source: SourcePrePublish, TargetType: TargetTypeTopic, TargetID: 10, Action: action,
+		})
+		if !errors.Is(err, ErrDecisionInvalid) {
+			t.Fatalf("action %q should require a note, got %v", action, err)
+		}
+	}
+}
+
+func TestSubmitDecisionPropagatesTaskConflict(t *testing.T) {
+	store := &fakeWorkbenchStore{decisionErr: ErrTaskConflict}
+	service := NewServiceWithWorkbench(&fakeStore{}, nil, store, store)
+	reviewer := identity.Actor{ID: 8, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionModerationReview: true}}
+	_, err := service.SubmitDecision(context.Background(), reviewer, DecisionInput{
+		Source: SourcePrePublish, TargetType: TargetTypeTopic, TargetID: 10, Action: ActionApprove,
+	})
+	if !errors.Is(err, ErrTaskConflict) {
+		t.Fatalf("expected task conflict, got %v", err)
+	}
+}
+
 type fakeStore struct {
 	createdInput CreateReportInput
 	createErr    error
@@ -146,6 +193,46 @@ func (s *fakeStore) UpdateReport(_ context.Context, input UpdateReportInput) (Re
 type fakeValidator struct {
 	topic   bool
 	comment bool
+}
+
+type fakeWorkbenchStore struct {
+	decisionErr error
+}
+
+func (s *fakeWorkbenchStore) GetSettings(context.Context) (Settings, error) {
+	return RecommendedSettings(), nil
+}
+
+func (s *fakeWorkbenchStore) SaveSettings(_ context.Context, settings Settings, _ int64) (Settings, error) {
+	return settings, nil
+}
+
+func (s *fakeWorkbenchStore) ResetSettings(_ context.Context, settings Settings, _ int64) (Settings, error) {
+	return settings, nil
+}
+
+func (s *fakeWorkbenchStore) QueueCounts(context.Context) (QueueCounts, error) {
+	return QueueCounts{}, nil
+}
+
+func (s *fakeWorkbenchStore) ListPending(context.Context, WorkbenchListInput) (PendingList, error) {
+	return PendingList{}, nil
+}
+
+func (s *fakeWorkbenchStore) ListReportItems(context.Context, WorkbenchListInput) (ReportItemList, error) {
+	return ReportItemList{}, nil
+}
+
+func (s *fakeWorkbenchStore) ListDecisions(context.Context, DecisionListInput) (DecisionList, error) {
+	return DecisionList{}, nil
+}
+
+func (s *fakeWorkbenchStore) GetReviewContext(context.Context, ReviewContextInput) (ReviewContext, error) {
+	return ReviewContext{}, nil
+}
+
+func (s *fakeWorkbenchStore) SubmitDecision(context.Context, DecisionInput) (Decision, error) {
+	return Decision{}, s.decisionErr
 }
 
 func (v *fakeValidator) IsReportableTopic(context.Context, int64) (bool, error) {

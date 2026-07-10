@@ -52,6 +52,12 @@ func NewServiceWithTopicExtensionActions(store Store, settings SettingsResolver,
 	return svc
 }
 
+func NewServiceWithExtensionsAndPublicationPolicy(store Store, settings SettingsResolver, publisher appevents.Publisher, indexer TopicSearchIndexer, topicActions TopicExtensionActionProvider, policy PublicationPolicy) *Service {
+	svc := NewServiceWithPublicationPolicy(store, settings, publisher, indexer, policy)
+	svc.topicActions = topicActions
+	return svc
+}
+
 func NewServiceWithPublicationPolicy(store Store, settings SettingsResolver, publisher appevents.Publisher, indexer TopicSearchIndexer, policy PublicationPolicy) *Service {
 	svc := NewServiceWithIndexer(store, settings, publisher, indexer)
 	svc.publicationPolicy = policy
