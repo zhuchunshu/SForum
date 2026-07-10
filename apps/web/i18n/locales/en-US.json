@@ -1930,6 +1930,31 @@
     "close": "Close",
     "reportSubmitted": "Report submitted. Thank you.",
     "reportFailed": "Report failed, please try again.",
+    "workbench": {
+      "title": "Moderation workbench",
+      "description": "Review pending publications and user reports in one place.",
+      "pending": "Pending publication",
+      "reports": "User reports",
+      "history": "History",
+      "processedToday": "Processed today",
+      "queueTabs": "Moderation queues",
+      "openReview": "Open review",
+      "closeReview": "Close review details",
+      "noExcerpt": "No content excerpt",
+      "reviewNote": "Review note",
+      "reviewNotePlaceholder": "Required when rejecting, hiding, or deleting",
+      "noteRequired": "A review note is required for this action.",
+      "decisionSaved": "Moderation decision saved.",
+      "decisionFailed": "Moderation failed. Refresh and try again.",
+      "contextFailed": "Could not load moderation context.",
+      "emptyTitle": "This queue is clear",
+      "emptyDescription": "No content matches the current filters."
+    },
+    "trigger": {
+      "all_content": "Review all",
+      "new_user": "New user",
+      "external_link": "External link"
+    },
     "action": {
       "approve": "Approve and publish",
       "reject": "Reject",

@@ -1936,6 +1936,31 @@
     "close": "关闭",
     "reportSubmitted": "举报已提交，感谢你的反馈。",
     "reportFailed": "举报失败，请稍后重试。",
+    "workbench": {
+      "title": "审核工作台",
+      "description": "集中处理待发布内容和用户举报。",
+      "pending": "待发布",
+      "reports": "用户举报",
+      "history": "处理记录",
+      "processedToday": "今日已处理",
+      "queueTabs": "审核队列",
+      "openReview": "展开审核",
+      "closeReview": "关闭审核详情",
+      "noExcerpt": "暂无内容摘要",
+      "reviewNote": "审核备注",
+      "reviewNotePlaceholder": "驳回、隐藏或删除时必须填写原因",
+      "noteRequired": "此操作必须填写审核备注。",
+      "decisionSaved": "审核结果已保存。",
+      "decisionFailed": "审核操作失败，请刷新后重试。",
+      "contextFailed": "加载审核上下文失败。",
+      "emptyTitle": "当前队列为空",
+      "emptyDescription": "没有符合当前条件的待处理内容。"
+    },
+    "trigger": {
+      "all_content": "全部预审",
+      "new_user": "新用户",
+      "external_link": "站外链接"
+    },
     "action": {
       "approve": "通过并公开",
       "reject": "驳回",

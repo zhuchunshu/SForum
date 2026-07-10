@@ -28,4 +28,16 @@ assert(settingsForm.includes('reviewNewUsers'), 'Settings form must expose the n
 assert(settingsForm.includes('reviewExternalLinks'), 'Settings form must expose the external-link rule')
 assert(settingsForm.includes('resetSettings'), 'Settings form must support restoring defaults')
 
+const workbenchPage = read('apps/web/app/pages/moderation/index.vue')
+assert(workbenchPage.includes("'pending'"), 'Workbench must include the pending tab')
+assert(workbenchPage.includes("'reports'"), 'Workbench must include the reports tab')
+assert(workbenchPage.includes("'history'"), 'Workbench must include the history tab')
+assert(workbenchPage.includes('ModerationQueueItem'), 'Workbench must render scannable queue items')
+const reviewMiddleware = read('apps/web/app/middleware/moderation-review.ts')
+assert(reviewMiddleware.includes("can('moderation.review')"), 'Workbench middleware must require moderation.review')
+const contextPanel = read('apps/web/app/components/moderation/ModerationContextPanel.vue')
+for (const action of ['approve', 'reject', 'keep_and_close', 'hide_and_close', 'delete_and_close']) {
+  assert(contextPanel.includes(action), `Context panel must expose ${action}`)
+}
+
 console.log('Moderation workbench validation passed')
