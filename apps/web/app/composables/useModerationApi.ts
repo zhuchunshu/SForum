@@ -70,6 +70,7 @@ export type ModerationReviewContext = {
   source: ModerationSource
   targetType: ModerationTargetType
   targetId: number
+  topicId: number
   reportId?: number
   title: string
   html: string

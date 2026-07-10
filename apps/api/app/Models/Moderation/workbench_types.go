@@ -91,6 +91,7 @@ type ReviewContext struct {
 	Source      string           `json:"source"`
 	TargetType  string           `json:"targetType"`
 	TargetID    int64            `json:"targetId"`
+	TopicID     int64            `json:"topicId"`
 	ReportID    int64            `json:"reportId,omitempty"`
 	Title       string           `json:"title"`
 	HTML        string           `json:"html"`

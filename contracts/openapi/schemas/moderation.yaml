@@ -223,11 +223,12 @@ Decision:
       createdAt: {type: string, format: date-time}
 ReviewContext:
   type: object
-  required: [source, targetType, targetId, title, html, authorId, authorName, category, status, triggers, createdAt]
+  required: [source, targetType, targetId, topicId, title, html, authorId, authorName, category, status, triggers, createdAt]
   properties:
     source: {$ref: "#/DecisionSource"}
     targetType: {$ref: "#/ReportTargetType"}
     targetId: {type: integer, format: int64}
+    topicId: {type: integer, format: int64}
     reportId: {type: integer, format: int64}
     title: {type: string}
     html: {type: string}

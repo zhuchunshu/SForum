@@ -164,6 +164,23 @@ func TestSubmitDecisionPropagatesTaskConflict(t *testing.T) {
 	}
 }
 
+func TestSubmitDecisionRefreshesSearchDerivatives(t *testing.T) {
+	store := &fakeWorkbenchStore{reviewContext: ReviewContext{TargetType: TargetTypeComment, TargetID: 10, TopicID: 77}}
+	indexer := &fakeDecisionIndexer{}
+	service := NewServiceWithWorkbenchIndexer(&fakeStore{}, nil, store, store, indexer)
+	reviewer := identity.Actor{ID: 8, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionModerationReview: true}}
+
+	_, err := service.SubmitDecision(context.Background(), reviewer, DecisionInput{
+		Source: SourcePrePublish, TargetType: TargetTypeComment, TargetID: 10, Action: ActionApprove,
+	})
+	if err != nil {
+		t.Fatalf("submit decision: %v", err)
+	}
+	if len(indexer.indexed) != 1 || indexer.indexed[0] != 77 {
+		t.Fatalf("approved comment should reindex topic 77, got %v", indexer.indexed)
+	}
+}
+
 type fakeStore struct {
 	createdInput CreateReportInput
 	createErr    error
@@ -196,7 +213,8 @@ type fakeValidator struct {
 }
 
 type fakeWorkbenchStore struct {
-	decisionErr error
+	decisionErr   error
+	reviewContext ReviewContext
 }
 
 func (s *fakeWorkbenchStore) GetSettings(context.Context) (Settings, error) {
@@ -228,7 +246,22 @@ func (s *fakeWorkbenchStore) ListDecisions(context.Context, DecisionListInput) (
 }
 
 func (s *fakeWorkbenchStore) GetReviewContext(context.Context, ReviewContextInput) (ReviewContext, error) {
-	return ReviewContext{}, nil
+	return s.reviewContext, nil
+}
+
+type fakeDecisionIndexer struct {
+	indexed []int64
+	deleted []int64
+}
+
+func (i *fakeDecisionIndexer) EnqueueIndex(_ context.Context, topicID int64) error {
+	i.indexed = append(i.indexed, topicID)
+	return nil
+}
+
+func (i *fakeDecisionIndexer) EnqueueDelete(_ context.Context, topicID int64) error {
+	i.deleted = append(i.deleted, topicID)
+	return nil
 }
 
 func (s *fakeWorkbenchStore) SubmitDecision(context.Context, DecisionInput) (Decision, error) {

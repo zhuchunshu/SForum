@@ -28,8 +28,12 @@ type ModerationWorkbenchStore interface {
 }
 
 func NewModerationWorkbenchProvider(store ModerationWorkbenchStore, forumStore forum.Store, users identity.ActorStore, sessions *authsession.Manager) *ModerationProvider {
+	return NewModerationWorkbenchProviderWithIndexer(store, forumStore, users, sessions, nil)
+}
+
+func NewModerationWorkbenchProviderWithIndexer(store ModerationWorkbenchStore, forumStore forum.Store, users identity.ActorStore, sessions *authsession.Manager, indexer moderation.DecisionIndexer) *ModerationProvider {
 	validator := moderation.NewForumTargetValidator(forumStore)
-	service := moderation.NewServiceWithWorkbench(store, validator, store, store)
+	service := moderation.NewServiceWithWorkbenchIndexer(store, validator, store, store, indexer)
 	return &ModerationProvider{controller: moderationcontroller.NewController(service, users, sessions)}
 }
 

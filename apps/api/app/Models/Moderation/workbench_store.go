@@ -229,7 +229,7 @@ func (s *PostgresStore) GetReviewContext(ctx context.Context, input ReviewContex
 	var row pgx.Row
 	if input.TargetType == TargetTypeTopic {
 		row = s.pool.QueryRow(ctx, `
-			SELECT topics.title, posts.html_content, topics.author_user_id,
+			SELECT topics.id, topics.title, posts.html_content, topics.author_user_id,
 			  COALESCE(NULLIF(users.display_name, ''), users.username, ''), categories.name,
 			  topics.status, topics.moderation_triggers, ''::text, topics.created_at
 			FROM topics
@@ -240,7 +240,7 @@ func (s *PostgresStore) GetReviewContext(ctx context.Context, input ReviewContex
 		`, input.TargetID)
 	} else if input.TargetType == TargetTypeComment {
 		row = s.pool.QueryRow(ctx, `
-			SELECT topics.title, posts.html_content, comments.author_user_id,
+			SELECT comments.topic_id, topics.title, posts.html_content, comments.author_user_id,
 			  COALESCE(NULLIF(users.display_name, ''), users.username, ''), categories.name,
 			  comments.status, comments.moderation_triggers, topics.title, comments.created_at
 			FROM comments
@@ -255,7 +255,7 @@ func (s *PostgresStore) GetReviewContext(ctx context.Context, input ReviewContex
 	}
 	contextItem := ReviewContext{Source: input.Source, TargetType: input.TargetType, TargetID: input.TargetID, ReportID: input.ReportID}
 	var triggers []byte
-	if err := row.Scan(&contextItem.Title, &contextItem.HTML, &contextItem.AuthorID,
+	if err := row.Scan(&contextItem.TopicID, &contextItem.Title, &contextItem.HTML, &contextItem.AuthorID,
 		&contextItem.AuthorName, &contextItem.Category, &contextItem.Status, &triggers,
 		&contextItem.ParentTopic, &contextItem.CreatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

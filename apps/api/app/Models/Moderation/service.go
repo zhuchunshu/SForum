@@ -2,6 +2,7 @@ package moderation
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
@@ -12,10 +13,22 @@ type Service struct {
 	targetValidator TargetValidator
 	settingsStore   SettingsStore
 	workbenchStore  WorkbenchStore
+	indexer         DecisionIndexer
 }
 
 func NewServiceWithWorkbench(store Store, validator TargetValidator, settingsStore SettingsStore, workbenchStore WorkbenchStore) *Service {
 	return &Service{store: store, targetValidator: validator, settingsStore: settingsStore, workbenchStore: workbenchStore}
+}
+
+type DecisionIndexer interface {
+	EnqueueIndex(ctx context.Context, topicID int64) error
+	EnqueueDelete(ctx context.Context, topicID int64) error
+}
+
+func NewServiceWithWorkbenchIndexer(store Store, validator TargetValidator, settingsStore SettingsStore, workbenchStore WorkbenchStore, indexer DecisionIndexer) *Service {
+	service := NewServiceWithWorkbench(store, validator, settingsStore, workbenchStore)
+	service.indexer = indexer
+	return service
 }
 
 func (s *Service) GetSettings(ctx context.Context, actor identity.Actor) (Settings, error) {
@@ -92,7 +105,33 @@ func (s *Service) SubmitDecision(ctx context.Context, actor identity.Actor, inpu
 		return Decision{}, err
 	}
 	input.ReviewerUserID = actor.ID
-	return s.workbenchStore.SubmitDecision(ctx, input)
+	contextItem, err := s.workbenchStore.GetReviewContext(ctx, ReviewContextInput{
+		Source: input.Source, TargetType: input.TargetType, TargetID: input.TargetID, ReportID: input.ReportID,
+	})
+	if err != nil {
+		return Decision{}, err
+	}
+	decision, err := s.workbenchStore.SubmitDecision(ctx, input)
+	if err != nil {
+		return Decision{}, err
+	}
+	s.refreshSearchAfterDecision(ctx, input, contextItem)
+	return decision, nil
+}
+
+func (s *Service) refreshSearchAfterDecision(ctx context.Context, input DecisionInput, contextItem ReviewContext) {
+	if s.indexer == nil || contextItem.TopicID <= 0 {
+		return
+	}
+	var err error
+	if input.TargetType == TargetTypeTopic && (input.Action == ActionHideAndClose || input.Action == ActionDeleteAndClose) {
+		err = s.indexer.EnqueueDelete(ctx, contextItem.TopicID)
+	} else if input.Action == ActionApprove || input.Action == ActionHideAndClose || input.Action == ActionDeleteAndClose {
+		err = s.indexer.EnqueueIndex(ctx, contextItem.TopicID)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "moderation: refresh topic search derivative failed", "topicId", contextItem.TopicID, "err", err)
+	}
 }
 
 func NewService(store Store, validator TargetValidator) *Service {

@@ -273,7 +273,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	)
 	avatarAttachmentService := attachments.NewServiceWithEvents(attachmentStore, optionsService, extensionRuntime)
 	profileProvider := providers.NewProfileProviderWithAvatar(profileStore, identityStore, authSessions, avatarAttachmentService, optionsService)
-	moderationProvider := providers.NewModerationWorkbenchProvider(moderationStore, forumStore, identityStore, authSessions)
+	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, extensionRuntime)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
