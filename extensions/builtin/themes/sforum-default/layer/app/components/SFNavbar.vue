@@ -8,6 +8,7 @@ const { user, refresh } = useAuthSession()
 const { siteName } = useWebOptions()
 const { request } = useApiClient()
 const router = useRouter()
+const route = useRoute()
 const colorMode = useColorMode()
 const { can } = usePermissions()
 
@@ -36,6 +37,7 @@ let colorModeObserver: MutationObserver | null = null
 
 // 发帖入口只对拥有论坛发帖权限的用户显示，API 仍负责最终鉴权。
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
+const isWorkbenchHome = computed(() => route.path === '/' || route.path === '/en')
 const displayName = computed(() =>
   user.value?.displayName || user.value?.username || ''
 )
@@ -229,7 +231,7 @@ async function logout() {
 </script>
 
 <template>
-  <header class="navbar">
+  <header class="navbar" :class="{ 'navbar--workbench': isWorkbenchHome }">
     <div class="navbar__inner">
       <NuxtLink
         :to="localePath('/')"
@@ -413,6 +415,47 @@ async function logout() {
   max-width: 1376px;
   margin: 0 auto;
   padding: 0 24px;
+}
+
+.navbar--workbench {
+  min-height: 54px;
+  border-top: 0;
+  border-bottom-color: #d5e2df;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.navbar--workbench .navbar__inner {
+  min-height: 54px;
+  max-width: none;
+  padding-right: 37px;
+  padding-left: 37px;
+}
+
+.navbar--workbench .navbar__logo-mark {
+  border-color: #176f62;
+  background: #176f62;
+  color: #ffffff;
+}
+
+.navbar--workbench .navbar__nav-link:hover,
+.navbar--workbench .navbar__nav-link.router-link-active {
+  background: #e4f5ef;
+  color: #176f62;
+}
+
+.navbar--workbench .navbar__new-topic,
+.navbar--workbench .navbar__mobile-new-topic {
+  background: #176f62;
+}
+
+.navbar--workbench .navbar__search :deep(.sf-search__box) {
+  border-color: #d5e2df;
+  background: #f7faf9;
+}
+
+.navbar--workbench .navbar__auth-link--primary {
+  background: #bd5b43;
 }
 
 .navbar__logo,
@@ -620,6 +663,34 @@ async function logout() {
   box-shadow: 0 1px 0 #27272a;
 }
 
+.dark .navbar--workbench {
+  border-bottom-color: #36403e;
+  background: #202625;
+  box-shadow: none;
+}
+
+.dark .navbar--workbench .navbar__logo-mark {
+  border-color: #176f62;
+  background: #176f62;
+  color: #ffffff;
+}
+
+.dark .navbar--workbench .navbar__nav-link:hover,
+.dark .navbar--workbench .navbar__nav-link.router-link-active {
+  background: rgb(23 111 98 / 0.24);
+  color: #69c7b5;
+}
+
+.dark .navbar--workbench .navbar__search :deep(.sf-search__box) {
+  border-color: #46514f;
+  background: #282e2d;
+}
+
+.dark .navbar--workbench .navbar__auth-link--primary {
+  background: #d06b51;
+  color: #ffffff;
+}
+
 .dark .navbar__logo {
   color: #f4f4f5;
 }
@@ -671,6 +742,11 @@ async function logout() {
 }
 
 @media (max-width: 980px) {
+  .navbar--workbench .navbar__inner {
+    padding-right: 19px;
+    padding-left: 19px;
+  }
+
   .navbar__desktop-nav,
   .navbar__search,
   .navbar__new-topic,
@@ -711,6 +787,11 @@ async function logout() {
   .navbar__inner {
     gap: 6px;
     padding: 0 16px;
+  }
+
+  .navbar--workbench .navbar__inner {
+    padding-right: 16px;
+    padding-left: 16px;
   }
 
   .navbar__mobile-search-inner {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { locale } = useI18n()
+const route = useRoute()
 const {
   siteName,
   footerCopyrightTemplate,
@@ -23,10 +24,11 @@ const visibleLinks = computed(() => {
       url: link.url
     }))
 })
+const isWorkbenchHome = computed(() => route.path === '/' || route.path === '/en')
 </script>
 
 <template>
-  <footer class="sf-footer">
+  <footer class="sf-footer" :class="{ 'sf-footer--workbench': isWorkbenchHome }">
     <div class="sf-footer__inner">
       <!-- 版权信息 -->
       <div v-if="copyrightText" class="sf-footer__copyright">
@@ -53,6 +55,22 @@ const visibleLinks = computed(() => {
   border-top: 1px solid var(--border-default);
   background-color: transparent;
   transition: border-color 0.2s;
+}
+
+.sf-footer--workbench {
+  border-top-color: #d5e2df;
+  background: #f3f7f6;
+}
+
+.sf-footer--workbench .sf-footer__inner {
+  max-width: none;
+  padding-right: 19px;
+  padding-left: 19px;
+}
+
+.dark .sf-footer--workbench {
+  border-top-color: #36403e;
+  background: #161b1a;
 }
 
 .sf-footer__inner {

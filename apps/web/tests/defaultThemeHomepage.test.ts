@@ -9,6 +9,7 @@ const defaultLayout = () => source('../../../extensions/builtin/themes/sforum-de
 const layerConfig = () => source('../../../extensions/builtin/themes/sforum-default/layer/nuxt.config.ts')
 const homepageCss = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-home.css')
 const themeCss = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-theme.css')
+const footer = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFFooter.vue')
 const seoComposable = () => source('../app/composables/useSForumSeo.ts')
 const homeQueryCacheMiddleware = () => source('../server/middleware/home-query-cache.ts')
 
@@ -160,6 +161,8 @@ describe('default theme hybrid homepage contract', () => {
 
     expect(config).toContain('sforum-home.css')
     expect(home).toContain('grid-template-columns: 74px minmax(0, 1fr) 310px;')
+    expect(home).toMatch(/\.sforum-home__inner\s*\{[\s\S]*?padding: 0 19px 40px;/)
+    expect(home).toMatch(/\.sf-home-navigation\s*\{[\s\S]*?top: 0;[\s\S]*?height: calc\(100vh - 55px\);/)
     expect(home).toContain('.sforum-home__dock')
     expect(home).toContain('.sf-home-topic-row__heat')
     expect(home).toContain('.sf-home-topic-row__metric')
@@ -180,6 +183,15 @@ describe('default theme hybrid homepage contract', () => {
     expect(theme).not.toContain('#0b1120')
     expect(theme).not.toContain('#172033')
     expect(theme).not.toContain('.sforum-home')
+  })
+
+  test('keeps the homepage footer inside the C workbench shell', () => {
+    const source = footer()
+
+    expect(source).toContain("route.path === '/' || route.path === '/en'")
+    expect(source).toContain("'sf-footer--workbench': isWorkbenchHome")
+    expect(source).toContain('.sf-footer--workbench')
+    expect(source).toContain('background: #f3f7f6;')
   })
 
   test('keeps small light-mode metadata at WCAG AA contrast', () => {

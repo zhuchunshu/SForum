@@ -21,6 +21,10 @@
   muted colors; 19px outer gutter; 360px command search; always-visible real
   category chips; API topic excerpts; two-cell dock stats; and a functional
   login-to-post fallback for guests.
+- Unified the homepage shell after another visual review: the shared navbar and
+  footer now use route-scoped C workbench colors and alignment, the workbench
+  begins at the navbar border, and the taxonomy rail no longer leaves a legacy
+  sticky-offset gap.
 
 ## Decisions
 
@@ -39,6 +43,11 @@
   stayed equal to `clientWidth`. Disclosure changed from `aria-expanded=false`
   to `true`, exposed all descendants, and tree/flat switching worked.
 - Focused frontend tests passed: 79 tests, 0 failures. Nuxt typecheck passed.
+- Homepage shell browser QA passed at 1440x900 and 390x844. Desktop boundaries
+  measured navbar bottom/workbench top at 55px and taxonomy rail top at 56px
+  (the 1px border); the 74px / 1003px / 310px tracks and zero horizontal
+  overflow were preserved. Mobile category selection updated the URL to
+  `?category=general`, with no console warnings or errors.
 - `./scripts/test.sh` was blocked before frontend checks by unrelated working
   tree text `jixu` at `apps/api/app/Models/Extensions/service_test.go:758`.
 

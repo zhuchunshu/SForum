@@ -75,6 +75,10 @@ Pulse cards use the API topic excerpt rather than fabricated summaries or an
 author-avatar metadata row. At a 1425px browser content width the measured
 desktop tracks are 74px / 1003px / 310px and cards are 971px by 88px, matching
 the approved C demo geometry.
+The homepage route applies a workbench-specific treatment to the shared navbar
+and footer so their green/coral accents, borders, canvas colors, and horizontal
+alignment continue the same visual system. The homepage canvas begins directly
+below the 55px navbar, and the sticky taxonomy rail has no legacy top inset.
 Search, category, and tag filters are reflected in the URL; search is debounced
 and stale requests are rejected before they can replace newer results. Base
 homepage responses retain shared-cache headers, while `/` and `/en` query
