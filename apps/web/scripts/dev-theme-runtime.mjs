@@ -59,11 +59,13 @@ function launchDevChild(selection, reason) {
     env.SFORUM_THEME_LAYER = selection.layerPath
     if (selection.registryRoot) env.SFORUM_ADMIN_REGISTRY_ROOT = selection.registryRoot
     if (selection.releaseId) env.SFORUM_WEB_RELEASE_ID = selection.releaseId
+    env.SFORUM_WEB_RELEASE_RELOAD_MODE = selection.reloadMode === 'force' ? 'force' : 'prompt'
     console.log(`[sforum-dev-runtime] (${reason}) starting nuxt dev with theme layer: ${selection.layerPath}`)
   } else {
     delete env.SFORUM_THEME_LAYER
     delete env.SFORUM_ADMIN_REGISTRY_ROOT
     delete env.SFORUM_WEB_RELEASE_ID
+    delete env.SFORUM_WEB_RELEASE_RELOAD_MODE
     console.log(`[sforum-dev-runtime] (${reason}) starting nuxt dev with default theme`)
   }
 

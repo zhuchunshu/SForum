@@ -247,6 +247,7 @@
       "extensionSettings": "扩展设置",
       "extensionEvents": "事件日志",
       "extensionContributions": "扩展点",
+      "extensionReleases": "Web 发布",
       "forumHome": "论坛首页",
       "forum": "论坛管理",
       "forumCategories": "版块分类",
@@ -424,6 +425,30 @@
       "themeActivationQueued": "主题构建已排队。构建完成后前台运行时会自动切换；本地 dev 会自动重启后生效。",
       "themeActivationUnavailable": "主题激活失败。",
       "actionFailed": "扩展操作失败。",
+      "frontend": {
+        "title": "可信管理端组件",
+        "loading": "正在读取信任状态",
+        "grant": "授权",
+        "revoke": "撤销",
+        "grantSuccess": "前端信任已授权。",
+        "revokeSuccess": "前端信任撤销已提交。"
+      },
+      "releases": {
+        "title": "Web 发布",
+        "intro": "查看主题与可信插件组成的不可变发布、构建状态和切换历史。",
+        "trigger": "触发来源",
+        "theme": "主题",
+        "status": "状态",
+        "actions": "操作",
+        "empty": "暂无 Web 发布记录。",
+        "retryQueued": "重试发布已排队。",
+        "rollbackQueued": "回滚发布已排队。"
+      },
+      "releaseNotice": {
+        "title": "管理端已有新版本",
+        "description": "刷新后将使用最新的主题和可信插件组件。",
+        "reload": "立即刷新"
+      },
       "stats": {
         "plugins": "插件",
         "themes": "主题",

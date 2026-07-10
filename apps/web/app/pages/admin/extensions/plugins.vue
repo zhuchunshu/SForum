@@ -134,6 +134,7 @@ useSeoMeta({
           <p v-if="item.runtime?.lastError" class="mt-1 truncate text-xs text-red-600 dark:text-red-400">
             {{ item.runtime.lastError }}
           </p>
+          <SFAdminFrontendTrustPanel :extension="item" />
         </div>
         <div class="flex items-center gap-2">
           <UButton

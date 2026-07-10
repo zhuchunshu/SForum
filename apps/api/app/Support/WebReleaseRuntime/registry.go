@@ -21,6 +21,7 @@ type RegistryExtension struct {
 type RegistryInput struct {
 	Root       string
 	ReleaseID  int64
+	ReloadMode string
 	Extensions []RegistryExtension
 }
 
@@ -114,7 +115,7 @@ func GenerateRegistry(input RegistryInput) (RegistryResult, error) {
 	}
 	metadataPath := filepath.Join(root, "metadata.ts")
 	registryPath := filepath.Join(root, "registry.client.ts")
-	if err := writeMetadata(metadataPath, input.ReleaseID, items, localeMessages); err != nil {
+	if err := writeMetadata(metadataPath, input.ReleaseID, input.ReloadMode, items, localeMessages); err != nil {
 		return RegistryResult{}, err
 	}
 	if err := writeRegistry(registryPath, root, items); err != nil {
@@ -123,7 +124,7 @@ func GenerateRegistry(input RegistryInput) (RegistryResult, error) {
 	return RegistryResult{MetadataPath: metadataPath, RegistryPath: registryPath}, nil
 }
 
-func writeMetadata(target string, releaseID int64, items []registryMetadata, locales map[string]map[string]json.RawMessage) error {
+func writeMetadata(target string, releaseID int64, reloadMode string, items []registryMetadata, locales map[string]map[string]json.RawMessage) error {
 	publicItems := make([]registryMetadata, len(items))
 	copy(publicItems, items)
 	for index := range publicItems {
@@ -145,9 +146,17 @@ func writeMetadata(target string, releaseID int64, items []registryMetadata, loc
 	}
 	body := "import type { AdminComponentMetadata, AdminExtensionLocaleMessages } from '~/runtime/admin-extensions/types'\n\n" +
 		"export const releaseId = " + strconv.Quote(strconv.FormatInt(releaseID, 10)) + "\n" +
+		"export const reloadMode = " + strconv.Quote(normalizeReloadMode(reloadMode)) + "\n" +
 		"export const contributions: readonly AdminComponentMetadata[] = " + string(itemBody) + "\n" +
 		"export const locales: AdminExtensionLocaleMessages = " + string(localeBody) + "\n"
 	return os.WriteFile(target, []byte(body), 0o644)
+}
+
+func normalizeReloadMode(value string) string {
+	if value == extensions.WebReleaseReloadForce {
+		return extensions.WebReleaseReloadForce
+	}
+	return extensions.WebReleaseReloadPrompt
 }
 
 func writeRegistry(target string, registryRoot string, items []registryMetadata) error {

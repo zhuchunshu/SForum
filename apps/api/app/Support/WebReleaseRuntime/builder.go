@@ -162,7 +162,7 @@ func (b *Builder) Prepare(_ context.Context, detail extensions.WebReleaseDetail)
 		registryExtensions = append(registryExtensions, RegistryExtension{SourceRoot: target, Snapshot: snapshot})
 	}
 	registryRoot := filepath.Join(devInput, "registry")
-	if _, err := GenerateRegistry(RegistryInput{Root: registryRoot, ReleaseID: detail.ID, Extensions: registryExtensions}); err != nil {
+	if _, err := GenerateRegistry(RegistryInput{Root: registryRoot, ReleaseID: detail.ID, ReloadMode: detail.ReloadMode, Extensions: registryExtensions}); err != nil {
 		return PreparedRelease{}, err
 	}
 	if err := b.writeGuardPolicy(filepath.Join(devInput, "guard-policy.json"), composition, pluginFrontends); err != nil {

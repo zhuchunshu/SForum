@@ -51,7 +51,10 @@ export type AdminExtensionManifest = {
   settings?: AdminExtensionSetting[]
   migrations?: Array<{ path: string }>
   backend?: { entry?: string, rpc?: string, protocolVersion?: number }
-  frontend?: { layer?: string }
+  frontend?: {
+    layer?: string
+    admin?: { root: string, apiVersion: number, components: Record<string, string>, locales: Record<string, string> }
+  }
   admin?: AdminExtensionAdmin
   adminPages?: AdminExtensionAdminPage[]
   routes?: Array<{ path: string, methods?: string[], access?: 'public' | 'login' | 'permission', permission?: string, timeoutMs?: number }>

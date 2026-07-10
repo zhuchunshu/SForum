@@ -246,6 +246,7 @@
       "extensionSettings": "Extension settings",
       "extensionEvents": "Event log",
       "extensionContributions": "Extension points",
+      "extensionReleases": "Web releases",
       "forumHome": "Forum home",
       "forum": "Forum",
       "forumCategories": "Categories",
@@ -424,6 +425,30 @@
       "themeActivationQueued": "Theme build queued. The frontend runtime will switch automatically after the build finishes; local dev will apply it after the automatic restart.",
       "themeActivationUnavailable": "Theme activation failed.",
       "actionFailed": "Extension action failed.",
+      "frontend": {
+        "title": "Trusted admin components",
+        "loading": "Loading trust status",
+        "grant": "Grant",
+        "revoke": "Revoke",
+        "grantSuccess": "Frontend trust granted.",
+        "revokeSuccess": "Frontend trust revocation submitted."
+      },
+      "releases": {
+        "title": "Web releases",
+        "intro": "Inspect immutable theme and trusted-plugin compositions, builds, and switch history.",
+        "trigger": "Trigger",
+        "theme": "Theme",
+        "status": "Status",
+        "actions": "Actions",
+        "empty": "No Web releases yet.",
+        "retryQueued": "Release retry queued.",
+        "rollbackQueued": "Release rollback queued."
+      },
+      "releaseNotice": {
+        "title": "A new admin release is active",
+        "description": "Reload to use the latest theme and trusted plugin components.",
+        "reload": "Reload now"
+      },
       "stats": {
         "plugins": "Plugins",
         "themes": "Themes",

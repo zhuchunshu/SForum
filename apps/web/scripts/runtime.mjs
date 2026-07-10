@@ -97,7 +97,7 @@ function nextSocketPath() {
 // 蓝绿切换到指定 server 产物。候选子进程先起在临时 socket 上，
 // 健康检查通过后切代理 upstream，再 drain 旧子进程。
 // 候选不可用时保留旧 child 继续服务，绝不中断。
-async function switchTo(server, kind) {
+async function switchTo(server, kind, selection) {
   const sockPath = nextSocketPath()
   console.log(`[sforum-web-runtime] starting ${kind} server: ${server} (socket ${sockPath})`)
 
@@ -110,6 +110,8 @@ async function switchTo(server, kind) {
         ...process.env,
         // Nitro node-server 预设识别此变量并绑定到 unix socket。
         NITRO_UNIX_SOCKET: sockPath,
+        SFORUM_WEB_RELEASE_ID: selection?.releaseId ? String(selection.releaseId) : 'core',
+        SFORUM_WEB_RELEASE_RELOAD_MODE: selection?.reloadMode === 'force' ? 'force' : 'prompt',
       },
       // detached 让子进程成为独立进程组组长，便于用 -pid 杀整个进程组。
       detached: true,
@@ -172,7 +174,7 @@ async function startCurrent() {
   }
   switching = true
   try {
-    const switched = await switchTo(selection.server, selection.kind)
+    const switched = await switchTo(selection.server, selection.kind, selection)
     if (selection.kind === 'release') {
       if (switched) {
         await acknowledgeActive(selection)
