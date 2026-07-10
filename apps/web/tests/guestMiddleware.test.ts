@@ -17,17 +17,19 @@ describe('guest middleware', () => {
           status.value = 'authenticated'
         }
       }),
-      returnFromAuth: async () => {
+      returnFromAuth: async (explicitRedirect) => {
         actions.returns += 1
-        return { type: 'redirect' }
+        actions.redirects.push(explicitRedirect)
+        return { type: 'redirect', target: explicitRedirect }
       }
     })
 
-    const result = await middleware()
+    const result = await middleware({ query: { redirect: '/settings/security' } })
 
     expect(actions.refreshes).toEqual([{ timeout: 800 }])
     expect(actions.returns).toBe(1)
-    expect(result).toEqual({ type: 'redirect' })
+    expect(actions.redirects).toEqual(['/settings/security'])
+    expect(result).toEqual({ type: 'redirect', target: '/settings/security' })
   })
 
   test('allows a guest session to continue to the auth page', async () => {
@@ -43,7 +45,7 @@ describe('guest middleware', () => {
       }
     })
 
-    expect(await middleware()).toBeUndefined()
+    expect(await middleware({ query: {} })).toBeUndefined()
     expect(actions.refreshes).toEqual([])
     expect(actions.returns).toBe(0)
   })
@@ -66,7 +68,7 @@ describe('guest middleware', () => {
       }
     })
 
-    expect(await middleware()).toBeUndefined()
+    expect(await middleware({ query: {} })).toBeUndefined()
     expect(actions.refreshes).toEqual([{ timeout: 800 }])
     expect(actions.returns).toBe(0)
   })
@@ -79,28 +81,34 @@ describe('guest middleware', () => {
         status: ref('authenticated'),
         refresh: async (options: unknown) => actions.refreshes.push(options)
       }),
-      returnFromAuth: async () => {
+      returnFromAuth: async (explicitRedirect) => {
         actions.returns += 1
-        return { type: 'redirect' }
+        actions.redirects.push(explicitRedirect)
+        return { type: 'redirect', target: explicitRedirect }
       }
     })
 
-    expect(await middleware()).toEqual({ type: 'redirect' })
+    expect(await middleware({ query: { redirect: '/settings/security' } })).toEqual({
+      type: 'redirect',
+      target: '/settings/security'
+    })
     expect(actions.refreshes).toEqual([])
     expect(actions.returns).toBe(1)
+    expect(actions.redirects).toEqual(['/settings/security'])
   })
 })
 
 function createActions() {
   return {
     refreshes: [] as unknown[],
+    redirects: [] as unknown[],
     returns: 0
   }
 }
 
 function loadGuestMiddleware(globals: {
   useAuthSession: () => unknown
-  returnFromAuth: () => unknown
+  returnFromAuth: (explicitRedirect: unknown) => unknown
 }) {
   const middlewarePath = new URL('../app/middleware/guest.ts', import.meta.url)
   const source = existsSync(middlewarePath)
@@ -119,8 +127,10 @@ function loadGuestMiddleware(globals: {
   )
 
   return factory(
-    (middleware: () => Promise<unknown>) => middleware,
+    (middleware: (to: { query: Record<string, unknown> }) => Promise<unknown>) => middleware,
     globals.useAuthSession,
-    () => ({ returnFromAuth: globals.returnFromAuth })
-  ) as () => Promise<unknown>
+    (explicitRedirect: unknown) => ({
+      returnFromAuth: () => globals.returnFromAuth(explicitRedirect)
+    })
+  ) as (to: { query: Record<string, unknown> }) => Promise<unknown>
 }

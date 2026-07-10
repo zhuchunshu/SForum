@@ -8,7 +8,7 @@ const toast = useToast()
 const localePath = useLocalePath()
 const { request } = useApiClient()
 const { setUser } = useAuthSession()
-const { returnFromAuth } = useAuthReturnNavigation()
+const { returnFromAuth, authPageLink } = useAuthReturnNavigation()
 const { siteName } = useWebOptions()
 
 const form = reactive({
@@ -118,7 +118,7 @@ async function submitLogin() {
           <NuxtLink :to="localePath('/login')" class="auth-tab auth-tab--active">
             {{ t('auth.loginTitle') }}
           </NuxtLink>
-          <NuxtLink :to="localePath('/register')" class="auth-tab">
+          <NuxtLink :to="authPageLink('/register')" class="auth-tab">
             {{ t('auth.registerTitle') }}
           </NuxtLink>
         </nav>
@@ -177,7 +177,7 @@ async function submitLogin() {
 
         <p class="auth-switch">
           {{ t('auth.needAccount') }}
-          <NuxtLink :to="localePath('/register')">{{ t('auth.goRegister') }}</NuxtLink>
+          <NuxtLink :to="authPageLink('/register')">{{ t('auth.goRegister') }}</NuxtLink>
         </p>
 
       </div>

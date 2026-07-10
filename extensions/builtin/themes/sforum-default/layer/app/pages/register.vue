@@ -13,7 +13,7 @@ const toast = useToast()
 const localePath = useLocalePath()
 const { apiBaseUrl, request } = useApiClient()
 const { setUser } = useAuthSession()
-const { returnFromAuth } = useAuthReturnNavigation()
+const { returnFromAuth, authPageLink } = useAuthReturnNavigation()
 const { siteName, humanVerificationEnabledFor, altchaWidgetSettings, passwordPolicy } = useWebOptions()
 
 const form = reactive({
@@ -243,7 +243,7 @@ async function submitRegister() {
 
         <!-- 页面导航 tab -->
         <nav class="auth-tabs" aria-label="登录或注册">
-          <NuxtLink :to="localePath('/login')" class="auth-tab">
+          <NuxtLink :to="authPageLink('/login')" class="auth-tab">
             {{ t('auth.loginTitle') }}
           </NuxtLink>
           <NuxtLink :to="localePath('/register')" class="auth-tab auth-tab--active">
@@ -422,7 +422,7 @@ async function submitRegister() {
 
         <p class="auth-switch">
           {{ t('auth.haveAccount') }}
-          <NuxtLink :to="localePath('/login')">{{ t('auth.goLogin') }}</NuxtLink>
+          <NuxtLink :to="authPageLink('/login')">{{ t('auth.goLogin') }}</NuxtLink>
         </p>
 
       </div>

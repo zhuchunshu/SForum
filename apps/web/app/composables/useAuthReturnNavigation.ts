@@ -1,4 +1,4 @@
-export function useAuthReturnNavigation() {
+export function useAuthReturnNavigation(explicitRedirect?: unknown) {
   const route = useRoute()
   const localePath = useLocalePath()
   const referrerPath = ref<string>()
@@ -15,10 +15,16 @@ export function useAuthReturnNavigation() {
   }
 
   const destination = computed(() =>
-    resolveAuthReturnPath(route.query.redirect, referrerPath.value, localePath('/'))
+    resolveAuthReturnPath(
+      explicitRedirect === undefined ? route.query.redirect : explicitRedirect,
+      referrerPath.value,
+      localePath('/')
+    )
   )
 
   const returnFromAuth = () => navigateTo(destination.value, { replace: true })
+  const authPageLink = (path: string) =>
+    buildAuthPageLink(localePath(path), route.query.redirect)
 
-  return { destination, returnFromAuth }
+  return { destination, returnFromAuth, authPageLink }
 }

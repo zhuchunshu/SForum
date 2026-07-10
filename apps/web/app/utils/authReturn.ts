@@ -35,3 +35,15 @@ export function resolveAuthReturnPath(
     ?? normalizeAuthReturnPath(fallback)
     ?? '/'
 }
+
+export function buildAuthPageLink(path: string, explicitRedirect: unknown) {
+  const redirect = normalizeAuthReturnPath(explicitRedirect)
+  if (!redirect) {
+    return path
+  }
+
+  return {
+    path,
+    query: { redirect }
+  }
+}

@@ -5,6 +5,7 @@ import {
   normalizeAuthReturnPath,
   resolveAuthReturnPath
 } from '../app/utils/authReturn'
+import * as authReturn from '../app/utils/authReturn'
 
 describe('normalizeAuthReturnPath', () => {
   test('preserves safe local paths with query strings and hashes', () => {
@@ -53,6 +54,27 @@ describe('resolveAuthReturnPath', () => {
   })
 })
 
+describe('buildAuthPageLink', () => {
+  test('preserves only a safe explicit redirect across auth forms', () => {
+    const buildAuthPageLink = (authReturn as typeof authReturn & {
+      buildAuthPageLink?: (path: string, redirect: unknown) => unknown
+    }).buildAuthPageLink
+
+    expect(typeof buildAuthPageLink).toBe('function')
+    if (!buildAuthPageLink) {
+      return
+    }
+
+    expect(buildAuthPageLink('/register', '/settings/security')).toEqual({
+      path: '/register',
+      query: { redirect: '/settings/security' }
+    })
+    expect(buildAuthPageLink('/register', 'https://evil.example')).toBe('/register')
+    expect(buildAuthPageLink('/login', '/en/register?redirect=/settings')).toBe('/login')
+    expect(buildAuthPageLink('/en/login', undefined)).toBe('/en/login')
+  })
+})
+
 describe('useAuthReturnNavigation source contract', () => {
   test('resolves a safe return destination and replaces the auth history entry', () => {
     const source = readFileSync(
@@ -69,8 +91,11 @@ describe('useAuthReturnNavigation source contract', () => {
     )
     expect(referrerHandling).not.toBeNull()
     expect(referrerHandling?.[1]).not.toMatch(/\b(?:throw|navigateTo)\b/)
-    expect(source).toContain("resolveAuthReturnPath(route.query.redirect, referrerPath.value, localePath('/'))")
+    expect(source).toContain('explicitRedirect === undefined ? route.query.redirect : explicitRedirect')
+    expect(source).toContain('referrerPath.value')
+    expect(source).toContain("localePath('/')")
     expect(source).toContain('navigateTo(destination.value, { replace: true })')
-    expect(source).toContain('return { destination, returnFromAuth }')
+    expect(source).toContain('buildAuthPageLink(localePath(path), route.query.redirect)')
+    expect(source).toContain('return { destination, returnFromAuth, authPageLink }')
   })
 })

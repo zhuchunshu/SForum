@@ -37,6 +37,16 @@ describe('auth route rendering', () => {
     }
   })
 
+  test('preserves explicit return targets when switching between auth forms', () => {
+    const loginPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/login.vue', import.meta.url), 'utf8')
+    const registerPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/register.vue', import.meta.url), 'utf8')
+
+    expect(loginPage).toContain('const { returnFromAuth, authPageLink } = useAuthReturnNavigation()')
+    expect(loginPage.match(/:to="authPageLink\('\/register'\)"/g)).toHaveLength(2)
+    expect(registerPage).toContain('const { returnFromAuth, authPageLink } = useAuthReturnNavigation()')
+    expect(registerPage.match(/:to="authPageLink\('\/login'\)"/g)).toHaveLength(2)
+  })
+
   test('keeps public auth pages server-rendered so first paint is never an empty Nuxt shell', () => {
     const config = readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
     const publicAuthRoutes = [

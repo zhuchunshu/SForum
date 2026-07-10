@@ -1,4 +1,4 @@
-export default defineNuxtRouteMiddleware(async () => {
+export default defineNuxtRouteMiddleware(async (to) => {
   const { user, status, refresh } = useAuthSession()
 
   if (!user.value && status.value === 'unknown') {
@@ -9,6 +9,6 @@ export default defineNuxtRouteMiddleware(async () => {
     return
   }
 
-  const { returnFromAuth } = useAuthReturnNavigation()
+  const { returnFromAuth } = useAuthReturnNavigation(to.query.redirect)
   return returnFromAuth()
 })
