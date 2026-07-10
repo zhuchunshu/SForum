@@ -351,6 +351,7 @@ adminForumSettings:
         "$ref": "../components/responses.yaml#/Forbidden"
   put:
     summary: Update forum taxonomy settings
+    description: Updating pagination fields requires `settings.manage`; category and tag fields retain their existing field-level permissions.
     operationId: adminUpdateForumSettings
     requestBody:
       required: true
@@ -374,6 +375,7 @@ adminForumSettings:
 adminForumSettingsReset:
   post:
     summary: Reset forum taxonomy settings to recommended defaults
+    description: Resets only settings owned by the caller's category, tag, and settings permissions. Pagination defaults are 20.
     operationId: adminResetForumSettings
     responses:
       '200':
