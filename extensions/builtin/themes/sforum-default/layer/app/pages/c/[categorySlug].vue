@@ -15,8 +15,6 @@ const { siteName, seoSettings } = useWebOptions()
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const forumApi = useForumApi()
 
-const ITEMS_PER_PAGE = 10
-
 type FeedBadge = {
   label: string
   variant?: 'neutral' | 'primary' | 'info' | 'success' | 'warning' | 'danger'
@@ -28,7 +26,7 @@ const emptyTopicList = (): ForumTopicList => ({
   items: [],
   total: 0,
   page: 1,
-  perPage: ITEMS_PER_PAGE
+  perPage: 20
 })
 
 const { data: categoryGroups } = await useAsyncData(
@@ -51,8 +49,7 @@ const { data: topicList, pending: topicsPending } = await useAsyncData(
   `forum-category-page-topics:${categorySlug.value}`,
   () => forumApi.listTopics({
     categorySlug: categorySlug.value,
-    page: currentPage.value,
-    perPage: ITEMS_PER_PAGE
+    page: currentPage.value
   }),
   {
     default: emptyTopicList,

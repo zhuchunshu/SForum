@@ -16,7 +16,6 @@ import {
   type ForumTopicSummary
 } from '~/utils/forumTaxonomy'
 
-const ITEMS_PER_PAGE = 10
 const SEARCH_DEBOUNCE_MS = 300
 
 const { t } = useI18n()
@@ -49,7 +48,7 @@ const emptyTopicList = (): ForumTopicList => ({
   items: [],
   total: 0,
   page: 1,
-  perPage: ITEMS_PER_PAGE
+  perPage: 20
 })
 
 const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
@@ -70,16 +69,14 @@ function loadTopicPage(page: number, filters: ForumHomeFilters = committedFilter
       query: filters.query,
       categorySlug: filters.categorySlug,
       tagSlug: filters.tagSlug,
-      page,
-      perPage: ITEMS_PER_PAGE
+      page
     })
   }
 
   return forumApi.listTopics({
     categorySlug: filters.categorySlug,
     tagSlug: filters.tagSlug,
-    page,
-    perPage: ITEMS_PER_PAGE
+    page
   })
 }
 

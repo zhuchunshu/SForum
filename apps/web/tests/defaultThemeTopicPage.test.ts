@@ -96,6 +96,9 @@ describe('default theme topic page contract', () => {
     expect(source).toContain(':presentation="commentView"')
     expect(source).toContain(':depth="0"')
     expect(source).toContain(':collapse-from-depth="2"')
+    const commentRequest = source.slice(source.indexOf('const commentQuery'), source.indexOf('watch(commentView'))
+    expect(commentRequest).not.toContain('perPage')
+    expect(source).toContain('commentData.value.perPage')
   })
 
   test('registers the focused 820px plus 190px responsive topic stylesheet', () => {

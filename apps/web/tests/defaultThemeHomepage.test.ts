@@ -118,6 +118,8 @@ describe('default theme hybrid homepage contract', () => {
     expect(feedReset).toContain('feedGeneration += 1')
     expect(feedReset).toContain("{ flush: 'sync' }")
     expect(page).toContain('nextPage.value = nextList.page + 1')
+    expect(page).not.toContain('perPage: ITEMS_PER_PAGE')
+    expect(page).toContain('nextList.perPage')
   })
 
   test('uses one SSR reference time and UTC dates for hydration-stable activity labels', () => {

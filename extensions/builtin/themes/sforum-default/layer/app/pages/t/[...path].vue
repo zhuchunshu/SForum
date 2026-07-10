@@ -167,8 +167,7 @@ const commentPage = ref(1)
 const commentView = ref<'tree' | 'flat'>('tree')
 const commentQuery = computed(() => ({
   view: commentView.value,
-  page: commentPage.value,
-  perPage: 20
+  page: commentPage.value
 }))
 watch(commentView, () => {
   commentPage.value = 1
