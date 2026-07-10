@@ -257,7 +257,8 @@
       "userManagement": "User management",
       "userGroups": "User groups",
       "permissionManagement": "Permission management",
-      "search": "Search Index"
+      "search": "Search Index",
+      "jobs": "Background jobs"
     },
     "avatar": {
       "metaTitle": "Avatar settings",
@@ -626,6 +627,20 @@
           "filter": "Filter"
         }
       }
+    },
+    "jobs": {
+      "title": "Background jobs",
+      "intro": "Inspect River queues, execution state, and failures, then safely retry, cancel, pause, or resume work.",
+      "queues": "Queues",
+      "actions": "Actions",
+      "filterKind": "Filter by job kind",
+      "empty": "No jobs match the current filters.",
+      "pause": "Pause",
+      "resume": "Resume",
+      "retrySuccess": "Job queued for retry.",
+      "cancelSuccess": "Job cancelled.",
+      "pauseSuccess": "Queue paused.",
+      "resumeSuccess": "Queue resumed."
     },
     "attachments": {
       "metaTitle": "Attachment Settings",
@@ -1469,10 +1484,10 @@
       "settings": {
         "metaTitle": "Forum settings",
         "title": "Forum settings",
-        "intro": "Configure the default posting category, tag policy, and public tag pages.",
+        "intro": "Configure forum taxonomy, tag policy, and public pagination.",
         "loadFailed": "Forum settings could not be loaded.",
         "recommendedTitle": "Recommended configuration",
-        "recommendedDescription": "Recommended defaults use general discussion as the default category, controlled tag creation, public tag pages, and up to 5 tags per topic.",
+        "recommendedDescription": "Recommended defaults use general discussion, controlled tags, public tag pages, and 20 topics or comments per load.",
         "formTitle": "Category and tag policy",
         "formHelp": "These settings are for open-source operators, so they should stay safe, useful, and easy to restore.",
         "defaultCategory": "Default posting category",
@@ -1496,6 +1511,12 @@
         "publicTagPagesHelp": "When enabled, visitors can open /tags/:tagSlug to browse topics by tag.",
         "maxTagsPerTopic": "Max tags per topic",
         "maxTagsPerTopicHelp": "Allowed range is 0 to 10. Set 0 to disable tags during posting.",
+        "paginationTitle": "Pagination display",
+        "paginationHelp": "Controls the default number of public topics and comments returned when a client does not choose a page size.",
+        "topicsPerPage": "Topics per load",
+        "commentsPerPage": "Comments per load",
+        "paginationRangeError": "Enter a whole number from 1 to 100.",
+        "paginationPermissionHelp": "The settings.manage permission is required to change pagination defaults.",
         "saved": "Forum settings saved.",
         "saveFailed": "Forum settings could not be saved.",
         "restored": "Recommended defaults restored.",

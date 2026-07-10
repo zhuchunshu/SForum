@@ -147,7 +147,7 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.forumSettings',
     icon: 'i-lucide-sliders-horizontal',
     componentName: 'AdminForumSettings',
-    requiredPermissions: ['category.manage', 'tag.manage'],
+    requiredPermissions: ['category.manage', 'tag.manage', 'settings.manage'],
     permissionMode: 'any'
   },
   {
@@ -205,6 +205,13 @@ export const adminPageDefinitions = [
     icon: 'i-lucide-search',
     componentName: 'AdminSearch',
     requiredPermissions: ['search.manage']
+  },
+  {
+    id: '/jobs',
+    labelKey: 'admin.nav.jobs',
+    icon: 'i-lucide-list-checks',
+    componentName: 'AdminJobs',
+    requiredPermissions: ['jobs.view']
   }
 ] as const satisfies readonly AdminPageDefinition[]
 
@@ -241,7 +248,8 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/personalization' },
         { type: 'page', pageId: '/seo' },
         { type: 'page', pageId: '/database' },
-        { type: 'page', pageId: '/search' }
+        { type: 'page', pageId: '/search' },
+        { type: 'page', pageId: '/jobs' }
       ]
     },
     {

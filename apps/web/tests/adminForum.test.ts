@@ -10,6 +10,7 @@ import {
   createCategoryPayload,
   createDefaultForumSettings,
   createTagPayload,
+  forumSettingsPayload,
   normalizeForumSettings
 } from '../app/utils/adminForum'
 
@@ -19,15 +20,33 @@ describe('admin forum helpers', () => {
       defaultCategorySlug: 'general',
       tagCreationMode: 'controlled',
       tagPublicPages: true,
-      tagMaxPerTopic: 5
+      tagMaxPerTopic: 5,
+      topicsPerPage: 20,
+      commentsPerPage: 20
     })
 
     expect(normalizeForumSettings({
       defaultCategorySlug: ' ',
       tagCreationMode: 'chaos',
       tagPublicPages: 'maybe',
-      tagMaxPerTopic: '99'
+      tagMaxPerTopic: '99',
+      topicsPerPage: 0,
+      commentsPerPage: 101
     })).toEqual(createDefaultForumSettings())
+
+    expect(forumSettingsPayload(normalizeForumSettings({
+      topicsPerPage: '30',
+      commentsPerPage: '40'
+    }))).toMatchObject({ topicsPerPage: 30, commentsPerPage: 40 })
+  })
+
+  test('renders permission-aware pagination controls', () => {
+    const settingsPage = readFileSync(new URL('../app/pages/admin/forum/settings.vue', import.meta.url), 'utf8')
+    expect(settingsPage).toContain("can('settings.manage')")
+    expect(settingsPage).toContain('v-model="form.topicsPerPage"')
+    expect(settingsPage).toContain('v-model="form.commentsPerPage"')
+    expect(settingsPage).toContain(':min="1"')
+    expect(settingsPage).toContain(':max="100"')
   })
 
   test('creates taxonomy payloads with visual field defaults', () => {
@@ -112,7 +131,7 @@ describe('admin forum helpers', () => {
 
     expect(categories?.requiredPermissions).toEqual(['category.manage'])
     expect(tags?.requiredPermissions).toEqual(['tag.manage'])
-    expect(settings?.requiredPermissions).toEqual(['category.manage', 'tag.manage'])
+    expect(settings?.requiredPermissions).toEqual(['category.manage', 'tag.manage', 'settings.manage'])
     expect(settings?.permissionMode).toBe('any')
   })
 

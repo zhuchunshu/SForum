@@ -11,6 +11,8 @@ export type ForumSettings = {
   tagCreationMode: ForumTagCreationMode
   tagPublicPages: boolean
   tagMaxPerTopic: number
+  topicsPerPage: number
+  commentsPerPage: number
 }
 
 export type ForumCategory = {
@@ -234,7 +236,14 @@ export const recommendedForumSettings: ForumSettings = {
   defaultCategorySlug: 'general',
   tagCreationMode: 'controlled',
   tagPublicPages: true,
-  tagMaxPerTopic: 5
+  tagMaxPerTopic: 5,
+  topicsPerPage: 20,
+  commentsPerPage: 20
+}
+
+export function normalizeForumPageSize(value: number | string | undefined, fallback = 20) {
+  const normalized = typeof value === 'number' ? value : Number(value)
+  return Number.isInteger(normalized) && normalized >= 1 && normalized <= 100 ? normalized : fallback
 }
 
 export function parseForumTagPublicPagesOption(value: string | undefined, fallback = true) {

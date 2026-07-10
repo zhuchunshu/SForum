@@ -239,6 +239,7 @@
       "seo": "SEO 设置",
       "database": "数据库表管理",
       "search": "搜索索引",
+      "jobs": "后台任务",
       "attachments": "附件设置",
       "extensions": "扩展管理",
       "extensionOverview": "扩展总览",
@@ -626,6 +627,20 @@
           "filter": "过滤"
         }
       }
+    },
+    "jobs": {
+      "title": "后台任务",
+      "intro": "查看 River 队列、任务执行状态与失败记录，并安全地重试、取消或暂停队列。",
+      "queues": "队列",
+      "actions": "操作",
+      "filterKind": "按任务类型筛选",
+      "empty": "没有符合当前条件的任务。",
+      "pause": "暂停",
+      "resume": "恢复",
+      "retrySuccess": "任务已重新排队。",
+      "cancelSuccess": "任务已取消。",
+      "pauseSuccess": "队列已暂停。",
+      "resumeSuccess": "队列已恢复。"
     },
     "attachments": {
       "metaTitle": "附件设置",
@@ -1475,10 +1490,10 @@
       "settings": {
         "metaTitle": "论坛设置",
         "title": "论坛设置",
-        "intro": "配置默认发帖分类、标签创建策略和公开标签页。",
+        "intro": "配置论坛分类、标签策略和公开内容分页。",
         "loadFailed": "论坛设置加载失败。",
         "recommendedTitle": "推荐配置",
-        "recommendedDescription": "推荐使用综合讨论作为默认分类，标签创建保持受控模式，公开标签页开启，每个主题最多 5 个标签。",
+        "recommendedDescription": "推荐使用综合讨论、受控标签和公开标签页，主题与评论每次加载 20 条。",
         "formTitle": "分类与标签策略",
         "formHelp": "这些设置面向开源部署者，应该保持安全可用且便于恢复推荐默认值。",
         "defaultCategory": "默认发帖分类",
@@ -1502,6 +1517,12 @@
         "publicTagPagesHelp": "开启后，访客可以访问 /tags/:tagSlug 查看标签主题列表。",
         "maxTagsPerTopic": "每个主题最多标签数",
         "maxTagsPerTopicHelp": "允许 0 到 10。设置为 0 表示发帖时不使用标签。",
+        "paginationTitle": "分页显示",
+        "paginationHelp": "客户端未指定分页数量时，控制公开主题与评论接口默认返回的条数。",
+        "topicsPerPage": "每次显示主题数",
+        "commentsPerPage": "每次显示评论数",
+        "paginationRangeError": "请输入 1 到 100 之间的整数。",
+        "paginationPermissionHelp": "需要 settings.manage 权限才能修改分页默认值。",
         "saved": "论坛设置已保存。",
         "saveFailed": "论坛设置保存失败。",
         "restored": "已恢复推荐默认设置。",

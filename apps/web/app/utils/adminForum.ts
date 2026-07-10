@@ -1,6 +1,7 @@
 import {
   normalizeForumTagCreationMode,
   normalizeForumTagMaxPerTopic,
+  normalizeForumPageSize,
   parseForumTagPublicPagesOption,
   recommendedForumSettings,
   type ForumCategory,
@@ -53,6 +54,8 @@ export type AdminForumSettingsPayload = {
   tagCreationMode: ForumSettings['tagCreationMode']
   tagPublicPages: boolean
   tagMaxPerTopic: number
+  topicsPerPage?: number
+  commentsPerPage?: number
 }
 
 type ForumSettingsLike = Partial<Record<keyof ForumSettings, unknown>>
@@ -133,7 +136,9 @@ export function normalizeForumSettings(input: ForumSettingsLike | null | undefin
     defaultCategorySlug,
     tagCreationMode: normalizeForumTagCreationMode(stringValue(input?.tagCreationMode)),
     tagPublicPages: normalizeForumTagPublicPages(input?.tagPublicPages, defaults.tagPublicPages),
-    tagMaxPerTopic: normalizeForumTagMaxPerTopic(numberLikeValue(input?.tagMaxPerTopic))
+    tagMaxPerTopic: normalizeForumTagMaxPerTopic(numberLikeValue(input?.tagMaxPerTopic)),
+    topicsPerPage: normalizeForumPageSize(numberLikeValue(input?.topicsPerPage), defaults.topicsPerPage),
+    commentsPerPage: normalizeForumPageSize(numberLikeValue(input?.commentsPerPage), defaults.commentsPerPage)
   }
 }
 

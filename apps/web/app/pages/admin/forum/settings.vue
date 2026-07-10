@@ -23,6 +23,7 @@ const toast = useToast()
 const { request } = useApiClient()
 const forumApi = createAdminForumApi(request)
 const adminPage = useAdminPage('/forum/settings')
+const { can } = usePermissions()
 
 const saving = ref(false)
 const restoring = ref(false)
@@ -49,6 +50,12 @@ const categories = computed(() => categoryGroups.value.flatMap((group) => group.
 const publicCategories = computed(() => categories.value.filter((category) => category.visibility === 'public'))
 const hasChanges = computed(() => JSON.stringify(forumSettingsPayload(form)) !== savedSnapshot.value)
 const recommended = createDefaultForumSettings()
+const canManagePagination = computed(() => can('settings.manage'))
+const paginationError = computed(() => {
+  const valid = [form.topicsPerPage, form.commentsPerPage]
+    .every(value => Number.isInteger(value) && value >= 1 && value <= 100)
+  return valid ? '' : t('admin.forum.settings.paginationRangeError')
+})
 
 const modeOptions = computed<Array<{ value: ForumTagCreationMode, label: string, description: string }>>(() => [
   {
@@ -69,9 +76,17 @@ const modeOptions = computed<Array<{ value: ForumTagCreationMode, label: string,
 ])
 
 async function saveSettings() {
+  if (paginationError.value) {
+    return
+  }
   saving.value = true
   try {
-    const updated = await forumApi.updateSettings(forumSettingsPayload(form))
+    const payload = forumSettingsPayload(form)
+    if (!canManagePagination.value) {
+      delete payload.topicsPerPage
+      delete payload.commentsPerPage
+    }
+    const updated = await forumApi.updateSettings(payload)
     applySettings(updated)
     successToast(t('admin.forum.settings.saved'))
   } catch (error) {
@@ -210,6 +225,40 @@ function errorToast(error: unknown, fallback: string) {
               <span class="mt-1 block text-xs opacity-70">/c/{{ category.slug }}</span>
             </button>
           </div>
+        </section>
+
+        <section class="space-y-3 border-t border-slate-200 pt-5 dark:border-zinc-800">
+          <div>
+            <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+              {{ t('admin.forum.settings.paginationTitle') }}
+            </h3>
+            <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+              {{ t('admin.forum.settings.paginationHelp') }}
+            </p>
+          </div>
+          <div class="grid gap-4 md:grid-cols-2">
+            <UFormField :label="t('admin.forum.settings.topicsPerPage')" :error="paginationError" name="topics-per-page">
+              <UInputNumber
+                v-model="form.topicsPerPage"
+                :min="1"
+                :max="100"
+                :disabled="!canManagePagination"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField :label="t('admin.forum.settings.commentsPerPage')" :error="paginationError" name="comments-per-page">
+              <UInputNumber
+                v-model="form.commentsPerPage"
+                :min="1"
+                :max="100"
+                :disabled="!canManagePagination"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+          <p v-if="!canManagePagination" class="text-xs text-slate-500 dark:text-zinc-400">
+            {{ t('admin.forum.settings.paginationPermissionHelp') }}
+          </p>
         </section>
 
         <section class="space-y-3 border-t border-slate-200 pt-5 dark:border-zinc-800">
