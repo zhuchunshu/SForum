@@ -6,6 +6,7 @@ import (
 	"time"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 )
 
 const (
@@ -87,6 +88,7 @@ type ManifestSetting = extensionmanifest.ManifestSetting
 type ManifestMigration = extensionmanifest.ManifestMigration
 type ManifestBackend = extensionmanifest.ManifestBackend
 type ManifestFrontend = extensionmanifest.ManifestFrontend
+type ManifestAdminFrontend = extensionmanifest.ManifestAdminFrontend
 type ManifestAdmin = extensionmanifest.ManifestAdmin
 type ManifestAdminPage = extensionmanifest.ManifestAdminPage
 type ManifestRoute = extensionmanifest.ManifestRoute
@@ -96,7 +98,10 @@ type ManifestJob = extensionmanifest.ManifestJob
 type ManifestProvider = extensionmanifest.ManifestProvider
 type ManifestContribution = extensionmanifest.ManifestContribution
 type TopicActionContributionPayload = extensionmanifest.TopicActionContributionPayload
+type AdminComponentContributionPayload = extensionmanifest.AdminComponentContributionPayload
 type ContributionPointDefinition = extensionmanifest.ContributionPointDefinition
+type Dependency = extensionpackage.Dependency
+type DependencySummary = extensionpackage.DependencySummary
 
 type RuntimeStatus struct {
 	State         string     `json:"state"`

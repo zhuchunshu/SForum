@@ -3,8 +3,21 @@ package extensionmanifest
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 )
+
+func TestContributionPointDefinitionsContainOnlyProductionDescriptors(t *testing.T) {
+	points := ContributionPointDefinitions()
+	if len(points) != 1 || points[0].ID != "forum.topic.actions" || points[0].Kind != ContributionPointKindDescriptor {
+		t.Fatalf("unexpected production contribution catalog: %#v", points)
+	}
+	for _, point := range points {
+		if strings.HasPrefix(point.ID, "admin.jobs.") || point.ID == "admin.test.fixture" || point.Kind == ContributionPointKindComponent {
+			t.Fatalf("trusted component point leaked into the infrastructure catalog: %#v", point)
+		}
+	}
+}
 
 func TestAdminManifestV2NormalizeValidateAndResolveManagePath(t *testing.T) {
 	body := []byte(`{

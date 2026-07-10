@@ -3,6 +3,7 @@ module github.com/zhuchunshu/sforum/apps/api
 go 1.25.7
 
 require (
+	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/altcha-org/altcha-lib-go/v2 v2.0.0-20260512100103-f14102c7e9bd
 	github.com/charmbracelet/huh v1.0.0
@@ -21,6 +22,7 @@ require (
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.40.0
 	github.com/riverqueue/river/rivertype v0.40.0
 	github.com/spf13/cobra v1.10.2
+	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.74
 	github.com/valyala/fasthttp v1.68.0
 	github.com/yuin/goldmark v1.8.2

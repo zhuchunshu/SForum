@@ -82,7 +82,8 @@ type ManifestBackend struct {
 }
 
 type ManifestFrontend struct {
-	Layer string `json:"layer"`
+	Layer string                 `json:"layer"`
+	Admin *ManifestAdminFrontend `json:"admin,omitempty"`
 }
 
 type ManifestAdmin struct {
@@ -157,13 +158,17 @@ func ContributionPointDefinitions() []ContributionPointDefinition {
 	return []ContributionPointDefinition{{
 		ID:          "forum.topic.actions",
 		Owner:       "forum",
-		Kind:        "action",
+		Kind:        ContributionPointKindDescriptor,
 		Description: "Topic detail action descriptors rendered by the host UI.",
 		PayloadType: "extensionRoute",
 	}}
 }
 
 func Validate(manifest Manifest) error {
+	return ValidateWithContributionPoints(manifest, ContributionPointDefinitions())
+}
+
+func validateManifest(manifest Manifest, points []ContributionPointDefinition) error {
 	manifest = Normalize(manifest)
 	if !manifestIDPattern.MatchString(manifest.ID) {
 		return ErrInvalidManifest
@@ -212,6 +217,9 @@ func Validate(manifest Manifest) error {
 		if _, ok := SafeArchivePath(manifest.Frontend.Layer); !ok {
 			return ErrInvalidManifest
 		}
+	}
+	if err := validateAdminFrontend(manifest); err != nil {
+		return err
 	}
 	for _, migration := range manifest.Migrations {
 		if _, ok := SafeArchivePath(migration.Path); !ok || !strings.HasSuffix(migration.Path, ".sql") {
@@ -281,7 +289,7 @@ func Validate(manifest Manifest) error {
 			return ErrInvalidManifest
 		}
 	}
-	if err := validateContributions(manifest); err != nil {
+	if err := validateContributions(manifest, points); err != nil {
 		return err
 	}
 	return nil
@@ -311,6 +319,7 @@ func Normalize(manifest Manifest) Manifest {
 		manifest.Backend.ProtocolVersion = 1
 	}
 	manifest.Frontend.Layer = strings.TrimSpace(manifest.Frontend.Layer)
+	manifest.Frontend.Admin = normalizeAdminFrontend(manifest.Frontend.Admin)
 	manifest.Admin.Entry = NormalizeRoutePath(manifest.Admin.Entry)
 	normalizeAdminPageSlice(manifest.Admin.Pages)
 	normalizeAdminPageSlice(manifest.AdminPages)
@@ -542,13 +551,29 @@ func normalizeContribution(contribution ManifestContribution) ManifestContributi
 			}
 		}
 	}
+	if normalized, ok := normalizeAdminComponentPayload(contribution.Payload); ok {
+		contribution.Payload = normalized
+	}
 	return contribution
 }
 
-func validateContributions(manifest Manifest) error {
+func validateContributions(manifest Manifest, definitions []ContributionPointDefinition) error {
+	points := make(map[string]ContributionPointDefinition, len(definitions))
+	for _, definition := range definitions {
+		if definition.ID == "" || (definition.Kind != ContributionPointKindDescriptor && definition.Kind != ContributionPointKindComponent) {
+			return ErrInvalidManifest
+		}
+		if _, duplicate := points[definition.ID]; duplicate {
+			return ErrInvalidManifest
+		}
+		points[definition.ID] = definition
+	}
+
 	seen := map[string]bool{}
+	componentReferences := map[string]int{}
 	for _, contribution := range manifest.Contributions {
-		if contribution.Point == "" || contribution.ID == "" || !knownContributionPoint(contribution.Point) {
+		definition, known := points[contribution.Point]
+		if contribution.Point == "" || contribution.ID == "" || !known {
 			return ErrInvalidManifest
 		}
 		key := contribution.Point + ":" + contribution.ID
@@ -570,25 +595,31 @@ func validateContributions(manifest Manifest) error {
 				return ErrInvalidManifest
 			}
 		}
-		switch contribution.Point {
-		case "forum.topic.actions":
+		switch definition.Kind {
+		case ContributionPointKindDescriptor:
+			if definition.PayloadType != "extensionRoute" {
+				return ErrInvalidManifest
+			}
 			if err := validateTopicActionContributionPayload(contribution.Payload); err != nil {
 				return err
+			}
+		case ContributionPointKindComponent:
+			component, err := adminComponentBinding(contribution.Payload)
+			if err != nil || manifest.Frontend.Admin == nil {
+				return ErrInvalidManifest
+			}
+			if _, exists := manifest.Frontend.Admin.Components[component]; !exists {
+				return ErrInvalidManifest
+			}
+			componentReferences[component]++
+			if componentReferences[component] > 1 {
+				return ErrInvalidManifest
 			}
 		default:
 			return ErrInvalidManifest
 		}
 	}
-	return nil
-}
-
-func knownContributionPoint(point string) bool {
-	for _, definition := range ContributionPointDefinitions() {
-		if definition.ID == point {
-			return true
-		}
-	}
-	return false
+	return validateAdminComponentReferences(manifest, componentReferences)
 }
 
 func allowedContributionIcon(icon string) bool {
