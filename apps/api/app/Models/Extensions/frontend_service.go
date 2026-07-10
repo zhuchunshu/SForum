@@ -231,6 +231,26 @@ func (s *FrontendService) RestoreDefaults(ctx context.Context, actor identity.Ac
 	return ExtensionOperation{Queued: true, WebRelease: webReleaseSummary(queued.Release)}, nil
 }
 
+func (s *FrontendService) ValidateRollback(ctx context.Context, target WebReleaseDetail) error {
+	if s == nil || s.extensions == nil || s.trust == nil {
+		return ErrWebReleaseRollbackIneligible
+	}
+	for _, snapshot := range target.Extensions {
+		extension, err := s.extensions.Get(ctx, snapshot.ExtensionID)
+		if err != nil {
+			return fmt.Errorf("%w: extension %s is unavailable", ErrWebReleaseRollbackIneligible, snapshot.ExtensionID)
+		}
+		if extension.Source == SourceBuiltin && extension.IsSystem && !extension.IsDeletable {
+			continue
+		}
+		grant, err := s.trust.FrontendGrant(ctx, snapshot.ExtensionID, snapshot.ExtensionVersion, snapshot.PackageDigest)
+		if err != nil || grant.RevocationRequestedAt != nil || grant.RevokedAt != nil {
+			return fmt.Errorf("%w: extension %s no longer has exact frontend trust", ErrWebReleaseRollbackIneligible, snapshot.ExtensionID)
+		}
+	}
+	return nil
+}
+
 func (s *FrontendService) extension(ctx context.Context, extensionID string) (Extension, error) {
 	if s == nil || s.extensions == nil || s.trust == nil || s.releases == nil || s.active == nil {
 		return Extension{}, ErrFrontendTrustUnavailable

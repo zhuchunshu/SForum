@@ -164,6 +164,68 @@ func TestWebReleaseServiceRollsBackReleaseWhenEnqueueFails(t *testing.T) {
 	}
 }
 
+func TestWebReleaseServiceRetryCreatesNewReleaseFromCurrentPlan(t *testing.T) {
+	plan := webReleaseServicePlanFixture()
+	source := WebReleaseDetail{WebRelease: WebRelease{
+		ID: 15, Status: WebReleaseFailed, TriggerKind: WebReleaseTriggerRebuild, ReloadMode: WebReleaseReloadPrompt,
+	}}
+	store := &fakeWebReleaseTransactionalStore{
+		detail:    source,
+		activeErr: ErrWebReleaseNotFound,
+		created:   WebRelease{ID: 16, Status: WebReleaseQueued},
+	}
+	tx := &fakeWebReleaseServiceTx{calls: &store.calls}
+	service := NewWebReleaseService(
+		&fakeWebReleaseCompositionPlanner{planned: plan},
+		&fakeWebReleaseTxBeginner{tx: tx},
+		store,
+		&fakeWebReleaseBuildEnqueuer{calls: &store.calls},
+	)
+
+	result, err := service.Retry(context.Background(), source.ID, 7)
+	if err != nil {
+		t.Fatalf("retry web release: %v", err)
+	}
+	if !result.Created || result.Release.ID != 16 || result.Release.ID == source.ID {
+		t.Fatalf("retry mutated or reused terminal release: %#v", result)
+	}
+}
+
+func TestWebReleaseServiceRollbackCreatesForceReleaseAfterEligibilityCheck(t *testing.T) {
+	plan := webReleaseServicePlanFixture()
+	target := WebReleaseDetail{WebRelease: WebRelease{
+		ID:                  8,
+		Status:              WebReleaseInactive,
+		CompositionHash:     plan.Hash,
+		CompositionSnapshot: plan.Snapshot,
+	}}
+	store := &fakeWebReleaseTransactionalStore{
+		detail:  target,
+		active:  WebRelease{ID: 10, Status: WebReleaseActive},
+		created: WebRelease{ID: 11, Status: WebReleaseQueued},
+	}
+	tx := &fakeWebReleaseServiceTx{calls: &store.calls}
+	validator := &fakeWebReleaseRollbackValidator{}
+	service := NewWebReleaseService(
+		&fakeWebReleaseCompositionPlanner{},
+		&fakeWebReleaseTxBeginner{tx: tx},
+		store,
+		&fakeWebReleaseBuildEnqueuer{calls: &store.calls},
+		WithWebReleaseRollbackValidator(validator),
+	)
+
+	result, err := service.Rollback(context.Background(), target.ID, 7)
+	if err != nil {
+		t.Fatalf("rollback web release: %v", err)
+	}
+	if !result.Created || result.Release.ID != 11 || validator.calls != 1 {
+		t.Fatalf("rollback did not create a checked release: result=%#v validator=%#v", result, validator)
+	}
+	if store.lastCreate.TriggerKind != WebReleaseTriggerRollback || store.lastCreate.ReloadMode != WebReleaseReloadForce {
+		t.Fatalf("rollback release did not preserve force semantics: %#v", store.lastCreate)
+	}
+}
+
 func webReleaseServicePlanFixture() PlannedWebRelease {
 	composition := WebComposition{
 		Theme: WebThemeSnapshot{
@@ -223,7 +285,14 @@ type fakeWebReleaseTransactionalStore struct {
 	liveErr     error
 	created     WebRelease
 	createErr   error
+	detail      WebReleaseDetail
+	detailErr   error
+	lastCreate  WebReleaseCreateInput
 	createCalls int
+}
+
+func (s *fakeWebReleaseTransactionalStore) WebRelease(context.Context, int64) (WebReleaseDetail, error) {
+	return s.detail, s.detailErr
 }
 
 func (s *fakeWebReleaseTransactionalStore) ActiveWebReleaseTx(context.Context, pgx.Tx) (WebRelease, error) {
@@ -236,10 +305,21 @@ func (s *fakeWebReleaseTransactionalStore) LiveWebReleasesByCompositionTx(contex
 	return append([]WebReleaseDetail(nil), s.live...), s.liveErr
 }
 
-func (s *fakeWebReleaseTransactionalStore) CreateWebReleaseTx(_ context.Context, _ pgx.Tx, _ WebReleaseCreateInput) (WebRelease, error) {
+func (s *fakeWebReleaseTransactionalStore) CreateWebReleaseTx(_ context.Context, _ pgx.Tx, input WebReleaseCreateInput) (WebRelease, error) {
 	s.calls = append(s.calls, "create")
 	s.createCalls++
+	s.lastCreate = input
 	return s.created, s.createErr
+}
+
+type fakeWebReleaseRollbackValidator struct {
+	calls int
+	err   error
+}
+
+func (v *fakeWebReleaseRollbackValidator) ValidateRollback(context.Context, WebReleaseDetail) error {
+	v.calls++
+	return v.err
 }
 
 type fakeWebReleaseBuildEnqueuer struct {

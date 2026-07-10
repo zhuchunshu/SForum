@@ -208,6 +208,8 @@ ExtensionManifest:
           type: string
           minLength: 1
           description: Safe relative path to a Nuxt Layer directory, such as frontend/layer. Required for type theme.
+        admin:
+          "$ref": "#/ExtensionManifestAdminFrontend"
     admin:
       "$ref": "#/ExtensionManifestAdmin"
     adminPages:
@@ -286,6 +288,32 @@ ExtensionManifestAdmin:
       type: array
       items:
         "$ref": "#/ExtensionManifestAdminPage"
+ExtensionManifestAdminFrontend:
+  type: object
+  description: Plugin-only trusted admin component package. The host validates all paths and locked dependencies without executing plugin code.
+  required:
+  - root
+  - apiVersion
+  - components
+  - locales
+  properties:
+    root:
+      type: string
+    apiVersion:
+      type: integer
+      minimum: 1
+    components:
+      type: object
+      minProperties: 1
+      additionalProperties:
+        type: string
+    locales:
+      type: object
+      required:
+      - zh-CN
+      - en-US
+      additionalProperties:
+        type: string
 ExtensionManifestAdminPage:
   type: object
   required:
@@ -525,6 +553,7 @@ Extension:
   - isSystem
   - isDeletable
   - manifest
+  - packageDigest
   - packagePath
   - installedAt
   - updatedAt
@@ -551,6 +580,9 @@ Extension:
       "$ref": "#/ExtensionRuntimeStatus"
     themeRelease:
       "$ref": "#/ThemeRelease"
+    packageDigest:
+      type: string
+      description: Canonical immutable package tree SHA-256 digest.
     packagePath:
       type: string
       description: Server-local package path, visible only to extension managers.
@@ -810,3 +842,426 @@ ExtensionEventDelivery:
     completedAt:
       type: string
       format: date-time
+GrantFrontendTrustInput:
+  type: object
+  required:
+  - packageDigest
+  properties:
+    packageDigest:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+Dependency:
+  type: object
+  required:
+  - name
+  - version
+  properties:
+    name:
+      type: string
+    version:
+      type: string
+    integrity:
+      type: string
+DependencySummary:
+  type: object
+  required:
+  - direct
+  - resolved
+  - lockDigest
+  properties:
+    direct:
+      type: array
+      items:
+        "$ref": "#/Dependency"
+    resolved:
+      type: array
+      items:
+        "$ref": "#/Dependency"
+    lockDigest:
+      type: string
+FrontendTrustState:
+  type: string
+  enum:
+  - none
+  - required
+  - trusted
+  - source_trusted
+  - revocation_pending
+  - revoked
+  - invalidated
+FrontendStatus:
+  type: object
+  required:
+  - extensionId
+  - trustState
+  - dependencies
+  properties:
+    extensionId:
+      type: string
+    declaration:
+      "$ref": "#/ExtensionManifestAdminFrontend"
+    trustState:
+      "$ref": "#/FrontendTrustState"
+    digest:
+      type: string
+    dependencies:
+      "$ref": "#/DependencySummary"
+WebReleaseStatus:
+  type: string
+  enum:
+  - queued
+  - resolving
+  - installing
+  - building
+  - verifying
+  - ready
+  - activating
+  - active
+  - inactive
+  - failed
+  - superseded
+  - rolled_back
+WebRelease:
+  type: object
+  required:
+  - id
+  - desiredGeneration
+  - triggerKind
+  - compositionHash
+  - compositionSnapshot
+  - activeThemeId
+  - themeVersion
+  - themeLayerPath
+  - themePackageDigest
+  - status
+  - activationCheckpoint
+  - reloadMode
+  - createdAt
+  - updatedAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    desiredGeneration:
+      type: integer
+      format: int64
+    triggerKind:
+      type: string
+    triggerExtensionId:
+      type: string
+    compositionHash:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+    compositionSnapshot:
+      type: object
+      additionalProperties: true
+    activeThemeId:
+      type: string
+    themeVersion:
+      type: string
+    themeLayerPath:
+      type: string
+    themePackageDigest:
+      type: string
+    status:
+      "$ref": "#/WebReleaseStatus"
+    activationCheckpoint:
+      type: string
+    reloadMode:
+      type: string
+      enum:
+      - prompt
+      - force
+    artifactPath:
+      type: string
+    artifactDigest:
+      type: string
+    serverEntry:
+      type: string
+    buildLog:
+      type: string
+    publicReason:
+      type: string
+    publicMessage:
+      type: string
+    previousReleaseId:
+      type: integer
+      format: int64
+    requestedByUserId:
+      type: integer
+      format: int64
+    activatedByUserId:
+      type: integer
+      format: int64
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+    readyAt:
+      type: string
+      format: date-time
+    activationStartedAt:
+      type: string
+      format: date-time
+    activatedAt:
+      type: string
+      format: date-time
+    completedAt:
+      type: string
+      format: date-time
+WebReleaseExtension:
+  type: object
+  required:
+  - webReleaseId
+  - extensionId
+  - extensionVersion
+  - packageDigest
+  - frontendRoot
+  - componentMap
+  - apiVersion
+  - trustedComponents
+  - localeMap
+  - localeMapDigest
+  - lockfileDigest
+  - resolvedDependencies
+  - sortOrder
+  properties:
+    webReleaseId:
+      type: integer
+      format: int64
+    extensionId:
+      type: string
+    extensionVersion:
+      type: string
+    packageDigest:
+      type: string
+    frontendRoot:
+      type: string
+    componentMap:
+      type: object
+      additionalProperties:
+        type: string
+    apiVersion:
+      type: integer
+    trustedComponents:
+      type: array
+      items:
+        "$ref": "#/ExtensionManifestContribution"
+    localeMap:
+      type: object
+      additionalProperties:
+        type: string
+    localeMapDigest:
+      type: string
+    lockfileDigest:
+      type: string
+    resolvedDependencies:
+      type: array
+      items:
+        "$ref": "#/Dependency"
+    resolvedDependencySnapshotDigest:
+      type: string
+    sortOrder:
+      type: integer
+WebReleaseExtensionEffect:
+  type: object
+  required:
+  - webReleaseId
+  - extensionId
+  - previousStatus
+  - targetStatus
+  - activationCheckpoint
+  properties:
+    webReleaseId:
+      type: integer
+      format: int64
+    extensionId:
+      type: string
+    previousStatus:
+      "$ref": "#/ExtensionStatus"
+    targetStatus:
+      "$ref": "#/ExtensionStatus"
+    activationCheckpoint:
+      type: string
+    publicReason:
+      type: string
+    publicMessage:
+      type: string
+WebReleaseEvent:
+  type: object
+  required:
+  - id
+  - webReleaseId
+  - nextStatus
+  - reason
+  - message
+  - createdAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    webReleaseId:
+      type: integer
+      format: int64
+    actorUserId:
+      type: integer
+      format: int64
+    previousStatus:
+      "$ref": "#/WebReleaseStatus"
+    nextStatus:
+      "$ref": "#/WebReleaseStatus"
+    reason:
+      type: string
+    message:
+      type: string
+    createdAt:
+      type: string
+      format: date-time
+WebReleaseDetail:
+  allOf:
+  - "$ref": "#/WebRelease"
+  - type: object
+    required:
+    - extensions
+    - effects
+    - events
+    properties:
+      extensions:
+        type: array
+        items:
+          "$ref": "#/WebReleaseExtension"
+      effects:
+        type: array
+        items:
+          "$ref": "#/WebReleaseExtensionEffect"
+      events:
+        type: array
+        items:
+          "$ref": "#/WebReleaseEvent"
+WebReleasePage:
+  type: object
+  required:
+  - items
+  - total
+  - page
+  - perPage
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/WebRelease"
+    total:
+      type: integer
+      format: int64
+    page:
+      type: integer
+    perPage:
+      type: integer
+WebReleaseSummary:
+  type: object
+  required:
+  - id
+  - status
+  - compositionHash
+  - reloadMode
+  properties:
+    id:
+      type: integer
+      format: int64
+    status:
+      "$ref": "#/WebReleaseStatus"
+    compositionHash:
+      type: string
+    reloadMode:
+      type: string
+ExtensionOperation:
+  type: object
+  required:
+  - extension
+  - queued
+  properties:
+    extension:
+      "$ref": "#/Extension"
+    frontend:
+      "$ref": "#/FrontendStatus"
+    webRelease:
+      "$ref": "#/WebReleaseSummary"
+    queued:
+      type: boolean
+WebReleaseOperation:
+  type: object
+  required:
+  - webRelease
+  - queued
+  properties:
+    webRelease:
+      "$ref": "#/WebRelease"
+    queued:
+      type: boolean
+ApiResponseFrontendStatus:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/FrontendStatus"
+ApiResponseExtensionOperation:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ExtensionOperation"
+ApiResponseWebReleasePage:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/WebReleasePage"
+ApiResponseWebReleaseDetail:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/WebReleaseDetail"
+ApiResponseWebReleaseOperation:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/WebReleaseOperation"

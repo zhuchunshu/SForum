@@ -1,6 +1,7 @@
 package extensionscontroller
 
 import (
+	"context"
 	"errors"
 	"io"
 	"strconv"
@@ -16,10 +17,26 @@ import (
 const maxUploadedArchiveBytes = 60 * 1024 * 1024
 
 type Controller struct {
-	service  *extensions.Service
-	users    identity.ActorStore
-	sessions *authsession.Manager
-	gateway  RouteGateway
+	service     *extensions.Service
+	frontend    TrustedFrontendService
+	webReleases WebReleaseAdminService
+	users       identity.ActorStore
+	sessions    *authsession.Manager
+	gateway     RouteGateway
+}
+
+type TrustedFrontendService interface {
+	Frontend(context.Context, identity.Actor, string) (extensions.FrontendStatus, error)
+	Grant(context.Context, identity.Actor, string, extensions.GrantFrontendInput) (extensions.ExtensionOperation, error)
+	Revoke(context.Context, identity.Actor, string) (extensions.ExtensionOperation, error)
+	RestoreDefaults(context.Context, identity.Actor) (extensions.ExtensionOperation, error)
+}
+
+type WebReleaseAdminService interface {
+	List(context.Context, identity.Actor, extensions.WebReleaseListInput) (extensions.WebReleasePage, error)
+	Detail(context.Context, identity.Actor, int64) (extensions.WebReleaseDetail, error)
+	Retry(context.Context, identity.Actor, int64) (extensions.WebReleaseOperation, error)
+	Rollback(context.Context, identity.Actor, int64) (extensions.WebReleaseOperation, error)
 }
 
 type ProxyInput struct {
@@ -42,6 +59,12 @@ func NewController(service *extensions.Service, users identity.ActorStore, sessi
 
 func NewControllerWithGateway(service *extensions.Service, users identity.ActorStore, sessions *authsession.Manager, gateway RouteGateway) *Controller {
 	return &Controller{service: service, users: users, sessions: sessions, gateway: gateway}
+}
+
+func (h *Controller) WithTrustedRuntime(frontend TrustedFrontendService, webReleases WebReleaseAdminService) *Controller {
+	h.frontend = frontend
+	h.webReleases = webReleases
+	return h
 }
 
 func (h *Controller) list(c fiber.Ctx) error {
@@ -330,6 +353,20 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeInvalidManifest)
 	case errors.Is(err, extensions.ErrExtensionNotFound):
 		return fiber.NewError(fiber.StatusNotFound, extensions.CodeNotFound)
+	case errors.Is(err, extensions.ErrWebReleaseNotFound):
+		return fiber.NewError(fiber.StatusNotFound, extensions.CodeWebReleaseNotFound)
+	case errors.Is(err, extensions.ErrFrontendGrantNotFound):
+		return fiber.NewError(fiber.StatusNotFound, extensions.CodeFrontendTrustNotFound)
+	case errors.Is(err, extensions.ErrFrontendTrustUnavailable),
+		errors.Is(err, extensions.ErrFrontendGrantConflict),
+		errors.Is(err, extensions.ErrFrontendGrantStateConflict),
+		errors.Is(err, extensions.ErrWebReleaseRetryIneligible),
+		errors.Is(err, extensions.ErrWebReleaseRollbackIneligible),
+		errors.Is(err, extensions.ErrWebReleaseStale),
+		errors.Is(err, extensions.ErrWebReleaseCompositionMismatch):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeWebReleaseConflict)
+	case errors.Is(err, extensions.ErrWebReleasePackageChanged):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeWebReleaseConflict)
 	case errors.Is(err, extensions.ErrPreflightFailed):
 		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodePreflightFailed)
 	case errors.Is(err, extensions.ErrBuildFailed):

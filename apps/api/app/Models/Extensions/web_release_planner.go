@@ -22,6 +22,7 @@ const (
 	WebReleaseTriggerTrustRevoke   = "frontend.trust_revoke"
 	WebReleaseTriggerRestore       = "frontend.restore_defaults"
 	WebReleaseTriggerTheme         = "theme.activate"
+	WebReleaseTriggerRollback      = "rollback"
 )
 
 var (

@@ -2,6 +2,7 @@ package extensions
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -10,6 +11,11 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+)
+
+var (
+	ErrWebReleaseRetryIneligible    = errors.New("extensions: web release is not retryable")
+	ErrWebReleaseRollbackIneligible = errors.New("extensions: web release is not eligible for rollback")
 )
 
 type WebReleaseCompositionPlanner interface {
@@ -21,6 +27,7 @@ type WebReleaseTxBeginner interface {
 }
 
 type WebReleaseTransactionalStore interface {
+	WebRelease(context.Context, int64) (WebReleaseDetail, error)
 	ActiveWebReleaseTx(context.Context, pgx.Tx) (WebRelease, error)
 	LiveWebReleasesByCompositionTx(context.Context, pgx.Tx, string) ([]WebReleaseDetail, error)
 	CreateWebReleaseTx(context.Context, pgx.Tx, WebReleaseCreateInput) (WebRelease, error)
@@ -28,6 +35,10 @@ type WebReleaseTransactionalStore interface {
 
 type WebReleaseBuildEnqueuer interface {
 	EnqueueWebReleaseBuildTx(context.Context, pgx.Tx, int64) error
+}
+
+type WebReleaseRollbackValidator interface {
+	ValidateRollback(context.Context, WebReleaseDetail) error
 }
 
 type QueueWebReleaseInput struct {
@@ -45,6 +56,13 @@ type WebReleaseService struct {
 	tx       WebReleaseTxBeginner
 	store    WebReleaseTransactionalStore
 	enqueuer WebReleaseBuildEnqueuer
+	rollback WebReleaseRollbackValidator
+}
+
+type WebReleaseServiceOption func(*WebReleaseService)
+
+func WithWebReleaseRollbackValidator(validator WebReleaseRollbackValidator) WebReleaseServiceOption {
+	return func(service *WebReleaseService) { service.rollback = validator }
 }
 
 func NewWebReleaseService(
@@ -52,8 +70,15 @@ func NewWebReleaseService(
 	tx WebReleaseTxBeginner,
 	store WebReleaseTransactionalStore,
 	enqueuer WebReleaseBuildEnqueuer,
+	options ...WebReleaseServiceOption,
 ) *WebReleaseService {
-	return &WebReleaseService{planner: planner, tx: tx, store: store, enqueuer: enqueuer}
+	service := &WebReleaseService{planner: planner, tx: tx, store: store, enqueuer: enqueuer}
+	for _, option := range options {
+		if option != nil {
+			option(service)
+		}
+	}
+	return service
 }
 
 func (s *WebReleaseService) PlanAndQueue(ctx context.Context, input QueueWebReleaseInput) (WebReleaseQueueResult, error) {
@@ -64,6 +89,14 @@ func (s *WebReleaseService) PlanAndQueue(ctx context.Context, input QueueWebRele
 	if err != nil {
 		return WebReleaseQueueResult{}, err
 	}
+	return s.queuePlanned(ctx, planned, input)
+}
+
+func (s *WebReleaseService) queuePlanned(
+	ctx context.Context,
+	planned PlannedWebRelease,
+	input QueueWebReleaseInput,
+) (WebReleaseQueueResult, error) {
 	effects, err := canonicalWebReleaseEffects(input.Effects)
 	if err != nil {
 		return WebReleaseQueueResult{}, err
@@ -115,6 +148,87 @@ func (s *WebReleaseService) PlanAndQueue(ctx context.Context, input QueueWebRele
 		return WebReleaseQueueResult{}, fmt.Errorf("commit web release plan: %w", err)
 	}
 	return WebReleaseQueueResult{Release: release, Created: true}, nil
+}
+
+func (s *WebReleaseService) Retry(ctx context.Context, releaseID int64, requestedBy int64) (WebReleaseQueueResult, error) {
+	if s == nil || s.store == nil || s.planner == nil {
+		return WebReleaseQueueResult{}, fmt.Errorf("web release service dependencies are incomplete")
+	}
+	source, err := s.store.WebRelease(ctx, releaseID)
+	if err != nil {
+		return WebReleaseQueueResult{}, err
+	}
+	if source.Status != WebReleaseFailed && source.Status != WebReleaseSuperseded {
+		return WebReleaseQueueResult{}, ErrWebReleaseRetryIneligible
+	}
+	if source.TriggerKind == WebReleaseTriggerRollback {
+		return s.queueHistorical(ctx, source, requestedBy)
+	}
+	plan := PlanWebReleaseInput{
+		TriggerKind:        source.TriggerKind,
+		TriggerExtensionID: source.TriggerExtensionID,
+		RequestedBy:        requestedBy,
+		ReloadMode:         source.ReloadMode,
+	}
+	planned, err := s.planner.Plan(ctx, plan)
+	if err != nil {
+		return WebReleaseQueueResult{}, err
+	}
+	return s.queuePlanned(ctx, planned, QueueWebReleaseInput{Plan: plan, Effects: releaseEffectInputs(source.Effects)})
+}
+
+func (s *WebReleaseService) Rollback(ctx context.Context, releaseID int64, requestedBy int64) (WebReleaseQueueResult, error) {
+	if s == nil || s.store == nil || s.rollback == nil {
+		return WebReleaseQueueResult{}, ErrWebReleaseRollbackIneligible
+	}
+	target, err := s.store.WebRelease(ctx, releaseID)
+	if err != nil {
+		return WebReleaseQueueResult{}, err
+	}
+	if target.Status != WebReleaseInactive && target.Status != WebReleaseRolledBack {
+		return WebReleaseQueueResult{}, ErrWebReleaseRollbackIneligible
+	}
+	return s.queueHistorical(ctx, target, requestedBy)
+}
+
+func (s *WebReleaseService) queueHistorical(
+	ctx context.Context,
+	target WebReleaseDetail,
+	requestedBy int64,
+) (WebReleaseQueueResult, error) {
+	if s.rollback == nil {
+		return WebReleaseQueueResult{}, ErrWebReleaseRollbackIneligible
+	}
+	if err := s.rollback.ValidateRollback(ctx, target); err != nil {
+		return WebReleaseQueueResult{}, err
+	}
+	var composition WebComposition
+	if err := json.Unmarshal(target.CompositionSnapshot, &composition); err != nil {
+		return WebReleaseQueueResult{}, fmt.Errorf("%w: decode rollback composition: %v", ErrWebReleaseRollbackIneligible, err)
+	}
+	planned := PlannedWebRelease{
+		Composition: composition,
+		Snapshot:    append([]byte(nil), target.CompositionSnapshot...),
+		Hash:        target.CompositionHash,
+	}
+	plan := PlanWebReleaseInput{
+		TriggerKind: WebReleaseTriggerRollback,
+		RequestedBy: requestedBy,
+		ReloadMode:  WebReleaseReloadForce,
+	}
+	return s.queuePlanned(ctx, planned, QueueWebReleaseInput{Plan: plan, Effects: releaseEffectInputs(target.Effects)})
+}
+
+func releaseEffectInputs(effects []WebReleaseExtensionEffect) []WebReleaseEffectInput {
+	result := make([]WebReleaseEffectInput, len(effects))
+	for index, effect := range effects {
+		result[index] = WebReleaseEffectInput{
+			ExtensionID:    effect.ExtensionID,
+			PreviousStatus: effect.PreviousStatus,
+			TargetStatus:   effect.TargetStatus,
+		}
+	}
+	return result
 }
 
 func webReleaseCreateInput(

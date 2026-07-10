@@ -16,8 +16,16 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/admin/extensions/:id/settings", h.settings)
 	api.Put("/admin/extensions/:id/settings", h.updateSettings)
 	api.Post("/admin/extensions/:id/settings/reset", h.resetSettings)
+	api.Get("/admin/extensions/:id/frontend", h.frontendStatus)
+	api.Post("/admin/extensions/:id/frontend/trust", h.grantFrontendTrust)
+	api.Delete("/admin/extensions/:id/frontend/trust", h.revokeFrontendTrust)
 	api.Get("/admin/extensions/event-definitions", h.eventDefinitions)
 	api.Get("/admin/extensions/event-deliveries", h.eventDeliveries)
+	api.Get("/admin/web-releases", h.listWebReleases)
+	api.Post("/admin/web-releases/restore-defaults", h.restoreFrontendDefaults)
+	api.Get("/admin/web-releases/:releaseID", h.webReleaseDetail)
+	api.Post("/admin/web-releases/:releaseID/retry", h.retryWebRelease)
+	api.Post("/admin/web-releases/:releaseID/rollback", h.rollbackWebRelease)
 
 	api.All("/extensions/:extensionId/*", h.proxyExtensionRoute)
 }

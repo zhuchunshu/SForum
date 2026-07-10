@@ -35,6 +35,15 @@ ExtensionID:
   schema:
     type: string
   description: Stable extension id from sforum.extension.json.
+WebReleaseID:
+  name: releaseID
+  in: path
+  required: true
+  schema:
+    type: integer
+    format: int64
+    minimum: 1
+  description: Immutable web release id.
 ExtensionPluginPath:
   name: pluginPath
   in: path

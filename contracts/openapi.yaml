@@ -183,10 +183,24 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionSettings"
   "/admin/extensions/{extensionID}/settings/reset":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionSettingsReset"
+  "/admin/extensions/{extensionID}/frontend":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontend"
+  "/admin/extensions/{extensionID}/frontend/trust":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontendTrust"
   "/admin/extensions/event-definitions":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEventDefinitions"
   "/admin/extensions/event-deliveries":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEventDeliveries"
+  "/admin/web-releases":
+    "$ref": "./openapi/paths/extensions.yaml#/adminWebReleases"
+  "/admin/web-releases/restore-defaults":
+    "$ref": "./openapi/paths/extensions.yaml#/adminWebReleaseRestoreDefaults"
+  "/admin/web-releases/{releaseID}":
+    "$ref": "./openapi/paths/extensions.yaml#/adminWebRelease"
+  "/admin/web-releases/{releaseID}/retry":
+    "$ref": "./openapi/paths/extensions.yaml#/adminWebReleaseRetry"
+  "/admin/web-releases/{releaseID}/rollback":
+    "$ref": "./openapi/paths/extensions.yaml#/adminWebReleaseRollback"
   "/extensions/{extensionID}/{pluginPath}":
     "$ref": "./openapi/paths/extensions.yaml#/extensionPluginRoute"
 components:
@@ -301,6 +315,16 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionNavigationList"
     ApiResponseExtensionSettings:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionSettings"
+    ApiResponseFrontendStatus:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseFrontendStatus"
+    ApiResponseExtensionOperation:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionOperation"
+    ApiResponseWebReleasePage:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseWebReleasePage"
+    ApiResponseWebReleaseDetail:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseWebReleaseDetail"
+    ApiResponseWebReleaseOperation:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseWebReleaseOperation"
     ApiResponseDatabaseTableList:
       "$ref": "./openapi/schemas/database.yaml#/ApiResponseDatabaseTableList"
     ApiResponseDatabaseTableDetail:
@@ -365,6 +389,8 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionManifestSetting"
     ExtensionManifestAdminPage:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionManifestAdminPage"
+    ExtensionManifestAdminFrontend:
+      "$ref": "./openapi/schemas/extensions.yaml#/ExtensionManifestAdminFrontend"
     Extension:
       "$ref": "./openapi/schemas/extensions.yaml#/Extension"
     ExtensionAdminNavigationItem:
@@ -375,6 +401,14 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionSettingValue"
     ExtensionSettingsInput:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionSettingsInput"
+    FrontendStatus:
+      "$ref": "./openapi/schemas/extensions.yaml#/FrontendStatus"
+    WebRelease:
+      "$ref": "./openapi/schemas/extensions.yaml#/WebRelease"
+    WebReleaseDetail:
+      "$ref": "./openapi/schemas/extensions.yaml#/WebReleaseDetail"
+    WebReleasePage:
+      "$ref": "./openapi/schemas/extensions.yaml#/WebReleasePage"
     ExtensionEvent:
       "$ref": "./openapi/schemas/extensions.yaml#/ExtensionEvent"
     ExtensionEventDefinition:

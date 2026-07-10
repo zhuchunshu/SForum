@@ -352,6 +352,214 @@ adminExtensionEventDeliveries:
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+adminExtensionFrontend:
+  get:
+    summary: Inspect an extension trusted admin frontend
+    description: Requires extension.manage. Returns the exact package digest, declaration, dependency summary, and trust state without executing plugin code.
+    operationId: getAdminExtensionFrontend
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Trusted frontend status.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseFrontendStatus"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminExtensionFrontendTrust:
+  post:
+    summary: Grant exact trusted admin frontend access
+    description: Requires an active super administrator. Trust is bound to the submitted exact immutable package digest. A disabled plugin returns 200; an enabled plugin queues a web release and returns 202.
+    operationId: grantAdminExtensionFrontendTrust
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/extensions.yaml#/GrantFrontendTrustInput"
+    responses:
+      '200':
+        description: Trust granted without a web rebuild.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
+      '202':
+        description: Trust granted and a web release queued.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '422':
+        description: The package digest is not 64 lowercase hexadecimal characters.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+  delete:
+    summary: Revoke exact trusted admin frontend access
+    description: Requires an active super administrator. Revocation finalizes immediately when the active artifact does not contain the grant; otherwise it remains pending and queues a force-reload safe release.
+    operationId: revokeAdminExtensionFrontendTrust
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Trust revoked immediately.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
+      '202':
+        description: Revocation is pending a safe web release.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+adminWebReleases:
+  get:
+    summary: List web releases
+    description: Requires extension.manage. Returns immutable release history ordered by desired generation descending.
+    operationId: listAdminWebReleases
+    parameters:
+    - name: status
+      in: query
+      schema:
+        "$ref": "../schemas/extensions.yaml#/WebReleaseStatus"
+    - name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    responses:
+      '200':
+        description: Paged web release history.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseWebReleasePage"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+adminWebRelease:
+  get:
+    summary: Get a web release timeline
+    operationId: getAdminWebRelease
+    parameters:
+    - "$ref": "../components/parameters.yaml#/WebReleaseID"
+    responses:
+      '200':
+        description: Release composition, effects, and transition events.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseWebReleaseDetail"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+adminWebReleaseRetry:
+  post:
+    summary: Retry a failed or superseded web release
+    description: Creates a new queued release and generation; it never mutates the terminal source release.
+    operationId: retryAdminWebRelease
+    parameters:
+    - "$ref": "../components/parameters.yaml#/WebReleaseID"
+    responses:
+      '202':
+        description: New retry release queued.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseWebReleaseOperation"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+adminWebReleaseRollback:
+  post:
+    summary: Rebuild an eligible historical web release composition
+    description: Rechecks exact frontend trust and creates a new force-reload release. Historical rows and artifacts are not directly reactivated.
+    operationId: rollbackAdminWebRelease
+    parameters:
+    - "$ref": "../components/parameters.yaml#/WebReleaseID"
+    responses:
+      '202':
+        description: New checked rollback release queued.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseWebReleaseOperation"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+adminWebReleaseRestoreDefaults:
+  post:
+    summary: Restore recommended trusted frontend defaults
+    description: Requires an active super administrator. Marks all uploaded frontend grants for revocation while preserving plugin status, settings, credentials, and backend runtimes. Returns 200 when no active uploaded frontend is present, otherwise 202.
+    operationId: restoreAdminWebReleaseDefaults
+    responses:
+      '200':
+        description: Recommended defaults already effective or finalized immediately.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
+      '202':
+        description: Safe default web release queued.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionOperation"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
 extensionPluginRoute:
   parameters:
   - "$ref": "../components/parameters.yaml#/ExtensionID"

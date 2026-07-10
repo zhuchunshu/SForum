@@ -125,12 +125,35 @@ var messages = map[string]map[string]string{
 	},
 }
 
+var trustedRuntimeMessages = map[string]map[string]string{
+	"zh-CN": {
+		"extension.frontend_runtime_unavailable": "可信前端运行时暂不可用，请稍后重试。",
+		"extension.frontend_digest_invalid":      "扩展前端摘要无效，请刷新扩展信息后重试。",
+		"extension.frontend_trust_not_found":     "该扩展没有可撤销的可信前端授权。",
+		"extension.web_release_not_found":        "Web Release 不存在，请刷新后重试。",
+		"extension.web_release_conflict":         "当前 Web Release 状态已变化，或该操作不再安全，请刷新后重试。",
+	},
+	"en-US": {
+		"extension.frontend_runtime_unavailable": "The trusted frontend runtime is temporarily unavailable. Try again later.",
+		"extension.frontend_digest_invalid":      "The extension frontend digest is invalid. Refresh the extension details and try again.",
+		"extension.frontend_trust_not_found":     "This extension has no trusted frontend grant to revoke.",
+		"extension.web_release_not_found":        "The web release does not exist. Refresh and try again.",
+		"extension.web_release_conflict":         "The web release state changed or this operation is no longer safe. Refresh and try again.",
+	},
+}
+
 func Message(locale string, key string) string {
 	normalized := Normalize(locale, []string{"zh-CN", "en-US"})
+	if message, ok := lookupMessage(trustedRuntimeMessages, normalized, key); ok {
+		return message
+	}
 	if catalog, ok := messages[normalized]; ok {
 		if message, ok := catalog[key]; ok {
 			return message
 		}
+	}
+	if message, ok := lookupMessage(trustedRuntimeMessages, DefaultLocale, key); ok {
+		return message
 	}
 
 	if catalog, ok := messages[DefaultLocale]; ok {
@@ -140,6 +163,15 @@ func Message(locale string, key string) string {
 	}
 
 	return key
+}
+
+func lookupMessage(catalogs map[string]map[string]string, locale string, key string) (string, bool) {
+	catalog, ok := catalogs[locale]
+	if !ok {
+		return "", false
+	}
+	message, ok := catalog[key]
+	return message, ok
 }
 
 func NegotiateAcceptLanguage(header string, supported []string, fallback string) string {
