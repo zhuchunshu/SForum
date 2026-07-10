@@ -53,12 +53,13 @@ const avatarClass = computed(() => [
 ].join(' '))
 
 const imageSrc = computed(() => props.avatar?.url || props.src || '')
-const imageAlt = computed(() => props.alt || props.avatar?.alt || props.name)
+const imageAlt = computed(() => props.alt ?? props.avatar?.alt ?? props.name)
+const isDecorative = computed(() => props.alt === '')
 const usePlainImage = computed(() => /^https?:\/\//i.test(imageSrc.value))
 </script>
 
 <template>
-  <span :class="avatarClass">
+  <span :class="avatarClass" :aria-hidden="isDecorative ? 'true' : undefined">
     <img
       v-if="imageSrc && usePlainImage"
       class="sf-avatar__image"

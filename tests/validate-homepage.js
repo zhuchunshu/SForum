@@ -1,109 +1,92 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('fs')
+const path = require('path')
 
-const root = process.cwd();
-const indexPagePath = path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/pages/index.vue');
-const themeLayerConfigPath = path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/nuxt.config.ts');
-const nuxtConfigPath = path.resolve(root, 'apps/web/nuxt.config.ts');
-const themeCssPath = path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-theme.css');
-const zhLocalePath = path.resolve(root, 'apps/web/i18n/locales/zh-CN.json');
-const enLocalePath = path.resolve(root, 'apps/web/i18n/locales/en-US.json');
+const root = process.cwd()
+const paths = {
+  page: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/pages/index.vue'),
+  navigation: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/components/SFHomeNavigation.vue'),
+  topicRow: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/components/SFHomeTopicRow.vue'),
+  layerConfig: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/nuxt.config.ts'),
+  hostConfig: path.resolve(root, 'apps/web/nuxt.config.ts'),
+  homeCss: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-home.css'),
+  themeCss: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-theme.css'),
+  seo: path.resolve(root, 'apps/web/app/composables/useSForumSeo.ts'),
+  zh: path.resolve(root, 'apps/web/i18n/locales/zh-CN.json'),
+  en: path.resolve(root, 'apps/web/i18n/locales/en-US.json')
+}
 
-console.log('Validating SForum homepage implementation...\n');
+console.log('Validating SForum hybrid homepage implementation...\n')
 
-// 1. Verify files exist
-if (!fs.existsSync(indexPagePath)) {
-  throw new Error('default theme index.vue is missing');
-}
-if (!fs.existsSync(themeCssPath)) {
-  throw new Error('default theme CSS is missing');
-}
-if (!fs.existsSync(themeLayerConfigPath)) {
-  throw new Error('default theme layer nuxt.config.ts is missing');
-}
-if (!fs.existsSync(nuxtConfigPath)) {
-  throw new Error('nuxt.config.ts is missing');
-}
-console.log('✓ default theme homepage and CSS files exist.');
-
-// 2. Read contents
-const indexContent = fs.readFileSync(indexPagePath, 'utf8');
-const themeLayerConfig = fs.readFileSync(themeLayerConfigPath, 'utf8');
-const nuxtConfig = fs.readFileSync(nuxtConfigPath, 'utf8');
-const themeCss = fs.readFileSync(themeCssPath, 'utf8');
-const zh = JSON.parse(fs.readFileSync(zhLocalePath, 'utf8'));
-const en = JSON.parse(fs.readFileSync(enLocalePath, 'utf8'));
-
-if (!nuxtConfig.includes('../../extensions/builtin/themes/sforum-default/layer')) {
-  throw new Error('apps/web/nuxt.config.ts should statically extend the built-in default theme layer');
-}
-if (!nuxtConfig.includes('extends')) {
-  throw new Error('apps/web/nuxt.config.ts should use Nuxt layers through extends');
-}
-console.log('✓ Nuxt config extends the built-in default theme layer.');
-
-if (!themeCss.includes('--sf-surface') || !themeCss.includes('.auth-shell') || !themeCss.includes('.navbar')) {
-  throw new Error('default theme CSS should own public surface, auth, and navbar styles');
-}
-console.log('✓ default theme CSS owns public surface, auth, and navbar styles.');
-
-if (themeLayerConfig.includes('~/assets/css/sforum-theme.css')) {
-  throw new Error('default theme layer CSS must resolve from the layer directory, not the host app ~/ alias');
-}
-if (!themeLayerConfig.includes('import.meta.url') || !themeLayerConfig.includes('sforum-theme.css')) {
-  throw new Error('default theme layer nuxt.config.ts should register sforum-theme.css with a layer-relative path');
-}
-console.log('✓ default theme layer CSS path is layer-relative.');
-
-const requiredComponents = [
-  'SFCard',
-  'SFSearch',
-  'SFAvatar',
-  'SFEmptyState',
-  'SFSkeleton'
-];
-
-for (const comp of requiredComponents) {
-  if (!indexContent.includes(comp)) {
-    throw new Error(`index.vue should utilize ${comp} component`);
+for (const [name, file] of Object.entries(paths)) {
+  if (!fs.existsSync(file)) {
+    throw new Error(`${name} file is missing: ${file}`)
   }
 }
-console.log('✓ index.vue uses all 10 required SF component library tags.');
 
-// 4. Verify SEO configurations
-if (!indexContent.includes('useSForumSeo') || !indexContent.includes('home.metaTitle')) {
-  throw new Error('index.vue should configure metadata with useSForumSeo and i18n keys');
-}
-console.log('✓ index.vue contains useSForumSeo configuration.');
+const read = key => fs.readFileSync(paths[key], 'utf8')
+const page = read('page')
+const navigation = read('navigation')
+const topicRow = read('topicRow')
+const layerConfig = read('layerConfig')
+const hostConfig = read('hostConfig')
+const homeCss = read('homeCss')
+const themeCss = read('themeCss')
+const seo = read('seo')
+const locales = [JSON.parse(read('zh')), JSON.parse(read('en'))]
 
-// 5. Verify translation keys in both languages
-const keyPaths = [
-  ['home', 'metaTitle'],
-  ['home', 'searchPlaceholder'],
-  ['home', 'filter', 'latest'],
-  ['home', 'sidebar', 'navHome'],
-  ['home', 'sidebar', 'checkIn'],
-  ['home', 'sidebar', 'forumStats']
-];
-
-function getKeyValue(obj, pathArr) {
-  return pathArr.reduce((prev, curr) => prev?.[curr], obj);
+if (!hostConfig.includes('../../extensions/builtin/themes/sforum-default/layer') || !hostConfig.includes('extends')) {
+  throw new Error('apps/web/nuxt.config.ts should extend the built-in default theme layer')
 }
 
-for (const pathArr of keyPaths) {
-  if (!getKeyValue(zh, pathArr)) {
-    throw new Error(`zh-CN.json is missing key path: ${pathArr.join('.')}`);
-  }
-  if (!getKeyValue(en, pathArr)) {
-    throw new Error(`en-US.json is missing key path: ${pathArr.join('.')}`);
+if (!layerConfig.includes('import.meta.url') || !layerConfig.includes('sforum-home.css')) {
+  throw new Error('the default theme layer should register the layer-relative homepage stylesheet')
+}
+
+for (const token of ['<SFHomeNavigation', '<SFHomeTopicRow', 'parseForumHomeQuery', 'buildForumHomeQuery', 'forumHomeFeedKey', 'IntersectionObserver']) {
+  if (!page.includes(token)) {
+    throw new Error(`index.vue is missing the hybrid homepage contract: ${token}`)
   }
 }
-console.log('✓ All 6 required homepage locale key paths validated in both zh-CN and en-US bundles.');
 
-// 6. Verify layout grids
-if (!indexContent.includes('sforum-home') || !indexContent.includes('sforum-home__layout') || !indexContent.includes('sforum-home__left') || !indexContent.includes('sforum-home__main')) {
-  throw new Error('index.vue layout grid configuration is missing or incorrect');
+for (const obsolete of ['layout: false', 'sforum-home__topbar', '<SFFooter', 'topicReplyStackLabel', 'participants', '<SFPagination']) {
+  if (page.includes(obsolete)) {
+    throw new Error(`index.vue still contains obsolete or fabricated homepage UI: ${obsolete}`)
+  }
 }
-console.log('✓ Compact layout grid classes found in index.vue template.');
 
-console.log('\nSForum homepage validation PASSED!');
+if (!navigation.includes('category.topicCount') || !navigation.includes("'select-category': [slug: string]")) {
+  throw new Error('SFHomeNavigation must expose typed, API-backed category navigation')
+}
+
+if (!topicRow.includes(':avatar="topic.author?.avatar"') || !topicRow.includes('topic.commentCount') || topicRow.includes('participants')) {
+  throw new Error('SFHomeTopicRow must render only real topic summary metadata')
+}
+
+for (const token of ['grid-template-columns: 208px minmax(0, 1fr);', 'min-height: 40px;', 'overflow-wrap: anywhere;', 'prefers-reduced-motion: reduce']) {
+  if (!homeCss.includes(token)) {
+    throw new Error(`sforum-home.css is missing: ${token}`)
+  }
+}
+
+for (const obsoleteColor of ['#0b1120', '#172033']) {
+  if (homeCss.includes(obsoleteColor) || themeCss.includes(obsoleteColor)) {
+    throw new Error(`homepage styles still use the old blue-black color: ${obsoleteColor}`)
+  }
+}
+
+if (!seo.includes('/?q={search_term_string}') || seo.includes('/search?q={search_term_string}')) {
+  throw new Error('schema.org SearchAction must point to the working homepage query')
+}
+
+for (const messages of locales) {
+  for (const key of ['metaTitle', 'searchPlaceholder', 'notice', 'allTopics', 'categories', 'tags', 'clearFilters', 'searchResults']) {
+    if (!messages.home[key]) {
+      throw new Error(`homepage locale is missing home.${key}`)
+    }
+  }
+  if (!messages.home.emptyState?.filteredDescription || !messages.home.feed?.loadMoreFailed || !messages.home.feed?.retryLoadMore) {
+    throw new Error('homepage locale is missing constrained empty/retry copy')
+  }
+}
+
+console.log('SForum hybrid homepage validation PASSED!')

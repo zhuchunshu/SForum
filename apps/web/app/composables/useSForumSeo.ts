@@ -149,7 +149,7 @@ function structuredDataScript(input: {
   if (settings.schemaOrgSearchActionEnabled) {
     websiteNode.potentialAction = {
       '@type': 'SearchAction',
-      target: `${input.siteUrl.replace(/\/+$/, '')}/search?q={search_term_string}`,
+      target: `${input.siteUrl.replace(/\/+$/, '')}/?q={search_term_string}`,
       'query-input': 'required name=search_term_string'
     }
   }

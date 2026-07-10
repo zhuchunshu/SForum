@@ -4,6 +4,21 @@ export type ForumHomeFilters = {
   tagSlug: string
 }
 
+export type ForumHomeRequestToken = {
+  generation: number
+  feedKey: string
+}
+
+export type ForumHomePageProgress = {
+  requestedPage: number
+  responsePage: number
+  responseItemCount: number
+  newItemCount: number
+  loadedCount: number
+  total: number
+  perPage: number
+}
+
 type RouteQuery = Record<string, unknown>
 
 const scalar = (value: unknown) => typeof value === 'string' ? value.trim() : ''
@@ -25,3 +40,19 @@ export const buildForumHomeQuery = (filters: ForumHomeFilters) => Object.fromEnt
 export const forumHomeFeedKey = (filters: ForumHomeFilters) => JSON.stringify([
   filters.query.trim(), filters.categorySlug.trim(), filters.tagSlug.trim()
 ])
+
+export function isForumHomeRequestCurrent(
+  request: ForumHomeRequestToken,
+  currentGeneration: number,
+  activeFeedKey: string
+) {
+  return request.generation === currentGeneration && request.feedKey === activeFeedKey
+}
+
+export function hasReachedForumHomeEnd(progress: ForumHomePageProgress) {
+  return progress.responsePage < progress.requestedPage
+    || progress.responseItemCount === 0
+    || progress.responseItemCount < progress.perPage
+    || progress.newItemCount === 0
+    || progress.loadedCount >= progress.total
+}

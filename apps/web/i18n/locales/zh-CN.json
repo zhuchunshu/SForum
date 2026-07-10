@@ -25,6 +25,11 @@
     "metaDescription": "{siteName} 是一个可维护、高性能的极简社区论坛。",
     "searchPlaceholder": "搜索帖子标题、内容...",
     "notice": "真诚、友善、团结、专业，共建你我引以为荣的社区。",
+    "allTopics": "全部讨论",
+    "categories": "分类",
+    "tags": "标签",
+    "clearFilters": "清除筛选",
+    "searchResults": "“{query}”的搜索结果",
     "filter": {
       "latest": "最新",
       "new": "新",
@@ -43,9 +48,12 @@
     },
     "emptyState": {
       "title": "未找到匹配的话题",
-      "description": "尝试换个关键词或者选择其他过滤器分类看看。"
+      "description": "这里还没有讨论，新的话题会显示在这里。",
+      "filteredDescription": "当前筛选条件下没有结果，可以清除筛选后再试。"
     },
     "feed": {
+      "loadFailed": "讨论列表加载失败。",
+      "retry": "重新加载",
       "loadingMore": "正在加载更多讨论...",
       "loadMoreFailed": "加载更多失败。",
       "retryLoadMore": "重试",

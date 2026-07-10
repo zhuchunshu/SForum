@@ -18,12 +18,18 @@ describe('unified avatar rendering contract', () => {
   })
 
   test('forum topic and comment surfaces pass AvatarView into SFAvatar', () => {
-    const homepage = source('../../../extensions/builtin/themes/sforum-default/layer/app/pages/index.vue')
+    const avatar = source('../app/components/SFAvatar.vue')
+    const homepageRow = source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFHomeTopicRow.vue')
     const topicPage = source('../../../extensions/builtin/themes/sforum-default/layer/app/pages/t/[...path].vue')
     const feedRow = source('../app/components/SFFeedRow.vue')
     const comment = source('../app/components/SFComment.vue')
 
-    expect(homepage).toContain(':avatar="topic.author?.avatar"')
+    expect(homepageRow).toContain(':avatar="topic.author?.avatar"')
+    expect(homepageRow).toContain('alt=""')
+    expect(homepageRow).not.toContain(':aria-label="t(\'home.feed.repliesColumn\')"')
+    expect(homepageRow).not.toContain('participants')
+    expect(avatar).toContain('props.alt ?? props.avatar?.alt ?? props.name')
+    expect(avatar).toContain(":aria-hidden=\"isDecorative ? 'true' : undefined\"")
     expect(topicPage).toContain(':avatar="topic.author?.avatar"')
     expect(topicPage).toContain(':avatar="comment.author?.avatar"')
     expect(feedRow).toContain('avatar?: AvatarView | null')

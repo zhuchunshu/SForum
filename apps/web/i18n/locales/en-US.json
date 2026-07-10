@@ -25,6 +25,11 @@
     "metaDescription": "{siteName} is a maintainable, high-performance minimalist community forum.",
     "searchPlaceholder": "Search threads, content...",
     "notice": "Be sincere, friendly, united, and professional as we build a community we are proud of.",
+    "allTopics": "All discussions",
+    "categories": "Categories",
+    "tags": "Tags",
+    "clearFilters": "Clear filters",
+    "searchResults": "Results for “{query}”",
     "filter": {
       "latest": "Latest",
       "new": "New",
@@ -43,9 +48,12 @@
     },
     "emptyState": {
       "title": "No matching threads found",
-      "description": "Try switching keywords or selecting another category filter."
+      "description": "There are no discussions yet. New topics will appear here.",
+      "filteredDescription": "Nothing matches these filters. Clear them and try again."
     },
     "feed": {
+      "loadFailed": "The discussion list could not be loaded.",
+      "retry": "Reload",
       "loadingMore": "Loading more discussions...",
       "loadMoreFailed": "Failed to load more discussions.",
       "retryLoadMore": "Retry",
