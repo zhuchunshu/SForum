@@ -14,10 +14,11 @@ import (
 )
 
 type Service struct {
-	store        Store
-	settings     SettingsResolver
-	events       appevents.Publisher
-	topicActions TopicExtensionActionProvider
+	store             Store
+	settings          SettingsResolver
+	events            appevents.Publisher
+	topicActions      TopicExtensionActionProvider
+	publicationPolicy PublicationPolicy
 	// indexer 触发 Meilisearch 索引调度；nil 表示不索引（搜索为派生数据，可重建）。
 	indexer TopicSearchIndexer
 }
@@ -49,6 +50,19 @@ func NewServiceWithTopicExtensionActions(store Store, settings SettingsResolver,
 	svc := NewServiceWithIndexer(store, settings, publisher, indexer)
 	svc.topicActions = topicActions
 	return svc
+}
+
+func NewServiceWithPublicationPolicy(store Store, settings SettingsResolver, publisher appevents.Publisher, indexer TopicSearchIndexer, policy PublicationPolicy) *Service {
+	svc := NewServiceWithIndexer(store, settings, publisher, indexer)
+	svc.publicationPolicy = policy
+	return svc
+}
+
+func (s *Service) publicationDecision(ctx context.Context, actorUserID int64, rawContent string) (PublicationDecision, error) {
+	if s.publicationPolicy == nil {
+		return PublicationDecision{}, nil
+	}
+	return s.publicationPolicy.EvaluatePublication(ctx, PublicationInput{ActorUserID: actorUserID, RawContent: rawContent})
 }
 
 // indexTopic 在主题写流程成功后触发 Meilisearch 索引调度。
@@ -350,19 +364,29 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	if err != nil {
 		return TopicDetail{}, err
 	}
+	publication, err := s.publicationDecision(ctx, actor.ID, input.Content.RawContent)
+	if err != nil {
+		return TopicDetail{}, err
+	}
+	status := TopicStatusActive
+	if publication.Pending {
+		status = TopicStatusPending
+	}
 	// slug 全局唯一化：冲突时追加 -2/-3 后缀。
 	topicSlug, err := s.ensureUniqueTopicSlug(ctx, slugify(title), 0)
 	if err != nil {
 		return TopicDetail{}, err
 	}
 	created, err := s.store.CreateTopic(ctx, CreateTopicRecord{
-		CategorySlug:    categorySlug,
-		AuthorUserID:    actor.ID,
-		Title:           title,
-		Slug:            topicSlug,
-		TagSlugs:        tagSlugs,
-		TagCreationMode: settings.TagCreationMode,
-		Content:         content,
+		CategorySlug:       categorySlug,
+		AuthorUserID:       actor.ID,
+		Title:              title,
+		Slug:               topicSlug,
+		TagSlugs:           tagSlugs,
+		TagCreationMode:    settings.TagCreationMode,
+		Content:            content,
+		Status:             status,
+		ModerationTriggers: publication.Triggers,
 	})
 	if err != nil {
 		return TopicDetail{}, err
@@ -383,7 +407,9 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 		},
 		OccurredAt: time.Now().UTC(),
 	})
-	s.indexTopic(ctx, created.ID)
+	if created.Status == TopicStatusActive {
+		s.indexTopic(ctx, created.ID)
+	}
 	return created, nil
 }
 
@@ -604,12 +630,22 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 	if err != nil {
 		return Comment{}, err
 	}
+	publication, err := s.publicationDecision(ctx, actor.ID, input.Content.RawContent)
+	if err != nil {
+		return Comment{}, err
+	}
+	status := CommentStatusActive
+	if publication.Pending {
+		status = CommentStatusPending
+	}
 	created, err := s.store.CreateComment(ctx, CreateCommentRecord{
-		TopicID:      input.TopicID,
-		AuthorUserID: actor.ID,
-		ParentID:     input.ParentID,
-		Parent:       parent,
-		Content:      content,
+		TopicID:            input.TopicID,
+		AuthorUserID:       actor.ID,
+		ParentID:           input.ParentID,
+		Parent:             parent,
+		Content:            content,
+		Status:             status,
+		ModerationTriggers: publication.Triggers,
 	})
 	if err != nil {
 		return Comment{}, err
@@ -633,7 +669,9 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 		OccurredAt:    time.Now().UTC(),
 	})
 	// 新评论更新了主题 last_activity_at，需重新索引以刷新搜索排序。
-	s.indexTopic(ctx, created.TopicID)
+	if created.Status == CommentStatusActive {
+		s.indexTopic(ctx, created.TopicID)
+	}
 	return created, nil
 }
 

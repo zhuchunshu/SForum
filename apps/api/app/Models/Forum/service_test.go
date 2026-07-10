@@ -1162,7 +1162,7 @@ func (s *serviceFakeStore) CreateTopic(_ context.Context, input CreateTopicRecor
 			AuthorUserID: input.AuthorUserID,
 			Title:        input.Title,
 			Slug:         input.Slug,
-			Status:       TopicStatusActive,
+			Status:       input.Status,
 			Tags:         tags,
 		},
 		Content: input.Content,
@@ -1249,7 +1249,7 @@ func (s *serviceFakeStore) CreateComment(_ context.Context, input CreateCommentR
 		RootCommentID: position.RootCommentID,
 		PathKey:       position.PathKey,
 		Depth:         position.Depth,
-		Status:        CommentStatusActive,
+		Status:        input.Status,
 		Content:       input.Content,
 	}, nil
 }

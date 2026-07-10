@@ -3,6 +3,7 @@ package forum
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -493,20 +494,26 @@ func (s *PostgresStore) CreateTopic(ctx context.Context, input CreateTopicRecord
 		return TopicDetail{}, err
 	}
 
+	triggerSnapshot, err := json.Marshal(input.ModerationTriggers)
+	if err != nil {
+		return TopicDetail{}, fmt.Errorf("encode topic moderation triggers: %w", err)
+	}
 	var topicID int64
 	if err := tx.QueryRow(ctx, `
-		INSERT INTO topics (category_id, author_user_id, content_id, title, slug, status)
-		VALUES ($1, $2, $3, $4, $5, 'active')
+		INSERT INTO topics (category_id, author_user_id, content_id, title, slug, status, moderation_triggers)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
-	`, categoryID, input.AuthorUserID, content.ID, input.Title, input.Slug).Scan(&topicID); err != nil {
+	`, categoryID, input.AuthorUserID, content.ID, input.Title, input.Slug, input.Status, triggerSnapshot).Scan(&topicID); err != nil {
 		return TopicDetail{}, fmt.Errorf("insert topic: %w", err)
 	}
-	if _, err := tx.Exec(ctx, `
-		UPDATE categories
-		SET topic_count = topic_count + 1, updated_at = now()
-		WHERE id = $1
-	`, categoryID); err != nil {
-		return TopicDetail{}, fmt.Errorf("update category topic count: %w", err)
+	if input.Status == TopicStatusActive {
+		if _, err := tx.Exec(ctx, `
+			UPDATE categories
+			SET topic_count = topic_count + 1, updated_at = now()
+			WHERE id = $1
+		`, categoryID); err != nil {
+			return TopicDetail{}, fmt.Errorf("update category topic count: %w", err)
+		}
 	}
 	tags := input.Tags
 	if len(tags) == 0 && len(input.TagSlugs) > 0 {
@@ -522,10 +529,16 @@ func (s *PostgresStore) CreateTopic(ctx context.Context, input CreateTopicRecord
 	if err := attachTopicTags(ctx, tx, topicID, tags); err != nil {
 		return TopicDetail{}, err
 	}
+	row := tx.QueryRow(ctx, topicDetailSQL()+` WHERE topics.id = $1`, topicID)
+	topic, err := scanTopicDetailWithAvatar(row, s.avatarBuilder)
+	if err != nil {
+		return TopicDetail{}, fmt.Errorf("read created topic: %w", err)
+	}
+	topic.Tags = tags
 	if err := tx.Commit(ctx); err != nil {
 		return TopicDetail{}, fmt.Errorf("commit create topic: %w", err)
 	}
-	return s.GetTopic(ctx, topicID)
+	return topic, nil
 }
 
 func (s *PostgresStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord) (TopicDetail, error) {
@@ -982,12 +995,16 @@ func (s *PostgresStore) CreateComment(ctx context.Context, input CreateCommentRe
 		return Comment{}, err
 	}
 
+	triggerSnapshot, err := json.Marshal(input.ModerationTriggers)
+	if err != nil {
+		return Comment{}, fmt.Errorf("encode comment moderation triggers: %w", err)
+	}
 	var commentID int64
 	if err := tx.QueryRow(ctx, `
-		INSERT INTO comments (topic_id, content_id, author_user_id, parent_comment_id, status)
-		VALUES ($1, $2, $3, $4, 'active')
+		INSERT INTO comments (topic_id, content_id, author_user_id, parent_comment_id, status, moderation_triggers)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
-	`, input.TopicID, content.ID, input.AuthorUserID, input.ParentID).Scan(&commentID); err != nil {
+	`, input.TopicID, content.ID, input.AuthorUserID, input.ParentID, input.Status, triggerSnapshot).Scan(&commentID); err != nil {
 		return Comment{}, fmt.Errorf("insert comment: %w", err)
 	}
 	position := CommentPositionForInsert(commentID, input.Parent)
@@ -998,7 +1015,7 @@ func (s *PostgresStore) CreateComment(ctx context.Context, input CreateCommentRe
 	`, commentID, position.RootCommentID, position.PathKey, position.Depth); err != nil {
 		return Comment{}, fmt.Errorf("update comment position: %w", err)
 	}
-	if input.ParentID != nil {
+	if input.Status == CommentStatusActive && input.ParentID != nil {
 		if _, err := tx.Exec(ctx, `
 			UPDATE comments
 			SET reply_count = reply_count + 1, updated_at = now()
@@ -1007,19 +1024,21 @@ func (s *PostgresStore) CreateComment(ctx context.Context, input CreateCommentRe
 			return Comment{}, fmt.Errorf("update parent reply count: %w", err)
 		}
 	}
-	if _, err := tx.Exec(ctx, `
-		UPDATE topics
-		SET comment_count = comment_count + 1, last_activity_at = now(), updated_at = now()
-		WHERE id = $1
-	`, input.TopicID); err != nil {
-		return Comment{}, fmt.Errorf("update topic comment count: %w", err)
-	}
-	if _, err := tx.Exec(ctx, `
-		UPDATE categories
-		SET comment_count = comment_count + 1, updated_at = now()
-		WHERE id = $1
-	`, categoryID); err != nil {
-		return Comment{}, fmt.Errorf("update category comment count: %w", err)
+	if input.Status == CommentStatusActive {
+		if _, err := tx.Exec(ctx, `
+			UPDATE topics
+			SET comment_count = comment_count + 1, last_activity_at = now(), updated_at = now()
+			WHERE id = $1
+		`, input.TopicID); err != nil {
+			return Comment{}, fmt.Errorf("update topic comment count: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE categories
+			SET comment_count = comment_count + 1, updated_at = now()
+			WHERE id = $1
+		`, categoryID); err != nil {
+			return Comment{}, fmt.Errorf("update category comment count: %w", err)
+		}
 	}
 
 	comment, err := getCommentByID(ctx, tx, commentID, s.avatarBuilder)

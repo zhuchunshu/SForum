@@ -19,14 +19,18 @@ const (
 	// 存量帖子保留 v1 HTML，下次编辑时自然升级到 v2（不做批量重渲染）。
 	RenderVersion = "goldmark-bluemonday-v2"
 
-	TopicStatusActive  = "active"
-	TopicStatusLocked  = "locked"
-	TopicStatusHidden  = "hidden"
-	TopicStatusDeleted = "deleted"
+	TopicStatusActive   = "active"
+	TopicStatusLocked   = "locked"
+	TopicStatusHidden   = "hidden"
+	TopicStatusDeleted  = "deleted"
+	TopicStatusPending  = "pending"
+	TopicStatusRejected = "rejected"
 
-	CommentStatusActive  = "active"
-	CommentStatusHidden  = "hidden"
-	CommentStatusDeleted = "deleted"
+	CommentStatusActive   = "active"
+	CommentStatusHidden   = "hidden"
+	CommentStatusDeleted  = "deleted"
+	CommentStatusPending  = "pending"
+	CommentStatusRejected = "rejected"
 
 	TagStatusActive   = "active"
 	TagStatusPending  = "pending"
@@ -218,16 +222,18 @@ type CreateTopicInput struct {
 }
 
 type CreateTopicRecord struct {
-	ID              int64
-	CategoryID      int64
-	CategorySlug    string
-	AuthorUserID    int64
-	Title           string
-	Slug            string
-	TagSlugs        []string
-	TagCreationMode string
-	Tags            []TopicTagSummary
-	Content         RenderedContent
+	ID                 int64
+	CategoryID         int64
+	CategorySlug       string
+	AuthorUserID       int64
+	Title              string
+	Slug               string
+	TagSlugs           []string
+	TagCreationMode    string
+	Tags               []TopicTagSummary
+	Content            RenderedContent
+	Status             string
+	ModerationTriggers []string
 }
 
 // UpdateTopicInput 是作者或版主更新主题时提交的输入。content 为可选：
@@ -412,12 +418,24 @@ type CreateCommentInput struct {
 }
 
 type CreateCommentRecord struct {
-	ID           int64
-	TopicID      int64
-	AuthorUserID int64
-	ParentID     *int64
-	Parent       *CommentSummary
-	Content      RenderedContent
+	ID                 int64
+	TopicID            int64
+	AuthorUserID       int64
+	ParentID           *int64
+	Parent             *CommentSummary
+	Content            RenderedContent
+	Status             string
+	ModerationTriggers []string
+}
+
+type PublicationInput struct {
+	ActorUserID int64
+	RawContent  string
+}
+
+type PublicationDecision struct {
+	Pending  bool
+	Triggers []string
 }
 
 type UpdateCommentInput struct {

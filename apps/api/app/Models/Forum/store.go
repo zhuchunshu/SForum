@@ -55,6 +55,10 @@ type SettingsManager interface {
 	ResetForumSettings(ctx context.Context, actor identity.Actor) (ForumSettings, error)
 }
 
+type PublicationPolicy interface {
+	EvaluatePublication(ctx context.Context, input PublicationInput) (PublicationDecision, error)
+}
+
 type ResolveTopicTagsInput struct {
 	ActorUserID  int64
 	Slugs        []string

@@ -35,6 +35,14 @@ func (failingIndexer) EnqueueDelete(_ context.Context, _ int64) error {
 	return errors.New("index unavailable")
 }
 
+type staticPublicationPolicy struct {
+	decision PublicationDecision
+}
+
+func (policy staticPublicationPolicy) EvaluatePublication(context.Context, PublicationInput) (PublicationDecision, error) {
+	return policy.decision, nil
+}
+
 func newServiceWithIndexerForTest(indexer TopicSearchIndexer) *Service {
 	store := newServiceFakeStore()
 	// 使用 staticSettingsResolver（返回 defaultForumSettings，含有效 tagMaxPerTopic），
@@ -59,6 +67,65 @@ func TestCreateTopicDispatchesIndex(t *testing.T) {
 	// nextID 从 1 开始，首个创建的主题 ID 应为 1。
 	if len(idx.indexedIDs) != 1 || idx.indexedIDs[0] != 1 {
 		t.Fatalf("expected topic 1 indexed, got %v", idx.indexedIDs)
+	}
+}
+
+func TestCreateTopicKeepsPendingTopicOutOfPublicIndex(t *testing.T) {
+	ctx := context.Background()
+	idx := &fakeIndexer{}
+	store := newServiceFakeStore()
+	svc := NewServiceWithPublicationPolicy(
+		store,
+		staticSettingsResolver{},
+		appevents.NoopPublisher{},
+		idx,
+		staticPublicationPolicy{decision: PublicationDecision{Pending: true, Triggers: []string{"new_user"}}},
+	)
+
+	actor := identity.Actor{ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicCreate: true}}
+	topic, err := svc.CreateTopic(ctx, actor, CreateTopicInput{
+		Title:   "待审主题",
+		Content: ContentInput{RawContent: "正文", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
+	})
+	if err != nil {
+		t.Fatalf("create pending topic: %v", err)
+	}
+	if topic.Status != TopicStatusPending {
+		t.Fatalf("expected pending status, got %q", topic.Status)
+	}
+	if len(idx.indexedIDs) != 0 {
+		t.Fatalf("pending topic must not be indexed, got %v", idx.indexedIDs)
+	}
+	if len(store.createdTopic.ModerationTriggers) != 1 || store.createdTopic.ModerationTriggers[0] != "new_user" {
+		t.Fatalf("expected moderation trigger snapshot, got %v", store.createdTopic.ModerationTriggers)
+	}
+}
+
+func TestCreateCommentKeepsPendingCommentOutOfPublicIndex(t *testing.T) {
+	ctx := context.Background()
+	idx := &fakeIndexer{}
+	store := newServiceFakeStore()
+	svc := NewServiceWithPublicationPolicy(
+		store,
+		staticSettingsResolver{},
+		appevents.NoopPublisher{},
+		idx,
+		staticPublicationPolicy{decision: PublicationDecision{Pending: true, Triggers: []string{"external_link"}}},
+	)
+
+	actor := identity.Actor{ID: 5, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostCreate: true}}
+	comment, err := svc.CreateComment(ctx, actor, CreateCommentInput{
+		TopicID: 1,
+		Content: ContentInput{RawContent: "https://outside.test", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
+	})
+	if err != nil {
+		t.Fatalf("create pending comment: %v", err)
+	}
+	if comment.Status != CommentStatusPending {
+		t.Fatalf("expected pending status, got %q", comment.Status)
+	}
+	if len(idx.indexedIDs) != 0 {
+		t.Fatalf("pending comment must not re-index topic, got %v", idx.indexedIDs)
 	}
 }
 
