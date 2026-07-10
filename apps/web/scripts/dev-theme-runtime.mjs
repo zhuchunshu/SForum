@@ -20,9 +20,14 @@ import {
   isNuxtDevAddressLine,
   parseDevPort,
 } from './theme-proxy.mjs'
+import {
+  watchableReleaseFile,
+  writeActiveAcknowledgement,
+  writeFailureAcknowledgement,
+} from './web-release-contract.mjs'
 
 const repoRoot = path.resolve(process.cwd(), '../../')
-const releaseRoot = process.env.SFORUM_THEME_RELEASE_ROOT || path.join(repoRoot, 'storage/theme-releases')
+const releaseRoot = process.env.SFORUM_WEB_RELEASE_ROOT || process.env.SFORUM_THEME_RELEASE_ROOT || path.join(repoRoot, 'storage/theme-releases')
 const currentFile = path.join(releaseRoot, 'current.json')
 const bunPath = process.env.SFORUM_BUN_PATH || 'bun'
 const nuxtBuildDir = path.resolve(process.cwd(), process.env.NUXT_BUILD_DIR || '.nuxt')
@@ -52,9 +57,13 @@ function launchDevChild(selection, reason) {
       throw new Error(`theme layer does not exist: ${selection.layerPath}`)
     }
     env.SFORUM_THEME_LAYER = selection.layerPath
+    if (selection.registryRoot) env.SFORUM_ADMIN_REGISTRY_ROOT = selection.registryRoot
+    if (selection.releaseId) env.SFORUM_WEB_RELEASE_ID = selection.releaseId
     console.log(`[sforum-dev-runtime] (${reason}) starting nuxt dev with theme layer: ${selection.layerPath}`)
   } else {
     delete env.SFORUM_THEME_LAYER
+    delete env.SFORUM_ADMIN_REGISTRY_ROOT
+    delete env.SFORUM_WEB_RELEASE_ID
     console.log(`[sforum-dev-runtime] (${reason}) starting nuxt dev with default theme`)
   }
 
@@ -117,8 +126,28 @@ function createLifecycle() {
     stopChild: (target) => stopProcessGroup(target),
     setTarget: (target) => proxy.setTarget(target),
     onFatal: (error) => { void failRuntime(error) },
-    onActive: (_selection, reason) => {
+    onActive: (selection, reason) => {
       console.log(`[sforum-dev-runtime] (${reason}) switched nuxt dev; public URL: ${publicDevUrl}`)
+      if (selection.releaseId) {
+        void writeActiveAcknowledgement(releaseRoot, {
+          releaseId: Number(selection.releaseId),
+          compositionHash: selection.compositionHash,
+          artifactDigest: selection.artifactDigest,
+          serverEntry: selection.serverEntry,
+          themeId: selection.themeId,
+          themeVersion: selection.themeVersion,
+          reloadMode: selection.reloadMode,
+        }).catch((error) => { void failRuntime(error) })
+      }
+    },
+    onCandidateFailed: (selection, error) => {
+      if (selection.releaseId) {
+        void writeFailureAcknowledgement(releaseRoot, {
+          releaseId: Number(selection.releaseId),
+          reason: 'web_release.start_failed',
+          message: error.message,
+        }).catch((writeError) => { void failRuntime(writeError) })
+      }
     },
   })
 }
@@ -141,7 +170,7 @@ function withTimeout(promise, ms) {
 
 function scheduleRestart(_eventType, filename) {
   const changed = filename ? filename.toString() : ''
-  if (changed && changed !== 'current.json' && changed !== 'current.json.tmp') return
+  if (changed && !watchableReleaseFile(changed)) return
 
   clearTimeout(restartTimer)
   restartTimer = setTimeout(() => {

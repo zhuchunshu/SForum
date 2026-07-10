@@ -106,6 +106,34 @@ describe('dev theme selection', () => {
     })
     expect(themeSelectionKey(selection)).toContain('uploaded:')
   })
+
+  test('derives release theme and registry inputs from immutable release.json', () => {
+    const root = tempRoot()
+    const releaseDir = path.join(root, 'releases', '12')
+    const artifact = path.join(releaseDir, 'artifact')
+    const serverEntry = path.join(artifact, 'server', 'index.mjs')
+    fs.mkdirSync(path.dirname(serverEntry), { recursive: true })
+    fs.writeFileSync(serverEntry, 'export {}')
+    const desired = {
+      schemaVersion: 1, releaseId: 12, compositionHash: 'composition',
+      artifactPath: artifact, artifactDigest: 'artifact-digest', serverEntry,
+      themeId: 'demo.theme', themeVersion: '1.0.0', reloadMode: 'prompt'
+    }
+    fs.writeFileSync(path.join(root, 'current.json'), JSON.stringify(desired))
+    fs.writeFileSync(path.join(releaseDir, 'release.json'), JSON.stringify({
+      ...desired,
+      themeLayer: path.join(releaseDir, 'dev-input', 'theme', 'layer'),
+      devInput: path.join(releaseDir, 'dev-input'),
+      registryRoot: path.join(releaseDir, 'dev-input', 'registry')
+    }))
+
+    const selection = readThemeSelection(path.join(root, 'current.json'), { repoRoot: root })
+    expect(selection).toMatchObject({
+      mode: 'uploaded', releaseId: '12', compositionHash: 'composition',
+      registryRoot: path.join(releaseDir, 'dev-input', 'registry')
+    })
+    expect(themeSelectionKey(selection)).toContain('12:composition')
+  })
 })
 
 describe('stopProcessGroup', () => {

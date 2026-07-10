@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { readDesiredRelease, readReleaseManifest } from './web-release-contract.mjs'
 
 export function clearNuxtRouteCache(buildDir) {
   fs.rmSync(path.join(buildDir, 'cache', 'nitro', 'routes'), { recursive: true, force: true })
@@ -13,39 +14,40 @@ export function readThemeSelection(currentFile, {
   repoRoot = path.resolve(process.cwd(), '../../'),
   onError = (error) => console.error('[sforum-dev-runtime] invalid current release:', error.message),
 } = {}) {
-  let raw
   try {
-    raw = fs.readFileSync(currentFile, 'utf8')
-  } catch (error) {
-    if (error.code !== 'ENOENT') onError(error)
+    const releaseRoot = path.dirname(currentFile)
+    const desired = readDesiredRelease({ releaseRoot, legacyRoot: repoRoot, fallback: { serverEntry: '__development__' } })
+    if (desired.kind === 'release') {
+      const release = readReleaseManifest(desired)
+      return {
+        mode: 'uploaded',
+        layerPath: release.themeLayer,
+        registryRoot: release.registryRoot,
+        devInput: release.devInput,
+        releaseId: String(release.releaseId),
+        compositionHash: release.compositionHash,
+        artifactDigest: release.artifactDigest,
+        serverEntry: release.serverEntry,
+        themeId: release.themeId,
+        themeVersion: release.themeVersion,
+        reloadMode: release.reloadMode,
+      }
+    }
+    if (desired.kind === 'legacy' && desired.themeLayer) {
+      return { mode: 'uploaded', layerPath: desired.themeLayer }
+    }
     return defaultSelection()
-  }
-
-  let current
-  try {
-    current = JSON.parse(raw)
   } catch (error) {
     onError(error)
     return defaultSelection()
   }
-
-  if (current.mode === 'default') return defaultSelection()
-
-  const rawLayerPath = typeof current.layerPath === 'string'
-    ? current.layerPath.trim()
-    : ''
-  if (!rawLayerPath) return defaultSelection()
-
-  return {
-    mode: 'uploaded',
-    layerPath: path.isAbsolute(rawLayerPath)
-      ? rawLayerPath
-      : path.resolve(repoRoot, rawLayerPath),
-  }
 }
 
 export function themeSelectionKey(selection) {
-  return `${selection.mode}:${selection.layerPath}`
+  const base = `${selection.mode}:${selection.layerPath}`
+  const release = [selection.registryRoot, selection.releaseId, selection.compositionHash]
+    .map((value) => value || '')
+  return release.some(Boolean) ? `${base}:${release.join(':')}` : base
 }
 
 function defaultSignalGroup(pid, signal) {
@@ -128,6 +130,7 @@ export function createDevThemeLifecycle({
   logger = console,
   onFatal = (error) => logger.error('[sforum-dev-runtime] recovery failed:', error.message),
   onActive = () => {},
+  onCandidateFailed = () => {},
   recoveryDelayMs = 1000,
   setTimeoutFn = setTimeout,
   clearTimeoutFn = clearTimeout,
@@ -240,6 +243,7 @@ export function createDevThemeLifecycle({
         started = await launchHealthy(requestedSelection, reason)
       } catch (error) {
         logger.error(`[sforum-dev-runtime] (${reason}) candidate failed: ${error.message}`)
+        onCandidateFailed(requestedSelection, error)
         if (error instanceof CandidateCleanupError) throw error
         if (restartRequested) {
           reason = 'newer current.json change'

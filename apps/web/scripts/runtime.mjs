@@ -18,10 +18,16 @@ import {
   healthCheckUnix,
   replaceTarget,
 } from './theme-proxy.mjs'
+import {
+  readDesiredRelease,
+  verifyReleaseArtifact,
+  watchableReleaseFile,
+  writeActiveAcknowledgement,
+  writeFailureAcknowledgement,
+} from './web-release-contract.mjs'
 
-const releaseRoot = process.env.SFORUM_THEME_RELEASE_ROOT || '/var/lib/sforum/theme-releases'
+const releaseRoot = process.env.SFORUM_WEB_RELEASE_ROOT || process.env.SFORUM_THEME_RELEASE_ROOT || '/var/lib/sforum/theme-releases'
 const fallbackOutput = process.env.SFORUM_FALLBACK_OUTPUT || path.resolve(process.cwd(), '.output')
-const currentFile = path.join(releaseRoot, 'current.json')
 const externalPort = Number(process.env.PORT || '3000')
 const externalHost = process.env.HOST || '0.0.0.0'
 // 健康检查总超时：Nitro 产物冷启动通常几秒，留足余量。
@@ -44,42 +50,16 @@ function fallbackServer() {
 // 把 current.json 里的 server 路径解析成绝对路径。
 // 后端 WriteCurrent 已统一写绝对路径，这里对历史/手写的相对路径做兜底：
 // 相对路径以 releaseRoot 为基准解析（与 builder 的产物目录约定一致）。
-function resolveServer(server) {
-  if (!server) {
-    return ''
-  }
-  return path.isAbsolute(server) ? server : path.resolve(releaseRoot, server)
-}
-
-// 读取当前主题选择。返回 { kind: 'default' | 'uploaded', server }。
-// - 无 current.json 或 mode==='default'：回退到默认 .output。
-// - 旧格式（只有 server）：视为 uploaded，兼容历史 current.json。
-// - server 为空但 mode==='uploaded'：无法定位产物，视为不可用。
 function readSelection() {
-  let raw = ''
   try {
-    raw = fs.readFileSync(currentFile, 'utf8')
-  } catch (error) {
-    if (error.code !== 'ENOENT') {
-      console.error('[sforum-web-runtime] invalid current release:', error.message)
-    }
-    return { kind: 'default', server: fallbackServer() }
-  }
-  let current
-  try {
-    current = JSON.parse(raw)
+    return readDesiredRelease({
+      releaseRoot,
+      fallback: { serverEntry: fallbackServer(), themeId: 'sforum.default-theme' },
+    })
   } catch (error) {
     console.error('[sforum-web-runtime] invalid current release:', error.message)
-    return { kind: 'default', server: fallbackServer() }
+    return { kind: 'fallback', serverEntry: fallbackServer(), themeId: 'sforum.default-theme', reloadMode: 'prompt' }
   }
-  if (current.mode === 'default') {
-    return { kind: 'default', server: fallbackServer() }
-  }
-  const server = resolveServer(current.server)
-  if (!server) {
-    return { kind: 'default', server: fallbackServer() }
-  }
-  return { kind: 'uploaded', server }
 }
 
 // 停止子进程：用进程组信号杀掉 Nitro server 及其可能派生的子进程，
@@ -134,7 +114,7 @@ async function switchTo(server, kind) {
       // detached 让子进程成为独立进程组组长，便于用 -pid 杀整个进程组。
       detached: true,
     }),
-    healthCheck: (candidate) => healthCheckUnix(candidate, sockPath, { timeoutMs: healthTimeoutMs }),
+    healthCheck: (candidate) => healthCheckUnix(candidate, sockPath, { timeoutMs: healthTimeoutMs, requiredSuccesses: 3 }),
     stopChild,
     healthTimeoutMs,
     onSpawnError: (err) => console.error('[sforum-web-runtime] spawn candidate failed:', err.message),
@@ -152,7 +132,22 @@ async function switchTo(server, kind) {
 // 根据 current.json 决定要切到哪个 server 产物，并触发蓝绿切换。
 // 进行中的切换会被记忆，切换串行执行避免并发 spawn。
 async function startCurrent() {
-  const selection = readSelection()
+  let selection = readSelection()
+  if (selection.kind === 'release') {
+    try {
+      selection = await verifyReleaseArtifact(selection)
+    } catch (error) {
+      console.error('[sforum-web-runtime] release verification failed:', error.message)
+      await writeFailureAcknowledgement(releaseRoot, {
+        releaseId: selection.releaseId,
+        reason: 'web_release.verification_failed',
+        message: error.message,
+      })
+      if (child) return
+      selection = { kind: 'fallback', serverEntry: fallbackServer(), themeId: 'sforum.default-theme', reloadMode: 'prompt' }
+    }
+  }
+  selection.server = selection.serverEntry
   // 候选 server 不存在时，若旧 child 还活着就保留它（不中断服务），
   // 只有在没有 child 运行时才回退默认产物，保证站点始终可用。
   if (!fs.existsSync(selection.server)) {
@@ -167,6 +162,7 @@ async function startCurrent() {
     }
   }
   if (selection.server === activeServer && child) {
+    if (selection.kind === 'release') await acknowledgeActive(selection)
     return
   }
   if (switching) {
@@ -176,7 +172,18 @@ async function startCurrent() {
   }
   switching = true
   try {
-    await switchTo(selection.server, selection.kind)
+    const switched = await switchTo(selection.server, selection.kind)
+    if (selection.kind === 'release') {
+      if (switched) {
+        await acknowledgeActive(selection)
+      } else {
+        await writeFailureAcknowledgement(releaseRoot, {
+          releaseId: selection.releaseId,
+          reason: 'web_release.start_failed',
+          message: 'Candidate web process did not become healthy.',
+        })
+      }
+    }
   } finally {
     switching = false
   }
@@ -189,7 +196,21 @@ async function startCurrent() {
   }
 }
 
-function scheduleRestart() {
+async function acknowledgeActive(selection) {
+  await writeActiveAcknowledgement(releaseRoot, {
+    releaseId: selection.releaseId,
+    compositionHash: selection.compositionHash,
+    artifactDigest: selection.artifactDigest,
+    serverEntry: selection.serverEntry,
+    themeId: selection.themeId,
+    themeVersion: selection.themeVersion,
+    reloadMode: selection.reloadMode,
+  })
+}
+
+function scheduleRestart(_eventType, filename) {
+  const changed = filename ? filename.toString() : ''
+  if (changed && !watchableReleaseFile(changed)) return
   clearTimeout(restartTimer)
   restartTimer = setTimeout(() => {
     startCurrent().catch((err) => console.error('[sforum-web-runtime] restart failed:', err.message))

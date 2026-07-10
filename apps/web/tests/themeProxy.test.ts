@@ -298,6 +298,26 @@ describe('theme-proxy: healthCheckTcp 与 healthCheckUnix', () => {
     await close(server)
     try { fs.unlinkSync(sockPath) } catch { /* already gone */ }
   })
+
+  test('healthCheckUnix can require consecutive healthy probes', async () => {
+    const sockPath = path.join(os.tmpdir(), `sforum-stable-${Date.now()}.sock`)
+    let probes = 0
+    const server = http.createServer((_req, res) => {
+      probes += 1
+      res.writeHead(200)
+      res.end('ok')
+    })
+    await new Promise<void>((resolve, reject) => {
+      server.on('error', reject)
+      server.listen(sockPath, () => resolve())
+    })
+    await healthCheckUnix({} as import('node:child_process').ChildProcess, sockPath, {
+      timeoutMs: 3000, intervalMs: 1, requiredSuccesses: 3
+    })
+    expect(probes).toBeGreaterThanOrEqual(3)
+    await close(server)
+    try { fs.unlinkSync(sockPath) } catch { /* already gone */ }
+  })
 })
 
 // 起一个支持 WebSocket upgrade 的伪造上游：

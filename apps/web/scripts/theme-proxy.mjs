@@ -311,16 +311,24 @@ export async function healthCheckUnix(candidate, socketPath, {
   timeoutMs = 60_000,
   path = DEFAULT_HEALTH_PATH,
   intervalMs = 500,
+  requiredSuccesses = 1,
 } = {}) {
   const target = makeTarget({ socketPath })
   candidate._target = target
   const deadline = Date.now() + timeoutMs
+  let successes = 0
   while (Date.now() < deadline) {
     try {
       const ok = await probeUnix(target, path)
-      if (ok) return
+      if (ok) {
+        successes += 1
+        if (successes >= requiredSuccesses) return
+      } else {
+        successes = 0
+      }
     } catch {
       // socket 尚未创建或 Nitro 未起来，继续轮询。
+      successes = 0
     }
     await sleep(intervalMs)
   }

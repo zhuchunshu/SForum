@@ -40,4 +40,13 @@ describe('dev runtime startup', () => {
       /clearNuxtRouteCache\(nuxtBuildDir\)\s+const candidate = spawn\(bunPath,/,
     )
   })
+
+  test('passes immutable release registry identity and ignores acknowledgement writes', () => {
+    const runtime = readFileSync(new URL('../scripts/dev-theme-runtime.mjs', import.meta.url), 'utf8')
+
+    expect(runtime).toContain('env.SFORUM_ADMIN_REGISTRY_ROOT = selection.registryRoot')
+    expect(runtime).toContain('env.SFORUM_WEB_RELEASE_ID = selection.releaseId')
+    expect(runtime).toContain('writeActiveAcknowledgement')
+    expect(runtime).toContain('watchableReleaseFile(changed)')
+  })
 })
