@@ -334,7 +334,11 @@ func TestControllerListsContributionPointsAndContributions(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&points); err != nil {
 		t.Fatalf("decode contribution points: %v", err)
 	}
-	if len(points.Data) != 1 || points.Data[0].ID != "forum.topic.actions" {
+	pointIDs := make(map[string]bool, len(points.Data))
+	for _, point := range points.Data {
+		pointIDs[point.ID] = true
+	}
+	if len(points.Data) != 4 || !pointIDs["forum.topic.actions"] || !pointIDs["admin.jobs.table.columns"] || !pointIDs["admin.jobs.row.actions"] || !pointIDs["admin.jobs.detail.sections"] {
 		t.Fatalf("unexpected contribution points: %#v", points.Data)
 	}
 
