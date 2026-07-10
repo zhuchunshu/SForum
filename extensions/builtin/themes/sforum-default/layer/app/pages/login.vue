@@ -6,10 +6,14 @@ definePageMeta({ layout: 'auth' })
 const { t, locale } = useI18n()
 const toast = useToast()
 const localePath = useLocalePath()
-const adminRoutes = useAdminRoutes()
 const { request } = useApiClient()
-const { setUser, can } = useAuthSession()
+const { user, setUser } = useAuthSession()
+const { returnFromAuth } = useAuthReturnNavigation()
 const { siteName } = useWebOptions()
+
+if (user.value) {
+  await returnFromAuth()
+}
 
 const form = reactive({
   login: '',
@@ -59,7 +63,7 @@ async function submitLogin() {
     title: loginSuccessTitle(),
     duration: 10000
   })
-  await navigateTo(can('admin.access') ? adminRoutes.path('/') : localePath('/'))
+  await returnFromAuth()
 }
 </script>
 
