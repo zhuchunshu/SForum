@@ -99,6 +99,8 @@ paths:
     "$ref": "./openapi/paths/mail.yaml#/adminMailTest"
   "/moderation/reports":
     "$ref": "./openapi/paths/moderation.yaml#/moderationReports"
+  "/me/content-review":
+    "$ref": "./openapi/paths/forum.yaml#/authorContentReview"
   "/admin/moderation/reports":
     "$ref": "./openapi/paths/moderation.yaml#/adminModerationReports"
   "/admin/moderation/reports/{reportID}":

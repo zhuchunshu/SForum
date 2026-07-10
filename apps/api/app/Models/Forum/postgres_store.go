@@ -359,6 +359,50 @@ func (s *PostgresStore) GetTopic(ctx context.Context, topicID int64) (TopicDetai
 	return topic, nil
 }
 
+func (s *PostgresStore) ListAuthorReviewItems(ctx context.Context, authorUserID int64) (AuthorReviewList, error) {
+	rows, err := s.pool.Query(ctx, `
+		WITH author_items AS (
+		  SELECT 'topic'::text AS target_type, topics.id AS target_id, topics.id AS topic_id,
+		    topics.title, posts.excerpt, topics.status, topics.created_at
+		  FROM topics JOIN posts ON posts.id = topics.content_id
+		  WHERE topics.author_user_id = $1 AND topics.status IN ('pending', 'rejected')
+		  UNION ALL
+		  SELECT 'comment'::text, comments.id, comments.topic_id, topics.title,
+		    posts.excerpt, comments.status, comments.created_at
+		  FROM comments
+		  JOIN posts ON posts.id = comments.content_id
+		  JOIN topics ON topics.id = comments.topic_id
+		  WHERE comments.author_user_id = $1 AND comments.status IN ('pending', 'rejected')
+		)
+		SELECT items.target_type, items.target_id, items.topic_id, items.title, items.excerpt,
+		  items.status, COALESCE(decision.review_note, ''), items.created_at
+		FROM author_items items
+		LEFT JOIN LATERAL (
+		  SELECT review_note FROM moderation_decisions
+		  WHERE source = 'pre_publish' AND target_type = items.target_type AND target_id = items.target_id
+		  ORDER BY created_at DESC, id DESC LIMIT 1
+		) decision ON TRUE
+		ORDER BY items.created_at DESC, items.target_id DESC
+	`, authorUserID)
+	if err != nil {
+		return AuthorReviewList{}, fmt.Errorf("list author review items: %w", err)
+	}
+	defer rows.Close()
+	items := make([]AuthorReviewItem, 0)
+	for rows.Next() {
+		var item AuthorReviewItem
+		if err := rows.Scan(&item.TargetType, &item.TargetID, &item.TopicID, &item.Title,
+			&item.Excerpt, &item.Status, &item.ReviewNote, &item.CreatedAt); err != nil {
+			return AuthorReviewList{}, fmt.Errorf("scan author review item: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return AuthorReviewList{}, fmt.Errorf("iterate author review items: %w", err)
+	}
+	return AuthorReviewList{Items: items}, nil
+}
+
 // GetTopicBySlug 按全局唯一 slug 查询公开主题。slug 维度的查找复用
 // topicDetailSQL() 与同样的可见性过滤。slug 为空或无匹配时返回 ErrTopicNotFound。
 func (s *PostgresStore) GetTopicBySlug(ctx context.Context, slug string) (TopicDetail, error) {

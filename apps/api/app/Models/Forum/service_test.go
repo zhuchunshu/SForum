@@ -905,6 +905,22 @@ func TestServiceTopicActionEmitsEvents(t *testing.T) {
 	}
 }
 
+func TestListAuthorReviewItemsScopesByActor(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewService(store)
+	actor := identity.Actor{ID: 42, Status: identity.UserStatusActive}
+	items, err := service.ListAuthorReviewItems(context.Background(), actor)
+	if err != nil {
+		t.Fatalf("list author review items: %v", err)
+	}
+	if store.authorReviewUserID != 42 {
+		t.Fatalf("author review scope = %d, want 42", store.authorReviewUserID)
+	}
+	if len(items.Items) != 1 || items.Items[0].TargetID != 9 {
+		t.Fatalf("unexpected author review items: %#v", items.Items)
+	}
+}
+
 func strPtr(value string) *string { return &value }
 
 func containsUnsafeHTML(value string) bool {
@@ -1047,7 +1063,8 @@ type serviceFakeStore struct {
 	listCommentRepliesResult []Comment
 	listCommentRepliesCalled bool
 	// existingSlugs 模拟已占用的 slug 集合，供 TopicSlugExists 判重。
-	existingSlugs map[string]bool
+	existingSlugs      map[string]bool
+	authorReviewUserID int64
 }
 
 func newServiceFakeStore() *serviceFakeStore {
@@ -1131,6 +1148,11 @@ func (s *serviceFakeStore) GetTopic(context.Context, int64) (TopicDetail, error)
 
 func (s *serviceFakeStore) GetTopicBySlug(context.Context, string) (TopicDetail, error) {
 	return TopicDetail{}, nil
+}
+
+func (s *serviceFakeStore) ListAuthorReviewItems(_ context.Context, authorUserID int64) (AuthorReviewList, error) {
+	s.authorReviewUserID = authorUserID
+	return AuthorReviewList{Items: []AuthorReviewItem{{TargetType: "topic", TargetID: 9, Status: TopicStatusPending}}}, nil
 }
 
 func (s *serviceFakeStore) TopicSlugExists(_ context.Context, slug string, excludeTopicID int64) (bool, error) {

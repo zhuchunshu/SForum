@@ -18,6 +18,7 @@ const { siteName, seoSettings } = useWebOptions()
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const forumApi = useForumApi()
 const { can } = usePermissions()
+const toast = useToast()
 
 useSForumSeo({
   title: () => `${t('composer.metaTitle')} - ${siteName.value}`,
@@ -111,6 +112,11 @@ async function submit(payload?: { markdown?: string }) {
       editorVersion: 'sf-editor-v1'
     })
     submitState.value = 'success'
+    if (created.status === 'pending') {
+      toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('composer.submittedForReview'), duration: 10000 })
+      await navigateTo(localePath('/my/content-review'))
+      return
+    }
     await navigateTo(localePath(forumTopicPath(created, topicUrlMode.value)))
   } catch (error) {
     submitState.value = 'error'

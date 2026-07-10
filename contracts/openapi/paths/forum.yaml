@@ -760,3 +760,18 @@ commentByID:
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+authorContentReview:
+  get:
+    summary: List the current author's pending and rejected content
+    operationId: listAuthorContentReview
+    security:
+    - cookieAuth: []
+    responses:
+      '200':
+        description: Current author's review items.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseAuthorReviewList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"

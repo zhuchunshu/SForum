@@ -71,6 +71,17 @@ func (s *Service) publicationDecision(ctx context.Context, actorUserID int64, ra
 	return s.publicationPolicy.EvaluatePublication(ctx, PublicationInput{ActorUserID: actorUserID, RawContent: rawContent})
 }
 
+func (s *Service) ListAuthorReviewItems(ctx context.Context, actor identity.Actor) (AuthorReviewList, error) {
+	if actor.ID <= 0 || actor.Status != identity.UserStatusActive {
+		return AuthorReviewList{}, identity.ErrPermissionDenied
+	}
+	store, ok := s.store.(AuthorReviewStore)
+	if !ok {
+		return AuthorReviewList{}, ErrInvalidAction
+	}
+	return store.ListAuthorReviewItems(ctx, actor.ID)
+}
+
 // indexTopic 在主题写流程成功后触发 Meilisearch 索引调度。
 // 失败只记日志不中断主流程：搜索是可从 PG 重建的派生数据。
 func (s *Service) indexTopic(ctx context.Context, topicID int64) {

@@ -59,6 +59,10 @@ type PublicationPolicy interface {
 	EvaluatePublication(ctx context.Context, input PublicationInput) (PublicationDecision, error)
 }
 
+type AuthorReviewStore interface {
+	ListAuthorReviewItems(ctx context.Context, authorUserID int64) (AuthorReviewList, error)
+}
+
 type ResolveTopicTagsInput struct {
 	ActorUserID  int64
 	Slugs        []string

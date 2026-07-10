@@ -1778,6 +1778,7 @@
     "reply": "回复",
     "replyFailed": "回复失败，请稍后重试。",
     "replyPosted": "回复已发布。",
+    "replySubmittedForReview": "回复已提交审核，通过后会公开显示。",
     "editFailed": "编辑失败，请稍后重试。",
     "commentUpdated": "评论已更新。",
     "deleteFailed": "删除失败，请稍后重试。",
@@ -1834,6 +1835,7 @@
     "save": "保存",
     "submitting": "提交中...",
     "submitFailed": "发布失败，请稍后重试。",
+    "submittedForReview": "内容已提交审核，通过后会公开显示。",
     "permissionDenied": {
       "title": "没有发帖权限",
       "description": "你的账号当前没有发布话题的权限。"
@@ -1955,6 +1957,16 @@
       "contextFailed": "加载审核上下文失败。",
       "emptyTitle": "当前队列为空",
       "emptyDescription": "没有符合当前条件的待处理内容。"
+    },
+    "authorStatus": {
+      "title": "我的内容审核",
+      "description": "查看尚未公开或已被驳回的主题与评论。",
+      "pending": "等待审核",
+      "rejected": "已驳回",
+      "reason": "审核理由",
+      "emptyTitle": "没有待处理内容",
+      "emptyDescription": "你的内容目前都已公开或无需审核。",
+      "loadFailed": "加载内容审核状态失败。"
     },
     "trigger": {
       "all_content": "全部预审",

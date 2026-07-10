@@ -1078,3 +1078,27 @@ UpdateForumSettingsRequest:
       default: 20
       minimum: 1
       maximum: 100
+AuthorReviewItem:
+  type: object
+  required: [targetType, targetId, title, excerpt, status, reviewNote, createdAt]
+  properties:
+    targetType: {type: string, enum: [topic, comment]}
+    targetId: {type: integer, format: int64}
+    topicId: {type: integer, format: int64}
+    title: {type: string}
+    excerpt: {type: string}
+    status: {type: string, enum: [pending, rejected]}
+    reviewNote: {type: string}
+    createdAt: {type: string, format: date-time}
+AuthorReviewList:
+  type: object
+  required: [items]
+  properties:
+    items: {type: array, items: {$ref: "#/AuthorReviewItem"}}
+ApiResponseAuthorReviewList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/AuthorReviewList"}

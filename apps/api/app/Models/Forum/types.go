@@ -438,6 +438,21 @@ type PublicationDecision struct {
 	Triggers []string
 }
 
+type AuthorReviewItem struct {
+	TargetType string    `json:"targetType"`
+	TargetID   int64     `json:"targetId"`
+	TopicID    int64     `json:"topicId,omitempty"`
+	Title      string    `json:"title"`
+	Excerpt    string    `json:"excerpt"`
+	Status     string    `json:"status"`
+	ReviewNote string    `json:"reviewNote"`
+	CreatedAt  time.Time `json:"createdAt"`
+}
+
+type AuthorReviewList struct {
+	Items []AuthorReviewItem `json:"items"`
+}
+
 type UpdateCommentInput struct {
 	CommentID int64        `json:"commentId"`
 	Content   ContentInput `json:"content"`

@@ -4,6 +4,7 @@ import {
   buildForumTopicQuery,
   forumTopicExtensionActionRequest,
   type ForumCategoryGroup,
+  type ForumAuthorReviewItem,
   type ForumComment,
   type ForumCommentList,
   type ForumCommentListQuery,
@@ -42,6 +43,10 @@ export function useForumApi() {
 
   function getTopic(topicId: number) {
     return request<ForumTopicDetail>(`/topics/${topicId}`)
+  }
+
+  function listAuthorReviewItems() {
+    return request<{ items: ForumAuthorReviewItem[] }>('/me/content-review')
   }
 
   // 按 slug 查询主题：仅 "纯 slug" URL 模式使用，对应后端 GET /topics/by-slug/:slug。
@@ -129,6 +134,7 @@ export function useForumApi() {
     listTags,
     listTopics,
     searchTopics,
+    listAuthorReviewItems,
     getTopic,
     getTopicBySlug,
     listTopicComments,

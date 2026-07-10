@@ -401,15 +401,19 @@ async function submitReply(payload?: { markdown?: string }) {
   replyError.value = ''
   showReplyError.value = false
   try {
-    await forumApi.createTopicComment(topic.value.id, {
+    const created = await forumApi.createTopicComment(topic.value.id, {
       rawContent: markdown,
       sourceFormat: 'markdown',
       editorType: 'tiptap',
       editorVersion: 'sf-editor-v1'
     })
     replyMarkdown.value = ''
-    await refreshComments()
-    showSuccessToast(t('topicDetail.replyPosted'))
+    if (created.status === 'pending') {
+      toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('topicDetail.replySubmittedForReview'), duration: 10000 })
+    } else {
+      await refreshComments()
+      showSuccessToast(t('topicDetail.replyPosted'))
+    }
   } catch (error) {
     replyError.value = apiErrorMessage(error) || t('topicDetail.replyFailed')
     showReplyError.value = true
@@ -507,15 +511,19 @@ async function submitNestedReply(comment: ForumComment, payload?: { markdown?: s
   }
   nestedReplySubmitting.value = true
   try {
-    await forumApi.createTopicComment(topic.value.id, {
+    const created = await forumApi.createTopicComment(topic.value.id, {
       rawContent: markdown,
       sourceFormat: 'markdown',
       editorType: 'tiptap',
       editorVersion: 'sf-editor-v1'
     }, comment.id)
     cancelReply()
-    await refreshComments()
-    showSuccessToast(t('topicDetail.replyPosted'))
+    if (created.status === 'pending') {
+      toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('topicDetail.replySubmittedForReview'), duration: 10000 })
+    } else {
+      await refreshComments()
+      showSuccessToast(t('topicDetail.replyPosted'))
+    }
   } catch (error) {
     replyError.value = apiErrorMessage(error) || t('topicDetail.replyFailed')
     showReplyError.value = true

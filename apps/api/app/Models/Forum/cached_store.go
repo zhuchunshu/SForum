@@ -41,8 +41,8 @@ const (
 	prefixGroupsList  = "forum:groups"
 	prefixTagsList    = "forum:tags"
 
-	ttlList       = 15 * time.Second // 主题列表：变化较频繁
-	ttlTaxonomy   = 60 * time.Second // 分类/分组/标签：变化极少
+	ttlList        = 15 * time.Second // 主题列表：变化较频繁
+	ttlTaxonomy    = 60 * time.Second // 分类/分组/标签：变化极少
 	ttlTopicDetail = 30 * time.Second // 主题详情
 )
 
@@ -140,6 +140,14 @@ func (s *CachedStore) GetTopic(ctx context.Context, topicID int64) (TopicDetail,
 	}
 	s.saveJSON(ctx, key, out, ttlTopicDetail)
 	return out, nil
+}
+
+func (s *CachedStore) ListAuthorReviewItems(ctx context.Context, authorUserID int64) (AuthorReviewList, error) {
+	store, ok := s.Store.(AuthorReviewStore)
+	if !ok {
+		return AuthorReviewList{}, ErrInvalidAction
+	}
+	return store.ListAuthorReviewItems(ctx, authorUserID)
 }
 
 // GetTopicBySlug 缓存按 slug 查询的主题详情。slug 模式下访问量高，缓存命中可减少 DB 压力。

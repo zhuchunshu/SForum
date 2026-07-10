@@ -201,6 +201,18 @@ func (h *Controller) createTopic(c fiber.Ctx) error {
 	return apphttp.Created(c, topic)
 }
 
+func (h *Controller) authorReviewItems(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.service.ListAuthorReviewItems(c.Context(), actor)
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, items)
+}
+
 func (h *Controller) topic(c fiber.Ctx) error {
 	topic, err := h.service.GetTopic(c.Context(), int64(paramInt(c, "topicID")))
 	if err != nil {

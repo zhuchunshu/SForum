@@ -4,7 +4,7 @@ export type ForumTagCreationMode = 'controlled' | 'review' | 'open'
 export type ForumTagStatus = 'active' | 'pending' | 'disabled'
 export type ForumVisibility = 'public' | 'hidden'
 export type ForumDefaultSort = 'latest' | 'hot'
-export type ForumTopicStatus = 'active' | 'locked' | 'hidden' | 'deleted'
+export type ForumTopicStatus = 'active' | 'locked' | 'hidden' | 'deleted' | 'pending' | 'rejected'
 
 export type ForumSettings = {
   defaultCategorySlug: string
@@ -123,7 +123,18 @@ export type ForumTopicExtensionAction = {
   confirm?: boolean
 }
 
-export type ForumCommentStatus = 'active' | 'hidden' | 'deleted'
+export type ForumCommentStatus = 'active' | 'hidden' | 'deleted' | 'pending' | 'rejected'
+
+export type ForumAuthorReviewItem = {
+  targetType: 'topic' | 'comment'
+  targetId: number
+  topicId?: number
+  title: string
+  excerpt: string
+  status: 'pending' | 'rejected'
+  reviewNote: string
+  createdAt: string
+}
 
 export type ForumReplyReference = {
   id: number

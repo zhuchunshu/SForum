@@ -39,5 +39,11 @@ const contextPanel = read('apps/web/app/components/moderation/ModerationContextP
 for (const action of ['approve', 'reject', 'keep_and_close', 'hide_and_close', 'delete_and_close']) {
   assert(contextPanel.includes(action), `Context panel must expose ${action}`)
 }
+const authorPage = read('extensions/builtin/themes/sforum-default/layer/app/pages/my/content-review.vue')
+assert(authorPage.includes('listAuthorReviewItems'), 'Author page must use the authenticated review-status endpoint')
+const composer = read('extensions/builtin/themes/sforum-default/layer/app/pages/topics/new.vue')
+assert(composer.includes("created.status === 'pending'"), 'Topic composer must handle pending publication')
+const topicPage = read('extensions/builtin/themes/sforum-default/layer/app/pages/t/[...path].vue')
+assert(topicPage.includes('replySubmittedForReview'), 'Comment composer must handle pending publication')
 
 console.log('Moderation workbench validation passed')

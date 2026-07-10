@@ -1772,6 +1772,7 @@
     "reply": "Reply",
     "replyFailed": "Reply failed, please try again.",
     "replyPosted": "Reply posted.",
+    "replySubmittedForReview": "Reply submitted for review and will appear after approval.",
     "editFailed": "Edit failed, please try again.",
     "commentUpdated": "Comment updated.",
     "deleteFailed": "Delete failed, please try again.",
@@ -1828,6 +1829,7 @@
     "save": "Save",
     "submitting": "Submitting...",
     "submitFailed": "Publish failed, please try again.",
+    "submittedForReview": "Content submitted for review and will appear after approval.",
     "permissionDenied": {
       "title": "No permission to post",
       "description": "Your account does not have permission to create topics."
@@ -1949,6 +1951,16 @@
       "contextFailed": "Could not load moderation context.",
       "emptyTitle": "This queue is clear",
       "emptyDescription": "No content matches the current filters."
+    },
+    "authorStatus": {
+      "title": "My content review",
+      "description": "Track topics and comments that are pending or rejected.",
+      "pending": "Pending review",
+      "rejected": "Rejected",
+      "reason": "Review reason",
+      "emptyTitle": "No content awaiting action",
+      "emptyDescription": "Your content is published or does not require review.",
+      "loadFailed": "Could not load content review status."
     },
     "trigger": {
       "all_content": "Review all",
