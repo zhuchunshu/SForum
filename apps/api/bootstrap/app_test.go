@@ -45,6 +45,48 @@ func TestShouldEmbedWorkerInAPIRequiresConfigFlag(t *testing.T) {
 	}
 }
 
+func TestEnsureInitialWebReleaseQueuesOnlyWithoutLiveRelease(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		hasLive   bool
+		wantCalls int
+	}{
+		{name: "empty runtime", hasLive: false, wantCalls: 1},
+		{name: "existing live release", hasLive: true, wantCalls: 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			reader := &fakeInitialReleaseReader{hasLive: test.hasLive}
+			queuer := &fakeInitialReleaseQueuer{}
+			if err := ensureInitialWebRelease(context.Background(), reader, queuer); err != nil {
+				t.Fatal(err)
+			}
+			if queuer.calls != test.wantCalls {
+				t.Fatalf("expected %d queue calls, got %d", test.wantCalls, queuer.calls)
+			}
+			if test.wantCalls == 1 && (queuer.input.Plan.TriggerKind != extensions.WebReleaseTriggerRebuild || queuer.input.Plan.ReloadMode != extensions.WebReleaseReloadPrompt) {
+				t.Fatalf("unexpected initial release plan: %#v", queuer.input.Plan)
+			}
+		})
+	}
+}
+
+type fakeInitialReleaseReader struct{ hasLive bool }
+
+func (r *fakeInitialReleaseReader) HasLiveWebRelease(context.Context) (bool, error) {
+	return r.hasLive, nil
+}
+
+type fakeInitialReleaseQueuer struct {
+	calls int
+	input extensions.QueueWebReleaseInput
+}
+
+func (q *fakeInitialReleaseQueuer) PlanAndQueue(_ context.Context, input extensions.QueueWebReleaseInput) (extensions.WebReleaseQueueResult, error) {
+	q.calls++
+	q.input = input
+	return extensions.WebReleaseQueueResult{}, nil
+}
+
 func TestExtensionRuntimeFactoryCanBeReplacedForBootstrapTests(t *testing.T) {
 	original := newExtensionRuntimeManager
 	defer func() { newExtensionRuntimeManager = original }()

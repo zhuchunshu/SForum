@@ -209,6 +209,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("sync builtin extensions failed: %w", err)
 	}
+	// 首次启用统一 runtime 时只排队 canonical release；构建失败不能阻断旧站点启动。
+	if err := ensureInitialWebRelease(ctx, webReleaseStore, webReleaseService); err != nil {
+		logger.Warn("queue initial web release failed", "error", err)
+	}
 	if items, err := extensionStore.List(ctx); err == nil {
 		extensionRuntime.Reconcile(ctx, items)
 	} else {

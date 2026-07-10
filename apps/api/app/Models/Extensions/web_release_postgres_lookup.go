@@ -12,6 +12,23 @@ func (s *PostgresWebReleaseStore) ActiveWebRelease(ctx context.Context) (WebRele
 	return loadActiveWebRelease(ctx, s.db)
 }
 
+func (s *PostgresWebReleaseStore) HasLiveWebRelease(ctx context.Context) (bool, error) {
+	var exists bool
+	if err := s.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM web_releases
+			WHERE status IN (
+				'queued', 'resolving', 'installing', 'building',
+				'verifying', 'ready', 'activating', 'active'
+			)
+		)
+	`).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check live web releases: %w", err)
+	}
+	return exists, nil
+}
+
 func (s *PostgresWebReleaseStore) ActiveWebReleaseTx(ctx context.Context, tx pgx.Tx) (WebRelease, error) {
 	return loadActiveWebRelease(ctx, pgxWebReleaseSQL{queryer: tx})
 }
