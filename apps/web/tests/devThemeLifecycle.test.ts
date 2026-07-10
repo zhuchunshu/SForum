@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 import {
+  clearNuxtRouteCache,
   createDevThemeLifecycle,
   readThemeSelection,
   stopProcessGroup,
@@ -54,6 +55,24 @@ afterEach(() => {
   for (const root of tempRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true })
   }
+})
+
+describe('clearNuxtRouteCache', () => {
+  test('removes Nitro route responses while preserving other Nuxt caches', () => {
+    const buildDir = path.join(tempRoot(), '.nuxt')
+    const routesDir = path.join(buildDir, 'cache', 'nitro', 'routes')
+    const staleRoute = path.join(routesDir, 'stale.json')
+    const viteMarker = path.join(buildDir, 'cache', 'vite', 'keep.txt')
+    fs.mkdirSync(routesDir, { recursive: true })
+    fs.mkdirSync(path.dirname(viteMarker), { recursive: true })
+    fs.writeFileSync(staleRoute, 'stale')
+    fs.writeFileSync(viteMarker, 'keep')
+
+    clearNuxtRouteCache(buildDir)
+
+    expect(fs.existsSync(routesDir)).toBe(false)
+    expect(fs.readFileSync(viteMarker, 'utf8')).toBe('keep')
+  })
 })
 
 describe('dev theme selection', () => {

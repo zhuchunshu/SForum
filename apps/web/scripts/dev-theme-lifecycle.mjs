@@ -1,6 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+export function clearNuxtRouteCache(buildDir) {
+  fs.rmSync(path.join(buildDir, 'cache', 'nitro', 'routes'), { recursive: true, force: true })
+}
+
 function defaultSelection() {
   return { mode: 'default', layerPath: '' }
 }

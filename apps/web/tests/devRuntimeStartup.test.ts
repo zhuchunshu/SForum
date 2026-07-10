@@ -24,4 +24,20 @@ describe('dev runtime startup', () => {
     expect(startup).toBeGreaterThan(-1)
     expect(listen).toBeGreaterThan(startup)
   })
+
+  test('clears persisted Nitro route responses before each local Nuxt launch', () => {
+    const runtime = readFileSync(new URL('../scripts/dev-theme-runtime.mjs', import.meta.url), 'utf8')
+    const launchDevChild = runtime.slice(
+      runtime.indexOf('function launchDevChild'),
+      runtime.indexOf('function createLifecycle'),
+    )
+
+    expect(runtime).toContain('clearNuxtRouteCache,')
+    expect(runtime).toContain(
+      "const nuxtBuildDir = path.resolve(process.cwd(), process.env.NUXT_BUILD_DIR || '.nuxt')",
+    )
+    expect(launchDevChild).toMatch(
+      /clearNuxtRouteCache\(nuxtBuildDir\)\s+const candidate = spawn\(bunPath,/,
+    )
+  })
 })

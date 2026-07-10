@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import {
+  clearNuxtRouteCache,
   createDevThemeLifecycle,
   readThemeSelection,
   stopProcessGroup,
@@ -24,6 +25,7 @@ const repoRoot = path.resolve(process.cwd(), '../../')
 const releaseRoot = process.env.SFORUM_THEME_RELEASE_ROOT || path.join(repoRoot, 'storage/theme-releases')
 const currentFile = path.join(releaseRoot, 'current.json')
 const bunPath = process.env.SFORUM_BUN_PATH || 'bun'
+const nuxtBuildDir = path.resolve(process.cwd(), process.env.NUXT_BUILD_DIR || '.nuxt')
 const externalPort = Number(process.env.PORT || process.env.WEB_PORT || '3000')
 const externalHost = process.env.HOST || '0.0.0.0'
 const publicDevUrl = formatPublicDevUrl(externalHost, externalPort)
@@ -56,6 +58,7 @@ function launchDevChild(selection, reason) {
     console.log(`[sforum-dev-runtime] (${reason}) starting nuxt dev with default theme`)
   }
 
+  clearNuxtRouteCache(nuxtBuildDir)
   const candidate = spawn(bunPath, ['run', 'dev:plain'], {
     stdio: ['inherit', 'pipe', 'inherit'],
     env,
