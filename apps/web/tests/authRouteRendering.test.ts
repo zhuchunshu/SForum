@@ -2,31 +2,26 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
 describe('auth route rendering', () => {
-  test('returns authenticated users from login and registration pages in both themes', () => {
+  test('guards default auth pages before setup and returns users after authentication', () => {
     const authPages = [
       readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/login.vue', import.meta.url), 'utf8'),
-      readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/register.vue', import.meta.url), 'utf8'),
-      readFileSync(new URL('../../../extensions/dev/themes/sforum-signal-garden/layer/app/pages/login.vue', import.meta.url), 'utf8'),
-      readFileSync(new URL('../../../extensions/dev/themes/sforum-signal-garden/layer/app/pages/register.vue', import.meta.url), 'utf8')
+      readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/register.vue', import.meta.url), 'utf8')
     ]
 
     for (const source of authPages) {
+      expect(source).toMatch(/definePageMeta\s*\(\s*\{[^}]*middleware\s*:\s*['"]guest['"][^}]*\}\s*\)/)
       expect(source).toContain('useAuthReturnNavigation()')
-      expect(source).toMatch(/const\s*\{\s*user\s*,\s*setUser\s*\}\s*=\s*useAuthSession\s*\(\s*\)/)
+      expect(source).toMatch(/const\s*\{\s*setUser\s*\}\s*=\s*useAuthSession\s*\(\s*\)/)
       expect(source).toMatch(/setUser\s*\(\s*currentUser\s*\)/)
+      expect(source).not.toMatch(/if\s*\(\s*user\.value\s*\)/)
       expect(source).not.toContain('adminRoutes')
       expect(source).not.toContain("can('admin.access')")
 
-      const setupGuard = /if\s*\(\s*user\.value\s*\)\s*\{\s*await\s+returnFromAuth\s*\(\s*\)\s*\}/.exec(source)
-      const submitFunction = /async\s+function\s+submit(?:Login|Register)\s*\(/.exec(source)
       const setUserCall = /setUser\s*\(\s*currentUser\s*\)/.exec(source)
       const returnCalls = [...source.matchAll(/await\s+returnFromAuth\s*\(\s*\)/g)]
 
-      expect(setupGuard).not.toBeNull()
-      expect(submitFunction).not.toBeNull()
       expect(setUserCall).not.toBeNull()
-      expect(returnCalls.length).toBeGreaterThanOrEqual(2)
-      expect(setupGuard!.index).toBeLessThan(submitFunction!.index)
+      expect(returnCalls).toHaveLength(1)
       expect(returnCalls.some(call => call.index > setUserCall!.index)).toBe(true)
     }
   })

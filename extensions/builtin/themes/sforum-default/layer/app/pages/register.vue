@@ -2,7 +2,7 @@
 import type { AltchaWidgetElement } from 'altcha'
 import type { CurrentUser } from '~/composables/useAuthSession'
 
-definePageMeta({ layout: 'auth' })
+definePageMeta({ layout: 'auth', middleware: 'guest' })
 
 type RegistrationStatus = {
   nextUserIsInitialSuperAdmin: boolean
@@ -12,13 +12,9 @@ const { t, locale } = useI18n()
 const toast = useToast()
 const localePath = useLocalePath()
 const { apiBaseUrl, request } = useApiClient()
-const { user, setUser } = useAuthSession()
+const { setUser } = useAuthSession()
 const { returnFromAuth } = useAuthReturnNavigation()
 const { siteName, humanVerificationEnabledFor, altchaWidgetSettings, passwordPolicy } = useWebOptions()
-
-if (user.value) {
-  await returnFromAuth()
-}
 
 const form = reactive({
   username: '',
