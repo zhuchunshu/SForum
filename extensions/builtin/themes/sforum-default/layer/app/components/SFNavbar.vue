@@ -1,4 +1,12 @@
 <script setup lang="ts">
+import type { DropdownMenuItem } from '@nuxt/ui/components/DropdownMenu.vue'
+import { buildForumHomeQuery } from '~/utils/forumHome'
+
+type LocaleOption = {
+  code: string
+  name?: string
+}
+
 const { t, locale, locales } = useI18n()
 const localePath = useLocalePath()
 const switchLocalePath = useSwitchLocalePath()
@@ -9,92 +17,33 @@ const router = useRouter()
 const colorMode = useColorMode()
 const { can } = usePermissions()
 
-// 仅对有发帖权限的登录用户显示“发帖”入口。
-const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
-
-// 控制用户下拉菜单的显示
-const menuOpen = ref(false)
-const menuRef = ref<HTMLElement | null>(null)
-
-// 控制语言切换下拉菜单的显示
-const langMenuOpen = ref(false)
-const langMenuRef = ref<HTMLElement | null>(null)
+const searchQuery = ref('')
+const mobileSearchOpen = ref(false)
 const resolvedColorMode = ref<'light' | 'dark'>(
   colorMode.value === 'dark' ? 'dark' : 'light'
 )
 let colorModeObserver: MutationObserver | null = null
 
-// 点击页面其他区域关闭菜单
-onMounted(() => {
-  document.addEventListener('click', onClickOutside)
-  syncResolvedColorMode()
-  colorModeObserver = new MutationObserver(syncResolvedColorMode)
-  colorModeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['class']
-  })
-})
-onUnmounted(() => {
-  document.removeEventListener('click', onClickOutside)
-  colorModeObserver?.disconnect()
-})
-function onClickOutside(e: MouseEvent) {
-  if (menuRef.value && !menuRef.value.contains(e.target as Node)) {
-    menuOpen.value = false
-  }
-  if (langMenuRef.value && !langMenuRef.value.contains(e.target as Node)) {
-    langMenuOpen.value = false
-  }
-}
-
-watch(
-  () => colorMode.value,
-  () => {
-    syncResolvedColorMode()
-  },
-  { immediate: true }
-)
-
-function syncResolvedColorMode() {
-  if (!import.meta.client) {
-    resolvedColorMode.value = colorMode.value === 'dark' ? 'dark' : 'light'
-    return
-  }
-
-  // Nuxt Color Mode 会先改 <html> 类名，再完成组件水合；按钮以真实页面类名为准。
-  resolvedColorMode.value =
-    colorMode.value === 'dark' ||
-    document.documentElement.classList.contains('dark')
-      ? 'dark'
-      : 'light'
-}
-
-// 退出登录
-async function logout() {
-  menuOpen.value = false
-  try {
-    // 经 useApiClient.request，自动携带 CSRF token 与凭据。
-    await request('/auth/logout', { method: 'POST' })
-  } catch {
-    // 即使接口失败也清空本地状态
-  }
-  await refresh()
-  await router.push(localePath('/login'))
-}
-
-// 用户显示名：优先 displayName，没有就用 username 首字母大写
+// 发帖入口只对拥有论坛发帖权限的用户显示，API 仍负责最终鉴权。
+const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const displayName = computed(() =>
   user.value?.displayName || user.value?.username || ''
 )
+const localeOptions = computed(() =>
+  (locales.value as readonly (string | LocaleOption)[]).map((entry) => {
+    if (typeof entry === 'string') {
+      return { code: entry, name: entry }
+    }
 
-// 当前语言的名称，比如 "简体中文" 或 "English"
-const currentLocaleName = computed(() => {
-  const currentLoc = (locales.value as any[]).find(
-    (loc) => (typeof loc === 'object' ? loc.code : loc) === locale.value
-  )
-  return typeof currentLoc === 'object' ? currentLoc.name : currentLoc || ''
-})
-
+    return {
+      code: entry.code,
+      name: entry.name || entry.code
+    }
+  })
+)
+const currentLocaleName = computed(() =>
+  localeOptions.value.find((entry) => entry.code === locale.value)?.name || locale.value
+)
 const isDarkMode = computed(() => resolvedColorMode.value === 'dark')
 const themeToggleLabel = computed(() =>
   isDarkMode.value ? t('nav.lightMode') : t('nav.darkMode')
@@ -103,550 +52,561 @@ const themeToggleIcon = computed(() =>
   isDarkMode.value ? 'i-lucide-sun' : 'i-lucide-moon'
 )
 
+const languageMenuItems = computed<DropdownMenuItem[]>(() =>
+  localeOptions.value.map((entry) => ({
+    label: entry.name,
+    icon: entry.code === locale.value ? 'i-lucide-check' : 'i-lucide-languages',
+    to: switchLocalePath(entry.code)
+  }))
+)
+
+const userMenuItems = computed<DropdownMenuItem[][]>(() => {
+  if (!user.value) {
+    return []
+  }
+
+  return [
+    [
+      {
+        label: displayName.value,
+        description: `@${user.value.username}`,
+        type: 'label'
+      }
+    ],
+    [
+      {
+        label: t('nav.myProfile'),
+        icon: 'i-lucide-user',
+        to: localePath(`/u/${user.value.username}`)
+      },
+      {
+        label: t('nav.profileSettings'),
+        icon: 'i-lucide-settings',
+        to: localePath('/settings/profile')
+      }
+    ],
+    [
+      {
+        label: t('nav.logout'),
+        icon: 'i-lucide-log-out',
+        color: 'error',
+        onSelect: () => {
+          void logout()
+        }
+      }
+    ]
+  ]
+})
+
+const mobileMenuItems = computed<DropdownMenuItem[][]>(() => {
+  const destinations: DropdownMenuItem[] = [
+    {
+      label: t('nav.home'),
+      icon: 'i-lucide-house',
+      to: localePath('/')
+    },
+    {
+      label: t('nav.search'),
+      icon: 'i-lucide-search',
+      onSelect: () => {
+        mobileSearchOpen.value = true
+      }
+    }
+  ]
+
+  const account: DropdownMenuItem[] = []
+  if (!user.value) {
+    account.push(
+      {
+        label: t('nav.login'),
+        icon: 'i-lucide-log-in',
+        to: localePath('/login')
+      },
+      {
+        label: t('nav.register'),
+        icon: 'i-lucide-user-plus',
+        to: localePath('/register')
+      }
+    )
+  }
+
+  const controls: DropdownMenuItem[] = [
+    {
+      label: t('nav.appearance'),
+      description: themeToggleLabel.value,
+      icon: themeToggleIcon.value,
+      onSelect: () => {
+        toggleColorMode()
+      }
+    },
+    {
+      label: t('nav.language'),
+      icon: 'i-lucide-globe',
+      children: languageMenuItems.value
+    }
+  ]
+
+  return account.length
+    ? [destinations, account, controls]
+    : [destinations, controls]
+})
+
+watch(
+  () => colorMode.value,
+  syncResolvedColorMode,
+  { immediate: true }
+)
+
+onMounted(() => {
+  syncResolvedColorMode()
+  colorModeObserver = new MutationObserver(syncResolvedColorMode)
+  colorModeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class']
+  })
+})
+
+onUnmounted(() => {
+  colorModeObserver?.disconnect()
+})
+
+function syncResolvedColorMode() {
+  if (!import.meta.client) {
+    resolvedColorMode.value = colorMode.value === 'dark' ? 'dark' : 'light'
+    return
+  }
+
+  // 颜色模式可能先更新 html class，菜单图标以页面实际状态为准。
+  resolvedColorMode.value =
+    colorMode.value === 'dark' ||
+    document.documentElement.classList.contains('dark')
+      ? 'dark'
+      : 'light'
+}
+
 function toggleColorMode() {
   const nextMode = isDarkMode.value ? 'light' : 'dark'
   colorMode.preference = nextMode
   resolvedColorMode.value = nextMode
+}
+
+function submitSearch(query: string) {
+  return navigateTo({
+    path: localePath('/'),
+    query: buildForumHomeQuery({
+      query,
+      categorySlug: '',
+      tagSlug: ''
+    })
+  })
+}
+
+function submitMobileSearch(query: string) {
+  mobileSearchOpen.value = false
+  return submitSearch(query)
+}
+
+async function logout() {
+  try {
+    await request('/auth/logout', { method: 'POST' })
+  } catch {
+    // 服务端退出失败时仍刷新会话，以服务端实际状态为准。
+  }
+
+  await refresh()
+  await router.push(localePath('/login'))
 }
 </script>
 
 <template>
   <header class="navbar">
     <div class="navbar__inner">
-
-      <!-- Logo -->
-      <NuxtLink :to="localePath('/')" class="navbar__logo">
-        <div class="navbar__logo-mark" aria-hidden="true">
-          <UIcon name="i-lucide-message-circle" class="navbar__logo-icon" />
-        </div>
+      <NuxtLink
+        :to="localePath('/')"
+        class="navbar__logo"
+        :aria-label="siteName"
+      >
+        <span class="navbar__logo-mark" aria-hidden="true">
+          <UIcon name="i-lucide-message-circle" class="size-4" />
+        </span>
         <span class="navbar__logo-text">{{ siteName }}</span>
       </NuxtLink>
 
-      <!-- 主导航（占位，后续扩展版块） -->
-      <nav class="navbar__nav" :aria-label="t('nav.mainNav')">
-        <NuxtLink :to="localePath('/')" class="navbar__nav-link">
-          {{ t('nav.home') }}
-        </NuxtLink>
+      <nav class="navbar__desktop-nav" :aria-label="t('nav.mainNav')">
         <NuxtLink
-          v-if="canCreateTopic"
-          :to="localePath('/topics/new')"
-          class="navbar__nav-link navbar__nav-link--create"
+          :to="localePath('/')"
+          class="navbar__nav-link"
+          :aria-label="t('nav.home')"
         >
-          <UIcon name="i-lucide-plus" class="size-4" />
-          <span>{{ t('nav.newTopic') }}</span>
+          {{ t('nav.home') }}
         </NuxtLink>
       </nav>
 
-      <!-- 语言切换 -->
-      <div ref="langMenuRef" class="navbar__lang">
-        <button
-          class="navbar__lang-btn"
-          :aria-label="t('nav.language')"
-          @click="langMenuOpen = !langMenuOpen"
+      <SFSearch
+        v-model="searchQuery"
+        class="navbar__search"
+        :placeholder="t('home.searchPlaceholder')"
+        :aria-label="t('nav.search')"
+        @submit="submitSearch"
+      />
+
+      <NuxtLink
+        v-if="canCreateTopic"
+        :to="localePath('/topics/new')"
+        class="navbar__new-topic"
+        :aria-label="t('nav.newTopic')"
+      >
+        <UIcon name="i-lucide-square-pen" class="size-4" aria-hidden="true" />
+        <span>{{ t('nav.newTopic') }}</span>
+      </NuxtLink>
+
+      <div class="navbar__actions">
+        <NuxtLink
+          v-if="canCreateTopic"
+          :to="localePath('/topics/new')"
+          class="navbar__mobile-new-topic"
+          :aria-label="t('nav.newTopic')"
         >
-          <UIcon name="i-lucide-globe" class="navbar__lang-icon" aria-hidden="true" />
-          <span class="navbar__lang-text">{{ currentLocaleName }}</span>
-          <UIcon
-            name="i-lucide-chevron-down"
-            class="navbar__chevron"
-            :class="{ 'navbar__chevron--open': langMenuOpen }"
-            aria-hidden="true"
-          />
-        </button>
+          <UIcon name="i-lucide-square-pen" class="size-5" aria-hidden="true" />
+        </NuxtLink>
 
-        <!-- 语言选择下拉菜单 -->
-        <Transition name="menu">
-          <div v-if="langMenuOpen" class="navbar__dropdown" role="menu">
-            <NuxtLink
-              v-for="loc in locales"
-              :key="loc.code"
-              :to="switchLocalePath(loc.code)"
-              class="navbar__dropdown-item navbar__dropdown-item--lang"
-              :class="{ 'navbar__dropdown-item--active': locale === loc.code }"
-              role="menuitem"
-              @click="langMenuOpen = false"
-            >
-              <span>{{ loc.name }}</span>
-              <UIcon
-                v-if="locale === loc.code"
-                name="i-lucide-check"
-                class="navbar__selected-icon"
-                aria-hidden="true"
-              />
-            </NuxtLink>
-          </div>
-        </Transition>
-      </div>
-
-      <!-- 夜间模式切换 -->
-      <ClientOnly>
-        <button
-          type="button"
-          class="navbar__theme-btn"
-          :aria-label="themeToggleLabel"
-          :aria-pressed="isDarkMode ? 'true' : 'false'"
-          :title="themeToggleLabel"
-          @click="toggleColorMode"
+        <UDropdownMenu
+          :items="languageMenuItems"
+          :content="{ align: 'end' }"
         >
-          <UIcon :name="themeToggleIcon" class="navbar__theme-icon" aria-hidden="true" />
-        </button>
-        <template #fallback>
-          <span class="navbar__theme-placeholder" aria-hidden="true" />
-        </template>
-      </ClientOnly>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            class="navbar__control navbar__desktop-control"
+            :aria-label="t('nav.language')"
+          >
+            <UIcon name="i-lucide-globe" class="size-4" aria-hidden="true" />
+            <span class="navbar__control-label">{{ currentLocaleName }}</span>
+            <UIcon name="i-lucide-chevron-down" class="size-3.5" aria-hidden="true" />
+          </UButton>
+        </UDropdownMenu>
 
-      <!-- 右侧用户区 -->
-      <div class="navbar__right">
+        <ClientOnly>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            square
+            class="navbar__control navbar__desktop-control"
+            :aria-label="themeToggleLabel"
+            :aria-pressed="isDarkMode"
+            @click="toggleColorMode"
+          >
+            <UIcon :name="themeToggleIcon" class="size-4" aria-hidden="true" />
+          </UButton>
+          <template #fallback>
+            <span class="navbar__control-placeholder navbar__desktop-control" aria-hidden="true" />
+          </template>
+        </ClientOnly>
 
-        <!-- 未登录 -->
         <template v-if="!user">
-          <NuxtLink :to="localePath('/login')" class="navbar__btn navbar__btn--ghost">
+          <NuxtLink
+            :to="localePath('/login')"
+            class="navbar__auth-link navbar__auth-link--quiet"
+            :aria-label="t('nav.login')"
+          >
             {{ t('nav.login') }}
           </NuxtLink>
-          <NuxtLink :to="localePath('/register')" class="navbar__btn navbar__btn--primary">
+          <NuxtLink
+            :to="localePath('/register')"
+            class="navbar__auth-link navbar__auth-link--primary"
+            :aria-label="t('nav.register')"
+          >
             {{ t('nav.register') }}
           </NuxtLink>
         </template>
 
-        <!-- 已登录 -->
-        <template v-else>
-          <div ref="menuRef" class="navbar__user">
-            <button
-              class="navbar__avatar-btn"
-              :aria-label="t('nav.userMenu')"
-              :aria-expanded="menuOpen"
-              @click="menuOpen = !menuOpen"
-            >
-              <SFAvatar :name="displayName" :avatar="user.avatar" size="sm" shape="square" />
-              <span class="navbar__username">{{ displayName }}</span>
-              <UIcon
-                name="i-lucide-chevron-down"
-                class="navbar__chevron"
-                :class="{ 'navbar__chevron--open': menuOpen }"
-                aria-hidden="true"
-              />
-            </button>
+        <UDropdownMenu
+          v-else
+          :items="userMenuItems"
+          :content="{ align: 'end' }"
+        >
+          <UButton
+            color="neutral"
+            variant="ghost"
+            class="navbar__user-trigger"
+            :aria-label="t('nav.userMenu')"
+          >
+            <SFAvatar
+              :name="displayName"
+              :avatar="user.avatar"
+              size="sm"
+              shape="square"
+            />
+            <span class="navbar__username">{{ displayName }}</span>
+            <UIcon name="i-lucide-chevron-down" class="size-3.5" aria-hidden="true" />
+          </UButton>
+        </UDropdownMenu>
 
-            <!-- 下拉菜单 -->
-            <Transition name="menu">
-              <div v-if="menuOpen" class="navbar__dropdown" role="menu">
-                <div class="navbar__dropdown-header">
-                  <span class="navbar__dropdown-name">{{ displayName }}</span>
-                  <span class="navbar__dropdown-username">@{{ user.username }}</span>
-                </div>
-                <div class="navbar__dropdown-divider" />
-                <NuxtLink
-                  :to="localePath(`/u/${user.username}`)"
-                  class="navbar__dropdown-item"
-                  role="menuitem"
-                  @click="menuOpen = false"
-                >
-                  <UIcon name="i-lucide-user" class="size-3.5" />
-                  <span>{{ t('nav.myProfile') }}</span>
-                </NuxtLink>
-                <NuxtLink
-                  :to="localePath('/settings/profile')"
-                  class="navbar__dropdown-item"
-                  role="menuitem"
-                  @click="menuOpen = false"
-                >
-                  <UIcon name="i-lucide-settings" class="size-3.5" />
-                  <span>{{ t('nav.profileSettings') }}</span>
-                </NuxtLink>
-                <div class="navbar__dropdown-divider" />
-                <button
-                  class="navbar__dropdown-item navbar__dropdown-item--danger"
-                  role="menuitem"
-                  @click="logout"
-                >
-                  {{ t('nav.logout') }}
-                </button>
-              </div>
-            </Transition>
-          </div>
-        </template>
+        <UDropdownMenu
+          :items="mobileMenuItems"
+          :content="{ align: 'end' }"
+        >
+          <UButton
+            color="neutral"
+            variant="ghost"
+            square
+            class="navbar__mobile-trigger"
+            :aria-label="t('nav.openMenu')"
+          >
+            <UIcon name="i-lucide-menu" class="size-5" aria-hidden="true" />
+          </UButton>
+        </UDropdownMenu>
+      </div>
+    </div>
 
+    <div v-if="mobileSearchOpen" class="navbar__mobile-search-panel">
+      <div class="navbar__mobile-search-inner">
+        <SFSearch
+          v-model="searchQuery"
+          class="navbar__mobile-search"
+          :placeholder="t('home.searchPlaceholder')"
+          :aria-label="t('nav.search')"
+          @submit="submitMobileSearch"
+        />
+        <UButton
+          color="neutral"
+          variant="ghost"
+          square
+          class="navbar__mobile-search-close"
+          :aria-label="t('nav.closeSearch')"
+          @click="mobileSearchOpen = false"
+        >
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
+        </UButton>
       </div>
     </div>
   </header>
 </template>
 
 <style scoped>
-/* ====== Navbar 外框 ====== */
 .navbar {
   position: sticky;
   top: 0;
   z-index: 50;
-  height: 56px;
-  background: #ffffff;
+  min-height: 60px;
   border-top: 3px solid var(--sf-accent);
   border-bottom: 1px solid #e4e8ef;
-  /* 轻微阴影，页面滚动时有层次感 */
+  background: #fff;
   box-shadow: 0 1px 0 #e4e8ef;
 }
 
 .navbar__inner {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 100%;
-  /* 与首页/详情页内容容器一致，保证 topbar 左右边缘对齐。 */
+  gap: 12px;
+  min-height: 57px;
   max-width: 1376px;
   margin: 0 auto;
-  padding: 0 16px;
-}
-/* sm 以上用 24px，和页面容器的 px-4 sm:px-6 对齐。 */
-@media (min-width: 640px) {
-  .navbar__inner {
-    padding: 0 24px;
-  }
+  padding: 0 24px;
 }
 
-/* ====== Logo ====== */
-.navbar__logo {
-  display: inline-flex;
+.navbar__logo,
+.navbar__desktop-nav,
+.navbar__nav-link,
+.navbar__new-topic,
+.navbar__mobile-new-topic,
+.navbar__actions,
+.navbar__auth-link {
+  display: flex;
   align-items: center;
+}
+
+.navbar__logo {
+  min-width: 0;
+  flex-shrink: 0;
   gap: 8px;
-  text-decoration: none;
   color: #111827;
   font-size: 15px;
   font-weight: 700;
-  letter-spacing: -0.01em;
-  flex-shrink: 0;
-  margin-right: 8px;
+  text-decoration: none;
 }
 
 .navbar__logo-mark {
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  background: transparent;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
   border: 2px solid var(--sf-accent);
+  border-radius: 7px;
   color: var(--sf-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
 }
 
-.navbar__logo-icon {
-  width: 15px;
-  height: 15px;
+.navbar__logo-text,
+.navbar__username {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* ====== 主导航 ====== */
-.navbar__nav {
-  display: flex;
-  align-items: center;
+.navbar__desktop-nav {
+  flex-shrink: 0;
   gap: 2px;
-  flex: 1;
 }
 
 .navbar__nav-link {
-  display: inline-flex;
-  align-items: center;
-  height: 32px;
+  gap: 6px;
+  min-height: 34px;
   padding: 0 10px;
   border-radius: 6px;
   color: #4b5563;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none;
-  transition: color 0.15s, background 0.15s;
 }
 
-.navbar__nav-link:hover {
-  color: #111827;
-  background: #f3f4f6;
-}
-
-/* NuxtLink 激活状态 */
+.navbar__nav-link:hover,
 .navbar__nav-link.router-link-active {
   color: var(--sf-accent);
   background: var(--sf-accent-soft);
-  font-weight: 600;
 }
 
-/* ====== 语言切换 ====== */
-.navbar__lang {
-  position: relative;
-}
-
-.navbar__lang-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 8px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  cursor: pointer;
-  color: #4b5563;
-  transition: background 0.15s, color 0.15s;
-  font-family: inherit;
-}
-
-.navbar__lang-btn:hover {
-  background: #f3f4f6;
-  color: #111827;
-}
-
-.navbar__lang-btn svg {
-  color: #6b7280;
-  transition: color 0.15s;
-}
-
-.navbar__lang-btn:hover svg {
-  color: #111827;
-}
-
-.navbar__lang-icon {
-  width: 15px;
-  height: 15px;
-  color: #6b7280;
-  transition: color 0.15s;
-}
-
-.navbar__lang-btn:hover .navbar__lang-icon {
-  color: #111827;
-}
-
-.navbar__theme-btn {
-  display: inline-flex;
-  align-items: center;
+.navbar__new-topic,
+.navbar__mobile-new-topic {
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  color: #4b5563;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-
-.navbar__theme-btn:hover {
-  background: #f3f4f6;
-  color: #111827;
-}
-
-.navbar__theme-icon {
-  width: 15px;
-  height: 15px;
-}
-
-.navbar__theme-placeholder {
-  display: inline-block;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
-}
-
-.navbar__lang-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: inherit;
-}
-
-/* 语言选项 */
-.navbar__dropdown-item--lang {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.navbar__dropdown-item--active {
-  color: var(--sf-accent);
-  font-weight: 600;
-  background: var(--sf-accent-soft);
-}
-
-.navbar__dropdown-item--active:hover {
-  background: var(--sf-accent-soft);
-  color: var(--sf-accent);
-}
-
-/* ====== 右侧区域 ====== */
-.navbar__right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
+  border-radius: 7px;
+  color: #fff;
+  background: var(--sf-accent);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
 }
 
-/* 按钮 */
-.navbar__btn {
-  display: inline-flex;
-  align-items: center;
-  height: 32px;
-  padding: 0 14px;
+.navbar__new-topic {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.navbar__new-topic:hover,
+.navbar__mobile-new-topic:hover {
+  background: var(--sf-accent-hover);
+}
+
+.navbar__mobile-new-topic {
+  display: none;
+}
+
+.navbar__search {
+  width: min(32vw, 360px);
+  min-width: 200px;
+  margin-left: auto;
+}
+
+.navbar__search :deep(.sf-search__box) {
+  min-height: 36px;
+  border-radius: 7px;
+}
+
+.navbar__actions {
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.navbar__control,
+.navbar__user-trigger,
+.navbar__mobile-trigger {
+  min-height: 36px;
+  border-radius: 7px;
+}
+
+.navbar__control {
+  color: #4b5563;
+}
+
+.navbar__control-label {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.navbar__control-placeholder {
+  width: 36px;
+  height: 36px;
+}
+
+.navbar__auth-link {
+  min-height: 34px;
+  padding: 0 12px;
   border-radius: 7px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 650;
   text-decoration: none;
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
-  cursor: pointer;
-  border: none;
-  font-family: inherit;
 }
 
-.navbar__btn--ghost {
-  background: transparent;
-  color: #4b5563;
+.navbar__auth-link--quiet {
   border: 1px solid #d1d5db;
+  color: #4b5563;
 }
 
-.navbar__btn--ghost:hover {
-  background: #f9fafb;
+.navbar__auth-link--quiet:hover {
   border-color: #9ca3af;
   color: #111827;
-}
-
-.navbar__btn--primary {
-  background: var(--sf-accent);
-  color: #ffffff;
-}
-
-.navbar__btn--primary:hover {
-  background: var(--sf-accent-hover);
-  box-shadow: 0 2px 8px rgb(var(--sf-accent-rgb) / 0.22);
-}
-
-/* ====== 用户头像按钮 ====== */
-.navbar__user {
-  position: relative;
-}
-
-.navbar__avatar-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 32px;
-  padding: 0 10px 0 4px;
-  border: 1px solid #e4e8ef;
-  border-radius: 8px;
-  background: #ffffff;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  font-family: inherit;
-}
-
-.navbar__avatar-btn:hover {
-  border-color: #d1d5db;
   background: #f9fafb;
+}
+
+.navbar__auth-link--primary {
+  color: #fff;
+  background: var(--sf-accent);
+}
+
+.navbar__auth-link--primary:hover {
+  background: var(--sf-accent-hover);
+}
+
+.navbar__user-trigger {
+  max-width: 190px;
+  gap: 7px;
+  color: #374151;
 }
 
 .navbar__username {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 650;
+}
+
+.navbar__mobile-trigger {
+  display: none;
   color: #374151;
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.navbar__chevron {
-  width: 12px;
-  height: 12px;
-  color: #9ca3af;
-  flex-shrink: 0;
-  transition: transform 0.18s;
+.navbar__mobile-search-panel {
+  display: none;
+  border-top: 1px solid #e4e8ef;
+  background: #fff;
 }
 
-.navbar__selected-icon {
-  width: 12px;
-  height: 12px;
-  flex-shrink: 0;
-}
-
-.navbar__chevron--open {
-  transform: rotate(180deg);
-}
-
-/* ====== 下拉菜单 ====== */
-.navbar__dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  min-width: 150px;
-  background: #ffffff;
-  border: 1px solid #e4e8ef;
-  border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-  /* 防止点击内部元素触发 outside click */
-  z-index: 100;
-  padding: 4px;
-}
-
-.navbar__dropdown-header {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 12px 14px;
-}
-
-.navbar__dropdown-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #111827;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.navbar__dropdown-username {
-  font-size: 11px;
-  color: #9ca3af;
-}
-
-.navbar__dropdown-divider {
-  height: 1px;
-  background: #f3f4f6;
-  margin: 4px 0;
-}
-
-.navbar__dropdown-item {
+.navbar__mobile-search-inner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: 500;
+  gap: 8px;
+  max-width: 1376px;
+  margin: 0 auto;
+  padding: 8px 24px;
+}
+
+.navbar__mobile-search {
+  flex: 1;
+}
+
+.navbar__mobile-search-close {
+  flex: 0 0 40px;
+  border-radius: 7px;
   color: #374151;
-  text-decoration: none;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  text-align: left;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.12s, color 0.12s;
 }
 
-.navbar__dropdown-item:hover {
-  background: #f3f4f6;
-  color: #111827;
-}
-
-.navbar__dropdown-item--danger {
-  color: #b91c1c;
-}
-
-.navbar__dropdown-item--danger:hover {
-  background: #fef2f2;
-  color: #991b1b;
-}
-
-/* ====== 深色模式 ====== */
 .dark .navbar {
-  background: #09090b;
   border-bottom-color: #27272a;
+  background: #09090b;
   box-shadow: 0 1px 0 #27272a;
 }
 
@@ -660,144 +620,101 @@ function toggleColorMode() {
 }
 
 .dark .navbar__nav-link,
-.dark .navbar__lang-btn,
-.dark .navbar__theme-btn {
+.dark .navbar__control,
+.dark .navbar__user-trigger,
+.dark .navbar__mobile-trigger,
+.dark .navbar__mobile-search-close {
   color: #d4d4d8;
 }
 
 .dark .navbar__nav-link:hover,
-.dark .navbar__lang-btn:hover,
-.dark .navbar__theme-btn:hover {
-  background: #18181b;
-  color: #ffffff;
-}
-
 .dark .navbar__nav-link.router-link-active {
   color: var(--sf-accent-dark);
   background: rgb(var(--sf-accent-rgb) / 0.2);
 }
 
-.dark .navbar__lang-btn svg,
-.dark .navbar__lang-icon {
-  color: #a1a1aa;
-}
-
-.dark .navbar__lang-btn:hover svg,
-.dark .navbar__lang-btn:hover .navbar__lang-icon {
-  color: #ffffff;
-}
-
-.dark .navbar__btn--ghost {
+.dark .navbar__auth-link--quiet {
   border-color: #3f3f46;
   color: #d4d4d8;
 }
 
-.dark .navbar__btn--ghost:hover {
-  background: #18181b;
+.dark .navbar__auth-link--quiet:hover {
   border-color: #52525b;
-  color: #ffffff;
+  color: #fff;
+  background: #18181b;
 }
 
-.dark .navbar__btn--primary {
-  background: var(--sf-accent-dark);
+.dark .navbar__auth-link--primary {
   color: #052e2b;
+  background: var(--sf-accent-dark);
 }
 
-.dark .navbar__btn--primary:hover {
-  background: #5eead4;
+.dark .navbar__new-topic,
+.dark .navbar__mobile-new-topic {
+  color: #052e2b;
+  background: var(--sf-accent-dark);
 }
 
-.dark .navbar__avatar-btn {
-  border-color: #27272a;
-  background: #18181b;
+.dark .navbar__mobile-search-panel {
+  border-top-color: #27272a;
+  background: #09090b;
 }
 
-.dark .navbar__avatar-btn:hover {
-  border-color: #3f3f46;
-  background: #27272a;
+@media (max-width: 980px) {
+  .navbar__desktop-nav,
+  .navbar__search,
+  .navbar__new-topic,
+  .navbar__desktop-control,
+  .navbar__auth-link {
+    display: none;
+  }
+
+  .navbar__actions {
+    margin-left: auto;
+  }
+
+  .navbar__mobile-new-topic,
+  .navbar__mobile-trigger {
+    display: inline-flex;
+  }
+
+  .navbar__mobile-search-panel {
+    display: block;
+  }
+
+  .navbar__logo,
+  .navbar__mobile-new-topic,
+  .navbar__user-trigger,
+  .navbar__mobile-trigger,
+  .navbar__mobile-search-close,
+  .navbar__mobile-search {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .navbar__mobile-search :deep(.sf-search__box) {
+    min-height: 40px;
+  }
 }
 
-.dark .navbar__username,
-.dark .navbar__dropdown-name {
-  color: #f4f4f5;
-}
-
-.dark .navbar__chevron,
-.dark .navbar__dropdown-username {
-  color: #a1a1aa;
-}
-
-.dark .navbar__dropdown {
-  background: #18181b;
-  border-color: #27272a;
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.32);
-}
-
-.dark .navbar__dropdown-divider {
-  background: #27272a;
-}
-
-.dark .navbar__dropdown-item {
-  color: #d4d4d8;
-}
-
-.dark .navbar__dropdown-item:hover {
-  background: #27272a;
-  color: #ffffff;
-}
-
-.dark .navbar__dropdown-item--active {
-  color: var(--sf-accent-dark);
-  background: rgb(var(--sf-accent-rgb) / 0.2);
-}
-
-.dark .navbar__dropdown-item--active:hover {
-  color: var(--sf-accent-dark);
-  background: rgb(var(--sf-accent-rgb) / 0.26);
-}
-
-.dark .navbar__dropdown-item--danger {
-  color: #fca5a5;
-}
-
-.dark .navbar__dropdown-item--danger:hover {
-  background: rgba(127, 29, 29, 0.24);
-  color: #fecaca;
-}
-
-/* ====== 下拉动画 ====== */
-.menu-enter-active,
-.menu-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.menu-enter-from,
-.menu-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
-}
-
-/* ====== 响应式 ====== */
-@media (max-width: 640px) {
+@media (max-width: 520px) {
   .navbar__inner {
+    gap: 6px;
     padding: 0 16px;
   }
 
-  .navbar__logo-text {
+  .navbar__mobile-search-inner {
+    padding: 8px 16px;
+  }
+
+  .navbar__logo-text,
+  .navbar__username,
+  .navbar__user-trigger > :deep(svg) {
     display: none;
   }
 
-  .navbar__username {
-    display: none;
-  }
-
-  .navbar__btn--ghost {
-    display: none;
-  }
-
-  /* 移动端仅保留地球图标 */
-  .navbar__lang-text {
-    display: none;
+  .navbar__user-trigger {
+    padding: 2px;
   }
 }
 </style>
