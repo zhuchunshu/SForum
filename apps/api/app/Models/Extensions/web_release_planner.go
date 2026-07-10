@@ -157,10 +157,14 @@ func (p *WebReleasePlanner) Plan(ctx context.Context, input PlanWebReleaseInput)
 	if err != nil {
 		return PlannedWebRelease{}, fmt.Errorf("marshal web release composition: %w", err)
 	}
-	digest := sha256.Sum256(body)
+	canonical, err := canonicalJSONObject(body)
+	if err != nil {
+		return PlannedWebRelease{}, fmt.Errorf("canonicalize web release composition: %w", err)
+	}
+	digest := sha256.Sum256(canonical)
 	return PlannedWebRelease{
 		Composition: composition,
-		Snapshot:    append(json.RawMessage(nil), body...),
+		Snapshot:    append(json.RawMessage(nil), canonical...),
 		Hash:        hex.EncodeToString(digest[:]),
 	}, nil
 }
