@@ -1,6 +1,18 @@
 export type ModerationTargetType = 'topic' | 'comment'
 export type ModerationReasonCode = 'spam' | 'abuse' | 'illegal' | 'off_topic' | 'other'
 export type ModerationReportStatus = 'open' | 'reviewing' | 'resolved' | 'rejected'
+export type ModerationMode = 'off' | 'rules' | 'all'
+export type ModerationSource = 'pre_publish' | 'report'
+export type ModerationAction = 'approve' | 'reject' | 'keep_and_close' | 'hide_and_close' | 'delete_and_close'
+
+export type ModerationSettings = {
+  mode: ModerationMode
+  reviewNewUsers: boolean
+  newUserMaxAgeDays: number
+  reviewExternalLinks: boolean
+  updatedByUserId?: number | null
+  updatedAt?: string
+}
 
 export type ModerationReport = {
   id: number
@@ -19,53 +31,89 @@ export type ModerationReport = {
   resolvedAt?: string | null
 }
 
-export type ModerationReportList = {
-  items: ModerationReport[]
-  total: number
-  page: number
-  perPage: number
+export type ModerationQueueCounts = { pendingContent: number; openReports: number; processedToday: number }
+export type ModerationPendingItem = {
+  targetType: ModerationTargetType
+  targetId: number
+  topicId?: number
+  title: string
+  excerpt: string
+  authorId: number
+  authorName: string
+  category: string
+  triggers: string[]
+  createdAt: string
 }
+export type ModerationReportItem = ModerationReport & {
+  title: string
+  excerpt: string
+  targetAuthorId: number
+  targetAuthorName: string
+  category: string
+  targetStatus: string
+  targetTopicId?: number
+}
+export type ModerationDecision = {
+  id: number
+  source: ModerationSource
+  targetType: ModerationTargetType
+  targetId: number
+  reportId?: number | null
+  action: ModerationAction
+  reviewerUserId: number
+  reviewerName: string
+  reviewNote: string
+  triggers: string[]
+  createdAt: string
+}
+export type ModerationReviewContext = {
+  source: ModerationSource
+  targetType: ModerationTargetType
+  targetId: number
+  reportId?: number
+  title: string
+  html: string
+  authorId: number
+  authorName: string
+  category: string
+  status: string
+  triggers: string[]
+  parentTopic?: string
+  createdAt: string
+}
+export type PagedModerationList<T> = { items: T[]; total: number; page: number; perPage: number }
+export type ModerationReportList = PagedModerationList<ModerationReport>
+export type ModerationWorkbenchFilters = { targetType?: ModerationTargetType; page?: number; perPage?: number }
+export type ModerationHistoryFilters = ModerationWorkbenchFilters & { action?: ModerationAction; reviewerId?: number }
 
-export type ModerationReportFilters = {
-  status?: ModerationReportStatus
-  targetType?: ModerationTargetType
-  reporterId?: number
-  page?: number
-  perPage?: number
+function queryString(filters: Record<string, string | number | undefined>) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== '') query.set(key, String(value))
+  }
+  const value = query.toString()
+  return value ? `?${value}` : ''
 }
 
 export function useModerationApi() {
   const { request } = useApiClient()
 
-  function createReport(input: {
-    targetType: ModerationTargetType
-    targetId: number
-    reasonCode: ModerationReasonCode
-    body?: string
-  }) {
-    return request<ModerationReport>('/moderation/reports', {
-      method: 'POST',
-      body: input
-    })
-  }
+  const createReport = (input: { targetType: ModerationTargetType; targetId: number; reasonCode: ModerationReasonCode; body?: string }) =>
+    request<ModerationReport>('/moderation/reports', { method: 'POST', body: input })
+  const listReports = (filters: ModerationWorkbenchFilters & { status?: ModerationReportStatus; reporterId?: number } = {}) =>
+    request<ModerationReportList>(`/admin/moderation/reports${queryString(filters)}`)
+  const updateReport = (reportId: number, input: { status: ModerationReportStatus; reviewNote?: string }) =>
+    request<ModerationReport>(`/admin/moderation/reports/${reportId}`, { method: 'PATCH', body: input })
 
-  function listReports(filters: ModerationReportFilters = {}) {
-    const query: Record<string, string> = {}
-    if (filters.status) query.status = filters.status
-    if (filters.targetType) query.targetType = filters.targetType
-    if (filters.reporterId) query.reporterId = String(filters.reporterId)
-    if (filters.page) query.page = String(filters.page)
-    if (filters.perPage) query.perPage = String(filters.perPage)
-    const qs = new URLSearchParams(query).toString()
-    return request<ModerationReportList>(`/admin/moderation/reports${qs ? '?' + qs : ''}`)
-  }
+  const getSettings = () => request<ModerationSettings>('/admin/moderation/settings')
+  const updateSettings = (input: ModerationSettings) => request<ModerationSettings>('/admin/moderation/settings', { method: 'PUT', body: input })
+  const resetSettings = () => request<ModerationSettings>('/admin/moderation/settings/reset', { method: 'POST' })
+  const getCounts = () => request<ModerationQueueCounts>('/moderation/workbench/counts')
+  const listPending = (filters: ModerationWorkbenchFilters = {}) => request<PagedModerationList<ModerationPendingItem>>(`/moderation/workbench/pending${queryString(filters)}`)
+  const listReportItems = (filters: ModerationWorkbenchFilters = {}) => request<PagedModerationList<ModerationReportItem>>(`/moderation/workbench/reports${queryString(filters)}`)
+  const listHistory = (filters: ModerationHistoryFilters = {}, admin = false) => request<PagedModerationList<ModerationDecision>>(`${admin ? '/admin/moderation/decisions' : '/moderation/workbench/history'}${queryString(filters)}`)
+  const getContext = (source: ModerationSource, targetType: ModerationTargetType, targetId: number, reportId?: number) => request<ModerationReviewContext>(`/moderation/workbench/context/${targetType}/${targetId}${queryString({ source, reportId })}`)
+  const submitDecision = (input: { source: ModerationSource; targetType: ModerationTargetType; targetId: number; reportId?: number; action: ModerationAction; reviewNote?: string }) => request<ModerationDecision>('/moderation/workbench/decisions', { method: 'POST', body: input })
 
-  function updateReport(reportId: number, input: { status: ModerationReportStatus; reviewNote?: string }) {
-    return request<ModerationReport>(`/admin/moderation/reports/${reportId}`, {
-      method: 'PATCH',
-      body: input
-    })
-  }
-
-  return { createReport, listReports, updateReport }
+  return { createReport, listReports, updateReport, getSettings, updateSettings, resetSettings, getCounts, listPending, listReportItems, listHistory, getContext, submitDecision }
 }

@@ -18,7 +18,8 @@
     "myProfile": "我的资料",
     "profileSettings": "资料设置",
     "mailSettings": "邮件设置",
-    "moderation": "审核"
+    "moderation": "审核",
+    "moderationWorkbench": "审核工作台"
   },
   "home": {
     "metaTitle": "{siteName} 社区首页",
@@ -634,6 +635,8 @@
       "queues": "队列",
       "actions": "操作",
       "filterKind": "按任务类型筛选",
+      "allStates": "全部状态",
+      "allQueues": "全部队列",
       "empty": "没有符合当前条件的任务。",
       "pause": "暂停",
       "resume": "恢复",

@@ -37,6 +37,7 @@ let colorModeObserver: MutationObserver | null = null
 
 // 发帖入口只对拥有论坛发帖权限的用户显示，API 仍负责最终鉴权。
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
+const canReviewContent = computed(() => can(FORUM_PERMISSIONS.moderationReview))
 const isWorkbenchHome = computed(() => route.path === '/' || route.path === '/en')
 const displayName = computed(() =>
   user.value?.displayName || user.value?.username || ''
@@ -95,7 +96,10 @@ const userMenuItems = computed<NavbarMenuItem[][]>(() => {
         label: t('nav.profileSettings'),
         icon: 'i-lucide-settings',
         to: localePath('/settings/profile')
-      }
+      },
+      ...(canReviewContent.value
+        ? [{ label: t('nav.moderationWorkbench'), icon: 'i-lucide-shield-check', to: localePath('/moderation') }]
+        : [])
     ],
     [
       {
@@ -140,6 +144,13 @@ const mobileMenuItems = computed<NavbarMenuItem[][]>(() => {
         to: localePath('/register')
       }
     )
+  }
+  if (user.value && canReviewContent.value) {
+    destinations.push({
+      label: t('nav.moderationWorkbench'),
+      icon: 'i-lucide-shield-check',
+      to: localePath('/moderation')
+    })
   }
 
   const controls: NavbarMenuItem[] = [

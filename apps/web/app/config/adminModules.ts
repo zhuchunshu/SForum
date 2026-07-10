@@ -104,7 +104,7 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.moderation',
     icon: 'i-lucide-shield-alert',
     componentName: 'AdminModeration',
-    requiredPermissions: ['moderation.report_review']
+    requiredPermissions: ['moderation.manage']
   },
   {
     id: '/seo',
@@ -218,6 +218,7 @@ export const adminPageDefinitions = [
 export const adminSidebarNavigation = [
   [
     { type: 'page', pageId: ADMIN_DASHBOARD_PAGE_ID },
+    { type: 'page', pageId: '/moderation' },
     {
       type: 'folder',
       labelKey: 'admin.nav.userPermission',

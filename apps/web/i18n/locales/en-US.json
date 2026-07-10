@@ -18,7 +18,8 @@
     "myProfile": "My profile",
     "profileSettings": "Profile settings",
     "mailSettings": "Mail settings",
-    "moderation": "Moderation"
+    "moderation": "Moderation",
+    "moderationWorkbench": "Moderation workbench"
   },
   "home": {
     "metaTitle": "{siteName} Community",
@@ -634,6 +635,8 @@
       "queues": "Queues",
       "actions": "Actions",
       "filterKind": "Filter by job kind",
+      "allStates": "All states",
+      "allQueues": "All queues",
       "empty": "No jobs match the current filters.",
       "pause": "Pause",
       "resume": "Resume",

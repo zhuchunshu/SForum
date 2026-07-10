@@ -13,7 +13,8 @@ export const FORUM_PERMISSIONS = {
   postDeleteOwn: 'post.delete_own',
   postDeleteAny: 'post.delete_any',
   settingsManage: 'settings.manage',
-  moderationReportReview: 'moderation.report_review'
+  moderationManage: 'moderation.manage',
+  moderationReview: 'moderation.review'
 } as const
 
 /**
