@@ -20,6 +20,63 @@ func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
 	return &PostgresStore{pool: pool}
 }
 
+func (s *PostgresStore) GetSettings(ctx context.Context) (Settings, error) {
+	return scanSettings(s.pool.QueryRow(ctx, `
+		SELECT mode, review_new_users, new_user_max_age_days, review_external_links,
+		  updated_by_user_id, updated_at
+		FROM moderation_settings
+		WHERE singleton = TRUE
+	`))
+}
+
+func (s *PostgresStore) SaveSettings(ctx context.Context, settings Settings, actorUserID int64) (Settings, error) {
+	return s.writeSettings(ctx, settings, actorUserID)
+}
+
+func (s *PostgresStore) ResetSettings(ctx context.Context, settings Settings, actorUserID int64) (Settings, error) {
+	return s.writeSettings(ctx, settings, actorUserID)
+}
+
+func (s *PostgresStore) writeSettings(ctx context.Context, settings Settings, actorUserID int64) (Settings, error) {
+	row := s.pool.QueryRow(ctx, `
+		INSERT INTO moderation_settings (
+		  singleton, mode, review_new_users, new_user_max_age_days,
+		  review_external_links, updated_by_user_id, updated_at
+		) VALUES (TRUE, $1, $2, $3, $4, $5, now())
+		ON CONFLICT (singleton) DO UPDATE SET
+		  mode = EXCLUDED.mode,
+		  review_new_users = EXCLUDED.review_new_users,
+		  new_user_max_age_days = EXCLUDED.new_user_max_age_days,
+		  review_external_links = EXCLUDED.review_external_links,
+		  updated_by_user_id = EXCLUDED.updated_by_user_id,
+		  updated_at = now()
+		RETURNING mode, review_new_users, new_user_max_age_days, review_external_links,
+		  updated_by_user_id, updated_at
+	`, settings.Mode, settings.ReviewNewUsers, settings.NewUserMaxAgeDays,
+		settings.ReviewExternalLinks, nullableReporter(actorUserID))
+	return scanSettings(row)
+}
+
+func scanSettings(row reportScanner) (Settings, error) {
+	var settings Settings
+	var updatedBy sql.NullInt64
+	if err := row.Scan(
+		&settings.Mode,
+		&settings.ReviewNewUsers,
+		&settings.NewUserMaxAgeDays,
+		&settings.ReviewExternalLinks,
+		&updatedBy,
+		&settings.UpdatedAt,
+	); err != nil {
+		return Settings{}, fmt.Errorf("scan moderation settings: %w", err)
+	}
+	if updatedBy.Valid {
+		value := updatedBy.Int64
+		settings.UpdatedByUserID = &value
+	}
+	return settings, nil
+}
+
 func (s *PostgresStore) CreateReport(ctx context.Context, input CreateReportInput) (Report, error) {
 	row := s.pool.QueryRow(ctx, `
 		INSERT INTO moderation_reports (reporter_user_id, target_type, target_id, reason_code, body)
