@@ -1,0 +1,1 @@
+{"name":"sforum-fixture-dependency","version":"1.0.0","type":"module","main":"index.js","types":"index.d.ts","exports":{".":{"types":"./index.d.ts","default":"./index.js"}},"scripts":{"postinstall":"node postinstall.mjs"},"files":["index.js","index.d.ts","postinstall.mjs"]}

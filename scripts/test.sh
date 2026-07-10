@@ -28,6 +28,9 @@ node tests/validate-homepage.js
 echo "Running theme runtime validation..."
 node tests/validate-theme-runtime.js
 
+echo "Running trusted admin runtime validation..."
+node tests/validate-trusted-admin-runtime.js
+
 echo "Running theme activation progress validation..."
 node tests/validate-theme-activation-progress.js
 

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 
 import {
+  ADMIN_EXTENSION_SLOT_CATALOG,
   loaderKey,
   lookupAdminComponentLoader,
   sortAdminComponentMetadata,
@@ -14,6 +15,14 @@ import {
 import { extensionRequestPath } from '../app/runtime/admin-extensions/types'
 
 describe('admin extension registry', () => {
+  test('publishes the Jobs production component slots', () => {
+    expect(Object.keys(ADMIN_EXTENSION_SLOT_CATALOG).sort()).toEqual([
+      'admin.jobs.detail.sections',
+      'admin.jobs.row.actions',
+      'admin.jobs.table.columns'
+    ])
+  })
+
   test('sorts metadata by order, extension, then contribution', () => {
     const input = [
       metadata('z.plugin', 'b', 10),

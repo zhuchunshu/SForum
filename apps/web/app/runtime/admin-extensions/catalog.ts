@@ -11,8 +11,12 @@ export type AdminExtensionSlotDefinition = {
   multiple: boolean
 }
 
-// 生产插槽由各核心模块显式注册；任务监控插槽属于后续 jobs 模块。
-export const ADMIN_EXTENSION_SLOT_CATALOG = Object.freeze({}) as Readonly<Record<string, AdminExtensionSlotDefinition>>
+// 插槽位置、上下文和布局始终由核心模块拥有，插件只提供已授权的组件实现。
+export const ADMIN_EXTENSION_SLOT_CATALOG = Object.freeze({
+  'admin.jobs.table.columns': { point: 'admin.jobs.table.columns', owner: 'jobs', multiple: true },
+  'admin.jobs.row.actions': { point: 'admin.jobs.row.actions', owner: 'jobs', multiple: true },
+  'admin.jobs.detail.sections': { point: 'admin.jobs.detail.sections', owner: 'jobs', multiple: true }
+}) satisfies Readonly<Record<string, AdminExtensionSlotDefinition>>
 
 export function sortAdminComponentMetadata(items: readonly AdminComponentMetadata[]) {
   return [...items].sort((left, right) => {
