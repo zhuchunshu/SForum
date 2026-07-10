@@ -149,17 +149,19 @@ and plugin runtime v1.
   them from `sforum.default-theme`. Multi-node rollout, signed marketplace
   trust, arbitrary theme dependency installation, and administrator preview
   approval are still future work.
-- Theme switching is zero-downtime (blue-green). The web supervisor
-  (`apps/web/scripts/theme-proxy.mjs`, shared by production `runtime.mjs` and
-  local `dev-theme-runtime.mjs`) runs a built-in reverse proxy that owns the
-  external port (PORT, default 3000). Child processes listen on a separate
-  address: production uses a per-release unix socket via
-  `NITRO_UNIX_SOCKET` (Nitro `node-server` does not honor `PORT=0`); local dev
-  uses `PORT=0` and the supervisor parses the listening port from nuxt dev
-  stdout. On `current.json` change the supervisor spawns the new child, waits
-  for its health check to pass, then atomically swaps the proxy upstream and
-  drains the old child, so traffic is never interrupted. A candidate that fails
-  health check leaves the old child serving.
+- Production theme switching is zero-downtime (blue-green). The web supervisor
+  uses `apps/web/scripts/theme-proxy.mjs` to own the external port (`PORT`,
+  default 3000), starts each Nitro candidate on a per-release unix socket via
+  `NITRO_UNIX_SOCKET`, waits for health, atomically swaps the proxy upstream,
+  and then drains the old child. A candidate that fails health checking leaves
+  the old Nitro server available.
+- Local `dev-theme-runtime.mjs` consumes the same `current.json` signal and
+  reuses the proxy's HTTP/WebSocket forwarding and health checks, but
+  intentionally owns one `nuxt dev` process. A selection change clears the
+  proxy target, stops and waits for the old process group, then starts the
+  latest layer on `PORT=0`. This creates a brief development-only outage;
+  parallel Nuxt dev instances would share the build lock, generated output,
+  cache, and HMR resources and are therefore unsupported.
 - `theme-releases/current.json` is the single runtime theme selection signal and
   is consumed by both production `runtime.mjs` and local `dev-theme-runtime.mjs`.
   Uploaded activation writes `mode: "uploaded"` with absolute `server`

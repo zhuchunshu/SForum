@@ -90,17 +90,21 @@ The web production container runs `apps/web/scripts/runtime.mjs`, which watches
 the selected Nitro server. `current.json` carries `mode` (`uploaded` or
 `default`), an absolute `server` path for uploaded releases, and a `layerPath`
 for local dev. `runtime.mjs` resolves relative `server` paths against the
-release root, keeps the old child running when a candidate is missing, and
-falls back to the default `.output` when `mode === 'default'` or the file is
-absent.
+release root, uses blue-green Nitro switching, keeps the old child running when
+a candidate is missing or unhealthy, and falls back to the default `.output`
+when `mode === 'default'` or the file is absent.
 Locally, `bun run dev` runs `apps/web/scripts/dev-theme-runtime.mjs`, a
 theme-aware supervisor that reads the same `current.json`, injects
-`SFORUM_THEME_LAYER` from `layerPath`, and restarts the inner `nuxt dev`
-(spawned via `bun run dev:plain`) when the active theme changes. The supervisor
-loads the repository root `.env`, uses `PORT` or `WEB_PORT` for its fixed public
-proxy port, prints that public URL, and suppresses Nuxt child-process
-Local/Network lines so internal random `PORT=0` addresses are not mistaken for
-the frontend access port.
+`SFORUM_THEME_LAYER` from `layerPath`, and owns exactly one inner `nuxt dev`
+(spawned via `bun run dev:plain`). On a selection change it clears the proxy
+target, stops and waits for the old process group, then starts the latest layer
+and restores traffic after the child is healthy. This local serial restart has
+a brief development-only outage: parallel Nuxt dev instances cannot safely
+share their build lock, generated output, cache, and HMR resources. The
+supervisor loads the repository root `.env`, uses `PORT` or `WEB_PORT` for its
+fixed public proxy port, prints that public URL, and suppresses Nuxt
+child-process Local/Network lines so internal random `PORT=0` addresses are not
+mistaken for the frontend access port.
 `bun run dev:plain` runs raw `nuxt dev` as an escape hatch for troubleshooting.
 `bun run preview` only serves the fixed `.output` build and does not follow
 admin theme switching.

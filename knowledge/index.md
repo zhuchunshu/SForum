@@ -290,8 +290,13 @@ This is the entry point for project memory.
   production runtime.mjs), and an absolute `layerPath` (Nuxt Layer source for
   local dev). Restoring the built-in default theme now writes a `default`
   current.json synchronously from the API service, and local `bun run dev` is a
-  theme-aware supervisor (`dev-theme-runtime.mjs`) that restarts `nuxt dev`
-  with the active layer when `current.json` changes.
+  theme-aware supervisor (`dev-theme-runtime.mjs`). Production `runtime.mjs`
+  keeps blue-green Nitro switching and preserves the old server when a
+  candidate fails. Local development intentionally owns one `nuxt dev`
+  process: a `current.json` change clears the proxy target, stops and waits for
+  the old process group, then starts the latest layer. Local switching has a
+  brief development-only outage because parallel Nuxt dev instances would
+  share the build lock, generated output, cache, and HMR resources.
   Plugin runtime v1 now starts enabled plugin subprocesses through HashiCorp
   go-plugin, proxies declared plugin routes, emits lifecycle hooks, and exposes
   provider slot defaults. Built-in sync prunes stale built-in extension rows,
