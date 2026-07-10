@@ -1,11 +1,5 @@
 <script setup lang="ts">
-import type { DropdownMenuItem } from '@nuxt/ui/components/DropdownMenu.vue'
 import { buildForumHomeQuery } from '~/utils/forumHome'
-
-type LocaleOption = {
-  code: string
-  name?: string
-}
 
 const { t, locale, locales } = useI18n()
 const localePath = useLocalePath()
@@ -16,6 +10,22 @@ const { request } = useApiClient()
 const router = useRouter()
 const colorMode = useColorMode()
 const { can } = usePermissions()
+
+type LocaleCode = Parameters<typeof switchLocalePath>[0]
+type LocaleOption = {
+  code: LocaleCode
+  name?: string
+}
+type NavbarMenuItem = {
+  label: string
+  description?: string
+  icon?: string
+  to?: string
+  type?: 'label'
+  color?: 'error'
+  onSelect?: (event: Event) => void
+  children?: NavbarMenuItem[]
+}
 
 const searchQuery = ref('')
 const mobileSearchOpen = ref(false)
@@ -30,7 +40,7 @@ const displayName = computed(() =>
   user.value?.displayName || user.value?.username || ''
 )
 const localeOptions = computed(() =>
-  (locales.value as readonly (string | LocaleOption)[]).map((entry) => {
+  (locales.value as readonly (LocaleCode | LocaleOption)[]).map((entry) => {
     if (typeof entry === 'string') {
       return { code: entry, name: entry }
     }
@@ -52,7 +62,7 @@ const themeToggleIcon = computed(() =>
   isDarkMode.value ? 'i-lucide-sun' : 'i-lucide-moon'
 )
 
-const languageMenuItems = computed<DropdownMenuItem[]>(() =>
+const languageMenuItems = computed<NavbarMenuItem[]>(() =>
   localeOptions.value.map((entry) => ({
     label: entry.name,
     icon: entry.code === locale.value ? 'i-lucide-check' : 'i-lucide-languages',
@@ -60,7 +70,7 @@ const languageMenuItems = computed<DropdownMenuItem[]>(() =>
   }))
 )
 
-const userMenuItems = computed<DropdownMenuItem[][]>(() => {
+const userMenuItems = computed<NavbarMenuItem[][]>(() => {
   if (!user.value) {
     return []
   }
@@ -98,8 +108,8 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => {
   ]
 })
 
-const mobileMenuItems = computed<DropdownMenuItem[][]>(() => {
-  const destinations: DropdownMenuItem[] = [
+const mobileMenuItems = computed<NavbarMenuItem[][]>(() => {
+  const destinations: NavbarMenuItem[] = [
     {
       label: t('nav.home'),
       icon: 'i-lucide-house',
@@ -114,7 +124,7 @@ const mobileMenuItems = computed<DropdownMenuItem[][]>(() => {
     }
   ]
 
-  const account: DropdownMenuItem[] = []
+  const account: NavbarMenuItem[] = []
   if (!user.value) {
     account.push(
       {
@@ -130,7 +140,7 @@ const mobileMenuItems = computed<DropdownMenuItem[][]>(() => {
     )
   }
 
-  const controls: DropdownMenuItem[] = [
+  const controls: NavbarMenuItem[] = [
     {
       label: t('nav.appearance'),
       description: themeToggleLabel.value,
