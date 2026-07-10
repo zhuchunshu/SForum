@@ -11,8 +11,8 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
-	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
+	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Localization"
 	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
@@ -33,13 +33,17 @@ const altchaWidgetWorkersMin = 1
 const altchaWidgetWorkersMax = 16
 const forumTagMaxPerTopicMin = 0
 const forumTagMaxPerTopicMax = 10
+const forumPaginationMin = 1
+const forumPaginationMax = 100
 const passwordMinLengthMin = 8
 const passwordMinLengthMax = 128
 const passwordMaxLengthMin = 64
 const passwordMaxLengthMax = 512
+
 // 最大活跃设备数取值范围，与 identity.NormalizeMaxDevices 对齐。
 const sessionsMaxDevicesMin = 1
 const sessionsMaxDevicesMax = 20
+
 // 历史会话保留天数取值范围（1-365）。
 const sessionsKeepDaysMin = 1
 const sessionsKeepDaysMax = 365
@@ -143,6 +147,8 @@ var optionDefinitions = []optionDefinition{
 	{name: NameForumTagCreationMode, public: true, managePermission: identity.PermissionTagManage},
 	{name: NameForumTagPublicPages, public: true, managePermission: identity.PermissionTagManage},
 	{name: NameForumTagMaxPerTopic, public: true, managePermission: identity.PermissionTagManage},
+	{name: NameForumTopicsPerPage, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumCommentsPerPage, public: true, managePermission: identity.PermissionSettingsManage},
 	// 邮件：smtp.password 为密钥，重置时保留密钥（UI 应明确提示）。
 	{name: NameMailProvider, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameMailFromAddress, public: true, managePermission: identity.PermissionSettingsManage},
@@ -706,6 +712,11 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	if _, ok := parseBoundedInt(coerced[NameForumTagMaxPerTopic], forumTagMaxPerTopicMin, forumTagMaxPerTopicMax); !ok {
 		coerced[NameForumTagMaxPerTopic] = defaults[NameForumTagMaxPerTopic]
 	}
+	for _, name := range []string{NameForumTopicsPerPage, NameForumCommentsPerPage} {
+		if _, ok := parseBoundedInt(coerced[name], forumPaginationMin, forumPaginationMax); !ok {
+			coerced[name] = defaults[name]
+		}
+	}
 	if _, ok := parseBoundedInt(coerced[NameIdentitySessionsMaxDevices], sessionsMaxDevicesMin, sessionsMaxDevicesMax); !ok {
 		coerced[NameIdentitySessionsMaxDevices] = defaults[NameIdentitySessionsMaxDevices]
 	}
@@ -850,6 +861,8 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameForumTagCreationMode:             "controlled",
 		NameForumTagPublicPages:              enabledOptionValue(true),
 		NameForumTagMaxPerTopic:              "5",
+		NameForumTopicsPerPage:               "20",
+		NameForumCommentsPerPage:             "20",
 		NameSEOMetaTitleTemplate:             "",
 		NameSEOMetaDescription:               "",
 		NameSEOMetaKeywords:                  "",
@@ -1068,6 +1081,8 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeEnabledOption(value)
 	case NameForumTagMaxPerTopic:
 		return normalizeBoundedInt(value, forumTagMaxPerTopicMin, forumTagMaxPerTopicMax)
+	case NameForumTopicsPerPage, NameForumCommentsPerPage:
+		return normalizeBoundedInt(value, forumPaginationMin, forumPaginationMax)
 	case NameSEOMetaTitleTemplate:
 		return normalizeSEOTitleTemplate(value)
 	case NameSEOMetaDescription:
@@ -1270,6 +1285,11 @@ func isValidValueSet(values map[string]string) bool {
 	}
 	if _, ok := parseBoundedInt(values[NameForumTagMaxPerTopic], forumTagMaxPerTopicMin, forumTagMaxPerTopicMax); !ok {
 		return false
+	}
+	for _, name := range []string{NameForumTopicsPerPage, NameForumCommentsPerPage} {
+		if _, ok := parseBoundedInt(values[name], forumPaginationMin, forumPaginationMax); !ok {
+			return false
+		}
 	}
 	if _, ok := normalizeSEOTitleTemplate(values[NameSEOMetaTitleTemplate]); !ok {
 		return false

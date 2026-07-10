@@ -71,6 +71,31 @@ func TestServiceForumOptionsArePublicWithRecommendedDefaults(t *testing.T) {
 	if got := adminValueFromPublic(items, NameForumTagMaxPerTopic); got != "5" {
 		t.Fatalf("expected public max tags option, got %q", got)
 	}
+	if got := adminValueFromPublic(items, NameForumTopicsPerPage); got != "20" {
+		t.Fatalf("expected public topic page size option, got %q", got)
+	}
+	if got := adminValueFromPublic(items, NameForumCommentsPerPage); got != "20" {
+		t.Fatalf("expected public comment page size option, got %q", got)
+	}
+}
+
+func TestServiceForumPaginationOptionsValidation(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	for _, name := range []string{NameForumTopicsPerPage, NameForumCommentsPerPage} {
+		for _, value := range []string{"1", "100"} {
+			if _, err := service.Update(context.Background(), settingsActor(), UpdateInput{Name: name, Value: value}); err != nil {
+				t.Fatalf("expected %s=%s to be accepted: %v", name, value, err)
+			}
+		}
+		for _, value := range []string{"0", "101"} {
+			if _, err := service.Update(context.Background(), settingsActor(), UpdateInput{Name: name, Value: value}); !errors.Is(err, ErrInvalidOption) {
+				t.Fatalf("expected %s=%s to be rejected, got %v", name, value, err)
+			}
+		}
+		if _, err := service.Update(context.Background(), categoryManageActor(), UpdateInput{Name: name, Value: "30"}); !errors.Is(err, identity.ErrPermissionDenied) {
+			t.Fatalf("expected category manager to be denied %s update, got %v", name, err)
+		}
+	}
 }
 
 func TestServicePasswordPolicyOptionsArePublicWithRecommendedDefaults(t *testing.T) {
