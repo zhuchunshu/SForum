@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
+import * as forumHome from '../app/utils/forumHome'
 import {
   buildForumHomeQuery,
   forumHomeFeedKey,
@@ -37,6 +38,74 @@ describe('forum homepage query helpers', () => {
     expect(forumHomeFeedKey(filters)).not.toBe(forumHomeFeedKey({ ...filters, query: 'go' }))
     expect(forumHomeFeedKey(filters)).not.toBe(forumHomeFeedKey({ ...filters, categorySlug: 'support' }))
     expect(forumHomeFeedKey(filters)).not.toBe(forumHomeFeedKey({ ...filters, tagSlug: 'go' }))
+  })
+
+  test('rejects an old request when filters cycle from A to B and back to A', async () => {
+    const isRequestCurrent = (forumHome as Record<string, unknown>).isForumHomeRequestCurrent
+    expect(typeof isRequestCurrent).toBe('function')
+    if (typeof isRequestCurrent !== 'function') return
+
+    let resolveRequest!: () => void
+    const pending = new Promise<void>((resolve) => {
+      resolveRequest = resolve
+    })
+    let generation = 0
+    let activeFeedKey = 'A'
+    const applied: string[] = []
+    const oldRequest = { generation, feedKey: activeFeedKey }
+
+    const applyOldRequest = (async () => {
+      await pending
+      if (isRequestCurrent(oldRequest, generation, activeFeedKey)) {
+        applied.push('old A')
+      }
+    })()
+
+    generation += 1
+    activeFeedKey = 'B'
+    generation += 1
+    activeFeedKey = 'A'
+    resolveRequest()
+    await applyOldRequest
+
+    expect(applied).toEqual([])
+    expect(isRequestCurrent({ generation, feedKey: 'A' }, generation, activeFeedKey)).toBe(true)
+  })
+
+  test('ends pagination when the backend clamps or a full page adds no new topics', () => {
+    const hasReachedEnd = (forumHome as Record<string, unknown>).hasReachedForumHomeEnd
+    expect(typeof hasReachedEnd).toBe('function')
+    if (typeof hasReachedEnd !== 'function') return
+
+    expect(hasReachedEnd({
+      requestedPage: 201,
+      responsePage: 200,
+      responseItemCount: 10,
+      newItemCount: 0,
+      loadedCount: 2000,
+      total: 6001,
+      perPage: 10
+    })).toBe(true)
+
+    expect(hasReachedEnd({
+      requestedPage: 2,
+      responsePage: 2,
+      responseItemCount: 10,
+      newItemCount: 0,
+      loadedCount: 10,
+      total: 100,
+      perPage: 10
+    })).toBe(true)
+
+    expect(hasReachedEnd({
+      requestedPage: 2,
+      responsePage: 2,
+      responseItemCount: 10,
+      newItemCount: 10,
+      loadedCount: 20,
+      total: 100,
+      perPage: 10
+    })).toBe(false)
   })
 })
 

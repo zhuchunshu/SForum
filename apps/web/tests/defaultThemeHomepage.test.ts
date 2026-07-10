@@ -144,6 +144,7 @@ describe('default theme hybrid homepage contract', () => {
 
     expect(config).toContain('sforum-home.css')
     expect(home).toContain('grid-template-columns: 208px minmax(0, 1fr);')
+    expect(home).toContain('.sforum-home .sforum-home__heading h1')
     expect(home).toContain('min-height: 40px;')
     expect(home).toContain('overflow-wrap: anywhere;')
     expect(home).toContain('prefers-reduced-motion: reduce')
