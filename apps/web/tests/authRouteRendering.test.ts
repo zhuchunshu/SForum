@@ -44,7 +44,8 @@ describe('auth route rendering', () => {
     expect(loginPage).toContain('const { returnFromAuth, authPageLink } = useAuthReturnNavigation()')
     expect(loginPage.match(/:to="authPageLink\('\/register'\)"/g)).toHaveLength(2)
     expect(registerPage).toContain('const { returnFromAuth, authPageLink } = useAuthReturnNavigation()')
-    expect(registerPage.match(/:to="authPageLink\('\/login'\)"/g)).toHaveLength(2)
+    expect(registerPage.match(/:to="authPageLink\('\/login'\)"/g)).toHaveLength(3)
+    expect(registerPage).not.toContain(":to=\"localePath('/login')\"")
   })
 
   test('keeps public auth pages server-rendered so first paint is never an empty Nuxt shell', () => {

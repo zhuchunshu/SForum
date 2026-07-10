@@ -272,7 +272,7 @@ async function submitRegister() {
           >
             <NuxtLink
               v-if="sessionUnavailable"
-              :to="localePath('/login')"
+              :to="authPageLink('/login')"
               class="auth-alert-action"
             >
               {{ t('auth.goLogin') }}
