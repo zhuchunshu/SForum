@@ -38,7 +38,7 @@ ALTER TABLE comments DROP CONSTRAINT comments_status_check;
 ALTER TABLE comments ADD CONSTRAINT comments_status_check
   CHECK (status IN ('active', 'hidden', 'deleted', 'pending', 'rejected'));
 
-CREATE TABLE moderation_settings (
+CREATE TABLE IF NOT EXISTS moderation_settings (
   singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
   mode TEXT NOT NULL CHECK (mode IN ('off', 'rules', 'all')),
   review_new_users BOOLEAN NOT NULL,
@@ -50,9 +50,10 @@ CREATE TABLE moderation_settings (
 
 INSERT INTO moderation_settings (
   singleton, mode, review_new_users, new_user_max_age_days, review_external_links
-) VALUES (TRUE, 'off', TRUE, 7, TRUE);
+) VALUES (TRUE, 'off', TRUE, 7, TRUE)
+ON CONFLICT (singleton) DO NOTHING;
 
-CREATE TABLE moderation_decisions (
+CREATE TABLE IF NOT EXISTS moderation_decisions (
   id BIGSERIAL PRIMARY KEY,
   source TEXT NOT NULL CHECK (source IN ('pre_publish', 'report')),
   target_type TEXT NOT NULL CHECK (target_type IN ('topic', 'comment')),
@@ -65,13 +66,13 @@ CREATE TABLE moderation_decisions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX moderation_pending_topics_idx
+CREATE INDEX IF NOT EXISTS moderation_pending_topics_idx
   ON topics (created_at DESC, id DESC) WHERE status = 'pending';
-CREATE INDEX moderation_pending_comments_idx
+CREATE INDEX IF NOT EXISTS moderation_pending_comments_idx
   ON comments (created_at DESC, id DESC) WHERE status = 'pending';
-CREATE INDEX moderation_decisions_created_idx
+CREATE INDEX IF NOT EXISTS moderation_decisions_created_idx
   ON moderation_decisions (created_at DESC, id DESC);
-CREATE INDEX moderation_decisions_target_idx
+CREATE INDEX IF NOT EXISTS moderation_decisions_target_idx
   ON moderation_decisions (target_type, target_id, created_at DESC);
 
 -- +goose Down
