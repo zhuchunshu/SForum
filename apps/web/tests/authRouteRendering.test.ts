@@ -12,10 +12,22 @@ describe('auth route rendering', () => {
 
     for (const source of authPages) {
       expect(source).toContain('useAuthReturnNavigation()')
-      expect(source).toContain('if (user.value)')
-      expect(source).toContain('await returnFromAuth()')
+      expect(source).toMatch(/const\s*\{\s*user\s*,\s*setUser\s*\}\s*=\s*useAuthSession\s*\(\s*\)/)
+      expect(source).toMatch(/setUser\s*\(\s*currentUser\s*\)/)
       expect(source).not.toContain('adminRoutes')
       expect(source).not.toContain("can('admin.access')")
+
+      const setupGuard = /if\s*\(\s*user\.value\s*\)\s*\{\s*await\s+returnFromAuth\s*\(\s*\)\s*\}/.exec(source)
+      const submitFunction = /async\s+function\s+submit(?:Login|Register)\s*\(/.exec(source)
+      const setUserCall = /setUser\s*\(\s*currentUser\s*\)/.exec(source)
+      const returnCalls = [...source.matchAll(/await\s+returnFromAuth\s*\(\s*\)/g)]
+
+      expect(setupGuard).not.toBeNull()
+      expect(submitFunction).not.toBeNull()
+      expect(setUserCall).not.toBeNull()
+      expect(returnCalls.length).toBeGreaterThanOrEqual(2)
+      expect(setupGuard!.index).toBeLessThan(submitFunction!.index)
+      expect(returnCalls.some(call => call.index > setUserCall!.index)).toBe(true)
     }
   })
 
