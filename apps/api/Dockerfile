@@ -29,6 +29,11 @@ RUN bun install --frozen-lockfile
 COPY apps/web/ ./
 COPY extensions/builtin /app/extensions/builtin
 
+FROM alpine:3.22 AS websource
+
+WORKDIR /app/apps/web
+COPY apps/web/ ./
+
 FROM alpine:3.22 AS api
 
 RUN apk add --no-cache ca-certificates && \
@@ -39,6 +44,8 @@ RUN apk add --no-cache ca-certificates && \
 WORKDIR /app
 COPY --from=build --chown=sforum:sforum /out/sforum-api /usr/local/bin/sforum-api
 COPY --from=build --chown=sforum:sforum /app/extensions/builtin /app/extensions/builtin
+COPY --from=websource --chown=sforum:sforum /app/apps/web /app/apps/web
+ENV WEB_RELEASE_WEB_ROOT=/app/apps/web
 USER sforum
 EXPOSE 8080
 CMD ["sforum-api"]

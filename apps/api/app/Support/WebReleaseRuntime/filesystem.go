@@ -116,3 +116,16 @@ func absolutePath(value string) string {
 	}
 	return absolute
 }
+
+func resolveWebRoot(value string) string {
+	for _, candidate := range []string{value, "apps/web", "../web"} {
+		if strings.TrimSpace(candidate) == "" {
+			continue
+		}
+		absolute := absolutePath(candidate)
+		if info, err := os.Stat(filepath.Join(absolute, "package.json")); err == nil && info.Mode().IsRegular() {
+			return absolute
+		}
+	}
+	return absolutePath(value)
+}

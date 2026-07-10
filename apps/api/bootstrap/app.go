@@ -40,6 +40,8 @@ import (
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
 	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
 	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
+	webreleasecoordinator "github.com/zhuchunshu/sforum/apps/api/app/Support/WebReleaseCoordinator"
+	webreleaseruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/WebReleaseRuntime"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -156,6 +158,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	attachmentStore := attachments.NewPostgresStore(pool)
 	databaseStore := database.NewPostgresStore(pool)
 	extensionStore := extensions.NewPostgresStore(pool)
+	frontendTrustStore := extensions.NewPostgresFrontendTrustStore(pool)
+	webReleaseStore := extensions.NewPostgresWebReleaseStore(pool)
 	extensionRuntime := newExtensionRuntimeManager(extensionStore)
 	jobClient, err := supportjobs.NewInsertOnlyClient(pool, supportjobs.FromAppConfig(cfg))
 	if err != nil {
@@ -169,6 +173,21 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 	jobDispatcher := supportjobs.NewDispatcher(jobClient)
 	themeDispatcher := extensionjobs.ActivationDispatcherAdapter{Dispatcher: jobDispatcher}
+	hostComposition, err := webreleaseruntime.CompositionHost(cfg.WebReleaseWebRoot)
+	if err != nil {
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		_ = redisStorage.Close()
+		pool.Close()
+		return nil, fmt.Errorf("resolve web release host identity: %w", err)
+	}
+	webReleasePlanner := extensions.NewWebReleasePlanner(extensionStore, frontendTrustStore, hostComposition)
+	webReleaseService := extensions.NewWebReleaseService(
+		webReleasePlanner, pool, webReleaseStore,
+		extensionjobs.WebReleaseBuildDispatcherAdapter{Dispatcher: jobDispatcher},
+	)
+	frontendService := extensions.NewFrontendService(extensionStore, frontendTrustStore, webReleaseService, webReleaseStore, hostComposition)
+	webReleaseAdminService := extensions.NewWebReleaseAdminService(webReleaseStore, webReleaseService)
 	// API 进程同步路径（恢复默认主题）也需要写 current.json。
 	// 这里构造一个仅用于 WriteCurrent 的 builder，不参与主题构建（构建仍由 worker 完成）。
 	themeCurrentWriter := themeruntime.NewBuilder(themeruntime.Config{ReleaseRoot: cfg.ThemeReleaseRoot})
@@ -202,6 +221,19 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		}
 		pool.Close()
 		return nil, fmt.Errorf("list extensions for runtime reconciliation failed: %w", err)
+	}
+	webReleaseCoordinator := webreleasecoordinator.New(
+		webreleasecoordinator.NewPostgresStore(pool, webReleaseStore, extensionStore),
+		webreleasecoordinator.NewRuntimeAdapter(extensionStore, extensionRuntime),
+		webreleaseruntime.NewPointerStore(cfg.WebReleaseRoot, webReleaseStore),
+		postgres.NewAdvisoryLocker(pool),
+	)
+	if err := webReleaseCoordinator.Start(ctx); err != nil {
+		extensionRuntime.Close(ctx)
+		sharedRedisClient.Close()
+		_ = redisStorage.Close()
+		pool.Close()
+		return nil, fmt.Errorf("start web release coordinator: %w", err)
 	}
 	// 邮件服务与密码重置：mail resolver 复用 options.Service（实现 mail.Resolver）。
 	mailService := mail.NewService(optionsService, logger)
@@ -238,7 +270,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	attachmentsProvider := providers.NewAttachmentsProviderWithEvents(attachmentStore, optionsService, identityStore, authSessions, extensionRuntime)
 	databaseProvider := providers.NewDatabaseProvider(databaseStore, identityStore, authSessions)
-	extensionsProvider := providers.NewExtensionsProviderWithRuntimeAndThemeActivation(extensionStore, identityStore, authSessions, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot, extensionRuntime, themeDispatcher, extensions.WithThemeCurrentWriter(themeCurrentWriter))
+	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService, webReleaseAdminService)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
 		RouteProviders: []httpserver.RouteProvider{identityProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, attachmentsProvider, databaseProvider, extensionsProvider},
@@ -250,6 +282,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	if shouldEmbedWorkerInAPI(cfg) {
 		embeddedWorker, err = newWorkerWithPool(cfg, pool, logger)
 		if err != nil {
+			_ = webReleaseCoordinator.Stop(context.Background())
 			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 				logger.Warn("job dispatcher stop failed", "error", stopErr)
 			}
@@ -262,6 +295,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			return nil, fmt.Errorf("embedded worker setup failed: %w", err)
 		}
 		if err := embeddedWorker.Start(ctx); err != nil {
+			_ = webReleaseCoordinator.Stop(context.Background())
 			embeddedWorker.Close()
 			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 				logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -281,6 +315,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		App:  app,
 		Addr: apiAddress(cfg),
 		close: func() {
+			coordinatorCtx, coordinatorCancel := context.WithTimeout(context.Background(), cfg.WorkerShutdownTimeout)
+			if err := webReleaseCoordinator.Stop(coordinatorCtx); err != nil {
+				logger.Warn("web release coordinator stop failed", "error", err)
+			}
+			coordinatorCancel()
 			if embeddedWorker != nil {
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.WorkerShutdownTimeout)
 				defer cancel()

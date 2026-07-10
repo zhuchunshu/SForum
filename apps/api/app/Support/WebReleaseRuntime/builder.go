@@ -62,7 +62,7 @@ func NewBuilder(config Config) *Builder {
 		config.SourceEnvironment = os.Environ()
 	}
 	config.ReleaseRoot = absolutePath(config.ReleaseRoot)
-	config.WebRoot = absolutePath(config.WebRoot)
+	config.WebRoot = resolveWebRoot(config.WebRoot)
 	config.ExtensionRoot = absolutePath(config.ExtensionRoot)
 	runner := config.Runner
 	if runner == nil {

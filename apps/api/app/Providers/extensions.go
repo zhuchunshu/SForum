@@ -48,6 +48,23 @@ func NewExtensionsProviderWithRuntimeAndThemeActivation(store extensions.Store, 
 	}
 }
 
+func NewExtensionsProviderWithService(
+	service *extensions.Service,
+	users identity.ActorStore,
+	sessions *authsession.Manager,
+	runtime extensionRuntime,
+	frontend extensionscontroller.TrustedFrontendService,
+	webReleases extensionscontroller.WebReleaseAdminService,
+) *ExtensionsProvider {
+	var gateway extensionscontroller.RouteGateway
+	if runtime != nil {
+		gateway = extensionRouteGateway{runtime: runtime, gateway: extensionsruntime.NewRouteGateway()}
+	}
+	controller := extensionscontroller.NewControllerWithGateway(service, users, sessions, gateway)
+	controller.WithTrustedRuntime(frontend, webReleases)
+	return &ExtensionsProvider{controller: controller}
+}
+
 func (p *ExtensionsProvider) RegisterRoutes(api fiber.Router) {
 	p.controller.RegisterRoutes(api)
 }
