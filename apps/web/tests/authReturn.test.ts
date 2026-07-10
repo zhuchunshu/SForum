@@ -64,9 +64,11 @@ describe('useAuthReturnNavigation source contract', () => {
     expect(source).toContain('const localePath = useLocalePath()')
     expect(source).toContain('const referrerPath = ref<string>()')
     expect(source).toContain('if (import.meta.client && document.referrer)')
-    expect(source).toContain('const referrer = new URL(document.referrer)')
-    expect(source).toContain('referrer.origin === window.location.origin')
-    expect(source).toContain('`${referrer.pathname}${referrer.search}${referrer.hash}`')
+    const referrerHandling = source.match(
+      /try\s*\{\s*const referrer = new URL\(document\.referrer\)\s*if \(referrer\.origin === window\.location\.origin\) \{\s*referrerPath\.value = `\$\{referrer\.pathname\}\$\{referrer\.search\}\$\{referrer\.hash\}`\s*\}\s*\}\s*catch\s*\{([\s\S]*?)\}/
+    )
+    expect(referrerHandling).not.toBeNull()
+    expect(referrerHandling?.[1]).not.toMatch(/\b(?:throw|navigateTo)\b/)
     expect(source).toContain("resolveAuthReturnPath(route.query.redirect, referrerPath.value, localePath('/'))")
     expect(source).toContain('navigateTo(destination.value, { replace: true })')
     expect(source).toContain('return { destination, returnFromAuth }')
