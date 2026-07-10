@@ -4,10 +4,12 @@
 validated internal destination instead of a fixed admin or forum home page.
 
 **Final architecture:** A pure utility validates return paths. A Nuxt composable
-resolves explicit route query, same-origin client referrer, and localized home,
-then navigates with history replacement. Protected-route middleware preserves
-`to.fullPath`. The host `guest` middleware owns authenticated auth-page entry
-before page setup, and tracked default-theme pages opt into it.
+resolves explicit route query, an optional usable same-origin browser
+`document.referrer`, and localized home, then navigates with history
+replacement. Protected-route middleware preserves `to.fullPath`; this explicit
+redirect is the reliable restoration path because Nuxt SPA navigation does not
+guarantee referrer updates. The host `guest` middleware owns authenticated
+auth-page entry before page setup, and tracked default-theme pages opt into it.
 
 ## Task 1: Safe Return Path Resolver
 
@@ -20,8 +22,9 @@ before page setup, and tracked default-theme pages opt into it.
 ## Task 2: Nuxt Return Navigation Adapter
 
 - [x] Add `useAuthReturnNavigation` around the pure resolver.
-- [x] Read `route.query.redirect` and capture only same-origin browser
-  referrers on the client.
+- [x] Read `route.query.redirect` and optionally capture a usable same-origin
+  browser `document.referrer` on the client without treating it as reliable SPA
+  route history.
 - [x] Use `localePath('/')` as fallback and `navigateTo(..., { replace: true })`
   so Back does not reopen an auth form.
 

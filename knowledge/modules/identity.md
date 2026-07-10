@@ -78,7 +78,10 @@ Initial identity foundation is implemented.
 - Protected Nuxt routes preserve `to.fullPath` in the login `redirect` query.
   Auth return navigation accepts only validated local absolute paths, rejects
   external, protocol-relative, malformed, and login/register destinations, and
-  resolves explicit redirect, same-origin client referrer, then localized home.
+  resolves explicit redirect, an optional usable same-origin browser
+  `document.referrer`, then localized home. Nuxt SPA navigation does not
+  guarantee referrer updates, so explicit `redirect` is the reliable protected
+  route restoration path.
   The tracked default-theme login/register pages opt into the host `guest`
   middleware, which refreshes unknown session state and returns authenticated
   visitors before page setup; successful login/registration updates session

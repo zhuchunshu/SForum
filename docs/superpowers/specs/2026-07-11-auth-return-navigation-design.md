@@ -2,12 +2,16 @@
 
 ## Goal
 
-Make login and registration navigation preserve the user's forum context. An
-authenticated visitor who opens an auth page should return to a safe internal
-source page, while a guest sent to login from a protected route should return
-to that original destination after authentication.
+Make login and registration navigation preserve a validated forum destination.
+A guest sent to login from a protected route reliably returns to that original
+destination through an explicit `redirect` query. An authenticated visitor who
+opens an auth page may return to a safe internal source page only when the
+browser exposes a usable same-origin `document.referrer`; otherwise the
+localized forum home is used.
 
-## Current Behavior
+## Previous Behavior
+
+Before this change:
 
 - Protected route middleware redirects guests to `/login` without preserving
   the requested route.
@@ -21,10 +25,10 @@ to that original destination after authentication.
    another auth page, or an unusable browser-history entry, and it does not
    work reliably during SSR navigation.
 2. Use only an explicit `redirect` query parameter. This reliably restores
-   protected routes but cannot preserve context when an authenticated user
-   manually opens an auth page from an ordinary forum page.
+   protected routes but has no optional browser source-context fallback.
 3. Use a validated explicit target with a same-origin referrer fallback. This
-   covers both flows while keeping navigation deterministic and safe.
+   keeps the protected-route flow reliable and can preserve source context when
+   the browser provides an accurate same-origin `document.referrer`.
 
 Use approach 3.
 
@@ -34,8 +38,7 @@ Add a shared frontend utility or composable that owns auth return navigation.
 It resolves destinations in this order:
 
 1. A validated `redirect` query value.
-2. A validated same-origin referrer captured when the auth page is entered in
-   the browser.
+2. A validated same-origin `document.referrer`, when the browser provides one.
 3. The localized forum home page.
 
 The resolver accepts only local absolute paths beginning with `/`. It rejects
@@ -61,8 +64,11 @@ this change.
   otherwise they return to their forum context or the forum home.
 
 The auth pages remain SSR-rendered. Referrer fallback is client-only because
-the server cannot reliably know browser history. Explicit `redirect` handling
-and the home fallback work during SSR.
+the server cannot reliably know browser history. Nuxt SPA client navigation
+does not guarantee that `document.referrer` changes to the previous route, so
+this fallback must not be treated as reliable source tracking. Explicit
+`redirect` handling is the reliable protected-route path; it and the home
+fallback work during SSR.
 
 ## Security And Failure Handling
 
