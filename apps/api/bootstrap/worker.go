@@ -79,6 +79,7 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		HostPeers:      webreleaseruntime.HostPeers(),
 	})
 	extensionjobs.RegisterWebReleaseBuildWorker(registry, webReleaseStore, webReleaseBuilder, postgres.NewAdvisoryLocker(pool))
+	extensionjobs.RegisterWebReleaseCleanupWorker(registry, webReleaseStore, cfg.WebReleaseRoot)
 	registerSearchWorkers(registry, cfg, pool)
 	// 周期任务通过返回值显式传递，避免用包级全局变量在多次构造（独立 worker + API 内嵌
 	// worker）之间互相覆盖或丢失注册。
@@ -86,6 +87,13 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	if cleanup := registerIdentityCleanupWorker(registry, cfg, pool, logger); cleanup != nil {
 		periodicJobs = append(periodicJobs, cleanup)
 	}
+	periodicJobs = append(periodicJobs, river.NewPeriodicJob(
+		river.PeriodicInterval(24*time.Hour),
+		func() (river.JobArgs, *river.InsertOpts) {
+			return extensionjobs.WebReleaseCleanupArgs{}, nil
+		},
+		&river.PeriodicJobOpts{RunOnStart: false},
+	))
 	if registry.IsEmpty() {
 		return &Worker{}, nil
 	}
