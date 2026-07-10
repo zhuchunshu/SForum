@@ -1,9 +1,8 @@
-// 主题切换蓝绿代理核心：supervisor 对外监听固定端口，内部把流量代理到
-// 当前活跃的子进程（Nitro 产物或 nuxt dev）。切换主题时先起新子进程，
-// 等它健康检查通过再切 upstream，最后 drain 旧子进程，实现零停机切换。
+// 主题运行时共享代理核心：supervisor 对外监听固定端口，内部把流量代理到
+// 当前活跃的子进程（Nitro 产物或 nuxt dev）。生产 runtime.mjs 使用下方
+// replaceTarget 做蓝绿切换；本地 dev supervisor 串行重启，只复用代理与健康检查。
 //
-// 两个 supervisor（生产 runtime.mjs / 开发 dev-theme-runtime.mjs）共用本模块，
-// 只在「子进程监听方式」和「健康检查方式」上分叉：
+// 两个 supervisor（生产 runtime.mjs / 开发 dev-theme-runtime.mjs）共用本模块：
 // - 生产：子进程监听 unix socket（NITRO_UNIX_SOCKET），healthCheckUnix 探测。
 // - 开发：子进程监听 TCP 临时端口（PORT=0），healthCheckTcp 探测。
 import http from 'node:http'
