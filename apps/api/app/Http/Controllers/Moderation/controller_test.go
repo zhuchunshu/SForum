@@ -14,8 +14,8 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/session"
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
-	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -91,15 +91,45 @@ func TestControllerCreateReportRejectsInvalidTargetType(t *testing.T) {
 	}
 }
 
+func TestControllerSeparatesManagementAndReviewPermissions(t *testing.T) {
+	app, _, _ := newModerationTestApp()
+	reviewer := loginModerationUser(t, app, 2)
+	manager := loginModerationUser(t, app, 3)
+
+	if resp := performModerationRequest(t, app, nethttp.MethodGet, "/api/v1/admin/moderation/settings", nil, reviewer); resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("reviewer settings status = %d, want 403", resp.StatusCode)
+	}
+	if resp := performModerationRequest(t, app, nethttp.MethodGet, "/api/v1/admin/moderation/settings", nil, manager); resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("manager settings status = %d, want 200", resp.StatusCode)
+	}
+	if resp := performModerationRequest(t, app, nethttp.MethodGet, "/api/v1/moderation/workbench/counts", nil, manager); resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("manager queue status = %d, want 403", resp.StatusCode)
+	}
+	if resp := performModerationRequest(t, app, nethttp.MethodGet, "/api/v1/moderation/workbench/counts", nil, reviewer); resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("reviewer queue status = %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestControllerRejectDecisionRequiresReviewNote(t *testing.T) {
+	app, _, _ := newModerationTestApp()
+	reviewer := loginModerationUser(t, app, 2)
+	body := []byte(`{"source":"pre_publish","targetType":"topic","targetId":10,"action":"reject"}`)
+	resp := performModerationRequest(t, app, nethttp.MethodPost, "/api/v1/moderation/workbench/decisions", body, reviewer)
+	if resp.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("reject without note status = %d, want 422", resp.StatusCode)
+	}
+}
+
 func newModerationTestApp() (*fiber.App, *authsession.Manager, *moderationFakeStore) {
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
 	users := moderationFakeActors{actors: map[int64]identity.Actor{
 		1: {ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
 		2: {ID: 2, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionModerationReportReview: true}},
+		3: {ID: 3, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionModerationManage: true}},
 	}}
 	store := &moderationFakeStore{}
 	validator := &moderationFakeValidator{topic: true, comment: true}
-	controller := NewController(moderation.NewService(store, validator), users, manager)
+	controller := NewController(moderation.NewServiceWithWorkbench(store, validator, store, store), users, manager)
 	loginProvider := moderationRouteProviderFunc(func(api fiber.Router) {
 		api.Post("/test-login/:id", func(c fiber.Ctx) error {
 			userID, err := strconv.ParseInt(c.Params("id"), 10, 64)
@@ -183,6 +213,42 @@ func (s *moderationFakeStore) GetReport(context.Context, int64) (moderation.Repo
 
 func (s *moderationFakeStore) UpdateReport(_ context.Context, input moderation.UpdateReportInput) (moderation.Report, error) {
 	return moderation.Report{ID: input.ReportID, Status: input.Status, ReviewNote: input.ReviewNote}, nil
+}
+
+func (s *moderationFakeStore) GetSettings(context.Context) (moderation.Settings, error) {
+	return moderation.RecommendedSettings(), nil
+}
+
+func (s *moderationFakeStore) SaveSettings(_ context.Context, settings moderation.Settings, _ int64) (moderation.Settings, error) {
+	return settings, nil
+}
+
+func (s *moderationFakeStore) ResetSettings(_ context.Context, settings moderation.Settings, _ int64) (moderation.Settings, error) {
+	return settings, nil
+}
+
+func (s *moderationFakeStore) QueueCounts(context.Context) (moderation.QueueCounts, error) {
+	return moderation.QueueCounts{}, nil
+}
+
+func (s *moderationFakeStore) ListPending(_ context.Context, input moderation.WorkbenchListInput) (moderation.PendingList, error) {
+	return moderation.PendingList{Page: input.Page, PerPage: input.PerPage}, nil
+}
+
+func (s *moderationFakeStore) ListReportItems(_ context.Context, input moderation.WorkbenchListInput) (moderation.ReportItemList, error) {
+	return moderation.ReportItemList{Page: input.Page, PerPage: input.PerPage}, nil
+}
+
+func (s *moderationFakeStore) ListDecisions(_ context.Context, input moderation.DecisionListInput) (moderation.DecisionList, error) {
+	return moderation.DecisionList{Page: input.Page, PerPage: input.PerPage}, nil
+}
+
+func (s *moderationFakeStore) GetReviewContext(context.Context, moderation.ReviewContextInput) (moderation.ReviewContext, error) {
+	return moderation.ReviewContext{}, nil
+}
+
+func (s *moderationFakeStore) SubmitDecision(_ context.Context, input moderation.DecisionInput) (moderation.Decision, error) {
+	return moderation.Decision{Source: input.Source, TargetType: input.TargetType, TargetID: input.TargetID, Action: input.Action}, nil
 }
 
 type moderationFakeValidator struct {

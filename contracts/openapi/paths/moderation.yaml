@@ -94,3 +94,132 @@ adminModerationReportByID:
         "$ref": "../components/responses.yaml#/NotFound"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+adminModerationSettings:
+  get:
+    summary: Read moderation settings (requires moderation.manage)
+    operationId: getModerationSettings
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Moderation settings., content: {application/json: {schema: {$ref: "../schemas/moderation.yaml#/ApiResponseModerationSettings"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+  put:
+    summary: Update moderation settings (requires moderation.manage)
+    operationId: updateModerationSettings
+    security: [{cookieAuth: []}]
+    requestBody:
+      required: true
+      content: {application/json: {schema: {$ref: "../schemas/moderation.yaml#/ModerationSettingsInput"}}}
+    responses:
+      '200': {description: Updated settings., content: {application/json: {schema: {$ref: "../schemas/moderation.yaml#/ApiResponseModerationSettings"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+      '422': {$ref: "../components/responses.yaml#/UnprocessableEntity"}
+adminModerationSettingsReset:
+  post:
+    summary: Restore moderation compatibility defaults (requires moderation.manage)
+    operationId: resetModerationSettings
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Restored settings., content: {application/json: {schema: {$ref: "../schemas/moderation.yaml#/ApiResponseModerationSettings"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+adminModerationDecisions:
+  get:
+    summary: List complete moderation audit history (requires moderation.manage)
+    operationId: listAdminModerationDecisions
+    security: [{cookieAuth: []}]
+    parameters:
+    - {$ref: "#/components/parameters/decisionAction"}
+    - {$ref: "#/components/parameters/targetType"}
+    - {$ref: "#/components/parameters/page"}
+    - {$ref: "#/components/parameters/perPage"}
+    responses:
+      '200': {description: Decision history., content: {application/json: {schema: {$ref: "../schemas/moderation.yaml#/ApiResponseDecisionList"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+moderationWorkbenchCounts:
+  get:
+    summary: Read moderator queue counts (requires moderation.review)
+    operationId: getModerationWorkbenchCounts
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Queue counts., content: {application/json: {schema: {$ref: "../schemas/moderation.yaml#/ApiResponseQueueCounts"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+moderationWorkbenchPending:
+  get:
+    summary: List pre-publication review items (requires moderation.review)
+    operationId: listPendingModerationItems
+    security: [{cookieAuth: []}]
+    parameters:
+    - {$ref: "#/components/parameters/targetType"}
+    - {$ref: "#/components/parameters/page"}
+    - {$ref: "#/components/parameters/perPage"}
+    responses:
+      '200': {description: Pending content., content: {application/json: {schema: {$ref: "../schemas/moderation.yaml#/ApiResponsePendingList"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+moderationWorkbenchReports:
+  get:
+    summary: List enriched open reports (requires moderation.review)
+    operationId: listModerationWorkbenchReports
+    security: [{cookieAuth: []}]
+    parameters:
+    - {$ref: "#/components/parameters/targetType"}
+    - {$ref: "#/components/parameters/page"}
+    - {$ref: "#/components/parameters/perPage"}
+    responses:
+      '200': {description: Enriched reports., content: {application/json: {schema: {$ref: "../schemas/moderation.yaml#/ApiResponseReportItemList"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+moderationWorkbenchHistory:
+  get:
+    summary: List moderation history (requires moderation.review)
+    operationId: listModerationWorkbenchHistory
+    security: [{cookieAuth: []}]
+    parameters:
+    - {$ref: "#/components/parameters/decisionAction"}
+    - {$ref: "#/components/parameters/targetType"}
+    - {$ref: "#/components/parameters/page"}
+    - {$ref: "#/components/parameters/perPage"}
+    responses:
+      '200': {description: Decision history., content: {application/json: {schema: {$ref: "../schemas/moderation.yaml#/ApiResponseDecisionList"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+moderationWorkbenchContext:
+  get:
+    summary: Read complete moderation context (requires moderation.review)
+    operationId: getModerationReviewContext
+    security: [{cookieAuth: []}]
+    parameters:
+    - {name: targetType, in: path, required: true, schema: {$ref: "../schemas/moderation.yaml#/ReportTargetType"}}
+    - {name: targetID, in: path, required: true, schema: {type: integer, format: int64}}
+    - {name: source, in: query, required: true, schema: {$ref: "../schemas/moderation.yaml#/DecisionSource"}}
+    - {name: reportId, in: query, schema: {type: integer, format: int64}}
+    responses:
+      '200': {description: Review context., content: {application/json: {schema: {$ref: "../schemas/moderation.yaml#/ApiResponseReviewContext"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+      '404': {$ref: "../components/responses.yaml#/NotFound"}
+moderationWorkbenchDecisions:
+  post:
+    summary: Submit a moderation decision (requires moderation.review)
+    operationId: submitModerationDecision
+    security: [{cookieAuth: []}]
+    requestBody:
+      required: true
+      content: {application/json: {schema: {$ref: "../schemas/moderation.yaml#/DecisionInput"}}}
+    responses:
+      '200': {description: Recorded decision., content: {application/json: {schema: {$ref: "../schemas/moderation.yaml#/ApiResponseDecision"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+      '404': {$ref: "../components/responses.yaml#/NotFound"}
+      '409': {$ref: "../components/responses.yaml#/Conflict"}
+      '422': {$ref: "../components/responses.yaml#/UnprocessableEntity"}
+components:
+  parameters:
+    targetType: {name: targetType, in: query, schema: {$ref: "../schemas/moderation.yaml#/ReportTargetType"}}
+    decisionAction: {name: action, in: query, schema: {$ref: "../schemas/moderation.yaml#/DecisionAction"}}
+    page: {name: page, in: query, schema: {type: integer, minimum: 1}}
+    perPage: {name: perPage, in: query, schema: {type: integer, minimum: 1, maximum: 100}}

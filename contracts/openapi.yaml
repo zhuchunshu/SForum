@@ -103,6 +103,24 @@ paths:
     "$ref": "./openapi/paths/moderation.yaml#/adminModerationReports"
   "/admin/moderation/reports/{reportID}":
     "$ref": "./openapi/paths/moderation.yaml#/adminModerationReportByID"
+  "/admin/moderation/settings":
+    "$ref": "./openapi/paths/moderation.yaml#/adminModerationSettings"
+  "/admin/moderation/settings/reset":
+    "$ref": "./openapi/paths/moderation.yaml#/adminModerationSettingsReset"
+  "/admin/moderation/decisions":
+    "$ref": "./openapi/paths/moderation.yaml#/adminModerationDecisions"
+  "/moderation/workbench/counts":
+    "$ref": "./openapi/paths/moderation.yaml#/moderationWorkbenchCounts"
+  "/moderation/workbench/pending":
+    "$ref": "./openapi/paths/moderation.yaml#/moderationWorkbenchPending"
+  "/moderation/workbench/reports":
+    "$ref": "./openapi/paths/moderation.yaml#/moderationWorkbenchReports"
+  "/moderation/workbench/history":
+    "$ref": "./openapi/paths/moderation.yaml#/moderationWorkbenchHistory"
+  "/moderation/workbench/context/{targetType}/{targetID}":
+    "$ref": "./openapi/paths/moderation.yaml#/moderationWorkbenchContext"
+  "/moderation/workbench/decisions":
+    "$ref": "./openapi/paths/moderation.yaml#/moderationWorkbenchDecisions"
   "/permissions":
     "$ref": "./openapi/paths/identity.yaml#/permissions"
   "/permissions/matrix":

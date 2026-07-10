@@ -142,3 +142,137 @@ ApiResponseReportList:
       type: string
     data:
       "$ref": "#/ReportList"
+ModerationMode:
+  type: string
+  enum: [off, rules, all]
+ModerationSettingsInput:
+  type: object
+  required: [mode, reviewNewUsers, newUserMaxAgeDays, reviewExternalLinks]
+  properties:
+    mode: {$ref: "#/ModerationMode"}
+    reviewNewUsers: {type: boolean}
+    newUserMaxAgeDays: {type: integer, minimum: 0, maximum: 3650}
+    reviewExternalLinks: {type: boolean}
+ModerationSettings:
+  allOf:
+  - {$ref: "#/ModerationSettingsInput"}
+  - type: object
+    properties:
+      updatedByUserId: {type: [integer, 'null'], format: int64}
+      updatedAt: {type: string, format: date-time}
+QueueCounts:
+  type: object
+  required: [pendingContent, openReports, processedToday]
+  properties:
+    pendingContent: {type: integer, format: int64}
+    openReports: {type: integer, format: int64}
+    processedToday: {type: integer, format: int64}
+PendingItem:
+  type: object
+  required: [targetType, targetId, title, excerpt, authorId, authorName, category, triggers, createdAt]
+  properties:
+    targetType: {$ref: "#/ReportTargetType"}
+    targetId: {type: integer, format: int64}
+    topicId: {type: integer, format: int64}
+    title: {type: string}
+    excerpt: {type: string}
+    authorId: {type: integer, format: int64}
+    authorName: {type: string}
+    category: {type: string}
+    triggers: {type: array, items: {type: string}}
+    createdAt: {type: string, format: date-time}
+ReportItem:
+  allOf:
+  - {$ref: "#/Report"}
+  - type: object
+    required: [title, excerpt, targetAuthorId, targetAuthorName, category, targetStatus]
+    properties:
+      title: {type: string}
+      excerpt: {type: string}
+      targetAuthorId: {type: integer, format: int64}
+      targetAuthorName: {type: string}
+      category: {type: string}
+      targetStatus: {type: string}
+      targetTopicId: {type: integer, format: int64}
+DecisionSource:
+  type: string
+  enum: [pre_publish, report]
+DecisionAction:
+  type: string
+  enum: [approve, reject, keep_and_close, hide_and_close, delete_and_close]
+DecisionInput:
+  type: object
+  required: [source, targetType, targetId, action]
+  properties:
+    source: {$ref: "#/DecisionSource"}
+    targetType: {$ref: "#/ReportTargetType"}
+    targetId: {type: integer, format: int64}
+    reportId: {type: integer, format: int64}
+    action: {$ref: "#/DecisionAction"}
+    reviewNote: {type: string, maxLength: 2000}
+Decision:
+  allOf:
+  - {$ref: "#/DecisionInput"}
+  - type: object
+    required: [id, reviewerUserId, reviewerName, triggers, createdAt]
+    properties:
+      id: {type: integer, format: int64}
+      reviewerUserId: {type: integer, format: int64}
+      reviewerName: {type: string}
+      triggers: {type: array, items: {type: string}}
+      createdAt: {type: string, format: date-time}
+ReviewContext:
+  type: object
+  required: [source, targetType, targetId, title, html, authorId, authorName, category, status, triggers, createdAt]
+  properties:
+    source: {$ref: "#/DecisionSource"}
+    targetType: {$ref: "#/ReportTargetType"}
+    targetId: {type: integer, format: int64}
+    reportId: {type: integer, format: int64}
+    title: {type: string}
+    html: {type: string}
+    authorId: {type: integer, format: int64}
+    authorName: {type: string}
+    category: {type: string}
+    status: {type: string}
+    triggers: {type: array, items: {type: string}}
+    parentTopic: {type: string}
+    createdAt: {type: string, format: date-time}
+PendingList:
+  type: object
+  required: [items, total, page, perPage]
+  properties:
+    items: {type: array, items: {$ref: "#/PendingItem"}}
+    total: {type: integer, format: int64}
+    page: {type: integer}
+    perPage: {type: integer}
+ReportItemList:
+  type: object
+  required: [items, total, page, perPage]
+  properties:
+    items: {type: array, items: {$ref: "#/ReportItem"}}
+    total: {type: integer, format: int64}
+    page: {type: integer}
+    perPage: {type: integer}
+DecisionList:
+  type: object
+  required: [items, total, page, perPage]
+  properties:
+    items: {type: array, items: {$ref: "#/Decision"}}
+    total: {type: integer, format: int64}
+    page: {type: integer}
+    perPage: {type: integer}
+ApiResponseModerationSettings: {$ref: "#/ApiEnvelopeModerationSettings"}
+ApiResponseQueueCounts: {$ref: "#/ApiEnvelopeQueueCounts"}
+ApiResponsePendingList: {$ref: "#/ApiEnvelopePendingList"}
+ApiResponseReportItemList: {$ref: "#/ApiEnvelopeReportItemList"}
+ApiResponseDecisionList: {$ref: "#/ApiEnvelopeDecisionList"}
+ApiResponseReviewContext: {$ref: "#/ApiEnvelopeReviewContext"}
+ApiResponseDecision: {$ref: "#/ApiEnvelopeDecision"}
+ApiEnvelopeModerationSettings: {type: object, required: [code, message, data], properties: {code: {type: integer}, message: {type: string}, data: {$ref: "#/ModerationSettings"}}}
+ApiEnvelopeQueueCounts: {type: object, required: [code, message, data], properties: {code: {type: integer}, message: {type: string}, data: {$ref: "#/QueueCounts"}}}
+ApiEnvelopePendingList: {type: object, required: [code, message, data], properties: {code: {type: integer}, message: {type: string}, data: {$ref: "#/PendingList"}}}
+ApiEnvelopeReportItemList: {type: object, required: [code, message, data], properties: {code: {type: integer}, message: {type: string}, data: {$ref: "#/ReportItemList"}}}
+ApiEnvelopeDecisionList: {type: object, required: [code, message, data], properties: {code: {type: integer}, message: {type: string}, data: {$ref: "#/DecisionList"}}}
+ApiEnvelopeReviewContext: {type: object, required: [code, message, data], properties: {code: {type: integer}, message: {type: string}, data: {$ref: "#/ReviewContext"}}}
+ApiEnvelopeDecision: {type: object, required: [code, message, data], properties: {code: {type: integer}, message: {type: string}, data: {$ref: "#/Decision"}}}

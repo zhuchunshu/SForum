@@ -7,8 +7,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
-	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 )
 
@@ -32,6 +32,152 @@ type createReportRequest struct {
 type updateReportRequest struct {
 	Status     string `json:"status"`
 	ReviewNote string `json:"reviewNote"`
+}
+
+type decisionRequest struct {
+	Source     string `json:"source"`
+	TargetType string `json:"targetType"`
+	TargetID   int64  `json:"targetId"`
+	ReportID   int64  `json:"reportId"`
+	Action     string `json:"action"`
+	ReviewNote string `json:"reviewNote"`
+}
+
+func (h *Controller) getSettings(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	settings, err := h.service.GetSettings(c.Context(), actor)
+	if err != nil {
+		return mapModerationError(err)
+	}
+	return apphttp.OK(c, settings)
+}
+
+func (h *Controller) updateSettings(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var settings moderation.Settings
+	if err := c.Bind().Body(&settings); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "moderation.settings_invalid")
+	}
+	updated, err := h.service.UpdateSettings(c.Context(), actor, settings)
+	if err != nil {
+		return mapModerationError(err)
+	}
+	return apphttp.OK(c, updated)
+}
+
+func (h *Controller) resetSettings(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	settings, err := h.service.ResetSettings(c.Context(), actor)
+	if err != nil {
+		return mapModerationError(err)
+	}
+	return apphttp.OK(c, settings)
+}
+
+func (h *Controller) queueCounts(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	counts, err := h.service.QueueCounts(c.Context(), actor)
+	if err != nil {
+		return mapModerationError(err)
+	}
+	return apphttp.OK(c, counts)
+}
+
+func (h *Controller) listPending(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	list, err := h.service.ListPending(c.Context(), actor, moderation.WorkbenchListInput{
+		TargetType: c.Query("targetType"), Page: queryInt(c, "page"), PerPage: queryInt(c, "perPage"),
+	})
+	if err != nil {
+		return mapModerationError(err)
+	}
+	return apphttp.OK(c, list)
+}
+
+func (h *Controller) listReportItems(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	list, err := h.service.ListReportItems(c.Context(), actor, moderation.WorkbenchListInput{
+		TargetType: c.Query("targetType"), Page: queryInt(c, "page"), PerPage: queryInt(c, "perPage"),
+	})
+	if err != nil {
+		return mapModerationError(err)
+	}
+	return apphttp.OK(c, list)
+}
+
+func (h *Controller) listAdminDecisions(c fiber.Ctx) error {
+	return h.listDecisions(c, true)
+}
+
+func (h *Controller) listWorkbenchHistory(c fiber.Ctx) error {
+	return h.listDecisions(c, false)
+}
+
+func (h *Controller) listDecisions(c fiber.Ctx, admin bool) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	list, err := h.service.ListDecisions(c.Context(), actor, moderation.DecisionListInput{
+		Action: c.Query("action"), TargetType: c.Query("targetType"), ReviewerID: queryInt64(c, "reviewerId"),
+		Page: queryInt(c, "page"), PerPage: queryInt(c, "perPage"),
+	}, admin)
+	if err != nil {
+		return mapModerationError(err)
+	}
+	return apphttp.OK(c, list)
+}
+
+func (h *Controller) getReviewContext(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	item, err := h.service.GetReviewContext(c.Context(), actor, moderation.ReviewContextInput{
+		Source: c.Query("source"), TargetType: c.Params("targetType"),
+		TargetID: int64(paramInt(c, "targetID")), ReportID: queryInt64(c, "reportId"),
+	})
+	if err != nil {
+		return mapModerationError(err)
+	}
+	return apphttp.OK(c, item)
+}
+
+func (h *Controller) submitDecision(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var req decisionRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "moderation.decision_invalid")
+	}
+	decision, err := h.service.SubmitDecision(c.Context(), actor, moderation.DecisionInput{
+		Source: req.Source, TargetType: req.TargetType, TargetID: req.TargetID,
+		ReportID: req.ReportID, Action: req.Action, ReviewNote: req.ReviewNote,
+	})
+	if err != nil {
+		return mapModerationError(err)
+	}
+	return apphttp.OK(c, decision)
 }
 
 // createReport 公开举报入口（登录活跃用户）。
@@ -119,6 +265,14 @@ func mapModerationError(err error) error {
 		return fiber.NewError(fiber.StatusConflict, moderation.CodeReportDuplicate)
 	case errors.Is(err, moderation.ErrReportTargetInvalid):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, moderation.CodeReportTargetInvalid)
+	case errors.Is(err, moderation.ErrSettingsInvalid):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "moderation.settings_invalid")
+	case errors.Is(err, moderation.ErrDecisionInvalid):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "moderation.decision_invalid")
+	case errors.Is(err, moderation.ErrTaskNotFound):
+		return fiber.NewError(fiber.StatusNotFound, "moderation.task_not_found")
+	case errors.Is(err, moderation.ErrTaskConflict):
+		return fiber.NewError(fiber.StatusConflict, "moderation.task_conflict")
 	default:
 		return err
 	}
