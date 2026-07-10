@@ -91,7 +91,7 @@ describe('useAuthReturnNavigation source contract', () => {
     )
     expect(referrerHandling).not.toBeNull()
     expect(referrerHandling?.[1]).not.toMatch(/\b(?:throw|navigateTo)\b/)
-    expect(source).toContain('explicitRedirect === undefined ? route.query.redirect : explicitRedirect')
+    expect(source).toContain('options ? options.explicitRedirect : route.query.redirect')
     expect(source).toContain('referrerPath.value')
     expect(source).toContain("localePath('/')")
     expect(source).toContain('navigateTo(destination.value, { replace: true })')

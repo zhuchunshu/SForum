@@ -1,4 +1,4 @@
-export function useAuthReturnNavigation(explicitRedirect?: unknown) {
+export function useAuthReturnNavigation(options?: { explicitRedirect: unknown }) {
   const route = useRoute()
   const localePath = useLocalePath()
   const referrerPath = ref<string>()
@@ -16,7 +16,7 @@ export function useAuthReturnNavigation(explicitRedirect?: unknown) {
 
   const destination = computed(() =>
     resolveAuthReturnPath(
-      explicitRedirect === undefined ? route.query.redirect : explicitRedirect,
+      options ? options.explicitRedirect : route.query.redirect,
       referrerPath.value,
       localePath('/')
     )

@@ -96,6 +96,24 @@ describe('guest middleware', () => {
     expect(actions.returns).toBe(1)
     expect(actions.redirects).toEqual(['/settings/security'])
   })
+
+  test('does not reuse a stale current-route redirect when the incoming route has none', async () => {
+    const actions = createActions()
+    const middleware = loadGuestMiddleware({
+      useAuthSession: () => ({
+        user: ref({ id: 'user-1' }),
+        status: ref('authenticated'),
+        refresh: async (options: unknown) => actions.refreshes.push(options)
+      }),
+      returnFromAuth: async (explicitRedirect) => {
+        actions.redirects.push(explicitRedirect)
+        return { type: 'redirect', target: explicitRedirect }
+      }
+    })
+
+    expect(await middleware({ query: {} })).toEqual({ type: 'redirect', target: undefined })
+    expect(actions.redirects).toEqual([undefined])
+  })
 })
 
 function createActions() {
@@ -129,8 +147,16 @@ function loadGuestMiddleware(globals: {
   return factory(
     (middleware: (to: { query: Record<string, unknown> }) => Promise<unknown>) => middleware,
     globals.useAuthSession,
-    (explicitRedirect: unknown) => ({
-      returnFromAuth: () => globals.returnFromAuth(explicitRedirect)
-    })
+    (override?: unknown) => {
+      const explicitRedirect = override === undefined
+        ? '/old'
+        : typeof override === 'object' && override !== null && 'explicitRedirect' in override
+          ? (override as { explicitRedirect: unknown }).explicitRedirect
+          : override
+
+      return {
+        returnFromAuth: () => globals.returnFromAuth(explicitRedirect)
+      }
+    }
   ) as (to: { query: Record<string, unknown> }) => Promise<unknown>
 }

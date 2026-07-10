@@ -9,6 +9,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
 
-  const { returnFromAuth } = useAuthReturnNavigation(to.query.redirect)
+  const { returnFromAuth } = useAuthReturnNavigation({ explicitRedirect: to.query.redirect })
   return returnFromAuth()
 })
