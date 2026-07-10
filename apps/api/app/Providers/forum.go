@@ -148,24 +148,44 @@ func (r ForumSettingsResolver) ForumSettings(ctx context.Context) (forum.ForumSe
 	if r.options == nil {
 		return settings, nil
 	}
-	if value, err := r.options.WebOption(ctx, options.NameForumDefaultCategorySlug); err == nil {
-		if slug, ok := normalizeForumSlug(value); ok {
-			settings.DefaultCategorySlug = slug
-		}
+	value, err := r.options.WebOption(ctx, options.NameForumDefaultCategorySlug)
+	if err != nil {
+		return forum.ForumSettings{}, err
 	}
-	if value, err := r.options.WebOption(ctx, options.NameForumTagCreationMode); err == nil {
-		if mode, ok := normalizeForumTagCreationMode(value); ok {
-			settings.TagCreationMode = mode
-		}
+	if slug, ok := normalizeForumSlug(value); ok {
+		settings.DefaultCategorySlug = slug
 	}
-	if value, err := r.options.WebOption(ctx, options.NameForumTagPublicPages); err == nil {
-		if enabled, ok := normalizeForumEnabled(value); ok {
-			settings.TagPublicPages = enabled
-		}
+	value, err = r.options.WebOption(ctx, options.NameForumTagCreationMode)
+	if err != nil {
+		return forum.ForumSettings{}, err
 	}
-	if value, err := r.options.WebOption(ctx, options.NameForumTagMaxPerTopic); err == nil {
-		if max, ok := normalizeForumMaxTags(value); ok {
-			settings.TagMaxPerTopic = max
+	if mode, ok := normalizeForumTagCreationMode(value); ok {
+		settings.TagCreationMode = mode
+	}
+	value, err = r.options.WebOption(ctx, options.NameForumTagPublicPages)
+	if err != nil {
+		return forum.ForumSettings{}, err
+	}
+	if enabled, ok := normalizeForumEnabled(value); ok {
+		settings.TagPublicPages = enabled
+	}
+	value, err = r.options.WebOption(ctx, options.NameForumTagMaxPerTopic)
+	if err != nil {
+		return forum.ForumSettings{}, err
+	}
+	if max, ok := normalizeForumMaxTags(value); ok {
+		settings.TagMaxPerTopic = max
+	}
+	for name, target := range map[string]*int{
+		options.NameForumTopicsPerPage:   &settings.TopicsPerPage,
+		options.NameForumCommentsPerPage: &settings.CommentsPerPage,
+	} {
+		value, err = r.options.WebOption(ctx, name)
+		if err != nil {
+			return forum.ForumSettings{}, err
+		}
+		if size, ok := normalizeForumPageSize(value); ok {
+			*target = size
 		}
 	}
 	return settings, nil
@@ -187,6 +207,12 @@ func (r ForumSettingsResolver) UpdateForumSettings(ctx context.Context, actor id
 	}
 	if input.TagMaxPerTopic != nil {
 		updates = append(updates, options.UpdateInput{Name: options.NameForumTagMaxPerTopic, Value: strconv.Itoa(*input.TagMaxPerTopic)})
+	}
+	if input.TopicsPerPage != nil {
+		updates = append(updates, options.UpdateInput{Name: options.NameForumTopicsPerPage, Value: strconv.Itoa(*input.TopicsPerPage)})
+	}
+	if input.CommentsPerPage != nil {
+		updates = append(updates, options.UpdateInput{Name: options.NameForumCommentsPerPage, Value: strconv.Itoa(*input.CommentsPerPage)})
 	}
 	if len(updates) > 0 {
 		if _, err := r.options.UpdateMany(ctx, actor, updates); err != nil {
@@ -210,6 +236,12 @@ func (r ForumSettingsResolver) ResetForumSettings(ctx context.Context, actor ide
 		input.TagPublicPages = &publicPages
 		input.TagMaxPerTopic = &maxTags
 	}
+	if actor.Can(identity.PermissionSettingsManage) {
+		topicsPerPage := 20
+		commentsPerPage := 20
+		input.TopicsPerPage = &topicsPerPage
+		input.CommentsPerPage = &commentsPerPage
+	}
 	return r.UpdateForumSettings(ctx, actor, input)
 }
 
@@ -219,7 +251,17 @@ func recommendedForumSettings() forum.ForumSettings {
 		TagCreationMode:     forum.TagCreationModeControlled,
 		TagPublicPages:      true,
 		TagMaxPerTopic:      5,
+		TopicsPerPage:       20,
+		CommentsPerPage:     20,
 	}
+}
+
+func normalizeForumPageSize(value string) (int, bool) {
+	size, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || size < 1 || size > 100 {
+		return 0, false
+	}
+	return size, true
 }
 
 var providerForumSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)

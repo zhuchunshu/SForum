@@ -71,6 +71,8 @@ type updateForumSettingsRequest struct {
 	TagCreationMode     *string `json:"tagCreationMode"`
 	TagPublicPages      *bool   `json:"tagPublicPages"`
 	TagMaxPerTopic      *int    `json:"tagMaxPerTopic"`
+	TopicsPerPage       *int    `json:"topicsPerPage"`
+	CommentsPerPage     *int    `json:"commentsPerPage"`
 }
 
 func (h *Controller) adminCategoryGroups(c fiber.Ctx) error {
@@ -289,6 +291,8 @@ func (h *Controller) adminUpdateSettings(c fiber.Ctx) error {
 		TagCreationMode:     req.TagCreationMode,
 		TagPublicPages:      req.TagPublicPages,
 		TagMaxPerTopic:      req.TagMaxPerTopic,
+		TopicsPerPage:       req.TopicsPerPage,
+		CommentsPerPage:     req.CommentsPerPage,
 	})
 	if err != nil {
 		return mapForumError(err)

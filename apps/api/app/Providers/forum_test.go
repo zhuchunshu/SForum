@@ -9,6 +9,23 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 )
 
+func TestRecommendedForumSettingsIncludePaginationDefaults(t *testing.T) {
+	settings := recommendedForumSettings()
+	if settings.TopicsPerPage != 20 || settings.CommentsPerPage != 20 {
+		t.Fatalf("pagination defaults = %d/%d, want 20/20", settings.TopicsPerPage, settings.CommentsPerPage)
+	}
+	for _, tc := range []struct {
+		value string
+		want  int
+		ok    bool
+	}{{"1", 1, true}, {"100", 100, true}, {"0", 0, false}, {"101", 0, false}} {
+		got, ok := normalizeForumPageSize(tc.value)
+		if got != tc.want || ok != tc.ok {
+			t.Fatalf("normalizeForumPageSize(%q) = %d/%v, want %d/%v", tc.value, got, ok, tc.want, tc.ok)
+		}
+	}
+}
+
 func TestExtensionTopicActionProviderBuildsSafeDescriptors(t *testing.T) {
 	payload, err := json.Marshal(extensions.TopicActionContributionPayload{
 		Type:    "extensionRoute",

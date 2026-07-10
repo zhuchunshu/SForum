@@ -210,6 +210,21 @@ func TestControllerAdminSettingsResetWithPermission(t *testing.T) {
 	}
 }
 
+func TestControllerAdminSettingsBindsPaginationFields(t *testing.T) {
+	app, _, store := newForumTestApp()
+	cookie := loginForumUser(t, app, 4)
+	resp := performForumRequest(t, app, nethttp.MethodPut, "/api/v1/admin/forum/settings", []byte(`{"topicsPerPage":30,"commentsPerPage":40}`), cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 settings update, got %d", resp.StatusCode)
+	}
+	if store.updatedSettings.TopicsPerPage == nil || *store.updatedSettings.TopicsPerPage != 30 {
+		t.Fatalf("topicsPerPage input = %#v", store.updatedSettings.TopicsPerPage)
+	}
+	if store.updatedSettings.CommentsPerPage == nil || *store.updatedSettings.CommentsPerPage != 40 {
+		t.Fatalf("commentsPerPage input = %#v", store.updatedSettings.CommentsPerPage)
+	}
+}
+
 func TestControllerUpdateTopicRequiresLoginAndPermission(t *testing.T) {
 	app, _, _ := newForumTestApp()
 	body := []byte(`{"title":"新标题"}`)
@@ -357,6 +372,7 @@ func newForumTestApp() (*fiber.App, *authsession.Manager, *controllerForumStore)
 		4: {ID: 4, Status: identity.UserStatusActive, Permissions: map[string]bool{
 			identity.PermissionCategoryManage: true,
 			identity.PermissionTagManage:      true,
+			identity.PermissionSettingsManage: true,
 		}},
 		5: {ID: 5, Status: identity.UserStatusActive, Permissions: map[string]bool{
 			identity.PermissionTopicEditAny:   true,
@@ -445,6 +461,7 @@ type controllerForumStore struct {
 	lastCommentView string
 	lastTopicList   forum.TopicListInput
 	settingsReset   bool
+	updatedSettings forum.UpdateForumSettingsInput
 }
 
 func (s *controllerForumStore) ListCategories(context.Context) ([]forum.Category, error) {
@@ -638,10 +655,13 @@ func (s *controllerForumStore) ForumSettings(context.Context) (forum.ForumSettin
 		TagCreationMode:     forum.TagCreationModeControlled,
 		TagPublicPages:      true,
 		TagMaxPerTopic:      5,
+		TopicsPerPage:       20,
+		CommentsPerPage:     20,
 	}, nil
 }
 
 func (s *controllerForumStore) UpdateForumSettings(_ context.Context, _ identity.Actor, input forum.UpdateForumSettingsInput) (forum.ForumSettings, error) {
+	s.updatedSettings = input
 	settings, _ := s.ForumSettings(context.Background())
 	if input.DefaultCategorySlug != nil {
 		settings.DefaultCategorySlug = *input.DefaultCategorySlug
@@ -654,6 +674,12 @@ func (s *controllerForumStore) UpdateForumSettings(_ context.Context, _ identity
 	}
 	if input.TagMaxPerTopic != nil {
 		settings.TagMaxPerTopic = *input.TagMaxPerTopic
+	}
+	if input.TopicsPerPage != nil {
+		settings.TopicsPerPage = *input.TopicsPerPage
+	}
+	if input.CommentsPerPage != nil {
+		settings.CommentsPerPage = *input.CommentsPerPage
 	}
 	return settings, nil
 }
