@@ -33,6 +33,8 @@ func TestBuilderPrepareCopiesVerifiedInputsAndExcludesHostSecrets(t *testing.T) 
 		"frontend/admin/locales/zh-CN.json":  `{"title":"标题"}`,
 		"frontend/admin/locales/en-US.json":  `{"title":"Title"}`,
 	})
+	defaultThemeLayer := filepath.Join(root, "default-theme", "layer")
+	writeTestFile(t, filepath.Join(defaultThemeLayer, "nuxt.config.ts"), `export default {}`)
 	payload, _ := json.Marshal(map[string]any{"component": "cell", "width": 120})
 	plugin := extensions.WebReleaseExtension{
 		ExtensionID: "demo.plugin", ExtensionVersion: "1.0.0", PackageDigest: pluginDigest,
@@ -57,7 +59,7 @@ func TestBuilderPrepareCopiesVerifiedInputsAndExcludesHostSecrets(t *testing.T) 
 		ThemeLayerPath: filepath.Join(themeRoot, "layer"), ReloadMode: extensions.WebReleaseReloadPrompt,
 	}, Extensions: []extensions.WebReleaseExtension{plugin}}
 
-	builder := NewBuilder(Config{ReleaseRoot: filepath.Join(root, "releases"), WebRoot: webRoot, ExtensionRoot: extensionRoot})
+	builder := NewBuilder(Config{ReleaseRoot: filepath.Join(root, "releases"), WebRoot: webRoot, ExtensionRoot: extensionRoot, DefaultThemeLayer: defaultThemeLayer})
 	prepared, err := builder.Prepare(context.Background(), detail)
 	if err != nil {
 		t.Fatal(err)
@@ -70,6 +72,9 @@ func TestBuilderPrepareCopiesVerifiedInputsAndExcludesHostSecrets(t *testing.T) 
 	}
 	if _, err := os.Stat(filepath.Join(prepared.DevInput, "guard-policy.json")); err != nil {
 		t.Fatal(err)
+	}
+	if info, err := os.Stat(prepared.DefaultThemeLayer); err != nil || !info.IsDir() {
+		t.Fatalf("isolated default theme fallback is missing: %v", err)
 	}
 	if digest, err := extensionpackage.DigestTree(prepared.PluginRoots["demo.plugin"]); err != nil || digest != pluginDigest {
 		t.Fatalf("copied plugin identity changed: digest=%q err=%v", digest, err)
@@ -130,6 +135,56 @@ func TestBoundedLogRedactsCredentialsAndSecretValues(t *testing.T) {
 	log := boundedLog("fetch https://user:pass@registry.example.com token=abc password=hunter2")
 	if strings.Contains(log, "user:pass") || strings.Contains(log, "token=abc") || strings.Contains(log, "hunter2") {
 		t.Fatalf("build log leaked credentials: %s", log)
+	}
+}
+
+func TestLinkPluginHostPeersUsesHostOwnedSymlinks(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace")
+	frontend := filepath.Join(root, "plugin")
+	for _, target := range []string{
+		filepath.Join(workspace, "node_modules/vue"),
+		filepath.Join(workspace, "node_modules/nuxt"),
+		filepath.Join(workspace, "node_modules/@nuxt/ui"),
+		filepath.Join(workspace, "node_modules/vue-router"),
+		filepath.Join(workspace, "packages/admin-sdk"),
+	} {
+		if err := os.MkdirAll(target, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := linkPluginHostPeers(frontend, workspace); err != nil {
+		t.Fatal(err)
+	}
+	for _, peer := range []string{"vue", "nuxt", "@nuxt/ui", "vue-router", "@sforum/admin-sdk"} {
+		info, err := os.Lstat(filepath.Join(frontend, "node_modules", filepath.FromSlash(peer)))
+		if err != nil || info.Mode()&os.ModeSymlink == 0 {
+			t.Fatalf("host peer %s is not a symlink: %v", peer, err)
+		}
+	}
+}
+
+func TestArtifactDigestAllowsInternalSymlinkAndRejectsEscape(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "packages"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(root, "packages", "target.js"), "export const ready = true\n")
+	link := filepath.Join(root, "linked.js")
+	if err := os.Symlink("packages/target.js", link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ArtifactDigestTree(root); err != nil {
+		t.Fatalf("internal artifact symlink rejected: %v", err)
+	}
+	if err := os.Remove(link); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../outside.js", link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ArtifactDigestTree(root); err == nil {
+		t.Fatal("expected escaping artifact symlink rejection")
 	}
 }
 

@@ -11,7 +11,7 @@
     "build": "NUXT_BUILD_DIR=${NUXT_BUILD_DIR:-.nuxt-build} nuxt build",
     "preview": "HOST=0.0.0.0 bun --env-file=../../.env scripts/preview.mjs",
     "theme:runtime": "node scripts/runtime.mjs",
-    "typecheck": "NUXT_BUILD_DIR=.nuxt-typecheck nuxt typecheck"
+    "typecheck": "NUXT_BUILD_DIR=${NUXT_BUILD_DIR:-.nuxt-typecheck} nuxt prepare && vue-tsc --noEmit -p ${NUXT_BUILD_DIR:-.nuxt-typecheck}/tsconfig.json"
   },
   "dependencies": {
     "@sforum/admin-sdk": "workspace:*",

@@ -16,7 +16,8 @@ const adminRoutePrefix = normalizeAdminRoutePrefix(
   process.env.NUXT_PUBLIC_ADMIN_ROUTE_PREFIX ||
   process.env.ADMIN_ROUTE_PREFIX
 )
-const defaultThemeLayer = '../../extensions/builtin/themes/sforum-default/layer'
+const defaultThemeLayer = process.env.SFORUM_DEFAULT_THEME_LAYER?.trim()
+  || '../../extensions/builtin/themes/sforum-default/layer'
 const uploadedThemeLayer = process.env.SFORUM_THEME_LAYER?.trim()
 // Nuxt Layers 按数组顺序应用优先级：上传主题先覆盖，默认主题必须始终作为最后的 fallback layer。
 const themeLayers = uploadedThemeLayer

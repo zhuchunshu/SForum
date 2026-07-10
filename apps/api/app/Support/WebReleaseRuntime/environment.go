@@ -20,6 +20,7 @@ var buildEnvironmentNames = map[string]struct{}{
 
 var buildOverrideNames = map[string]struct{}{
 	"NUXT_BUILD_DIR": {}, "SFORUM_NITRO_OUTPUT_DIR": {}, "SFORUM_THEME_LAYER": {},
+	"SFORUM_DEFAULT_THEME_LAYER": {},
 	"SFORUM_ADMIN_REGISTRY_ROOT": {}, "SFORUM_WEB_RELEASE_ID": {},
 	"HOST": {}, "PORT": {},
 }

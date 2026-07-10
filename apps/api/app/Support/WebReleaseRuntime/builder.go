@@ -49,6 +49,9 @@ func NewBuilder(config Config) *Builder {
 	if config.BunPath == "" {
 		config.BunPath = "bun"
 	}
+	if config.NodePath == "" {
+		config.NodePath = "node"
+	}
 	if config.BuildTimeout <= 0 {
 		config.BuildTimeout = 5 * time.Minute
 	}
@@ -64,6 +67,9 @@ func NewBuilder(config Config) *Builder {
 	config.ReleaseRoot = absolutePath(config.ReleaseRoot)
 	config.WebRoot = resolveWebRoot(config.WebRoot)
 	config.ExtensionRoot = absolutePath(config.ExtensionRoot)
+	if strings.TrimSpace(config.DefaultThemeLayer) != "" {
+		config.DefaultThemeLayer = absolutePath(config.DefaultThemeLayer)
+	}
 	runner := config.Runner
 	if runner == nil {
 		runner = execCommandRunner{}
@@ -134,6 +140,13 @@ func (b *Builder) Prepare(_ context.Context, detail extensions.WebReleaseDetail)
 	if err != nil {
 		return PreparedRelease{}, fmt.Errorf("resolve copied theme layer: %w", err)
 	}
+	defaultThemeLayer := themeLayer
+	if b.config.DefaultThemeLayer != "" {
+		defaultThemeLayer = filepath.Join(devInput, "default-theme")
+		if err := copyTree(b.config.DefaultThemeLayer, defaultThemeLayer, nil); err != nil {
+			return PreparedRelease{}, fmt.Errorf("copy default theme fallback: %w", err)
+		}
+	}
 
 	registryExtensions := make([]RegistryExtension, 0, len(detail.Extensions))
 	pluginRoots := make(map[string]string, len(detail.Extensions))
@@ -170,7 +183,7 @@ func (b *Builder) Prepare(_ context.Context, detail extensions.WebReleaseDetail)
 	}
 	return PreparedRelease{
 		Detail: detail, Composition: composition, ReleaseDir: releaseDir, Workspace: workspace,
-		DevInput: devInput, RegistryRoot: registryRoot, ThemeLayer: themeLayer, PluginFrontends: pluginFrontends,
+		DevInput: devInput, RegistryRoot: registryRoot, ThemeLayer: themeLayer, DefaultThemeLayer: defaultThemeLayer, PluginFrontends: pluginFrontends,
 		PluginRoots: pluginRoots,
 	}, nil
 }
@@ -209,6 +222,9 @@ func (b *Builder) Install(ctx context.Context, prepared PreparedRelease) ([]Depe
 		if summary.LockDigest != snapshot.LockfileDigest {
 			return nil, boundedLog(logs...), fmt.Errorf("extension %s lockfile changed", id)
 		}
+		if err := linkPluginHostPeers(frontend, prepared.Workspace); err != nil {
+			return nil, boundedLog(logs...), fmt.Errorf("provide admin frontend host peers for %s: %w", id, err)
+		}
 		digest := dependencySnapshotDigest(id, summary, prepared.Composition.BunVersion, b.config.HostPeers)
 		dependencies := make([]extensions.Dependency, len(summary.Resolved))
 		copy(dependencies, summary.Resolved)
@@ -219,11 +235,13 @@ func (b *Builder) Install(ctx context.Context, prepared PreparedRelease) ([]Depe
 
 func (b *Builder) Build(ctx context.Context, prepared PreparedRelease, previousLog string) (BuildResult, error) {
 	artifact := filepath.Join(prepared.ReleaseDir, "artifact")
-	buildDir := filepath.Join(prepared.ReleaseDir, ".nuxt-build")
+	// 隔离 workspace 没有 dev watcher；使用标准 .nuxt 同时满足根 tsconfig、Vite 和 vue-tsc。
+	buildDir := filepath.Join(prepared.Workspace, ".nuxt")
 	_ = os.RemoveAll(artifact)
 	_ = os.RemoveAll(buildDir)
 	environment := BuildEnvironment(b.config.SourceEnvironment, map[string]string{
 		"SFORUM_THEME_LAYER":         prepared.ThemeLayer,
+		"SFORUM_DEFAULT_THEME_LAYER": prepared.DefaultThemeLayer,
 		"SFORUM_ADMIN_REGISTRY_ROOT": prepared.RegistryRoot,
 		"SFORUM_WEB_RELEASE_ID":      strconv.FormatInt(prepared.Detail.ID, 10),
 		"SFORUM_NITRO_OUTPUT_DIR":    artifact,
@@ -253,7 +271,7 @@ func (b *Builder) Verify(ctx context.Context, prepared PreparedRelease, result B
 	if err != nil {
 		return result, err
 	}
-	digest, err := extensionpackage.DigestTree(result.ArtifactPath)
+	digest, err := ArtifactDigestTree(result.ArtifactPath)
 	if err != nil {
 		return result, fmt.Errorf("digest web release artifact: %w", err)
 	}
@@ -286,7 +304,7 @@ func (b *Builder) healthCheck(ctx context.Context, server string) (string, error
 	_ = listener.Close()
 	previewCtx, cancel := context.WithTimeout(ctx, b.config.PreviewTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(previewCtx, b.config.BunPath, server)
+	cmd := exec.CommandContext(previewCtx, b.config.NodePath, server)
 	cmd.Env = BuildEnvironment(b.config.SourceEnvironment, map[string]string{"HOST": "127.0.0.1", "PORT": strconv.Itoa(port)})
 	var output bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &output, &output

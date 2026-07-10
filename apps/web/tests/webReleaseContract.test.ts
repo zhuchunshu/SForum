@@ -80,6 +80,18 @@ describe('web release file contract', () => {
     await expect(verifyReleaseArtifact(desired)).rejects.toThrow('digest')
   })
 
+  test('hashes internal artifact symlinks and rejects escaping targets', async () => {
+    const artifact = path.join(tempRoot(), 'artifact')
+    fs.mkdirSync(path.join(artifact, 'packages'), { recursive: true })
+    fs.writeFileSync(path.join(artifact, 'packages', 'target.js'), 'export const ready = true\n')
+    fs.symlinkSync('packages/target.js', path.join(artifact, 'linked.js'))
+
+    await expect(digestArtifactTree(artifact)).resolves.toMatch(/^[a-f0-9]{64}$/)
+    fs.unlinkSync(path.join(artifact, 'linked.js'))
+    fs.symlinkSync('../../outside.js', path.join(artifact, 'linked.js'))
+    await expect(digestArtifactTree(artifact)).rejects.toThrow('escapes artifact')
+  })
+
   test('writes active and failure acknowledgements atomically', async () => {
     const root = tempRoot()
     await writeActiveAcknowledgement(root, { releaseId: 9, compositionHash: 'hash' })

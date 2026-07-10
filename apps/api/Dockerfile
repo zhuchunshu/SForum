@@ -52,7 +52,7 @@ CMD ["sforum-api"]
 
 FROM oven/bun:1.3-alpine AS worker
 
-RUN apk add --no-cache ca-certificates && \
+RUN apk add --no-cache ca-certificates nodejs && \
 	addgroup -S sforum && adduser -S -G sforum sforum && \
 	mkdir -p /app/storage/app/attachments /var/lib/sforum/extensions /var/lib/sforum/theme-releases /app/apps/web && \
 	chown -R sforum:sforum /app /var/lib/sforum

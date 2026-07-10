@@ -109,6 +109,34 @@ func linkHostDependencies(webRoot string, workspace string) error {
 	return os.Symlink(source, filepath.Join(workspace, "node_modules"))
 }
 
+func linkPluginHostPeers(frontend string, workspace string) error {
+	targets := map[string]string{
+		"vue":               filepath.Join(workspace, "node_modules", "vue"),
+		"nuxt":              filepath.Join(workspace, "node_modules", "nuxt"),
+		"@nuxt/ui":          filepath.Join(workspace, "node_modules", "@nuxt", "ui"),
+		"vue-router":        filepath.Join(workspace, "node_modules", "vue-router"),
+		"@sforum/admin-sdk": filepath.Join(workspace, "packages", "admin-sdk"),
+	}
+	for name, target := range targets {
+		if info, err := os.Stat(target); err != nil || !info.IsDir() {
+			return fmt.Errorf("host peer %s is unavailable", name)
+		}
+		destination := filepath.Join(frontend, "node_modules", filepath.FromSlash(name))
+		if _, err := os.Lstat(destination); err == nil {
+			return fmt.Errorf("plugin installed a private host peer %s", name)
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+			return err
+		}
+		if err := os.Symlink(target, destination); err != nil {
+			return fmt.Errorf("link host peer %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
 func absolutePath(value string) string {
 	absolute, err := filepath.Abs(value)
 	if err != nil {

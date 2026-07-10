@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -69,14 +70,15 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	})
 	extensionjobs.RegisterThemeActivationWorker(registry, extensionStore, themeBuilder)
 	webReleaseBuilder := webreleaseruntime.NewBuilder(webreleaseruntime.Config{
-		ReleaseRoot:    cfg.WebReleaseRoot,
-		WebRoot:        cfg.WebReleaseWebRoot,
-		ExtensionRoot:  cfg.ExtensionRoot,
-		BunPath:        cfg.WebReleaseBunPath,
-		BuildTimeout:   cfg.WebReleaseBuildTimeout,
-		PreviewTimeout: cfg.WebReleasePreviewTimeout,
-		PreviewPath:    cfg.WebReleasePreviewPath,
-		HostPeers:      webreleaseruntime.HostPeers(),
+		ReleaseRoot:       cfg.WebReleaseRoot,
+		WebRoot:           cfg.WebReleaseWebRoot,
+		ExtensionRoot:     cfg.ExtensionRoot,
+		DefaultThemeLayer: filepath.Join(cfg.BuiltinExtensionRoot, "themes", "sforum-default", "layer"),
+		BunPath:           cfg.WebReleaseBunPath,
+		BuildTimeout:      cfg.WebReleaseBuildTimeout,
+		PreviewTimeout:    cfg.WebReleasePreviewTimeout,
+		PreviewPath:       cfg.WebReleasePreviewPath,
+		HostPeers:         webreleaseruntime.HostPeers(),
 	})
 	extensionjobs.RegisterWebReleaseBuildWorker(registry, webReleaseStore, webReleaseBuilder, postgres.NewAdvisoryLocker(pool))
 	extensionjobs.RegisterWebReleaseCleanupWorker(registry, webReleaseStore, cfg.WebReleaseRoot)

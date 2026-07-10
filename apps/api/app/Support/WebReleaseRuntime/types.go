@@ -14,7 +14,9 @@ type Config struct {
 	ReleaseRoot       string
 	WebRoot           string
 	ExtensionRoot     string
+	DefaultThemeLayer string
 	BunPath           string
+	NodePath          string
 	BuildTimeout      time.Duration
 	PreviewTimeout    time.Duration
 	PreviewPath       string
@@ -35,15 +37,16 @@ type CommandRunner interface {
 }
 
 type PreparedRelease struct {
-	Detail          extensions.WebReleaseDetail
-	Composition     extensions.WebComposition
-	ReleaseDir      string
-	Workspace       string
-	DevInput        string
-	RegistryRoot    string
-	ThemeLayer      string
-	PluginRoots     map[string]string
-	PluginFrontends map[string]string
+	Detail            extensions.WebReleaseDetail
+	Composition       extensions.WebComposition
+	ReleaseDir        string
+	Workspace         string
+	DevInput          string
+	RegistryRoot      string
+	ThemeLayer        string
+	DefaultThemeLayer string
+	PluginRoots       map[string]string
+	PluginFrontends   map[string]string
 }
 
 type DependencySnapshot struct {

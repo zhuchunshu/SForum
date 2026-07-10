@@ -4,6 +4,7 @@ const path = require('path')
 const root = path.resolve(__dirname, '..')
 const nuxtConfig = fs.readFileSync(path.join(root, 'apps/web/nuxt.config.ts'), 'utf8')
 const runtimeScript = fs.readFileSync(path.join(root, 'apps/web/scripts/runtime.mjs'), 'utf8')
+const webReleaseContract = fs.readFileSync(path.join(root, 'apps/web/scripts/web-release-contract.mjs'), 'utf8')
 const devRuntimeScript = fs.readFileSync(path.join(root, 'apps/web/scripts/dev-theme-runtime.mjs'), 'utf8')
 const devLifecycleScript = fs.readFileSync(path.join(root, 'apps/web/scripts/dev-theme-lifecycle.mjs'), 'utf8')
 const webPackage = JSON.parse(fs.readFileSync(path.join(root, 'apps/web/package.json'), 'utf8'))
@@ -24,6 +25,7 @@ assertIncludes(nuxtConfig, 'SFORUM_THEME_LAYER', 'nuxt.config.ts must read SFORU
 assertIncludes(nuxtConfig, 'SFORUM_NITRO_OUTPUT_DIR', 'nuxt.config.ts must read SFORUM_NITRO_OUTPUT_DIR')
 assertIncludes(nuxtConfig, 'themeLayers', 'nuxt.config.ts must build a themeLayers array')
 assertIncludes(nuxtConfig, 'defaultThemeLayer', 'nuxt.config.ts must keep the built-in default theme layer')
+assertIncludes(nuxtConfig, 'SFORUM_DEFAULT_THEME_LAYER', 'isolated web releases must inject the default theme fallback layer')
 assertMatches(
   nuxtConfig,
   /uploadedThemeLayer\s*\?\s*\[\s*uploadedThemeLayer\s*,\s*defaultThemeLayer\s*\]\s*:\s*\[\s*defaultThemeLayer\s*\]/,
@@ -38,8 +40,8 @@ assertIncludes(runtimeScript, 'SFORUM_THEME_RELEASE_ROOT', 'runtime script must 
 assertIncludes(runtimeScript, 'current.json', 'runtime script must watch current.json')
 assertIncludes(runtimeScript, 'spawn', 'runtime script must spawn the selected Nitro server')
 assertIncludes(runtimeScript, 'fs.watch', 'runtime script must watch release changes')
-assertIncludes(runtimeScript, "mode === 'default'", 'runtime script must handle default mode in current.json')
-assertIncludes(runtimeScript, 'path.isAbsolute', 'runtime script must resolve relative server paths')
+assertIncludes(webReleaseContract, "mode === 'default'", 'runtime script must handle default mode in current.json')
+assertIncludes(webReleaseContract, 'path.isAbsolute', 'runtime script must resolve relative server paths')
 assertIncludes(runtimeScript, 'fallbackServer', 'runtime script must provide a fallback server helper')
 assertIncludes(runtimeScript, 'replaceTarget', 'production runtime must keep blue-green target replacement')
 assertIncludes(webPackage.scripts.build, 'nuxt build', 'web build script must run Nuxt build')
@@ -59,7 +61,7 @@ assertIncludes(devRuntimeScript, 'stopProcessGroup', 'dev supervisor must stop t
 if (devRuntimeScript.includes('replaceTarget')) {
   throw new Error('dev supervisor must not start parallel Nuxt candidates through replaceTarget')
 }
-assertIncludes(devLifecycleScript, "mode === 'default'", 'dev lifecycle must represent default mode explicitly')
+assertIncludes(webReleaseContract, "mode === 'default'", 'dev lifecycle must represent default mode explicitly')
 assertIncludes(devLifecycleScript, 'restartRequested', 'dev lifecycle must coalesce current.json changes')
 assertIncludes(devLifecycleScript, "signalGroup(pid, 'SIGKILL')", 'dev lifecycle must bound process-group shutdown')
 

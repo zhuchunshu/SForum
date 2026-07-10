@@ -87,9 +87,17 @@ export async function digestArtifactTree(root) {
   const hash = crypto.createHash('sha256')
   for (const file of files) {
     const stat = await fs.promises.lstat(file.absolute)
-    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`artifact contains non-regular file: ${file.relative}`)
     hash.update(file.relative)
     hash.update('\0')
+    if (file.link !== undefined) {
+      hash.update('link')
+      hash.update('\0')
+      hash.update(String(Buffer.byteLength(file.link)))
+      hash.update('\0')
+      hash.update(file.link)
+      continue
+    }
+    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`artifact contains non-regular file: ${file.relative}`)
     hash.update((stat.mode & 0o777).toString(8))
     hash.update('\0')
     hash.update(String(stat.size))
@@ -125,8 +133,16 @@ async function collectFiles(root, current, files) {
   for (const entry of entries) {
     const absolute = path.join(current, entry.name)
     const relative = path.relative(root, absolute).split(path.sep).join('/')
-    if (entry.isSymbolicLink()) throw new Error(`artifact contains symbolic link: ${relative}`)
-    if (entry.isDirectory()) await collectFiles(root, absolute, files)
+    if (entry.isSymbolicLink()) {
+      const target = await fs.promises.readlink(absolute)
+      const resolved = path.resolve(path.dirname(absolute), target)
+      const rootRelative = path.relative(root, resolved)
+      if (path.isAbsolute(target) || rootRelative === '..' || rootRelative.startsWith(`..${path.sep}`) || path.isAbsolute(rootRelative)) {
+        throw new Error(`artifact symlink escapes artifact: ${relative}`)
+      }
+      await fs.promises.stat(resolved)
+      files.push({ absolute, relative, link: target.split(path.sep).join('/') })
+    } else if (entry.isDirectory()) await collectFiles(root, absolute, files)
     else if (entry.isFile()) files.push({ absolute, relative })
     else throw new Error(`artifact contains non-regular file: ${relative}`)
   }
