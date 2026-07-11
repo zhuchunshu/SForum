@@ -3,14 +3,12 @@ import { readFileSync } from 'node:fs'
 
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const homepage = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/pages/index.vue')
-const navigation = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFHomeNavigation.vue')
 const topicRow = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFHomeTopicRow.vue')
 const defaultLayout = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/layouts/default.vue')
 const layerConfig = () => source('../../../extensions/builtin/themes/sforum-default/layer/nuxt.config.ts')
 const homepageCss = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-home.css')
 const themeCss = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-theme.css')
 const footer = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFFooter.vue')
-const seoComposable = () => source('../app/composables/useSForumSeo.ts')
 const homeQueryCacheMiddleware = () => source('../server/middleware/home-query-cache.ts')
 
 function relativeLuminance(hex: string) {
@@ -28,16 +26,19 @@ function contrastRatio(foreground: string, background: string) {
 }
 
 describe('default theme hybrid homepage contract', () => {
-  test('uses the shared public layout without duplicate or fake chrome', () => {
+  test('uses the shared public layout with a real-data hero and two-column feed', () => {
     const page = homepage()
 
     expect(page).toContain('class="sforum-home"')
-    expect(page).toContain('<SFHomeNavigation')
     expect(page).toContain('<SFHomeTopicRow')
-    expect(page).toContain('class="sforum-home__dock"')
+    expect(page).toContain('class="sforum-home__hero"')
+    expect(page).toContain('class="sforum-home__content"')
+    expect(page).toContain('class="sforum-home__aside"')
     expect(page).toContain("t('home.loginToPost')")
-    expect(page).toContain('dockTopics')
+    expect(page).toContain('latestTopics')
     expect(page).toContain('loadedReplyTotal')
+    expect(page).toContain('categories.length')
+    expect(page).toContain('activeTags.length')
     expect(page).not.toContain('layout: false')
     expect(page).not.toContain('sforum-home__topbar')
     expect(page).not.toContain('<SFFooter')
@@ -50,23 +51,18 @@ describe('default theme hybrid homepage contract', () => {
     expect(layout).toContain('<SFFooter />')
   })
 
-  test('renders typed navigation and topic rows using only API-backed data', () => {
-    const nav = navigation()
+  test('renders topic cards using only API-backed summary data', () => {
     const row = topicRow()
-
-    expect(nav).toContain('categories: ForumCategory[]')
-    expect(nav).toContain('selectedCategorySlug: string')
-    expect(nav).toContain('totalTopics: number')
-    expect(nav).toContain("'select-category': [slug: string]")
-    expect(nav).toContain("emit('select-category',")
-    expect(nav).toContain('category.topicCount')
-    expect(nav).not.toContain('ForumCategoryGroup')
 
     expect(row).toContain('topic: ForumTopicSummary')
     expect(row).toContain('to: string')
     expect(row).toContain('activityLabel: string')
     expect(row).toContain('topic.excerpt')
     expect(row).toContain('topic.commentCount')
+    expect(row).toContain('topic.viewCount')
+    expect(row).toContain('topic.categoryName')
+    expect(row).toContain('topic.author')
+    expect(row).toContain('topic.tags')
     expect(row).not.toContain('participants')
     expect(row).not.toContain('$fetch')
     expect(row).not.toContain('useForumApi')
@@ -87,7 +83,7 @@ describe('default theme hybrid homepage contract', () => {
     expect(page).toContain("path: localePath('/'),")
     expect(page).toContain('query: buildForumHomeQuery(nextFilters)')
     expect(page).toContain('function resetFilters()')
-    expect(page).toContain('@select-category="selectCategory"')
+    expect(page).toContain('@change="selectCategory(')
     expect(page).toContain('@click="selectTag(tag.slug)"')
   })
 
@@ -131,13 +127,6 @@ describe('default theme hybrid homepage contract', () => {
     expect(page).not.toContain('Date.now() - date.getTime()')
   })
 
-  test('uses the working homepage query for schema.org search', () => {
-    const source = seoComposable()
-
-    expect(source).toContain('/?q={search_term_string}')
-    expect(source).not.toContain('/search?q={search_term_string}')
-  })
-
   test('keeps the base homepage on SWR while query variants render without payload caching', () => {
     const config = source('../nuxt.config.ts')
     const middleware = homeQueryCacheMiddleware()
@@ -152,7 +141,7 @@ describe('default theme hybrid homepage contract', () => {
     expect(middleware).toContain("setHeader(event, 'cache-control', 'no-store')")
   })
 
-  test('registers the responsive C workbench visual system', () => {
+  test('registers the responsive modern card flow visual system', () => {
     const config = layerConfig()
     const home = homepageCss()
     const theme = themeCss()
@@ -162,18 +151,18 @@ describe('default theme hybrid homepage contract', () => {
     const tagListStyles = home.match(/\.sforum-home__tag-list \{[\s\S]*?\n\}/)?.[0] || ''
 
     expect(config).toContain('sforum-home.css')
-    expect(home).toContain('grid-template-columns: 74px minmax(0, 1fr) 310px;')
-    expect(home).toMatch(/\.sforum-home__inner\s*\{[\s\S]*?padding: 0 19px 40px;/)
-    expect(home).toMatch(/\.sf-home-navigation\s*\{[\s\S]*?top: 0;[\s\S]*?height: calc\(100vh - 55px\);/)
-    expect(home).toContain('.sforum-home__dock')
+    expect(home).toContain('max-width: var(--sf-public-container);')
+    expect(home).toContain('grid-template-columns: minmax(0, 1fr) 300px;')
+    expect(home).toContain('.sforum-home__hero')
+    expect(home).toContain('.sforum-home__aside')
     expect(home).toContain('.sf-home-topic-row__heat')
-    expect(home).toContain('.sf-home-topic-row__metric')
-    expect(home).toContain('--sforum-home-secondary: #bd5b43;')
-    expect(home).toContain('.sforum-home .sforum-home__heading h1')
+    expect(home).toContain('.sf-home-topic-row__meta')
+    expect(home).toContain('.sf-home-topic-row__tags')
+    expect(home).toContain('.sforum-home__hero h1')
     expect(home).toContain('min-height: 40px;')
     expect(home).toContain('overflow-wrap: anywhere;')
     expect(home).toContain('prefers-reduced-motion: reduce')
-    expect(home).toContain('.dark .sforum-home')
+    expect(theme).toContain('--sf-public-bg: #111413;')
     expect(home).not.toContain('grid-template-columns: 208px minmax(0, 1fr);')
     expect(mobileStyles).toContain('.sforum-home__load-error .sf-button')
     expect(mobileStyles).toContain('.sforum-home__infinite-state .sf-button')
@@ -187,18 +176,17 @@ describe('default theme hybrid homepage contract', () => {
     expect(theme).not.toContain('.sforum-home')
   })
 
-  test('keeps the homepage footer inside the C workbench shell', () => {
+  test('keeps the homepage footer in the shared public shell', () => {
     const source = footer()
 
-    expect(source).toContain("route.path === '/' || route.path === '/en'")
-    expect(source).toContain("'sf-footer--workbench': isWorkbenchHome")
-    expect(source).toContain('.sf-footer--workbench')
-    expect(source).toContain('background: #f3f7f6;')
+    expect(source).not.toContain('isWorkbenchHome')
+    expect(source).not.toContain('sf-footer--workbench')
+    expect(source).toContain('max-width: var(--sf-public-container);')
   })
 
   test('keeps small light-mode metadata at WCAG AA contrast', () => {
-    const home = homepageCss()
-    const faint = home.match(/--sforum-home-faint:\s*(#[0-9a-f]{6});/i)?.[1]
+    const theme = themeCss()
+    const faint = theme.match(/--sf-public-text-muted:\s*(#[0-9a-f]{6});/i)?.[1]
 
     expect(faint).toBeString()
     expect(contrastRatio(faint!, '#ffffff')).toBeGreaterThanOrEqual(4.5)

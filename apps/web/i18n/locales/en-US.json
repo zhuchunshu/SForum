@@ -51,8 +51,9 @@
       "title": "Community activity",
       "latestActivity": "Latest activity",
       "overview": "Community overview",
-      "topics": "Topics",
-      "categories": "Categories",
+    "topics": "Topics",
+    "categories": "Categories",
+    "tags": "Tags",
       "loadedReplies": "Loaded replies"
     },
     "filter": {

@@ -51,8 +51,9 @@
       "title": "社区动态",
       "latestActivity": "最新动态",
       "overview": "社区概览",
-      "topics": "主题",
-      "categories": "分类",
+    "topics": "主题",
+    "categories": "分类",
+    "tags": "标签",
       "loadedReplies": "当前回复"
     },
     "filter": {

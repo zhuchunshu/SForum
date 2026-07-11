@@ -22,7 +22,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const localePath = useLocalePath()
-const { seoSettings } = useWebOptions()
+const { seoSettings, siteName } = useWebOptions()
 const forumApi = useForumApi()
 const { can } = usePermissions()
 
@@ -128,7 +128,7 @@ const totalTopics = computed(() => {
   }
   return hasActiveFilters.value ? 0 : loadedTopicTotal.value
 })
-const dockTopics = computed(() => topics.value.slice(0, 3))
+const latestTopics = computed(() => topics.value.slice(0, 4))
 const loadedReplyTotal = computed(() => topics.value.reduce((total, topic) => total + Number(topic.commentCount), 0))
 
 function replaceLoadedTopics(list: ForumTopicList) {
@@ -344,18 +344,48 @@ onBeforeUnmount(() => {
 <template>
   <main class="sforum-home">
     <div class="sforum-home__inner">
-      <div class="sforum-home__layout">
-        <SFHomeNavigation
-          :categories="categories"
-          :selected-category-slug="selectedCategorySlug"
-          :total-topics="totalTopics"
-          :pending="categoriesPending"
-          @select-category="selectCategory"
-        />
+      <section class="sforum-home__hero" :aria-label="t('home.dock.overview')">
+        <div>
+          <h1>{{ t('home.sidebar.welcomeTitle', { siteName }) }}</h1>
+          <p>{{ t('home.notice') }}</p>
+        </div>
+        <dl>
+          <div><dd>{{ totalTopics }}</dd><dt>{{ t('home.dock.topics') }}</dt></div>
+          <div><dd>{{ loadedReplyTotal }}</dd><dt>{{ t('home.dock.loadedReplies') }}</dt></div>
+          <div><dd>{{ categories.length }}</dd><dt>{{ t('home.dock.categories') }}</dt></div>
+          <div><dd>{{ activeTags.length }}</dd><dt>{{ t('home.tags') }}</dt></div>
+        </dl>
+      </section>
 
+      <div class="sforum-home__content">
         <section class="sforum-home__feed" aria-labelledby="forum-feed-title">
-          <header class="sforum-home__feed-header">
-            <h1 id="forum-feed-title" class="sr-only">{{ feedTitle }}</h1>
+          <header class="sforum-home__filterbar">
+            <h2 id="forum-feed-title" class="sr-only">{{ feedTitle }}</h2>
+            <button
+              type="button"
+              class="sforum-home__filter-tab"
+              :class="{ 'is-active': !selectedCategorySlug && !selectedTagSlug }"
+              @click="resetFilters"
+            >
+              {{ t('home.filter.latest') }}
+            </button>
+            <div class="sforum-home__category-filter">
+              <label for="home-category-filter">{{ t('home.categories') }}</label>
+              <select
+                id="home-category-filter"
+                :value="selectedCategorySlug"
+                @change="selectCategory(($event.target as HTMLSelectElement).value)"
+              >
+                <option value="">{{ t('home.filter.all') }}</option>
+                <option v-for="category in categories" :key="category.slug" :value="category.slug">
+                  {{ category.name }}
+                </option>
+              </select>
+              <UIcon name="i-lucide-chevron-down" aria-hidden="true" />
+            </div>
+          </header>
+
+          <div class="sforum-home__feed-tools">
             <SFSearch
               v-model="searchDraft"
               class="sforum-home__search"
@@ -379,34 +409,14 @@ onBeforeUnmount(() => {
               <UIcon name="i-lucide-log-in" class="size-4" aria-hidden="true" />
               {{ t('home.loginToPost') }}
             </NuxtLink>
-          </header>
+          </div>
 
           <p v-if="committedFilters.query" class="sforum-home__search-context">
             {{ t('home.searchResults', { query: committedFilters.query }) }}
           </p>
 
-          <div v-if="categories.length || activeTags.length || hasActiveFilters" class="sforum-home__filters" :aria-busy="tagsPending">
+          <div v-if="activeTags.length || hasActiveFilters" class="sforum-home__filters" :aria-busy="tagsPending">
             <div class="sforum-home__tag-list">
-              <button
-                type="button"
-                class="sforum-home__tag"
-                :class="{ 'is-active': !selectedCategorySlug && !selectedTagSlug }"
-                :aria-pressed="!selectedCategorySlug && !selectedTagSlug"
-                @click="selectCategory('')"
-              >
-                {{ t('home.filter.all') }}
-              </button>
-              <button
-                v-for="category in categories"
-                :key="category.slug"
-                type="button"
-                class="sforum-home__tag"
-                :class="{ 'is-active': selectedCategorySlug === category.slug }"
-                :aria-pressed="selectedCategorySlug === category.slug"
-                @click="selectCategory(category.slug)"
-              >
-                {{ category.name }}
-              </button>
               <button
                 v-for="tag in activeTags"
                 :key="tag.slug"
@@ -483,36 +493,29 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <aside class="sforum-home__dock" :aria-label="t('home.dock.title')">
-          <section class="sforum-home__dock-block sforum-home__dock-notice" role="note">
-            <UIcon name="i-lucide-shield-check" class="size-5" aria-hidden="true" />
+        <aside class="sforum-home__aside" :aria-label="t('home.dock.title')">
+          <section class="sforum-home__aside-panel sforum-home__aside-notice" role="note">
+            <h2><UIcon name="i-lucide-megaphone" aria-hidden="true" />{{ t('home.sidebar.secNotice') }}</h2>
             <p>{{ t('home.notice') }}</p>
           </section>
 
-          <section class="sforum-home__dock-block">
-            <h2>{{ t('home.dock.latestActivity') }}</h2>
-            <ol class="sforum-home__dock-list">
-              <li v-for="(topic, index) in dockTopics" :key="topic.id">
-                <span class="sforum-home__dock-rank">{{ Number(index) + 1 }}</span>
-                <NuxtLink :to="localePath(forumTopicPath(topic, topicUrlMode))">
-                  {{ topic.title }}
-                </NuxtLink>
-              </li>
-            </ol>
+          <section v-if="activeTags.length" class="sforum-home__aside-panel">
+            <h2><UIcon name="i-lucide-tags" aria-hidden="true" />{{ t('home.tags') }}</h2>
+            <div class="sforum-home__aside-tags">
+              <button v-for="tag in activeTags.slice(0, 12)" :key="tag.slug" type="button" @click="selectTag(tag.slug)">
+                {{ tag.name }}
+              </button>
+            </div>
           </section>
 
-          <section class="sforum-home__dock-block">
-            <h2>{{ t('home.dock.overview') }}</h2>
-            <dl class="sforum-home__stats">
-              <div>
-                <dd>{{ totalTopics }}</dd>
-                <dt>{{ t('home.dock.topics') }}</dt>
-              </div>
-              <div>
-                <dd>{{ loadedReplyTotal }}</dd>
-                <dt>{{ t('home.dock.loadedReplies') }}</dt>
-              </div>
-            </dl>
+          <section class="sforum-home__aside-panel">
+            <h2><UIcon name="i-lucide-activity" aria-hidden="true" />{{ t('home.dock.latestActivity') }}</h2>
+            <ol class="sforum-home__aside-activity">
+              <li v-for="topic in latestTopics" :key="topic.id">
+                <NuxtLink :to="localePath(forumTopicPath(topic, topicUrlMode))">{{ topic.title }}</NuxtLink>
+                <time :datetime="topic.lastActivityAt || topic.createdAt">{{ topicActivity(topic) }}</time>
+              </li>
+            </ol>
           </section>
         </aside>
       </div>
