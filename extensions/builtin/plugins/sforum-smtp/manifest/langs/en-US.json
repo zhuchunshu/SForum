@@ -1,0 +1,5 @@
+{
+  "name": "SForum SMTP",
+  "description": "Protected built-in SMTP mail delivery provider.",
+  "author": { "name": "SForum" }
+}

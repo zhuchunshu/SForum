@@ -1,0 +1,13 @@
+{
+  "admin": {
+    "root": "frontend/admin",
+    "apiVersion": 1,
+    "components": {
+      "smtp-settings-page": "components/SmtpSettingsPage.vue"
+    },
+    "locales": {
+      "zh-CN": "locales/zh-CN.json",
+      "en-US": "locales/en-US.json"
+    }
+  }
+}

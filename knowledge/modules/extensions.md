@@ -234,12 +234,16 @@ see below).
 The v2 admin declaration is an `admin` object. Existing top-level
 `adminPages` should be compatibility-mapped during migration.
 
-### Planned multi-file authoring (accepted, not implemented yet)
+### Multi-file authoring (`includes`)
 
 Complex packages may keep a thin root file and move bulky blocks into partials
-via optional `includes`. Host loads the entry file, merges includes into one
-`Manifest`, then runs existing `Normalize` / `Validate`. Downstream code still
-sees a single merged model.
+via optional `includes`. Host `LoadPackage` / ZIP install merges includes into
+one `Manifest`, then runs existing `Normalize` / `Validate`. Downstream code
+still sees a single merged model (stored as canonical merged JSON).
+
+Reference package: `extensions/builtin/plugins/sforum-smtp/` uses
+`manifest/langs/`, `manifest/settings.json`, `manifest/contributions.json`,
+`manifest/admin.json`, and `manifest/frontend.json`.
 
 Decision: `knowledge/decisions/2026-07-12-extension-manifest-split.md`  
 Plan: `docs/superpowers/plans/2026-07-12-extension-manifest-split.md`

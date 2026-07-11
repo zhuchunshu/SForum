@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 
 const page = await Bun.file(new URL('../app/pages/admin/extensions/[extensionId]/pages/[...pagePath].vue', import.meta.url)).text()
-const smtpManifest = JSON.parse(await Bun.file(new URL('../../../extensions/builtin/plugins/sforum-smtp/sforum.extension.json', import.meta.url)).text())
+// SMTP 使用 multi-file manifest：入口 + includes partials。
+const smtpRoot = JSON.parse(await Bun.file(new URL('../../../extensions/builtin/plugins/sforum-smtp/sforum.extension.json', import.meta.url)).text())
+const smtpFrontend = JSON.parse(await Bun.file(new URL('../../../extensions/builtin/plugins/sforum-smtp/manifest/frontend.json', import.meta.url)).text())
+const smtpContributions = JSON.parse(await Bun.file(new URL('../../../extensions/builtin/plugins/sforum-smtp/manifest/contributions.json', import.meta.url)).text())
+const smtpSettings = JSON.parse(await Bun.file(new URL('../../../extensions/builtin/plugins/sforum-smtp/manifest/settings.json', import.meta.url)).text())
 const sdk = await Bun.file(new URL('../packages/admin-sdk/src/index.ts', import.meta.url)).text()
 const zh = JSON.parse(await Bun.file(new URL('../i18n/locales/zh-CN.json', import.meta.url)).text())
 const smtpZh = JSON.parse(await Bun.file(new URL('../../../extensions/builtin/plugins/sforum-smtp/frontend/admin/locales/zh-CN.json', import.meta.url)).text())
@@ -26,11 +30,13 @@ describe('extension settings plugin ownership', () => {
   })
 
   test('smtp plugin owns multilingual settings and custom page contribution', () => {
-    expect(smtpManifest.frontend.admin.components['smtp-settings-page']).toBe('components/SmtpSettingsPage.vue')
-    expect(smtpManifest.contributions[0].point).toBe('admin.extension.settings.page')
-    expect(typeof smtpManifest.settings[0].label).toBe('object')
-    expect(smtpManifest.settings[0].label['zh-CN']).toBeTruthy()
-    expect(smtpManifest.settings[0].label['en-US']).toBeTruthy()
+    expect(smtpRoot.includes.settings).toBe('manifest/settings.json')
+    expect(smtpRoot.includes.langs).toBe('manifest/langs')
+    expect(smtpFrontend.admin.components['smtp-settings-page']).toBe('components/SmtpSettingsPage.vue')
+    expect(smtpContributions[0].point).toBe('admin.extension.settings.page')
+    expect(typeof smtpSettings[0].label).toBe('object')
+    expect(smtpSettings[0].label['zh-CN']).toBeTruthy()
+    expect(smtpSettings[0].label['en-US']).toBeTruthy()
     expect(smtpZh.title).toContain('SMTP')
     expect(smtpZh.fields.host.label).toBeTruthy()
   })

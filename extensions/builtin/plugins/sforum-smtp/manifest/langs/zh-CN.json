@@ -1,0 +1,5 @@
+{
+  "name": "SForum SMTP",
+  "description": "受保护的内置 SMTP 邮件发送提供方。",
+  "author": { "name": "SForum" }
+}

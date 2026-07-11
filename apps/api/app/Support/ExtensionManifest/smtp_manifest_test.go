@@ -44,4 +44,11 @@ func TestBuiltinSMTPManifestValidatesWithLocalizedSettingsAndSettingsPageSlot(t 
 	if !found {
 		t.Fatal("expected admin.extension.settings.page contribution")
 	}
+	// 身份文案来自 manifest/langs/zh-CN.json（按语言分文件）。
+	if LocalizedDisplay(normalized, "zh-CN").Description == "" {
+		t.Fatal("expected zh-CN identity description from langs include")
+	}
+	if LocalizedDisplay(normalized, "zh-CN").Name != "SForum SMTP" {
+		t.Fatalf("unexpected zh-CN name: %q", LocalizedDisplay(normalized, "zh-CN").Name)
+	}
 }

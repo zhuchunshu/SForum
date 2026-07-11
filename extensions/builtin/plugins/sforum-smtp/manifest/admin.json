@@ -1,0 +1,11 @@
+{
+  "entry": "/settings",
+  "pages": [
+    {
+      "path": "/settings",
+      "label": "SMTP Settings",
+      "view": "settings",
+      "menu": false
+    }
+  ]
+}

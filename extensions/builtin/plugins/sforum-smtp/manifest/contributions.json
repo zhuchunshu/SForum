@@ -1,0 +1,12 @@
+[
+  {
+    "point": "admin.extension.settings.page",
+    "id": "smtp-settings-page",
+    "order": 10,
+    "label": {
+      "zh-CN": "SMTP 设置页",
+      "en-US": "SMTP settings page"
+    },
+    "payload": { "component": "smtp-settings-page" }
+  }
+]
