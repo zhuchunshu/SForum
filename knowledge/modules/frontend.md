@@ -75,31 +75,29 @@ client scroll uses `IntersectionObserver` to append later pages. The loaded
 feed and total are initialized from `topicList.value` into Nuxt `useState` so
 the SSR rows survive hydration in development payload mode. Desktop homepage
 side rails remain sticky but are viewport-bounded with internal scrolling.
-The default-theme public forum follows the approved C / SForum Hybrid
-direction. The homepage uses the shared default layout and `SFNavbar`, a 74px
-dark taxonomy rail, pulse-card topic feed, and 310px activity dock. The dock is
-restricted to real latest-topic and aggregate data; it does not fabricate hot
-rankings, check-ins, participant state, or personal metrics.
-Pulse cards use the API topic excerpt rather than fabricated summaries or an
-author-avatar metadata row. At a 1425px browser content width the measured
-desktop tracks are 74px / 1003px / 310px and cards are 971px by 88px, matching
-the approved C demo geometry.
-The homepage route applies a workbench-specific treatment to the shared navbar
-and footer so their green/coral accents, borders, canvas colors, and horizontal
-alignment continue the same visual system. The homepage canvas begins directly
-below the 55px navbar, and the sticky taxonomy rail has no legacy top inset.
+The default-theme public forum follows the approved Modern Card Flow direction
+from `design-preview/c-modern` and the 2026-07-12 screenshots. The shared shell
+uses a 1140px container and token-driven cold-white surfaces. At a 1425px
+browser content width the homepage measures 768px + 300px content tracks,
+150px topic cards, and a 106px real-data overview band. Topic cards consume
+only API-backed category, author, activity, excerpt, tag, reply, and view data;
+the sidebar does not fabricate likes, online members, last repliers, or weekly
+member rankings.
 Search, category, and tag filters are reflected in the URL; search is debounced
 and stale requests are rejected before they can replace newer results. Base
 homepage responses retain shared-cache headers, while `/` and `/en` query
 variants are marked `no-store` by `server/middleware/home-query-cache.ts` to
 avoid Nitro's root-route payload file-key collision.
 
-Topic detail uses an unframed 820px reading column plus a 190px sticky progress
+Topic detail uses a 760px reading card plus a 240px sticky contents/progress
 rail on desktop. `SFTopicHeading`, `SFTopicProgressRail`,
 `SFTopicActionMenu`, `SFCommentStreamControls`, and `SFReportDialog` own focused
 presentation concerns; the route still owns loading, routing, SEO, permissions,
-mutations, and plugin action orchestration. On mobile the rail is hidden and
-the essential reply action returns to normal document flow.
+mutations, and plugin action orchestration. The progress component derives its
+contents from sanitized rendered `h2`/`h3` elements and assigns local anchors.
+Top-level comments are standalone cards while descendants stay inside the
+parent surface. On mobile the rail is hidden and the essential reply action
+returns to normal document flow.
 
 `SFComment` has an explicit `presentation`, `depth`, and
 `collapseFromDepth` contract. Tree mode renders one branch rail/inset on

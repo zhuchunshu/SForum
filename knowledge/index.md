@@ -75,13 +75,13 @@ This is the entry point for project memory.
   `content_html_sanitized`, `content_markdown`, and `content_native_json`.
   Client HTML remains untrusted; the API must accept allowlisted content,
   regenerate derived formats, and sanitize display HTML before storage.
-- The protected built-in default theme now implements the approved C / SForum
-  Hybrid public-forum direction. The homepage uses the shared public layout and
-  `SFNavbar`, a 74px dark taxonomy rail, pulse-card topic feed, 310px real-data
-  activity dock, URL-backed filters, and SSR-first infinite scrolling. Topic detail
-  uses an unframed 820px reading column with a 190px sticky progress rail;
-  comments keep their complete tree while limiting desktop indentation to one
-  branch level and visually flattening all depths on mobile.
+- The protected built-in default theme now implements the screenshot-aligned
+  Modern Card Flow direction. Its shared shell uses a 1140px container; the
+  homepage uses a 106px real-data overview, 768px topic-card feed, 300px
+  activity sidebar, URL-backed filters, and SSR-first infinite scrolling.
+  Topic detail uses a 760px reading card with a 240px sticky contents/progress
+  rail; comments keep their complete tree while top-level replies render as
+  cards and all visual depth flattens on mobile.
 - The default-theme homepage feed now uses client-side infinite scrolling
   instead of visible page-number pagination. The first page remains SSR-loaded,
   the loaded feed is preserved through Nuxt state for hydration, and desktop
