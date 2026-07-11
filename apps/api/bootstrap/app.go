@@ -248,7 +248,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		return nil, fmt.Errorf("start web release coordinator: %w", err)
 	}
 	notificationStore := notifications.NewPostgresStore(pool)
-	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher)
+	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher).WithPolicyReader(optionsService)
 	forumStore.WithCommentNotifications(forumNotificationAdapter{outbox: mailOutbox})
 	moderationStore.WithDecisionNotifications(moderationNotificationAdapter{outbox: mailOutbox})
 	siteName, _ := optionsService.SiteName(ctx)

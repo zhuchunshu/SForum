@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
 
@@ -16,18 +17,33 @@ type TxEnqueuer interface {
 	EnqueueTx(context.Context, pgx.Tx, river.JobArgs, supportjobs.EnqueueOptions) (*rivertype.JobInsertResult, error)
 }
 
+type PolicyReader interface {
+	NotificationPolicy(context.Context) (options.NotificationPolicy, error)
+}
+
 type Outbox struct {
 	pool interface {
 		Begin(context.Context) (pgx.Tx, error)
 	}
-	store *PostgresStore
-	jobs  TxEnqueuer
+	store  *PostgresStore
+	jobs   TxEnqueuer
+	policy PolicyReader
 }
 
 func NewOutbox(pool interface {
 	Begin(context.Context) (pgx.Tx, error)
 }, store *PostgresStore, jobs TxEnqueuer) *Outbox {
 	return &Outbox{pool: pool, store: store, jobs: jobs}
+}
+
+func (o *Outbox) WithPolicyReader(policy PolicyReader) *Outbox { o.policy = policy; return o }
+
+func (o *Outbox) notificationPolicy(ctx context.Context) (options.NotificationPolicy, error) {
+	if o.policy != nil {
+		return o.policy.NotificationPolicy(ctx)
+	}
+	all := options.ChannelPolicy{InAppEnabled: true, EmailEnabled: true}
+	return options.NotificationPolicy{Reply: all, Mention: all, Moderation: all}, nil
 }
 
 type QueueMailInput struct {
@@ -100,4 +116,25 @@ func (o *Outbox) CreateBundleTx(ctx context.Context, tx pgx.Tx, input CreateBund
 		return Bundle{}, err
 	}
 	return bundle, nil
+}
+
+func (o *Outbox) createProjectionsTx(ctx context.Context, tx pgx.Tx, input CreateBundleInput, inApp, email bool) error {
+	if inApp && email {
+		_, err := o.CreateBundleTx(ctx, tx, input)
+		return err
+	}
+	if inApp {
+		_, err := o.store.CreateNotificationTx(ctx, tx, input.Notification)
+		return err
+	}
+	if email {
+		delivery, err := o.store.CreateDeliveryTx(ctx, tx, input.Delivery)
+		if err != nil {
+			return err
+		}
+		args := deliverMailArgs{DeliveryID: delivery.ID}
+		_, err = o.jobs.EnqueueTx(ctx, tx, args, args.enqueueOptions())
+		return err
+	}
+	return nil
 }

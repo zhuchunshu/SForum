@@ -6,7 +6,18 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 )
+
+func channelsForType(policy options.NotificationPolicy, kind string) (bool, bool) {
+	channel := policy.Moderation
+	if kind == TypeReply {
+		channel = policy.Reply
+	} else if kind == TypeMention {
+		channel = policy.Mention
+	}
+	return channel.InAppEnabled, channel.EmailEnabled
+}
 
 type CommentEvent struct {
 	CommentID, TopicID, ActorUserID int64
@@ -23,6 +34,10 @@ type ModerationEvent struct {
 }
 
 func (o *Outbox) NotifyModerationTx(ctx context.Context, tx pgx.Tx, event ModerationEvent) error {
+	policy, err := o.notificationPolicy(ctx)
+	if err != nil {
+		return err
+	}
 	table := "topics"
 	if event.TargetType == "comment" {
 		table = "comments"
@@ -38,14 +53,18 @@ func (o *Outbox) NotifyModerationTx(ctx context.Context, tx pgx.Tx, event Modera
 	}
 	payload, _ := json.Marshal(map[string]any{"targetType": event.TargetType, "targetId": event.TargetID, "reviewNote": event.ReviewNote})
 	key := fmt.Sprintf("moderation:%d:%s:%d", event.DecisionID, kind, userID)
-	_, err := o.CreateBundleTx(ctx, tx, CreateBundleInput{
+	inApp, emailEnabled := channelsForType(policy, kind)
+	return o.createProjectionsTx(ctx, tx, CreateBundleInput{
 		Notification: CreateInput{RecipientUserID: userID, Type: kind, ActorUserID: &event.ReviewerUserID, TargetType: event.TargetType, TargetID: event.TargetID, Payload: payload, DedupeKey: key},
 		Delivery:     CreateDeliveryInput{Recipient: email, TemplateKey: "forum." + kind, TemplateData: payload, IdempotencyKey: key},
-	})
-	return err
+	}, inApp, emailEnabled)
 }
 
 func (o *Outbox) NotifyCommentTx(ctx context.Context, tx pgx.Tx, event CommentEvent) error {
+	policy, err := o.notificationPolicy(ctx)
+	if err != nil {
+		return err
+	}
 	type recipient struct {
 		id          int64
 		email, kind string
@@ -68,10 +87,11 @@ func (o *Outbox) NotifyCommentTx(ctx context.Context, tx pgx.Tx, event CommentEv
 	for key, item := range recipients {
 		payload, _ := json.Marshal(map[string]any{"commentId": event.CommentID, "topicId": event.TopicID})
 		dedupe := fmt.Sprintf("comment:%d:%s", event.CommentID, key)
-		if _, err := o.CreateBundleTx(ctx, tx, CreateBundleInput{
+		inApp, emailEnabled := channelsForType(policy, item.kind)
+		if err := o.createProjectionsTx(ctx, tx, CreateBundleInput{
 			Notification: CreateInput{RecipientUserID: item.id, Type: item.kind, ActorUserID: &event.ActorUserID, TargetType: "comment", TargetID: event.CommentID, Payload: payload, DedupeKey: dedupe},
 			Delivery:     CreateDeliveryInput{Recipient: item.email, TemplateKey: "forum." + item.kind, TemplateData: payload, IdempotencyKey: dedupe},
-		}); err != nil {
+		}, inApp, emailEnabled); err != nil {
 			return err
 		}
 	}

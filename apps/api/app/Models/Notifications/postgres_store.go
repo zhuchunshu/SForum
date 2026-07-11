@@ -27,27 +27,14 @@ func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
 func newPostgresStore(runner queryRunner) *PostgresStore { return &PostgresStore{runner: runner} }
 
 func (s *PostgresStore) CreateBundleTx(ctx context.Context, tx queryRunner, input CreateBundleInput) (Bundle, error) {
-	payload := input.Notification.Payload
-	if len(payload) == 0 {
-		payload = json.RawMessage(`{}`)
+	notification, err := s.CreateNotificationTx(ctx, tx, input.Notification)
+	if err != nil {
+		return Bundle{}, err
 	}
+	result := Bundle{Notification: notification}
 	templateData := input.Delivery.TemplateData
 	if len(templateData) == 0 {
 		templateData = json.RawMessage(`{}`)
-	}
-	var result Bundle
-	err := tx.QueryRow(ctx, `
-INSERT INTO notifications (recipient_user_id, type, actor_user_id, target_type, target_id, payload, dedupe_key)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-ON CONFLICT (dedupe_key) DO UPDATE SET dedupe_key = EXCLUDED.dedupe_key
-RETURNING id, recipient_user_id, type, actor_user_id, target_type, target_id, payload, dedupe_key, read_at, created_at`,
-		input.Notification.RecipientUserID, input.Notification.Type, input.Notification.ActorUserID,
-		input.Notification.TargetType, input.Notification.TargetID, payload, input.Notification.DedupeKey,
-	).Scan(&result.Notification.ID, &result.Notification.RecipientUserID, &result.Notification.Type,
-		&result.Notification.ActorUserID, &result.Notification.TargetType, &result.Notification.TargetID,
-		&result.Notification.Payload, &result.Notification.DedupeKey, &result.Notification.ReadAt, &result.Notification.CreatedAt)
-	if err != nil {
-		return Bundle{}, err
 	}
 	err = tx.QueryRow(ctx, `
 INSERT INTO mail_deliveries (recipient, template_key, template_data, idempotency_key, correlation_id)
@@ -60,6 +47,23 @@ attempt_count, reason, error_summary, created_at, updated_at, completed_at`, inp
 		&result.Delivery.IdempotencyKey, &result.Delivery.CorrelationID, &result.Delivery.Status,
 		&result.Delivery.ExtensionID, &result.Delivery.AttemptCount, &result.Delivery.Reason,
 		&result.Delivery.ErrorSummary, &result.Delivery.CreatedAt, &result.Delivery.UpdatedAt, &result.Delivery.CompletedAt)
+	return result, err
+}
+
+func (s *PostgresStore) CreateNotificationTx(ctx context.Context, tx queryRunner, input CreateInput) (Notification, error) {
+	payload := input.Payload
+	if len(payload) == 0 {
+		payload = json.RawMessage(`{}`)
+	}
+	var result Notification
+	err := tx.QueryRow(ctx, `
+INSERT INTO notifications (recipient_user_id, type, actor_user_id, target_type, target_id, payload, dedupe_key)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (dedupe_key) DO UPDATE SET dedupe_key = EXCLUDED.dedupe_key
+RETURNING id, recipient_user_id, type, actor_user_id, target_type, target_id, payload, dedupe_key, read_at, created_at`,
+		input.RecipientUserID, input.Type, input.ActorUserID, input.TargetType, input.TargetID, payload, input.DedupeKey,
+	).Scan(&result.ID, &result.RecipientUserID, &result.Type, &result.ActorUserID, &result.TargetType, &result.TargetID,
+		&result.Payload, &result.DedupeKey, &result.ReadAt, &result.CreatedAt)
 	return result, err
 }
 
