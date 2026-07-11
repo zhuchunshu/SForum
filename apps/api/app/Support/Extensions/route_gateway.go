@@ -30,7 +30,19 @@ func (g *RouteGateway) Proxy(input *ProxyInput) error {
 	request.SetRequestURI(input.TargetPath)
 	request.URI().SetScheme(target.Scheme)
 	request.URI().SetHost(target.Host)
-	request.Header.Del("Cookie")
+	// 先剥离客户端可伪造的身份/鉴权头，再只写入宿主权威值，避免匿名路由伪造 Actor-ID。
+	for _, header := range []string{
+		"Cookie",
+		"Authorization",
+		"Proxy-Authorization",
+		"X-SForum-Actor-ID",
+		"X-SForum-Extension-ID",
+		"X-SForum-Locale",
+		"X-Api-Key",
+		"X-Auth-Token",
+	} {
+		request.Header.Del(header)
+	}
 	request.Header.Set("X-SForum-Extension-ID", input.ExtensionID)
 	if input.ActorID != "" {
 		request.Header.Set("X-SForum-Actor-ID", input.ActorID)
