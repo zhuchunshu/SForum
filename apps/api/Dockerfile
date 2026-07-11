@@ -8,6 +8,8 @@ RUN go mod download
 
 COPY apps/api/ ./
 COPY extensions/builtin /app/extensions/builtin
+RUN cd /app/extensions/builtin/plugins/sforum-smtp/backend && \
+	CGO_ENABLED=0 go build -o plugin .
 
 FROM base AS dev
 

@@ -1,0 +1,21 @@
+{
+  "id": "sforum.smtp",
+  "name": "SForum SMTP",
+  "description": "Protected built-in SMTP mail delivery provider.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": { "name": "SForum", "url": "https://github.com/zhuchunshu/sforum" },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "backend": { "entry": "backend/plugin", "rpc": "hashicorp-go-plugin", "protocolVersion": 1 },
+  "providers": [{ "slot": "mail.provider", "label": "SMTP", "timeoutMs": 15000 }],
+  "settings": [
+    { "key": "host", "label": "SMTP host", "type": "text", "default": "" },
+    { "key": "port", "label": "SMTP port", "type": "number", "default": "587" },
+    { "key": "encryption", "label": "Encryption", "type": "select", "default": "starttls" },
+    { "key": "username", "label": "Username", "type": "text", "default": "" },
+    { "key": "password", "label": "Password", "type": "secret", "default": "" },
+    { "key": "from_address", "label": "From address", "type": "text", "default": "noreply@example.com" },
+    { "key": "from_name", "label": "From name", "type": "text", "default": "SForum" }
+  ]
+}
