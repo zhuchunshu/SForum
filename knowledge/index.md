@@ -4,6 +4,15 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 full security audit recorded (fixes not yet applied)**
+  - Plan (execute next): `knowledge/plans/2026-07-12-security-audit-fix-batch.md`
+  - Handoff: `knowledge/sessions/2026-07-12-security-audit-handoff.md`
+  - Scope: identity privilege escalation, plugin proxy SSRF/headers/env,
+    attachment MIME/XSS, forum moderation-on-edit + counters, CSRF Secure,
+    password-reset errors, zip/disable permissions, etc.
+  - Process: work on `main`, one git commit per plan item, related `go test`.
+  - Next session: paste one-liner from handoff / plan bottom and implement.
+
 - **2026-07-12 Settings Wave 2 done** (Brand & public chrome)
   - Session: `knowledge/sessions/2026-07-12-admin-settings-wave2.md`
   - Decision: `knowledge/decisions/2026-07-12-site-chrome-tables.md`
