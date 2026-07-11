@@ -426,6 +426,7 @@ type CreateCommentRecord struct {
 	Content            RenderedContent
 	Status             string
 	ModerationTriggers []string
+	MentionedUsernames []string
 }
 
 type PublicationInput struct {

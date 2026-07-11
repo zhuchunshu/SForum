@@ -89,3 +89,15 @@ func (o *Outbox) inTx(ctx context.Context, input QueueMailInput, before func(pgx
 	}
 	return delivery, nil
 }
+
+func (o *Outbox) CreateBundleTx(ctx context.Context, tx pgx.Tx, input CreateBundleInput) (Bundle, error) {
+	bundle, err := o.store.CreateBundleTx(ctx, tx, input)
+	if err != nil {
+		return Bundle{}, err
+	}
+	args := deliverMailArgs{DeliveryID: bundle.Delivery.ID}
+	if _, err = o.jobs.EnqueueTx(ctx, tx, args, args.enqueueOptions()); err != nil {
+		return Bundle{}, err
+	}
+	return bundle, nil
+}

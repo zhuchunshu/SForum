@@ -18,10 +18,24 @@ import (
 type PostgresStore struct {
 	pool          *pgxpool.Pool
 	avatarBuilder *avatar.ViewBuilder
+	notifications CommentNotificationWriter
+}
+
+type CommentNotificationInput struct {
+	CommentID, TopicID, ActorUserID, ParentAuthorUserID int64
+	MentionedUsernames                                  []string
+}
+type CommentNotificationWriter interface {
+	NotifyCommentTx(context.Context, pgx.Tx, CommentNotificationInput) error
 }
 
 func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
 	return NewPostgresStoreWithAvatar(pool, nil)
+}
+
+func (s *PostgresStore) WithCommentNotifications(writer CommentNotificationWriter) *PostgresStore {
+	s.notifications = writer
+	return s
 }
 
 func NewPostgresStoreWithAvatar(pool *pgxpool.Pool, avatarOptions avatar.OptionResolver) *PostgresStore {
@@ -1088,6 +1102,15 @@ func (s *PostgresStore) CreateComment(ctx context.Context, input CreateCommentRe
 	comment, err := getCommentByID(ctx, tx, commentID, s.avatarBuilder)
 	if err != nil {
 		return Comment{}, err
+	}
+	if input.Status == CommentStatusActive && s.notifications != nil {
+		parentAuthorID := int64(0)
+		if input.Parent != nil {
+			parentAuthorID = input.Parent.AuthorUserID
+		}
+		if err := s.notifications.NotifyCommentTx(ctx, tx, CommentNotificationInput{CommentID: commentID, TopicID: input.TopicID, ActorUserID: input.AuthorUserID, ParentAuthorUserID: parentAuthorID, MentionedUsernames: input.MentionedUsernames}); err != nil {
+			return Comment{}, fmt.Errorf("create comment notifications: %w", err)
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return Comment{}, fmt.Errorf("commit create comment: %w", err)

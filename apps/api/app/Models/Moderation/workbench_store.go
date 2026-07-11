@@ -295,6 +295,11 @@ func (s *PostgresStore) SubmitDecision(ctx context.Context, input DecisionInput)
 	if err != nil {
 		return Decision{}, err
 	}
+	if input.Source == SourcePrePublish && (input.Action == ActionApprove || input.Action == ActionReject) && s.notifications != nil {
+		if err := s.notifications.NotifyModerationTx(ctx, tx, DecisionNotificationInput{DecisionID: decision.ID, TargetType: input.TargetType, TargetID: input.TargetID, ReviewerUserID: input.ReviewerUserID, Approved: input.Action == ActionApprove, ReviewNote: input.ReviewNote}); err != nil {
+			return Decision{}, fmt.Errorf("create moderation notification: %w", err)
+		}
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return Decision{}, fmt.Errorf("commit moderation decision: %w", err)
 	}

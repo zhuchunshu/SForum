@@ -13,11 +13,28 @@ import (
 )
 
 type PostgresStore struct {
-	pool *pgxpool.Pool
+	pool          *pgxpool.Pool
+	notifications DecisionNotificationWriter
+}
+
+type DecisionNotificationInput struct {
+	DecisionID               int64
+	TargetType               string
+	TargetID, ReviewerUserID int64
+	Approved                 bool
+	ReviewNote               string
+}
+type DecisionNotificationWriter interface {
+	NotifyModerationTx(context.Context, pgx.Tx, DecisionNotificationInput) error
 }
 
 func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
 	return &PostgresStore{pool: pool}
+}
+
+func (s *PostgresStore) WithDecisionNotifications(writer DecisionNotificationWriter) *PostgresStore {
+	s.notifications = writer
+	return s
 }
 
 func (s *PostgresStore) GetSettings(ctx context.Context) (Settings, error) {

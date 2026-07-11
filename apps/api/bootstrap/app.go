@@ -249,6 +249,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 	notificationStore := notifications.NewPostgresStore(pool)
 	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher)
+	forumStore.WithCommentNotifications(forumNotificationAdapter{outbox: mailOutbox})
+	moderationStore.WithDecisionNotifications(moderationNotificationAdapter{outbox: mailOutbox})
 	siteName, _ := optionsService.SiteName(ctx)
 	siteURL, _ := optionsService.WebOption(ctx, "site.url")
 	passwordResetService := identity.NewPasswordResetServiceWithPasswordPolicy(identityStore, passwordResetOutbox{outbox: mailOutbox}, identity.PasswordResetConfig{

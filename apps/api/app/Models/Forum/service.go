@@ -663,6 +663,7 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 		Content:            content,
 		Status:             status,
 		ModerationTriggers: publication.Triggers,
+		MentionedUsernames: mentionedUsernames(input.Content.RawContent),
 	})
 	if err != nil {
 		return Comment{}, err
