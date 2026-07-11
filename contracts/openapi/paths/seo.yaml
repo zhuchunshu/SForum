@@ -1,0 +1,76 @@
+adminSEOAssets:
+  post:
+    summary: Upload or replace an SEO image asset
+    description: Requires seo.manage. The public image replaces the attachment reference for the supplied SEO context.
+    operationId: uploadAdminSEOAsset
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [context, file]
+            properties:
+              context:
+                type: string
+                pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+                examples: [home-og-image]
+              file:
+                type: string
+                format: binary
+    responses:
+      '201':
+        description: SEO asset uploaded and referenced.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/seo.yaml#/ApiResponseSEOAsset"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '413':
+        description: The image exceeds the configured upload limit.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+seoSitemapEntries:
+  get:
+    summary: List canonical public sitemap entries
+    description: Visibility, publication, moderation, indexing, and sitemap policies are applied by the API.
+    operationId: listSEOSitemapEntries
+    parameters:
+    - name: type
+      in: query
+      required: true
+      schema:
+        "$ref": "../schemas/seo.yaml#/SEOSitemapContentType"
+    - name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    - name: perPage
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 10000
+        default: 5000
+    responses:
+      '200':
+        description: Bounded canonical sitemap entries.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/seo.yaml#/ApiResponseSEOSitemapEntries"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"

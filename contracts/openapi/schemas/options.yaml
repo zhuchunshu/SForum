@@ -118,6 +118,47 @@ AdminWebOption:
       - seo.schema_org.search_action_enabled
       - seo.schema_org.discussion_enabled
       - seo.schema_org.organization_logo_url
+      - seo.site.inherit_site_name
+      - seo.site.name
+      - seo.home.title
+      - seo.home.description
+      - seo.home.keywords
+      - seo.home.og_title
+      - seo.home.og_description
+      - seo.home.og_image_url
+      - seo.page.title_template
+      - seo.page.default_description
+      - seo.page.title_separator
+      - seo.content_type.category.title_template
+      - seo.content_type.category.description_source
+      - seo.content_type.category.default_image_url
+      - seo.content_type.category.index_mode
+      - seo.content_type.category.include_in_sitemap
+      - seo.content_type.category.schema_type
+      - seo.content_type.tag.title_template
+      - seo.content_type.tag.description_source
+      - seo.content_type.tag.default_image_url
+      - seo.content_type.tag.index_mode
+      - seo.content_type.tag.include_in_sitemap
+      - seo.content_type.tag.schema_type
+      - seo.content_type.topic.title_template
+      - seo.content_type.topic.description_source
+      - seo.content_type.topic.default_image_url
+      - seo.content_type.topic.index_mode
+      - seo.content_type.topic.include_in_sitemap
+      - seo.content_type.topic.schema_type
+      - seo.content_type.profile.title_template
+      - seo.content_type.profile.description_source
+      - seo.content_type.profile.default_image_url
+      - seo.content_type.profile.index_mode
+      - seo.content_type.profile.include_in_sitemap
+      - seo.content_type.profile.schema_type
+      - seo.content_type.static.title_template
+      - seo.content_type.static.description_source
+      - seo.content_type.static.default_image_url
+      - seo.content_type.static.index_mode
+      - seo.content_type.static.include_in_sitemap
+      - seo.content_type.static.schema_type
       - seo.topic_url_mode
       - attachment.provider
       - attachment.upload.enabled
@@ -236,6 +277,47 @@ WebOptionInput:
       - seo.schema_org.search_action_enabled
       - seo.schema_org.discussion_enabled
       - seo.schema_org.organization_logo_url
+      - seo.site.inherit_site_name
+      - seo.site.name
+      - seo.home.title
+      - seo.home.description
+      - seo.home.keywords
+      - seo.home.og_title
+      - seo.home.og_description
+      - seo.home.og_image_url
+      - seo.page.title_template
+      - seo.page.default_description
+      - seo.page.title_separator
+      - seo.content_type.category.title_template
+      - seo.content_type.category.description_source
+      - seo.content_type.category.default_image_url
+      - seo.content_type.category.index_mode
+      - seo.content_type.category.include_in_sitemap
+      - seo.content_type.category.schema_type
+      - seo.content_type.tag.title_template
+      - seo.content_type.tag.description_source
+      - seo.content_type.tag.default_image_url
+      - seo.content_type.tag.index_mode
+      - seo.content_type.tag.include_in_sitemap
+      - seo.content_type.tag.schema_type
+      - seo.content_type.topic.title_template
+      - seo.content_type.topic.description_source
+      - seo.content_type.topic.default_image_url
+      - seo.content_type.topic.index_mode
+      - seo.content_type.topic.include_in_sitemap
+      - seo.content_type.topic.schema_type
+      - seo.content_type.profile.title_template
+      - seo.content_type.profile.description_source
+      - seo.content_type.profile.default_image_url
+      - seo.content_type.profile.index_mode
+      - seo.content_type.profile.include_in_sitemap
+      - seo.content_type.profile.schema_type
+      - seo.content_type.static.title_template
+      - seo.content_type.static.description_source
+      - seo.content_type.static.default_image_url
+      - seo.content_type.static.index_mode
+      - seo.content_type.static.include_in_sitemap
+      - seo.content_type.static.schema_type
       - attachment.upload.enabled
       - attachment.max_file_size_mb
       - attachment.allowed_extensions
@@ -314,6 +396,47 @@ AdminWebOptionInput:
       - seo.schema_org.search_action_enabled
       - seo.schema_org.discussion_enabled
       - seo.schema_org.organization_logo_url
+      - seo.site.inherit_site_name
+      - seo.site.name
+      - seo.home.title
+      - seo.home.description
+      - seo.home.keywords
+      - seo.home.og_title
+      - seo.home.og_description
+      - seo.home.og_image_url
+      - seo.page.title_template
+      - seo.page.default_description
+      - seo.page.title_separator
+      - seo.content_type.category.title_template
+      - seo.content_type.category.description_source
+      - seo.content_type.category.default_image_url
+      - seo.content_type.category.index_mode
+      - seo.content_type.category.include_in_sitemap
+      - seo.content_type.category.schema_type
+      - seo.content_type.tag.title_template
+      - seo.content_type.tag.description_source
+      - seo.content_type.tag.default_image_url
+      - seo.content_type.tag.index_mode
+      - seo.content_type.tag.include_in_sitemap
+      - seo.content_type.tag.schema_type
+      - seo.content_type.topic.title_template
+      - seo.content_type.topic.description_source
+      - seo.content_type.topic.default_image_url
+      - seo.content_type.topic.index_mode
+      - seo.content_type.topic.include_in_sitemap
+      - seo.content_type.topic.schema_type
+      - seo.content_type.profile.title_template
+      - seo.content_type.profile.description_source
+      - seo.content_type.profile.default_image_url
+      - seo.content_type.profile.index_mode
+      - seo.content_type.profile.include_in_sitemap
+      - seo.content_type.profile.schema_type
+      - seo.content_type.static.title_template
+      - seo.content_type.static.description_source
+      - seo.content_type.static.default_image_url
+      - seo.content_type.static.index_mode
+      - seo.content_type.static.include_in_sitemap
+      - seo.content_type.static.schema_type
       - human_verification.altcha.widget.type
       - human_verification.altcha.widget.auto
       - human_verification.altcha.widget.display

@@ -149,6 +149,10 @@ paths:
     "$ref": "./openapi/paths/options.yaml#/webOptionByName"
   "/admin/web-options":
     "$ref": "./openapi/paths/options.yaml#/adminWebOptions"
+  "/admin/seo/assets":
+    "$ref": "./openapi/paths/seo.yaml#/adminSEOAssets"
+  "/seo/sitemap-entries":
+    "$ref": "./openapi/paths/seo.yaml#/seoSitemapEntries"
   "/attachments":
     "$ref": "./openapi/paths/attachments.yaml#/attachments"
   "/attachments/{publicId}":
