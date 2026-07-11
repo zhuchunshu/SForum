@@ -42,6 +42,7 @@ type PluginProtocol interface {
 	Health() (PluginHealth, error)
 	RouteTarget() (PluginRouteTarget, error)
 	InvokeHook(PluginHookRequest) (PluginHookResponse, error)
+	SendMail(MailProviderRequest) (MailProviderResponse, error)
 }
 
 type PluginHealth struct {
@@ -67,6 +68,24 @@ type PluginHookResponse struct {
 	Reason  string
 	Message string
 	Patch   map[string]any
+}
+
+type MailProviderRequest struct {
+	DeliveryID    string
+	CorrelationID string
+	FromAddress   string
+	FromName      string
+	To            []string
+	Subject       string
+	TextBody      string
+	HTMLBody      string
+}
+
+type MailProviderResponse struct {
+	OK             bool
+	Classification string
+	Reason         string
+	Message        string
 }
 
 type PluginEmptyRequest struct{}
@@ -184,6 +203,16 @@ func (s *ProtocolStarter) InvokeHook(_ context.Context, extension extensions.Ext
 	return HookResult{OK: response.OK, Reason: response.Reason, Message: response.Message, Patch: response.Patch}
 }
 
+func (s *ProtocolStarter) SendMail(_ context.Context, extensionID string, request MailProviderRequest) (MailProviderResponse, error) {
+	s.mu.Lock()
+	protocol := s.protocols[extensionID]
+	s.mu.Unlock()
+	if protocol == nil {
+		return MailProviderResponse{}, extensions.ErrRuntimeUnavailable
+	}
+	return protocol.SendMail(request)
+}
+
 func ServeProtocolPlugin(impl PluginProtocol) {
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: handshakeConfig,
@@ -230,6 +259,12 @@ func (c *netRPCClient) InvokeHook(input PluginHookRequest) (PluginHookResponse, 
 	return response, err
 }
 
+func (c *netRPCClient) SendMail(input MailProviderRequest) (MailProviderResponse, error) {
+	var response MailProviderResponse
+	err := c.client.Call("Plugin.SendMail", input, &response)
+	return response, err
+}
+
 type netRPCServer struct {
 	Impl PluginProtocol
 }
@@ -248,6 +283,12 @@ func (s *netRPCServer) RouteTarget(_ PluginEmptyRequest, response *PluginRouteTa
 
 func (s *netRPCServer) InvokeHook(input PluginHookRequest, response *PluginHookResponse) error {
 	result, err := s.Impl.InvokeHook(input)
+	*response = result
+	return err
+}
+
+func (s *netRPCServer) SendMail(input MailProviderRequest, response *MailProviderResponse) error {
+	result, err := s.Impl.SendMail(input)
 	*response = result
 	return err
 }

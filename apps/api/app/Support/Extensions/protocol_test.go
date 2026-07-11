@@ -53,6 +53,15 @@ func TestProtocolStarterPerformsHashicorpHandshake(t *testing.T) {
 	if target.BaseURL != "http://127.0.0.1:43123" {
 		t.Fatalf("unexpected route target: %#v", target)
 	}
+	response, err := starter.SendMail(context.Background(), extension.ID, MailProviderRequest{
+		DeliveryID: "41", To: []string{"member@example.com"}, Subject: "Mention",
+	})
+	if err != nil {
+		t.Fatalf("send mail rpc: %v", err)
+	}
+	if !response.OK || response.Reason != "smtp.accepted" {
+		t.Fatalf("unexpected mail response: %#v", response)
+	}
 }
 
 func TestProtocolStarterHelperProcess(t *testing.T) {
@@ -88,6 +97,13 @@ func (helperProtocol) RouteTarget() (PluginRouteTarget, error) {
 
 func (helperProtocol) InvokeHook(PluginHookRequest) (PluginHookResponse, error) {
 	return PluginHookResponse{OK: true}, nil
+}
+
+func (helperProtocol) SendMail(request MailProviderRequest) (MailProviderResponse, error) {
+	if request.DeliveryID != "41" || len(request.To) != 1 {
+		return MailProviderResponse{Classification: "permanent", Reason: "smtp.invalid_request"}, nil
+	}
+	return MailProviderResponse{OK: true, Reason: "smtp.accepted"}, nil
 }
 
 var _ Starter = (*ProtocolStarter)(nil)

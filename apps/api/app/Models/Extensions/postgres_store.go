@@ -55,6 +55,30 @@ func (s *PostgresStore) Get(ctx context.Context, id string) (Extension, error) {
 	return item, nil
 }
 
+func (s *PostgresStore) GetMailProviderExtension(ctx context.Context, id string) (Extension, error) {
+	return s.Get(ctx, id)
+}
+
+func (s *PostgresStore) SelectedMailProvider(ctx context.Context) (string, error) {
+	var id string
+	err := s.pool.QueryRow(ctx, `SELECT extension_id FROM mail_provider_selection WHERE slot = 'mail.provider'`).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return id, err
+}
+
+func (s *PostgresStore) SelectMailProvider(ctx context.Context, id string) error {
+	_, err := s.pool.Exec(ctx, `INSERT INTO mail_provider_selection (slot, extension_id) VALUES ('mail.provider', $1)
+		ON CONFLICT (slot) DO UPDATE SET extension_id=EXCLUDED.extension_id, updated_at=NOW()`, id)
+	return err
+}
+
+func (s *PostgresStore) RestoreMailProvider(ctx context.Context) error {
+	_, err := s.pool.Exec(ctx, `DELETE FROM mail_provider_selection WHERE slot = 'mail.provider'`)
+	return err
+}
+
 func (s *PostgresStore) SaveInstalled(ctx context.Context, input SaveInstalledInput) (Extension, error) {
 	manifestJSON, err := json.Marshal(input.Manifest)
 	if err != nil {

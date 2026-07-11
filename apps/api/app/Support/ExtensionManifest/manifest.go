@@ -659,7 +659,7 @@ func safeContributionRoutePath(value string) bool {
 
 func knownProviderSlot(slot string) bool {
 	switch slot {
-	case "search.provider", "attachment.storage.provider", "human_verification.provider", "auth.risk.provider", "editor.sanitizer.provider":
+	case "mail.provider", "search.provider", "attachment.storage.provider", "human_verification.provider", "auth.risk.provider", "editor.sanitizer.provider":
 		return true
 	default:
 		return false
