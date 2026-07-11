@@ -276,14 +276,16 @@ targets `extensions/builtin/{plugins,themes}/{id}`.
 
 ## Next Steps
 
+- `mail.provider` is now implemented end-to-end. The protected `sforum.smtp`
+  plugin is the first real provider vertical; core contains no SMTP provider
+  code. Extension secret settings are masked/preserved and enabled plugins
+  restart after settings changes.
+
 - Implement the trusted admin plugin runtime specification before starting the
   River job monitoring module that consumes its first production slots.
 - Generalize the current theme artifact builder and supervisor contract into a
   unified Web Release Runtime without regressing existing theme activation.
 
-- Make plugins truly usable with a real `mail.provider` plugin slice: manifest
-  risk review, subprocess startup, health checks, route proxying, settings,
-  logs, event delivery visibility, disable cleanup, and failed-enable rollback.
 - Promote Provider Slots into first-class contracts, starting with
   `mail.provider`, `notification.channel`, `payment.provider`,
   `search.provider`, `attachment.storage.provider`,

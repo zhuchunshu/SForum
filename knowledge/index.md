@@ -4,6 +4,13 @@ This is the entry point for project memory.
 
 ## Current Project State
 
+- Mail and in-app notifications are implemented as a plugin-first vertical:
+  core owns durable inbox/delivery records, River scheduling, provider
+  selection, and permissions, while protected built-in plugin `sforum.smtp`
+  exclusively owns SMTP/TLS/auth transport. Replies, mentions, moderation
+  results, password reset, test mail, unread UI, and legacy SMTP adoption are
+  covered.
+
 - Repository initialized on 2026-07-03.
 - Basic documentation and knowledge-base skeleton created.
 - First application scaffold has been added under `apps/web` and `apps/api`.
