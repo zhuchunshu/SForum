@@ -25,8 +25,7 @@ func TestNormalizeAttachmentMIMETypesRejectsActiveContent(t *testing.T) {
 	}
 }
 
-// TestNormalizeAttachmentMIMETypesAcceptsSafeAndWildcard 验证安全类型与通配符仍被接受，
-// denylist 不误伤正常配置。
+// TestNormalizeAttachmentMIMETypesAcceptsSafeAndWildcard 验证安全类型与类型通配符仍被接受。
 func TestNormalizeAttachmentMIMETypesAcceptsSafeAndWildcard(t *testing.T) {
 	cases := map[string]string{
 		"image/jpeg":                 "image/jpeg",
@@ -43,6 +42,16 @@ func TestNormalizeAttachmentMIMETypesAcceptsSafeAndWildcard(t *testing.T) {
 		if got != expected {
 			t.Fatalf("normalize %q = %q, want %q", input, got, expected)
 		}
+	}
+}
+
+// TestNormalizeAttachmentMIMETypesRejectsStarStar 全通配 */* 过于宽泛，配置层拒绝。
+func TestNormalizeAttachmentMIMETypesRejectsStarStar(t *testing.T) {
+	if _, ok := normalizeAttachmentMIMETypes("*/*"); ok {
+		t.Fatal("expected */* to be rejected")
+	}
+	if _, ok := normalizeAttachmentMIMETypes("image/png,*/*"); ok {
+		t.Fatal("expected list containing */* to be rejected")
 	}
 }
 

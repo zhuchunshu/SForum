@@ -144,6 +144,57 @@ func TestServiceUploadRequiresPermissionAndValidFileType(t *testing.T) {
 	}
 }
 
+// TestServiceUploadRejectsClientMIMESpoofHTML 客户端声称 image/png 但 body 为 HTML → 拒绝。
+func TestServiceUploadRejectsClientMIMESpoofHTML(t *testing.T) {
+	service := NewServiceWithAdapterFactory(&fakeAttachmentStore{}, newAttachmentOptions(nil), func(storage.Config) (storage.Adapter, error) {
+		return &fakeStorageAdapter{}, nil
+	})
+	htmlBody := "<!DOCTYPE html><html><script>alert(1)</script></html>"
+	_, err := service.Upload(context.Background(), uploadActor(), UploadInput{
+		OriginalName: "photo.png",
+		ContentType:  "image/png",
+		SizeBytes:    int64(len(htmlBody)),
+		File:         newReadSeekCloser(htmlBody),
+	})
+	if !errors.Is(err, ErrInvalidAttachment) {
+		t.Fatalf("expected HTML spoof rejected, got %v", err)
+	}
+}
+
+// TestServiceUploadRejectsSVGEvenWithImageWildcard image/* 不得放行 image/svg+xml。
+func TestServiceUploadRejectsSVGEvenWithImageWildcard(t *testing.T) {
+	opts := newAttachmentOptions(map[string]string{
+		options.NameAttachmentAllowedExtensions: ".svg,.png",
+		options.NameAttachmentAllowedMIMETypes:  "image/*",
+	})
+	service := NewServiceWithAdapterFactory(&fakeAttachmentStore{}, opts, func(storage.Config) (storage.Adapter, error) {
+		return &fakeStorageAdapter{}, nil
+	})
+	// 最小 SVG：DetectContentType 对 XML/SVG 通常报 text/xml 或 image/svg+xml。
+	svgBody := `<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`
+	_, err := service.Upload(context.Background(), uploadActor(), UploadInput{
+		OriginalName: "icon.svg",
+		ContentType:  "image/svg+xml",
+		SizeBytes:    int64(len(svgBody)),
+		File:         newReadSeekCloser(svgBody),
+	})
+	if !errors.Is(err, ErrInvalidAttachment) {
+		t.Fatalf("expected SVG rejected under image/*, got %v", err)
+	}
+}
+
+func TestMimeAllowedBlocksActiveContentUnderWildcard(t *testing.T) {
+	if mimeAllowed([]string{"image/*"}, "image/svg+xml") {
+		t.Fatal("image/* must not allow image/svg+xml")
+	}
+	if mimeAllowed([]string{"*/*"}, "text/html") {
+		t.Fatal("*/* must not allow text/html")
+	}
+	if !mimeAllowed([]string{"image/*"}, "image/png") {
+		t.Fatal("image/* should allow image/png")
+	}
+}
+
 func TestServiceUploadSEOImageUsesSEOManageAndPublicVisibility(t *testing.T) {
 	store := &fakeAttachmentStore{}
 	service := NewServiceWithAdapterFactory(store, newAttachmentOptions(nil), func(storage.Config) (storage.Adapter, error) {

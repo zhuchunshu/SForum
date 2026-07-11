@@ -133,7 +133,9 @@ func attachmentContentDisposition(contentType, originalName string) string {
 	if options.IsAttachmentActiveContentType(contentType) {
 		disposition = "attachment"
 	}
-	return disposition + `; filename="` + strings.ReplaceAll(originalName, `"`, "") + `"`
+	// 剥离 CR/LF 与双引号，防止 Content-Disposition 头注入。
+	safeName := strings.NewReplacer("\r", "", "\n", "", `"`, "").Replace(originalName)
+	return disposition + `; filename="` + safeName + `"`
 }
 
 func (h *Controller) settings(c fiber.Ctx) error {

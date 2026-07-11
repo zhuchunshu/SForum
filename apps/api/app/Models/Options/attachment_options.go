@@ -186,6 +186,10 @@ func normalizeAttachmentMIMETypes(value string) (string, bool) {
 		if item == "" {
 			continue
 		}
+		// 全通配过于宽泛，且会与主动内容 denylist 交叉；拒绝配置。
+		if item == "*/*" {
+			return "", false
+		}
 		segments := strings.Split(item, "/")
 		if len(segments) != 2 || segments[0] == "" || segments[1] == "" {
 			return "", false

@@ -451,11 +451,15 @@ func inspectUpload(input UploadInput, settings AttachmentSettings) (uploadMetada
 
 	var sniff [512]byte
 	n, _ := io.ReadFull(input.File, sniff[:])
-	contentType := strings.TrimSpace(input.ContentType)
-	if contentType == "" || contentType == "application/octet-stream" {
-		contentType = http.DetectContentType(sniff[:n])
+	// 始终以服务端嗅探为准，忽略客户端 Content-Type，防止声称 image/png 实际上传 HTML/SVG。
+	contentType := strings.ToLower(strings.Split(http.DetectContentType(sniff[:n]), ";")[0])
+	if contentType == "" {
+		contentType = "application/octet-stream"
 	}
-	contentType = strings.ToLower(strings.Split(contentType, ";")[0])
+	// 主动内容类型（HTML/SVG/JS）硬拒绝，即使 allowlist 含 image/* 或 */*。
+	if options.IsAttachmentActiveContentType(contentType) {
+		return uploadMetadata{}, ErrInvalidAttachment
+	}
 	if !mimeAllowed(settings.AllowedMIMETypes, contentType) {
 		return uploadMetadata{}, ErrInvalidAttachment
 	}
@@ -819,13 +823,27 @@ func contains(values []string, value string) bool {
 }
 
 func mimeAllowed(allowed []string, contentType string) bool {
+	// 双重保险：主动内容即使误入 allowlist 也不匹配成功。
+	if options.IsAttachmentActiveContentType(contentType) {
+		return false
+	}
 	for _, item := range allowed {
 		item = strings.ToLower(strings.TrimSpace(item))
-		if item == contentType || item == "*/*" {
+		if item == "" {
+			continue
+		}
+		// */* 过于宽泛且易与主动内容交叉，忽略（配置层也应拒绝）。
+		if item == "*/*" {
+			continue
+		}
+		if item == contentType {
 			return true
 		}
-		if strings.HasSuffix(item, "/*") && strings.HasPrefix(contentType, strings.TrimSuffix(item, "*")) {
-			return true
+		if strings.HasSuffix(item, "/*") {
+			prefix := strings.TrimSuffix(item, "*")
+			if strings.HasPrefix(contentType, prefix) {
+				return true
+			}
 		}
 	}
 	return false
