@@ -22,7 +22,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const localePath = useLocalePath()
-const { seoSettings, siteName } = useWebOptions()
+const { seoSettings } = useWebOptions()
 const forumApi = useForumApi()
 const { can } = usePermissions()
 
@@ -128,9 +128,6 @@ const totalTopics = computed(() => {
   }
   return hasActiveFilters.value ? 0 : loadedTopicTotal.value
 })
-const latestTopics = computed(() => topics.value.slice(0, 4))
-const loadedReplyTotal = computed(() => topics.value.reduce((total, topic) => total + Number(topic.commentCount), 0))
-
 function replaceLoadedTopics(list: ForumTopicList) {
   const seen = new Set<number>()
   loadedTopics.value = list.items.filter((topic) => {
@@ -343,182 +340,148 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="sforum-home">
-    <div class="sforum-home__inner">
-      <section class="sforum-home__hero" :aria-label="t('home.dock.overview')">
-        <div>
-          <h1>{{ t('home.sidebar.welcomeTitle', { siteName }) }}</h1>
-          <p>{{ t('home.notice') }}</p>
-        </div>
-        <dl>
-          <div><dd>{{ totalTopics }}</dd><dt>{{ t('home.dock.topics') }}</dt></div>
-          <div><dd>{{ loadedReplyTotal }}</dd><dt>{{ t('home.dock.loadedReplies') }}</dt></div>
-          <div><dd>{{ categories.length }}</dd><dt>{{ t('home.dock.categories') }}</dt></div>
-          <div><dd>{{ activeTags.length }}</dd><dt>{{ t('home.tags') }}</dt></div>
-        </dl>
-      </section>
-
-      <div class="sforum-home__content">
-        <section class="sforum-home__feed" aria-labelledby="forum-feed-title">
-          <header class="sforum-home__filterbar">
-            <h2 id="forum-feed-title" class="sr-only">{{ feedTitle }}</h2>
-            <button
-              type="button"
-              class="sforum-home__filter-tab"
-              :class="{ 'is-active': !selectedCategorySlug && !selectedTagSlug }"
-              @click="resetFilters"
-            >
-              {{ t('home.filter.latest') }}
-            </button>
-            <div class="sforum-home__category-filter">
-              <label for="home-category-filter">{{ t('home.categories') }}</label>
-              <select
-                id="home-category-filter"
-                :value="selectedCategorySlug"
-                @change="selectCategory(($event.target as HTMLSelectElement).value)"
-              >
-                <option value="">{{ t('home.filter.all') }}</option>
-                <option v-for="category in categories" :key="category.slug" :value="category.slug">
-                  {{ category.name }}
-                </option>
-              </select>
-              <UIcon name="i-lucide-chevron-down" aria-hidden="true" />
-            </div>
-          </header>
-
-          <div class="sforum-home__feed-tools">
-            <SFSearch
-              v-model="searchDraft"
-              class="sforum-home__search"
-              :placeholder="t('home.searchPlaceholder')"
-              :aria-label="t('nav.search')"
-              @submit="submitSearch"
-            />
-            <NuxtLink
-              v-if="canCreateTopic"
-              :to="localePath('/topics/new')"
-              class="sforum-home__new-topic"
-            >
-              <UIcon name="i-lucide-square-pen" class="size-4" aria-hidden="true" />
-              {{ t('nav.newTopic') }}
-            </NuxtLink>
-            <NuxtLink
-              v-else
-              :to="localePath('/login')"
-              class="sforum-home__new-topic"
-            >
-              <UIcon name="i-lucide-log-in" class="size-4" aria-hidden="true" />
-              {{ t('home.loginToPost') }}
-            </NuxtLink>
-          </div>
-
-          <p v-if="committedFilters.query" class="sforum-home__search-context">
-            {{ t('home.searchResults', { query: committedFilters.query }) }}
-          </p>
-
-          <div v-if="activeTags.length || hasActiveFilters" class="sforum-home__filters" :aria-busy="tagsPending">
-            <div class="sforum-home__tag-list">
-              <button
-                v-for="tag in activeTags"
-                :key="tag.slug"
-                type="button"
-                class="sforum-home__tag"
-                :class="{ 'is-active': selectedTagSlug === tag.slug }"
-                :aria-pressed="selectedTagSlug === tag.slug"
-                @click="selectTag(tag.slug)"
-              >
-                <span>#{{ tag.name }}</span>
-              </button>
-            </div>
-            <button
-              v-if="hasActiveFilters"
-              type="button"
-              class="sforum-home__clear-filters"
-              @click="resetFilters"
-            >
-              <UIcon name="i-lucide-x" class="size-3.5" aria-hidden="true" />
-              {{ t('home.clearFilters') }}
-            </button>
-          </div>
-
-          <div id="feed-list-container" class="sforum-home__topics">
-            <div v-if="topicsError" class="sforum-home__load-error" role="alert">
-              <span>{{ t('home.feed.loadFailed') }}</span>
-              <button type="button" class="sf-button sf-button--ghost sf-button--sm" @click="retryFirstPage">
-                <UIcon name="i-lucide-refresh-cw" class="size-4" aria-hidden="true" />
-                {{ t('home.feed.retry') }}
-              </button>
-            </div>
-
-            <template v-else-if="topicsPending">
-              <div v-for="item in 7" :key="item" class="sforum-home__skeleton-row">
-                <SFSkeleton avatar :lines="2" />
-              </div>
-            </template>
-
-            <template v-else-if="topics.length">
-              <SFHomeTopicRow
-                v-for="topic in topics"
-                :key="topic.id"
-                :topic="topic"
-                :to="localePath(forumTopicPath(topic, topicUrlMode))"
-                :activity-label="topicActivity(topic)"
-              />
-            </template>
-
-            <div v-else class="sforum-home__empty">
-              <SFEmptyState
-                :title="t('home.emptyState.title')"
-                :description="emptyDescription"
-                :action-label="hasActiveFilters ? t('home.clearFilters') : undefined"
-                @action="resetFilters"
-              />
-            </div>
-          </div>
-
-          <div
-            v-if="topics.length > 0 && !topicsPending && !topicsError"
-            ref="loadMoreTrigger"
-            class="sforum-home__infinite-state"
-          >
-            <span v-if="isLoadingMore">{{ t('home.feed.loadingMore') }}</span>
-            <template v-else-if="loadMoreError">
-              <span>{{ t(loadMoreError) }}</span>
-              <button type="button" class="sf-button sf-button--ghost sf-button--sm" @click="loadMoreTopics(true)">
-                <UIcon name="i-lucide-refresh-cw" class="size-4" aria-hidden="true" />
-                {{ t('home.feed.retryLoadMore') }}
-              </button>
-            </template>
-            <span v-else-if="!hasMoreTopics">{{ t('home.feed.end') }}</span>
-            <span v-else class="sforum-home__sentinel" aria-hidden="true" />
-          </div>
-        </section>
-
-        <aside class="sforum-home__aside" :aria-label="t('home.dock.title')">
-          <section class="sforum-home__aside-panel sforum-home__aside-notice" role="note">
-            <h2><UIcon name="i-lucide-megaphone" aria-hidden="true" />{{ t('home.sidebar.secNotice') }}</h2>
-            <p>{{ t('home.notice') }}</p>
-          </section>
-
-          <section v-if="activeTags.length" class="sforum-home__aside-panel">
-            <h2><UIcon name="i-lucide-tags" aria-hidden="true" />{{ t('home.tags') }}</h2>
-            <div class="sforum-home__aside-tags">
-              <button v-for="tag in activeTags.slice(0, 12)" :key="tag.slug" type="button" @click="selectTag(tag.slug)">
-                {{ tag.name }}
-              </button>
-            </div>
-          </section>
-
-          <section class="sforum-home__aside-panel">
-            <h2><UIcon name="i-lucide-activity" aria-hidden="true" />{{ t('home.dock.latestActivity') }}</h2>
-            <ol class="sforum-home__aside-activity">
-              <li v-for="topic in latestTopics" :key="topic.id">
-                <NuxtLink :to="localePath(forumTopicPath(topic, topicUrlMode))">{{ topic.title }}</NuxtLink>
-                <time :datetime="topic.lastActivityAt || topic.createdAt">{{ topicActivity(topic) }}</time>
-              </li>
-            </ol>
-          </section>
-        </aside>
+    <div class="sforum-home__layout">
+      <div class="sforum-home__sidebar">
+        <SFHomeNavigation
+          desktop-only
+          :categories="categories"
+          :selected-category-slug="selectedCategorySlug"
+          :total-topics="totalTopics"
+          :pending="categoriesPending"
+          :can-create-topic="canCreateTopic"
+          @select-category="selectCategory"
+        />
       </div>
+
+      <section class="sforum-home__main" aria-labelledby="forum-feed-title">
+        <h2 id="forum-feed-title" class="sr-only">{{ feedTitle }}</h2>
+
+        <div class="sforum-home__mobile-nav">
+          <SFHomeNavigation
+            mobile-only
+            :categories="categories"
+            :selected-category-slug="selectedCategorySlug"
+            :total-topics="totalTopics"
+            :pending="categoriesPending"
+            :can-create-topic="canCreateTopic"
+            @select-category="selectCategory"
+          />
+        </div>
+
+        <div class="sforum-home__notice" role="note">
+          {{ t('home.notice') }}
+        </div>
+
+        <div class="sforum-home__feed-tabs" role="tablist" :aria-label="t('home.filter.latest')">
+          <button
+            type="button"
+            role="tab"
+            class="sforum-home__feed-tab"
+            :class="{ 'is-active': !selectedCategorySlug && !selectedTagSlug }"
+            :aria-selected="!selectedCategorySlug && !selectedTagSlug"
+            @click="resetFilters"
+          >
+            {{ t('home.filter.latest') }}
+          </button>
+          <button
+            v-if="selectedCategory"
+            type="button"
+            role="tab"
+            class="sforum-home__feed-tab is-active"
+            aria-selected="true"
+          >
+            {{ selectedCategory.name }}
+          </button>
+        </div>
+
+        <p v-if="committedFilters.query" class="sforum-home__search-context">
+          {{ t('home.searchResults', { query: committedFilters.query }) }}
+        </p>
+
+        <div v-if="activeTags.length || hasActiveFilters" class="sforum-home__filters" :aria-busy="tagsPending">
+          <div id="home-tags" class="sforum-home__tag-list">
+            <button
+              v-for="tag in activeTags"
+              :key="tag.slug"
+              type="button"
+              class="sforum-home__tag"
+              :class="{ 'is-active': selectedTagSlug === tag.slug }"
+              :aria-pressed="selectedTagSlug === tag.slug"
+              @click="selectTag(tag.slug)"
+            >
+              <span>#{{ tag.name }}</span>
+            </button>
+          </div>
+          <button
+            v-if="hasActiveFilters"
+            type="button"
+            class="sforum-home__clear-filters"
+            @click="resetFilters"
+          >
+            <UIcon name="i-lucide-x" class="size-3.5" aria-hidden="true" />
+            {{ t('home.clearFilters') }}
+          </button>
+        </div>
+
+        <div id="feed-list-container" class="sforum-home__topic-table">
+          <div class="sforum-home__topic-head" aria-hidden="true">
+            <span>{{ t('home.feed.topicColumn') }}</span>
+            <span>{{ t('home.feed.authorColumn') }}</span>
+            <span>{{ t('home.feed.repliesColumn') }}</span>
+            <span>{{ t('home.feed.activityColumn') }}</span>
+          </div>
+
+          <div v-if="topicsError" class="sforum-home__load-error" role="alert">
+            <span>{{ t('home.feed.loadFailed') }}</span>
+            <button type="button" class="sf-button sf-button--ghost sf-button--sm" @click="retryFirstPage">
+              <UIcon name="i-lucide-refresh-cw" class="size-4" aria-hidden="true" />
+              {{ t('home.feed.retry') }}
+            </button>
+          </div>
+
+          <template v-else-if="topicsPending">
+            <div v-for="item in 7" :key="item" class="sforum-home__skeleton-row">
+              <SFSkeleton avatar :lines="2" />
+            </div>
+          </template>
+
+          <template v-else-if="topics.length">
+            <SFHomeTopicRow
+              v-for="topic in topics"
+              :key="topic.id"
+              :topic="topic"
+              :to="localePath(forumTopicPath(topic, topicUrlMode))"
+              :activity-label="topicActivity(topic)"
+            />
+          </template>
+
+          <div v-else class="sforum-home__empty">
+            <SFEmptyState
+              :title="t('home.emptyState.title')"
+              :description="emptyDescription"
+              :action-label="hasActiveFilters ? t('home.clearFilters') : undefined"
+              @action="resetFilters"
+            />
+          </div>
+        </div>
+
+        <div
+          v-if="topics.length > 0 && !topicsPending && !topicsError"
+          ref="loadMoreTrigger"
+          class="sforum-home__infinite-state"
+        >
+          <span v-if="isLoadingMore">{{ t('home.feed.loadingMore') }}</span>
+          <template v-else-if="loadMoreError">
+            <span>{{ t(loadMoreError) }}</span>
+            <button type="button" class="sf-button sf-button--ghost sf-button--sm" @click="loadMoreTopics(true)">
+              <UIcon name="i-lucide-refresh-cw" class="size-4" aria-hidden="true" />
+              {{ t('home.feed.retryLoadMore') }}
+            </button>
+          </template>
+          <span v-else-if="!hasMoreTopics">{{ t('home.feed.end') }}</span>
+          <span v-else class="sforum-home__sentinel" aria-hidden="true" />
+        </div>
+      </section>
     </div>
   </main>
 </template>

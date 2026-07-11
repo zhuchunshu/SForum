@@ -688,10 +688,21 @@ function startTopLevelReply() {
   scrollToElement('topic-reply-editor')
 }
 
-async function jumpToLatest() {
-  commentPage.value = commentTotalPages.value
-  await nextTick()
-  scrollToElement('topic-latest')
+async function shareTopic() {
+  if (!import.meta.client || !topic.value) {
+    return
+  }
+  const url = window.location.href
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url)
+      showSuccessToast(t('topicDetail.linkCopied'))
+      return
+    }
+  } catch {
+    // 剪贴板失败时退到 prompt，避免静默失败。
+  }
+  window.prompt(t('topicDetail.copyLinkHint'), url)
 }
 
 function openReportDialog(target: { type: 'topic' | 'comment'; id: number }) {
@@ -758,157 +769,156 @@ async function submitReport() {
       <template v-else-if="topic">
         <div class="sforum-topic-page__shell">
           <div class="sforum-topic-page__reading">
-        <article id="topic-start" class="sforum-topic-page__article">
-          <div class="sforum-topic-page__heading-row">
-            <SFTopicHeading
-              :topic="topic"
-              :author-name="authorName"
-              :author-to="authorPath"
-              :category-to="categoryPath(topic.categorySlug)"
-              :tags="headingTags"
-              :published-label="formatDate(topic.createdAt)"
-            />
-            <SFTopicActionMenu
-              :items="topicActionItems"
-              :pending="actionState === 'pending'"
-              :running-id="extensionActionRunning ? `extension:${extensionActionRunning}` : ''"
-              @select="handleTopicActionSelect"
-            />
-          </div>
+            <article id="topic-start" class="sforum-topic-page__article">
+              <div class="sforum-topic-page__heading-row">
+                <SFTopicHeading
+                  :topic="topic"
+                  :author-name="authorName"
+                  :author-to="authorPath"
+                  :category-to="categoryPath(topic.categorySlug)"
+                  :tags="headingTags"
+                  :published-label="formatDate(topic.createdAt)"
+                />
+                <SFTopicActionMenu
+                  :items="topicActionItems"
+                  :pending="actionState === 'pending'"
+                  :running-id="extensionActionRunning ? `extension:${extensionActionRunning}` : ''"
+                  @select="handleTopicActionSelect"
+                />
+              </div>
 
-          <div class="sforum-topic-page__post-card">
-            <!-- 正文（后端已 sanitize）:sf-prose 由 @tailwindcss/typography 提供；v-highlight 负责代码块语法高亮 -->
-            <div class="sforum-topic-page__prose sf-prose" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
+              <div class="sforum-topic-page__post-card">
+                <!-- 正文（后端已 sanitize）；v-highlight 负责代码块语法高亮 -->
+                <div class="sforum-topic-page__prose sf-prose" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
 
-            <!-- 动作错误（不自动消失） -->
-            <SFAlert
-              v-if="showActionError"
-              variant="danger"
-              :title="actionError"
-              closable
-              class="mt-3"
-              @close="showActionError = false"
-            />
-          </div>
-        </article>
+                <div class="sforum-topic-page__actions">
+                  <button type="button" class="sforum-topic-page__action-btn" @click="shareTopic">
+                    <UIcon name="i-lucide-share-2" class="size-4" aria-hidden="true" />
+                    {{ t('topicDetail.share') }}
+                  </button>
+                  <button
+                    v-if="showReplyEditor"
+                    type="button"
+                    class="sforum-topic-page__action-btn sforum-topic-page__action-btn--primary"
+                    @click="startTopLevelReply"
+                  >
+                    <UIcon name="i-lucide-reply" class="size-4" aria-hidden="true" />
+                    {{ t('topicDetail.replyTopic') }}
+                  </button>
+                </div>
 
-        <button
-          v-if="showReplyEditor"
-          type="button"
-          class="sforum-topic-page__mobile-reply"
-          @click="startTopLevelReply"
-        >
-          <UIcon name="i-lucide-reply" class="size-4" aria-hidden="true" />
-          {{ t('topicDetail.reply') }}
-        </button>
+                <SFAlert
+                  v-if="showActionError"
+                  variant="danger"
+                  :title="actionError"
+                  closable
+                  class="mt-3"
+                  @close="showActionError = false"
+                />
+              </div>
+            </article>
 
-        <!-- 评论区域 -->
-        <section id="topic-latest" class="sforum-topic-comments">
-          <SFCommentStreamControls v-model="commentView" :count="topic.commentCount" />
+            <button
+              v-if="showReplyEditor"
+              type="button"
+              class="sforum-topic-page__mobile-reply"
+              @click="startTopLevelReply"
+            >
+              <UIcon name="i-lucide-reply" class="size-4" aria-hidden="true" />
+              {{ t('topicDetail.reply') }}
+            </button>
 
-          <div v-if="commentsError" class="sforum-topic-comments__error">
-            <SFAlert variant="danger" :title="t('topicDetail.commentsLoadFailed')" />
-            <SFButton variant="ghost" size="sm" @click="refreshComments">
-              <UIcon name="i-lucide-refresh-cw" class="size-4" aria-hidden="true" />
-              {{ t('topicDetail.retryComments') }}
-            </SFButton>
-          </div>
+            <section id="topic-latest" class="sforum-topic-comments">
+              <SFCommentStreamControls v-model="commentView" :count="topic.commentCount" />
 
-          <!-- 评论加载骨架 -->
-          <template v-if="commentsPending && !comments.length">
-            <div v-for="i in 3" :key="i" class="sforum-topic-comments__skeleton">
-              <SFSkeleton width="20%" height="1rem" class="mb-2" />
-              <SFSkeleton width="90%" class="mb-1" />
-              <SFSkeleton width="70%" />
-            </div>
-          </template>
+              <div v-if="commentsError" class="sforum-topic-comments__error">
+                <SFAlert variant="danger" :title="t('topicDetail.commentsLoadFailed')" />
+                <SFButton variant="ghost" size="sm" @click="refreshComments">
+                  <UIcon name="i-lucide-refresh-cw" class="size-4" aria-hidden="true" />
+                  {{ t('topicDetail.retryComments') }}
+                </SFButton>
+              </div>
 
-          <!-- 评论列表 -->
-          <template v-else-if="comments.length">
-            <div class="sforum-topic-comments__stream sf-comment-list">
-              <!-- 递归评论树：SFComment 内部自递归渲染 children（含任意深度 + 折叠）。
-                   操作按钮（回复/编辑/删除/举报）通过 commentActions 动态生成，颜色走 --sf-* token。
-                   内联编辑器/回复编辑器由本页 provide 的 commentEditorRenderer 在评论原位渲染（任意层级）。 -->
-              <SFComment
-                v-for="comment in comments"
-                :key="comment.id"
-                :comment="comment"
-                :author="commentAuthorName(comment)"
-                :avatar="comment.author?.avatar"
-                :author-link="commentAuthorPath(comment)"
-                :html-content="editingCommentId === comment.id ? undefined : comment.content.htmlContent"
-                :content="editingCommentId === comment.id ? '' : undefined"
-                :meta="commentMeta(comment)"
-                :presentation="commentView"
-                :depth="0"
-                :collapse-from-depth="2"
-                :reply-to="comment.replyTo ? { author: forumAuthorName(comment.replyTo.author, comment.replyTo.id), excerpt: comment.replyTo.excerpt } : undefined"
-                :actions="commentActions(comment)"
-                :comment-meta-builder="commentMeta"
-                :comment-author-link-builder="commentAuthorPath"
-                :comment-actions-builder="commentActions"
-                @action-comment="(c: ForumComment, value: string) => handleCommentClick(c, value)"
+              <template v-if="commentsPending && !comments.length">
+                <div v-for="i in 3" :key="i" class="sforum-topic-comments__skeleton">
+                  <SFSkeleton width="20%" height="1rem" class="mb-2" />
+                  <SFSkeleton width="90%" class="mb-1" />
+                  <SFSkeleton width="70%" />
+                </div>
+              </template>
+
+              <template v-else-if="comments.length">
+                <div class="sforum-topic-comments__stream sf-comment-list">
+                  <SFComment
+                    v-for="comment in comments"
+                    :key="comment.id"
+                    :comment="comment"
+                    :author="commentAuthorName(comment)"
+                    :avatar="comment.author?.avatar"
+                    :author-link="commentAuthorPath(comment)"
+                    :html-content="editingCommentId === comment.id ? undefined : comment.content.htmlContent"
+                    :content="editingCommentId === comment.id ? '' : undefined"
+                    :meta="commentMeta(comment)"
+                    :presentation="commentView"
+                    :depth="0"
+                    :collapse-from-depth="2"
+                    :reply-to="comment.replyTo ? { author: forumAuthorName(comment.replyTo.author, comment.replyTo.id), excerpt: comment.replyTo.excerpt } : undefined"
+                    :actions="commentActions(comment)"
+                    :comment-meta-builder="commentMeta"
+                    :comment-author-link-builder="commentAuthorPath"
+                    :comment-actions-builder="commentActions"
+                    @action-comment="(c: ForumComment, value: string) => handleCommentClick(c, value)"
+                  />
+                </div>
+
+                <div v-if="commentTotalPages > 1" class="flex justify-center pt-2">
+                  <SFPagination v-model:page="commentPage" :total-pages="commentTotalPages" />
+                </div>
+              </template>
+
+              <div v-else-if="!commentsError" class="sforum-topic-comments__empty">
+                <SFEmptyState
+                  :title="t('topicDetail.emptyComments.title')"
+                  :description="t('topicDetail.emptyComments.description')"
+                />
+              </div>
+
+              <section v-if="showReplyEditor" id="topic-reply-editor" class="sforum-topic-comments__reply">
+                <h3>
+                  {{ t('topicDetail.replyTitle') }}
+                </h3>
+                <LazySFEditor
+                  v-model="replyMarkdown"
+                  :placeholder="t('topicDetail.replyPlaceholder')"
+                  :submit-label="replySubmitting ? t('topicDetail.submitting') : t('topicDetail.submitReply')"
+                  :disabled="replySubmitting"
+                  @submit="onReplyEditorSubmit"
+                />
+                <SFAlert
+                  v-if="showReplyError"
+                  variant="danger"
+                  :title="replyError"
+                  closable
+                  class="mt-3"
+                  @close="showReplyError = false"
+                />
+              </section>
+
+              <SFAlert
+                v-if="isLocked"
+                variant="warning"
+                :title="t('topicDetail.lockedNotice')"
+                closable
               />
-            </div>
-
-            <!-- 分页 -->
-            <div v-if="commentTotalPages > 1" class="flex justify-center pt-2">
-              <SFPagination v-model:page="commentPage" :total-pages="commentTotalPages" />
-            </div>
-          </template>
-
-          <!-- 空评论 -->
-          <div v-else-if="!commentsError" class="sforum-topic-comments__empty">
-            <SFEmptyState
-              :title="t('topicDetail.emptyComments.title')"
-              :description="t('topicDetail.emptyComments.description')"
-            />
+            </section>
           </div>
 
-          <!-- 顶级回复编辑器 -->
-          <section v-if="showReplyEditor" id="topic-reply-editor" class="sforum-topic-comments__reply">
-            <h3>
-              {{ t('topicDetail.replyTitle') }}
-            </h3>
-            <LazySFEditor
-              v-model="replyMarkdown"
-              :placeholder="t('topicDetail.replyPlaceholder')"
-              :submit-label="replySubmitting ? t('topicDetail.submitting') : t('topicDetail.submitReply')"
-              :disabled="replySubmitting"
-              @submit="onReplyEditorSubmit"
-            />
-            <SFAlert
-              v-if="showReplyError"
-              variant="danger"
-              :title="replyError"
-              closable
-              class="mt-3"
-              @close="showReplyError = false"
-            />
-          </section>
-
-          <!-- 锁定提示 -->
-          <SFAlert
-            v-if="isLocked"
-            variant="warning"
-            :title="t('topicDetail.lockedNotice')"
-            closable
-          />
-        </section>
-          </div>
-
-          <SFTopicProgressRail
-            :current-page="commentPage"
-            :total-pages="commentTotalPages"
-            :total-posts="topic.commentCount + 1"
-            :first-label="formatDate(topic.createdAt)"
-            :latest-label="formatDate(topic.lastActivityAt || topic.updatedAt)"
-            :can-reply="showReplyEditor"
-            :locked="isLocked"
-            :pending="replySubmitting"
-            @reply="startTopLevelReply"
-            @first="scrollToElement('topic-start')"
-            @latest="jumpToLatest"
+          <SFTopicSideCard
+            :topic="topic"
+            :author-name="authorName"
+            :author-to="authorPath"
+            :tags="headingTags"
+            :category-to="categoryPath(topic.categorySlug)"
           />
         </div>
       </template>

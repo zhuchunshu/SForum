@@ -1,13 +1,27 @@
 <script setup lang="ts">
-import type { ForumCategory } from '~/utils/forumTaxonomy'
+import { forumCategoryPath, type ForumCategory } from '~/utils/forumTaxonomy'
 
 const props = withDefaults(defineProps<{
   categories: ForumCategory[]
   selectedCategorySlug: string
   totalTopics: number
   pending?: boolean
+  canCreateTopic?: boolean
+  /** 仅渲染移动端选择器（用于主列顶部） */
+  mobileOnly?: boolean
+  /** 仅渲染桌面左栏 */
+  desktopOnly?: boolean
+  /**
+   * filter：首页 URL query 筛选（emit select-category）
+   * route：跳转 / 与 /c/:slug（类别页/标签页）
+   */
+  navigationMode?: 'filter' | 'route'
 }>(), {
-  pending: false
+  pending: false,
+  canCreateTopic: false,
+  mobileOnly: false,
+  desktopOnly: false,
+  navigationMode: 'filter'
 })
 
 const emit = defineEmits<{
@@ -15,23 +29,43 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const localePath = useLocalePath()
+const router = useRouter()
 
-function categoryIcon(category: ForumCategory) {
-  return category.icon?.startsWith('i-') ? category.icon : 'i-lucide-hash'
+const useRouteLinks = computed(() => props.navigationMode === 'route')
+
+function allTopicsTo() {
+  return localePath('/')
+}
+
+function categoryTo(slug: string) {
+  return localePath(forumCategoryPath(slug))
+}
+
+function selectCategory(slug: string) {
+  if (useRouteLinks.value) {
+    void router.push(slug ? categoryTo(slug) : allTopicsTo())
+    return
+  }
+  emit('select-category', slug)
 }
 
 function selectFromMenu(event: Event) {
-  emit('select-category', (event.target as HTMLSelectElement).value)
+  selectCategory((event.target as HTMLSelectElement).value)
+}
+
+function categoryDotColor(category: ForumCategory) {
+  return category.iconColor || 'var(--sf-accent)'
 }
 </script>
 
 <template>
   <aside class="sf-home-navigation" :aria-busy="pending">
-    <div class="sf-home-navigation__mobile">
+    <div v-if="!desktopOnly" class="sf-home-navigation__mobile">
       <label class="sf-home-navigation__select-wrap">
         <span class="sf-home-navigation__select-label">{{ t('home.categories') }}</span>
         <span class="sf-home-navigation__select-control">
-          <UIcon name="i-lucide-panels-top-left" class="size-4" aria-hidden="true" />
+          <UIcon name="i-lucide-layout-list" class="size-4" aria-hidden="true" />
           <select
             class="sf-home-navigation__select"
             :value="selectedCategorySlug"
@@ -47,42 +81,90 @@ function selectFromMenu(event: Event) {
       </label>
     </div>
 
-    <nav class="sf-home-navigation__desktop" :aria-label="t('home.categories')">
+    <div v-if="!mobileOnly" class="sf-home-navigation__desktop">
+      <NuxtLink
+        v-if="canCreateTopic"
+        :to="localePath('/topics/new')"
+        class="sf-home-navigation__compose"
+      >
+        <UIcon name="i-lucide-plus" class="size-4" aria-hidden="true" />
+        {{ t('home.sidebar.newTopic') }}
+      </NuxtLink>
+      <NuxtLink
+        v-else
+        :to="localePath('/login')"
+        class="sf-home-navigation__compose"
+      >
+        <UIcon name="i-lucide-log-in" class="size-4" aria-hidden="true" />
+        {{ t('home.loginToPost') }}
+      </NuxtLink>
+
+      <div class="sf-home-navigation__label">{{ t('home.sidebar.navTitle') }}</div>
+      <NuxtLink
+        v-if="useRouteLinks"
+        :to="allTopicsTo()"
+        class="sf-home-navigation__link"
+        :class="{ 'is-active': !selectedCategorySlug }"
+      >
+        <span class="sf-home-navigation__link-main">{{ t('home.allTopics') }}</span>
+        <span class="sf-home-navigation__count">{{ totalTopics }}</span>
+      </NuxtLink>
+      <button
+        v-else
+        type="button"
+        class="sf-home-navigation__link"
+        :class="{ 'is-active': !selectedCategorySlug }"
+        :aria-pressed="!selectedCategorySlug"
+        @click="selectCategory('')"
+      >
+        <span class="sf-home-navigation__link-main">{{ t('home.allTopics') }}</span>
+        <span class="sf-home-navigation__count">{{ totalTopics }}</span>
+      </button>
+
+      <div class="sf-home-navigation__label">{{ t('home.categories') }}</div>
       <div v-if="pending" class="sf-home-navigation__pending">
         <SFSkeleton v-for="item in 4" :key="item" :lines="1" />
       </div>
-      <template v-else>
-        <button
-          type="button"
-          class="sf-home-navigation__item"
-          :class="{ 'is-active': !selectedCategorySlug }"
-          :aria-pressed="!selectedCategorySlug"
-          :title="t('home.allTopics')"
-          @click="emit('select-category', '')"
+      <template v-else-if="useRouteLinks">
+        <NuxtLink
+          v-for="category in categories"
+          :key="category.slug"
+          :to="categoryTo(category.slug)"
+          class="sf-home-navigation__link"
+          :class="{ 'is-active': selectedCategorySlug === category.slug }"
         >
-          <UIcon name="i-lucide-messages-square" class="sf-home-navigation__icon" aria-hidden="true" />
-          <span class="sr-only">{{ t('home.allTopics') }}</span>
-        </button>
-
+          <span class="sf-home-navigation__link-main">
+            <span
+              class="sf-home-navigation__cat-dot"
+              :style="{ background: categoryDotColor(category) }"
+              aria-hidden="true"
+            />
+            {{ category.name }}
+          </span>
+          <span class="sf-home-navigation__count">{{ category.topicCount }}</span>
+        </NuxtLink>
+      </template>
+      <template v-else>
         <button
           v-for="category in categories"
           :key="category.slug"
           type="button"
-          class="sf-home-navigation__item"
+          class="sf-home-navigation__link"
           :class="{ 'is-active': selectedCategorySlug === category.slug }"
           :aria-pressed="selectedCategorySlug === category.slug"
-          :title="category.name"
-          @click="emit('select-category', category.slug)"
+          @click="selectCategory(category.slug)"
         >
-          <UIcon
-            :name="categoryIcon(category)"
-            class="sf-home-navigation__icon"
-            :style="category.iconColor ? { color: category.iconColor } : undefined"
-            aria-hidden="true"
-          />
-          <span class="sr-only">{{ category.name }}</span>
+          <span class="sf-home-navigation__link-main">
+            <span
+              class="sf-home-navigation__cat-dot"
+              :style="{ background: categoryDotColor(category) }"
+              aria-hidden="true"
+            />
+            {{ category.name }}
+          </span>
+          <span class="sf-home-navigation__count">{{ category.topicCount }}</span>
         </button>
       </template>
-    </nav>
+    </div>
   </aside>
 </template>

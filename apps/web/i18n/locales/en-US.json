@@ -41,7 +41,7 @@
     "metaDescription": "{siteName} is a maintainable, high-performance minimalist community forum.",
     "searchPlaceholder": "Search threads, content...",
     "notice": "Be sincere, friendly, united, and professional as we build a community we are proud of.",
-    "allTopics": "All discussions",
+    "allTopics": "All topics",
     "categories": "Categories",
     "tags": "Tags",
     "clearFilters": "Clear filters",
@@ -71,6 +71,7 @@
     },
     "badge": {
       "pinned": "Pinned",
+      "locked": "Locked",
       "featured": "Featured"
     },
     "emptyState": {
@@ -86,10 +87,12 @@
       "retryLoadMore": "Retry",
       "end": "You are all caught up",
       "topicColumn": "Topic",
+      "authorColumn": "Author",
       "repliesColumn": "Replies",
       "activityColumn": "Activity",
       "latestActivity": "Latest activity",
       "replyCount": "{count} replies",
+      "topicCountMeta": "{count} topics",
       "views": "views",
       "activityMinutes": "{count} min",
       "activityHours": "{count} h",
@@ -1911,6 +1914,20 @@
     "statsViews": "Views",
     "statsComments": "Replies",
     "statsCreated": "Posted",
+    "share": "Share",
+    "replyTopic": "Reply",
+    "linkCopied": "Link copied",
+    "copyLinkHint": "Copy link",
+    "side": {
+      "title": "Topic info",
+      "status": "Status",
+      "statusActive": "Open",
+      "category": "Category",
+      "replies": "Replies",
+      "views": "Views",
+      "participants": "Participants",
+      "tags": "Tags"
+    },
     "progress": {
       "label": "Reading progress",
       "contents": "On this page",

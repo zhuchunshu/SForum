@@ -381,12 +381,18 @@ function normalizeExtensionLocaleKey(value?: string | null) {
     return ''
   }
   const parts = raw.split('-').filter(Boolean)
-  if (!parts.length) {
+  const first = parts[0]
+  if (!first) {
     return ''
   }
-  parts[0] = parts[0].toLowerCase()
+  // 语言主码小写；两位区域码大写（zh-CN），其余段小写。
+  parts[0] = first.toLowerCase()
   for (let index = 1; index < parts.length; index += 1) {
-    parts[index] = parts[index].length === 2 ? parts[index].toUpperCase() : parts[index].toLowerCase()
+    const part = parts[index]
+    if (!part) {
+      continue
+    }
+    parts[index] = part.length === 2 ? part.toUpperCase() : part.toLowerCase()
   }
   return parts.join('-')
 }

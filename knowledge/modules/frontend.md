@@ -69,35 +69,28 @@ through `SFORUM_THEME_LAYER`. The layer owns the homepage, default layout, auth
 layout/pages, public navbar/footer, and public/auth chrome CSS. Core keeps admin
 pages/layout, auth/session logic, API clients, i18n catalogs, SEO helpers,
 permissions, and reusable component/composable infrastructure.
-The default-theme homepage uses infinite scrolling for the central topic feed:
-page 1 is still SSR-loaded through the existing forum topic/search APIs, while
-client scroll uses `IntersectionObserver` to append later pages. The loaded
-feed and total are initialized from `topicList.value` into Nuxt `useState` so
-the SSR rows survive hydration in development payload mode. Desktop homepage
-side rails remain sticky but are viewport-bounded with internal scrolling.
-The default-theme public forum follows the approved Modern Card Flow direction
-from `design-preview/c-modern` and the 2026-07-12 screenshots. The shared shell
-uses a 1140px container and token-driven cold-white surfaces. At a 1425px
-browser content width the homepage measures 768px + 300px content tracks,
-150px topic cards, and a 106px real-data overview band. Topic cards consume
-only API-backed category, author, activity, excerpt, tag, reply, and view data;
-the sidebar does not fabricate likes, online members, last repliers, or weekly
-member rankings.
-Search, category, and tag filters are reflected in the URL; search is debounced
-and stale requests are rejected before they can replace newer results. Base
-homepage responses retain shared-cache headers, while `/` and `/en` query
-variants are marked `no-store` by `server/middleware/home-query-cache.ts` to
-avoid Nitro's root-route payload file-key collision.
-
-Topic detail uses a 760px reading card plus a 240px sticky contents/progress
-rail on desktop. `SFTopicHeading`, `SFTopicProgressRail`,
-`SFTopicActionMenu`, `SFCommentStreamControls`, and `SFReportDialog` own focused
-presentation concerns; the route still owns loading, routing, SEO, permissions,
-mutations, and plugin action orchestration. The progress component derives its
-contents from sanitized rendered `h2`/`h3` elements and assigns local anchors.
-Top-level comments are standalone cards while descendants stay inside the
-parent surface. On mobile the rail is hidden and the essential reply action
-returns to normal document flow.
+The default-theme public forum follows V32 暖橙左栏 (demo
+`tmp/demo/grok/1/v32-right-sidebar/`, content is left-nav despite the folder
+name). Layout:
+- Sticky topbar (`SFNavbar`): logo, Latest/Categories/Tags (real destinations
+  only), search, compose, session controls. Density ~52px.
+- Homepage: sticky 240px left nav (`SFHomeNavigation`) with compose, all
+  topics, and category color dots + counts; main column notice + latest feed
+  tab + dense topic table (`SFHomeTopicRow` without excerpt cards). Author
+  avatar column is honest (author only; no fabricated participant stacks).
+- Infinite scroll still SSR-loads page 1 via topic/search APIs, hydrates through
+  Nuxt `useState`, and appends with `IntersectionObserver`. URL-backed filters
+  and stale-response guards are unchanged. Missing API capabilities (unread,
+  ranking, mine-only feed, likes, bookmarks) are not rendered.
+- Topic detail: main article + comment tree + composer; sticky 280px
+  `SFTopicSideCard` (status/category/replies/views, author as participant,
+  tags). Share copies the URL; no fake like/bookmark. Comment stream remains
+  tree/flat via `SFCommentStreamControls` (backend has no relevance sort).
+  `SFTopicProgressRail` is retained in the theme package but no longer mounted
+  on the default detail route.
+Public surface tokens live in the theme layer (`sforum-theme.css` etc.);
+`--sf-accent*` still come from runtime appearance. Dark mode uses the existing
+`.dark` public variables.
 
 `SFComment` has an explicit `presentation`, `depth`, and
 `collapseFromDepth` contract. Tree mode renders one branch rail/inset on

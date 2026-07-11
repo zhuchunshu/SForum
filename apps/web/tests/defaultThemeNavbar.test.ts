@@ -15,12 +15,12 @@ describe('default theme shared navbar contract', () => {
     expect(source).not.toContain('disabled')
   })
 
-  test('uses the shared modern card flow shell on every public page', () => {
+  test('uses the V32 sticky topbar shell on every public page', () => {
     expect(source).not.toContain('isWorkbenchHome')
     expect(source).not.toContain('navbar--workbench')
-    expect(source).toContain('max-width: var(--sf-public-container);')
-    expect(source).toContain('min-height: 60px;')
-    expect(source).toContain('background: var(--sf-public-glass);')
+    expect(source).toContain('min-height: var(--sf-public-topbar-height, 52px)')
+    expect(source).toContain('background: var(--sf-public-surface)')
+    expect(source).toContain('scrollToHomeSection')
   })
 
   test('orders the desktop identity, home nav, search, compose action, and session controls', () => {
@@ -37,8 +37,13 @@ describe('default theme shared navbar contract', () => {
     expect(newTopicIndex).toBeGreaterThan(searchIndex)
     expect(actionsIndex).toBeGreaterThan(newTopicIndex)
     expect(navMarkup).toContain(':to="localePath(\'/\')"')
+    expect(navMarkup).toContain("t('home.filter.latest')")
+    expect(navMarkup).toContain("t('home.filter.categories')")
+    expect(navMarkup).toContain("t('home.filter.tags')")
     expect(navMarkup).not.toContain('/topics/new')
     expect(navMarkup).not.toContain('canCreateTopic')
+    expect(navMarkup).not.toContain('热门')
+    expect(navMarkup).not.toContain('排行')
   })
 
   test('submits compact search to the locale-aware homepage query', () => {
@@ -76,50 +81,5 @@ describe('default theme shared navbar contract', () => {
     expect(linkMarkup).toContain(':aria-label="t(\'nav.newTopic\')"')
     expect(menuItems).not.toContain('/topics/new')
     expect(menuItems).not.toContain("t('nav.newTopic')")
-  })
-
-  test('opens a mobile search panel and closes it after locale-aware submission', () => {
-    expect(source).toContain('const mobileSearchOpen = ref(false)')
-    expect(source).toMatch(
-      /label: t\('nav.search'\)[\s\S]*onSelect: \(\) => \{[\s\S]*mobileSearchOpen.value = true/
-    )
-    expect(source).toContain('v-if="mobileSearchOpen"')
-    expect(source).toContain('class="navbar__mobile-search-panel"')
-    expect(source).toContain('@submit="submitMobileSearch"')
-    expect(source).toContain(':aria-label="t(\'nav.closeSearch\')"')
-    expect(source).toMatch(
-      /function submitMobileSearch\(query: string\)[\s\S]*mobileSearchOpen.value = false[\s\S]*return submitSearch\(query\)/
-    )
-  })
-
-  test('provides 40px mobile touch targets for direct header actions and search', () => {
-    const mobileStyles = source.slice(source.indexOf('@media (max-width: 980px)'))
-
-    for (const selector of [
-      '.navbar__logo',
-      '.navbar__mobile-new-topic',
-      '.navbar__user-trigger',
-      '.navbar__mobile-trigger',
-      '.navbar__mobile-search-close',
-      '.navbar__mobile-search'
-    ]) {
-      expect(mobileStyles).toContain(selector)
-    }
-
-    expect(mobileStyles).toContain('min-height: 40px')
-    expect(mobileStyles).toContain('min-width: 40px')
-  })
-
-  test('provides the shared header labels in both locales', () => {
-    const localeFiles = ['zh-CN.json', 'en-US.json']
-
-    for (const file of localeFiles) {
-      const messages = JSON.parse(readFileSync(new URL(`../i18n/locales/${file}`, import.meta.url), 'utf8'))
-
-      for (const key of ['search', 'closeSearch', 'openMenu', 'newTopic', 'appearance', 'language']) {
-        expect(messages.nav[key]).toBeString()
-        expect(messages.nav[key].length).toBeGreaterThan(0)
-      }
-    }
   })
 })

@@ -41,8 +41,8 @@
     "metaDescription": "{siteName} 是一个可维护、高性能的极简社区论坛。",
     "searchPlaceholder": "搜索帖子标题、内容...",
     "notice": "真诚、友善、团结、专业，共建你我引以为荣的社区。",
-    "allTopics": "全部讨论",
-    "categories": "分类",
+    "allTopics": "全部话题",
+    "categories": "类别",
     "tags": "标签",
     "clearFilters": "清除筛选",
     "searchResults": "“{query}”的搜索结果",
@@ -71,6 +71,7 @@
     },
     "badge": {
       "pinned": "置顶",
+      "locked": "锁定",
       "featured": "精华"
     },
     "emptyState": {
@@ -86,10 +87,12 @@
       "retryLoadMore": "重试",
       "end": "已经到底了",
       "topicColumn": "话题",
+      "authorColumn": "参与",
       "repliesColumn": "回复",
       "activityColumn": "活动",
       "latestActivity": "最新活动",
-      "replyCount": "{count} 条回复",
+      "replyCount": "{count} 回复",
+      "topicCountMeta": "{count} 个主题",
       "views": "浏览",
       "activityMinutes": "{count} 分钟",
       "activityHours": "{count} 小时",
@@ -1917,6 +1920,20 @@
     "statsViews": "浏览",
     "statsComments": "回复",
     "statsCreated": "发布于",
+    "share": "分享",
+    "replyTopic": "回复主题",
+    "linkCopied": "链接已复制",
+    "copyLinkHint": "复制链接",
+    "side": {
+      "title": "主题信息",
+      "status": "状态",
+      "statusActive": "讨论中",
+      "category": "类别",
+      "replies": "回复",
+      "views": "浏览",
+      "participants": "参与者",
+      "tags": "标签"
+    },
     "progress": {
       "label": "阅读进度",
       "contents": "本文目录",

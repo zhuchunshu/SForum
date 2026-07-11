@@ -79,17 +79,16 @@ This is the entry point for project memory.
   `content_html_sanitized`, `content_markdown`, and `content_native_json`.
   Client HTML remains untrusted; the API must accept allowlisted content,
   regenerate derived formats, and sanitize display HTML before storage.
-- The protected built-in default theme now implements the screenshot-aligned
-  Modern Card Flow direction. Its shared shell uses a 1140px container; the
-  homepage uses a 106px real-data overview, 768px topic-card feed, 300px
-  activity sidebar, URL-backed filters, and SSR-first infinite scrolling.
-  Topic detail uses a 760px reading card with a 240px sticky contents/progress
-  rail; comments keep their complete tree while top-level replies render as
-  cards and all visual depth flattens on mobile.
-- The default-theme homepage feed now uses client-side infinite scrolling
-  instead of visible page-number pagination. The first page remains SSR-loaded,
-  the loaded feed is preserved through Nuxt state for hydration, and desktop
-  side rails are sticky with viewport-bounded internal scrolling.
+- The protected built-in default theme follows V32 暖橙左栏: sticky topbar,
+  240px left category navigation, dense topic table (not card magazine flow),
+  and topic detail dual-column (main article/comments + 280px info side card).
+  Accent color still comes from `appearance.theme` (`--sf-accent`); warm orange
+  is available via `amber` / `custom:#c2410c`. Homepage keeps URL-backed
+  filters and SSR-first infinite scrolling without fabricated unread/hot/mine
+  or participant stacks.
+- The default-theme homepage feed uses client-side infinite scrolling: page 1
+  remains SSR-loaded, the loaded feed is preserved through Nuxt state for
+  hydration, and the left sidebar is sticky with internal scrolling.
 - Base homepage responses keep shared-cache headers, while homepage query
   variants disable Nitro payload caching and return `cache-control: no-store`.
   This avoids the root-route payload file-key collision that otherwise causes
@@ -439,6 +438,14 @@ This is the entry point for project memory.
 - `sessions/` - short handoffs from previous work sessions.
 - `glossary.md` - shared terms and domain language.
 - `research.md` - library and ecosystem research notes.
+- `architecture-maturity-audit.md` - living modularization scorecard and
+  performance checklist (claim vs code). Last reviewed 2026-07-12: modular
+  host ~7/10, performance engineering ~6/10, performance proof low.
+- `plans/2026-07-12-development-directions.md` - near-term development strategy:
+  five tracks, effort mix (~70/20/10), iterations A/B/C, and explicit depriorities.
+- `plans/2026-07-12-iteration-a-engagement-loop.md` - Iteration A implementation
+  checklist: view counts, likes/reactions, bookmarks; topic lifecycle already
+  mostly shipped.
 - `decisions/2026-07-06-tiptap-editor-content-storage.md` - Tiptap editor,
   triple content storage, and server-side XSS safety boundary.
 - `../docs/architecture.md` - proposed technical architecture and directory

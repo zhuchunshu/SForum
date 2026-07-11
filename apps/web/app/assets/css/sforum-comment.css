@@ -1,15 +1,15 @@
 /* SFComment：数据可保留任意深度，视觉树最多只有一级连接线。 */
 .sf-comment {
-  --sf-comment-branch: #0f766e;
-  --sf-comment-branch-soft: rgb(15 118 110 / 0.08);
+  --sf-comment-branch: var(--sf-accent);
+  --sf-comment-branch-soft: var(--sf-accent-soft);
   width: 100%;
   min-width: 0;
   max-width: 100%;
 }
 
 .dark .sf-comment {
-  --sf-comment-branch: #5eead4;
-  --sf-comment-branch-soft: rgb(45 212 191 / 0.12);
+  --sf-comment-branch: var(--sf-accent-dark, var(--sf-accent));
+  --sf-comment-branch-soft: rgb(var(--sf-accent-rgb) / 0.12);
 }
 
 .sf-comment__branch > .sf-comment + .sf-comment {
@@ -19,8 +19,8 @@
 .sf-comment-list > .sf-comment {
   overflow: hidden;
   border: 1px solid var(--sf-public-border);
-  border-radius: 8px;
-  padding: 0 1.25rem;
+  border-radius: 12px;
+  padding: 0 1rem;
   background: var(--sf-public-surface);
   box-shadow: var(--sf-public-shadow);
 }

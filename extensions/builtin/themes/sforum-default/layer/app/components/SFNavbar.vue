@@ -225,6 +225,19 @@ function submitSearch(query: string) {
   })
 }
 
+// 顶栏「类别/标签」仅在首页滚动到对应区域；其它页面先回首页再定位。
+async function scrollToHomeSection(elementId: string) {
+  const homePath = localePath('/')
+  if (route.path !== homePath && !route.path.endsWith(homePath)) {
+    await navigateTo(homePath)
+    await nextTick()
+  }
+  if (!import.meta.client) {
+    return
+  }
+  document.getElementById(elementId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 function submitMobileSearch(query: string) {
   mobileSearchOpen.value = false
   return submitSearch(query)
@@ -260,10 +273,24 @@ async function logout() {
         <NuxtLink
           :to="localePath('/')"
           class="navbar__nav-link"
-          :aria-label="t('nav.home')"
+          :aria-label="t('home.filter.latest')"
         >
-          {{ t('nav.home') }}
+          {{ t('home.filter.latest') }}
         </NuxtLink>
+        <a
+          href="#feed-list-container"
+          class="navbar__nav-link"
+          @click.prevent="scrollToHomeSection('feed-list-container')"
+        >
+          {{ t('home.filter.categories') }}
+        </a>
+        <a
+          href="#home-tags"
+          class="navbar__nav-link"
+          @click.prevent="scrollToHomeSection('home-tags')"
+        >
+          {{ t('home.filter.tags') }}
+        </a>
       </nav>
 
       <SFSearch
@@ -416,21 +443,20 @@ async function logout() {
   position: sticky;
   top: 0;
   z-index: 50;
-  min-height: 60px;
+  min-height: var(--sf-public-topbar-height, 52px);
   border-bottom: 1px solid var(--sf-public-border);
-  background: var(--sf-public-glass);
-  box-shadow: 0 1px 0 rgb(15 23 42 / 0.02);
-  backdrop-filter: saturate(160%) blur(12px);
+  background: var(--sf-public-surface);
+  box-shadow: none;
 }
 
 .navbar__inner {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 60px;
-  max-width: var(--sf-public-container);
-  margin: 0 auto;
-  padding: 0 24px;
+  gap: 18px;
+  min-height: var(--sf-public-topbar-height, 52px);
+  max-width: none;
+  margin: 0;
+  padding: 0 20px;
 }
 
 .navbar__logo,
@@ -485,12 +511,13 @@ async function logout() {
 .navbar__nav-link {
   gap: 6px;
   min-height: 34px;
-  padding: 0 10px;
-  border-radius: 6px;
-  color: #4b5563;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 7px 11px;
+  border-radius: 7px;
+  color: var(--sf-public-text-muted, #64748b);
+  font-size: 13px;
+  font-weight: 650;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .navbar__nav-link:hover,
@@ -527,8 +554,8 @@ async function logout() {
 }
 
 .navbar__search {
-  width: min(32vw, 360px);
-  min-width: 200px;
+  width: min(260px, 30vw);
+  min-width: 160px;
   margin-left: auto;
 }
 
