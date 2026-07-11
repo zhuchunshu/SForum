@@ -6,8 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
-	"net/url"
-	"strings"
 	"sync"
 	"time"
 
@@ -378,17 +376,9 @@ func secureSessionID() string {
 	return base64.RawURLEncoding.EncodeToString(token[:])
 }
 
-// shouldUseSecureCookie 决定 session/CSRF cookie 是否带 Secure 标志。
-// 生产环境（AppEnv=="production"）强制启用；此外当 APP_URL 是 https 时也启用，
-// 避免 staging 等"非 production 但走 HTTPS"的部署因环境字符串漏配而把 cookie 走 HTTP。
+// shouldUseSecureCookie 委托 config 包，与 CSRF CookieSecure 共用同一判定。
 func shouldUseSecureCookie(cfg config.Config) bool {
-	if strings.EqualFold(cfg.AppEnv, "production") {
-		return true
-	}
-	if parsed, err := url.Parse(strings.TrimSpace(cfg.AppURL)); err == nil {
-		return strings.EqualFold(parsed.Scheme, "https")
-	}
-	return false
+	return config.ShouldUseSecureCookie(cfg)
 }
 
 func (api *API) Close() {

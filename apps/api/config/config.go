@@ -302,6 +302,18 @@ func envStringSlice(key string) []string {
 	return items
 }
 
+// ShouldUseSecureCookie 决定 session/CSRF cookie 是否带 Secure 标志。
+// 生产环境强制启用；此外当 APP_URL 为 https 时也启用，避免 staging HTTPS 漏配。
+func ShouldUseSecureCookie(cfg Config) bool {
+	if strings.EqualFold(cfg.AppEnv, "production") {
+		return true
+	}
+	if parsed, err := url.Parse(strings.TrimSpace(cfg.AppURL)); err == nil {
+		return strings.EqualFold(parsed.Scheme, "https")
+	}
+	return false
+}
+
 // originsFromAppURL 从 APP_URL 派生 origin（scheme://host），作为 CSRF 信任源默认值。
 // 解析失败或为空时返回 nil，交由上层按空信任源处理。
 func originsFromAppURL(appURL string) []string {

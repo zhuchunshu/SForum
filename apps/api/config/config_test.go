@@ -403,6 +403,19 @@ func TestLoadCSRFTrustedOriginsDefaultsFromAppURL(t *testing.T) {
 	}
 }
 
+// TestShouldUseSecureCookieAlignsSessionAndCSRF 与 session/CSRF 共用 Secure 判定。
+func TestShouldUseSecureCookieAlignsSessionAndCSRF(t *testing.T) {
+	if !ShouldUseSecureCookie(Config{AppEnv: "production", AppURL: "http://localhost"}) {
+		t.Fatal("production must force Secure")
+	}
+	if !ShouldUseSecureCookie(Config{AppEnv: "staging", AppURL: "https://forum.example.com"}) {
+		t.Fatal("https APP_URL must enable Secure outside production")
+	}
+	if ShouldUseSecureCookie(Config{AppEnv: "development", AppURL: "http://127.0.0.1:3000"}) {
+		t.Fatal("plain http non-production must not force Secure")
+	}
+}
+
 // TestOriginsFromAppURLHandlesInvalidInput 验证无效 APP_URL 不产生 origin。
 func TestOriginsFromAppURLHandlesInvalidInput(t *testing.T) {
 	for _, input := range []string{"", "   ", "not-a-url", "/relative/path"} {

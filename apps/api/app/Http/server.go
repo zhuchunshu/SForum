@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -96,7 +95,8 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 		api.Use(csrf.New(csrf.Config{
 			Storage:         deps.Storage,
 			CookieSameSite:  fiber.CookieSameSiteLaxMode,
-			CookieSecure:    strings.EqualFold(cfg.AppEnv, "production"),
+			// 与 session cookie 共用 Secure 判定，避免 staging HTTPS 下 csrf_ 仍可明文读取。
+			CookieSecure:    config.ShouldUseSecureCookie(cfg),
 			CookieHTTPOnly:  false, // SPA 必须能读取 csrf_ cookie 以回传 token
 			CookiePath:      "/",
 			TrustedOrigins:  cfg.CSRFTrustedOrigins,
