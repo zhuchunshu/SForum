@@ -177,6 +177,11 @@ const fallbackOptions: Record<string, string> = {
   'site.url': 'http://127.0.0.1:3000',
   'site.default_locale': 'zh-CN',
   'site.supported_locales': 'zh-CN,en-US',
+  // 站点展示时区与日期时间格式（与后端 recommended 默认对齐）。
+  'site.timezone': 'UTC',
+  'site.date_format': 'Y-m-d',
+  'site.time_format': 'H:i',
+  'site.start_of_week': '1',
   'human_verification.provider': 'disabled',
   'human_verification.scenarios.register': enabledOption,
   'human_verification.scenarios.password_reset': disabledOption,
@@ -313,6 +318,13 @@ export const useWebOptions = () => {
   const siteUrl = computed(() => webOption('site.url', 'http://127.0.0.1:3000'))
   const defaultLocale = computed(() => webOption('site.default_locale', 'zh-CN'))
   const supportedLocales = computed(() => parseSupportedLocales(webOption('site.supported_locales', 'zh-CN,en-US')))
+  const siteTimezone = computed(() => webOption('site.timezone', 'UTC'))
+  const siteDateFormat = computed(() => webOption('site.date_format', 'Y-m-d'))
+  const siteTimeFormat = computed(() => webOption('site.time_format', 'H:i'))
+  const siteStartOfWeek = computed(() => {
+    const n = Number.parseInt(webOption('site.start_of_week', '1'), 10)
+    return Number.isFinite(n) && n >= 0 && n <= 6 ? n : 1
+  })
   const appearanceTheme = computed(() => parseAppearanceTheme(webOption('appearance.theme', recommendedAppearanceTheme)))
   const resolvedAppearanceTheme = computed(() => resolveAppearanceTheme(appearanceTheme.value))
   const footerCopyright = computed<Record<FooterLocale, string>>(() => ({
@@ -361,6 +373,10 @@ export const useWebOptions = () => {
     siteUrl,
     defaultLocale,
     supportedLocales,
+    siteTimezone,
+    siteDateFormat,
+    siteTimeFormat,
+    siteStartOfWeek,
     appearanceTheme,
     resolvedAppearanceTheme,
     footerCopyright,

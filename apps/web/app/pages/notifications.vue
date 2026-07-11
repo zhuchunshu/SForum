@@ -3,6 +3,7 @@ definePageMeta({ requiresAuth: true })
 const { t } = useI18n()
 const localePath = useLocalePath()
 const toast = useToast()
+const { format: formatSiteDateTime } = useSiteDateTime()
 const notifications = useNotifications()
 const { data, pending, error, refresh } = await useAsyncData('notification-inbox', () => notifications.list(), { default: () => ({ items: [], hasMore: false }) })
 function itemLabel(type: string) { return t(`notifications.types.${type}`) }
@@ -20,7 +21,7 @@ async function markAllRead() { await notifications.markAllRead(); data.value.ite
     <div v-else class="mt-6 divide-y divide-slate-200 border-y border-slate-200 dark:divide-zinc-800 dark:border-zinc-800">
       <NuxtLink v-for="item in data.items" :key="item.id" :to="itemLink(item)" class="flex items-start gap-3 px-2 py-4 hover:bg-slate-50 dark:hover:bg-zinc-900" @click="!item.readAt && markRead(item.id)">
         <span class="mt-1 size-2 shrink-0 rounded-full" :class="item.readAt ? 'bg-slate-300 dark:bg-zinc-700' : 'bg-[var(--sf-accent)]'" />
-        <div class="min-w-0"><p class="font-medium text-slate-900 dark:text-zinc-100">{{ itemLabel(item.type) }}</p><time class="text-xs text-slate-500">{{ new Date(item.createdAt).toLocaleString() }}</time></div>
+        <div class="min-w-0"><p class="font-medium text-slate-900 dark:text-zinc-100">{{ itemLabel(item.type) }}</p><time class="text-xs text-slate-500">{{ formatSiteDateTime(item.createdAt) }}</time></div>
       </NuxtLink>
     </div>
   </main>

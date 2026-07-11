@@ -3,8 +3,8 @@ import type { ModerationPendingItem, ModerationReportItem, ModerationSource } fr
 
 defineProps<{ item: ModerationPendingItem | ModerationReportItem; source: ModerationSource }>()
 defineEmits<{ open: [] }>()
-const { t, locale } = useI18n()
-const formatDate = (value: string) => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+const { t } = useI18n()
+const { format: formatDate } = useSiteDateTime()
 const isReport = (item: ModerationPendingItem | ModerationReportItem): item is ModerationReportItem => 'reasonCode' in item
 </script>
 

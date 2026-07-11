@@ -13,6 +13,7 @@ const { t } = useI18n()
 const localePath = useLocalePath()
 const { seoSettings } = useWebOptions()
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
+const { formatDateOnly } = useSiteDateTime()
 const profileApi = useProfileApi()
 
 const username = computed(() => String(route.params.username ?? ''))
@@ -41,11 +42,7 @@ const isSelf = computed(() => {
 })
 
 function formatDate(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-  return date.toLocaleDateString()
+  return formatDateOnly(value)
 }
 
 function topicAuthor(topic: ForumTopicSummary) {

@@ -85,11 +85,11 @@ async function revokeOthers() {
   }
 }
 
-// 格式化时间（相对 + 绝对），展示登录/最后活跃时间。
+const { format: formatSiteDateTime } = useSiteDateTime()
+
+// 按站点时区与日期时间格式展示登录/最后活跃时间。
 function formatTime(iso: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return d.toLocaleString()
+  return formatSiteDateTime(iso)
 }
 </script>
 

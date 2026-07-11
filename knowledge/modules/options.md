@@ -79,7 +79,8 @@ Initial runtime option support is implemented.
 ## Implementation Notes
 
 - Current public options are `site.name`, `site.url`, `site.default_locale`,
-  `site.supported_locales`, `human_verification.provider`,
+  `site.supported_locales`, `site.timezone`, `site.date_format`,
+  `site.time_format`, `site.start_of_week`, `human_verification.provider`,
   `human_verification.scenarios.register`,
   `human_verification.scenarios.password_reset`,
   `human_verification.scenarios.login_risk`,
@@ -136,6 +137,13 @@ Initial runtime option support is implemented.
   should mount storage there or update the option to a prepared writable path.
 - Locale settings can only enable built-in locale catalogs (`zh-CN`, `en-US`);
   adding a new locale still requires adding frontend and backend translations.
+- Site datetime display options are public runtime values managed under
+  Site Settings → Basic. Defaults: `site.timezone=UTC`,
+  `site.date_format=Y-m-d`, `site.time_format=H:i`, `site.start_of_week=1`
+  (Monday). Timezone must be a valid IANA name (`time.LoadLocation`); date and
+  time formats are whitelist presets. Storage remains UTC; frontend
+  `useSiteDateTime()` / `utils/siteDateTime.ts` format timestamps for display.
+  Admin UI supports one-click restore of recommended datetime defaults.
 - Appearance preset settings use `appearance.theme` as a single public option.
   The stored key is unchanged for compatibility, but user-facing UI/docs should
   call it "配色预设 / appearance preset" rather than "theme". It accepts preset

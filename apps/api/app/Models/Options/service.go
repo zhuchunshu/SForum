@@ -584,6 +584,9 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 		coerced[NameSiteDefaultLocale] = supported[0]
 	}
 
+	// 时区/日期时间展示：无效值回退到推荐默认，避免脏数据阻断启动。
+	coerceSiteDateTimeOptions(coerced, defaults)
+
 	if provider, ok := normalizeHumanVerificationProvider(coerced[NameHumanVerificationProvider]); ok {
 		coerced[NameHumanVerificationProvider] = provider
 	} else {
@@ -748,6 +751,10 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameSiteURL:                          "http://127.0.0.1:3000",
 		NameSiteDefaultLocale:                localization.DefaultLocale,
 		NameSiteSupportedLocales:             "zh-CN,en-US",
+		NameSiteTimezone:                     recommendedSiteTimezone,
+		NameSiteDateFormat:                   recommendedSiteDateFormat,
+		NameSiteTimeFormat:                   recommendedSiteTimeFormat,
+		NameSiteStartOfWeek:                  strconv.Itoa(recommendedSiteStartOfWeek),
 		NameHumanVerificationProvider:        humanverify.ProviderDisabled,
 		NameHumanVerificationRegister:        enabledOptionValue(true),
 		NameHumanVerificationPasswordReset:   enabledOptionValue(false),
@@ -937,6 +944,14 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 			return "", false
 		}
 		return strings.Join(locales, ","), true
+	case NameSiteTimezone:
+		return normalizeSiteTimezone(value)
+	case NameSiteDateFormat:
+		return normalizeSiteDateFormat(value)
+	case NameSiteTimeFormat:
+		return normalizeSiteTimeFormat(value)
+	case NameSiteStartOfWeek:
+		return normalizeSiteStartOfWeek(value)
 	case NameHumanVerificationProvider:
 		return normalizeHumanVerificationProvider(value)
 	case NameHumanVerificationRegister, NameHumanVerificationPasswordReset, NameHumanVerificationLoginRisk, NameHumanVerificationPostRisk:
@@ -1094,6 +1109,9 @@ func isValidValueSet(values map[string]string) bool {
 		return false
 	}
 	if _, ok := normalizeLocaleChoice(values[NameSiteDefaultLocale], supported); !ok {
+		return false
+	}
+	if !isValidSiteDateTimeOptions(values) {
 		return false
 	}
 

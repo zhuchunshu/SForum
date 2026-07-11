@@ -69,6 +69,10 @@ AdminWebOption:
       - site.url
       - site.default_locale
       - site.supported_locales
+      - site.timezone
+      - site.date_format
+      - site.time_format
+      - site.start_of_week
       - human_verification.provider
       - human_verification.scenarios.register
       - human_verification.scenarios.password_reset
@@ -231,6 +235,10 @@ WebOptionInput:
       - site.url
       - site.default_locale
       - site.supported_locales
+      - site.timezone
+      - site.date_format
+      - site.time_format
+      - site.start_of_week
       - human_verification.provider
       - human_verification.scenarios.register
       - human_verification.scenarios.password_reset
@@ -354,6 +362,10 @@ AdminWebOptionInput:
       - site.url
       - site.default_locale
       - site.supported_locales
+      - site.timezone
+      - site.date_format
+      - site.time_format
+      - site.start_of_week
       - human_verification.provider
       - human_verification.scenarios.register
       - human_verification.scenarios.password_reset

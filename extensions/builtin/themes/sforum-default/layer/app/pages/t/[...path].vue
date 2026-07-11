@@ -23,11 +23,12 @@ definePageMeta({
 })
 
 const route = useRoute()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const localePath = useLocalePath()
 const { seoSettings } = useWebOptions()
 // 当前帖子 URL 形态：决定 catch-all 解析方式与规范化目标。
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
+const { format: formatSiteDateTime } = useSiteDateTime()
 const forumApi = useForumApi()
 const { can, canEditTopic, canDeleteTopic } = usePermissions()
 const toast = useToast()
@@ -214,16 +215,9 @@ const headingTags = computed(() => (topic.value?.tags || []).map(tag => ({
   to: tagPath(tag.slug)
 })))
 
+// 按站点时区与日期时间格式展示（不再硬编码 UTC）。
 function formatDate(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-  return new Intl.DateTimeFormat(String(locale.value || 'zh-CN'), {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'UTC'
-  }).format(date)
+  return formatSiteDateTime(value)
 }
 
 function commentAuthorName(comment: ForumComment) {

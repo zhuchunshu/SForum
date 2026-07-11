@@ -17,6 +17,19 @@ import {
   recommendedPasswordPolicy
 } from '~/composables/useWebOptions'
 import { useAdminPage } from '~/composables/useAdminPage'
+import {
+  commonSiteTimezones,
+  normalizeSiteDateFormat,
+  normalizeSiteStartOfWeek,
+  normalizeSiteTimeFormat,
+  normalizeSiteTimezone,
+  previewSiteDateTime,
+  recommendedSiteDateTimeSettings,
+  siteDateFormats,
+  siteTimeFormats,
+  type SiteDateFormat,
+  type SiteTimeFormat
+} from '~/utils/siteDateTime'
 
 definePageMeta({
   middleware: 'admin',
@@ -62,6 +75,26 @@ const minDurationSuggestions = [0, 500, 1000, 1500]
 const localeChoices = computed(() => [
   { label: t('admin.settings.locale.zhCN'), value: 'zh-CN' },
   { label: t('admin.settings.locale.enUS'), value: 'en-US' }
+])
+
+const dateFormatChoices = computed(() => siteDateFormats.map((value) => ({
+  value,
+  label: t(`admin.settings.basic.dateFormatOptions.${value}`)
+})))
+
+const timeFormatChoices = computed(() => siteTimeFormats.map((value) => ({
+  value,
+  label: t(`admin.settings.basic.timeFormatOptions.${value}`)
+})))
+
+const startOfWeekChoices = computed(() => [
+  { value: 0, label: t('admin.settings.basic.weekdays.0') },
+  { value: 1, label: t('admin.settings.basic.weekdays.1') },
+  { value: 2, label: t('admin.settings.basic.weekdays.2') },
+  { value: 3, label: t('admin.settings.basic.weekdays.3') },
+  { value: 4, label: t('admin.settings.basic.weekdays.4') },
+  { value: 5, label: t('admin.settings.basic.weekdays.5') },
+  { value: 6, label: t('admin.settings.basic.weekdays.6') }
 ])
 
 const tabs = computed<Array<{ id: SettingsTab, label: string, icon: string }>>(() => [
@@ -115,6 +148,11 @@ const form = reactive({
   siteUrl: options.value['site.url'] || 'http://127.0.0.1:3000',
   defaultLocale: options.value['site.default_locale'] || 'zh-CN',
   supportedLocales: parseLocaleList(options.value['site.supported_locales'] || 'zh-CN,en-US'),
+  // 站点时区与日期时间展示（库内 UTC，仅影响展示）。
+  timezone: normalizeSiteTimezone(options.value['site.timezone']),
+  dateFormat: normalizeSiteDateFormat(options.value['site.date_format']) as SiteDateFormat,
+  timeFormat: normalizeSiteTimeFormat(options.value['site.time_format']) as SiteTimeFormat,
+  startOfWeek: normalizeSiteStartOfWeek(options.value['site.start_of_week']),
   passwordMinLength: recommendedPasswordPolicy.minLength,
   passwordMaxLength: recommendedPasswordPolicy.maxLength,
   passwordRequireLowercase: recommendedPasswordPolicy.requireLowercase,
@@ -144,6 +182,26 @@ const form = reactive({
   altchaWidgetWorkers: 2,
   altchaWidgetMinDuration: 500
 })
+
+// 依赖 form 的计算属性放在 form 定义之后。
+const timezoneChoices = computed(() => {
+  const current = form.timezone
+  const base = [...commonSiteTimezones] as string[]
+  if (current && !base.includes(current)) {
+    base.unshift(current)
+  }
+  return base.map((value) => ({
+    value,
+    label: value === 'UTC' ? t('admin.settings.basic.timezoneUtc') : value
+  }))
+})
+
+const datetimePreview = computed(() => previewSiteDateTime({
+  timezone: form.timezone,
+  dateFormat: form.dateFormat,
+  timeFormat: form.timeFormat,
+  startOfWeek: form.startOfWeek
+}, form.defaultLocale || 'zh-CN'))
 
 const altchaSecretPlaceholder = computed(() => {
   return form.altchaSecretSet
@@ -180,6 +238,10 @@ const initialSiteName = computed(() => adminOptionsMap.value['site.name']?.value
 const initialSiteUrl = computed(() => adminOptionsMap.value['site.url']?.value || 'http://127.0.0.1:3000')
 const initialDefaultLocale = computed(() => adminOptionsMap.value['site.default_locale']?.value || 'zh-CN')
 const initialSupportedLocales = computed(() => parseLocaleList(adminOptionsMap.value['site.supported_locales']?.value || 'zh-CN,en-US'))
+const initialTimezone = computed(() => normalizeSiteTimezone(adminOptionsMap.value['site.timezone']?.value))
+const initialDateFormat = computed(() => normalizeSiteDateFormat(adminOptionsMap.value['site.date_format']?.value))
+const initialTimeFormat = computed(() => normalizeSiteTimeFormat(adminOptionsMap.value['site.time_format']?.value))
+const initialStartOfWeek = computed(() => normalizeSiteStartOfWeek(adminOptionsMap.value['site.start_of_week']?.value))
 const initialPasswordMinLength = computed(() => boundedInteger(adminOptionsMap.value['identity.password.min_length']?.value, recommendedPasswordPolicy.minLength, 8, 128))
 const initialPasswordMaxLength = computed(() => boundedInteger(adminOptionsMap.value['identity.password.max_length']?.value, recommendedPasswordPolicy.maxLength, 64, 512))
 const initialPasswordRequireLowercase = computed(() => normalizeEnabledOption(adminOptionsMap.value['identity.password.require_lowercase']?.value, recommendedPasswordPolicy.requireLowercase))
@@ -193,7 +255,11 @@ const hasBasicChanges = computed(() => {
   return form.siteName !== initialSiteName.value ||
          form.siteUrl !== initialSiteUrl.value ||
          form.defaultLocale !== initialDefaultLocale.value ||
-         JSON.stringify(form.supportedLocales) !== JSON.stringify(initialSupportedLocales.value)
+         JSON.stringify(form.supportedLocales) !== JSON.stringify(initialSupportedLocales.value) ||
+         form.timezone !== initialTimezone.value ||
+         form.dateFormat !== initialDateFormat.value ||
+         form.timeFormat !== initialTimeFormat.value ||
+         form.startOfWeek !== initialStartOfWeek.value
 })
 
 // 账号安全(密码策略)变更检测,独立于基础信息 tab
@@ -253,6 +319,10 @@ function applyAdminOptions(items: AdminWebOption[]) {
   if (!form.supportedLocales.includes(form.defaultLocale)) {
     form.defaultLocale = form.supportedLocales[0] || 'zh-CN'
   }
+  form.timezone = normalizeSiteTimezone(map['site.timezone']?.value)
+  form.dateFormat = normalizeSiteDateFormat(map['site.date_format']?.value)
+  form.timeFormat = normalizeSiteTimeFormat(map['site.time_format']?.value)
+  form.startOfWeek = normalizeSiteStartOfWeek(map['site.start_of_week']?.value)
   form.passwordMinLength = boundedInteger(map['identity.password.min_length']?.value, recommendedPasswordPolicy.minLength, 8, 128)
   form.passwordMaxLength = boundedInteger(map['identity.password.max_length']?.value, recommendedPasswordPolicy.maxLength, 64, 512)
   form.passwordRequireLowercase = normalizeEnabledOption(map['identity.password.require_lowercase']?.value, recommendedPasswordPolicy.requireLowercase)
@@ -283,7 +353,11 @@ async function saveBasicSettings() {
       { name: 'site.name', value: form.siteName },
       { name: 'site.url', value: form.siteUrl },
       { name: 'site.default_locale', value: form.defaultLocale },
-      { name: 'site.supported_locales', value: form.supportedLocales.join(',') }
+      { name: 'site.supported_locales', value: form.supportedLocales.join(',') },
+      { name: 'site.timezone', value: form.timezone },
+      { name: 'site.date_format', value: form.dateFormat },
+      { name: 'site.time_format', value: form.timeFormat },
+      { name: 'site.start_of_week', value: String(form.startOfWeek) }
     ])
     toast.add({
       color: 'success',
@@ -392,10 +466,27 @@ function resetBasicForm() {
   form.siteUrl = initialSiteUrl.value
   form.defaultLocale = initialDefaultLocale.value
   form.supportedLocales = [...initialSupportedLocales.value]
+  form.timezone = initialTimezone.value
+  form.dateFormat = initialDateFormat.value
+  form.timeFormat = initialTimeFormat.value
+  form.startOfWeek = initialStartOfWeek.value
   toast.add({
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
-    title: '已重置基础设置更改'
+    title: t('admin.settings.basic.resetChanges')
+  })
+}
+
+// 一键恢复时区/日期时间推荐默认值（不改站点名与语言）。
+function restoreRecommendedDateTimeSettings() {
+  form.timezone = recommendedSiteDateTimeSettings.timezone
+  form.dateFormat = recommendedSiteDateTimeSettings.dateFormat
+  form.timeFormat = recommendedSiteDateTimeSettings.timeFormat
+  form.startOfWeek = recommendedSiteDateTimeSettings.startOfWeek
+  toast.add({
+    color: 'success',
+    icon: 'i-lucide-rotate-ccw',
+    title: t('admin.settings.basic.restoreDateTimeDefaults')
   })
 }
 
@@ -731,6 +822,106 @@ function onLocaleToggle(locale: string, event: Event) {
               </label>
             </div>
           </UFormField>
+
+          <div class="border-t border-slate-200 pt-4 dark:border-zinc-800">
+            <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.settings.basic.datetimeTitle') }}
+                </h3>
+                <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.settings.basic.datetimeDescription') }}
+                </p>
+              </div>
+              <UButton
+                type="button"
+                color="neutral"
+                variant="outline"
+                leading-icon="i-lucide-rotate-ccw"
+                class="shrink-0"
+                @click="restoreRecommendedDateTimeSettings"
+              >
+                {{ t('admin.settings.basic.restoreDateTimeDefaults') }}
+              </UButton>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2">
+              <UFormField :label="t('admin.settings.basic.timezone')" name="site-timezone" class="md:col-span-2">
+                <select
+                  v-model="form.timezone"
+                  class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                >
+                  <option
+                    v-for="choice in timezoneChoices"
+                    :key="choice.value"
+                    :value="choice.value"
+                  >
+                    {{ choice.label }}
+                  </option>
+                </select>
+                <template #hint>
+                  {{ t('admin.settings.basic.timezoneHint') }}
+                </template>
+              </UFormField>
+
+              <UFormField :label="t('admin.settings.basic.dateFormat')" name="site-date-format">
+                <select
+                  v-model="form.dateFormat"
+                  class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                >
+                  <option
+                    v-for="choice in dateFormatChoices"
+                    :key="choice.value"
+                    :value="choice.value"
+                  >
+                    {{ choice.label }}
+                  </option>
+                </select>
+              </UFormField>
+
+              <UFormField :label="t('admin.settings.basic.timeFormat')" name="site-time-format">
+                <select
+                  v-model="form.timeFormat"
+                  class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                >
+                  <option
+                    v-for="choice in timeFormatChoices"
+                    :key="choice.value"
+                    :value="choice.value"
+                  >
+                    {{ choice.label }}
+                  </option>
+                </select>
+              </UFormField>
+
+              <UFormField :label="t('admin.settings.basic.startOfWeek')" name="site-start-of-week" class="md:col-span-2">
+                <select
+                  v-model.number="form.startOfWeek"
+                  class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                >
+                  <option
+                    v-for="choice in startOfWeekChoices"
+                    :key="choice.value"
+                    :value="choice.value"
+                  >
+                    {{ choice.label }}
+                  </option>
+                </select>
+                <template #hint>
+                  {{ t('admin.settings.basic.startOfWeekHint') }}
+                </template>
+              </UFormField>
+            </div>
+
+            <UAlert
+              class="mt-4"
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-clock-3"
+              :title="t('admin.settings.basic.datetimePreviewTitle')"
+              :description="datetimePreview"
+            />
+          </div>
         </div>
 
         <template #footer>

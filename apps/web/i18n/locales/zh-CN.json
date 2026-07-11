@@ -51,9 +51,9 @@
       "title": "社区动态",
       "latestActivity": "最新动态",
       "overview": "社区概览",
-    "topics": "主题",
-    "categories": "分类",
-    "tags": "标签",
+      "topics": "主题",
+      "categories": "分类",
+      "tags": "标签",
       "loadedReplies": "当前回复"
     },
     "filter": {
@@ -1188,7 +1188,44 @@
       },
       "basic": {
         "title": "基础信息",
-        "description": "站点名称、地址和语言会用于导航、登录页、浏览器标题和 API 响应。",
+        "description": "站点名称、地址、语言与时间展示会用于导航、登录页、浏览器标题和帖子时间。",
+        "resetChanges": "已重置基础设置更改",
+        "datetimeTitle": "时区与时间格式",
+        "datetimeDescription": "数据库仍按 UTC 存储；此处只控制前台与后台的时间展示方式。",
+        "timezone": "时区",
+        "timezoneUtc": "UTC（协调世界时）",
+        "timezoneHint": "选择站点所在时区。推荐国内社区使用 Asia/Shanghai。",
+        "dateFormat": "日期格式",
+        "timeFormat": "时间格式",
+        "startOfWeek": "一周起始日",
+        "startOfWeekHint": "影响日历与按周统计的起始日。推荐周一。",
+        "datetimePreviewTitle": "预览（示例时刻）",
+        "restoreDateTimeDefaults": "恢复时间推荐默认值",
+        "dateFormatOptions": {
+          "Y-m-d": "2026-07-12",
+          "Y/m/d": "2026/07/12",
+          "d/m/Y": "12/07/2026",
+          "m/d/Y": "07/12/2026",
+          "M j, Y": "Jul 12, 2026",
+          "j M Y": "12 Jul 2026",
+          "relative": "相对时间（例如：3 小时前）"
+        },
+        "timeFormatOptions": {
+          "H:i": "14:30（24 小时）",
+          "H:i:s": "14:30:05（含秒）",
+          "g:i a": "2:30 pm",
+          "g:i A": "2:30 PM",
+          "hidden": "不显示时间"
+        },
+        "weekdays": {
+          "0": "星期日",
+          "1": "星期一",
+          "2": "星期二",
+          "3": "星期三",
+          "4": "星期四",
+          "5": "星期五",
+          "6": "星期六"
+        },
         "accountSecurityTitle": "账号安全",
         "accountSecurityDescription": "密码策略会影响新注册和密码重置；推荐默认值优先鼓励长密码短句。",
         "passwordMinLength": "最小长度",

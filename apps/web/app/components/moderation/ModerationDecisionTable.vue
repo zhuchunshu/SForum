@@ -2,8 +2,8 @@
 import type { ModerationDecision } from '~/composables/useModerationApi'
 
 defineProps<{ items: ModerationDecision[]; loading?: boolean }>()
-const { t, locale } = useI18n()
-const formatDate = (value: string) => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+const { t } = useI18n()
+const { format: formatDate } = useSiteDateTime()
 </script>
 
 <template>

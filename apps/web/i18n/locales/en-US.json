@@ -51,9 +51,9 @@
       "title": "Community activity",
       "latestActivity": "Latest activity",
       "overview": "Community overview",
-    "topics": "Topics",
-    "categories": "Categories",
-    "tags": "Tags",
+      "topics": "Topics",
+      "categories": "Categories",
+      "tags": "Tags",
       "loadedReplies": "Loaded replies"
     },
     "filter": {
@@ -1182,7 +1182,44 @@
       },
       "basic": {
         "title": "Basic information",
-        "description": "The site name, URL, and languages are used in navigation, auth pages, browser titles, and API responses.",
+        "description": "Site name, URL, languages, and time display are used in navigation, auth pages, browser titles, and post timestamps.",
+        "resetChanges": "Basic settings changes were reset",
+        "datetimeTitle": "Timezone and time formats",
+        "datetimeDescription": "Timestamps stay stored in UTC; these settings only control how times are shown in the UI.",
+        "timezone": "Timezone",
+        "timezoneUtc": "UTC (Coordinated Universal Time)",
+        "timezoneHint": "Choose the site timezone. Communities in China often use Asia/Shanghai.",
+        "dateFormat": "Date format",
+        "timeFormat": "Time format",
+        "startOfWeek": "Week starts on",
+        "startOfWeekHint": "Used by calendars and week-based stats. Monday is recommended for many locales.",
+        "datetimePreviewTitle": "Preview (sample moment)",
+        "restoreDateTimeDefaults": "Restore time defaults",
+        "dateFormatOptions": {
+          "Y-m-d": "2026-07-12",
+          "Y/m/d": "2026/07/12",
+          "d/m/Y": "12/07/2026",
+          "m/d/Y": "07/12/2026",
+          "M j, Y": "Jul 12, 2026",
+          "j M Y": "12 Jul 2026",
+          "relative": "Relative (for example: 3 hours ago)"
+        },
+        "timeFormatOptions": {
+          "H:i": "14:30 (24-hour)",
+          "H:i:s": "14:30:05 (with seconds)",
+          "g:i a": "2:30 pm",
+          "g:i A": "2:30 PM",
+          "hidden": "Hide time"
+        },
+        "weekdays": {
+          "0": "Sunday",
+          "1": "Monday",
+          "2": "Tuesday",
+          "3": "Wednesday",
+          "4": "Thursday",
+          "5": "Friday",
+          "6": "Saturday"
+        },
         "accountSecurityTitle": "Account security",
         "accountSecurityDescription": "Password policy affects new registrations and password resets; the recommended default favors longer passphrases.",
         "passwordMinLength": "Minimum length",

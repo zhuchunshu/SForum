@@ -11,6 +11,13 @@ const (
 	NameSiteURL                          = "site.url"
 	NameSiteDefaultLocale                = "site.default_locale"
 	NameSiteSupportedLocales             = "site.supported_locales"
+	// 站点展示时区（IANA，如 Asia/Shanghai）。仅影响展示与按站点日切分，库内仍存 UTC。
+	NameSiteTimezone = "site.timezone"
+	// 日期/时间展示预设（白名单 key，非任意 pattern）。
+	NameSiteDateFormat = "site.date_format"
+	NameSiteTimeFormat = "site.time_format"
+	// 一周起始日：0=周日 … 6=周六。默认 1（周一）。
+	NameSiteStartOfWeek = "site.start_of_week"
 	NameHumanVerificationProvider        = "human_verification.provider"
 	NameHumanVerificationRegister        = "human_verification.scenarios.register"
 	NameHumanVerificationPasswordReset   = "human_verification.scenarios.password_reset"

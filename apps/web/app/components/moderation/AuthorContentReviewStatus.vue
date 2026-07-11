@@ -2,8 +2,8 @@
 import type { ForumAuthorReviewItem } from '~/utils/forumTaxonomy'
 
 defineProps<{ items: ForumAuthorReviewItem[] }>()
-const { t, locale } = useI18n()
-const formatDate = (value: string) => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+const { t } = useI18n()
+const { format: formatDate } = useSiteDateTime()
 </script>
 
 <template>
