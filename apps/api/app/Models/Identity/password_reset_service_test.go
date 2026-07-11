@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 )
 
 // newResetFakeStore 构造一个预置用户的密码重置测试 store。
@@ -34,7 +32,7 @@ func newResetFakeStore() *fakeStore {
 
 func TestPasswordResetRequestSilentlySucceedsForUnknownEmail(t *testing.T) {
 	store := newResetFakeStore()
-	service := NewPasswordResetService(store, mail.NewService(mail.StaticResolver{Options: mail.RuntimeOptions{Provider: mail.ProviderDevLog}}, nil), PasswordResetConfig{})
+	service := NewPasswordResetService(store, &fakeResetQueue{store: store}, PasswordResetConfig{})
 
 	err := service.RequestPasswordReset(context.Background(), RequestPasswordResetInput{Email: "nobody@example.com"})
 	if err != nil {
@@ -47,7 +45,7 @@ func TestPasswordResetRequestSilentlySucceedsForUnknownEmail(t *testing.T) {
 
 func TestPasswordResetRequestCreatesTokenForKnownUser(t *testing.T) {
 	store := newResetFakeStore()
-	service := NewPasswordResetService(store, mail.NewService(mail.StaticResolver{Options: mail.RuntimeOptions{Provider: mail.ProviderDevLog}}, nil), PasswordResetConfig{})
+	service := NewPasswordResetService(store, &fakeResetQueue{store: store}, PasswordResetConfig{})
 
 	err := service.RequestPasswordReset(context.Background(), RequestPasswordResetInput{Email: "alice@example.com", IP: "127.0.0.1"})
 	if err != nil {
@@ -65,6 +63,17 @@ func TestPasswordResetRequestCreatesTokenForKnownUser(t *testing.T) {
 	if store.createdResetToken.RequestIPHash == "" {
 		t.Fatal("expected ip hash")
 	}
+}
+
+type fakeResetQueue struct {
+	store *fakeStore
+	mail  PasswordResetMail
+}
+
+func (q *fakeResetQueue) QueuePasswordReset(_ context.Context, token CreatePasswordResetTokenInput, mail PasswordResetMail) error {
+	q.store.createdResetToken = token
+	q.mail = mail
+	return nil
 }
 
 func TestPasswordResetRequestIgnoresEmptyEmail(t *testing.T) {

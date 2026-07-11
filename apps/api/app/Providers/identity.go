@@ -8,10 +8,10 @@ import (
 
 	identitycontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Identity"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
-	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 )
 
 type IdentityProvider struct {
@@ -37,9 +37,13 @@ func NewIdentityProviderWithEvents(store identity.Store, sessions *authsession.M
 }
 
 // NewIdentityProviderWithPasswordReset 注入密码重置与邮件服务。
-func NewIdentityProviderWithPasswordReset(store identity.Store, sessions *authsession.Manager, verifier humanverify.Verifier, publisher appevents.Publisher, passwordReset *identity.PasswordResetService, mailService *mail.Service, options optionsResolver) *IdentityProvider {
+type adminMailQueue interface {
+	QueueMail(context.Context, notifications.QueueMailInput) (notifications.MailDelivery, error)
+}
+
+func NewIdentityProviderWithPasswordReset(store identity.Store, sessions *authsession.Manager, verifier humanverify.Verifier, publisher appevents.Publisher, passwordReset *identity.PasswordResetService, mailQueue adminMailQueue, options optionsResolver) *IdentityProvider {
 	return &IdentityProvider{
-		controller: identitycontroller.NewControllerWithPasswordReset(identity.NewServiceWithEventsAndPasswordPolicy(store, publisher, options), sessions, verifier, passwordReset, mailService, options),
+		controller: identitycontroller.NewControllerWithPasswordReset(identity.NewServiceWithEventsAndPasswordPolicy(store, publisher, options), sessions, verifier, passwordReset, mailQueue, options),
 	}
 }
 

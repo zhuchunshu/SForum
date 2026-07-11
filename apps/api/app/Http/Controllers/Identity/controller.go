@@ -2,19 +2,22 @@ package identitycontroller
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
-	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 	useragent "github.com/zhuchunshu/sforum/apps/api/app/Support/UserAgent"
 )
 
@@ -26,7 +29,7 @@ type Controller struct {
 	authSessions  *authsession.Manager
 	verifier      humanverify.Verifier
 	passwordReset *identity.PasswordResetService
-	mailService   *mail.Service
+	mailQueue     adminMailQueue
 	options       optionsResolver
 }
 
@@ -50,7 +53,11 @@ func NewControllerWithAuthSessions(service *identity.Service, sessions *authsess
 }
 
 // NewControllerWithPasswordReset 注入密码重置与邮件服务。
-func NewControllerWithPasswordReset(service *identity.Service, sessions *authsession.Manager, verifier humanverify.Verifier, passwordReset *identity.PasswordResetService, mailService *mail.Service, options optionsResolver) *Controller {
+type adminMailQueue interface {
+	QueueMail(context.Context, notifications.QueueMailInput) (notifications.MailDelivery, error)
+}
+
+func NewControllerWithPasswordReset(service *identity.Service, sessions *authsession.Manager, verifier humanverify.Verifier, passwordReset *identity.PasswordResetService, mailQueue adminMailQueue, options optionsResolver) *Controller {
 	if verifier == nil {
 		verifier = humanverify.NewDisabledService()
 	}
@@ -59,7 +66,7 @@ func NewControllerWithPasswordReset(service *identity.Service, sessions *authses
 		authSessions:  sessions,
 		verifier:      verifier,
 		passwordReset: passwordReset,
-		mailService:   mailService,
+		mailQueue:     mailQueue,
 		options:       options,
 	}
 }
@@ -279,7 +286,7 @@ func (h *Controller) adminMailTest(c fiber.Ctx) error {
 	if !actor.Can(identity.PermissionSettingsManage) {
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	}
-	if h.mailService == nil {
+	if h.mailQueue == nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, "mail.unavailable")
 	}
 	var req mailTestRequest
@@ -295,14 +302,12 @@ func (h *Controller) adminMailTest(c fiber.Ctx) error {
 			siteName = name
 		}
 	}
-	if err := h.mailService.Send(c.Context(), mail.Message{
-		To:       recipient,
-		Subject:  "[" + siteName + "] 测试邮件 / Test mail",
-		TextBody: "这是一封来自 " + siteName + " 的测试邮件，用于验证邮件投递配置是否生效。",
-	}); err != nil {
+	data, _ := json.Marshal(map[string]string{"subject": "[" + siteName + "] 测试邮件 / Test mail", "textBody": "这是一封来自 " + siteName + " 的测试邮件，用于验证邮件投递配置是否生效。"})
+	delivery, err := h.mailQueue.QueueMail(c.Context(), notifications.QueueMailInput{Recipient: recipient, TemplateKey: "admin.test", TemplateData: data, IdempotencyKey: fmt.Sprintf("admin_test:%d:%d", actor.ID, time.Now().UnixNano())})
+	if err != nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, "mail.test_failed")
 	}
-	return apphttp.OK(c, map[string]any{"sent": true})
+	return apphttp.JSON(c, fiber.StatusAccepted, apphttp.MessageOK, map[string]any{"queued": true, "deliveryId": delivery.ID})
 }
 
 type passwordResetRequestPayload struct {

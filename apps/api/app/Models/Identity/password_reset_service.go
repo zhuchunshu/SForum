@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 )
 
 // PasswordResetConfig 是密码重置流程的可选依赖。
@@ -27,16 +25,21 @@ type PasswordResetConfig struct {
 // PasswordResetService 协调密码重置：生成令牌、投递邮件、校验与消费令牌、更新密码。
 type PasswordResetService struct {
 	store            Store
-	mailer           *mail.Service
+	mailer           PasswordResetQueue
 	config           PasswordResetConfig
 	passwordPolicies PasswordPolicyResolver
 }
 
-func NewPasswordResetService(store Store, mailer *mail.Service, config PasswordResetConfig) *PasswordResetService {
+type PasswordResetMail struct{ Recipient, Subject, TextBody, IdempotencyKey string }
+type PasswordResetQueue interface {
+	QueuePasswordReset(context.Context, CreatePasswordResetTokenInput, PasswordResetMail) error
+}
+
+func NewPasswordResetService(store Store, mailer PasswordResetQueue, config PasswordResetConfig) *PasswordResetService {
 	return NewPasswordResetServiceWithPasswordPolicy(store, mailer, config, nil)
 }
 
-func NewPasswordResetServiceWithPasswordPolicy(store Store, mailer *mail.Service, config PasswordResetConfig, resolver PasswordPolicyResolver) *PasswordResetService {
+func NewPasswordResetServiceWithPasswordPolicy(store Store, mailer PasswordResetQueue, config PasswordResetConfig, resolver PasswordPolicyResolver) *PasswordResetService {
 	if config.TokenLifetime <= 0 {
 		config.TokenLifetime = 30 * time.Minute
 	}
@@ -84,26 +87,24 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, input R
 	expiresAt := time.Now().Add(s.config.TokenLifetime).UTC()
 
 	ipHash := hashIP(input.IP)
-	if _, err := s.store.CreatePasswordResetToken(ctx, CreatePasswordResetTokenInput{
+	tokenInput := CreatePasswordResetTokenInput{
 		UserID:        credential.ID,
 		TokenHash:     tokenHash,
 		ExpiresAt:     expiresAt,
 		RequestIPHash: ipHash,
-	}); err != nil {
+	}
+	if s.mailer == nil {
+		_, err := s.store.CreatePasswordResetToken(ctx, tokenInput)
 		return err
 	}
-
-	// 仅在配置了邮件服务时投递；mailer 为 nil 时跳过（开发环境可用 dev_log）。
-	if s.mailer == nil {
-		return nil
-	}
 	resetURL := s.buildResetURL(rawToken)
-	message := mail.Message{
-		To:       email,
-		Subject:  s.resetEmailSubject(),
-		TextBody: s.resetEmailBody(credential.Username, resetURL, expiresAt),
+	message := PasswordResetMail{
+		Recipient:      email,
+		Subject:        s.resetEmailSubject(),
+		TextBody:       s.resetEmailBody(credential.Username, resetURL, expiresAt),
+		IdempotencyKey: "password_reset:" + tokenHash,
 	}
-	if err := s.mailer.Send(ctx, message); err != nil {
+	if err := s.mailer.QueuePasswordReset(ctx, tokenInput, message); err != nil {
 		// 投递失败：记录但不向调用方暴露用户信息。
 		// 注意：这里不返回错误，以免泄露"邮箱存在但投递失败"。
 		// 调用方仍返回通用成功响应。

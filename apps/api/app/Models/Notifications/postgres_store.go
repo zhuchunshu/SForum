@@ -63,6 +63,22 @@ attempt_count, reason, error_summary, created_at, updated_at, completed_at`, inp
 	return result, err
 }
 
+func (s *PostgresStore) CreateDeliveryTx(ctx context.Context, tx queryRunner, input CreateDeliveryInput) (MailDelivery, error) {
+	templateData := input.TemplateData
+	if len(templateData) == 0 {
+		templateData = json.RawMessage(`{}`)
+	}
+	var item MailDelivery
+	err := tx.QueryRow(ctx, `INSERT INTO mail_deliveries (recipient, template_key, template_data, idempotency_key, correlation_id)
+VALUES ($1,$2,$3,$4,$5) ON CONFLICT (idempotency_key) DO UPDATE SET idempotency_key=EXCLUDED.idempotency_key
+RETURNING id, recipient, template_key, template_data, idempotency_key, correlation_id, status, extension_id,
+attempt_count, reason, error_summary, created_at, updated_at, completed_at`, input.Recipient, input.TemplateKey, templateData,
+		input.IdempotencyKey, input.CorrelationID).Scan(&item.ID, &item.Recipient, &item.TemplateKey, &item.TemplateData,
+		&item.IdempotencyKey, &item.CorrelationID, &item.Status, &item.ExtensionID, &item.AttemptCount, &item.Reason,
+		&item.ErrorSummary, &item.CreatedAt, &item.UpdatedAt, &item.CompletedAt)
+	return item, err
+}
+
 func (s *PostgresStore) List(ctx context.Context, input ListInput) (Page, error) {
 	limit := input.Limit
 	if limit <= 0 || limit > 100 {

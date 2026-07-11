@@ -29,11 +29,11 @@ func TestNormalizeAttachmentMIMETypesRejectsActiveContent(t *testing.T) {
 // denylist 不误伤正常配置。
 func TestNormalizeAttachmentMIMETypesAcceptsSafeAndWildcard(t *testing.T) {
 	cases := map[string]string{
-		"image/jpeg":                       "image/jpeg",
-		"image/png,image/webp":             "image/png,image/webp",
-		"application/pdf,text/plain":       "application/pdf,text/plain",
-		"image/*":                          "image/*",
-		"image/jpeg, image/png":            "image/jpeg,image/png", // 去空白
+		"image/jpeg":                 "image/jpeg",
+		"image/png,image/webp":       "image/png,image/webp",
+		"application/pdf,text/plain": "application/pdf,text/plain",
+		"image/*":                    "image/*",
+		"image/jpeg, image/png":      "image/jpeg,image/png", // 去空白
 	}
 	for input, expected := range cases {
 		got, ok := normalizeAttachmentMIMETypes(input)

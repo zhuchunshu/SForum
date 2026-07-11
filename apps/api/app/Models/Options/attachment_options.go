@@ -22,7 +22,7 @@ var attachmentActiveContentDenylist = map[string]bool{
 	"text/html":              true,
 	"text/xml":               true,
 	"application/xhtml+xml":  true,
-	"application/xml":         true,
+	"application/xml":        true,
 	"image/svg+xml":          true,
 	"application/javascript": true,
 	"text/javascript":        true,
@@ -190,22 +190,22 @@ func normalizeAttachmentMIMETypes(value string) (string, bool) {
 		if len(segments) != 2 || segments[0] == "" || segments[1] == "" {
 			return "", false
 		}
-			for _, segment := range segments {
-				if segment == "*" {
-					continue
-				}
-				for _, char := range segment {
-					if (char < 'a' || char > 'z') && (char < '0' || char > '9') && char != '-' && char != '+' && char != '.' {
-						return "", false
-					}
+		for _, segment := range segments {
+			if segment == "*" {
+				continue
+			}
+			for _, char := range segment {
+				if (char < 'a' || char > 'z') && (char < '0' || char > '9') && char != '-' && char != '+' && char != '.' {
+					return "", false
 				}
 			}
-			// 主动内容类型（HTML/SVG/JS 等）硬封禁：公开附件以同源 inline 响应返回，
-			// 允许这些类型会直接形成存储型 XSS。运营者不可通过允许列表放开。
-			if attachmentActiveContentDenylist[item] {
-				return "", false
-			}
-			if !seen[item] {
+		}
+		// 主动内容类型（HTML/SVG/JS 等）硬封禁：公开附件以同源 inline 响应返回，
+		// 允许这些类型会直接形成存储型 XSS。运营者不可通过允许列表放开。
+		if attachmentActiveContentDenylist[item] {
+			return "", false
+		}
+		if !seen[item] {
 			seen[item] = true
 			items = append(items, item)
 		}

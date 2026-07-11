@@ -36,7 +36,6 @@ import (
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
-	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
 	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
@@ -248,15 +247,15 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("start web release coordinator: %w", err)
 	}
-	// 邮件服务与密码重置：mail resolver 复用 options.Service（实现 mail.Resolver）。
-	mailService := mail.NewService(optionsService, logger)
+	notificationStore := notifications.NewPostgresStore(pool)
+	mailOutbox := notifications.NewOutbox(pool, notificationStore, jobDispatcher)
 	siteName, _ := optionsService.SiteName(ctx)
 	siteURL, _ := optionsService.WebOption(ctx, "site.url")
-	passwordResetService := identity.NewPasswordResetServiceWithPasswordPolicy(identityStore, mailService, identity.PasswordResetConfig{
+	passwordResetService := identity.NewPasswordResetServiceWithPasswordPolicy(identityStore, passwordResetOutbox{outbox: mailOutbox}, identity.PasswordResetConfig{
 		SiteName: siteName,
 		SiteURL:  siteURL,
 	}, optionsService)
-	identityProvider := providers.NewIdentityProviderWithPasswordReset(identityStore, authSessions, humanVerifier, extensionRuntime, passwordResetService, mailService, optionsService)
+	identityProvider := providers.NewIdentityProviderWithPasswordReset(identityStore, authSessions, humanVerifier, extensionRuntime, passwordResetService, mailOutbox, optionsService)
 	adminOverviewProvider := providers.NewAdminOverviewProvider(adminOverviewStore, adminoverview.NewRuntimeCollector(time.Now().UTC(), pool), identityStore, authSessions)
 	// 搜索：API 进程持有只入队的 indexer（EnqueueIndex/EnqueueDelete）和查询用的 search service。
 	// Meilisearch client 不可达时，索引调度静默失败、搜索端点返回 503，主流程不受影响。

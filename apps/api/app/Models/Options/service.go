@@ -14,7 +14,6 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Localization"
-	mail "github.com/zhuchunshu/sforum/apps/api/app/Support/Mail"
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
@@ -149,15 +148,6 @@ var optionDefinitions = []optionDefinition{
 	{name: NameForumTagMaxPerTopic, public: true, managePermission: identity.PermissionTagManage},
 	{name: NameForumTopicsPerPage, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameForumCommentsPerPage, public: true, managePermission: identity.PermissionSettingsManage},
-	// 邮件：smtp.password 为密钥，重置时保留密钥（UI 应明确提示）。
-	{name: NameMailProvider, public: true, managePermission: identity.PermissionSettingsManage},
-	{name: NameMailFromAddress, public: true, managePermission: identity.PermissionSettingsManage},
-	{name: NameMailFromName, public: true, managePermission: identity.PermissionSettingsManage},
-	{name: NameMailSMTPHost, managePermission: identity.PermissionSettingsManage},
-	{name: NameMailSMTPPort, managePermission: identity.PermissionSettingsManage},
-	{name: NameMailSMTPUsername, managePermission: identity.PermissionSettingsManage},
-	{name: NameMailSMTPPassword, secret: true, managePermission: identity.PermissionSettingsManage},
-	{name: NameMailSMTPEncryption, managePermission: identity.PermissionSettingsManage},
 	{name: NameSEOMetaTitleTemplate, public: true, managePermission: identity.PermissionSEOManage},
 	{name: NameSEOMetaDescription, public: true, managePermission: identity.PermissionSEOManage},
 	{name: NameSEOMetaKeywords, public: true, managePermission: identity.PermissionSEOManage},
@@ -375,55 +365,6 @@ func (s *Service) PasswordPolicy(ctx context.Context) (identity.PasswordPolicy, 
 
 func (s *Service) InternalValues(ctx context.Context) (map[string]string, error) {
 	return s.loadMap(ctx)
-}
-
-// MailOptions 返回邮件运行时配置，供 mail.Service 选用 provider。
-// 注意：SMTP 密码为密钥选项，这里返回的是存储值（仅在调用方为可信服务时使用）。
-func (s *Service) MailOptions(ctx context.Context) (mail.RuntimeOptions, error) {
-	values, err := s.loadMap(ctx)
-	if err != nil {
-		return mail.RuntimeOptions{}, err
-	}
-	port := 587
-	if parsed, ok := strictAtoi(values[NameMailSMTPPort]); ok {
-		port = parsed
-	}
-	return mail.RuntimeOptions{
-		Provider:    values[NameMailProvider],
-		FromAddress: values[NameMailFromAddress],
-		FromName:    values[NameMailFromName],
-		SMTP: mail.SMTPConfig{
-			Host:        values[NameMailSMTPHost],
-			Port:        port,
-			Username:    values[NameMailSMTPUsername],
-			Password:    values[NameMailSMTPPassword],
-			Encryption:  values[NameMailSMTPEncryption],
-			FromAddress: values[NameMailFromAddress],
-			FromName:    values[NameMailFromName],
-		},
-	}, nil
-}
-
-// ResetMailOptions 把邮件选项恢复为推荐默认值；密钥字段清空，并在 UI 提示。
-func (s *Service) ResetMailOptions(ctx context.Context, actor identity.Actor) (mail.RuntimeOptions, error) {
-	if !actor.Can(identity.PermissionSettingsManage) {
-		return mail.RuntimeOptions{}, identity.ErrPermissionDenied
-	}
-	defaults := mail.RecommendedDefaults()
-	inputs := []UpdateInput{
-		{Name: NameMailProvider, Value: defaults.Provider},
-		{Name: NameMailFromAddress, Value: defaults.FromAddress},
-		{Name: NameMailFromName, Value: defaults.FromName},
-		{Name: NameMailSMTPHost, Value: defaults.SMTP.Host},
-		{Name: NameMailSMTPPort, Value: strconv.Itoa(defaults.SMTP.Port)},
-		{Name: NameMailSMTPUsername, Value: defaults.SMTP.Username},
-		{Name: NameMailSMTPPassword, Value: ""}, // 重置时清空密钥
-		{Name: NameMailSMTPEncryption, Value: defaults.SMTP.Encryption},
-	}
-	if _, err := s.UpdateMany(ctx, actor, inputs); err != nil {
-		return mail.RuntimeOptions{}, err
-	}
-	return s.MailOptions(ctx)
 }
 
 func (s *Service) HumanVerificationConfig(ctx context.Context) (humanverify.RuntimeConfig, error) {
@@ -767,7 +708,6 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 		coerced[NameSEOTopicURLMode] = defaults[NameSEOTopicURLMode]
 	}
 	coerceAttachmentOptions(coerced, defaults)
-	coerceMailOptions(coerced, defaults)
 	coerceAvatarOptions(coerced, defaults)
 
 	return coerced
@@ -796,34 +736,6 @@ func coercePasswordPolicyOptions(coerced, defaults map[string]string) {
 }
 
 // coerceMailOptions 确保邮件选项始终落在推荐默认值上，避免无效 provider/encryption。
-func coerceMailOptions(coerced, defaults map[string]string) {
-	if value, ok := normalizeMailProvider(coerced[NameMailProvider]); ok {
-		coerced[NameMailProvider] = value
-	} else {
-		coerced[NameMailProvider] = defaults[NameMailProvider]
-	}
-	if value, ok := normalizeMailEncryption(coerced[NameMailSMTPEncryption]); ok {
-		coerced[NameMailSMTPEncryption] = value
-	} else {
-		coerced[NameMailSMTPEncryption] = defaults[NameMailSMTPEncryption]
-	}
-	if value, ok := normalizeMailPort(coerced[NameMailSMTPPort]); ok {
-		coerced[NameMailSMTPPort] = value
-	} else {
-		coerced[NameMailSMTPPort] = defaults[NameMailSMTPPort]
-	}
-	if value, ok := normalizeBoundedText(coerced[NameMailFromAddress], 200); ok && value != "" {
-		coerced[NameMailFromAddress] = value
-	} else {
-		coerced[NameMailFromAddress] = defaults[NameMailFromAddress]
-	}
-	if value, ok := normalizeBoundedText(coerced[NameMailFromName], 200); ok {
-		coerced[NameMailFromName] = value
-	} else {
-		coerced[NameMailFromName] = defaults[NameMailFromName]
-	}
-}
-
 func normalizedDefaults(defaults Defaults) map[string]string {
 	values := map[string]string{
 		NameSiteName:                         "SForum",
@@ -925,14 +837,6 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameAttachmentSFTPHostKeyFingerprint: "",
 		NameAttachmentSFTPPublicBaseURL:      "",
 		// 邮件：开发默认 dev_log，配合 Mailpit/控制台调试；生产未配置 SMTP 时回退 noop。
-		NameMailProvider:       "dev_log",
-		NameMailFromAddress:    "noreply@example.com",
-		NameMailFromName:       "SForum",
-		NameMailSMTPHost:       "",
-		NameMailSMTPPort:       "587",
-		NameMailSMTPUsername:   "",
-		NameMailSMTPPassword:   "",
-		NameMailSMTPEncryption: "starttls",
 		// 头像：默认 identicon（离线可用，符合"开箱即用"原则）；上传与压缩默认开启。
 		NameAvatarAllowUpload:           enabledOptionValue(true),
 		NameAvatarDefaultProvider:       AvatarProviderInitials,
@@ -1138,16 +1042,6 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeAttachmentRootPath(value)
 	case NameAttachmentAliyunAccessKeySecret, NameAttachmentTencentSecretKey, NameAttachmentFTPPassword, NameAttachmentSFTPPassword, NameAttachmentSFTPPrivateKey, NameAttachmentSFTPPassphrase:
 		return normalizeBoundedText(value, attachmentSecretMaxRunes)
-	case NameMailProvider:
-		return normalizeMailProvider(value)
-	case NameMailSMTPEncryption:
-		return normalizeMailEncryption(value)
-	case NameMailSMTPPort:
-		return normalizeMailPort(value)
-	case NameMailSMTPPassword:
-		return normalizeBoundedText(value, attachmentSecretMaxRunes)
-	case NameMailFromAddress, NameMailFromName, NameMailSMTPHost, NameMailSMTPUsername:
-		return normalizeBoundedText(value, 200)
 	case NameAvatarAllowUpload, NameAvatarAllowGIF, NameAvatarCompressEnabled:
 		return normalizeEnabledOption(value)
 	case NameAvatarDefaultProvider:
@@ -1172,33 +1066,6 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 }
 
 // 邮件 provider 白名单。
-func normalizeMailProvider(value string) (string, bool) {
-	lower := strings.ToLower(value)
-	switch lower {
-	case mail.ProviderDevLog, mail.ProviderNoop, mail.ProviderSMTP:
-		return lower, true
-	default:
-		return "", false
-	}
-}
-
-func normalizeMailEncryption(value string) (string, bool) {
-	lower := strings.ToLower(value)
-	switch lower {
-	case mail.EncryptionNone, mail.EncryptionStartTLS, mail.EncryptionTLS:
-		return lower, true
-	default:
-		return "", false
-	}
-}
-
-func normalizeMailPort(value string) (string, bool) {
-	port, ok := strictAtoi(value)
-	if !ok || port < 1 || port > 65535 {
-		return "", false
-	}
-	return strconv.Itoa(port), true
-}
 
 func isValidValueSet(values map[string]string) bool {
 	if strings.TrimSpace(values[NameSiteName]) == "" || len([]rune(values[NameSiteName])) > 80 {

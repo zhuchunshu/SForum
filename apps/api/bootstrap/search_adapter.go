@@ -8,11 +8,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	searchjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Search"
 	forumcontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Forum"
+	searchjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Search"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
-	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
