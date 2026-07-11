@@ -4,6 +4,14 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 Settings Wave 2 done** (Brand & public chrome)
+  - Session: `knowledge/sessions/2026-07-12-admin-settings-wave2.md`
+  - Decision: `knowledge/decisions/2026-07-12-site-chrome-tables.md`
+  - Blueprint: `knowledge/plans/2026-07-12-admin-settings-richness.md`
+  - Prior Wave 1: `knowledge/sessions/2026-07-12-admin-settings-wave1.md`
+  - Next: Wave 3 engagement switches (with Iteration A), or polish attachment
+    URL resolution / richer legal Markdown render.
+
 - **2026-07-12 built-in role templates done** (`moderator` / `operator` /
   `tech_admin`)
   - Session: `knowledge/sessions/2026-07-12-builtin-role-templates-handoff.md`
@@ -24,6 +32,10 @@ This is the entry point for project memory.
   registration mode/username rules, newcomer trust ladder, maintenance mode,
   and login lockout; forum guest-read enforcement; recommended defaults +
   restore. Blueprint: `knowledge/plans/2026-07-12-admin-settings-richness.md`.
+- Wave 2 brand & public chrome (2026-07-12): logo/favicon/legal body options;
+  `site_nav_items` / `site_friend_links` / `site_announcements` tables + public
+  and admin CRUD; admin **品牌与前台壳** page; default theme navbar/footer/
+  announcement banner + `/terms|/privacy|/guidelines` pages.
 
 
 - Mail and in-app notifications are implemented as a plugin-first vertical:

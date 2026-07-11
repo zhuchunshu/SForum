@@ -410,13 +410,14 @@ Site settings expansion + forum settings expansion:
 
 **Landing:** options service + OpenAPI + admin tabs + public web-options for UX + tests.
 
-### Wave 2 — Brand & public chrome
+### Wave 2 — Brand & public chrome ✅ 2026-07-12
 
-- logo/favicon
+- logo/favicon (+ apple-touch) options + attachment id / URL
 - nav menu table + admin UI
 - announcement banner
-- legal page content stubs
+- legal page content stubs (Markdown options + public pages)
 - friend links
+- Handoff: `knowledge/sessions/2026-07-12-admin-settings-wave2.md`
 
 ### Wave 3 — Engagement switches (with Iteration A features)
 
