@@ -30,8 +30,12 @@ func (s *Service) EnableOperation(ctx context.Context, actor identity.Actor, id 
 			return ExtensionOperation{}, err
 		}
 		if frontendRequiresWebRelease(status) {
+			// 需要 Web Release 时同时要求 plugin + release，避免仅有插件权即可触发发布。
 			if err := s.verifyLifecyclePermissionAndPackage(ctx, actor, extension); err != nil {
 				return ExtensionOperation{}, err
+			}
+			if !canManageReleases(actor) {
+				return ExtensionOperation{}, identity.ErrPermissionDenied
 			}
 			queued, err := s.webReleaseLifecycle.PlanAndQueue(ctx, QueueWebReleaseInput{
 				Plan:    PlanWebReleaseInput{TriggerKind: WebReleaseTriggerPluginEnable, TriggerExtensionID: extension.ID, RequestedBy: actor.ID, ReloadMode: WebReleaseReloadPrompt},
