@@ -84,11 +84,42 @@ const kpiCards = computed(() => {
 const runtimeRows = computed(() => {
   const runtime = overview.value?.runtime
   if (!runtime) return []
+  const worker = runtime.worker
+  const workerValue = !worker
+    ? t('admin.home.runtime.workerUnavailable')
+    : worker.status === 'ok'
+      ? t('admin.home.runtime.workerOk', { age: formatOverviewCount(worker.ageSeconds ?? 0) })
+      : worker.status === 'stale'
+        ? t('admin.home.runtime.workerStale', { age: formatOverviewCount(worker.ageSeconds ?? 0) })
+        : t('admin.home.runtime.workerUnknown')
+  const lag = runtime.queueLag
+  const lagValue = !lag
+    ? t('admin.home.runtime.queueLagUnavailable')
+    : t('admin.home.runtime.queueLagValue', {
+        waiting: formatOverviewCount(lag.waiting),
+        running: formatOverviewCount(lag.running),
+        failed: formatOverviewCount(lag.failed)
+      })
   return [
     {
       label: t('admin.home.runtime.uptime'),
       value: formatOverviewUptime(runtime.uptimeSeconds),
       icon: 'i-lucide-clock-3'
+    },
+    {
+      label: t('admin.home.runtime.worker'),
+      value: workerValue,
+      icon: worker?.stale === false ? 'i-lucide-heart-pulse' : 'i-lucide-heart-off',
+      tone: worker?.status === 'ok'
+        ? 'text-emerald-600 dark:text-emerald-400'
+        : worker?.status === 'stale'
+          ? 'text-amber-600 dark:text-amber-400'
+          : 'text-slate-500'
+    },
+    {
+      label: t('admin.home.runtime.queueLag'),
+      value: lagValue,
+      icon: 'i-lucide-layers'
     },
     {
       label: t('admin.home.runtime.goroutines'),
@@ -337,7 +368,10 @@ function actionColor(action: AdminOverviewAction) {
             </span>
             <span class="min-w-0 flex-1">
               <span class="block truncate text-xs text-slate-500 dark:text-zinc-400">{{ row.label }}</span>
-              <span class="block truncate text-sm font-bold text-slate-900 dark:text-white">{{ row.value }}</span>
+              <span
+                class="block truncate text-sm font-bold"
+                :class="row.tone || 'text-slate-900 dark:text-white'"
+              >{{ row.value }}</span>
             </span>
           </div>
         </div>

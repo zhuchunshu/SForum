@@ -380,8 +380,16 @@
       },
       "runtime": {
         "title": "System runtime status",
-        "description": "API process and database connection pool status.",
+        "description": "API process, worker heartbeat, queue lag, and database pool status.",
         "uptime": "Uptime",
+        "worker": "Background worker",
+        "workerOk": "Healthy ({age}s ago)",
+        "workerStale": "Stale heartbeat ({age}s ago)",
+        "workerUnknown": "No heartbeat seen",
+        "workerUnavailable": "Unavailable",
+        "queueLag": "Queue lag",
+        "queueLagValue": "{waiting} waiting · {running} running · {failed} failed",
+        "queueLagUnavailable": "Unavailable",
         "goroutines": "Goroutines",
         "gc": "GC count",
         "database": "Database connections"

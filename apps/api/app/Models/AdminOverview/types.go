@@ -44,6 +44,25 @@ type RuntimeStats struct {
 	GCCount        uint32               `json:"gcCount"`
 	LastGCPauseNs  uint64               `json:"lastGcPauseNs"`
 	Database       DatabaseRuntimeStats `json:"database"`
+	// Worker 心跳与队列积压（F1.2）；探测失败时字段可为空。
+	Worker   *WorkerRuntimeStats `json:"worker,omitempty"`
+	QueueLag *QueueLagStats      `json:"queueLag,omitempty"`
+}
+
+// WorkerRuntimeStats 来自 Redis heartbeat（独立或嵌入 worker 共用 key）。
+type WorkerRuntimeStats struct {
+	LastSeenAt *time.Time `json:"lastSeenAt,omitempty"`
+	AgeSeconds *int64     `json:"ageSeconds,omitempty"`
+	Stale      bool       `json:"stale"`
+	// Status: ok | stale | unknown
+	Status string `json:"status"`
+}
+
+// QueueLagStats 廉价聚合：River 中等待执行的 job 数量（available+scheduled+retryable）。
+type QueueLagStats struct {
+	Waiting int64 `json:"waiting"`
+	Running int64 `json:"running"`
+	Failed  int64 `json:"failed"`
 }
 
 type DatabaseRuntimeStats struct {

@@ -106,6 +106,42 @@ func TestRuntimeCollectorReturnsProcessStats(t *testing.T) {
 	}
 }
 
+type memoryHeartbeat struct {
+	at    time.Time
+	found bool
+	err   error
+}
+
+func (m memoryHeartbeat) Touch(context.Context, time.Time) error { return nil }
+func (m memoryHeartbeat) LastSeen(context.Context) (time.Time, bool, error) {
+	return m.at, m.found, m.err
+}
+
+func TestRuntimeCollectorIncludesWorkerHeartbeat(t *testing.T) {
+	now := time.Date(2026, 7, 12, 15, 0, 0, 0, time.UTC)
+	collector := NewRuntimeCollector(now.Add(-time.Hour), nil).WithHeartbeat(memoryHeartbeat{
+		at:    now.Add(-5 * time.Second),
+		found: true,
+	})
+	collector.now = func() time.Time { return now }
+
+	stats := collector.Snapshot()
+	if stats.Worker == nil {
+		t.Fatal("expected worker stats")
+	}
+	if stats.Worker.Stale || stats.Worker.Status != "ok" {
+		t.Fatalf("worker=%#v", stats.Worker)
+	}
+}
+
+func TestRuntimeCollectorMarksMissingHeartbeatUnknown(t *testing.T) {
+	collector := NewRuntimeCollector(time.Now(), nil).WithHeartbeat(memoryHeartbeat{found: false})
+	stats := collector.Snapshot()
+	if stats.Worker == nil || stats.Worker.Status != "unknown" || !stats.Worker.Stale {
+		t.Fatalf("worker=%#v", stats.Worker)
+	}
+}
+
 func adminActor() identity.Actor {
 	return identity.Actor{
 		ID:          1,

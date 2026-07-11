@@ -380,8 +380,16 @@
       },
       "runtime": {
         "title": "系统运行状态",
-        "description": "API 进程与数据库连接池状态。",
+        "description": "API 进程、Worker 心跳、队列积压与数据库连接池状态。",
         "uptime": "运行时间",
+        "worker": "后台 Worker",
+        "workerOk": "正常（{age}s 前）",
+        "workerStale": "心跳过期（{age}s 前）",
+        "workerUnknown": "未检测到心跳",
+        "workerUnavailable": "暂无数据",
+        "queueLag": "队列积压",
+        "queueLagValue": "等待 {waiting} · 运行 {running} · 失败 {failed}",
+        "queueLagUnavailable": "暂无数据",
         "goroutines": "Goroutines",
         "gc": "GC 次数",
         "database": "数据库连接"

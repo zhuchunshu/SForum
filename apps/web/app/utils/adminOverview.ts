@@ -13,6 +13,19 @@ export type AdminOverview = {
   actions: AdminOverviewAction[]
 }
 
+export type AdminOverviewWorkerRuntime = {
+  lastSeenAt?: string
+  ageSeconds?: number
+  stale: boolean
+  status: 'ok' | 'stale' | 'unknown'
+}
+
+export type AdminOverviewQueueLag = {
+  waiting: number
+  running: number
+  failed: number
+}
+
 export type AdminOverviewRuntime = {
   startedAt: string
   uptimeSeconds: number
@@ -28,6 +41,8 @@ export type AdminOverviewRuntime = {
     acquiredConnections: number
     idleConnections: number
   }
+  worker?: AdminOverviewWorkerRuntime
+  queueLag?: AdminOverviewQueueLag
 }
 
 export type AdminOverviewCommunity = {
