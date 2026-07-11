@@ -832,6 +832,19 @@ func (s *fakeStore) UpdateUserPassword(_ context.Context, userID int64, password
 	return nil
 }
 
+func (s *fakeStore) ConfirmPasswordResetAtomic(_ context.Context, tokenHash string, passwordHash string, revokeReason string) (int64, error) {
+	userID, err := s.ConsumePasswordResetToken(context.Background(), tokenHash)
+	if err != nil {
+		return 0, err
+	}
+	if err := s.UpdateUserPassword(context.Background(), userID, passwordHash); err != nil {
+		return 0, err
+	}
+	_ = s.IncrementUserTokenVersion(context.Background(), userID)
+	_, _ = s.RevokeUserSessions(context.Background(), userID, revokeReason)
+	return userID, nil
+}
+
 // GetUserTokenVersion 返回内存中记录的令牌版本号（M8 测试用）。
 func (s *fakeStore) GetUserTokenVersion(_ context.Context, userID int64) (int64, error) {
 	if s.tokenVersions == nil {

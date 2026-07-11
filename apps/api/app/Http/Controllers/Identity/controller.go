@@ -735,6 +735,8 @@ func mapIdentityError(err error) error {
 	case errors.Is(err, identity.ErrPasswordResetTokenNotFound):
 		// 无效/过期/已消费令牌：稳定 422，避免落到 500 internal_error。
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "auth.password_reset_invalid")
+	case errors.Is(err, identity.ErrPasswordResetRateLimited):
+		return fiber.NewError(fiber.StatusTooManyRequests, "auth.password_reset_rate_limited")
 	case errors.Is(err, identity.ErrSessionNotFound):
 		return fiber.NewError(fiber.StatusNotFound, "auth.session_not_found")
 	case errors.Is(err, identity.ErrSelfSessionRevoke):

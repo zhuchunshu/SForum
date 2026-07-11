@@ -13,13 +13,23 @@ import (
 
 // PasswordResetConfig 是密码重置流程的可选依赖。
 type PasswordResetConfig struct {
-	// TokenLifetime 令牌有效期，默认 30 分钟。
-	TokenLifetime time.Duration
+	// TokenTTL 令牌有效期，默认 30 分钟。
+	TokenTTL time.Duration
 	// SiteName / SiteURL 用于邮件正文。
 	SiteName string
 	SiteURL  string
 	// ResetPathBase 是前端重置密码页路径前缀，默认 /reset-password?token=。
 	ResetPathBase string
+	// RequestMaxPerEmail / RequestMaxPerIP 请求限流（窗口内最大次数），默认 3 / 10。
+	RequestMaxPerEmail int
+	RequestMaxPerIP    int
+	// RequestWindow 限流窗口，默认 1 小时。
+	RequestWindow time.Duration
+}
+
+// PasswordResetRateLimiter 密码重置请求限流（通常 Redis）。
+type PasswordResetRateLimiter interface {
+	Allow(ctx context.Context, key string, max int, window time.Duration) (bool, error)
 }
 
 // PasswordResetService 协调密码重置：生成令牌、投递邮件、校验与消费令牌、更新密码。
@@ -28,6 +38,7 @@ type PasswordResetService struct {
 	mailer           PasswordResetQueue
 	config           PasswordResetConfig
 	passwordPolicies PasswordPolicyResolver
+	rateLimiter      PasswordResetRateLimiter
 }
 
 type PasswordResetMail struct{ Recipient, Subject, TextBody, IdempotencyKey string }
@@ -40,16 +51,33 @@ func NewPasswordResetService(store Store, mailer PasswordResetQueue, config Pass
 }
 
 func NewPasswordResetServiceWithPasswordPolicy(store Store, mailer PasswordResetQueue, config PasswordResetConfig, resolver PasswordPolicyResolver) *PasswordResetService {
-	if config.TokenLifetime <= 0 {
-		config.TokenLifetime = 30 * time.Minute
+	if config.TokenTTL <= 0 {
+		config.TokenTTL = 30 * time.Minute
 	}
 	if config.ResetPathBase == "" {
 		config.ResetPathBase = "/reset-password?token="
+	}
+	if config.RequestMaxPerEmail <= 0 {
+		config.RequestMaxPerEmail = 3
+	}
+	if config.RequestMaxPerIP <= 0 {
+		config.RequestMaxPerIP = 10
+	}
+	if config.RequestWindow <= 0 {
+		config.RequestWindow = time.Hour
 	}
 	if resolver == nil {
 		resolver = staticRecommendedPasswordPolicy{}
 	}
 	return &PasswordResetService{store: store, mailer: mailer, config: config, passwordPolicies: resolver}
+}
+
+// WithRateLimiter 注入 Redis 等限流后端；未注入时跳过限流（测试/无 Redis 场景）。
+func (s *PasswordResetService) WithRateLimiter(limiter PasswordResetRateLimiter) *PasswordResetService {
+	if s != nil {
+		s.rateLimiter = limiter
+	}
+	return s
 }
 
 // RequestPasswordResetInput 是发起密码重置的入参。
@@ -65,6 +93,10 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, input R
 	email := strings.TrimSpace(strings.ToLower(input.Email))
 	if email == "" {
 		return nil
+	}
+	// 先限流再查库：对已知/未知邮箱统一按 email+IP 计数，避免枚举与邮件轰炸。
+	if err := s.enforceRequestRateLimit(ctx, email, input.IP); err != nil {
+		return err
 	}
 	credential, err := s.store.GetCredentialByLogin(ctx, email)
 	if err != nil {
@@ -84,7 +116,7 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, input R
 		return err
 	}
 	tokenHash := hashResetToken(rawToken)
-	expiresAt := time.Now().Add(s.config.TokenLifetime).UTC()
+	expiresAt := time.Now().Add(s.config.TokenTTL).UTC()
 
 	ipHash := hashIP(input.IP)
 	tokenInput := CreatePasswordResetTokenInput{
@@ -113,13 +145,39 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, input R
 	return nil
 }
 
+func (s *PasswordResetService) enforceRequestRateLimit(ctx context.Context, email, ip string) error {
+	if s.rateLimiter == nil {
+		return nil
+	}
+	window := s.config.RequestWindow
+	emailKey := "email:" + hashResetToken(email)
+	ok, err := s.rateLimiter.Allow(ctx, emailKey, s.config.RequestMaxPerEmail, window)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrPasswordResetRateLimited
+	}
+	if ip = strings.TrimSpace(ip); ip != "" {
+		ipKey := "ip:" + hashIP(ip)
+		ok, err = s.rateLimiter.Allow(ctx, ipKey, s.config.RequestMaxPerIP, window)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrPasswordResetRateLimited
+		}
+	}
+	return nil
+}
+
 // ConfirmPasswordResetInput 是确认密码重置的入参。
 type ConfirmPasswordResetInput struct {
 	Token       string
 	NewPassword string
 }
 
-// ConfirmPasswordReset 校验令牌、消费令牌、更新密码。
+// ConfirmPasswordReset 校验令牌、消费令牌、更新密码（事务原子完成）。
 func (s *PasswordResetService) ConfirmPasswordReset(ctx context.Context, input ConfirmPasswordResetInput) error {
 	token := strings.TrimSpace(input.Token)
 	if token == "" {
@@ -133,26 +191,13 @@ func (s *PasswordResetService) ConfirmPasswordReset(ctx context.Context, input C
 		return NewRegisterInvalid(fields)
 	}
 	hash := hashResetToken(token)
-	userID, err := s.store.ConsumePasswordResetToken(ctx, hash)
-	if err != nil {
-		return err
-	}
 	newHash, err := HashPassword(input.NewPassword)
 	if err != nil {
 		return err
 	}
-	if err := s.store.UpdateUserPassword(ctx, userID, newHash); err != nil {
-		return err
-	}
-	// M8：递增令牌版本号，使该用户所有旧会话立即失效（含攻击者已持有的会话）。
-	// 失败不阻塞密码重置本身（密码已更新），仅记录错误。
-	_ = s.store.IncrementUserTokenVersion(ctx, userID)
-	// 同步撤销 user_sessions 目录：令牌版本号让旧会话在 CurrentUserID 失效，
-	// 但目录表里这些会话仍是 revoked_at IS NULL，会导致设备列表显示失真、
-	// EnforceMaxSessions 把幽灵会话计入活跃数而误踢真活跃设备。
-	// 这里把它们标记为 password_reset，保持目录与真实鉴权状态一致。best-effort。
-	_, _ = s.store.RevokeUserSessions(ctx, userID, RevokeReasonPasswordReset)
-	return nil
+	// 令牌消费 + 改密 + token version + 撤销会话同一事务，避免中间态。
+	_, err = s.store.ConfirmPasswordResetAtomic(ctx, hash, newHash, RevokeReasonPasswordReset)
+	return err
 }
 
 func (s *PasswordResetService) buildResetURL(rawToken string) string {

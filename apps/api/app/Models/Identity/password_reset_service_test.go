@@ -184,6 +184,37 @@ func TestPasswordResetConfirmPropagatesConsumedTokenError(t *testing.T) {
 	}
 }
 
+// memoryRateLimiter 简单内存限流，供 Request 限流回归测试。
+type memoryRateLimiter struct {
+	counts map[string]int
+}
+
+func (m *memoryRateLimiter) Allow(_ context.Context, key string, max int, _ time.Duration) (bool, error) {
+	if m.counts == nil {
+		m.counts = map[string]int{}
+	}
+	m.counts[key]++
+	return m.counts[key] <= max, nil
+}
+
+func TestPasswordResetRequestRateLimited(t *testing.T) {
+	store := newResetFakeStore()
+	service := NewPasswordResetService(store, &fakeResetQueue{store: store}, PasswordResetConfig{
+		RequestMaxPerEmail: 2,
+		RequestWindow:      time.Hour,
+	}).WithRateLimiter(&memoryRateLimiter{})
+
+	for i := 0; i < 2; i++ {
+		if err := service.RequestPasswordReset(context.Background(), RequestPasswordResetInput{Email: "alice@example.com", IP: "1.2.3.4"}); err != nil {
+			t.Fatalf("request %d: %v", i+1, err)
+		}
+	}
+	err := service.RequestPasswordReset(context.Background(), RequestPasswordResetInput{Email: "alice@example.com", IP: "1.2.3.4"})
+	if !errors.Is(err, ErrPasswordResetRateLimited) {
+		t.Fatalf("expected rate limited, got %v", err)
+	}
+}
+
 func TestPasswordResetEmailContainsResetURL(t *testing.T) {
 	service := NewPasswordResetService(nil, nil, PasswordResetConfig{SiteName: "TestSite", SiteURL: "https://forum.test"})
 	body := service.resetEmailBody("alice", "https://forum.test/reset-password?token=abc", time.Now().Add(30*time.Minute))

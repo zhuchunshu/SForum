@@ -78,6 +78,9 @@ func (passwordResetFakeStore) ConsumePasswordResetToken(context.Context, string)
 	return 0, identity.ErrPasswordResetTokenNotFound
 }
 func (passwordResetFakeStore) UpdateUserPassword(context.Context, int64, string) error { return nil }
+func (passwordResetFakeStore) ConfirmPasswordResetAtomic(context.Context, string, string, string) (int64, error) {
+	return 0, identity.ErrPasswordResetTokenNotFound
+}
 func (passwordResetFakeStore) GetUserTokenVersion(context.Context, int64) (int64, error) {
 	return 0, nil
 }

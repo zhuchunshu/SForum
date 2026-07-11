@@ -1673,6 +1673,9 @@ func (s *httpFakeStore) CreatePasswordResetToken(_ context.Context, input identi
 func (s *httpFakeStore) ConsumePasswordResetToken(_ context.Context, _ string) (int64, error) {
 	return 0, identity.ErrPasswordResetTokenNotFound
 }
+func (s *httpFakeStore) ConfirmPasswordResetAtomic(context.Context, string, string, string) (int64, error) {
+	return 0, identity.ErrPasswordResetTokenNotFound
+}
 
 func (s *httpFakeStore) UpdateUserPassword(_ context.Context, _ int64, _ string) error {
 	return nil

@@ -73,6 +73,64 @@ func (s *PostgresStore) ConsumePasswordResetToken(ctx context.Context, tokenHash
 	return userID, nil
 }
 
+// ConfirmPasswordResetAtomic 在同一事务内完成令牌消费、密码更新、token version 递增与会话撤销，
+// 避免「令牌已消费但密码未更新」或「密码已改但旧会话仍有效」的中间态。
+func (s *PostgresStore) ConfirmPasswordResetAtomic(ctx context.Context, tokenHash string, passwordHash string, revokeReason string) (int64, error) {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return 0, fmt.Errorf("begin password reset confirm: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var userID int64
+	err = tx.QueryRow(ctx, `
+		UPDATE password_reset_tokens
+		SET consumed_at = now()
+		WHERE token_hash = $1
+		  AND consumed_at IS NULL
+		  AND expires_at > now()
+		RETURNING user_id
+	`, tokenHash).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrPasswordResetTokenNotFound
+	}
+	if err != nil {
+		return 0, fmt.Errorf("consume password reset token: %w", err)
+	}
+
+	tag, err := tx.Exec(ctx, `
+		UPDATE user_credentials
+		SET password_hash = $2, password_changed_at = now(), updated_at = now()
+		WHERE user_id = $1
+	`, userID, passwordHash)
+	if err != nil {
+		return 0, fmt.Errorf("update user password: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return 0, ErrCredentialNotFound
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE users SET current_token_version = current_token_version + 1, updated_at = now()
+		WHERE id = $1
+	`, userID); err != nil {
+		return 0, fmt.Errorf("increment user token version: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE user_sessions
+		SET revoked_at = now(), revoke_reason = $2
+		WHERE user_id = $1 AND revoked_at IS NULL
+	`, userID, revokeReason); err != nil {
+		return 0, fmt.Errorf("revoke user sessions: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("commit password reset confirm: %w", err)
+	}
+	return userID, nil
+}
+
 // UpdateUserPassword 更新用户凭据哈希。
 func (s *PostgresStore) UpdateUserPassword(ctx context.Context, userID int64, passwordHash string) error {
 	tag, err := s.pool.Exec(ctx, `

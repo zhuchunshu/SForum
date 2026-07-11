@@ -66,6 +66,8 @@ var (
 	ErrUsernameOrEmailNotUnique   = errors.New("identity: username or email is not unique")
 	ErrPasswordDoesNotMeetPolicy  = errors.New("identity: password does not meet policy")
 	ErrPasswordResetTokenNotFound = errors.New("identity: password reset token not found or expired")
+	// 密码重置请求过于频繁（按邮箱/IP 限流）。
+	ErrPasswordResetRateLimited = errors.New("identity: password reset rate limited")
 	// 会话目录：要操作的会话不存在或不属于当前用户（含越权访问别人的 sid）。
 	ErrSessionNotFound = errors.New("identity: session not found")
 	// 管理员试图强制下线自己的全部设备（应改用 logout）。

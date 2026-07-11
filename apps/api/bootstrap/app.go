@@ -257,7 +257,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	passwordResetService := identity.NewPasswordResetServiceWithPasswordPolicy(identityStore, passwordResetOutbox{outbox: mailOutbox}, identity.PasswordResetConfig{
 		SiteName: siteName,
 		SiteURL:  siteURL,
-	}, optionsService)
+	}, optionsService).WithRateLimiter(authsupport.NewPasswordResetLimiter(sharedRedisClient))
 	loginLockout := authsupport.NewLoginLockout(sharedRedisClient)
 	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, extensionRuntime, passwordResetService, mailOutbox, optionsService, loginLockout)
 	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions)

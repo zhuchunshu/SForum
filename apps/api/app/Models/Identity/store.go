@@ -29,6 +29,8 @@ type Store interface {
 	CreatePasswordResetToken(ctx context.Context, input CreatePasswordResetTokenInput) (PasswordResetToken, error)
 	ConsumePasswordResetToken(ctx context.Context, tokenHash string) (int64, error)
 	UpdateUserPassword(ctx context.Context, userID int64, passwordHash string) error
+	// ConfirmPasswordResetAtomic 在同一事务中：消费令牌、更新密码、递增 token version、撤销会话。
+	ConfirmPasswordResetAtomic(ctx context.Context, tokenHash string, passwordHash string, revokeReason string) (userID int64, err error)
 	// 令牌版本号：用于密码重置/封禁后使旧会话失效（M8）。
 	GetUserTokenVersion(ctx context.Context, userID int64) (int64, error)
 	IncrementUserTokenVersion(ctx context.Context, userID int64) error

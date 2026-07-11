@@ -257,6 +257,9 @@ func (s *sessionTestStore) CreatePasswordResetToken(context.Context, identity.Cr
 func (s *sessionTestStore) ConsumePasswordResetToken(context.Context, string) (int64, error) {
 	return 0, nil
 }
+func (s *sessionTestStore) ConfirmPasswordResetAtomic(context.Context, string, string, string) (int64, error) {
+	return 0, nil
+}
 func (s *sessionTestStore) UpdateUserPassword(context.Context, int64, string) error   { return nil }
 func (s *sessionTestStore) GetUserTokenVersion(context.Context, int64) (int64, error) { return 0, nil }
 func (s *sessionTestStore) IncrementUserTokenVersion(context.Context, int64) error    { return nil }
