@@ -10,6 +10,57 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 )
 
+func TestValidatePluginRouteTargetAllowsLoopback(t *testing.T) {
+	for _, raw := range []string{
+		"http://127.0.0.1:43123",
+		"http://localhost:8080/hooks",
+		"https://[::1]:9443",
+	} {
+		if err := validatePluginRouteTarget(raw); err != nil {
+			t.Fatalf("expected %q allowed, got %v", raw, err)
+		}
+	}
+}
+
+func TestValidatePluginRouteTargetRejectsSSRF(t *testing.T) {
+	for _, raw := range []string{
+		"file:///etc/passwd",
+		"http://169.254.169.254/latest/meta-data/",
+		"http://10.0.0.5:80/",
+		"http://192.168.1.1/",
+		"http://user:pass@127.0.0.1:1/",
+		"ftp://127.0.0.1/",
+		"",
+	} {
+		if err := validatePluginRouteTarget(raw); err == nil {
+			t.Fatalf("expected %q rejected", raw)
+		}
+	}
+}
+
+func TestBuildPluginProcessEnvOmitsHostSecrets(t *testing.T) {
+	env := buildPluginProcessEnv([]string{
+		"PATH=/usr/bin",
+		"HOME=/home/sforum",
+		"DATABASE_URL=postgres://secret",
+		"SESSION_HASH_SECRET=super-secret",
+		"SFORUM_SETTING_HOST=smtp.example.com",
+		"LANG=C.UTF-8",
+		"RANDOM_JUNK=1",
+	})
+	joined := strings.Join(env, "\n")
+	for _, want := range []string{"PATH=/usr/bin", "HOME=/home/sforum", "SFORUM_SETTING_HOST=smtp.example.com", "LANG=C.UTF-8"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("expected env to contain %q, got %v", want, env)
+		}
+	}
+	for _, deny := range []string{"DATABASE_URL=", "SESSION_HASH_SECRET=", "RANDOM_JUNK="} {
+		if strings.Contains(joined, deny) {
+			t.Fatalf("env must not contain host secret/junk %q, got %v", deny, env)
+		}
+	}
+}
+
 func TestProtocolStarterRejectsUnsupportedRPC(t *testing.T) {
 	starter := NewProtocolStarter(ProtocolStarterConfig{})
 	extension := runtimeExtension("bad.protocol")

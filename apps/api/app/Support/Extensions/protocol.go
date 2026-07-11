@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/rpc"
+	"net/url"
 	"os"
 	"os/exec"
 	"sort"
@@ -24,11 +26,21 @@ const (
 
 var (
 	ErrUnsupportedProtocol = errors.New("unsupported plugin protocol")
+	// ErrUnsafePluginRouteTarget 插件回报的 BaseURL 不允许被 API 代理（SSRF 防护）。
+	ErrUnsafePluginRouteTarget = errors.New("plugin route target is not allowed")
 
 	handshakeConfig = plugin.HandshakeConfig{
 		ProtocolVersion:  1,
 		MagicCookieKey:   "SFORUM_PLUGIN",
 		MagicCookieValue: "sforum-plugin-v1",
+	}
+
+	// 插件子进程环境白名单：不继承 DATABASE_URL / SESSION_* 等宿主密钥。
+	pluginEnvAllowlist = map[string]bool{
+		"PATH": true, "HOME": true, "TMPDIR": true, "TEMP": true, "TMP": true,
+		"LANG": true, "LC_ALL": true, "LC_CTYPE": true, "TZ": true,
+		// go-plugin / 测试 helper 需要的变量由 go-plugin 自行注入；宿主仅保留基础运行环境。
+		"SFORUM_PLUGIN_HELPER": true,
 	}
 )
 
@@ -120,7 +132,7 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	}
 
 	cmd := exec.CommandContext(ctx, path)
-	cmd.Env = os.Environ()
+	cmd.Env = buildPluginProcessEnv(os.Environ())
 	if s.settings != nil {
 		values, err := s.settings.ListSettings(ctx, extension.ID)
 		if err != nil {
@@ -175,6 +187,10 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 		}
 		return RouteTarget{}, fmt.Errorf("plugin route target is empty")
 	}
+	if err := validatePluginRouteTarget(target.BaseURL); err != nil {
+		client.Kill()
+		return RouteTarget{}, err
+	}
 
 	s.mu.Lock()
 	if s.clients == nil {
@@ -190,6 +206,62 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	s.protocols[extension.ID] = protocol
 	s.mu.Unlock()
 	return RouteTarget{BaseURL: target.BaseURL}, nil
+}
+
+// validatePluginRouteTarget 限制插件 RouteTarget 仅允许 loopback http(s)，阻断 SSRF。
+func validatePluginRouteTarget(raw string) error {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrUnsafePluginRouteTarget, err)
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("%w: scheme %q not allowed", ErrUnsafePluginRouteTarget, parsed.Scheme)
+	}
+	if parsed.User != nil {
+		return fmt.Errorf("%w: userinfo not allowed", ErrUnsafePluginRouteTarget)
+	}
+	host := parsed.Hostname()
+	if host == "" {
+		return fmt.Errorf("%w: empty host", ErrUnsafePluginRouteTarget)
+	}
+	// 字面量 loopback 主机名直接放行，避免依赖解析器。
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		return nil
+	}
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return fmt.Errorf("%w: resolve %q: %v", ErrUnsafePluginRouteTarget, host, err)
+	}
+	if len(ips) == 0 {
+		return fmt.Errorf("%w: no addresses for %q", ErrUnsafePluginRouteTarget, host)
+	}
+	for _, ip := range ips {
+		if !ip.IsLoopback() {
+			return fmt.Errorf("%w: host %q resolves to non-loopback %s", ErrUnsafePluginRouteTarget, host, ip)
+		}
+		// 双保险：拒绝 link-local / 未指定地址（IsLoopback 通常已排除）。
+		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+			return fmt.Errorf("%w: host %q resolves to disallowed address %s", ErrUnsafePluginRouteTarget, host, ip)
+		}
+	}
+	return nil
+}
+
+// buildPluginProcessEnv 从宿主环境中挑选最小白名单，并保留已有 SFORUM_SETTING_*。
+// 不把 DATABASE_URL、SESSION_HASH_SECRET 等密钥传给插件子进程。
+func buildPluginProcessEnv(hostEnv []string) []string {
+	out := make([]string, 0, 16)
+	for _, entry := range hostEnv {
+		key, _, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		if pluginEnvAllowlist[key] || strings.HasPrefix(key, "SFORUM_SETTING_") {
+			out = append(out, entry)
+		}
+	}
+	return out
 }
 
 func pluginSettingEnvName(key string) string {
