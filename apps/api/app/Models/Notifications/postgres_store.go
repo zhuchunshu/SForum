@@ -16,9 +16,14 @@ type queryRunner interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }
 
-type PostgresStore struct{ runner queryRunner }
+type PostgresStore struct {
+	runner queryRunner
+	pool   *pgxpool.Pool
+}
 
-func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore { return &PostgresStore{runner: pool} }
+func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
+	return &PostgresStore{runner: pool, pool: pool}
+}
 func newPostgresStore(runner queryRunner) *PostgresStore { return &PostgresStore{runner: runner} }
 
 func (s *PostgresStore) CreateBundleTx(ctx context.Context, tx queryRunner, input CreateBundleInput) (Bundle, error) {

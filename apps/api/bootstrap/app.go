@@ -24,6 +24,7 @@ import (
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
+	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
@@ -208,6 +209,13 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		}
 		pool.Close()
 		return nil, fmt.Errorf("sync builtin extensions failed: %w", err)
+	}
+	legacyMailValues, err := optionsService.InternalValues(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load legacy mail options: %w", err)
+	}
+	if err := notifications.NewPostgresStore(pool).AdoptLegacyMail(ctx, legacyMailValues); err != nil {
+		return nil, fmt.Errorf("adopt legacy mail settings: %w", err)
 	}
 	// 首次启用统一 runtime 时只排队 canonical release；构建失败不能阻断旧站点启动。
 	if err := ensureInitialWebRelease(ctx, webReleaseStore, webReleaseService); err != nil {

@@ -76,12 +76,20 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	if _, err := extensionService.SyncBuiltins(context.Background()); err != nil {
 		return nil, fmt.Errorf("sync worker builtin extensions: %w", err)
 	}
+	workerOptions := options.NewServiceWithDefaults(options.NewPostgresStore(pool), optionsDefaultsFromConfig(cfg))
+	legacyMailValues, err := workerOptions.InternalValues(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("load worker legacy mail options: %w", err)
+	}
+	notificationStore := notifications.NewPostgresStore(pool)
+	if err := notificationStore.AdoptLegacyMail(context.Background(), legacyMailValues); err != nil {
+		return nil, fmt.Errorf("adopt worker legacy mail settings: %w", err)
+	}
 	items, err := extensionStore.List(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("list worker extensions: %w", err)
 	}
 	extensionRuntime.Reconcile(context.Background(), items)
-	notificationStore := notifications.NewPostgresStore(pool)
 	mailProviders := extensionsruntime.NewMailProviderRegistry(extensionStore)
 	notificationjobs.Register(registry, &notificationjobs.DeliverMailWorker{Store: notificationStore, Providers: mailProviders, Sender: extensionRuntime})
 	webReleaseStore := extensions.NewPostgresWebReleaseStore(pool)
