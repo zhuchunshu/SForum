@@ -7,14 +7,15 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 
+	attachmentjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Attachments"
 	extensionjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
 	identityjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Identity"
 	notificationjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Notifications"
+	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
@@ -29,6 +30,8 @@ import (
 
 type Worker struct {
 	Client *supportjobs.Client
+	// Schedules 是宿主 schedule catalog（含元数据）；River PeriodicJobs 由其 Build 得到。
+	Schedules *supportjobs.ScheduleRegistry
 
 	closeOnce sync.Once
 	close     func()
@@ -115,22 +118,36 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	})
 	extensionjobs.RegisterWebReleaseBuildWorker(registry, webReleaseStore, webReleaseBuilder, postgres.NewAdvisoryLocker(pool))
 	extensionjobs.RegisterWebReleaseCleanupWorker(registry, webReleaseStore, cfg.WebReleaseRoot)
+	// 孤儿附件清理：handler 已存在，F1 通过 schedule registry 挂上 daily maintenance。
+	attachmentStore := attachments.NewPostgresStore(pool)
+	attachmentService := attachments.NewService(attachmentStore, workerOptions)
+	attachmentjobs.Register(registry, attachmentService)
 	registerSearchWorkers(registry, cfg, pool)
-	// 周期任务通过返回值显式传递，避免用包级全局变量在多次构造（独立 worker + API 内嵌
-	// worker）之间互相覆盖或丢失注册。
-	var periodicJobs []*river.PeriodicJob
-	if cleanup := registerIdentityCleanupWorker(registry, cfg, pool, logger); cleanup != nil {
-		periodicJobs = append(periodicJobs, cleanup)
-	}
-	periodicJobs = append(periodicJobs, river.NewPeriodicJob(
-		river.PeriodicInterval(24*time.Hour),
-		func() (river.JobArgs, *river.InsertOpts) {
+	registerIdentityCleanupWorker(registry, cfg, pool, logger)
+
+	// 周期任务统一经 Schedule Registry 注册，禁止在 bootstrap 散落 NewPeriodicJob。
+	scheduleRegistry, err := supportjobs.NewCoreScheduleRegistry(map[string]river.PeriodicJobConstructor{
+		supportjobs.ScheduleIdentityCleanupSessions: func() (river.JobArgs, *river.InsertOpts) {
+			return identityjobs.CleanupSessionsArgs{}, nil
+		},
+		supportjobs.ScheduleExtensionWebReleaseCleanup: func() (river.JobArgs, *river.InsertOpts) {
 			return extensionjobs.WebReleaseCleanupArgs{}, nil
 		},
-		&river.PeriodicJobOpts{RunOnStart: false},
-	))
+		supportjobs.ScheduleAttachmentsCleanupOrphans: func() (river.JobArgs, *river.InsertOpts) {
+			// Limit=0 时 worker 使用默认批大小 100。
+			return attachmentjobs.CleanupOrphansArgs{}, nil
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("schedule registry: %w", err)
+	}
+	periodicJobs, err := scheduleRegistry.BuildPeriodicJobs()
+	if err != nil {
+		return nil, fmt.Errorf("build periodic jobs: %w", err)
+	}
+
 	if registry.IsEmpty() {
-		return &Worker{}, nil
+		return &Worker{Schedules: scheduleRegistry}, nil
 	}
 
 	workers, err := registry.Build()
@@ -143,12 +160,17 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		return nil, fmt.Errorf("job client setup failed: %w", err)
 	}
 
-	return &Worker{Client: client, close: func() { extensionRuntime.Close(context.Background()) }}, nil
+	return &Worker{
+		Client:    client,
+		Schedules: scheduleRegistry,
+		close:     func() { extensionRuntime.Close(context.Background()) },
+	}, nil
 }
 
-// registerIdentityCleanupWorker 注册历史会话清理 worker 与每天一次的 periodic job，返回该周期任务。
+// registerIdentityCleanupWorker 注册历史会话清理 worker。
 // keep_days 从 runtime option 读取（每次执行时实时解析，admin 改动即生效）。
-func registerIdentityCleanupWorker(registry *supportjobs.Registry, cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) *river.PeriodicJob {
+// 对应的 daily schedule 由 Schedule Registry 统一拥有，不在此返回 PeriodicJob。
+func registerIdentityCleanupWorker(registry *supportjobs.Registry, cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) {
 	optionStore := options.NewPostgresStore(pool)
 	optionsService := options.NewServiceWithDefaults(optionStore, optionsDefaultsFromConfig(cfg))
 	identityStore := identity.NewPostgresStore(pool)
@@ -170,14 +192,6 @@ func registerIdentityCleanupWorker(registry *supportjobs.Registry, cfg config.Co
 		})
 		return nil
 	})
-
-	return river.NewPeriodicJob(
-		river.PeriodicInterval(24*time.Hour),
-		func() (river.JobArgs, *river.InsertOpts) {
-			return identityjobs.CleanupSessionsArgs{}, nil
-		},
-		&river.PeriodicJobOpts{RunOnStart: false},
-	)
 }
 
 func (w *Worker) Start(ctx context.Context) error {
