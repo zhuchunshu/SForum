@@ -33,13 +33,17 @@ Initial identity foundation is implemented.
   through the forum taxonomy migration, and `super_admin` receives it by
   default.
 - Current core catalog (authoritative in
-  `apps/api/app/Models/Identity/seeds.go`, 28 keys) covers admin access,
-  identity, forum content moderation actions, moderation policy/review,
-  settings/SEO/database, attachments, extensions, search, and jobs. Frontend
-  labels live under `admin.permissionCatalog.*` and module labels under
-  `admin.permissionModules.*`; `tests/validate-identity-ui.js` requires every
-  seed key and module to have zh-CN/en-US text so newly added permissions do not
-  fall back to raw keys in the admin UI.
+  `apps/api/app/Models/Identity/seeds.go`) covers admin access, identity,
+  forum content actions, moderation policy/review, fine-grained settings,
+  SEO/database, attachments, extensions, search, and jobs. Phase 1 splits
+  high-risk parents into grantable children (`settings.*`, `forum.settings`,
+  `user.view` / `user.permission_override`, `extension.view/plugin/theme/release`)
+  and separates author topic edit/delete (`topic.edit_own` /
+  `topic.delete_own`) from reply own keys. Legacy parents remain for upgrade
+  compatibility via `permission_compat.go` expansion. Frontend labels live under
+  `admin.permissionCatalog.*`; `tests/validate-identity-ui.js` requires every
+  seed key and module to have zh-CN/en-US text.
+- Decision: `knowledge/decisions/2026-07-12-fine-grained-permissions-phase1.md`.
 - API exposes `/api/v1/auth/registration-status` so the registration page can
   show when the next successful registration will become the initial
   `super_admin`.

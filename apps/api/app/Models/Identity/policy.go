@@ -29,7 +29,8 @@ func (a Actor) Can(permission string) bool {
 	if a.Permissions == nil {
 		return false
 	}
-	return a.Permissions[permission]
+	// 细粒度子权限可通过旧父权限继承（settings.manage → settings.mail.manage 等）。
+	return hasExpandedPermission(a.Permissions, permission)
 }
 
 func CanEditPost(actor Actor, post PostSummary) bool {

@@ -604,7 +604,8 @@ func (s *PostgresStore) loadAdminUserAccess(ctx context.Context, detail *AdminUs
 	if permissions == nil {
 		permissions = []string{}
 	}
-	detail.Permissions = permissions
+	// 展开父权限子项，保证后台菜单与 API 细粒度检查对旧角色仍可用。
+	detail.Permissions = ExpandEffectivePermissions(permissions)
 	detail.PermissionOverrides = overrides
 	return nil
 }
@@ -625,7 +626,8 @@ func loadCurrentUserAccess(ctx context.Context, queries *store.Queries, current 
 		permissions = []string{}
 	}
 	current.RoleKeys = roleKeys
-	current.Permissions = permissions
+	// 会话有效权限展开父→子，前端 can('settings.mail.manage') 在旧 settings.manage 下也成立。
+	current.Permissions = ExpandEffectivePermissions(permissions)
 	return nil
 }
 

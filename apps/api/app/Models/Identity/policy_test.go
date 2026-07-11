@@ -51,3 +51,35 @@ func TestMemberCannotEditOtherPostWithoutAnyPermission(t *testing.T) {
 		t.Fatal("expected actor not to edit someone else's post")
 	}
 }
+
+
+func TestLegacySettingsManageImpliesMailManage(t *testing.T) {
+	actor := Actor{
+		ID:          4,
+		Status:      UserStatusActive,
+		Permissions: map[string]bool{PermissionSettingsManage: true},
+	}
+	if !actor.Can(PermissionSettingsMailManage) {
+		t.Fatal("expected settings.manage parent to satisfy settings.mail.manage")
+	}
+	if actor.Can(PermissionSEOManage) {
+		t.Fatal("settings.manage must not imply unrelated permissions")
+	}
+}
+
+func TestExpandEffectivePermissionsAddsChildren(t *testing.T) {
+	got := ExpandEffectivePermissions([]string{PermissionUserManage, PermissionPostCreate})
+	wantChildren := []string{PermissionUserView, PermissionUserPermissionOverride, PermissionUserManage, PermissionPostCreate}
+	for _, key := range wantChildren {
+		found := false
+		for _, item := range got {
+			if item == key {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected expanded list to contain %s, got %v", key, got)
+		}
+	}
+}
