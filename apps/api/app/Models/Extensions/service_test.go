@@ -755,7 +755,6 @@ func TestServiceEnableRejectsMissingInstalledPackage(t *testing.T) {
 		t.Fatalf("expected enable failure event, got %#v", store.events)
 	}
 }
-h0-jixu 
 func TestServiceEnableRejectsTamperedDigestBackedPackage(t *testing.T) {
 	tests := []struct {
 		name   string
