@@ -1053,11 +1053,19 @@
       "user": {
         "manage": {
           "label": "Manage users",
-          "description": "View users, assign groups, and set per-user permission exceptions."
+          "description": "Manage user status, assign groups, and force-sign-out devices."
         },
         "ban": {
           "label": "Ban users",
           "description": "Restrict users from continuing to participate in the forum."
+        },
+        "view": {
+          "label": "View users",
+          "description": "View user lists and details without changing groups or overrides."
+        },
+        "permission_override": {
+          "label": "Edit user permission overrides",
+          "description": "Set direct allow and deny permission overrides for a single user."
         }
       },
       "category": {
@@ -1092,6 +1100,14 @@
         "pin": {
           "label": "Pin topics",
           "description": "Pin or unpin topics."
+        },
+        "edit_own": {
+          "label": "Edit own topics",
+          "description": "Edit topics published by the current user."
+        },
+        "delete_own": {
+          "label": "Delete own topics",
+          "description": "Delete topics published by the current user."
         }
       },
       "post": {
@@ -1100,16 +1116,16 @@
           "description": "Create replies under topics."
         },
         "edit_own": {
-          "label": "Edit own content",
-          "description": "Edit topics and replies posted by the current user."
+          "label": "Edit own replies",
+          "description": "Edit replies posted by the current user."
         },
         "edit_any": {
           "label": "Edit any reply",
           "description": "Edit replies posted by any user."
         },
         "delete_own": {
-          "label": "Delete own content",
-          "description": "Delete topics and replies posted by the current user."
+          "label": "Delete own replies",
+          "description": "Delete replies posted by the current user."
         },
         "delete_any": {
           "label": "Delete any reply",
@@ -1128,8 +1144,32 @@
       },
       "settings": {
         "manage": {
-          "label": "Manage site settings",
-          "description": "Edit runtime settings such as site name, languages, mail and notifications, and human verification."
+          "label": "Manage all site settings (legacy)",
+          "description": "Legacy parent permission covering site, mail, avatar, appearance, and forum settings."
+        },
+        "site": {
+          "manage": {
+            "label": "Manage site settings",
+            "description": "Edit site identity, locales, human verification, password, and session settings."
+          }
+        },
+        "mail": {
+          "manage": {
+            "label": "Manage mail and notifications",
+            "description": "Choose mail providers, configure notification policy, send tests, and inspect deliveries."
+          }
+        },
+        "avatar": {
+          "manage": {
+            "label": "Manage avatar settings",
+            "description": "Configure avatar upload, defaults, and compression."
+          }
+        },
+        "appearance": {
+          "manage": {
+            "label": "Manage appearance",
+            "description": "Edit theme presets, footer copyright, and public chrome personalization."
+          }
         }
       },
       "seo": {
@@ -1152,8 +1192,30 @@
       },
       "extension": {
         "manage": {
-          "label": "Manage extensions and themes",
-          "description": "Install, enable, and disable plugins and themes, and manage web releases."
+          "label": "Manage all extensions (legacy)",
+          "description": "Legacy parent permission covering view, plugin, theme, and release management."
+        },
+        "view": {
+          "label": "View extensions",
+          "description": "View installed extensions, event deliveries, and contributions."
+        },
+        "plugin": {
+          "manage": {
+            "label": "Manage plugins",
+            "description": "Install, enable, disable plugins, and edit plugin settings."
+          }
+        },
+        "theme": {
+          "manage": {
+            "label": "Manage themes",
+            "description": "Activate and manage frontend themes."
+          }
+        },
+        "release": {
+          "manage": {
+            "label": "Manage web releases",
+            "description": "Build and activate trusted admin web releases (high risk)."
+          }
         }
       },
       "jobs": {
@@ -1179,6 +1241,14 @@
           "manage": {
             "label": "Manage attachment settings",
             "description": "Edit storage providers, upload limits, access URLs, and secret configuration."
+          }
+        }
+      },
+      "forum": {
+        "settings": {
+          "manage": {
+            "label": "Manage forum runtime settings",
+            "description": "Configure pagination, content limits, cooldowns, daily caps, reading, and posting behavior."
           }
         }
       }

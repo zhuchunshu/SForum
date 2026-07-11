@@ -1053,11 +1053,19 @@
       "user": {
         "manage": {
           "label": "管理用户",
-          "description": "查看用户、分配用户组，并设置单个用户的权限例外。"
+          "description": "管理用户状态、分配用户组，并执行管理员强制下线。"
         },
         "ban": {
           "label": "封禁用户",
           "description": "限制用户继续参与论坛互动。"
+        },
+        "view": {
+          "label": "查看用户",
+          "description": "查看用户列表与详情，不能改用户组或权限例外。"
+        },
+        "permission_override": {
+          "label": "编辑用户权限例外",
+          "description": "为单个用户设置允许或拒绝的直接权限覆盖。"
         }
       },
       "category": {
@@ -1092,6 +1100,14 @@
         "pin": {
           "label": "置顶主题",
           "description": "置顶或取消置顶主题。"
+        },
+        "edit_own": {
+          "label": "编辑自己的主题",
+          "description": "编辑自己发布的主题。"
+        },
+        "delete_own": {
+          "label": "删除自己的主题",
+          "description": "删除自己发布的主题。"
         }
       },
       "post": {
@@ -1100,16 +1116,16 @@
           "description": "在主题下创建回复。"
         },
         "edit_own": {
-          "label": "编辑自己的内容",
-          "description": "编辑自己发布的主题与回复。"
+          "label": "编辑自己的回复",
+          "description": "编辑自己发布的回复。"
         },
         "edit_any": {
           "label": "编辑任意回复",
           "description": "编辑任何用户发布的回复。"
         },
         "delete_own": {
-          "label": "删除自己的内容",
-          "description": "删除自己发布的主题与回复。"
+          "label": "删除自己的回复",
+          "description": "删除自己发布的回复。"
         },
         "delete_any": {
           "label": "删除任意回复",
@@ -1128,8 +1144,32 @@
       },
       "settings": {
         "manage": {
-          "label": "管理站点设置",
-          "description": "修改站点名称、语言、邮件通知、人机验证等运行时设置。"
+          "label": "管理全部站点设置（兼容）",
+          "description": "旧版父权限：等同于站点、邮件、头像、外观与论坛设置的全部管理能力。"
+        },
+        "site": {
+          "manage": {
+            "label": "管理站点设置",
+            "description": "修改站点标识、语言、人机验证、密码与会话等核心设置。"
+          }
+        },
+        "mail": {
+          "manage": {
+            "label": "管理邮件与通知",
+            "description": "选择邮件提供商、配置通知策略、发送测试并查看投递记录。"
+          }
+        },
+        "avatar": {
+          "manage": {
+            "label": "管理头像设置",
+            "description": "配置头像上传、默认头像与压缩策略。"
+          }
+        },
+        "appearance": {
+          "manage": {
+            "label": "管理外观个性化",
+            "description": "修改主题预设、页脚版权与公开外观相关设置。"
+          }
         }
       },
       "seo": {
@@ -1152,8 +1192,30 @@
       },
       "extension": {
         "manage": {
-          "label": "管理扩展与主题",
-          "description": "安装、启用、禁用插件与主题，并管理 Web 发布。"
+          "label": "管理全部扩展（兼容）",
+          "description": "旧版父权限：等同于查看、插件、主题与发布管理的全部能力。"
+        },
+        "view": {
+          "label": "查看扩展",
+          "description": "查看已安装扩展、事件投递与贡献点。"
+        },
+        "plugin": {
+          "manage": {
+            "label": "管理插件",
+            "description": "安装、启用、禁用插件并编辑插件设置。"
+          }
+        },
+        "theme": {
+          "manage": {
+            "label": "管理主题",
+            "description": "激活与管理前台主题。"
+          }
+        },
+        "release": {
+          "manage": {
+            "label": "管理 Web 发布",
+            "description": "构建并激活受信任的后台 Web 发布（高危）。"
+          }
         }
       },
       "jobs": {
@@ -1179,6 +1241,14 @@
           "manage": {
             "label": "管理附件设置",
             "description": "修改附件存储提供商、上传限制、访问 URL 和密钥配置。"
+          }
+        }
+      },
+      "forum": {
+        "settings": {
+          "manage": {
+            "label": "管理论坛运行设置",
+            "description": "配置分页、内容长度、冷却、每日上限、阅读与发帖行为策略。"
           }
         }
       }

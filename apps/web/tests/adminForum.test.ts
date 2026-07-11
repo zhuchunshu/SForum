@@ -56,7 +56,7 @@ describe('admin forum helpers', () => {
 
   test('renders multi-tab permission-aware forum settings controls', () => {
     const settingsPage = readFileSync(new URL('../app/pages/admin/forum/settings.vue', import.meta.url), 'utf8')
-    expect(settingsPage).toContain("can('settings.manage')")
+    expect(settingsPage).toContain("can('forum.settings.manage')")
     expect(settingsPage).toContain('v-model="form.topicsPerPage"')
     expect(settingsPage).toContain('v-model="form.commentsPerPage"')
     expect(settingsPage).toContain('v-model="form.topicTitleMinRunes"')
@@ -150,7 +150,7 @@ describe('admin forum helpers', () => {
 
     expect(categories?.requiredPermissions).toEqual(['category.manage'])
     expect(tags?.requiredPermissions).toEqual(['tag.manage'])
-    expect(settings?.requiredPermissions).toEqual(['category.manage', 'tag.manage', 'settings.manage'])
+    expect(settings?.requiredPermissions).toEqual(['category.manage', 'tag.manage', 'forum.settings.manage'])
     expect(settings?.permissionMode).toBe('any')
   })
 

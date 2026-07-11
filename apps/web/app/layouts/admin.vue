@@ -35,7 +35,9 @@ const { request } = useApiClient()
 const { siteName } = useWebOptions()
 const { data: extensionNavigation } = await useAsyncData<AdminExtensionNavigationItem[]>(
   'admin-extension-navigation',
-  () => can('extension.manage') ? request<AdminExtensionNavigationItem[]>('/admin/extensions/navigation') : Promise.resolve([]),
+  () => (can('extension.view') || can('extension.plugin.manage') || can('extension.theme.manage') || can('extension.manage'))
+    ? request<AdminExtensionNavigationItem[]>('/admin/extensions/navigation')
+    : Promise.resolve([]),
   { default: (): AdminExtensionNavigationItem[] => [] }
 )
 

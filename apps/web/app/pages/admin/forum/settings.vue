@@ -73,7 +73,7 @@ const publicCategories = computed(() => categories.value.filter((category) => ca
 const hasPublicCategories = computed(() => publicCategories.value.length > 0)
 const hasChanges = computed(() => JSON.stringify(forumSettingsPayload(form)) !== savedSnapshot.value)
 const recommended = createDefaultForumSettings()
-const canManageSettings = computed(() => can('settings.manage'))
+const canManageSettings = computed(() => can('forum.settings.manage') || can('settings.manage'))
 const canManageTags = computed(() => can('tag.manage'))
 const canManageCategories = computed(() => can('category.manage'))
 const validationKey = computed(() => forumSettingsValidationError(form))

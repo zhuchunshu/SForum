@@ -8,7 +8,7 @@ const en = JSON.parse(await Bun.file(new URL('../i18n/locales/en-US.json', impor
 describe('mail and notification admin center', () => {
   test('is visible in the System navigation with settings permission', () => {
     expect(modules).toContain("pageId: '/settings/mail'")
-    expect(modules).toContain("requiredPermissions: ['settings.manage']")
+    expect(modules).toContain("requiredPermissions: ['settings.mail.manage']")
     expect(zh.admin.nav.mailSettings).toBe('邮箱与通知')
     expect(en.admin.nav.mailSettings).toBe('Mail and notifications')
   })

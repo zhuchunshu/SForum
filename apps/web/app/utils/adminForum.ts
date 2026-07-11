@@ -87,7 +87,7 @@ export type AdminForumSettingsPayload = {
   mentionsMaxPerPost?: number
 }
 
-/** settings.manage 控制的字段；保存时无权限会剔除。 */
+/** forum.settings.manage 控制的字段；保存时无权限会剔除。 */
 export const forumSettingsManageKeys = [
   'topicsPerPage',
   'commentsPerPage',

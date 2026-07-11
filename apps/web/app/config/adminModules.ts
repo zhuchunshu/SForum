@@ -53,14 +53,15 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.userManagement',
     icon: 'i-lucide-contact',
     componentName: 'AdminUsers',
-    requiredPermissions: ['user.manage']
+    requiredPermissions: ['user.view', 'user.manage'],
+    permissionMode: 'any'
   },
   {
     id: '/personalization',
     labelKey: 'admin.nav.personalization',
     icon: 'i-lucide-palette',
     componentName: 'AdminPersonalization',
-    requiredPermissions: ['settings.manage']
+    requiredPermissions: ['settings.appearance.manage']
   },
   {
     id: '/roles',
@@ -75,7 +76,7 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.permissionManagement',
     icon: 'i-lucide-shield-check',
     componentName: 'AdminPermissions',
-    requiredPermissions: ['role.manage', 'user.manage'],
+    requiredPermissions: ['role.manage', 'user.view', 'user.manage'],
     permissionMode: 'any'
   },
   {
@@ -83,21 +84,21 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.settings',
     icon: 'i-lucide-settings-2',
     componentName: 'AdminSettings',
-    requiredPermissions: ['settings.manage']
+    requiredPermissions: ['settings.site.manage']
   },
   {
     id: '/settings/mail',
     labelKey: 'admin.nav.mailSettings',
     icon: 'i-lucide-mail',
     componentName: 'AdminMailSettings',
-    requiredPermissions: ['settings.manage']
+    requiredPermissions: ['settings.mail.manage']
   },
   {
     id: '/settings/avatar',
     labelKey: 'admin.nav.avatarSettings',
     icon: 'i-lucide-user-round-cog',
     componentName: 'AdminAvatarSettings',
-    requiredPermissions: ['settings.manage']
+    requiredPermissions: ['settings.avatar.manage']
   },
   {
     id: '/moderation',
@@ -147,7 +148,7 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.forumSettings',
     icon: 'i-lucide-sliders-horizontal',
     componentName: 'AdminForumSettings',
-    requiredPermissions: ['category.manage', 'tag.manage', 'settings.manage'],
+    requiredPermissions: ['category.manage', 'tag.manage', 'forum.settings.manage'],
     permissionMode: 'any'
   },
   {
@@ -155,21 +156,24 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.extensionOverview',
     icon: 'i-lucide-layout-dashboard',
     componentName: 'AdminExtensions',
-    requiredPermissions: ['extension.manage']
+    requiredPermissions: ['extension.view', 'extension.plugin.manage', 'extension.theme.manage', 'extension.release.manage'],
+    permissionMode: 'any'
   },
   {
     id: '/extensions/plugins',
     labelKey: 'admin.nav.extensionPlugins',
     icon: 'i-lucide-plug',
     componentName: 'AdminExtensionPlugins',
-    requiredPermissions: ['extension.manage']
+    requiredPermissions: ['extension.plugin.manage', 'extension.view'],
+    permissionMode: 'any'
   },
   {
     id: '/extensions/themes',
     labelKey: 'admin.nav.extensionThemes',
     icon: 'i-lucide-palette',
     componentName: 'AdminExtensionThemes',
-    requiredPermissions: ['extension.manage']
+    requiredPermissions: ['extension.theme.manage', 'extension.view'],
+    permissionMode: 'any'
   },
   {
     // 应用商城：框架占位页，安装/检索能力后续再接
@@ -177,35 +181,35 @@ export const adminPageDefinitions = [
     labelKey: 'admin.nav.extensionStore',
     icon: 'i-lucide-store',
     componentName: 'AdminExtensionStore',
-    requiredPermissions: ['extension.manage']
+    requiredPermissions: ['extension.plugin.manage']
   },
   {
     id: '/extensions/settings',
     labelKey: 'admin.nav.extensionSettings',
     icon: 'i-lucide-sliders-horizontal',
     componentName: 'AdminExtensionSettings',
-    requiredPermissions: ['extension.manage']
+    requiredPermissions: ['extension.plugin.manage']
   },
   {
     id: '/extensions/events',
     labelKey: 'admin.nav.extensionEvents',
     icon: 'i-lucide-scroll-text',
     componentName: 'AdminExtensionEvents',
-    requiredPermissions: ['extension.manage']
+    requiredPermissions: ['extension.view']
   },
   {
     id: '/extensions/contributions',
     labelKey: 'admin.nav.extensionContributions',
     icon: 'i-lucide-blocks',
     componentName: 'AdminExtensionContributions',
-    requiredPermissions: ['extension.manage']
+    requiredPermissions: ['extension.view']
   },
   {
     id: '/extensions/releases',
     labelKey: 'admin.nav.extensionReleases',
     icon: 'i-lucide-rocket',
     componentName: 'AdminExtensionReleases',
-    requiredPermissions: ['extension.manage']
+    requiredPermissions: ['extension.release.manage']
   },
   {
     id: '/search',
