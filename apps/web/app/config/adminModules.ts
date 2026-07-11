@@ -64,6 +64,13 @@ export const adminPageDefinitions = [
     requiredPermissions: ['settings.appearance.manage']
   },
   {
+    id: '/site-chrome',
+    labelKey: 'admin.nav.siteChrome',
+    icon: 'i-lucide-panel-top',
+    componentName: 'AdminSiteChrome',
+    requiredPermissions: ['settings.site.manage']
+  },
+  {
     id: '/roles',
     labelKey: 'admin.nav.userGroups',
     icon: 'i-lucide-shield-check',
@@ -260,6 +267,7 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/settings/mail' },
         { type: 'page', pageId: '/settings/avatar' },
         { type: 'page', pageId: '/personalization' },
+        { type: 'page', pageId: '/site-chrome' },
         { type: 'page', pageId: '/seo' },
         { type: 'page', pageId: '/search' }
       ]

@@ -257,6 +257,7 @@
     "nav": {
       "dashboard": "仪表盘",
       "personalization": "个性化设置",
+      "siteChrome": "品牌与前台壳",
       "roles": "用户组",
       "rolesBadge": "RBAC",
       "settings": "站点设置",
@@ -1339,6 +1340,105 @@
         "partitioned_table": "分区表",
         "view": "视图",
         "materialized_view": "物化视图"
+      }
+    },
+    "siteChrome": {
+      "metaTitle": "品牌与前台壳",
+      "title": "品牌与前台壳",
+      "intro": "配置站点 Logo、导航菜单、公告横幅、法律页正文与友情链接。",
+      "toolbar": "品牌资源与法律正文使用 web_options；导航、公告与友情链接使用专用表。",
+      "refresh": "刷新",
+      "loadFailed": "品牌与前台壳加载失败。",
+      "recommendedTitle": "推荐默认",
+      "recommendedBody": "空 Logo 使用主题默认图标；导航默认含首页/分类/标签/搜索；法律页自带简短 stub，可按站点改写。",
+      "enabled": "已启用",
+      "disabled": "已停用",
+      "enable": "启用",
+      "disable": "停用",
+      "delete": "删除",
+      "position": "排序",
+      "tabs": {
+        "brand": "品牌",
+        "nav": "导航",
+        "announcements": "公告",
+        "legal": "法律页",
+        "friendLinks": "友情链接"
+      },
+      "brand": {
+        "title": "Logo 与图标",
+        "description": "支持公开 URL 或附件 ID。前台优先解析附件，失败时回退 URL；皆空则用主题默认。",
+        "logoUrl": "Logo URL",
+        "logoAttachmentId": "Logo 附件 ID",
+        "faviconUrl": "Favicon URL",
+        "faviconAttachmentId": "Favicon 附件 ID",
+        "appleTouchUrl": "Apple Touch Icon URL",
+        "appleTouchAttachmentId": "Apple Touch 附件 ID",
+        "urlPlaceholder": "https://… 或 /path/to/icon.png",
+        "save": "保存品牌资源",
+        "saved": "品牌资源已保存。",
+        "saveFailed": "品牌资源保存失败。",
+        "restoreEmpty": "清空为默认"
+      },
+      "nav": {
+        "title": "顶部导航",
+        "description": "管理前台顶栏菜单项。停用后不会出现在公开列表。",
+        "labelZh": "中文标签",
+        "labelEn": "英文标签",
+        "hrefPlaceholder": "/ 或 https://…",
+        "add": "添加",
+        "empty": "暂无导航项。",
+        "created": "导航项已添加。",
+        "updated": "导航项已更新。",
+        "deleted": "导航项已删除。",
+        "saveFailed": "导航操作失败。"
+      },
+      "announcements": {
+        "title": "公告横幅",
+        "description": "首页可展示的启用公告（支持时间窗，公开接口会过滤过期项）。",
+        "titleZh": "中文标题",
+        "titleEn": "英文标题",
+        "bodyZh": "中文正文",
+        "bodyEn": "英文正文",
+        "hrefPlaceholder": "可选链接",
+        "add": "添加公告",
+        "empty": "暂无公告。",
+        "created": "公告已添加。",
+        "updated": "公告已更新。",
+        "deleted": "公告已删除。",
+        "saveFailed": "公告操作失败。",
+        "styles": {
+          "info": "信息",
+          "success": "成功",
+          "warning": "警告",
+          "danger": "危险"
+        }
+      },
+      "legal": {
+        "title": "法律页正文",
+        "description": "Markdown 正文 stubs，供 /terms、/privacy、/guidelines 等页面渲染。页脚链接仍在「个性化」中配置。",
+        "termsZh": "服务条款（中文）",
+        "termsEn": "Terms (English)",
+        "privacyZh": "隐私政策（中文）",
+        "privacyEn": "Privacy (English)",
+        "guidelinesZh": "社区指南（中文）",
+        "guidelinesEn": "Guidelines (English)",
+        "save": "保存法律正文",
+        "saved": "法律正文已保存。",
+        "saveFailed": "法律正文保存失败。",
+        "hintRestore": "可从站点设置恢复推荐 stub（保存前请先刷新）"
+      },
+      "friendLinks": {
+        "title": "友情链接",
+        "description": "页脚或友情链接区展示的外部站点列表。",
+        "name": "名称",
+        "urlPlaceholder": "https://example.com",
+        "descriptionField": "简介（可选）",
+        "add": "添加",
+        "empty": "暂无友情链接。",
+        "created": "友情链接已添加。",
+        "updated": "友情链接已更新。",
+        "deleted": "友情链接已删除。",
+        "saveFailed": "友情链接操作失败。"
       }
     },
     "personalization": {

@@ -257,6 +257,7 @@
     "nav": {
       "dashboard": "Dashboard",
       "personalization": "Personalization",
+      "siteChrome": "Brand & public chrome",
       "roles": "User groups",
       "rolesBadge": "RBAC",
       "settings": "Site settings",
@@ -1339,6 +1340,105 @@
         "partitioned_table": "Partitioned table",
         "view": "View",
         "materialized_view": "Materialized view"
+      }
+    },
+    "siteChrome": {
+      "metaTitle": "Brand & public chrome",
+      "title": "Brand & public chrome",
+      "intro": "Configure site logo, navigation, announcement banners, legal page bodies, and friend links.",
+      "toolbar": "Brand assets and legal bodies use web_options; nav, announcements, and friend links use dedicated tables.",
+      "refresh": "Refresh",
+      "loadFailed": "Brand & public chrome could not be loaded.",
+      "recommendedTitle": "Recommended defaults",
+      "recommendedBody": "Empty logo uses the theme default; nav seeds Home/Categories/Tags/Search; legal pages ship short stubs you can rewrite.",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "enable": "Enable",
+      "disable": "Disable",
+      "delete": "Delete",
+      "position": "Order",
+      "tabs": {
+        "brand": "Brand",
+        "nav": "Navigation",
+        "announcements": "Announcements",
+        "legal": "Legal pages",
+        "friendLinks": "Friend links"
+      },
+      "brand": {
+        "title": "Logo and icons",
+        "description": "Public URL or attachment ID. Frontend prefers attachment, falls back to URL; empty uses theme defaults.",
+        "logoUrl": "Logo URL",
+        "logoAttachmentId": "Logo attachment ID",
+        "faviconUrl": "Favicon URL",
+        "faviconAttachmentId": "Favicon attachment ID",
+        "appleTouchUrl": "Apple Touch Icon URL",
+        "appleTouchAttachmentId": "Apple Touch attachment ID",
+        "urlPlaceholder": "https://… or /path/to/icon.png",
+        "save": "Save brand assets",
+        "saved": "Brand assets saved.",
+        "saveFailed": "Brand assets could not be saved.",
+        "restoreEmpty": "Clear to defaults"
+      },
+      "nav": {
+        "title": "Header navigation",
+        "description": "Manage top-bar menu items. Disabled items are omitted from the public list.",
+        "labelZh": "Chinese label",
+        "labelEn": "English label",
+        "hrefPlaceholder": "/ or https://…",
+        "add": "Add",
+        "empty": "No navigation items yet.",
+        "created": "Navigation item added.",
+        "updated": "Navigation item updated.",
+        "deleted": "Navigation item deleted.",
+        "saveFailed": "Navigation action failed."
+      },
+      "announcements": {
+        "title": "Announcement banners",
+        "description": "Enabled homepage banners (optional time window; public API filters expired items).",
+        "titleZh": "Chinese title",
+        "titleEn": "English title",
+        "bodyZh": "Chinese body",
+        "bodyEn": "English body",
+        "hrefPlaceholder": "Optional link",
+        "add": "Add announcement",
+        "empty": "No announcements yet.",
+        "created": "Announcement added.",
+        "updated": "Announcement updated.",
+        "deleted": "Announcement deleted.",
+        "saveFailed": "Announcement action failed.",
+        "styles": {
+          "info": "Info",
+          "success": "Success",
+          "warning": "Warning",
+          "danger": "Danger"
+        }
+      },
+      "legal": {
+        "title": "Legal page bodies",
+        "description": "Markdown stubs for /terms, /privacy, and /guidelines. Footer link labels still live under Personalization.",
+        "termsZh": "Terms (Chinese)",
+        "termsEn": "Terms (English)",
+        "privacyZh": "Privacy (Chinese)",
+        "privacyEn": "Privacy (English)",
+        "guidelinesZh": "Guidelines (Chinese)",
+        "guidelinesEn": "Guidelines (English)",
+        "save": "Save legal bodies",
+        "saved": "Legal bodies saved.",
+        "saveFailed": "Legal bodies could not be saved.",
+        "hintRestore": "Refresh to reload stored stubs"
+      },
+      "friendLinks": {
+        "title": "Friend links",
+        "description": "External sites shown in the footer or friends section.",
+        "name": "Name",
+        "urlPlaceholder": "https://example.com",
+        "descriptionField": "Description (optional)",
+        "add": "Add",
+        "empty": "No friend links yet.",
+        "created": "Friend link added.",
+        "updated": "Friend link updated.",
+        "deleted": "Friend link deleted.",
+        "saveFailed": "Friend link action failed."
       }
     },
     "personalization": {
