@@ -306,12 +306,10 @@ This is the entry point for project memory.
   ZIP upload, `sforum.extension.json` manifest validation, dedicated extension
   tables, lifecycle events, independent admin extension submenu pages,
   `EXTENSION_ROOT`, and reserved plugin/theme runtime boundaries. Multi-file
-  manifest authoring is accepted but not implemented: complex packages will use
-  optional `includes` (settings, contributions, admin, …) and
-  directory-per-locale identity `langs` under `manifest/langs/`, while the host
-  merges to one `Manifest` before validation. See
-  `decisions/2026-07-12-extension-manifest-split.md` and
-  `docs/superpowers/plans/2026-07-12-extension-manifest-split.md`. Plugins use
+  manifest authoring is implemented: optional `includes`, directory-per-locale
+  identity `langs`, settings/contributions shards, `LoadPackage`, SMTP
+  reference package, `make:plugin --complex`, and `extension validate`. See
+  `decisions/2026-07-12-extension-manifest-split.md`. Plugins use
   enable/disable semantics; themes use activation semantics with exactly one
   active theme. Uploaded Nuxt Layer themes can now be activated through a
   single-node self-hosted runtime: the API creates an `extension_theme_releases`
