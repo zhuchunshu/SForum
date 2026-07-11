@@ -10,6 +10,10 @@ This is the entry point for project memory.
   exclusively owns SMTP/TLS/auth transport. Replies, mentions, moderation
   results, password reset, test mail, unread UI, and legacy SMTP adoption are
   covered.
+- The Core admin now exposes a visible Mail and Notifications center with
+  provider selection, global event/channel policy, custom-recipient test mail,
+  current-admin test notifications, and delivery history. SMTP-specific setup
+  guidance remains declared and implemented by the built-in SMTP plugin.
 
 - Repository initialized on 2026-07-03.
 - Basic documentation and knowledge-base skeleton created.

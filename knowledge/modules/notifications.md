@@ -18,6 +18,10 @@ rejection.
   inline code are ignored. Duplicate usernames and self-notifications are
   filtered.
 - Reply and mention remain separate notification types when both apply.
+- Core resolves a global reply/mention/moderation policy with independent
+  `inAppEnabled` and `emailEnabled` channels. Missing values and the restore
+  action resolve to all channels enabled. Disabled channels skip only their
+  projection inside the existing transaction.
 
 ## API and UI
 
@@ -27,6 +31,8 @@ Authenticated self-service routes:
 - `GET /api/v1/notifications/unread-count`
 - `PATCH /api/v1/notifications/:id/read`
 - `POST /api/v1/notifications/read-all`
+- `POST /api/v1/admin/notifications/test` (`settings.manage`, recipient fixed
+  to the current actor, type `admin_test`, no email projection)
 
 The default theme adds `/notifications` and a Navbar unread badge. API queries
 always bind the current session user ID; another user's notification appears as

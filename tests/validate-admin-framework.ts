@@ -218,7 +218,7 @@ assert(
 )
 assert(systemFolder.children?.some(entry => entry.pageId === '/personalization'), 'System folder should contain the personalization page')
 assert(
-  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/avatar,/personalization,/seo,/database,/search,/jobs',
+  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/avatar,/personalization,/seo,/database,/search,/jobs',
   'System folder should keep the approved settings submenu order'
 )
 assert(!systemFolder.children?.some(entry => entry.pageId === '/extensions'), 'System folder should not contain the extension overview page')

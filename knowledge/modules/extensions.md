@@ -290,6 +290,11 @@ targets `extensions/builtin/{plugins,themes}/{id}`.
 
 ## Next Steps
 
+- Generic manifest settings support `placeholder`, `recommendedValue`,
+  ordered `options`, and `group`. The admin renderer selects the appropriate
+  control and restores non-secret recommended values without interpreting
+  provider semantics.
+
 - `mail.provider` is now implemented end-to-end. The protected `sforum.smtp`
   plugin is the first real provider vertical; core contains no SMTP provider
   code. Extension secret settings are masked/preserved and enabled plugins

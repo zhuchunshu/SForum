@@ -18,6 +18,10 @@ SMTP, log delivery, no-op delivery, authentication, or TLS.
 - `settings.manage` protects provider selection, reset, recent deliveries, test
   mail, and mail-provider plugin settings. `extension.manage` still controls
   plugin enable/disable. Disabling the selected plugin clears the selection.
+- Core admin route `/settings/mail` is the visible **Mail and Notifications**
+  center. It owns provider selection, custom-recipient test mail, notification
+  policy, self-test notification, and delivery history; queued test mail is not
+  presented as synchronously delivered.
 
 ## SMTP Plugin
 
@@ -33,6 +37,11 @@ process through `SFORUM_SETTING_*` environment variables.
 `scripts/build-builtin-plugins.sh` builds the local subprocess before API or
 worker dev startup. The API Dockerfile builds the Linux executable into the
 built-in package.
+
+The plugin manifest declares SMTP-specific groups, helper text, recommended
+STARTTLS/587 defaults, and encryption choices. Core's dynamic extension page
+renders the generic metadata and preserves secrets when restoring recommended
+values; it contains no SMTP-specific field or port branching.
 
 ## Compatibility
 
