@@ -19,9 +19,10 @@ var legacyPermissionChildren = map[string][]string{
 		PermissionExtensionThemeManage,
 		PermissionExtensionReleaseManage,
 	},
+	// user.manage 仅展开只读视图，不展开 user.permission_override：
+	// 个人权限例外是高危能力，必须显式单独授予，不能由运营父权限继承。
 	PermissionUserManage: {
 		PermissionUserView,
-		PermissionUserPermissionOverride,
 	},
 }
 

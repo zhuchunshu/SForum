@@ -69,7 +69,8 @@ func TestLegacySettingsManageImpliesMailManage(t *testing.T) {
 
 func TestExpandEffectivePermissionsAddsChildren(t *testing.T) {
 	got := ExpandEffectivePermissions([]string{PermissionUserManage, PermissionPostCreate})
-	wantChildren := []string{PermissionUserView, PermissionUserPermissionOverride, PermissionUserManage, PermissionPostCreate}
+	// user.manage 只展开 user.view，不得展开 user.permission_override。
+	wantChildren := []string{PermissionUserView, PermissionUserManage, PermissionPostCreate}
 	for _, key := range wantChildren {
 		found := false
 		for _, item := range got {
@@ -81,5 +82,31 @@ func TestExpandEffectivePermissionsAddsChildren(t *testing.T) {
 		if !found {
 			t.Fatalf("expected expanded list to contain %s, got %v", key, got)
 		}
+	}
+	for _, item := range got {
+		if item == PermissionUserPermissionOverride {
+			t.Fatalf("user.manage must not expand to %s, got %v", PermissionUserPermissionOverride, got)
+		}
+	}
+}
+
+// TestUserManageDoesNotGrantPermissionOverride 回归：仅有 user.manage 时
+// Can(user.permission_override) 必须为 false，防止运营通过兼容展开提权。
+func TestUserManageDoesNotGrantPermissionOverride(t *testing.T) {
+	actor := Actor{
+		ID:     1,
+		Status: UserStatusActive,
+		Permissions: map[string]bool{
+			PermissionUserManage: true,
+		},
+	}
+	if !actor.Can(PermissionUserManage) {
+		t.Fatal("expected Can(user.manage)")
+	}
+	if !actor.Can(PermissionUserView) {
+		t.Fatal("expected user.manage to expand to user.view")
+	}
+	if actor.Can(PermissionUserPermissionOverride) {
+		t.Fatal("user.manage must not imply user.permission_override")
 	}
 }

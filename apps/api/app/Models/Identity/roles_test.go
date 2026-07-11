@@ -279,7 +279,7 @@ func TestUserManagerCannotChangeOwnRoles(t *testing.T) {
 func TestUserManagerCannotChangeOwnOverrides(t *testing.T) {
 	service, _ := newTestService(t)
 	ctx := testContext(t)
-	// 覆盖编辑需要 user.permission_override（或兼容父权限 user.manage）。
+	// 覆盖编辑需要显式 user.permission_override，不再由 user.manage 继承。
 	manager := Actor{ID: 50, Status: UserStatusActive, Permissions: map[string]bool{PermissionUserPermissionOverride: true}}
 
 	_, err := service.ReplaceUserPermissionOverrides(ctx, manager, 50, PermissionOverrides{
@@ -287,6 +287,40 @@ func TestUserManagerCannotChangeOwnOverrides(t *testing.T) {
 	})
 	if err != ErrSelfRoleChange {
 		t.Fatalf("expected ErrSelfRoleChange, got %v", err)
+	}
+}
+
+// TestUserManageAloneCannotReplacePermissionOverrides 回归：仅有 user.manage
+// 的 actor 不能编辑他人权限例外（Critical：运营不得借此提权）。
+func TestUserManageAloneCannotReplacePermissionOverrides(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+	member := registerMemberForPermissionTest(t, service, ctx)
+	manager := Actor{ID: 50, Status: UserStatusActive, Permissions: map[string]bool{PermissionUserManage: true}}
+
+	_, err := service.ReplaceUserPermissionOverrides(ctx, manager, member.ID, PermissionOverrides{
+		Allow: []string{PermissionAdminAccess},
+	})
+	if err != ErrPermissionDenied {
+		t.Fatalf("expected ErrPermissionDenied for user.manage only, got %v", err)
+	}
+}
+
+// TestExplicitPermissionOverrideCanReplace 显式持有 user.permission_override 仍可编辑。
+func TestExplicitPermissionOverrideCanReplace(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+	member := registerMemberForPermissionTest(t, service, ctx)
+	manager := Actor{ID: 50, Status: UserStatusActive, Permissions: map[string]bool{PermissionUserPermissionOverride: true}}
+
+	detail, err := service.ReplaceUserPermissionOverrides(ctx, manager, member.ID, PermissionOverrides{
+		Allow: []string{PermissionAdminAccess},
+	})
+	if err != nil {
+		t.Fatalf("expected explicit permission_override to succeed, got %v", err)
+	}
+	if !slices.Contains(detail.PermissionOverrides.Allow, PermissionAdminAccess) {
+		t.Fatalf("expected allow override applied, got %#v", detail.PermissionOverrides)
 	}
 }
 
