@@ -636,16 +636,19 @@ func (s *PostgresStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord
 			}
 			return TopicDetail{}, fmt.Errorf("load update topic category: %w", err)
 		}
+		// 仅 active 主题计入 category.topic_count；pending/hidden 等移动不改计数。
 		if newCategoryID != categoryID {
-			if _, err := tx.Exec(ctx, `
-				UPDATE categories SET topic_count = topic_count - 1, updated_at = now() WHERE id = $1
-			`, categoryID); err != nil {
-				return TopicDetail{}, fmt.Errorf("decrement old category count: %w", err)
-			}
-			if _, err := tx.Exec(ctx, `
-				UPDATE categories SET topic_count = topic_count + 1, updated_at = now() WHERE id = $1
-			`, newCategoryID); err != nil {
-				return TopicDetail{}, fmt.Errorf("increment new category count: %w", err)
+			if status == TopicStatusActive {
+				if _, err := tx.Exec(ctx, `
+					UPDATE categories SET topic_count = GREATEST(topic_count - 1, 0), updated_at = now() WHERE id = $1
+				`, categoryID); err != nil {
+					return TopicDetail{}, fmt.Errorf("decrement old category count: %w", err)
+				}
+				if _, err := tx.Exec(ctx, `
+					UPDATE categories SET topic_count = topic_count + 1, updated_at = now() WHERE id = $1
+				`, newCategoryID); err != nil {
+					return TopicDetail{}, fmt.Errorf("increment new category count: %w", err)
+				}
 			}
 			categoryID = newCategoryID
 		}
@@ -763,21 +766,32 @@ func (s *PostgresStore) DeleteTopic(ctx context.Context, topicID int64) (TopicDe
 	}()
 
 	var categoryID int64
+	var prevStatus string
 	if err := tx.QueryRow(ctx, `
-		UPDATE topics
-		SET status = 'deleted', deleted_at = COALESCE(deleted_at, now()), updated_at = now()
+		SELECT category_id, status
+		FROM topics
 		WHERE id = $1 AND status <> 'deleted'
-		RETURNING category_id
-	`, topicID).Scan(&categoryID); err != nil {
+		FOR UPDATE
+	`, topicID).Scan(&categoryID, &prevStatus); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return TopicDetail{}, ErrTopicNotFound
 		}
-		return TopicDetail{}, fmt.Errorf("soft delete topic: %w", err)
+		return TopicDetail{}, fmt.Errorf("lock topic for delete: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
-		UPDATE categories SET topic_count = GREATEST(topic_count - 1, 0), updated_at = now() WHERE id = $1
-	`, categoryID); err != nil {
-		return TopicDetail{}, fmt.Errorf("decrement category count on delete: %w", err)
+		UPDATE topics
+		SET status = 'deleted', deleted_at = COALESCE(deleted_at, now()), updated_at = now()
+		WHERE id = $1
+	`, topicID); err != nil {
+		return TopicDetail{}, fmt.Errorf("soft delete topic: %w", err)
+	}
+	// 仅曾计入公开计数的 active 主题才回滚 category.topic_count。
+	if prevStatus == TopicStatusActive {
+		if _, err := tx.Exec(ctx, `
+			UPDATE categories SET topic_count = GREATEST(topic_count - 1, 0), updated_at = now() WHERE id = $1
+		`, categoryID); err != nil {
+			return TopicDetail{}, fmt.Errorf("decrement category count on delete: %w", err)
+		}
 	}
 
 	// 读取删除后的主题快照（不做公开可见性过滤）。
@@ -1310,20 +1324,70 @@ func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRe
 }
 
 func (s *PostgresStore) DeleteComment(ctx context.Context, commentID int64) (Comment, error) {
-	row := s.pool.QueryRow(ctx, `
-		UPDATE comments
-		SET status = 'deleted', deleted_at = COALESCE(deleted_at, now()), updated_at = now()
-		WHERE id = $1 AND status = 'active'
-		RETURNING id
-	`, commentID)
-	var updatedID int64
-	if err := row.Scan(&updatedID); err != nil {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return Comment{}, fmt.Errorf("begin delete comment: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	var topicID int64
+	var parentID *int64
+	var prevStatus string
+	if err := tx.QueryRow(ctx, `
+		SELECT topic_id, parent_comment_id, status
+		FROM comments
+		WHERE id = $1 AND status <> 'deleted'
+		FOR UPDATE
+	`, commentID).Scan(&topicID, &parentID, &prevStatus); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Comment{}, ErrCommentNotFound
 		}
-		return Comment{}, fmt.Errorf("delete comment: %w", err)
+		return Comment{}, fmt.Errorf("lock comment for delete: %w", err)
 	}
-	return getCommentByID(ctx, s.pool, updatedID, s.avatarBuilder)
+	if _, err := tx.Exec(ctx, `
+		UPDATE comments
+		SET status = 'deleted', deleted_at = COALESCE(deleted_at, now()), updated_at = now()
+		WHERE id = $1
+	`, commentID); err != nil {
+		return Comment{}, fmt.Errorf("soft delete comment: %w", err)
+	}
+	// 仅 active 评论曾 +1 计数，删除时对称回滚（对齐 moderation workbench）。
+	if prevStatus == CommentStatusActive {
+		if parentID != nil {
+			if _, err := tx.Exec(ctx, `
+				UPDATE comments
+				SET reply_count = GREATEST(reply_count - 1, 0), updated_at = now()
+				WHERE id = $1
+			`, *parentID); err != nil {
+				return Comment{}, fmt.Errorf("decrement parent reply count: %w", err)
+			}
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE topics
+			SET comment_count = GREATEST(comment_count - 1, 0), updated_at = now()
+			WHERE id = $1
+		`, topicID); err != nil {
+			return Comment{}, fmt.Errorf("decrement topic comment count: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE categories
+			SET comment_count = GREATEST(comment_count - 1, 0), updated_at = now()
+			WHERE id = (SELECT category_id FROM topics WHERE id = $1)
+		`, topicID); err != nil {
+			return Comment{}, fmt.Errorf("decrement category comment count: %w", err)
+		}
+	}
+
+	comment, err := getCommentByID(ctx, tx, commentID, s.avatarBuilder)
+	if err != nil {
+		return Comment{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Comment{}, fmt.Errorf("commit delete comment: %w", err)
+	}
+	return comment, nil
 }
 
 func (s *PostgresStore) ListComments(ctx context.Context, input CommentListInput) (CommentList, error) {
