@@ -79,10 +79,26 @@ Execute that plan top-to-bottom. Do not re-audit the whole repo unless a finding
 
 ## Done (fill when complete)
 
-- [ ] Commits 1–9 (must)
-- [ ] Commits 10–12 (should)
-- [ ] Tests green
-- [ ] knowledge/index.md updated
+- [x] Commits 1–9 (must)
+- [x] Commits 10–12 (should)
+- [x] Tests green
+- [x] knowledge/index.md updated
+
+### Applied on main (2026-07-12 implement session)
+
+| # | Commit | Summary |
+|---|--------|---------|
+| 1 | `497e3488c` | stop user.manage → permission_override + migration revoke |
+| 2 | `7f3d98485` | super_admin membership changes only by super_admin |
+| 3 | `23cd3abfc` | invalid password-reset token → 422 |
+| 4 | `b61ccd400` | strip spoofable plugin proxy headers |
+| 5–6 | `80d2f4b8a` | loopback-only RouteTarget + minimal plugin env |
+| 7 | `8e2cdc2dd` | server MIME sniff + active content deny |
+| 8 | `7c5cc445e` | publication policy on content edits |
+| 9 | `d7a98e506` | comment/topic/category counter integrity |
+| 10 | `53c429b4d` | CSRF CookieSecure align with session |
+| 11 | `24c70ca38` | disable perm parity + zip inflate cap |
+| 12 | `deb88d25e` | password-reset rate limit + atomic confirm |
 
 ## One-line starter for new chat
 

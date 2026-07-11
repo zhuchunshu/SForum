@@ -22,6 +22,10 @@
 
 ---
 
+## Status
+
+**Completed on `main` (2026-07-12).** All commits 1–12 applied; `go test ./...` green under `apps/api`.
+
 ## Commit plan (execute in order)
 
 ### Commit 1 — Critical: stop `user.manage` expanding to permission overrides
@@ -290,13 +294,13 @@ Release-only actors could disable trusted plugins; zip bombs trusted declared si
 
 ## Verification checklist
 
-- [ ] `cd apps/api && go test ./app/Models/Identity/...`
-- [ ] `cd apps/api && go test ./app/Support/Extensions/...`
-- [ ] `cd apps/api && go test ./app/Models/Attachments/...`
-- [ ] `cd apps/api && go test ./app/Models/Forum/...`
-- [ ] `cd apps/api && go test ./app/Http/...`（CSRF / identity controller）
-- [ ] `cd apps/api && go test ./...` before final handoff
-- [ ] 每个 commit 独立、message 清楚、working tree 在收尾前 clean（或仅剩 knowledge 更新 commit）
+- [x] `cd apps/api && go test ./app/Models/Identity/...`
+- [x] `cd apps/api && go test ./app/Support/Extensions/...`
+- [x] `cd apps/api && go test ./app/Models/Attachments/...`
+- [x] `cd apps/api && go test ./app/Models/Forum/...`
+- [x] `cd apps/api && go test ./app/Http/...`（CSRF / identity controller）
+- [x] `cd apps/api && go test ./...` before final handoff
+- [x] 每个 commit 独立、message 清楚、working tree 在收尾前 clean（或仅剩 knowledge 更新 commit）
 
 ---
 

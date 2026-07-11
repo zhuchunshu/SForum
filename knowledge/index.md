@@ -4,6 +4,15 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 host platform capabilities + phased hardening plan recorded**
+  - Decision: `knowledge/decisions/2026-07-12-host-platform-capabilities.md`
+  - Waves F1–F4: `knowledge/plans/2026-07-12-framework-hardening-waves.md`
+  - Handoff: `knowledge/sessions/2026-07-12-framework-hardening-plan.md`
+  - Scope: schedule registry, health/ready/heartbeat, Host API, capabilities,
+    lifecycle, outbox/webhooks/idempotency/tokens, SDK/docs/meta — **docs only**
+  - Next coding slice: Wave **F1.1** Schedule Registry (see plan one-liner).
+  - Parallel product tracks unchanged (Iteration A, settings, security fixes).
+
 - **2026-07-12 full security audit recorded (fixes not yet applied)**
   - Plan (execute next): `knowledge/plans/2026-07-12-security-audit-fix-batch.md`
   - Handoff: `knowledge/sessions/2026-07-12-security-audit-handoff.md`
@@ -492,6 +501,12 @@ This is the entry point for project memory.
   host ~7/10, performance engineering ~6/10, performance proof low.
 - `plans/2026-07-12-development-directions.md` - near-term development strategy:
   five tracks, effort mix (~70/20/10), iterations A/B/C, and explicit depriorities.
+- `decisions/2026-07-12-host-platform-capabilities.md` - host OS contracts:
+  schedule registry, health layers, Host API, capabilities, outbox/webhooks,
+  non-goals; implementation is phased.
+- `plans/2026-07-12-framework-hardening-waves.md` - framework hardening
+  checklist waves F1–F4 (schedule/health → third-party safety → integration →
+  ecosystem); start at F1.1.
 - `plans/2026-07-12-iteration-a-engagement-loop.md` - Iteration A implementation
   checklist: view counts, likes/reactions, bookmarks; topic lifecycle already
   mostly shipped.
