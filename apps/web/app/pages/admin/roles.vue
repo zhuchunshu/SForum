@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
+import { ROLE_TEMPLATE_DEFINITIONS, type RoleTemplateDefinition } from '~/config/roleTemplates'
 
 definePageMeta({
   middleware: 'admin',
@@ -30,6 +31,7 @@ type Permission = {
 }
 
 const { t } = useI18n()
+const toast = useToast()
 const { request } = useApiClient()
 const { permissionLabel, permissionDescription, permissionModuleLabel } = usePermissionText()
 const search = ref('')
@@ -43,6 +45,8 @@ const formKey = ref('')
 const formAlias = ref('')
 const formDescription = ref('')
 const formPermissionKeys = ref<string[]>([])
+/** 创建流程中选中的内置模板 key；空字符串表示不套用模板。 */
+const selectedTemplateKey = ref('')
 const pending = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
@@ -108,6 +112,19 @@ const selectedTitle = computed(() => {
   return selectedRole.value?.alias || t('admin.roles.selectTitle')
 })
 
+const roleTemplates = computed(() => ROLE_TEMPLATE_DEFINITIONS)
+
+const templateSelectItems = computed(() => [
+  {
+    label: t('admin.roles.templateNone'),
+    value: ''
+  },
+  ...roleTemplates.value.map(template => ({
+    label: t(template.aliasKey),
+    value: template.key
+  }))
+])
+
 const roleKeyError = computed(() => {
   if (!roleFormSubmitted.value || !editingNew.value || formKey.value.trim()) {
     return undefined
@@ -156,6 +173,7 @@ function selectRole(role: Role) {
   formAlias.value = role.alias
   formDescription.value = role.description
   formPermissionKeys.value = [...role.permissionKeys]
+  selectedTemplateKey.value = ''
   roleFormSubmitted.value = false
   errorMessage.value = ''
   successMessage.value = ''
@@ -168,9 +186,42 @@ function startCreateRole() {
   formAlias.value = ''
   formDescription.value = ''
   formPermissionKeys.value = []
+  selectedTemplateKey.value = ''
   roleFormSubmitted.value = false
   errorMessage.value = ''
   successMessage.value = ''
+}
+
+function applyRoleTemplate(template: RoleTemplateDefinition, options?: { fillIdentity?: boolean }) {
+  if (permissionEditingLocked.value) {
+    return
+  }
+  formPermissionKeys.value = [...template.permissionKeys].sort()
+  // 仅创建流程预填别名/说明；不预填 key，避免与已 seed 的系统模板角色键冲突。
+  if (options?.fillIdentity && editingNew.value) {
+    formAlias.value = t(template.aliasKey)
+    formDescription.value = t(template.descriptionKey)
+  }
+  selectedTemplateKey.value = template.key
+  successMessage.value = t('admin.roles.templateApplied', { name: t(template.aliasKey) })
+  toast.add({
+    title: t('admin.roles.templateApplied', { name: t(template.aliasKey) }),
+    color: 'success',
+    icon: 'i-lucide-copy-check'
+  })
+}
+
+function onTemplateSelect(value: string | undefined) {
+  const key = `${value || ''}`.trim()
+  selectedTemplateKey.value = key
+  if (!key) {
+    return
+  }
+  const template = ROLE_TEMPLATE_DEFINITIONS.find(item => item.key === key)
+  if (!template) {
+    return
+  }
+  applyRoleTemplate(template, { fillIdentity: editingNew.value })
 }
 
 function togglePermission(key: string) {
@@ -437,6 +488,44 @@ async function deleteRole() {
             :placeholder="t('admin.roles.descriptionPlaceholder')"
           />
         </UFormField>
+
+        <div
+          v-if="!permissionEditingLocked"
+          class="rounded-lg border border-slate-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950/40"
+        >
+          <div class="mb-2">
+            <h4 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+              {{ t('admin.roles.applyTemplate') }}
+            </h4>
+            <p class="text-xs text-slate-500 dark:text-zinc-400">
+              {{ editingNew ? t('admin.roles.applyTemplateCreateHelp') : t('admin.roles.applyTemplateEditHelp') }}
+            </p>
+          </div>
+          <UFormField :label="t('admin.roles.templateSelect')" name="role-template">
+            <USelect
+              :model-value="selectedTemplateKey"
+              :items="templateSelectItems"
+              value-key="value"
+              class="w-full"
+              :placeholder="t('admin.roles.templateSelectPlaceholder')"
+              @update:model-value="onTemplateSelect"
+            />
+          </UFormField>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <UButton
+              v-for="template in roleTemplates"
+              :key="template.key"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              leading-icon="i-lucide-layout-template"
+              class="border-slate-200 dark:border-zinc-700"
+              @click="applyRoleTemplate(template, { fillIdentity: Boolean(editingNew) })"
+            >
+              {{ t(template.aliasKey) }}
+            </UButton>
+          </div>
+        </div>
 
         <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/60">
           <div class="mb-3 flex items-start justify-between gap-3">

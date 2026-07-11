@@ -949,9 +949,38 @@
       "permissionEditor": "Group permissions",
       "permissionEditorHelp": "Checked permissions are granted to every member of this group.",
       "superAdminPermissionLocked": "The super administrator group has all permissions and cannot be edited here.",
+      "applyTemplate": "Apply built-in template",
+      "applyTemplateCreateHelp": "Pick a job template to prefill the alias, description, and recommended permissions. Enter a unique key yourself (do not reuse a system group key).",
+      "applyTemplateEditHelp": "Applying a template replaces the selected permissions. The group key stays unchanged; alias and description are not overwritten.",
+      "templateSelect": "Permission template",
+      "templateSelectPlaceholder": "Optional: apply a built-in permission pack",
+      "templateNone": "No template",
+      "templateApplied": "Applied the “{name}” permission template.",
       "empty": "No user groups to show yet.",
       "loadFailed": "User groups could not be loaded.",
       "noDescription": "No description"
+    },
+    "roleCatalog": {
+      "moderator": {
+        "alias": "Moderator",
+        "description": "Content operations: review queue, lock/pin, edit or delete any topic or reply, and ban users."
+      },
+      "operator": {
+        "alias": "Site operator",
+        "description": "Day-to-day site ops: users, taxonomy, site/mail/appearance settings. No tech releases or permission overrides."
+      },
+      "tech_admin": {
+        "alias": "Technical admin",
+        "description": "Technical operations: extensions and releases, search index, jobs, database browse, and attachment storage settings."
+      },
+      "member": {
+        "alias": "Member",
+        "description": "Default group for open registration users."
+      },
+      "super_admin": {
+        "alias": "Super administrator",
+        "description": "Holds all permissions and is used for system recovery."
+      }
     },
     "users": {
       "metaTitle": "User Management",

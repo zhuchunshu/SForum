@@ -949,9 +949,38 @@
       "permissionEditor": "用户组权限",
       "permissionEditorHelp": "勾选后，该用户组的所有成员都会获得对应权限。",
       "superAdminPermissionLocked": "超级管理员用户组拥有全部权限，不能在这里修改权限集合。",
+      "applyTemplate": "应用内置模板",
+      "applyTemplateCreateHelp": "选择岗位模板可预填别名、说明与推荐权限；标识需自行填写（勿与已有系统组重复）。",
+      "applyTemplateEditHelp": "应用模板会替换当前勾选的权限集合，不会改动标识；别名与说明不会被覆盖。",
+      "templateSelect": "权限模板",
+      "templateSelectPlaceholder": "可选：套用内置岗位权限包",
+      "templateNone": "不使用模板",
+      "templateApplied": "已套用「{name}」权限模板。",
       "empty": "还没有可显示的用户组。",
       "loadFailed": "用户组加载失败。",
       "noDescription": "暂无说明"
+    },
+    "roleCatalog": {
+      "moderator": {
+        "alias": "版主",
+        "description": "内容运营：审核、锁帖/置顶、编辑删除任意主题与回复，并可封禁用户。"
+      },
+      "operator": {
+        "alias": "站点运营",
+        "description": "站点日常运营：用户与内容结构、站点/邮件/外观等设置；不含技术发布与权限例外。"
+      },
+      "tech_admin": {
+        "alias": "技术管理",
+        "description": "技术运维：扩展与发布、搜索索引、后台任务、数据库浏览与附件存储设置。"
+      },
+      "member": {
+        "alias": "普通会员",
+        "description": "开放注册用户的默认用户组。"
+      },
+      "super_admin": {
+        "alias": "超级管理员",
+        "description": "拥有所有权限并用于系统恢复。"
+      }
     },
     "users": {
       "metaTitle": "用户管理",

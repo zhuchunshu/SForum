@@ -109,6 +109,12 @@ if (!adminRolesPage.includes(':label="t(\'admin.roles.alias\')"') || !adminRoles
 if (!adminRolesPage.includes('validateRoleForm')) {
   throw new Error('Admin roles page should validate required role fields before saving');
 }
+if (!adminRolesPage.includes('ROLE_TEMPLATE_DEFINITIONS') || !adminRolesPage.includes('applyRoleTemplate')) {
+  throw new Error('Admin roles page should support applying built-in role permission templates');
+}
+if (!adminRolesPage.includes('admin.roles.applyTemplate')) {
+  throw new Error('Admin roles page should expose apply-template UI copy');
+}
 if (!adminPermissionsPage.includes('/permissions/matrix')) {
   throw new Error('Admin permissions page should load the permission matrix');
 }
@@ -148,6 +154,65 @@ const seedsSource = fs.readFileSync(
   path.resolve(root, 'apps/api/app/Models/Identity/seeds.go'),
   'utf8'
 );
+
+// 内置角色模板：API seeds + migration + 前端 config + i18n 对齐。
+const roleTemplatesSource = fs.readFileSync(
+  path.resolve(root, 'apps/web/app/config/roleTemplates.ts'),
+  'utf8'
+);
+const expectedTemplateKeys = ['moderator', 'operator', 'tech_admin'];
+for (const key of expectedTemplateKeys) {
+  if (!roleTemplatesSource.includes(`key: '${key}'`)) {
+    throw new Error(`roleTemplates.ts should define built-in template ${key}`);
+  }
+  for (const locale of [
+    ['zh-CN', zh],
+    ['en-US', en]
+  ]) {
+    const [name, rootLocale] = locale;
+    if (!valueAt(rootLocale, ['admin', 'roleCatalog', key, 'alias'])) {
+      throw new Error(`${name} is missing admin.roleCatalog.${key}.alias`);
+    }
+    if (!valueAt(rootLocale, ['admin', 'roleCatalog', key, 'description'])) {
+      throw new Error(`${name} is missing admin.roleCatalog.${key}.description`);
+    }
+  }
+}
+if (!seedsSource.includes('RoleModerator') || !seedsSource.includes('RoleOperator') || !seedsSource.includes('RoleTechAdmin')) {
+  throw new Error('seeds.go should declare RoleModerator, RoleOperator, and RoleTechAdmin');
+}
+if (!seedsSource.includes('SeedRoleTemplates') || !seedsSource.includes('IsBuiltInSystemRole')) {
+  throw new Error('seeds.go should export SeedRoleTemplates and IsBuiltInSystemRole');
+}
+for (const marker of ['RoleModerator', 'RoleOperator', 'RoleTechAdmin']) {
+  // gofmt 可能在 Key: 后插入对齐空格。
+  if (!new RegExp(`Key:\\s*${marker}\\b`).test(seedsSource)) {
+    throw new Error(`SeedRoleTemplates should include ${marker}`);
+  }
+}
+const migrationPath = 'apps/api/database/migrations/202607120002_builtin_role_templates.sql';
+if (!fs.existsSync(path.resolve(root, migrationPath))) {
+  throw new Error(`Missing built-in role template migration: ${migrationPath}`);
+}
+const migrationSql = fs.readFileSync(path.resolve(root, migrationPath), 'utf8');
+for (const key of expectedTemplateKeys) {
+  if (!migrationSql.includes(`'${key}'`)) {
+    throw new Error(`Role template migration should seed role ${key}`);
+  }
+}
+for (const keyPath of [
+  ['admin', 'roles', 'applyTemplate'],
+  ['admin', 'roles', 'templateApplied'],
+  ['admin', 'roles', 'templateNone']
+]) {
+  if (!valueAt(zh, keyPath)) {
+    throw new Error(`Missing zh-CN locale key: ${keyPath.join('.')}`);
+  }
+  if (!valueAt(en, keyPath)) {
+    throw new Error(`Missing en-US locale key: ${keyPath.join('.')}`);
+  }
+}
+
 const permissionConstants = Object.fromEntries(
   [...seedsSource.matchAll(/^\s*(Permission[A-Za-z]+)\s*=\s*"([^"]+)"/gm)].map(match => [match[1], match[2]])
 );
