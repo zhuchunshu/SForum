@@ -597,6 +597,16 @@ func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) 
 	if err != nil {
 		return Extension{}, err
 	}
+	if selectionStore, ok := s.store.(interface {
+		SelectedMailProvider(context.Context) (string, error)
+		RestoreMailProvider(context.Context) error
+	}); ok {
+		if selected, selectErr := selectionStore.SelectedMailProvider(ctx); selectErr == nil && selected == disabled.ID {
+			if err := selectionStore.RestoreMailProvider(ctx); err != nil {
+				return Extension{}, err
+			}
+		}
+	}
 	if disabled.Type == TypePlugin && s.runtime != nil {
 		_ = s.runtime.Stop(ctx, disabled)
 	}

@@ -9,4 +9,5 @@ type Store interface {
 	MarkAllRead(context.Context, int64) (int64, error)
 	GetDelivery(context.Context, int64) (MailDelivery, error)
 	UpdateDelivery(context.Context, DeliveryUpdate) error
+	ListDeliveries(context.Context, int) ([]MailDelivery, error)
 }

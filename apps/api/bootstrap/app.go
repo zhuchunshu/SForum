@@ -258,6 +258,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		SiteURL:  siteURL,
 	}, optionsService)
 	identityProvider := providers.NewIdentityProviderWithPasswordReset(identityStore, authSessions, humanVerifier, extensionRuntime, passwordResetService, mailOutbox, optionsService)
+	notificationsProvider := providers.NewNotificationsProvider(notificationStore, authSessions)
+	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions)
 	adminOverviewProvider := providers.NewAdminOverviewProvider(adminOverviewStore, adminoverview.NewRuntimeCollector(time.Now().UTC(), pool), identityStore, authSessions)
 	// 搜索：API 进程持有只入队的 indexer（EnqueueIndex/EnqueueDelete）和查询用的 search service。
 	// Meilisearch client 不可达时，索引调度静默失败、搜索端点返回 503，主流程不受影响。
@@ -291,7 +293,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService, webReleaseAdminService)
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, attachmentsProvider, seoProvider, databaseProvider, jobsProvider, extensionsProvider},
+		RouteProviders: []httpserver.RouteProvider{identityProvider, notificationsProvider, mailProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, attachmentsProvider, seoProvider, databaseProvider, jobsProvider, extensionsProvider},
 		Options:        optionsService,
 		Storage:        redisStorage,
 	})

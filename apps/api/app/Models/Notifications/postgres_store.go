@@ -144,3 +144,25 @@ error_summary=$6, updated_at=NOW(), completed_at=COALESCE($7, completed_at) WHER
 		input.ExtensionID, input.AttemptCount, input.Reason, input.ErrorSummary, completed)
 	return err
 }
+
+func (s *PostgresStore) ListDeliveries(ctx context.Context, limit int) ([]MailDelivery, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	rows, err := s.runner.Query(ctx, `SELECT id, recipient, template_key, '{}'::jsonb, idempotency_key, correlation_id,
+status, extension_id, attempt_count, reason, error_summary, created_at, updated_at, completed_at FROM mail_deliveries ORDER BY id DESC LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MailDelivery{}
+	for rows.Next() {
+		var item MailDelivery
+		if err := rows.Scan(&item.ID, &item.Recipient, &item.TemplateKey, &item.TemplateData, &item.IdempotencyKey, &item.CorrelationID, &item.Status, &item.ExtensionID, &item.AttemptCount, &item.Reason, &item.ErrorSummary, &item.CreatedAt, &item.UpdatedAt, &item.CompletedAt); err != nil {
+			return nil, err
+		}
+		item.IdempotencyKey = ""
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
