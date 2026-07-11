@@ -450,6 +450,10 @@
       "themeActivated": "Theme activated. The frontend runtime is using this theme; local dev will apply it after the automatic restart.",
       "themeActivationQueued": "Theme build queued. The frontend runtime will switch automatically after the build finishes; local dev will apply it after the automatic restart.",
       "themeActivationUnavailable": "Theme activation failed.",
+      "pluginEnableQueued": "Plugin enable queued. This plugin has trusted admin frontend components, so a Web release must finish building before it is fully enabled.",
+      "pluginDisableQueued": "Plugin disable queued. This plugin has trusted admin frontend components, so a Web release must finish building before it is fully disabled.",
+      "webReleaseQueuedHint": "Open Extensions → Web releases to follow release #{id} progress and the build log.",
+      "webReleaseQueuedHintNoId": "Open Extensions → Web releases to follow progress and the build log.",
       "actionFailed": "Extension action failed.",
       "frontend": {
         "title": "Trusted admin components",
@@ -457,18 +461,38 @@
         "grant": "Grant",
         "revoke": "Revoke",
         "grantSuccess": "Frontend trust granted.",
-        "revokeSuccess": "Frontend trust revocation submitted."
+        "revokeSuccess": "Frontend trust revocation submitted.",
+        "grantQueued": "Frontend trust granted and a Web release was queued.",
+        "revokeQueued": "Frontend trust revocation submitted and a Web release was queued."
       },
       "releases": {
         "title": "Web releases",
-        "intro": "Inspect immutable theme and trusted-plugin compositions, builds, and switch history.",
+        "intro": "Inspect immutable theme and trusted-plugin compositions, builds, and switch history. Open a release to view its build log.",
         "trigger": "Trigger",
         "theme": "Theme",
         "status": "Status",
         "actions": "Actions",
         "empty": "No Web releases yet.",
         "retryQueued": "Release retry queued.",
-        "rollbackQueued": "Release rollback queued."
+        "rollbackQueued": "Release rollback queued.",
+        "viewDetail": "View log",
+        "buildLog": "Build log",
+        "emptyBuildLog": "No build log yet. If a release stays queued or building for a long time, confirm the API embeds the worker or a standalone worker is running.",
+        "events": "Status events",
+        "statusLabels": {
+          "queued": "Queued",
+          "resolving": "Resolving",
+          "installing": "Installing",
+          "building": "Building",
+          "verifying": "Verifying",
+          "ready": "Ready",
+          "activating": "Activating",
+          "active": "Active",
+          "inactive": "Inactive",
+          "failed": "Failed",
+          "superseded": "Superseded",
+          "rolled_back": "Rolled back"
+        }
       },
       "releaseNotice": {
         "title": "A new admin release is active",

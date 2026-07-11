@@ -450,6 +450,10 @@
       "themeActivated": "主题已激活。前台运行时正在使用该主题；本地 dev 会自动重启后生效。",
       "themeActivationQueued": "主题构建已排队。构建完成后前台运行时会自动切换；本地 dev 会自动重启后生效。",
       "themeActivationUnavailable": "主题激活失败。",
+      "pluginEnableQueued": "插件启用已排队。该插件含可信管理端前端，需先完成 Web 发布构建后才会真正启用。",
+      "pluginDisableQueued": "插件禁用已排队。该插件含可信管理端前端，需先完成 Web 发布构建后才会真正禁用。",
+      "webReleaseQueuedHint": "可在「扩展 → Web 发布」查看发布 #{id} 的进度与构建日志。",
+      "webReleaseQueuedHintNoId": "可在「扩展 → Web 发布」查看进度与构建日志。",
       "actionFailed": "扩展操作失败。",
       "frontend": {
         "title": "可信管理端组件",
@@ -457,18 +461,38 @@
         "grant": "授权",
         "revoke": "撤销",
         "grantSuccess": "前端信任已授权。",
-        "revokeSuccess": "前端信任撤销已提交。"
+        "revokeSuccess": "前端信任撤销已提交。",
+        "grantQueued": "前端信任已授权，Web 发布已排队。",
+        "revokeQueued": "前端信任撤销已提交，Web 发布已排队。"
       },
       "releases": {
         "title": "Web 发布",
-        "intro": "查看主题与可信插件组成的不可变发布、构建状态和切换历史。",
+        "intro": "查看主题与可信插件组成的不可变发布、构建状态和切换历史。点击「查看」可打开详情与构建日志。",
         "trigger": "触发来源",
         "theme": "主题",
         "status": "状态",
         "actions": "操作",
         "empty": "暂无 Web 发布记录。",
         "retryQueued": "重试发布已排队。",
-        "rollbackQueued": "回滚发布已排队。"
+        "rollbackQueued": "回滚发布已排队。",
+        "viewDetail": "查看日志",
+        "buildLog": "构建日志",
+        "emptyBuildLog": "暂时没有构建日志。若长时间停留在排队/构建中，请确认 API 已嵌入 worker 或独立 worker 正在运行。",
+        "events": "状态事件",
+        "statusLabels": {
+          "queued": "排队中",
+          "resolving": "解析中",
+          "installing": "安装中",
+          "building": "构建中",
+          "verifying": "校验中",
+          "ready": "待切换",
+          "activating": "切换中",
+          "active": "已生效",
+          "inactive": "已停用",
+          "failed": "失败",
+          "superseded": "已替代",
+          "rolled_back": "已回滚"
+        }
       },
       "releaseNotice": {
         "title": "管理端已有新版本",

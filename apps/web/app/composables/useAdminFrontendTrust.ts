@@ -33,7 +33,20 @@ export function useAdminFrontendTrust(extension: Ref<AdminExtension>) {
       const operation = action === 'grant'
         ? await request<AdminExtensionOperation>(`/admin/extensions/${extension.value.id}/frontend/trust`, { method: 'POST', body: { packageDigest: status.value.digest } })
         : await request<AdminExtensionOperation>(`/admin/extensions/${extension.value.id}/frontend/trust`, { method: 'DELETE' })
-      toast.add({ color: 'success', icon: 'i-lucide-shield-check', title: t(`admin.extensions.frontend.${action}Success`), duration: 10000 })
+      if (operation.queued) {
+        // 信任变更后会排队 Web Release，构建日志在「Web 发布」页查看。
+        toast.add({
+          color: 'info',
+          icon: 'i-lucide-hourglass',
+          title: t(action === 'grant' ? 'admin.extensions.frontend.grantQueued' : 'admin.extensions.frontend.revokeQueued'),
+          description: operation.webRelease?.id
+            ? t('admin.extensions.webReleaseQueuedHint', { id: operation.webRelease.id })
+            : t('admin.extensions.webReleaseQueuedHintNoId'),
+          duration: 10000
+        })
+      } else {
+        toast.add({ color: 'success', icon: 'i-lucide-shield-check', title: t(`admin.extensions.frontend.${action}Success`), duration: 10000 })
+      }
       if (operation.frontend) status.value = operation.frontend as AdminFrontendStatus
       else await load()
     } catch (cause) {

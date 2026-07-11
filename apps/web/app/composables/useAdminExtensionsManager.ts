@@ -119,6 +119,27 @@ export const useAdminExtensionsManager = async () => {
     }
   }
 
+  // 排队类操作的 Toast：区分主题激活与带管理端前端的插件 Web Release。
+  function queuedLifecycleToast(
+    kind: 'theme' | 'pluginEnable' | 'pluginDisable',
+    releaseId?: number
+  ) {
+    const titleKey = kind === 'theme'
+      ? 'admin.extensions.themeActivationQueued'
+      : kind === 'pluginEnable'
+        ? 'admin.extensions.pluginEnableQueued'
+        : 'admin.extensions.pluginDisableQueued'
+    toast.add({
+      color: 'info',
+      icon: 'i-lucide-hourglass',
+      title: t(titleKey),
+      description: releaseId
+        ? t('admin.extensions.webReleaseQueuedHint', { id: releaseId })
+        : t('admin.extensions.webReleaseQueuedHintNoId'),
+      duration: 10000
+    })
+  }
+
   async function activateTheme(item: AdminExtension) {
     busyId.value = item.id
     try {
@@ -127,13 +148,16 @@ export const useAdminExtensionsManager = async () => {
       replaceExtension(activated)
       await refresh()
       await loadEvents(activated.id)
-      toast.add({
-        color: operation.queued ? 'info' : 'success',
-        icon: operation.queued ? 'i-lucide-hourglass' : 'i-lucide-palette',
-        title: operation.queued
-          ? t('admin.extensions.themeActivationQueued')
-          : t('admin.extensions.themeActivated')
-      })
+      if (operation.queued) {
+        queuedLifecycleToast('theme', operation.webRelease?.id)
+      } else {
+        toast.add({
+          color: 'success',
+          icon: 'i-lucide-palette',
+          title: t('admin.extensions.themeActivated'),
+          duration: 10000
+        })
+      }
     } catch (error) {
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.themeActivationUnavailable') })
     } finally {
@@ -148,11 +172,20 @@ export const useAdminExtensionsManager = async () => {
       const updated = operation.extension
       replaceExtension(updated)
       await loadEvents(updated.id)
-      toast.add({
-        color: operation.queued ? 'info' : 'success',
-        icon: operation.queued ? 'i-lucide-hourglass' : (action === 'enable' ? 'i-lucide-play' : 'i-lucide-pause'),
-        title: operation.queued ? t('admin.extensions.themeActivationQueued') : (action === 'enable' ? t('admin.extensions.enabled') : t('admin.extensions.disabled'))
-      })
+      if (operation.queued) {
+        // 仅「带 frontend.admin 且已信任」的插件会排队 Web Release，不是主题构建。
+        queuedLifecycleToast(
+          action === 'enable' ? 'pluginEnable' : 'pluginDisable',
+          operation.webRelease?.id
+        )
+      } else {
+        toast.add({
+          color: 'success',
+          icon: action === 'enable' ? 'i-lucide-play' : 'i-lucide-pause',
+          title: action === 'enable' ? t('admin.extensions.enabled') : t('admin.extensions.disabled'),
+          duration: 10000
+        })
+      }
     } catch (error) {
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.actionFailed') })
     } finally {
