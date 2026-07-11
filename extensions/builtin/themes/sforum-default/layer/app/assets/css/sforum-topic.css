@@ -1,21 +1,21 @@
-/* SForum default topic page: open reading column with a compact progress rail. */
+/* SForum default topic page: modern card reading surface and progress rail. */
 
 .sforum-topic-page {
   min-height: 100vh;
   padding: 1.5rem 0 3rem;
-  background: var(--sf-surface);
-  color: var(--sf-fg);
+  background: var(--sf-public-bg);
+  color: var(--sf-public-text);
 }
 
 .sforum-topic-page__inner {
-  width: min(100%, 1100px);
+  width: min(100%, var(--sf-public-container));
   margin: 0 auto;
   padding: 0 1.5rem;
 }
 
 .sforum-topic-page__shell {
   display: grid;
-  grid-template-columns: minmax(0, 820px) 190px;
+  grid-template-columns: minmax(0, 760px) 240px;
   justify-content: center;
   align-items: start;
   gap: 1.75rem;
@@ -31,8 +31,7 @@
 }
 
 .sforum-topic-page__article {
-  padding-bottom: 2rem;
-  border-bottom: 1px solid var(--sf-border);
+  padding-bottom: 0;
 }
 
 .sforum-topic-page__heading-row {
@@ -90,7 +89,7 @@
 .sf-topic-heading__title {
   margin: 0;
   color: var(--sf-fg);
-  font-size: 2rem;
+  font-size: 1.875rem;
   font-weight: 800;
   line-height: 1.22;
   letter-spacing: 0;
@@ -133,8 +132,18 @@
   min-height: 40px;
 }
 
+.sforum-topic-page__post-card {
+  margin-top: 1.5rem;
+  overflow: hidden;
+  border: 1px solid var(--sf-public-border);
+  border-radius: 8px;
+  padding: 1.75rem;
+  background: var(--sf-public-surface);
+  box-shadow: var(--sf-public-shadow);
+}
+
 .sforum-topic-page__prose {
-  margin-top: 1.75rem;
+  margin-top: 0;
   color: var(--sf-fg-secondary);
   font-size: 1rem;
   line-height: 1.8;
@@ -184,8 +193,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--sf-border);
+  padding-bottom: 0;
 }
 
 .sf-comment-stream-controls h2 {
@@ -198,6 +206,7 @@
 
 .sforum-topic-comments__stream {
   display: grid;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -211,8 +220,10 @@
 
 .sforum-topic-comments__skeleton {
   min-height: 104px;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--sf-border-light);
+  border: 1px solid var(--sf-public-border);
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--sf-public-surface);
 }
 
 .sforum-topic-comments__empty {
@@ -237,10 +248,51 @@
   position: sticky;
   top: 84px;
   display: grid;
-  gap: 1rem;
+  gap: 14px;
   min-width: 0;
-  padding: 0.25rem 0 0.25rem 1rem;
-  border-left: 1px solid var(--sf-border);
+  padding: 0;
+}
+
+.sf-topic-progress__toc,
+.sf-topic-progress__panel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--sf-public-border);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--sf-public-surface);
+  box-shadow: var(--sf-public-shadow);
+}
+
+.sf-topic-progress__toc h2 {
+  margin: 0 0 4px;
+  color: var(--sf-public-text-muted);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.sf-topic-progress__toc button {
+  min-height: 30px;
+  border-left: 2px solid transparent;
+  border-radius: 5px;
+  padding: 5px 8px;
+  background: transparent;
+  color: var(--sf-public-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.sf-topic-progress__toc button:hover {
+  border-left-color: var(--sf-accent);
+  background: var(--sf-accent-soft);
+  color: var(--sf-accent-hover);
+}
+
+.sf-topic-progress__toc button.is-child {
+  padding-left: 18px;
 }
 
 .sf-topic-progress__reply,
@@ -293,9 +345,9 @@
 
 .sf-topic-progress__track {
   position: relative;
-  width: 2px;
-  height: 112px;
-  margin-left: 7px;
+  width: 100%;
+  height: 4px;
+  margin-left: 0;
   overflow: hidden;
   border-radius: 2px;
   background: var(--sf-border);
@@ -305,8 +357,9 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  min-height: 4px;
+  width: auto;
+  min-width: 4px;
+  height: 100%;
   border-radius: inherit;
   background: var(--sf-accent);
 }
@@ -485,7 +538,7 @@
 
 @media (max-width: 960px) {
   .sforum-topic-page__shell {
-    grid-template-columns: minmax(0, 820px);
+    grid-template-columns: minmax(0, 760px);
   }
 
   .sf-topic-progress {
@@ -528,7 +581,12 @@
   }
 
   .sforum-topic-page__prose {
-    margin-top: 1.35rem;
+    margin-top: 0;
+  }
+
+  .sforum-topic-page__post-card {
+    margin-top: 1.25rem;
+    padding: 1.25rem;
   }
 
   .sf-comment-stream-controls {

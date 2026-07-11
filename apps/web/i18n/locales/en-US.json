@@ -1871,6 +1871,7 @@
     "statsCreated": "Posted",
     "progress": {
       "label": "Reading progress",
+      "contents": "On this page",
       "position": "Page {current} of {total}",
       "totalPosts": "{count} posts",
       "first": "First post",

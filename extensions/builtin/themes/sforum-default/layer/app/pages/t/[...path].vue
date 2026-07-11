@@ -776,18 +776,20 @@ async function submitReport() {
             />
           </div>
 
-          <!-- 正文（后端已 sanitize）:sf-prose 由 @tailwindcss/typography 提供；v-highlight 负责代码块语法高亮 -->
-          <div class="sforum-topic-page__prose sf-prose" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
+          <div class="sforum-topic-page__post-card">
+            <!-- 正文（后端已 sanitize）:sf-prose 由 @tailwindcss/typography 提供；v-highlight 负责代码块语法高亮 -->
+            <div class="sforum-topic-page__prose sf-prose" v-highlight v-html="sanitizeHtml(topic.content.htmlContent)" />
 
-          <!-- 动作错误（不自动消失） -->
-          <SFAlert
-            v-if="showActionError"
-            variant="danger"
-            :title="actionError"
-            closable
-            class="mt-3"
-            @close="showActionError = false"
-          />
+            <!-- 动作错误（不自动消失） -->
+            <SFAlert
+              v-if="showActionError"
+              variant="danger"
+              :title="actionError"
+              closable
+              class="mt-3"
+              @close="showActionError = false"
+            />
+          </div>
         </article>
 
         <button

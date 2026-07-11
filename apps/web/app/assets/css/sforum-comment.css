@@ -12,9 +12,17 @@
   --sf-comment-branch-soft: rgb(45 212 191 / 0.12);
 }
 
-.sf-comment + .sf-comment,
 .sf-comment__branch > .sf-comment + .sf-comment {
   border-top: 1px solid var(--sf-border-light);
+}
+
+.sf-comment-list > .sf-comment {
+  overflow: hidden;
+  border: 1px solid var(--sf-public-border);
+  border-radius: 8px;
+  padding: 0 1.25rem;
+  background: var(--sf-public-surface);
+  box-shadow: var(--sf-public-shadow);
 }
 
 .sf-comment__entry {
@@ -197,6 +205,9 @@
 }
 
 @media (max-width: 640px) {
+  .sf-comment-list > .sf-comment {
+    padding: 0 0.875rem;
+  }
   .sf-comment__entry {
     gap: 0.625rem;
     padding: 0.85rem 0;

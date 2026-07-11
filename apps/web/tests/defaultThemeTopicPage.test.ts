@@ -25,7 +25,7 @@ describe('default theme topic page contract', () => {
     const source = topicPage()
     const isEditingDeclaration = source.indexOf('const isEditing = computed(')
     const canonicalRedirectEffect = source.indexOf('watchEffect(() => {')
-    const seoRegistration = source.indexOf('useSForumSeo({')
+    const seoRegistration = source.indexOf('useSForumSeo(computed(')
 
     expect(isEditingDeclaration).toBeGreaterThan(-1)
     expect(canonicalRedirectEffect).toBeGreaterThan(-1)
@@ -70,18 +70,19 @@ describe('default theme topic page contract', () => {
 
     expect(source).toContain('topicPathLookupCandidates(')
     expect(source).toContain('navigateTo(target, { redirectCode: 301 })')
-    expect(source).toContain('useSForumSeo({')
+    expect(source).toContain('useSForumSeo(computed(')
     expect(source).toContain('sanitizeHtml(topic.content.htmlContent)')
     expect(source).toContain('v-highlight')
     expect(source).toContain('<SFTopicEditor')
     expect(source).toContain('applyTopicExtensionAction')
   })
 
-  test('uses one reading column and a true post-count progress rail', () => {
+  test('uses a card reading column and a true post-count progress rail', () => {
     const source = topicPage()
 
     expect(source).toContain('sforum-topic-page__shell')
     expect(source).toContain('sforum-topic-page__reading')
+    expect(source).toContain('sforum-topic-page__post-card')
     expect(source).toContain(':total-posts="topic.commentCount + 1"')
     expect(source).not.toContain('sforum-topic-page__action-rail')
     expect(source).not.toContain('sforum-topic-page__summary')
@@ -101,12 +102,15 @@ describe('default theme topic page contract', () => {
     expect(source).toContain('commentData.value.perPage')
   })
 
-  test('registers the focused 820px plus 190px responsive topic stylesheet', () => {
+  test('registers the screenshot-aligned 760px plus 240px responsive topic stylesheet', () => {
     const config = themeFile('nuxt.config.ts')
     const css = themeFile('app/assets/css/sforum-topic.css')
 
     expect(config).toContain('sforum-topic.css')
-    expect(css).toContain('grid-template-columns: minmax(0, 820px) 190px')
+    expect(css).toContain('grid-template-columns: minmax(0, 760px) 240px')
+    expect(css).toContain('.sforum-topic-page__post-card')
+    expect(css).toContain('background: var(--sf-public-surface)')
+    expect(css).toContain('.sf-topic-progress__toc')
     expect(css).toContain('position: sticky')
     expect(css).toContain('overflow-wrap: anywhere')
     expect(css).toContain('min-height: 40px')

@@ -1877,6 +1877,7 @@
     "statsCreated": "发布于",
     "progress": {
       "label": "阅读进度",
+      "contents": "本文目录",
       "position": "第 {current} / {total} 页",
       "totalPosts": "共 {count} 帖",
       "first": "首帖",

@@ -127,6 +127,14 @@ describe('SFComment presentation contract', () => {
 })
 
 describe('SFComment responsive CSS contract', () => {
+  test('renders each top-level reply as a modern card', () => {
+    const source = commentCss()
+
+    expect(source).toContain('background: var(--sf-public-surface)')
+    expect(source).toContain('box-shadow: var(--sf-public-shadow)')
+    expect(source).toContain('border-radius: 8px')
+  })
+
   test('loads a focused comment stylesheet with one branch rail', () => {
     const source = commentCss()
 
