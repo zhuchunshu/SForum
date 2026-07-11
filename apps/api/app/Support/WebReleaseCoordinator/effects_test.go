@@ -2,10 +2,22 @@ package webreleasecoordinator
 
 import (
 	"context"
+	"os"
+	"strings"
 	"testing"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 )
+
+func TestFinalizeRevocationsDoesNotUseReservedGrantAlias(t *testing.T) {
+	body, err := os.ReadFile("effects.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), "AS grant\n") {
+		t.Fatal("finalize revocations uses PostgreSQL reserved word grant as an alias")
+	}
+}
 
 func TestPostgresStoreNextActivationKeepsLatestReadyRelease(t *testing.T) {
 	releases := &fakeReleaseStore{items: []extensions.WebRelease{

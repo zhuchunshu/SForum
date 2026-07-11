@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -189,6 +190,10 @@ func (p *WebReleasePlanner) resolveTheme(ctx context.Context, targetID string) (
 	layerPath, ok := InstalledFilePathForRuntime(theme, theme.Manifest.Frontend.Layer)
 	if !ok {
 		return WebThemeSnapshot{}, fmt.Errorf("%w: theme layer path is invalid", ErrWebReleaseInvalidComposition)
+	}
+	layerPath, err = filepath.Abs(layerPath)
+	if err != nil {
+		return WebThemeSnapshot{}, fmt.Errorf("%w: resolve theme layer path: %v", ErrWebReleaseInvalidComposition, err)
 	}
 	info, err := os.Stat(layerPath)
 	if err != nil || !info.IsDir() {

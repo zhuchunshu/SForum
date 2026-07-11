@@ -2,8 +2,6 @@ package webreleaseruntime
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
@@ -99,9 +97,8 @@ func TestTrustedAdminFixtureBuildIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	compositionDigest := sha256.Sum256(compositionBody)
 	detail := extensions.WebReleaseDetail{WebRelease: extensions.WebRelease{
-		ID: 4242, CompositionSnapshot: compositionBody, CompositionHash: hex.EncodeToString(compositionDigest[:]),
+		ID: 4242, CompositionSnapshot: compositionBody, CompositionHash: sha256Hex(compositionBody),
 		ActiveThemeID: composition.Theme.ExtensionID, ThemeVersion: composition.Theme.Version,
 		ThemeLayerPath: composition.Theme.LayerPath, ThemePackageDigest: themeDigest, ReloadMode: extensions.WebReleaseReloadPrompt,
 	}, Extensions: []extensions.WebReleaseExtension{webExtension}}

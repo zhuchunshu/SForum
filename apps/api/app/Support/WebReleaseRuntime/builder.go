@@ -88,7 +88,7 @@ func (b *Builder) Prepare(_ context.Context, detail extensions.WebReleaseDetail)
 	if composition.SDKVersion != AdminSDKVersion || composition.Contract != BuildContractVersion || composition.BunVersion != BunVersion {
 		return PreparedRelease{}, fmt.Errorf("web release host build identity is stale")
 	}
-	compositionBody, err := json.Marshal(composition)
+	compositionBody, err := canonicalJSON(detail.CompositionSnapshot)
 	if err != nil {
 		return PreparedRelease{}, err
 	}
@@ -348,7 +348,7 @@ func (b *Builder) writeGuardPolicy(target string, composition extensions.WebComp
 	policy := struct {
 		Roots     []rootPolicy `json:"roots"`
 		HostPeers []string     `json:"hostPeers"`
-	}{HostPeers: sortedMapKeys(b.config.HostPeers)}
+	}{Roots: make([]rootPolicy, 0, len(composition.Extensions)), HostPeers: sortedMapKeys(b.config.HostPeers)}
 	for _, item := range composition.Extensions {
 		root := roots[item.ExtensionID]
 		if root == "" {

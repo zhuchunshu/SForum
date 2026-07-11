@@ -1,6 +1,7 @@
 package webreleaseruntime
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -138,6 +139,35 @@ func TestBoundedLogRedactsCredentialsAndSecretValues(t *testing.T) {
 	}
 }
 
+func TestCanonicalJSONIgnoresObjectKeyOrder(t *testing.T) {
+	left, err := canonicalJSON([]byte(`{"b":2,"a":1}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	right, err := canonicalJSON([]byte(`{"a":1,"b":2}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(left) != string(right) {
+		t.Fatalf("canonical JSON differs: %s != %s", left, right)
+	}
+}
+
+func TestWriteGuardPolicySerializesEmptyRootsAsArray(t *testing.T) {
+	builder := NewBuilder(Config{HostPeers: map[string]string{"vue": "3.5.39"}})
+	target := filepath.Join(t.TempDir(), "guard-policy.json")
+	if err := builder.writeGuardPolicy(target, extensions.WebComposition{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(body, []byte(`"roots": []`)) {
+		t.Fatalf("empty guard roots must be an array: %s", body)
+	}
+}
+
 func TestLinkPluginHostPeersUsesHostOwnedSymlinks(t *testing.T) {
 	root := t.TempDir()
 	workspace := filepath.Join(root, "workspace")
@@ -245,6 +275,10 @@ func writeTestFile(t *testing.T, target, body string) {
 }
 
 func sha256Hex(body []byte) string {
-	digest := sha256.Sum256(body)
+	canonical, err := canonicalJSON(body)
+	if err != nil {
+		panic(err)
+	}
+	digest := sha256.Sum256(canonical)
 	return hex.EncodeToString(digest[:])
 }

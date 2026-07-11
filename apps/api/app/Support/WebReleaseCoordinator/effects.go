@@ -108,16 +108,16 @@ func (s *PostgresStore) ApplyEffects(ctx context.Context, detail extensions.WebR
 
 func (s *PostgresStore) FinalizeRevocations(ctx context.Context, releaseID int64) error {
 	_, err := s.pool.Exec(ctx, `
-		UPDATE extension_frontend_trust_grants AS grant
+		UPDATE extension_frontend_trust_grants AS grants
 		SET revoked_at = COALESCE(revoked_at, now())
-		WHERE grant.revocation_requested_at IS NOT NULL
-		  AND grant.revoked_at IS NULL
+		WHERE grants.revocation_requested_at IS NOT NULL
+		  AND grants.revoked_at IS NULL
 		  AND NOT EXISTS (
 		    SELECT 1 FROM web_release_extensions AS snapshot
 		    WHERE snapshot.web_release_id = $1
-		      AND snapshot.extension_id = grant.extension_id
-		      AND snapshot.extension_version = grant.extension_version
-		      AND snapshot.package_digest = grant.package_digest
+		      AND snapshot.extension_id = grants.extension_id
+		      AND snapshot.extension_version = grants.extension_version
+		      AND snapshot.package_digest = grants.package_digest
 		  )
 	`, releaseID)
 	return err
