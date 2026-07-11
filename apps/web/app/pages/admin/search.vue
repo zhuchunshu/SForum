@@ -12,6 +12,7 @@ defineOptions({
   name: 'AdminSearch'
 })
 
+const { format: formatSiteDateTime } = useSiteDateTime()
 const { t } = useI18n()
 const toast = useToast()
 const { request } = useApiClient()
@@ -97,14 +98,10 @@ function statusColor(status: string): string {
   }
 }
 
-// 格式化时间。
+// 按站点时区与日期时间格式展示。
 function formatTime(value?: string | null): string {
   if (!value) return '-'
-  try {
-    return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'medium' }).format(new Date(value))
-  } catch {
-    return value
-  }
+  return formatSiteDateTime(value) || '-'
 }
 
 // 初始化。

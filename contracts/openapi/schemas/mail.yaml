@@ -5,12 +5,11 @@ MailProviderSelectionRequest:
     extensionId: {type: string, description: Enabled plugin declaring mail.provider.}
 MailTestRequest:
   type: object
-  required: [recipient]
   properties:
     recipient:
       type: string
       format: email
-      description: Recipient email address for the test mail.
+      description: Optional recipient. When omitted or empty, falls back to site.admin_email.
 ApiResponseMailTest:
   type: object
   required:
@@ -28,6 +27,10 @@ ApiResponseMailTest:
       - queued
       - deliveryId
       properties:
+        recipient:
+          type: string
+          format: email
+          description: Resolved recipient used for the queued test mail.
         queued: {type: boolean}
         deliveryId: {type: integer, format: int64}
 NotificationChannelPolicy:

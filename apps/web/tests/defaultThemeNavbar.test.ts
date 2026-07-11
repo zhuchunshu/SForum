@@ -15,6 +15,14 @@ describe('default theme shared navbar contract', () => {
     expect(source).not.toContain('disabled')
   })
 
+  test('surfaces site tagline and hides register when registration is closed', () => {
+    expect(source).toContain('siteTagline')
+    expect(source).toContain('navbar__logo-tagline')
+    expect(source).toContain("'/auth/registration-status'")
+    expect(source).toContain('showRegisterLinks')
+    expect(source).toContain('v-if="showRegisterLinks"')
+  })
+
   test('uses the V32 sticky topbar shell on every public page', () => {
     expect(source).not.toContain('isWorkbenchHome')
     expect(source).not.toContain('navbar--workbench')

@@ -5,6 +5,7 @@ import { webReleaseCanRetry, webReleaseCanRollback, webReleaseProgress } from '~
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminExtensionReleases' })
 const { t } = useI18n()
+const { format: formatSiteDateTime } = useSiteDateTime()
 const adminPage = useAdminPage('/extensions/releases')
 const { data, pending, error, page, perPage, selected, commandId, load, select, command } = useAdminWebReleases()
 const pages = computed(() => Math.max(1, Math.ceil(data.value.total / perPage)))
@@ -35,6 +36,6 @@ function closeDetail() { selected.value = null }
   </div>
   <UPagination v-if="pages > 1" v-model:page="page" class="mt-4 justify-end" :total="data.total" :items-per-page="perPage" />
   <UModal :open="Boolean(selected)" @update:open="value => { if (!value) closeDetail() }">
-    <template #content><div v-if="selected" class="max-h-[80vh] overflow-y-auto p-5"><div class="flex items-center justify-between"><h3 class="text-base font-semibold">Release #{{ selected.id }}</h3><UButton icon="i-lucide-x" color="neutral" variant="ghost" @click="closeDetail" /></div><UAlert v-if="selected.publicMessage" color="error" class="mt-4" :title="selected.publicReason" :description="selected.publicMessage" /><div class="mt-5 space-y-3"><div v-for="event in selected.events" :key="event.id" class="border-l-2 border-slate-200 pl-3 text-sm dark:border-zinc-700"><p class="font-medium">{{ event.nextStatus }} · {{ event.reason }}</p><p class="text-xs text-slate-500">{{ event.createdAt }}</p><p v-if="event.message" class="mt-1 text-xs">{{ event.message }}</p></div></div><pre v-if="selected.buildLog" class="mt-5 max-h-72 overflow-auto bg-zinc-950 p-3 text-xs text-zinc-200">{{ selected.buildLog }}</pre></div></template>
+    <template #content><div v-if="selected" class="max-h-[80vh] overflow-y-auto p-5"><div class="flex items-center justify-between"><h3 class="text-base font-semibold">Release #{{ selected.id }}</h3><UButton icon="i-lucide-x" color="neutral" variant="ghost" @click="closeDetail" /></div><UAlert v-if="selected.publicMessage" color="error" class="mt-4" :title="selected.publicReason" :description="selected.publicMessage" /><div class="mt-5 space-y-3"><div v-for="event in selected.events" :key="event.id" class="border-l-2 border-slate-200 pl-3 text-sm dark:border-zinc-700"><p class="font-medium">{{ event.nextStatus }} · {{ event.reason }}</p><p class="text-xs text-slate-500">{{ formatSiteDateTime(event.createdAt) }}</p><p v-if="event.message" class="mt-1 text-xs">{{ event.message }}</p></div></div><pre v-if="selected.buildLog" class="mt-5 max-h-72 overflow-auto bg-zinc-950 p-3 text-xs text-zinc-200">{{ selected.buildLog }}</pre></div></template>
   </UModal>
 </template>

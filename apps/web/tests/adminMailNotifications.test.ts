@@ -20,7 +20,9 @@ describe('mail and notification admin center', () => {
     expect(page).toContain("value: 'deliveries'")
     expect(page).toContain("'/admin/mail/policy/restore'")
     expect(page).toContain("'/admin/notifications/test'")
-    expect(page).toContain("recipient: testRecipient.value")
+    expect(page).toContain('loadAdminEmailDefault')
+    expect(page).toContain("item.name === 'site.admin_email'")
+    expect(page).toContain('recipientOrAdminEmailRequired')
   })
 
   test('follows the established admin settings visual contract', () => {

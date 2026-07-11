@@ -180,6 +180,28 @@ func performPasswordResetRequest(t *testing.T, app *fiber.App, body any) *nethtt
 	return resp
 }
 
+func TestResolveMailTestRecipientPrefersExplicitThenAdminEmail(t *testing.T) {
+	// 显式收件人优先。
+	if got, ok := resolveMailTestRecipient("ops@example.com", "admin@example.com"); !ok || got != "ops@example.com" {
+		t.Fatalf("expected explicit recipient, got %q ok=%v", got, ok)
+	}
+	// 空白显式值回落到管理员邮箱。
+	if got, ok := resolveMailTestRecipient("  ", "admin@example.com"); !ok || got != "admin@example.com" {
+		t.Fatalf("expected admin email fallback, got %q ok=%v", got, ok)
+	}
+	// 两者皆无效时失败。
+	if _, ok := resolveMailTestRecipient("", ""); ok {
+		t.Fatal("expected failure when both recipients empty")
+	}
+	if _, ok := resolveMailTestRecipient("not-an-email", "also-bad"); ok {
+		t.Fatal("expected failure for invalid addresses")
+	}
+	// 不允许 display-name 形式，与 site.admin_email 规范化一致。
+	if _, ok := resolveMailTestRecipient("Name <ops@example.com>", ""); ok {
+		t.Fatal("expected rejection of display-name address form")
+	}
+}
+
 // TestPasswordResetSkipsHumanVerificationWhenDisabled 验证：当 password_reset HV 未启用时，
 // 缺少 token 的请求正常通过（静默成功 200），修复未破坏默认禁用场景。
 func TestPasswordResetSkipsHumanVerificationWhenDisabled(t *testing.T) {

@@ -50,6 +50,15 @@ func TestSiteIdentityOptionsAcceptValidValues(t *testing.T) {
 	if store.items[NameSiteAdminEmail] != "ops@example.com" {
 		t.Fatalf("admin email not saved: %#v", store.items)
 	}
+
+	// AdminEmail helper 供 mail-test 等内部路径读取。
+	got, err := service.AdminEmail(context.Background())
+	if err != nil {
+		t.Fatalf("AdminEmail returned error: %v", err)
+	}
+	if got != "ops@example.com" {
+		t.Fatalf("AdminEmail = %q, want ops@example.com", got)
+	}
 }
 
 func TestSiteIdentityOptionsRejectInvalidValues(t *testing.T) {
