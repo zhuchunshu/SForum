@@ -2,6 +2,15 @@
 
 This is the entry point for project memory.
 
+## Latest Handoff
+
+- **2026-07-12 fine-grained permissions Phase 1 done; next = role templates**
+  - Session: `knowledge/sessions/2026-07-12-fine-grained-permissions-phase1-handoff.md`
+  - Decision: `knowledge/decisions/2026-07-12-fine-grained-permissions-phase1.md`
+  - On `main`: commits `aa0bd2cdd` → `1ae6b42e4` (catalog, API, web, release gate fix)
+  - Next session should implement built-in `moderator` / `operator` (optional
+    `tech_admin`) role templates only — not category ACL.
+
 ## Current Project State
 
 - Admin forum settings are multi-tab
