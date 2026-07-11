@@ -249,9 +249,7 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/settings/avatar' },
         { type: 'page', pageId: '/personalization' },
         { type: 'page', pageId: '/seo' },
-        { type: 'page', pageId: '/database' },
-        { type: 'page', pageId: '/search' },
-        { type: 'page', pageId: '/jobs' }
+        { type: 'page', pageId: '/search' }
       ]
     },
     {
@@ -266,6 +264,16 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/extensions/events' },
         { type: 'page', pageId: '/extensions/contributions' },
         { type: 'page', pageId: '/extensions/releases' }
+      ]
+    },
+    {
+      // 运维工具不属于配置项，放在扩展管理之后
+      type: 'folder',
+      labelKey: 'admin.nav.operations',
+      icon: 'i-lucide-server-cog',
+      children: [
+        { type: 'page', pageId: '/database' },
+        { type: 'page', pageId: '/jobs' }
       ]
     },
     { type: 'page', pageId: '/attachments' }

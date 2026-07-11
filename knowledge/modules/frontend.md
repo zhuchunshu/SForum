@@ -131,7 +131,12 @@ supervisor loads the repository root `.env`, uses `PORT` or `WEB_PORT` for its
 fixed public proxy port, prints that public URL, and suppresses Nuxt
 child-process Local/Network lines so internal random `PORT=0` addresses are not
 mistaken for the frontend access port.
-`bun run dev:plain` runs raw `nuxt dev` as an escape hatch for troubleshooting.
+`bun run dev:plain` runs raw `nuxt dev` as an escape hatch for troubleshooting
+without the theme supervisor. It still watches `theme-releases/current.json`
+and writes `active.json` so trusted-admin Web Release activation can complete
+while Nuxt stays on the default/current process (no theme-layer restart).
+`bun run dev:nuxt` is the absolute bare Nuxt process used as the inner child of
+the theme supervisor; alone it will not acknowledge Web Releases.
 `bun run preview` only serves the fixed `.output` build and does not follow
 admin theme switching.
 The production Docker build creates a build-local `.nuxt -> .nuxt-build`

@@ -305,7 +305,13 @@ This is the entry point for project memory.
 - Extension system foundation is implemented: `extension.manage`, extension
   ZIP upload, `sforum.extension.json` manifest validation, dedicated extension
   tables, lifecycle events, independent admin extension submenu pages,
-  `EXTENSION_ROOT`, and reserved plugin/theme runtime boundaries. Plugins use
+  `EXTENSION_ROOT`, and reserved plugin/theme runtime boundaries. Multi-file
+  manifest authoring is accepted but not implemented: complex packages will use
+  optional `includes` (settings, contributions, admin, …) and
+  directory-per-locale identity `langs` under `manifest/langs/`, while the host
+  merges to one `Manifest` before validation. See
+  `decisions/2026-07-12-extension-manifest-split.md` and
+  `docs/superpowers/plans/2026-07-12-extension-manifest-split.md`. Plugins use
   enable/disable semantics; themes use activation semantics with exactly one
   active theme. Uploaded Nuxt Layer themes can now be activated through a
   single-node self-hosted runtime: the API creates an `extension_theme_releases`
@@ -508,6 +514,11 @@ This is the entry point for project memory.
 - `decisions/2026-07-05-extension-plugin-theme-foundation.md` - accepted
   plugin/theme extension foundation, storage, permission, and runtime-boundary
   decision.
+- `decisions/2026-07-12-extension-manifest-split.md` - accepted multi-file
+  extension manifest authoring: thin `sforum.extension.json` entry, optional
+  `includes`, directory-per-locale identity `langs`, single merged runtime
+  `Manifest`; implementation pending (plan under
+  `docs/superpowers/plans/2026-07-12-extension-manifest-split.md`).
 - `decisions/2026-07-10-trusted-admin-plugin-runtime.md` - accepted build-time
   trusted admin component runtime, digest grants, manifest contribution
   metadata, and unified Web Release ownership; implementation is pending.
@@ -570,6 +581,9 @@ This is the entry point for project memory.
   validation sync, and attachment local-root runtime option handoff.
 - `sessions/2026-07-05-extension-system-foundation.md` - extension backend,
   admin UI, manifest, lifecycle, and runtime-boundary implementation handoff.
+- `sessions/2026-07-12-extension-manifest-split-plan.md` - multi-file extension
+  manifest split decision/plan handoff (includes + per-locale langs; loader not
+  implemented yet).
 - `sessions/2026-07-05-extension-admin-submenus.md` - extension admin sidebar
   folder split into Overview, Plugins, Themes, Settings, and Event Log pages.
 - `sessions/2026-07-05-admin-language-settings-design.md` - runtime language

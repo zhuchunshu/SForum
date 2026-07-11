@@ -220,17 +220,73 @@ checks remain authoritative.
 
 ## Manifest
 
-The manifest file is `sforum.extension.json`.
+The manifest file is `sforum.extension.json`. It is always the **only package
+entrypoint** (ZIP root, builtin tree, verify/enable, CLI).
 
 Required identity fields: `id`, `name`, `description`, `url`, `author`,
 `version`, `type`, and `sforumVersion`.
 
 Capability fields: `permissions`, `settings`, `migrations`, `backend`,
 `frontend`, `adminPages`, `routes`, `hooks`, `events`, `jobs`, `providers`, and
-`contributions`.
+`contributions`. Optional identity localization: root `langs` (or includes;
+see below).
 
 The v2 admin declaration is an `admin` object. Existing top-level
 `adminPages` should be compatibility-mapped during migration.
+
+### Planned multi-file authoring (accepted, not implemented yet)
+
+Complex packages may keep a thin root file and move bulky blocks into partials
+via optional `includes`. Host loads the entry file, merges includes into one
+`Manifest`, then runs existing `Normalize` / `Validate`. Downstream code still
+sees a single merged model.
+
+Decision: `knowledge/decisions/2026-07-12-extension-manifest-split.md`  
+Plan: `docs/superpowers/plans/2026-07-12-extension-manifest-split.md`
+
+**Root file should hold:** identity defaults, high-risk runtime boundary
+(`backend`, `providers`, `permissions`, `migrations` paths), and optional
+`includes`.
+
+**First include keys:** `langs`, `settings`, `contributions`, `admin`,
+`frontend`, `events`, `routes`, `jobs`.
+
+**No dual source:** the same block must not appear both in the root file and
+under `includes` (fail with `extension.manifest_invalid`).
+
+Simple plugins/themes may omit `includes` and keep today's single-file layout.
+
+#### Identity `langs` (directory-per-locale preferred)
+
+Three i18n layers stay separate:
+
+1. Identity — root defaults + `langs` / `includes.langs` → list and install review
+2. Settings / contribution labels — `LocalizedText` in settings/contributions
+3. Frontend admin UI — `frontend.admin.locales` / Vue locale JSON
+
+`includes.langs` supports:
+
+| Shape | Example |
+|-------|---------|
+| Directory (recommended) | `"langs": "manifest/langs"` → `manifest/langs/zh-CN.json` bodies are `ManifestLocale`; filename is the locale key |
+| Explicit list | `"langs": ["manifest/langs/zh-CN.json", "..."]` |
+| Single map file | `"langs": "manifest/langs.json"` → today's `map[string]ManifestLocale` |
+
+Directory rules: only `*.json`; empty directory invalid; locale fallback after
+merge remains exact → language prefix → root defaults (`LocalizedDisplay`).
+
+Example complex layout:
+
+```text
+my-plugin/
+  sforum.extension.json
+  manifest/
+    langs/zh-CN.json
+    langs/en-US.json
+    settings.json
+    contributions.json
+  frontend/admin/locales/   # Vue UI only
+```
 
 ```json
 {
@@ -306,6 +362,12 @@ targets `extensions/builtin/{plugins,themes}/{id}`.
   restart after settings changes. SMTP owns multi-locale settings and a custom
   settings page component under `frontend/admin`.
 
+- Implement multi-file extension manifest loading (`includes` + directory
+  `langs`) per
+  `decisions/2026-07-12-extension-manifest-split.md` and
+  `docs/superpowers/plans/2026-07-12-extension-manifest-split.md`: package
+  loader first, then migrate `sforum.smtp` as the reference package, then
+  scaffold / `extension validate`.
 - Implement the trusted admin plugin runtime specification before starting the
   River job monitoring module that consumes its first production slots.
 - Generalize the current theme artifact builder and supervisor contract into a

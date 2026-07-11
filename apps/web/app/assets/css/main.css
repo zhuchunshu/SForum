@@ -325,9 +325,16 @@ body {
   background-color: var(--bg-admin-sidebar);
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/*
+ * 链接默认继承正文色、去掉下划线。
+ * 必须放在 @layer base：否则无 layer 的 a 规则会压过 Nuxt UI 的 text-inverted 等
+ * utility（UButton color=primary + :to 会渲染成 <a>，出现蓝底黑字）。
+ */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 .page-shell {
@@ -450,6 +457,14 @@ h1:not([data-slot="title"]) {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/*
+ * 后台多页签：单项禁止收缩，超出时由容器横向滚动。
+ * 不设 min-width:max-content，以便超长标题可在 max-w 内 truncate。
+ */
+.sforum-admin-tabs > [data-admin-tab-id] {
+  flex: 0 0 auto;
 }
 
 /* ========================================================================= */

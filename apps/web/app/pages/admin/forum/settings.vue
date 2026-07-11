@@ -23,6 +23,7 @@ const toast = useToast()
 const { request } = useApiClient()
 const forumApi = createAdminForumApi(request)
 const adminPage = useAdminPage('/forum/settings')
+const adminRoutes = useAdminRoutes()
 const { can } = usePermissions()
 
 const saving = ref(false)
@@ -48,6 +49,8 @@ useSeoMeta({
 const categoryGroups = computed(() => data.value.groups)
 const categories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
 const publicCategories = computed(() => categories.value.filter((category) => category.visibility === 'public'))
+// 无公开版块时不渲染空 select，引导先去版块分类页创建。
+const hasPublicCategories = computed(() => publicCategories.value.length > 0)
 const hasChanges = computed(() => JSON.stringify(forumSettingsPayload(form)) !== savedSnapshot.value)
 const recommended = createDefaultForumSettings()
 const canManagePagination = computed(() => can('settings.manage'))
@@ -204,27 +207,55 @@ function errorToast(error: unknown, fallback: string) {
 
       <div class="grid max-w-5xl gap-6">
         <section class="space-y-3">
-          <UFormField :label="t('admin.forum.settings.defaultCategory')" name="default-category">
-            <select v-model="form.defaultCategorySlug" class="h-10 w-full max-w-xl rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
-              <option v-for="category in publicCategories" :key="category.slug" :value="category.slug">
-                {{ category.name }} (/c/{{ category.slug }})
-              </option>
-            </select>
-          </UFormField>
-
-          <div class="grid gap-2 md:grid-cols-2">
-            <button
-              v-for="category in publicCategories"
-              :key="category.id"
-              type="button"
-              class="rounded-lg border px-3 py-2 text-left text-sm transition"
-              :class="form.defaultCategorySlug === category.slug ? 'border-[#0F766E] bg-[#E6F4F1] text-[#0F766E] dark:border-teal-700 dark:bg-teal-950/40 dark:text-teal-300' : 'border-slate-200 text-slate-700 hover:border-[#0F766E] dark:border-zinc-700 dark:text-zinc-300'"
-              @click="chooseDefaultCategory(category)"
-            >
-              <span class="block font-semibold">{{ category.name }}</span>
-              <span class="mt-1 block text-xs opacity-70">/c/{{ category.slug }}</span>
-            </button>
+          <!-- 无公开版块：空 select 对运营不友好，改为明确引导 -->
+          <div
+            v-if="!pending && !hasPublicCategories"
+            class="rounded-lg border border-dashed border-slate-200 bg-slate-50/80 p-6 dark:border-zinc-700 dark:bg-zinc-950/40"
+          >
+            <SFEmptyState
+              icon-label="CAT"
+              :title="t('admin.forum.settings.noPublicCategoriesTitle')"
+              :description="t('admin.forum.settings.noPublicCategoriesDescription')"
+            />
+            <div class="mt-5 flex flex-wrap justify-center gap-2">
+              <UButton icon="i-lucide-folder-tree" color="primary" :to="adminRoutes.path('/forum/categories')">
+                {{ t('admin.forum.settings.openCategories') }}
+              </UButton>
+              <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="refresh()">
+                {{ t('admin.common.refresh') }}
+              </UButton>
+            </div>
           </div>
+
+          <template v-else>
+            <UFormField :label="t('admin.forum.settings.defaultCategory')" name="default-category">
+              <select
+                v-model="form.defaultCategorySlug"
+                class="h-10 w-full max-w-xl rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              >
+                <option v-if="!form.defaultCategorySlug" value="" disabled>
+                  {{ t('admin.forum.settings.defaultCategoryPlaceholder') }}
+                </option>
+                <option v-for="category in publicCategories" :key="category.slug" :value="category.slug">
+                  {{ category.name }} (/c/{{ category.slug }})
+                </option>
+              </select>
+            </UFormField>
+
+            <div class="grid gap-2 md:grid-cols-2">
+              <button
+                v-for="category in publicCategories"
+                :key="category.id"
+                type="button"
+                class="rounded-lg border px-3 py-2 text-left text-sm transition"
+                :class="form.defaultCategorySlug === category.slug ? 'border-[#0F766E] bg-[#E6F4F1] text-[#0F766E] dark:border-teal-700 dark:bg-teal-950/40 dark:text-teal-300' : 'border-slate-200 text-slate-700 hover:border-[#0F766E] dark:border-zinc-700 dark:text-zinc-300'"
+                @click="chooseDefaultCategory(category)"
+              >
+                <span class="block font-semibold">{{ category.name }}</span>
+                <span class="mt-1 block text-xs opacity-70">/c/{{ category.slug }}</span>
+              </button>
+            </div>
+          </template>
         </section>
 
         <section class="space-y-3 border-t border-slate-200 pt-5 dark:border-zinc-800">

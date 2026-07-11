@@ -185,6 +185,8 @@ assert(!adminLayout.includes('navigationItems = computed(() => ['), 'Admin layou
 assert(adminModules.includes('admin.nav.personalization'), 'Admin modules should expose the personalization top-level menu')
 assert(adminModules.includes('i-lucide-palette'), 'Personalization menu should use the palette icon')
 assert(adminModules.includes('admin.nav.system'), 'Admin modules should expose the system navigation folder via translation key')
+assert(adminModules.includes('admin.nav.operations'), 'Admin modules should expose the operations navigation folder via translation key')
+assert(adminModules.includes('i-lucide-server-cog'), 'Operations menu should use the server-cog icon')
 assert(adminModules.includes('admin.nav.extensions'), 'Admin modules should expose the extension manager menu')
 assert(adminModules.includes('i-lucide-blocks'), 'Extension manager menu should use the blocks icon')
 assert(adminModules.includes('admin.nav.extensionOverview'), 'Admin modules should expose extension overview submenu')
@@ -218,13 +220,28 @@ assert(
 )
 assert(systemFolder.children?.some(entry => entry.pageId === '/personalization'), 'System folder should contain the personalization page')
 assert(
-  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/avatar,/personalization,/seo,/database,/search,/jobs',
-  'System folder should keep the approved settings submenu order'
+  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/avatar,/personalization,/seo,/search',
+  'System folder should keep settings-only submenu order without ops tools'
 )
+assert(!systemFolder.children?.some(entry => entry.pageId === '/database'), 'System folder should not contain database ops page')
+assert(!systemFolder.children?.some(entry => entry.pageId === '/jobs'), 'System folder should not contain background jobs page')
 assert(!systemFolder.children?.some(entry => entry.pageId === '/extensions'), 'System folder should not contain the extension overview page')
 const extensionFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensions')
 assert(extensionFolder, 'Admin sidebar should expose extensions as an independent folder')
 assert(extensionFolder.children?.map(entry => entry.pageId).join(',') === '/extensions,/extensions/plugins,/extensions/themes,/extensions/settings,/extensions/events,/extensions/contributions,/extensions/releases', 'Extension folder should keep the approved submenu order')
+const operationsFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.operations')
+assert(operationsFolder, 'Admin sidebar should expose operations as an independent folder')
+assert(
+  operationsFolder.children?.map(entry => entry.pageId).join(',') === '/database,/jobs',
+  'Operations folder should keep the approved ops submenu order'
+)
+assert(
+  !firstSidebarGroup.some(entry => entry.type === 'page' && (entry.pageId === '/database' || entry.pageId === '/jobs')),
+  'Database and jobs should live under the operations folder, not the top-level sidebar'
+)
+const extensionFolderIndex = firstSidebarGroup.findIndex(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensions')
+const operationsFolderIndex = firstSidebarGroup.findIndex(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.operations')
+assert(extensionFolderIndex >= 0 && operationsFolderIndex > extensionFolderIndex, 'Operations folder should appear below the extensions folder')
 const extensionEventsPage = read('apps/web/app/pages/admin/extensions/events.vue')
 assert(extensionEventsPage.includes('data-testid="admin-extension-events-page"'), 'Extension event log page should expose a stable page wrapper for layout checks')
 assert(extensionEventsPage.includes('data-testid="admin-extension-events-page" class="min-w-0 shrink-0"'), 'Extension event log page wrapper should not shrink inside the admin flex scroll container')
@@ -236,7 +253,11 @@ assert(!isExtensionAdminPageId('/extensions/themes'), 'Static extension manager 
 assert(isAdminNavigationEntryActive(extensionFolder, '/extensions/themes'), 'Extension folder should be active when one of its child pages is active')
 assert(isAdminNavigationEntryActive(extensionFolder, '/extensions/sforum.default-theme/pages/about'), 'Extension folder should be active for dynamic extension admin pages')
 assert(!isAdminNavigationEntryActive(systemFolder, '/extensions/themes'), 'System folder should not be active for extension child pages')
+assert(isAdminNavigationEntryActive(operationsFolder, '/database'), 'Operations folder should be active when database page is active')
+assert(isAdminNavigationEntryActive(operationsFolder, '/jobs'), 'Operations folder should be active when jobs page is active')
+assert(!isAdminNavigationEntryActive(systemFolder, '/database'), 'System folder should not be active for operations child pages')
 assert(shouldOpenAdminNavigationEntry(extensionFolder, '/extensions/themes'), 'Active sidebar folders should open initially')
+assert(shouldOpenAdminNavigationEntry(operationsFolder, '/jobs'), 'Active operations folder should open initially')
 assert(shouldOpenAdminNavigationEntry(extensionFolder, '/extensions/sforum.default-theme/pages/about'), 'Extension folder should open for dynamic extension admin pages')
 assert(!shouldOpenAdminNavigationEntry(systemFolder, '/extensions/themes'), 'Inactive sidebar folders should stay collapsed by default')
 assert(firstSidebarGroup
@@ -246,6 +267,13 @@ assert(adminLayout.includes('active: isActive'), 'Admin layout should pass activ
 assert(adminLayout.includes('shouldOpenAdminNavigationEntry(entry, currentAdminPageId)'), 'Admin layout should open only the active/default folder initially')
 assert(adminLayout.includes('adminTabs.activateTab(tabId)'), 'Admin layout should activate existing custom tabs from the current route')
 assert(adminLayout.includes('openExtensionRoutePlaceholderTab(tabId)'), 'Admin layout should open route-backed placeholder tabs for dynamic extension pages')
-assert(adminLayout.includes('class="min-h-0 flex-1 overflow-y-auto pr-1"'), 'Admin sidebar navigation should scroll independently when there are many menu items')
+assert(adminLayout.includes('overflow-y-auto'), 'Admin sidebar navigation should scroll independently when there are many menu items')
+assert(adminLayout.includes('min-h-0') && adminLayout.includes('flex-1'), 'Admin sidebar navigation container should flex-fill and allow independent scrolling')
+assert(adminLayout.includes('sforum-admin-tabs'), 'Admin layout should expose a dedicated multi-tab bar class')
+assert(adminLayout.includes('shrink-0'), 'Admin multi-tabs should not shrink when many pages are open')
+assert(adminLayout.includes('data-admin-tab-id'), 'Admin multi-tabs should expose stable tab ids for scroll-into-view')
+assert(adminLayout.includes('scrollActiveAdminTabIntoView'), 'Admin multi-tabs should scroll the active tab into view')
+assert(adminLayout.includes('whitespace-nowrap'), 'Admin multi-tab labels should stay on one line')
+assert(adminLayout.includes('max-w-[12.5rem]'), 'Admin multi-tab labels should cap width and truncate long titles')
 
 console.log('Admin framework validation passed.')

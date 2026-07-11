@@ -322,6 +322,44 @@ func TestPostgresWebReleaseStoreActivationRejectsUnexpectedActiveRelease(t *test
 	}
 }
 
+func TestLatestProgressWebReleaseForExtensionHidesStaleFailedAfterActive(t *testing.T) {
+	now := time.Date(2026, 7, 12, 4, 0, 0, 0, time.UTC)
+	// 模拟插件列表查询：最新相关发布已是 active（更早 failed 不应再挂到行上）。
+	active := webReleaseFixture(12, 20, WebReleaseActive, now)
+	active.TriggerExtensionID = "sforum.smtp"
+	db := newFakeWebReleaseDB()
+	db.rows = append(db.rows, rowWithValues(releaseRowValues(active)))
+	store := newPostgresWebReleaseStore(db)
+
+	_, err := store.LatestProgressWebReleaseForExtension(context.Background(), "sforum.smtp")
+	if !errors.Is(err, ErrWebReleaseNotFound) {
+		t.Fatalf("expected active latest release to hide progress row, got %v", err)
+	}
+	call := firstSQLCall(t, db.calls, "query-row", "from web_releases wr")
+	normalized := normalizeSQL(call.query)
+	if !strings.Contains(normalized, "'active'") || !strings.Contains(normalized, "'failed'") {
+		t.Fatalf("progress lookup must consider active and failed: %s", call.query)
+	}
+}
+
+func TestLatestProgressWebReleaseForExtensionReturnsLatestFailed(t *testing.T) {
+	now := time.Date(2026, 7, 12, 4, 0, 0, 0, time.UTC)
+	failed := webReleaseFixture(11, 19, WebReleaseFailed, now)
+	failed.TriggerExtensionID = "sforum.smtp"
+	failed.PublicMessage = "Web release build failed."
+	db := newFakeWebReleaseDB()
+	db.rows = append(db.rows, rowWithValues(releaseRowValues(failed)))
+	store := newPostgresWebReleaseStore(db)
+
+	release, err := store.LatestProgressWebReleaseForExtension(context.Background(), "sforum.smtp")
+	if err != nil {
+		t.Fatalf("load progress release: %v", err)
+	}
+	if release.ID != 11 || release.Status != WebReleaseFailed {
+		t.Fatalf("unexpected progress release: %#v", release)
+	}
+}
+
 func TestPostgresWebReleaseStoreDependencySnapshotIsOneTimeCAS(t *testing.T) {
 	input := WebReleaseDependencySnapshotInput{
 		WebReleaseID: 9,

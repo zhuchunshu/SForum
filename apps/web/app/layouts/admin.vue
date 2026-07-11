@@ -292,6 +292,23 @@ function navigateAdminTab(tab: AdminTab) {
   void navigateTo(tab.to)
 }
 
+// 页签过多时保持横向滚动，激活项滚入可视区，避免被 flex 挤压
+function scrollActiveAdminTabIntoView() {
+  if (!import.meta.client) {
+    return
+  }
+
+  nextTick(() => {
+    const activeId = adminTabs.activeTabId.value
+    const tabEl = document.querySelector<HTMLElement>(`[data-admin-tab-id="${CSS.escape(activeId)}"]`)
+    tabEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+  })
+}
+
+watch(() => adminTabs.activeTabId.value, () => {
+  scrollActiveAdminTabIntoView()
+})
+
 async function signOut() {
   await request<null>('/auth/logout', {
     method: 'POST'
@@ -417,23 +434,31 @@ async function signOut() {
         </div>
       </div>
 
-      <!-- 2. 多页签页签栏 (Taller tab bar: 52px) -->
-      <div class="flex items-end h-[52px] px-3 gap-1.5 bg-[var(--bg-admin-card)] border-b border-[var(--border-admin)] overflow-x-auto flex-shrink-0 select-none no-scrollbar z-15">
+      <!-- 2. 多页签栏：单项不收缩，超出横向滚动，避免被压扁 -->
+      <div
+        class="sforum-admin-tabs flex min-w-0 shrink-0 items-end h-[52px] px-3 gap-1.5 bg-[var(--bg-admin-card)] border-b border-[var(--border-admin)] overflow-x-auto overflow-y-hidden select-none no-scrollbar z-15"
+        role="tablist"
+        :aria-label="t('admin.shell.tabsLabel')"
+      >
         <div
           v-for="tab in adminTabs.tabs.value"
           :key="tab.id"
-          class="group inline-flex items-center gap-2 h-[44px] px-5 border border-b-0 border-[var(--border-admin)] mb-[-1px] rounded-t-lg cursor-pointer transition-colors text-sm font-semibold relative z-10"
-          :class="adminTabs.activeTabId.value === tab.id 
-            ? 'bg-[var(--bg-admin-app)] text-[var(--sf-accent)] border-[var(--border-admin)]' 
+          role="tab"
+          :data-admin-tab-id="tab.id"
+          :aria-selected="adminTabs.activeTabId.value === tab.id"
+          class="group relative z-10 inline-flex h-[44px] max-w-[12.5rem] shrink-0 items-center gap-2 whitespace-nowrap border border-b-0 border-[var(--border-admin)] mb-[-1px] rounded-t-lg px-3 sm:px-4 text-sm font-semibold cursor-pointer transition-colors"
+          :class="adminTabs.activeTabId.value === tab.id
+            ? 'bg-[var(--bg-admin-app)] text-[var(--sf-accent)] border-[var(--border-admin)]'
             : 'bg-transparent text-slate-500 dark:text-zinc-400 border-transparent hover:text-[var(--text-admin-main)]'"
           @click="navigateAdminTab(tab)"
         >
-          <UIcon :name="tab.icon" class="size-4.5" />
-          <span>{{ tab.label || (tab.labelKey ? t(tab.labelKey) : '') }}</span>
-          
+          <UIcon :name="tab.icon" class="size-4.5 shrink-0" />
+          <span class="min-w-0 truncate">{{ tab.label || (tab.labelKey ? t(tab.labelKey) : '') }}</span>
+
           <span
             v-if="tab.closable"
-            class="inline-flex items-center justify-center size-4.5 rounded-full text-slate-500 dark:text-zinc-400 hover:bg-red-500/20 hover:text-red-500 transition-colors"
+            class="inline-flex size-4.5 shrink-0 items-center justify-center rounded-full text-slate-500 dark:text-zinc-400 hover:bg-red-500/20 hover:text-red-500 transition-colors"
+            :aria-label="t('admin.shell.closeTab')"
             @click.stop="adminTabs.closeTab(tab.id)"
           >
             <UIcon name="i-lucide-x" class="size-3" />

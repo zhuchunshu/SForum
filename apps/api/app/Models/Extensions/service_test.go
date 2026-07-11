@@ -670,6 +670,8 @@ func TestServiceNavigationUsesOnlyExplicitMenuPagesFromEnabledPluginsAndActiveTh
 
 func TestServiceSettingsResolveUpdateAndResetDefaults(t *testing.T) {
 	item := installedExtension("settings.plugin", TypePlugin, ManifestBackend{})
+	// 设置读写仅对已启用扩展开放。
+	item.Status = StatusEnabled
 	item.Manifest.Settings = []ManifestSetting{
 		{Key: "demo.enabled", Label: LocalizedText{Default: "Enabled"}, Type: "boolean", Default: "true"},
 		{Key: "demo.title", Label: LocalizedText{Default: "Title"}, Type: "select", Default: "Hello", RecommendedValue: "Hello", Placeholder: LocalizedText{Default: "Choose"}, Group: LocalizedText{Default: "general"}, Options: []ManifestSettingOption{{Value: "Hello", Label: LocalizedText{Default: "Hello"}}, {Value: "World", Label: LocalizedText{Default: "World"}}}},
@@ -707,6 +709,27 @@ func TestServiceSettingsResolveUpdateAndResetDefaults(t *testing.T) {
 	}
 	if settingValue(reset, "demo.title") != "Hello" {
 		t.Fatalf("expected default after reset, got %#v", reset)
+	}
+}
+
+func TestServiceSettingsRejectWhenExtensionDisabled(t *testing.T) {
+	item := installedExtension("settings.plugin", TypePlugin, ManifestBackend{})
+	item.Status = StatusDisabled
+	item.Manifest.Settings = []ManifestSetting{
+		{Key: "demo.title", Label: LocalizedText{Default: "Title"}, Type: "text", Default: "Hello"},
+	}
+	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
+	service := NewService(store, t.TempDir())
+	actor := extensionManager()
+
+	if _, err := service.Settings(context.Background(), actor, item.ID, "zh-CN"); !errors.Is(err, ErrExtensionDisabled) {
+		t.Fatalf("expected disabled settings read rejection, got %v", err)
+	}
+	if _, err := service.UpdateSettings(context.Background(), actor, item.ID, UpdateSettingsInput{Values: map[string]string{"demo.title": "x"}}, "zh-CN"); !errors.Is(err, ErrExtensionDisabled) {
+		t.Fatalf("expected disabled settings update rejection, got %v", err)
+	}
+	if _, err := service.ResetSettings(context.Background(), actor, item.ID, "zh-CN"); !errors.Is(err, ErrExtensionDisabled) {
+		t.Fatalf("expected disabled settings reset rejection, got %v", err)
 	}
 }
 

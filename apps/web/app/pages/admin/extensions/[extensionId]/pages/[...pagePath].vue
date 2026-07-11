@@ -6,6 +6,7 @@ import {
   extensionLocalizedDisplay,
   findExtensionAdminPage,
   normalizeExtensionPagePath,
+  pluginWebReleaseProgress,
   recommendedExtensionSettingValues,
   type AdminExtension,
   type AdminExtensionSettings
@@ -34,12 +35,13 @@ const extensionId = computed(() => {
 })
 const currentPagePath = computed(() => normalizeExtensionPagePath(route.params.pagePath as string[] | string | undefined))
 
+// 与插件列表共用同一缓存：启用/轮询结果会立刻反映到本页，避免「已启用仍显示禁用」。
 const {
   data: extensions,
   pending,
   error,
   refresh
-} = await useAsyncData<AdminExtension[]>('admin-extension-dynamic-list', () => request<AdminExtension[]>('/admin/extensions'), {
+} = await useAsyncData<AdminExtension[]>('admin-extensions', () => request<AdminExtension[]>('/admin/extensions'), {
   default: (): AdminExtension[] => []
 })
 
@@ -54,13 +56,72 @@ const savingSettings = ref(false)
 const pageTitle = computed(() => adminPage.value?.label || extensionDisplay.value?.name || t('admin.extensions.dynamic.notFoundTitle'))
 const pageDescription = computed(() => adminPage.value?.description || extensionDisplay.value?.description || '')
 const isSettingsView = computed(() => adminPage.value?.view === 'settings')
+// 插件/主题未启用时：允许查看 about，但功能性设置页与贡献组件不可用。
+const isExtensionActive = computed(() => extension.value?.status === 'enabled')
+// 受信任插件启用会先排队 Web Release，DB status 在激活阶段才变为 enabled。
+const releaseProgress = computed(() => pluginWebReleaseProgress(extension.value?.webRelease))
+const isLifecyclePending = computed(() => Boolean(releaseProgress.value?.active))
 
 // 仅当前扩展可贡献设置页/页眉/页脚组件。
 const hasCustomSettingsPage = computed(() => {
-  if (!extensionId.value) {
+  if (!extensionId.value || !isExtensionActive.value) {
     return false
   }
   return contributionsFor('admin.extension.settings.page').some(item => item.extensionId === extensionId.value)
+})
+
+// manifest 声明了自定义设置页，但当前 Nuxt 进程嵌入的 registry 还没有该贡献。
+// （Web Release 完成后 API 不再挂 webRelease；不能靠 status===active 判断。）
+const expectsCustomSettingsPage = computed(() => {
+  const item = extension.value
+  if (!item) {
+    return false
+  }
+  return Boolean(
+    item.manifest.frontend?.admin
+    || item.manifest.contributions?.some(entry => entry.point === 'admin.extension.settings.page')
+  )
+})
+const needsFrontendReload = computed(() => {
+  return isExtensionActive.value
+    && isSettingsView.value
+    && expectsCustomSettingsPage.value
+    && !hasCustomSettingsPage.value
+})
+
+// 进入本页时若列表可能陈旧（从其它标签切来），主动拉一次最新 status / webRelease。
+onMounted(() => {
+  void refresh()
+})
+
+// Web Release 进行中时轮询，避免长期停在「已禁用」假象。
+let lifecyclePollTimer: ReturnType<typeof setInterval> | null = null
+function startLifecyclePolling() {
+  if (lifecyclePollTimer || !import.meta.client) {
+    return
+  }
+  lifecyclePollTimer = setInterval(() => {
+    if (!pending.value) {
+      void refresh()
+    }
+  }, 2000)
+}
+function stopLifecyclePolling() {
+  if (!lifecyclePollTimer) {
+    return
+  }
+  clearInterval(lifecyclePollTimer)
+  lifecyclePollTimer = null
+}
+watch(isLifecyclePending, (active) => {
+  if (active) {
+    startLifecyclePolling()
+  } else {
+    stopLifecyclePolling()
+  }
+}, { immediate: true })
+onUnmounted(() => {
+  stopLifecyclePolling()
 })
 
 const recommendedApplied = computed(() => {
@@ -110,14 +171,20 @@ watch([extension, adminPage], ([item, page]) => {
   })
 }, { immediate: true })
 
-watch([extensionId, isSettingsView], async () => {
-  if (isSettingsView.value) {
+watch([extensionId, isSettingsView, isExtensionActive], async () => {
+  if (isSettingsView.value && isExtensionActive.value) {
     await loadSettings()
+    return
   }
+  // 禁用后清空已加载的设置，避免界面仍显示可编辑表单。
+  settings.value = null
+  Object.keys(formValues).forEach((key) => {
+    delete formValues[key]
+  })
 }, { immediate: true })
 
 async function loadSettings() {
-  if (!extensionId.value) {
+  if (!extensionId.value || !isExtensionActive.value) {
     return
   }
   loadingSettings.value = true
@@ -224,7 +291,62 @@ function secretPlaceholder(item: { type: string, secretSet?: boolean, placeholde
     </div>
   </div>
 
+  <!-- Web Release 排队/构建/激活中：status 尚未变为 enabled，勿误导成「已禁用」 -->
+  <div
+    v-else-if="isLifecyclePending && isSettingsView"
+    class="rounded-lg border border-sky-200 bg-sky-50/80 p-8 dark:border-sky-900/60 dark:bg-sky-950/30"
+  >
+    <SFEmptyState
+      icon-label="…"
+      :title="t('admin.extensions.dynamic.enablingTitle')"
+      :description="t('admin.extensions.dynamic.enablingDescription')"
+    />
+    <div class="mx-auto mt-5 max-w-md space-y-2">
+      <UProgress :model-value="releaseProgress?.percent || 8" color="primary" />
+      <p class="text-center text-xs text-slate-500 dark:text-zinc-400">
+        {{ t(releaseProgress?.detailKey || 'admin.extensions.webReleaseProgress.queued') }}
+      </p>
+    </div>
+    <div class="mt-5 flex flex-wrap justify-center gap-2">
+      <UButton icon="i-lucide-plug" color="neutral" variant="subtle" :to="adminRoutes.path('/extensions/plugins')">
+        {{ t('admin.extensions.dynamic.openPlugins') }}
+      </UButton>
+      <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="refresh()">
+        {{ t('admin.extensions.refresh') }}
+      </UButton>
+    </div>
+  </div>
+
+  <!-- 未启用：功能性页面（含 settings / 自定义贡献页）全部停用，引导回插件列表启用 -->
+  <div v-else-if="!isExtensionActive && isSettingsView" class="rounded-lg border border-amber-200 bg-amber-50/80 p-8 dark:border-amber-900/60 dark:bg-amber-950/30">
+    <SFEmptyState
+      icon-label="OFF"
+      :title="t('admin.extensions.dynamic.disabledTitle')"
+      :description="t('admin.extensions.dynamic.disabledDescription')"
+    />
+    <div class="mt-5 flex flex-wrap justify-center gap-2">
+      <UButton icon="i-lucide-plug" color="primary" :to="adminRoutes.path('/extensions/plugins')">
+        {{ t('admin.extensions.dynamic.openPlugins') }}
+      </UButton>
+      <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="refresh()">
+        {{ t('admin.extensions.refresh') }}
+      </UButton>
+    </div>
+  </div>
+
   <div v-else-if="isSettingsView" class="space-y-4">
+    <!-- 后端已启用，但当前浏览器进程尚未加载新 Web Release 的前端贡献 -->
+    <UAlert
+      v-if="needsFrontendReload"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-refresh-cw"
+      :title="t('admin.extensions.dynamic.reloadRequiredTitle')"
+      :description="t('admin.extensions.dynamic.reloadRequiredDescription')"
+      :actions="[{ label: t('admin.extensions.releaseNotice.reload'), onClick: () => window.location.reload() }]"
+      class="mb-2"
+    />
+
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="min-w-0">
         <div class="flex flex-wrap items-center gap-2">

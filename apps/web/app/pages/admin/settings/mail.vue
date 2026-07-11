@@ -40,6 +40,10 @@ const tabs = computed(() => [
   { label: t('admin.mailSettings.deliveries'), value: 'deliveries', icon: 'i-lucide-list-checks' }
 ])
 const providerItems = computed(() => providers.value.map(item => ({ label: `${item.label}${item.healthy ? '' : ` (${t('admin.mailSettings.unhealthy')})`}`, value: item.extensionId })))
+// 无可用提供商时不渲染空 Select，改为引导启用插件。
+const hasProviders = computed(() => providers.value.length > 0)
+// SMTP 设置入口仅在启用中的 sforum.smtp 提供方可选时展示，避免禁用后仍可进入插件页。
+const smtpProviderAvailable = computed(() => providers.value.some(item => item.extensionId === 'sforum.smtp'))
 const eventRows = computed(() => [
   { key: 'reply' as const, label: t('admin.mailSettings.reply') },
   { key: 'mention' as const, label: t('admin.mailSettings.mention') },
@@ -178,26 +182,73 @@ async function runAction(action: () => Promise<unknown>, titleKey: string, descr
     <UCard v-else-if="activeView === 'mail'" class="border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <template #header><div><h2 class="text-base font-bold">{{ t('admin.mailSettings.providerConfigTitle') }}</h2><p class="mt-1 text-xs text-slate-500">{{ t('admin.mailSettings.providerConfigDescription') }}</p></div></template>
       <div class="max-w-4xl space-y-6">
-      <SFAlert v-if="!configured" variant="info" :title="t('admin.mailSettings.unconfigured')" :message="t('admin.mailSettings.inAppContinues')" />
-      <div><div class="flex flex-col gap-3 lg:flex-row lg:items-end">
-        <UFormField class="min-w-0 flex-1" :label="t('admin.mailSettings.provider')" :description="t('admin.mailSettings.providerHelp')"><USelect v-model="selected" :items="providerItems" value-key="value" class="w-full" /></UFormField>
-        <div class="flex flex-wrap gap-2"><UButton icon="i-lucide-save" :disabled="!selected" :loading="saving" @click="chooseProvider">{{ t('admin.mailSettings.save') }}</UButton>
-        <UButton icon="i-lucide-rotate-ccw" color="neutral" variant="subtle" :loading="saving" @click="resetProvider">{{ t('admin.mailSettings.reset') }}</UButton></div>
-      </div><UButton class="mt-3" :to="adminRoutes.path('/extensions/sforum.smtp/pages/settings')" icon="i-lucide-settings" color="neutral" variant="outline">{{ t('admin.mailSettings.smtpSettings') }}</UButton></div>
-      <div class="border-t border-slate-200 pt-5 dark:border-zinc-800">
-        <h3 class="font-semibold">{{ t('admin.mailSettings.testTitle') }}</h3>
-        <p class="mt-1 text-sm text-slate-500">{{ adminEmailDefault ? t('admin.mailSettings.testHelpWithAdminEmail') : t('admin.mailSettings.testHelp') }}</p>
-        <div class="mt-3 flex flex-col gap-2 sm:flex-row">
-          <UInput
-            v-model="testRecipient"
-            type="email"
-            class="flex-1"
-            :placeholder="adminEmailDefault || t('admin.mailSettings.testRecipientPlaceholder')"
+        <!-- 无提供商：空 Select 会显示成空白选中，对运营不友好，改为明确引导 -->
+        <div v-if="!pending && !hasProviders" class="rounded-lg border border-dashed border-slate-200 bg-slate-50/80 p-6 dark:border-zinc-700 dark:bg-zinc-950/40">
+          <SFEmptyState
+            icon-label="MAIL"
+            :title="t('admin.mailSettings.noProvidersTitle')"
+            :description="t('admin.mailSettings.noProvidersDescription')"
           />
-          <UButton icon="i-lucide-send" :loading="saving" @click="testMail">{{ t('admin.mailSettings.sendTest') }}</UButton>
+          <div class="mt-5 flex flex-wrap justify-center gap-2">
+            <UButton icon="i-lucide-plug" color="primary" :to="adminRoutes.path('/extensions/plugins')">
+              {{ t('admin.mailSettings.openPlugins') }}
+            </UButton>
+            <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="load">
+              {{ t('admin.home.refresh') }}
+            </UButton>
+          </div>
         </div>
-        <p v-if="testRecipientError" class="mt-1 text-sm text-red-600">{{ testRecipientError }}</p>
-      </div>
+
+        <template v-else>
+          <SFAlert v-if="!configured" variant="info" :title="t('admin.mailSettings.unconfigured')" :description="t('admin.mailSettings.inAppContinues')" />
+          <div>
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
+              <UFormField class="min-w-0 flex-1" :label="t('admin.mailSettings.provider')" :description="t('admin.mailSettings.providerHelp')">
+                <USelect
+                  v-model="selected"
+                  :items="providerItems"
+                  value-key="value"
+                  class="w-full"
+                  :placeholder="t('admin.mailSettings.providerPlaceholder')"
+                />
+              </UFormField>
+              <div class="flex flex-wrap gap-2">
+                <UButton icon="i-lucide-save" :disabled="!selected" :loading="saving" @click="chooseProvider">
+                  {{ t('admin.mailSettings.save') }}
+                </UButton>
+                <UButton icon="i-lucide-rotate-ccw" color="neutral" variant="subtle" :loading="saving" @click="resetProvider">
+                  {{ t('admin.mailSettings.reset') }}
+                </UButton>
+              </div>
+            </div>
+            <UButton
+              v-if="smtpProviderAvailable"
+              class="mt-3"
+              :to="adminRoutes.path('/extensions/sforum.smtp/pages/settings')"
+              icon="i-lucide-settings"
+              color="neutral"
+              variant="outline"
+            >
+              {{ t('admin.mailSettings.smtpSettings') }}
+            </UButton>
+          </div>
+          <div class="border-t border-slate-200 pt-5 dark:border-zinc-800">
+            <h3 class="font-semibold">{{ t('admin.mailSettings.testTitle') }}</h3>
+            <p class="mt-1 text-sm text-slate-500">{{ adminEmailDefault ? t('admin.mailSettings.testHelpWithAdminEmail') : t('admin.mailSettings.testHelp') }}</p>
+            <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+              <UInput
+                v-model="testRecipient"
+                type="email"
+                class="flex-1"
+                :placeholder="adminEmailDefault || t('admin.mailSettings.testRecipientPlaceholder')"
+              />
+              <UButton icon="i-lucide-send" :disabled="!configured" :loading="saving" @click="testMail">
+                {{ t('admin.mailSettings.sendTest') }}
+              </UButton>
+            </div>
+            <p v-if="testRecipientError" class="mt-1 text-sm text-red-600">{{ testRecipientError }}</p>
+          </div>
+        </template>
       </div>
     </UCard>
 

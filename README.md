@@ -40,8 +40,12 @@ It watches `theme-releases/current.json` and automatically restarts the inner
 `nuxt dev` with the active theme's Nuxt Layer whenever the operator activates a
 theme in the admin panel, so the frontend reflects the switch after a restart.
 Use `bun run dev:plain` to run raw `nuxt dev` for troubleshooting without the
-supervisor. `bun run preview` only serves the fixed `.output` build and does
-**not** follow admin theme switching.
+theme supervisor. It still watches Web Release `current.json` and writes
+`active.json` so plugin enable/disable can finish activation without restarting
+Nuxt or switching theme layers. Use `bun run dev:nuxt` only if you need the
+absolute bare Nuxt process (Web Release activation will then stay pending).
+`bun run preview` only serves the fixed `.output` build and does **not** follow
+admin theme switching.
 
 In development, the API process embeds the background worker, so uploaded theme
 activation and other queued jobs run when `air` starts the API. To mimic the

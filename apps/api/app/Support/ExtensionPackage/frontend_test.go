@@ -255,6 +255,68 @@ func TestInspectAdminFrontendRequiresCompleteHostPeerCatalog(t *testing.T) {
 	}
 }
 
+// Bun 1.3+ 对「仅 host peer、无 private deps」的 lock 要求 optionalPeers，
+// 且不能再带空的 dependencies:{} 根字段（否则 frozen install 解析失败）。
+func TestInspectAdminFrontendAcceptsPeerOnlyOptionalPeersLock(t *testing.T) {
+	fixture := newFrontendFixture(t)
+	fixture.packageJSON = `{
+  "name": "peer-only-admin",
+  "private": true,
+  "scripts": {},
+  "dependencies": {},
+  "peerDependencies": {
+    "vue": "^3.5.39",
+    "nuxt": "^4.4.8",
+    "@nuxt/ui": "^4.9.0",
+    "vue-router": "^5.1.0",
+    "@sforum/admin-sdk": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vue": { "optional": true },
+    "nuxt": { "optional": true },
+    "@nuxt/ui": { "optional": true },
+    "vue-router": { "optional": true },
+    "@sforum/admin-sdk": { "optional": true }
+  }
+}`
+	fixture.lock = `{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "peer-only-admin",
+      "peerDependencies": {
+        "@nuxt/ui": "^4.9.0",
+        "@sforum/admin-sdk": "^1.0.0",
+        "nuxt": "^4.4.8",
+        "vue": "^3.5.39",
+        "vue-router": "^5.1.0",
+      },
+      "optionalPeers": [
+        "@nuxt/ui",
+        "@sforum/admin-sdk",
+        "nuxt",
+        "vue",
+        "vue-router",
+      ],
+    },
+  },
+  "packages": {}
+}`
+	fixture.write(t)
+
+	summary, err := InspectAdminFrontend(fixture.input())
+	if err != nil {
+		t.Fatalf("inspect peer-only admin frontend: %v", err)
+	}
+	if summary.LockDigest == "" {
+		t.Fatal("expected lock digest")
+	}
+	if len(summary.Resolved) != 0 {
+		t.Fatalf("peer-only lock should resolve no private packages, got %#v", summary.Resolved)
+	}
+}
+
 func TestInspectAdminFrontendRejectsInvalidFrozenLock(t *testing.T) {
 	tests := []struct {
 		name   string

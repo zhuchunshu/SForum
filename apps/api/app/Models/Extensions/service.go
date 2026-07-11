@@ -430,6 +430,10 @@ func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionI
 	if !canManageExtensionSettings(actor, extension) {
 		return ExtensionSettings{}, identity.ErrPermissionDenied
 	}
+	// 禁用插件不得再暴露/改写运行时配置（页面与 provider 能力一并下线）。
+	if err := requireExtensionEnabledForSettings(extension); err != nil {
+		return ExtensionSettings{}, err
+	}
 	values, err := s.store.ListSettings(ctx, extension.ID)
 	if err != nil {
 		return ExtensionSettings{}, err
@@ -444,6 +448,9 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, exte
 	}
 	if !canManageExtensionSettings(actor, extension) {
 		return ExtensionSettings{}, identity.ErrPermissionDenied
+	}
+	if err := requireExtensionEnabledForSettings(extension); err != nil {
+		return ExtensionSettings{}, err
 	}
 	current, err := s.store.ListSettings(ctx, extension.ID)
 	if err != nil {
@@ -470,6 +477,9 @@ func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, exten
 	if !canManageExtensionSettings(actor, extension) {
 		return ExtensionSettings{}, identity.ErrPermissionDenied
 	}
+	if err := requireExtensionEnabledForSettings(extension); err != nil {
+		return ExtensionSettings{}, err
+	}
 	if err := s.store.ResetSettings(ctx, extension.ID); err != nil {
 		return ExtensionSettings{}, err
 	}
@@ -477,6 +487,15 @@ func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, exten
 		return ExtensionSettings{}, err
 	}
 	return resolveExtensionSettings(extension, map[string]string{}, locale), nil
+}
+
+// requireExtensionEnabledForSettings 限制仅启用中的扩展可读写 settings。
+// 主题未激活 / 插件已禁用时配置页应不可用，避免“禁了但功能还在”。
+func requireExtensionEnabledForSettings(extension Extension) error {
+	if extension.Status == StatusEnabled {
+		return nil
+	}
+	return ErrExtensionDisabled
 }
 
 func canManageExtensionSettings(actor identity.Actor, extension Extension) bool {

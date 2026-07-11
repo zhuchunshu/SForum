@@ -357,6 +357,8 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeInvalidManifest)
 	case errors.Is(err, extensions.ErrExtensionNotFound):
 		return fiber.NewError(fiber.StatusNotFound, extensions.CodeNotFound)
+	case errors.Is(err, extensions.ErrExtensionDisabled):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeExtensionDisabled)
 	case errors.Is(err, extensions.ErrWebReleaseNotFound):
 		return fiber.NewError(fiber.StatusNotFound, extensions.CodeWebReleaseNotFound)
 	case errors.Is(err, extensions.ErrFrontendGrantNotFound):

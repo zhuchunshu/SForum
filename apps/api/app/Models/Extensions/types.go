@@ -68,6 +68,8 @@ const (
 	CodeFrontendTrustNotFound      = "extension.frontend_trust_not_found"
 	CodeWebReleaseNotFound         = "extension.web_release_not_found"
 	CodeWebReleaseConflict         = "extension.web_release_conflict"
+	// 插件已禁用：设置读写、自定义管理页等功能性能力不可用。
+	CodeExtensionDisabled = "extension.disabled"
 
 	SourceBuiltin  = "builtin"
 	SourceUploaded = "uploaded"
@@ -77,6 +79,7 @@ var (
 	ErrInvalidArchive          = errors.New("extensions: invalid archive")
 	ErrInvalidManifest         = extensionmanifest.ErrInvalidManifest
 	ErrExtensionNotFound       = errors.New("extensions: not found")
+	ErrExtensionDisabled       = errors.New("extensions: disabled")
 	ErrPreflightFailed         = errors.New("extensions: preflight failed")
 	ErrBuildFailed             = errors.New("extensions: build failed")
 	ErrThemeActivationRequired = errors.New("extensions: themes must be activated")

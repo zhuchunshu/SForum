@@ -9,6 +9,19 @@ describe('dev runtime startup', () => {
     expect(packageJson.scripts.dev).toContain('scripts/dev-theme-runtime.mjs')
   })
 
+  test('dev:plain keeps raw nuxt but still acknowledges web releases', () => {
+    const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+    const plain = readFileSync(new URL('../scripts/dev-plain.mjs', import.meta.url), 'utf8')
+    const ack = readFileSync(new URL('../scripts/dev-plain-release-ack.mjs', import.meta.url), 'utf8')
+
+    expect(packageJson.scripts['dev:plain']).toContain('scripts/dev-plain.mjs')
+    expect(packageJson.scripts['dev:nuxt']).toContain('nuxt dev')
+    expect(plain).toContain("'nuxt', 'dev'")
+    expect(plain).toContain('startPlainReleaseAck')
+    expect(ack).toContain('writeActiveAcknowledgement')
+    expect(ack).toContain('watchableReleaseFile')
+  })
+
   test('dev supervisor uses serial lifecycle instead of the production blue-green helper', () => {
     const runtime = readFileSync(new URL('../scripts/dev-theme-runtime.mjs', import.meta.url), 'utf8')
     const lifecycle = readFileSync(new URL('../scripts/dev-theme-lifecycle.mjs', import.meta.url), 'utf8')
@@ -16,6 +29,8 @@ describe('dev runtime startup', () => {
     expect(runtime).toContain('createDevThemeLifecycle')
     expect(runtime).toContain('stopProcessGroup')
     expect(runtime).not.toContain('replaceTarget')
+    // supervisor 内层必须是裸 nuxt，避免再套一层 plain ack wrapper。
+    expect(runtime).toContain("'dev:nuxt'")
     expect(lifecycle).toContain("signalGroup(pid, 'SIGTERM')")
     expect(lifecycle).toContain("signalGroup(pid, 'SIGKILL')")
 
@@ -36,9 +51,8 @@ describe('dev runtime startup', () => {
     expect(runtime).toContain(
       "const nuxtBuildDir = path.resolve(process.cwd(), process.env.NUXT_BUILD_DIR || '.nuxt')",
     )
-    expect(launchDevChild).toMatch(
-      /clearNuxtRouteCache\(nuxtBuildDir\)\s+const candidate = spawn\(bunPath,/,
-    )
+    expect(launchDevChild).toContain('clearNuxtRouteCache(nuxtBuildDir)')
+    expect(launchDevChild).toContain("spawn(bunPath, ['run', 'dev:nuxt']")
   })
 
   test('passes immutable release registry identity and ignores acknowledgement writes', () => {

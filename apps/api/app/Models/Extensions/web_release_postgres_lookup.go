@@ -30,18 +30,23 @@ func (s *PostgresWebReleaseStore) HasLiveWebRelease(ctx context.Context) (bool, 
 }
 
 // LatestProgressWebReleaseForExtension 返回与该扩展相关的进行中或最近失败发布，
-// 供插件列表展示启停/信任变更的进度条（不含已成功 active 的历史记录）。
+// 供插件列表展示启停/信任变更的进度条。
+//
+// 取该扩展相关发布（含 active）按 generation 最新一条：
+// - active 表示后续重试已成功，不展示更早的 failed；
+// - 仅当最新一条仍是进行中或 failed 时才挂到插件行。
 func (s *PostgresWebReleaseStore) LatestProgressWebReleaseForExtension(ctx context.Context, extensionID string) (WebRelease, error) {
 	extensionID = normalizeID(extensionID)
 	if extensionID == "" {
 		return WebRelease{}, ErrWebReleaseNotFound
 	}
+	// 候选含 active：否则「#11 failed + #12 active」会错误地仍返回 #11。
 	release, err := scanWebRelease(s.db.QueryRow(ctx, `
 		SELECT `+webReleaseColumns+`
 		FROM web_releases wr
 		WHERE wr.status IN (
 			'queued', 'resolving', 'installing', 'building',
-			'verifying', 'ready', 'activating', 'failed'
+			'verifying', 'ready', 'activating', 'failed', 'active'
 		)
 		  AND (
 		    wr.trigger_extension_id = $1
@@ -60,6 +65,10 @@ func (s *PostgresWebReleaseStore) LatestProgressWebReleaseForExtension(ctx conte
 	}
 	if err != nil {
 		return WebRelease{}, fmt.Errorf("load progress web release for extension: %w", err)
+	}
+	// 最新相关发布已是 active：启停已成功落地，列表不再常驻展示。
+	if release.Status == WebReleaseActive {
+		return WebRelease{}, ErrWebReleaseNotFound
 	}
 	return release, nil
 }

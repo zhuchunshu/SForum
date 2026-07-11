@@ -88,8 +88,9 @@ Build, typecheck, lint, test:
 - `cd apps/web && bun run build` — Nuxt build (uses `NUXT_BUILD_DIR=.nuxt-build`).
 - `cd apps/web && bun run typecheck` — Nuxt typecheck (uses
   `NUXT_BUILD_DIR=.nuxt-typecheck`).
-- `cd apps/web && bun run dev:plain` — plain `nuxt dev` bypassing the theme
-  supervisor.
+- `cd apps/web && bun run dev:plain` — plain `nuxt dev` without theme-layer
+  supervisor; still acknowledges Web Releases via `active.json` so plugin
+  enable/disable can finish. `dev:nuxt` is the absolute bare Nuxt process.
 - `cd apps/api && go build ./...` / `go test ./...` — Go build and tests.
 - `./scripts/test.sh` — full repo test gate: `go test ./...`, OpenAPI ref
   validation, Nuxt typecheck, and all `tests/validate-*.js|.ts` scripts.

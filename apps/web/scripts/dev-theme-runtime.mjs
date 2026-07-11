@@ -70,7 +70,8 @@ function launchDevChild(selection, reason) {
   }
 
   clearNuxtRouteCache(nuxtBuildDir)
-  const candidate = spawn(bunPath, ['run', 'dev:plain'], {
+  // 内层必须是裸 nuxt（dev:nuxt），不要用 dev:plain：后者已带 release ack 旁路，supervisor 自己也会写 active.json。
+  const candidate = spawn(bunPath, ['run', 'dev:nuxt'], {
     stdio: ['inherit', 'pipe', 'inherit'],
     env,
     detached: true,

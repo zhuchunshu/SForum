@@ -47,6 +47,22 @@ describe('plugin enable/disable lifecycle feedback', () => {
       expect(catalog.admin.extensions.releases.buildLog).toBeTruthy()
       expect(catalog.admin.extensions.releases.emptyBuildLog).toBeTruthy()
       expect(catalog.admin.extensions.frontend.grantQueued).toBeTruthy()
+      // 动态页区分「启用中」与「已禁用」，避免 Web Release 期间误导。
+      expect(catalog.admin.extensions.dynamic.enablingTitle).toBeTruthy()
+      expect(catalog.admin.extensions.dynamic.reloadRequiredTitle).toBeTruthy()
     }
+  })
+
+  test('dynamic extension page shares list cache and polls while enabling', async () => {
+    const dynamicPage = await Bun.file(
+      new URL('../app/pages/admin/extensions/[extensionId]/pages/[...pagePath].vue', import.meta.url)
+    ).text()
+    // 与插件列表共用 admin-extensions，启用/轮询结果能立刻反映到设置页。
+    expect(dynamicPage).toContain("useAsyncData<AdminExtension[]>('admin-extensions'")
+    expect(dynamicPage).not.toContain('admin-extension-dynamic-list')
+    expect(dynamicPage).toContain('isLifecyclePending')
+    expect(dynamicPage).toContain('startLifecyclePolling')
+    expect(dynamicPage).toContain('enablingTitle')
+    expect(dynamicPage).toContain('needsFrontendReload')
   })
 })
