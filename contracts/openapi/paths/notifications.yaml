@@ -1,0 +1,34 @@
+notifications:
+  get:
+    summary: List the current user's notifications
+    security: [{cookieAuth: []}]
+    parameters:
+    - {in: query, name: limit, schema: {type: integer, default: 20, maximum: 100}}
+    - {in: query, name: beforeId, schema: {type: integer, format: int64}}
+    responses:
+      '200': {description: Notification page, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseNotificationPage"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+notificationUnreadCount:
+  get:
+    summary: Get the current user's unread notification count
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Unread count, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseUnreadCount"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+notificationRead:
+  patch:
+    summary: Mark one current-user notification as read
+    security: [{cookieAuth: []}]
+    parameters:
+    - {in: path, name: id, required: true, schema: {type: integer, format: int64}}
+    responses:
+      '200': {description: Marked read}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '404': {$ref: "../components/responses.yaml#/NotFound"}
+notificationsReadAll:
+  post:
+    summary: Mark all current-user notifications as read
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Updated count}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}

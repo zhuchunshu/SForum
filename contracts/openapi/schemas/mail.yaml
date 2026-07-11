@@ -1,15 +1,8 @@
-MailProvider:
-  type: string
-  enum:
-  - dev_log
-  - smtp
-  - noop
-MailEncryption:
-  type: string
-  enum:
-  - none
-  - starttls
-  - tls
+MailProviderSelectionRequest:
+  type: object
+  required: [extensionId]
+  properties:
+    extensionId: {type: string, description: Enabled plugin declaring mail.provider.}
 MailTestRequest:
   type: object
   properties:
@@ -31,7 +24,8 @@ ApiResponseMailTest:
     data:
       type: object
       required:
-      - sent
+      - queued
+      - deliveryId
       properties:
-        sent:
-          type: boolean
+        queued: {type: boolean}
+        deliveryId: {type: integer, format: int64}

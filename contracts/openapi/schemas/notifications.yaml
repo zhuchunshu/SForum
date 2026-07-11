@@ -1,0 +1,34 @@
+Notification:
+  type: object
+  required: [id, type, targetType, targetId, payload, createdAt]
+  properties:
+    id: {type: integer, format: int64}
+    type: {type: string, enum: [reply, mention, moderation_approved, moderation_rejected]}
+    actorUserId: {type: integer, format: int64}
+    targetType: {type: string}
+    targetId: {type: integer, format: int64}
+    payload: {type: object, additionalProperties: true}
+    readAt: {type: string, format: date-time}
+    createdAt: {type: string, format: date-time}
+ApiResponseNotificationPage:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      type: object
+      required: [items, hasMore]
+      properties:
+        items: {type: array, items: {$ref: "#/Notification"}}
+        hasMore: {type: boolean}
+ApiResponseUnreadCount:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data:
+      type: object
+      required: [count]
+      properties: {count: {type: integer, format: int64}}

@@ -11,8 +11,8 @@ adminMailTest:
           schema:
             "$ref": "../schemas/mail.yaml#/MailTestRequest"
     responses:
-      '200':
-        description: Test mail accepted for delivery.
+      '202':
+        description: Test mail queued for delivery.
         content:
           application/json:
             schema:
@@ -25,3 +25,36 @@ adminMailTest:
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminMailProviders:
+  get:
+    summary: List enabled mail provider plugins and current selection
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Provider state}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+adminMailProvider:
+  put:
+    summary: Select an enabled mail provider plugin
+    security: [{cookieAuth: []}]
+    requestBody:
+      required: true
+      content: {application/json: {schema: {$ref: "../schemas/mail.yaml#/MailProviderSelectionRequest"}}}
+    responses:
+      '200': {description: Provider selected}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+      '422': {$ref: "../components/responses.yaml#/UnprocessableEntity"}
+adminMailProviderReset:
+  post:
+    summary: Clear provider selection while preserving plugin secrets
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Provider selection cleared}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+adminMailDeliveries:
+  get:
+    summary: List the 50 newest sanitized mail deliveries
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Recent delivery states}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}

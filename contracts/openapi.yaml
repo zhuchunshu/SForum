@@ -97,6 +97,22 @@ paths:
     "$ref": "./openapi/paths/identity.yaml#/passwordResetConfirm"
   "/admin/mail/test":
     "$ref": "./openapi/paths/mail.yaml#/adminMailTest"
+  "/admin/mail/providers":
+    "$ref": "./openapi/paths/mail.yaml#/adminMailProviders"
+  "/admin/mail/provider":
+    "$ref": "./openapi/paths/mail.yaml#/adminMailProvider"
+  "/admin/mail/provider/reset":
+    "$ref": "./openapi/paths/mail.yaml#/adminMailProviderReset"
+  "/admin/mail/deliveries":
+    "$ref": "./openapi/paths/mail.yaml#/adminMailDeliveries"
+  "/notifications":
+    "$ref": "./openapi/paths/notifications.yaml#/notifications"
+  "/notifications/unread-count":
+    "$ref": "./openapi/paths/notifications.yaml#/notificationUnreadCount"
+  "/notifications/{id}/read":
+    "$ref": "./openapi/paths/notifications.yaml#/notificationRead"
+  "/notifications/read-all":
+    "$ref": "./openapi/paths/notifications.yaml#/notificationsReadAll"
   "/moderation/reports":
     "$ref": "./openapi/paths/moderation.yaml#/moderationReports"
   "/me/content-review":
