@@ -37,6 +37,13 @@ describe('resolveSEO', () => {
     expect(result.siteName).toBe('SForum Developers')
   })
 
+  test('configured homepage description wins over page fallback copy', () => {
+    const result = resolveSEO(baseSettings({ homeDescription: 'Configured homepage description.' }), {
+      type: 'home', path: '/', description: 'Theme fallback description.'
+    })
+    expect(result.description).toBe('Configured homepage description.')
+  })
+
   test('private topic cannot be made indexable', () => {
     const result = resolveSEO(baseSettings(), {
       type: 'topic', path: '/t/1/private', title: 'Private', public: false

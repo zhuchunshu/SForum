@@ -22,16 +22,17 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const localePath = useLocalePath()
-const { siteName, seoSettings } = useWebOptions()
+const { seoSettings } = useWebOptions()
 const forumApi = useForumApi()
 const { can } = usePermissions()
 
-useSForumSeo({
-  title: () => t('home.metaTitle', { siteName: siteName.value }),
-  description: () => seoSettings.value.metaDescription || t('home.metaDescription', { siteName: siteName.value }),
-  type: 'website',
-  schema: { type: 'WebPage' }
-})
+useSForumSeo(computed(() => ({
+  type: 'home',
+  path: '/',
+  description: t('home.metaDescription', { siteName: seoSettings.value.seoSiteName }),
+  public: true,
+  noindex: Object.keys(route.query).length > 0
+})))
 
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const committedFilters = computed(() => parseForumHomeQuery(route.query))

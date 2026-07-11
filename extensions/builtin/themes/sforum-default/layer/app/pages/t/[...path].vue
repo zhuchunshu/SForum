@@ -25,7 +25,7 @@ definePageMeta({
 const route = useRoute()
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
-const { siteName, seoSettings } = useWebOptions()
+const { seoSettings } = useWebOptions()
 // 当前帖子 URL 形态：决定 catch-all 解析方式与规范化目标。
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const forumApi = useForumApi()
@@ -130,25 +130,23 @@ watchEffect(() => {
 // canonical 用当前 mode 的规范路径（与上面的规范化目标一致）。
 const canonicalPath = computed(() => topic.value ? forumTopicPath(topic.value, topicUrlMode.value) : (route.path))
 
-useSForumSeo({
-  title: () => {
-    if (!topic.value) {
-      return siteName.value
-    }
-    return isEditing.value ? `${t('composer.editTitle')} - ${siteName.value}` : `${topic.value.title} - ${siteName.value}`
+useSForumSeo(computed(() => ({
+  type: 'topic',
+  path: canonicalPath.value,
+  title: topic.value?.title || '',
+  excerpt: topic.value?.content.excerpt || t('topicDetail.metaDescription'),
+  public: Boolean(topic.value && (topic.value.status === 'active' || topic.value.status === 'locked')),
+  published: Boolean(topic.value && !isEditing.value),
+  noindex: !topic.value || isEditing.value,
+  variables: {
+    topicTitle: topic.value?.title,
+    categoryName: topic.value?.categoryName,
+    authorName: topic.value ? forumAuthorName(topic.value.author, topic.value.authorUserId) : undefined
   },
-  description: () => topic.value?.content.excerpt || t('topicDetail.metaDescription'),
-  type: 'article',
-  path: () => canonicalPath.value,
-  // 编辑态不索引；主题未加载也不索引。
-  noindex: () => !topic.value || isEditing.value,
-  schema: () => (topic.value && !isEditing.value) ? {
-    type: 'DiscussionForumPosting',
-    datePublished: topic.value.createdAt,
-    dateModified: topic.value.updatedAt,
-    authorName: forumAuthorName(topic.value.author, topic.value.authorUserId)
-  } : undefined
-})
+  datePublished: topic.value?.createdAt,
+  dateModified: topic.value?.updatedAt,
+  authorName: topic.value ? forumAuthorName(topic.value.author, topic.value.authorUserId) : undefined
+})))
 
 // 编辑保存成功后跳回规范详情路径（用新 slug，规范化兜底 -2 后缀）。
 async function onTopicSaved(updated: ForumTopicDetail) {

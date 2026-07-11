@@ -2,6 +2,7 @@
 import {
   forumAuthorName,
   forumTopicPath,
+  forumUserProfilePath,
   type ForumTopicSummary
 } from '~/utils/forumTaxonomy'
 
@@ -10,7 +11,7 @@ definePageMeta({ public: true })
 const route = useRoute()
 const { t } = useI18n()
 const localePath = useLocalePath()
-const { siteName, seoSettings } = useWebOptions()
+const { seoSettings } = useWebOptions()
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const profileApi = useProfileApi()
 
@@ -22,12 +23,16 @@ const { data: profile, error: profileError } = await useAsyncData(
   { default: () => null as PublicProfile | null }
 )
 
-useSForumSeo({
-  title: () => profile.value ? `${profile.value.displayName || profile.value.username} - ${siteName.value}` : siteName.value,
-  description: () => profile.value?.profile.bio || t('profile.metaDescription'),
-  type: 'website',
-  noindex: () => !profile.value
-})
+useSForumSeo(computed(() => ({
+  type: 'profile',
+  path: forumUserProfilePath(username.value),
+  title: profile.value?.displayName || profile.value?.username || username.value,
+  description: profile.value?.profile.bio || t('profile.metaDescription'),
+  public: Boolean(profile.value),
+  noindex: !profile.value,
+  variables: { authorName: profile.value?.displayName || profile.value?.username || username.value },
+  authorName: profile.value?.displayName || profile.value?.username || username.value
+})))
 
 const displayName = computed(() => profile.value?.displayName || profile.value?.username || username.value)
 const isSelf = computed(() => {

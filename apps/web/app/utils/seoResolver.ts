@@ -84,7 +84,7 @@ export function resolveSEO(settings: SEOResolverSettings, context: SEOPageContex
     ? firstText(settings.homeTitle, settings.seoSiteName, settings.siteName)
     : firstText(renderTemplate(policy.titleTemplate || settings.pageTitleTemplate, variables), context.title, settings.seoSiteName)
   const description = isHome
-    ? firstText(context.description, settings.homeDescription, settings.pageDefaultDescription, settings.seoSiteName)
+    ? firstText(settings.homeDescription, context.description, settings.pageDefaultDescription, settings.seoSiteName)
     : resolveDescription(policy.descriptionSources, context, settings.pageDefaultDescription, settings.seoSiteName)
   const image = firstText(context.image, isHome ? settings.homeOGImageUrl : '', policy.defaultImageUrl)
   const hardNoindex = context.public === false || context.published === false || context.deleted === true || context.hidden === true

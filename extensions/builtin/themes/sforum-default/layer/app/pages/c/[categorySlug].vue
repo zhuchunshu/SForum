@@ -11,7 +11,7 @@ import {
 const { t } = useI18n()
 const localePath = useLocalePath()
 const route = useRoute()
-const { siteName, seoSettings } = useWebOptions()
+const { seoSettings } = useWebOptions()
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const forumApi = useForumApi()
 
@@ -60,13 +60,14 @@ const { data: topicList, pending: topicsPending } = await useAsyncData(
 const topics = computed(() => topicList.value.items)
 const totalPages = computed(() => Math.ceil(topicList.value.total / Math.max(topicList.value.perPage, 1)) || 1)
 
-useSForumSeo({
-  title: () => `${category.value?.name || categorySlug.value} - ${siteName.value}`,
-  description: () => category.value?.description || seoSettings.value.metaDescription,
-  path: () => forumCategoryPath(categorySlug.value),
-  type: 'website',
-  schema: { type: 'WebPage' }
-})
+useSForumSeo(computed(() => ({
+  type: 'category',
+  path: currentPage.value > 1 ? `${forumCategoryPath(categorySlug.value)}?page=${currentPage.value}` : forumCategoryPath(categorySlug.value),
+  title: category.value?.name || categorySlug.value,
+  description: category.value?.description,
+  public: category.value?.visibility !== 'hidden',
+  variables: { categoryName: category.value?.name || categorySlug.value }
+})))
 
 function routeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] || '' : value || ''
