@@ -41,7 +41,7 @@ func TestProtocolStarterPerformsHashicorpHandshake(t *testing.T) {
 		t.Fatalf("install helper plugin launcher: %v", err)
 	}
 
-	starter := NewProtocolStarter(ProtocolStarterConfig{})
+	starter := NewProtocolStarter(ProtocolStarterConfig{Settings: staticPluginSettings{"runtime.plugin": {"host": "smtp.example.com"}}})
 	extension := runtimeExtension("runtime.plugin")
 	extension.PackagePath = filepath.Join(packageRoot, "package.zip")
 
@@ -62,6 +62,12 @@ func TestProtocolStarterPerformsHashicorpHandshake(t *testing.T) {
 	if !response.OK || response.Reason != "smtp.accepted" {
 		t.Fatalf("unexpected mail response: %#v", response)
 	}
+}
+
+type staticPluginSettings map[string]map[string]string
+
+func (s staticPluginSettings) ListSettings(_ context.Context, extensionID string) (map[string]string, error) {
+	return s[extensionID], nil
 }
 
 func TestProtocolStarterHelperProcess(t *testing.T) {
@@ -102,6 +108,9 @@ func (helperProtocol) InvokeHook(PluginHookRequest) (PluginHookResponse, error) 
 func (helperProtocol) SendMail(request MailProviderRequest) (MailProviderResponse, error) {
 	if request.DeliveryID != "41" || len(request.To) != 1 {
 		return MailProviderResponse{Classification: "permanent", Reason: "smtp.invalid_request"}, nil
+	}
+	if os.Getenv("SFORUM_SETTING_HOST") != "smtp.example.com" {
+		return MailProviderResponse{Classification: "permanent", Reason: "smtp.settings_missing"}, nil
 	}
 	return MailProviderResponse{OK: true, Reason: "smtp.accepted"}, nil
 }

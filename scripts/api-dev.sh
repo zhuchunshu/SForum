@@ -28,5 +28,7 @@ if ! command -v air >/dev/null 2>&1; then
   exit 1
 fi
 
+"$ROOT_DIR/scripts/build-builtin-plugins.sh"
+
 cd "$ROOT_DIR/apps/api"
 exec air

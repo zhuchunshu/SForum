@@ -17,6 +17,10 @@ type Starter interface {
 	Stop(ctx context.Context, extension extensions.Extension) error
 }
 
+type MailProviderInvoker interface {
+	SendMail(context.Context, string, MailProviderRequest) (MailProviderResponse, error)
+}
+
 type ManagerConfig struct {
 	Starter       Starter
 	HookBus       *HookBus
@@ -158,6 +162,20 @@ func (m *Manager) RouteTarget(extensionID string) (RouteTarget, bool) {
 	defer m.mu.RUnlock()
 	target, ok := m.targets[extensionID]
 	return target, ok
+}
+
+func (m *Manager) SendMail(ctx context.Context, extensionID string, request MailProviderRequest) (MailProviderResponse, error) {
+	invoker, ok := m.starter.(MailProviderInvoker)
+	if !ok {
+		return MailProviderResponse{}, extensions.ErrRuntimeUnavailable
+	}
+	m.mu.RLock()
+	_, running := m.running[extensionID]
+	m.mu.RUnlock()
+	if !running {
+		return MailProviderResponse{}, extensions.ErrRuntimeUnavailable
+	}
+	return invoker.SendMail(ctx, extensionID, request)
 }
 
 func (m *Manager) Reconcile(ctx context.Context, items []extensions.Extension) {

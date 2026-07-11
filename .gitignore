@@ -91,4 +91,5 @@ deploy/runtime/
 .superpowers
 .worktrees/
 extensions/dev
+extensions/builtin/plugins/*/backend/plugin
 storage/

@@ -7,6 +7,8 @@ import (
 	"net/rpc"
 	"os"
 	"os/exec"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
@@ -30,12 +32,17 @@ var (
 	}
 )
 
-type ProtocolStarterConfig struct{}
+type PluginSettings interface {
+	ListSettings(context.Context, string) (map[string]string, error)
+}
+
+type ProtocolStarterConfig struct{ Settings PluginSettings }
 
 type ProtocolStarter struct {
 	mu        sync.Mutex
 	clients   map[string]*plugin.Client
 	protocols map[string]PluginProtocol
+	settings  PluginSettings
 }
 
 type PluginProtocol interface {
@@ -90,8 +97,8 @@ type MailProviderResponse struct {
 
 type PluginEmptyRequest struct{}
 
-func NewProtocolStarter(ProtocolStarterConfig) *ProtocolStarter {
-	return &ProtocolStarter{clients: map[string]*plugin.Client{}, protocols: map[string]PluginProtocol{}}
+func NewProtocolStarter(config ProtocolStarterConfig) *ProtocolStarter {
+	return &ProtocolStarter{clients: map[string]*plugin.Client{}, protocols: map[string]PluginProtocol{}, settings: config.Settings}
 }
 
 func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extension) (RouteTarget, error) {
@@ -112,13 +119,29 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 		return RouteTarget{}, fmt.Errorf("backend entry %s is not available", extension.Manifest.Backend.Entry)
 	}
 
+	cmd := exec.CommandContext(ctx, path)
+	cmd.Env = os.Environ()
+	if s.settings != nil {
+		values, err := s.settings.ListSettings(ctx, extension.ID)
+		if err != nil {
+			return RouteTarget{}, fmt.Errorf("load plugin settings: %w", err)
+		}
+		keys := make([]string, 0, len(values))
+		for key := range values {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			cmd.Env = append(cmd.Env, pluginSettingEnvName(key)+"="+values[key])
+		}
+	}
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: handshakeConfig,
 		Logger:          hclog.NewNullLogger(),
 		Plugins: map[string]plugin.Plugin{
 			pluginProtocolName: &netRPCPlugin{},
 		},
-		Cmd:              exec.CommandContext(ctx, path),
+		Cmd:              cmd,
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolNetRPC},
 	})
 	rpcClient, err := client.Client()
@@ -167,6 +190,19 @@ func (s *ProtocolStarter) Start(ctx context.Context, extension extensions.Extens
 	s.protocols[extension.ID] = protocol
 	s.mu.Unlock()
 	return RouteTarget{BaseURL: target.BaseURL}, nil
+}
+
+func pluginSettingEnvName(key string) string {
+	var value strings.Builder
+	value.WriteString("SFORUM_SETTING_")
+	for _, char := range strings.ToUpper(key) {
+		if char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' {
+			value.WriteRune(char)
+		} else {
+			value.WriteByte('_')
+		}
+	}
+	return value.String()
 }
 
 func (s *ProtocolStarter) Stop(_ context.Context, extension extensions.Extension) error {

@@ -14,9 +14,12 @@ import (
 
 	extensionjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
 	identityjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Identity"
+	notificationjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Notifications"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
@@ -52,13 +55,35 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 		pool.Close()
 		return nil, err
 	}
-	worker.close = pool.Close
+	runtimeClose := worker.close
+	worker.close = func() {
+		if runtimeClose != nil {
+			runtimeClose()
+		}
+		pool.Close()
+	}
 	return worker, nil
 }
 
 func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) (*Worker, error) {
 	registry := supportjobs.NewRegistry()
 	extensionStore := extensions.NewPostgresStore(pool)
+	extensionRuntime := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
+		Starter:       extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{Settings: extensionStore}),
+		DeliveryStore: extensionStore,
+	})
+	extensionService := extensions.NewServiceWithBuiltins(extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot)
+	if _, err := extensionService.SyncBuiltins(context.Background()); err != nil {
+		return nil, fmt.Errorf("sync worker builtin extensions: %w", err)
+	}
+	items, err := extensionStore.List(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("list worker extensions: %w", err)
+	}
+	extensionRuntime.Reconcile(context.Background(), items)
+	notificationStore := notifications.NewPostgresStore(pool)
+	mailProviders := extensionsruntime.NewMailProviderRegistry(extensionStore)
+	notificationjobs.Register(registry, &notificationjobs.DeliverMailWorker{Store: notificationStore, Providers: mailProviders, Sender: extensionRuntime})
 	webReleaseStore := extensions.NewPostgresWebReleaseStore(pool)
 	themeBuilder := themeruntime.NewBuilder(themeruntime.Config{
 		ReleaseRoot:    cfg.ThemeReleaseRoot,
@@ -110,7 +135,7 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		return nil, fmt.Errorf("job client setup failed: %w", err)
 	}
 
-	return &Worker{Client: client}, nil
+	return &Worker{Client: client, close: func() { extensionRuntime.Close(context.Background()) }}, nil
 }
 
 // registerIdentityCleanupWorker 注册历史会话清理 worker 与每天一次的 periodic job，返回该周期任务。

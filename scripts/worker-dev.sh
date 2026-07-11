@@ -18,6 +18,8 @@ if ! command -v air >/dev/null 2>&1; then
   exit 1
 fi
 
+"$ROOT_DIR/scripts/build-builtin-plugins.sh"
+
 # 主题激活 worker 需要能从 apps/api 找到宿主 Nuxt 应用和 Bun。
 export THEME_WEB_ROOT="${THEME_WEB_ROOT:-../web}"
 export THEME_BUN_PATH="${THEME_BUN_PATH:-bun}"

@@ -63,7 +63,7 @@ type extensionRuntime interface {
 
 var newExtensionRuntimeManager = func(store extensions.Store) extensionRuntime {
 	return extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
-		Starter:       extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{}),
+		Starter:       extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{Settings: store}),
 		DeliveryStore: store,
 	})
 }
