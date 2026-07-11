@@ -649,14 +649,37 @@ func (s *controllerForumStore) ListCommentReplies(context.Context, int64) ([]for
 	return []forum.Comment{{ID: 21, TopicID: 10, Status: forum.CommentStatusActive}}, nil
 }
 
+
+func (s *controllerForumStore) LatestAuthorTopicCreatedAt(context.Context, int64) (time.Time, bool, error) {
+	return time.Time{}, false, nil
+}
+func (s *controllerForumStore) CountAuthorTopicsSince(context.Context, int64, time.Time) (int64, error) {
+	return 0, nil
+}
+func (s *controllerForumStore) LatestAuthorCommentCreatedAt(context.Context, int64) (time.Time, bool, error) {
+	return time.Time{}, false, nil
+}
+func (s *controllerForumStore) CountAuthorCommentsSince(context.Context, int64, time.Time) (int64, error) {
+	return 0, nil
+}
+
 func (s *controllerForumStore) ForumSettings(context.Context) (forum.ForumSettings, error) {
 	return forum.ForumSettings{
 		DefaultCategorySlug: "general",
 		TagCreationMode:     forum.TagCreationModeControlled,
 		TagPublicPages:      true,
+		TagMinPerTopic:      0,
 		TagMaxPerTopic:      5,
 		TopicsPerPage:       20,
 		CommentsPerPage:     20,
+		TopicTitleMinRunes:  2,
+		TopicTitleMaxRunes:  100,
+		TopicContentMinRunes: 0,
+		TopicContentMaxRunes: 50000,
+		CommentMinRunes:     1,
+		CommentMaxRunes:     10000,
+		CommentMaxNestingDepth: 5,
+		ExcerptRuneLimit:    180,
 	}, nil
 }
 

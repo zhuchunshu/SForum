@@ -56,24 +56,50 @@ const (
 	CodeTopicClosed       = "forum.topic_closed"
 	CodeInvalidTag        = "forum.tag_invalid"
 	CodeTagNotFound       = "forum.tag_not_found"
-	CodeInvalidSettings   = "forum.settings_invalid"
-	CodeInvalidAction     = "forum.topic_action_invalid"
-	CodeUseSearch         = "forum.use_search_endpoint"
-	CodeReindexRunning    = "forum.reindex_running"    // 已有重建在进行
-	CodeReindexNoRun      = "forum.reindex_no_run"     // 尚无重建记录
-	CodeSearchUnavailable = "forum.search_unavailable" // 搜索服务不可用
+	CodeInvalidSettings      = "forum.settings_invalid"
+	CodeInvalidAction        = "forum.topic_action_invalid"
+	CodeUseSearch            = "forum.use_search_endpoint"
+	CodeReindexRunning       = "forum.reindex_running"    // 已有重建在进行
+	CodeReindexNoRun         = "forum.reindex_no_run"     // 尚无重建记录
+	CodeSearchUnavailable    = "forum.search_unavailable" // 搜索服务不可用
+	CodeTitleTooShort        = "forum.title_too_short"
+	CodeTitleTooLong         = "forum.title_too_long"
+	CodeContentTooShort      = "forum.content_too_short"
+	CodeContentTooLong       = "forum.content_too_long"
+	CodeCommentTooShort      = "forum.comment_too_short"
+	CodeCommentTooLong       = "forum.comment_too_long"
+	CodeCommentNestingDeep   = "forum.comment_nesting_too_deep"
+	CodeEditWindowExpired    = "forum.edit_window_expired"
+	CodeTopicCooldown         = "forum.topic_cooldown"
+	CodeCommentCooldown       = "forum.comment_cooldown"
+	CodeDailyTopicLimit      = "forum.daily_topic_limit"
+	CodeDailyCommentLimit    = "forum.daily_comment_limit"
+	CodeTagMinRequired       = "forum.tag_min_required"
 )
 
 var (
-	ErrInvalidContent  = errors.New("forum: invalid content")
-	ErrInvalidTopic    = errors.New("forum: invalid topic")
-	ErrTopicNotFound   = errors.New("forum: topic not found")
-	ErrCommentNotFound = errors.New("forum: comment not found")
-	ErrTopicClosed     = errors.New("forum: topic is closed")
-	ErrInvalidTag      = errors.New("forum: invalid tag")
-	ErrTagNotFound     = errors.New("forum: tag not found")
-	ErrInvalidSettings = errors.New("forum: invalid settings")
-	ErrInvalidAction   = errors.New("forum: invalid topic action")
+	ErrInvalidContent      = errors.New("forum: invalid content")
+	ErrInvalidTopic        = errors.New("forum: invalid topic")
+	ErrTopicNotFound       = errors.New("forum: topic not found")
+	ErrCommentNotFound     = errors.New("forum: comment not found")
+	ErrTopicClosed         = errors.New("forum: topic is closed")
+	ErrInvalidTag          = errors.New("forum: invalid tag")
+	ErrTagNotFound         = errors.New("forum: tag not found")
+	ErrInvalidSettings     = errors.New("forum: invalid settings")
+	ErrInvalidAction       = errors.New("forum: invalid topic action")
+	ErrTitleTooShort       = errors.New("forum: title too short")
+	ErrTitleTooLong        = errors.New("forum: title too long")
+	ErrContentTooShort     = errors.New("forum: content too short")
+	ErrContentTooLong      = errors.New("forum: content too long")
+	ErrCommentTooShort     = errors.New("forum: comment too short")
+	ErrCommentTooLong      = errors.New("forum: comment too long")
+	ErrCommentNestingDeep  = errors.New("forum: comment nesting too deep")
+	ErrEditWindowExpired   = errors.New("forum: edit window expired")
+	ErrTopicCooldown        = errors.New("forum: topic cooldown")
+	ErrCommentCooldown      = errors.New("forum: comment cooldown")
+	ErrDailyTopicLimit     = errors.New("forum: daily topic limit")
+	ErrDailyCommentLimit   = errors.New("forum: daily comment limit")
+	ErrTagMinRequired      = errors.New("forum: tag minimum required")
 	// ErrUseSearchEndpoint 表示 topics 列表不再支持关键词检索，应改用专用搜索端点。
 	ErrUseSearchEndpoint = errors.New("forum: use search endpoint")
 )
@@ -283,9 +309,30 @@ type ForumSettings struct {
 	DefaultCategorySlug string `json:"defaultCategorySlug"`
 	TagCreationMode     string `json:"tagCreationMode"`
 	TagPublicPages      bool   `json:"tagPublicPages"`
+	TagMinPerTopic      int    `json:"tagMinPerTopic"`
 	TagMaxPerTopic      int    `json:"tagMaxPerTopic"`
 	TopicsPerPage       int    `json:"topicsPerPage"`
 	CommentsPerPage     int    `json:"commentsPerPage"`
+
+	// 主题内容与节奏限制（rune 计长；0 表示不限，除 min 外）
+	TopicTitleMinRunes      int `json:"topicTitleMinRunes"`
+	TopicTitleMaxRunes      int `json:"topicTitleMaxRunes"`
+	TopicContentMinRunes    int `json:"topicContentMinRunes"`
+	TopicContentMaxRunes    int `json:"topicContentMaxRunes"`
+	TopicEditWindowMinutes  int `json:"topicEditWindowMinutes"`
+	TopicCooldownSeconds     int `json:"topicCooldownSeconds"`
+	DailyTopicLimit         int `json:"dailyTopicLimit"`
+
+	// 评论内容、嵌套与节奏限制
+	CommentMinRunes         int `json:"commentMinRunes"`
+	CommentMaxRunes         int `json:"commentMaxRunes"`
+	CommentMaxNestingDepth  int `json:"commentMaxNestingDepth"`
+	CommentEditWindowMinutes int `json:"commentEditWindowMinutes"`
+	CommentCooldownSeconds    int `json:"commentCooldownSeconds"`
+	DailyCommentLimit       int `json:"dailyCommentLimit"`
+
+	// 列表摘要截断长度（写入 posts.excerpt 时生效）
+	ExcerptRuneLimit int `json:"excerptRuneLimit"`
 }
 
 type CreateCategoryGroupInput struct {
@@ -355,9 +402,25 @@ type UpdateForumSettingsInput struct {
 	DefaultCategorySlug *string
 	TagCreationMode     *string
 	TagPublicPages      *bool
+	TagMinPerTopic      *int
 	TagMaxPerTopic      *int
 	TopicsPerPage       *int
 	CommentsPerPage     *int
+
+	TopicTitleMinRunes       *int
+	TopicTitleMaxRunes       *int
+	TopicContentMinRunes     *int
+	TopicContentMaxRunes     *int
+	TopicEditWindowMinutes   *int
+	TopicCooldownSeconds      *int
+	DailyTopicLimit          *int
+	CommentMinRunes          *int
+	CommentMaxRunes          *int
+	CommentMaxNestingDepth   *int
+	CommentEditWindowMinutes *int
+	CommentCooldownSeconds     *int
+	DailyCommentLimit        *int
+	ExcerptRuneLimit         *int
 }
 
 type CommentListInput struct {
@@ -409,6 +472,7 @@ type CommentSummary struct {
 	PathKey       string
 	Depth         int
 	Status        string
+	CreatedAt     time.Time
 }
 
 type CreateCommentInput struct {

@@ -3,6 +3,7 @@ package forum
 import (
 	"context"
 	"fmt"
+	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 )
@@ -43,6 +44,11 @@ type Store interface {
 	DeleteComment(ctx context.Context, commentID int64) (Comment, error)
 	ListComments(ctx context.Context, input CommentListInput) (CommentList, error)
 	ListCommentReplies(ctx context.Context, commentID int64) ([]Comment, error)
+	// 作者发帖/评论节奏统计：冷却与每日上限。无记录时 ok=false。
+	LatestAuthorTopicCreatedAt(ctx context.Context, authorUserID int64) (time.Time, bool, error)
+	CountAuthorTopicsSince(ctx context.Context, authorUserID int64, since time.Time) (int64, error)
+	LatestAuthorCommentCreatedAt(ctx context.Context, authorUserID int64) (time.Time, bool, error)
+	CountAuthorCommentsSince(ctx context.Context, authorUserID int64, since time.Time) (int64, error)
 }
 
 type SettingsResolver interface {

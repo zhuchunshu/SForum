@@ -435,6 +435,32 @@ func mapForumError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidSettings)
 	case errors.Is(err, forum.ErrInvalidAction):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidAction)
+	case errors.Is(err, forum.ErrTitleTooShort):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeTitleTooShort)
+	case errors.Is(err, forum.ErrTitleTooLong):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeTitleTooLong)
+	case errors.Is(err, forum.ErrContentTooShort):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeContentTooShort)
+	case errors.Is(err, forum.ErrContentTooLong):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeContentTooLong)
+	case errors.Is(err, forum.ErrCommentTooShort):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeCommentTooShort)
+	case errors.Is(err, forum.ErrCommentTooLong):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeCommentTooLong)
+	case errors.Is(err, forum.ErrCommentNestingDeep):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeCommentNestingDeep)
+	case errors.Is(err, forum.ErrEditWindowExpired):
+		return fiber.NewError(fiber.StatusConflict, forum.CodeEditWindowExpired)
+	case errors.Is(err, forum.ErrTopicCooldown):
+		return fiber.NewError(fiber.StatusTooManyRequests, forum.CodeTopicCooldown)
+	case errors.Is(err, forum.ErrCommentCooldown):
+		return fiber.NewError(fiber.StatusTooManyRequests, forum.CodeCommentCooldown)
+	case errors.Is(err, forum.ErrDailyTopicLimit):
+		return fiber.NewError(fiber.StatusTooManyRequests, forum.CodeDailyTopicLimit)
+	case errors.Is(err, forum.ErrDailyCommentLimit):
+		return fiber.NewError(fiber.StatusTooManyRequests, forum.CodeDailyCommentLimit)
+	case errors.Is(err, forum.ErrTagMinRequired):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeTagMinRequired)
 	case errors.Is(err, forum.ErrUseSearchEndpoint):
 		return fiber.NewError(fiber.StatusBadRequest, forum.CodeUseSearch)
 	default:

@@ -682,7 +682,12 @@ func TestServiceForumOptionsDefaultsAndValidation(t *testing.T) {
 		NameForumDefaultCategorySlug: "general",
 		NameForumTagCreationMode:     "controlled",
 		NameForumTagPublicPages:      "enabled",
+		NameForumTagMinPerTopic:      "0",
 		NameForumTagMaxPerTopic:      "5",
+		NameForumTopicTitleMinRunes:  "2",
+		NameForumTopicTitleMaxRunes:  "100",
+		NameForumCommentMaxNestingDepth: "5",
+		NameForumExcerptRuneLimit:    "180",
 	}
 	for name, want := range expected {
 		if got := store.items[name]; got != want {

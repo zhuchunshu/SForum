@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
@@ -144,16 +145,9 @@ func TestServiceCreateTopicAppliesBeforeCreateFilterAndEmitsCreatedEvent(t *test
 
 func TestServiceCreateTopicUsesConfiguredDefaultCategory(t *testing.T) {
 	store := newServiceFakeStore()
-	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{
-		settings: ForumSettings{
-			DefaultCategorySlug: "support",
-			TagCreationMode:     TagCreationModeControlled,
-			TagPublicPages:      true,
-			TagMaxPerTopic:      5,
-			TopicsPerPage:       20,
-			CommentsPerPage:     20,
-		},
-	}, nil)
+	settings := testForumSettings()
+	settings.DefaultCategorySlug = "support"
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
 	actor := topicCreator()
 
 	_, err := service.CreateTopic(context.Background(), actor, CreateTopicInput{
@@ -982,14 +976,7 @@ func validMarkdownContent(value string) ContentInput {
 }
 
 func testForumSettings() ForumSettings {
-	return ForumSettings{
-		DefaultCategorySlug: "general",
-		TagCreationMode:     TagCreationModeControlled,
-		TagPublicPages:      true,
-		TagMaxPerTopic:      5,
-		TopicsPerPage:       20,
-		CommentsPerPage:     20,
-	}
+	return defaultForumSettings()
 }
 
 type fakeSettingsResolver struct {
@@ -1274,6 +1261,20 @@ func (s *serviceFakeStore) CreateComment(_ context.Context, input CreateCommentR
 		Status:        input.Status,
 		Content:       input.Content,
 	}, nil
+}
+
+
+func (s *serviceFakeStore) LatestAuthorTopicCreatedAt(context.Context, int64) (time.Time, bool, error) {
+	return time.Time{}, false, nil
+}
+func (s *serviceFakeStore) CountAuthorTopicsSince(context.Context, int64, time.Time) (int64, error) {
+	return 0, nil
+}
+func (s *serviceFakeStore) LatestAuthorCommentCreatedAt(context.Context, int64) (time.Time, bool, error) {
+	return time.Time{}, false, nil
+}
+func (s *serviceFakeStore) CountAuthorCommentsSince(context.Context, int64, time.Time) (int64, error) {
+	return 0, nil
 }
 
 func (s *serviceFakeStore) GetCommentSummary(context.Context, int64) (CommentSummary, error) {

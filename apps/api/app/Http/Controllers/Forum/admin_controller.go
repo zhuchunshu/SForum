@@ -70,9 +70,25 @@ type updateForumSettingsRequest struct {
 	DefaultCategorySlug *string `json:"defaultCategorySlug"`
 	TagCreationMode     *string `json:"tagCreationMode"`
 	TagPublicPages      *bool   `json:"tagPublicPages"`
+	TagMinPerTopic      *int    `json:"tagMinPerTopic"`
 	TagMaxPerTopic      *int    `json:"tagMaxPerTopic"`
 	TopicsPerPage       *int    `json:"topicsPerPage"`
 	CommentsPerPage     *int    `json:"commentsPerPage"`
+
+	TopicTitleMinRunes       *int `json:"topicTitleMinRunes"`
+	TopicTitleMaxRunes       *int `json:"topicTitleMaxRunes"`
+	TopicContentMinRunes     *int `json:"topicContentMinRunes"`
+	TopicContentMaxRunes     *int `json:"topicContentMaxRunes"`
+	TopicEditWindowMinutes   *int `json:"topicEditWindowMinutes"`
+	TopicCooldownSeconds      *int `json:"topicCooldownSeconds"`
+	DailyTopicLimit          *int `json:"dailyTopicLimit"`
+	CommentMinRunes          *int `json:"commentMinRunes"`
+	CommentMaxRunes          *int `json:"commentMaxRunes"`
+	CommentMaxNestingDepth   *int `json:"commentMaxNestingDepth"`
+	CommentEditWindowMinutes *int `json:"commentEditWindowMinutes"`
+	CommentCooldownSeconds     *int `json:"commentCooldownSeconds"`
+	DailyCommentLimit        *int `json:"dailyCommentLimit"`
+	ExcerptRuneLimit         *int `json:"excerptRuneLimit"`
 }
 
 func (h *Controller) adminCategoryGroups(c fiber.Ctx) error {
@@ -287,12 +303,27 @@ func (h *Controller) adminUpdateSettings(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidSettings)
 	}
 	settings, err := h.service.UpdateForumSettings(c.Context(), actor, forum.UpdateForumSettingsInput{
-		DefaultCategorySlug: req.DefaultCategorySlug,
-		TagCreationMode:     req.TagCreationMode,
-		TagPublicPages:      req.TagPublicPages,
-		TagMaxPerTopic:      req.TagMaxPerTopic,
-		TopicsPerPage:       req.TopicsPerPage,
-		CommentsPerPage:     req.CommentsPerPage,
+		DefaultCategorySlug:      req.DefaultCategorySlug,
+		TagCreationMode:          req.TagCreationMode,
+		TagPublicPages:           req.TagPublicPages,
+		TagMinPerTopic:           req.TagMinPerTopic,
+		TagMaxPerTopic:           req.TagMaxPerTopic,
+		TopicsPerPage:            req.TopicsPerPage,
+		CommentsPerPage:          req.CommentsPerPage,
+		TopicTitleMinRunes:       req.TopicTitleMinRunes,
+		TopicTitleMaxRunes:       req.TopicTitleMaxRunes,
+		TopicContentMinRunes:     req.TopicContentMinRunes,
+		TopicContentMaxRunes:     req.TopicContentMaxRunes,
+		TopicEditWindowMinutes:   req.TopicEditWindowMinutes,
+		TopicCooldownSeconds:      req.TopicCooldownSeconds,
+		DailyTopicLimit:          req.DailyTopicLimit,
+		CommentMinRunes:          req.CommentMinRunes,
+		CommentMaxRunes:          req.CommentMaxRunes,
+		CommentMaxNestingDepth:   req.CommentMaxNestingDepth,
+		CommentEditWindowMinutes: req.CommentEditWindowMinutes,
+		CommentCooldownSeconds:     req.CommentCooldownSeconds,
+		DailyCommentLimit:        req.DailyCommentLimit,
+		ExcerptRuneLimit:         req.ExcerptRuneLimit,
 	})
 	if err != nil {
 		return mapForumError(err)

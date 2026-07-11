@@ -214,23 +214,32 @@ func (r ForumSettingsResolver) ForumSettings(ctx context.Context) (forum.ForumSe
 	if enabled, ok := normalizeForumEnabled(value); ok {
 		settings.TagPublicPages = enabled
 	}
-	value, err = r.options.WebOption(ctx, options.NameForumTagMaxPerTopic)
-	if err != nil {
-		return forum.ForumSettings{}, err
-	}
-	if max, ok := normalizeForumMaxTags(value); ok {
-		settings.TagMaxPerTopic = max
-	}
 	for name, target := range map[string]*int{
-		options.NameForumTopicsPerPage:   &settings.TopicsPerPage,
-		options.NameForumCommentsPerPage: &settings.CommentsPerPage,
+		options.NameForumTagMinPerTopic:           &settings.TagMinPerTopic,
+		options.NameForumTagMaxPerTopic:           &settings.TagMaxPerTopic,
+		options.NameForumTopicsPerPage:            &settings.TopicsPerPage,
+		options.NameForumCommentsPerPage:          &settings.CommentsPerPage,
+		options.NameForumTopicTitleMinRunes:       &settings.TopicTitleMinRunes,
+		options.NameForumTopicTitleMaxRunes:       &settings.TopicTitleMaxRunes,
+		options.NameForumTopicContentMinRunes:     &settings.TopicContentMinRunes,
+		options.NameForumTopicContentMaxRunes:     &settings.TopicContentMaxRunes,
+		options.NameForumTopicEditWindowMinutes:   &settings.TopicEditWindowMinutes,
+		options.NameForumTopicCooldownSeconds:      &settings.TopicCooldownSeconds,
+		options.NameForumDailyTopicLimit:          &settings.DailyTopicLimit,
+		options.NameForumCommentMinRunes:          &settings.CommentMinRunes,
+		options.NameForumCommentMaxRunes:          &settings.CommentMaxRunes,
+		options.NameForumCommentMaxNestingDepth:   &settings.CommentMaxNestingDepth,
+		options.NameForumCommentEditWindowMinutes: &settings.CommentEditWindowMinutes,
+		options.NameForumCommentCooldownSeconds:     &settings.CommentCooldownSeconds,
+		options.NameForumDailyCommentLimit:        &settings.DailyCommentLimit,
+		options.NameForumExcerptRuneLimit:         &settings.ExcerptRuneLimit,
 	} {
 		value, err = r.options.WebOption(ctx, name)
 		if err != nil {
 			return forum.ForumSettings{}, err
 		}
-		if size, ok := normalizeForumPageSize(value); ok {
-			*target = size
+		if parsed, ok := normalizeForumIntOption(name, value); ok {
+			*target = parsed
 		}
 	}
 	return settings, nil
@@ -250,15 +259,29 @@ func (r ForumSettingsResolver) UpdateForumSettings(ctx context.Context, actor id
 	if input.TagPublicPages != nil {
 		updates = append(updates, options.UpdateInput{Name: options.NameForumTagPublicPages, Value: enabledOptionValue(*input.TagPublicPages)})
 	}
-	if input.TagMaxPerTopic != nil {
-		updates = append(updates, options.UpdateInput{Name: options.NameForumTagMaxPerTopic, Value: strconv.Itoa(*input.TagMaxPerTopic)})
+	appendIntUpdate := func(name string, value *int) {
+		if value != nil {
+			updates = append(updates, options.UpdateInput{Name: name, Value: strconv.Itoa(*value)})
+		}
 	}
-	if input.TopicsPerPage != nil {
-		updates = append(updates, options.UpdateInput{Name: options.NameForumTopicsPerPage, Value: strconv.Itoa(*input.TopicsPerPage)})
-	}
-	if input.CommentsPerPage != nil {
-		updates = append(updates, options.UpdateInput{Name: options.NameForumCommentsPerPage, Value: strconv.Itoa(*input.CommentsPerPage)})
-	}
+	appendIntUpdate(options.NameForumTagMinPerTopic, input.TagMinPerTopic)
+	appendIntUpdate(options.NameForumTagMaxPerTopic, input.TagMaxPerTopic)
+	appendIntUpdate(options.NameForumTopicsPerPage, input.TopicsPerPage)
+	appendIntUpdate(options.NameForumCommentsPerPage, input.CommentsPerPage)
+	appendIntUpdate(options.NameForumTopicTitleMinRunes, input.TopicTitleMinRunes)
+	appendIntUpdate(options.NameForumTopicTitleMaxRunes, input.TopicTitleMaxRunes)
+	appendIntUpdate(options.NameForumTopicContentMinRunes, input.TopicContentMinRunes)
+	appendIntUpdate(options.NameForumTopicContentMaxRunes, input.TopicContentMaxRunes)
+	appendIntUpdate(options.NameForumTopicEditWindowMinutes, input.TopicEditWindowMinutes)
+	appendIntUpdate(options.NameForumTopicCooldownSeconds, input.TopicCooldownSeconds)
+	appendIntUpdate(options.NameForumDailyTopicLimit, input.DailyTopicLimit)
+	appendIntUpdate(options.NameForumCommentMinRunes, input.CommentMinRunes)
+	appendIntUpdate(options.NameForumCommentMaxRunes, input.CommentMaxRunes)
+	appendIntUpdate(options.NameForumCommentMaxNestingDepth, input.CommentMaxNestingDepth)
+	appendIntUpdate(options.NameForumCommentEditWindowMinutes, input.CommentEditWindowMinutes)
+	appendIntUpdate(options.NameForumCommentCooldownSeconds, input.CommentCooldownSeconds)
+	appendIntUpdate(options.NameForumDailyCommentLimit, input.DailyCommentLimit)
+	appendIntUpdate(options.NameForumExcerptRuneLimit, input.ExcerptRuneLimit)
 	if len(updates) > 0 {
 		if _, err := r.options.UpdateMany(ctx, actor, updates); err != nil {
 			return forum.ForumSettings{}, err
@@ -268,36 +291,106 @@ func (r ForumSettingsResolver) UpdateForumSettings(ctx context.Context, actor id
 }
 
 func (r ForumSettingsResolver) ResetForumSettings(ctx context.Context, actor identity.Actor) (forum.ForumSettings, error) {
+	recommended := recommendedForumSettings()
 	input := forum.UpdateForumSettingsInput{}
 	if actor.Can(identity.PermissionCategoryManage) {
-		value := "general"
+		value := recommended.DefaultCategorySlug
 		input.DefaultCategorySlug = &value
 	}
 	if actor.Can(identity.PermissionTagManage) {
-		mode := forum.TagCreationModeControlled
-		publicPages := true
-		maxTags := 5
+		mode := recommended.TagCreationMode
+		publicPages := recommended.TagPublicPages
+		minTags := recommended.TagMinPerTopic
+		maxTags := recommended.TagMaxPerTopic
 		input.TagCreationMode = &mode
 		input.TagPublicPages = &publicPages
+		input.TagMinPerTopic = &minTags
 		input.TagMaxPerTopic = &maxTags
 	}
 	if actor.Can(identity.PermissionSettingsManage) {
-		topicsPerPage := 20
-		commentsPerPage := 20
-		input.TopicsPerPage = &topicsPerPage
-		input.CommentsPerPage = &commentsPerPage
+		input.TopicsPerPage = intPtr(recommended.TopicsPerPage)
+		input.CommentsPerPage = intPtr(recommended.CommentsPerPage)
+		input.TopicTitleMinRunes = intPtr(recommended.TopicTitleMinRunes)
+		input.TopicTitleMaxRunes = intPtr(recommended.TopicTitleMaxRunes)
+		input.TopicContentMinRunes = intPtr(recommended.TopicContentMinRunes)
+		input.TopicContentMaxRunes = intPtr(recommended.TopicContentMaxRunes)
+		input.TopicEditWindowMinutes = intPtr(recommended.TopicEditWindowMinutes)
+		input.TopicCooldownSeconds = intPtr(recommended.TopicCooldownSeconds)
+		input.DailyTopicLimit = intPtr(recommended.DailyTopicLimit)
+		input.CommentMinRunes = intPtr(recommended.CommentMinRunes)
+		input.CommentMaxRunes = intPtr(recommended.CommentMaxRunes)
+		input.CommentMaxNestingDepth = intPtr(recommended.CommentMaxNestingDepth)
+		input.CommentEditWindowMinutes = intPtr(recommended.CommentEditWindowMinutes)
+		input.CommentCooldownSeconds = intPtr(recommended.CommentCooldownSeconds)
+		input.DailyCommentLimit = intPtr(recommended.DailyCommentLimit)
+		input.ExcerptRuneLimit = intPtr(recommended.ExcerptRuneLimit)
 	}
 	return r.UpdateForumSettings(ctx, actor, input)
 }
 
 func recommendedForumSettings() forum.ForumSettings {
+	// 与 forum.defaultForumSettings 保持一致的推荐默认。
 	return forum.ForumSettings{
-		DefaultCategorySlug: "general",
-		TagCreationMode:     forum.TagCreationModeControlled,
-		TagPublicPages:      true,
-		TagMaxPerTopic:      5,
-		TopicsPerPage:       20,
-		CommentsPerPage:     20,
+		DefaultCategorySlug:          "general",
+		TagCreationMode:              forum.TagCreationModeControlled,
+		TagPublicPages:               true,
+		TagMinPerTopic:               forum.RecommendedTagMinPerTopic,
+		TagMaxPerTopic:               forum.RecommendedTagMaxPerTopic,
+		TopicsPerPage:                20,
+		CommentsPerPage:              20,
+		TopicTitleMinRunes:           forum.RecommendedTopicTitleMinRunes,
+		TopicTitleMaxRunes:           forum.RecommendedTopicTitleMaxRunes,
+		TopicContentMinRunes:         forum.RecommendedTopicContentMinRunes,
+		TopicContentMaxRunes:         forum.RecommendedTopicContentMaxRunes,
+		TopicEditWindowMinutes:       forum.RecommendedTopicEditWindowMinutes,
+		TopicCooldownSeconds:          forum.RecommendedTopicCooldownSeconds,
+		DailyTopicLimit:              forum.RecommendedDailyTopicLimit,
+		CommentMinRunes:              forum.RecommendedCommentMinRunes,
+		CommentMaxRunes:              forum.RecommendedCommentMaxRunes,
+		CommentMaxNestingDepth:       forum.RecommendedCommentMaxNestingDepth,
+		CommentEditWindowMinutes:     forum.RecommendedCommentEditWindowMinutes,
+		CommentCooldownSeconds:         forum.RecommendedCommentCooldownSeconds,
+		DailyCommentLimit:            forum.RecommendedDailyCommentLimit,
+		ExcerptRuneLimit:             forum.RecommendedExcerptRuneLimit,
+	}
+}
+
+func intPtr(value int) *int {
+	return &value
+}
+
+func normalizeForumIntOption(name, value string) (int, bool) {
+	parsed, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil {
+		return 0, false
+	}
+	switch name {
+	case options.NameForumTopicsPerPage, options.NameForumCommentsPerPage:
+		return parsed, parsed >= 1 && parsed <= 100
+	case options.NameForumTagMinPerTopic, options.NameForumTagMaxPerTopic:
+		return parsed, parsed >= 0 && parsed <= 10
+	case options.NameForumTopicTitleMinRunes, options.NameForumTopicTitleMaxRunes:
+		return parsed, parsed >= 1 && parsed <= 200
+	case options.NameForumTopicContentMinRunes:
+		return parsed, parsed >= 0 && parsed <= 200000
+	case options.NameForumTopicContentMaxRunes:
+		return parsed, parsed >= 1 && parsed <= 200000
+	case options.NameForumCommentMinRunes:
+		return parsed, parsed >= 0 && parsed <= 50000
+	case options.NameForumCommentMaxRunes:
+		return parsed, parsed >= 1 && parsed <= 50000
+	case options.NameForumCommentMaxNestingDepth:
+		return parsed, parsed >= 0 && parsed <= 20
+	case options.NameForumTopicEditWindowMinutes, options.NameForumCommentEditWindowMinutes:
+		return parsed, parsed >= 0 && parsed <= 10080
+	case options.NameForumTopicCooldownSeconds, options.NameForumCommentCooldownSeconds:
+		return parsed, parsed >= 0 && parsed <= 86400
+	case options.NameForumDailyTopicLimit, options.NameForumDailyCommentLimit:
+		return parsed, parsed >= 0 && parsed <= 10000
+	case options.NameForumExcerptRuneLimit:
+		return parsed, parsed >= 40 && parsed <= 500
+	default:
+		return 0, false
 	}
 }
 
@@ -344,7 +437,4 @@ func enabledOptionValue(enabled bool) string {
 	return "disabled"
 }
 
-func normalizeForumMaxTags(value string) (int, bool) {
-	parsed, err := strconv.Atoi(strings.TrimSpace(value))
-	return parsed, err == nil && parsed >= 0 && parsed <= 10
-}
+

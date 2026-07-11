@@ -109,17 +109,6 @@ func (staticSettingsResolver) ForumSettings(context.Context) (ForumSettings, err
 	return defaultForumSettings(), nil
 }
 
-func defaultForumSettings() ForumSettings {
-	return ForumSettings{
-		DefaultCategorySlug: "general",
-		TagCreationMode:     TagCreationModeControlled,
-		TagPublicPages:      true,
-		TagMaxPerTopic:      5,
-		TopicsPerPage:       20,
-		CommentsPerPage:     20,
-	}
-}
-
 func (s *Service) ListCategories(ctx context.Context) ([]Category, error) {
 	return s.store.ListCategories(ctx)
 }
@@ -263,10 +252,10 @@ func (s *Service) UpdateForumSettings(ctx context.Context, actor identity.Actor,
 	if input.DefaultCategorySlug != nil && !actor.Can(identity.PermissionCategoryManage) {
 		return ForumSettings{}, identity.ErrPermissionDenied
 	}
-	if (input.TagCreationMode != nil || input.TagPublicPages != nil || input.TagMaxPerTopic != nil) && !actor.Can(identity.PermissionTagManage) {
+	if (input.TagCreationMode != nil || input.TagPublicPages != nil || input.TagMinPerTopic != nil || input.TagMaxPerTopic != nil) && !actor.Can(identity.PermissionTagManage) {
 		return ForumSettings{}, identity.ErrPermissionDenied
 	}
-	if (input.TopicsPerPage != nil || input.CommentsPerPage != nil) && !actor.Can(identity.PermissionSettingsManage) {
+	if forumSettingsManageFieldsPresent(input) && !actor.Can(identity.PermissionSettingsManage) {
 		return ForumSettings{}, identity.ErrPermissionDenied
 	}
 	manager, ok := s.settings.(SettingsManager)
@@ -278,6 +267,26 @@ func (s *Service) UpdateForumSettings(ctx context.Context, actor identity.Actor,
 		return ForumSettings{}, err
 	}
 	return manager.UpdateForumSettings(ctx, actor, normalized)
+}
+
+// forumSettingsManageFieldsPresent 分页/字数/节奏等需 settings.manage。
+func forumSettingsManageFieldsPresent(input UpdateForumSettingsInput) bool {
+	return input.TopicsPerPage != nil ||
+		input.CommentsPerPage != nil ||
+		input.TopicTitleMinRunes != nil ||
+		input.TopicTitleMaxRunes != nil ||
+		input.TopicContentMinRunes != nil ||
+		input.TopicContentMaxRunes != nil ||
+		input.TopicEditWindowMinutes != nil ||
+		input.TopicCooldownSeconds != nil ||
+		input.DailyTopicLimit != nil ||
+		input.CommentMinRunes != nil ||
+		input.CommentMaxRunes != nil ||
+		input.CommentMaxNestingDepth != nil ||
+		input.CommentEditWindowMinutes != nil ||
+		input.CommentCooldownSeconds != nil ||
+		input.DailyCommentLimit != nil ||
+		input.ExcerptRuneLimit != nil
 }
 
 func (s *Service) ResetForumSettings(ctx context.Context, actor identity.Actor) (ForumSettings, error) {
@@ -369,15 +378,24 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	if title == "" {
 		return TopicDetail{}, ErrInvalidTopic
 	}
+	if err := validateTopicTitle(title, settings); err != nil {
+		return TopicDetail{}, err
+	}
+	if err := validateTopicContent(input.Content.RawContent, settings); err != nil {
+		return TopicDetail{}, err
+	}
+	if err := s.enforceTopicCreateLimits(ctx, actor.ID, settings); err != nil {
+		return TopicDetail{}, err
+	}
 	categorySlug := strings.TrimSpace(input.CategorySlug)
 	if categorySlug == "" {
 		categorySlug = settings.DefaultCategorySlug
 	}
-	tagSlugs, err := normalizeTopicTagSlugs(input.TagSlugs, settings.TagMaxPerTopic)
+	tagSlugs, err := normalizeTopicTagSlugs(input.TagSlugs, settings.TagMinPerTopic, settings.TagMaxPerTopic)
 	if err != nil {
 		return TopicDetail{}, err
 	}
-	content, err := RenderContent(input.Content)
+	content, err := RenderContentWithExcerptLimit(input.Content, settings.ExcerptRuneLimit)
 	if err != nil {
 		return TopicDetail{}, err
 	}
@@ -453,10 +471,18 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 		TagCreationMode: settings.TagCreationMode,
 	}
 
+	// 作者编辑窗口：版主/任意编辑权限不受窗口限制。
+	if isAuthorOnlyTopicEdit(actor, topic) && !withinEditWindow(topic.CreatedAt, settings.TopicEditWindowMinutes, time.Now().UTC()) {
+		return TopicDetail{}, ErrEditWindowExpired
+	}
+
 	if input.Title != nil {
 		title := strings.TrimSpace(*input.Title)
 		if title == "" {
 			return TopicDetail{}, ErrInvalidTopic
+		}
+		if err := validateTopicTitle(title, settings); err != nil {
+			return TopicDetail{}, err
 		}
 		record.Title = title
 		// 改标题时重新生成 slug 并保证全局唯一（排除自身）。
@@ -476,7 +502,7 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 	}
 
 	if input.TagSlugs != nil {
-		tagSlugs, err := normalizeTopicTagSlugs(input.TagSlugs, settings.TagMaxPerTopic)
+		tagSlugs, err := normalizeTopicTagSlugs(input.TagSlugs, settings.TagMinPerTopic, settings.TagMaxPerTopic)
 		if err != nil {
 			return TopicDetail{}, err
 		}
@@ -484,7 +510,10 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 	}
 
 	if input.Content != nil {
-		content, err := RenderContent(*input.Content)
+		if err := validateTopicContent(input.Content.RawContent, settings); err != nil {
+			return TopicDetail{}, err
+		}
+		content, err := RenderContentWithExcerptLimit(*input.Content, settings.ExcerptRuneLimit)
 		if err != nil {
 			return TopicDetail{}, err
 		}
@@ -631,6 +660,17 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 		return Comment{}, ErrTopicClosed
 	}
 
+	settings, err := s.resolvedSettings(ctx)
+	if err != nil {
+		return Comment{}, err
+	}
+	if err := validateCommentContent(input.Content.RawContent, settings); err != nil {
+		return Comment{}, err
+	}
+	if err := s.enforceCommentCreateLimits(ctx, actor.ID, settings); err != nil {
+		return Comment{}, err
+	}
+
 	var parent *CommentSummary
 	if input.ParentID != nil {
 		summary, err := s.store.GetCommentSummary(ctx, *input.ParentID)
@@ -640,10 +680,15 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 		if summary.TopicID != input.TopicID || summary.Status != CommentStatusActive {
 			return Comment{}, ErrInvalidTopic
 		}
+		if err := validateCommentNesting(summary.Depth, settings); err != nil {
+			return Comment{}, err
+		}
 		parent = &summary
+	} else if err := validateCommentNesting(-1, settings); err != nil {
+		return Comment{}, err
 	}
 
-	content, err := RenderContent(input.Content)
+	content, err := RenderContentWithExcerptLimit(input.Content, settings.ExcerptRuneLimit)
 	if err != nil {
 		return Comment{}, err
 	}
@@ -820,7 +865,18 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 	if !canEditComment(actor, summary) {
 		return Comment{}, identity.ErrPermissionDenied
 	}
-	content, err := RenderContent(input.Content)
+	settings, err := s.resolvedSettings(ctx)
+	if err != nil {
+		return Comment{}, err
+	}
+	// 作者编辑窗口：拥有 post.edit_any 的版主不受限。
+	if isAuthorOnlyCommentEdit(actor, summary) && !withinEditWindow(summary.CreatedAt, settings.CommentEditWindowMinutes, time.Now().UTC()) {
+		return Comment{}, ErrEditWindowExpired
+	}
+	if err := validateCommentContent(input.Content.RawContent, settings); err != nil {
+		return Comment{}, err
+	}
+	content, err := RenderContentWithExcerptLimit(input.Content, settings.ExcerptRuneLimit)
 	if err != nil {
 		return Comment{}, err
 	}
@@ -862,8 +918,63 @@ func isValidForumSettings(settings ForumSettings) bool {
 	default:
 		return false
 	}
-	return settings.TagMaxPerTopic >= 0 && settings.TagMaxPerTopic <= 10 &&
-		validForumPageSize(settings.TopicsPerPage) && validForumPageSize(settings.CommentsPerPage)
+	return validForumPageSize(settings.TopicsPerPage) &&
+		validForumPageSize(settings.CommentsPerPage) &&
+		validForumContentLimits(settings)
+}
+
+func (s *Service) enforceTopicCreateLimits(ctx context.Context, authorUserID int64, settings ForumSettings) error {
+	now := time.Now().UTC()
+	if settings.TopicCooldownSeconds > 0 {
+		lastAt, ok, err := s.store.LatestAuthorTopicCreatedAt(ctx, authorUserID)
+		if err != nil {
+			return err
+		}
+		if !cooldownElapsed(lastAt, ok, settings.TopicCooldownSeconds, now) {
+			return ErrTopicCooldown
+		}
+	}
+	if settings.DailyTopicLimit > 0 {
+		count, err := s.store.CountAuthorTopicsSince(ctx, authorUserID, dayStartUTC(now))
+		if err != nil {
+			return err
+		}
+		if count >= int64(settings.DailyTopicLimit) {
+			return ErrDailyTopicLimit
+		}
+	}
+	return nil
+}
+
+func (s *Service) enforceCommentCreateLimits(ctx context.Context, authorUserID int64, settings ForumSettings) error {
+	now := time.Now().UTC()
+	if settings.CommentCooldownSeconds > 0 {
+		lastAt, ok, err := s.store.LatestAuthorCommentCreatedAt(ctx, authorUserID)
+		if err != nil {
+			return err
+		}
+		if !cooldownElapsed(lastAt, ok, settings.CommentCooldownSeconds, now) {
+			return ErrCommentCooldown
+		}
+	}
+	if settings.DailyCommentLimit > 0 {
+		count, err := s.store.CountAuthorCommentsSince(ctx, authorUserID, dayStartUTC(now))
+		if err != nil {
+			return err
+		}
+		if count >= int64(settings.DailyCommentLimit) {
+			return ErrDailyCommentLimit
+		}
+	}
+	return nil
+}
+
+func isAuthorOnlyTopicEdit(actor identity.Actor, topic TopicSummary) bool {
+	return !actor.Can(identity.PermissionTopicEditAny) && topic.AuthorUserID == actor.ID
+}
+
+func isAuthorOnlyCommentEdit(actor identity.Actor, comment CommentSummary) bool {
+	return !actor.Can(identity.PermissionPostEditAny) && comment.AuthorUserID == actor.ID
 }
 
 func canManageForumSettings(actor identity.Actor) bool {
@@ -1109,7 +1220,13 @@ func normalizeUpdateForumSettingsInput(input UpdateForumSettingsInput) (UpdateFo
 			return UpdateForumSettingsInput{}, ErrInvalidSettings
 		}
 	}
-	if input.TagMaxPerTopic != nil && (*input.TagMaxPerTopic < 0 || *input.TagMaxPerTopic > 10) {
+	if input.TagMinPerTopic != nil && (*input.TagMinPerTopic < HardTagMinPerTopic || *input.TagMinPerTopic > HardTagMaxPerTopic) {
+		return UpdateForumSettingsInput{}, ErrInvalidSettings
+	}
+	if input.TagMaxPerTopic != nil && (*input.TagMaxPerTopic < HardTagMinPerTopic || *input.TagMaxPerTopic > HardTagMaxPerTopic) {
+		return UpdateForumSettingsInput{}, ErrInvalidSettings
+	}
+	if input.TagMinPerTopic != nil && input.TagMaxPerTopic != nil && *input.TagMinPerTopic > *input.TagMaxPerTopic {
 		return UpdateForumSettingsInput{}, ErrInvalidSettings
 	}
 	if input.TopicsPerPage != nil && !validForumPageSize(*input.TopicsPerPage) {
@@ -1118,7 +1235,72 @@ func normalizeUpdateForumSettingsInput(input UpdateForumSettingsInput) (UpdateFo
 	if input.CommentsPerPage != nil && !validForumPageSize(*input.CommentsPerPage) {
 		return UpdateForumSettingsInput{}, ErrInvalidSettings
 	}
+	if err := validateOptionalContentLimitFields(input); err != nil {
+		return UpdateForumSettingsInput{}, err
+	}
 	return input, nil
+}
+
+func validateOptionalContentLimitFields(input UpdateForumSettingsInput) error {
+	checkPair := func(minPtr, maxPtr *int, hardMin, hardMax int, allowZeroMax bool) error {
+		if minPtr != nil && (*minPtr < hardMin || *minPtr > hardMax) {
+			return ErrInvalidSettings
+		}
+		if maxPtr != nil {
+			lower := hardMin
+			if allowZeroMax {
+				// max 字段至少为 1（0 在业务上表示不限，但我们的 max 字段始终为正上限）
+				lower = 1
+			}
+			if *maxPtr < lower || *maxPtr > hardMax {
+				return ErrInvalidSettings
+			}
+		}
+		if minPtr != nil && maxPtr != nil && *minPtr > *maxPtr {
+			return ErrInvalidSettings
+		}
+		return nil
+	}
+	if err := checkPair(input.TopicTitleMinRunes, input.TopicTitleMaxRunes, HardTitleMinRunes, HardTitleMaxRunes, false); err != nil {
+		return err
+	}
+	if err := checkPair(input.TopicContentMinRunes, input.TopicContentMaxRunes, HardContentMinRunes, HardContentMaxRunes, true); err != nil {
+		return err
+	}
+	if err := checkPair(input.CommentMinRunes, input.CommentMaxRunes, HardCommentMinRunes, HardCommentMaxRunes, true); err != nil {
+		return err
+	}
+	for _, ptr := range []*int{
+		input.TopicEditWindowMinutes,
+		input.CommentEditWindowMinutes,
+	} {
+		if ptr != nil && (*ptr < 0 || *ptr > HardEditWindowMaxMin) {
+			return ErrInvalidSettings
+		}
+	}
+	for _, ptr := range []*int{
+		input.TopicCooldownSeconds,
+		input.CommentCooldownSeconds,
+	} {
+		if ptr != nil && (*ptr < 0 || *ptr > HardCooldownMaxSec) {
+			return ErrInvalidSettings
+		}
+	}
+	for _, ptr := range []*int{
+		input.DailyTopicLimit,
+		input.DailyCommentLimit,
+	} {
+		if ptr != nil && (*ptr < 0 || *ptr > HardDailyLimitMax) {
+			return ErrInvalidSettings
+		}
+	}
+	if input.CommentMaxNestingDepth != nil && (*input.CommentMaxNestingDepth < HardNestingMin || *input.CommentMaxNestingDepth > HardNestingMax) {
+		return ErrInvalidSettings
+	}
+	if input.ExcerptRuneLimit != nil && (*input.ExcerptRuneLimit < HardExcerptMinRunes || *input.ExcerptRuneLimit > HardExcerptMaxRunes) {
+		return ErrInvalidSettings
+	}
+	return nil
 }
 
 func validForumPageSize(value int) bool {
@@ -1276,8 +1458,8 @@ var tagSlugPattern = regexp.MustCompile(`^[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*$`)
 var taxonomyIconPattern = regexp.MustCompile(`^i-[a-z0-9]+-[a-z0-9][a-z0-9-]*$`)
 var taxonomyIconColorPattern = regexp.MustCompile(`^#[0-9a-f]{6}$`)
 
-func normalizeTopicTagSlugs(values []string, max int) ([]string, error) {
-	if max < 0 || max > 10 {
+func normalizeTopicTagSlugs(values []string, min int, max int) ([]string, error) {
+	if min < HardTagMinPerTopic || max < HardTagMinPerTopic || max > HardTagMaxPerTopic || min > max {
 		return nil, ErrInvalidSettings
 	}
 	slugs := make([]string, 0, len(values))
@@ -1296,8 +1478,8 @@ func normalizeTopicTagSlugs(values []string, max int) ([]string, error) {
 		seen[slug] = true
 		slugs = append(slugs, slug)
 	}
-	if len(slugs) > max {
-		return nil, ErrInvalidTag
+	if err := validateTagCount(len(slugs), ForumSettings{TagMinPerTopic: min, TagMaxPerTopic: max}); err != nil {
+		return nil, err
 	}
 	return slugs, nil
 }

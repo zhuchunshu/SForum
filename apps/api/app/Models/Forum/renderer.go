@@ -15,9 +15,14 @@ import (
 	"golang.org/x/net/html"
 )
 
-const excerptRuneLimit = 180
+const defaultExcerptRuneLimit = RecommendedExcerptRuneLimit
 
 func RenderContent(input ContentInput) (RenderedContent, error) {
+	return RenderContentWithExcerptLimit(input, defaultExcerptRuneLimit)
+}
+
+// RenderContentWithExcerptLimit 使用运营配置的摘要长度截断 plain text。
+func RenderContentWithExcerptLimit(input ContentInput, excerptLimit int) (RenderedContent, error) {
 	raw := strings.TrimSpace(input.RawContent)
 	if raw == "" {
 		return RenderedContent{}, ErrInvalidContent
@@ -57,12 +62,17 @@ func RenderContent(input ContentInput) (RenderedContent, error) {
 		return RenderedContent{}, ErrInvalidContent
 	}
 
+	limit := excerptLimit
+	if limit < HardExcerptMinRunes || limit > HardExcerptMaxRunes {
+		limit = defaultExcerptRuneLimit
+	}
+
 	hash := sha256.Sum256([]byte(sourceFormat + "\x00" + raw))
 	return RenderedContent{
 		RawContent:    raw,
 		HTMLContent:   renderedHTML,
 		PlainText:     plain,
-		Excerpt:       makeExcerpt(plain, excerptRuneLimit),
+		Excerpt:       makeExcerpt(plain, limit),
 		SourceFormat:  sourceFormat,
 		EditorType:    editorType,
 		EditorVersion: strings.TrimSpace(input.EditorVersion),

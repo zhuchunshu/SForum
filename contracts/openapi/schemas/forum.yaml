@@ -424,9 +424,24 @@ ForumSettings:
   - defaultCategorySlug
   - tagCreationMode
   - tagPublicPages
+  - tagMinPerTopic
   - tagMaxPerTopic
   - topicsPerPage
   - commentsPerPage
+  - topicTitleMinRunes
+  - topicTitleMaxRunes
+  - topicContentMinRunes
+  - topicContentMaxRunes
+  - topicEditWindowMinutes
+  - topicCooldownSeconds
+  - dailyTopicLimit
+  - commentMinRunes
+  - commentMaxRunes
+  - commentMaxNestingDepth
+  - commentEditWindowMinutes
+  - commentCooldownSeconds
+  - dailyCommentLimit
+  - excerptRuneLimit
   properties:
     defaultCategorySlug:
       type: string
@@ -434,6 +449,10 @@ ForumSettings:
       "$ref": "#/TagCreationMode"
     tagPublicPages:
       type: boolean
+    tagMinPerTopic:
+      type: integer
+      minimum: 0
+      maximum: 10
     tagMaxPerTopic:
       type: integer
       minimum: 0
@@ -448,6 +467,65 @@ ForumSettings:
       default: 20
       minimum: 1
       maximum: 100
+    topicTitleMinRunes:
+      type: integer
+      minimum: 1
+      maximum: 200
+    topicTitleMaxRunes:
+      type: integer
+      minimum: 1
+      maximum: 200
+    topicContentMinRunes:
+      type: integer
+      minimum: 0
+      maximum: 200000
+    topicContentMaxRunes:
+      type: integer
+      minimum: 1
+      maximum: 200000
+    topicEditWindowMinutes:
+      type: integer
+      minimum: 0
+      maximum: 10080
+      description: 0 means unlimited author edit window
+    topicCooldownSeconds:
+      type: integer
+      minimum: 0
+      maximum: 86400
+      description: 0 means no cooldown between topic creates
+    dailyTopicLimit:
+      type: integer
+      minimum: 0
+      maximum: 10000
+      description: 0 means unlimited daily topics
+    commentMinRunes:
+      type: integer
+      minimum: 0
+      maximum: 50000
+    commentMaxRunes:
+      type: integer
+      minimum: 1
+      maximum: 50000
+    commentMaxNestingDepth:
+      type: integer
+      minimum: 0
+      maximum: 20
+    commentEditWindowMinutes:
+      type: integer
+      minimum: 0
+      maximum: 10080
+    commentCooldownSeconds:
+      type: integer
+      minimum: 0
+      maximum: 86400
+    dailyCommentLimit:
+      type: integer
+      minimum: 0
+      maximum: 10000
+    excerptRuneLimit:
+      type: integer
+      minimum: 40
+      maximum: 500
 ForumUser:
   type: object
   required:
@@ -1064,6 +1142,10 @@ UpdateForumSettingsRequest:
       "$ref": "#/TagCreationMode"
     tagPublicPages:
       type: boolean
+    tagMinPerTopic:
+      type: integer
+      minimum: 0
+      maximum: 10
     tagMaxPerTopic:
       type: integer
       minimum: 0
@@ -1078,6 +1160,62 @@ UpdateForumSettingsRequest:
       default: 20
       minimum: 1
       maximum: 100
+    topicTitleMinRunes:
+      type: integer
+      minimum: 1
+      maximum: 200
+    topicTitleMaxRunes:
+      type: integer
+      minimum: 1
+      maximum: 200
+    topicContentMinRunes:
+      type: integer
+      minimum: 0
+      maximum: 200000
+    topicContentMaxRunes:
+      type: integer
+      minimum: 1
+      maximum: 200000
+    topicEditWindowMinutes:
+      type: integer
+      minimum: 0
+      maximum: 10080
+    topicCooldownSeconds:
+      type: integer
+      minimum: 0
+      maximum: 86400
+    dailyTopicLimit:
+      type: integer
+      minimum: 0
+      maximum: 10000
+    commentMinRunes:
+      type: integer
+      minimum: 0
+      maximum: 50000
+    commentMaxRunes:
+      type: integer
+      minimum: 1
+      maximum: 50000
+    commentMaxNestingDepth:
+      type: integer
+      minimum: 0
+      maximum: 20
+    commentEditWindowMinutes:
+      type: integer
+      minimum: 0
+      maximum: 10080
+    commentCooldownSeconds:
+      type: integer
+      minimum: 0
+      maximum: 86400
+    dailyCommentLimit:
+      type: integer
+      minimum: 0
+      maximum: 10000
+    excerptRuneLimit:
+      type: integer
+      minimum: 40
+      maximum: 500
 AuthorReviewItem:
   type: object
   required: [targetType, targetId, title, excerpt, status, reviewNote, createdAt]

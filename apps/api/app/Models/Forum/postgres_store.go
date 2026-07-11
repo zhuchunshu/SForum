@@ -895,7 +895,8 @@ func resolveTopicTags(ctx context.Context, tx pgx.Tx, input ResolveTopicTagsInpu
 	default:
 		return nil, ErrInvalidSettings
 	}
-	slugs, err := normalizeTopicTagSlugs(input.Slugs, 10)
+	// ResolveTopicTags 允许最多 HardTagMaxPerTopic 个 slug，不强制 min（min 在 service 层校验）。
+	slugs, err := normalizeTopicTagSlugs(input.Slugs, 0, HardTagMaxPerTopic)
 	if err != nil {
 		return nil, err
 	}
@@ -1120,7 +1121,7 @@ func (s *PostgresStore) CreateComment(ctx context.Context, input CreateCommentRe
 
 func (s *PostgresStore) GetCommentSummary(ctx context.Context, commentID int64) (CommentSummary, error) {
 	row := s.pool.QueryRow(ctx, `
-		SELECT id, topic_id, author_user_id, parent_comment_id, COALESCE(root_comment_id, id), path_key, depth, status
+		SELECT id, topic_id, author_user_id, parent_comment_id, COALESCE(root_comment_id, id), path_key, depth, status, created_at
 		FROM comments
 		WHERE id = $1
 	`, commentID)
@@ -1132,6 +1133,67 @@ func (s *PostgresStore) GetCommentSummary(ctx context.Context, commentID int64) 
 		return CommentSummary{}, fmt.Errorf("get comment summary: %w", err)
 	}
 	return summary, nil
+}
+
+// LatestAuthorTopicCreatedAt 返回作者最近一次主题创建时间（含非公开状态，用于冷却）。
+func (s *PostgresStore) LatestAuthorTopicCreatedAt(ctx context.Context, authorUserID int64) (time.Time, bool, error) {
+	var createdAt time.Time
+	err := s.pool.QueryRow(ctx, `
+		SELECT created_at
+		FROM topics
+		WHERE author_user_id = $1 AND status <> 'deleted'
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, authorUserID).Scan(&createdAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return time.Time{}, false, nil
+	}
+	if err != nil {
+		return time.Time{}, false, fmt.Errorf("latest author topic: %w", err)
+	}
+	return createdAt, true, nil
+}
+
+func (s *PostgresStore) CountAuthorTopicsSince(ctx context.Context, authorUserID int64, since time.Time) (int64, error) {
+	var count int64
+	if err := s.pool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM topics
+		WHERE author_user_id = $1 AND status <> 'deleted' AND created_at >= $2
+	`, authorUserID, since).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count author topics: %w", err)
+	}
+	return count, nil
+}
+
+func (s *PostgresStore) LatestAuthorCommentCreatedAt(ctx context.Context, authorUserID int64) (time.Time, bool, error) {
+	var createdAt time.Time
+	err := s.pool.QueryRow(ctx, `
+		SELECT created_at
+		FROM comments
+		WHERE author_user_id = $1 AND status <> 'deleted'
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, authorUserID).Scan(&createdAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return time.Time{}, false, nil
+	}
+	if err != nil {
+		return time.Time{}, false, fmt.Errorf("latest author comment: %w", err)
+	}
+	return createdAt, true, nil
+}
+
+func (s *PostgresStore) CountAuthorCommentsSince(ctx context.Context, authorUserID int64, since time.Time) (int64, error) {
+	var count int64
+	if err := s.pool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM comments
+		WHERE author_user_id = $1 AND status <> 'deleted' AND created_at >= $2
+	`, authorUserID, since).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count author comments: %w", err)
+	}
+	return count, nil
 }
 
 func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRecord) (Comment, error) {
@@ -1845,7 +1907,7 @@ func scanCommentSummary(row RowScanner) (CommentSummary, error) {
 	var summary CommentSummary
 	var authorID sql.NullInt64
 	var parentID sql.NullInt64
-	if err := row.Scan(&summary.ID, &summary.TopicID, &authorID, &parentID, &summary.RootCommentID, &summary.PathKey, &summary.Depth, &summary.Status); err != nil {
+	if err := row.Scan(&summary.ID, &summary.TopicID, &authorID, &parentID, &summary.RootCommentID, &summary.PathKey, &summary.Depth, &summary.Status, &summary.CreatedAt); err != nil {
 		return CommentSummary{}, err
 	}
 	if authorID.Valid {

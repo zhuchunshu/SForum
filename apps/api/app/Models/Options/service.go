@@ -34,6 +34,28 @@ const forumTagMaxPerTopicMin = 0
 const forumTagMaxPerTopicMax = 10
 const forumPaginationMin = 1
 const forumPaginationMax = 100
+const forumTitleMinRunesMin = 1
+const forumTitleMinRunesMax = 200
+const forumTitleMaxRunesMin = 1
+const forumTitleMaxRunesMax = 200
+const forumContentMinRunesMin = 0
+const forumContentMinRunesMax = 200000
+const forumContentMaxRunesMin = 1
+const forumContentMaxRunesMax = 200000
+const forumCommentMinRunesMin = 0
+const forumCommentMinRunesMax = 50000
+const forumCommentMaxRunesMin = 1
+const forumCommentMaxRunesMax = 50000
+const forumNestingMin = 0
+const forumNestingMax = 20
+const forumEditWindowMin = 0
+const forumEditWindowMax = 10080
+const forumCooldownMin = 0
+const forumCooldownMax = 86400
+const forumDailyLimitMin = 0
+const forumDailyLimitMax = 10000
+const forumExcerptMin = 40
+const forumExcerptMax = 500
 const passwordMinLengthMin = 8
 const passwordMinLengthMax = 128
 const passwordMaxLengthMin = 64
@@ -147,9 +169,25 @@ var optionDefinitions = []optionDefinition{
 	{name: NameForumDefaultCategorySlug, public: true, managePermission: identity.PermissionCategoryManage},
 	{name: NameForumTagCreationMode, public: true, managePermission: identity.PermissionTagManage},
 	{name: NameForumTagPublicPages, public: true, managePermission: identity.PermissionTagManage},
+	{name: NameForumTagMinPerTopic, public: true, managePermission: identity.PermissionTagManage},
 	{name: NameForumTagMaxPerTopic, public: true, managePermission: identity.PermissionTagManage},
 	{name: NameForumTopicsPerPage, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameForumCommentsPerPage, public: true, managePermission: identity.PermissionSettingsManage},
+	// 发帖/评论限制对前端 composer 公开，便于实时校验；冷却/每日上限也公开以便提示。
+	{name: NameForumTopicTitleMinRunes, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumTopicTitleMaxRunes, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumTopicContentMinRunes, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumTopicContentMaxRunes, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumTopicEditWindowMinutes, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumTopicCooldownSeconds, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumDailyTopicLimit, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumCommentMinRunes, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumCommentMaxRunes, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumCommentMaxNestingDepth, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumCommentEditWindowMinutes, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumCommentCooldownSeconds, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumDailyCommentLimit, public: true, managePermission: identity.PermissionSettingsManage},
+	{name: NameForumExcerptRuneLimit, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameSEOMetaTitleTemplate, public: true, managePermission: identity.PermissionSEOManage},
 	{name: NameSEOMetaDescription, public: true, managePermission: identity.PermissionSEOManage},
 	{name: NameSEOMetaKeywords, public: true, managePermission: identity.PermissionSEOManage},
@@ -686,14 +724,25 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	} else {
 		coerced[NameForumTagPublicPages] = defaults[NameForumTagPublicPages]
 	}
+	if _, ok := parseBoundedInt(coerced[NameForumTagMinPerTopic], forumTagMaxPerTopicMin, forumTagMaxPerTopicMax); !ok {
+		coerced[NameForumTagMinPerTopic] = defaults[NameForumTagMinPerTopic]
+	}
 	if _, ok := parseBoundedInt(coerced[NameForumTagMaxPerTopic], forumTagMaxPerTopicMin, forumTagMaxPerTopicMax); !ok {
 		coerced[NameForumTagMaxPerTopic] = defaults[NameForumTagMaxPerTopic]
+	}
+	// min/max 成对约束：配置错误时回退推荐默认，避免运营误配导致发帖全失败。
+	if minTags, okMin := parseBoundedInt(coerced[NameForumTagMinPerTopic], forumTagMaxPerTopicMin, forumTagMaxPerTopicMax); okMin {
+		if maxTags, okMax := parseBoundedInt(coerced[NameForumTagMaxPerTopic], forumTagMaxPerTopicMin, forumTagMaxPerTopicMax); okMax && minTags > maxTags {
+			coerced[NameForumTagMinPerTopic] = defaults[NameForumTagMinPerTopic]
+			coerced[NameForumTagMaxPerTopic] = defaults[NameForumTagMaxPerTopic]
+		}
 	}
 	for _, name := range []string{NameForumTopicsPerPage, NameForumCommentsPerPage} {
 		if _, ok := parseBoundedInt(coerced[name], forumPaginationMin, forumPaginationMax); !ok {
 			coerced[name] = defaults[name]
 		}
 	}
+	coerceForumContentLimitOptions(coerced, defaults)
 	if _, ok := parseBoundedInt(coerced[NameIdentitySessionsMaxDevices], sessionsMaxDevicesMin, sessionsMaxDevicesMax); !ok {
 		coerced[NameIdentitySessionsMaxDevices] = defaults[NameIdentitySessionsMaxDevices]
 	}
@@ -820,9 +869,24 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameForumDefaultCategorySlug:         "general",
 		NameForumTagCreationMode:             "controlled",
 		NameForumTagPublicPages:              enabledOptionValue(true),
+		NameForumTagMinPerTopic:              "0",
 		NameForumTagMaxPerTopic:              "5",
 		NameForumTopicsPerPage:               "20",
 		NameForumCommentsPerPage:             "20",
+		NameForumTopicTitleMinRunes:          "2",
+		NameForumTopicTitleMaxRunes:          "100",
+		NameForumTopicContentMinRunes:        "0",
+		NameForumTopicContentMaxRunes:        "50000",
+		NameForumTopicEditWindowMinutes:      "0",
+		NameForumTopicCooldownSeconds:         "0",
+		NameForumDailyTopicLimit:             "0",
+		NameForumCommentMinRunes:             "1",
+		NameForumCommentMaxRunes:             "10000",
+		NameForumCommentMaxNestingDepth:      "5",
+		NameForumCommentEditWindowMinutes:    "0",
+		NameForumCommentCooldownSeconds:       "0",
+		NameForumDailyCommentLimit:           "0",
+		NameForumExcerptRuneLimit:            "180",
 		NameSEOMetaTitleTemplate:             "",
 		NameSEOMetaDescription:               "",
 		NameSEOMetaKeywords:                  "",
@@ -1052,10 +1116,32 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeForumTagCreationMode(value)
 	case NameForumTagPublicPages:
 		return normalizeEnabledOption(value)
-	case NameForumTagMaxPerTopic:
+	case NameForumTagMinPerTopic, NameForumTagMaxPerTopic:
 		return normalizeBoundedInt(value, forumTagMaxPerTopicMin, forumTagMaxPerTopicMax)
 	case NameForumTopicsPerPage, NameForumCommentsPerPage:
 		return normalizeBoundedInt(value, forumPaginationMin, forumPaginationMax)
+	case NameForumTopicTitleMinRunes:
+		return normalizeBoundedInt(value, forumTitleMinRunesMin, forumTitleMinRunesMax)
+	case NameForumTopicTitleMaxRunes:
+		return normalizeBoundedInt(value, forumTitleMaxRunesMin, forumTitleMaxRunesMax)
+	case NameForumTopicContentMinRunes:
+		return normalizeBoundedInt(value, forumContentMinRunesMin, forumContentMinRunesMax)
+	case NameForumTopicContentMaxRunes:
+		return normalizeBoundedInt(value, forumContentMaxRunesMin, forumContentMaxRunesMax)
+	case NameForumCommentMinRunes:
+		return normalizeBoundedInt(value, forumCommentMinRunesMin, forumCommentMinRunesMax)
+	case NameForumCommentMaxRunes:
+		return normalizeBoundedInt(value, forumCommentMaxRunesMin, forumCommentMaxRunesMax)
+	case NameForumCommentMaxNestingDepth:
+		return normalizeBoundedInt(value, forumNestingMin, forumNestingMax)
+	case NameForumTopicEditWindowMinutes, NameForumCommentEditWindowMinutes:
+		return normalizeBoundedInt(value, forumEditWindowMin, forumEditWindowMax)
+	case NameForumTopicCooldownSeconds, NameForumCommentCooldownSeconds:
+		return normalizeBoundedInt(value, forumCooldownMin, forumCooldownMax)
+	case NameForumDailyTopicLimit, NameForumDailyCommentLimit:
+		return normalizeBoundedInt(value, forumDailyLimitMin, forumDailyLimitMax)
+	case NameForumExcerptRuneLimit:
+		return normalizeBoundedInt(value, forumExcerptMin, forumExcerptMax)
 	case NameSEOMetaTitleTemplate:
 		return normalizeSEOTitleTemplate(value)
 	case NameSEOMetaDescription:
@@ -1230,13 +1316,24 @@ func isValidValueSet(values map[string]string) bool {
 	if _, ok := normalizeEnabledOption(values[NameForumTagPublicPages]); !ok {
 		return false
 	}
+	if _, ok := parseBoundedInt(values[NameForumTagMinPerTopic], forumTagMaxPerTopicMin, forumTagMaxPerTopicMax); !ok {
+		return false
+	}
 	if _, ok := parseBoundedInt(values[NameForumTagMaxPerTopic], forumTagMaxPerTopicMin, forumTagMaxPerTopicMax); !ok {
 		return false
+	}
+	if minTags, okMin := parseBoundedInt(values[NameForumTagMinPerTopic], forumTagMaxPerTopicMin, forumTagMaxPerTopicMax); okMin {
+		if maxTags, okMax := parseBoundedInt(values[NameForumTagMaxPerTopic], forumTagMaxPerTopicMin, forumTagMaxPerTopicMax); okMax && minTags > maxTags {
+			return false
+		}
 	}
 	for _, name := range []string{NameForumTopicsPerPage, NameForumCommentsPerPage} {
 		if _, ok := parseBoundedInt(values[name], forumPaginationMin, forumPaginationMax); !ok {
 			return false
 		}
+	}
+	if !validForumContentLimitOptionValues(values) {
+		return false
 	}
 	if _, ok := normalizeSEOTitleTemplate(values[NameSEOMetaTitleTemplate]); !ok {
 		return false
@@ -1773,4 +1870,81 @@ func strictAtoi(value string) (int, bool) {
 		return 0, false
 	}
 	return parsed, true
+}
+
+// coerceForumContentLimitOptions 将发帖/评论限制回退到合法推荐默认。
+func coerceForumContentLimitOptions(coerced map[string]string, defaults map[string]string) {
+	type bound struct {
+		name string
+		min  int
+		max  int
+	}
+	for _, item := range []bound{
+		{NameForumTopicTitleMinRunes, forumTitleMinRunesMin, forumTitleMinRunesMax},
+		{NameForumTopicTitleMaxRunes, forumTitleMaxRunesMin, forumTitleMaxRunesMax},
+		{NameForumTopicContentMinRunes, forumContentMinRunesMin, forumContentMinRunesMax},
+		{NameForumTopicContentMaxRunes, forumContentMaxRunesMin, forumContentMaxRunesMax},
+		{NameForumCommentMinRunes, forumCommentMinRunesMin, forumCommentMinRunesMax},
+		{NameForumCommentMaxRunes, forumCommentMaxRunesMin, forumCommentMaxRunesMax},
+		{NameForumCommentMaxNestingDepth, forumNestingMin, forumNestingMax},
+		{NameForumTopicEditWindowMinutes, forumEditWindowMin, forumEditWindowMax},
+		{NameForumCommentEditWindowMinutes, forumEditWindowMin, forumEditWindowMax},
+		{NameForumTopicCooldownSeconds, forumCooldownMin, forumCooldownMax},
+		{NameForumCommentCooldownSeconds, forumCooldownMin, forumCooldownMax},
+		{NameForumDailyTopicLimit, forumDailyLimitMin, forumDailyLimitMax},
+		{NameForumDailyCommentLimit, forumDailyLimitMin, forumDailyLimitMax},
+		{NameForumExcerptRuneLimit, forumExcerptMin, forumExcerptMax},
+	} {
+		if _, ok := parseBoundedInt(coerced[item.name], item.min, item.max); !ok {
+			coerced[item.name] = defaults[item.name]
+		}
+	}
+	// 标题/正文/评论 min 不得超过 max，否则回退整对。
+	resetPair := func(minName, maxName string) {
+		minVal, okMin := parseBoundedInt(coerced[minName], 0, 1<<30)
+		maxVal, okMax := parseBoundedInt(coerced[maxName], 0, 1<<30)
+		if okMin && okMax && minVal > maxVal {
+			coerced[minName] = defaults[minName]
+			coerced[maxName] = defaults[maxName]
+		}
+	}
+	resetPair(NameForumTopicTitleMinRunes, NameForumTopicTitleMaxRunes)
+	resetPair(NameForumTopicContentMinRunes, NameForumTopicContentMaxRunes)
+	resetPair(NameForumCommentMinRunes, NameForumCommentMaxRunes)
+}
+
+func validForumContentLimitOptionValues(values map[string]string) bool {
+	type bound struct {
+		name string
+		min  int
+		max  int
+	}
+	for _, item := range []bound{
+		{NameForumTopicTitleMinRunes, forumTitleMinRunesMin, forumTitleMinRunesMax},
+		{NameForumTopicTitleMaxRunes, forumTitleMaxRunesMin, forumTitleMaxRunesMax},
+		{NameForumTopicContentMinRunes, forumContentMinRunesMin, forumContentMinRunesMax},
+		{NameForumTopicContentMaxRunes, forumContentMaxRunesMin, forumContentMaxRunesMax},
+		{NameForumCommentMinRunes, forumCommentMinRunesMin, forumCommentMinRunesMax},
+		{NameForumCommentMaxRunes, forumCommentMaxRunesMin, forumCommentMaxRunesMax},
+		{NameForumCommentMaxNestingDepth, forumNestingMin, forumNestingMax},
+		{NameForumTopicEditWindowMinutes, forumEditWindowMin, forumEditWindowMax},
+		{NameForumCommentEditWindowMinutes, forumEditWindowMin, forumEditWindowMax},
+		{NameForumTopicCooldownSeconds, forumCooldownMin, forumCooldownMax},
+		{NameForumCommentCooldownSeconds, forumCooldownMin, forumCooldownMax},
+		{NameForumDailyTopicLimit, forumDailyLimitMin, forumDailyLimitMax},
+		{NameForumDailyCommentLimit, forumDailyLimitMin, forumDailyLimitMax},
+		{NameForumExcerptRuneLimit, forumExcerptMin, forumExcerptMax},
+	} {
+		if _, ok := parseBoundedInt(values[item.name], item.min, item.max); !ok {
+			return false
+		}
+	}
+	pairOK := func(minName, maxName string) bool {
+		minVal, okMin := parseBoundedInt(values[minName], 0, 1<<30)
+		maxVal, okMax := parseBoundedInt(values[maxName], 0, 1<<30)
+		return okMin && okMax && minVal <= maxVal
+	}
+	return pairOK(NameForumTopicTitleMinRunes, NameForumTopicTitleMaxRunes) &&
+		pairOK(NameForumTopicContentMinRunes, NameForumTopicContentMaxRunes) &&
+		pairOK(NameForumCommentMinRunes, NameForumCommentMaxRunes)
 }
