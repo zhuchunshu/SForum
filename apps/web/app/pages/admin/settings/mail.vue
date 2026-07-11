@@ -11,6 +11,7 @@ type Policy = { reply: ChannelPolicy, mention: ChannelPolicy, moderation: Channe
 
 const { t } = useI18n()
 const { request } = useApiClient()
+const { fetchAdminEnvelope } = useWebOptions()
 const adminPage = useAdminPage('/settings/mail')
 const adminRoutes = useAdminRoutes()
 const toast = useToast()
@@ -20,6 +21,8 @@ const saving = ref(false)
 const errorMessage = ref('')
 const testRecipient = ref('')
 const testRecipientError = ref('')
+// 来自 site.admin_email 的预填默认值；仅作建议，测试邮件可不保存该字段。
+const adminEmailDefault = ref('')
 const providers = ref<Provider[]>([])
 const selected = ref('')
 const configured = ref(false)
@@ -43,6 +46,21 @@ const eventRows = computed(() => [
   { key: 'moderation' as const, label: t('admin.mailSettings.moderationResult') }
 ])
 
+async function loadAdminEmailDefault() {
+  try {
+    const envelope = await fetchAdminEnvelope()
+    const items = envelope.data || []
+    const adminEmail = items.find(item => item.name === 'site.admin_email')?.value?.trim() || ''
+    adminEmailDefault.value = adminEmail
+    // 仅在输入框仍为空时预填，避免覆盖运营已改的测试收件人。
+    if (!testRecipient.value.trim() && adminEmail) {
+      testRecipient.value = adminEmail
+    }
+  } catch {
+    adminEmailDefault.value = ''
+  }
+}
+
 async function load() {
   pending.value = true
   errorMessage.value = ''
@@ -50,7 +68,8 @@ async function load() {
     const [state, deliveryState, policyState] = await Promise.all([
       request<{ items: Provider[], selected: { extensionId?: string }, configured: boolean }>('/admin/mail/providers'),
       request<{ items: Delivery[] }>('/admin/mail/deliveries'),
-      request<Policy>('/admin/mail/policy')
+      request<Policy>('/admin/mail/policy'),
+      loadAdminEmailDefault()
     ])
     providers.value = state.items
     selected.value = state.selected?.extensionId || ''
@@ -91,12 +110,19 @@ async function restorePolicy() {
 
 async function testMail() {
   testRecipientError.value = ''
-  if (!/^\S+@\S+\.\S+$/.test(testRecipient.value.trim())) {
+  const explicit = testRecipient.value.trim()
+  // 输入框可空：后端会回落到 site.admin_email；两者皆空才提示。
+  if (explicit && !/^\S+@\S+\.\S+$/.test(explicit)) {
     testRecipientError.value = t('admin.mailSettings.invalidRecipient')
     return
   }
+  if (!explicit && !adminEmailDefault.value) {
+    testRecipientError.value = t('admin.mailSettings.recipientOrAdminEmailRequired')
+    return
+  }
   await runAction(async () => {
-    await request('/admin/mail/test', { method: 'POST', body: { recipient: testRecipient.value } })
+    const body = explicit ? { recipient: explicit } : {}
+    await request('/admin/mail/test', { method: 'POST', body })
     await load()
   }, 'admin.mailSettings.testQueued')
 }
@@ -159,8 +185,17 @@ async function runAction(action: () => Promise<unknown>, titleKey: string, descr
         <UButton icon="i-lucide-rotate-ccw" color="neutral" variant="subtle" :loading="saving" @click="resetProvider">{{ t('admin.mailSettings.reset') }}</UButton></div>
       </div><UButton class="mt-3" :to="adminRoutes.path('/extensions/sforum.smtp/pages/settings')" icon="i-lucide-settings" color="neutral" variant="outline">{{ t('admin.mailSettings.smtpSettings') }}</UButton></div>
       <div class="border-t border-slate-200 pt-5 dark:border-zinc-800">
-        <h3 class="font-semibold">{{ t('admin.mailSettings.testTitle') }}</h3><p class="mt-1 text-sm text-slate-500">{{ t('admin.mailSettings.testHelp') }}</p>
-        <div class="mt-3 flex flex-col gap-2 sm:flex-row"><UInput v-model="testRecipient" type="email" class="flex-1" :placeholder="t('admin.mailSettings.testRecipientPlaceholder')" /><UButton icon="i-lucide-send" :loading="saving" @click="testMail">{{ t('admin.mailSettings.sendTest') }}</UButton></div>
+        <h3 class="font-semibold">{{ t('admin.mailSettings.testTitle') }}</h3>
+        <p class="mt-1 text-sm text-slate-500">{{ adminEmailDefault ? t('admin.mailSettings.testHelpWithAdminEmail') : t('admin.mailSettings.testHelp') }}</p>
+        <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+          <UInput
+            v-model="testRecipient"
+            type="email"
+            class="flex-1"
+            :placeholder="adminEmailDefault || t('admin.mailSettings.testRecipientPlaceholder')"
+          />
+          <UButton icon="i-lucide-send" :loading="saving" @click="testMail">{{ t('admin.mailSettings.sendTest') }}</UButton>
+        </div>
         <p v-if="testRecipientError" class="mt-1 text-sm text-red-600">{{ testRecipientError }}</p>
       </div>
       </div>

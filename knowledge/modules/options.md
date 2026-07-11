@@ -148,9 +148,15 @@ Initial runtime option support is implemented.
   `useSiteDateTime()` / `utils/siteDateTime.ts` format timestamps for display.
   Admin UI supports one-click restore of recommended datetime defaults.
 - `site.tagline` is optional public short text (max 160 runes) for navbar/auth
-  branding; it is not SEO description (`seo.home.description`).
+  branding; it is not SEO description (`seo.home.description`). Default theme
+  `SFNavbar` shows it under the site name when non-empty.
   `site.admin_email` is optional admin-only contact email (RFC address form,
-  max 254), distinct from mail provider From address.
+  max 254), distinct from mail provider From address. It is the default
+  recipient for `POST /admin/mail/test` when the request omits `recipient`,
+  and the mail admin UI prefills that field from admin web-options.
+- Admin datetime surfaces (attachments, search rebuild, extension events /
+  releases) format timestamps via `useSiteDateTime()` so they follow
+  `site.timezone` / date / time presets instead of browser `toLocaleString`.
 - Appearance preset settings use `appearance.theme` as a single public option.
   The stored key is unchanged for compatibility, but user-facing UI/docs should
   call it "配色预设 / appearance preset" rather than "theme". It accepts preset

@@ -10,7 +10,7 @@ const { t, locale, locales } = useI18n()
 const localePath = useLocalePath()
 const switchLocalePath = useSwitchLocalePath()
 const { user, refresh } = useAuthSession()
-const { siteName, webOption } = useWebOptions()
+const { siteName, siteTagline, webOption } = useWebOptions()
 const { request } = useApiClient()
 const router = useRouter()
 const colorMode = useColorMode()
@@ -21,6 +21,25 @@ const notifications = useNotifications()
 const publicTagPagesEnabled = computed(() => parseForumTagPublicPagesOption(
   webOption('forum.tags.public_pages', 'enabled')
 ))
+
+// 导航栏注册入口以 registration-status 为准（含 bootstrap 覆盖）。
+type RegistrationStatus = {
+  nextUserIsInitialSuperAdmin: boolean
+  registrationEnabled?: boolean
+}
+const { data: registrationStatus } = await useAsyncData('auth-registration-status-navbar', async () => {
+  try {
+    return await request<RegistrationStatus>('/auth/registration-status')
+  } catch {
+    // 接口失败时保守显示注册，避免误关 bootstrap 入口。
+    return { nextUserIsInitialSuperAdmin: false, registrationEnabled: true }
+  }
+})
+const showRegisterLinks = computed(() => registrationStatus.value?.registrationEnabled !== false)
+const logoAriaLabel = computed(() => {
+  const tagline = siteTagline.value
+  return tagline ? `${siteName.value} — ${tagline}` : siteName.value
+})
 
 type LocaleCode = Parameters<typeof switchLocalePath>[0]
 type LocaleOption = {
@@ -141,18 +160,18 @@ const mobileMenuItems = computed<NavbarMenuItem[][]>(() => {
 
   const account: NavbarMenuItem[] = []
   if (!user.value) {
-    account.push(
-      {
-        label: t('nav.login'),
-        icon: 'i-lucide-log-in',
-        to: localePath('/login')
-      },
-      {
+    account.push({
+      label: t('nav.login'),
+      icon: 'i-lucide-log-in',
+      to: localePath('/login')
+    })
+    if (showRegisterLinks.value) {
+      account.push({
         label: t('nav.register'),
         icon: 'i-lucide-user-plus',
         to: localePath('/register')
-      }
-    )
+      })
+    }
   }
   if (user.value && canReviewContent.value) {
     destinations.push({
@@ -257,12 +276,15 @@ async function logout() {
       <NuxtLink
         :to="localePath('/')"
         class="navbar__logo"
-        :aria-label="siteName"
+        :aria-label="logoAriaLabel"
       >
         <span class="navbar__logo-mark" aria-hidden="true">
           <UIcon name="i-lucide-message-circle" class="size-4" />
         </span>
-        <span class="navbar__logo-text">{{ siteName }}</span>
+        <span class="navbar__logo-text-wrap">
+          <span class="navbar__logo-text">{{ siteName }}</span>
+          <span v-if="siteTagline" class="navbar__logo-tagline">{{ siteTagline }}</span>
+        </span>
       </NuxtLink>
 
       <nav class="navbar__desktop-nav" :aria-label="t('nav.mainNav')">
@@ -364,6 +386,7 @@ async function logout() {
             {{ t('nav.login') }}
           </NuxtLink>
           <NuxtLink
+            v-if="showRegisterLinks"
             :to="localePath('/register')"
             class="navbar__auth-link navbar__auth-link--primary"
             :aria-label="t('nav.register')"
@@ -492,12 +515,30 @@ async function logout() {
   color: #ffffff;
 }
 
+.navbar__logo-text-wrap {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.15;
+}
+
 .navbar__logo-text,
 .navbar__username {
   max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.navbar__logo-tagline {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sf-public-text-muted, #64748b);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .navbar__desktop-nav {

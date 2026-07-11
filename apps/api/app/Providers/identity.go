@@ -51,9 +51,10 @@ func NewIdentityProviderWithPasswordReset(store identity.Store, sessions *authse
 	}
 }
 
-// optionsResolver 暴露密码策略、开放注册开关以及密码重置/mail-test 需要的站点名/URL。
+// optionsResolver 暴露密码策略、开放注册开关以及密码重置/mail-test 需要的站点名/管理员邮箱。
 type optionsResolver interface {
 	SiteName(ctx context.Context) (string, error)
+	AdminEmail(ctx context.Context) (string, error)
 	WebOption(ctx context.Context, name string) (string, error)
 	PasswordPolicy(ctx context.Context) (identity.PasswordPolicy, error)
 	RegistrationEnabled(ctx context.Context) (bool, error)

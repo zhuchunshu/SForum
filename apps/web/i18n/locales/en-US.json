@@ -1360,7 +1360,7 @@
       "siteTaglinePlaceholder": "For example: A friendly technical community",
       "siteTaglineHint": "Shown near the navbar and login page. Leave blank if unused. Not the same as SEO description.",
       "adminEmail": "Administration email",
-      "adminEmailPlaceholder": "For example: ops@example.com",
+      "adminEmailPlaceholder": "For example: ops{'@'}example.com",
       "adminEmailHint": "Operator contact email for system notices. Not the SMTP From address, and not exposed on public APIs."
     },
     "seo": {
@@ -1682,6 +1682,8 @@
       "notificationCreated": "Test notification created for your account.",
       "openInbox": "Open notification inbox",
       "invalidRecipient": "Enter one valid email address.",
+      "recipientOrAdminEmailRequired": "Enter a test recipient, or set the administration email in site settings first.",
+      "testHelpWithAdminEmail": "Prefills the site administration email (Site Settings → Basic). You can change it to any inbox you can check; leaving it empty still uses the administration email on the server.",
       "recipient": "Recipient",
       "template": "Template",
       "status": "Status",
@@ -1697,7 +1699,7 @@
       "stepTestHelp": "After the test is queued, use delivery history to confirm the final status and failure reason.",
       "providerHelp": "This page selects which plugin sends mail. SMTP server details and credentials stay in the provider plugin.",
       "policyHelp": "Choose whether replies, mentions, and moderation results create in-app and email projections. Disabling email does not disable in-app notifications.",
-      "testHelp": "Enter an address you can check. It is used only for this test and is not saved as a site setting.",
+      "testHelp": "Enter an address you can check. If an administration email is configured, it is prefilled; leaving the field empty still uses that address on the server.",
       "deliveriesHelp": "The 50 newest mail tasks appear here. Queued does not mean delivered; check the final status.",
       "inAppStatus": "In-app notification status",
       "mailStatus": "Email delivery status",

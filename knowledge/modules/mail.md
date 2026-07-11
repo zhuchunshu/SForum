@@ -22,6 +22,10 @@ SMTP, log delivery, no-op delivery, authentication, or TLS.
   center. It owns provider selection, custom-recipient test mail, notification
   policy, self-test notification, and delivery history; queued test mail is not
   presented as synchronously delivered.
+- `POST /admin/mail/test` recipient resolution: explicit JSON `recipient` first,
+  otherwise `site.admin_email` via `Options.AdminEmail`. Both empty → `422
+  mail.test_recipient_required`. Response `data.recipient` echoes the resolved
+  address. The admin UI prefills from admin web-options when available.
 
 ## SMTP Plugin
 

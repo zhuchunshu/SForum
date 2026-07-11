@@ -34,9 +34,10 @@ type Controller struct {
 	options       optionsResolver
 }
 
-// optionsResolver 只暴露密码重置/mail-test 需要的站点名/URL，避免全量依赖 options.Service。
+// optionsResolver 只暴露密码策略、mail-test 需要的站点名/管理员邮箱，避免全量依赖 options.Service。
 type optionsResolver interface {
 	SiteName(ctx context.Context) (string, error)
+	AdminEmail(ctx context.Context) (string, error)
 	WebOption(ctx context.Context, name string) (string, error)
 	PasswordPolicy(ctx context.Context) (identity.PasswordPolicy, error)
 }
@@ -278,7 +279,8 @@ func (h *Controller) passwordResetConfirm(c fiber.Ctx) error {
 	return apphttp.OK(c, map[string]any{"reset": true})
 }
 
-// adminMailTest 向当前管理员或指定收件人发送测试邮件。
+// adminMailTest 向指定收件人或站点管理员邮箱发送测试邮件。
+// 收件人优先级：请求 body.recipient → site.admin_email → 422。
 func (h *Controller) adminMailTest(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
@@ -292,9 +294,15 @@ func (h *Controller) adminMailTest(c fiber.Ctx) error {
 	}
 	var req mailTestRequest
 	_ = c.Bind().Body(&req)
-	recipient, validRecipient := normalizeTestRecipient(req.Recipient)
+	adminEmail := ""
+	if h.options != nil {
+		if value, err := h.options.AdminEmail(c.Context()); err == nil {
+			adminEmail = value
+		}
+	}
+	// 收件人优先级：请求 body → site.admin_email（与 SMTP From 无关）。
+	recipient, validRecipient := resolveMailTestRecipient(req.Recipient, adminEmail)
 	if !validRecipient {
-		// 无指定收件人时，从当前用户资料查邮箱；此处简化为返回错误提示。
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "mail.test_recipient_required")
 	}
 	siteName := "SForum"
@@ -308,7 +316,7 @@ func (h *Controller) adminMailTest(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, "mail.test_failed")
 	}
-	return apphttp.JSON(c, fiber.StatusAccepted, apphttp.MessageOK, map[string]any{"queued": true, "deliveryId": delivery.ID})
+	return apphttp.JSON(c, fiber.StatusAccepted, apphttp.MessageOK, map[string]any{"queued": true, "deliveryId": delivery.ID, "recipient": recipient})
 }
 
 func normalizeTestRecipient(value string) (string, bool) {
@@ -318,6 +326,14 @@ func normalizeTestRecipient(value string) (string, bool) {
 		return "", false
 	}
 	return value, true
+}
+
+// resolveMailTestRecipient 解析测试邮件收件人：显式 recipient 优先，否则 site.admin_email。
+func resolveMailTestRecipient(explicit, adminEmail string) (string, bool) {
+	if recipient, ok := normalizeTestRecipient(explicit); ok {
+		return recipient, true
+	}
+	return normalizeTestRecipient(adminEmail)
 }
 
 type passwordResetRequestPayload struct {

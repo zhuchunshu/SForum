@@ -339,6 +339,16 @@ func (s *Service) SiteName(ctx context.Context) (string, error) {
 	return s.WebOption(ctx, NameSiteName)
 }
 
+// AdminEmail 返回运营配置的站点管理员邮箱（admin-only，可为空）。
+// 供 mail-test 默认收件人等内部路径使用；不走 WebOption/Get，避免公开选项校验拦截。
+func (s *Service) AdminEmail(ctx context.Context) (string, error) {
+	values, err := s.loadMap(ctx)
+	if err != nil {
+		return "", err
+	}
+	return values[NameSiteAdminEmail], nil
+}
+
 func (s *Service) RuntimeSettings(ctx context.Context) (RuntimeSettings, error) {
 	values, err := s.loadMap(ctx)
 	if err != nil {

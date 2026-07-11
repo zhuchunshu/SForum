@@ -12,6 +12,7 @@ defineOptions({
   name: 'AdminExtensions'
 })
 
+const { format: formatSiteDateTime } = useSiteDateTime()
 const { t, locale } = useI18n()
 const adminPage = useAdminPage('/extensions')
 const adminRoutes = useAdminRoutes()
@@ -452,7 +453,7 @@ onBeforeUnmount(stopActivationPolling)
             <div v-for="event in selectedEventPageInfo.items" :key="event.id" class="rounded-md bg-slate-50 p-3 text-sm dark:bg-zinc-900">
               <div class="flex items-center justify-between gap-3">
                 <span class="font-medium text-slate-900 dark:text-zinc-100">{{ event.action }}</span>
-                <span class="text-xs text-slate-500 dark:text-zinc-400">{{ new Date(event.createdAt).toLocaleString() }}</span>
+                <span class="text-xs text-slate-500 dark:text-zinc-400">{{ formatSiteDateTime(event.createdAt) }}</span>
               </div>
               <p v-if="event.message" class="mt-1 text-slate-500 dark:text-zinc-400">
                 {{ event.message }}

@@ -74,6 +74,7 @@ type ProbeResult = {
   message: string
 }
 
+const { format: formatSiteDateTime } = useSiteDateTime()
 const { t } = useI18n()
 const toast = useToast()
 const { request } = useApiClient()
@@ -666,7 +667,7 @@ function isPreviewableImage(item: Attachment) {
               <td class="px-3 py-3">{{ humanFileSize(item.size) }}</td>
               <td class="px-3 py-3">{{ item.referenceCount }}</td>
               <td class="px-3 py-3"><UBadge :color="statusColor(item.status)" variant="soft">{{ t(`admin.attachments.status.${item.status}`) }}</UBadge></td>
-              <td class="px-3 py-3 text-xs text-slate-500 dark:text-zinc-400">{{ new Date(item.createdAt).toLocaleString() }}</td>
+              <td class="px-3 py-3 text-xs text-slate-500 dark:text-zinc-400">{{ formatSiteDateTime(item.createdAt) }}</td>
             </tr>
           </tbody>
         </table>

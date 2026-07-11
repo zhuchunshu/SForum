@@ -13,6 +13,7 @@ defineOptions({
 })
 
 const { t, locale } = useI18n()
+const { format: formatSiteDateTime } = useSiteDateTime()
 const adminPage = useAdminPage('/extensions/events')
 const definitionPage = ref(1)
 const eventPage = ref(1)
@@ -235,7 +236,7 @@ function fieldList(fields?: string[]) {
             </p>
           </div>
           <div class="flex items-center text-xs text-slate-500 md:justify-end dark:text-zinc-400">
-            {{ new Date(delivery.createdAt).toLocaleString() }}
+            {{ formatSiteDateTime(delivery.createdAt) }}
           </div>
         </div>
         <div
@@ -286,7 +287,7 @@ function fieldList(fields?: string[]) {
             </p>
           </div>
           <div class="flex items-center text-xs text-slate-500 md:justify-end dark:text-zinc-400">
-            {{ new Date(event.createdAt).toLocaleString() }}
+            {{ formatSiteDateTime(event.createdAt) }}
           </div>
         </div>
         <div
