@@ -196,6 +196,25 @@ describe('avatar option helpers', () => {
 })
 
 describe('seo option helpers', () => {
+  test('resolves independent SEO identity and content policies', () => {
+    const settings = resolveSEOSettings({
+      'site.name': 'SForum',
+      'seo.site.inherit_site_name': 'disabled',
+      'seo.site.name': 'SForum Developers',
+      'seo.home.title': 'Developer Q&A',
+      'seo.home.description': 'Questions and open source discussions.',
+      'seo.home.keywords': 'developers,open source',
+      'seo.content_type.profile.index_mode': 'index',
+      'seo.content_type.topic.description_source': 'topic_summary,topic_excerpt,site_default'
+    })
+
+    expect(settings.seoSiteName).toBe('SForum Developers')
+    expect(settings.homeTitle).toBe('Developer Q&A')
+    expect(settings.homeKeywords).toBe('developers,open source')
+    expect(settings.policies.profile.indexMode).toBe('index')
+    expect(settings.policies.topic.descriptionSources).toEqual(['topic_summary', 'topic_excerpt', 'site_default'])
+  })
+
   test('resolves runtime SEO settings with safe defaults', () => {
     const settings = resolveSEOSettings({
       'seo.twitter_card': 'summary',
@@ -207,6 +226,9 @@ describe('seo option helpers', () => {
     expect(settings.twitterCard).toBe('summary')
     expect(settings.twitterSite).toBe('@sforum_app')
     expect(settings.robotsExtraDisallow).toEqual(['/admin', '/private'])
+    expect(settings.policies.category.indexMode).toBe('index')
+    expect(settings.policies.topic.includeInSitemap).toBe(true)
+    expect(settings.policies.profile.indexMode).toBe('noindex')
     expect(isSEOIndexingAllowed(settings, 'http://127.0.0.1:3000')).toBe(false)
     expect(isSEOIndexingAllowed(settings, 'https://forum.example.com')).toBe(true)
   })

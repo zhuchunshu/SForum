@@ -1,5 +1,6 @@
 import type { ComputedRef, Ref } from 'vue'
 import type { SEOSettings } from './useWebOptions'
+import { resolveSEO, type SEOPageContext } from '~/utils/seoResolver'
 
 type MaybeReactive<T> = T | Ref<T> | ComputedRef<T> | (() => T)
 
@@ -20,63 +21,101 @@ export type SForumSEOInput = {
   schema?: MaybeReactive<SForumSchemaInput | undefined>
 }
 
-export const useSForumSeo = (input: SForumSEOInput) => {
+export const useSForumSeo = (input: SForumSEOInput | MaybeReactive<SEOPageContext>) => {
   const route = useRoute()
-  const { siteName, siteUrl, seoSettings, seoIndexable } = useWebOptions()
+  const { siteUrl, seoSettings, seoIndexable } = useWebOptions()
 
-  const title = computed(() => (resolveReactive(input.title) || '').trim())
-  const description = computed(() => resolveReactive(input.description)?.trim() || seoSettings.value.metaDescription)
-  const canonicalPath = computed(() => resolveReactive(input.path) || route.path || '/')
-  const canonicalUrl = computed(() => absoluteSiteUrl(siteUrl.value, canonicalPath.value))
-  const image = computed(() => resolveReactive(input.image)?.trim() || seoSettings.value.ogImageUrl)
-  const robotsRule = computed(() => {
-    const pageNoindex = resolveReactive(input.noindex) === true
-    return pageNoindex || !seoIndexable.value
-      ? 'noindex, nofollow'
-      : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
-  })
+  const pageContext = computed(() => normalizePageContext(input, route.path || '/'))
+  const resolved = computed(() => resolveSEO({
+    ...seoSettings.value,
+    siteUrl: siteUrl.value,
+    allowIndexing: seoIndexable.value
+  }, pageContext.value))
 
   useSeoMeta({
-    title,
-    description,
-    ogTitle: title,
-    ogDescription: description,
-    ogType: () => resolveReactive(input.type) || 'website',
-    ogUrl: canonicalUrl,
-    ogImage: image,
+    title: () => resolved.value.title,
+    description: () => resolved.value.description,
+    keywords: () => resolved.value.keywords || undefined,
+    ogTitle: () => resolved.value.ogTitle,
+    ogDescription: () => resolved.value.ogDescription,
+    ogType: () => pageContext.value.type === 'topic' ? 'article' : 'website',
+    ogUrl: () => resolved.value.canonicalUrl,
+    ogImage: () => resolved.value.image || undefined,
     twitterCard: () => seoSettings.value.twitterCard,
     twitterSite: () => seoSettings.value.twitterSite || undefined,
-    twitterTitle: title,
-    twitterDescription: description,
-    twitterImage: image
+    twitterTitle: () => resolved.value.ogTitle,
+    twitterDescription: () => resolved.value.ogDescription,
+    twitterImage: () => resolved.value.image || undefined
   })
 
   useHead(() => ({
     link: [
-      { key: 'canonical', rel: 'canonical', href: canonicalUrl.value }
+      { key: 'canonical', rel: 'canonical', href: resolved.value.canonicalUrl }
     ],
     meta: [
-      { key: 'robots', name: 'robots', content: robotsRule.value },
+      { key: 'robots', name: 'robots', content: resolved.value.robots },
       ...verificationMeta(seoSettings.value)
     ],
     script: structuredDataScript({
       settings: seoSettings.value,
-      siteName: siteName.value,
+      siteName: resolved.value.siteName,
       siteUrl: siteUrl.value,
-      canonicalUrl: canonicalUrl.value,
-      title: title.value,
-      description: description.value,
-      image: image.value,
-      schema: resolveReactive(input.schema)
+      canonicalUrl: resolved.value.canonicalUrl,
+      title: resolved.value.title,
+      description: resolved.value.description,
+      image: resolved.value.image,
+      schema: legacySchema(input, pageContext.value)
     })
   }))
 
   return {
-    title,
-    description,
-    canonicalUrl,
-    robotsRule
+    title: computed(() => resolved.value.title),
+    description: computed(() => resolved.value.description),
+    canonicalUrl: computed(() => resolved.value.canonicalUrl),
+    robotsRule: computed(() => resolved.value.robots),
+    resolved
   }
+}
+
+function normalizePageContext(input: SForumSEOInput | MaybeReactive<SEOPageContext>, routePath: string): SEOPageContext {
+  const value = resolveReactive(input as MaybeReactive<SForumSEOInput | SEOPageContext>)
+  if (value && isPageContext(value)) {
+    return value
+  }
+  const legacy = value as SForumSEOInput | undefined
+  const title = resolveReactive(legacy?.title)?.trim() || ''
+  const path = resolveReactive(legacy?.path) || routePath
+  const schema = resolveReactive(legacy?.schema)
+  return {
+    type: schema?.type === 'DiscussionForumPosting' ? 'topic' : path === '/' ? 'home' : 'static',
+    path,
+    title,
+    description: resolveReactive(legacy?.description),
+    image: resolveReactive(legacy?.image),
+    noindex: resolveReactive(legacy?.noindex),
+    variables: {
+      pageTitle: title,
+      topicTitle: title,
+      authorName: schema?.authorName
+    },
+    datePublished: schema?.datePublished,
+    dateModified: schema?.dateModified,
+    authorName: schema?.authorName
+  }
+}
+
+function isPageContext(value: SForumSEOInput | SEOPageContext): value is SEOPageContext {
+  return ['home', 'category', 'tag', 'topic', 'profile', 'static'].includes(String(value.type))
+}
+
+function legacySchema(input: SForumSEOInput | MaybeReactive<SEOPageContext>, context: SEOPageContext): SForumSchemaInput | undefined {
+  const value = resolveReactive(input as MaybeReactive<SForumSEOInput | SEOPageContext>)
+  if (value && !isPageContext(value)) {
+    return resolveReactive(value.schema)
+  }
+  return context.type === 'topic'
+    ? { type: 'DiscussionForumPosting', datePublished: context.datePublished, dateModified: context.dateModified, authorName: context.authorName }
+    : { type: 'WebPage' }
 }
 
 function resolveReactive<T>(value: MaybeReactive<T> | undefined): T | undefined {

@@ -2,6 +2,7 @@ import type { ApiEnvelope } from '~/composables/useApiClient'
 // TopicUrlMode 的权威定义在 forumTaxonomy（纯工具模块）；此处复用以避免
 // Nuxt auto-import 的重复类型声明警告。
 import type { TopicUrlMode } from '~/utils/forumTaxonomy'
+import type { SEOContentPolicy, SEOPageType, SEOResolverSettings } from '~/utils/seoResolver'
 
 export type WebOption = {
   name: string
@@ -86,7 +87,7 @@ export const recommendedAvatarSettings: AvatarSettings = {
   compressQuality: 85
 }
 
-export type SEOSettings = {
+export type SEOSettings = SEOResolverSettings & {
   metaTitleTemplate: string
   metaDescription: string
   metaKeywords: string
@@ -225,6 +226,17 @@ const fallbackOptions: Record<string, string> = {
   'seo.schema_org.discussion_enabled': enabledOption,
   'seo.schema_org.organization_logo_url': '',
   'seo.topic_url_mode': recommendedTopicUrlMode,
+  'seo.site.inherit_site_name': enabledOption,
+  'seo.site.name': '',
+  'seo.home.title': '',
+  'seo.home.description': '',
+  'seo.home.keywords': '',
+  'seo.home.og_title': '',
+  'seo.home.og_description': '',
+  'seo.home.og_image_url': '',
+  'seo.page.title_template': '{pageTitle} | {seoSiteName}',
+  'seo.page.default_description': '',
+  'seo.page.title_separator': '|',
   'avatar.allow_upload': enabledOption,
   'avatar.default_provider': recommendedAvatarSettings.defaultProvider,
   'avatar.gravatar_base_url': recommendedAvatarSettings.gravatarBaseUrl,
@@ -453,7 +465,26 @@ function normalizeFooterLocale(localeCode: string): FooterLocale {
 
 export function resolveSEOSettings(values: Record<string, string>): SEOSettings {
   const option = (name: string) => values[name] ?? fallbackOptions[name] ?? ''
+  const siteName = option('site.name').trim() || 'SForum'
+  const inheritSiteName = normalizeEnabledOption(option('seo.site.inherit_site_name'), true)
+  const seoSiteName = inheritSiteName ? siteName : option('seo.site.name').trim() || siteName
+  const pageDefaultDescription = option('seo.page.default_description').trim() || option('seo.meta_description').trim()
+  const policies = Object.fromEntries(
+    (['home', 'category', 'tag', 'topic', 'profile', 'static'] as SEOPageType[]).map(type => [type, resolveSEOContentPolicy(type, option)])
+  ) as Record<SEOPageType, SEOContentPolicy>
   return {
+    siteName,
+    siteUrl: option('site.url').trim() || 'http://127.0.0.1:3000',
+    seoSiteName,
+    homeTitle: option('seo.home.title').trim() || seoSiteName,
+    homeDescription: option('seo.home.description').trim() || option('seo.meta_description').trim() || seoSiteName,
+    homeKeywords: option('seo.home.keywords').trim() || option('seo.meta_keywords').trim(),
+    homeOGTitle: option('seo.home.og_title').trim(),
+    homeOGDescription: option('seo.home.og_description').trim(),
+    homeOGImageUrl: option('seo.home.og_image_url').trim() || option('seo.og_image_url').trim(),
+    pageTitleTemplate: option('seo.page.title_template').trim() || option('seo.meta_title_template').trim() || '{pageTitle} | {seoSiteName}',
+    pageDefaultDescription,
+    policies,
     metaTitleTemplate: option('seo.meta_title_template').trim(),
     metaDescription: option('seo.meta_description').trim(),
     metaKeywords: option('seo.meta_keywords').trim(),
@@ -477,6 +508,35 @@ export function resolveSEOSettings(values: Record<string, string>): SEOSettings 
     schemaOrgDiscussionEnabled: normalizeEnabledOption(option('seo.schema_org.discussion_enabled'), true),
     schemaOrgOrganizationLogoUrl: option('seo.schema_org.organization_logo_url').trim(),
     topicUrlMode: normalizeTopicUrlMode(option('seo.topic_url_mode'))
+  }
+}
+
+function resolveSEOContentPolicy(type: SEOPageType, option: (name: string) => string): SEOContentPolicy {
+  const defaults: Record<SEOPageType, SEOContentPolicy> = {
+    home: { titleTemplate: '{seoSiteName}', descriptionSources: ['content', 'site_default'], defaultImageUrl: '', indexMode: 'index', includeInSitemap: true, schemaType: 'WebSite' },
+    category: { titleTemplate: '{categoryName} | {seoSiteName}', descriptionSources: ['category_description', 'site_default'], defaultImageUrl: '', indexMode: 'index', includeInSitemap: true, schemaType: 'CollectionPage' },
+    tag: { titleTemplate: '{tagName} | {seoSiteName}', descriptionSources: ['tag_description', 'site_default'], defaultImageUrl: '', indexMode: 'index', includeInSitemap: true, schemaType: 'CollectionPage' },
+    topic: { titleTemplate: '{topicTitle} | {seoSiteName}', descriptionSources: ['topic_summary', 'topic_excerpt', 'site_default'], defaultImageUrl: '', indexMode: 'index', includeInSitemap: true, schemaType: 'DiscussionForumPosting' },
+    profile: { titleTemplate: '{authorName} | {seoSiteName}', descriptionSources: ['profile_bio', 'site_default'], defaultImageUrl: '', indexMode: 'noindex', includeInSitemap: false, schemaType: 'ProfilePage' },
+    static: { titleTemplate: '{pageTitle} | {seoSiteName}', descriptionSources: ['page_description', 'site_default'], defaultImageUrl: '', indexMode: 'index', includeInSitemap: true, schemaType: 'WebPage' }
+  }
+  if (type === 'home') {
+    return defaults.home
+  }
+  const prefix = `seo.content_type.${type}`
+  const fallback = defaults[type]
+  const schemaValue = option(`${prefix}.schema_type`).trim() as SEOContentPolicy['schemaType']
+  const indexValue = option(`${prefix}.index_mode`).trim().toLowerCase()
+  const schemaTypes: SEOContentPolicy['schemaType'][] = ['WebSite', 'CollectionPage', 'DiscussionForumPosting', 'ProfilePage', 'WebPage']
+  return {
+    titleTemplate: option(`${prefix}.title_template`).trim() || fallback.titleTemplate,
+    descriptionSources: option(`${prefix}.description_source`).split(',').map(value => value.trim()).filter(Boolean).length
+      ? option(`${prefix}.description_source`).split(',').map(value => value.trim()).filter(Boolean)
+      : fallback.descriptionSources,
+    defaultImageUrl: option(`${prefix}.default_image_url`).trim(),
+    indexMode: indexValue === 'index' || indexValue === 'noindex' ? indexValue : fallback.indexMode,
+    includeInSitemap: normalizeEnabledOption(option(`${prefix}.include_in_sitemap`), fallback.includeInSitemap),
+    schemaType: schemaTypes.includes(schemaValue) ? schemaValue : fallback.schemaType
   }
 }
 
