@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SForum · 方案A · Discourse 密集表格风 — 首页</title>
+<link rel="stylesheet" href="../shared.css">
+<style>
+/* ===== 方案A：LinuxDo / Discourse 风格 ===== */
+/* 特点：信息密度高、表格化分类分组、分类色条、头像组、回复/浏览数列 */
+
+:root {
+  --dc-bg: #f8f9fa;
+  --dc-card: #ffffff;
+  --dc-border: #e6e8eb;
+  --dc-border-soft: #eef0f2;
+  --dc-hover: #f6f8fa;
+  --dc-fg: #1c2833;
+  --dc-fg-2: #5d6d7e;
+  --dc-fg-3: #95a5a6;
+  --dc-link: #0f766e;
+  --dc-link-hover: #0b5f59;
+}
+
+body { background: var(--dc-bg); }
+
+/* ===== 顶栏 ===== */
+.dc-topbar {
+  background: var(--dc-card);
+  border-bottom: 1px solid var(--dc-border);
+  position: sticky; top: 0; z-index: 50;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+}
+.dc-topbar__inner {
+  max-width: 1180px; margin: 0 auto; padding: 0 20px;
+  height: 60px; display: flex; align-items: center; gap: 20px;
+}
+.dc-logo {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 800; font-size: 18px; color: var(--dc-fg);
+  letter-spacing: -0.02em;
+}
+.dc-logo__mark {
+  width: 30px; height: 30px; border-radius: 7px;
+  background: linear-gradient(135deg, var(--sf-accent), #14b8a6);
+  display: grid; place-items: center; color: #fff; font-size: 15px;
+}
+.dc-search {
+  flex: 1; max-width: 420px; position: relative;
+}
+.dc-search input {
+  width: 100%; height: 38px; padding: 0 14px 0 38px;
+  border: 1px solid var(--dc-border); border-radius: var(--radius-md);
+  background: var(--dc-bg); font-size: 14px; font-family: var(--font-sans);
+  transition: border-color .15s, background .15s;
+}
+.dc-search input:focus { outline: none; border-color: var(--sf-accent); background: #fff; }
+.dc-search__icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--dc-fg-3); font-size: 15px;
+}
+.dc-nav { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.dc-nav a {
+  padding: 7px 12px; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600; color: var(--dc-fg-2);
+  transition: background .15s, color .15s;
+}
+.dc-nav a:hover { background: var(--dc-hover); color: var(--dc-fg); }
+.dc-btn-new {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 14px; border-radius: var(--radius-md);
+  background: var(--sf-accent); color: #fff; font-size: 13.5px; font-weight: 600;
+  transition: background .15s;
+}
+.dc-btn-new:hover { background: var(--sf-accent-hover); }
+.dc-avatar-btn { width: 34px; height: 34px; border-radius: 50%; overflow: hidden; border: 2px solid var(--dc-border); }
+
+/* ===== 布局 ===== */
+.dc-layout {
+  max-width: 1180px; margin: 0 auto; padding: 18px 20px 60px;
+  display: grid; grid-template-columns: 200px minmax(0,1fr) 280px; gap: 20px;
+  align-items: start;
+}
+
+/* 左侧分类导航 */
+.dc-sidenav {
+  background: var(--dc-card); border: 1px solid var(--dc-border);
+  border-radius: var(--radius-card); padding: 8px; position: sticky; top: 76px;
+}
+.dc-sidenav__group { padding: 6px 8px; }
+.dc-sidenav__title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--dc-fg-3); padding: 8px 8px 4px;
+}
+.dc-sidenav__item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 8px; border-radius: var(--radius-sm);
+  font-size: 13.5px; font-weight: 500; color: var(--dc-fg-2);
+  transition: background .15s, color .15s;
+}
+.dc-sidenav__item:hover { background: var(--dc-hover); color: var(--dc-fg); }
+.dc-sidenav__item.is-active { background: var(--sf-accent-soft); color: var(--sf-accent-hover); font-weight: 600; }
+.dc-sidenav__dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+
+/* 中间主体 */
+.dc-main { min-width: 0; }
+
+.dc-toolbar {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  padding: 0 4px;
+}
+.dc-tabs { display: flex; gap: 2px; }
+.dc-tab {
+  padding: 6px 12px; border-radius: var(--radius-sm);
+  font-size: 13.5px; font-weight: 600; color: var(--dc-fg-2);
+  transition: background .15s, color .15s;
+}
+.dc-tab:hover { background: var(--dc-hover); }
+.dc-tab.is-active { background: var(--sf-accent-soft); color: var(--sf-accent-hover); }
+.dc-toolbar__right { margin-left: auto; display: flex; gap: 8px; }
+.dc-select {
+  height: 32px; padding: 0 28px 0 10px; border-radius: var(--radius-sm);
+  border: 1px solid var(--dc-border); background: var(--dc-card);
+  font-size: 13px; font-family: var(--font-sans); color: var(--dc-fg-2);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2395a5a6' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+}
+
+/* 分类区块 */
+.dc-cat {
+  background: var(--dc-card); border: 1px solid var(--dc-border);
+  border-radius: var(--radius-card); margin-bottom: 14px; overflow: hidden;
+}
+.dc-cat__head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid var(--dc-border-soft);
+  background: linear-gradient(to bottom, #fafbfc, #fff);
+}
+.dc-cat__badge {
+  width: 26px; height: 26px; border-radius: 6px;
+  display: grid; place-items: center; color: #fff; font-size: 14px;
+}
+.dc-cat__name { font-size: 15px; font-weight: 700; color: var(--dc-fg); }
+.dc-cat__desc { font-size: 12.5px; color: var(--dc-fg-3); }
+.dc-cat__count { margin-left: auto; font-size: 12px; color: var(--dc-fg-3); }
+
+/* 话题行 —— Discourse 表格化核心 */
+.dc-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0,1fr) 90px 90px 150px;
+  align-items: center; gap: 14px;
+  padding: 11px 16px; border-bottom: 1px solid var(--dc-border-soft);
+  transition: background .12s;
+}
+.dc-row:last-child { border-bottom: none; }
+.dc-row:hover { background: var(--dc-hover); }
+
+/* 列1：作者头像 */
+.dc-row__author { display: flex; justify-content: center; }
+/* 列2：标题区 */
+.dc-row__main { min-width: 0; }
+.dc-row__title {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 3px;
+  font-size: 15px; font-weight: 600; color: var(--dc-fg);
+  line-height: 1.4;
+}
+.dc-row__title a {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dc-row__title a:hover { color: var(--dc-link); }
+.dc-row__pin { color: var(--sf-warning); font-size: 13px; flex: none; }
+.dc-row__meta {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--dc-fg-3);
+}
+.dc-row__meta a:hover { color: var(--dc-link); }
+.dc-row__tags { display: flex; gap: 4px; flex-wrap: wrap; }
+/* 列3/4：回复/浏览 */
+.dc-row__stat {
+  text-align: center; font-size: 13px; color: var(--dc-fg-2);
+}
+.dc-row__stat b { display: block; font-size: 15px; color: var(--dc-fg); font-weight: 700; }
+.dc-row__stat span { font-size: 11px; color: var(--dc-fg-3); }
+/* 列5：最后活动 */
+.dc-row__last { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dc-row__last-info { min-width: 0; font-size: 12px; line-height: 1.4; }
+.dc-row__last-info b { display: block; color: var(--dc-fg-2); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dc-row__last-info span { color: var(--dc-fg-3); }
+
+/* 表头 */
+.dc-thead {
+  display: grid; grid-template-columns: 52px minmax(0,1fr) 90px 90px 150px;
+  gap: 14px; padding: 8px 16px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em; color: var(--dc-fg-3);
+  border-bottom: 1px solid var(--dc-border-soft); background: #fafbfc;
+}
+.dc-thead__center { text-align: center; }
+
+/* 右侧栏 */
+.dc-aside { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 14px; }
+.dc-panel {
+  background: var(--dc-card); border: 1px solid var(--dc-border);
+  border-radius: var(--radius-card); padding: 16px;
+}
+.dc-panel__title {
+  font-size: 13px; font-weight: 700; color: var(--dc-fg);
+  margin: 0 0 12px; display: flex; align-items: center; gap: 6px;
+}
+.dc-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dc-stat {
+  padding: 10px; border-radius: var(--radius-md); background: var(--dc-bg);
+  text-align: center;
+}
+.dc-stat b { display: block; font-size: 18px; color: var(--sf-accent); font-weight: 800; }
+.dc-stat span { font-size: 11.5px; color: var(--dc-fg-3); }
+
+.dc-leader { display: flex; flex-direction: column; gap: 8px; }
+.dc-leader__item { display: flex; align-items: center; gap: 9px; }
+.dc-leader__rank {
+  width: 22px; height: 22px; border-radius: 6px; flex: none;
+  display: grid; place-items: center; font-size: 12px; font-weight: 800;
+  background: var(--dc-bg); color: var(--dc-fg-2);
+}
+.dc-leader__rank--1 { background: #fef3c7; color: #b45309; }
+.dc-leader__rank--2 { background: #f1f5f9; color: #475569; }
+.dc-leader__rank--3 { background: #fef2f2; color: #b91c1c; }
+.dc-leader__name { font-size: 13px; font-weight: 600; color: var(--dc-fg); }
+.dc-leader__count { margin-left: auto; font-size: 12px; color: var(--dc-fg-3); }
+
+/* 分类配色 */
+.cat-tech { background: #0f766e; }
+.cat-dev  { background: #2563eb; }
+.cat-chat { background: #6d5bd0; }
+.cat-res  { background: #b45309; }
+.cat-admin{ background: #475569; }
+</style>
+</head>
+<body>
+
+<div class="preview-banner">方案 A · <b>Discourse / linux.do 密集表格风</b> · 高信息密度 · 分类分组 · SForum teal 配色 · <a href="../index.html" style="color:#5eead4">← 返回对比</a></div>
+
+<!-- 顶栏 -->
+<header class="dc-topbar">
+  <div class="dc-topbar__inner">
+    <a class="dc-logo" href="#">
+      <span class="dc-logo__mark">S</span>
+      SForum
+    </a>
+    <div class="dc-search">
+      <span class="dc-search__icon">⌕</span>
+      <input type="text" placeholder="搜索话题、用户、标签…">
+    </div>
+    <nav class="dc-nav">
+      <a href="#">热门</a>
+      <a href="#">最新</a>
+      <a href="#">标签</a>
+    </nav>
+    <a class="dc-btn-new" href="#">＋ 发新帖</a>
+    <img class="dc-avatar-btn" src="https://i.pravatar.cc/68?img=12" alt="me">
+  </div>
+</header>
+
+<div class="dc-layout">
+  <!-- 左侧分类导航 -->
+  <aside class="dc-sidenav">
+    <div class="dc-sidenav__group">
+      <div class="dc-sidenav__title">浏览</div>
+      <a class="dc-sidenav__item is-active" href="#"><span class="dc-sidenav__dot" style="background:var(--sf-accent)"></span>全部</a>
+      <a class="dc-sidenav__item" href="#"><span class="dc-sidenav__dot cat-tech"></span>技术</a>
+      <a class="dc-sidenav__item" href="#"><span class="dc-sidenav__dot cat-dev"></span>开发</a>
+      <a class="dc-sidenav__item" href="#"><span class="dc-sidenav__dot cat-chat"></span>闲聊</a>
+      <a class="dc-sidenav__item" href="#"><span class="dc-sidenav__dot cat-res"></span>资源</a>
+      <a class="dc-sidenav__item" href="#"><span class="dc-sidenav__dot cat-admin"></span>公告</a>
+    </div>
+    <div class="dc-sidenav__group">
+      <div class="dc-sidenav__title">个人</div>
+      <a class="dc-sidenav__item" href="#">⚑ 我的书签</a>
+      <a class="dc-sidenav__item" href="#">◉ 我的回帖</a>
+      <a class="dc-sidenav__item" href="#">✉ 消息</a>
+    </div>
+  </aside>
+
+  <!-- 中间主体 -->
+  <main class="dc-main">
+    <div class="dc-toolbar">
+      <div class="dc-tabs">
+        <a class="dc-tab is-active" href="#">最新</a>
+        <a class="dc-tab" href="#">热门</a>
+        <a class="dc-tab" href="#">未读</a>
+        <a class="dc-tab" href="#">我参与的</a>
+      </div>
+      <div class="dc-toolbar__right">
+        <select class="dc-select"><option>按活动排序</option><option>按创建排序</option></select>
+      </div>
+    </div>
+
+    <!-- 分类区块 1：技术 -->
+    <section class="dc-cat">
+      <div class="dc-cat__head">
+        <span class="dc-cat__badge cat-tech">技</span>
+        <div>
+          <div class="dc-cat__name">技术</div>
+          <div class="dc-cat__desc">编程、架构、工具链相关讨论</div>
+        </div>
+        <span class="dc-cat__count nums">128 个话题</span>
+      </div>
+      <div class="dc-thead">
+        <div></div><div>话题</div>
+        <div class="dc-thead__center">回复</div><div class="dc-thead__center">浏览</div>
+        <div>活动</div>
+      </div>
+
+      <a class="dc-row" href="topic.html">
+        <div class="dc-row__author"><img class="avatar" src="https://i.pravatar.cc/64?img=5" alt=""></div>
+        <div class="dc-row__main">
+          <div class="dc-row__title">
+            <span class="dc-row__pin">📌</span>
+            <a href="topic.html">Go 1.25 新特性对 goroutine 调度器的改进实测</a>
+          </div>
+          <div class="dc-row__meta">
+            <a href="#">@陈昊</a> · <span>2h</span>
+            <span class="dc-row__tags">
+              <span class="tag tag--teal">Go</span>
+              <span class="tag tag--blue">后端</span>
+            </span>
+          </div>
+        </div>
+        <div class="dc-row__stat nums"><b>47</b><span>回复</span></div>
+        <div class="dc-row__stat nums"><b>1.2k</b><span>浏览</span></div>
+        <div class="dc-row__last">
+          <img class="avatar avatar--sm" src="https://i.pravatar.cc/48?img=33" alt="">
+          <div class="dc-row__last-info"><b>@林夕</b><span>12 分钟前</span></div>
+        </div>
+      </a>
+
+      <a class="dc-row" href="topic.html">
+        <div class="dc-row__author"><img class="avatar" src="https://i.pravatar.cc/64?img=8" alt=""></div>
+        <div class="dc-row__main">
+          <div class="dc-row__title"><a href="topic.html">PostgreSQL 17 分区表性能优化实践，附基准测试数据</a></div>
+          <div class="dc-row__meta">
+            <a href="#">@周明</a> · <span>5h</span>
+            <span class="dc-row__tags"><span class="tag tag--teal">数据库</span><span class="tag tag--amber">优化</span></span>
+          </div>
+        </div>
+        <div class="dc-row__stat nums"><b>23</b><span>回复</span></div>
+        <div class="dc-row__stat nums"><b>689</b><span>浏览</span></div>
+        <div class="dc-row__last">
+          <img class="avatar avatar--sm" src="https://i.pravatar.cc/48?img=22" alt="">
+          <div class="dc-row__last-info"><b>@阿木</b><span>1 小时前</span></div>
+        </div>
+      </a>
+
+      <a class="dc-row" href="topic.html">
+        <div class="dc-row__author"><img class="avatar" src="https://i.pravatar.cc/64?img=15" alt=""></div>
+        <div class="dc-row__main">
+          <div class="dc-row__title"><a href="topic.html">用 Rust 重写 CLI 工具后，构建体积从 40MB 降到 3MB</a></div>
+          <div class="dc-row__meta">
+            <a href="#">@Kael</a> · <span>8h</span>
+            <span class="dc-row__tags"><span class="tag tag--violet">Rust</span></span>
+          </div>
+        </div>
+        <div class="dc-row__stat nums"><b>15</b><span>回复</span></div>
+        <div class="dc-row__stat nums"><b>421</b><span>浏览</span></div>
+        <div class="dc-row__last">
+          <img class="avatar avatar--sm" src="https://i.pravatar.cc/48?img=41" alt="">
+          <div class="dc-row__last-info"><b>@Mira</b><span>3 小时前</span></div>
+        </div>
+      </a>
+    </section>
+
+    <!-- 分类区块 2：开发 -->
+    <section class="dc-cat">
+      <div class="dc-cat__head">
+        <span class="dc-cat__badge cat-dev">开</span>
+        <div>
+          <div class="dc-cat__name">开发</div>
+          <div class="dc-cat__desc">SForum 开发、插件、主题、贡献</div>
+        </div>
+        <span class="dc-cat__count nums">86 个话题</span>
+      </div>
+      <div class="dc-thead">
+        <div></div><div>话题</div>
+        <div class="dc-thead__center">回复</div><div class="dc-thead__center">浏览</div>
+        <div>活动</div>
+      </div>
+
+      <a class="dc-row" href="topic.html">
+        <div class="dc-row__author"><img class="avatar" src="https://i.pravatar.cc/64?img=3" alt=""></div>
+        <div class="dc-row__main">
+          <div class="dc-row__title"><a href="topic.html">SForum 插件开发指南：如何正确注册事件监听器</a></div>
+          <div class="dc-row__meta">
+            <a href="#">@Inkedus</a> · <span>1d</span>
+            <span class="dc-row__tags"><span class="tag tag--teal">SForum</span><span class="tag tag--blue">插件</span></span>
+          </div>
+        </div>
+        <div class="dc-row__stat nums"><b>62</b><span>回复</span></div>
+        <div class="dc-row__stat nums"><b>2.4k</b><span>浏览</span></div>
+        <div class="dc-row__last">
+          <img class="avatar avatar--sm" src="https://i.pravatar.cc/48?img=18" alt="">
+          <div class="dc-row__last-info"><b>@云栈</b><span>30 分钟前</span></div>
+        </div>
+      </a>
+
+      <a class="dc-row" href="topic.html">
+        <div class="dc-row__author"><img class="avatar" src="https://i.pravatar.cc/64?img=27" alt=""></div>
+        <div class="dc-row__main">
+          <div class="dc-row__title"><a href="topic.html">分享一个我自己写的邮件通知插件，支持 Mailpit 调试</a></div>
+          <div class="dc-row__meta">
+            <a href="#">@青栀</a> · <span>1d</span>
+            <span class="dc-row__tags"><span class="tag tag--teal">插件</span><span class="tag tag--amber">分享</span></span>
+          </div>
+        </div>
+        <div class="dc-row__stat nums"><b>31</b><span>回复</span></div>
+        <div class="dc-row__stat nums"><b>876</b><span>浏览</span></div>
+        <div class="dc-row__last">
+          <img class="avatar avatar--sm" src="https://i.pravatar.cc/48?img=9" alt="">
+          <div class="dc-row__last-info"><b>@拾光</b><span>2 小时前</span></div>
+        </div>
+      </a>
+    </section>
+
+    <!-- 分类区块 3：闲聊 -->
+    <section class="dc-cat">
+      <div class="dc-cat__head">
+        <span class="dc-cat__badge cat-chat">闲</span>
+        <div>
+          <div class="dc-cat__name">闲聊</div>
+          <div class="dc-cat__desc">技术之外，碎碎念、树洞、快问快答</div>
+        </div>
+        <span class="dc-cat__count nums">342 个话题</span>
+      </div>
+      <div class="dc-thead">
+        <div></div><div>话题</div>
+        <div class="dc-thead__center">回复</div><div class="dc-thead__center">浏览</div>
+        <div>活动</div>
+      </div>
+
+      <a class="dc-row" href="topic.html">
+        <div class="dc-row__author"><img class="avatar" src="https://i.pravatar.cc/64?img=44" alt=""></div>
+        <div class="dc-row__main">
+          <div class="dc-row__title"><a href="topic.html">大家平时写代码都听什么音乐？来交流一下歌单</a></div>
+          <div class="dc-row__meta">
+            <a href="#">@夏野</a> · <span>3h</span>
+            <span class="dc-row__tags"><span class="tag tag--rose">水帖</span><span class="tag tag--neutral">闲聊</span></span>
+          </div>
+        </div>
+        <div class="dc-row__stat nums"><b>128</b><span>回复</span></div>
+        <div class="dc-row__stat nums"><b>3.1k</b><span>浏览</span></div>
+        <div class="dc-row__last">
+          <img class="avatar avatar--sm" src="https://i.pravatar.cc/48?img=51" alt="">
+          <div class="dc-row__last-info"><b>@雾岛</b><span>4 分钟前</span></div>
+        </div>
+      </a>
+    </section>
+
+  </main>
+
+  <!-- 右侧栏 -->
+  <aside class="dc-aside">
+    <div class="dc-panel">
+      <h3 class="dc-panel__title">◈ 社区概览</h3>
+      <div class="dc-stat-grid">
+        <div class="dc-stat"><b class="nums">12.4k</b><span>话题</span></div>
+        <div class="dc-stat"><b class="nums">89.2k</b><span>回复</span></div>
+        <div class="dc-stat"><b class="nums">3,210</b><span>成员</span></div>
+        <div class="dc-stat"><b class="nums">142</b><span>在线</span></div>
+      </div>
+    </div>
+
+    <div class="dc-panel">
+      <h3 class="dc-panel__title">★ 本周活跃</h3>
+      <div class="dc-leader">
+        <div class="dc-leader__item">
+          <span class="dc-leader__rank dc-leader__rank--1">1</span>
+          <img class="avatar avatar--sm" src="https://i.pravatar.cc/48?img=12" alt="">
+          <span class="dc-leader__name">@Inkedus</span>
+          <span class="dc-leader__count nums">86 回复</span>
+        </div>
+        <div class="dc-leader__item">
+          <span class="dc-leader__rank dc-leader__rank--2">2</span>
+          <img class="avatar avatar--sm" src="https://i.pravatar.cc/48?img=33" alt="">
+          <span class="dc-leader__name">@林夕</span>
+          <span class="dc-leader__count nums">54 回复</span>
+        </div>
+        <div class="dc-leader__item">
+          <span class="dc-leader__rank dc-leader__rank--3">3</span>
+          <img class="avatar avatar--sm" src="https://i.pravatar.cc/48?img=18" alt="">
+          <span class="dc-leader__name">@云栈</span>
+          <span class="dc-leader__count nums">41 回复</span>
+        </div>
+        <div class="dc-leader__item">
+          <span class="dc-leader__rank">4</span>
+          <img class="avatar avatar--sm" src="https://i.pravatar.cc/48?img=41" alt="">
+          <span class="dc-leader__name">@Mira</span>
+          <span class="dc-leader__count nums">37 回复</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="dc-panel" style="background:linear-gradient(135deg,#e6f4f1,#f0fdfa);border-color:var(--sf-accent-soft-border)">
+      <h3 class="dc-panel__title">📢 站点公告</h3>
+      <p style="margin:0;font-size:13px;color:var(--sf-fg-secondary);line-height:1.6">
+        SForum v2.1 已发布，新增 River 队列与 Meilisearch 全文搜索，详见
+        <a href="#" style="color:var(--sf-accent);font-weight:600">更新日志</a>。
+      </p>
+    </div>
+  </aside>
+</div>
+
+</body>
+</html>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SFSEOImagePicker from './SFSEOImagePicker.vue'
+
 type Policy = { titleTemplate: string, descriptionSource: string, defaultImageUrl: string, indexMode: 'index' | 'noindex', includeInSitemap: boolean, schemaType: string }
 type ContentType = 'category' | 'tag' | 'topic' | 'profile' | 'static'
 const model = defineModel<Record<ContentType, Policy>>({ required: true })

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SForum · 方案B · 帖子详情</title>
+<link rel="stylesheet" href="../shared.css">
+<style>
+:root {
+  --fl-bg: #f4f5f7;
+  --fl-card: #ffffff;
+  --fl-border: #e8eaed;
+  --fl-hover: #f7f8fa;
+  --fl-fg: #1f2937;
+  --fl-fg-2: #6b7280;
+  --fl-fg-3: #9ca3af;
+}
+body { background: var(--fl-bg); }
+
+/* 顶栏（同首页，简化） */
+.fl-topbar { background: var(--fl-card); box-shadow: 0 1px 2px rgba(0,0,0,0.04); position: sticky; top: 0; z-index: 50; }
+.fl-topbar__inner { max-width: 760px; margin: 0 auto; padding: 0 20px; height: 52px; display: flex; align-items: center; gap: 12px; }
+.fl-back { display: inline-flex; align-items: center; gap: 4px; font-size: 13.5px; font-weight: 600; color: var(--fl-fg-2); }
+.fl-back:hover { color: var(--sf-accent); }
+.fl-topbar__title { font-size: 13px; color: var(--fl-fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 帖子主体 —— Flarum 窄列居中（760px） */
+.fl-topic { max-width: 760px; margin: 0 auto; padding: 16px 20px 60px; }
+
+/* 标签行 */
+.fl-topic__tags { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.fl-topic__cat { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--sf-accent); }
+.fl-topic__catdot { width: 8px; height: 8px; border-radius: 2px; background: var(--sf-accent); }
+
+/* 主帖大卡 */
+.fl-op {
+  background: var(--fl-card); border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden;
+  margin-bottom: 16px;
+}
+.fl-op__head { display: flex; align-items: center; gap: 10px; padding: 14px 18px 0; }
+.fl-op__author-info { flex: 1; min-width: 0; }
+.fl-op__name { font-size: 14.5px; font-weight: 700; color: var(--fl-fg); display: flex; align-items: center; gap: 6px; }
+.fl-op__name a:hover { color: var(--sf-accent); }
+.fl-op__role { font-size: 10.5px; padding: 1px 6px; border-radius: 3px; background: var(--sf-accent-soft); color: var(--sf-accent-hover); font-weight: 600; }
+.fl-op__time { font-size: 12px; color: var(--fl-fg-3); margin-top: 1px; }
+
+.fl-op__title { padding: 6px 18px 0; }
+.fl-op__title h1 { font-size: 22px; font-weight: 700; line-height: 1.3; color: var(--fl-fg); margin: 0; letter-spacing: -0.01em; }
+
+.fl-op__body { padding: 14px 18px 4px; font-size: 15px; line-height: 1.8; color: var(--fl-fg); }
+.fl-op__body p { margin: 0 0 13px; }
+.fl-op__body p:last-child { margin-bottom: 0; }
+.fl-op__body h2 { font-size: 17px; font-weight: 700; margin: 18px 0 8px; }
+.fl-op__body code { font-family: var(--font-mono); font-size: 13px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #be123c; }
+.fl-op__body pre { background: #0f172a; color: #e2e8f0; padding: 13px 15px; border-radius: 8px; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.65; overflow-x: auto; margin: 13px 0; }
+.fl-op__body pre code { background: none; color: inherit; padding: 0; }
+.fl-op__body blockquote { border-left: 3px solid var(--sf-accent); background: var(--sf-accent-soft); padding: 9px 13px; margin: 13px 0; border-radius: 0 6px 6px 0; color: var(--fl-fg-2); font-size: 14px; }
+.fl-op__body ul { padding-left: 22px; margin: 8px 0; }
+.fl-op__body li { margin-bottom: 5px; }
+
+/* 主帖操作条 */
+.fl-op__actions {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 14px; margin-top: 8px; border-top: 1px solid var(--fl-border);
+}
+.fl-act {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 30px; padding: 0 11px; border-radius: 15px;
+  font-size: 12.5px; font-weight: 600; color: var(--fl-fg-2);
+  transition: background .12s, color .12s;
+}
+.fl-act:hover { background: var(--fl-hover); color: var(--fl-fg); }
+.fl-act--liked { background: #fef2f2; color: #be123c; }
+.fl-act--liked:hover { background: #fee2e2; }
+.fl-act__count { font-family: var(--font-mono); font-weight: 700; }
+.fl-act--right { margin-left: auto; }
+
+/* 回复区标题 */
+.fl-replies-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 4px 12px; font-size: 13.5px; color: var(--fl-fg-2);
+}
+.fl-replies-head b { color: var(--fl-fg); font-weight: 700; font-family: var(--font-mono); }
+
+/* 回复项 —— Flarum 式紧凑卡片 */
+.fl-reply {
+  background: var(--fl-card); border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  margin-bottom: 10px; padding: 14px 18px;
+  transition: box-shadow .15s;
+}
+.fl-reply:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+.fl-reply__head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.fl-reply__name { font-size: 13.5px; font-weight: 700; color: var(--fl-fg); }
+.fl-reply__name a:hover { color: var(--sf-accent); }
+.fl-reply__role { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+.fl-reply__time { font-size: 11.5px; color: var(--fl-fg-3); margin-left: auto; }
+.fl-reply__time a { color: var(--fl-fg-3); }
+
+.fl-reply__body { font-size: 14px; line-height: 1.75; color: var(--fl-fg); }
+.fl-reply__body p { margin: 0 0 10px; }
+.fl-reply__body p:last-child { margin-bottom: 0; }
+.fl-reply__body code { font-family: var(--font-mono); font-size: 12.5px; background: #f1f5f9; padding: 2px 5px; border-radius: 4px; color: #be123c; }
+
+/* 引用块（楼中楼） */
+.fl-reply__quote {
+  background: var(--fl-bg); border-left: 3px solid var(--fl-fg-3);
+  padding: 8px 12px; border-radius: 0 6px 6px 0; margin-bottom: 10px;
+  font-size: 13px; color: var(--fl-fg-2);
+}
+.fl-reply__quote b { color: var(--fl-fg); }
+
+.fl-reply__actions {
+  display: flex; align-items: center; gap: 4px; margin-top: 8px;
+  padding-top: 8px; border-top: 1px solid var(--fl-border);
+}
+.fl-reply__act {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 26px; padding: 0 9px; border-radius: 13px;
+  font-size: 12px; font-weight: 600; color: var(--fl-fg-2);
+}
+.fl-reply__act:hover { background: var(--fl-hover); color: var(--fl-fg); }
+.fl-reply__act--liked { color: #be123c; }
+
+/* 回复编辑器 */
+.fl-editor {
+  background: var(--fl-card); border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  margin-top: 18px; overflow: hidden;
+}
+.fl-editor__head { display: flex; align-items: center; gap: 8px; padding: 12px 16px 0; font-size: 13px; font-weight: 600; color: var(--fl-fg); }
+.fl-editor__head img { width: 24px; height: 24px; border-radius: 50%; }
+.fl-editor__area { padding: 8px 16px; }
+.fl-editor__textarea {
+  width: 100%; min-height: 90px; border: none; resize: vertical;
+  font-family: var(--font-sans); font-size: 14px; line-height: 1.7;
+  color: var(--fl-fg); outline: none;
+}
+.fl-editor__textarea::placeholder { color: var(--fl-fg-3); }
+.fl-editor__foot { display: flex; align-items: center; gap: 8px; padding: 8px 16px 12px; }
+.fl-editor__btn { height: 34px; padding: 0 18px; border-radius: 17px; background: var(--sf-accent); color: #fff; font-size: 13px; font-weight: 600; }
+.fl-editor__btn:hover { background: var(--sf-accent-hover); }
+.fl-editor__hint { font-size: 11.5px; color: var(--fl-fg-3); margin-left: auto; }
+
+/* 浮动右侧进度（可选，简化为顶部锚点） */
+.fl-jump {
+  position: fixed; right: 24px; bottom: 24px; z-index: 40;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.fl-jump__btn {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--fl-card); color: var(--fl-fg-2);
+  display: grid; place-items: center; font-size: 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  transition: background .15s, color .15s;
+}
+.fl-jump__btn:hover { background: var(--sf-accent); color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="preview-banner">方案 B · <b>Flarum 极简帖子页</b> · 窄列阅读 · 简洁回复卡 · 轻量 · <a href="home.html" style="color:#5eead4">← 首页</a> · <a href="../index.html" style="color:#5eead4">对比</a></div>
+
+<header class="fl-topbar">
+  <div class="fl-topbar__inner">
+    <a class="fl-back" href="home.html">← 全部讨论</a>
+    <span class="fl-topbar__title">Go 1.25 新特性对 goroutine 调度器的改进实测</span>
+  </div>
+</header>
+
+<article class="fl-topic">
+  <!-- 标签行 -->
+  <div class="fl-topic__tags">
+    <a class="fl-topic__cat" href="#"><span class="fl-topic__catdot"></span>技术</a>
+    <span class="tag tag--teal">Go</span>
+    <span class="tag tag--blue">后端</span>
+    <span class="tag tag--amber">📌 置顶</span>
+  </div>
+
+  <!-- 主帖 -->
+  <div class="fl-op">
+    <div class="fl-op__head">
+      <img class="avatar avatar--lg" src="https://i.pravatar.cc/96?img=5" alt="">
+      <div class="fl-op__author-info">
+        <div class="fl-op__name"><a href="#">陈昊</a> <span class="fl-op__role">版主</span></div>
+        <div class="fl-op__time">2 小时前 · 47 回复 · 1,236 浏览</div>
+      </div>
+    </div>
+    <div class="fl-op__title">
+      <h1>Go 1.25 新特性对 goroutine 调度器的改进实测</h1>
+    </div>
+    <div class="fl-op__body">
+      <p>Go 1.25 正式发布后，我对调度器做了一轮基准测试。重点关注 runtime 在高并发短任务场景下的表现，以及新引入的 goroutine 分组调度机制对延迟的影响。</p>
+
+      <h2>测试环境</h2>
+      <ul>
+        <li>CPU: AMD Ryzen 9 7950X (16C/32T)</li>
+        <li>Go 版本: 1.24.3 vs 1.25.0</li>
+        <li>负载: 每秒 50 万个轻量 goroutine，生命周期 2ms</li>
+      </ul>
+
+      <p>核心结论：在 P 数量等于物理核数的场景下，尾延迟 P99 从 <code>3.2ms</code> 降到了 <code>1.8ms</code>，下降约 44%。关键改动：</p>
+
+      <pre><code>// 1.25 之后：引入 groupsched，按 NUMA 亲和性分组唤醒
+func schedule() {
+    if gp := groupsched.acquire(); gp != nil {
+        execute(gp)
+        return
+    }
+}</code></pre>
+
+      <blockquote>注意：这个改进只对 GOMAXPROCS &gt; 8 的场景明显，单核或双核机器上几乎无变化。</blockquote>
+
+      <p>完整的基准数据和 flamegraph 我放在了 GitHub Gist，欢迎大家一起讨论你们的测试结果。</p>
+    </div>
+    <div class="fl-op__actions">
+      <a class="fl-act fl-act--liked" href="#">♥ <span class="fl-act__count nums">28</span></a>
+      <a class="fl-act" href="#">↩ 回复</a>
+      <a class="fl-act" href="#">🔗 分享</a>
+      <a class="fl-act" href="#">⚑ 收藏</a>
+      <a class="fl-act fl-act--right" href="#">⋯</a>
+    </div>
+  </div>
+
+  <!-- 回复区 -->
+  <div class="fl-replies-head">共 <b>47</b> 条回复</div>
+
+  <div class="fl-reply">
+    <div class="fl-reply__head">
+      <img class="avatar" src="https://i.pravatar.cc/64?img=33" alt="">
+      <span class="fl-reply__name"><a href="#">林夕</a> <span class="fl-reply__role" style="background:#eff6ff;color:#1d4ed8">活跃</span></span>
+      <span class="fl-reply__time"><a href="#">1 小时前</a></span>
+    </div>
+    <div class="fl-reply__body">
+      <p>这个 groupsched 是不是和之前 Google 提的 <code>processor-level goroutine grouping</code> 那篇论文相关？我之前在 Docker 容器里限制 4 核测过，P99 几乎没变化，看来确实是 NUMA 亲和性才生效。</p>
+      <p>另外想问下 GOMAXPROCS 设成 CPU 核数的 1.5 倍会不会反而劣化？</p>
+    </div>
+    <div class="fl-reply__actions">
+      <a class="fl-reply__act fl-reply__act--liked" href="#">♥ <span class="nums">9</span></a>
+      <a class="fl-reply__act" href="#">↩ 回复</a>
+      <a class="fl-reply__act" href="#">⚑</a>
+    </div>
+  </div>
+
+  <div class="fl-reply">
+    <div class="fl-reply__head">
+      <img class="avatar" src="https://i.pravatar.cc/64?img=5" alt="">
+      <span class="fl-reply__name"><a href="#">陈昊</a> <span class="fl-reply__role" style="background:var(--sf-accent-soft);color:var(--sf-accent-hover)">版主</span></span>
+      <span class="fl-reply__time"><a href="#">52 分钟前</a></span>
+    </div>
+    <div class="fl-reply__body">
+      <div class="fl-reply__quote"><b>@林夕</b> GOMAXPROCS 设成 CPU 核数的 1.5 倍会不会反而劣化？</div>
+      <p>会。我专门测过这个，超额订阅在 1.25 里劣化比 1.24 更明显——分组锁竞争在 P 数 &gt; 物理核时上升很快。建议 GOMAXPROCS 等于物理核或 <code>runtime.NumCPU()</code>，不要手动加大。</p>
+    </div>
+    <div class="fl-reply__actions">
+      <a class="fl-reply__act fl-reply__act--liked" href="#">♥ <span class="nums">14</span></a>
+      <a class="fl-reply__act" href="#">↩ 回复</a>
+      <a class="fl-reply__act" href="#">⚑</a>
+    </div>
+  </div>
+
+  <div class="fl-reply">
+    <div class="fl-reply__head">
+      <img class="avatar" src="https://i.pravatar.cc/64?img=18" alt="">
+      <span class="fl-reply__name"><a href="#">云栈</a></span>
+      <span class="fl-reply__time"><a href="#">40 分钟前</a></span>
+    </div>
+    <div class="fl-reply__body">
+      <p>补充一个数据点：我们在生产环境（32 核物理机）灰度了一周，P99 调度延迟从 4.1ms 降到 2.3ms，但 GC STW 没有变化。整体吞吐提升了约 8%。</p>
+      <p>不过注意到一个副作用：cgo 调用频繁的场景下，groupsched 的唤醒会有抖动，建议重度 cgo 的服务先压测再升级。</p>
+    </div>
+    <div class="fl-reply__actions">
+      <a class="fl-reply__act" href="#">♥ <span class="nums">6</span></a>
+      <a class="fl-reply__act" href="#">↩ 回复</a>
+      <a class="fl-reply__act" href="#">⚑</a>
+    </div>
+  </div>
+
+  <!-- 回复编辑器 -->
+  <div class="fl-editor">
+    <div class="fl-editor__head">
+      <img src="https://i.pravatar.cc/48?img=12" alt="">
+      <span>作为 @Inkedus 回复</span>
+    </div>
+    <div class="fl-editor__area">
+      <textarea class="fl-editor__textarea" placeholder="写下你的回复…"></textarea>
+    </div>
+    <div class="fl-editor__foot">
+      <a class="fl-editor__btn" href="#">发表回复</a>
+      <span class="fl-editor__hint">Markdown · Ctrl+Enter 发送</span>
+    </div>
+  </div>
+</article>
+
+<div class="fl-jump">
+  <a class="fl-jump__btn" href="#" title="回到顶部">↑</a>
+  <a class="fl-jump__btn" href="#" title="跳到最新">↓</a>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SForum · 方案B · Flarum 极简轻量风 — 首页</title>
+<link rel="stylesheet" href="../shared.css">
+<style>
+/* ===== 方案B：Flarum 风格 ===== */
+/* 特点：极简、大量留白、无边框卡片、轻阴影、圆角、彩色标签、回复数气泡 */
+
+:root {
+  --fl-bg: #f4f5f7;
+  --fl-card: #ffffff;
+  --fl-border: #e8eaed;
+  --fl-hover: #f7f8fa;
+  --fl-fg: #1f2937;
+  --fl-fg-2: #6b7280;
+  --fl-fg-3: #9ca3af;
+}
+
+body { background: var(--fl-bg); }
+
+/* ===== 顶栏：Flarum 式 —— 简洁横栏 ===== */
+.fl-topbar {
+  background: var(--fl-card);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  position: sticky; top: 0; z-index: 50;
+}
+.fl-topbar__inner {
+  max-width: 860px; margin: 0 auto; padding: 0 20px;
+  height: 56px; display: flex; align-items: center; gap: 16px;
+}
+.fl-logo { font-weight: 700; font-size: 19px; color: var(--fl-fg); display: flex; align-items: center; gap: 8px; letter-spacing: -0.02em; }
+.fl-logo__mark {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--sf-accent); color: #fff;
+  display: grid; place-items: center; font-size: 16px;
+}
+.fl-search {
+  flex: 1; max-width: 340px; position: relative;
+}
+.fl-search input {
+  width: 100%; height: 36px; padding: 0 14px 0 36px;
+  border: 1px solid var(--fl-border); border-radius: 18px;
+  background: var(--fl-bg); font-size: 13.5px; font-family: var(--font-sans);
+  transition: border-color .15s, background .15s;
+}
+.fl-search input:focus { outline: none; border-color: var(--sf-accent); background: #fff; }
+.fl-search__icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--fl-fg-3); }
+
+.fl-topbar__right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.fl-icon-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center; color: var(--fl-fg-2); font-size: 16px;
+  transition: background .15s;
+}
+.fl-icon-btn:hover { background: var(--fl-hover); color: var(--fl-fg); }
+.fl-avatar-btn { width: 32px; height: 32px; border-radius: 50%; overflow: hidden; }
+
+/* ===== 主体：单栏居中，窄列（Flarum 标志性的窄内容区） ===== */
+.fl-main { max-width: 860px; margin: 0 auto; padding: 20px; }
+
+/* 工具条 */
+.fl-toolbar {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 14px;
+}
+.fl-toolbar__title { font-size: 17px; font-weight: 700; color: var(--fl-fg); margin-right: 8px; }
+.fl-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 30px; padding: 0 13px; border-radius: 15px;
+  font-size: 13px; font-weight: 600; color: var(--fl-fg-2);
+  background: transparent; transition: background .15s, color .15s;
+  cursor: pointer;
+}
+.fl-chip:hover { background: var(--fl-hover); color: var(--fl-fg); }
+.fl-chip.is-active { background: var(--sf-accent); color: #fff; }
+.fl-toolbar__right { margin-left: auto; }
+.fl-new-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 14px; border-radius: 17px;
+  background: var(--sf-accent); color: #fff; font-size: 13px; font-weight: 600;
+}
+.fl-new-btn:hover { background: var(--sf-accent-hover); }
+
+/* 讨论列表 —— Flarum 核心样式 */
+.fl-list { display: flex; flex-direction: column; gap: 0; }
+
+.fl-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 16px; background: var(--fl-card);
+  border-radius: 0; transition: background .12s;
+  border-bottom: 1px solid var(--fl-border);
+}
+.fl-item:first-child { border-radius: 12px 12px 0 0; }
+.fl-item:last-child { border-radius: 0 0 12px 12px; border-bottom: none; }
+.fl-item:only-child { border-radius: 12px; }
+.fl-list > .fl-item:first-of-type { box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.fl-list { box-shadow: 0 1px 3px rgba(0,0,0,0.04); border-radius: 12px; overflow: hidden; }
+.fl-item:hover { background: var(--fl-hover); }
+
+.fl-item__avatar { flex: none; }
+.fl-item__main { flex: 1; min-width: 0; }
+.fl-item__title {
+  font-size: 15px; font-weight: 600; color: var(--fl-fg);
+  line-height: 1.4; margin-bottom: 5px;
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+}
+.fl-item__title a:hover { color: var(--sf-accent); }
+.fl-item__excerpt {
+  font-size: 13px; color: var(--fl-fg-2); line-height: 1.5;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+  -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+}
+.fl-item__badges { display: inline-flex; gap: 4px; }
+.fl-item__badge {
+  width: 18px; height: 18px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 10px; color: #fff; font-weight: 700;
+}
+
+/* 回复数气泡 —— Flarum 招牌设计 */
+.fl-item__replies {
+  flex: none; min-width: 44px; height: 44px;
+  border-radius: 10px; background: var(--fl-bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  transition: background .12s;
+}
+.fl-item:hover .fl-item__replies { background: var(--sf-accent-soft); }
+.fl-item__replies b { font-size: 15px; font-weight: 700; color: var(--fl-fg); line-height: 1; font-family: var(--font-mono); }
+.fl-item:hover .fl-item__replies b { color: var(--sf-accent); }
+.fl-item__replies span { font-size: 9.5px; color: var(--fl-fg-3); margin-top: 1px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.fl-item__meta {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--fl-fg-3); margin-top: 5px;
+}
+.fl-item__meta a { color: var(--fl-fg-2); font-weight: 500; }
+.fl-item__meta a:hover { color: var(--sf-accent); }
+.fl-item__tags { display: inline-flex; gap: 5px; }
+.fl-item__tags .tag { height: 18px; font-size: 11px; padding: 0 7px; border-radius: 4px; }
+
+/* 分组标题 */
+.fl-group-title {
+  font-size: 13px; font-weight: 700; color: var(--fl-fg-2);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin: 24px 0 8px; padding: 0 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.fl-group-title::after { content: ''; flex: 1; height: 1px; background: var(--fl-border); }
+
+/* 加载更多 */
+.fl-loadmore {
+  display: block; text-align: center; padding: 14px;
+  color: var(--fl-fg-2); font-size: 13.5px; font-weight: 600;
+  border-radius: 12px; background: var(--fl-card); margin-top: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: background .15s;
+}
+.fl-loadmore:hover { background: var(--fl-hover); color: var(--sf-accent); }
+
+/* 右下角浮动按钮（移动端发帖） */
+.fl-fab {
+  position: fixed; right: 24px; bottom: 24px;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--sf-accent); color: #fff; font-size: 22px;
+  display: grid; place-items: center;
+  box-shadow: 0 6px 20px rgba(15,118,110,0.4);
+  transition: transform .15s, background .15s; z-index: 40;
+}
+.fl-fab:hover { background: var(--sf-accent-hover); transform: scale(1.06); }
+</style>
+</head>
+<body>
+
+<div class="preview-banner">方案 B · <b>Flarum 极简轻量风</b> · 大留白 · 无边框卡片 · 回复数气泡 · 窄列居中 · <a href="../index.html" style="color:#5eead4">← 返回对比</a></div>
+
+<header class="fl-topbar">
+  <div class="fl-topbar__inner">
+    <a class="fl-logo" href="#"><span class="fl-logo__mark">S</span>SForum</a>
+    <div class="fl-search">
+      <span class="fl-search__icon">⌕</span>
+      <input type="text" placeholder="搜索讨论…">
+    </div>
+    <div class="fl-topbar__right">
+      <a class="fl-icon-btn" href="#" title="通知">🔔</a>
+      <img class="fl-avatar-btn" src="https://i.pravatar.cc/64?img=12" alt="me">
+    </div>
+  </div>
+</header>
+
+<main class="fl-main">
+  <div class="fl-toolbar">
+    <span class="fl-toolbar__title">全部讨论</span>
+    <a class="fl-chip is-active" href="#">最新</a>
+    <a class="fl-chip" href="#">热门</a>
+    <a class="fl-chip" href="#">未读</a>
+    <div class="fl-toolbar__right">
+      <a class="fl-new-btn" href="#">✎ 发起讨论</a>
+    </div>
+  </div>
+
+  <!-- 讨论列表 -->
+  <div class="fl-list">
+
+    <a class="fl-item" href="topic.html">
+      <img class="avatar fl-item__avatar" src="https://i.pravatar.cc/64?img=5" alt="">
+      <div class="fl-item__main">
+        <div class="fl-item__title">
+          <a href="topic.html">Go 1.25 新特性对 goroutine 调度器的改进实测</a>
+          <span class="fl-item__badges"><span class="fl-item__badge" style="background:#b45309">📌</span></span>
+        </div>
+        <div class="fl-item__excerpt">重点关注 runtime 在高并发短任务场景下的表现，以及新引入的 goroutine 分组调度机制对延迟的影响…</div>
+        <div class="fl-item__meta">
+          <a href="#">@陈昊</a> · <span>技术</span>
+          <span class="fl-item__tags">
+            <span class="tag tag--teal">Go</span>
+            <span class="tag tag--blue">后端</span>
+          </span>
+          · 最后回复 <a href="#">@林夕</a> · 12 分钟前
+        </div>
+      </div>
+      <div class="fl-item__replies"><b class="nums">47</b><span>回复</span></div>
+    </a>
+
+    <a class="fl-item" href="topic.html">
+      <img class="avatar fl-item__avatar" src="https://i.pravatar.cc/64?img=44" alt="">
+      <div class="fl-item__main">
+        <div class="fl-item__title"><a href="topic.html">大家平时写代码都听什么音乐？来交流一下歌单</a></div>
+        <div class="fl-item__excerpt">最近 coding 的时候总觉得缺点什么，想找点适合专注的背景音乐，求推荐…</div>
+        <div class="fl-item__meta">
+          <a href="#">@夏野</a> · <span>闲聊</span>
+          <span class="fl-item__tags"><span class="tag tag--rose">水帖</span></span>
+          · 最后回复 <a href="#">@雾岛</a> · 4 分钟前
+        </div>
+      </div>
+      <div class="fl-item__replies"><b class="nums">128</b><span>回复</span></div>
+    </a>
+
+    <a class="fl-item" href="topic.html">
+      <img class="avatar fl-item__avatar" src="https://i.pravatar.cc/64?img=3" alt="">
+      <div class="fl-item__main">
+        <div class="fl-item__title"><a href="topic.html">SForum 插件开发指南：如何正确注册事件监听器</a></div>
+        <div class="fl-item__excerpt">本文介绍 SForum 的事件系统设计，以及在插件中注册同步/异步监听器的最佳实践…</div>
+        <div class="fl-item__meta">
+          <a href="#">@Inkedus</a> · <span>开发</span>
+          <span class="fl-item__tags"><span class="tag tag--teal">SForum</span><span class="tag tag--blue">插件</span></span>
+          · 最后回复 <a href="#">@云栈</a> · 30 分钟前
+        </div>
+      </div>
+      <div class="fl-item__replies"><b class="nums">62</b><span>回复</span></div>
+    </a>
+
+    <a class="fl-item" href="topic.html">
+      <img class="avatar fl-item__avatar" src="https://i.pravatar.cc/64?img=8" alt="">
+      <div class="fl-item__main">
+        <div class="fl-item__title"><a href="topic.html">PostgreSQL 17 分区表性能优化实践，附基准测试数据</a></div>
+        <div class="fl-item__excerpt">从 12 版本升级到 17 后，我们对一张 3 亿行的日志表做了分区改造，P95 查询从 800ms 降到…</div>
+        <div class="fl-item__meta">
+          <a href="#">@周明</a> · <span>技术</span>
+          <span class="fl-item__tags"><span class="tag tag--teal">数据库</span><span class="tag tag--amber">优化</span></span>
+          · 最后回复 <a href="#">@阿木</a> · 1 小时前
+        </div>
+      </div>
+      <div class="fl-item__replies"><b class="nums">23</b><span>回复</span></div>
+    </a>
+
+    <a class="fl-item" href="topic.html">
+      <img class="avatar fl-item__avatar" src="https://i.pravatar.cc/64?img=27" alt="">
+      <div class="fl-item__main">
+        <div class="fl-item__title"><a href="topic.html">分享一个我自己写的邮件通知插件，支持 Mailpit 调试</a></div>
+        <div class="fl-item__excerpt">写了个 SForum 的邮件 provider 插件，本地用 Mailpit 收信调试很方便，开源了，求 star…</div>
+        <div class="fl-item__meta">
+          <a href="#">@青栀</a> · <span>开发</span>
+          <span class="fl-item__tags"><span class="tag tag--teal">插件</span><span class="tag tag--amber">分享</span></span>
+          · 最后回复 <a href="#">@拾光</a> · 2 小时前
+        </div>
+      </div>
+      <div class="fl-item__replies"><b class="nums">31</b><span>回复</span></div>
+    </a>
+
+    <a class="fl-item" href="topic.html">
+      <img class="avatar fl-item__avatar" src="https://i.pravatar.cc/64?img=15" alt="">
+      <div class="fl-item__main">
+        <div class="fl-item__title"><a href="topic.html">用 Rust 重写 CLI 工具后，构建体积从 40MB 降到 3MB</a></div>
+        <div class="fl-item__excerpt">把一个 Node 写的内部 CLI 用 Rust 重写了一遍，功能一致，体积和启动速度提升巨大…</div>
+        <div class="fl-item__meta">
+          <a href="#">@Kael</a> · <span>技术</span>
+          <span class="fl-item__tags"><span class="tag tag--violet">Rust</span></span>
+          · 最后回复 <a href="#">@Mira</a> · 3 小时前
+        </div>
+      </div>
+      <div class="fl-item__replies"><b class="nums">15</b><span>回复</span></div>
+    </a>
+
+    <a class="fl-item" href="topic.html">
+      <img class="avatar fl-item__avatar" src="https://i.pravatar.cc/64?img=22" alt="">
+      <div class="fl-item__main">
+        <div class="fl-item__title"><a href="topic.html">SForum v2.1 发布：River 队列 + Meilisearch 全文搜索</a></div>
+        <div class="fl-item__excerpt">本次大版本更新带来了持久化任务队列和全文搜索能力，迁移指南见正文…</div>
+        <div class="fl-item__meta">
+          <a href="#">@团队</a> · <span>公告</span>
+          <span class="fl-item__tags"><span class="tag tag--neutral">更新</span></span>
+          · 最后回复 <a href="#">@林夕</a> · 5 小时前
+        </div>
+      </div>
+      <div class="fl-item__replies"><b class="nums">89</b><span>回复</span></div>
+    </a>
+
+  </div>
+
+  <a class="fl-loadmore" href="#">加载更多讨论 ↓</a>
+</main>
+
+<a class="fl-fab" href="#" title="发起新讨论">＋</a>
+
+</body>
+</html>

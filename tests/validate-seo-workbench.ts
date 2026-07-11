@@ -9,6 +9,18 @@ const imagePicker = read('apps/web/app/components/admin/seo/SFSEOImagePicker.vue
 const appearance = read('apps/web/app/components/admin/seo/SFSEOSearchAppearance.vue')
 const contentTypes = read('apps/web/app/components/admin/seo/SFSEOContentTypes.vue')
 
+for (const marker of [
+  "import SFSEOSearchAppearance from '~/components/admin/seo/SFSEOSearchAppearance.vue'",
+  "import SFSEOContentTypes from '~/components/admin/seo/SFSEOContentTypes.vue'"
+]) {
+  if (!page.includes(marker)) throw new Error(`SEO workbench must explicitly import ${marker}`)
+}
+
+for (const [name, source] of [['search appearance', appearance], ['content types', contentTypes]] as const) {
+  const marker = "import SFSEOImagePicker from './SFSEOImagePicker.vue'"
+  if (!source.includes(marker)) throw new Error(`${name} must explicitly import SFSEOImagePicker`)
+}
+
 for (const marker of ['SFSEOSearchAppearance', 'SFSEOContentTypes', 'seo.site.inherit_site_name', 'seo.home.title', 'seo.home.description', 'seo.home.keywords']) {
   if (!page.includes(marker)) throw new Error(`SEO workbench is missing ${marker}`)
 }

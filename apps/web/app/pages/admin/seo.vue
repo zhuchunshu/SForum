@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SFSEOContentTypes from '~/components/admin/seo/SFSEOContentTypes.vue'
+import SFSEOSearchAppearance from '~/components/admin/seo/SFSEOSearchAppearance.vue'
 import {
   enabledOptionValue,
   isLocalSiteUrl,

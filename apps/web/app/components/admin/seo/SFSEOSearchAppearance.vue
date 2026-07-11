@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SFSEOImagePicker from './SFSEOImagePicker.vue'
+
 const inheritSiteName = defineModel<boolean>('inheritSiteName', { required: true })
 const seoSiteName = defineModel<string>('seoSiteName', { required: true })
 const homeTitle = defineModel<string>('homeTitle', { required: true })

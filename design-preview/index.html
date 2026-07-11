@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SForum 首页/帖子页样式方案 · 设计预览</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+body { background: #f8fafc; }
+
+.page { max-width: 1080px; margin: 0 auto; padding: 48px 24px 80px; }
+
+.page__intro { text-align: center; margin-bottom: 44px; }
+.page__intro h1 {
+  font-size: 32px; font-weight: 800; color: var(--sf-fg);
+  margin: 0 0 12px; letter-spacing: -0.02em;
+}
+.page__intro h1 .accent { color: var(--sf-accent); }
+.page__intro p { font-size: 15px; color: var(--sf-fg-secondary); margin: 0; line-height: 1.7; }
+.page__intro .ref {
+  display: inline-flex; gap: 8px; margin-top: 14px; font-size: 12.5px; color: var(--sf-fg-tertiary);
+}
+.page__intro .ref a { color: var(--sf-accent); font-weight: 600; }
+
+/* 三列方案卡 */
+.schemes {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+}
+@media (max-width: 880px) { .schemes { grid-template-columns: 1fr; } }
+
+.scheme {
+  background: var(--sf-card); border: 1px solid var(--sf-border);
+  border-radius: 16px; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.05);
+  transition: all .2s ease; display: flex; flex-direction: column;
+}
+.scheme:hover {
+  transform: translateY(-3px); box-shadow: 0 12px 32px rgba(15,23,42,0.1);
+  border-color: var(--sf-accent-soft-border);
+}
+
+/* 预览缩略图区 */
+.scheme__thumb {
+  height: 168px; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.scheme__tag {
+  position: absolute; top: 12px; left: 12px; z-index: 2;
+  height: 24px; padding: 0 10px; border-radius: 12px;
+  font-size: 11.5px; font-weight: 700; color: #fff;
+  display: inline-flex; align-items: center; gap: 4px;
+  backdrop-filter: blur(8px);
+}
+
+/* A 缩略 */
+.thumb-a { background: linear-gradient(135deg, #f8f9fa, #eef2f6); }
+.thumb-a__mock {
+  width: 88%; height: 120px; background: #fff; border-radius: 8px;
+  border: 1px solid #e6e8eb; overflow: hidden; padding: 8px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.thumb-a__row {
+  height: 22px; background: #f1f5f9; border-radius: 4px;
+  display: flex; align-items: center; gap: 6px; padding: 0 6px;
+}
+.thumb-a__dot { width: 10px; height: 10px; border-radius: 2px; background: var(--sf-accent); flex: none; }
+.thumb-a__line { flex: 1; height: 6px; background: #cbd5e1; border-radius: 3px; }
+.thumb-a__num { width: 18px; height: 6px; background: #94a3b8; border-radius: 3px; flex: none; }
+
+/* B 缩略 */
+.thumb-b { background: linear-gradient(135deg, #f4f5f7, #e8eaed); }
+.thumb-b__mock {
+  width: 80%; height: 130px; display: flex; flex-direction: column; gap: 4px;
+}
+.thumb-b__item {
+  background: #fff; border-radius: 8px; height: 36px; padding: 0 8px;
+  display: flex; align-items: center; gap: 7px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.thumb-b__ava { width: 16px; height: 16px; border-radius: 50%; background: var(--sf-accent-soft); flex: none; }
+.thumb-b__line { flex: 1; height: 5px; background: #e2e8f0; border-radius: 3px; }
+.thumb-b__bubble { width: 22px; height: 22px; border-radius: 5px; background: #f1f5f9; flex: none; }
+
+/* C 缩略 */
+.thumb-c { background: linear-gradient(135deg, #e6f4f1, #ccfbf1); }
+.thumb-c__mock {
+  width: 86%; display: flex; flex-direction: column; gap: 6px;
+}
+.thumb-c__card {
+  background: #fff; border-radius: 8px; height: 34px; padding: 0 8px;
+  display: flex; align-items: center; gap: 7px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.thumb-c__vote { width: 16px; height: 22px; border-radius: 4px; background: var(--sf-accent-soft); flex: none; }
+.thumb-c__lines { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.thumb-c__line { height: 4px; background: #e2e8f0; border-radius: 2px; }
+.thumb-c__line:first-child { width: 70%; background: #cbd5e1; }
+
+.scheme__body { padding: 18px 20px 20px; flex: 1; display: flex; flex-direction: column; }
+.scheme__name { font-size: 17px; font-weight: 800; color: var(--sf-fg); margin: 0 0 4px; letter-spacing: -0.01em; }
+.scheme__sub { font-size: 12.5px; color: var(--sf-accent); font-weight: 600; margin: 0 0 10px; }
+.scheme__desc { font-size: 13px; color: var(--sf-fg-secondary); line-height: 1.65; margin: 0 0 14px; }
+
+.scheme__features { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-direction: column; gap: 6px; }
+.scheme__features li {
+  font-size: 12.5px; color: var(--sf-fg-secondary); padding-left: 18px; position: relative; line-height: 1.5;
+}
+.scheme__features li::before {
+  content: '✓'; position: absolute; left: 0; top: 0;
+  color: var(--sf-accent); font-weight: 800; font-size: 12px;
+}
+
+.scheme__links {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto;
+}
+.scheme__link {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 38px; border-radius: var(--radius-md);
+  font-size: 13.5px; font-weight: 600; transition: all .15s;
+}
+.scheme__link--primary { background: var(--sf-accent); color: #fff; }
+.scheme__link--primary:hover { background: var(--sf-accent-hover); transform: translateY(-1px); }
+.scheme__link--secondary { background: var(--sf-muted); color: var(--sf-fg); }
+.scheme__link--secondary:hover { background: var(--sf-border); }
+
+/* 对比表 */
+.compare {
+  margin-top: 52px; background: var(--sf-card); border: 1px solid var(--sf-border);
+  border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(15,23,42,0.05);
+}
+.compare__title {
+  padding: 20px 24px; font-size: 18px; font-weight: 800; color: var(--sf-fg);
+  border-bottom: 1px solid var(--sf-border); letter-spacing: -0.01em;
+}
+.compare__table { width: 100%; border-collapse: collapse; }
+.compare__table th, .compare__table td {
+  padding: 13px 20px; text-align: left; font-size: 13.5px;
+  border-bottom: 1px solid var(--sf-border-light);
+}
+.compare__table th {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--sf-fg-tertiary); font-weight: 700; background: #fafbfc;
+}
+.compare__table td:first-child { font-weight: 600; color: var(--sf-fg-secondary); width: 140px; }
+.compare__table tr:last-child td { border-bottom: none; }
+.compare__table .yes { color: var(--sf-success); font-weight: 700; }
+.compare__table .no { color: var(--sf-fg-tertiary); }
+.compare__table .mid { color: var(--sf-warning); font-weight: 600; }
+
+/* 页脚提示 */
+.foot-note {
+  margin-top: 36px; padding: 18px 22px; background: var(--sf-accent-soft);
+  border: 1px solid var(--sf-accent-soft-border); border-radius: 12px;
+  font-size: 13.5px; color: var(--sf-fg-secondary); line-height: 1.7;
+}
+.foot-note b { color: var(--sf-accent-hover); }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="page__intro">
+    <h1>SForum 样式方案 <span class="accent">预览与选择</span></h1>
+    <p>针对首页和帖子内容页，参考 linux.do 与 discuss.flarum.org，制作了 3 套差异化方案。<br>
+       所有方案都复用了 SForum 现有的设计 token（teal <code style="background:#fff;padding:1px 5px;border-radius:4px;font-size:12px">#0f766e</code> 主色、Inter + Noto Sans SC 字体、8/12px 圆角），可直接融入现有主题层。</p>
+    <div class="ref">
+      <span>参考站点：</span>
+      <a href="https://linux.do" target="_blank">linux.do</a>
+      <span>·</span>
+      <a href="https://discuss.flarum.org" target="_blank">discuss.flarum.org</a>
+    </div>
+  </div>
+
+  <div class="schemes">
+
+    <!-- 方案 A -->
+    <div class="scheme">
+      <div class="scheme__thumb thumb-a">
+        <span class="scheme__tag" style="background:rgba(28,40,51,0.85)">方案 A</span>
+        <div class="thumb-a__mock">
+          <div class="thumb-a__row"><span class="thumb-a__dot"></span><span class="thumb-a__line"></span><span class="thumb-a__num"></span><span class="thumb-a__num"></span></div>
+          <div class="thumb-a__row"><span class="thumb-a__dot" style="background:#2563eb"></span><span class="thumb-a__line"></span><span class="thumb-a__num"></span><span class="thumb-a__num"></span></div>
+          <div class="thumb-a__row"><span class="thumb-a__dot" style="background:#6d5bd0"></span><span class="thumb-a__line"></span><span class="thumb-a__num"></span><span class="thumb-a__num"></span></div>
+        </div>
+      </div>
+      <div class="scheme__body">
+        <h3 class="scheme__name">Discourse 密集表格风</h3>
+        <p class="scheme__sub">参考：linux.do</p>
+        <p class="scheme__desc">信息密度最高的方案。话题按分类分组，每行包含头像、标题、标签、回复数、浏览数、最后回复者。三栏布局带左侧分类导航。</p>
+        <ul class="scheme__features">
+          <li>分类分区，适合话题量大、分类清晰</li>
+          <li>表格化列：回复 / 浏览 / 最后活动</li>
+          <li>帖子页楼层式，带楼层编号</li>
+          <li>左右双栏，信息触达效率最高</li>
+        </ul>
+        <div class="scheme__links">
+          <a class="scheme__link scheme__link--primary" href="a-discourse/home.html">首页</a>
+          <a class="scheme__link scheme__link--secondary" href="a-discourse/topic.html">帖子页</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- 方案 B -->
+    <div class="scheme">
+      <div class="scheme__thumb thumb-b">
+        <span class="scheme__tag" style="background:rgba(15,118,110,0.9)">方案 B</span>
+        <div class="thumb-b__mock">
+          <div class="thumb-b__item"><span class="thumb-b__ava"></span><span class="thumb-b__line"></span><span class="thumb-b__bubble"></span></div>
+          <div class="thumb-b__item"><span class="thumb-b__ava"></span><span class="thumb-b__line"></span><span class="thumb-b__bubble"></span></div>
+          <div class="thumb-b__item"><span class="thumb-b__ava"></span><span class="thumb-b__line"></span><span class="thumb-b__bubble"></span></div>
+        </div>
+      </div>
+      <div class="scheme__body">
+        <h3 class="scheme__name">Flarum 极简轻量风</h3>
+        <p class="scheme__sub">参考：discuss.flarum.org</p>
+        <p class="scheme__desc">最干净轻量的方案。窄列居中（760px），大量留白，回复数做成独立的圆角气泡。无边框分隔，靠留白和轻阴影区分。</p>
+        <ul class="scheme__features">
+          <li>单栏窄列，阅读体验最纯粹</li>
+          <li>回复数气泡，Flarum 招牌设计</li>
+          <li>帖子页紧凑回复卡，轻盈</li>
+          <li>视觉噪音最少，适合内容驱动</li>
+        </ul>
+        <div class="scheme__links">
+          <a class="scheme__link scheme__link--primary" href="b-flarum/home.html">首页</a>
+          <a class="scheme__link scheme__link--secondary" href="b-flarum/topic.html">帖子页</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- 方案 C -->
+    <div class="scheme">
+      <div class="scheme__thumb thumb-c">
+        <span class="scheme__tag" style="background:rgba(15,118,110,0.9)">方案 C</span>
+        <div class="thumb-c__mock">
+          <div class="thumb-c__card"><span class="thumb-c__vote"></span><div class="thumb-c__lines"><span class="thumb-c__line"></span><span class="thumb-c__line" style="width:50%"></span></div></div>
+          <div class="thumb-c__card"><span class="thumb-c__vote"></span><div class="thumb-c__lines"><span class="thumb-c__line"></span><span class="thumb-c__line" style="width:50%"></span></div></div>
+          <div class="thumb-c__card"><span class="thumb-c__vote"></span><div class="thumb-c__lines"><span class="thumb-c__line"></span><span class="thumb-c__line" style="width:50%"></span></div></div>
+        </div>
+      </div>
+      <div class="scheme__body">
+        <h3 class="scheme__name">现代卡片流风</h3>
+        <p class="scheme__sub">参考：Linear / Notion 社区</p>
+        <p class="scheme__desc">介于 A 和 B 之间的现代方案。卡片化展示，每张卡片含投票块、标题、两行摘要、标签、浏览数。首页带 Hero 统计带，帖子页带右侧目录。</p>
+        <ul class="scheme__features">
+          <li>卡片悬浮动效，交互感强</li>
+          <li>投票/点赞块前置，社区氛围浓</li>
+          <li>帖子页大标题 + 目录侧栏</li>
+          <li>视觉层次最丰富，最"现代感"</li>
+        </ul>
+        <div class="scheme__links">
+          <a class="scheme__link scheme__link--primary" href="c-modern/home.html">首页</a>
+          <a class="scheme__link scheme__link--secondary" href="c-modern/topic.html">帖子页</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 对比表 -->
+  <div class="compare">
+    <div class="compare__title">三方案对比</div>
+    <table class="compare__table">
+      <thead>
+        <tr>
+          <th>维度</th>
+          <th>A · Discourse 表格</th>
+          <th>B · Flarum 极简</th>
+          <th>C · 现代卡片流</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>信息密度</td>
+          <td class="yes">最高</td>
+          <td class="no">最低</td>
+          <td class="mid">中等</td>
+        </tr>
+        <tr>
+          <td>阅读舒适度</td>
+          <td class="mid">中</td>
+          <td class="yes">最高</td>
+          <td class="yes">高</td>
+        </tr>
+        <tr>
+          <td>视觉现代感</td>
+          <td class="no">偏传统论坛</td>
+          <td class="mid">极简轻量</td>
+          <td class="yes">最现代</td>
+        </tr>
+        <tr>
+          <td>分类浏览</td>
+          <td class="yes">分类分区强</td>
+          <td class="mid">标签筛选</td>
+          <td class="mid">标签 + 筛选</td>
+        </tr>
+        <tr>
+          <td>适合场景</td>
+          <td>大社区、技术深、话题多</td>
+          <td>小社区、重讨论、轻阅读</td>
+          <td>产品社区、综合型</td>
+        </tr>
+        <tr>
+          <td>布局栏数</td>
+          <td>三栏（导航+列表+侧栏）</td>
+          <td>单栏居中</td>
+          <td>双栏（列表+侧栏）</td>
+        </tr>
+        <tr>
+          <td>帖子页风格</td>
+          <td>楼层式 + 点赞列</td>
+          <td>紧凑回复卡</td>
+          <td>大标题 + 目录 + 嵌套回复</td>
+        </tr>
+        <tr>
+          <td>改动工作量</td>
+          <td class="mid">中（重写首页+topic）</td>
+          <td class="yes">小（列表项简化）</td>
+          <td class="mid">中（新增卡片组件）</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="foot-note">
+    <b>说明：</b>三个方案的 HTML/CSS 都是独立可运行的静态 demo，没有依赖项目运行环境。
+    所有配色、字体、圆角都复用了 SForum 现有 token，确认方案后我可以直接迁移到主题层
+    （<code>extensions/builtin/themes/sforum-default/layer/</code> 下的 <code>index.vue</code>、<code>t/[...path].vue</code> 及对应 CSS）。
+    你也可以混搭，比如「首页用 A、帖子页用 C」——告诉我你的偏好即可。
+  </div>
+</div>
+
+</body>
+</html>

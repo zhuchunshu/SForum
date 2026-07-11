@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SForum · 方案C · 帖子详情</title>
+<link rel="stylesheet" href="../shared.css">
+<style>
+:root {
+  --md-bg: #fbfbfc;
+  --md-card: #ffffff;
+  --md-border: #eceef1;
+  --md-hover: #f6f8fa;
+  --md-fg: #0f172a;
+  --md-fg-2: #475569;
+  --md-fg-3: #94a3b8;
+  --md-shadow: 0 1px 3px rgba(15,23,42,0.04), 0 1px 2px rgba(15,23,42,0.03);
+}
+body { background: var(--md-bg); }
+
+/* 顶栏（同首页） */
+.md-topbar { background: rgba(255,255,255,0.82); backdrop-filter: saturate(180%) blur(12px); -webkit-backdrop-filter: saturate(180%) blur(12px); border-bottom: 1px solid var(--md-border); position: sticky; top: 0; z-index: 50; }
+.md-topbar__inner { max-width: 1140px; margin: 0 auto; padding: 0 24px; height: 56px; display: flex; align-items: center; gap: 14px; }
+.md-logo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 17px; color: var(--md-fg); }
+.md-logo__mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--sf-accent), #14b8a6); color: #fff; display: grid; place-items: center; font-size: 14px; }
+.md-crumb { font-size: 12.5px; color: var(--md-fg-3); display: flex; align-items: center; gap: 5px; }
+.md-crumb a:hover { color: var(--sf-accent); }
+.md-topbar__right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.md-icon-btn { width: 36px; height: 36px; border-radius: var(--radius-md); display: grid; place-items: center; color: var(--md-fg-2); }
+.md-icon-btn:hover { background: var(--md-hover); }
+.md-avatar-btn { width: 34px; height: 34px; border-radius: 50%; overflow: hidden; }
+
+/* 布局：阅读区 + 右侧目录/信息栏 */
+.md-topic { max-width: 1140px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: minmax(0,1fr) 240px; gap: 28px; align-items: start; }
+
+/* 阅读区 */
+.md-read { min-width: 0; max-width: 760px; }
+
+/* 帖子头 */
+.md-head { margin-bottom: 20px; }
+.md-head__catline { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; }
+.md-head__cat { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: var(--sf-accent); padding: 3px 10px; background: var(--sf-accent-soft); border-radius: var(--radius-pill); }
+.md-head__catdot { width: 7px; height: 7px; border-radius: 2px; background: var(--sf-accent); }
+.md-head__title { font-size: 30px; font-weight: 800; line-height: 1.2; color: var(--md-fg); margin: 0 0 12px; letter-spacing: -0.015em; }
+.md-head__byline { display: flex; align-items: center; gap: 10px; }
+.md-head__author { display: flex; align-items: center; gap: 8px; }
+.md-head__author b { font-size: 14px; color: var(--md-fg); }
+.md-head__author b:hover { color: var(--sf-accent); }
+.md-head__author-role { font-size: 10.5px; padding: 1px 6px; border-radius: 3px; background: var(--sf-accent-soft); color: var(--sf-accent-hover); font-weight: 600; }
+.md-head__sep { color: var(--md-border); }
+.md-head__stat { font-size: 13px; color: var(--md-fg-3); }
+
+/* 主帖卡 */
+.md-post {
+  background: var(--md-card); border: 1px solid var(--md-border);
+  border-radius: var(--radius-card); box-shadow: var(--md-shadow); overflow: hidden;
+}
+.md-post__body { padding: 24px 28px; font-size: 16px; line-height: 1.85; color: var(--md-fg); }
+.md-post__body p { margin: 0 0 16px; }
+.md-post__body p:last-child { margin-bottom: 0; }
+.md-post__body h2 { font-size: 20px; font-weight: 700; margin: 24px 0 10px; color: var(--md-fg); }
+.md-post__body h3 { font-size: 16px; font-weight: 700; margin: 18px 0 8px; }
+.md-post__body code { font-family: var(--font-mono); font-size: 13.5px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #be123c; }
+.md-post__body pre { background: #0f172a; color: #e2e8f0; padding: 16px 18px; border-radius: 10px; font-family: var(--font-mono); font-size: 13.5px; line-height: 1.7; overflow-x: auto; margin: 16px 0; }
+.md-post__body pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+.md-post__body blockquote { border-left: 3px solid var(--sf-accent); background: var(--sf-accent-soft); padding: 12px 16px; margin: 16px 0; border-radius: 0 8px 8px 0; color: var(--md-fg-2); font-size: 14.5px; }
+.md-post__body ul, .md-post__body ol { padding-left: 24px; margin: 10px 0; }
+.md-post__body li { margin-bottom: 7px; }
+.md-post__body a { color: var(--sf-accent); text-decoration: none; border-bottom: 1px solid transparent; }
+.md-post__body a:hover { border-bottom-color: var(--sf-accent); }
+
+/* 主帖操作条 */
+.md-post__bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 20px; border-top: 1px solid var(--md-border); background: #fafbfc;
+}
+.md-bar__act {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 13px; border-radius: 17px;
+  font-size: 13px; font-weight: 600; color: var(--md-fg-2);
+  transition: all .15s;
+}
+.md-bar__act:hover { background: var(--md-hover); color: var(--md-fg); }
+.md-bar__act--like { background: #fff; border: 1px solid var(--md-border); }
+.md-bar__act--like:hover { background: #fef2f2; border-color: #fecaca; color: #be123c; }
+.md-bar__act--liked { background: #fef2f2; border-color: #fecaca; color: #be123c; }
+.md-bar__count { font-family: var(--font-mono); font-weight: 700; }
+.md-bar__right { margin-left: auto; }
+
+/* 回复区头 */
+.md-replies-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 32px 0 16px;
+}
+.md-replies-head h2 { font-size: 18px; font-weight: 700; color: var(--md-fg); margin: 0; }
+.md-replies-head h2 b { color: var(--sf-accent); font-family: var(--font-mono); }
+.md-replies-sort { display: flex; gap: 4px; }
+.md-replies-sort a {
+  padding: 5px 11px; border-radius: var(--radius-sm);
+  font-size: 12.5px; font-weight: 600; color: var(--md-fg-2);
+}
+.md-replies-sort a.is-active { background: var(--md-fg); color: #fff; }
+.md-replies-sort a:hover:not(.is-active) { background: var(--md-hover); }
+
+/* 回复卡 */
+.md-reply {
+  background: var(--md-card); border: 1px solid var(--md-border);
+  border-radius: var(--radius-card); box-shadow: var(--md-shadow);
+  padding: 18px 22px; margin-bottom: 12px;
+}
+.md-reply__head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.md-reply__name { font-size: 14px; font-weight: 700; color: var(--md-fg); }
+.md-reply__name:hover { color: var(--sf-accent); }
+.md-reply__role { font-size: 10.5px; padding: 1px 6px; border-radius: 3px; font-weight: 600; }
+.md-reply__floor { font-size: 11px; font-weight: 700; color: var(--md-fg-3); font-family: var(--font-mono); padding: 2px 7px; background: var(--md-hover); border-radius: 4px; }
+.md-reply__time { margin-left: auto; font-size: 12px; color: var(--md-fg-3); }
+.md-reply__time a { color: var(--md-fg-3); }
+.md-reply__time a:hover { color: var(--sf-accent); }
+
+.md-reply__body { font-size: 15px; line-height: 1.8; color: var(--md-fg); }
+.md-reply__body p { margin: 0 0 12px; }
+.md-reply__body p:last-child { margin-bottom: 0; }
+.md-reply__body code { font-family: var(--font-mono); font-size: 13px; background: #f1f5f9; padding: 2px 5px; border-radius: 4px; color: #be123c; }
+.md-reply__quote {
+  background: var(--md-hover); border-left: 3px solid var(--md-fg-3);
+  padding: 10px 14px; border-radius: 0 8px 8px 0; margin-bottom: 12px;
+  font-size: 13.5px; color: var(--md-fg-2);
+}
+.md-reply__quote b { color: var(--md-fg); font-weight: 600; }
+.md-reply__quote .md-reply__quote-tag { font-size: 11px; color: var(--md-fg-3); margin-right: 6px; }
+
+.md-reply__bar {
+  display: flex; align-items: center; gap: 4px; margin-top: 14px;
+  padding-top: 12px; border-top: 1px solid var(--md-border);
+}
+.md-reply__act {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 28px; padding: 0 10px; border-radius: 14px;
+  font-size: 12.5px; font-weight: 600; color: var(--md-fg-2);
+}
+.md-reply__act:hover { background: var(--md-hover); color: var(--md-fg); }
+.md-reply__act--liked { color: #be123c; }
+
+/* 嵌套回复（二级） */
+.md-reply__children {
+  margin-top: 14px; padding-left: 16px; border-left: 2px solid var(--sf-accent-soft-border);
+}
+.md-reply--child {
+  background: var(--md-hover); border: none; box-shadow: none;
+  padding: 14px 16px; border-radius: var(--radius-md); margin-bottom: 8px;
+}
+.md-reply--child:last-child { margin-bottom: 0; }
+
+/* 回复编辑器 */
+.md-editor {
+  background: var(--md-card); border: 1px solid var(--md-border);
+  border-radius: var(--radius-card); box-shadow: var(--md-shadow);
+  margin-top: 24px; overflow: hidden;
+}
+.md-editor__head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 20px; border-bottom: 1px solid var(--md-border);
+}
+.md-editor__head img { width: 28px; height: 28px; border-radius: 50%; }
+.md-editor__head b { font-size: 13.5px; font-weight: 600; color: var(--md-fg); }
+.md-editor__head span { font-size: 12.5px; color: var(--md-fg-3); }
+.md-editor__toolbar {
+  display: flex; gap: 2px; padding: 8px 12px; border-bottom: 1px solid var(--md-border); background: #fafbfc;
+}
+.md-editor__tool {
+  width: 30px; height: 30px; border-radius: 6px;
+  display: grid; place-items: center; font-size: 14px; color: var(--md-fg-2);
+}
+.md-editor__tool:hover { background: var(--md-hover); color: var(--md-fg); }
+.md-editor__area { padding: 14px 20px; }
+.md-editor__textarea {
+  width: 100%; min-height: 110px; border: none; resize: vertical;
+  font-family: var(--font-sans); font-size: 14.5px; line-height: 1.75; color: var(--md-fg); outline: none;
+}
+.md-editor__textarea::placeholder { color: var(--md-fg-3); }
+.md-editor__foot { display: flex; align-items: center; gap: 10px; padding: 10px 20px 14px; border-top: 1px solid var(--md-border); background: #fafbfc; }
+.md-editor__btn { height: 36px; padding: 0 20px; border-radius: var(--radius-md); background: var(--sf-accent); color: #fff; font-size: 13.5px; font-weight: 600; box-shadow: 0 1px 3px rgba(15,118,110,0.3); }
+.md-editor__btn:hover { background: var(--sf-accent-hover); }
+.md-editor__hint { margin-left: auto; font-size: 11.5px; color: var(--md-fg-3); }
+
+/* 右侧目录栏 */
+.md-toc { position: sticky; top: 80px; }
+.md-toc__panel {
+  background: var(--md-card); border: 1px solid var(--md-border);
+  border-radius: var(--radius-card); padding: 16px 18px; box-shadow: var(--md-shadow);
+}
+.md-toc__title { font-size: 12px; font-weight: 700; color: var(--md-fg-3); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 12px; }
+.md-toc__list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.md-toc__list a {
+  display: block; padding: 5px 10px; border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--md-fg-2); border-left: 2px solid transparent;
+  transition: all .12s; line-height: 1.4;
+}
+.md-toc__list a:hover { background: var(--md-hover); color: var(--md-fg); }
+.md-toc__list a.is-active { color: var(--sf-accent); border-left-color: var(--sf-accent); background: var(--sf-accent-soft); font-weight: 600; }
+.md-toc__list a.h3 { padding-left: 22px; font-size: 12.5px; }
+
+/* 进度条 */
+.md-progress {
+  margin-top: 14px; padding: 12px 14px; background: var(--md-hover);
+  border-radius: var(--radius-md); font-size: 12px; color: var(--md-fg-2);
+}
+.md-progress__bar { height: 4px; background: var(--md-border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.md-progress__fill { height: 100%; width: 32%; background: var(--sf-accent); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="preview-banner">方案 C · <b>现代阅读式帖子页</b> · 大标题 · 目录侧栏 · 嵌套回复 · <a href="home.html" style="color:#5eead4">← 首页</a> · <a href="../index.html" style="color:#5eead4">对比</a></div>
+
+<header class="md-topbar">
+  <div class="md-topbar__inner">
+    <a class="md-logo" href="home.html"><span class="md-logo__mark">S</span>SForum</a>
+    <span class="md-crumb"><a href="#">技术</a> / <a href="#">Go</a></span>
+    <div class="md-topbar__right">
+      <a class="md-icon-btn" href="#">🔔</a>
+      <img class="md-avatar-btn" src="https://i.pravatar.cc/68?img=12" alt="me">
+    </div>
+  </div>
+</header>
+
+<div class="md-topic">
+  <!-- 阅读区 -->
+  <article class="md-read">
+    <!-- 帖子头 -->
+    <div class="md-head">
+      <div class="md-head__catline">
+        <a class="md-head__cat" href="#"><span class="md-head__catdot"></span>技术</a>
+        <span class="tag tag--teal">Go</span>
+        <span class="tag tag--blue">后端</span>
+        <span class="tag tag--amber">📌 置顶</span>
+      </div>
+      <h1 class="md-head__title">Go 1.25 新特性对 goroutine 调度器的改进实测</h1>
+      <div class="md-head__byline">
+        <div class="md-head__author">
+          <img class="avatar avatar--sm" src="https://i.pravatar.cc/48?img=5" alt="">
+          <b><a href="#">陈昊</a></b>
+          <span class="md-head__author-role">版主</span>
+        </div>
+        <span class="md-head__sep">·</span>
+        <span class="md-head__stat">2 小时前</span>
+        <span class="md-head__sep">·</span>
+        <span class="md-head__stat nums">47 回复</span>
+        <span class="md-head__sep">·</span>
+        <span class="md-head__stat nums">1,236 浏览</span>
+      </div>
+    </div>
+
+    <!-- 主帖 -->
+    <div class="md-post">
+      <div class="md-post__body">
+        <p>Go 1.25 正式发布后，我对调度器做了一轮基准测试。重点关注 runtime 在高并发短任务场景下的表现，以及新引入的 goroutine 分组调度机制对延迟的影响。</p>
+
+        <h2>测试环境</h2>
+        <ul>
+          <li>CPU: AMD Ryzen 9 7950X (16C/32T)</li>
+          <li>Go 版本: 1.24.3 vs 1.25.0</li>
+          <li>负载: 每秒 50 万个轻量 goroutine，生命周期 2ms</li>
+        </ul>
+
+        <h2>核心结论</h2>
+        <p>在 P 数量等于物理核数的场景下，尾延迟 P99 从 <code>3.2ms</code> 降到了 <code>1.8ms</code>，下降约 44%。关键改动在调度器的本地队列唤醒策略：</p>
+
+        <pre><code>// 1.25 之前：全局 runnext 直接 hand-off
+// 1.25 之后：引入 groupsched，按 NUMA 亲和性分组唤醒
+func schedule() {
+    if gp := groupsched.acquire(); gp != nil {
+        execute(gp)
+        return
+    }
+    // fallback 到全局队列
+}</code></pre>
+
+        <blockquote>注意：这个改进只对 GOMAXPROCS &gt; 8 的场景明显，单核或双核机器上几乎无变化。</blockquote>
+
+        <h2>数据对比</h2>
+        <p>完整的基准数据和 flamegraph 我放在了 <a href="#">GitHub Gist</a>，下面是关键指标摘要：</p>
+        <ul>
+          <li>P50 调度延迟：0.8ms → 0.6ms（-25%）</li>
+          <li>P99 调度延迟：3.2ms → 1.8ms（-44%）</li>
+          <li>每秒 goroutine 吞吐：480k → 520k（+8%）</li>
+        </ul>
+        <p>欢迎大家一起讨论你们的测试结果。</p>
+      </div>
+      <div class="md-post__bar">
+        <a class="md-bar__act md-bar__act--liked" href="#">♥ <span class="md-bar__count nums">28</span> 赞</a>
+        <a class="md-bar__act" href="#">↩ 回复</a>
+        <a class="md-bar__act" href="#">🔗 收藏</a>
+        <a class="md-bar__act" href="#">⚑ 订阅</a>
+        <a class="md-bar__act md-bar__right" href="#">↗ 分享</a>
+        <a class="md-bar__act" href="#">⋯</a>
+      </div>
+    </div>
+
+    <!-- 回复区 -->
+    <div class="md-replies-head">
+      <h2><b class="nums">47</b> 条回复</h2>
+      <div class="md-replies-sort">
+        <a class="is-active" href="#">按时间</a>
+        <a href="#">按热度</a>
+      </div>
+    </div>
+
+    <!-- 回复1 -->
+    <div class="md-reply">
+      <div class="md-reply__head">
+        <img class="avatar" src="https://i.pravatar.cc/64?img=33" alt="">
+        <a class="md-reply__name" href="#">林夕</a>
+        <span class="md-reply__role" style="background:#eff6ff;color:#1d4ed8">活跃</span>
+        <span class="md-reply__floor">#1</span>
+        <span class="md-reply__time"><a href="#">1 小时前</a></span>
+      </div>
+      <div class="md-reply__body">
+        <p>这个 groupsched 是不是和之前 Google 提的 <code>processor-level goroutine grouping</code> 那篇论文相关？我之前在 Docker 容器里限制 4 核测过，P99 几乎没变化，看来确实是 NUMA 亲和性才生效。</p>
+        <p>另外想问下 GOMAXPROCS 设成 CPU 核数的 1.5 倍会不会反而劣化？因为分组唤醒的开销在超额订阅时会放大。</p>
+      </div>
+      <div class="md-reply__bar">
+        <a class="md-reply__act md-reply__act--liked" href="#">♥ <span class="nums">9</span></a>
+        <a class="md-reply__act" href="#">↩ 回复</a>
+      </div>
+    </div>
+
+    <!-- 回复2（带嵌套子回复） -->
+    <div class="md-reply">
+      <div class="md-reply__head">
+        <img class="avatar" src="https://i.pravatar.cc/64?img=5" alt="">
+        <a class="md-reply__name" href="#">陈昊</a>
+        <span class="md-reply__role" style="background:var(--sf-accent-soft);color:var(--sf-accent-hover)">版主</span>
+        <span class="md-reply__floor">#2</span>
+        <span class="md-reply__time"><a href="#">52 分钟前</a></span>
+      </div>
+      <div class="md-reply__body">
+        <div class="md-reply__quote">
+          <span class="md-reply__quote-tag">↩ 回复 @林夕</span>
+          <b>@林夕</b> GOMAXPROCS 设成 CPU 核数的 1.5 倍会不会反而劣化？
+        </div>
+        <p>会。我专门测过这个，超额订阅在 1.25 里劣化比 1.24 更明显——分组锁竞争在 P 数 &gt; 物理核时上升很快。建议 GOMAXPROCS 等于物理核或 <code>runtime.NumCPU()</code>，不要手动加大。</p>
+      </div>
+      <div class="md-reply__bar">
+        <a class="md-reply__act md-reply__act--liked" href="#">♥ <span class="nums">14</span></a>
+        <a class="md-reply__act" href="#">↩ 回复</a>
+      </div>
+    </div>
+
+    <!-- 回复3 -->
+    <div class="md-reply">
+      <div class="md-reply__head">
+        <img class="avatar" src="https://i.pravatar.cc/64?img=18" alt="">
+        <a class="md-reply__name" href="#">云栈</a>
+        <span class="md-reply__role" style="background:#f1effe;color:#5b4fc9">贡献者</span>
+        <span class="md-reply__floor">#3</span>
+        <span class="md-reply__time"><a href="#">40 分钟前</a></span>
+      </div>
+      <div class="md-reply__body">
+        <p>补充一个生产环境的数据点：我们在 32 核物理机灰度了一周，P99 调度延迟从 4.1ms 降到 2.3ms，GC STW 没变化，整体吞吐提升约 8%。</p>
+        <p>不过注意到一个副作用：cgo 调用频繁的场景下，groupsched 的唤醒会有抖动，建议重度 cgo 的服务先压测再升级。</p>
+      </div>
+      <div class="md-reply__bar">
+        <a class="md-reply__act" href="#">♥ <span class="nums">6</span></a>
+        <a class="md-reply__act" href="#">↩ 回复</a>
+      </div>
+    </div>
+
+    <!-- 编辑器 -->
+    <div class="md-editor">
+      <div class="md-editor__head">
+        <img src="https://i.pravatar.cc/56?img=12" alt="">
+        <b>@Inkedus</b>
+        <span>参与讨论</span>
+      </div>
+      <div class="md-editor__toolbar">
+        <a class="md-editor__tool" href="#" title="粗体"><b>B</b></a>
+        <a class="md-editor__tool" href="#" title="斜体"><i>I</i></a>
+        <a class="md-editor__tool" href="#" title="链接">🔗</a>
+        <a class="md-editor__tool" href="#" title="代码">&lt;/&gt;</a>
+        <a class="md-editor__tool" href="#" title="引用">❝</a>
+        <a class="md-editor__tool" href="#" title="列表">≡</a>
+      </div>
+      <div class="md-editor__area">
+        <textarea class="md-editor__textarea" placeholder="使用 Markdown 撰写回复，Ctrl+Enter 快速发送…"></textarea>
+      </div>
+      <div class="md-editor__foot">
+        <a class="md-editor__btn" href="#">发表回复</a>
+        <span class="md-editor__hint">草稿已自动保存</span>
+      </div>
+    </div>
+  </article>
+
+  <!-- 右侧目录 -->
+  <aside class="md-toc">
+    <div class="md-toc__panel">
+      <h3 class="md-toc__title">本文目录</h3>
+      <ul class="md-toc__list">
+        <li><a href="#" class="is-active">测试环境</a></li>
+        <li><a href="#">核心结论</a></li>
+        <li><a href="#">数据对比</a></li>
+      </ul>
+    </div>
+    <div class="md-progress">
+      <div>阅读进度 · 第 1 页 / 共 3 页</div>
+      <div class="md-progress__bar"><div class="md-progress__fill"></div></div>
+    </div>
+  </aside>
+</div>
+
+</body>
+</html>
