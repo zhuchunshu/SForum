@@ -1,8 +1,6 @@
 package extensionmanifest
 
 import (
-	"encoding/json"
-	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -15,19 +13,12 @@ func TestBuiltinSMTPManifestValidatesWithLocalizedSettingsAndSettingsPageSlot(t 
 	}
 	// apps/api/app/Support/ExtensionManifest -> repo root
 	root := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../../"))
-	manifestPath := filepath.Join(root, "extensions/builtin/plugins/sforum-smtp/sforum.extension.json")
-	raw, err := os.ReadFile(manifestPath)
+	packageRoot := filepath.Join(root, "extensions/builtin/plugins/sforum-smtp")
+	// LoadPackage 支持单文件与 includes 多文件；SMTP 迁移后仍走此路径。
+	normalized, err := LoadPackage(packageRoot)
 	if err != nil {
-		t.Fatalf("read smtp manifest: %v", err)
+		t.Fatalf("load smtp package: %v", err)
 	}
-	var manifest Manifest
-	if err := json.Unmarshal(raw, &manifest); err != nil {
-		t.Fatalf("unmarshal smtp manifest: %v", err)
-	}
-	if err := Validate(manifest); err != nil {
-		t.Fatalf("smtp manifest invalid: %v", err)
-	}
-	normalized := Normalize(manifest)
 	if len(normalized.Settings) < 5 {
 		t.Fatalf("expected smtp settings, got %d", len(normalized.Settings))
 	}

@@ -39,8 +39,13 @@ type snapshotFile struct {
 }
 
 // SnapshotUploaded canonicalizes an uploaded package and atomically publishes an immutable version snapshot.
+//
+// manifestBody 是包根 sforum.extension.json 原文；files 为其余文件（可含 includes partials）。
+// 合并校验后，快照内写入规范合并后的入口 manifest（无 includes），并原样保留其它文件，
+// 以便内容寻址 digest 对「仅空白/字段顺序不同」的单文件包保持稳定，同时多文件 partials 仍落盘可审计。
+// Snapshot.Manifest 为合并后的规范 JSON，供数据库与 API 消费。
 func SnapshotUploaded(destinationRoot string, manifestBody []byte, files []File) (Snapshot, error) {
-	manifest, canonicalManifest, err := normalizeManifest(manifestBody)
+	manifest, canonicalManifest, err := loadMergedManifest(manifestBody, files)
 	if err != nil {
 		return Snapshot{}, err
 	}
@@ -235,13 +240,30 @@ func readRootRegularFile(root *os.Root, name string) ([]byte, fs.FileMode, error
 	return body, after.Mode(), nil
 }
 
-func normalizeManifest(body []byte) (extensionmanifest.Manifest, string, error) {
-	var manifest extensionmanifest.Manifest
-	if err := json.Unmarshal(body, &manifest); err != nil {
-		return extensionmanifest.Manifest{}, "", fmt.Errorf("%w: %v", ErrInvalidManifest, err)
+// loadMergedManifest 用入口 JSON + 包内文件解析 includes，返回合并后的 Manifest 与规范 JSON。
+func loadMergedManifest(rootBody []byte, files []File) (extensionmanifest.Manifest, string, error) {
+	pkg := extensionmanifest.FileMapFS{
+		extensionmanifest.ManifestFileName: append([]byte(nil), rootBody...),
 	}
-	manifest = extensionmanifest.Normalize(manifest)
-	if err := extensionmanifest.Validate(manifest); err != nil {
+	for _, file := range files {
+		raw := strings.TrimSpace(strings.ReplaceAll(file.Path, "\\", "/"))
+		for _, segment := range strings.Split(raw, "/") {
+			if segment == ".." {
+				return extensionmanifest.Manifest{}, "", fmt.Errorf("%w: %s", ErrInvalidPath, file.Path)
+			}
+		}
+		clean, ok := extensionmanifest.SafeArchivePath(raw)
+		if !ok || clean == extensionmanifest.ManifestFileName {
+			// 与 normalizeSnapshotFiles 对齐：非法路径或重复入口稍后统一处理；此处跳过坏键避免污染 FS。
+			if !ok {
+				return extensionmanifest.Manifest{}, "", fmt.Errorf("%w: %s", ErrInvalidPath, file.Path)
+			}
+			continue
+		}
+		pkg[clean] = file.Body
+	}
+	manifest, err := extensionmanifest.LoadRootBytes(rootBody, pkg)
+	if err != nil {
 		return extensionmanifest.Manifest{}, "", fmt.Errorf("%w: %v", ErrInvalidManifest, err)
 	}
 	canonical, err := json.Marshal(manifest)

@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 func TestSnapshotUploadedCanonicalizesManifestAndReusesIdenticalContent(t *testing.T) {
@@ -243,6 +245,48 @@ func TestSnapshotBuiltinCopiesCanonicalPackage(t *testing.T) {
 	}
 	if recalculated != snapshot.Digest {
 		t.Fatalf("builtin snapshot digest mismatch: want=%s got=%s", snapshot.Digest, recalculated)
+	}
+}
+
+func TestSnapshotUploadedMergesIncludesAndKeepsPartials(t *testing.T) {
+	destination := t.TempDir()
+	rootBody := []byte(`{
+  "id": "includes.plugin",
+  "name": "Includes Plugin",
+  "description": "Uses includes.",
+  "url": "https://example.com/includes",
+  "author": {"name": "SForum Test"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0",
+  "includes": {
+    "langs": "manifest/langs",
+    "settings": "manifest/settings.json"
+  }
+}`)
+	snapshot, err := SnapshotUploaded(destination, rootBody, []File{
+		{Path: "manifest/langs/zh-CN.json", Mode: 0o644, Body: []byte(`{"name":"包含插件"}`)},
+		{Path: "manifest/settings.json", Mode: 0o644, Body: []byte(`[{"key":"enabled","label":"Enabled","type":"boolean","default":"true"}]`)},
+	})
+	if err != nil {
+		t.Fatalf("SnapshotUploaded with includes: %v", err)
+	}
+	if !strings.Contains(snapshot.Manifest, `"enabled"`) {
+		t.Fatalf("merged manifest missing settings: %s", snapshot.Manifest)
+	}
+	if strings.Contains(snapshot.Manifest, `"includes"`) {
+		t.Fatalf("canonical merged manifest must not retain includes: %s", snapshot.Manifest)
+	}
+	if _, err := os.Stat(filepath.Join(snapshot.Root, "manifest", "langs", "zh-CN.json")); err != nil {
+		t.Fatalf("partial should remain on disk: %v", err)
+	}
+	// 快照入口为合并结果，可直接 LoadPackage（无需 includes）。
+	loaded, err := extensionmanifest.LoadPackage(snapshot.Root)
+	if err != nil {
+		t.Fatalf("LoadPackage snapshot: %v", err)
+	}
+	if len(loaded.Settings) != 1 || loaded.Settings[0].Key != "enabled" {
+		t.Fatalf("unexpected settings: %#v", loaded.Settings)
 	}
 }
 

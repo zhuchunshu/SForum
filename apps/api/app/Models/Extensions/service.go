@@ -256,23 +256,15 @@ func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
 			if !entry.IsDir() {
 				continue
 			}
-			manifestPath := filepath.Join(root, entry.Name(), ManifestFileName)
-			body, err := os.ReadFile(manifestPath)
+			packageRoot := filepath.Join(root, entry.Name())
+			// LoadPackage 解析 includes 并合并为单一 Manifest，与上传安装路径一致。
+			manifest, err := extensionmanifest.LoadPackage(packageRoot)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("builtin %s: %w", entry.Name(), err)
 			}
-			var manifest Manifest
-			if err := json.Unmarshal(body, &manifest); err != nil {
-				return nil, ErrInvalidManifest
-			}
-			manifest = normalizeManifest(manifest)
 			if manifest.Type != group.extensionType {
 				return nil, ErrInvalidManifest
 			}
-			if err := validateManifest(manifest); err != nil {
-				return nil, err
-			}
-			packageRoot := filepath.Dir(manifestPath)
 			snapshot, err := extensionpackage.SnapshotBuiltin(packageRoot, s.extensionRoot)
 			if err != nil {
 				return nil, err
@@ -946,9 +938,9 @@ func readArchive(data []byte) (Manifest, []archiveFile, error) {
 		return Manifest{}, nil, ErrInvalidArchive
 	}
 
-	var manifest Manifest
-	manifestFound := false
+	var rootBody []byte
 	files := []archiveFile{}
+	fileMap := extensionmanifest.FileMapFS{}
 	seen := map[string]struct{}{}
 	var total uint64
 	for _, file := range reader.File {
@@ -974,19 +966,22 @@ func readArchive(data []byte) (Manifest, []archiveFile, error) {
 		if err != nil {
 			return Manifest{}, nil, ErrInvalidArchive
 		}
+		fileMap[name] = body
 		if name == ManifestFileName {
-			if err := json.Unmarshal(body, &manifest); err != nil {
-				return Manifest{}, nil, ErrInvalidManifest
-			}
-			manifestFound = true
+			rootBody = body
 			continue
 		}
 		files = append(files, archiveFile{name: name, mode: file.Mode(), body: body})
 	}
-	if !manifestFound {
+	if rootBody == nil {
 		return Manifest{}, nil, ErrInvalidArchive
 	}
-	return normalizeManifest(manifest), files, nil
+	// 合并 includes partials 后再交给校验与快照；files 仍保留除入口外的原文。
+	manifest, err := extensionmanifest.LoadRootBytes(rootBody, fileMap)
+	if err != nil {
+		return Manifest{}, nil, ErrInvalidManifest
+	}
+	return manifest, files, nil
 }
 
 func readZipFile(file *zip.File) ([]byte, error) {
