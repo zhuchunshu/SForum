@@ -1,9 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -59,6 +59,55 @@ func TestGeneratePluginScaffoldNonInteractive(t *testing.T) {
 	}
 }
 
+func TestGenerateComplexPluginScaffold(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "complex-plugin")
+	created, err := GenerateExtensionScaffold(makeOptions{
+		Kind:          "plugin",
+		ID:            "acme.complex",
+		Name:          "Acme Complex",
+		Description:   "Complex multi-file plugin.",
+		URL:           "https://example.com/acme-complex",
+		AuthorName:    "Acme",
+		Out:           target,
+		NoInteraction: true,
+		Complex:       true,
+	})
+	if err != nil {
+		t.Fatalf("GenerateExtensionScaffold complex: %v", err)
+	}
+	if created != target {
+		t.Fatalf("target mismatch: %s", created)
+	}
+	// 必须通过 LoadPackage（解析 includes + settings 分片）。
+	manifest, err := extensionmanifest.LoadPackage(target)
+	if err != nil {
+		t.Fatalf("LoadPackage generated complex package: %v", err)
+	}
+	if manifest.ID != "acme.complex" {
+		t.Fatalf("id = %s", manifest.ID)
+	}
+	if len(manifest.Settings) != 2 {
+		t.Fatalf("expected 2 settings from shards, got %d", len(manifest.Settings))
+	}
+	if _, ok := manifest.Langs["zh-CN"]; !ok {
+		t.Fatalf("expected zh-CN lang file, got %#v", manifest.Langs)
+	}
+	if manifest.Admin.Entry != "/settings" {
+		t.Fatalf("admin: %#v", manifest.Admin)
+	}
+	rootBody, err := os.ReadFile(filepath.Join(target, extensionmanifest.ManifestFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(rootBody), `"includes"`) {
+		t.Fatalf("root should declare includes: %s", rootBody)
+	}
+	// includes 值会包含 "settings" 路径；禁止的是根级 settings 数组字段。
+	if strings.Contains(string(rootBody), `"settings": [`) {
+		t.Fatalf("root should not inline settings array when complex: %s", rootBody)
+	}
+}
+
 func TestGenerateThemeScaffoldNonInteractive(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "theme")
 	_, err := GenerateExtensionScaffold(makeOptions{
@@ -95,13 +144,36 @@ func TestGenerateThemeScaffoldNonInteractive(t *testing.T) {
 
 func readGeneratedManifest(t *testing.T, dir string) extensionmanifest.Manifest {
 	t.Helper()
-	body, err := os.ReadFile(filepath.Join(dir, extensionmanifest.ManifestFileName))
+	// 统一走 LoadPackage，兼容单文件与 complex includes。
+	manifest, err := extensionmanifest.LoadPackage(dir)
 	if err != nil {
-		t.Fatalf("read manifest: %v", err)
-	}
-	var manifest extensionmanifest.Manifest
-	if err := json.Unmarshal(body, &manifest); err != nil {
-		t.Fatalf("decode manifest: %v", err)
+		t.Fatalf("LoadPackage: %v", err)
 	}
 	return manifest
+}
+
+func TestExtensionValidateCommand(t *testing.T) {
+	// 使用真实 SMTP 多文件包做 CLI 冒烟。
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	// apps/api/cmd/sforum -> repo root
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../.."))
+	smtpRoot := filepath.Join(repoRoot, "extensions/builtin/plugins/sforum-smtp")
+
+	cmd := newRootCommand()
+	cmd.SetArgs([]string{"extension", "validate", smtpRoot})
+	var out strings.Builder
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("extension validate: %v\n%s", err, out.String())
+	}
+	if !strings.Contains(out.String(), "sforum.smtp") {
+		t.Fatalf("expected id in output:\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "zh-CN") {
+		t.Fatalf("expected langs in output:\n%s", out.String())
+	}
 }

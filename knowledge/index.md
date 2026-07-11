@@ -514,10 +514,10 @@ This is the entry point for project memory.
 - `decisions/2026-07-05-extension-plugin-theme-foundation.md` - accepted
   plugin/theme extension foundation, storage, permission, and runtime-boundary
   decision.
-- `decisions/2026-07-12-extension-manifest-split.md` - accepted multi-file
-  extension manifest authoring: thin `sforum.extension.json` entry, optional
-  `includes`, directory-per-locale identity `langs`, single merged runtime
-  `Manifest`; implementation pending (plan under
+- `decisions/2026-07-12-extension-manifest-split.md` - accepted and implemented
+  multi-file extension manifest authoring: thin `sforum.extension.json` entry,
+  optional `includes`, directory-per-locale identity `langs`, settings shards,
+  `LoadPackage`, `make:plugin --complex`, `extension validate` (plan under
   `docs/superpowers/plans/2026-07-12-extension-manifest-split.md`).
 - `decisions/2026-07-10-trusted-admin-plugin-runtime.md` - accepted build-time
   trusted admin component runtime, digest grants, manifest contribution
@@ -582,8 +582,9 @@ This is the entry point for project memory.
 - `sessions/2026-07-05-extension-system-foundation.md` - extension backend,
   admin UI, manifest, lifecycle, and runtime-boundary implementation handoff.
 - `sessions/2026-07-12-extension-manifest-split-plan.md` - multi-file extension
-  manifest split decision/plan handoff (includes + per-locale langs; loader not
-  implemented yet).
+  manifest split decision/plan handoff (includes + per-locale langs).
+- `sessions/2026-07-12-extension-manifest-split-impl.md` - LoadPackage, SMTP
+  migration, complex scaffold, and extension validate implementation handoff.
 - `sessions/2026-07-05-extension-admin-submenus.md` - extension admin sidebar
   folder split into Overview, Plugins, Themes, Settings, and Event Log pages.
 - `sessions/2026-07-05-admin-language-settings-design.md` - runtime language

@@ -25,6 +25,7 @@ type scaffoldManifest struct {
 	Backend       *extensionmanifest.ManifestBackend  `json:"backend,omitempty"`
 	Frontend      *extensionmanifest.ManifestFrontend `json:"frontend,omitempty"`
 	Admin         extensionmanifest.ManifestAdmin     `json:"admin,omitempty"`
+	Includes      map[string]string                   `json:"includes,omitempty"`
 }
 
 func GenerateExtensionScaffold(opts makeOptions) (string, error) {
@@ -43,12 +44,18 @@ func GenerateExtensionScaffold(opts makeOptions) (string, error) {
 		return "", err
 	}
 
-	manifest := buildManifest(opts)
-	if err := validateGeneratedManifest(manifest); err != nil {
-		return "", err
-	}
-	if err := writeJSON(filepath.Join(target, extensionmanifest.ManifestFileName), manifest); err != nil {
-		return "", err
+	if opts.Complex && opts.Kind == extensionmanifest.TypePlugin {
+		if err := writeComplexPluginScaffold(target, opts); err != nil {
+			return "", err
+		}
+	} else {
+		manifest := buildManifest(opts)
+		if err := validateGeneratedManifest(manifest); err != nil {
+			return "", err
+		}
+		if err := writeJSON(filepath.Join(target, extensionmanifest.ManifestFileName), manifest); err != nil {
+			return "", err
+		}
 	}
 	if err := writeFile(filepath.Join(target, "README.md"), readmeBody(opts), 0o644); err != nil {
 		return "", err
@@ -134,6 +141,83 @@ func validateGeneratedManifest(manifest scaffoldManifest) error {
 	return extensionmanifest.Validate(model)
 }
 
+// writeComplexPluginScaffold 写出薄入口 + includes（langs 目录、settings 分片、admin）。
+func writeComplexPluginScaffold(target string, opts makeOptions) error {
+	root := scaffoldManifest{
+		ID:            opts.ID,
+		Name:          opts.Name,
+		Description:   opts.Description,
+		URL:           opts.URL,
+		Author:        extensionmanifest.ManifestAuthor{Name: opts.AuthorName, URL: opts.AuthorURL, Email: opts.AuthorEmail},
+		Version:       "0.1.0",
+		Type:          extensionmanifest.TypePlugin,
+		SForumVersion: "^1.0.0",
+		Permissions:   []string{opts.ID + ".manage"},
+		Includes: map[string]string{
+			"langs":    "manifest/langs",
+			"settings": "manifest/settings",
+			"admin":    "manifest/admin.json",
+		},
+	}
+	if opts.Backend {
+		root.Backend = &extensionmanifest.ManifestBackend{Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 1}
+	}
+	if err := writeJSON(filepath.Join(target, extensionmanifest.ManifestFileName), root); err != nil {
+		return err
+	}
+	if err := writeJSON(filepath.Join(target, "manifest", "langs", "zh-CN.json"), map[string]any{
+		"name":        opts.Name,
+		"description": opts.Description,
+		"author":      map[string]string{"name": opts.AuthorName},
+	}); err != nil {
+		return err
+	}
+	if err := writeJSON(filepath.Join(target, "manifest", "langs", "en-US.json"), map[string]any{
+		"name":        opts.Name,
+		"description": opts.Description,
+		"author":      map[string]string{"name": opts.AuthorName},
+	}); err != nil {
+		return err
+	}
+	// settings 目录分片：按文件名排序合并（Phase 4 能力）。
+	if err := writeJSON(filepath.Join(target, "manifest", "settings", "10-general.json"), []extensionmanifest.ManifestSetting{{
+		Key:         opts.ID + ".enabled",
+		Label:       extensionmanifest.LocalizedText{Default: "Enabled", ByLocale: map[string]string{"zh-CN": "启用", "en-US": "Enabled"}},
+		Description: extensionmanifest.LocalizedText{Default: "Enable this extension's recommended behavior.", ByLocale: map[string]string{"zh-CN": "启用此扩展的推荐行为。", "en-US": "Enable this extension's recommended behavior."}},
+		Type:        "boolean",
+		Default:     "true",
+	}}); err != nil {
+		return err
+	}
+	if err := writeJSON(filepath.Join(target, "manifest", "settings", "20-advanced.json"), []extensionmanifest.ManifestSetting{{
+		Key:         opts.ID + ".debug",
+		Label:       extensionmanifest.LocalizedText{Default: "Debug logging", ByLocale: map[string]string{"zh-CN": "调试日志", "en-US": "Debug logging"}},
+		Description: extensionmanifest.LocalizedText{Default: "Write extra diagnostic logs.", ByLocale: map[string]string{"zh-CN": "输出额外诊断日志。", "en-US": "Write extra diagnostic logs."}},
+		Type:        "boolean",
+		Default:     "false",
+	}}); err != nil {
+		return err
+	}
+	if err := writeJSON(filepath.Join(target, "manifest", "admin.json"), extensionmanifest.ManifestAdmin{
+		Entry: "/settings",
+		Pages: []extensionmanifest.ManifestAdminPage{{
+			Path:        "/settings",
+			Label:       "Settings",
+			Description: "Configure this extension.",
+			Icon:        "i-lucide-settings",
+			View:        "settings",
+			Order:       100,
+		}},
+	}); err != nil {
+		return err
+	}
+	// 用 LoadPackage 验证 includes 合并结果。
+	if _, err := extensionmanifest.LoadPackage(target); err != nil {
+		return fmt.Errorf("generated complex package failed validation: %w", err)
+	}
+	return nil
+}
+
 func resolveOutputDir(opts makeOptions) (string, error) {
 	if opts.Out != "" {
 		return filepath.Abs(opts.Out)
@@ -207,6 +291,15 @@ func writeThemeFiles(target string, opts makeOptions) error {
 
 func readmeBody(opts makeOptions) string {
 	body := "# " + opts.Name + "\n\n" + opts.Description + "\n\n- ID: `" + opts.ID + "`\n- Type: `" + opts.Kind + "`\n- Website: " + opts.URL + "\n"
+	if opts.Complex && opts.Kind == extensionmanifest.TypePlugin {
+		body += "\n## Multi-file manifest\n\n"
+		body += "This package uses a thin `sforum.extension.json` plus `includes`:\n\n"
+		body += "- `manifest/langs/{zh-CN,en-US}.json` — identity translations (filename = locale)\n"
+		body += "- `manifest/settings/*.json` — settings shards merged by filename order\n"
+		body += "- `manifest/admin.json` — admin entry/pages\n\n"
+		body += "Validate with:\n\n```bash\ncd apps/api && go run ./cmd/sforum extension validate " + filepath.ToSlash(opts.Out) + "\n```\n\n"
+		body += "Three i18n layers stay separate: identity langs, settings `LocalizedText`, and `frontend/admin/locales` for Vue UI.\n"
+	}
 	if opts.Kind == extensionmanifest.TypePlugin {
 		body += "\n## Optional Contribution Example\n\n"
 		body += "The generated manifest does not enable demo contributions by default. After you implement and declare the matching extension route, you can add a host-rendered topic action like this:\n\n"

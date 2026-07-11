@@ -21,6 +21,8 @@ type makeOptions struct {
 	Builtin       bool
 	NoInteraction bool
 	Backend       bool
+	// Complex 生成 multi-file manifest（includes + langs 目录 + settings 分片示例）。
+	Complex bool
 }
 
 func newRootCommand() *cobra.Command {
@@ -28,7 +30,7 @@ func newRootCommand() *cobra.Command {
 		Use:   "sforum",
 		Short: "SForum developer console",
 	}
-	cmd.AddCommand(newMakeCommand("plugin"), newMakeCommand("theme"), newSeedCommand())
+	cmd.AddCommand(newMakeCommand("plugin"), newMakeCommand("theme"), newSeedCommand(), newExtensionCommand())
 	return cmd
 }
 
@@ -64,6 +66,7 @@ func newMakeCommand(kind string) *cobra.Command {
 	cmd.Flags().BoolVar(&opts.NoInteraction, "no-interaction", false, "Disable interactive prompts")
 	if kind == "plugin" {
 		cmd.Flags().BoolVar(&opts.Backend, "backend", false, "Include a backend plugin stub")
+		cmd.Flags().BoolVar(&opts.Complex, "complex", false, "Scaffold multi-file manifest (includes + langs + settings shards)")
 	}
 	return cmd
 }
@@ -94,6 +97,7 @@ func promptMakeOptions(opts *makeOptions) error {
 				huh.NewInput().Title("Author URL").Value(&opts.AuthorURL),
 				huh.NewInput().Title("Author email").Value(&opts.AuthorEmail),
 				huh.NewConfirm().Title("Include backend stub?").Value(&opts.Backend),
+				huh.NewConfirm().Title("Multi-file complex scaffold?").Description("Uses includes, per-locale langs, and settings shards.").Value(&opts.Complex),
 			),
 		)
 	}

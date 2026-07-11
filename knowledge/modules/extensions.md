@@ -343,10 +343,20 @@ envelope with reason `extension.manifest_invalid`.
 
 - `./scripts/sforum.sh make:plugin`
 - `./scripts/sforum.sh make:theme`
+- `cd apps/api && go run ./cmd/sforum extension validate <package-dir>`
+  — loads via `LoadPackage` (resolves `includes`), prints summary; `--json`
+  prints the merged manifest.
 
-Both commands support interactive Huh forms and `--no-interaction` flag-driven
-generation. Default output is `extensions/dev/{plugins,themes}/{id}`; `--builtin`
-targets `extensions/builtin/{plugins,themes}/{id}`.
+Both make commands support interactive Huh forms and `--no-interaction`
+flag-driven generation. Default output is `extensions/dev/{plugins,themes}/{id}`;
+`--builtin` targets `extensions/builtin/{plugins,themes}/{id}`.
+
+`make:plugin --complex` scaffolds a multi-file package:
+
+- thin `sforum.extension.json` with `includes`
+- `manifest/langs/{zh-CN,en-US}.json`
+- `manifest/settings/*.json` shards (merged by filename)
+- `manifest/admin.json`
 
 ## Next Steps
 
@@ -366,12 +376,10 @@ targets `extensions/builtin/{plugins,themes}/{id}`.
   restart after settings changes. SMTP owns multi-locale settings and a custom
   settings page component under `frontend/admin`.
 
-- Implement multi-file extension manifest loading (`includes` + directory
-  `langs`) per
-  `decisions/2026-07-12-extension-manifest-split.md` and
-  `docs/superpowers/plans/2026-07-12-extension-manifest-split.md`: package
-  loader first, then migrate `sforum.smtp` as the reference package, then
-  scaffold / `extension validate`.
+- Multi-file extension manifests are implemented: `LoadPackage`, SMTP reference
+  package, `make:plugin --complex`, `extension validate`, and settings/
+  contributions directory shards. See
+  `decisions/2026-07-12-extension-manifest-split.md`.
 - Implement the trusted admin plugin runtime specification before starting the
   River job monitoring module that consumes its first production slots.
 - Generalize the current theme artifact builder and supervisor contract into a

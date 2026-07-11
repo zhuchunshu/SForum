@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (design / implementation pending).
+Accepted and implemented (2026-07-12).
 
 ## Context
 
