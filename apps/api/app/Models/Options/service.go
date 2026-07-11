@@ -223,6 +223,12 @@ var optionDefinitions = []optionDefinition{
 	{name: NameAvatarCompressEnabled, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameAvatarTargetDimension, managePermission: identity.PermissionSettingsManage},
 	{name: NameAvatarCompressQuality, managePermission: identity.PermissionSettingsManage},
+	{name: NameNotificationReplyInApp, managePermission: identity.PermissionSettingsManage},
+	{name: NameNotificationReplyEmail, managePermission: identity.PermissionSettingsManage},
+	{name: NameNotificationMentionInApp, managePermission: identity.PermissionSettingsManage},
+	{name: NameNotificationMentionEmail, managePermission: identity.PermissionSettingsManage},
+	{name: NameNotificationModerationInApp, managePermission: identity.PermissionSettingsManage},
+	{name: NameNotificationModerationEmail, managePermission: identity.PermissionSettingsManage},
 }
 
 type Service struct {
@@ -849,6 +855,12 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameAvatarCompressEnabled:       enabledOptionValue(true),
 		NameAvatarTargetDimension:       strconv.Itoa(avatarTargetDimensionDefault),
 		NameAvatarCompressQuality:       strconv.Itoa(avatarCompressQualityDefault),
+		NameNotificationReplyInApp:      enabledOptionValue(true),
+		NameNotificationReplyEmail:      enabledOptionValue(true),
+		NameNotificationMentionInApp:    enabledOptionValue(true),
+		NameNotificationMentionEmail:    enabledOptionValue(true),
+		NameNotificationModerationInApp: enabledOptionValue(true),
+		NameNotificationModerationEmail: enabledOptionValue(true),
 	}
 	for name, value := range seoRecommendedDefaults() {
 		values[name] = value
@@ -1060,6 +1072,8 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeBoundedInt(value, avatarDimensionMin, avatarDimensionMax)
 	case NameAvatarCompressQuality:
 		return normalizeBoundedInt(value, avatarCompressQualityMin, avatarCompressQualityMax)
+	case NameNotificationReplyInApp, NameNotificationReplyEmail, NameNotificationMentionInApp, NameNotificationMentionEmail, NameNotificationModerationInApp, NameNotificationModerationEmail:
+		return normalizeEnabledOption(value)
 	default:
 		return normalizeSEOOption(name, value)
 	}

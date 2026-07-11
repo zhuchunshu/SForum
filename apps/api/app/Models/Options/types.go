@@ -137,6 +137,13 @@ const (
 	NameAvatarTargetDimension       = "avatar.target_dimension"
 	NameAvatarCompressQuality       = "avatar.compress_quality"
 
+	NameNotificationReplyInApp      = "notification.reply.in_app"
+	NameNotificationReplyEmail      = "notification.reply.email"
+	NameNotificationMentionInApp    = "notification.mention.in_app"
+	NameNotificationMentionEmail    = "notification.mention.email"
+	NameNotificationModerationInApp = "notification.moderation.in_app"
+	NameNotificationModerationEmail = "notification.moderation.email"
+
 	CodeInvalid = "options.invalid"
 )
 
