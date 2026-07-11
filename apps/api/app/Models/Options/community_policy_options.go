@@ -47,43 +47,44 @@ func init() {
 }
 
 func communityPolicyOptionDefinitions() []optionDefinition {
-	settings := identity.PermissionSettingsManage
+	site := identity.PermissionSettingsSiteManage
+	forum := identity.PermissionForumSettingsManage
 	return []optionDefinition{
 		// 注册扩展：mode 为 public（登录页展示）；邮箱验证相关 public 便于注册 UX 提示。
-		{name: NameIdentityRegistrationMode, public: true, managePermission: settings},
-		{name: NameIdentityRegistrationRequireEmailVerification, public: true, managePermission: settings},
-		{name: NameIdentityRegistrationBlockPostingUntilVerified, public: true, managePermission: settings},
-		{name: NameIdentityUsernameMinLength, public: true, managePermission: settings},
-		{name: NameIdentityUsernameMaxLength, public: true, managePermission: settings},
-		{name: NameIdentityUsernameCharset, public: true, managePermission: settings},
-		{name: NameIdentityUsernameReserved, public: false, managePermission: settings},
+		{name: NameIdentityRegistrationMode, public: true, managePermission: site},
+		{name: NameIdentityRegistrationRequireEmailVerification, public: true, managePermission: site},
+		{name: NameIdentityRegistrationBlockPostingUntilVerified, public: true, managePermission: site},
+		{name: NameIdentityUsernameMinLength, public: true, managePermission: site},
+		{name: NameIdentityUsernameMaxLength, public: true, managePermission: site},
+		{name: NameIdentityUsernameCharset, public: true, managePermission: site},
+		{name: NameIdentityUsernameReserved, public: false, managePermission: site},
 		// 登录锁定：非 public，仅后端读取。
-		{name: NameIdentityLoginMaxFailures, public: false, managePermission: settings},
-		{name: NameIdentityLoginLockoutMinutes, public: false, managePermission: settings},
+		{name: NameIdentityLoginMaxFailures, public: false, managePermission: site},
+		{name: NameIdentityLoginLockoutMinutes, public: false, managePermission: site},
 		// 新人信任：冷却/日限/外链对前端 composer 提示公开。
-		{name: NameTrustNewUserDays, public: true, managePermission: settings},
-		{name: NameTrustNewUserTopicCooldownSeconds, public: true, managePermission: settings},
-		{name: NameTrustNewUserCommentCooldownSeconds, public: true, managePermission: settings},
-		{name: NameTrustNewUserDailyTopicLimit, public: true, managePermission: settings},
-		{name: NameTrustNewUserDailyCommentLimit, public: true, managePermission: settings},
-		{name: NameTrustNewUserForbidOutboundLinks, public: true, managePermission: settings},
-		{name: NameTrustNewUserForbidAttachments, public: true, managePermission: settings},
+		{name: NameTrustNewUserDays, public: true, managePermission: forum},
+		{name: NameTrustNewUserTopicCooldownSeconds, public: true, managePermission: forum},
+		{name: NameTrustNewUserCommentCooldownSeconds, public: true, managePermission: forum},
+		{name: NameTrustNewUserDailyTopicLimit, public: true, managePermission: forum},
+		{name: NameTrustNewUserDailyCommentLimit, public: true, managePermission: forum},
+		{name: NameTrustNewUserForbidOutboundLinks, public: true, managePermission: forum},
+		{name: NameTrustNewUserForbidAttachments, public: true, managePermission: forum},
 		// 维护模式：public，前台可展示横幅/拦截写操作提示。
-		{name: NameSiteMaintenanceEnabled, public: true, managePermission: settings},
-		{name: NameSiteMaintenanceMessage, public: true, managePermission: settings},
+		{name: NameSiteMaintenanceEnabled, public: true, managePermission: site},
+		{name: NameSiteMaintenanceMessage, public: true, managePermission: site},
 		// 论坛阅读与行为
-		{name: NameForumGuestRead, public: true, managePermission: settings},
-		{name: NameForumListDefaultSort, public: true, managePermission: settings},
-		{name: NameForumListHotWindowDays, public: true, managePermission: settings},
-		{name: NameForumTopicsAllowAuthorCloseReplies, public: true, managePermission: settings},
-		{name: NameForumTopicsAllowAuthorDelete, public: true, managePermission: settings},
-		{name: NameForumTopicsAutoLockIdleDays, public: true, managePermission: settings},
-		{name: NameForumTopicsShowEditMark, public: true, managePermission: settings},
-		{name: NameForumTopicsDuplicateTitlePolicy, public: true, managePermission: settings},
-		{name: NameForumCommentsShowEditMark, public: true, managePermission: settings},
-		{name: NameForumCommentsSoftDeleteVisibility, public: true, managePermission: settings},
-		{name: NameForumMentionsEnabled, public: true, managePermission: settings},
-		{name: NameForumMentionsMaxPerPost, public: true, managePermission: settings},
+		{name: NameForumGuestRead, public: true, managePermission: forum},
+		{name: NameForumListDefaultSort, public: true, managePermission: forum},
+		{name: NameForumListHotWindowDays, public: true, managePermission: forum},
+		{name: NameForumTopicsAllowAuthorCloseReplies, public: true, managePermission: forum},
+		{name: NameForumTopicsAllowAuthorDelete, public: true, managePermission: forum},
+		{name: NameForumTopicsAutoLockIdleDays, public: true, managePermission: forum},
+		{name: NameForumTopicsShowEditMark, public: true, managePermission: forum},
+		{name: NameForumTopicsDuplicateTitlePolicy, public: true, managePermission: forum},
+		{name: NameForumCommentsShowEditMark, public: true, managePermission: forum},
+		{name: NameForumCommentsSoftDeleteVisibility, public: true, managePermission: forum},
+		{name: NameForumMentionsEnabled, public: true, managePermission: forum},
+		{name: NameForumMentionsMaxPerPost, public: true, managePermission: forum},
 	}
 }
 

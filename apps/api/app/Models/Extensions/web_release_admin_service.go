@@ -35,21 +35,21 @@ func (s *WebReleaseAdminService) List(
 	actor identity.Actor,
 	input WebReleaseListInput,
 ) (WebReleasePage, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canManageReleases(actor) {
 		return WebReleasePage{}, identity.ErrPermissionDenied
 	}
 	return s.store.ListWebReleases(ctx, input)
 }
 
 func (s *WebReleaseAdminService) Detail(ctx context.Context, actor identity.Actor, releaseID int64) (WebReleaseDetail, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canManageReleases(actor) {
 		return WebReleaseDetail{}, identity.ErrPermissionDenied
 	}
 	return s.store.WebRelease(ctx, releaseID)
 }
 
 func (s *WebReleaseAdminService) Retry(ctx context.Context, actor identity.Actor, releaseID int64) (WebReleaseOperation, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canManageReleases(actor) {
 		return WebReleaseOperation{}, identity.ErrPermissionDenied
 	}
 	result, err := s.commands.Retry(ctx, releaseID, actor.ID)
@@ -60,7 +60,7 @@ func (s *WebReleaseAdminService) Retry(ctx context.Context, actor identity.Actor
 }
 
 func (s *WebReleaseAdminService) Rollback(ctx context.Context, actor identity.Actor, releaseID int64) (WebReleaseOperation, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canManageReleases(actor) {
 		return WebReleaseOperation{}, identity.ErrPermissionDenied
 	}
 	result, err := s.commands.Rollback(ctx, releaseID, actor.ID)

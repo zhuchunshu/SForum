@@ -487,7 +487,8 @@ func (s *Service) ListRoles(ctx context.Context, actor Actor) ([]Role, error) {
 }
 
 func (s *Service) ListUsers(ctx context.Context, actor Actor, input UserListInput) (AdminUserList, error) {
-	if !actor.Can(PermissionUserManage) {
+	// 只读列表：user.view；user.manage 父权限通过兼容层也可通过。
+	if !actor.Can(PermissionUserView) {
 		return AdminUserList{}, ErrPermissionDenied
 	}
 	input.Page, input.PerPage = normalizePage(input.Page, input.PerPage)
@@ -498,7 +499,7 @@ func (s *Service) ListUsers(ctx context.Context, actor Actor, input UserListInpu
 }
 
 func (s *Service) GetAdminUser(ctx context.Context, actor Actor, userID int64) (AdminUserDetail, error) {
-	if !actor.Can(PermissionUserManage) {
+	if !actor.Can(PermissionUserView) {
 		return AdminUserDetail{}, ErrPermissionDenied
 	}
 	return s.store.GetAdminUser(ctx, userID)
@@ -587,7 +588,8 @@ func (s *Service) ReplaceUserRoles(ctx context.Context, actor Actor, targetUserI
 }
 
 func (s *Service) ReplaceUserPermissionOverrides(ctx context.Context, actor Actor, targetUserID int64, overrides PermissionOverrides) (AdminUserDetail, error) {
-	if !actor.Can(PermissionUserManage) {
+	// 个人权限例外高危，独立于 user.manage。
+	if !actor.Can(PermissionUserPermissionOverride) {
 		return AdminUserDetail{}, ErrPermissionDenied
 	}
 	// 防自我提权：禁止修改自己的权限覆盖。
@@ -618,7 +620,7 @@ func (s *Service) ReplaceUserPermissionOverrides(ctx context.Context, actor Acto
 }
 
 func canManagePermissions(actor Actor) bool {
-	return actor.Can(PermissionRoleManage) || actor.Can(PermissionUserManage)
+	return actor.Can(PermissionRoleManage) || actor.Can(PermissionUserManage) || actor.Can(PermissionUserView) || actor.Can(PermissionUserPermissionOverride)
 }
 
 // maxAdminListPage 限制后台列表的最大页数（M6），避免深 OFFSET 全表扫描 DoS，与 Forum 对齐。

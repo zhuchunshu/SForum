@@ -725,7 +725,7 @@ func TestServiceUpdateTopicAllowsOwnerAndEditor(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
 	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
-	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostEditOwn: true}}
+	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
 	editor := identity.Actor{ID: 20, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditAny: true}}
 
 	title := "新标题"
@@ -757,7 +757,7 @@ func TestServiceUpdateTopicRejectsEmptyTitle(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
 	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: testForumSettings()}, nil)
-	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostEditOwn: true}}
+	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
 
 	empty := "  "
 	_, err := service.UpdateTopic(context.Background(), owner, UpdateTopicInput{TopicID: 7, Title: &empty})
@@ -770,7 +770,7 @@ func TestServiceDeleteTopicAllowsOwnerAndModerator(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
 	service := NewService(store)
-	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostDeleteOwn: true}}
+	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicDeleteOwn: true}}
 	moderator := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicDeleteAny: true}}
 
 	if _, err := service.DeleteTopic(context.Background(), owner, 7); err != nil {

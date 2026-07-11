@@ -52,7 +52,8 @@ func NewFrontendService(
 }
 
 func (s *FrontendService) Frontend(ctx context.Context, actor identity.Actor, extensionID string) (FrontendStatus, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	// 前端信任状态：插件/主题管理或只读查看均可读取。
+	if !canViewExtensions(actor) && !canManagePlugins(actor) && !canManageThemes(actor) {
 		return FrontendStatus{}, identity.ErrPermissionDenied
 	}
 	extension, err := s.extension(ctx, extensionID)

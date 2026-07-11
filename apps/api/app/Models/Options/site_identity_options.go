@@ -21,9 +21,9 @@ func init() {
 func siteIdentityOptionDefinitions() []optionDefinition {
 	return []optionDefinition{
 		// 标语对前台可见，用于导航/登录页。
-		{name: NameSiteTagline, public: true, managePermission: identity.PermissionSettingsManage},
+		{name: NameSiteTagline, public: true, managePermission: identity.PermissionSettingsSiteManage},
 		// 管理邮箱仅后台可读，降低公开爬取风险。
-		{name: NameSiteAdminEmail, public: false, managePermission: identity.PermissionSettingsManage},
+		{name: NameSiteAdminEmail, public: false, managePermission: identity.PermissionSettingsSiteManage},
 	}
 }
 

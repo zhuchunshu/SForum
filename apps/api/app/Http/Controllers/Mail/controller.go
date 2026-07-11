@@ -45,7 +45,7 @@ func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 	if err != nil {
 		return identity.Actor{}, err
 	}
-	if !actor.Can(identity.PermissionSettingsManage) {
+	if !actor.Can(identity.PermissionSettingsMailManage) {
 		return identity.Actor{}, fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	}
 	return actor, nil

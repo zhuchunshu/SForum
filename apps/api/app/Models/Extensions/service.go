@@ -215,8 +215,29 @@ func (LocalThemeBuilder) Build(_ context.Context, extension Extension) error {
 	return nil
 }
 
+
+// canViewExtensions 扩展目录只读（列表/事件/贡献/导航）。
+func canViewExtensions(actor identity.Actor) bool {
+	return actor.Can(identity.PermissionExtensionView) || actor.Can(identity.PermissionExtensionManage)
+}
+
+// canManagePlugins 插件启停/安装/校验与插件设置。
+func canManagePlugins(actor identity.Actor) bool {
+	return actor.Can(identity.PermissionExtensionPluginManage) || actor.Can(identity.PermissionExtensionManage)
+}
+
+// canManageThemes 主题激活。
+func canManageThemes(actor identity.Actor) bool {
+	return actor.Can(identity.PermissionExtensionThemeManage) || actor.Can(identity.PermissionExtensionManage)
+}
+
+// canManageReleases Web Release 队列与发布。
+func canManageReleases(actor identity.Actor) bool {
+	return actor.Can(identity.PermissionExtensionReleaseManage) || actor.Can(identity.PermissionExtensionManage)
+}
+
 func (s *Service) List(ctx context.Context, actor identity.Actor) ([]Extension, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 	items, err := s.store.List(ctx)
@@ -302,21 +323,21 @@ func (s *Service) SyncBuiltins(ctx context.Context) ([]Extension, error) {
 }
 
 func (s *Service) Events(ctx context.Context, actor identity.Actor, extensionID string, limit int) ([]ExtensionEvent, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 	return s.store.ListEvents(ctx, normalizeID(extensionID), limit)
 }
 
 func (s *Service) EventDefinitions(ctx context.Context, actor identity.Actor) ([]appevents.Definition, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 	return appevents.Definitions(), nil
 }
 
 func (s *Service) EventDeliveries(ctx context.Context, actor identity.Actor, input EventDeliveryListInput) ([]ExtensionEventDelivery, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 	input.ExtensionID = normalizeID(input.ExtensionID)
@@ -324,14 +345,14 @@ func (s *Service) EventDeliveries(ctx context.Context, actor identity.Actor, inp
 }
 
 func (s *Service) ContributionPoints(_ context.Context, actor identity.Actor) ([]ContributionPointDefinition, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 	return extensionmanifest.ContributionPointDefinitions(), nil
 }
 
 func (s *Service) Contributions(ctx context.Context, actor identity.Actor) ([]EffectiveContribution, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 	return s.EffectiveContributions(ctx)
@@ -375,7 +396,7 @@ func (s *Service) EffectiveContributions(ctx context.Context) ([]EffectiveContri
 }
 
 func (s *Service) Navigation(ctx context.Context, actor identity.Actor) ([]ExtensionAdminNavigationItem, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 	items, err := s.store.List(ctx)
@@ -491,10 +512,11 @@ func requireExtensionEnabledForSettings(extension Extension) error {
 }
 
 func canManageExtensionSettings(actor identity.Actor, extension Extension) bool {
-	if actor.Can(identity.PermissionExtensionManage) {
+	// 插件设置：extension.plugin.manage；邮件提供商插件也允许 settings.mail.manage。
+	if canManagePlugins(actor) {
 		return true
 	}
-	if !actor.Can(identity.PermissionSettingsManage) {
+	if !actor.Can(identity.PermissionSettingsMailManage) {
 		return false
 	}
 	for _, provider := range extension.Manifest.Providers {
@@ -543,7 +565,7 @@ func (s *Service) MatchRoute(ctx context.Context, extensionID string, method str
 }
 
 func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, input ArchiveInput) (Extension, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
 	if len(input.Data) == 0 || len(input.Data) > maxArchiveBytes {
@@ -604,7 +626,7 @@ func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, inpu
 }
 
 func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
 	extension, err := s.store.Get(ctx, normalizeID(id))
@@ -643,7 +665,7 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string) (
 }
 
 func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
 	extension, err := s.store.Get(ctx, normalizeID(id))
@@ -683,7 +705,7 @@ func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) 
 }
 
 func (s *Service) VerifyExtension(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
 	extension, err := s.store.Get(ctx, normalizeID(id))
@@ -709,7 +731,7 @@ func (s *Service) VerifyExtension(ctx context.Context, actor identity.Actor, id 
 }
 
 func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	if !canManageThemes(actor) {
 		return Extension{}, identity.ErrPermissionDenied
 	}
 	extension, err := s.store.Get(ctx, normalizeID(id))

@@ -44,10 +44,10 @@ func init() {
 
 func siteDateTimeOptionDefinitions() []optionDefinition {
 	return []optionDefinition{
-		{name: NameSiteTimezone, public: true, managePermission: identity.PermissionSettingsManage},
-		{name: NameSiteDateFormat, public: true, managePermission: identity.PermissionSettingsManage},
-		{name: NameSiteTimeFormat, public: true, managePermission: identity.PermissionSettingsManage},
-		{name: NameSiteStartOfWeek, public: true, managePermission: identity.PermissionSettingsManage},
+		{name: NameSiteTimezone, public: true, managePermission: identity.PermissionSettingsSiteManage},
+		{name: NameSiteDateFormat, public: true, managePermission: identity.PermissionSettingsSiteManage},
+		{name: NameSiteTimeFormat, public: true, managePermission: identity.PermissionSettingsSiteManage},
+		{name: NameSiteStartOfWeek, public: true, managePermission: identity.PermissionSettingsSiteManage},
 	}
 }
 

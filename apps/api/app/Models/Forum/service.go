@@ -269,7 +269,7 @@ func (s *Service) UpdateForumSettings(ctx context.Context, actor identity.Actor,
 	if (input.TagCreationMode != nil || input.TagPublicPages != nil || input.TagMinPerTopic != nil || input.TagMaxPerTopic != nil) && !actor.Can(identity.PermissionTagManage) {
 		return ForumSettings{}, identity.ErrPermissionDenied
 	}
-	if forumSettingsManageFieldsPresent(input) && !actor.Can(identity.PermissionSettingsManage) {
+	if forumSettingsManageFieldsPresent(input) && !actor.Can(identity.PermissionForumSettingsManage) {
 		return ForumSettings{}, identity.ErrPermissionDenied
 	}
 	manager, ok := s.settings.(SettingsManager)
@@ -1104,7 +1104,7 @@ func isAuthorOnlyCommentEdit(actor identity.Actor, comment CommentSummary) bool 
 }
 
 func canManageForumSettings(actor identity.Actor) bool {
-	return actor.Can(identity.PermissionCategoryManage) || actor.Can(identity.PermissionTagManage) || actor.Can(identity.PermissionSettingsManage)
+	return actor.Can(identity.PermissionCategoryManage) || actor.Can(identity.PermissionTagManage) || actor.Can(identity.PermissionForumSettingsManage)
 }
 
 func normalizeCreateCategoryGroupInput(input CreateCategoryGroupInput) (CreateCategoryGroupInput, error) {
@@ -1512,22 +1512,21 @@ func canDeleteComment(actor identity.Actor, comment CommentSummary) bool {
 	return comment.AuthorUserID == actor.ID && actor.Can(identity.PermissionPostDeleteOwn)
 }
 
-// canEditTopic: 作者凭 post.edit_own 可编辑自己的主题，版主任意编辑凭 topic.edit_any。
+// canEditTopic: 作者凭 topic.edit_own；版主凭 topic.edit_any。
 func canEditTopic(actor identity.Actor, topic TopicSummary) bool {
 	if actor.Can(identity.PermissionTopicEditAny) {
 		return true
 	}
-	return topic.AuthorUserID == actor.ID && actor.Can(identity.PermissionPostEditOwn)
+	return topic.AuthorUserID == actor.ID && actor.Can(identity.PermissionTopicEditOwn)
 }
 
-// canDeleteTopic: 作者凭 post.delete_own 可软删自己的主题，
-// 版主凭 topic.delete_any 可软删/隐藏/恢复任意主题。
+// canDeleteTopic: 作者凭 topic.delete_own；版主凭 topic.delete_any。
 // 站点策略 AllowAuthorDelete=false 时作者删除被禁止（版主仍可删）。
 func canDeleteTopic(actor identity.Actor, topic TopicSummary) bool {
 	if actor.Can(identity.PermissionTopicDeleteAny) {
 		return true
 	}
-	return topic.AuthorUserID == actor.ID && actor.Can(identity.PermissionPostDeleteOwn)
+	return topic.AuthorUserID == actor.ID && actor.Can(identity.PermissionTopicDeleteOwn)
 }
 
 func (s *Service) canDeleteTopicWithPolicy(ctx context.Context, actor identity.Actor, topic TopicSummary) bool {

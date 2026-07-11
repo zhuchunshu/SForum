@@ -286,7 +286,7 @@ func (h *Controller) adminMailTest(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if !actor.Can(identity.PermissionSettingsManage) {
+	if !actor.Can(identity.PermissionSettingsMailManage) {
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	}
 	if h.mailQueue == nil {

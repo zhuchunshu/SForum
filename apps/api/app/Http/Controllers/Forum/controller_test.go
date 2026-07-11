@@ -360,19 +360,21 @@ func newForumTestApp() (*fiber.App, *authsession.Manager, *controllerForumStore)
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
 	users := controllerForumActors{actors: map[int64]identity.Actor{
 		1: {ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{
-			identity.PermissionTopicCreate:   true,
-			identity.PermissionPostCreate:    true,
-			identity.PermissionPostEditOwn:   true,
-			identity.PermissionPostDeleteOwn: true,
+			identity.PermissionTopicCreate:    true,
+			identity.PermissionTopicEditOwn:   true,
+			identity.PermissionTopicDeleteOwn: true,
+			identity.PermissionPostCreate:     true,
+			identity.PermissionPostEditOwn:    true,
+			identity.PermissionPostDeleteOwn:  true,
 		}},
 		2: {ID: 2, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
 		3: {ID: 3, Status: identity.UserStatusActive, Permissions: map[string]bool{
 			identity.PermissionCategoryManage: true,
 		}},
 		4: {ID: 4, Status: identity.UserStatusActive, Permissions: map[string]bool{
-			identity.PermissionCategoryManage: true,
-			identity.PermissionTagManage:      true,
-			identity.PermissionSettingsManage: true,
+			identity.PermissionCategoryManage:     true,
+			identity.PermissionTagManage:          true,
+			identity.PermissionForumSettingsManage: true,
 		}},
 		5: {ID: 5, Status: identity.UserStatusActive, Permissions: map[string]bool{
 			identity.PermissionTopicEditAny:   true,

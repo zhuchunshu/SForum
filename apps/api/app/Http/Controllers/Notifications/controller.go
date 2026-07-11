@@ -46,7 +46,7 @@ func (h *Controller) adminTest(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if !actor.Can(identity.PermissionSettingsManage) {
+	if !actor.Can(identity.PermissionSettingsMailManage) {
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	}
 	item, err := h.creator.Create(c.Context(), notifications.CreateInput{RecipientUserID: userID, Type: notifications.TypeAdminTest, TargetType: "system", Payload: []byte(`{}`), DedupeKey: fmt.Sprintf("admin_test:%d:%d", userID, time.Now().UnixNano())})

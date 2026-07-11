@@ -228,7 +228,8 @@ func TestUserManagerCannotChangeOwnRoles(t *testing.T) {
 func TestUserManagerCannotChangeOwnOverrides(t *testing.T) {
 	service, _ := newTestService(t)
 	ctx := testContext(t)
-	manager := Actor{ID: 50, Status: UserStatusActive, Permissions: map[string]bool{PermissionUserManage: true}}
+	// 覆盖编辑需要 user.permission_override（或兼容父权限 user.manage）。
+	manager := Actor{ID: 50, Status: UserStatusActive, Permissions: map[string]bool{PermissionUserPermissionOverride: true}}
 
 	_, err := service.ReplaceUserPermissionOverrides(ctx, manager, 50, PermissionOverrides{
 		Allow: []string{PermissionAdminAccess},

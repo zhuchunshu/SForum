@@ -428,7 +428,7 @@ func (r ForumSettingsResolver) ResetForumSettings(ctx context.Context, actor ide
 		input.TagMinPerTopic = &minTags
 		input.TagMaxPerTopic = &maxTags
 	}
-	if actor.Can(identity.PermissionSettingsManage) {
+	if actor.Can(identity.PermissionForumSettingsManage) {
 		input.TopicsPerPage = intPtr(recommended.TopicsPerPage)
 		input.CommentsPerPage = intPtr(recommended.CommentsPerPage)
 		input.TopicTitleMinRunes = intPtr(recommended.TopicTitleMinRunes)

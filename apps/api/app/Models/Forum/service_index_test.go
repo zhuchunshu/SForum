@@ -134,7 +134,7 @@ func TestDeleteTopicDispatchesDeleteIndex(t *testing.T) {
 	idx := &fakeIndexer{}
 	svc := newServiceWithIndexerForTest(idx)
 
-	actor := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostDeleteOwn: true}}
+	actor := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicDeleteOwn: true}}
 	_, err := svc.DeleteTopic(ctx, actor, 7)
 	if err != nil {
 		t.Fatalf("delete topic: %v", err)

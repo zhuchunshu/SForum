@@ -62,7 +62,7 @@ func (s *Service) DisableOperation(ctx context.Context, actor identity.Actor, id
 			return ExtensionOperation{}, err
 		}
 		if frontendRequiresWebRelease(status) {
-			if !actor.Can(identity.PermissionExtensionManage) {
+			if !canManageReleases(actor) {
 				return ExtensionOperation{}, identity.ErrPermissionDenied
 			}
 			queued, err := s.webReleaseLifecycle.PlanAndQueue(ctx, QueueWebReleaseInput{
@@ -110,7 +110,12 @@ func (s *Service) ActivateThemeOperation(ctx context.Context, actor identity.Act
 }
 
 func (s *Service) verifyLifecyclePermissionAndPackage(ctx context.Context, actor identity.Actor, extension Extension) error {
-	if !actor.Can(identity.PermissionExtensionManage) {
+	// 主题激活走 theme.manage；插件生命周期走 plugin.manage。
+	ok := canManagePlugins(actor)
+	if extension.Type == TypeTheme {
+		ok = canManageThemes(actor)
+	}
+	if !ok {
 		return identity.ErrPermissionDenied
 	}
 	if err := s.verifyExtension(ctx, extension); err != nil {
