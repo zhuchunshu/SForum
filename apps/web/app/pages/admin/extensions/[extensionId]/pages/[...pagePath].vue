@@ -5,6 +5,7 @@ import {
   extensionLocalizedDisplay,
   findExtensionAdminPage,
   normalizeExtensionPagePath,
+  recommendedExtensionSettingValues,
   type AdminExtension,
   type AdminExtensionSettings
 } from '~/utils/adminExtensions'
@@ -120,9 +121,9 @@ async function saveSettings() {
 async function resetSettings() {
   savingSettings.value = true
   try {
-    const updated = await request<AdminExtensionSettings>(`/admin/extensions/${extensionId.value}/settings/reset`, {
-      method: 'POST',
-      body: {}
+    const updated = await request<AdminExtensionSettings>(`/admin/extensions/${extensionId.value}/settings`, {
+      method: 'PUT',
+      body: { values: recommendedExtensionSettingValues(settings.value?.items || []) }
     })
     settings.value = updated
     for (const item of updated.items) {
@@ -194,7 +195,11 @@ function onBooleanSettingChange(key: string, event: Event) {
     </div>
 
     <form v-if="settings?.items.length" class="divide-y divide-slate-200 dark:divide-zinc-800" @submit.prevent="saveSettings">
-      <div v-for="item in settings.items" :key="item.key" class="grid gap-3 px-4 py-4 md:grid-cols-[220px_1fr]">
+      <template v-for="(item, index) in settings.items" :key="item.key">
+        <div v-if="item.group && item.group !== settings.items[index - 1]?.group" class="bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600 dark:bg-zinc-950 dark:text-zinc-300">
+          {{ item.group }}
+        </div>
+        <div class="grid gap-3 px-4 py-4 md:grid-cols-[220px_1fr]">
         <div class="min-w-0">
           <label :for="`extension-setting-${item.key}`" class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
             {{ item.label }}
@@ -214,19 +219,30 @@ function onBooleanSettingChange(key: string, event: Event) {
             >
             <span>{{ t('admin.extensions.dynamic.enabled') }}</span>
           </label>
+          <USelect
+            v-if="item.options?.length"
+            :id="`extension-setting-${item.key}`"
+            v-model="formValues[item.key]"
+            class="max-w-xl"
+            value-key="value"
+            label-key="label"
+            :items="item.options"
+            :placeholder="item.placeholder"
+          />
           <UInput
             v-else
             :id="`extension-setting-${item.key}`"
             v-model="formValues[item.key]"
             class="max-w-xl"
 			:type="item.type === 'secret' ? 'password' : item.type === 'number' ? 'number' : 'text'"
-			:placeholder="item.type === 'secret' && item.secretSet ? t('admin.mailSettings.passwordSetHint') : undefined"
+			:placeholder="item.type === 'secret' && item.secretSet ? t('admin.mailSettings.passwordSetHint') : item.placeholder"
           />
           <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
-            {{ t('admin.extensions.dynamic.defaultValue', { value: item.default || t('admin.extensions.dynamic.emptyValue') }) }}
+            {{ t('admin.extensions.dynamic.defaultValue', { value: item.recommendedValue || item.default || t('admin.extensions.dynamic.emptyValue') }) }}
           </p>
         </div>
-      </div>
+        </div>
+      </template>
 
       <div class="flex flex-wrap items-center justify-end gap-2 px-4 py-4">
         <UButton type="button" color="neutral" variant="subtle" icon="i-lucide-rotate-ccw" :loading="savingSettings" @click="resetSettings">

@@ -90,6 +90,7 @@ var (
 type Manifest = extensionmanifest.Manifest
 type ManifestAuthor = extensionmanifest.ManifestAuthor
 type ManifestSetting = extensionmanifest.ManifestSetting
+type ManifestSettingOption = extensionmanifest.ManifestSettingOption
 type ManifestMigration = extensionmanifest.ManifestMigration
 type ManifestBackend = extensionmanifest.ManifestBackend
 type ManifestFrontend = extensionmanifest.ManifestFrontend
@@ -207,13 +208,17 @@ type EffectiveContribution struct {
 }
 
 type ExtensionSettingValue struct {
-	Key         string `json:"key"`
-	Label       string `json:"label"`
-	Description string `json:"description"`
-	Type        string `json:"type"`
-	Default     string `json:"default"`
-	Value       string `json:"value"`
-	SecretSet   bool   `json:"secretSet,omitempty"`
+	Key              string                  `json:"key"`
+	Label            string                  `json:"label"`
+	Description      string                  `json:"description"`
+	Type             string                  `json:"type"`
+	Default          string                  `json:"default"`
+	Value            string                  `json:"value"`
+	Placeholder      string                  `json:"placeholder,omitempty"`
+	RecommendedValue string                  `json:"recommendedValue,omitempty"`
+	Group            string                  `json:"group,omitempty"`
+	Options          []ManifestSettingOption `json:"options,omitempty"`
+	SecretSet        bool                    `json:"secretSet,omitempty"`
 }
 
 type ExtensionSettings struct {

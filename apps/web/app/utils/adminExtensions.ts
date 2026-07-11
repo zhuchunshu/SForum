@@ -14,6 +14,10 @@ export type AdminExtensionSetting = {
   description?: string
   type: string
   default?: string
+  placeholder?: string
+  recommendedValue?: string
+  group?: string
+  options?: Array<{ value: string, label: string, description?: string }>
 }
 
 export type AdminExtensionAuthor = {
@@ -113,11 +117,21 @@ export type AdminExtensionSettingValue = {
   default: string
   value: string
   secretSet?: boolean
+  placeholder?: string
+  recommendedValue?: string
+  group?: string
+  options?: Array<{ value: string, label: string, description?: string }>
 }
 
 export type AdminExtensionSettings = {
   extensionId: string
   items: AdminExtensionSettingValue[]
+}
+
+export function recommendedExtensionSettingValues(items: AdminExtensionSettingValue[]) {
+  return Object.fromEntries(items
+    .filter(item => item.type !== 'secret')
+    .map(item => [item.key, item.recommendedValue ?? item.default]))
 }
 
 export type AdminExtensionRuntime = {

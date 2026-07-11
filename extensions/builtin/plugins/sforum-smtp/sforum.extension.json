@@ -18,12 +18,16 @@
   "providers": [{ "slot": "mail.provider", "label": "SMTP", "timeoutMs": 15000 }],
   "admin": { "entry": "/settings", "pages": [{ "path": "/settings", "label": "SMTP Settings", "view": "settings", "menu": false }] },
   "settings": [
-    { "key": "host", "label": "SMTP host", "type": "text", "default": "" },
-    { "key": "port", "label": "SMTP port", "type": "number", "default": "587" },
-    { "key": "encryption", "label": "Encryption", "type": "select", "default": "starttls" },
-    { "key": "username", "label": "Username", "type": "text", "default": "" },
-    { "key": "password", "label": "Password", "type": "secret", "default": "" },
-    { "key": "from_address", "label": "From address", "type": "text", "default": "noreply@example.com" },
-    { "key": "from_name", "label": "From name", "type": "text", "default": "SForum" }
+    { "key": "host", "label": "SMTP 服务器 / SMTP host", "description": "邮件服务商提供的服务器地址，例如 smtp.example.com。 / Server hostname from your mail provider.", "type": "text", "default": "", "placeholder": "smtp.example.com", "group": "服务器 / Server" },
+    { "key": "encryption", "label": "加密方式 / Encryption", "description": "推荐 STARTTLS + 587；TLS/SSL 常用 465；无加密仅适合可信内网。 / STARTTLS with port 587 is recommended; TLS/SSL commonly uses 465; none is for trusted networks only.", "type": "select", "default": "starttls", "recommendedValue": "starttls", "group": "服务器 / Server", "options": [
+      { "value": "starttls", "label": "STARTTLS（推荐 / Recommended）" },
+      { "value": "tls", "label": "TLS/SSL" },
+      { "value": "none", "label": "无加密 / None" }
+    ] },
+    { "key": "port", "label": "端口 / Port", "description": "STARTTLS 推荐 587，TLS/SSL 推荐 465，无加密通常为 25。 / Use 587 for STARTTLS, 465 for TLS/SSL, or usually 25 for none.", "type": "number", "default": "587", "recommendedValue": "587", "placeholder": "587", "group": "服务器 / Server" },
+    { "key": "username", "label": "用户名 / Username", "description": "通常是完整邮箱地址。 / Usually your full email address.", "type": "text", "default": "", "placeholder": "mailer@example.com", "group": "身份验证 / Authentication" },
+    { "key": "password", "label": "密码 / Password", "description": "多数邮箱服务需要应用专用密码。留空会保留现有密码。 / Most providers require an app password. Leave blank to preserve the current password.", "type": "secret", "default": "", "placeholder": "应用专用密码 / App password", "group": "身份验证 / Authentication" },
+    { "key": "from_address", "label": "发件邮箱 / From address", "description": "收件人看到的发件地址，通常应与认证账号或已验证域名一致。 / Visible sender address; usually matches the account or a verified domain.", "type": "text", "default": "noreply@example.com", "placeholder": "noreply@example.com", "group": "发件人 / Sender" },
+    { "key": "from_name", "label": "发件名称 / From name", "description": "建议填写站点名称。 / The site name is recommended.", "type": "text", "default": "SForum", "placeholder": "SForum", "group": "发件人 / Sender" }
   ]
 }

@@ -672,7 +672,7 @@ func TestServiceSettingsResolveUpdateAndResetDefaults(t *testing.T) {
 	item := installedExtension("settings.plugin", TypePlugin, ManifestBackend{})
 	item.Manifest.Settings = []ManifestSetting{
 		{Key: "demo.enabled", Label: "Enabled", Type: "boolean", Default: "true"},
-		{Key: "demo.title", Label: "Title", Type: "text", Default: "Hello"},
+		{Key: "demo.title", Label: "Title", Type: "select", Default: "Hello", RecommendedValue: "Hello", Placeholder: "Choose", Group: "general", Options: []ManifestSettingOption{{Value: "Hello", Label: "Hello"}, {Value: "World", Label: "World"}}},
 	}
 	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
 	service := NewService(store, t.TempDir())
@@ -683,6 +683,9 @@ func TestServiceSettingsResolveUpdateAndResetDefaults(t *testing.T) {
 	}
 	if settingValue(settings, "demo.title") != "Hello" {
 		t.Fatalf("expected default setting value, got %#v", settings)
+	}
+	if settings.Items[1].RecommendedValue != "Hello" || settings.Items[1].Placeholder != "Choose" || settings.Items[1].Group != "general" || len(settings.Items[1].Options) != 2 {
+		t.Fatalf("expected presentation metadata, got %#v", settings.Items[1])
 	}
 
 	updated, err := service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{Values: map[string]string{"demo.title": "Updated"}})

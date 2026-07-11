@@ -23,6 +23,7 @@ import {
   findExtensionAdminPage,
   mergeExtensionDeliveries,
   mergeExtensionEvents,
+  recommendedExtensionSettingValues,
   runtimeCapabilitySummary,
   runtimeStatusLabelKey,
   hasThemeActivationInProgress,
@@ -48,6 +49,12 @@ const baseExtension = {
 } satisfies Partial<AdminExtension>
 
 describe('admin extension helpers', () => {
+  test('restores recommended extension settings without clearing secrets', () => {
+    expect(recommendedExtensionSettingValues([
+      { key: 'port', label: 'Port', type: 'number', default: '25', recommendedValue: '587', value: '465' },
+      { key: 'password', label: 'Password', type: 'secret', default: '', value: '', secretSet: true }
+    ])).toEqual({ port: '587' })
+  })
   test('filters plugins and themes by manifest type', () => {
     const items = [
       extension({ id: 'demo.plugin', name: 'Demo Plugin', type: 'plugin' }),

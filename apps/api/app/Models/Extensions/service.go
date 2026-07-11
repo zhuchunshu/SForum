@@ -1096,13 +1096,17 @@ func resolveExtensionSettings(extension Extension, values map[string]string) Ext
 			value = ""
 		}
 		items = append(items, ExtensionSettingValue{
-			Key:         setting.Key,
-			Label:       setting.Label,
-			Description: setting.Description,
-			Type:        setting.Type,
-			Default:     setting.Default,
-			Value:       value,
-			SecretSet:   secretSet,
+			Key:              setting.Key,
+			Label:            setting.Label,
+			Description:      setting.Description,
+			Type:             setting.Type,
+			Default:          setting.Default,
+			Value:            value,
+			Placeholder:      setting.Placeholder,
+			RecommendedValue: setting.RecommendedValue,
+			Group:            setting.Group,
+			Options:          setting.Options,
+			SecretSet:        secretSet,
 		})
 	}
 	return ExtensionSettings{ExtensionID: extension.ID, Items: items}
