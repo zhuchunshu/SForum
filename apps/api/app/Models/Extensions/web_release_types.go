@@ -101,6 +101,8 @@ type WebReleaseSummary struct {
 	TriggerExtensionID string           `json:"triggerExtensionId,omitempty"`
 	PublicReason       string           `json:"publicReason,omitempty"`
 	PublicMessage      string           `json:"publicMessage,omitempty"`
+	// BuildLog 供插件列表行内展开，与主题 themeRelease.buildLog 体验一致。
+	BuildLog string `json:"buildLog,omitempty"`
 }
 
 type WebReleasePage struct {

@@ -165,6 +165,8 @@ export type AdminWebReleaseSummary = {
   triggerExtensionId?: string
   publicReason?: string
   publicMessage?: string
+  /** 与主题 themeRelease.buildLog 同用途，供行内展开。 */
+  buildLog?: string
 }
 
 export type AdminExtension = {

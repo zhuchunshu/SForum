@@ -363,6 +363,7 @@ func webReleaseSummary(release WebRelease) *WebReleaseSummary {
 		TriggerExtensionID: release.TriggerExtensionID,
 		PublicReason:       release.PublicReason,
 		PublicMessage:      release.PublicMessage,
+		BuildLog:           release.BuildLog,
 	}
 }
 

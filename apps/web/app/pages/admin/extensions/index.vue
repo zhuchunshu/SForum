@@ -60,6 +60,7 @@ const {
 const selectedEventPageInfo = computed(() => extensionEventPage(selectedEvents.value, selectedEventPage.value))
 // 主题 themeRelease 与插件 webRelease 任一进行中即轮询列表。
 const activationPolling = computed(() => hasExtensionReleaseInProgress(extensions.value))
+const expandedLogReleaseIds = ref<Record<number, boolean>>({})
 let activationPollTimer: ReturnType<typeof setInterval> | null = null
 
 useSeoMeta({
@@ -98,6 +99,49 @@ function releaseProgress(item: (typeof extensions.value)[number]) {
 
 function pluginActionBusy(item: (typeof extensions.value)[number]) {
   return item.type === 'plugin' && Boolean(pluginWebReleaseProgress(item.webRelease)?.active)
+}
+
+function extensionBuildLog(item: (typeof extensions.value)[number]) {
+  if (item.type === 'theme') {
+    return item.themeRelease?.buildLog?.trim() || ''
+  }
+  return item.webRelease?.buildLog?.trim() || ''
+}
+
+function extensionReleaseId(item: (typeof extensions.value)[number]) {
+  return item.type === 'theme' ? item.themeRelease?.id : item.webRelease?.id
+}
+
+function hasBuildLogToggle(item: (typeof extensions.value)[number]) {
+  const releaseId = extensionReleaseId(item)
+  if (!releaseId) {
+    return false
+  }
+  const status = item.type === 'theme' ? item.themeRelease?.status : item.webRelease?.status
+  return Boolean(extensionBuildLog(item) || status === 'failed' || releaseProgress(item)?.active)
+}
+
+function isBuildLogOpen(item: (typeof extensions.value)[number]) {
+  const releaseId = extensionReleaseId(item)
+  if (!releaseId) {
+    return false
+  }
+  if (Object.prototype.hasOwnProperty.call(expandedLogReleaseIds.value, releaseId)) {
+    return expandedLogReleaseIds.value[releaseId]
+  }
+  const status = item.type === 'theme' ? item.themeRelease?.status : item.webRelease?.status
+  return status === 'failed'
+}
+
+function toggleBuildLog(item: (typeof extensions.value)[number]) {
+  const releaseId = extensionReleaseId(item)
+  if (!releaseId) {
+    return
+  }
+  expandedLogReleaseIds.value = {
+    ...expandedLogReleaseIds.value,
+    [releaseId]: !isBuildLogOpen(item)
+  }
 }
 
 function startActivationPolling() {
@@ -310,17 +354,21 @@ onBeforeUnmount(stopActivationPolling)
                 <p class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
                   {{ t(releaseProgress(item)?.detailKey || (item.type === 'theme' ? 'admin.extensions.themeProgress.queued' : 'admin.extensions.webReleaseProgress.queued')) }}
                 </p>
-                <UButton
-                  v-if="item.type === 'plugin' && item.webRelease?.id"
-                  class="mt-3"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-scroll-text"
-                  :to="adminRoutes.path('/extensions/releases')"
-                >
-                  {{ t('admin.extensions.viewWebRelease') }} #{{ item.webRelease.id }}
-                </UButton>
+                <div v-if="hasBuildLogToggle(item)" class="mt-3">
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    :icon="isBuildLogOpen(item) ? 'i-lucide-chevron-up' : 'i-lucide-file-text'"
+                    @click="toggleBuildLog(item)"
+                  >
+                    {{ isBuildLogOpen(item) ? t('admin.extensions.hideBuildLog') : t('admin.extensions.viewBuildLog') }}
+                  </UButton>
+                  <pre
+                    v-if="isBuildLogOpen(item)"
+                    class="mt-2 max-h-48 overflow-auto rounded-md border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
+                  >{{ extensionBuildLog(item) || t('admin.extensions.emptyBuildLog') }}</pre>
+                </div>
               </div>
             </div>
             <div class="flex items-center gap-2 md:justify-end">

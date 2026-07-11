@@ -47,6 +47,7 @@ const pluginRows = computed(() => plugins.value.map((item) => ({
   display: extensionLocalizedDisplay(item, locale.value)
 })))
 const releasePolling = computed(() => hasPluginWebReleaseInProgress(plugins.value))
+const expandedLogReleaseIds = ref<Record<number, boolean>>({})
 let releasePollTimer: ReturnType<typeof setInterval> | null = null
 
 function runtimeColor(state?: AdminRuntimeState) {
@@ -68,6 +69,37 @@ function releaseProgress(item: AdminExtension) {
 
 function pluginActionBusy(item: AdminExtension) {
   return Boolean(releaseProgress(item)?.active)
+}
+
+// 与主题页一致：进度条下方可展开构建日志，失败时默认打开。
+function pluginBuildLog(item: AdminExtension) {
+  return item.webRelease?.buildLog?.trim() || ''
+}
+
+function hasBuildLogToggle(item: AdminExtension) {
+  return Boolean(item.webRelease && (pluginBuildLog(item) || item.webRelease.status === 'failed' || releaseProgress(item)?.active))
+}
+
+function isBuildLogOpen(item: AdminExtension) {
+  const release = item.webRelease
+  if (!release) {
+    return false
+  }
+  if (Object.prototype.hasOwnProperty.call(expandedLogReleaseIds.value, release.id)) {
+    return expandedLogReleaseIds.value[release.id]
+  }
+  return release.status === 'failed'
+}
+
+function toggleBuildLog(item: AdminExtension) {
+  const release = item.webRelease
+  if (!release) {
+    return
+  }
+  expandedLogReleaseIds.value = {
+    ...expandedLogReleaseIds.value,
+    [release.id]: !isBuildLogOpen(item)
+  }
 }
 
 function startReleasePolling() {
@@ -227,17 +259,21 @@ useSeoMeta({
             <p class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
               {{ t(releaseProgress(item)?.detailKey || 'admin.extensions.webReleaseProgress.queued') }}
             </p>
-            <UButton
-              v-if="item.webRelease?.id"
-              class="mt-3"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-scroll-text"
-              :to="adminRoutes.path('/extensions/releases')"
-            >
-              {{ t('admin.extensions.viewWebRelease') }} #{{ item.webRelease.id }}
-            </UButton>
+            <div v-if="hasBuildLogToggle(item)" class="mt-3">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                :icon="isBuildLogOpen(item) ? 'i-lucide-chevron-up' : 'i-lucide-file-text'"
+                @click="toggleBuildLog(item)"
+              >
+                {{ isBuildLogOpen(item) ? t('admin.extensions.hideBuildLog') : t('admin.extensions.viewBuildLog') }}
+              </UButton>
+              <pre
+                v-if="isBuildLogOpen(item)"
+                class="mt-2 max-h-48 overflow-auto rounded-md border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200"
+              >{{ pluginBuildLog(item) || t('admin.extensions.emptyBuildLog') }}</pre>
+            </div>
           </div>
           <SFAdminFrontendTrustPanel :extension="item" />
         </div>

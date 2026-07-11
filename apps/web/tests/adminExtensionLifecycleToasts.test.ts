@@ -33,6 +33,10 @@ describe('plugin enable/disable lifecycle feedback', () => {
     expect(plugins).toContain('hasPluginWebReleaseInProgress')
     expect(plugins).toContain('<UProgress')
     expect(plugins).toContain('startReleasePolling')
+    // 与主题一致：进度条下方行内展开日志，而不是跳转到 Web 发布页。
+    expect(plugins).toContain('toggleBuildLog')
+    expect(plugins).toContain("t('admin.extensions.viewBuildLog')")
+    expect(plugins).not.toContain("adminRoutes.path('/extensions/releases')")
   })
 
   test('locale catalogs include plugin queue and release log copy', () => {
