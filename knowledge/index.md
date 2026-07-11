@@ -13,14 +13,19 @@ This is the entry point for project memory.
   - Next coding slice: Wave **F1.1** Schedule Registry (see plan one-liner).
   - Parallel product tracks unchanged (Iteration A, settings, security fixes).
 
-- **2026-07-12 full security audit recorded (fixes not yet applied)**
-  - Plan (execute next): `knowledge/plans/2026-07-12-security-audit-fix-batch.md`
+- **2026-07-12 security audit P0–P2 fixes applied on main**
+  - Plan: `knowledge/plans/2026-07-12-security-audit-fix-batch.md` (commits 1–12 done)
   - Handoff: `knowledge/sessions/2026-07-12-security-audit-handoff.md`
-  - Scope: identity privilege escalation, plugin proxy SSRF/headers/env,
-    attachment MIME/XSS, forum moderation-on-edit + counters, CSRF Secure,
-    password-reset errors, zip/disable permissions, etc.
-  - Process: work on `main`, one git commit per plan item, related `go test`.
-  - Next session: paste one-liner from handoff / plan bottom and implement.
+  - Identity: no `user.manage`→`permission_override`; super_admin demote gated;
+    password-reset 4xx + Redis rate limit + atomic confirm
+  - Extensions: strip proxy identity headers; loopback RouteTarget; minimal
+    plugin env; disable perm parity; zip inflate cap
+  - Attachments: server MIME sniff + active content deny under wildcards
+  - Forum: publication policy on edits; delete/move counter integrity
+  - HTTP: CSRF CookieSecure aligned with session (`config.ShouldUseSecureCookie`)
+  - Verification: `cd apps/api && go test ./...` green
+  - Out of scope (unchanged): non-builtin enable super_admin, secret AES,
+    settings PUT merge, guest attachment read, login lockout IP dimension, etc.
 
 - **2026-07-12 Settings Wave 2 done** (Brand & public chrome)
   - Session: `knowledge/sessions/2026-07-12-admin-settings-wave2.md`
