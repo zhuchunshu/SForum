@@ -245,6 +245,7 @@ export const adminSidebarNavigation = [
       icon: 'i-lucide-settings-2',
       children: [
         { type: 'page', pageId: '/settings' },
+        { type: 'page', pageId: '/settings/mail' },
         { type: 'page', pageId: '/settings/avatar' },
         { type: 'page', pageId: '/personalization' },
         { type: 'page', pageId: '/seo' },
