@@ -58,6 +58,10 @@ func (w *DeliverMailWorker) Work(ctx context.Context, job *river.Job[DeliverMail
 	if w.Sender == nil {
 		return fmt.Errorf("mail provider sender is not configured")
 	}
+	attempt := delivery.AttemptCount + 1
+	if err := w.Store.UpdateDelivery(ctx, notifications.DeliveryUpdate{ID: delivery.ID, Status: notifications.DeliverySending, ExtensionID: selection.ExtensionID, AttemptCount: attempt}); err != nil {
+		return err
+	}
 	if refresher, ok := w.Sender.(interface {
 		RefreshMailProvider(context.Context, string) error
 	}); ok {
@@ -69,12 +73,13 @@ func (w *DeliverMailWorker) Work(ctx context.Context, job *river.Job[DeliverMail
 	if err != nil {
 		return err
 	}
-	update := notifications.DeliveryUpdate{ID: delivery.ID, ExtensionID: selection.ExtensionID, AttemptCount: delivery.AttemptCount + 1, Reason: response.Reason, ErrorSummary: response.Message}
+	update := notifications.DeliveryUpdate{ID: delivery.ID, ExtensionID: selection.ExtensionID, AttemptCount: attempt, Reason: response.Reason, ErrorSummary: response.Message}
 	if response.OK {
 		update.Status = notifications.DeliverySent
 		return w.Store.UpdateDelivery(ctx, update)
 	}
 	if response.Classification == "temporary" {
+		_ = w.Store.UpdateDelivery(ctx, notifications.DeliveryUpdate{ID: delivery.ID, Status: notifications.DeliverySending, ExtensionID: selection.ExtensionID, AttemptCount: attempt, Reason: response.Reason, ErrorSummary: response.Message})
 		return fmt.Errorf("temporary mail provider failure: %s", response.Reason)
 	}
 	update.Status = notifications.DeliveryFailed

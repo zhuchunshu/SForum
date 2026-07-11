@@ -334,7 +334,12 @@ func (s *PostgresStore) ActiveThemeRelease(ctx context.Context) (ThemeRelease, e
 }
 
 func (s *PostgresStore) Disable(ctx context.Context, id string) (Extension, error) {
-	command, err := s.pool.Exec(ctx, `
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Extension{}, fmt.Errorf("begin disable extension: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	command, err := tx.Exec(ctx, `
 		UPDATE extensions
 		SET status = 'disabled', updated_at = now()
 		WHERE id = $1
@@ -344,6 +349,12 @@ func (s *PostgresStore) Disable(ctx context.Context, id string) (Extension, erro
 	}
 	if command.RowsAffected() == 0 {
 		return Extension{}, ErrExtensionNotFound
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM mail_provider_selection WHERE extension_id=$1`, id); err != nil {
+		return Extension{}, fmt.Errorf("clear disabled mail provider: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Extension{}, fmt.Errorf("commit disable extension: %w", err)
 	}
 	return s.Get(ctx, id)
 }
