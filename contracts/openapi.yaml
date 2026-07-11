@@ -171,6 +171,24 @@ paths:
     "$ref": "./openapi/paths/options.yaml#/webOptionByName"
   "/admin/web-options":
     "$ref": "./openapi/paths/options.yaml#/adminWebOptions"
+  "/site/nav-items":
+    "$ref": "./openapi/paths/site_chrome.yaml#/siteNavItems"
+  "/site/friend-links":
+    "$ref": "./openapi/paths/site_chrome.yaml#/siteFriendLinks"
+  "/site/announcements":
+    "$ref": "./openapi/paths/site_chrome.yaml#/siteAnnouncements"
+  "/admin/site/nav-items":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavItems"
+  "/admin/site/nav-items/{itemID}":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavItemByID"
+  "/admin/site/friend-links":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteFriendLinks"
+  "/admin/site/friend-links/{linkID}":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteFriendLinkByID"
+  "/admin/site/announcements":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteAnnouncements"
+  "/admin/site/announcements/{announcementID}":
+    "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteAnnouncementByID"
   "/admin/seo/assets":
     "$ref": "./openapi/paths/seo.yaml#/adminSEOAssets"
   "/seo/sitemap-entries":
@@ -347,6 +365,26 @@ components:
       "$ref": "./openapi/schemas/options.yaml#/ApiResponseWebOptionList"
     ApiResponseAdminWebOptionList:
       "$ref": "./openapi/schemas/options.yaml#/ApiResponseAdminWebOptionList"
+    ApiResponseSiteNavItemList:
+      "$ref": "./openapi/schemas/site_chrome.yaml#/ApiResponseSiteNavItemList"
+    ApiResponseSiteNavItem:
+      "$ref": "./openapi/schemas/site_chrome.yaml#/ApiResponseSiteNavItem"
+    ApiResponseSiteFriendLinkList:
+      "$ref": "./openapi/schemas/site_chrome.yaml#/ApiResponseSiteFriendLinkList"
+    ApiResponseSiteFriendLink:
+      "$ref": "./openapi/schemas/site_chrome.yaml#/ApiResponseSiteFriendLink"
+    ApiResponseSiteAnnouncementList:
+      "$ref": "./openapi/schemas/site_chrome.yaml#/ApiResponseSiteAnnouncementList"
+    ApiResponseSiteAnnouncement:
+      "$ref": "./openapi/schemas/site_chrome.yaml#/ApiResponseSiteAnnouncement"
+    ApiResponseSiteChromeDeleted:
+      "$ref": "./openapi/schemas/site_chrome.yaml#/ApiResponseSiteChromeDeleted"
+    SiteNavItem:
+      "$ref": "./openapi/schemas/site_chrome.yaml#/SiteNavItem"
+    SiteFriendLink:
+      "$ref": "./openapi/schemas/site_chrome.yaml#/SiteFriendLink"
+    SiteAnnouncement:
+      "$ref": "./openapi/schemas/site_chrome.yaml#/SiteAnnouncement"
     ApiResponseAttachment:
       "$ref": "./openapi/schemas/attachments.yaml#/ApiResponseAttachment"
     ApiResponseAdminAttachment:

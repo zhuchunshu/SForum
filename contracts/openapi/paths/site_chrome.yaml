@@ -1,0 +1,332 @@
+siteNavItems:
+  get:
+    summary: List public navigation items
+    operationId: listSiteNavItems
+    tags: [Site chrome]
+    responses:
+      '200':
+        description: Enabled nav items ordered by position.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavItemList"
+
+siteFriendLinks:
+  get:
+    summary: List public friend links
+    operationId: listSiteFriendLinks
+    tags: [Site chrome]
+    responses:
+      '200':
+        description: Enabled friend links ordered by position.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteFriendLinkList"
+
+siteAnnouncements:
+  get:
+    summary: List active public announcements
+    operationId: listSiteAnnouncements
+    tags: [Site chrome]
+    responses:
+      '200':
+        description: Enabled announcements within the active time window.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteAnnouncementList"
+
+adminSiteNavItems:
+  get:
+    summary: List all navigation items (admin)
+    operationId: adminListSiteNavItems
+    tags: [Site chrome]
+    description: Requires settings.site.manage.
+    responses:
+      '200':
+        description: All nav items including disabled.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavItemList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  post:
+    summary: Create a navigation item
+    operationId: adminCreateSiteNavItem
+    tags: [Site chrome]
+    description: Requires settings.site.manage.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/site_chrome.yaml#/SiteNavItemInput"
+    responses:
+      '201':
+        description: Created.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavItem"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+
+adminSiteNavItemByID:
+  patch:
+    summary: Update a navigation item
+    operationId: adminUpdateSiteNavItem
+    tags: [Site chrome]
+    description: Requires settings.site.manage.
+    parameters:
+      - name: itemID
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/site_chrome.yaml#/SiteNavItemUpdateInput"
+    responses:
+      '200':
+        description: Updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteNavItem"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+  delete:
+    summary: Delete a navigation item
+    operationId: adminDeleteSiteNavItem
+    tags: [Site chrome]
+    description: Requires settings.site.manage.
+    parameters:
+      - name: itemID
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    responses:
+      '200':
+        description: Deleted.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteChromeDeleted"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+
+adminSiteFriendLinks:
+  get:
+    summary: List all friend links (admin)
+    operationId: adminListSiteFriendLinks
+    tags: [Site chrome]
+    description: Requires settings.site.manage.
+    responses:
+      '200':
+        description: All friend links including disabled.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteFriendLinkList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  post:
+    summary: Create a friend link
+    operationId: adminCreateSiteFriendLink
+    tags: [Site chrome]
+    description: Requires settings.site.manage.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/site_chrome.yaml#/SiteFriendLinkInput"
+    responses:
+      '201':
+        description: Created.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteFriendLink"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+
+adminSiteFriendLinkByID:
+  patch:
+    summary: Update a friend link
+    operationId: adminUpdateSiteFriendLink
+    tags: [Site chrome]
+    description: Requires settings.site.manage.
+    parameters:
+      - name: linkID
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/site_chrome.yaml#/SiteFriendLinkUpdateInput"
+    responses:
+      '200':
+        description: Updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteFriendLink"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+  delete:
+    summary: Delete a friend link
+    operationId: adminDeleteSiteFriendLink
+    tags: [Site chrome]
+    description: Requires settings.site.manage.
+    parameters:
+      - name: linkID
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    responses:
+      '200':
+        description: Deleted.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteChromeDeleted"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+
+adminSiteAnnouncements:
+  get:
+    summary: List all announcements (admin)
+    operationId: adminListSiteAnnouncements
+    tags: [Site chrome]
+    description: Requires settings.site.manage.
+    responses:
+      '200':
+        description: All announcements including disabled and out-of-window.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteAnnouncementList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+  post:
+    summary: Create an announcement
+    operationId: adminCreateSiteAnnouncement
+    tags: [Site chrome]
+    description: Requires settings.site.manage.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/site_chrome.yaml#/SiteAnnouncementInput"
+    responses:
+      '201':
+        description: Created.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteAnnouncement"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+
+adminSiteAnnouncementByID:
+  patch:
+    summary: Update an announcement
+    operationId: adminUpdateSiteAnnouncement
+    tags: [Site chrome]
+    description: Requires settings.site.manage. Null startsAt/endsAt clears the window bound.
+    parameters:
+      - name: announcementID
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/site_chrome.yaml#/SiteAnnouncementUpdateInput"
+    responses:
+      '200':
+        description: Updated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteAnnouncement"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+  delete:
+    summary: Delete an announcement
+    operationId: adminDeleteSiteAnnouncement
+    tags: [Site chrome]
+    description: Requires settings.site.manage.
+    parameters:
+      - name: announcementID
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    responses:
+      '200':
+        description: Deleted.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/site_chrome.yaml#/ApiResponseSiteChromeDeleted"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"

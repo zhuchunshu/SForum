@@ -1,0 +1,199 @@
+ApiResponseSiteNavItemList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: array
+      items:
+        "$ref": "#/SiteNavItem"
+ApiResponseSiteNavItem:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/SiteNavItem"
+ApiResponseSiteFriendLinkList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: array
+      items:
+        "$ref": "#/SiteFriendLink"
+ApiResponseSiteFriendLink:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/SiteFriendLink"
+ApiResponseSiteAnnouncementList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: array
+      items:
+        "$ref": "#/SiteAnnouncement"
+ApiResponseSiteAnnouncement:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/SiteAnnouncement"
+ApiResponseSiteChromeDeleted:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      type: object
+      required: [deleted]
+      properties:
+        deleted: { type: boolean }
+
+SiteNavItem:
+  type: object
+  required: [id, labelZhCN, labelEnUS, href, openInNewTab, position, enabled, createdAt, updatedAt]
+  properties:
+    id: { type: integer, format: int64 }
+    labelZhCN: { type: string }
+    labelEnUS: { type: string }
+    href: { type: string, description: Relative path or http(s) URL }
+    openInNewTab: { type: boolean }
+    position: { type: integer }
+    enabled: { type: boolean }
+    createdAt: { type: string, format: date-time }
+    updatedAt: { type: string, format: date-time }
+
+SiteNavItemInput:
+  type: object
+  required: [labelZhCN, labelEnUS, href]
+  properties:
+    labelZhCN: { type: string, maxLength: 40 }
+    labelEnUS: { type: string, maxLength: 40 }
+    href: { type: string, maxLength: 500 }
+    openInNewTab: { type: boolean, default: false }
+    position: { type: integer, default: 0 }
+    enabled: { type: boolean, default: true }
+
+SiteNavItemUpdateInput:
+  type: object
+  properties:
+    labelZhCN: { type: string, maxLength: 40 }
+    labelEnUS: { type: string, maxLength: 40 }
+    href: { type: string, maxLength: 500 }
+    openInNewTab: { type: boolean }
+    position: { type: integer }
+    enabled: { type: boolean }
+
+SiteFriendLink:
+  type: object
+  required: [id, name, url, description, logoUrl, position, enabled, createdAt, updatedAt]
+  properties:
+    id: { type: integer, format: int64 }
+    name: { type: string }
+    url: { type: string }
+    description: { type: string }
+    logoUrl: { type: string }
+    position: { type: integer }
+    enabled: { type: boolean }
+    createdAt: { type: string, format: date-time }
+    updatedAt: { type: string, format: date-time }
+
+SiteFriendLinkInput:
+  type: object
+  required: [name, url]
+  properties:
+    name: { type: string, maxLength: 80 }
+    url: { type: string, maxLength: 500 }
+    description: { type: string, maxLength: 200 }
+    logoUrl: { type: string, maxLength: 500 }
+    position: { type: integer, default: 0 }
+    enabled: { type: boolean, default: true }
+
+SiteFriendLinkUpdateInput:
+  type: object
+  properties:
+    name: { type: string, maxLength: 80 }
+    url: { type: string, maxLength: 500 }
+    description: { type: string, maxLength: 200 }
+    logoUrl: { type: string, maxLength: 500 }
+    position: { type: integer }
+    enabled: { type: boolean }
+
+SiteAnnouncement:
+  type: object
+  required: [id, titleZhCN, titleEnUS, bodyZhCN, bodyEnUS, style, href, dismissible, position, enabled, createdAt, updatedAt]
+  properties:
+    id: { type: integer, format: int64 }
+    titleZhCN: { type: string }
+    titleEnUS: { type: string }
+    bodyZhCN: { type: string }
+    bodyEnUS: { type: string }
+    style:
+      type: string
+      enum: [info, success, warning, danger]
+    href: { type: string }
+    dismissible: { type: boolean }
+    position: { type: integer }
+    enabled: { type: boolean }
+    startsAt: { type: string, format: date-time, nullable: true }
+    endsAt: { type: string, format: date-time, nullable: true }
+    createdAt: { type: string, format: date-time }
+    updatedAt: { type: string, format: date-time }
+
+SiteAnnouncementInput:
+  type: object
+  properties:
+    titleZhCN: { type: string, maxLength: 120 }
+    titleEnUS: { type: string, maxLength: 120 }
+    bodyZhCN: { type: string, maxLength: 2000 }
+    bodyEnUS: { type: string, maxLength: 2000 }
+    style:
+      type: string
+      enum: [info, success, warning, danger]
+      default: info
+    href: { type: string, maxLength: 500 }
+    dismissible: { type: boolean, default: true }
+    position: { type: integer, default: 0 }
+    enabled: { type: boolean, default: true }
+    startsAt: { type: string, format: date-time, nullable: true }
+    endsAt: { type: string, format: date-time, nullable: true }
+
+SiteAnnouncementUpdateInput:
+  type: object
+  properties:
+    titleZhCN: { type: string, maxLength: 120 }
+    titleEnUS: { type: string, maxLength: 120 }
+    bodyZhCN: { type: string, maxLength: 2000 }
+    bodyEnUS: { type: string, maxLength: 2000 }
+    style:
+      type: string
+      enum: [info, success, warning, danger]
+    href: { type: string, maxLength: 500 }
+    dismissible: { type: boolean }
+    position: { type: integer }
+    enabled: { type: boolean }
+    startsAt:
+      type: string
+      format: date-time
+      nullable: true
+      description: Null clears the start time.
+    endsAt:
+      type: string
+      format: date-time
+      nullable: true
+      description: Null clears the end time.
