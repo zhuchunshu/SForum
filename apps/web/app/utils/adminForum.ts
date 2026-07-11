@@ -73,6 +73,18 @@ export type AdminForumSettingsPayload = {
   commentCooldownSeconds?: number
   dailyCommentLimit?: number
   excerptRuneLimit?: number
+  guestRead?: ForumSettings['guestRead']
+  listDefaultSort?: ForumSettings['listDefaultSort']
+  listHotWindowDays?: number
+  allowAuthorCloseReplies?: boolean
+  allowAuthorDelete?: boolean
+  autoLockIdleDays?: number
+  showTopicEditMark?: boolean
+  duplicateTitlePolicy?: ForumSettings['duplicateTitlePolicy']
+  showCommentEditMark?: boolean
+  softDeleteVisibility?: ForumSettings['softDeleteVisibility']
+  mentionsEnabled?: boolean
+  mentionsMaxPerPost?: number
 }
 
 /** settings.manage 控制的字段；保存时无权限会剔除。 */
@@ -92,7 +104,19 @@ export const forumSettingsManageKeys = [
   'commentEditWindowMinutes',
   'commentCooldownSeconds',
   'dailyCommentLimit',
-  'excerptRuneLimit'
+  'excerptRuneLimit',
+  'guestRead',
+  'listDefaultSort',
+  'listHotWindowDays',
+  'allowAuthorCloseReplies',
+  'allowAuthorDelete',
+  'autoLockIdleDays',
+  'showTopicEditMark',
+  'duplicateTitlePolicy',
+  'showCommentEditMark',
+  'softDeleteVisibility',
+  'mentionsEnabled',
+  'mentionsMaxPerPost'
 ] as const satisfies ReadonlyArray<keyof AdminForumSettingsPayload>
 
 type ForumSettingsLike = Partial<Record<keyof ForumSettings, unknown>>
@@ -219,8 +243,36 @@ export function normalizeForumSettings(input: ForumSettingsLike | null | undefin
     commentEditWindowMinutes: normalizeForumBoundedInt(numberLikeValue(input?.commentEditWindowMinutes), 0, 10080, defaults.commentEditWindowMinutes),
     commentCooldownSeconds: normalizeForumBoundedInt(numberLikeValue(input?.commentCooldownSeconds), 0, 86400, defaults.commentCooldownSeconds),
     dailyCommentLimit: normalizeForumBoundedInt(numberLikeValue(input?.dailyCommentLimit), 0, 10000, defaults.dailyCommentLimit),
-    excerptRuneLimit: normalizeForumBoundedInt(numberLikeValue(input?.excerptRuneLimit), 40, 500, defaults.excerptRuneLimit)
+    excerptRuneLimit: normalizeForumBoundedInt(numberLikeValue(input?.excerptRuneLimit), 40, 500, defaults.excerptRuneLimit),
+    guestRead: normalizeGuestRead(stringValue(input?.guestRead), defaults.guestRead),
+    listDefaultSort: normalizeListSort(stringValue(input?.listDefaultSort), defaults.listDefaultSort),
+    listHotWindowDays: normalizeForumBoundedInt(numberLikeValue(input?.listHotWindowDays), 1, 90, defaults.listHotWindowDays),
+    allowAuthorCloseReplies: normalizeForumTagPublicPages(input?.allowAuthorCloseReplies, defaults.allowAuthorCloseReplies),
+    allowAuthorDelete: normalizeForumTagPublicPages(input?.allowAuthorDelete, defaults.allowAuthorDelete),
+    autoLockIdleDays: normalizeForumBoundedInt(numberLikeValue(input?.autoLockIdleDays), 0, 3650, defaults.autoLockIdleDays),
+    showTopicEditMark: normalizeForumTagPublicPages(input?.showTopicEditMark, defaults.showTopicEditMark),
+    duplicateTitlePolicy: normalizeDuplicateTitlePolicy(stringValue(input?.duplicateTitlePolicy), defaults.duplicateTitlePolicy),
+    showCommentEditMark: normalizeForumTagPublicPages(input?.showCommentEditMark, defaults.showCommentEditMark),
+    softDeleteVisibility: normalizeSoftDeleteVisibility(stringValue(input?.softDeleteVisibility), defaults.softDeleteVisibility),
+    mentionsEnabled: normalizeForumTagPublicPages(input?.mentionsEnabled, defaults.mentionsEnabled),
+    mentionsMaxPerPost: normalizeForumBoundedInt(numberLikeValue(input?.mentionsMaxPerPost), 0, 50, defaults.mentionsMaxPerPost)
   }
+}
+
+function normalizeGuestRead(value: string | undefined, fallback: ForumSettings['guestRead']): ForumSettings['guestRead'] {
+  return value === 'login_required' ? 'login_required' : value === 'public' ? 'public' : fallback
+}
+
+function normalizeListSort(value: string | undefined, fallback: ForumSettings['listDefaultSort']): ForumSettings['listDefaultSort'] {
+  return value === 'active' || value === 'hot' || value === 'latest' ? value : fallback
+}
+
+function normalizeDuplicateTitlePolicy(value: string | undefined, fallback: ForumSettings['duplicateTitlePolicy']): ForumSettings['duplicateTitlePolicy'] {
+  return value === 'off' || value === 'warn' || value === 'block' ? value : fallback
+}
+
+function normalizeSoftDeleteVisibility(value: string | undefined, fallback: ForumSettings['softDeleteVisibility']): ForumSettings['softDeleteVisibility'] {
+  return value === 'staff_only' || value === 'hidden' || value === 'author_and_staff' ? value : fallback
 }
 
 export function forumSettingsPayload(settings: ForumSettings): AdminForumSettingsPayload {

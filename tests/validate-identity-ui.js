@@ -41,9 +41,19 @@ const requiredKeys = [
   ['admin', 'permissions', 'clearFilters'],
   ['admin', 'permissions', 'noDifferences'],
   ['admin', 'permissionModules', 'identity'],
+  ['admin', 'permissionModules', 'extension'],
+  ['admin', 'permissionModules', 'search'],
+  ['admin', 'permissionModules', 'jobs'],
   ['admin', 'permissionCatalog', 'admin', 'access', 'label'],
   ['admin', 'permissionCatalog', 'role', 'manage', 'description'],
   ['admin', 'permissionCatalog', 'post', 'delete_any', 'label'],
+  ['admin', 'permissionCatalog', 'tag', 'manage', 'label'],
+  ['admin', 'permissionCatalog', 'extension', 'manage', 'label'],
+  ['admin', 'permissionCatalog', 'jobs', 'view', 'label'],
+  ['admin', 'permissionCatalog', 'jobs', 'manage', 'description'],
+  ['admin', 'permissionCatalog', 'moderation', 'manage', 'label'],
+  ['admin', 'permissionCatalog', 'moderation', 'review', 'description'],
+  ['admin', 'permissionCatalog', 'search', 'manage', 'label'],
   ['errors', 'permissionDenied']
 ];
 
@@ -130,6 +140,54 @@ for (const keyPath of requiredKeys) {
   }
   if (!valueAt(en, keyPath)) {
     throw new Error(`Missing en-US locale key: ${keyPath.join('.')}`);
+  }
+}
+
+// SeedPermissions 是权限目录权威列表；前后端文案必须覆盖每一个 key 与 module。
+const seedsSource = fs.readFileSync(
+  path.resolve(root, 'apps/api/app/Models/Identity/seeds.go'),
+  'utf8'
+);
+const permissionConstants = Object.fromEntries(
+  [...seedsSource.matchAll(/^\s*(Permission[A-Za-z]+)\s*=\s*"([^"]+)"/gm)].map(match => [match[1], match[2]])
+);
+const seedEntries = [...seedsSource.matchAll(/\{\s*Key:\s*(Permission[A-Za-z]+),\s*Module:\s*"([^"]+)"/g)]
+  .map((match) => {
+    const key = permissionConstants[match[1]];
+    if (!key) {
+      throw new Error(`Unknown permission constant in SeedPermissions: ${match[1]}`);
+    }
+    return { key, module: match[2] };
+  });
+
+if (seedEntries.length === 0) {
+  throw new Error('Failed to parse SeedPermissions from seeds.go');
+}
+
+function catalogEntry(localeRoot, permissionKey) {
+  return valueAt(localeRoot, ['admin', 'permissionCatalog', ...permissionKey.split('.')]);
+}
+
+const expectedModules = new Set(seedEntries.map(entry => entry.module));
+for (const locale of [
+  ['zh-CN', zh],
+  ['en-US', en]
+]) {
+  const [name, rootLocale] = locale;
+  for (const module of expectedModules) {
+    if (!valueAt(rootLocale, ['admin', 'permissionModules', module])) {
+      throw new Error(`${name} is missing permission module label: admin.permissionModules.${module}`);
+    }
+  }
+  for (const entry of seedEntries) {
+    const item = catalogEntry(rootLocale, entry.key);
+    if (!item?.label || !item?.description) {
+      throw new Error(`${name} is missing permission catalog text for ${entry.key}`);
+    }
+  }
+  // 已废弃的 moderation.report_review 不应继续作为可配置权限文案入口。
+  if (valueAt(rootLocale, ['admin', 'permissionCatalog', 'moderation', 'report_review'])) {
+    throw new Error(`${name} still ships the retired moderation.report_review catalog entry`);
   }
 }
 

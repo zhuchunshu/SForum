@@ -11,6 +11,8 @@ Related:
 
 - Maturity audit: `knowledge/architecture-maturity-audit.md`
 - Iteration A checklist: `knowledge/plans/2026-07-12-iteration-a-engagement-loop.md`
+- Admin settings richness catalog:
+  `knowledge/plans/2026-07-12-admin-settings-richness.md`
 - Roadmap: `docs/roadmap.md`
 - Extension platform: `docs/extension-platform-v2.md`
 - Legacy gap inventory (partially stale): `knowledge/legacy-sforum-feature-gap.md`

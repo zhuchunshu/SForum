@@ -49,9 +49,65 @@ func NewForumProviderWithSearchAndTopicActions(store forum.Store, optionsService
 
 func NewForumProviderWithSearchTopicActionsAndPublicationPolicy(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher, indexer forum.TopicSearchIndexer, searchService forumcontroller.SearchService, reindexer forumcontroller.ReindexService, topicActions forum.TopicExtensionActionProvider, publicationPolicy forum.PublicationPolicy) *ForumProvider {
 	service := forum.NewServiceWithExtensionsAndPublicationPolicy(store, ForumSettingsResolver{options: optionsService}, publisher, indexer, topicActions, publicationPolicy)
+	if optionsService != nil {
+		service.WithTrustPolicy(TrustPolicyAdapter{options: optionsService})
+	}
 	return &ForumProvider{
 		controller: forumcontroller.NewControllerWithSearch(service, searchService, reindexer, users, sessions),
 	}
+}
+
+// TrustPolicyAdapter 把 options.TrustPolicy 适配为 forum.TrustPolicyResolver。
+type TrustPolicyAdapter struct {
+	options *options.Service
+}
+
+func (a TrustPolicyAdapter) NewUserTrustDays(ctx context.Context) (int, error) {
+	policy, err := a.options.TrustPolicy(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return policy.NewUserDays, nil
+}
+
+func (a TrustPolicyAdapter) NewUserTopicCooldownSeconds(ctx context.Context) (int, error) {
+	policy, err := a.options.TrustPolicy(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return policy.TopicCooldownSeconds, nil
+}
+
+func (a TrustPolicyAdapter) NewUserCommentCooldownSeconds(ctx context.Context) (int, error) {
+	policy, err := a.options.TrustPolicy(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return policy.CommentCooldownSeconds, nil
+}
+
+func (a TrustPolicyAdapter) NewUserDailyTopicLimit(ctx context.Context) (int, error) {
+	policy, err := a.options.TrustPolicy(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return policy.DailyTopicLimit, nil
+}
+
+func (a TrustPolicyAdapter) NewUserDailyCommentLimit(ctx context.Context) (int, error) {
+	policy, err := a.options.TrustPolicy(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return policy.DailyCommentLimit, nil
+}
+
+func (a TrustPolicyAdapter) NewUserForbidOutboundLinks(ctx context.Context) (bool, error) {
+	policy, err := a.options.TrustPolicy(ctx)
+	if err != nil {
+		return false, err
+	}
+	return policy.ForbidOutboundLinks, nil
 }
 
 type ModerationPublicationResolver interface {
@@ -233,6 +289,9 @@ func (r ForumSettingsResolver) ForumSettings(ctx context.Context) (forum.ForumSe
 		options.NameForumCommentCooldownSeconds:     &settings.CommentCooldownSeconds,
 		options.NameForumDailyCommentLimit:        &settings.DailyCommentLimit,
 		options.NameForumExcerptRuneLimit:         &settings.ExcerptRuneLimit,
+		options.NameForumListHotWindowDays:        &settings.ListHotWindowDays,
+		options.NameForumTopicsAutoLockIdleDays:   &settings.AutoLockIdleDays,
+		options.NameForumMentionsMaxPerPost:       &settings.MentionsMaxPerPost,
 	} {
 		value, err = r.options.WebOption(ctx, name)
 		if err != nil {
@@ -240,6 +299,43 @@ func (r ForumSettingsResolver) ForumSettings(ctx context.Context) (forum.ForumSe
 		}
 		if parsed, ok := normalizeForumIntOption(name, value); ok {
 			*target = parsed
+		}
+	}
+	// 枚举与布尔策略（Wave 1）。
+	if value, err = r.options.WebOption(ctx, options.NameForumGuestRead); err == nil {
+		if v := strings.TrimSpace(value); v == "public" || v == "login_required" {
+			settings.GuestRead = v
+		}
+	}
+	if value, err = r.options.WebOption(ctx, options.NameForumListDefaultSort); err == nil {
+		if v := strings.TrimSpace(value); v == "latest" || v == "active" || v == "hot" {
+			settings.ListDefaultSort = v
+		}
+	}
+	if value, err = r.options.WebOption(ctx, options.NameForumTopicsDuplicateTitlePolicy); err == nil {
+		if v := strings.TrimSpace(value); v == "off" || v == "warn" || v == "block" {
+			settings.DuplicateTitlePolicy = v
+		}
+	}
+	if value, err = r.options.WebOption(ctx, options.NameForumCommentsSoftDeleteVisibility); err == nil {
+		if v := strings.TrimSpace(value); v == "author_and_staff" || v == "staff_only" || v == "hidden" {
+			settings.SoftDeleteVisibility = v
+		}
+	}
+	boolOpts := map[string]*bool{
+		options.NameForumTopicsAllowAuthorCloseReplies: &settings.AllowAuthorCloseReplies,
+		options.NameForumTopicsAllowAuthorDelete:       &settings.AllowAuthorDelete,
+		options.NameForumTopicsShowEditMark:            &settings.ShowTopicEditMark,
+		options.NameForumCommentsShowEditMark:          &settings.ShowCommentEditMark,
+		options.NameForumMentionsEnabled:               &settings.MentionsEnabled,
+	}
+	for name, target := range boolOpts {
+		value, err = r.options.WebOption(ctx, name)
+		if err != nil {
+			return forum.ForumSettings{}, err
+		}
+		if enabled, ok := normalizeForumEnabled(value); ok {
+			*target = enabled
 		}
 	}
 	return settings, nil
@@ -282,6 +378,31 @@ func (r ForumSettingsResolver) UpdateForumSettings(ctx context.Context, actor id
 	appendIntUpdate(options.NameForumCommentCooldownSeconds, input.CommentCooldownSeconds)
 	appendIntUpdate(options.NameForumDailyCommentLimit, input.DailyCommentLimit)
 	appendIntUpdate(options.NameForumExcerptRuneLimit, input.ExcerptRuneLimit)
+	appendIntUpdate(options.NameForumListHotWindowDays, input.ListHotWindowDays)
+	appendIntUpdate(options.NameForumTopicsAutoLockIdleDays, input.AutoLockIdleDays)
+	appendIntUpdate(options.NameForumMentionsMaxPerPost, input.MentionsMaxPerPost)
+	if input.GuestRead != nil {
+		updates = append(updates, options.UpdateInput{Name: options.NameForumGuestRead, Value: *input.GuestRead})
+	}
+	if input.ListDefaultSort != nil {
+		updates = append(updates, options.UpdateInput{Name: options.NameForumListDefaultSort, Value: *input.ListDefaultSort})
+	}
+	if input.DuplicateTitlePolicy != nil {
+		updates = append(updates, options.UpdateInput{Name: options.NameForumTopicsDuplicateTitlePolicy, Value: *input.DuplicateTitlePolicy})
+	}
+	if input.SoftDeleteVisibility != nil {
+		updates = append(updates, options.UpdateInput{Name: options.NameForumCommentsSoftDeleteVisibility, Value: *input.SoftDeleteVisibility})
+	}
+	appendBoolUpdate := func(name string, value *bool) {
+		if value != nil {
+			updates = append(updates, options.UpdateInput{Name: name, Value: enabledOptionValue(*value)})
+		}
+	}
+	appendBoolUpdate(options.NameForumTopicsAllowAuthorCloseReplies, input.AllowAuthorCloseReplies)
+	appendBoolUpdate(options.NameForumTopicsAllowAuthorDelete, input.AllowAuthorDelete)
+	appendBoolUpdate(options.NameForumTopicsShowEditMark, input.ShowTopicEditMark)
+	appendBoolUpdate(options.NameForumCommentsShowEditMark, input.ShowCommentEditMark)
+	appendBoolUpdate(options.NameForumMentionsEnabled, input.MentionsEnabled)
 	if len(updates) > 0 {
 		if _, err := r.options.UpdateMany(ctx, actor, updates); err != nil {
 			return forum.ForumSettings{}, err
@@ -324,6 +445,22 @@ func (r ForumSettingsResolver) ResetForumSettings(ctx context.Context, actor ide
 		input.CommentCooldownSeconds = intPtr(recommended.CommentCooldownSeconds)
 		input.DailyCommentLimit = intPtr(recommended.DailyCommentLimit)
 		input.ExcerptRuneLimit = intPtr(recommended.ExcerptRuneLimit)
+		guestRead := recommended.GuestRead
+		listSort := recommended.ListDefaultSort
+		dupPolicy := recommended.DuplicateTitlePolicy
+		softDel := recommended.SoftDeleteVisibility
+		input.GuestRead = &guestRead
+		input.ListDefaultSort = &listSort
+		input.ListHotWindowDays = intPtr(recommended.ListHotWindowDays)
+		input.AllowAuthorCloseReplies = boolPtr(recommended.AllowAuthorCloseReplies)
+		input.AllowAuthorDelete = boolPtr(recommended.AllowAuthorDelete)
+		input.AutoLockIdleDays = intPtr(recommended.AutoLockIdleDays)
+		input.ShowTopicEditMark = boolPtr(recommended.ShowTopicEditMark)
+		input.DuplicateTitlePolicy = &dupPolicy
+		input.ShowCommentEditMark = boolPtr(recommended.ShowCommentEditMark)
+		input.SoftDeleteVisibility = &softDel
+		input.MentionsEnabled = boolPtr(recommended.MentionsEnabled)
+		input.MentionsMaxPerPost = intPtr(recommended.MentionsMaxPerPost)
 	}
 	return r.UpdateForumSettings(ctx, actor, input)
 }
@@ -352,7 +489,23 @@ func recommendedForumSettings() forum.ForumSettings {
 		CommentCooldownSeconds:         forum.RecommendedCommentCooldownSeconds,
 		DailyCommentLimit:            forum.RecommendedDailyCommentLimit,
 		ExcerptRuneLimit:             forum.RecommendedExcerptRuneLimit,
+		GuestRead:                    "public",
+		ListDefaultSort:              "latest",
+		ListHotWindowDays:            7,
+		AllowAuthorCloseReplies:      true,
+		AllowAuthorDelete:            true,
+		AutoLockIdleDays:             0,
+		ShowTopicEditMark:            true,
+		DuplicateTitlePolicy:         "warn",
+		ShowCommentEditMark:          true,
+		SoftDeleteVisibility:         "author_and_staff",
+		MentionsEnabled:              true,
+		MentionsMaxPerPost:           10,
 	}
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }
 
 func intPtr(value int) *int {
@@ -389,6 +542,12 @@ func normalizeForumIntOption(name, value string) (int, bool) {
 		return parsed, parsed >= 0 && parsed <= 10000
 	case options.NameForumExcerptRuneLimit:
 		return parsed, parsed >= 40 && parsed <= 500
+	case options.NameForumListHotWindowDays:
+		return parsed, parsed >= 1 && parsed <= 90
+	case options.NameForumTopicsAutoLockIdleDays:
+		return parsed, parsed >= 0 && parsed <= 3650
+	case options.NameForumMentionsMaxPerPost:
+		return parsed, parsed >= 0 && parsed <= 50
 	default:
 		return 0, false
 	}

@@ -74,6 +74,8 @@ func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.Ap
 		}))
 	}
 	app.Use(localeMiddleware(cfg, deps.Options))
+	// 维护模式：拦截非管理员的写操作；GET 健康检查与登录/注册/web-options 仍可用。
+	app.Use(maintenanceMiddleware(deps.Options))
 
 	registerRoutes(app, cfg, deps)
 

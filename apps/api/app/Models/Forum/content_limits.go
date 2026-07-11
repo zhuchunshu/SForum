@@ -68,6 +68,18 @@ func defaultForumSettings() ForumSettings {
 		CommentCooldownSeconds:         RecommendedCommentCooldownSeconds,
 		DailyCommentLimit:            RecommendedDailyCommentLimit,
 		ExcerptRuneLimit:             RecommendedExcerptRuneLimit,
+		GuestRead:                    "public",
+		ListDefaultSort:              "latest",
+		ListHotWindowDays:            7,
+		AllowAuthorCloseReplies:      true,
+		AllowAuthorDelete:            true,
+		AutoLockIdleDays:             0,
+		ShowTopicEditMark:            true,
+		DuplicateTitlePolicy:         "warn",
+		ShowCommentEditMark:          true,
+		SoftDeleteVisibility:         "author_and_staff",
+		MentionsEnabled:              true,
+		MentionsMaxPerPost:           10,
 	}
 }
 
@@ -215,6 +227,35 @@ func validForumContentLimits(settings ForumSettings) bool {
 		return false
 	}
 	if settings.ExcerptRuneLimit < HardExcerptMinRunes || settings.ExcerptRuneLimit > HardExcerptMaxRunes {
+		return false
+	}
+	switch settings.GuestRead {
+	case "public", "login_required", "":
+	default:
+		return false
+	}
+	switch settings.ListDefaultSort {
+	case "latest", "active", "hot", "":
+	default:
+		return false
+	}
+	if settings.ListHotWindowDays < 0 || settings.ListHotWindowDays > 90 {
+		return false
+	}
+	if settings.AutoLockIdleDays < 0 || settings.AutoLockIdleDays > 3650 {
+		return false
+	}
+	switch settings.DuplicateTitlePolicy {
+	case "off", "warn", "block", "":
+	default:
+		return false
+	}
+	switch settings.SoftDeleteVisibility {
+	case "author_and_staff", "staff_only", "hidden", "":
+	default:
+		return false
+	}
+	if settings.MentionsMaxPerPost < 0 || settings.MentionsMaxPerPost > 50 {
 		return false
 	}
 	return true

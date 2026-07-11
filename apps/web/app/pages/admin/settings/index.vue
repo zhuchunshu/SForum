@@ -40,7 +40,7 @@ defineOptions({
   name: 'AdminSettings'
 })
 
-type SettingsTab = 'basic' | 'accountSecurity' | 'verification'
+type SettingsTab = 'basic' | 'accountSecurity' | 'registration' | 'newcomers' | 'maintenance' | 'verification'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -50,6 +50,9 @@ const adminPage = useAdminPage('/settings')
 const activeTab = ref<SettingsTab>('basic')
 const savingBasic = ref(false)
 const savingAccountSecurity = ref(false)
+const savingRegistration = ref(false)
+const savingNewcomers = ref(false)
+const savingMaintenance = ref(false)
 const savingVerification = ref(false)
 const showAltchaSecret = ref(false)
 
@@ -100,6 +103,9 @@ const startOfWeekChoices = computed(() => [
 const tabs = computed<Array<{ id: SettingsTab, label: string, icon: string }>>(() => [
   { id: 'basic', label: t('admin.settings.tabs.basic'), icon: 'i-lucide-sliders-horizontal' },
   { id: 'accountSecurity', label: t('admin.settings.tabs.accountSecurity'), icon: 'i-lucide-shield' },
+  { id: 'registration', label: t('admin.settings.tabs.registration'), icon: 'i-lucide-user-plus' },
+  { id: 'newcomers', label: t('admin.settings.tabs.newcomers'), icon: 'i-lucide-sprout' },
+  { id: 'maintenance', label: t('admin.settings.tabs.maintenance'), icon: 'i-lucide-construction' },
   { id: 'verification', label: t('admin.settings.tabs.verification'), icon: 'i-lucide-shield-check' }
 ])
 
@@ -168,6 +174,24 @@ const form = reactive({
   sessionsKeepDays: 30,
   // 开放注册开关（identity.registration.enabled），默认开启。
   registrationEnabled: true,
+  registrationMode: 'open' as 'open' | 'invite' | 'approval' | 'closed',
+  requireEmailVerification: false,
+  blockPostingUntilVerified: true,
+  usernameMinLength: 3,
+  usernameMaxLength: 20,
+  usernameCharset: 'unicode_letters_numbers' as 'unicode_letters_numbers' | 'ascii',
+  usernameReserved: 'admin,administrator,system,sforum,root,support,moderator,mod,official,null,undefined',
+  loginMaxFailures: 10,
+  loginLockoutMinutes: 15,
+  trustNewUserDays: 7,
+  trustTopicCooldown: 300,
+  trustCommentCooldown: 60,
+  trustDailyTopicLimit: 3,
+  trustDailyCommentLimit: 30,
+  trustForbidOutboundLinks: true,
+  trustForbidAttachments: false,
+  maintenanceEnabled: false,
+  maintenanceMessage: '',
   humanVerificationProvider: normalizeProvider(options.value['human_verification.provider']),
   humanVerificationScenarios: {
     register: normalizeEnabledOption(options.value[humanVerificationScenarioOptionName('register')], true),
@@ -265,6 +289,30 @@ const initialPasswordRequireSymbol = computed(() => normalizeEnabledOption(admin
 const initialSessionsMaxDevices = computed(() => boundedInteger(adminOptionsMap.value['identity.sessions.max_devices']?.value, 5, 1, 20))
 const initialSessionsKeepDays = computed(() => boundedInteger(adminOptionsMap.value['identity.sessions.keep_days']?.value, 30, 1, 365))
 const initialRegistrationEnabled = computed(() => normalizeEnabledOption(adminOptionsMap.value['identity.registration.enabled']?.value, true))
+const initialRegistrationMode = computed(() => {
+  const mode = (adminOptionsMap.value['identity.registration.mode']?.value || 'open').trim()
+  return (['open', 'invite', 'approval', 'closed'].includes(mode) ? mode : 'open') as typeof form.registrationMode
+})
+const initialRequireEmailVerification = computed(() => normalizeEnabledOption(adminOptionsMap.value['identity.registration.require_email_verification']?.value, false))
+const initialBlockPostingUntilVerified = computed(() => normalizeEnabledOption(adminOptionsMap.value['identity.registration.block_posting_until_verified']?.value, true))
+const initialUsernameMinLength = computed(() => boundedInteger(adminOptionsMap.value['identity.username.min_length']?.value, 3, 2, 32))
+const initialUsernameMaxLength = computed(() => boundedInteger(adminOptionsMap.value['identity.username.max_length']?.value, 20, 2, 64))
+const initialUsernameCharset = computed(() => {
+  const value = adminOptionsMap.value['identity.username.charset']?.value || 'unicode_letters_numbers'
+  return value === 'ascii' ? 'ascii' as const : 'unicode_letters_numbers' as const
+})
+const initialUsernameReserved = computed(() => adminOptionsMap.value['identity.username.reserved']?.value || '')
+const initialLoginMaxFailures = computed(() => boundedInteger(adminOptionsMap.value['identity.login.max_failures']?.value, 10, 0, 50))
+const initialLoginLockoutMinutes = computed(() => boundedInteger(adminOptionsMap.value['identity.login.lockout_minutes']?.value, 15, 0, 1440))
+const initialTrustNewUserDays = computed(() => boundedInteger(adminOptionsMap.value['trust.new_user_days']?.value, 7, 0, 365))
+const initialTrustTopicCooldown = computed(() => boundedInteger(adminOptionsMap.value['trust.new_user.topic_cooldown_seconds']?.value, 300, 0, 86400))
+const initialTrustCommentCooldown = computed(() => boundedInteger(adminOptionsMap.value['trust.new_user.comment_cooldown_seconds']?.value, 60, 0, 86400))
+const initialTrustDailyTopicLimit = computed(() => boundedInteger(adminOptionsMap.value['trust.new_user.daily_topic_limit']?.value, 3, 0, 10000))
+const initialTrustDailyCommentLimit = computed(() => boundedInteger(adminOptionsMap.value['trust.new_user.daily_comment_limit']?.value, 30, 0, 10000))
+const initialTrustForbidOutboundLinks = computed(() => normalizeEnabledOption(adminOptionsMap.value['trust.new_user.forbid_outbound_links']?.value, true))
+const initialTrustForbidAttachments = computed(() => normalizeEnabledOption(adminOptionsMap.value['trust.new_user.forbid_attachments']?.value, false))
+const initialMaintenanceEnabled = computed(() => normalizeEnabledOption(adminOptionsMap.value['site.maintenance.enabled']?.value, false))
+const initialMaintenanceMessage = computed(() => adminOptionsMap.value['site.maintenance.message']?.value || '')
 
 const hasBasicChanges = computed(() => {
   return form.siteName !== initialSiteName.value ||
@@ -289,7 +337,34 @@ const hasAccountSecurityChanges = computed(() => {
          form.passwordRequireSymbol !== initialPasswordRequireSymbol.value ||
          form.sessionsMaxDevices !== initialSessionsMaxDevices.value ||
          form.sessionsKeepDays !== initialSessionsKeepDays.value ||
-         form.registrationEnabled !== initialRegistrationEnabled.value
+         form.loginMaxFailures !== initialLoginMaxFailures.value ||
+         form.loginLockoutMinutes !== initialLoginLockoutMinutes.value
+})
+
+const hasRegistrationChanges = computed(() => {
+  return form.registrationEnabled !== initialRegistrationEnabled.value ||
+         form.registrationMode !== initialRegistrationMode.value ||
+         form.requireEmailVerification !== initialRequireEmailVerification.value ||
+         form.blockPostingUntilVerified !== initialBlockPostingUntilVerified.value ||
+         form.usernameMinLength !== initialUsernameMinLength.value ||
+         form.usernameMaxLength !== initialUsernameMaxLength.value ||
+         form.usernameCharset !== initialUsernameCharset.value ||
+         form.usernameReserved.trim() !== initialUsernameReserved.value.trim()
+})
+
+const hasNewcomersChanges = computed(() => {
+  return form.trustNewUserDays !== initialTrustNewUserDays.value ||
+         form.trustTopicCooldown !== initialTrustTopicCooldown.value ||
+         form.trustCommentCooldown !== initialTrustCommentCooldown.value ||
+         form.trustDailyTopicLimit !== initialTrustDailyTopicLimit.value ||
+         form.trustDailyCommentLimit !== initialTrustDailyCommentLimit.value ||
+         form.trustForbidOutboundLinks !== initialTrustForbidOutboundLinks.value ||
+         form.trustForbidAttachments !== initialTrustForbidAttachments.value
+})
+
+const hasMaintenanceChanges = computed(() => {
+  return form.maintenanceEnabled !== initialMaintenanceEnabled.value ||
+         form.maintenanceMessage.trim() !== initialMaintenanceMessage.value.trim()
 })
 
 // 验证配置对比与重置
@@ -352,6 +427,27 @@ function applyAdminOptions(items: AdminWebOption[]) {
   form.sessionsMaxDevices = boundedInteger(map['identity.sessions.max_devices']?.value, 5, 1, 20)
   form.sessionsKeepDays = boundedInteger(map['identity.sessions.keep_days']?.value, 30, 1, 365)
   form.registrationEnabled = normalizeEnabledOption(map['identity.registration.enabled']?.value, true)
+  {
+    const mode = (map['identity.registration.mode']?.value || 'open').trim()
+    form.registrationMode = (['open', 'invite', 'approval', 'closed'].includes(mode) ? mode : 'open') as typeof form.registrationMode
+  }
+  form.requireEmailVerification = normalizeEnabledOption(map['identity.registration.require_email_verification']?.value, false)
+  form.blockPostingUntilVerified = normalizeEnabledOption(map['identity.registration.block_posting_until_verified']?.value, true)
+  form.usernameMinLength = boundedInteger(map['identity.username.min_length']?.value, 3, 2, 32)
+  form.usernameMaxLength = boundedInteger(map['identity.username.max_length']?.value, 20, 2, 64)
+  form.usernameCharset = map['identity.username.charset']?.value === 'ascii' ? 'ascii' : 'unicode_letters_numbers'
+  form.usernameReserved = map['identity.username.reserved']?.value || form.usernameReserved
+  form.loginMaxFailures = boundedInteger(map['identity.login.max_failures']?.value, 10, 0, 50)
+  form.loginLockoutMinutes = boundedInteger(map['identity.login.lockout_minutes']?.value, 15, 0, 1440)
+  form.trustNewUserDays = boundedInteger(map['trust.new_user_days']?.value, 7, 0, 365)
+  form.trustTopicCooldown = boundedInteger(map['trust.new_user.topic_cooldown_seconds']?.value, 300, 0, 86400)
+  form.trustCommentCooldown = boundedInteger(map['trust.new_user.comment_cooldown_seconds']?.value, 60, 0, 86400)
+  form.trustDailyTopicLimit = boundedInteger(map['trust.new_user.daily_topic_limit']?.value, 3, 0, 10000)
+  form.trustDailyCommentLimit = boundedInteger(map['trust.new_user.daily_comment_limit']?.value, 30, 0, 10000)
+  form.trustForbidOutboundLinks = normalizeEnabledOption(map['trust.new_user.forbid_outbound_links']?.value, true)
+  form.trustForbidAttachments = normalizeEnabledOption(map['trust.new_user.forbid_attachments']?.value, false)
+  form.maintenanceEnabled = normalizeEnabledOption(map['site.maintenance.enabled']?.value, false)
+  form.maintenanceMessage = map['site.maintenance.message']?.value || ''
   form.humanVerificationProvider = normalizeProvider(map['human_verification.provider']?.value)
   form.humanVerificationScenarios = readScenarioSettings(map)
   form.altchaSecret = ''
@@ -408,6 +504,8 @@ async function saveAccountSecuritySettings() {
   // 最大活跃设备数 clamp 到 1-20。
   form.sessionsMaxDevices = boundedInteger(form.sessionsMaxDevices, 5, 1, 20)
   form.sessionsKeepDays = boundedInteger(form.sessionsKeepDays, 30, 1, 365)
+  form.loginMaxFailures = boundedInteger(form.loginMaxFailures, 10, 0, 50)
+  form.loginLockoutMinutes = boundedInteger(form.loginLockoutMinutes, 15, 0, 1440)
   savingAccountSecurity.value = true
   try {
     await saveAndApply([
@@ -419,7 +517,8 @@ async function saveAccountSecuritySettings() {
       { name: 'identity.password.require_symbol', value: enabledOptionValue(form.passwordRequireSymbol) },
       { name: 'identity.sessions.max_devices', value: String(form.sessionsMaxDevices) },
       { name: 'identity.sessions.keep_days', value: String(form.sessionsKeepDays) },
-      { name: 'identity.registration.enabled', value: enabledOptionValue(form.registrationEnabled) }
+      { name: 'identity.login.max_failures', value: String(form.loginMaxFailures) },
+      { name: 'identity.login.lockout_minutes', value: String(form.loginLockoutMinutes) }
     ])
     toast.add({
       color: 'success',
@@ -434,6 +533,78 @@ async function saveAccountSecuritySettings() {
     })
   } finally {
     savingAccountSecurity.value = false
+  }
+}
+
+async function saveRegistrationSettings() {
+  form.usernameMinLength = boundedInteger(form.usernameMinLength, 3, 2, 32)
+  form.usernameMaxLength = boundedInteger(form.usernameMaxLength, 20, 2, 64)
+  if (form.usernameMaxLength < form.usernameMinLength) {
+    form.usernameMaxLength = form.usernameMinLength
+  }
+  // mode 与 enabled 同步：closed → enabled=false；open → 尊重 registrationEnabled。
+  if (form.registrationMode === 'closed') {
+    form.registrationEnabled = false
+  } else if (form.registrationMode === 'open' && !form.registrationEnabled) {
+    form.registrationMode = 'closed'
+  }
+  savingRegistration.value = true
+  try {
+    await saveAndApply([
+      { name: 'identity.registration.enabled', value: enabledOptionValue(form.registrationEnabled && form.registrationMode === 'open') },
+      { name: 'identity.registration.mode', value: form.registrationMode },
+      { name: 'identity.registration.require_email_verification', value: enabledOptionValue(form.requireEmailVerification) },
+      { name: 'identity.registration.block_posting_until_verified', value: enabledOptionValue(form.blockPostingUntilVerified) },
+      { name: 'identity.username.min_length', value: String(form.usernameMinLength) },
+      { name: 'identity.username.max_length', value: String(form.usernameMaxLength) },
+      { name: 'identity.username.charset', value: form.usernameCharset },
+      { name: 'identity.username.reserved', value: form.usernameReserved.trim() }
+    ])
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.settings.saved'), duration: 10000 })
+  } catch (error) {
+    toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.settings.saveFailed') })
+  } finally {
+    savingRegistration.value = false
+  }
+}
+
+async function saveNewcomersSettings() {
+  form.trustNewUserDays = boundedInteger(form.trustNewUserDays, 7, 0, 365)
+  form.trustTopicCooldown = boundedInteger(form.trustTopicCooldown, 300, 0, 86400)
+  form.trustCommentCooldown = boundedInteger(form.trustCommentCooldown, 60, 0, 86400)
+  form.trustDailyTopicLimit = boundedInteger(form.trustDailyTopicLimit, 3, 0, 10000)
+  form.trustDailyCommentLimit = boundedInteger(form.trustDailyCommentLimit, 30, 0, 10000)
+  savingNewcomers.value = true
+  try {
+    await saveAndApply([
+      { name: 'trust.new_user_days', value: String(form.trustNewUserDays) },
+      { name: 'trust.new_user.topic_cooldown_seconds', value: String(form.trustTopicCooldown) },
+      { name: 'trust.new_user.comment_cooldown_seconds', value: String(form.trustCommentCooldown) },
+      { name: 'trust.new_user.daily_topic_limit', value: String(form.trustDailyTopicLimit) },
+      { name: 'trust.new_user.daily_comment_limit', value: String(form.trustDailyCommentLimit) },
+      { name: 'trust.new_user.forbid_outbound_links', value: enabledOptionValue(form.trustForbidOutboundLinks) },
+      { name: 'trust.new_user.forbid_attachments', value: enabledOptionValue(form.trustForbidAttachments) }
+    ])
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.settings.saved'), duration: 10000 })
+  } catch (error) {
+    toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.settings.saveFailed') })
+  } finally {
+    savingNewcomers.value = false
+  }
+}
+
+async function saveMaintenanceSettings() {
+  savingMaintenance.value = true
+  try {
+    await saveAndApply([
+      { name: 'site.maintenance.enabled', value: enabledOptionValue(form.maintenanceEnabled) },
+      { name: 'site.maintenance.message', value: form.maintenanceMessage.trim() }
+    ])
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.settings.saved'), duration: 10000 })
+  } catch (error) {
+    toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.settings.saveFailed') })
+  } finally {
+    savingMaintenance.value = false
   }
 }
 
@@ -526,11 +697,12 @@ function resetAccountSecurityForm() {
   form.passwordRequireSymbol = initialPasswordRequireSymbol.value
   form.sessionsMaxDevices = initialSessionsMaxDevices.value
   form.sessionsKeepDays = initialSessionsKeepDays.value
-  form.registrationEnabled = initialRegistrationEnabled.value
+  form.loginMaxFailures = initialLoginMaxFailures.value
+  form.loginLockoutMinutes = initialLoginLockoutMinutes.value
   toast.add({
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
-    title: '已重置账号安全更改'
+    title: t('admin.settings.basic.resetAccountSecurityChanges')
   })
 }
 
@@ -541,14 +713,89 @@ function restoreRecommendedPasswordPolicy() {
   form.passwordRequireUppercase = recommendedPasswordPolicy.requireUppercase
   form.passwordRequireNumber = recommendedPasswordPolicy.requireNumber
   form.passwordRequireSymbol = recommendedPasswordPolicy.requireSymbol
-  // 同时恢复最大活跃设备数到推荐默认。
+  // 同时恢复会话与登录锁定推荐默认值。
   form.sessionsMaxDevices = 5
   form.sessionsKeepDays = 30
-  form.registrationEnabled = true
+  form.loginMaxFailures = 10
+  form.loginLockoutMinutes = 15
   toast.add({
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
     title: t('admin.settings.basic.restorePasswordDefaults')
+  })
+}
+
+function resetRegistrationForm() {
+  form.registrationEnabled = initialRegistrationEnabled.value
+  form.registrationMode = initialRegistrationMode.value
+  form.requireEmailVerification = initialRequireEmailVerification.value
+  form.blockPostingUntilVerified = initialBlockPostingUntilVerified.value
+  form.usernameMinLength = initialUsernameMinLength.value
+  form.usernameMaxLength = initialUsernameMaxLength.value
+  form.usernameCharset = initialUsernameCharset.value
+  form.usernameReserved = initialUsernameReserved.value
+  toast.add({
+    color: 'neutral',
+    icon: 'i-lucide-rotate-ccw',
+    title: t('admin.settings.registration.resetChanges')
+  })
+}
+
+function restoreRecommendedRegistration() {
+  form.registrationMode = 'open'
+  form.registrationEnabled = true
+  form.requireEmailVerification = false
+  form.blockPostingUntilVerified = true
+  form.usernameMinLength = 3
+  form.usernameMaxLength = 20
+  form.usernameCharset = 'unicode_letters_numbers'
+  form.usernameReserved = 'admin,administrator,system,sforum,root,support,moderator,mod,official,null,undefined'
+  toast.add({
+    color: 'success',
+    icon: 'i-lucide-rotate-ccw',
+    title: t('admin.settings.registration.restoreDefaults'),
+    duration: 10000
+  })
+}
+
+function resetNewcomersForm() {
+  form.trustNewUserDays = initialTrustNewUserDays.value
+  form.trustTopicCooldown = initialTrustTopicCooldown.value
+  form.trustCommentCooldown = initialTrustCommentCooldown.value
+  form.trustDailyTopicLimit = initialTrustDailyTopicLimit.value
+  form.trustDailyCommentLimit = initialTrustDailyCommentLimit.value
+  form.trustForbidOutboundLinks = initialTrustForbidOutboundLinks.value
+  form.trustForbidAttachments = initialTrustForbidAttachments.value
+  toast.add({
+    color: 'neutral',
+    icon: 'i-lucide-rotate-ccw',
+    title: t('admin.settings.newcomers.resetChanges')
+  })
+}
+
+function restoreRecommendedNewcomers() {
+  form.trustNewUserDays = 7
+  form.trustTopicCooldown = 300
+  form.trustCommentCooldown = 60
+  form.trustDailyTopicLimit = 3
+  form.trustDailyCommentLimit = 30
+  form.trustForbidOutboundLinks = true
+  form.trustForbidAttachments = false
+  toast.add({
+    color: 'success',
+    icon: 'i-lucide-rotate-ccw',
+    title: t('admin.settings.newcomers.restoreDefaults'),
+    duration: 10000
+  })
+}
+
+function resetMaintenanceForm() {
+  form.maintenanceEnabled = initialMaintenanceEnabled.value
+  form.maintenanceMessage = initialMaintenanceMessage.value
+  toast.add({
+    color: 'neutral',
+    icon: 'i-lucide-rotate-ccw',
+    title: t('admin.settings.maintenance.resetChanges')
   })
 }
 
@@ -1152,19 +1399,44 @@ function onLocaleToggle(locale: string, event: Event) {
             />
           </UFormField>
 
-          <UFormField :label="t('admin.settings.basic.registrationEnabled')" name="registration-enabled">
-            <div class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950">
-              <div class="min-w-0">
-                <p class="text-sm text-slate-700 dark:text-zinc-200">
-                  {{ form.registrationEnabled ? t('admin.settings.basic.registrationEnabledOn') : t('admin.settings.basic.registrationEnabledOff') }}
-                </p>
-                <p class="mt-0.5 text-xs text-slate-500 dark:text-zinc-400">
-                  {{ t('admin.settings.basic.registrationEnabledHint') }}
-                </p>
-              </div>
-              <USwitch v-model="form.registrationEnabled" />
-            </div>
-          </UFormField>
+          <div class="grid gap-4 border-t border-slate-200 pt-4 dark:border-zinc-800 md:grid-cols-2">
+            <UFormField
+              :label="t('admin.settings.basic.loginMaxFailures')"
+              :description="t('admin.settings.basic.loginMaxFailuresHint')"
+              name="login-max-failures"
+            >
+              <UInput
+                v-model.number="form.loginMaxFailures"
+                icon="i-lucide-shield-alert"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                max="50"
+                step="1"
+                required
+                class="w-full"
+                @keydown="blockNonIntegerKey"
+              />
+            </UFormField>
+            <UFormField
+              :label="t('admin.settings.basic.loginLockoutMinutes')"
+              :description="t('admin.settings.basic.loginLockoutMinutesHint')"
+              name="login-lockout-minutes"
+            >
+              <UInput
+                v-model.number="form.loginLockoutMinutes"
+                icon="i-lucide-timer-off"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                max="1440"
+                step="1"
+                required
+                class="w-full"
+                @keydown="blockNonIntegerKey"
+              />
+            </UFormField>
+          </div>
         </div>
 
         <template #footer>
@@ -1178,8 +1450,407 @@ function onLocaleToggle(locale: string, event: Event) {
       </UCard>
     </form>
 
+    <!-- 注册与用户名策略 -->
+    <form v-else-if="activeTab === 'registration'" class="flex flex-col" @submit.prevent="saveRegistrationSettings">
+      <UCard
+        class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
+        :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }"
+      >
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-bold text-slate-900 dark:text-white">
+                {{ t('admin.settings.registration.title') }}
+              </h2>
+              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.settings.registration.description') }}
+              </p>
+            </div>
+            <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-mono">
+              identity.registration.* / identity.username.*
+            </UBadge>
+          </div>
+        </template>
+
+        <div class="space-y-5">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <UAlert
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-info"
+              :title="t('admin.settings.registration.recommended')"
+              class="flex-1"
+            />
+            <UButton
+              type="button"
+              color="neutral"
+              variant="outline"
+              leading-icon="i-lucide-rotate-ccw"
+              class="shrink-0"
+              @click="restoreRecommendedRegistration"
+            >
+              {{ t('admin.settings.registration.restoreDefaults') }}
+            </UButton>
+          </div>
+
+          <UFormField :label="t('admin.settings.registration.mode')" name="registration-mode">
+            <select
+              v-model="form.registrationMode"
+              class="h-10 w-full max-w-xl rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              @change="form.registrationEnabled = form.registrationMode === 'open'"
+            >
+              <option value="open">{{ t('admin.settings.registration.modes.open') }}</option>
+              <option value="invite">{{ t('admin.settings.registration.modes.invite') }}</option>
+              <option value="approval">{{ t('admin.settings.registration.modes.approval') }}</option>
+              <option value="closed">{{ t('admin.settings.registration.modes.closed') }}</option>
+            </select>
+            <p class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+              {{ t('admin.settings.registration.modeHint') }}
+            </p>
+          </UFormField>
+
+          <div class="grid gap-3 md:grid-cols-2">
+            <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input
+                v-model="form.requireEmailVerification"
+                type="checkbox"
+                class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
+              >
+              <span>
+                <span class="font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.settings.registration.requireEmailVerification') }}
+                </span>
+                <span class="mt-1 block text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.settings.registration.requireEmailVerificationHint') }}
+                </span>
+              </span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input
+                v-model="form.blockPostingUntilVerified"
+                type="checkbox"
+                class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
+              >
+              <span>
+                <span class="font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.settings.registration.blockPostingUntilVerified') }}
+                </span>
+                <span class="mt-1 block text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.settings.registration.blockPostingUntilVerifiedHint') }}
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <section class="space-y-4 border-t border-slate-200 pt-4 dark:border-zinc-800">
+            <div>
+              <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                {{ t('admin.settings.registration.usernameTitle') }}
+              </h3>
+              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.settings.registration.usernameDescription') }}
+              </p>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <UFormField :label="t('admin.settings.registration.usernameMinLength')" name="username-min">
+                <UInput
+                  v-model.number="form.usernameMinLength"
+                  type="number"
+                  inputmode="numeric"
+                  min="2"
+                  max="32"
+                  step="1"
+                  required
+                  class="w-full"
+                  @keydown="blockNonIntegerKey"
+                />
+              </UFormField>
+              <UFormField :label="t('admin.settings.registration.usernameMaxLength')" name="username-max">
+                <UInput
+                  v-model.number="form.usernameMaxLength"
+                  type="number"
+                  inputmode="numeric"
+                  min="2"
+                  max="64"
+                  step="1"
+                  required
+                  class="w-full"
+                  @keydown="blockNonIntegerKey"
+                />
+              </UFormField>
+            </div>
+            <UFormField :label="t('admin.settings.registration.usernameCharset')" name="username-charset">
+              <select
+                v-model="form.usernameCharset"
+                class="h-10 w-full max-w-xl rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+              >
+                <option value="unicode_letters_numbers">{{ t('admin.settings.registration.charsetUnicode') }}</option>
+                <option value="ascii">{{ t('admin.settings.registration.charsetAscii') }}</option>
+              </select>
+            </UFormField>
+            <UFormField
+              :label="t('admin.settings.registration.usernameReserved')"
+              :description="t('admin.settings.registration.usernameReservedHint')"
+              name="username-reserved"
+            >
+              <UTextarea
+                v-model="form.usernameReserved"
+                :rows="3"
+                class="w-full"
+                :placeholder="t('admin.settings.registration.usernameReservedPlaceholder')"
+              />
+            </UFormField>
+          </section>
+        </div>
+
+        <template #footer>
+          <SFAdminFormFooter
+            :saving="savingRegistration"
+            :show-unsaved-alert="hasRegistrationChanges"
+            :submit-text="t('admin.settings.save')"
+            @reset="resetRegistrationForm"
+          />
+        </template>
+      </UCard>
+    </form>
+
+    <!-- 新人信任阶梯 -->
+    <form v-else-if="activeTab === 'newcomers'" class="flex flex-col" @submit.prevent="saveNewcomersSettings">
+      <UCard
+        class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
+        :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }"
+      >
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-bold text-slate-900 dark:text-white">
+                {{ t('admin.settings.newcomers.title') }}
+              </h2>
+              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.settings.newcomers.description') }}
+              </p>
+            </div>
+            <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-mono">
+              trust.new_user.*
+            </UBadge>
+          </div>
+        </template>
+
+        <div class="space-y-5">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <UAlert
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-info"
+              :title="t('admin.settings.newcomers.recommended')"
+              class="flex-1"
+            />
+            <UButton
+              type="button"
+              color="neutral"
+              variant="outline"
+              leading-icon="i-lucide-rotate-ccw"
+              class="shrink-0"
+              @click="restoreRecommendedNewcomers"
+            >
+              {{ t('admin.settings.newcomers.restoreDefaults') }}
+            </UButton>
+          </div>
+
+          <UFormField
+            :label="t('admin.settings.newcomers.days')"
+            :description="t('admin.settings.newcomers.daysHint')"
+            name="trust-days"
+          >
+            <UInput
+              v-model.number="form.trustNewUserDays"
+              type="number"
+              inputmode="numeric"
+              min="0"
+              max="365"
+              step="1"
+              required
+              class="w-full max-w-xs"
+              @keydown="blockNonIntegerKey"
+            />
+          </UFormField>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <UFormField :label="t('admin.settings.newcomers.topicCooldown')" name="trust-topic-cooldown">
+              <UInput
+                v-model.number="form.trustTopicCooldown"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                max="86400"
+                step="1"
+                required
+                class="w-full"
+                @keydown="blockNonIntegerKey"
+              />
+              <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.settings.newcomers.zeroUnlimited') }}</p>
+            </UFormField>
+            <UFormField :label="t('admin.settings.newcomers.commentCooldown')" name="trust-comment-cooldown">
+              <UInput
+                v-model.number="form.trustCommentCooldown"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                max="86400"
+                step="1"
+                required
+                class="w-full"
+                @keydown="blockNonIntegerKey"
+              />
+              <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.settings.newcomers.zeroUnlimited') }}</p>
+            </UFormField>
+            <UFormField :label="t('admin.settings.newcomers.dailyTopicLimit')" name="trust-daily-topic">
+              <UInput
+                v-model.number="form.trustDailyTopicLimit"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                max="10000"
+                step="1"
+                required
+                class="w-full"
+                @keydown="blockNonIntegerKey"
+              />
+              <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.settings.newcomers.zeroUnlimited') }}</p>
+            </UFormField>
+            <UFormField :label="t('admin.settings.newcomers.dailyCommentLimit')" name="trust-daily-comment">
+              <UInput
+                v-model.number="form.trustDailyCommentLimit"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                max="10000"
+                step="1"
+                required
+                class="w-full"
+                @keydown="blockNonIntegerKey"
+              />
+              <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.settings.newcomers.zeroUnlimited') }}</p>
+            </UFormField>
+          </div>
+
+          <div class="grid gap-3 md:grid-cols-2">
+            <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input
+                v-model="form.trustForbidOutboundLinks"
+                type="checkbox"
+                class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
+              >
+              <span>
+                <span class="font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.settings.newcomers.forbidOutboundLinks') }}
+                </span>
+                <span class="mt-1 block text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.settings.newcomers.forbidOutboundLinksHint') }}
+                </span>
+              </span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input
+                v-model="form.trustForbidAttachments"
+                type="checkbox"
+                class="mt-1 size-4 rounded border-slate-300 text-[var(--sf-accent)] focus:ring-[var(--sf-accent)]"
+              >
+              <span>
+                <span class="font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.settings.newcomers.forbidAttachments') }}
+                </span>
+                <span class="mt-1 block text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.settings.newcomers.forbidAttachmentsHint') }}
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <template #footer>
+          <SFAdminFormFooter
+            :saving="savingNewcomers"
+            :show-unsaved-alert="hasNewcomersChanges"
+            :submit-text="t('admin.settings.save')"
+            @reset="resetNewcomersForm"
+          />
+        </template>
+      </UCard>
+    </form>
+
+    <!-- 维护模式 -->
+    <form v-else-if="activeTab === 'maintenance'" class="flex flex-col" @submit.prevent="saveMaintenanceSettings">
+      <UCard
+        class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
+        :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }"
+      >
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base font-bold text-slate-900 dark:text-white">
+                {{ t('admin.settings.maintenance.title') }}
+              </h2>
+              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.settings.maintenance.description') }}
+              </p>
+            </div>
+            <UBadge color="neutral" variant="soft" class="border border-slate-200 dark:border-zinc-800 font-mono">
+              site.maintenance.*
+            </UBadge>
+          </div>
+        </template>
+
+        <div class="space-y-5">
+          <UAlert
+            color="warning"
+            variant="soft"
+            icon="i-lucide-construction"
+            :title="t('admin.settings.maintenance.warning')"
+          />
+
+          <UFormField :label="t('admin.settings.maintenance.enabled')" name="maintenance-enabled">
+            <div class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950">
+              <div class="min-w-0">
+                <p class="text-sm text-slate-700 dark:text-zinc-200">
+                  {{ form.maintenanceEnabled ? t('admin.settings.maintenance.enabledOn') : t('admin.settings.maintenance.enabledOff') }}
+                </p>
+                <p class="mt-0.5 text-xs text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.settings.maintenance.enabledHint') }}
+                </p>
+              </div>
+              <USwitch v-model="form.maintenanceEnabled" />
+            </div>
+          </UFormField>
+
+          <UFormField
+            :label="t('admin.settings.maintenance.message')"
+            :description="t('admin.settings.maintenance.messageHint')"
+            name="maintenance-message"
+          >
+            <UTextarea
+              v-model="form.maintenanceMessage"
+              :rows="3"
+              class="w-full"
+              :placeholder="t('admin.settings.maintenance.messagePlaceholder')"
+              maxlength="500"
+            />
+          </UFormField>
+        </div>
+
+        <template #footer>
+          <SFAdminFormFooter
+            :saving="savingMaintenance"
+            :show-unsaved-alert="hasMaintenanceChanges"
+            :submit-text="t('admin.settings.save')"
+            @reset="resetMaintenanceForm"
+          />
+        </template>
+      </UCard>
+    </form>
+
     <!-- 人机验证 Tab -->
-    <form v-else class="flex flex-col" @submit.prevent="saveVerificationSettings">
+    <form v-else-if="activeTab === 'verification'" class="flex flex-col" @submit.prevent="saveVerificationSettings">
       <UCard
         class="border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
         :ui="{ footer: 'sticky bottom-0 z-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm border-t border-slate-200 dark:border-zinc-800 p-4 sm:px-6' }"

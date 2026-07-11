@@ -71,10 +71,14 @@ const (
 	CodeCommentNestingDeep   = "forum.comment_nesting_too_deep"
 	CodeEditWindowExpired    = "forum.edit_window_expired"
 	CodeTopicCooldown         = "forum.topic_cooldown"
+	CodeOutboundLinkForbidden = "forum.outbound_link_forbidden"
+	CodeMentionsLimit         = "forum.mentions_limit"
 	CodeCommentCooldown       = "forum.comment_cooldown"
 	CodeDailyTopicLimit      = "forum.daily_topic_limit"
 	CodeDailyCommentLimit    = "forum.daily_comment_limit"
 	CodeTagMinRequired       = "forum.tag_min_required"
+	// 游客阅读策略为 login_required 时，未登录访问公开阅读接口。
+	CodeGuestLoginRequired = "forum.guest_login_required"
 )
 
 var (
@@ -97,11 +101,15 @@ var (
 	ErrEditWindowExpired   = errors.New("forum: edit window expired")
 	ErrTopicCooldown        = errors.New("forum: topic cooldown")
 	ErrCommentCooldown      = errors.New("forum: comment cooldown")
+	ErrOutboundLinkForbidden = errors.New("forum: outbound links forbidden for new users")
+	ErrMentionsLimit         = errors.New("forum: too many mentions")
 	ErrDailyTopicLimit     = errors.New("forum: daily topic limit")
 	ErrDailyCommentLimit   = errors.New("forum: daily comment limit")
 	ErrTagMinRequired      = errors.New("forum: tag minimum required")
 	// ErrUseSearchEndpoint 表示 topics 列表不再支持关键词检索，应改用专用搜索端点。
 	ErrUseSearchEndpoint = errors.New("forum: use search endpoint")
+	// ErrGuestLoginRequired 游客阅读关闭时，匿名读请求被拒绝。
+	ErrGuestLoginRequired = errors.New("forum: guest login required")
 )
 
 // TopicSearchIndexer 是 forum 包对搜索索引调度的抽象。
@@ -195,6 +203,8 @@ type TopicListInput struct {
 	CategorySlug string
 	TagSlug      string
 	Query        string
+	// Sort: latest | active | hot；空则由 service 用站点默认排序填充。
+	Sort string
 }
 
 type TopicList struct {
@@ -333,6 +343,20 @@ type ForumSettings struct {
 
 	// 列表摘要截断长度（写入 posts.excerpt 时生效）
 	ExcerptRuneLimit int `json:"excerptRuneLimit"`
+
+	// Wave 1：阅读与主题/评论行为策略
+	GuestRead                  string `json:"guestRead"`                  // public | login_required
+	ListDefaultSort            string `json:"listDefaultSort"`            // latest | active | hot
+	ListHotWindowDays          int    `json:"listHotWindowDays"`
+	AllowAuthorCloseReplies    bool   `json:"allowAuthorCloseReplies"`
+	AllowAuthorDelete          bool   `json:"allowAuthorDelete"`
+	AutoLockIdleDays           int    `json:"autoLockIdleDays"` // 0=关闭
+	ShowTopicEditMark          bool   `json:"showTopicEditMark"`
+	DuplicateTitlePolicy       string `json:"duplicateTitlePolicy"` // off | warn | block
+	ShowCommentEditMark        bool   `json:"showCommentEditMark"`
+	SoftDeleteVisibility       string `json:"softDeleteVisibility"` // author_and_staff | staff_only | hidden
+	MentionsEnabled            bool   `json:"mentionsEnabled"`
+	MentionsMaxPerPost         int    `json:"mentionsMaxPerPost"`
 }
 
 type CreateCategoryGroupInput struct {
@@ -421,6 +445,19 @@ type UpdateForumSettingsInput struct {
 	CommentCooldownSeconds     *int
 	DailyCommentLimit        *int
 	ExcerptRuneLimit         *int
+
+	GuestRead               *string
+	ListDefaultSort         *string
+	ListHotWindowDays       *int
+	AllowAuthorCloseReplies *bool
+	AllowAuthorDelete       *bool
+	AutoLockIdleDays        *int
+	ShowTopicEditMark       *bool
+	DuplicateTitlePolicy    *string
+	ShowCommentEditMark     *bool
+	SoftDeleteVisibility    *string
+	MentionsEnabled         *bool
+	MentionsMaxPerPost      *int
 }
 
 type CommentListInput struct {

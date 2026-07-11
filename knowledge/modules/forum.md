@@ -33,8 +33,11 @@ on 2026-07-07.
 - Runtime forum settings live in `web_options`: default category slug, tag
   creation mode, public tag pages, min/max tags per topic, public pagination,
   topic/comment content limits, cooldowns, daily caps, edit windows, nesting
-  depth, and list excerpt length. Recommended defaults are configurable and
-  resettable from the multi-tab admin forum settings page.
+  depth, list excerpt length, guest read mode, list default sort/hot window,
+  author close/delete, edit marks, duplicate title policy, soft-delete
+  visibility, and @mention limits. Recommended defaults are configurable and
+  resettable from the multi-tab admin forum settings page
+  (general/topics/comments/tags/reading/behavior).
 - Public pagination defaults are server-authoritative runtime settings:
   `forum.pagination.topics_per_page` and
   `forum.pagination.comments_per_page` both default to 20 and accept 1-100.
@@ -46,6 +49,12 @@ on 2026-07-07.
   and daily create limits. `0` means unlimited for cooldown/daily/edit window
   fields. List excerpt truncation uses `forum.reading.excerpt_rune_limit`
   (default 180) for newly rendered content only.
+- Guest reading: when `forum.guest.read=login_required`, public read endpoints
+  (categories, tags, topics, search, comments) return 401
+  `forum.guest_login_required` for anonymous sessions.
+- Newcomer trust ladder (options `trust.new_user_*`) tightens cooldowns/daily
+  caps and can forbid outbound links for accounts still inside the trust window
+  after registration.
 - Tag creation modes are `controlled`, `review`, and `open`. Controlled mode
   only allows approved tags, review mode creates pending tags, and open mode
   creates active tags directly.

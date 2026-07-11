@@ -172,6 +172,14 @@ export const adminPageDefinitions = [
     requiredPermissions: ['extension.manage']
   },
   {
+    // 应用商城：框架占位页，安装/检索能力后续再接
+    id: '/extensions/store',
+    labelKey: 'admin.nav.extensionStore',
+    icon: 'i-lucide-store',
+    componentName: 'AdminExtensionStore',
+    requiredPermissions: ['extension.manage']
+  },
+  {
     id: '/extensions/settings',
     labelKey: 'admin.nav.extensionSettings',
     icon: 'i-lucide-sliders-horizontal',
@@ -260,6 +268,7 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/extensions' },
         { type: 'page', pageId: '/extensions/plugins' },
         { type: 'page', pageId: '/extensions/themes' },
+        { type: 'page', pageId: '/extensions/store' },
         { type: 'page', pageId: '/extensions/settings' },
         { type: 'page', pageId: '/extensions/events' },
         { type: 'page', pageId: '/extensions/contributions' },

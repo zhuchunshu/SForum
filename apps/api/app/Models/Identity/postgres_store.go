@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -236,11 +237,15 @@ func (s *PostgresStore) LoadActor(ctx context.Context, userID int64) (Actor, err
 	for _, key := range current.Permissions {
 		permissions[key] = true
 	}
+	// 注册时间单独读取，供新人信任阶梯；失败时保留零值（跳过新人限制）。
+	var createdAt time.Time
+	_ = s.pool.QueryRow(ctx, `SELECT created_at FROM users WHERE id = $1`, userID).Scan(&createdAt)
 	return Actor{
 		ID:          userID,
 		Status:      current.Status,
 		RoleKeys:    current.RoleKeys,
 		Permissions: permissions,
+		CreatedAt:   createdAt,
 	}, nil
 }
 

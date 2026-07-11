@@ -59,3 +59,58 @@ func TestModerationPermissionsRemainIndependent(t *testing.T) {
 		t.Fatal("moderation permissions must remain independent")
 	}
 }
+
+func TestSeedPermissionsCoverCurrentAdminAndForumSurfaces(t *testing.T) {
+	required := []string{
+		PermissionAdminAccess,
+		PermissionRoleManage,
+		PermissionUserManage,
+		PermissionUserBan,
+		PermissionCategoryManage,
+		PermissionTagManage,
+		PermissionTopicCreate,
+		PermissionTopicEditAny,
+		PermissionTopicDeleteAny,
+		PermissionTopicLock,
+		PermissionTopicPin,
+		PermissionPostCreate,
+		PermissionPostEditOwn,
+		PermissionPostEditAny,
+		PermissionPostDeleteOwn,
+		PermissionPostDeleteAny,
+		PermissionModerationManage,
+		PermissionModerationReview,
+		PermissionSettingsManage,
+		PermissionSEOManage,
+		PermissionAttachmentUpload,
+		PermissionAttachmentManage,
+		PermissionAttachmentSettings,
+		PermissionExtensionManage,
+		PermissionDatabaseManage,
+		PermissionSearchManage,
+		PermissionJobsView,
+		PermissionJobsManage,
+	}
+
+	found := map[string]SeedPermission{}
+	for _, permission := range SeedPermissions {
+		if _, exists := found[permission.Key]; exists {
+			t.Fatalf("duplicate seed permission key: %s", permission.Key)
+		}
+		found[permission.Key] = permission
+	}
+
+	for _, key := range required {
+		permission, ok := found[key]
+		if !ok {
+			t.Fatalf("expected seed permission %s", key)
+		}
+		if permission.Module == "" || permission.Description == "" {
+			t.Fatalf("permission %s must declare module and description", key)
+		}
+	}
+
+	if len(found) != len(required) {
+		t.Fatalf("seed catalog size drifted: got %d want %d", len(found), len(required))
+	}
+}

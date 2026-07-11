@@ -124,6 +124,9 @@ type updateCommentRequest struct {
 }
 
 func (h *Controller) categories(c fiber.Ctx) error {
+	if err := h.requireGuestRead(c); err != nil {
+		return err
+	}
 	items, err := h.service.ListCategories(c.Context())
 	if err != nil {
 		return mapForumError(err)
@@ -132,6 +135,9 @@ func (h *Controller) categories(c fiber.Ctx) error {
 }
 
 func (h *Controller) categoryGroups(c fiber.Ctx) error {
+	if err := h.requireGuestRead(c); err != nil {
+		return err
+	}
 	items, err := h.service.ListCategoryGroups(c.Context())
 	if err != nil {
 		return mapForumError(err)
@@ -140,6 +146,9 @@ func (h *Controller) categoryGroups(c fiber.Ctx) error {
 }
 
 func (h *Controller) tags(c fiber.Ctx) error {
+	if err := h.requireGuestRead(c); err != nil {
+		return err
+	}
 	items, err := h.service.ListTags(c.Context(), false)
 	if err != nil {
 		return mapForumError(err)
@@ -148,12 +157,16 @@ func (h *Controller) tags(c fiber.Ctx) error {
 }
 
 func (h *Controller) topics(c fiber.Ctx) error {
+	if err := h.requireGuestRead(c); err != nil {
+		return err
+	}
 	list, err := h.service.ListTopics(c.Context(), forum.TopicListInput{
 		Page:         queryInt(c, "page"),
 		PerPage:      queryInt(c, "perPage"),
 		CategorySlug: c.Query("categorySlug"),
 		TagSlug:      c.Query("tagSlug"),
 		Query:        c.Query("query"),
+		Sort:         c.Query("sort"),
 	})
 	if err != nil {
 		return mapForumError(err)
@@ -164,6 +177,9 @@ func (h *Controller) topics(c fiber.Ctx) error {
 // search 提供基于 Meilisearch 的主题全文检索。
 // 关键词检索已从 topics 列表迁移到此专用端点，避免 ILIKE 全表扫描。
 func (h *Controller) search(c fiber.Ctx) error {
+	if err := h.requireGuestRead(c); err != nil {
+		return err
+	}
 	if h.searchService == nil {
 		return fiber.NewError(fiber.StatusServiceUnavailable, "forum.search_unavailable")
 	}
@@ -214,6 +230,9 @@ func (h *Controller) authorReviewItems(c fiber.Ctx) error {
 }
 
 func (h *Controller) topic(c fiber.Ctx) error {
+	if err := h.requireGuestRead(c); err != nil {
+		return err
+	}
 	topic, err := h.service.GetTopic(c.Context(), int64(paramInt(c, "topicID")))
 	if err != nil {
 		return mapForumError(err)
@@ -224,6 +243,9 @@ func (h *Controller) topic(c fiber.Ctx) error {
 // topicBySlug 处理 "纯 slug" URL 模式下的公开主题查询。
 // 路由参数 :slug 由前端 forumTopicPath 在 slug 模式下产出。
 func (h *Controller) topicBySlug(c fiber.Ctx) error {
+	if err := h.requireGuestRead(c); err != nil {
+		return err
+	}
 	topic, err := h.service.GetTopicBySlug(c.Context(), c.Params("slug"))
 	if err != nil {
 		return mapForumError(err)
@@ -328,6 +350,9 @@ func (h *Controller) unpinTopic(c fiber.Ctx) error {
 }
 
 func (h *Controller) comments(c fiber.Ctx) error {
+	if err := h.requireGuestRead(c); err != nil {
+		return err
+	}
 	list, err := h.service.ListComments(c.Context(), forum.CommentListInput{
 		TopicID: int64(paramInt(c, "topicID")),
 		View:    c.Query("view", "tree"),
@@ -361,6 +386,9 @@ func (h *Controller) createComment(c fiber.Ctx) error {
 }
 
 func (h *Controller) replies(c fiber.Ctx) error {
+	if err := h.requireGuestRead(c); err != nil {
+		return err
+	}
 	items, err := h.service.ListCommentReplies(c.Context(), int64(paramInt(c, "commentID")))
 	if err != nil {
 		return mapForumError(err)
@@ -408,6 +436,29 @@ func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 		return identity.Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
 	}
 	return h.users.LoadActor(c.Context(), userID)
+}
+
+// requireGuestRead：forum.guest.read=login_required 时，匿名读请求返回 401。
+// 已登录用户（含任意角色）始终可走公开阅读接口。
+func (h *Controller) requireGuestRead(c fiber.Ctx) error {
+	settings, err := h.service.PublicForumSettings(c.Context())
+	if err != nil {
+		return err
+	}
+	if settings.GuestRead != "login_required" {
+		return nil
+	}
+	if h.sessions == nil {
+		return fiber.NewError(fiber.StatusUnauthorized, forum.CodeGuestLoginRequired)
+	}
+	_, ok, err := h.sessions.CurrentUserID(c)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, forum.CodeGuestLoginRequired)
+	}
+	return nil
 }
 
 func mapForumError(err error) error {
@@ -461,6 +512,12 @@ func mapForumError(err error) error {
 		return fiber.NewError(fiber.StatusTooManyRequests, forum.CodeDailyCommentLimit)
 	case errors.Is(err, forum.ErrTagMinRequired):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeTagMinRequired)
+	case errors.Is(err, forum.ErrOutboundLinkForbidden):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeOutboundLinkForbidden)
+	case errors.Is(err, forum.ErrMentionsLimit):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeMentionsLimit)
+	case errors.Is(err, forum.ErrGuestLoginRequired):
+		return fiber.NewError(fiber.StatusUnauthorized, forum.CodeGuestLoginRequired)
 	case errors.Is(err, forum.ErrUseSearchEndpoint):
 		return fiber.NewError(fiber.StatusBadRequest, forum.CodeUseSearch)
 	default:

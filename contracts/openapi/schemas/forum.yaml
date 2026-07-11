@@ -442,6 +442,18 @@ ForumSettings:
   - commentCooldownSeconds
   - dailyCommentLimit
   - excerptRuneLimit
+  - guestRead
+  - listDefaultSort
+  - listHotWindowDays
+  - allowAuthorCloseReplies
+  - allowAuthorDelete
+  - autoLockIdleDays
+  - showTopicEditMark
+  - duplicateTitlePolicy
+  - showCommentEditMark
+  - softDeleteVisibility
+  - mentionsEnabled
+  - mentionsMaxPerPost
   properties:
     defaultCategorySlug:
       type: string
@@ -526,6 +538,43 @@ ForumSettings:
       type: integer
       minimum: 40
       maximum: 500
+    guestRead:
+      type: string
+      enum: [public, login_required]
+      description: Whether guests may read public forum content
+    listDefaultSort:
+      type: string
+      enum: [latest, active, hot]
+    listHotWindowDays:
+      type: integer
+      minimum: 1
+      maximum: 90
+    allowAuthorCloseReplies:
+      type: boolean
+    allowAuthorDelete:
+      type: boolean
+    autoLockIdleDays:
+      type: integer
+      minimum: 0
+      maximum: 3650
+      description: 0 disables auto-lock of idle topics
+    showTopicEditMark:
+      type: boolean
+    duplicateTitlePolicy:
+      type: string
+      enum: [off, warn, block]
+    showCommentEditMark:
+      type: boolean
+    softDeleteVisibility:
+      type: string
+      enum: [author_and_staff, staff_only, hidden]
+    mentionsEnabled:
+      type: boolean
+    mentionsMaxPerPost:
+      type: integer
+      minimum: 0
+      maximum: 50
+      description: 0 means unlimited mentions when mentions are enabled
 ForumUser:
   type: object
   required:
@@ -1216,6 +1265,40 @@ UpdateForumSettingsRequest:
       type: integer
       minimum: 40
       maximum: 500
+    guestRead:
+      type: string
+      enum: [public, login_required]
+    listDefaultSort:
+      type: string
+      enum: [latest, active, hot]
+    listHotWindowDays:
+      type: integer
+      minimum: 1
+      maximum: 90
+    allowAuthorCloseReplies:
+      type: boolean
+    allowAuthorDelete:
+      type: boolean
+    autoLockIdleDays:
+      type: integer
+      minimum: 0
+      maximum: 3650
+    showTopicEditMark:
+      type: boolean
+    duplicateTitlePolicy:
+      type: string
+      enum: [off, warn, block]
+    showCommentEditMark:
+      type: boolean
+    softDeleteVisibility:
+      type: string
+      enum: [author_and_staff, staff_only, hidden]
+    mentionsEnabled:
+      type: boolean
+    mentionsMaxPerPost:
+      type: integer
+      minimum: 0
+      maximum: 50
 AuthorReviewItem:
   type: object
   required: [targetType, targetId, title, excerpt, status, reviewNote, createdAt]

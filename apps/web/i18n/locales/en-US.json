@@ -1032,7 +1032,10 @@
       "identity": "Users & Identity",
       "forum": "Forum Content",
       "moderation": "Moderation",
-      "attachment": "Attachments"
+      "attachment": "Attachments",
+      "extension": "Extensions & Themes",
+      "search": "Search",
+      "jobs": "Background Jobs"
     },
     "permissionCatalog": {
       "admin": {
@@ -1063,6 +1066,12 @@
           "description": "Create and edit forum categories."
         }
       },
+      "tag": {
+        "manage": {
+          "label": "Manage tags",
+          "description": "Create, approve, disable tags, and manage tag policy."
+        }
+      },
       "topic": {
         "create": {
           "label": "Create topics",
@@ -1074,7 +1083,7 @@
         },
         "delete_any": {
           "label": "Delete any topic",
-          "description": "Delete topics published by any user."
+          "description": "Delete or restore topics published by any user."
         },
         "lock": {
           "label": "Lock topics",
@@ -1091,16 +1100,16 @@
           "description": "Create replies under topics."
         },
         "edit_own": {
-          "label": "Edit own replies",
-          "description": "Edit replies posted by the current user."
+          "label": "Edit own content",
+          "description": "Edit topics and replies posted by the current user."
         },
         "edit_any": {
           "label": "Edit any reply",
           "description": "Edit replies posted by any user."
         },
         "delete_own": {
-          "label": "Delete own replies",
-          "description": "Delete replies posted by the current user."
+          "label": "Delete own content",
+          "description": "Delete topics and replies posted by the current user."
         },
         "delete_any": {
           "label": "Delete any reply",
@@ -1108,15 +1117,19 @@
         }
       },
       "moderation": {
-        "report_review": {
-          "label": "Review reports",
-          "description": "Review and resolve content reports."
+        "manage": {
+          "label": "Manage moderation policy",
+          "description": "Configure publication review policy and inspect the full audit history."
+        },
+        "review": {
+          "label": "Review moderation queue",
+          "description": "Review pending content, handle reports, and record decisions."
         }
       },
       "settings": {
         "manage": {
           "label": "Manage site settings",
-          "description": "Edit runtime settings such as site name, languages, and human verification."
+          "description": "Edit runtime settings such as site name, languages, mail and notifications, and human verification."
         }
       },
       "seo": {
@@ -1129,6 +1142,28 @@
         "manage": {
           "label": "Manage database tables",
           "description": "View database table structure, indexes, constraints, and read-only row data."
+        }
+      },
+      "search": {
+        "manage": {
+          "label": "Manage search index",
+          "description": "Rebuild the search index and inspect rebuild progress and history."
+        }
+      },
+      "extension": {
+        "manage": {
+          "label": "Manage extensions and themes",
+          "description": "Install, enable, and disable plugins and themes, and manage web releases."
+        }
+      },
+      "jobs": {
+        "view": {
+          "label": "View background jobs",
+          "description": "Inspect queues, job details, failures, and worker activity."
+        },
+        "manage": {
+          "label": "Manage background jobs",
+          "description": "Retry or cancel jobs, and pause or resume queue processing."
         }
       },
       "attachment": {
@@ -1285,6 +1320,9 @@
         "label": "Settings sections",
         "basic": "Basic settings",
         "accountSecurity": "Account security",
+        "registration": "Registration",
+        "newcomers": "Newcomers",
+        "maintenance": "Maintenance",
         "verification": "Verification"
       },
       "locale": {
@@ -1345,10 +1383,75 @@
         "sessionsMaxDevicesHint": "Maximum number of devices that may stay signed in at once (1-20). When exceeded, the oldest device is signed out automatically. Recommended: 5.",
         "sessionsKeepDays": "Login history retention days",
         "sessionsKeepDaysHint": "How many days to keep revoked login records for users to review (1-365). A background job cleans up older ones. Recommended: 30.",
+        "loginMaxFailures": "Login failure lockout threshold",
+        "loginMaxFailuresHint": "Lock the account after this many consecutive wrong passwords. 0 disables lockout. Recommended: 10.",
+        "loginLockoutMinutes": "Login lockout duration (minutes)",
+        "loginLockoutMinutesHint": "How long login stays blocked after the threshold is hit. 0 means unlock immediately. Recommended: 15.",
+        "resetAccountSecurityChanges": "Account security changes were reset",
         "registrationEnabled": "Open registration",
         "registrationEnabledOn": "On: visitors can register themselves",
         "registrationEnabledOff": "Off: only staff can create accounts",
         "registrationEnabledHint": "When off, the login page hides registration. The first install registration remains allowed while no users exist. Recommended: on."
+      },
+      "registration": {
+        "title": "Registration and usernames",
+        "description": "Control who may register and username length, charset, and reserved names. Invite/approval flows will be completed in a later iteration.",
+        "recommended": "Recommended: open registration, usernames 3–20 characters, Unicode letters and numbers.",
+        "restoreDefaults": "Restore registration defaults",
+        "resetChanges": "Registration changes were reset",
+        "mode": "Registration mode",
+        "modeHint": "Open: visitors can register. Invite/approval: public registration is closed for now (full invite codes and approval queues come later). Closed: only staff can create accounts.",
+        "modes": {
+          "open": "Open registration",
+          "invite": "Invite only (public entry closed for now)",
+          "approval": "Approval required (public entry closed for now)",
+          "closed": "Closed"
+        },
+        "requireEmailVerification": "Require email verification",
+        "requireEmailVerificationHint": "When on, registration UX can prompt for email verification (full verification mail flow is completed with mail features).",
+        "blockPostingUntilVerified": "Block posting until verified",
+        "blockPostingUntilVerifiedHint": "Applies only when email verification is required. Recommended on to reduce spam floods after signup.",
+        "usernameTitle": "Username rules",
+        "usernameDescription": "Applied when members register or staff create accounts.",
+        "usernameMinLength": "Minimum username length",
+        "usernameMaxLength": "Maximum username length",
+        "usernameCharset": "Allowed characters",
+        "charsetUnicode": "Unicode letters and numbers (recommended)",
+        "charsetAscii": "ASCII letters and numbers only",
+        "usernameReserved": "Reserved usernames",
+        "usernameReservedHint": "Comma-separated, case-insensitive. Matching names cannot be registered.",
+        "usernameReservedPlaceholder": "Example: admin,system,moderator"
+      },
+      "newcomers": {
+        "title": "Newcomer limits",
+        "description": "Stricter cooldowns, daily caps, and outbound-link rules during a trust window after signup.",
+        "recommended": "Recommended: 7-day window, 5-minute topic cooldown, 1-minute comment cooldown, 3 topics / 30 comments per day, block outbound links.",
+        "restoreDefaults": "Restore newcomer defaults",
+        "resetChanges": "Newcomer limit changes were reset",
+        "days": "Newcomer trust window (days)",
+        "daysHint": "Counted from registration. 0 disables newcomer limits. Recommended: 7.",
+        "topicCooldown": "Newcomer topic cooldown (seconds)",
+        "commentCooldown": "Newcomer comment cooldown (seconds)",
+        "dailyTopicLimit": "Newcomer daily topic limit",
+        "dailyCommentLimit": "Newcomer daily comment limit",
+        "zeroUnlimited": "0 means no extra newcomer limit (global forum limits still apply).",
+        "forbidOutboundLinks": "Block outbound links for newcomers",
+        "forbidOutboundLinksHint": "Reject topics/comments with http(s) links during the trust window. Recommended on.",
+        "forbidAttachments": "Block attachments for newcomers",
+        "forbidAttachmentsHint": "Disallow uploads during the trust window. Off by default; enable for higher-risk communities."
+      },
+      "maintenance": {
+        "title": "Maintenance mode",
+        "description": "When enabled, write operations from ordinary visitors are blocked; staff can still sign in and manage the site.",
+        "warning": "Turning maintenance on immediately affects write traffic site-wide. Confirm before saving.",
+        "enabled": "Maintenance mode",
+        "enabledOn": "On: the site is under maintenance",
+        "enabledOff": "Off: the site is operating normally",
+        "enabledHint": "Non-admin write requests return 503 while enabled. Recommended: off.",
+        "message": "Maintenance message",
+        "messageHint": "Shown to visitors, up to 500 characters. Leave blank to use the system default message.",
+        "messagePlaceholder": "Example: Upgrading the site. Back in about 30 minutes.",
+        "resetChanges": "Maintenance mode changes were reset"
       },
       "verification": {
         "title": "Human verification",
@@ -1762,7 +1865,8 @@
           "topics": "Topics",
           "comments": "Comments",
           "tags": "Tags",
-          "reading": "Reading"
+          "reading": "Reading",
+          "behavior": "Behavior"
         },
         "sections": {
           "general": {
@@ -1784,8 +1888,40 @@
           "reading": {
             "title": "Reading and excerpts",
             "description": "List excerpt length and related reading experience settings."
+          },
+          "behavior": {
+            "title": "Behavior policy",
+            "description": "Author close/delete, edit marks, duplicate titles, soft-delete visibility, and {'@'}mentions."
           }
         },
+        "readingPolicyTitle": "Guest reading and list sort",
+        "readingPolicyHelp": "Controls whether guests can read content, and the default topic list sort plus hot window.",
+        "guestRead": "Guest reading",
+        "guestReadPublic": "Public: guests can browse",
+        "guestReadLogin": "Login required to read",
+        "listDefaultSort": "Default list sort",
+        "sortLatest": "Latest",
+        "sortActive": "Recently active",
+        "sortHot": "Hot",
+        "listHotWindowDays": "Hot window (days)",
+        "allowAuthorCloseReplies": "Allow authors to close replies",
+        "allowAuthorCloseRepliesHelp": "Topic authors may close or reopen replies (moderator powers are unchanged).",
+        "allowAuthorDelete": "Allow authors to delete their topics",
+        "allowAuthorDeleteHelp": "When enabled, authors may soft-delete their own topics within policy limits.",
+        "showTopicEditMark": "Show topic “edited” mark",
+        "showCommentEditMark": "Show comment “edited” mark",
+        "mentionsEnabled": "Enable {'@'}mentions",
+        "mentionsMaxPerPost": "Max {'@'}mentions per post",
+        "autoLockIdleDays": "Auto-lock idle topics (days)",
+        "autoLockIdleDaysHelp": "Lock a topic after this many days without new replies. 0 disables auto-lock.",
+        "duplicateTitlePolicy": "Duplicate title policy",
+        "duplicateOff": "Off",
+        "duplicateWarn": "Warn (still allow publish)",
+        "duplicateBlock": "Block publish",
+        "softDeleteVisibility": "Soft-deleted content visibility",
+        "softDeleteAuthorStaff": "Author and staff",
+        "softDeleteStaffOnly": "Staff only",
+        "softDeleteHidden": "Hidden from everyone",
         "minTagsPerTopic": "Minimum tags per topic",
         "minTagsPerTopicHelp": "Allow 0 to 10. Use 0 to make tags optional when posting.",
         "topicTitleMin": "Minimum title length",
@@ -1909,7 +2045,34 @@
       "secretsPreserved": "Saved plugin secrets were preserved.",
       "smtpSettings": "Configure SMTP plugin",
       "recentDeliveries": "Recent deliveries",
-      "noDeliveries": "No delivery records"
+      "noDeliveries": "No delivery records",
+      "deliveryStatus": {
+        "queued": "Queued",
+        "sending": "Sending",
+        "sent": "Sent",
+        "failed": "Failed",
+        "skipped": "Skipped"
+      },
+      "templates": {
+        "admin_test": "Admin test mail",
+        "identity_password_reset": "Password reset",
+        "forum_reply": "Reply notification",
+        "forum_mention": "Mention notification",
+        "forum_moderation_approved": "Moderation approved",
+        "forum_moderation_rejected": "Moderation rejected"
+      },
+      "reasons": {
+        "provider_unavailable": "Mail provider unavailable",
+        "smtp_sent": "Sent via SMTP",
+        "smtp_host_required": "SMTP host is required",
+        "smtp_port_invalid": "SMTP port is invalid",
+        "smtp_from_invalid": "Sender address is invalid",
+        "smtp_encryption_invalid": "SMTP encryption is invalid",
+        "smtp_transport_failed": "SMTP transport failed",
+        "smtp_message_invalid": "Message content is invalid",
+        "smtp_authentication_failed": "SMTP authentication failed",
+        "smtp_recipient_rejected": "Recipient rejected by server"
+      }
     },
     "moderation": {
       "title": "Moderation queue",

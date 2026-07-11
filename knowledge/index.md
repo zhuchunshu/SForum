@@ -4,10 +4,16 @@ This is the entry point for project memory.
 
 ## Current Project State
 
-- Admin forum settings are multi-tab (general/topics/comments/tags/reading) with
-  configurable topic/comment length limits, nesting depth, edit windows,
-  cooldowns, daily caps, tag min/max, and excerpt length. Limits are
-  server-authoritative and exposed via public web-options for composer UX.
+- Admin forum settings are multi-tab
+  (general/topics/comments/tags/reading/behavior) with configurable
+  topic/comment length limits, nesting depth, edit windows, cooldowns, daily
+  caps, tag min/max, excerpt length, guest read, list sort, author actions,
+  edit marks, duplicate titles, soft-delete visibility, and mentions. Limits
+  are server-authoritative and exposed via public web-options for composer UX.
+- Wave 1 community policy pack (2026-07-12): site settings tabs for
+  registration mode/username rules, newcomer trust ladder, maintenance mode,
+  and login lockout; forum guest-read enforcement; recommended defaults +
+  restore. Blueprint: `knowledge/plans/2026-07-12-admin-settings-richness.md`.
 
 
 - Mail and in-app notifications are implemented as a plugin-first vertical:
@@ -458,6 +464,9 @@ This is the entry point for project memory.
 - `plans/2026-07-12-iteration-a-engagement-loop.md` - Iteration A implementation
   checklist: view counts, likes/reactions, bookmarks; topic lifecycle already
   mostly shipped.
+- `plans/2026-07-12-admin-settings-richness.md` - full operator settings catalog
+  and IA for a mainstream-rich control panel (registration/trust/forum/nav/
+  engagement/moderation waves); recommended defaults and anti-patterns.
 - `decisions/2026-07-06-tiptap-editor-content-storage.md` - Tiptap editor,
   triple content storage, and server-side XSS safety boundary.
 - `../docs/architecture.md` - proposed technical architecture and directory

@@ -6,6 +6,11 @@ export type ForumVisibility = 'public' | 'hidden'
 export type ForumDefaultSort = 'latest' | 'hot'
 export type ForumTopicStatus = 'active' | 'locked' | 'hidden' | 'deleted' | 'pending' | 'rejected'
 
+export type ForumGuestRead = 'public' | 'login_required'
+export type ForumListSort = 'latest' | 'active' | 'hot'
+export type ForumDuplicateTitlePolicy = 'off' | 'warn' | 'block'
+export type ForumSoftDeleteVisibility = 'author_and_staff' | 'staff_only' | 'hidden'
+
 export type ForumSettings = {
   defaultCategorySlug: string
   tagCreationMode: ForumTagCreationMode
@@ -28,6 +33,18 @@ export type ForumSettings = {
   commentCooldownSeconds: number
   dailyCommentLimit: number
   excerptRuneLimit: number
+  guestRead: ForumGuestRead
+  listDefaultSort: ForumListSort
+  listHotWindowDays: number
+  allowAuthorCloseReplies: boolean
+  allowAuthorDelete: boolean
+  autoLockIdleDays: number
+  showTopicEditMark: boolean
+  duplicateTitlePolicy: ForumDuplicateTitlePolicy
+  showCommentEditMark: boolean
+  softDeleteVisibility: ForumSoftDeleteVisibility
+  mentionsEnabled: boolean
+  mentionsMaxPerPost: number
 }
 
 export type ForumCategory = {
@@ -279,7 +296,19 @@ export const recommendedForumSettings: ForumSettings = {
   commentEditWindowMinutes: 0,
   commentCooldownSeconds: 0,
   dailyCommentLimit: 0,
-  excerptRuneLimit: 180
+  excerptRuneLimit: 180,
+  guestRead: 'public',
+  listDefaultSort: 'latest',
+  listHotWindowDays: 7,
+  allowAuthorCloseReplies: true,
+  allowAuthorDelete: true,
+  autoLockIdleDays: 0,
+  showTopicEditMark: true,
+  duplicateTitlePolicy: 'warn',
+  showCommentEditMark: true,
+  softDeleteVisibility: 'author_and_staff',
+  mentionsEnabled: true,
+  mentionsMaxPerPost: 10
 }
 
 export function normalizeForumPageSize(value: number | string | undefined, fallback = 20) {

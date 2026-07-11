@@ -421,10 +421,16 @@ func (s *Service) PasswordPolicy(ctx context.Context) (identity.PasswordPolicy, 
 
 // RegistrationEnabled 返回运营配置的开放注册意图（不含 bootstrap 覆盖）。
 // 身份服务会在“尚无任何用户”时强制允许注册，避免自建站锁死。
+// mode=closed / invite / approval 时当前实现均视为关闭开放自助注册（invite/approval 完整流在后续波次）。
 func (s *Service) RegistrationEnabled(ctx context.Context) (bool, error) {
 	values, err := s.loadMap(ctx)
 	if err != nil {
 		return true, err
+	}
+	if mode, ok := normalizeRegistrationMode(values[NameIdentityRegistrationMode]); ok {
+		if mode != "open" {
+			return false, nil
+		}
 	}
 	if value, ok := normalizeEnabledOption(values[NameIdentityRegistrationEnabled]); ok {
 		return isEnabledOption(value), nil
@@ -651,6 +657,8 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	coerceSiteDateTimeOptions(coerced, defaults)
 	// 副标题/管理邮箱：无效值回退空串默认。
 	coerceSiteIdentityOptions(coerced, defaults)
+	// Wave 1 社区策略：注册/新人/维护/论坛阅读与行为。
+	coerceCommunityPolicyOptions(coerced, defaults)
 
 	if provider, ok := normalizeHumanVerificationProvider(coerced[NameHumanVerificationProvider]); ok {
 		coerced[NameHumanVerificationProvider] = provider
@@ -968,6 +976,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameNotificationModerationInApp: enabledOptionValue(true),
 		NameNotificationModerationEmail: enabledOptionValue(true),
 	}
+	mergeCommunityPolicyDefaults(values)
 	for name, value := range seoRecommendedDefaults() {
 		values[name] = value
 	}
@@ -1105,6 +1114,37 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeBoundedInt(value, passwordMaxLengthMin, passwordMaxLengthMax)
 	case NameIdentityPasswordRequireLowercase, NameIdentityPasswordRequireUppercase, NameIdentityPasswordRequireNumber, NameIdentityPasswordRequireSymbol, NameIdentityRegistrationEnabled:
 		return normalizeEnabledOption(value)
+	case NameIdentityRegistrationMode,
+		NameIdentityRegistrationRequireEmailVerification,
+		NameIdentityRegistrationBlockPostingUntilVerified,
+		NameIdentityUsernameMinLength,
+		NameIdentityUsernameMaxLength,
+		NameIdentityUsernameCharset,
+		NameIdentityUsernameReserved,
+		NameIdentityLoginMaxFailures,
+		NameIdentityLoginLockoutMinutes,
+		NameTrustNewUserDays,
+		NameTrustNewUserTopicCooldownSeconds,
+		NameTrustNewUserCommentCooldownSeconds,
+		NameTrustNewUserDailyTopicLimit,
+		NameTrustNewUserDailyCommentLimit,
+		NameTrustNewUserForbidOutboundLinks,
+		NameTrustNewUserForbidAttachments,
+		NameSiteMaintenanceEnabled,
+		NameSiteMaintenanceMessage,
+		NameForumGuestRead,
+		NameForumListDefaultSort,
+		NameForumListHotWindowDays,
+		NameForumTopicsAllowAuthorCloseReplies,
+		NameForumTopicsAllowAuthorDelete,
+		NameForumTopicsAutoLockIdleDays,
+		NameForumTopicsShowEditMark,
+		NameForumTopicsDuplicateTitlePolicy,
+		NameForumCommentsShowEditMark,
+		NameForumCommentsSoftDeleteVisibility,
+		NameForumMentionsEnabled,
+		NameForumMentionsMaxPerPost:
+		return normalizeCommunityPolicyOption(name, value)
 	case NameIdentitySessionsMaxDevices:
 		// 限制在 1-20；非法值返回 false，上游保留默认值（beginner-friendly：配置错误不致功能失效）。
 		return normalizeBoundedInt(value, sessionsMaxDevicesMin, sessionsMaxDevicesMax)
@@ -1240,6 +1280,9 @@ func isValidValueSet(values map[string]string) bool {
 		return false
 	}
 	if !isValidSiteIdentityOptions(values) {
+		return false
+	}
+	if !isValidCommunityPolicyOptions(values) {
 		return false
 	}
 

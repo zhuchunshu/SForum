@@ -76,11 +76,15 @@ and plugin runtime v1.
     routes after host-side route matching and access checks.
 - The admin UI has an independent "Extensions" sidebar folder registered
   through the low-code admin module registry and protected by
-  `extension.manage`. Its first submenu set is Overview, Plugins, Themes,
-  Settings, Event Log, and Extension Points. Enabled plugins and the active theme can inject
+  `extension.manage`. Submenus: Overview, Plugins, Themes, App Store
+  (`/extensions/store`), Settings, Event Log, Extension Points, and Web
+  Releases. Enabled plugins and the active theme can inject
   manifest-declared core-container admin pages under the fixed
   `/extensions/{id}/pages/*` admin namespace; installed extensions also have a
   "Manage" entry from plugin/theme list rows.
+- App Store is a framework shell only (sticky search/sort/category chips +
+  card grid + coming-soon banner). It does not call a remote catalog or install
+  APIs yet; operators still manage packages via Plugins/Themes ZIP upload.
 - Theme rows show `enabled` as "current theme" rather than "enabled".
   Uploaded Nuxt Layer themes can now be activated through the self-hosted theme
   runtime. Activation queues a River job, builds an isolated Nuxt/Nitro artifact,

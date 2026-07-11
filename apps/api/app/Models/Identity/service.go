@@ -18,6 +18,11 @@ type Service struct {
 	passwordPolicies PasswordPolicyResolver
 	// registrationPolicy 可选；缺省时视为始终开放注册（测试与旧装配路径）。
 	registrationPolicy RegistrationPolicyResolver
+	// usernamePolicy 可选；缺省时仅校验非空。
+	usernamePolicy UsernamePolicyResolver
+	// loginLockout 可选；缺省时不锁定。
+	loginLockout       LoginLockoutStore
+	loginLockoutPolicy LoginLockoutPolicyResolver
 }
 
 func NewService(store Store) *Service {
@@ -52,6 +57,19 @@ func NewServiceWithPolicies(store Store, publisher appevents.Publisher, password
 	}
 }
 
+// WithUsernamePolicy 注入用户名策略（可选）。
+func (s *Service) WithUsernamePolicy(resolver UsernamePolicyResolver) *Service {
+	s.usernamePolicy = resolver
+	return s
+}
+
+// WithLoginLockout 注入登录失败锁定（可选，通常 Redis）。
+func (s *Service) WithLoginLockout(lockout LoginLockoutStore, policy LoginLockoutPolicyResolver) *Service {
+	s.loginLockout = lockout
+	s.loginLockoutPolicy = policy
+	return s
+}
+
 type PasswordPolicyResolver interface {
 	PasswordPolicy(ctx context.Context) (PasswordPolicy, error)
 }
@@ -59,6 +77,35 @@ type PasswordPolicyResolver interface {
 // RegistrationPolicyResolver 读取运营配置的开放注册意图（不含 bootstrap 覆盖）。
 type RegistrationPolicyResolver interface {
 	RegistrationEnabled(ctx context.Context) (bool, error)
+}
+
+// UsernamePolicy 用户名长度/字符集/保留名。
+type UsernamePolicy struct {
+	MinLength int
+	MaxLength int
+	Charset   string
+	Reserved  []string
+}
+
+type UsernamePolicyResolver interface {
+	UsernamePolicy(ctx context.Context) (UsernamePolicy, error)
+}
+
+// LoginLockoutPolicy 连续失败锁定。
+type LoginLockoutPolicy struct {
+	MaxFailures    int
+	LockoutMinutes int
+}
+
+type LoginLockoutPolicyResolver interface {
+	LoginLockoutPolicy(ctx context.Context) (LoginLockoutPolicy, error)
+}
+
+// LoginLockoutStore 记录失败次数与锁定（通常 Redis）。
+type LoginLockoutStore interface {
+	IsLocked(ctx context.Context, key string) (bool, error)
+	RecordFailure(ctx context.Context, key string, maxFailures int, lockout time.Duration) error
+	ClearFailures(ctx context.Context, key string) error
 }
 
 type staticRecommendedPasswordPolicy struct{}
@@ -115,7 +162,11 @@ func (s *Service) ValidateRegister(ctx context.Context, input RegisterInput) err
 	if err != nil {
 		return err
 	}
-	fields := validateRegisterInput(normalized.Username, normalized.Email, input.Password, policy)
+	usernamePolicy, err := s.resolveUsernamePolicy(ctx)
+	if err != nil {
+		return err
+	}
+	fields := validateRegisterInputWithUsername(normalized.Username, normalized.Email, input.Password, policy, usernamePolicy)
 	if len(fields) > 0 {
 		return NewRegisterInvalid(fields)
 	}
@@ -137,7 +188,11 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUse
 	if err != nil {
 		return CurrentUser{}, err
 	}
-	fields := validateRegisterInput(normalized.Username, normalized.Email, input.Password, policy)
+	usernamePolicy, err := s.resolveUsernamePolicy(ctx)
+	if err != nil {
+		return CurrentUser{}, err
+	}
+	fields := validateRegisterInputWithUsername(normalized.Username, normalized.Email, input.Password, policy, usernamePolicy)
 	if len(fields) > 0 {
 		return CurrentUser{}, NewRegisterInvalid(fields)
 	}
@@ -285,9 +340,17 @@ func normalizeRegisterInput(input RegisterInput) normalizedRegisterInput {
 }
 
 func validateRegisterInput(username string, email string, password string, policy PasswordPolicy) FieldMessages {
+	return validateRegisterInputWithUsername(username, email, password, policy, UsernamePolicy{})
+}
+
+func validateRegisterInputWithUsername(username string, email string, password string, policy PasswordPolicy, usernamePolicy UsernamePolicy) FieldMessages {
 	fields := FieldMessages{}
 	if username == "" {
 		addFieldMessage(fields, FieldUsername, MessageUsernameRequired)
+	} else if usernamePolicy.MinLength > 0 || usernamePolicy.MaxLength > 0 || usernamePolicy.Charset != "" || len(usernamePolicy.Reserved) > 0 {
+		if ok, reason := usernamePolicy.Validate(username); !ok {
+			addFieldMessage(fields, FieldUsername, reason)
+		}
 	}
 	if email == "" {
 		addFieldMessage(fields, FieldEmail, MessageEmailRequired)
@@ -321,6 +384,13 @@ func addFieldMessage(fields FieldMessages, field string, message string) {
 }
 
 func (s *Service) Login(ctx context.Context, input LoginInput) (CurrentUser, error) {
+	loginKey := strings.ToLower(strings.TrimSpace(input.Login))
+	if locked, err := s.isLoginLocked(ctx, loginKey); err != nil {
+		return CurrentUser{}, err
+	} else if locked {
+		return CurrentUser{}, ErrLoginLocked
+	}
+
 	credential, err := s.store.GetCredentialByLogin(ctx, strings.TrimSpace(input.Login))
 	if err != nil {
 		if !errors.Is(err, ErrCredentialNotFound) {
@@ -331,6 +401,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (CurrentUser, err
 		if dummy, dErr := dummyPasswordHash(); dErr == nil {
 			_, _ = VerifyPassword(input.Password, dummy)
 		}
+		_ = s.recordLoginFailure(ctx, loginKey)
 		return CurrentUser{}, ErrInvalidCredentials
 	}
 
@@ -339,13 +410,47 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (CurrentUser, err
 		return CurrentUser{}, err
 	}
 	if !ok {
+		_ = s.recordLoginFailure(ctx, loginKey)
 		return CurrentUser{}, ErrInvalidCredentials
 	}
 	if credential.Status != UserStatusActive {
 		return CurrentUser{}, ErrInvalidCredentials
 	}
 
+	_ = s.clearLoginFailures(ctx, loginKey)
 	return credential.CurrentUser, nil
+}
+
+func (s *Service) resolveUsernamePolicy(ctx context.Context) (UsernamePolicy, error) {
+	if s.usernamePolicy == nil {
+		return UsernamePolicy{}, nil
+	}
+	return s.usernamePolicy.UsernamePolicy(ctx)
+}
+
+func (s *Service) isLoginLocked(ctx context.Context, key string) (bool, error) {
+	if s.loginLockout == nil || key == "" {
+		return false, nil
+	}
+	return s.loginLockout.IsLocked(ctx, key)
+}
+
+func (s *Service) recordLoginFailure(ctx context.Context, key string) error {
+	if s.loginLockout == nil || s.loginLockoutPolicy == nil || key == "" {
+		return nil
+	}
+	policy, err := s.loginLockoutPolicy.LoginLockoutPolicy(ctx)
+	if err != nil || policy.MaxFailures <= 0 || policy.LockoutMinutes <= 0 {
+		return nil
+	}
+	return s.loginLockout.RecordFailure(ctx, key, policy.MaxFailures, time.Duration(policy.LockoutMinutes)*time.Minute)
+}
+
+func (s *Service) clearLoginFailures(ctx context.Context, key string) error {
+	if s.loginLockout == nil || key == "" {
+		return nil
+	}
+	return s.loginLockout.ClearFailures(ctx, key)
 }
 
 func (s *Service) RecordLoginAudit(ctx context.Context, input LoginAudit) error {

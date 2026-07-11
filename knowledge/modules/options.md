@@ -31,7 +31,9 @@ Initial runtime option support is implemented.
   `appearanceTheme`, footer content helpers, `refresh()`, `save()`, and admin
   batch helpers.
 - Admin page `apps/web/app/pages/admin/settings/index.vue` uses page-level tabs
-  for basic site settings, account password policy, and CAPTCHA/human-verification settings.
+  for basic site settings, account security (password + sessions + login
+  lockout), registration/username policy, newcomer trust limits, maintenance
+  mode, and CAPTCHA/human-verification settings.
 - Admin page `apps/web/app/pages/admin/personalization.vue` manages
   personalization settings for appearance presets and footer content from the
   System configuration sidebar folder.
@@ -59,6 +61,24 @@ Initial runtime option support is implemented.
   `forum.topics.*`, `forum.comments.*`, `forum.tags.min_per_topic`, and
   `forum.reading.excerpt_rune_limit`. They require `settings.manage` (tags
   min/max require `tag.manage`) and participate in the forum settings reset.
+- Wave 1 community policy pack (2026-07-12) lives mainly in
+  `community_policy_options.go` (init-appended definitions) plus forum/identity
+  adapters:
+  - Registration: `identity.registration.mode`
+    (`open|invite|approval|closed`), email-verify flags; non-`open` modes
+    close public self-registration for now (invite/approval flows later).
+  - Username: min/max length, charset, reserved names.
+  - Login lockout: `identity.login.max_failures` /
+    `identity.login.lockout_minutes` (Redis-backed).
+  - Newcomer trust: `trust.new_user_*` cooldowns, daily caps, outbound-link /
+    attachment forbids.
+  - Maintenance: `site.maintenance.enabled|message` (middleware blocks non-admin
+    writes; auth + `/admin/*` remain available to turn it off).
+  - Forum reading/behavior: `forum.guest.read`, list default sort/hot window,
+    author close/delete, edit marks, duplicate title policy, soft-delete
+    visibility, mentions.
+  Recommended defaults + validation + public exposure follow the same
+  beginner-friendly pattern as other option groups.
 
 ## Boundaries
 

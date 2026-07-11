@@ -20,7 +20,7 @@ defineOptions({
   name: 'AdminForumSettings'
 })
 
-type ForumSettingsTab = 'general' | 'topics' | 'comments' | 'tags' | 'reading'
+type ForumSettingsTab = 'general' | 'topics' | 'comments' | 'tags' | 'reading' | 'behavior'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -37,7 +37,7 @@ const restoring = ref(false)
 const savedSnapshot = ref('')
 const form = reactive(createDefaultForumSettings())
 
-const tabIds: ForumSettingsTab[] = ['general', 'topics', 'comments', 'tags', 'reading']
+const tabIds: ForumSettingsTab[] = ['general', 'topics', 'comments', 'tags', 'reading', 'behavior']
 const activeTab = ref<ForumSettingsTab>(normalizeTab(route.query.tab))
 
 // useAsyncData 在 SSR 水合时不会重跑 handler；表单副作用必须用 watch 同步，
@@ -177,6 +177,8 @@ function tabIcon(id: ForumSettingsTab) {
       return 'i-lucide-tags'
     case 'reading':
       return 'i-lucide-book-open-text'
+    case 'behavior':
+      return 'i-lucide-shield-check'
   }
 }
 
@@ -372,6 +374,43 @@ function errorToast(error: unknown, fallback: string) {
               {{ t('admin.forum.settings.paginationPermissionHelp') }}
             </p>
           </section>
+
+          <section class="space-y-3 border-t border-slate-200 pt-5 dark:border-zinc-800">
+            <div>
+              <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                {{ t('admin.forum.settings.readingPolicyTitle') }}
+              </h3>
+              <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                {{ t('admin.forum.settings.readingPolicyHelp') }}
+              </p>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+              <UFormField :label="t('admin.forum.settings.guestRead')" name="guest-read">
+                <select
+                  v-model="form.guestRead"
+                  :disabled="!canManageSettings"
+                  class="h-10 w-full max-w-xl rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+                >
+                  <option value="public">{{ t('admin.forum.settings.guestReadPublic') }}</option>
+                  <option value="login_required">{{ t('admin.forum.settings.guestReadLogin') }}</option>
+                </select>
+              </UFormField>
+              <UFormField :label="t('admin.forum.settings.listDefaultSort')" name="list-sort">
+                <select
+                  v-model="form.listDefaultSort"
+                  :disabled="!canManageSettings"
+                  class="h-10 w-full max-w-xl rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+                >
+                  <option value="latest">{{ t('admin.forum.settings.sortLatest') }}</option>
+                  <option value="active">{{ t('admin.forum.settings.sortActive') }}</option>
+                  <option value="hot">{{ t('admin.forum.settings.sortHot') }}</option>
+                </select>
+              </UFormField>
+              <UFormField :label="t('admin.forum.settings.listHotWindowDays')" name="hot-window">
+                <UInputNumber v-model="form.listHotWindowDays" :min="1" :max="90" :disabled="!canManageSettings" class="w-full" />
+              </UFormField>
+            </div>
+          </section>
         </template>
 
         <!-- 发帖 -->
@@ -499,7 +538,7 @@ function errorToast(error: unknown, fallback: string) {
         </template>
 
         <!-- 阅读 -->
-        <template v-else>
+        <template v-else-if="activeTab === 'reading'">
           <section class="grid gap-4 md:grid-cols-2">
             <UFormField :label="t('admin.forum.settings.excerptRuneLimit')" name="excerpt-limit">
               <UInputNumber v-model="form.excerptRuneLimit" :min="40" :max="500" :disabled="!canManageSettings" class="w-full" />
@@ -509,6 +548,68 @@ function errorToast(error: unknown, fallback: string) {
           <section class="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
             <p class="font-medium text-slate-900 dark:text-zinc-100">{{ t('admin.forum.settings.readingNoteTitle') }}</p>
             <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.readingNoteBody') }}</p>
+          </section>
+        </template>
+
+        <!-- 行为策略 -->
+        <template v-else>
+          <section class="grid gap-4 md:grid-cols-2">
+            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input v-model="form.allowAuthorCloseReplies" type="checkbox" :disabled="!canManageSettings" class="mt-1 size-4 rounded border-slate-300">
+              <span>
+                <span class="font-semibold">{{ t('admin.forum.settings.allowAuthorCloseReplies') }}</span>
+                <span class="mt-1 block text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.allowAuthorCloseRepliesHelp') }}</span>
+              </span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input v-model="form.allowAuthorDelete" type="checkbox" :disabled="!canManageSettings" class="mt-1 size-4 rounded border-slate-300">
+              <span>
+                <span class="font-semibold">{{ t('admin.forum.settings.allowAuthorDelete') }}</span>
+                <span class="mt-1 block text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.allowAuthorDeleteHelp') }}</span>
+              </span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input v-model="form.showTopicEditMark" type="checkbox" :disabled="!canManageSettings" class="mt-1 size-4 rounded border-slate-300">
+              <span>
+                <span class="font-semibold">{{ t('admin.forum.settings.showTopicEditMark') }}</span>
+              </span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input v-model="form.showCommentEditMark" type="checkbox" :disabled="!canManageSettings" class="mt-1 size-4 rounded border-slate-300">
+              <span>
+                <span class="font-semibold">{{ t('admin.forum.settings.showCommentEditMark') }}</span>
+              </span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input v-model="form.mentionsEnabled" type="checkbox" :disabled="!canManageSettings" class="mt-1 size-4 rounded border-slate-300">
+              <span>
+                <span class="font-semibold">{{ t('admin.forum.settings.mentionsEnabled') }}</span>
+              </span>
+            </label>
+          </section>
+          <section class="grid gap-4 border-t border-slate-200 pt-5 dark:border-zinc-800 md:grid-cols-2">
+            <UFormField :label="t('admin.forum.settings.autoLockIdleDays')" name="auto-lock">
+              <UInputNumber v-model="form.autoLockIdleDays" :min="0" :max="3650" :disabled="!canManageSettings" class="w-full" />
+              <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.autoLockIdleDaysHelp') }}</p>
+            </UFormField>
+            <UFormField :label="t('admin.forum.settings.mentionsMaxPerPost')" name="mentions-max">
+              <UInputNumber v-model="form.mentionsMaxPerPost" :min="0" :max="50" :disabled="!canManageSettings" class="w-full" />
+              <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.zeroUnlimitedHelp') }}</p>
+            </UFormField>
+            <UFormField :label="t('admin.forum.settings.duplicateTitlePolicy')" name="dup-title">
+              <select v-model="form.duplicateTitlePolicy" :disabled="!canManageSettings" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950">
+                <option value="off">{{ t('admin.forum.settings.duplicateOff') }}</option>
+                <option value="warn">{{ t('admin.forum.settings.duplicateWarn') }}</option>
+                <option value="block">{{ t('admin.forum.settings.duplicateBlock') }}</option>
+              </select>
+            </UFormField>
+            <UFormField :label="t('admin.forum.settings.softDeleteVisibility')" name="soft-delete">
+              <select v-model="form.softDeleteVisibility" :disabled="!canManageSettings" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950">
+                <option value="author_and_staff">{{ t('admin.forum.settings.softDeleteAuthorStaff') }}</option>
+                <option value="staff_only">{{ t('admin.forum.settings.softDeleteStaffOnly') }}</option>
+                <option value="hidden">{{ t('admin.forum.settings.softDeleteHidden') }}</option>
+              </select>
+            </UFormField>
           </section>
         </template>
 

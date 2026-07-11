@@ -42,22 +42,36 @@ type adminMailQueue interface {
 }
 
 func NewIdentityProviderWithPasswordReset(store identity.Store, sessions *authsession.Manager, verifier humanverify.Verifier, publisher appevents.Publisher, passwordReset *identity.PasswordResetService, mailQueue adminMailQueue, options optionsResolver) *IdentityProvider {
+	return NewIdentityProviderWithPasswordResetAndLockout(store, sessions, verifier, publisher, passwordReset, mailQueue, options, nil)
+}
+
+// NewIdentityProviderWithPasswordResetAndLockout 额外注入登录失败锁定 store（通常 Redis）。
+func NewIdentityProviderWithPasswordResetAndLockout(store identity.Store, sessions *authsession.Manager, verifier humanverify.Verifier, publisher appevents.Publisher, passwordReset *identity.PasswordResetService, mailQueue adminMailQueue, options optionsResolver, lockout identity.LoginLockoutStore) *IdentityProvider {
+	svc := identity.NewServiceWithPolicies(store, publisher, options, options)
+	if options != nil {
+		svc.WithUsernamePolicy(options)
+		if lockout != nil {
+			svc.WithLoginLockout(lockout, options)
+		}
+	}
 	return &IdentityProvider{
 		// options 同时作为密码策略与开放注册策略解析器。
 		controller: identitycontroller.NewControllerWithPasswordReset(
-			identity.NewServiceWithPolicies(store, publisher, options, options),
+			svc,
 			sessions, verifier, passwordReset, mailQueue, options,
 		),
 	}
 }
 
-// optionsResolver 暴露密码策略、开放注册开关以及密码重置/mail-test 需要的站点名/管理员邮箱。
+// optionsResolver 暴露密码策略、开放注册开关、用户名策略、登录锁定策略以及密码重置/mail-test 需要的站点名/管理员邮箱。
 type optionsResolver interface {
 	SiteName(ctx context.Context) (string, error)
 	AdminEmail(ctx context.Context) (string, error)
 	WebOption(ctx context.Context, name string) (string, error)
 	PasswordPolicy(ctx context.Context) (identity.PasswordPolicy, error)
 	RegistrationEnabled(ctx context.Context) (bool, error)
+	UsernamePolicy(ctx context.Context) (identity.UsernamePolicy, error)
+	LoginLockoutPolicy(ctx context.Context) (identity.LoginLockoutPolicy, error)
 }
 
 func (p *IdentityProvider) RegisterRoutes(api fiber.Router) {

@@ -28,6 +28,7 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
+	authsupport "github.com/zhuchunshu/sforum/apps/api/app/Support/Auth"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 	cache "github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
@@ -258,7 +259,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		SiteName: siteName,
 		SiteURL:  siteURL,
 	}, optionsService)
-	identityProvider := providers.NewIdentityProviderWithPasswordReset(identityStore, authSessions, humanVerifier, extensionRuntime, passwordResetService, mailOutbox, optionsService)
+	loginLockout := authsupport.NewLoginLockout(sharedRedisClient)
+	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, extensionRuntime, passwordResetService, mailOutbox, optionsService, loginLockout)
 	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions)
 	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService)
 	adminOverviewProvider := providers.NewAdminOverviewProvider(adminOverviewStore, adminoverview.NewRuntimeCollector(time.Now().UTC(), pool), identityStore, authSessions)

@@ -32,4 +32,18 @@ describe('mail and notification admin center', () => {
     expect(page).toContain("t('admin.mailSettings.gettingStarted')")
     expect(page).toContain("t('admin.mailSettings.providerHelp')")
   })
+
+  test('uses readable tab size and localizes delivery list codes', () => {
+    expect(page).toContain('size="md"')
+    expect(page).toContain('deliveryStatusLabel')
+    expect(page).toContain('deliveryTemplateLabel')
+    expect(page).toContain('deliveryReasonLabel')
+    expect(page).not.toContain('<SFBadge>{{ item.status }}</SFBadge>')
+    expect(zh.admin.mailSettings.deliveryStatus.sent).toBe('已发送')
+    expect(en.admin.mailSettings.deliveryStatus.sent).toBe('Sent')
+    expect(zh.admin.mailSettings.templates.admin_test).toBe('管理后台测试邮件')
+    expect(en.admin.mailSettings.templates.identity_password_reset).toBe('Password reset')
+    expect(zh.admin.mailSettings.reasons.provider_unavailable).toBe('邮件提供商不可用')
+    expect(en.admin.mailSettings.reasons.smtp_transport_failed).toBe('SMTP transport failed')
+  })
 })

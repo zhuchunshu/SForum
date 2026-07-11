@@ -38,10 +38,17 @@ const (
 	MessagePasswordSymbol    = "auth.password_symbol"
 	MessageUsernameTaken     = "auth.username_taken"
 	MessageEmailTaken        = "auth.email_taken"
+	MessageUsernameTooShort  = "auth.username_too_short"
+	MessageUsernameTooLong   = "auth.username_too_long"
+	MessageUsernameReserved  = "auth.username_reserved"
+	MessageUsernameCharset   = "auth.username_invalid_charset"
+	CodeLoginLocked          = "auth.login_locked"
 )
 
 var (
 	ErrInvalidCredentials         = errors.New("identity: invalid credentials")
+	// ErrLoginLocked 连续登录失败触发临时锁定。
+	ErrLoginLocked = errors.New("identity: login temporarily locked")
 	// ErrRegistrationDisabled 表示运营已关闭开放注册，且当前不在首用户 bootstrap 窗口。
 	ErrRegistrationDisabled       = errors.New("identity: registration disabled")
 	ErrCredentialNotFound         = errors.New("identity: credential not found")
@@ -119,6 +126,8 @@ type Actor struct {
 	Status      UserStatus
 	RoleKeys    []string
 	Permissions map[string]bool
+	// CreatedAt 用于新人信任阶梯；零值表示未知（跳过新人限制）。
+	CreatedAt time.Time
 }
 
 type PostSummary struct {
@@ -136,6 +145,8 @@ type CurrentUser struct {
 	IsInitialSuperAdmin bool        `json:"isInitialSuperAdmin"`
 	RoleKeys            []string    `json:"roleKeys"`
 	Permissions         []string    `json:"permissions"`
+	// CreatedAt 注册时间；不强制暴露给所有前端，但 Actor 构建需要。
+	CreatedAt time.Time `json:"-"`
 }
 
 type RegistrationStatus struct {

@@ -14,8 +14,12 @@ Initial identity foundation is implemented.
   assignments, and audit events.
 - Seed data includes `super_admin`, the default `member` role, and initial
   permission keys.
-- Registration is open. The first registered user becomes the protected initial
-  `super_admin`; later registrations receive `member`.
+- Registration is operator-configurable: `identity.registration.enabled` plus
+  `identity.registration.mode` (`open|invite|approval|closed`). Non-`open`
+  modes currently close public self-registration (invite/approval product flows
+  are deferred). While the site has zero users, registration is forced open so
+  bootstrap cannot lock out the first install. The first registered user becomes
+  the protected initial `super_admin`; later registrations receive `member`.
 - Browser sessions are backed by Redis through Fiber sessions.
 - API endpoints exist for registration, login, logout, current session, role
   listing, role creation/update/delete, role permission replacement, permission
@@ -28,6 +32,14 @@ Initial identity foundation is implemented.
   approval, disabling, and policy management. Existing deployments receive it
   through the forum taxonomy migration, and `super_admin` receives it by
   default.
+- Current core catalog (authoritative in
+  `apps/api/app/Models/Identity/seeds.go`, 28 keys) covers admin access,
+  identity, forum content moderation actions, moderation policy/review,
+  settings/SEO/database, attachments, extensions, search, and jobs. Frontend
+  labels live under `admin.permissionCatalog.*` and module labels under
+  `admin.permissionModules.*`; `tests/validate-identity-ui.js` requires every
+  seed key and module to have zh-CN/en-US text so newly added permissions do not
+  fall back to raw keys in the admin UI.
 - API exposes `/api/v1/auth/registration-status` so the registration page can
   show when the next successful registration will become the initial
   `super_admin`.
@@ -66,7 +78,10 @@ Initial identity foundation is implemented.
   missing permission table after code/schema drift, bubble up instead of being
   misreported as a wrong password.
 - Password policy is now runtime configurable through public
-  `identity.password.*` options. Registration and password reset confirmation
+  `identity.password.*` options. Username length/charset/reserved names use
+  `identity.username.*`. Login consecutive failures can lock via Redis using
+  `identity.login.max_failures` and `identity.login.lockout_minutes`.
+  Registration and password reset confirmation
   share the same backend `PasswordPolicy` validator; password hashing only owns
   Argon2id hashing and no longer hard-codes product policy.
 - Nuxt has login/register pages, an admin route middleware, an admin overview,

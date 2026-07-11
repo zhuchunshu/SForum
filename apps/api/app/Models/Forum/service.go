@@ -21,6 +21,14 @@ type Service struct {
 	publicationPolicy PublicationPolicy
 	// indexer 触发 Meilisearch 索引调度；nil 表示不索引（搜索为派生数据，可重建）。
 	indexer TopicSearchIndexer
+	// trust 可选新人信任阶梯；nil 时不叠加新人限制。
+	trust TrustPolicyResolver
+}
+
+// WithTrustPolicy 注入新人信任策略（options 适配）。链式可选。
+func (s *Service) WithTrustPolicy(trust TrustPolicyResolver) *Service {
+	s.trust = trust
+	return s
 }
 
 func NewService(store Store) *Service {
@@ -248,6 +256,12 @@ func (s *Service) ForumSettings(ctx context.Context, actor identity.Actor) (Foru
 	return s.resolvedSettings(ctx)
 }
 
+// PublicForumSettings 返回站点论坛策略（含游客阅读等），无需管理权限。
+// 供公开路由守卫读取；不暴露密钥，仅业务策略。
+func (s *Service) PublicForumSettings(ctx context.Context) (ForumSettings, error) {
+	return s.resolvedSettings(ctx)
+}
+
 func (s *Service) UpdateForumSettings(ctx context.Context, actor identity.Actor, input UpdateForumSettingsInput) (ForumSettings, error) {
 	if input.DefaultCategorySlug != nil && !actor.Can(identity.PermissionCategoryManage) {
 		return ForumSettings{}, identity.ErrPermissionDenied
@@ -306,15 +320,26 @@ func (s *Service) ListTopics(ctx context.Context, input TopicListInput) (TopicLi
 	if strings.TrimSpace(input.Query) != "" {
 		return TopicList{}, ErrUseSearchEndpoint
 	}
-	defaultPerPage := 20
-	if input.PerPage <= 0 {
-		settings, err := s.resolvedSettings(ctx)
-		if err != nil {
-			return TopicList{}, err
-		}
-		defaultPerPage = settings.TopicsPerPage
+	settings, err := s.resolvedSettings(ctx)
+	if err != nil {
+		return TopicList{}, err
+	}
+	defaultPerPage := settings.TopicsPerPage
+	if defaultPerPage <= 0 {
+		defaultPerPage = 20
 	}
 	input.Page, input.PerPage = normalizePageWithDefault(input.Page, input.PerPage, defaultPerPage)
+	// 空 sort 使用站点默认；非法值回退 latest。
+	sort := strings.TrimSpace(strings.ToLower(input.Sort))
+	if sort == "" {
+		sort = strings.TrimSpace(settings.ListDefaultSort)
+	}
+	switch sort {
+	case "latest", "active", "hot":
+		input.Sort = sort
+	default:
+		input.Sort = "latest"
+	}
 	return s.store.ListTopics(ctx, input)
 }
 
@@ -384,8 +409,12 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	if err := validateTopicContent(input.Content.RawContent, settings); err != nil {
 		return TopicDetail{}, err
 	}
-	if err := s.enforceTopicCreateLimits(ctx, actor.ID, settings); err != nil {
+	if err := s.enforceTopicCreateLimitsForActor(ctx, actor, settings); err != nil {
 		return TopicDetail{}, err
+	}
+	// 新人禁止外链：内容含 http(s):// 时拒绝。
+	if trust := s.trustForActor(ctx, actor); trust.active && trust.forbidLinks && containsOutboundLink(input.Content.RawContent) {
+		return TopicDetail{}, ErrOutboundLinkForbidden
 	}
 	categorySlug := strings.TrimSpace(input.CategorySlug)
 	if categorySlug == "" {
@@ -548,7 +577,7 @@ func (s *Service) DeleteTopic(ctx context.Context, actor identity.Actor, topicID
 	if err != nil {
 		return TopicDetail{}, err
 	}
-	if !canDeleteTopic(actor, topic) {
+	if !s.canDeleteTopicWithPolicy(ctx, actor, topic) {
 		return TopicDetail{}, identity.ErrPermissionDenied
 	}
 	deleted, err := s.store.DeleteTopic(ctx, topicID)
@@ -667,8 +696,17 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 	if err := validateCommentContent(input.Content.RawContent, settings); err != nil {
 		return Comment{}, err
 	}
-	if err := s.enforceCommentCreateLimits(ctx, actor.ID, settings); err != nil {
+	if err := s.enforceCommentCreateLimitsForActor(ctx, actor, settings); err != nil {
 		return Comment{}, err
+	}
+	if trust := s.trustForActor(ctx, actor); trust.active && trust.forbidLinks && containsOutboundLink(input.Content.RawContent) {
+		return Comment{}, ErrOutboundLinkForbidden
+	}
+	// 提及上限：MentionsEnabled=false 时仍允许解析但不做通知侧限制；max=0 表示不限制。
+	if settings.MentionsEnabled && settings.MentionsMaxPerPost > 0 {
+		if names := mentionedUsernames(input.Content.RawContent); len(names) > settings.MentionsMaxPerPost {
+			return Comment{}, ErrMentionsLimit
+		}
 	}
 
 	var parent *CommentSummary
@@ -924,22 +962,37 @@ func isValidForumSettings(settings ForumSettings) bool {
 }
 
 func (s *Service) enforceTopicCreateLimits(ctx context.Context, authorUserID int64, settings ForumSettings) error {
+	return s.enforceTopicCreateLimitsForActor(ctx, identity.Actor{ID: authorUserID}, settings)
+}
+
+// enforceTopicCreateLimitsForActor 在全局节奏限制上叠加新人信任阶梯（更严者生效）。
+func (s *Service) enforceTopicCreateLimitsForActor(ctx context.Context, actor identity.Actor, settings ForumSettings) error {
 	now := time.Now().UTC()
-	if settings.TopicCooldownSeconds > 0 {
-		lastAt, ok, err := s.store.LatestAuthorTopicCreatedAt(ctx, authorUserID)
+	cooldown := settings.TopicCooldownSeconds
+	daily := settings.DailyTopicLimit
+	if trust := s.trustForActor(ctx, actor); trust.active {
+		if trust.topicCooldown > 0 && (cooldown <= 0 || trust.topicCooldown > cooldown) {
+			cooldown = trust.topicCooldown
+		}
+		if trust.dailyTopic > 0 && (daily <= 0 || trust.dailyTopic < daily) {
+			daily = trust.dailyTopic
+		}
+	}
+	if cooldown > 0 {
+		lastAt, ok, err := s.store.LatestAuthorTopicCreatedAt(ctx, actor.ID)
 		if err != nil {
 			return err
 		}
-		if !cooldownElapsed(lastAt, ok, settings.TopicCooldownSeconds, now) {
+		if !cooldownElapsed(lastAt, ok, cooldown, now) {
 			return ErrTopicCooldown
 		}
 	}
-	if settings.DailyTopicLimit > 0 {
-		count, err := s.store.CountAuthorTopicsSince(ctx, authorUserID, dayStartUTC(now))
+	if daily > 0 {
+		count, err := s.store.CountAuthorTopicsSince(ctx, actor.ID, dayStartUTC(now))
 		if err != nil {
 			return err
 		}
-		if count >= int64(settings.DailyTopicLimit) {
+		if count >= int64(daily) {
 			return ErrDailyTopicLimit
 		}
 	}
@@ -947,26 +1000,99 @@ func (s *Service) enforceTopicCreateLimits(ctx context.Context, authorUserID int
 }
 
 func (s *Service) enforceCommentCreateLimits(ctx context.Context, authorUserID int64, settings ForumSettings) error {
+	return s.enforceCommentCreateLimitsForActor(ctx, identity.Actor{ID: authorUserID}, settings)
+}
+
+func (s *Service) enforceCommentCreateLimitsForActor(ctx context.Context, actor identity.Actor, settings ForumSettings) error {
 	now := time.Now().UTC()
-	if settings.CommentCooldownSeconds > 0 {
-		lastAt, ok, err := s.store.LatestAuthorCommentCreatedAt(ctx, authorUserID)
+	cooldown := settings.CommentCooldownSeconds
+	daily := settings.DailyCommentLimit
+	if trust := s.trustForActor(ctx, actor); trust.active {
+		if trust.commentCooldown > 0 && (cooldown <= 0 || trust.commentCooldown > cooldown) {
+			cooldown = trust.commentCooldown
+		}
+		if trust.dailyComment > 0 && (daily <= 0 || trust.dailyComment < daily) {
+			daily = trust.dailyComment
+		}
+	}
+	if cooldown > 0 {
+		lastAt, ok, err := s.store.LatestAuthorCommentCreatedAt(ctx, actor.ID)
 		if err != nil {
 			return err
 		}
-		if !cooldownElapsed(lastAt, ok, settings.CommentCooldownSeconds, now) {
+		if !cooldownElapsed(lastAt, ok, cooldown, now) {
 			return ErrCommentCooldown
 		}
 	}
-	if settings.DailyCommentLimit > 0 {
-		count, err := s.store.CountAuthorCommentsSince(ctx, authorUserID, dayStartUTC(now))
+	if daily > 0 {
+		count, err := s.store.CountAuthorCommentsSince(ctx, actor.ID, dayStartUTC(now))
 		if err != nil {
 			return err
 		}
-		if count >= int64(settings.DailyCommentLimit) {
+		if count >= int64(daily) {
 			return ErrDailyCommentLimit
 		}
 	}
 	return nil
+}
+
+// trustLimits 是 forum 侧缓存的新人策略快照；由 SettingsResolver 扩展或 options 注入。
+// 当前从 ForumSettings 之外的 resolver 可选接口读取，缺省不启用新人限制。
+type trustLimits struct {
+	active         bool
+	topicCooldown    int
+	commentCooldown   int
+	dailyTopic     int
+	dailyComment   int
+	forbidLinks    bool
+	forbidAttach   bool
+}
+
+// TrustPolicyResolver 可选：由 options 适配器实现，向 forum 注入新人阶梯。
+type TrustPolicyResolver interface {
+	NewUserTrustDays(ctx context.Context) (int, error)
+	NewUserTopicCooldownSeconds(ctx context.Context) (int, error)
+	NewUserCommentCooldownSeconds(ctx context.Context) (int, error)
+	NewUserDailyTopicLimit(ctx context.Context) (int, error)
+	NewUserDailyCommentLimit(ctx context.Context) (int, error)
+	NewUserForbidOutboundLinks(ctx context.Context) (bool, error)
+}
+
+func (s *Service) trustForActor(ctx context.Context, actor identity.Actor) trustLimits {
+	// 未注入信任策略或无注册时间时不限制。
+	if s.trust == nil || actor.CreatedAt.IsZero() {
+		return trustLimits{}
+	}
+	days, err := s.trust.NewUserTrustDays(ctx)
+	if err != nil || days <= 0 {
+		return trustLimits{}
+	}
+	if time.Since(actor.CreatedAt) > time.Duration(days)*24*time.Hour {
+		return trustLimits{}
+	}
+	// super_admin / 具备管理权限的用户跳过新人限制。
+	if actor.Can(identity.PermissionSettingsManage) || actor.Can(identity.PermissionTopicEditAny) {
+		return trustLimits{}
+	}
+	topicCooldown, _ := s.trust.NewUserTopicCooldownSeconds(ctx)
+	commentCooldown, _ := s.trust.NewUserCommentCooldownSeconds(ctx)
+	dailyTopic, _ := s.trust.NewUserDailyTopicLimit(ctx)
+	dailyComment, _ := s.trust.NewUserDailyCommentLimit(ctx)
+	forbidLinks, _ := s.trust.NewUserForbidOutboundLinks(ctx)
+	return trustLimits{
+		active:       true,
+		topicCooldown:  topicCooldown,
+		commentCooldown: commentCooldown,
+		dailyTopic:   dailyTopic,
+		dailyComment: dailyComment,
+		forbidLinks:  forbidLinks,
+	}
+}
+
+var outboundLinkPattern = regexp.MustCompile(`(?i)https?://`)
+
+func containsOutboundLink(raw string) bool {
+	return outboundLinkPattern.MatchString(raw)
 }
 
 func isAuthorOnlyTopicEdit(actor identity.Actor, topic TopicSummary) bool {
@@ -1396,11 +1522,26 @@ func canEditTopic(actor identity.Actor, topic TopicSummary) bool {
 
 // canDeleteTopic: 作者凭 post.delete_own 可软删自己的主题，
 // 版主凭 topic.delete_any 可软删/隐藏/恢复任意主题。
+// 站点策略 AllowAuthorDelete=false 时作者删除被禁止（版主仍可删）。
 func canDeleteTopic(actor identity.Actor, topic TopicSummary) bool {
 	if actor.Can(identity.PermissionTopicDeleteAny) {
 		return true
 	}
 	return topic.AuthorUserID == actor.ID && actor.Can(identity.PermissionPostDeleteOwn)
+}
+
+func (s *Service) canDeleteTopicWithPolicy(ctx context.Context, actor identity.Actor, topic TopicSummary) bool {
+	if actor.Can(identity.PermissionTopicDeleteAny) {
+		return true
+	}
+	if !canDeleteTopic(actor, topic) {
+		return false
+	}
+	settings, err := s.resolvedSettings(ctx)
+	if err != nil {
+		return false
+	}
+	return settings.AllowAuthorDelete
 }
 
 // canManageTopicVisibility: hide/restore 需要 topic.delete_any。

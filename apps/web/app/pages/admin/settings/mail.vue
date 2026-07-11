@@ -9,7 +9,7 @@ type Delivery = { id: number, recipient: string, templateKey: string, status: st
 type ChannelPolicy = { inAppEnabled: boolean, emailEnabled: boolean }
 type Policy = { reply: ChannelPolicy, mention: ChannelPolicy, moderation: ChannelPolicy }
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const { request } = useApiClient()
 const { fetchAdminEnvelope } = useWebOptions()
 const adminPage = useAdminPage('/settings/mail')
@@ -49,6 +49,50 @@ const eventRows = computed(() => [
   { key: 'mention' as const, label: t('admin.mailSettings.mention') },
   { key: 'moderation' as const, label: t('admin.mailSettings.moderationResult') }
 ])
+
+// 投递记录里的 status / templateKey / reason 是机器码；点号替换为下划线后查 i18n，未知值回退原文便于诊断。
+function deliveryCodeLabel(group: 'deliveryStatus' | 'templates' | 'reasons', code: string) {
+  if (!code) {
+    return ''
+  }
+  const key = `admin.mailSettings.${group}.${code.replaceAll('.', '_')}`
+  return te(key) ? t(key) : code
+}
+
+function deliveryStatusLabel(status: string) {
+  return deliveryCodeLabel('deliveryStatus', status)
+}
+
+function deliveryTemplateLabel(templateKey: string) {
+  return deliveryCodeLabel('templates', templateKey)
+}
+
+function deliveryReasonLabel(item: Delivery) {
+  const reason = item.reason?.trim() || ''
+  const summary = item.errorSummary?.trim() || ''
+  const reasonLabel = reason ? deliveryCodeLabel('reasons', reason) : ''
+  if (reasonLabel && summary && summary !== reason && summary !== reasonLabel) {
+    // 机器错误摘要保留原文，附在已翻译 reason 后便于排查。
+    return `${reasonLabel} (${summary})`
+  }
+  return reasonLabel || summary || '-'
+}
+
+function deliveryStatusColor(status: string): 'success' | 'error' | 'warning' | 'neutral' | 'info' {
+  if (status === 'sent') {
+    return 'success'
+  }
+  if (status === 'failed') {
+    return 'error'
+  }
+  if (status === 'queued' || status === 'sending') {
+    return 'warning'
+  }
+  if (status === 'skipped') {
+    return 'neutral'
+  }
+  return 'info'
+}
 
 async function loadAdminEmailDefault() {
   try {
@@ -156,7 +200,7 @@ async function runAction(action: () => Promise<unknown>, titleKey: string, descr
       <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">{{ t('admin.mailSettings.description') }}</p>
     </header>
     <UDashboardToolbar class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-      <template #left><UTabs v-model="activeView" :items="tabs" size="sm" /></template>
+      <template #left><UTabs v-model="activeView" :items="tabs" size="md" class="mail-admin-tabs" /></template>
       <template #right><UButton icon="i-lucide-rotate-cw" color="neutral" variant="ghost" :loading="pending" @click="load">{{ t('admin.home.refresh') }}</UButton></template>
     </UDashboardToolbar>
     <SFAlert v-if="errorMessage" variant="danger" :title="errorMessage" closable @close="errorMessage = ''" />
@@ -264,7 +308,25 @@ async function runAction(action: () => Promise<unknown>, titleKey: string, descr
     <UCard v-else class="border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <template #header><div><h2 class="text-base font-bold">{{ t('admin.mailSettings.recentDeliveries') }}</h2><p class="mt-1 text-xs text-slate-500">{{ t('admin.mailSettings.deliveriesHelp') }}</p></div></template>
       <div class="overflow-x-auto">
-      <div class="min-w-[680px] divide-y divide-slate-200 text-sm dark:divide-zinc-800"><div class="grid grid-cols-[1.2fr_1fr_100px_1fr] gap-3 pb-2 text-xs font-semibold text-slate-500"><span>{{ t('admin.mailSettings.recipient') }}</span><span>{{ t('admin.mailSettings.template') }}</span><span>{{ t('admin.mailSettings.status') }}</span><span>{{ t('admin.mailSettings.reason') }}</span></div><div v-for="item in deliveries" :key="item.id" class="grid grid-cols-[1.2fr_1fr_100px_1fr] gap-3 py-3"><span>{{ item.recipient }}</span><span>{{ item.templateKey }}</span><SFBadge>{{ item.status }}</SFBadge><span class="text-slate-500">{{ item.reason || item.errorSummary || '-' }}</span></div><p v-if="!deliveries.length" class="py-6 text-slate-500">{{ t('admin.mailSettings.noDeliveries') }}</p></div>
+      <div class="min-w-[680px] divide-y divide-slate-200 text-sm dark:divide-zinc-800">
+        <div class="grid grid-cols-[1.2fr_1fr_110px_1.2fr] gap-3 pb-2 text-xs font-semibold text-slate-500">
+          <span>{{ t('admin.mailSettings.recipient') }}</span>
+          <span>{{ t('admin.mailSettings.template') }}</span>
+          <span>{{ t('admin.mailSettings.status') }}</span>
+          <span>{{ t('admin.mailSettings.reason') }}</span>
+        </div>
+        <div v-for="item in deliveries" :key="item.id" class="grid grid-cols-[1.2fr_1fr_110px_1.2fr] gap-3 py-3">
+          <span class="break-all">{{ item.recipient }}</span>
+          <span :title="item.templateKey">{{ deliveryTemplateLabel(item.templateKey) }}</span>
+          <UBadge :color="deliveryStatusColor(item.status)" variant="subtle" class="w-fit">
+            {{ deliveryStatusLabel(item.status) }}
+          </UBadge>
+          <span class="text-slate-500 dark:text-zinc-400" :title="item.reason || item.errorSummary || undefined">
+            {{ deliveryReasonLabel(item) }}
+          </span>
+        </div>
+        <p v-if="!deliveries.length" class="py-6 text-slate-500">{{ t('admin.mailSettings.noDeliveries') }}</p>
+      </div>
       </div>
     </UCard>
   </div>
@@ -274,5 +336,12 @@ async function runAction(action: () => Promise<unknown>, titleKey: string, descr
 .mail-admin-title {
   font-size: 1.25rem;
   line-height: 1.75rem;
+}
+
+/* 后台邮件页 Tab 略放大，避免 sm 在中文标签下显得拥挤难点 */
+.mail-admin-tabs :deep(button) {
+  min-height: 2.25rem;
+  padding-inline: 0.875rem;
+  font-size: 0.875rem;
 }
 </style>

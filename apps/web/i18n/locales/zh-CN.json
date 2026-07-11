@@ -1032,13 +1032,16 @@
       "identity": "用户与身份",
       "forum": "论坛内容",
       "moderation": "内容审核",
-      "attachment": "附件系统"
+      "attachment": "附件系统",
+      "extension": "扩展与主题",
+      "search": "搜索",
+      "jobs": "后台任务"
     },
     "permissionCatalog": {
       "admin": {
         "access": {
           "label": "访问后台",
-          "description": "允许进入管理后台。"
+          "description": "允许进入管理后台控制台。"
         }
       },
       "role": {
@@ -1063,6 +1066,12 @@
           "description": "创建和编辑论坛版块。"
         }
       },
+      "tag": {
+        "manage": {
+          "label": "管理标签",
+          "description": "创建、审批、禁用标签，并配置标签策略。"
+        }
+      },
       "topic": {
         "create": {
           "label": "发布主题",
@@ -1074,7 +1083,7 @@
         },
         "delete_any": {
           "label": "删除任意主题",
-          "description": "删除任何用户发布的主题。"
+          "description": "删除或恢复任何用户发布的主题。"
         },
         "lock": {
           "label": "锁定主题",
@@ -1091,16 +1100,16 @@
           "description": "在主题下创建回复。"
         },
         "edit_own": {
-          "label": "编辑自己的回复",
-          "description": "编辑自己发布的回复。"
+          "label": "编辑自己的内容",
+          "description": "编辑自己发布的主题与回复。"
         },
         "edit_any": {
           "label": "编辑任意回复",
           "description": "编辑任何用户发布的回复。"
         },
         "delete_own": {
-          "label": "删除自己的回复",
-          "description": "删除自己发布的回复。"
+          "label": "删除自己的内容",
+          "description": "删除自己发布的主题与回复。"
         },
         "delete_any": {
           "label": "删除任意回复",
@@ -1108,15 +1117,19 @@
         }
       },
       "moderation": {
-        "report_review": {
-          "label": "处理举报",
-          "description": "查看并处理内容举报。"
+        "manage": {
+          "label": "管理审核策略",
+          "description": "配置内容发布审核策略，并查看完整审核历史。"
+        },
+        "review": {
+          "label": "处理审核队列",
+          "description": "审核待处理内容、处理举报并记录审核决定。"
         }
       },
       "settings": {
         "manage": {
           "label": "管理站点设置",
-          "description": "修改站点名称、语言、人机验证等运行时设置。"
+          "description": "修改站点名称、语言、邮件通知、人机验证等运行时设置。"
         }
       },
       "seo": {
@@ -1134,7 +1147,23 @@
       "search": {
         "manage": {
           "label": "管理搜索索引",
-          "description": "重建搜索索引、查看重建进度与历史。"
+          "description": "重建搜索索引，并查看重建进度与历史。"
+        }
+      },
+      "extension": {
+        "manage": {
+          "label": "管理扩展与主题",
+          "description": "安装、启用、禁用插件与主题，并管理 Web 发布。"
+        }
+      },
+      "jobs": {
+        "view": {
+          "label": "查看后台任务",
+          "description": "查看队列状态、任务详情、失败记录与 worker 活动。"
+        },
+        "manage": {
+          "label": "管理后台任务",
+          "description": "重试、取消任务，以及暂停或恢复队列处理。"
         }
       },
       "attachment": {
@@ -1291,6 +1320,9 @@
         "label": "设置分类",
         "basic": "基础设置",
         "accountSecurity": "账号安全",
+        "registration": "注册与用户名",
+        "newcomers": "新人限制",
+        "maintenance": "维护模式",
         "verification": "验证码"
       },
       "locale": {
@@ -1351,10 +1383,75 @@
         "sessionsMaxDevicesHint": "同一账号最多同时保持登录的设备数（1-20），超出时新登录会自动下线最旧的设备。推荐 5。",
         "sessionsKeepDays": "登录历史保留天数",
         "sessionsKeepDaysHint": "已下线的登录记录保留多少天供用户回看（1-365），超过后由后台定期任务清理。推荐 30。",
+        "loginMaxFailures": "登录失败锁定次数",
+        "loginMaxFailuresHint": "同一账号连续输错密码达到此次数后进入锁定。0 表示不锁定。推荐 10。",
+        "loginLockoutMinutes": "登录锁定时长（分钟）",
+        "loginLockoutMinutesHint": "触发锁定后多少分钟内禁止再登录。0 表示立即解除。推荐 15。",
+        "resetAccountSecurityChanges": "已重置账号安全更改",
         "registrationEnabled": "开放注册",
         "registrationEnabledOn": "已开启：访客可自行注册",
         "registrationEnabledOff": "已关闭：仅管理员可创建账号",
         "registrationEnabledHint": "关闭后登录页将隐藏注册入口。站点尚无任何用户时仍允许首次注册（安装引导）。推荐保持开启。"
+      },
+      "registration": {
+        "title": "注册与用户名",
+        "description": "控制谁可以注册，以及用户名长度、字符集与保留名。邀请/审核模式将在后续迭代完善流程。",
+        "recommended": "推荐：开放注册、用户名 3–20 字、允许中英文与数字。",
+        "restoreDefaults": "恢复注册推荐默认值",
+        "resetChanges": "已重置注册设置更改",
+        "mode": "注册模式",
+        "modeHint": "开放：访客可注册。邀请/审核：当前版本会关闭公开注册入口（完整邀请码与审核流将在后续提供）。关闭：仅管理员可创建账号。",
+        "modes": {
+          "open": "开放注册",
+          "invite": "邀请注册（暂关公开入口）",
+          "approval": "审核注册（暂关公开入口）",
+          "closed": "关闭注册"
+        },
+        "requireEmailVerification": "要求邮箱验证",
+        "requireEmailVerificationHint": "开启后注册流程可提示用户验证邮箱（完整邮件验证流将在邮件能力中完善）。",
+        "blockPostingUntilVerified": "未验证邮箱禁止发帖",
+        "blockPostingUntilVerifiedHint": "仅在开启邮箱验证时生效。推荐开启以降低垃圾注册后立刻灌水。",
+        "usernameTitle": "用户名规则",
+        "usernameDescription": "影响新注册与管理员创建账号时的用户名校验。",
+        "usernameMinLength": "用户名最短长度",
+        "usernameMaxLength": "用户名最长长度",
+        "usernameCharset": "允许字符",
+        "charsetUnicode": "中英文与数字（推荐）",
+        "charsetAscii": "仅 ASCII 字母与数字",
+        "usernameReserved": "保留用户名",
+        "usernameReservedHint": "逗号分隔，不区分大小写。匹配的用户名不可注册。",
+        "usernameReservedPlaceholder": "例如：admin,system,moderator"
+      },
+      "newcomers": {
+        "title": "新人限制",
+        "description": "新注册用户在信任期内使用更严格的发帖冷却、日限与外链限制，降低垃圾内容风险。",
+        "recommended": "推荐：7 天信任期、发帖冷却 5 分钟、评论冷却 1 分钟、每日 3 帖/30 评、禁止外链。",
+        "restoreDefaults": "恢复新人推荐默认值",
+        "resetChanges": "已重置新人限制更改",
+        "days": "新人信任期（天）",
+        "daysHint": "从注册日起算。0 表示不启用新人限制。推荐 7。",
+        "topicCooldown": "新人发帖冷却（秒）",
+        "commentCooldown": "新人评论冷却（秒）",
+        "dailyTopicLimit": "新人每日发帖上限",
+        "dailyCommentLimit": "新人每日评论上限",
+        "zeroUnlimited": "0 表示不额外限制（仍受论坛全局限制约束）。",
+        "forbidOutboundLinks": "禁止新人外链",
+        "forbidOutboundLinksHint": "信任期内发帖/评论若含 http(s) 外链将被拒绝。推荐开启。",
+        "forbidAttachments": "禁止新人附件",
+        "forbidAttachmentsHint": "信任期内禁止上传附件。默认关闭，可按站点风险开启。"
+      },
+      "maintenance": {
+        "title": "维护模式",
+        "description": "开启后普通访客的写操作会被拦截；管理员仍可登录与管理。",
+        "warning": "开启维护模式会立即影响全站写操作。请确认后再保存。",
+        "enabled": "维护模式",
+        "enabledOn": "已开启：站点处于维护中",
+        "enabledOff": "已关闭：站点正常运行",
+        "enabledHint": "开启后非管理员写请求返回 503。推荐默认关闭。",
+        "message": "维护提示文案",
+        "messageHint": "展示给访客的说明，最多 500 字。留空则使用系统默认文案。",
+        "messagePlaceholder": "例如：站点升级中，预计 30 分钟后恢复。",
+        "resetChanges": "已重置维护模式更改"
       },
       "verification": {
         "title": "人机验证",
@@ -1768,7 +1865,8 @@
           "topics": "发帖",
           "comments": "评论",
           "tags": "标签",
-          "reading": "阅读"
+          "reading": "阅读",
+          "behavior": "行为策略"
         },
         "sections": {
           "general": {
@@ -1790,8 +1888,40 @@
           "reading": {
             "title": "阅读与摘要",
             "description": "列表摘要截断长度等阅读体验相关设置。"
+          },
+          "behavior": {
+            "title": "行为策略",
+            "description": "作者关帖/删帖、编辑标记、重复标题、软删除可见性与 {'@'}提及。"
           }
         },
+        "readingPolicyTitle": "游客阅读与列表排序",
+        "readingPolicyHelp": "控制游客能否阅读内容，以及主题列表默认排序与热度窗口。",
+        "guestRead": "游客阅读",
+        "guestReadPublic": "公开：游客可浏览",
+        "guestReadLogin": "需登录后阅读",
+        "listDefaultSort": "列表默认排序",
+        "sortLatest": "最新发布",
+        "sortActive": "最近活跃",
+        "sortHot": "热门",
+        "listHotWindowDays": "热门统计窗口（天）",
+        "allowAuthorCloseReplies": "允许作者关闭回复",
+        "allowAuthorCloseRepliesHelp": "主题作者可自行关闭或重新开放回复（版主权限不受影响）。",
+        "allowAuthorDelete": "允许作者删除自己的主题",
+        "allowAuthorDeleteHelp": "开启后作者可在策略允许范围内软删除自己的主题。",
+        "showTopicEditMark": "显示主题「已编辑」标记",
+        "showCommentEditMark": "显示评论「已编辑」标记",
+        "mentionsEnabled": "启用 {'@'}提及",
+        "mentionsMaxPerPost": "每帖最多 {'@'}提及数",
+        "autoLockIdleDays": "闲置自动锁帖（天）",
+        "autoLockIdleDaysHelp": "主题在指定天数无新回复后自动锁定。0 表示关闭。",
+        "duplicateTitlePolicy": "重复标题策略",
+        "duplicateOff": "不检查",
+        "duplicateWarn": "警告（仍可发布）",
+        "duplicateBlock": "阻止发布",
+        "softDeleteVisibility": "软删除内容可见性",
+        "softDeleteAuthorStaff": "作者与工作人员可见",
+        "softDeleteStaffOnly": "仅工作人员可见",
+        "softDeleteHidden": "对所有人隐藏",
         "minTagsPerTopic": "每个主题最少标签数",
         "minTagsPerTopicHelp": "允许 0 到 10。0 表示发帖时可以不选标签。",
         "topicTitleMin": "标题最少字数",
@@ -1915,7 +2045,34 @@
       "secretsPreserved": "插件内已保存的密钥不会被删除。",
       "smtpSettings": "配置 SMTP 插件",
       "recentDeliveries": "最近投递",
-      "noDeliveries": "暂无投递记录"
+      "noDeliveries": "暂无投递记录",
+      "deliveryStatus": {
+        "queued": "已排队",
+        "sending": "发送中",
+        "sent": "已发送",
+        "failed": "失败",
+        "skipped": "已跳过"
+      },
+      "templates": {
+        "admin_test": "管理后台测试邮件",
+        "identity_password_reset": "密码重置",
+        "forum_reply": "回复通知",
+        "forum_mention": "提及通知",
+        "forum_moderation_approved": "审核通过",
+        "forum_moderation_rejected": "审核未通过"
+      },
+      "reasons": {
+        "provider_unavailable": "邮件提供商不可用",
+        "smtp_sent": "SMTP 发送成功",
+        "smtp_host_required": "未配置 SMTP 主机",
+        "smtp_port_invalid": "SMTP 端口无效",
+        "smtp_from_invalid": "发件人地址无效",
+        "smtp_encryption_invalid": "加密方式无效",
+        "smtp_transport_failed": "SMTP 传输失败",
+        "smtp_message_invalid": "邮件内容无效",
+        "smtp_authentication_failed": "SMTP 认证失败",
+        "smtp_recipient_rejected": "收件人被服务器拒绝"
+      }
     },
     "moderation": {
       "title": "审核队列",

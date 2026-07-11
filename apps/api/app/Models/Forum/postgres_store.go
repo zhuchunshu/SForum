@@ -299,8 +299,9 @@ func (s *PostgresStore) ListTopics(ctx context.Context, input TopicListInput) (T
 		return TopicList{}, fmt.Errorf("count topics: %w", err)
 	}
 
+	orderBy := topicListOrderBy(input.Sort)
 	rows, err := s.pool.Query(ctx, topicSummarySQL()+where+`
-		ORDER BY topics.is_pinned DESC, topics.last_activity_at DESC, topics.id DESC
+		`+orderBy+`
 		LIMIT $4 OFFSET $5
 	`, categorySlug, query, tagSlug, input.PerPage, (input.Page-1)*input.PerPage)
 	if err != nil {
@@ -1648,6 +1649,20 @@ func topicSummarySQL() string {
 		LEFT JOIN user_profiles author_profiles ON author_profiles.user_id = users.id
 		LEFT JOIN attachments author_attachments ON author_attachments.id = author_profiles.avatar_attachment_id
 	`
+}
+
+// topicListOrderBy：置顶始终优先，再按运营默认排序。
+// latest=创建时间；active=最后活跃（默认行为）；hot=评论数+浏览量启发式。
+func topicListOrderBy(sort string) string {
+	switch strings.TrimSpace(strings.ToLower(sort)) {
+	case "latest":
+		return `ORDER BY topics.is_pinned DESC, topics.created_at DESC, topics.id DESC`
+	case "hot":
+		// 简单热度：评论权重高于浏览；后续可换加权时间衰减而不改 API。
+		return `ORDER BY topics.is_pinned DESC, (topics.comment_count * 5 + topics.view_count) DESC, topics.last_activity_at DESC, topics.id DESC`
+	default: // active
+		return `ORDER BY topics.is_pinned DESC, topics.last_activity_at DESC, topics.id DESC`
+	}
 }
 
 func topicDetailSQL() string {

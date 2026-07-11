@@ -89,6 +89,19 @@ type updateForumSettingsRequest struct {
 	CommentCooldownSeconds     *int `json:"commentCooldownSeconds"`
 	DailyCommentLimit        *int `json:"dailyCommentLimit"`
 	ExcerptRuneLimit         *int `json:"excerptRuneLimit"`
+
+	GuestRead               *string `json:"guestRead"`
+	ListDefaultSort         *string `json:"listDefaultSort"`
+	ListHotWindowDays       *int    `json:"listHotWindowDays"`
+	AllowAuthorCloseReplies *bool   `json:"allowAuthorCloseReplies"`
+	AllowAuthorDelete       *bool   `json:"allowAuthorDelete"`
+	AutoLockIdleDays        *int    `json:"autoLockIdleDays"`
+	ShowTopicEditMark       *bool   `json:"showTopicEditMark"`
+	DuplicateTitlePolicy    *string `json:"duplicateTitlePolicy"`
+	ShowCommentEditMark     *bool   `json:"showCommentEditMark"`
+	SoftDeleteVisibility    *string `json:"softDeleteVisibility"`
+	MentionsEnabled         *bool   `json:"mentionsEnabled"`
+	MentionsMaxPerPost      *int    `json:"mentionsMaxPerPost"`
 }
 
 func (h *Controller) adminCategoryGroups(c fiber.Ctx) error {
@@ -324,6 +337,18 @@ func (h *Controller) adminUpdateSettings(c fiber.Ctx) error {
 		CommentCooldownSeconds:     req.CommentCooldownSeconds,
 		DailyCommentLimit:        req.DailyCommentLimit,
 		ExcerptRuneLimit:         req.ExcerptRuneLimit,
+		GuestRead:                req.GuestRead,
+		ListDefaultSort:          req.ListDefaultSort,
+		ListHotWindowDays:        req.ListHotWindowDays,
+		AllowAuthorCloseReplies:  req.AllowAuthorCloseReplies,
+		AllowAuthorDelete:        req.AllowAuthorDelete,
+		AutoLockIdleDays:         req.AutoLockIdleDays,
+		ShowTopicEditMark:        req.ShowTopicEditMark,
+		DuplicateTitlePolicy:     req.DuplicateTitlePolicy,
+		ShowCommentEditMark:      req.ShowCommentEditMark,
+		SoftDeleteVisibility:     req.SoftDeleteVisibility,
+		MentionsEnabled:          req.MentionsEnabled,
+		MentionsMaxPerPost:       req.MentionsMaxPerPost,
 	})
 	if err != nil {
 		return mapForumError(err)

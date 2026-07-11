@@ -51,11 +51,41 @@ const (
 	// 是否允许开放注册。public，便于登录页隐藏注册入口；默认 enabled。
 	// 首用户 bootstrap（库内尚无任何用户）始终允许注册，不受本开关影响。
 	NameIdentityRegistrationEnabled = "identity.registration.enabled"
+	// 注册模式：open | invite | approval | closed。与 enabled 并存时以 mode 为准（closed 等价关闭）。
+	NameIdentityRegistrationMode = "identity.registration.mode"
+	// 注册后是否要求邮箱验证（产品开关；完整发信流随邮件垂直切片完善）。
+	NameIdentityRegistrationRequireEmailVerification = "identity.registration.require_email_verification"
+	// 未验证邮箱时是否禁止发帖/回帖（依赖 require_email_verification）。
+	NameIdentityRegistrationBlockPostingUntilVerified = "identity.registration.block_posting_until_verified"
+	// 用户名长度与字符集策略（注册时服务端强制）。
+	NameIdentityUsernameMinLength = "identity.username.min_length"
+	NameIdentityUsernameMaxLength = "identity.username.max_length"
+	// unicode_letters_numbers | ascii
+	NameIdentityUsernameCharset = "identity.username.charset"
+	// 逗号分隔保留用户名（小写比较）。
+	NameIdentityUsernameReserved = "identity.username.reserved"
+	// 登录失败锁定：连续失败次数 / 锁定分钟数（0 表示关闭）。
+	NameIdentityLoginMaxFailures  = "identity.login.max_failures"
+	NameIdentityLoginLockoutMinutes = "identity.login.lockout_minutes"
 	// 最大活跃浏览器会话数（设备数上限）。非 public（仅后端登录时读取），admin 可调。
 	// 引用 identity 包的权威定义，避免同值两处定义导致漂移（Fix #11）。
 	NameIdentitySessionsMaxDevices = identity.NameSessionsMaxDevices
 	// 已下线历史会话的保留天数，超过后由 periodic job 清理。非 public。
-	NameIdentitySessionsKeepDays            = identity.NameSessionsKeepDays
+	NameIdentitySessionsKeepDays = identity.NameSessionsKeepDays
+
+	// 新人信任阶梯：注册后 N 天内适用更严的发帖节奏与外链策略。
+	NameTrustNewUserDays                 = "trust.new_user_days"
+	NameTrustNewUserTopicCooldownSeconds  = "trust.new_user.topic_cooldown_seconds"
+	NameTrustNewUserCommentCooldownSeconds = "trust.new_user.comment_cooldown_seconds"
+	NameTrustNewUserDailyTopicLimit      = "trust.new_user.daily_topic_limit"
+	NameTrustNewUserDailyCommentLimit    = "trust.new_user.daily_comment_limit"
+	NameTrustNewUserForbidOutboundLinks  = "trust.new_user.forbid_outbound_links"
+	NameTrustNewUserForbidAttachments    = "trust.new_user.forbid_attachments"
+
+	// 维护模式：开启后非管理员写操作与前台写入口被拦；管理员可绕过。
+	NameSiteMaintenanceEnabled = "site.maintenance.enabled"
+	NameSiteMaintenanceMessage = "site.maintenance.message"
+
 	NameForumDefaultCategorySlug            = "forum.default_category_slug"
 	NameForumTagCreationMode                = "forum.tags.creation_mode"
 	NameForumTagPublicPages                 = "forum.tags.public_pages"
@@ -77,6 +107,24 @@ const (
 	NameForumCommentCooldownSeconds          = "forum.comments.cooldown_seconds"
 	NameForumDailyCommentLimit              = "forum.comments.daily_limit"
 	NameForumExcerptRuneLimit               = "forum.reading.excerpt_rune_limit"
+	// 游客阅读：public | login_required
+	NameForumGuestRead = "forum.guest.read"
+	// 列表默认排序：latest | active | hot
+	NameForumListDefaultSort = "forum.list.default_sort"
+	// 热度窗口天数（hot 排序用）
+	NameForumListHotWindowDays = "forum.list.hot_window_days"
+	// 主题行为策略
+	NameForumTopicsAllowAuthorCloseReplies = "forum.topics.allow_author_close_replies"
+	NameForumTopicsAllowAuthorDelete       = "forum.topics.allow_author_delete"
+	NameForumTopicsAutoLockIdleDays        = "forum.topics.auto_lock_idle_days"
+	NameForumTopicsShowEditMark            = "forum.topics.show_edit_mark"
+	NameForumTopicsDuplicateTitlePolicy    = "forum.topics.duplicate_title_policy"
+	// 评论行为
+	NameForumCommentsShowEditMark          = "forum.comments.show_edit_mark"
+	NameForumCommentsSoftDeleteVisibility  = "forum.comments.soft_delete_visibility"
+	// 提及
+	NameForumMentionsEnabled    = "forum.mentions.enabled"
+	NameForumMentionsMaxPerPost = "forum.mentions.max_per_post"
 	NameSEOMetaTitleTemplate                = "seo.meta_title_template"
 	NameSEOMetaDescription                  = "seo.meta_description"
 	NameSEOMetaKeywords                     = "seo.meta_keywords"
