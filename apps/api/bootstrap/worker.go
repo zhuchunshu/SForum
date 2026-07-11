@@ -21,6 +21,8 @@ import (
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
+	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
@@ -58,8 +60,28 @@ func NewWorker(ctx context.Context, cfg config.Config, logger *slog.Logger) (*Wo
 		pool.Close()
 		return nil, err
 	}
+
+	// 独立 worker 进程发布心跳，供 API overview / 运维判断 stale。
+	// 嵌入 API 的 worker 由 bootstrap.NewAPI 发布，避免双写无妨但这里只在独立进程路径启用。
+	redisClient := humanverify.NewRedisClient(cfg.RedisAddr, cfg.RedisPassword, humanverify.RedisClientOptions{
+		PoolSize:        cfg.RedisPoolSize,
+		MinIdleConns:    cfg.RedisMinIdleConns,
+		DialTimeout:     cfg.RedisDialTimeout,
+		ReadTimeout:     cfg.RedisReadTimeout,
+		WriteTimeout:    cfg.RedisWriteTimeout,
+		ConnMaxIdleTime: cfg.RedisConnMaxIdleTime,
+		ConnMaxLifetime: cfg.RedisConnMaxLifetime,
+	})
+	heartbeatStore := health.NewRedisHeartbeatStore(redisClient)
+	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
+	go (&health.Publisher{Store: heartbeatStore}).Run(heartbeatCtx)
+
 	runtimeClose := worker.close
 	worker.close = func() {
+		heartbeatCancel()
+		if err := redisClient.Close(); err != nil && logger != nil {
+			logger.Warn("worker heartbeat redis close failed", "error", err)
+		}
 		if runtimeClose != nil {
 			runtimeClose()
 		}

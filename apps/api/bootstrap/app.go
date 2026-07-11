@@ -34,6 +34,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
+	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
@@ -262,7 +263,16 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	identityProvider := providers.NewIdentityProviderWithPasswordResetAndLockout(identityStore, authSessions, humanVerifier, extensionRuntime, passwordResetService, mailOutbox, optionsService, loginLockout)
 	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions)
 	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService)
-	adminOverviewProvider := providers.NewAdminOverviewProvider(adminOverviewStore, adminoverview.NewRuntimeCollector(time.Now().UTC(), pool), identityStore, authSessions)
+	// Worker 心跳 store 尽早创建，供 overview 与嵌入 worker 共用。
+	heartbeatStore := health.NewRedisHeartbeatStore(sharedRedisClient)
+	adminOverviewProvider := providers.NewAdminOverviewProvider(
+		adminOverviewStore,
+		adminoverview.NewRuntimeCollector(time.Now().UTC(), pool).
+			WithHeartbeat(heartbeatStore).
+			WithQueueLag(pool),
+		identityStore,
+		authSessions,
+	)
 	// 搜索：API 进程持有只入队的 indexer（EnqueueIndex/EnqueueDelete）和查询用的 search service。
 	// Meilisearch client 不可达时，索引调度静默失败、搜索端点返回 503，主流程不受影响。
 	meiliClient := search.NewClientWithTimeout(cfg.MeiliHost, cfg.MeiliMasterKey, cfg.MeiliTimeout)
@@ -296,16 +306,31 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	jobsProvider := providers.NewJobsProvider(pool, jobClient, identityStore, authSessions)
 	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService, webReleaseAdminService)
 
+	// Readiness：PG 必检；Redis/Meili 失败记 degraded 仍 ready（见 Support/Health）。
+	readyEvaluate := func(ctx context.Context) health.ReadyReport {
+		return health.Evaluate(ctx, []health.Checker{
+			health.PostgresChecker{Pool: pool},
+			health.RedisChecker{Client: sharedRedisClient},
+			health.MeiliChecker{Client: meiliClient},
+		})
+	}
+
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
 		RouteProviders: []httpserver.RouteProvider{identityProvider, notificationsProvider, mailProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, siteChromeProvider, attachmentsProvider, seoProvider, databaseProvider, jobsProvider, extensionsProvider},
 		Options:        optionsService,
 		Storage:        redisStorage,
+		Ready:          readyEvaluate,
 	})
+
+	// Worker 心跳：嵌入 worker 时由 API 进程发布；独立 worker 在 NewWorker 内发布。
+	// 未嵌入时 overview 仍可读独立 worker 写入的同一 Redis key。
+	heartbeatCtx, heartbeatCancel := context.WithCancel(context.Background())
 
 	var embeddedWorker *Worker
 	if shouldEmbedWorkerInAPI(cfg) {
 		embeddedWorker, err = newWorkerWithPool(cfg, pool, logger)
 		if err != nil {
+			heartbeatCancel()
 			_ = webReleaseCoordinator.Stop(context.Background())
 			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 				logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -319,6 +344,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			return nil, fmt.Errorf("embedded worker setup failed: %w", err)
 		}
 		if err := embeddedWorker.Start(ctx); err != nil {
+			heartbeatCancel()
 			_ = webReleaseCoordinator.Stop(context.Background())
 			embeddedWorker.Close()
 			if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
@@ -332,6 +358,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 			pool.Close()
 			return nil, fmt.Errorf("embedded worker start failed: %w", err)
 		}
+		go (&health.Publisher{Store: heartbeatStore}).Run(heartbeatCtx)
 		logger.InfoContext(ctx, "embedded api worker started")
 	}
 
@@ -339,6 +366,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		App:  app,
 		Addr: apiAddress(cfg),
 		close: func() {
+			heartbeatCancel()
 			coordinatorCtx, coordinatorCancel := context.WithTimeout(context.Background(), cfg.WorkerShutdownTimeout)
 			if err := webReleaseCoordinator.Stop(coordinatorCtx); err != nil {
 				logger.Warn("web release coordinator stop failed", "error", err)
