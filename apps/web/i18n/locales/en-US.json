@@ -19,7 +19,22 @@
     "profileSettings": "Profile settings",
     "mailSettings": "Mail settings",
     "moderation": "Moderation",
-    "moderationWorkbench": "Moderation workbench"
+    "moderationWorkbench": "Moderation workbench",
+    "notifications": "Notifications"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Replies, mentions, and content review results.",
+    "markAllRead": "Mark all read",
+    "allRead": "All notifications marked as read",
+    "loadFailed": "Failed to load notifications",
+    "empty": "No notifications yet",
+    "types": {
+      "reply": "Someone replied to your content",
+      "mention": "Someone mentioned you",
+      "moderation_approved": "Your content was approved",
+      "moderation_rejected": "Your content was rejected"
+    }
   },
   "home": {
     "metaTitle": "{siteName} Community",
@@ -1605,7 +1620,18 @@
       "sendTest": "Send test",
       "testing": "Sending...",
       "testSent": "Test mail sent. Check the inbox.",
-      "testFailed": "Test mail failed. Check your SMTP settings."
+      "testFailed": "Test mail could not be queued. Check the provider configuration.",
+      "testQueued": "Test mail queued.",
+      "unconfigured": "No mail provider selected",
+      "inAppContinues": "Email delivery will be skipped; in-app notifications continue normally.",
+      "noProvider": "No email delivery",
+      "unhealthy": "Unavailable",
+      "reset": "Restore recommended default",
+      "resetDone": "Mail delivery is now unconfigured",
+      "secretsPreserved": "Saved plugin secrets were preserved.",
+      "smtpSettings": "Configure SMTP plugin",
+      "recentDeliveries": "Recent deliveries",
+      "noDeliveries": "No delivery records"
     },
     "moderation": {
       "title": "Moderation queue",

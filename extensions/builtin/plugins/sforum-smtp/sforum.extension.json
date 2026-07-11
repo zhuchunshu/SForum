@@ -9,6 +9,7 @@
   "sforumVersion": ">=0.1.0",
   "backend": { "entry": "backend/plugin", "rpc": "hashicorp-go-plugin", "protocolVersion": 1 },
   "providers": [{ "slot": "mail.provider", "label": "SMTP", "timeoutMs": 15000 }],
+  "admin": { "entry": "/settings", "pages": [{ "path": "/settings", "label": "SMTP Settings", "view": "settings", "menu": false }] },
   "settings": [
     { "key": "host", "label": "SMTP host", "type": "text", "default": "" },
     { "key": "port", "label": "SMTP port", "type": "number", "default": "587" },

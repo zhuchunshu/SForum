@@ -11,6 +11,7 @@ const router = useRouter()
 const route = useRoute()
 const colorMode = useColorMode()
 const { can } = usePermissions()
+const notifications = useNotifications()
 
 type LocaleCode = Parameters<typeof switchLocalePath>[0]
 type LocaleOption = {
@@ -187,6 +188,7 @@ onMounted(() => {
     attributes: true,
     attributeFilter: ['class']
   })
+  if (user.value) void notifications.refreshUnreadCount()
 })
 
 onUnmounted(() => {
@@ -284,6 +286,10 @@ async function logout() {
       </NuxtLink>
 
       <div class="navbar__actions">
+        <NuxtLink v-if="user" :to="localePath('/notifications')" class="navbar__notification" :aria-label="t('nav.notifications')">
+          <UIcon name="i-lucide-bell" class="size-5" aria-hidden="true" />
+          <span v-if="notifications.unreadCount.value" class="navbar__notification-badge">{{ notifications.unreadCount.value > 99 ? '99+' : notifications.unreadCount.value }}</span>
+        </NuxtLink>
         <NuxtLink
           v-if="canCreateTopic"
           :to="localePath('/topics/new')"
@@ -479,6 +485,9 @@ async function logout() {
   display: flex;
   align-items: center;
 }
+
+.navbar__notification { position: relative; display: grid; width: 36px; height: 36px; place-items: center; color: #64748b; }
+.navbar__notification-badge { position: absolute; top: -2px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; border: 2px solid #fff; border-radius: 9px; background: var(--sf-accent); color: #fff; font-size: 10px; line-height: 14px; text-align: center; }
 
 .navbar__logo {
   min-width: 0;

@@ -19,7 +19,22 @@
     "profileSettings": "资料设置",
     "mailSettings": "邮件设置",
     "moderation": "审核",
-    "moderationWorkbench": "审核工作台"
+    "moderationWorkbench": "审核工作台",
+    "notifications": "通知"
+  },
+  "notifications": {
+    "title": "通知",
+    "description": "回复、提及和内容审核结果。",
+    "markAllRead": "全部已读",
+    "allRead": "已将全部通知标为已读",
+    "loadFailed": "通知加载失败",
+    "empty": "暂无通知",
+    "types": {
+      "reply": "有人回复了你的内容",
+      "mention": "有人在内容中提到了你",
+      "moderation_approved": "你的内容已通过审核",
+      "moderation_rejected": "你的内容未通过审核"
+    }
   },
   "home": {
     "metaTitle": "{siteName} 社区首页",
@@ -1611,7 +1626,18 @@
       "sendTest": "发送测试",
       "testing": "发送中...",
       "testSent": "测试邮件已发送，请查收。",
-      "testFailed": "测试邮件发送失败，请检查 SMTP 配置。"
+      "testFailed": "测试邮件排队失败，请检查提供商配置。",
+      "testQueued": "测试邮件已进入队列。",
+      "unconfigured": "尚未选择邮件提供商",
+      "inAppContinues": "邮件将跳过投递，站内通知仍会正常创建。",
+      "noProvider": "不配置邮件投递",
+      "unhealthy": "不可用",
+      "reset": "恢复推荐默认值",
+      "resetDone": "已恢复未配置状态",
+      "secretsPreserved": "插件内已保存的密钥不会被删除。",
+      "smtpSettings": "配置 SMTP 插件",
+      "recentDeliveries": "最近投递",
+      "noDeliveries": "暂无投递记录"
     },
     "moderation": {
       "title": "审核队列",
