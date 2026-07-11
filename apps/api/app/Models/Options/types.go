@@ -9,6 +9,11 @@ import (
 const (
 	NameSiteName                         = "site.name"
 	NameSiteURL                          = "site.url"
+	// 站点副标题/标语（短文本，可空）。用于导航副标、登录页等，不等于 SEO 描述。
+	NameSiteTagline = "site.tagline"
+	// 站点管理员联系邮箱（可空）。系统通知/运营联系人；不是 SMTP From，也不当 secret。
+	// 非 public，避免被爬虫批量采集。
+	NameSiteAdminEmail = "site.admin_email"
 	NameSiteDefaultLocale                = "site.default_locale"
 	NameSiteSupportedLocales             = "site.supported_locales"
 	// 站点展示时区（IANA，如 Asia/Shanghai）。仅影响展示与按站点日切分，库内仍存 UTC。

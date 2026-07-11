@@ -14,7 +14,9 @@ const localePath = useLocalePath()
 const { apiBaseUrl, request } = useApiClient()
 const { setUser } = useAuthSession()
 const { returnFromAuth, authPageLink } = useAuthReturnNavigation()
-const { siteName, humanVerificationEnabledFor, altchaWidgetSettings, passwordPolicy } = useWebOptions()
+const { siteName, siteTagline, humanVerificationEnabledFor, altchaWidgetSettings, passwordPolicy } = useWebOptions()
+// 有副标题时优先展示运营配置的标语，否则回退到内置品牌文案。
+const brandDescription = computed(() => siteTagline.value || t('auth.brandDesc'))
 
 const form = reactive({
   username: '',
@@ -208,7 +210,7 @@ async function submitRegister() {
           {{ t('auth.brandHeadlineL1') }}<br />{{ t('auth.brandHeadlineL2') }}
         </h1>
         <p class="auth-desc">
-          {{ t('auth.brandDesc') }}
+          {{ brandDescription }}
         </p>
         <ul class="auth-features">
           <li class="auth-feature">

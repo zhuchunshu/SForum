@@ -9,7 +9,9 @@ const localePath = useLocalePath()
 const { request } = useApiClient()
 const { setUser } = useAuthSession()
 const { returnFromAuth, authPageLink } = useAuthReturnNavigation()
-const { siteName } = useWebOptions()
+const { siteName, siteTagline } = useWebOptions()
+// 有副标题时优先展示运营配置的标语，否则回退到内置品牌文案。
+const brandDescription = computed(() => siteTagline.value || t('auth.brandDesc'))
 
 const form = reactive({
   login: '',
@@ -80,7 +82,7 @@ async function submitLogin() {
           {{ t('auth.brandHeadlineL1') }}<br />{{ t('auth.brandHeadlineL2') }}
         </h1>
         <p class="auth-desc">
-          {{ t('auth.brandDesc') }}
+          {{ brandDescription }}
         </p>
         <ul class="auth-features">
           <li class="auth-feature">

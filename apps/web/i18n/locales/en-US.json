@@ -1334,7 +1334,13 @@
           "rateLimitValue": "60 per IP per minute",
           "clientWidget": "Client widget"
         }
-      }
+      },
+      "siteTagline": "Tagline",
+      "siteTaglinePlaceholder": "For example: A friendly technical community",
+      "siteTaglineHint": "Shown near the navbar and login page. Leave blank if unused. Not the same as SEO description.",
+      "adminEmail": "Administration email",
+      "adminEmailPlaceholder": "For example: ops@example.com",
+      "adminEmailHint": "Operator contact email for system notices. Not the SMTP From address, and not exposed on public APIs."
     },
     "seo": {
       "metaTitle": "SEO Settings",

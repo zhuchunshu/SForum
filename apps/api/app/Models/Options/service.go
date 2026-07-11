@@ -586,6 +586,8 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 
 	// 时区/日期时间展示：无效值回退到推荐默认，避免脏数据阻断启动。
 	coerceSiteDateTimeOptions(coerced, defaults)
+	// 副标题/管理邮箱：无效值回退空串默认。
+	coerceSiteIdentityOptions(coerced, defaults)
 
 	if provider, ok := normalizeHumanVerificationProvider(coerced[NameHumanVerificationProvider]); ok {
 		coerced[NameHumanVerificationProvider] = provider
@@ -749,6 +751,8 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 	values := map[string]string{
 		NameSiteName:                         "SForum",
 		NameSiteURL:                          "http://127.0.0.1:3000",
+		NameSiteTagline:                      "",
+		NameSiteAdminEmail:                   "",
 		NameSiteDefaultLocale:                localization.DefaultLocale,
 		NameSiteSupportedLocales:             "zh-CN,en-US",
 		NameSiteTimezone:                     recommendedSiteTimezone,
@@ -944,6 +948,10 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 			return "", false
 		}
 		return strings.Join(locales, ","), true
+	case NameSiteTagline:
+		return normalizeSiteTagline(value)
+	case NameSiteAdminEmail:
+		return normalizeSiteAdminEmail(value)
 	case NameSiteTimezone:
 		return normalizeSiteTimezone(value)
 	case NameSiteDateFormat:
@@ -1112,6 +1120,9 @@ func isValidValueSet(values map[string]string) bool {
 		return false
 	}
 	if !isValidSiteDateTimeOptions(values) {
+		return false
+	}
+	if !isValidSiteIdentityOptions(values) {
 		return false
 	}
 

@@ -175,6 +175,8 @@ export const recommendedFooterLinks: FooterLinkOption[] = [
 const fallbackOptions: Record<string, string> = {
   'site.name': 'SForum',
   'site.url': 'http://127.0.0.1:3000',
+  // 站点副标题（可空）；管理邮箱为 admin-only，不在 public fallback 中暴露。
+  'site.tagline': '',
   'site.default_locale': 'zh-CN',
   'site.supported_locales': 'zh-CN,en-US',
   // 站点展示时区与日期时间格式（与后端 recommended 默认对齐）。
@@ -316,6 +318,7 @@ export const useWebOptions = () => {
 
   const siteName = computed(() => webOption('site.name', 'SForum'))
   const siteUrl = computed(() => webOption('site.url', 'http://127.0.0.1:3000'))
+  const siteTagline = computed(() => webOption('site.tagline', '').trim())
   const defaultLocale = computed(() => webOption('site.default_locale', 'zh-CN'))
   const supportedLocales = computed(() => parseSupportedLocales(webOption('site.supported_locales', 'zh-CN,en-US')))
   const siteTimezone = computed(() => webOption('site.timezone', 'UTC'))
@@ -371,6 +374,7 @@ export const useWebOptions = () => {
     options,
     siteName,
     siteUrl,
+    siteTagline,
     defaultLocale,
     supportedLocales,
     siteTimezone,

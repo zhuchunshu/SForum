@@ -66,6 +66,8 @@ AdminWebOption:
       type: string
       enum:
       - site.name
+      - site.tagline
+      - site.admin_email
       - site.url
       - site.default_locale
       - site.supported_locales
@@ -232,6 +234,8 @@ WebOptionInput:
       type: string
       enum:
       - site.name
+      - site.tagline
+      - site.admin_email
       - site.url
       - site.default_locale
       - site.supported_locales
@@ -359,6 +363,8 @@ AdminWebOptionInput:
       type: string
       enum:
       - site.name
+      - site.tagline
+      - site.admin_email
       - site.url
       - site.default_locale
       - site.supported_locales

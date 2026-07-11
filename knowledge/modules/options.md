@@ -78,9 +78,10 @@ Initial runtime option support is implemented.
 
 ## Implementation Notes
 
-- Current public options are `site.name`, `site.url`, `site.default_locale`,
-  `site.supported_locales`, `site.timezone`, `site.date_format`,
-  `site.time_format`, `site.start_of_week`, `human_verification.provider`,
+- Current public options are `site.name`, `site.url`, `site.tagline`,
+  `site.default_locale`, `site.supported_locales`, `site.timezone`,
+  `site.date_format`, `site.time_format`, `site.start_of_week`,
+  `human_verification.provider`,
   `human_verification.scenarios.register`,
   `human_verification.scenarios.password_reset`,
   `human_verification.scenarios.login_risk`,
@@ -104,7 +105,8 @@ Initial runtime option support is implemented.
   `avatar.gravatar_base_url`, `avatar.gravatar_hash_algorithm`,
   `avatar.max_size_kb`, `avatar.allow_gif`, and
   `avatar.compress_enabled`.
-- Current admin-only options are `human_verification.altcha.secret`,
+- Current admin-only options are `site.admin_email` (operator contact, not
+  SMTP From and not public), `human_verification.altcha.secret`,
   `human_verification.altcha.challenge_ttl`,
   `human_verification.altcha.cost`, attachment provider selection, path
   template, public base URL, default visibility, cleanup retention, all
@@ -144,6 +146,10 @@ Initial runtime option support is implemented.
   time formats are whitelist presets. Storage remains UTC; frontend
   `useSiteDateTime()` / `utils/siteDateTime.ts` format timestamps for display.
   Admin UI supports one-click restore of recommended datetime defaults.
+- `site.tagline` is optional public short text (max 160 runes) for navbar/auth
+  branding; it is not SEO description (`seo.home.description`).
+  `site.admin_email` is optional admin-only contact email (RFC address form,
+  max 254), distinct from mail provider From address.
 - Appearance preset settings use `appearance.theme` as a single public option.
   The stored key is unchanged for compatibility, but user-facing UI/docs should
   call it "配色预设 / appearance preset" rather than "theme". It accepts preset

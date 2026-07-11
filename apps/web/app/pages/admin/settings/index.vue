@@ -148,6 +148,9 @@ const form = reactive({
   siteUrl: options.value['site.url'] || 'http://127.0.0.1:3000',
   defaultLocale: options.value['site.default_locale'] || 'zh-CN',
   supportedLocales: parseLocaleList(options.value['site.supported_locales'] || 'zh-CN,en-US'),
+  // 副标题（public）与管理邮箱（admin-only，仅表单态）。
+  tagline: options.value['site.tagline'] || '',
+  adminEmail: '',
   // 站点时区与日期时间展示（库内 UTC，仅影响展示）。
   timezone: normalizeSiteTimezone(options.value['site.timezone']),
   dateFormat: normalizeSiteDateFormat(options.value['site.date_format']) as SiteDateFormat,
@@ -238,6 +241,8 @@ const initialSiteName = computed(() => adminOptionsMap.value['site.name']?.value
 const initialSiteUrl = computed(() => adminOptionsMap.value['site.url']?.value || 'http://127.0.0.1:3000')
 const initialDefaultLocale = computed(() => adminOptionsMap.value['site.default_locale']?.value || 'zh-CN')
 const initialSupportedLocales = computed(() => parseLocaleList(adminOptionsMap.value['site.supported_locales']?.value || 'zh-CN,en-US'))
+const initialTagline = computed(() => (adminOptionsMap.value['site.tagline']?.value || '').trim())
+const initialAdminEmail = computed(() => (adminOptionsMap.value['site.admin_email']?.value || '').trim())
 const initialTimezone = computed(() => normalizeSiteTimezone(adminOptionsMap.value['site.timezone']?.value))
 const initialDateFormat = computed(() => normalizeSiteDateFormat(adminOptionsMap.value['site.date_format']?.value))
 const initialTimeFormat = computed(() => normalizeSiteTimeFormat(adminOptionsMap.value['site.time_format']?.value))
@@ -256,6 +261,8 @@ const hasBasicChanges = computed(() => {
          form.siteUrl !== initialSiteUrl.value ||
          form.defaultLocale !== initialDefaultLocale.value ||
          JSON.stringify(form.supportedLocales) !== JSON.stringify(initialSupportedLocales.value) ||
+         form.tagline.trim() !== initialTagline.value ||
+         form.adminEmail.trim() !== initialAdminEmail.value ||
          form.timezone !== initialTimezone.value ||
          form.dateFormat !== initialDateFormat.value ||
          form.timeFormat !== initialTimeFormat.value ||
@@ -319,6 +326,8 @@ function applyAdminOptions(items: AdminWebOption[]) {
   if (!form.supportedLocales.includes(form.defaultLocale)) {
     form.defaultLocale = form.supportedLocales[0] || 'zh-CN'
   }
+  form.tagline = map['site.tagline']?.value || ''
+  form.adminEmail = map['site.admin_email']?.value || ''
   form.timezone = normalizeSiteTimezone(map['site.timezone']?.value)
   form.dateFormat = normalizeSiteDateFormat(map['site.date_format']?.value)
   form.timeFormat = normalizeSiteTimeFormat(map['site.time_format']?.value)
@@ -354,6 +363,8 @@ async function saveBasicSettings() {
       { name: 'site.url', value: form.siteUrl },
       { name: 'site.default_locale', value: form.defaultLocale },
       { name: 'site.supported_locales', value: form.supportedLocales.join(',') },
+      { name: 'site.tagline', value: form.tagline.trim() },
+      { name: 'site.admin_email', value: form.adminEmail.trim() },
       { name: 'site.timezone', value: form.timezone },
       { name: 'site.date_format', value: form.dateFormat },
       { name: 'site.time_format', value: form.timeFormat },
@@ -466,6 +477,8 @@ function resetBasicForm() {
   form.siteUrl = initialSiteUrl.value
   form.defaultLocale = initialDefaultLocale.value
   form.supportedLocales = [...initialSupportedLocales.value]
+  form.tagline = initialTagline.value
+  form.adminEmail = initialAdminEmail.value
   form.timezone = initialTimezone.value
   form.dateFormat = initialDateFormat.value
   form.timeFormat = initialTimeFormat.value
@@ -788,6 +801,33 @@ function onLocaleToggle(locale: string, event: Event) {
               required
               class="w-full"
             />
+          </UFormField>
+
+          <UFormField :label="t('admin.settings.siteTagline')" name="site-tagline">
+            <UInput
+              v-model="form.tagline"
+              icon="i-lucide-quote"
+              :placeholder="t('admin.settings.siteTaglinePlaceholder')"
+              maxlength="160"
+              class="w-full"
+            />
+            <template #hint>
+              {{ t('admin.settings.siteTaglineHint') }}
+            </template>
+          </UFormField>
+
+          <UFormField :label="t('admin.settings.adminEmail')" name="site-admin-email">
+            <UInput
+              v-model="form.adminEmail"
+              icon="i-lucide-mail"
+              type="email"
+              :placeholder="t('admin.settings.adminEmailPlaceholder')"
+              maxlength="254"
+              class="w-full"
+            />
+            <template #hint>
+              {{ t('admin.settings.adminEmailHint') }}
+            </template>
           </UFormField>
 
           <UFormField :label="t('admin.settings.defaultLocale')" name="default-locale">

@@ -1340,7 +1340,13 @@
           "rateLimitValue": "每 IP 每分钟 60 次",
           "clientWidget": "前端组件"
         }
-      }
+      },
+      "siteTagline": "站点副标题",
+      "siteTaglinePlaceholder": "例如：一个友好的技术社区",
+      "siteTaglineHint": "显示在导航与登录页附近；可留空。不等于 SEO 描述。",
+      "adminEmail": "管理邮箱",
+      "adminEmailPlaceholder": "例如：ops@example.com",
+      "adminEmailHint": "站点运营联系邮箱，用于系统通知与对外联系。不是发信 SMTP 地址，也不会出现在公开 API。"
     },
     "seo": {
       "metaTitle": "SEO 设置",
