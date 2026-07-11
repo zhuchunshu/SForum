@@ -287,6 +287,15 @@ ExtensionManifestLocale:
         email:
           type: string
           format: email
+# 设置展示文案：纯字符串，或 locale → 文案 map（如 zh-CN / en-US）。
+LocalizedText:
+  oneOf:
+  - type: string
+  - type: object
+    additionalProperties:
+      type: string
+    minProperties: 1
+    description: Locale map. Keys are BCP 47 codes such as zh-CN or en-US.
 ExtensionManifestSetting:
   type: object
   required:
@@ -297,22 +306,22 @@ ExtensionManifestSetting:
     key:
       type: string
     label:
-      type: string
+      "$ref": "#/LocalizedText"
     description:
-      type: string
+      "$ref": "#/LocalizedText"
     type:
       type: string
     default:
       type: string
     placeholder:
-      type: string
-      description: Optional example or input hint rendered by the host.
+      "$ref": "#/LocalizedText"
+      description: Optional example or input hint rendered by the host after locale resolution.
     recommendedValue:
       type: string
       description: Provider-declared value used by the generic restore-recommended action. Secrets are never restored or cleared through this field.
     group:
-      type: string
-      description: Optional provider-neutral section identifier used to group related controls in declaration order.
+      "$ref": "#/LocalizedText"
+      description: Optional section title used to group related controls in declaration order.
     options:
       type: array
       description: Ordered choices. Settings with options render as a select instead of free text.
@@ -323,9 +332,9 @@ ExtensionManifestSetting:
           value:
             type: string
           label:
-            type: string
+            "$ref": "#/LocalizedText"
           description:
-            type: string
+            "$ref": "#/LocalizedText"
 ExtensionManifestAdmin:
   type: object
   description: Extension admin entry and page declarations. Manage resolves to entry, then settings, then first declared page, then the generated about page.
@@ -745,8 +754,21 @@ ExtensionSettings:
       type: array
       items:
         "$ref": "#/ExtensionSettingValue"
+ExtensionSettingOption:
+  type: object
+  required:
+  - value
+  - label
+  properties:
+    value:
+      type: string
+    label:
+      type: string
+    description:
+      type: string
 ExtensionSettingValue:
   type: object
+  description: Resolved presentation for one manifest setting. Label, description, placeholder, group, and option labels are strings already resolved for the request Accept-Language locale. Manifest may declare those fields as a plain string or a locale map; the API never returns the raw map here.
   required:
   - key
   - label
@@ -767,6 +789,18 @@ ExtensionSettingValue:
       type: string
     value:
       type: string
+    placeholder:
+      type: string
+    recommendedValue:
+      type: string
+    group:
+      type: string
+    options:
+      type: array
+      items:
+        "$ref": "#/ExtensionSettingOption"
+    secretSet:
+      type: boolean
 ExtensionSettingsInput:
   type: object
   required:

@@ -16,18 +16,134 @@
   },
   "backend": { "entry": "backend/plugin", "rpc": "hashicorp-go-plugin", "protocolVersion": 1 },
   "providers": [{ "slot": "mail.provider", "label": "SMTP", "timeoutMs": 15000 }],
-  "admin": { "entry": "/settings", "pages": [{ "path": "/settings", "label": "SMTP Settings", "view": "settings", "menu": false }] },
+  "admin": {
+    "entry": "/settings",
+    "pages": [{ "path": "/settings", "label": "SMTP Settings", "view": "settings", "menu": false }]
+  },
+  "frontend": {
+    "admin": {
+      "root": "frontend/admin",
+      "apiVersion": 1,
+      "components": {
+        "smtp-settings-page": "components/SmtpSettingsPage.vue"
+      },
+      "locales": {
+        "zh-CN": "locales/zh-CN.json",
+        "en-US": "locales/en-US.json"
+      }
+    }
+  },
+  "contributions": [
+    {
+      "point": "admin.extension.settings.page",
+      "id": "smtp-settings-page",
+      "order": 10,
+      "label": {
+        "zh-CN": "SMTP 设置页",
+        "en-US": "SMTP settings page"
+      },
+      "payload": { "component": "smtp-settings-page" }
+    }
+  ],
   "settings": [
-    { "key": "host", "label": "SMTP 服务器 / SMTP host", "description": "邮件服务商提供的服务器地址，例如 smtp.example.com。 / Server hostname from your mail provider.", "type": "text", "default": "", "placeholder": "smtp.example.com", "group": "服务器 / Server" },
-    { "key": "encryption", "label": "加密方式 / Encryption", "description": "推荐 STARTTLS + 587；TLS/SSL 常用 465；无加密仅适合可信内网。 / STARTTLS with port 587 is recommended; TLS/SSL commonly uses 465; none is for trusted networks only.", "type": "select", "default": "starttls", "recommendedValue": "starttls", "group": "服务器 / Server", "options": [
-      { "value": "starttls", "label": "STARTTLS（推荐 / Recommended）" },
-      { "value": "tls", "label": "TLS/SSL" },
-      { "value": "none", "label": "无加密 / None" }
-    ] },
-    { "key": "port", "label": "端口 / Port", "description": "STARTTLS 推荐 587，TLS/SSL 推荐 465，无加密通常为 25。 / Use 587 for STARTTLS, 465 for TLS/SSL, or usually 25 for none.", "type": "number", "default": "587", "recommendedValue": "587", "placeholder": "587", "group": "服务器 / Server" },
-    { "key": "username", "label": "用户名 / Username", "description": "通常是完整邮箱地址。 / Usually your full email address.", "type": "text", "default": "", "placeholder": "mailer@example.com", "group": "身份验证 / Authentication" },
-    { "key": "password", "label": "密码 / Password", "description": "多数邮箱服务需要应用专用密码。留空会保留现有密码。 / Most providers require an app password. Leave blank to preserve the current password.", "type": "secret", "default": "", "placeholder": "应用专用密码 / App password", "group": "身份验证 / Authentication" },
-    { "key": "from_address", "label": "发件邮箱 / From address", "description": "收件人看到的发件地址，通常应与认证账号或已验证域名一致。 / Visible sender address; usually matches the account or a verified domain.", "type": "text", "default": "noreply@example.com", "placeholder": "noreply@example.com", "group": "发件人 / Sender" },
-    { "key": "from_name", "label": "发件名称 / From name", "description": "建议填写站点名称。 / The site name is recommended.", "type": "text", "default": "SForum", "placeholder": "SForum", "group": "发件人 / Sender" }
+    {
+      "key": "host",
+      "label": { "zh-CN": "SMTP 服务器地址", "en-US": "SMTP host" },
+      "description": {
+        "zh-CN": "邮件服务商提供的主机名，例如 smtp.qq.com、smtp.exmail.qq.com、smtp.gmail.com。不要填写 http://。",
+        "en-US": "Hostname from your mail provider, for example smtp.gmail.com. Do not include http://."
+      },
+      "type": "text",
+      "default": "",
+      "placeholder": { "zh-CN": "smtp.example.com", "en-US": "smtp.example.com" },
+      "group": { "zh-CN": "服务器连接", "en-US": "Server" }
+    },
+    {
+      "key": "encryption",
+      "label": { "zh-CN": "加密方式", "en-US": "Encryption" },
+      "description": {
+        "zh-CN": "推荐使用 STARTTLS（端口 587）。若服务商要求 SSL，选择 TLS/SSL（端口 465）。“无加密”仅适合可信内网。",
+        "en-US": "STARTTLS with port 587 is recommended. Use TLS/SSL with port 465 when required. None is only for trusted networks."
+      },
+      "type": "select",
+      "default": "starttls",
+      "recommendedValue": "starttls",
+      "group": { "zh-CN": "服务器连接", "en-US": "Server" },
+      "options": [
+        {
+          "value": "starttls",
+          "label": { "zh-CN": "STARTTLS（推荐）", "en-US": "STARTTLS (recommended)" }
+        },
+        {
+          "value": "tls",
+          "label": { "zh-CN": "TLS/SSL", "en-US": "TLS/SSL" }
+        },
+        {
+          "value": "none",
+          "label": { "zh-CN": "无加密", "en-US": "None" }
+        }
+      ]
+    },
+    {
+      "key": "port",
+      "label": { "zh-CN": "端口", "en-US": "Port" },
+      "description": {
+        "zh-CN": "需与加密方式匹配：STARTTLS 常用 587，TLS/SSL 常用 465，无加密常见 25。不确定时先用 587。",
+        "en-US": "Match encryption: 587 for STARTTLS, 465 for TLS/SSL, often 25 for none. Prefer 587 when unsure."
+      },
+      "type": "number",
+      "default": "587",
+      "recommendedValue": "587",
+      "placeholder": { "zh-CN": "587", "en-US": "587" },
+      "group": { "zh-CN": "服务器连接", "en-US": "Server" }
+    },
+    {
+      "key": "username",
+      "label": { "zh-CN": "登录用户名", "en-US": "Username" },
+      "description": {
+        "zh-CN": "大多数邮箱要求填写完整邮箱地址，而不是昵称。",
+        "en-US": "Usually the full email address, not a display nickname."
+      },
+      "type": "text",
+      "default": "",
+      "placeholder": { "zh-CN": "mailer@example.com", "en-US": "mailer@example.com" },
+      "group": { "zh-CN": "登录账号", "en-US": "Authentication" }
+    },
+    {
+      "key": "password",
+      "label": { "zh-CN": "登录密码 / 授权码", "en-US": "Password / app password" },
+      "description": {
+        "zh-CN": "QQ、网易、Gmail 等通常需要「应用专用密码 / 授权码」，不是网页登录密码。留空表示保留已保存的密码。",
+        "en-US": "Many providers require an app password, not the web login password. Leave blank to keep the saved secret."
+      },
+      "type": "secret",
+      "default": "",
+      "placeholder": { "zh-CN": "应用专用密码", "en-US": "App password" },
+      "group": { "zh-CN": "登录账号", "en-US": "Authentication" }
+    },
+    {
+      "key": "from_address",
+      "label": { "zh-CN": "发件邮箱", "en-US": "From address" },
+      "description": {
+        "zh-CN": "收件人看到的发件地址。通常应与登录账号相同，或使用服务商已验证的发信域名。",
+        "en-US": "Visible sender address. Usually matches the account or a verified sending domain."
+      },
+      "type": "text",
+      "default": "noreply@example.com",
+      "placeholder": { "zh-CN": "noreply@example.com", "en-US": "noreply@example.com" },
+      "group": { "zh-CN": "发件人", "en-US": "Sender" }
+    },
+    {
+      "key": "from_name",
+      "label": { "zh-CN": "发件人名称", "en-US": "From name" },
+      "description": {
+        "zh-CN": "收件人看到的显示名。建议填写你的站点名称，方便用户识别。",
+        "en-US": "Display name recipients see. The site name is recommended."
+      },
+      "type": "text",
+      "default": "SForum",
+      "placeholder": { "zh-CN": "SForum", "en-US": "SForum" },
+      "group": { "zh-CN": "发件人", "en-US": "Sender" }
+    }
   ]
 }

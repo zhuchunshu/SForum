@@ -291,14 +291,20 @@ targets `extensions/builtin/{plugins,themes}/{id}`.
 ## Next Steps
 
 - Generic manifest settings support `placeholder`, `recommendedValue`,
-  ordered `options`, and `group`. The admin renderer selects the appropriate
-  control and restores non-secret recommended values without interpreting
-  provider semantics.
-
+  ordered `options`, and `group`. Presentation fields (`label`, `description`,
+  `placeholder`, `group`, option labels) accept either a plain string or a
+  locale map (`LocalizedText`). Settings GET/PUT/reset resolve copy from the
+  request `Accept-Language` and return plain strings only.
+- Host dynamic settings page (`view: settings`) is generic chrome: recommended
+  defaults banner, form controls, and `SFAdminFormFooter`. Plugins may replace
+  the whole form via trusted contribution `admin.extension.settings.page`, or
+  inject `admin.extension.settings.header` / `footer`. Slot components are
+  filtered to the current extension id.
 - `mail.provider` is now implemented end-to-end. The protected `sforum.smtp`
   plugin is the first real provider vertical; core contains no SMTP provider
   code. Extension secret settings are masked/preserved and enabled plugins
-  restart after settings changes.
+  restart after settings changes. SMTP owns multi-locale settings and a custom
+  settings page component under `frontend/admin`.
 
 - Implement the trusted admin plugin runtime specification before starting the
   River job monitoring module that consumes its first production slots.

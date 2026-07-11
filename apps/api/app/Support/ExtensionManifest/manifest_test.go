@@ -440,15 +440,15 @@ func TestManifestSettingPresentationMetadata(t *testing.T) {
 	manifest := validBaseManifest()
 	manifest.Settings = []ManifestSetting{{
 		Key:              "encryption",
-		Label:            "Encryption",
-		Description:      "Choose transport security.",
+		Label:            LocalizedText{Default: "Encryption"},
+		Description:      LocalizedText{Default: "Choose transport security."},
 		Type:             "select",
-		Placeholder:      "Select encryption",
+		Placeholder:      LocalizedText{Default: "Select encryption"},
 		RecommendedValue: "starttls",
-		Group:            "server",
+		Group:            LocalizedText{Default: "server"},
 		Options: []ManifestSettingOption{
-			{Value: "starttls", Label: "STARTTLS", Description: "Recommended"},
-			{Value: "tls", Label: "TLS/SSL"},
+			{Value: "starttls", Label: LocalizedText{Default: "STARTTLS"}, Description: LocalizedText{Default: "Recommended"}},
+			{Value: "tls", Label: LocalizedText{Default: "TLS/SSL"}},
 		},
 	}}
 
@@ -456,7 +456,7 @@ func TestManifestSettingPresentationMetadata(t *testing.T) {
 		t.Fatalf("expected presentation metadata to validate: %v", err)
 	}
 	normalized := Normalize(manifest).Settings[0]
-	if normalized.Placeholder != "Select encryption" || normalized.RecommendedValue != "starttls" || normalized.Group != "server" {
+	if normalized.Placeholder.Resolve("") != "Select encryption" || normalized.RecommendedValue != "starttls" || normalized.Group.Resolve("") != "server" {
 		t.Fatalf("unexpected normalized metadata: %#v", normalized)
 	}
 	if len(normalized.Options) != 2 || normalized.Options[0].Value != "starttls" {
@@ -470,16 +470,16 @@ func TestManifestSettingPresentationMetadataRejectsInvalidOptions(t *testing.T) 
 		options     []ManifestSettingOption
 		recommended string
 	}{
-		{name: "blank value", options: []ManifestSettingOption{{Value: "", Label: "Blank"}}, recommended: ""},
-		{name: "blank label", options: []ManifestSettingOption{{Value: "tls", Label: ""}}, recommended: "tls"},
-		{name: "duplicate value", options: []ManifestSettingOption{{Value: "tls", Label: "TLS"}, {Value: "tls", Label: "Again"}}, recommended: "tls"},
-		{name: "unknown recommendation", options: []ManifestSettingOption{{Value: "tls", Label: "TLS"}}, recommended: "starttls"},
+		{name: "blank value", options: []ManifestSettingOption{{Value: "", Label: LocalizedText{Default: "Blank"}}}, recommended: ""},
+		{name: "blank label", options: []ManifestSettingOption{{Value: "tls", Label: LocalizedText{}}}, recommended: "tls"},
+		{name: "duplicate value", options: []ManifestSettingOption{{Value: "tls", Label: LocalizedText{Default: "TLS"}}, {Value: "tls", Label: LocalizedText{Default: "Again"}}}, recommended: "tls"},
+		{name: "unknown recommendation", options: []ManifestSettingOption{{Value: "tls", Label: LocalizedText{Default: "TLS"}}}, recommended: "starttls"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			manifest := validBaseManifest()
-			manifest.Settings = []ManifestSetting{{Key: "encryption", Label: "Encryption", Type: "select", Options: tc.options, RecommendedValue: tc.recommended}}
+			manifest.Settings = []ManifestSetting{{Key: "encryption", Label: LocalizedText{Default: "Encryption"}, Type: "select", Options: tc.options, RecommendedValue: tc.recommended}}
 			if err := Validate(manifest); !errors.Is(err, ErrInvalidManifest) {
 				t.Fatalf("expected invalid setting metadata, got %v", err)
 			}

@@ -76,20 +76,20 @@ type ManifestLocale struct {
 
 type ManifestSetting struct {
 	Key              string                  `json:"key"`
-	Label            string                  `json:"label"`
-	Description      string                  `json:"description,omitempty"`
+	Label            LocalizedText           `json:"label"`
+	Description      LocalizedText           `json:"description,omitempty"`
 	Type             string                  `json:"type"`
 	Default          string                  `json:"default,omitempty"`
-	Placeholder      string                  `json:"placeholder,omitempty"`
+	Placeholder      LocalizedText           `json:"placeholder,omitempty"`
 	RecommendedValue string                  `json:"recommendedValue,omitempty"`
-	Group            string                  `json:"group,omitempty"`
+	Group            LocalizedText           `json:"group,omitempty"`
 	Options          []ManifestSettingOption `json:"options,omitempty"`
 }
 
 type ManifestSettingOption struct {
-	Value       string `json:"value"`
-	Label       string `json:"label"`
-	Description string `json:"description,omitempty"`
+	Value       string        `json:"value"`
+	Label       LocalizedText `json:"label"`
+	Description LocalizedText `json:"description,omitempty"`
 }
 
 type ManifestMigration struct {
@@ -181,6 +181,10 @@ func ContributionPointDefinitions() []ContributionPointDefinition {
 		{ID: "admin.jobs.table.columns", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered as job table columns.", PayloadType: "adminComponent"},
 		{ID: "admin.jobs.row.actions", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered beside core job actions.", PayloadType: "adminComponent"},
 		{ID: "admin.jobs.detail.sections", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered in job detail.", PayloadType: "adminComponent"},
+		// 扩展设置页：默认由宿主渲染 manifest settings；插件可替换整页或注入页眉/页脚。
+		{ID: "admin.extension.settings.page", Owner: "extensions", Kind: ContributionPointKindComponent, Description: "Trusted client component that replaces the host-rendered extension settings form for the owning extension.", PayloadType: "adminComponent"},
+		{ID: "admin.extension.settings.header", Owner: "extensions", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered above the host-rendered extension settings form.", PayloadType: "adminComponent"},
+		{ID: "admin.extension.settings.footer", Owner: "extensions", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered below the host-rendered extension settings form.", PayloadType: "adminComponent"},
 	}
 }
 
@@ -216,12 +220,13 @@ func validateManifest(manifest Manifest, points []ContributionPointDefinition) e
 		return ErrInvalidManifest
 	}
 	for _, setting := range manifest.Settings {
-		if setting.Key == "" || setting.Label == "" || setting.Type == "" || strings.Contains(setting.Key, " ") {
+		// label 支持纯字符串或多语言 map，校验时只要求解析后非空。
+		if setting.Key == "" || setting.Label.IsEmpty() || setting.Type == "" || strings.Contains(setting.Key, " ") {
 			return ErrInvalidManifest
 		}
 		optionValues := make(map[string]struct{}, len(setting.Options))
 		for _, option := range setting.Options {
-			if option.Value == "" || option.Label == "" {
+			if option.Value == "" || option.Label.IsEmpty() {
 				return ErrInvalidManifest
 			}
 			if _, exists := optionValues[option.Value]; exists {
@@ -348,18 +353,18 @@ func Normalize(manifest Manifest) Manifest {
 	manifest.Langs = normalizeManifestLangs(manifest.Langs)
 	for index := range manifest.Settings {
 		manifest.Settings[index].Key = strings.TrimSpace(manifest.Settings[index].Key)
-		manifest.Settings[index].Label = strings.TrimSpace(manifest.Settings[index].Label)
-		manifest.Settings[index].Description = strings.TrimSpace(manifest.Settings[index].Description)
+		manifest.Settings[index].Label = manifest.Settings[index].Label.normalized()
+		manifest.Settings[index].Description = manifest.Settings[index].Description.normalized()
 		manifest.Settings[index].Type = strings.ToLower(strings.TrimSpace(manifest.Settings[index].Type))
 		manifest.Settings[index].Default = strings.TrimSpace(manifest.Settings[index].Default)
-		manifest.Settings[index].Placeholder = strings.TrimSpace(manifest.Settings[index].Placeholder)
+		manifest.Settings[index].Placeholder = manifest.Settings[index].Placeholder.normalized()
 		manifest.Settings[index].RecommendedValue = strings.TrimSpace(manifest.Settings[index].RecommendedValue)
-		manifest.Settings[index].Group = strings.TrimSpace(manifest.Settings[index].Group)
+		manifest.Settings[index].Group = manifest.Settings[index].Group.normalized()
 		for optionIndex := range manifest.Settings[index].Options {
 			option := &manifest.Settings[index].Options[optionIndex]
 			option.Value = strings.TrimSpace(option.Value)
-			option.Label = strings.TrimSpace(option.Label)
-			option.Description = strings.TrimSpace(option.Description)
+			option.Label = option.Label.normalized()
+			option.Description = option.Description.normalized()
 		}
 	}
 	manifest.Backend.Entry = strings.TrimSpace(manifest.Backend.Entry)

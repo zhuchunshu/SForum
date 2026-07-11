@@ -1,0 +1,56 @@
+{
+  "title": "SMTP 邮件设置",
+  "intro": "在这里填写邮件服务器连接参数。保存后，请回到「邮箱与通知」选择此提供商并发送测试邮件。",
+  "recommendedTitle": "推荐配置：STARTTLS + 端口 587",
+  "recommendedDescription": "大多数邮箱服务商支持 STARTTLS 与 587 端口。填好服务器、账号和发件人后保存，再去邮件中心完成选择与测试。",
+  "flowTitle": "完整配置路径",
+  "flowDescription": "① 在本页填写并保存 SMTP 参数 → ② 打开「邮箱与通知」选择 SMTP 提供商 → ③ 发送测试邮件，并在投递记录确认结果。",
+  "openMailCenter": "打开邮箱与通知",
+  "groups": {
+    "server": "1. 服务器连接",
+    "auth": "2. 登录账号",
+    "sender": "3. 发件人显示"
+  },
+  "fields": {
+    "host": {
+      "label": "SMTP 服务器地址",
+      "description": "邮件服务商提供的主机名，例如 smtp.qq.com、smtp.exmail.qq.com、smtp.gmail.com。不要填写 http://。"
+    },
+    "encryption": {
+      "label": "加密方式",
+      "description": "推荐使用 STARTTLS（端口 587）。若服务商要求 SSL，选择 TLS/SSL（端口 465）。“无加密”仅适合可信内网。"
+    },
+    "port": {
+      "label": "端口",
+      "description": "需与加密方式匹配：STARTTLS 常用 587，TLS/SSL 常用 465，无加密常见 25。不确定时先用 587。"
+    },
+    "username": {
+      "label": "登录用户名",
+      "description": "大多数邮箱要求填写完整邮箱地址，而不是昵称。"
+    },
+    "password": {
+      "label": "登录密码 / 授权码",
+      "description": "QQ、网易、Gmail 等通常需要「应用专用密码 / 授权码」，不是网页登录密码。留空表示保留已保存的密码。"
+    },
+    "from_address": {
+      "label": "发件邮箱",
+      "description": "收件人看到的发件地址。通常应与登录账号相同，或使用服务商已验证的发信域名。"
+    },
+    "from_name": {
+      "label": "发件人名称",
+      "description": "收件人看到的显示名。建议填写你的站点名称，方便用户识别。"
+    }
+  },
+  "encryption": {
+    "starttls": "STARTTLS（推荐）",
+    "tls": "TLS / SSL",
+    "none": "无加密"
+  },
+  "secretSet": "已设置（留空保留原值）",
+  "secretConfigured": "已保存密钥",
+  "recommended": "推荐值：{value}",
+  "save": "保存设置",
+  "reset": "恢复推荐默认值",
+  "footerHint": "密码留空表示保留已保存的密钥；恢复默认也不会删除密钥。",
+  "savedHint": "若尚未在「邮箱与通知」中选择此提供商，请回去完成选择并发送测试邮件。"
+}

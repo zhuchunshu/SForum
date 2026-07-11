@@ -91,6 +91,7 @@ type Manifest = extensionmanifest.Manifest
 type ManifestAuthor = extensionmanifest.ManifestAuthor
 type ManifestSetting = extensionmanifest.ManifestSetting
 type ManifestSettingOption = extensionmanifest.ManifestSettingOption
+type LocalizedText = extensionmanifest.LocalizedText
 type ManifestMigration = extensionmanifest.ManifestMigration
 type ManifestBackend = extensionmanifest.ManifestBackend
 type ManifestFrontend = extensionmanifest.ManifestFrontend
@@ -207,18 +208,25 @@ type EffectiveContribution struct {
 	Payload       json.RawMessage   `json:"payload,omitempty"`
 }
 
+// ExtensionSettingOption 是按请求 locale 解析后的选项展示值。
+type ExtensionSettingOption struct {
+	Value       string `json:"value"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
+}
+
 type ExtensionSettingValue struct {
-	Key              string                  `json:"key"`
-	Label            string                  `json:"label"`
-	Description      string                  `json:"description"`
-	Type             string                  `json:"type"`
-	Default          string                  `json:"default"`
-	Value            string                  `json:"value"`
-	Placeholder      string                  `json:"placeholder,omitempty"`
-	RecommendedValue string                  `json:"recommendedValue,omitempty"`
-	Group            string                  `json:"group,omitempty"`
-	Options          []ManifestSettingOption `json:"options,omitempty"`
-	SecretSet        bool                    `json:"secretSet,omitempty"`
+	Key              string                   `json:"key"`
+	Label            string                   `json:"label"`
+	Description      string                   `json:"description"`
+	Type             string                   `json:"type"`
+	Default          string                   `json:"default"`
+	Value            string                   `json:"value"`
+	Placeholder      string                   `json:"placeholder,omitempty"`
+	RecommendedValue string                   `json:"recommendedValue,omitempty"`
+	Group            string                   `json:"group,omitempty"`
+	Options          []ExtensionSettingOption `json:"options,omitempty"`
+	SecretSet        bool                     `json:"secretSet,omitempty"`
 }
 
 type ExtensionSettings struct {

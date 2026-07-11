@@ -408,7 +408,7 @@ func (s *Service) Navigation(ctx context.Context, actor identity.Actor) ([]Exten
 	return navigation, nil
 }
 
-func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionID string) (ExtensionSettings, error) {
+func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionID string, locale string) (ExtensionSettings, error) {
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return ExtensionSettings{}, err
@@ -420,10 +420,10 @@ func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionI
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
-	return resolveExtensionSettings(extension, values), nil
+	return resolveExtensionSettings(extension, values, locale), nil
 }
 
-func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, extensionID string, input UpdateSettingsInput) (ExtensionSettings, error) {
+func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, extensionID string, input UpdateSettingsInput, locale string) (ExtensionSettings, error) {
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return ExtensionSettings{}, err
@@ -445,10 +445,10 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, exte
 	if err := s.restartPluginForSettings(ctx, extension); err != nil {
 		return ExtensionSettings{}, err
 	}
-	return resolveExtensionSettings(extension, values), nil
+	return resolveExtensionSettings(extension, values, locale), nil
 }
 
-func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, extensionID string) (ExtensionSettings, error) {
+func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, extensionID string, locale string) (ExtensionSettings, error) {
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return ExtensionSettings{}, err
@@ -462,7 +462,7 @@ func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, exten
 	if err := s.restartPluginForSettings(ctx, extension); err != nil {
 		return ExtensionSettings{}, err
 	}
-	return resolveExtensionSettings(extension, map[string]string{}), nil
+	return resolveExtensionSettings(extension, map[string]string{}, locale), nil
 }
 
 func canManageExtensionSettings(actor identity.Actor, extension Extension) bool {
@@ -1081,7 +1081,7 @@ func defaultExtensionIcon(extensionType string) string {
 	return "i-lucide-plug"
 }
 
-func resolveExtensionSettings(extension Extension, values map[string]string) ExtensionSettings {
+func resolveExtensionSettings(extension Extension, values map[string]string, locale string) ExtensionSettings {
 	items := make([]ExtensionSettingValue, 0, len(extension.Manifest.Settings))
 	for _, setting := range extension.Manifest.Settings {
 		value := setting.Default
@@ -1095,17 +1095,27 @@ func resolveExtensionSettings(extension Extension, values map[string]string) Ext
 		if setting.Type == "secret" {
 			value = ""
 		}
+		// API 响应始终返回当前 locale 下的纯字符串，避免前端处理 locale map。
+		presentation := extensionmanifest.ResolveSettingPresentation(setting, locale)
+		options := make([]ExtensionSettingOption, 0, len(presentation.Options))
+		for _, option := range presentation.Options {
+			options = append(options, ExtensionSettingOption{
+				Value:       option.Value,
+				Label:       option.Label,
+				Description: option.Description,
+			})
+		}
 		items = append(items, ExtensionSettingValue{
 			Key:              setting.Key,
-			Label:            setting.Label,
-			Description:      setting.Description,
+			Label:            presentation.Label,
+			Description:      presentation.Description,
 			Type:             setting.Type,
 			Default:          setting.Default,
 			Value:            value,
-			Placeholder:      setting.Placeholder,
+			Placeholder:      presentation.Placeholder,
 			RecommendedValue: setting.RecommendedValue,
-			Group:            setting.Group,
-			Options:          setting.Options,
+			Group:            presentation.Group,
+			Options:          options,
 			SecretSet:        secretSet,
 		})
 	}

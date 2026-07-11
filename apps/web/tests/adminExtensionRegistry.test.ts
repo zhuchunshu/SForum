@@ -15,8 +15,11 @@ import {
 import { extensionRequestPath } from '../app/runtime/admin-extensions/types'
 
 describe('admin extension registry', () => {
-  test('publishes the Jobs production component slots', () => {
+  test('publishes the Jobs and extension settings component slots', () => {
     expect(Object.keys(ADMIN_EXTENSION_SLOT_CATALOG).sort()).toEqual([
+      'admin.extension.settings.footer',
+      'admin.extension.settings.header',
+      'admin.extension.settings.page',
       'admin.jobs.detail.sections',
       'admin.jobs.row.actions',
       'admin.jobs.table.columns'

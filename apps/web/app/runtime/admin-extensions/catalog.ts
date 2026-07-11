@@ -15,7 +15,11 @@ export type AdminExtensionSlotDefinition = {
 export const ADMIN_EXTENSION_SLOT_CATALOG = Object.freeze({
   'admin.jobs.table.columns': { point: 'admin.jobs.table.columns', owner: 'jobs', multiple: true },
   'admin.jobs.row.actions': { point: 'admin.jobs.row.actions', owner: 'jobs', multiple: true },
-  'admin.jobs.detail.sections': { point: 'admin.jobs.detail.sections', owner: 'jobs', multiple: true }
+  'admin.jobs.detail.sections': { point: 'admin.jobs.detail.sections', owner: 'jobs', multiple: true },
+  // 扩展设置：page 整页替换；header/footer 叠加在宿主通用表单上。
+  'admin.extension.settings.page': { point: 'admin.extension.settings.page', owner: 'extensions', multiple: false },
+  'admin.extension.settings.header': { point: 'admin.extension.settings.header', owner: 'extensions', multiple: true },
+  'admin.extension.settings.footer': { point: 'admin.extension.settings.footer', owner: 'extensions', multiple: true }
 }) satisfies Readonly<Record<string, AdminExtensionSlotDefinition>>
 
 export function sortAdminComponentMetadata(items: readonly AdminComponentMetadata[]) {

@@ -21,6 +21,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -105,7 +106,7 @@ func TestControllerListsNavigationAndManagesExtensionSettings(t *testing.T) {
 			{Path: "/dashboard", Label: "Dashboard", View: "about", Icon: "i-lucide-layout-dashboard", Order: 5, Menu: true},
 		},
 	}
-	plugin.Manifest.Settings = []extensions.ManifestSetting{{Key: "demo.title", Label: "Title", Type: "text", Default: "Hello"}}
+	plugin.Manifest.Settings = []extensions.ManifestSetting{{Key: "demo.title", Label: extensionmanifest.LocalizedText{Default: "Title"}, Type: "text", Default: "Hello"}}
 	store.items[plugin.ID] = plugin
 	theme := store.items["demo.theme"]
 	theme.Status = extensions.StatusEnabled
@@ -338,7 +339,7 @@ func TestControllerListsContributionPointsAndContributions(t *testing.T) {
 	for _, point := range points.Data {
 		pointIDs[point.ID] = true
 	}
-	if len(points.Data) != 4 || !pointIDs["forum.topic.actions"] || !pointIDs["admin.jobs.table.columns"] || !pointIDs["admin.jobs.row.actions"] || !pointIDs["admin.jobs.detail.sections"] {
+	if len(points.Data) != 7 || !pointIDs["forum.topic.actions"] || !pointIDs["admin.jobs.table.columns"] || !pointIDs["admin.jobs.row.actions"] || !pointIDs["admin.jobs.detail.sections"] || !pointIDs["admin.extension.settings.page"] || !pointIDs["admin.extension.settings.header"] || !pointIDs["admin.extension.settings.footer"] {
 		t.Fatalf("unexpected contribution points: %#v", points.Data)
 	}
 

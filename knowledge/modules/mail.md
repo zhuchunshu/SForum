@@ -38,10 +38,15 @@ process through `SFORUM_SETTING_*` environment variables.
 worker dev startup. The API Dockerfile builds the Linux executable into the
 built-in package.
 
-The plugin manifest declares SMTP-specific groups, helper text, recommended
-STARTTLS/587 defaults, and encryption choices. Core's dynamic extension page
-renders the generic metadata and preserves secrets when restoring recommended
-values; it contains no SMTP-specific field or port branching.
+The plugin owns all SMTP product copy and optional custom settings UI:
+
+- Manifest `settings` labels/descriptions/placeholders/groups/options use
+  multi-locale maps (`zh-CN` / `en-US`); the host settings API resolves them
+  via `Accept-Language` into plain strings for the generic form fallback.
+- `frontend.admin` ships `SmtpSettingsPage.vue` plus plugin locale JSON.
+- Contribution `admin.extension.settings.page` replaces the host generic form
+  for this extension only. Core chrome has no SMTP-specific field or port
+  branching; secrets stay preserved on empty update and recommended restore.
 
 ## Compatibility
 

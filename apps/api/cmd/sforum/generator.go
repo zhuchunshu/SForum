@@ -94,8 +94,8 @@ func buildManifest(opts makeOptions) scaffoldManifest {
 		SForumVersion: "^1.0.0",
 		Settings: []extensionmanifest.ManifestSetting{{
 			Key:         opts.ID + ".enabled",
-			Label:       "Enabled",
-			Description: "Enable this extension's recommended behavior.",
+			Label:       extensionmanifest.LocalizedText{Default: "Enabled"},
+			Description: extensionmanifest.LocalizedText{Default: "Enable this extension's recommended behavior."},
 			Type:        "boolean",
 			Default:     "true",
 		}},

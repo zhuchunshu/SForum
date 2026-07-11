@@ -245,7 +245,7 @@ func (h *Controller) settings(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	settings, err := h.service.Settings(c.Context(), actor, c.Params("id"))
+	settings, err := h.service.Settings(c.Context(), actor, c.Params("id"), apphttp.Locale(c))
 	if err != nil {
 		return mapExtensionError(err)
 	}
@@ -261,7 +261,7 @@ func (h *Controller) updateSettings(c fiber.Ctx) error {
 	if err := c.Bind().Body(&req); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
-	settings, err := h.service.UpdateSettings(c.Context(), actor, c.Params("id"), extensions.UpdateSettingsInput{Values: req.Values})
+	settings, err := h.service.UpdateSettings(c.Context(), actor, c.Params("id"), extensions.UpdateSettingsInput{Values: req.Values}, apphttp.Locale(c))
 	if err != nil {
 		return mapExtensionError(err)
 	}
@@ -273,7 +273,7 @@ func (h *Controller) resetSettings(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	settings, err := h.service.ResetSettings(c.Context(), actor, c.Params("id"))
+	settings, err := h.service.ResetSettings(c.Context(), actor, c.Params("id"), apphttp.Locale(c))
 	if err != nil {
 		return mapExtensionError(err)
 	}

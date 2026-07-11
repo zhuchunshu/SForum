@@ -388,7 +388,7 @@ func TestServiceListsContributionPointsAndEffectiveContributions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ContributionPoints returned error: %v", err)
 	}
-	if len(points) != 4 || points[0].ID != "forum.topic.actions" {
+	if len(points) != 7 || points[0].ID != "forum.topic.actions" {
 		t.Fatalf("unexpected contribution points: %#v", points)
 	}
 
@@ -671,13 +671,13 @@ func TestServiceNavigationUsesOnlyExplicitMenuPagesFromEnabledPluginsAndActiveTh
 func TestServiceSettingsResolveUpdateAndResetDefaults(t *testing.T) {
 	item := installedExtension("settings.plugin", TypePlugin, ManifestBackend{})
 	item.Manifest.Settings = []ManifestSetting{
-		{Key: "demo.enabled", Label: "Enabled", Type: "boolean", Default: "true"},
-		{Key: "demo.title", Label: "Title", Type: "select", Default: "Hello", RecommendedValue: "Hello", Placeholder: "Choose", Group: "general", Options: []ManifestSettingOption{{Value: "Hello", Label: "Hello"}, {Value: "World", Label: "World"}}},
+		{Key: "demo.enabled", Label: LocalizedText{Default: "Enabled"}, Type: "boolean", Default: "true"},
+		{Key: "demo.title", Label: LocalizedText{Default: "Title"}, Type: "select", Default: "Hello", RecommendedValue: "Hello", Placeholder: LocalizedText{Default: "Choose"}, Group: LocalizedText{Default: "general"}, Options: []ManifestSettingOption{{Value: "Hello", Label: LocalizedText{Default: "Hello"}}, {Value: "World", Label: LocalizedText{Default: "World"}}}},
 	}
 	store := &fakeExtensionStore{items: map[string]Extension{item.ID: item}}
 	service := NewService(store, t.TempDir())
 
-	settings, err := service.Settings(context.Background(), extensionManager(), item.ID)
+	settings, err := service.Settings(context.Background(), extensionManager(), item.ID, "zh-CN")
 	if err != nil {
 		t.Fatalf("Settings returned error: %v", err)
 	}
@@ -688,7 +688,7 @@ func TestServiceSettingsResolveUpdateAndResetDefaults(t *testing.T) {
 		t.Fatalf("expected presentation metadata, got %#v", settings.Items[1])
 	}
 
-	updated, err := service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{Values: map[string]string{"demo.title": "Updated"}})
+	updated, err := service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{Values: map[string]string{"demo.title": "Updated"}}, "zh-CN")
 	if err != nil {
 		t.Fatalf("UpdateSettings returned error: %v", err)
 	}
@@ -696,12 +696,12 @@ func TestServiceSettingsResolveUpdateAndResetDefaults(t *testing.T) {
 		t.Fatalf("expected updated setting value, got %#v", updated)
 	}
 
-	_, err = service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{Values: map[string]string{"unknown": "bad"}})
+	_, err = service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{Values: map[string]string{"unknown": "bad"}}, "zh-CN")
 	if !errors.Is(err, ErrInvalidManifest) {
 		t.Fatalf("expected invalid setting key, got %v", err)
 	}
 
-	reset, err := service.ResetSettings(context.Background(), extensionManager(), item.ID)
+	reset, err := service.ResetSettings(context.Background(), extensionManager(), item.ID, "zh-CN")
 	if err != nil {
 		t.Fatalf("ResetSettings returned error: %v", err)
 	}

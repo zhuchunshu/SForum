@@ -1,0 +1,56 @@
+{
+  "title": "SMTP mail settings",
+  "intro": "Configure the mail server connection here. After saving, open Mail and notifications to select this provider and send a test message.",
+  "recommendedTitle": "Recommended setup: STARTTLS + port 587",
+  "recommendedDescription": "Most providers support STARTTLS on port 587. Save host, account, and sender details here, then finish selection and testing in the mail center.",
+  "flowTitle": "Complete setup path",
+  "flowDescription": "1) Fill and save SMTP details on this page → 2) Open Mail and notifications and select the SMTP provider → 3) Send a test message and confirm the result in delivery history.",
+  "openMailCenter": "Open mail and notifications",
+  "groups": {
+    "server": "1. Server connection",
+    "auth": "2. Sign-in account",
+    "sender": "3. Sender identity"
+  },
+  "fields": {
+    "host": {
+      "label": "SMTP host",
+      "description": "Hostname from your mail provider, for example smtp.gmail.com. Do not include http://."
+    },
+    "encryption": {
+      "label": "Encryption",
+      "description": "STARTTLS with port 587 is recommended. Use TLS/SSL with port 465 when required. None is only for trusted networks."
+    },
+    "port": {
+      "label": "Port",
+      "description": "Match encryption: 587 for STARTTLS, 465 for TLS/SSL, often 25 for none. Prefer 587 when unsure."
+    },
+    "username": {
+      "label": "Username",
+      "description": "Usually the full email address, not a display nickname."
+    },
+    "password": {
+      "label": "Password / app password",
+      "description": "Many providers require an app password, not the web login password. Leave blank to keep the saved secret."
+    },
+    "from_address": {
+      "label": "From address",
+      "description": "Visible sender address. Usually matches the account or a verified sending domain."
+    },
+    "from_name": {
+      "label": "From name",
+      "description": "Display name recipients see. The site name is recommended."
+    }
+  },
+  "encryption": {
+    "starttls": "STARTTLS (recommended)",
+    "tls": "TLS / SSL",
+    "none": "None"
+  },
+  "secretSet": "Already set (leave blank to keep)",
+  "secretConfigured": "Secret saved",
+  "recommended": "Recommended: {value}",
+  "save": "Save settings",
+  "reset": "Restore recommended defaults",
+  "footerHint": "Leave password blank to keep the saved secret. Restoring defaults also preserves secrets.",
+  "savedHint": "If this provider is not selected yet under Mail and notifications, go back to choose it and send a test message."
+}
