@@ -12,8 +12,8 @@ Initial identity foundation is implemented.
 
 - PostgreSQL migrations create users, credentials, roles, permissions, role
   assignments, and audit events.
-- Seed data includes `super_admin`, the default `member` role, and initial
-  permission keys.
+- Seed data includes `super_admin`, the default `member` role, built-in role
+  templates (`moderator`, `operator`, `tech_admin`), and the permission catalog.
 - Registration is operator-configurable: `identity.registration.enabled` plus
   `identity.registration.mode` (`open|invite|approval|closed`). Non-`open`
   modes currently close public self-registration (invite/approval product flows
@@ -44,6 +44,15 @@ Initial identity foundation is implemented.
   `admin.permissionCatalog.*`; `tests/validate-identity-ui.js` requires every
   seed key and module to have zh-CN/en-US text.
 - Decision: `knowledge/decisions/2026-07-12-fine-grained-permissions-phase1.md`.
+- Built-in role templates (Phase 1 follow-up): system roles `moderator`,
+  `operator`, and `tech_admin` are seeded by migration
+  `202607120002_builtin_role_templates.sql`. Authoritative permission packs live
+  in `SeedRoleTemplates` / `SeedMemberPermissions` in
+  `apps/api/app/Models/Identity/seeds.go`. Templates are not deletable; their
+  permission sets remain editable (unlike `super_admin`). Admin roles UI can
+  apply the same packs when creating custom groups
+  (`apps/web/app/config/roleTemplates.ts`, `admin.roleCatalog.*` i18n).
+  Decision: `knowledge/decisions/2026-07-12-builtin-role-templates.md`.
 - API exposes `/api/v1/auth/registration-status` so the registration page can
   show when the next successful registration will become the initial
   `super_admin`.
@@ -123,6 +132,9 @@ Initial identity foundation is implemented.
 - Later registrations receive the system `member` role by default.
 - `member` can have a custom display alias, but its role key cannot change and
   it cannot be deleted while it is the default registration role.
+- Built-in template roles (`moderator`, `operator`, `tech_admin`) are system and
+  non-deletable; operators may still edit their permission checkboxes and
+  display alias/description. `super_admin` remains permission-locked.
 - Admin-managed custom roles are supported and can be presented as user groups.
 - Effective permissions are the union of all enabled roles assigned to a user.
   For non-`super_admin` users this is now extended by direct user permission
@@ -261,6 +273,10 @@ Initial identity foundation is implemented.
 
 - Add CSRF protection for cookie-authenticated unsafe requests. *(Done —
   `decisions/2026-07-09-security-fixes.md`.)*
+- Built-in role templates (`moderator` / `operator` / `tech_admin`) are
+  implemented — see `decisions/2026-07-12-builtin-role-templates.md`. Deferred:
+  category-scoped moderator ACL, optional restore-template-to-defaults action
+  that hard-resets a template role's permission set.
 - Tune production ALTCHA challenge cost, expiration, and per-IP limits after
   testing on expected low-end client devices.
 - User-facing account security views for login history and active devices
@@ -274,6 +290,4 @@ Initial identity foundation is implemented.
   risk-based login/posting checks when those flows are implemented.
 - Add account deletion/disable flows while preserving the initial
   `super_admin` invariant.
-- Expand the admin role-management UI from list shell to editable role and
-  permission screens.
 - Decide exact username, email, password, and email-verification policies.
