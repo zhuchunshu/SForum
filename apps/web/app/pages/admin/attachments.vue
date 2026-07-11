@@ -115,15 +115,24 @@ const filters = reactive({
   referenceStatus: ''
 })
 
-const { pending, error, refresh } = await useAsyncData('admin-attachments', async () => {
+// useAsyncData 在 SSR 水合时不会重跑 handler；设置表单副作用必须用 watch 同步，
+// 否则 provider 等 select 会卡在 createDefaultAttachmentSettings() 的值。
+const { data: attachmentBootstrap, pending, error, refresh } = await useAsyncData('admin-attachments', async () => {
+  let settings: AttachmentSettings | null = null
   if (canManageSettings.value) {
-    applySettings(await request<AttachmentSettings>('/admin/attachment-settings'))
+    settings = await request<AttachmentSettings>('/admin/attachment-settings')
   }
   if (canManageAttachments.value) {
     await fetchAttachments()
   }
-  return true
+  return { settings }
 })
+
+watch(attachmentBootstrap, (payload) => {
+  if (payload?.settings) {
+    applySettings(payload.settings)
+  }
+}, { immediate: true })
 
 useSeoMeta({
   title: t('admin.attachments.metaTitle')

@@ -228,11 +228,18 @@ const altchaConfigRows = computed(() => [
 
 const adminOptionsMap = ref<Record<string, AdminWebOption>>({})
 
-const { pending, error, refresh } = await useAsyncData('admin-web-options', async () => {
+// useAsyncData 在 SSR 水合时不会重跑 handler；表单副作用必须用 watch 同步，
+// 否则 select 等控件会卡在 reactive 初始默认值（看起来像「当前设置没加载」）。
+const { data: adminWebOptions, pending, error, refresh } = await useAsyncData('admin-web-options', async () => {
   const envelope = await fetchAdminEnvelope()
-  applyAdminOptions(envelope.data)
   return envelope.data
 })
+
+watch(adminWebOptions, (items) => {
+  if (items) {
+    applyAdminOptions(items)
+  }
+}, { immediate: true })
 
 useSeoMeta({
   title: t('admin.settings.metaTitle')

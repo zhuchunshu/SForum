@@ -29,6 +29,14 @@
   or auto-reload admin shell when contributions for the just-enabled plugin
   are still missing (partially covered by existing `SFAdminReleaseNotice`).
 
+## Follow-up
+
+- Split the misleading “reload required” banner: under empty registry
+  (`releaseId === 'core'`, typical of `dev:plain`) show **plain dev mode**
+  info (refresh won't help); only show reload when a real registry is
+  injected but this session is still on an old package. Generic host
+  settings form can still render without plugin custom UI.
+
 ## Open Questions
 
 - None for the false “disabled” copy; remaining gaps are intentional for

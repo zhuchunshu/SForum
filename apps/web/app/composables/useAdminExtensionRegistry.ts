@@ -34,6 +34,8 @@ export function useAdminExtensionRegistry() {
   const toast = useToast()
   const { request } = useApiClient()
   const orderedContributions = sortAdminComponentMetadata(contributions)
+  // empty-metadata 固定 releaseId=core 且 contributions 为空；完整 dev supervisor 会注入 Web Release 的 registry。
+  const adminFrontendInjected = releaseId !== 'core' || orderedContributions.length > 0
 
   function contributionsFor(point: string) {
     return orderedContributions.filter(contribution => contribution.point === point)
@@ -70,6 +72,7 @@ export function useAdminExtensionRegistry() {
 
   return {
     releaseId,
+    adminFrontendInjected,
     contributionsFor,
     loaderFor,
     hostFor

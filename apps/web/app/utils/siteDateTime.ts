@@ -290,9 +290,13 @@ function joinDateTime(parts: FormatParts, settings: SiteDateTimeSettings, includ
   return timeText ? `${dateText} ${timeText}` : dateText
 }
 
-/** 生成预览用示例（后台表单实时预览）。 */
+/**
+ * 生成预览用时间（后台表单实时预览）。
+ * 默认用「当前时刻」按所选时区/格式展示，避免固定 UTC 样例（如 06:30Z → 上海 14:30）
+ * 让人误以为时区未生效。
+ */
 export function previewSiteDateTime(settings: SiteDateTimeSettings, locale = 'zh-CN', sample?: Date): string {
-  return formatSiteDateTime(sample || new Date('2026-07-12T06:30:00.000Z'), {
+  return formatSiteDateTime(sample ?? new Date(), {
     settings,
     locale
   })

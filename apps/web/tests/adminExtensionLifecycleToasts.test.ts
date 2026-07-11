@@ -50,6 +50,7 @@ describe('plugin enable/disable lifecycle feedback', () => {
       // 动态页区分「启用中」与「已禁用」，避免 Web Release 期间误导。
       expect(catalog.admin.extensions.dynamic.enablingTitle).toBeTruthy()
       expect(catalog.admin.extensions.dynamic.reloadRequiredTitle).toBeTruthy()
+      expect(catalog.admin.extensions.dynamic.plainDevTitle).toBeTruthy()
     }
   })
 
@@ -64,5 +65,15 @@ describe('plugin enable/disable lifecycle feedback', () => {
     expect(dynamicPage).toContain('startLifecyclePolling')
     expect(dynamicPage).toContain('enablingTitle')
     expect(dynamicPage).toContain('needsFrontendReload')
+    expect(dynamicPage).toContain('registryUnavailable')
+    expect(dynamicPage).toContain('plainDevTitle')
+  })
+
+  test('admin extension registry exposes whether frontend was injected', async () => {
+    const registry = await Bun.file(
+      new URL('../app/composables/useAdminExtensionRegistry.ts', import.meta.url)
+    ).text()
+    expect(registry).toContain('adminFrontendInjected')
+    expect(registry).toContain("releaseId !== 'core'")
   })
 })

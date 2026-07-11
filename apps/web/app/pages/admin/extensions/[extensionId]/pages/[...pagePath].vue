@@ -27,7 +27,7 @@ const adminRoutes = useAdminRoutes()
 const adminTabs = useAdminTabs()
 const toast = useToast()
 const { request } = useApiClient()
-const { contributionsFor } = useAdminExtensionRegistry()
+const { contributionsFor, adminFrontendInjected } = useAdminExtensionRegistry()
 
 const extensionId = computed(() => {
   const value = route.params.extensionId
@@ -82,12 +82,17 @@ const expectsCustomSettingsPage = computed(() => {
     || item.manifest.contributions?.some(entry => entry.point === 'admin.extension.settings.page')
   )
 })
-const needsFrontendReload = computed(() => {
+// 插件已启用且声明了自定义 UI，但本进程 registry 里没有对应贡献。
+const missingCustomSettingsUI = computed(() => {
   return isExtensionActive.value
     && isSettingsView.value
     && expectsCustomSettingsPage.value
     && !hasCustomSettingsPage.value
 })
+// dev:plain 从不注入 SFORUM_ADMIN_REGISTRY_ROOT：刷新无效，需改用完整 dev。
+const registryUnavailable = computed(() => missingCustomSettingsUI.value && !adminFrontendInjected)
+// 完整 supervisor 已注入 registry，但本会话仍是旧包：刷新页面即可。
+const needsFrontendReload = computed(() => missingCustomSettingsUI.value && adminFrontendInjected)
 
 // 进入本页时若列表可能陈旧（从其它标签切来），主动拉一次最新 status / webRelease。
 onMounted(() => {
@@ -335,9 +340,19 @@ function secretPlaceholder(item: { type: string, secretSet?: boolean, placeholde
   </div>
 
   <div v-else-if="isSettingsView" class="space-y-4">
-    <!-- 后端已启用，但当前浏览器进程尚未加载新 Web Release 的前端贡献 -->
+    <!-- plain 开发：后端可用，下方是宿主通用表单；插件自定义组件不会被注入 -->
     <UAlert
-      v-if="needsFrontendReload"
+      v-if="registryUnavailable"
+      color="info"
+      variant="subtle"
+      icon="i-lucide-info"
+      :title="t('admin.extensions.dynamic.plainDevTitle')"
+      :description="t('admin.extensions.dynamic.plainDevDescription')"
+      class="mb-2"
+    />
+    <!-- 完整 dev：registry 已有但本会话未加载该插件包 → 刷新即可 -->
+    <UAlert
+      v-else-if="needsFrontendReload"
       color="warning"
       variant="subtle"
       icon="i-lucide-refresh-cw"

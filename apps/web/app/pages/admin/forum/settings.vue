@@ -31,16 +31,23 @@ const restoring = ref(false)
 const savedSnapshot = ref('')
 const form = reactive(createDefaultForumSettings())
 
+// useAsyncData 在 SSR 水合时不会重跑 handler；表单副作用必须用 watch 同步，
+// 否则默认版块 select 等会卡在 createDefaultForumSettings() 的值。
 const { data, pending, error, refresh } = await useAsyncData('admin-forum-settings', async () => {
   const [groups, settings] = await Promise.all([
     forumApi.listCategoryGroups(),
     forumApi.getSettings()
   ])
-  applySettings(settings)
   return { groups, settings }
 }, {
   default: () => ({ groups: [] as ForumCategoryGroup[], settings: createDefaultForumSettings() })
 })
+
+watch(data, (payload) => {
+  if (payload?.settings) {
+    applySettings(payload.settings)
+  }
+}, { immediate: true })
 
 useSeoMeta({
   title: t('admin.forum.settings.metaTitle')

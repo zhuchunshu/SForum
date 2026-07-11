@@ -86,11 +86,18 @@ const customThemePreview = computed<ThemePreview>(() => {
 
 const hasChanges = computed(() => formSnapshot() !== savedSnapshot.value)
 
-const { pending, error, refresh } = await useAsyncData('admin-personalization-options', async () => {
+// useAsyncData 在 SSR 水合时不会重跑 handler；表单副作用必须用 watch 同步，
+// 否则主题/页脚等控件会卡在 reactive 初始默认值。
+const { data: adminPersonalizationOptions, pending, error, refresh } = await useAsyncData('admin-personalization-options', async () => {
   const envelope = await fetchAdminEnvelope()
-  applyAdminOptions(envelope.data)
   return envelope.data
 })
+
+watch(adminPersonalizationOptions, (items) => {
+  if (items) {
+    applyAdminOptions(items)
+  }
+}, { immediate: true })
 
 useSeoMeta({
   title: t('admin.personalization.metaTitle')

@@ -75,9 +75,27 @@ describe('siteDateTime', () => {
     expect(text).toMatch(/2 hours ago|2 hr\. ago/i)
   })
 
-  it('previews recommended defaults', () => {
-    const preview = previewSiteDateTime(recommendedSiteDateTimeSettings, 'en-US')
-    expect(preview).toContain('2026-07-12')
+  it('previews current time by default and respects timezone for fixed samples', () => {
+    // 默认预览用当前时刻（非固定样例），结果应能解析为日期串
+    const live = previewSiteDateTime(recommendedSiteDateTimeSettings, 'en-US')
+    expect(live.length).toBeGreaterThan(0)
+
+    // 固定样例：2026-07-12T06:30:00Z → Asia/Shanghai = 14:30
+    const shanghai = previewSiteDateTime({
+      timezone: 'Asia/Shanghai',
+      dateFormat: 'Y-m-d',
+      timeFormat: 'H:i',
+      startOfWeek: 1
+    }, 'zh-CN', new Date('2026-07-12T06:30:00.000Z'))
+    expect(shanghai).toBe('2026-07-12 14:30')
+
+    const utc = previewSiteDateTime({
+      timezone: 'UTC',
+      dateFormat: 'Y-m-d',
+      timeFormat: 'H:i',
+      startOfWeek: 1
+    }, 'en-US', new Date('2026-07-12T06:30:00.000Z'))
+    expect(utc).toBe('2026-07-12 06:30')
   })
 
   it('returns empty string for invalid input', () => {
