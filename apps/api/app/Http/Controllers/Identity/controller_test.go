@@ -74,7 +74,8 @@ func (passwordResetFakeStore) CreatePasswordResetToken(context.Context, identity
 	return identity.PasswordResetToken{}, nil
 }
 func (passwordResetFakeStore) ConsumePasswordResetToken(context.Context, string) (int64, error) {
-	return 0, nil
+	// 默认模拟无效/过期令牌，便于确认路径映射 4xx 而非 500。
+	return 0, identity.ErrPasswordResetTokenNotFound
 }
 func (passwordResetFakeStore) UpdateUserPassword(context.Context, int64, string) error { return nil }
 func (passwordResetFakeStore) GetUserTokenVersion(context.Context, int64) (int64, error) {
@@ -199,6 +200,43 @@ func TestResolveMailTestRecipientPrefersExplicitThenAdminEmail(t *testing.T) {
 	// 不允许 display-name 形式，与 site.admin_email 规范化一致。
 	if _, ok := resolveMailTestRecipient("Name <ops@example.com>", ""); ok {
 		t.Fatal("expected rejection of display-name address form")
+	}
+}
+
+func performPasswordResetConfirm(t *testing.T, app *fiber.App, body any) *nethttp.Response {
+	t.Helper()
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal body: %v", err)
+	}
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/password-reset/confirm", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test: %v", err)
+	}
+	return resp
+}
+
+// TestPasswordResetConfirmInvalidTokenReturns422 回归：无效令牌必须 422，不得 500。
+func TestPasswordResetConfirmInvalidTokenReturns422(t *testing.T) {
+	app := newIdentityTestApp(t, humanverify.NewDisabledService())
+	resp := performPasswordResetConfirm(t, app, map[string]any{
+		"token":       "not-a-real-token",
+		"newPassword": "a-very-strong-password",
+	})
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 for invalid reset token, got %d", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	// Fiber NewError 经统一错误封装后 message 应含稳定 reason。
+	raw, _ := json.Marshal(body)
+	if !bytes.Contains(raw, []byte("auth.password_reset_invalid")) {
+		t.Fatalf("expected auth.password_reset_invalid in response, got %s", raw)
 	}
 }
 
