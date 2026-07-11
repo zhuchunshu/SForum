@@ -17,8 +17,8 @@ function closeDetail() { selected.value = null }
       <h2 class="flex items-center gap-2 text-xl font-bold"><UIcon :name="adminPage.icon" class="size-5 text-[var(--sf-accent)]" />{{ t('admin.extensions.releases.title') }}</h2>
       <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.releases.intro') }}</p>
     </div>
-    <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="load">{{ t('admin.extensions.refresh') }}</UButton>
   </div>
+  <UDashboardToolbar class="mb-5 rounded-lg border border-slate-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900"><template #left><span class="text-sm text-slate-500">{{ t('admin.extensions.releases.intro') }}</span></template><template #right><UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="load">{{ t('admin.extensions.refresh') }}</UButton></template></UDashboardToolbar>
   <UAlert v-if="error" color="error" icon="i-lucide-triangle-alert" :title="apiErrorMessage(error)" class="mb-4" />
   <div class="overflow-hidden border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
     <table class="w-full text-left text-sm">

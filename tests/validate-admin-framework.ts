@@ -107,7 +107,7 @@ for (const authPage of [
   'extensions/builtin/themes/sforum-default/layer/app/pages/register.vue'
 ]) {
   const content = read(authPage)
-  assert(content.includes('useAdminRoutes'), `${authPage} should use the admin route helper`)
+  assert(content.includes('useAdminRoutes') || content.includes('useAuthReturnNavigation'), `${authPage} should use the admin route or centralized auth return helper`)
   assert(!content.includes("? '/admin'"), `${authPage} should not hard-code the legacy /admin prefix`)
 }
 assert(!existsSync(file('apps/web/app/pages/login.vue')), 'Login page should be owned by the default theme layer')
@@ -135,6 +135,8 @@ const adminPagePathsById: Record<string, string> = {
   '/extensions/settings': 'apps/web/app/pages/admin/extensions/settings.vue',
   '/extensions/events': 'apps/web/app/pages/admin/extensions/events.vue',
   '/extensions/contributions': 'apps/web/app/pages/admin/extensions/contributions.vue',
+  '/extensions/releases': 'apps/web/app/pages/admin/extensions/releases.vue',
+  '/jobs': 'apps/web/app/pages/admin/jobs.vue',
   '/search': 'apps/web/app/pages/admin/search.vue'
 }
 
@@ -205,13 +207,13 @@ assert(
 )
 assert(systemFolder.children?.some(entry => entry.pageId === '/personalization'), 'System folder should contain the personalization page')
 assert(
-  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/avatar,/personalization,/seo,/database,/search',
+  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/avatar,/personalization,/seo,/database,/search,/jobs',
   'System folder should keep the approved settings submenu order'
 )
 assert(!systemFolder.children?.some(entry => entry.pageId === '/extensions'), 'System folder should not contain the extension overview page')
 const extensionFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensions')
 assert(extensionFolder, 'Admin sidebar should expose extensions as an independent folder')
-assert(extensionFolder.children?.map(entry => entry.pageId).join(',') === '/extensions,/extensions/plugins,/extensions/themes,/extensions/settings,/extensions/events,/extensions/contributions', 'Extension folder should keep the approved submenu order')
+assert(extensionFolder.children?.map(entry => entry.pageId).join(',') === '/extensions,/extensions/plugins,/extensions/themes,/extensions/settings,/extensions/events,/extensions/contributions,/extensions/releases', 'Extension folder should keep the approved submenu order')
 const extensionEventsPage = read('apps/web/app/pages/admin/extensions/events.vue')
 assert(extensionEventsPage.includes('data-testid="admin-extension-events-page"'), 'Extension event log page should expose a stable page wrapper for layout checks')
 assert(extensionEventsPage.includes('data-testid="admin-extension-events-page" class="min-w-0 shrink-0"'), 'Extension event log page wrapper should not shrink inside the admin flex scroll container')

@@ -40,10 +40,12 @@ async function refreshAll() {
           {{ t('admin.moderation.managementDescription') }}
         </p>
       </div>
-      <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="settingsPending || historyPending" @click="refreshAll">
-        {{ t('admin.home.refresh') }}
-      </UButton>
     </header>
+
+    <UDashboardToolbar class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900">
+      <template #left><div class="flex items-center gap-2 text-sm text-slate-500"><UIcon name="i-lucide-shield-check" class="size-4" /><span>{{ t('admin.moderation.managementDescription') }}</span></div></template>
+      <template #right><UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="settingsPending || historyPending" @click="refreshAll">{{ t('admin.home.refresh') }}</UButton></template>
+    </UDashboardToolbar>
 
     <ModerationSettingsForm
       v-if="settings"

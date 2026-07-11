@@ -26,6 +26,10 @@ async function testMail() { try { await request('/admin/mail/test', { method: 'P
 <template>
   <div class="space-y-5">
     <header><h1 class="text-xl font-bold text-slate-900 dark:text-zinc-50"><UIcon :name="adminPage.icon" class="mr-2 inline-block size-5 text-[var(--sf-accent)]" />{{ t('admin.mailSettings.title') }}</h1><p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">{{ t('admin.mailSettings.description') }}</p></header>
+    <UDashboardToolbar class="border border-slate-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900">
+      <template #left><div class="flex items-center gap-2 text-sm text-slate-500"><UIcon name="i-lucide-mail-check" class="size-4" /><span>{{ t('admin.mailSettings.description') }}</span></div></template>
+      <template #right><UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="load">{{ t('admin.home.refresh') }}</UButton></template>
+    </UDashboardToolbar>
     <SFAlert v-if="errorMessage" variant="danger" :title="errorMessage" closable @close="errorMessage = ''" />
     <SFAlert v-if="!configured && !pending" variant="info" :title="t('admin.mailSettings.unconfigured')" :message="t('admin.mailSettings.inAppContinues')" />
     <SFCard class="space-y-4 p-6">
