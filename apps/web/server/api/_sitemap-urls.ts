@@ -16,15 +16,9 @@ export default defineSitemapEventHandler(async () => {
       { hreflang: 'x-default', href: zh }
     ]
     urls.push(
-      { loc: '/', changefreq: 'daily', priority: 1, alternatives },
-      { loc: '/en', changefreq: 'daily', priority: 0.9, alternatives }
+      { loc: '/', alternatives },
+      { loc: '/en', alternatives }
     )
   }
-
-  // 论坛内容 sitemap 会在分类、主题、公开资料 read model 落地后接入。
-  if (settings.sitemapIncludeForumContent) {
-    return urls
-  }
-
   return urls
 })

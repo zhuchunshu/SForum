@@ -1414,7 +1414,7 @@
       "sitemapStaticPages": "Include static public pages",
       "sitemapStaticPagesDescription": "Include the home page and enabled language entry points.",
       "sitemapForumContent": "Include forum content",
-      "sitemapForumContentDescription": "Connects after category, topic, and profile read models are available.",
+      "sitemapForumContentDescription": "Publish public categories, tags, topics, and eligible profiles in separate Sitemap partitions.",
       "sitemapUrl": "Sitemap URL",
       "schemaEnabled": "Enable Schema.org",
       "schemaEnabledDescription": "Emit JSON-LD structured data for public pages.",

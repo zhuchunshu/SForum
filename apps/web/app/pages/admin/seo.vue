@@ -62,7 +62,7 @@ const form = reactive({
   blockNonSeoBots: false,
   sitemapEnabled: true,
   sitemapIncludeStaticPages: true,
-  sitemapIncludeForumContent: false,
+  sitemapIncludeForumContent: true,
   schemaOrgEnabled: true,
   schemaOrgSearchActionEnabled: true,
   schemaOrgDiscussionEnabled: true,
@@ -200,7 +200,7 @@ function applyAdminOptions(items: AdminWebOption[]) {
   form.blockNonSeoBots = enabled(map, 'seo.robots.block_non_seo_bots')
   form.sitemapEnabled = enabled(map, 'seo.sitemap.enabled', true)
   form.sitemapIncludeStaticPages = enabled(map, 'seo.sitemap.include_static_pages', true)
-  form.sitemapIncludeForumContent = enabled(map, 'seo.sitemap.include_forum_content')
+  form.sitemapIncludeForumContent = enabled(map, 'seo.sitemap.include_forum_content', true)
   form.schemaOrgEnabled = enabled(map, 'seo.schema_org.enabled', true)
   form.schemaOrgSearchActionEnabled = enabled(map, 'seo.schema_org.search_action_enabled', true)
   form.schemaOrgDiscussionEnabled = enabled(map, 'seo.schema_org.discussion_enabled', true)

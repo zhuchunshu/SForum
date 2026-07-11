@@ -68,17 +68,18 @@ func seoOptionDefinitions() []optionDefinition {
 
 func seoRecommendedDefaults() map[string]string {
 	values := map[string]string{
-		NameSEOSiteInheritSiteName:    enabledOptionValue(true),
-		NameSEOSiteName:               "",
-		NameSEOHomeTitle:              "",
-		NameSEOHomeDescription:        "",
-		NameSEOHomeKeywords:           "",
-		NameSEOHomeOGTitle:            "",
-		NameSEOHomeOGDescription:      "",
-		NameSEOHomeOGImageURL:         "",
-		NameSEOPageTitleTemplate:      "{pageTitle} | {seoSiteName}",
-		NameSEOPageDefaultDescription: "",
-		NameSEOPageTitleSeparator:     "|",
+		NameSEOSitemapIncludeForumContent: enabledOptionValue(true),
+		NameSEOSiteInheritSiteName:        enabledOptionValue(true),
+		NameSEOSiteName:                   "",
+		NameSEOHomeTitle:                  "",
+		NameSEOHomeDescription:            "",
+		NameSEOHomeKeywords:               "",
+		NameSEOHomeOGTitle:                "",
+		NameSEOHomeOGDescription:          "",
+		NameSEOHomeOGImageURL:             "",
+		NameSEOPageTitleTemplate:          "{pageTitle} | {seoSiteName}",
+		NameSEOPageDefaultDescription:     "",
+		NameSEOPageTitleSeparator:         "|",
 	}
 	for contentType, defaults := range seoContentDefaults {
 		values[seoContentOptionName(contentType, "title_template")] = defaults.TitleTemplate

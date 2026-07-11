@@ -16,6 +16,9 @@ func TestSEOOptionsV2RecommendedDefaults(t *testing.T) {
 	if settings.PageTitleTemplate != "{pageTitle} | {seoSiteName}" {
 		t.Fatalf("unexpected title template %q", settings.PageTitleTemplate)
 	}
+	if seoRecommendedDefaults()[NameSEOSitemapIncludeForumContent] != "enabled" {
+		t.Fatal("forum sitemap must be enabled by the v2 recommended defaults")
+	}
 }
 
 func TestSEOOptionsV2UsesIndependentSiteIdentity(t *testing.T) {

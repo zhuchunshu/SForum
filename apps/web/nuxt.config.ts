@@ -206,7 +206,13 @@ export default defineNuxtConfig({
   sitemap: {
     credits: false,
     includeAppSources: false,
-    sources: ['/api/_sitemap-urls'],
+    sitemaps: {
+      static: { sources: ['/api/_sitemap-urls'] },
+      categories: { sources: ['/api/_sitemap-categories'] },
+      tags: { sources: ['/api/_sitemap-tags'] },
+      topics: { sources: ['/api/_sitemap-topics'], chunks: true },
+      profiles: { sources: ['/api/_sitemap-profiles'] }
+    },
     exclude: [
       '/api/**',
       '/login',

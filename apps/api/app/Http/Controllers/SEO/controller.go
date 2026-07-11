@@ -2,6 +2,7 @@ package seocontroller
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -16,6 +17,27 @@ type Controller struct {
 	assets   *seo.AssetService
 	users    identity.ActorStore
 	sessions *authsession.Manager
+}
+
+type SitemapController struct{ service *seo.SitemapService }
+
+func NewSitemapController(service *seo.SitemapService) *SitemapController {
+	return &SitemapController{service: service}
+}
+
+func (h *SitemapController) RegisterRoutes(api fiber.Router) { api.Get("/seo/sitemap-entries", h.list) }
+
+func (h *SitemapController) list(c fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page"))
+	perPage, _ := strconv.Atoi(c.Query("perPage"))
+	result, err := h.service.List(c.Context(), seo.SitemapListInput{Type: c.Query("type"), Page: page, PerPage: perPage})
+	if errors.Is(err, seo.ErrInvalidSitemapRequest) {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "seo.sitemap.invalid_request")
+	}
+	if err != nil {
+		return err
+	}
+	return apphttp.OK(c, result)
 }
 
 type assetDTO struct {

@@ -1420,7 +1420,7 @@
       "sitemapStaticPages": "包含静态公开页面",
       "sitemapStaticPagesDescription": "包含首页和已启用语言的公开入口。",
       "sitemapForumContent": "包含论坛内容",
-      "sitemapForumContentDescription": "分类、主题和资料页 read model 落地后接入。",
+      "sitemapForumContentDescription": "将公开分类、标签、主题和符合策略的资料页写入独立 Sitemap 分片。",
       "sitemapUrl": "站点地图地址",
       "schemaEnabled": "启用 Schema.org",
       "schemaEnabledDescription": "为公开页面输出 JSON-LD 结构化数据。",
