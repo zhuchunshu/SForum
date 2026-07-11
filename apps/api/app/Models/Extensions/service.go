@@ -980,12 +980,17 @@ func readArchive(data []byte) (Manifest, []archiveFile, error) {
 			return Manifest{}, nil, ErrInvalidArchive
 		}
 		seen[name] = struct{}{}
-		total += file.UncompressedSize64
-		if total > maxArchiveBytes {
+		// 不信任 UncompressedSize64：zip bomb 可虚报小体积。按真实读出字节累计并硬顶。
+		remaining := int64(maxArchiveBytes) - int64(total)
+		if remaining <= 0 {
 			return Manifest{}, nil, ErrInvalidArchive
 		}
-		body, err := readZipFile(file)
+		body, err := readZipFileLimited(file, remaining)
 		if err != nil {
+			return Manifest{}, nil, ErrInvalidArchive
+		}
+		total += uint64(len(body))
+		if total > maxArchiveBytes {
 			return Manifest{}, nil, ErrInvalidArchive
 		}
 		fileMap[name] = body
@@ -1006,13 +1011,26 @@ func readArchive(data []byte) (Manifest, []archiveFile, error) {
 	return manifest, files, nil
 }
 
-func readZipFile(file *zip.File) ([]byte, error) {
+// readZipFileLimited 读取 zip 条目，最多 maxBytes 字节；超出视为炸弹/恶意包。
+func readZipFileLimited(file *zip.File, maxBytes int64) ([]byte, error) {
+	if maxBytes <= 0 {
+		return nil, ErrInvalidArchive
+	}
 	reader, err := file.Open()
 	if err != nil {
 		return nil, err
 	}
 	defer reader.Close()
-	return io.ReadAll(reader)
+	// +1 探测是否超过上限，避免无界 ReadAll。
+	limited := io.LimitReader(reader, maxBytes+1)
+	body, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > maxBytes {
+		return nil, ErrInvalidArchive
+	}
+	return body, nil
 }
 
 func writeManifest(versionDir string, manifest Manifest) error {

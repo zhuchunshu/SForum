@@ -18,6 +18,32 @@ import (
 	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
 )
 
+func TestReadZipFileLimitedCapsInflation(t *testing.T) {
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	writeZipFile(t, writer, zipFile{name: "big.txt", body: strings.Repeat("A", 64)})
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close zip: %v", err)
+	}
+	reader, err := zip.NewReader(bytes.NewReader(buffer.Bytes()), int64(buffer.Len()))
+	if err != nil {
+		t.Fatalf("open zip: %v", err)
+	}
+	if len(reader.File) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(reader.File))
+	}
+	if _, err := readZipFileLimited(reader.File[0], 16); !errors.Is(err, ErrInvalidArchive) {
+		t.Fatalf("expected ErrInvalidArchive when inflate exceeds cap, got %v", err)
+	}
+	body, err := readZipFileLimited(reader.File[0], 128)
+	if err != nil {
+		t.Fatalf("expected success under higher cap: %v", err)
+	}
+	if len(body) != 64 {
+		t.Fatalf("expected 64 bytes, got %d", len(body))
+	}
+}
+
 func TestServiceInstallArchiveRequiresExtensionManagePermission(t *testing.T) {
 	service := NewService(&fakeExtensionStore{}, t.TempDir())
 	actor := identity.Actor{ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{}}
