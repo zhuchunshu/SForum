@@ -108,6 +108,17 @@ Plugins may render digest-approved client components there, but cannot bypass
   Jobs workbench “Scheduled jobs” section. F1 does not expose enable/disable
   mutations or last/next run times.
 
+## Worker Heartbeat And Queue Lag (F1.2)
+
+- Worker (standalone `cmd/worker`, or API when `EMBED_WORKER_IN_API=true`)
+  publishes Redis key `sforum:worker:heartbeat` every 10s with TTL 45s.
+- Admin overview `runtime.worker` exposes `status` (`ok`|`stale`|`unknown`),
+  `stale`, `lastSeenAt`, `ageSeconds`.
+- Admin overview `runtime.queueLag` cheaply counts River jobs:
+  waiting (available/scheduled/retryable/pending), running, discarded.
+- API probes: `/api/v1/health` (liveness) vs `/api/v1/ready` (PG required;
+  Redis/Meili degraded-ready). Implementation: `app/Support/Health`.
+
 ## Resolved Questions
 
 - The first scheduler uses River-native periodic jobs rather than a competing
@@ -115,11 +126,12 @@ Plugins may render digest-approved client components there, but cannot bypass
   insert and run.
 - The first operator observability surface is the Jobs workbench. Metrics and
   export formats remain demand-driven follow-up work.
+- Worker heartbeat uses Redis (not PG) with short TTL; Meilisearch readiness is
+  degraded-ready, not hard-fail.
 
 ## Next Steps
 
-- **Wave F1 remaining:** F1.2 Ready + worker heartbeat; F1.3 filter timeouts;
-  F1.4 audit minimum set. See
+- **Wave F1 remaining:** F1.3 filter timeouts; F1.4 audit minimum set. See
   `knowledge/plans/2026-07-12-framework-hardening-waves.md`.
 - Wire additional domain job **handlers** into the worker `Registry`; add new
   maintenance **schedules** only through `CoreScheduleDefinitions` (or later

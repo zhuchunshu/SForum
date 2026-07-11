@@ -349,14 +349,40 @@ Important production variables:
 
 ## Health Checks
 
-Each app service should expose a health endpoint:
+Distinguish **liveness** from **readiness** for the API process:
 
-- API: `/api/v1/health`
-- Web: `/health`
-- Worker: internal command or heartbeat endpoint if exposed only on the Docker
-  network.
+| Endpoint | Purpose | Failure means |
+| --- | --- | --- |
+| `GET /api/v1/health` | Liveness — process is up | Restart the container/process |
+| `GET /api/v1/ready` | Readiness — safe to take traffic | Keep process, stop routing traffic |
 
-Compose health checks should gate dependent services where practical.
+### API readiness policy (F1)
+
+- **PostgreSQL** is required. Failure → HTTP `503` and `data.ready=false`.
+- **Redis** and **Meilisearch** are optional for readiness. Failure is reported
+  per component; overall response stays HTTP `200` with `data.status=degraded`
+  and `data.ready=true` so forum traffic is not blocked when search/cache is
+  briefly unavailable.
+- Probe timeout is short (~2s). Prefer `ready` for load-balancer / Compose
+  `service_healthy` gates that should wait for the database.
+
+Other surfaces:
+
+- Web: `/health` (Nuxt/Nitro process)
+- Worker: no public HTTP probe. The worker (or API when
+  `EMBED_WORKER_IN_API=true`) publishes a Redis heartbeat key
+  `sforum:worker:heartbeat` (TTL 45s). Admin overview shows stale/unknown when
+  the key is missing or older than 45s.
+
+Compose health checks should gate dependent services where practical. Example
+API probes:
+
+```yaml
+# liveness
+test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/api/v1/health"]
+# readiness (prefer this before attaching traffic)
+test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/api/v1/ready"]
+```
 
 ## Jobs And Worker Runtime
 

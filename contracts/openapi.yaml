@@ -19,6 +19,8 @@ servers:
 paths:
   "/health":
     "$ref": "./openapi/paths/system.yaml#/health"
+  "/ready":
+    "$ref": "./openapi/paths/system.yaml#/ready"
   "/admin/overview":
     "$ref": "./openapi/paths/system.yaml#/adminOverview"
   "/admin/jobs/overview":

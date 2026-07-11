@@ -68,7 +68,8 @@ state or trigger noisy reloads.
 Useful endpoints:
 
 - Web: `http://127.0.0.1:3000`
-- API health via web: `http://127.0.0.1:3000/api/v1/health`
+- API liveness: `http://127.0.0.1:3000/api/v1/health`
+- API readiness: `http://127.0.0.1:3000/api/v1/ready` (PG required; Redis/Meili degraded-ready)
 - Web health: `http://127.0.0.1:3000/health`
 - Meilisearch health: `http://127.0.0.1:17700/health`
 - Mailpit UI: `http://127.0.0.1:18025`

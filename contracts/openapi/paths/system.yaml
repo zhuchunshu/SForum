@@ -1,14 +1,38 @@
 health:
   get:
-    summary: Health check
+    summary: Liveness health check
+    description: |
+      Cheap process liveness probe. Does not check PostgreSQL, Redis, or
+      Meilisearch. Use `/ready` for readiness.
     operationId: getHealth
     responses:
       '200':
-        description: Service is healthy.
+        description: Service process is alive.
         content:
           application/json:
             schema:
               "$ref": "../schemas/system.yaml#/ApiResponseHealth"
+ready:
+  get:
+    summary: Readiness probe
+    description: |
+      Dependency readiness. PostgreSQL is required (failure → 503).
+      Redis and Meilisearch failures are reported as component errors but the
+      overall status remains ready with `status: degraded` (F1 policy).
+    operationId: getReady
+    responses:
+      '200':
+        description: Safe to receive traffic (possibly degraded optional deps).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/system.yaml#/ApiResponseReady"
+      '503':
+        description: Not ready (required dependency failed).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/system.yaml#/ApiResponseReady"
 adminOverview:
   get:
     summary: Get admin overview dashboard metrics

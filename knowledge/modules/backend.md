@@ -36,7 +36,12 @@ authenticated actor with `admin.access`, combines PostgreSQL aggregate counts
 with a Go runtime snapshot, and returns one stable payload for the admin home:
 runtime memory/heap/GC/goroutines, pgx pool stats, community counts,
 attachments, moderation, extensions, 7-day trends, top categories, and
-server-generated safe action summaries.
+server-generated safe action summaries. F1.2 adds `runtime.worker` (Redis
+heartbeat last_seen / stale) and `runtime.queueLag` (cheap River aggregates).
+
+Process probes (F1.2): `GET /api/v1/health` is cheap liveness; `GET
+/api/v1/ready` evaluates dependencies via `app/Support/Health` (PostgreSQL
+required; Redis and Meilisearch failures are degraded-ready).
 
 Performance hardening (2026-07-08) covers the network and connection layers
 beyond the earlier search/cache read-path work:

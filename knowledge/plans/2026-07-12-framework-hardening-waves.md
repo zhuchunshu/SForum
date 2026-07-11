@@ -54,12 +54,12 @@ later plugin declarations. No third-party capability model yet.
 
 ### F1.2 Health / Ready / Worker heartbeat
 
-- [ ] Keep `/api/v1/health` as cheap liveness (site name + ok is fine)
-- [ ] Add `/api/v1/ready` (PG required; Redis/Meili policy documented)
-- [ ] Worker process publishes `last_seen` / heartbeat (Redis or PG)
-- [ ] Admin overview surfaces worker stale + basic queue lag if cheap
-- [ ] OpenAPI + deploy/docs health section updated
-- [ ] Compose/deploy probes can distinguish live vs ready (doc at minimum)
+- [x] Keep `/api/v1/health` as cheap liveness (site name + ok is fine)
+- [x] Add `/api/v1/ready` (PG required; Redis/Meili policy documented)
+- [x] Worker process publishes `last_seen` / heartbeat (Redis or PG)
+- [x] Admin overview surfaces worker stale + basic queue lag if cheap
+- [x] OpenAPI + deploy/docs health section updated
+- [x] Compose/deploy probes can distinguish live vs ready (doc at minimum)
 
 ### F1.3 Event/filter hardening (minimal)
 
@@ -245,7 +245,8 @@ per plugin.
 | --- | --- | --- |
 | 2026-07-12 | — | Plan recorded; implementation not started |
 | 2026-07-12 | F1.1 | Schedule Registry + three core periodics + admin list done |
-| | F1.2–F1.4 | pending |
+| 2026-07-12 | F1.2 | `/ready`, Redis worker heartbeat, overview stale + queue lag |
+| | F1.3–F1.4 | pending |
 | | F2 | pending |
 | | F3 | pending |
 | | F4 | pending |
@@ -255,7 +256,7 @@ per plugin.
 ## Next session one-liner
 
 ```text
-Read knowledge/plans/2026-07-12-framework-hardening-waves.md F1.2; implement
-/api/v1/ready (PG required; Redis/Meili policy), worker heartbeat, and admin
-overview stale-worker signal; update OpenAPI and deploy probe docs.
+Read knowledge/plans/2026-07-12-framework-hardening-waves.md F1.3; document
+event/filter timeout + failure policy on the catalog, enforce sync filter
+timeouts where practical, keep slow/failed deliveries in extension event log.
 ```

@@ -4,15 +4,19 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 Wave F1.2 Ready + worker heartbeat implemented on main**
+  - Handoff: `knowledge/sessions/2026-07-12-f1-2-ready-heartbeat.md`
+  - `GET /api/v1/ready` (PG required; Redis/Meili degraded-ready)
+  - Redis worker heartbeat; admin overview worker stale + queue lag
+  - Docs: live vs ready probes in development-and-deployment
+  - Next coding slice: Wave **F1.3** event/filter hardening
+
 - **2026-07-12 Wave F1.1 Schedule Registry implemented on main**
   - Handoff: `knowledge/sessions/2026-07-12-f1-1-schedule-registry.md`
   - Code: `app/Support/Jobs` schedule catalog; worker builds River periodics
     only via registry; core schedules: session cleanup, web-release cleanup,
     attachment orphan cleanup (daily)
   - Admin: `GET /admin/jobs/schedules` + Jobs workbench read-only section
-  - Plan checkboxes: F1.1 complete in
-    `knowledge/plans/2026-07-12-framework-hardening-waves.md`
-  - Next coding slice: Wave **F1.2** Ready + worker heartbeat
 
 - **2026-07-12 host platform capabilities + phased hardening plan recorded**
   - Decision: `knowledge/decisions/2026-07-12-host-platform-capabilities.md`

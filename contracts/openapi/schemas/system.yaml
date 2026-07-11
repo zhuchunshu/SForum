@@ -40,6 +40,71 @@ Health:
     time:
       type: string
       format: date-time
+ApiResponseReady:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/Ready"
+Ready:
+  type: object
+  required:
+  - status
+  - ready
+  - checkedAt
+  - components
+  properties:
+    status:
+      type: string
+      enum:
+      - ready
+      - degraded
+      - not_ready
+      description: Overall readiness label; degraded means optional deps failed.
+    ready:
+      type: boolean
+      description: Whether the process should receive traffic.
+    checkedAt:
+      type: string
+      format: date-time
+    components:
+      type: array
+      items:
+        "$ref": "#/ReadyComponent"
+ReadyComponent:
+  type: object
+  required:
+  - name
+  - status
+  - required
+  properties:
+    name:
+      type: string
+      examples:
+      - postgres
+      - redis
+      - meilisearch
+    status:
+      type: string
+      enum:
+      - ok
+      - degraded
+      - error
+      - skipped
+    required:
+      type: boolean
+    error:
+      type: string
+    latency:
+      type: string
+      description: Human-readable check duration, e.g. 2ms.
 ApiResponseAdminOverview:
   type: object
   required:
@@ -138,6 +203,52 @@ AdminOverviewRuntime:
       minimum: 0
     database:
       "$ref": "#/AdminOverviewDatabaseRuntime"
+    worker:
+      "$ref": "#/AdminOverviewWorkerRuntime"
+    queueLag:
+      "$ref": "#/AdminOverviewQueueLag"
+AdminOverviewWorkerRuntime:
+  type: object
+  required:
+  - stale
+  - status
+  properties:
+    lastSeenAt:
+      type: string
+      format: date-time
+    ageSeconds:
+      type: integer
+      format: int64
+      minimum: 0
+    stale:
+      type: boolean
+    status:
+      type: string
+      enum:
+      - ok
+      - stale
+      - unknown
+AdminOverviewQueueLag:
+  type: object
+  required:
+  - waiting
+  - running
+  - failed
+  properties:
+    waiting:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Jobs in available/scheduled/retryable/pending states.
+    running:
+      type: integer
+      format: int64
+      minimum: 0
+    failed:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Discarded jobs (cheap failure signal).
 AdminOverviewDatabaseRuntime:
   type: object
   required:
