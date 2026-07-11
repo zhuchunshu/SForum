@@ -269,6 +269,7 @@
       "extensionOverview": "Extension overview",
       "extensionPlugins": "Plugin management",
       "extensionThemes": "Theme management",
+      "extensionStore": "App store",
       "extensionSettings": "Extension settings",
       "extensionEvents": "Event log",
       "extensionContributions": "Extension points",
@@ -602,6 +603,52 @@
         "count": "{count} plugin(s) installed",
         "emptyTitle": "No plugins installed",
         "emptyDescription": "Upload an extension ZIP with type plugin to enable or disable plugins here."
+      },
+      "store": {
+        "metaTitle": "App store",
+        "title": "App store",
+        "intro": "Browse official and community extension packages. This page is a framework shell; install and search are not available yet.",
+        "count": "{visible} / {total} app(s)",
+        "searchPlaceholder": "Search by name, author, or tag",
+        "sortRecommended": "Sort: recommended",
+        "sortUpdated": "Recently updated",
+        "sortName": "Name A–Z",
+        "categoryAll": "All",
+        "categoryOfficial": "Official",
+        "categoryPayment": "Payments",
+        "categoryNotify": "Notifications",
+        "categoryStorage": "Storage",
+        "categoryTheme": "Themes",
+        "comingSoonBadge": "Coming soon",
+        "comingSoonTitle": "App store coming soon",
+        "comingSoonDescription": "Filters and search are not wired yet. For now, manage local packages from the Plugins and Themes pages by uploading ZIP archives.",
+        "openPlugins": "Open plugins",
+        "openThemes": "Open themes",
+        "installDisabled": "Coming soon",
+        "emptyTitle": "No apps to show",
+        "emptyDescription": "When the catalog is online, you will browse and install extensions here.",
+        "demo": {
+          "officialAuthor": "Official",
+          "communityAuthor": "Community",
+          "smtpName": "Mail delivery · SMTP",
+          "smtpSummary": "Send forum mail over SMTP with recommended defaults for self-hosted sites.",
+          "s3Name": "Object storage · S3",
+          "s3Summary": "Store attachments on S3-compatible object storage to ease local disk pressure.",
+          "wechatName": "WeChat notifications",
+          "wechatSummary": "Mirror in-app notifications to WeCom or template messages.",
+          "alipayName": "Alipay payments",
+          "alipaySummary": "Core hosts payment intents and callbacks; this plugin only talks to Alipay.",
+          "analyticsName": "Analytics board",
+          "analyticsSummary": "Lightweight board for topic heat, signup funnel, and active hours (placeholder).",
+          "themeName": "Night voyage theme",
+          "themeSummary": "Dark-first community theme layer with brand color and font tweaks.",
+          "telegramName": "Telegram notifications",
+          "telegramSummary": "Push moderation queues and system alerts to a Telegram bot.",
+          "webhookName": "Outbound webhooks",
+          "webhookSummary": "Forward core events to external automation and audit systems.",
+          "aiName": "Content assistant",
+          "aiSummary": "Summaries, tag suggestions, and sensitive-word helpers (placeholder)."
+        }
       },
       "themes": {
         "metaTitle": "Theme management",
@@ -1666,12 +1713,12 @@
       "settings": {
         "metaTitle": "Forum settings",
         "title": "Forum settings",
-        "intro": "Configure forum taxonomy, tag policy, and public pagination.",
+        "intro": "Configure the default category, posting and comment limits, tag policy, pagination, and reading excerpts.",
         "loadFailed": "Forum settings could not be loaded.",
         "recommendedTitle": "Recommended configuration",
-        "recommendedDescription": "Recommended defaults use general discussion, controlled tags, public tag pages, and 20 topics or comments per load.",
-        "formTitle": "Category and tag policy",
-        "formHelp": "These settings are for open-source operators, so they should stay safe, useful, and easy to restore.",
+        "recommendedDescription": "Recommended defaults use General Discussion, controlled tags, 2–100 character titles, 5-level comment nesting, and 20 items per page.",
+        "formTitle": "Forum behavior settings",
+        "formHelp": "Manage forum behavior in tabs. Recommended defaults stay one-click restorable and beginner-friendly.",
         "defaultCategory": "Default posting category",
         "defaultCategoryPlaceholder": "Select a default posting category",
         "noPublicCategoriesTitle": "No public categories yet",
@@ -1708,7 +1755,68 @@
         "restored": "Recommended defaults restored.",
         "restoreFailed": "Recommended defaults could not be restored.",
         "unsaved": "Unsaved forum setting changes detected",
-        "restoreRecommended": "Restore recommended defaults"
+        "restoreRecommended": "Restore recommended defaults",
+        "tabs": {
+          "label": "Forum settings tabs",
+          "general": "General",
+          "topics": "Topics",
+          "comments": "Comments",
+          "tags": "Tags",
+          "reading": "Reading"
+        },
+        "sections": {
+          "general": {
+            "title": "General and pagination",
+            "description": "Default posting category and public list page sizes."
+          },
+          "topics": {
+            "title": "Topic limits",
+            "description": "Title and body length, author edit window, cooldown, and daily topic limit."
+          },
+          "comments": {
+            "title": "Comment limits",
+            "description": "Comment length, nesting depth, edit window, cooldown, and daily limit."
+          },
+          "tags": {
+            "title": "Tag policy",
+            "description": "Tag creation mode, public tag pages, and min/max tags per topic."
+          },
+          "reading": {
+            "title": "Reading and excerpts",
+            "description": "List excerpt length and related reading experience settings."
+          }
+        },
+        "minTagsPerTopic": "Minimum tags per topic",
+        "minTagsPerTopicHelp": "Allow 0 to 10. Use 0 to make tags optional when posting.",
+        "topicTitleMin": "Minimum title length",
+        "topicTitleMinHelp": "Counted in Unicode characters (CJK and Latin both count as 1).",
+        "topicTitleMax": "Maximum title length",
+        "topicContentMin": "Minimum body length",
+        "topicContentMinHelp": "0 means no minimum body length (content must still be renderable).",
+        "topicContentMax": "Maximum body length",
+        "topicEditWindow": "Author edit window (minutes)",
+        "topicCooldown": "Topic cooldown (seconds)",
+        "dailyTopicLimit": "Daily topic limit",
+        "commentMin": "Minimum comment length",
+        "commentMax": "Maximum comment length",
+        "commentNesting": "Maximum nesting depth",
+        "commentNestingHelp": "Root comments start at depth 0. A value of 5 allows up to 5 reply levels. Only new replies are constrained.",
+        "commentEditWindow": "Comment edit window (minutes)",
+        "commentCooldown": "Comment cooldown (seconds)",
+        "dailyCommentLimit": "Daily comment limit",
+        "excerptRuneLimit": "List excerpt length",
+        "excerptRuneLimitHelp": "Plain-text excerpt truncation length when writing topics/comments (40–500).",
+        "readingNoteTitle": "About reading settings",
+        "readingNoteBody": "Excerpt length affects list previews and search snippets. Changes apply to newly published or edited content and do not rewrite history.",
+        "zeroUnlimitedHelp": "0 means unlimited.",
+        "recommendedHint": "Recommended: {value}",
+        "validation": {
+          "tagMinMax": "Minimum tags cannot exceed maximum tags.",
+          "topicTitleMinMax": "Minimum title length cannot exceed maximum title length.",
+          "topicContentMinMax": "Minimum body length cannot exceed maximum body length.",
+          "commentMinMax": "Minimum comment length cannot exceed maximum comment length.",
+          "pagination": "Enter an integer between 1 and 100 for page sizes."
+        }
       }
     },
     "form": {
@@ -2107,7 +2215,17 @@
     "mdList": "List",
     "mdCode": "Code block",
     "mdQuote": "Quote",
-    "mdLink": "Link"
+    "mdLink": "Link",
+    "titleTooShort": "The title is too short (at least {min} characters).",
+    "titleTooLong": "The title is too long (at most {max} characters).",
+    "contentTooShort": "The body is too short (at least {min} characters).",
+    "contentTooLong": "The body is too long (at most {max} characters).",
+    "commentTooShort": "The comment is too short (at least {min} characters).",
+    "commentTooLong": "The comment is too long (at most {max} characters).",
+    "tagMinRequired": "Select at least {min} tags.",
+    "charCount": "{count} / {max}",
+    "titleHintWithLimit": "Title length: {min}–{max} characters.",
+    "bodyHintWithLimit": "Body up to {max} characters."
   },
   "profile": {
     "metaDescription": "View a community member's public profile.",

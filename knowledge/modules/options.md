@@ -55,6 +55,10 @@ Initial runtime option support is implemented.
   `forum.pagination.comments_per_page`. Both default to 20, accept 1-100,
   require `settings.manage` to update, and participate in the forum settings
   one-click reset.
+- Forum content-limit options are also public runtime values under
+  `forum.topics.*`, `forum.comments.*`, `forum.tags.min_per_topic`, and
+  `forum.reading.excerpt_rune_limit`. They require `settings.manage` (tags
+  min/max require `tag.manage`) and participate in the forum settings reset.
 
 ## Boundaries
 

@@ -31,13 +31,21 @@ on 2026-07-07.
   so Chinese tags can be created and filtered directly; category and topic URL
   slugs remain ASCII-oriented.
 - Runtime forum settings live in `web_options`: default category slug, tag
-  creation mode, public tag pages, and max tags per topic. Recommended defaults
-  are configurable and resettable.
+  creation mode, public tag pages, min/max tags per topic, public pagination,
+  topic/comment content limits, cooldowns, daily caps, edit windows, nesting
+  depth, and list excerpt length. Recommended defaults are configurable and
+  resettable from the multi-tab admin forum settings page.
 - Public pagination defaults are server-authoritative runtime settings:
   `forum.pagination.topics_per_page` and
   `forum.pagination.comments_per_page` both default to 20 and accept 1-100.
   Omitted `perPage` values use the relevant setting; explicit positive values
   remain caller overrides capped at 100. Admin and internal lists are excluded.
+- Content limits are Unicode-rune based and enforced in the forum service on
+  topic/comment create and update: title/body min-max, comment min-max,
+  comment max nesting depth, optional author edit windows, create cooldowns,
+  and daily create limits. `0` means unlimited for cooldown/daily/edit window
+  fields. List excerpt truncation uses `forum.reading.excerpt_rune_limit`
+  (default 180) for newly rendered content only.
 - Tag creation modes are `controlled`, `review`, and `open`. Controlled mode
   only allows approved tags, review mode creates pending tags, and open mode
   creates active tags directly.

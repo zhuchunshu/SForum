@@ -10,9 +10,24 @@ export type ForumSettings = {
   defaultCategorySlug: string
   tagCreationMode: ForumTagCreationMode
   tagPublicPages: boolean
+  tagMinPerTopic: number
   tagMaxPerTopic: number
   topicsPerPage: number
   commentsPerPage: number
+  topicTitleMinRunes: number
+  topicTitleMaxRunes: number
+  topicContentMinRunes: number
+  topicContentMaxRunes: number
+  topicEditWindowMinutes: number
+  topicCooldownSeconds: number
+  dailyTopicLimit: number
+  commentMinRunes: number
+  commentMaxRunes: number
+  commentMaxNestingDepth: number
+  commentEditWindowMinutes: number
+  commentCooldownSeconds: number
+  dailyCommentLimit: number
+  excerptRuneLimit: number
 }
 
 export type ForumCategory = {
@@ -247,9 +262,24 @@ export const recommendedForumSettings: ForumSettings = {
   defaultCategorySlug: 'general',
   tagCreationMode: 'controlled',
   tagPublicPages: true,
+  tagMinPerTopic: 0,
   tagMaxPerTopic: 5,
   topicsPerPage: 20,
-  commentsPerPage: 20
+  commentsPerPage: 20,
+  topicTitleMinRunes: 2,
+  topicTitleMaxRunes: 100,
+  topicContentMinRunes: 0,
+  topicContentMaxRunes: 50000,
+  topicEditWindowMinutes: 0,
+  topicCooldownSeconds: 0,
+  dailyTopicLimit: 0,
+  commentMinRunes: 1,
+  commentMaxRunes: 10000,
+  commentMaxNestingDepth: 5,
+  commentEditWindowMinutes: 0,
+  commentCooldownSeconds: 0,
+  dailyCommentLimit: 0,
+  excerptRuneLimit: 180
 }
 
 export function normalizeForumPageSize(value: number | string | undefined, fallback = 20) {
@@ -282,13 +312,25 @@ export function normalizeForumTagCreationMode(value: string | undefined): ForumT
 }
 
 export function normalizeForumTagMaxPerTopic(value: string | number | undefined) {
+  return normalizeForumBoundedInt(value, 0, 10, recommendedForumSettings.tagMaxPerTopic)
+}
+
+export function normalizeForumBoundedInt(
+  value: string | number | undefined,
+  min: number,
+  max: number,
+  fallback: number
+) {
   const parsed = Number(value)
   if (!Number.isFinite(parsed)) {
-    return recommendedForumSettings.tagMaxPerTopic
+    return fallback
   }
-
   const normalized = Math.trunc(parsed)
-  return normalized >= 0 && normalized <= 10 ? normalized : recommendedForumSettings.tagMaxPerTopic
+  return normalized >= min && normalized <= max ? normalized : fallback
+}
+
+export function normalizeForumTagMinPerTopic(value: string | number | undefined) {
+  return normalizeForumBoundedInt(value, 0, 10, recommendedForumSettings.tagMinPerTopic)
 }
 
 export function buildForumTopicQuery(filters: ForumTopicFilters = {}) {

@@ -272,6 +272,7 @@
       "extensionOverview": "扩展总览",
       "extensionPlugins": "插件管理",
       "extensionThemes": "主题管理",
+      "extensionStore": "应用商城",
       "extensionSettings": "扩展设置",
       "extensionEvents": "事件日志",
       "extensionContributions": "扩展点",
@@ -602,6 +603,52 @@
         "count": "已安装 {count} 个插件",
         "emptyTitle": "还没有安装插件",
         "emptyDescription": "上传 type 为 plugin 的扩展 ZIP 后，就可以在这里启用或停用插件。"
+      },
+      "store": {
+        "metaTitle": "应用商城",
+        "title": "应用商城",
+        "intro": "浏览官方与社区扩展包。当前为页面框架，安装与检索能力尚未开放。",
+        "count": "{visible} / {total} 个应用",
+        "searchPlaceholder": "搜索应用名称、作者或标签",
+        "sortRecommended": "排序：推荐",
+        "sortUpdated": "最近更新",
+        "sortName": "名称 A–Z",
+        "categoryAll": "全部",
+        "categoryOfficial": "官方",
+        "categoryPayment": "支付",
+        "categoryNotify": "通知",
+        "categoryStorage": "存储",
+        "categoryTheme": "主题",
+        "comingSoonBadge": "即将上线",
+        "comingSoonTitle": "应用商城即将上线",
+        "comingSoonDescription": "筛选与搜索尚未接通。现阶段请继续使用「插件 / 主题」页上传 ZIP 包管理本地扩展。",
+        "openPlugins": "打开插件列表",
+        "openThemes": "打开主题列表",
+        "installDisabled": "即将上线",
+        "emptyTitle": "暂无可展示应用",
+        "emptyDescription": "应用目录上线后，可在这里浏览并安装扩展。",
+        "demo": {
+          "officialAuthor": "官方",
+          "communityAuthor": "社区",
+          "smtpName": "邮件投递 · SMTP",
+          "smtpSummary": "通过 SMTP 发送论坛邮件。内置推荐默认值，适合自托管站点。",
+          "s3Name": "对象存储 · S3",
+          "s3Summary": "将附件存到兼容 S3 的对象存储，减轻本机磁盘压力。",
+          "wechatName": "微信通知",
+          "wechatSummary": "将站内通知同步推送到企业微信 / 公众号模板消息。",
+          "alipayName": "支付宝收款",
+          "alipaySummary": "支付意图与回调由核心托管，本插件仅对接支付宝渠道。",
+          "analyticsName": "分析看板",
+          "analyticsSummary": "话题热度、注册漏斗与活跃时段的轻量看板（占位）。",
+          "themeName": "夜航主题包",
+          "themeSummary": "深色优先的社区主题层，支持品牌色与字体微调。",
+          "telegramName": "Telegram 通知",
+          "telegramSummary": "审核队列与系统告警推送到 Telegram Bot。",
+          "webhookName": "Webhook 出站",
+          "webhookSummary": "把核心事件转发到外部自动化与审计系统。",
+          "aiName": "内容助手",
+          "aiSummary": "摘要、标签建议与敏感词辅助（占位）。"
+        }
       },
       "themes": {
         "metaTitle": "主题管理",
@@ -1672,12 +1719,12 @@
       "settings": {
         "metaTitle": "论坛设置",
         "title": "论坛设置",
-        "intro": "配置论坛分类、标签策略和公开内容分页。",
+        "intro": "配置默认版块、发帖/评论限制、标签策略、分页与阅读摘要。",
         "loadFailed": "论坛设置加载失败。",
         "recommendedTitle": "推荐配置",
-        "recommendedDescription": "推荐使用综合讨论、受控标签和公开标签页，主题与评论每次加载 20 条。",
-        "formTitle": "分类与标签策略",
-        "formHelp": "这些设置面向开源部署者，应该保持安全可用且便于恢复推荐默认值。",
+        "recommendedDescription": "推荐使用综合讨论、受控标签、标题 2–100 字、评论嵌套 5 层，主题与评论每次加载 20 条。",
+        "formTitle": "论坛行为设置",
+        "formHelp": "按选项卡分组管理论坛行为。推荐默认值可一键恢复，且对首次部署友好。",
         "defaultCategory": "默认发帖分类",
         "defaultCategoryPlaceholder": "请选择默认发帖分类",
         "noPublicCategoriesTitle": "暂无公开版块",
@@ -1714,7 +1761,68 @@
         "restored": "已恢复推荐默认设置。",
         "restoreFailed": "恢复推荐默认设置失败。",
         "unsaved": "检测到未保存的论坛设置更改",
-        "restoreRecommended": "恢复推荐默认值"
+        "restoreRecommended": "恢复推荐默认值",
+        "tabs": {
+          "label": "论坛设置选项卡",
+          "general": "常规",
+          "topics": "发帖",
+          "comments": "评论",
+          "tags": "标签",
+          "reading": "阅读"
+        },
+        "sections": {
+          "general": {
+            "title": "常规与分页",
+            "description": "默认发帖版块，以及公开列表的默认分页数量。"
+          },
+          "topics": {
+            "title": "发帖限制",
+            "description": "主题标题/正文长度、作者编辑窗口、发帖冷却与每日上限。"
+          },
+          "comments": {
+            "title": "评论限制",
+            "description": "评论长度、嵌套深度、编辑窗口、冷却与每日上限。"
+          },
+          "tags": {
+            "title": "标签策略",
+            "description": "标签创建模式、公开标签页，以及每帖标签数量范围。"
+          },
+          "reading": {
+            "title": "阅读与摘要",
+            "description": "列表摘要截断长度等阅读体验相关设置。"
+          }
+        },
+        "minTagsPerTopic": "每个主题最少标签数",
+        "minTagsPerTopicHelp": "允许 0 到 10。0 表示发帖时可以不选标签。",
+        "topicTitleMin": "标题最少字数",
+        "topicTitleMinHelp": "按 Unicode 字符计数（中英文均按 1 计）。",
+        "topicTitleMax": "标题最多字数",
+        "topicContentMin": "正文最少字数",
+        "topicContentMinHelp": "0 表示不强制正文最小长度（仍须有可渲染内容）。",
+        "topicContentMax": "正文最多字数",
+        "topicEditWindow": "作者可编辑窗口（分钟）",
+        "topicCooldown": "发帖冷却（秒）",
+        "dailyTopicLimit": "每日发帖上限",
+        "commentMin": "评论最少字数",
+        "commentMax": "评论最多字数",
+        "commentNesting": "最大嵌套深度",
+        "commentNestingHelp": "根评论深度为 0。设为 5 表示最多 5 层回复。仅约束新建回复。",
+        "commentEditWindow": "评论可编辑窗口（分钟）",
+        "commentCooldown": "评论冷却（秒）",
+        "dailyCommentLimit": "每日评论上限",
+        "excerptRuneLimit": "列表摘要字数",
+        "excerptRuneLimitHelp": "写入主题/评论摘要时的纯文本截断长度（40–500）。",
+        "readingNoteTitle": "关于阅读设置",
+        "readingNoteBody": "摘要长度影响列表预览与搜索摘要。改动后对新发布/编辑的内容生效，不会批量重写历史帖。",
+        "zeroUnlimitedHelp": "0 表示不限制。",
+        "recommendedHint": "推荐值：{value}",
+        "validation": {
+          "tagMinMax": "最少标签数不能大于最多标签数。",
+          "topicTitleMinMax": "标题最少字数不能大于最多字数。",
+          "topicContentMinMax": "正文最少字数不能大于最多字数。",
+          "commentMinMax": "评论最少字数不能大于最多字数。",
+          "pagination": "分页数量请输入 1 到 100 之间的整数。"
+        }
       }
     },
     "form": {
@@ -2113,7 +2221,17 @@
     "mdList": "列表",
     "mdCode": "代码块",
     "mdQuote": "引用",
-    "mdLink": "链接"
+    "mdLink": "链接",
+    "titleTooShort": "标题字数不足（至少 {min} 字）。",
+    "titleTooLong": "标题过长（最多 {max} 字）。",
+    "contentTooShort": "正文内容过短（至少 {min} 字）。",
+    "contentTooLong": "正文内容过长（最多 {max} 字）。",
+    "commentTooShort": "评论内容过短（至少 {min} 字）。",
+    "commentTooLong": "评论内容过长（最多 {max} 字）。",
+    "tagMinRequired": "请至少选择 {min} 个标签。",
+    "charCount": "{count} / {max}",
+    "titleHintWithLimit": "标题 {min}–{max} 字。",
+    "bodyHintWithLimit": "正文最多 {max} 字。"
   },
   "profile": {
     "metaDescription": "查看社区成员的公开资料。",

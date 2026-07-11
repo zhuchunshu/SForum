@@ -16,13 +16,18 @@ import {
 
 describe('admin forum helpers', () => {
   test('normalizes forum settings to recommended defaults', () => {
-    expect(createDefaultForumSettings()).toEqual({
+    expect(createDefaultForumSettings()).toMatchObject({
       defaultCategorySlug: 'general',
       tagCreationMode: 'controlled',
       tagPublicPages: true,
+      tagMinPerTopic: 0,
       tagMaxPerTopic: 5,
       topicsPerPage: 20,
-      commentsPerPage: 20
+      commentsPerPage: 20,
+      topicTitleMinRunes: 2,
+      topicTitleMaxRunes: 100,
+      commentMaxNestingDepth: 5,
+      excerptRuneLimit: 180
     })
 
     expect(normalizeForumSettings({
@@ -31,20 +36,34 @@ describe('admin forum helpers', () => {
       tagPublicPages: 'maybe',
       tagMaxPerTopic: '99',
       topicsPerPage: 0,
-      commentsPerPage: 101
+      commentsPerPage: 101,
+      topicTitleMinRunes: 999,
+      commentMaxNestingDepth: -1
     })).toEqual(createDefaultForumSettings())
 
     expect(forumSettingsPayload(normalizeForumSettings({
       topicsPerPage: '30',
-      commentsPerPage: '40'
-    }))).toMatchObject({ topicsPerPage: 30, commentsPerPage: 40 })
+      commentsPerPage: '40',
+      topicTitleMaxRunes: '120',
+      commentMaxNestingDepth: '6'
+    }))).toMatchObject({
+      topicsPerPage: 30,
+      commentsPerPage: 40,
+      topicTitleMaxRunes: 120,
+      commentMaxNestingDepth: 6
+    })
   })
 
-  test('renders permission-aware pagination controls', () => {
+  test('renders multi-tab permission-aware forum settings controls', () => {
     const settingsPage = readFileSync(new URL('../app/pages/admin/forum/settings.vue', import.meta.url), 'utf8')
     expect(settingsPage).toContain("can('settings.manage')")
     expect(settingsPage).toContain('v-model="form.topicsPerPage"')
     expect(settingsPage).toContain('v-model="form.commentsPerPage"')
+    expect(settingsPage).toContain('v-model="form.topicTitleMinRunes"')
+    expect(settingsPage).toContain('v-model="form.commentMaxNestingDepth"')
+    expect(settingsPage).toContain('v-model="form.tagMinPerTopic"')
+    expect(settingsPage).toContain("activeTab === 'topics'")
+    expect(settingsPage).toContain("activeTab === 'comments'")
     expect(settingsPage).toContain(':min="1"')
     expect(settingsPage).toContain(':max="100"')
   })

@@ -4,6 +4,12 @@ This is the entry point for project memory.
 
 ## Current Project State
 
+- Admin forum settings are multi-tab (general/topics/comments/tags/reading) with
+  configurable topic/comment length limits, nesting depth, edit windows,
+  cooldowns, daily caps, tag min/max, and excerpt length. Limits are
+  server-authoritative and exposed via public web-options for composer UX.
+
+
 - Mail and in-app notifications are implemented as a plugin-first vertical:
   core owns durable inbox/delivery records, River scheduling, provider
   selection, and permissions, while protected built-in plugin `sforum.smtp`

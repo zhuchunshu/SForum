@@ -42,6 +42,13 @@ const selectedCategorySlug = ref('')
 const tagInput = ref('')
 const tagDraft = ref<string[]>([])
 const bodyMarkdown = ref('')
+const {
+  limits,
+  runeLength,
+  validateTopicTitle,
+  validateTopicBody,
+  validateTagCount
+} = useForumContentLimits()
 
 // 表单状态。
 type SubmitState = 'idle' | 'submitting' | 'error' | 'success'
@@ -56,8 +63,28 @@ const submitLabel = computed(() => {
   return t('composer.submit')
 })
 
+const titleCount = computed(() => runeLength(title.value))
+const bodyCount = computed(() => runeLength(bodyMarkdown.value))
+const titleHint = computed(() => t('composer.titleHintWithLimit', {
+  min: limits.value.topicTitleMinRunes,
+  max: limits.value.topicTitleMaxRunes
+}))
+const bodyHint = computed(() => t('composer.bodyHintWithLimit', {
+  max: limits.value.topicContentMaxRunes
+}))
+
 const canSubmit = computed(() => {
-  return canCreate.value && title.value.trim() !== '' && bodyMarkdown.value.trim() !== '' && submitState.value !== 'submitting'
+  if (!canCreate.value || submitState.value === 'submitting') {
+    return false
+  }
+  // 允许 contentMin=0 时正文可为空字符串以外的空白由后端 RenderContent 再判。
+  if (title.value.trim() === '') {
+    return false
+  }
+  if (limits.value.topicContentMinRunes > 0 && bodyMarkdown.value.trim() === '') {
+    return false
+  }
+  return !validateTopicTitle(title.value) && !validateTopicBody(bodyMarkdown.value) && !validateTagCount(tagDraft.value.length)
 })
 
 function addTag() {
@@ -74,7 +101,7 @@ function addTag() {
     tagInput.value = ''
     return
   }
-  if (tagDraft.value.length >= 5) {
+  if (tagDraft.value.length >= limits.value.tagMaxPerTopic) {
     fieldErrors.value.tagSlugs = [t('composer.tagLimit')]
     return
   }
@@ -93,14 +120,39 @@ function onTagEnter(event: KeyboardEvent) {
 }
 
 async function submit(payload?: { markdown?: string }) {
-  if (!canSubmit.value) {
+  if (!canCreate.value || submitState.value === 'submitting') {
     return
   }
+  const markdown = payload?.markdown ?? bodyMarkdown.value
+  const nextErrors: Record<string, string[]> = {}
+  const titleError = validateTopicTitle(title.value)
+  if (titleError === 'titleTooShort') {
+    nextErrors.title = [t('composer.titleTooShort', { min: limits.value.topicTitleMinRunes })]
+  } else if (titleError === 'titleTooLong') {
+    nextErrors.title = [t('composer.titleTooLong', { max: limits.value.topicTitleMaxRunes })]
+  }
+  const bodyError = validateTopicBody(markdown)
+  if (bodyError === 'contentTooShort') {
+    nextErrors.content = [t('composer.contentTooShort', { min: limits.value.topicContentMinRunes })]
+  } else if (bodyError === 'contentTooLong') {
+    nextErrors.content = [t('composer.contentTooLong', { max: limits.value.topicContentMaxRunes })]
+  }
+  const tagError = validateTagCount(tagDraft.value.length)
+  if (tagError === 'tagMin') {
+    nextErrors.tagSlugs = [t('composer.tagMinRequired', { min: limits.value.tagMinPerTopic })]
+  } else if (tagError === 'tagMax') {
+    nextErrors.tagSlugs = [t('composer.tagLimit')]
+  }
+  if (Object.keys(nextErrors).length) {
+    fieldErrors.value = nextErrors
+    submitState.value = 'error'
+    return
+  }
+
   submitState.value = 'submitting'
   errorMessage.value = ''
   fieldErrors.value = {}
 
-  const markdown = payload?.markdown ?? bodyMarkdown.value
   try {
     const created = await forumApi.createTopic({
       title: title.value.trim(),
@@ -213,7 +265,7 @@ const markdownCheatsheet = computed(() => [
             v-model="title"
             :label="t('composer.titleLabel')"
             :placeholder="t('composer.titlePlaceholder')"
-            :hint="t('composer.titleHint')"
+            :hint="`${titleHint} (${t('composer.charCount', { count: titleCount, max: limits.topicTitleMaxRunes })})`"
             :error="fieldErrors.title?.join(', ')"
             required
           />
@@ -250,7 +302,9 @@ const markdownCheatsheet = computed(() => [
               {{ t('composer.bodyLabel') }}
               <span class="text-rose-500">*</span>
             </label>
-            <p class="text-xs text-slate-400 dark:text-zinc-500 mb-2">{{ t('composer.bodyHint') }}</p>
+            <p class="text-xs text-slate-400 dark:text-zinc-500 mb-2">
+              {{ bodyHint }} ({{ t('composer.charCount', { count: bodyCount, max: limits.topicContentMaxRunes }) }})
+            </p>
             <LazySFEditor
               v-model="bodyMarkdown"
               :placeholder="t('composer.bodyPlaceholder')"
@@ -258,6 +312,9 @@ const markdownCheatsheet = computed(() => [
               :disabled="submitState === 'submitting'"
               @submit="onEditorSubmit"
             />
+            <p v-if="fieldErrors.content" class="text-sm text-red-600 mt-1 dark:text-red-400">
+              {{ fieldErrors.content.join(', ') }}
+            </p>
           </div>
         </SFCard>
         </div><!-- /主栏 -->

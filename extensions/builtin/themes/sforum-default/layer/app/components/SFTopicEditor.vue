@@ -33,6 +33,12 @@ const selectedCategorySlug = ref('')
 const tagDraft = ref<string[]>([])
 const bodyMarkdown = ref('')
 const tagInput = ref('')
+const {
+  limits,
+  validateTopicTitle,
+  validateTopicBody,
+  validateTagCount
+} = useForumContentLimits()
 
 // 主题加载完成后初始化表单字段（仅在首次为空时填充，避免覆盖用户输入）。
 watchEffect(() => {
@@ -68,7 +74,13 @@ const submitLabel = computed(() => {
 })
 
 const canSubmit = computed(() => {
-  return canEdit.value && title.value.trim() !== '' && bodyMarkdown.value.trim() !== '' && submitState.value !== 'submitting'
+  if (!canEdit.value || submitState.value === 'submitting' || title.value.trim() === '') {
+    return false
+  }
+  if (limits.value.topicContentMinRunes > 0 && bodyMarkdown.value.trim() === '') {
+    return false
+  }
+  return !validateTopicTitle(title.value) && !validateTopicBody(bodyMarkdown.value) && !validateTagCount(tagDraft.value.length)
 })
 
 function addTag() {
@@ -85,7 +97,7 @@ function addTag() {
     tagInput.value = ''
     return
   }
-  if (tagDraft.value.length >= 5) {
+  if (tagDraft.value.length >= limits.value.tagMaxPerTopic) {
     fieldErrors.value.tagSlugs = [t('composer.tagLimit')]
     return
   }
@@ -104,14 +116,39 @@ function onTagEnter(event: KeyboardEvent) {
 }
 
 async function save(payload?: { markdown?: string }) {
-  if (!canSubmit.value || !props.topic) {
+  if (!canEdit.value || !props.topic || submitState.value === 'submitting') {
     return
   }
+  const markdown = payload?.markdown ?? bodyMarkdown.value
+  const nextErrors: Record<string, string[]> = {}
+  const titleError = validateTopicTitle(title.value)
+  if (titleError === 'titleTooShort') {
+    nextErrors.title = [t('composer.titleTooShort', { min: limits.value.topicTitleMinRunes })]
+  } else if (titleError === 'titleTooLong') {
+    nextErrors.title = [t('composer.titleTooLong', { max: limits.value.topicTitleMaxRunes })]
+  }
+  const bodyError = validateTopicBody(markdown)
+  if (bodyError === 'contentTooShort') {
+    nextErrors.content = [t('composer.contentTooShort', { min: limits.value.topicContentMinRunes })]
+  } else if (bodyError === 'contentTooLong') {
+    nextErrors.content = [t('composer.contentTooLong', { max: limits.value.topicContentMaxRunes })]
+  }
+  const tagError = validateTagCount(tagDraft.value.length)
+  if (tagError === 'tagMin') {
+    nextErrors.tagSlugs = [t('composer.tagMinRequired', { min: limits.value.tagMinPerTopic })]
+  } else if (tagError === 'tagMax') {
+    nextErrors.tagSlugs = [t('composer.tagLimit')]
+  }
+  if (Object.keys(nextErrors).length) {
+    fieldErrors.value = nextErrors
+    submitState.value = 'error'
+    return
+  }
+
   submitState.value = 'submitting'
   errorMessage.value = ''
   fieldErrors.value = {}
 
-  const markdown = payload?.markdown ?? bodyMarkdown.value
   try {
     const updated = await forumApi.updateTopic(props.topic.id, {
       title: title.value.trim(),

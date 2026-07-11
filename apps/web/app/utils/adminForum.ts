@@ -1,6 +1,8 @@
 import {
+  normalizeForumBoundedInt,
   normalizeForumTagCreationMode,
   normalizeForumTagMaxPerTopic,
+  normalizeForumTagMinPerTopic,
   normalizeForumPageSize,
   parseForumTagPublicPagesOption,
   recommendedForumSettings,
@@ -53,10 +55,45 @@ export type AdminForumSettingsPayload = {
   defaultCategorySlug: string
   tagCreationMode: ForumSettings['tagCreationMode']
   tagPublicPages: boolean
+  tagMinPerTopic: number
   tagMaxPerTopic: number
   topicsPerPage?: number
   commentsPerPage?: number
+  topicTitleMinRunes?: number
+  topicTitleMaxRunes?: number
+  topicContentMinRunes?: number
+  topicContentMaxRunes?: number
+  topicEditWindowMinutes?: number
+  topicCooldownSeconds?: number
+  dailyTopicLimit?: number
+  commentMinRunes?: number
+  commentMaxRunes?: number
+  commentMaxNestingDepth?: number
+  commentEditWindowMinutes?: number
+  commentCooldownSeconds?: number
+  dailyCommentLimit?: number
+  excerptRuneLimit?: number
 }
+
+/** settings.manage 控制的字段；保存时无权限会剔除。 */
+export const forumSettingsManageKeys = [
+  'topicsPerPage',
+  'commentsPerPage',
+  'topicTitleMinRunes',
+  'topicTitleMaxRunes',
+  'topicContentMinRunes',
+  'topicContentMaxRunes',
+  'topicEditWindowMinutes',
+  'topicCooldownSeconds',
+  'dailyTopicLimit',
+  'commentMinRunes',
+  'commentMaxRunes',
+  'commentMaxNestingDepth',
+  'commentEditWindowMinutes',
+  'commentCooldownSeconds',
+  'dailyCommentLimit',
+  'excerptRuneLimit'
+] as const satisfies ReadonlyArray<keyof AdminForumSettingsPayload>
 
 type ForumSettingsLike = Partial<Record<keyof ForumSettings, unknown>>
 
@@ -132,18 +169,81 @@ export function createDefaultForumSettings(): ForumSettings {
 export function normalizeForumSettings(input: ForumSettingsLike | null | undefined): ForumSettings {
   const defaults = createDefaultForumSettings()
   const defaultCategorySlug = normalizeSlug(input?.defaultCategorySlug, defaults.defaultCategorySlug)
+  let tagMinPerTopic = normalizeForumTagMinPerTopic(numberLikeValue(input?.tagMinPerTopic))
+  let tagMaxPerTopic = normalizeForumTagMaxPerTopic(numberLikeValue(input?.tagMaxPerTopic))
+  if (tagMinPerTopic > tagMaxPerTopic) {
+    tagMinPerTopic = defaults.tagMinPerTopic
+    tagMaxPerTopic = defaults.tagMaxPerTopic
+  }
+
+  const pair = (
+    minKey: keyof ForumSettings,
+    maxKey: keyof ForumSettings,
+    minBound: number,
+    maxBound: number,
+    allowZeroMin: boolean
+  ) => {
+    const minFallback = defaults[minKey] as number
+    const maxFallback = defaults[maxKey] as number
+    let min = normalizeForumBoundedInt(numberLikeValue(input?.[minKey]), allowZeroMin ? 0 : minBound, maxBound, minFallback)
+    let max = normalizeForumBoundedInt(numberLikeValue(input?.[maxKey]), minBound === 0 ? 1 : minBound, maxBound, maxFallback)
+    if (min > max) {
+      min = minFallback
+      max = maxFallback
+    }
+    return [min, max] as const
+  }
+
+  const [topicTitleMinRunes, topicTitleMaxRunes] = pair('topicTitleMinRunes', 'topicTitleMaxRunes', 1, 200, false)
+  const [topicContentMinRunes, topicContentMaxRunes] = pair('topicContentMinRunes', 'topicContentMaxRunes', 0, 200000, true)
+  const [commentMinRunes, commentMaxRunes] = pair('commentMinRunes', 'commentMaxRunes', 0, 50000, true)
+
   return {
     defaultCategorySlug,
     tagCreationMode: normalizeForumTagCreationMode(stringValue(input?.tagCreationMode)),
     tagPublicPages: normalizeForumTagPublicPages(input?.tagPublicPages, defaults.tagPublicPages),
-    tagMaxPerTopic: normalizeForumTagMaxPerTopic(numberLikeValue(input?.tagMaxPerTopic)),
+    tagMinPerTopic,
+    tagMaxPerTopic,
     topicsPerPage: normalizeForumPageSize(numberLikeValue(input?.topicsPerPage), defaults.topicsPerPage),
-    commentsPerPage: normalizeForumPageSize(numberLikeValue(input?.commentsPerPage), defaults.commentsPerPage)
+    commentsPerPage: normalizeForumPageSize(numberLikeValue(input?.commentsPerPage), defaults.commentsPerPage),
+    topicTitleMinRunes,
+    topicTitleMaxRunes,
+    topicContentMinRunes,
+    topicContentMaxRunes,
+    topicEditWindowMinutes: normalizeForumBoundedInt(numberLikeValue(input?.topicEditWindowMinutes), 0, 10080, defaults.topicEditWindowMinutes),
+    topicCooldownSeconds: normalizeForumBoundedInt(numberLikeValue(input?.topicCooldownSeconds), 0, 86400, defaults.topicCooldownSeconds),
+    dailyTopicLimit: normalizeForumBoundedInt(numberLikeValue(input?.dailyTopicLimit), 0, 10000, defaults.dailyTopicLimit),
+    commentMinRunes,
+    commentMaxRunes,
+    commentMaxNestingDepth: normalizeForumBoundedInt(numberLikeValue(input?.commentMaxNestingDepth), 0, 20, defaults.commentMaxNestingDepth),
+    commentEditWindowMinutes: normalizeForumBoundedInt(numberLikeValue(input?.commentEditWindowMinutes), 0, 10080, defaults.commentEditWindowMinutes),
+    commentCooldownSeconds: normalizeForumBoundedInt(numberLikeValue(input?.commentCooldownSeconds), 0, 86400, defaults.commentCooldownSeconds),
+    dailyCommentLimit: normalizeForumBoundedInt(numberLikeValue(input?.dailyCommentLimit), 0, 10000, defaults.dailyCommentLimit),
+    excerptRuneLimit: normalizeForumBoundedInt(numberLikeValue(input?.excerptRuneLimit), 40, 500, defaults.excerptRuneLimit)
   }
 }
 
 export function forumSettingsPayload(settings: ForumSettings): AdminForumSettingsPayload {
   return normalizeForumSettings(settings)
+}
+
+export function forumSettingsValidationError(settings: ForumSettings): string | null {
+  if (settings.tagMinPerTopic > settings.tagMaxPerTopic) {
+    return 'tagMinMax'
+  }
+  if (settings.topicTitleMinRunes > settings.topicTitleMaxRunes) {
+    return 'topicTitleMinMax'
+  }
+  if (settings.topicContentMinRunes > settings.topicContentMaxRunes) {
+    return 'topicContentMinMax'
+  }
+  if (settings.commentMinRunes > settings.commentMaxRunes) {
+    return 'commentMinMax'
+  }
+  if (![settings.topicsPerPage, settings.commentsPerPage].every(value => Number.isInteger(value) && value >= 1 && value <= 100)) {
+    return 'pagination'
+  }
+  return null
 }
 
 export function createCategoryGroupPayload(overrides: Partial<AdminForumCategoryGroupPayload> = {}): AdminForumCategoryGroupPayload {
