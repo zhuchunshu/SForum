@@ -946,6 +946,9 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameAvatarTargetDimension:       strconv.Itoa(avatarTargetDimensionDefault),
 		NameAvatarCompressQuality:       strconv.Itoa(avatarCompressQualityDefault),
 	}
+	for name, value := range seoRecommendedDefaults() {
+		values[name] = value
+	}
 
 	if value := strings.TrimSpace(defaults.SiteName); value != "" {
 		values[NameSiteName] = value
@@ -1164,7 +1167,7 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 	case NameAvatarCompressQuality:
 		return normalizeBoundedInt(value, avatarCompressQualityMin, avatarCompressQualityMax)
 	default:
-		return "", false
+		return normalizeSEOOption(name, value)
 	}
 }
 
