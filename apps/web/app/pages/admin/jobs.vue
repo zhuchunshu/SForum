@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ALL_ADMIN_JOBS_FILTER, jobCanCancel, jobCanRetry, jobStateColor } from '~/utils/adminJobs'
+import { ALL_ADMIN_JOBS_FILTER, formatScheduleInterval, jobCanCancel, jobCanRetry, jobStateColor } from '~/utils/adminJobs'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminJobs' })
@@ -32,6 +32,48 @@ function closeDetail() { manager.selected.value = null }
   <section class="mb-5 border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
     <div class="border-b border-slate-200 px-4 py-3 text-sm font-semibold dark:border-zinc-800">{{ t('admin.jobs.queues') }}</div>
     <div class="divide-y divide-slate-200 dark:divide-zinc-800"><div v-for="queue in manager.overview.data.value.queues" :key="queue.name" class="flex flex-wrap items-center justify-between gap-3 px-4 py-3"><div><p class="font-mono text-sm font-medium">{{ queue.name }}</p><p class="mt-1 text-xs text-slate-500">{{ queue.available }} waiting · {{ queue.running }} running · {{ queue.failed }} failed</p></div><UButton v-if="canManage" size="xs" :icon="queue.pausedAt ? 'i-lucide-play' : 'i-lucide-pause'" color="neutral" variant="subtle" :loading="manager.busy.value === `queue:${queue.name}`" @click="manager.queueAction(queue.name, !queue.pausedAt)">{{ queue.pausedAt ? t('admin.jobs.resume') : t('admin.jobs.pause') }}</UButton></div></div>
+  </section>
+
+  <section class="mb-5 border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <div class="border-b border-slate-200 px-4 py-3 dark:border-zinc-800">
+      <p class="text-sm font-semibold">{{ t('admin.jobs.schedules') }}</p>
+      <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.jobs.schedulesIntro') }}</p>
+    </div>
+    <div v-if="!manager.schedules.data.value.length" class="px-4 py-6 text-sm text-slate-500">
+      {{ t('admin.jobs.schedulesEmpty') }}
+    </div>
+    <div v-else class="overflow-x-auto">
+      <table class="min-w-full text-left text-sm">
+        <thead class="bg-slate-50 text-xs text-slate-500 dark:bg-zinc-950">
+          <tr>
+            <th class="px-3 py-3">{{ t('admin.jobs.scheduleId') }}</th>
+            <th class="px-3 py-3">{{ t('admin.jobs.scheduleKind') }}</th>
+            <th class="px-3 py-3">{{ t('admin.jobs.scheduleInterval') }}</th>
+            <th class="px-3 py-3">{{ t('admin.jobs.scheduleOwner') }}</th>
+            <th class="px-3 py-3">{{ t('admin.jobs.scheduleEnabled') }}</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200 dark:divide-zinc-800">
+          <tr v-for="schedule in manager.schedules.data.value" :key="schedule.id">
+            <td class="px-3 py-3">
+              <p class="font-mono text-sm font-medium">{{ schedule.id }}</p>
+              <p class="mt-1 text-xs text-slate-500">{{ schedule.description }}</p>
+            </td>
+            <td class="px-3 py-3">
+              <p class="font-mono text-xs">{{ schedule.jobKind }}</p>
+              <p class="mt-1 text-xs text-slate-500">{{ schedule.queue }}</p>
+            </td>
+            <td class="px-3 py-3 tabular-nums">{{ formatScheduleInterval(schedule.intervalSeconds) }}</td>
+            <td class="px-3 py-3 font-mono text-xs">{{ schedule.owner }}</td>
+            <td class="px-3 py-3">
+              <UBadge :color="schedule.enabled ? 'success' : 'neutral'" variant="subtle">
+                {{ schedule.enabled ? t('admin.jobs.scheduleOn') : t('admin.jobs.scheduleOff') }}
+              </UBadge>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <div class="mb-3 grid gap-2 sm:grid-cols-3"><UInput v-model="manager.filters.kind" icon="i-lucide-search" :placeholder="t('admin.jobs.filterKind')" /><USelect v-model="manager.filters.state" :items="stateOptions" /><USelect v-model="manager.filters.queue" :items="queueOptions" /></div>

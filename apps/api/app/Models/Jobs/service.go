@@ -137,6 +137,32 @@ func (s *Service) SetQueuePaused(ctx context.Context, actor identity.Actor, name
 	return s.client.QueueResume(ctx, name, nil)
 }
 
+// Schedules 返回宿主 schedule catalog（只读）。F1 使用内置 CoreScheduleDefinitions；
+// 插件声明的 schedules 留到 F2 能力模型之后。
+func (s *Service) Schedules(ctx context.Context, actor identity.Actor) ([]Schedule, error) {
+	if !actor.Can(identity.PermissionJobsView) {
+		return nil, identity.ErrPermissionDenied
+	}
+	_ = ctx
+	defs := supportjobs.CoreScheduleDefinitions()
+	out := make([]Schedule, 0, len(defs))
+	for _, def := range defs {
+		view := def.View()
+		out = append(out, Schedule{
+			ID:              view.ID,
+			JobKind:         view.JobKind,
+			Queue:           view.Queue,
+			IntervalSeconds: view.IntervalSeconds,
+			Cron:            view.Cron,
+			Owner:           view.Owner,
+			Enabled:         view.Enabled,
+			Description:     view.Description,
+			RunOnStart:      view.RunOnStart,
+		})
+	}
+	return out, nil
+}
+
 func (s *Service) queues(ctx context.Context) ([]Queue, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT q.name, q.paused_at, q.updated_at,

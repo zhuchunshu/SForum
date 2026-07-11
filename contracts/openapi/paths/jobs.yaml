@@ -5,6 +5,16 @@ adminJobsOverview:
     responses:
       '200': { description: Queue and state counts, content: { application/json: { schema: { "$ref": "../schemas/jobs.yaml#/ApiResponseJobsOverview" } } } }
       '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+adminJobSchedules:
+  get:
+    summary: List host schedule catalog entries
+    description: |
+      Requires `jobs.view`. Returns the read-only Schedule Registry catalog
+      (job kind, interval, owner, enabled). F1 does not expose last/next run
+      or allow enable/disable mutations.
+    responses:
+      '200': { description: Schedule definitions, content: { application/json: { schema: { "$ref": "../schemas/jobs.yaml#/ApiResponseJobSchedules" } } } }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
 adminJobs:
   get:
     summary: List background jobs

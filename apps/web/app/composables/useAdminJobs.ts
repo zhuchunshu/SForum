@@ -1,4 +1,4 @@
-import { ALL_ADMIN_JOBS_FILTER, adminJobFilterValue, type AdminJob, type AdminJobsOverview } from '~/utils/adminJobs'
+import { ALL_ADMIN_JOBS_FILTER, adminJobFilterValue, type AdminJob, type AdminJobSchedule, type AdminJobsOverview } from '~/utils/adminJobs'
 
 export function useAdminJobs() {
   const { request } = useApiClient()
@@ -8,8 +8,9 @@ export function useAdminJobs() {
   const selected = ref<AdminJob | null>(null)
   const busy = ref('')
   const overview = useAsyncData<AdminJobsOverview>('admin-jobs-overview', () => request('/admin/jobs/overview'), { default: () => ({ counts: {}, queues: [] }) })
+  const schedules = useAsyncData<AdminJobSchedule[]>('admin-jobs-schedules', () => request('/admin/jobs/schedules'), { default: () => [] })
   const jobs = useAsyncData<AdminJob[]>('admin-jobs-list', () => request(`/admin/jobs?limit=100&queue=${encodeURIComponent(adminJobFilterValue(filters.queue))}&state=${encodeURIComponent(adminJobFilterValue(filters.state))}&kind=${encodeURIComponent(filters.kind)}`), { default: () => [] })
-  async function refresh() { await Promise.all([overview.refresh(), jobs.refresh()]) }
+  async function refresh() { await Promise.all([overview.refresh(), schedules.refresh(), jobs.refresh()]) }
   async function detail(id: number) { selected.value = await request(`/admin/jobs/${id}`) }
   async function jobAction(id: number, action: 'retry' | 'cancel') {
     busy.value = `${id}:${action}`
@@ -30,5 +31,5 @@ export function useAdminJobs() {
     } finally { busy.value = '' }
   }
   watch(filters, () => { void jobs.refresh() })
-  return { overview, jobs, filters, selected, busy, refresh, detail, jobAction, queueAction }
+  return { overview, schedules, jobs, filters, selected, busy, refresh, detail, jobAction, queueAction }
 }

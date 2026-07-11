@@ -25,12 +25,26 @@ func NewController(service *jobs.Service, users identity.ActorStore, sessions *a
 func (h *Controller) RegisterRoutes(api fiber.Router) {
 	group := api.Group("/admin/jobs")
 	group.Get("/overview", h.overview)
+	// /schedules 必须在 /:id 之前注册，避免被当成 job id。
+	group.Get("/schedules", h.schedules)
 	group.Get("", h.list)
 	group.Get("/:id", h.detail)
 	group.Post("/:id/retry", h.retry)
 	group.Post("/:id/cancel", h.cancel)
 	group.Post("/queues/:name/pause", h.pause)
 	group.Post("/queues/:name/resume", h.resume)
+}
+
+func (h *Controller) schedules(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	data, err := h.service.Schedules(c.Context(), actor)
+	if err != nil {
+		return mapError(err)
+	}
+	return apphttp.OK(c, data)
 }
 
 func (h *Controller) overview(c fiber.Ctx) error {

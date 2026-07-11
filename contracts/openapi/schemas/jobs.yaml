@@ -46,3 +46,23 @@ ApiResponseJobsOverview:
   type: object
   required: [code, message, data]
   properties: { code: { type: integer }, message: { type: string }, data: { "$ref": "#/JobsOverview" } }
+JobSchedule:
+  type: object
+  required: [id, jobKind, queue, owner, enabled, description, runOnStart]
+  properties:
+    id: { type: string, description: Stable schedule catalog id }
+    jobKind: { type: string, description: River job kind inserted by this schedule }
+    queue: { type: string }
+    intervalSeconds: { type: integer, format: int64, minimum: 1 }
+    cron: { type: string, description: Reserved; not used by F1 core schedules }
+    owner: { type: string, description: Owning module or extension id }
+    enabled: { type: boolean }
+    description: { type: string }
+    runOnStart: { type: boolean }
+ApiResponseJobSchedules:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { type: array, items: { "$ref": "#/JobSchedule" } }

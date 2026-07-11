@@ -23,6 +23,8 @@ paths:
     "$ref": "./openapi/paths/system.yaml#/adminOverview"
   "/admin/jobs/overview":
     "$ref": "./openapi/paths/jobs.yaml#/adminJobsOverview"
+  "/admin/jobs/schedules":
+    "$ref": "./openapi/paths/jobs.yaml#/adminJobSchedules"
   "/admin/jobs":
     "$ref": "./openapi/paths/jobs.yaml#/adminJobs"
   "/admin/jobs/{id}":

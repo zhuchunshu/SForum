@@ -44,3 +44,16 @@ type ListInput struct {
 	State string
 	Limit int
 }
+
+// Schedule 是 admin 只读 schedule catalog 投影（F1 不含 last/next run）。
+type Schedule struct {
+	ID              string `json:"id"`
+	JobKind         string `json:"jobKind"`
+	Queue           string `json:"queue"`
+	IntervalSeconds int64  `json:"intervalSeconds,omitempty"`
+	Cron            string `json:"cron,omitempty"`
+	Owner           string `json:"owner"`
+	Enabled         bool   `json:"enabled"`
+	Description     string `json:"description"`
+	RunOnStart      bool   `json:"runOnStart"`
+}

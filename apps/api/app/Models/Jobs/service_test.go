@@ -20,6 +20,9 @@ func TestServiceEnforcesViewAndManagePermissionsBeforeDataAccess(t *testing.T) {
 	if _, err := service.Detail(context.Background(), actor, 1); !errors.Is(err, identity.ErrPermissionDenied) {
 		t.Fatalf("detail permission: %v", err)
 	}
+	if _, err := service.Schedules(context.Background(), actor); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("schedules permission: %v", err)
+	}
 	if _, err := service.Retry(context.Background(), actor, 1); !errors.Is(err, identity.ErrPermissionDenied) {
 		t.Fatalf("retry permission: %v", err)
 	}
@@ -28,5 +31,39 @@ func TestServiceEnforcesViewAndManagePermissionsBeforeDataAccess(t *testing.T) {
 	}
 	if err := service.SetQueuePaused(context.Background(), actor, "default", true); !errors.Is(err, identity.ErrPermissionDenied) {
 		t.Fatalf("pause permission: %v", err)
+	}
+}
+
+func TestServiceSchedulesReturnsCoreCatalog(t *testing.T) {
+	service := NewService(nil, nil)
+	actor := identity.Actor{
+		ID:     1,
+		Status: identity.UserStatusActive,
+		Permissions: map[string]bool{
+			identity.PermissionJobsView: true,
+		},
+	}
+	items, err := service.Schedules(context.Background(), actor)
+	if err != nil {
+		t.Fatalf("schedules: %v", err)
+	}
+	if len(items) != 3 {
+		t.Fatalf("expected 3 core schedules, got %d", len(items))
+	}
+	ids := map[string]bool{}
+	for _, item := range items {
+		ids[item.ID] = true
+		if item.JobKind == "" || item.Owner == "" || item.IntervalSeconds <= 0 {
+			t.Fatalf("incomplete schedule: %+v", item)
+		}
+	}
+	for _, id := range []string{
+		"identity.cleanup_sessions",
+		"extension.web_release_cleanup",
+		"attachments.cleanup_orphans",
+	} {
+		if !ids[id] {
+			t.Fatalf("missing schedule %s", id)
+		}
 	}
 }
