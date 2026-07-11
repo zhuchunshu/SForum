@@ -89,25 +89,43 @@ Plugins may render digest-approved client components there, but cannot bypass
 
 ## Maintenance And Retention
 
-- River periodic jobs provide the scheduler for current maintenance work.
-- Web Release cleanup runs daily on `maintenance`.
-- It always retains the active artifact, its rollback target, and the five
-  newest successful artifacts.
-- Failed and superseded artifacts are eligible after seven days; build logs
-  are cleared after thirty days. Release rows, events, and immutable extension
-  snapshots remain as durable history.
+- **Schedule Registry (F1.1):** host-owned catalog in
+  `apps/api/app/Support/Jobs` (`ScheduleDefinition`, `ScheduleRegistry`,
+  `CoreScheduleDefinitions`). River remains the execution authority;
+  `bootstrap.NewWorker` builds `river.PeriodicJob`s only via
+  `ScheduleRegistry.BuildPeriodicJobs` (no scattered `NewPeriodicJob` in
+  bootstrap).
+- Core schedules (daily unless noted):
+  - `identity.cleanup_sessions` → queue `default`
+  - `extension.web_release_cleanup` → queue `maintenance`
+  - `attachments.cleanup_orphans` → queue `maintenance` (handler pre-existed;
+    F1.1 registered the periodic)
+- Web Release cleanup always retains the active artifact, its rollback target,
+  and the five newest successful artifacts. Failed and superseded artifacts are
+  eligible after seven days; build logs after thirty days. Release rows, events,
+  and immutable extension snapshots remain as durable history.
+- Admin read-only list: `GET /api/v1/admin/jobs/schedules` (`jobs.view`) and
+  Jobs workbench “Scheduled jobs” section. F1 does not expose enable/disable
+  mutations or last/next run times.
 
 ## Resolved Questions
 
 - The first scheduler uses River-native periodic jobs rather than a competing
-  SForum scheduler.
+  SForum scheduler; SForum owns the **catalog**, River owns **when/how** jobs
+  insert and run.
 - The first operator observability surface is the Jobs workbench. Metrics and
   export formats remain demand-driven follow-up work.
 
 ## Next Steps
 
-- Wire additional module registrations into `bootstrap.NewWorker` as domain
-  jobs are introduced.
+- **Wave F1 remaining:** F1.2 Ready + worker heartbeat; F1.3 filter timeouts;
+  F1.4 audit minimum set. See
+  `knowledge/plans/2026-07-12-framework-hardening-waves.md`.
+- Wire additional domain job **handlers** into the worker `Registry`; add new
+  maintenance **schedules** only through `CoreScheduleDefinitions` (or later
+  plugin schedule grants in F2).
 - Keep transactional enqueue integration coverage alongside domain writes.
 - Add operational metrics/export only after stable self-hosted semantics are
   established.
+- Later waves (not F1): job kind `schemaVersion`, plugin-declared schedules,
+  outbox alignment, deeper metrics/export.

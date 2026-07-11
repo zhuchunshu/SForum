@@ -196,6 +196,19 @@ Most common default:
 
 ---
 
+## Framework Hardening (Platform Waves)
+
+Product tracks above stay primary for “usable community site.” When investing in
+host power (schedule, health, Host API, capabilities, webhooks, SDK), follow the
+phased backlog instead of inventing ad-hoc platform work:
+
+- Decision: `decisions/2026-07-12-host-platform-capabilities.md`
+- Checklist: `plans/2026-07-12-framework-hardening-waves.md` (F1→F4)
+
+Default: complete **F1** (schedule registry + ready/worker heartbeat) before
+deep Host API / marketplace-shaped work. Do not pull deferred items (payments,
+marketplace, multi-tenant) into early waves without a new decision.
+
 ## How This Relates To Other Docs
 
 | Doc | Role |
@@ -203,6 +216,8 @@ Most common default:
 | `architecture-maturity-audit.md` | What is done vs missing (scores, checklists) |
 | **This file** | What to build next and why (strategy) |
 | `plans/2026-07-12-iteration-a-engagement-loop.md` | How to implement Iteration A (tasks) |
+| `plans/2026-07-12-framework-hardening-waves.md` | Host platform waves F1–F4 checklist |
+| `decisions/2026-07-12-host-platform-capabilities.md` | Host OS contracts and non-goals |
 | `docs/roadmap.md` | Longer milestone framing |
 | `modules/*.md` | Per-area current status |
 
