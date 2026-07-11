@@ -10,7 +10,7 @@ const paths = {
   hostConfig: path.resolve(root, 'apps/web/nuxt.config.ts'),
   homeCss: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-home.css'),
   themeCss: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-theme.css'),
-  seo: path.resolve(root, 'apps/web/app/composables/useSForumSeo.ts'),
+  seo: path.resolve(root, 'apps/web/app/utils/seoStructuredData.ts'),
   zh: path.resolve(root, 'apps/web/i18n/locales/zh-CN.json'),
   en: path.resolve(root, 'apps/web/i18n/locales/en-US.json')
 }
