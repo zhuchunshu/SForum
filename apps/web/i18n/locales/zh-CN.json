@@ -22,6 +22,11 @@
     "moderationWorkbench": "审核工作台",
     "notifications": "通知"
   },
+  "legal": {
+    "termsTitle": "服务条款",
+    "privacyTitle": "隐私政策",
+    "guidelinesTitle": "社区指南"
+  },
   "notifications": {
     "title": "通知",
     "description": "回复、提及和内容审核结果。",

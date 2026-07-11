@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { SiteFriendLink } from '~/composables/useSiteChromeApi'
+
 const { locale } = useI18n()
 const {
   siteName,
@@ -6,6 +8,7 @@ const {
   footerLinks,
   footerLinkLabel
 } = useWebOptions()
+const chromeApi = useSiteChromeApi()
 
 // 动态计算当前年份，以保证版权年份的正确性
 const currentYear = computed(() => new Date().getFullYear())
@@ -23,16 +26,24 @@ const visibleLinks = computed(() => {
       url: link.url
     }))
 })
+
+const { data: friendLinks } = await useAsyncData('site-public-friend-links', async () => {
+  try {
+    return await chromeApi.listPublicFriendLinks()
+  } catch {
+    return [] as SiteFriendLink[]
+  }
+}, { default: () => [] as SiteFriendLink[] })
+
+const visibleFriendLinks = computed(() => friendLinks.value || [])
 </script>
 
 <template>
   <footer class="sf-footer">
     <div class="sf-footer__inner">
-      <!-- 版权信息 -->
       <div v-if="copyrightText" class="sf-footer__copyright">
         {{ copyrightText }}
       </div>
-      <!-- 辅助虚拟链接 -->
       <div v-if="visibleLinks.length" class="sf-footer__links">
         <a
           v-for="link in visibleLinks"
@@ -41,6 +52,28 @@ const visibleLinks = computed(() => {
           class="sf-footer__link"
         >
           {{ link.label }}
+        </a>
+      </div>
+    </div>
+
+    <div v-if="visibleFriendLinks.length" class="sf-footer__friends">
+      <div class="sf-footer__friends-inner">
+        <a
+          v-for="item in visibleFriendLinks"
+          :key="item.id"
+          :href="item.url"
+          class="sf-footer__friend"
+          target="_blank"
+          rel="noopener noreferrer"
+          :title="item.description || item.name"
+        >
+          <img
+            v-if="item.logoUrl"
+            :src="item.logoUrl"
+            alt=""
+            class="sf-footer__friend-logo"
+          >
+          <span>{{ item.name }}</span>
         </a>
       </div>
     </div>
@@ -66,7 +99,6 @@ const visibleLinks = computed(() => {
   gap: 0.75rem;
 }
 
-/* 适配桌面端布局，转为两端对齐 */
 @media (min-width: 768px) {
   .sf-footer__inner {
     flex-direction: row;
@@ -93,12 +125,46 @@ const visibleLinks = computed(() => {
   transition: color 0.15s ease;
 }
 
-/* 悬浮颜色变化，浅色模式为深松石绿，暗色模式为亮松石绿 */
 .sf-footer__link:hover {
   color: var(--sf-accent);
 }
 
 .dark .sf-footer__link:hover {
   color: var(--sf-accent-dark);
+}
+
+.sf-footer__friends {
+  border-top: 1px solid var(--border-default, #e4e8ef);
+  padding: 0.75rem 1rem 1.25rem;
+}
+
+.sf-footer__friends-inner {
+  max-width: var(--sf-public-container);
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem 1.25rem;
+}
+
+.sf-footer__friend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.sf-footer__friend:hover {
+  color: var(--sf-accent);
+}
+
+.sf-footer__friend-logo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 3px;
 }
 </style>

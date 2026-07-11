@@ -10,8 +10,14 @@ const { t, locale, locales } = useI18n()
 const localePath = useLocalePath()
 const switchLocalePath = useSwitchLocalePath()
 const { user, refresh } = useAuthSession()
-const { siteName, siteTagline, webOption } = useWebOptions()
+const {
+  siteName,
+  siteTagline,
+  siteLogoUrl,
+  webOption
+} = useWebOptions()
 const { request } = useApiClient()
+const chromeApi = useSiteChromeApi()
 const router = useRouter()
 const colorMode = useColorMode()
 const { can } = usePermissions()
@@ -21,6 +27,68 @@ const notifications = useNotifications()
 const publicTagPagesEnabled = computed(() => parseForumTagPublicPagesOption(
   webOption('forum.tags.public_pages', 'enabled')
 ))
+
+// Wave 2：运营配置的顶栏导航；失败时回退内置 Home/Categories/Tags。
+type PublicNavItem = {
+  id: number
+  labelZhCN: string
+  labelEnUS: string
+  href: string
+  openInNewTab: boolean
+}
+const { data: configuredNavItems } = await useAsyncData('site-public-nav-items', async () => {
+  try {
+    return await chromeApi.listPublicNavItems()
+  } catch {
+    return [] as PublicNavItem[]
+  }
+}, { default: () => [] as PublicNavItem[] })
+
+const isEnglishLocale = computed(() => String(locale.value).toLowerCase().startsWith('en'))
+
+const desktopNavItems = computed(() => {
+  const fromApi = (configuredNavItems.value || []).map((item) => ({
+    id: item.id,
+    label: isEnglishLocale.value ? item.labelEnUS : item.labelZhCN,
+    href: item.href,
+    openInNewTab: item.openInNewTab
+  })).filter((item) => item.label && item.href)
+
+  if (fromApi.length > 0) {
+    // 标签页关闭时过滤掉指向标签列表的配置项。
+    return fromApi.filter((item) => {
+      if (publicTagPagesEnabled.value) {
+        return true
+      }
+      return !item.href.replace(/\/$/, '').endsWith('/tags')
+    })
+  }
+
+  // 回退：与历史硬编码一致。
+  const fallback = [
+    { id: -1, label: t('home.filter.latest'), href: '/', openInNewTab: false },
+    { id: -2, label: t('home.filter.categories'), href: forumCategoriesIndexPath(), openInNewTab: false }
+  ]
+  if (publicTagPagesEnabled.value) {
+    fallback.push({ id: -3, label: t('home.filter.tags'), href: forumTagsIndexPath(), openInNewTab: false })
+  }
+  return fallback
+})
+
+function resolveNavTo(href: string) {
+  const value = href.trim()
+  if (!value) {
+    return localePath('/')
+  }
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value
+  }
+  return localePath(value.startsWith('/') ? value : `/${value}`)
+}
+
+function isExternalHref(href: string) {
+  return href.startsWith('http://') || href.startsWith('https://')
+}
 
 // 导航栏注册入口以 registration-status 为准（含 bootstrap 覆盖）。
 type RegistrationStatus = {
@@ -143,20 +211,31 @@ const userMenuItems = computed<NavbarMenuItem[][]>(() => {
 })
 
 const mobileMenuItems = computed<NavbarMenuItem[][]>(() => {
-  const destinations: NavbarMenuItem[] = [
-    {
-      label: t('nav.home'),
-      icon: 'i-lucide-house',
-      to: localePath('/')
-    },
-    {
-      label: t('nav.search'),
-      icon: 'i-lucide-search',
-      onSelect: () => {
-        mobileSearchOpen.value = true
+  const destinations: NavbarMenuItem[] = desktopNavItems.value.map((item) => {
+    if (item.openInNewTab || isExternalHref(item.href)) {
+      return {
+        label: item.label,
+        icon: 'i-lucide-link',
+        onSelect: () => {
+          if (import.meta.client) {
+            window.open(resolveNavTo(item.href), '_blank', 'noopener,noreferrer')
+          }
+        }
       }
     }
-  ]
+    return {
+      label: item.label,
+      icon: 'i-lucide-link',
+      to: resolveNavTo(item.href)
+    }
+  })
+  destinations.push({
+    label: t('nav.search'),
+    icon: 'i-lucide-search',
+    onSelect: () => {
+      mobileSearchOpen.value = true
+    }
+  })
 
   const account: NavbarMenuItem[] = []
   if (!user.value) {
@@ -278,7 +357,10 @@ async function logout() {
         class="navbar__logo"
         :aria-label="logoAriaLabel"
       >
-        <span class="navbar__logo-mark" aria-hidden="true">
+        <span v-if="siteLogoUrl" class="navbar__logo-image-wrap" aria-hidden="true">
+          <img :src="siteLogoUrl" alt="" class="navbar__logo-image">
+        </span>
+        <span v-else class="navbar__logo-mark" aria-hidden="true">
           <UIcon name="i-lucide-message-circle" class="size-4" />
         </span>
         <span class="navbar__logo-text-wrap">
@@ -288,28 +370,24 @@ async function logout() {
       </NuxtLink>
 
       <nav class="navbar__desktop-nav" :aria-label="t('nav.mainNav')">
-        <NuxtLink
-          :to="localePath('/')"
-          class="navbar__nav-link"
-          :aria-label="t('home.filter.latest')"
-        >
-          {{ t('home.filter.latest') }}
-        </NuxtLink>
-        <NuxtLink
-          :to="localePath(forumCategoriesIndexPath())"
-          class="navbar__nav-link"
-          :aria-label="t('home.filter.categories')"
-        >
-          {{ t('home.filter.categories') }}
-        </NuxtLink>
-        <NuxtLink
-          v-if="publicTagPagesEnabled"
-          :to="localePath(forumTagsIndexPath())"
-          class="navbar__nav-link"
-          :aria-label="t('home.filter.tags')"
-        >
-          {{ t('home.filter.tags') }}
-        </NuxtLink>
+        <template v-for="item in desktopNavItems" :key="item.id">
+          <a
+            v-if="item.openInNewTab || isExternalHref(item.href)"
+            :href="resolveNavTo(item.href)"
+            class="navbar__nav-link"
+            :target="item.openInNewTab || isExternalHref(item.href) ? '_blank' : undefined"
+            :rel="item.openInNewTab || isExternalHref(item.href) ? 'noopener noreferrer' : undefined"
+          >
+            {{ item.label }}
+          </a>
+          <NuxtLink
+            v-else
+            :to="resolveNavTo(item.href)"
+            class="navbar__nav-link"
+          >
+            {{ item.label }}
+          </NuxtLink>
+        </template>
       </nav>
 
       <SFSearch
@@ -513,6 +591,22 @@ async function logout() {
   border-radius: 7px;
   background: var(--sf-accent);
   color: #ffffff;
+}
+
+.navbar__logo-image-wrap {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 7px;
+}
+
+.navbar__logo-image {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .navbar__logo-text-wrap {

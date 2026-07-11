@@ -22,6 +22,11 @@
     "moderationWorkbench": "Moderation workbench",
     "notifications": "Notifications"
   },
+  "legal": {
+    "termsTitle": "Terms of Service",
+    "privacyTitle": "Privacy Policy",
+    "guidelinesTitle": "Community Guidelines"
+  },
   "notifications": {
     "title": "Notifications",
     "description": "Replies, mentions, and content review results.",

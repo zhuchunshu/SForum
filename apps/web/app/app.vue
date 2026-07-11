@@ -6,7 +6,14 @@ const localeHead = useLocaleHead({
   lang: true,
   seo: true
 })
-const { siteName, resolvedAppearanceTheme, seoSettings, refresh: refreshWebOptions } = useWebOptions()
+const {
+  siteName,
+  resolvedAppearanceTheme,
+  seoSettings,
+  siteFaviconUrl,
+  siteAppleTouchIconUrl,
+  refresh: refreshWebOptions
+} = useWebOptions()
 const { refresh: refreshAuthSession } = useAuthSession()
 const startupOptionsTimeout = import.meta.dev ? 800 : 2000
 
@@ -47,9 +54,18 @@ useHead(() => {
     htmlAttrs.style = [htmlAttrs.style, themeStyle].filter(Boolean).join('; ')
   }
 
+  // Wave 2 品牌：运营配置的 favicon / apple-touch；空则不注入，沿用浏览器默认。
+  const brandLinks: Array<Record<string, string>> = []
+  if (siteFaviconUrl.value) {
+    brandLinks.push({ rel: 'icon', href: siteFaviconUrl.value })
+  }
+  if (siteAppleTouchIconUrl.value) {
+    brandLinks.push({ rel: 'apple-touch-icon', href: siteAppleTouchIconUrl.value })
+  }
+
   return {
     htmlAttrs,
-    link: localeHead.value.link,
+    link: [...(localeHead.value.link || []), ...brandLinks],
     meta: localeHead.value.meta,
     titleTemplate: (title) => title
       ? applySEOTitleTemplate(title, seoSettings.value.metaTitleTemplate, siteName.value)
