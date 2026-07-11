@@ -34,14 +34,14 @@ var (
 )
 
 type Manifest struct {
-	ID            string                 `json:"id"`
-	Name          string                 `json:"name"`
-	Description   string                 `json:"description"`
-	URL           string                 `json:"url"`
-	Author        ManifestAuthor         `json:"author"`
-	Version       string                 `json:"version"`
-	Type          string                 `json:"type"`
-	SForumVersion string                 `json:"sforumVersion"`
+	ID            string         `json:"id"`
+	Name          string         `json:"name"`
+	Description   string         `json:"description"`
+	URL           string         `json:"url"`
+	Author        ManifestAuthor `json:"author"`
+	Version       string         `json:"version"`
+	Type          string         `json:"type"`
+	SForumVersion string         `json:"sforumVersion"`
 	// Langs 是可选的本地化覆盖。顶层 name/description/author 为默认英文；
 	// 未声明 langs 时无需翻译，直接使用顶层字段。
 	Langs         map[string]ManifestLocale `json:"langs,omitempty"`
@@ -75,11 +75,21 @@ type ManifestLocale struct {
 }
 
 type ManifestSetting struct {
-	Key         string `json:"key"`
+	Key              string                  `json:"key"`
+	Label            string                  `json:"label"`
+	Description      string                  `json:"description,omitempty"`
+	Type             string                  `json:"type"`
+	Default          string                  `json:"default,omitempty"`
+	Placeholder      string                  `json:"placeholder,omitempty"`
+	RecommendedValue string                  `json:"recommendedValue,omitempty"`
+	Group            string                  `json:"group,omitempty"`
+	Options          []ManifestSettingOption `json:"options,omitempty"`
+}
+
+type ManifestSettingOption struct {
+	Value       string `json:"value"`
 	Label       string `json:"label"`
 	Description string `json:"description,omitempty"`
-	Type        string `json:"type"`
-	Default     string `json:"default,omitempty"`
 }
 
 type ManifestMigration struct {
@@ -209,6 +219,21 @@ func validateManifest(manifest Manifest, points []ContributionPointDefinition) e
 		if setting.Key == "" || setting.Label == "" || setting.Type == "" || strings.Contains(setting.Key, " ") {
 			return ErrInvalidManifest
 		}
+		optionValues := make(map[string]struct{}, len(setting.Options))
+		for _, option := range setting.Options {
+			if option.Value == "" || option.Label == "" {
+				return ErrInvalidManifest
+			}
+			if _, exists := optionValues[option.Value]; exists {
+				return ErrInvalidManifest
+			}
+			optionValues[option.Value] = struct{}{}
+		}
+		if setting.RecommendedValue != "" && len(optionValues) > 0 {
+			if _, exists := optionValues[setting.RecommendedValue]; !exists {
+				return ErrInvalidManifest
+			}
+		}
 	}
 	if err := validateAdminDeclaration(manifest); err != nil {
 		return err
@@ -327,6 +352,15 @@ func Normalize(manifest Manifest) Manifest {
 		manifest.Settings[index].Description = strings.TrimSpace(manifest.Settings[index].Description)
 		manifest.Settings[index].Type = strings.ToLower(strings.TrimSpace(manifest.Settings[index].Type))
 		manifest.Settings[index].Default = strings.TrimSpace(manifest.Settings[index].Default)
+		manifest.Settings[index].Placeholder = strings.TrimSpace(manifest.Settings[index].Placeholder)
+		manifest.Settings[index].RecommendedValue = strings.TrimSpace(manifest.Settings[index].RecommendedValue)
+		manifest.Settings[index].Group = strings.TrimSpace(manifest.Settings[index].Group)
+		for optionIndex := range manifest.Settings[index].Options {
+			option := &manifest.Settings[index].Options[optionIndex]
+			option.Value = strings.TrimSpace(option.Value)
+			option.Label = strings.TrimSpace(option.Label)
+			option.Description = strings.TrimSpace(option.Description)
+		}
 	}
 	manifest.Backend.Entry = strings.TrimSpace(manifest.Backend.Entry)
 	manifest.Backend.RPC = strings.TrimSpace(manifest.Backend.RPC)

@@ -304,6 +304,28 @@ ExtensionManifestSetting:
       type: string
     default:
       type: string
+    placeholder:
+      type: string
+      description: Optional example or input hint rendered by the host.
+    recommendedValue:
+      type: string
+      description: Provider-declared value used by the generic restore-recommended action. Secrets are never restored or cleared through this field.
+    group:
+      type: string
+      description: Optional provider-neutral section identifier used to group related controls in declaration order.
+    options:
+      type: array
+      description: Ordered choices. Settings with options render as a select instead of free text.
+      items:
+        type: object
+        required: [value, label]
+        properties:
+          value:
+            type: string
+          label:
+            type: string
+          description:
+            type: string
 ExtensionManifestAdmin:
   type: object
   description: Extension admin entry and page declarations. Manage resolves to entry, then settings, then first declared page, then the generated about page.

@@ -435,3 +435,54 @@ func TestManifestVersionAcceptsValidSemver(t *testing.T) {
 		}
 	}
 }
+
+func TestManifestSettingPresentationMetadata(t *testing.T) {
+	manifest := validBaseManifest()
+	manifest.Settings = []ManifestSetting{{
+		Key:              "encryption",
+		Label:            "Encryption",
+		Description:      "Choose transport security.",
+		Type:             "select",
+		Placeholder:      "Select encryption",
+		RecommendedValue: "starttls",
+		Group:            "server",
+		Options: []ManifestSettingOption{
+			{Value: "starttls", Label: "STARTTLS", Description: "Recommended"},
+			{Value: "tls", Label: "TLS/SSL"},
+		},
+	}}
+
+	if err := Validate(manifest); err != nil {
+		t.Fatalf("expected presentation metadata to validate: %v", err)
+	}
+	normalized := Normalize(manifest).Settings[0]
+	if normalized.Placeholder != "Select encryption" || normalized.RecommendedValue != "starttls" || normalized.Group != "server" {
+		t.Fatalf("unexpected normalized metadata: %#v", normalized)
+	}
+	if len(normalized.Options) != 2 || normalized.Options[0].Value != "starttls" {
+		t.Fatalf("expected ordered options, got %#v", normalized.Options)
+	}
+}
+
+func TestManifestSettingPresentationMetadataRejectsInvalidOptions(t *testing.T) {
+	cases := []struct {
+		name        string
+		options     []ManifestSettingOption
+		recommended string
+	}{
+		{name: "blank value", options: []ManifestSettingOption{{Value: "", Label: "Blank"}}, recommended: ""},
+		{name: "blank label", options: []ManifestSettingOption{{Value: "tls", Label: ""}}, recommended: "tls"},
+		{name: "duplicate value", options: []ManifestSettingOption{{Value: "tls", Label: "TLS"}, {Value: "tls", Label: "Again"}}, recommended: "tls"},
+		{name: "unknown recommendation", options: []ManifestSettingOption{{Value: "tls", Label: "TLS"}}, recommended: "starttls"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			manifest := validBaseManifest()
+			manifest.Settings = []ManifestSetting{{Key: "encryption", Label: "Encryption", Type: "select", Options: tc.options, RecommendedValue: tc.recommended}}
+			if err := Validate(manifest); !errors.Is(err, ErrInvalidManifest) {
+				t.Fatalf("expected invalid setting metadata, got %v", err)
+			}
+		})
+	}
+}
