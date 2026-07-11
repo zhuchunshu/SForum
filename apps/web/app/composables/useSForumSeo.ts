@@ -1,6 +1,7 @@
 import type { ComputedRef, Ref } from 'vue'
 import type { SEOSettings } from './useWebOptions'
 import { resolveSEO, type SEOPageContext } from '~/utils/seoResolver'
+import { buildSEOStructuredData } from '~/utils/seoStructuredData'
 
 type MaybeReactive<T> = T | Ref<T> | ComputedRef<T> | (() => T)
 
@@ -64,7 +65,7 @@ export const useSForumSeo = (input: SForumSEOInput | MaybeReactive<SEOPageContex
       title: resolved.value.title,
       description: resolved.value.description,
       image: resolved.value.image,
-      schema: legacySchema(input, pageContext.value)
+      resolved: resolved.value
     })
   }))
 
@@ -108,27 +109,11 @@ function isPageContext(value: SForumSEOInput | SEOPageContext): value is SEOPage
   return ['home', 'category', 'tag', 'topic', 'profile', 'static'].includes(String(value.type))
 }
 
-function legacySchema(input: SForumSEOInput | MaybeReactive<SEOPageContext>, context: SEOPageContext): SForumSchemaInput | undefined {
-  const value = resolveReactive(input as MaybeReactive<SForumSEOInput | SEOPageContext>)
-  if (value && !isPageContext(value)) {
-    return resolveReactive(value.schema)
-  }
-  return context.type === 'topic'
-    ? { type: 'DiscussionForumPosting', datePublished: context.datePublished, dateModified: context.dateModified, authorName: context.authorName }
-    : { type: 'WebPage' }
-}
-
 function resolveReactive<T>(value: MaybeReactive<T> | undefined): T | undefined {
   if (typeof value === 'function') {
     return (value as () => T)()
   }
   return unref(value)
-}
-
-function absoluteSiteUrl(siteUrl: string, path: string) {
-  const base = siteUrl.replace(/\/+$/, '') || 'http://127.0.0.1:3000'
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`
-  return `${base}${normalizedPath}`
 }
 
 function verificationMeta(settings: SEOSettings) {
@@ -148,76 +133,30 @@ function structuredDataScript(input: {
   title: string
   description: string
   image: string
-  schema?: SForumSchemaInput
+  resolved: ReturnType<typeof resolveSEO>
 }) {
   if (!input.settings.schemaOrgEnabled) {
     return []
   }
 
-  const settings = input.settings
-  const websiteNode: Record<string, unknown> = {
-    '@type': 'WebSite',
-    '@id': `${input.siteUrl.replace(/\/+$/, '')}/#website`,
-    url: input.siteUrl,
-    name: input.siteName
-  }
-  const organizationNode: Record<string, unknown> = {
-    '@type': 'Organization',
-    '@id': `${input.siteUrl.replace(/\/+$/, '')}/#organization`,
-    name: input.siteName,
-    url: input.siteUrl
-  }
-  const graph: Array<Record<string, unknown>> = [
-    websiteNode,
-    organizationNode,
-    {
-      '@type': 'WebPage',
-      '@id': `${input.canonicalUrl}#webpage`,
-      url: input.canonicalUrl,
-      name: input.title,
-      description: input.description,
-      isPartOf: { '@id': `${input.siteUrl.replace(/\/+$/, '')}/#website` }
-    }
-  ]
-
-  const logoUrl = settings.schemaOrgOrganizationLogoUrl
-  if (logoUrl) {
-    organizationNode.logo = logoUrl
-  }
-
-  if (settings.schemaOrgSearchActionEnabled) {
-    websiteNode.potentialAction = {
-      '@type': 'SearchAction',
-      target: `${input.siteUrl.replace(/\/+$/, '')}/?q={search_term_string}`,
-      'query-input': 'required name=search_term_string'
-    }
-  }
-
-  if (
-    input.schema?.type === 'DiscussionForumPosting' &&
-    settings.schemaOrgDiscussionEnabled
-  ) {
-    graph.push({
-      '@type': 'DiscussionForumPosting',
-      '@id': `${input.canonicalUrl}#discussion`,
-      headline: input.title,
-      text: input.description,
-      url: input.canonicalUrl,
-      image: input.image || undefined,
-      datePublished: input.schema.datePublished,
-      dateModified: input.schema.dateModified,
-      author: input.schema.authorName ? { '@type': 'Person', name: input.schema.authorName } : undefined
-    })
-  }
+  const graph = buildSEOStructuredData({
+    siteUrl: input.siteUrl, siteName: input.siteName, canonicalUrl: input.canonicalUrl,
+    title: input.title, description: input.description, image: input.image,
+    schemaType: input.resolved.schemaType, indexable: !input.resolved.robots.startsWith('noindex'),
+    searchActionEnabled: input.settings.schemaOrgSearchActionEnabled,
+    discussionEnabled: input.settings.schemaOrgDiscussionEnabled,
+    organizationLogoUrl: input.settings.schemaOrgOrganizationLogoUrl,
+    breadcrumbs: input.resolved.context.breadcrumbs,
+    authorName: input.resolved.context.authorName,
+    datePublished: input.resolved.context.datePublished,
+    dateModified: input.resolved.context.dateModified
+  })
 
   return [
     {
       key: 'sforum-schema-org',
       type: 'application/ld+json',
-      innerHTML: JSON.stringify({
-        '@context': 'https://schema.org',
-        '@graph': graph
-      })
+      innerHTML: JSON.stringify(graph)
     }
   ]
 }

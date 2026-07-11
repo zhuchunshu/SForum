@@ -145,7 +145,12 @@ useSForumSeo(computed(() => ({
   },
   datePublished: topic.value?.createdAt,
   dateModified: topic.value?.updatedAt,
-  authorName: topic.value ? forumAuthorName(topic.value.author, topic.value.authorUserId) : undefined
+  authorName: topic.value ? forumAuthorName(topic.value.author, topic.value.authorUserId) : undefined,
+  breadcrumbs: topic.value ? [
+    { name: seoSettings.value.seoSiteName, path: '/' },
+    { name: topic.value.categoryName, path: forumCategoryPath(topic.value.categorySlug) },
+    { name: topic.value.title, path: canonicalPath.value }
+  ] : []
 })))
 
 // 编辑保存成功后跳回规范详情路径（用新 slug，规范化兜底 -2 后缀）。

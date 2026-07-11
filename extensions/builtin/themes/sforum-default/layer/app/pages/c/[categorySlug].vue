@@ -66,7 +66,11 @@ useSForumSeo(computed(() => ({
   title: category.value?.name || categorySlug.value,
   description: category.value?.description,
   public: category.value?.visibility !== 'hidden',
-  variables: { categoryName: category.value?.name || categorySlug.value }
+  variables: { categoryName: category.value?.name || categorySlug.value },
+  breadcrumbs: [
+    { name: seoSettings.value.seoSiteName, path: '/' },
+    { name: category.value?.name || categorySlug.value, path: forumCategoryPath(categorySlug.value) }
+  ]
 })))
 
 function routeParam(value: string | string[] | undefined) {

@@ -76,7 +76,11 @@ useSForumSeo(computed(() => ({
   description: tag.value?.description,
   public: tag.value?.status === 'active',
   noindex: topicList.value.total === 0,
-  variables: { tagName: tag.value?.name || tagSlug.value }
+  variables: { tagName: tag.value?.name || tagSlug.value },
+  breadcrumbs: [
+    { name: seoSettings.value.seoSiteName, path: '/' },
+    { name: tag.value?.name || tagSlug.value, path: forumTagPath(tagSlug.value) }
+  ]
 })))
 
 function routeParam(value: string | string[] | undefined) {
