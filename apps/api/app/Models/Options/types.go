@@ -48,6 +48,9 @@ const (
 	NameIdentityPasswordRequireUppercase = "identity.password.require_uppercase"
 	NameIdentityPasswordRequireNumber    = "identity.password.require_number"
 	NameIdentityPasswordRequireSymbol    = "identity.password.require_symbol"
+	// 是否允许开放注册。public，便于登录页隐藏注册入口；默认 enabled。
+	// 首用户 bootstrap（库内尚无任何用户）始终允许注册，不受本开关影响。
+	NameIdentityRegistrationEnabled = "identity.registration.enabled"
 	// 最大活跃浏览器会话数（设备数上限）。非 public（仅后端登录时读取），admin 可调。
 	// 引用 identity 包的权威定义，避免同值两处定义导致漂移（Fix #11）。
 	NameIdentitySessionsMaxDevices = identity.NameSessionsMaxDevices

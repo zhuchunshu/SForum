@@ -43,15 +43,20 @@ type adminMailQueue interface {
 
 func NewIdentityProviderWithPasswordReset(store identity.Store, sessions *authsession.Manager, verifier humanverify.Verifier, publisher appevents.Publisher, passwordReset *identity.PasswordResetService, mailQueue adminMailQueue, options optionsResolver) *IdentityProvider {
 	return &IdentityProvider{
-		controller: identitycontroller.NewControllerWithPasswordReset(identity.NewServiceWithEventsAndPasswordPolicy(store, publisher, options), sessions, verifier, passwordReset, mailQueue, options),
+		// options 同时作为密码策略与开放注册策略解析器。
+		controller: identitycontroller.NewControllerWithPasswordReset(
+			identity.NewServiceWithPolicies(store, publisher, options, options),
+			sessions, verifier, passwordReset, mailQueue, options,
+		),
 	}
 }
 
-// optionsResolver 仅暴露密码重置/mail-test 需要的站点名/URL。
+// optionsResolver 暴露密码策略、开放注册开关以及密码重置/mail-test 需要的站点名/URL。
 type optionsResolver interface {
 	SiteName(ctx context.Context) (string, error)
 	WebOption(ctx context.Context, name string) (string, error)
 	PasswordPolicy(ctx context.Context) (identity.PasswordPolicy, error)
+	RegistrationEnabled(ctx context.Context) (bool, error)
 }
 
 func (p *IdentityProvider) RegisterRoutes(api fiber.Router) {

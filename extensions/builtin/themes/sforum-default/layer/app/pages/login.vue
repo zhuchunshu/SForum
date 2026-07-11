@@ -13,6 +13,20 @@ const { siteName, siteTagline } = useWebOptions()
 // 有副标题时优先展示运营配置的标语，否则回退到内置品牌文案。
 const brandDescription = computed(() => siteTagline.value || t('auth.brandDesc'))
 
+type RegistrationStatus = {
+  nextUserIsInitialSuperAdmin: boolean
+  registrationEnabled?: boolean
+}
+const { data: registrationStatus } = await useAsyncData('auth-registration-status-login', async () => {
+  try {
+    return await request<RegistrationStatus>('/auth/registration-status')
+  } catch {
+    return { nextUserIsInitialSuperAdmin: false, registrationEnabled: true }
+  }
+})
+// 关闭开放注册时隐藏注册入口；bootstrap（无用户）时接口会返回 true。
+const showRegisterLinks = computed(() => registrationStatus.value?.registrationEnabled !== false)
+
 const form = reactive({
   login: '',
   password: ''
@@ -120,7 +134,11 @@ async function submitLogin() {
           <NuxtLink :to="localePath('/login')" class="auth-tab auth-tab--active">
             {{ t('auth.loginTitle') }}
           </NuxtLink>
-          <NuxtLink :to="authPageLink('/register')" class="auth-tab">
+          <NuxtLink
+            v-if="showRegisterLinks"
+            :to="authPageLink('/register')"
+            class="auth-tab"
+          >
             {{ t('auth.registerTitle') }}
           </NuxtLink>
         </nav>
@@ -177,7 +195,7 @@ async function submitLogin() {
           </button>
         </form>
 
-        <p class="auth-switch">
+        <p v-if="showRegisterLinks" class="auth-switch">
           {{ t('auth.needAccount') }}
           <NuxtLink :to="authPageLink('/register')">{{ t('auth.goRegister') }}</NuxtLink>
         </p>

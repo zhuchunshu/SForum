@@ -95,7 +95,8 @@ Initial runtime option support is implemented.
   `human_verification.altcha.widget.min_duration_ms`, `identity.password.min_length`,
   `identity.password.max_length`, `identity.password.require_lowercase`,
   `identity.password.require_uppercase`, `identity.password.require_number`,
-  `identity.password.require_symbol`, `appearance.theme`,
+  `identity.password.require_symbol`, `identity.registration.enabled`,
+  `appearance.theme`,
   `footer.copyright.zh-CN`, `footer.copyright.en-US`, `footer.links`,
   `forum.default_category_slug`, `forum.tags.creation_mode`,
   `forum.tags.public_pages`, `forum.tags.max_per_topic`,
@@ -171,6 +172,13 @@ Initial runtime option support is implemented.
   length as `8..128`, maximum length as `64..512`, requires
   `max_length >= min_length`, and normalizes composition toggles to
   `enabled`/`disabled`.
+- Open registration is `identity.registration.enabled` (public, default
+  `enabled`), managed under Site Settings → Account security. When disabled,
+  `POST /auth/register` returns `403 auth.register_disabled` after the site
+  already has users. Bootstrap (no users yet) always allows registration so a
+  fresh install cannot lock itself out. Public `GET /auth/registration-status`
+  exposes `registrationEnabled` with that bootstrap override; it still never
+  leaks the super-admin bootstrap window via `nextUserIsInitialSuperAdmin`.
 - Avatar defaults are upload enabled, local initials fallback, Gravatar base
   URL `https://gravatar.com/avatar/`, Gravatar hash `sha256`, GIF disabled,
   compression enabled, max upload 2048 KB, source max edge 2048 px, output

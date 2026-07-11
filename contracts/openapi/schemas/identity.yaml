@@ -163,10 +163,14 @@ RegistrationStatus:
   type: object
   required:
   - nextUserIsInitialSuperAdmin
+  - registrationEnabled
   properties:
     nextUserIsInitialSuperAdmin:
       type: boolean
-      description: True when no user exists yet and the next successful registration will become the initial super administrator.
+      description: Always false on the public endpoint to avoid leaking the bootstrap window.
+    registrationEnabled:
+      type: boolean
+      description: Whether the UI should offer registration. Forced true when no users exist yet (bootstrap); otherwise follows identity.registration.enabled.
 RegisterRequest:
   type: object
   required:

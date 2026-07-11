@@ -6,6 +6,7 @@ definePageMeta({ layout: 'auth', middleware: 'guest' })
 
 type RegistrationStatus = {
   nextUserIsInitialSuperAdmin: boolean
+  registrationEnabled?: boolean
 }
 
 const { t, locale } = useI18n()
@@ -58,10 +59,13 @@ const { data: registrationStatus } = await useAsyncData('auth-registration-statu
   try {
     return await request<RegistrationStatus>('/auth/registration-status')
   } catch {
-    return { nextUserIsInitialSuperAdmin: false }
+    // 状态接口失败时保守认为仍开放，避免安装期误锁；提交时 API 仍是权威。
+    return { nextUserIsInitialSuperAdmin: false, registrationEnabled: true }
   }
 })
 const isBootstrapRegistration = computed(() => registrationStatus.value?.nextUserIsInitialSuperAdmin === true)
+// registrationEnabled 含 bootstrap 覆盖；缺字段时回退 true（兼容旧 API）。
+const isRegistrationOpen = computed(() => registrationStatus.value?.registrationEnabled !== false)
 
 useSeoMeta({
   title: t('auth.registerTitle')
@@ -139,6 +143,10 @@ function passwordRequirementLabel(key: string) {
 
 async function submitRegister() {
   if (submitting.value) {
+    return
+  }
+  if (!isRegistrationOpen.value) {
+    errorMessage.value = t('auth.registerDisabledDescription')
     return
   }
 
@@ -256,7 +264,21 @@ async function submitRegister() {
         <h2 class="auth-form-title">{{ t('auth.registerHeading') }}</h2>
         <p class="auth-form-sub">{{ t('auth.registerIntro') }}</p>
 
-        <form @submit.prevent="submitRegister">
+        <div v-if="!isRegistrationOpen" class="auth-closed">
+          <SFAlert
+            :title="t('auth.registerDisabledTitle')"
+            variant="warning"
+            compact
+            class="auth-alert"
+          >
+            <p>{{ t('auth.registerDisabledDescription') }}</p>
+            <NuxtLink :to="authPageLink('/login')" class="auth-alert-action">
+              {{ t('auth.registerDisabledGoLogin') }}
+            </NuxtLink>
+          </SFAlert>
+        </div>
+
+        <form v-else @submit.prevent="submitRegister">
           <SFAlert
             v-if="isBootstrapRegistration"
             :title="t('auth.firstUserAdminNotice')"

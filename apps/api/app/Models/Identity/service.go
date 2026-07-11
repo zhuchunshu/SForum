@@ -16,6 +16,8 @@ type Service struct {
 	store            Store
 	events           appevents.Publisher
 	passwordPolicies PasswordPolicyResolver
+	// registrationPolicy 可选；缺省时视为始终开放注册（测试与旧装配路径）。
+	registrationPolicy RegistrationPolicyResolver
 }
 
 func NewService(store Store) *Service {
@@ -31,13 +33,22 @@ func NewServiceWithPasswordPolicy(store Store, resolver PasswordPolicyResolver) 
 }
 
 func NewServiceWithEventsAndPasswordPolicy(store Store, publisher appevents.Publisher, resolver PasswordPolicyResolver) *Service {
-	if resolver == nil {
-		resolver = staticRecommendedPasswordPolicy{}
+	return NewServiceWithPolicies(store, publisher, resolver, nil)
+}
+
+// NewServiceWithPolicies 注入密码策略与开放注册策略（生产 bootstrap 使用）。
+func NewServiceWithPolicies(store Store, publisher appevents.Publisher, passwordResolver PasswordPolicyResolver, registrationResolver RegistrationPolicyResolver) *Service {
+	if passwordResolver == nil {
+		passwordResolver = staticRecommendedPasswordPolicy{}
+	}
+	if registrationResolver == nil {
+		registrationResolver = staticOpenRegistrationPolicy{}
 	}
 	return &Service{
-		store:            store,
-		events:           appevents.EnsurePublisher(publisher),
-		passwordPolicies: resolver,
+		store:              store,
+		events:             appevents.EnsurePublisher(publisher),
+		passwordPolicies:   passwordResolver,
+		registrationPolicy: registrationResolver,
 	}
 }
 
@@ -45,10 +56,22 @@ type PasswordPolicyResolver interface {
 	PasswordPolicy(ctx context.Context) (PasswordPolicy, error)
 }
 
+// RegistrationPolicyResolver 读取运营配置的开放注册意图（不含 bootstrap 覆盖）。
+type RegistrationPolicyResolver interface {
+	RegistrationEnabled(ctx context.Context) (bool, error)
+}
+
 type staticRecommendedPasswordPolicy struct{}
 
 func (staticRecommendedPasswordPolicy) PasswordPolicy(context.Context) (PasswordPolicy, error) {
 	return RecommendedPasswordPolicy(), nil
+}
+
+// staticOpenRegistrationPolicy 测试默认：始终开放注册。
+type staticOpenRegistrationPolicy struct{}
+
+func (staticOpenRegistrationPolicy) RegistrationEnabled(context.Context) (bool, error) {
+	return true, nil
 }
 
 type RegisterInput struct {
@@ -67,17 +90,26 @@ type LoginInput struct {
 // RegistrationStatus 返回注册相关状态。该端点公开可访问（注册页加载时调用），
 // 因此不通过它暴露"系统处于首注册窗口、下个注册者成 super_admin"这一敏感的 bootstrap 状态——
 // 首注册的 super_admin 提升由 Register 路径内的 advisory lock 保证，无需提前告知调用方。
-// 这里恒定返回 NextUserIsInitialSuperAdmin=false，消除首用户劫持的信息面。
+// NextUserIsInitialSuperAdmin 恒为 false；RegistrationEnabled 会在无用户时强制 true。
 func (s *Service) RegistrationStatus(ctx context.Context) (RegistrationStatus, error) {
-	// 仅校验 store 可达性；返回值不再依赖是否有用户存在。
-	_, err := s.store.AnyUserExists(ctx)
+	hasAnyUser, err := s.store.AnyUserExists(ctx)
 	if err != nil {
 		return RegistrationStatus{}, err
 	}
-	return RegistrationStatus{NextUserIsInitialSuperAdmin: false}, nil
+	enabled, err := s.effectiveRegistrationEnabled(ctx, hasAnyUser)
+	if err != nil {
+		return RegistrationStatus{}, err
+	}
+	return RegistrationStatus{
+		NextUserIsInitialSuperAdmin: false,
+		RegistrationEnabled:         enabled,
+	}, nil
 }
 
 func (s *Service) ValidateRegister(ctx context.Context, input RegisterInput) error {
+	if err := s.ensureRegistrationAllowed(ctx); err != nil {
+		return err
+	}
 	normalized := normalizeRegisterInput(input)
 	policy, err := s.passwordPolicies.PasswordPolicy(ctx)
 	if err != nil {
@@ -120,6 +152,14 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUse
 		hasAnyUser, err := tx.AnyUserExists(ctx)
 		if err != nil {
 			return err
+		}
+		// 事务内再次校验：关闭注册后仅 bootstrap（无用户）可继续。
+		enabled, err := s.effectiveRegistrationEnabled(ctx, hasAnyUser)
+		if err != nil {
+			return err
+		}
+		if !enabled {
+			return ErrRegistrationDisabled
 		}
 		conflicts, err := tx.FindRegistrationConflicts(ctx, normalized.Username, normalized.Email)
 		if err != nil {
@@ -187,6 +227,35 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUse
 	})
 
 	return current, nil
+}
+
+// ensureRegistrationAllowed 在事务外做快速拒绝；权威校验仍在 WithBootstrapTx 内。
+func (s *Service) ensureRegistrationAllowed(ctx context.Context) error {
+	hasAnyUser, err := s.store.AnyUserExists(ctx)
+	if err != nil {
+		return err
+	}
+	enabled, err := s.effectiveRegistrationEnabled(ctx, hasAnyUser)
+	if err != nil {
+		return err
+	}
+	if !enabled {
+		return ErrRegistrationDisabled
+	}
+	return nil
+}
+
+// effectiveRegistrationEnabled：无用户时强制 true（bootstrap）；否则读运营配置。
+func (s *Service) effectiveRegistrationEnabled(ctx context.Context, hasAnyUser bool) (bool, error) {
+	if !hasAnyUser {
+		return true, nil
+	}
+	enabled, err := s.registrationPolicy.RegistrationEnabled(ctx)
+	if err != nil {
+		// 策略读取失败时保守拒绝新注册，避免在配置故障时意外开放。
+		return false, err
+	}
+	return enabled, nil
 }
 
 type normalizedRegisterInput struct {

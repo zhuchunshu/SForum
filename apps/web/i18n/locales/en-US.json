@@ -204,7 +204,10 @@
     "passwordsDoNotMatch": "Passwords do not match.",
     "passwordPolicyHint": "Password must be at least 12 characters.",
     "backToLogin": "Back to login",
-    "submitting": "Submitting..."
+    "submitting": "Submitting...",
+    "registerDisabledTitle": "Registration is closed",
+    "registerDisabledDescription": "This site is not accepting open registration. Contact an administrator for an account, or sign in.",
+    "registerDisabledGoLogin": "Go to login"
   },
   "components": {
     "iconPicker": {
@@ -598,15 +601,15 @@
         "notFoundTitle": "Extension page not found",
         "notFoundDescription": "This extension does not exist, or its manifest does not declare the current admin page.",
         "settingsTitle": "Extension settings",
-        "settingsIntro": "These fields come from the extension manifest and are stored in the extension runtime settings table.",
+        "settingsIntro": "These fields are declared by the extension. Values are stored in that extension's own runtime settings and do not affect other extensions.",
         "settingsLoadFailed": "Extension settings could not be loaded.",
         "settingsSaved": "Extension settings saved.",
         "settingsSaveFailed": "Extension settings could not be saved.",
-        "settingsReset": "Extension defaults restored.",
+        "settingsReset": "Recommended defaults restored.",
         "enabled": "Enabled",
         "defaultValue": "Default: {value}",
         "emptyValue": "empty",
-        "resetDefaults": "Reset defaults",
+        "resetDefaults": "Restore recommended defaults",
         "saveSettings": "Save settings",
         "emptySettingsTitle": "No configurable settings",
         "emptySettingsDescription": "This extension manifest does not declare settings.",
@@ -615,7 +618,21 @@
         "type": "Type",
         "version": "Version",
         "status": "Status",
-        "author": "Author"
+        "author": "Author",
+        "settingsToolbar": "Configuring: {name}",
+        "aboutToolbar": "Extension info: {name}",
+        "aboutIntro": "Review the extension description and package details.",
+        "ungrouped": "Other settings",
+        "recommendedTitle": "Not sure what to enter? Start from recommended defaults",
+        "recommendedDescription": "Most extensions ship with working recommended defaults. Restore them first, then fine-tune. Field labels and help text come from the extension itself.",
+        "currentRecommended": "Using recommended defaults",
+        "customPageBadge": "Plugin custom UI",
+        "secretsPreserved": "Restoring recommended defaults does not clear saved passwords or secrets. Leaving a password field blank also keeps the current value.",
+        "secretSetPlaceholder": "Already set (leave blank to keep)",
+        "secretConfigured": "Secret saved",
+        "footerHint": "Changes apply after save. Restoring defaults only resets this extension's fields.",
+        "footerSecretHint": "Leave password blank to keep the saved secret. Restoring defaults also preserves secrets.",
+        "recommendedValue": "Recommended: {value}"
       },
       "eventLog": {
         "metaTitle": "Extension event log",
@@ -1233,7 +1250,11 @@
         "sessionsMaxDevices": "Max active devices",
         "sessionsMaxDevicesHint": "Maximum number of devices that may stay signed in at once (1-20). When exceeded, the oldest device is signed out automatically. Recommended: 5.",
         "sessionsKeepDays": "Login history retention days",
-        "sessionsKeepDaysHint": "How many days to keep revoked login records for users to review (1-365). A background job cleans up older ones. Recommended: 30."
+        "sessionsKeepDaysHint": "How many days to keep revoked login records for users to review (1-365). A background job cleans up older ones. Recommended: 30.",
+        "registrationEnabled": "Open registration",
+        "registrationEnabledOn": "On: visitors can register themselves",
+        "registrationEnabledOff": "Off: only staff can create accounts",
+        "registrationEnabledHint": "When off, the login page hides registration. The first install registration remains allowed while no users exist. Recommended: on."
       },
       "verification": {
         "title": "Human verification",

@@ -687,6 +687,9 @@ func mapIdentityError(err error) error {
 		return apphttp.NewErrorWithFields(fiber.StatusUnprocessableEntity, identity.CodeRegisterInvalid, registerErr.Fields)
 	case errors.Is(err, identity.ErrInvalidCredentials):
 		return fiber.NewError(fiber.StatusUnauthorized, "auth.invalid_credentials")
+	case errors.Is(err, identity.ErrRegistrationDisabled):
+		// 关闭开放注册：403 + 稳定错误码，便于前端展示“注册已关闭”。
+		return fiber.NewError(fiber.StatusForbidden, identity.CodeRegisterDisabled)
 	case errors.Is(err, identity.ErrPermissionDenied):
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	case errors.Is(err, identity.ErrInvalidPermission):

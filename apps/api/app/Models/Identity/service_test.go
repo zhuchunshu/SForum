@@ -119,6 +119,9 @@ func TestRegistrationStatusDoesNotLeakBootstrapState(t *testing.T) {
 	if status.NextUserIsInitialSuperAdmin {
 		t.Fatal("expected NextUserIsInitialSuperAdmin to be false before any user exists (no bootstrap leak)")
 	}
+	if !status.RegistrationEnabled {
+		t.Fatal("expected registrationEnabled=true during bootstrap (no users yet)")
+	}
 
 	_, err = service.Register(ctx, RegisterInput{
 		Username: "admin",
@@ -136,6 +139,75 @@ func TestRegistrationStatusDoesNotLeakBootstrapState(t *testing.T) {
 	}
 	if status.NextUserIsInitialSuperAdmin {
 		t.Fatal("expected NextUserIsInitialSuperAdmin to be false after a user exists")
+	}
+	if !status.RegistrationEnabled {
+		t.Fatal("expected default open registration after bootstrap")
+	}
+}
+
+type staticRegistrationPolicy struct {
+	enabled bool
+	err     error
+}
+
+func (p staticRegistrationPolicy) RegistrationEnabled(context.Context) (bool, error) {
+	return p.enabled, p.err
+}
+
+func TestRegisterRejectedWhenDisabledAfterBootstrap(t *testing.T) {
+	_, store := newTestService(t)
+	service := NewServiceWithPolicies(store, nil, nil, staticRegistrationPolicy{enabled: false})
+	ctx := testContext(t)
+
+	// 无用户时即使开关关闭也允许 bootstrap。
+	first, err := service.Register(ctx, RegisterInput{
+		Username: "admin",
+		Email:    "admin@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("bootstrap register should succeed: %v", err)
+	}
+	if !first.IsInitialSuperAdmin {
+		t.Fatal("expected first user to be initial super admin")
+	}
+
+	status, err := service.RegistrationStatus(ctx)
+	if err != nil {
+		t.Fatalf("RegistrationStatus: %v", err)
+	}
+	if status.RegistrationEnabled {
+		t.Fatal("expected registrationEnabled=false after bootstrap when policy is closed")
+	}
+
+	_, err = service.Register(ctx, RegisterInput{
+		Username: "member2",
+		Email:    "member2@example.com",
+		Password: "correct horse battery staple",
+	})
+	if !errors.Is(err, ErrRegistrationDisabled) {
+		t.Fatalf("expected ErrRegistrationDisabled, got %v", err)
+	}
+}
+
+func TestRegisterAllowedWhenEnabled(t *testing.T) {
+	_, store := newTestService(t)
+	service := NewServiceWithPolicies(store, nil, nil, staticRegistrationPolicy{enabled: true})
+	ctx := testContext(t)
+
+	if _, err := service.Register(ctx, RegisterInput{
+		Username: "admin",
+		Email:    "admin@example.com",
+		Password: "correct horse battery staple",
+	}); err != nil {
+		t.Fatalf("first register: %v", err)
+	}
+	if _, err := service.Register(ctx, RegisterInput{
+		Username: "member2",
+		Email:    "member2@example.com",
+		Password: "correct horse battery staple",
+	}); err != nil {
+		t.Fatalf("second register should succeed when open: %v", err)
 	}
 }
 

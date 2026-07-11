@@ -166,6 +166,8 @@ const form = reactive({
   sessionsMaxDevices: 5,
   // 已下线历史会话保留天数（identity.sessions.keep_days），默认 30。
   sessionsKeepDays: 30,
+  // 开放注册开关（identity.registration.enabled），默认开启。
+  registrationEnabled: true,
   humanVerificationProvider: normalizeProvider(options.value['human_verification.provider']),
   humanVerificationScenarios: {
     register: normalizeEnabledOption(options.value[humanVerificationScenarioOptionName('register')], true),
@@ -255,6 +257,7 @@ const initialPasswordRequireNumber = computed(() => normalizeEnabledOption(admin
 const initialPasswordRequireSymbol = computed(() => normalizeEnabledOption(adminOptionsMap.value['identity.password.require_symbol']?.value, recommendedPasswordPolicy.requireSymbol))
 const initialSessionsMaxDevices = computed(() => boundedInteger(adminOptionsMap.value['identity.sessions.max_devices']?.value, 5, 1, 20))
 const initialSessionsKeepDays = computed(() => boundedInteger(adminOptionsMap.value['identity.sessions.keep_days']?.value, 30, 1, 365))
+const initialRegistrationEnabled = computed(() => normalizeEnabledOption(adminOptionsMap.value['identity.registration.enabled']?.value, true))
 
 const hasBasicChanges = computed(() => {
   return form.siteName !== initialSiteName.value ||
@@ -278,7 +281,8 @@ const hasAccountSecurityChanges = computed(() => {
          form.passwordRequireNumber !== initialPasswordRequireNumber.value ||
          form.passwordRequireSymbol !== initialPasswordRequireSymbol.value ||
          form.sessionsMaxDevices !== initialSessionsMaxDevices.value ||
-         form.sessionsKeepDays !== initialSessionsKeepDays.value
+         form.sessionsKeepDays !== initialSessionsKeepDays.value ||
+         form.registrationEnabled !== initialRegistrationEnabled.value
 })
 
 // 验证配置对比与重置
@@ -340,6 +344,7 @@ function applyAdminOptions(items: AdminWebOption[]) {
   form.passwordRequireSymbol = normalizeEnabledOption(map['identity.password.require_symbol']?.value, recommendedPasswordPolicy.requireSymbol)
   form.sessionsMaxDevices = boundedInteger(map['identity.sessions.max_devices']?.value, 5, 1, 20)
   form.sessionsKeepDays = boundedInteger(map['identity.sessions.keep_days']?.value, 30, 1, 365)
+  form.registrationEnabled = normalizeEnabledOption(map['identity.registration.enabled']?.value, true)
   form.humanVerificationProvider = normalizeProvider(map['human_verification.provider']?.value)
   form.humanVerificationScenarios = readScenarioSettings(map)
   form.altchaSecret = ''
@@ -406,7 +411,8 @@ async function saveAccountSecuritySettings() {
       { name: 'identity.password.require_number', value: enabledOptionValue(form.passwordRequireNumber) },
       { name: 'identity.password.require_symbol', value: enabledOptionValue(form.passwordRequireSymbol) },
       { name: 'identity.sessions.max_devices', value: String(form.sessionsMaxDevices) },
-      { name: 'identity.sessions.keep_days', value: String(form.sessionsKeepDays) }
+      { name: 'identity.sessions.keep_days', value: String(form.sessionsKeepDays) },
+      { name: 'identity.registration.enabled', value: enabledOptionValue(form.registrationEnabled) }
     ])
     toast.add({
       color: 'success',
@@ -513,6 +519,7 @@ function resetAccountSecurityForm() {
   form.passwordRequireSymbol = initialPasswordRequireSymbol.value
   form.sessionsMaxDevices = initialSessionsMaxDevices.value
   form.sessionsKeepDays = initialSessionsKeepDays.value
+  form.registrationEnabled = initialRegistrationEnabled.value
   toast.add({
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
@@ -530,6 +537,7 @@ function restoreRecommendedPasswordPolicy() {
   // 同时恢复最大活跃设备数到推荐默认。
   form.sessionsMaxDevices = 5
   form.sessionsKeepDays = 30
+  form.registrationEnabled = true
   toast.add({
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
@@ -1135,6 +1143,20 @@ function onLocaleToggle(locale: string, event: Event) {
               class="w-full max-w-xs"
               @keydown="blockNonIntegerKey"
             />
+          </UFormField>
+
+          <UFormField :label="t('admin.settings.basic.registrationEnabled')" name="registration-enabled">
+            <div class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950">
+              <div class="min-w-0">
+                <p class="text-sm text-slate-700 dark:text-zinc-200">
+                  {{ form.registrationEnabled ? t('admin.settings.basic.registrationEnabledOn') : t('admin.settings.basic.registrationEnabledOff') }}
+                </p>
+                <p class="mt-0.5 text-xs text-slate-500 dark:text-zinc-400">
+                  {{ t('admin.settings.basic.registrationEnabledHint') }}
+                </p>
+              </div>
+              <USwitch v-model="form.registrationEnabled" />
+            </div>
           </UFormField>
         </div>
 

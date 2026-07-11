@@ -17,6 +17,7 @@ const (
 
 const (
 	CodeRegisterInvalid    = "auth.register_invalid"
+	CodeRegisterDisabled   = "auth.register_disabled"
 	CodeSessionUnavailable = "auth.session_unavailable"
 	AuditActionLogin       = "auth.login.success"
 	AuditActionRegister    = "auth.register.success"
@@ -41,6 +42,8 @@ const (
 
 var (
 	ErrInvalidCredentials         = errors.New("identity: invalid credentials")
+	// ErrRegistrationDisabled 表示运营已关闭开放注册，且当前不在首用户 bootstrap 窗口。
+	ErrRegistrationDisabled       = errors.New("identity: registration disabled")
 	ErrCredentialNotFound         = errors.New("identity: credential not found")
 	ErrPermissionDenied           = errors.New("identity: permission denied")
 	ErrInvalidPermission          = errors.New("identity: invalid permission")
@@ -136,7 +139,10 @@ type CurrentUser struct {
 }
 
 type RegistrationStatus struct {
+	// 始终为 false：不向公开端点泄露 bootstrap 窗口信息。
 	NextUserIsInitialSuperAdmin bool `json:"nextUserIsInitialSuperAdmin"`
+	// 前端是否应展示注册入口/允许提交。已含 bootstrap 覆盖（无用户时恒为 true）。
+	RegistrationEnabled bool `json:"registrationEnabled"`
 }
 
 type LoginAudit struct {

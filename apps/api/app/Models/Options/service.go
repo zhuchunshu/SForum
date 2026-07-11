@@ -138,6 +138,8 @@ var optionDefinitions = []optionDefinition{
 	{name: NameIdentityPasswordRequireUppercase, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameIdentityPasswordRequireNumber, public: true, managePermission: identity.PermissionSettingsManage},
 	{name: NameIdentityPasswordRequireSymbol, public: true, managePermission: identity.PermissionSettingsManage},
+	// 开放注册开关：public，默认开启；首用户 bootstrap 不受此开关限制。
+	{name: NameIdentityRegistrationEnabled, public: true, managePermission: identity.PermissionSettingsManage},
 	// 最大活跃设备数：非 public（仅后端登录时读取，不暴露给前端），admin 通过 settings.manage 调整。
 	{name: NameIdentitySessionsMaxDevices, public: false, managePermission: identity.PermissionSettingsManage},
 	// 历史会话保留天数：非 public，periodic job 据此清理。
@@ -367,6 +369,19 @@ func (s *Service) PasswordPolicy(ctx context.Context) (identity.PasswordPolicy, 
 		RequireNumber:    isEnabledOption(values[NameIdentityPasswordRequireNumber]),
 		RequireSymbol:    isEnabledOption(values[NameIdentityPasswordRequireSymbol]),
 	}.Normalized(), nil
+}
+
+// RegistrationEnabled 返回运营配置的开放注册意图（不含 bootstrap 覆盖）。
+// 身份服务会在“尚无任何用户”时强制允许注册，避免自建站锁死。
+func (s *Service) RegistrationEnabled(ctx context.Context) (bool, error) {
+	values, err := s.loadMap(ctx)
+	if err != nil {
+		return true, err
+	}
+	if value, ok := normalizeEnabledOption(values[NameIdentityRegistrationEnabled]); ok {
+		return isEnabledOption(value), nil
+	}
+	return true, nil
 }
 
 func (s *Service) InternalValues(ctx context.Context) (map[string]string, error) {
@@ -744,6 +759,11 @@ func coercePasswordPolicyOptions(coerced, defaults map[string]string) {
 			coerced[name] = defaults[name]
 		}
 	}
+	if value, ok := normalizeEnabledOption(coerced[NameIdentityRegistrationEnabled]); ok {
+		coerced[NameIdentityRegistrationEnabled] = value
+	} else {
+		coerced[NameIdentityRegistrationEnabled] = defaults[NameIdentityRegistrationEnabled]
+	}
 }
 
 // coerceMailOptions 确保邮件选项始终落在推荐默认值上，避免无效 provider/encryption。
@@ -784,6 +804,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameIdentityPasswordRequireUppercase: enabledOptionValue(false),
 		NameIdentityPasswordRequireNumber:    enabledOptionValue(false),
 		NameIdentityPasswordRequireSymbol:    enabledOptionValue(false),
+		NameIdentityRegistrationEnabled:      enabledOptionValue(true),
 		NameIdentitySessionsMaxDevices:       strconv.Itoa(identity.RecommendedMaxDevices),
 		NameIdentitySessionsKeepDays:         strconv.Itoa(identity.RecommendedSessionsKeepDays),
 		NameForumDefaultCategorySlug:         "general",
@@ -1008,7 +1029,7 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeBoundedInt(value, passwordMinLengthMin, passwordMinLengthMax)
 	case NameIdentityPasswordMaxLength:
 		return normalizeBoundedInt(value, passwordMaxLengthMin, passwordMaxLengthMax)
-	case NameIdentityPasswordRequireLowercase, NameIdentityPasswordRequireUppercase, NameIdentityPasswordRequireNumber, NameIdentityPasswordRequireSymbol:
+	case NameIdentityPasswordRequireLowercase, NameIdentityPasswordRequireUppercase, NameIdentityPasswordRequireNumber, NameIdentityPasswordRequireSymbol, NameIdentityRegistrationEnabled:
 		return normalizeEnabledOption(value)
 	case NameIdentitySessionsMaxDevices:
 		// 限制在 1-20；非法值返回 false，上游保留默认值（beginner-friendly：配置错误不致功能失效）。
@@ -1186,6 +1207,9 @@ func isValidValueSet(values map[string]string) bool {
 		if _, ok := normalizeEnabledOption(values[name]); !ok {
 			return false
 		}
+	}
+	if _, ok := normalizeEnabledOption(values[NameIdentityRegistrationEnabled]); !ok {
+		return false
 	}
 	if _, ok := normalizeForumSlug(values[NameForumDefaultCategorySlug]); !ok {
 		return false

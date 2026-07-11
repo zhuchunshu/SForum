@@ -206,6 +206,7 @@ const fallbackOptions: Record<string, string> = {
   'identity.password.require_uppercase': disabledOption,
   'identity.password.require_number': disabledOption,
   'identity.password.require_symbol': disabledOption,
+  'identity.registration.enabled': enabledOption,
   'forum.default_category_slug': 'general',
   'forum.tags.creation_mode': 'controlled',
   'forum.tags.public_pages': enabledOption,
@@ -352,6 +353,8 @@ export const useWebOptions = () => {
   })
   const altchaWidgetSettings = computed(() => resolveAltchaWidgetSettings(options.value))
   const passwordPolicy = computed(() => resolvePasswordPolicy(options.value))
+  // 开放注册运营意图（不含 bootstrap 覆盖；权威仍看 /auth/registration-status）。
+  const registrationEnabled = computed(() => normalizeEnabledOption(webOption('identity.registration.enabled'), true))
   const seoSettings = computed(() => resolveSEOSettings(options.value))
   const avatarSettings = computed(() => resolveAvatarSettings(options.value))
   const seoIndexable = computed(() => isSEOIndexingAllowed(seoSettings.value, siteUrl.value))
@@ -389,6 +392,7 @@ export const useWebOptions = () => {
     humanVerificationScenarioSettings,
     altchaWidgetSettings,
     passwordPolicy,
+    registrationEnabled,
     seoSettings,
     avatarSettings,
     seoIndexable,

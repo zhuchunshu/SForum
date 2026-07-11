@@ -204,7 +204,10 @@
     "passwordsDoNotMatch": "两次输入的密码不一致。",
     "passwordPolicyHint": "密码至少 12 个字符。",
     "backToLogin": "返回登录",
-    "submitting": "提交中..."
+    "submitting": "提交中...",
+    "registerDisabledTitle": "注册已关闭",
+    "registerDisabledDescription": "当前站点未开放自行注册，请联系管理员获取账号，或直接登录。",
+    "registerDisabledGoLogin": "前往登录"
   },
   "components": {
     "iconPicker": {
@@ -598,15 +601,15 @@
         "notFoundTitle": "找不到扩展页面",
         "notFoundDescription": "这个扩展不存在，或 manifest 没有声明当前后台页面。",
         "settingsTitle": "扩展设置",
-        "settingsIntro": "这些字段来自扩展 manifest，保存后会写入扩展自己的运行时设置表。",
+        "settingsIntro": "以下字段由扩展声明。保存后写入该扩展自己的运行时配置；不影响其它扩展。",
         "settingsLoadFailed": "扩展设置加载失败。",
         "settingsSaved": "扩展设置已保存。",
         "settingsSaveFailed": "扩展设置保存失败。",
-        "settingsReset": "已恢复扩展默认设置。",
+        "settingsReset": "已恢复推荐默认值。",
         "enabled": "启用",
         "defaultValue": "默认值：{value}",
         "emptyValue": "空",
-        "resetDefaults": "恢复默认",
+        "resetDefaults": "恢复推荐默认值",
         "saveSettings": "保存设置",
         "emptySettingsTitle": "暂无可配置项",
         "emptySettingsDescription": "这个扩展的 manifest 没有声明 settings 字段。",
@@ -615,7 +618,21 @@
         "type": "类型",
         "version": "版本",
         "status": "状态",
-        "author": "作者"
+        "author": "作者",
+        "settingsToolbar": "正在配置：{name}",
+        "aboutToolbar": "扩展信息：{name}",
+        "aboutIntro": "查看扩展说明与包信息。",
+        "ungrouped": "其它设置",
+        "recommendedTitle": "不确定怎么填？先用推荐默认值",
+        "recommendedDescription": "大多数扩展提供了可用的推荐默认值。你可以先恢复推荐配置，再按需要微调。字段标签与说明由扩展自己提供。",
+        "currentRecommended": "当前为推荐默认值",
+        "customPageBadge": "插件自定义界面",
+        "secretsPreserved": "恢复推荐默认值不会清空已保存的密码或密钥；密码字段留空也会保留原值。",
+        "secretSetPlaceholder": "已设置（留空保留原值）",
+        "secretConfigured": "已保存密钥",
+        "footerHint": "保存后立即生效。恢复默认只会重置本扩展字段。",
+        "footerSecretHint": "密码留空表示保留已保存的密钥；恢复默认也不会删除密钥。",
+        "recommendedValue": "推荐值：{value}"
       },
       "eventLog": {
         "metaTitle": "扩展事件日志",
@@ -1239,7 +1256,11 @@
         "sessionsMaxDevices": "最大活跃设备数",
         "sessionsMaxDevicesHint": "同一账号最多同时保持登录的设备数（1-20），超出时新登录会自动下线最旧的设备。推荐 5。",
         "sessionsKeepDays": "登录历史保留天数",
-        "sessionsKeepDaysHint": "已下线的登录记录保留多少天供用户回看（1-365），超过后由后台定期任务清理。推荐 30。"
+        "sessionsKeepDaysHint": "已下线的登录记录保留多少天供用户回看（1-365），超过后由后台定期任务清理。推荐 30。",
+        "registrationEnabled": "开放注册",
+        "registrationEnabledOn": "已开启：访客可自行注册",
+        "registrationEnabledOff": "已关闭：仅管理员可创建账号",
+        "registrationEnabledHint": "关闭后登录页将隐藏注册入口。站点尚无任何用户时仍允许首次注册（安装引导）。推荐保持开启。"
       },
       "verification": {
         "title": "人机验证",

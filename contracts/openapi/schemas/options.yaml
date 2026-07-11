@@ -100,6 +100,7 @@ AdminWebOption:
       - identity.password.require_uppercase
       - identity.password.require_number
       - identity.password.require_symbol
+      - identity.registration.enabled
       - identity.sessions.max_devices
       - identity.sessions.keep_days
       - seo.meta_title_template
@@ -265,6 +266,7 @@ WebOptionInput:
       - identity.password.require_uppercase
       - identity.password.require_number
       - identity.password.require_symbol
+      - identity.registration.enabled
       - identity.sessions.max_devices
       - identity.sessions.keep_days
       - seo.meta_title_template
@@ -390,6 +392,7 @@ AdminWebOptionInput:
       - identity.password.require_uppercase
       - identity.password.require_number
       - identity.password.require_symbol
+      - identity.registration.enabled
       - identity.sessions.max_devices
       - identity.sessions.keep_days
       - seo.meta_title_template
