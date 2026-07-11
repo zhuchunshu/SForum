@@ -1,6 +1,9 @@
 package identity
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestSystemRoles(t *testing.T) {
 	if RoleSuperAdmin != "super_admin" {
@@ -8,6 +11,173 @@ func TestSystemRoles(t *testing.T) {
 	}
 	if RoleMember != "member" {
 		t.Fatalf("unexpected member role key: %q", RoleMember)
+	}
+	if RoleModerator != "moderator" || RoleOperator != "operator" || RoleTechAdmin != "tech_admin" {
+		t.Fatalf("unexpected template role keys: %q %q %q", RoleModerator, RoleOperator, RoleTechAdmin)
+	}
+	for _, key := range []string{RoleSuperAdmin, RoleMember, RoleModerator, RoleOperator, RoleTechAdmin} {
+		if !IsBuiltInSystemRole(key) {
+			t.Fatalf("expected %s to be a built-in system role", key)
+		}
+	}
+	if IsBuiltInSystemRole("custom_group") {
+		t.Fatal("custom roles must not be treated as built-in system roles")
+	}
+}
+
+func TestSeedRoleTemplatesPermissionPacks(t *testing.T) {
+	catalog := map[string]bool{}
+	for _, permission := range SeedPermissions {
+		catalog[permission.Key] = true
+	}
+
+	byKey := map[string]SeedRoleTemplate{}
+	for _, template := range SeedRoleTemplates {
+		if template.Key == "" || template.Alias == "" || template.Description == "" {
+			t.Fatalf("template must declare key/alias/description: %#v", template)
+		}
+		if _, exists := byKey[template.Key]; exists {
+			t.Fatalf("duplicate template role key: %s", template.Key)
+		}
+		byKey[template.Key] = template
+
+		seen := map[string]bool{}
+		for _, key := range template.PermissionKeys {
+			if !catalog[key] {
+				t.Fatalf("template %s references unknown permission %s", template.Key, key)
+			}
+			if seen[key] {
+				t.Fatalf("template %s has duplicate permission %s", template.Key, key)
+			}
+			seen[key] = true
+		}
+		if !slices.Contains(template.PermissionKeys, PermissionAdminAccess) {
+			t.Fatalf("template %s should include admin.access for admin chrome", template.Key)
+		}
+	}
+
+	moderator, ok := byKey[RoleModerator]
+	if !ok {
+		t.Fatal("expected moderator template")
+	}
+	for _, key := range []string{
+		PermissionModerationReview,
+		PermissionTopicLock,
+		PermissionTopicPin,
+		PermissionTopicEditAny,
+		PermissionTopicDeleteAny,
+		PermissionPostEditAny,
+		PermissionPostDeleteAny,
+		PermissionUserBan,
+	} {
+		if !slices.Contains(moderator.PermissionKeys, key) {
+			t.Fatalf("moderator missing %s", key)
+		}
+	}
+	// 版主不应拿到站点设置 / 技术根能力。
+	for _, key := range []string{
+		PermissionSettingsSiteManage,
+		PermissionExtensionReleaseManage,
+		PermissionDatabaseManage,
+		PermissionUserPermissionOverride,
+		PermissionRoleManage,
+	} {
+		if slices.Contains(moderator.PermissionKeys, key) {
+			t.Fatalf("moderator should not include %s", key)
+		}
+	}
+
+	operator, ok := byKey[RoleOperator]
+	if !ok {
+		t.Fatal("expected operator template")
+	}
+	for _, key := range []string{
+		PermissionUserView,
+		PermissionUserManage,
+		PermissionSettingsSiteManage,
+		PermissionSettingsMailManage,
+		PermissionSettingsAvatarManage,
+		PermissionSettingsAppearanceManage,
+		PermissionForumSettingsManage,
+		PermissionSEOManage,
+		PermissionCategoryManage,
+		PermissionTagManage,
+		PermissionAttachmentManage,
+		PermissionAttachmentSettings,
+	} {
+		if !slices.Contains(operator.PermissionKeys, key) {
+			t.Fatalf("operator missing %s", key)
+		}
+	}
+	// 运营默认不持有个人权限例外与技术发布类能力。
+	for _, key := range []string{
+		PermissionUserPermissionOverride,
+		PermissionExtensionReleaseManage,
+		PermissionDatabaseManage,
+		PermissionJobsManage,
+		PermissionRoleManage,
+	} {
+		if slices.Contains(operator.PermissionKeys, key) {
+			t.Fatalf("operator should not include %s", key)
+		}
+	}
+
+	tech, ok := byKey[RoleTechAdmin]
+	if !ok {
+		t.Fatal("expected tech_admin template")
+	}
+	for _, key := range []string{
+		PermissionExtensionView,
+		PermissionExtensionPluginManage,
+		PermissionExtensionThemeManage,
+		PermissionExtensionReleaseManage,
+		PermissionJobsView,
+		PermissionJobsManage,
+		PermissionSearchManage,
+		PermissionDatabaseManage,
+		PermissionAttachmentSettings,
+	} {
+		if !slices.Contains(tech.PermissionKeys, key) {
+			t.Fatalf("tech_admin missing %s", key)
+		}
+	}
+	// 技术管理不默认拿用户改组与内容审核全能。
+	for _, key := range []string{
+		PermissionUserManage,
+		PermissionUserPermissionOverride,
+		PermissionModerationReview,
+		PermissionSettingsSiteManage,
+	} {
+		if slices.Contains(tech.PermissionKeys, key) {
+			t.Fatalf("tech_admin should not include %s", key)
+		}
+	}
+}
+
+func TestSeedMemberPermissionsStayNarrow(t *testing.T) {
+	catalog := map[string]bool{}
+	for _, permission := range SeedPermissions {
+		catalog[permission.Key] = true
+	}
+	for _, key := range SeedMemberPermissions {
+		if !catalog[key] {
+			t.Fatalf("member seed references unknown permission %s", key)
+		}
+	}
+	for _, key := range []string{
+		PermissionTopicCreate,
+		PermissionTopicEditOwn,
+		PermissionTopicDeleteOwn,
+		PermissionPostCreate,
+		PermissionPostEditOwn,
+		PermissionPostDeleteOwn,
+	} {
+		if !slices.Contains(SeedMemberPermissions, key) {
+			t.Fatalf("member missing %s", key)
+		}
+	}
+	if slices.Contains(SeedMemberPermissions, PermissionAdminAccess) {
+		t.Fatal("member must not receive admin.access by default")
 	}
 }
 

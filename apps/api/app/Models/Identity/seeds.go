@@ -3,6 +3,10 @@ package identity
 const (
 	RoleSuperAdmin = "super_admin"
 	RoleMember     = "member"
+	// 内置角色模板：系统角色、不可删除；权限集合可在后台调整（super_admin 除外）。
+	RoleModerator = "moderator"
+	RoleOperator  = "operator"
+	RoleTechAdmin = "tech_admin"
 
 	PermissionAdminAccess = "admin.access"
 	PermissionRoleManage  = "role.manage"
@@ -103,4 +107,102 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionSearchManage, Module: "search", Description: "Rebuild and manage the search index."},
 	{Key: PermissionJobsView, Module: "jobs", Description: "View background jobs, queues, failures, and worker activity."},
 	{Key: PermissionJobsManage, Module: "jobs", Description: "Retry, cancel, pause, and resume background job processing."},
+}
+
+// SeedRoleTemplate 是内置角色模板的源码权威定义。
+// 数据库 seed 通过 migration 写入；测试与后台「应用模板」应复用此处权限包。
+type SeedRoleTemplate struct {
+	Key            string
+	Alias          string
+	Description    string
+	PermissionKeys []string
+}
+
+// SeedMemberPermissions 默认注册用户组权限（与 identity_rbac + phase1 migration 对齐）。
+var SeedMemberPermissions = []string{
+	PermissionTopicCreate,
+	PermissionTopicEditOwn,
+	PermissionTopicDeleteOwn,
+	PermissionPostCreate,
+	PermissionPostEditOwn,
+	PermissionPostDeleteOwn,
+}
+
+// SeedRoleTemplates 内置岗位模板：版主 / 站点运营 / 技术管理。
+// 不含 super_admin（全能受保护）与 member（默认注册组，权限更窄）。
+var SeedRoleTemplates = []SeedRoleTemplate{
+	{
+		Key:         RoleModerator,
+		Alias:       "版主",
+		Description: "内容运营：审核、锁帖/置顶、编辑删除任意主题与回复，并可封禁用户。",
+		PermissionKeys: []string{
+			PermissionAdminAccess,
+			PermissionModerationReview,
+			PermissionTopicLock,
+			PermissionTopicPin,
+			PermissionTopicEditAny,
+			PermissionTopicDeleteAny,
+			PermissionPostEditAny,
+			PermissionPostDeleteAny,
+			PermissionUserBan,
+		},
+	},
+	{
+		Key:         RoleOperator,
+		Alias:       "站点运营",
+		Description: "站点日常运营：用户与内容结构、站点/邮件/外观等设置；不含技术发布与权限例外。",
+		PermissionKeys: []string{
+			PermissionAdminAccess,
+			PermissionUserView,
+			PermissionUserManage,
+			// 有意不含 user.permission_override：个人权限例外留给超管或单独授权。
+			PermissionSettingsSiteManage,
+			PermissionSettingsMailManage,
+			PermissionSettingsAvatarManage,
+			PermissionSettingsAppearanceManage,
+			PermissionForumSettingsManage,
+			PermissionSEOManage,
+			PermissionCategoryManage,
+			PermissionTagManage,
+			PermissionAttachmentManage,
+			PermissionAttachmentSettings,
+		},
+	},
+	{
+		Key:         RoleTechAdmin,
+		Alias:       "技术管理",
+		Description: "技术运维：扩展与发布、搜索索引、后台任务、数据库浏览与附件存储设置。",
+		PermissionKeys: []string{
+			PermissionAdminAccess,
+			PermissionExtensionView,
+			PermissionExtensionPluginManage,
+			PermissionExtensionThemeManage,
+			PermissionExtensionReleaseManage,
+			PermissionJobsView,
+			PermissionJobsManage,
+			PermissionSearchManage,
+			PermissionDatabaseManage,
+			PermissionAttachmentSettings,
+		},
+	},
+}
+
+// IsBuiltInSystemRole 内置系统角色（不可删除；member 另走默认注册组锁定）。
+func IsBuiltInSystemRole(roleKey string) bool {
+	switch roleKey {
+	case RoleSuperAdmin, RoleMember, RoleModerator, RoleOperator, RoleTechAdmin:
+		return true
+	default:
+		return false
+	}
+}
+
+// RoleTemplateByKey 按 key 查找内置模板；不存在时 ok=false。
+func RoleTemplateByKey(roleKey string) (SeedRoleTemplate, bool) {
+	for _, template := range SeedRoleTemplates {
+		if template.Key == roleKey {
+			return template, true
+		}
+	}
+	return SeedRoleTemplate{}, false
 }

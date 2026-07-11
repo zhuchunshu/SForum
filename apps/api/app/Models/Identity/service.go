@@ -538,7 +538,8 @@ func (s *Service) DeleteRole(ctx context.Context, actor Actor, roleKey string) e
 	if roleKey == RoleMember {
 		return ErrDefaultRoleLocked
 	}
-	if roleKey == RoleSuperAdmin {
+	// super_admin 与内置模板角色（moderator/operator/tech_admin）均不可删除。
+	if IsBuiltInSystemRole(roleKey) {
 		return ErrSystemRoleLocked
 	}
 	return s.store.DeleteRole(ctx, roleKey)

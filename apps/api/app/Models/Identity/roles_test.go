@@ -27,6 +27,57 @@ func TestMemberAliasCanChangeButRoleCannotBeDeleted(t *testing.T) {
 	}
 }
 
+func TestBuiltInTemplateRolesCannotBeDeleted(t *testing.T) {
+	service, store := newTestService(t)
+	admin := Actor{ID: 1, Status: UserStatusActive, RoleKeys: []string{RoleSuperAdmin}}
+	ctx := testContext(t)
+
+	for i, template := range SeedRoleTemplates {
+		store.seedRole(Role{
+			ID:          int64(10 + i),
+			Key:         template.Key,
+			Alias:       template.Alias,
+			Description: template.Description,
+			IsSystem:    true,
+			IsDeletable: false,
+			IsEnabled:   true,
+		})
+		if err := service.DeleteRole(ctx, admin, template.Key); err != ErrSystemRoleLocked {
+			t.Fatalf("expected system lock for %s, got %v", template.Key, err)
+		}
+	}
+}
+
+func TestBuiltInTemplateRolePermissionsCanBeReplacedExceptSuperAdmin(t *testing.T) {
+	service, store := newTestService(t)
+	admin := Actor{ID: 1, Status: UserStatusActive, RoleKeys: []string{RoleSuperAdmin}}
+	ctx := testContext(t)
+
+	moderator := SeedRoleTemplates[0]
+	store.seedRole(Role{
+		ID:          20,
+		Key:         moderator.Key,
+		Alias:       moderator.Alias,
+		IsSystem:    true,
+		IsDeletable: false,
+		IsEnabled:   true,
+	})
+	store.rolePerms[20] = append([]string(nil), moderator.PermissionKeys...)
+
+	// 模板角色允许站点微调权限集合（与 super_admin 权限锁定区分）。
+	next := []string{PermissionAdminAccess, PermissionModerationReview, PermissionTopicLock}
+	if err := service.ReplaceRolePermissions(ctx, admin, RoleModerator, next); err != nil {
+		t.Fatalf("ReplaceRolePermissions for moderator returned error: %v", err)
+	}
+	if got := store.rolePerms[20]; !slices.Equal(got, next) {
+		t.Fatalf("expected moderator permissions %v, got %v", next, got)
+	}
+
+	if err := service.ReplaceRolePermissions(ctx, admin, RoleSuperAdmin, []string{PermissionAdminAccess}); err != ErrSystemRoleLocked {
+		t.Fatalf("expected super_admin permission lock, got %v", err)
+	}
+}
+
 func TestNonAdminCannotManageRoles(t *testing.T) {
 	service, _ := newTestService(t)
 	member := Actor{ID: 2, Status: UserStatusActive, Permissions: map[string]bool{}}
