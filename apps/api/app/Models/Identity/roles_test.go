@@ -377,3 +377,70 @@ func TestSuperAdminCanGrantSuperAdminRole(t *testing.T) {
 		t.Fatalf("expected super_admin to grant super_admin role, got %v", err)
 	}
 }
+
+// TestNonSuperAdminCannotDemoteNonInitialSuperAdmin 回归：非超管不得摘掉非初始 super_admin。
+func TestNonSuperAdminCannotDemoteNonInitialSuperAdmin(t *testing.T) {
+	service, store := newTestService(t)
+	ctx := testContext(t)
+	initial, err := service.Register(ctx, RegisterInput{
+		Username: "firstadmin",
+		Email:    "firstadmin@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("Register initial admin: %v", err)
+	}
+	// 再造一个非初始 super_admin 作为 demote 目标。
+	target, err := service.Register(ctx, RegisterInput{
+		Username: "secondadmin",
+		Email:    "secondadmin@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("Register second admin: %v", err)
+	}
+	if _, err := store.ReplaceUserRoles(ctx, initial.ID, target.ID, []string{RoleSuperAdmin}); err != nil {
+		t.Fatalf("seed target as super_admin: %v", err)
+	}
+
+	manager := Actor{ID: 60, Status: UserStatusActive, Permissions: map[string]bool{PermissionUserManage: true}}
+	_, err = service.ReplaceUserRoles(ctx, manager, target.ID, []string{RoleMember})
+	if err != ErrSuperAdminGrantRestricted {
+		t.Fatalf("expected ErrSuperAdminGrantRestricted on demote, got %v", err)
+	}
+}
+
+// TestSuperAdminCanDemoteNonInitialSuperAdmin 超管可以撤销非初始 super_admin。
+func TestSuperAdminCanDemoteNonInitialSuperAdmin(t *testing.T) {
+	service, store := newTestService(t)
+	ctx := testContext(t)
+	initial, err := service.Register(ctx, RegisterInput{
+		Username: "firstadmin",
+		Email:    "firstadmin@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("Register initial admin: %v", err)
+	}
+	target, err := service.Register(ctx, RegisterInput{
+		Username: "secondadmin",
+		Email:    "secondadmin@example.com",
+		Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatalf("Register second admin: %v", err)
+	}
+	if _, err := store.ReplaceUserRoles(ctx, initial.ID, target.ID, []string{RoleSuperAdmin}); err != nil {
+		t.Fatalf("seed target as super_admin: %v", err)
+	}
+
+	// 用另一个 super_admin actor（非 target）执行 demote，避免 self-change。
+	actor := Actor{ID: initial.ID, Status: UserStatusActive, RoleKeys: []string{RoleSuperAdmin}}
+	detail, err := service.ReplaceUserRoles(ctx, actor, target.ID, []string{RoleMember})
+	if err != nil {
+		t.Fatalf("expected super_admin demote to succeed, got %v", err)
+	}
+	if slices.Contains(detail.RoleKeys, RoleSuperAdmin) {
+		t.Fatalf("expected super_admin removed, got %v", detail.RoleKeys)
+	}
+}

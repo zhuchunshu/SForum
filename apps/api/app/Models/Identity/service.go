@@ -577,8 +577,11 @@ func (s *Service) ReplaceUserRoles(ctx context.Context, actor Actor, targetUserI
 	if target.IsInitialSuperAdmin && !containsString(normalized, RoleSuperAdmin) {
 		return AdminUserDetail{}, ErrInitialSuperAdminLocked
 	}
-	// 授予 super_admin 角色要求操作者本身已是 super_admin，防止 user.manage 持有者越权提权他人。
-	if containsString(normalized, RoleSuperAdmin) && !actor.IsSuperAdmin() {
+	// 授予或撤销 super_admin 成员身份都要求操作者本身是 super_admin，
+	// 防止 user.manage 持有者对非初始超管做 demote。
+	targetIsSuperAdmin := containsString(target.RoleKeys, RoleSuperAdmin)
+	nextIsSuperAdmin := containsString(normalized, RoleSuperAdmin)
+	if targetIsSuperAdmin != nextIsSuperAdmin && !actor.IsSuperAdmin() {
 		return AdminUserDetail{}, ErrSuperAdminGrantRestricted
 	}
 	if err := s.validateRoles(ctx, normalized); err != nil {
