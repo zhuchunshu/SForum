@@ -2156,5 +2156,44 @@
       "off_topic": "偏离主题",
       "other": "其他"
     }
+  },
+  "taxonomy": {
+    "tags": {
+      "title": "全部标签",
+      "description": "字号反映话题热度。点击进入该标签下的主题列表。",
+      "filterPlaceholder": "筛选标签…",
+      "filters": {
+        "all": "全部",
+        "hot": "热门",
+        "week": "本周",
+        "az": "A–Z"
+      },
+      "legendSize": "字号越大 = 话题越多",
+      "legendSummary": "{tags} 标签 · 共 {refs} 次引用",
+      "stats": {
+        "total": "标签总数",
+        "weekNew": "本周新增",
+        "hotThreshold": "热门阈值"
+      },
+      "risingTitle": "热门标签",
+      "risingMeta": "按主题数排序（暂无周环比）",
+      "emptyTitle": "暂无标签",
+      "emptyDescription": "还没有可展示的标签，或当前筛选没有匹配结果。"
+    },
+    "categories": {
+      "title": "全部分类",
+      "description": "等宽磁贴网格：图标、色条、描述与计数一屏扫完。",
+      "sorts": {
+        "all": "全部",
+        "active": "按活跃",
+        "name": "按名称"
+      },
+      "enter": "进入 →",
+      "noDescription": "暂无简介",
+      "topicCount": "{count} 主题",
+      "replyCount": "{count} 回复",
+      "emptyTitle": "暂无分类",
+      "emptyDescription": "当前没有对你可见的公开分类。"
+    }
   }
 }

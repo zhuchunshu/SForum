@@ -72,8 +72,11 @@ permissions, and reusable component/composable infrastructure.
 The default-theme public forum follows V32 暖橙左栏 (demo
 `tmp/demo/grok/1/v32-right-sidebar/`, content is left-nav despite the folder
 name). Layout:
-- Sticky topbar (`SFNavbar`): logo, Latest/Categories/Tags (real destinations
-  only), search, compose, session controls. Density ~52px.
+- Sticky topbar (`SFNavbar`): logo, Latest → `/`, Categories → `/categories`,
+  Tags → `/tags` (hidden when `forum.tags.public_pages` is off), search,
+  compose, session controls. Density ~52px.
+- Public taxonomy list pages (default theme): `/tags` T01 weight cloud and
+  `/categories` C04 grouped tile grid; styles in `sforum-taxonomy.css`.
 - Homepage: sticky 240px left nav (`SFHomeNavigation`) with compose, all
   topics, and category color dots + counts; main column notice + latest feed
   tab + dense topic table (`SFHomeTopicRow` without excerpt cards). Author

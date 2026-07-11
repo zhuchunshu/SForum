@@ -42,8 +42,10 @@ on 2026-07-07.
   only allows approved tags, review mode creates pending tags, and open mode
   creates active tags directly.
 - Public Nuxt pages now consume real forum data for the homepage, category
-  pages, and tag pages. Tag pages can be disabled through public runtime
-  options.
+  pages, tag detail pages, and full-list taxonomy pages (`/tags`, `/categories`).
+  Tag list/detail pages can be disabled through public runtime option
+  `forum.tags.public_pages`. List pages live in the default theme layer and
+  follow demos T01 (weight cloud) and C04 (tile grid).
 - Topic and comment author summaries include the shared `AvatarView` contract,
   including reply reference authors when present. Frontend forum surfaces should
   pass `author.avatar` into `SFAvatar` directly.
@@ -70,8 +72,10 @@ on 2026-07-07.
 
 ## SEO URL Shape
 
+- Category list: `/categories` (C04 equal-size tile grid by category group)
 - Category: `/c/:categorySlug`
-- Tag: `/tags/:tagSlug`
+- Tag list: `/tags` (T01 weight tag cloud; gated by `forum.tags.public_pages`)
+- Tag: `/tags/:tagSlug` (also gated by `forum.tags.public_pages`)
 - Topic: `/t/<path>` — 详情页为 catch-all 路由（`t/[...path].vue`），具体形态由
   `seo.topic_url_mode` 选项控制，管理员可在 SEO 设置页切换：
 

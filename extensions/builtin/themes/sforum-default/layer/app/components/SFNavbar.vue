@@ -1,17 +1,26 @@
 <script setup lang="ts">
 import { buildForumHomeQuery } from '~/utils/forumHome'
+import {
+  forumCategoriesIndexPath,
+  forumTagsIndexPath,
+  parseForumTagPublicPagesOption
+} from '~/utils/forumTaxonomy'
 
 const { t, locale, locales } = useI18n()
 const localePath = useLocalePath()
 const switchLocalePath = useSwitchLocalePath()
 const { user, refresh } = useAuthSession()
-const { siteName } = useWebOptions()
+const { siteName, webOption } = useWebOptions()
 const { request } = useApiClient()
 const router = useRouter()
-const route = useRoute()
 const colorMode = useColorMode()
 const { can } = usePermissions()
 const notifications = useNotifications()
+
+// 标签公开列表受运行时选项控制；关闭时隐藏导航入口（详情页同样 404）。
+const publicTagPagesEnabled = computed(() => parseForumTagPublicPagesOption(
+  webOption('forum.tags.public_pages', 'enabled')
+))
 
 type LocaleCode = Parameters<typeof switchLocalePath>[0]
 type LocaleOption = {
@@ -225,19 +234,6 @@ function submitSearch(query: string) {
   })
 }
 
-// 顶栏「类别/标签」仅在首页滚动到对应区域；其它页面先回首页再定位。
-async function scrollToHomeSection(elementId: string) {
-  const homePath = localePath('/')
-  if (route.path !== homePath && !route.path.endsWith(homePath)) {
-    await navigateTo(homePath)
-    await nextTick()
-  }
-  if (!import.meta.client) {
-    return
-  }
-  document.getElementById(elementId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
 function submitMobileSearch(query: string) {
   mobileSearchOpen.value = false
   return submitSearch(query)
@@ -277,20 +273,21 @@ async function logout() {
         >
           {{ t('home.filter.latest') }}
         </NuxtLink>
-        <a
-          href="#feed-list-container"
+        <NuxtLink
+          :to="localePath(forumCategoriesIndexPath())"
           class="navbar__nav-link"
-          @click.prevent="scrollToHomeSection('feed-list-container')"
+          :aria-label="t('home.filter.categories')"
         >
           {{ t('home.filter.categories') }}
-        </a>
-        <a
-          href="#home-tags"
+        </NuxtLink>
+        <NuxtLink
+          v-if="publicTagPagesEnabled"
+          :to="localePath(forumTagsIndexPath())"
           class="navbar__nav-link"
-          @click.prevent="scrollToHomeSection('home-tags')"
+          :aria-label="t('home.filter.tags')"
         >
           {{ t('home.filter.tags') }}
-        </a>
+        </NuxtLink>
       </nav>
 
       <SFSearch

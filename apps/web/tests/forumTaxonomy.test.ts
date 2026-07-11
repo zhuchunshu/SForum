@@ -6,11 +6,16 @@ import {
   forumTopicExtensionActionLabel,
   forumTopicExtensionActionRequest,
   forumTopicExtensionActionRequestPath,
+  forumCategoriesIndexPath,
   forumCategoryPath,
   forumTagPath,
+  forumTagsIndexPath,
+  isCreatedWithinDays,
   isForumTagSlug,
   normalizeForumTagSlugInput,
-  parseForumTagPublicPagesOption
+  parseForumTagPublicPagesOption,
+  tagCloudSizeBucket,
+  tagHotThreshold
 } from '../app/utils/forumTaxonomy'
 
 describe('forum taxonomy helpers', () => {
@@ -44,6 +49,33 @@ describe('forum taxonomy helpers', () => {
     expect(forumCategoryPath('general')).toBe('/c/general')
     expect(forumTagPath('nuxt')).toBe('/tags/nuxt')
     expect(forumTagPath('中文标签')).toBe('/tags/' + encodeURIComponent('中文标签'))
+    expect(forumCategoriesIndexPath()).toBe('/categories')
+    expect(forumTagsIndexPath()).toBe('/tags')
+  })
+
+  test('maps topic counts to tag cloud size buckets with log scale', () => {
+    expect(tagCloudSizeBucket(0, 0, 0)).toBe(3)
+    expect(tagCloudSizeBucket(10, 10, 10)).toBe(3)
+    expect(tagCloudSizeBucket(1, 1, 1000)).toBe(1)
+    expect(tagCloudSizeBucket(1000, 1, 1000)).toBe(6)
+    const mid = tagCloudSizeBucket(50, 1, 1000)
+    expect(mid).toBeGreaterThanOrEqual(2)
+    expect(mid).toBeLessThanOrEqual(5)
+  })
+
+  test('computes hot threshold from the upper quartile of positive counts', () => {
+    expect(tagHotThreshold([])).toBe(1)
+    expect(tagHotThreshold([0, 0])).toBe(1)
+    expect(tagHotThreshold([12])).toBe(12)
+    // 8 个正计数 → 前 25% 取第 2 大（index 1）
+    expect(tagHotThreshold([100, 80, 60, 40, 30, 20, 10, 5])).toBe(80)
+  })
+
+  test('detects tags created within a day window', () => {
+    const now = Date.parse('2026-07-12T12:00:00Z')
+    expect(isCreatedWithinDays('2026-07-10T00:00:00Z', 7, now)).toBe(true)
+    expect(isCreatedWithinDays('2026-06-01T00:00:00Z', 7, now)).toBe(false)
+    expect(isCreatedWithinDays('not-a-date', 7, now)).toBe(false)
   })
 
   test('normalizes forum tag slug input with Chinese characters', () => {

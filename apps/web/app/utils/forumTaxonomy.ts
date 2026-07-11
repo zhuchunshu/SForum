@@ -317,8 +317,78 @@ export function forumCategoryPath(slug: string) {
   return `/c/${encodeURIComponent(slug)}`
 }
 
+// 公开「全部分类」列表页路径。
+export function forumCategoriesIndexPath() {
+  return '/categories'
+}
+
 export function forumTagPath(slug: string) {
   return `/tags/${encodeURIComponent(slug)}`
+}
+
+// 公开「全部标签」列表页路径（受 forum.tags.public_pages 控制）。
+export function forumTagsIndexPath() {
+  return '/tags'
+}
+
+// 标签云字号分桶：1（最小）…6（最大）。按 topicCount 在当前集合 min/max 上
+// 做 log 归一化，避免写死 demo 字号，也避免单点极值把云挤扁。
+export function tagCloudSizeBucket(
+  topicCount: number,
+  minCount: number,
+  maxCount: number
+): 1 | 2 | 3 | 4 | 5 | 6 {
+  const count = Math.max(0, Number.isFinite(topicCount) ? topicCount : 0)
+  const min = Math.max(0, Number.isFinite(minCount) ? minCount : 0)
+  const max = Math.max(min, Number.isFinite(maxCount) ? maxCount : min)
+
+  if (max <= min) {
+    return 3
+  }
+
+  const logMin = Math.log1p(min)
+  const logMax = Math.log1p(max)
+  const span = logMax - logMin
+  if (span <= 0) {
+    return 3
+  }
+
+  const ratio = (Math.log1p(count) - logMin) / span
+  const clamped = Math.min(1, Math.max(0, ratio))
+  // 映射到 1..6：均匀 6 档
+  const bucket = Math.min(6, Math.max(1, Math.floor(clamped * 6) + 1))
+  return bucket as 1 | 2 | 3 | 4 | 5 | 6
+}
+
+// 热门阈值：取 topicCount 降序后约前 25% 的下界，至少为 1。
+// 用于「热门」chip 与统计格，客户端从当前 active 标签集合计算。
+export function tagHotThreshold(topicCounts: number[]): number {
+  const counts = topicCounts
+    .map((n) => (Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0))
+    .filter((n) => n > 0)
+    .sort((a, b) => b - a)
+
+  if (counts.length === 0) {
+    return 1
+  }
+  if (counts.length === 1) {
+    return Math.max(1, counts[0]!)
+  }
+
+  const index = Math.min(counts.length - 1, Math.max(0, Math.ceil(counts.length * 0.25) - 1))
+  return Math.max(1, counts[index]!)
+}
+
+// 近 7 天内创建（本周新增 / 「本周」chip）。无「本周活跃」API 时的合理降级。
+export function isCreatedWithinDays(isoDate: string | undefined, days: number, nowMs = Date.now()) {
+  if (!isoDate || !Number.isFinite(days) || days <= 0) {
+    return false
+  }
+  const created = Date.parse(isoDate)
+  if (Number.isNaN(created)) {
+    return false
+  }
+  return created >= nowMs - days * 24 * 60 * 60 * 1000
 }
 
 const forumTagSlugPattern = /^[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*$/u

@@ -220,10 +220,12 @@ This is the entry point for project memory.
   generated `sqlc` code.
 - Forum taxonomy Phase 1 is implemented: two-level category groups/categories,
   core tags and topic-tag joins, configurable tag creation policy, public
-  category/tag filtering pages, admin category/tag/settings screens,
-  `category.manage`/`tag.manage` permission boundaries, forum events, and
-  modular OpenAPI coverage. Tag slugs accept Unicode letters/numbers plus
-  hyphens; category/default-category slugs remain ASCII.
+  category/tag filtering pages, full-list public pages `/tags` (T01 weight
+  cloud) and `/categories` (C04 tile grid) in the default theme, admin
+  category/tag/settings screens, `category.manage`/`tag.manage` permission
+  boundaries, forum events, and modular OpenAPI coverage. Tag slugs accept
+  Unicode letters/numbers plus hyphens; category/default-category slugs remain
+  ASCII.
 - Admin taxonomy management now supports configurable icons and icon colors for
   categories and tags. The fields are stored on `categories` and `tags`,
   exposed through existing admin taxonomy endpoints, and previewed only in the

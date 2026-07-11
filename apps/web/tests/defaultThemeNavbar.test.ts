@@ -20,7 +20,7 @@ describe('default theme shared navbar contract', () => {
     expect(source).not.toContain('navbar--workbench')
     expect(source).toContain('min-height: var(--sf-public-topbar-height, 52px)')
     expect(source).toContain('background: var(--sf-public-surface)')
-    expect(source).toContain('scrollToHomeSection')
+    expect(source).not.toContain('scrollToHomeSection')
   })
 
   test('orders the desktop identity, home nav, search, compose action, and session controls', () => {
@@ -40,10 +40,14 @@ describe('default theme shared navbar contract', () => {
     expect(navMarkup).toContain("t('home.filter.latest')")
     expect(navMarkup).toContain("t('home.filter.categories')")
     expect(navMarkup).toContain("t('home.filter.tags')")
+    expect(navMarkup).toContain('forumCategoriesIndexPath()')
+    expect(navMarkup).toContain('forumTagsIndexPath()')
+    expect(navMarkup).toContain('publicTagPagesEnabled')
     expect(navMarkup).not.toContain('/topics/new')
     expect(navMarkup).not.toContain('canCreateTopic')
     expect(navMarkup).not.toContain('热门')
     expect(navMarkup).not.toContain('排行')
+    expect(navMarkup).not.toContain('scrollToHomeSection')
   })
 
   test('submits compact search to the locale-aware homepage query', () => {

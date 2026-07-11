@@ -2150,5 +2150,44 @@
       "off_topic": "Off topic",
       "other": "Other"
     }
+  },
+  "taxonomy": {
+    "tags": {
+      "title": "All tags",
+      "description": "Font size reflects topic volume. Click a tag to open its topic list.",
+      "filterPlaceholder": "Filter tags…",
+      "filters": {
+        "all": "All",
+        "hot": "Hot",
+        "week": "This week",
+        "az": "A–Z"
+      },
+      "legendSize": "Larger type = more topics",
+      "legendSummary": "{tags} tags · {refs} topic references",
+      "stats": {
+        "total": "Total tags",
+        "weekNew": "New this week",
+        "hotThreshold": "Hot threshold"
+      },
+      "risingTitle": "Popular tags",
+      "risingMeta": "Sorted by topic count (weekly trend unavailable)",
+      "emptyTitle": "No tags yet",
+      "emptyDescription": "There are no public tags yet, or nothing matches the current filter."
+    },
+    "categories": {
+      "title": "All categories",
+      "description": "Equal-size tiles with icon, color bar, description, and counts.",
+      "sorts": {
+        "all": "Default",
+        "active": "By activity",
+        "name": "By name"
+      },
+      "enter": "Enter →",
+      "noDescription": "No description yet",
+      "topicCount": "{count} topics",
+      "replyCount": "{count} replies",
+      "emptyTitle": "No categories yet",
+      "emptyDescription": "There are no public categories visible to you."
+    }
   }
 }
