@@ -293,6 +293,9 @@ type UpdateTopicRecord struct {
 	TagCreationMode string
 	HasContent      bool
 	Content         RenderedContent
+	// RequeuePending 为 true 时把主题标为 pending 并写入 ModerationTriggers（编辑触发预审）。
+	RequeuePending     bool
+	ModerationTriggers []string
 }
 
 // TopicLifecycleInput 描述一次主题生命周期动作（hide/restore/lock/unlock/pin/unpin）。
@@ -564,6 +567,9 @@ type UpdateCommentRecord struct {
 	CommentID    int64
 	EditorUserID int64
 	Content      RenderedContent
+	// RequeuePending 为 true 时把评论标为 pending 并写入 ModerationTriggers。
+	RequeuePending     bool
+	ModerationTriggers []string
 }
 
 type CommentPosition struct {

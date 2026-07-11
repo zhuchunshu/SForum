@@ -542,12 +542,25 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 		if err := validateTopicContent(input.Content.RawContent, settings); err != nil {
 			return TopicDetail{}, err
 		}
+		// 与创建路径一致：作者编辑外链等仍受新人信任阶梯限制。
+		if trust := s.trustForActor(ctx, actor); trust.active && trust.forbidLinks && containsOutboundLink(input.Content.RawContent) {
+			return TopicDetail{}, ErrOutboundLinkForbidden
+		}
 		content, err := RenderContentWithExcerptLimit(*input.Content, settings.ExcerptRuneLimit)
 		if err != nil {
 			return TopicDetail{}, err
 		}
 		record.HasContent = true
 		record.Content = content
+		// 内容变更时重跑发布策略，避免编辑绕过创建时的预审门。
+		publication, err := s.publicationDecision(ctx, actor.ID, input.Content.RawContent)
+		if err != nil {
+			return TopicDetail{}, err
+		}
+		if publication.Pending {
+			record.RequeuePending = true
+			record.ModerationTriggers = publication.Triggers
+		}
 	}
 
 	updated, err := s.store.UpdateTopic(ctx, record)
@@ -565,7 +578,12 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 		payload["tagSlugs"] = record.TagSlugs
 	}
 	s.emitTopicEvent(ctx, appevents.TopicUpdated, actor.ID, updated.ID, payload)
-	s.indexTopic(ctx, updated.ID)
+	// 仅 active 主题进入公开索引；pending 应移除以免审核前可见。
+	if updated.Status == TopicStatusActive {
+		s.indexTopic(ctx, updated.ID)
+	} else {
+		s.deleteTopicIndex(ctx, updated.ID)
+	}
 	return updated, nil
 }
 
@@ -914,15 +932,38 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 	if err := validateCommentContent(input.Content.RawContent, settings); err != nil {
 		return Comment{}, err
 	}
+	if trust := s.trustForActor(ctx, actor); trust.active && trust.forbidLinks && containsOutboundLink(input.Content.RawContent) {
+		return Comment{}, ErrOutboundLinkForbidden
+	}
 	content, err := RenderContentWithExcerptLimit(input.Content, settings.ExcerptRuneLimit)
 	if err != nil {
 		return Comment{}, err
 	}
-	return s.store.UpdateComment(ctx, UpdateCommentRecord{
+	record := UpdateCommentRecord{
 		CommentID:    input.CommentID,
 		EditorUserID: actor.ID,
 		Content:      content,
-	})
+	}
+	// 内容编辑与创建共用发布策略，防止改文绕过预审。
+	publication, err := s.publicationDecision(ctx, actor.ID, input.Content.RawContent)
+	if err != nil {
+		return Comment{}, err
+	}
+	if publication.Pending {
+		record.RequeuePending = true
+		record.ModerationTriggers = publication.Triggers
+	}
+	updated, err := s.store.UpdateComment(ctx, record)
+	if err != nil {
+		return Comment{}, err
+	}
+	// 评论从 active 退回 pending 时主题可见评论数变化，刷新索引。
+	if updated.Status == CommentStatusActive {
+		s.indexTopic(ctx, summary.TopicID)
+	} else if summary.Status == CommentStatusActive {
+		s.indexTopic(ctx, summary.TopicID)
+	}
+	return updated, nil
 }
 
 func (s *Service) DeleteComment(ctx context.Context, actor identity.Actor, commentID int64) (Comment, error) {

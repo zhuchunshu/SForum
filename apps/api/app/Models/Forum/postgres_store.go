@@ -661,6 +661,32 @@ func (s *PostgresStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord
 		}
 	}
 
+	// 编辑触发预审：active 主题降为 pending，并回滚分类计数。
+	if input.RequeuePending {
+		triggerSnapshot, err := json.Marshal(input.ModerationTriggers)
+		if err != nil {
+			return TopicDetail{}, fmt.Errorf("encode topic moderation triggers: %w", err)
+		}
+		wasActive := status == TopicStatusActive
+		if _, err := tx.Exec(ctx, `
+			UPDATE topics
+			SET status = 'pending', moderation_triggers = $2, updated_at = now()
+			WHERE id = $1
+		`, input.TopicID, triggerSnapshot); err != nil {
+			return TopicDetail{}, fmt.Errorf("requeue topic pending: %w", err)
+		}
+		status = TopicStatusPending
+		if wasActive {
+			if _, err := tx.Exec(ctx, `
+				UPDATE categories
+				SET topic_count = GREATEST(topic_count - 1, 0), updated_at = now()
+				WHERE id = $1
+			`, categoryID); err != nil {
+				return TopicDetail{}, fmt.Errorf("decrement category after requeue: %w", err)
+			}
+		}
+	}
+
 	// 更新主题标题/slug（标题变更时同步 slug）。
 	if input.Title != "" {
 		if _, err := tx.Exec(ctx, `
@@ -1207,12 +1233,15 @@ func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRe
 	}()
 
 	var postID int64
+	var topicID int64
+	var parentID *int64
+	var prevStatus string
 	if err := tx.QueryRow(ctx, `
-		SELECT content_id
+		SELECT content_id, topic_id, parent_comment_id, status
 		FROM comments
-		WHERE id = $1 AND status = 'active'
+		WHERE id = $1 AND status IN ('active', 'pending')
 		FOR UPDATE
-	`, input.CommentID).Scan(&postID); err != nil {
+	`, input.CommentID).Scan(&postID, &topicID, &parentID, &prevStatus); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Comment{}, ErrCommentNotFound
 		}
@@ -1224,7 +1253,45 @@ func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRe
 	if err := updatePost(ctx, tx, postID, input.EditorUserID, input.Content); err != nil {
 		return Comment{}, err
 	}
-	if _, err := tx.Exec(ctx, `
+	if input.RequeuePending {
+		triggerSnapshot, err := json.Marshal(input.ModerationTriggers)
+		if err != nil {
+			return Comment{}, fmt.Errorf("encode comment moderation triggers: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE comments
+			SET status = 'pending', moderation_triggers = $2, updated_at = now()
+			WHERE id = $1
+		`, input.CommentID, triggerSnapshot); err != nil {
+			return Comment{}, fmt.Errorf("requeue comment pending: %w", err)
+		}
+		// 原 active 评论退审时回滚可见计数。
+		if prevStatus == CommentStatusActive {
+			if parentID != nil {
+				if _, err := tx.Exec(ctx, `
+					UPDATE comments
+					SET reply_count = GREATEST(reply_count - 1, 0), updated_at = now()
+					WHERE id = $1
+				`, *parentID); err != nil {
+					return Comment{}, fmt.Errorf("decrement parent reply count on requeue: %w", err)
+				}
+			}
+			if _, err := tx.Exec(ctx, `
+				UPDATE topics
+				SET comment_count = GREATEST(comment_count - 1, 0), updated_at = now()
+				WHERE id = $1
+			`, topicID); err != nil {
+				return Comment{}, fmt.Errorf("decrement topic comment count on requeue: %w", err)
+			}
+			if _, err := tx.Exec(ctx, `
+				UPDATE categories
+				SET comment_count = GREATEST(comment_count - 1, 0), updated_at = now()
+				WHERE id = (SELECT category_id FROM topics WHERE id = $1)
+			`, topicID); err != nil {
+				return Comment{}, fmt.Errorf("decrement category comment count on requeue: %w", err)
+			}
+		}
+	} else if _, err := tx.Exec(ctx, `
 		UPDATE comments
 		SET updated_at = now()
 		WHERE id = $1

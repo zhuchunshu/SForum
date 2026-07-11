@@ -766,6 +766,60 @@ func TestServiceUpdateTopicRejectsEmptyTitle(t *testing.T) {
 	}
 }
 
+// TestServiceUpdateTopicRequeuesPendingOnPublicationPolicy 编辑正文触发预审时应 pending。
+func TestServiceUpdateTopicRequeuesPendingOnPublicationPolicy(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	svc := NewServiceWithPublicationPolicy(
+		store,
+		fakeSettingsResolver{settings: testForumSettings()},
+		appevents.NoopPublisher{},
+		nil,
+		staticPublicationPolicy{decision: PublicationDecision{Pending: true, Triggers: []string{"external_link"}}},
+	)
+	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
+	content := ContentInput{RawContent: "see https://evil.example", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown}
+
+	updated, err := svc.UpdateTopic(context.Background(), owner, UpdateTopicInput{TopicID: 7, Content: &content})
+	if err != nil {
+		t.Fatalf("UpdateTopic: %v", err)
+	}
+	if !store.updatedTopic.RequeuePending {
+		t.Fatal("expected RequeuePending on content edit")
+	}
+	if len(store.updatedTopic.ModerationTriggers) != 1 || store.updatedTopic.ModerationTriggers[0] != "external_link" {
+		t.Fatalf("expected triggers, got %v", store.updatedTopic.ModerationTriggers)
+	}
+	if updated.Status != TopicStatusPending {
+		t.Fatalf("expected pending topic, got %q", updated.Status)
+	}
+}
+
+// TestServiceUpdateCommentRequeuesPendingOnPublicationPolicy 评论编辑同样受发布策略约束。
+func TestServiceUpdateCommentRequeuesPendingOnPublicationPolicy(t *testing.T) {
+	store := newServiceFakeStore()
+	store.commentSummary = CommentSummary{ID: 9, TopicID: 3, AuthorUserID: 12, Status: CommentStatusActive, CreatedAt: time.Now().UTC()}
+	svc := NewServiceWithPublicationPolicy(
+		store,
+		fakeSettingsResolver{settings: testForumSettings()},
+		appevents.NoopPublisher{},
+		nil,
+		staticPublicationPolicy{decision: PublicationDecision{Pending: true, Triggers: []string{"external_link"}}},
+	)
+	owner := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostEditOwn: true}}
+
+	updated, err := svc.UpdateComment(context.Background(), owner, UpdateCommentInput{
+		CommentID: 9,
+		Content:   ContentInput{RawContent: "https://outside.test", SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown},
+	})
+	if err != nil {
+		t.Fatalf("UpdateComment: %v", err)
+	}
+	if updated.Status != CommentStatusPending {
+		t.Fatalf("expected pending comment, got %q", updated.Status)
+	}
+}
+
 func TestServiceDeleteTopicAllowsOwnerAndModerator(t *testing.T) {
 	store := newServiceFakeStore()
 	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
@@ -1217,8 +1271,12 @@ func (s *serviceFakeStore) UpdateTopic(_ context.Context, input UpdateTopicRecor
 	if title == "" {
 		title = "原标题"
 	}
+	status := TopicStatusActive
+	if input.RequeuePending {
+		status = TopicStatusPending
+	}
 	return TopicDetail{
-		TopicSummary: TopicSummary{ID: input.TopicID, Title: title, Status: TopicStatusActive},
+		TopicSummary: TopicSummary{ID: input.TopicID, Title: title, Status: status},
 		Content:      input.Content,
 	}, nil
 }
@@ -1282,10 +1340,14 @@ func (s *serviceFakeStore) GetCommentSummary(context.Context, int64) (CommentSum
 }
 
 func (s *serviceFakeStore) UpdateComment(_ context.Context, input UpdateCommentRecord) (Comment, error) {
+	status := CommentStatusActive
+	if input.RequeuePending {
+		status = CommentStatusPending
+	}
 	return Comment{
 		ID:           input.CommentID,
 		AuthorUserID: s.commentSummary.AuthorUserID,
-		Status:       CommentStatusActive,
+		Status:       status,
 		Content:      input.Content,
 	}, nil
 }
