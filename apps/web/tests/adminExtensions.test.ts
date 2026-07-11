@@ -27,6 +27,8 @@ import {
   runtimeCapabilitySummary,
   runtimeStatusLabelKey,
   hasThemeActivationInProgress,
+  hasPluginWebReleaseInProgress,
+  pluginWebReleaseProgress,
   themeActionState,
   themeActivationProgress,
   themeStatusLabelKey,
@@ -428,6 +430,7 @@ function extension(input: {
   manifest?: Partial<AdminExtension['manifest']>
   runtime?: Partial<NonNullable<AdminExtension['runtime']>>
   themeRelease?: AdminExtension['themeRelease']
+  webRelease?: AdminExtension['webRelease']
 }): AdminExtension {
   return {
     ...baseExtension,
@@ -445,7 +448,8 @@ function extension(input: {
       ...input.manifest
     },
     runtime: input.runtime as AdminExtension['runtime'],
-    themeRelease: input.themeRelease
+    themeRelease: input.themeRelease,
+    webRelease: input.webRelease
   } as AdminExtension
 }
 
@@ -521,3 +525,28 @@ function definition(name: string): AdminExtensionEventDefinition {
     timeoutMs: 5000
   }
 }
+
+describe('plugin web release progress', () => {
+  test('maps live web release statuses to progress bars', () => {
+    expect(pluginWebReleaseProgress({ id: 1, status: 'queued', compositionHash: 'h', reloadMode: 'prompt' })).toMatchObject({
+      percent: 8,
+      active: true,
+      labelKey: 'admin.extensions.releases.statusLabels.queued'
+    })
+    expect(pluginWebReleaseProgress({ id: 2, status: 'building', compositionHash: 'h', reloadMode: 'prompt' })?.active).toBe(true)
+    expect(pluginWebReleaseProgress({ id: 3, status: 'failed', compositionHash: 'h', reloadMode: 'prompt' })).toMatchObject({
+      percent: 100,
+      active: false
+    })
+    expect(pluginWebReleaseProgress({ id: 4, status: 'active', compositionHash: 'h', reloadMode: 'prompt' })).toBeNull()
+  })
+
+  test('detects in-progress plugin releases for polling', () => {
+    expect(hasPluginWebReleaseInProgress([
+      extension({ id: 'a.plugin', name: 'A', type: 'plugin', webRelease: { id: 1, status: 'building', compositionHash: 'h', reloadMode: 'prompt' } })
+    ])).toBe(true)
+    expect(hasPluginWebReleaseInProgress([
+      extension({ id: 'a.plugin', name: 'A', type: 'plugin' })
+    ])).toBe(false)
+  })
+})

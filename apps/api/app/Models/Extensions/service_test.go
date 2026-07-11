@@ -1858,3 +1858,36 @@ func (s *fakeExtensionStore) ListEventDeliveries(_ context.Context, input EventD
 	}
 	return items, nil
 }
+
+type fakeWebReleaseProgressReader struct {
+	byID map[string]WebRelease
+}
+
+func (f *fakeWebReleaseProgressReader) LatestProgressWebReleaseForExtension(_ context.Context, extensionID string) (WebRelease, error) {
+	if release, ok := f.byID[extensionID]; ok {
+		return release, nil
+	}
+	return WebRelease{}, ErrWebReleaseNotFound
+}
+
+func TestServiceListAttachesPluginWebReleaseProgress(t *testing.T) {
+	store := &fakeExtensionStore{items: map[string]Extension{
+		"demo.plugin": {
+			ID: "demo.plugin", Name: "Demo", Version: "1.0.0", Type: TypePlugin, Status: StatusDisabled,
+		},
+	}}
+	service := NewServiceWithThemeActivationWithOptions(
+		store, t.TempDir(), "", LocalRuntimeManager{}, fakeThemeBuilder{}, nil,
+		WithWebReleaseProgress(&fakeWebReleaseProgressReader{byID: map[string]WebRelease{
+			"demo.plugin": {ID: 9, Status: WebReleaseBuilding, TriggerKind: WebReleaseTriggerPluginEnable, TriggerExtensionID: "demo.plugin", CompositionHash: "hash", ReloadMode: WebReleaseReloadPrompt},
+		}}),
+	)
+
+	items, err := service.List(context.Background(), extensionManager())
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if len(items) != 1 || items[0].WebRelease == nil || items[0].WebRelease.ID != 9 || items[0].WebRelease.Status != WebReleaseBuilding {
+		t.Fatalf("expected plugin web release progress on list item, got %#v", items)
+	}
+}

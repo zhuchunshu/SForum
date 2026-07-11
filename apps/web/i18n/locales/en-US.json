@@ -454,6 +454,17 @@
       "pluginDisableQueued": "Plugin disable queued. This plugin has trusted admin frontend components, so a Web release must finish building before it is fully disabled.",
       "webReleaseQueuedHint": "Open Extensions → Web releases to follow release #{id} progress and the build log.",
       "webReleaseQueuedHintNoId": "Open Extensions → Web releases to follow progress and the build log.",
+      "webReleaseProgress": {
+        "queued": "Web release queued and waiting for a worker. If it stays here, confirm the API embeds the worker or a standalone worker is running.",
+        "resolving": "Resolving the theme and trusted-plugin composition.",
+        "installing": "Installing release dependencies and extension snapshots.",
+        "building": "Building the admin/frontend release package.",
+        "verifying": "Verifying the release artifact.",
+        "ready": "Build finished; preparing to switch the runtime.",
+        "activating": "Switching the runtime. The plugin status becomes final after this step.",
+        "failed": "Web release failed. Open Extensions → Web releases for the build log, then retry."
+      },
+      "viewWebRelease": "View release log",
       "actionFailed": "Extension action failed.",
       "frontend": {
         "title": "Trusted admin components",

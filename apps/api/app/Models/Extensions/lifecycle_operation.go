@@ -40,7 +40,11 @@ func (s *Service) EnableOperation(ctx context.Context, actor identity.Actor, id 
 			if err != nil {
 				return ExtensionOperation{}, err
 			}
-			return ExtensionOperation{Extension: s.decorateRuntime(ctx, extension), Frontend: &status, WebRelease: webReleaseSummary(queued.Release), Queued: true}, nil
+			summary := webReleaseSummary(queued.Release)
+			decorated := s.decorateRuntime(ctx, extension)
+			// 排队瞬间列表可能尚未读到 DB 行，用本次 summary 保证前端立刻有进度。
+			decorated.WebRelease = summary
+			return ExtensionOperation{Extension: decorated, Frontend: &status, WebRelease: summary, Queued: true}, nil
 		}
 	}
 	enabled, err := s.Enable(ctx, actor, extension.ID)
@@ -68,7 +72,10 @@ func (s *Service) DisableOperation(ctx context.Context, actor identity.Actor, id
 			if err != nil {
 				return ExtensionOperation{}, err
 			}
-			return ExtensionOperation{Extension: s.decorateRuntime(ctx, extension), Frontend: &status, WebRelease: webReleaseSummary(queued.Release), Queued: true}, nil
+			summary := webReleaseSummary(queued.Release)
+			decorated := s.decorateRuntime(ctx, extension)
+			decorated.WebRelease = summary
+			return ExtensionOperation{Extension: decorated, Frontend: &status, WebRelease: summary, Queued: true}, nil
 		}
 	}
 	disabled, err := s.Disable(ctx, actor, extension.ID)

@@ -32,6 +32,13 @@ type Service struct {
 	themeCurrentWriter        ThemeCurrentWriter
 	frontendLifecycle         ExtensionFrontendLifecycle
 	webReleaseLifecycle       FrontendReleaseManager
+	// webReleaseProgress 可选：把插件相关的 live/failed Web Release 挂到列表项上。
+	webReleaseProgress WebReleaseProgressReader
+}
+
+// WebReleaseProgressReader 读取扩展相关的进行中/失败 Web 发布，用于管理端进度条。
+type WebReleaseProgressReader interface {
+	LatestProgressWebReleaseForExtension(context.Context, string) (WebRelease, error)
 }
 
 // ServiceOption 用于在保留现有构造函数签名的同时注入可选依赖。
@@ -51,6 +58,13 @@ func WithWebReleaseLifecycle(frontend ExtensionFrontendLifecycle, releases Front
 	return func(s *Service) {
 		s.frontendLifecycle = frontend
 		s.webReleaseLifecycle = releases
+	}
+}
+
+// WithWebReleaseProgress 注入插件列表用的 Web Release 进度读取器。
+func WithWebReleaseProgress(reader WebReleaseProgressReader) ServiceOption {
+	return func(s *Service) {
+		s.webReleaseProgress = reader
 	}
 }
 
@@ -890,6 +904,12 @@ func (s *Service) decorateRuntime(ctx context.Context, item Extension) Extension
 	if item.Type == TypeTheme {
 		if release, err := s.store.LatestThemeRelease(ctx, item.ID); err == nil {
 			item.ThemeRelease = &release
+		}
+	}
+	// 带管理端前端的插件启停会排队 Web Release；挂到列表供进度条轮询。
+	if item.Type == TypePlugin && s.webReleaseProgress != nil {
+		if release, err := s.webReleaseProgress.LatestProgressWebReleaseForExtension(ctx, item.ID); err == nil {
+			item.WebRelease = webReleaseSummary(release)
 		}
 	}
 	return item

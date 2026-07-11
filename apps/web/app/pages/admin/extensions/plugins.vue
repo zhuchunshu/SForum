@@ -1,7 +1,19 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { canRestartPlugin, capabilityCount, extensionLocalizedDisplay, extensionManageRoute, filterExtensionsByType, runtimeCapabilitySummary, runtimeStatusLabelKey, type AdminRuntimeState } from '~/utils/adminExtensions'
+import {
+  canRestartPlugin,
+  capabilityCount,
+  extensionLocalizedDisplay,
+  extensionManageRoute,
+  filterExtensionsByType,
+  hasPluginWebReleaseInProgress,
+  pluginWebReleaseProgress,
+  runtimeCapabilitySummary,
+  runtimeStatusLabelKey,
+  type AdminExtension,
+  type AdminRuntimeState
+} from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -34,6 +46,8 @@ const pluginRows = computed(() => plugins.value.map((item) => ({
   item,
   display: extensionLocalizedDisplay(item, locale.value)
 })))
+const releasePolling = computed(() => hasPluginWebReleaseInProgress(plugins.value))
+let releasePollTimer: ReturnType<typeof setInterval> | null = null
 
 function runtimeColor(state?: AdminRuntimeState) {
   if (state === 'running') {
@@ -47,6 +61,50 @@ function runtimeColor(state?: AdminRuntimeState) {
   }
   return 'neutral'
 }
+
+function releaseProgress(item: AdminExtension) {
+  return pluginWebReleaseProgress(item.webRelease)
+}
+
+function pluginActionBusy(item: AdminExtension) {
+  return Boolean(releaseProgress(item)?.active)
+}
+
+function startReleasePolling() {
+  if (releasePollTimer || !import.meta.client) {
+    return
+  }
+  releasePollTimer = setInterval(async () => {
+    if (pending.value) {
+      return
+    }
+    await refresh()
+  }, 2000)
+}
+
+function stopReleasePolling() {
+  if (!releasePollTimer) {
+    return
+  }
+  clearInterval(releasePollTimer)
+  releasePollTimer = null
+}
+
+watch(releasePolling, (active) => {
+  if (active) {
+    startReleasePolling()
+  } else {
+    stopReleasePolling()
+  }
+})
+
+onMounted(() => {
+  if (releasePolling.value) {
+    startReleasePolling()
+  }
+})
+
+onBeforeUnmount(stopReleasePolling)
 
 useSeoMeta({
   title: t('admin.extensions.plugins.metaTitle')
@@ -145,6 +203,42 @@ useSeoMeta({
           <p v-if="item.runtime?.lastError" class="mt-1 truncate text-xs text-red-600 dark:text-red-400">
             {{ item.runtime.lastError }}
           </p>
+          <p v-if="item.webRelease?.publicMessage" class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+            {{ item.webRelease.publicMessage }}
+          </p>
+          <div
+            v-if="releaseProgress(item)"
+            class="mt-3 max-w-xl rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/50"
+          >
+            <div class="mb-2 flex items-center justify-between gap-3 text-xs">
+              <span class="inline-flex min-w-0 items-center gap-1.5 font-medium text-slate-700 dark:text-zinc-200">
+                <UIcon :name="releaseProgress(item)?.icon || 'i-lucide-hourglass'" class="size-3.5 shrink-0" />
+                <span class="truncate">{{ t(releaseProgress(item)?.labelKey || 'admin.extensions.releases.statusLabels.queued') }}</span>
+              </span>
+              <span class="tabular-nums text-slate-500 dark:text-zinc-400">
+                {{ releaseProgress(item)?.percent || 0 }}%
+              </span>
+            </div>
+            <UProgress
+              :model-value="releaseProgress(item)?.percent || 0"
+              :color="releaseProgress(item)?.color || 'neutral'"
+              size="sm"
+            />
+            <p class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+              {{ t(releaseProgress(item)?.detailKey || 'admin.extensions.webReleaseProgress.queued') }}
+            </p>
+            <UButton
+              v-if="item.webRelease?.id"
+              class="mt-3"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-scroll-text"
+              :to="adminRoutes.path('/extensions/releases')"
+            >
+              {{ t('admin.extensions.viewWebRelease') }} #{{ item.webRelease.id }}
+            </UButton>
+          </div>
           <SFAdminFrontendTrustPanel :extension="item" />
         </div>
         <div class="flex items-center gap-2">
@@ -158,7 +252,17 @@ useSeoMeta({
             {{ t('admin.extensions.manage') }}
           </UButton>
           <UButton
-            v-if="item.status !== 'enabled'"
+            v-if="pluginActionBusy(item)"
+            size="sm"
+            color="neutral"
+            variant="subtle"
+            icon="i-lucide-hourglass"
+            disabled
+          >
+            {{ t(releaseProgress(item)?.labelKey || 'admin.extensions.releases.statusLabels.queued') }}
+          </UButton>
+          <UButton
+            v-else-if="item.status !== 'enabled'"
             size="sm"
             icon="i-lucide-play"
             :loading="busyId === item.id"
@@ -182,7 +286,7 @@ useSeoMeta({
             color="neutral"
             variant="ghost"
             icon="i-lucide-refresh-cw"
-            :disabled="!canRestartPlugin(item)"
+            :disabled="!canRestartPlugin(item) || pluginActionBusy(item)"
             :loading="busyId === item.id && canRestartPlugin(item)"
             :title="canRestartPlugin(item) ? t('admin.extensions.restart') : t('admin.extensions.restartUnavailable')"
             @click="restartExtension(item)"

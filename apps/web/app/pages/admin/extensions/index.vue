@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, extensionEventPage, extensionLocalizedDisplay, extensionManageRoute, hasThemeActivationInProgress, themeActionState, themeActivationProgress, themeStatusLabelKey } from '~/utils/adminExtensions'
+import {
+  capabilityCount,
+  extensionEventPage,
+  extensionLocalizedDisplay,
+  extensionManageRoute,
+  hasExtensionReleaseInProgress,
+  pluginWebReleaseProgress,
+  themeActionState,
+  themeActivationProgress,
+  themeStatusLabelKey
+} from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -48,7 +58,8 @@ const {
   statusLabel
 } = await useAdminExtensionsManager()
 const selectedEventPageInfo = computed(() => extensionEventPage(selectedEvents.value, selectedEventPage.value))
-const activationPolling = computed(() => hasThemeActivationInProgress(extensions.value))
+// 主题 themeRelease 与插件 webRelease 任一进行中即轮询列表。
+const activationPolling = computed(() => hasExtensionReleaseInProgress(extensions.value))
 let activationPollTimer: ReturnType<typeof setInterval> | null = null
 
 useSeoMeta({
@@ -79,7 +90,14 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
 }
 
 function releaseProgress(item: (typeof extensions.value)[number]) {
-  return themeActivationProgress(item.themeRelease)
+  if (item.type === 'theme') {
+    return themeActivationProgress(item.themeRelease)
+  }
+  return pluginWebReleaseProgress(item.webRelease)
+}
+
+function pluginActionBusy(item: (typeof extensions.value)[number]) {
+  return item.type === 'plugin' && Boolean(pluginWebReleaseProgress(item.webRelease)?.active)
 }
 
 function startActivationPolling() {
@@ -268,17 +286,17 @@ onBeforeUnmount(stopActivationPolling)
                 <UIcon name="i-lucide-user-round" class="size-3.5 shrink-0" />
                 <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: display.author.name }) }}</span>
               </span>
-              <p v-if="item.themeRelease?.message" class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
-                {{ item.themeRelease.message }}
+              <p v-if="item.themeRelease?.message || item.webRelease?.publicMessage" class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                {{ item.themeRelease?.message || item.webRelease?.publicMessage }}
               </p>
               <div
-                v-if="item.type === 'theme' && releaseProgress(item)"
+                v-if="releaseProgress(item)"
                 class="mt-3 max-w-xl rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/50"
               >
                 <div class="mb-2 flex items-center justify-between gap-3 text-xs">
                   <span class="inline-flex min-w-0 items-center gap-1.5 font-medium text-slate-700 dark:text-zinc-200">
                     <UIcon :name="releaseProgress(item)?.icon || 'i-lucide-hourglass'" class="size-3.5 shrink-0" />
-                    <span class="truncate">{{ t(releaseProgress(item)?.labelKey || 'admin.extensions.themeRelease.queued') }}</span>
+                    <span class="truncate">{{ t(releaseProgress(item)?.labelKey || (item.type === 'theme' ? 'admin.extensions.themeRelease.queued' : 'admin.extensions.releases.statusLabels.queued')) }}</span>
                   </span>
                   <span class="tabular-nums text-slate-500 dark:text-zinc-400">
                     {{ releaseProgress(item)?.percent || 0 }}%
@@ -290,8 +308,19 @@ onBeforeUnmount(stopActivationPolling)
                   size="sm"
                 />
                 <p class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
-                  {{ t(releaseProgress(item)?.detailKey || 'admin.extensions.themeProgress.queued') }}
+                  {{ t(releaseProgress(item)?.detailKey || (item.type === 'theme' ? 'admin.extensions.themeProgress.queued' : 'admin.extensions.webReleaseProgress.queued')) }}
                 </p>
+                <UButton
+                  v-if="item.type === 'plugin' && item.webRelease?.id"
+                  class="mt-3"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-scroll-text"
+                  :to="adminRoutes.path('/extensions/releases')"
+                >
+                  {{ t('admin.extensions.viewWebRelease') }} #{{ item.webRelease.id }}
+                </UButton>
               </div>
             </div>
             <div class="flex items-center gap-2 md:justify-end">
@@ -305,7 +334,17 @@ onBeforeUnmount(stopActivationPolling)
                 {{ t('admin.extensions.manage') }}
               </UButton>
               <UButton
-                v-if="item.type === 'plugin' && item.status !== 'enabled'"
+                v-if="pluginActionBusy(item)"
+                size="sm"
+                color="neutral"
+                variant="subtle"
+                icon="i-lucide-hourglass"
+                disabled
+              >
+                {{ t(releaseProgress(item)?.labelKey || 'admin.extensions.releases.statusLabels.queued') }}
+              </UButton>
+              <UButton
+                v-else-if="item.type === 'plugin' && item.status !== 'enabled'"
                 size="sm"
                 icon="i-lucide-play"
                 :loading="busyId === item.id"

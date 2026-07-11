@@ -355,7 +355,14 @@ func frontendStatusForGrant(
 
 func webReleaseSummary(release WebRelease) *WebReleaseSummary {
 	return &WebReleaseSummary{
-		ID: release.ID, Status: release.Status, CompositionHash: release.CompositionHash, ReloadMode: release.ReloadMode,
+		ID:                 release.ID,
+		Status:             release.Status,
+		CompositionHash:    release.CompositionHash,
+		ReloadMode:         release.ReloadMode,
+		TriggerKind:        release.TriggerKind,
+		TriggerExtensionID: release.TriggerExtensionID,
+		PublicReason:       release.PublicReason,
+		PublicMessage:      release.PublicMessage,
 	}
 }
 

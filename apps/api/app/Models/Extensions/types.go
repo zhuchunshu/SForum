@@ -136,12 +136,14 @@ type Extension struct {
 	IsSystem      bool           `json:"isSystem"`
 	IsDeletable   bool           `json:"isDeletable"`
 	Manifest      Manifest       `json:"manifest"`
-	Runtime       *RuntimeStatus `json:"runtime,omitempty"`
-	ThemeRelease  *ThemeRelease  `json:"themeRelease,omitempty"`
-	PackageDigest string         `json:"packageDigest"`
-	PackagePath   string         `json:"packagePath"`
-	InstalledAt   time.Time      `json:"installedAt"`
-	UpdatedAt     time.Time      `json:"updatedAt"`
+	Runtime       *RuntimeStatus    `json:"runtime,omitempty"`
+	ThemeRelease  *ThemeRelease     `json:"themeRelease,omitempty"`
+	// WebRelease 为插件启停/信任变更排队的 live 或失败发布进度（主题仍用 themeRelease）。
+	WebRelease    *WebReleaseSummary `json:"webRelease,omitempty"`
+	PackageDigest string            `json:"packageDigest"`
+	PackagePath   string            `json:"packagePath"`
+	InstalledAt   time.Time         `json:"installedAt"`
+	UpdatedAt     time.Time         `json:"updatedAt"`
 }
 
 type ThemeRelease struct {

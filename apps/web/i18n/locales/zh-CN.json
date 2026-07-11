@@ -454,6 +454,17 @@
       "pluginDisableQueued": "插件禁用已排队。该插件含可信管理端前端，需先完成 Web 发布构建后才会真正禁用。",
       "webReleaseQueuedHint": "可在「扩展 → Web 发布」查看发布 #{id} 的进度与构建日志。",
       "webReleaseQueuedHintNoId": "可在「扩展 → Web 发布」查看进度与构建日志。",
+      "webReleaseProgress": {
+        "queued": "Web 发布已排队，等待 worker 领取。若长时间不动，请确认 API 已嵌入 worker 或独立 worker 在运行。",
+        "resolving": "正在解析主题与可信插件组成。",
+        "installing": "正在安装发布依赖与扩展快照。",
+        "building": "正在构建管理端/前台发布包。",
+        "verifying": "正在校验发布产物。",
+        "ready": "构建完成，准备切换运行时。",
+        "activating": "正在切换运行时，完成后插件状态才会最终生效。",
+        "failed": "Web 发布失败。可在「扩展 → Web 发布」打开详情查看构建日志后重试。"
+      },
+      "viewWebRelease": "查看发布日志",
       "actionFailed": "扩展操作失败。",
       "frontend": {
         "title": "可信管理端组件",

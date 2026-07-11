@@ -156,6 +156,17 @@ export type AdminThemeRelease = {
   activatedAt?: string
 }
 
+export type AdminWebReleaseSummary = {
+  id: number
+  status: string
+  compositionHash: string
+  reloadMode: string
+  triggerKind?: string
+  triggerExtensionId?: string
+  publicReason?: string
+  publicMessage?: string
+}
+
 export type AdminExtension = {
   id: string
   name: string
@@ -168,16 +179,11 @@ export type AdminExtension = {
   manifest: AdminExtensionManifest
   runtime?: AdminExtensionRuntime
   themeRelease?: AdminThemeRelease
+  /** 插件启停/信任变更排队的 Web 发布进度（主题用 themeRelease）。 */
+  webRelease?: AdminWebReleaseSummary
   packagePath: string
   installedAt: string
   updatedAt: string
-}
-
-export type AdminWebReleaseSummary = {
-  id: number
-  status: string
-  compositionHash: string
-  reloadMode: string
 }
 
 export type AdminExtensionOperation = {
@@ -330,6 +336,42 @@ export function hasThemeActivationInProgress(items: AdminExtension[]) {
   return items.some(item => themeActivationProgress(item.themeRelease)?.active)
 }
 
+/** 插件 Web Release 进度（与主题 progress 同形，便于共用进度条 UI）。 */
+export function pluginWebReleaseProgress(release?: AdminWebReleaseSummary | null) {
+  if (!release?.status) {
+    return null
+  }
+  switch (release.status) {
+    case 'queued':
+      return webReleaseProgressState(release.status, 8, 'info', 'i-lucide-hourglass', true)
+    case 'resolving':
+      return webReleaseProgressState(release.status, 18, 'info', 'i-lucide-search', true)
+    case 'installing':
+      return webReleaseProgressState(release.status, 28, 'warning', 'i-lucide-download', true)
+    case 'building':
+      return webReleaseProgressState(release.status, 48, 'warning', 'i-lucide-hammer', true)
+    case 'verifying':
+      return webReleaseProgressState(release.status, 62, 'warning', 'i-lucide-shield-check', true)
+    case 'ready':
+      return webReleaseProgressState(release.status, 75, 'warning', 'i-lucide-package-check', true)
+    case 'activating':
+      return webReleaseProgressState(release.status, 88, 'warning', 'i-lucide-refresh-cw', true)
+    case 'failed':
+      return webReleaseProgressState(release.status, 100, 'error', 'i-lucide-triangle-alert', false)
+    default:
+      // active / inactive 等终态不在插件行上常驻展示。
+      return null
+  }
+}
+
+export function hasPluginWebReleaseInProgress(items: AdminExtension[]) {
+  return items.some(item => pluginWebReleaseProgress(item.webRelease)?.active)
+}
+
+export function hasExtensionReleaseInProgress(items: AdminExtension[]) {
+  return hasThemeActivationInProgress(items) || hasPluginWebReleaseInProgress(items)
+}
+
 function themeProgressState(
   status: AdminThemeReleaseStatus,
   percent: number,
@@ -342,6 +384,24 @@ function themeProgressState(
     status,
     labelKey: `admin.extensions.themeRelease.${status}`,
     detailKey: `admin.extensions.themeProgress.${status}`,
+    icon,
+    color,
+    active
+  }
+}
+
+function webReleaseProgressState(
+  status: string,
+  percent: number,
+  color: 'info' | 'success' | 'warning' | 'error' | 'neutral',
+  icon: string,
+  active: boolean
+) {
+  return {
+    percent,
+    status,
+    labelKey: `admin.extensions.releases.statusLabels.${status}`,
+    detailKey: `admin.extensions.webReleaseProgress.${status}`,
     icon,
     color,
     active

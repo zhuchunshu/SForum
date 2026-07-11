@@ -93,10 +93,14 @@ type WebReleaseDetail struct {
 }
 
 type WebReleaseSummary struct {
-	ID              int64            `json:"id"`
-	Status          WebReleaseStatus `json:"status"`
-	CompositionHash string           `json:"compositionHash"`
-	ReloadMode      string           `json:"reloadMode"`
+	ID                 int64            `json:"id"`
+	Status             WebReleaseStatus `json:"status"`
+	CompositionHash    string           `json:"compositionHash"`
+	ReloadMode         string           `json:"reloadMode"`
+	TriggerKind        string           `json:"triggerKind,omitempty"`
+	TriggerExtensionID string           `json:"triggerExtensionId,omitempty"`
+	PublicReason       string           `json:"publicReason,omitempty"`
+	PublicMessage      string           `json:"publicMessage,omitempty"`
 }
 
 type WebReleasePage struct {

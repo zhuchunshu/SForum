@@ -27,6 +27,14 @@ describe('plugin enable/disable lifecycle feedback', () => {
     expect(releases).toContain("t('admin.extensions.releases.viewDetail')")
   })
 
+  test('plugin list shows web release progress bars and polls while active', async () => {
+    const plugins = await Bun.file(new URL('../app/pages/admin/extensions/plugins.vue', import.meta.url)).text()
+    expect(plugins).toContain('pluginWebReleaseProgress')
+    expect(plugins).toContain('hasPluginWebReleaseInProgress')
+    expect(plugins).toContain('<UProgress')
+    expect(plugins).toContain('startReleasePolling')
+  })
+
   test('locale catalogs include plugin queue and release log copy', () => {
     for (const catalog of [zh, en]) {
       expect(catalog.admin.extensions.pluginEnableQueued).toBeTruthy()

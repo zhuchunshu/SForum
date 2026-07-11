@@ -170,6 +170,10 @@ export const useAdminExtensionsManager = async () => {
     try {
       const operation = await request<AdminExtensionOperation>(`/admin/extensions/${item.id}/${action}`, { method: 'POST', body: {} })
       const updated = operation.extension
+      // 排队响应可能只在 operation.webRelease 上带摘要；合并到列表项以便立刻显示进度条。
+      if (operation.queued && operation.webRelease && !updated.webRelease) {
+        updated.webRelease = operation.webRelease
+      }
       replaceExtension(updated)
       await loadEvents(updated.id)
       if (operation.queued) {
