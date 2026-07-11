@@ -141,6 +141,7 @@ describe('admin forum helpers', () => {
       .find((entry): entry is AdminNavigationFolderEntry => entry.type === 'folder' && entry.labelKey === 'admin.nav.forum')
 
     expect(forumFolder?.children.map((entry) => entry.type === 'page' ? entry.pageId : '')).toEqual([
+      '/moderation',
       '/forum/categories',
       '/forum/tags',
       '/forum/settings'

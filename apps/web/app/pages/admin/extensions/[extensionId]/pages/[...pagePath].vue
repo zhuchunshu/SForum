@@ -2,6 +2,7 @@
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   extensionAdminPageRoute,
+  extensionLocalizedDisplay,
   findExtensionAdminPage,
   normalizeExtensionPagePath,
   type AdminExtension,
@@ -17,7 +18,7 @@ defineOptions({
   name: 'AdminExtensionDynamicPage'
 })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const adminRoutes = useAdminRoutes()
 const adminTabs = useAdminTabs()
@@ -40,14 +41,15 @@ const {
 })
 
 const extension = computed(() => extensions.value.find(item => item.id === extensionId.value))
-const adminPage = computed(() => extension.value ? findExtensionAdminPage(extension.value, currentPagePath.value) : undefined)
+const extensionDisplay = computed(() => extension.value ? extensionLocalizedDisplay(extension.value, locale.value) : null)
+const adminPage = computed(() => extension.value ? findExtensionAdminPage(extension.value, currentPagePath.value, locale.value) : undefined)
 const settings = ref<AdminExtensionSettings | null>(null)
 const formValues = reactive<Record<string, string>>({})
 const loadingSettings = ref(false)
 const savingSettings = ref(false)
 
-const pageTitle = computed(() => adminPage.value?.label || extension.value?.name || t('admin.extensions.dynamic.notFoundTitle'))
-const pageDescription = computed(() => adminPage.value?.description || extension.value?.manifest.description || '')
+const pageTitle = computed(() => adminPage.value?.label || extensionDisplay.value?.name || t('admin.extensions.dynamic.notFoundTitle'))
+const pageDescription = computed(() => adminPage.value?.description || extensionDisplay.value?.description || '')
 const isSettingsView = computed(() => adminPage.value?.view === 'settings')
 
 useSeoMeta({
@@ -244,10 +246,10 @@ function onBooleanSettingChange(key: string, event: Event) {
   <div v-else class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
     <div class="rounded-lg border border-slate-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
       <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
-        {{ extension.name }}
+        {{ extensionDisplay?.name }}
       </h3>
       <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-zinc-300">
-        {{ extension.manifest.description }}
+        {{ extensionDisplay?.description }}
       </p>
       <div class="mt-5 flex flex-wrap gap-2">
         <UButton :to="extension.manifest.url" target="_blank" color="neutral" variant="subtle" icon="i-lucide-external-link">

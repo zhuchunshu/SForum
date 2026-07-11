@@ -22,6 +22,14 @@ export type AdminExtensionAuthor = {
   email?: string
 }
 
+// 可选本地化覆盖；字段有值才覆盖顶层默认英文。
+export type AdminExtensionLocale = {
+  name?: string
+  description?: string
+  url?: string
+  author?: Partial<AdminExtensionAuthor>
+}
+
 export type AdminExtensionAdminPage = {
   path: string
   label: string
@@ -47,6 +55,8 @@ export type AdminExtensionManifest = {
   version: string
   type: AdminExtensionType
   sforumVersion: string
+  // 可选；未声明时直接使用顶层英文文案，无需实现翻译。
+  langs?: Record<string, AdminExtensionLocale>
   permissions?: string[]
   settings?: AdminExtensionSetting[]
   migrations?: Array<{ path: string }>
@@ -344,12 +354,133 @@ function effectiveManifestAdminPages(manifest: AdminExtensionManifest) {
   return manifest.admin?.pages?.length ? manifest.admin.pages : manifest.adminPages || []
 }
 
-export function extensionAuthorName(item: AdminExtension) {
-  return item.manifest.author?.name?.trim() || ''
+export type ExtensionLocalizedDisplay = {
+  name: string
+  description: string
+  url: string
+  author: AdminExtensionAuthor
 }
 
-export function extensionAuthorWebsite(item: AdminExtension) {
-  return item.manifest.author?.url || item.manifest.url || ''
+function normalizeExtensionLocaleKey(value?: string | null) {
+  const raw = `${value || ''}`.trim().replace(/_/g, '-')
+  if (!raw) {
+    return ''
+  }
+  const parts = raw.split('-').filter(Boolean)
+  if (!parts.length) {
+    return ''
+  }
+  parts[0] = parts[0].toLowerCase()
+  for (let index = 1; index < parts.length; index += 1) {
+    parts[index] = parts[index].length === 2 ? parts[index].toUpperCase() : parts[index].toLowerCase()
+  }
+  return parts.join('-')
+}
+
+function extensionLocaleLookupCandidates(locale?: string | null) {
+  const code = normalizeExtensionLocaleKey(locale)
+  if (!code) {
+    return [] as string[]
+  }
+  const candidates = [code]
+  const primary = code.split('-')[0]
+  if (primary && primary !== code) {
+    candidates.push(primary)
+  }
+  return candidates
+}
+
+function lookupExtensionLocale(langs: Record<string, AdminExtensionLocale> | undefined, locale?: string | null) {
+  if (!langs) {
+    return undefined
+  }
+  const entries = Object.entries(langs)
+  if (!entries.length) {
+    return undefined
+  }
+  // 键做规范化后再匹配，兼容 zh / zh-CN / zh_CN。
+  const normalized = new Map(
+    entries
+      .map(([key, value]) => [normalizeExtensionLocaleKey(key), value] as const)
+      .filter(([key]) => Boolean(key))
+  )
+  for (const candidate of extensionLocaleLookupCandidates(locale)) {
+    const match = normalized.get(candidate)
+    if (match) {
+      return match
+    }
+  }
+  return undefined
+}
+
+function resolveLocaleCode(locale?: unknown) {
+  // 兼容直接传入 string / Ref / ComputedRef，避免模板误传对象导致匹配失败。
+  if (locale == null) {
+    return ''
+  }
+  if (typeof locale === 'string') {
+    return locale
+  }
+  if (typeof locale === 'object' && locale !== null && 'value' in locale) {
+    const value = (locale as { value: unknown }).value
+    return typeof value === 'string' ? value : `${value ?? ''}`
+  }
+  return `${locale}`
+}
+
+// 按当前 UI locale 解析展示文案；无 langs 或未命中时回退顶层默认英文。
+export function extensionLocalizedDisplay(item: AdminExtension, locale?: unknown): ExtensionLocalizedDisplay {
+  const manifest = item.manifest
+  const display: ExtensionLocalizedDisplay = {
+    name: item.name || manifest.name || '',
+    description: manifest.description || '',
+    url: manifest.url || '',
+    author: {
+      name: manifest.author?.name || '',
+      url: manifest.author?.url,
+      email: manifest.author?.email
+    }
+  }
+  const override = lookupExtensionLocale(manifest.langs, resolveLocaleCode(locale))
+  if (!override) {
+    return display
+  }
+  if (override.name?.trim()) {
+    display.name = override.name.trim()
+  }
+  if (override.description?.trim()) {
+    display.description = override.description.trim()
+  }
+  if (override.url?.trim()) {
+    display.url = override.url.trim()
+  }
+  if (override.author?.name?.trim()) {
+    display.author.name = override.author.name.trim()
+  }
+  if (override.author?.url?.trim()) {
+    display.author.url = override.author.url.trim()
+  }
+  if (override.author?.email?.trim()) {
+    display.author.email = override.author.email.trim()
+  }
+  return display
+}
+
+export function extensionDisplayName(item: AdminExtension, locale?: unknown) {
+  return extensionLocalizedDisplay(item, locale).name
+}
+
+export function extensionDisplayDescription(item: AdminExtension, locale?: unknown) {
+  return extensionLocalizedDisplay(item, locale).description
+}
+
+export function extensionAuthorName(item: AdminExtension, locale?: unknown) {
+  return extensionLocalizedDisplay(item, locale).author.name?.trim() || ''
+}
+
+export function extensionAuthorWebsite(item: AdminExtension, locale?: unknown) {
+  const display = extensionLocalizedDisplay(item, locale)
+  return display.author.url || display.url || ''
 }
 
 export function runtimeStatusLabelKey(item: AdminExtension) {
@@ -433,10 +564,10 @@ function extensionItemsPage<T>(items: T[], page: number, pageSize = EXTENSION_EV
   }
 }
 
-export function extensionSettingDeclarations(items: AdminExtension[]) {
+export function extensionSettingDeclarations(items: AdminExtension[], locale?: string | null) {
   return items.flatMap((item): AdminExtensionSettingDeclaration[] => (item.manifest.settings || []).map(setting => ({
     extensionId: item.id,
-    extensionName: item.name,
+    extensionName: extensionDisplayName(item, locale),
     extensionType: item.type,
     setting
   })))
@@ -446,12 +577,13 @@ export function defaultExtensionIcon(type: AdminExtensionType) {
   return type === 'theme' ? 'i-lucide-palette' : 'i-lucide-plug'
 }
 
-export function extensionAdminPages(item: AdminExtension): AdminExtensionAdminPage[] {
+export function extensionAdminPages(item: AdminExtension, locale?: string | null): AdminExtensionAdminPage[] {
+  const display = extensionLocalizedDisplay(item, locale)
   const pages: AdminExtensionAdminPage[] = [
     {
       path: '/about',
-      label: item.name,
-      description: item.manifest.description,
+      label: display.name,
+      description: display.description,
       icon: defaultExtensionIcon(item.type),
       view: 'about',
       order: 0
@@ -462,7 +594,7 @@ export function extensionAdminPages(item: AdminExtension): AdminExtensionAdminPa
     pages.push({
       path: normalizeExtensionPagePath(page.path),
       label: page.label,
-      description: page.description || item.manifest.description,
+      description: page.description || display.description,
       icon: page.icon || defaultExtensionIcon(item.type),
       view: page.view || 'about',
       menu: page.menu === true,
@@ -477,13 +609,13 @@ export function extensionAdminPages(item: AdminExtension): AdminExtensionAdminPa
   })
 }
 
-export function findExtensionAdminPage(item: AdminExtension, path: string) {
+export function findExtensionAdminPage(item: AdminExtension, path: string, locale?: string | null) {
   const normalized = normalizeExtensionPagePath(path)
-  return extensionAdminPages(item).find(page => normalizeExtensionPagePath(page.path) === normalized)
+  return extensionAdminPages(item, locale).find(page => normalizeExtensionPagePath(page.path) === normalized)
 }
 
-export function extensionManagePagePath(item: AdminExtension) {
-  const pages = extensionAdminPages(item)
+export function extensionManagePagePath(item: AdminExtension, locale?: string | null) {
+  const pages = extensionAdminPages(item, locale)
   const entry = normalizeExtensionPagePath(item.manifest.admin?.entry)
   if (item.manifest.admin?.entry && pages.some(page => normalizeExtensionPagePath(page.path) === entry)) {
     return entry

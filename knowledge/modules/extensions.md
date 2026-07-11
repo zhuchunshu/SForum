@@ -87,6 +87,20 @@ and plugin runtime v1.
   health-checks a preview server, writes the active release file, and lets the
   web runtime restart onto the selected artifact. Failed builds keep the
   previous active theme running.
+- Overview, Plugins, and Themes list rows show the extension manifest
+  `description` under the name (up to two lines) so operators can scan purpose
+  without opening the detail panel. The overview detail panel also shows the
+  full description.
+- Manifest `langs` is optional localized display overrides. Top-level
+  `name`/`description`/`url`/`author` remain the default English copy. When
+  `langs` is absent, hosts use the top-level fields as-is and no translation
+  work is required. `langs.zh` (or `zh-CN`) may override the same display
+  fields; UI locale `zh-CN` also matches short code `zh`. Built-in SMTP plugin
+  and default theme ship Chinese overrides. Admin list/detail rows recompute
+  display copy from the current Nuxt i18n locale, so switching language updates
+  names and descriptions immediately. Built-in package changes require an API
+  restart (`SyncBuiltins` on boot) before the stored active version reflects a
+  new `langs` block.
 - The admin extension overview now mirrors the Themes page for uploaded theme
   activation progress: queued/building/switching rows show status text,
   percent progress, helper copy, and short polling while a release is active.

@@ -199,6 +199,17 @@ const firstSidebarGroup = adminSidebarNavigation[0] as Array<{
   labelKey?: string
   children?: Array<{ type: string, pageId?: string }>
 }>
+const forumFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.forum')
+assert(forumFolder, 'Admin sidebar should keep a forum folder')
+assert(
+  !firstSidebarGroup.some(entry => entry.type === 'page' && entry.pageId === '/moderation'),
+  'Moderation management should live under the forum folder, not the top-level sidebar'
+)
+assert(forumFolder.children?.some(entry => entry.pageId === '/moderation'), 'Forum folder should contain the moderation page')
+assert(
+  forumFolder.children?.map(entry => entry.pageId).join(',') === '/moderation,/forum/categories,/forum/tags,/forum/settings',
+  'Forum folder should keep the approved submenu order'
+)
 const systemFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.system')
 assert(systemFolder, 'Admin sidebar should keep a system folder')
 assert(

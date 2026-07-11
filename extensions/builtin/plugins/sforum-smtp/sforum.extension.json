@@ -7,6 +7,13 @@
   "version": "1.0.0",
   "type": "plugin",
   "sforumVersion": ">=0.1.0",
+  "langs": {
+    "zh": {
+      "name": "SForum SMTP",
+      "description": "受保护的内置 SMTP 邮件发送提供方。",
+      "author": { "name": "SForum" }
+    }
+  },
   "backend": { "entry": "backend/plugin", "rpc": "hashicorp-go-plugin", "protocolVersion": 1 },
   "providers": [{ "slot": "mail.provider", "label": "SMTP", "timeoutMs": 15000 }],
   "admin": { "entry": "/settings", "pages": [{ "path": "/settings", "label": "SMTP Settings", "view": "settings", "menu": false }] },

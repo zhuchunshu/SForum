@@ -20,6 +20,78 @@ func TestContributionPointDefinitionsContainJobsProductionSlots(t *testing.T) {
 	}
 }
 
+func TestManifestLangsOptionalAndLocalizedDisplay(t *testing.T) {
+	// 无 langs 时保持顶层默认，不要求翻译。
+	withoutLangs := Manifest{
+		ID:            "demo.plugin",
+		Name:          "Demo Plugin",
+		Description:   "Demo plugin.",
+		URL:           "https://example.com/demo",
+		Author:        ManifestAuthor{Name: "Demo Studio", URL: "https://example.com"},
+		Version:       "1.0.0",
+		Type:          TypePlugin,
+		SForumVersion: "^1.0.0",
+	}
+	if err := Validate(withoutLangs); err != nil {
+		t.Fatalf("manifest without langs should validate: %v", err)
+	}
+	display := LocalizedDisplay(withoutLangs, "zh-CN")
+	if display.Name != "Demo Plugin" || display.Description != "Demo plugin." {
+		t.Fatalf("expected top-level defaults without langs, got %#v", display)
+	}
+
+	body := []byte(`{
+		"id":"demo.plugin",
+		"name":"Demo Plugin",
+		"description":"Demo plugin.",
+		"url":"https://example.com/demo",
+		"author":{"name":"Demo Studio","url":"https://example.com"},
+		"version":"1.0.0",
+		"type":"plugin",
+		"sforumVersion":"^1.0.0",
+		"langs":{
+			"zh":{
+				"name":"演示插件",
+				"description":"演示插件说明。",
+				"author":{"name":"演示工作室"}
+			}
+		}
+	}`)
+	var withLangs Manifest
+	if err := json.Unmarshal(body, &withLangs); err != nil {
+		t.Fatalf("decode manifest: %v", err)
+	}
+	if err := Validate(withLangs); err != nil {
+		t.Fatalf("manifest with langs should validate: %v", err)
+	}
+	normalized := Normalize(withLangs)
+	if _, ok := normalized.Langs["zh"]; !ok {
+		t.Fatalf("expected normalized zh locale, got %#v", normalized.Langs)
+	}
+
+	// zh-CN 应回退匹配 langs.zh。
+	zhDisplay := LocalizedDisplay(withLangs, "zh-CN")
+	if zhDisplay.Name != "演示插件" || zhDisplay.Description != "演示插件说明。" || zhDisplay.Author.Name != "演示工作室" {
+		t.Fatalf("expected zh overrides, got %#v", zhDisplay)
+	}
+	// 未覆盖的 author.url 保留顶层默认。
+	if zhDisplay.Author.URL != "https://example.com" {
+		t.Fatalf("expected author url fallback, got %q", zhDisplay.Author.URL)
+	}
+	// en 无覆盖时用顶层默认。
+	enDisplay := LocalizedDisplay(withLangs, "en-US")
+	if enDisplay.Name != "Demo Plugin" || enDisplay.Description != "Demo plugin." {
+		t.Fatalf("expected english defaults, got %#v", enDisplay)
+	}
+
+	// 无效语言码应拒绝。
+	bad := withLangs
+	bad.Langs = map[string]ManifestLocale{"   ": {Name: "x"}}
+	if err := Validate(bad); !errors.Is(err, ErrInvalidManifest) {
+		t.Fatalf("expected invalid locale key to fail, got %v", err)
+	}
+}
+
 func TestAdminManifestV2NormalizeValidateAndResolveManagePath(t *testing.T) {
 	body := []byte(`{
 		"id":"demo.plugin",

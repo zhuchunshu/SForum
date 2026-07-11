@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { capabilityCount, extensionAuthorName, extensionAuthorWebsite, extensionEventPage, extensionManageRoute, hasThemeActivationInProgress, themeActionState, themeActivationProgress, themeStatusLabelKey } from '~/utils/adminExtensions'
+import { capabilityCount, extensionEventPage, extensionLocalizedDisplay, extensionManageRoute, hasThemeActivationInProgress, themeActionState, themeActivationProgress, themeStatusLabelKey } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -12,10 +12,16 @@ defineOptions({
   name: 'AdminExtensions'
 })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const adminPage = useAdminPage('/extensions')
 const adminRoutes = useAdminRoutes()
 const selectedEventPage = ref(1)
+// 与当前 UI 语言绑定，切换语言时列表与详情文案会立刻重算。
+const extensionRows = computed(() => extensions.value.map((item) => ({
+  item,
+  display: extensionLocalizedDisplay(item, locale.value)
+})))
+const selectedDisplay = computed(() => selected.value ? extensionLocalizedDisplay(selected.value, locale.value) : null)
 
 const {
   extensions,
@@ -211,7 +217,7 @@ onBeforeUnmount(stopActivationPolling)
         </div>
         <div v-else class="divide-y divide-slate-200 dark:divide-zinc-800">
           <div
-            v-for="item in extensions"
+            v-for="{ item, display } in extensionRows"
             :key="item.id"
             class="grid gap-4 px-4 py-4 transition hover:bg-slate-50 md:grid-cols-[minmax(0,1fr)_auto] dark:hover:bg-zinc-800/50"
             :class="selected?.id === item.id ? 'bg-slate-50 dark:bg-zinc-800/50' : ''"
@@ -225,7 +231,7 @@ onBeforeUnmount(stopActivationPolling)
                 <div class="flex flex-wrap items-center gap-2">
                   <UIcon :name="item.type === 'theme' ? 'i-lucide-palette' : 'i-lucide-blocks'" class="size-4 text-[var(--sf-accent)]" />
                   <h3 class="truncate text-sm font-semibold text-slate-900 dark:text-zinc-100">
-                    {{ item.name }}
+                    {{ display.name }}
                   </h3>
                   <UBadge :color="statusColor(item.status)" variant="subtle">
                     {{ extensionStatusLabel(item) }}
@@ -234,26 +240,32 @@ onBeforeUnmount(stopActivationPolling)
                     {{ typeLabel(item.type) }}
                   </UBadge>
                 </div>
+                <p
+                  v-if="display.description"
+                  class="mt-1.5 line-clamp-2 text-sm leading-5 text-slate-600 dark:text-zinc-300"
+                >
+                  {{ display.description }}
+                </p>
                 <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
                   {{ item.id }} · v{{ item.version }} · {{ t('admin.extensions.capabilityCount', { count: capabilityCount(item) }) }}
                 </p>
               </button>
               <a
-                v-if="extensionAuthorWebsite(item)"
-                :href="extensionAuthorWebsite(item)"
+                v-if="display.author.url || display.url"
+                :href="display.author.url || display.url"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="mt-2 inline-flex max-w-full items-center gap-1.5 rounded text-xs font-medium text-slate-500 transition hover:text-[var(--sf-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sf-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-zinc-400 dark:hover:text-[var(--sf-accent-dark)] dark:focus-visible:ring-offset-zinc-900"
-                :title="t('admin.extensions.authorWebsiteTitle', { name: extensionAuthorName(item) })"
-                :aria-label="t('admin.extensions.authorWebsiteTitle', { name: extensionAuthorName(item) })"
+                :title="t('admin.extensions.authorWebsiteTitle', { name: display.author.name })"
+                :aria-label="t('admin.extensions.authorWebsiteTitle', { name: display.author.name })"
               >
                 <UIcon name="i-lucide-user-round" class="size-3.5 shrink-0" />
-                <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: extensionAuthorName(item) }) }}</span>
+                <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: display.author.name }) }}</span>
                 <UIcon name="i-lucide-external-link" class="size-3 shrink-0" />
               </a>
-              <span v-else-if="extensionAuthorName(item)" class="mt-2 inline-flex max-w-full items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
+              <span v-else-if="display.author.name" class="mt-2 inline-flex max-w-full items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
                 <UIcon name="i-lucide-user-round" class="size-3.5 shrink-0" />
-                <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: extensionAuthorName(item) }) }}</span>
+                <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: display.author.name }) }}</span>
               </span>
               <p v-if="item.themeRelease?.message" class="mt-2 text-xs leading-5 text-slate-500 dark:text-zinc-400">
                 {{ item.themeRelease.message }}
@@ -379,8 +391,14 @@ onBeforeUnmount(stopActivationPolling)
       <aside class="space-y-4">
         <div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <h2 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
-            {{ selected?.name || t('admin.extensions.detailTitle') }}
+            {{ selectedDisplay?.name || t('admin.extensions.detailTitle') }}
           </h2>
+          <p
+            v-if="selectedDisplay?.description"
+            class="mt-3 text-sm leading-6 text-slate-600 dark:text-zinc-300"
+          >
+            {{ selectedDisplay.description }}
+          </p>
           <dl v-if="selected" class="mt-4 space-y-3 text-sm">
             <div class="flex justify-between gap-3">
               <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.manifest.id') }}</dt>

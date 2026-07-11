@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { canRestartPlugin, capabilityCount, extensionAuthorName, extensionAuthorWebsite, extensionManageRoute, filterExtensionsByType, runtimeCapabilitySummary, runtimeStatusLabelKey, type AdminRuntimeState } from '~/utils/adminExtensions'
+import { canRestartPlugin, capabilityCount, extensionLocalizedDisplay, extensionManageRoute, filterExtensionsByType, runtimeCapabilitySummary, runtimeStatusLabelKey, type AdminRuntimeState } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -12,7 +12,7 @@ defineOptions({
   name: 'AdminExtensionPlugins'
 })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const adminPage = useAdminPage('/extensions/plugins')
 const adminRoutes = useAdminRoutes()
 const {
@@ -29,6 +29,11 @@ const {
 } = await useAdminExtensionsManager()
 
 const plugins = computed(() => filterExtensionsByType(extensions.value, 'plugin'))
+// 与当前 UI 语言绑定，切换语言时列表文案会立刻重算。
+const pluginRows = computed(() => plugins.value.map((item) => ({
+  item,
+  display: extensionLocalizedDisplay(item, locale.value)
+})))
 
 function runtimeColor(state?: AdminRuntimeState) {
   if (state === 'running') {
@@ -88,7 +93,7 @@ useSeoMeta({
     </div>
     <div v-else class="divide-y divide-slate-200 dark:divide-zinc-800">
       <div
-        v-for="item in plugins"
+        v-for="{ item, display } in pluginRows"
         :key="item.id"
         class="grid gap-4 px-4 py-4 md:grid-cols-[1fr_auto]"
       >
@@ -96,7 +101,7 @@ useSeoMeta({
           <div class="flex flex-wrap items-center gap-2">
             <UIcon name="i-lucide-plug" class="size-4 text-[var(--sf-accent)]" />
             <h3 class="truncate text-sm font-semibold text-slate-900 dark:text-zinc-100">
-              {{ item.name }}
+              {{ display.name }}
             </h3>
             <UBadge :color="statusColor(item.status)" variant="subtle">
               {{ statusLabel(item.status) }}
@@ -105,25 +110,31 @@ useSeoMeta({
               {{ t(runtimeStatusLabelKey(item)) }}
             </UBadge>
           </div>
+          <p
+            v-if="display.description"
+            class="mt-1.5 line-clamp-2 text-sm leading-5 text-slate-600 dark:text-zinc-300"
+          >
+            {{ display.description }}
+          </p>
           <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
             {{ item.id }} · v{{ item.version }} · {{ t('admin.extensions.capabilityCount', { count: capabilityCount(item) }) }}
           </p>
           <a
-            v-if="extensionAuthorWebsite(item)"
-            :href="extensionAuthorWebsite(item)"
+            v-if="display.author.url || display.url"
+            :href="display.author.url || display.url"
             target="_blank"
             rel="noopener noreferrer"
             class="mt-2 inline-flex max-w-full items-center gap-1.5 rounded text-xs font-medium text-slate-500 transition hover:text-[var(--sf-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sf-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-zinc-400 dark:hover:text-[var(--sf-accent-dark)] dark:focus-visible:ring-offset-zinc-900"
-            :title="t('admin.extensions.authorWebsiteTitle', { name: extensionAuthorName(item) })"
-            :aria-label="t('admin.extensions.authorWebsiteTitle', { name: extensionAuthorName(item) })"
+            :title="t('admin.extensions.authorWebsiteTitle', { name: display.author.name })"
+            :aria-label="t('admin.extensions.authorWebsiteTitle', { name: display.author.name })"
           >
             <UIcon name="i-lucide-user-round" class="size-3.5 shrink-0" />
-            <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: extensionAuthorName(item) }) }}</span>
+            <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: display.author.name }) }}</span>
             <UIcon name="i-lucide-external-link" class="size-3 shrink-0" />
           </a>
-          <span v-else-if="extensionAuthorName(item)" class="mt-2 inline-flex max-w-full items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
+          <span v-else-if="display.author.name" class="mt-2 inline-flex max-w-full items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400">
             <UIcon name="i-lucide-user-round" class="size-3.5 shrink-0" />
-            <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: extensionAuthorName(item) }) }}</span>
+            <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: display.author.name }) }}</span>
           </span>
           <p class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-zinc-400">
             <span>{{ t('admin.extensions.capability.routes', { count: runtimeCapabilitySummary(item).routes }) }}</span>

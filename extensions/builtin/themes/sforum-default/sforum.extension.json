@@ -10,6 +10,15 @@
   "version": "1.0.0",
   "type": "theme",
   "sforumVersion": "^1.0.0",
+  "langs": {
+    "zh": {
+      "name": "SForum 默认主题",
+      "description": "受保护的 SForum 默认公开主题。",
+      "author": {
+        "name": "SForum 团队"
+      }
+    }
+  },
   "frontend": {
     "layer": "layer"
   }

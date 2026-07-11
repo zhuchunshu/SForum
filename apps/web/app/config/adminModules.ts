@@ -218,7 +218,6 @@ export const adminPageDefinitions = [
 export const adminSidebarNavigation = [
   [
     { type: 'page', pageId: ADMIN_DASHBOARD_PAGE_ID },
-    { type: 'page', pageId: '/moderation' },
     {
       type: 'folder',
       labelKey: 'admin.nav.userPermission',
@@ -234,6 +233,7 @@ export const adminSidebarNavigation = [
       labelKey: 'admin.nav.forum',
       icon: 'i-lucide-message-square-text',
       children: [
+        { type: 'page', pageId: '/moderation' },
         { type: 'page', pageId: '/forum/categories' },
         { type: 'page', pageId: '/forum/tags' },
         { type: 'page', pageId: '/forum/settings' }

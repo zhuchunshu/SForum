@@ -5,9 +5,9 @@ frontend moderator workbench.
 
 ## Permissions And Entry Points
 
-- `moderation.manage` controls the independent admin **Moderation management**
-  page. It can read/update/reset policy settings and read the complete audit
-  history, but it does not grant review actions.
+- `moderation.manage` controls the admin **Moderation management** page under
+  the Forum management sidebar folder. It can read/update/reset policy settings
+  and read the complete audit history, but it does not grant review actions.
 - `moderation.review` controls the frontend `/moderation` workbench and all
   review actions. It does not grant policy management.
 - The two permissions are intentionally independent. `super_admin` still
@@ -42,6 +42,8 @@ frontend moderator workbench.
 
 ## Frontend
 
+- Admin sidebar places **Moderation management** under the Forum management
+  folder (`admin.nav.forum`), alongside categories, tags, and forum settings.
 - The admin page is policy management plus a read-only complete audit table.
 - The frontend `/moderation` workbench has **Pending publication**, **User
   reports**, and **History** tabs. Rows show title/topic, excerpt, author,

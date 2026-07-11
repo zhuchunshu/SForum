@@ -14,6 +14,9 @@ import {
   extensionEventPage,
   extensionAuthorName,
   extensionAuthorWebsite,
+  extensionDisplayDescription,
+  extensionDisplayName,
+  extensionLocalizedDisplay,
   extensionManageRoute,
   extensionStats,
   filterExtensionsByType,
@@ -235,6 +238,59 @@ describe('admin extension helpers', () => {
     expect(extensionAuthorName(item)).toBe('Demo Studio')
     expect(extensionAuthorWebsite(item)).toBe('https://studio.example.com')
     expect(extensionAuthorWebsite(fallback)).toBe('https://example.com/themes/fallback')
+  })
+
+  test('uses optional langs for display and falls back to top-level english defaults', () => {
+    const localized = extension({
+      id: 'lang.plugin',
+      name: 'Language Plugin',
+      type: 'plugin',
+      manifest: {
+        name: 'Language Plugin',
+        description: 'English description.',
+        url: 'https://example.com/plugins/lang',
+        author: {
+          name: 'Demo Studio',
+          url: 'https://studio.example.com'
+        },
+        langs: {
+          zh: {
+            name: '语言插件',
+            description: '中文说明。',
+            author: {
+              name: '演示工作室'
+            }
+          }
+        }
+      }
+    })
+    const plain = extension({
+      id: 'plain.plugin',
+      name: 'Plain Plugin',
+      type: 'plugin',
+      manifest: {
+        name: 'Plain Plugin',
+        description: 'No langs field.',
+        url: 'https://example.com/plugins/plain',
+        author: {
+          name: 'Plain Studio'
+        }
+      }
+    })
+
+    expect(extensionDisplayName(localized, 'zh-CN')).toBe('语言插件')
+    expect(extensionDisplayDescription(localized, 'zh-CN')).toBe('中文说明。')
+    expect(extensionAuthorName(localized, 'zh-CN')).toBe('演示工作室')
+    expect(extensionAuthorWebsite(localized, 'zh-CN')).toBe('https://studio.example.com')
+    expect(extensionLocalizedDisplay(localized, 'en-US')).toMatchObject({
+      name: 'Language Plugin',
+      description: 'English description.'
+    })
+    expect(extensionDisplayName(plain, 'zh-CN')).toBe('Plain Plugin')
+    expect(extensionDisplayDescription(plain, 'zh-CN')).toBe('No langs field.')
+    // 兼容模板里误传 Ref 形态的 locale。
+    expect(extensionDisplayName(localized, { value: 'zh-CN' })).toBe('语言插件')
+    expect(extensionDisplayDescription(localized, { value: 'en' })).toBe('English description.')
   })
 
   test('summarizes runtime declarations and running state', () => {

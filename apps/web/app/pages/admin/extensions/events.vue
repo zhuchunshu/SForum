@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
-import { extensionDefinitionPage, extensionDeliveryPage, extensionEventPage, type AdminExtensionDeliveryStatus, type AdminExtensionEventKind } from '~/utils/adminExtensions'
+import { extensionDefinitionPage, extensionDeliveryPage, extensionDisplayName, extensionEventPage, type AdminExtensionDeliveryStatus, type AdminExtensionEventKind } from '~/utils/adminExtensions'
 
 definePageMeta({
   middleware: 'admin',
@@ -12,7 +12,7 @@ defineOptions({
   name: 'AdminExtensionEvents'
 })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const adminPage = useAdminPage('/extensions/events')
 const definitionPage = ref(1)
 const eventPage = ref(1)
@@ -70,7 +70,9 @@ async function refreshEvents() {
 }
 
 function extensionName(id: string) {
-  return extensions.value.find(item => item.id === id)?.name || id
+  const item = extensions.value.find(entry => entry.id === id)
+  // 直接读 locale.value，保证语言切换时事件日志里的扩展名同步更新。
+  return item ? extensionDisplayName(item, locale.value) : id
 }
 
 function deliveryStatusColor(status: AdminExtensionDeliveryStatus) {

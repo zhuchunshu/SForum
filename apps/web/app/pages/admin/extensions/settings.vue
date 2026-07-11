@@ -12,7 +12,7 @@ defineOptions({
   name: 'AdminExtensionSettings'
 })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const adminPage = useAdminPage('/extensions/settings')
 const {
   extensions,
@@ -21,7 +21,7 @@ const {
   refresh
 } = await useAdminExtensionsManager()
 
-const settings = computed(() => extensionSettingDeclarations(extensions.value))
+const settings = computed(() => extensionSettingDeclarations(extensions.value, locale.value))
 
 useSeoMeta({
   title: t('admin.extensions.settings.metaTitle')

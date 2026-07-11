@@ -42,25 +42,36 @@ type Manifest struct {
 	Version       string                 `json:"version"`
 	Type          string                 `json:"type"`
 	SForumVersion string                 `json:"sforumVersion"`
-	Permissions   []string               `json:"permissions"`
-	Settings      []ManifestSetting      `json:"settings"`
-	Migrations    []ManifestMigration    `json:"migrations"`
-	Backend       ManifestBackend        `json:"backend"`
-	Frontend      ManifestFrontend       `json:"frontend"`
-	Admin         ManifestAdmin          `json:"admin"`
-	AdminPages    []ManifestAdminPage    `json:"adminPages"`
-	Routes        []ManifestRoute        `json:"routes"`
-	Hooks         []ManifestHook         `json:"hooks"`
-	Events        []ManifestEvent        `json:"events"`
-	Jobs          []ManifestJob          `json:"jobs"`
-	Providers     []ManifestProvider     `json:"providers"`
-	Contributions []ManifestContribution `json:"contributions"`
+	// Langs 是可选的本地化覆盖。顶层 name/description/author 为默认英文；
+	// 未声明 langs 时无需翻译，直接使用顶层字段。
+	Langs         map[string]ManifestLocale `json:"langs,omitempty"`
+	Permissions   []string                  `json:"permissions"`
+	Settings      []ManifestSetting         `json:"settings"`
+	Migrations    []ManifestMigration       `json:"migrations"`
+	Backend       ManifestBackend           `json:"backend"`
+	Frontend      ManifestFrontend          `json:"frontend"`
+	Admin         ManifestAdmin             `json:"admin"`
+	AdminPages    []ManifestAdminPage       `json:"adminPages"`
+	Routes        []ManifestRoute           `json:"routes"`
+	Hooks         []ManifestHook            `json:"hooks"`
+	Events        []ManifestEvent           `json:"events"`
+	Jobs          []ManifestJob             `json:"jobs"`
+	Providers     []ManifestProvider        `json:"providers"`
+	Contributions []ManifestContribution    `json:"contributions"`
 }
 
 type ManifestAuthor struct {
 	Name  string `json:"name"`
 	URL   string `json:"url,omitempty"`
 	Email string `json:"email,omitempty"`
+}
+
+// ManifestLocale 覆盖可展示文案。字段均可选，有值才覆盖顶层默认。
+type ManifestLocale struct {
+	Name        string         `json:"name,omitempty"`
+	Description string         `json:"description,omitempty"`
+	URL         string         `json:"url,omitempty"`
+	Author      ManifestAuthor `json:"author,omitempty"`
 }
 
 type ManifestSetting struct {
@@ -168,6 +179,10 @@ func Validate(manifest Manifest) error {
 }
 
 func validateManifest(manifest Manifest, points []ContributionPointDefinition) error {
+	// langs 在 Normalize 丢弃空项前先校验，避免无效语言码被静默忽略。
+	if err := validateManifestLangs(manifest.Langs); err != nil {
+		return err
+	}
 	manifest = Normalize(manifest)
 	if !manifestIDPattern.MatchString(manifest.ID) {
 		return ErrInvalidManifest
@@ -305,6 +320,7 @@ func Normalize(manifest Manifest) Manifest {
 	manifest.Version = strings.TrimSpace(manifest.Version)
 	manifest.Type = strings.ToLower(strings.TrimSpace(manifest.Type))
 	manifest.SForumVersion = strings.TrimSpace(manifest.SForumVersion)
+	manifest.Langs = normalizeManifestLangs(manifest.Langs)
 	for index := range manifest.Settings {
 		manifest.Settings[index].Key = strings.TrimSpace(manifest.Settings[index].Key)
 		manifest.Settings[index].Label = strings.TrimSpace(manifest.Settings[index].Label)
@@ -434,6 +450,147 @@ func AdminManagePath(manifest Manifest) string {
 
 func NormalizeID(id string) string {
 	return strings.ToLower(strings.TrimSpace(id))
+}
+
+// LocalizedDisplay 按 locale 解析可展示字段；无 langs 或未命中时回退顶层默认英文。
+func LocalizedDisplay(manifest Manifest, locale string) ManifestLocale {
+	manifest = Normalize(manifest)
+	display := ManifestLocale{
+		Name:        manifest.Name,
+		Description: manifest.Description,
+		URL:         manifest.URL,
+		Author:      manifest.Author,
+	}
+	override, ok := lookupManifestLocale(manifest.Langs, locale)
+	if !ok {
+		return display
+	}
+	if override.Name != "" {
+		display.Name = override.Name
+	}
+	if override.Description != "" {
+		display.Description = override.Description
+	}
+	if override.URL != "" {
+		display.URL = override.URL
+	}
+	if override.Author.Name != "" {
+		display.Author.Name = override.Author.Name
+	}
+	if override.Author.URL != "" {
+		display.Author.URL = override.Author.URL
+	}
+	if override.Author.Email != "" {
+		display.Author.Email = override.Author.Email
+	}
+	return display
+}
+
+func normalizeManifestLangs(langs map[string]ManifestLocale) map[string]ManifestLocale {
+	if len(langs) == 0 {
+		return nil
+	}
+	normalized := make(map[string]ManifestLocale, len(langs))
+	for key, locale := range langs {
+		code := normalizeLocaleKey(key)
+		if code == "" {
+			continue
+		}
+		locale.Name = strings.TrimSpace(locale.Name)
+		locale.Description = strings.TrimSpace(locale.Description)
+		locale.URL = strings.TrimSpace(locale.URL)
+		locale.Author.Name = strings.TrimSpace(locale.Author.Name)
+		locale.Author.URL = strings.TrimSpace(locale.Author.URL)
+		locale.Author.Email = strings.TrimSpace(locale.Author.Email)
+		// 空覆盖无意义，直接丢弃。
+		if locale.Name == "" && locale.Description == "" && locale.URL == "" && locale.Author.Name == "" && locale.Author.URL == "" && locale.Author.Email == "" {
+			continue
+		}
+		normalized[code] = locale
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
+}
+
+func validateManifestLangs(langs map[string]ManifestLocale) error {
+	if len(langs) == 0 {
+		return nil
+	}
+	for key, locale := range langs {
+		if normalizeLocaleKey(key) == "" {
+			return ErrInvalidManifest
+		}
+		name := strings.TrimSpace(locale.Name)
+		description := strings.TrimSpace(locale.Description)
+		localeURL := strings.TrimSpace(locale.URL)
+		authorName := strings.TrimSpace(locale.Author.Name)
+		authorURL := strings.TrimSpace(locale.Author.URL)
+		authorEmail := strings.TrimSpace(locale.Author.Email)
+		// 局部字段可选；整段覆盖不能全空。
+		if name == "" && description == "" && localeURL == "" && authorName == "" && authorURL == "" && authorEmail == "" {
+			return ErrInvalidManifest
+		}
+		if localeURL != "" && !validHTTPURL(localeURL) {
+			return ErrInvalidManifest
+		}
+		if authorURL != "" && !validHTTPURL(authorURL) {
+			return ErrInvalidManifest
+		}
+		if authorEmail != "" {
+			if _, err := mail.ParseAddress(authorEmail); err != nil {
+				return ErrInvalidManifest
+			}
+		}
+	}
+	return nil
+}
+
+func lookupManifestLocale(langs map[string]ManifestLocale, locale string) (ManifestLocale, bool) {
+	if len(langs) == 0 {
+		return ManifestLocale{}, false
+	}
+	for _, candidate := range localeLookupCandidates(locale) {
+		if item, ok := langs[candidate]; ok {
+			return item, true
+		}
+	}
+	return ManifestLocale{}, false
+}
+
+func localeLookupCandidates(locale string) []string {
+	code := normalizeLocaleKey(locale)
+	if code == "" {
+		return nil
+	}
+	candidates := []string{code}
+	if primary, _, ok := strings.Cut(code, "-"); ok && primary != "" && primary != code {
+		candidates = append(candidates, primary)
+	}
+	return candidates
+}
+
+func normalizeLocaleKey(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	value = strings.ReplaceAll(value, "_", "-")
+	parts := strings.Split(value, "-")
+	if len(parts) == 0 || parts[0] == "" {
+		return ""
+	}
+	parts[0] = strings.ToLower(parts[0])
+	for index := 1; index < len(parts); index++ {
+		// 地区码常见为大写（CN/US），语言码小写。
+		if len(parts[index]) == 2 {
+			parts[index] = strings.ToUpper(parts[index])
+		} else {
+			parts[index] = strings.ToLower(parts[index])
+		}
+	}
+	return strings.Join(parts, "-")
 }
 
 func NormalizeRoutePath(value string) string {

@@ -175,6 +175,11 @@ ExtensionManifest:
       "$ref": "#/ExtensionType"
     sforumVersion:
       type: string
+    langs:
+      type: object
+      description: Optional localized display overrides. Top-level name, description, url, and author are the default English copy. When langs is omitted, hosts use the top-level fields as-is. Locale keys may be short codes such as zh or full tags such as zh-CN; UI locales like zh-CN also match zh.
+      additionalProperties:
+        "$ref": "#/ExtensionManifestLocale"
     permissions:
       type: array
       description: Plugin-only permission keys. Theme manifests must omit permissions in v1.
@@ -260,6 +265,28 @@ ExtensionManifestAuthor:
     email:
       type: string
       format: email
+ExtensionManifestLocale:
+  type: object
+  description: Localized display fields for one locale. All properties are optional; present non-empty values override the matching top-level default English field.
+  properties:
+    name:
+      type: string
+    description:
+      type: string
+    url:
+      type: string
+      format: uri
+    author:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        email:
+          type: string
+          format: email
 ExtensionManifestSetting:
   type: object
   required:
