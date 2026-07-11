@@ -241,6 +241,7 @@
       "database": "数据库表管理",
       "search": "搜索索引",
       "jobs": "后台任务",
+      "moderation": "审核管理",
       "attachments": "附件设置",
       "extensions": "扩展管理",
       "extensionOverview": "扩展总览",

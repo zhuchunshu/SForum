@@ -259,7 +259,8 @@
       "userGroups": "User groups",
       "permissionManagement": "Permission management",
       "search": "Search Index",
-      "jobs": "Background jobs"
+      "jobs": "Background jobs",
+      "moderation": "Moderation management"
     },
     "avatar": {
       "metaTitle": "Avatar settings",

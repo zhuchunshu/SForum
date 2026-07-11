@@ -14,6 +14,10 @@ assert(permissions.includes("moderationReview: 'moderation.review'"), 'Missing m
 const modules = read('apps/web/app/config/adminModules.ts')
 assert(modules.includes("requiredPermissions: ['moderation.manage']"), 'Admin moderation must require moderation.manage')
 assert(modules.includes("{ type: 'page', pageId: '/moderation' }"), 'Admin moderation must have a sidebar entry')
+for (const locale of ['zh-CN', 'en-US']) {
+  const messages = JSON.parse(read(`apps/web/i18n/locales/${locale}.json`))
+  assert(typeof messages.admin?.nav?.moderation === 'string', `${locale} must define admin.nav.moderation`)
+}
 
 const navbar = read('extensions/builtin/themes/sforum-default/layer/app/components/SFNavbar.vue')
 assert(navbar.includes('FORUM_PERMISSIONS.moderationReview'), 'Public moderator entry must require moderation.review')
