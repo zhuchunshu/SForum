@@ -258,8 +258,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		SiteURL:  siteURL,
 	}, optionsService)
 	identityProvider := providers.NewIdentityProviderWithPasswordReset(identityStore, authSessions, humanVerifier, extensionRuntime, passwordResetService, mailOutbox, optionsService)
-	notificationsProvider := providers.NewNotificationsProvider(notificationStore, authSessions)
-	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions)
+	notificationsProvider := providers.NewNotificationsProvider(notificationStore, identityStore, authSessions)
+	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService)
 	adminOverviewProvider := providers.NewAdminOverviewProvider(adminOverviewStore, adminoverview.NewRuntimeCollector(time.Now().UTC(), pool), identityStore, authSessions)
 	// 搜索：API 进程持有只入队的 indexer（EnqueueIndex/EnqueueDelete）和查询用的 search service。
 	// Meilisearch client 不可达时，索引调度静默失败、搜索端点返回 503，主流程不受影响。

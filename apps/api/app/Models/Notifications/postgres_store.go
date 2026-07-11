@@ -67,6 +67,10 @@ RETURNING id, recipient_user_id, type, actor_user_id, target_type, target_id, pa
 	return result, err
 }
 
+func (s *PostgresStore) Create(ctx context.Context, input CreateInput) (Notification, error) {
+	return s.CreateNotificationTx(ctx, s.runner, input)
+}
+
 func (s *PostgresStore) CreateDeliveryTx(ctx context.Context, tx queryRunner, input CreateDeliveryInput) (MailDelivery, error) {
 	templateData := input.TemplateData
 	if len(templateData) == 0 {

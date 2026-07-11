@@ -1,11 +1,15 @@
 package notificationscontroller
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 )
@@ -13,10 +17,16 @@ import (
 type Controller struct {
 	store    notifications.Store
 	sessions *authsession.Manager
+	users    identity.ActorStore
+	creator  interface {
+		Create(context.Context, notifications.CreateInput) (notifications.Notification, error)
+	}
 }
 
-func NewController(store notifications.Store, sessions *authsession.Manager) *Controller {
-	return &Controller{store: store, sessions: sessions}
+func NewController(store notifications.Store, sessions *authsession.Manager, users identity.ActorStore, creator interface {
+	Create(context.Context, notifications.CreateInput) (notifications.Notification, error)
+}) *Controller {
+	return &Controller{store: store, sessions: sessions, users: users, creator: creator}
 }
 func (h *Controller) RegisterRoutes(api fiber.Router) {
 	group := api.Group("/notifications")
@@ -24,6 +34,26 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	group.Get("/unread-count", h.unreadCount)
 	group.Patch("/:id/read", h.markRead)
 	group.Post("/read-all", h.markAllRead)
+	api.Post("/admin/notifications/test", h.adminTest)
+}
+
+func (h *Controller) adminTest(c fiber.Ctx) error {
+	userID, err := h.userID(c)
+	if err != nil {
+		return err
+	}
+	actor, err := h.users.LoadActor(c.Context(), userID)
+	if err != nil {
+		return err
+	}
+	if !actor.Can(identity.PermissionSettingsManage) {
+		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	}
+	item, err := h.creator.Create(c.Context(), notifications.CreateInput{RecipientUserID: userID, Type: notifications.TypeAdminTest, TargetType: "system", Payload: []byte(`{}`), DedupeKey: fmt.Sprintf("admin_test:%d:%d", userID, time.Now().UnixNano())})
+	if err != nil {
+		return err
+	}
+	return apphttp.JSON(c, fiber.StatusCreated, apphttp.MessageOK, item)
 }
 func (h *Controller) userID(c fiber.Ctx) (int64, error) {
 	id, ok, err := h.sessions.CurrentUserID(c)

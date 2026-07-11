@@ -5,6 +5,7 @@ MailProviderSelectionRequest:
     extensionId: {type: string, description: Enabled plugin declaring mail.provider.}
 MailTestRequest:
   type: object
+  required: [recipient]
   properties:
     recipient:
       type: string
@@ -29,3 +30,23 @@ ApiResponseMailTest:
       properties:
         queued: {type: boolean}
         deliveryId: {type: integer, format: int64}
+NotificationChannelPolicy:
+  type: object
+  required: [inAppEnabled, emailEnabled]
+  properties:
+    inAppEnabled: {type: boolean}
+    emailEnabled: {type: boolean}
+NotificationPolicy:
+  type: object
+  required: [reply, mention, moderation]
+  properties:
+    reply: {$ref: "#/NotificationChannelPolicy"}
+    mention: {$ref: "#/NotificationChannelPolicy"}
+    moderation: {$ref: "#/NotificationChannelPolicy"}
+ApiResponseNotificationPolicy:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/NotificationPolicy"}

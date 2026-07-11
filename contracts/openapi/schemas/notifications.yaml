@@ -3,7 +3,7 @@ Notification:
   required: [id, type, targetType, targetId, payload, createdAt]
   properties:
     id: {type: integer, format: int64}
-    type: {type: string, enum: [reply, mention, moderation_approved, moderation_rejected]}
+    type: {type: string, enum: [reply, mention, moderation_approved, moderation_rejected, admin_test]}
     actorUserId: {type: integer, format: int64}
     targetType: {type: string}
     targetId: {type: integer, format: int64}
@@ -32,3 +32,10 @@ ApiResponseUnreadCount:
       type: object
       required: [count]
       properties: {count: {type: integer, format: int64}}
+ApiResponseNotification:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/Notification"}

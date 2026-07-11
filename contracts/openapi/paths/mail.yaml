@@ -5,7 +5,7 @@ adminMailTest:
     security:
     - cookieAuth: []
     requestBody:
-      required: false
+      required: true
       content:
         application/json:
           schema:
@@ -57,4 +57,28 @@ adminMailDeliveries:
     security: [{cookieAuth: []}]
     responses:
       '200': {description: Recent delivery states}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+adminNotificationPolicy:
+  get:
+    summary: Read the resolved global notification channel policy
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Resolved policy, content: {application/json: {schema: {$ref: "../schemas/mail.yaml#/ApiResponseNotificationPolicy"}}}}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+  put:
+    summary: Update the global notification channel policy
+    security: [{cookieAuth: []}]
+    requestBody:
+      required: true
+      content: {application/json: {schema: {$ref: "../schemas/mail.yaml#/NotificationPolicy"}}}
+    responses:
+      '200': {description: Updated policy, content: {application/json: {schema: {$ref: "../schemas/mail.yaml#/ApiResponseNotificationPolicy"}}}}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+      '422': {$ref: "../components/responses.yaml#/UnprocessableEntity"}
+adminNotificationPolicyRestore:
+  post:
+    summary: Restore the all-enabled recommended notification policy
+    security: [{cookieAuth: []}]
+    responses:
+      '200': {description: Restored policy, content: {application/json: {schema: {$ref: "../schemas/mail.yaml#/ApiResponseNotificationPolicy"}}}}
       '403': {$ref: "../components/responses.yaml#/Forbidden"}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/mail"
 	"strconv"
 	"strings"
 	"time"
@@ -291,8 +292,8 @@ func (h *Controller) adminMailTest(c fiber.Ctx) error {
 	}
 	var req mailTestRequest
 	_ = c.Bind().Body(&req)
-	recipient := req.Recipient
-	if recipient == "" {
+	recipient, validRecipient := normalizeTestRecipient(req.Recipient)
+	if !validRecipient {
 		// 无指定收件人时，从当前用户资料查邮箱；此处简化为返回错误提示。
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "mail.test_recipient_required")
 	}
@@ -308,6 +309,15 @@ func (h *Controller) adminMailTest(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusServiceUnavailable, "mail.test_failed")
 	}
 	return apphttp.JSON(c, fiber.StatusAccepted, apphttp.MessageOK, map[string]any{"queued": true, "deliveryId": delivery.ID})
+}
+
+func normalizeTestRecipient(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	address, err := mail.ParseAddress(value)
+	if err != nil || address.Address != value {
+		return "", false
+	}
+	return value, true
 }
 
 type passwordResetRequestPayload struct {

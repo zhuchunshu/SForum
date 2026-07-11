@@ -11,6 +11,7 @@ const (
 	TypeMention            = "mention"
 	TypeModerationApproved = "moderation_approved"
 	TypeModerationRejected = "moderation_rejected"
+	TypeAdminTest          = "admin_test"
 
 	DeliveryQueued  = "queued"
 	DeliverySending = "sending"

@@ -32,3 +32,12 @@ notificationsReadAll:
     responses:
       '200': {description: Updated count}
       '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+adminNotificationTest:
+  post:
+    summary: Create an in-app test notification for the current administrator
+    description: Requires settings.manage. The recipient is always the current actor and no email projection is created.
+    security: [{cookieAuth: []}]
+    responses:
+      '201': {description: Test notification created, content: {application/json: {schema: {$ref: "../schemas/notifications.yaml#/ApiResponseNotification"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
