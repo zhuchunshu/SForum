@@ -77,9 +77,12 @@ not kill it):
 - `cd apps/web && bun run dev` — theme-aware Nuxt dev supervisor
   (`scripts/dev-theme-runtime.mjs`) that restarts `nuxt dev` with the active
   theme layer when `theme-releases/current.json` changes.
-- `./scripts/api-dev.sh` — run the API with `air` (hot reload). Refuses to
-  start if the API port is already in use; never stops a user process. In
-  dev the API embeds the worker (`EMBED_WORKER_IN_API=true`).
+- `./scripts/api-dev.sh` — run the API with `air` (hot reload). On start it
+  reclaims only leftover `sforum-api` processes on `HTTP_PORT` via
+  `scripts/free-api-dev-port.sh`; if the port is held by docker or another
+  non-sforum process it refuses and does not kill it. Air's `pre_cmd` only
+  clears orphan `sforum-api` (not the currently managed instance). In dev the
+  API embeds the worker (`EMBED_WORKER_IN_API=true`).
 - `./scripts/worker-dev.sh` — standalone worker via `.air.worker.toml`; only
   needed when `EMBED_WORKER_IN_API=false`.
 

@@ -468,13 +468,11 @@ async function signOut() {
         </div>
       </div>
 
-      <!-- 3. 内容区滚动面板（footer 不在此内，避免浮在灰底上） -->
+      <!-- 3. 内容区滚动面板：footer 在区内随内容滚动，短页用 mt-auto 沉底 -->
       <div class="flex-1 min-h-0 overflow-y-auto flex flex-col p-4 sm:p-6 bg-[var(--bg-admin-app)]">
         <slot />
+        <SFAdminFooter />
       </div>
-
-      <!-- 4. 全局 Footer：与 topbar 同级壳层，卡片底 + 顶部分割线 -->
-      <SFAdminFooter />
     </UDashboardPanel>
   </UDashboardGroup>
 </template>

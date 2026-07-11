@@ -3,6 +3,8 @@ tmp_dir = "tmp"
 env_files = ["../../.env"]
 
 [build]
+# 仅清理孤儿 sforum-api（父进程不是 air）；当前热重载实例留给 kill_delay + Listen 重试。
+pre_cmd = ["bash ../../scripts/free-api-dev-port.sh"]
 cmd = "go build -o ./tmp/sforum-api ./cmd/api"
 entrypoint = ["./tmp/sforum-api"]
 include_dir = ["app", "bootstrap", "cmd", "config", "database"]
@@ -12,7 +14,8 @@ exclude_regex = ["_test\\.go"]
 delay = 200
 stop_on_error = true
 send_interrupt = true
-kill_delay = "500ms"
+# 给 Fiber graceful shutdown 留足时间；过短会导致新旧进程同时 bind。
+kill_delay = "2s"
 
 [log]
 time = true

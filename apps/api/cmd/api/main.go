@@ -31,7 +31,8 @@ func main() {
 
 	go func() {
 		logger.Info("starting api server", "addr", api.Addr, "env", cfg.AppEnv, "locale", cfg.AppLocale)
-		errCh <- api.App.Listen(api.Addr)
+		// air 热重载存在新旧进程端口交接窗口；对 EADDRINUSE 做短暂重试。
+		errCh <- listenWithAddrInUseRetry(api.App, api.Addr, logger)
 	}()
 
 	stopCh := make(chan os.Signal, 1)

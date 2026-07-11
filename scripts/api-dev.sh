@@ -15,16 +15,14 @@ fi
 
 HTTP_PORT="${HTTP_PORT:-8080}"
 
-if command -v lsof >/dev/null 2>&1; then
-  if lsof -nP -iTCP:"$HTTP_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-    echo "API port $HTTP_PORT is already in use. Not stopping the existing process."
-    lsof -nP -iTCP:"$HTTP_PORT" -sTCP:LISTEN
-    exit 1
-  fi
-fi
-
 if ! command -v air >/dev/null 2>&1; then
   echo "air is required. Install it with: go install github.com/air-verse/air@latest"
+  exit 1
+fi
+
+# 启动前强制回收本仓库遗留的 sforum-api；docker/其他服务占用则失败，不误杀。
+if ! ORPHANS_ONLY=0 "$ROOT_DIR/scripts/free-api-dev-port.sh" "$HTTP_PORT"; then
+  echo "API port $HTTP_PORT is already in use by a non-sforum process. Not stopping it."
   exit 1
 fi
 

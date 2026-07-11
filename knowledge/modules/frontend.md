@@ -193,12 +193,12 @@ components (`UDashboardGroup`, `UDashboardSidebar`, `UDashboardPanel`,
 directory remains `apps/web/app/pages/admin`, while Nuxt `pages:extend`
 rewrites the public URL prefix to `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`, with
 `/control-panel` as the default.
-The admin layout renders a dedicated `SFAdminFooter` as a shell-level bar
-below the main content scroll area (sibling to topbar/tabs, not inside the
-grey scroll panel). It uses the same `--bg-admin-card` / `--border-admin`
-tokens as the topbar for visual cohesion, with left-side SForum copyright and
-right-side official product summary copy — separate from the public/theme-layer
-`SFFooter` and its configurable operator footer links.
+The admin layout renders a dedicated `SFAdminFooter` inside the main content
+scroll area (not sticky/fixed). Negative margins cancel the panel padding so
+the bar is full-bleed like topbar/tabs (`--bg-admin-card` + top border only).
+`mt-auto` keeps it at the bottom on sparse pages; longer pages scroll it with
+the content. Left-side SForum copyright and right-side product summary —
+separate from the public/theme-layer `SFFooter`.
 Admin modules now use a low-code registry in
 `apps/web/app/config/adminModules.ts`: sidebar entries, tab labels/icons,
 keep-alive component names, badges, and frontend-visible permission
