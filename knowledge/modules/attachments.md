@@ -179,3 +179,16 @@ Current focused coverage includes:
   background capabilities.
 - Consider WebDAV/rclone and direct browser upload only after the first
   provider set is stable.
+
+## SEO Assets (2026-07-11)
+
+- `POST /api/v1/admin/seo/assets` requires `seo.manage`, accepts image uploads,
+  reuses the configured attachment storage provider, and always creates public
+  attachments.
+- SEO contexts use `attachment_references` with resource type `seo`, resource
+  id `0`, and context such as `seo/home-og-image`. Replacement atomically
+  decrements the prior attachment reference count and increments the new one.
+- A unique `(resource_type, resource_id, context)` index prevents concurrent
+  replacements from leaving multiple active references for one SEO field.
+- Restoring SEO recommended defaults clears form URLs but does not delete
+  uploaded attachments; the UI states this explicitly.

@@ -645,6 +645,9 @@ This is the entry point for project memory.
   next-request revocation, revoke-one/revoke-others, `identity.sessions.max_devices`.
 - `sessions/2026-07-10-account-security-sessions.md` - account security / login
   device management implementation handoff.
+- `sessions/2026-07-11-seo-workbench-v2-p0.md` - SEO Workbench v2 P0: independent
+  homepage SEO identity, content policies, image upload/references, typed public
+  metadata, structured data, and forum Sitemap partitions.
 - `../docs/superpowers/specs/2026-07-05-global-footer-design.md` - global footer design spec.
 - `../docs/superpowers/plans/2026-07-05-global-footer.md` - global footer implementation plan.
 - `../docs/superpowers/specs/2026-07-04-security-verification-design.md` -

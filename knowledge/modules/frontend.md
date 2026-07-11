@@ -427,4 +427,21 @@ back to browser defaults and looked unstyled.
 Note: adding the `@plugin` directive to `main.css` requires a dev server
 restart to take effect; Vite HMR does not reliably pick up new Tailwind
 plugin dependencies. The compiled CSS was verified to contain all `prose`
-rules after restart.
+  rules after restart.
+
+## SEO Workbench V2 P0 (2026-07-11)
+
+- `/control-panel/seo` now separates search appearance and content-type
+  policies from the existing robots, Sitemap, schema, permalink, and
+  verification settings.
+- Homepage SEO title, description, keywords, SEO site name, and social image are
+  independent from `site.name`; the page shows a live search-result preview.
+- `SFSEOImagePicker` supports drag/drop, file selection, manual public URLs,
+  upload progress, load validation, preview, replace, and remove. Uploads call
+  the protected SEO asset endpoint and auto-fill the returned public URL.
+- `seoResolver.ts` is the single pure metadata resolver. Public home, category,
+  tag, topic, and profile pages provide typed contexts; privacy/moderation rules
+  can only make indexing stricter.
+- `seoStructuredData.ts` builds WebSite, Organization, CollectionPage,
+  BreadcrumbList, DiscussionForumPosting, and ProfilePage-compatible graphs
+  from the resolved public context.

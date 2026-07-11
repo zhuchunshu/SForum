@@ -169,3 +169,18 @@ Initial runtime option support is implemented.
   pattern instead of adding columns to `web_options`.
 - When `sqlc` is available in the local toolchain, generate typed query methods
   for `database/queries/options.sql` and replace the small pgx adapter queries.
+
+## SEO Workbench V2 P0 (2026-07-11)
+
+- Product identity and search identity are separate. `site.name` remains the UI
+  application name; `seo.site.inherit_site_name` and `seo.site.name` resolve the
+  SEO brand name.
+- Homepage settings use `seo.home.{title,description,keywords,og_title,
+  og_description,og_image_url}`. Inner-page fallbacks use `seo.page.*`.
+- Category, tag, topic, profile, and static-page policies use
+  `seo.content_type.<type>.*` with title template, description sources, default
+  image, index mode, sitemap inclusion, and schema type.
+- Unknown template variables and invalid policy enums are rejected by the
+  Options service. Existing v1 meta values remain compatible fallbacks.
+- The v2 recommended default enables forum-content Sitemap generation. Existing
+  stored operator values are not overwritten.

@@ -273,3 +273,17 @@ action buttons. `/topics/new` provides the composer flow; topic editing is
 entered via `?edit=1` query on the detail page and renders `SFTopicEditor`.
 Composer and editor use `SFEditor` (submits markdown with
 `sourceFormat=markdown`, `editorType=tiptap`).
+
+## SEO Sitemap And Page Policies (2026-07-11)
+
+- `GET /api/v1/seo/sitemap-entries` is the authoritative bounded public source
+  for categories, tags, topics, and eligible profiles. It reapplies publication,
+  visibility, content-type policy, global Sitemap switches, and topic URL mode.
+- Nuxt publishes a Sitemap index with static, category, tag, topic, and profile
+  partitions. Entries contain canonical paths and real `lastmod` timestamps;
+  P0 intentionally omits invented `priority` and `changefreq` values.
+- Public categories, non-empty active tags, active/locked topics, and active
+  users with public topics are eligible at the store level. Profile policy is
+  `noindex` and excluded from Sitemap by default.
+- Filtered/search home views, empty tags, edit mode, hidden/deleted topics, and
+  missing profiles resolve to noindex and never become Sitemap entries.
