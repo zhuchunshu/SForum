@@ -15,11 +15,12 @@ describe('default theme shared navbar contract', () => {
     expect(source).not.toContain('disabled')
   })
 
-  test('joins the homepage navbar to the C workbench shell', () => {
-    expect(source).toContain("route.path === '/' || route.path === '/en'")
-    expect(source).toContain("'navbar--workbench': isWorkbenchHome")
-    expect(source).toContain('.navbar--workbench')
-    expect(source).toContain('border-bottom-color: #d5e2df;')
+  test('uses the shared modern card flow shell on every public page', () => {
+    expect(source).not.toContain('isWorkbenchHome')
+    expect(source).not.toContain('navbar--workbench')
+    expect(source).toContain('max-width: var(--sf-public-container);')
+    expect(source).toContain('min-height: 60px;')
+    expect(source).toContain('background: var(--sf-public-glass);')
   })
 
   test('orders the desktop identity, home nav, search, compose action, and session controls', () => {
