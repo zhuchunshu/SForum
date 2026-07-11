@@ -112,6 +112,30 @@ func (s *Service) UploadAvatar(ctx context.Context, actor identity.Actor, input 
 	return s.storePreparedUpload(ctx, actor, settings, prepared)
 }
 
+// UploadSEOImage 复用附件存储链路，但授权由 SEO 专用权限控制。
+func (s *Service) UploadSEOImage(ctx context.Context, actor identity.Actor, input UploadInput) (Attachment, error) {
+	if !actor.Can(identity.PermissionSEOManage) {
+		return Attachment{}, identity.ErrPermissionDenied
+	}
+	settings, err := s.runtimeSettings(ctx)
+	if err != nil {
+		return Attachment{}, err
+	}
+	if !settings.UploadEnabled {
+		return Attachment{}, ErrUploadDisabled
+	}
+	if input.File == nil || input.SizeBytes <= 0 || input.SizeBytes > int64(settings.MaxFileSizeMB)*1024*1024 {
+		return Attachment{}, ErrInvalidAttachment
+	}
+	metadata, err := inspectUpload(input, settings)
+	if err != nil || !strings.HasPrefix(metadata.ContentType, "image/") {
+		return Attachment{}, ErrInvalidAttachment
+	}
+	return s.storePreparedUpload(ctx, actor, settings, preparedUpload{
+		Reader: input.File, SizeBytes: input.SizeBytes, Metadata: metadata, Visibility: VisibilityPublic,
+	})
+}
+
 type preparedUpload struct {
 	Reader     io.Reader
 	SizeBytes  int64

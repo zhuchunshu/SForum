@@ -144,6 +144,32 @@ func TestServiceUploadRequiresPermissionAndValidFileType(t *testing.T) {
 	}
 }
 
+func TestServiceUploadSEOImageUsesSEOManageAndPublicVisibility(t *testing.T) {
+	store := &fakeAttachmentStore{}
+	service := NewServiceWithAdapterFactory(store, newAttachmentOptions(nil), func(storage.Config) (storage.Adapter, error) {
+		return &fakeStorageAdapter{}, nil
+	})
+	imageBody := testJPEG(120, 63)
+	actor := identity.Actor{ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionSEOManage: true}}
+
+	item, err := service.UploadSEOImage(context.Background(), actor, UploadInput{
+		OriginalName: "social.jpg", ContentType: "image/jpeg", SizeBytes: int64(len(imageBody)), File: newReadSeekCloserBytes(imageBody),
+	})
+	if err != nil {
+		t.Fatalf("UploadSEOImage returned error: %v", err)
+	}
+	if item.Visibility != VisibilityPublic || len(store.creates) != 1 || store.creates[0].Visibility != VisibilityPublic {
+		t.Fatalf("expected public SEO image, got %#v", item)
+	}
+
+	_, err = service.UploadSEOImage(context.Background(), actor, UploadInput{
+		OriginalName: "notes.txt", ContentType: "text/plain", SizeBytes: 5, File: newReadSeekCloser("hello"),
+	})
+	if !errors.Is(err, ErrInvalidAttachment) {
+		t.Fatalf("expected non-image rejection, got %v", err)
+	}
+}
+
 func TestServiceUploadAvatarCompressesJPEGAndStoresPublicAttachment(t *testing.T) {
 	store := &fakeAttachmentStore{}
 	adapter := &fakeStorageAdapter{}

@@ -132,6 +132,51 @@ func (s *PostgresStore) ListReferences(ctx context.Context, attachmentID int64) 
 	return references, nil
 }
 
+// ReplaceSEOReference 原子替换同一 SEO 上下文的图片引用和引用计数。
+func (s *PostgresStore) ReplaceSEOReference(ctx context.Context, attachmentID int64, referenceContext string, actorUserID int64) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin SEO reference replacement: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var oldAttachmentID int64
+	err = tx.QueryRow(ctx, `
+		SELECT attachment_id FROM attachment_references
+		WHERE resource_type = 'seo' AND resource_id = 0 AND context = $1
+		FOR UPDATE
+	`, referenceContext).Scan(&oldAttachmentID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("load SEO reference: %w", err)
+	}
+	if oldAttachmentID == attachmentID {
+		return tx.Commit(ctx)
+	}
+	if oldAttachmentID != 0 {
+		if _, err := tx.Exec(ctx, `DELETE FROM attachment_references WHERE resource_type = 'seo' AND resource_id = 0 AND context = $1`, referenceContext); err != nil {
+			return fmt.Errorf("delete old SEO reference: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `UPDATE attachments SET reference_count = GREATEST(reference_count - 1, 0), updated_at = now() WHERE id = $1`, oldAttachmentID); err != nil {
+			return fmt.Errorf("decrement old SEO reference: %w", err)
+		}
+	}
+	result, err := tx.Exec(ctx, `
+		INSERT INTO attachment_references (attachment_id, resource_type, resource_id, context, created_by_user_id)
+		SELECT id, 'seo', 0, $2, $3 FROM attachments
+		WHERE id = $1 AND status = 'active' AND visibility = 'public' AND content_type LIKE 'image/%'
+	`, attachmentID, referenceContext, actorUserID)
+	if err != nil {
+		return fmt.Errorf("insert SEO reference: %w", err)
+	}
+	if result.RowsAffected() != 1 {
+		return ErrInvalidAttachment
+	}
+	if _, err := tx.Exec(ctx, `UPDATE attachments SET reference_count = reference_count + 1, updated_at = now() WHERE id = $1`, attachmentID); err != nil {
+		return fmt.Errorf("increment SEO reference: %w", err)
+	}
+	return tx.Commit(ctx)
+}
+
 func (s *PostgresStore) UpdateStatus(ctx context.Context, id int64, status string, deleted bool) (Attachment, error) {
 	row := s.pool.QueryRow(ctx, `
 		UPDATE attachments
