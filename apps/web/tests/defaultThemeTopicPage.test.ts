@@ -109,6 +109,7 @@ describe('default theme topic page contract', () => {
     expect(config).toContain('sforum-topic.css')
     expect(css).toContain('grid-template-columns: minmax(0, 760px) 240px')
     expect(css).toContain('.sforum-topic-page__post-card')
+    expect(css).toContain('.sforum-topic-page .sf-topic-heading__title')
     expect(css).toContain('background: var(--sf-public-surface)')
     expect(css).toContain('.sf-topic-progress__toc')
     expect(css).toContain('position: sticky')

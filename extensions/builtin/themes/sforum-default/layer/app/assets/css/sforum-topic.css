@@ -86,7 +86,7 @@
   color: var(--sf-accent);
 }
 
-.sf-topic-heading__title {
+.sforum-topic-page .sf-topic-heading__title {
   margin: 0;
   color: var(--sf-fg);
   font-size: 1.875rem;
@@ -571,7 +571,7 @@
     padding: 0 1rem;
   }
 
-  .sf-topic-heading__title {
+  .sforum-topic-page .sf-topic-heading__title {
     font-size: 1.55rem;
     line-height: 1.28;
   }

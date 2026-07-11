@@ -27,7 +27,7 @@
   color: #ffffff;
 }
 
-.sforum-home__hero h1 {
+.sforum-home .sforum-home__hero h1 {
   margin: 0 0 6px;
   font-size: 1.25rem;
   font-weight: 800;

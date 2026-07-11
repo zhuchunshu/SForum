@@ -158,7 +158,7 @@ describe('default theme hybrid homepage contract', () => {
     expect(home).toContain('.sf-home-topic-row__heat')
     expect(home).toContain('.sf-home-topic-row__meta')
     expect(home).toContain('.sf-home-topic-row__tags')
-    expect(home).toContain('.sforum-home__hero h1')
+    expect(home).toContain('.sforum-home .sforum-home__hero h1')
     expect(home).toContain('min-height: 40px;')
     expect(home).toContain('overflow-wrap: anywhere;')
     expect(home).toContain('prefers-reduced-motion: reduce')

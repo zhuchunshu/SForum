@@ -39,14 +39,12 @@ describe('account security page contracts', () => {
     expect(source).toContain('form.sessionsKeepDays = initialSessionsKeepDays.value')
   })
 
-  test('unimplemented homepage feed tabs are disabled instead of acting as filters', () => {
+  test('homepage exposes only the implemented latest feed filter', () => {
     const source = homepage()
 
-    expect(source).toContain("value: 'new', disabled: true")
-    expect(source).toContain("value: 'unread', disabled: true")
-    expect(source).toContain("value: 'ranking', disabled: true")
-    expect(source).toContain("value: 'my-topics', disabled: true")
-    expect(source).toContain(':disabled="item.disabled"')
-    expect(source).toContain('@click="selectFeedTab(item)"')
+    expect(source).toContain("t('home.filter.latest')")
+    expect(source).not.toContain("t('home.filter.hot')")
+    expect(source).not.toContain("t('home.filter.unread')")
+    expect(source).not.toContain("t('home.filter.ranking')")
   })
 })
