@@ -222,18 +222,19 @@ function decodeRouteSegment(value: string | undefined) {
 }
 
 const sidebarNavigationUi = {
-  list: 'flex flex-col gap-1',
+  list: 'flex flex-col gap-1 min-w-0',
   item: 'min-w-0',
-  link: '!min-h-[42px] !gap-2 !rounded-md !px-3.5 !py-2 !text-[14.5px] !font-semibold !leading-tight',
-  linkLabel: '!leading-tight',
-  linkLeadingIcon: '!size-[18px]',
-  linkTrailingIcon: '!size-[17px]',
-  linkTrailingBadge: '!text-xs !px-2 !py-0.5',
-  childList: '!mt-1 !mb-2 !ms-5 !border-s !border-dashed !border-slate-200 dark:!border-zinc-800 !ps-3',
-  childItem: '!ps-0',
-  childLink: '!min-h-[36px] !gap-1.5 !rounded-md !px-3 !py-1.5 !text-[13.5px] !font-medium !leading-tight',
-  childLinkIcon: '!size-[15px]',
-  childLinkLabel: '!leading-tight'
+  link: '!min-h-[42px] !max-w-full !gap-2 !rounded-md !px-3.5 !py-2 !text-[14.5px] !font-semibold !leading-tight',
+  // min-w-0 确保 flex 子项可收缩，truncate 避免长菜单文案撑出横向滚动条
+  linkLabel: '!min-w-0 !truncate !leading-tight',
+  linkLeadingIcon: '!size-[18px] shrink-0',
+  linkTrailingIcon: '!size-[17px] shrink-0',
+  linkTrailingBadge: '!text-xs !px-2 !py-0.5 shrink-0',
+  childList: '!mt-1 !mb-2 !ms-5 !min-w-0 !border-s !border-dashed !border-slate-200 dark:!border-zinc-800 !ps-3',
+  childItem: '!min-w-0 !ps-0',
+  childLink: '!min-h-[36px] !max-w-full !gap-1.5 !rounded-md !px-3 !py-1.5 !text-[13.5px] !font-medium !leading-tight',
+  childLinkIcon: '!size-[15px] shrink-0',
+  childLinkLabel: '!min-w-0 !truncate !leading-tight'
 }
 
 const userMenuItems = computed<DropdownMenuItem[][]>(() => [
@@ -312,18 +313,18 @@ async function signOut() {
       :default-size="16"
       :min-size="14"
       :max-size="22"
-      class="sforum-admin-sidebar border-r border-[var(--border-admin)] bg-[var(--bg-admin-sidebar)] text-[var(--text-admin-sidebar)]"
+      class="sforum-admin-sidebar min-w-0 overflow-x-hidden border-r border-[var(--border-admin)] bg-[var(--bg-admin-sidebar)] text-[var(--text-admin-sidebar)]"
     >
       <template #header="{ collapsed }">
         <NuxtLink
           :to="adminRoutes.path('/')"
-          class="flex h-[50px] min-w-0 items-center gap-2.5 rounded-md px-2 text-[var(--text-admin-main)] hover:bg-[var(--bg-admin-sidebar-hover)]"
+          class="flex h-[50px] min-w-0 max-w-full items-center gap-2.5 rounded-md px-2 text-[var(--text-admin-main)] hover:bg-[var(--bg-admin-sidebar-hover)]"
           :aria-label="siteName"
         >
           <span class="grid size-[30px] shrink-0 place-items-center rounded-md bg-[var(--sf-accent)] text-[var(--sf-accent-contrast)]">
             <UIcon name="i-lucide-message-square-text" class="size-[17px]" />
           </span>
-          <span v-if="!collapsed" class="min-w-0">
+          <span v-if="!collapsed" class="min-w-0 flex-1 overflow-hidden">
             <span class="block truncate text-[14.5px] font-bold text-[var(--text-admin-main)]">
               {{ siteName }}
             </span>
@@ -335,7 +336,8 @@ async function signOut() {
       </template>
 
       <template #default="{ collapsed }">
-        <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+        <!-- overflow-x-hidden：仅允许纵向滚动，避免侧栏出现横向滚动条 -->
+        <div class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pr-1">
           <UNavigationMenu
             :key="currentAdminPageId"
             :items="navigationItems"
@@ -344,14 +346,14 @@ async function signOut() {
             highlight
             color="primary"
             orientation="vertical"
-            class="-mx-2"
+            class="min-w-0"
             :ui="sidebarNavigationUi"
           />
         </div>
       </template>
 
       <template #footer="{ collapsed }">
-        <div class="flex flex-col gap-2 w-full">
+        <div class="flex min-w-0 w-full max-w-full flex-col gap-2">
           <!-- 桌面端快捷切换主题按钮 -->
           <ClientOnly>
             <UButton
@@ -377,11 +379,11 @@ async function signOut() {
               color="neutral"
               variant="ghost"
               block
-              class="justify-start px-2 py-3.5 text-[var(--text-admin-sidebar)] hover:bg-[var(--bg-admin-sidebar-hover)] hover:text-[var(--text-admin-main)]"
+              class="min-w-0 max-w-full justify-start overflow-hidden px-2 py-3.5 text-[var(--text-admin-sidebar)] hover:bg-[var(--bg-admin-sidebar-hover)] hover:text-[var(--text-admin-main)]"
               :class="{ 'justify-center': collapsed }"
             >
-              <SFAvatar :name="displayName" :avatar="user?.avatar" size="md" class="shadow-sm border border-slate-100 dark:border-zinc-800" />
-              <span v-if="!collapsed" class="min-w-0 flex-1 text-left ml-2.5">
+              <SFAvatar :name="displayName" :avatar="user?.avatar" size="md" class="shrink-0 shadow-sm border border-slate-100 dark:border-zinc-800" />
+              <span v-if="!collapsed" class="min-w-0 flex-1 overflow-hidden text-left ml-2.5">
                 <span class="block truncate text-base font-bold text-slate-900 dark:text-white">
                   {{ displayName }}
                 </span>
@@ -389,7 +391,7 @@ async function signOut() {
                   {{ user?.roleKeys?.join(', ') || t('admin.shell.member') }}
                 </span>
               </span>
-              <UIcon v-if="!collapsed" name="i-lucide-chevrons-up-down" class="size-4 text-slate-400 dark:text-zinc-500" />
+              <UIcon v-if="!collapsed" name="i-lucide-chevrons-up-down" class="size-4 shrink-0 text-slate-400 dark:text-zinc-500" />
             </UButton>
           </UDropdownMenu>
         </div>

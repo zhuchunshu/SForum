@@ -462,8 +462,33 @@ h1:not([data-slot="title"]) {
   max-width: 256px !important;
 }
 
+/*
+ * 侧栏禁止横向滚动：仅设 overflow-y 时 overflow-x 会算成 auto，
+ * 长菜单文案 / 子菜单缩进容易撑出横向滚动条。
+ * 宽度约束留给 [data-collapsed] 与 UDashboardSidebar 的 --width，这里只裁剪溢出。
+ */
+.sforum-admin-sidebar {
+  overflow-x: hidden;
+}
+
+.sforum-admin-sidebar [data-slot="header"],
+.sforum-admin-sidebar [data-slot="body"],
+.sforum-admin-sidebar [data-slot="footer"] {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* 与 Nuxt UI body 的 overflow-y-auto 配对，避免只写 overflow-x 时 y 轴被重置 */
+.sforum-admin-sidebar [data-slot="body"] {
+  overflow-y: auto;
+}
+
 /* 侧栏主菜单项保持中等尺寸，避免挤压后台内容区。 */
 .sforum-admin-sidebar [data-slot="link"] {
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
   min-height: 42px !important;
   padding: 0.5rem 0.875rem !important;
   border-radius: 6px !important;
@@ -475,25 +500,35 @@ h1:not([data-slot="title"]) {
 .sforum-admin-sidebar button[data-slot="link"],
 .sforum-admin-sidebar a[data-slot="link"] {
   width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .sforum-admin-sidebar [data-slot="linkLabel"] {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
   line-height: 1.3 !important;
 }
 
 .sforum-admin-sidebar [data-slot="linkLeadingIcon"],
 .sforum-admin-sidebar [data-slot="linkTrailingIcon"] {
+  flex-shrink: 0 !important;
   width: 1.125rem !important;
   height: 1.125rem !important;
 }
 
 /* 二级菜单保持从属感，但文字与点击区域也要足够大。 */
 .sforum-admin-sidebar ul[data-slot="childList"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
   margin-top: 0.2rem !important;
   margin-bottom: 0.5rem !important;
   border-left: 1px dashed rgba(148, 163, 184, 0.25) !important;
   margin-left: 1.2rem !important;
   padding-left: 0.75rem !important;
+  box-sizing: border-box !important;
 }
 
 .sforum-admin-sidebar ul[data-slot="childList"] [data-slot="link"] {
@@ -506,6 +541,7 @@ h1:not([data-slot="title"]) {
 
 .sforum-admin-sidebar ul[data-slot="childList"] [data-slot="linkLeadingIcon"],
 .sforum-admin-sidebar ul[data-slot="childList"] [data-slot="linkTrailingIcon"] {
+  flex-shrink: 0 !important;
   width: 0.9375rem !important;
   height: 0.9375rem !important;
 }
