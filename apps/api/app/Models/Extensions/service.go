@@ -409,12 +409,12 @@ func (s *Service) Navigation(ctx context.Context, actor identity.Actor) ([]Exten
 }
 
 func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionID string) (ExtensionSettings, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
-		return ExtensionSettings{}, identity.ErrPermissionDenied
-	}
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return ExtensionSettings{}, err
+	}
+	if !canManageExtensionSettings(actor, extension) {
+		return ExtensionSettings{}, identity.ErrPermissionDenied
 	}
 	values, err := s.store.ListSettings(ctx, extension.ID)
 	if err != nil {
@@ -424,35 +424,70 @@ func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionI
 }
 
 func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, extensionID string, input UpdateSettingsInput) (ExtensionSettings, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
-		return ExtensionSettings{}, identity.ErrPermissionDenied
-	}
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
-	values, err := sanitizeSettingValues(extension.Manifest, input.Values)
+	if !canManageExtensionSettings(actor, extension) {
+		return ExtensionSettings{}, identity.ErrPermissionDenied
+	}
+	current, err := s.store.ListSettings(ctx, extension.ID)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	values, err := sanitizeSettingValues(extension.Manifest, input.Values, current)
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
 	if err := s.store.ReplaceSettings(ctx, extension.ID, values); err != nil {
 		return ExtensionSettings{}, err
 	}
+	if err := s.restartPluginForSettings(ctx, extension); err != nil {
+		return ExtensionSettings{}, err
+	}
 	return resolveExtensionSettings(extension, values), nil
 }
 
 func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, extensionID string) (ExtensionSettings, error) {
-	if !actor.Can(identity.PermissionExtensionManage) {
-		return ExtensionSettings{}, identity.ErrPermissionDenied
-	}
 	extension, err := s.store.Get(ctx, normalizeID(extensionID))
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
+	if !canManageExtensionSettings(actor, extension) {
+		return ExtensionSettings{}, identity.ErrPermissionDenied
+	}
 	if err := s.store.ResetSettings(ctx, extension.ID); err != nil {
 		return ExtensionSettings{}, err
 	}
+	if err := s.restartPluginForSettings(ctx, extension); err != nil {
+		return ExtensionSettings{}, err
+	}
 	return resolveExtensionSettings(extension, map[string]string{}), nil
+}
+
+func canManageExtensionSettings(actor identity.Actor, extension Extension) bool {
+	if actor.Can(identity.PermissionExtensionManage) {
+		return true
+	}
+	if !actor.Can(identity.PermissionSettingsManage) {
+		return false
+	}
+	for _, provider := range extension.Manifest.Providers {
+		if provider.Slot == "mail.provider" {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) restartPluginForSettings(ctx context.Context, extension Extension) error {
+	if extension.Type != TypePlugin || extension.Status != StatusEnabled || extension.Manifest.Backend.Entry == "" || s.runtime == nil {
+		return nil
+	}
+	if err := s.runtime.Stop(ctx, extension); err != nil {
+		return err
+	}
+	return s.runtime.Start(ctx, extension)
 }
 
 func (s *Service) MatchRoute(ctx context.Context, extensionID string, method string, routePath string) (MatchedRoute, error) {
@@ -1050,10 +1085,15 @@ func resolveExtensionSettings(extension Extension, values map[string]string) Ext
 	items := make([]ExtensionSettingValue, 0, len(extension.Manifest.Settings))
 	for _, setting := range extension.Manifest.Settings {
 		value := setting.Default
+		secretSet := false
 		if values != nil {
 			if stored, ok := values[setting.Key]; ok {
 				value = stored
+				secretSet = setting.Type == "secret" && stored != ""
 			}
+		}
+		if setting.Type == "secret" {
+			value = ""
 		}
 		items = append(items, ExtensionSettingValue{
 			Key:         setting.Key,
@@ -1062,12 +1102,13 @@ func resolveExtensionSettings(extension Extension, values map[string]string) Ext
 			Type:        setting.Type,
 			Default:     setting.Default,
 			Value:       value,
+			SecretSet:   secretSet,
 		})
 	}
 	return ExtensionSettings{ExtensionID: extension.ID, Items: items}
 }
 
-func sanitizeSettingValues(manifest Manifest, input map[string]string) (map[string]string, error) {
+func sanitizeSettingValues(manifest Manifest, input, current map[string]string) (map[string]string, error) {
 	allowed := map[string]ManifestSetting{}
 	for _, setting := range manifest.Settings {
 		allowed[setting.Key] = setting
@@ -1078,7 +1119,11 @@ func sanitizeSettingValues(manifest Manifest, input map[string]string) (map[stri
 		if _, ok := allowed[key]; !ok {
 			return nil, ErrInvalidManifest
 		}
-		values[key] = strings.TrimSpace(value)
+		normalized := strings.TrimSpace(value)
+		if allowed[key].Type == "secret" && normalized == "" {
+			normalized = current[key]
+		}
+		values[key] = normalized
 	}
 	return values, nil
 }

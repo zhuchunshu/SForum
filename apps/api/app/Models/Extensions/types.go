@@ -213,6 +213,7 @@ type ExtensionSettingValue struct {
 	Type        string `json:"type"`
 	Default     string `json:"default"`
 	Value       string `json:"value"`
+	SecretSet   bool   `json:"secretSet,omitempty"`
 }
 
 type ExtensionSettings struct {

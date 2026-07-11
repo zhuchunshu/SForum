@@ -102,6 +102,7 @@ export type AdminExtensionSettingValue = {
   type: string
   default: string
   value: string
+  secretSet?: boolean
 }
 
 export type AdminExtensionSettings = {

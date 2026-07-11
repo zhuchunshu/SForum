@@ -388,7 +388,7 @@ func TestServiceListsContributionPointsAndEffectiveContributions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ContributionPoints returned error: %v", err)
 	}
-	if len(points) != 1 || points[0].ID != "forum.topic.actions" {
+	if len(points) != 4 || points[0].ID != "forum.topic.actions" {
 		t.Fatalf("unexpected contribution points: %#v", points)
 	}
 

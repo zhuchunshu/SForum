@@ -217,6 +217,8 @@ function onBooleanSettingChange(key: string, event: Event) {
             :id="`extension-setting-${item.key}`"
             v-model="formValues[item.key]"
             class="max-w-xl"
+			:type="item.type === 'secret' ? 'password' : item.type === 'number' ? 'number' : 'text'"
+			:placeholder="item.type === 'secret' && item.secretSet ? t('admin.mailSettings.passwordSetHint') : undefined"
           />
           <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">
             {{ t('admin.extensions.dynamic.defaultValue', { value: item.default || t('admin.extensions.dynamic.emptyValue') }) }}
