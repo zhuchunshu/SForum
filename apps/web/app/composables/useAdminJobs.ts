@@ -1,14 +1,14 @@
-import type { AdminJob, AdminJobsOverview } from '~/utils/adminJobs'
+import { ALL_ADMIN_JOBS_FILTER, adminJobFilterValue, type AdminJob, type AdminJobsOverview } from '~/utils/adminJobs'
 
 export function useAdminJobs() {
   const { request } = useApiClient()
   const toast = useToast()
   const { t } = useI18n()
-  const filters = reactive({ queue: '', state: '', kind: '' })
+  const filters = reactive({ queue: ALL_ADMIN_JOBS_FILTER, state: ALL_ADMIN_JOBS_FILTER, kind: '' })
   const selected = ref<AdminJob | null>(null)
   const busy = ref('')
   const overview = useAsyncData<AdminJobsOverview>('admin-jobs-overview', () => request('/admin/jobs/overview'), { default: () => ({ counts: {}, queues: [] }) })
-  const jobs = useAsyncData<AdminJob[]>('admin-jobs-list', () => request(`/admin/jobs?limit=100&queue=${encodeURIComponent(filters.queue)}&state=${encodeURIComponent(filters.state)}&kind=${encodeURIComponent(filters.kind)}`), { default: () => [] })
+  const jobs = useAsyncData<AdminJob[]>('admin-jobs-list', () => request(`/admin/jobs?limit=100&queue=${encodeURIComponent(adminJobFilterValue(filters.queue))}&state=${encodeURIComponent(adminJobFilterValue(filters.state))}&kind=${encodeURIComponent(filters.kind)}`), { default: () => [] })
   async function refresh() { await Promise.all([overview.refresh(), jobs.refresh()]) }
   async function detail(id: number) { selected.value = await request(`/admin/jobs/${id}`) }
   async function jobAction(id: number, action: 'retry' | 'cancel') {

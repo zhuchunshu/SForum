@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { jobCanCancel, jobCanRetry, jobStateColor } from '~/utils/adminJobs'
+import { ALL_ADMIN_JOBS_FILTER, jobCanCancel, jobCanRetry, jobStateColor } from '~/utils/adminJobs'
 
 definePageMeta({ middleware: 'admin', layout: 'admin' })
 defineOptions({ name: 'AdminJobs' })
@@ -13,8 +13,8 @@ const actionContributions = computed(() => contributionsFor('admin.jobs.row.acti
 const detailContributions = computed(() => contributionsFor('admin.jobs.detail.sections'))
 const canManage = computed(() => can('jobs.manage'))
 const counts = computed(() => manager.overview.data.value.counts)
-const stateOptions = ['', 'available', 'running', 'retryable', 'scheduled', 'completed', 'discarded', 'cancelled'].map(value => ({ label: value || t('admin.jobs.allStates'), value }))
-const queueOptions = computed(() => [{ label: t('admin.jobs.allQueues'), value: '' }, ...manager.overview.data.value.queues.map(item => ({ label: item.name, value: item.name }))])
+const stateOptions = computed(() => [ALL_ADMIN_JOBS_FILTER, 'available', 'running', 'retryable', 'scheduled', 'completed', 'discarded', 'cancelled'].map(value => ({ label: value === ALL_ADMIN_JOBS_FILTER ? t('admin.jobs.allStates') : value, value })))
+const queueOptions = computed(() => [{ label: t('admin.jobs.allQueues'), value: ALL_ADMIN_JOBS_FILTER }, ...manager.overview.data.value.queues.map(item => ({ label: item.name, value: item.name }))])
 function contributionLabel(item: { label: Record<string, string>, contributionId: string }) { return item.label[locale.value] || item.label['zh-CN'] || item.label['en-US'] || item.contributionId }
 function closeDetail() { manager.selected.value = null }
 </script>
