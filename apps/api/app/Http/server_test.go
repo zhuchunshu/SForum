@@ -24,6 +24,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -186,6 +187,60 @@ func TestHealthEndpoint(t *testing.T) {
 	}
 	if len(body.Data.SupportedLocales) != 2 {
 		t.Fatalf("expected two supported locales, got %v", body.Data.SupportedLocales)
+	}
+}
+
+func TestReadyEndpointDefaultsReadyWithoutEvaluator(t *testing.T) {
+	cfg := config.Config{AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{})
+	resp, err := app.Test(httptest.NewRequest(nethttp.MethodGet, "/api/v1/ready", nil))
+	if err != nil {
+		t.Fatalf("ready request: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("status=%d", resp.StatusCode)
+	}
+	var body apiEnvelope[map[string]any]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if ready, _ := body.Data["ready"].(bool); !ready {
+		t.Fatalf("expected ready true, got %#v", body.Data)
+	}
+}
+
+func TestReadyEndpointReturns503WhenNotReady(t *testing.T) {
+	cfg := config.Config{AppName: "SForum", AppEnv: "test", AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN"}}
+	app := apphttp.NewApp(cfg, slog.Default(), apphttp.Dependencies{
+		Ready: func(ctx context.Context) health.ReadyReport {
+			return health.ReadyReport{
+				Status:    "not_ready",
+				Ready:     false,
+				CheckedAt: time.Now().UTC(),
+				Components: []health.ComponentResult{{
+					Name: "postgres", Status: health.StatusError, Required: true, Error: "down",
+				}},
+			}
+		},
+	})
+	resp, err := app.Test(httptest.NewRequest(nethttp.MethodGet, "/api/v1/ready", nil))
+	if err != nil {
+		t.Fatalf("ready request: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != nethttp.StatusServiceUnavailable {
+		t.Fatalf("status=%d", resp.StatusCode)
+	}
+	var body apiEnvelope[map[string]any]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Code != nethttp.StatusServiceUnavailable {
+		t.Fatalf("code=%d", body.Code)
+	}
+	if ready, _ := body.Data["ready"].(bool); ready {
+		t.Fatalf("expected ready false, got %#v", body.Data)
 	}
 }
 

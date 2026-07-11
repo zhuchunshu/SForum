@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -30,11 +31,17 @@ type RouteProvider interface {
 	RegisterRoutes(api fiber.Router)
 }
 
+// ReadyEvaluator 返回 readiness 探测报告。由 bootstrap 注入真实依赖检查。
+// 为 nil 时 /ready 仅返回 ready=true（测试/无依赖装配场景）。
+type ReadyEvaluator func(ctx context.Context) health.ReadyReport
+
 type Dependencies struct {
 	RouteProviders []RouteProvider
 	Options        *options.Service
 	// Storage 用于分布式限流。为 nil 时 limiter 退化为进程内存限流。
 	Storage fiber.Storage
+	// Ready 为 /api/v1/ready 探测函数（PG required；Redis/Meili degraded）。
+	Ready ReadyEvaluator
 }
 
 func NewApp(cfg config.Config, logger *slog.Logger, deps Dependencies) *fiber.App {
@@ -110,6 +117,7 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 		}
 	}
 
+	// Liveness：进程存活即可，不探测依赖（K8s/Compose liveness probe 用）。
 	api.Get("/health", func(c fiber.Ctx) error {
 		settings := runtimeSettings(c.Context(), cfg, deps.Options)
 		return OK(c, healthResponse{
@@ -120,6 +128,27 @@ func registerRoutes(app *fiber.App, cfg config.Config, deps Dependencies) {
 			SupportedLocales: settings.SupportedLocales,
 			Time:             time.Now().UTC(),
 		})
+	})
+
+	// Readiness：依赖探测。PG 失败 → 503；Redis/Meili 失败 → 200 + degraded。
+	api.Get("/ready", func(c fiber.Ctx) error {
+		report := health.ReadyReport{
+			Status:     "ready",
+			Ready:      true,
+			CheckedAt:  time.Now().UTC(),
+			Components: []health.ComponentResult{},
+		}
+		if deps.Ready != nil {
+			// 给探测一个短超时，避免就绪探针挂死。
+			ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+			defer cancel()
+			report = deps.Ready(ctx)
+		}
+		if !report.Ready {
+			// 就绪失败仍返回结构化 report，便于探针与运维诊断。
+			return JSON(c, fiber.StatusServiceUnavailable, "service.not_ready", report)
+		}
+		return OK(c, report)
 	})
 }
 
