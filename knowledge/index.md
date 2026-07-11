@@ -122,6 +122,12 @@ This is the entry point for project memory.
   defaults to a limited user-group comparison view with search, explicit group
   selection, and differences-only auditing so it stays readable as custom
   user groups grow.
+- Moderation now has two independent surfaces and permissions: admin
+  **Moderation management** (`moderation.manage`) configures `off`/`rules`/`all`
+  publication review and reads the audit trail, while the frontend
+  `/moderation` workbench (`moderation.review`) processes pending topics,
+  comments, and enriched reports. Pending/rejected content stays outside
+  public reads, counts, and search; authors track it under `/my/content-review`.
 - Role/user-group management now validates required fields at both the Nuxt
   roles form and Go identity service boundary. Empty custom roles created by
   the earlier missing validation are cleaned up by migration
@@ -442,7 +448,8 @@ This is the entry point for project memory.
   settings.
 - `modules/mail.md` - mail provider contract, runtime options, and password
   reset mail flow.
-- `modules/moderation.md` - user reports and admin moderation queue.
+- `modules/moderation.md` - publication review policy, user reports, dual
+  moderation workbenches, audit decisions, and author review status.
 - `legacy-sforum-feature-gap.md` - inventory of SForum-old features that are
   not yet implemented in the rewrite, grouped by migration impact and suggested
   build order.
