@@ -1,0 +1,100 @@
+package notifications
+
+import (
+	"encoding/json"
+	"errors"
+	"time"
+)
+
+const (
+	TypeReply              = "reply"
+	TypeMention            = "mention"
+	TypeModerationApproved = "moderation_approved"
+	TypeModerationRejected = "moderation_rejected"
+
+	DeliveryQueued  = "queued"
+	DeliverySending = "sending"
+	DeliverySent    = "sent"
+	DeliveryFailed  = "failed"
+	DeliverySkipped = "skipped"
+)
+
+var ErrNotificationNotFound = errors.New("notifications: notification not found")
+
+type Notification struct {
+	ID              int64           `json:"id"`
+	RecipientUserID int64           `json:"-"`
+	Type            string          `json:"type"`
+	ActorUserID     *int64          `json:"actorUserId,omitempty"`
+	TargetType      string          `json:"targetType"`
+	TargetID        int64           `json:"targetId"`
+	Payload         json.RawMessage `json:"payload"`
+	DedupeKey       string          `json:"-"`
+	ReadAt          *time.Time      `json:"readAt,omitempty"`
+	CreatedAt       time.Time       `json:"createdAt"`
+}
+
+type MailDelivery struct {
+	ID             int64           `json:"id"`
+	Recipient      string          `json:"recipient"`
+	TemplateKey    string          `json:"templateKey"`
+	TemplateData   json.RawMessage `json:"templateData,omitempty"`
+	IdempotencyKey string          `json:"-"`
+	CorrelationID  string          `json:"correlationId"`
+	Status         string          `json:"status"`
+	ExtensionID    string          `json:"extensionId,omitempty"`
+	AttemptCount   int             `json:"attemptCount"`
+	Reason         string          `json:"reason,omitempty"`
+	ErrorSummary   string          `json:"errorSummary,omitempty"`
+	CreatedAt      time.Time       `json:"createdAt"`
+	UpdatedAt      time.Time       `json:"updatedAt"`
+	CompletedAt    *time.Time      `json:"completedAt,omitempty"`
+}
+
+type CreateInput struct {
+	RecipientUserID int64
+	Type            string
+	ActorUserID     *int64
+	TargetType      string
+	TargetID        int64
+	Payload         json.RawMessage
+	DedupeKey       string
+}
+
+type CreateDeliveryInput struct {
+	Recipient      string
+	TemplateKey    string
+	TemplateData   json.RawMessage
+	IdempotencyKey string
+	CorrelationID  string
+}
+
+type CreateBundleInput struct {
+	Notification CreateInput
+	Delivery     CreateDeliveryInput
+}
+
+type Bundle struct {
+	Notification Notification
+	Delivery     MailDelivery
+}
+
+type ListInput struct {
+	RecipientUserID int64
+	Limit           int
+	BeforeID        int64
+}
+
+type Page struct {
+	Items   []Notification `json:"items"`
+	HasMore bool           `json:"hasMore"`
+}
+
+type DeliveryUpdate struct {
+	ID           int64
+	Status       string
+	ExtensionID  string
+	AttemptCount int
+	Reason       string
+	ErrorSummary string
+}
