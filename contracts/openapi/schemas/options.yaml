@@ -68,6 +68,12 @@ AdminWebOption:
       - site.name
       - site.tagline
       - site.admin_email
+      - site.logo_url
+      - site.logo_attachment_id
+      - site.favicon_url
+      - site.favicon_attachment_id
+      - site.apple_touch_icon_url
+      - site.apple_touch_icon_attachment_id
       - site.url
       - site.default_locale
       - site.supported_locales
@@ -75,6 +81,12 @@ AdminWebOption:
       - site.date_format
       - site.time_format
       - site.start_of_week
+      - legal.terms.body.zh-CN
+      - legal.terms.body.en-US
+      - legal.privacy.body.zh-CN
+      - legal.privacy.body.en-US
+      - legal.guidelines.body.zh-CN
+      - legal.guidelines.body.en-US
       - human_verification.provider
       - human_verification.scenarios.register
       - human_verification.scenarios.password_reset
@@ -237,6 +249,12 @@ WebOptionInput:
       - site.name
       - site.tagline
       - site.admin_email
+      - site.logo_url
+      - site.logo_attachment_id
+      - site.favicon_url
+      - site.favicon_attachment_id
+      - site.apple_touch_icon_url
+      - site.apple_touch_icon_attachment_id
       - site.url
       - site.default_locale
       - site.supported_locales
@@ -244,6 +262,12 @@ WebOptionInput:
       - site.date_format
       - site.time_format
       - site.start_of_week
+      - legal.terms.body.zh-CN
+      - legal.terms.body.en-US
+      - legal.privacy.body.zh-CN
+      - legal.privacy.body.en-US
+      - legal.guidelines.body.zh-CN
+      - legal.guidelines.body.en-US
       - human_verification.provider
       - human_verification.scenarios.register
       - human_verification.scenarios.password_reset
@@ -367,6 +391,12 @@ AdminWebOptionInput:
       - site.name
       - site.tagline
       - site.admin_email
+      - site.logo_url
+      - site.logo_attachment_id
+      - site.favicon_url
+      - site.favicon_attachment_id
+      - site.apple_touch_icon_url
+      - site.apple_touch_icon_attachment_id
       - site.url
       - site.default_locale
       - site.supported_locales
@@ -374,6 +404,12 @@ AdminWebOptionInput:
       - site.date_format
       - site.time_format
       - site.start_of_week
+      - legal.terms.body.zh-CN
+      - legal.terms.body.en-US
+      - legal.privacy.body.zh-CN
+      - legal.privacy.body.en-US
+      - legal.guidelines.body.zh-CN
+      - legal.guidelines.body.en-US
       - human_verification.provider
       - human_verification.scenarios.register
       - human_verification.scenarios.password_reset

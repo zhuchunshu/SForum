@@ -14,6 +14,21 @@ const (
 	// 站点管理员联系邮箱（可空）。系统通知/运营联系人；不是 SMTP From，也不当 secret。
 	// 非 public，避免被爬虫批量采集。
 	NameSiteAdminEmail = "site.admin_email"
+	// Wave 2 品牌资源：附件 ID（正整数字符串，可空）+ 公开 URL 回退（可空）。
+	// 前台优先解析 attachment；无法解析时用 URL；皆空则主题默认。
+	NameSiteLogoURL                      = "site.logo_url"
+	NameSiteLogoAttachmentID             = "site.logo_attachment_id"
+	NameSiteFaviconURL                   = "site.favicon_url"
+	NameSiteFaviconAttachmentID          = "site.favicon_attachment_id"
+	NameSiteAppleTouchIconURL            = "site.apple_touch_icon_url"
+	NameSiteAppleTouchIconAttachmentID   = "site.apple_touch_icon_attachment_id"
+	// 法律页正文 stubs（Markdown，可空）；页脚链接仍由 footer.links 指向路由。
+	NameLegalTermsBodyZHCN               = "legal.terms.body.zh-CN"
+	NameLegalTermsBodyENUS               = "legal.terms.body.en-US"
+	NameLegalPrivacyBodyZHCN             = "legal.privacy.body.zh-CN"
+	NameLegalPrivacyBodyENUS             = "legal.privacy.body.en-US"
+	NameLegalGuidelinesBodyZHCN          = "legal.guidelines.body.zh-CN"
+	NameLegalGuidelinesBodyENUS          = "legal.guidelines.body.en-US"
 	NameSiteDefaultLocale                = "site.default_locale"
 	NameSiteSupportedLocales             = "site.supported_locales"
 	// 站点展示时区（IANA，如 Asia/Shanghai）。仅影响展示与按站点日切分，库内仍存 UTC。

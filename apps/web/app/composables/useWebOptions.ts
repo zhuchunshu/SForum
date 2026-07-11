@@ -177,6 +177,20 @@ const fallbackOptions: Record<string, string> = {
   'site.url': 'http://127.0.0.1:3000',
   // 站点副标题（可空）；管理邮箱为 admin-only，不在 public fallback 中暴露。
   'site.tagline': '',
+  // Wave 2 品牌资源：空 → 主题默认图标；附件 ID 与 URL 二选一或并存（前台优先附件解析）。
+  'site.logo_url': '',
+  'site.logo_attachment_id': '',
+  'site.favicon_url': '',
+  'site.favicon_attachment_id': '',
+  'site.apple_touch_icon_url': '',
+  'site.apple_touch_icon_attachment_id': '',
+  // 法律页 Markdown stubs（与后端 recommended 文案对齐的最小占位；完整 stub 由 API EnsureDefaults 写入）。
+  'legal.terms.body.zh-CN': '## 服务条款\n\n欢迎使用本社区。',
+  'legal.terms.body.en-US': '## Terms of Service\n\nWelcome to this community.',
+  'legal.privacy.body.zh-CN': '## 隐私政策\n\n我们仅收集运营社区所必需的信息。',
+  'legal.privacy.body.en-US': '## Privacy Policy\n\nWe collect only what is needed to run the community.',
+  'legal.guidelines.body.zh-CN': '## 社区指南\n\n请保持友善、就事论事。',
+  'legal.guidelines.body.en-US': '## Community Guidelines\n\nBe kind and constructive.',
   'site.default_locale': 'zh-CN',
   'site.supported_locales': 'zh-CN,en-US',
   // 站点展示时区与日期时间格式（与后端 recommended 默认对齐）。
@@ -337,6 +351,13 @@ export const useWebOptions = () => {
   const siteName = computed(() => webOption('site.name', 'SForum'))
   const siteUrl = computed(() => webOption('site.url', 'http://127.0.0.1:3000'))
   const siteTagline = computed(() => webOption('site.tagline', '').trim())
+  // 品牌资源：URL 优先给简单场景；附件 ID 留给后续解析附件公开地址。
+  const siteLogoUrl = computed(() => webOption('site.logo_url', '').trim())
+  const siteLogoAttachmentId = computed(() => webOption('site.logo_attachment_id', '').trim())
+  const siteFaviconUrl = computed(() => webOption('site.favicon_url', '').trim())
+  const siteFaviconAttachmentId = computed(() => webOption('site.favicon_attachment_id', '').trim())
+  const siteAppleTouchIconUrl = computed(() => webOption('site.apple_touch_icon_url', '').trim())
+  const siteAppleTouchIconAttachmentId = computed(() => webOption('site.apple_touch_icon_attachment_id', '').trim())
   const defaultLocale = computed(() => webOption('site.default_locale', 'zh-CN'))
   const supportedLocales = computed(() => parseSupportedLocales(webOption('site.supported_locales', 'zh-CN,en-US')))
   const siteTimezone = computed(() => webOption('site.timezone', 'UTC'))
@@ -390,11 +411,25 @@ export const useWebOptions = () => {
     return link.labels[normalizeFooterLocale(localeCode)] || link.labels['zh-CN']
   }
 
+  /** 法律页正文：按 key + 当前/指定 locale 读取 Markdown。 */
+  function legalBody(key: 'terms' | 'privacy' | 'guidelines', localeCode?: string) {
+    const locale = normalizeFooterLocale(localeCode || defaultLocale.value)
+    const name = `legal.${key}.body.${locale}`
+    const fallbackName = `legal.${key}.body.zh-CN`
+    return webOption(name, webOption(fallbackName, '')).trim()
+  }
+
   return {
     options,
     siteName,
     siteUrl,
     siteTagline,
+    siteLogoUrl,
+    siteLogoAttachmentId,
+    siteFaviconUrl,
+    siteFaviconAttachmentId,
+    siteAppleTouchIconUrl,
+    siteAppleTouchIconAttachmentId,
     defaultLocale,
     supportedLocales,
     siteTimezone,
@@ -418,6 +453,7 @@ export const useWebOptions = () => {
     webOption,
     footerCopyrightTemplate,
     footerLinkLabel,
+    legalBody,
     refresh,
     save,
     saveMany,

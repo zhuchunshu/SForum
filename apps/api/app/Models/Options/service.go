@@ -657,6 +657,8 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	coerceSiteDateTimeOptions(coerced, defaults)
 	// 副标题/管理邮箱：无效值回退空串默认。
 	coerceSiteIdentityOptions(coerced, defaults)
+	// Wave 2 品牌资源与法律正文：无效值回退推荐默认。
+	coerceSiteBrandOptions(coerced, defaults)
 	// Wave 1 社区策略：注册/新人/维护/论坛阅读与行为。
 	coerceCommunityPolicyOptions(coerced, defaults)
 
@@ -977,6 +979,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameNotificationModerationEmail: enabledOptionValue(true),
 	}
 	mergeCommunityPolicyDefaults(values)
+	mergeSiteBrandDefaults(values)
 	for name, value := range seoRecommendedDefaults() {
 		values[name] = value
 	}
@@ -1056,6 +1059,13 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeSiteTagline(value)
 	case NameSiteAdminEmail:
 		return normalizeSiteAdminEmail(value)
+	case NameSiteLogoURL, NameSiteLogoAttachmentID,
+		NameSiteFaviconURL, NameSiteFaviconAttachmentID,
+		NameSiteAppleTouchIconURL, NameSiteAppleTouchIconAttachmentID,
+		NameLegalTermsBodyZHCN, NameLegalTermsBodyENUS,
+		NameLegalPrivacyBodyZHCN, NameLegalPrivacyBodyENUS,
+		NameLegalGuidelinesBodyZHCN, NameLegalGuidelinesBodyENUS:
+		return normalizeSiteBrandOption(name, value)
 	case NameSiteTimezone:
 		return normalizeSiteTimezone(value)
 	case NameSiteDateFormat:
@@ -1280,6 +1290,9 @@ func isValidValueSet(values map[string]string) bool {
 		return false
 	}
 	if !isValidSiteIdentityOptions(values) {
+		return false
+	}
+	if !isValidSiteBrandOptions(values) {
 		return false
 	}
 	if !isValidCommunityPolicyOptions(values) {
