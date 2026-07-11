@@ -3,7 +3,6 @@ package notificationjobs
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/riverqueue/river"
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
@@ -59,7 +58,14 @@ func (w *DeliverMailWorker) Work(ctx context.Context, job *river.Job[DeliverMail
 	if w.Sender == nil {
 		return fmt.Errorf("mail provider sender is not configured")
 	}
-	response, err := w.Sender.SendMail(ctx, selection.ExtensionID, extensionsruntime.MailProviderRequest{DeliveryID: strconv.FormatInt(delivery.ID, 10), CorrelationID: delivery.CorrelationID, To: []string{delivery.Recipient}, Subject: delivery.TemplateKey, TextBody: string(delivery.TemplateData)})
+	if refresher, ok := w.Sender.(interface {
+		RefreshMailProvider(context.Context, string) error
+	}); ok {
+		if err := refresher.RefreshMailProvider(ctx, selection.ExtensionID); err != nil {
+			return err
+		}
+	}
+	response, err := w.Sender.SendMail(ctx, selection.ExtensionID, renderDelivery(delivery))
 	if err != nil {
 		return err
 	}

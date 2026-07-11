@@ -178,6 +178,20 @@ func (m *Manager) SendMail(ctx context.Context, extensionID string, request Mail
 	return invoker.SendMail(ctx, extensionID, request)
 }
 
+func (m *Manager) RefreshMailProvider(ctx context.Context, extensionID string) error {
+	m.mu.RLock()
+	extension, ok := m.running[extensionID]
+	m.mu.RUnlock()
+	if !ok {
+		return extensions.ErrRuntimeUnavailable
+	}
+	if err := m.starter.Stop(ctx, extension); err != nil {
+		return err
+	}
+	_, err := m.starter.Start(ctx, extension)
+	return err
+}
+
 func (m *Manager) Reconcile(ctx context.Context, items []extensions.Extension) {
 	enabled := map[string]extensions.Extension{}
 	for _, item := range items {

@@ -188,7 +188,7 @@ onMounted(() => {
     attributes: true,
     attributeFilter: ['class']
   })
-  if (user.value) void notifications.refreshUnreadCount()
+  if (user.value) void notifications.refreshUnreadCount().catch(() => {})
 })
 
 onUnmounted(() => {
