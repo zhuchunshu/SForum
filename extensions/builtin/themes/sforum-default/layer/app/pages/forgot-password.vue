@@ -106,7 +106,7 @@ async function submit() {
 </script>
 
 <template>
-  <main class="min-h-screen flex items-center justify-center px-4 py-12" style="background-color: var(--sf-surface)">
+  <main class="sf-public-page min-h-screen flex items-center justify-center px-4 py-12">
     <div class="w-full max-w-md">
       <h1 class="text-2xl font-bold text-slate-900 mb-2 dark:text-zinc-50">
         {{ t('auth.forgotPassword') }}

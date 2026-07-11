@@ -6,7 +6,7 @@ const { data, pending, error, refresh } = await useAsyncData('author-content-rev
 </script>
 
 <template>
-  <main class="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
+  <main class="sf-public-page sf-public-page__container mx-auto w-full px-4 py-8 sm:px-6">
     <header class="flex flex-wrap items-start justify-between gap-3">
       <div><h1 class="text-2xl font-bold text-slate-950 dark:text-zinc-50">{{ t('moderation.authorStatus.title') }}</h1><p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">{{ t('moderation.authorStatus.description') }}</p></div>
       <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="refresh()">{{ t('admin.home.refresh') }}</UButton>

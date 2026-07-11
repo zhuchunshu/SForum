@@ -94,8 +94,8 @@ function formatTime(iso: string): string {
 </script>
 
 <template>
-  <main class="min-h-screen py-8" style="background-color: var(--sf-surface)">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6">
+  <main class="sf-public-page min-h-screen py-8">
+    <div class="sf-public-page__container sf-public-page__container--narrow mx-auto px-4 sm:px-6">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-slate-900 dark:text-zinc-50">
           {{ t('accountSecurity.title') }}

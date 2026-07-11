@@ -147,8 +147,8 @@ const markdownCheatsheet = computed(() => [
 </script>
 
 <template>
-  <main class="min-h-screen py-8" style="background-color: var(--sf-surface)">
-    <div class="max-w-[1376px] mx-auto px-4 sm:px-6">
+  <main class="sf-public-page min-h-screen py-8">
+    <div class="sf-public-page__container mx-auto px-4 sm:px-6">
       <!-- 无权限提示 -->
       <SFCard v-if="!canCreate" class="p-8">
         <SFEmptyState

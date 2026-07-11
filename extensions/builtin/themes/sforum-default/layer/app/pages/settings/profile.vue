@@ -144,8 +144,8 @@ async function removeAvatar() {
 </script>
 
 <template>
-  <main class="min-h-screen py-8" style="background-color: var(--sf-surface)">
-    <div class="max-w-2xl mx-auto px-4 sm:px-6">
+  <main class="sf-public-page min-h-screen py-8">
+    <div class="sf-public-page__container sf-public-page__container--form mx-auto px-4 sm:px-6">
       <h1 class="text-2xl font-bold text-slate-900 mb-6 dark:text-zinc-50">
         {{ t('profileSettings.title') }}
       </h1>

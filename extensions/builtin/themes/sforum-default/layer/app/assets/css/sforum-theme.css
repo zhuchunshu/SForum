@@ -51,6 +51,30 @@
   color: var(--sf-fg);
 }
 
+.sf-public-page {
+  background: var(--sf-public-bg);
+  color: var(--sf-public-text);
+}
+
+.sf-public-page__container {
+  width: 100%;
+  max-width: var(--sf-public-container);
+}
+
+.sf-public-page__container--narrow {
+  max-width: 760px;
+}
+
+.sf-public-page__container--form {
+  max-width: 680px;
+}
+
+.sf-public-page .sf-card {
+  border-color: var(--sf-public-border);
+  background: var(--sf-public-surface);
+  box-shadow: var(--sf-public-shadow);
+}
+
 .navbar__logo-icon,
 .auth-logo-icon {
   display: block;

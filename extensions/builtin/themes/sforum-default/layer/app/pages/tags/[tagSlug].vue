@@ -4,8 +4,7 @@ import {
   forumTopicPath,
   parseForumTagPublicPagesOption,
   type ForumTag,
-  type ForumTopicList,
-  type ForumTopicSummary
+  type ForumTopicList
 } from '~/utils/forumTaxonomy'
 
 const { t } = useI18n()
@@ -14,11 +13,6 @@ const route = useRoute()
 const { seoSettings, webOption } = useWebOptions()
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const forumApi = useForumApi()
-
-type FeedBadge = {
-  label: string
-  variant?: 'neutral' | 'primary' | 'info' | 'success' | 'warning' | 'danger'
-}
 
 const tagSlug = computed(() => routeParam(route.params.tagSlug))
 const publicTagPagesEnabled = computed(() => parseForumTagPublicPagesOption(
@@ -87,20 +81,8 @@ function routeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] || '' : value || ''
 }
 
-function topicAuthor(topic: ForumTopicSummary) {
-  return topic.author?.displayName || topic.author?.username || `#${topic.authorUserId}`
-}
-
-function topicMeta(topic: ForumTopicSummary) {
+function topicMeta(topic: { lastActivityAt: string, createdAt: string }) {
   return formatShortDate(topic.lastActivityAt || topic.createdAt)
-}
-
-function topicBadges(topic: ForumTopicSummary): FeedBadge[] {
-  return [
-    ...(topic.isPinned ? [{ label: t('home.badge.pinned'), variant: 'danger' as const }] : []),
-    { label: topic.categoryName, variant: 'primary' as const },
-    ...(topic.tags || []).map((item) => ({ label: `#${item.name}`, variant: 'neutral' as const }))
-  ]
 }
 
 function tagLinkClass(item: ForumTag) {
@@ -121,8 +103,8 @@ function formatShortDate(value: string) {
 </script>
 
 <template>
-  <main class="min-h-screen py-8" style="background-color: var(--sf-surface)">
-    <div class="max-w-[1376px] mx-auto px-4 sm:px-6">
+  <main class="sf-public-page min-h-screen py-8">
+    <div class="sf-public-page__container mx-auto px-4 sm:px-6">
       <div class="grid grid-cols-1 lg:grid-cols-[270px_1fr] gap-6">
         <aside class="hidden lg:block space-y-6">
           <SFCard flush class="p-4">
@@ -179,26 +161,13 @@ function formatShortDate(value: string) {
             </template>
 
             <template v-else-if="topics.length > 0">
-              <SFCard class="divide-y divide-slate-100 overflow-hidden dark:divide-zinc-800">
-                <div v-for="topic in topics" :key="topic.id">
-                  <NuxtLink
-                    :to="localePath(forumTopicPath(topic, topicUrlMode))"
-                    class="block transition hover:bg-slate-50 dark:hover:bg-zinc-900/60"
-                  >
-                    <SFFeedRow
-                      :title="topic.title"
-                      :excerpt="topic.excerpt"
-                      :author="topicAuthor(topic)"
-                      :avatar="topic.author?.avatar"
-                      :meta="topicMeta(topic)"
-                      :replies="topic.commentCount"
-                      :views="topic.viewCount"
-                      :score="0"
-                      :badges="topicBadges(topic)"
-                    />
-                  </NuxtLink>
-                </div>
-              </SFCard>
+              <SFHomeTopicRow
+                v-for="topic in topics"
+                :key="topic.id"
+                :topic="topic"
+                :to="localePath(forumTopicPath(topic, topicUrlMode))"
+                :activity-label="topicMeta(topic)"
+              />
             </template>
 
             <SFCard v-else class="p-12 flex justify-center">

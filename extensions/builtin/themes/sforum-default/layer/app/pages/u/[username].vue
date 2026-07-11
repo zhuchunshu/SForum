@@ -54,8 +54,8 @@ function topicAuthor(topic: ForumTopicSummary) {
 </script>
 
 <template>
-  <main class="min-h-screen py-8" style="background-color: var(--sf-surface)">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6">
+  <main class="sf-public-page min-h-screen py-8">
+    <div class="sf-public-page__container sf-public-page__container--narrow mx-auto px-4 sm:px-6">
       <SFCard v-if="profileError && !profile" class="p-10">
         <SFEmptyState
           :title="t('profile.notFound.title')"
