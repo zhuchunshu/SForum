@@ -1289,9 +1289,45 @@
       "saved": "SEO settings saved.",
       "saveFailed": "SEO settings could not be saved.",
       "save": "Save SEO settings",
+      "siteIdentity": "SEO site identity",
+      "inheritSiteName": "Inherit the product site name",
+      "seoSiteName": "Independent SEO site name",
+      "homeSearchInfo": "Homepage search information",
+      "homeTitle": "Homepage SEO title",
+      "homeDescription": "Homepage description",
+      "homeKeywords": "Homepage keywords",
+      "homeKeywordsHelp": "Google generally ignores meta keywords; this remains available for platforms that still use them.",
+      "homeSocialImage": "Homepage social image",
+      "searchPreview": "Search result preview",
+      "imageDrop": "Drop an image here or choose a file",
+      "imageUploading": "Uploading image...",
+      "imageUploaded": "SEO image uploaded and filled in.",
+      "imageUploadFailed": "SEO image upload failed.",
+      "imageLoadFailed": "The image URL could not be loaded.",
+      "imageReplace": "Replace",
+      "imageRemove": "Remove",
+      "imagePreview": "Preview",
+      "imageUrlPlaceholder": "Paste a public image URL",
+      "contentTitleTemplate": "Title template",
+      "contentDescriptionSource": "Description source order",
+      "contentIndexMode": "Index policy",
+      "contentIncludeSitemap": "Include in Sitemap",
+      "contentDefaultImage": "Default social image",
+      "restoreRecommended": "Restore recommended defaults",
+      "recommendedRestored": "Recommended defaults restored. Save to apply them.",
+      "assetsPreserved": "Uploaded attachments are not deleted.",
+      "contentTypes": {
+        "category": "Category",
+        "tag": "Tag",
+        "topic": "Topic",
+        "profile": "Profile",
+        "static": "Static page"
+      },
       "tabs": {
         "label": "SEO setting sections",
         "overview": "Overview",
+        "search": "Search Appearance",
+        "content": "Content Types",
         "meta": "Meta & Social",
         "robots": "Indexing & Robots",
         "sitemap": "Sitemap",
@@ -1303,6 +1339,14 @@
         "overview": {
           "title": "SEO Overview",
           "description": "Review indexing, canonical, sitemap, and robots output."
+        },
+        "search": {
+          "title": "Homepage and Site Brand",
+          "description": "Configure the SEO site name, homepage title, description, keywords, and social image independently."
+        },
+        "content": {
+          "title": "Content Type Policies",
+          "description": "Control templates and indexing for categories, tags, topics, profiles, and static pages."
         },
         "meta": {
           "title": "Meta and Social Preview",

@@ -24,11 +24,13 @@ defineOptions({
   name: 'AdminSeo'
 })
 
-type SeoTab = 'overview' | 'meta' | 'robots' | 'sitemap' | 'schema' | 'verification' | 'permalinks'
+type SeoTab = 'overview' | 'search' | 'content' | 'meta' | 'robots' | 'sitemap' | 'schema' | 'verification' | 'permalinks'
+type ContentType = 'category' | 'tag' | 'topic' | 'profile' | 'static'
+type ContentPolicyForm = { titleTemplate: string, descriptionSource: string, defaultImageUrl: string, indexMode: 'index' | 'noindex', includeInSitemap: boolean, schemaType: string }
 
 const { t } = useI18n()
 const toast = useToast()
-const { options, siteUrl, fetchAdminEnvelope, saveMany } = useWebOptions()
+const { options, siteName, siteUrl, fetchAdminEnvelope, saveMany } = useWebOptions()
 const adminPage = useAdminPage('/seo')
 
 const activeTab = ref<SeoTab>('overview')
@@ -37,6 +39,12 @@ const lastAdminItems = ref<AdminWebOption[]>([])
 const savedSnapshot = ref('')
 
 const form = reactive({
+  inheritSiteName: true,
+  seoSiteName: '',
+  homeTitle: '',
+  homeDescription: '',
+  homeKeywords: '',
+  homeOGImageUrl: '',
   metaTitleTemplate: '',
   metaDescription: '',
   metaKeywords: '',
@@ -63,6 +71,15 @@ const form = reactive({
   topicUrlMode: recommendedTopicUrlMode
 })
 
+const contentPolicies = reactive<Record<ContentType, ContentPolicyForm>>({
+  category: { titleTemplate: '{categoryName} | {seoSiteName}', descriptionSource: 'category_description,site_default', defaultImageUrl: '', indexMode: 'index', includeInSitemap: true, schemaType: 'CollectionPage' },
+  tag: { titleTemplate: '{tagName} | {seoSiteName}', descriptionSource: 'tag_description,site_default', defaultImageUrl: '', indexMode: 'index', includeInSitemap: true, schemaType: 'CollectionPage' },
+  topic: { titleTemplate: '{topicTitle} | {seoSiteName}', descriptionSource: 'topic_summary,topic_excerpt,site_default', defaultImageUrl: '', indexMode: 'index', includeInSitemap: true, schemaType: 'DiscussionForumPosting' },
+  profile: { titleTemplate: '{authorName} | {seoSiteName}', descriptionSource: 'profile_bio,site_default', defaultImageUrl: '', indexMode: 'noindex', includeInSitemap: false, schemaType: 'ProfilePage' },
+  static: { titleTemplate: '{pageTitle} | {seoSiteName}', descriptionSource: 'page_description,site_default', defaultImageUrl: '', indexMode: 'index', includeInSitemap: true, schemaType: 'WebPage' }
+})
+const contentTypes: ContentType[] = ['category', 'tag', 'topic', 'profile', 'static']
+
 const topicUrlModeOptions = computed<Array<{ value: TopicUrlMode, preview: string, label: string, description: string }>>(() => [
   { value: 'id_slug', preview: '/t/123/hello-world', label: t('admin.seo.topicUrlModeIdSlug'), description: t('admin.seo.topicUrlModeIdSlugHelp') },
   { value: 'id', preview: '/t/123', label: t('admin.seo.topicUrlModeId'), description: t('admin.seo.topicUrlModeIdHelp') },
@@ -71,6 +88,8 @@ const topicUrlModeOptions = computed<Array<{ value: TopicUrlMode, preview: strin
 
 const tabs = computed<Array<{ id: SeoTab, label: string, icon: string }>>(() => [
   { id: 'overview', label: t('admin.seo.tabs.overview'), icon: 'i-lucide-gauge' },
+  { id: 'search', label: t('admin.seo.tabs.search'), icon: 'i-lucide-search' },
+  { id: 'content', label: t('admin.seo.tabs.content'), icon: 'i-lucide-files' },
   { id: 'meta', label: t('admin.seo.tabs.meta'), icon: 'i-lucide-file-text' },
   { id: 'robots', label: t('admin.seo.tabs.robots'), icon: 'i-lucide-bot' },
   { id: 'sitemap', label: t('admin.seo.tabs.sitemap'), icon: 'i-lucide-map' },
@@ -158,6 +177,12 @@ function applyAdminOptions(items: AdminWebOption[]) {
   }
 
   const map = Object.fromEntries(items.map((item) => [item.name, item]))
+  form.inheritSiteName = enabled(map, 'seo.site.inherit_site_name', true)
+  form.seoSiteName = read(map, 'seo.site.name')
+  form.homeTitle = read(map, 'seo.home.title')
+  form.homeDescription = read(map, 'seo.home.description', read(map, 'seo.meta_description'))
+  form.homeKeywords = read(map, 'seo.home.keywords', read(map, 'seo.meta_keywords'))
+  form.homeOGImageUrl = read(map, 'seo.home.og_image_url', read(map, 'seo.og_image_url'))
   form.metaTitleTemplate = read(map, 'seo.meta_title_template')
   form.metaDescription = read(map, 'seo.meta_description')
   form.metaKeywords = read(map, 'seo.meta_keywords')
@@ -181,6 +206,16 @@ function applyAdminOptions(items: AdminWebOption[]) {
   form.schemaOrgDiscussionEnabled = enabled(map, 'seo.schema_org.discussion_enabled', true)
   form.schemaOrgOrganizationLogoUrl = read(map, 'seo.schema_org.organization_logo_url')
   form.topicUrlMode = normalizeTopicUrlMode(read(map, 'seo.topic_url_mode', recommendedTopicUrlMode))
+  for (const type of contentTypes) {
+    const prefix = `seo.content_type.${type}`
+    const policy = contentPolicies[type]
+    policy.titleTemplate = read(map, `${prefix}.title_template`, policy.titleTemplate)
+    policy.descriptionSource = read(map, `${prefix}.description_source`, policy.descriptionSource)
+    policy.defaultImageUrl = read(map, `${prefix}.default_image_url`)
+    policy.indexMode = read(map, `${prefix}.index_mode`, policy.indexMode) === 'index' ? 'index' : 'noindex'
+    policy.includeInSitemap = enabled(map, `${prefix}.include_in_sitemap`, policy.includeInSitemap)
+    policy.schemaType = read(map, `${prefix}.schema_type`, policy.schemaType)
+  }
   savedSnapshot.value = formSnapshot()
 }
 
@@ -213,12 +248,37 @@ function resetForm() {
   applyAdminOptions(lastAdminItems.value)
 }
 
+function restoreSearchDefaults() {
+  form.inheritSiteName = true
+  form.seoSiteName = ''
+  form.homeTitle = ''
+  form.homeDescription = ''
+  form.homeKeywords = ''
+  form.homeOGImageUrl = ''
+  toast.add({ color: 'success', icon: 'i-lucide-rotate-ccw', title: t('admin.seo.recommendedRestored'), description: t('admin.seo.assetsPreserved'), duration: 10000 })
+}
+
+function restoreContentDefaults() {
+  Object.assign(contentPolicies.category, { titleTemplate: '{categoryName} | {seoSiteName}', descriptionSource: 'category_description,site_default', defaultImageUrl: '', indexMode: 'index', includeInSitemap: true, schemaType: 'CollectionPage' })
+  Object.assign(contentPolicies.tag, { titleTemplate: '{tagName} | {seoSiteName}', descriptionSource: 'tag_description,site_default', defaultImageUrl: '', indexMode: 'index', includeInSitemap: true, schemaType: 'CollectionPage' })
+  Object.assign(contentPolicies.topic, { titleTemplate: '{topicTitle} | {seoSiteName}', descriptionSource: 'topic_summary,topic_excerpt,site_default', defaultImageUrl: '', indexMode: 'index', includeInSitemap: true, schemaType: 'DiscussionForumPosting' })
+  Object.assign(contentPolicies.profile, { titleTemplate: '{authorName} | {seoSiteName}', descriptionSource: 'profile_bio,site_default', defaultImageUrl: '', indexMode: 'noindex', includeInSitemap: false, schemaType: 'ProfilePage' })
+  Object.assign(contentPolicies.static, { titleTemplate: '{pageTitle} | {seoSiteName}', descriptionSource: 'page_description,site_default', defaultImageUrl: '', indexMode: 'index', includeInSitemap: true, schemaType: 'WebPage' })
+  toast.add({ color: 'success', icon: 'i-lucide-rotate-ccw', title: t('admin.seo.recommendedRestored'), description: t('admin.seo.assetsPreserved'), duration: 10000 })
+}
+
 function setActiveTab(tab: SeoTab) {
   activeTab.value = tab
 }
 
 function payload(): WebOption[] {
   return [
+    { name: 'seo.site.inherit_site_name', value: enabledOptionValue(form.inheritSiteName) },
+    { name: 'seo.site.name', value: form.seoSiteName },
+    { name: 'seo.home.title', value: form.homeTitle },
+    { name: 'seo.home.description', value: form.homeDescription },
+    { name: 'seo.home.keywords', value: form.homeKeywords },
+    { name: 'seo.home.og_image_url', value: form.homeOGImageUrl },
     { name: 'seo.meta_title_template', value: form.metaTitleTemplate },
     { name: 'seo.meta_description', value: form.metaDescription },
     { name: 'seo.meta_keywords', value: form.metaKeywords },
@@ -241,7 +301,19 @@ function payload(): WebOption[] {
     { name: 'seo.schema_org.search_action_enabled', value: enabledOptionValue(form.schemaOrgSearchActionEnabled) },
     { name: 'seo.schema_org.discussion_enabled', value: enabledOptionValue(form.schemaOrgDiscussionEnabled) },
     { name: 'seo.schema_org.organization_logo_url', value: form.schemaOrgOrganizationLogoUrl },
-    { name: 'seo.topic_url_mode', value: form.topicUrlMode }
+    { name: 'seo.topic_url_mode', value: form.topicUrlMode },
+    ...contentTypes.flatMap((type) => {
+      const prefix = `seo.content_type.${type}`
+      const policy = contentPolicies[type]
+      return [
+        { name: `${prefix}.title_template`, value: policy.titleTemplate },
+        { name: `${prefix}.description_source`, value: policy.descriptionSource },
+        { name: `${prefix}.default_image_url`, value: policy.defaultImageUrl },
+        { name: `${prefix}.index_mode`, value: policy.indexMode },
+        { name: `${prefix}.include_in_sitemap`, value: enabledOptionValue(policy.includeInSitemap) },
+        { name: `${prefix}.schema_type`, value: policy.schemaType }
+      ]
+    })
   ]
 }
 
@@ -400,6 +472,21 @@ function absoluteUrl(path: string) {
             </div>
           </div>
         </div>
+
+        <SFSEOSearchAppearance
+          v-else-if="activeTab === 'search'"
+          v-model:inherit-site-name="form.inheritSiteName"
+          v-model:seo-site-name="form.seoSiteName"
+          v-model:home-title="form.homeTitle"
+          v-model:home-description="form.homeDescription"
+          v-model:home-keywords="form.homeKeywords"
+          v-model:home-o-g-image-url="form.homeOGImageUrl"
+          :product-site-name="siteName"
+          :site-url="siteUrl"
+          @restore="restoreSearchDefaults"
+        />
+
+        <SFSEOContentTypes v-else-if="activeTab === 'content'" v-model="contentPolicies" @restore="restoreContentDefaults" />
 
         <div v-else-if="activeTab === 'meta'" class="grid max-w-3xl gap-4">
           <UFormField :label="t('admin.seo.metaTitleTemplate')" name="seo-meta-title-template">

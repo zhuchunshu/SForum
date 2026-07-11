@@ -1295,9 +1295,45 @@
       "saved": "SEO 设置已保存。",
       "saveFailed": "SEO 设置保存失败。",
       "save": "保存 SEO 设置",
+      "siteIdentity": "站点 SEO 身份",
+      "inheritSiteName": "SEO 站点名称继承网站名称",
+      "seoSiteName": "独立 SEO 站点名称",
+      "homeSearchInfo": "首页搜索信息",
+      "homeTitle": "首页 SEO 标题",
+      "homeDescription": "首页描述",
+      "homeKeywords": "首页关键词",
+      "homeKeywordsHelp": "Google 基本不使用 meta keywords；此项保留给仍参考关键词的搜索平台。",
+      "homeSocialImage": "首页社交分享图片",
+      "searchPreview": "搜索结果预览",
+      "imageDrop": "拖动图片到这里，或点击选择",
+      "imageUploading": "图片上传中...",
+      "imageUploaded": "SEO 图片已上传并自动回填。",
+      "imageUploadFailed": "SEO 图片上传失败。",
+      "imageLoadFailed": "图片地址无法加载，请检查 URL。",
+      "imageReplace": "替换",
+      "imageRemove": "移除",
+      "imagePreview": "预览",
+      "imageUrlPlaceholder": "粘贴公开图片 URL",
+      "contentTitleTemplate": "标题模板",
+      "contentDescriptionSource": "描述来源顺序",
+      "contentIndexMode": "索引策略",
+      "contentIncludeSitemap": "加入 Sitemap",
+      "contentDefaultImage": "默认社交图片",
+      "restoreRecommended": "恢复推荐默认值",
+      "recommendedRestored": "已恢复推荐默认值，请保存后生效。",
+      "assetsPreserved": "已上传附件不会被删除。",
+      "contentTypes": {
+        "category": "分类页",
+        "tag": "标签页",
+        "topic": "主题页",
+        "profile": "用户资料页",
+        "static": "静态页面"
+      },
       "tabs": {
         "label": "SEO 设置分区",
         "overview": "总览",
+        "search": "搜索外观",
+        "content": "内容类型",
         "meta": "Meta 与社交",
         "robots": "索引与 Robots",
         "sitemap": "站点地图",
@@ -1309,6 +1345,14 @@
         "overview": {
           "title": "SEO 总览",
           "description": "查看当前索引状态、canonical、sitemap 和 robots 输出。"
+        },
+        "search": {
+          "title": "首页与站点品牌",
+          "description": "独立配置 SEO 站点名称、首页标题、描述、关键词和分享图片。"
+        },
+        "content": {
+          "title": "内容类型策略",
+          "description": "分别控制分类、标签、主题、资料和静态页面的模板与索引策略。"
         },
         "meta": {
           "title": "Meta 与社交预览",
