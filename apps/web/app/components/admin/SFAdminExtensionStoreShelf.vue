@@ -1,24 +1,15 @@
 <script setup lang="ts">
 /**
- * 应用商城框架页（01C 粘性筛选货架）。
- * 当前不接目录 API / 安装流程，筛选与搜索仅本地占位交互。
+ * 应用商城货架（01C 粘性筛选）。
+ * kind 区分主题 / 插件目录；当前为本地占位数据，不接远端 API。
  */
-import { useAdminPage } from '~/composables/useAdminPage'
-
-definePageMeta({
-  middleware: 'admin',
-  layout: 'admin'
-})
-
-defineOptions({
-  name: 'AdminExtensionStore'
-})
-
-type StoreCategory = 'all' | 'official' | 'payment' | 'notify' | 'storage' | 'theme'
+type StoreKind = 'theme' | 'plugin'
+type StoreCategory = 'all' | 'official' | 'payment' | 'notify' | 'storage' | 'community'
 type StoreSort = 'recommended' | 'updated' | 'name'
 
 type StoreCatalogItem = {
   id: string
+  kind: StoreKind
   nameKey: string
   summaryKey: string
   authorKey: string
@@ -29,14 +20,20 @@ type StoreCatalogItem = {
   accent: string
 }
 
+const props = defineProps<{
+  kind: StoreKind
+  pageId: string
+}>()
+
 const { t } = useI18n()
-const adminPage = useAdminPage('/extensions/store')
+const adminPage = useAdminPage(props.pageId)
 const adminRoutes = useAdminRoutes()
 
 // 占位目录：仅用于展示货架布局，上线后由远端目录替换
-const catalog: StoreCatalogItem[] = [
+const fullCatalog: StoreCatalogItem[] = [
   {
     id: 'smtp-mail',
+    kind: 'plugin',
     nameKey: 'admin.extensions.store.demo.smtpName',
     summaryKey: 'admin.extensions.store.demo.smtpSummary',
     authorKey: 'admin.extensions.store.demo.officialAuthor',
@@ -48,6 +45,7 @@ const catalog: StoreCatalogItem[] = [
   },
   {
     id: 's3-storage',
+    kind: 'plugin',
     nameKey: 'admin.extensions.store.demo.s3Name',
     summaryKey: 'admin.extensions.store.demo.s3Summary',
     authorKey: 'admin.extensions.store.demo.officialAuthor',
@@ -59,17 +57,19 @@ const catalog: StoreCatalogItem[] = [
   },
   {
     id: 'wechat-notify',
+    kind: 'plugin',
     nameKey: 'admin.extensions.store.demo.wechatName',
     summaryKey: 'admin.extensions.store.demo.wechatSummary',
     authorKey: 'admin.extensions.store.demo.communityAuthor',
     version: 'v0.4.0',
-    categories: ['notify'],
+    categories: ['community', 'notify'],
     tags: ['notify', 'wechat'],
     icon: 'i-lucide-message-circle',
     accent: 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
   },
   {
     id: 'alipay',
+    kind: 'plugin',
     nameKey: 'admin.extensions.store.demo.alipayName',
     summaryKey: 'admin.extensions.store.demo.alipaySummary',
     authorKey: 'admin.extensions.store.demo.officialAuthor',
@@ -81,39 +81,55 @@ const catalog: StoreCatalogItem[] = [
   },
   {
     id: 'analytics',
+    kind: 'plugin',
     nameKey: 'admin.extensions.store.demo.analyticsName',
     summaryKey: 'admin.extensions.store.demo.analyticsSummary',
     authorKey: 'admin.extensions.store.demo.communityAuthor',
     version: '—',
-    categories: [],
+    categories: ['community'],
     tags: ['analytics'],
     icon: 'i-lucide-chart-column',
     accent: 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
   },
   {
     id: 'night-theme',
+    kind: 'theme',
     nameKey: 'admin.extensions.store.demo.themeName',
     summaryKey: 'admin.extensions.store.demo.themeSummary',
     authorKey: 'admin.extensions.store.demo.communityAuthor',
     version: 'v2.0.0',
-    categories: ['theme'],
-    tags: ['theme'],
+    categories: ['community'],
+    tags: ['theme', 'dark'],
     icon: 'i-lucide-palette',
     accent: 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
   },
   {
+    id: 'aurora-theme',
+    kind: 'theme',
+    nameKey: 'admin.extensions.store.demo.themeAuroraName',
+    summaryKey: 'admin.extensions.store.demo.themeAuroraSummary',
+    authorKey: 'admin.extensions.store.demo.officialAuthor',
+    version: 'v1.1.0',
+    categories: ['official'],
+    tags: ['theme', 'light'],
+    icon: 'i-lucide-sun',
+    accent: 'bg-orange-500/15 text-orange-700 dark:text-orange-300'
+  },
+  {
     id: 'telegram',
+    kind: 'plugin',
     nameKey: 'admin.extensions.store.demo.telegramName',
     summaryKey: 'admin.extensions.store.demo.telegramSummary',
     authorKey: 'admin.extensions.store.demo.communityAuthor',
     version: 'v0.3.2',
-    categories: ['notify'],
+    categories: ['community', 'notify'],
     tags: ['notify', 'telegram'],
     icon: 'i-lucide-send',
     accent: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300'
   },
   {
     id: 'webhook',
+    kind: 'plugin',
     nameKey: 'admin.extensions.store.demo.webhookName',
     summaryKey: 'admin.extensions.store.demo.webhookSummary',
     authorKey: 'admin.extensions.store.demo.officialAuthor',
@@ -125,46 +141,54 @@ const catalog: StoreCatalogItem[] = [
   },
   {
     id: 'content-ai',
+    kind: 'plugin',
     nameKey: 'admin.extensions.store.demo.aiName',
     summaryKey: 'admin.extensions.store.demo.aiSummary',
     authorKey: 'admin.extensions.store.demo.communityAuthor',
     version: '—',
-    categories: [],
+    categories: ['community'],
     tags: ['ai'],
     icon: 'i-lucide-sparkles',
     accent: 'bg-purple-500/15 text-purple-700 dark:text-purple-300'
   }
 ]
 
+const catalog = computed(() => fullCatalog.filter(item => item.kind === props.kind))
+
 const searchQuery = ref('')
 const category = ref<StoreCategory>('all')
 const sort = ref<StoreSort>('recommended')
 
 const categoryOptions = computed(() => {
-  const counts: Record<StoreCategory, number> = {
-    all: catalog.length,
-    official: 0,
-    payment: 0,
-    notify: 0,
-    storage: 0,
-    theme: 0
-  }
-  for (const item of catalog) {
+  const rows = catalog.value
+  const counts: Partial<Record<StoreCategory, number>> = { all: rows.length }
+
+  for (const item of rows) {
     for (const key of item.categories) {
-      counts[key] += 1
+      counts[key] = (counts[key] || 0) + 1
     }
   }
-  return ([
-    ['all', 'admin.extensions.store.categoryAll'],
-    ['official', 'admin.extensions.store.categoryOfficial'],
-    ['payment', 'admin.extensions.store.categoryPayment'],
-    ['notify', 'admin.extensions.store.categoryNotify'],
-    ['storage', 'admin.extensions.store.categoryStorage'],
-    ['theme', 'admin.extensions.store.categoryTheme']
-  ] as const).map(([id, labelKey]) => ({
+
+  // 主题货架只展示全部 / 官方 / 社区；插件货架额外展示能力类筛选
+  const keys: Array<[StoreCategory, string]> = props.kind === 'theme'
+    ? [
+        ['all', 'admin.extensions.store.categoryAll'],
+        ['official', 'admin.extensions.store.categoryOfficial'],
+        ['community', 'admin.extensions.store.categoryCommunity']
+      ]
+    : [
+        ['all', 'admin.extensions.store.categoryAll'],
+        ['official', 'admin.extensions.store.categoryOfficial'],
+        ['payment', 'admin.extensions.store.categoryPayment'],
+        ['notify', 'admin.extensions.store.categoryNotify'],
+        ['storage', 'admin.extensions.store.categoryStorage'],
+        ['community', 'admin.extensions.store.categoryCommunity']
+      ]
+
+  return keys.map(([id, labelKey]) => ({
     id,
     labelKey,
-    count: counts[id]
+    count: counts[id] || 0
   }))
 })
 
@@ -174,9 +198,59 @@ const sortItems = computed(() => [
   { label: t('admin.extensions.store.sortName'), value: 'name' as const }
 ])
 
+const titleKey = computed(() =>
+  props.kind === 'theme'
+    ? 'admin.extensions.store.themesTitle'
+    : 'admin.extensions.store.pluginsTitle'
+)
+
+const introKey = computed(() =>
+  props.kind === 'theme'
+    ? 'admin.extensions.store.themesIntro'
+    : 'admin.extensions.store.pluginsIntro'
+)
+
+const metaTitleKey = computed(() =>
+  props.kind === 'theme'
+    ? 'admin.extensions.store.themesMetaTitle'
+    : 'admin.extensions.store.pluginsMetaTitle'
+)
+
+const countKey = computed(() =>
+  props.kind === 'theme'
+    ? 'admin.extensions.store.themesCount'
+    : 'admin.extensions.store.pluginsCount'
+)
+
+const emptyTitleKey = computed(() =>
+  props.kind === 'theme'
+    ? 'admin.extensions.store.themesEmptyTitle'
+    : 'admin.extensions.store.pluginsEmptyTitle'
+)
+
+const emptyDescriptionKey = computed(() =>
+  props.kind === 'theme'
+    ? 'admin.extensions.store.themesEmptyDescription'
+    : 'admin.extensions.store.pluginsEmptyDescription'
+)
+
+const localListPath = computed(() =>
+  props.kind === 'theme' ? '/extensions/themes' : '/extensions/plugins'
+)
+
+const localListLabelKey = computed(() =>
+  props.kind === 'theme'
+    ? 'admin.extensions.store.openThemes'
+    : 'admin.extensions.store.openPlugins'
+)
+
+const localListIcon = computed(() =>
+  props.kind === 'theme' ? 'i-lucide-palette' : 'i-lucide-plug'
+)
+
 const filteredCatalog = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  let rows = catalog.filter((item) => {
+  let rows = catalog.value.filter((item) => {
     if (category.value !== 'all' && !item.categories.includes(category.value)) {
       return false
     }
@@ -204,22 +278,25 @@ const filteredCatalog = computed(() => {
 })
 
 useSeoMeta({
-  title: t('admin.extensions.store.metaTitle')
+  title: () => t(metaTitleKey.value)
 })
 </script>
 
 <template>
-  <div data-testid="admin-extension-store-page" class="min-w-0 shrink-0">
+  <div
+    :data-testid="kind === 'theme' ? 'admin-extension-store-themes-page' : 'admin-extension-store-plugins-page'"
+    class="min-w-0 shrink-0"
+  >
     <div class="mb-4 flex flex-col gap-1">
       <h2 class="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-zinc-100">
         <UIcon
           :name="adminPage.icon"
           class="size-5 text-[var(--sf-accent)] dark:text-[var(--sf-accent-dark)]"
         />
-        {{ t('admin.extensions.store.title') }}
+        {{ t(titleKey) }}
       </h2>
       <p class="text-sm text-slate-500 dark:text-zinc-400">
-        {{ t('admin.extensions.store.intro') }}
+        {{ t(introKey) }}
       </p>
     </div>
 
@@ -241,7 +318,7 @@ useSeoMeta({
             size="md"
           />
           <span class="shrink-0 text-xs font-semibold tabular-nums text-slate-500 dark:text-zinc-400 sm:ml-1">
-            {{ t('admin.extensions.store.count', { visible: filteredCatalog.length, total: catalog.length }) }}
+            {{ t(countKey, { visible: filteredCatalog.length, total: catalog.length }) }}
           </span>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -267,8 +344,8 @@ useSeoMeta({
     >
       <SFEmptyState
         icon-label="APP"
-        :title="t('admin.extensions.store.emptyTitle')"
-        :description="t('admin.extensions.store.emptyDescription')"
+        :title="t(emptyTitleKey)"
+        :description="t(emptyDescriptionKey)"
       />
     </div>
 
@@ -342,19 +419,10 @@ useSeoMeta({
           size="sm"
           color="neutral"
           variant="subtle"
-          icon="i-lucide-plug"
-          :to="adminRoutes.path('/extensions/plugins')"
+          :icon="localListIcon"
+          :to="adminRoutes.path(localListPath)"
         >
-          {{ t('admin.extensions.store.openPlugins') }}
-        </UButton>
-        <UButton
-          size="sm"
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-palette"
-          :to="adminRoutes.path('/extensions/themes')"
-        >
-          {{ t('admin.extensions.store.openThemes') }}
+          {{ t(localListLabelKey) }}
         </UButton>
       </div>
     </div>

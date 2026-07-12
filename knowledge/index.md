@@ -4,6 +4,12 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 App store split to top-level menu (themes / plugins)**
+  - Handoff: `knowledge/sessions/2026-07-12-admin-extension-store-menu-split.md`
+  - Sidebar: 应用商城 as independent folder under 扩展管理
+  - Routes: `/extensions/store/themes`, `/extensions/store/plugins`
+  - Legacy `/extensions/store` → plugins shelf
+
 - **2026-07-12 API error message i18n gap filled**
   - Handoff: `knowledge/sessions/2026-07-12-api-error-message-i18n-gap.md`
   - Missing catalog keys (e.g. `site_chrome.invalid`) no longer returned raw

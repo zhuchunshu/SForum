@@ -187,12 +187,29 @@ export const adminPageDefinitions = [
     permissionMode: 'any'
   },
   {
-    // 应用商城：框架占位页，安装/检索能力后续再接
+    // 旧商城入口：保留定义供重定向，不挂侧栏
     id: '/extensions/store',
     labelKey: 'admin.nav.extensionStore',
     icon: 'i-lucide-store',
-    componentName: 'AdminExtensionStore',
-    requiredPermissions: ['extension.plugin.manage']
+    componentName: 'AdminExtensionStoreRedirect',
+    requiredPermissions: ['extension.plugin.manage', 'extension.theme.manage'],
+    permissionMode: 'any'
+  },
+  {
+    id: '/extensions/store/themes',
+    labelKey: 'admin.nav.extensionStoreThemes',
+    icon: 'i-lucide-palette',
+    componentName: 'AdminExtensionStoreThemes',
+    requiredPermissions: ['extension.theme.manage', 'extension.view'],
+    permissionMode: 'any'
+  },
+  {
+    id: '/extensions/store/plugins',
+    labelKey: 'admin.nav.extensionStorePlugins',
+    icon: 'i-lucide-plug',
+    componentName: 'AdminExtensionStorePlugins',
+    requiredPermissions: ['extension.plugin.manage', 'extension.view'],
+    permissionMode: 'any'
   },
   {
     id: '/extensions/settings',
@@ -290,11 +307,20 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/extensions' },
         { type: 'page', pageId: '/extensions/plugins' },
         { type: 'page', pageId: '/extensions/themes' },
-        { type: 'page', pageId: '/extensions/store' },
         { type: 'page', pageId: '/extensions/settings' },
         { type: 'page', pageId: '/extensions/events' },
         { type: 'page', pageId: '/extensions/contributions' },
         { type: 'page', pageId: '/extensions/releases' }
+      ]
+    },
+    {
+      // 应用商城独立一级菜单：主题 / 插件货架，与本地扩展管理分离
+      type: 'folder',
+      labelKey: 'admin.nav.extensionStore',
+      icon: 'i-lucide-store',
+      children: [
+        { type: 'page', pageId: '/extensions/store/themes' },
+        { type: 'page', pageId: '/extensions/store/plugins' }
       ]
     },
     {
