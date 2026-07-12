@@ -4,17 +4,78 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // memoryRedis 极简 INCR/EXISTS/SET/DEL/EXPIRE 模拟，避免为测试引入 miniredis。
 type memoryRedis struct {
-	mu    sync.Mutex
-	vals  map[string]string
+	mu     sync.Mutex
+	vals   map[string]string
 	counts map[string]int64
+	err    error
+}
+
+func (m *memoryRedis) Exists(_ context.Context, keys ...string) *redis.IntCmd {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.err != nil {
+		return redis.NewIntResult(0, m.err)
+	}
+	var count int64
+	for _, key := range keys {
+		if _, ok := m.vals[key]; ok {
+			count++
+		}
+	}
+	return redis.NewIntResult(count, nil)
+}
+
+func (m *memoryRedis) Incr(_ context.Context, key string) *redis.IntCmd {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.err != nil {
+		return redis.NewIntResult(0, m.err)
+	}
+	m.counts[key]++
+	return redis.NewIntResult(m.counts[key], nil)
+}
+
+func (m *memoryRedis) Expire(context.Context, string, time.Duration) *redis.BoolCmd {
+	return redis.NewBoolResult(true, m.err)
+}
+
+func (m *memoryRedis) Set(_ context.Context, key string, value any, _ time.Duration) *redis.StatusCmd {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.err != nil {
+		return redis.NewStatusResult("", m.err)
+	}
+	m.vals[key] = fmt.Sprint(value)
+	return redis.NewStatusResult("OK", nil)
+}
+
+func (m *memoryRedis) Del(_ context.Context, keys ...string) *redis.IntCmd {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.err != nil {
+		return redis.NewIntResult(0, m.err)
+	}
+	var count int64
+	for _, key := range keys {
+		if _, ok := m.vals[key]; ok {
+			delete(m.vals, key)
+			count++
+		}
+		delete(m.counts, key)
+	}
+	return redis.NewIntResult(count, nil)
 }
 
 func newMemoryRedis() *memoryRedis {
@@ -49,7 +110,7 @@ func TestRedisKeyShapesUseHashesOnly(t *testing.T) {
 	keys := []string{
 		pairFailKey(lh, ih), pairLockKey(lh, ih),
 		ipFailKey(ih), ipLockKey(ih),
-		accountFailKey(lh), accountLockKey(lh),
+		accountFailKey(lh), accountVerificationKey(lh),
 	}
 	for _, k := range keys {
 		if strings.Contains(k, login) || strings.Contains(k, "victim") || strings.Contains(k, "@") {
@@ -61,8 +122,8 @@ func TestRedisKeyShapesUseHashesOnly(t *testing.T) {
 	}
 }
 
-func TestThresholdPolicyAccountHigherThanPair(t *testing.T) {
-	// 文档化阈值关系：账号硬锁门槛高于 pair。
+func TestThresholdPolicyAccountVerificationHigherThanPair(t *testing.T) {
+	// 账号阈值只触发验证，不产生 account lock。
 	max := 5
 	pairMax := max
 	ipMax := max * 5
@@ -75,6 +136,52 @@ func TestThresholdPolicyAccountHigherThanPair(t *testing.T) {
 	}
 	if !(pairMax < accountMax && pairMax < ipMax) {
 		t.Fatalf("pair=%d account=%d ip=%d", pairMax, accountMax, ipMax)
+	}
+}
+
+func TestDistributedFailuresRequireVerificationWithoutAccountLock(t *testing.T) {
+	client := newMemoryRedis()
+	lockout := &LoginLockout{client: client}
+	for i := 0; i < 6; i++ {
+		ip := fmt.Sprintf("203.0.113.%d", i+1)
+		if err := lockout.RecordFailure(context.Background(), "victim@example.com", ip, 2, 15*time.Minute); err != nil {
+			t.Fatal(err)
+		}
+	}
+	locked, err := lockout.IsLocked(context.Background(), "victim@example.com", "198.51.100.10")
+	if err != nil || locked {
+		t.Fatalf("fresh source must not be account-locked: locked=%v err=%v", locked, err)
+	}
+	required, err := lockout.RequiresVerification(context.Background(), "victim@example.com")
+	if err != nil || !required {
+		t.Fatalf("distributed failures must require verification: required=%v err=%v", required, err)
+	}
+}
+
+func TestPairAndIPLocksRemainEffective(t *testing.T) {
+	client := newMemoryRedis()
+	lockout := &LoginLockout{client: client}
+	for i := 0; i < 2; i++ {
+		_ = lockout.RecordFailure(context.Background(), "victim@example.com", "203.0.113.10", 2, time.Minute)
+	}
+	locked, err := lockout.IsLocked(context.Background(), "victim@example.com", "203.0.113.10")
+	if err != nil || !locked {
+		t.Fatalf("pair must lock: locked=%v err=%v", locked, err)
+	}
+}
+
+func TestLoginLockoutRedisFailureFailsOpen(t *testing.T) {
+	lockout := &LoginLockout{client: &memoryRedis{vals: map[string]string{}, counts: map[string]int64{}, err: errors.New("redis down")}}
+	locked, err := lockout.IsLocked(context.Background(), "victim", "203.0.113.10")
+	if err != nil || locked {
+		t.Fatalf("redis failure must fail open: locked=%v err=%v", locked, err)
+	}
+	required, err := lockout.RequiresVerification(context.Background(), "victim")
+	if err != nil || required {
+		t.Fatalf("verification state must fail open: required=%v err=%v", required, err)
+	}
+	if err := lockout.RecordFailure(context.Background(), "victim", "203.0.113.10", 2, time.Minute); err != nil {
+		t.Fatalf("record failure must fail open: %v", err)
 	}
 }
 

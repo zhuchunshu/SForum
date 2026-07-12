@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AltchaWidgetElement } from 'altcha'
 import type { CurrentUser } from '~/composables/useAuthSession'
 
 definePageMeta({ layout: 'auth', middleware: 'guest' })
@@ -6,10 +7,10 @@ definePageMeta({ layout: 'auth', middleware: 'guest' })
 const { t, locale } = useI18n()
 const toast = useToast()
 const localePath = useLocalePath()
-const { request } = useApiClient()
+const { apiBaseUrl, request } = useApiClient()
 const { setUser } = useAuthSession()
 const { returnFromAuth, authPageLink } = useAuthReturnNavigation()
-const { siteName, siteTagline } = useWebOptions()
+const { siteName, siteTagline, altchaWidgetSettings } = useWebOptions()
 // 有副标题时优先展示运营配置的标语，否则回退到内置品牌文案。
 const brandDescription = computed(() => siteTagline.value || t('auth.brandDesc'))
 
@@ -33,6 +34,15 @@ const form = reactive({
 })
 const submitting = ref(false)
 const errorMessage = ref('')
+const humanVerificationRequired = ref(false)
+const humanVerificationToken = ref('')
+const altchaWidget = ref<AltchaWidgetElement | null>(null)
+const altchaChallengeUrl = computed(() => `${apiBaseUrl}/human-verification/challenge?purpose=login_risk`)
+const altchaConfiguration = computed(() => JSON.stringify({
+  hideLogo: altchaWidgetSettings.value.hideLogo,
+  hideFooter: altchaWidgetSettings.value.hideFooter,
+  minDuration: altchaWidgetSettings.value.minDuration
+}))
 
 useSeoMeta({
   title: t('auth.loginTitle')
@@ -48,21 +58,59 @@ function loginSuccessTitle() {
     : '登录成功，欢迎回来。'
 }
 
+function handleAltchaVerified(event: Event) {
+  const detail = (event as CustomEvent<{ payload?: string }>).detail
+  humanVerificationToken.value = detail?.payload || ''
+}
+
+function handleAltchaStateChange(event: Event) {
+  const detail = (event as CustomEvent<{ state?: string, payload?: string }>).detail
+  if (detail?.state === 'verified' && detail.payload) {
+    humanVerificationToken.value = detail.payload
+    return
+  }
+  if (detail?.state === 'expired' || detail?.state === 'error' || detail?.state === 'unverified') {
+    humanVerificationToken.value = ''
+  }
+}
+
+function resetHumanVerification() {
+  humanVerificationToken.value = ''
+  altchaWidget.value?.reset()
+}
+
 async function submitLogin() {
   errorMessage.value = ''
   submitting.value = true
   let currentUser: CurrentUser
+  const submittedHumanVerificationToken = humanVerificationToken.value
+  const body: Record<string, unknown> = {
+    login: form.login,
+    password: form.password
+  }
+  if (humanVerificationRequired.value) {
+    body.humanVerification = {
+      provider: 'altcha',
+      token: submittedHumanVerificationToken
+    }
+  }
 
   try {
     currentUser = await request<CurrentUser>('/auth/login', {
       method: 'POST',
-      body: {
-        login: form.login,
-        password: form.password
-      }
+      body
     })
   } catch (error) {
-    errorMessage.value = apiErrorMessage(error) || t('errors.loginFailed')
+    const reason = apiErrorReason(error)
+    if (reason === 'human_verification.required') {
+      humanVerificationRequired.value = true
+      errorMessage.value = t('errors.humanVerificationRequired')
+    } else {
+      errorMessage.value = apiErrorMessage(error) || t('errors.loginFailed')
+    }
+    if (humanVerificationRequired.value && submittedHumanVerificationToken) {
+      resetHumanVerification()
+    }
     return
   } finally {
     submitting.value = false
@@ -188,6 +236,34 @@ async function submitLogin() {
               autocomplete="current-password"
               required
             />
+          </div>
+
+          <div v-if="humanVerificationRequired" class="auth-field">
+            <label id="login-human-verification-label" class="auth-label">
+              {{ t('auth.humanVerification') }}
+            </label>
+            <ClientOnly>
+              <altcha-widget
+                ref="altchaWidget"
+                class="auth-altcha"
+                :challenge="altchaChallengeUrl"
+                :configuration="altchaConfiguration"
+                :auto="altchaWidgetSettings.auto"
+                :display="altchaWidgetSettings.display"
+                :language="locale === 'zh-CN' ? 'zh-cn' : 'en'"
+                :type="altchaWidgetSettings.type"
+                :workers="altchaWidgetSettings.workers"
+                aria-labelledby="login-human-verification-label"
+                @verified="handleAltchaVerified"
+                @expired="resetHumanVerification"
+                @statechange="handleAltchaStateChange"
+              />
+              <template #fallback>
+                <div class="auth-altcha-fallback">
+                  {{ t('auth.humanVerificationLoading') }}
+                </div>
+              </template>
+            </ClientOnly>
           </div>
 
           <button class="auth-btn" type="submit" :disabled="submitting">

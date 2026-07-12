@@ -20,7 +20,15 @@ import (
 //
 // Redis 故障时 fail open：不阻断合法登录，仅跳过节流。
 type LoginLockout struct {
-	client *redis.Client
+	client loginRedis
+}
+
+type loginRedis interface {
+	Exists(ctx context.Context, keys ...string) *redis.IntCmd
+	Incr(ctx context.Context, key string) *redis.IntCmd
+	Expire(ctx context.Context, key string, expiration time.Duration) *redis.BoolCmd
+	Set(ctx context.Context, key string, value any, expiration time.Duration) *redis.StatusCmd
+	Del(ctx context.Context, keys ...string) *redis.IntCmd
 }
 
 func NewLoginLockout(client *redis.Client) *LoginLockout {
@@ -30,7 +38,7 @@ func NewLoginLockout(client *redis.Client) *LoginLockout {
 	return &LoginLockout{client: client}
 }
 
-// IsLocked 任一维度达到锁定则拒绝（消息仍为通用 auth.login_locked，防枚举）。
+// IsLocked 只检查 pair/IP 硬限制；账号累计失败不得锁死所有来源。
 func (l *LoginLockout) IsLocked(ctx context.Context, loginKey, clientIP string) (bool, error) {
 	if l == nil || l.client == nil {
 		return false, nil
@@ -40,15 +48,12 @@ func (l *LoginLockout) IsLocked(ctx context.Context, loginKey, clientIP string) 
 	if loginHash == "" && ipHash == "" {
 		return false, nil
 	}
-	keys := make([]string, 0, 3)
+	keys := make([]string, 0, 2)
 	if loginHash != "" && ipHash != "" {
 		keys = append(keys, pairLockKey(loginHash, ipHash))
 	}
 	if ipHash != "" {
 		keys = append(keys, ipLockKey(ipHash))
-	}
-	if loginHash != "" {
-		keys = append(keys, accountLockKey(loginHash))
 	}
 	if len(keys) == 0 {
 		return false, nil
@@ -61,8 +66,23 @@ func (l *LoginLockout) IsLocked(ctx context.Context, loginKey, clientIP string) 
 	return n > 0, nil
 }
 
+func (l *LoginLockout) RequiresVerification(ctx context.Context, loginKey string) (bool, error) {
+	if l == nil || l.client == nil {
+		return false, nil
+	}
+	loginHash := hashID(loginKey)
+	if loginHash == "" {
+		return false, nil
+	}
+	n, err := l.client.Exists(ctx, accountVerificationKey(loginHash)).Result()
+	if err != nil {
+		return false, nil
+	}
+	return n > 0, nil
+}
+
 // RecordFailure 写入分层计数；阈值相对 policy.MaxFailures：
-// pair = max，IP = max*5，account = max*3（账号硬锁门槛更高）。
+// pair = max，IP = max*5，account = max*3（账号仅要求验证，不硬锁）。
 func (l *LoginLockout) RecordFailure(ctx context.Context, loginKey, clientIP string, maxFailures int, lockout time.Duration) error {
 	if l == nil || l.client == nil || maxFailures <= 0 || lockout <= 0 {
 		return nil
@@ -95,7 +115,7 @@ func (l *LoginLockout) RecordFailure(ctx context.Context, loginKey, clientIP str
 			return nil
 		}
 	}
-	// 账号级：更高阈值，避免单 IP 低阈值拖垮受害者其它来源
+	// 账号级只设置验证标记，不参与 IsLocked；分布式来源不能锁死正确密码。
 	if loginHash != "" {
 		// 账号锁 TTL 可略短，鼓励其它可信来源恢复
 		acctTTL := lockout
@@ -105,7 +125,7 @@ func (l *LoginLockout) RecordFailure(ctx context.Context, loginKey, clientIP str
 				acctTTL = 5 * time.Minute
 			}
 		}
-		if err := l.bump(ctx, accountFailKey(loginHash), accountLockKey(loginHash), accountMax, acctTTL); err != nil {
+		if err := l.bump(ctx, accountFailKey(loginHash), accountVerificationKey(loginHash), accountMax, acctTTL); err != nil {
 			return nil
 		}
 	}
@@ -123,8 +143,8 @@ func (l *LoginLockout) ClearFailures(ctx context.Context, loginKey, clientIP str
 		keys = append(keys, pairFailKey(loginHash, ipHash), pairLockKey(loginHash, ipHash))
 	}
 	if loginHash != "" {
-		// 成功登录清除该账号计数与锁（IP 计数保留，防喷洒）。
-		keys = append(keys, accountFailKey(loginHash), accountLockKey(loginHash))
+		// 成功登录清除账号风险（IP 计数保留，防喷洒）。
+		keys = append(keys, accountFailKey(loginHash), accountVerificationKey(loginHash))
 	}
 	if len(keys) == 0 {
 		return nil
@@ -176,15 +196,15 @@ func pairFailKey(loginHash, ipHash string) string {
 func pairLockKey(loginHash, ipHash string) string {
 	return "sforum:login_lock:pair:" + loginHash + ":" + ipHash
 }
-func ipFailKey(ipHash string) string  { return "sforum:login_fail:ip:" + ipHash }
-func ipLockKey(ipHash string) string  { return "sforum:login_lock:ip:" + ipHash }
-func accountFailKey(h string) string  { return "sforum:login_fail:acct:" + h }
-func accountLockKey(h string) string  { return "sforum:login_lock:acct:" + h }
+func ipFailKey(ipHash string) string         { return "sforum:login_fail:ip:" + ipHash }
+func ipLockKey(ipHash string) string         { return "sforum:login_lock:ip:" + ipHash }
+func accountFailKey(h string) string         { return "sforum:login_fail:acct:" + h }
+func accountVerificationKey(h string) string { return "sforum:login_verify:acct:" + h }
 
 // 兼容旧接口测试：仅账号维度时仍可用空 IP（记为 unknown）。
 func failKey(login string) string {
 	return accountFailKey(hashID(login))
 }
 func lockKey(login string) string {
-	return accountLockKey(hashID(login))
+	return accountVerificationKey(hashID(login))
 }

@@ -18,6 +18,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
+	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -340,6 +341,107 @@ func newSessionTestApp(t *testing.T) (*fiber.App, *sessionTestStore) {
 		RouteProviders: []apphttp.RouteProvider{controller},
 	})
 	return app, store
+}
+
+type loginRiskTestLockout struct {
+	required bool
+}
+
+func (l *loginRiskTestLockout) IsLocked(context.Context, string, string) (bool, error) {
+	return false, nil
+}
+
+func (l *loginRiskTestLockout) RequiresVerification(context.Context, string) (bool, error) {
+	return l.required, nil
+}
+
+func (*loginRiskTestLockout) RecordFailure(context.Context, string, string, int, time.Duration) error {
+	return nil
+}
+
+func (l *loginRiskTestLockout) ClearFailures(context.Context, string, string) error {
+	l.required = false
+	return nil
+}
+
+type loginRiskTestPolicy struct{}
+
+func (loginRiskTestPolicy) LoginLockoutPolicy(context.Context) (identity.LoginLockoutPolicy, error) {
+	return identity.LoginLockoutPolicy{MaxFailures: 5, LockoutMinutes: 15}, nil
+}
+
+func newLoginRiskTestApp(t *testing.T) (*fiber.App, *identity.Service, *loginRiskTestLockout) {
+	t.Helper()
+	store := newSessionTestStore()
+	service := identity.NewService(store)
+	lockout := &loginRiskTestLockout{}
+	service.WithLoginLockout(lockout, loginRiskTestPolicy{})
+	manager := authsession.NewManager(
+		session.NewStore(session.Config{IdleTimeout: time.Hour}),
+		authsession.Config{HashSecret: "test-secret", SessionStore: store},
+	)
+	verifier := humanverify.NewService(
+		humanverify.ServiceConfig{
+			Enabled:         true,
+			EnabledPurposes: map[humanverify.Purpose]bool{humanverify.PurposeLoginRisk: true},
+		},
+		fakeAltchaProvider{},
+		nil,
+	)
+	controller := NewControllerWithAuthSessions(service, manager, verifier)
+	app := apphttp.NewApp(config.Config{CSRFEnabled: false}, nil, apphttp.Dependencies{
+		RouteProviders: []apphttp.RouteProvider{controller},
+	})
+	return app, service, lockout
+}
+
+func performLogin(t *testing.T, app *fiber.App, body map[string]any) *nethttp.Response {
+	t.Helper()
+	payload, err := json.Marshal(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/auth/login", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("login request failed: %v", err)
+	}
+	return resp
+}
+
+func TestLoginRiskVerificationRecovery(t *testing.T) {
+	app, _, lockout := newLoginRiskTestApp(t)
+	_ = registerAndLogin(t, app)
+	lockout.required = true
+
+	wrong := performLogin(t, app, map[string]any{
+		"login": "alice", "password": "wrong password",
+	})
+	wrong.Body.Close()
+	if wrong.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("wrong password must stay generic, got %d", wrong.StatusCode)
+	}
+
+	missing := performLogin(t, app, map[string]any{
+		"login": "alice", "password": "correct horse battery staple",
+	})
+	missing.Body.Close()
+	if missing.StatusCode != nethttp.StatusUnprocessableEntity {
+		t.Fatalf("missing verification must be rejected, got %d", missing.StatusCode)
+	}
+
+	valid := performLogin(t, app, map[string]any{
+		"login": "alice", "password": "correct horse battery staple",
+		"humanVerification": map[string]any{"provider": "altcha", "token": "valid-token"},
+	})
+	valid.Body.Close()
+	if valid.StatusCode != nethttp.StatusOK {
+		t.Fatalf("valid verification must recover login, got %d", valid.StatusCode)
+	}
+	if lockout.required {
+		t.Fatal("successful recovery must clear account risk")
+	}
 }
 
 // registerAndLogin 注册一个用户并登录，返回会话 cookie 供后续请求。

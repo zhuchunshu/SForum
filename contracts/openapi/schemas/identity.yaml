@@ -267,6 +267,9 @@ LoginRequest:
     password:
       type: string
       format: password
+    humanVerification:
+      "$ref": "#/HumanVerification"
+      description: Required only after the account-level risk threshold is reached and the password is correct.
 Role:
   type: object
   required:

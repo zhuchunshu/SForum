@@ -105,8 +105,9 @@ type registerRequest struct {
 }
 
 type loginRequest struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
+	Login             string                   `json:"login"`
+	Password          string                   `json:"password"`
+	HumanVerification humanVerificationRequest `json:"humanVerification"`
 }
 
 type humanVerificationRequest struct {
@@ -196,11 +197,24 @@ func (h *Controller) login(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
 
-	current, err := h.service.Login(c.Context(), identity.LoginInput{
+	loginInput := identity.LoginInput{
 		Login:    req.Login,
 		Password: req.Password,
 		ClientIP: clientip.FromCtx(c),
-	})
+	}
+	current, err := h.service.Login(c.Context(), loginInput)
+	if errors.Is(err, identity.ErrLoginVerificationRequired) {
+		if verifyErr := h.verifier.Verify(c.Context(), humanverify.VerifyRequest{
+			Provider: req.HumanVerification.Provider,
+			Purpose:  humanverify.PurposeLoginRisk,
+			Token:    req.HumanVerification.Token,
+			IP:       loginInput.ClientIP,
+		}); verifyErr != nil {
+			return mapHumanVerificationError(verifyErr)
+		}
+		loginInput.HumanVerified = true
+		current, err = h.service.Login(c.Context(), loginInput)
+	}
 	if err != nil {
 		return mapIdentityError(err)
 	}
@@ -763,6 +777,8 @@ func mapIdentityError(err error) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "auth.invalid_credentials")
 	case errors.Is(err, identity.ErrLoginLocked):
 		return fiber.NewError(fiber.StatusTooManyRequests, identity.CodeLoginLocked)
+	case errors.Is(err, identity.ErrLoginVerificationRequired):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "human_verification.required")
 	case errors.Is(err, identity.ErrRegistrationDisabled):
 		// 关闭开放注册：403 + 稳定错误码，便于前端展示“注册已关闭”。
 		return fiber.NewError(fiber.StatusForbidden, identity.CodeRegisterDisabled)

@@ -37,6 +37,15 @@ describe('auth route rendering', () => {
     }
   })
 
+  test('offers a login-risk verification recovery flow after account-level failures', () => {
+    const loginPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/login.vue', import.meta.url), 'utf8')
+
+    expect(loginPage).toContain("purpose=login_risk")
+    expect(loginPage).toContain("reason === 'human_verification.required'")
+    expect(loginPage).toContain('body.humanVerification = {')
+    expect(loginPage).toContain('<altcha-widget')
+  })
+
   test('preserves explicit return targets when switching between auth forms', () => {
     const loginPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/login.vue', import.meta.url), 'utf8')
     const registerPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/register.vue', import.meta.url), 'utf8')

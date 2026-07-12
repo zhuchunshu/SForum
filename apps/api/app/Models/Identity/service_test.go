@@ -564,6 +564,39 @@ func TestLoginRejectsDisabledUser(t *testing.T) {
 	}
 }
 
+func TestLoginRiskVerificationAllowsCorrectPasswordRecovery(t *testing.T) {
+	service, _ := newTestService(t)
+	ctx := testContext(t)
+	registered, err := service.Register(ctx, RegisterInput{
+		Username: "victim", Email: "victim@example.com", Password: "correct horse battery staple",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockout := &fakeLoginLockout{verificationRequired: true}
+	service.WithLoginLockout(lockout, staticLoginLockoutPolicy{})
+
+	_, err = service.Login(ctx, LoginInput{Login: "victim", Password: "wrong password", ClientIP: "198.51.100.10"})
+	if !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("wrong password must remain generic, got %v", err)
+	}
+
+	_, err = service.Login(ctx, LoginInput{Login: "victim", Password: "correct horse battery staple", ClientIP: "198.51.100.10"})
+	if !errors.Is(err, ErrLoginVerificationRequired) {
+		t.Fatalf("correct password should require verification, got %v", err)
+	}
+
+	current, err := service.Login(ctx, LoginInput{
+		Login: "victim", Password: "correct horse battery staple", ClientIP: "198.51.100.10", HumanVerified: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.ID != registered.ID || lockout.clearCalls != 1 {
+		t.Fatalf("recovery current=%#v clearCalls=%d", current, lockout.clearCalls)
+	}
+}
+
 func TestRecordLoginAuditDelegatesToStore(t *testing.T) {
 	service, store := newTestService(t)
 
@@ -665,6 +698,38 @@ func (p *fakeIdentityEventPublisher) envelope(name string) (appevents.Envelope, 
 func testContext(t *testing.T) context.Context {
 	t.Helper()
 	return context.Background()
+}
+
+type staticLoginLockoutPolicy struct{}
+
+func (staticLoginLockoutPolicy) LoginLockoutPolicy(context.Context) (LoginLockoutPolicy, error) {
+	return LoginLockoutPolicy{MaxFailures: 2, LockoutMinutes: 15}, nil
+}
+
+type fakeLoginLockout struct {
+	locked               bool
+	verificationRequired bool
+	recordCalls          int
+	clearCalls           int
+}
+
+func (f *fakeLoginLockout) IsLocked(context.Context, string, string) (bool, error) {
+	return f.locked, nil
+}
+
+func (f *fakeLoginLockout) RequiresVerification(context.Context, string) (bool, error) {
+	return f.verificationRequired, nil
+}
+
+func (f *fakeLoginLockout) RecordFailure(context.Context, string, string, int, time.Duration) error {
+	f.recordCalls++
+	return nil
+}
+
+func (f *fakeLoginLockout) ClearFailures(context.Context, string, string) error {
+	f.clearCalls++
+	f.verificationRequired = false
+	return nil
 }
 
 type fakeStore struct {

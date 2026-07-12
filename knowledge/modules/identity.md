@@ -94,6 +94,12 @@ Initial identity foundation is implemented.
   `identity.password.*` options. Username length/charset/reserved names use
   `identity.username.*`. Login consecutive failures can lock via Redis using
   `identity.login.max_failures` and `identity.login.lockout_minutes`.
+  The pair and IP dimensions retain temporary hard locks. Distributed failures
+  against one account only set a short-lived verification marker at the higher
+  account threshold; they never hard-lock every source. After the password is
+  verified, the API requires the `login_risk` challenge before clearing that
+  account risk. Redis keys contain only hashed login/IP identifiers and Redis
+  failures remain fail-open.
   Registration and password reset confirmation
   share the same backend `PasswordPolicy` validator; password hashing only owns
   Argon2id hashing and no longer hard-codes product policy.
@@ -149,6 +155,9 @@ Initial identity foundation is implemented.
   password-reset checks.
 - Do not challenge every login by default; require human verification for login
   only after suspicious failure patterns.
+- Never use the account-wide failure counter as a hard lock. Pair/IP limits own
+  brute-force blocking; the account dimension owns step-up verification so a
+  distributed attacker cannot deny all legitimate login sources.
 - Store challenge replay protection and rate-limit state in Redis.
 - Do not introduce access/refresh JWT for first-party browser forum sessions.
   If SForum later ships mobile apps or third-party API access, use short-lived

@@ -46,9 +46,11 @@ const (
 )
 
 var (
-	ErrInvalidCredentials         = errors.New("identity: invalid credentials")
+	ErrInvalidCredentials = errors.New("identity: invalid credentials")
 	// ErrLoginLocked 连续登录失败触发临时锁定。
 	ErrLoginLocked = errors.New("identity: login temporarily locked")
+	// ErrLoginVerificationRequired 密码正确，但账号累计风险要求额外人机验证。
+	ErrLoginVerificationRequired = errors.New("identity: login verification required")
 	// ErrRegistrationDisabled 表示运营已关闭开放注册，且当前不在首用户 bootstrap 窗口。
 	ErrRegistrationDisabled       = errors.New("identity: registration disabled")
 	ErrCredentialNotFound         = errors.New("identity: credential not found")
