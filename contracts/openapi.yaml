@@ -242,6 +242,18 @@ paths:
     "$ref": "./openapi/paths/site_chrome.yaml#/siteAnnouncements"
   "/site/active-theme/settings":
     "$ref": "./openapi/paths/extensions.yaml#/siteActiveThemeSettings"
+  "/site/active-theme/skin":
+    "$ref": "./openapi/paths/pages.yaml#/siteActiveThemeSkin"
+  "/pages/catalog":
+    "$ref": "./openapi/paths/pages.yaml#/pagesCatalog"
+  "/pages/resolve":
+    "$ref": "./openapi/paths/pages.yaml#/pagesResolve"
+  "/admin/pages":
+    "$ref": "./openapi/paths/pages.yaml#/adminPages"
+  "/admin/pages/{pageId}/approve":
+    "$ref": "./openapi/paths/pages.yaml#/adminPageApprove"
+  "/admin/pages/{pageId}/restore-core":
+    "$ref": "./openapi/paths/pages.yaml#/adminPageRestoreCore"
   "/admin/site/nav-items":
     "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavItems"
   "/admin/site/nav-items/{itemID}":

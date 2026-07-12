@@ -47,7 +47,7 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
 	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
-	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 	webreleasecoordinator "github.com/zhuchunshu/sforum/apps/api/app/Support/WebReleaseCoordinator"
 	webreleaseruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/WebReleaseRuntime"
 	"github.com/zhuchunshu/sforum/apps/api/config"
@@ -219,14 +219,15 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	)
 	frontendService := extensions.NewFrontendService(extensionStore, frontendTrustStore, webReleaseService, webReleaseStore, hostComposition)
 	webReleaseAdminService := extensions.NewWebReleaseAdminService(webReleaseStore, webReleaseService)
-	// API 进程同步路径（恢复默认主题）也需要写 current.json。
-	// 这里构造一个仅用于 WriteCurrent 的 builder，不参与主题构建（构建仍由 worker 完成）。
-	themeCurrentWriter := themeruntime.NewBuilder(themeruntime.Config{ReleaseRoot: cfg.ThemeReleaseRoot})
+	// Page Registry：运行时主题 L0/L1，主题激活不重建 Nuxt、不写 current.json。
+	pageRegistryStore := pages.NewPostgresStore(pool)
+	pageRegistry := pages.NewRegistry(pageRegistryStore)
+	pageRegistryAdapter := extensions.NewPageRegistryAdapter(pageRegistry)
 	// 先构造带 Cipher 的 Service，插件启动与 Host API 才能共享同一个解密设置源。
+	// themeDispatcher 保留构造签名兼容；ActivateTheme 同步路径不再 enqueue theme_activate。
 	extensionService := extensions.NewServiceWithThemeActivationWithOptions(
 		extensionStore, cfg.ExtensionRoot, cfg.BuiltinExtensionRoot,
 		nil, nil, themeDispatcher,
-		extensions.WithThemeCurrentWriter(themeCurrentWriter),
 		extensions.WithWebReleaseLifecycle(frontendService, webReleaseService),
 		extensions.WithWebReleaseProgress(webReleaseStore),
 		extensions.WithAuditor(auditWriter),
@@ -238,6 +239,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		extensions.WithCipher(optionCipher),
 		// E6.1：禁用声明存储槽位的插件时，attachment.provider 从 plugin:<id> 回落 local。
 		extensions.WithStorageSelectionClearer(attachmentService),
+		// 运行时 Page Registry（主题激活同步注册页面贡献）。
+		extensions.WithPageRegistry(pageRegistryAdapter),
 	)
 	// F2.2 Host API 与 ProtocolStarter 共用 extensionService；错误密钥不得降级读取 store。
 	hostAPIService := hostapi.New(hostapi.Config{
@@ -396,6 +399,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	jobsProvider := providers.NewJobsProvider(pool, jobClient, identityStore, authSessions)
 	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService, webReleaseAdminService)
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
+	pagesProvider := providers.NewPagesProviderWithThemes(pageRegistry, identityStore, authSessions, extensionStore)
 
 	// F4.4：实体自定义字段（EAV，无 per-plugin core ALTER）。
 	entityMetaService := entitymeta.NewService(entitymeta.NewPostgresStore(pool)).WithPublisher(eventPublisher)
@@ -412,7 +416,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	}
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{
-		RouteProviders: []httpserver.RouteProvider{identityProvider, notificationsProvider, mailProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, siteChromeProvider, attachmentsProvider, seoProvider, databaseProvider, jobsProvider, extensionsProvider, webhooksProvider, entityMetaProvider},
+		RouteProviders: []httpserver.RouteProvider{identityProvider, notificationsProvider, mailProvider, adminOverviewProvider, forumProvider, profileProvider, moderationProvider, optionsProvider, siteChromeProvider, attachmentsProvider, seoProvider, databaseProvider, jobsProvider, extensionsProvider, webhooksProvider, entityMetaProvider, pagesProvider},
 		Options:        optionsService,
 		Storage:        redisStorage,
 		Ready:          readyEvaluate,

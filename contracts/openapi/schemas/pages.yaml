@@ -1,0 +1,97 @@
+PageDefinition:
+  type: object
+  required: [id, pathPattern, access, contractVersion, coreComponent, replaceable]
+  properties:
+    id: { type: string }
+    pathPattern: { type: string }
+    access: { type: string, enum: [public, login, guest, moderation] }
+    contractVersion: { type: string }
+    coreComponent: { type: string }
+    replaceable: { type: boolean }
+    requiresFeatures: { type: array, items: { type: string } }
+    notes: { type: string }
+
+PageResolve:
+  type: object
+  required: [page, provider, action, fallback]
+  properties:
+    page: { "$ref": "#/PageDefinition" }
+    provider: { type: string }
+    extensionId: { type: string }
+    action: { type: string }
+    fallback: { type: boolean }
+
+AdminPageListItem:
+  type: object
+  required: [page, provider]
+  properties:
+    page: { "$ref": "#/PageDefinition" }
+    provider: { type: string }
+    extensionId: { type: string }
+    contributionId: { type: string }
+    candidates: { type: array, items: { type: object, additionalProperties: true } }
+
+PageApproveRequest:
+  type: object
+  required: [extensionId, contributionId]
+  properties:
+    extensionId: { type: string }
+    contributionId: { type: string }
+    version: { type: string }
+    packageDigest: { type: string }
+    templatePath: { type: string }
+
+PageProviderMutation:
+  type: object
+  properties:
+    pageId: { type: string }
+    provider: { type: string }
+
+ActiveThemeSkin:
+  type: object
+  required: [css]
+  properties:
+    extensionId: { type: string }
+    version: { type: string }
+    css: { type: array, items: { type: string } }
+    tokens: { type: string }
+
+ApiResponsePageCatalog:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { type: array, items: { "$ref": "#/PageDefinition" } }
+
+ApiResponsePageResolve:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/PageResolve" }
+
+ApiResponseAdminPageList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { type: array, items: { "$ref": "#/AdminPageListItem" } }
+
+ApiResponseActiveThemeSkin:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/ActiveThemeSkin" }
+
+ApiResponsePageProviderMutation:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data: { "$ref": "#/PageProviderMutation" }

@@ -1,0 +1,116 @@
+pagesCatalog:
+  get:
+    summary: Public page catalog
+    operationId: getPagesCatalog
+    tags: [Pages]
+    description: Lists core public page definitions (stable ids and path patterns).
+    responses:
+      '200':
+        description: Page catalog list.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/pages.yaml#/ApiResponsePageCatalog"
+
+pagesResolve:
+  get:
+    summary: Resolve page provider
+    operationId: resolvePage
+    tags: [Pages]
+    parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: string
+          example: forum.home
+    responses:
+      '200':
+        description: Resolved page provider (core or extension).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/pages.yaml#/ApiResponsePageResolve"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+
+siteActiveThemeSkin:
+  get:
+    summary: Active theme L0 skin asset URLs
+    operationId: getSiteActiveThemeSkin
+    tags: [Pages]
+    responses:
+      '200':
+        description: CSS and token URLs for the active theme skin.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/pages.yaml#/ApiResponseActiveThemeSkin"
+
+adminPages:
+  get:
+    summary: Admin page provider list
+    operationId: listAdminPages
+    tags: [Pages]
+    responses:
+      '200':
+        description: Core pages with active provider and candidates.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/pages.yaml#/ApiResponseAdminPageList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+
+adminPageApprove:
+  post:
+    summary: Approve core page replace
+    operationId: approveAdminPageReplace
+    tags: [Pages]
+    description: super_admin only. Binds extension contribution as provider for a replaceable core page.
+    parameters:
+      - "$ref": "../components/parameters.yaml#/PageID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/pages.yaml#/PageApproveRequest"
+    responses:
+      '200':
+        description: Approval recorded.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/pages.yaml#/ApiResponsePageProviderMutation"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        "$ref": "../components/responses.yaml#/UnprocessableEntity"
+
+adminPageRestoreCore:
+  post:
+    summary: Restore core page provider
+    operationId: restoreAdminPageCore
+    tags: [Pages]
+    parameters:
+      - "$ref": "../components/parameters.yaml#/PageID"
+    responses:
+      '200':
+        description: Provider restored to core.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/pages.yaml#/ApiResponsePageProviderMutation"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"

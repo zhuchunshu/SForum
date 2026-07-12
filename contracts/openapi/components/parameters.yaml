@@ -45,6 +45,13 @@ ExtensionID:
   schema:
     type: string
   description: Stable extension id from sforum.extension.json.
+PageID:
+  name: pageId
+  in: path
+  required: true
+  schema:
+    type: string
+  description: Stable page registry id (for example forum.home).
 WebReleaseID:
   name: releaseID
   in: path

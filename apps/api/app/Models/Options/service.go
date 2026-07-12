@@ -839,6 +839,7 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	coerceAttachmentOptions(coerced, defaults)
 	coerceAvatarOptions(coerced, defaults)
 	coerceFeatureFlagOptions(coerced, defaults)
+	coercePagesRegistryOptions(coerced, defaults)
 	if value, ok := normalizeEnabledOption(coerced[NameWebReleaseTypecheckFail]); ok {
 		coerced[NameWebReleaseTypecheckFail] = value
 	} else {
@@ -1023,6 +1024,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 	mergeCommunityPolicyDefaults(values)
 	mergeSiteBrandDefaults(values)
 	mergeFeatureFlagDefaults(values)
+	mergePagesRegistryDefaults(values)
 	for name, value := range seoRecommendedDefaults() {
 		values[name] = value
 	}
@@ -1214,6 +1216,9 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeEnabledOption(value)
 	case NameWebReleaseTypecheckFail:
 		// Web Release typecheck 硬失败开关。
+		return normalizeEnabledOption(value)
+	case NamePagesRegistryEnabled, NameThemesRuntimeL0Enabled, NameThemesRuntimeL1Enabled, NameThemesLayerActivationEnabled:
+		// Page Registry / runtime theme dual-stack 开关。
 		return normalizeEnabledOption(value)
 	case NameForumTagMinPerTopic, NameForumTagMaxPerTopic:
 		return normalizeBoundedInt(value, forumTagMaxPerTopicMin, forumTagMaxPerTopicMax)
