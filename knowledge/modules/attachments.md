@@ -47,6 +47,17 @@ permissions for navigation and tab usability.
 - `reference_count > 0` blocks physical deletion. Referenced attachments can be
   disabled/hidden, but not physically removed by cleanup.
 
+## Provider Slot (F3.5)
+
+Host contract slot: `attachment.storage.provider` (`Support/Storage.ProviderSlot`).
+
+**Decision:** concrete drivers remain **in core** under `Support/Storage`
+(local, aliyun_oss, tencent_cos, ftp, sftp). Operators select the active driver
+via `attachment.provider` web option / admin settings; admin responses include
+`providerSlot` and `drivers[]` for UI and future plugin authors. A future
+plugin may implement the same slot only after a separate decision; v1 does not
+route Put/Open through plugin RPC.
+
 ## Runtime Configuration
 
 Attachment product configuration is stored in `web_options`, including the

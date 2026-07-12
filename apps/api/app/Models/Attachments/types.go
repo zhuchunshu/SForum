@@ -118,6 +118,10 @@ type ReadSeekCloser interface {
 }
 
 type AttachmentSettings struct {
+	// ProviderSlot 是宿主契约名 attachment.storage.provider（F3.5）。
+	ProviderSlot string `json:"providerSlot"`
+	// Drivers 列出 core 内置驱动；当前实现均在 Support/Storage 内。
+	Drivers                []string           `json:"drivers"`
 	Provider               string             `json:"provider"`
 	UploadEnabled          bool               `json:"uploadEnabled"`
 	PathTemplate           string             `json:"pathTemplate"`

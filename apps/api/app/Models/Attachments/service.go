@@ -411,6 +411,11 @@ func (s *Service) runtimeSettings(ctx context.Context) (AttachmentSettings, erro
 
 func (s *Service) adapterForSettings(settings AttachmentSettings, provider string) (storage.Adapter, error) {
 	config := storageConfig(settings)
+	// 统一经 slot 语义解析驱动 id；未知驱动拒绝，避免静默落到 local。
+	provider = storage.NormalizeProvider(provider)
+	if !storage.IsKnownDriver(provider) {
+		return nil, storage.ErrInvalidConfig
+	}
 	config.Provider = provider
 	return s.adapterFactory(config)
 }
@@ -658,8 +663,12 @@ func canViewAttachment(actor identity.Actor, attachment Attachment) bool {
 }
 
 func settingsFromValues(values map[string]string, secrets map[string]bool) AttachmentSettings {
+	provider := storage.NormalizeProvider(read(values, options.NameAttachmentProvider, storage.ProviderLocal))
 	return AttachmentSettings{
-		Provider:               read(values, options.NameAttachmentProvider, storage.ProviderLocal),
+		// F3.5：显式暴露 host slot 与内置驱动目录，便于 Admin/插件作者对齐契约。
+		ProviderSlot:           storage.ProviderSlot,
+		Drivers:                storage.DriverCatalog(),
+		Provider:               provider,
 		UploadEnabled:          enabled(values, options.NameAttachmentUploadEnabled, true),
 		PathTemplate:           read(values, options.NameAttachmentPathTemplate, "{yyyy}/{mm}/{dd}/{public_id}{ext}"),
 		PublicBaseURL:          read(values, options.NameAttachmentPublicBaseURL, ""),
