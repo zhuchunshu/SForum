@@ -4,11 +4,17 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-13 Fix `@nuxt/ui` “Could not load … Is it installed?”**
+  - Handoff: `knowledge/sessions/2026-07-13-nuxt-ui-module-load-fix.md`
+  - Cause: host-peer **directory** aliases broke Nuxt module load + `nuxt/app` exports
+  - Fix: admin-sdk file aliases only; npm peers via Vite resolve plugin
+
 - **2026-07-13 Admin host peer resolve** (no extension-source `node_modules`)
   - Plan: `knowledge/plans/2026-07-13-admin-host-peer-resolve.md`
   - Handoff: `knowledge/sessions/2026-07-13-admin-host-peer-resolve.md`
   - Host Vite/Nuxt aliases supply admin peers; compose prunes legacy peer trees
   - Web Release still links peers only inside the isolated workspace
+  - **Follow-up**: directory aliases for npm peers were unsafe; see nuxt-ui load fix
 
 - **2026-07-13 Runtime Page Registry P0–P5 complete**
   - Decision: `knowledge/decisions/2026-07-13-runtime-page-registry-themes.md`
