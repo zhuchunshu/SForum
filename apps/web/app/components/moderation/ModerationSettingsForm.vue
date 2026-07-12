@@ -85,7 +85,15 @@ async function resetSettings() {
         <span class="min-w-0">
           <span class="block text-sm font-semibold text-slate-800 dark:text-zinc-200">{{ t('admin.moderation.reviewNewUsers') }}</span>
           <span class="mt-1 block text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.moderation.reviewNewUsersDescription') }}</span>
-          <UInput v-if="form.reviewNewUsers" v-model.number="form.newUserMaxAgeDays" type="number" :min="0" :max="3650" class="mt-3 w-32" />
+          <UInput
+            v-if="form.reviewNewUsers"
+            v-model.number="form.newUserMaxAgeDays"
+            size="lg"
+            type="number"
+            :min="0"
+            :max="3650"
+            class="mt-3 w-full max-w-xs"
+          />
         </span>
       </label>
       <label class="flex items-start gap-3 border border-slate-200 p-4 dark:border-zinc-800">
