@@ -31,11 +31,16 @@ This is the entry point for project memory.
   - **P1 / P2 cancelled** (not needed for now); plan closed except optional
     manual T0.7 `pgrep` on dev
 
+- **2026-07-13 E6.1 complete** (storage selection + candidates + fallback)
+  - Handoff: `knowledge/sessions/2026-07-13-e6-1-storage-resolver-candidates.md`
+  - Decision: `knowledge/decisions/2026-07-12-attachment-storage-plugin-provider.md`
+  - Settings `candidates[]`; options accept `plugin:`; disable → `local`;
+    plugin Put/Open fail-closed until E6.2
+  - Next: **E6.2** chunked storage RPC + PluginStorageAdapter
+
 - **2026-07-12 E6.0 complete** (attachment storage plugin-provider decision)
   - Handoff: `knowledge/sessions/2026-07-12-e6-0-storage-provider-decision.md`
   - Decision: `knowledge/decisions/2026-07-12-attachment-storage-plugin-provider.md`
-  - Selection: `plugin:<extensionId>` helpers in `Support/Storage`
-  - Next: **E6.1** resolver + candidates + restore/fallback (no full RPC yet)
 
 - **2026-07-12 E5 complete** (workflow reference plugin `sforum.content-policy`)
   - Handoff: `knowledge/sessions/2026-07-12-e5-content-policy-plugin.md`

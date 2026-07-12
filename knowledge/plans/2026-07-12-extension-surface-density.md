@@ -488,14 +488,19 @@ as built-in L1 fallbacks; new vendor drivers prefer plugins.
 
 ### E6.1 Host storage interface (plugin-ready)
 
-- [ ] Stable host interface for Put / Open (or Get) / Delete / optional
+- [x] Stable host interface for Put / Open (or Get) / Delete / optional
   PublicURL or SignURL — aligned with current `Support/Storage` usage
-- [ ] Selection resolver: `web_options` active provider → core driver **or**
+  (business still uses `Adapter`; plugin path fail-closed until E6.2)
+- [x] Selection resolver: `web_options` active provider → core driver **or**
   enabled extension id that declared `attachment.storage.provider`
-- [ ] Candidate list API for admin: core drivers + enabled plugin providers
-  (label, extensionId, health)
-- [ ] Restore recommended defaults → local core driver + safe upload knobs
+- [x] Candidate list on admin settings: core drivers + enabled plugin providers
+  (`candidates[]` with label, extensionId, settingsPath)
+- [x] Restore recommended defaults → local core driver + safe upload knobs
+  (existing restore; disable plugin also falls back to local)
 - [ ] Circuit breaker / timeout reuse from plugin RPC resilience (F2.3)
+  (applies when E6.2 RPC lands)
+
+**Status:** E6.1 done 2026-07-13 (selection + candidates + fallback; no RPC yet).
 
 ### E6.2 Plugin RPC protocol
 
@@ -699,12 +704,13 @@ edit comment/topic controllers.
 | 2026-07-12 | E2.3–E2.4 | `forum.nav.items` + `forum.topic.list.badges`; **E2 wave complete** |
 | 2026-07-12 | E5 | `sforum.content-policy` workflow reference; scenario-map; **E5 done** |
 | 2026-07-12 | E6.0 | Storage plugin-provider decision + selection helpers; **E6.0 done** |
+| 2026-07-13 | E6.1 | Candidates + plugin: options + disable→local; fail-closed until RPC |
 
 ---
 
 ## Next session one-liner
 
 ```text
-Next: E6.1 storage host resolver + candidate list + restore/fallback wiring
-(plugin:<id> selection). E6.0 decision accepted.
+Next: E6.2 chunked storage PluginProtocol RPC + SDK Noop/helpers + host
+PluginStorageAdapter. E6.1 selection/candidates/fallback done.
 ```

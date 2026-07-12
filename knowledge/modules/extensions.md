@@ -43,11 +43,13 @@ mail. Implementation checklist:
   public SDK backend; authoring guide + `docs/extensions/scenario-map.md`
 - **E6.0 complete:** storage plugin-provider decision
   (`decisions/2026-07-12-attachment-storage-plugin-provider.md`) + selection
-  encoding helpers (`plugin:<extensionId>` in `Support/Storage`). Runtime
-  still L1 until E6.1+.
-- **North star next:** storage **E6.1–E6.4** and search (**E7**) reach
-  mail-like L4–L6; other slots in **E8**. Today only `mail.provider` is
-  end-to-end; storage/search drivers remain mostly in core.
+  encoding helpers (`plugin:<extensionId>` in `Support/Storage`).
+- **E6.1 complete:** attachment settings candidates + options accept
+  `plugin:`; disable plugin clears selection to `local`; Put/Open plugin path
+  fail-closed until E6.2 RPC.
+- **North star next:** storage **E6.2–E6.4** (RPC + reference plugin) and
+  search (**E7**); other slots in **E8**. Today only `mail.provider` is
+  end-to-end RPC; storage plugin selection is wired without transport yet.
 - Non-goals remain: arbitrary hooks, core route override, public raw HTML
 
 The extension foundation is implemented with plugin/theme lifecycle separation
