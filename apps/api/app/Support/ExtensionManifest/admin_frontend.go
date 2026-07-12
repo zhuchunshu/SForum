@@ -64,7 +64,8 @@ func validateAdminFrontend(manifest Manifest) error {
 	if admin == nil {
 		return nil
 	}
-	if manifest.Type != TypePlugin || !safeAdminRelativePath(admin.Root) || admin.APIVersion != AdminFrontendAPIVersion {
+	// 插件与主题均可声明 trusted admin 前端（主题主要用于自定义设置页）。
+	if (manifest.Type != TypePlugin && manifest.Type != TypeTheme) || !safeAdminRelativePath(admin.Root) || admin.APIVersion != AdminFrontendAPIVersion {
 		return ErrInvalidManifest
 	}
 	if len(admin.Components) == 0 {

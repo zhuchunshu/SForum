@@ -1,0 +1,12 @@
+[
+  {
+    "point": "admin.extension.settings.page",
+    "id": "theme-settings-page",
+    "order": 10,
+    "label": {
+      "zh-CN": "默认主题设置页",
+      "en-US": "Default theme settings page"
+    },
+    "payload": { "component": "theme-settings-page" }
+  }
+]

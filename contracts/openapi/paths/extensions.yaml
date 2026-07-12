@@ -1,3 +1,21 @@
+siteActiveThemeSettings:
+  get:
+    summary: Public settings for the active theme
+    operationId: getSiteActiveThemeSettings
+    tags: [Extensions]
+    description: >-
+      Returns non-secret settings for the currently active theme (merged with
+      manifest defaults). Used by public theme layers for operator-configurable
+      UI such as homepage notice copy and right-rail toggles. Secrets are never
+      included.
+    responses:
+      '200':
+        description: Active theme public settings map.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponsePublicActiveThemeSettings"
+
 adminExtensions:
   get:
     summary: List installed extensions and themes
@@ -683,6 +701,31 @@ adminWebReleaseRollback:
         "$ref": "../components/responses.yaml#/NotFound"
       '409':
         "$ref": "../components/responses.yaml#/Conflict"
+adminWebReleaseRebuild:
+  post:
+    summary: Queue a manual web release rebuild
+    description: >
+      Requires extension.release.manage (or extension.manage). Plans the current
+      active theme plus enabled trusted plugin admin frontends and queues a new
+      immutable Web Release with triggerKind=rebuild. Used after builtin theme
+      or trusted plugin admin UI packages change. Does not alter enable/disable
+      state. Returns 202 when queued (may reuse a compatible in-flight release).
+    operationId: rebuildAdminWebRelease
+    responses:
+      '202':
+        description: Rebuild web release queued.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseWebReleaseOperation"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
 adminWebReleaseRestoreDefaults:
   post:
     summary: Restore recommended trusted frontend defaults

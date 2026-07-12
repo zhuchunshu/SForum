@@ -495,10 +495,15 @@ flag-driven generation. Default output is `extensions/dev/{plugins,themes}/{id}`
   locale map (`LocalizedText`). Settings GET/PUT/reset resolve copy from the
   request `Accept-Language` and return plain strings only.
 - Host dynamic settings page (`view: settings`) is generic chrome: recommended
-  defaults banner, form controls, and `SFAdminFormFooter`. Plugins may replace
-  the whole form via trusted contribution `admin.extension.settings.page`, or
-  inject `admin.extension.settings.header` / `footer`. Slot components are
-  filtered to the current extension id.
+  defaults banner, form controls, and `SFAdminFormFooter`. Plugins **and themes**
+  may replace the whole form via trusted contribution
+  `admin.extension.settings.page`, or inject `header` / `footer`. Slot
+  components are filtered to the current extension id. Themes may only use
+  these three contribution points (no jobs/forum points). See
+  `decisions/2026-07-13-theme-admin-settings-page.md`.
+- Default theme ships a multi-tab custom settings page under
+  `extensions/builtin/themes/sforum-default/frontend/admin/` and public
+  settings via `GET /site/active-theme/settings`.
 - `mail.provider` is now implemented end-to-end. The protected `sforum.smtp`
   plugin is the first real provider vertical; core contains no SMTP provider
   code. Extension secret settings are masked/preserved and enabled plugins

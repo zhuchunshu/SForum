@@ -3,6 +3,9 @@ package extensionscontroller
 import "github.com/gofiber/fiber/v3"
 
 func (h *Controller) RegisterRoutes(api fiber.Router) {
+	// 前台：当前激活主题的非 secret 设置（主题 layer 消费）。
+	api.Get("/site/active-theme/settings", h.publicActiveThemeSettings)
+
 	api.Get("/admin/extensions", h.list)
 	api.Get("/admin/extensions/navigation", h.navigation)
 	api.Get("/admin/extensions/contribution-points", h.contributionPoints)
@@ -25,6 +28,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/admin/extensions/event-definitions", h.eventDefinitions)
 	api.Get("/admin/extensions/event-deliveries", h.eventDeliveries)
 	api.Get("/admin/web-releases", h.listWebReleases)
+	// 静态路径须先于 :releaseID，避免被当成 ID。
+	api.Post("/admin/web-releases/rebuild", h.rebuildWebRelease)
 	api.Post("/admin/web-releases/restore-defaults", h.restoreFrontendDefaults)
 	api.Get("/admin/web-releases/:releaseID", h.webReleaseDetail)
 	api.Post("/admin/web-releases/:releaseID/retry", h.retryWebRelease)

@@ -19,7 +19,11 @@
       }
     }
   },
-  "frontend": {
-    "layer": "layer"
+  "includes": {
+    "settings": "manifest/settings.json",
+    "admin": "manifest/admin.json",
+    "frontend": "manifest/frontend.json",
+    "contributions": "manifest/contributions.json"
   }
 }
+

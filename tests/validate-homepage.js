@@ -6,6 +6,7 @@ const paths = {
   page: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/pages/index.vue'),
   navigation: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/components/SFHomeNavigation.vue'),
   topicRow: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/components/SFHomeTopicRow.vue'),
+  rightRail: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/components/SFHomeRightRail.vue'),
   layerConfig: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/nuxt.config.ts'),
   hostConfig: path.resolve(root, 'apps/web/nuxt.config.ts'),
   homeCss: path.resolve(root, 'extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-home.css'),
@@ -27,6 +28,7 @@ const read = key => fs.readFileSync(paths[key], 'utf8')
 const page = read('page')
 const navigation = read('navigation')
 const topicRow = read('topicRow')
+const rightRail = read('rightRail')
 const layerConfig = read('layerConfig')
 const hostConfig = read('hostConfig')
 const homeCss = read('homeCss')
@@ -42,7 +44,7 @@ if (!layerConfig.includes('import.meta.url') || !layerConfig.includes('sforum-ho
   throw new Error('the default theme layer should register the layer-relative homepage stylesheet')
 }
 
-for (const token of ['<SFHomeNavigation', '<SFHomeTopicRow', 'parseForumHomeQuery', 'buildForumHomeQuery', 'forumHomeFeedKey', 'IntersectionObserver']) {
+for (const token of ['<SFHomeNavigation', '<SFHomeTopicRow', '<SFHomeRightRail', 'sforum-home__layout--with-right', 'useActiveThemeSettings', 'rightRailEnabled', 'parseForumHomeQuery', 'buildForumHomeQuery', 'forumHomeFeedKey', 'IntersectionObserver', 'hotTopics']) {
   if (!page.includes(token)) {
     throw new Error(`index.vue is missing the hybrid homepage contract: ${token}`)
   }
@@ -58,14 +60,37 @@ if (!navigation.includes('category.topicCount') || !navigation.includes("'select
   throw new Error('SFHomeNavigation must expose typed, API-backed category navigation')
 }
 
-if (!topicRow.includes('topic.excerpt') || !topicRow.includes('topic.commentCount') || topicRow.includes('participants')) {
+if (!topicRow.includes('topic.commentCount') || topicRow.includes('participants')) {
   throw new Error('SFHomeTopicRow must render only real topic summary metadata')
 }
 
-for (const token of ['grid-template-columns: 74px minmax(0, 1fr) 310px;', '.sforum-home__dock', '.sf-home-topic-row__heat', 'min-height: 40px;', 'overflow-wrap: anywhere;', 'prefers-reduced-motion: reduce']) {
+if (
+  !rightRail.includes('hotTopics')
+  || !rightRail.includes('home.sidebar.hotThreads')
+  || !rightRail.includes('useAuthSession')
+  || !rightRail.includes('home.sidebar.welcomeTitle')
+  || !rightRail.includes('home.sidebar.userCard')
+  || !rightRail.includes("emit('select-tag'")
+) {
+  throw new Error('SFHomeRightRail must expose auth card, hot topics, stats, and tag selection')
+}
+
+for (const token of [
+  '.sforum-home__layout--with-right',
+  'var(--sf-public-right-rail-width)',
+  '.sforum-home__right',
+  '.sf-home-right-rail',
+  'min-height: 40px;',
+  'overflow-wrap: anywhere;',
+  'prefers-reduced-motion: reduce'
+]) {
   if (!homeCss.includes(token)) {
     throw new Error(`sforum-home.css is missing: ${token}`)
   }
+}
+
+if (!themeCss.includes('--sf-public-right-rail-width')) {
+  throw new Error('sforum-theme.css must define --sf-public-right-rail-width')
 }
 
 for (const obsoleteColor of ['#0b1120', '#172033']) {
@@ -86,6 +111,15 @@ for (const messages of locales) {
   }
   if (!messages.home.emptyState?.filteredDescription || !messages.home.feed?.loadMoreFailed || !messages.home.feed?.retryLoadMore) {
     throw new Error('homepage locale is missing constrained empty/retry copy')
+  }
+  if (
+    !messages.home.rightRail?.ariaLabel
+    || !messages.home.rightRail?.hotTags
+    || !messages.home.rightRail?.welcomeDesc
+    || !messages.home.sidebar?.hotThreads
+    || !messages.home.sidebar?.loginBtn
+  ) {
+    throw new Error('homepage locale is missing right-rail copy')
   }
 }
 

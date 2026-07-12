@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -113,7 +114,89 @@ func TestBuilderRunsTypecheckBeforeBuildWithSanitizedEnvironment(t *testing.T) {
 	if !strings.Contains(runner.environment, "NUXT_PUBLIC_API_BASE_URL=/api/v1") || result.ServerEntry == "" {
 		t.Fatalf("missing approved public environment or result: env=%s result=%#v", runner.environment, result)
 	}
+	if !strings.Contains(result.BuildLog, "typecheck OK") {
+		t.Fatalf("expected typecheck OK banner in log: %s", result.BuildLog)
+	}
 }
+
+func TestBuilderTypecheckFailureIsNonBlockingByDefault(t *testing.T) {
+	root := t.TempDir()
+	runner := &recordingBuildRunner{failTypecheck: true}
+	builder := NewBuilder(Config{ReleaseRoot: root, BunPath: "bun", Runner: runner})
+	prepared := PreparedRelease{
+		Detail:     extensions.WebReleaseDetail{WebRelease: extensions.WebRelease{ID: 13}},
+		ReleaseDir: filepath.Join(root, "releases", "13"), Workspace: filepath.Join(root, "workspace"),
+	}
+	if err := os.MkdirAll(prepared.Workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	result, err := builder.Build(context.Background(), prepared, "install")
+	if err != nil {
+		t.Fatalf("default must not fail release on typecheck: %v", err)
+	}
+	if strings.Join(runner.commands, ",") != "typecheck,build" {
+		t.Fatalf("expected typecheck then build, got %v", runner.commands)
+	}
+	if !strings.Contains(result.BuildLog, "non-blocking") || !strings.Contains(result.BuildLog, "typecheck FAILED") {
+		t.Fatalf("expected non-blocking typecheck failure banner: %s", result.BuildLog)
+	}
+	if result.ServerEntry == "" {
+		t.Fatal("expected build artifact after non-blocking typecheck failure")
+	}
+}
+
+func TestBuilderTypecheckFailureBlocksWhenConfigured(t *testing.T) {
+	root := t.TempDir()
+	runner := &recordingBuildRunner{failTypecheck: true}
+	builder := NewBuilder(Config{ReleaseRoot: root, BunPath: "bun", Runner: runner, TypecheckFail: true})
+	prepared := PreparedRelease{
+		Detail:     extensions.WebReleaseDetail{WebRelease: extensions.WebRelease{ID: 14}},
+		ReleaseDir: filepath.Join(root, "releases", "14"), Workspace: filepath.Join(root, "workspace"),
+	}
+	if err := os.MkdirAll(prepared.Workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	result, err := builder.Build(context.Background(), prepared, "install")
+	if err == nil {
+		t.Fatal("expected typecheck hard-fail")
+	}
+	if !strings.Contains(err.Error(), "typecheck failed") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Join(runner.commands, ",") != "typecheck" {
+		t.Fatalf("must not run build after hard typecheck fail: %v", runner.commands)
+	}
+	if result.ServerEntry != "" {
+		t.Fatal("must not produce server entry after typecheck hard-fail")
+	}
+}
+
+func TestBuilderTypecheckPolicyOverridesStaticConfig(t *testing.T) {
+	root := t.TempDir()
+	runner := &recordingBuildRunner{failTypecheck: true}
+	// 静态 TypecheckFail=false，但 policy 要求硬失败。
+	builder := NewBuilder(Config{
+		ReleaseRoot: root, BunPath: "bun", Runner: runner, TypecheckFail: false,
+		TypecheckPolicy: staticTypecheckPolicy{fail: true},
+	})
+	prepared := PreparedRelease{
+		Detail:     extensions.WebReleaseDetail{WebRelease: extensions.WebRelease{ID: 15}},
+		ReleaseDir: filepath.Join(root, "releases", "15"), Workspace: filepath.Join(root, "workspace"),
+	}
+	if err := os.MkdirAll(prepared.Workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := builder.Build(context.Background(), prepared, "install"); err == nil {
+		t.Fatal("expected policy hard-fail")
+	}
+	if strings.Join(runner.commands, ",") != "typecheck" {
+		t.Fatalf("policy hard-fail must skip build: %v", runner.commands)
+	}
+}
+
+type staticTypecheckPolicy struct{ fail bool }
+
+func (p staticTypecheckPolicy) TypecheckFail(context.Context) bool { return p.fail }
 
 func TestWriteJSONAtomicPublishesCompleteDocument(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "release.json")
@@ -219,14 +302,18 @@ func TestArtifactDigestAllowsInternalSymlinkAndRejectsEscape(t *testing.T) {
 }
 
 type recordingBuildRunner struct {
-	commands    []string
-	environment string
+	commands      []string
+	environment   string
+	failTypecheck bool
 }
 
 func (r *recordingBuildRunner) Run(_ context.Context, command Command) (string, error) {
 	action := command.Args[len(command.Args)-1]
 	r.commands = append(r.commands, action)
 	r.environment = strings.Join(command.Env, "\n")
+	if action == "typecheck" && r.failTypecheck {
+		return "typecheck output with TS errors", fmt.Errorf("exit status 1")
+	}
 	if action == "build" {
 		var output string
 		for _, item := range command.Env {

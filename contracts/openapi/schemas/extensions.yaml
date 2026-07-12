@@ -912,6 +912,27 @@ EffectiveContribution:
       type: string
     payload:
       "$ref": "#/ExtensionContributionPayload"
+PublicActiveThemeSettings:
+  type: object
+  required:
+  - themeId
+  - settings
+  properties:
+    themeId:
+      type: string
+      description: Active theme extension id; empty when no theme is active.
+    settings:
+      type: object
+      additionalProperties:
+        type: string
+      description: Non-secret setting key/value map (defaults applied when unset).
+ApiResponsePublicActiveThemeSettings:
+  type: object
+  required:
+  - data
+  properties:
+    data:
+      "$ref": "#/PublicActiveThemeSettings"
 ExtensionSettings:
   type: object
   required:

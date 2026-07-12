@@ -20,6 +20,9 @@ func TestWebReleaseAdminServiceKeepsPolicyChecksAuthoritative(t *testing.T) {
 	if _, err := service.Detail(context.Background(), denied, 1); !errors.Is(err, identity.ErrPermissionDenied) {
 		t.Fatalf("expected detail permission denial, got %v", err)
 	}
+	if _, err := service.Rebuild(context.Background(), denied); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected rebuild permission denial, got %v", err)
+	}
 	if _, err := service.Retry(context.Background(), denied, 1); !errors.Is(err, identity.ErrPermissionDenied) {
 		t.Fatalf("expected retry permission denial, got %v", err)
 	}
@@ -39,6 +42,16 @@ func TestWebReleaseAdminServiceKeepsPolicyChecksAuthoritative(t *testing.T) {
 	}
 	if _, err := service.Detail(context.Background(), manager, 1); err != nil {
 		t.Fatalf("manager detail: %v", err)
+	}
+	rebuild, err := service.Rebuild(context.Background(), manager)
+	if err != nil {
+		t.Fatalf("manager rebuild: %v", err)
+	}
+	if rebuild.WebRelease.ID != 11 || !rebuild.Queued {
+		t.Fatalf("unexpected rebuild operation: %#v", rebuild)
+	}
+	if commands.lastPlan.TriggerKind != WebReleaseTriggerRebuild || commands.lastPlan.RequestedBy != manager.ID {
+		t.Fatalf("unexpected rebuild plan: %#v", commands.lastPlan)
 	}
 	if _, err := service.Retry(context.Background(), manager, 1); err != nil {
 		t.Fatalf("manager retry: %v", err)
@@ -63,7 +76,14 @@ func (s *fakeWebReleaseAdminStore) WebRelease(context.Context, int64) (WebReleas
 }
 
 type fakeWebReleaseCommander struct {
-	calls int
+	calls    int
+	lastPlan PlanWebReleaseInput
+}
+
+func (s *fakeWebReleaseCommander) PlanAndQueue(_ context.Context, input QueueWebReleaseInput) (WebReleaseQueueResult, error) {
+	s.calls++
+	s.lastPlan = input.Plan
+	return WebReleaseQueueResult{Release: WebRelease{ID: 11, TriggerKind: input.Plan.TriggerKind}, Created: true}, nil
 }
 
 func (s *fakeWebReleaseCommander) Retry(context.Context, int64, int64) (WebReleaseQueueResult, error) {

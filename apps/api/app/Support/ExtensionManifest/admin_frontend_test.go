@@ -46,19 +46,45 @@ func TestAdminFrontendNormalizeAndValidateWithComponentCatalog(t *testing.T) {
 	}
 }
 
+func TestThemeMayDeclareAdminFrontendWithSettingsPage(t *testing.T) {
+	manifest := validAdminFrontendManifest()
+	manifest.Type = TypeTheme
+	manifest.Frontend.Layer = "layer"
+	manifest.Contributions = []ManifestContribution{{
+		Point:   "admin.extension.settings.page",
+		ID:      "theme-settings-page",
+		Order:   10,
+		Label:   map[string]string{"zh-CN": "主题设置", "en-US": "Theme settings"},
+		Payload: json.RawMessage(`{"component":"fixture.panel"}`),
+	}}
+	if err := Validate(manifest); err != nil {
+		t.Fatalf("theme with settings page admin frontend should validate: %v", err)
+	}
+}
+
+func TestThemeRejectsNonSettingsContributionPoints(t *testing.T) {
+	manifest := validAdminFrontendManifest()
+	manifest.Type = TypeTheme
+	manifest.Frontend.Layer = "layer"
+	// 主题不可贡献 jobs 等插件向点。
+	manifest.Contributions = []ManifestContribution{{
+		Point:   "admin.jobs.table.columns",
+		ID:      "theme-job-col",
+		Order:   10,
+		Label:   map[string]string{"zh-CN": "非法", "en-US": "Illegal"},
+		Payload: json.RawMessage(`{"component":"fixture.panel"}`),
+	}}
+	if err := Validate(manifest); !errors.Is(err, ErrInvalidManifest) {
+		t.Fatalf("expected ErrInvalidManifest for theme jobs contribution, got %v", err)
+	}
+}
+
 func TestAdminFrontendRejectsInvalidDeclarations(t *testing.T) {
 	tests := []struct {
 		name   string
 		points []ContributionPointDefinition
 		mutate func(*Manifest)
 	}{
-		{
-			name: "theme cannot declare admin frontend",
-			mutate: func(manifest *Manifest) {
-				manifest.Type = TypeTheme
-				manifest.Frontend.Layer = "layer"
-			},
-		},
 		{
 			name: "root must stay in package",
 			mutate: func(manifest *Manifest) {

@@ -240,6 +240,8 @@ paths:
     "$ref": "./openapi/paths/site_chrome.yaml#/siteFriendLinks"
   "/site/announcements":
     "$ref": "./openapi/paths/site_chrome.yaml#/siteAnnouncements"
+  "/site/active-theme/settings":
+    "$ref": "./openapi/paths/extensions.yaml#/siteActiveThemeSettings"
   "/admin/site/nav-items":
     "$ref": "./openapi/paths/site_chrome.yaml#/adminSiteNavItems"
   "/admin/site/nav-items/{itemID}":
@@ -340,6 +342,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEventDeliveries"
   "/admin/web-releases":
     "$ref": "./openapi/paths/extensions.yaml#/adminWebReleases"
+  "/admin/web-releases/rebuild":
+    "$ref": "./openapi/paths/extensions.yaml#/adminWebReleaseRebuild"
   "/admin/web-releases/restore-defaults":
     "$ref": "./openapi/paths/extensions.yaml#/adminWebReleaseRestoreDefaults"
   "/admin/web-releases/{releaseID}":
@@ -486,6 +490,10 @@ components:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionNavigationList"
     ApiResponseExtensionSettings:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseExtensionSettings"
+    PublicActiveThemeSettings:
+      "$ref": "./openapi/schemas/extensions.yaml#/PublicActiveThemeSettings"
+    ApiResponsePublicActiveThemeSettings:
+      "$ref": "./openapi/schemas/extensions.yaml#/ApiResponsePublicActiveThemeSettings"
     ApiResponseFrontendStatus:
       "$ref": "./openapi/schemas/extensions.yaml#/ApiResponseFrontendStatus"
     ApiResponseExtensionOperation:

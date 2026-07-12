@@ -714,6 +714,80 @@ func TestServiceNavigationUsesOnlyExplicitMenuPagesFromEnabledPluginsAndActiveTh
 	}
 }
 
+func TestServicePublicActiveThemeSettingsOmitsSecrets(t *testing.T) {
+	theme := protectedBuiltinExtension(DefaultThemeID, TypeTheme)
+	theme.Status = StatusEnabled
+	theme.Manifest.Settings = []ManifestSetting{
+		{Key: "home.notice.zh-CN", Label: LocalizedText{Default: "Notice"}, Type: "text", Default: "默认提示"},
+		{Key: "home.right_rail.enabled", Label: LocalizedText{Default: "Rail"}, Type: "boolean", Default: "true"},
+		{Key: "secret.token", Label: LocalizedText{Default: "Secret"}, Type: "secret", Default: ""},
+	}
+	store := &fakeExtensionStore{
+		items: map[string]Extension{
+			DefaultThemeID: theme,
+		},
+		activeThemeID: DefaultThemeID,
+		settings: map[string]map[string]string{
+			DefaultThemeID: {
+				"home.notice.zh-CN": "自定义提示",
+				"secret.token":      "should-not-leak",
+			},
+		},
+	}
+	service := NewService(store, t.TempDir())
+
+	got, err := service.PublicActiveThemeSettings(context.Background())
+	if err != nil {
+		t.Fatalf("PublicActiveThemeSettings: %v", err)
+	}
+	if got.ThemeID != DefaultThemeID {
+		t.Fatalf("themeId=%q", got.ThemeID)
+	}
+	if got.Settings["home.notice.zh-CN"] != "自定义提示" {
+		t.Fatalf("expected stored notice, got %#v", got.Settings)
+	}
+	if got.Settings["home.right_rail.enabled"] != "true" {
+		t.Fatalf("expected default boolean, got %#v", got.Settings)
+	}
+	if _, ok := got.Settings["secret.token"]; ok {
+		t.Fatalf("secret must not appear in public settings: %#v", got.Settings)
+	}
+}
+
+func TestServiceThemeSettingsRequireThemeManagePermission(t *testing.T) {
+	theme := protectedBuiltinExtension(DefaultThemeID, TypeTheme)
+	theme.Status = StatusEnabled
+	theme.Manifest.Settings = []ManifestSetting{
+		{Key: "home.notice.zh-CN", Label: LocalizedText{Default: "Notice"}, Type: "text", Default: "默认"},
+	}
+	store := &fakeExtensionStore{
+		items: map[string]Extension{DefaultThemeID: theme},
+	}
+	service := NewService(store, t.TempDir())
+
+	themeActor := identity.Actor{
+		ID:     2,
+		Status: identity.UserStatusActive,
+		Permissions: map[string]bool{
+			identity.PermissionExtensionThemeManage: true,
+		},
+	}
+	if _, err := service.Settings(context.Background(), themeActor, DefaultThemeID, "zh-CN"); err != nil {
+		t.Fatalf("theme manager should read settings: %v", err)
+	}
+
+	pluginOnly := identity.Actor{
+		ID:     3,
+		Status: identity.UserStatusActive,
+		Permissions: map[string]bool{
+			identity.PermissionExtensionPluginManage: true,
+		},
+	}
+	if _, err := service.Settings(context.Background(), pluginOnly, DefaultThemeID, "zh-CN"); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("plugin manager must not manage theme settings, got %v", err)
+	}
+}
+
 func TestServiceSettingsResolveUpdateAndResetDefaults(t *testing.T) {
 	item := installedExtension("settings.plugin", TypePlugin, ManifestBackend{})
 	// 设置读写仅对已启用扩展开放。

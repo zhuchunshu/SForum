@@ -13,7 +13,24 @@ defineOptions({ name: 'AdminExtensionReleases' })
 const { t, te } = useI18n()
 const { format: formatSiteDateTime } = useSiteDateTime()
 const adminPage = useAdminPage('/extensions/releases')
-const { data, pending, error, page, perPage, selected, commandId, load, select, command } = useAdminWebReleases()
+const {
+  data,
+  pending,
+  error,
+  page,
+  perPage,
+  selected,
+  commandId,
+  rebuilding,
+  typecheckFail,
+  typecheckSaving,
+  typecheckLoading,
+  load,
+  select,
+  rebuild,
+  command,
+  setTypecheckFail
+} = useAdminWebReleases()
 const pages = computed(() => Math.max(1, Math.ceil(data.value.total / perPage)))
 
 function closeDetail() {
@@ -39,9 +56,55 @@ function statusLabel(status: AdminWebReleaseStatus | string) {
     </div>
   </div>
 
+  <section class="mb-5 rounded-lg border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div class="min-w-0">
+        <h3 class="text-base font-bold">{{ t('admin.extensions.releases.rebuildTitle') }}</h3>
+        <p class="mt-1 max-w-3xl text-sm text-emerald-800 dark:text-emerald-200">
+          {{ t('admin.extensions.releases.rebuildDescription') }}
+        </p>
+      </div>
+      <UButton
+        leading-icon="i-lucide-hammer"
+        class="shrink-0"
+        :loading="rebuilding"
+        :disabled="pending"
+        @click="() => { void rebuild() }"
+      >
+        {{ t('admin.extensions.releases.rebuild') }}
+      </UButton>
+    </div>
+  </section>
+
+  <section class="mb-5 rounded-lg border border-slate-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div class="min-w-0">
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+          {{ t('admin.extensions.releases.typecheckFailTitle') }}
+        </h3>
+        <p class="mt-1 max-w-3xl text-xs leading-5 text-slate-500 dark:text-zinc-400">
+          {{ t('admin.extensions.releases.typecheckFailDescription') }}
+        </p>
+      </div>
+      <div class="flex shrink-0 items-center gap-3">
+        <span class="text-xs text-slate-500 dark:text-zinc-400">
+          {{ typecheckFail
+            ? t('admin.extensions.releases.typecheckFailOn')
+            : t('admin.extensions.releases.typecheckFailOff') }}
+        </span>
+        <USwitch
+          :model-value="typecheckFail"
+          :loading="typecheckSaving || typecheckLoading"
+          :disabled="typecheckSaving || typecheckLoading"
+          @update:model-value="(value: boolean) => { void setTypecheckFail(value) }"
+        />
+      </div>
+    </div>
+  </section>
+
   <UDashboardToolbar class="mb-5 rounded-lg border border-slate-200 bg-white px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900">
     <template #left>
-      <span class="text-sm text-slate-500">{{ t('admin.extensions.releases.intro') }}</span>
+      <span class="text-sm text-slate-500">{{ t('admin.extensions.releases.historyHint') }}</span>
     </template>
     <template #right>
       <UButton icon="i-lucide-rotate-cw" color="neutral" variant="subtle" :loading="pending" @click="load">

@@ -171,25 +171,25 @@ type MatchedRoute struct {
 type CapabilityGrant = capabilities.Grant
 
 type Extension struct {
-	ID            string         `json:"id"`
-	Name          string         `json:"name"`
-	Version       string         `json:"version"`
-	Type          string         `json:"type"`
-	Status        string         `json:"status"`
-	Source        string         `json:"source"`
-	IsSystem      bool           `json:"isSystem"`
-	IsDeletable   bool           `json:"isDeletable"`
-	Manifest      Manifest       `json:"manifest"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Version     string   `json:"version"`
+	Type        string   `json:"type"`
+	Status      string   `json:"status"`
+	Source      string   `json:"source"`
+	IsSystem    bool     `json:"isSystem"`
+	IsDeletable bool     `json:"isDeletable"`
+	Manifest    Manifest `json:"manifest"`
 	// CapabilityGrants 有效 Host 能力（显式 + 推断），供启用审查 UI（F2.1）。
 	CapabilityGrants []CapabilityGrant `json:"capabilityGrants,omitempty"`
-	Runtime       *RuntimeStatus    `json:"runtime,omitempty"`
-	ThemeRelease  *ThemeRelease     `json:"themeRelease,omitempty"`
+	Runtime          *RuntimeStatus    `json:"runtime,omitempty"`
+	ThemeRelease     *ThemeRelease     `json:"themeRelease,omitempty"`
 	// WebRelease 为插件启停/信任变更排队的 live 或失败发布进度（主题仍用 themeRelease）。
 	WebRelease    *WebReleaseSummary `json:"webRelease,omitempty"`
-	PackageDigest string            `json:"packageDigest"`
-	PackagePath   string            `json:"packagePath"`
-	InstalledAt   time.Time         `json:"installedAt"`
-	UpdatedAt     time.Time         `json:"updatedAt"`
+	PackageDigest string             `json:"packageDigest"`
+	PackagePath   string             `json:"packagePath"`
+	InstalledAt   time.Time          `json:"installedAt"`
+	UpdatedAt     time.Time          `json:"updatedAt"`
 }
 
 // EnableInput 启用插件的可选请求体。
@@ -319,6 +319,12 @@ type ExtensionSettingValue struct {
 type ExtensionSettings struct {
 	ExtensionID string                  `json:"extensionId"`
 	Items       []ExtensionSettingValue `json:"items"`
+}
+
+// PublicActiveThemeSettings 当前激活主题的非 secret 运行时设置（前台可读）。
+type PublicActiveThemeSettings struct {
+	ThemeID  string            `json:"themeId"`
+	Settings map[string]string `json:"settings"`
 }
 
 type UpdateSettingsInput struct {

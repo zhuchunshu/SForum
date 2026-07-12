@@ -132,6 +132,8 @@ type optionDefinition struct {
 }
 
 var optionDefinitions = []optionDefinition{
+	// 运维：Web Release typecheck 是否硬失败（非 public，仅 release 管理员可改）。
+	{name: NameWebReleaseTypecheckFail, public: false, managePermission: identity.PermissionExtensionReleaseManage},
 	{name: NameSiteName, public: true, managePermission: identity.PermissionSettingsSiteManage},
 	{name: NameSiteURL, public: true, managePermission: identity.PermissionSettingsSiteManage},
 	{name: NameSiteDefaultLocale, public: true, managePermission: identity.PermissionSettingsSiteManage},
@@ -449,6 +451,16 @@ func (s *Service) RegistrationEnabled(ctx context.Context) (bool, error) {
 
 func (s *Service) InternalValues(ctx context.Context) (map[string]string, error) {
 	return s.loadMap(ctx)
+}
+
+// WebReleaseTypecheckFail 返回是否在 Web Release 中因 typecheck 失败而中止构建。
+// 默认 false（非阻断）；DB 未就绪时返回 false, err。
+func (s *Service) WebReleaseTypecheckFail(ctx context.Context) (bool, error) {
+	values, err := s.loadMap(ctx)
+	if err != nil {
+		return false, err
+	}
+	return isEnabledOption(values[NameWebReleaseTypecheckFail]), nil
 }
 
 func (s *Service) HumanVerificationConfig(ctx context.Context) (humanverify.RuntimeConfig, error) {
@@ -827,6 +839,11 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	coerceAttachmentOptions(coerced, defaults)
 	coerceAvatarOptions(coerced, defaults)
 	coerceFeatureFlagOptions(coerced, defaults)
+	if value, ok := normalizeEnabledOption(coerced[NameWebReleaseTypecheckFail]); ok {
+		coerced[NameWebReleaseTypecheckFail] = value
+	} else {
+		coerced[NameWebReleaseTypecheckFail] = defaults[NameWebReleaseTypecheckFail]
+	}
 
 	return coerced
 }
@@ -1000,6 +1017,8 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameNotificationMentionEmail:    enabledOptionValue(true),
 		NameNotificationModerationInApp: enabledOptionValue(true),
 		NameNotificationModerationEmail: enabledOptionValue(true),
+		// Web Release：默认 typecheck 不阻断构建；CI 仍强制 typecheck。
+		NameWebReleaseTypecheckFail: enabledOptionValue(false),
 	}
 	mergeCommunityPolicyDefaults(values)
 	mergeSiteBrandDefaults(values)
@@ -1192,6 +1211,9 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeEnabledOption(value)
 	case NameFeatureSearch, NameFeatureRegistration, NameFeatureAttachments, NameFeatureMentions, NameFeaturePublicProfiles, NameFeatureWebhooks:
 		// F4.5：产品开关仅接受 enabled/disabled。
+		return normalizeEnabledOption(value)
+	case NameWebReleaseTypecheckFail:
+		// Web Release typecheck 硬失败开关。
 		return normalizeEnabledOption(value)
 	case NameForumTagMinPerTopic, NameForumTagMaxPerTopic:
 		return normalizeBoundedInt(value, forumTagMaxPerTopicMin, forumTagMaxPerTopicMax)

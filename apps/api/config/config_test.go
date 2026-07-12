@@ -83,6 +83,9 @@ func TestLoadIncludesDefaultWorkerConfig(t *testing.T) {
 	if cfg.WebReleaseRoot != cfg.ThemeReleaseRoot || cfg.WebReleaseWebRoot != cfg.ThemeWebRoot || cfg.WebReleaseBunPath != cfg.ThemeBunPath {
 		t.Fatalf("web release defaults must retain theme compatibility: %#v", cfg)
 	}
+	if cfg.WebReleaseTypecheckFail {
+		t.Fatal("web release typecheck must default to non-blocking")
+	}
 	if cfg.JobQueueCriticalWorkers != 4 {
 		t.Fatalf("expected critical workers 4, got %d", cfg.JobQueueCriticalWorkers)
 	}
@@ -395,6 +398,7 @@ func TestLoadPrefersWebReleaseConfigOverLegacyThemeConfig(t *testing.T) {
 	t.Setenv("WEB_RELEASE_BUN_PATH", "/web/bun")
 	t.Setenv("WEB_RELEASE_BUILD_TIMEOUT", "9m")
 	t.Setenv("WEB_RELEASE_PREVIEW_TIMEOUT", "18s")
+	t.Setenv("WEB_RELEASE_TYPECHECK_FAIL", "true")
 
 	cfg := Load()
 	if cfg.WebReleaseRoot != "/web/releases" || cfg.ThemeReleaseRoot != cfg.WebReleaseRoot {
@@ -411,6 +415,9 @@ func TestLoadPrefersWebReleaseConfigOverLegacyThemeConfig(t *testing.T) {
 	}
 	if cfg.WebReleasePreviewTimeout != 18*time.Second || cfg.ThemePreviewTimeout != cfg.WebReleasePreviewTimeout {
 		t.Fatalf("unexpected preview timeout: web=%s theme=%s", cfg.WebReleasePreviewTimeout, cfg.ThemePreviewTimeout)
+	}
+	if !cfg.WebReleaseTypecheckFail {
+		t.Fatal("expected WEB_RELEASE_TYPECHECK_FAIL env to enable hard-fail fallback")
 	}
 }
 

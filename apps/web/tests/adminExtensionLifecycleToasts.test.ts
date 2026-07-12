@@ -27,6 +27,20 @@ describe('plugin enable/disable lifecycle feedback', () => {
     expect(releases).toContain("t('admin.extensions.releases.viewDetail')")
   })
 
+  test('web releases page exposes manual rebuild action', () => {
+    expect(releases).toContain('rebuild')
+    expect(releases).toContain("t('admin.extensions.releases.rebuild')")
+    expect(releases).toContain("t('admin.extensions.releases.rebuildTitle')")
+    expect(releases).toContain('i-lucide-hammer')
+  })
+
+  test('web releases page exposes typecheck hard-fail toggle', () => {
+    expect(releases).toContain('typecheckFail')
+    expect(releases).toContain('setTypecheckFail')
+    expect(releases).toContain("t('admin.extensions.releases.typecheckFailTitle')")
+    expect(releases).toContain('USwitch')
+  })
+
   test('plugin list shows web release progress bars and polls while active', async () => {
     const plugins = await Bun.file(new URL('../app/pages/admin/extensions/plugins.vue', import.meta.url)).text()
     expect(plugins).toContain('pluginWebReleaseProgress')

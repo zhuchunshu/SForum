@@ -31,6 +31,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const localePath = useLocalePath()
 const router = useRouter()
+const { navShowCompose, navShowCounts } = useActiveThemeSettings()
 
 const useRouteLinks = computed(() => props.navigationMode === 'route')
 
@@ -82,22 +83,24 @@ function categoryDotColor(category: ForumCategory) {
     </div>
 
     <div v-if="!mobileOnly" class="sf-home-navigation__desktop">
-      <NuxtLink
-        v-if="canCreateTopic"
-        :to="localePath('/topics/new')"
-        class="sf-home-navigation__compose"
-      >
-        <UIcon name="i-lucide-plus" class="size-4" aria-hidden="true" />
-        {{ t('home.sidebar.newTopic') }}
-      </NuxtLink>
-      <NuxtLink
-        v-else
-        :to="localePath('/login')"
-        class="sf-home-navigation__compose"
-      >
-        <UIcon name="i-lucide-log-in" class="size-4" aria-hidden="true" />
-        {{ t('home.loginToPost') }}
-      </NuxtLink>
+      <template v-if="navShowCompose">
+        <NuxtLink
+          v-if="canCreateTopic"
+          :to="localePath('/topics/new')"
+          class="sf-home-navigation__compose"
+        >
+          <UIcon name="i-lucide-plus" class="size-4" aria-hidden="true" />
+          {{ t('home.sidebar.newTopic') }}
+        </NuxtLink>
+        <NuxtLink
+          v-else
+          :to="localePath('/login')"
+          class="sf-home-navigation__compose"
+        >
+          <UIcon name="i-lucide-log-in" class="size-4" aria-hidden="true" />
+          {{ t('home.loginToPost') }}
+        </NuxtLink>
+      </template>
 
       <div class="sf-home-navigation__label">{{ t('home.sidebar.navTitle') }}</div>
       <NuxtLink
@@ -107,7 +110,7 @@ function categoryDotColor(category: ForumCategory) {
         :class="{ 'is-active': !selectedCategorySlug }"
       >
         <span class="sf-home-navigation__link-main">{{ t('home.allTopics') }}</span>
-        <span class="sf-home-navigation__count">{{ totalTopics }}</span>
+        <span v-if="navShowCounts" class="sf-home-navigation__count">{{ totalTopics }}</span>
       </NuxtLink>
       <button
         v-else
@@ -118,7 +121,7 @@ function categoryDotColor(category: ForumCategory) {
         @click="selectCategory('')"
       >
         <span class="sf-home-navigation__link-main">{{ t('home.allTopics') }}</span>
-        <span class="sf-home-navigation__count">{{ totalTopics }}</span>
+        <span v-if="navShowCounts" class="sf-home-navigation__count">{{ totalTopics }}</span>
       </button>
 
       <div class="sf-home-navigation__label">{{ t('home.categories') }}</div>
@@ -141,7 +144,7 @@ function categoryDotColor(category: ForumCategory) {
             />
             {{ category.name }}
           </span>
-          <span class="sf-home-navigation__count">{{ category.topicCount }}</span>
+          <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
         </NuxtLink>
       </template>
       <template v-else>
@@ -162,7 +165,7 @@ function categoryDotColor(category: ForumCategory) {
             />
             {{ category.name }}
           </span>
-          <span class="sf-home-navigation__count">{{ category.topicCount }}</span>
+          <span v-if="navShowCounts" class="sf-home-navigation__count">{{ category.topicCount }}</span>
         </button>
       </template>
     </div>

@@ -138,6 +138,13 @@
       "statReplies": "累计回复",
       "statMembers": "注册会员",
       "statOnline": "当前在线"
+    },
+    "rightRail": {
+      "ariaLabel": "辅助信息",
+      "hotByReplies": "按回复",
+      "hotEmpty": "暂无热门讨论",
+      "hotTags": "热门标签",
+      "welcomeDesc": "登录后可发帖、回复，并同步通知与草稿。加入社区，一起认真讨论。"
     }
   },
   "auth": {
@@ -521,7 +528,18 @@
       },
       "releases": {
         "title": "Web 发布",
-        "intro": "查看主题与可信插件组成的不可变发布、构建状态和切换历史。点击「查看」可打开详情与构建日志。",
+        "intro": "查看主题与可信插件组成的不可变发布、构建状态和切换历史。内置主题/插件管理端 UI 更新后，请点「立即重建」排队新的发布。",
+        "rebuildTitle": "重建当前 Web 发布",
+        "rebuildDescription": "按当前激活主题与已启用的可信插件重新打包管理端。适用于默认主题自定义设置页、SMTP 设置页等 admin 前端更新。不会改动插件启停状态。构建完成后按提示刷新后台即可。",
+        "rebuild": "立即重建",
+        "rebuildQueued": "Web 发布重建已排队。",
+        "typecheckFailTitle": "Typecheck 硬失败",
+        "typecheckFailDescription": "开启后，Web Release 在 vue-tsc typecheck 失败时会中止构建。默认关闭：typecheck 仍会执行并写入构建日志，但不阻断打包。全仓强制 typecheck 由 CI / 测试脚本负责，不依赖此开关。",
+        "typecheckFailOn": "失败即中止",
+        "typecheckFailOff": "仅记录不阻断",
+        "typecheckFailEnabled": "已开启 typecheck 硬失败。",
+        "typecheckFailDisabled": "已关闭 typecheck 硬失败（推荐默认）。",
+        "historyHint": "下方为历史发布记录；进行中的构建会自动刷新。",
         "trigger": "触发来源",
         "theme": "主题",
         "status": "状态",

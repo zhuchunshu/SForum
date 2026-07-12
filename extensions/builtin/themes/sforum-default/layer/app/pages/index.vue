@@ -25,6 +25,15 @@ const localePath = useLocalePath()
 const { seoSettings } = useWebOptions()
 const forumApi = useForumApi()
 const { can } = usePermissions()
+// 主题 extension settings（后台「主题设置」自定义页）；非 core web_options
+const {
+  homeNotice,
+  homeEmptyTitle,
+  homeEmptyDescription,
+  rightRailEnabled,
+  rightRailHotLimit,
+  rightRailTagLimit
+} = useActiveThemeSettings()
 
 useSForumSeo(computed(() => ({
   type: 'home',
@@ -118,15 +127,54 @@ const selectedCategory = computed(() => categories.value.find(
   category => category.slug === selectedCategorySlug.value
 ))
 const feedTitle = computed(() => selectedCategory.value?.name || t('home.allTopics'))
-const emptyDescription = computed(() => hasActiveFilters.value
-  ? t('home.emptyState.filteredDescription')
-  : t('home.emptyState.description'))
+const emptyTitle = computed(() => {
+  if (hasActiveFilters.value) {
+    return t('home.emptyState.title')
+  }
+  return homeEmptyTitle.value || t('home.emptyState.title')
+})
+const emptyDescription = computed(() => {
+  if (hasActiveFilters.value) {
+    return t('home.emptyState.filteredDescription')
+  }
+  return homeEmptyDescription.value || t('home.emptyState.description')
+})
 const totalTopics = computed(() => {
   const categoryTotal = categories.value.reduce((total, category) => total + category.topicCount, 0)
   if (categoryTotal > 0) {
     return categoryTotal
   }
   return hasActiveFilters.value ? 0 : loadedTopicTotal.value
+})
+// 右栏热帖：当前已加载主题按回复数排序，条数来自主题设置
+const hotTopics = computed(() => {
+  return [...topics.value]
+    .sort((left, right) => {
+      const replyDiff = right.commentCount - left.commentCount
+      if (replyDiff !== 0) {
+        return replyDiff
+      }
+      return right.id - left.id
+    })
+    .slice(0, rightRailHotLimit.value)
+})
+const totalReplies = computed(() => {
+  const fromCategories = categories.value.reduce((sum, category) => sum + (category.commentCount || 0), 0)
+  if (fromCategories > 0) {
+    return fromCategories
+  }
+  return topics.value.reduce((sum, topic) => sum + topic.commentCount, 0)
+})
+const railTags = computed(() => {
+  return [...activeTags.value]
+    .sort((left, right) => {
+      const countDiff = right.topicCount - left.topicCount
+      if (countDiff !== 0) {
+        return countDiff
+      }
+      return left.name.localeCompare(right.name)
+    })
+    .slice(0, rightRailTagLimit.value)
 })
 function replaceLoadedTopics(list: ForumTopicList) {
   const seen = new Set<number>()
@@ -340,7 +388,10 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="sforum-home">
-    <div class="sforum-home__layout">
+    <div
+      class="sforum-home__layout"
+      :class="{ 'sforum-home__layout--with-right': rightRailEnabled }"
+    >
       <div class="sforum-home__sidebar">
         <SFHomeNavigation
           desktop-only
@@ -368,8 +419,8 @@ onBeforeUnmount(() => {
           />
         </div>
 
-        <div class="sforum-home__notice" role="note">
-          {{ t('home.notice') }}
+        <div v-if="homeNotice" class="sforum-home__notice" role="note">
+          {{ homeNotice }}
         </div>
 
         <div class="sforum-home__feed-tabs" role="tablist" :aria-label="t('home.filter.latest')">
@@ -458,7 +509,7 @@ onBeforeUnmount(() => {
 
           <div v-else class="sforum-home__empty">
             <SFEmptyState
-              :title="t('home.emptyState.title')"
+              :title="emptyTitle"
               :description="emptyDescription"
               :action-label="hasActiveFilters ? t('home.clearFilters') : undefined"
               @action="resetFilters"
@@ -483,6 +534,20 @@ onBeforeUnmount(() => {
           <span v-else class="sforum-home__sentinel" aria-hidden="true" />
         </div>
       </section>
+
+      <SFHomeRightRail
+        v-if="rightRailEnabled"
+        :hot-topics="hotTopics"
+        :tags="railTags"
+        :selected-tag-slug="selectedTagSlug"
+        :total-topics="totalTopics"
+        :total-replies="totalReplies"
+        :category-count="categories.length"
+        :tag-count="activeTags.length"
+        :topic-url-mode="topicUrlMode"
+        :can-create-topic="canCreateTopic"
+        @select-tag="selectTag"
+      />
     </div>
   </main>
 </template>

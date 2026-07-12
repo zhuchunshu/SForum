@@ -1,0 +1,105 @@
+{
+  "title": "默认主题设置",
+  "intro": "按分组调整首页、侧栏、导航与布局。修改后立即作用于前台（无需重建主题层）；若本页组件有更新，需等待 Web Release 完成并刷新后台。",
+  "recommendedTitle": "推荐默认已就绪",
+  "recommendedDescription": "内置默认适合大多数社区。可按运营需要改文案与开关；「恢复推荐默认值」会写回推荐项，不会删除密钥类字段（本主题无密钥）。",
+  "tabs": {
+    "home": "首页文案",
+    "rail": "右侧栏",
+    "nav": "左侧导航",
+    "layout": "全局布局"
+  },
+  "groups": {
+    "homeCopy": "提示条与空状态",
+    "railToggles": "显示开关",
+    "railLimits": "列表数量",
+    "railCopy": "访客欢迎语",
+    "nav": "导航行为",
+    "layout": "页脚与公告"
+  },
+  "fields": {
+    "home.notice.zh-CN": {
+      "label": "首页提示条（中文）",
+      "description": "显示在首页话题列表上方。留空则隐藏。"
+    },
+    "home.notice.en-US": {
+      "label": "首页提示条（英文）",
+      "description": "英文界面提示条。留空则隐藏。"
+    },
+    "home.empty_title.zh-CN": {
+      "label": "空列表标题（中文）",
+      "description": "无话题时的主标题。留空使用主题内置文案。"
+    },
+    "home.empty_title.en-US": {
+      "label": "空列表标题（英文）",
+      "description": "英文空列表主标题。留空使用内置文案。"
+    },
+    "home.empty_description.zh-CN": {
+      "label": "空列表说明（中文）",
+      "description": "无话题时的说明。留空使用内置文案。"
+    },
+    "home.empty_description.en-US": {
+      "label": "空列表说明（英文）",
+      "description": "英文空列表说明。留空使用内置文案。"
+    },
+    "home.right_rail.enabled": {
+      "label": "显示首页右侧栏",
+      "description": "关闭后桌面端不渲染右侧辅助栏。"
+    },
+    "home.right_rail.show_hot": {
+      "label": "热门讨论",
+      "description": "按回复数展示热门话题。"
+    },
+    "home.right_rail.show_stats": {
+      "label": "站点统计",
+      "description": "展示主题 / 回复 / 分类 / 标签数量。"
+    },
+    "home.right_rail.show_tags": {
+      "label": "热门标签",
+      "description": "展示可点击筛选的标签。"
+    },
+    "home.right_rail.show_auth_card": {
+      "label": "登录 / 用户卡",
+      "description": "访客登录注册；登录后显示用户快捷入口。"
+    },
+    "home.right_rail.hot_limit": {
+      "label": "热门讨论条数",
+      "description": "建议 3–15。"
+    },
+    "home.right_rail.tag_limit": {
+      "label": "热门标签个数",
+      "description": "建议 3–20。"
+    },
+    "home.right_rail.welcome.zh-CN": {
+      "label": "访客欢迎语（中文）",
+      "description": "登录卡下方说明。留空使用内置文案。"
+    },
+    "home.right_rail.welcome.en-US": {
+      "label": "访客欢迎语（英文）",
+      "description": "英文登录卡说明。留空使用内置文案。"
+    },
+    "home.nav.show_compose": {
+      "label": "发帖按钮",
+      "description": "左侧导航「发新帖」入口。"
+    },
+    "home.nav.show_counts": {
+      "label": "分类话题数",
+      "description": "分类名称旁显示话题数量。"
+    },
+    "layout.show_footer": {
+      "label": "显示页脚",
+      "description": "版权与友链区域。"
+    },
+    "layout.show_announcements": {
+      "label": "显示站点公告条",
+      "description": "主题顶部公告组件；公告内容仍在后台公告管理。"
+    }
+  },
+  "enabled": "开启",
+  "recommended": "推荐值：{value}",
+  "emptyRecommended": "（空）",
+  "save": "保存设置",
+  "reset": "恢复推荐默认值",
+  "footerHint": "保存后前台会读取最新公开设置；自定义设置页组件更新需 Web Release 后刷新后台。",
+  "savedHint": "主题设置已保存。"
+}

@@ -1,0 +1,105 @@
+{
+  "title": "Default theme settings",
+  "intro": "Configure homepage copy, side rails, navigation, and layout. Public pages pick up value changes immediately; updating this custom settings page itself requires a Web Release and admin reload.",
+  "recommendedTitle": "Recommended defaults are ready",
+  "recommendedDescription": "Built-in defaults work for most communities. Adjust copy and toggles as needed. Restore recommended defaults rewrites recommended values; this theme has no secret fields.",
+  "tabs": {
+    "home": "Home copy",
+    "rail": "Right rail",
+    "nav": "Left navigation",
+    "layout": "Global layout"
+  },
+  "groups": {
+    "homeCopy": "Notice and empty state",
+    "railToggles": "Visibility",
+    "railLimits": "List limits",
+    "railCopy": "Guest welcome",
+    "nav": "Navigation behavior",
+    "layout": "Footer and announcements"
+  },
+  "fields": {
+    "home.notice.zh-CN": {
+      "label": "Homepage notice (Chinese)",
+      "description": "Shown above the topic list. Leave empty to hide."
+    },
+    "home.notice.en-US": {
+      "label": "Homepage notice (English)",
+      "description": "English notice copy. Leave empty to hide."
+    },
+    "home.empty_title.zh-CN": {
+      "label": "Empty list title (Chinese)",
+      "description": "Main title when there are no topics. Leave empty for built-in copy."
+    },
+    "home.empty_title.en-US": {
+      "label": "Empty list title (English)",
+      "description": "English empty-list title. Leave empty for built-in copy."
+    },
+    "home.empty_description.zh-CN": {
+      "label": "Empty list description (Chinese)",
+      "description": "Description when there are no topics. Leave empty for built-in copy."
+    },
+    "home.empty_description.en-US": {
+      "label": "Empty list description (English)",
+      "description": "English empty-list description. Leave empty for built-in copy."
+    },
+    "home.right_rail.enabled": {
+      "label": "Show homepage right rail",
+      "description": "When off, the desktop homepage hides the right rail."
+    },
+    "home.right_rail.show_hot": {
+      "label": "Hot topics",
+      "description": "Show hot discussions sorted by reply count."
+    },
+    "home.right_rail.show_stats": {
+      "label": "Community stats",
+      "description": "Show topic, reply, category, and tag counts."
+    },
+    "home.right_rail.show_tags": {
+      "label": "Popular tags",
+      "description": "Show clickable popular tags."
+    },
+    "home.right_rail.show_auth_card": {
+      "label": "Auth / user card",
+      "description": "Guests see login/register; signed-in users see shortcuts."
+    },
+    "home.right_rail.hot_limit": {
+      "label": "Hot topics count",
+      "description": "Suggested range: 3–15."
+    },
+    "home.right_rail.tag_limit": {
+      "label": "Popular tags count",
+      "description": "Suggested range: 3–20."
+    },
+    "home.right_rail.welcome.zh-CN": {
+      "label": "Guest welcome (Chinese)",
+      "description": "Copy under the guest login card. Leave empty for built-in copy."
+    },
+    "home.right_rail.welcome.en-US": {
+      "label": "Guest welcome (English)",
+      "description": "English guest card copy. Leave empty for built-in copy."
+    },
+    "home.nav.show_compose": {
+      "label": "Compose button",
+      "description": "Show the new-topic button in the left nav."
+    },
+    "home.nav.show_counts": {
+      "label": "Category topic counts",
+      "description": "Show topic counts next to category names."
+    },
+    "layout.show_footer": {
+      "label": "Show footer",
+      "description": "Copyright and friend-link area."
+    },
+    "layout.show_announcements": {
+      "label": "Show site announcement banner",
+      "description": "Theme banner component; announcement content is still managed in admin."
+    }
+  },
+  "enabled": "Enabled",
+  "recommended": "Recommended: {value}",
+  "emptyRecommended": "(empty)",
+  "save": "Save settings",
+  "reset": "Restore recommended defaults",
+  "footerHint": "Public pages read updated values after save. Custom settings page component updates need a Web Release and admin reload.",
+  "savedHint": "Theme settings saved."
+}

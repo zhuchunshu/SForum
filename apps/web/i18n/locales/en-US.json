@@ -138,6 +138,13 @@
       "statReplies": "Total Replies",
       "statMembers": "Registered Members",
       "statOnline": "Online Active"
+    },
+    "rightRail": {
+      "ariaLabel": "Sidebar",
+      "hotByReplies": "By replies",
+      "hotEmpty": "No hot discussions yet",
+      "hotTags": "Popular tags",
+      "welcomeDesc": "Sign in to post, reply, and keep notifications and drafts in sync. Join the community and discuss with care."
     }
   },
   "auth": {
@@ -521,7 +528,18 @@
       },
       "releases": {
         "title": "Web releases",
-        "intro": "Inspect immutable theme and trusted-plugin compositions, builds, and switch history. Open a release to view its build log.",
+        "intro": "Inspect immutable theme and trusted-plugin compositions, builds, and switch history. After builtin theme or trusted plugin admin UI updates, use Rebuild now to queue a new release.",
+        "rebuildTitle": "Rebuild the current Web release",
+        "rebuildDescription": "Re-package the admin app from the active theme and enabled trusted plugins. Use this after default-theme settings pages or SMTP settings UI changes. Does not change plugin enablement. Refresh the admin UI when the release becomes active.",
+        "rebuild": "Rebuild now",
+        "rebuildQueued": "Web release rebuild queued.",
+        "typecheckFailTitle": "Hard-fail on typecheck",
+        "typecheckFailDescription": "When enabled, a Web Release stops if vue-tsc typecheck fails. Default is off: typecheck still runs and is written to the build log, but packaging continues. Full-repo typecheck stays a CI / test-script gate and is not controlled by this switch.",
+        "typecheckFailOn": "Fail the release",
+        "typecheckFailOff": "Log only (recommended)",
+        "typecheckFailEnabled": "Typecheck hard-fail enabled.",
+        "typecheckFailDisabled": "Typecheck hard-fail disabled (recommended default).",
+        "historyHint": "History of releases below. In-progress builds refresh automatically.",
         "trigger": "Trigger",
         "theme": "Theme",
         "status": "Status",

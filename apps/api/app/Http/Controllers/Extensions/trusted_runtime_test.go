@@ -72,6 +72,7 @@ func TestTrustedRuntimeControllerListsAndCommandsWebReleases(t *testing.T) {
 	releases := &fakeWebReleaseHTTPService{
 		page:     extensions.WebReleasePage{Items: []extensions.WebRelease{{ID: 7}}, Total: 1, Page: 2, PerPage: 5},
 		detail:   extensions.WebReleaseDetail{WebRelease: extensions.WebRelease{ID: 7}},
+		rebuild:  extensions.WebReleaseOperation{WebRelease: extensions.WebRelease{ID: 11}, Queued: true},
 		retry:    extensions.WebReleaseOperation{WebRelease: extensions.WebRelease{ID: 8}, Queued: true},
 		rollback: extensions.WebReleaseOperation{WebRelease: extensions.WebRelease{ID: 9}, Queued: true},
 	}
@@ -92,6 +93,19 @@ func TestTrustedRuntimeControllerListsAndCommandsWebReleases(t *testing.T) {
 		t.Fatalf("expected release detail 200, got %d", resp.StatusCode)
 	}
 	resp.Body.Close()
+
+	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/web-releases/rebuild", cookie)
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("expected rebuild 202, got %d", resp.StatusCode)
+	}
+	var rebuildBody testEnvelope[extensions.WebReleaseOperation]
+	if err := json.NewDecoder(resp.Body).Decode(&rebuildBody); err != nil {
+		t.Fatalf("decode rebuild response: %v", err)
+	}
+	resp.Body.Close()
+	if rebuildBody.Data.WebRelease.ID != 11 || !rebuildBody.Data.Queued {
+		t.Fatalf("unexpected rebuild body: %#v", rebuildBody.Data)
+	}
 
 	for path, wantID := range map[string]int64{
 		"/api/v1/admin/web-releases/7/retry":    8,
@@ -185,6 +199,7 @@ func (s *fakeTrustedFrontendHTTPService) RestoreDefaults(_ context.Context, acto
 type fakeWebReleaseHTTPService struct {
 	page      extensions.WebReleasePage
 	detail    extensions.WebReleaseDetail
+	rebuild   extensions.WebReleaseOperation
 	retry     extensions.WebReleaseOperation
 	rollback  extensions.WebReleaseOperation
 	listInput extensions.WebReleaseListInput
@@ -197,6 +212,10 @@ func (s *fakeWebReleaseHTTPService) List(_ context.Context, _ identity.Actor, in
 
 func (s *fakeWebReleaseHTTPService) Detail(context.Context, identity.Actor, int64) (extensions.WebReleaseDetail, error) {
 	return s.detail, nil
+}
+
+func (s *fakeWebReleaseHTTPService) Rebuild(context.Context, identity.Actor) (extensions.WebReleaseOperation, error) {
+	return s.rebuild, nil
 }
 
 func (s *fakeWebReleaseHTTPService) Retry(context.Context, identity.Actor, int64) (extensions.WebReleaseOperation, error) {

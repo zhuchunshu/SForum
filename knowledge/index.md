@@ -4,6 +4,19 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-13 Web Release typecheck non-blocking (admin toggle)**
+  - Decision: `knowledge/decisions/2026-07-13-web-release-typecheck-nonblocking.md`
+  - Option: `web_release.typecheck_fail` on 扩展 → Web 发布
+  - Default: typecheck logs only; CI/`test.sh` still forces typecheck
+  - Manual rebuild + hard-fail switch on same admin page
+
+- **2026-07-13 theme custom settings page (tabs)**
+  - Decision: `knowledge/decisions/2026-07-13-theme-admin-settings-page.md`
+  - Handoff: `knowledge/sessions/2026-07-13-theme-custom-settings-tabs.md`
+  - Themes may declare `frontend.admin` + settings page slots only
+  - Default theme multi-tab `ThemeSettingsPage` + expanded settings keys
+  - Web Release includes active theme admin frontend
+
 - **2026-07-12 security audit follow-up remediation completed**
   - Plan: `knowledge/plans/2026-07-12-security-audit-followup-remediation.md` (Status: Completed)
   - Handoff: `knowledge/sessions/2026-07-12-security-audit-followup-remediation-done.md`

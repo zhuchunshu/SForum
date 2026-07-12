@@ -852,16 +852,36 @@ func isThemeManifestSupported(manifest Manifest) bool {
 	if strings.TrimSpace(manifest.Frontend.Layer) == "" {
 		return false
 	}
-	return manifest.Backend == (ManifestBackend{}) &&
-		len(manifest.Permissions) == 0 &&
-		len(manifest.Capabilities) == 0 &&
-		len(manifest.Migrations) == 0 &&
-		len(manifest.Routes) == 0 &&
-		len(manifest.Hooks) == 0 &&
-		len(manifest.Events) == 0 &&
-		len(manifest.Jobs) == 0 &&
-		len(manifest.Providers) == 0 &&
-		len(manifest.Contributions) == 0
+	// 主题仍禁止后端/路由/hooks 等插件能力；仅允许设置与 admin 设置页相关贡献。
+	if manifest.Backend != (ManifestBackend{}) ||
+		len(manifest.Permissions) != 0 ||
+		len(manifest.Capabilities) != 0 ||
+		len(manifest.Migrations) != 0 ||
+		len(manifest.Routes) != 0 ||
+		len(manifest.Hooks) != 0 ||
+		len(manifest.Events) != 0 ||
+		len(manifest.Jobs) != 0 ||
+		len(manifest.Providers) != 0 {
+		return false
+	}
+	for _, contribution := range manifest.Contributions {
+		if !isThemeAllowedContributionPoint(contribution.Point) {
+			return false
+		}
+	}
+	return true
+}
+
+// 主题可贡献的点：仅扩展设置页替换/页眉/页脚（自定义主题设置 UI）。
+func isThemeAllowedContributionPoint(point string) bool {
+	switch strings.TrimSpace(point) {
+	case "admin.extension.settings.page",
+		"admin.extension.settings.header",
+		"admin.extension.settings.footer":
+		return true
+	default:
+		return false
+	}
 }
 
 // CapabilityResolveInput 将 manifest 转为 capabilities 解析输入（F2.1）。

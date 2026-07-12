@@ -7,6 +7,11 @@ import (
 )
 
 const (
+	// NameWebReleaseTypecheckFail：Web Release 构建时 typecheck 失败是否阻断。
+	// 默认 disabled（仅写 build log）；enabled 时 typecheck 失败会 fail release。
+	// 管理权限 extension.release.manage；CI 全仓 typecheck 不受此开关影响。
+	NameWebReleaseTypecheckFail = "web_release.typecheck_fail"
+
 	NameSiteName                         = "site.name"
 	NameSiteURL                          = "site.url"
 	// 站点副标题/标语（短文本，可空）。用于导航副标、登录页等，不等于 SEO 描述。

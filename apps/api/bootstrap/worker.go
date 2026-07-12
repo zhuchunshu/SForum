@@ -234,7 +234,10 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		BuildTimeout:      cfg.WebReleaseBuildTimeout,
 		PreviewTimeout:    cfg.WebReleasePreviewTimeout,
 		PreviewPath:       cfg.WebReleasePreviewPath,
-		HostPeers:         webreleaseruntime.HostPeers(),
+		// 回退：options 不可读时用 env；正常路径读 web_options.web_release.typecheck_fail。
+		TypecheckFail:   cfg.WebReleaseTypecheckFail,
+		TypecheckPolicy: webReleaseTypecheckPolicy{options: workerOptions},
+		HostPeers:       webreleaseruntime.HostPeers(),
 	})
 	extensionjobs.RegisterWebReleaseBuildWorker(registry, webReleaseStore, webReleaseBuilder, postgres.NewAdvisoryLocker(pool))
 	extensionjobs.RegisterWebReleaseCleanupWorker(registry, webReleaseStore, cfg.WebReleaseRoot)
@@ -416,4 +419,23 @@ func (w *Worker) Close() {
 			w.close()
 		}
 	})
+}
+
+// webReleaseTypecheckPolicy 从 web_options 解析 typecheck 是否硬失败。
+type webReleaseTypecheckPolicy struct {
+	options interface {
+		WebReleaseTypecheckFail(context.Context) (bool, error)
+	}
+}
+
+func (p webReleaseTypecheckPolicy) TypecheckFail(ctx context.Context) bool {
+	if p.options == nil {
+		return false
+	}
+	fail, err := p.options.WebReleaseTypecheckFail(ctx)
+	if err != nil {
+		// options 读失败时不阻断发布，避免 DB 抖动拖垮重建。
+		return false
+	}
+	return fail
 }

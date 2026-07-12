@@ -87,6 +87,22 @@ func TestWebReleasePlannerAppliesTrustAndLifecycleRules(t *testing.T) {
 	}
 }
 
+func TestWebReleasePlannerIncludesActiveThemeAdminFrontend(t *testing.T) {
+	theme := plannerThemeWithAdminFixture(t)
+	plugin := plannerPluginFixture(t, "alpha.plugin", SourceBuiltin, StatusEnabled)
+	reader := &plannerExtensionReader{theme: theme, items: []Extension{theme, plugin}}
+	planner := NewWebReleasePlanner(reader, &plannerGrantReader{}, plannerHostFixture())
+
+	planned, err := planner.Plan(context.Background(), PlanWebReleaseInput{TriggerKind: WebReleaseTriggerRebuild})
+	if err != nil {
+		t.Fatalf("plan composition: %v", err)
+	}
+	ids := plannerExtensionIDs(planned.Composition.Extensions)
+	if !slices.Equal(ids, []string{"alpha.plugin", DefaultThemeID}) {
+		t.Fatalf("expected theme + plugin admin frontends sorted by id, got %#v", ids)
+	}
+}
+
 func TestWebReleasePlannerRejectsTamperedTrustedPackage(t *testing.T) {
 	theme := plannerThemeFixture(t)
 	plugin := plannerPluginFixture(t, "tampered.plugin", SourceUploaded, StatusEnabled)
@@ -205,6 +221,61 @@ func plannerThemeFixture(t *testing.T) Extension {
 			Version:  "1.0.0",
 			Type:     TypeTheme,
 			Frontend: ManifestFrontend{Layer: "layer"},
+		},
+	}
+}
+
+func plannerThemeWithAdminFixture(t *testing.T) Extension {
+	t.Helper()
+	root := t.TempDir()
+	writePlannerFile(t, root, "layer/app.vue", "<template><div /></template>")
+	writePlannerFile(t, root, ManifestFileName, `{"id":"sforum.default-theme"}`)
+	writePlannerFile(t, root, "frontend/admin/components/ThemeSettingsPage.vue", "<template><div /></template>")
+	writePlannerFile(t, root, "frontend/admin/locales/zh-CN.json", `{"title":"主题"}`)
+	writePlannerFile(t, root, "frontend/admin/locales/en-US.json", `{"title":"Theme"}`)
+	writePlannerFile(t, root, "frontend/admin/package.json", plannerPackageJSON)
+	writePlannerFile(t, root, "frontend/admin/bun.lock", plannerBunLock)
+	digest, err := extensionpackage.DigestTree(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(AdminComponentContributionPayload{Component: "theme-settings-page"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return Extension{
+		ID:            DefaultThemeID,
+		Name:          "Default",
+		Version:       "1.0.0",
+		Type:          TypeTheme,
+		Status:        StatusEnabled,
+		Source:        SourceBuiltin,
+		IsSystem:      true,
+		IsDeletable:   false,
+		PackagePath:   root,
+		PackageDigest: digest,
+		Manifest: Manifest{
+			ID:      DefaultThemeID,
+			Version: "1.0.0",
+			Type:    TypeTheme,
+			Frontend: ManifestFrontend{
+				Layer: "layer",
+				Admin: &ManifestAdminFrontend{
+					Root:       "frontend/admin",
+					APIVersion: 1,
+					Components: map[string]string{"theme-settings-page": "components/ThemeSettingsPage.vue"},
+					Locales: map[string]string{
+						"zh-CN": "locales/zh-CN.json",
+						"en-US": "locales/en-US.json",
+					},
+				},
+			},
+			Contributions: []ManifestContribution{{
+				Point:   "admin.extension.settings.page",
+				ID:      "theme-settings-page",
+				Order:   10,
+				Payload: payload,
+			}},
 		},
 	}
 }

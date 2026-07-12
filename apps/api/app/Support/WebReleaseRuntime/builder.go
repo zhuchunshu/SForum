@@ -249,9 +249,21 @@ func (b *Builder) Build(ctx context.Context, prepared PreparedRelease, previousL
 	})
 	buildCtx, cancel := context.WithTimeout(ctx, b.config.BuildTimeout)
 	defer cancel()
-	typecheckLog, err := b.runner.Run(buildCtx, Command{Path: b.config.BunPath, Args: []string{"run", "typecheck"}, Dir: prepared.Workspace, Env: environment})
-	if err != nil {
-		return BuildResult{BuildLog: boundedLog(previousLog, typecheckLog)}, fmt.Errorf("web release typecheck failed: %w", err)
+	// typecheck：始终执行并写入 build log；是否阻断由后台选项 / 回退配置决定。
+	typecheckHardFail := b.resolveTypecheckFail(ctx)
+	typecheckLog, typecheckErr := b.runner.Run(buildCtx, Command{Path: b.config.BunPath, Args: []string{"run", "typecheck"}, Dir: prepared.Workspace, Env: environment})
+	if typecheckErr != nil {
+		if typecheckHardFail {
+			return BuildResult{BuildLog: boundedLog(previousLog, typecheckLog)}, fmt.Errorf("web release typecheck failed: %w", typecheckErr)
+		}
+		// 非阻断：标注后继续 build；运维可在「扩展 → Web 发布」打开硬失败开关。
+		typecheckLog = boundedLog(
+			"=== web release typecheck FAILED (non-blocking; enable web_release.typecheck_fail in admin to hard-fail) ===",
+			typecheckLog,
+			fmt.Sprintf("=== typecheck error: %v ===", typecheckErr),
+		)
+	} else {
+		typecheckLog = boundedLog("=== web release typecheck OK ===", typecheckLog)
 	}
 	buildLog, err := b.runner.Run(buildCtx, Command{Path: b.config.BunPath, Args: []string{"run", "build"}, Dir: prepared.Workspace, Env: environment})
 	result := BuildResult{ArtifactPath: artifact, BuildLog: boundedLog(previousLog, typecheckLog, buildLog)}
@@ -263,6 +275,16 @@ func (b *Builder) Build(ctx context.Context, prepared PreparedRelease, previousL
 		return result, fmt.Errorf("web release server entry is missing")
 	}
 	return result, nil
+}
+
+func (b *Builder) resolveTypecheckFail(ctx context.Context) bool {
+	if b != nil && b.config.TypecheckPolicy != nil {
+		return b.config.TypecheckPolicy.TypecheckFail(ctx)
+	}
+	if b == nil {
+		return false
+	}
+	return b.config.TypecheckFail
 }
 
 func (b *Builder) Verify(ctx context.Context, prepared PreparedRelease, result BuildResult) (BuildResult, error) {

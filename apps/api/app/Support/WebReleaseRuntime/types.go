@@ -20,9 +20,20 @@ type Config struct {
 	BuildTimeout      time.Duration
 	PreviewTimeout    time.Duration
 	PreviewPath       string
+	// TypecheckFail 是解析器不可用时的回退：true 则 typecheck 失败阻断构建。
+	// 默认 false。运行时优先读 TypecheckPolicy（通常来自 web_options）。
+	TypecheckFail bool
+	// TypecheckPolicy 在每次 Build 时解析是否硬失败；nil 时用 TypecheckFail。
+	TypecheckPolicy TypecheckPolicy
 	HostPeers         extensionpackage.HostPeers
 	SourceEnvironment []string
 	Runner            CommandRunner
+}
+
+// TypecheckPolicy 决定 Web Release typecheck 失败是否阻断（后台可配置）。
+type TypecheckPolicy interface {
+	// TypecheckFail 返回 true 表示 typecheck 失败应中止 release。
+	TypecheckFail(ctx context.Context) bool
 }
 
 type Command struct {

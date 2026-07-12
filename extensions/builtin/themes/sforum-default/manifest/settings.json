@@ -1,0 +1,240 @@
+[
+  {
+    "key": "home.notice.zh-CN",
+    "label": { "zh-CN": "首页提示条（中文）", "en-US": "Homepage notice (Chinese)" },
+    "description": {
+      "zh-CN": "显示在首页话题列表上方。留空则隐藏中文提示条。",
+      "en-US": "Shown above the homepage topic list. Leave empty to hide the Chinese notice."
+    },
+    "type": "text",
+    "default": "真诚、友善、团结、专业，共建你我引以为荣的社区。",
+    "recommendedValue": "真诚、友善、团结、专业，共建你我引以为荣的社区。",
+    "placeholder": { "zh-CN": "留空则不显示", "en-US": "Leave empty to hide" },
+    "group": { "zh-CN": "首页文案", "en-US": "Home copy" }
+  },
+  {
+    "key": "home.notice.en-US",
+    "label": { "zh-CN": "首页提示条（英文）", "en-US": "Homepage notice (English)" },
+    "description": {
+      "zh-CN": "英文界面下的提示条文案。留空则隐藏。",
+      "en-US": "Notice copy for English UI. Leave empty to hide."
+    },
+    "type": "text",
+    "default": "Be sincere, friendly, united, and professional as we build a community we are proud of.",
+    "recommendedValue": "Be sincere, friendly, united, and professional as we build a community we are proud of.",
+    "placeholder": { "zh-CN": "留空则不显示", "en-US": "Leave empty to hide" },
+    "group": { "zh-CN": "首页文案", "en-US": "Home copy" }
+  },
+  {
+    "key": "home.empty_title.zh-CN",
+    "label": { "zh-CN": "空列表标题（中文）", "en-US": "Empty list title (Chinese)" },
+    "description": {
+      "zh-CN": "首页无话题时的主标题。留空则使用主题内置文案。",
+      "en-US": "Main title when the homepage has no topics. Leave empty to use built-in copy."
+    },
+    "type": "text",
+    "default": "",
+    "recommendedValue": "",
+    "placeholder": { "zh-CN": "留空使用默认", "en-US": "Leave empty for default" },
+    "group": { "zh-CN": "首页文案", "en-US": "Home copy" }
+  },
+  {
+    "key": "home.empty_title.en-US",
+    "label": { "zh-CN": "空列表标题（英文）", "en-US": "Empty list title (English)" },
+    "description": {
+      "zh-CN": "英文界面下空列表主标题。留空则使用内置文案。",
+      "en-US": "Empty-list title for English UI. Leave empty for built-in copy."
+    },
+    "type": "text",
+    "default": "",
+    "recommendedValue": "",
+    "placeholder": { "zh-CN": "留空使用默认", "en-US": "Leave empty for default" },
+    "group": { "zh-CN": "首页文案", "en-US": "Home copy" }
+  },
+  {
+    "key": "home.empty_description.zh-CN",
+    "label": { "zh-CN": "空列表说明（中文）", "en-US": "Empty list description (Chinese)" },
+    "description": {
+      "zh-CN": "首页无话题时的说明文字。留空则使用主题内置文案。",
+      "en-US": "Description when the homepage has no topics. Leave empty for built-in copy."
+    },
+    "type": "text",
+    "default": "",
+    "recommendedValue": "",
+    "placeholder": { "zh-CN": "留空使用默认", "en-US": "Leave empty for default" },
+    "group": { "zh-CN": "首页文案", "en-US": "Home copy" }
+  },
+  {
+    "key": "home.empty_description.en-US",
+    "label": { "zh-CN": "空列表说明（英文）", "en-US": "Empty list description (English)" },
+    "description": {
+      "zh-CN": "英文界面下空列表说明。留空则使用内置文案。",
+      "en-US": "Empty-list description for English UI. Leave empty for built-in copy."
+    },
+    "type": "text",
+    "default": "",
+    "recommendedValue": "",
+    "placeholder": { "zh-CN": "留空使用默认", "en-US": "Leave empty for default" },
+    "group": { "zh-CN": "首页文案", "en-US": "Home copy" }
+  },
+  {
+    "key": "home.right_rail.enabled",
+    "label": { "zh-CN": "显示首页右侧栏", "en-US": "Show homepage right rail" },
+    "description": {
+      "zh-CN": "关闭后桌面端首页不渲染右侧辅助栏（热帖/统计/标签等）。",
+      "en-US": "When off, the desktop homepage hides the right rail (hot topics, stats, tags)."
+    },
+    "type": "boolean",
+    "default": "true",
+    "recommendedValue": "true",
+    "group": { "zh-CN": "右侧栏开关", "en-US": "Right rail toggles" }
+  },
+  {
+    "key": "home.right_rail.show_hot",
+    "label": { "zh-CN": "右侧栏：热门讨论", "en-US": "Right rail: hot topics" },
+    "description": {
+      "zh-CN": "在右侧栏展示按回复数排序的热门讨论。",
+      "en-US": "Show hot discussions sorted by reply count in the right rail."
+    },
+    "type": "boolean",
+    "default": "true",
+    "recommendedValue": "true",
+    "group": { "zh-CN": "右侧栏开关", "en-US": "Right rail toggles" }
+  },
+  {
+    "key": "home.right_rail.show_stats",
+    "label": { "zh-CN": "右侧栏：站点统计", "en-US": "Right rail: community stats" },
+    "description": {
+      "zh-CN": "在右侧栏展示主题/回复/分类/标签数量。",
+      "en-US": "Show topic, reply, category, and tag counts in the right rail."
+    },
+    "type": "boolean",
+    "default": "true",
+    "recommendedValue": "true",
+    "group": { "zh-CN": "右侧栏开关", "en-US": "Right rail toggles" }
+  },
+  {
+    "key": "home.right_rail.show_tags",
+    "label": { "zh-CN": "右侧栏：热门标签", "en-US": "Right rail: popular tags" },
+    "description": {
+      "zh-CN": "在右侧栏展示可点击筛选的热门标签。",
+      "en-US": "Show clickable popular tags in the right rail."
+    },
+    "type": "boolean",
+    "default": "true",
+    "recommendedValue": "true",
+    "group": { "zh-CN": "右侧栏开关", "en-US": "Right rail toggles" }
+  },
+  {
+    "key": "home.right_rail.show_auth_card",
+    "label": { "zh-CN": "右侧栏：登录/用户卡", "en-US": "Right rail: auth / user card" },
+    "description": {
+      "zh-CN": "访客显示登录注册，已登录显示用户快捷入口。",
+      "en-US": "Guests see login/register; signed-in users see profile shortcuts."
+    },
+    "type": "boolean",
+    "default": "true",
+    "recommendedValue": "true",
+    "group": { "zh-CN": "右侧栏开关", "en-US": "Right rail toggles" }
+  },
+  {
+    "key": "home.right_rail.hot_limit",
+    "label": { "zh-CN": "热门讨论条数", "en-US": "Hot topics count" },
+    "description": {
+      "zh-CN": "右侧栏热门讨论最多展示几条（3–15）。",
+      "en-US": "Maximum hot topics in the right rail (3–15)."
+    },
+    "type": "number",
+    "default": "5",
+    "recommendedValue": "5",
+    "placeholder": { "zh-CN": "5", "en-US": "5" },
+    "group": { "zh-CN": "右侧栏数量", "en-US": "Right rail limits" }
+  },
+  {
+    "key": "home.right_rail.tag_limit",
+    "label": { "zh-CN": "热门标签个数", "en-US": "Popular tags count" },
+    "description": {
+      "zh-CN": "右侧栏热门标签最多展示几个（3–20）。",
+      "en-US": "Maximum popular tags in the right rail (3–20)."
+    },
+    "type": "number",
+    "default": "10",
+    "recommendedValue": "10",
+    "placeholder": { "zh-CN": "10", "en-US": "10" },
+    "group": { "zh-CN": "右侧栏数量", "en-US": "Right rail limits" }
+  },
+  {
+    "key": "home.right_rail.welcome.zh-CN",
+    "label": { "zh-CN": "访客欢迎语（中文）", "en-US": "Guest welcome text (Chinese)" },
+    "description": {
+      "zh-CN": "右侧栏访客登录卡下的说明。留空使用主题内置文案。",
+      "en-US": "Copy under the guest login card. Leave empty for built-in copy."
+    },
+    "type": "text",
+    "default": "",
+    "recommendedValue": "",
+    "placeholder": { "zh-CN": "留空使用默认", "en-US": "Leave empty for default" },
+    "group": { "zh-CN": "右侧栏文案", "en-US": "Right rail copy" }
+  },
+  {
+    "key": "home.right_rail.welcome.en-US",
+    "label": { "zh-CN": "访客欢迎语（英文）", "en-US": "Guest welcome text (English)" },
+    "description": {
+      "zh-CN": "英文界面下访客登录卡说明。留空使用内置文案。",
+      "en-US": "Guest login card copy for English UI. Leave empty for built-in copy."
+    },
+    "type": "text",
+    "default": "",
+    "recommendedValue": "",
+    "placeholder": { "zh-CN": "留空使用默认", "en-US": "Leave empty for default" },
+    "group": { "zh-CN": "右侧栏文案", "en-US": "Right rail copy" }
+  },
+  {
+    "key": "home.nav.show_compose",
+    "label": { "zh-CN": "左侧导航：发帖按钮", "en-US": "Left nav: compose button" },
+    "description": {
+      "zh-CN": "关闭后左侧导航不显示「发新帖」入口（仍可通过其它入口发帖）。",
+      "en-US": "When off, hide the compose button in the left nav (other entry points still work)."
+    },
+    "type": "boolean",
+    "default": "true",
+    "recommendedValue": "true",
+    "group": { "zh-CN": "左侧导航", "en-US": "Left navigation" }
+  },
+  {
+    "key": "home.nav.show_counts",
+    "label": { "zh-CN": "左侧导航：分类话题数", "en-US": "Left nav: category topic counts" },
+    "description": {
+      "zh-CN": "在分类名称旁显示话题数量。",
+      "en-US": "Show topic counts next to category names."
+    },
+    "type": "boolean",
+    "default": "true",
+    "recommendedValue": "true",
+    "group": { "zh-CN": "左侧导航", "en-US": "Left navigation" }
+  },
+  {
+    "key": "layout.show_footer",
+    "label": { "zh-CN": "显示页脚", "en-US": "Show footer" },
+    "description": {
+      "zh-CN": "关闭后默认主题布局不渲染页脚（版权与友链区域）。",
+      "en-US": "When off, the default theme layout hides the footer (copyright and friend links)."
+    },
+    "type": "boolean",
+    "default": "true",
+    "recommendedValue": "true",
+    "group": { "zh-CN": "全局布局", "en-US": "Global layout" }
+  },
+  {
+    "key": "layout.show_announcements",
+    "label": { "zh-CN": "显示站点公告条", "en-US": "Show site announcement banner" },
+    "description": {
+      "zh-CN": "关闭后不渲染主题公告条组件（公告数据仍由后台管理）。",
+      "en-US": "When off, hide the theme announcement banner (announcements are still managed in admin)."
+    },
+    "type": "boolean",
+    "default": "true",
+    "recommendedValue": "true",
+    "group": { "zh-CN": "全局布局", "en-US": "Global layout" }
+  }
+]

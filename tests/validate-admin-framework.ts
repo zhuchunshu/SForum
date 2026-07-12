@@ -136,6 +136,8 @@ const adminPagePathsById: Record<string, string> = {
   '/settings': 'apps/web/app/pages/admin/settings/index.vue',
   '/settings/mail': 'apps/web/app/pages/admin/settings/mail.vue',
   '/settings/avatar': 'apps/web/app/pages/admin/settings/avatar.vue',
+  '/settings/features': 'apps/web/app/pages/admin/settings/features.vue',
+  '/entity-meta': 'apps/web/app/pages/admin/entity-meta.vue',
   '/personalization': 'apps/web/app/pages/admin/personalization.vue',
   '/site-chrome': 'apps/web/app/pages/admin/site-chrome.vue',
   '/moderation': 'apps/web/app/pages/admin/moderation.vue',
@@ -157,6 +159,7 @@ const adminPagePathsById: Record<string, string> = {
   '/extensions/releases': 'apps/web/app/pages/admin/extensions/releases.vue',
   '/jobs': 'apps/web/app/pages/admin/jobs.vue',
   '/schedules': 'apps/web/app/pages/admin/schedules.vue',
+  '/webhooks': 'apps/web/app/pages/admin/webhooks.vue',
   '/search': 'apps/web/app/pages/admin/search.vue'
 }
 

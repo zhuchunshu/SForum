@@ -67,7 +67,11 @@ type Config struct {
 	WebReleaseBuildTimeout   time.Duration
 	WebReleasePreviewTimeout time.Duration
 	WebReleasePreviewPath    string
-	ThemeReleaseRoot         string
+	// WebReleaseTypecheckFail 为 true 时 Web Release 在 typecheck 失败时中止。
+	// 默认 false：typecheck 仍会跑并写入 build log，但只以 bun run build 成败为准。
+	// 全仓强制 typecheck 由 CI / scripts/test.sh 负责。
+	WebReleaseTypecheckFail bool
+	ThemeReleaseRoot        string
 	ThemeWebRoot             string
 	ThemeBunPath             string
 	ThemeBuildTimeout        time.Duration
@@ -129,6 +133,8 @@ func Load() Config {
 	webReleaseBuildTimeout := envDuration("WEB_RELEASE_BUILD_TIMEOUT", envDuration("THEME_BUILD_TIMEOUT", 5*time.Minute))
 	webReleasePreviewTimeout := envDuration("WEB_RELEASE_PREVIEW_TIMEOUT", envDuration("THEME_PREVIEW_TIMEOUT", 30*time.Second))
 	webReleasePreviewPath := env("WEB_RELEASE_PREVIEW_PATH", env("THEME_PREVIEW_PATH", "/"))
+	// 默认不阻断：避免主题/插件发布被 core 类型债绑架；需要严闸时显式打开。
+	webReleaseTypecheckFail := envBool("WEB_RELEASE_TYPECHECK_FAIL", false)
 
 	// 真实客户端 IP：开发默认信任私网/loopback（Docker+Nuxt 反代）；生产须显式 TRUST_PROXY + TRUSTED_PROXIES。
 	isProd := strings.EqualFold(appEnv, "production")
@@ -194,6 +200,7 @@ func Load() Config {
 		WebReleaseBuildTimeout:        webReleaseBuildTimeout,
 		WebReleasePreviewTimeout:      webReleasePreviewTimeout,
 		WebReleasePreviewPath:         webReleasePreviewPath,
+		WebReleaseTypecheckFail:       webReleaseTypecheckFail,
 		ThemeReleaseRoot:              webReleaseRoot,
 		ThemeWebRoot:                  webReleaseWebRoot,
 		ThemeBunPath:                  webReleaseBunPath,

@@ -296,7 +296,6 @@ func (LocalThemeBuilder) Build(_ context.Context, extension Extension) error {
 	return nil
 }
 
-
 // canViewExtensions 扩展目录只读（列表/事件/贡献/导航）。
 func canViewExtensions(actor identity.Actor) bool {
 	return actor.Can(identity.PermissionExtensionView) || actor.Can(identity.PermissionExtensionManage)
@@ -618,6 +617,10 @@ func requireExtensionEnabledForSettings(extension Extension) error {
 }
 
 func canManageExtensionSettings(actor identity.Actor, extension Extension) bool {
+	// 主题设置：extension.theme.manage（或兼容父权限 extension.manage）。
+	if extension.Type == TypeTheme {
+		return canManageThemes(actor)
+	}
 	// 插件设置：extension.plugin.manage；邮件提供商插件也允许 settings.mail.manage。
 	if canManagePlugins(actor) {
 		return true
@@ -631,6 +634,41 @@ func canManageExtensionSettings(actor identity.Actor, extension Extension) bool 
 		}
 	}
 	return false
+}
+
+// PublicActiveThemeSettings 返回当前激活主题的非 secret 设置（含默认值）。
+// 供前台主题 layer 读取可运营配置；secret 永不出现在公开响应中。
+func (s *Service) PublicActiveThemeSettings(ctx context.Context) (PublicActiveThemeSettings, error) {
+	theme, err := s.store.ActiveTheme(ctx)
+	if err != nil {
+		return PublicActiveThemeSettings{Settings: map[string]string{}}, nil
+	}
+	if theme.Type != TypeTheme {
+		return PublicActiveThemeSettings{Settings: map[string]string{}}, nil
+	}
+	values, err := s.listDecryptedSettings(ctx, theme)
+	if err != nil {
+		return PublicActiveThemeSettings{}, err
+	}
+	settings := map[string]string{}
+	for _, setting := range theme.Manifest.Settings {
+		if setting.Type == "secret" {
+			continue
+		}
+		key := strings.TrimSpace(setting.Key)
+		if key == "" {
+			continue
+		}
+		if stored, ok := values[key]; ok {
+			settings[key] = stored
+			continue
+		}
+		settings[key] = setting.Default
+	}
+	return PublicActiveThemeSettings{
+		ThemeID:  theme.ID,
+		Settings: settings,
+	}, nil
 }
 
 func (s *Service) restartPluginForSettings(ctx context.Context, extension Extension) error {

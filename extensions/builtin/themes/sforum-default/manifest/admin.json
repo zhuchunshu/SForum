@@ -1,0 +1,14 @@
+{
+  "entry": "/settings",
+  "pages": [
+    {
+      "path": "/settings",
+      "label": "主题设置",
+      "description": "默认主题首页、右侧栏、导航与布局等可选项。",
+      "view": "settings",
+      "icon": "i-lucide-palette",
+      "menu": false,
+      "order": 10
+    }
+  ]
+}

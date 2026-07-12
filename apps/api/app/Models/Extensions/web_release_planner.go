@@ -120,7 +120,19 @@ func (p *WebReleasePlanner) Plan(ctx context.Context, input PlanWebReleaseInput)
 	}
 	extensions := make([]WebExtensionSnapshot, 0)
 	for _, item := range items {
-		if item.Type != TypePlugin || item.Manifest.Frontend.Admin == nil || !pluginEnabledForPlan(item, input) {
+		if item.Manifest.Frontend.Admin == nil {
+			continue
+		}
+		// 插件：启用态；主题：仅打包当前计划主题的 admin 设置前端。
+		if item.Type == TypePlugin {
+			if !pluginEnabledForPlan(item, input) {
+				continue
+			}
+		} else if item.Type == TypeTheme {
+			if item.ID != theme.ExtensionID {
+				continue
+			}
+		} else {
 			continue
 		}
 		trusted, err := p.isTrusted(ctx, item)

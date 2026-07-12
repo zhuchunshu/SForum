@@ -35,6 +35,7 @@ type TrustedFrontendService interface {
 type WebReleaseAdminService interface {
 	List(context.Context, identity.Actor, extensions.WebReleaseListInput) (extensions.WebReleasePage, error)
 	Detail(context.Context, identity.Actor, int64) (extensions.WebReleaseDetail, error)
+	Rebuild(context.Context, identity.Actor) (extensions.WebReleaseOperation, error)
 	Retry(context.Context, identity.Actor, int64) (extensions.WebReleaseOperation, error)
 	Rollback(context.Context, identity.Actor, int64) (extensions.WebReleaseOperation, error)
 }
@@ -287,6 +288,14 @@ func (h *Controller) contributions(c fiber.Ctx) error {
 		return mapExtensionError(err)
 	}
 	return apphttp.OK(c, items)
+}
+
+func (h *Controller) publicActiveThemeSettings(c fiber.Ctx) error {
+	settings, err := h.service.PublicActiveThemeSettings(c.Context())
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, settings)
 }
 
 func (h *Controller) settings(c fiber.Ctx) error {
