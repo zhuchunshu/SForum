@@ -1,0 +1,11 @@
+{
+  "entry": "/settings",
+  "pages": [
+    {
+      "path": "/settings",
+      "label": "Content Policy Settings",
+      "view": "settings",
+      "menu": false
+    }
+  ]
+}

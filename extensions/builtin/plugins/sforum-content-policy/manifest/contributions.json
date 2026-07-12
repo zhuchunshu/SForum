@@ -1,0 +1,30 @@
+[
+  {
+    "point": "forum.topic.badges",
+    "id": "content-policy-active",
+    "order": 50,
+    "label": {
+      "zh-CN": "内容策略",
+      "en-US": "Content policy"
+    },
+    "icon": "i-lucide-shield-check",
+    "payload": {
+      "tone": "info",
+      "href": "/guidelines"
+    }
+  },
+  {
+    "point": "forum.topic.sidebar",
+    "id": "content-policy-help",
+    "order": 80,
+    "label": {
+      "zh-CN": "社区规范",
+      "en-US": "Community guidelines"
+    },
+    "icon": "i-lucide-book-open",
+    "payload": {
+      "type": "hostLink",
+      "href": "/guidelines"
+    }
+  }
+]

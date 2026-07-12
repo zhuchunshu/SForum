@@ -1,0 +1,5 @@
+{
+  "name": "SForum Content Policy",
+  "description": "Protected built-in keyword gate for topics and comments (workflow reference plugin).",
+  "author": { "name": "SForum" }
+}

@@ -1,0 +1,101 @@
+[
+  {
+    "key": "enabled",
+    "label": { "zh-CN": "启用关键词检查", "en-US": "Enable keyword checks" },
+    "description": {
+      "zh-CN": "关闭后插件仍保持启用，但所有 filter 直接放行。",
+      "en-US": "When off, the plugin stays enabled but all filters pass through."
+    },
+    "type": "boolean",
+    "default": "true",
+    "recommendedValue": "true",
+    "group": { "zh-CN": "基础", "en-US": "Basics" }
+  },
+  {
+    "key": "keywords",
+    "label": { "zh-CN": "关键词列表", "en-US": "Keyword list" },
+    "description": {
+      "zh-CN": "每行一个关键词；也可用英文逗号分隔。以 # 开头的行视为注释。留空则不拦截。",
+      "en-US": "One keyword per line, or comma-separated. Lines starting with # are comments. Empty list means no matches."
+    },
+    "type": "text",
+    "default": "",
+    "recommendedValue": "",
+    "placeholder": {
+      "zh-CN": "spam\n广告推广",
+      "en-US": "spam\npromo-scam"
+    },
+    "group": { "zh-CN": "匹配规则", "en-US": "Matching" }
+  },
+  {
+    "key": "mode",
+    "label": { "zh-CN": "命中后的动作", "en-US": "Action on match" },
+    "description": {
+      "zh-CN": "「拒绝」直接阻止发布（422）。「强制标签」仅对主题生效：向 tagSlugs 追加下方标签；评论命中时仍拒绝。",
+      "en-US": "Reject blocks publish (422). Force tag only applies to topics (appends force_tag); comments still reject."
+    },
+    "type": "select",
+    "default": "reject",
+    "recommendedValue": "reject",
+    "group": { "zh-CN": "匹配规则", "en-US": "Matching" },
+    "options": [
+      {
+        "value": "reject",
+        "label": { "zh-CN": "拒绝发布（推荐）", "en-US": "Reject publish (recommended)" }
+      },
+      {
+        "value": "tag",
+        "label": { "zh-CN": "强制标签（仅主题）", "en-US": "Force tag (topics only)" }
+      }
+    ]
+  },
+  {
+    "key": "force_tag",
+    "label": { "zh-CN": "强制标签 slug", "en-US": "Force tag slug" },
+    "description": {
+      "zh-CN": "mode=tag 时追加到主题 tagSlugs。标签须已存在且符合站点标签策略，否则宿主校验可能失败。",
+      "en-US": "Appended to topic tagSlugs when mode=tag. Tag must exist and pass host tag policy."
+    },
+    "type": "text",
+    "default": "needs-review",
+    "recommendedValue": "needs-review",
+    "placeholder": { "zh-CN": "needs-review", "en-US": "needs-review" },
+    "group": { "zh-CN": "匹配规则", "en-US": "Matching" }
+  },
+  {
+    "key": "match_title",
+    "label": { "zh-CN": "检查标题", "en-US": "Match title" },
+    "description": {
+      "zh-CN": "主题创建/编辑时是否扫描 title 字段。",
+      "en-US": "Whether topic create/update filters scan the title field."
+    },
+    "type": "boolean",
+    "default": "true",
+    "recommendedValue": "true",
+    "group": { "zh-CN": "扫描范围", "en-US": "Scan scope" }
+  },
+  {
+    "key": "match_content",
+    "label": { "zh-CN": "检查正文", "en-US": "Match body" },
+    "description": {
+      "zh-CN": "是否扫描 content 字段（主题与评论）。",
+      "en-US": "Whether to scan the content field (topics and comments)."
+    },
+    "type": "boolean",
+    "default": "true",
+    "recommendedValue": "true",
+    "group": { "zh-CN": "扫描范围", "en-US": "Scan scope" }
+  },
+  {
+    "key": "case_sensitive",
+    "label": { "zh-CN": "区分大小写", "en-US": "Case sensitive" },
+    "description": {
+      "zh-CN": "默认不区分大小写，便于英文关键词匹配。",
+      "en-US": "Default is case-insensitive for easier English keyword matching."
+    },
+    "type": "boolean",
+    "default": "false",
+    "recommendedValue": "false",
+    "group": { "zh-CN": "扫描范围", "en-US": "Scan scope" }
+  }
+]

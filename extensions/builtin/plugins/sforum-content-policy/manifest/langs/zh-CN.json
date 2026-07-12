@@ -1,0 +1,5 @@
+{
+  "name": "SForum 内容策略",
+  "description": "受保护的内置关键词门禁：拦截或标记含敏感词的主题与评论（工作流参考插件）。",
+  "author": { "name": "SForum" }
+}
