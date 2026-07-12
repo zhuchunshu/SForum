@@ -143,16 +143,17 @@ opt-in or staged.
 
 ### Tasks
 
-- [ ] Link ADR + this plan from `knowledge/index.md` and modules
+- [x] Link ADR + this plan from `knowledge/index.md` and modules
       (`extensions`, `frontend`).
-- [ ] Inventory core public routes/pages → draft **Page ID catalog** table
-      (live in repo under `docs/extensions/` or `apps/web` + Go catalog — pick
-      one source of truth in P1).
-- [ ] Inventory theme activation / Web Release / `current.json` /
+- [x] Inventory core public routes/pages → draft **Page ID catalog** table
+      (live: `docs/extensions/page-catalog.md`; **Go catalog** is P1 SOT).
+- [x] Inventory theme activation / Web Release / `current.json` /
       `dev-theme-runtime.mjs` / `extension.theme_activate` job touchpoints.
-- [ ] List reserved path prefixes for registry.
-- [ ] Decide flag key names and defaults; document in options note if keys land.
-- [ ] Explicitly mark “no new Layer-only theme features” in extensions module.
+- [x] List reserved path prefixes for registry.
+- [x] Decide flag key names and defaults; document in options note if keys land.
+      (Keys documented in page-catalog + options module; **not** registered in
+      Options code until P1+.)
+- [x] Explicitly mark “no new Layer-only theme features” in extensions module.
 
 ### Suggested commits
 
@@ -410,18 +411,26 @@ views.
 
 ## Page ID Catalog (draft — finalize in P1)
 
+**Authoritative inventory (P0):** `docs/extensions/page-catalog.md`
+
+Summary (locale-stripped paths; also exist under `/en/...`):
+
 | Page ID | Default path (approx) | Notes |
 | --- | --- | --- |
-| `forum.home` | `/` | Latest feed |
+| `forum.home` | `/` | Latest feed — **first outlet target** |
 | `forum.category.index` | `/categories` | |
 | `forum.category.show` | `/c/:categorySlug` | |
-| `forum.tag.index` | `/tags` | Respect tags public setting |
+| `forum.tag.index` | `/tags` | `forum.tags.public_pages` |
 | `forum.tag.show` | `/tags/:tagSlug` | |
-| `forum.topic.show` | `/t/...` | URL mode option |
+| `forum.topic.show` | `/t/...` | `seo.topic_url_mode` |
 | `forum.topic.create` | `/topics/new` | login |
-| `forum.profile.show` | `/u/:username` | |
+| `forum.profile.show` | `/u/:username` | `features.public_profiles` |
 | `forum.my.home` | `/my` | login |
-| `forum.my.content_review` | `/my/content-review` | |
+| `forum.my.content_review` | `/my/content-review` | login |
+| `forum.settings.profile` | `/settings/profile` | login |
+| `forum.settings.security` | `/settings/security` | login |
+| `forum.notifications` | `/notifications` | host page, login |
+| `moderation.review` | `/moderation` | host + moderation middleware |
 | `auth.login` | `/login` | host form required if replaced |
 | `auth.register` | `/register` | |
 | `auth.forgot_password` | `/forgot-password` | |
@@ -436,9 +445,12 @@ is implemented.
 
 ### Reserved path prefixes (draft)
 
-- `/admin`
+See full table in `docs/extensions/page-catalog.md`. Minimum set:
+
+- `/control-panel` (default admin prefix) and configured admin prefix
+- `/admin` (legacy constant)
 - `/api`
-- `/_nuxt`, `/__nuxt` (or framework internals)
+- `/_nuxt`, `/__nuxt`, `/__sforum`
 - OAuth / session callback paths as implemented
 - Attachment authenticated download paths as implemented
 

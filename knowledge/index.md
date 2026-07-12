@@ -4,6 +4,16 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-13 Runtime Page Registry — P0 inventory done**
+  - Decision: `knowledge/decisions/2026-07-13-runtime-page-registry-themes.md`
+  - Plan: `knowledge/plans/2026-07-13-runtime-page-registry-themes.md` (P0–P5)
+  - Inventory: `docs/extensions/page-catalog.md` (page ids, reserved paths,
+    Layer/Web Release touchpoints, dual-stack flag keys)
+  - Handoff: `knowledge/sessions/2026-07-13-runtime-page-registry-p0-inventory.md`
+  - P0 checklist complete; **no runtime code yet**
+  - Next: **P1** Go page catalog → registry resolve (always core) → admin list
+    → `SFPageOutlet` + migrate `forum.home` only (no Layer delete)
+
 - **2026-07-13 Runtime Page Registry & simple themes (ADR + plan)**
   - Decision: `knowledge/decisions/2026-07-13-runtime-page-registry-themes.md`
   - Plan: `knowledge/plans/2026-07-13-runtime-page-registry-themes.md` (P0–P5)
@@ -11,7 +21,6 @@ This is the entry point for project memory.
   - Direction: WP/Typecho-like L0/L1 themes (no site rebuild); Page Registry
     add/replace views; L2 author-prebuilt widgets; core API never hijacked
   - **Commit discipline** in plan (small commits, flags, revert-friendly)
-  - Next session: **P0 inventory → P1 page catalog + SFPageOutlet** (no Layer delete)
 
 - **2026-07-13 E6.3 + E6.4 complete** (storage admin + filesystem reference plugin)
   - Handoff: `knowledge/sessions/2026-07-13-e6-3-e6-4-storage-admin-and-fs-plugin.md`

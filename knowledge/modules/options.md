@@ -102,6 +102,21 @@ Initial runtime option support is implemented.
   admin-only).
 - Plugins may declare `requiresFeatures`; enable fails if any flag is off.
 
+## Page Registry / runtime theme dual-stack flags (planned)
+
+Documented in `docs/extensions/page-catalog.md` for the Runtime Page Registry
+program. **Not registered in Options code until P1+.** Distinct from
+`features.*` product surfaces.
+
+| Key | Intended default | When |
+| --- | --- | --- |
+| `pages.registry_enabled` | `false` | P1 |
+| `themes.runtime_l0_enabled` | `false` | P2 |
+| `themes.runtime_l1_enabled` | `false` | P3 |
+| `themes.layer_activation_enabled` | `true` | P0 dual-stack; flip default only at P5 |
+
+Until keys exist, behavior is legacy Layer activation only.
+
 ## Boundaries
 
 - Runtime options are for self-hosted operator-managed settings such as site

@@ -26,11 +26,14 @@ That path is **compatibility / dual-stack**, not the long-term product goal.
 - **ADR:** `decisions/2026-07-13-runtime-page-registry-themes.md`
 - **Plan (P0–P5, commit/rollback rules):**
   `plans/2026-07-13-runtime-page-registry-themes.md`
+- **P0 inventory (page ids, reserved paths, Layer touchpoints, flags):**
+  `docs/extensions/page-catalog.md` (Go catalog SOT lands in P1)
 - Target: L0 skin + L1 runtime templates + L2 author-prebuilt widgets;
   themes and plugins **add/replace view pages** via Page Registry; operators
   do not rebuild SForum for normal theme activation.
 - **Freeze:** do not invest in new Layer-only theme capabilities except
-  critical bugs; implement runtime path first (P1+).
+  critical bugs; implement runtime path first (P1+). Layer activation remains
+  the live dual-stack path until P5.
 - Narrows “no core route override” to **no core API / security route override**;
   view-page replace is an intentional new capability.
 

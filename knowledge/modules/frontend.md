@@ -25,7 +25,8 @@ Long-term public theming moves off “uploaded Nuxt Layer + full rebuild” towa
 - Host stays Nuxt; themes stop being full Nuxt apps
 
 **ADR:** `../decisions/2026-07-13-runtime-page-registry-themes.md`  
-**Plan:** `../plans/2026-07-13-runtime-page-registry-themes.md`
+**Plan:** `../plans/2026-07-13-runtime-page-registry-themes.md`  
+**P0 inventory / page ids:** `../../docs/extensions/page-catalog.md`
 
 Until P5 cutover, Layer activation and Web Release theme composition remain
 documented below as the **live** path.
