@@ -15,3 +15,5 @@ build_builtin_plugin "sforum.smtp" \
   "$ROOT_DIR/extensions/builtin/plugins/sforum-smtp/backend"
 build_builtin_plugin "sforum.content-policy" \
   "$ROOT_DIR/extensions/builtin/plugins/sforum-content-policy/backend"
+build_builtin_plugin "sforum.storage-fs" \
+  "$ROOT_DIR/extensions/builtin/plugins/sforum-storage-fs/backend"

@@ -1,0 +1,34 @@
+[
+  {
+    "key": "root_path",
+    "label": { "zh-CN": "存储根目录", "en-US": "Storage root path" },
+    "description": {
+      "zh-CN": "插件进程可写的绝对路径。推荐使用独立目录，不要与 core local 驱动混用。",
+      "en-US": "Absolute path writable by the plugin process. Prefer a dedicated directory; do not share the core local driver root."
+    },
+    "type": "string",
+    "default": "",
+    "recommendedValue": "",
+    "placeholder": {
+      "zh-CN": "/var/sforum/plugin-storage",
+      "en-US": "/var/sforum/plugin-storage"
+    },
+    "group": { "zh-CN": "基础", "en-US": "Basics" }
+  },
+  {
+    "key": "public_base_url",
+    "label": { "zh-CN": "可选公网 Base URL", "en-US": "Optional public base URL" },
+    "description": {
+      "zh-CN": "若填写，PublicURL 会拼成 base + object key。留空则依赖宿主内容代理。",
+      "en-US": "When set, PublicURL becomes base + object key. Leave blank to rely on host content proxy."
+    },
+    "type": "string",
+    "default": "",
+    "recommendedValue": "",
+    "placeholder": {
+      "zh-CN": "https://cdn.example.com/files",
+      "en-US": "https://cdn.example.com/files"
+    },
+    "group": { "zh-CN": "基础", "en-US": "Basics" }
+  }
+]

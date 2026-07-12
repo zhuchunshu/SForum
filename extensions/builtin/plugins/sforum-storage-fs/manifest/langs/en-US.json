@@ -1,0 +1,4 @@
+{
+  "name": "SForum Filesystem Storage",
+  "description": "Built-in reference storage plugin that writes attachment objects to a configurable local directory (attachment.storage.provider)."
+}

@@ -1,8 +1,8 @@
 # Extension scenario map
 
 Quick “I want to…” index for plugin authors. The fuller narrative lives in the
-[authoring guide](./authoring-guide.md) (SMTP provider reference + content
-policy workflow reference + scenario table).
+[authoring guide](./authoring-guide.md) (SMTP mail + filesystem storage +
+content policy workflow references + scenario table).
 
 | I want to… | Use |
 | --- | --- |
@@ -16,13 +16,14 @@ policy workflow reference + scenario table).
 | Add topic badges / sidebar / list pills | `forum.topic.badges` / `sidebar` / `list.badges` |
 | Add public nav entries | contribution `forum.nav.items` |
 | Swap outbound mail transport | provider `mail.provider` → `sforum.smtp` |
-| Swap attachment storage | provider `attachment.storage.provider` (Wave E6) |
+| Swap attachment storage | provider `attachment.storage.provider` → `sforum.storage-fs` |
 | Swap full-text search | provider `search.provider` (Wave E7) |
 | Store per-topic structured data | entity meta (F4.4 / E3) |
 | Own HTTP API under the host proxy | manifest `routes` + backend `RouteTarget` |
 | Call host from the plugin process | Host API + declared `capabilities` |
 | End-to-end **workflow** sample | enable `sforum.content-policy` |
 | End-to-end **mail provider** sample | enable `sforum.smtp` + select in Mail settings |
+| End-to-end **storage provider** sample | enable `sforum.storage-fs` + select in Attachment settings |
 
 Generated host catalogs (events, contribution points, capabilities, provider
 slots, schedules): [catalogs/](./catalogs/README.md).

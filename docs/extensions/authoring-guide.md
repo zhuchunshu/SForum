@@ -13,7 +13,7 @@ schedules.
 | Manifest `sforum.extension.json` (+ optional `includes`) | Identity, settings, routes, events, jobs, providers, contributions, capabilities |
 | Go SDK `github.com/zhuchunshu/sforum/apps/api/sdk/plugin` | Backend `Serve`, Host API client, read-only catalogs, contract test helpers |
 | Host API `sforum.host/v1` | Permission checks, own settings, enqueue declared jobs, audit, safe user reads |
-| go-plugin RPC (`Health`, `RouteTarget`, `InvokeHook`, `SendMail`) | Process protocol the host starts and health-checks |
+| go-plugin RPC (`Health`, `RouteTarget`, `InvokeHook`, `SendMail`, `Storage*`) | Process protocol the host starts and health-checks |
 | Published catalogs | Which events/points/slots/capabilities exist |
 
 **Do not** import `app/Models/*` or other host business packages from a
@@ -153,7 +153,67 @@ go run ./cmd/sforum extension test --skip-backend-binary \
 
 See package `README.md` for settings env names and force-tag notes.
 
-## Reference 3 — Host API fixture (`sforum.contract.hostapi`)
+## Reference 3 — filesystem storage (`sforum.storage-fs`)
+
+Path: `extensions/builtin/plugins/sforum-storage-fs/`
+
+Use this package when you need a **storage provider-slot** plugin (Wave E6).
+SMTP remains the **mail** provider reference; this package is the
+**attachment.storage.provider** reference (no cloud credentials required).
+
+| Area | What filesystem storage does |
+| --- | --- |
+| Manifest | `providers: [{ slot: "attachment.storage.provider", ... }]`, `settings.own` |
+| Backend | Public SDK `Serve` + `Noop`; implements chunked `Storage*` RPCs |
+| Settings | Absolute `root_path`, optional `public_base_url` (env `SFORUM_SETTING_*`) |
+| Operator loop | Enable → Attachment settings select `plugin:sforum.storage-fs` → configure → Test connection → upload |
+
+Key RPC methods (host streams ~1 MiB chunks by default):
+
+| RPC | Role |
+| --- | --- |
+| `StoragePutBegin` / `StoragePutChunk` | Write object by key (Final commits) |
+| `StorageOpen` / `StorageGetChunk` | Read object bytes |
+| `StorageClose` | Abort put or release read session |
+| `StorageDelete` / `StorageStat` / `StorageExists` | Lifecycle helpers |
+| `StoragePublicURL` / `StorageSignedURL` | Optional URL strings (ACL still host-owned) |
+| `StorageProbe` | Admin “Test connection” |
+
+Minimal author shape:
+
+```go
+type storePlugin struct{ pluginsdk.Noop }
+
+func (storePlugin) StorageProbe(pluginsdk.StorageProbeRequest) (pluginsdk.StorageProbeResponse, error) {
+	return pluginsdk.StorageProbeResponse{OK: true}, nil
+}
+// … implement PutBegin/PutChunk/Open/GetChunk/Close/Delete …
+
+func main() { pluginsdk.Serve(storePlugin{}) }
+```
+
+```bash
+cd apps/api
+go run ./cmd/sforum extension test --skip-backend-binary \
+  ../../extensions/builtin/plugins/sforum-storage-fs
+
+(cd ../../extensions/builtin/plugins/sforum-storage-fs/backend && \
+  go test ./... && go build -o plugin .)
+```
+
+Rules demonstrated by this package:
+
+- Object **keys** are host-generated; never invent alternate namespaces.
+- Secrets/settings live in `extension_settings` (not `attachment.*` core options).
+- Fail closed on bad config / I/O; host maps failures to
+  `attachment.storage_unavailable` for uploads.
+- Prefer a dedicated root directory; do not share core `local` root.
+- For S3/MinIO/R2, keep the **same RPC surface** and put the vendor SDK only
+  inside your plugin (core stays free of new cloud SDKs).
+
+See package `README.md` for the full operator path.
+
+## Reference 4 — Host API fixture (`sforum.contract.hostapi`)
 
 Path: `extensions/fixtures/plugins/sforum-contract-hostapi/`
 
@@ -194,13 +254,14 @@ Related fixtures:
 | Add topic badges / sidebar / list pills | `forum.topic.badges` / `sidebar` / `list.badges` |
 | Add public nav entries | contribution `forum.nav.items` |
 | Swap outbound mail transport | provider `mail.provider` (see `sforum.smtp`) |
-| Swap attachment storage | provider `attachment.storage.provider` (Wave E6) |
+| Swap attachment storage | provider `attachment.storage.provider` (see `sforum.storage-fs`) |
 | Swap full-text search | provider `search.provider` (Wave E7) |
 | Store per-topic/plugin structured data | entity meta (F4.4 / E3) |
 | Own HTTP API under the host proxy | manifest `routes` + backend `RouteTarget` |
 | Call host from the plugin process | Host API + declared `capabilities` |
 | End-to-end **workflow** sample | enable `sforum.content-policy` (this section) |
 | End-to-end **mail provider** sample | enable `sforum.smtp` + select in Mail settings |
+| End-to-end **storage provider** sample | enable `sforum.storage-fs` + select in Attachment settings |
 
 ## Manifest checklist
 

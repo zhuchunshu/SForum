@@ -1,0 +1,11 @@
+{
+  "entry": "/settings",
+  "pages": [
+    {
+      "path": "/settings",
+      "label": "Filesystem Storage Settings",
+      "view": "settings",
+      "menu": false
+    }
+  ]
+}
