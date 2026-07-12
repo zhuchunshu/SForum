@@ -516,22 +516,24 @@ as built-in L1 fallbacks; new vendor drivers prefer plugins.
 
 ### E6.3 Admin + settings
 
-- [ ] Attachment admin: select core vs plugin providers in one list
-- [ ] When plugin selected, deep-link or embed extension settings (existing
-  trusted settings chrome)
-- [ ] Secrets stay in `extension_settings`, not scattered attachment options
-- [ ] Toast + beginner copy; test connection button
+- [x] Attachment admin: select core vs plugin providers in one list (candidates)
+- [x] When plugin selected, deep-link + dedicated panel (no core driver secret forms)
+- [x] Secrets stay in `extension_settings`, not scattered attachment options
+- [x] Toast + beginner copy; test connection button; Probe returns `reason`
+
+**Status:** E6.3 done 2026-07-13.
 
 ### E6.4 Reference storage plugin
 
-- [ ] Builtin or dev plugin proving the slot end-to-end
-  - **Recommended:** S3-compatible (MinIO-friendly) **or** a thin “HTTP put”
-    dev adapter for CI without cloud credentials
-- [ ] Manifest: `providers: [{ slot: "attachment.storage.provider", … }]`,
-  capabilities (`net.outbound`, `settings.own`, …)
-- [ ] `sforum extension test` + upload/download integration test against MinIO
-  or mock
-- [ ] Authoring guide section: “implement a storage provider”
+- [x] Builtin plugin proving the slot end-to-end
+  - **Shipped:** filesystem reference `sforum.storage-fs` (no cloud credentials;
+    same Storage* RPC surface as future S3/MinIO plugins)
+- [x] Manifest: `providers: [{ slot: "attachment.storage.provider", … }]`,
+  capabilities (`settings.own`; host.api implied)
+- [x] `sforum extension test` + backend unit tests (chunked put/open/delete)
+- [x] Authoring guide section: Reference 3 filesystem storage / implement storage
+
+**Status:** E6.4 done 2026-07-13 (filesystem reference; optional S3 plugin later).
 
 ### E6.5 Core driver policy
 
@@ -706,12 +708,14 @@ edit comment/topic controllers.
 | 2026-07-12 | E6.0 | Storage plugin-provider decision + selection helpers; **E6.0 done** |
 | 2026-07-13 | E6.1 | Candidates + plugin: options + disable→local; fail-closed until RPC |
 | 2026-07-13 | E6.2 | Chunked Storage* RPC + PluginStorageAdapter + Manager gate; **E6.2 done** |
+| 2026-07-13 | E6.3 | Plugin admin panel + Probe reason; **E6.3 done** |
+| 2026-07-13 | E6.4 | `sforum.storage-fs` reference + authoring guide; **E6.4 done** |
 
 ---
 
 ## Next session one-liner
 
 ```text
-Next: E6.3 admin test-connection polish (if needed) then E6.4 S3/MinIO
-reference storage plugin + authoring guide. E6.2 RPC path done.
+Next: E6.5 core-driver policy doc (optional) or E7 search plugin slot.
+Storage slot L4–L6 proven via sforum.storage-fs; optional S3 plugin later.
 ```

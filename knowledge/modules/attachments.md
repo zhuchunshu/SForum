@@ -59,21 +59,17 @@ Host contract slot: `attachment.storage.provider` (`Support/Storage.ProviderSlot
 | E6.0 contract + selection encoding | **Done** — `plugin:<extensionId>` helpers in `Support/Storage` |
 | E6.1 resolver / candidates / restore | **Done** — settings `candidates[]`, options accept `plugin:`, disable fallback to `local` |
 | E6.2 chunked storage RPC | **Done** — PluginProtocol Storage* + `PluginStorageAdapter` + Manager gate/timeout |
-| E6.3 admin select/test/settings polish | Partial (admin select uses candidates + plugin settings link; Probe wired via Adapter) |
-| E6.4 S3-compatible reference plugin | Pending |
+| E6.3 admin select/test/settings polish | **Done** — plugin panel (no core secret forms), Probe `reason`, toast detail |
+| E6.4 reference storage plugin | **Done** — builtin `sforum.storage-fs` (filesystem; S3-shaped RPC, no cloud SDK) |
 
-**Runtime today (L4 toward L5–L6):** concrete drivers remain **in core** under
-`Support/Storage`. Operators select via `attachment.provider` (core id or
+**Runtime today (L4–L6 for storage slot):** concrete drivers remain **in core**
+under `Support/Storage`. Operators select via `attachment.provider` (core id or
 `plugin:<extensionId>`). Admin settings return `providerSlot`, `drivers[]`, and
-`candidates[]` (core + enabled plugins declaring the slot). When a plugin is
-selected and runtime is injected, host routes Put/Open/Delete/Stat/Probe through
-chunked go-plugin RPC (`Extensions.PluginStorageAdapter`). No runtime or
-degraded plugin → **fail closed** (`attachment.storage_unavailable`). Disabling
-a selected storage plugin clears selection to `local`.
-
-**Still open (E6.3–E6.4):** test-connection polish for plugins, secrets UX,
-reference S3/MinIO plugin + authoring guide. Multi-backend migration and browser
-presigned upload remain out of scope for E6.
+`candidates[]`. Plugin path uses chunked RPC; Probe returns `reason` + message.
+Reference: enable `sforum.storage-fs`, select `plugin:sforum.storage-fs`, set
+root path, test connection, upload. Disable plugin → selection falls back to
+`local`. Multi-backend migration and browser presigned upload remain out of
+scope for E6.
 
 ## Runtime Configuration
 

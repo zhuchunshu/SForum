@@ -4,6 +4,21 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-13 E6.3 + E6.4 complete** (storage admin + filesystem reference plugin)
+  - Handoff: `knowledge/sessions/2026-07-13-e6-3-e6-4-storage-admin-and-fs-plugin.md`
+  - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
+  - Admin: plugin panel (no core secret fallthrough), Probe `reason`, toasts
+  - Builtin `sforum.storage-fs` implements attachment.storage.provider
+  - Authoring guide Reference 3; scenario-map updated
+  - Next: optional E6.5 / **E7** search slot
+
+- **2026-07-13 security audit follow-up re-review completed**
+  - Final handoff: `knowledge/sessions/2026-07-13-security-audit-followup-remediation-final.md`
+  - Plan: `knowledge/plans/2026-07-12-security-audit-followup-remediation.md` (Status: Completed)
+  - Report: `knowledge/reports/2026-07-12-release-security-scan.md`
+  - All six final gates passed; `govulncheck` has 0 reachable findings and
+    `bun audit` reports no vulnerabilities
+
 - **2026-07-13 P1 local dev-admin-compose**
   - Decision: `knowledge/decisions/2026-07-13-dev-admin-compose.md`
   - Handoff: `knowledge/sessions/2026-07-13-dev-admin-compose-p1.md`
