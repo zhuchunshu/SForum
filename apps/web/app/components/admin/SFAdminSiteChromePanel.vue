@@ -425,24 +425,24 @@ function navLabel(item: SiteNavItem) {
           </div>
         </template>
 
-        <div class="grid max-w-4xl gap-4 md:grid-cols-2">
+        <div class="grid max-w-5xl gap-4 md:grid-cols-2">
           <UFormField :label="t('admin.siteChrome.brand.logoUrl')" name="logo-url">
-            <UInput v-model="brandForm.logoUrl" icon="i-lucide-image" class="w-full" :placeholder="t('admin.siteChrome.brand.urlPlaceholder')" />
+            <UInput v-model="brandForm.logoUrl" size="lg" icon="i-lucide-image" class="w-full" :placeholder="t('admin.siteChrome.brand.urlPlaceholder')" />
           </UFormField>
           <UFormField :label="t('admin.siteChrome.brand.logoAttachmentId')" name="logo-attachment">
-            <UInput v-model="brandForm.logoAttachmentId" class="w-full font-mono" placeholder="42" />
+            <UInput v-model="brandForm.logoAttachmentId" size="lg" class="w-full font-mono" placeholder="42" />
           </UFormField>
           <UFormField :label="t('admin.siteChrome.brand.faviconUrl')" name="favicon-url">
-            <UInput v-model="brandForm.faviconUrl" icon="i-lucide-bookmark" class="w-full" :placeholder="t('admin.siteChrome.brand.urlPlaceholder')" />
+            <UInput v-model="brandForm.faviconUrl" size="lg" icon="i-lucide-bookmark" class="w-full" :placeholder="t('admin.siteChrome.brand.urlPlaceholder')" />
           </UFormField>
           <UFormField :label="t('admin.siteChrome.brand.faviconAttachmentId')" name="favicon-attachment">
-            <UInput v-model="brandForm.faviconAttachmentId" class="w-full font-mono" placeholder="43" />
+            <UInput v-model="brandForm.faviconAttachmentId" size="lg" class="w-full font-mono" placeholder="43" />
           </UFormField>
           <UFormField :label="t('admin.siteChrome.brand.appleTouchUrl')" name="apple-touch-url">
-            <UInput v-model="brandForm.appleTouchIconUrl" icon="i-lucide-smartphone" class="w-full" :placeholder="t('admin.siteChrome.brand.urlPlaceholder')" />
+            <UInput v-model="brandForm.appleTouchIconUrl" size="lg" icon="i-lucide-smartphone" class="w-full" :placeholder="t('admin.siteChrome.brand.urlPlaceholder')" />
           </UFormField>
           <UFormField :label="t('admin.siteChrome.brand.appleTouchAttachmentId')" name="apple-touch-attachment">
-            <UInput v-model="brandForm.appleTouchIconAttachmentId" class="w-full font-mono" placeholder="44" />
+            <UInput v-model="brandForm.appleTouchIconAttachmentId" size="lg" class="w-full font-mono" placeholder="44" />
           </UFormField>
         </div>
 
@@ -472,12 +472,12 @@ function navLabel(item: SiteNavItem) {
           </div>
         </template>
 
-        <div class="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/60 lg:grid-cols-[1fr_1fr_1.2fr_auto_auto]">
-          <UInput v-model="navDraft.labelZhCN" :placeholder="t('admin.siteChrome.nav.labelZh')" maxlength="40" />
-          <UInput v-model="navDraft.labelEnUS" :placeholder="t('admin.siteChrome.nav.labelEn')" maxlength="40" />
-          <UInput v-model="navDraft.href" icon="i-lucide-link" :placeholder="t('admin.siteChrome.nav.hrefPlaceholder')" />
-          <UInput v-model.number="navDraft.position" type="number" class="w-24" :placeholder="t('admin.siteChrome.position')" />
-          <UButton color="primary" leading-icon="i-lucide-plus" @click="addNavItem">
+        <div class="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/60 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_7rem_auto]">
+          <UInput v-model="navDraft.labelZhCN" size="lg" class="w-full" :placeholder="t('admin.siteChrome.nav.labelZh')" maxlength="40" />
+          <UInput v-model="navDraft.labelEnUS" size="lg" class="w-full" :placeholder="t('admin.siteChrome.nav.labelEn')" maxlength="40" />
+          <UInput v-model="navDraft.href" size="lg" class="w-full" icon="i-lucide-link" :placeholder="t('admin.siteChrome.nav.hrefPlaceholder')" />
+          <UInput v-model.number="navDraft.position" size="lg" type="number" class="w-full" :placeholder="t('admin.siteChrome.position')" />
+          <UButton size="lg" color="primary" leading-icon="i-lucide-plus" @click="addNavItem">
             {{ t('admin.siteChrome.nav.add') }}
           </UButton>
         </div>
@@ -533,15 +533,15 @@ function navLabel(item: SiteNavItem) {
         </template>
 
         <div class="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/60 md:grid-cols-2">
-          <UInput v-model="announcementDraft.titleZhCN" :placeholder="t('admin.siteChrome.announcements.titleZh')" maxlength="120" />
-          <UInput v-model="announcementDraft.titleEnUS" :placeholder="t('admin.siteChrome.announcements.titleEn')" maxlength="120" />
-          <UTextarea v-model="announcementDraft.bodyZhCN" :rows="2" :placeholder="t('admin.siteChrome.announcements.bodyZh')" maxlength="2000" class="md:col-span-1" />
-          <UTextarea v-model="announcementDraft.bodyEnUS" :rows="2" :placeholder="t('admin.siteChrome.announcements.bodyEn')" maxlength="2000" class="md:col-span-1" />
-          <USelect v-model="announcementDraft.style" :items="styleChoices" value-key="value" label-key="label" class="w-full" />
-          <UInput v-model="announcementDraft.href" icon="i-lucide-link" :placeholder="t('admin.siteChrome.announcements.hrefPlaceholder')" />
+          <UInput v-model="announcementDraft.titleZhCN" size="lg" class="w-full" :placeholder="t('admin.siteChrome.announcements.titleZh')" maxlength="120" />
+          <UInput v-model="announcementDraft.titleEnUS" size="lg" class="w-full" :placeholder="t('admin.siteChrome.announcements.titleEn')" maxlength="120" />
+          <UTextarea v-model="announcementDraft.bodyZhCN" size="lg" :rows="3" :placeholder="t('admin.siteChrome.announcements.bodyZh')" maxlength="2000" class="w-full md:col-span-1" />
+          <UTextarea v-model="announcementDraft.bodyEnUS" size="lg" :rows="3" :placeholder="t('admin.siteChrome.announcements.bodyEn')" maxlength="2000" class="w-full md:col-span-1" />
+          <USelect v-model="announcementDraft.style" size="lg" :items="styleChoices" value-key="value" label-key="label" class="w-full" />
+          <UInput v-model="announcementDraft.href" size="lg" class="w-full" icon="i-lucide-link" :placeholder="t('admin.siteChrome.announcements.hrefPlaceholder')" />
           <div class="flex flex-wrap items-end gap-3 md:col-span-2">
-            <UInput v-model.number="announcementDraft.position" type="number" class="w-28" :placeholder="t('admin.siteChrome.position')" />
-            <UButton color="primary" leading-icon="i-lucide-plus" @click="addAnnouncement">
+            <UInput v-model.number="announcementDraft.position" size="lg" type="number" class="w-36" :placeholder="t('admin.siteChrome.position')" />
+            <UButton size="lg" color="primary" leading-icon="i-lucide-plus" @click="addAnnouncement">
               {{ t('admin.siteChrome.announcements.add') }}
             </UButton>
           </div>
@@ -602,26 +602,26 @@ function navLabel(item: SiteNavItem) {
         <div class="grid max-w-5xl gap-5">
           <div class="grid gap-3 lg:grid-cols-2">
             <UFormField :label="t('admin.siteChrome.legal.termsZh')" name="terms-zh">
-              <UTextarea v-model="legalForm.termsZh" :rows="8" class="w-full font-mono text-sm" />
+              <UTextarea v-model="legalForm.termsZh" size="lg" :rows="8" class="w-full font-mono text-sm" />
             </UFormField>
             <UFormField :label="t('admin.siteChrome.legal.termsEn')" name="terms-en">
-              <UTextarea v-model="legalForm.termsEn" :rows="8" class="w-full font-mono text-sm" />
+              <UTextarea v-model="legalForm.termsEn" size="lg" :rows="8" class="w-full font-mono text-sm" />
             </UFormField>
           </div>
           <div class="grid gap-3 lg:grid-cols-2">
             <UFormField :label="t('admin.siteChrome.legal.privacyZh')" name="privacy-zh">
-              <UTextarea v-model="legalForm.privacyZh" :rows="8" class="w-full font-mono text-sm" />
+              <UTextarea v-model="legalForm.privacyZh" size="lg" :rows="8" class="w-full font-mono text-sm" />
             </UFormField>
             <UFormField :label="t('admin.siteChrome.legal.privacyEn')" name="privacy-en">
-              <UTextarea v-model="legalForm.privacyEn" :rows="8" class="w-full font-mono text-sm" />
+              <UTextarea v-model="legalForm.privacyEn" size="lg" :rows="8" class="w-full font-mono text-sm" />
             </UFormField>
           </div>
           <div class="grid gap-3 lg:grid-cols-2">
             <UFormField :label="t('admin.siteChrome.legal.guidelinesZh')" name="guidelines-zh">
-              <UTextarea v-model="legalForm.guidelinesZh" :rows="8" class="w-full font-mono text-sm" />
+              <UTextarea v-model="legalForm.guidelinesZh" size="lg" :rows="8" class="w-full font-mono text-sm" />
             </UFormField>
             <UFormField :label="t('admin.siteChrome.legal.guidelinesEn')" name="guidelines-en">
-              <UTextarea v-model="legalForm.guidelinesEn" :rows="8" class="w-full font-mono text-sm" />
+              <UTextarea v-model="legalForm.guidelinesEn" size="lg" :rows="8" class="w-full font-mono text-sm" />
             </UFormField>
           </div>
         </div>
@@ -654,11 +654,11 @@ function navLabel(item: SiteNavItem) {
           </div>
         </template>
 
-        <div class="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/60 lg:grid-cols-[1fr_1.2fr_1fr_auto]">
-          <UInput v-model="friendDraft.name" :placeholder="t('admin.siteChrome.friendLinks.name')" maxlength="80" />
-          <UInput v-model="friendDraft.url" icon="i-lucide-link" :placeholder="t('admin.siteChrome.friendLinks.urlPlaceholder')" />
-          <UInput v-model="friendDraft.description" :placeholder="t('admin.siteChrome.friendLinks.descriptionField')" maxlength="200" />
-          <UButton color="primary" leading-icon="i-lucide-plus" @click="addFriendLink">
+        <div class="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/60 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)_auto]">
+          <UInput v-model="friendDraft.name" size="lg" class="w-full" :placeholder="t('admin.siteChrome.friendLinks.name')" maxlength="80" />
+          <UInput v-model="friendDraft.url" size="lg" class="w-full" icon="i-lucide-link" :placeholder="t('admin.siteChrome.friendLinks.urlPlaceholder')" />
+          <UInput v-model="friendDraft.description" size="lg" class="w-full" :placeholder="t('admin.siteChrome.friendLinks.descriptionField')" maxlength="200" />
+          <UButton size="lg" color="primary" leading-icon="i-lucide-plus" @click="addFriendLink">
             {{ t('admin.siteChrome.friendLinks.add') }}
           </UButton>
         </div>

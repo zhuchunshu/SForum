@@ -520,16 +520,16 @@ function formSnapshot() {
             <input
               v-model="form.customColor"
               type="color"
-              class="h-9 w-12 shrink-0 cursor-pointer rounded-md border border-slate-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-900"
+              class="h-10 w-12 shrink-0 cursor-pointer rounded-md border border-slate-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-900"
               :aria-label="t('admin.personalization.themes.custom.colorLabel')"
               @focus="form.themeMode = 'custom'"
               @input="form.themeMode = 'custom'"
             >
             <UInput
               v-model="form.customColor"
-              size="sm"
+              size="lg"
               maxlength="7"
-              class="min-w-0 flex-1 font-mono"
+              class="min-w-0 w-full flex-1 font-mono"
               :placeholder="defaultCustomThemeColor"
               @focus="form.themeMode = 'custom'"
               @blur="normalizeCustomColorInput"
@@ -564,6 +564,7 @@ function formSnapshot() {
           <UFormField :label="t('admin.personalization.footer.copyrightZh')" name="footer-copyright-zh">
             <UTextarea
               v-model="form.footerCopyrightZHCN"
+              size="lg"
               :rows="3"
               :maxlength="200"
               class="w-full"
@@ -572,6 +573,7 @@ function formSnapshot() {
           <UFormField :label="t('admin.personalization.footer.copyrightEn')" name="footer-copyright-en">
             <UTextarea
               v-model="form.footerCopyrightENUS"
+              size="lg"
               :rows="3"
               :maxlength="200"
               class="w-full"
@@ -588,7 +590,7 @@ function formSnapshot() {
           <div
             v-for="link in form.footerLinks"
             :key="link.key"
-            class="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/60 lg:grid-cols-[10rem_1fr_1fr_1.2fr]"
+            class="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-800 dark:bg-zinc-950/60 lg:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)]"
           >
             <div class="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-zinc-300">
               <UIcon name="i-lucide-corner-down-right" class="size-4 text-slate-400 dark:text-zinc-500" />
@@ -596,16 +598,22 @@ function formSnapshot() {
             </div>
             <UInput
               v-model="link.labels['zh-CN']"
+              size="lg"
+              class="w-full"
               :placeholder="t('admin.personalization.footer.labelZh')"
               maxlength="40"
             />
             <UInput
               v-model="link.labels['en-US']"
+              size="lg"
+              class="w-full"
               :placeholder="t('admin.personalization.footer.labelEn')"
               maxlength="40"
             />
             <UInput
               v-model="link.url"
+              size="lg"
+              class="w-full"
               icon="i-lucide-link"
               :placeholder="t('admin.personalization.footer.urlPlaceholder')"
             />
