@@ -184,3 +184,40 @@ func TestEnsureProviderSelectableCoreUnknown(t *testing.T) {
 	// 权限无关的 actor 仅用于编译
 	_ = identity.Actor{}
 }
+
+func TestProbeMapsPluginFailureReason(t *testing.T) {
+	optionStore := &fakeOptionStore{items: map[string]string{
+		options.NameAttachmentProvider: "plugin:acme.store",
+	}}
+	service := NewService(nil, options.NewServiceWithCacheTTL(optionStore, time.Minute)).
+		WithStorageProviderCatalog(fakeStorageCatalog{available: map[string]bool{"acme.store": true}}).
+		WithStoragePluginRuntime(failingProbeRuntime{})
+
+	actor := identity.Actor{
+		ID:          1,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionAttachmentSettings: true},
+	}
+	result, err := service.Probe(context.Background(), actor)
+	if err != nil {
+		t.Fatalf("Probe: %v", err)
+	}
+	if result.OK || result.Reason != "storage.fs.config" {
+		t.Fatalf("expected mapped reason, got %#v", result)
+	}
+	if result.Message != "root missing" {
+		t.Fatalf("message=%q", result.Message)
+	}
+}
+
+type failingProbeRuntime struct {
+	stubStorageRuntime
+}
+
+func (failingProbeRuntime) StorageProbe(context.Context, string, extensionsruntime.StorageProbeRequest) (extensionsruntime.StorageProbeResponse, error) {
+	// 模拟插件 !OK；Adapter.Probe 转成 StorageRPCError。
+	return extensionsruntime.StorageProbeResponse{}, &extensionsruntime.StorageRPCError{
+		Reason:  "storage.fs.config",
+		Message: "root missing",
+	}
+}

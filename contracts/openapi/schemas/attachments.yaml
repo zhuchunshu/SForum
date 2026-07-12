@@ -513,6 +513,9 @@ AttachmentProbe:
       type: boolean
     message:
       type: string
+    reason:
+      type: string
+      description: Stable machine code (e.g. storage.ok, attachment.storage_unavailable, plugin RPC reason).
 AttachmentCleanupResult:
   type: object
   required:

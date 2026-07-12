@@ -468,12 +468,67 @@ func (s *Service) Probe(ctx context.Context, actor identity.Actor) (ProbeResult,
 	}
 	adapter, err := s.adapterForSettings(ctx, settings, settings.Provider)
 	if err != nil {
-		return ProbeResult{Provider: settings.Provider, OK: false, Message: err.Error()}, nil
+		// 无 runtime / 插件不可用：对运营返回清晰 reason，勿暴露内部 error 字符串为主文案。
+		return ProbeResult{
+			Provider: settings.Provider,
+			OK:       false,
+			Reason:   CodeStorageUnavailable,
+			Message:  probeFailureMessage(err),
+		}, nil
 	}
 	if err := adapter.Probe(ctx); err != nil {
-		return ProbeResult{Provider: settings.Provider, OK: false, Message: err.Error()}, nil
+		return ProbeResult{
+			Provider: settings.Provider,
+			OK:       false,
+			Reason:   probeFailureReason(err),
+			Message:  probeFailureMessage(err),
+		}, nil
 	}
-	return ProbeResult{Provider: settings.Provider, OK: true, Message: "ok"}, nil
+	return ProbeResult{
+		Provider: settings.Provider,
+		OK:       true,
+		Reason:   "storage.ok",
+		Message:  "ok",
+	}, nil
+}
+
+func probeFailureReason(err error) string {
+	if err == nil {
+		return CodeStorageUnavailable
+	}
+	var rpc *extensionsruntime.StorageRPCError
+	if errors.As(err, &rpc) && strings.TrimSpace(rpc.Reason) != "" {
+		return rpc.Reason
+	}
+	switch {
+	case errors.Is(err, extensionsruntime.ErrStorageCircuitOpen):
+		return "extension.circuit_open"
+	case errors.Is(err, extensionsruntime.ErrStorageTimeout):
+		return "extension.hook_timeout"
+	case errors.Is(err, extensions.ErrRuntimeUnavailable), errors.Is(err, ErrStorageUnavailable):
+		return CodeStorageUnavailable
+	default:
+		return CodeStorageUnavailable
+	}
+}
+
+func probeFailureMessage(err error) string {
+	if err == nil {
+		return "Storage provider is unavailable."
+	}
+	var rpc *extensionsruntime.StorageRPCError
+	if errors.As(err, &rpc) {
+		if msg := strings.TrimSpace(rpc.Message); msg != "" {
+			return msg
+		}
+		if reason := strings.TrimSpace(rpc.Reason); reason != "" {
+			return reason
+		}
+	}
+	if msg := strings.TrimSpace(err.Error()); msg != "" {
+		return msg
+	}
+	return "Storage provider is unavailable."
 }
 
 func (s *Service) runtimeSettings(ctx context.Context) (AttachmentSettings, error) {

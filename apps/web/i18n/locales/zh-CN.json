@@ -1024,7 +1024,9 @@
       "referencesTitle": "引用记录",
       "noReferences": "暂无业务引用。",
       "noReferenceContext": "无引用上下文",
-      "pluginProviderHint": "当前选择的是扩展存储插件；凭证与连接参数在该插件的设置页配置。选中插件后上传需等待存储 RPC（E6.2）落地。",
+      "pluginProviderTitle": "扩展存储提供方",
+      "pluginProviderHint": "当前选择的是扩展存储插件。对象读写经宿主分块 RPC 转发到插件进程；凭证与连接参数请在该插件的设置页配置。",
+      "pluginProviderSecretsNote": "密钥保存在扩展设置中，不会写入上方 core 驱动字段。保存附件设置后可用「测试连接」验证插件是否可用。",
       "openPluginSettings": "打开插件设置"
     },
     "roles": {

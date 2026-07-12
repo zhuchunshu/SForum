@@ -213,4 +213,6 @@ type ProbeResult struct {
 	Provider string `json:"provider"`
 	OK       bool   `json:"ok"`
 	Message  string `json:"message"`
+	// Reason 稳定机器码（插件 RPC reason 或 attachment.storage_unavailable），便于运营与 i18n。
+	Reason string `json:"reason,omitempty"`
 }

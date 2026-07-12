@@ -1024,7 +1024,9 @@
       "referencesTitle": "References",
       "noReferences": "No business references yet.",
       "noReferenceContext": "No reference context",
-      "pluginProviderHint": "A plugin storage provider is selected. Configure credentials on the extension settings page. Uploads through plugins require storage RPC (E6.2).",
+      "pluginProviderTitle": "Plugin storage provider",
+      "pluginProviderHint": "A plugin storage provider is selected. Object I/O is forwarded over host chunked RPC to the plugin process. Configure credentials on the extension settings page.",
+      "pluginProviderSecretsNote": "Secrets stay in extension settings, not in the core driver fields above. After saving attachment settings, use Test connection to verify the plugin.",
       "openPluginSettings": "Open plugin settings"
     },
     "roles": {

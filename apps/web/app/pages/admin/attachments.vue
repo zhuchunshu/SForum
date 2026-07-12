@@ -72,6 +72,7 @@ type ProbeResult = {
   provider: string
   ok: boolean
   message: string
+  reason?: string
 }
 
 const { format: formatSiteDateTime } = useSiteDateTime()
@@ -247,11 +248,12 @@ async function testConnection() {
   testing.value = true
   try {
     const result = await request<ProbeResult>('/admin/attachment-settings/test', { method: 'POST', body: {} })
+    const detailParts = [result.message, result.reason].filter(Boolean)
     toast.add({
       color: result.ok ? 'success' : 'warning',
       icon: result.ok ? 'i-lucide-check' : 'i-lucide-triangle-alert',
       title: result.ok ? t('admin.attachments.testPassed') : t('admin.attachments.testFailed'),
-      description: result.message
+      description: detailParts.join(result.message && result.reason ? ' · ' : '')
     })
   } catch (error) {
     toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.attachments.testFailed') })
@@ -612,7 +614,7 @@ function isPreviewableImage(item: Attachment) {
             <label class="flex items-center gap-2 text-sm"><input v-model="form.ftp.explicitTls" type="checkbox" class="size-4 rounded" />{{ t('admin.attachments.ftp.explicitTls') }}</label>
           </div>
 
-          <div v-else class="grid gap-4 md:grid-cols-2">
+          <div v-else-if="form.provider === 'sftp'" class="grid gap-4 md:grid-cols-2">
             <UInput size="lg" v-model="form.sftp.host" :placeholder="t('admin.attachments.remote.host')" icon="i-lucide-server" />
             <UInput size="lg" v-model.number="form.sftp.port" type="number" min="1" max="65535" :placeholder="t('admin.attachments.remote.port')" icon="i-lucide-hash" />
             <UInput size="lg" v-model="form.sftp.username" :placeholder="t('admin.attachments.remote.username')" icon="i-lucide-user" />
@@ -622,6 +624,50 @@ function isPreviewableImage(item: Attachment) {
             <UInput size="lg" v-model="form.sftp.rootPath" :placeholder="t('admin.attachments.remote.rootPath')" icon="i-lucide-folder-tree" />
             <UInput size="lg" v-model="form.sftp.hostKeyFingerprint" :placeholder="t('admin.attachments.sftp.hostKeyFingerprint')" icon="i-lucide-fingerprint" />
             <UInput size="lg" v-model="form.sftp.publicBaseUrl" type="url" :placeholder="t('admin.attachments.remote.publicBaseUrl')" icon="i-lucide-link" />
+          </div>
+
+          <!-- E6.3：插件提供方不展示 core 驱动密钥表单；凭证在扩展设置页。 -->
+          <div
+            v-else-if="selectedProviderIsPlugin"
+            class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/50"
+          >
+            <div class="flex items-start gap-3">
+              <UIcon name="i-lucide-puzzle" class="mt-0.5 size-5 shrink-0 text-[var(--sf-accent)]" />
+              <div class="min-w-0 space-y-2">
+                <p class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                  {{ t('admin.attachments.pluginProviderTitle') }}
+                </p>
+                <p class="text-xs leading-relaxed text-slate-600 dark:text-zinc-400">
+                  {{ t('admin.attachments.pluginProviderHint') }}
+                </p>
+                <p class="text-xs text-slate-500 dark:text-zinc-500">
+                  {{ t('admin.attachments.pluginProviderSecretsNote') }}
+                </p>
+                <div class="flex flex-wrap gap-2 pt-1">
+                  <UButton
+                    v-if="selectedPluginSettingsPath"
+                    :to="`/admin${selectedPluginSettingsPath}`"
+                    size="sm"
+                    color="primary"
+                    variant="soft"
+                    leading-icon="i-lucide-settings-2"
+                  >
+                    {{ t('admin.attachments.openPluginSettings') }}
+                  </UButton>
+                  <UButton
+                    type="button"
+                    size="sm"
+                    color="neutral"
+                    variant="outline"
+                    leading-icon="i-lucide-plug-zap"
+                    :loading="testing"
+                    @click="testConnection"
+                  >
+                    {{ t('admin.attachments.testConnection') }}
+                  </UButton>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
