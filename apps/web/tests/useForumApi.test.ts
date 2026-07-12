@@ -83,7 +83,8 @@ describe('useForumApi', () => {
         rawContent: '正文',
         sourceFormat: 'markdown',
         editorType: 'tiptap',
-        editorVersion: 'sf-editor-v1'
+        editorVersion: 'sf-editor-v1',
+        attachmentIds: [11, 12]
       })
     })
 
@@ -95,7 +96,8 @@ describe('useForumApi', () => {
         rawContent: '正文',
         sourceFormat: 'markdown',
         editorType: 'tiptap',
-        editorVersion: 'sf-editor-v1'
+        editorVersion: 'sf-editor-v1',
+        attachmentIds: [11, 12]
       }
     })
   })

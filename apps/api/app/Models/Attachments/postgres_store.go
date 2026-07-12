@@ -132,6 +132,54 @@ func (s *PostgresStore) ListReferences(ctx context.Context, attachmentID int64) 
 	return references, nil
 }
 
+func (s *PostgresStore) ListReferenceAccess(ctx context.Context, attachmentID int64) ([]ReferenceAccess, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT ar.id, ar.attachment_id, ar.resource_type, ar.resource_id, ar.context, ar.created_at,
+		  COALESCE(t.author_user_id, c.author_user_id, pt.author_user_id, pc.author_user_id, 0),
+		  COALESCE(t.status, c.status, pt.status, pc.status, ''),
+		  COALESCE(t.status, ct.status, pt.status, pct.status, ''),
+		  COALESCE(tc.visibility, cc.visibility, ptc.visibility, pcc.visibility, ''),
+		  CASE ar.resource_type
+		    WHEN 'topic' THEN t.id IS NOT NULL
+		    WHEN 'comment' THEN c.id IS NOT NULL AND ct.id IS NOT NULL
+		    WHEN 'post' THEN (pt.id IS NOT NULL OR (pc.id IS NOT NULL AND pct.id IS NOT NULL))
+		    ELSE TRUE
+		  END
+		FROM attachment_references ar
+		LEFT JOIN topics t ON ar.resource_type = 'topic' AND t.id = ar.resource_id
+		LEFT JOIN categories tc ON tc.id = t.category_id
+		LEFT JOIN comments c ON ar.resource_type = 'comment' AND c.id = ar.resource_id
+		LEFT JOIN topics ct ON ct.id = c.topic_id
+		LEFT JOIN categories cc ON cc.id = ct.category_id
+		LEFT JOIN topics pt ON ar.resource_type = 'post' AND pt.content_id = ar.resource_id
+		LEFT JOIN categories ptc ON ptc.id = pt.category_id
+		LEFT JOIN comments pc ON ar.resource_type = 'post' AND pc.content_id = ar.resource_id
+		LEFT JOIN topics pct ON pct.id = pc.topic_id
+		LEFT JOIN categories pcc ON pcc.id = pct.category_id
+		WHERE ar.attachment_id = $1
+		ORDER BY ar.created_at DESC, ar.id DESC
+	`, attachmentID)
+	if err != nil {
+		return nil, fmt.Errorf("list attachment reference access: %w", err)
+	}
+	defer rows.Close()
+	items := []ReferenceAccess{}
+	for rows.Next() {
+		var item ReferenceAccess
+		if err := rows.Scan(
+			&item.ID, &item.AttachmentID, &item.ResourceType, &item.ResourceID, &item.Context, &item.CreatedAt,
+			&item.AuthorUserID, &item.ResourceStatus, &item.TopicStatus, &item.CategoryVisibility, &item.Exists,
+		); err != nil {
+			return nil, fmt.Errorf("scan attachment reference access: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate attachment reference access: %w", err)
+	}
+	return items, nil
+}
+
 // ReplaceSEOReference 原子替换同一 SEO 上下文的图片引用和引用计数。
 func (s *PostgresStore) ReplaceSEOReference(ctx context.Context, attachmentID int64, referenceContext string, actorUserID int64) error {
 	tx, err := s.pool.Begin(ctx)

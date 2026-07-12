@@ -151,6 +151,8 @@ type ContentInput struct {
 	SourceFormat  string `json:"sourceFormat"`
 	EditorType    string `json:"editorType"`
 	EditorVersion string `json:"editorVersion"`
+	// AttachmentIDs nil 表示未提交该字段；显式空数组表示移除全部正文附件。
+	AttachmentIDs *[]int64 `json:"attachmentIds,omitempty"`
 }
 
 type RenderedContent struct {
@@ -353,7 +355,8 @@ type CreateTopicRecord struct {
 	Status             string
 	ModerationTriggers []string
 	// IPAddress 创建时真实客户端 IP（全文，管理/风控用，不进公开 API）。
-	IPAddress string
+	IPAddress     string
+	AttachmentIDs []int64
 }
 
 // UpdateTopicInput 是作者或版主更新主题时提交的输入。content 为可选：
@@ -383,7 +386,9 @@ type UpdateTopicRecord struct {
 	RequeuePending     bool
 	ModerationTriggers []string
 	// LastEditIP 本次编辑客户端真实 IP（全文）。
-	LastEditIP string
+	LastEditIP         string
+	ReplaceAttachments bool
+	AttachmentIDs      []int64
 }
 
 // TopicLifecycleInput 描述一次主题生命周期动作（hide/restore/lock/unlock/pin/unpin）。
@@ -633,7 +638,8 @@ type CreateCommentRecord struct {
 	ModerationTriggers []string
 	MentionedUsernames []string
 	// IPAddress 创建时真实客户端 IP（全文，管理/风控用，不进公开 API）。
-	IPAddress string
+	IPAddress     string
+	AttachmentIDs []int64
 }
 
 type PublicationInput struct {
@@ -676,7 +682,9 @@ type UpdateCommentRecord struct {
 	RequeuePending     bool
 	ModerationTriggers []string
 	// LastEditIP 本次编辑客户端真实 IP（全文）。
-	LastEditIP string
+	LastEditIP         string
+	ReplaceAttachments bool
+	AttachmentIDs      []int64
 }
 
 type CommentPosition struct {

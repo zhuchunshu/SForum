@@ -159,6 +159,28 @@ func (s *Service) deleteTopicIndex(ctx context.Context, topicID int64) {
 
 type staticSettingsResolver struct{}
 
+func normalizeContentAttachmentIDs(input *[]int64) ([]int64, bool, error) {
+	if input == nil {
+		return nil, false, nil
+	}
+	if len(*input) > 100 {
+		return nil, true, ErrInvalidContent
+	}
+	seen := make(map[int64]struct{}, len(*input))
+	ids := make([]int64, 0, len(*input))
+	for _, id := range *input {
+		if id <= 0 {
+			return nil, true, ErrInvalidContent
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	return ids, true, nil
+}
+
 func (staticSettingsResolver) ForumSettings(context.Context) (ForumSettings, error) {
 	return defaultForumSettings(), nil
 }
@@ -560,6 +582,10 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 	if err != nil {
 		return TopicDetail{}, err
 	}
+	attachmentIDs, _, err := normalizeContentAttachmentIDs(input.Content.AttachmentIDs)
+	if err != nil {
+		return TopicDetail{}, err
+	}
 	publication, err := s.publicationDecision(ctx, actor.ID, input.Content.RawContent)
 	if err != nil {
 		return TopicDetail{}, err
@@ -584,6 +610,7 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.Actor, input C
 		Status:             status,
 		ModerationTriggers: publication.Triggers,
 		IPAddress:          strings.TrimSpace(input.IPAddress),
+		AttachmentIDs:      attachmentIDs,
 	})
 	if err != nil {
 		return TopicDetail{}, err
@@ -696,6 +723,12 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 		}
 		record.HasContent = true
 		record.Content = content
+		attachmentIDs, submitted, err := normalizeContentAttachmentIDs(input.Content.AttachmentIDs)
+		if err != nil {
+			return TopicDetail{}, err
+		}
+		record.ReplaceAttachments = submitted
+		record.AttachmentIDs = attachmentIDs
 		// 内容变更时重跑发布策略，避免编辑绕过创建时的预审门。
 		publication, err := s.publicationDecision(ctx, actor.ID, input.Content.RawContent)
 		if err != nil {
@@ -904,6 +937,10 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 	if err != nil {
 		return Comment{}, err
 	}
+	attachmentIDs, _, err := normalizeContentAttachmentIDs(input.Content.AttachmentIDs)
+	if err != nil {
+		return Comment{}, err
+	}
 	publication, err := s.publicationDecision(ctx, actor.ID, input.Content.RawContent)
 	if err != nil {
 		return Comment{}, err
@@ -922,6 +959,7 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 		ModerationTriggers: publication.Triggers,
 		MentionedUsernames: mentionNames,
 		IPAddress:          strings.TrimSpace(input.IPAddress),
+		AttachmentIDs:      attachmentIDs,
 	})
 	if err != nil {
 		return Comment{}, err
@@ -1291,6 +1329,12 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 		Content:      content,
 		LastEditIP:   strings.TrimSpace(input.IPAddress),
 	}
+	attachmentIDs, submitted, err := normalizeContentAttachmentIDs(input.Content.AttachmentIDs)
+	if err != nil {
+		return Comment{}, err
+	}
+	record.ReplaceAttachments = submitted
+	record.AttachmentIDs = attachmentIDs
 	// 内容编辑与创建共用发布策略，防止改文绕过预审。
 	publication, err := s.publicationDecision(ctx, actor.ID, input.Content.RawContent)
 	if err != nil {

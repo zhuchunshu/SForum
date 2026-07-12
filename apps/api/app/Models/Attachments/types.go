@@ -66,6 +66,17 @@ type AttachmentReference struct {
 	CreatedAt    time.Time `json:"createdAt"`
 }
 
+// ReferenceAccess 是附件引用对应内容资源的授权快照。
+// TopicStatus 对 comment/post 表示其所属主题状态。
+type ReferenceAccess struct {
+	AttachmentReference
+	AuthorUserID       int64
+	ResourceStatus     string
+	TopicStatus        string
+	CategoryVisibility string
+	Exists             bool
+}
+
 type AttachmentDetail struct {
 	Attachment
 	References []AttachmentReference `json:"references"`

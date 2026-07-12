@@ -38,10 +38,12 @@ attachmentByPublicID:
     responses:
       '200':
         description: >
-          Attachment metadata allowed for the current actor. When
-          forum.guest.read is login_required, anonymous callers may only read
-          site-public assets (avatars, SEO/brand images); forum post media
-          requires authentication.
+          Attachment metadata allowed for the current actor. Forum references
+          are authorized against the current topic/comment status, category
+          visibility, author, and moderation permissions. Only explicit
+          site-public assets (avatars, SEO/brand/favicon images) may expose a
+          permanent provider URL; forum and unreferenced media use the API
+          content proxy.
         content:
           application/json:
             schema:
@@ -62,9 +64,9 @@ attachmentContent:
       '200':
         description: >
           Attachment bytes streamed from the configured provider. Same access
-          policy as getAttachment; under login_required, forum media is not
-          served via permanent public CDN URLs and uses this authenticated
-          content route instead.
+          policy as getAttachment. Forum and unreferenced media are never
+          served through a permanent public provider URL; this route rechecks
+          the referenced resource on every request.
         content:
           application/octet-stream:
             schema:

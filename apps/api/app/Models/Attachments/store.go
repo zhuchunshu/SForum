@@ -11,6 +11,7 @@ type Store interface {
 	GetByID(ctx context.Context, id int64) (Attachment, error)
 	List(ctx context.Context, input AttachmentListInput) (AttachmentList, error)
 	ListReferences(ctx context.Context, attachmentID int64) ([]AttachmentReference, error)
+	ListReferenceAccess(ctx context.Context, attachmentID int64) ([]ReferenceAccess, error)
 	UpdateStatus(ctx context.Context, id int64, status string, deleted bool) (Attachment, error)
 	ListCleanupCandidates(ctx context.Context, cutoff time.Time, limit int) ([]Attachment, error)
 	DeleteMetadata(ctx context.Context, id int64) error

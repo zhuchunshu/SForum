@@ -90,6 +90,7 @@ export function useForumApi() {
       sourceFormat,
       editorType,
       editorVersion,
+      attachmentIds,
       ...topicInput
     } = input
 
@@ -101,7 +102,8 @@ export function useForumApi() {
           rawContent,
           sourceFormat,
           editorType,
-          editorVersion
+          editorVersion,
+          attachmentIds
         }
       }
     })

@@ -3,6 +3,7 @@ package forum
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1410,6 +1411,96 @@ func validMarkdownContent(value string) ContentInput {
 	return ContentInput{RawContent: value, SourceFormat: SourceFormatMarkdown, EditorType: EditorTypeMarkdown}
 }
 
+func TestServicePropagatesContentAttachmentReferences(t *testing.T) {
+	ctx := context.Background()
+	ids := []int64{9, 3, 9}
+
+	t.Run("create topic", func(t *testing.T) {
+		store := &serviceFakeStore{nextID: 1}
+		service := NewService(store)
+		actor := identity.Actor{ID: 10, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicCreate: true}}
+		_, err := service.CreateTopic(ctx, actor, CreateTopicInput{
+			CategorySlug: "general", Title: "带附件主题",
+			Content: ContentInput{RawContent: "正文", SourceFormat: SourceFormatMarkdown, AttachmentIDs: &ids},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(store.createdTopic.AttachmentIDs, []int64{9, 3}) {
+			t.Fatalf("attachment ids=%v", store.createdTopic.AttachmentIDs)
+		}
+	})
+
+	t.Run("update topic explicit empty clears", func(t *testing.T) {
+		store := &serviceFakeStore{actionTopic: TopicSummary{ID: 5, AuthorUserID: 10, Status: TopicStatusActive, CreatedAt: time.Now()}}
+		service := NewService(store)
+		actor := identity.Actor{ID: 10, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
+		empty := []int64{}
+		content := ContentInput{RawContent: "更新正文", SourceFormat: SourceFormatMarkdown, AttachmentIDs: &empty}
+		if _, err := service.UpdateTopic(ctx, actor, UpdateTopicInput{TopicID: 5, Content: &content}); err != nil {
+			t.Fatal(err)
+		}
+		if !store.updatedTopic.ReplaceAttachments || len(store.updatedTopic.AttachmentIDs) != 0 {
+			t.Fatalf("update record=%#v", store.updatedTopic)
+		}
+	})
+
+	t.Run("update topic omitted preserves", func(t *testing.T) {
+		store := &serviceFakeStore{actionTopic: TopicSummary{ID: 5, AuthorUserID: 10, Status: TopicStatusActive, CreatedAt: time.Now()}}
+		service := NewService(store)
+		actor := identity.Actor{ID: 10, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicEditOwn: true}}
+		content := ContentInput{RawContent: "更新正文", SourceFormat: SourceFormatMarkdown}
+		if _, err := service.UpdateTopic(ctx, actor, UpdateTopicInput{TopicID: 5, Content: &content}); err != nil {
+			t.Fatal(err)
+		}
+		if store.updatedTopic.ReplaceAttachments {
+			t.Fatalf("omitted attachmentIds must preserve references: %#v", store.updatedTopic)
+		}
+	})
+
+	t.Run("create and update comment", func(t *testing.T) {
+		store := &serviceFakeStore{
+			nextID:          1,
+			topicForComment: TopicSummary{ID: 7, Status: TopicStatusActive},
+			commentSummary:  CommentSummary{ID: 8, TopicID: 7, AuthorUserID: 10, Status: CommentStatusActive, CreatedAt: time.Now()},
+		}
+		service := NewService(store)
+		actor := identity.Actor{ID: 10, Status: identity.UserStatusActive, Permissions: map[string]bool{
+			identity.PermissionPostCreate: true, identity.PermissionPostEditOwn: true,
+		}}
+		if _, err := service.CreateComment(ctx, actor, CreateCommentInput{
+			TopicID: 7, Content: ContentInput{RawContent: "评论正文", SourceFormat: SourceFormatMarkdown, AttachmentIDs: &ids},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(store.createdComment.AttachmentIDs, []int64{9, 3}) {
+			t.Fatalf("create comment ids=%v", store.createdComment.AttachmentIDs)
+		}
+		if _, err := service.UpdateComment(ctx, actor, UpdateCommentInput{
+			CommentID: 8, Content: ContentInput{RawContent: "更新评论", SourceFormat: SourceFormatMarkdown, AttachmentIDs: &ids},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if !store.updatedComment.ReplaceAttachments || !slices.Equal(store.updatedComment.AttachmentIDs, []int64{9, 3}) {
+			t.Fatalf("update comment record=%#v", store.updatedComment)
+		}
+	})
+}
+
+func TestNormalizeContentAttachmentIDsRejectsInvalidValues(t *testing.T) {
+	invalid := []int64{1, 0}
+	if _, _, err := normalizeContentAttachmentIDs(&invalid); !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("expected invalid content, got %v", err)
+	}
+	tooMany := make([]int64, 101)
+	for index := range tooMany {
+		tooMany[index] = int64(index + 1)
+	}
+	if _, _, err := normalizeContentAttachmentIDs(&tooMany); !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("expected too many attachments to fail, got %v", err)
+	}
+}
+
 func testForumSettings() ForumSettings {
 	return defaultForumSettings()
 }
@@ -1507,6 +1598,7 @@ type serviceFakeStore struct {
 	topicForComment   TopicSummary
 	actionTopic       TopicSummary
 	updatedTopic      UpdateTopicRecord
+	updatedComment    UpdateCommentRecord
 	deletedTopicID    int64
 	appliedAction     string
 	commentSummary    CommentSummary
@@ -1786,6 +1878,7 @@ func (s *serviceFakeStore) GetCommentSummary(context.Context, int64) (CommentSum
 }
 
 func (s *serviceFakeStore) UpdateComment(_ context.Context, input UpdateCommentRecord) (Comment, error) {
+	s.updatedComment = input
 	status := CommentStatusActive
 	if input.RequeuePending {
 		status = CommentStatusPending

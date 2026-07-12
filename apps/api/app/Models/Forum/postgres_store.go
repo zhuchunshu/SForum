@@ -640,6 +640,9 @@ func (s *PostgresStore) CreateTopic(ctx context.Context, input CreateTopicRecord
 	if err := attachTopicTags(ctx, tx, topicID, tags); err != nil {
 		return TopicDetail{}, err
 	}
+	if err := replaceForumAttachmentReferences(ctx, tx, "topic", topicID, input.AuthorUserID, input.AttachmentIDs); err != nil {
+		return TopicDetail{}, err
+	}
 	row := tx.QueryRow(ctx, topicDetailSQL()+` WHERE topics.id = $1`, topicID)
 	topic, err := scanTopicDetailWithAvatar(row, s.avatarBuilder)
 	if err != nil {
@@ -781,6 +784,11 @@ func (s *PostgresStore) UpdateTopic(ctx context.Context, input UpdateTopicRecord
 			return TopicDetail{}, err
 		}
 	}
+	if input.ReplaceAttachments {
+		if err := replaceForumAttachmentReferences(ctx, tx, "topic", input.TopicID, input.EditorUserID, input.AttachmentIDs); err != nil {
+			return TopicDetail{}, err
+		}
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return TopicDetail{}, fmt.Errorf("commit update topic: %w", err)
@@ -815,6 +823,98 @@ func replaceTopicTags(ctx context.Context, tx pgx.Tx, topicID int64, slugs []str
 		return err
 	}
 	return attachTopicTags(ctx, tx, topicID, tags)
+}
+
+const forumAttachmentContext = "content"
+
+func replaceForumAttachmentReferences(ctx context.Context, tx pgx.Tx, resourceType string, resourceID, actorUserID int64, attachmentIDs []int64) error {
+	if resourceType != "topic" && resourceType != "comment" {
+		return ErrInvalidContent
+	}
+	if len(attachmentIDs) > 0 {
+		rows, err := tx.Query(ctx, `
+			SELECT id
+			FROM attachments
+			WHERE id = ANY($1::bigint[])
+			  AND owner_user_id = $2
+			  AND status = 'active'
+			  AND visibility = 'public'
+			FOR UPDATE
+		`, attachmentIDs, actorUserID)
+		if err != nil {
+			return fmt.Errorf("validate forum attachments: %w", err)
+		}
+		validated := 0
+		for rows.Next() {
+			validated++
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return fmt.Errorf("iterate forum attachments: %w", err)
+		}
+		rows.Close()
+		if validated != len(attachmentIDs) {
+			return ErrInvalidContent
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `
+		WITH removed AS (
+			DELETE FROM attachment_references
+			WHERE resource_type = $1 AND resource_id = $2 AND context = $3
+			RETURNING attachment_id
+		), counts AS (
+			SELECT attachment_id, COUNT(*)::integer AS amount FROM removed GROUP BY attachment_id
+		)
+		UPDATE attachments a
+		SET reference_count = GREATEST(a.reference_count - counts.amount, 0), updated_at = now()
+		FROM counts
+		WHERE a.id = counts.attachment_id
+	`, resourceType, resourceID, forumAttachmentContext); err != nil {
+		return fmt.Errorf("clear forum attachment references: %w", err)
+	}
+
+	for _, attachmentID := range attachmentIDs {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO attachment_references
+			  (attachment_id, resource_type, resource_id, context, created_by_user_id)
+			VALUES ($1, $2, $3, $4, $5)
+		`, attachmentID, resourceType, resourceID, forumAttachmentContext, actorUserID); err != nil {
+			return fmt.Errorf("insert forum attachment reference: %w", err)
+		}
+	}
+	if len(attachmentIDs) > 0 {
+		if _, err := tx.Exec(ctx, `
+			UPDATE attachments
+			SET reference_count = reference_count + 1, updated_at = now()
+			WHERE id = ANY($1::bigint[])
+		`, attachmentIDs); err != nil {
+			return fmt.Errorf("increment forum attachment references: %w", err)
+		}
+	}
+	return nil
+}
+
+func clearTopicAttachmentReferences(ctx context.Context, tx pgx.Tx, topicID int64) error {
+	if _, err := tx.Exec(ctx, `
+		WITH removed AS (
+			DELETE FROM attachment_references
+			WHERE context = $2 AND (
+			  (resource_type = 'topic' AND resource_id = $1) OR
+			  (resource_type = 'comment' AND resource_id IN (SELECT id FROM comments WHERE topic_id = $1))
+			)
+			RETURNING attachment_id
+		), counts AS (
+			SELECT attachment_id, COUNT(*)::integer AS amount FROM removed GROUP BY attachment_id
+		)
+		UPDATE attachments a
+		SET reference_count = GREATEST(a.reference_count - counts.amount, 0), updated_at = now()
+		FROM counts
+		WHERE a.id = counts.attachment_id
+	`, topicID, forumAttachmentContext); err != nil {
+		return fmt.Errorf("clear topic attachment references: %w", err)
+	}
+	return nil
 }
 
 func (s *PostgresStore) DeleteTopic(ctx context.Context, topicID int64) (TopicDetail, error) {
@@ -853,6 +953,9 @@ func (s *PostgresStore) DeleteTopic(ctx context.Context, topicID int64) (TopicDe
 		`, categoryID); err != nil {
 			return TopicDetail{}, fmt.Errorf("decrement category count on delete: %w", err)
 		}
+	}
+	if err := clearTopicAttachmentReferences(ctx, tx, topicID); err != nil {
+		return TopicDetail{}, err
 	}
 
 	// 读取删除后的主题快照（不做公开可见性过滤）。
@@ -1201,6 +1304,9 @@ func (s *PostgresStore) CreateComment(ctx context.Context, input CreateCommentRe
 			return Comment{}, fmt.Errorf("update category comment count: %w", err)
 		}
 	}
+	if err := replaceForumAttachmentReferences(ctx, tx, "comment", commentID, input.AuthorUserID, input.AttachmentIDs); err != nil {
+		return Comment{}, err
+	}
 
 	comment, err := getCommentByID(ctx, tx, commentID, s.avatarBuilder)
 	if err != nil {
@@ -1382,6 +1488,11 @@ func (s *PostgresStore) UpdateComment(ctx context.Context, input UpdateCommentRe
 			return Comment{}, fmt.Errorf("update comment last_edit_ip: %w", err)
 		}
 	}
+	if input.ReplaceAttachments {
+		if err := replaceForumAttachmentReferences(ctx, tx, "comment", input.CommentID, input.EditorUserID, input.AttachmentIDs); err != nil {
+			return Comment{}, err
+		}
+	}
 
 	comment, err := getCommentByID(ctx, tx, input.CommentID, s.avatarBuilder)
 	if err != nil {
@@ -1448,6 +1559,9 @@ func (s *PostgresStore) DeleteComment(ctx context.Context, commentID int64) (Com
 		`, topicID); err != nil {
 			return Comment{}, fmt.Errorf("decrement category comment count: %w", err)
 		}
+	}
+	if err := replaceForumAttachmentReferences(ctx, tx, "comment", commentID, 0, nil); err != nil {
+		return Comment{}, err
 	}
 
 	comment, err := getCommentByID(ctx, tx, commentID, s.avatarBuilder)

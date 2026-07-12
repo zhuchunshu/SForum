@@ -264,6 +264,7 @@ export type ForumContentInput = {
   sourceFormat?: 'markdown' | 'html'
   editorType?: string
   editorVersion?: string
+  attachmentIds?: number[]
 }
 
 // 更新主题输入，所有字段可选；未提供即不修改。

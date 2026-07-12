@@ -191,6 +191,14 @@ ContentInput:
     editorVersion:
       type: string
       default: ''
+    attachmentIds:
+      type: array
+      maxItems: 100
+      description: Omitted preserves existing references on edit; an explicit empty array removes all content attachment references.
+      items:
+        type: integer
+        format: int64
+        minimum: 1
 RenderedContent:
   type: object
   required:

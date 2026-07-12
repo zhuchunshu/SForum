@@ -156,6 +156,18 @@ upload and presigned upload credentials are intentionally deferred.
 - Profile avatar replacement writes `attachment_references` with resource
   `user` and context `avatar`, decrementing the old avatar reference and
   incrementing the new one so referenced avatars are not orphan-cleaned.
+- Forum topic/comment content now submits explicit `content.attachmentIds`.
+  The forum write transaction validates active public attachments owned by the
+  editor, replaces references, and updates `reference_count`; topic/comment
+  deletion clears the corresponding references.
+- Public attachment reads resolve real topic/comment/post status, category
+  visibility, author, and reviewer permission. Pending is author/reviewer-only;
+  hidden/deleted or hidden-category media is reviewer-only. Forum and
+  unreferenced media always use the API proxy, while avatar/SEO/site assets may
+  use permanent provider URLs.
+- Logo/favicon/apple-touch-icon options atomically maintain `site` references;
+  migration `202607130001_site_attachment_references.sql` backfills valid
+  historical option values.
 - `attachments.cleanup_orphans` is defined as a River maintenance job contract;
   worker wiring can be enabled when the worker process begins registering
   module jobs.

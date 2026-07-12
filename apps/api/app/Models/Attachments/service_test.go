@@ -59,8 +59,8 @@ func TestServiceUploadStoresObjectAndMetadata(t *testing.T) {
 	if adapter.putKey != created.ObjectKey || adapter.putBody != "hello" {
 		t.Fatalf("object was not written through adapter: key=%q body=%q", adapter.putKey, adapter.putBody)
 	}
-	if item.URL != "https://cdn.example.com/"+created.ObjectKey {
-		t.Fatalf("expected decorated public URL, got %q", item.URL)
+	if item.URL != contentURLPath(item.PublicID) {
+		t.Fatalf("unreferenced upload must use authorized proxy URL, got %q", item.URL)
 	}
 }
 
@@ -661,6 +661,9 @@ func (s *fakeAttachmentStore) List(context.Context, AttachmentListInput) (Attach
 }
 
 func (s *fakeAttachmentStore) ListReferences(context.Context, int64) ([]AttachmentReference, error) {
+	return nil, nil
+}
+func (s *fakeAttachmentStore) ListReferenceAccess(context.Context, int64) ([]ReferenceAccess, error) {
 	return nil, nil
 }
 

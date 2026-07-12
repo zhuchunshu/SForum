@@ -7,6 +7,22 @@ import (
 	"time"
 )
 
+func TestSiteAttachmentReferenceContexts(t *testing.T) {
+	for name, want := range map[string]string{
+		NameSiteLogoAttachmentID:           "logo",
+		NameSiteFaviconAttachmentID:        "favicon",
+		NameSiteAppleTouchIconAttachmentID: "apple-touch-icon",
+	} {
+		got, ok := siteAttachmentReferenceContext(name)
+		if !ok || got != want {
+			t.Fatalf("%s context=%q ok=%v", name, got, ok)
+		}
+	}
+	if _, ok := siteAttachmentReferenceContext(NameSiteLogoURL); ok {
+		t.Fatal("plain URL option must not create an attachment reference")
+	}
+}
+
 func TestSiteBrandOptionsDefaults(t *testing.T) {
 	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
 

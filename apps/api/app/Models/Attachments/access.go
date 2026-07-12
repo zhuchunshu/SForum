@@ -21,9 +21,10 @@ const (
 	ResourceTypeSEO  = "seo"
 	ResourceTypeSite = "site"
 
-	ContextAvatar  = "avatar"
-	ContextLogo    = "logo"
-	ContextFavicon = "favicon"
+	ContextAvatar         = "avatar"
+	ContextLogo           = "logo"
+	ContextFavicon        = "favicon"
+	ContextAppleTouchIcon = "apple-touch-icon"
 )
 
 // isSitePublicReference 是否为应始终匿名可读的站点资产引用。
@@ -35,24 +36,43 @@ func isSitePublicReference(ref AttachmentReference) bool {
 		return strings.TrimSpace(ref.Context) == ContextAvatar
 	case ResourceTypeSite:
 		ctx := strings.TrimSpace(ref.Context)
-		return ctx == ContextLogo || ctx == ContextFavicon || ctx == "brand" || ctx == "chrome"
+		return ctx == ContextLogo || ctx == ContextFavicon || ctx == ContextAppleTouchIcon || ctx == "brand" || ctx == "chrome"
 	default:
 		return false
 	}
 }
 
-// requiresForumReadGate 帖子/未分类媒体在 login_required 模式下需登录。
-// 仅当全部引用均为站点公开用途时才跳过论坛门禁；无引用时 fail closed。
-func requiresForumReadGate(refs []AttachmentReference) bool {
-	if len(refs) == 0 {
+func isForumReference(resourceType string) bool {
+	switch strings.TrimSpace(resourceType) {
+	case "topic", "comment", "post":
 		return true
+	default:
+		return false
 	}
-	for _, ref := range refs {
-		if !isSitePublicReference(ref) {
+}
+
+func canModerateAttachmentReference(actor identity.Actor) bool {
+	return actor.Can(identity.PermissionAttachmentManage) || actor.Can(identity.PermissionModerationReview)
+}
+
+func canViewForumReference(actor identity.Actor, ref ReferenceAccess) bool {
+	if !ref.Exists || ref.CategoryVisibility != "public" {
+		return canModerateAttachmentReference(actor)
+	}
+	if ref.TopicStatus != "active" && ref.TopicStatus != "locked" {
+		if ref.TopicStatus == "pending" && actor.ID > 0 && actor.ID == ref.AuthorUserID {
 			return true
 		}
+		return canModerateAttachmentReference(actor)
 	}
-	return false
+	switch ref.ResourceStatus {
+	case "active", "locked":
+		return true
+	case "pending":
+		return (actor.ID > 0 && actor.ID == ref.AuthorUserID) || canModerateAttachmentReference(actor)
+	default:
+		return canModerateAttachmentReference(actor)
+	}
 }
 
 func (s *Service) guestReadLoginRequired(ctx context.Context) bool {
@@ -72,27 +92,36 @@ func (s *Service) authorizeAttachmentView(ctx context.Context, actor identity.Ac
 	if !canViewAttachment(actor, attachment) {
 		return identity.ErrPermissionDenied
 	}
-	// 管理权限或私有所有者路径已由 canViewAttachment 处理；
-	// 仅对「公开可见」附件再套 guest.read。
+	if actor.Can(identity.PermissionAttachmentManage) {
+		return nil
+	}
+	// 私有附件仅保留既有所有者路径，不通过引用扩大权限。
 	if attachment.Status != StatusActive || attachment.Visibility != VisibilityPublic {
 		return nil
 	}
-	if actor.IsActive() {
-		// 已登录活跃用户与论坛公开读接口一致，始终可看公开附件。
-		return nil
-	}
-	if !s.guestReadLoginRequired(ctx) {
-		return nil
-	}
-	refs, err := s.store.ListReferences(ctx, attachment.ID)
+	refs, err := s.store.ListReferenceAccess(ctx, attachment.ID)
 	if err != nil {
-		// 引用解析失败：fail closed。
-		return ErrGuestLoginRequired
+		return identity.ErrPermissionDenied
 	}
-	if requiresForumReadGate(refs) {
-		return ErrGuestLoginRequired
+	if len(refs) == 0 {
+		if attachment.Owner != nil && actor.IsActive() && attachment.Owner.ID == actor.ID {
+			return nil
+		}
+		return identity.ErrPermissionDenied
 	}
-	return nil
+	for _, ref := range refs {
+		if isSitePublicReference(ref.AttachmentReference) {
+			return nil
+		}
+		if !isForumReference(ref.ResourceType) || !canViewForumReference(actor, ref) {
+			continue
+		}
+		if !actor.IsActive() && s.guestReadLoginRequired(ctx) {
+			return ErrGuestLoginRequired
+		}
+		return nil
+	}
+	return identity.ErrPermissionDenied
 }
 
 // contentURLPath API 内容代理路径（可执行会话策略）。
@@ -100,17 +129,16 @@ func contentURLPath(publicID string) string {
 	return "/api/v1/attachments/" + publicID + "/content"
 }
 
-// shouldProxyAuthorizedURL login_required 下论坛媒体不得返回永久 CDN 公网 URL。
+// shouldProxyAuthorizedURL 只有站点公开资产可返回永久 URL；论坛与未引用媒体始终走代理。
 func (s *Service) shouldProxyAuthorizedURL(ctx context.Context, attachment Attachment) bool {
-	if attachment.Status != StatusActive || attachment.Visibility != VisibilityPublic {
-		return false
-	}
-	if !s.guestReadLoginRequired(ctx) {
-		return false
-	}
-	refs, err := s.store.ListReferences(ctx, attachment.ID)
+	refs, err := s.store.ListReferenceAccess(ctx, attachment.ID)
 	if err != nil {
 		return true
 	}
-	return requiresForumReadGate(refs)
+	for _, ref := range refs {
+		if isSitePublicReference(ref.AttachmentReference) {
+			return false
+		}
+	}
+	return true
 }

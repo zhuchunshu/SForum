@@ -53,6 +53,11 @@ on 2026-07-07.
   fields. List excerpt truncation uses `forum.reading.excerpt_rune_limit`
   (default 180) on every read path from `plain_text`, so changing the setting
   applies to old posts immediately.
+- Topic/comment create and content-edit requests accept optional
+  `content.attachmentIds`. Explicit arrays replace the resource's content
+  references transactionally; omission preserves references on edit and an
+  explicit empty array clears them. Soft deletion clears reference rows and
+  decrements attachment counts.
 - Guest reading: when `forum.guest.read=login_required`, public read endpoints
   (categories, tags, topics, search, comments) return 401
   `forum.guest_login_required` for anonymous sessions.

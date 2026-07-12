@@ -11,61 +11,60 @@ import (
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
-func TestRequiresForumReadGate(t *testing.T) {
-	if !requiresForumReadGate(nil) {
-		t.Fatal("no refs must gate")
-	}
-	if !requiresForumReadGate([]AttachmentReference{{ResourceType: "post", ResourceID: 1}}) {
-		t.Fatal("post ref must gate")
-	}
-	if requiresForumReadGate([]AttachmentReference{
-		{ResourceType: ResourceTypeUser, Context: ContextAvatar},
-		{ResourceType: ResourceTypeSEO, Context: "og_image"},
-	}) {
-		t.Fatal("site-only refs must not gate")
-	}
-	if !requiresForumReadGate([]AttachmentReference{
-		{ResourceType: ResourceTypeUser, Context: ContextAvatar},
-		{ResourceType: "topic", ResourceID: 9},
-	}) {
-		t.Fatal("mixed refs must gate")
-	}
-}
-
-func TestAuthorizeAttachmentViewLoginRequired(t *testing.T) {
+func TestAuthorizeAttachmentViewByReferencedResource(t *testing.T) {
 	store := &accessFakeStore{
 		item: Attachment{
 			ID: 1, PublicID: "abc", Status: StatusActive, Visibility: VisibilityPublic,
+			Owner: &OwnerSummary{ID: 10},
 		},
-		refs: []AttachmentReference{{ResourceType: "post", ResourceID: 3, Context: "inline"}},
 	}
 	optStore := &fakeOptionStore{items: map[string]string{
 		options.NameForumGuestRead: "login_required",
 	}}
 	service := NewService(store, options.NewService(optStore))
+	member := identity.Actor{ID: 20, Status: identity.UserStatusActive}
+	author := identity.Actor{ID: 10, Status: identity.UserStatusActive}
+	moderator := identity.Actor{ID: 30, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionModerationReview: true}}
 
-	// 匿名 + 帖子引用 → 401 语义错误
-	err := service.authorizeAttachmentView(context.Background(), identity.Actor{}, store.item)
-	if !errors.Is(err, ErrGuestLoginRequired) {
-		t.Fatalf("anon forum media: %v", err)
+	for _, test := range []struct {
+		name    string
+		ref     ReferenceAccess
+		actor   identity.Actor
+		wantErr error
+	}{
+		{name: "anonymous active login required", ref: forumAccess("topic", "active", "active", "public", 10), wantErr: ErrGuestLoginRequired},
+		{name: "member active", ref: forumAccess("topic", "active", "active", "public", 10), actor: member},
+		{name: "member locked topic", ref: forumAccess("topic", "locked", "locked", "public", 10), actor: member},
+		{name: "member pending denied", ref: forumAccess("topic", "pending", "pending", "public", 10), actor: member, wantErr: identity.ErrPermissionDenied},
+		{name: "author pending", ref: forumAccess("topic", "pending", "pending", "public", 10), actor: author},
+		{name: "member hidden denied", ref: forumAccess("comment", "hidden", "active", "public", 10), actor: member, wantErr: identity.ErrPermissionDenied},
+		{name: "author hidden denied", ref: forumAccess("comment", "hidden", "active", "public", 10), actor: author, wantErr: identity.ErrPermissionDenied},
+		{name: "member deleted denied", ref: forumAccess("comment", "deleted", "active", "public", 10), actor: member, wantErr: identity.ErrPermissionDenied},
+		{name: "member hidden category denied", ref: forumAccess("topic", "active", "active", "hidden", 10), actor: member, wantErr: identity.ErrPermissionDenied},
+		{name: "moderator hidden", ref: forumAccess("comment", "hidden", "active", "public", 10), actor: moderator},
+		{name: "moderator deleted", ref: forumAccess("topic", "deleted", "deleted", "public", 10), actor: moderator},
+		{name: "moderator hidden category", ref: forumAccess("topic", "active", "active", "hidden", 10), actor: moderator},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			store.refs = []ReferenceAccess{test.ref}
+			err := service.authorizeAttachmentView(context.Background(), test.actor, store.item)
+			if !errors.Is(err, test.wantErr) {
+				t.Fatalf("got %v, want %v", err, test.wantErr)
+			}
+		})
 	}
 
-	// 已登录 → 允许
-	active := identity.Actor{ID: 2, Status: identity.UserStatusActive}
-	if err := service.authorizeAttachmentView(context.Background(), active, store.item); err != nil {
-		t.Fatalf("auth user: %v", err)
+	store.refs = nil
+	if err := service.authorizeAttachmentView(context.Background(), member, store.item); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("unreferenced member: %v", err)
+	}
+	if err := service.authorizeAttachmentView(context.Background(), author, store.item); err != nil {
+		t.Fatalf("unreferenced owner: %v", err)
 	}
 
-	// 头像引用 → 匿名允许
-	store.refs = []AttachmentReference{{ResourceType: ResourceTypeUser, Context: ContextAvatar}}
+	store.refs = []ReferenceAccess{{AttachmentReference: AttachmentReference{ResourceType: ResourceTypeUser, Context: ContextAvatar}, Exists: true}}
 	if err := service.authorizeAttachmentView(context.Background(), identity.Actor{}, store.item); err != nil {
 		t.Fatalf("avatar anon: %v", err)
-	}
-
-	// 无引用 fail closed
-	store.refs = nil
-	if err := service.authorizeAttachmentView(context.Background(), identity.Actor{}, store.item); !errors.Is(err, ErrGuestLoginRequired) {
-		t.Fatalf("unreferenced: %v", err)
 	}
 }
 
@@ -74,6 +73,7 @@ func TestAuthorizeAttachmentViewPublicMode(t *testing.T) {
 		item: Attachment{
 			ID: 1, PublicID: "abc", Status: StatusActive, Visibility: VisibilityPublic,
 		},
+		refs: []ReferenceAccess{forumAccess("topic", "active", "active", "public", 1)},
 	}
 	optStore := &fakeOptionStore{items: map[string]string{
 		options.NameForumGuestRead: "public",
@@ -84,13 +84,13 @@ func TestAuthorizeAttachmentViewPublicMode(t *testing.T) {
 	}
 }
 
-func TestDecorateURLProxiesUnderLoginRequired(t *testing.T) {
+func TestDecorateURLAlwaysProxiesAuthorizedResources(t *testing.T) {
 	store := &accessFakeStore{
 		item: Attachment{
 			ID: 1, PublicID: "pub1", Status: StatusActive, Visibility: VisibilityPublic,
 			ObjectKey: "k", Provider: "local",
 		},
-		refs: []AttachmentReference{{ResourceType: "post", ResourceID: 1}},
+		refs: []ReferenceAccess{forumAccess("post", "active", "active", "public", 1)},
 	}
 	optStore := &fakeOptionStore{items: map[string]string{
 		options.NameForumGuestRead: "login_required",
@@ -104,9 +104,15 @@ func TestDecorateURLProxiesUnderLoginRequired(t *testing.T) {
 	if decorated.URL != contentURLPath("pub1") {
 		t.Fatalf("expected proxy URL, got %q", decorated.URL)
 	}
+	optStore.items[options.NameForumGuestRead] = "public"
+	service.options.Invalidate()
+	decorated = service.decorateURL(context.Background(), store.item)
+	if decorated.URL != contentURLPath("pub1") {
+		t.Fatalf("public forum mode must still use revocable proxy URL, got %q", decorated.URL)
+	}
 
 	// 头像仍可用 CDN
-	store.refs = []AttachmentReference{{ResourceType: ResourceTypeUser, Context: ContextAvatar}}
+	store.refs = []ReferenceAccess{{AttachmentReference: AttachmentReference{ResourceType: ResourceTypeUser, Context: ContextAvatar}, Exists: true}}
 	decorated = service.decorateURL(context.Background(), store.item)
 	if decorated.URL != "https://cdn.example.com/k" {
 		t.Fatalf("avatar should keep CDN URL, got %q", decorated.URL)
@@ -115,7 +121,7 @@ func TestDecorateURLProxiesUnderLoginRequired(t *testing.T) {
 
 type accessFakeStore struct {
 	item Attachment
-	refs []AttachmentReference
+	refs []ReferenceAccess
 }
 
 func (s *accessFakeStore) Create(context.Context, CreateAttachmentInput) (Attachment, error) {
@@ -137,6 +143,13 @@ func (s *accessFakeStore) List(context.Context, AttachmentListInput) (Attachment
 	return AttachmentList{}, nil
 }
 func (s *accessFakeStore) ListReferences(context.Context, int64) ([]AttachmentReference, error) {
+	items := make([]AttachmentReference, 0, len(s.refs))
+	for _, ref := range s.refs {
+		items = append(items, ref.AttachmentReference)
+	}
+	return items, nil
+}
+func (s *accessFakeStore) ListReferenceAccess(context.Context, int64) ([]ReferenceAccess, error) {
 	return s.refs, nil
 }
 func (s *accessFakeStore) UpdateStatus(context.Context, int64, string, bool) (Attachment, error) {
@@ -146,3 +159,11 @@ func (s *accessFakeStore) ListCleanupCandidates(context.Context, time.Time, int)
 	return nil, nil
 }
 func (s *accessFakeStore) DeleteMetadata(context.Context, int64) error { return nil }
+
+func forumAccess(resourceType, resourceStatus, topicStatus, categoryVisibility string, authorID int64) ReferenceAccess {
+	return ReferenceAccess{
+		AttachmentReference: AttachmentReference{ResourceType: resourceType, ResourceID: 1, Context: "inline"},
+		AuthorUserID:        authorID, ResourceStatus: resourceStatus, TopicStatus: topicStatus,
+		CategoryVisibility: categoryVisibility, Exists: true,
+	}
+}
