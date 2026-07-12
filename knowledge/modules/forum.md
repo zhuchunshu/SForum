@@ -280,14 +280,21 @@ the public API:
 - `POST /api/v1/topics/{topicID}/{hide|restore|lock|unlock|pin|unpin}` apply
   status/pin transitions. `restore` clears `deleted_at`/`locked_at`.
 
-Permission model reuses existing keys: own edit needs `post.edit_own`,
-any edit needs `topic.edit_any`, own delete needs `post.delete_own`,
+Permission model reuses existing keys: own topic edit needs `topic.edit_own`,
+any edit needs `topic.edit_any`, own topic delete needs `topic.delete_own`,
 any delete/hide/restore needs `topic.delete_any`, lock/unlock needs
-`topic.lock`, pin/unpin needs `topic.pin`.
+`topic.lock`, pin/unpin needs `topic.pin`. An author may also lock/unlock their
+own topic only when `allowAuthorCloseReplies` is enabled and they currently
+retain `topic.edit_own`.
 
-Public reads are limited to `active` and `locked` topics; hidden/deleted
+Public topic reads are limited to `active` and `locked` topics; hidden/deleted
 topics return 404 on public detail and are excluded from public lists. Locked
 topics remain readable but reject new comments with `forum.topic_closed`.
+Comment list/reply queries apply `softDeleteVisibility` to the current viewer:
+authors and/or staff receive selected deleted tombstones, while body fields and
+deleted-parent reply excerpts are always removed. Topic/comment `edited` comes
+from `post_revisions` and is exposed only while its API presentation switch is
+enabled; themes do not infer it from `updatedAt`.
 
 Events: `topic.updated`, `topic.deleted`, `topic.hidden`, `topic.restored`,
 `topic.locked`, `topic.unlocked`, `topic.pinned`, `topic.unpinned` are emitted

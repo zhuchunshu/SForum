@@ -1590,16 +1590,20 @@ func (s *PostgresStore) listCommentsFlat(ctx context.Context, input CommentListI
 	var total int64
 	if err := s.pool.QueryRow(ctx, `
 		SELECT count(*) FROM comments
-		WHERE topic_id = $1 AND status = 'active'
-	`, input.TopicID).Scan(&total); err != nil {
+		WHERE topic_id = $1
+		  AND (status = 'active' OR ($2::boolean AND status = 'deleted'
+		    AND ($3::bigint = 0 OR author_user_id = $3)))
+	`, input.TopicID, input.IncludeDeleted, input.DeletedAuthorUserID).Scan(&total); err != nil {
 		return CommentList{}, fmt.Errorf("count comments: %w", err)
 	}
 
 	rows, err := s.pool.Query(ctx, commentSelectSQL()+`
-		WHERE comments.topic_id = $1 AND comments.status = 'active'
+		WHERE comments.topic_id = $1
+		  AND (comments.status = 'active' OR ($2::boolean AND comments.status = 'deleted'
+		    AND ($3::bigint = 0 OR comments.author_user_id = $3)))
 		ORDER BY comments.path_key ASC, comments.id ASC
-		LIMIT $2 OFFSET $3
-	`, input.TopicID, input.PerPage, offset)
+		LIMIT $4 OFFSET $5
+	`, input.TopicID, input.IncludeDeleted, input.DeletedAuthorUserID, input.PerPage, offset)
 	if err != nil {
 		return CommentList{}, fmt.Errorf("list comments: %w", err)
 	}
@@ -1623,17 +1627,21 @@ func (s *PostgresStore) listCommentsTree(ctx context.Context, input CommentListI
 	var total int64
 	if err := s.pool.QueryRow(ctx, `
 		SELECT count(*) FROM comments
-		WHERE topic_id = $1 AND status = 'active' AND parent_comment_id IS NULL
-	`, input.TopicID).Scan(&total); err != nil {
+		WHERE topic_id = $1 AND parent_comment_id IS NULL
+		  AND (status = 'active' OR ($2::boolean AND status = 'deleted'
+		    AND ($3::bigint = 0 OR author_user_id = $3)))
+	`, input.TopicID, input.IncludeDeleted, input.DeletedAuthorUserID).Scan(&total); err != nil {
 		return CommentList{}, fmt.Errorf("count root comments: %w", err)
 	}
 
 	// 第一步：拉当页根评论。
 	rootRows, err := s.pool.Query(ctx, commentSelectSQL()+`
-		WHERE comments.topic_id = $1 AND comments.status = 'active' AND comments.parent_comment_id IS NULL
+		WHERE comments.topic_id = $1 AND comments.parent_comment_id IS NULL
+		  AND (comments.status = 'active' OR ($2::boolean AND comments.status = 'deleted'
+		    AND ($3::bigint = 0 OR comments.author_user_id = $3)))
 		ORDER BY comments.path_key ASC, comments.id ASC
-		LIMIT $2 OFFSET $3
-	`, input.TopicID, input.PerPage, offset)
+		LIMIT $4 OFFSET $5
+	`, input.TopicID, input.IncludeDeleted, input.DeletedAuthorUserID, input.PerPage, offset)
 	if err != nil {
 		return CommentList{}, fmt.Errorf("list root comments: %w", err)
 	}
@@ -1652,11 +1660,13 @@ func (s *PostgresStore) listCommentsTree(ctx context.Context, input CommentListI
 		rootIDs = append(rootIDs, r.ID)
 	}
 	descRows, err := s.pool.Query(ctx, commentSelectSQL()+`
-		WHERE comments.topic_id = $1 AND comments.status = 'active'
+		WHERE comments.topic_id = $1
+		  AND (comments.status = 'active' OR ($3::boolean AND comments.status = 'deleted'
+		    AND ($4::bigint = 0 OR comments.author_user_id = $4)))
 		  AND comments.parent_comment_id IS NOT NULL
 		  AND comments.root_comment_id = ANY($2::bigint[])
 		ORDER BY comments.path_key ASC, comments.id ASC
-	`, input.TopicID, rootIDs)
+	`, input.TopicID, rootIDs, input.IncludeDeleted, input.DeletedAuthorUserID)
 	if err != nil {
 		return CommentList{}, fmt.Errorf("list comment descendants: %w", err)
 	}
@@ -1693,11 +1703,13 @@ func scanCommentsWithAvatar(rows pgx.Rows, builder *avatar.ViewBuilder) ([]Comme
 	return items, nil
 }
 
-func (s *PostgresStore) ListCommentReplies(ctx context.Context, commentID int64) ([]Comment, error) {
+func (s *PostgresStore) ListCommentReplies(ctx context.Context, input CommentReplyListInput) ([]Comment, error) {
 	rows, err := s.pool.Query(ctx, commentSelectSQL()+`
-		WHERE comments.parent_comment_id = $1 AND comments.status = 'active'
+		WHERE comments.parent_comment_id = $1
+		  AND (comments.status = 'active' OR ($2::boolean AND comments.status = 'deleted'
+		    AND ($3::bigint = 0 OR comments.author_user_id = $3)))
 		ORDER BY comments.path_key ASC, comments.id ASC
-	`, commentID)
+	`, input.CommentID, input.IncludeDeleted, input.DeletedAuthorUserID)
 	if err != nil {
 		return nil, fmt.Errorf("list comment replies: %w", err)
 	}
@@ -1958,6 +1970,7 @@ func topicSummarySQL() string {
 		  author_attachments.content_type, author_attachments.status,
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
 		  topics.comment_count, topics.view_count, ` + plainTextPrefixSQL("posts.plain_text") + `,
+		  EXISTS (SELECT 1 FROM post_revisions WHERE post_id = posts.id),
 		  topics.created_at, topics.updated_at, topics.last_activity_at
 		FROM topics
 		JOIN categories ON categories.id = topics.category_id
@@ -1992,6 +2005,7 @@ func topicDetailSQL() string {
 		  author_attachments.content_type, author_attachments.status,
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
 		  topics.comment_count, topics.view_count,
+		  EXISTS (SELECT 1 FROM post_revisions WHERE post_id = posts.id),
 		  topics.created_at, topics.updated_at, topics.last_activity_at,
 		  posts.id, posts.raw_content, posts.html_content, posts.plain_text,
 		  posts.source_format, posts.editor_type, posts.editor_version,
@@ -2026,6 +2040,7 @@ func scanTopicSummary(row RowScanner) (TopicSummary, error) {
 		&topic.CommentCount,
 		&topic.ViewCount,
 		&plainPrefix,
+		&topic.ContentEdited,
 		&topic.CreatedAt,
 		&topic.UpdatedAt,
 		&topic.LastActivityAt,
@@ -2127,6 +2142,7 @@ func scanTopicSummaryWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (To
 		&topic.CommentCount,
 		&topic.ViewCount,
 		&plainPrefix,
+		&topic.ContentEdited,
 		&topic.CreatedAt,
 		&topic.UpdatedAt,
 		&topic.LastActivityAt,
@@ -2160,6 +2176,7 @@ func scanTopicDetail(row RowScanner) (TopicDetail, error) {
 		&detail.IsPinned,
 		&detail.CommentCount,
 		&detail.ViewCount,
+		&detail.ContentEdited,
 		&detail.CreatedAt,
 		&detail.UpdatedAt,
 		&detail.LastActivityAt,
@@ -2218,6 +2235,7 @@ func scanTopicDetailWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Top
 		&detail.IsPinned,
 		&detail.CommentCount,
 		&detail.ViewCount,
+		&detail.ContentEdited,
 		&detail.CreatedAt,
 		&detail.UpdatedAt,
 		&detail.LastActivityAt,
@@ -2270,11 +2288,14 @@ func commentSelectSQL() string {
 		  posts.id, posts.raw_content, posts.html_content, posts.plain_text,
 		  posts.source_format, posts.editor_type, posts.editor_version,
 		  posts.render_version, posts.content_hash,
-		  parent_comments.id, ` + plainTextPrefixSQL("parent_posts.plain_text") + `, parent_comments.depth,
+		  parent_comments.id,
+		  CASE WHEN parent_comments.status = 'deleted' THEN '' ELSE ` + plainTextPrefixSQL("parent_posts.plain_text") + ` END,
+		  parent_comments.depth,
 		  parent_users.id, parent_users.username, parent_users.display_name, parent_users.email,
 		  parent_profiles.avatar_attachment_id,
 		  parent_attachments.id, parent_attachments.public_id, parent_attachments.owner_user_id,
 		  parent_attachments.content_type, parent_attachments.status,
+		  EXISTS (SELECT 1 FROM post_revisions WHERE post_id = posts.id),
 		  comments.created_at, comments.updated_at
 		FROM comments
 		JOIN posts ON posts.id = comments.content_id
@@ -2377,6 +2398,7 @@ func scanCommentWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Comment
 		&parentAttachmentOwnerID,
 		&parentAttachmentContentType,
 		&parentAttachmentStatus,
+		&comment.ContentEdited,
 		&comment.CreatedAt,
 		&comment.UpdatedAt,
 	); err != nil {

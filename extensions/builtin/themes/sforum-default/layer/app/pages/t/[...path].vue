@@ -26,7 +26,7 @@ definePageMeta({
 const route = useRoute()
 const { t, locale } = useI18n()
 const localePath = useLocalePath()
-const { seoSettings } = useWebOptions()
+const { seoSettings, webOption } = useWebOptions()
 // 当前帖子 URL 形态：决定 catch-all 解析方式与规范化目标。
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const { format: formatSiteDateTime } = useSiteDateTime()
@@ -237,9 +237,7 @@ function commentAuthorPath(comment: ForumComment) {
 }
 
 function commentMeta(comment: ForumComment) {
-  const updated = new Date(comment.updatedAt).getTime()
-  const created = new Date(comment.createdAt).getTime()
-  const suffix = updated > created ? ` · ${t('topicDetail.edited')}` : ''
+  const suffix = comment.edited ? ` · ${t('topicDetail.edited')}` : ''
   return `${formatDate(comment.createdAt)}${suffix}`
 }
 
@@ -248,7 +246,17 @@ type ActionState = 'idle' | 'pending' | 'error'
 const actionState = ref<ActionState>('idle')
 const actionError = ref('')
 const showActionError = ref(false)
-const canLock = computed(() => can(FORUM_PERMISSIONS.topicLock))
+const allowAuthorCloseReplies = computed(() => normalizeEnabledOption(
+  webOption('forum.topics.allow_author_close_replies', 'enabled'),
+  true
+))
+const canLock = computed(() => Boolean(
+  can(FORUM_PERMISSIONS.topicLock) || (
+    allowAuthorCloseReplies.value &&
+    topic.value?.authorUserId === reportUser.value?.id &&
+    can(FORUM_PERMISSIONS.topicEditOwn)
+  )
+))
 const canPin = computed(() => can(FORUM_PERMISSIONS.topicPin))
 const canModerate = computed(() => can(FORUM_PERMISSIONS.topicDeleteAny))
 const isLocked = computed(() => topic.value?.status === 'locked')

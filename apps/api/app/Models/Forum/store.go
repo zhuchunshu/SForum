@@ -45,7 +45,7 @@ type Store interface {
 	UpdateComment(ctx context.Context, input UpdateCommentRecord) (Comment, error)
 	DeleteComment(ctx context.Context, commentID int64) (Comment, error)
 	ListComments(ctx context.Context, input CommentListInput) (CommentList, error)
-	ListCommentReplies(ctx context.Context, commentID int64) ([]Comment, error)
+	ListCommentReplies(ctx context.Context, input CommentReplyListInput) ([]Comment, error)
 	// 作者发帖/评论节奏统计：冷却与每日上限。无记录时 ok=false。
 	LatestAuthorTopicCreatedAt(ctx context.Context, authorUserID int64) (time.Time, bool, error)
 	CountAuthorTopicsSince(ctx context.Context, authorUserID int64, since time.Time) (int64, error)

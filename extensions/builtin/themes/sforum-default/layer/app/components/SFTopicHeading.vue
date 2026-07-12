@@ -77,6 +77,10 @@ function badgeHref(badge: ForumTopicExtensionBadge) {
       </span>
 
       <time :datetime="topic.createdAt">{{ publishedLabel }}</time>
+      <span v-if="topic.edited" class="sf-topic-heading__state">
+        <UIcon name="i-lucide-pencil" class="size-3.5" aria-hidden="true" />
+        {{ t('topicDetail.edited') }}
+      </span>
       <span class="sf-topic-heading__metric">
         {{ topic.commentCount }} {{ t('topicDetail.statsComments') }}
       </span>

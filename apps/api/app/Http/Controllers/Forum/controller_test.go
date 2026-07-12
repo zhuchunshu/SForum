@@ -693,7 +693,7 @@ func (s *controllerForumStore) ListComments(_ context.Context, input forum.Comme
 	return forum.CommentList{Items: items, Total: int64(len(items)), Page: input.Page, PerPage: input.PerPage, View: input.View}, nil
 }
 
-func (s *controllerForumStore) ListCommentReplies(context.Context, int64) ([]forum.Comment, error) {
+func (s *controllerForumStore) ListCommentReplies(context.Context, forum.CommentReplyListInput) ([]forum.Comment, error) {
 	return []forum.Comment{{ID: 21, TopicID: 10, Status: forum.CommentStatusActive}}, nil
 }
 

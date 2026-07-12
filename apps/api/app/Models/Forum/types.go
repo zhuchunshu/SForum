@@ -258,6 +258,8 @@ type TopicSummary struct {
 	LastActivityAt time.Time         `json:"lastActivityAt"`
 	// Edited 主题正文是否曾被编辑（showTopicEditMark 开启时填充）。
 	Edited bool `json:"edited,omitempty"`
+	// ContentEdited 由存储层根据 post_revisions 得出，不直接暴露。
+	ContentEdited bool `json:"-"`
 }
 
 type TopicDetail struct {
@@ -568,6 +570,15 @@ type CommentListInput struct {
 	// Viewer 可选：用于 softDeleteVisibility 判定是否展示软删墓碑。
 	// 匿名时为零值 Actor，仅能看到 active。
 	Viewer identity.Actor
+	// IncludeDeleted / DeletedAuthorUserID 由 Service 根据 viewer 与策略设置，调用方不得自行信任。
+	IncludeDeleted      bool
+	DeletedAuthorUserID int64
+}
+
+type CommentReplyListInput struct {
+	CommentID           int64
+	IncludeDeleted      bool
+	DeletedAuthorUserID int64
 }
 
 type CommentList struct {
@@ -598,6 +609,8 @@ type Comment struct {
 	UpdatedAt     time.Time       `json:"updatedAt"`
 	// Edited 评论是否曾被编辑（showCommentEditMark 开启时填充）。
 	Edited bool `json:"edited,omitempty"`
+	// ContentEdited 由存储层根据 post_revisions 得出，不直接暴露。
+	ContentEdited bool `json:"-"`
 }
 
 type ReplyReference struct {

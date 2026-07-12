@@ -660,7 +660,7 @@ TopicSummary:
       format: date-time
     edited:
       type: boolean
-      description: True when showTopicEditMark is enabled and the topic body was edited after creation.
+      description: True only when showTopicEditMark is enabled and the topic has a persisted content revision; clients must not infer this from timestamps.
 TopicDetail:
   allOf:
   - "$ref": "#/TopicSummary"
@@ -1065,7 +1065,7 @@ Comment:
       format: date-time
     edited:
       type: boolean
-      description: True when showCommentEditMark is enabled and the comment was edited after creation.
+      description: True only when showCommentEditMark is enabled and the comment has a persisted content revision; clients must not infer this from timestamps.
 ReplyReference:
   type: object
   required:

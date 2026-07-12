@@ -124,6 +124,7 @@ export type ForumTopicSummary = {
   createdAt: string
   updatedAt: string
   lastActivityAt: string
+  edited?: boolean
 }
 
 export type ForumRenderedContent = {
@@ -239,6 +240,7 @@ export type ForumComment = {
   children?: ForumComment[]
   createdAt: string
   updatedAt: string
+  edited?: boolean
 }
 
 export type ForumCommentList = {

@@ -415,9 +415,7 @@ func (s *Service) ListTopics(ctx context.Context, input TopicListInput) (TopicLi
 	// store 用推荐默认截断；此处按运营 excerpt_rune_limit 再派生，改配置即生效。
 	for i := range list.Items {
 		list.Items[i] = applyTopicSummaryExcerpt(list.Items[i], settings.ExcerptRuneLimit)
-		if settings.ShowTopicEditMark {
-			list.Items[i].Edited = contentWasEdited(list.Items[i].CreatedAt, list.Items[i].UpdatedAt)
-		}
+		list.Items[i].Edited = settings.ShowTopicEditMark && list.Items[i].ContentEdited
 	}
 	return s.decorateTopicListExtensionBadges(ctx, list), nil
 }
@@ -471,9 +469,7 @@ func (s *Service) applyTopicDetailExcerpt(ctx context.Context, topic TopicDetail
 		showEdit = settings.ShowTopicEditMark
 	}
 	topic = applyTopicDetailExcerpt(topic, limit)
-	if showEdit {
-		topic.Edited = contentWasEdited(topic.CreatedAt, topic.UpdatedAt)
-	}
+	topic.Edited = showEdit && topic.ContentEdited
 	return topic
 }
 
@@ -761,6 +757,7 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.Actor, input U
 	} else {
 		s.deleteTopicIndex(ctx, updated.ID)
 	}
+	updated.Edited = settings.ShowTopicEditMark && updated.ContentEdited
 	return updated, nil
 }
 
@@ -785,6 +782,9 @@ func (s *Service) DeleteTopic(ctx context.Context, actor identity.Actor, topicID
 	})
 	// 软删后从搜索索引移除，避免命中已删除主题。
 	s.deleteTopicIndex(ctx, topicID)
+	deleted.Content = RenderedContent{SourceFormat: deleted.Content.SourceFormat}
+	deleted.Excerpt = ""
+	deleted.Edited = false
 	return deleted, nil
 }
 
@@ -1164,6 +1164,7 @@ func (s *Service) ListComments(ctx context.Context, input CommentListInput) (Com
 		defaultPerPage = settings.CommentsPerPage
 	}
 	input.Page, input.PerPage = normalizePageWithDefault(input.Page, input.PerPage, defaultPerPage)
+	input.IncludeDeleted, input.DeletedAuthorUserID = softDeleteQueryScope(settings.SoftDeleteVisibility, input.Viewer)
 	list, err := s.store.ListComments(ctx, input)
 	if err != nil {
 		return CommentList{}, err
@@ -1175,15 +1176,11 @@ func (s *Service) ListComments(ctx context.Context, input CommentListInput) (Com
 	return s.decorateCommentExtensionActions(ctx, list), nil
 }
 
-// applyCommentEditMarks 在 showCommentEditMark 时根据 updatedAt 相对 createdAt 标记编辑。
+// applyCommentEditMarks 只决定是否暴露存储层基于 post_revisions 得出的事实。
 // show=false 时清除 Edited，避免缓存/复用结构体泄漏标记。
 func applyCommentEditMarks(items []Comment, show bool) []Comment {
 	for i := range items {
-		if show {
-			items[i].Edited = contentWasEdited(items[i].CreatedAt, items[i].UpdatedAt)
-		} else {
-			items[i].Edited = false
-		}
+		items[i].Edited = show && items[i].ContentEdited
 		if len(items[i].Children) > 0 {
 			items[i].Children = applyCommentEditMarks(items[i].Children, show)
 		}
@@ -1191,12 +1188,20 @@ func applyCommentEditMarks(items []Comment, show bool) []Comment {
 	return items
 }
 
-func contentWasEdited(created, updated time.Time) bool {
-	if created.IsZero() || updated.IsZero() {
-		return false
+func softDeleteQueryScope(visibility string, viewer identity.Actor) (include bool, authorUserID int64) {
+	staff := viewer.Can(identity.PermissionPostDeleteAny) || viewer.Can(identity.PermissionModerationReview)
+	switch visibility {
+	case "staff_only":
+		return staff, 0
+	case "author_and_staff":
+		if staff {
+			return true, 0
+		}
+		if viewer.IsActive() {
+			return true, viewer.ID
+		}
 	}
-	// 创建瞬间可能有亚秒差；超过 2s 视为真实编辑。
-	return updated.Sub(created) > 2*time.Second
+	return false, 0
 }
 
 // filterSoftDeletedComments 按 softDeleteVisibility 保留/剥离软删墓碑。
@@ -1280,10 +1285,6 @@ func (s *Service) ListCommentRepliesForViewer(ctx context.Context, commentID int
 	if _, err := s.store.GetTopic(ctx, summary.TopicID); err != nil {
 		return nil, err
 	}
-	items, err := s.store.ListCommentReplies(ctx, commentID)
-	if err != nil {
-		return nil, err
-	}
 	limit := RecommendedExcerptRuneLimit
 	showEdit := false
 	visibility := "author_and_staff"
@@ -1291,6 +1292,13 @@ func (s *Service) ListCommentRepliesForViewer(ctx context.Context, commentID int
 		limit = settings.ExcerptRuneLimit
 		showEdit = settings.ShowCommentEditMark
 		visibility = settings.SoftDeleteVisibility
+	}
+	includeDeleted, deletedAuthorUserID := softDeleteQueryScope(visibility, viewer)
+	items, err := s.store.ListCommentReplies(ctx, CommentReplyListInput{
+		CommentID: commentID, IncludeDeleted: includeDeleted, DeletedAuthorUserID: deletedAuthorUserID,
+	})
+	if err != nil {
+		return nil, err
 	}
 	items = applyCommentTreeExcerpts(items, limit)
 	items = applyCommentEditMarks(items, showEdit)
@@ -1354,6 +1362,7 @@ func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input
 	} else if summary.Status == CommentStatusActive {
 		s.indexTopic(ctx, summary.TopicID)
 	}
+	updated.Edited = settings.ShowCommentEditMark && updated.ContentEdited
 	return updated, nil
 }
 
@@ -1365,7 +1374,13 @@ func (s *Service) DeleteComment(ctx context.Context, actor identity.Actor, comme
 	if !canDeleteComment(actor, summary) {
 		return Comment{}, identity.ErrPermissionDenied
 	}
-	return s.store.DeleteComment(ctx, commentID)
+	deleted, err := s.store.DeleteComment(ctx, commentID)
+	if err != nil {
+		return Comment{}, err
+	}
+	deleted.Content = RenderedContent{SourceFormat: deleted.Content.SourceFormat}
+	deleted.Edited = false
+	return deleted, nil
 }
 
 func (s *Service) resolvedSettings(ctx context.Context) (ForumSettings, error) {
@@ -1980,7 +1995,7 @@ func (s *Service) canLockTopic(ctx context.Context, actor identity.Actor, topic 
 	if actor.Can(identity.PermissionTopicLock) {
 		return true
 	}
-	if topic.AuthorUserID != actor.ID || !actor.IsActive() {
+	if topic.AuthorUserID != actor.ID || !actor.IsActive() || !actor.Can(identity.PermissionTopicEditOwn) {
 		return false
 	}
 	settings, err := s.resolvedSettings(ctx)

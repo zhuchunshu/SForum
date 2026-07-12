@@ -107,6 +107,19 @@ describe('default theme V32 topic page contract', () => {
     expect(source).toContain('commentData.value.perPage')
   })
 
+  test('uses API edit marks and the complete author lock policy', () => {
+    const source = topicPage()
+    const heading = themeFile('app/components/SFTopicHeading.vue')
+    const commentMeta = source.slice(source.indexOf('function commentMeta'), source.indexOf('// 主题生命周期动作'))
+
+    expect(source).toContain('const suffix = comment.edited ?')
+    expect(commentMeta).not.toContain('updatedAt')
+    expect(heading).toContain('v-if="topic.edited"')
+    expect(source).toContain("webOption('forum.topics.allow_author_close_replies', 'enabled')")
+    expect(source).toContain('can(FORUM_PERMISSIONS.topicEditOwn)')
+    expect(source).toContain('topic.value?.authorUserId === reportUser.value?.id')
+  })
+
   test('registers the V32 dual-column topic stylesheet', () => {
     const config = themeFile('nuxt.config.ts')
     const css = themeFile('app/assets/css/sforum-topic.css')

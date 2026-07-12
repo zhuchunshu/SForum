@@ -1618,6 +1618,7 @@ type serviceFakeStore struct {
 	// ListCommentReplies 可配置返回值与调用记录，供回复可见性兜底测试断言。
 	listCommentRepliesResult []Comment
 	listCommentRepliesCalled bool
+	lastReplyListInput       CommentReplyListInput
 	// existingSlugs 模拟已占用的 slug 集合，供 TopicSlugExists 判重。
 	existingSlugs      map[string]bool
 	// existingTitles 模拟重复标题（小写 key），供 ActiveTopicTitleExists。
@@ -1820,7 +1821,10 @@ func (s *serviceFakeStore) UpdateTopic(_ context.Context, input UpdateTopicRecor
 
 func (s *serviceFakeStore) DeleteTopic(_ context.Context, topicID int64) (TopicDetail, error) {
 	s.deletedTopicID = topicID
-	return TopicDetail{TopicSummary: TopicSummary{ID: topicID, Status: TopicStatusDeleted}}, nil
+	return TopicDetail{
+		TopicSummary: TopicSummary{ID: topicID, Status: TopicStatusDeleted, Excerpt: "secret"},
+		Content:      RenderedContent{RawContent: "secret", HTMLContent: "<p>secret</p>", PlainText: "secret", SourceFormat: SourceFormatMarkdown},
+	}, nil
 }
 
 func (s *serviceFakeStore) ApplyTopicAction(_ context.Context, input TopicLifecycleInput) (TopicLifecycleRecord, error) {
@@ -1892,7 +1896,9 @@ func (s *serviceFakeStore) UpdateComment(_ context.Context, input UpdateCommentR
 }
 
 func (s *serviceFakeStore) DeleteComment(context.Context, int64) (Comment, error) {
-	return Comment{}, nil
+	return Comment{Status: CommentStatusDeleted, Content: RenderedContent{
+		RawContent: "secret", HTMLContent: "<p>secret</p>", PlainText: "secret", SourceFormat: SourceFormatMarkdown,
+	}}, nil
 }
 
 func (s *serviceFakeStore) ListComments(_ context.Context, input CommentListInput) (CommentList, error) {
@@ -1901,8 +1907,9 @@ func (s *serviceFakeStore) ListComments(_ context.Context, input CommentListInpu
 	return s.listCommentsResult, nil
 }
 
-func (s *serviceFakeStore) ListCommentReplies(context.Context, int64) ([]Comment, error) {
+func (s *serviceFakeStore) ListCommentReplies(_ context.Context, input CommentReplyListInput) ([]Comment, error) {
 	s.listCommentRepliesCalled = true
+	s.lastReplyListInput = input
 	return s.listCommentRepliesResult, nil
 }
 
@@ -2046,11 +2053,29 @@ func TestServiceAuthorCanLockWhenAllowAuthorCloseReplies(t *testing.T) {
 	settings := testForumSettings()
 	settings.AllowAuthorCloseReplies = true
 	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	author := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{
+		identity.PermissionTopicEditOwn: true,
+	}}
+	for _, action := range []string{TopicActionLock, TopicActionUnlock} {
+		if _, err := service.ApplyTopicAction(context.Background(), author, TopicLifecycleInput{
+			TopicID: 7, Action: action,
+		}); err != nil {
+			t.Fatalf("author %s should succeed: %v", action, err)
+		}
+	}
+}
+
+func TestServiceAuthorCannotLockWithoutTopicEditOwn(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 12, Status: TopicStatusActive}
+	settings := testForumSettings()
+	settings.AllowAuthorCloseReplies = true
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
 	author := identity.Actor{ID: 12, Status: identity.UserStatusActive}
 	if _, err := service.ApplyTopicAction(context.Background(), author, TopicLifecycleInput{
 		TopicID: 7, Action: TopicActionLock,
-	}); err != nil {
-		t.Fatalf("author lock should succeed: %v", err)
+	}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("author without topic.edit_own must be denied, got %v", err)
 	}
 }
 
@@ -2060,7 +2085,9 @@ func TestServiceAuthorCannotLockWhenAllowAuthorCloseRepliesDisabled(t *testing.T
 	settings := testForumSettings()
 	settings.AllowAuthorCloseReplies = false
 	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
-	author := identity.Actor{ID: 12, Status: identity.UserStatusActive}
+	author := identity.Actor{ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{
+		identity.PermissionTopicEditOwn: true,
+	}}
 	if _, err := service.ApplyTopicAction(context.Background(), author, TopicLifecycleInput{
 		TopicID: 7, Action: TopicActionLock,
 	}); !errors.Is(err, identity.ErrPermissionDenied) {
@@ -2160,10 +2187,95 @@ func TestFilterSoftDeletedCommentsAuthorAndStaff(t *testing.T) {
 	}
 }
 
+func TestDeleteResponsesNeverReturnDeletedBody(t *testing.T) {
+	store := newServiceFakeStore()
+	store.actionTopic = TopicSummary{ID: 7, AuthorUserID: 5, Status: TopicStatusActive}
+	store.commentSummary = CommentSummary{ID: 8, TopicID: 7, AuthorUserID: 5, Status: CommentStatusActive}
+	service := NewService(store)
+	moderator := identity.Actor{ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{
+		identity.PermissionTopicDeleteAny: true,
+		identity.PermissionPostDeleteAny:  true,
+	}}
+
+	deletedTopic, err := service.DeleteTopic(context.Background(), moderator, 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deletedTopic.Excerpt != "" || deletedTopic.Content.RawContent != "" || deletedTopic.Content.HTMLContent != "" || deletedTopic.Content.PlainText != "" {
+		t.Fatalf("topic delete response leaked body: %#v", deletedTopic)
+	}
+	deletedComment, err := service.DeleteComment(context.Background(), moderator, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deletedComment.Content.RawContent != "" || deletedComment.Content.HTMLContent != "" || deletedComment.Content.PlainText != "" {
+		t.Fatalf("comment delete response leaked body: %#v", deletedComment)
+	}
+}
+
+func TestListCommentsScopesDeletedRowsByViewer(t *testing.T) {
+	deleted := Comment{
+		ID: 2, AuthorUserID: 5, Status: CommentStatusDeleted,
+		Content: RenderedContent{RawContent: "secret", HTMLContent: "<p>secret</p>", PlainText: "secret"},
+	}
+	tests := []struct {
+		name             string
+		visibility       string
+		viewer           identity.Actor
+		wantInclude      bool
+		wantAuthorUserID int64
+		wantItems        int
+	}{
+		{name: "anonymous", visibility: "author_and_staff", wantItems: 0},
+		{name: "ordinary member", visibility: "author_and_staff", viewer: identity.Actor{ID: 9, Status: identity.UserStatusActive}, wantInclude: true, wantAuthorUserID: 9, wantItems: 0},
+		{name: "author", visibility: "author_and_staff", viewer: identity.Actor{ID: 5, Status: identity.UserStatusActive}, wantInclude: true, wantAuthorUserID: 5, wantItems: 1},
+		{name: "moderator", visibility: "staff_only", viewer: identity.Actor{ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostDeleteAny: true}}, wantInclude: true, wantItems: 1},
+		{name: "hidden from moderator", visibility: "hidden", viewer: identity.Actor{ID: 1, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionPostDeleteAny: true}}, wantItems: 0},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newServiceFakeStore()
+			store.listCommentsResult = CommentList{Items: []Comment{deleted}, Total: 1, View: "flat"}
+			settings := testForumSettings()
+			settings.SoftDeleteVisibility = tc.visibility
+			service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+
+			list, err := service.ListComments(context.Background(), CommentListInput{TopicID: 1, View: "flat", Viewer: tc.viewer})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if store.listCommentsInput.IncludeDeleted != tc.wantInclude || store.listCommentsInput.DeletedAuthorUserID != tc.wantAuthorUserID {
+				t.Fatalf("query scope = (%v,%d), want (%v,%d)", store.listCommentsInput.IncludeDeleted, store.listCommentsInput.DeletedAuthorUserID, tc.wantInclude, tc.wantAuthorUserID)
+			}
+			if len(list.Items) != tc.wantItems {
+				t.Fatalf("items=%d want=%d", len(list.Items), tc.wantItems)
+			}
+			if len(list.Items) > 0 && (list.Items[0].Content.RawContent != "" || list.Items[0].Content.HTMLContent != "" || list.Items[0].Content.PlainText != "") {
+				t.Fatalf("deleted body leaked: %#v", list.Items[0].Content)
+			}
+		})
+	}
+}
+
+func TestListCommentRepliesUsesAuthorDeletedScope(t *testing.T) {
+	store := newServiceFakeStore()
+	store.commentSummary = CommentSummary{ID: 42, TopicID: 1, Status: CommentStatusActive}
+	settings := testForumSettings()
+	settings.SoftDeleteVisibility = "author_and_staff"
+	service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+	viewer := identity.Actor{ID: 7, Status: identity.UserStatusActive}
+
+	if _, err := service.ListCommentRepliesForViewer(context.Background(), 42, viewer); err != nil {
+		t.Fatal(err)
+	}
+	if !store.lastReplyListInput.IncludeDeleted || store.lastReplyListInput.DeletedAuthorUserID != 7 {
+		t.Fatalf("unexpected reply query scope: %#v", store.lastReplyListInput)
+	}
+}
+
 func TestApplyCommentEditMarks(t *testing.T) {
-	created := time.Now().UTC().Add(-time.Hour)
 	items := []Comment{{
-		ID: 1, CreatedAt: created, UpdatedAt: created.Add(time.Minute),
+		ID: 1, ContentEdited: true,
 	}}
 	marked := applyCommentEditMarks(items, true)
 	if !marked[0].Edited {
@@ -2172,6 +2284,23 @@ func TestApplyCommentEditMarks(t *testing.T) {
 	unmarked := applyCommentEditMarks(items, false)
 	if unmarked[0].Edited {
 		t.Fatal("expected no edited mark when disabled")
+	}
+}
+
+func TestServiceTopicEditMarkUsesStoredContentFactAndSetting(t *testing.T) {
+	for _, show := range []bool{false, true} {
+		store := newServiceFakeStore()
+		store.listTopicsResult = TopicList{Items: []TopicSummary{{ID: 1, ContentEdited: true}}}
+		settings := testForumSettings()
+		settings.ShowTopicEditMark = show
+		service := NewServiceWithSettingsAndEvents(store, fakeSettingsResolver{settings: settings}, nil)
+		list, err := service.ListTopics(context.Background(), TopicListInput{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if list.Items[0].Edited != show {
+			t.Fatalf("show=%v edited=%v", show, list.Items[0].Edited)
+		}
 	}
 }
 

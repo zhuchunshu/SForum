@@ -11,15 +11,18 @@ duplicate titles, edit marks, soft-delete visibility, and idle auto-lock.
 1. **mentionsEnabled=false** — do not parse mention usernames and do not fan out
    mention notifications; `@text` remains ordinary content.
 2. **allowAuthorCloseReplies** — authors may lock/unlock their own topics only
-   when the setting is true; moderators retain `topic.lock`.
+   when the setting is true and their current actor retains `topic.edit_own`;
+   moderators retain `topic.lock`.
 3. **duplicateTitlePolicy** — only `block` is server-authoritative. Historical
    `warn` is accepted for compatibility but behaves like `off` (no silent
    half-implemented warn contract). Recommended default is `off`.
-4. **showTopicEditMark / showCommentEditMark** — API sets `edited` on list/detail
-   when enabled; themes must not invent marks without this field.
-5. **softDeleteVisibility** — list SQL remains active-only for public pages;
-   when deleted rows appear (or in future staff views), presentation filters
-   tombstones and strips body content. Values:
+4. **showTopicEditMark / showCommentEditMark** — storage derives content edits
+   from `post_revisions`; the API exposes `edited` only when the corresponding
+   switch is enabled. Themes must not infer it from entity timestamps.
+5. **softDeleteVisibility** — comment list/reply SQL receives a viewer scope
+   from the service and selects only the deleted rows that viewer may see.
+   Deleted rows are returned as tombstones with all body fields removed; reply
+   references to deleted parents never include their excerpt. Values:
    `author_and_staff | staff_only | hidden`.
 6. **autoLockIdleDays** — `0` disables; `>0` is enforced by durable schedule
    `forum.auto_lock_idle` (daily maintenance job).
