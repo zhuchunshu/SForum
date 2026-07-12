@@ -34,8 +34,11 @@ func TestLoaderSuccess(t *testing.T) {
 		if r.Header.Get("Cookie") != "" {
 			t.Fatal("must not forward cookie")
 		}
-		if r.Header.Get("X-SForum-Actor-ID") != "7" {
-			t.Fatalf("actor: %s", r.Header.Get("X-SForum-Actor-ID"))
+		if r.Header.Get("X-SForum-Actor-ID-Hint") != "7" {
+			t.Fatalf("actor hint: %s", r.Header.Get("X-SForum-Actor-ID-Hint"))
+		}
+		if r.Header.Get("Authorization") != "" || r.Header.Get("Cookie") != "" {
+			t.Fatal("must not forward auth headers")
 		}
 		return &http.Response{
 			StatusCode: 200,

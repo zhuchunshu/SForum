@@ -22,16 +22,27 @@ func NewPagesProvider(registry *pages.Registry, users identity.ActorStore, sessi
 	}
 }
 
-func NewPagesProviderWithThemes(registry *pages.Registry, users identity.ActorStore, sessions *authsession.Manager, themes extensions.Store) *PagesProvider {
+func NewPagesProviderWithThemes(registry *pages.Registry, users identity.ActorStore, sessions *authsession.Manager, themes pagescontroller.ThemePackageStore) *PagesProvider {
 	return &PagesProvider{
 		controller: pagescontroller.NewControllerWithThemes(registry, users, sessions, themes),
 	}
 }
 
+// 确保 extensions.Store 满足 ThemePackageStore。
+var _ pagescontroller.ThemePackageStore = (extensions.Store)(nil)
+
 // WithAuditor 注入页面批准/恢复审计。
 func (p *PagesProvider) WithAuditor(w audit.Writer) *PagesProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithAuditor(w)
+	}
+	return p
+}
+
+// WithLoader 注入受控 PageDataLoader 网关。
+func (p *PagesProvider) WithLoader(g *pages.LoaderGateway) *PagesProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithLoader(g)
 	}
 	return p
 }

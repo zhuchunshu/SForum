@@ -1,6 +1,7 @@
 package pagescontroller
 
 import (
+	"context"
 	"errors"
 	"mime"
 	"os"
@@ -17,20 +18,27 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 )
 
+// ThemePackageStore 页面解析所需的扩展包最小接口（避免测试实现完整 Store）。
+type ThemePackageStore interface {
+	Get(ctx context.Context, id string) (extensions.Extension, error)
+	ActiveTheme(ctx context.Context) (extensions.Extension, error)
+}
+
 // Controller 暴露 Page Registry 管理与公开解析 API。
 type Controller struct {
 	registry *pages.Registry
 	users    identity.ActorStore
 	sessions *authsession.Manager
-	themes   extensions.Store
+	themes   ThemePackageStore
 	auditor  audit.Writer
+	loader   *pages.LoaderGateway
 }
 
 func NewController(registry *pages.Registry, users identity.ActorStore, sessions *authsession.Manager) *Controller {
 	return &Controller{registry: registry, users: users, sessions: sessions}
 }
 
-func NewControllerWithThemes(registry *pages.Registry, users identity.ActorStore, sessions *authsession.Manager, themes extensions.Store) *Controller {
+func NewControllerWithThemes(registry *pages.Registry, users identity.ActorStore, sessions *authsession.Manager, themes ThemePackageStore) *Controller {
 	return &Controller{registry: registry, users: users, sessions: sessions, themes: themes}
 }
 
@@ -38,6 +46,14 @@ func NewControllerWithThemes(registry *pages.Registry, users identity.ActorStore
 func (h *Controller) WithAuditor(w audit.Writer) *Controller {
 	if h != nil {
 		h.auditor = w
+	}
+	return h
+}
+
+// WithLoader 注入受控 PageDataLoader 网关（生产 SSR）。
+func (h *Controller) WithLoader(g *pages.LoaderGateway) *Controller {
+	if h != nil {
+		h.loader = g
 	}
 	return h
 }
@@ -70,12 +86,17 @@ type resolveResponse struct {
 	TemplateHTML   string               `json:"templateHtml,omitempty"`
 	DataSource     string               `json:"dataSource,omitempty"`
 	DataRoute      string               `json:"dataRoute,omitempty"`
+	RouteParams    map[string]string    `json:"routeParams,omitempty"`
 	LoaderData     any                  `json:"loaderData,omitempty"`
 	LoaderError    string               `json:"loaderError,omitempty"`
+	Contract       string               `json:"contractVersion,omitempty"`
 }
 
 func (h *Controller) resolve(c fiber.Ctx) error {
 	pageID := strings.TrimSpace(c.Query("id"))
+	if pageID == "" {
+		pageID = strings.TrimSpace(string(c.Request().URI().QueryArgs().Peek("id")))
+	}
 	if pageID == "" {
 		pageID = strings.TrimSpace(c.Params("pageId"))
 	}
@@ -87,46 +108,88 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 	var err error
 	if h.registry != nil {
 		resolved, err = h.registry.Resolve(c.Context(), pageID)
+		// DEBUG
 	} else {
 		resolved, err = pages.ResolveCore(pageID)
 	}
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "pages.not_found")
 	}
-	// L1：非 core 时尽力加载模板 HTML；失败则标记 fallback，前台仍渲染 core slot。
+
+	// 核心页 access：replace 后仍沿用目录 access
+	if err := h.enforcePageAccess(c, resolved.Page.Access, ""); err != nil {
+		return err
+	}
+
+	locale := strings.TrimSpace(c.Get("Accept-Language"))
+	if i := strings.Index(locale, ","); i >= 0 {
+		locale = locale[:i]
+	}
+	actorID := h.optionalActorID(c)
+
+	// L1：非 core 时尽力加载模板 HTML；失败则标记 fallback（前台渲染 core slot）。
 	if resolved.Provider != pages.ProviderCore && resolved.TemplatePath != "" && h.themes != nil {
 		extID := resolved.ExtensionID
 		if extID == "" {
 			extID = resolved.Provider
 		}
-		if theme, terr := h.themes.Get(c.Context(), extID); terr == nil && strings.TrimSpace(theme.PackagePath) != "" {
-			if html, lerr := pages.LoadTemplate(theme.PackagePath, resolved.TemplatePath); lerr == nil {
-				// 无 ViewModel 时用空 vars 渲染（仅宿主岛 + 静态 HTML）。
-				if rendered, rerr := pages.RenderTemplate(html, map[string]string{}); rerr == nil {
-					resolved.TemplateHTML = rendered
+		if theme, terr := h.themes.Get(c.Context(), extID); terr == nil {
+			root := extensions.PackageContentRoot(theme)
+			if root != "" {
+				if html, lerr := pages.LoadTemplate(root, resolved.TemplatePath); lerr == nil {
+					vars := map[string]string{"locale": locale}
+					if rendered, rerr := pages.RenderTemplate(html, vars); rerr == nil {
+						resolved.TemplateHTML = rendered
+					} else {
+						resolved.Fallback = true
+						resolved.TemplateHTML = ""
+					}
 				} else {
 					resolved.Fallback = true
-					resolved.Provider = pages.ProviderCore
-					resolved.TemplateHTML = ""
 				}
 			} else {
 				resolved.Fallback = true
-				resolved.Provider = pages.ProviderCore
 			}
+		} else {
+			resolved.Fallback = true
 		}
 	}
-	return apphttp.OK(c, resolveResponse{
+
+	// Fallback 时对外 provider 显示 core，避免前台误用失败模板。
+	provider := resolved.Provider
+	action := resolved.Action
+	if resolved.Fallback {
+		provider = pages.ProviderCore
+		if action == "" {
+			action = "core"
+		}
+	}
+
+	resp := resolveResponse{
 		Page:           resolved.Page,
-		Provider:       resolved.Provider,
+		Provider:       provider,
 		ExtensionID:    resolved.ExtensionID,
 		ContributionID: resolved.ContributionID,
-		Action:         resolved.Action,
+		Action:         action,
 		Fallback:       resolved.Fallback,
 		TemplatePath:   resolved.TemplatePath,
 		TemplateHTML:   resolved.TemplateHTML,
 		DataSource:     resolved.DataSource,
 		DataRoute:      resolved.DataRoute,
-	})
+		Contract:       resolved.Page.ContractVersion,
+	}
+
+	// access 通过后才调用 loader
+	if !resolved.Fallback && resolved.DataSource == "plugin" && resolved.DataRoute != "" && h.loader != nil {
+		lr := h.loader.LoadForResolved(c.Context(), resolved, locale, actorID)
+		if lr.Error != "" {
+			resp.LoaderError = lr.Error
+		} else if len(lr.Data) > 0 {
+			resp.LoaderData = pages.DecodeLoaderData(lr.Data)
+		}
+	}
+
+	return apphttp.OK(c, resp)
 }
 
 func (h *Controller) publicCatalog(c fiber.Ctx) error {
@@ -153,7 +216,7 @@ func (h *Controller) adminList(c fiber.Ctx) error {
 		items := pages.Catalog()
 		list := make([]pages.ProviderListItem, 0, len(items))
 		for _, p := range items {
-			list = append(list, pages.ProviderListItem{Page: p, Provider: pages.ProviderCore})
+			list = append(list, pages.ProviderListItem{Page: p, Provider: pages.ProviderCore, ContractVersion: p.ContractVersion})
 		}
 		return apphttp.OK(c, list)
 	}
@@ -190,8 +253,9 @@ type approveRequest struct {
 	ContributionID  string `json:"contributionId"`
 	Version         string `json:"version"`
 	PackageDigest   string `json:"packageDigest"`
-	TemplatePath    string `json:"templatePath"`
 	ContractVersion string `json:"contractVersion"`
+	// TemplatePath 已废弃：服务端从已注册贡献读取，忽略客户端值（防伪造）。
+	TemplatePath string `json:"templatePath"`
 }
 
 func (h *Controller) adminApprove(c fiber.Ctx) error {
@@ -210,7 +274,9 @@ func (h *Controller) adminApprove(c fiber.Ctx) error {
 	if err := c.Bind().Body(&body); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.invalid_body")
 	}
-	pageID := c.Params("pageId")
+	// Fiber 可能复用 Params 底层缓冲；入库前必须 Clone。
+	pageID := strings.Clone(strings.TrimSpace(c.Params("pageId")))
+	// 不把客户端 templatePath 写入绑定
 	err = h.registry.ApproveReplace(c.Context(), pages.ProviderBinding{
 		PageID:          pageID,
 		ExtensionID:     body.ExtensionID,
@@ -219,7 +285,6 @@ func (h *Controller) adminApprove(c fiber.Ctx) error {
 		PackageDigest:   body.PackageDigest,
 		ContractVersion: body.ContractVersion,
 		ApprovedBy:      actor.ID,
-		TemplatePath:    body.TemplatePath,
 	})
 	if err != nil {
 		return mapPagesError(err)
@@ -240,14 +305,13 @@ func (h *Controller) adminRestore(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	// 恢复核心页同样仅 super_admin，避免 theme.manage 静默撤销替换。
 	if !actor.IsSuperAdmin() {
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	}
 	if h.registry == nil {
 		return apphttp.OK(c, map[string]any{"pageId": c.Params("pageId"), "provider": pages.ProviderCore})
 	}
-	pageID := c.Params("pageId")
+	pageID := strings.Clone(strings.TrimSpace(c.Params("pageId")))
 	if err := h.registry.RestoreCore(c.Context(), pageID); err != nil {
 		return mapPagesError(err)
 	}
@@ -285,16 +349,16 @@ func (h *Controller) activatePreview(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "pages.extension_not_found")
 	}
-	pkg, err := pages.LoadThemePackage(theme.PackagePath)
+	pkg, err := pages.LoadThemePackage(extensions.PackageContentRoot(theme))
 	if err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.theme_package_invalid")
 	}
 	contribs := pages.ContributionsFromTheme(theme.ID, theme.Version, theme.PackageDigest, pkg)
 	type impact struct {
-		Contribution pages.PageContribution `json:"contribution"`
-		Page         *pages.PageDefinition  `json:"page,omitempty"`
-		Conflicts    []pages.PageContribution `json:"conflicts,omitempty"`
-		RequiresApproval bool               `json:"requiresApproval"`
+		Contribution     pages.PageContribution   `json:"contribution"`
+		Page             *pages.PageDefinition    `json:"page,omitempty"`
+		Conflicts        []pages.PageContribution `json:"conflicts,omitempty"`
+		RequiresApproval bool                     `json:"requiresApproval"`
 	}
 	out := make([]impact, 0, len(contribs))
 	for _, contrib := range contribs {
@@ -341,23 +405,25 @@ func (h *Controller) resolvePath(c fiber.Ctx) error {
 	if h.registry == nil {
 		return fiber.NewError(fiber.StatusNotFound, "pages.not_found")
 	}
-	contrib, ok := h.registry.ResolveAddedPath(path)
+	match, ok := h.registry.ResolveAddedPathMatch(path)
 	if !ok {
 		return fiber.NewError(fiber.StatusNotFound, "pages.not_found")
 	}
-	// access 权威检查
-	switch contrib.Access {
-	case pages.AccessLogin, pages.AccessModeration:
-		actor, err := h.actor(c)
-		if err != nil || actor.ID == 0 {
-			return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
-		}
-		if contrib.Access == pages.AccessModeration && !actor.Can(identity.PermissionModerationReview) && !actor.IsSuperAdmin() {
-			return fiber.NewError(fiber.StatusForbidden, "permission.denied")
-		}
-	case pages.AccessGuest:
-		// guest-only：已登录也可看模板壳；mutation 仍由核心组件执行
+	contrib := match.Contribution
+
+	// access 权威检查（fail closed）
+	if err := h.enforcePageAccess(c, contrib.Access, contrib.Permission); err != nil {
+		return err
 	}
+
+	locale := strings.TrimSpace(c.Query("locale"))
+	if locale == "" {
+		locale = strings.TrimSpace(c.Get("Accept-Language"))
+		if i := strings.Index(locale, ","); i >= 0 {
+			locale = locale[:i]
+		}
+	}
+	actorID := h.optionalActorID(c)
 
 	resp := resolveResponse{
 		Page: pages.PageDefinition{
@@ -375,22 +441,109 @@ func (h *Controller) resolvePath(c fiber.Ctx) error {
 		TemplatePath:   contrib.Template,
 		DataSource:     contrib.DataSource,
 		DataRoute:      contrib.DataRoute,
+		RouteParams:    match.Params,
+		Contract:       contrib.Contract,
 	}
-	// 加载模板
+
+	// 加载模板（注入 route params）
 	if contrib.Template != "" && h.themes != nil {
 		if theme, terr := h.themes.Get(c.Context(), contrib.ExtensionID); terr == nil {
-			if html, lerr := pages.LoadTemplate(theme.PackagePath, contrib.Template); lerr == nil {
-				if rendered, rerr := pages.RenderTemplate(html, map[string]string{}); rerr == nil {
-					resp.TemplateHTML = rendered
+			root := extensions.PackageContentRoot(theme)
+			if root != "" {
+				if html, lerr := pages.LoadTemplate(root, contrib.Template); lerr == nil {
+					vars := map[string]string{"locale": locale}
+					for k, v := range match.Params {
+						vars[k] = v
+					}
+					if rendered, rerr := pages.RenderTemplate(html, vars); rerr == nil {
+						resp.TemplateHTML = rendered
+					} else {
+						resp.Fallback = true
+					}
 				} else {
 					resp.Fallback = true
 				}
-			} else {
-				resp.Fallback = true
 			}
 		}
 	}
+
+	// access 已通过 → loader
+	if !resp.Fallback && contrib.DataRoute != "" && h.loader != nil {
+		lr := h.loader.LoadForContribution(c.Context(), contrib, match.Params, locale, actorID)
+		if lr.Error != "" {
+			resp.LoaderError = lr.Error
+		} else if len(lr.Data) > 0 {
+			resp.LoaderData = pages.DecodeLoaderData(lr.Data)
+		}
+	}
+
 	return apphttp.OK(c, resp)
+}
+
+// enforcePageAccess 严格校验 access；未知值拒绝。
+func (h *Controller) enforcePageAccess(c fiber.Ctx, access pages.Access, permissionKey string) error {
+	normalized, err := pages.NormalizeAccess(string(access))
+	if err != nil {
+		// 已注册贡献不应含未知 access；fail closed
+		return fiber.NewError(fiber.StatusNotFound, "pages.not_found")
+	}
+	switch normalized {
+	case pages.AccessPublic:
+		return nil
+	case pages.AccessLogin:
+		actor, aerr := h.actor(c)
+		if aerr != nil || actor.ID == 0 {
+			return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+		}
+		return nil
+	case pages.AccessGuest:
+		// 已登录用户：返回冲突，引导离开 guest 页（不模糊放行）
+		if actor, aerr := h.optionalActor(c); aerr == nil && actor.ID > 0 {
+			return fiber.NewError(fiber.StatusConflict, "pages.guest_only")
+		}
+		return nil
+	case pages.AccessModeration:
+		actor, aerr := h.actor(c)
+		if aerr != nil || actor.ID == 0 {
+			return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+		}
+		if !actor.Can(identity.PermissionModerationReview) && !actor.IsSuperAdmin() {
+			return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+		}
+		return nil
+	case pages.AccessPermission:
+		actor, aerr := h.actor(c)
+		if aerr != nil || actor.ID == 0 {
+			return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+		}
+		key := strings.TrimSpace(permissionKey)
+		if key == "" {
+			return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+		}
+		if !actor.Can(key) && !actor.IsSuperAdmin() {
+			return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+		}
+		return nil
+	default:
+		return fiber.NewError(fiber.StatusNotFound, "pages.not_found")
+	}
+}
+
+func (h *Controller) optionalActorID(c fiber.Ctx) int64 {
+	actor, err := h.optionalActor(c)
+	if err != nil {
+		return 0
+	}
+	return actor.ID
+}
+
+func (h *Controller) optionalActor(c fiber.Ctx) (identity.Actor, error) {
+	// 尽力加载；匿名不报错
+	actor, err := apphttp.LoadActor(c, h.sessions, h.users)
+	if err != nil {
+		return identity.Actor{}, err
+	}
+	return actor, nil
 }
 
 func (h *Controller) adminAdded(c fiber.Ctx) error {
@@ -415,7 +568,7 @@ func (h *Controller) activeSkin(c fiber.Ctx) error {
 	if err != nil {
 		return apphttp.OK(c, pages.ActiveSkinPublic{CSS: []string{}})
 	}
-	skin, err := pages.SkinFromPackage(theme.ID, theme.Version, theme.PackageDigest, theme.PackagePath)
+	skin, err := pages.SkinFromPackage(theme.ID, theme.Version, theme.PackageDigest, extensions.PackageContentRoot(theme))
 	if err != nil {
 		return apphttp.OK(c, pages.ActiveSkinPublic{ExtensionID: theme.ID, CSS: []string{}})
 	}
@@ -428,13 +581,11 @@ func (h *Controller) themeAsset(c fiber.Ctx) error {
 	}
 	extensionID := c.Params("extensionId")
 	rel := strings.TrimPrefix(c.Params("*"), "/")
-	// 可选 digest 查询参数：?v=<packageDigest> 用于 immutable cache 与精确版本绑定
 	wantDigest := strings.TrimSpace(c.Query("v"))
 	if wantDigest == "" {
 		wantDigest = strings.TrimSpace(c.Query("digest"))
 	}
 
-	// 仅允许当前活动主题的资源（禁止读取任意已安装主题）。
 	active, err := h.themes.ActiveTheme(c.Context())
 	if err != nil || active.ID != extensionID {
 		return fiber.NewError(fiber.StatusNotFound, "pages.asset_not_found")
@@ -442,19 +593,17 @@ func (h *Controller) themeAsset(c fiber.Ctx) error {
 	if active.Type != extensions.TypeTheme {
 		return fiber.NewError(fiber.StatusNotFound, "pages.asset_not_found")
 	}
-	// 若请求携带 digest，必须与活动主题 package digest 精确匹配。
 	if wantDigest != "" && active.PackageDigest != "" && !strings.EqualFold(wantDigest, active.PackageDigest) {
 		return fiber.NewError(fiber.StatusNotFound, "pages.asset_digest_mismatch")
 	}
 
-	full, err := pages.ResolveThemeAsset(active.PackagePath, rel)
+	full, err := pages.ResolveThemeAsset(extensions.PackageContentRoot(active), rel)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "pages.asset_not_found")
 	}
 	ext := strings.ToLower(filepath.Ext(full))
 	ctype, ok := pages.AllowedThemeAssetExt[ext]
 	if !ok {
-		// 明确禁止 SVG / JS / HTML 等可执行或高风险类型
 		return fiber.NewError(fiber.StatusForbidden, "pages.asset_type_forbidden")
 	}
 	raw, err := os.ReadFile(full)
@@ -474,11 +623,9 @@ func (h *Controller) themeAsset(c fiber.Ctx) error {
 	}
 	c.Set("Content-Type", ctype)
 	c.Set("X-Content-Type-Options", "nosniff")
-	// 非可执行资源：禁止被当作脚本解析
 	c.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'")
 	c.Set("X-Frame-Options", "DENY")
 	if wantDigest != "" && active.PackageDigest != "" {
-		// 精确 digest URL 可 immutable 缓存
 		c.Set("Cache-Control", "public, max-age=31536000, immutable")
 	} else {
 		c.Set("Cache-Control", "public, max-age=300")
@@ -506,6 +653,10 @@ func mapPagesError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.reserved_path")
 	case errors.Is(err, pages.ErrInvalidContribution):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.invalid_contribution")
+	case errors.Is(err, pages.ErrContractMismatch):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.contract_mismatch")
+	case errors.Is(err, pages.ErrInvalidAccess):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.invalid_access")
 	case errors.Is(err, pages.ErrApprovalRequired):
 		return fiber.NewError(fiber.StatusForbidden, "pages.approval_required")
 	case errors.Is(err, identity.ErrPermissionDenied):

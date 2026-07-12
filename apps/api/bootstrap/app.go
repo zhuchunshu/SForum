@@ -295,9 +295,15 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("list extensions for runtime reconciliation failed: %w", err)
 	}
+	// Web Release 效果必须走完整扩展生命周期（含 Page Registry 注册/清除），
+	// 禁止直接 Enable/Disable 绕过 Service。
+	webReleaseEffectStore := webreleasecoordinator.NewPostgresStore(pool, webReleaseStore, extensionStore).
+		WithLifecycle(extensionService)
+	webReleaseRuntimeAdapter := webreleasecoordinator.NewRuntimeAdapter(extensionStore, extensionRuntime).
+		WithLifecycleOwnsStart(true)
 	webReleaseCoordinator := webreleasecoordinator.New(
-		webreleasecoordinator.NewPostgresStore(pool, webReleaseStore, extensionStore),
-		webreleasecoordinator.NewRuntimeAdapter(extensionStore, extensionRuntime),
+		webReleaseEffectStore,
+		webReleaseRuntimeAdapter,
 		webreleaseruntime.NewPointerStore(cfg.WebReleaseRoot, webReleaseStore),
 		postgres.NewAdvisoryLocker(pool),
 	)
@@ -403,8 +409,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	jobsProvider := providers.NewJobsProvider(pool, jobClient, identityStore, authSessions)
 	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService, webReleaseAdminService)
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
+	// PageDataLoader 网关：仅从运行中插件 RouteTarget 拉数据（严格 loopback）。
+	pageLoaderGateway := pages.NewLoaderGateway(
+		pages.NewPageDataLoader(nil),
+		pageRouteTargetAdapter{runtime: extensionRuntime},
+	).WithPackages(pagePackageRootAdapter{store: extensionStore})
 	pagesProvider := providers.NewPagesProviderWithThemes(pageRegistry, identityStore, authSessions, extensionStore).
-		WithAuditor(auditWriter)
+		WithAuditor(auditWriter).
+		WithLoader(pageLoaderGateway)
 
 	// F4.4：实体自定义字段（EAV，无 per-plugin core ALTER）。
 	entityMetaService := entitymeta.NewService(entitymeta.NewPostgresStore(pool)).WithPublisher(eventPublisher)
@@ -627,4 +639,40 @@ func humanVerifyConfigFromConfig(cfg config.Config) humanverify.RuntimeConfig {
 		RateLimit:       60,
 		RateLimitWindow: time.Minute,
 	}
+}
+
+// pageRouteTargetAdapter 从运行中插件 runtime 取得 loopback BaseURL 供 PageDataLoader 使用。
+type pageRouteTargetAdapter struct {
+	runtime extensionRuntime
+}
+
+func (a pageRouteTargetAdapter) RouteTargetBase(extensionID string) (string, bool) {
+	if a.runtime == nil {
+		return "", false
+	}
+	target, ok := a.runtime.RouteTarget(extensionID)
+	if !ok || strings.TrimSpace(target.BaseURL) == "" {
+		return "", false
+	}
+	return target.BaseURL, true
+}
+
+// pagePackageRootAdapter 解析扩展包内容根（loader schema 文件）。
+type pagePackageRootAdapter struct {
+	store extensions.Store
+}
+
+func (a pagePackageRootAdapter) PackageRoot(extensionID string) (string, bool) {
+	if a.store == nil {
+		return "", false
+	}
+	item, err := a.store.Get(context.Background(), extensionID)
+	if err != nil {
+		return "", false
+	}
+	root := extensions.PackageContentRoot(item)
+	if root == "" {
+		return "", false
+	}
+	return root, true
 }
