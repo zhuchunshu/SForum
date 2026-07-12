@@ -94,6 +94,41 @@ PublicProfile:
     joinedAt:
       type: string
       format: date-time
+    extensionTabs:
+      type: array
+      description: Host-rendered profile tabs/sections from forum.profile.tabs (F4.3).
+      items:
+        "$ref": "#/ProfileExtensionTab"
+ProfileExtensionTab:
+  type: object
+  required:
+  - extensionId
+  - id
+  - order
+  - kind
+  - url
+  properties:
+    extensionId:
+      type: string
+    id:
+      type: string
+    order:
+      type: integer
+    label:
+      type: object
+      additionalProperties:
+        type: string
+    icon:
+      type: string
+    kind:
+      type: string
+      enum:
+      - extensionRoute
+      - hostLink
+    method:
+      type: string
+    url:
+      type: string
 UpdateProfileRequest:
   type: object
   description: All fields optional. Omitted fields are left unchanged.

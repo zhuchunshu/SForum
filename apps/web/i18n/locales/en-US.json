@@ -377,10 +377,16 @@
       },
       "trend": {
         "title": "7-day community trends",
-        "description": "Topics, replies, and new users over the last {days} days.",
+        "description": "Topics, replies, and new users over the last {days} days (independent scales).",
         "topics": "Topics",
         "comments": "Replies",
-        "users": "Users"
+        "users": "New users",
+        "unitTopics": "",
+        "unitComments": "",
+        "unitUsers": "",
+        "totalMeta": "{days}-day total · today {today}{unit}",
+        "vsYesterday": "{delta}% vs yesterday",
+        "peakDay": "Peak · {label}"
       },
       "runtime": {
         "title": "System runtime status",
@@ -437,6 +443,7 @@
         "emptyDescription": "Active categories will appear here after topics are published."
       },
       "quickTitle": "Quick links",
+      "extensionWidgetsTitle": "Extension widgets",
       "quick": {
         "users": {
           "title": "User management",

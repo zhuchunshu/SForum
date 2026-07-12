@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -59,6 +60,27 @@ type PublicProfile struct {
 	CommentCount int64                `json:"commentCount"`
 	RecentTopics []forum.TopicSummary `json:"recentTopics"`
 	JoinedAt     time.Time            `json:"joinedAt"`
+	// ExtensionTabs 来自 forum.profile.tabs 贡献（F4.3）；宿主渲染，无插件 HTML。
+	ExtensionTabs []ProfileExtensionTab `json:"extensionTabs,omitempty"`
+}
+
+// ProfileExtensionTab 是公开资料页扩展 tab/section 描述符。
+type ProfileExtensionTab struct {
+	ExtensionID string            `json:"extensionId"`
+	ID          string            `json:"id"`
+	Order       int               `json:"order"`
+	Label       map[string]string `json:"label,omitempty"`
+	Icon        string            `json:"icon,omitempty"`
+	// Kind: extensionRoute | hostLink
+	Kind   string `json:"kind"`
+	Method string `json:"method,omitempty"`
+	// URL 对 extensionRoute 为 /extensions/{id}{path}；对 hostLink 为站内 href。
+	URL string `json:"url"`
+}
+
+// ProfileTabProvider 解析 forum.profile.tabs。
+type ProfileTabProvider interface {
+	ProfileTabs(ctx context.Context) ([]ProfileExtensionTab, error)
 }
 
 // UpdateProfileInput 是当前用户更新自己资料的输入。所有指针字段为 nil 表示不改。

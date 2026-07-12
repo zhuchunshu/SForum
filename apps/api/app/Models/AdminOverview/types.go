@@ -1,6 +1,9 @@
 package adminoverview
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 const (
 	WindowDays = 7
@@ -23,6 +26,24 @@ type AdminOverview struct {
 	Trends        TrendStats         `json:"trends"`
 	TopCategories []CategoryActivity `json:"topCategories"`
 	Actions       []OverviewAction   `json:"actions"`
+	// ExtensionWidgets 来自 admin.dashboard.widgets（F4.3）；仅 host-owned admin 路由。
+	ExtensionWidgets []ExtensionWidget `json:"extensionWidgets,omitempty"`
+}
+
+// ExtensionWidget 是管理后台仪表盘扩展链接卡片。
+type ExtensionWidget struct {
+	ExtensionID string            `json:"extensionId"`
+	ID          string            `json:"id"`
+	Order       int               `json:"order"`
+	Label       map[string]string `json:"label,omitempty"`
+	Icon        string            `json:"icon,omitempty"`
+	Route       string            `json:"route"`
+	Severity    string            `json:"severity"`
+}
+
+// DashboardWidgetProvider 解析 admin.dashboard.widgets。
+type DashboardWidgetProvider interface {
+	DashboardWidgets(ctx context.Context) ([]ExtensionWidget, error)
 }
 
 type StoreSnapshot struct {

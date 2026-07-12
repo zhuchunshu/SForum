@@ -155,6 +155,18 @@ export type ForumTopicExtensionAction = {
   confirm?: boolean
 }
 
+/** forum.composer.toolbar 宿主描述符（F4.3） */
+export type ForumComposerToolbarAction = {
+  extensionId: string
+  id: string
+  order: number
+  label?: Record<string, string>
+  icon?: string
+  method: ForumTopicExtensionActionMethod
+  url: string
+  confirm?: boolean
+}
+
 export type ForumCommentStatus = 'active' | 'hidden' | 'deleted' | 'pending' | 'rejected'
 
 export type ForumAuthorReviewItem = {

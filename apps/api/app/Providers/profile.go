@@ -22,8 +22,17 @@ func NewProfileProvider(store profile.Store, users identity.ActorStore, sessions
 }
 
 func NewProfileProviderWithAvatar(store profile.Store, users identity.ActorStore, sessions *authsession.Manager, uploader *attachments.Service, optionsService *options.Service) *ProfileProvider {
+	return NewProfileProviderWithAvatarAndTabs(store, users, sessions, uploader, optionsService, nil)
+}
+
+// NewProfileProviderWithAvatarAndTabs 注入公开资料扩展 tabs（F4.3）。
+func NewProfileProviderWithAvatarAndTabs(store profile.Store, users identity.ActorStore, sessions *authsession.Manager, uploader *attachments.Service, optionsService *options.Service, tabs profile.ProfileTabProvider) *ProfileProvider {
+	service := profile.NewServiceWithAvatar(store, uploader, optionsService)
+	if tabs != nil {
+		service.WithProfileTabs(tabs)
+	}
 	return &ProfileProvider{
-		controller: profilecontroller.NewController(profile.NewServiceWithAvatar(store, uploader, optionsService), users, sessions),
+		controller: profilecontroller.NewController(service, users, sessions),
 	}
 }
 

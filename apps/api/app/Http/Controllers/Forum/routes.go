@@ -14,6 +14,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/category-groups", h.categoryGroups)
 	api.Get("/categories", h.categories)
 	api.Get("/tags", h.tags)
+	// F4.3：composer 工具栏扩展动作（登录后使用；guest 可读但通常无意义）。
+	api.Get("/composer/toolbar", h.composerToolbar)
 	api.Get("/search", h.search)
 	api.Get("/me/content-review", h.authorReviewItems)
 	api.Get("/topics", h.topics)

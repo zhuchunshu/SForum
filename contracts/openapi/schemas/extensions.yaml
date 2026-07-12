@@ -537,6 +537,16 @@ ExtensionManifestContribution:
       type: string
       enum:
       - forum.topic.actions
+      - forum.composer.toolbar
+      - forum.profile.tabs
+      - admin.dashboard.widgets
+      - system.health.checks
+      - admin.jobs.table.columns
+      - admin.jobs.row.actions
+      - admin.jobs.detail.sections
+      - admin.extension.settings.page
+      - admin.extension.settings.header
+      - admin.extension.settings.footer
     id:
       type: string
       description: Unique contribution id within this extension and point.
@@ -556,19 +566,25 @@ ExtensionManifestContribution:
       "$ref": "#/ExtensionContributionPayload"
 ExtensionContributionPayload:
   type: object
-  description: Payload for forum.topic.actions. Only extensionRoute descriptors are accepted in this first slice.
+  description: >
+    Host-owned contribution payloads (F4.3). Never executable JSON.
+    Shape depends on the contribution point payloadType:
+    extensionRoute (topic/composer), profileSection, dashboardLink, healthDescriptor, or adminComponent.
   required:
   - type
-  - method
-  - path
   properties:
     type:
       type: string
       enum:
       - extensionRoute
+      - hostLink
+      - adminLink
+      - extensionRuntime
+      - static
     method:
       type: string
       enum:
+      - GET
       - POST
       - PUT
       - PATCH
@@ -576,8 +592,27 @@ ExtensionContributionPayload:
     path:
       type: string
       description: Safe plugin route path under /api/v1/extensions/{extensionId}; must start with / and must not target /api or external URLs.
+    href:
+      type: string
+      description: In-app relative path for profile hostLink contributions.
+    route:
+      type: string
+      description: Admin-shell relative route for dashboard widgets.
+    severity:
+      type: string
+      enum:
+      - info
+      - success
+      - warning
+      - danger
+    component:
+      type: string
+      description: Admin component id or health component name depending on payload type.
     confirm:
       type: boolean
+    required:
+      type: boolean
+      description: For system.health.checks only; when true a failed component marks not_ready.
 ExtensionRuntimeStatus:
   type: object
   required:
@@ -833,8 +868,6 @@ ContributionPointDefinition:
   properties:
     id:
       type: string
-      enum:
-      - forum.topic.actions
     owner:
       type: string
     kind:
@@ -845,6 +878,10 @@ ContributionPointDefinition:
       type: string
       enum:
       - extensionRoute
+      - adminComponent
+      - profileSection
+      - dashboardLink
+      - healthDescriptor
 EffectiveContribution:
   type: object
   required:
@@ -863,8 +900,6 @@ EffectiveContribution:
       "$ref": "#/ExtensionType"
     point:
       type: string
-      enum:
-      - forum.topic.actions
     id:
       type: string
     order:

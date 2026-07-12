@@ -15,6 +15,7 @@ import (
 
 	httpserver "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	extensionjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
+	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	adminoverview "github.com/zhuchunshu/sforum/apps/api/app/Models/AdminOverview"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	database "github.com/zhuchunshu/sforum/apps/api/app/Models/Database"
@@ -26,9 +27,9 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	sitechrome "github.com/zhuchunshu/sforum/apps/api/app/Models/SiteChrome"
-	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	"github.com/zhuchunshu/sforum/apps/api/app/Providers"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsupport "github.com/zhuchunshu/sforum/apps/api/app/Support/Auth"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
@@ -36,11 +37,10 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
-	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
-	"github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
 	redisplatform "github.com/zhuchunshu/sforum/apps/api/app/Support/Redis"
@@ -301,13 +301,14 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	mailProvider := providers.NewMailProvider(extensionStore, notificationStore, extensionsruntime.NewMailProviderRegistry(extensionStore), identityStore, authSessions, optionsService)
 	// Worker 心跳 store 尽早创建，供 overview 与嵌入 worker 共用。
 	heartbeatStore := health.NewRedisHeartbeatStore(sharedRedisClient)
-	adminOverviewProvider := providers.NewAdminOverviewProvider(
+	adminOverviewProvider := providers.NewAdminOverviewProviderWithWidgets(
 		adminOverviewStore,
 		adminoverview.NewRuntimeCollector(time.Now().UTC(), pool).
 			WithHeartbeat(heartbeatStore).
 			WithQueueLag(pool),
 		identityStore,
 		authSessions,
+		providers.NewExtensionDashboardWidgetProvider(extensionService),
 	)
 	// 搜索：API 进程持有只入队的 indexer（EnqueueIndex/EnqueueDelete）和查询用的 search service。
 	// Meilisearch client 不可达时，索引调度静默失败、搜索端点返回 503，主流程不受影响。
@@ -321,7 +322,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 
 	// F3.2：发帖/评论写路径可选 Idempotency-Key；存储复用 shared Redis。
 	idempotencyStore := idempotency.NewStore(idempotency.NewRedisBackend(sharedRedisClient), idempotency.DefaultTTL)
-	forumProvider := providers.NewForumProviderWithSearchTopicActionsAndPublicationPolicy(
+	forumProvider := providers.NewForumProviderWithContributions(
 		forumCachedStore,
 		optionsService,
 		identityStore,
@@ -331,10 +332,18 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		searchServiceAdapter{inner: searchService},
 		reindexServiceAdapter{inner: reindexManager},
 		providers.NewExtensionTopicActionProvider(extensionService),
+		providers.NewExtensionComposerToolbarProvider(extensionService),
 		providers.NewModerationPublicationPolicy(moderationStore, optionsService),
 	).WithIdempotency(idempotencyStore)
 	avatarAttachmentService := attachments.NewServiceWithEvents(attachmentStore, optionsService, eventPublisher)
-	profileProvider := providers.NewProfileProviderWithAvatar(profileStore, identityStore, authSessions, avatarAttachmentService, optionsService)
+	profileProvider := providers.NewProfileProviderWithAvatarAndTabs(
+		profileStore,
+		identityStore,
+		authSessions,
+		avatarAttachmentService,
+		optionsService,
+		providers.NewExtensionProfileTabProvider(extensionService),
+	)
 	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer)
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	siteChromeStore := sitechrome.NewPostgresStore(pool)
@@ -347,12 +356,13 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
 
 	// Readiness：PG 必检；Redis/Meili 失败记 degraded 仍 ready（见 Support/Health）。
+	// F4.3：合并 system.health.checks 贡献（不调用插件 RPC）。
 	readyEvaluate := func(ctx context.Context) health.ReadyReport {
-		return health.Evaluate(ctx, []health.Checker{
+		return health.EvaluateWithExtensionContributions(ctx, []health.Checker{
 			health.PostgresChecker{Pool: pool},
 			health.RedisChecker{Client: sharedRedisClient},
 			health.MeiliChecker{Client: meiliClient},
-		})
+		}, extensionService, extensionRuntime)
 	}
 
 	app := httpserver.NewApp(cfg, logger, httpserver.Dependencies{

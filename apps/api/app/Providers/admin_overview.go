@@ -14,8 +14,17 @@ type AdminOverviewProvider struct {
 }
 
 func NewAdminOverviewProvider(store adminoverview.Store, runtime adminoverview.RuntimeProvider, users identity.ActorStore, sessions *authsession.Manager) *AdminOverviewProvider {
+	return NewAdminOverviewProviderWithWidgets(store, runtime, users, sessions, nil)
+}
+
+// NewAdminOverviewProviderWithWidgets 注入扩展仪表盘 widgets（F4.3）。
+func NewAdminOverviewProviderWithWidgets(store adminoverview.Store, runtime adminoverview.RuntimeProvider, users identity.ActorStore, sessions *authsession.Manager, widgets adminoverview.DashboardWidgetProvider) *AdminOverviewProvider {
+	opts := []adminoverview.Option{}
+	if widgets != nil {
+		opts = append(opts, adminoverview.WithDashboardWidgets(widgets))
+	}
 	return &AdminOverviewProvider{
-		controller: adminoverviewcontroller.NewController(adminoverview.NewService(store, runtime), users, sessions),
+		controller: adminoverviewcontroller.NewController(adminoverview.NewService(store, runtime, opts...), users, sessions),
 	}
 }
 

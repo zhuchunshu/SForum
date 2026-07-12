@@ -694,6 +694,54 @@ TopicExtensionAction:
       description: API-relative plugin route path such as /extensions/demo.plugin/topic-actions/bookmark.
     confirm:
       type: boolean
+ComposerToolbarAction:
+  type: object
+  description: Host-rendered composer toolbar action from forum.composer.toolbar (F4.3).
+  required:
+  - extensionId
+  - id
+  - order
+  - method
+  - url
+  properties:
+    extensionId:
+      type: string
+    id:
+      type: string
+    order:
+      type: integer
+    label:
+      type: object
+      additionalProperties:
+        type: string
+    icon:
+      type: string
+    method:
+      type: string
+      enum:
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+    url:
+      type: string
+    confirm:
+      type: boolean
+ApiResponseComposerToolbarActionList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/ComposerToolbarAction"
 TopicList:
   type: object
   required:

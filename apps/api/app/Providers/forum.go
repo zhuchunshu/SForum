@@ -2,7 +2,6 @@ package providers
 
 import (
 	"context"
-	"encoding/json"
 	"regexp"
 	"strconv"
 	"strings"
@@ -10,12 +9,12 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	forumcontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Forum"
-	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Idempotency"
 )
 
@@ -49,9 +48,17 @@ func NewForumProviderWithSearchAndTopicActions(store forum.Store, optionsService
 }
 
 func NewForumProviderWithSearchTopicActionsAndPublicationPolicy(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher, indexer forum.TopicSearchIndexer, searchService forumcontroller.SearchService, reindexer forumcontroller.ReindexService, topicActions forum.TopicExtensionActionProvider, publicationPolicy forum.PublicationPolicy) *ForumProvider {
+	return NewForumProviderWithContributions(store, optionsService, users, sessions, publisher, indexer, searchService, reindexer, topicActions, nil, publicationPolicy)
+}
+
+// NewForumProviderWithContributions 同时注入 topic actions 与 composer toolbar（F4.3）。
+func NewForumProviderWithContributions(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher, indexer forum.TopicSearchIndexer, searchService forumcontroller.SearchService, reindexer forumcontroller.ReindexService, topicActions forum.TopicExtensionActionProvider, composerToolbar forum.ComposerToolbarProvider, publicationPolicy forum.PublicationPolicy) *ForumProvider {
 	service := forum.NewServiceWithExtensionsAndPublicationPolicy(store, ForumSettingsResolver{options: optionsService}, publisher, indexer, topicActions, publicationPolicy)
 	if optionsService != nil {
 		service.WithTrustPolicy(TrustPolicyAdapter{options: optionsService})
+	}
+	if composerToolbar != nil {
+		service.WithComposerToolbar(composerToolbar)
 	}
 	return &ForumProvider{
 		controller: forumcontroller.NewControllerWithSearch(service, searchService, reindexer, users, sessions),
@@ -148,10 +155,6 @@ func (policy ModerationPublicationPolicy) EvaluatePublication(ctx context.Contex
 	return forum.PublicationDecision{Pending: pending, Triggers: triggers}, err
 }
 
-type EffectiveContributionSource interface {
-	EffectiveContributions(ctx context.Context) ([]extensions.EffectiveContribution, error)
-}
-
 type ExtensionTopicActionProvider struct {
 	source EffectiveContributionSource
 }
@@ -170,11 +173,17 @@ func (p ExtensionTopicActionProvider) TopicExtensionActions(ctx context.Context)
 	}
 	actions := make([]forum.TopicExtensionAction, 0, len(contributions))
 	for _, contribution := range contributions {
-		if contribution.Point != "forum.topic.actions" {
+		if contribution.Point != extensionmanifest.PointForumTopicActions {
 			continue
 		}
-		payload, ok := topicActionPayload(contribution)
+		payload, ok := parseExtensionRoutePayload(contribution.Payload)
 		if !ok {
+			continue
+		}
+		// 主题动作不允许 GET（与 manifest 校验一致）。
+		switch payload.Method {
+		case "POST", "PUT", "PATCH", "DELETE":
+		default:
 			continue
 		}
 		actions = append(actions, forum.TopicExtensionAction{
@@ -183,54 +192,56 @@ func (p ExtensionTopicActionProvider) TopicExtensionActions(ctx context.Context)
 			Label:       copyContributionLabel(contribution.Label),
 			Icon:        contribution.Icon,
 			Method:      payload.Method,
-			URL:         "/extensions/" + contribution.ExtensionID + payload.Path,
+			URL:         extensionProxyURL(contribution.ExtensionID, payload.Path),
 			Confirm:     payload.Confirm,
 		})
 	}
 	return actions, nil
 }
 
-func topicActionPayload(contribution extensions.EffectiveContribution) (extensions.TopicActionContributionPayload, bool) {
-	var payload extensions.TopicActionContributionPayload
-	if err := json.Unmarshal(contribution.Payload, &payload); err != nil {
-		return payload, false
-	}
-	payload.Type = strings.TrimSpace(payload.Type)
-	payload.Method = strings.ToUpper(strings.TrimSpace(payload.Method))
-	payload.Path = strings.TrimSpace(strings.ReplaceAll(payload.Path, "\\", "/"))
-	if payload.Type != "extensionRoute" {
-		return payload, false
-	}
-	switch payload.Method {
-	case "POST", "PUT", "PATCH", "DELETE":
-	default:
-		return payload, false
-	}
-	if !safeTopicActionPath(payload.Path) {
-		return payload, false
-	}
-	return payload, true
+// ExtensionComposerToolbarProvider 解析 forum.composer.toolbar（F4.3）。
+type ExtensionComposerToolbarProvider struct {
+	source EffectiveContributionSource
 }
 
-func safeTopicActionPath(value string) bool {
-	if value == "" || !strings.HasPrefix(value, "/") || value == "/" {
-		return false
-	}
-	if strings.Contains(value, "://") || strings.Contains(value, "..") {
-		return false
-	}
-	return value != "/api" && !strings.HasPrefix(value, "/api/")
+func NewExtensionComposerToolbarProvider(source EffectiveContributionSource) ExtensionComposerToolbarProvider {
+	return ExtensionComposerToolbarProvider{source: source}
 }
 
-func copyContributionLabel(labels map[string]string) map[string]string {
-	if len(labels) == 0 {
-		return nil
+func (p ExtensionComposerToolbarProvider) ComposerToolbarActions(ctx context.Context) ([]forum.ComposerToolbarAction, error) {
+	if p.source == nil {
+		return nil, nil
 	}
-	copied := make(map[string]string, len(labels))
-	for locale, label := range labels {
-		copied[locale] = label
+	contributions, err := p.source.EffectiveContributions(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return copied
+	actions := make([]forum.ComposerToolbarAction, 0, len(contributions))
+	for _, contribution := range contributions {
+		if contribution.Point != extensionmanifest.PointForumComposerToolbar {
+			continue
+		}
+		payload, ok := parseExtensionRoutePayload(contribution.Payload)
+		if !ok {
+			continue
+		}
+		switch payload.Method {
+		case "POST", "PUT", "PATCH", "DELETE":
+		default:
+			continue
+		}
+		actions = append(actions, forum.ComposerToolbarAction{
+			ExtensionID: contribution.ExtensionID,
+			ID:          contribution.ID,
+			Order:       contribution.Order,
+			Label:       copyContributionLabel(contribution.Label),
+			Icon:        contribution.Icon,
+			Method:      payload.Method,
+			URL:         extensionProxyURL(contribution.ExtensionID, payload.Path),
+			Confirm:     payload.Confirm,
+		})
+	}
+	return actions, nil
 }
 
 func (p *ForumProvider) RegisterRoutes(api fiber.Router) {
@@ -289,13 +300,13 @@ func (r ForumSettingsResolver) ForumSettings(ctx context.Context) (forum.ForumSe
 		options.NameForumTopicContentMinRunes:     &settings.TopicContentMinRunes,
 		options.NameForumTopicContentMaxRunes:     &settings.TopicContentMaxRunes,
 		options.NameForumTopicEditWindowMinutes:   &settings.TopicEditWindowMinutes,
-		options.NameForumTopicCooldownSeconds:      &settings.TopicCooldownSeconds,
+		options.NameForumTopicCooldownSeconds:     &settings.TopicCooldownSeconds,
 		options.NameForumDailyTopicLimit:          &settings.DailyTopicLimit,
 		options.NameForumCommentMinRunes:          &settings.CommentMinRunes,
 		options.NameForumCommentMaxRunes:          &settings.CommentMaxRunes,
 		options.NameForumCommentMaxNestingDepth:   &settings.CommentMaxNestingDepth,
 		options.NameForumCommentEditWindowMinutes: &settings.CommentEditWindowMinutes,
-		options.NameForumCommentCooldownSeconds:     &settings.CommentCooldownSeconds,
+		options.NameForumCommentCooldownSeconds:   &settings.CommentCooldownSeconds,
 		options.NameForumDailyCommentLimit:        &settings.DailyCommentLimit,
 		options.NameForumExcerptRuneLimit:         &settings.ExcerptRuneLimit,
 		options.NameForumListHotWindowDays:        &settings.ListHotWindowDays,
@@ -477,39 +488,39 @@ func (r ForumSettingsResolver) ResetForumSettings(ctx context.Context, actor ide
 func recommendedForumSettings() forum.ForumSettings {
 	// 与 forum.defaultForumSettings 保持一致的推荐默认。
 	return forum.ForumSettings{
-		DefaultCategorySlug:          "general",
-		TagCreationMode:              forum.TagCreationModeControlled,
-		TagPublicPages:               true,
-		TagMinPerTopic:               forum.RecommendedTagMinPerTopic,
-		TagMaxPerTopic:               forum.RecommendedTagMaxPerTopic,
-		TopicsPerPage:                20,
-		CommentsPerPage:              20,
-		TopicTitleMinRunes:           forum.RecommendedTopicTitleMinRunes,
-		TopicTitleMaxRunes:           forum.RecommendedTopicTitleMaxRunes,
-		TopicContentMinRunes:         forum.RecommendedTopicContentMinRunes,
-		TopicContentMaxRunes:         forum.RecommendedTopicContentMaxRunes,
-		TopicEditWindowMinutes:       forum.RecommendedTopicEditWindowMinutes,
-		TopicCooldownSeconds:          forum.RecommendedTopicCooldownSeconds,
-		DailyTopicLimit:              forum.RecommendedDailyTopicLimit,
-		CommentMinRunes:              forum.RecommendedCommentMinRunes,
-		CommentMaxRunes:              forum.RecommendedCommentMaxRunes,
-		CommentMaxNestingDepth:       forum.RecommendedCommentMaxNestingDepth,
-		CommentEditWindowMinutes:     forum.RecommendedCommentEditWindowMinutes,
-		CommentCooldownSeconds:         forum.RecommendedCommentCooldownSeconds,
-		DailyCommentLimit:            forum.RecommendedDailyCommentLimit,
-		ExcerptRuneLimit:             forum.RecommendedExcerptRuneLimit,
-		GuestRead:                    "public",
-		ListDefaultSort:              "latest",
-		ListHotWindowDays:            7,
-		AllowAuthorCloseReplies:      true,
-		AllowAuthorDelete:            true,
-		AutoLockIdleDays:             0,
-		ShowTopicEditMark:            true,
-		DuplicateTitlePolicy:         "warn",
-		ShowCommentEditMark:          true,
-		SoftDeleteVisibility:         "author_and_staff",
-		MentionsEnabled:              true,
-		MentionsMaxPerPost:           10,
+		DefaultCategorySlug:      "general",
+		TagCreationMode:          forum.TagCreationModeControlled,
+		TagPublicPages:           true,
+		TagMinPerTopic:           forum.RecommendedTagMinPerTopic,
+		TagMaxPerTopic:           forum.RecommendedTagMaxPerTopic,
+		TopicsPerPage:            20,
+		CommentsPerPage:          20,
+		TopicTitleMinRunes:       forum.RecommendedTopicTitleMinRunes,
+		TopicTitleMaxRunes:       forum.RecommendedTopicTitleMaxRunes,
+		TopicContentMinRunes:     forum.RecommendedTopicContentMinRunes,
+		TopicContentMaxRunes:     forum.RecommendedTopicContentMaxRunes,
+		TopicEditWindowMinutes:   forum.RecommendedTopicEditWindowMinutes,
+		TopicCooldownSeconds:     forum.RecommendedTopicCooldownSeconds,
+		DailyTopicLimit:          forum.RecommendedDailyTopicLimit,
+		CommentMinRunes:          forum.RecommendedCommentMinRunes,
+		CommentMaxRunes:          forum.RecommendedCommentMaxRunes,
+		CommentMaxNestingDepth:   forum.RecommendedCommentMaxNestingDepth,
+		CommentEditWindowMinutes: forum.RecommendedCommentEditWindowMinutes,
+		CommentCooldownSeconds:   forum.RecommendedCommentCooldownSeconds,
+		DailyCommentLimit:        forum.RecommendedDailyCommentLimit,
+		ExcerptRuneLimit:         forum.RecommendedExcerptRuneLimit,
+		GuestRead:                "public",
+		ListDefaultSort:          "latest",
+		ListHotWindowDays:        7,
+		AllowAuthorCloseReplies:  true,
+		AllowAuthorDelete:        true,
+		AutoLockIdleDays:         0,
+		ShowTopicEditMark:        true,
+		DuplicateTitlePolicy:     "warn",
+		ShowCommentEditMark:      true,
+		SoftDeleteVisibility:     "author_and_staff",
+		MentionsEnabled:          true,
+		MentionsMaxPerPost:       10,
 	}
 }
 
@@ -604,5 +615,3 @@ func enabledOptionValue(enabled bool) string {
 	}
 	return "disabled"
 }
-
-

@@ -31,6 +31,26 @@ tags:
           application/json:
             schema:
               "$ref": "../schemas/forum.yaml#/ApiResponseTagList"
+composerToolbar:
+  get:
+    summary: List composer toolbar extension actions
+    description: >
+      Requires authentication. Returns host-rendered toolbar descriptors from
+      enabled plugins declaring forum.composer.toolbar (F4.3). Execution still
+      goes through the extension route proxy.
+    operationId: listComposerToolbarActions
+    security:
+    - cookieAuth: []
+    - bearerAuth: []
+    responses:
+      '200':
+        description: Composer toolbar actions.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseComposerToolbarActionList"
+      '401':
+        description: Authentication required.
 search:
   get:
     summary: Search topics by keyword (Meilisearch-backed)

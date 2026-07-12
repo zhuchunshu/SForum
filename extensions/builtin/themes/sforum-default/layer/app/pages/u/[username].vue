@@ -24,6 +24,22 @@ const { data: profile, error: profileError } = await useAsyncData(
   { default: () => null as PublicProfile | null }
 )
 
+const { locale } = useI18n()
+const extensionTabs = computed(() => profile.value?.extensionTabs || [])
+
+function profileTabLabel(tab: NonNullable<PublicProfile['extensionTabs']>[number]) {
+  const labels = tab.label || {}
+  return labels[String(locale.value)] || labels['zh-CN'] || labels['en-US'] || Object.values(labels)[0] || tab.id
+}
+
+function profileTabTo(tab: NonNullable<PublicProfile['extensionTabs']>[number]) {
+  if (tab.kind === 'hostLink') {
+    return localePath(tab.url)
+  }
+  // extensionRoute：公开资料页以链接形式打开宿主代理路径（GET）或展示动作按钮。
+  return tab.url.startsWith('/') ? tab.url : `/${tab.url}`
+}
+
 useSForumSeo(computed(() => ({
   type: 'profile',
   path: forumUserProfilePath(username.value),
@@ -111,6 +127,31 @@ function topicAuthor(topic: ForumTopicSummary) {
               <UIcon name="i-lucide-settings" class="size-4" />
               <span>{{ t('profile.editProfile') }}</span>
             </SFButton>
+          </div>
+
+          <!-- F4.3：扩展资料 tabs/sections（宿主渲染，无插件 HTML） -->
+          <div
+            v-if="extensionTabs.length"
+            class="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4 dark:border-zinc-800"
+          >
+            <template v-for="tab in extensionTabs" :key="`${tab.extensionId}:${tab.id}`">
+              <NuxtLink
+                v-if="tab.kind === 'hostLink'"
+                :to="profileTabTo(tab)"
+                class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-[color:var(--sf-accent)] hover:text-[color:var(--sf-accent)] dark:border-zinc-700 dark:text-zinc-200"
+              >
+                <UIcon v-if="tab.icon" :name="tab.icon" class="size-4" />
+                <span>{{ profileTabLabel(tab) }}</span>
+              </NuxtLink>
+              <a
+                v-else
+                :href="profileTabTo(tab)"
+                class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-[color:var(--sf-accent)] hover:text-[color:var(--sf-accent)] dark:border-zinc-700 dark:text-zinc-200"
+              >
+                <UIcon v-if="tab.icon" :name="tab.icon" class="size-4" />
+                <span>{{ profileTabLabel(tab) }}</span>
+              </a>
+            </template>
           </div>
         </SFCard>
 

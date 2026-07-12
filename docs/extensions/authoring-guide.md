@@ -198,6 +198,19 @@ go run ./cmd/sforum extension test --json <package-root>
 go run ./cmd/sforum extension docs generate --check
 ```
 
+## Contribution points (F4.3)
+
+Declare only host-owned points (see [contribution-points.md](./catalogs/contribution-points.md)).
+Payloads are JSON descriptors — **never executable code**.
+
+| Point | Payload type | Runtime consumer |
+| --- | --- | --- |
+| `forum.topic.actions` | `extensionRoute` | Topic detail `extensionActions` |
+| `forum.composer.toolbar` | `extensionRoute` | `GET /composer/toolbar` + composer UI |
+| `forum.profile.tabs` | `profileSection` (`extensionRoute` \| `hostLink`) | Public profile `extensionTabs` |
+| `admin.dashboard.widgets` | `dashboardLink` (`adminLink` + admin route) | Admin overview `extensionWidgets` |
+| `system.health.checks` | `healthDescriptor` (`static` \| `extensionRuntime`) | Merged into `GET /ready` without plugin RPC |
+
 ## Related docs
 
 - [Host catalogs (generated)](./catalogs/README.md)

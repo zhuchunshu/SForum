@@ -18,6 +18,10 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | Point ID | Owner | Kind | Payload type | Description |
 | --- | --- | --- | --- | --- |
 | `forum.topic.actions` | forum | descriptor | `extensionRoute` | Topic detail action descriptors rendered by the host UI. |
+| `forum.composer.toolbar` | forum | descriptor | `extensionRoute` | Composer/editor toolbar actions rendered by the host UI; payload is an extensionRoute only. |
+| `forum.profile.tabs` | forum | descriptor | `profileSection` | Public profile tabs/sections rendered by the host UI (extensionRoute or hostLink). |
+| `admin.dashboard.widgets` | admin | descriptor | `dashboardLink` | Admin dashboard link widgets; host-owned routes only, no executable payloads. |
+| `system.health.checks` | system | descriptor | `healthDescriptor` | Plugin readiness components merged into GET /ready without invoking plugin RPC. |
 | `admin.jobs.table.columns` | jobs | component | `adminComponent` | Trusted client components rendered as job table columns. |
 | `admin.jobs.row.actions` | jobs | component | `adminComponent` | Trusted client components rendered beside core job actions. |
 | `admin.jobs.detail.sections` | jobs | component | `adminComponent` | Trusted client components rendered in job detail. |

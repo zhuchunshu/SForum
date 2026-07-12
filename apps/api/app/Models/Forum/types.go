@@ -49,63 +49,63 @@ const (
 	TopicActionPin     = "pin"
 	TopicActionUnpin   = "unpin"
 
-	CodeInvalidContent    = "forum.content_invalid"
-	CodeInvalidTopic      = "forum.topic_invalid"
-	CodeTopicNotFound     = "forum.topic_not_found"
-	CodeCommentNotFound   = "forum.comment_not_found"
-	CodeTopicClosed       = "forum.topic_closed"
-	CodeInvalidTag        = "forum.tag_invalid"
-	CodeTagNotFound       = "forum.tag_not_found"
-	CodeInvalidSettings      = "forum.settings_invalid"
-	CodeInvalidAction        = "forum.topic_action_invalid"
-	CodeUseSearch            = "forum.use_search_endpoint"
-	CodeReindexRunning       = "forum.reindex_running"    // 已有重建在进行
-	CodeReindexNoRun         = "forum.reindex_no_run"     // 尚无重建记录
-	CodeSearchUnavailable    = "forum.search_unavailable" // 搜索服务不可用
-	CodeTitleTooShort        = "forum.title_too_short"
-	CodeTitleTooLong         = "forum.title_too_long"
-	CodeContentTooShort      = "forum.content_too_short"
-	CodeContentTooLong       = "forum.content_too_long"
-	CodeCommentTooShort      = "forum.comment_too_short"
-	CodeCommentTooLong       = "forum.comment_too_long"
-	CodeCommentNestingDeep   = "forum.comment_nesting_too_deep"
-	CodeEditWindowExpired    = "forum.edit_window_expired"
+	CodeInvalidContent        = "forum.content_invalid"
+	CodeInvalidTopic          = "forum.topic_invalid"
+	CodeTopicNotFound         = "forum.topic_not_found"
+	CodeCommentNotFound       = "forum.comment_not_found"
+	CodeTopicClosed           = "forum.topic_closed"
+	CodeInvalidTag            = "forum.tag_invalid"
+	CodeTagNotFound           = "forum.tag_not_found"
+	CodeInvalidSettings       = "forum.settings_invalid"
+	CodeInvalidAction         = "forum.topic_action_invalid"
+	CodeUseSearch             = "forum.use_search_endpoint"
+	CodeReindexRunning        = "forum.reindex_running"    // 已有重建在进行
+	CodeReindexNoRun          = "forum.reindex_no_run"     // 尚无重建记录
+	CodeSearchUnavailable     = "forum.search_unavailable" // 搜索服务不可用
+	CodeTitleTooShort         = "forum.title_too_short"
+	CodeTitleTooLong          = "forum.title_too_long"
+	CodeContentTooShort       = "forum.content_too_short"
+	CodeContentTooLong        = "forum.content_too_long"
+	CodeCommentTooShort       = "forum.comment_too_short"
+	CodeCommentTooLong        = "forum.comment_too_long"
+	CodeCommentNestingDeep    = "forum.comment_nesting_too_deep"
+	CodeEditWindowExpired     = "forum.edit_window_expired"
 	CodeTopicCooldown         = "forum.topic_cooldown"
 	CodeOutboundLinkForbidden = "forum.outbound_link_forbidden"
 	CodeMentionsLimit         = "forum.mentions_limit"
 	CodeCommentCooldown       = "forum.comment_cooldown"
-	CodeDailyTopicLimit      = "forum.daily_topic_limit"
-	CodeDailyCommentLimit    = "forum.daily_comment_limit"
-	CodeTagMinRequired       = "forum.tag_min_required"
+	CodeDailyTopicLimit       = "forum.daily_topic_limit"
+	CodeDailyCommentLimit     = "forum.daily_comment_limit"
+	CodeTagMinRequired        = "forum.tag_min_required"
 	// 游客阅读策略为 login_required 时，未登录访问公开阅读接口。
 	CodeGuestLoginRequired = "forum.guest_login_required"
 )
 
 var (
-	ErrInvalidContent      = errors.New("forum: invalid content")
-	ErrInvalidTopic        = errors.New("forum: invalid topic")
-	ErrTopicNotFound       = errors.New("forum: topic not found")
-	ErrCommentNotFound     = errors.New("forum: comment not found")
-	ErrTopicClosed         = errors.New("forum: topic is closed")
-	ErrInvalidTag          = errors.New("forum: invalid tag")
-	ErrTagNotFound         = errors.New("forum: tag not found")
-	ErrInvalidSettings     = errors.New("forum: invalid settings")
-	ErrInvalidAction       = errors.New("forum: invalid topic action")
-	ErrTitleTooShort       = errors.New("forum: title too short")
-	ErrTitleTooLong        = errors.New("forum: title too long")
-	ErrContentTooShort     = errors.New("forum: content too short")
-	ErrContentTooLong      = errors.New("forum: content too long")
-	ErrCommentTooShort     = errors.New("forum: comment too short")
-	ErrCommentTooLong      = errors.New("forum: comment too long")
-	ErrCommentNestingDeep  = errors.New("forum: comment nesting too deep")
-	ErrEditWindowExpired   = errors.New("forum: edit window expired")
-	ErrTopicCooldown        = errors.New("forum: topic cooldown")
-	ErrCommentCooldown      = errors.New("forum: comment cooldown")
+	ErrInvalidContent        = errors.New("forum: invalid content")
+	ErrInvalidTopic          = errors.New("forum: invalid topic")
+	ErrTopicNotFound         = errors.New("forum: topic not found")
+	ErrCommentNotFound       = errors.New("forum: comment not found")
+	ErrTopicClosed           = errors.New("forum: topic is closed")
+	ErrInvalidTag            = errors.New("forum: invalid tag")
+	ErrTagNotFound           = errors.New("forum: tag not found")
+	ErrInvalidSettings       = errors.New("forum: invalid settings")
+	ErrInvalidAction         = errors.New("forum: invalid topic action")
+	ErrTitleTooShort         = errors.New("forum: title too short")
+	ErrTitleTooLong          = errors.New("forum: title too long")
+	ErrContentTooShort       = errors.New("forum: content too short")
+	ErrContentTooLong        = errors.New("forum: content too long")
+	ErrCommentTooShort       = errors.New("forum: comment too short")
+	ErrCommentTooLong        = errors.New("forum: comment too long")
+	ErrCommentNestingDeep    = errors.New("forum: comment nesting too deep")
+	ErrEditWindowExpired     = errors.New("forum: edit window expired")
+	ErrTopicCooldown         = errors.New("forum: topic cooldown")
+	ErrCommentCooldown       = errors.New("forum: comment cooldown")
 	ErrOutboundLinkForbidden = errors.New("forum: outbound links forbidden for new users")
 	ErrMentionsLimit         = errors.New("forum: too many mentions")
-	ErrDailyTopicLimit     = errors.New("forum: daily topic limit")
-	ErrDailyCommentLimit   = errors.New("forum: daily comment limit")
-	ErrTagMinRequired      = errors.New("forum: tag minimum required")
+	ErrDailyTopicLimit       = errors.New("forum: daily topic limit")
+	ErrDailyCommentLimit     = errors.New("forum: daily comment limit")
+	ErrTagMinRequired        = errors.New("forum: tag minimum required")
 	// ErrUseSearchEndpoint 表示 topics 列表不再支持关键词检索，应改用专用搜索端点。
 	ErrUseSearchEndpoint = errors.New("forum: use search endpoint")
 	// ErrGuestLoginRequired 游客阅读关闭时，匿名读请求被拒绝。
@@ -250,6 +250,23 @@ type TopicExtensionAction struct {
 	Confirm     bool              `json:"confirm,omitempty"`
 }
 
+// ComposerToolbarAction 是 forum.composer.toolbar 贡献的宿主安全描述符（F4.3）。
+type ComposerToolbarAction struct {
+	ExtensionID string            `json:"extensionId"`
+	ID          string            `json:"id"`
+	Order       int               `json:"order"`
+	Label       map[string]string `json:"label,omitempty"`
+	Icon        string            `json:"icon,omitempty"`
+	Method      string            `json:"method"`
+	URL         string            `json:"url"`
+	Confirm     bool              `json:"confirm,omitempty"`
+}
+
+// ComposerToolbarProvider 由扩展贡献解析器实现。
+type ComposerToolbarProvider interface {
+	ComposerToolbarActions(ctx context.Context) ([]ComposerToolbarAction, error)
+}
+
 type CreateTopicInput struct {
 	CategorySlug string       `json:"categorySlug"`
 	Title        string       `json:"title"`
@@ -328,38 +345,38 @@ type ForumSettings struct {
 	CommentsPerPage     int    `json:"commentsPerPage"`
 
 	// 主题内容与节奏限制（rune 计长；0 表示不限，除 min 外）
-	TopicTitleMinRunes      int `json:"topicTitleMinRunes"`
-	TopicTitleMaxRunes      int `json:"topicTitleMaxRunes"`
-	TopicContentMinRunes    int `json:"topicContentMinRunes"`
-	TopicContentMaxRunes    int `json:"topicContentMaxRunes"`
-	TopicEditWindowMinutes  int `json:"topicEditWindowMinutes"`
-	TopicCooldownSeconds     int `json:"topicCooldownSeconds"`
-	DailyTopicLimit         int `json:"dailyTopicLimit"`
+	TopicTitleMinRunes     int `json:"topicTitleMinRunes"`
+	TopicTitleMaxRunes     int `json:"topicTitleMaxRunes"`
+	TopicContentMinRunes   int `json:"topicContentMinRunes"`
+	TopicContentMaxRunes   int `json:"topicContentMaxRunes"`
+	TopicEditWindowMinutes int `json:"topicEditWindowMinutes"`
+	TopicCooldownSeconds   int `json:"topicCooldownSeconds"`
+	DailyTopicLimit        int `json:"dailyTopicLimit"`
 
 	// 评论内容、嵌套与节奏限制
-	CommentMinRunes         int `json:"commentMinRunes"`
-	CommentMaxRunes         int `json:"commentMaxRunes"`
-	CommentMaxNestingDepth  int `json:"commentMaxNestingDepth"`
+	CommentMinRunes          int `json:"commentMinRunes"`
+	CommentMaxRunes          int `json:"commentMaxRunes"`
+	CommentMaxNestingDepth   int `json:"commentMaxNestingDepth"`
 	CommentEditWindowMinutes int `json:"commentEditWindowMinutes"`
-	CommentCooldownSeconds    int `json:"commentCooldownSeconds"`
-	DailyCommentLimit       int `json:"dailyCommentLimit"`
+	CommentCooldownSeconds   int `json:"commentCooldownSeconds"`
+	DailyCommentLimit        int `json:"dailyCommentLimit"`
 
 	// 列表摘要截断长度（写入 posts.excerpt 时生效）
 	ExcerptRuneLimit int `json:"excerptRuneLimit"`
 
 	// Wave 1：阅读与主题/评论行为策略
-	GuestRead                  string `json:"guestRead"`                  // public | login_required
-	ListDefaultSort            string `json:"listDefaultSort"`            // latest | active | hot
-	ListHotWindowDays          int    `json:"listHotWindowDays"`
-	AllowAuthorCloseReplies    bool   `json:"allowAuthorCloseReplies"`
-	AllowAuthorDelete          bool   `json:"allowAuthorDelete"`
-	AutoLockIdleDays           int    `json:"autoLockIdleDays"` // 0=关闭
-	ShowTopicEditMark          bool   `json:"showTopicEditMark"`
-	DuplicateTitlePolicy       string `json:"duplicateTitlePolicy"` // off | warn | block
-	ShowCommentEditMark        bool   `json:"showCommentEditMark"`
-	SoftDeleteVisibility       string `json:"softDeleteVisibility"` // author_and_staff | staff_only | hidden
-	MentionsEnabled            bool   `json:"mentionsEnabled"`
-	MentionsMaxPerPost         int    `json:"mentionsMaxPerPost"`
+	GuestRead               string `json:"guestRead"`       // public | login_required
+	ListDefaultSort         string `json:"listDefaultSort"` // latest | active | hot
+	ListHotWindowDays       int    `json:"listHotWindowDays"`
+	AllowAuthorCloseReplies bool   `json:"allowAuthorCloseReplies"`
+	AllowAuthorDelete       bool   `json:"allowAuthorDelete"`
+	AutoLockIdleDays        int    `json:"autoLockIdleDays"` // 0=关闭
+	ShowTopicEditMark       bool   `json:"showTopicEditMark"`
+	DuplicateTitlePolicy    string `json:"duplicateTitlePolicy"` // off | warn | block
+	ShowCommentEditMark     bool   `json:"showCommentEditMark"`
+	SoftDeleteVisibility    string `json:"softDeleteVisibility"` // author_and_staff | staff_only | hidden
+	MentionsEnabled         bool   `json:"mentionsEnabled"`
+	MentionsMaxPerPost      int    `json:"mentionsMaxPerPost"`
 }
 
 type CreateCategoryGroupInput struct {
@@ -439,13 +456,13 @@ type UpdateForumSettingsInput struct {
 	TopicContentMinRunes     *int
 	TopicContentMaxRunes     *int
 	TopicEditWindowMinutes   *int
-	TopicCooldownSeconds      *int
+	TopicCooldownSeconds     *int
 	DailyTopicLimit          *int
 	CommentMinRunes          *int
 	CommentMaxRunes          *int
 	CommentMaxNestingDepth   *int
 	CommentEditWindowMinutes *int
-	CommentCooldownSeconds     *int
+	CommentCooldownSeconds   *int
 	DailyCommentLimit        *int
 	ExcerptRuneLimit         *int
 

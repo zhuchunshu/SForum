@@ -20,6 +20,7 @@ type Option func(*Service)
 type Service struct {
 	store   Store
 	runtime RuntimeProvider
+	widgets DashboardWidgetProvider
 	clock   func() time.Time
 }
 
@@ -45,6 +46,13 @@ func WithClock(clock func() time.Time) Option {
 	}
 }
 
+// WithDashboardWidgets 注入扩展仪表盘小部件（F4.3）。
+func WithDashboardWidgets(provider DashboardWidgetProvider) Option {
+	return func(service *Service) {
+		service.widgets = provider
+	}
+}
+
 func (s *Service) Overview(ctx context.Context, actor identity.Actor) (AdminOverview, error) {
 	if !actor.Can(identity.PermissionAdminAccess) {
 		return AdminOverview{}, identity.ErrPermissionDenied
@@ -57,18 +65,31 @@ func (s *Service) Overview(ctx context.Context, actor identity.Actor) (AdminOver
 		return AdminOverview{}, err
 	}
 
+	widgets, err := s.listWidgets(ctx)
+	if err != nil {
+		return AdminOverview{}, err
+	}
+
 	return AdminOverview{
-		GeneratedAt:   now,
-		WindowDays:    WindowDays,
-		Runtime:       s.runtimeSnapshot(),
-		Community:     snapshot.Community,
-		Attachments:   snapshot.Attachments,
-		Moderation:    snapshot.Moderation,
-		Extensions:    snapshot.Extensions,
-		Trends:        TrendStats{Days: snapshot.Trends},
-		TopCategories: snapshot.TopCategories,
-		Actions:       overviewActions(snapshot),
+		GeneratedAt:      now,
+		WindowDays:       WindowDays,
+		Runtime:          s.runtimeSnapshot(),
+		Community:        snapshot.Community,
+		Attachments:      snapshot.Attachments,
+		Moderation:       snapshot.Moderation,
+		Extensions:       snapshot.Extensions,
+		Trends:           TrendStats{Days: snapshot.Trends},
+		TopCategories:    snapshot.TopCategories,
+		Actions:          overviewActions(snapshot),
+		ExtensionWidgets: widgets,
 	}, nil
+}
+
+func (s *Service) listWidgets(ctx context.Context) ([]ExtensionWidget, error) {
+	if s == nil || s.widgets == nil {
+		return nil, nil
+	}
+	return s.widgets.DashboardWidgets(ctx)
 }
 
 func (s *Service) runtimeSnapshot() RuntimeStats {

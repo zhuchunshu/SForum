@@ -8,7 +8,16 @@ import (
 
 func TestContributionPointDefinitionsContainJobsProductionSlots(t *testing.T) {
 	points := ContributionPointDefinitions()
-	want := map[string]bool{"forum.topic.actions": true, "admin.jobs.table.columns": true, "admin.jobs.row.actions": true, "admin.jobs.detail.sections": true}
+	want := map[string]bool{
+		PointForumTopicActions:       true,
+		PointForumComposerToolbar:    true,
+		PointForumProfileTabs:        true,
+		PointAdminDashboardWidgets:   true,
+		PointSystemHealthChecks:      true,
+		"admin.jobs.table.columns":   true,
+		"admin.jobs.row.actions":     true,
+		"admin.jobs.detail.sections": true,
+	}
 	for _, point := range points {
 		delete(want, point.ID)
 		if point.ID == "admin.test.fixture" {
@@ -17,6 +26,70 @@ func TestContributionPointDefinitionsContainJobsProductionSlots(t *testing.T) {
 	}
 	if len(want) != 0 {
 		t.Fatalf("missing production contribution points: %#v", want)
+	}
+}
+
+func TestF43ContributionPayloadValidation(t *testing.T) {
+	base := Manifest{
+		ID:            "demo.f43",
+		Name:          "F43 Demo",
+		Description:   "F4.3 contribution payload tests.",
+		URL:           "https://example.com/f43",
+		Author:        ManifestAuthor{Name: "Demo"},
+		Version:       "1.0.0",
+		Type:          TypePlugin,
+		SForumVersion: "^1.0.0",
+		Routes: []ManifestRoute{
+			{Path: "/actions/x", Methods: []string{"POST"}, Access: RouteAccessLogin},
+		},
+	}
+
+	okCases := [][]ManifestContribution{
+		{{
+			Point: PointForumComposerToolbar, ID: "demo.composer", Order: 10,
+			Label: map[string]string{"en-US": "Insert"}, Icon: "i-lucide-wand",
+			Payload: json.RawMessage(`{"type":"extensionRoute","method":"POST","path":"/actions/x"}`),
+		}},
+		{{
+			Point: PointForumProfileTabs, ID: "demo.tab", Order: 10,
+			Label: map[string]string{"en-US": "Extra"}, Icon: "i-lucide-user",
+			Payload: json.RawMessage(`{"type":"hostLink","href":"/tags"}`),
+		}},
+		{{
+			Point: PointAdminDashboardWidgets, ID: "demo.widget", Order: 10,
+			Label: map[string]string{"en-US": "Queue"}, Icon: "i-lucide-gauge",
+			Payload: json.RawMessage(`{"type":"adminLink","route":"/jobs","severity":"info"}`),
+		}},
+		{{
+			Point: PointSystemHealthChecks, ID: "demo.health", Order: 10,
+			Label:   map[string]string{"en-US": "Demo health"},
+			Payload: json.RawMessage(`{"type":"static","component":"extension.demo.f43"}`),
+		}},
+	}
+	for i, contributions := range okCases {
+		m := base
+		m.Contributions = contributions
+		if err := Validate(m); err != nil {
+			t.Fatalf("ok case %d should validate: %v", i, err)
+		}
+	}
+
+	bad := base
+	bad.Contributions = []ManifestContribution{{
+		Point: PointAdminDashboardWidgets, ID: "evil", Order: 1,
+		Label:   map[string]string{"en-US": "Evil"},
+		Payload: json.RawMessage(`{"type":"adminLink","route":"https://evil.example/","severity":"info"}`),
+	}}
+	if err := Validate(bad); err == nil {
+		t.Fatal("external dashboard route must be rejected")
+	}
+	bad.Contributions = []ManifestContribution{{
+		Point: PointSystemHealthChecks, ID: "evil2", Order: 1,
+		Label:   map[string]string{"en-US": "Evil"},
+		Payload: json.RawMessage(`{"type":"rpc","component":"x"}`),
+	}}
+	if err := Validate(bad); err == nil {
+		t.Fatal("executable/unknown health type must be rejected")
 	}
 }
 

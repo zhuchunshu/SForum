@@ -377,10 +377,16 @@
       },
       "trend": {
         "title": "最近 7 天社区趋势",
-        "description": "最近 {days} 天的主题、回复和新用户。",
+        "description": "最近 {days} 天的主题、回复和新用户（各自独立刻度）。",
         "topics": "主题",
         "comments": "回复",
-        "users": "用户"
+        "users": "新用户",
+        "unitTopics": "篇",
+        "unitComments": "条",
+        "unitUsers": "人",
+        "totalMeta": "{days} 日合计 · 今日 {today}{unit}",
+        "vsYesterday": "{delta}% 较昨日",
+        "peakDay": "峰值日 · {label}"
       },
       "runtime": {
         "title": "系统运行状态",
@@ -437,6 +443,7 @@
         "emptyDescription": "创建版块并发布主题后，这里会显示活跃版块。"
       },
       "quickTitle": "快捷入口",
+      "extensionWidgetsTitle": "扩展小部件",
       "quick": {
         "users": {
           "title": "用户管理",

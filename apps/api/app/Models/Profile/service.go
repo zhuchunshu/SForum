@@ -15,6 +15,15 @@ type Service struct {
 	store          Store
 	avatarUploader AvatarUploader
 	avatarOptions  AvatarOptionResolver
+	profileTabs    ProfileTabProvider
+}
+
+// WithProfileTabs 注入公开资料页扩展 tabs（F4.3）。
+func (s *Service) WithProfileTabs(provider ProfileTabProvider) *Service {
+	if s != nil {
+		s.profileTabs = provider
+	}
+	return s
 }
 
 type AvatarUploader interface {
@@ -62,16 +71,28 @@ func (s *Service) GetPublicProfile(ctx context.Context, username string) (Public
 		return PublicProfile{}, err
 	}
 	profile = s.decorateProfile(ctx, user, profile)
+	tabs, err := s.listProfileTabs(ctx)
+	if err != nil {
+		return PublicProfile{}, err
+	}
 	return PublicProfile{
-		UserID:       user.UserID,
-		Username:     user.Username,
-		DisplayName:  user.DisplayName,
-		Profile:      profile,
-		TopicCount:   stats.TopicCount,
-		CommentCount: stats.CommentCount,
-		RecentTopics: recent,
-		JoinedAt:     user.JoinedAt,
+		UserID:        user.UserID,
+		Username:      user.Username,
+		DisplayName:   user.DisplayName,
+		Profile:       profile,
+		TopicCount:    stats.TopicCount,
+		CommentCount:  stats.CommentCount,
+		RecentTopics:  recent,
+		JoinedAt:      user.JoinedAt,
+		ExtensionTabs: tabs,
 	}, nil
+}
+
+func (s *Service) listProfileTabs(ctx context.Context) ([]ProfileExtensionTab, error) {
+	if s == nil || s.profileTabs == nil {
+		return nil, nil
+	}
+	return s.profileTabs.ProfileTabs(ctx)
 }
 
 // GetMyProfile 读取当前用户可编辑的资料。

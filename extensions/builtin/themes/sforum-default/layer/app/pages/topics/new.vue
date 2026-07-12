@@ -19,6 +19,46 @@ const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const forumApi = useForumApi()
 const { can } = usePermissions()
 const toast = useToast()
+const { locale } = useI18n()
+
+// F4.3：composer 工具栏扩展动作（登录后拉取；失败静默为空）。
+const { data: composerToolbarActions } = await useAsyncData(
+  'composer-toolbar-actions',
+  async () => {
+    try {
+      return await forumApi.listComposerToolbarActions()
+    } catch {
+      return []
+    }
+  },
+  { default: () => [] as import('~/utils/forumTaxonomy').ForumComposerToolbarAction[] }
+)
+
+function composerToolbarLabel(action: import('~/utils/forumTaxonomy').ForumComposerToolbarAction) {
+  const labels = action.label || {}
+  return labels[String(locale.value)] || labels['zh-CN'] || labels['en-US'] || Object.values(labels)[0] || action.id
+}
+
+async function runComposerToolbarAction(action: import('~/utils/forumTaxonomy').ForumComposerToolbarAction) {
+  if (action.confirm && !window.confirm(composerToolbarLabel(action))) {
+    return
+  }
+  try {
+    await forumApi.applyComposerToolbarAction(action)
+    toast.add({
+      color: 'primary',
+      icon: action.icon || 'i-lucide-check',
+      title: composerToolbarLabel(action),
+      duration: 10000
+    })
+  } catch (error) {
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-triangle-alert',
+      title: apiErrorMessage(error) || t('composer.submitFailed')
+    })
+  }
+}
 
 useSForumSeo({
   title: () => `${t('composer.metaTitle')} - ${siteName.value}`,
@@ -305,6 +345,24 @@ const markdownCheatsheet = computed(() => [
             <p class="text-xs text-slate-400 dark:text-zinc-500 mb-2">
               {{ bodyHint }} ({{ t('composer.charCount', { count: bodyCount, max: limits.topicContentMaxRunes }) }})
             </p>
+            <!-- F4.3：扩展 composer 工具栏（宿主渲染按钮，执行走扩展路由） -->
+            <div
+              v-if="composerToolbarActions.length"
+              class="mb-2 flex flex-wrap items-center gap-2"
+            >
+              <SFButton
+                v-for="action in composerToolbarActions"
+                :key="`${action.extensionId}:${action.id}`"
+                type="button"
+                size="sm"
+                variant="ghost"
+                :disabled="submitState === 'submitting'"
+                @click="runComposerToolbarAction(action)"
+              >
+                <UIcon v-if="action.icon" :name="action.icon" class="size-4" />
+                <span>{{ composerToolbarLabel(action) }}</span>
+              </SFButton>
+            </div>
             <LazySFEditor
               v-model="bodyMarkdown"
               :placeholder="t('composer.bodyPlaceholder')"

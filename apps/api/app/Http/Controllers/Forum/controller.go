@@ -156,6 +156,21 @@ func (h *Controller) categoryGroups(c fiber.Ctx) error {
 	return apphttp.OK(c, items)
 }
 
+func (h *Controller) composerToolbar(c fiber.Ctx) error {
+	// 与发帖一致：需登录才能使用扩展工具栏动作。
+	if _, err := h.actor(c); err != nil {
+		return err
+	}
+	items, err := h.service.ListComposerToolbarActions(c.Context())
+	if err != nil {
+		return mapForumError(err)
+	}
+	if items == nil {
+		items = []forum.ComposerToolbarAction{}
+	}
+	return apphttp.OK(c, items)
+}
+
 func (h *Controller) tags(c fiber.Ctx) error {
 	if err := h.requireGuestRead(c); err != nil {
 		return err

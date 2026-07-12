@@ -14,11 +14,13 @@ import {
   type ForumTopicActionKey,
   type ForumTopicDetail,
   type ForumTopicExtensionAction,
+  type ForumComposerToolbarAction,
   type ForumTopicFilters,
   type ForumTopicCreateInput,
   type ForumTopicList,
   type ForumTopicSearchFilters,
-  type ForumTopicUpdateInput
+  type ForumTopicUpdateInput,
+  forumTopicExtensionActionRequestPath
 } from '~/utils/forumTaxonomy'
 
 export function useForumApi() {
@@ -129,6 +131,21 @@ export function useForumApi() {
     })
   }
 
+  function listComposerToolbarActions() {
+    return request<ForumComposerToolbarAction[]>('/composer/toolbar')
+  }
+
+  function applyComposerToolbarAction(action: ForumComposerToolbarAction) {
+    const path = forumTopicExtensionActionRequestPath(action)
+    if (!path) {
+      throw new Error('Invalid composer toolbar action')
+    }
+    return request<unknown>(path, {
+      method: action.method,
+      body: {}
+    })
+  }
+
   return {
     listCategoryGroups,
     listTags,
@@ -146,7 +163,9 @@ export function useForumApi() {
     updateTopic,
     deleteTopic,
     applyTopicAction,
-    applyTopicExtensionAction
+    applyTopicExtensionAction,
+    listComposerToolbarActions,
+    applyComposerToolbarAction
   }
 }
 

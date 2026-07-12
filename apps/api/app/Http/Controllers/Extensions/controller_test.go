@@ -339,8 +339,27 @@ func TestControllerListsContributionPointsAndContributions(t *testing.T) {
 	for _, point := range points.Data {
 		pointIDs[point.ID] = true
 	}
-	if len(points.Data) != 7 || !pointIDs["forum.topic.actions"] || !pointIDs["admin.jobs.table.columns"] || !pointIDs["admin.jobs.row.actions"] || !pointIDs["admin.jobs.detail.sections"] || !pointIDs["admin.extension.settings.page"] || !pointIDs["admin.extension.settings.header"] || !pointIDs["admin.extension.settings.footer"] {
-		t.Fatalf("unexpected contribution points: %#v", points.Data)
+	// F4.3 起目录含 topic/composer/profile/dashboard/health + jobs + extension settings。
+	requiredPoints := []string{
+		"forum.topic.actions",
+		"forum.composer.toolbar",
+		"forum.profile.tabs",
+		"admin.dashboard.widgets",
+		"system.health.checks",
+		"admin.jobs.table.columns",
+		"admin.jobs.row.actions",
+		"admin.jobs.detail.sections",
+		"admin.extension.settings.page",
+		"admin.extension.settings.header",
+		"admin.extension.settings.footer",
+	}
+	if len(points.Data) != len(requiredPoints) {
+		t.Fatalf("unexpected contribution points count %d: %#v", len(points.Data), points.Data)
+	}
+	for _, id := range requiredPoints {
+		if !pointIDs[id] {
+			t.Fatalf("missing contribution point %q in %#v", id, points.Data)
+		}
 	}
 
 	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/contributions", cookie)

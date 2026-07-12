@@ -18,11 +18,28 @@ type Service struct {
 	settings          SettingsResolver
 	events            appevents.Publisher
 	topicActions      TopicExtensionActionProvider
+	composerToolbar   ComposerToolbarProvider
 	publicationPolicy PublicationPolicy
 	// indexer 触发 Meilisearch 索引调度；nil 表示不索引（搜索为派生数据，可重建）。
 	indexer TopicSearchIndexer
 	// trust 可选新人信任阶梯；nil 时不叠加新人限制。
 	trust TrustPolicyResolver
+}
+
+// WithComposerToolbar 注入 composer 工具栏贡献解析（F4.3）。
+func (s *Service) WithComposerToolbar(provider ComposerToolbarProvider) *Service {
+	if s != nil {
+		s.composerToolbar = provider
+	}
+	return s
+}
+
+// ListComposerToolbarActions 返回已启用插件的 composer 工具栏动作。
+func (s *Service) ListComposerToolbarActions(ctx context.Context) ([]ComposerToolbarAction, error) {
+	if s == nil || s.composerToolbar == nil {
+		return nil, nil
+	}
+	return s.composerToolbar.ComposerToolbarActions(ctx)
 }
 
 // WithTrustPolicy 注入新人信任策略（options 适配）。链式可选。
@@ -1080,13 +1097,13 @@ func (s *Service) enforceCommentCreateLimitsForActor(ctx context.Context, actor 
 // trustLimits 是 forum 侧缓存的新人策略快照；由 SettingsResolver 扩展或 options 注入。
 // 当前从 ForumSettings 之外的 resolver 可选接口读取，缺省不启用新人限制。
 type trustLimits struct {
-	active         bool
-	topicCooldown    int
-	commentCooldown   int
-	dailyTopic     int
-	dailyComment   int
-	forbidLinks    bool
-	forbidAttach   bool
+	active          bool
+	topicCooldown   int
+	commentCooldown int
+	dailyTopic      int
+	dailyComment    int
+	forbidLinks     bool
+	forbidAttach    bool
 }
 
 // TrustPolicyResolver 可选：由 options 适配器实现，向 forum 注入新人阶梯。
@@ -1121,12 +1138,12 @@ func (s *Service) trustForActor(ctx context.Context, actor identity.Actor) trust
 	dailyComment, _ := s.trust.NewUserDailyCommentLimit(ctx)
 	forbidLinks, _ := s.trust.NewUserForbidOutboundLinks(ctx)
 	return trustLimits{
-		active:       true,
-		topicCooldown:  topicCooldown,
+		active:          true,
+		topicCooldown:   topicCooldown,
 		commentCooldown: commentCooldown,
-		dailyTopic:   dailyTopic,
-		dailyComment: dailyComment,
-		forbidLinks:  forbidLinks,
+		dailyTopic:      dailyTopic,
+		dailyComment:    dailyComment,
+		forbidLinks:     forbidLinks,
 	}
 }
 

@@ -414,8 +414,23 @@ func TestServiceListsContributionPointsAndEffectiveContributions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ContributionPoints returned error: %v", err)
 	}
-	if len(points) != 7 || points[0].ID != "forum.topic.actions" {
+	// 与 ExtensionManifest.ContributionPointDefinitions 生产目录对齐（含 F4.3）。
+	if len(points) != 11 || points[0].ID != "forum.topic.actions" {
 		t.Fatalf("unexpected contribution points: %#v", points)
+	}
+	pointIDs := make(map[string]bool, len(points))
+	for _, point := range points {
+		pointIDs[point.ID] = true
+	}
+	for _, id := range []string{
+		"forum.composer.toolbar",
+		"forum.profile.tabs",
+		"admin.dashboard.widgets",
+		"system.health.checks",
+	} {
+		if !pointIDs[id] {
+			t.Fatalf("missing F4.3 contribution point %q in %#v", id, points)
+		}
 	}
 
 	contributions, err := service.Contributions(context.Background(), extensionManager())

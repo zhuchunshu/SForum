@@ -159,6 +159,42 @@ AdminOverview:
       type: array
       items:
         "$ref": "#/AdminOverviewAction"
+    extensionWidgets:
+      type: array
+      description: Host-owned admin dashboard widgets from admin.dashboard.widgets (F4.3).
+      items:
+        "$ref": "#/AdminOverviewExtensionWidget"
+AdminOverviewExtensionWidget:
+  type: object
+  required:
+  - extensionId
+  - id
+  - order
+  - route
+  - severity
+  properties:
+    extensionId:
+      type: string
+    id:
+      type: string
+    order:
+      type: integer
+    label:
+      type: object
+      additionalProperties:
+        type: string
+    icon:
+      type: string
+    route:
+      type: string
+      description: Admin-shell relative route such as /jobs or /extensions/plugins.
+    severity:
+      type: string
+      enum:
+      - info
+      - success
+      - warning
+      - danger
 AdminOverviewRuntime:
   type: object
   required:

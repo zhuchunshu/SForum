@@ -72,6 +72,8 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/categoryGroups"
   "/tags":
     "$ref": "./openapi/paths/forum.yaml#/tags"
+  "/composer/toolbar":
+    "$ref": "./openapi/paths/forum.yaml#/composerToolbar"
   "/search":
     "$ref": "./openapi/paths/forum.yaml#/search"
   "/topics":

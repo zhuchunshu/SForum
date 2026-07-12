@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/useAdminPage'
+import SFAdminOverviewTrendTrio from '~/components/admin/SFAdminOverviewTrendTrio.vue'
 import {
   formatOverviewBytes,
   formatOverviewCount,
@@ -8,10 +9,9 @@ import {
   formatOverviewUptime,
   overviewActionTone,
   overviewPercent,
-  overviewTrendMax,
   type AdminOverview,
   type AdminOverviewAction,
-  type AdminOverviewTrendDay
+  type AdminOverviewExtensionWidget
 } from '~/utils/adminOverview'
 
 definePageMeta({
@@ -39,8 +39,6 @@ const {
   () => request<AdminOverview>('/admin/overview'),
   { default: () => null }
 )
-
-const trendMax = computed(() => overviewTrendMax(overview.value?.trends.days || []))
 
 const kpiCards = computed(() => {
   const data = overview.value
@@ -207,14 +205,6 @@ useSeoMeta({
   title: t('admin.home.metaTitle')
 })
 
-function trendHeight(day: AdminOverviewTrendDay, field: keyof Pick<AdminOverviewTrendDay, 'topicCount' | 'commentCount' | 'userCount'>) {
-  const value = Math.max(0, day[field])
-  if (value === 0) {
-    return '4px'
-  }
-  return `${Math.max(8, Math.round((value / trendMax.value) * 100))}%`
-}
-
 function actionLabel(action: AdminOverviewAction) {
   return t(`admin.home.actions.${action.key}.title`)
 }
@@ -229,6 +219,24 @@ function actionRoute(action: AdminOverviewAction) {
 
 function actionColor(action: AdminOverviewAction) {
   const tone = overviewActionTone(action.severity)
+  return tone === 'danger' ? 'error' : tone
+}
+
+const { locale } = useI18n()
+
+const extensionWidgets = computed(() => overview.value?.extensionWidgets || [])
+
+function extensionWidgetLabel(widget: AdminOverviewExtensionWidget) {
+  const labels = widget.label || {}
+  return labels[String(locale.value)] || labels['zh-CN'] || labels['en-US'] || Object.values(labels)[0] || widget.id
+}
+
+function extensionWidgetRoute(widget: AdminOverviewExtensionWidget) {
+  return adminRoutes.path(widget.route)
+}
+
+function extensionWidgetColor(widget: AdminOverviewExtensionWidget) {
+  const tone = overviewActionTone(widget.severity)
   return tone === 'danger' ? 'error' : tone
 }
 </script>
@@ -325,25 +333,10 @@ function actionColor(action: AdminOverviewAction) {
           </div>
         </template>
 
-        <div class="h-64">
-          <div class="grid h-full grid-cols-7 items-end gap-2 sm:gap-4">
-            <div v-for="day in overview.trends.days" :key="day.date" class="flex h-full min-w-0 flex-col justify-end gap-2">
-              <div class="flex h-48 items-end justify-center gap-1 rounded-md bg-slate-50 px-1 py-2 dark:bg-zinc-950/60">
-                <span class="w-2 rounded-t bg-[var(--sf-accent)] dark:bg-[var(--sf-accent-dark)]" :style="{ height: trendHeight(day, 'topicCount') }" />
-                <span class="w-2 rounded-t bg-blue-500 dark:bg-blue-400" :style="{ height: trendHeight(day, 'commentCount') }" />
-                <span class="w-2 rounded-t bg-green-500 dark:bg-green-400" :style="{ height: trendHeight(day, 'userCount') }" />
-              </div>
-              <p class="truncate text-center text-[11px] font-medium text-slate-500 dark:text-zinc-500">
-                {{ day.date.slice(5) }}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div class="mt-4 flex flex-wrap gap-3 text-xs text-slate-500 dark:text-zinc-400">
-          <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-[var(--sf-accent)] dark:bg-[var(--sf-accent-dark)]" />{{ t('admin.home.trend.topics') }}</span>
-          <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-blue-500 dark:bg-blue-400" />{{ t('admin.home.trend.comments') }}</span>
-          <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-green-500 dark:bg-green-400" />{{ t('admin.home.trend.users') }}</span>
-        </div>
+        <SFAdminOverviewTrendTrio
+          :days="overview.trends.days"
+          :window-days="overview.windowDays"
+        />
       </UCard>
 
       <UCard class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
@@ -465,6 +458,43 @@ function actionColor(action: AdminOverviewAction) {
         />
       </UCard>
     </div>
+
+    <UCard
+      v-if="extensionWidgets.length"
+      class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
+    >
+      <template #header>
+        <div class="flex items-center justify-between gap-3">
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">
+            {{ t('admin.home.extensionWidgetsTitle') }}
+          </h3>
+          <UIcon name="i-lucide-puzzle" class="size-5 text-slate-400 dark:text-zinc-500" />
+        </div>
+      </template>
+      <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <NuxtLink
+          v-for="widget in extensionWidgets"
+          :key="`${widget.extensionId}:${widget.id}`"
+          :to="extensionWidgetRoute(widget)"
+          class="group flex min-w-0 items-center gap-3 rounded-md border border-slate-100 px-3 py-3 transition hover:bg-slate-50 dark:border-zinc-800 dark:hover:bg-zinc-800/40"
+        >
+          <span class="icon-glass-box shrink-0 text-slate-600 dark:text-zinc-300">
+            <UIcon :name="widget.icon || 'i-lucide-blocks'" class="size-5 z-10" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-sm font-semibold text-slate-900 dark:text-white">
+              {{ extensionWidgetLabel(widget) }}
+            </span>
+            <span class="block truncate text-xs text-slate-500 dark:text-zinc-400">
+              {{ widget.extensionId }}
+            </span>
+          </span>
+          <UBadge :color="extensionWidgetColor(widget)" variant="soft" class="shrink-0">
+            {{ widget.severity }}
+          </UBadge>
+        </NuxtLink>
+      </div>
+    </UCard>
 
     <UCard class="elegant-card border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100">
       <template #header>

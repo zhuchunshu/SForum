@@ -45,23 +45,23 @@ type Manifest struct {
 	SForumVersion string         `json:"sforumVersion"`
 	// Langs 是可选的本地化覆盖。顶层 name/description/author 为默认英文；
 	// 未声明 langs 时无需翻译，直接使用顶层字段。
-	Langs         map[string]ManifestLocale `json:"langs,omitempty"`
-	Permissions   []string                  `json:"permissions"`
+	Langs       map[string]ManifestLocale `json:"langs,omitempty"`
+	Permissions []string                  `json:"permissions"`
 	// Capabilities 为插件声明的 Host 能力（F2.1）。主题必须为空。
 	// 未声明时宿主仍会按 jobs/settings/providers/backend 推断最小集。
-	Capabilities  []string                  `json:"capabilities,omitempty"`
-	Settings      []ManifestSetting         `json:"settings"`
-	Migrations    []ManifestMigration       `json:"migrations"`
-	Backend       ManifestBackend           `json:"backend"`
-	Frontend      ManifestFrontend          `json:"frontend"`
-	Admin         ManifestAdmin             `json:"admin"`
-	AdminPages    []ManifestAdminPage       `json:"adminPages"`
-	Routes        []ManifestRoute           `json:"routes"`
-	Hooks         []ManifestHook            `json:"hooks"`
-	Events        []ManifestEvent           `json:"events"`
-	Jobs          []ManifestJob             `json:"jobs"`
-	Providers     []ManifestProvider        `json:"providers"`
-	Contributions []ManifestContribution    `json:"contributions"`
+	Capabilities  []string               `json:"capabilities,omitempty"`
+	Settings      []ManifestSetting      `json:"settings"`
+	Migrations    []ManifestMigration    `json:"migrations"`
+	Backend       ManifestBackend        `json:"backend"`
+	Frontend      ManifestFrontend       `json:"frontend"`
+	Admin         ManifestAdmin          `json:"admin"`
+	AdminPages    []ManifestAdminPage    `json:"adminPages"`
+	Routes        []ManifestRoute        `json:"routes"`
+	Hooks         []ManifestHook         `json:"hooks"`
+	Events        []ManifestEvent        `json:"events"`
+	Jobs          []ManifestJob          `json:"jobs"`
+	Providers     []ManifestProvider     `json:"providers"`
+	Contributions []ManifestContribution `json:"contributions"`
 }
 
 type ManifestAuthor struct {
@@ -164,11 +164,61 @@ type ManifestContribution struct {
 	Payload json.RawMessage   `json:"payload,omitempty"`
 }
 
+// 稳定贡献点 ID（F4.3 起与目录同步；新增点必须改此处 + OpenAPI + 文档 regenerate）。
+const (
+	PointForumTopicActions     = "forum.topic.actions"
+	PointForumComposerToolbar  = "forum.composer.toolbar"
+	PointForumProfileTabs      = "forum.profile.tabs"
+	PointAdminDashboardWidgets = "admin.dashboard.widgets"
+	PointSystemHealthChecks    = "system.health.checks"
+)
+
+// 宿主拥有的 payloadType；禁止可执行 JSON。
+const (
+	PayloadTypeExtensionRoute   = "extensionRoute"
+	PayloadTypeAdminComponent   = "adminComponent"
+	PayloadTypeProfileSection   = "profileSection"
+	PayloadTypeDashboardLink    = "dashboardLink"
+	PayloadTypeHealthDescriptor = "healthDescriptor"
+)
+
+// TopicActionContributionPayload 用于 forum.topic.actions（extensionRoute）。
 type TopicActionContributionPayload struct {
 	Type    string `json:"type"`
 	Method  string `json:"method"`
 	Path    string `json:"path"`
 	Confirm bool   `json:"confirm,omitempty"`
+}
+
+// ComposerToolbarContributionPayload 用于 forum.composer.toolbar（extensionRoute）。
+// 与主题操作相同：宿主渲染按钮，执行走扩展路由代理。
+type ComposerToolbarContributionPayload = TopicActionContributionPayload
+
+// ProfileTabContributionPayload 用于 forum.profile.tabs（profileSection）。
+// type=extensionRoute：走扩展路由；type=hostLink：仅允许站内相对路径（非 /api）。
+type ProfileTabContributionPayload struct {
+	Type   string `json:"type"`
+	Method string `json:"method,omitempty"`
+	Path   string `json:"path,omitempty"`
+	Href   string `json:"href,omitempty"`
+}
+
+// DashboardWidgetContributionPayload 用于 admin.dashboard.widgets（dashboardLink）。
+// 仅允许管理端相对路由（以 / 开头，禁止外链与 /api）。
+type DashboardWidgetContributionPayload struct {
+	Type     string `json:"type"`
+	Route    string `json:"route"`
+	Severity string `json:"severity,omitempty"`
+}
+
+// HealthCheckContributionPayload 用于 system.health.checks（healthDescriptor）。
+// 宿主在 /ready 中根据插件运行时状态贡献组件项；不在 ready 路径上调用插件 RPC。
+// type=extensionRuntime：按该扩展 runtime.state 映射 ok/degraded/error。
+// type=static：扩展已启用则固定 ok（仅声明「插件已加载」）。
+type HealthCheckContributionPayload struct {
+	Type      string `json:"type"`
+	Component string `json:"component"`
+	Required  bool   `json:"required,omitempty"`
 }
 
 type ContributionPointDefinition struct {
@@ -181,14 +231,18 @@ type ContributionPointDefinition struct {
 
 func ContributionPointDefinitions() []ContributionPointDefinition {
 	return []ContributionPointDefinition{
-		{ID: "forum.topic.actions", Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Topic detail action descriptors rendered by the host UI.", PayloadType: "extensionRoute"},
-		{ID: "admin.jobs.table.columns", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered as job table columns.", PayloadType: "adminComponent"},
-		{ID: "admin.jobs.row.actions", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered beside core job actions.", PayloadType: "adminComponent"},
-		{ID: "admin.jobs.detail.sections", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered in job detail.", PayloadType: "adminComponent"},
+		{ID: PointForumTopicActions, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Topic detail action descriptors rendered by the host UI.", PayloadType: PayloadTypeExtensionRoute},
+		{ID: PointForumComposerToolbar, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Composer/editor toolbar actions rendered by the host UI; payload is an extensionRoute only.", PayloadType: PayloadTypeExtensionRoute},
+		{ID: PointForumProfileTabs, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Public profile tabs/sections rendered by the host UI (extensionRoute or hostLink).", PayloadType: PayloadTypeProfileSection},
+		{ID: PointAdminDashboardWidgets, Owner: "admin", Kind: ContributionPointKindDescriptor, Description: "Admin dashboard link widgets; host-owned routes only, no executable payloads.", PayloadType: PayloadTypeDashboardLink},
+		{ID: PointSystemHealthChecks, Owner: "system", Kind: ContributionPointKindDescriptor, Description: "Plugin readiness components merged into GET /ready without invoking plugin RPC.", PayloadType: PayloadTypeHealthDescriptor},
+		{ID: "admin.jobs.table.columns", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered as job table columns.", PayloadType: PayloadTypeAdminComponent},
+		{ID: "admin.jobs.row.actions", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered beside core job actions.", PayloadType: PayloadTypeAdminComponent},
+		{ID: "admin.jobs.detail.sections", Owner: "jobs", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered in job detail.", PayloadType: PayloadTypeAdminComponent},
 		// 扩展设置页：默认由宿主渲染 manifest settings；插件可替换整页或注入页眉/页脚。
-		{ID: "admin.extension.settings.page", Owner: "extensions", Kind: ContributionPointKindComponent, Description: "Trusted client component that replaces the host-rendered extension settings form for the owning extension.", PayloadType: "adminComponent"},
-		{ID: "admin.extension.settings.header", Owner: "extensions", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered above the host-rendered extension settings form.", PayloadType: "adminComponent"},
-		{ID: "admin.extension.settings.footer", Owner: "extensions", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered below the host-rendered extension settings form.", PayloadType: "adminComponent"},
+		{ID: "admin.extension.settings.page", Owner: "extensions", Kind: ContributionPointKindComponent, Description: "Trusted client component that replaces the host-rendered extension settings form for the owning extension.", PayloadType: PayloadTypeAdminComponent},
+		{ID: "admin.extension.settings.header", Owner: "extensions", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered above the host-rendered extension settings form.", PayloadType: PayloadTypeAdminComponent},
+		{ID: "admin.extension.settings.footer", Owner: "extensions", Kind: ContributionPointKindComponent, Description: "Trusted client components rendered below the host-rendered extension settings form.", PayloadType: PayloadTypeAdminComponent},
 	}
 }
 
@@ -832,13 +886,13 @@ func validateContributions(manifest Manifest, definitions []ContributionPointDef
 		}
 		switch definition.Kind {
 		case ContributionPointKindDescriptor:
-			if definition.PayloadType != "extensionRoute" {
-				return ErrInvalidManifest
-			}
-			if err := validateTopicActionContributionPayload(contribution.Payload); err != nil {
+			if err := validateDescriptorContributionPayload(definition.PayloadType, contribution.Payload); err != nil {
 				return err
 			}
 		case ContributionPointKindComponent:
+			if definition.PayloadType != PayloadTypeAdminComponent {
+				return ErrInvalidManifest
+			}
 			component, err := adminComponentBinding(contribution.Payload)
 			if err != nil || manifest.Frontend.Admin == nil {
 				return ErrInvalidManifest
@@ -861,6 +915,22 @@ func allowedContributionIcon(icon string) bool {
 	return strings.HasPrefix(icon, "i-lucide-") || strings.HasPrefix(icon, "i-tabler-")
 }
 
+// validateDescriptorContributionPayload 按 payloadType 校验宿主拥有的描述符（F4.3）。
+func validateDescriptorContributionPayload(payloadType string, raw json.RawMessage) error {
+	switch payloadType {
+	case PayloadTypeExtensionRoute:
+		return validateTopicActionContributionPayload(raw)
+	case PayloadTypeProfileSection:
+		return validateProfileTabContributionPayload(raw)
+	case PayloadTypeDashboardLink:
+		return validateDashboardWidgetContributionPayload(raw)
+	case PayloadTypeHealthDescriptor:
+		return validateHealthCheckContributionPayload(raw)
+	default:
+		return ErrInvalidManifest
+	}
+}
+
 func validateTopicActionContributionPayload(raw json.RawMessage) error {
 	if len(raw) == 0 {
 		return ErrInvalidManifest
@@ -869,10 +939,11 @@ func validateTopicActionContributionPayload(raw json.RawMessage) error {
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return ErrInvalidManifest
 	}
-	if payload.Type != "extensionRoute" {
+	if payload.Type != PayloadTypeExtensionRoute {
 		return ErrInvalidManifest
 	}
-	switch payload.Method {
+	// 主题动作与 composer 工具均允许安全写方法（GET 禁止，避免 CSRF 风格误触发）。
+	switch strings.ToUpper(strings.TrimSpace(payload.Method)) {
 	case "POST", "PUT", "PATCH", "DELETE":
 	default:
 		return ErrInvalidManifest
@@ -883,7 +954,88 @@ func validateTopicActionContributionPayload(raw json.RawMessage) error {
 	return nil
 }
 
+func validateProfileTabContributionPayload(raw json.RawMessage) error {
+	if len(raw) == 0 {
+		return ErrInvalidManifest
+	}
+	var payload ProfileTabContributionPayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return ErrInvalidManifest
+	}
+	switch strings.TrimSpace(payload.Type) {
+	case PayloadTypeExtensionRoute:
+		method := strings.ToUpper(strings.TrimSpace(payload.Method))
+		// 资料页 tab 导航以 GET 为主；仍允许写方法以便插件做「关注」类动作。
+		switch method {
+		case "GET", "POST", "PUT", "PATCH", "DELETE":
+		default:
+			return ErrInvalidManifest
+		}
+		if !safeContributionRoutePath(payload.Path) {
+			return ErrInvalidManifest
+		}
+		return nil
+	case "hostLink":
+		if !safeHostLinkPath(payload.Href) {
+			return ErrInvalidManifest
+		}
+		return nil
+	default:
+		return ErrInvalidManifest
+	}
+}
+
+func validateDashboardWidgetContributionPayload(raw json.RawMessage) error {
+	if len(raw) == 0 {
+		return ErrInvalidManifest
+	}
+	var payload DashboardWidgetContributionPayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return ErrInvalidManifest
+	}
+	if strings.TrimSpace(payload.Type) != "adminLink" {
+		return ErrInvalidManifest
+	}
+	if !safeAdminDashboardRoute(payload.Route) {
+		return ErrInvalidManifest
+	}
+	switch strings.TrimSpace(payload.Severity) {
+	case "", "info", "success", "warning", "danger":
+	default:
+		return ErrInvalidManifest
+	}
+	return nil
+}
+
+func validateHealthCheckContributionPayload(raw json.RawMessage) error {
+	if len(raw) == 0 {
+		return ErrInvalidManifest
+	}
+	var payload HealthCheckContributionPayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return ErrInvalidManifest
+	}
+	switch strings.TrimSpace(payload.Type) {
+	case "extensionRuntime", "static":
+	default:
+		return ErrInvalidManifest
+	}
+	component := strings.TrimSpace(payload.Component)
+	// 组件名：小写字母数字与 ._-: ，避免与 core 名冲突时仍可读。
+	if component == "" || len(component) > 80 {
+		return ErrInvalidManifest
+	}
+	for _, r := range component {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '.' || r == '_' || r == '-' || r == ':' {
+			continue
+		}
+		return ErrInvalidManifest
+	}
+	return nil
+}
+
 func safeContributionRoutePath(value string) bool {
+	value = strings.TrimSpace(strings.ReplaceAll(value, "\\", "/"))
 	if value == "" || !strings.HasPrefix(value, "/") || value == "/" {
 		return false
 	}
@@ -891,6 +1043,34 @@ func safeContributionRoutePath(value string) bool {
 		return false
 	}
 	return value != "/api" && !strings.HasPrefix(value, "/api/")
+}
+
+// safeHostLinkPath 仅允许站内相对路径（公开页），禁止协议相对 // 与 /api。
+func safeHostLinkPath(value string) bool {
+	value = strings.TrimSpace(strings.ReplaceAll(value, "\\", "/"))
+	if value == "" || !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") {
+		return false
+	}
+	if strings.Contains(value, "://") || strings.Contains(value, "..") {
+		return false
+	}
+	return value != "/api" && !strings.HasPrefix(value, "/api/")
+}
+
+// safeAdminDashboardRoute 管理端相对路由（admin shell 内 path）。
+func safeAdminDashboardRoute(value string) bool {
+	value = strings.TrimSpace(strings.ReplaceAll(value, "\\", "/"))
+	if value == "" || !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") {
+		return false
+	}
+	if strings.Contains(value, "://") || strings.Contains(value, "..") {
+		return false
+	}
+	// 禁止跳出到公开 API 或绝对 URL。
+	if value == "/api" || strings.HasPrefix(value, "/api/") {
+		return false
+	}
+	return true
 }
 
 func knownProviderSlot(slot string) bool {

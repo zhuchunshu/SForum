@@ -11,6 +11,17 @@ export type AdminOverview = {
   }
   topCategories: AdminOverviewCategoryActivity[]
   actions: AdminOverviewAction[]
+  extensionWidgets?: AdminOverviewExtensionWidget[]
+}
+
+export type AdminOverviewExtensionWidget = {
+  extensionId: string
+  id: string
+  order: number
+  label?: Record<string, string>
+  icon?: string
+  route: string
+  severity: string
 }
 
 export type AdminOverviewWorkerRuntime = {
@@ -98,6 +109,15 @@ export type AdminOverviewTrendDay = {
   userCount: number
 }
 
+/** 趋势三列迷你图使用的字段 */
+export type AdminOverviewTrendField = 'topicCount' | 'commentCount' | 'userCount'
+
+export type AdminOverviewTrendSpark = {
+  line: string
+  area: string
+  points: Array<{ x: number, y: number }>
+}
+
 export type AdminOverviewCategoryActivity = {
   id: number
   slug: string
@@ -145,6 +165,84 @@ export function overviewTrendMax(days: AdminOverviewTrendDay[]) {
     return Math.max(current, day.topicCount + day.commentCount + day.userCount)
   }, 0)
   return Math.max(max, 1)
+}
+
+/** 单系列最大值，供独立 sparkline 刻度使用 */
+export function overviewTrendFieldMax(days: AdminOverviewTrendDay[], field: AdminOverviewTrendField) {
+  if (!days.length) {
+    return 1
+  }
+  return Math.max(1, ...days.map(day => Math.max(0, Number(day[field]) || 0)))
+}
+
+export function overviewTrendSum(days: AdminOverviewTrendDay[], field: AdminOverviewTrendField) {
+  return days.reduce((total, day) => total + Math.max(0, Number(day[field]) || 0), 0)
+}
+
+/** 较前一日变化百分比；prev 为 0 且 today > 0 时视为 +100% */
+export function overviewTrendDeltaPercent(today: number, previous: number) {
+  const current = Math.max(0, Number(today) || 0)
+  const prev = Math.max(0, Number(previous) || 0)
+  if (prev === 0) {
+    return current > 0 ? 100 : 0
+  }
+  return Math.round(((current - prev) / prev) * 100)
+}
+
+export function overviewTrendPeakDate(days: AdminOverviewTrendDay[], field: AdminOverviewTrendField) {
+  if (!days.length) {
+    return ''
+  }
+  return days.reduce((best, day) => (
+    (Number(day[field]) || 0) >= (Number(best[field]) || 0) ? day : best
+  )).date
+}
+
+export function overviewTrendDateLabel(date: string) {
+  const value = `${date || ''}`.trim()
+  if (value.length >= 10) {
+    return value.slice(5, 10)
+  }
+  return value
+}
+
+/**
+ * 生成平滑 sparkline 的 line / area path 与数据点坐标。
+ * 各系列独立 max，避免用户被回复数量级压扁。
+ */
+export function overviewTrendSparkPath(
+  values: number[],
+  width = 280,
+  height = 72,
+  pad = 8
+): AdminOverviewTrendSpark {
+  const safe = values.map(value => Math.max(0, Number(value) || 0))
+  if (safe.length === 0) {
+    return { line: '', area: '', points: [] }
+  }
+
+  const max = Math.max(1, ...safe)
+  const lastIndex = Math.max(safe.length - 1, 1)
+  const points = safe.map((value, index) => {
+    const x = pad + (index / lastIndex) * (width - pad * 2)
+    const y = pad + (1 - value / max) * (height - pad * 2)
+    return { x, y }
+  })
+
+  let line = `M ${points[0].x} ${points[0].y}`
+  for (let index = 1; index < points.length; index += 1) {
+    const prev = points[index - 1]
+    const curr = points[index]
+    const midX = (prev.x + curr.x) / 2
+    line += ` C ${midX} ${prev.y}, ${midX} ${curr.y}, ${curr.x} ${curr.y}`
+  }
+
+  const bottom = height - 2
+  const area = safe.length === 1
+    ? `${line} L ${points[0].x} ${bottom} Z`
+    : `${line} L ${points[points.length - 1].x} ${bottom} L ${points[0].x} ${bottom} Z`
+
+  return { line, area, points }
 }
 
 export function overviewActionTone(severity: string): OverviewTone {

@@ -17,6 +17,17 @@ export type AvatarView = {
   alt: string
 }
 
+export type ProfileExtensionTab = {
+  extensionId: string
+  id: string
+  order: number
+  label?: Record<string, string>
+  icon?: string
+  kind: 'extensionRoute' | 'hostLink'
+  method?: string
+  url: string
+}
+
 export type PublicProfile = {
   userId: number
   username: string
@@ -26,6 +37,7 @@ export type PublicProfile = {
   commentCount: number
   recentTopics: import('~/utils/forumTaxonomy').ForumTopicSummary[]
   joinedAt: string
+  extensionTabs?: ProfileExtensionTab[]
 }
 
 export type UpdateProfileInput = {

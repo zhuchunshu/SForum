@@ -196,11 +196,11 @@ POSTs with Idempotency-Key are safe; storage selection is a real slot.
 
 ### F4.3 Contribution point expansion
 
-- [ ] `forum.composer.toolbar` (or equivalent)
-- [ ] `forum.profile.tabs` / sections
-- [ ] `admin.dashboard.widgets`
-- [ ] `system.health.checks` (plugin readiness contributors)
-- [ ] Keep host-owned payloads; no executable JSON
+- [x] `forum.composer.toolbar` (or equivalent)
+- [x] `forum.profile.tabs` / sections
+- [x] `admin.dashboard.widgets`
+- [x] `system.health.checks` (plugin readiness contributors)
+- [x] Keep host-owned payloads; no executable JSON
 
 ### F4.4 Entity meta / custom fields
 
@@ -270,13 +270,14 @@ per plugin.
 | | F3 | complete (current scope) |
 | 2026-07-12 | F4.1 | public `sdk/plugin`, `extension test`, fixtures + CI contract tests |
 | 2026-07-12 | F4.2 | catalog docs generator + authoring guide; `extension docs generate` |
-| | F4 | F4.1–F4.2 done; F4.3–F4.5 pending |
+| 2026-07-12 | F4.3 | composer/profile/dashboard/health contribution points + consumers |
+| | F4 | F4.1–F4.3 done; F4.4–F4.5 pending |
 
 ---
 
 ## Next session one-liner
 
 ```text
-Wave F4.2 complete. Next: F4.3 contribution points, F4.4 entity meta,
-F4.5 feature flags; or product Iteration A / settings Wave 3.
+Wave F4.3 complete. Next: F4.4 entity meta, F4.5 feature flags;
+or product Iteration A / settings Wave 3.
 ```

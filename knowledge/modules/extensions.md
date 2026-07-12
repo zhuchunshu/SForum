@@ -75,6 +75,12 @@ and plugin runtime v1.
   code. Hand-written authoring guide:
   `docs/extensions/authoring-guide.md` (SMTP + Host API fixture). Handoff:
   `sessions/2026-07-12-f4-2-catalog-docs.md`.
+- **F4.3 contribution point expansion:** host catalog adds
+  `forum.composer.toolbar`, `forum.profile.tabs`, `admin.dashboard.widgets`,
+  `system.health.checks` with host-owned payload types only. Runtime:
+  `GET /composer/toolbar`, public profile `extensionTabs`, admin overview
+  `extensionWidgets`, `/ready` merges health descriptors without plugin RPC.
+  Handoff: `sessions/2026-07-12-f4-3-contribution-points.md`.
 - **F2.3 resilience:** per-extension concurrency semaphore (default 4),
   consecutive-failure circuit (default 5 / 30s open), hook + mail deadlines
   (protocol uses goroutine+select because net/rpc lacks context). Observe /
