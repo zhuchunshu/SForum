@@ -200,8 +200,17 @@ async function runAction(action: () => Promise<unknown>, titleKey: string, descr
       <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">{{ t('admin.mailSettings.description') }}</p>
     </header>
     <UDashboardToolbar class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-      <template #left><UTabs v-model="activeView" :items="tabs" size="md" class="mail-admin-tabs" /></template>
-      <template #right><UButton icon="i-lucide-rotate-cw" color="neutral" variant="ghost" :loading="pending" @click="load">{{ t('admin.home.refresh') }}</UButton></template>
+      <template #left>
+        <div class="flex min-w-0 items-center gap-2 text-sm">
+          <UIcon name="i-lucide-mail" class="size-4" />
+          <span class="truncate">{{ t('admin.mailSettings.description') }}</span>
+        </div>
+      </template>
+      <template #right>
+        <UButton icon="i-lucide-rotate-cw" color="neutral" variant="outline" class="border-slate-200 dark:border-zinc-700" :loading="pending" @click="load">
+          {{ t('admin.home.refresh') }}
+        </UButton>
+      </template>
     </UDashboardToolbar>
     <SFAlert v-if="errorMessage" variant="danger" :title="errorMessage" closable @close="errorMessage = ''" />
 
@@ -211,6 +220,28 @@ async function runAction(action: () => Promise<unknown>, titleKey: string, descr
         <div><h2 class="text-base font-bold text-teal-950 dark:text-teal-100">{{ t('admin.mailSettings.recommendedTitle') }}</h2><p class="mt-1 max-w-4xl text-sm leading-6 text-teal-800 dark:text-teal-200">{{ t('admin.mailSettings.recommendedDescription') }}</p></div>
       </div>
     </section>
+
+    <!-- 与 personalization 一致：md 底部分割 tab，不放进 Card/Toolbar -->
+    <div
+      role="tablist"
+      :aria-label="t('admin.mailSettings.title')"
+      class="relative z-0 flex flex-wrap gap-2 border-b border-slate-200 pb-3 dark:border-zinc-800"
+    >
+      <UButton
+        v-for="tab in tabs"
+        :key="tab.value"
+        size="md"
+        class="min-h-10 px-4"
+        :color="activeView === tab.value ? 'primary' : 'neutral'"
+        :variant="activeView === tab.value ? 'solid' : 'ghost'"
+        :leading-icon="tab.icon"
+        role="tab"
+        :aria-selected="activeView === tab.value"
+        @click="activeView = tab.value"
+      >
+        {{ tab.label }}
+      </UButton>
+    </div>
 
     <UCard v-if="activeView === 'overview'" class="border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <template #header><div><h2 class="text-base font-bold">{{ t('admin.mailSettings.gettingStarted') }}</h2><p class="mt-1 text-xs text-slate-500">{{ t('admin.mailSettings.description') }}</p></div></template>
@@ -250,6 +281,7 @@ async function runAction(action: () => Promise<unknown>, titleKey: string, descr
               <UFormField class="min-w-0 flex-1" :label="t('admin.mailSettings.provider')" :description="t('admin.mailSettings.providerHelp')">
                 <USelect
                   v-model="selected"
+                  size="lg"
                   :items="providerItems"
                   value-key="value"
                   class="w-full"
@@ -257,10 +289,10 @@ async function runAction(action: () => Promise<unknown>, titleKey: string, descr
                 />
               </UFormField>
               <div class="flex flex-wrap gap-2">
-                <UButton icon="i-lucide-save" :disabled="!selected" :loading="saving" @click="chooseProvider">
+                <UButton size="lg" icon="i-lucide-save" :disabled="!selected" :loading="saving" @click="chooseProvider">
                   {{ t('admin.mailSettings.save') }}
                 </UButton>
-                <UButton icon="i-lucide-rotate-ccw" color="neutral" variant="subtle" :loading="saving" @click="resetProvider">
+                <UButton size="lg" icon="i-lucide-rotate-ccw" color="neutral" variant="subtle" :loading="saving" @click="resetProvider">
                   {{ t('admin.mailSettings.reset') }}
                 </UButton>
               </div>
@@ -279,14 +311,15 @@ async function runAction(action: () => Promise<unknown>, titleKey: string, descr
           <div class="border-t border-slate-200 pt-5 dark:border-zinc-800">
             <h3 class="font-semibold">{{ t('admin.mailSettings.testTitle') }}</h3>
             <p class="mt-1 text-sm text-slate-500">{{ adminEmailDefault ? t('admin.mailSettings.testHelpWithAdminEmail') : t('admin.mailSettings.testHelp') }}</p>
-            <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+            <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
               <UInput
                 v-model="testRecipient"
+                size="lg"
                 type="email"
-                class="flex-1"
+                class="w-full min-w-0 flex-1"
                 :placeholder="adminEmailDefault || t('admin.mailSettings.testRecipientPlaceholder')"
               />
-              <UButton icon="i-lucide-send" :disabled="!configured" :loading="saving" @click="testMail">
+              <UButton size="lg" icon="i-lucide-send" :disabled="!configured" :loading="saving" @click="testMail">
                 {{ t('admin.mailSettings.sendTest') }}
               </UButton>
             </div>
@@ -336,12 +369,5 @@ async function runAction(action: () => Promise<unknown>, titleKey: string, descr
 .mail-admin-title {
   font-size: 1.25rem;
   line-height: 1.75rem;
-}
-
-/* 后台邮件页 Tab 略放大，避免 sm 在中文标签下显得拥挤难点 */
-.mail-admin-tabs :deep(button) {
-  min-height: 2.25rem;
-  padding-inline: 0.875rem;
-  font-size: 0.875rem;
 }
 </style>
