@@ -24,6 +24,26 @@ type (
 	// MailRequest / MailResponse 是 mail.provider 投递载荷。
 	MailRequest  = extensionsruntime.MailProviderRequest
 	MailResponse = extensionsruntime.MailProviderResponse
+
+	// 附件存储槽 attachment.storage.provider（E6.2 分块 RPC）。
+	StoragePutBeginRequest   = extensionsruntime.StoragePutBeginRequest
+	StoragePutChunkRequest   = extensionsruntime.StoragePutChunkRequest
+	StorageOpenRequest       = extensionsruntime.StorageOpenRequest
+	StorageGetChunkRequest   = extensionsruntime.StorageGetChunkRequest
+	StorageGetChunkResponse  = extensionsruntime.StorageGetChunkResponse
+	StorageCloseRequest      = extensionsruntime.StorageCloseRequest
+	StorageObjectRequest     = extensionsruntime.StorageObjectRequest
+	StorageStatRequest       = extensionsruntime.StorageStatRequest
+	StorageStatResponse      = extensionsruntime.StorageStatResponse
+	StorageExistsRequest     = extensionsruntime.StorageExistsRequest
+	StorageExistsResponse    = extensionsruntime.StorageExistsResponse
+	StoragePublicURLRequest  = extensionsruntime.StoragePublicURLRequest
+	StorageSignedURLRequest  = extensionsruntime.StorageSignedURLRequest
+	StorageURLResponse       = extensionsruntime.StorageURLResponse
+	StorageProbeRequest      = extensionsruntime.StorageProbeRequest
+	StorageProbeResponse     = extensionsruntime.StorageProbeResponse
+	StorageSessionResponse   = extensionsruntime.StorageSessionResponse
+	StorageResult            = extensionsruntime.StorageResult
 )
 
 // Serve 以 HashiCorp go-plugin 协议运行插件进程（阻塞）。
@@ -33,26 +53,7 @@ func Serve(impl Protocol) {
 }
 
 // Noop 提供全部 RPC 的默认实现，便于只覆盖需要的方法。
-// 嵌入后可只实现 Health / InvokeHook / SendMail 中的子集。
-type Noop struct{}
-
-func (Noop) Health() (Health, error) {
-	return Health{OK: true}, nil
-}
-
-func (Noop) RouteTarget() (RouteTarget, error) {
-	// 默认不暴露可代理 HTTP 路由。
-	return RouteTarget{}, nil
-}
-
-func (Noop) InvokeHook(HookRequest) (HookResponse, error) {
-	return HookResponse{OK: true}, nil
-}
-
-func (Noop) SendMail(MailRequest) (MailResponse, error) {
-	return MailResponse{
-		OK:      false,
-		Reason:  "plugin.mail_not_implemented",
-		Message: "this plugin does not implement mail.provider",
-	}, nil
+// 嵌入后可只实现 Health / InvokeHook / SendMail / Storage* 中的子集。
+type Noop struct {
+	extensionsruntime.ProtocolNoop
 }

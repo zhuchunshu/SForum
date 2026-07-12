@@ -12,9 +12,9 @@ import "strings"
 //     Put/Open/Delete/Probe；密钥进 extension_settings。
 //   - core 至少保留 local 作为 zero-config 与 restore 默认。
 //   - 选择值：core 驱动 id，或 plugin:<extensionId>（见 selection.go）。
-//   - 业务层仍只依赖 Adapter；插件细节封装在 host 侧 PluginStorageAdapter（E6.1+）。
+//   - 业务层仍只依赖 Adapter；插件细节封装在 Extensions.PluginStorageAdapter（E6.2）。
 //
-// E6.0 仅锁定契约与选择编码；NewAdapter 行为尚未接受 plugin: 前缀。
+// NewAdapter 只接受 core 驱动 id；plugin: 选择由 Attachments.adapterForSettings 解析。
 const ProviderSlot = "attachment.storage.provider"
 
 // DriverCatalog 返回 core 内置驱动 id（与 options 校验一致）。

@@ -74,6 +74,18 @@ type PluginProtocol interface {
 	RouteTarget() (PluginRouteTarget, error)
 	InvokeHook(PluginHookRequest) (PluginHookResponse, error)
 	SendMail(MailProviderRequest) (MailProviderResponse, error)
+	// 附件存储槽 attachment.storage.provider（E6.2，分块 Put/Open）。
+	StoragePutBegin(StoragePutBeginRequest) (StorageSessionResponse, error)
+	StoragePutChunk(StoragePutChunkRequest) (StorageResult, error)
+	StorageOpen(StorageOpenRequest) (StorageSessionResponse, error)
+	StorageGetChunk(StorageGetChunkRequest) (StorageGetChunkResponse, error)
+	StorageClose(StorageCloseRequest) (StorageResult, error)
+	StorageDelete(StorageObjectRequest) (StorageResult, error)
+	StorageStat(StorageStatRequest) (StorageStatResponse, error)
+	StorageExists(StorageExistsRequest) (StorageExistsResponse, error)
+	StoragePublicURL(StoragePublicURLRequest) (StorageURLResponse, error)
+	StorageSignedURL(StorageSignedURLRequest) (StorageURLResponse, error)
+	StorageProbe(StorageProbeRequest) (StorageProbeResponse, error)
 }
 
 type PluginHealth struct {
@@ -404,6 +416,103 @@ func (s *ProtocolStarter) SendMail(ctx context.Context, extensionID string, requ
 	}
 }
 
+// protocolFor 返回已启动扩展的协议面；未运行时返回 nil。
+func (s *ProtocolStarter) protocolFor(extensionID string) PluginProtocol {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.protocols[extensionID]
+}
+
+// callStorage 在 ctx 截止前执行一次存储 RPC（net/rpc 无原生 context）。
+// 超时返回 onTimeout（err=nil），与 SendMail 一致，便于宿主按 OK/Reason 处理。
+func callStorage[T any](ctx context.Context, protocol PluginProtocol, fn func(PluginProtocol) (T, error), onTimeout T) (T, error) {
+	var zero T
+	if protocol == nil {
+		return zero, extensions.ErrRuntimeUnavailable
+	}
+	type outcome struct {
+		resp T
+		err  error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		resp, err := fn(protocol)
+		done <- outcome{resp: resp, err: err}
+	}()
+	select {
+	case <-ctx.Done():
+		return onTimeout, nil
+	case out := <-done:
+		return out.resp, out.err
+	}
+}
+
+func (s *ProtocolStarter) StoragePutBegin(ctx context.Context, extensionID string, request StoragePutBeginRequest) (StorageSessionResponse, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageSessionResponse, error) {
+		return p.StoragePutBegin(request)
+	}, StorageSessionResponse{Reason: "extension.hook_timeout", Message: "Storage PutBegin exceeded the host timeout."})
+}
+
+func (s *ProtocolStarter) StoragePutChunk(ctx context.Context, extensionID string, request StoragePutChunkRequest) (StorageResult, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageResult, error) {
+		return p.StoragePutChunk(request)
+	}, StorageResult{Reason: "extension.hook_timeout", Message: "Storage PutChunk exceeded the host timeout."})
+}
+
+func (s *ProtocolStarter) StorageOpen(ctx context.Context, extensionID string, request StorageOpenRequest) (StorageSessionResponse, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageSessionResponse, error) {
+		return p.StorageOpen(request)
+	}, StorageSessionResponse{Reason: "extension.hook_timeout", Message: "Storage Open exceeded the host timeout."})
+}
+
+func (s *ProtocolStarter) StorageGetChunk(ctx context.Context, extensionID string, request StorageGetChunkRequest) (StorageGetChunkResponse, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageGetChunkResponse, error) {
+		return p.StorageGetChunk(request)
+	}, StorageGetChunkResponse{Reason: "extension.hook_timeout", Message: "Storage GetChunk exceeded the host timeout."})
+}
+
+func (s *ProtocolStarter) StorageClose(ctx context.Context, extensionID string, request StorageCloseRequest) (StorageResult, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageResult, error) {
+		return p.StorageClose(request)
+	}, StorageResult{Reason: "extension.hook_timeout", Message: "Storage Close exceeded the host timeout."})
+}
+
+func (s *ProtocolStarter) StorageDelete(ctx context.Context, extensionID string, request StorageObjectRequest) (StorageResult, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageResult, error) {
+		return p.StorageDelete(request)
+	}, StorageResult{Reason: "extension.hook_timeout", Message: "Storage Delete exceeded the host timeout."})
+}
+
+func (s *ProtocolStarter) StorageStat(ctx context.Context, extensionID string, request StorageStatRequest) (StorageStatResponse, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageStatResponse, error) {
+		return p.StorageStat(request)
+	}, StorageStatResponse{Reason: "extension.hook_timeout", Message: "Storage Stat exceeded the host timeout."})
+}
+
+func (s *ProtocolStarter) StorageExists(ctx context.Context, extensionID string, request StorageExistsRequest) (StorageExistsResponse, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageExistsResponse, error) {
+		return p.StorageExists(request)
+	}, StorageExistsResponse{Reason: "extension.hook_timeout", Message: "Storage Exists exceeded the host timeout."})
+}
+
+func (s *ProtocolStarter) StoragePublicURL(ctx context.Context, extensionID string, request StoragePublicURLRequest) (StorageURLResponse, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageURLResponse, error) {
+		return p.StoragePublicURL(request)
+	}, StorageURLResponse{Reason: "extension.hook_timeout", Message: "Storage PublicURL exceeded the host timeout."})
+}
+
+func (s *ProtocolStarter) StorageSignedURL(ctx context.Context, extensionID string, request StorageSignedURLRequest) (StorageURLResponse, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageURLResponse, error) {
+		return p.StorageSignedURL(request)
+	}, StorageURLResponse{Reason: "extension.hook_timeout", Message: "Storage SignedURL exceeded the host timeout."})
+}
+
+func (s *ProtocolStarter) StorageProbe(ctx context.Context, extensionID string, request StorageProbeRequest) (StorageProbeResponse, error) {
+	return callStorage(ctx, s.protocolFor(extensionID), func(p PluginProtocol) (StorageProbeResponse, error) {
+		return p.StorageProbe(request)
+	}, StorageProbeResponse{Reason: "extension.hook_timeout", Message: "Storage Probe exceeded the host timeout."})
+}
+
 func ServeProtocolPlugin(impl PluginProtocol) {
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: handshakeConfig,
@@ -456,6 +565,72 @@ func (c *netRPCClient) SendMail(input MailProviderRequest) (MailProviderResponse
 	return response, err
 }
 
+func (c *netRPCClient) StoragePutBegin(input StoragePutBeginRequest) (StorageSessionResponse, error) {
+	var response StorageSessionResponse
+	err := c.client.Call("Plugin.StoragePutBegin", input, &response)
+	return response, err
+}
+
+func (c *netRPCClient) StoragePutChunk(input StoragePutChunkRequest) (StorageResult, error) {
+	var response StorageResult
+	err := c.client.Call("Plugin.StoragePutChunk", input, &response)
+	return response, err
+}
+
+func (c *netRPCClient) StorageOpen(input StorageOpenRequest) (StorageSessionResponse, error) {
+	var response StorageSessionResponse
+	err := c.client.Call("Plugin.StorageOpen", input, &response)
+	return response, err
+}
+
+func (c *netRPCClient) StorageGetChunk(input StorageGetChunkRequest) (StorageGetChunkResponse, error) {
+	var response StorageGetChunkResponse
+	err := c.client.Call("Plugin.StorageGetChunk", input, &response)
+	return response, err
+}
+
+func (c *netRPCClient) StorageClose(input StorageCloseRequest) (StorageResult, error) {
+	var response StorageResult
+	err := c.client.Call("Plugin.StorageClose", input, &response)
+	return response, err
+}
+
+func (c *netRPCClient) StorageDelete(input StorageObjectRequest) (StorageResult, error) {
+	var response StorageResult
+	err := c.client.Call("Plugin.StorageDelete", input, &response)
+	return response, err
+}
+
+func (c *netRPCClient) StorageStat(input StorageStatRequest) (StorageStatResponse, error) {
+	var response StorageStatResponse
+	err := c.client.Call("Plugin.StorageStat", input, &response)
+	return response, err
+}
+
+func (c *netRPCClient) StorageExists(input StorageExistsRequest) (StorageExistsResponse, error) {
+	var response StorageExistsResponse
+	err := c.client.Call("Plugin.StorageExists", input, &response)
+	return response, err
+}
+
+func (c *netRPCClient) StoragePublicURL(input StoragePublicURLRequest) (StorageURLResponse, error) {
+	var response StorageURLResponse
+	err := c.client.Call("Plugin.StoragePublicURL", input, &response)
+	return response, err
+}
+
+func (c *netRPCClient) StorageSignedURL(input StorageSignedURLRequest) (StorageURLResponse, error) {
+	var response StorageURLResponse
+	err := c.client.Call("Plugin.StorageSignedURL", input, &response)
+	return response, err
+}
+
+func (c *netRPCClient) StorageProbe(input StorageProbeRequest) (StorageProbeResponse, error) {
+	var response StorageProbeResponse
+	err := c.client.Call("Plugin.StorageProbe", input, &response)
+	return response, err
+}
+
 type netRPCServer struct {
 	Impl PluginProtocol
 }
@@ -480,6 +655,72 @@ func (s *netRPCServer) InvokeHook(input PluginHookRequest, response *PluginHookR
 
 func (s *netRPCServer) SendMail(input MailProviderRequest, response *MailProviderResponse) error {
 	result, err := s.Impl.SendMail(input)
+	*response = result
+	return err
+}
+
+func (s *netRPCServer) StoragePutBegin(input StoragePutBeginRequest, response *StorageSessionResponse) error {
+	result, err := s.Impl.StoragePutBegin(input)
+	*response = result
+	return err
+}
+
+func (s *netRPCServer) StoragePutChunk(input StoragePutChunkRequest, response *StorageResult) error {
+	result, err := s.Impl.StoragePutChunk(input)
+	*response = result
+	return err
+}
+
+func (s *netRPCServer) StorageOpen(input StorageOpenRequest, response *StorageSessionResponse) error {
+	result, err := s.Impl.StorageOpen(input)
+	*response = result
+	return err
+}
+
+func (s *netRPCServer) StorageGetChunk(input StorageGetChunkRequest, response *StorageGetChunkResponse) error {
+	result, err := s.Impl.StorageGetChunk(input)
+	*response = result
+	return err
+}
+
+func (s *netRPCServer) StorageClose(input StorageCloseRequest, response *StorageResult) error {
+	result, err := s.Impl.StorageClose(input)
+	*response = result
+	return err
+}
+
+func (s *netRPCServer) StorageDelete(input StorageObjectRequest, response *StorageResult) error {
+	result, err := s.Impl.StorageDelete(input)
+	*response = result
+	return err
+}
+
+func (s *netRPCServer) StorageStat(input StorageStatRequest, response *StorageStatResponse) error {
+	result, err := s.Impl.StorageStat(input)
+	*response = result
+	return err
+}
+
+func (s *netRPCServer) StorageExists(input StorageExistsRequest, response *StorageExistsResponse) error {
+	result, err := s.Impl.StorageExists(input)
+	*response = result
+	return err
+}
+
+func (s *netRPCServer) StoragePublicURL(input StoragePublicURLRequest, response *StorageURLResponse) error {
+	result, err := s.Impl.StoragePublicURL(input)
+	*response = result
+	return err
+}
+
+func (s *netRPCServer) StorageSignedURL(input StorageSignedURLRequest, response *StorageURLResponse) error {
+	result, err := s.Impl.StorageSignedURL(input)
+	*response = result
+	return err
+}
+
+func (s *netRPCServer) StorageProbe(input StorageProbeRequest, response *StorageProbeResponse) error {
+	result, err := s.Impl.StorageProbe(input)
 	*response = result
 	return err
 }

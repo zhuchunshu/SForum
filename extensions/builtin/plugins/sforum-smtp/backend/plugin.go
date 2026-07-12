@@ -7,7 +7,10 @@ import (
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 )
 
-type smtpPlugin struct{}
+// smtpPlugin 仅实现 mail.provider；存储 RPC 走 ProtocolNoop 默认拒绝。
+type smtpPlugin struct {
+	extensionsruntime.ProtocolNoop
+}
 
 func (smtpPlugin) Health() (extensionsruntime.PluginHealth, error) {
 	return extensionsruntime.PluginHealth{OK: true}, nil

@@ -12,14 +12,17 @@ const (
 	DefaultFailureThreshold   = 5
 	DefaultCircuitOpenSeconds = 30
 	DefaultMailTimeoutMS      = 15000
+	// 存储 Put/Open 可跨多块 RPC；单次调用默认上限 120s（E6.2）。
+	DefaultStorageTimeoutMS = 120000
 )
 
 // ResilienceConfig 控制每扩展 RPC 闸门与熔断。
 type ResilienceConfig struct {
-	MaxConcurrent     int
-	FailureThreshold  int
-	CircuitOpenFor    time.Duration
-	DefaultMailTimeout time.Duration
+	MaxConcurrent        int
+	FailureThreshold     int
+	CircuitOpenFor       time.Duration
+	DefaultMailTimeout   time.Duration
+	DefaultStorageTimeout time.Duration
 }
 
 func (c ResilienceConfig) withDefaults() ResilienceConfig {
@@ -34,6 +37,9 @@ func (c ResilienceConfig) withDefaults() ResilienceConfig {
 	}
 	if c.DefaultMailTimeout <= 0 {
 		c.DefaultMailTimeout = time.Duration(DefaultMailTimeoutMS) * time.Millisecond
+	}
+	if c.DefaultStorageTimeout <= 0 {
+		c.DefaultStorageTimeout = time.Duration(DefaultStorageTimeoutMS) * time.Millisecond
 	}
 	return c
 }

@@ -22,6 +22,8 @@ type MailProviderInvoker interface {
 	SendMail(context.Context, string, MailProviderRequest) (MailProviderResponse, error)
 }
 
+// StorageProviderInvoker 见 storage_invoker.go（E6.2）。
+
 type ManagerConfig struct {
 	Starter       Starter
 	HookBus       *HookBus

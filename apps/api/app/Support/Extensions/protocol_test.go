@@ -126,6 +126,14 @@ func TestProtocolStarterPerformsHashicorpHandshake(t *testing.T) {
 	if !response.OK || response.Reason != "smtp.accepted" {
 		t.Fatalf("unexpected mail response: %#v", response)
 	}
+	// E6.2：未实现存储的插件经 ProtocolNoop 返回明确 reason。
+	probe, err := starter.StorageProbe(context.Background(), extension.ID, StorageProbeRequest{})
+	if err != nil {
+		t.Fatalf("storage probe rpc: %v", err)
+	}
+	if probe.OK || probe.Reason != "plugin.storage_not_implemented" {
+		t.Fatalf("expected storage not implemented, got %#v", probe)
+	}
 }
 
 type staticPluginSettings map[string]map[string]string
@@ -155,7 +163,9 @@ func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }
 
-type helperProtocol struct{}
+type helperProtocol struct {
+	ProtocolNoop
+}
 
 func (helperProtocol) Health() (PluginHealth, error) {
 	return PluginHealth{OK: true}, nil
