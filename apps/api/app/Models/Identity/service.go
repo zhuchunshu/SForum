@@ -101,11 +101,12 @@ type LoginLockoutPolicyResolver interface {
 	LoginLockoutPolicy(ctx context.Context) (LoginLockoutPolicy, error)
 }
 
-// LoginLockoutStore 记录失败次数与锁定（通常 Redis）。
+// LoginLockoutStore 分层登录节流（通常 Redis；key 内应为哈希后的账号标识）。
+// clientIP 参与 account+IP / IP 维度；Redis 故障时应 fail open。
 type LoginLockoutStore interface {
-	IsLocked(ctx context.Context, key string) (bool, error)
-	RecordFailure(ctx context.Context, key string, maxFailures int, lockout time.Duration) error
-	ClearFailures(ctx context.Context, key string) error
+	IsLocked(ctx context.Context, loginKey, clientIP string) (bool, error)
+	RecordFailure(ctx context.Context, loginKey, clientIP string, maxFailures int, lockout time.Duration) error
+	ClearFailures(ctx context.Context, loginKey, clientIP string) error
 }
 
 type staticRecommendedPasswordPolicy struct{}
@@ -132,6 +133,8 @@ type RegisterInput struct {
 type LoginInput struct {
 	Login    string
 	Password string
+	// ClientIP 用于分层登录节流（account+IP / IP）；可空。
+	ClientIP string
 }
 
 // RegistrationStatus 返回注册相关状态。该端点公开可访问（注册页加载时调用），
@@ -409,7 +412,8 @@ func addFieldMessage(fields FieldMessages, field string, message string) {
 
 func (s *Service) Login(ctx context.Context, input LoginInput) (CurrentUser, error) {
 	loginKey := strings.ToLower(strings.TrimSpace(input.Login))
-	if locked, err := s.isLoginLocked(ctx, loginKey); err != nil {
+	clientIP := strings.TrimSpace(input.ClientIP)
+	if locked, err := s.isLoginLocked(ctx, loginKey, clientIP); err != nil {
 		return CurrentUser{}, err
 	} else if locked {
 		return CurrentUser{}, ErrLoginLocked
@@ -425,7 +429,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (CurrentUser, err
 		if dummy, dErr := dummyPasswordHash(); dErr == nil {
 			_, _ = VerifyPassword(input.Password, dummy)
 		}
-		_ = s.recordLoginFailure(ctx, loginKey)
+		_ = s.recordLoginFailure(ctx, loginKey, clientIP)
 		return CurrentUser{}, ErrInvalidCredentials
 	}
 
@@ -434,14 +438,14 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (CurrentUser, err
 		return CurrentUser{}, err
 	}
 	if !ok {
-		_ = s.recordLoginFailure(ctx, loginKey)
+		_ = s.recordLoginFailure(ctx, loginKey, clientIP)
 		return CurrentUser{}, ErrInvalidCredentials
 	}
 	if credential.Status != UserStatusActive {
 		return CurrentUser{}, ErrInvalidCredentials
 	}
 
-	_ = s.clearLoginFailures(ctx, loginKey)
+	_ = s.clearLoginFailures(ctx, loginKey, clientIP)
 	return credential.CurrentUser, nil
 }
 
@@ -452,29 +456,29 @@ func (s *Service) resolveUsernamePolicy(ctx context.Context) (UsernamePolicy, er
 	return s.usernamePolicy.UsernamePolicy(ctx)
 }
 
-func (s *Service) isLoginLocked(ctx context.Context, key string) (bool, error) {
-	if s.loginLockout == nil || key == "" {
+func (s *Service) isLoginLocked(ctx context.Context, loginKey, clientIP string) (bool, error) {
+	if s.loginLockout == nil {
 		return false, nil
 	}
-	return s.loginLockout.IsLocked(ctx, key)
+	return s.loginLockout.IsLocked(ctx, loginKey, clientIP)
 }
 
-func (s *Service) recordLoginFailure(ctx context.Context, key string) error {
-	if s.loginLockout == nil || s.loginLockoutPolicy == nil || key == "" {
+func (s *Service) recordLoginFailure(ctx context.Context, loginKey, clientIP string) error {
+	if s.loginLockout == nil || s.loginLockoutPolicy == nil {
 		return nil
 	}
 	policy, err := s.loginLockoutPolicy.LoginLockoutPolicy(ctx)
 	if err != nil || policy.MaxFailures <= 0 || policy.LockoutMinutes <= 0 {
 		return nil
 	}
-	return s.loginLockout.RecordFailure(ctx, key, policy.MaxFailures, time.Duration(policy.LockoutMinutes)*time.Minute)
+	return s.loginLockout.RecordFailure(ctx, loginKey, clientIP, policy.MaxFailures, time.Duration(policy.LockoutMinutes)*time.Minute)
 }
 
-func (s *Service) clearLoginFailures(ctx context.Context, key string) error {
-	if s.loginLockout == nil || key == "" {
+func (s *Service) clearLoginFailures(ctx context.Context, loginKey, clientIP string) error {
+	if s.loginLockout == nil {
 		return nil
 	}
-	return s.loginLockout.ClearFailures(ctx, key)
+	return s.loginLockout.ClearFailures(ctx, loginKey, clientIP)
 }
 
 func (s *Service) RecordLoginAudit(ctx context.Context, input LoginAudit) error {

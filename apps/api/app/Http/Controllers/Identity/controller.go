@@ -196,7 +196,11 @@ func (h *Controller) login(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
 
-	current, err := h.service.Login(c.Context(), identity.LoginInput{Login: req.Login, Password: req.Password})
+	current, err := h.service.Login(c.Context(), identity.LoginInput{
+		Login:    req.Login,
+		Password: req.Password,
+		ClientIP: clientip.FromCtx(c),
+	})
 	if err != nil {
 		return mapIdentityError(err)
 	}
