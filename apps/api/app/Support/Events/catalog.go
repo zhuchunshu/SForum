@@ -14,7 +14,9 @@ const (
 	TopicUnlocked      = "topic.unlocked"
 	TopicPinned        = "topic.pinned"
 	TopicUnpinned      = "topic.unpinned"
-	CommentCreated     = "comment.created"
+	// CommentBeforeCreate E1.1：评论提交前同步 filter，可拒绝或补丁 content。
+	CommentBeforeCreate = "comment.before_create"
+	CommentCreated      = "comment.created"
 	CategoryCreated    = "category.created"
 	CategoryUpdated    = "category.updated"
 	TagCreated         = "tag.created"
@@ -50,6 +52,12 @@ var definitions = []Definition{
 	observe(CategoryUpdated, "Emitted after a category is updated.", []string{"categoryId", "categorySlug", "groupId"}),
 	observe(TagCreated, "Emitted after a tag is created.", []string{"tagId", "tagSlug", "status"}),
 	observe(TagUpdated, "Emitted after a tag is updated.", []string{"tagId", "tagSlug", "status"}),
+	filter(CommentBeforeCreate,
+		"Runs before a comment is committed and may reject or patch allowlisted input. Heavy work must enqueue jobs, never block this filter.",
+		[]string{"actorUserId", "topicId", "parentId", "content"},
+		// v1 仅允许补丁正文；parentId 改树需 host 重验，暂不开放。
+		[]string{"content"},
+	),
 	observe(CommentCreated, "Emitted after a comment is committed.", []string{"commentId", "topicId", "authorUserId", "parentId"}),
 	observe(AttachmentUploaded, "Emitted after attachment metadata is committed.", []string{"attachmentId", "publicId", "ownerUserId", "provider", "contentType", "sizeBytes"}),
 	observe(EntityMetaUpdated, "Emitted after entity custom field values are written or cleared.", []string{"entityType", "entityId", "fieldKeys", "actorUserId"}),

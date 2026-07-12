@@ -41,4 +41,18 @@ func TestCatalogDocumentsTimeoutAndFailurePolicy(t *testing.T) {
 	if before.TimeoutMS != DefaultSyncTimeoutMS || before.FailurePolicy != FailurePolicyFailClosed {
 		t.Fatalf("topic.before_create: %#v", before)
 	}
+
+	commentBefore, ok := FindDefinition(CommentBeforeCreate)
+	if !ok {
+		t.Fatal("comment.before_create missing")
+	}
+	if commentBefore.Kind != KindFilter {
+		t.Fatalf("comment.before_create kind=%s", commentBefore.Kind)
+	}
+	if commentBefore.TimeoutMS != DefaultSyncTimeoutMS || commentBefore.FailurePolicy != FailurePolicyFailClosed {
+		t.Fatalf("comment.before_create: %#v", commentBefore)
+	}
+	if len(commentBefore.PatchFields) != 1 || commentBefore.PatchFields[0] != "content" {
+		t.Fatalf("comment.before_create patch allowlist: %#v", commentBefore.PatchFields)
+	}
 }

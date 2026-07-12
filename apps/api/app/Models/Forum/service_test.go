@@ -675,6 +675,147 @@ func TestServiceCreateCommentRejectsLockedTopic(t *testing.T) {
 	}
 }
 
+func commentCreator() identity.Actor {
+	return identity.Actor{
+		ID:          12,
+		Status:      identity.UserStatusActive,
+		Permissions: map[string]bool{identity.PermissionPostCreate: true},
+	}
+}
+
+// TestServiceCreateCommentAppliesBeforeCreateFilterAndEmitsCreatedEvent
+// E1.1：filter 可补丁正文，且成功创建后仍发出 comment.created。
+func TestServiceCreateCommentAppliesBeforeCreateFilterAndEmitsCreatedEvent(t *testing.T) {
+	store := newServiceFakeStore()
+	store.topicForComment = TopicSummary{ID: 42, Status: TopicStatusActive}
+	publisher := &fakeEventPublisher{results: map[string]appevents.Result{
+		appevents.CommentBeforeCreate: {
+			OK: true,
+			Patch: map[string]any{
+				"content": ContentInput{
+					RawContent:   "插件改写后的回复",
+					SourceFormat: SourceFormatMarkdown,
+					EditorType:   EditorTypeMarkdown,
+				},
+			},
+		},
+	}}
+	service := NewServiceWithEvents(store, publisher)
+
+	comment, err := service.CreateComment(context.Background(), commentCreator(), CreateCommentInput{
+		TopicID: 42,
+		Content: validMarkdownContent("原始回复"),
+	})
+	if err != nil {
+		t.Fatalf("CreateComment returned error: %v", err)
+	}
+	if comment.Content.RawContent != "插件改写后的回复" {
+		t.Fatalf("expected patched content, got %#v", comment.Content)
+	}
+	if store.createdComment.Content.RawContent != "插件改写后的回复" {
+		t.Fatalf("expected store to receive patched content, got %#v", store.createdComment)
+	}
+	if !publisher.seen(appevents.CommentBeforeCreate) || !publisher.seen(appevents.CommentCreated) {
+		t.Fatalf("expected before/create events, got %#v", publisher.names)
+	}
+	beforeEnv, ok := publisher.envelope(appevents.CommentBeforeCreate)
+	if !ok {
+		t.Fatal("missing comment.before_create envelope")
+	}
+	if beforeEnv.Payload["topicId"] != int64(42) {
+		t.Fatalf("expected topicId in filter payload, got %#v", beforeEnv.Payload)
+	}
+	if beforeEnv.Payload["actorUserId"] != int64(12) {
+		t.Fatalf("expected actorUserId in filter payload, got %#v", beforeEnv.Payload)
+	}
+	if _, hasParent := beforeEnv.Payload["parentId"]; hasParent {
+		t.Fatalf("root comment should omit parentId, got %#v", beforeEnv.Payload)
+	}
+}
+
+// TestServiceCreateCommentBeforeCreateCanReject 插件拒绝时不得落库，且错误可映射为 RejectedError。
+func TestServiceCreateCommentBeforeCreateCanReject(t *testing.T) {
+	store := newServiceFakeStore()
+	publisher := &fakeEventPublisher{results: map[string]appevents.Result{
+		appevents.CommentBeforeCreate: {
+			OK:      false,
+			Reason:  "moderation.spam_blocked",
+			Message: "疑似垃圾回复",
+		},
+	}}
+	service := NewServiceWithEvents(store, publisher)
+
+	_, err := service.CreateComment(context.Background(), commentCreator(), CreateCommentInput{
+		TopicID: 1,
+		Content: validMarkdownContent("spam body"),
+	})
+	var rejected *appevents.RejectedError
+	if !errors.As(err, &rejected) {
+		t.Fatalf("expected RejectedError, got %v", err)
+	}
+	if rejected.Reason != "moderation.spam_blocked" {
+		t.Fatalf("unexpected reason %q", rejected.Reason)
+	}
+	if store.createdComment.TopicID != 0 {
+		t.Fatalf("rejected comment must not be stored, got %#v", store.createdComment)
+	}
+	if publisher.seen(appevents.CommentCreated) {
+		t.Fatal("comment.created must not fire after reject")
+	}
+}
+
+// TestServiceCreateCommentBeforeCreateIncludesParentID 楼中楼请求应把 parentId 放进 filter payload。
+func TestServiceCreateCommentBeforeCreateIncludesParentID(t *testing.T) {
+	store := newServiceFakeStore()
+	parentID := int64(7)
+	store.topicForComment = TopicSummary{ID: 3, Status: TopicStatusActive}
+	store.commentSummary = CommentSummary{
+		ID:       parentID,
+		TopicID:  3,
+		Status:   CommentStatusActive,
+		Depth:    0,
+		PathKey:  "000000000007",
+		RootCommentID: parentID,
+	}
+	publisher := &fakeEventPublisher{}
+	service := NewServiceWithEvents(store, publisher)
+
+	_, err := service.CreateComment(context.Background(), commentCreator(), CreateCommentInput{
+		TopicID:  3,
+		ParentID: &parentID,
+		Content:  validMarkdownContent("子回复"),
+	})
+	if err != nil {
+		t.Fatalf("CreateComment returned error: %v", err)
+	}
+	beforeEnv, ok := publisher.envelope(appevents.CommentBeforeCreate)
+	if !ok {
+		t.Fatal("missing comment.before_create")
+	}
+	if beforeEnv.Payload["parentId"] != parentID {
+		t.Fatalf("expected parentId=%d, got %#v", parentID, beforeEnv.Payload["parentId"])
+	}
+}
+
+// TestServiceCreateCommentBeforeCreateNotInvokedWhenTopicLocked 主题不可回复时不应触发 filter。
+func TestServiceCreateCommentBeforeCreateNotInvokedWhenTopicLocked(t *testing.T) {
+	store := newServiceFakeStore()
+	store.topicForComment = TopicSummary{ID: 99, Status: TopicStatusLocked}
+	publisher := &fakeEventPublisher{}
+	service := NewServiceWithEvents(store, publisher)
+
+	_, err := service.CreateComment(context.Background(), commentCreator(), CreateCommentInput{
+		TopicID: 99,
+		Content: validMarkdownContent("不能回复"),
+	})
+	if !errors.Is(err, ErrTopicClosed) {
+		t.Fatalf("expected ErrTopicClosed, got %v", err)
+	}
+	if publisher.seen(appevents.CommentBeforeCreate) {
+		t.Fatal("filter must not run for locked topics")
+	}
+}
+
 func TestServiceUpdateCommentAllowsOwnerAndAdmin(t *testing.T) {
 	store := newServiceFakeStore()
 	store.commentSummary = CommentSummary{ID: 5, AuthorUserID: 12, Status: CommentStatusActive}
@@ -1082,6 +1223,7 @@ type serviceFakeStore struct {
 	createdTag        CreateTagInput
 	updatedTag        UpdateTagInput
 	createdTopic      CreateTopicRecord
+	createdComment    CreateCommentRecord
 	topicForComment   TopicSummary
 	actionTopic       TopicSummary
 	updatedTopic      UpdateTopicRecord
@@ -1303,6 +1445,7 @@ func (s *serviceFakeStore) ApplyTopicAction(_ context.Context, input TopicLifecy
 }
 
 func (s *serviceFakeStore) CreateComment(_ context.Context, input CreateCommentRecord) (Comment, error) {
+	s.createdComment = input
 	input.ID = s.nextID
 	s.nextID++
 	input.Content.ID = s.nextID

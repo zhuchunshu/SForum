@@ -777,14 +777,22 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 	if err != nil {
 		return Comment{}, err
 	}
+	// 锁定/非 active 主题不可回复：须在 filter 之前拒绝，避免插件白跑。
 	if topic.Status != TopicStatusActive {
 		return Comment{}, ErrTopicClosed
+	}
+
+	// E1.1：鉴权与主题状态通过后、校验与落库前同步 filter（可拒绝或补丁 content）。
+	input, err = s.applyCommentBeforeCreate(ctx, actor, input)
+	if err != nil {
+		return Comment{}, err
 	}
 
 	settings, err := s.resolvedSettings(ctx)
 	if err != nil {
 		return Comment{}, err
 	}
+	// 补丁后的正文走同一套长度/外链/提及校验。
 	if err := validateCommentContent(input.Content.RawContent, settings); err != nil {
 		return Comment{}, err
 	}
@@ -866,6 +874,35 @@ func (s *Service) CreateComment(ctx context.Context, actor identity.Actor, input
 		s.indexTopic(ctx, created.TopicID)
 	}
 	return created, nil
+}
+
+// applyCommentBeforeCreate 调用 comment.before_create 同步 filter。
+// 仅允许补丁 content；parentId/topicId 由 host 权威，不接受插件改写。
+func (s *Service) applyCommentBeforeCreate(ctx context.Context, actor identity.Actor, input CreateCommentInput) (CreateCommentInput, error) {
+	payload := map[string]any{
+		"actorUserId": actor.ID,
+		"topicId":     input.TopicID,
+		"content":     input.Content,
+	}
+	if input.ParentID != nil {
+		payload["parentId"] = *input.ParentID
+	}
+	envelope := appevents.NewEnvelope(appevents.CommentBeforeCreate, payload)
+	envelope.ActorUserID = actor.ID
+	envelope.ResourceType = "comment"
+	// 创建前尚无 commentId；用 topicId 作关联资源便于投递日志检索。
+	envelope.ResourceID = strconv.FormatInt(input.TopicID, 10)
+	result := s.events.Emit(ctx, envelope)
+	if !result.OK {
+		return CreateCommentInput{}, appevents.Reject(result)
+	}
+	if len(result.Patch) == 0 {
+		return input, nil
+	}
+	if value, ok := contentInputFromPatch(result.Patch["content"]); ok {
+		input.Content = value
+	}
+	return input, nil
 }
 
 func (s *Service) applyTopicBeforeCreate(ctx context.Context, actor identity.Actor, input CreateTopicInput) (CreateTopicInput, error) {
