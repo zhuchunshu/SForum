@@ -399,9 +399,13 @@ function isPreviewableImage(item: Attachment) {
     <UButton
       v-for="tab in tabs.filter(item => item.enabled)"
       :key="tab.id"
+      size="md"
+      class="min-h-10 px-4"
       :color="activeTab === tab.id ? 'primary' : 'neutral'"
       :variant="activeTab === tab.id ? 'solid' : 'ghost'"
       :leading-icon="tab.icon"
+      role="tab"
+      :aria-selected="activeTab === tab.id"
       @click="setActiveTab(tab.id)"
     >
       {{ tab.label }}
@@ -487,7 +491,7 @@ function isPreviewableImage(item: Attachment) {
               </select>
             </UFormField>
             <UFormField :label="t('admin.attachments.maxFileSize')" name="attachment-max-size">
-              <UInput v-model.number="form.maxFileSizeMb" type="number" min="1" max="1024" icon="i-lucide-hard-drive-upload" class="w-full" />
+              <UInput size="lg" v-model.number="form.maxFileSizeMb" type="number" min="1" max="1024" icon="i-lucide-hard-drive-upload" class="w-full" />
             </UFormField>
           </div>
 
@@ -500,7 +504,7 @@ function isPreviewableImage(item: Attachment) {
           </label>
 
           <UFormField :label="t('admin.attachments.pathTemplate')" name="attachment-path-template">
-            <UInput v-model="form.pathTemplate" icon="i-lucide-route" class="w-full font-mono" />
+            <UInput size="lg" v-model="form.pathTemplate" icon="i-lucide-route" class="w-full font-mono" />
             <p class="mt-2 break-all text-xs text-slate-500 dark:text-zinc-400">
               {{ t('admin.attachments.pathPreview') }} {{ pathPreview }}
             </p>
@@ -508,7 +512,7 @@ function isPreviewableImage(item: Attachment) {
 
           <div class="grid gap-4 md:grid-cols-2">
             <UFormField :label="t('admin.attachments.publicBaseUrl')" name="attachment-public-base-url">
-              <UInput v-model="form.publicBaseUrl" type="url" icon="i-lucide-link" class="w-full" />
+              <UInput size="lg" v-model="form.publicBaseUrl" type="url" icon="i-lucide-link" class="w-full" />
             </UFormField>
             <UFormField :label="t('admin.attachments.defaultVisibility')" name="attachment-visibility">
               <select v-model="form.defaultVisibility" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
@@ -520,66 +524,66 @@ function isPreviewableImage(item: Attachment) {
 
           <div class="grid gap-4 md:grid-cols-2">
             <UFormField :label="t('admin.attachments.allowedExtensions')" name="attachment-extensions">
-              <UTextarea v-model="allowedExtensionsText" :rows="4" class="w-full font-mono text-xs" />
+              <UTextarea size="lg" v-model="allowedExtensionsText" :rows="4" class="w-full font-mono text-xs" />
             </UFormField>
             <UFormField :label="t('admin.attachments.allowedMimeTypes')" name="attachment-mime-types">
-              <UTextarea v-model="allowedMimeTypesText" :rows="4" class="w-full font-mono text-xs" />
+              <UTextarea size="lg" v-model="allowedMimeTypesText" :rows="4" class="w-full font-mono text-xs" />
             </UFormField>
           </div>
 
           <UFormField :label="t('admin.attachments.cleanupDays')" name="attachment-cleanup-days">
-            <UInput v-model.number="form.cleanupOrphanAfterDays" type="number" min="1" max="3650" icon="i-lucide-calendar-clock" class="w-full md:max-w-xs" />
+            <UInput size="lg" v-model.number="form.cleanupOrphanAfterDays" type="number" min="1" max="3650" icon="i-lucide-calendar-clock" class="w-full" />
           </UFormField>
 
           <div v-if="form.provider === 'local'" class="grid gap-4 md:grid-cols-2">
             <UFormField :label="t('admin.attachments.localRoot')" name="attachment-local-root">
-              <UInput v-model="form.local.root" icon="i-lucide-folder-tree" class="w-full font-mono" />
+              <UInput size="lg" v-model="form.local.root" icon="i-lucide-folder-tree" class="w-full font-mono" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">
                 {{ t('admin.attachments.localRootDescription') }}
               </p>
             </UFormField>
             <UFormField :label="t('admin.attachments.localPublicPrefix')" name="attachment-local-prefix">
-              <UInput v-model="form.local.publicPrefix" type="url" icon="i-lucide-folder" class="w-full" />
+              <UInput size="lg" v-model="form.local.publicPrefix" type="url" icon="i-lucide-folder" class="w-full" />
             </UFormField>
           </div>
 
           <div v-else-if="form.provider === 'aliyun_oss'" class="grid gap-4 md:grid-cols-2">
-            <UInput v-model="form.aliyunOss.endpoint" :placeholder="t('admin.attachments.aliyun.endpoint')" icon="i-lucide-cloud" />
-            <UInput v-model="form.aliyunOss.bucket" :placeholder="t('admin.attachments.aliyun.bucket')" icon="i-lucide-archive" />
-            <UInput v-model="form.aliyunOss.region" :placeholder="t('admin.attachments.aliyun.region')" icon="i-lucide-map-pin" />
-            <UInput v-model="form.aliyunOss.accessKeyId" :placeholder="t('admin.attachments.aliyun.accessKeyId')" icon="i-lucide-key-round" />
-            <UInput v-model="form.aliyunOss.accessKeySecret" type="password" :placeholder="form.aliyunOss.accessKeySecretSet ? t('admin.attachments.keepSecret') : t('admin.attachments.aliyun.accessKeySecret')" icon="i-lucide-lock-keyhole" />
+            <UInput size="lg" v-model="form.aliyunOss.endpoint" :placeholder="t('admin.attachments.aliyun.endpoint')" icon="i-lucide-cloud" />
+            <UInput size="lg" v-model="form.aliyunOss.bucket" :placeholder="t('admin.attachments.aliyun.bucket')" icon="i-lucide-archive" />
+            <UInput size="lg" v-model="form.aliyunOss.region" :placeholder="t('admin.attachments.aliyun.region')" icon="i-lucide-map-pin" />
+            <UInput size="lg" v-model="form.aliyunOss.accessKeyId" :placeholder="t('admin.attachments.aliyun.accessKeyId')" icon="i-lucide-key-round" />
+            <UInput size="lg" v-model="form.aliyunOss.accessKeySecret" type="password" :placeholder="form.aliyunOss.accessKeySecretSet ? t('admin.attachments.keepSecret') : t('admin.attachments.aliyun.accessKeySecret')" icon="i-lucide-lock-keyhole" />
           </div>
 
           <div v-else-if="form.provider === 'tencent_cos'" class="grid gap-4 md:grid-cols-2">
-            <UInput v-model="form.tencentCos.region" :placeholder="t('admin.attachments.tencent.region')" icon="i-lucide-map-pin" />
-            <UInput v-model="form.tencentCos.bucket" :placeholder="t('admin.attachments.tencent.bucket')" icon="i-lucide-archive" />
-            <UInput v-model="form.tencentCos.secretId" :placeholder="t('admin.attachments.tencent.secretId')" icon="i-lucide-key-round" />
-            <UInput v-model="form.tencentCos.secretKey" type="password" :placeholder="form.tencentCos.secretKeySet ? t('admin.attachments.keepSecret') : t('admin.attachments.tencent.secretKey')" icon="i-lucide-lock-keyhole" />
-            <UInput v-model="form.tencentCos.cdnDomain" type="url" :placeholder="t('admin.attachments.tencent.cdnDomain')" icon="i-lucide-globe" />
+            <UInput size="lg" v-model="form.tencentCos.region" :placeholder="t('admin.attachments.tencent.region')" icon="i-lucide-map-pin" />
+            <UInput size="lg" v-model="form.tencentCos.bucket" :placeholder="t('admin.attachments.tencent.bucket')" icon="i-lucide-archive" />
+            <UInput size="lg" v-model="form.tencentCos.secretId" :placeholder="t('admin.attachments.tencent.secretId')" icon="i-lucide-key-round" />
+            <UInput size="lg" v-model="form.tencentCos.secretKey" type="password" :placeholder="form.tencentCos.secretKeySet ? t('admin.attachments.keepSecret') : t('admin.attachments.tencent.secretKey')" icon="i-lucide-lock-keyhole" />
+            <UInput size="lg" v-model="form.tencentCos.cdnDomain" type="url" :placeholder="t('admin.attachments.tencent.cdnDomain')" icon="i-lucide-globe" />
           </div>
 
           <div v-else-if="form.provider === 'ftp'" class="grid gap-4 md:grid-cols-2">
-            <UInput v-model="form.ftp.host" :placeholder="t('admin.attachments.remote.host')" icon="i-lucide-server" />
-            <UInput v-model.number="form.ftp.port" type="number" min="1" max="65535" :placeholder="t('admin.attachments.remote.port')" icon="i-lucide-hash" />
-            <UInput v-model="form.ftp.username" :placeholder="t('admin.attachments.remote.username')" icon="i-lucide-user" />
-            <UInput v-model="form.ftp.password" type="password" :placeholder="form.ftp.passwordSet ? t('admin.attachments.keepSecret') : t('admin.attachments.remote.password')" icon="i-lucide-lock-keyhole" />
-            <UInput v-model="form.ftp.rootPath" :placeholder="t('admin.attachments.remote.rootPath')" icon="i-lucide-folder-tree" />
-            <UInput v-model="form.ftp.publicBaseUrl" type="url" :placeholder="t('admin.attachments.remote.publicBaseUrl')" icon="i-lucide-link" />
+            <UInput size="lg" v-model="form.ftp.host" :placeholder="t('admin.attachments.remote.host')" icon="i-lucide-server" />
+            <UInput size="lg" v-model.number="form.ftp.port" type="number" min="1" max="65535" :placeholder="t('admin.attachments.remote.port')" icon="i-lucide-hash" />
+            <UInput size="lg" v-model="form.ftp.username" :placeholder="t('admin.attachments.remote.username')" icon="i-lucide-user" />
+            <UInput size="lg" v-model="form.ftp.password" type="password" :placeholder="form.ftp.passwordSet ? t('admin.attachments.keepSecret') : t('admin.attachments.remote.password')" icon="i-lucide-lock-keyhole" />
+            <UInput size="lg" v-model="form.ftp.rootPath" :placeholder="t('admin.attachments.remote.rootPath')" icon="i-lucide-folder-tree" />
+            <UInput size="lg" v-model="form.ftp.publicBaseUrl" type="url" :placeholder="t('admin.attachments.remote.publicBaseUrl')" icon="i-lucide-link" />
             <label class="flex items-center gap-2 text-sm"><input v-model="form.ftp.passive" type="checkbox" class="size-4 rounded" />{{ t('admin.attachments.ftp.passive') }}</label>
             <label class="flex items-center gap-2 text-sm"><input v-model="form.ftp.explicitTls" type="checkbox" class="size-4 rounded" />{{ t('admin.attachments.ftp.explicitTls') }}</label>
           </div>
 
           <div v-else class="grid gap-4 md:grid-cols-2">
-            <UInput v-model="form.sftp.host" :placeholder="t('admin.attachments.remote.host')" icon="i-lucide-server" />
-            <UInput v-model.number="form.sftp.port" type="number" min="1" max="65535" :placeholder="t('admin.attachments.remote.port')" icon="i-lucide-hash" />
-            <UInput v-model="form.sftp.username" :placeholder="t('admin.attachments.remote.username')" icon="i-lucide-user" />
-            <UInput v-model="form.sftp.password" type="password" :placeholder="form.sftp.passwordSet ? t('admin.attachments.keepSecret') : t('admin.attachments.remote.password')" icon="i-lucide-lock-keyhole" />
-            <UTextarea v-model="form.sftp.privateKey" :rows="4" :placeholder="form.sftp.privateKeySet ? t('admin.attachments.keepSecret') : t('admin.attachments.sftp.privateKey')" class="md:col-span-2 font-mono text-xs" />
-            <UInput v-model="form.sftp.passphrase" type="password" :placeholder="form.sftp.passphraseSet ? t('admin.attachments.keepSecret') : t('admin.attachments.sftp.passphrase')" icon="i-lucide-lock" />
-            <UInput v-model="form.sftp.rootPath" :placeholder="t('admin.attachments.remote.rootPath')" icon="i-lucide-folder-tree" />
-            <UInput v-model="form.sftp.hostKeyFingerprint" :placeholder="t('admin.attachments.sftp.hostKeyFingerprint')" icon="i-lucide-fingerprint" />
-            <UInput v-model="form.sftp.publicBaseUrl" type="url" :placeholder="t('admin.attachments.remote.publicBaseUrl')" icon="i-lucide-link" />
+            <UInput size="lg" v-model="form.sftp.host" :placeholder="t('admin.attachments.remote.host')" icon="i-lucide-server" />
+            <UInput size="lg" v-model.number="form.sftp.port" type="number" min="1" max="65535" :placeholder="t('admin.attachments.remote.port')" icon="i-lucide-hash" />
+            <UInput size="lg" v-model="form.sftp.username" :placeholder="t('admin.attachments.remote.username')" icon="i-lucide-user" />
+            <UInput size="lg" v-model="form.sftp.password" type="password" :placeholder="form.sftp.passwordSet ? t('admin.attachments.keepSecret') : t('admin.attachments.remote.password')" icon="i-lucide-lock-keyhole" />
+            <UTextarea size="lg" v-model="form.sftp.privateKey" :rows="4" :placeholder="form.sftp.privateKeySet ? t('admin.attachments.keepSecret') : t('admin.attachments.sftp.privateKey')" class="md:col-span-2 font-mono text-xs" />
+            <UInput size="lg" v-model="form.sftp.passphrase" type="password" :placeholder="form.sftp.passphraseSet ? t('admin.attachments.keepSecret') : t('admin.attachments.sftp.passphrase')" icon="i-lucide-lock" />
+            <UInput size="lg" v-model="form.sftp.rootPath" :placeholder="t('admin.attachments.remote.rootPath')" icon="i-lucide-folder-tree" />
+            <UInput size="lg" v-model="form.sftp.hostKeyFingerprint" :placeholder="t('admin.attachments.sftp.hostKeyFingerprint')" icon="i-lucide-fingerprint" />
+            <UInput size="lg" v-model="form.sftp.publicBaseUrl" type="url" :placeholder="t('admin.attachments.remote.publicBaseUrl')" icon="i-lucide-link" />
           </div>
         </div>
 
@@ -623,7 +627,7 @@ function isPreviewableImage(item: Attachment) {
     <UCard class="border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
       <template #header>
         <div class="grid gap-3 lg:grid-cols-[1fr_150px_150px_150px_auto]">
-          <UInput v-model="filters.query" icon="i-lucide-search" :placeholder="t('admin.attachments.searchPlaceholder')" @keyup.enter="fetchAttachments" />
+          <UInput size="lg" v-model="filters.query" icon="i-lucide-search" :placeholder="t('admin.attachments.searchPlaceholder')" @keyup.enter="fetchAttachments" />
           <select v-model="filters.provider" class="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950">
             <option value="">{{ t('admin.attachments.allProviders') }}</option>
             <option v-for="choice in providerChoices" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
