@@ -288,6 +288,9 @@ func TestControllerListsExtensionEventDefinitionsAndDeliveries(t *testing.T) {
 	if !eventDefinitionListContains(definitions.Data, appevents.TopicBeforeUpdate) {
 		t.Fatalf("expected topic.before_update definition, got %#v", definitions.Data)
 	}
+	if !eventDefinitionListContains(definitions.Data, appevents.UserBeforeRegister) {
+		t.Fatalf("expected user.before_register definition, got %#v", definitions.Data)
+	}
 
 	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/event-deliveries?extensionId=demo.plugin", cookie)
 	if resp.StatusCode != http.StatusOK {

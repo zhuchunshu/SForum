@@ -1,10 +1,12 @@
 package events
 
 const (
-	ExtensionEnabled   = "extension.enabled"
-	ExtensionDisabled  = "extension.disabled"
+	ExtensionEnabled  = "extension.enabled"
+	ExtensionDisabled = "extension.disabled"
+	// UserBeforeRegister E1.3：注册落库前同步 validate，仅可拒绝不可补丁（v1）。
+	UserBeforeRegister = "user.before_register"
 	UserRegistered     = "user.registered"
-	TopicBeforeCreate = "topic.before_create"
+	TopicBeforeCreate  = "topic.before_create"
 	// TopicBeforeUpdate E1.2：主题编辑提交前同步 filter，可拒绝或补丁 allowlist 字段。
 	TopicBeforeUpdate = "topic.before_update"
 	TopicCreated      = "topic.created"
@@ -35,6 +37,10 @@ const (
 var definitions = []Definition{
 	observe(ExtensionEnabled, "Emitted after a plugin is enabled and its runtime starts.", []string{"extensionId"}),
 	observe(ExtensionDisabled, "Emitted after a plugin is disabled and its runtime stops.", []string{"extensionId"}),
+	validate(UserBeforeRegister,
+		"Runs before a user row is committed and may reject registration. Payload never includes password. v1 is reject-only (no patch) so uniqueness/policy stay host-owned.",
+		[]string{"username", "email", "locale"},
+	),
 	observe(UserRegistered, "Emitted after a new user is committed.", []string{"userId", "username", "email", "locale"}),
 	filter(TopicBeforeCreate,
 		"Runs before a topic is committed and may reject or patch allowlisted input. Heavy work must enqueue jobs, never block this filter.",
@@ -89,6 +95,18 @@ func filter(name, description string, payload, patch []string) Definition {
 		Description:   description,
 		PayloadFields: payload,
 		PatchFields:   patch,
+		TimeoutMS:     DefaultSyncTimeoutMS,
+		FailurePolicy: FailurePolicyFailClosed,
+	}
+}
+
+// validate 注册同步校验事件：fail_closed，无 patch 白名单（插件只能拒绝）。
+func validate(name, description string, payload []string) Definition {
+	return Definition{
+		Name:          name,
+		Kind:          KindValidate,
+		Description:   description,
+		PayloadFields: payload,
 		TimeoutMS:     DefaultSyncTimeoutMS,
 		FailurePolicy: FailurePolicyFailClosed,
 	}

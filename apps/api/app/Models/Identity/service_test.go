@@ -59,11 +59,124 @@ func TestRegisterEmitsUserRegisteredEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Register returned error: %v", err)
 	}
-	if len(publisher.names) != 1 || publisher.names[0] != appevents.UserRegistered {
-		t.Fatalf("expected user.registered event, got %#v", publisher.names)
+	// E1.3：先 validate before_register，再 observe registered。
+	if !publisher.seen(appevents.UserBeforeRegister) || !publisher.seen(appevents.UserRegistered) {
+		t.Fatalf("expected before_register + registered events, got %#v", publisher.names)
 	}
-	if publisher.payloads[0]["userId"] != current.ID {
-		t.Fatalf("expected payload user id %d, got %#v", current.ID, publisher.payloads[0])
+	registered, ok := publisher.envelope(appevents.UserRegistered)
+	if !ok {
+		t.Fatal("missing user.registered envelope")
+	}
+	if registered.Payload["userId"] != current.ID {
+		t.Fatalf("expected payload user id %d, got %#v", current.ID, registered.Payload)
+	}
+}
+
+// TestRegisterBeforeRegisterCanReject 插件拒绝时不得创建用户，且 password 不进 payload。
+func TestRegisterBeforeRegisterCanReject(t *testing.T) {
+	_, store := newTestService(t)
+	publisher := &fakeIdentityEventPublisher{results: map[string]appevents.Result{
+		appevents.UserBeforeRegister: {
+			OK:      false,
+			Reason:  "registration.disposable_email",
+			Message: "请使用常用邮箱注册",
+		},
+	}}
+	service := NewServiceWithEvents(store, publisher)
+
+	_, err := service.Register(testContext(t), RegisterInput{
+		Username: "spammer",
+		Email:    "user@mailinator.com",
+		Password: "correct horse battery staple",
+		Locale:   "zh-CN",
+	})
+	var rejected *appevents.RejectedError
+	if !errors.As(err, &rejected) {
+		t.Fatalf("expected RejectedError, got %v", err)
+	}
+	if rejected.Reason != "registration.disposable_email" {
+		t.Fatalf("unexpected reason %q", rejected.Reason)
+	}
+	if store.userCount() != 0 {
+		t.Fatalf("rejected registration must not create users, count=%d", store.userCount())
+	}
+	if publisher.seen(appevents.UserRegistered) {
+		t.Fatal("user.registered must not fire after reject")
+	}
+	beforeEnv, ok := publisher.envelope(appevents.UserBeforeRegister)
+	if !ok {
+		t.Fatal("missing user.before_register")
+	}
+	if beforeEnv.Payload["email"] != "user@mailinator.com" {
+		t.Fatalf("expected email in payload, got %#v", beforeEnv.Payload)
+	}
+	if beforeEnv.Payload["username"] != "spammer" {
+		t.Fatalf("expected username in payload, got %#v", beforeEnv.Payload)
+	}
+	// 安全：密码不得出现在任何事件 payload 中。
+	for i, payload := range publisher.payloads {
+		for key := range payload {
+			if strings.Contains(strings.ToLower(key), "password") {
+				t.Fatalf("password-related key %q leaked in event[%d] payload %#v", key, i, payload)
+			}
+		}
+		for _, value := range payload {
+			if text, ok := value.(string); ok && strings.Contains(text, "correct horse battery staple") {
+				t.Fatalf("password value leaked in event payload %#v", payload)
+			}
+		}
+	}
+}
+
+// TestValidateRegisterBeforeRegisterCanReject ValidateRegister 路径同样走插件校验。
+func TestValidateRegisterBeforeRegisterCanReject(t *testing.T) {
+	_, store := newTestService(t)
+	publisher := &fakeIdentityEventPublisher{results: map[string]appevents.Result{
+		appevents.UserBeforeRegister: {
+			OK:     false,
+			Reason: "registration.blocked",
+		},
+	}}
+	service := NewServiceWithEvents(store, publisher)
+
+	err := service.ValidateRegister(testContext(t), RegisterInput{
+		Username: "blocked",
+		Email:    "blocked@example.com",
+		Password: "correct horse battery staple",
+		Locale:   "en-US",
+	})
+	var rejected *appevents.RejectedError
+	if !errors.As(err, &rejected) {
+		t.Fatalf("expected RejectedError, got %v", err)
+	}
+	beforeEnv, ok := publisher.envelope(appevents.UserBeforeRegister)
+	if !ok {
+		t.Fatal("missing user.before_register on ValidateRegister")
+	}
+	if beforeEnv.Payload["locale"] != "en-US" {
+		t.Fatalf("expected locale in payload, got %#v", beforeEnv.Payload)
+	}
+	if beforeEnv.Kind != appevents.KindValidate {
+		t.Fatalf("expected kind=validate, got %q", beforeEnv.Kind)
+	}
+}
+
+// TestRegisterBeforeRegisterNotInvokedWhenFieldsInvalid 字段非法时不调用插件。
+func TestRegisterBeforeRegisterNotInvokedWhenFieldsInvalid(t *testing.T) {
+	_, store := newTestService(t)
+	publisher := &fakeIdentityEventPublisher{}
+	service := NewServiceWithEvents(store, publisher)
+
+	_, err := service.Register(testContext(t), RegisterInput{
+		Username: "",
+		Email:    "not-an-email",
+		Password: "short",
+	})
+	if err == nil {
+		t.Fatal("expected field validation error")
+	}
+	if publisher.seen(appevents.UserBeforeRegister) {
+		t.Fatal("plugin validate must not run on invalid fields")
 	}
 }
 
@@ -515,14 +628,38 @@ func newTestService(t *testing.T) (*Service, *fakeStore) {
 }
 
 type fakeIdentityEventPublisher struct {
-	names    []string
-	payloads []map[string]any
+	names     []string
+	payloads  []map[string]any
+	envelopes []appevents.Envelope
+	results   map[string]appevents.Result
 }
 
 func (p *fakeIdentityEventPublisher) Emit(_ context.Context, envelope appevents.Envelope) appevents.Result {
 	p.names = append(p.names, envelope.Name)
 	p.payloads = append(p.payloads, envelope.Payload)
+	p.envelopes = append(p.envelopes, envelope)
+	if result, ok := p.results[envelope.Name]; ok {
+		return result
+	}
 	return appevents.Result{OK: true}
+}
+
+func (p *fakeIdentityEventPublisher) seen(name string) bool {
+	for _, item := range p.names {
+		if item == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *fakeIdentityEventPublisher) envelope(name string) (appevents.Envelope, bool) {
+	for _, item := range p.envelopes {
+		if item.Name == name {
+			return item, true
+		}
+	}
+	return appevents.Envelope{}, false
 }
 
 func testContext(t *testing.T) context.Context {
@@ -599,6 +736,12 @@ func (s *fakeStore) WithBootstrapTx(ctx context.Context, fn func(context.Context
 		return err
 	}
 	return nil
+}
+
+func (s *fakeStore) userCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.users)
 }
 
 func (s *fakeStore) AnyUserExists(context.Context) (bool, error) {

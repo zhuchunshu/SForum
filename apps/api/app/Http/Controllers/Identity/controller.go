@@ -20,6 +20,7 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	useragent "github.com/zhuchunshu/sforum/apps/api/app/Support/UserAgent"
 )
@@ -726,9 +727,13 @@ func paramInt64(c fiber.Ctx, name string) (int64, error) {
 
 func mapIdentityError(err error) error {
 	var registerErr *identity.RegisterInvalidError
+	var rejected *appevents.RejectedError
 	switch {
 	case errors.As(err, &registerErr):
 		return apphttp.NewErrorWithFields(fiber.StatusUnprocessableEntity, identity.CodeRegisterInvalid, registerErr.Fields)
+	// 插件 user.before_register 等同步拒绝：422 + 稳定 reason，不暴露堆栈。
+	case errors.As(err, &rejected):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, rejected.Reason)
 	case errors.Is(err, identity.ErrInvalidCredentials):
 		return fiber.NewError(fiber.StatusUnauthorized, "auth.invalid_credentials")
 	case errors.Is(err, identity.ErrLoginLocked):

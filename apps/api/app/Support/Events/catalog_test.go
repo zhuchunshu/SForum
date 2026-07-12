@@ -75,4 +75,18 @@ func TestCatalogDocumentsTimeoutAndFailurePolicy(t *testing.T) {
 			t.Fatalf("topic.before_update patch[%d]=%q want %q", i, topicBeforeUpdate.PatchFields[i], field)
 		}
 	}
+
+	userBefore, ok := FindDefinition(UserBeforeRegister)
+	if !ok {
+		t.Fatal("user.before_register missing")
+	}
+	if userBefore.Kind != KindValidate {
+		t.Fatalf("user.before_register kind=%s want validate", userBefore.Kind)
+	}
+	if userBefore.TimeoutMS != DefaultSyncTimeoutMS || userBefore.FailurePolicy != FailurePolicyFailClosed {
+		t.Fatalf("user.before_register: %#v", userBefore)
+	}
+	if len(userBefore.PatchFields) != 0 {
+		t.Fatalf("user.before_register must be reject-only, patch=%#v", userBefore.PatchFields)
+	}
 }

@@ -170,6 +170,10 @@ func (s *Service) ValidateRegister(ctx context.Context, input RegisterInput) err
 	if len(fields) > 0 {
 		return NewRegisterInvalid(fields)
 	}
+	// 字段合法后再走插件校验，避免人机验证被无效表单消耗。
+	if err := s.applyUserBeforeRegister(ctx, normalized); err != nil {
+		return err
+	}
 
 	conflicts, err := s.store.FindRegistrationConflicts(ctx, normalized.Username, normalized.Email)
 	if err != nil {
@@ -195,6 +199,10 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUse
 	fields := validateRegisterInputWithUsername(normalized.Username, normalized.Email, input.Password, policy, usernamePolicy)
 	if len(fields) > 0 {
 		return CurrentUser{}, NewRegisterInvalid(fields)
+	}
+	// E1.3：落库与哈希密码前同步 validate（payload 不含 password）。
+	if err := s.applyUserBeforeRegister(ctx, normalized); err != nil {
+		return CurrentUser{}, err
 	}
 
 	passwordHash, err := HashPassword(input.Password)
@@ -282,6 +290,22 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (CurrentUse
 	})
 
 	return current, nil
+}
+
+// applyUserBeforeRegister 调用 user.before_register 同步 validate。
+// 仅传 username/email/locale；密码永不进入 payload。v1 拒绝-only，不接受补丁。
+func (s *Service) applyUserBeforeRegister(ctx context.Context, normalized normalizedRegisterInput) error {
+	envelope := appevents.NewEnvelope(appevents.UserBeforeRegister, map[string]any{
+		"username": normalized.Username,
+		"email":    normalized.Email,
+		"locale":   normalized.Locale,
+	})
+	envelope.ResourceType = "user"
+	result := s.events.Emit(ctx, envelope)
+	if !result.OK {
+		return appevents.Reject(result)
+	}
+	return nil
 }
 
 // ensureRegistrationAllowed 在事务外做快速拒绝；权威校验仍在 WithBootstrapTx 内。
