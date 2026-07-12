@@ -780,6 +780,25 @@ func (s *controllerFakeStore) ResetSettings(_ context.Context, extensionID strin
 	return nil
 }
 
+func (s *controllerFakeStore) Delete(_ context.Context, id string) error {
+	if _, ok := s.items[id]; !ok {
+		return extensions.ErrExtensionNotFound
+	}
+	delete(s.items, id)
+	if s.settings != nil {
+		delete(s.settings, id)
+	}
+	return nil
+}
+
+func (s *controllerFakeStore) ListMigrationLedger(context.Context, string) ([]extensions.MigrationRecord, error) {
+	return []extensions.MigrationRecord{}, nil
+}
+
+func (s *controllerFakeStore) RecordMigration(context.Context, string, extensions.MigrationRecord) error {
+	return nil
+}
+
 func (s *controllerFakeStore) CreateEventDelivery(_ context.Context, input extensions.EventDeliveryInput) (extensions.ExtensionEventDelivery, error) {
 	delivery := extensions.ExtensionEventDelivery{
 		ID:            int64(len(s.deliveries) + 1),

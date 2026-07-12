@@ -54,6 +54,11 @@ const {
   cancelEnableExtension,
   enableConfirmOpen,
   enableConfirmItem,
+  openUninstallExtension,
+  confirmUninstallExtension,
+  cancelUninstallExtension,
+  uninstallConfirmOpen,
+  uninstallConfirmItem,
   disableExtension,
   activateTheme,
   loadEvents,
@@ -475,6 +480,17 @@ onBeforeUnmount(stopActivationPolling)
               >
                 {{ t('admin.extensions.activeTheme') }}
               </UButton>
+              <UButton
+                v-if="item.isDeletable && item.source !== 'builtin' && !item.isSystem && item.status !== 'enabled'"
+                size="sm"
+                color="error"
+                variant="ghost"
+                icon="i-lucide-trash-2"
+                :loading="busyId === item.id"
+                @click="openUninstallExtension(item)"
+              >
+                {{ t('admin.extensions.uninstall') }}
+              </UButton>
             </div>
           </div>
         </div>
@@ -630,6 +646,27 @@ onBeforeUnmount(stopActivationPolling)
             </UButton>
             <UButton color="primary" icon="i-lucide-shield-check" @click="confirmEnableExtension">
               {{ t('admin.extensions.confirmEnableAction') }}
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="uninstallConfirmOpen">
+      <template #content>
+        <div class="p-5 sm:p-6">
+          <h2 class="text-base font-semibold text-slate-900 dark:text-zinc-100">
+            {{ t('admin.extensions.confirmUninstallTitle') }}
+          </h2>
+          <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-300">
+            {{ t('admin.extensions.confirmUninstallBody', { name: uninstallConfirmItem?.name || '' }) }}
+          </p>
+          <div class="mt-6 flex justify-end gap-2">
+            <UButton color="neutral" variant="ghost" @click="cancelUninstallExtension">
+              {{ t('admin.extensions.confirmUninstallCancel') }}
+            </UButton>
+            <UButton color="error" icon="i-lucide-trash-2" @click="confirmUninstallExtension">
+              {{ t('admin.extensions.confirmUninstallAction') }}
             </UButton>
           </div>
         </div>

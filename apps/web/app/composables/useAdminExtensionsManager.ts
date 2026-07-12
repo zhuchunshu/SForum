@@ -57,6 +57,15 @@ export const useAdminExtensionsManager = async () => {
     fileInput.value?.click()
   }
 
+  type AdminExtensionInstallResult = {
+    extension: AdminExtension
+    upgraded?: boolean
+    previousVersion?: string
+    previousDigest?: string
+    trustRevoked?: boolean
+    requiredReEnable?: boolean
+  }
+
   async function uploadArchive(event: Event) {
     const input = event.target as HTMLInputElement
     const file = input.files?.[0]
@@ -69,17 +78,88 @@ export const useAdminExtensionsManager = async () => {
     form.append('file', file)
     uploading.value = true
     try {
-      const installed = await request<AdminExtension>('/admin/extensions', {
+      // F2.4：响应为 InstallResult；兼容旧形态（直接 Extension）。
+      const payload = await request<AdminExtensionInstallResult | AdminExtension>('/admin/extensions', {
         method: 'POST',
         body: form
       })
-      selectedId.value = installed.id
+      const result = 'extension' in payload && payload.extension
+        ? payload as AdminExtensionInstallResult
+        : { extension: payload as AdminExtension, upgraded: false }
+      selectedId.value = result.extension.id
+      replaceExtension(result.extension)
       await refresh()
-      toast.add({ color: 'success', icon: 'i-lucide-package-check', title: t('admin.extensions.uploaded') })
+      if (result.upgraded) {
+        toast.add({
+          color: 'success',
+          icon: 'i-lucide-package-plus',
+          title: t('admin.extensions.upgraded'),
+          description: result.trustRevoked
+            ? t('admin.extensions.upgradedTrustRevokedHint')
+            : result.requiredReEnable
+              ? t('admin.extensions.upgradedReEnableHint')
+              : undefined,
+          duration: 10000
+        })
+      } else {
+        toast.add({ color: 'success', icon: 'i-lucide-package-check', title: t('admin.extensions.uploaded') })
+      }
     } catch (error) {
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.uploadFailed') })
     } finally {
       uploading.value = false
+    }
+  }
+
+  // 卸载确认（F2.4）。
+  const uninstallConfirmOpen = ref(false)
+  const uninstallConfirmItem = ref<AdminExtension | null>(null)
+
+  function openUninstallExtension(item: AdminExtension) {
+    if (!item.isDeletable || item.source === 'builtin' || item.isSystem) {
+      return
+    }
+    uninstallConfirmItem.value = item
+    uninstallConfirmOpen.value = true
+  }
+
+  function cancelUninstallExtension() {
+    uninstallConfirmOpen.value = false
+    uninstallConfirmItem.value = null
+  }
+
+  async function confirmUninstallExtension() {
+    const item = uninstallConfirmItem.value
+    if (!item) {
+      return
+    }
+    uninstallConfirmOpen.value = false
+    uninstallConfirmItem.value = null
+    busyId.value = item.id
+    try {
+      await request(`/admin/extensions/${item.id}`, {
+        method: 'DELETE',
+        body: {}
+      })
+      const current = extensions.value.filter(row => row.id !== item.id)
+      data.value = current
+      if (selectedId.value === item.id) {
+        selectedId.value = current[0]?.id || ''
+      }
+      toast.add({
+        color: 'success',
+        icon: 'i-lucide-trash-2',
+        title: t('admin.extensions.uninstalled'),
+        duration: 10000
+      })
+    } catch (error) {
+      toast.add({
+        color: 'error',
+        icon: 'i-lucide-triangle-alert',
+        title: apiErrorMessage(error) || t('admin.extensions.actionFailed')
+      })
+    } finally {
+      busyId.value = ''
     }
   }
 
@@ -384,6 +464,11 @@ export const useAdminExtensionsManager = async () => {
     cancelEnableExtension,
     enableConfirmOpen,
     enableConfirmItem,
+    openUninstallExtension,
+    confirmUninstallExtension,
+    cancelUninstallExtension,
+    uninstallConfirmOpen,
+    uninstallConfirmItem,
     disableExtension,
     restartExtension,
     verifyExtension,

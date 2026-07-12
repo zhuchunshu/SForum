@@ -21,6 +21,8 @@ const (
 	ActionExtensionDisable   = "extension.disable"
 	ActionExtensionActivate  = "extension.theme_activate"
 	ActionExtensionInstalled = "extension.install"
+	ActionExtensionUpgraded  = "extension.upgrade"
+	ActionExtensionUninstalled = "extension.uninstall"
 
 	// RecommendedRetentionDays 审计日志推荐保留天数（清理 job 默认）。
 	RecommendedRetentionDays = 90

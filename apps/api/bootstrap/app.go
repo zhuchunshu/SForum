@@ -215,6 +215,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		extensions.WithWebReleaseLifecycle(frontendService, webReleaseService),
 		extensions.WithWebReleaseProgress(webReleaseStore),
 		extensions.WithAuditor(auditWriter),
+		// F2.4：同 id 升级且 digest 变化时吊销该扩展前端信任，要求重新授权。
+		extensions.WithTrustRevoker(frontendService),
 	)
 	// 把已构造的 extensionService 接到 Host API 能力/权限解析（避免循环构造）。
 	hostAPIService.BindCapabilitySource(extensionService)

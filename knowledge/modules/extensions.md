@@ -66,7 +66,13 @@ and plugin runtime v1.
   fail_open skips when circuit is open (`extension.circuit_open_skipped`);
   fail_closed returns `extension.circuit_open`. Runtime `state=degraded` with
   `circuitOpen`, `consecutiveFailures`, `lastFailureReason` on admin cards.
-- Still open: F2.4 upgrade/uninstall/migrations.
+- **F2.4 lifecycle:** same-id ZIP upload upgrades (drain runtime, status →
+  `installed`, trust revoke on digest change, re-enable required). Uninstall via
+  `DELETE /admin/extensions/{id}` after disable; builtin/system blocked; package
+  dir removed unless `retainPackage`. Migration ledger
+  `extension_migration_ledger` records `manifest.migrations` paths+checksums
+  without executing SQL (v1). Disable drains subprocess before status change.
+  See `sessions/2026-07-12-f2-4-extension-lifecycle.md`.
 
 - `extension.manage` is the permission for uploading, verifying, enabling
   plugins, activating the protected default theme, and inspecting extensions.

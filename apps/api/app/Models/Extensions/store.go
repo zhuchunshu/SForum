@@ -12,6 +12,8 @@ type Store interface {
 	SaveInstalled(ctx context.Context, input SaveInstalledInput) (Extension, error)
 	SaveBuiltin(ctx context.Context, input SaveBuiltinInput) (Extension, error)
 	PruneMissingBuiltins(ctx context.Context, activeIDs []string) error
+	// Delete 删除扩展行（CASCADE settings/events/versions）。F2.4 卸载。
+	Delete(ctx context.Context, id string) error
 	Enable(ctx context.Context, id string, extensionType string) (Extension, error)
 	Disable(ctx context.Context, id string) (Extension, error)
 	ActivateTheme(ctx context.Context, id string) (Extension, error)
@@ -25,6 +27,9 @@ type Store interface {
 	ListSettings(ctx context.Context, extensionID string) (map[string]string, error)
 	ReplaceSettings(ctx context.Context, extensionID string, values map[string]string) error
 	ResetSettings(ctx context.Context, extensionID string) error
+	// ListMigrationLedger / RecordMigration 插件 SQL 迁移账本（F2.4）。
+	ListMigrationLedger(ctx context.Context, extensionID string) ([]MigrationRecord, error)
+	RecordMigration(ctx context.Context, extensionID string, record MigrationRecord) error
 	CreateEventDelivery(ctx context.Context, input EventDeliveryInput) (ExtensionEventDelivery, error)
 	UpdateEventDelivery(ctx context.Context, input EventDeliveryUpdateInput) error
 	ListEventDeliveries(ctx context.Context, input EventDeliveryListInput) ([]ExtensionEventDelivery, error)

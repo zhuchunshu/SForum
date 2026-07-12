@@ -41,6 +41,8 @@ const (
 	RouteAccessPermission = extensionmanifest.RouteAccessPermission
 
 	EventInstalled             = "installed"
+	EventUpgraded              = "upgraded"
+	EventUninstalled           = "uninstalled"
 	EventBuiltinSynced         = "builtin_synced"
 	EventVerified              = "verified"
 	EventEnabled               = "enabled"
@@ -48,6 +50,7 @@ const (
 	EventDisabled              = "disabled"
 	EventThemeActivated        = "theme_activated"
 	EventThemeActivationQueued = "theme_activation_queued"
+	EventMigrationsApplied     = "migrations_applied"
 
 	DeliveryQueued    = "queued"
 	DeliveryRunning   = "running"
@@ -77,6 +80,12 @@ const (
 	CodeCapabilityConfirmationRequired = "extension.capability_confirmation_required"
 	// 运行时缺少已授权 capability。
 	CodeCapabilityDenied = "extension.capability_denied"
+	// 系统/内置扩展不可卸载。
+	CodeNotDeletable = "extension.not_deletable"
+	// 卸载前必须先禁用（或 drain 失败）。
+	CodeMustDisableFirst = "extension.must_disable_first"
+	// 插件迁移执行失败。
+	CodeMigrationFailed = "extension.migration_failed"
 
 	SourceBuiltin  = "builtin"
 	SourceUploaded = "uploaded"
@@ -98,6 +107,9 @@ var (
 	// ErrCapabilityConfirmationRequired 启用插件前需 confirmCapabilities=true。
 	ErrCapabilityConfirmationRequired = errors.New("extensions: capability confirmation required")
 	ErrCapabilityDenied               = errors.New("extensions: capability denied")
+	ErrNotDeletable                   = errors.New("extensions: not deletable")
+	ErrMustDisableFirst               = errors.New("extensions: must disable before uninstall")
+	ErrMigrationFailed                = errors.New("extensions: migration failed")
 )
 
 type Manifest = extensionmanifest.Manifest
@@ -176,6 +188,39 @@ type Extension struct {
 type EnableInput struct {
 	// ConfirmCapabilities 为 true 时表示运营已审阅并确认 capability 授权。
 	ConfirmCapabilities bool `json:"confirmCapabilities"`
+}
+
+// UninstallInput 卸载扩展的请求体（F2.4）。
+type UninstallInput struct {
+	// RetainSettings 为 true 时保留 extension_settings（便于同 id 重装恢复配置）。
+	// 默认 false：随扩展行 CASCADE 删除。
+	RetainSettings bool `json:"retainSettings"`
+	// RetainPackage 为 true 时保留磁盘上的包快照目录；默认删除。
+	RetainPackage bool `json:"retainPackage"`
+}
+
+// InstallResult 安装/升级结果。
+type InstallResult struct {
+	Extension Extension `json:"extension"`
+	// Upgraded 为 true 表示同 id 覆盖安装（digest/version 变更路径）。
+	Upgraded bool `json:"upgraded"`
+	// PreviousVersion 升级前版本（若有）。
+	PreviousVersion string `json:"previousVersion,omitempty"`
+	// PreviousDigest 升级前包摘要。
+	PreviousDigest string `json:"previousDigest,omitempty"`
+	// TrustRevoked 表示升级使前端信任失效，需重新授权。
+	TrustRevoked bool `json:"trustRevoked,omitempty"`
+	// RequiredReEnable 升级后状态回到 installed，需重新启用。
+	RequiredReEnable bool `json:"requiredReEnable,omitempty"`
+}
+
+// MigrationRecord 账本中的一条迁移。
+type MigrationRecord struct {
+	Path      string    `json:"path"`
+	Checksum  string    `json:"checksum"`
+	Status    string    `json:"status"`
+	AppliedAt time.Time `json:"appliedAt"`
+	Message   string    `json:"message,omitempty"`
 }
 
 type ThemeRelease struct {

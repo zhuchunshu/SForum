@@ -196,6 +196,72 @@ func (s *PostgresStore) PruneMissingBuiltins(ctx context.Context, activeIDs []st
 	return nil
 }
 
+// Delete 卸载扩展：CASCADE 清理 versions/settings/events/ledger 等。
+func (s *PostgresStore) Delete(ctx context.Context, id string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin extension delete: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	// 先清 mail provider 选择，避免悬挂引用。
+	if _, err := tx.Exec(ctx, `DELETE FROM mail_provider_selection WHERE extension_id = $1`, id); err != nil {
+		return fmt.Errorf("clear mail provider on delete: %w", err)
+	}
+	command, err := tx.Exec(ctx, `DELETE FROM extensions WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete extension: %w", err)
+	}
+	if command.RowsAffected() == 0 {
+		return ErrExtensionNotFound
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit extension delete: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresStore) ListMigrationLedger(ctx context.Context, extensionID string) ([]MigrationRecord, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT path, checksum, status, applied_at, message
+		FROM extension_migration_ledger
+		WHERE extension_id = $1
+		ORDER BY applied_at ASC, path ASC
+	`, extensionID)
+	if err != nil {
+		return nil, fmt.Errorf("list migration ledger: %w", err)
+	}
+	defer rows.Close()
+	items := []MigrationRecord{}
+	for rows.Next() {
+		var item MigrationRecord
+		if err := rows.Scan(&item.Path, &item.Checksum, &item.Status, &item.AppliedAt, &item.Message); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (s *PostgresStore) RecordMigration(ctx context.Context, extensionID string, record MigrationRecord) error {
+	status := record.Status
+	if status == "" {
+		status = "recorded"
+	}
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO extension_migration_ledger (extension_id, path, checksum, status, message)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (extension_id, path) DO UPDATE
+		SET checksum = EXCLUDED.checksum,
+		    status = EXCLUDED.status,
+		    message = EXCLUDED.message,
+		    applied_at = now()
+	`, extensionID, record.Path, record.Checksum, status, record.Message)
+	if err != nil {
+		return fmt.Errorf("record migration: %w", err)
+	}
+	return nil
+}
+
 func (s *PostgresStore) Enable(ctx context.Context, id string, extensionType string) (Extension, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {

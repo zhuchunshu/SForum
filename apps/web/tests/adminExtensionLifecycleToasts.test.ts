@@ -51,7 +51,18 @@ describe('plugin enable/disable lifecycle feedback', () => {
       expect(catalog.admin.extensions.dynamic.enablingTitle).toBeTruthy()
       expect(catalog.admin.extensions.dynamic.reloadRequiredTitle).toBeTruthy()
       expect(catalog.admin.extensions.dynamic.plainDevTitle).toBeTruthy()
+      // F2.4 升级/卸载文案。
+      expect(catalog.admin.extensions.upgraded).toBeTruthy()
+      expect(catalog.admin.extensions.uninstalled).toBeTruthy()
+      expect(catalog.admin.extensions.confirmUninstallTitle).toBeTruthy()
     }
+  })
+
+  test('upload handles InstallResult upgrade metadata and uninstall flow exists', () => {
+    expect(manager).toContain('upgraded')
+    expect(manager).toContain('trustRevoked')
+    expect(manager).toContain('openUninstallExtension')
+    expect(manager).toContain("method: 'DELETE'")
   })
 
   test('dynamic extension page shares list cache and polls while enabling', async () => {

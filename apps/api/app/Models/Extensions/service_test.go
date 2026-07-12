@@ -1599,6 +1599,8 @@ type fakeExtensionStore struct {
 	deliveries    []ExtensionEventDelivery
 	releases      []ThemeRelease
 	nextReleaseID int64
+	// migrations 按 extension_id 存账本（F2.4）。
+	migrations map[string][]MigrationRecord
 }
 
 func newFakeExtensionStore(items map[string]Extension) *fakeExtensionStore {
@@ -1853,6 +1855,52 @@ func (s *fakeExtensionStore) ResetSettings(_ context.Context, extensionID string
 	if s.settings != nil {
 		delete(s.settings, extensionID)
 	}
+	return nil
+}
+
+func (s *fakeExtensionStore) Delete(_ context.Context, id string) error {
+	if _, ok := s.items[id]; !ok {
+		return ErrExtensionNotFound
+	}
+	delete(s.items, id)
+	if s.settings != nil {
+		delete(s.settings, id)
+	}
+	if s.migrations != nil {
+		delete(s.migrations, id)
+	}
+	return nil
+}
+
+func (s *fakeExtensionStore) ListMigrationLedger(_ context.Context, extensionID string) ([]MigrationRecord, error) {
+	if s.migrations == nil {
+		return []MigrationRecord{}, nil
+	}
+	items := s.migrations[extensionID]
+	if items == nil {
+		return []MigrationRecord{}, nil
+	}
+	out := make([]MigrationRecord, len(items))
+	copy(out, items)
+	return out, nil
+}
+
+func (s *fakeExtensionStore) RecordMigration(_ context.Context, extensionID string, record MigrationRecord) error {
+	if s.migrations == nil {
+		s.migrations = map[string][]MigrationRecord{}
+	}
+	if record.AppliedAt.IsZero() {
+		record.AppliedAt = time.Now()
+	}
+	list := s.migrations[extensionID]
+	for i := range list {
+		if list[i].Path == record.Path {
+			list[i] = record
+			s.migrations[extensionID] = list
+			return nil
+		}
+	}
+	s.migrations[extensionID] = append(list, record)
 	return nil
 }
 

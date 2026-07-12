@@ -257,6 +257,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionContributionPoints"
   "/admin/extensions/contributions":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionContributions"
+  "/admin/extensions/{extensionID}":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionUninstall"
   "/admin/extensions/{extensionID}/enable":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEnable"
   "/admin/extensions/{extensionID}/disable":
@@ -267,6 +269,10 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionActivate"
   "/admin/extensions/{extensionID}/events":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEvents"
+  "/admin/extensions/{extensionID}/migrations":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionMigrations"
+  "/admin/extensions/{extensionID}/migrations/apply":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionMigrationsApply"
   "/admin/extensions/{extensionID}/settings":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionSettings"
   "/admin/extensions/{extensionID}/settings/reset":

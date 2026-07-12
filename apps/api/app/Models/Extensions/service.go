@@ -38,6 +38,8 @@ type Service struct {
 	webReleaseProgress WebReleaseProgressReader
 	// auditor 写入宿主 audit_events（F1.4）；与 extension_events 互补。
 	auditor audit.Writer
+	// trustRevoker 升级时吊销前端信任（F2.4）。
+	trustRevoker TrustRevoker
 }
 
 // WebReleaseProgressReader 读取扩展相关的进行中/失败 Web 发布，用于管理端进度条。
@@ -586,71 +588,6 @@ func (s *Service) MatchRoute(ctx context.Context, extensionID string, method str
 	return MatchedRoute{}, ErrRouteNotFound
 }
 
-func (s *Service) InstallArchive(ctx context.Context, actor identity.Actor, input ArchiveInput) (Extension, error) {
-	if !canManagePlugins(actor) {
-		return Extension{}, identity.ErrPermissionDenied
-	}
-	if len(input.Data) == 0 || len(input.Data) > maxArchiveBytes {
-		return Extension{}, ErrInvalidArchive
-	}
-
-	manifest, files, err := readArchive(input.Data)
-	if err != nil {
-		return Extension{}, err
-	}
-	if err := validateManifest(manifest); err != nil {
-		return Extension{}, err
-	}
-	if manifest.ID == DefaultThemeID {
-		return Extension{}, ErrInvalidManifest
-	}
-
-	manifestJSON, err := json.Marshal(manifest)
-	if err != nil {
-		return Extension{}, err
-	}
-	packageFiles := make([]extensionpackage.File, 0, len(files))
-	for _, file := range files {
-		packageFiles = append(packageFiles, extensionpackage.File{
-			Path: file.name,
-			Mode: file.mode,
-			Body: file.body,
-		})
-	}
-	snapshot, err := extensionpackage.SnapshotUploaded(s.extensionRoot, manifestJSON, packageFiles)
-	if err != nil {
-		switch {
-		case errors.Is(err, extensionpackage.ErrInvalidManifest):
-			return Extension{}, ErrInvalidManifest
-		case errors.Is(err, extensionpackage.ErrInvalidPath),
-			errors.Is(err, extensionpackage.ErrNonRegular),
-			errors.Is(err, extensionpackage.ErrSymlink):
-			return Extension{}, ErrInvalidArchive
-		}
-		return Extension{}, err
-	}
-
-	installed, err := s.store.SaveInstalled(ctx, SaveInstalledInput{
-		Manifest:      manifest,
-		PackagePath:   snapshot.Root,
-		PackageDigest: snapshot.Digest,
-	})
-	if err != nil {
-		return Extension{}, err
-	}
-	_, _ = s.store.CreateEvent(ctx, EventInput{
-		ExtensionID: installed.ID,
-		ActorUserID: actor.ID,
-		Action:      EventInstalled,
-		Message:     "Extension archive installed.",
-	})
-	s.appendAudit(ctx, actor, audit.ActionExtensionInstalled, map[string]any{
-		"extensionId": installed.ID,
-		"type":        installed.Type,
-	})
-	return s.decorateRuntime(ctx, installed), nil
-}
-
 func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, input EnableInput) (Extension, error) {
 	if !canManagePlugins(actor) {
 		return Extension{}, identity.ErrPermissionDenied
@@ -715,22 +652,13 @@ func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) 
 	if extension.Type == TypeTheme {
 		return Extension{}, ErrThemeActivationRequired
 	}
+	// F2.4：先 drain runtime（停进程、清 provider），再改 DB 状态。
+	if err := s.drainPluginRuntime(ctx, extension); err != nil {
+		return Extension{}, err
+	}
 	disabled, err := s.store.Disable(ctx, extension.ID)
 	if err != nil {
 		return Extension{}, err
-	}
-	if selectionStore, ok := s.store.(interface {
-		SelectedMailProvider(context.Context) (string, error)
-		RestoreMailProvider(context.Context) error
-	}); ok {
-		if selected, selectErr := selectionStore.SelectedMailProvider(ctx); selectErr == nil && selected == disabled.ID {
-			if err := selectionStore.RestoreMailProvider(ctx); err != nil {
-				return Extension{}, err
-			}
-		}
-	}
-	if disabled.Type == TypePlugin && s.runtime != nil {
-		_ = s.runtime.Stop(ctx, disabled)
 	}
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: disabled.ID,
@@ -742,9 +670,6 @@ func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) 
 		"extensionId": disabled.ID,
 		"type":        disabled.Type,
 	})
-	if disabled.Type == TypePlugin && s.runtime != nil {
-		s.runtime.EmitHook(ctx, appevents.ExtensionDisabled, map[string]any{"extensionId": disabled.ID})
-	}
 	return s.decorateRuntime(ctx, disabled), nil
 }
 

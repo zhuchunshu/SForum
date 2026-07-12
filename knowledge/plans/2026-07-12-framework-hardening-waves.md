@@ -114,15 +114,18 @@ risk and a real lifecycle.
 
 ### F2.4 Lifecycle: upgrade / uninstall / migrations
 
-- [ ] Same-id package upgrade path (digest, trust re-approval rules)
-- [ ] Uninstall + data retention policy (settings, files, plugin tables)
-- [ ] Migration runner story for plugin-owned schema (even if v1 is limited)
-- [ ] Disable drains: remove schedules, stop routes, stop subprocess
+- [x] Same-id package upgrade path (digest, trust re-approval rules)
+- [x] Uninstall + data retention policy (settings, files, plugin tables)
+- [x] Migration runner story for plugin-owned schema (even if v1 is limited)
+- [x] Disable drains: remove schedules, stop routes, stop subprocess
 
 **F2 exit criteria:** a non-mail reference plugin can call Host API under
 grants; upgrade/uninstall documented and test-covered for the happy path.
 
-**Progress (2026-07-12):** F2.1–F2.3 landed. F2.4 open.
+**Progress (2026-07-12):** F2.1–F2.4 landed (F2 complete for current scope).
+Migration runner is **record-only** (checksum ledger); no host SQL execution.
+Disable drain stops subprocess + mail provider; plugin schedule grants still
+future when plugins declare schedules.
 
 **Depends on:** F1 schedule registry if plugin schedules are included; otherwise
 F2 can start after F1.1–F1.2.

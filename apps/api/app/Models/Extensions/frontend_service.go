@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
@@ -192,6 +193,36 @@ func (s *FrontendService) Revoke(ctx context.Context, actor identity.Actor, exte
 	operation.Queued = true
 	operation.WebRelease = webReleaseSummary(queued.Release)
 	return operation, nil
+}
+
+// RevokeAllForExtension 吊销该扩展全部 live 前端信任（F2.4 升级 digest 变化时重审批）。
+// 实现 TrustRevoker；不排队 Web Release——升级后状态回到 installed，运营重新启用/授权时再构图。
+func (s *FrontendService) RevokeAllForExtension(ctx context.Context, extensionID string, actorUserID int64) error {
+	if s == nil || s.trust == nil {
+		return nil
+	}
+	grants, err := s.trust.LiveFrontendGrants(ctx, strings.TrimSpace(extensionID))
+	if err != nil {
+		return err
+	}
+	for _, grant := range grants {
+		if grant.RevocationRequestedAt != nil {
+			continue
+		}
+		if _, err := s.trust.RequestFrontendRevocation(ctx, FrontendRevocationInput{
+			ExtensionID:       grant.ExtensionID,
+			ExtensionVersion:  grant.ExtensionVersion,
+			PackageDigest:     grant.PackageDigest,
+			RequestedByUserID: actorUserID,
+		}); err != nil {
+			// 并发已吊销或无 live 行时忽略；其它错误向上抛。
+			if errors.Is(err, ErrFrontendGrantNotFound) || errors.Is(err, ErrFrontendGrantStateConflict) {
+				continue
+			}
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *FrontendService) RestoreDefaults(ctx context.Context, actor identity.Actor) (ExtensionOperation, error) {

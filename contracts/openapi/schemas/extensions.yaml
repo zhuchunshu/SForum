@@ -11,6 +11,55 @@ ApiResponseExtension:
       type: string
     data:
       "$ref": "#/Extension"
+ApiResponseExtensionInstallResult:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/ExtensionInstallResult"
+ApiResponseExtensionUninstall:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: object
+      required:
+      - uninstalled
+      - extensionId
+      properties:
+        uninstalled:
+          type: boolean
+        extensionId:
+          type: string
+ApiResponseExtensionMigrationList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: array
+      items:
+        "$ref": "#/ExtensionMigrationRecord"
 ApiResponseExtensionList:
   type: object
   required:
@@ -687,6 +736,55 @@ Extension:
     updatedAt:
       type: string
       format: date-time
+ExtensionInstallResult:
+  type: object
+  required:
+  - extension
+  - upgraded
+  properties:
+    extension:
+      "$ref": "#/Extension"
+    upgraded:
+      type: boolean
+      description: True when the same extension id was already installed (F2.4 upgrade path).
+    previousVersion:
+      type: string
+    previousDigest:
+      type: string
+    trustRevoked:
+      type: boolean
+      description: Frontend trust revoked because packageDigest changed.
+    requiredReEnable:
+      type: boolean
+      description: Plugin must be enabled again after upgrade (status reset to installed).
+ExtensionMigrationRecord:
+  type: object
+  required:
+  - path
+  - checksum
+  - status
+  - appliedAt
+  properties:
+    path:
+      type: string
+      description: Path relative to package root (manifest.migrations[].path).
+    checksum:
+      type: string
+      description: SHA-256 of the migration file when readable.
+    status:
+      type: string
+      enum:
+      - recorded
+      - applied
+      - failed
+      description: >-
+        v1 host only records checksums (recorded); applied is reserved for a
+        future executor; failed means the file was missing or unsafe.
+    appliedAt:
+      type: string
+      format: date-time
+    message:
+      type: string
 ExtensionAdminNavigationItem:
   type: object
   required:

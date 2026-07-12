@@ -4,18 +4,21 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 F2.4 Extension lifecycle**
+  - Handoff: `knowledge/sessions/2026-07-12-f2-4-extension-lifecycle.md`
+  - Same-id upgrade, uninstall, migration ledger (record-only), disable drain
+  - Wave **F2 complete** for current scope; next framework: F3 or product
+
 - **2026-07-12 F2.3 Plugin RPC resilience**
   - Handoff: `knowledge/sessions/2026-07-12-f2-3-rpc-resilience.md`
   - Per-extension concurrency + circuit breaker; hook/mail deadlines
   - Runtime `degraded` + admin circuit/failure UI
-  - Next framework: **F2.4** lifecycle
 
 - **2026-07-12 F2.1 + F2.2 capabilities and Host API v1**
   - Handoff: `knowledge/sessions/2026-07-12-f2-capabilities-host-api.md`
   - Decision: `knowledge/decisions/2026-07-12-host-api-v1-capabilities.md`
   - Capability catalog + manifest field + enable confirm UI + grants on list
   - Host API loopback gateway, Client stubs, `extension.plugin_job`
-  - F2.3 also landed; remaining F2.4
 
 - **2026-07-12 App store split to top-level menu (themes / plugins)**
   - Handoff: `knowledge/sessions/2026-07-12-admin-extension-store-menu-split.md`

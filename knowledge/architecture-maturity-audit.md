@@ -337,7 +337,7 @@ Update:
 Modularization .............. ~7/10   host+runtime real; verticals incomplete
 Plugin-first policy ......... real    mail is the reference implementation
 Provider slots .............. partial allowlist > runtime depth
-Extension lifecycle ......... mid     install/enable/theme ok; upgrade/uninstall no
+Extension lifecycle ......... mid+    install/enable/theme + upgrade/uninstall/ledger; SQL runner later
 Performance engineering ..... ~6/10   search/cache/pools/jobs/limits done
 Performance proof ........... low     no published capacity baseline
 Scale-out ................... early   single-node assumptions still dominate

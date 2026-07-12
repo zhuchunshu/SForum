@@ -14,13 +14,15 @@ adminExtensions:
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
   post:
-    summary: Upload and install an extension ZIP archive
+    summary: Upload and install or upgrade an extension ZIP archive
     description: >-
-      Uploads a ZIP archive containing sforum.extension.json. Theme ZIPs are
-      installable Nuxt Layer packages: type theme requires a safe non-empty
-      frontend.layer and cannot declare plugin/runtime/admin capabilities in v1.
-      Uploaded themes may be installed, verified, and queued for activation
-      through the theme rebuild and rollback runtime.
+      Uploads a ZIP archive containing sforum.extension.json. Same extension id
+      replaces the package (F2.4 upgrade): drains plugin runtime, resets status
+      to installed, records declared migrations, and revokes frontend trust when
+      packageDigest changes. Theme ZIPs are installable Nuxt Layer packages:
+      type theme requires a safe non-empty frontend.layer and cannot declare
+      plugin/runtime/admin capabilities in v1. Not automatically enabled or
+      activated after install/upgrade.
     operationId: installAdminExtension
     requestBody:
       required: true
@@ -36,15 +38,23 @@ adminExtensions:
                 format: binary
     responses:
       '201':
-        description: Extension archive installed but not automatically enabled or activated.
+        description: >-
+          Extension archive installed or upgraded. data is InstallResult
+          (extension plus upgraded/trustRevoked metadata).
         content:
           application/json:
             schema:
-              "$ref": "../schemas/extensions.yaml#/ApiResponseExtension"
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionInstallResult"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '403':
         "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        description: Built-in/system extension cannot be overwritten (extension.not_deletable).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '422':
         description: >-
           Invalid archive or manifest. Invalid theme manifests keep the normal
@@ -52,7 +62,103 @@ adminExtensions:
         content:
           application/json:
             schema:
-          "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+adminExtensionUninstall:
+  delete:
+    summary: Uninstall a deletable extension
+    description: >-
+      Removes an uploaded (non-system) extension after it is disabled (F2.4).
+      Defaults delete settings (CASCADE) and the package snapshot directory.
+      retainPackage keeps the on-disk snapshot; retainSettings is recorded in
+      audit for future independent settings backup (v1 still CASCADE-deletes
+      settings with the extension row).
+    operationId: uninstallAdminExtension
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              retainSettings:
+                type: boolean
+                description: Audit/docs only in v1; settings still CASCADE with the extension row.
+              retainPackage:
+                type: boolean
+                description: When true, keep the package snapshot directory on disk.
+    responses:
+      '200':
+        description: Extension uninstalled.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionUninstall"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: >-
+          Not deletable (builtin/system) or still enabled
+          (extension.must_disable_first / extension.not_deletable).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+adminExtensionMigrations:
+  get:
+    summary: List recorded extension migration ledger entries
+    description: >-
+      Returns the host migration ledger for declared manifest.migrations paths
+      (F2.4). v1 records checksums only and does not execute plugin SQL.
+    operationId: listAdminExtensionMigrations
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Migration ledger rows.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionMigrationList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+adminExtensionMigrationsApply:
+  post:
+    summary: Record declared extension migrations
+    description: >-
+      Idempotently records manifest.migrations paths into the ledger with file
+      checksums. Does not run arbitrary SQL against the host database (F2.4 v1).
+    operationId: applyAdminExtensionMigrations
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: Full ledger after recording new paths.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionMigrationList"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '422':
+        description: Migration recording failed (extension.migration_failed).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
 adminExtensionNavigation:
   get:
     summary: List extension admin navigation items

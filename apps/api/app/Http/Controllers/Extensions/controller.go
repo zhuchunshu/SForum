@@ -110,14 +110,56 @@ func (h *Controller) install(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	item, err := h.service.InstallArchive(c.Context(), actor, extensions.ArchiveInput{
+	result, err := h.service.InstallOrUpgradeArchive(c.Context(), actor, extensions.ArchiveInput{
 		FileName: fileHeader.Filename,
 		Data:     data,
 	})
 	if err != nil {
 		return mapExtensionError(err)
 	}
-	return apphttp.Created(c, item)
+	// 兼容旧客户端：顶层仍是 Extension；升级元数据挂在 data 外层的 InstallResult。
+	return apphttp.Created(c, result)
+}
+
+func (h *Controller) uninstall(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	var input extensions.UninstallInput
+	if len(c.Body()) > 0 {
+		if err := c.Bind().Body(&input); err != nil {
+			return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+		}
+	}
+	if err := h.service.Uninstall(c.Context(), actor, c.Params("id"), input); err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, map[string]any{"uninstalled": true, "extensionId": c.Params("id")})
+}
+
+func (h *Controller) listMigrations(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.service.ListMigrations(c.Context(), actor, c.Params("id"))
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, items)
+}
+
+func (h *Controller) applyMigrations(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.service.ApplyDeclaredMigrations(c.Context(), actor, c.Params("id"))
+	if err != nil {
+		return mapExtensionError(err)
+	}
+	return apphttp.OK(c, items)
 }
 
 func (h *Controller) enable(c fiber.Ctx) error {
@@ -400,6 +442,12 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeCapabilityConfirmationRequired)
 	case errors.Is(err, extensions.ErrCapabilityDenied):
 		return fiber.NewError(fiber.StatusForbidden, extensions.CodeCapabilityDenied)
+	case errors.Is(err, extensions.ErrNotDeletable):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeNotDeletable)
+	case errors.Is(err, extensions.ErrMustDisableFirst):
+		return fiber.NewError(fiber.StatusConflict, extensions.CodeMustDisableFirst)
+	case errors.Is(err, extensions.ErrMigrationFailed):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeMigrationFailed)
 	default:
 		return err
 	}
