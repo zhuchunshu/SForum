@@ -21,3 +21,4 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `extension.web_release_cleanup` | `extension.web_release_cleanup` | maintenance | 1d | extensions | true | 清理过期 Web Release 构建产物与日志 |
 | `attachments.cleanup_orphans` | `attachments.cleanup_orphans` | maintenance | 1d | attachments | true | 清理超过保留期且无引用的孤儿附件 |
 | `audit.cleanup_events` | `audit.cleanup_events` | maintenance | 1d | audit | true | 清理超过保留期的审计日志（默认 90 天） |
+| `forum.auto_lock_idle` | `forum.auto_lock_idle` | maintenance | 1d | forum | true | 按站点 autoLockIdleDays 锁定闲置主题（0 关闭时 job 空跑） |
