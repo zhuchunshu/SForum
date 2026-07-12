@@ -366,7 +366,7 @@ describe('login page navigation', () => {
 })
 
 const defaultThemePagesUrl = new URL(
-  '../../../extensions/builtin/themes/sforum-default/layer/app/pages/',
+  '../../../apps/web/app/pages/',
   import.meta.url
 )
 
@@ -380,6 +380,11 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
       /import\s+\{\s*withAsyncContext\s+as\s+_withAsyncContext,\s*defineComponent\s+as\s+_defineComponent\s*\}\s+from\s+['"]vue['"];?/,
       'const { withAsyncContext: _withAsyncContext, defineComponent: _defineComponent } = __vue;'
     )
+    .replace(
+      /import\s+\{\s*defineComponent\s+as\s+_defineComponent\s*\}\s+from\s+['"]vue['"];?/,
+      'const { defineComponent: _defineComponent } = __vue;'
+    )
+    .replace(/^import\s+.+;?\s*$/gm, '')
     .replace(/export default /, 'return ')
 
   const requests: Array<{ path: string, options?: unknown }> = []
@@ -410,6 +415,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
     'useAdminRoutes',
     'useApiClient',
     'useAuthSession',
+    'useAuthReturnNavigation',
     'useWebOptions',
     'useAsyncData',
     'useSeoMeta',
@@ -440,7 +446,17 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
       },
       can: () => false
     }),
-    () => ({ siteName: 'SForum', humanVerificationEnabledFor: () => false }),
+    () => ({
+      returnFromAuth: async () => {},
+      authPageLink: (path: string) => path
+    }),
+    () => ({
+      siteName: ref('SForum'),
+      siteTagline: ref(''),
+      humanVerificationEnabledFor: () => false,
+      altchaWidgetSettings: ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off' }),
+      passwordPolicy: ref({ minLength: 8, requireLetter: false, requireNumber: false, requireSymbol: false })
+    }),
     async (_key: string, loader: () => Promise<unknown>) => ({ data: ref(await loader()) }),
     () => {},
     reactive,
@@ -472,6 +488,12 @@ async function loadLoginPageForSubmitTest() {
       /import\s+\{\s*defineComponent\s+as\s+_defineComponent\s*\}\s+from\s+['"]vue['"];?/,
       'const { defineComponent: _defineComponent } = __vue;'
     )
+    .replace(
+      /import\s+\{\s*withAsyncContext\s+as\s+_withAsyncContext,\s*defineComponent\s+as\s+_defineComponent\s*\}\s+from\s+['"]vue['"];?/,
+      'const { withAsyncContext: _withAsyncContext, defineComponent: _defineComponent } = __vue;'
+    )
+    // 去掉类型-only / 运行时 import，避免 new Function 解析 import()。
+    .replace(/^import\s+.+;?\s*$/gm, '')
     .replace(/export default /, 'return ')
 
   const requests: Array<{ path: string, options?: unknown }> = []
@@ -481,6 +503,9 @@ async function loadLoginPageForSubmitTest() {
 
   const request = (path: string, requestOptions?: unknown) => {
     requests.push({ path, options: requestOptions })
+    if (path === '/auth/registration-status') {
+      return Promise.resolve({ nextUserIsInitialSuperAdmin: false, registrationEnabled: true })
+    }
     return Promise.resolve({
       username: 'admin',
       roleKeys: ['super_admin'],
@@ -497,16 +522,20 @@ async function loadLoginPageForSubmitTest() {
     'useAdminRoutes',
     'useApiClient',
     'useAuthSession',
+    'useAuthReturnNavigation',
     'useWebOptions',
+    'useAsyncData',
     'useSeoMeta',
     'reactive',
     'ref',
+    'computed',
     'apiErrorMessage',
     'navigateTo',
     executable
   )
   const component = factory(
     {
+      withAsyncContext: (fn: () => Promise<unknown>) => [fn(), () => {}],
       defineComponent: (options: unknown) => options
     },
     () => {},
@@ -514,7 +543,7 @@ async function loadLoginPageForSubmitTest() {
     () => ({ add: (toast: unknown) => toasts.push(toast) }),
     () => (path: string) => path,
     () => ({ path: (path: string) => path === '/' ? '/control-panel' : `/control-panel${path}` }),
-    () => ({ request }),
+    () => ({ apiBaseUrl: '/api/v1', request }),
     () => ({
       setUser: (currentUser: { username?: string, roleKeys?: string[], permissions?: string[] } | null) => {
         sessionUser = currentUser
@@ -526,10 +555,22 @@ async function loadLoginPageForSubmitTest() {
         )
       }
     }),
-    () => ({ siteName: 'SForum' }),
+    () => ({
+      returnFromAuth: async (path?: string) => {
+        navigations.push(path || '/control-panel')
+      },
+      authPageLink: (path: string) => path
+    }),
+    () => ({
+      siteName: ref('SForum'),
+      siteTagline: ref(''),
+      altchaWidgetSettings: ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off' })
+    }),
+    async (_key: string, loader: () => Promise<unknown>) => ({ data: ref(await loader()) }),
     () => {},
     reactive,
     ref,
+    computed,
     () => '',
     async (path: string) => {
       navigations.push(path)

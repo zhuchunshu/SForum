@@ -1,7 +1,20 @@
 # Runtime Page Registry & Simple Themes — Implementation Plan
 
-Status: **ready to implement**  
+Status: **implemented (P0–P5)**  
 Date: 2026-07-13  
+
+
+## Implementation status
+
+- [x] P0 inventory + ADR anchors
+- [x] P1 Page catalog + SFPageOutlet + admin Pages
+- [x] P2 L0 skin activate without rebuild
+- [x] P3 L1 templates + add/replace + approval
+- [x] P4 L2 prebuilt widget loader (`SFExtensionWidget`)
+- [x] P5 decouple Web Release; retire public theme Layer activation path
+
+See session handoff `knowledge/sessions/2026-07-13-runtime-page-registry-p0-p5.md`.
+
 Audience: humans and AI sessions starting a greenfield implementation track
 
 **Decision (accepted):**  

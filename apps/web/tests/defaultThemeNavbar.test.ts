@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
 const source = readFileSync(
-  new URL('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFNavbar.vue', import.meta.url),
+  new URL('../../../apps/web/app/components/SFNavbar.vue', import.meta.url),
   'utf8'
 )
 

@@ -1,5 +1,4 @@
 {
-  "layer": "layer",
   "admin": {
     "root": "frontend/admin",
     "apiVersion": 1,

@@ -102,20 +102,18 @@ Initial runtime option support is implemented.
   admin-only).
 - Plugins may declare `requiresFeatures`; enable fails if any flag is off.
 
-## Page Registry / runtime theme dual-stack flags (planned)
+## Page Registry / runtime theme flags
 
-Documented in `docs/extensions/page-catalog.md` for the Runtime Page Registry
-program. **Not registered in Options code until P1+.** Distinct from
-`features.*` product surfaces.
+Registered in `apps/api/app/Models/Options/pages_registry_options.go`. Distinct
+from `features.*` product surfaces. Public keys so the host can decide outlet /
+skin behavior without admin session.
 
-| Key | Intended default | When |
+| Key | Default (post-P5) | Role |
 | --- | --- | --- |
-| `pages.registry_enabled` | `false` | P1 |
-| `themes.runtime_l0_enabled` | `false` | P2 |
-| `themes.runtime_l1_enabled` | `false` | P3 |
-| `themes.layer_activation_enabled` | `true` | P0 dual-stack; flip default only at P5 |
-
-Until keys exist, behavior is legacy Layer activation only.
+| `pages.registry_enabled` | `true` | Page catalog resolve + admin Pages UI |
+| `themes.runtime_l0_enabled` | `true` | L0 CSS/assets without Nuxt rebuild |
+| `themes.runtime_l1_enabled` | `true` | L1 template replace/add path |
+| `themes.layer_activation_enabled` | `false` | Legacy Nuxt Layer path (retired; keep key for rollback docs only) |
 
 ## Boundaries
 

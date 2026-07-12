@@ -4,15 +4,13 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
-- **2026-07-13 Runtime Page Registry — P0 inventory done**
+- **2026-07-13 Runtime Page Registry P0–P5 complete**
   - Decision: `knowledge/decisions/2026-07-13-runtime-page-registry-themes.md`
-  - Plan: `knowledge/plans/2026-07-13-runtime-page-registry-themes.md` (P0–P5)
-  - Inventory: `docs/extensions/page-catalog.md` (page ids, reserved paths,
-    Layer/Web Release touchpoints, dual-stack flag keys)
-  - Handoff: `knowledge/sessions/2026-07-13-runtime-page-registry-p0-inventory.md`
-  - P0 checklist complete; **no runtime code yet**
-  - Next: **P1** Go page catalog → registry resolve (always core) → admin list
-    → `SFPageOutlet` + migrate `forum.home` only (no Layer delete)
+  - Plan: `knowledge/plans/2026-07-13-runtime-page-registry-themes.md`
+  - Handoff: `knowledge/sessions/2026-07-13-runtime-page-registry-p0-p5.md`
+  - Inventory/contracts: `docs/extensions/page-catalog.md`
+  - Theme activate = Page Registry + L0/L1 (no Nuxt rebuild / Nitro switch)
+  - Web Release = trusted admin plugin frontends only
 
 - **2026-07-13 Runtime Page Registry & simple themes (ADR + plan)**
   - Decision: `knowledge/decisions/2026-07-13-runtime-page-registry-themes.md`

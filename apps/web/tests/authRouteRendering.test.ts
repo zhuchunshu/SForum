@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs'
 describe('auth route rendering', () => {
   test('guards default auth pages before setup and returns users after authentication', () => {
     const authPages = [
-      readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/login.vue', import.meta.url), 'utf8'),
-      readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/register.vue', import.meta.url), 'utf8')
+      readFileSync(new URL('../../../apps/web/app/pages/login.vue', import.meta.url), 'utf8'),
+      readFileSync(new URL('../../../apps/web/app/pages/register.vue', import.meta.url), 'utf8')
     ]
 
     for (const source of authPages) {
@@ -27,8 +27,8 @@ describe('auth route rendering', () => {
   })
 
   test('preserves default theme authentication success toasts', () => {
-    const loginPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/login.vue', import.meta.url), 'utf8')
-    const registerPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/register.vue', import.meta.url), 'utf8')
+    const loginPage = readFileSync(new URL('../../../apps/web/app/pages/login.vue', import.meta.url), 'utf8')
+    const registerPage = readFileSync(new URL('../../../apps/web/app/pages/register.vue', import.meta.url), 'utf8')
 
     for (const source of [loginPage, registerPage]) {
       expect(source).toContain('toast.add({')
@@ -38,7 +38,7 @@ describe('auth route rendering', () => {
   })
 
   test('offers a login-risk verification recovery flow after account-level failures', () => {
-    const loginPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/login.vue', import.meta.url), 'utf8')
+    const loginPage = readFileSync(new URL('../../../apps/web/app/pages/login.vue', import.meta.url), 'utf8')
 
     expect(loginPage).toContain("purpose=login_risk")
     expect(loginPage).toContain("reason === 'human_verification.required'")
@@ -47,13 +47,14 @@ describe('auth route rendering', () => {
   })
 
   test('preserves explicit return targets when switching between auth forms', () => {
-    const loginPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/login.vue', import.meta.url), 'utf8')
-    const registerPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/register.vue', import.meta.url), 'utf8')
+    const loginPage = readFileSync(new URL('../../../apps/web/app/pages/login.vue', import.meta.url), 'utf8')
+    const registerPage = readFileSync(new URL('../../../apps/web/app/pages/register.vue', import.meta.url), 'utf8')
 
     expect(loginPage).toContain('const { returnFromAuth, authPageLink } = useAuthReturnNavigation()')
     expect(loginPage.match(/:to="authPageLink\('\/register'\)"/g)).toHaveLength(2)
     expect(registerPage).toContain('const { returnFromAuth, authPageLink } = useAuthReturnNavigation()')
-    expect(registerPage.match(/:to="authPageLink\('\/login'\)"/g)).toHaveLength(3)
+    // 注册页：顶栏 tab、验证提示、表单旁链接、页脚登录入口（共 4 处）。
+    expect(registerPage.match(/:to="authPageLink\('\/login'\)"/g)).toHaveLength(4)
     expect(registerPage).not.toContain(":to=\"localePath('/login')\"")
   })
 
@@ -77,8 +78,8 @@ describe('auth route rendering', () => {
   })
 
   test('wires password policy feedback into registration and reset forms', () => {
-    const registerPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/register.vue', import.meta.url), 'utf8')
-    const resetPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/reset-password.vue', import.meta.url), 'utf8')
+    const registerPage = readFileSync(new URL('../../../apps/web/app/pages/register.vue', import.meta.url), 'utf8')
+    const resetPage = readFileSync(new URL('../../../apps/web/app/pages/reset-password.vue', import.meta.url), 'utf8')
     const zhCN = readFileSync(new URL('../i18n/locales/zh-CN.json', import.meta.url), 'utf8')
     const enUS = readFileSync(new URL('../i18n/locales/en-US.json', import.meta.url), 'utf8')
 

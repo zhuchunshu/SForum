@@ -123,59 +123,42 @@ paths ever appear; today API is typically unprefixed proxy on the web origin.
 
 ---
 
-## Layer activation & Web Release touchpoints (inventory)
+## Runtime theme activation (post-P5)
 
-Do **not** delete these in P0–P4. P5 retires theme Layer coupling only after
-exit criteria.
+Public theme activate/preview/switch/rollback **does not** build Nuxt, write a
+theme selection `current.json`, or restart Nitro.
 
 ### API / worker
 
 | Area | Path / symbol | Role |
 | --- | --- | --- |
-| Activate HTTP | `POST /api/v1/admin/extensions/:id/activate` → `ActivateThemeOperation` | Queues or applies theme |
-| Service | `apps/api/app/Models/Extensions/service.go` `ActivateTheme` | Builtin default sync restore + `WriteCurrent`; uploaded themes queue build |
-| Job | `extension.theme_activate` — `app/Jobs/Extensions/theme_activate.go` | Build + activate; may delegate `QueueLegacyThemeRelease` |
-| DB | `extension_theme_releases` | Release rows / status / layer_path |
-| Theme builder | `app/Support/ThemeRuntime` `Build` / `WriteCurrent` | Writes `current.json` contract |
-| Web release coordinator | `app/Support/WebReleaseCoordinator` | Writes current pointer; effects call `ActivateTheme` |
-| Config | `THEME_RELEASE_ROOT` / `WEB_RELEASE_ROOT` (shared default `storage/theme-releases`) | Release root on disk |
+| Activate HTTP | `POST /api/v1/admin/extensions/:id/activate` → `ActivateThemeOperation` | **Sync** runtime activate (`Queued: false`) |
+| Service | `apps/api/app/Models/Extensions/service.go` `ActivateTheme` | DB active theme + `pageRegistry.RegisterThemePackage` |
+| Page Registry | `app/Support/Pages` + `page_provider_bindings` | Catalog, resolve, approve replace, restore core |
+| Public resolve | `GET /api/v1/pages/resolve?id=` | Outlet provider resolution |
+| Active skin | `GET /api/v1/site/active-theme/skin` | L0 CSS/token URLs |
+| Theme assets | `GET /api/v1/site/theme-assets/:extensionId/*` | Serve package CSS/assets |
 | Permission | `extension.theme.manage` | Activate themes |
-| Audit | `extension.theme_activate` | Audit action name |
-| Public theme settings | `GET /api/v1/site/active-theme/settings` | Non-secret active theme settings for layer |
+| Audit | `extension.theme_activate` | Audit action name (still used) |
+| Public theme settings | `GET /api/v1/site/active-theme/settings` | Non-secret active theme settings |
 
-### Web supervisors & scripts
+### Web Release (trusted admin plugins only)
 
-| Script | Role |
+| Area | Role |
 | --- | --- |
-| `apps/web/scripts/dev-theme-runtime.mjs` | Dev: watch `current.json`, restart `nuxt dev` with layer |
-| `apps/web/scripts/dev-theme-lifecycle.mjs` | Serial restart coalescing |
-| `apps/web/scripts/runtime.mjs` | Prod: blue/green Nitro switch from `current.json` |
-| `apps/web/scripts/theme-proxy.mjs` | Proxy + health for prod switch |
-| `apps/web/scripts/web-release-contract.mjs` | `current.json` / `active.json` contract |
-| `apps/web/scripts/dev-admin-compose.mjs` | Dev compose builtin admin/theme source |
-| `apps/web/scripts/dev-plain.mjs` / `dev-plain-release-ack.mjs` | Dev without full theme supervisor; still ack releases |
+| `WEB_RELEASE_ROOT` / `current.json` / `active.json` | Trusted **admin** plugin frontend releases only |
+| `apps/web/scripts/dev-admin-compose.mjs` | Dev compose builtin admin frontends (optional layer symlink if present) |
+| `apps/web/scripts/dev-plain.mjs` + ack | Optional Web Release acknowledgement without theme switch |
+| `apps/web/scripts/runtime-plain.mjs` | Production: start Nitro `.output` directly |
+| `bun run dev` | Plain `nuxt dev` (no theme Layer supervisor) |
+| `bun run dev:compose` | Optional legacy supervisor for admin compose experiments |
 
-### On-disk signals
+### Retired for public themes (P5)
 
-| File | Role |
-| --- | --- |
-| `{WEB_RELEASE_ROOT}/current.json` | Desired release (`mode` default/uploaded, `server`, `layerPath`, …) |
-| `active.json` / failure ack files | Supervisor acknowledgement (web-release contract) |
-| Release artifact dirs under release root | Built Nitro / layer paths |
-
-### Tests / validation (sample)
-
-- `tests/validate-theme-runtime.js`
-- `apps/web/tests/webReleaseContract.test.ts`, `devThemeLifecycle.test.ts`
-- `apps/api/app/Jobs/Extensions/theme_activate_test.go`
-- `apps/api/app/Models/Extensions/service_test.go` (ActivateTheme cases)
-- `apps/api/app/Support/ThemeRuntime/builder_test.go`
-
-### Freeze rule (extensions module)
-
-**No new Layer-only theme features** except critical bugs. New investment goes
-to Page Registry + L0/L1 runtime (this program). Layer path remains
-compatibility dual-stack until P5.
+- Theme Nuxt Layer activation / `extension.theme_activate` worker registration
+- Theme `WriteCurrent` on activate
+- Production `runtime.mjs` theme blue/green switch as the default web entry
+- Host `extends: themeLayers` / `SFORUM_THEME_LAYER` for public pages
 
 ---
 

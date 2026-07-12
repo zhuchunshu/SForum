@@ -14,22 +14,19 @@ column, row-action, and detail-section slots.
 Owns the Nuxt web application, SSR pages, UI composition, frontend routing,
 metadata, and browser-side interactions.
 
-## Runtime themes / Page Registry (direction)
+## Runtime themes / Page Registry (live)
 
-Long-term public theming moves off “uploaded Nuxt Layer + full rebuild” toward:
+Public theming is runtime Page Registry + L0/L1 (P0–P5 complete):
 
 - **Page Registry** + stable page ids (`forum.home`, …)
 - **L0** CSS/assets without rebuild
 - **L1** sandboxed templates composing host SF islands
 - **L2** author-prebuilt widgets for heavy UI
-- Host stays Nuxt; themes stop being full Nuxt apps
+- Host stays Nuxt; public themes are not full Nuxt apps and do not rebuild Nitro
 
 **ADR:** `../decisions/2026-07-13-runtime-page-registry-themes.md`  
 **Plan:** `../plans/2026-07-13-runtime-page-registry-themes.md`  
-**P0 inventory / page ids:** `../../docs/extensions/page-catalog.md`
-
-Until P5 cutover, Layer activation and Web Release theme composition remain
-documented below as the **live** path.
+**Page catalog:** `../../docs/extensions/page-catalog.md`
 
 ## Current Status
 
@@ -118,221 +115,20 @@ desktop, collapses depth-two descendants once at the boundary, and preserves a
 direct non-interactive reply reference. Mobile clears every recursive inset;
 flat mode never recurses. Rich content containers, code, and images must remain
 bounded so no comment depth can widen the document viewport.
-Uploaded themes are incremental overlays. When `SFORUM_THEME_LAYER` is set,
-`apps/web/nuxt.config.ts` extends `[uploadedThemeLayer, defaultThemeLayer]` so
-the uploaded layer can override public pages, layouts, components, and assets,
-while missing files continue to resolve from `sforum.default-theme`. The
-declared layer directory itself must still exist; only files inside it may be
-omitted and inherited from the default theme.
-Production and development web Docker images build from the repository root and
-copy `extensions/builtin` into `/app/extensions/builtin`, while keeping the web
-workdir at `/app/apps/web`; this preserves the static Nuxt layer reference
-`../../extensions/builtin/themes/sforum-default/layer` inside containers.
-The web production container runs `apps/web/scripts/runtime.mjs`, which watches
-`THEME_RELEASE_ROOT/current.json` through `SFORUM_THEME_RELEASE_ROOT` and starts
-the selected Nitro server. `current.json` carries `mode` (`uploaded` or
-`default`), an absolute `server` path for uploaded releases, and a `layerPath`
-for local dev. `runtime.mjs` resolves relative `server` paths against the
-release root, uses blue-green Nitro switching, keeps the old child running when
-a candidate is missing or unhealthy, and falls back to the default `.output`
-when `mode === 'default'` or the file is absent.
-Locally, `bun run dev` runs `apps/web/scripts/dev-theme-runtime.mjs`, a
-theme-aware supervisor that owns exactly one inner `nuxt dev` (`dev:nuxt`).
+Public themes no longer ship as Nuxt Layers selected at runtime. Host
+`apps/web` owns public pages/components/layouts/CSS. Themes are L0/L1 packages
+(`theme.json` + `assets/` + `templates/`) activated through the Page Registry
+without rebuilding Nuxt or restarting Nitro.
 
-**Default (P1 dev-compose):** does **not** require a full Web Release. On
-start it runs `scripts/dev-admin-compose.mjs`, which scans
-`extensions/builtin/{themes,plugins}` for packages that declare
-`frontend.admin` + settings contributions, writes
-`storage/theme-releases/dev-compose/` with:
-
-- `registry/` (`metadata.ts`, `registry.client.ts`) — same shape as a Web
-  Release registry so Nuxt aliases keep working;
-- `guard-policy.json` — host peer allowlist for the admin extension Vite guard;
-- `extensions/<id>/frontend/admin` and `theme/layer` as **symlinks** into
-  builtin source so `.vue` edits hot-reload without rebuild.
-
-Locales and contribution maps are inlined into `metadata.ts`; changing those
-files updates `compositionHash` and restarts Nuxt. Pure component file edits
-keep the same hash and rely on Vite HMR through the symlink.
-
-**Startup speed (default mode):** Nuxt binds the public `PORT`/`WEB_PORT`
-directly (no reverse proxy). Ready is “TCP listen / Local URL printed”, not
-“HTTP GET / returns &lt;500”, so cold start feels close to bare `nuxt dev`.
-Compose itself is milliseconds. Nitro route cache is cleared only when
-switching theme/registry, not on cold start (keeps `.nuxt` warm).
-
-**Full Web Release mode:** set `SFORUM_DEV_USE_RELEASE=1` to consume
-`current.json` / production release `dev-input` (upload theme validation,
-digest-approved packages). That path still uses a fixed-port reverse proxy and
-serial Nuxt restarts when the release pointer changes. Numeric release IDs
-still write `active.json`; `dev-local` never does.
-
-On a selection change the supervisor stops the old process group, then starts
-the latest layer. Parallel Nuxt dev instances cannot safely share their build
-lock, generated output, cache, and HMR resources. The supervisor loads the
-repository root `.env` and uses `PORT` or `WEB_PORT` for the public URL.
-`bun run dev:plain` runs raw `nuxt dev` as an escape hatch for troubleshooting
-without the theme supervisor. It still watches `theme-releases/current.json`
-and writes `active.json` so trusted-admin Web Release activation can complete
-while Nuxt stays on the default/current process (no theme-layer restart). It
-does **not** run dev-compose and will not load custom admin UIs unless env is
-set manually.
-`bun run dev:nuxt` is the absolute bare Nuxt process used as the inner child of
-the theme supervisor; alone it will not acknowledge Web Releases.
-`bun run preview` only serves the fixed `.output` build and does not follow
-admin theme switching.
-The production Docker build creates a build-local `.nuxt -> .nuxt-build`
-symlink before `bun run build` because `tsconfig.json` still extends
-`./.nuxt/tsconfig.json` while the build script uses `NUXT_BUILD_DIR=.nuxt-build`.
-Layer-owned global CSS is registered from the layer's own directory with an
-absolute `import.meta.url`-based path; do not use `~/assets/...` inside a layer
-config for theme assets because Nuxt resolves `~` against the host app.
-Layer pages that import package types may need host-provided type paths in
-`apps/web/nuxt.config.ts` because TypeScript resolves modules from the layer
-file location and will not naturally climb into `apps/web/node_modules`.
-`SFIconPicker` is available for future admin/user setting forms that need an
-icon field. It supports Tabler Icons and the existing Nuxt Icon/Lucide naming,
-stores plain `i-tabler-*` or `i-lucide-*` strings, and `nuxt.config.ts`
-explicitly includes the local `lucide` and `tabler` icon collections. The
-picker loads the full local Tabler/Lucide catalog through the Nuxt server route
-`/api/icon-collections/:collection`, returns names in pages, and registers only
-the visible page's icon data with Iconify before rendering so thousands of
-icons are available without putting every SVG into the first client bundle.
-SF inputs/search and the standalone login/register auth inputs now override
-WebKit browser autofill styling so saved credentials keep the intended white
-input surface, dark text, caret color, and focus ring instead of the default
-browser fill background.
-The registration page reads backend `data.fields` errors and shows field-level
-messages next to username, email, password, and human verification while keeping
-login failures as a single actionable top-level message.
-The registration password input now always shows the current rule
-(`>= 12` characters) before submission. Login and registration success handlers
-store the `CurrentUser` returned by the API directly, show a 10-second success
-Toast, then navigate, so a successful account creation is not reclassified as a
-form failure if a later refresh/navigation step has trouble. `useApiClient()`
-reads locale from the Nuxt app i18n runtime instead of calling `useI18n()`,
-keeping it safe for route middleware such as the admin guard.
-Password readiness progress now uses gradual length scoring against the active
-password policy, so the recommended length-only default shows intermediate
-progress instead of jumping from 0% to 100%; backend policy validation remains
-authoritative.
-Login, registration, forgot-password, reset-password, and ordinary protected
-user workflows (`/settings/**`, `/topics/new`,
-`/t/:topicID/:topicSlug/edit`, plus English prefixes) remain server-rendered
-instead of SPA-only and explicitly disable route cache. A global
-`auth.global.ts` middleware consumes `requiresAuth` page metadata and redirects
-missing users to the locale-aware login page; if the auth API is temporarily
-unavailable and there is no cached user, these ordinary user pages still
-degrade to login rather than a 503 shell. The root app still waits for startup
-web options during SSR, but it does not refresh auth during SSR because public
-SWR pages must not cache user-specific payload. Browser startup refresh runs on
-mount so SPA admin/component-preview routes do not hold the first client render
-behind API calls and cached public pages can still restore valid sessions after
-hydration.
-Admin pages use a dedicated `admin` Nuxt layout built from Nuxt UI Dashboard
-components (`UDashboardGroup`, `UDashboardSidebar`, `UDashboardPanel`,
-`UDashboardNavbar`, `UDashboardToolbar`) and Nuxt Icon lucide icons. The source
-directory remains `apps/web/app/pages/admin`, while Nuxt `pages:extend`
-rewrites the public URL prefix to `NUXT_PUBLIC_ADMIN_ROUTE_PREFIX`, with
-`/control-panel` as the default.
-The admin layout renders a dedicated `SFAdminFooter` inside the main content
-scroll area (not sticky/fixed). Negative margins cancel the panel padding so
-the bar is full-bleed like topbar/tabs (`--bg-admin-card` + top border only).
-`mt-auto` keeps it at the bottom on sparse pages; longer pages scroll it with
-the content. Left-side SForum copyright and right-side product summary —
-separate from the public/theme-layer `SFFooter`.
-Admin modules now use a low-code registry in
-`apps/web/app/config/adminModules.ts`: sidebar entries, tab labels/icons,
-keep-alive component names, badges, and frontend-visible permission
-requirements are centralized there. Page components call `useAdminPage('/id')`
-instead of hand-writing `useAdminTabs().openTab(...)` metadata.
-The admin index route now renders the "均衡指挥台 / Balanced Command Center"
-from `GET /api/v1/admin/overview` rather than faning out to several admin
-module endpoints. It keeps `useAdminPage('/')` and `UDashboardToolbar`, shows
-API memory, posts, users, action summaries, CSS-only 7-day trend bars, runtime
-status, content health, top categories, and quick module links. Formatting
-helpers in `app/utils/adminOverview.ts` intentionally avoid locale-dependent
-date/number output so SSR and client hydration stay stable.
-Admin sidebar parent folders derive active/open state from the current admin
-route: only the matching parent opens initially, inactive folders stay
-collapsed by default, and the sidebar body scrolls independently when the menu
-list grows.
-The admin personalization page remains a registered `/personalization` page
-under the System configuration folder. It now hosts multi-section tabs for
-appearance/footer and the former site-chrome areas (brand, nav, announcements,
-legal, friend links) with larger `md` tab buttons. Legacy `/site-chrome`
-redirects into personalization with a `tab` query.
-The admin shell now includes a `database.manage`-gated database table manager
-under the System folder. It uses the existing admin registry, Nuxt UI controls,
-native dense tables, masked sensitive cells with per-cell reveal, and CSV
-export that keeps sensitive values masked.
-Dynamic extension admin pages under `/extensions/{id}/pages/*` are treated as
-route-backed custom admin tabs. The admin layout creates a temporary tab from
-the route when needed, activates existing custom tabs on route changes, and
-keeps the Extensions sidebar folder open/active for those dynamic pages until
-the page component replaces the temporary label with manifest metadata.
-UI feedback should favor Toasts for user-triggered success and completion
-states: authentication success, create/update/delete success, saved settings,
-restored defaults, uploads, exports, copied values, queued jobs, and similar
-actions should normally show a short Toast. Non-error alerts/toasts should
-auto-dismiss after 10 seconds. Blocking errors, field-level validation, and
-guidance the user must act on should remain visible near the relevant form or
-page state; error Toasts may be used for non-blocking failures but must not
-replace field-level messages or auto-close. Success Toast styling should follow
-the active SForum appearance/theme tokens and admin personalization settings.
-The public forum navbar user dropdown no longer exposes the admin entry link,
-so the configurable admin prefix is not revealed from the regular logged-in UI.
-The public forum navbar now includes a client-rendered Light/Dark mode toggle
-that uses Nuxt Color Mode's `.dark` class. The default theme and SF component
-CSS define dark semantic variables for public chrome, cards, search, feed rows,
-tabs, pagination, forms, and editor surfaces so the forum home page responds to
-the same color-mode state as the admin shell.
-Runtime site options are read through `useWebOptions()`. Public options now
-include site name, site URL, default locale, enabled locales, and the public
-human-verification provider. `site.name` drives the navbar, auth pages, admin
-shell, and browser title template, with `SForum` as the fallback product name.
-Admin-only option reads and batch saves power the settings page tabs; ALTCHA
-secret values are never exposed to public frontend state.
-Personalization now reads `appearance.theme` and footer options from the same
-runtime option layer. `appearance.theme` remains the stored option key, but UI
-language calls it an appearance preset / 配色预设 to avoid confusing color
-presets with installable Nuxt Layer themes. The root app sets
-`data-sforum-theme` on `<html>`, CSS variables switch between preset colors or
-controlled `custom:#rrggbb` colors, and the admin personalization page edits
-the appearance preset plus footer copyright/link content. Nuxt UI's generated
-`--ui-color-primary-*` and `--ui-primary` tokens are bridged to the same
-runtime variables so admin sidebar highlights and `color="primary"` controls do
-not keep Nuxt UI's default green. Nuxt UI's `success` token family is also
-bridged to the active SForum primary color so success Toasts and other
-`color="success"` UI feedback follow the selected appearance preset/custom
-color.
-Recommended personalization defaults are shared from `useWebOptions()`:
-`appearance.theme=pine_teal`, the default bilingual footer copyright, and the
-Terms/Privacy/Guidelines footer links. The personalization reset action restores
-these recommended defaults instead of only reloading the last saved snapshot.
-SEO now reads runtime `seo.*` options through `useWebOptions()` and public pages
-should use `useSForumSeo()` for title templates, descriptions, canonical URLs,
-robots meta, Open Graph/Twitter tags, verification tags, and minimal JSON-LD.
-The Nuxt sitemap module uses a dynamic server source and robots.txt is extended
-through a Nitro hook. Local and preview URLs are always noindex.
-Admin route middleware distinguishes real unauthenticated responses from
-temporary auth-service failures through `useAuthSession()`. A missing user
-after refresh redirects to the locale-aware login page even when the auth API is
-temporarily unavailable, so API restart/502/timeout cases do not render a Nuxt
-503 error page. Cached current users are preserved and continue through the
-admin permission check.
-Client-side API requests made through `useApiClient().request` now detect
-backend API connectivity failures globally. Gateway/runtime failures such as
-502/503/504, `server.unavailable`, browser `Failed to fetch`, and timeout-style
-network errors open a persistent `SFApiConnectionModal` from the root app shell.
-Business errors such as 401, 422, field validation, CSRF recovery, and other
-backend envelopes remain owned by the calling page so field-level guidance and
-auth redirects keep their existing behavior.
-Nuxt now owns a project-specific global error page at `app/error.vue`. The
-first release uses the shared public SForum chrome for both forum and admin
-routes, renders the selected community empty-state style for `404`, `403`,
-`500`, and `503`, and keeps error pages `noindex` through the existing SEO
-helper.
+- `bun run dev` / production `theme:runtime` (`scripts/runtime-plain.mjs`) start
+  plain Nuxt/Nitro.
+- Active theme skin CSS is injected client-side from
+  `GET /api/v1/site/active-theme/skin` + theme-assets routes.
+- Trusted **admin** plugin frontends may still use Web Release / dev-compose
+  (`bun run dev:compose`, `SFORUM_ADMIN_REGISTRY_ROOT`).
+- Optional legacy scripts (`dev-theme-runtime.mjs`, `runtime.mjs`) remain for
+  admin composition experiments and historical Web Release contracts; they are
+  not the public theme activation path.
 
 ## Regression Notes
 

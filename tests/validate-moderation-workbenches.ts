@@ -19,7 +19,7 @@ for (const locale of ['zh-CN', 'en-US']) {
   assert(typeof messages.admin?.nav?.moderation === 'string', `${locale} must define admin.nav.moderation`)
 }
 
-const navbar = read('extensions/builtin/themes/sforum-default/layer/app/components/SFNavbar.vue')
+const navbar = read('apps/web/app/components/SFNavbar.vue')
 assert(navbar.includes('FORUM_PERMISSIONS.moderationReview'), 'Public moderator entry must require moderation.review')
 assert(navbar.includes("localePath('/moderation')"), 'Public moderator entry must link to /moderation')
 
@@ -43,11 +43,11 @@ const contextPanel = read('apps/web/app/components/moderation/ModerationContextP
 for (const action of ['approve', 'reject', 'keep_and_close', 'hide_and_close', 'delete_and_close']) {
   assert(contextPanel.includes(action), `Context panel must expose ${action}`)
 }
-const authorPage = read('extensions/builtin/themes/sforum-default/layer/app/pages/my/content-review.vue')
+const authorPage = read('apps/web/app/pages/my/content-review.vue')
 assert(authorPage.includes('listAuthorReviewItems'), 'Author page must use the authenticated review-status endpoint')
-const composer = read('extensions/builtin/themes/sforum-default/layer/app/pages/topics/new.vue')
+const composer = read('apps/web/app/pages/topics/new.vue')
 assert(composer.includes("created.status === 'pending'"), 'Topic composer must handle pending publication')
-const topicPage = read('extensions/builtin/themes/sforum-default/layer/app/pages/t/[...path].vue')
+const topicPage = read('apps/web/app/pages/t/[...path].vue')
 assert(topicPage.includes('replySubmittedForReview'), 'Comment composer must handle pending publication')
 
 console.log('Moderation workbench validation passed')

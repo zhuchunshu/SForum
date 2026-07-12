@@ -21,8 +21,8 @@ import {
 
 describe('forum taxonomy helpers', () => {
   test('category and tag pages rely on API pagination defaults', () => {
-    const categoryPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/c/[categorySlug].vue', import.meta.url), 'utf8')
-    const tagPage = readFileSync(new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/tags/[tagSlug].vue', import.meta.url), 'utf8')
+    const categoryPage = readFileSync(new URL('../../../apps/web/app/pages/c/[categorySlug].vue', import.meta.url), 'utf8')
+    const tagPage = readFileSync(new URL('../../../apps/web/app/pages/tags/[tagSlug].vue', import.meta.url), 'utf8')
     expect(categoryPage).not.toContain('perPage: ITEMS_PER_PAGE')
     expect(tagPage).not.toContain('perPage: ITEMS_PER_PAGE')
     expect(categoryPage).toContain('topicList.value.perPage')

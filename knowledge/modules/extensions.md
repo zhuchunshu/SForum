@@ -315,36 +315,16 @@ and plugin runtime v1.
   `extension_event_deliveries`. The runtime has River job args and worker
   plumbing for durable async delivery, and falls back to inline delivery when no
   dispatcher is configured.
-- Theme packages can declare a Nuxt Layer path. Uploaded theme activation is a
-  deployment-like pipeline: manifest validation, queued release row, temporary
-  Nuxt build, preview health check, atomic `current.json` switch, and web
-  supervisor restart onto the new Nitro server. The selected uploaded layer is
-  applied before the protected default theme layer, so themes may be incremental
-  overlays that omit public pages, layouts, components, or assets and inherit
-  them from `sforum.default-theme`. Multi-node rollout, signed marketplace
-  trust, arbitrary theme dependency installation, and administrator preview
-  approval are still future work.
-- Production theme switching is zero-downtime (blue-green). The web supervisor
-  uses `apps/web/scripts/theme-proxy.mjs` to own the external port (`PORT`,
-  default 3000), starts each Nitro candidate on a per-release unix socket via
-  `NITRO_UNIX_SOCKET`, waits for health, atomically swaps the proxy upstream,
-  and then drains the old child. A candidate that fails health checking leaves
-  the old Nitro server available.
-- Local `dev-theme-runtime.mjs` consumes the same `current.json` signal and
-  reuses the proxy's HTTP/WebSocket forwarding and health checks, but
-  intentionally owns one `nuxt dev` process. A selection change clears the
-  proxy target, stops and waits for the old process group, then starts the
-  latest layer on `PORT=0`. This creates a brief development-only outage;
-  parallel Nuxt dev instances would share the build lock, generated output,
-  cache, and HMR resources and are therefore unsupported.
-- `theme-releases/current.json` is the single runtime theme selection signal and
-  is consumed by both production `runtime.mjs` and local `dev-theme-runtime.mjs`.
-  Uploaded activation writes `mode: "uploaded"` with absolute `server`
-  (built Nitro entry for production) and `layerPath` (Nuxt Layer source for
-  local dev). Restoring the built-in default theme (synchronous API path) writes
-  `mode: "default"` with no `server`/`layerPath`, so both runtimes fall back to
-  the default `.output` / default theme layer. Legacy `{ "server": "..." }`
-  files remain compatible.
+- Theme packages use runtime `theme.json` (L0 skin + L1 page contributions).
+  `ActivateTheme` is **synchronous**: DB active theme + Page Registry register;
+  no Nuxt build, no theme `current.json`, no Nitro restart. Public pages live
+  on the host; themes may replace/add views via registry (core API / security
+  routes remain non-overridable). Plugin `replace` of core pages requires
+  super_admin approval; theme activate auto-binds that theme's replaces.
+- Web Release remains only for trusted **admin** plugin frontends (digest grant
+  + composition). Do not use Web Release for public theme switching.
+- Local `bun run dev` is plain Nuxt. Optional `dev:compose` still assembles
+  builtin admin frontends for HMR without a full production Web Release.
 - Keep plugin `Enable/Disable` separate from theme `Activate`. Do not call
   plugin runtime hooks when activating a theme.
 - Backend plugin packages can declare a backend entry and RPC protocol. The

@@ -66,6 +66,7 @@ function loadAppComponentForStartupTest(options: { server: boolean }) {
     'useHead',
     'applySEOTitleTemplate',
     'onMounted',
+    'useActiveThemeSkin',
     executable
   )
 
@@ -79,6 +80,8 @@ function loadAppComponentForStartupTest(options: { server: boolean }) {
       siteName: ref('SForum'),
       resolvedAppearanceTheme: ref({ dataTheme: 'pine_teal', style: '' }),
       seoSettings: ref({ metaTitleTemplate: '' }),
+      siteFaviconUrl: ref(''),
+      siteAppleTouchIconUrl: ref(''),
       refresh: () => {
         webOptionsRefreshStarted = true
         return options.server ? Promise.resolve(true) : never
@@ -99,7 +102,8 @@ function loadAppComponentForStartupTest(options: { server: boolean }) {
     () => '',
     (callback: () => void | Promise<void>) => {
       mountedCallbacks.push(callback)
-    }
+    },
+    () => ({ refresh: async () => {} })
   )
 
   return {

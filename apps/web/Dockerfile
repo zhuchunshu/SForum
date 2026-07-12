@@ -35,4 +35,5 @@ COPY --from=build --chown=sforum:sforum /app/apps/web/.output ./.output
 COPY --chown=sforum:sforum apps/web/scripts ./scripts
 USER sforum
 EXPOSE 3000
-CMD ["node", "scripts/runtime.mjs"]
+# 公开主题不再蓝绿切换 Nitro；直接启动构建产物。Web Release 仅服务可信管理端插件。
+CMD ["node", "scripts/runtime-plain.mjs"]

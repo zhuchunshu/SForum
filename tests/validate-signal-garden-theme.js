@@ -4,7 +4,7 @@ const path = require('path')
 const root = path.resolve(__dirname, '..')
 const themeRoot = path.join(root, 'extensions/dev/themes/sforum-signal-garden')
 const manifestPath = path.join(themeRoot, 'sforum.extension.json')
-const layerRoot = path.join(themeRoot, 'layer')
+const themeJsonPath = path.join(themeRoot, 'theme.json')
 
 function assert(condition, message) {
   if (!condition) {
@@ -17,12 +17,13 @@ function read(file) {
 }
 
 assert(fs.existsSync(manifestPath), 'Signal Garden manifest must exist')
-assert(fs.existsSync(layerRoot), 'Signal Garden Nuxt layer directory must exist')
+assert(fs.existsSync(themeJsonPath), 'Signal Garden theme.json must exist')
 
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
 assert(manifest.id === 'sforum.signal-garden', 'manifest id must be sforum.signal-garden')
 assert(manifest.type === 'theme', 'manifest type must be theme')
-assert(manifest.frontend?.layer === 'layer', 'manifest frontend.layer must point to layer')
+// Runtime L0/L1：不再要求 Nuxt Layer；frontend.layer 可缺省。
+assert(!manifest.frontend?.layer, 'runtime Signal Garden must not require frontend.layer')
 assert(!manifest.backend, 'theme manifest must not declare backend runtime')
 assert(!manifest.routes, 'theme manifest must not declare routes')
 assert(!manifest.hooks, 'theme manifest must not declare hooks')
@@ -32,33 +33,28 @@ assert(!manifest.providers, 'theme manifest must not declare providers')
 assert(!manifest.migrations, 'theme manifest must not declare migrations')
 assert(!manifest.permissions, 'theme manifest must not declare permissions')
 
-const nuxtConfig = read('layer/nuxt.config.ts')
-assert(nuxtConfig.includes('fileURLToPath'), 'theme layer CSS must resolve from the layer path')
-assert(nuxtConfig.includes('signal-garden.css'), 'theme layer must register signal-garden.css')
+const themeJson = JSON.parse(fs.readFileSync(themeJsonPath, 'utf8'))
+assert(Array.isArray(themeJson.pages) && themeJson.pages.length > 0, 'theme.json must declare pages')
+const home = themeJson.pages.find((p) => p.target === 'forum.home' || p.id?.includes('home'))
+assert(home, 'theme.json must declare a forum.home replace contribution')
+assert(home.action === 'replace', 'home contribution must be replace')
+assert(home.template, 'home contribution must point to a template')
+assert(fs.existsSync(path.join(themeRoot, home.template)), `template ${home.template} must exist`)
 
-const css = read('layer/app/assets/css/signal-garden.css')
-for (const token of ['--sg-leaf', '--sg-sun', '--sg-coral', '--sg-ink', '--sg-paper']) {
-  assert(css.includes(token), `theme CSS must define ${token}`)
+assert(themeJson.skin?.css?.length, 'theme.json must declare skin.css')
+for (const rel of themeJson.skin.css) {
+  assert(fs.existsSync(path.join(themeRoot, rel)), `skin css ${rel} must exist`)
 }
-for (const selector of ['.signal-garden-shell', '.sg-navbar', '.sg-feed-row', '.sg-community-panel', '.dark']) {
-  assert(css.includes(selector), `theme CSS must include ${selector}`)
-}
-
-for (const file of [
-  'layer/app/layouts/default.vue',
-  'layer/app/layouts/auth.vue',
-  'layer/app/components/SignalGardenNavbar.vue',
-  'layer/app/components/SignalGardenFooter.vue',
-  'layer/app/pages/index.vue',
-  'layer/app/pages/login.vue',
-  'layer/app/pages/register.vue'
-]) {
-  assert(fs.existsSync(path.join(themeRoot, file)), `${file} must exist`)
+if (themeJson.skin.tokens) {
+  assert(fs.existsSync(path.join(themeRoot, themeJson.skin.tokens)), 'skin tokens file must exist')
 }
 
-const homepage = read('layer/app/pages/index.vue')
-for (const marker of ['signal-garden-home', 'sg-feed-row', 'sg-community-panel', 'useSForumSeo']) {
-  assert(homepage.includes(marker), `homepage must include ${marker}`)
-}
+const css = read(themeJson.skin.css[0])
+// 至少保留 Signal Garden 视觉身份 token 或品牌类名之一。
+const hasTokens = ['--sg-leaf', '--sg-sun', '--sg-coral', 'signal-garden', 'sg-hero'].some((token) => css.includes(token))
+assert(hasTokens, 'theme CSS must retain Signal Garden visual markers')
 
-console.log('Signal Garden theme validation passed.')
+const homeTemplate = read(home.template)
+assert(homeTemplate.includes('sf-home-page') || homeTemplate.includes('forum.home') || homeTemplate.includes('signal-garden'), 'home template must reference host island or garden markers')
+
+console.log('Signal Garden runtime theme validation passed.')

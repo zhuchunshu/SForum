@@ -5,8 +5,11 @@ describe('dev runtime startup', () => {
   test('dev script loads the root env before starting the public proxy', () => {
     const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 
-    expect(packageJson.scripts.dev).toContain('--env-file=../../.env')
-    expect(packageJson.scripts.dev).toContain('scripts/dev-theme-runtime.mjs')
+    // Runtime Page Registry：日常 dev 直接跑 Nuxt，不再经主题 Layer supervisor。
+    expect(packageJson.scripts.dev).toMatch(/--dotenv \.\.\/\.\.\/\.env|--env-file=\.\.\/\.\.\/\.env/)
+    expect(packageJson.scripts.dev).toContain('nuxt dev')
+    // 完整 Web Release / 旧 compose 路径仍可选手动入口。
+    expect(packageJson.scripts['dev:compose']).toContain('scripts/dev-theme-runtime.mjs')
   })
 
   test('dev:plain keeps raw nuxt but still acknowledges web releases', () => {

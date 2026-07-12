@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
 const accountSecurityPage = () => readFileSync(
-  new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/settings/security.vue', import.meta.url),
+  new URL('../../../apps/web/app/pages/settings/security.vue', import.meta.url),
   'utf8'
 )
 
@@ -12,7 +12,7 @@ const adminSettingsPage = () => readFileSync(
 )
 
 const homepage = () => readFileSync(
-  new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/index.vue', import.meta.url),
+  new URL('../../../apps/web/app/pages/index.vue', import.meta.url),
   'utf8'
 )
 

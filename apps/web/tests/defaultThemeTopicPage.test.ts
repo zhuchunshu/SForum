@@ -2,13 +2,13 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync } from 'node:fs'
 
 const topicPage = () => readFileSync(
-  new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/t/[...path].vue', import.meta.url),
+  new URL('../../../apps/web/app/pages/t/[...path].vue', import.meta.url),
   'utf8'
 )
 
 const sourceFile = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const themeFile = (path: string) => readFileSync(
-  new URL(`../../../extensions/builtin/themes/sforum-default/layer/${path}`, import.meta.url),
+  new URL(`../../../apps/web/${path}`, import.meta.url),
   'utf8'
 )
 
@@ -55,7 +55,7 @@ describe('default theme V32 topic page contract', () => {
 
     for (const name of topicComponentNames) {
       const path = `app/components/${name}.vue`
-      expect(existsSync(new URL(`../../../extensions/builtin/themes/sforum-default/layer/${path}`, import.meta.url))).toBe(true)
+      expect(existsSync(new URL(`../../../apps/web/${path}`, import.meta.url))).toBe(true)
       expect(source).toContain(`<${name}`)
 
       const component = themeFile(path)

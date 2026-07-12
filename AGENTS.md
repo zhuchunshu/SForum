@@ -74,9 +74,9 @@ not kill it):
   Meilisearch, Mailpit) via Compose and run migrations. `--build` rebuilds,
   `--no-migrate` skips migrations. Stops old Compose-managed frontend/backend
   containers first.
-- `cd apps/web && bun run dev` — theme-aware Nuxt dev supervisor
-  (`scripts/dev-theme-runtime.mjs`) that restarts `nuxt dev` with the active
-  theme layer when `theme-releases/current.json` changes.
+- `cd apps/web && bun run dev` — plain Nuxt dev (public themes use Page
+  Registry + L0 CSS; no theme Layer supervisor). Optional
+  `bun run dev:compose` still composes trusted admin plugin frontends.
 - `./scripts/api-dev.sh` — run the API with `air` (hot reload). On start it
   reclaims only leftover `sforum-api` processes on `HTTP_PORT` via
   `scripts/free-api-dev-port.sh`; if the port is held by docker or another

@@ -2,19 +2,15 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
 const tagsPage = () => readFileSync(
-  new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/tags/index.vue', import.meta.url),
+  new URL('../../../apps/web/app/pages/tags/index.vue', import.meta.url),
   'utf8'
 )
 const categoriesPage = () => readFileSync(
-  new URL('../../../extensions/builtin/themes/sforum-default/layer/app/pages/categories/index.vue', import.meta.url),
+  new URL('../../../apps/web/app/pages/categories/index.vue', import.meta.url),
   'utf8'
 )
 const taxonomyCss = () => readFileSync(
-  new URL('../../../extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-taxonomy.css', import.meta.url),
-  'utf8'
-)
-const themeNuxtConfig = () => readFileSync(
-  new URL('../../../extensions/builtin/themes/sforum-default/layer/nuxt.config.ts', import.meta.url),
+  new URL('../../../apps/web/app/assets/css/sforum-taxonomy.css', import.meta.url),
   'utf8'
 )
 const hostNuxtConfig = () => readFileSync(new URL('../nuxt.config.ts', import.meta.url), 'utf8')
@@ -50,7 +46,7 @@ describe('public taxonomy list pages (T01 + C04)', () => {
   })
 
   test('theme registers taxonomy CSS and host routeRules cover list roots', () => {
-    expect(themeNuxtConfig()).toContain('sforum-taxonomy.css')
+    expect(hostNuxtConfig()).toContain('sforum-taxonomy.css')
     expect(taxonomyCss()).toContain('.sforum-taxonomy__cloud')
     expect(taxonomyCss()).toContain('.sforum-taxonomy__tile')
     expect(hostNuxtConfig()).toContain("'/categories': { swr: 600 }")

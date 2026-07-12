@@ -132,7 +132,8 @@ describe('SFComment responsive CSS contract', () => {
 
     expect(source).toContain('background: var(--sf-public-surface)')
     expect(source).toContain('box-shadow: var(--sf-public-shadow)')
-    expect(source).toContain('border-radius: 8px')
+    // 顶层回复卡片圆角与公开表面 token 对齐（当前 12px）。
+    expect(source).toContain('border-radius: 12px')
   })
 
   test('loads a focused comment stylesheet with one branch rail', () => {

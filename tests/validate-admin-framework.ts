@@ -118,15 +118,16 @@ assert(envExample.includes('NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/control-panel'), '.e
 assert(productionEnvExample.includes('NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/control-panel'), '.env.production.example should document the admin route prefix')
 
 for (const authPage of [
-  'extensions/builtin/themes/sforum-default/layer/app/pages/login.vue',
-  'extensions/builtin/themes/sforum-default/layer/app/pages/register.vue'
+  'apps/web/app/pages/login.vue',
+  'apps/web/app/pages/register.vue'
 ]) {
   const content = read(authPage)
   assert(content.includes('useAdminRoutes') || content.includes('useAuthReturnNavigation'), `${authPage} should use the admin route or centralized auth return helper`)
   assert(!content.includes("? '/admin'"), `${authPage} should not hard-code the legacy /admin prefix`)
 }
-assert(!existsSync(file('apps/web/app/pages/login.vue')), 'Login page should be owned by the default theme layer')
-assert(!existsSync(file('apps/web/app/pages/register.vue')), 'Register page should be owned by the default theme layer')
+// Runtime Page Registry：公开 auth 页由 host 拥有，不再要求默认主题 Layer。
+assert(existsSync(file('apps/web/app/pages/login.vue')), 'Login page should live on the host after theme migration')
+assert(existsSync(file('apps/web/app/pages/register.vue')), 'Register page should live on the host after theme migration')
 
 const adminPagePathsById: Record<string, string> = {
   '/': 'apps/web/app/pages/admin/index.vue',
@@ -157,6 +158,7 @@ const adminPagePathsById: Record<string, string> = {
   '/extensions/events': 'apps/web/app/pages/admin/extensions/events.vue',
   '/extensions/contributions': 'apps/web/app/pages/admin/extensions/contributions.vue',
   '/extensions/releases': 'apps/web/app/pages/admin/extensions/releases.vue',
+  '/extensions/pages': 'apps/web/app/pages/admin/extensions/pages.vue',
   '/jobs': 'apps/web/app/pages/admin/jobs.vue',
   '/schedules': 'apps/web/app/pages/admin/schedules.vue',
   '/webhooks': 'apps/web/app/pages/admin/webhooks.vue',
@@ -281,7 +283,7 @@ assert(!systemFolder.children?.some(entry => entry.pageId === '/jobs'), 'System 
 assert(!systemFolder.children?.some(entry => entry.pageId === '/extensions'), 'System folder should not contain the extension overview page')
 const extensionFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensions')
 assert(extensionFolder, 'Admin sidebar should expose extensions as an independent folder')
-assert(extensionFolder.children?.map(entry => entry.pageId).join(',') === '/extensions,/extensions/plugins,/extensions/themes,/extensions/settings,/extensions/events,/extensions/contributions,/extensions/releases', 'Extension folder should keep the approved submenu order without the app store')
+assert(extensionFolder.children?.map(entry => entry.pageId).join(',') === '/extensions,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/settings,/extensions/events,/extensions/contributions,/extensions/releases', 'Extension folder should keep the approved submenu order without the app store')
 assert(!extensionFolder.children?.some(entry => entry.pageId === '/extensions/store'), 'App store should not live under the extensions folder')
 const extensionStoreFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensionStore')
 assert(extensionStoreFolder, 'Admin sidebar should expose app store as an independent top-level folder')

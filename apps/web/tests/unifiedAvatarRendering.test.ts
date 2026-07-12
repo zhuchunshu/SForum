@@ -5,7 +5,7 @@ const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'u
 
 describe('unified avatar rendering contract', () => {
   test('public and admin user chrome render through SFAvatar', () => {
-    const navbar = source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFNavbar.vue')
+    const navbar = source('../../../apps/web/app/components/SFNavbar.vue')
     const adminLayout = source('../app/layouts/admin.vue')
 
     expect(navbar).toContain('<SFAvatar')
@@ -19,9 +19,9 @@ describe('unified avatar rendering contract', () => {
 
   test('forum surfaces that show avatars pass AvatarView into SFAvatar', () => {
     const avatar = source('../app/components/SFAvatar.vue')
-    const homepageRow = source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFHomeTopicRow.vue')
-    const topicPage = source('../../../extensions/builtin/themes/sforum-default/layer/app/pages/t/[...path].vue')
-    const topicHeading = source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFTopicHeading.vue')
+    const homepageRow = source('../../../apps/web/app/components/SFHomeTopicRow.vue')
+    const topicPage = source('../../../apps/web/app/pages/t/[...path].vue')
+    const topicHeading = source('../../../apps/web/app/components/SFTopicHeading.vue')
     const feedRow = source('../app/components/SFFeedRow.vue')
     const comment = source('../app/components/SFComment.vue')
 

@@ -2,14 +2,15 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
-const homepage = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/pages/index.vue')
-const topicRow = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFHomeTopicRow.vue')
-const homeNav = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFHomeNavigation.vue')
-const defaultLayout = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/layouts/default.vue')
-const layerConfig = () => source('../../../extensions/builtin/themes/sforum-default/layer/nuxt.config.ts')
-const homepageCss = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-home.css')
-const themeCss = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/assets/css/sforum-theme.css')
-const footer = () => source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFFooter.vue')
+const homepage = () => source('../../../apps/web/app/pages/index.vue')
+const topicRow = () => source('../../../apps/web/app/components/SFHomeTopicRow.vue')
+const homeNav = () => source('../../../apps/web/app/components/SFHomeNavigation.vue')
+const defaultLayout = () => source('../../../apps/web/app/layouts/default.vue')
+const hostConfig = () => source('../nuxt.config.ts')
+const homepageCss = () => source('../../../apps/web/app/assets/css/sforum-home.css')
+const themeCss = () => source('../../../apps/web/app/assets/css/sforum-theme.css')
+const themePackage = () => source('../../../extensions/builtin/themes/sforum-default/theme.json')
+const footer = () => source('../../../apps/web/app/components/SFFooter.vue')
 const homeQueryCacheMiddleware = () => source('../server/middleware/home-query-cache.ts')
 
 describe('default theme V32 left-nav homepage contract', () => {
@@ -89,8 +90,8 @@ describe('default theme V32 left-nav homepage contract', () => {
   })
 
   test('category and tag pages reuse the V32 left-nav topic table shell', () => {
-    const categoryPage = source('../../../extensions/builtin/themes/sforum-default/layer/app/pages/c/[categorySlug].vue')
-    const tagPage = source('../../../extensions/builtin/themes/sforum-default/layer/app/pages/tags/[tagSlug].vue')
+    const categoryPage = source('../../../apps/web/app/pages/c/[categorySlug].vue')
+    const tagPage = source('../../../apps/web/app/pages/tags/[tagSlug].vue')
 
     for (const page of [categoryPage, tagPage]) {
       expect(page).toContain('class="sforum-home"')
@@ -143,12 +144,14 @@ describe('default theme V32 left-nav homepage contract', () => {
   })
 
   test('registers three-column homepage stylesheet tokens with right rail', () => {
-    const config = layerConfig()
+    const config = hostConfig()
     const css = homepageCss()
     const theme = themeCss()
-    const rightRail = source('../../../extensions/builtin/themes/sforum-default/layer/app/components/SFHomeRightRail.vue')
+    const pkg = themePackage()
+    const rightRail = source('../../../apps/web/app/components/SFHomeRightRail.vue')
 
     expect(config).toContain('sforum-home.css')
+    expect(pkg).toContain('forum.home')
     expect(css).toContain('.sforum-home__layout--with-right')
     expect(css).toContain('var(--sf-public-right-rail-width)')
     expect(css).toContain('.sforum-home__right')

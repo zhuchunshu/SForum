@@ -49,8 +49,11 @@ describe('dev admin compose (P1)', () => {
     expect(result.extensions).toContain('sforum.default-theme')
     expect(result.extensions).toContain('sforum.smtp')
     expect(fs.existsSync(result.registryRoot)).toBe(true)
-    expect(fs.existsSync(result.themeLayer)).toBe(true)
-    expect(fs.lstatSync(result.themeLayer).isSymbolicLink()).toBe(true)
+    // Runtime 主题不再强制提供 Nuxt Layer；有 layer 时才软链，否则 themeLayer 为空。
+    if (result.themeLayer) {
+      expect(fs.existsSync(result.themeLayer)).toBe(true)
+      expect(fs.lstatSync(result.themeLayer).isSymbolicLink()).toBe(true)
+    }
 
     const metadata = fs.readFileSync(path.join(result.registryRoot, 'metadata.ts'), 'utf8')
     expect(metadata).toContain(`export const releaseId = "${DEV_COMPOSE_RELEASE_ID}"`)

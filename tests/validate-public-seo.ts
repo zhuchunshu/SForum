@@ -3,11 +3,11 @@ import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dir, '..')
 const pages = {
-  home: 'extensions/builtin/themes/sforum-default/layer/app/pages/index.vue',
-  category: 'extensions/builtin/themes/sforum-default/layer/app/pages/c/[categorySlug].vue',
-  tag: 'extensions/builtin/themes/sforum-default/layer/app/pages/tags/[tagSlug].vue',
-  topic: 'extensions/builtin/themes/sforum-default/layer/app/pages/t/[...path].vue',
-  profile: 'extensions/builtin/themes/sforum-default/layer/app/pages/u/[username].vue'
+  home: 'apps/web/app/pages/index.vue',
+  category: 'apps/web/app/pages/c/[categorySlug].vue',
+  tag: 'apps/web/app/pages/tags/[tagSlug].vue',
+  topic: 'apps/web/app/pages/t/[...path].vue',
+  profile: 'apps/web/app/pages/u/[username].vue'
 } as const
 
 for (const [type, path] of Object.entries(pages)) {

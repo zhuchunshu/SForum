@@ -35,8 +35,11 @@ cd apps/web && bun run dev
 ./scripts/api-dev.sh
 ```
 
-`bun run dev` is a theme-aware supervisor (`apps/web/scripts/dev-theme-runtime.mjs`).
-It watches `theme-releases/current.json` and automatically restarts the inner
+`bun run dev` starts plain Nuxt. Public themes activate via the Page Registry
+(L0 CSS + L1 templates) without rebuilding Nuxt or restarting Nitro. Optional
+admin frontend composition remains available through Web Release tooling.
+
+Legacy note (retired for public themes):
 `nuxt dev` with the active theme's Nuxt Layer whenever the operator activates a
 theme in the admin panel, so the frontend reflects the switch after a restart.
 Use `bun run dev:plain` to run raw `nuxt dev` for troubleshooting without the
@@ -78,12 +81,10 @@ Development dependency services publish loopback-only host ports so locally
 started `air` and Nuxt can connect to them. Production Compose keeps internal
 services private and publishes only the web entry point.
 
-Production web runs `apps/web/scripts/runtime.mjs`, which watches
-`theme-releases/current.json` on the shared `theme_releases` volume and
-restarts onto the selected theme's Nitro server. The `api`, `worker`, and
-`web` services must all share that volume so activation writes and runtime
-reads agree. Theme switch visibility is "next refresh on the same public URL";
-do not use `bun run preview` as the production web server.
+Production web starts Nitro via `apps/web/scripts/runtime-plain.mjs` (no
+theme Layer blue/green switch). Public theme activate/switch is runtime-only
+(Page Registry + skin CSS). Web Release `current.json` remains only for trusted
+admin plugin frontends. Do not use `bun run preview` as the production web server.
 
 ## Start Here
 

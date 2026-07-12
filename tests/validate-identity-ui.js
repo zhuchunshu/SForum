@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 
 const root = process.cwd();
-const registerPagePath = 'extensions/builtin/themes/sforum-default/layer/app/pages/register.vue';
-const loginPagePath = 'extensions/builtin/themes/sforum-default/layer/app/pages/login.vue';
+const registerPagePath = 'apps/web/app/pages/register.vue';
+const loginPagePath = 'apps/web/app/pages/login.vue';
 const requiredFiles = [
   'apps/web/app/composables/useAuthSession.ts',
   'apps/web/app/middleware/admin.ts',
