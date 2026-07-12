@@ -559,14 +559,15 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, exte
 		return ExtensionSettings{}, err
 	}
 	// 持久化前保留 previous 密文快照，便于重启失败时回滚。
-	previousRaw, _ := s.store.ListSettings(ctx, extension.ID)
+	previousRaw, err := s.store.ListSettings(ctx, extension.ID)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
 	if err := s.store.ReplaceSettings(ctx, extension.ID, stored); err != nil {
 		return ExtensionSettings{}, err
 	}
 	if err := s.restartPluginForSettings(ctx, extension); err != nil {
-		// 插件重启失败：回滚设置，避免“已写库但进程仍用旧配置/失败态”不一致。
-		_ = s.store.ReplaceSettings(ctx, extension.ID, previousRaw)
-		return ExtensionSettings{}, err
+		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, err)
 	}
 	// 返回解密后的视图（secret 仍在 resolve 中掩码）。
 	return resolveExtensionSettings(extension, values, locale), nil
@@ -583,13 +584,28 @@ func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor, exten
 	if err := requireExtensionEnabledForSettings(extension); err != nil {
 		return ExtensionSettings{}, err
 	}
+	previousRaw, err := s.store.ListSettings(ctx, extension.ID)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
 	if err := s.store.ResetSettings(ctx, extension.ID); err != nil {
 		return ExtensionSettings{}, err
 	}
 	if err := s.restartPluginForSettings(ctx, extension); err != nil {
-		return ExtensionSettings{}, err
+		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, err)
 	}
 	return resolveExtensionSettings(extension, map[string]string{}, locale), nil
+}
+
+func (s *Service) restoreSettingsAfterRestartFailure(ctx context.Context, extensionID string, previous map[string]string, restartErr error) error {
+	if restoreErr := s.store.ReplaceSettings(ctx, extensionID, previous); restoreErr != nil {
+		return errors.Join(
+			ErrSettingsRollbackFailed,
+			fmt.Errorf("restart extension after settings change: %w", restartErr),
+			fmt.Errorf("restore previous extension settings: %w", restoreErr),
+		)
+	}
+	return fmt.Errorf("restart extension after settings change: %w", restartErr)
 }
 
 // requireExtensionEnabledForSettings 限制仅启用中的扩展可读写 settings。
@@ -1353,7 +1369,6 @@ func (s *Service) decryptSettingsMap(ctx context.Context, extension Extension, r
 	}
 	secretKeys := secretSettingKeys(extension.Manifest)
 	out := make(map[string]string, len(raw))
-	migrate := map[string]string{}
 	for key, value := range raw {
 		if !secretKeys[key] {
 			out[key] = value
@@ -1366,21 +1381,14 @@ func (s *Service) decryptSettingsMap(ctx context.Context, extension Extension, r
 		}
 		out[key] = plain
 		if migrated {
-			if enc, encErr := s.encryptSecretValue(plain); encErr == nil {
-				migrate[key] = enc
+			enc, encErr := s.encryptSecretValue(plain)
+			if encErr != nil {
+				return nil, fmt.Errorf("encrypt legacy secret setting %s: %w", key, encErr)
+			}
+			if _, casErr := s.store.CompareAndSwapSetting(ctx, extension.ID, key, value, enc); casErr != nil {
+				return nil, fmt.Errorf("migrate legacy secret setting %s: %w", key, casErr)
 			}
 		}
-	}
-	if len(migrate) > 0 {
-		// 事务性写回：以当前 raw 为底，只更新需迁移的 secret。
-		next := make(map[string]string, len(raw))
-		for k, v := range raw {
-			next[k] = v
-		}
-		for k, v := range migrate {
-			next[k] = v
-		}
-		_ = s.store.ReplaceSettings(ctx, extension.ID, next)
 	}
 	return out, nil
 }

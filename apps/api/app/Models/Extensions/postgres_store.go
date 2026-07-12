@@ -526,6 +526,18 @@ func (s *PostgresStore) ReplaceSettings(ctx context.Context, extensionID string,
 	return nil
 }
 
+func (s *PostgresStore) CompareAndSwapSetting(ctx context.Context, extensionID, name, oldValue, newValue string) (bool, error) {
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE extension_settings
+		SET value = $4, updated_at = now()
+		WHERE extension_id = $1 AND name = $2 AND value = $3
+	`, extensionID, name, oldValue, newValue)
+	if err != nil {
+		return false, fmt.Errorf("compare and swap extension setting %s: %w", name, err)
+	}
+	return tag.RowsAffected() == 1, nil
+}
+
 func (s *PostgresStore) ResetSettings(ctx context.Context, extensionID string) error {
 	if _, err := s.pool.Exec(ctx, "DELETE FROM extension_settings WHERE extension_id = $1", extensionID); err != nil {
 		return fmt.Errorf("reset extension settings: %w", err)

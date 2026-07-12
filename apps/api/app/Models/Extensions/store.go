@@ -26,6 +26,7 @@ type Store interface {
 	ListEvents(ctx context.Context, extensionID string, limit int) ([]ExtensionEvent, error)
 	ListSettings(ctx context.Context, extensionID string) (map[string]string, error)
 	ReplaceSettings(ctx context.Context, extensionID string, values map[string]string) error
+	CompareAndSwapSetting(ctx context.Context, extensionID, name, oldValue, newValue string) (bool, error)
 	ResetSettings(ctx context.Context, extensionID string) error
 	// ListMigrationLedger / RecordMigration 插件 SQL 迁移账本（F2.4）。
 	ListMigrationLedger(ctx context.Context, extensionID string) ([]MigrationRecord, error)

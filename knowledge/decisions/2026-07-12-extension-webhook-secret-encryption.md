@@ -24,6 +24,13 @@ were stored as plaintext while core `web_options` already used AES-GCM via
    still requires `APP_OPTION_ENC_KEY` via existing config gates for options.
 6. API responses keep masking (`SecretSet` / empty value). Plugin env injection
    receives decrypted values only after a successful decrypt.
+7. Legacy plaintext lazy migration uses a single-key compare-and-swap. It writes
+   ciphertext only while the stored value still equals the plaintext snapshot,
+   so a concurrent administrator update cannot be replaced by stale data.
+8. Settings update/reset takes a ciphertext snapshot before mutation. If the
+   enabled plugin cannot restart, core restores that exact snapshot. A failed
+   restore returns the stable `extension.settings_rollback_failed` reason rather
+   than hiding the database error; secrets are never included in the response.
 
 ## Key rotation / backup restore
 
@@ -37,3 +44,5 @@ were stored as plaintext while core `web_options` already used AES-GCM via
 - Database snapshots no longer expose provider credentials or webhook HMAC keys
   when encryption is enabled.
 - Sites that lose the key cannot recover secrets without re-entry by admins.
+- Failed plugin restarts do not discard reset settings, and rollback failures
+  are visible to operators as a state requiring intervention.

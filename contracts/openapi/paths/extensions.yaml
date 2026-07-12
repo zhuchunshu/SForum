@@ -256,6 +256,12 @@ adminExtensionSettings:
           application/json:
             schema:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        description: Plugin restart failed; reason extension.settings_rollback_failed means restoring the previous settings also failed and requires operator intervention.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
 adminExtensionSettingsReset:
   post:
     summary: Reset extension settings to manifest defaults
@@ -275,6 +281,12 @@ adminExtensionSettingsReset:
         "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+      '503':
+        description: Plugin restart failed; reason extension.settings_rollback_failed means restoring the previous settings also failed and requires operator intervention.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
 adminExtensionEnable:
   post:
     summary: Enable an installed plugin

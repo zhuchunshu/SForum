@@ -86,6 +86,34 @@ func TestLegacyPlaintextSecretMigrates(t *testing.T) {
 	}
 }
 
+func TestLegacyPlaintextSecretMigrationDoesNotOverwriteConcurrentUpdate(t *testing.T) {
+	cipher, _ := crypto.NewOptionCipher(strings.Repeat("9", 64))
+	item := installedExtension("legacy-race.plugin", TypePlugin, ManifestBackend{})
+	item.Status = StatusEnabled
+	item.Manifest.Settings = []ManifestSetting{{Key: "token", Label: LocalizedText{Default: "T"}, Type: "secret"}}
+	concurrent, _ := cipher.Encrypt("admin-updated")
+	store := &fakeExtensionStore{
+		items:    map[string]Extension{item.ID: item},
+		settings: map[string]map[string]string{item.ID: {"token": "legacy-plain"}},
+	}
+	store.beforeCAS = func() {
+		store.settings[item.ID]["token"] = concurrent
+	}
+	service := NewService(store, t.TempDir())
+	WithCipher(cipher)(service)
+
+	values, err := service.listDecryptedSettings(context.Background(), item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if values["token"] != "legacy-plain" {
+		t.Fatalf("read snapshot changed unexpectedly: %#v", values)
+	}
+	if store.settings[item.ID]["token"] != concurrent {
+		t.Fatal("lazy migration overwrote the concurrent administrator update")
+	}
+}
+
 func TestWrongKeyDoesNotClearSecret(t *testing.T) {
 	cipherA, _ := crypto.NewOptionCipher(strings.Repeat("c", 64))
 	cipherB, _ := crypto.NewOptionCipher(strings.Repeat("d", 64))

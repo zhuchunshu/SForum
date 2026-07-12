@@ -839,6 +839,67 @@ func TestServiceSettingsRejectWhenExtensionDisabled(t *testing.T) {
 	}
 }
 
+func TestUpdateSettingsRestoresSnapshotWhenPluginRestartFails(t *testing.T) {
+	item := installedExtension("settings-restart.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"})
+	item.Status = StatusEnabled
+	item.Manifest.Settings = []ManifestSetting{{Key: "name", Label: LocalizedText{Default: "Name"}, Type: "text"}}
+	store := &fakeExtensionStore{
+		items:    map[string]Extension{item.ID: item},
+		settings: map[string]map[string]string{item.ID: {"name": "before"}},
+	}
+	runtime := &fakeRuntimeManager{startErr: errors.New("start failed")}
+	service := NewServiceWithRuntime(store, t.TempDir(), runtime, nil)
+
+	_, err := service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{
+		Values: map[string]string{"name": "after"},
+	}, "zh-CN")
+	if err == nil {
+		t.Fatal("restart failure must be returned")
+	}
+	if got := store.settings[item.ID]["name"]; got != "before" {
+		t.Fatalf("previous settings were not restored: %q", got)
+	}
+}
+
+func TestResetSettingsRestoresSnapshotWhenPluginRestartFails(t *testing.T) {
+	item := installedExtension("settings-reset.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"})
+	item.Status = StatusEnabled
+	item.Manifest.Settings = []ManifestSetting{{Key: "name", Label: LocalizedText{Default: "Name"}, Type: "text"}}
+	store := &fakeExtensionStore{
+		items:    map[string]Extension{item.ID: item},
+		settings: map[string]map[string]string{item.ID: {"name": "keep"}},
+	}
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{startErr: errors.New("start failed")}, nil)
+
+	_, err := service.ResetSettings(context.Background(), extensionManager(), item.ID, "zh-CN")
+	if err == nil {
+		t.Fatal("restart failure must be returned")
+	}
+	if got := store.settings[item.ID]["name"]; got != "keep" {
+		t.Fatalf("reset lost the previous settings: %q", got)
+	}
+}
+
+func TestSettingsRollbackFailureReturnsDiagnosticError(t *testing.T) {
+	item := installedExtension("settings-rollback.plugin", TypePlugin, ManifestBackend{Entry: "backend/plugin"})
+	item.Status = StatusEnabled
+	item.Manifest.Settings = []ManifestSetting{{Key: "name", Label: LocalizedText{Default: "Name"}, Type: "text"}}
+	store := &fakeExtensionStore{
+		items:        map[string]Extension{item.ID: item},
+		settings:     map[string]map[string]string{item.ID: {"name": "before"}},
+		replaceErrAt: 2,
+		replaceErr:   errors.New("database unavailable"),
+	}
+	service := NewServiceWithRuntime(store, t.TempDir(), &fakeRuntimeManager{startErr: errors.New("start failed")}, nil)
+
+	_, err := service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{
+		Values: map[string]string{"name": "after"},
+	}, "zh-CN")
+	if !errors.Is(err, ErrSettingsRollbackFailed) {
+		t.Fatalf("expected diagnostic rollback error, got %v", err)
+	}
+}
+
 func TestServiceEnableRunsPluginPreflightBeforeStatusChange(t *testing.T) {
 	expected := errors.New("rpc handshake failed")
 	store := &fakeExtensionStore{items: map[string]Extension{
@@ -1687,6 +1748,10 @@ type fakeExtensionStore struct {
 	disabledID    string
 	activeThemeID string
 	settings      map[string]map[string]string
+	replaceCalls  int
+	replaceErrAt  int
+	replaceErr    error
+	beforeCAS     func()
 	events        []ExtensionEvent
 	deliveries    []ExtensionEventDelivery
 	releases      []ThemeRelease
@@ -1932,6 +1997,13 @@ func (s *fakeExtensionStore) ListSettings(_ context.Context, extensionID string)
 }
 
 func (s *fakeExtensionStore) ReplaceSettings(_ context.Context, extensionID string, values map[string]string) error {
+	s.replaceCalls++
+	if s.replaceErrAt == s.replaceCalls {
+		if s.replaceErr != nil {
+			return s.replaceErr
+		}
+		return errors.New("replace settings failed")
+	}
 	if s.settings == nil {
 		s.settings = map[string]map[string]string{}
 	}
@@ -1941,6 +2013,19 @@ func (s *fakeExtensionStore) ReplaceSettings(_ context.Context, extensionID stri
 	}
 	s.settings[extensionID] = next
 	return nil
+}
+
+func (s *fakeExtensionStore) CompareAndSwapSetting(_ context.Context, extensionID, name, oldValue, newValue string) (bool, error) {
+	if s.beforeCAS != nil {
+		before := s.beforeCAS
+		s.beforeCAS = nil
+		before()
+	}
+	if s.settings == nil || s.settings[extensionID][name] != oldValue {
+		return false, nil
+	}
+	s.settings[extensionID][name] = newValue
+	return true, nil
 }
 
 func (s *fakeExtensionStore) ResetSettings(_ context.Context, extensionID string) error {

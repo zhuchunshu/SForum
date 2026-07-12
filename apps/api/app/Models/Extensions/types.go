@@ -76,6 +76,8 @@ const (
 	CodeWebReleaseConflict         = "extension.web_release_conflict"
 	// 插件已禁用：设置读写、自定义管理页等功能性能力不可用。
 	CodeExtensionDisabled = "extension.disabled"
+	// 设置已写入但插件重启失败，且旧设置恢复也失败，需要运营介入。
+	CodeSettingsRollbackFailed = "extension.settings_rollback_failed"
 	// 启用前需运营确认 capability 授权（F2.1）。
 	CodeCapabilityConfirmationRequired = "extension.capability_confirmation_required"
 	// CodeFeaturesRequired F4.5：站点产品开关未满足 requiresFeatures。
@@ -99,6 +101,7 @@ var (
 	ErrInvalidManifest         = extensionmanifest.ErrInvalidManifest
 	ErrExtensionNotFound       = errors.New("extensions: not found")
 	ErrExtensionDisabled       = errors.New("extensions: disabled")
+	ErrSettingsRollbackFailed  = errors.New("extensions: settings rollback failed")
 	ErrPreflightFailed         = errors.New("extensions: preflight failed")
 	ErrBuildFailed             = errors.New("extensions: build failed")
 	ErrThemeActivationRequired = errors.New("extensions: themes must be activated")
@@ -112,9 +115,9 @@ var (
 	ErrCapabilityDenied               = errors.New("extensions: capability denied")
 	// ErrFeaturesRequired 站点产品开关未满足 manifest requiresFeatures（F4.5）。
 	ErrFeaturesRequired = errors.New("extensions: required features disabled")
-	ErrNotDeletable                   = errors.New("extensions: not deletable")
-	ErrMustDisableFirst               = errors.New("extensions: must disable before uninstall")
-	ErrMigrationFailed                = errors.New("extensions: migration failed")
+	ErrNotDeletable     = errors.New("extensions: not deletable")
+	ErrMustDisableFirst = errors.New("extensions: must disable before uninstall")
+	ErrMigrationFailed  = errors.New("extensions: migration failed")
 )
 
 type Manifest = extensionmanifest.Manifest

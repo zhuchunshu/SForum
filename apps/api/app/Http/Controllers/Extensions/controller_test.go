@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -33,6 +34,20 @@ type testEnvelope[T any] struct {
 
 type testErrorData struct {
 	Reason string `json:"reason"`
+}
+
+func TestMapExtensionSettingsRollbackFailure(t *testing.T) {
+	mapped := mapExtensionError(errors.Join(
+		extensions.ErrSettingsRollbackFailed,
+		errors.New("restore database unavailable"),
+	))
+	fiberErr, ok := mapped.(*fiber.Error)
+	if !ok {
+		t.Fatalf("expected fiber error, got %T", mapped)
+	}
+	if fiberErr.Code != http.StatusServiceUnavailable || fiberErr.Message != extensions.CodeSettingsRollbackFailed {
+		t.Fatalf("unexpected mapping: %#v", fiberErr)
+	}
 }
 
 func TestControllerRequiresLoginAndExtensionManagePermission(t *testing.T) {
@@ -807,6 +822,14 @@ func (s *controllerFakeStore) ReplaceSettings(_ context.Context, extensionID str
 	}
 	s.settings[extensionID] = next
 	return nil
+}
+
+func (s *controllerFakeStore) CompareAndSwapSetting(_ context.Context, extensionID, name, oldValue, newValue string) (bool, error) {
+	if s.settings == nil || s.settings[extensionID][name] != oldValue {
+		return false, nil
+	}
+	s.settings[extensionID][name] = newValue
+	return true, nil
 }
 
 func (s *controllerFakeStore) ResetSettings(_ context.Context, extensionID string) error {

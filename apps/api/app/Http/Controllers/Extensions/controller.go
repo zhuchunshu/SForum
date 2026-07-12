@@ -402,6 +402,8 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusNotFound, extensions.CodeNotFound)
 	case errors.Is(err, extensions.ErrExtensionDisabled):
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeExtensionDisabled)
+	case errors.Is(err, extensions.ErrSettingsRollbackFailed):
+		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeSettingsRollbackFailed)
 	case errors.Is(err, extensions.ErrWebReleaseNotFound):
 		return fiber.NewError(fiber.StatusNotFound, extensions.CodeWebReleaseNotFound)
 	case errors.Is(err, extensions.ErrFrontendGrantNotFound):
