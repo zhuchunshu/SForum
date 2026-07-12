@@ -72,6 +72,15 @@ const activeTabLabel = computed(() => {
   return activeTab?.labelKey ? t(activeTab.labelKey) : t(requireAdminPageDefinition('/').labelKey)
 })
 
+// 后台 SEO 标题固定为：页面名 - 管理后台 - 网站名（覆盖 app.vue 的前台模板）
+useHead(() => ({
+  titleTemplate: (title?: string) => applyAdminSEOTitleTemplate(
+    (title || '').trim() || activeTabLabel.value,
+    t('nav.admin'),
+    siteName.value
+  )
+}))
+
 const route = useRoute()
 const currentAdminPageId = computed(() => adminRoutes.routeId(route.path) || ADMIN_DASHBOARD_PAGE_ID)
 

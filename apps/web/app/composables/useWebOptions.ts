@@ -726,6 +726,17 @@ export function applySEOTitleTemplate(title: string, template: string, siteName:
     .replaceAll('{siteName}', cleanSiteName)
 }
 
+// 管理后台文档标题：页面名 - 管理后台 - 网站名（不走前台 SEO 模板）。
+export function applyAdminSEOTitleTemplate(pageTitle: string, adminLabel: string, siteName: string) {
+  const cleanTitle = pageTitle.trim()
+  const cleanAdminLabel = adminLabel.trim() || 'Admin'
+  const cleanSiteName = siteName.trim() || 'SForum'
+  if (!cleanTitle) {
+    return `${cleanAdminLabel} - ${cleanSiteName}`
+  }
+  return `${cleanTitle} - ${cleanAdminLabel} - ${cleanSiteName}`
+}
+
 export function normalizeAppearanceThemeValue(value: string | undefined): AppearanceTheme {
   const raw = value?.trim().toLowerCase() || ''
   if (isAppearanceThemePreset(raw)) {

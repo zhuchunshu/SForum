@@ -5,6 +5,7 @@ import {
   buildCustomAppearanceThemeValue,
   cloneFooterLinks,
   enabledOptionValue,
+  applyAdminSEOTitleTemplate,
   applySEOTitleTemplate,
   isSEOIndexingAllowed,
   normalizeAppearanceThemeValue,
@@ -239,5 +240,8 @@ describe('seo option helpers', () => {
     expect(parseSEORobotsPathList('/ok\nrelative\n//bad\n/path?q=1')).toEqual(['/ok', '/path?q=1'])
     expect(applySEOTitleTemplate('帖子标题', '{title} · {siteName}', 'SForum')).toBe('帖子标题 · SForum')
     expect(applySEOTitleTemplate('帖子标题', '', 'SForum')).toBe('帖子标题 - SForum')
+    expect(applyAdminSEOTitleTemplate('用户管理', '管理后台', 'SForum')).toBe('用户管理 - 管理后台 - SForum')
+    expect(applyAdminSEOTitleTemplate('', '管理后台', 'SForum')).toBe('管理后台 - SForum')
+    expect(applyAdminSEOTitleTemplate('Users', 'Admin', 'My Forum')).toBe('Users - Admin - My Forum')
   })
 })
