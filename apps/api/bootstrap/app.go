@@ -265,6 +265,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		pool.Close()
 		return nil, fmt.Errorf("sync builtin extensions failed: %w", err)
 	}
+	// API 启动恢复：活动主题 L0/L1 + 已启用插件页面贡献。
+	// 无效主题安全回退默认；失败不得留下空 Registry 却 DB 指向主题的分裂状态。
+	if err := extensionService.RestoreActiveThemeRegistry(ctx); err != nil {
+		logger.Warn("restore active theme page registry failed", "error", err)
+	}
 	legacyMailValues, err := optionsService.InternalValues(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("load legacy mail options: %w", err)
@@ -398,7 +403,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	jobsProvider := providers.NewJobsProvider(pool, jobClient, identityStore, authSessions)
 	extensionsProvider := providers.NewExtensionsProviderWithService(extensionService, identityStore, authSessions, extensionRuntime, frontendService, webReleaseAdminService)
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
-	pagesProvider := providers.NewPagesProviderWithThemes(pageRegistry, identityStore, authSessions, extensionStore)
+	pagesProvider := providers.NewPagesProviderWithThemes(pageRegistry, identityStore, authSessions, extensionStore).
+		WithAuditor(auditWriter)
 
 	// F4.4：实体自定义字段（EAV，无 per-plugin core ALTER）。
 	entityMetaService := entitymeta.NewService(entitymeta.NewPostgresStore(pool)).WithPublisher(eventPublisher)

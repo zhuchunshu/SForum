@@ -50,9 +50,15 @@ type Service struct {
 	pageRegistry PageRegistry
 }
 
-// PageRegistry 主题激活时注册/清理页面贡献（避免 extensions 直接依赖 pages 包实现细节）。
+// PageRegistry 主题/插件页面贡献注册（避免 extensions 直接依赖 pages 包实现细节）。
 type PageRegistry interface {
+	// PreflightThemePackage 激活前完整预检，不修改 Registry。
+	PreflightThemePackage(ctx context.Context, extension Extension) error
+	// RegisterThemePackage 校验并注册主题页面贡献（仅候选，不批准 replace）。
 	RegisterThemePackage(ctx context.Context, extension Extension) error
+	// RegisterPluginPackage 插件 enable 时注册页面贡献（统一 theme.json pages 契约）。
+	RegisterPluginPackage(ctx context.Context, extension Extension) error
+	// ClearExtension 禁用/卸载/切换时撤销贡献。
 	ClearExtension(extensionID string)
 }
 
@@ -767,6 +773,19 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 			return Extension{}, fmt.Errorf("%w: %v", ErrRuntimeFailed, err)
 		}
 	}
+	// 插件 enable：注册页面贡献（add/replace 候选）；replace 仍需 super_admin 批准。
+	if enabled.Type == TypePlugin && s.pageRegistry != nil {
+		if err := s.pageRegistry.RegisterPluginPackage(ctx, enabled); err != nil {
+			// 页面贡献失败不静默：回滚 enable，避免半启用状态
+			if s.runtime != nil {
+				_ = s.runtime.Stop(ctx, enabled)
+			}
+			_, _ = s.store.Disable(ctx, enabled.ID)
+			s.pageRegistry.ClearExtension(enabled.ID)
+			s.recordEnableFailure(ctx, actor, enabled.ID, err)
+			return Extension{}, fmt.Errorf("%w: page contributions: %v", ErrPreflightFailed, err)
+		}
+	}
 	capKeys, _ := extensionmanifest.ResolvedCapabilities(enabled.Manifest)
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: enabled.ID,
@@ -799,6 +818,10 @@ func (s *Service) Disable(ctx context.Context, actor identity.Actor, id string) 
 	// F2.4：先 drain runtime（停进程、清 provider），再改 DB 状态。
 	if err := s.drainPluginRuntime(ctx, extension); err != nil {
 		return Extension{}, err
+	}
+	// 立即撤销页面贡献，使 replace 绑定在 Resolve 时回退 core。
+	if s.pageRegistry != nil {
+		s.pageRegistry.ClearExtension(extension.ID)
 	}
 	disabled, err := s.store.Disable(ctx, extension.ID)
 	if err != nil {
@@ -863,23 +886,51 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 		s.recordEnableFailure(ctx, actor, extension.ID, err)
 		return Extension{}, err
 	}
-	// Runtime Page Registry 路径：同步激活 DB + 注册 L0/L1，不排队 Nuxt/Web Release 构建。
-	if previous, prevErr := s.store.ActiveTheme(ctx); prevErr == nil && previous.ID != extension.ID && s.pageRegistry != nil {
-		s.pageRegistry.ClearExtension(previous.ID)
+
+	// 记录旧主题，失败时完整回滚。
+	var previous *Extension
+	if prev, prevErr := s.store.ActiveTheme(ctx); prevErr == nil {
+		p := prev
+		previous = &p
 	}
+
+	// 1) 完整预检（manifest / theme.json / 模板 / CSS / routes / 贡献）—— 不改 DB、不改 Registry。
+	if s.pageRegistry != nil {
+		if err := s.pageRegistry.PreflightThemePackage(ctx, extension); err != nil {
+			s.recordEnableFailure(ctx, actor, extension.ID, err)
+			return Extension{}, fmt.Errorf("%w: %v", ErrPreflightFailed, err)
+		}
+	}
+
+	// 2) DB 事务切换活动主题（store.ActivateTheme 内部事务；同主题再激活也幂等写状态）。
 	active, err := s.store.ActivateTheme(ctx, extension.ID)
 	if err != nil {
 		return Extension{}, err
 	}
 	// 清理遗留的 theme_releases 进度行（兼容旧数据）。
 	if err := s.rollBackActiveThemeRelease(ctx); err != nil {
+		// DB 已切主题；尽力回滚活动主题（仅当实际发生了切换）
+		if previous != nil && previous.ID != active.ID {
+			s.rollbackThemeActivation(ctx, previous, active.ID)
+		}
 		return Extension{}, err
 	}
+
+	// 3) 事务成功后原子替换 Registry：先注册新主题，再清除旧主题。
+	//    失败则回滚 DB 活动主题并恢复旧 Registry。
 	if s.pageRegistry != nil {
 		if err := s.pageRegistry.RegisterThemePackage(ctx, active); err != nil {
-			return Extension{}, err
+			s.pageRegistry.ClearExtension(active.ID)
+			if previous != nil && previous.ID != active.ID {
+				s.rollbackThemeActivation(ctx, previous, active.ID)
+			}
+			return Extension{}, fmt.Errorf("%w: registry register failed: %v", ErrPreflightFailed, err)
+		}
+		if previous != nil && previous.ID != active.ID {
+			s.pageRegistry.ClearExtension(previous.ID)
 		}
 	}
+
 	// P5：不再写 theme-releases/current.json；公开主题不切换 Nitro / Layer。
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: active.ID,
@@ -889,10 +940,95 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 	})
 	s.appendAudit(ctx, actor, audit.ActionExtensionActivate, map[string]any{
 		"extensionId": active.ID,
+		"previousId":  themeIDOrEmpty(previous),
 		"queued":      false,
 		"runtime":     true,
 	})
 	return active, nil
+}
+
+func themeIDOrEmpty(e *Extension) string {
+	if e == nil {
+		return ""
+	}
+	return e.ID
+}
+
+// rollbackThemeActivation 激活失败时恢复旧主题 DB + Registry。
+func (s *Service) rollbackThemeActivation(ctx context.Context, previous *Extension, failedID string) {
+	if previous == nil {
+		return
+	}
+	if _, err := s.store.ActivateTheme(ctx, previous.ID); err != nil {
+		// 记录诊断；调用方已返回主错误
+		_, _ = s.store.CreateEvent(ctx, EventInput{
+			ExtensionID: failedID,
+			Action:      EventEnableFailed,
+			Message:     "theme activation rollback failed: " + err.Error(),
+		})
+		return
+	}
+	if s.pageRegistry != nil {
+		s.pageRegistry.ClearExtension(failedID)
+		_ = s.pageRegistry.RegisterThemePackage(ctx, *previous)
+	}
+}
+
+// RestoreActiveThemeRegistry API 启动时恢复活动主题 + 已启用插件的页面贡献。
+// 无效/缺失主题时安全回退默认主题并写诊断事件。
+func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
+	if s == nil || s.pageRegistry == nil {
+		return nil
+	}
+	// 恢复已启用插件页面贡献
+	items, err := s.store.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		if item.Type != TypePlugin || item.Status != StatusEnabled {
+			continue
+		}
+		if err := s.pageRegistry.RegisterPluginPackage(ctx, item); err != nil {
+			// 插件页面失败不阻断启动；清掉该扩展贡献并记事件
+			s.pageRegistry.ClearExtension(item.ID)
+			_, _ = s.store.CreateEvent(ctx, EventInput{
+				ExtensionID: item.ID,
+				Action:      EventEnableFailed,
+				Message:     "restore plugin page contributions failed: " + err.Error(),
+			})
+		}
+	}
+
+	active, err := s.store.ActiveTheme(ctx)
+	if err != nil {
+		// 无活动主题 → 尝试默认
+		if def, derr := s.EnsureDefaultThemeActive(ctx); derr == nil {
+			active = def
+		} else {
+			return derr
+		}
+	}
+	if err := s.pageRegistry.PreflightThemePackage(ctx, active); err != nil {
+		// 无效主题 → 回退默认
+		_, _ = s.store.CreateEvent(ctx, EventInput{
+			ExtensionID: active.ID,
+			Action:      EventEnableFailed,
+			Message:     "active theme registry restore preflight failed, falling back to default: " + err.Error(),
+		})
+		s.pageRegistry.ClearExtension(active.ID)
+		if active.ID != DefaultThemeID {
+			def, derr := s.store.ActivateTheme(ctx, DefaultThemeID)
+			if derr != nil {
+				return derr
+			}
+			active = def
+		}
+	}
+	if err := s.pageRegistry.RegisterThemePackage(ctx, active); err != nil {
+		return fmt.Errorf("restore active theme registry: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) EnsureDefaultThemeActive(ctx context.Context) (Extension, error) {

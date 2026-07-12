@@ -26,6 +26,11 @@ const (
 	// ActionExtensionBackendDenied 非 super_admin 试图引入/执行非内置后端插件。
 	ActionExtensionBackendDenied = "extension.backend_execution_denied"
 
+	// Page Registry：核心页 replace 批准 / 恢复 / 冲突选择。
+	ActionPageReplaceApprove = "pages.replace_approve"
+	ActionPageRestoreCore    = "pages.restore_core"
+	ActionPageConflictSelect = "pages.conflict_select"
+
 	// RecommendedRetentionDays 审计日志推荐保留天数（清理 job 默认）。
 	RecommendedRetentionDays = 90
 )

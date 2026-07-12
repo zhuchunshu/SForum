@@ -12,6 +12,7 @@ import (
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 )
@@ -22,6 +23,7 @@ type Controller struct {
 	users    identity.ActorStore
 	sessions *authsession.Manager
 	themes   extensions.Store
+	auditor  audit.Writer
 }
 
 func NewController(registry *pages.Registry, users identity.ActorStore, sessions *authsession.Manager) *Controller {
@@ -32,9 +34,18 @@ func NewControllerWithThemes(registry *pages.Registry, users identity.ActorStore
 	return &Controller{registry: registry, users: users, sessions: sessions, themes: themes}
 }
 
+// WithAuditor 注入 audit_events 写入（批准/恢复必须审计）。
+func (h *Controller) WithAuditor(w audit.Writer) *Controller {
+	if h != nil {
+		h.auditor = w
+	}
+	return h
+}
+
 func (h *Controller) RegisterRoutes(api fiber.Router) {
 	// 公开：解析单个页面（前台 outlet / SSR 使用）
 	api.Get("/pages/resolve", h.resolve) // ?id=forum.home
+	api.Get("/pages/resolve-path", h.resolvePath) // ?path=/docs/x
 	api.Get("/pages/catalog", h.publicCatalog)
 	api.Get("/site/active-theme/skin", h.activeSkin)
 	api.Get("/site/theme-assets/:extensionId/*", h.themeAsset)
@@ -42,6 +53,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	admin := api.Group("/admin/pages")
 	admin.Get("", h.adminList)
 	admin.Get("/added", h.adminAdded)
+	admin.Get("/activate-preview/:extensionId", h.activatePreview)
 	admin.Get("/:pageId", h.adminGet)
 	admin.Post("/:pageId/approve", h.adminApprove)
 	admin.Post("/:pageId/restore-core", h.adminRestore)
@@ -172,11 +184,12 @@ func (h *Controller) adminGet(c fiber.Ctx) error {
 }
 
 type approveRequest struct {
-	ExtensionID    string `json:"extensionId"`
-	ContributionID string `json:"contributionId"`
-	Version        string `json:"version"`
-	PackageDigest  string `json:"packageDigest"`
-	TemplatePath   string `json:"templatePath"`
+	ExtensionID     string `json:"extensionId"`
+	ContributionID  string `json:"contributionId"`
+	Version         string `json:"version"`
+	PackageDigest   string `json:"packageDigest"`
+	TemplatePath    string `json:"templatePath"`
+	ContractVersion string `json:"contractVersion"`
 }
 
 func (h *Controller) adminApprove(c fiber.Ctx) error {
@@ -184,6 +197,7 @@ func (h *Controller) adminApprove(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	// 核心页替换仅 super_admin；extension.theme.manage 不可绕过。
 	if !actor.IsSuperAdmin() {
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	}
@@ -196,17 +210,26 @@ func (h *Controller) adminApprove(c fiber.Ctx) error {
 	}
 	pageID := c.Params("pageId")
 	err = h.registry.ApproveReplace(c.Context(), pages.ProviderBinding{
-		PageID:         pageID,
-		ExtensionID:    body.ExtensionID,
-		ContributionID: body.ContributionID,
-		Version:        body.Version,
-		PackageDigest:  body.PackageDigest,
-		ApprovedBy:     actor.ID,
-		TemplatePath:   body.TemplatePath,
+		PageID:          pageID,
+		ExtensionID:     body.ExtensionID,
+		ContributionID:  body.ContributionID,
+		Version:         body.Version,
+		PackageDigest:   body.PackageDigest,
+		ContractVersion: body.ContractVersion,
+		ApprovedBy:      actor.ID,
+		TemplatePath:    body.TemplatePath,
 	})
 	if err != nil {
 		return mapPagesError(err)
 	}
+	h.appendPageAudit(c, actor, audit.ActionPageReplaceApprove, map[string]any{
+		"pageId":          pageID,
+		"extensionId":     body.ExtensionID,
+		"contributionId":  body.ContributionID,
+		"version":         body.Version,
+		"packageDigest":   body.PackageDigest,
+		"contractVersion": body.ContractVersion,
+	})
 	return apphttp.OK(c, map[string]any{"pageId": pageID, "provider": body.ExtensionID})
 }
 
@@ -215,7 +238,8 @@ func (h *Controller) adminRestore(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if !actor.IsSuperAdmin() && !actor.Can(identity.PermissionExtensionThemeManage) {
+	// 恢复核心页同样仅 super_admin，避免 theme.manage 静默撤销替换。
+	if !actor.IsSuperAdmin() {
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	}
 	if h.registry == nil {
@@ -225,7 +249,146 @@ func (h *Controller) adminRestore(c fiber.Ctx) error {
 	if err := h.registry.RestoreCore(c.Context(), pageID); err != nil {
 		return mapPagesError(err)
 	}
+	h.appendPageAudit(c, actor, audit.ActionPageRestoreCore, map[string]any{
+		"pageId": pageID,
+	})
 	return apphttp.OK(c, map[string]any{"pageId": pageID, "provider": pages.ProviderCore})
+}
+
+func (h *Controller) appendPageAudit(c fiber.Ctx, actor identity.Actor, action string, metadata map[string]any) {
+	if h == nil || h.auditor == nil {
+		return
+	}
+	_ = h.auditor.Append(c.Context(), audit.Event{
+		ActorUserID: actor.ID,
+		Action:      action,
+		Metadata:    metadata,
+	})
+}
+
+// activatePreview 主题激活确认 UI：列出将新增/替换的页面、路径、安全等级与冲突。
+func (h *Controller) activatePreview(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	if !canViewPages(actor) {
+		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	}
+	if h.themes == nil {
+		return fiber.NewError(fiber.StatusNotFound, "pages.extension_not_found")
+	}
+	extID := c.Params("extensionId")
+	theme, err := h.themes.Get(c.Context(), extID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "pages.extension_not_found")
+	}
+	pkg, err := pages.LoadThemePackage(theme.PackagePath)
+	if err != nil {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.theme_package_invalid")
+	}
+	contribs := pages.ContributionsFromTheme(theme.ID, theme.Version, theme.PackageDigest, pkg)
+	type impact struct {
+		Contribution pages.PageContribution `json:"contribution"`
+		Page         *pages.PageDefinition  `json:"page,omitempty"`
+		Conflicts    []pages.PageContribution `json:"conflicts,omitempty"`
+		RequiresApproval bool               `json:"requiresApproval"`
+	}
+	out := make([]impact, 0, len(contribs))
+	for _, contrib := range contribs {
+		item := impact{Contribution: contrib, RequiresApproval: contrib.Action == pages.ActionReplace}
+		if contrib.Action == pages.ActionReplace {
+			if page, ok := pages.Find(contrib.Target); ok {
+				p := page
+				item.Page = &p
+			}
+			if h.registry != nil {
+				if list, _ := h.registry.ListProviders(c.Context()); list != nil {
+					for _, p := range list {
+						if p.Page.ID == contrib.Target {
+							for _, cand := range p.Candidates {
+								if cand.ExtensionID != contrib.ExtensionID {
+									item.Conflicts = append(item.Conflicts, cand)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		out = append(out, item)
+	}
+	return apphttp.OK(c, map[string]any{
+		"extensionId":   theme.ID,
+		"version":       theme.Version,
+		"packageDigest": theme.PackageDigest,
+		"impacts":       out,
+		"note":          "Activation only registers candidates; core page replace requires super_admin approval.",
+	})
+}
+
+// resolvePath 公开：按请求 path 解析 add 页面（动态公开路由）。
+func (h *Controller) resolvePath(c fiber.Ctx) error {
+	path := strings.TrimSpace(c.Query("path"))
+	if path == "" {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.path_required")
+	}
+	if pages.IsReservedPath(path) {
+		return fiber.NewError(fiber.StatusNotFound, "pages.not_found")
+	}
+	if h.registry == nil {
+		return fiber.NewError(fiber.StatusNotFound, "pages.not_found")
+	}
+	contrib, ok := h.registry.ResolveAddedPath(path)
+	if !ok {
+		return fiber.NewError(fiber.StatusNotFound, "pages.not_found")
+	}
+	// access 权威检查
+	switch contrib.Access {
+	case pages.AccessLogin, pages.AccessModeration:
+		actor, err := h.actor(c)
+		if err != nil || actor.ID == 0 {
+			return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+		}
+		if contrib.Access == pages.AccessModeration && !actor.Can(identity.PermissionModerationReview) && !actor.IsSuperAdmin() {
+			return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+		}
+	case pages.AccessGuest:
+		// guest-only：已登录也可看模板壳；mutation 仍由核心组件执行
+	}
+
+	resp := resolveResponse{
+		Page: pages.PageDefinition{
+			ID:              contrib.ID,
+			PathPattern:     contrib.Path,
+			Access:          contrib.Access,
+			ContractVersion: contrib.Contract,
+			Replaceable:     false,
+		},
+		Provider:       contrib.ExtensionID,
+		ExtensionID:    contrib.ExtensionID,
+		ContributionID: contrib.ID,
+		Action:         string(pages.ActionAdd),
+		Fallback:       false,
+		TemplatePath:   contrib.Template,
+		DataSource:     contrib.DataSource,
+		DataRoute:      contrib.DataRoute,
+	}
+	// 加载模板
+	if contrib.Template != "" && h.themes != nil {
+		if theme, terr := h.themes.Get(c.Context(), contrib.ExtensionID); terr == nil {
+			if html, lerr := pages.LoadTemplate(theme.PackagePath, contrib.Template); lerr == nil {
+				if rendered, rerr := pages.RenderTemplate(html, map[string]string{}); rerr == nil {
+					resp.TemplateHTML = rendered
+				} else {
+					resp.Fallback = true
+				}
+			} else {
+				resp.Fallback = true
+			}
+		}
+	}
+	return apphttp.OK(c, resp)
 }
 
 func (h *Controller) adminAdded(c fiber.Ctx) error {

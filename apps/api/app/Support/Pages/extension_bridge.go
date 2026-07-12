@@ -10,14 +10,14 @@ import (
 
 // ThemeExtension 是 extensions.Extension 的最小视图，避免循环依赖。
 type ThemeExtension struct {
-	ID          string
-	Version     string
-	PackagePath string
+	ID            string
+	Version       string
+	PackagePath   string
 	PackageDigest string
-	Source      string
+	Source        string
 }
 
-// ExtensionBridge 把主题包接到 Registry（供 extensions.Service 注入）。
+// ExtensionBridge 把主题/插件包接到 Registry（供 extensions.Service 注入）。
 type ExtensionBridge struct {
 	Registry *Registry
 }
@@ -26,62 +26,111 @@ func NewExtensionBridge(registry *Registry) *ExtensionBridge {
 	return &ExtensionBridge{Registry: registry}
 }
 
-// RegisterThemePackage 加载 theme.json、校验 L0 CSS，并注册页面贡献。
-func (b *ExtensionBridge) RegisterThemePackage(ctx context.Context, ext ThemeExtension) error {
-	if b == nil || b.Registry == nil {
-		return nil
-	}
+// PreflightThemePackage 激活前完整预检：manifest、theme.json、模板、CSS、资源、routes。
+// 不修改 Registry 状态。
+func (b *ExtensionBridge) PreflightThemePackage(ext ThemeExtension) ([]PageContribution, error) {
 	root := strings.TrimSpace(ext.PackagePath)
 	if root == "" {
-		return fmt.Errorf("pages: theme package path empty")
+		return nil, fmt.Errorf("pages: theme package path empty")
 	}
 	pkg, err := LoadThemePackage(root)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// 校验皮肤 CSS
 	for _, rel := range pkg.Skin.CSS {
 		full, err := ResolveThemeAsset(root, rel)
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("pages: skin css %s: %w", rel, err)
 		}
 		raw, err := os.ReadFile(full)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if err := ValidateCSS(string(raw)); err != nil {
-			return err
+			return nil, fmt.Errorf("pages: skin css %s: %w", rel, err)
 		}
 	}
 	if tok := strings.TrimSpace(pkg.Skin.Tokens); tok != "" {
 		full, err := ResolveThemeAsset(root, tok)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		raw, err := os.ReadFile(full)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if err := ValidateCSS(string(raw)); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	// 校验 L1 模板存在且安全
+	// 校验 L1 模板
 	for _, p := range pkg.Pages {
 		if strings.TrimSpace(p.Template) == "" {
 			continue
 		}
 		if _, err := LoadTemplate(root, p.Template); err != nil {
-			return fmt.Errorf("pages: template %s: %w", p.Template, err)
+			return nil, fmt.Errorf("pages: template %s: %w", p.Template, err)
 		}
 	}
+	// L2 widgets：声明存在时仅记录拒绝加载（不阻断 L0/L1 激活）
 	contribs := ContributionsFromTheme(ext.ID, ext.Version, ext.PackageDigest, pkg)
-	// 仅注册候选贡献；核心页 replace 必须由 super_admin 通过 ApproveReplace 明确批准。
-	// 主题激活不得静默批准、不得 ApprovedBy=0、不得忽略审批错误。
+	if b != nil && b.Registry != nil {
+		if err := b.Registry.PreflightContributions(ext.ID, contribs); err != nil {
+			return nil, err
+		}
+	} else {
+		if _, err := prepareContributions(ext.ID, contribs); err != nil {
+			return nil, err
+		}
+	}
+	return contribs, nil
+}
+
+// RegisterThemePackage 加载 theme.json、校验 L0 CSS，并注册页面贡献（仅候选，不批准 replace）。
+func (b *ExtensionBridge) RegisterThemePackage(ctx context.Context, ext ThemeExtension) error {
+	if b == nil || b.Registry == nil {
+		return nil
+	}
+	contribs, err := b.PreflightThemePackage(ext)
+	if err != nil {
+		return err
+	}
+	// 仅注册候选；核心页 replace 必须 super_admin 明确批准。
 	if err := b.Registry.RegisterContributions(ext.ID, contribs); err != nil {
 		return err
 	}
 	return nil
+}
+
+// RegisterPluginPackage 从 theme.json（统一页面 manifest 契约）注册插件页面贡献。
+// 插件与主题使用同一 theme.json pages 声明，不另立格式。
+func (b *ExtensionBridge) RegisterPluginPackage(ctx context.Context, ext ThemeExtension) error {
+	if b == nil || b.Registry == nil {
+		return nil
+	}
+	// 插件可选 theme.json；无则无页面贡献
+	pkg, err := LoadThemePackage(ext.PackagePath)
+	if err != nil {
+		return err
+	}
+	if len(pkg.Pages) == 0 {
+		return nil
+	}
+	// 校验模板
+	for _, p := range pkg.Pages {
+		if strings.TrimSpace(p.Template) == "" {
+			continue
+		}
+		if _, err := LoadTemplate(ext.PackagePath, p.Template); err != nil {
+			return fmt.Errorf("pages: plugin template %s: %w", p.Template, err)
+		}
+	}
+	contribs := ContributionsFromTheme(ext.ID, ext.Version, ext.PackageDigest, pkg)
+	if err := b.Registry.PreflightContributions(ext.ID, contribs); err != nil {
+		return err
+	}
+	return b.Registry.RegisterContributions(ext.ID, contribs)
 }
 
 // ClearExtension 实现 extensions.PageRegistry。

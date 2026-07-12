@@ -15,17 +15,26 @@ func NewPageRegistryAdapter(registry *pages.Registry) *PageRegistryAdapter {
 	return &PageRegistryAdapter{Bridge: pages.NewExtensionBridge(registry)}
 }
 
+func (a *PageRegistryAdapter) PreflightThemePackage(ctx context.Context, extension Extension) error {
+	if a == nil || a.Bridge == nil {
+		return nil
+	}
+	_, err := a.Bridge.PreflightThemePackage(toThemeExt(extension))
+	return err
+}
+
 func (a *PageRegistryAdapter) RegisterThemePackage(ctx context.Context, extension Extension) error {
 	if a == nil || a.Bridge == nil {
 		return nil
 	}
-	return a.Bridge.RegisterThemePackage(ctx, pages.ThemeExtension{
-		ID:            extension.ID,
-		Version:       extension.Version,
-		PackagePath:   extension.PackagePath,
-		PackageDigest: extension.PackageDigest,
-		Source:        string(extension.Source),
-	})
+	return a.Bridge.RegisterThemePackage(ctx, toThemeExt(extension))
+}
+
+func (a *PageRegistryAdapter) RegisterPluginPackage(ctx context.Context, extension Extension) error {
+	if a == nil || a.Bridge == nil {
+		return nil
+	}
+	return a.Bridge.RegisterPluginPackage(ctx, toThemeExt(extension))
 }
 
 func (a *PageRegistryAdapter) ClearExtension(extensionID string) {
@@ -33,4 +42,14 @@ func (a *PageRegistryAdapter) ClearExtension(extensionID string) {
 		return
 	}
 	a.Bridge.ClearExtension(extensionID)
+}
+
+func toThemeExt(extension Extension) pages.ThemeExtension {
+	return pages.ThemeExtension{
+		ID:            extension.ID,
+		Version:       extension.Version,
+		PackagePath:   extension.PackagePath,
+		PackageDigest: extension.PackageDigest,
+		Source:        string(extension.Source),
+	}
 }

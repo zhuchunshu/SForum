@@ -6,6 +6,7 @@ import (
 	pagescontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Pages"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 )
@@ -25,6 +26,14 @@ func NewPagesProviderWithThemes(registry *pages.Registry, users identity.ActorSt
 	return &PagesProvider{
 		controller: pagescontroller.NewControllerWithThemes(registry, users, sessions, themes),
 	}
+}
+
+// WithAuditor 注入页面批准/恢复审计。
+func (p *PagesProvider) WithAuditor(w audit.Writer) *PagesProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithAuditor(w)
+	}
+	return p
 }
 
 func (p *PagesProvider) RegisterRoutes(api fiber.Router) {
