@@ -58,6 +58,11 @@ func NewForumProviderWithContributions(store forum.Store, optionsService *option
 
 // NewForumProviderWithTopicSurfaces 在 F4.3 基础上注入 E2.1 sidebar/badges 解析。
 func NewForumProviderWithTopicSurfaces(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher, indexer forum.TopicSearchIndexer, searchService forumcontroller.SearchService, reindexer forumcontroller.ReindexService, topicActions forum.TopicExtensionActionProvider, topicSurfaces forum.TopicExtensionSurfaceProvider, composerToolbar forum.ComposerToolbarProvider, publicationPolicy forum.PublicationPolicy) *ForumProvider {
+	return NewForumProviderWithPublicContributions(store, optionsService, users, sessions, publisher, indexer, searchService, reindexer, topicActions, nil, topicSurfaces, composerToolbar, publicationPolicy)
+}
+
+// NewForumProviderWithPublicContributions 注入 topic/comment/sidebar 等公开贡献解析（E2.x）。
+func NewForumProviderWithPublicContributions(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher, indexer forum.TopicSearchIndexer, searchService forumcontroller.SearchService, reindexer forumcontroller.ReindexService, topicActions forum.TopicExtensionActionProvider, commentActions forum.CommentExtensionActionProvider, topicSurfaces forum.TopicExtensionSurfaceProvider, composerToolbar forum.ComposerToolbarProvider, publicationPolicy forum.PublicationPolicy) *ForumProvider {
 	service := forum.NewServiceWithExtensionsAndPublicationPolicy(store, ForumSettingsResolver{options: optionsService}, publisher, indexer, topicActions, publicationPolicy)
 	if optionsService != nil {
 		service.WithTrustPolicy(TrustPolicyAdapter{options: optionsService})
@@ -67,6 +72,9 @@ func NewForumProviderWithTopicSurfaces(store forum.Store, optionsService *option
 	}
 	if topicSurfaces != nil {
 		service.WithTopicExtensionSurfaces(topicSurfaces)
+	}
+	if commentActions != nil {
+		service.WithCommentExtensionActions(commentActions)
 	}
 	return &ForumProvider{
 		controller: forumcontroller.NewControllerWithSearch(service, searchService, reindexer, users, sessions),
@@ -202,6 +210,52 @@ func (p ExtensionTopicActionProvider) TopicExtensionActions(ctx context.Context)
 			Method:      payload.Method,
 			URL:         extensionProxyURL(contribution.ExtensionID, payload.Path),
 			Confirm:     payload.Confirm,
+		})
+	}
+	return actions, nil
+}
+
+// ExtensionCommentActionProvider 解析 forum.comment.actions（E2.2）。
+type ExtensionCommentActionProvider struct {
+	source EffectiveContributionSource
+}
+
+func NewExtensionCommentActionProvider(source EffectiveContributionSource) ExtensionCommentActionProvider {
+	return ExtensionCommentActionProvider{source: source}
+}
+
+func (p ExtensionCommentActionProvider) CommentExtensionActions(ctx context.Context) ([]forum.CommentExtensionAction, error) {
+	if p.source == nil {
+		return nil, nil
+	}
+	contributions, err := p.source.EffectiveContributions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	actions := make([]forum.CommentExtensionAction, 0, len(contributions))
+	for _, contribution := range contributions {
+		if contribution.Point != extensionmanifest.PointForumCommentActions {
+			continue
+		}
+		payload, ok := parseExtensionRoutePayload(contribution.Payload)
+		if !ok {
+			continue
+		}
+		// 与主题动作一致：禁止 GET，避免 CSRF 风格误触发。
+		switch payload.Method {
+		case "POST", "PUT", "PATCH", "DELETE":
+		default:
+			continue
+		}
+		actions = append(actions, forum.CommentExtensionAction{
+			ExtensionID:  contribution.ExtensionID,
+			ID:           contribution.ID,
+			Label:        copyContributionLabel(contribution.Label),
+			Icon:         contribution.Icon,
+			Method:       payload.Method,
+			URL:          extensionProxyURL(contribution.ExtensionID, payload.Path),
+			Confirm:      payload.Confirm,
+			RequiresAuth: payload.RequiresAuth,
 		})
 	}
 	return actions, nil

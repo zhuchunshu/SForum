@@ -287,9 +287,9 @@ Upload/UploadAvatar/UploadSEOImage share the gate; no raw bytes in payload).
 
 ### E2.2 Comment row actions
 
-- [ ] `forum.comment.actions` — same spirit as `forum.topic.actions`
-- [ ] Default theme comment menu/toolbar integration
-- [ ] Permission: host still enforces login on unsafe routes; descriptors may
+- [x] `forum.comment.actions` — same spirit as `forum.topic.actions`
+- [x] Default theme comment menu/toolbar integration
+- [x] Permission: host still enforces login on unsafe routes; descriptors may
   declare `requiresAuth`
 
 ### E2.3 Navigation / discovery
@@ -685,12 +685,13 @@ edit comment/topic controllers.
 | 2026-07-12 | — | North star added: storage/search/etc. full plugin configure (E6–E8) |
 | 2026-07-12 | E1 | E1.1–E1.4 done; E1 core exit met; E1.5 optional skipped |
 | 2026-07-12 | E2.1 | `forum.topic.sidebar` + `forum.topic.badges` + theme consumers |
+| 2026-07-12 | E2.2 | `forum.comment.actions` on CommentList + theme row menus |
 
 ---
 
 ## Next session one-liner
 
 ```text
-Next density: E2.2 forum.comment.actions, or E2.3 forum.nav.items, or product
-fork E6.0 storage provider decision + host interface (north star).
+Next density: E2.3 forum.nav.items, E2.4 list badges, or product fork E6.0
+storage provider decision + host interface (north star).
 ```

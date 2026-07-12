@@ -126,6 +126,12 @@ type TopicExtensionActionProvider interface {
 	TopicExtensionActions(ctx context.Context) ([]TopicExtensionAction, error)
 }
 
+// CommentExtensionActionProvider 解析 forum.comment.actions（E2.2）。
+// 描述符挂在 CommentList 上（列表级一次解析），前端再挂到每行菜单；无 per-row 插件 RPC。
+type CommentExtensionActionProvider interface {
+	CommentExtensionActions(ctx context.Context) ([]CommentExtensionAction, error)
+}
+
 // TopicExtensionSurfaceProvider 解析主题详情次级贡献点（E2.1 sidebar / badges）。
 // 与 TopicExtensionActionProvider 分离，避免破坏现有注入点；nil 时不装饰。
 type TopicExtensionSurfaceProvider interface {
@@ -257,6 +263,19 @@ type TopicExtensionAction struct {
 	Method      string            `json:"method"`
 	URL         string            `json:"url"`
 	Confirm     bool              `json:"confirm,omitempty"`
+}
+
+// CommentExtensionAction 是 forum.comment.actions 宿主安全描述符（E2.2）。
+// RequiresAuth 仅 UX：游客可隐藏；unsafe 仍由扩展路由代理鉴权。
+type CommentExtensionAction struct {
+	ExtensionID  string            `json:"extensionId"`
+	ID           string            `json:"id"`
+	Label        map[string]string `json:"label,omitempty"`
+	Icon         string            `json:"icon,omitempty"`
+	Method       string            `json:"method"`
+	URL          string            `json:"url"`
+	Confirm      bool              `json:"confirm,omitempty"`
+	RequiresAuth bool              `json:"requiresAuth,omitempty"`
 }
 
 // TopicExtensionSidebarItem 是 forum.topic.sidebar 宿主安全描述符（E2.1）。
@@ -530,6 +549,8 @@ type CommentList struct {
 	Page    int       `json:"page"`
 	PerPage int       `json:"perPage"`
 	View    string    `json:"view"`
+	// ExtensionActions 列表级评论行扩展动作（E2.2）；不复制到每条 Comment。
+	ExtensionActions []CommentExtensionAction `json:"extensionActions,omitempty"`
 }
 
 type Comment struct {

@@ -10,6 +10,7 @@ import {
   topicPathLookupCandidates,
   FORUM_TOPIC_ACTIONS,
   type ForumComment,
+  type ForumCommentExtensionAction,
   type ForumCommentList,
   type ForumTopicDetail,
   type ForumTopicExtensionAction,
@@ -31,6 +32,7 @@ const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const { format: formatSiteDateTime } = useSiteDateTime()
 const forumApi = useForumApi()
 const { can, canEditTopic, canDeleteTopic } = usePermissions()
+const { user: reportUser } = useAuthSession()
 const toast = useToast()
 
 function showSuccessToast(title: string) {
@@ -192,6 +194,9 @@ const { data: commentData, pending: commentsPending, error: commentsError, refre
 const comments = computed(() => commentData.value.items)
 const commentTotal = computed(() => commentData.value.total)
 const commentTotalPages = computed(() => Math.ceil(commentTotal.value / Math.max(commentData.value.perPage, 1)) || 1)
+// E2.2：列表级评论扩展动作；requiresAuth 仅 UX 过滤，鉴权在扩展路由代理。
+const commentExtensionActions = computed(() => commentData.value?.extensionActions || [])
+const commentExtensionActionRunning = ref('')
 
 const authorName = computed(() => topic.value ? forumAuthorName(topic.value.author, topic.value.authorUserId) : '')
 const authorPath = computed(() => {
@@ -348,7 +353,48 @@ function commentActions(comment: ForumComment) {
   if (canReportComment()) {
     actions.push({ label: t('topicDetail.report'), value: 'report', icon: 'i-lucide-flag' })
   }
+  // 扩展评论动作：挂在核心动作之后；游客隐藏 requiresAuth 项。
+  for (const action of visibleCommentExtensionActions.value) {
+    actions.push({
+      label: forumTopicExtensionActionLabel(action, String(locale.value || 'zh-CN')),
+      value: `extension:${action.extensionId}:${action.id}`,
+      icon: action.icon
+    })
+  }
   return actions
+}
+
+const visibleCommentExtensionActions = computed(() => {
+  const loggedIn = Boolean(reportUser.value)
+  return commentExtensionActions.value.filter(action => !action.requiresAuth || loggedIn)
+})
+
+function commentExtensionActionKey(action: ForumCommentExtensionAction) {
+  return `${action.extensionId}:${action.id}`
+}
+
+async function runCommentExtensionAction(comment: ForumComment, action: ForumCommentExtensionAction) {
+  if (!topic.value) {
+    return
+  }
+  const label = forumTopicExtensionActionLabel(action, String(locale.value || 'zh-CN'))
+  if (action.confirm && !window.confirm(t('topicDetail.confirmExtensionAction', { action: label }))) {
+    return
+  }
+  commentExtensionActionRunning.value = commentExtensionActionKey(action)
+  try {
+    await forumApi.applyCommentExtensionAction(topic.value.id, comment.id, action)
+    showSuccessToast(t('topicDetail.extensionActionCompleted'))
+  } catch (error) {
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-alert-circle',
+      title: apiErrorMessage(error) || t('topicDetail.extensionActionFailed'),
+      duration: 0
+    })
+  } finally {
+    commentExtensionActionRunning.value = ''
+  }
 }
 
 // 评论行内的"举报"按钮（独立于 actions，避免占用回复入口）。
@@ -375,6 +421,13 @@ function handleCommentClick(comment: ForumComment, value: string) {
     deleteComment(comment)
   } else if (value === 'report') {
     openReportDialog({ type: 'comment', id: comment.id })
+  } else if (value.startsWith('extension:')) {
+    const action = visibleCommentExtensionActions.value.find(
+      candidate => value === `extension:${candidate.extensionId}:${candidate.id}`
+    )
+    if (action) {
+      void runCommentExtensionAction(comment, action)
+    }
   }
 }
 
@@ -590,7 +643,6 @@ const reportSubmitting = ref(false)
 const reportError = ref('')
 const reportSuccess = ref(false)
 const moderationApi = useModerationApi()
-const { user: reportUser } = useAuthSession()
 
 const reportReasonOptions = [
   { label: t('moderation.reason.spam'), value: 'spam' },

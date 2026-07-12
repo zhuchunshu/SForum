@@ -325,7 +325,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 
 	// F3.2：发帖/评论写路径可选 Idempotency-Key；存储复用 shared Redis。
 	idempotencyStore := idempotency.NewStore(idempotency.NewRedisBackend(sharedRedisClient), idempotency.DefaultTTL)
-	forumProvider := providers.NewForumProviderWithTopicSurfaces(
+	forumProvider := providers.NewForumProviderWithPublicContributions(
 		forumCachedStore,
 		optionsService,
 		identityStore,
@@ -335,6 +335,7 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		searchServiceAdapter{inner: searchService},
 		reindexServiceAdapter{inner: reindexManager},
 		providers.NewExtensionTopicActionProvider(extensionService),
+		providers.NewExtensionCommentActionProvider(extensionService),
 		providers.NewExtensionTopicSurfaceProvider(extensionService),
 		providers.NewExtensionComposerToolbarProvider(extensionService),
 		providers.NewModerationPublicationPolicy(moderationStore, optionsService),

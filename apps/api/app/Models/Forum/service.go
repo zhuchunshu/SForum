@@ -18,6 +18,7 @@ type Service struct {
 	settings          SettingsResolver
 	events            appevents.Publisher
 	topicActions      TopicExtensionActionProvider
+	commentActions    CommentExtensionActionProvider
 	topicSurfaces     TopicExtensionSurfaceProvider
 	composerToolbar   ComposerToolbarProvider
 	publicationPolicy PublicationPolicy
@@ -39,6 +40,14 @@ func (s *Service) WithComposerToolbar(provider ComposerToolbarProvider) *Service
 func (s *Service) WithTopicExtensionSurfaces(provider TopicExtensionSurfaceProvider) *Service {
 	if s != nil {
 		s.topicSurfaces = provider
+	}
+	return s
+}
+
+// WithCommentExtensionActions 注入评论行扩展动作解析（E2.2）。
+func (s *Service) WithCommentExtensionActions(provider CommentExtensionActionProvider) *Service {
+	if s != nil {
+		s.commentActions = provider
 	}
 	return s
 }
@@ -1087,7 +1096,20 @@ func (s *Service) ListComments(ctx context.Context, input CommentListInput) (Com
 		return CommentList{}, err
 	}
 	list.Items = applyCommentTreeExcerpts(list.Items, settings.ExcerptRuneLimit)
-	return list, nil
+	return s.decorateCommentExtensionActions(ctx, list), nil
+}
+
+func (s *Service) decorateCommentExtensionActions(ctx context.Context, list CommentList) CommentList {
+	if s.commentActions == nil {
+		return list
+	}
+	actions, err := s.commentActions.CommentExtensionActions(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "forum: resolve comment extension actions failed", "err", err)
+		return list
+	}
+	list.ExtensionActions = actions
+	return list
 }
 
 func applyCommentTreeExcerpts(items []Comment, limit int) []Comment {

@@ -12,6 +12,7 @@ func TestContributionPointDefinitionsContainJobsProductionSlots(t *testing.T) {
 		PointForumTopicActions:       true,
 		PointForumTopicSidebar:       true,
 		PointForumTopicBadges:        true,
+		PointForumCommentActions:     true,
 		PointForumComposerToolbar:    true,
 		PointForumProfileTabs:        true,
 		PointAdminDashboardWidgets:   true,
@@ -66,6 +67,11 @@ func TestF43ContributionPayloadValidation(t *testing.T) {
 			Point: PointForumTopicBadges, ID: "demo.badge", Order: 10,
 			Label:   map[string]string{"en-US": "Reviewed"},
 			Payload: json.RawMessage(`{"tone":"success","href":"/moderation"}`),
+		}},
+		{{
+			Point: PointForumCommentActions, ID: "demo.flag", Order: 10,
+			Label: map[string]string{"en-US": "Flag"}, Icon: "i-lucide-flag",
+			Payload: json.RawMessage(`{"type":"extensionRoute","method":"POST","path":"/actions/x","requiresAuth":true}`),
 		}},
 		{{
 			Point: PointAdminDashboardWidgets, ID: "demo.widget", Order: 10,

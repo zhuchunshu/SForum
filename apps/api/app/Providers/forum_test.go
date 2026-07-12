@@ -180,6 +180,51 @@ func TestExtensionTopicSurfaceProviderPropagatesSourceErrors(t *testing.T) {
 	}
 }
 
+func TestExtensionCommentActionProviderBuildsSafeDescriptors(t *testing.T) {
+	payload, err := json.Marshal(map[string]any{
+		"type": "extensionRoute", "method": "POST", "path": "/comment-actions/flag", "confirm": true, "requiresAuth": true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := fakeContributionSource{items: []extensions.EffectiveContribution{
+		{
+			ExtensionID: "demo.plugin",
+			Point:       "forum.comment.actions",
+			ID:          "demo.flag",
+			Label:       map[string]string{"zh-CN": "标记"},
+			Icon:        "i-lucide-flag",
+			Payload:     payload,
+		},
+		{
+			ExtensionID: "demo.plugin",
+			Point:       "forum.comment.actions",
+			ID:          "demo.bad-get",
+			Payload:     json.RawMessage(`{"type":"extensionRoute","method":"GET","path":"/comment-actions/bad"}`),
+		},
+		{
+			ExtensionID: "demo.plugin",
+			Point:       "forum.topic.actions",
+			ID:          "ignored",
+			Payload:     payload,
+		},
+	}}
+	actions, err := NewExtensionCommentActionProvider(source).CommentExtensionActions(context.Background())
+	if err != nil || len(actions) != 1 {
+		t.Fatalf("actions=%#v err=%v", actions, err)
+	}
+	action := actions[0]
+	if action.ExtensionID != "demo.plugin" || action.ID != "demo.flag" {
+		t.Fatalf("unexpected action: %#v", action)
+	}
+	if action.URL != "/extensions/demo.plugin/comment-actions/flag" || action.Method != "POST" {
+		t.Fatalf("unexpected route fields: %#v", action)
+	}
+	if !action.Confirm || !action.RequiresAuth || action.Label["zh-CN"] != "标记" {
+		t.Fatalf("unexpected payload fields: %#v", action)
+	}
+}
+
 type fakeContributionSource struct {
 	items []extensions.EffectiveContribution
 	err   error

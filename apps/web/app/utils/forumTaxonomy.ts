@@ -159,6 +159,12 @@ export type ForumTopicExtensionAction = {
   confirm?: boolean
 }
 
+/** forum.comment.actions 宿主描述符（E2.2）；挂在 CommentList 上 */
+export type ForumCommentExtensionAction = ForumTopicExtensionAction & {
+  /** UX 提示：为 true 时游客隐藏；权威鉴权仍在扩展路由代理 */
+  requiresAuth?: boolean
+}
+
 /** forum.topic.sidebar 宿主描述符（E2.1） */
 export type ForumTopicExtensionSidebarItem = {
   extensionId: string
@@ -240,6 +246,8 @@ export type ForumCommentList = {
   page: number
   perPage: number
   view: 'tree' | 'flat'
+  /** forum.comment.actions（E2.2）；列表级一次返回，前端挂到每行菜单 */
+  extensionActions?: ForumCommentExtensionAction[]
 }
 
 // 主题生命周期动作结果。
@@ -650,6 +658,30 @@ export function forumTopicExtensionActionRequest(action: ForumTopicExtensionActi
     path,
     method: action.method,
     body: { topicId }
+  }
+}
+
+/** 评论行扩展动作：body 带 topicId + commentId，路径校验与主题动作相同 */
+export function forumCommentExtensionActionRequest(
+  action: ForumCommentExtensionAction,
+  topicId: number,
+  commentId: number
+) {
+  const path = forumTopicExtensionActionRequestPath(action)
+  if (
+    !path
+    || !Number.isInteger(topicId)
+    || topicId <= 0
+    || !Number.isInteger(commentId)
+    || commentId <= 0
+    || !isTopicExtensionActionMethod(action.method)
+  ) {
+    return null
+  }
+  return {
+    path,
+    method: action.method,
+    body: { topicId, commentId }
   }
 }
 

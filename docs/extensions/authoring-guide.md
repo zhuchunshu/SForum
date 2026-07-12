@@ -221,6 +221,7 @@ Payloads are JSON descriptors — **never executable code**.
 | `forum.topic.actions` | `extensionRoute` | Topic detail `extensionActions` |
 | `forum.topic.sidebar` | `topicSidebarCard` (`extensionRoute` \| `hostLink`) | Topic detail `extensionSidebar` (default theme side cards) |
 | `forum.topic.badges` | `topicBadge` (`tone` + optional host `href`) | Topic detail `extensionBadges` (under title) |
+| `forum.comment.actions` | `extensionRoute` (+ optional `requiresAuth`) | Comment list `extensionActions` (row menus) |
 | `forum.composer.toolbar` | `extensionRoute` | `GET /composer/toolbar` + composer UI |
 | `forum.profile.tabs` | `profileSection` (`extensionRoute` \| `hostLink`) | Public profile `extensionTabs` |
 | `admin.dashboard.widgets` | `dashboardLink` (`adminLink` + admin route) | Admin overview `extensionWidgets` |
@@ -235,6 +236,16 @@ Payloads are JSON descriptors — **never executable code**.
 - Themes must render empty-safe: omit UI blocks when arrays are empty.
 - No public trusted Vue injection; actions still go through the extension route
   proxy and host policy.
+
+### Comment row actions (E2.2)
+
+- Same payload spirit as `forum.topic.actions`: `extensionRoute` with
+  `POST|PUT|PATCH|DELETE` only (no GET).
+- Optional `requiresAuth: true` is a **UX hint** — the default theme hides the
+  control for guests; the extension route proxy still enforces login/policy.
+- Host returns descriptors once on `CommentList.extensionActions` (not per
+  comment row). Clients attach them to each row menu and POST
+  `{ topicId, commentId }` to the proxy path.
 
 ## Entity meta / custom fields (F4.4)
 

@@ -75,6 +75,9 @@ describe('default theme V32 topic page contract', () => {
     expect(source).toContain('v-highlight')
     expect(source).toContain('<SFTopicEditor')
     expect(source).toContain('applyTopicExtensionAction')
+    // E2.2：评论行扩展动作与主题动作同一代理边界
+    expect(source).toContain('applyCommentExtensionAction')
+    expect(source).toContain('extensionActions')
   })
 
   test('uses a dual-column reading shell with topic info side card', () => {

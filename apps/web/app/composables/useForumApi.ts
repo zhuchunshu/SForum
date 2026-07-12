@@ -2,10 +2,12 @@ import {
   buildForumCommentQuery,
   buildForumSearchQuery,
   buildForumTopicQuery,
+  forumCommentExtensionActionRequest,
   forumTopicExtensionActionRequest,
   type ForumCategoryGroup,
   type ForumAuthorReviewItem,
   type ForumComment,
+  type ForumCommentExtensionAction,
   type ForumCommentList,
   type ForumCommentListQuery,
   type ForumContentInput,
@@ -131,6 +133,21 @@ export function useForumApi() {
     })
   }
 
+  function applyCommentExtensionAction(
+    topicId: number,
+    commentId: number,
+    action: ForumCommentExtensionAction
+  ) {
+    const input = forumCommentExtensionActionRequest(action, topicId, commentId)
+    if (!input) {
+      throw new Error('Invalid comment extension action')
+    }
+    return request<unknown>(input.path, {
+      method: input.method,
+      body: input.body
+    })
+  }
+
   function listComposerToolbarActions() {
     return request<ForumComposerToolbarAction[]>('/composer/toolbar')
   }
@@ -164,6 +181,7 @@ export function useForumApi() {
     deleteTopic,
     applyTopicAction,
     applyTopicExtensionAction,
+    applyCommentExtensionAction,
     listComposerToolbarActions,
     applyComposerToolbarAction
   }

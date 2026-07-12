@@ -172,6 +172,7 @@ const (
 	PointForumTopicActions     = "forum.topic.actions"
 	PointForumTopicSidebar     = "forum.topic.sidebar"
 	PointForumTopicBadges      = "forum.topic.badges"
+	PointForumCommentActions   = "forum.comment.actions"
 	PointForumComposerToolbar  = "forum.composer.toolbar"
 	PointForumProfileTabs      = "forum.profile.tabs"
 	PointAdminDashboardWidgets = "admin.dashboard.widgets"
@@ -189,13 +190,18 @@ const (
 	PayloadTypeHealthDescriptor = "healthDescriptor"
 )
 
-// TopicActionContributionPayload 用于 forum.topic.actions（extensionRoute）。
+// TopicActionContributionPayload 用于 forum.topic.actions / forum.comment.actions（extensionRoute）。
+// RequiresAuth 为 UX 提示：前端可对游客隐藏；写操作仍由扩展路由代理做权威鉴权。
 type TopicActionContributionPayload struct {
-	Type    string `json:"type"`
-	Method  string `json:"method"`
-	Path    string `json:"path"`
-	Confirm bool   `json:"confirm,omitempty"`
+	Type         string `json:"type"`
+	Method       string `json:"method"`
+	Path         string `json:"path"`
+	Confirm      bool   `json:"confirm,omitempty"`
+	RequiresAuth bool   `json:"requiresAuth,omitempty"`
 }
+
+// CommentActionContributionPayload 与主题动作同形（E2.2）。
+type CommentActionContributionPayload = TopicActionContributionPayload
 
 // ComposerToolbarContributionPayload 用于 forum.composer.toolbar（extensionRoute）。
 // 与主题操作相同：宿主渲染按钮，执行走扩展路由代理。
@@ -258,6 +264,7 @@ func ContributionPointDefinitions() []ContributionPointDefinition {
 		{ID: PointForumTopicActions, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Topic detail action descriptors rendered by the host UI.", PayloadType: PayloadTypeExtensionRoute},
 		{ID: PointForumTopicSidebar, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Topic detail sidebar cards/links rendered by the host UI (extensionRoute or hostLink).", PayloadType: PayloadTypeTopicSidebarCard},
 		{ID: PointForumTopicBadges, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Small status badges under the topic title (tone enum + optional hostLink).", PayloadType: PayloadTypeTopicBadge},
+		{ID: PointForumCommentActions, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Comment row action descriptors rendered by the host UI (same extensionRoute spirit as topic actions).", PayloadType: PayloadTypeExtensionRoute},
 		{ID: PointForumComposerToolbar, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Composer/editor toolbar actions rendered by the host UI; payload is an extensionRoute only.", PayloadType: PayloadTypeExtensionRoute},
 		{ID: PointForumProfileTabs, Owner: "forum", Kind: ContributionPointKindDescriptor, Description: "Public profile tabs/sections rendered by the host UI (extensionRoute or hostLink).", PayloadType: PayloadTypeProfileSection},
 		{ID: PointAdminDashboardWidgets, Owner: "admin", Kind: ContributionPointKindDescriptor, Description: "Admin dashboard link widgets; host-owned routes only, no executable payloads.", PayloadType: PayloadTypeDashboardLink},
@@ -882,7 +889,8 @@ func normalizeContribution(contribution ManifestContribution) ManifestContributi
 		}
 		contribution.Label = labels
 	}
-	if contribution.Point == "forum.topic.actions" && len(contribution.Payload) > 0 {
+	// 主题/评论行动作共用 extensionRoute 载荷形态（含 requiresAuth）。
+	if (contribution.Point == PointForumTopicActions || contribution.Point == PointForumCommentActions) && len(contribution.Payload) > 0 {
 		var payload TopicActionContributionPayload
 		if err := json.Unmarshal(contribution.Payload, &payload); err == nil {
 			payload.Type = strings.TrimSpace(payload.Type)

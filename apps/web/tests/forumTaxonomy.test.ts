@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import {
   buildForumTopicQuery,
   forumTopicExtensionActionLabel,
+  forumCommentExtensionActionRequest,
   forumTopicExtensionActionRequest,
   forumTopicExtensionActionRequestPath,
   forumCategoriesIndexPath,
@@ -108,5 +109,22 @@ describe('forum taxonomy helpers', () => {
       body: { topicId: 42 }
     })
     expect(forumTopicExtensionActionRequest({ ...action, method: 'GET' as 'POST' }, 42)).toBeNull()
+  })
+
+  test('builds safe comment extension action requests with topic and comment ids', () => {
+    const action = {
+      extensionId: 'demo.plugin',
+      id: 'demo.flag',
+      method: 'POST' as const,
+      url: '/extensions/demo.plugin/comment-actions/flag',
+      requiresAuth: true
+    }
+    expect(forumCommentExtensionActionRequest(action, 42, 7)).toEqual({
+      path: '/extensions/demo.plugin/comment-actions/flag',
+      method: 'POST',
+      body: { topicId: 42, commentId: 7 }
+    })
+    expect(forumCommentExtensionActionRequest(action, 42, 0)).toBeNull()
+    expect(forumCommentExtensionActionRequest({ ...action, url: '/api/v1/x' }, 42, 7)).toBeNull()
   })
 })

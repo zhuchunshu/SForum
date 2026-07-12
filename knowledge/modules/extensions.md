@@ -29,7 +29,10 @@ mail. Implementation checklist:
 - **E2.1 done:** `forum.topic.sidebar` (`topicSidebarCard`) +
   `forum.topic.badges` (`topicBadge`); topic detail returns
   `extensionSidebar` / `extensionBadges`; default theme empty-safe consumers
-- **E2 remaining:** comment actions, nav items, list-row badges
+- **E2.2 done:** `forum.comment.actions` (`extensionRoute` + optional
+  `requiresAuth`); `CommentList.extensionActions` list-level; default theme
+  row menus; body `{ topicId, commentId }`
+- **E2 remaining:** nav items, list-row badges
 - F4.4 entity meta → **E3**; F4.5 feature flags → **E4** (already implemented)
 - **North star:** storage (**E6**) and search (**E7**) reach mail-like L4–L6
   (plugin RPC + admin select/settings/test/restore + reference plugin); other

@@ -1088,6 +1088,45 @@ CommentList:
       enum:
       - tree
       - flat
+    extensionActions:
+      type: array
+      description: Host-rendered comment row actions from forum.comment.actions (E2.2). Listed once per page; clients attach them to each row menu. Unsafe calls still go through the extension route proxy.
+      items:
+        "$ref": "#/CommentExtensionAction"
+CommentExtensionAction:
+  type: object
+  description: Host-rendered comment row action from forum.comment.actions (E2.2).
+  required:
+  - extensionId
+  - id
+  - method
+  - url
+  properties:
+    extensionId:
+      type: string
+    id:
+      type: string
+    label:
+      type: object
+      additionalProperties:
+        type: string
+    icon:
+      type: string
+    method:
+      type: string
+      enum:
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+    url:
+      type: string
+      description: API-relative plugin route path such as /extensions/demo.plugin/comment-actions/flag.
+    confirm:
+      type: boolean
+    requiresAuth:
+      type: boolean
+      description: UX hint only — hide for guests when true; host still enforces login on unsafe extension routes.
 CreateTopicRequest:
   type: object
   required:

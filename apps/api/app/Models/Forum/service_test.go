@@ -641,6 +641,40 @@ func TestServiceGetTopicDecoratesExtensionSurfaces(t *testing.T) {
 	}
 }
 
+func TestServiceListCommentsDecoratesExtensionActions(t *testing.T) {
+	store := newServiceFakeStore()
+	store.listCommentsResult = CommentList{
+		Items:   []Comment{{ID: 1, TopicID: 10, Status: "active"}},
+		Total:   1,
+		Page:    1,
+		PerPage: 20,
+		View:    "tree",
+	}
+	service := NewServiceWithTopicExtensionActions(store, staticSettingsResolver{}, nil, nil, nil)
+	service.WithCommentExtensionActions(fakeCommentActionProvider{
+		actions: []CommentExtensionAction{{
+			ExtensionID:  "demo.plugin",
+			ID:           "demo.flag",
+			Label:        map[string]string{"zh-CN": "标记"},
+			Icon:         "i-lucide-flag",
+			Method:       "POST",
+			URL:          "/extensions/demo.plugin/comment-actions/flag",
+			RequiresAuth: true,
+		}},
+	})
+
+	list, err := service.ListComments(context.Background(), CommentListInput{TopicID: 10})
+	if err != nil {
+		t.Fatalf("ListComments returned error: %v", err)
+	}
+	if len(list.ExtensionActions) != 1 || list.ExtensionActions[0].ID != "demo.flag" {
+		t.Fatalf("expected comment extension actions, got %#v", list.ExtensionActions)
+	}
+	if !list.ExtensionActions[0].RequiresAuth {
+		t.Fatalf("expected requiresAuth on comment action: %#v", list.ExtensionActions[0])
+	}
+}
+
 func TestCommentPositionForInsertSupportsArbitraryDepth(t *testing.T) {
 	parent := CommentSummary{
 		ID:            7,
@@ -1411,6 +1445,18 @@ func (p fakeTopicSurfaceProvider) TopicExtensionBadges(context.Context) ([]Topic
 		return nil, p.err
 	}
 	return p.badges, nil
+}
+
+type fakeCommentActionProvider struct {
+	actions []CommentExtensionAction
+	err     error
+}
+
+func (p fakeCommentActionProvider) CommentExtensionActions(context.Context) ([]CommentExtensionAction, error) {
+	if p.err != nil {
+		return nil, p.err
+	}
+	return p.actions, nil
 }
 
 type serviceFakeStore struct {
