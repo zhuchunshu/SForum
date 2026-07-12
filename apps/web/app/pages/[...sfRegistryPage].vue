@@ -81,6 +81,8 @@ useSForumSeo({
       :extension-id="data?.extensionId || data?.provider || ''"
       :data-source="data?.dataSource"
       :data-route="data?.dataRoute"
+      :loader-data="data?.loaderData"
+      :loader-error="data?.loaderError"
     />
     <SFEmptyState
       v-else

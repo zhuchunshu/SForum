@@ -11,6 +11,9 @@ const props = defineProps<{
   extensionId?: string
   dataSource?: string
   dataRoute?: string
+  /** SSR resolve 注入的插件页面数据（唯一数据来源；禁止客户端再请求插件 route） */
+  loaderData?: unknown
+  loaderError?: string
 }>()
 
 type Segment =
@@ -31,19 +34,9 @@ const ALLOWED_ISLANDS = new Set(Object.keys(islandComponents))
 
 const segments = computed(() => parseTemplate(props.html || ''))
 
-const pluginData = ref<unknown>(null)
-const pluginDataError = ref(false)
-
-// 浏览器侧不再直连插件路由拉数据；服务端 resolve 应已注入 loader 结果。
-// 保留 dataSource/dataRoute 仅作调试展示，避免客户端绕过 access 检查。
-watchEffect(() => {
-  pluginData.value = null
-  pluginDataError.value = false
-  if (props.dataSource === 'plugin' && props.dataRoute) {
-    // 客户端不发起扩展路由请求；数据由 SSR resolve / 宿主 loader 提供。
-    pluginDataError.value = false
-  }
-})
+// 仅消费宿主 SSR 注入的 loaderData；前端不得自行访问插件 route。
+const pluginData = computed(() => props.loaderData ?? null)
+const pluginDataError = computed(() => Boolean(props.loaderError))
 
 /**
  * 在已净化 HTML 上拆分宿主岛。安全边界在 API 的 bluemonday；

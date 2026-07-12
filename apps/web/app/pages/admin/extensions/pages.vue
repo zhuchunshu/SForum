@@ -29,7 +29,16 @@ type PageRow = {
   provider: string
   extensionId?: string
   contributionId?: string
-  candidates?: Array<{ id: string, extensionId: string, version?: string, packageDigest?: string, template?: string }>
+  /** 当前绑定或目录 contract；只读展示，不可编辑 */
+  contractVersion?: string
+  candidates?: Array<{
+    id: string
+    extensionId: string
+    version?: string
+    packageDigest?: string
+    template?: string
+    contract?: string
+  }>
 }
 
 const pending = ref(true)
@@ -68,11 +77,19 @@ async function restoreCore(pageId: string) {
   }
 }
 
-async function approve(pageId: string, candidate: { id: string, extensionId: string, version?: string, packageDigest?: string, template?: string }) {
+async function approve(pageId: string, candidate: {
+  id: string
+  extensionId: string
+  version?: string
+  packageDigest?: string
+  template?: string
+  contract?: string
+}, pageContract?: string) {
   if (!isSuperAdmin.value) {
     return
   }
   try {
+    // templatePath 不由客户端决定；contract 必须与目录/贡献一致，仅只读回传。
     await request(`/admin/pages/${encodeURIComponent(pageId)}/approve`, {
       method: 'POST',
       body: {
@@ -80,7 +97,7 @@ async function approve(pageId: string, candidate: { id: string, extensionId: str
         contributionId: candidate.id,
         version: candidate.version || '',
         packageDigest: candidate.packageDigest || '',
-        templatePath: candidate.template || ''
+        contractVersion: candidate.contract || pageContract || ''
       }
     })
     toast.add({
@@ -145,6 +162,7 @@ void load()
             <th class="px-3 py-2 font-medium">{{ t('admin.extensions.pages.colPath') }}</th>
             <th class="px-3 py-2 font-medium">{{ t('admin.extensions.pages.colAccess') }}</th>
             <th class="px-3 py-2 font-medium">{{ t('admin.extensions.pages.colProvider') }}</th>
+            <th class="px-3 py-2 font-medium">Contract</th>
             <th class="px-3 py-2 font-medium">{{ t('admin.extensions.pages.colActions') }}</th>
           </tr>
         </thead>
@@ -166,6 +184,9 @@ void load()
                 ({{ row.candidates.length }} {{ t('admin.extensions.pages.candidates') }})
               </span>
             </td>
+            <td class="px-3 py-2 font-mono text-xs text-slate-600 dark:text-zinc-400">
+              {{ row.contractVersion || row.page.contractVersion || '—' }}
+            </td>
             <td class="px-3 py-2">
               <div class="flex flex-wrap gap-2">
                 <UButton
@@ -186,7 +207,7 @@ void load()
                     color="primary"
                     variant="soft"
                     icon="i-lucide-check"
-                    @click="approve(row.page.id, c)"
+                    @click="approve(row.page.id, c, row.page.contractVersion)"
                   >
                     {{ t('admin.extensions.pages.approve') }}: {{ c.extensionId }}
                   </UButton>
@@ -196,7 +217,7 @@ void load()
           </tr>
           <tr v-if="!pending && rows.length === 0">
             <td
-              colspan="5"
+              colspan="6"
               class="px-3 py-8 text-center text-slate-500"
             >
               {{ t('admin.extensions.pages.empty') }}

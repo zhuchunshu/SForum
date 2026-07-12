@@ -108,6 +108,8 @@ const showFallbackNotice = computed(() => Boolean(resolved.value?.fallback || re
       :extension-id="resolved?.extensionId || provider"
       :data-source="resolved?.dataSource"
       :data-route="resolved?.dataRoute"
+      :loader-data="resolved?.loaderData"
+      :loader-error="resolved?.loaderError"
     />
     <slot v-else />
     <p
