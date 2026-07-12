@@ -138,7 +138,8 @@ func renderIndex() string {
 	b.WriteString("- Hand-written guide: [../authoring-guide.md](../authoring-guide.md)\n")
 	b.WriteString("- Go SDK: `github.com/zhuchunshu/sforum/apps/api/sdk/plugin`\n")
 	b.WriteString("- Contract CLI: `sforum extension test [path]`\n")
-	b.WriteString("- Reference plugins: built-in `sforum.smtp`, fixtures under `extensions/fixtures/plugins/`\n")
+	b.WriteString("- Scenario map: [../scenario-map.md](../scenario-map.md)\n")
+	b.WriteString("- Reference plugins: built-in `sforum.smtp` (mail provider), `sforum.content-policy` (workflow filters), fixtures under `extensions/fixtures/plugins/`\n")
 	return b.String()
 }
 

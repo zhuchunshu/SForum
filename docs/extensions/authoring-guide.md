@@ -105,7 +105,55 @@ go run ./cmd/sforum extension test --skip-backend-binary \
 Read the full package README and `manifest/` shards for settings grouping and
 Chinese/English identity langs.
 
-## Reference 2 — Host API fixture (`sforum.contract.hostapi`)
+## Reference 2 — content policy workflow (`sforum.content-policy`)
+
+Path: `extensions/builtin/plugins/sforum-content-policy/`
+
+Use this package when you need a **non-provider workflow** plugin: sync
+filters, settings, and public UI contributions (Wave E5). SMTP remains the
+**mail provider** reference; this package is the **filter + contribution**
+reference.
+
+| Area | What content policy does |
+| --- | --- |
+| Manifest | Explicit `capabilities`, three filter `events`, multi-file `includes` |
+| Backend | Public SDK `Serve` + `Noop`; implements `InvokeHook` only |
+| Filters | `topic.before_create`, `topic.before_update`, `comment.before_create` |
+| Settings | Keywords, mode (`reject` / `tag`), force tag, scan toggles |
+| Contributions | `forum.topic.badges` + `forum.topic.sidebar` → `/guidelines` |
+| Providers | None (not a slot plugin) |
+
+Operator path (fresh contributor):
+
+1. Admin → Extensions → Plugins → enable **SForum Content Policy** (confirm
+   capabilities: `host.api`, `settings.own`, `audit.append`).
+2. Manage settings → add keywords (one per line; `#` comments allowed).
+3. Keep mode **Reject publish** (recommended default).
+4. Publish a topic/reply containing a keyword → API `422` with reason
+   `content_policy.keyword_blocked`.
+5. With the default theme, topic detail shows a policy badge and a guidelines
+   sidebar card.
+
+Author rules demonstrated by this package:
+
+- Filters stay **cheap** (substring match on env-injected settings only).
+- No Host API / network / River jobs inside `InvokeHook`.
+- `mode=tag` only patches `tagSlugs` on topics; comments still reject.
+- Force-tag requires the slug to already exist under host tag policy.
+
+```bash
+cd apps/api
+go run ./cmd/sforum extension test --skip-backend-binary \
+  ../../extensions/builtin/plugins/sforum-content-policy
+
+# Build binary (also run by scripts/build-builtin-plugins.sh)
+(cd ../../extensions/builtin/plugins/sforum-content-policy/backend && \
+  go test ./... && go build -o plugin .)
+```
+
+See package `README.md` for settings env names and force-tag notes.
+
+## Reference 3 — Host API fixture (`sforum.contract.hostapi`)
 
 Path: `extensions/fixtures/plugins/sforum-contract-hostapi/`
 
@@ -131,6 +179,28 @@ Related fixtures:
 
 - `sforum-contract-events` — events + `forum.topic.actions` contribution only
 - `sforum-contract-schedules` — documents that schedules stay host-owned
+
+## Scenario map (which mechanism?)
+
+| I want to… | Use |
+| --- | --- |
+| Run code after a topic is created | observe `topic.created` (+ optional Host API job) |
+| Change or reject a new topic | filter `topic.before_create` |
+| Change or reject a topic edit | filter `topic.before_update` |
+| Change or reject a new reply | filter `comment.before_create` |
+| Reject registration | validate `user.before_register` |
+| Reject an upload by metadata | validate `attachment.before_upload` |
+| Add a topic detail button | contribution `forum.topic.actions` |
+| Add topic badges / sidebar / list pills | `forum.topic.badges` / `sidebar` / `list.badges` |
+| Add public nav entries | contribution `forum.nav.items` |
+| Swap outbound mail transport | provider `mail.provider` (see `sforum.smtp`) |
+| Swap attachment storage | provider `attachment.storage.provider` (Wave E6) |
+| Swap full-text search | provider `search.provider` (Wave E7) |
+| Store per-topic/plugin structured data | entity meta (F4.4 / E3) |
+| Own HTTP API under the host proxy | manifest `routes` + backend `RouteTarget` |
+| Call host from the plugin process | Host API + declared `capabilities` |
+| End-to-end **workflow** sample | enable `sforum.content-policy` (this section) |
+| End-to-end **mail provider** sample | enable `sforum.smtp` + select in Mail settings |
 
 ## Manifest checklist
 
