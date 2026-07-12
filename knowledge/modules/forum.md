@@ -18,10 +18,13 @@ on 2026-07-07.
 - `comments` owns tree-shaped replies under topics: parent/root references,
   stable path keys, depth, reply counters, and state.
 - `posts` is the shared content table for both topics and comments. It stores
-  raw content, sanitized HTML, plain text, excerpt, source format, editor type,
-  editor version, render version, and content hash.
-- `post_revisions` stores previous shared-content snapshots when comments are
-  edited.
+  raw content, sanitized HTML, plain text, source format, editor type,
+  editor version, render version, and content hash. List/detail `excerpt` is
+  derived at read time from `plain_text` using
+  `forum.reading.excerpt_rune_limit` (not a stored column).
+- `post_revisions` stores previous **source** snapshots (`raw_content` plus
+  source/editor/render metadata and content hash) when content is edited.
+  Derived html/plain/excerpt are not duplicated in revisions.
 - Taxonomy now uses two levels: `category_groups` contain ordered
   `categories`. v1 category access is only `public` or `hidden`; role-scoped
   category access is deferred.
@@ -33,7 +36,7 @@ on 2026-07-07.
 - Runtime forum settings live in `web_options`: default category slug, tag
   creation mode, public tag pages, min/max tags per topic, public pagination,
   topic/comment content limits, cooldowns, daily caps, edit windows, nesting
-  depth, list excerpt length, guest read mode, list default sort/hot window,
+  depth, list excerpt rune limit (read-time), guest read mode, list default sort/hot window,
   author close/delete, edit marks, duplicate title policy, soft-delete
   visibility, and @mention limits. Recommended defaults are configurable and
   resettable from the multi-tab admin forum settings page
@@ -48,7 +51,8 @@ on 2026-07-07.
   comment max nesting depth, optional author edit windows, create cooldowns,
   and daily create limits. `0` means unlimited for cooldown/daily/edit window
   fields. List excerpt truncation uses `forum.reading.excerpt_rune_limit`
-  (default 180) for newly rendered content only.
+  (default 180) on every read path from `plain_text`, so changing the setting
+  applies to old posts immediately.
 - Guest reading: when `forum.guest.read=login_required`, public read endpoints
   (categories, tags, topics, search, comments) return 401
   `forum.guest_login_required` for anonymous sessions.
@@ -117,7 +121,8 @@ UNIQUE 索引（先去重），创建/改标题时 `Service.ensureUniqueTopicSlu
 ## Content Rules
 
 - v1 stores accepted content in the shared `posts` table as raw content,
-  sanitized HTML, extracted plain text, and excerpt.
+  sanitized HTML, and extracted plain text. API `excerpt` is derived from
+  plain text at read time.
 - Markdown and HTML source formats are accepted by the backend in v1.
 - `json` is reserved in the schema for future structured editors, but the API
   rejects JSON publishing until a Tiptap/native-JSON acceptance contract exists.
@@ -131,8 +136,8 @@ UNIQUE 索引（先去重），创建/改标题时 `Service.ensureUniqueTopicSlu
   directive on the topic body, comment bodies, and editor preview.
 - `RenderVersion` is `goldmark-bluemonday-v2`; existing posts keep their old
   HTML until next edit (no batch re-render).
-- Keep edit history through `post_revisions` for comment edits. Topic editing
-  endpoints are deferred.
+- Keep edit history through `post_revisions` (source-only snapshots) for
+  topic/comment content edits.
 - Hide deleted or moderation-only content from public SSR pages, sitemap, and
   Meilisearch indexes.
 - Category labels, moderation labels, and system-authored forum text must be

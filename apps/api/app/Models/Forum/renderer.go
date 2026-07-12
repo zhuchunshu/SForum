@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"regexp"
 	"strings"
 	"unicode"
@@ -17,11 +18,15 @@ import (
 
 const defaultExcerptRuneLimit = RecommendedExcerptRuneLimit
 
+// plainTextSelectPrefixChars 列表/摘要查询从 plain_text 取的字符上限。
+// 大于 HardExcerptMaxRunes，保证按 rune 截断前有足够源文本（含 CJK）。
+const plainTextSelectPrefixChars = 2000
+
 func RenderContent(input ContentInput) (RenderedContent, error) {
 	return RenderContentWithExcerptLimit(input, defaultExcerptRuneLimit)
 }
 
-// RenderContentWithExcerptLimit 使用运营配置的摘要长度截断 plain text。
+// RenderContentWithExcerptLimit 渲染正文并派生摘要（摘要不落库，仅写路径/响应使用）。
 func RenderContentWithExcerptLimit(input ContentInput, excerptLimit int) (RenderedContent, error) {
 	raw := strings.TrimSpace(input.RawContent)
 	if raw == "" {
@@ -62,23 +67,32 @@ func RenderContentWithExcerptLimit(input ContentInput, excerptLimit int) (Render
 		return RenderedContent{}, ErrInvalidContent
 	}
 
-	limit := excerptLimit
-	if limit < HardExcerptMinRunes || limit > HardExcerptMaxRunes {
-		limit = defaultExcerptRuneLimit
-	}
-
 	hash := sha256.Sum256([]byte(sourceFormat + "\x00" + raw))
 	return RenderedContent{
 		RawContent:    raw,
 		HTMLContent:   renderedHTML,
 		PlainText:     plain,
-		Excerpt:       makeExcerpt(plain, limit),
+		Excerpt:       ExcerptFromPlain(plain, excerptLimit),
 		SourceFormat:  sourceFormat,
 		EditorType:    editorType,
 		EditorVersion: strings.TrimSpace(input.EditorVersion),
 		RenderVersion: RenderVersion,
 		ContentHash:   hex.EncodeToString(hash[:]),
 	}, nil
+}
+
+// ExcerptFromPlain 按运营配置的 rune 上限从纯文本派生列表/引用摘要。
+// 不落库；读路径与写路径共用，保证改 excerpt_rune_limit 后旧帖立即生效。
+func ExcerptFromPlain(plain string, limit int) string {
+	if limit < HardExcerptMinRunes || limit > HardExcerptMaxRunes {
+		limit = defaultExcerptRuneLimit
+	}
+	return makeExcerpt(strings.TrimSpace(plain), limit)
+}
+
+// plainTextPrefixSQL 从 posts.plain_text 取前缀供摘要派生，避免列表 SELECT 全量正文。
+func plainTextPrefixSQL(column string) string {
+	return fmt.Sprintf("left(%s, %d)", column, plainTextSelectPrefixChars)
 }
 
 var unsafeHTMLBlockPatterns = []*regexp.Regexp{

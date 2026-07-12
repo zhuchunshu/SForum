@@ -375,21 +375,23 @@ func (s *PostgresStore) GetTopic(ctx context.Context, topicID int64) (TopicDetai
 }
 
 func (s *PostgresStore) ListAuthorReviewItems(ctx context.Context, authorUserID int64) (AuthorReviewList, error) {
+	// excerpt 列已删除：取 plain_text 前缀，扫描后按默认 rune 上限派生。
+	plainPrefix := plainTextPrefixSQL("posts.plain_text")
 	rows, err := s.pool.Query(ctx, `
 		WITH author_items AS (
 		  SELECT 'topic'::text AS target_type, topics.id AS target_id, topics.id AS topic_id,
-		    topics.title, posts.excerpt, topics.status, topics.created_at
+		    topics.title, `+plainPrefix+` AS plain_prefix, topics.status, topics.created_at
 		  FROM topics JOIN posts ON posts.id = topics.content_id
 		  WHERE topics.author_user_id = $1 AND topics.status IN ('pending', 'rejected')
 		  UNION ALL
 		  SELECT 'comment'::text, comments.id, comments.topic_id, topics.title,
-		    posts.excerpt, comments.status, comments.created_at
+		    `+plainPrefix+`, comments.status, comments.created_at
 		  FROM comments
 		  JOIN posts ON posts.id = comments.content_id
 		  JOIN topics ON topics.id = comments.topic_id
 		  WHERE comments.author_user_id = $1 AND comments.status IN ('pending', 'rejected')
 		)
-		SELECT items.target_type, items.target_id, items.topic_id, items.title, items.excerpt,
+		SELECT items.target_type, items.target_id, items.topic_id, items.title, items.plain_prefix,
 		  items.status, COALESCE(decision.review_note, ''), items.created_at
 		FROM author_items items
 		LEFT JOIN LATERAL (
@@ -406,10 +408,12 @@ func (s *PostgresStore) ListAuthorReviewItems(ctx context.Context, authorUserID 
 	items := make([]AuthorReviewItem, 0)
 	for rows.Next() {
 		var item AuthorReviewItem
+		var plainPrefix string
 		if err := rows.Scan(&item.TargetType, &item.TargetID, &item.TopicID, &item.Title,
-			&item.Excerpt, &item.Status, &item.ReviewNote, &item.CreatedAt); err != nil {
+			&plainPrefix, &item.Status, &item.ReviewNote, &item.CreatedAt); err != nil {
 			return AuthorReviewList{}, fmt.Errorf("scan author review item: %w", err)
 		}
+		item.Excerpt = ExcerptFromPlain(plainPrefix, defaultExcerptRuneLimit)
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -1543,15 +1547,16 @@ type pgconnTag interface {
 }
 
 func insertPost(ctx context.Context, tx pgx.Tx, userID int64, content RenderedContent) (RenderedContent, error) {
+	// excerpt 不落库，由读路径从 plain_text 按运营配置截断派生。
 	err := tx.QueryRow(ctx, `
 		INSERT INTO posts (
-		  raw_content, html_content, plain_text, excerpt, source_format,
+		  raw_content, html_content, plain_text, source_format,
 		  editor_type, editor_version, render_version, content_hash,
 		  created_by_user_id, updated_by_user_id
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
 		RETURNING id, created_at, updated_at
-	`, content.RawContent, content.HTMLContent, content.PlainText, content.Excerpt,
+	`, content.RawContent, content.HTMLContent, content.PlainText,
 		content.SourceFormat, content.EditorType, content.EditorVersion, content.RenderVersion,
 		content.ContentHash, userID).Scan(&content.ID, new(time.Time), new(time.Time))
 	if err != nil {
@@ -1566,16 +1571,15 @@ func updatePost(ctx context.Context, tx pgx.Tx, postID int64, editorUserID int64
 		SET raw_content = $2,
 		    html_content = $3,
 		    plain_text = $4,
-		    excerpt = $5,
-		    source_format = $6,
-		    editor_type = $7,
-		    editor_version = $8,
-		    render_version = $9,
-		    content_hash = $10,
-		    updated_by_user_id = $11,
+		    source_format = $5,
+		    editor_type = $6,
+		    editor_version = $7,
+		    render_version = $8,
+		    content_hash = $9,
+		    updated_by_user_id = $10,
 		    updated_at = now()
 		WHERE id = $1
-	`, postID, content.RawContent, content.HTMLContent, content.PlainText, content.Excerpt,
+	`, postID, content.RawContent, content.HTMLContent, content.PlainText,
 		content.SourceFormat, content.EditorType, content.EditorVersion, content.RenderVersion,
 		content.ContentHash, editorUserID)
 	if err != nil {
@@ -1585,12 +1589,13 @@ func updatePost(ctx context.Context, tx pgx.Tx, postID int64, editorUserID int64
 }
 
 func createPostRevision(ctx context.Context, tx pgx.Tx, postID int64, editorUserID int64) error {
+	// revision 只保留源文与渲染元数据，html/plain/excerpt 不重复快照。
 	_, err := tx.Exec(ctx, `
 		INSERT INTO post_revisions (
-		  post_id, edited_by_user_id, raw_content, html_content, plain_text,
-		  excerpt, source_format, editor_type, editor_version, render_version, content_hash
+		  post_id, edited_by_user_id, raw_content,
+		  source_format, editor_type, editor_version, render_version, content_hash
 		)
-		SELECT id, $2, raw_content, html_content, plain_text, excerpt,
+		SELECT id, $2, raw_content,
 		  source_format, editor_type, editor_version, render_version, content_hash
 		FROM posts
 		WHERE id = $1
@@ -1764,6 +1769,7 @@ func nullablePositiveInt64(value int64) any {
 }
 
 func topicSummarySQL() string {
+	// plain_text 前缀供读路径派生 excerpt（列已删除，避免列表拉全量正文）。
 	return `
 		SELECT topics.id, topics.category_id, categories.slug, categories.name,
 		  topics.author_user_id, users.username, users.display_name, users.email,
@@ -1771,7 +1777,7 @@ func topicSummarySQL() string {
 		  author_attachments.id, author_attachments.public_id, author_attachments.owner_user_id,
 		  author_attachments.content_type, author_attachments.status,
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
-		  topics.comment_count, topics.view_count, posts.excerpt,
+		  topics.comment_count, topics.view_count, ` + plainTextPrefixSQL("posts.plain_text") + `,
 		  topics.created_at, topics.updated_at, topics.last_activity_at
 		FROM topics
 		JOIN categories ON categories.id = topics.category_id
@@ -1797,6 +1803,7 @@ func topicListOrderBy(sort string) string {
 }
 
 func topicDetailSQL() string {
+	// 详情仍 SELECT 完整 plain_text；excerpt 在 scan 时从 plain 派生。
 	return `
 		SELECT topics.id, topics.category_id, categories.slug, categories.name,
 		  topics.author_user_id, users.username, users.display_name, users.email,
@@ -1804,10 +1811,10 @@ func topicDetailSQL() string {
 		  author_attachments.id, author_attachments.public_id, author_attachments.owner_user_id,
 		  author_attachments.content_type, author_attachments.status,
 		  topics.title, topics.slug, topics.status, topics.is_pinned,
-		  topics.comment_count, topics.view_count, posts.excerpt,
+		  topics.comment_count, topics.view_count,
 		  topics.created_at, topics.updated_at, topics.last_activity_at,
 		  posts.id, posts.raw_content, posts.html_content, posts.plain_text,
-		  posts.excerpt, posts.source_format, posts.editor_type, posts.editor_version,
+		  posts.source_format, posts.editor_type, posts.editor_version,
 		  posts.render_version, posts.content_hash
 		FROM topics
 		JOIN categories ON categories.id = topics.category_id
@@ -1823,6 +1830,7 @@ func scanTopicSummary(row RowScanner) (TopicSummary, error) {
 	var authorID sql.NullInt64
 	var username sql.NullString
 	var displayName sql.NullString
+	var plainPrefix string
 	if err := row.Scan(
 		&topic.ID,
 		&topic.CategoryID,
@@ -1837,13 +1845,15 @@ func scanTopicSummary(row RowScanner) (TopicSummary, error) {
 		&topic.IsPinned,
 		&topic.CommentCount,
 		&topic.ViewCount,
-		&topic.Excerpt,
+		&plainPrefix,
 		&topic.CreatedAt,
 		&topic.UpdatedAt,
 		&topic.LastActivityAt,
 	); err != nil {
 		return TopicSummary{}, err
 	}
+	// 无 settings 上下文时用推荐默认；Service 读路径会按运营配置再截断。
+	topic.Excerpt = ExcerptFromPlain(plainPrefix, defaultExcerptRuneLimit)
 	if authorID.Valid {
 		topic.AuthorUserID = authorID.Int64
 		topic.Author = userSummaryWithAvatar(nil, authorID, username, displayName, sql.NullString{}, sql.NullInt64{}, sql.NullInt64{}, sql.NullString{}, sql.NullInt64{}, sql.NullString{}, sql.NullString{})
@@ -1914,6 +1924,7 @@ func scanTopicSummaryWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (To
 	var attachmentOwnerID sql.NullInt64
 	var attachmentContentType sql.NullString
 	var attachmentStatus sql.NullString
+	var plainPrefix string
 	if err := row.Scan(
 		&topic.ID,
 		&topic.CategoryID,
@@ -1935,13 +1946,14 @@ func scanTopicSummaryWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (To
 		&topic.IsPinned,
 		&topic.CommentCount,
 		&topic.ViewCount,
-		&topic.Excerpt,
+		&plainPrefix,
 		&topic.CreatedAt,
 		&topic.UpdatedAt,
 		&topic.LastActivityAt,
 	); err != nil {
 		return TopicSummary{}, err
 	}
+	topic.Excerpt = ExcerptFromPlain(plainPrefix, defaultExcerptRuneLimit)
 	if authorID.Valid {
 		topic.AuthorUserID = authorID.Int64
 		topic.Author = userSummaryWithAvatar(builder, authorID, username, displayName, email, avatarAttachmentID, attachmentID, attachmentPublicID, attachmentOwnerID, attachmentContentType, attachmentStatus)
@@ -1968,7 +1980,6 @@ func scanTopicDetail(row RowScanner) (TopicDetail, error) {
 		&detail.IsPinned,
 		&detail.CommentCount,
 		&detail.ViewCount,
-		&detail.Excerpt,
 		&detail.CreatedAt,
 		&detail.UpdatedAt,
 		&detail.LastActivityAt,
@@ -1976,7 +1987,6 @@ func scanTopicDetail(row RowScanner) (TopicDetail, error) {
 		&detail.Content.RawContent,
 		&detail.Content.HTMLContent,
 		&detail.Content.PlainText,
-		&detail.Content.Excerpt,
 		&detail.Content.SourceFormat,
 		&detail.Content.EditorType,
 		&detail.Content.EditorVersion,
@@ -1985,6 +1995,9 @@ func scanTopicDetail(row RowScanner) (TopicDetail, error) {
 	); err != nil {
 		return TopicDetail{}, err
 	}
+	// excerpt 从 plain_text 派生，详情与 content 字段共用同一摘要。
+	detail.Content.Excerpt = ExcerptFromPlain(detail.Content.PlainText, defaultExcerptRuneLimit)
+	detail.Excerpt = detail.Content.Excerpt
 	if authorID.Valid {
 		detail.AuthorUserID = authorID.Int64
 		detail.Author = userSummaryWithAvatar(nil, authorID, username, displayName, sql.NullString{}, sql.NullInt64{}, sql.NullInt64{}, sql.NullString{}, sql.NullInt64{}, sql.NullString{}, sql.NullString{})
@@ -2025,7 +2038,6 @@ func scanTopicDetailWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Top
 		&detail.IsPinned,
 		&detail.CommentCount,
 		&detail.ViewCount,
-		&detail.Excerpt,
 		&detail.CreatedAt,
 		&detail.UpdatedAt,
 		&detail.LastActivityAt,
@@ -2033,7 +2045,6 @@ func scanTopicDetailWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Top
 		&detail.Content.RawContent,
 		&detail.Content.HTMLContent,
 		&detail.Content.PlainText,
-		&detail.Content.Excerpt,
 		&detail.Content.SourceFormat,
 		&detail.Content.EditorType,
 		&detail.Content.EditorVersion,
@@ -2042,6 +2053,8 @@ func scanTopicDetailWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Top
 	); err != nil {
 		return TopicDetail{}, err
 	}
+	detail.Content.Excerpt = ExcerptFromPlain(detail.Content.PlainText, defaultExcerptRuneLimit)
+	detail.Excerpt = detail.Content.Excerpt
 	if authorID.Valid {
 		detail.AuthorUserID = authorID.Int64
 		detail.Author = userSummaryWithAvatar(builder, authorID, username, displayName, email, avatarAttachmentID, attachmentID, attachmentPublicID, attachmentOwnerID, attachmentContentType, attachmentStatus)
@@ -2075,9 +2088,9 @@ func commentSelectSQL() string {
 		  comments.parent_comment_id, COALESCE(comments.root_comment_id, comments.id),
 		  comments.path_key, comments.depth, comments.reply_count, comments.status,
 		  posts.id, posts.raw_content, posts.html_content, posts.plain_text,
-		  posts.excerpt, posts.source_format, posts.editor_type, posts.editor_version,
+		  posts.source_format, posts.editor_type, posts.editor_version,
 		  posts.render_version, posts.content_hash,
-		  parent_comments.id, parent_posts.excerpt, parent_comments.depth,
+		  parent_comments.id, ` + plainTextPrefixSQL("parent_posts.plain_text") + `, parent_comments.depth,
 		  parent_users.id, parent_users.username, parent_users.display_name, parent_users.email,
 		  parent_profiles.avatar_attachment_id,
 		  parent_attachments.id, parent_attachments.public_id, parent_attachments.owner_user_id,
@@ -2130,7 +2143,7 @@ func scanCommentWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Comment
 	var attachmentStatus sql.NullString
 	var parentID sql.NullInt64
 	var parentCommentID sql.NullInt64
-	var parentExcerpt sql.NullString
+	var parentPlainPrefix sql.NullString
 	var parentDepth sql.NullInt64
 	var parentAuthorID sql.NullInt64
 	var parentUsername sql.NullString
@@ -2166,14 +2179,13 @@ func scanCommentWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Comment
 		&comment.Content.RawContent,
 		&comment.Content.HTMLContent,
 		&comment.Content.PlainText,
-		&comment.Content.Excerpt,
 		&comment.Content.SourceFormat,
 		&comment.Content.EditorType,
 		&comment.Content.EditorVersion,
 		&comment.Content.RenderVersion,
 		&comment.Content.ContentHash,
 		&parentCommentID,
-		&parentExcerpt,
+		&parentPlainPrefix,
 		&parentDepth,
 		&parentAuthorID,
 		&parentUsername,
@@ -2190,6 +2202,7 @@ func scanCommentWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Comment
 	); err != nil {
 		return Comment{}, err
 	}
+	comment.Content.Excerpt = ExcerptFromPlain(comment.Content.PlainText, defaultExcerptRuneLimit)
 	if authorID.Valid {
 		comment.AuthorUserID = authorID.Int64
 		comment.Author = userSummaryWithAvatar(builder, authorID, username, displayName, email, avatarAttachmentID, attachmentID, attachmentPublicID, attachmentOwnerID, attachmentContentType, attachmentStatus)
@@ -2198,7 +2211,11 @@ func scanCommentWithAvatar(row RowScanner, builder *avatar.ViewBuilder) (Comment
 		comment.ParentID = &parentID.Int64
 	}
 	if parentCommentID.Valid {
-		replyTo := &ReplyReference{ID: parentCommentID.Int64, Excerpt: parentExcerpt.String, Depth: int(parentDepth.Int64)}
+		replyTo := &ReplyReference{
+			ID:      parentCommentID.Int64,
+			Excerpt: ExcerptFromPlain(parentPlainPrefix.String, defaultExcerptRuneLimit),
+			Depth:   int(parentDepth.Int64),
+		}
 		if parentAuthorID.Valid {
 			replyTo.Author = userSummaryWithAvatar(builder, parentAuthorID, parentUsername, parentDisplayName, parentEmail, parentAvatarAttachmentID, parentAttachmentID, parentAttachmentPublicID, parentAttachmentOwnerID, parentAttachmentContentType, parentAttachmentStatus)
 		}

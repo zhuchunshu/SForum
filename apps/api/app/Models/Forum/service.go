@@ -104,7 +104,18 @@ func (s *Service) ListAuthorReviewItems(ctx context.Context, actor identity.Acto
 	if !ok {
 		return AuthorReviewList{}, ErrInvalidAction
 	}
-	return store.ListAuthorReviewItems(ctx, actor.ID)
+	list, err := store.ListAuthorReviewItems(ctx, actor.ID)
+	if err != nil {
+		return AuthorReviewList{}, err
+	}
+	limit := RecommendedExcerptRuneLimit
+	if settings, settingsErr := s.resolvedSettings(ctx); settingsErr == nil {
+		limit = settings.ExcerptRuneLimit
+	}
+	for i := range list.Items {
+		list.Items[i].Excerpt = ExcerptFromPlain(list.Items[i].Excerpt, limit)
+	}
+	return list, nil
 }
 
 // indexTopic 在主题写流程成功后触发 Meilisearch 索引调度。
@@ -357,7 +368,15 @@ func (s *Service) ListTopics(ctx context.Context, input TopicListInput) (TopicLi
 	default:
 		input.Sort = "latest"
 	}
-	return s.store.ListTopics(ctx, input)
+	list, err := s.store.ListTopics(ctx, input)
+	if err != nil {
+		return TopicList{}, err
+	}
+	// store 用推荐默认截断；此处按运营 excerpt_rune_limit 再派生，改配置即生效。
+	for i := range list.Items {
+		list.Items[i] = applyTopicSummaryExcerpt(list.Items[i], settings.ExcerptRuneLimit)
+	}
+	return list, nil
 }
 
 func (s *Service) GetTopic(ctx context.Context, topicID int64) (TopicDetail, error) {
@@ -368,6 +387,7 @@ func (s *Service) GetTopic(ctx context.Context, topicID int64) (TopicDetail, err
 	if err != nil {
 		return TopicDetail{}, err
 	}
+	topic = s.applyTopicDetailExcerpt(ctx, topic)
 	return s.decorateTopicExtensionActions(ctx, topic), nil
 }
 
@@ -381,7 +401,44 @@ func (s *Service) GetTopicBySlug(ctx context.Context, slug string) (TopicDetail,
 	if err != nil {
 		return TopicDetail{}, err
 	}
+	topic = s.applyTopicDetailExcerpt(ctx, topic)
 	return s.decorateTopicExtensionActions(ctx, topic), nil
+}
+
+// applyTopicDetailExcerpt 按运营配置从 plain_text 派生详情摘要字段。
+func (s *Service) applyTopicDetailExcerpt(ctx context.Context, topic TopicDetail) TopicDetail {
+	limit := RecommendedExcerptRuneLimit
+	if settings, err := s.resolvedSettings(ctx); err == nil {
+		limit = settings.ExcerptRuneLimit
+	}
+	return applyTopicDetailExcerpt(topic, limit)
+}
+
+func applyTopicDetailExcerpt(topic TopicDetail, limit int) TopicDetail {
+	plain := topic.Content.PlainText
+	if plain == "" {
+		// 列表摘要可能只有 Excerpt 占位；详情应有 PlainText。
+		plain = topic.Excerpt
+	}
+	excerpt := ExcerptFromPlain(plain, limit)
+	topic.Excerpt = excerpt
+	topic.Content.Excerpt = excerpt
+	return topic
+}
+
+func applyTopicSummaryExcerpt(topic TopicSummary, limit int) TopicSummary {
+	// store 已写入默认截断的 Excerpt；若有更长 plain 不可用时直接再截断 Excerpt。
+	topic.Excerpt = ExcerptFromPlain(topic.Excerpt, limit)
+	return topic
+}
+
+func applyCommentExcerpt(comment Comment, limit int) Comment {
+	comment.Content.Excerpt = ExcerptFromPlain(comment.Content.PlainText, limit)
+	if comment.ReplyTo != nil {
+		// 父评论摘要同样按运营长度截断（store 已用默认上限）。
+		comment.ReplyTo.Excerpt = ExcerptFromPlain(comment.ReplyTo.Excerpt, limit)
+	}
+	return comment
 }
 
 func (s *Service) decorateTopicExtensionActions(ctx context.Context, topic TopicDetail) TopicDetail {
@@ -901,16 +958,31 @@ func (s *Service) ListComments(ctx context.Context, input CommentListInput) (Com
 	if _, err := s.store.GetTopic(ctx, input.TopicID); err != nil {
 		return CommentList{}, err
 	}
+	settings, err := s.resolvedSettings(ctx)
+	if err != nil {
+		return CommentList{}, err
+	}
 	defaultPerPage := 20
 	if input.PerPage <= 0 {
-		settings, err := s.resolvedSettings(ctx)
-		if err != nil {
-			return CommentList{}, err
-		}
 		defaultPerPage = settings.CommentsPerPage
 	}
 	input.Page, input.PerPage = normalizePageWithDefault(input.Page, input.PerPage, defaultPerPage)
-	return s.store.ListComments(ctx, input)
+	list, err := s.store.ListComments(ctx, input)
+	if err != nil {
+		return CommentList{}, err
+	}
+	list.Items = applyCommentTreeExcerpts(list.Items, settings.ExcerptRuneLimit)
+	return list, nil
+}
+
+func applyCommentTreeExcerpts(items []Comment, limit int) []Comment {
+	for i := range items {
+		items[i] = applyCommentExcerpt(items[i], limit)
+		if len(items[i].Children) > 0 {
+			items[i].Children = applyCommentTreeExcerpts(items[i].Children, limit)
+		}
+	}
+	return items
 }
 
 func (s *Service) ListCommentReplies(ctx context.Context, commentID int64) ([]Comment, error) {
@@ -927,7 +999,15 @@ func (s *Service) ListCommentReplies(ctx context.Context, commentID int64) ([]Co
 	if _, err := s.store.GetTopic(ctx, summary.TopicID); err != nil {
 		return nil, err
 	}
-	return s.store.ListCommentReplies(ctx, commentID)
+	items, err := s.store.ListCommentReplies(ctx, commentID)
+	if err != nil {
+		return nil, err
+	}
+	limit := RecommendedExcerptRuneLimit
+	if settings, settingsErr := s.resolvedSettings(ctx); settingsErr == nil {
+		limit = settings.ExcerptRuneLimit
+	}
+	return applyCommentTreeExcerpts(items, limit), nil
 }
 
 func (s *Service) UpdateComment(ctx context.Context, actor identity.Actor, input UpdateCommentInput) (Comment, error) {

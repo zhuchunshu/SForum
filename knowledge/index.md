@@ -4,6 +4,11 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 posts content storage slim**
+  - Handoff: `knowledge/sessions/2026-07-12-posts-excerpt-revision-slim.md`
+  - Drop `posts.excerpt`; derive API excerpt from `plain_text` at read time
+  - `post_revisions` source-only (no html/plain/excerpt columns)
+
 - **2026-07-12 Wave F4.3 complete** (contribution point expansion)
   - Handoff: `knowledge/sessions/2026-07-12-f4-3-contribution-points.md`
   - Plan: `knowledge/plans/2026-07-12-framework-hardening-waves.md`
@@ -529,7 +534,10 @@ This is the entry point for project memory.
   frontend-only runtime message loading for the first release.
 - Forum backend foundation is implemented: `categories`, user-facing
   `topics`, tree-shaped `comments`, shared content `posts`, and
-  `post_revisions` now exist in the API schema. The Go forum module renders
+  `post_revisions` now exist in the API schema. `posts` stores raw + sanitized
+  HTML + plain text; API `excerpt` is derived at read time from plain text
+  via `forum.reading.excerpt_rune_limit`. `post_revisions` keep source-only
+  snapshots (raw + editor/render metadata). The Go forum module renders
   Markdown with `goldmark`, sanitizes HTML with `bluemonday`, exposes public
   category/topic/comment APIs, and treats JSON content as schema-reserved but
   not yet publishable.

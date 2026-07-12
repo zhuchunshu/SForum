@@ -8,6 +8,8 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+
+	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 )
 
 func (s *PostgresStore) QueueCounts(ctx context.Context) (QueueCounts, error) {
@@ -26,10 +28,11 @@ func (s *PostgresStore) QueueCounts(ctx context.Context) (QueueCounts, error) {
 }
 
 func (s *PostgresStore) ListPending(ctx context.Context, input WorkbenchListInput) (PendingList, error) {
+	// posts.excerpt 已删除：取 plain_text 前缀，扫描后按论坛推荐摘要长度截断。
 	const pendingCTE = `
 		WITH pending AS (
 		  SELECT 'topic'::text AS target_type, topics.id AS target_id, topics.id AS topic_id,
-		    topics.title, posts.excerpt, topics.author_user_id AS author_id,
+		    topics.title, left(posts.plain_text, 2000) AS plain_prefix, topics.author_user_id AS author_id,
 		    COALESCE(NULLIF(users.display_name, ''), users.username, '') AS author_name,
 		    categories.name AS category, topics.moderation_triggers AS triggers, topics.created_at
 		  FROM topics
@@ -39,7 +42,7 @@ func (s *PostgresStore) ListPending(ctx context.Context, input WorkbenchListInpu
 		  WHERE topics.status = 'pending'
 		  UNION ALL
 		  SELECT 'comment'::text, comments.id, comments.topic_id, topics.title,
-		    posts.excerpt, comments.author_user_id,
+		    left(posts.plain_text, 2000), comments.author_user_id,
 		    COALESCE(NULLIF(users.display_name, ''), users.username, ''),
 		    categories.name, comments.moderation_triggers, comments.created_at
 		  FROM comments
@@ -57,7 +60,7 @@ func (s *PostgresStore) ListPending(ctx context.Context, input WorkbenchListInpu
 		return PendingList{}, fmt.Errorf("count pending moderation items: %w", err)
 	}
 	rows, err := s.pool.Query(ctx, pendingCTE+`
-		SELECT target_type, target_id, topic_id, title, excerpt, author_id, author_name,
+		SELECT target_type, target_id, topic_id, title, plain_prefix, author_id, author_name,
 		  category, triggers, created_at
 		FROM pending
 		WHERE $1 = '' OR target_type = $1
@@ -72,10 +75,12 @@ func (s *PostgresStore) ListPending(ctx context.Context, input WorkbenchListInpu
 	for rows.Next() {
 		var item PendingItem
 		var triggers []byte
+		var plainPrefix string
 		if err := rows.Scan(&item.TargetType, &item.TargetID, &item.TopicID, &item.Title,
-			&item.Excerpt, &item.AuthorID, &item.AuthorName, &item.Category, &triggers, &item.CreatedAt); err != nil {
+			&plainPrefix, &item.AuthorID, &item.AuthorName, &item.Category, &triggers, &item.CreatedAt); err != nil {
 			return PendingList{}, fmt.Errorf("scan pending moderation item: %w", err)
 		}
+		item.Excerpt = forum.ExcerptFromPlain(plainPrefix, forum.RecommendedExcerptRuneLimit)
 		_ = json.Unmarshal(triggers, &item.Triggers)
 		items = append(items, item)
 	}
@@ -120,7 +125,7 @@ func reportItemSelectSQL() string {
 		  reports.reviewer_user_id,
 		  COALESCE(NULLIF(reviewer.display_name, ''), reviewer.username, ''),
 		  reports.review_note, reports.created_at, reports.updated_at, reports.resolved_at,
-		  COALESCE(topic.title, parent_topic.title, ''), COALESCE(post.excerpt, ''),
+		  COALESCE(topic.title, parent_topic.title, ''), COALESCE(left(post.plain_text, 2000), ''),
 		  COALESCE(topic.author_user_id, comment.author_user_id, 0),
 		  COALESCE(NULLIF(target_user.display_name, ''), target_user.username, ''),
 		  COALESCE(category.name, ''), COALESCE(topic.status, comment.status, 'deleted'),
@@ -142,15 +147,17 @@ func scanReportItem(row reportScanner) (ReportItem, error) {
 	var reporterID, reviewerID sql.NullInt64
 	var reporterName, reviewerName sql.NullString
 	var resolvedAt sql.NullTime
+	var plainPrefix string
 	if err := row.Scan(
 		&item.ID, &reporterID, &reporterName, &item.TargetType, &item.TargetID,
 		&item.ReasonCode, &item.Body, &item.Status, &reviewerID, &reviewerName,
 		&item.ReviewNote, &item.CreatedAt, &item.UpdatedAt, &resolvedAt,
-		&item.Title, &item.Excerpt, &item.TargetAuthorID, &item.TargetAuthorName,
+		&item.Title, &plainPrefix, &item.TargetAuthorID, &item.TargetAuthorName,
 		&item.Category, &item.TargetStatus, &item.TargetTopicID,
 	); err != nil {
 		return ReportItem{}, fmt.Errorf("scan moderation report item: %w", err)
 	}
+	item.Excerpt = forum.ExcerptFromPlain(plainPrefix, forum.RecommendedExcerptRuneLimit)
 	if reporterID.Valid {
 		item.ReporterUserID = reporterID.Int64
 		item.ReporterName = reporterName.String

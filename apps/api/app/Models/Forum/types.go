@@ -290,7 +290,7 @@ type CreateTopicRecord struct {
 }
 
 // UpdateTopicInput 是作者或版主更新主题时提交的输入。content 为可选：
-// 不传则只更新标题/分类/标签，传则按 triple-storage 规则重新渲染并写入 post_revisions。
+// 不传则只更新标题/分类/标签，传则重新渲染 raw/html/plain 并写入 post_revisions（仅源文快照）。
 type UpdateTopicInput struct {
 	TopicID      int64
 	CategorySlug *string
@@ -361,7 +361,7 @@ type ForumSettings struct {
 	CommentCooldownSeconds   int `json:"commentCooldownSeconds"`
 	DailyCommentLimit        int `json:"dailyCommentLimit"`
 
-	// 列表摘要截断长度（写入 posts.excerpt 时生效）
+	// 列表摘要截断长度（读路径从 plain_text 派生 excerpt 时生效）
 	ExcerptRuneLimit int `json:"excerptRuneLimit"`
 
 	// Wave 1：阅读与主题/评论行为策略

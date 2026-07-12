@@ -25,10 +25,38 @@ func TestRenderMarkdownContentSanitizesHTML(t *testing.T) {
 		t.Fatalf("expected safe plain text excerpt source, got %q", rendered.PlainText)
 	}
 	if rendered.Excerpt == "" {
-		t.Fatal("expected excerpt to be generated")
+		t.Fatal("expected excerpt to be derived from plain text")
+	}
+	// 摘要应可从 plain 独立再生成，与写路径结果一致。
+	if ExcerptFromPlain(rendered.PlainText, RecommendedExcerptRuneLimit) != rendered.Excerpt {
+		t.Fatalf("expected ExcerptFromPlain to match rendered excerpt, got %q vs %q",
+			ExcerptFromPlain(rendered.PlainText, RecommendedExcerptRuneLimit), rendered.Excerpt)
 	}
 	if rendered.ContentHash == "" {
 		t.Fatal("expected content hash to be generated")
+	}
+}
+
+func TestExcerptFromPlainTruncatesByRuneLimit(t *testing.T) {
+	// 210 个汉字，超过推荐 180。
+	runes := make([]rune, 210)
+	for i := range runes {
+		runes[i] = '测'
+	}
+	plain := string(runes)
+	excerpt := ExcerptFromPlain(plain, 180)
+	// 截断后带 "..." 后缀。
+	if !strings.HasSuffix(excerpt, "...") {
+		t.Fatalf("expected truncated excerpt to end with ellipsis, got %q", excerpt)
+	}
+	// 去掉省略号后应为 180 rune。
+	body := strings.TrimSuffix(excerpt, "...")
+	if len([]rune(body)) != 180 {
+		t.Fatalf("expected 180 runes before ellipsis, got %d", len([]rune(body)))
+	}
+	// 短于上限时原样返回。
+	if got := ExcerptFromPlain("短摘要", 180); got != "短摘要" {
+		t.Fatalf("expected short plain text unchanged, got %q", got)
 	}
 }
 
