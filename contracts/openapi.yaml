@@ -248,6 +248,8 @@ paths:
     "$ref": "./openapi/paths/pages.yaml#/pagesCatalog"
   "/pages/resolve":
     "$ref": "./openapi/paths/pages.yaml#/pagesResolve"
+  "/pages/resolve-path":
+    "$ref": "./openapi/paths/pages.yaml#/pagesResolvePath"
   "/admin/pages":
     "$ref": "./openapi/paths/pages.yaml#/adminPages"
   "/admin/pages/{pageId}/approve":

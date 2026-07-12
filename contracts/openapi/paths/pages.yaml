@@ -17,6 +17,9 @@ pagesResolve:
     summary: Resolve page provider
     operationId: resolvePage
     tags: [Pages]
+    description: |
+      Resolves a core catalog page id. After access checks, may invoke the host
+      loader gateway for plugin dataSource (loopback only; no Cookie/Authorization).
     parameters:
       - name: id
         in: query
@@ -31,8 +34,52 @@ pagesResolve:
           application/json:
             schema:
               "$ref": "../schemas/pages.yaml#/ApiResponsePageResolve"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+
+pagesResolvePath:
+  get:
+    summary: Resolve added page by path
+    operationId: resolvePageByPath
+    tags: [Pages]
+    description: |
+      Deterministic match of Page Registry action=add contributions.
+      Static routes beat params; params beat catch-all. Access is fail-closed.
+    parameters:
+      - name: path
+        in: query
+        required: true
+        schema:
+          type: string
+          example: /demo-docs/hello
+      - name: locale
+        in: query
+        required: false
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Matched add contribution with optional loader data.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/pages.yaml#/ApiResponsePageResolve"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: Guest-only page accessed while authenticated.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
 
 siteActiveThemeSkin:
   get:

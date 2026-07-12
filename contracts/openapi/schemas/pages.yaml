@@ -4,7 +4,10 @@ PageDefinition:
   properties:
     id: { type: string }
     pathPattern: { type: string }
-    access: { type: string, enum: [public, login, guest, moderation] }
+    access:
+      type: string
+      enum: [public, login, guest, moderation, permission]
+      description: "Empty/omitted access normalizes to public at register time; unknown values fail closed."
     contractVersion: { type: string }
     coreComponent: { type: string }
     replaceable: { type: boolean }
@@ -24,7 +27,15 @@ PageResolve:
     templatePath: { type: string }
     templateHtml: { type: string, description: "Sandboxed L1 HTML with host islands preserved" }
     dataSource: { type: string, description: "core | plugin" }
-    dataRoute: { type: string, description: "Optional plugin data loader route path" }
+    dataRoute: { type: string, description: "Optional plugin data loader route path (host SSR only)" }
+    routeParams:
+      type: object
+      additionalProperties: { type: string }
+      description: "Matched route parameters for add paths"
+    loaderData:
+      description: "SSR-only plugin page data from host loader gateway; clients must not fetch plugin routes"
+    loaderError: { type: string }
+    contractVersion: { type: string, description: "Effective page contract version" }
 
 AdminPageListItem:
   type: object
@@ -34,17 +45,25 @@ AdminPageListItem:
     provider: { type: string }
     extensionId: { type: string }
     contributionId: { type: string }
+    contractVersion:
+      type: string
+      description: "Read-only bound or catalog contract; not editable in admin UI"
     candidates: { type: array, items: { type: object, additionalProperties: true } }
 
 PageApproveRequest:
   type: object
-  required: [extensionId, contributionId]
+  required: [extensionId, contributionId, version, packageDigest, contractVersion]
   properties:
     extensionId: { type: string }
     contributionId: { type: string }
     version: { type: string }
     packageDigest: { type: string }
-    templatePath: { type: string }
+    contractVersion:
+      type: string
+      description: "Must match contribution and core catalog contract exactly"
+    templatePath:
+      type: string
+      description: "Deprecated and ignored; template path is always taken from the registered contribution"
 
 PageProviderMutation:
   type: object
