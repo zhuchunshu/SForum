@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Outbox"
 )
 
 type queryRunner interface {
@@ -144,7 +145,8 @@ status, extension_id, attempt_count, reason, error_summary, created_at, updated_
 
 func (s *PostgresStore) UpdateDelivery(ctx context.Context, input DeliveryUpdate) error {
 	completed := any(nil)
-	if input.Status == DeliverySent || input.Status == DeliveryFailed || input.Status == DeliverySkipped {
+	// 终态判定走共享 outbox 约定，避免各 vertical 各写一套。
+	if outbox.ShouldSetCompletedAt(input.Status) {
 		completed = time.Now().UTC()
 	}
 	_, err := s.runner.Exec(ctx, `UPDATE mail_deliveries SET status=$2, extension_id=$3, attempt_count=$4, reason=$5,

@@ -8,6 +8,7 @@ import (
 	notifications "github.com/zhuchunshu/sforum/apps/api/app/Models/Notifications"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Outbox"
 )
 
 type DeliverMailArgs struct {
@@ -45,7 +46,8 @@ func (w *DeliverMailWorker) Work(ctx context.Context, job *river.Job[DeliverMail
 	if err != nil {
 		return err
 	}
-	if delivery.Status == notifications.DeliverySent || delivery.Status == notifications.DeliverySkipped {
+	// 终态（含 failed/dead）不再自动推进；replay 需先把状态重置为 queued。
+	if outbox.IsTerminal(delivery.Status) {
 		return nil
 	}
 	selection, ok, err := w.Providers.Selected(ctx)

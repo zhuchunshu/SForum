@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Outbox"
 )
 
 const (
@@ -13,11 +15,12 @@ const (
 	TypeModerationRejected = "moderation_rejected"
 	TypeAdminTest          = "admin_test"
 
-	DeliveryQueued  = "queued"
-	DeliverySending = "sending"
-	DeliverySent    = "sent"
-	DeliveryFailed  = "failed"
-	DeliverySkipped = "skipped"
+	// 邮件投递状态对齐 outbox 共享词表（F3.1）。
+	DeliveryQueued  = outbox.StatusQueued
+	DeliverySending = outbox.StatusSending
+	DeliverySent    = outbox.StatusSent
+	DeliveryFailed  = outbox.StatusFailed
+	DeliverySkipped = outbox.StatusSkipped
 )
 
 var ErrNotificationNotFound = errors.New("notifications: notification not found")
