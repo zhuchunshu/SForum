@@ -2,8 +2,10 @@ import type { NuxtPage } from 'nuxt/schema'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { adminExtensionGuard, type AdminExtensionGuardPolicy } from './build/admin-extension-guard'
-// @ts-expect-error JS helper shared with compose scripts
-import { resolveAdminHostPeerAliases } from './build/admin-host-peers.mjs'
+import {
+  createAdminHostPeerResolvePlugin,
+  resolveAdminHostPeerAliases
+} from './build/admin-host-peers.mjs'
 import {
   LEGACY_ADMIN_ROUTE_PREFIX,
   normalizeAdminRoutePrefix
@@ -83,8 +85,10 @@ function rewriteAdminPageRoutes(pages: NuxtPage[]) {
 }
 
 // 扩展 admin SFC 可能位于 extensions/** 或 compose 软链外，bare import 不能依赖
-// 扩展目录下的 node_modules；统一 alias 到宿主 peer。
+// 扩展目录下的 node_modules。admin-sdk 用文件 alias；npm peers 用 Vite 插件解析
+// （禁止把 vue/nuxt/@nuxt/ui 指到包目录，会破坏 modules 加载与 exports subpath）。
 const adminHostPeerAliases = resolveAdminHostPeerAliases(resolve('.'))
+const adminHostPeerResolvePlugin = createAdminHostPeerResolvePlugin(resolve('.'))
 
 export default defineNuxtConfig({
   alias: {
@@ -172,9 +176,12 @@ export default defineNuxtConfig({
     }
   },
   vite: {
-    plugins: adminGuardPolicy ? [adminExtensionGuard(adminGuardPolicy)] : [],
+    plugins: [
+      adminHostPeerResolvePlugin,
+      ...(adminGuardPolicy ? [adminExtensionGuard(adminGuardPolicy)] : [])
+    ],
     resolve: {
-      // 与 top-level alias 一致：扩展源码树外的 importer 也能命中宿主 peer。
+      // admin-sdk 文件 alias；vue/nuxt/@nuxt/ui 由 adminHostPeerResolvePlugin 处理。
       alias: {
         ...adminHostPeerAliases
       },

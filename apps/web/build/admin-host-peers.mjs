@@ -1,11 +1,17 @@
 // 可信 admin 扩展的宿主 peer 解析：
 // - 作者包 / extensions 源码树不得出现 node_modules
-// - 开发态由 Nuxt/Vite alias 指向 apps/web 依赖
+// - 开发态由 Vite resolve 插件从 apps/web 解析 npm peers；admin-sdk 走文件 alias
 // - 生产 Web Release 仍在隔离 workspace 内 link peers（见 Go linkPluginHostPeers）
+//
+// 不要把 vue/nuxt/@nuxt/ui 等包目录写进 Nuxt/Vite 的 string alias：
+// 1) Nuxt kit loadNuxtModuleInstance 会对 modules 做 resolveAlias，目录路径会
+//    ERR_UNSUPPORTED_DIR_IMPORT → “Could not load … Is it installed?”
+// 2) Vite/rollup alias 会把 `nuxt/app` 拼成 `<dir>/app`，破坏 package exports
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 /** 与 apps/api WebReleaseRuntime.HostPeers 对齐的宿主 peer 包名。 */
 export const ADMIN_HOST_PEER_NAMES = [
@@ -15,6 +21,11 @@ export const ADMIN_HOST_PEER_NAMES = [
   'vue',
   'vue-router',
 ]
+
+/** 走 Node package exports 解析的 npm peer（不含 workspace 源码包）。 */
+export const ADMIN_HOST_NPM_PEER_NAMES = ADMIN_HOST_PEER_NAMES.filter(
+  (name) => name !== '@sforum/admin-sdk',
+)
 
 /** 兼容旧 compose 导出名。 */
 export const DEV_HOST_PEERS = ADMIN_HOST_PEER_NAMES
@@ -74,35 +85,98 @@ export function resolveHostPeerDirectory(webRoot, packageName) {
 }
 
 /**
- * 供 Nuxt/Vite resolve.alias 使用的绝对路径映射。
- * admin-sdk 指向源码入口，与 nuxt.config 历史 alias 一致。
+ * 从 apps/web 解析 peer 包及其 subpath（尊重 package.json exports）。
+ * @param {string} webRoot
+ * @param {string} id bare import，如 `nuxt/app`、`@nuxt/ui`
+ * @returns {string | null} 绝对文件路径
+ */
+export function resolveHostPeerId(webRoot, id) {
+  const absoluteWeb = defaultWebRoot(webRoot)
+  const parentURL = pathToFileURL(path.join(absoluteWeb, 'package.json')).href
+
+  try {
+    return fileURLToPath(import.meta.resolve(id, parentURL))
+  } catch {
+    // 部分包对 CJS require 有 main、对 ESM 无；或反过来
+  }
+
+  try {
+    return createRequire(path.join(absoluteWeb, 'package.json')).resolve(id)
+  } catch {
+    // continue
+  }
+
+  try {
+    if (typeof Bun !== 'undefined' && typeof Bun.resolveSync === 'function') {
+      return Bun.resolveSync(id, absoluteWeb)
+    }
+  } catch {
+    // continue
+  }
+
+  return null
+}
+
+/**
+ * Nuxt top-level / Vite 可用的**文件级** alias。
+ * 仅含 @sforum/admin-sdk 源码入口；npm peers 由 Vite 插件解析，避免目录 alias。
+ *
  * @param {string} [webRoot]
  * @returns {Record<string, string>}
  */
 export function resolveAdminHostPeerAliases(webRoot) {
   const absoluteWeb = defaultWebRoot(webRoot)
-  /** @type {Record<string, string>} */
-  const aliases = {}
-
-  for (const name of ADMIN_HOST_PEER_NAMES) {
-    if (name === '@sforum/admin-sdk') {
-      const index = path.join(absoluteWeb, 'packages/admin-sdk/src/index.ts')
-      const internal = path.join(absoluteWeb, 'packages/admin-sdk/src/internal.ts')
-      if (!fs.existsSync(index)) {
-        throw new Error(`host peer unavailable: @sforum/admin-sdk (${index})`)
-      }
-      aliases['@sforum/admin-sdk'] = index
-      aliases['@sforum/admin-sdk/internal'] = internal
-      continue
-    }
-    const dir = resolveHostPeerDirectory(absoluteWeb, name)
-    if (!dir) {
+  const index = path.join(absoluteWeb, 'packages/admin-sdk/src/index.ts')
+  const internal = path.join(absoluteWeb, 'packages/admin-sdk/src/internal.ts')
+  if (!fs.existsSync(index)) {
+    throw new Error(`host peer unavailable: @sforum/admin-sdk (${index})`)
+  }
+  // 仍校验 npm peers 在宿主上可解析，尽早暴露缺依赖
+  for (const name of ADMIN_HOST_NPM_PEER_NAMES) {
+    if (!resolveHostPeerDirectory(absoluteWeb, name)) {
       throw new Error(`host peer unavailable for ${name} under ${absoluteWeb}`)
     }
-    aliases[name] = dir
+  }
+  // 更长的 subpath 必须先于包根 alias，否则 Vite/Nuxt 会把
+  // `@sforum/admin-sdk/internal` 解析成 `index.ts/internal`。
+  return {
+    '@sforum/admin-sdk/internal': internal,
+    '@sforum/admin-sdk': index,
+  }
+}
+
+/**
+ * Vite pre 插件：把 host npm peers（含 subpath）固定解析到 apps/web 依赖树。
+ * 扩展 SFC 的 importer 可能在 extensions/**，默认 Node 解析会失败。
+ *
+ * @param {string} [webRoot]
+ * @returns {import('vite').Plugin}
+ */
+export function createAdminHostPeerResolvePlugin(webRoot) {
+  const absoluteWeb = defaultWebRoot(webRoot)
+  const peers = [...ADMIN_HOST_NPM_PEER_NAMES].sort((a, b) => b.length - a.length)
+
+  function matchPeerImport(source) {
+    if (!source || source.startsWith('\0') || source.startsWith('.') || source.startsWith('/')) {
+      return false
+    }
+    // Windows 绝对路径 / 虚拟模块
+    if (path.isAbsolute(source) || source.includes(':')) return false
+    for (const name of peers) {
+      if (source === name || source.startsWith(`${name}/`)) return true
+    }
+    return false
   }
 
-  return aliases
+  return {
+    name: 'sforum-admin-host-peer-resolve',
+    enforce: 'pre',
+    resolveId(source) {
+      if (!matchPeerImport(source)) return null
+      const resolved = resolveHostPeerId(absoluteWeb, source)
+      return resolved || null
+    },
+  }
 }
 
 /**

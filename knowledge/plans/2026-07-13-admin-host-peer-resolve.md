@@ -38,11 +38,18 @@ trees on disk). Host peers (`vue`, `nuxt`, `@nuxt/ui`, `vue-router`,
 ### Resolution order for bare host peers
 
 ```text
-Admin SFC import "vue" / "@sforum/admin-sdk" / ...
+Admin SFC import "vue" / "nuxt/app" / "@sforum/admin-sdk" / ...
   → Vite resolve sees importer under extension admin or compose symlink
-  → Host alias / peer map returns apps/web package path
+  → npm peers: createAdminHostPeerResolvePlugin → import.meta.resolve from apps/web
+     (preserves package exports; never directory-alias vue/nuxt/@nuxt/ui)
+  → @sforum/admin-sdk: file alias to packages/admin-sdk/src/*.ts
   → Guard still allows only hostPeers + declared deps
 ```
+
+**Do not** put package **directories** into Nuxt top-level `alias` for
+`@nuxt/ui` / `nuxt` / `vue` / `vue-router`: kit rewrites module names via
+`resolveAlias` and Vite breaks `exports` subpaths (`nuxt/app`). See session
+`2026-07-13-nuxt-ui-module-load-fix.md`.
 
 ### Compose behavior change
 
