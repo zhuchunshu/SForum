@@ -138,36 +138,39 @@ F2 can start after F1.1–F1.2.
 
 ### F3.1 Outbox pattern
 
-- [ ] Shared delivery/outbox conventions (status machine, replay)
-- [ ] Align mail/notification deliveries with the pattern
-- [ ] Optional generic outbox table only if reuse is proven
+- [x] Shared delivery/outbox conventions (status machine, replay)
+- [x] Align mail/notification deliveries with the pattern
+- [x] Optional generic outbox table only if reuse is proven
+      (**no** generic table in v1 — mail + webhook deliveries share status helpers)
 
 ### F3.2 Idempotency-Key
 
-- [ ] Middleware or helper for selected mutating routes
-- [ ] Storage key: actor + route + key; TTL policy
-- [ ] Document for plugin authors and webhook receivers
+- [x] Middleware or helper for selected mutating routes
+- [x] Storage key: actor + route + key; TTL policy
+- [x] Document for plugin authors and webhook receivers
 
 ### F3.3 Webhooks
 
-- [ ] Outbound: subscribe to core events, sign payload, retry, delivery log
-- [ ] Inbound gateway skeleton + plugin verify/parse hooks
-- [ ] Admin UI: endpoints, secrets mask, recent deliveries
-- [ ] Beginner defaults + disable path
+- [x] Outbound: subscribe to core events, sign payload, retry, delivery log
+- [x] Inbound gateway skeleton + plugin verify/parse hooks
+      (skeleton only; plugin hooks not wired)
+- [x] Admin UI: endpoints, secrets mask, recent deliveries
+- [x] Beginner defaults + disable path
 
 ### F3.4 API tokens / PAT
 
-- [ ] Token model, scopes ↔ permission keys
-- [ ] Create/rotate/revoke APIs + account security UI
-- [ ] Audit token use on sensitive routes
+- [x] Token model, scopes ↔ permission keys
+- [x] Create/rotate/revoke APIs + account security UI
+- [x] Audit token use on sensitive routes
 
 ### F3.5 Second end-to-end provider vertical
 
-- [ ] Prefer `attachment.storage.provider` host contract
-- [ ] Move or wrap existing `Support/Storage` adapters behind slot selection
-- [ ] Admin select/reset defaults
-- [ ] Built-in or protected plugin path for at least one non-local provider
+- [x] Prefer `attachment.storage.provider` host contract
+- [x] Move or wrap existing `Support/Storage` adapters behind slot selection
+- [x] Admin select/reset defaults (existing attachments admin; settings expose slot)
+- [x] Built-in or protected plugin path for at least one non-local provider
       **or** keep adapters in core but behind the same interface (document choice)
+      (**chosen:** keep drivers in core; document in `modules/attachments.md`)
 
 **F3 exit criteria:** external system can receive signed topic events; duplicate
 POSTs with Idempotency-Key are safe; storage selection is a real slot.
@@ -258,9 +261,13 @@ per plugin.
 | 2026-07-12 | F2.1 | capability catalog, manifest field, enable confirm UI |
 | 2026-07-12 | F2.2 | Host API v1 loopback gateway + Client SDK stubs |
 | 2026-07-12 | F2.3 | per-ext concurrency, circuit breaker, degraded runtime |
-| | F2+ | pending |
-| | F2 | pending |
-| | F3 | pending |
+| 2026-07-12 | F2.4 | extension lifecycle upgrade/uninstall/migration ledger |
+| 2026-07-12 | F3.1 | shared outbox status machine; mail aligned |
+| 2026-07-12 | F3.2 | Idempotency-Key on topic/comment creates |
+| 2026-07-12 | F3.3 | outbound webhooks + inbound skeleton + admin |
+| 2026-07-12 | F3.4 | PAT Bearer auth + account security UI |
+| 2026-07-12 | F3.5 | attachment.storage.provider slot (drivers stay in core) |
+| | F3 | complete (current scope) |
 | | F4 | pending |
 
 ---
@@ -268,6 +275,6 @@ per plugin.
 ## Next session one-liner
 
 ```text
-F2.1–F2.3 done. Next framework: F2.4 lifecycle (upgrade/uninstall);
+Wave F3 complete. Next framework: F4 SDK/docs/contributions/meta/flags;
 or product Iteration A / settings Wave 3 per development-directions mix.
 ```
