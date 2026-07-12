@@ -91,6 +91,7 @@ func (g *LoaderGateway) LoadForContribution(ctx context.Context, contrib PageCon
 }
 
 // LoadForResolved 对 Resolve 结果中的 replace 贡献拉数据。
+// 必须转发 DataSchema，否则 replace 页会跳过 manifest 声明的 schema 校验。
 func (g *LoaderGateway) LoadForResolved(ctx context.Context, resolved ResolvedPage, locale string, actorID int64) LoaderResult {
 	if resolved.DataSource != "plugin" || strings.TrimSpace(resolved.DataRoute) == "" {
 		return LoaderResult{}
@@ -99,6 +100,7 @@ func (g *LoaderGateway) LoadForResolved(ctx context.Context, resolved ResolvedPa
 		ExtensionID: resolved.ExtensionID,
 		DataSource:  resolved.DataSource,
 		DataRoute:   resolved.DataRoute,
+		DataSchema:  resolved.DataSchema,
 	}
 	if contrib.ExtensionID == "" {
 		contrib.ExtensionID = resolved.Provider

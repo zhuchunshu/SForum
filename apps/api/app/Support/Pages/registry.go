@@ -476,7 +476,7 @@ func (r *Registry) Resolve(ctx context.Context, pageID string) (ResolvedPage, er
 				"pageId", pageID, "binding", bindContract, "contrib", contribContract)
 			return core, nil
 		}
-		// 模板路径仅从已注册贡献读取，忽略客户端伪造
+		// 模板路径与 data schema 仅从已注册贡献读取，忽略客户端伪造
 		return ResolvedPage{
 			Page:           core.Page,
 			Provider:       binding.ExtensionID,
@@ -487,6 +487,7 @@ func (r *Registry) Resolve(ctx context.Context, pageID string) (ResolvedPage, er
 			TemplatePath:   c.Template,
 			DataSource:     c.DataSource,
 			DataRoute:      c.DataRoute,
+			DataSchema:     c.DataSchema,
 		}, nil
 	}
 	// 绑定存在但贡献已卸载 → core

@@ -43,5 +43,5 @@ node tests/validate-signal-garden-theme.js
 echo "Running SF component library validation..."
 node tests/validate-sf-components.js
 
-echo "Running Runtime Page Registry validation (live if PAGE_REGISTRY_API set)..."
+echo "Running Runtime Page Registry offline contracts (+ optional live HTTP smoke)..."
 node tests/validate-page-registry-runtime.js

@@ -128,7 +128,25 @@ access, loader SSR wiring, Web Release sync, and contract persistence.
 | `bun test` full suite under load | themeProxy 8 flakes (file alone passes; not in our diff) |
 | Live browser `PAGE_REGISTRY_API` | skip unless env set (does not kill :3000) |
 
+## Follow-up (same day)
+
+### DataSchema on replace
+
+- `ResolvedPage.DataSchema` added; `Registry.Resolve` copies contribution schema.
+- `LoadForResolved` forwards `DataSchema` so replace pages run the same schema
+  validation as add pages.
+- Tests: `TestResolveReplaceCarriesDataSchema`, `TestLoadForResolvedAppliesDataSchema`.
+
+### Honest “browser E2E” wording
+
+- `tests/validate-page-registry-runtime.js` always runs **offline contracts**
+  (host wiring, L2 closed, DataSchema path, lifecycle effects, fixtures).
+- Optional `PAGE_REGISTRY_API` layer is explicitly **Node fetch smoke**, not
+  Playwright / Nuxt render / login navigation / Web Release disable→404 E2E.
+- Gate message and script header state this clearly.
+
 ## Open Questions
 
 - None blocking for round-2 close.
 - Optional: stabilize themeProxy under full `bun test` parallelism (pre-existing flake).
+- True Playwright browser E2E against isolated ports remains future work.

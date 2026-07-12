@@ -3,6 +3,7 @@ package pages
 import (
 	"context"
 	"io"
+	"os"
 	"net/http"
 	"strings"
 	"testing"
@@ -93,4 +94,100 @@ func TestLoaderRejectsNonLoopback(t *testing.T) {
 	if !res.Fallback {
 		t.Fatalf("%#v", res)
 	}
+}
+
+func TestResolveReplaceCarriesDataSchema(t *testing.T) {
+	store := NewMemoryStore()
+	reg := NewRegistry(store)
+	if err := reg.RegisterContributions("plug", []PageContribution{{
+		ID: "plug.home", Action: ActionReplace, Target: "forum.home",
+		Template: "templates/home.html", Contract: "sforum.page.home@1",
+		DataSource: "plugin", DataRoute: "/home/data", DataSchema: "schemas/home.json",
+		ExtensionID: "plug", Version: "1.0.0", PackageDigest: "d1",
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := reg.ApproveReplace(context.Background(), ProviderBinding{
+		PageID: "forum.home", ExtensionID: "plug", ContributionID: "plug.home",
+		Version: "1.0.0", PackageDigest: "d1", ContractVersion: "sforum.page.home@1", ApprovedBy: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := reg.Resolve(context.Background(), "forum.home")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.DataSchema != "schemas/home.json" {
+		t.Fatalf("replace Resolve must carry DataSchema, got %#v", resolved)
+	}
+	if resolved.DataRoute != "/home/data" || resolved.DataSource != "plugin" {
+		t.Fatalf("data fields: %#v", resolved)
+	}
+}
+
+func TestLoadForResolvedAppliesDataSchema(t *testing.T) {
+	dir := t.TempDir()
+	schemaPath := dir + "/schemas"
+	if err := os.MkdirAll(schemaPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// required: title
+	if err := os.WriteFile(dir+"/schemas/home.json", []byte(`{"type":"object","required":["title"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	loader := NewPageDataLoader(roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: 200,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			// missing required title → schema fail
+			Body: io.NopCloser(strings.NewReader(`{"slug":"x"}`)),
+		}, nil
+	}))
+	gw := NewLoaderGateway(loader, fakeTargets{bases: map[string]string{"plug": "http://127.0.0.1:19999"}}).
+		WithPackages(fakePackages{roots: map[string]string{"plug": dir}})
+
+	resolved := ResolvedPage{
+		Provider: "plug", ExtensionID: "plug",
+		DataSource: "plugin", DataRoute: "/home/data", DataSchema: "schemas/home.json",
+	}
+	res := gw.LoadForResolved(context.Background(), resolved, "zh-CN", 0)
+	if res.Error == "" || !strings.Contains(res.Error, "schema") {
+		t.Fatalf("expected schema validation on replace path, got %#v", res)
+	}
+
+	// success path with title
+	loaderOK := NewPageDataLoader(roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: 200,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"title":"Home"}`)),
+		}, nil
+	}))
+	gwOK := NewLoaderGateway(loaderOK, fakeTargets{bases: map[string]string{"plug": "http://127.0.0.1:19999"}}).
+		WithPackages(fakePackages{roots: map[string]string{"plug": dir}})
+	resOK := gwOK.LoadForResolved(context.Background(), resolved, "zh-CN", 0)
+	if resOK.Error != "" {
+		t.Fatalf("expected schema pass: %#v", resOK)
+	}
+	if string(resOK.Data) != `{"title":"Home"}` {
+		t.Fatalf("data: %s", resOK.Data)
+	}
+}
+
+type fakeTargets struct {
+	bases map[string]string
+}
+
+func (f fakeTargets) RouteTargetBase(id string) (string, bool) {
+	b, ok := f.bases[id]
+	return b, ok
+}
+
+type fakePackages struct {
+	roots map[string]string
+}
+
+func (f fakePackages) PackageRoot(id string) (string, bool) {
+	r, ok := f.roots[id]
+	return r, ok
 }
