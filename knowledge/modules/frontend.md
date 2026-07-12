@@ -16,7 +16,7 @@ metadata, and browser-side interactions.
 
 ## Runtime themes / Page Registry (live)
 
-Public theming is runtime Page Registry + L0/L1 (P0–P5 complete):
+Public theming is runtime Page Registry + L0/L1 (security-remediated 2026-07-13; L2 disabled):
 
 - **Page Registry** + stable page ids (`forum.home`, …)
 - **L0** CSS/assets without rebuild

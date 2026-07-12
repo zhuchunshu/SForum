@@ -4,6 +4,11 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-13 Runtime Page Registry Codex remediation**
+  - Handoff: `knowledge/sessions/2026-07-13-runtime-page-registry-codex-remediation.md`
+  - L2 disabled; L1 bluemonday; theme assets locked; atomic activate; bootstrap restore
+  - Web Release excludes ordinary themes; super_admin replace approval only
+
 - **2026-07-13 Fix `@nuxt/ui` “Could not load … Is it installed?”**
   - Handoff: `knowledge/sessions/2026-07-13-nuxt-ui-module-load-fix.md`
   - Cause: host-peer **directory** aliases broke Nuxt module load + `nuxt/app` exports

@@ -20,8 +20,8 @@ while provider-specific behavior remains in plugins.
 
 ### Runtime Page Registry & simple themes (accepted direction)
 
-Public themes today are still **Nuxt Layer** packages with rebuild-on-activate.
-That path is **compatibility / dual-stack**, not the long-term product goal.
+Public themes use **runtime Page Registry + L0/L1** (activate without Nuxt rebuild).
+L2 widgets are **disabled** until integrity/trust. See remediation handoff 2026-07-13.
 
 - **ADR:** `decisions/2026-07-13-runtime-page-registry-themes.md`
 - **Plan (P0–P5, commit/rollback rules):**
