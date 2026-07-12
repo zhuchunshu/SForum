@@ -4,12 +4,18 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 Wave F4.2 complete** (catalog → documentation)
+  - Handoff: `knowledge/sessions/2026-07-12-f4-2-catalog-docs.md`
+  - Plan: `knowledge/plans/2026-07-12-framework-hardening-waves.md`
+  - Generated `docs/extensions/catalogs/*`; `sforum extension docs generate`
+  - Authoring guide: `docs/extensions/authoring-guide.md`
+  - Next framework: **F4.3–F4.5**, or product Iteration A / settings Wave 3
+
 - **2026-07-12 Wave F4.1 complete** (SDK + contract tests)
   - Handoff: `knowledge/sessions/2026-07-12-f4-1-sdk-contract-tests.md`
   - Plan: `knowledge/plans/2026-07-12-framework-hardening-waves.md`
   - Public `apps/api/sdk/plugin`; `sforum extension test`; fixtures under
     `extensions/fixtures/plugins/`
-  - Next framework: **F4.2–F4.5**, or product Iteration A / settings Wave 3
 
 - **2026-07-12 Wave F3 complete** (integration & reliability)
   - Handoff: `knowledge/sessions/2026-07-12-f3-integration-reliability.md`

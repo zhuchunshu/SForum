@@ -69,6 +69,12 @@ and plugin runtime v1.
   `extensions/fixtures/plugins/` (hostapi / events / schedules) are exercised
   by `go test ./sdk/plugin`. Handoff:
   `sessions/2026-07-12-f4-1-sdk-contract-tests.md`.
+- **F4.2 catalog → documentation:** same SDK catalogs render Markdown under
+  `docs/extensions/catalogs/` via `sforum extension docs generate` (and
+  `--check` for drift). `go test ./sdk/plugin` fails if committed docs lag
+  code. Hand-written authoring guide:
+  `docs/extensions/authoring-guide.md` (SMTP + Host API fixture). Handoff:
+  `sessions/2026-07-12-f4-2-catalog-docs.md`.
 - **F2.3 resilience:** per-extension concurrency semaphore (default 4),
   consecutive-failure circuit (default 5 / 30s open), hook + mail deadlines
   (protocol uses goroutine+select because net/rpc lacks context). Observe /

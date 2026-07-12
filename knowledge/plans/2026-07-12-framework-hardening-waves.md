@@ -189,10 +189,10 @@ POSTs with Idempotency-Key are safe; storage selection is a real slot.
 
 ### F4.2 Catalog → documentation
 
-- [ ] Generate event catalog docs from code
-- [ ] Generate contribution points + provider slots docs
-- [ ] Generate capability catalog docs
-- [ ] Authoring guide using SMTP + second plugin as references
+- [x] Generate event catalog docs from code
+- [x] Generate contribution points + provider slots docs
+- [x] Generate capability catalog docs
+- [x] Authoring guide using SMTP + second plugin as references
 
 ### F4.3 Contribution point expansion
 
@@ -269,13 +269,14 @@ per plugin.
 | 2026-07-12 | F3.5 | attachment.storage.provider slot (drivers stay in core) |
 | | F3 | complete (current scope) |
 | 2026-07-12 | F4.1 | public `sdk/plugin`, `extension test`, fixtures + CI contract tests |
-| | F4 | F4.1 done; F4.2–F4.5 pending |
+| 2026-07-12 | F4.2 | catalog docs generator + authoring guide; `extension docs generate` |
+| | F4 | F4.1–F4.2 done; F4.3–F4.5 pending |
 
 ---
 
 ## Next session one-liner
 
 ```text
-Wave F4.1 complete. Next: F4.2 catalog docs, F4.3 contribution points,
-F4.4 entity meta, F4.5 feature flags; or product Iteration A / settings Wave 3.
+Wave F4.2 complete. Next: F4.3 contribution points, F4.4 entity meta,
+F4.5 feature flags; or product Iteration A / settings Wave 3.
 ```

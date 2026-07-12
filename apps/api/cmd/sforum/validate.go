@@ -20,6 +20,7 @@ func newExtensionCommand() *cobra.Command {
 	}
 	cmd.AddCommand(newExtensionValidateCommand())
 	cmd.AddCommand(newExtensionTestCommand())
+	cmd.AddCommand(newExtensionDocsCommand())
 	return cmd
 }
 

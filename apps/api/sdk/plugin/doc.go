@@ -10,4 +10,8 @@
 //
 // 包校验与 CI 契约测试见同模块的 contract 辅助函数与
 // extensions/fixtures 下的 fixture 插件。
+//
+// 宿主目录 Markdown 由 GenerateCatalogDocs / WriteCatalogDocs 写出
+// （CLI: sforum extension docs generate），输出默认路径
+// docs/extensions/catalogs/。
 package plugin

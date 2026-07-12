@@ -20,3 +20,12 @@ go run ./cmd/sforum extension test --skip-backend-binary ../../extensions/fixtur
 Host API runtime handshake is covered by
 `apps/api/sdk/plugin/fixture_contract_test.go` (builds the hostapi fixture binary
 in a temp dir when needed).
+
+Published catalogs (generated from the same Go sources):
+
+```bash
+cd apps/api
+go run ./cmd/sforum extension docs generate --check
+```
+
+See `docs/extensions/authoring-guide.md` and `docs/extensions/catalogs/`.
