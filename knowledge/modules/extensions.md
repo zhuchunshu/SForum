@@ -60,7 +60,13 @@ and plugin runtime v1.
 - Plugin jobs enqueue as River kind `extension.plugin_job`. Client stub:
   `hostapi.Client` / `ClientFromEnv`. Decision:
   `decisions/2026-07-12-host-api-v1-capabilities.md`.
-- Still open: F2.3 RPC circuit/concurrency UI, F2.4 upgrade/uninstall.
+- **F2.3 resilience:** per-extension concurrency semaphore (default 4),
+  consecutive-failure circuit (default 5 / 30s open), hook + mail deadlines
+  (protocol uses goroutine+select because net/rpc lacks context). Observe /
+  fail_open skips when circuit is open (`extension.circuit_open_skipped`);
+  fail_closed returns `extension.circuit_open`. Runtime `state=degraded` with
+  `circuitOpen`, `consecutiveFailures`, `lastFailureReason` on admin cards.
+- Still open: F2.4 upgrade/uninstall/migrations.
 
 - `extension.manage` is the permission for uploading, verifying, enabling
   plugins, activating the protected default theme, and inspecting extensions.

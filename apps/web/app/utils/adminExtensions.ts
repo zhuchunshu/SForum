@@ -3,7 +3,7 @@ export type AdminExtensionStatus = 'installed' | 'enabled' | 'disabled'
 export type AdminExtensionSource = 'builtin' | 'uploaded'
 export type AdminThemeReleaseStatus = 'queued' | 'building' | 'built' | 'activating' | 'active' | 'failed' | 'rolled_back'
 export type AdminThemeActionState = 'active' | 'activateDefault' | 'activate' | 'queued' | 'building' | 'activating' | 'failed'
-export type AdminRuntimeState = 'stopped' | 'starting' | 'running' | 'failed'
+export type AdminRuntimeState = 'stopped' | 'starting' | 'running' | 'degraded' | 'failed'
 export type AdminExtensionEventKind = 'observe' | 'validate' | 'filter'
 export type AdminExtensionDeliveryStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'skipped'
 export type AdminContributionPayloadType = 'extensionRoute'
@@ -144,6 +144,14 @@ export type AdminExtensionRuntime = {
   hookCount: number
   eventCount?: number
   providerCount: number
+  /** F2.3 resilience observability */
+  circuitOpen?: boolean
+  circuitOpenUntil?: string
+  consecutiveFailures?: number
+  lastFailureReason?: string
+  lastFailureAt?: string
+  activeRpcCalls?: number
+  maxConcurrentRpc?: number
 }
 
 export type AdminThemeRelease = {

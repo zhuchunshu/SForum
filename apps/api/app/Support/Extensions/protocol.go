@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
@@ -329,36 +330,78 @@ func (s *ProtocolStarter) Stop(_ context.Context, extension extensions.Extension
 	return nil
 }
 
-func (s *ProtocolStarter) InvokeHook(_ context.Context, extension extensions.Extension, input HookInput) HookResult {
+func (s *ProtocolStarter) InvokeHook(ctx context.Context, extension extensions.Extension, input HookInput) HookResult {
 	s.mu.Lock()
 	protocol := s.protocols[extension.ID]
 	s.mu.Unlock()
 	if protocol == nil {
 		return HookResult{OK: false, Reason: "extension.runtime_unavailable", Message: "Plugin runtime is not available."}
 	}
-	response, err := protocol.InvokeHook(PluginHookRequest{
+	timeoutMS := int(input.Timeout / time.Millisecond)
+	if timeoutMS <= 0 && input.Timeout > 0 {
+		timeoutMS = 1
+	}
+	req := PluginHookRequest{
 		Name:          input.Name,
 		Kind:          input.Kind,
 		DeliveryID:    input.DeliveryID,
 		CorrelationID: input.CorrelationID,
-		TimeoutMS:     int(input.Timeout / 1_000_000),
+		TimeoutMS:     timeoutMS,
 		Payload:       input.Payload,
 		PatchFields:   input.PatchFields,
-	})
-	if err != nil {
-		return HookResult{OK: false, Reason: "extension.hook_failed", Message: err.Error()}
 	}
-	return HookResult{OK: response.OK, Reason: response.Reason, Message: response.Message, Patch: response.Patch}
+	// net/rpc 无原生 context；用 goroutine + select 保证宿主 deadline 生效（F2.3）。
+	type outcome struct {
+		resp PluginHookResponse
+		err  error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		resp, err := protocol.InvokeHook(req)
+		done <- outcome{resp: resp, err: err}
+	}()
+	select {
+	case <-ctx.Done():
+		return HookResult{
+			OK:      false,
+			Reason:  "extension.hook_timeout",
+			Message: "Plugin hook exceeded the host timeout. Heavy work must enqueue a job.",
+		}
+	case out := <-done:
+		if out.err != nil {
+			return HookResult{OK: false, Reason: "extension.hook_failed", Message: out.err.Error()}
+		}
+		return HookResult{OK: out.resp.OK, Reason: out.resp.Reason, Message: out.resp.Message, Patch: out.resp.Patch}
+	}
 }
 
-func (s *ProtocolStarter) SendMail(_ context.Context, extensionID string, request MailProviderRequest) (MailProviderResponse, error) {
+func (s *ProtocolStarter) SendMail(ctx context.Context, extensionID string, request MailProviderRequest) (MailProviderResponse, error) {
 	s.mu.Lock()
 	protocol := s.protocols[extensionID]
 	s.mu.Unlock()
 	if protocol == nil {
 		return MailProviderResponse{}, extensions.ErrRuntimeUnavailable
 	}
-	return protocol.SendMail(request)
+	type outcome struct {
+		resp MailProviderResponse
+		err  error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		resp, err := protocol.SendMail(request)
+		done <- outcome{resp: resp, err: err}
+	}()
+	select {
+	case <-ctx.Done():
+		return MailProviderResponse{
+			OK:             false,
+			Classification: "temporary",
+			Reason:         "extension.hook_timeout",
+			Message:        "Mail provider call exceeded the host timeout.",
+		}, nil
+	case out := <-done:
+		return out.resp, out.err
+	}
 }
 
 func ServeProtocolPlugin(impl PluginProtocol) {

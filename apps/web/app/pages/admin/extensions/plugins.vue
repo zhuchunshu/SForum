@@ -61,7 +61,7 @@ function runtimeColor(state?: AdminRuntimeState) {
   if (state === 'failed') {
     return 'error'
   }
-  if (state === 'starting') {
+  if (state === 'degraded' || state === 'starting') {
     return 'warning'
   }
   return 'neutral'
@@ -203,6 +203,14 @@ useSeoMeta({
             <UBadge :color="runtimeColor(item.runtime?.state)" variant="subtle">
               {{ t(runtimeStatusLabelKey(item)) }}
             </UBadge>
+            <UBadge
+              v-if="item.runtime?.circuitOpen"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-zap-off"
+            >
+              {{ t('admin.extensions.runtime.circuitOpen') }}
+            </UBadge>
           </div>
           <p
             v-if="display.description"
@@ -212,6 +220,17 @@ useSeoMeta({
           </p>
           <p class="mt-1 truncate text-xs text-slate-500 dark:text-zinc-400">
             {{ item.id }} · v{{ item.version }} · {{ t('admin.extensions.capabilityCount', { count: capabilityCount(item) }) }}
+          </p>
+          <p
+            v-if="item.runtime?.state === 'degraded' || item.runtime?.consecutiveFailures"
+            class="mt-1 text-xs text-amber-700 dark:text-amber-300"
+          >
+            <span v-if="item.runtime?.consecutiveFailures">
+              {{ t('admin.extensions.runtime.failures', { count: item.runtime.consecutiveFailures }) }}
+            </span>
+            <span v-if="item.runtime?.lastFailureReason" class="ml-1">
+              · {{ t('admin.extensions.runtime.lastFailure', { reason: item.runtime.lastFailureReason }) }}
+            </span>
           </p>
           <a
             v-if="display.author.url || display.url"

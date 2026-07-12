@@ -27,6 +27,8 @@ type ManagerConfig struct {
 	HookBus       *HookBus
 	DeliveryStore DeliveryStore
 	Dispatcher    EventDispatcher
+	// Resilience 可选；nil 使用默认 F2.3 参数。
+	Resilience ResilienceConfig
 }
 
 type Manager struct {
@@ -38,6 +40,7 @@ type Manager struct {
 	hooks         *HookBus
 	deliveryStore DeliveryStore
 	dispatcher    EventDispatcher
+	resilience    *resilienceHub
 }
 
 type DeliveryStore interface {
@@ -70,6 +73,7 @@ func NewManager(config ManagerConfig) *Manager {
 		hooks:         hooks,
 		deliveryStore: config.DeliveryStore,
 		dispatcher:    config.Dispatcher,
+		resilience:    newResilienceHub(config.Resilience),
 	}
 }
 
@@ -139,6 +143,9 @@ func (m *Manager) Stop(ctx context.Context, extension extensions.Extension) erro
 	}
 	m.mu.Unlock()
 	m.hooks.Unregister(extension.ID)
+	if m.resilience != nil {
+		m.resilience.remove(extension.ID)
+	}
 	return err
 }
 
@@ -146,16 +153,17 @@ func (m *Manager) Status(_ context.Context, extension extensions.Extension) exte
 	m.mu.RLock()
 	status, ok := m.statuses[extension.ID]
 	m.mu.RUnlock()
-	if ok {
-		return status
+	if !ok {
+		return extensions.RuntimeStatus{
+			State:         extensions.RuntimeStopped,
+			RouteCount:    len(extension.Manifest.Routes),
+			HookCount:     len(extensions.DeclaredManifestEvents(extension.Manifest)),
+			EventCount:    len(extensions.DeclaredManifestEvents(extension.Manifest)),
+			ProviderCount: len(extension.Manifest.Providers),
+		}
 	}
-	return extensions.RuntimeStatus{
-		State:         extensions.RuntimeStopped,
-		RouteCount:    len(extension.Manifest.Routes),
-		HookCount:     len(extensions.DeclaredManifestEvents(extension.Manifest)),
-		EventCount:    len(extensions.DeclaredManifestEvents(extension.Manifest)),
-		ProviderCount: len(extension.Manifest.Providers),
-	}
+	// F2.3：把闸门/熔断快照合并进状态，熔断打开时标 degraded。
+	return m.decorateStatus(extension.ID, status)
 }
 
 func (m *Manager) RouteTarget(extensionID string) (RouteTarget, bool) {
@@ -176,7 +184,35 @@ func (m *Manager) SendMail(ctx context.Context, extensionID string, request Mail
 	if !running {
 		return MailProviderResponse{}, extensions.ErrRuntimeUnavailable
 	}
-	return invoker.SendMail(ctx, extensionID, request)
+
+	// F2.3：出站邮件也走并发/熔断闸门，并施加默认超时。
+	timeout := m.resilience.cfg.DefaultMailTimeout
+	var cancel context.CancelFunc
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline && timeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+
+	release, rejected := m.resilience.tryEnter(ctx, extensionID)
+	if rejected != "" {
+		return MailProviderResponse{
+			OK:             false,
+			Classification: "temporary",
+			Reason:         rejected,
+			Message:        circuitMessage(rejected),
+		}, nil
+	}
+	response, err := invoker.SendMail(ctx, extensionID, request)
+	success := err == nil && response.OK
+	reason := response.Reason
+	if err != nil {
+		reason = "extension.mail_failed"
+	}
+	if ctx.Err() != nil && !success {
+		reason = "extension.hook_timeout"
+	}
+	release(success, reason)
+	return response, err
 }
 
 func (m *Manager) RefreshMailProvider(ctx context.Context, extensionID string) error {
@@ -410,10 +446,30 @@ func (m *Manager) invoke(ctx context.Context, extension extensions.Extension, in
 	ctx, cancel = context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	// F2.3：熔断/并发闸门。observe 类 fail_open 事件在熔断时跳过而非阻断。
+	definition, _ := appevents.FindDefinition(input.Name)
+	failOpen := definition.FailurePolicy == appevents.FailurePolicyFailOpen || input.Kind == appevents.KindObserve
+
+	release, rejected := m.resilience.tryEnter(ctx, extension.ID)
+	if rejected != "" {
+		if failOpen && rejected == "extension.circuit_open" {
+			return HookResult{
+				OK:      true,
+				Reason:  "extension.circuit_open_skipped",
+				Message: "Plugin circuit is open; observe/fail-open delivery skipped.",
+			}
+		}
+		return HookResult{
+			OK:      false,
+			Reason:  rejected,
+			Message: circuitMessage(rejected),
+		}
+	}
+
 	result := m.hooks.invoker.InvokeHook(ctx, extension, input)
 	// invoker 可能忽略 ctx；若已超时仍返回 OK，宿主强制失败（fail_closed 路径）。
 	if err := ctx.Err(); err != nil && result.OK {
-		return HookResult{
+		result = HookResult{
 			OK:      false,
 			Reason:  "extension.hook_timeout",
 			Message: "Plugin hook exceeded the host timeout. Heavy work must enqueue a job.",
@@ -425,7 +481,60 @@ func (m *Manager) invoke(ctx context.Context, extension extensions.Extension, in
 			result.Message = "Plugin hook exceeded the host timeout. Heavy work must enqueue a job."
 		}
 	}
+
+	// 慢成功不记失败；仅真正失败推进熔断。
+	success := result.OK
+	reason := result.Reason
+	if !success && reason == "" {
+		reason = "extension.hook_failed"
+	}
+	release(success, reason)
 	return result
+}
+
+func (m *Manager) decorateStatus(extensionID string, status extensions.RuntimeStatus) extensions.RuntimeStatus {
+	if m.resilience == nil {
+		return status
+	}
+	// 仅 running/degraded 需要叠加闸门信息；failed/stopped 保持原样。
+	if status.State != extensions.RuntimeRunning && status.State != extensions.RuntimeDegraded && status.State != extensions.RuntimeStarting {
+		return status
+	}
+	snap := m.resilience.snapshot(extensionID)
+	status.CircuitOpen = snap.CircuitOpen
+	status.CircuitOpenUntil = snap.CircuitOpenUntil
+	status.ConsecutiveFailures = snap.ConsecutiveFailures
+	status.LastFailureReason = snap.LastFailureReason
+	status.LastFailureAt = snap.LastFailureAt
+	status.ActiveRPCCalls = snap.ActiveCalls
+	status.MaxConcurrentRPC = snap.MaxConcurrent
+	if snap.CircuitOpen {
+		status.State = extensions.RuntimeDegraded
+		if status.LastError == "" {
+			status.LastError = circuitMessage("extension.circuit_open")
+		}
+	} else if snap.ConsecutiveFailures > 0 && status.State == extensions.RuntimeRunning {
+		// 有连续失败但未熔断：仍标 degraded，便于管理端早发现。
+		status.State = extensions.RuntimeDegraded
+		if status.LastError == "" && snap.LastFailureReason != "" {
+			status.LastError = snap.LastFailureReason
+		}
+	} else if status.State == extensions.RuntimeDegraded && snap.ConsecutiveFailures == 0 && !snap.CircuitOpen {
+		status.State = extensions.RuntimeRunning
+		status.LastError = ""
+	}
+	return status
+}
+
+func circuitMessage(reason string) string {
+	switch reason {
+	case "extension.circuit_open":
+		return "Plugin circuit is open after repeated failures. Calls are rejected until cooldown ends."
+	case "extension.hook_timeout":
+		return "Plugin RPC concurrency limit or deadline exceeded."
+	default:
+		return "Plugin RPC was rejected by the host resilience gate."
+	}
 }
 
 func (m *Manager) runningExtension(extensionID string) (extensions.Extension, bool) {

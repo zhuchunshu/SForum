@@ -24,6 +24,8 @@ const (
 	RuntimeStopped  = "stopped"
 	RuntimeStarting = "starting"
 	RuntimeRunning  = "running"
+	// RuntimeDegraded 进程仍在，但熔断打开或近期连续失败（F2.3）。
+	RuntimeDegraded = "degraded"
 	RuntimeFailed   = "failed"
 
 	ThemeReleaseQueued     = "queued"
@@ -129,6 +131,14 @@ type RuntimeStatus struct {
 	HookCount     int        `json:"hookCount"`
 	EventCount    int        `json:"eventCount"`
 	ProviderCount int        `json:"providerCount"`
+	// F2.3 韧性观测字段。
+	CircuitOpen         bool       `json:"circuitOpen,omitempty"`
+	CircuitOpenUntil    *time.Time `json:"circuitOpenUntil,omitempty"`
+	ConsecutiveFailures int        `json:"consecutiveFailures,omitempty"`
+	LastFailureReason   string     `json:"lastFailureReason,omitempty"`
+	LastFailureAt       *time.Time `json:"lastFailureAt,omitempty"`
+	ActiveRPCCalls      int        `json:"activeRpcCalls,omitempty"`
+	MaxConcurrentRPC    int        `json:"maxConcurrentRpc,omitempty"`
 }
 
 type MatchedRoute struct {

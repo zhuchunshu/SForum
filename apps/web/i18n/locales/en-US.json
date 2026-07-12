@@ -592,7 +592,11 @@
         "stopped": "Runtime stopped",
         "starting": "Runtime starting",
         "running": "Runtime running",
-        "failed": "Runtime failed"
+        "degraded": "Runtime degraded",
+        "failed": "Runtime failed",
+        "circuitOpen": "Circuit open",
+        "failures": "{count} consecutive failures",
+        "lastFailure": "Last failure: {reason}"
       },
       "detailTitle": "Extension details",
       "manifest": {

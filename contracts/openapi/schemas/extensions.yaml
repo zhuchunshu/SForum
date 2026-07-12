@@ -544,7 +544,11 @@ ExtensionRuntimeStatus:
       - stopped
       - starting
       - running
+      - degraded
       - failed
+      description: >-
+        degraded means the plugin process is up but the host resilience gate
+        has consecutive failures or an open circuit (F2.3).
     lastError:
       type: string
     startedAt:
@@ -557,6 +561,23 @@ ExtensionRuntimeStatus:
     eventCount:
       type: integer
     providerCount:
+      type: integer
+    circuitOpen:
+      type: boolean
+      description: True when the host circuit breaker is open for this extension.
+    circuitOpenUntil:
+      type: string
+      format: date-time
+    consecutiveFailures:
+      type: integer
+    lastFailureReason:
+      type: string
+    lastFailureAt:
+      type: string
+      format: date-time
+    activeRpcCalls:
+      type: integer
+    maxConcurrentRpc:
       type: integer
 ThemeRelease:
   type: object

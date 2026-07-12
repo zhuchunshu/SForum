@@ -592,7 +592,11 @@
         "stopped": "运行时已停止",
         "starting": "运行时启动中",
         "running": "运行时运行中",
-        "failed": "运行时失败"
+        "degraded": "运行时降级",
+        "failed": "运行时失败",
+        "circuitOpen": "熔断已打开",
+        "failures": "连续失败 {count} 次",
+        "lastFailure": "最近失败：{reason}"
       },
       "detailTitle": "扩展详情",
       "manifest": {

@@ -107,10 +107,10 @@ risk and a real lifecycle.
 
 ### F2.3 Plugin RPC resilience
 
-- [ ] Per-call deadlines
-- [ ] Concurrency limits
-- [ ] Circuit open after repeated failures (observe fail-open vs filter policy)
-- [ ] Admin-visible degraded state on extension runtime card
+- [x] Per-call deadlines (hook timeout + protocol goroutine/select; mail timeout)
+- [x] Concurrency limits (per-extension semaphore, default 4)
+- [x] Circuit open after repeated failures (observe fail-open vs filter policy)
+- [x] Admin-visible degraded state on extension runtime card
 
 ### F2.4 Lifecycle: upgrade / uninstall / migrations
 
@@ -122,7 +122,7 @@ risk and a real lifecycle.
 **F2 exit criteria:** a non-mail reference plugin can call Host API under
 grants; upgrade/uninstall documented and test-covered for the happy path.
 
-**Progress (2026-07-12):** F2.1 + F2.2 landed. F2.3 / F2.4 open.
+**Progress (2026-07-12):** F2.1–F2.3 landed. F2.4 open.
 
 **Depends on:** F1 schedule registry if plugin schedules are included; otherwise
 F2 can start after F1.1–F1.2.
@@ -254,6 +254,7 @@ per plugin.
 | 2026-07-12 | F1.4 | settings/extension audit_events + cleanup schedule |
 | 2026-07-12 | F2.1 | capability catalog, manifest field, enable confirm UI |
 | 2026-07-12 | F2.2 | Host API v1 loopback gateway + Client SDK stubs |
+| 2026-07-12 | F2.3 | per-ext concurrency, circuit breaker, degraded runtime |
 | | F2+ | pending |
 | | F2 | pending |
 | | F3 | pending |
@@ -264,6 +265,6 @@ per plugin.
 ## Next session one-liner
 
 ```text
-F2.1+F2.2 done. Next framework: F2.3 RPC resilience or F2.4 lifecycle;
+F2.1–F2.3 done. Next framework: F2.4 lifecycle (upgrade/uninstall);
 or product Iteration A / settings Wave 3 per development-directions mix.
 ```
