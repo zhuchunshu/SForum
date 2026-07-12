@@ -4,6 +4,15 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-13 Runtime Page Registry & simple themes (ADR + plan)**
+  - Decision: `knowledge/decisions/2026-07-13-runtime-page-registry-themes.md`
+  - Plan: `knowledge/plans/2026-07-13-runtime-page-registry-themes.md` (P0–P5)
+  - Handoff: `knowledge/sessions/2026-07-13-runtime-page-registry-themes-plan.md`
+  - Direction: WP/Typecho-like L0/L1 themes (no site rebuild); Page Registry
+    add/replace views; L2 author-prebuilt widgets; core API never hijacked
+  - **Commit discipline** in plan (small commits, flags, revert-friendly)
+  - Next session: **P0 inventory → P1 page catalog + SFPageOutlet** (no Layer delete)
+
 - **2026-07-13 E6.3 + E6.4 complete** (storage admin + filesystem reference plugin)
   - Handoff: `knowledge/sessions/2026-07-13-e6-3-e6-4-storage-admin-and-fs-plugin.md`
   - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
@@ -833,6 +842,11 @@ This is the entry point for project memory.
   UI ownership.
 - `decisions/2026-07-07-incremental-theme-fallback.md` - accepted uploaded
   theme incremental overlay behavior with the default theme as final fallback.
+  Long-term fallback mechanism is revised by runtime page registry ADR.
+- `decisions/2026-07-13-runtime-page-registry-themes.md` - accepted direction:
+  Page Registry add/replace views; L0/L1/L2 themes without site rebuild;
+  narrows “no core route override” to API/security only. Plan:
+  `plans/2026-07-13-runtime-page-registry-themes.md`.
 - `decisions/2026-07-06-plugin-event-extension-points.md` - accepted explicit
   plugin event, listener delivery, and filter extension-point architecture.
 - `decisions/2026-07-05-runtime-language-pack-management.md` - accepted runtime

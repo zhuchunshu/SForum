@@ -14,6 +14,22 @@ column, row-action, and detail-section slots.
 Owns the Nuxt web application, SSR pages, UI composition, frontend routing,
 metadata, and browser-side interactions.
 
+## Runtime themes / Page Registry (direction)
+
+Long-term public theming moves off “uploaded Nuxt Layer + full rebuild” toward:
+
+- **Page Registry** + stable page ids (`forum.home`, …)
+- **L0** CSS/assets without rebuild
+- **L1** sandboxed templates composing host SF islands
+- **L2** author-prebuilt widgets for heavy UI
+- Host stays Nuxt; themes stop being full Nuxt apps
+
+**ADR:** `../decisions/2026-07-13-runtime-page-registry-themes.md`  
+**Plan:** `../plans/2026-07-13-runtime-page-registry-themes.md`
+
+Until P5 cutover, Layer activation and Web Release theme composition remain
+documented below as the **live** path.
+
 ## Current Status
 
 Foundation scaffold exists under `apps/web`.

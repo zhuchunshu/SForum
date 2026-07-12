@@ -18,6 +18,22 @@ while provider-specific behavior remains in plugins.
 
 ## Current Status
 
+### Runtime Page Registry & simple themes (accepted direction)
+
+Public themes today are still **Nuxt Layer** packages with rebuild-on-activate.
+That path is **compatibility / dual-stack**, not the long-term product goal.
+
+- **ADR:** `decisions/2026-07-13-runtime-page-registry-themes.md`
+- **Plan (P0–P5, commit/rollback rules):**
+  `plans/2026-07-13-runtime-page-registry-themes.md`
+- Target: L0 skin + L1 runtime templates + L2 author-prebuilt widgets;
+  themes and plugins **add/replace view pages** via Page Registry; operators
+  do not rebuild SForum for normal theme activation.
+- **Freeze:** do not invest in new Layer-only theme capabilities except
+  critical bugs; implement runtime path first (P1+).
+- Narrows “no core route override” to **no core API / security route override**;
+  view-page replace is an intentional new capability.
+
 ### Extension surface density (next framework track)
 
 After F1–F4.3 platform hardening, gaps are (1) sparse filters / public UI /
@@ -50,7 +66,9 @@ mail. Implementation checklist:
 - **North star next:** storage **E6.2–E6.4** (RPC + reference plugin) and
   search (**E7**); other slots in **E8**. Today only `mail.provider` is
   end-to-end RPC; storage plugin selection is wired without transport yet.
-- Non-goals remain: arbitrary hooks, core route override, public raw HTML
+- Non-goals remain: arbitrary hooks, **core API / security route** override,
+  untrusted raw HTML/script injection (L1 templates are sandboxed host
+  composition; see runtime page registry ADR)
 
 The extension foundation is implemented with plugin/theme lifecycle separation
 and plugin runtime v1.
