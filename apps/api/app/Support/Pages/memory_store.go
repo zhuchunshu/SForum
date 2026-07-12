@@ -2,6 +2,7 @@ package pages
 
 import (
 	"context"
+	"strings"
 	"sync"
 )
 
@@ -35,6 +36,8 @@ func (s *MemoryStore) GetBinding(_ context.Context, pageID string) (ProviderBind
 func (s *MemoryStore) UpsertBinding(_ context.Context, binding ProviderBinding) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// Fiber 等框架可能复用请求缓冲；持久化前克隆字符串，避免 map key 被后续请求改写。
+	binding = cloneBinding(binding)
 	s.bindings[binding.PageID] = binding
 	return nil
 }
@@ -44,4 +47,15 @@ func (s *MemoryStore) DeleteBinding(_ context.Context, pageID string) error {
 	defer s.mu.Unlock()
 	delete(s.bindings, pageID)
 	return nil
+}
+
+func cloneBinding(b ProviderBinding) ProviderBinding {
+	b.PageID = strings.Clone(b.PageID)
+	b.ExtensionID = strings.Clone(b.ExtensionID)
+	b.ContributionID = strings.Clone(b.ContributionID)
+	b.Version = strings.Clone(b.Version)
+	b.PackageDigest = strings.Clone(b.PackageDigest)
+	b.ContractVersion = strings.Clone(b.ContractVersion)
+	b.TemplatePath = strings.Clone(b.TemplatePath)
+	return b
 }

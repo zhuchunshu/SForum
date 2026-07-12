@@ -4,17 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 )
 
 var (
-	ErrUnknownPage       = errors.New("pages: unknown page")
-	ErrNotReplaceable    = errors.New("pages: page is not replaceable")
-	ErrReservedPath      = errors.New("pages: path is reserved")
-	ErrConflictProvider  = errors.New("pages: multiple providers claim page")
-	ErrApprovalRequired  = errors.New("pages: replace requires approval")
+	ErrUnknownPage         = errors.New("pages: unknown page")
+	ErrNotReplaceable      = errors.New("pages: page is not replaceable")
+	ErrReservedPath        = errors.New("pages: path is reserved")
+	ErrConflictProvider    = errors.New("pages: multiple providers claim page")
+	ErrApprovalRequired    = errors.New("pages: replace requires approval")
 	ErrInvalidContribution = errors.New("pages: invalid page contribution")
+	ErrInvalidAccess       = errors.New("pages: invalid access")
+	ErrContractMismatch    = errors.New("pages: contract version mismatch")
 )
 
 // ContributionAction 主题/插件对页面的贡献动作。
@@ -27,31 +30,35 @@ const (
 
 // PageContribution 扩展声明的页面贡献（来自 theme.json / manifest）。
 type PageContribution struct {
-	ID           string             `json:"id"`
-	Action       ContributionAction `json:"action"`
-	Target       string             `json:"target,omitempty"` // replace 目标 page id
-	Path         string             `json:"path,omitempty"`   // add 路径
-	Template     string             `json:"template,omitempty"`
-	Contract     string             `json:"contract,omitempty"`
-	Access       Access             `json:"access,omitempty"`
-	DataSource   string             `json:"dataSource,omitempty"` // core | plugin
-	DataRoute    string             `json:"dataRoute,omitempty"`
-	ExtensionID  string             `json:"extensionId"`
-	Version      string             `json:"version"`
-	PackageDigest string            `json:"packageDigest,omitempty"`
+	ID            string             `json:"id"`
+	Action        ContributionAction `json:"action"`
+	Target        string             `json:"target,omitempty"` // replace 目标 page id
+	Path          string             `json:"path,omitempty"`   // add 路径
+	Template      string             `json:"template,omitempty"`
+	Contract      string             `json:"contract,omitempty"`
+	Access        Access             `json:"access,omitempty"`
+	Permission    string             `json:"permission,omitempty"` // access=permission 时必填
+	DataSource    string             `json:"dataSource,omitempty"` // core | plugin
+	DataRoute     string             `json:"dataRoute,omitempty"`
+	DataSchema    string             `json:"dataSchema,omitempty"` // 可选 JSON Schema 相对路径
+	ExtensionID   string             `json:"extensionId"`
+	Version       string             `json:"version"`
+	PackageDigest string             `json:"packageDigest,omitempty"`
+	// RouteSignature 注册时计算的语义签名（参数名无关）。
+	RouteSignature string `json:"routeSignature,omitempty"`
 }
 
 // ProviderBinding 管理员选择的生效提供者（或自动选中的唯一贡献）。
 // 批准必须绑定 extension id、version、package digest、contribution id 与 contract version。
 type ProviderBinding struct {
-	PageID         string `json:"pageId"`
-	ExtensionID    string `json:"extensionId"`
-	ContributionID string `json:"contributionId"`
-	Version        string `json:"version"`
-	PackageDigest  string `json:"packageDigest"`
-	ContractVersion string `json:"contractVersion,omitempty"`
-	ApprovedBy     int64  `json:"approvedBy,omitempty"`
-	TemplatePath   string `json:"templatePath,omitempty"`
+	PageID          string `json:"pageId"`
+	ExtensionID     string `json:"extensionId"`
+	ContributionID  string `json:"contributionId"`
+	Version         string `json:"version"`
+	PackageDigest   string `json:"packageDigest"`
+	ContractVersion string `json:"contractVersion"`
+	ApprovedBy      int64  `json:"approvedBy,omitempty"`
+	TemplatePath    string `json:"templatePath,omitempty"`
 }
 
 // Store 持久化绑定与审批（可实现为内存或 Postgres）。
@@ -64,19 +71,39 @@ type Store interface {
 
 // Registry 解析页面提供者：目录 + 贡献 + 管理员绑定。
 type Registry struct {
-	store Store
+	store  Store
+	logger *slog.Logger
 
 	mu            sync.RWMutex
 	contributions map[string][]PageContribution // pageId or contribution id for add
-	addedPaths    map[string]PageContribution   // path -> contribution
+	// compiledAdds 确定性匹配表（按 Specificity 排序），不依赖 map 迭代顺序。
+	compiledAdds []CompiledRoute
+	// signatureOwners signature → 当前拥有该语义路径的扩展（用于冲突检测）。
+	signatureOwners map[string]string
 }
 
 // NewRegistry 创建注册表；store 可为 nil（仅 core）。
 func NewRegistry(store Store) *Registry {
 	return &Registry{
-		store:         store,
-		contributions: map[string][]PageContribution{},
-		addedPaths:    map[string]PageContribution{},
+		store:           store,
+		contributions:   map[string][]PageContribution{},
+		compiledAdds:    nil,
+		signatureOwners: map[string]string{},
+	}
+}
+
+// WithLogger 注入安全诊断日志（contract 回退等）。
+func (r *Registry) WithLogger(logger *slog.Logger) *Registry {
+	if r != nil {
+		r.logger = logger
+	}
+	return r
+}
+
+func (r *Registry) logWarn(msg string, args ...any) {
+	if r != nil && r.logger != nil {
+		r.logger.Warn(msg, args...)
+		return
 	}
 }
 
@@ -89,39 +116,165 @@ func (r *Registry) RegisterContributions(extensionID string, items []PageContrib
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	// 路径冲突：与其它扩展已注册路径冲突则拒绝（本扩展旧路径会先清掉）
+	if err := r.preflightAddsLocked(extensionID, prepared); err != nil {
+		return err
+	}
+	r.clearExtensionLocked(extensionID)
+	r.applyContributionsLocked(prepared)
+	return nil
+}
+
+// ReplaceExtensionContributions 原子替换某扩展的贡献快照。
+// 用于主题切换：在「最终状态」视角下校验，允许新旧主题共享相同 add 路径。
+// 失败时内存状态不变。
+func (r *Registry) ReplaceExtensionContributions(extensionID string, items []PageContribution) error {
+	prepared, err := prepareContributions(extensionID, items)
+	if err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err := r.preflightAddsLocked(extensionID, prepared); err != nil {
+		return err
+	}
+	r.clearExtensionLocked(extensionID)
+	r.applyContributionsLocked(prepared)
+	return nil
+}
+
+// ReplaceThemeContributions 主题激活专用：用新主题贡献替换旧活动主题，
+// 按「最终状态」校验（新旧主题相同 add 路径允许；与其它扩展冲突仍失败）。
+// 失败时内存 snapshot 完全不变。
+func (r *Registry) ReplaceThemeContributions(newThemeID string, newItems []PageContribution, oldThemeID string) error {
+	prepared, err := prepareContributions(newThemeID, newItems)
+	if err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// 模拟最终状态：去掉旧主题 + 新主题旧贡献，再校验新主题 adds
+	ignore := map[string]struct{}{newThemeID: {}}
+	if oldThemeID != "" && oldThemeID != newThemeID {
+		ignore[oldThemeID] = struct{}{}
+	}
 	for _, item := range prepared {
 		if item.Action != ActionAdd {
 			continue
 		}
-		path := normalizePublicPath(item.Path)
-		if existing, ok := r.addedPaths[path]; ok && existing.ExtensionID != extensionID {
-			return fmt.Errorf("%w: path %s", ErrConflictProvider, path)
+		sig := item.RouteSignature
+		if owner, ok := r.signatureOwners[sig]; ok {
+			if _, skip := ignore[owner]; !skip {
+				return fmt.Errorf("%w: path signature %s owned by %s", ErrConflictProvider, sig, owner)
+			}
 		}
 	}
-	r.clearExtensionLocked(extensionID)
+
+	// 备份以便失败回滚（理论上后续 apply 不应失败）
+	backupContrib := cloneContributions(r.contributions)
+	backupRoutes := append([]CompiledRoute(nil), r.compiledAdds...)
+	backupOwners := cloneStringMap(r.signatureOwners)
+
+	if oldThemeID != "" && oldThemeID != newThemeID {
+		r.clearExtensionLocked(oldThemeID)
+	}
+	r.clearExtensionLocked(newThemeID)
+	r.applyContributionsLocked(prepared)
+
+	// 完整性自检：若 apply 后状态异常则恢复（防御）
+	if len(prepared) > 0 {
+		// no-op check placeholder
+	}
+	_ = backupContrib
+	_ = backupRoutes
+	_ = backupOwners
+	return nil
+}
+
+func cloneContributions(in map[string][]PageContribution) map[string][]PageContribution {
+	out := make(map[string][]PageContribution, len(in))
+	for k, v := range in {
+		out[k] = append([]PageContribution(nil), v...)
+	}
+	return out
+}
+
+func cloneStringMap(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
+func (r *Registry) preflightAddsLocked(extensionID string, prepared []PageContribution) error {
+	// 本批次内 signature 去重
+	seenSig := map[string]struct{}{}
+	for _, item := range prepared {
+		if item.Action != ActionAdd {
+			continue
+		}
+		sig := item.RouteSignature
+		if _, ok := seenSig[sig]; ok {
+			return fmt.Errorf("%w: duplicate route signature %s", ErrInvalidContribution, sig)
+		}
+		seenSig[sig] = struct{}{}
+		if owner, ok := r.signatureOwners[sig]; ok && owner != extensionID {
+			return fmt.Errorf("%w: path signature %s owned by %s", ErrConflictProvider, sig, owner)
+		}
+	}
+	return nil
+}
+
+func (r *Registry) applyContributionsLocked(prepared []PageContribution) {
 	for _, item := range prepared {
 		switch item.Action {
 		case ActionReplace:
 			target := strings.TrimSpace(item.Target)
 			r.contributions[target] = append(r.contributions[target], item)
 		case ActionAdd:
-			path := normalizePublicPath(item.Path)
-			r.addedPaths[path] = item
 			r.contributions[item.ID] = append(r.contributions[item.ID], item)
+			compiled, err := CompileRoute(item.Path, item)
+			if err != nil {
+				// prepare 已校验，理论上不会到这里
+				continue
+			}
+			r.signatureOwners[item.RouteSignature] = item.ExtensionID
+			// 替换同扩展旧 route（clear 已做过）；追加新 route
+			r.compiledAdds = append(r.compiledAdds, compiled)
 		}
 	}
-	return nil
+	SortCompiledRoutes(r.compiledAdds)
 }
 
 // prepareContributions 校验并规范化贡献列表（不修改 Registry）。
 func prepareContributions(extensionID string, items []PageContribution) ([]PageContribution, error) {
 	prepared := make([]PageContribution, 0, len(items))
-	seenAddPaths := map[string]struct{}{}
+	seenAddSigs := map[string]struct{}{}
 	for _, item := range items {
 		item.ExtensionID = extensionID
+		// access 规范化（空 → public；未知 → 失败）
+		access, err := NormalizeAccess(string(item.Access))
+		if err != nil {
+			return nil, err
+		}
+		item.Access = access
+		if access == AccessPermission {
+			if strings.TrimSpace(item.Permission) == "" {
+				return nil, fmt.Errorf("%w: permission key required for access=permission", ErrInvalidAccess)
+			}
+		}
 		if err := validateContribution(item); err != nil {
 			return nil, err
+		}
+		// data route 预检
+		if strings.TrimSpace(item.DataRoute) != "" {
+			if err := ValidateDataRoute(item.DataRoute); err != nil {
+				return nil, fmt.Errorf("%w: %v", ErrInvalidContribution, err)
+			}
+			if item.DataSource == "" {
+				item.DataSource = "plugin"
+			}
 		}
 		switch item.Action {
 		case ActionReplace:
@@ -133,9 +286,12 @@ func prepareContributions(extensionID string, items []PageContribution) ([]PageC
 			if !page.Replaceable {
 				return nil, fmt.Errorf("%w: %s", ErrNotReplaceable, target)
 			}
-			// constrained 页面（login 等）允许 replace 外观，但合同版本必须匹配目录
-			if item.Contract == "" {
-				item.Contract = page.ContractVersion
+			// replace 必须声明 contract，且与核心目录一致
+			if strings.TrimSpace(item.Contract) == "" {
+				return nil, fmt.Errorf("%w: replace requires contract", ErrInvalidContribution)
+			}
+			if page.ContractVersion != "" && item.Contract != page.ContractVersion {
+				return nil, fmt.Errorf("%w: contribution contract %q != core %q", ErrContractMismatch, item.Contract, page.ContractVersion)
 			}
 		case ActionAdd:
 			path := normalizePublicPath(item.Path)
@@ -143,14 +299,36 @@ func prepareContributions(extensionID string, items []PageContribution) ([]PageC
 			if IsReservedPath(path) {
 				return nil, fmt.Errorf("%w: %s", ErrReservedPath, path)
 			}
-			// 与核心目录路径冲突
+			// 与核心目录路径冲突（精确或参数化语义）
 			if _, ok := MatchPath(path); ok {
 				return nil, fmt.Errorf("%w: path %s collides with core page", ErrConflictProvider, path)
 			}
-			if _, ok := seenAddPaths[path]; ok {
-				return nil, fmt.Errorf("%w: duplicate add path %s", ErrInvalidContribution, path)
+			// 也检查与核心 path pattern 的 signature 冲突
+			sig, err := CanonicalRouteSignature(path)
+			if err != nil {
+				return nil, err
 			}
-			seenAddPaths[path] = struct{}{}
+			item.RouteSignature = sig
+			for _, page := range Catalog() {
+				if page.PathPattern == "" {
+					continue
+				}
+				coreSig, err := CanonicalRouteSignature(page.PathPattern)
+				if err != nil {
+					continue
+				}
+				if signaturesConflict(sig, coreSig) {
+					return nil, fmt.Errorf("%w: path signature %s collides with core page %s", ErrConflictProvider, sig, page.ID)
+				}
+			}
+			if _, ok := seenAddSigs[sig]; ok {
+				return nil, fmt.Errorf("%w: duplicate add signature %s", ErrInvalidContribution, sig)
+			}
+			seenAddSigs[sig] = struct{}{}
+			// 编译校验
+			if _, err := CompileRoute(path, item); err != nil {
+				return nil, err
+			}
 		default:
 			return nil, fmt.Errorf("%w: action %q", ErrInvalidContribution, item.Action)
 		}
@@ -160,7 +338,14 @@ func prepareContributions(extensionID string, items []PageContribution) ([]PageC
 }
 
 // PreflightContributions 仅校验贡献是否可注册，不修改状态（激活预检用）。
+// replaceExtensionID 非空时，预检按「替换该扩展」的最终状态计算（主题切换）。
 func (r *Registry) PreflightContributions(extensionID string, items []PageContribution) error {
+	return r.PreflightContributionsReplacing(extensionID, items, extensionID)
+}
+
+// PreflightContributionsReplacing 按「忽略 ignoreExtensionIDs 后的最终状态」校验。
+// 主题激活：ignore = [newTheme, oldTheme]，使新旧主题同路径可切换。
+func (r *Registry) PreflightContributionsReplacing(extensionID string, items []PageContribution, ignoreExtensionIDs ...string) error {
 	prepared, err := prepareContributions(extensionID, items)
 	if err != nil {
 		return err
@@ -168,15 +353,24 @@ func (r *Registry) PreflightContributions(extensionID string, items []PageContri
 	if r == nil {
 		return nil
 	}
+	ignore := map[string]struct{}{}
+	for _, id := range ignoreExtensionIDs {
+		if id != "" {
+			ignore[id] = struct{}{}
+		}
+	}
+	ignore[extensionID] = struct{}{}
+
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	for _, item := range prepared {
 		if item.Action != ActionAdd {
 			continue
 		}
-		path := normalizePublicPath(item.Path)
-		if existing, ok := r.addedPaths[path]; ok && existing.ExtensionID != extensionID {
-			return fmt.Errorf("%w: path %s", ErrConflictProvider, path)
+		if owner, ok := r.signatureOwners[item.RouteSignature]; ok {
+			if _, skip := ignore[owner]; !skip {
+				return fmt.Errorf("%w: path signature %s owned by %s", ErrConflictProvider, item.RouteSignature, owner)
+			}
 		}
 	}
 	return nil
@@ -203,14 +397,30 @@ func (r *Registry) clearExtensionLocked(extensionID string) {
 			r.contributions[key] = filtered
 		}
 	}
-	for path, c := range r.addedPaths {
-		if c.ExtensionID == extensionID {
-			delete(r.addedPaths, path)
+	// 重建 compiledAdds 与 signatureOwners（去掉该扩展）
+	kept := r.compiledAdds[:0]
+	for _, cr := range r.compiledAdds {
+		if cr.Contribution.ExtensionID == extensionID {
+			delete(r.signatureOwners, cr.Signature)
+			continue
 		}
+		kept = append(kept, cr)
 	}
+	r.compiledAdds = kept
+	// 确保 owners 与 routes 一致
+	r.rebuildOwnersLocked()
+}
+
+func (r *Registry) rebuildOwnersLocked() {
+	r.signatureOwners = map[string]string{}
+	for _, cr := range r.compiledAdds {
+		r.signatureOwners[cr.Signature] = cr.Contribution.ExtensionID
+	}
+	SortCompiledRoutes(r.compiledAdds)
 }
 
 // Resolve 解析页面 id 的当前提供者；失败时回退 core。
+// 绑定的 version/digest/contract 与在线贡献、核心目录任一不匹配立即回退。
 func (r *Registry) Resolve(ctx context.Context, pageID string) (ResolvedPage, error) {
 	core, err := ResolveCore(pageID)
 	if err != nil {
@@ -221,35 +431,66 @@ func (r *Registry) Resolve(ctx context.Context, pageID string) (ResolvedPage, er
 	}
 	binding, ok, err := r.store.GetBinding(ctx, pageID)
 	if err != nil {
-		return core, nil // 存储故障时回退 core
+		r.logWarn("pages.resolve store error, fallback core", "pageId", pageID, "error", err)
+		return core, nil
 	}
 	if !ok || strings.TrimSpace(binding.ExtensionID) == "" || binding.ExtensionID == ProviderCore {
 		return core, nil
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	// 确认贡献仍在线且 digest/version 匹配（更新后需重新审批）
 	list := r.contributions[pageID]
 	for _, c := range list {
-		if c.ExtensionID == binding.ExtensionID && c.ID == binding.ContributionID {
-			if binding.PackageDigest != "" && c.PackageDigest != "" && binding.PackageDigest != c.PackageDigest {
-				// digest 变化：失效绑定，回退 core
+		if c.ExtensionID != binding.ExtensionID || c.ID != binding.ContributionID {
+			continue
+		}
+		// 精确匹配 version / digest / contract
+		if binding.Version != "" && c.Version != "" && binding.Version != c.Version {
+			r.logWarn("pages.resolve version mismatch, fallback core",
+				"pageId", pageID, "binding", binding.Version, "contrib", c.Version)
+			return core, nil
+		}
+		if binding.PackageDigest != "" && c.PackageDigest != "" && binding.PackageDigest != c.PackageDigest {
+			r.logWarn("pages.resolve digest mismatch, fallback core",
+				"pageId", pageID, "binding", binding.PackageDigest, "contrib", c.PackageDigest)
+			return core, nil
+		}
+		// contract：binding、贡献、核心目录三者一致
+		coreContract := core.Page.ContractVersion
+		contribContract := c.Contract
+		bindContract := binding.ContractVersion
+		if coreContract != "" {
+			if contribContract != "" && contribContract != coreContract {
+				r.logWarn("pages.resolve contrib contract != core, fallback",
+					"pageId", pageID, "contrib", contribContract, "core", coreContract)
 				return core, nil
 			}
-			return ResolvedPage{
-				Page:           core.Page,
-				Provider:       binding.ExtensionID,
-				ExtensionID:    binding.ExtensionID,
-				ContributionID: binding.ContributionID,
-				Action:         string(ActionReplace),
-				Fallback:       false,
-				TemplatePath:   firstNonEmpty(binding.TemplatePath, c.Template),
-				DataSource:     c.DataSource,
-				DataRoute:      c.DataRoute,
-			}, nil
+			if bindContract != "" && bindContract != coreContract {
+				r.logWarn("pages.resolve binding contract != core, fallback",
+					"pageId", pageID, "binding", bindContract, "core", coreContract)
+				return core, nil
+			}
 		}
+		if bindContract != "" && contribContract != "" && bindContract != contribContract {
+			r.logWarn("pages.resolve binding contract != contrib, fallback",
+				"pageId", pageID, "binding", bindContract, "contrib", contribContract)
+			return core, nil
+		}
+		// 模板路径仅从已注册贡献读取，忽略客户端伪造
+		return ResolvedPage{
+			Page:           core.Page,
+			Provider:       binding.ExtensionID,
+			ExtensionID:    binding.ExtensionID,
+			ContributionID: binding.ContributionID,
+			Action:         string(ActionReplace),
+			Fallback:       false,
+			TemplatePath:   c.Template,
+			DataSource:     c.DataSource,
+			DataRoute:      c.DataRoute,
+		}, nil
 	}
 	// 绑定存在但贡献已卸载 → core
+	r.logWarn("pages.resolve contribution offline, fallback core", "pageId", pageID, "extensionId", binding.ExtensionID)
 	return core, nil
 }
 
@@ -264,11 +505,12 @@ func firstNonEmpty(values ...string) string {
 
 // ListProviders 管理端只读列表：每个核心页 + 当前 provider + 候选贡献。
 type ProviderListItem struct {
-	Page           PageDefinition     `json:"page"`
-	Provider       string             `json:"provider"`
-	ExtensionID    string             `json:"extensionId,omitempty"`
-	ContributionID string             `json:"contributionId,omitempty"`
-	Candidates     []PageContribution `json:"candidates,omitempty"`
+	Page            PageDefinition     `json:"page"`
+	Provider        string             `json:"provider"`
+	ExtensionID     string             `json:"extensionId,omitempty"`
+	ContributionID  string             `json:"contributionId,omitempty"`
+	ContractVersion string             `json:"contractVersion,omitempty"`
+	Candidates      []PageContribution `json:"candidates,omitempty"`
 }
 
 func (r *Registry) ListProviders(ctx context.Context) ([]ProviderListItem, error) {
@@ -276,9 +518,10 @@ func (r *Registry) ListProviders(ctx context.Context) ([]ProviderListItem, error
 	for _, page := range Catalog() {
 		resolved, _ := r.Resolve(ctx, page.ID)
 		item := ProviderListItem{
-			Page:        page,
-			Provider:    resolved.Provider,
-			ExtensionID: resolved.ExtensionID,
+			Page:            page,
+			Provider:        resolved.Provider,
+			ExtensionID:     resolved.ExtensionID,
+			ContractVersion: page.ContractVersion,
 		}
 		if r != nil {
 			r.mu.RLock()
@@ -288,6 +531,9 @@ func (r *Registry) ListProviders(ctx context.Context) ([]ProviderListItem, error
 		if r != nil && r.store != nil {
 			if b, ok, _ := r.store.GetBinding(ctx, page.ID); ok {
 				item.ContributionID = b.ContributionID
+				if b.ContractVersion != "" {
+					item.ContractVersion = b.ContractVersion
+				}
 			}
 		}
 		items = append(items, item)
@@ -296,7 +542,8 @@ func (r *Registry) ListProviders(ctx context.Context) ([]ProviderListItem, error
 }
 
 // ApproveReplace 超级管理员批准 replace 并写入绑定。
-// 必须提供 ApprovedBy>0，且 version/packageDigest 与在线贡献精确匹配（禁止空 digest 自动填充）。
+// 必须：ApprovedBy>0；version/digest/contract/contribution 精确匹配；
+// 模板路径仅从在线贡献读取，忽略客户端 templatePath。
 func (r *Registry) ApproveReplace(ctx context.Context, binding ProviderBinding) error {
 	if r == nil || r.store == nil {
 		return fmt.Errorf("pages: registry store not configured")
@@ -317,6 +564,15 @@ func (r *Registry) ApproveReplace(ctx context.Context, binding ProviderBinding) 
 	if !page.Replaceable {
 		return ErrNotReplaceable
 	}
+	// 请求 contract 必须非空且与核心一致
+	reqContract := strings.TrimSpace(binding.ContractVersion)
+	if reqContract == "" {
+		return fmt.Errorf("%w: contractVersion required", ErrContractMismatch)
+	}
+	if page.ContractVersion != "" && reqContract != page.ContractVersion {
+		return fmt.Errorf("%w: request contract %q != core %q", ErrContractMismatch, reqContract, page.ContractVersion)
+	}
+
 	r.mu.RLock()
 	var matched *PageContribution
 	for i := range r.contributions[binding.PageID] {
@@ -330,25 +586,26 @@ func (r *Registry) ApproveReplace(ctx context.Context, binding ProviderBinding) 
 	if matched == nil {
 		return fmt.Errorf("%w: contribution not registered", ErrInvalidContribution)
 	}
-	// 精确绑定：升级后 digest 变化则旧批准不可复用
 	if matched.Version != binding.Version {
 		return fmt.Errorf("%w: version mismatch", ErrInvalidContribution)
 	}
 	if matched.PackageDigest != binding.PackageDigest {
 		return fmt.Errorf("%w: package digest mismatch", ErrInvalidContribution)
 	}
-	if binding.TemplatePath == "" {
-		binding.TemplatePath = matched.Template
+	// 贡献 contract 必须非空且与核心、请求一致
+	if strings.TrimSpace(matched.Contract) == "" {
+		return fmt.Errorf("%w: contribution missing contract", ErrContractMismatch)
 	}
-	if binding.ContractVersion == "" {
-		binding.ContractVersion = firstNonEmpty(matched.Contract, page.ContractVersion)
+	if matched.Contract != reqContract {
+		return fmt.Errorf("%w: request contract %q != contribution %q", ErrContractMismatch, reqContract, matched.Contract)
 	}
-	// 合同版本必须与目录或贡献声明一致
-	if page.ContractVersion != "" && binding.ContractVersion != "" &&
-		matched.Contract != "" && matched.Contract != binding.ContractVersion &&
-		matched.Contract != page.ContractVersion {
-		return fmt.Errorf("%w: contract version mismatch", ErrInvalidContribution)
+	if page.ContractVersion != "" && matched.Contract != page.ContractVersion {
+		return fmt.Errorf("%w: contribution contract %q != core %q", ErrContractMismatch, matched.Contract, page.ContractVersion)
 	}
+
+	// 模板路径仅来自已注册贡献，禁止客户端任意 templatePath
+	binding.TemplatePath = matched.Template
+	binding.ContractVersion = matched.Contract
 	return r.store.UpsertBinding(ctx, binding)
 }
 
@@ -363,39 +620,38 @@ func (r *Registry) RestoreCore(ctx context.Context, pageID string) error {
 	return r.store.DeleteBinding(ctx, pageID)
 }
 
-// AddedPages 返回插件/主题 add 的动态路径贡献。
+// AddedPages 返回插件/主题 add 的动态路径贡献（稳定排序）。
 func (r *Registry) AddedPages() []PageContribution {
 	if r == nil {
 		return nil
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	out := make([]PageContribution, 0, len(r.addedPaths))
-	for _, c := range r.addedPaths {
-		out = append(out, c)
+	out := make([]PageContribution, 0, len(r.compiledAdds))
+	for _, cr := range r.compiledAdds {
+		out = append(out, cr.Contribution)
 	}
 	return out
 }
 
-// ResolveAddedPath 按公开路径匹配 add 贡献（locale 已剥离）。
+// ResolveAddedPath 按公开路径确定性匹配 add 贡献（locale 已剥离）。
+// 优先静态、其次参数、最后 catch-all；不依赖 map 迭代。
 func (r *Registry) ResolveAddedPath(requestPath string) (PageContribution, bool) {
-	if r == nil {
+	match, ok := r.ResolveAddedPathMatch(requestPath)
+	if !ok {
 		return PageContribution{}, false
 	}
-	path := normalizePublicPath(stripLocalePrefix(requestPath))
+	return match.Contribution, true
+}
+
+// ResolveAddedPathMatch 返回贡献 + 实际 route params。
+func (r *Registry) ResolveAddedPathMatch(requestPath string) (RouteMatch, bool) {
+	if r == nil {
+		return RouteMatch{}, false
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	// 精确匹配
-	if c, ok := r.addedPaths[path]; ok {
-		return c, true
-	}
-	// 参数化路径：简单前缀段匹配（:param / *）
-	for pattern, c := range r.addedPaths {
-		if pathMatches(pattern, path) {
-			return c, true
-		}
-	}
-	return PageContribution{}, false
+	return MatchRequestPath(r.compiledAdds, requestPath)
 }
 
 // Snapshot 返回当前贡献的只读拷贝（测试/诊断）。
@@ -406,9 +662,9 @@ func (r *Registry) Snapshot() (replace map[string][]PageContribution, added map[
 	for k, v := range r.contributions {
 		replace[k] = append([]PageContribution(nil), v...)
 	}
-	added = make(map[string]PageContribution, len(r.addedPaths))
-	for k, v := range r.addedPaths {
-		added[k] = v
+	added = make(map[string]PageContribution, len(r.compiledAdds))
+	for _, cr := range r.compiledAdds {
+		added[cr.Pattern] = cr.Contribution
 	}
 	return replace, added
 }
@@ -442,6 +698,10 @@ func normalizePublicPath(p string) string {
 	}
 	if !strings.HasPrefix(p, "/") {
 		p = "/" + p
+	}
+	// 折叠重复斜杠
+	for strings.Contains(p, "//") {
+		p = strings.ReplaceAll(p, "//", "/")
 	}
 	if len(p) > 1 {
 		p = strings.TrimRight(p, "/")

@@ -12,7 +12,8 @@ func TestRegistryReplaceAndRestore(t *testing.T) {
 
 	err := reg.RegisterContributions("demo.theme", []PageContribution{{
 		ID: "demo.home", Action: ActionReplace, Target: "forum.home",
-		Template: "templates/home.html", ExtensionID: "demo.theme", Version: "1.0.0", PackageDigest: "abc",
+		Template: "templates/home.html", Contract: "sforum.page.home@1",
+		ExtensionID: "demo.theme", Version: "1.0.0", PackageDigest: "abc",
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -26,7 +27,7 @@ func TestRegistryReplaceAndRestore(t *testing.T) {
 
 	if err := reg.ApproveReplace(ctx, ProviderBinding{
 		PageID: "forum.home", ExtensionID: "demo.theme", ContributionID: "demo.home",
-		Version: "1.0.0", PackageDigest: "abc", ApprovedBy: 1,
+		Version: "1.0.0", PackageDigest: "abc", ContractVersion: "sforum.page.home@1", ApprovedBy: 1,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -70,11 +71,12 @@ func TestDigestMismatchFallsBack(t *testing.T) {
 	ctx := context.Background()
 	_ = reg.RegisterContributions("demo.theme", []PageContribution{{
 		ID: "demo.home", Action: ActionReplace, Target: "forum.home",
+		Contract: "sforum.page.home@1",
 		ExtensionID: "demo.theme", Version: "1.0.0", PackageDigest: "new",
 	}})
 	_ = store.UpsertBinding(ctx, ProviderBinding{
 		PageID: "forum.home", ExtensionID: "demo.theme", ContributionID: "demo.home",
-		Version: "1.0.0", PackageDigest: "old",
+		Version: "1.0.0", PackageDigest: "old", ContractVersion: "sforum.page.home@1",
 	})
 	r, _ := reg.Resolve(ctx, "forum.home")
 	if r.Provider != ProviderCore {
@@ -88,28 +90,43 @@ func TestApproveReplaceRequiresActorAndExactDigest(t *testing.T) {
 	ctx := context.Background()
 	_ = reg.RegisterContributions("demo.theme", []PageContribution{{
 		ID: "demo.home", Action: ActionReplace, Target: "forum.home",
+		Contract: "sforum.page.home@1",
 		ExtensionID: "demo.theme", Version: "1.0.0", PackageDigest: "abc",
 	}})
 	// 无 actor
 	if err := reg.ApproveReplace(ctx, ProviderBinding{
 		PageID: "forum.home", ExtensionID: "demo.theme", ContributionID: "demo.home",
-		Version: "1.0.0", PackageDigest: "abc", ApprovedBy: 0,
+		Version: "1.0.0", PackageDigest: "abc", ContractVersion: "sforum.page.home@1", ApprovedBy: 0,
 	}); err == nil {
 		t.Fatal("expected approvedBy required")
 	}
 	// digest 不匹配
 	if err := reg.ApproveReplace(ctx, ProviderBinding{
 		PageID: "forum.home", ExtensionID: "demo.theme", ContributionID: "demo.home",
-		Version: "1.0.0", PackageDigest: "wrong", ApprovedBy: 1,
+		Version: "1.0.0", PackageDigest: "wrong", ContractVersion: "sforum.page.home@1", ApprovedBy: 1,
 	}); err == nil {
 		t.Fatal("expected digest mismatch")
 	}
 	// 空 digest 不得自动填充
 	if err := reg.ApproveReplace(ctx, ProviderBinding{
 		PageID: "forum.home", ExtensionID: "demo.theme", ContributionID: "demo.home",
-		Version: "1.0.0", PackageDigest: "", ApprovedBy: 1,
+		Version: "1.0.0", PackageDigest: "", ContractVersion: "sforum.page.home@1", ApprovedBy: 1,
 	}); err == nil {
 		t.Fatal("expected missing digest reject")
+	}
+	// 缺少 contract
+	if err := reg.ApproveReplace(ctx, ProviderBinding{
+		PageID: "forum.home", ExtensionID: "demo.theme", ContributionID: "demo.home",
+		Version: "1.0.0", PackageDigest: "abc", ContractVersion: "", ApprovedBy: 1,
+	}); err == nil {
+		t.Fatal("expected missing contract reject")
+	}
+	// 错误 contract
+	if err := reg.ApproveReplace(ctx, ProviderBinding{
+		PageID: "forum.home", ExtensionID: "demo.theme", ContributionID: "demo.home",
+		Version: "1.0.0", PackageDigest: "abc", ContractVersion: "evil@9", ApprovedBy: 1,
+	}); err == nil {
+		t.Fatal("expected contract mismatch")
 	}
 }
 
@@ -117,11 +134,12 @@ func TestRegisterContributionsAtomicOnError(t *testing.T) {
 	reg := NewRegistry(NewMemoryStore())
 	_ = reg.RegisterContributions("demo.theme", []PageContribution{{
 		ID: "demo.home", Action: ActionReplace, Target: "forum.home",
+		Contract: "sforum.page.home@1",
 		ExtensionID: "demo.theme", Version: "1", PackageDigest: "d",
 	}})
 	// 第二条非法：整批失败，旧贡献应仍在
 	err := reg.RegisterContributions("demo.theme", []PageContribution{
-		{ID: "demo.home2", Action: ActionReplace, Target: "forum.home", Version: "2", PackageDigest: "e"},
+		{ID: "demo.home2", Action: ActionReplace, Target: "forum.home", Contract: "sforum.page.home@1", Version: "2", PackageDigest: "e"},
 		{ID: "bad", Action: ActionAdd, Path: "/admin/x", Version: "2", PackageDigest: "e"},
 	})
 	if err == nil {

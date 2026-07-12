@@ -55,7 +55,7 @@ func TestFixturePluginRegistersAddAndReplaceCandidates(t *testing.T) {
 	// super_admin 批准后生效
 	if err := reg.ApproveReplace(ctx, ProviderBinding{
 		PageID: "forum.home", ExtensionID: ext.ID, ContributionID: "sforum.page-registry-demo.home",
-		Version: "1.0.0", PackageDigest: "digest-v1", ApprovedBy: 1,
+		Version: "1.0.0", PackageDigest: "digest-v1", ContractVersion: "sforum.page.home@1", ApprovedBy: 1,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestFixturePluginUpgradeInvalidatesDigestApproval(t *testing.T) {
 	_ = bridge.RegisterPluginPackage(ctx, ext)
 	_ = reg.ApproveReplace(ctx, ProviderBinding{
 		PageID: "forum.home", ExtensionID: ext.ID, ContributionID: "sforum.page-registry-demo.home",
-		Version: "1.0.0", PackageDigest: "digest-v1", ApprovedBy: 1,
+		Version: "1.0.0", PackageDigest: "digest-v1", ContractVersion: "sforum.page.home@1", ApprovedBy: 1,
 	})
 	// 升级：新 digest 重新注册
 	ext.Version = "1.0.1"

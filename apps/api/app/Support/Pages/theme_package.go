@@ -19,19 +19,21 @@ type ThemePackage struct {
 }
 
 type ThemePageDecl struct {
-	ID       string         `json:"id"`
-	Action   string         `json:"action"` // add | replace
-	Target   string         `json:"target,omitempty"`
-	Path     string         `json:"path,omitempty"`
-	Template string         `json:"template,omitempty"`
-	Contract string         `json:"contract,omitempty"`
-	Access   string         `json:"access,omitempty"`
-	Data     *ThemePageData `json:"data,omitempty"`
+	ID         string         `json:"id"`
+	Action     string         `json:"action"` // add | replace
+	Target     string         `json:"target,omitempty"`
+	Path       string         `json:"path,omitempty"`
+	Template   string         `json:"template,omitempty"`
+	Contract   string         `json:"contract,omitempty"`
+	Access     string         `json:"access,omitempty"`
+	Permission string         `json:"permission,omitempty"` // access=permission 时的权限键
+	Data       *ThemePageData `json:"data,omitempty"`
 }
 
 type ThemePageData struct {
 	Source string `json:"source"` // plugin | core
 	Route  string `json:"route,omitempty"`
+	Schema string `json:"schema,omitempty"` // 可选 JSON Schema 相对路径
 }
 
 type ThemeSkin struct {
@@ -97,6 +99,7 @@ func ContributionsFromTheme(extensionID, version, digest string, pkg ThemePackag
 			Template:      p.Template,
 			Contract:      p.Contract,
 			Access:        Access(p.Access),
+			Permission:    p.Permission,
 			ExtensionID:   extensionID,
 			Version:       version,
 			PackageDigest: digest,
@@ -104,6 +107,7 @@ func ContributionsFromTheme(extensionID, version, digest string, pkg ThemePackag
 		if p.Data != nil {
 			c.DataSource = p.Data.Source
 			c.DataRoute = p.Data.Route
+			c.DataSchema = p.Data.Schema
 		}
 		out = append(out, c)
 	}

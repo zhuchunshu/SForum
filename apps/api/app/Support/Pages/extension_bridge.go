@@ -27,8 +27,9 @@ func NewExtensionBridge(registry *Registry) *ExtensionBridge {
 }
 
 // PreflightThemePackage 激活前完整预检：manifest、theme.json、模板、CSS、资源、routes。
+// previousActiveThemeID 非空时按「用新主题替换旧主题」的最终状态校验 add 路径。
 // 不修改 Registry 状态。
-func (b *ExtensionBridge) PreflightThemePackage(ext ThemeExtension) ([]PageContribution, error) {
+func (b *ExtensionBridge) PreflightThemePackage(ext ThemeExtension, previousActiveThemeID string) ([]PageContribution, error) {
 	root := strings.TrimSpace(ext.PackagePath)
 	if root == "" {
 		return nil, fmt.Errorf("pages: theme package path empty")
@@ -76,7 +77,11 @@ func (b *ExtensionBridge) PreflightThemePackage(ext ThemeExtension) ([]PageContr
 	// L2 widgets：声明存在时仅记录拒绝加载（不阻断 L0/L1 激活）
 	contribs := ContributionsFromTheme(ext.ID, ext.Version, ext.PackageDigest, pkg)
 	if b != nil && b.Registry != nil {
-		if err := b.Registry.PreflightContributions(ext.ID, contribs); err != nil {
+		ignore := []string{ext.ID}
+		if previousActiveThemeID != "" && previousActiveThemeID != ext.ID {
+			ignore = append(ignore, previousActiveThemeID)
+		}
+		if err := b.Registry.PreflightContributionsReplacing(ext.ID, contribs, ignore...); err != nil {
 			return nil, err
 		}
 	} else {
@@ -92,7 +97,7 @@ func (b *ExtensionBridge) RegisterThemePackage(ctx context.Context, ext ThemeExt
 	if b == nil || b.Registry == nil {
 		return nil
 	}
-	contribs, err := b.PreflightThemePackage(ext)
+	contribs, err := b.PreflightThemePackage(ext, "")
 	if err != nil {
 		return err
 	}
@@ -101,6 +106,18 @@ func (b *ExtensionBridge) RegisterThemePackage(ctx context.Context, ext ThemeExt
 		return err
 	}
 	return nil
+}
+
+// RegisterThemePackageReplacing 原子主题切换：用新主题贡献替换旧活动主题。
+func (b *ExtensionBridge) RegisterThemePackageReplacing(ctx context.Context, ext ThemeExtension, previousActiveThemeID string) error {
+	if b == nil || b.Registry == nil {
+		return nil
+	}
+	contribs, err := b.PreflightThemePackage(ext, previousActiveThemeID)
+	if err != nil {
+		return err
+	}
+	return b.Registry.ReplaceThemeContributions(ext.ID, contribs, previousActiveThemeID)
 }
 
 // RegisterPluginPackage 从 theme.json（统一页面 manifest 契约）注册插件页面贡献。

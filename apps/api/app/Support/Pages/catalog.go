@@ -9,6 +9,7 @@ import (
 )
 
 // Access 描述页面访问类别（与 manifest route access 对齐，便于 L1 贡献校验）。
+// 未知非空值必须在安装/启用预检时失败（fail closed），不得按 public 放行。
 type Access string
 
 const (
@@ -16,7 +17,28 @@ const (
 	AccessLogin      Access = "login"
 	AccessGuest      Access = "guest"
 	AccessModeration Access = "moderation"
+	AccessPermission Access = "permission"
 )
+
+// NormalizeAccess 空值 → public；仅允许已知枚举。
+func NormalizeAccess(raw string) (Access, error) {
+	v := strings.TrimSpace(strings.ToLower(raw))
+	if v == "" {
+		return AccessPublic, nil
+	}
+	switch Access(v) {
+	case AccessPublic, AccessLogin, AccessGuest, AccessModeration, AccessPermission:
+		return Access(v), nil
+	default:
+		return "", fmt.Errorf("%w: %q", ErrInvalidAccess, raw)
+	}
+}
+
+// ValidAccess 是否为已规范化的合法 access。
+func ValidAccess(a Access) bool {
+	_, err := NormalizeAccess(string(a))
+	return err == nil
+}
 
 // ProviderCore 始终是内置回退提供者。
 const ProviderCore = "core"
