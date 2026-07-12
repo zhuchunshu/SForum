@@ -41,26 +41,20 @@ describe('extension settings plugin ownership', () => {
     expect(smtpZh.fields.host.label).toBeTruthy()
   })
 
-  test('default theme owns tabbed custom settings page contribution', async () => {
+  test('default theme uses host schema settings without frontend.admin', async () => {
+    // 普通主题设置走宿主 schema-driven 页，不得进入 Web Release / dev-compose。
     const themeRoot = JSON.parse(await Bun.file(new URL('../../../extensions/builtin/themes/sforum-default/sforum.extension.json', import.meta.url)).text())
     const themeFrontend = JSON.parse(await Bun.file(new URL('../../../extensions/builtin/themes/sforum-default/manifest/frontend.json', import.meta.url)).text())
     const themeContributions = JSON.parse(await Bun.file(new URL('../../../extensions/builtin/themes/sforum-default/manifest/contributions.json', import.meta.url)).text())
     const themeSettings = JSON.parse(await Bun.file(new URL('../../../extensions/builtin/themes/sforum-default/manifest/settings.json', import.meta.url)).text())
-    const themePage = await Bun.file(new URL('../../../extensions/builtin/themes/sforum-default/frontend/admin/components/ThemeSettingsPage.vue', import.meta.url)).text()
-    const themeZh = JSON.parse(await Bun.file(new URL('../../../extensions/builtin/themes/sforum-default/frontend/admin/locales/zh-CN.json', import.meta.url)).text())
 
     expect(themeRoot.type).toBe('theme')
-    expect(themeRoot.includes.frontend).toBe('manifest/frontend.json')
-    expect(themeRoot.includes.contributions).toBe('manifest/contributions.json')
-    expect(themeFrontend.admin.components['theme-settings-page']).toBe('components/ThemeSettingsPage.vue')
-    expect(themeContributions[0].point).toBe('admin.extension.settings.page')
+    expect(themeRoot.includes.settings).toBe('manifest/settings.json')
+    expect(themeFrontend.admin).toBeUndefined()
+    expect(Array.isArray(themeContributions) ? themeContributions : []).toEqual([])
     expect(themeSettings.length).toBeGreaterThanOrEqual(15)
-    expect(themePage).toContain("activeTab")
-    expect(themePage).toContain('tabs.home')
-    expect(themePage).toContain('tabs.rail')
-    expect(themePage).toContain('tabs.nav')
-    expect(themePage).toContain('tabs.layout')
-    expect(themeZh.tabs.home).toBeTruthy()
-    expect(themeZh.fields['home.notice.zh-CN'].label).toBeTruthy()
+    // settings schema 仍按 group 分组（宿主通用页渲染）
+    expect(themeSettings.some((item: { group?: Record<string, string> }) => item.group?.['zh-CN'] === '首页文案')).toBe(true)
+    expect(themeSettings.some((item: { key?: string }) => item.key === 'home.notice.zh-CN')).toBe(true)
   })
 })
