@@ -40,10 +40,25 @@ type DeliveryStore interface {
 	GetEndpoint(context.Context, int64) (webhooks.EndpointRecord, error)
 }
 
+// SecretCipher 解密 webhook 签名密钥（兼容历史明文）。
+type SecretCipher interface {
+	DecryptEndpointSecret(stored string) (string, error)
+	MaybeMigrateSecret(stored string) (encrypted string, ok bool)
+}
+
+// SecretMigrator 可选：将历史明文 secret 懒迁移为密文。
+type SecretMigrator interface {
+	UpdateEndpointSecret(ctx context.Context, id int64, encrypted string) error
+}
+
 type DeliverWorker struct {
 	river.WorkerDefaults[DeliverArgs]
 	Store  DeliveryStore
 	Client *http.Client
+	// Secrets 解密 signing secret；nil 时按明文使用（仅测试/无密钥开发）。
+	Secrets SecretCipher
+	// Migrator 可选懒迁移明文 secret。
+	Migrator SecretMigrator
 	// AllowHTTP 与配置时校验一致；生产应 false。
 	AllowHTTP bool
 	Now       func() time.Time
@@ -124,8 +139,19 @@ func (w *DeliverWorker) Work(ctx context.Context, job *river.Job[DeliverArgs]) e
 	}
 	timestamp := w.now().UTC().Unix()
 	req.Header.Set("X-SForum-Timestamp", strconv.FormatInt(timestamp, 10))
-	if secret := strings.TrimSpace(endpoint.Secret); secret != "" {
-		req.Header.Set("X-SForum-Signature", signPayload(secret, timestamp, body))
+	secretPlain := strings.TrimSpace(endpoint.Secret)
+	if w.Secrets != nil {
+		decrypted, decErr := w.Secrets.DecryptEndpointSecret(endpoint.Secret)
+		if decErr != nil {
+			return w.failPermanent(ctx, delivery.ID, attempt, "secret_unavailable", "signing secret unavailable", 0, "")
+		}
+		secretPlain = strings.TrimSpace(decrypted)
+		if enc, ok := w.Secrets.MaybeMigrateSecret(endpoint.Secret); ok && w.Migrator != nil {
+			_ = w.Migrator.UpdateEndpointSecret(ctx, endpoint.ID, enc)
+		}
+	}
+	if secretPlain != "" {
+		req.Header.Set("X-SForum-Signature", signPayload(secretPlain, timestamp, body))
 	}
 
 	resp, err := client.Do(req)

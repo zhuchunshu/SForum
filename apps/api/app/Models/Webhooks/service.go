@@ -11,6 +11,7 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	outboundhttp "github.com/zhuchunshu/sforum/apps/api/app/Support/OutboundHTTP"
@@ -27,6 +28,8 @@ type Service struct {
 	jobs  TxEnqueuer
 	// allowHTTP 非生产环境可允许 http:// 目标；生产默认仅 https。
 	allowHTTP bool
+	// cipher 加密 signing secret；与 web_options 共用 OptionCipher。
+	cipher *crypto.OptionCipher
 }
 
 func NewService(store Store, pool *pgxpool.Pool, jobs TxEnqueuer) *Service {
@@ -37,6 +40,14 @@ func NewService(store Store, pool *pgxpool.Pool, jobs TxEnqueuer) *Service {
 func (s *Service) WithAllowHTTP(allow bool) *Service {
 	if s != nil {
 		s.allowHTTP = allow
+	}
+	return s
+}
+
+// WithCipher 注入 AES-GCM 加密器用于 webhook secret 静态加密。
+func (s *Service) WithCipher(c *crypto.OptionCipher) *Service {
+	if s != nil {
+		s.cipher = c
 	}
 	return s
 }
@@ -63,10 +74,18 @@ func (s *Service) CreateEndpoint(ctx context.Context, actor identity.Actor, inpu
 	if err := s.validateEndpointInput(input.Name, input.TargetURL); err != nil {
 		return Endpoint{}, err
 	}
+	if input.Secret != "" {
+		enc, err := s.encryptSecret(input.Secret)
+		if err != nil {
+			return Endpoint{}, err
+		}
+		input.Secret = enc
+	}
 	record, err := s.store.CreateEndpoint(ctx, input)
 	if err != nil {
 		return Endpoint{}, err
 	}
+	// PublicEndpoint 不暴露 secret；HasSecret 基于存储非空即可。
 	return PublicEndpoint(record), nil
 }
 
@@ -93,11 +112,66 @@ func (s *Service) UpdateEndpoint(ctx context.Context, actor identity.Actor, id i
 			}
 		}
 	}
+	if input.Secret != nil && strings.TrimSpace(*input.Secret) != "" {
+		enc, err := s.encryptSecret(strings.TrimSpace(*input.Secret))
+		if err != nil {
+			return Endpoint{}, err
+		}
+		input.Secret = &enc
+	}
 	record, err := s.store.UpdateEndpoint(ctx, id, input)
 	if err != nil {
 		return Endpoint{}, err
 	}
 	return PublicEndpoint(record), nil
+}
+
+// DecryptEndpointSecret 投递时解密 secret；错误密钥 fail closed。
+func (s *Service) DecryptEndpointSecret(stored string) (string, error) {
+	return s.decryptSecret(stored)
+}
+
+func (s *Service) encryptSecret(plaintext string) (string, error) {
+	if s == nil || s.cipher == nil {
+		return plaintext, nil
+	}
+	return s.cipher.Encrypt(plaintext)
+}
+
+func (s *Service) decryptSecret(stored string) (string, error) {
+	if stored == "" {
+		return "", nil
+	}
+	if s == nil || s.cipher == nil || !s.cipher.Enabled() {
+		if crypto.IsEncrypted(stored) {
+			return "", fmt.Errorf("webhooks: encrypted secret requires option encryption key")
+		}
+		return stored, nil
+	}
+	if !crypto.IsEncrypted(stored) {
+		// 历史明文：可读；调用方可选择回写（投递路径懒迁移）。
+		return stored, nil
+	}
+	plain, err := s.cipher.Decrypt(stored)
+	if err != nil {
+		return "", fmt.Errorf("webhooks: secret decrypt failed: %w", err)
+	}
+	return plain, nil
+}
+
+// MaybeMigrateSecret 若 stored 为明文且 cipher 启用，返回应写回的密文。
+func (s *Service) MaybeMigrateSecret(stored string) (encrypted string, ok bool) {
+	if stored == "" || s == nil || s.cipher == nil || !s.cipher.Enabled() {
+		return "", false
+	}
+	if crypto.IsEncrypted(stored) {
+		return "", false
+	}
+	enc, err := s.cipher.Encrypt(stored)
+	if err != nil {
+		return "", false
+	}
+	return enc, true
 }
 
 func (s *Service) DeleteEndpoint(ctx context.Context, actor identity.Actor, id int64) error {

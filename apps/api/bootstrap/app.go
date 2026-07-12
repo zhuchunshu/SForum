@@ -71,10 +71,31 @@ type extensionRuntime interface {
 	SendMail(ctx context.Context, extensionID string, request extensionsruntime.MailProviderRequest) (extensionsruntime.MailProviderResponse, error)
 }
 
-var newExtensionRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar) extensionRuntime {
+// extensionSettingsLoader 向插件进程提供解密后的 settings（secret 明文仅在启动注入时短暂存在）。
+type extensionSettingsLoader interface {
+	ListSettingsForRuntime(ctx context.Context, extensionID string) (map[string]string, error)
+}
+
+// runtimeSettingsAdapter 在 extensionService 构造前先用 store；绑好 cipher service 后切换。
+type runtimeSettingsAdapter struct {
+	store   extensions.Store
+	loader  extensionSettingsLoader
+}
+
+func (a *runtimeSettingsAdapter) ListSettings(ctx context.Context, extensionID string) (map[string]string, error) {
+	if a.loader != nil {
+		return a.loader.ListSettingsForRuntime(ctx, extensionID)
+	}
+	return a.store.ListSettings(ctx, extensionID)
+}
+
+var newExtensionRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings) extensionRuntime {
+	if settings == nil {
+		settings = store
+	}
 	return extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
 		Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
-			Settings: store,
+			Settings: settings,
 			HostAPI:  hostAPI,
 		}),
 		DeliveryStore: store,
@@ -195,7 +216,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		Auditor:  auditWriter,
 	})
 	hostAPIGateway := hostapi.NewGateway(hostAPIService)
-	extensionRuntime := newExtensionRuntimeManager(extensionStore, hostAPIGateway)
+	runtimeSettings := &runtimeSettingsAdapter{store: extensionStore}
+	extensionRuntime := newExtensionRuntimeManager(extensionStore, hostAPIGateway, runtimeSettings)
 	themeDispatcher := extensionjobs.ActivationDispatcherAdapter{Dispatcher: jobDispatcher}
 	hostComposition, err := webreleaseruntime.CompositionHost(cfg.WebReleaseWebRoot)
 	if err != nil {
@@ -226,7 +248,11 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		extensions.WithTrustRevoker(frontendService),
 		// F4.5：启用时校验 manifest requiresFeatures。
 		extensions.WithFeatureFlags(optionsService),
+		// 扩展 secret 设置与 web_options 共用 AES-GCM 密钥。
+		extensions.WithCipher(optionCipher),
 	)
+	// 插件启动注入解密后的 settings（避免把 enc:: 密文交给子进程）。
+	runtimeSettings.loader = extensionService
 	// 把已构造的 extensionService 接到 Host API 能力/权限解析（避免循环构造）。
 	hostAPIService.BindCapabilitySource(extensionService)
 	hostAPIService.BindPermissions(identityPermissionAdapter{store: identityStore})
@@ -296,7 +322,8 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 	webhookStore := webhooks.NewPostgresStore(pool)
 	// 生产默认仅 https；非生产允许 http 便于本地联调（连接时仍禁止私网 SSRF）。
 	webhookService := webhooks.NewService(webhookStore, pool, jobDispatcher).
-		WithAllowHTTP(!strings.EqualFold(cfg.AppEnv, "production"))
+		WithAllowHTTP(!strings.EqualFold(cfg.AppEnv, "production")).
+		WithCipher(optionCipher)
 	eventPublisher := webhooks.BridgePublisher{Inner: extensionRuntime, Fanout: webhookService}
 
 	// F3.4：个人访问令牌；管理走 cookie，调用走 Bearer。

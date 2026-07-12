@@ -127,6 +127,18 @@ func (s *PostgresStore) DeleteEndpoint(ctx context.Context, id int64) error {
 	return nil
 }
 
+// UpdateEndpointSecret 懒迁移：仅更新 secret 列（明文 → 密文）。
+func (s *PostgresStore) UpdateEndpointSecret(ctx context.Context, id int64, encrypted string) error {
+	tag, err := s.pool.Exec(ctx, `UPDATE webhook_endpoints SET secret=$2, updated_at=NOW() WHERE id=$1`, id, encrypted)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrEndpointNotFound
+	}
+	return nil
+}
+
 func (s *PostgresStore) CreateDeliveryTx(ctx context.Context, tx pgx.Tx, input CreateDeliveryInput) (Delivery, error) {
 	payload := input.Payload
 	if len(payload) == 0 {

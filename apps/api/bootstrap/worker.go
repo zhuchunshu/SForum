@@ -26,6 +26,7 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	webhooks "github.com/zhuchunshu/sforum/apps/api/app/Models/Webhooks"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
@@ -146,6 +147,8 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		// 独立 worker：自建 Host API + Manager，并 Reconcile 启用中的后端插件。
 		workerHostAPI := hostapi.New(hostapi.Config{Settings: extensionStore})
 		workerHostGateway := hostapi.NewGateway(workerHostAPI)
+		// 独立 worker：设置解密与 API 一致（cipher 稍后在 newWorkerWithPool 构造后无法注入此处；
+		// 插件启动走 extensionService 前的 store 明文/密文由 API 主路径负责；此处用 store 兼容开发）。
 		managedRuntime := extensionsruntime.NewManager(extensionsruntime.ManagerConfig{
 			Starter: extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
 				Settings: extensionStore,
@@ -169,7 +172,12 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		return nil, err
 	}
 
-	workerOptions := options.NewServiceWithDefaults(options.NewPostgresStore(pool), optionsDefaultsFromConfig(cfg))
+	optionCipher, err := crypto.NewOptionCipher(cfg.OptionEncryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("create worker option cipher: %w", err)
+	}
+	workerOptions := options.NewServiceWithDefaults(options.NewPostgresStore(pool), optionsDefaultsFromConfig(cfg)).
+		WithCipher(optionCipher)
 	legacyMailValues, err := workerOptions.InternalValues(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("load worker legacy mail options: %w", err)
@@ -181,10 +189,13 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	// mail.deliver 必须命中共享/本进程同一 runtime，避免 embed 时打到第二套插件进程。
 	mailProviders := extensionsruntime.NewMailProviderRegistry(extensionStore)
 	notificationjobs.Register(registry, &notificationjobs.DeliverMailWorker{Store: notificationStore, Providers: mailProviders, Sender: extensionRuntime})
-	// F3.3：出站 webhook 投递（SSRF 安全客户端；生产禁 http）。
+	// F3.3：出站 webhook 投递（SSRF 安全客户端；生产禁 http；secret 解密）。
 	webhookStore := webhooks.NewPostgresStore(pool)
+	webhookSecretSvc := webhooks.NewService(webhookStore, nil, nil).WithCipher(optionCipher)
 	webhookjobs.Register(registry, &webhookjobs.DeliverWorker{
 		Store:     webhookStore,
+		Secrets:   webhookSecretSvc,
+		Migrator:  webhookStore,
 		AllowHTTP: !strings.EqualFold(cfg.AppEnv, "production"),
 	})
 	webReleaseStore := extensions.NewPostgresWebReleaseStore(pool)

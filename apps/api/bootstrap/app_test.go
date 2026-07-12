@@ -92,12 +92,12 @@ func TestExtensionRuntimeFactoryCanBeReplacedForBootstrapTests(t *testing.T) {
 	defer func() { newExtensionRuntimeManager = original }()
 
 	called := false
-	newExtensionRuntimeManager = func(extensions.Store, extensionsruntime.HostAPIRegistrar) extensionRuntime {
+	newExtensionRuntimeManager = func(extensions.Store, extensionsruntime.HostAPIRegistrar, extensionsruntime.PluginSettings) extensionRuntime {
 		called = true
 		return fakeBootstrapExtensionRuntime{}
 	}
 
-	runtime := newExtensionRuntimeManager(nil, nil)
+	runtime := newExtensionRuntimeManager(nil, nil, nil)
 	runtime.Reconcile(context.Background(), []extensions.Extension{{
 		ID:     "demo.plugin",
 		Type:   extensions.TypePlugin,

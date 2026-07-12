@@ -16,6 +16,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Crypto"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
@@ -42,6 +43,8 @@ type Service struct {
 	trustRevoker TrustRevoker
 	// featureFlags 检查 requiresFeatures（F4.5）；未注入时跳过门禁（测试兼容）。
 	featureFlags FeatureFlagSource
+	// cipher 加密 manifest type=secret 的设置；nil/透明时开发环境可存明文。
+	cipher *crypto.OptionCipher
 }
 
 // FeatureFlagSource 返回 requiresFeatures 中当前关闭的 key。
@@ -92,6 +95,13 @@ func WithAuditor(w audit.Writer) ServiceOption {
 func WithFeatureFlags(source FeatureFlagSource) ServiceOption {
 	return func(s *Service) {
 		s.featureFlags = source
+	}
+}
+
+// WithCipher 注入与 web_options 相同的 AES-GCM 加密器（secret 设置静态加密）。
+func WithCipher(c *crypto.OptionCipher) ServiceOption {
+	return func(s *Service) {
+		s.cipher = c
 	}
 }
 
@@ -499,7 +509,7 @@ func (s *Service) Settings(ctx context.Context, actor identity.Actor, extensionI
 	if err := requireExtensionEnabledForSettings(extension); err != nil {
 		return ExtensionSettings{}, err
 	}
-	values, err := s.store.ListSettings(ctx, extension.ID)
+	values, err := s.listDecryptedSettings(ctx, extension)
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
@@ -517,7 +527,7 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, exte
 	if err := requireExtensionEnabledForSettings(extension); err != nil {
 		return ExtensionSettings{}, err
 	}
-	current, err := s.store.ListSettings(ctx, extension.ID)
+	current, err := s.listDecryptedSettings(ctx, extension)
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
@@ -525,12 +535,17 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, exte
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
-	if err := s.store.ReplaceSettings(ctx, extension.ID, values); err != nil {
+	stored, err := s.encryptSecretSettings(extension.Manifest, values)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	if err := s.store.ReplaceSettings(ctx, extension.ID, stored); err != nil {
 		return ExtensionSettings{}, err
 	}
 	if err := s.restartPluginForSettings(ctx, extension); err != nil {
 		return ExtensionSettings{}, err
 	}
+	// 返回解密后的视图（secret 仍在 resolve 中掩码）。
 	return resolveExtensionSettings(extension, values, locale), nil
 }
 
@@ -1277,6 +1292,123 @@ func sanitizeSettingValues(manifest Manifest, input, current map[string]string) 
 		values[key] = normalized
 	}
 	return values, nil
+}
+
+// listDecryptedSettings 读取并解密 secret；错误密文 fail closed（不交给插件/API 明文路径）。
+// 历史明文在 cipher 启用时异步迁移写回密文。
+func (s *Service) listDecryptedSettings(ctx context.Context, extension Extension) (map[string]string, error) {
+	raw, err := s.store.ListSettings(ctx, extension.ID)
+	if err != nil {
+		return nil, err
+	}
+	return s.decryptSettingsMap(ctx, extension, raw)
+}
+
+func (s *Service) decryptSettingsMap(ctx context.Context, extension Extension, raw map[string]string) (map[string]string, error) {
+	if raw == nil {
+		return map[string]string{}, nil
+	}
+	secretKeys := secretSettingKeys(extension.Manifest)
+	out := make(map[string]string, len(raw))
+	migrate := map[string]string{}
+	for key, value := range raw {
+		if !secretKeys[key] {
+			out[key] = value
+			continue
+		}
+		plain, migrated, err := s.decryptSecretValue(value)
+		if err != nil {
+			// 错误密钥/损坏密文：禁止静默清空，也禁止把密文交给插件。
+			return nil, fmt.Errorf("%w: setting %s", err, key)
+		}
+		out[key] = plain
+		if migrated {
+			if enc, encErr := s.encryptSecretValue(plain); encErr == nil {
+				migrate[key] = enc
+			}
+		}
+	}
+	if len(migrate) > 0 {
+		// 事务性写回：以当前 raw 为底，只更新需迁移的 secret。
+		next := make(map[string]string, len(raw))
+		for k, v := range raw {
+			next[k] = v
+		}
+		for k, v := range migrate {
+			next[k] = v
+		}
+		_ = s.store.ReplaceSettings(ctx, extension.ID, next)
+	}
+	return out, nil
+}
+
+func secretSettingKeys(manifest Manifest) map[string]bool {
+	out := map[string]bool{}
+	for _, setting := range manifest.Settings {
+		if setting.Type == "secret" {
+			out[setting.Key] = true
+		}
+	}
+	return out
+}
+
+func (s *Service) encryptSecretSettings(manifest Manifest, values map[string]string) (map[string]string, error) {
+	if values == nil {
+		return map[string]string{}, nil
+	}
+	secretKeys := secretSettingKeys(manifest)
+	out := make(map[string]string, len(values))
+	for key, value := range values {
+		if secretKeys[key] && value != "" {
+			enc, err := s.encryptSecretValue(value)
+			if err != nil {
+				return nil, err
+			}
+			out[key] = enc
+			continue
+		}
+		out[key] = value
+	}
+	return out, nil
+}
+
+func (s *Service) encryptSecretValue(plaintext string) (string, error) {
+	if s == nil || s.cipher == nil {
+		return plaintext, nil
+	}
+	return s.cipher.Encrypt(plaintext)
+}
+
+// decryptSecretValue 返回明文；migrated=true 表示存储仍是历史明文且 cipher 已启用，应回写。
+func (s *Service) decryptSecretValue(stored string) (plain string, migrated bool, err error) {
+	if stored == "" {
+		return "", false, nil
+	}
+	if s == nil || s.cipher == nil || !s.cipher.Enabled() {
+		// 透明模式：密文前缀也无法解密，fail closed。
+		if crypto.IsEncrypted(stored) {
+			return "", false, fmt.Errorf("extensions: encrypted secret requires option encryption key")
+		}
+		return stored, false, nil
+	}
+	if !crypto.IsEncrypted(stored) {
+		// 历史明文：可读，并标记迁移。
+		return stored, true, nil
+	}
+	plain, err = s.cipher.Decrypt(stored)
+	if err != nil {
+		return "", false, fmt.Errorf("extensions: secret decrypt failed: %w", err)
+	}
+	return plain, false, nil
+}
+
+// ListSettingsForRuntime 供插件子进程注入：返回解密后的设置；解密失败则错误。
+func (s *Service) ListSettingsForRuntime(ctx context.Context, extensionID string) (map[string]string, error) {
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return nil, err
+	}
+	return s.listDecryptedSettings(ctx, extension)
 }
 
 func manifestEvents(manifest Manifest) []ManifestEvent {
