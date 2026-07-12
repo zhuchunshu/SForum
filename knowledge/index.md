@@ -4,6 +4,14 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 security audit follow-up plan ready**
+  - Plan: `knowledge/plans/2026-07-12-security-audit-followup-remediation.md`
+  - Handoff: `knowledge/sessions/2026-07-12-security-audit-followup-plan.md`
+  - P0: restrict uploaded backend execution; harden outbound webhook SSRF
+  - P1-P3: attachment read policy, secret encryption, login throttling,
+    settings preservation, forum policy enforcement, PAT consistency, test gate
+  - Current Go baseline: only localization test fails for `user.not_found`
+
 - **2026-07-12 P0 complete** (embed worker shares extension runtime)
   - Handoff: `knowledge/sessions/2026-07-12-p0-embed-shared-extension-runtime.md`
   - Plan: `knowledge/plans/2026-07-12-api-memory-runtime-hygiene.md`
@@ -11,11 +19,17 @@ This is the entry point for project memory.
   - **P1 / P2 cancelled** (not needed for now); plan closed except optional
     manual T0.7 `pgrep` on dev
 
+- **2026-07-12 E5 complete** (workflow reference plugin `sforum.content-policy`)
+  - Handoff: `knowledge/sessions/2026-07-12-e5-content-policy-plugin.md`
+  - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
+  - Package: `extensions/builtin/plugins/sforum-content-policy/`
+  - Docs: authoring guide Reference 2 + `docs/extensions/scenario-map.md`
+  - Next: product fork **E6.0** storage provider decision (north star)
+
 - **2026-07-12 E2 complete** (nav items + list badges; public contribution exit)
   - Handoff: `knowledge/sessions/2026-07-12-e2-3-e2-4-nav-list-badges.md`
   - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
   - Points: `forum.nav.items`, `forum.topic.list.badges` (+ earlier E2.1–2)
-  - Next: **E5** workflow plugin or product fork **E6** storage L4–L6
 
 - **2026-07-12 E2.2 complete** (forum.comment.actions)
   - Handoff: `knowledge/sessions/2026-07-12-e2-2-comment-actions.md`

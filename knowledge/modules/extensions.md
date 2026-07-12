@@ -37,10 +37,14 @@ mail. Implementation checklist:
   - E2.4: `forum.topic.list.badges` (`topicBadge`) →
     `TopicList.extensionListBadges` list-level; default theme row pills
 - F4.4 entity meta → **E3**; F4.5 feature flags → **E4** (already implemented)
-- **North star:** storage (**E6**) and search (**E7**) reach mail-like L4–L6
-  (plugin RPC + admin select/settings/test/restore + reference plugin); other
-  slots in **E8**. Today only `mail.provider` is end-to-end; storage/search
-  are mostly core drivers with reserved slot names.
+- **E5 complete:** workflow reference plugin `sforum.content-policy`
+  (`extensions/builtin/plugins/sforum-content-policy/`) — filters on
+  topic/comment before_create(+topic update), settings, topic badge/sidebar,
+  public SDK backend; authoring guide + `docs/extensions/scenario-map.md`
+- **North star next:** storage (**E6**) and search (**E7**) reach mail-like
+  L4–L6 (plugin RPC + admin select/settings/test/restore + reference plugin);
+  other slots in **E8**. Today only `mail.provider` is end-to-end;
+  storage/search are mostly core drivers with reserved slot names.
 - Non-goals remain: arbitrary hooks, core route override, public raw HTML
 
 The extension foundation is implemented with plugin/theme lifecycle separation
@@ -356,7 +360,12 @@ via optional `includes`. Host `LoadPackage` / ZIP install merges includes into
 one `Manifest`, then runs existing `Normalize` / `Validate`. Downstream code
 still sees a single merged model (stored as canonical merged JSON).
 
-Reference package: `extensions/builtin/plugins/sforum-smtp/` uses
+Reference packages:
+
+- Provider (mail): `extensions/builtin/plugins/sforum-smtp/`
+- Workflow (filters + contributions): `extensions/builtin/plugins/sforum-content-policy/`
+
+SMTP reference package uses
 `manifest/langs/`, `manifest/settings.json`, `manifest/contributions.json`,
 `manifest/admin.json`, and `manifest/frontend.json`.
 

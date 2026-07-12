@@ -412,6 +412,8 @@ Provider reference plugins for storage/search live in **E6 / E7**, not here.
 
 ### E5.1 Choose vertical (default recommendation)
 
+- [x] Chose content policy / keyword gate (`sforum.content-policy`)
+
 **Recommended: content policy / keyword gate** (`sforum.content-policy` or
 similar):
 
@@ -427,15 +429,15 @@ Alternate: external notify (Discord/Slack), simple points (needs E3 meta).
 
 ### E5.2–E5.5 Package, wire, docs, scenario map
 
-- [ ] Scaffold under `extensions/builtin/plugins/` or `extensions/dev/`
-- [ ] Explicit `capabilities`, `events`, `contributions`, `settings`
-- [ ] Multi-file manifest if complex (`includes`)
-- [ ] `sforum extension test` clean
-- [ ] SDK `Serve` backend; cheap filters only
-- [ ] Build binary path for builtin sync (follow SMTP build scripts)
-- [ ] Enable path verified in admin
-- [ ] Authoring guide walkthrough next to SMTP
-- [ ] Add `docs/extensions/scenario-map.md` (or section in authoring guide):
+- [x] Scaffold under `extensions/builtin/plugins/` or `extensions/dev/`
+- [x] Explicit `capabilities`, `events`, `contributions`, `settings`
+- [x] Multi-file manifest if complex (`includes`)
+- [x] `sforum extension test` clean
+- [x] SDK `Serve` backend; cheap filters only
+- [x] Build binary path for builtin sync (follow SMTP build scripts)
+- [x] Enable path verified in admin (builtin package; enable via Extensions UI)
+- [x] Authoring guide walkthrough next to SMTP
+- [x] Add `docs/extensions/scenario-map.md` (or section in authoring guide):
 
 | I want to… | Use |
 | --- | --- |
@@ -451,10 +453,13 @@ Alternate: external notify (Discord/Slack), simple points (needs E3 meta).
 
 **E5 exit criteria:**
 
-- Fresh contributor can enable the workflow plugin and see a user-visible
-  effect without reading `app/Models/*`
-- SMTP remains the **mail** provider reference; E6/E7 add **storage/search**
+- [x] Fresh contributor can enable the workflow plugin and see a user-visible
+  effect without reading `app/Models/*` (topic badge/sidebar + keyword 422)
+- [x] SMTP remains the **mail** provider reference; E6/E7 add **storage/search**
   provider references
+
+**Status:** implemented 2026-07-12 — package
+`extensions/builtin/plugins/sforum-content-policy/` (`sforum.content-policy`).
 
 ---
 
@@ -688,12 +693,13 @@ edit comment/topic controllers.
 | 2026-07-12 | E2.1 | `forum.topic.sidebar` + `forum.topic.badges` + theme consumers |
 | 2026-07-12 | E2.2 | `forum.comment.actions` on CommentList + theme row menus |
 | 2026-07-12 | E2.3–E2.4 | `forum.nav.items` + `forum.topic.list.badges`; **E2 wave complete** |
+| 2026-07-12 | E5 | `sforum.content-policy` workflow reference; scenario-map; **E5 done** |
 
 ---
 
 ## Next session one-liner
 
 ```text
-Next: E5 workflow reference plugin, or product fork E6.0 storage provider
-decision + host interface (north star). E2 public contribution density done.
+Next: product fork E6.0 storage provider decision + host interface (north
+star). E5 workflow reference plugin done.
 ```
