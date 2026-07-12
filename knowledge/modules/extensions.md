@@ -41,10 +41,13 @@ mail. Implementation checklist:
   (`extensions/builtin/plugins/sforum-content-policy/`) — filters on
   topic/comment before_create(+topic update), settings, topic badge/sidebar,
   public SDK backend; authoring guide + `docs/extensions/scenario-map.md`
-- **North star next:** storage (**E6**) and search (**E7**) reach mail-like
-  L4–L6 (plugin RPC + admin select/settings/test/restore + reference plugin);
-  other slots in **E8**. Today only `mail.provider` is end-to-end;
-  storage/search are mostly core drivers with reserved slot names.
+- **E6.0 complete:** storage plugin-provider decision
+  (`decisions/2026-07-12-attachment-storage-plugin-provider.md`) + selection
+  encoding helpers (`plugin:<extensionId>` in `Support/Storage`). Runtime
+  still L1 until E6.1+.
+- **North star next:** storage **E6.1–E6.4** and search (**E7**) reach
+  mail-like L4–L6; other slots in **E8**. Today only `mail.provider` is
+  end-to-end; storage/search drivers remain mostly in core.
 - Non-goals remain: arbitrary hooks, core route override, public raw HTML
 
 The extension foundation is implemented with plugin/theme lifecycle separation

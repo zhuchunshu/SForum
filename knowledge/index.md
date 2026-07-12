@@ -19,12 +19,17 @@ This is the entry point for project memory.
   - **P1 / P2 cancelled** (not needed for now); plan closed except optional
     manual T0.7 `pgrep` on dev
 
+- **2026-07-12 E6.0 complete** (attachment storage plugin-provider decision)
+  - Handoff: `knowledge/sessions/2026-07-12-e6-0-storage-provider-decision.md`
+  - Decision: `knowledge/decisions/2026-07-12-attachment-storage-plugin-provider.md`
+  - Selection: `plugin:<extensionId>` helpers in `Support/Storage`
+  - Next: **E6.1** resolver + candidates + restore/fallback (no full RPC yet)
+
 - **2026-07-12 E5 complete** (workflow reference plugin `sforum.content-policy`)
   - Handoff: `knowledge/sessions/2026-07-12-e5-content-policy-plugin.md`
   - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
   - Package: `extensions/builtin/plugins/sforum-content-policy/`
   - Docs: authoring guide Reference 2 + `docs/extensions/scenario-map.md`
-  - Next: product fork **E6.0** storage provider decision (north star)
 
 - **2026-07-12 E2 complete** (nav items + list badges; public contribution exit)
   - Handoff: `knowledge/sessions/2026-07-12-e2-3-e2-4-nav-list-badges.md`

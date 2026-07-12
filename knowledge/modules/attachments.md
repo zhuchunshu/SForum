@@ -47,22 +47,32 @@ permissions for navigation and tab usability.
 - `reference_count > 0` blocks physical deletion. Referenced attachments can be
   disabled/hidden, but not physically removed by cleanup.
 
-## Provider Slot (F3.5 → E6 target)
+## Provider Slot (F3.5 → E6)
 
 Host contract slot: `attachment.storage.provider` (`Support/Storage.ProviderSlot`).
 
-**Current (F3.5):** concrete drivers remain **in core** under `Support/Storage`
-(local, aliyun_oss, tencent_cos, ftp, sftp). Operators select the active driver
-via `attachment.provider` web option / admin settings; admin responses include
-`providerSlot` and `drivers[]`. v1 does **not** route Put/Open through plugin
-RPC (maturity ~L1–partial L2 on the ladder in
-`plans/2026-07-12-extension-surface-density.md`).
+**Decision (E6.0 accepted):**
+`knowledge/decisions/2026-07-12-attachment-storage-plugin-provider.md`
 
-**Target (Wave E6, product north star):** same slot reaches mail-like L4–L6 —
-plugins register as candidates, host routes storage ops through plugin RPC when
-selected, plugin owns settings/secrets/test-connection, core keeps at least
-`local` as zero-config fallback + restore defaults. New vendor backends (S3,
-MinIO, R2, …) should not require a core PR.
+| Stage | Status |
+| --- | --- |
+| E6.0 contract + selection encoding | **Done** — `plugin:<extensionId>` helpers in `Support/Storage` |
+| E6.1 resolver / candidates / restore | Pending |
+| E6.2 chunked storage RPC | Pending |
+| E6.3 admin select/test/settings | Pending |
+| E6.4 S3-compatible reference plugin | Pending |
+
+**Runtime today (still L1–partial L2):** concrete drivers remain **in core**
+under `Support/Storage` (local, aliyun_oss, tencent_cos, ftp, sftp). Operators
+select via `attachment.provider`; admin exposes `providerSlot` and `drivers[]`.
+Put/Open do **not** yet go through plugin RPC.
+
+**Target (E6.1–E6.4):** mail-like L4–L6 — plugins register as candidates;
+selection value is core driver id or `plugin:<extensionId>`; host routes ops
+through plugin RPC when selected; secrets in `extension_settings`; core keeps
+`local` as zero-config + restore default. New vendor backends (S3, MinIO, R2)
+must not require a core PR. Multi-backend migration and browser presigned upload
+remain out of scope for E6.
 
 ## Runtime Configuration
 

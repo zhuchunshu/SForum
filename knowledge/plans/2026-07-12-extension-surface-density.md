@@ -476,11 +476,15 @@ as built-in L1 fallbacks; new vendor drivers prefer plugins.
 
 ### E6.0 Decision note (short, before large code)
 
-- [ ] Record decision: storage provider RPC contract, what stays in core,
+- [x] Record decision: storage provider RPC contract, what stays in core,
   stream/size limits, URL signing authority, failure policy
-  (`knowledge/decisions/YYYY-MM-DD-attachment-storage-plugin-provider.md`)
-- [ ] Library survey: reuse AWS SDK vs minimal S3 API in a **reference plugin**
+  (`knowledge/decisions/2026-07-12-attachment-storage-plugin-provider.md`)
+- [x] Library survey: reuse AWS SDK vs minimal S3 API in a **reference plugin**
   only (core stays free of new vendor SDKs when possible)
+- [x] Selection encoding helpers: `Support/Storage` `plugin:<extensionId>`
+  (ParseSelection / FormatPluginSelection); catalog wording updated
+
+**Status:** E6.0 done 2026-07-12. Next **E6.1** host resolver + candidates.
 
 ### E6.1 Host storage interface (plugin-ready)
 
@@ -694,12 +698,13 @@ edit comment/topic controllers.
 | 2026-07-12 | E2.2 | `forum.comment.actions` on CommentList + theme row menus |
 | 2026-07-12 | E2.3–E2.4 | `forum.nav.items` + `forum.topic.list.badges`; **E2 wave complete** |
 | 2026-07-12 | E5 | `sforum.content-policy` workflow reference; scenario-map; **E5 done** |
+| 2026-07-12 | E6.0 | Storage plugin-provider decision + selection helpers; **E6.0 done** |
 
 ---
 
 ## Next session one-liner
 
 ```text
-Next: product fork E6.0 storage provider decision + host interface (north
-star). E5 workflow reference plugin done.
+Next: E6.1 storage host resolver + candidate list + restore/fallback wiring
+(plugin:<id> selection). E6.0 decision accepted.
 ```
