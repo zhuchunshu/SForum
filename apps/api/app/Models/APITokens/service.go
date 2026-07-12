@@ -140,6 +140,15 @@ func (s *Service) AuthenticatePlaintext(ctx context.Context, plaintext string) (
 	if subtle.ConstantTimeCompare([]byte(rec.TokenHash), []byte(hashSecret(secret))) != 1 {
 		return Authenticated{}, ErrTokenInvalid
 	}
+	// PAT 不能脱离当前账号状态存活。用户不存在、被禁用/封禁或 Actor 源缺失时
+	// 统一按无效 token 处理，避免只读取 userID 的控制器绕过账号停用。
+	if s.actors == nil {
+		return Authenticated{}, ErrTokenInvalid
+	}
+	actor, err := s.actors.LoadActor(ctx, rec.UserID)
+	if err != nil || actor.ID != rec.UserID || actor.Status != identity.UserStatusActive {
+		return Authenticated{}, ErrTokenInvalid
+	}
 	// last_used 更新失败不阻断鉴权。
 	_ = s.store.TouchLastUsed(ctx, rec.ID)
 	return Authenticated{
@@ -289,4 +298,3 @@ func min(a, b int) int {
 	}
 	return b
 }
-

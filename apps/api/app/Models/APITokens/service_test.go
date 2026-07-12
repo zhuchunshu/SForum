@@ -2,6 +2,7 @@ package apitokens
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 
 func TestCreateAuthenticateRevoke(t *testing.T) {
 	store := &memStore{byPublic: map[string]Record{}, byID: map[int64]Record{}}
-	svc := NewService(store, nil)
 	actor := identity.Actor{
 		ID: 7, Status: identity.UserStatusActive,
 		Permissions: map[string]bool{
@@ -18,6 +18,7 @@ func TestCreateAuthenticateRevoke(t *testing.T) {
 			identity.PermissionPostCreate:  true,
 		},
 	}
+	svc := NewService(store, staticActorLoader{actor: actor})
 	created, err := svc.Create(context.Background(), actor, CreateInput{
 		Name: "ci", Scopes: []string{identity.PermissionTopicCreate},
 	})
@@ -41,6 +42,53 @@ func TestCreateAuthenticateRevoke(t *testing.T) {
 	}
 	if _, err := svc.AuthenticatePlaintext(context.Background(), created.Plaintext); err != ErrTokenRevoked {
 		t.Fatalf("want revoked, got %v", err)
+	}
+}
+
+func TestAuthenticateRejectsMissingOrInactiveUser(t *testing.T) {
+	active := identity.Actor{ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicCreate: true}}
+	for _, test := range []struct {
+		name   string
+		loader ActorLoader
+	}{
+		{name: "missing actor loader", loader: nil},
+		{name: "deleted user", loader: staticActorLoader{err: identity.ErrUserNotFound}},
+		{name: "disabled user", loader: staticActorLoader{actor: identity.Actor{ID: 7, Status: identity.UserStatusDisabled}}},
+		{name: "banned user", loader: staticActorLoader{actor: identity.Actor{ID: 7, Status: identity.UserStatusBanned}}},
+		{name: "mismatched user", loader: staticActorLoader{actor: identity.Actor{ID: 8, Status: identity.UserStatusActive}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			store := &memStore{byPublic: map[string]Record{}, byID: map[int64]Record{}}
+			creator := NewService(store, staticActorLoader{actor: active})
+			created, err := creator.Create(context.Background(), active, CreateInput{Name: "test", Scopes: []string{identity.PermissionTopicCreate}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			svc := NewService(store, test.loader)
+			if _, err := svc.AuthenticatePlaintext(context.Background(), created.Plaintext); !errors.Is(err, ErrTokenInvalid) {
+				t.Fatalf("expected invalid token, got %v", err)
+			}
+			if store.byID[created.ID].LastUsedAt != nil {
+				t.Fatal("inactive user token must not update last_used")
+			}
+		})
+	}
+}
+
+func TestAuthenticateRejectsExpiredTokenBeforeActorLoad(t *testing.T) {
+	actor := identity.Actor{ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionTopicCreate: true}}
+	store := &memStore{byPublic: map[string]Record{}, byID: map[int64]Record{}}
+	svc := NewService(store, staticActorLoader{actor: actor})
+	now := time.Now().UTC()
+	svc.now = func() time.Time { return now }
+	expiresAt := now.Add(time.Minute)
+	created, err := svc.Create(context.Background(), actor, CreateInput{Name: "expiring", Scopes: []string{identity.PermissionTopicCreate}, ExpiresAt: &expiresAt})
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc.now = func() time.Time { return expiresAt.Add(time.Second) }
+	if _, err := svc.AuthenticatePlaintext(context.Background(), created.Plaintext); !errors.Is(err, ErrTokenExpired) {
+		t.Fatalf("expected expired token, got %v", err)
 	}
 }
 
@@ -143,6 +191,15 @@ type memStore struct {
 	next     int64
 	byPublic map[string]Record
 	byID     map[int64]Record
+}
+
+type staticActorLoader struct {
+	actor identity.Actor
+	err   error
+}
+
+func (l staticActorLoader) LoadActor(context.Context, int64) (identity.Actor, error) {
+	return l.actor, l.err
 }
 
 func (m *memStore) Create(_ context.Context, userID int64, publicID, tokenHash, name string, scopes []string, expiresAt *time.Time) (Record, error) {

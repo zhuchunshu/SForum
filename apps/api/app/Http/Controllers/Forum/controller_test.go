@@ -15,6 +15,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/session"
 
 	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
+	apitokens "github.com/zhuchunshu/sforum/apps/api/app/Models/APITokens"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
@@ -50,6 +51,42 @@ func TestControllerListsPublicForumData(t *testing.T) {
 	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/topics", nil, nil)
 	if resp.StatusCode != nethttp.StatusOK {
 		t.Fatalf("expected 200 topics, got %d", resp.StatusCode)
+	}
+}
+
+func TestGuestReadLoginRequiredUsesBearerAuthenticationResult(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		bearer     forumTestBearer
+		wantStatus int
+	}{
+		{
+			name: "active PAT allowed",
+			bearer: forumTestBearer{auth: apitokens.Authenticated{
+				UserID: 1, TokenID: 1, PublicID: "active", Scopes: []string{identity.PermissionPostCreate},
+			}},
+			wantStatus: nethttp.StatusOK,
+		},
+		{name: "inactive or deleted PAT rejected", bearer: forumTestBearer{err: apitokens.ErrTokenInvalid}, wantStatus: nethttp.StatusUnauthorized},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			store := &controllerForumStore{guestRead: "login_required"}
+			controller := NewController(forum.NewServiceWithSettingsAndEvents(store, store, nil), controllerForumActors{}, nil)
+			app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, slog.Default(), apphttp.Dependencies{
+				BearerTokens:   test.bearer,
+				RouteProviders: []apphttp.RouteProvider{controller},
+			})
+			req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/categories", nil)
+			req.Header.Set("Authorization", "Bearer sft_forum-test")
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != test.wantStatus {
+				t.Fatalf("expected %d, got %d", test.wantStatus, resp.StatusCode)
+			}
+		})
 	}
 }
 
@@ -464,6 +501,7 @@ type controllerForumStore struct {
 	lastTopicList   forum.TopicListInput
 	settingsReset   bool
 	updatedSettings forum.UpdateForumSettingsInput
+	guestRead       string
 }
 
 func (s *controllerForumStore) ListCategories(context.Context) ([]forum.Category, error) {
@@ -690,7 +728,17 @@ func (s *controllerForumStore) ForumSettings(context.Context) (forum.ForumSettin
 		CommentMaxRunes:     10000,
 		CommentMaxNestingDepth: 5,
 		ExcerptRuneLimit:    180,
+		GuestRead:           s.guestRead,
 	}, nil
+}
+
+type forumTestBearer struct {
+	auth apitokens.Authenticated
+	err  error
+}
+
+func (b forumTestBearer) AuthenticatePlaintext(fiber.Ctx, string) (apitokens.Authenticated, error) {
+	return b.auth, b.err
 }
 
 func (s *controllerForumStore) UpdateForumSettings(_ context.Context, _ identity.Actor, input forum.UpdateForumSettingsInput) (forum.ForumSettings, error) {
