@@ -53,9 +53,12 @@ type Service struct {
 // PageRegistry 主题/插件页面贡献注册（避免 extensions 直接依赖 pages 包实现细节）。
 type PageRegistry interface {
 	// PreflightThemePackage 激活前完整预检，不修改 Registry。
-	PreflightThemePackage(ctx context.Context, extension Extension) error
+	// previousActiveThemeID 非空时按「替换旧主题」的最终状态校验 add 路径。
+	PreflightThemePackage(ctx context.Context, extension Extension, previousActiveThemeID string) error
 	// RegisterThemePackage 校验并注册主题页面贡献（仅候选，不批准 replace）。
 	RegisterThemePackage(ctx context.Context, extension Extension) error
+	// RegisterThemePackageReplacing 原子替换旧活动主题贡献（同路径切换允许）。
+	RegisterThemePackageReplacing(ctx context.Context, extension Extension, previousActiveThemeID string) error
 	// RegisterPluginPackage 插件 enable 时注册页面贡献（统一 theme.json pages 契约）。
 	RegisterPluginPackage(ctx context.Context, extension Extension) error
 	// ClearExtension 禁用/卸载/切换时撤销贡献。
@@ -895,10 +898,17 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 	}
 
 	// 1) 完整预检（manifest / theme.json / 模板 / CSS / routes / 贡献）—— 不改 DB、不改 Registry。
+	// 按「用新主题替换旧活动主题」的最终状态校验，允许新旧主题相同 add 路径。
+	// 主题预检失败使用 ErrBuildFailed，避免前端误显示「后端入口」插件文案。
+	prevThemeID := ""
+	if previous != nil {
+		prevThemeID = previous.ID
+	}
 	if s.pageRegistry != nil {
-		if err := s.pageRegistry.PreflightThemePackage(ctx, extension); err != nil {
-			s.recordEnableFailure(ctx, actor, extension.ID, err)
-			return Extension{}, fmt.Errorf("%w: %v", ErrPreflightFailed, err)
+		if err := s.pageRegistry.PreflightThemePackage(ctx, extension, prevThemeID); err != nil {
+			wrapped := fmt.Errorf("%w: %v", ErrBuildFailed, err)
+			s.recordEnableFailure(ctx, actor, extension.ID, wrapped)
+			return Extension{}, wrapped
 		}
 	}
 
@@ -916,18 +926,15 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 		return Extension{}, err
 	}
 
-	// 3) 事务成功后原子替换 Registry：先注册新主题，再清除旧主题。
+	// 3) 事务成功后原子替换 Registry（ReplaceThemeContributions：新旧同路径允许）。
 	//    失败则回滚 DB 活动主题并恢复旧 Registry。
 	if s.pageRegistry != nil {
-		if err := s.pageRegistry.RegisterThemePackage(ctx, active); err != nil {
+		if err := s.pageRegistry.RegisterThemePackageReplacing(ctx, active, prevThemeID); err != nil {
 			s.pageRegistry.ClearExtension(active.ID)
 			if previous != nil && previous.ID != active.ID {
 				s.rollbackThemeActivation(ctx, previous, active.ID)
 			}
-			return Extension{}, fmt.Errorf("%w: registry register failed: %v", ErrPreflightFailed, err)
-		}
-		if previous != nil && previous.ID != active.ID {
-			s.pageRegistry.ClearExtension(previous.ID)
+			return Extension{}, fmt.Errorf("%w: registry register failed: %v", ErrBuildFailed, err)
 		}
 	}
 
@@ -1009,7 +1016,7 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 			return derr
 		}
 	}
-	if err := s.pageRegistry.PreflightThemePackage(ctx, active); err != nil {
+	if err := s.pageRegistry.PreflightThemePackage(ctx, active, ""); err != nil {
 		// 无效主题 → 回退默认
 		_, _ = s.store.CreateEvent(ctx, EventInput{
 			ExtensionID: active.ID,
@@ -1028,6 +1035,112 @@ func (s *Service) RestoreActiveThemeRegistry(ctx context.Context) error {
 	if err := s.pageRegistry.RegisterThemePackage(ctx, active); err != nil {
 		return fmt.Errorf("restore active theme registry: %w", err)
 	}
+	return nil
+}
+
+// ApplyApprovedLifecycleEffect 执行「已批准 Web Release 效果」的内部生命周期。
+// 不需要伪造管理员 actor：调用方（WebReleaseCoordinator）已通过发布审批。
+// forward=true 应用 TargetStatus；forward=false 回滚到 PreviousStatus。
+// 顺序：enable → 改状态 → 启 runtime → 注册页面；disable → 停 runtime → 清页面 → 改状态。
+func (s *Service) ApplyApprovedLifecycleEffect(ctx context.Context, extensionID string, targetStatus string) error {
+	if s == nil {
+		return fmt.Errorf("extensions: service nil")
+	}
+	item, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return err
+	}
+	switch targetStatus {
+	case StatusEnabled:
+		return s.applyApprovedEnable(ctx, item)
+	case StatusDisabled, StatusInstalled:
+		return s.applyApprovedDisable(ctx, item)
+	default:
+		return fmt.Errorf("unsupported extension target status %q", targetStatus)
+	}
+}
+
+func (s *Service) applyApprovedEnable(ctx context.Context, extension Extension) error {
+	if extension.Type == TypeTheme {
+		// 主题仍走 ActivateTheme（需要 actor 的路径不应到这里；Web Release 主题 effect 少见）
+		_, err := s.store.ActivateTheme(ctx, extension.ID)
+		if err != nil {
+			return err
+		}
+		active, err := s.store.Get(ctx, extension.ID)
+		if err != nil {
+			return err
+		}
+		if s.pageRegistry != nil {
+			if err := s.pageRegistry.RegisterThemePackage(ctx, active); err != nil {
+				s.pageRegistry.ClearExtension(active.ID)
+				return fmt.Errorf("%w: page contributions: %v", ErrPreflightFailed, err)
+			}
+		}
+		return nil
+	}
+	// 已启用则仅刷新页面贡献
+	if extension.Status != StatusEnabled {
+		if err := s.verifyExtension(ctx, extension); err != nil {
+			return err
+		}
+		enabled, err := s.store.Enable(ctx, extension.ID, extension.Type)
+		if err != nil {
+			return err
+		}
+		extension = enabled
+	}
+	if extension.Type == TypePlugin && extension.Manifest.Backend.Entry != "" && s.runtime != nil {
+		// Start 前先 Stop 幂等刷新（避免重复子进程）
+		_ = s.runtime.Stop(ctx, extension)
+		if err := s.runtime.Start(ctx, extension); err != nil {
+			_, _ = s.store.Disable(ctx, extension.ID)
+			if s.pageRegistry != nil {
+				s.pageRegistry.ClearExtension(extension.ID)
+			}
+			return fmt.Errorf("%w: %v", ErrRuntimeFailed, err)
+		}
+	}
+	if extension.Type == TypePlugin && s.pageRegistry != nil {
+		if err := s.pageRegistry.RegisterPluginPackage(ctx, extension); err != nil {
+			if s.runtime != nil {
+				_ = s.runtime.Stop(ctx, extension)
+			}
+			_, _ = s.store.Disable(ctx, extension.ID)
+			s.pageRegistry.ClearExtension(extension.ID)
+			return fmt.Errorf("%w: page contributions: %v", ErrPreflightFailed, err)
+		}
+	}
+	_, _ = s.store.CreateEvent(ctx, EventInput{
+		ExtensionID: extension.ID,
+		Action:      EventEnabled,
+		Message:     "Extension enabled via approved web release effect.",
+	})
+	return nil
+}
+
+func (s *Service) applyApprovedDisable(ctx context.Context, extension Extension) error {
+	if extension.Type == TypeTheme {
+		// 主题禁用不在此路径处理
+		return nil
+	}
+	// 先停 runtime、清页面，再改状态
+	if err := s.drainPluginRuntime(ctx, extension); err != nil {
+		return err
+	}
+	if s.pageRegistry != nil {
+		s.pageRegistry.ClearExtension(extension.ID)
+	}
+	if extension.Status == StatusEnabled {
+		if _, err := s.store.Disable(ctx, extension.ID); err != nil {
+			return err
+		}
+	}
+	_, _ = s.store.CreateEvent(ctx, EventInput{
+		ExtensionID: extension.ID,
+		Action:      EventDisabled,
+		Message:     "Extension disabled via approved web release effect.",
+	})
 	return nil
 }
 
@@ -1104,10 +1217,13 @@ func themeRuntimePackagePresent(packagePath string) bool {
 	if root == "" {
 		return false
 	}
-	// 上传包 PackagePath 可能是 package.zip：运行时文件在同级或 files/ 下。
+	// 与 PackageContentRoot 一致：zip 旁 files/、同级目录或内容寻址目录。
 	candidates := []string{root}
 	if st, err := os.Stat(root); err == nil && !st.IsDir() {
-		candidates = []string{filepath.Dir(root), filepath.Join(filepath.Dir(root), "files")}
+		candidates = []string{
+			filepath.Join(filepath.Dir(root), "files"),
+			filepath.Dir(root),
+		}
 	}
 	for _, base := range candidates {
 		for _, name := range []string{"theme.json", "assets/theme.css", "assets"} {
@@ -1331,15 +1447,40 @@ func writeManifest(versionDir string, manifest Manifest) error {
 	return os.WriteFile(filepath.Join(versionDir, ManifestFileName), body, 0o600)
 }
 
+// PackageContentRoot 返回扩展包内可读文件的目录根。
+// - 内容寻址快照 / builtin：PackagePath 本身就是目录。
+// - 旧版上传包：PackagePath 指向 package.zip，解压内容在同级 files/。
+// 主题 L0/L1 预检、皮肤资源与模板加载都必须走这里，不能直接拼 package.zip 路径。
+func PackageContentRoot(extension Extension) string {
+	path := strings.TrimSpace(extension.PackagePath)
+	if path == "" {
+		return ""
+	}
+	path = filepath.Clean(path)
+	// 有 digest 的快照或内置包：PackagePath 即为内容根目录。
+	if strings.TrimSpace(extension.PackageDigest) != "" || extension.Source == SourceBuiltin {
+		return path
+	}
+	if info, err := os.Stat(path); err == nil && info.IsDir() {
+		return path
+	}
+	// 旧上传布局：.../1.0.0/package.zip + .../1.0.0/files/*
+	files := filepath.Join(filepath.Dir(path), "files")
+	if info, err := os.Stat(files); err == nil && info.IsDir() {
+		return files
+	}
+	// 兜底：zip 同级目录（manifest 等同级时）
+	return filepath.Dir(path)
+}
+
 func installedFilePath(extension Extension, manifestPath string) (string, bool) {
 	name, ok := safeArchivePath(manifestPath)
 	if !ok {
 		return "", false
 	}
-	root := filepath.Clean(extension.PackagePath)
-	if strings.TrimSpace(extension.PackageDigest) == "" && extension.Source != SourceBuiltin {
-		// 仅旧版上传包使用 package.zip 旁边的 files 目录；内容寻址快照直接以 PackagePath 为根。
-		root = filepath.Join(filepath.Dir(extension.PackagePath), "files")
+	root := PackageContentRoot(extension)
+	if root == "" {
+		return "", false
 	}
 	target := filepath.Join(root, filepath.FromSlash(name))
 	return target, strings.HasPrefix(target, root+string(os.PathSeparator))

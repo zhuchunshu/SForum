@@ -184,6 +184,10 @@ func (s *Service) Uninstall(ctx context.Context, actor identity.Actor, id string
 	}
 
 	_ = s.drainPluginRuntime(ctx, extension)
+	// 立即清除页面贡献（即便已 disable 也应幂等清理）
+	if s.pageRegistry != nil {
+		s.pageRegistry.ClearExtension(extension.ID)
+	}
 
 	packagePath := extension.PackagePath
 	if err := s.store.Delete(ctx, extension.ID); err != nil {

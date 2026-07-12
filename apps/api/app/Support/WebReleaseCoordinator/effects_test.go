@@ -63,3 +63,75 @@ func (s *fakeReleaseStore) TransitionWebRelease(_ context.Context, input extensi
 	s.transitions = append(s.transitions, input)
 	return extensions.WebRelease{ID: input.ID, Status: input.NextStatus}, nil
 }
+
+// fakeLifecycle records ApplyApprovedLifecycleEffect calls for page registry sync tests.
+type fakeLifecycle struct {
+	calls []struct {
+		id     string
+		status string
+	}
+	err error
+}
+
+func (f *fakeLifecycle) ApplyApprovedLifecycleEffect(_ context.Context, extensionID string, targetStatus string) error {
+	f.calls = append(f.calls, struct {
+		id     string
+		status string
+	}{extensionID, targetStatus})
+	return f.err
+}
+
+type fakeExtStore struct {
+	items map[string]extensions.Extension
+}
+
+func (s *fakeExtStore) Get(_ context.Context, id string) (extensions.Extension, error) {
+	if e, ok := s.items[id]; ok {
+		return e, nil
+	}
+	return extensions.Extension{}, extensions.ErrExtensionNotFound
+}
+
+func TestApplyEffectsUsesLifecycleNotDirectEnable(t *testing.T) {
+	life := &fakeLifecycle{}
+	exts := &fakeExtStore{items: map[string]extensions.Extension{
+		"sforum.page-registry-demo": {
+			ID: "sforum.page-registry-demo", Type: extensions.TypePlugin, Status: extensions.StatusDisabled,
+		},
+	}}
+	store := NewPostgresStore(nil, &fakeReleaseStore{}, exts).WithLifecycle(life)
+	detail := extensions.WebReleaseDetail{
+		Effects: []extensions.WebReleaseExtensionEffect{
+			{
+				ExtensionID:    "sforum.page-registry-demo",
+				TargetStatus:   extensions.StatusEnabled,
+				PreviousStatus: extensions.StatusDisabled,
+			},
+		},
+	}
+	if err := store.ApplyEffects(context.Background(), detail, true); err != nil {
+		t.Fatal(err)
+	}
+	if len(life.calls) != 1 || life.calls[0].status != extensions.StatusEnabled {
+		t.Fatalf("expected lifecycle enable call, got %#v", life.calls)
+	}
+	// reverse / rollback
+	if err := store.ApplyEffects(context.Background(), detail, false); err != nil {
+		t.Fatal(err)
+	}
+	if len(life.calls) != 2 || life.calls[1].status != extensions.StatusDisabled {
+		t.Fatalf("expected lifecycle disable on reverse, got %#v", life.calls)
+	}
+}
+
+func TestApplyEffectsRequiresLifecycle(t *testing.T) {
+	store := NewPostgresStore(nil, &fakeReleaseStore{}, &fakeExtStore{items: map[string]extensions.Extension{
+		"p": {ID: "p"},
+	}})
+	err := store.ApplyEffects(context.Background(), extensions.WebReleaseDetail{
+		Effects: []extensions.WebReleaseExtensionEffect{{ExtensionID: "p", TargetStatus: extensions.StatusEnabled}},
+	}, true)
+	if err == nil || !strings.Contains(err.Error(), "lifecycle") {
+		t.Fatalf("expected lifecycle required error, got %v", err)
+	}
+}
