@@ -257,6 +257,8 @@ function errorToast(error: unknown, fallback: string) {
       <UButton
         v-for="tab in tabs"
         :key="tab.id"
+        size="md"
+        class="min-h-10 px-4"
         :color="activeTab === tab.id ? 'primary' : 'neutral'"
         :variant="activeTab === tab.id ? 'solid' : 'ghost'"
         :leading-icon="tab.icon"
@@ -316,7 +318,7 @@ function errorToast(error: unknown, fallback: string) {
                 <select
                   v-model="form.defaultCategorySlug"
                   :disabled="!canManageCategories"
-                  class="h-10 w-full max-w-xl rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                  class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                 >
                   <option v-if="!form.defaultCategorySlug" value="" disabled>
                     {{ t('admin.forum.settings.defaultCategoryPlaceholder') }}
@@ -355,7 +357,7 @@ function errorToast(error: unknown, fallback: string) {
             </div>
             <div class="grid gap-4 md:grid-cols-2">
               <UFormField :label="t('admin.forum.settings.topicsPerPage')" name="topics-per-page">
-                <UInputNumber
+                <UInputNumber size="lg"
                   v-model="form.topicsPerPage"
                   :min="1"
                   :max="100"
@@ -364,7 +366,7 @@ function errorToast(error: unknown, fallback: string) {
                 />
               </UFormField>
               <UFormField :label="t('admin.forum.settings.commentsPerPage')" name="comments-per-page">
-                <UInputNumber
+                <UInputNumber size="lg"
                   v-model="form.commentsPerPage"
                   :min="1"
                   :max="100"
@@ -392,7 +394,7 @@ function errorToast(error: unknown, fallback: string) {
                 <select
                   v-model="form.guestRead"
                   :disabled="!canManageSettings"
-                  class="h-10 w-full max-w-xl rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+                  class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base dark:border-zinc-700 dark:bg-zinc-950"
                 >
                   <option value="public">{{ t('admin.forum.settings.guestReadPublic') }}</option>
                   <option value="login_required">{{ t('admin.forum.settings.guestReadLogin') }}</option>
@@ -402,7 +404,7 @@ function errorToast(error: unknown, fallback: string) {
                 <select
                   v-model="form.listDefaultSort"
                   :disabled="!canManageSettings"
-                  class="h-10 w-full max-w-xl rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+                  class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base dark:border-zinc-700 dark:bg-zinc-950"
                 >
                   <option value="latest">{{ t('admin.forum.settings.sortLatest') }}</option>
                   <option value="active">{{ t('admin.forum.settings.sortActive') }}</option>
@@ -410,7 +412,7 @@ function errorToast(error: unknown, fallback: string) {
                 </select>
               </UFormField>
               <UFormField :label="t('admin.forum.settings.listHotWindowDays')" name="hot-window">
-                <UInputNumber v-model="form.listHotWindowDays" :min="1" :max="90" :disabled="!canManageSettings" class="w-full" />
+                <UInputNumber size="lg" v-model="form.listHotWindowDays" :min="1" :max="90" :disabled="!canManageSettings" class="w-full" />
               </UFormField>
             </div>
           </section>
@@ -420,34 +422,34 @@ function errorToast(error: unknown, fallback: string) {
         <template v-else-if="activeTab === 'topics'">
           <section class="grid gap-4 md:grid-cols-2">
             <UFormField :label="t('admin.forum.settings.topicTitleMin')" name="topic-title-min">
-              <UInputNumber v-model="form.topicTitleMinRunes" :min="1" :max="200" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.topicTitleMinRunes" :min="1" :max="200" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.topicTitleMinHelp') }}</p>
             </UFormField>
             <UFormField :label="t('admin.forum.settings.topicTitleMax')" name="topic-title-max">
-              <UInputNumber v-model="form.topicTitleMaxRunes" :min="1" :max="200" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.topicTitleMaxRunes" :min="1" :max="200" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.recommendedHint', { value: recommended.topicTitleMaxRunes }) }}</p>
             </UFormField>
             <UFormField :label="t('admin.forum.settings.topicContentMin')" name="topic-content-min">
-              <UInputNumber v-model="form.topicContentMinRunes" :min="0" :max="200000" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.topicContentMinRunes" :min="0" :max="200000" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.topicContentMinHelp') }}</p>
             </UFormField>
             <UFormField :label="t('admin.forum.settings.topicContentMax')" name="topic-content-max">
-              <UInputNumber v-model="form.topicContentMaxRunes" :min="1" :max="200000" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.topicContentMaxRunes" :min="1" :max="200000" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.recommendedHint', { value: recommended.topicContentMaxRunes }) }}</p>
             </UFormField>
           </section>
 
           <section class="grid gap-4 border-t border-slate-200 pt-5 dark:border-zinc-800 md:grid-cols-3">
             <UFormField :label="t('admin.forum.settings.topicEditWindow')" name="topic-edit-window">
-              <UInputNumber v-model="form.topicEditWindowMinutes" :min="0" :max="10080" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.topicEditWindowMinutes" :min="0" :max="10080" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.zeroUnlimitedHelp') }}</p>
             </UFormField>
             <UFormField :label="t('admin.forum.settings.topicCooldown')" name="topic-cooldown">
-              <UInputNumber v-model="form.topicCooldownSeconds" :min="0" :max="86400" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.topicCooldownSeconds" :min="0" :max="86400" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.zeroUnlimitedHelp') }}</p>
             </UFormField>
             <UFormField :label="t('admin.forum.settings.dailyTopicLimit')" name="daily-topic-limit">
-              <UInputNumber v-model="form.dailyTopicLimit" :min="0" :max="10000" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.dailyTopicLimit" :min="0" :max="10000" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.zeroUnlimitedHelp') }}</p>
             </UFormField>
           </section>
@@ -457,25 +459,25 @@ function errorToast(error: unknown, fallback: string) {
         <template v-else-if="activeTab === 'comments'">
           <section class="grid gap-4 md:grid-cols-2">
             <UFormField :label="t('admin.forum.settings.commentMin')" name="comment-min">
-              <UInputNumber v-model="form.commentMinRunes" :min="0" :max="50000" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.commentMinRunes" :min="0" :max="50000" :disabled="!canManageSettings" class="w-full" />
             </UFormField>
             <UFormField :label="t('admin.forum.settings.commentMax')" name="comment-max">
-              <UInputNumber v-model="form.commentMaxRunes" :min="1" :max="50000" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.commentMaxRunes" :min="1" :max="50000" :disabled="!canManageSettings" class="w-full" />
             </UFormField>
             <UFormField :label="t('admin.forum.settings.commentNesting')" name="comment-nesting">
-              <UInputNumber v-model="form.commentMaxNestingDepth" :min="0" :max="20" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.commentMaxNestingDepth" :min="0" :max="20" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.commentNestingHelp') }}</p>
             </UFormField>
             <UFormField :label="t('admin.forum.settings.commentEditWindow')" name="comment-edit-window">
-              <UInputNumber v-model="form.commentEditWindowMinutes" :min="0" :max="10080" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.commentEditWindowMinutes" :min="0" :max="10080" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.zeroUnlimitedHelp') }}</p>
             </UFormField>
             <UFormField :label="t('admin.forum.settings.commentCooldown')" name="comment-cooldown">
-              <UInputNumber v-model="form.commentCooldownSeconds" :min="0" :max="86400" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.commentCooldownSeconds" :min="0" :max="86400" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.zeroUnlimitedHelp') }}</p>
             </UFormField>
             <UFormField :label="t('admin.forum.settings.dailyCommentLimit')" name="daily-comment-limit">
-              <UInputNumber v-model="form.dailyCommentLimit" :min="0" :max="10000" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.dailyCommentLimit" :min="0" :max="10000" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.zeroUnlimitedHelp') }}</p>
             </UFormField>
           </section>
@@ -529,11 +531,11 @@ function errorToast(error: unknown, fallback: string) {
 
             <div class="grid gap-4 sm:grid-cols-2">
               <UFormField :label="t('admin.forum.settings.minTagsPerTopic')" name="min-tags">
-                <UInputNumber v-model="form.tagMinPerTopic" :min="0" :max="10" :disabled="!canManageTags" class="w-full" />
+                <UInputNumber size="lg" v-model="form.tagMinPerTopic" :min="0" :max="10" :disabled="!canManageTags" class="w-full" />
                 <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.minTagsPerTopicHelp') }}</p>
               </UFormField>
               <UFormField :label="t('admin.forum.settings.maxTagsPerTopic')" name="max-tags">
-                <UInputNumber v-model="form.tagMaxPerTopic" :min="0" :max="10" :disabled="!canManageTags" class="w-full" />
+                <UInputNumber size="lg" v-model="form.tagMaxPerTopic" :min="0" :max="10" :disabled="!canManageTags" class="w-full" />
                 <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.maxTagsPerTopicHelp') }}</p>
               </UFormField>
             </div>
@@ -544,7 +546,7 @@ function errorToast(error: unknown, fallback: string) {
         <template v-else-if="activeTab === 'reading'">
           <section class="grid gap-4 md:grid-cols-2">
             <UFormField :label="t('admin.forum.settings.excerptRuneLimit')" name="excerpt-limit">
-              <UInputNumber v-model="form.excerptRuneLimit" :min="40" :max="500" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.excerptRuneLimit" :min="40" :max="500" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.excerptRuneLimitHelp') }}</p>
             </UFormField>
           </section>
@@ -592,22 +594,22 @@ function errorToast(error: unknown, fallback: string) {
           </section>
           <section class="grid gap-4 border-t border-slate-200 pt-5 dark:border-zinc-800 md:grid-cols-2">
             <UFormField :label="t('admin.forum.settings.autoLockIdleDays')" name="auto-lock">
-              <UInputNumber v-model="form.autoLockIdleDays" :min="0" :max="3650" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.autoLockIdleDays" :min="0" :max="3650" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.autoLockIdleDaysHelp') }}</p>
             </UFormField>
             <UFormField :label="t('admin.forum.settings.mentionsMaxPerPost')" name="mentions-max">
-              <UInputNumber v-model="form.mentionsMaxPerPost" :min="0" :max="50" :disabled="!canManageSettings" class="w-full" />
+              <UInputNumber size="lg" v-model="form.mentionsMaxPerPost" :min="0" :max="50" :disabled="!canManageSettings" class="w-full" />
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.settings.zeroUnlimitedHelp') }}</p>
             </UFormField>
             <UFormField :label="t('admin.forum.settings.duplicateTitlePolicy')" name="dup-title">
-              <select v-model="form.duplicateTitlePolicy" :disabled="!canManageSettings" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950">
+              <select v-model="form.duplicateTitlePolicy" :disabled="!canManageSettings" class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base dark:border-zinc-700 dark:bg-zinc-950">
                 <option value="off">{{ t('admin.forum.settings.duplicateOff') }}</option>
                 <option value="warn">{{ t('admin.forum.settings.duplicateWarn') }}</option>
                 <option value="block">{{ t('admin.forum.settings.duplicateBlock') }}</option>
               </select>
             </UFormField>
             <UFormField :label="t('admin.forum.settings.softDeleteVisibility')" name="soft-delete">
-              <select v-model="form.softDeleteVisibility" :disabled="!canManageSettings" class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950">
+              <select v-model="form.softDeleteVisibility" :disabled="!canManageSettings" class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base dark:border-zinc-700 dark:bg-zinc-950">
                 <option value="author_and_staff">{{ t('admin.forum.settings.softDeleteAuthorStaff') }}</option>
                 <option value="staff_only">{{ t('admin.forum.settings.softDeleteStaffOnly') }}</option>
                 <option value="hidden">{{ t('admin.forum.settings.softDeleteHidden') }}</option>
