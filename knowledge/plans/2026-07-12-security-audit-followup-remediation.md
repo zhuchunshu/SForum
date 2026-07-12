@@ -1,6 +1,6 @@
 # 2026-07-12 Security Audit Follow-up Remediation
 
-Status: **Completed**  
+Status: **In progress**
 Date: 2026-07-12  
 Source: second full-program static audit after the first P0-P2 security batch  
 Previous batch: `knowledge/plans/2026-07-12-security-audit-fix-batch.md`
