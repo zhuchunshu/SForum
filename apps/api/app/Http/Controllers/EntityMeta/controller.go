@@ -235,18 +235,7 @@ func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 }
 
 func (h *Controller) optionalActor(c fiber.Ctx) (identity.Actor, error) {
-	if h.sessions == nil || h.users == nil {
-		return identity.Actor{}, nil
-	}
-	userID, ok, err := h.sessions.CurrentUserID(c)
-	if err != nil || !ok || userID <= 0 {
-		return identity.Actor{}, nil
-	}
-	actor, err := h.users.LoadActor(c.Context(), userID)
-	if err != nil {
-		return identity.Actor{}, nil
-	}
-	return actor, nil
+	return apphttp.OptionalActor(c, h.sessions, h.users)
 }
 
 func mapError(err error) error {

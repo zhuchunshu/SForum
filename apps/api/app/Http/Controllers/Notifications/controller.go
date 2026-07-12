@@ -38,25 +38,27 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 }
 
 func (h *Controller) adminTest(c fiber.Ctx) error {
-	userID, err := h.userID(c)
-	if err != nil {
-		return err
-	}
-	actor, err := h.users.LoadActor(c.Context(), userID)
+	actor, err := apphttp.LoadActor(c, h.sessions, h.users)
 	if err != nil {
 		return err
 	}
 	if !actor.Can(identity.PermissionSettingsMailManage) {
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
 	}
-	item, err := h.creator.Create(c.Context(), notifications.CreateInput{RecipientUserID: userID, Type: notifications.TypeAdminTest, TargetType: "system", Payload: []byte(`{}`), DedupeKey: fmt.Sprintf("admin_test:%d:%d", userID, time.Now().UnixNano())})
+	item, err := h.creator.Create(c.Context(), notifications.CreateInput{
+		RecipientUserID: actor.ID,
+		Type:            notifications.TypeAdminTest,
+		TargetType:      "system",
+		Payload:         []byte(`{}`),
+		DedupeKey:       fmt.Sprintf("admin_test:%d:%d", actor.ID, time.Now().UnixNano()),
+	})
 	if err != nil {
 		return err
 	}
 	return apphttp.JSON(c, fiber.StatusCreated, apphttp.MessageOK, item)
 }
 func (h *Controller) userID(c fiber.Ctx) (int64, error) {
-	id, ok, err := h.sessions.CurrentUserID(c)
+	id, ok, err := apphttp.ResolveUserID(c, h.sessions)
 	if err != nil {
 		return 0, err
 	}

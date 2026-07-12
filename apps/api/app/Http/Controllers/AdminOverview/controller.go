@@ -34,14 +34,7 @@ func (h *Controller) overview(c fiber.Ctx) error {
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
-	userID, ok, err := h.sessions.CurrentUserID(c)
-	if err != nil {
-		return identity.Actor{}, err
-	}
-	if !ok {
-		return identity.Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
-	}
-	return h.users.LoadActor(c.Context(), userID)
+	return apphttp.LoadActor(c, h.sessions, h.users)
 }
 
 func mapOverviewError(err error) error {

@@ -19,7 +19,7 @@ func ResolveUserID(c fiber.Ctx, sessions *authsession.Manager) (int64, bool, err
 	return sessions.CurrentUserID(c)
 }
 
-// LoadActor 加载 Actor，并在 PAT 请求上按 scopes 收窄权限。
+// LoadActor 加载 Actor，并在 PAT 请求上按「当前权限 ∩ scopes」收窄。
 func LoadActor(c fiber.Ctx, sessions *authsession.Manager, users identity.ActorStore) (identity.Actor, error) {
 	userID, ok, err := ResolveUserID(c, sessions)
 	if err != nil {
@@ -27,6 +27,28 @@ func LoadActor(c fiber.Ctx, sessions *authsession.Manager, users identity.ActorS
 	}
 	if !ok {
 		return identity.Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+	}
+	if users == nil {
+		return identity.Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
+	}
+	actor, err := users.LoadActor(c.Context(), userID)
+	if err != nil {
+		return identity.Actor{}, err
+	}
+	if scopes := apitokens.ScopesFromContext(c.Context()); len(scopes) > 0 {
+		actor = apitokens.RestrictActor(actor, scopes)
+	}
+	return actor, nil
+}
+
+// OptionalActor 解析可选登录主体：匿名返回零值 Actor；PAT 同样按 scopes 收窄。
+func OptionalActor(c fiber.Ctx, sessions *authsession.Manager, users identity.ActorStore) (identity.Actor, error) {
+	userID, ok, err := ResolveUserID(c, sessions)
+	if err != nil {
+		return identity.Actor{}, err
+	}
+	if !ok || userID <= 0 || users == nil {
+		return identity.Actor{}, nil
 	}
 	actor, err := users.LoadActor(c.Context(), userID)
 	if err != nil {

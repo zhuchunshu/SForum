@@ -34,14 +34,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	group.Post("/policy/restore", h.restorePolicy)
 }
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
-	id, ok, err := h.sessions.CurrentUserID(c)
-	if err != nil {
-		return identity.Actor{}, err
-	}
-	if !ok {
-		return identity.Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
-	}
-	actor, err := h.users.LoadActor(c.Context(), id)
+	actor, err := apphttp.LoadActor(c, h.sessions, h.users)
 	if err != nil {
 		return identity.Actor{}, err
 	}

@@ -189,21 +189,7 @@ func (h *Controller) inbound(c fiber.Ctx) error {
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
-	id, ok, err := h.sessions.CurrentUserID(c)
-	if err != nil {
-		return identity.Actor{}, err
-	}
-	if !ok {
-		return identity.Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
-	}
-	actor, err := h.users.LoadActor(c.Context(), id)
-	if err != nil {
-		return identity.Actor{}, err
-	}
-	if !actor.Can(identity.PermissionSettingsManage) && !actor.Can(identity.PermissionSettingsSiteManage) {
-		return identity.Actor{}, fiber.NewError(fiber.StatusForbidden, "permission.denied")
-	}
-	return actor, nil
+	return apphttp.LoadActor(c, h.sessions, h.users)
 }
 
 func mapError(err error) error {

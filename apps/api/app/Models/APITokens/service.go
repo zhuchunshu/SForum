@@ -147,11 +147,25 @@ func (s *Service) AuthenticatePlaintext(ctx context.Context, plaintext string) (
 	}, nil
 }
 
-// RestrictActor 将 Actor 权限限制为 token scopes。
-// 创建时已校验用户当时持有这些权限；此处信任存储的 scopes 作为上限。
-// super_admin 的 Can() 会绕过 Permissions，因此去掉 super_admin 角色键，
-// 强制 PAT 不能等价于无限 cookie 会话。
+// RestrictActor 将 Actor 权限收窄为「用户当前权限 ∩ token scopes」。
+// 创建时 scopes 是当时的上限；鉴权时必须再与当前用户权限求交，
+// 避免用户被撤权后 PAT 仍保留过期能力。
+// 求交使用原始 Actor（含 super_admin 全能）；结果始终去掉 super_admin 角色键，
+// 强制 PAT 只能使用 allowed map 中的权限，不能等价于无限 cookie 会话。
 func RestrictActor(actor identity.Actor, scopes []string) identity.Actor {
+	// 先按当前身份求交（super_admin 的 Can 对任意 scope 为 true）。
+	current := actor
+	allowed := map[string]bool{}
+	for _, scope := range scopes {
+		scope = strings.TrimSpace(scope)
+		if scope == "" {
+			continue
+		}
+		if current.Can(scope) {
+			allowed[scope] = true
+		}
+	}
+	// PAT 结果禁止 super_admin 绕过。
 	roleKeys := make([]string, 0, len(actor.RoleKeys))
 	for _, key := range actor.RoleKeys {
 		if key != identity.RoleSuperAdmin {
@@ -159,13 +173,6 @@ func RestrictActor(actor identity.Actor, scopes []string) identity.Actor {
 		}
 	}
 	actor.RoleKeys = roleKeys
-	allowed := map[string]bool{}
-	for _, scope := range scopes {
-		scope = strings.TrimSpace(scope)
-		if scope != "" {
-			allowed[scope] = true
-		}
-	}
 	actor.Permissions = allowed
 	return actor
 }

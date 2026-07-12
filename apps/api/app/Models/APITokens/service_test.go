@@ -55,15 +55,78 @@ func TestRestrictActorStripsSuperAdmin(t *testing.T) {
 	if !actor.IsSuperAdmin() {
 		t.Fatal("expected super admin")
 	}
-	restricted := RestrictActor(actor, []string{identity.PermissionTopicCreate})
+	// 仍为 super_admin 时，当前权限覆盖全部 scope；结果写入 Permissions 后去掉角色绕过。
+	restricted := RestrictActor(actor, []string{identity.PermissionTopicCreate, identity.PermissionSettingsManage})
 	if restricted.IsSuperAdmin() {
 		t.Fatal("PAT must not retain super_admin bypass")
 	}
 	if !restricted.Can(identity.PermissionTopicCreate) {
-		t.Fatal("expected topic.create")
+		t.Fatal("expected topic.create from scopes ∩ current super_admin")
 	}
+	if !restricted.Can(identity.PermissionSettingsManage) {
+		t.Fatal("expected settings.manage from scopes ∩ current super_admin")
+	}
+	// 未列入 scopes 的权限不得出现。
+	if restricted.Can(identity.PermissionUserManage) {
+		t.Fatal("permission without scope must not pass")
+	}
+}
+
+func TestRestrictActorDemotedSuperAdminLosesRevokedScopes(t *testing.T) {
+	// 已降级为普通用户：仅剩 topic.create，令牌 scopes 仍含 settings.manage。
+	actor := identity.Actor{
+		ID: 1, Status: identity.UserStatusActive,
+		RoleKeys: []string{identity.RoleMember},
+		Permissions: map[string]bool{
+			identity.PermissionTopicCreate: true,
+		},
+	}
+	restricted := RestrictActor(actor, []string{
+		identity.PermissionTopicCreate,
+		identity.PermissionSettingsManage,
+	})
 	if restricted.Can(identity.PermissionSettingsManage) {
-		t.Fatal("settings.manage must not pass without scope")
+		t.Fatal("demoted user must not keep settings.manage via old PAT scope")
+	}
+	if !restricted.Can(identity.PermissionTopicCreate) {
+		t.Fatal("retained permission ∩ scope should work")
+	}
+}
+
+func TestRestrictActorIntersectsCurrentPermissionsWithScopes(t *testing.T) {
+	// 令牌 scopes 含 topic.create + post.create；用户当前只剩 post.create。
+	actor := identity.Actor{
+		ID: 2, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{
+			identity.PermissionPostCreate: true,
+		},
+	}
+	restricted := RestrictActor(actor, []string{
+		identity.PermissionTopicCreate,
+		identity.PermissionPostCreate,
+	})
+	if restricted.Can(identity.PermissionTopicCreate) {
+		t.Fatal("revoked user permission must not remain on PAT")
+	}
+	if !restricted.Can(identity.PermissionPostCreate) {
+		t.Fatal("current permission ∩ scope should remain")
+	}
+}
+
+func TestRestrictActorScopeWithoutCurrentPermissionDenied(t *testing.T) {
+	actor := identity.Actor{
+		ID: 3, Status: identity.UserStatusActive,
+		Permissions: map[string]bool{
+			identity.PermissionTopicCreate: true,
+		},
+	}
+	// scope 有 settings.manage，但用户从未持有。
+	restricted := RestrictActor(actor, []string{identity.PermissionSettingsManage})
+	if restricted.Can(identity.PermissionSettingsManage) {
+		t.Fatal("scope alone must not grant permission")
+	}
+	if restricted.Can(identity.PermissionTopicCreate) {
+		t.Fatal("permission without matching scope must not remain")
 	}
 }
 

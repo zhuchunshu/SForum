@@ -377,18 +377,7 @@ func (h *Controller) adminDeleteAnnouncement(c fiber.Ctx) error {
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
-	userID, ok, err := h.sessions.CurrentUserID(c)
-	if err != nil {
-		return identity.Actor{}, err
-	}
-	if !ok {
-		return identity.Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
-	}
-	actor, err := h.users.LoadActor(c.Context(), userID)
-	if err != nil {
-		return identity.Actor{}, err
-	}
-	return actor, nil
+	return apphttp.LoadActor(c, h.sessions, h.users)
 }
 
 func parseID(raw string) (int64, error) {

@@ -374,24 +374,16 @@ func (h *Controller) proxyExtensionRoute(c fiber.Ctx) error {
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
-	userID, ok, err := h.sessions.CurrentUserID(c)
-	if err != nil {
-		return identity.Actor{}, err
-	}
-	if !ok {
-		return identity.Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
-	}
-	return h.users.LoadActor(c.Context(), userID)
+	return apphttp.LoadActor(c, h.sessions, h.users)
 }
 
 func (h *Controller) optionalActor(c fiber.Ctx) (identity.Actor, bool, error) {
-	userID, ok, err := h.sessions.CurrentUserID(c)
-	if err != nil || !ok {
-		return identity.Actor{}, false, err
-	}
-	actor, err := h.users.LoadActor(c.Context(), userID)
+	actor, err := apphttp.OptionalActor(c, h.sessions, h.users)
 	if err != nil {
 		return identity.Actor{}, false, err
+	}
+	if actor.ID == 0 {
+		return identity.Actor{}, false, nil
 	}
 	return actor, true, nil
 }

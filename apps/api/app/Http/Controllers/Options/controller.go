@@ -164,23 +164,11 @@ func (h *Controller) restoreFeatureDefaults(c fiber.Ctx) error {
 }
 
 func (h *Controller) sessionUserID(c fiber.Ctx) (int64, bool, error) {
-	return h.sessions.CurrentUserID(c)
+	return apphttp.ResolveUserID(c, h.sessions)
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
-	userID, ok, err := h.sessionUserID(c)
-	if err != nil {
-		return identity.Actor{}, err
-	}
-	if !ok {
-		return identity.Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
-	}
-
-	actor, err := h.users.LoadActor(c.Context(), userID)
-	if err != nil {
-		return identity.Actor{}, err
-	}
-	return actor, nil
+	return apphttp.LoadActor(c, h.sessions, h.users)
 }
 
 func mapOptionsError(err error) error {

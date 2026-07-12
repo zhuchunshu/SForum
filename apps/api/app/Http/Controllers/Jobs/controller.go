@@ -157,14 +157,7 @@ func (h *Controller) queue(c fiber.Ctx, paused bool) error {
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
-	id, ok, err := h.sessions.CurrentUserID(c)
-	if err != nil {
-		return identity.Actor{}, err
-	}
-	if !ok {
-		return identity.Actor{}, fiber.NewError(fiber.StatusUnauthorized, "auth.required")
-	}
-	return h.users.LoadActor(c.Context(), id)
+	return apphttp.LoadActor(c, h.sessions, h.users)
 }
 
 func jobID(c fiber.Ctx) int64 {
