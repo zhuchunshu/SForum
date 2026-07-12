@@ -18,4 +18,11 @@ func TestDriverCatalogAndNormalize(t *testing.T) {
 	if got := len(DriverCatalog()); got != 5 {
 		t.Fatalf("drivers=%d", got)
 	}
+	// plugin: 不是 core 驱动；Normalize 保留前缀供 ParseSelection 使用。
+	if IsKnownDriver("plugin:sforum.s3") {
+		t.Fatal("plugin selection must not count as core driver")
+	}
+	if NormalizeProvider("plugin:sforum.s3") != "plugin:sforum.s3" {
+		t.Fatal("normalize must preserve plugin selection")
+	}
 }
