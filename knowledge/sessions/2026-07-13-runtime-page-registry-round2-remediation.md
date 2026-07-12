@@ -104,6 +104,31 @@ access, loader SSR wiring, Web Release sync, and contract persistence.
 - Optional: full JSON Schema library if simple subset is insufficient.
 - L2 remains disabled by design.
 
+## Commits (this session)
+
+1. `2afe589f8` fix(pages): deterministic route signatures and fail-closed access
+2. `b08d9d956` fix(pages): persist and re-check provider contract_version
+3. `1a6730e02` feat(pages): wire SSR loader gateway and HTTP access enforcement
+4. `01a7b6003` fix(web-release): apply effects through extension page lifecycle
+5. `94aeffa51` fix(web): consume SSR loaderData and show read-only page contracts
+6. `5423f8fab` docs(contracts): page resolve-path, access enum, and loader fields
+7. `fef9fb8c6` docs(knowledge): handoff Runtime Page Registry round-2 remediation
+
+## Gates (this session)
+
+| Gate | Result |
+| --- | --- |
+| `cd apps/api && go test ./...` | pass |
+| `cd apps/api && go build ./...` | pass |
+| `cd apps/web && bun run typecheck` | pass |
+| `cd apps/web && bun run build` | pass |
+| `ruby scripts/validate-openapi-refs.rb` | pass (1492 refs / 38 files) |
+| `go run ./cmd/sforum extension docs generate --check` | pass |
+| `./scripts/test.sh` | pass |
+| `bun test` full suite under load | themeProxy 8 flakes (file alone passes; not in our diff) |
+| Live browser `PAGE_REGISTRY_API` | skip unless env set (does not kill :3000) |
+
 ## Open Questions
 
 - None blocking for round-2 close.
+- Optional: stabilize themeProxy under full `bun test` parallelism (pre-existing flake).
