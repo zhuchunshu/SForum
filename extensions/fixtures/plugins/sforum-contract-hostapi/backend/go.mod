@@ -1,6 +1,6 @@
 module github.com/zhuchunshu/sforum/extensions/fixtures/plugins/sforum-contract-hostapi/backend
 
-go 1.25.7
+go 1.26.5
 
 require github.com/zhuchunshu/sforum/apps/api v0.0.0
 
@@ -13,7 +13,7 @@ require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/gofiber/fiber/v3 v3.0.0-rc.3 // indirect
 	github.com/gofiber/schema v1.6.0 // indirect
-	github.com/gofiber/utils/v2 v2.0.0-rc.2 // indirect
+	github.com/gofiber/utils/v2 v2.0.0-rc.4 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect

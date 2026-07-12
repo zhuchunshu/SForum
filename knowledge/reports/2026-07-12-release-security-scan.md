@@ -1,7 +1,7 @@
 # 2026-07-12 Release Security Scan Report
 
-Status: **Recorded (not a production gate pass)**  
-Date (UTC): 2026-07-12  
+Status: **Dependency vulnerability gate passed; full remediation still in progress**
+Date (UTC): 2026-07-13
 Scope: dependency advisory scan + container runtime user review after
 security follow-up remediation. Active penetration testing was not run.
 
@@ -9,7 +9,7 @@ security follow-up remediation. Active penetration testing was not run.
 
 | Tool | Version / notes |
 |------|-----------------|
-| Go toolchain | go1.26.3 darwin/amd64 |
+| Go toolchain | go1.26.5 darwin/amd64 |
 | govulncheck | v1.6.0 |
 | Go vuln DB | https://vuln.go.dev (DB updated 2026-07-08 17:05:00 UTC) |
 | Bun | 1.3.14 |
@@ -24,38 +24,19 @@ export https_proxy=http://127.0.0.1:7897 http_proxy=http://127.0.0.1:7897 all_pr
 cd apps/api && govulncheck ./...
 ```
 
-Result summary:
+Result summary after remediation:
 
-- **14 call-graph-reachable findings** across Go stdlib, `golang.org/x/image`,
-  and `github.com/gofiber/utils/v2`.
-- Additional imported/required findings exist but are not call-graph reachable
-  in this tree (`govulncheck` notes 3 package + 5 module non-called items).
+- **0 call-graph-reachable vulnerabilities**.
+- `govulncheck` reports 2 findings in imported packages and 2 in required
+  modules that the SForum call graph does not reach.
+- Remediated versions: Go `1.26.5`, `golang.org/x/image v0.43.0`, and
+  `github.com/gofiber/utils/v2 v2.0.0-rc.4`.
+- Avatar/image parsing and the Fiber HTTP controller tree passed focused tests;
+  `go test ./...` also passed with the upgraded toolchain and module graph.
 
-### Reachable findings (accepted risk until follow-up upgrade PR)
-
-| ID | Component | Found | Fixed in | Notes |
-|----|-----------|-------|----------|-------|
-| GO-2026-5856 | crypto/tls (stdlib) | go1.26.3 | go1.26.5 | Upgrade Go patch release |
-| GO-2026-5039 | net/textproto (stdlib) | go1.26.3 | go1.26.4 | Upgrade Go patch release |
-| GO-2026-5037 | crypto/x509 (stdlib) | go1.26.3 | go1.26.4 | Upgrade Go patch release |
-| GO-2026-4970 | os (stdlib) | go1.26.3 | go1.26.5 | Upgrade Go patch release |
-| GO-2025-4208 | github.com/gofiber/utils/v2 | v2.0.0-rc.2 | v2.0.0-rc.4 | Bump Fiber utils with Fiber upgrade |
-| GO-2026-5066 | golang.org/x/image | v0.0.0-20191009234506-e7c1f5e7dbb8 | v0.43.0 | Via imaging / avatar decode path |
-| GO-2026-5062 | golang.org/x/image | same | v0.43.0 | Avatar/upload image decode |
-| GO-2026-5032 | golang.org/x/image | same | v0.41.0 | Avatar/upload image decode |
-| GO-2026-5031 | golang.org/x/image | same | v0.41.0 | Avatar/upload image decode |
-| GO-2026-4815 | golang.org/x/image | same | v0.38.0 | Avatar/upload image decode |
-| GO-2024-2937 | golang.org/x/image | same | v0.18.0 | Palette-color panic |
-| GO-2023-1990 | golang.org/x/image/tiff | same | v0.10.0 | TIFF decode CPU |
-| GO-2023-1989 | golang.org/x/image/tiff | same | v0.10.0 | TIFF resource use |
-| GO-2023-1572 | golang.org/x/image/tiff | same | v0.5.0 | Crafted TIFF DoS |
-
-**Accepted for this remediation wave:** static audit follow-up does not include
-dependency upgrades. Recommended next release PR:
-
-1. Bump Go to ≥1.26.5 (covers stdlib TLS/x509/textproto/os items).
-2. Force-resolve `golang.org/x/image` to ≥0.43.0 (or upgrade imaging stack).
-3. Upgrade Fiber / `gofiber/utils/v2` to ≥v2.0.0-rc.4.
+The previous 2026-07-12 scan found 14 reachable issues across the Go standard
+library, `x/image`, and Fiber utils. Those reachable findings are closed and
+are no longer accepted risk.
 
 ## Bun / frontend (`apps/web`)
 
@@ -104,5 +85,8 @@ Plan items deferred to a controlled environment:
 
 ## Decision
 
-Record findings; do **not** block merge of the static security remediation
-commits. Open a dedicated dependency-upgrade ticket before production.
+The dependency upgrade is now a release gate result, not deferred work. Do not
+reintroduce an older Go toolchain, `x/image`, or Fiber utils version. The
+Windows-only esbuild development-server advisory remains a documented low-risk
+item; it does not affect the Linux production image, but should be cleared by a
+compatible frontend dependency update when available.
