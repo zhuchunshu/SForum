@@ -86,35 +86,96 @@ export function resolveHostPeerDirectory(webRoot, packageName) {
 
 /**
  * 从 apps/web 解析 peer 包及其 subpath（尊重 package.json exports）。
+ *
+ * 重要：必须使用 **bundler/browser** 条件，不能用 Node 的 `import.meta.resolve` /
+ * `createRequire` 默认结果。后者对 `vue` 会解析到 `exports.import.node` →
+ * `index.mjs`，浏览器侧没有 `effectScope` 等具名导出，导致：
+ *   The requested module '.../vue/index.mjs' does not provide an export named 'effectScope'
+ *
  * @param {string} webRoot
- * @param {string} id bare import，如 `nuxt/app`、`@nuxt/ui`
+ * @param {string} id bare import，如 `nuxt/app`、`@nuxt/ui`、`vue`
  * @returns {string | null} 绝对文件路径
  */
 export function resolveHostPeerId(webRoot, id) {
   const absoluteWeb = defaultWebRoot(webRoot)
-  const parentURL = pathToFileURL(path.join(absoluteWeb, 'package.json')).href
+  const parsed = splitBarePackageId(id)
+  if (!parsed) return null
 
-  try {
-    return fileURLToPath(import.meta.resolve(id, parentURL))
-  } catch {
-    // 部分包对 CJS require 有 main、对 ESM 无；或反过来
+  const pkgDir = resolveHostPeerDirectory(absoluteWeb, parsed.name)
+  if (!pkgDir) {
+    // 回退：仅作诊断路径；bundler 条件失败时再试 Node（可能仍是 node 条件）
+    return resolveHostPeerIdNodeFallback(absoluteWeb, id)
   }
 
+  const fromExports = resolvePackageExportFile(pkgDir, parsed.subpath)
+  if (fromExports) return fromExports
+
+  return resolveHostPeerIdNodeFallback(absoluteWeb, id)
+}
+
+/**
+ * Vite pre 插件用：仅当 importer 在宿主 apps/web 树之外（扩展源码 / 外置 compose）
+ * 时强制解析到宿主 peer。宿主自身代码交给 Vite 默认解析，避免误伤 vue 条件导出。
+ *
+ * @param {string} webRoot
+ * @param {string | undefined} importer
+ * @returns {boolean}
+ */
+export function shouldForceHostPeerResolve(webRoot, importer) {
+  if (!importer) return false
+  const absoluteWeb = path.resolve(defaultWebRoot(webRoot))
+  const clean = importer.split('?')[0].split('#')[0]
+  if (!clean || clean.startsWith('\0')) return false
+  // virtual / dep optimized ids
+  if (clean.includes('node_modules/.vite') || clean.includes('\0')) return false
+  let abs
   try {
-    return createRequire(path.join(absoluteWeb, 'package.json')).resolve(id)
+    abs = path.resolve(clean)
   } catch {
-    // continue
+    return false
+  }
+  // 宿主 app 内：不拦截（含 packages/、app/、.nuxt 等）
+  if (isPathInside(abs, absoluteWeb)) {
+    // 例外：dev-compose / release 把扩展挂到 web 树外的情况已由 !isPathInside 覆盖
+    return false
+  }
+  return true
+}
+
+/**
+ * 按 package.json exports 解析 subpath，优先 browser/bundler 条件，显式跳过 node。
+ * @param {string} packageDir
+ * @param {string} subpath  '' | 'app' | 'dist/...'（不含包名）
+ * @returns {string | null}
+ */
+export function resolvePackageExportFile(packageDir, subpath = '') {
+  let pkg
+  try {
+    pkg = JSON.parse(fs.readFileSync(path.join(packageDir, 'package.json'), 'utf8'))
+  } catch {
+    return null
   }
 
-  try {
-    if (typeof Bun !== 'undefined' && typeof Bun.resolveSync === 'function') {
-      return Bun.resolveSync(id, absoluteWeb)
+  const relRequest = subpath ? `./${subpath.replace(/^\.\//, '')}` : '.'
+  let target = null
+
+  if (pkg.exports != null) {
+    target = matchExportsField(pkg.exports, relRequest)
+  }
+
+  if (!target && (relRequest === '.' || relRequest === './')) {
+    // 无 exports 时的经典字段（bundler 优先 module）
+    target = pkg.module || pkg.browser || pkg.main || null
+    if (target && typeof target === 'object') {
+      target = pickExportTarget(target)
     }
-  } catch {
-    // continue
   }
 
-  return null
+  if (typeof target !== 'string' || !target) return null
+
+  const abs = path.resolve(packageDir, target)
+  if (!fs.existsSync(abs)) return null
+  return abs
 }
 
 /**
@@ -146,8 +207,8 @@ export function resolveAdminHostPeerAliases(webRoot) {
 }
 
 /**
- * Vite pre 插件：把 host npm peers（含 subpath）固定解析到 apps/web 依赖树。
- * 扩展 SFC 的 importer 可能在 extensions/**，默认 Node 解析会失败。
+ * Vite pre 插件：把 **扩展树外** importer 的 host npm peers 解析到 apps/web 依赖树。
+ * 使用 bundler 条件导出（避免 vue → index.mjs）。宿主 app 内 import 不拦截。
  *
  * @param {string} [webRoot]
  * @returns {import('vite').Plugin}
@@ -171,8 +232,12 @@ export function createAdminHostPeerResolvePlugin(webRoot) {
   return {
     name: 'sforum-admin-host-peer-resolve',
     enforce: 'pre',
-    resolveId(source) {
+    resolveId(source, importer) {
       if (!matchPeerImport(source)) return null
+      // 宿主自身代码必须走 Vite 默认条件解析；强制 Node resolve 会弄坏 vue。
+      if (!shouldForceHostPeerResolve(absoluteWeb, importer)) {
+        return null
+      }
       const resolved = resolveHostPeerId(absoluteWeb, source)
       return resolved || null
     },
@@ -255,6 +320,154 @@ function packageRootFromResolvedFile(filePath, packageName) {
     const parent = path.dirname(current)
     if (parent === current) break
     current = parent
+  }
+  return null
+}
+
+function isPathInside(child, parent) {
+  const rel = path.relative(path.resolve(parent), path.resolve(child))
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
+}
+
+/**
+ * @param {string} id
+ * @returns {{ name: string, subpath: string } | null}
+ */
+function splitBarePackageId(id) {
+  if (!id || id.startsWith('.') || id.startsWith('/') || id.includes(':')) return null
+  if (id.startsWith('@')) {
+    const parts = id.split('/')
+    if (parts.length < 2) return null
+    return {
+      name: `${parts[0]}/${parts[1]}`,
+      subpath: parts.slice(2).join('/'),
+    }
+  }
+  const slash = id.indexOf('/')
+  if (slash === -1) return { name: id, subpath: '' }
+  return { name: id.slice(0, slash), subpath: id.slice(slash + 1) }
+}
+
+/** 运行时文件解析时跳过的 exports 条件（Node / 类型）。 */
+const EXPORT_SKIP_CONDITIONS = new Set([
+  'types',
+  'typings',
+  'node',
+  'node-addons',
+  'deno',
+  'electron',
+])
+
+/**
+ * 在 exports 条件对象中挑选 bundler/browser 目标，永不选 node/types。
+ * @param {unknown} entry
+ * @returns {string | null}
+ */
+export function pickExportTarget(entry) {
+  if (typeof entry === 'string') return entry
+  if (Array.isArray(entry)) {
+    for (const item of entry) {
+      const picked = pickExportTarget(item)
+      if (picked) return picked
+    }
+    return null
+  }
+  if (!entry || typeof entry !== 'object') return null
+
+  // 优先顺序：browser → import → module → default → require
+  for (const key of ['browser', 'import', 'module', 'default', 'require']) {
+    if (Object.prototype.hasOwnProperty.call(entry, key) && !EXPORT_SKIP_CONDITIONS.has(key)) {
+      const picked = pickExportTarget(/** @type {any} */ (entry)[key])
+      if (picked) return picked
+    }
+  }
+  for (const [key, value] of Object.entries(entry)) {
+    if (EXPORT_SKIP_CONDITIONS.has(key)) continue
+    if (['browser', 'import', 'module', 'default', 'require'].includes(key)) continue
+    const picked = pickExportTarget(value)
+    if (picked) return picked
+  }
+  return null
+}
+
+/**
+ * @param {unknown} exportsField
+ * @param {string} relRequest '.' | './app'
+ * @returns {string | null}
+ */
+function matchExportsField(exportsField, relRequest) {
+  const request = relRequest === './' ? '.' : relRequest
+
+  if (typeof exportsField === 'string' || Array.isArray(exportsField)) {
+    return request === '.' ? pickExportTarget(exportsField) : null
+  }
+  if (!exportsField || typeof exportsField !== 'object') return null
+
+  // 条件式根 exports（无 "." 键）
+  const keys = Object.keys(exportsField)
+  const hasSubpathKeys = keys.some((k) => k.startsWith('.') || k === '.')
+  if (!hasSubpathKeys) {
+    return request === '.' ? pickExportTarget(exportsField) : null
+  }
+
+  // 精确匹配
+  if (Object.prototype.hasOwnProperty.call(exportsField, request)) {
+    return pickExportTarget(/** @type {any} */ (exportsField)[request])
+  }
+  // 兼容 "./" vs "."
+  if (request === '.' && Object.prototype.hasOwnProperty.call(exportsField, './')) {
+    return pickExportTarget(/** @type {any} */ (exportsField)['./'])
+  }
+
+  // 简单 * 通配（如 ./dist/*）
+  for (const [pattern, value] of Object.entries(exportsField)) {
+    if (!pattern.includes('*')) continue
+    const star = pattern.indexOf('*')
+    const prefix = pattern.slice(0, star)
+    const suffix = pattern.slice(star + 1)
+    if (!request.startsWith(prefix) || !request.endsWith(suffix)) continue
+    const mid = request.slice(prefix.length, request.length - suffix.length)
+    const mapped = pickExportTarget(value)
+    if (typeof mapped !== 'string') continue
+    return mapped.replace('*', mid)
+  }
+  return null
+}
+
+function resolveHostPeerIdNodeFallback(absoluteWeb, id) {
+  const parentURL = pathToFileURL(path.join(absoluteWeb, 'package.json')).href
+  try {
+    const resolved = fileURLToPath(import.meta.resolve(id, parentURL))
+    // 若误落到 vue/index.mjs，尝试纠正为 bundler 构建
+    const corrected = correctKnownNodeOnlyEntries(resolved)
+    return corrected || resolved
+  } catch {
+    // continue
+  }
+  try {
+    const resolved = createRequire(path.join(absoluteWeb, 'package.json')).resolve(id)
+    const corrected = correctKnownNodeOnlyEntries(resolved)
+    return corrected || resolved
+  } catch {
+    // continue
+  }
+  try {
+    if (typeof Bun !== 'undefined' && typeof Bun.resolveSync === 'function') {
+      return Bun.resolveSync(id, absoluteWeb)
+    }
+  } catch {
+    // continue
+  }
+  return null
+}
+
+/** Node 条件落到 vue/index.mjs 时改写到 runtime esm-bundler。 */
+function correctKnownNodeOnlyEntries(resolvedPath) {
+  if (!resolvedPath) return null
+  const normalized = resolvedPath.replace(/\\/g, '/')
+  if (normalized.endsWith('/vue/index.mjs') || normalized.endsWith('/vue/index.js')) {
+    const bundler = path.join(path.dirname(resolvedPath), 'dist/vue.runtime.esm-bundler.js')
+    if (fs.existsSync(bundler)) return bundler
   }
   return null
 }

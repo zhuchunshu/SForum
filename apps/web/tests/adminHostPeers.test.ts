@@ -8,10 +8,12 @@ import {
   ADMIN_HOST_PEER_NAMES,
   createAdminHostPeerResolvePlugin,
   listInstalledPackageNames,
+  pickExportTarget,
   pruneHostPeerNodeModules,
   resolveAdminHostPeerAliases,
   resolveHostPeerDirectory,
   resolveHostPeerId,
+  shouldForceHostPeerResolve,
 } from '../build/admin-host-peers.mjs'
 
 describe('admin host peers', () => {
@@ -49,17 +51,64 @@ describe('admin host peers', () => {
     expect(fs.existsSync(nuxtApp!)).toBe(true)
   })
 
-  test('vite plugin rewrites host peer bare imports', () => {
+  // 浏览器侧需要 vue.runtime.esm-bundler；Node 条件的 index.mjs 没有 effectScope 等具名导出
+  test('resolves vue to bundler runtime, not Node index.mjs', () => {
+    const vue = resolveHostPeerId(webRoot, 'vue')
+    expect(vue).toBeTruthy()
+    expect(vue!.replace(/\\/g, '/')).toMatch(/vue\.runtime\.esm-bundler\.js$/)
+    expect(vue!.endsWith('index.mjs')).toBe(false)
+  })
+
+  test('pickExportTarget skips node condition in favor of bundler default', () => {
+    const picked = pickExportTarget({
+      import: {
+        types: './dist/vue.d.mts',
+        node: './index.mjs',
+        default: './dist/vue.runtime.esm-bundler.js',
+      },
+      require: {
+        node: './index.js',
+        default: './index.js',
+      },
+    })
+    expect(picked).toBe('./dist/vue.runtime.esm-bundler.js')
+  })
+
+  test('only forces host peer resolve for importers outside apps/web', () => {
+    expect(shouldForceHostPeerResolve(webRoot, path.join(webRoot, 'app/app.vue'))).toBe(false)
+    expect(shouldForceHostPeerResolve(webRoot, path.join(webRoot, 'node_modules/nuxt/dist/app/nuxt.js'))).toBe(false)
+    expect(shouldForceHostPeerResolve(webRoot, undefined)).toBe(false)
+    expect(
+      shouldForceHostPeerResolve(
+        webRoot,
+        path.resolve(webRoot, '../../../extensions/dev/sample-plugin/admin/pages/x.vue'),
+      ),
+    ).toBe(true)
+  })
+
+  test('vite plugin rewrites host peer bare imports only for external importers', () => {
     const plugin = createAdminHostPeerResolvePlugin(webRoot)
-    const resolveId = plugin.resolveId as (source: string) => string | null
-    const vue = resolveId('vue')
+    const resolveId = plugin.resolveId as (
+      source: string,
+      importer?: string,
+    ) => string | null
+
+    // 宿主内 import：不拦截，交给 Vite 默认条件解析
+    expect(resolveId('vue', path.join(webRoot, 'app/app.vue'))).toBeNull()
+    expect(resolveId('vue')).toBeNull()
+
+    // 扩展树外 importer：强制到宿主 bundler 构建
+    const externalImporter = path.resolve(webRoot, '../../../extensions/dev/sample-plugin/admin/x.vue')
+    const vue = resolveId('vue', externalImporter)
     expect(vue).toBeTruthy()
     expect(fs.existsSync(vue!)).toBe(true)
-    const nuxtApp = resolveId('nuxt/app')
+    expect(vue!.replace(/\\/g, '/')).toMatch(/vue\.runtime\.esm-bundler\.js$/)
+
+    const nuxtApp = resolveId('nuxt/app', externalImporter)
     expect(nuxtApp).toBeTruthy()
     expect(fs.existsSync(nuxtApp!)).toBe(true)
-    expect(resolveId('./local')).toBeNull()
-    expect(resolveId('@sforum/admin-sdk')).toBeNull()
+    expect(resolveId('./local', externalImporter)).toBeNull()
+    expect(resolveId('@sforum/admin-sdk', externalImporter)).toBeNull()
   })
 
   test('prunes host-peer-only node_modules and refuses unknown packages', () => {
