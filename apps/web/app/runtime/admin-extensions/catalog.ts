@@ -54,12 +54,9 @@ export function translateAdminExtensionMessage(
   params: Record<string, unknown> = {}
 ) {
   const localeMessages = messages[extensionId]?.[mapAdminExtensionLocale(locale)]
-  const value = key.split('.').reduce<unknown>((current, segment) => {
-    if (!current || typeof current !== 'object') {
-      return undefined
-    }
-    return (current as Record<string, unknown>)[segment]
-  }, localeMessages)
+  // 设置项 key 常含点号（如 home.notice.zh-CN），locale JSON 会把它写成字面量对象键，
+  // 不能简单按 '.' 逐段下钻；优先最长前缀匹配，仍兼容嵌套对象写法。
+  const value = resolveAdminExtensionMessagePath(localeMessages, key)
 
   if (typeof value !== 'string') {
     return key
@@ -68,4 +65,34 @@ export function translateAdminExtensionMessage(
   return value.replace(/\{([^{}]+)\}/g, (match, name: string) => {
     return Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : match
   })
+}
+
+/** 解析扩展 locale 路径：支持嵌套与「键名本身含点」两种 JSON 形态。 */
+export function resolveAdminExtensionMessagePath(root: unknown, key: string): unknown {
+  if (!key) {
+    return undefined
+  }
+  return walkMessagePath(root, key.split('.'))
+}
+
+function walkMessagePath(node: unknown, parts: string[]): unknown {
+  if (parts.length === 0) {
+    return node
+  }
+  if (!node || typeof node !== 'object' || Array.isArray(node)) {
+    return undefined
+  }
+  const record = node as Record<string, unknown>
+  // 从最长前缀试到最短，避免 home.notice.zh-CN 被拆成 home / notice / zh-CN。
+  for (let take = parts.length; take >= 1; take -= 1) {
+    const candidate = parts.slice(0, take).join('.')
+    if (!Object.prototype.hasOwnProperty.call(record, candidate)) {
+      continue
+    }
+    const found = walkMessagePath(record[candidate], parts.slice(take))
+    if (found !== undefined) {
+      return found
+    }
+  }
+  return undefined
 }

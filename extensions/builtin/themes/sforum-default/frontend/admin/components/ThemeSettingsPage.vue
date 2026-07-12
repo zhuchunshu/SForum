@@ -80,11 +80,23 @@ const groupsOnTab = computed(() => {
   })).filter(group => group.keys.length)
 })
 
+// 字段文案优先用 API 已按 locale 解析的 label/description（settings.json 多语言 map）。
+// host.t 仅作扩展 locale 包回退；设置 key 常含点号（home.notice.zh-CN），勿假设纯嵌套路径。
 function labelFor(key: string) {
-  return host.t(`fields.${key}.label`)
+  const fromApi = itemsByKey.value[key]?.label?.trim()
+  if (fromApi) {
+    return fromApi
+  }
+  const translated = host.t(`fields.${key}.label`)
+  return translated === `fields.${key}.label` ? key : translated
 }
 function descriptionFor(key: string) {
-  return host.t(`fields.${key}.description`)
+  const fromApi = itemsByKey.value[key]?.description?.trim()
+  if (fromApi) {
+    return fromApi
+  }
+  const translated = host.t(`fields.${key}.description`)
+  return translated === `fields.${key}.description` ? '' : translated
 }
 function valueOf(key: string) {
   return props.context.values[key] ?? itemsByKey.value[key]?.value ?? ''

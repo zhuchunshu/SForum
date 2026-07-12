@@ -34,13 +34,10 @@ describe('dev runtime startup', () => {
     expect(lifecycle).toContain("signalGroup(pid, 'SIGTERM')")
     expect(lifecycle).toContain("signalGroup(pid, 'SIGKILL')")
 
-    const startup = runtime.indexOf("await lifecycle.requestRestart('startup')")
-    const listen = runtime.indexOf('await proxy.listen()')
-    expect(startup).toBeGreaterThan(-1)
-    expect(listen).toBeGreaterThan(startup)
+    expect(runtime).toContain("await lifecycle.requestRestart('startup')")
   })
 
-  test('clears persisted Nitro route responses before each local Nuxt launch', () => {
+  test('clears Nitro route cache on theme switch but not on cold startup', () => {
     const runtime = readFileSync(new URL('../scripts/dev-theme-runtime.mjs', import.meta.url), 'utf8')
     const launchDevChild = runtime.slice(
       runtime.indexOf('function launchDevChild'),
@@ -51,6 +48,7 @@ describe('dev runtime startup', () => {
     expect(runtime).toContain(
       "const nuxtBuildDir = path.resolve(process.cwd(), process.env.NUXT_BUILD_DIR || '.nuxt')",
     )
+    expect(launchDevChild).toContain("if (reason !== 'startup')")
     expect(launchDevChild).toContain('clearNuxtRouteCache(nuxtBuildDir)')
     expect(launchDevChild).toContain("spawn(bunPath, ['run', 'dev:nuxt']")
   })
@@ -59,8 +57,23 @@ describe('dev runtime startup', () => {
     const runtime = readFileSync(new URL('../scripts/dev-theme-runtime.mjs', import.meta.url), 'utf8')
 
     expect(runtime).toContain('env.SFORUM_ADMIN_REGISTRY_ROOT = selection.registryRoot')
-    expect(runtime).toContain('env.SFORUM_WEB_RELEASE_ID = selection.releaseId')
+    expect(runtime).toContain('env.SFORUM_WEB_RELEASE_ID = String(selection.releaseId)')
     expect(runtime).toContain('writeActiveAcknowledgement')
     expect(runtime).toContain('watchableReleaseFile(changed)')
+  })
+
+  test('defaults to lightweight dev-compose direct mode; full release keeps proxy', () => {
+    const runtime = readFileSync(new URL('../scripts/dev-theme-runtime.mjs', import.meta.url), 'utf8')
+
+    expect(runtime).toContain('watchDevAdminCompose')
+    expect(runtime).toContain('composeDevAdmin')
+    expect(runtime).toContain('SFORUM_DEV_USE_RELEASE')
+    expect(runtime).toContain('dev-compose direct mode')
+    expect(runtime).toContain('useProxy')
+    expect(runtime).toContain("PORT: useProxy ? '0' : String(externalPort)")
+    expect(runtime).toContain('waitForTcpListen')
+    expect(runtime).toContain('isNumericReleaseId')
+    // 完整 release 确认仍保留，但 dev-local 不得写 active.json
+    expect(runtime).toContain('writeActiveAcknowledgement')
   })
 })

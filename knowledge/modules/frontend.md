@@ -120,21 +120,46 @@ release root, uses blue-green Nitro switching, keeps the old child running when
 a candidate is missing or unhealthy, and falls back to the default `.output`
 when `mode === 'default'` or the file is absent.
 Locally, `bun run dev` runs `apps/web/scripts/dev-theme-runtime.mjs`, a
-theme-aware supervisor that reads the same `current.json`, injects
-`SFORUM_THEME_LAYER` from `layerPath`, and owns exactly one inner `nuxt dev`
-(spawned via `bun run dev:plain`). On a selection change it clears the proxy
-target, stops and waits for the old process group, then starts the latest layer
-and restores traffic after the child is healthy. This local serial restart has
-a brief development-only outage: parallel Nuxt dev instances cannot safely
-share their build lock, generated output, cache, and HMR resources. The
-supervisor loads the repository root `.env`, uses `PORT` or `WEB_PORT` for its
-fixed public proxy port, prints that public URL, and suppresses Nuxt
-child-process Local/Network lines so internal random `PORT=0` addresses are not
-mistaken for the frontend access port.
+theme-aware supervisor that owns exactly one inner `nuxt dev` (`dev:nuxt`).
+
+**Default (P1 dev-compose):** does **not** require a full Web Release. On
+start it runs `scripts/dev-admin-compose.mjs`, which scans
+`extensions/builtin/{themes,plugins}` for packages that declare
+`frontend.admin` + settings contributions, writes
+`storage/theme-releases/dev-compose/` with:
+
+- `registry/` (`metadata.ts`, `registry.client.ts`) — same shape as a Web
+  Release registry so Nuxt aliases keep working;
+- `guard-policy.json` — host peer allowlist for the admin extension Vite guard;
+- `extensions/<id>/frontend/admin` and `theme/layer` as **symlinks** into
+  builtin source so `.vue` edits hot-reload without rebuild.
+
+Locales and contribution maps are inlined into `metadata.ts`; changing those
+files updates `compositionHash` and restarts Nuxt. Pure component file edits
+keep the same hash and rely on Vite HMR through the symlink.
+
+**Startup speed (default mode):** Nuxt binds the public `PORT`/`WEB_PORT`
+directly (no reverse proxy). Ready is “TCP listen / Local URL printed”, not
+“HTTP GET / returns &lt;500”, so cold start feels close to bare `nuxt dev`.
+Compose itself is milliseconds. Nitro route cache is cleared only when
+switching theme/registry, not on cold start (keeps `.nuxt` warm).
+
+**Full Web Release mode:** set `SFORUM_DEV_USE_RELEASE=1` to consume
+`current.json` / production release `dev-input` (upload theme validation,
+digest-approved packages). That path still uses a fixed-port reverse proxy and
+serial Nuxt restarts when the release pointer changes. Numeric release IDs
+still write `active.json`; `dev-local` never does.
+
+On a selection change the supervisor stops the old process group, then starts
+the latest layer. Parallel Nuxt dev instances cannot safely share their build
+lock, generated output, cache, and HMR resources. The supervisor loads the
+repository root `.env` and uses `PORT` or `WEB_PORT` for the public URL.
 `bun run dev:plain` runs raw `nuxt dev` as an escape hatch for troubleshooting
 without the theme supervisor. It still watches `theme-releases/current.json`
 and writes `active.json` so trusted-admin Web Release activation can complete
-while Nuxt stays on the default/current process (no theme-layer restart).
+while Nuxt stays on the default/current process (no theme-layer restart). It
+does **not** run dev-compose and will not load custom admin UIs unless env is
+set manually.
 `bun run dev:nuxt` is the absolute bare Nuxt process used as the inner child of
 the theme supervisor; alone it will not acknowledge Web Releases.
 `bun run preview` only serves the fixed `.output` build and does not follow

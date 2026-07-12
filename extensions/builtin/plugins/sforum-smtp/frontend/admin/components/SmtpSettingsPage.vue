@@ -28,11 +28,22 @@ const groups = computed(() => {
   })).filter(group => group.keys.length)
 })
 
+// 与主题设置页一致：字段文案优先 API 已解析的 label/description，host.t 作扩展 locale 回退。
 function labelFor(key: string) {
-  return host.t(`fields.${key}.label`)
+  const fromApi = itemsByKey.value[key]?.label?.trim()
+  if (fromApi) {
+    return fromApi
+  }
+  const translated = host.t(`fields.${key}.label`)
+  return translated === `fields.${key}.label` ? key : translated
 }
 function descriptionFor(key: string) {
-  return host.t(`fields.${key}.description`)
+  const fromApi = itemsByKey.value[key]?.description?.trim()
+  if (fromApi) {
+    return fromApi
+  }
+  const translated = host.t(`fields.${key}.description`)
+  return translated === `fields.${key}.description` ? '' : translated
 }
 function valueOf(key: string) {
   return props.context.values[key] ?? itemsByKey.value[key]?.value ?? ''

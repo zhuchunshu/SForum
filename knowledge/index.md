@@ -4,6 +4,13 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-13 P1 local dev-admin-compose**
+  - Decision: `knowledge/decisions/2026-07-13-dev-admin-compose.md`
+  - Handoff: `knowledge/sessions/2026-07-13-dev-admin-compose-p1.md`
+  - `bun run dev` composes builtin admin/theme from source (symlink + registry)
+  - `SFORUM_DEV_USE_RELEASE=1` for full Web Release path
+  - Dotted locale keys + API label fallback on theme settings page
+
 - **2026-07-13 E6.2 complete** (chunked storage plugin RPC + PluginStorageAdapter)
   - Handoff: `knowledge/sessions/2026-07-13-e6-2-storage-rpc-adapter.md`
   - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`

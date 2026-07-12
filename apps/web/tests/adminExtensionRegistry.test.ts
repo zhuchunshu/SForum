@@ -68,6 +68,65 @@ describe('admin extension registry', () => {
     expect(translateAdminExtensionMessage(messages, 'demo.plugin', 'en', 'missing.key')).toBe('missing.key')
   })
 
+  // 主题/插件设置项 id 常含点号，locale 用字面量键 fields["home.notice.zh-CN"]，
+  // 若按 '.' 硬拆会得到 fields.home.notice... 的假路径。
+  test('resolves locale keys whose object keys contain dots (settings field ids)', () => {
+    const messages = {
+      'sforum.default-theme': {
+        'zh-CN': {
+          fields: {
+            'home.notice.zh-CN': {
+              label: '首页提示条（中文）',
+              description: '显示在首页话题列表上方。留空则隐藏。'
+            },
+            host: {
+              label: '嵌套写法仍可用'
+            }
+          }
+        },
+        'en-US': {
+          fields: {
+            'home.notice.zh-CN': {
+              label: 'Homepage notice (Chinese)'
+            }
+          }
+        }
+      }
+    }
+
+    expect(translateAdminExtensionMessage(
+      messages,
+      'sforum.default-theme',
+      'zh-CN',
+      'fields.home.notice.zh-CN.label'
+    )).toBe('首页提示条（中文）')
+    expect(translateAdminExtensionMessage(
+      messages,
+      'sforum.default-theme',
+      'zh-CN',
+      'fields.home.notice.zh-CN.description'
+    )).toBe('显示在首页话题列表上方。留空则隐藏。')
+    expect(translateAdminExtensionMessage(
+      messages,
+      'sforum.default-theme',
+      'en',
+      'fields.home.notice.zh-CN.label'
+    )).toBe('Homepage notice (Chinese)')
+    // 纯嵌套路径仍兼容（SMTP 的 fields.host.label）。
+    expect(translateAdminExtensionMessage(
+      messages,
+      'sforum.default-theme',
+      'zh-CN',
+      'fields.host.label'
+    )).toBe('嵌套写法仍可用')
+    expect(translateAdminExtensionMessage(
+      messages,
+      'sforum.default-theme',
+      'zh-CN',
+      'fields.home.notice.zh-CN.missing'
+    )).toBe('fields.home.notice.zh-CN.missing')
+  })
+
   test('prefixes requests with the owning extension route', () => {
     expect(extensionRequestPath('demo.plugin', '/jobs/42')).toBe('/extensions/demo.plugin/jobs/42')
     expect(extensionRequestPath('demo/plugin', 'jobs')).toBe('/extensions/demo%2Fplugin/jobs')

@@ -12,6 +12,12 @@ export function validateAdminExtensionImport(source: string, importer: string | 
   const owner = policy.roots.find(candidate => inside(candidate.root, cleanImporter))
   if (!owner) return
 
+  // Vite 虚拟模块（如 \0plugin-vue:export-helper）由编译器注入，不是扩展可声明的 npm 依赖。
+  // \0 是 Rollup/Vite 约定的 virtual id 前缀；virtual: 是常见插件虚拟模块前缀。
+  if (isViteVirtualModuleId(source)) {
+    return
+  }
+
   if (source.startsWith('~/') || source.startsWith('@/') || source === '#build' || source.startsWith('#build/')) {
     throw new Error(`trusted admin extension import is outside the supported host API: ${source}`)
   }
@@ -19,9 +25,10 @@ export function validateAdminExtensionImport(source: string, importer: string | 
     throw new Error('trusted admin extensions cannot import the host-only Admin SDK entrypoint')
   }
   if (source.startsWith('.') || isAbsolute(source)) {
-    // 绝对路径 / 相对路径：允许扩展 root 内文件，以及解析到 host peer / 私有依赖包的路径。
-    // Vite 在编译 SFC 时会把 UButton 等解析成 apps/web/node_modules/@nuxt/ui/... 绝对路径；
-    // 旧逻辑只允许 root 内路径，会把合法 host peer 当成越界。
+    // 绝对 / 相对路径：允许扩展 root 内文件，以及解析到宿主 node_modules 的路径。
+    // Vite/Nuxt 会把 UButton 写成绝对路径，也会把 dev tracer 写成相对路径
+    // （如 ../../../../apps/web/node_modules/vite-plugin-vue-tracer/...）。
+    // bare import 仍走下面的 hostPeers / dependencies 白名单，防止声明未授权包名。
     const cleanSource = stripQuery(source)
     const resolved = isAbsolute(cleanSource)
       ? resolve(cleanSource)
@@ -40,6 +47,11 @@ export function validateAdminExtensionImport(source: string, importer: string | 
   if (!policy.hostPeers.includes(packageName) && !owner.dependencies.includes(packageName)) {
     throw new Error(`trusted admin extension imports undeclared package: ${packageName}`)
   }
+}
+
+/** Rollup/Vite 虚拟模块 id：\0 前缀或 virtual: 前缀，不参与扩展依赖白名单。 */
+export function isViteVirtualModuleId(source: string) {
+  return source.startsWith('\0') || source.startsWith('virtual:')
 }
 
 export function adminExtensionGuard(policy: AdminExtensionGuardPolicy) {
@@ -92,11 +104,12 @@ export function packageNameFromNodeModulesPath(absolutePath: string) {
 }
 
 function isAllowedExternalPackagePath(resolved: string, dependencies: string[], hostPeers: string[]) {
-  const allowed = new Set([...hostPeers, ...dependencies])
-  const fromNodeModules = packageNameFromNodeModulesPath(resolved)
-  if (fromNodeModules && allowed.has(fromNodeModules)) {
+  // 任意 node_modules 路径都视为宿主工具链/依赖图产物（含 Nuxt dev tracer、
+  // 传递依赖），不要求包名落在 hostPeers 里。真正的依赖边界由 bare import 校验。
+  if (packageNameFromNodeModulesPath(resolved)) {
     return true
   }
+  const allowed = new Set([...hostPeers, ...dependencies])
   // @sforum/admin-sdk 在发布工作区里是 packages/admin-sdk 符号链接，不一定在 node_modules 下。
   if (allowed.has('@sforum/admin-sdk') && isWorkspaceAdminSdkPath(resolved)) {
     return true
