@@ -185,6 +185,40 @@ func (fakeBootstrapExtensionRuntime) SendMail(context.Context, string, extension
 	return extensionsruntime.MailProviderResponse{}, nil
 }
 
+func (fakeBootstrapExtensionRuntime) StoragePutBegin(context.Context, string, extensionsruntime.StoragePutBeginRequest) (extensionsruntime.StorageSessionResponse, error) {
+	return extensionsruntime.StorageSessionResponse{}, nil
+}
+func (fakeBootstrapExtensionRuntime) StoragePutChunk(context.Context, string, extensionsruntime.StoragePutChunkRequest) (extensionsruntime.StorageResult, error) {
+	return extensionsruntime.StorageResult{}, nil
+}
+func (fakeBootstrapExtensionRuntime) StorageOpen(context.Context, string, extensionsruntime.StorageOpenRequest) (extensionsruntime.StorageSessionResponse, error) {
+	return extensionsruntime.StorageSessionResponse{}, nil
+}
+func (fakeBootstrapExtensionRuntime) StorageGetChunk(context.Context, string, extensionsruntime.StorageGetChunkRequest) (extensionsruntime.StorageGetChunkResponse, error) {
+	return extensionsruntime.StorageGetChunkResponse{}, nil
+}
+func (fakeBootstrapExtensionRuntime) StorageClose(context.Context, string, extensionsruntime.StorageCloseRequest) (extensionsruntime.StorageResult, error) {
+	return extensionsruntime.StorageResult{}, nil
+}
+func (fakeBootstrapExtensionRuntime) StorageDelete(context.Context, string, extensionsruntime.StorageObjectRequest) (extensionsruntime.StorageResult, error) {
+	return extensionsruntime.StorageResult{}, nil
+}
+func (fakeBootstrapExtensionRuntime) StorageStat(context.Context, string, extensionsruntime.StorageStatRequest) (extensionsruntime.StorageStatResponse, error) {
+	return extensionsruntime.StorageStatResponse{}, nil
+}
+func (fakeBootstrapExtensionRuntime) StorageExists(context.Context, string, extensionsruntime.StorageExistsRequest) (extensionsruntime.StorageExistsResponse, error) {
+	return extensionsruntime.StorageExistsResponse{}, nil
+}
+func (fakeBootstrapExtensionRuntime) StoragePublicURL(context.Context, string, extensionsruntime.StoragePublicURLRequest) (extensionsruntime.StorageURLResponse, error) {
+	return extensionsruntime.StorageURLResponse{}, nil
+}
+func (fakeBootstrapExtensionRuntime) StorageSignedURL(context.Context, string, extensionsruntime.StorageSignedURLRequest) (extensionsruntime.StorageURLResponse, error) {
+	return extensionsruntime.StorageURLResponse{}, nil
+}
+func (fakeBootstrapExtensionRuntime) StorageProbe(context.Context, string, extensionsruntime.StorageProbeRequest) (extensionsruntime.StorageProbeResponse, error) {
+	return extensionsruntime.StorageProbeResponse{}, nil
+}
+
 func TestNewHumanVerifyServiceEnablesAltchaProvider(t *testing.T) {
 	service, err := newHumanVerifyService(config.Config{
 		HumanVerificationProvider: "altcha",

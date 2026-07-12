@@ -8,6 +8,7 @@ import (
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
@@ -71,7 +72,7 @@ func TestUpdateSettingsRejectsUnavailablePlugin(t *testing.T) {
 	}
 }
 
-func TestAdapterForPluginSelectionFailClosed(t *testing.T) {
+func TestAdapterForPluginSelectionFailClosedWithoutRuntime(t *testing.T) {
 	optionStore := &fakeOptionStore{items: map[string]string{
 		options.NameAttachmentProvider: "plugin:acme.store",
 	}}
@@ -85,10 +86,67 @@ func TestAdapterForPluginSelectionFailClosed(t *testing.T) {
 	if settings.Provider != "plugin:acme.store" {
 		t.Fatalf("provider=%s", settings.Provider)
 	}
+	// 有 catalog 无 runtime：仍 fail-closed（E6.2 要求注入 StorageRuntime）。
 	_, err = service.adapterForSettings(context.Background(), settings, settings.Provider)
 	if !errors.Is(err, ErrStorageUnavailable) {
-		t.Fatalf("plugin path must fail closed until E6.2 RPC, got %v", err)
+		t.Fatalf("plugin path without runtime must fail closed, got %v", err)
 	}
+}
+
+func TestAdapterForPluginSelectionWithRuntime(t *testing.T) {
+	optionStore := &fakeOptionStore{items: map[string]string{
+		options.NameAttachmentProvider: "plugin:acme.store",
+	}}
+	// 最小 stub：只要 NewPluginStorageAdapter 成功即可。
+	service := NewService(nil, options.NewServiceWithCacheTTL(optionStore, time.Minute)).
+		WithStorageProviderCatalog(fakeStorageCatalog{available: map[string]bool{"acme.store": true}}).
+		WithStoragePluginRuntime(stubStorageRuntime{})
+
+	settings, err := service.runtimeSettings(context.Background())
+	if err != nil {
+		t.Fatalf("runtimeSettings: %v", err)
+	}
+	adapter, err := service.adapterForSettings(context.Background(), settings, settings.Provider)
+	if err != nil || adapter == nil {
+		t.Fatalf("expected plugin adapter, err=%v adapter=%v", err, adapter)
+	}
+}
+
+// stubStorageRuntime 仅满足接口；本测试不调用 RPC。
+type stubStorageRuntime struct{}
+
+func (stubStorageRuntime) StoragePutBegin(context.Context, string, extensionsruntime.StoragePutBeginRequest) (extensionsruntime.StorageSessionResponse, error) {
+	return extensionsruntime.StorageSessionResponse{}, nil
+}
+func (stubStorageRuntime) StoragePutChunk(context.Context, string, extensionsruntime.StoragePutChunkRequest) (extensionsruntime.StorageResult, error) {
+	return extensionsruntime.StorageResult{}, nil
+}
+func (stubStorageRuntime) StorageOpen(context.Context, string, extensionsruntime.StorageOpenRequest) (extensionsruntime.StorageSessionResponse, error) {
+	return extensionsruntime.StorageSessionResponse{}, nil
+}
+func (stubStorageRuntime) StorageGetChunk(context.Context, string, extensionsruntime.StorageGetChunkRequest) (extensionsruntime.StorageGetChunkResponse, error) {
+	return extensionsruntime.StorageGetChunkResponse{}, nil
+}
+func (stubStorageRuntime) StorageClose(context.Context, string, extensionsruntime.StorageCloseRequest) (extensionsruntime.StorageResult, error) {
+	return extensionsruntime.StorageResult{}, nil
+}
+func (stubStorageRuntime) StorageDelete(context.Context, string, extensionsruntime.StorageObjectRequest) (extensionsruntime.StorageResult, error) {
+	return extensionsruntime.StorageResult{}, nil
+}
+func (stubStorageRuntime) StorageStat(context.Context, string, extensionsruntime.StorageStatRequest) (extensionsruntime.StorageStatResponse, error) {
+	return extensionsruntime.StorageStatResponse{}, nil
+}
+func (stubStorageRuntime) StorageExists(context.Context, string, extensionsruntime.StorageExistsRequest) (extensionsruntime.StorageExistsResponse, error) {
+	return extensionsruntime.StorageExistsResponse{}, nil
+}
+func (stubStorageRuntime) StoragePublicURL(context.Context, string, extensionsruntime.StoragePublicURLRequest) (extensionsruntime.StorageURLResponse, error) {
+	return extensionsruntime.StorageURLResponse{}, nil
+}
+func (stubStorageRuntime) StorageSignedURL(context.Context, string, extensionsruntime.StorageSignedURLRequest) (extensionsruntime.StorageURLResponse, error) {
+	return extensionsruntime.StorageURLResponse{}, nil
+}
+func (stubStorageRuntime) StorageProbe(context.Context, string, extensionsruntime.StorageProbeRequest) (extensionsruntime.StorageProbeResponse, error) {
+	return extensionsruntime.StorageProbeResponse{}, nil
 }
 
 func TestClearStorageProviderSelectionIfMatch(t *testing.T) {

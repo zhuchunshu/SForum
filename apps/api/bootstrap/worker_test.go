@@ -187,6 +187,40 @@ func (c *countingWorkerRuntime) SendMail(context.Context, string, extensionsrunt
 	return extensionsruntime.MailProviderResponse{}, nil
 }
 
+func (c *countingWorkerRuntime) StoragePutBegin(context.Context, string, extensionsruntime.StoragePutBeginRequest) (extensionsruntime.StorageSessionResponse, error) {
+	return extensionsruntime.StorageSessionResponse{}, nil
+}
+func (c *countingWorkerRuntime) StoragePutChunk(context.Context, string, extensionsruntime.StoragePutChunkRequest) (extensionsruntime.StorageResult, error) {
+	return extensionsruntime.StorageResult{}, nil
+}
+func (c *countingWorkerRuntime) StorageOpen(context.Context, string, extensionsruntime.StorageOpenRequest) (extensionsruntime.StorageSessionResponse, error) {
+	return extensionsruntime.StorageSessionResponse{}, nil
+}
+func (c *countingWorkerRuntime) StorageGetChunk(context.Context, string, extensionsruntime.StorageGetChunkRequest) (extensionsruntime.StorageGetChunkResponse, error) {
+	return extensionsruntime.StorageGetChunkResponse{}, nil
+}
+func (c *countingWorkerRuntime) StorageClose(context.Context, string, extensionsruntime.StorageCloseRequest) (extensionsruntime.StorageResult, error) {
+	return extensionsruntime.StorageResult{}, nil
+}
+func (c *countingWorkerRuntime) StorageDelete(context.Context, string, extensionsruntime.StorageObjectRequest) (extensionsruntime.StorageResult, error) {
+	return extensionsruntime.StorageResult{}, nil
+}
+func (c *countingWorkerRuntime) StorageStat(context.Context, string, extensionsruntime.StorageStatRequest) (extensionsruntime.StorageStatResponse, error) {
+	return extensionsruntime.StorageStatResponse{}, nil
+}
+func (c *countingWorkerRuntime) StorageExists(context.Context, string, extensionsruntime.StorageExistsRequest) (extensionsruntime.StorageExistsResponse, error) {
+	return extensionsruntime.StorageExistsResponse{}, nil
+}
+func (c *countingWorkerRuntime) StoragePublicURL(context.Context, string, extensionsruntime.StoragePublicURLRequest) (extensionsruntime.StorageURLResponse, error) {
+	return extensionsruntime.StorageURLResponse{}, nil
+}
+func (c *countingWorkerRuntime) StorageSignedURL(context.Context, string, extensionsruntime.StorageSignedURLRequest) (extensionsruntime.StorageURLResponse, error) {
+	return extensionsruntime.StorageURLResponse{}, nil
+}
+func (c *countingWorkerRuntime) StorageProbe(context.Context, string, extensionsruntime.StorageProbeRequest) (extensionsruntime.StorageProbeResponse, error) {
+	return extensionsruntime.StorageProbeResponse{}, nil
+}
+
 func (c *countingWorkerRuntime) Reconcile(context.Context, []extensions.Extension) {}
 
 func (c *countingWorkerRuntime) Close(context.Context) { c.closeCalls++ }

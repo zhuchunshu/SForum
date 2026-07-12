@@ -69,6 +69,8 @@ type extensionRuntime interface {
 	Close(ctx context.Context)
 	// SendMail 供 embed worker 的 mail.deliver 复用同一 runtime（P0 共享插件进程）。
 	SendMail(ctx context.Context, extensionID string, request extensionsruntime.MailProviderRequest) (extensionsruntime.MailProviderResponse, error)
+	// 附件存储槽 RPC（E6.2）；与 StorageRuntime 对齐。
+	extensionsruntime.StorageRuntime
 }
 
 var newExtensionRuntimeManager = func(store extensions.Store, hostAPI extensionsruntime.HostAPIRegistrar, settings extensionsruntime.PluginSettings) extensionRuntime {
@@ -317,8 +319,10 @@ func NewAPI(ctx context.Context, cfg config.Config, logger *slog.Logger) (*API, 
 		WithAllowHTTP(!strings.EqualFold(cfg.AppEnv, "production")).
 		WithCipher(optionCipher)
 	eventPublisher := webhooks.BridgePublisher{Inner: extensionRuntime, Fanout: webhookService}
-	// 与 extensionService 共享同一 attachmentService 实例（禁用回落 + 候选目录 + 事件）。
-	_ = attachmentService.WithEvents(eventPublisher).WithStorageProviderCatalog(extensionService)
+	// 与 extensionService 共享同一 attachmentService 实例（禁用回落 + 候选目录 + 事件 + 存储 RPC）。
+	_ = attachmentService.WithEvents(eventPublisher).
+		WithStorageProviderCatalog(extensionService).
+		WithStoragePluginRuntime(extensionRuntime)
 
 	// F3.4：个人访问令牌；管理走 cookie，调用走 Bearer。
 	apiTokenStore := apitokens.NewPostgresStore(pool)

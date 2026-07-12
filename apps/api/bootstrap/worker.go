@@ -50,10 +50,11 @@ type Worker struct {
 }
 
 // workerExtensionRuntime 是 worker 对 extension runtime 的最小依赖面：
-// mail.deliver 需要 SendMail；独立进程路径还需 Reconcile/Close。
+// mail.deliver 需要 SendMail；附件清理需要 StorageRuntime；独立进程还需 Reconcile/Close。
 // API embed 注入的 *extensionsruntime.Manager 满足此接口。
 type workerExtensionRuntime interface {
 	notificationjobs.ProviderSender
+	extensionsruntime.StorageRuntime
 	Reconcile(ctx context.Context, items []extensions.Extension)
 	Close(ctx context.Context)
 }
@@ -242,8 +243,10 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	extensionjobs.RegisterWebReleaseBuildWorker(registry, webReleaseStore, webReleaseBuilder, postgres.NewAdvisoryLocker(pool))
 	extensionjobs.RegisterWebReleaseCleanupWorker(registry, webReleaseStore, cfg.WebReleaseRoot)
 	// 孤儿附件清理：handler 已存在，F1 通过 schedule registry 挂上 daily maintenance。
+	// 与 API 相同：插件存储路径需注入 runtime（E6.2）。
 	attachmentStore := attachments.NewPostgresStore(pool)
-	attachmentService := attachments.NewService(attachmentStore, workerOptions)
+	attachmentService := attachments.NewService(attachmentStore, workerOptions).
+		WithStoragePluginRuntime(extensionRuntime)
 	attachmentjobs.Register(registry, attachmentService)
 	// 审计日志保留期清理（F1.4）：默认 90 天，handler 可后续接 runtime option。
 	auditWriter := audit.NewPostgresWriter(pool)

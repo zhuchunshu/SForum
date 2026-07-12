@@ -2,9 +2,11 @@ package attachments
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"image"
 	_ "image/gif"
@@ -18,13 +20,13 @@ import (
 	"strings"
 	"time"
 
-	"context"
-
 	"github.com/disintegration/imaging"
 
+	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
+	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	storage "github.com/zhuchunshu/sforum/apps/api/app/Support/Storage"
 )
 
@@ -38,13 +40,18 @@ type StorageProviderCatalog interface {
 	IsStorageProviderAvailable(ctx context.Context, extensionID string) (bool, error)
 }
 
+// StoragePluginRuntime 是插件存储 RPC 的宿主入口（E6.2）；通常为 extension Manager。
+type StoragePluginRuntime = extensionsruntime.StorageRuntime
+
 type Service struct {
 	store          Store
 	options        *options.Service
 	events         appevents.Publisher
 	adapterFactory func(storage.Config) (storage.Adapter, error)
-	// providers 可选：插件存储候选与可用性（E6.1；RPC 仍在 E6.2）。
+	// providers 可选：插件存储候选与可用性（E6.1）。
 	providers StorageProviderCatalog
+	// storageRuntime 可选：选中 plugin: 时构造 PluginStorageAdapter（E6.2）。
+	storageRuntime StoragePluginRuntime
 }
 
 func NewService(store Store, optionsService *options.Service) *Service {
@@ -72,6 +79,14 @@ func NewServiceWithAdapterFactory(store Store, optionsService *options.Service, 
 func (s *Service) WithStorageProviderCatalog(catalog StorageProviderCatalog) *Service {
 	if s != nil {
 		s.providers = catalog
+	}
+	return s
+}
+
+// WithStoragePluginRuntime 注入扩展 runtime，使 plugin: 选择走分块 Storage RPC（E6.2）。
+func (s *Service) WithStoragePluginRuntime(runtime StoragePluginRuntime) *Service {
+	if s != nil {
+		s.storageRuntime = runtime
 	}
 	return s
 }
@@ -195,6 +210,10 @@ func (s *Service) storePreparedUpload(ctx context.Context, actor identity.Actor,
 		Size:        prepared.SizeBytes,
 		ContentType: prepared.Metadata.ContentType,
 	}); err != nil {
+		// 插件存储失败 fail-closed：对调用方统一 storage_unavailable。
+		if isPluginStorageFailure(err) {
+			return Attachment{}, ErrStorageUnavailable
+		}
 		return Attachment{}, err
 	}
 
@@ -280,6 +299,9 @@ func (s *Service) OpenContent(ctx context.Context, actor identity.Actor, publicI
 	}
 	reader, err := adapter.Open(ctx, attachment.ObjectKey)
 	if err != nil {
+		if isPluginStorageFailure(err) {
+			return Attachment{}, nil, ErrStorageUnavailable
+		}
 		return Attachment{}, nil, err
 	}
 	return attachment, reader, nil
@@ -518,7 +540,7 @@ func (s *Service) adapterForSettings(ctx context.Context, settings AttachmentSet
 		config.Provider = driver
 		return s.adapterFactory(config)
 	}
-	// 插件路径：E6.1 仅校验可用性；真实 RPC 在 E6.2。此时 fail-closed。
+	// 插件路径：校验可用性后经 PluginStorageAdapter 走 RPC（E6.2）。
 	if !sel.IsValidPluginSelection() {
 		return nil, storage.ErrInvalidConfig
 	}
@@ -531,8 +553,29 @@ func (s *Service) adapterForSettings(ctx context.Context, settings AttachmentSet
 			return nil, ErrStorageUnavailable
 		}
 	}
-	// 尚未实现 PluginStorageAdapter RPC：明确不可用，勿静默改用 local。
-	return nil, ErrStorageUnavailable
+	if s.storageRuntime == nil {
+		// 无 runtime（如独立 worker 未注入）时 fail-closed，勿静默改用 local。
+		return nil, ErrStorageUnavailable
+	}
+	adapter, err := extensionsruntime.NewPluginStorageAdapter(sel.ExtensionID, s.storageRuntime, 0)
+	if err != nil {
+		return nil, ErrStorageUnavailable
+	}
+	return adapter, nil
+}
+
+// isPluginStorageFailure 识别插件 RPC / 熔断 / 超时类错误，统一映射 storage_unavailable。
+func isPluginStorageFailure(err error) bool {
+	if err == nil {
+		return false
+	}
+	var rpc *extensionsruntime.StorageRPCError
+	if errors.As(err, &rpc) {
+		return true
+	}
+	return errors.Is(err, extensionsruntime.ErrStorageCircuitOpen) ||
+		errors.Is(err, extensionsruntime.ErrStorageTimeout) ||
+		errors.Is(err, extensions.ErrRuntimeUnavailable)
 }
 
 // ClearStorageProviderSelectionIfMatch 在禁用/卸载插件时，若当前选择指向该插件则恢复 local。
