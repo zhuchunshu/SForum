@@ -136,6 +136,13 @@ func (s *Service) verifyLifecyclePermissionAndPackage(ctx context.Context, actor
 	if !ok {
 		return identity.ErrPermissionDenied
 	}
+	// Web Release 路径同样可能随后启用后端；与 Enable 共用信任边界。
+	if extension.Type == TypePlugin {
+		if err := requireSuperAdminForUntrustedBackend(actor, extension.Source, extension.Manifest); err != nil {
+			s.denyUntrustedBackend(ctx, actor, extension.ID, "lifecycle")
+			return err
+		}
+	}
 	if err := s.verifyExtension(ctx, extension); err != nil {
 		s.recordEnableFailure(ctx, actor, extension.ID, err)
 		return err

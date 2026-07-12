@@ -400,6 +400,8 @@ func mapExtensionError(err error) error {
 	switch {
 	case errors.Is(err, identity.ErrPermissionDenied):
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	case errors.Is(err, extensions.ErrUntrustedBackendRestricted):
+		return fiber.NewError(fiber.StatusForbidden, extensions.CodeUntrustedBackendRestricted)
 	case errors.Is(err, extensions.ErrInvalidArchive):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeInvalidArchive)
 	case errors.Is(err, extensions.ErrInvalidManifest):

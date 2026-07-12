@@ -59,6 +59,12 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 		return InstallResult{}, ErrInvalidManifest
 	}
 
+	// 上传路径 source 恒为 uploaded：含后端入口的包仅 super_admin 可安装/升级。
+	if err := requireSuperAdminForUntrustedBackend(actor, SourceUploaded, manifest); err != nil {
+		s.denyUntrustedBackend(ctx, actor, manifest.ID, "install")
+		return InstallResult{}, err
+	}
+
 	var previous Extension
 	var isUpgrade bool
 	if existing, getErr := s.store.Get(ctx, manifest.ID); getErr == nil {
@@ -154,6 +160,7 @@ func (s *Service) InstallOrUpgradeArchive(ctx context.Context, actor identity.Ac
 
 // Uninstall 删除可删除扩展（F2.4）。
 // enabled 插件/主题须先禁用；系统/内置不可删；默认删除 settings（CASCADE）与包目录。
+// 含后端入口的非内置包仅 super_admin 可卸载，避免 tech_admin 绕过执行边界后清理痕迹。
 func (s *Service) Uninstall(ctx context.Context, actor identity.Actor, id string, input UninstallInput) error {
 	if !canManagePlugins(actor) {
 		return identity.ErrPermissionDenied
@@ -167,6 +174,10 @@ func (s *Service) Uninstall(ctx context.Context, actor identity.Actor, id string
 	}
 	if extension.ID == DefaultThemeID {
 		return ErrNotDeletable
+	}
+	if err := requireSuperAdminForUntrustedBackend(actor, extension.Source, extension.Manifest); err != nil {
+		s.denyUntrustedBackend(ctx, actor, extension.ID, "uninstall")
+		return err
 	}
 	if extension.Status == StatusEnabled {
 		return ErrMustDisableFirst
@@ -200,12 +211,17 @@ func (s *Service) Uninstall(ctx context.Context, actor identity.Actor, id string
 
 // ApplyDeclaredMigrations 将 manifest.migrations 登记到账本（F2.4 v1）。
 // 不执行任意 SQL：只校验文件并记录 checksum，避免插件写核心库。
+// 非内置后端插件的迁移登记仍限 super_admin，与启用边界一致。
 func (s *Service) ApplyDeclaredMigrations(ctx context.Context, actor identity.Actor, id string) ([]MigrationRecord, error) {
 	if !canManagePlugins(actor) {
 		return nil, identity.ErrPermissionDenied
 	}
 	extension, err := s.store.Get(ctx, normalizeID(id))
 	if err != nil {
+		return nil, err
+	}
+	if err := requireSuperAdminForUntrustedBackend(actor, extension.Source, extension.Manifest); err != nil {
+		s.denyUntrustedBackend(ctx, actor, extension.ID, "migrations")
 		return nil, err
 	}
 	applied, err := s.recordDeclaredMigrations(ctx, extension)

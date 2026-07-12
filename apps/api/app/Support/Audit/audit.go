@@ -23,6 +23,8 @@ const (
 	ActionExtensionInstalled = "extension.install"
 	ActionExtensionUpgraded  = "extension.upgrade"
 	ActionExtensionUninstalled = "extension.uninstall"
+	// ActionExtensionBackendDenied 非 super_admin 试图引入/执行非内置后端插件。
+	ActionExtensionBackendDenied = "extension.backend_execution_denied"
 
 	// RecommendedRetentionDays 审计日志推荐保留天数（清理 job 默认）。
 	RecommendedRetentionDays = 90

@@ -105,7 +105,7 @@ var SeedPermissions = []SeedPermission{
 	{Key: PermissionAttachmentSettings, Module: "attachment", Description: "Manage attachment storage and upload settings."},
 	{Key: PermissionExtensionManage, Module: "extension", Description: "Legacy parent: manage all extension capabilities."},
 	{Key: PermissionExtensionView, Module: "extension", Description: "View installed extensions, events, and contributions."},
-	{Key: PermissionExtensionPluginManage, Module: "extension", Description: "Enable, disable, and configure plugins."},
+	{Key: PermissionExtensionPluginManage, Module: "extension", Description: "Enable, disable, and configure plugins. Installing or enabling non-builtin plugins with a backend entry requires super_admin."},
 	{Key: PermissionExtensionThemeManage, Module: "extension", Description: "Activate and manage themes."},
 	{Key: PermissionExtensionReleaseManage, Module: "extension", Description: "Build and activate trusted admin web releases."},
 	{Key: PermissionDatabaseManage, Module: "admin", Description: "Browse database tables and rows."},

@@ -1301,11 +1301,23 @@ func TestServiceDisableRequiresPermissionAndRecordsEvent(t *testing.T) {
 	}
 }
 
+// extensionManager 成功路径默认用 super_admin：含后端入口的上传包仅其可装/启。
 func extensionManager() identity.Actor {
 	return identity.Actor{
-		ID:          42,
-		Status:      identity.UserStatusActive,
-		Permissions: map[string]bool{identity.PermissionExtensionManage: true},
+		ID:       42,
+		Status:   identity.UserStatusActive,
+		RoleKeys: []string{identity.RoleSuperAdmin},
+	}
+}
+
+// techAdminPluginManager 模拟 tech_admin：有 plugin.manage，但非 super_admin。
+func techAdminPluginManager() identity.Actor {
+	return identity.Actor{
+		ID:     43,
+		Status: identity.UserStatusActive,
+		Permissions: map[string]bool{
+			identity.PermissionExtensionPluginManage: true,
+		},
 	}
 }
 

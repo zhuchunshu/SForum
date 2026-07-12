@@ -627,6 +627,11 @@ func (s *Service) Enable(ctx context.Context, actor identity.Actor, id string, i
 	if extension.Type == TypeTheme {
 		return Extension{}, ErrThemeActivationRequired
 	}
+	// 非内置后端插件：启动子进程 = 主机代码执行，仅 super_admin。
+	if err := requireSuperAdminForUntrustedBackend(actor, extension.Source, extension.Manifest); err != nil {
+		s.denyUntrustedBackend(ctx, actor, extension.ID, "enable")
+		return Extension{}, err
+	}
 
 	// 首次启用（非 restart）且存在 Host 能力时，要求运营显式确认（F2.1）。
 	if extension.Status != StatusEnabled {
@@ -712,6 +717,11 @@ func (s *Service) VerifyExtension(ctx context.Context, actor identity.Actor, id 
 	}
 	extension, err := s.store.Get(ctx, normalizeID(id))
 	if err != nil {
+		return Extension{}, err
+	}
+	// 预检会触碰后端入口；非内置后端包同样仅 super_admin。
+	if err := requireSuperAdminForUntrustedBackend(actor, extension.Source, extension.Manifest); err != nil {
+		s.denyUntrustedBackend(ctx, actor, extension.ID, "verify")
 		return Extension{}, err
 	}
 	if err := s.verifyExtension(ctx, extension); err != nil {
