@@ -1,6 +1,6 @@
 # 2026-07-12 Security Audit Follow-up Remediation
 
-Status: **Ready for implementation**  
+Status: **Completed**  
 Date: 2026-07-12  
 Source: second full-program static audit after the first P0-P2 security batch  
 Previous batch: `knowledge/plans/2026-07-12-security-audit-fix-batch.md`
@@ -60,7 +60,7 @@ plan is complete and must not be reopened unless a regression is demonstrated.
 
 ## Wave P0 - Host and network trust boundaries
 
-### [ ] P0.1 Restrict execution of uploaded backend plugins
+### [x] P0.1 Restrict execution of uploaded backend plugins
 
 **Threat model**
 
@@ -105,7 +105,7 @@ Capability confirmation does not sandbox a malicious executable.
 
 **Suggested commit:** `fix(extensions): restrict untrusted backend execution to super admins`
 
-### [ ] P0.2 Make outbound webhook delivery SSRF-safe
+### [x] P0.2 Make outbound webhook delivery SSRF-safe
 
 **Threat model**
 
@@ -145,7 +145,7 @@ Validation only at save time would still be vulnerable to DNS rebinding.
 
 ## Wave P1 - Access control, credentials, and authentication abuse
 
-### [ ] P1.1 Enforce forum read policy for referenced attachments
+### [x] P1.1 Enforce forum read policy for referenced attachments
 
 **Problem**
 
@@ -179,7 +179,7 @@ images still need to remain genuinely public.
 
 **Suggested commit:** `fix(attachments): enforce forum read policy on post media`
 
-### [ ] P1.2 Encrypt extension and webhook secrets at rest
+### [x] P1.2 Encrypt extension and webhook secrets at rest
 
 **Problem**
 
@@ -213,7 +213,7 @@ signing keys.
 1. `feat(extensions): encrypt secret settings at rest`
 2. `feat(webhooks): encrypt signing secrets at rest`
 
-### [ ] P1.3 Replace account-only login locking with layered throttling
+### [x] P1.3 Replace account-only login locking with layered throttling
 
 **Problem**
 
@@ -248,7 +248,7 @@ attack but does not prevent targeted lockout.
 
 ## Wave P2 - Configuration and API correctness
 
-### [ ] P2.1 Preserve omitted extension settings
+### [x] P2.1 Preserve omitted extension settings
 
 **Problem**
 
@@ -274,7 +274,7 @@ all rows. A partial request silently removes every omitted non-secret setting.
 
 **Suggested commit:** `fix(extensions): preserve omitted settings during updates`
 
-### [ ] P2.2 Implement or remove dead forum policy controls
+### [x] P2.2 Implement or remove dead forum policy controls
 
 **Affected controls**
 
@@ -311,7 +311,7 @@ all rows. A partial request silently removes every omitted non-secret setting.
 **Suggested commits:** split by behavior (`mentions`, `topic lifecycle`,
 `duplicate titles`, `presentation/deleted visibility`, `auto-lock schedule`).
 
-### [ ] P2.3 Make PAT authentication consistent across API controllers
+### [x] P2.3 Make PAT authentication consistent across API controllers
 
 **Problem**
 
@@ -343,7 +343,7 @@ therefore work on Identity routes but return 401 on many forum/admin routes.
 
 ## Wave P3 - Small correctness fixes and release gates
 
-### [ ] P3.1 Preserve omitted webhook description
+### [x] P3.1 Preserve omitted webhook description
 
 - Decode PATCH presence explicitly (pointer field or raw body key check).
 - Omitted description preserves the current value; explicit empty string clears
@@ -352,7 +352,7 @@ therefore work on Identity routes but return 401 on many forum/admin routes.
 
 **Suggested commit:** `fix(webhooks): preserve omitted fields during endpoint updates`
 
-### [ ] P3.2 Restore API localization test baseline
+### [x] P3.2 Restore API localization test baseline
 
 - Add zh-CN and en-US messages for `user.not_found`.
 - Verify the message does not expose sensitive identity information on anonymous
@@ -361,7 +361,7 @@ therefore work on Identity routes but return 401 on many forum/admin routes.
 
 **Suggested commit:** `fix(localization): add the missing user not found message`
 
-### [ ] P3.3 Add dependency and active-security release checks
+### [x] P3.3 Add dependency and active-security release checks
 
 This was outside the static audit and should be scheduled before production:
 
@@ -406,17 +406,17 @@ Run focused packages after each commit. Run the full gate after the known
 
 | Task | Status | Commit | Notes |
 |------|--------|--------|-------|
-| P0.1 plugin execution boundary | Pending | | Decision record required |
-| P0.2 webhook SSRF | Pending | | |
-| P1.1 attachment read policy | Pending | | Contract change likely |
-| P1.2 secrets at rest | Pending | | Migration and key rotation docs |
-| P1.3 login throttling | Pending | | Product/security behavior change |
-| P2.1 extension setting preservation | Pending | | |
-| P2.2 forum policy controls | Pending | | Split into focused commits |
-| P2.3 PAT consistency | Pending | | Shared resolver preferred |
-| P3.1 webhook PATCH | Pending | | |
-| P3.2 localization baseline | Pending | | Current Go test blocker |
-| P3.3 release security scans | Pending | | Dated report required |
+| P0.1 plugin execution boundary | Done | 5d4225acc | Decision: untrusted-backend-plugin-super-admin |
+| P0.2 webhook SSRF | Done | 6ff52bc91 | validate + DialContext + redirect |
+| P1.1 attachment read policy | Done | 2f00f4f83 | Decision: attachment-forum-read-policy |
+| P1.2 secrets at rest | Done | 33f45cbb7 | Decision: extension-webhook-secret-encryption |
+| P1.3 login throttling | Done | f982da9ac | layered IP/account/pair |
+| P2.1 extension setting preservation | Done | 9497b905b | |
+| P2.2 forum policy controls | Done | 6fd41177d | Decision: forum-policy-enforcement |
+| P2.3 PAT consistency | Done | 7e7083950 | Decision: pat-permission-intersection |
+| P3.1 webhook PATCH | Done | 49606bce1 | |
+| P3.2 localization baseline | Done | acb0d5c56 | user.not_found |
+| P3.3 release security scans | Done | (docs) | knowledge/reports/2026-07-12-release-security-scan.md |
 
 ## Paste-ready implementation prompt
 
