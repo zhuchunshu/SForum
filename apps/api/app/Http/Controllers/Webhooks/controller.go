@@ -43,8 +43,9 @@ type endpointBody struct {
 	Secret      string   `json:"secret"`
 	Events      []string `json:"events"`
 	Enabled     *bool    `json:"enabled"`
-	Description string   `json:"description"`
-	ClearSecret bool     `json:"clearSecret"`
+	// Description 用指针区分「省略」与「显式清空」；PATCH 省略时保留原值。
+	Description *string `json:"description"`
+	ClearSecret bool    `json:"clearSecret"`
 }
 
 func (h *Controller) listEndpoints(c fiber.Ctx) error {
@@ -68,9 +69,13 @@ func (h *Controller) createEndpoint(c fiber.Ctx) error {
 	if err := c.Bind().Body(&body); err != nil {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "webhook.invalid")
 	}
+	desc := ""
+	if body.Description != nil {
+		desc = *body.Description
+	}
 	item, err := h.service.CreateEndpoint(c.Context(), actor, webhooks.CreateEndpointInput{
 		Name: body.Name, TargetURL: body.TargetURL, Secret: body.Secret,
-		Events: body.Events, Enabled: body.Enabled, Description: body.Description,
+		Events: body.Events, Enabled: body.Enabled, Description: desc,
 	})
 	if err != nil {
 		return mapError(err)
@@ -108,8 +113,9 @@ func (h *Controller) updateEndpoint(c fiber.Ctx) error {
 		input.Events = body.Events
 	}
 	input.Enabled = body.Enabled
-	if body.Description != "" || c.Get("Content-Type") != "" {
-		desc := body.Description
+	// 仅当 JSON 显式包含 description 时更新；nil 表示省略并保留。
+	if body.Description != nil {
+		desc := *body.Description
 		input.Description = &desc
 	}
 	item, err := h.service.UpdateEndpoint(c.Context(), actor, id, input)
