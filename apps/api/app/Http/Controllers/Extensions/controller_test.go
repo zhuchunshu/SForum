@@ -258,16 +258,20 @@ func TestControllerVerifiesAndActivatesThemesForManager(t *testing.T) {
 	}
 
 	resp = performExtensionRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/demo.theme/activate", cookie)
-	if resp.StatusCode != http.StatusAccepted {
-		t.Fatalf("expected 202 uploaded theme activation queued, got %d", resp.StatusCode)
+	// Runtime Page Registry：主题激活同步完成，不排队 Nuxt/Web Release。
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 runtime theme activation, got %d", resp.StatusCode)
 	}
 	defer resp.Body.Close()
 	var body testEnvelope[extensions.ExtensionOperation]
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode activation response envelope: %v", err)
 	}
-	if !body.Data.Queued || body.Data.Extension.ThemeRelease == nil || body.Data.Extension.ThemeRelease.Status != extensions.ThemeReleaseQueued {
-		t.Fatalf("expected queued theme release operation, got %#v", body.Data)
+	if body.Data.Queued {
+		t.Fatalf("runtime theme activate must not queue builds, got %#v", body.Data)
+	}
+	if body.Data.Extension.ID != "demo.theme" {
+		t.Fatalf("expected demo.theme activated, got %#v", body.Data.Extension)
 	}
 }
 

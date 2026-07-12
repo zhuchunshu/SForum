@@ -193,23 +193,29 @@ func (p *WebReleasePlanner) resolveTheme(ctx context.Context, targetID string) (
 	if err != nil {
 		return WebThemeSnapshot{}, err
 	}
-	if theme.Type != TypeTheme || strings.TrimSpace(theme.Manifest.Frontend.Layer) == "" {
-		return WebThemeSnapshot{}, fmt.Errorf("%w: extension %s is not a buildable theme", ErrWebReleaseInvalidComposition, theme.ID)
+	if theme.Type != TypeTheme {
+		return WebThemeSnapshot{}, fmt.Errorf("%w: extension %s is not a theme", ErrWebReleaseInvalidComposition, theme.ID)
 	}
 	if err := verifyPlannedPackage(theme); err != nil {
 		return WebThemeSnapshot{}, err
 	}
-	layerPath, ok := InstalledFilePathForRuntime(theme, theme.Manifest.Frontend.Layer)
-	if !ok {
-		return WebThemeSnapshot{}, fmt.Errorf("%w: theme layer path is invalid", ErrWebReleaseInvalidComposition)
-	}
-	layerPath, err = filepath.Abs(layerPath)
-	if err != nil {
-		return WebThemeSnapshot{}, fmt.Errorf("%w: resolve theme layer path: %v", ErrWebReleaseInvalidComposition, err)
-	}
-	info, err := os.Stat(layerPath)
-	if err != nil || !info.IsDir() {
-		return WebThemeSnapshot{}, fmt.Errorf("%w: theme layer is unavailable", ErrWebReleaseInvalidComposition)
+	// 公开主题不再要求 Nuxt Layer；Web Release 仅打包主题 admin 前端（若有）。
+	// LayerPath 仅在兼容旧 layer 主题时填充。
+	layerPath := ""
+	if layer := strings.TrimSpace(theme.Manifest.Frontend.Layer); layer != "" {
+		resolved, ok := InstalledFilePathForRuntime(theme, layer)
+		if !ok {
+			return WebThemeSnapshot{}, fmt.Errorf("%w: theme layer path is invalid", ErrWebReleaseInvalidComposition)
+		}
+		resolved, err = filepath.Abs(resolved)
+		if err != nil {
+			return WebThemeSnapshot{}, fmt.Errorf("%w: resolve theme layer path: %v", ErrWebReleaseInvalidComposition, err)
+		}
+		info, err := os.Stat(resolved)
+		if err != nil || !info.IsDir() {
+			return WebThemeSnapshot{}, fmt.Errorf("%w: theme layer is unavailable", ErrWebReleaseInvalidComposition)
+		}
+		layerPath = resolved
 	}
 	return WebThemeSnapshot{
 		ExtensionID:   theme.ID,

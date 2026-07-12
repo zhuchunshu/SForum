@@ -125,8 +125,11 @@ func TestGenerateThemeScaffoldNonInteractive(t *testing.T) {
 		t.Fatalf("GenerateExtensionScaffold returned error: %v", err)
 	}
 	manifest := readGeneratedManifest(t, target)
-	if manifest.Type != extensionmanifest.TypeTheme || manifest.Frontend.Layer != "layer" {
+	if manifest.Type != extensionmanifest.TypeTheme {
 		t.Fatalf("unexpected theme manifest: %#v", manifest)
+	}
+	if strings.TrimSpace(manifest.Frontend.Layer) != "" {
+		t.Fatalf("runtime theme scaffold must not require frontend.layer, got %q", manifest.Frontend.Layer)
 	}
 	if manifest.Admin.Entry != "/settings" || len(manifest.Admin.Pages) != 1 || len(manifest.Settings) == 0 {
 		t.Fatalf("expected theme v2 admin page and settings declarations: %#v", manifest)
@@ -137,8 +140,13 @@ func TestGenerateThemeScaffoldNonInteractive(t *testing.T) {
 	if err := extensionmanifest.Validate(manifest); err != nil {
 		t.Fatalf("generated theme manifest should validate: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(target, "layer", "nuxt.config.ts")); err != nil {
-		t.Fatalf("expected theme layer skeleton: %v", err)
+	for _, rel := range []string{"theme.json", "assets/theme.css", "templates/home.html"} {
+		if _, err := os.Stat(filepath.Join(target, rel)); err != nil {
+			t.Fatalf("expected runtime theme file %s: %v", rel, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(target, "layer", "nuxt.config.ts")); err == nil {
+		t.Fatal("runtime theme scaffold must not create Nuxt layer")
 	}
 }
 

@@ -849,9 +849,7 @@ func DeclaredEvents(manifest Manifest) []ManifestEvent {
 }
 
 func isThemeManifestSupported(manifest Manifest) bool {
-	if strings.TrimSpace(manifest.Frontend.Layer) == "" {
-		return false
-	}
+	// 运行时主题：frontend.layer 可选（L0/L1 使用 theme.json）；仍允许兼容层声明 layer。
 	// 主题仍禁止后端/路由/hooks 等插件能力；仅允许设置与 admin 设置页相关贡献。
 	if manifest.Backend != (ManifestBackend{}) ||
 		len(manifest.Permissions) != 0 ||

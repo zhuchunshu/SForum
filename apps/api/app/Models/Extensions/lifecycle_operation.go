@@ -101,30 +101,24 @@ func (s *Service) DisableOperation(ctx context.Context, actor identity.Actor, id
 }
 
 func (s *Service) ActivateThemeOperation(ctx context.Context, actor identity.Actor, id string) (ExtensionOperation, error) {
+	// 主题激活不再触发 Web Release / Nuxt 构建；仅同步 runtime 注册表 + DB。
+	// 可信管理端插件前端的 Web Release 仍由插件 enable/disable 路径触发。
 	extension, err := s.store.Get(ctx, normalizeID(id))
 	if err != nil {
 		return ExtensionOperation{}, err
 	}
-	if extension.Type != TypeTheme || s.webReleaseLifecycle == nil {
+	if extension.Type != TypeTheme {
 		active, err := s.ActivateTheme(ctx, actor, extension.ID)
-		queued := active.ThemeRelease != nil && active.ThemeRelease.Status == ThemeReleaseQueued
-		return ExtensionOperation{Extension: active, Queued: queued}, err
+		return ExtensionOperation{Extension: active, Queued: false}, err
 	}
 	if err := s.verifyLifecyclePermissionAndPackage(ctx, actor, extension); err != nil {
 		return ExtensionOperation{}, err
 	}
-	effects := []WebReleaseEffectInput{{ExtensionID: extension.ID, PreviousStatus: extension.Status, TargetStatus: StatusEnabled}}
-	if current, activeErr := s.store.ActiveTheme(ctx); activeErr == nil && current.ID != extension.ID {
-		effects = append(effects, WebReleaseEffectInput{ExtensionID: current.ID, PreviousStatus: current.Status, TargetStatus: StatusDisabled})
-	}
-	queued, err := s.webReleaseLifecycle.PlanAndQueue(ctx, QueueWebReleaseInput{
-		Plan:    PlanWebReleaseInput{TriggerKind: WebReleaseTriggerTheme, TriggerExtensionID: extension.ID, TargetThemeID: extension.ID, RequestedBy: actor.ID, ReloadMode: WebReleaseReloadForce},
-		Effects: effects,
-	})
+	active, err := s.ActivateTheme(ctx, actor, extension.ID)
 	if err != nil {
 		return ExtensionOperation{}, err
 	}
-	return ExtensionOperation{Extension: extension, WebRelease: webReleaseSummary(queued.Release), Queued: true}, nil
+	return ExtensionOperation{Extension: active, Queued: false}, nil
 }
 
 func (s *Service) verifyLifecyclePermissionAndPackage(ctx context.Context, actor identity.Actor, extension Extension) error {

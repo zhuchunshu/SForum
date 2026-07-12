@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,7 +34,6 @@ import (
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Postgres"
-	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
 	webreleaseruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/WebReleaseRuntime"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
@@ -217,20 +215,13 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		AllowHTTP: !strings.EqualFold(cfg.AppEnv, "production"),
 	})
 	webReleaseStore := extensions.NewPostgresWebReleaseStore(pool)
-	themeBuilder := themeruntime.NewBuilder(themeruntime.Config{
-		ReleaseRoot:    cfg.ThemeReleaseRoot,
-		WebRoot:        cfg.ThemeWebRoot,
-		BunPath:        cfg.ThemeBunPath,
-		BuildTimeout:   cfg.ThemeBuildTimeout,
-		PreviewTimeout: cfg.ThemePreviewTimeout,
-		PreviewPath:    cfg.ThemePreviewPath,
-	})
-	extensionjobs.RegisterThemeActivationWorker(registry, extensionStore, themeBuilder)
+	// P5：不再注册 extension.theme_activate worker；主题激活走 Page Registry 同步路径。
 	webReleaseBuilder := webreleaseruntime.NewBuilder(webreleaseruntime.Config{
 		ReleaseRoot:       cfg.WebReleaseRoot,
 		WebRoot:           cfg.WebReleaseWebRoot,
 		ExtensionRoot:     cfg.ExtensionRoot,
-		DefaultThemeLayer: filepath.Join(cfg.BuiltinExtensionRoot, "themes", "sforum-default", "layer"),
+		// 公开主题 Layer 已退役；Web Release 仅打包可信管理端插件前端。
+		DefaultThemeLayer: "",
 		BunPath:           cfg.WebReleaseBunPath,
 		BuildTimeout:      cfg.WebReleaseBuildTimeout,
 		PreviewTimeout:    cfg.WebReleasePreviewTimeout,

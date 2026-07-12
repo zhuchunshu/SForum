@@ -125,7 +125,10 @@ func buildManifest(opts makeOptions) scaffoldManifest {
 		}
 		return manifest
 	}
-	manifest.Frontend = &extensionmanifest.ManifestFrontend{Layer: "layer"}
+	// Runtime themes: empty frontend (L0/L1 via theme.json). Plugins may still set frontend later.
+	if opts.Kind == extensionmanifest.TypeTheme {
+		manifest.Frontend = &extensionmanifest.ManifestFrontend{}
+	}
 	return manifest
 }
 
@@ -283,10 +286,45 @@ func writePluginFiles(target string, opts makeOptions) error {
 }
 
 func writeThemeFiles(target string, opts makeOptions) error {
-	if err := writeFile(filepath.Join(target, "layer", "nuxt.config.ts"), "export default defineNuxtConfig({})\n", 0o644); err != nil {
-		return err
+	// Runtime L0/L1 主题包：不再生成 Nuxt Layer。
+	files := map[string]string{
+		"theme.json": `{
+  "pages": [
+    {
+      "id": "` + opts.ID + `.home",
+      "action": "replace",
+      "target": "forum.home",
+      "template": "templates/home.html",
+      "contract": "sforum.page.home@1"
+    }
+  ],
+  "skin": {
+    "css": ["assets/theme.css"],
+    "tokens": "assets/tokens.css"
+  }
+}
+`,
+		"assets/theme.css": `/* ` + opts.Name + ` L0 skin */
+:root {
+  --sf-theme-radius: 0.75rem;
+}
+`,
+		"assets/tokens.css": `/* Design tokens */
+:root {}
+`,
+		"templates/home.html": `<!-- ` + opts.ID + ` home template (L1) -->
+<div class="sf-page sf-page--home" data-page="forum.home">
+  <sf-home-page></sf-home-page>
+</div>
+`,
+		"README.md": "# " + opts.Name + "\n\nRuntime theme package (L0 skin + L1 templates).\n\nActivate without rebuilding Nuxt. See `docs/extensions/page-catalog.md`.\n",
 	}
-	return writeFile(filepath.Join(target, "layer", "README.md"), "# "+opts.Name+" Nuxt Layer\n\nAdd public theme pages, layouts, components, and assets here.\n", 0o644)
+	for rel, body := range files {
+		if err := writeFile(filepath.Join(target, rel), body, 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func readmeBody(opts makeOptions) string {

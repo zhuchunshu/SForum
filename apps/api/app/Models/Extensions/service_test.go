@@ -1267,12 +1267,17 @@ func TestServiceVerifyThemeMissingManifestReturnsBuildFailed(t *testing.T) {
 }
 
 func TestServiceVerifyThemeMissingManifestLayerReturnsBuildFailed(t *testing.T) {
+	// 无 layer 且无 theme.json/assets 时仍应失败。
 	theme := withInstalledPackage(t, installedExtension("layerless.theme", TypeTheme, ManifestBackend{}))
 	theme.Manifest.Frontend.Layer = ""
+	// 上传包：PackagePath 是 package.zip；manifest 在同级目录。
 	root := filepath.Dir(theme.PackagePath)
 	if err := writeManifest(root, theme.Manifest); err != nil {
 		t.Fatalf("rewrite uploaded manifest: %v", err)
 	}
+	_ = os.Remove(filepath.Join(root, "theme.json"))
+	_ = os.RemoveAll(filepath.Join(root, "assets"))
+	_ = os.RemoveAll(filepath.Join(root, "files"))
 	store := &fakeExtensionStore{items: map[string]Extension{
 		theme.ID: theme,
 	}}
@@ -1280,7 +1285,7 @@ func TestServiceVerifyThemeMissingManifestLayerReturnsBuildFailed(t *testing.T) 
 
 	_, err := service.VerifyExtension(context.Background(), extensionManager(), theme.ID)
 	if !errors.Is(err, ErrBuildFailed) {
-		t.Fatalf("expected missing theme manifest layer build failure, got %v", err)
+		t.Fatalf("expected missing theme package build failure, got %v", err)
 	}
 	if last := store.events[len(store.events)-1]; last.Action != EventEnableFailed || last.Message == "" {
 		t.Fatalf("expected verify failure event, got %#v", store.events)
@@ -1338,25 +1343,26 @@ func TestThemeReleaseLifecycleStoresBuildState(t *testing.T) {
 	}
 }
 
-func TestServiceActivateThemeQueuesUploadedThemeBuild(t *testing.T) {
+func TestServiceActivateThemeActivatesUploadedThemeImmediately(t *testing.T) {
+	// Runtime Page Registry：上传主题同步激活，不再排队 Nuxt/Web Release 构建。
 	store := newFakeExtensionStore(map[string]Extension{
 		"starter.theme": withInstalledPackage(t, installedExtension("starter.theme", TypeTheme, ManifestBackend{})),
 	})
 	dispatcher := &fakeThemeActivationDispatcher{}
 	service := NewServiceWithThemeActivation(store, t.TempDir(), "", LocalRuntimeManager{}, fakeThemeBuilder{}, dispatcher)
 
-	queued, err := service.ActivateTheme(context.Background(), extensionManager(), "starter.theme")
+	active, err := service.ActivateTheme(context.Background(), extensionManager(), "starter.theme")
 	if err != nil {
 		t.Fatalf("ActivateTheme returned error: %v", err)
 	}
-	if queued.ThemeRelease == nil || queued.ThemeRelease.Status != ThemeReleaseQueued {
-		t.Fatalf("expected queued theme release, got %#v", queued.ThemeRelease)
+	if active.Status != StatusEnabled || store.activeThemeID != "starter.theme" {
+		t.Fatalf("expected uploaded theme active immediately, got active=%#v activeID=%q", active, store.activeThemeID)
 	}
-	if dispatcher.releaseID == 0 || dispatcher.extensionID != "starter.theme" {
-		t.Fatalf("expected activation dispatch, got release=%d extension=%q", dispatcher.releaseID, dispatcher.extensionID)
+	if dispatcher.releaseID != 0 {
+		t.Fatalf("runtime activate must not enqueue theme build, got release=%d", dispatcher.releaseID)
 	}
-	if store.activeThemeID == "starter.theme" {
-		t.Fatal("uploaded theme should not become active before worker completes")
+	if active.ThemeRelease != nil {
+		t.Fatalf("runtime activate must not attach theme release progress, got %#v", active.ThemeRelease)
 	}
 }
 
@@ -1378,7 +1384,8 @@ func TestServiceActivateThemeRestoresBuiltinDefaultThemeImmediately(t *testing.T
 	}
 }
 
-func TestServiceActivateThemeRestoresBuiltinDefaultWritesCurrentFile(t *testing.T) {
+func TestServiceActivateThemeDoesNotWriteThemeCurrentPointer(t *testing.T) {
+	// P5：公开主题激活不得写 theme-releases/current.json（不再蓝绿切换 Nitro）。
 	store := &fakeExtensionStore{items: map[string]Extension{
 		DefaultThemeID: withInstalledPackage(t, protectedBuiltinExtension(DefaultThemeID, TypeTheme)),
 	}}
@@ -1392,14 +1399,8 @@ func TestServiceActivateThemeRestoresBuiltinDefaultWritesCurrentFile(t *testing.
 	if active.ID != DefaultThemeID {
 		t.Fatalf("expected default theme active, got %#v", active)
 	}
-	if writer.current.ExtensionID != DefaultThemeID {
-		t.Fatalf("expected default current extensionId, got %#v", writer.current)
-	}
-	if writer.current.Mode != themeruntime.CurrentModeDefault {
-		t.Fatalf("expected default current mode, got %q", writer.current.Mode)
-	}
-	if writer.current.Server != "" || writer.current.LayerPath != "" {
-		t.Fatalf("default current must not carry server/layerPath, got %#v", writer.current)
+	if writer.calls != 0 {
+		t.Fatalf("runtime theme activate must not WriteCurrent, got calls=%d current=%#v", writer.calls, writer.current)
 	}
 }
 
@@ -1807,10 +1808,12 @@ func (d *fakeThemeActivationDispatcher) EnqueueThemeActivation(_ context.Context
 
 type fakeThemeCurrentWriter struct {
 	current themeruntime.CurrentRelease
+	calls   int
 	err     error
 }
 
 func (w *fakeThemeCurrentWriter) WriteCurrent(_ context.Context, current themeruntime.CurrentRelease) error {
+	w.calls++
 	w.current = current
 	return w.err
 }

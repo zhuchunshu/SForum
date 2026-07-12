@@ -20,7 +20,6 @@ import (
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
-	themeruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ThemeRuntime"
 )
 
 const maxArchiveBytes = 50 * 1024 * 1024
@@ -47,6 +46,14 @@ type Service struct {
 	cipher *crypto.OptionCipher
 	// storageSelection 禁用存储插件时回落 attachment.provider（E6.1）。
 	storageSelection StorageSelectionClearer
+	// pageRegistry 运行时主题页面贡献（L0/L1）；nil 时跳过注册。
+	pageRegistry PageRegistry
+}
+
+// PageRegistry 主题激活时注册/清理页面贡献（避免 extensions 直接依赖 pages 包实现细节）。
+type PageRegistry interface {
+	RegisterThemePackage(ctx context.Context, extension Extension) error
+	ClearExtension(extensionID string)
 }
 
 // FeatureFlagSource 返回 requiresFeatures 中当前关闭的 key。
@@ -104,6 +111,13 @@ func WithFeatureFlags(source FeatureFlagSource) ServiceOption {
 func WithStorageSelectionClearer(clearer StorageSelectionClearer) ServiceOption {
 	return func(s *Service) {
 		s.storageSelection = clearer
+	}
+}
+
+// WithPageRegistry 注入运行时 Page Registry（主题激活无 Nuxt 重建）。
+func WithPageRegistry(registry PageRegistry) ServiceOption {
+	return func(s *Service) {
+		s.pageRegistry = registry
 	}
 }
 
@@ -845,80 +859,38 @@ func (s *Service) ActivateTheme(ctx context.Context, actor identity.Actor, id st
 	if extension.Type != TypeTheme {
 		return Extension{}, ErrThemeActivationRequired
 	}
-	if extension.ID != DefaultThemeID || extension.Source != SourceBuiltin {
-		if err := s.verifyExtension(ctx, extension); err != nil {
-			s.recordEnableFailure(ctx, actor, extension.ID, err)
-			return Extension{}, err
-		}
-		layerPath, ok := installedFilePath(extension, extension.Manifest.Frontend.Layer)
-		if !ok {
-			return Extension{}, fmt.Errorf("%w: theme layer is unavailable", ErrBuildFailed)
-		}
-		release, err := s.store.CreateThemeRelease(ctx, ThemeReleaseInput{
-			ExtensionID: extension.ID,
-			Version:     extension.Version,
-			LayerPath:   layerPath,
-		})
-		if err != nil {
-			return Extension{}, err
-		}
-		if s.themeActivationDispatcher != nil {
-			if err := s.themeActivationDispatcher.EnqueueThemeActivation(ctx, release); err != nil {
-				_, _ = s.store.UpdateThemeRelease(ctx, ThemeReleaseUpdate{
-					ID:      release.ID,
-					Status:  ThemeReleaseFailed,
-					Message: err.Error(),
-				})
-				return Extension{}, err
-			}
-		}
-		_, _ = s.store.CreateEvent(ctx, EventInput{
-			ExtensionID: extension.ID,
-			ActorUserID: actor.ID,
-			Action:      EventThemeActivationQueued,
-			Message:     "Theme activation queued.",
-		})
-		s.appendAudit(ctx, actor, audit.ActionExtensionActivate, map[string]any{
-			"extensionId": extension.ID,
-			"queued":      true,
-			"releaseId":   release.ID,
-		})
-		extension.ThemeRelease = &release
-		return extension, nil
-	}
 	if err := s.verifyExtension(ctx, extension); err != nil {
 		s.recordEnableFailure(ctx, actor, extension.ID, err)
 		return Extension{}, err
+	}
+	// Runtime Page Registry 路径：同步激活 DB + 注册 L0/L1，不排队 Nuxt/Web Release 构建。
+	if previous, prevErr := s.store.ActiveTheme(ctx); prevErr == nil && previous.ID != extension.ID && s.pageRegistry != nil {
+		s.pageRegistry.ClearExtension(previous.ID)
 	}
 	active, err := s.store.ActivateTheme(ctx, extension.ID)
 	if err != nil {
 		return Extension{}, err
 	}
-	// 切回默认主题前，把上一个上传主题遗留的 active release 置为 rolled_back，
-	// 否则前端会继续把它当作"当前主题"显示 100% 进度，与实际渲染的默认主题不一致。
+	// 清理遗留的 theme_releases 进度行（兼容旧数据）。
 	if err := s.rollBackActiveThemeRelease(ctx); err != nil {
 		return Extension{}, err
 	}
-	// 恢复默认主题是同步路径，没有 worker 会再写 current.json。
-	// 这里主动写一个 default 状态，让前端运行时（runtime.mjs / dev supervisor）
-	// 能感知到"切回默认主题"，而不是继续显示上一个上传主题。
-	if s.themeCurrentWriter != nil {
-		if err := s.themeCurrentWriter.WriteCurrent(ctx, themeruntime.CurrentRelease{
-			ExtensionID: DefaultThemeID,
-			Mode:        themeruntime.CurrentModeDefault,
-		}); err != nil {
+	if s.pageRegistry != nil {
+		if err := s.pageRegistry.RegisterThemePackage(ctx, active); err != nil {
 			return Extension{}, err
 		}
 	}
+	// P5：不再写 theme-releases/current.json；公开主题不切换 Nitro / Layer。
 	_, _ = s.store.CreateEvent(ctx, EventInput{
 		ExtensionID: active.ID,
 		ActorUserID: actor.ID,
 		Action:      EventThemeActivated,
-		Message:     "Theme activated.",
+		Message:     "Theme activated via runtime page registry (no site rebuild).",
 	})
 	s.appendAudit(ctx, actor, audit.ActionExtensionActivate, map[string]any{
 		"extensionId": active.ID,
 		"queued":      false,
+		"runtime":     true,
 	})
 	return active, nil
 }
@@ -974,10 +946,13 @@ func (s *Service) verifyExtension(ctx context.Context, extension Extension) erro
 		}
 	}
 	if extension.Type == TypeTheme {
-		if strings.TrimSpace(extension.Manifest.Frontend.Layer) == "" {
-			return fmt.Errorf("%w: theme frontend layer is empty", ErrBuildFailed)
+		// Runtime 主题：theme.json 或 assets/ 即可；兼容旧 layer 主题。
+		hasLayer := strings.TrimSpace(extension.Manifest.Frontend.Layer) != ""
+		hasRuntime := themeRuntimePackagePresent(extension.PackagePath)
+		if !hasLayer && !hasRuntime {
+			return fmt.Errorf("%w: theme requires theme.json/assets (L0/L1) or frontend.layer", ErrBuildFailed)
 		}
-		if s.themeBuilder != nil {
+		if hasLayer && s.themeBuilder != nil {
 			err := s.themeBuilder.Build(ctx, extension)
 			if err != nil {
 				return fmt.Errorf("%w: %v", ErrBuildFailed, err)
@@ -985,6 +960,30 @@ func (s *Service) verifyExtension(ctx context.Context, extension Extension) erro
 		}
 	}
 	return nil
+}
+
+// themeRuntimePackagePresent 检测 L0/L1 运行时主题包。
+func themeRuntimePackagePresent(packagePath string) bool {
+	root := strings.TrimSpace(packagePath)
+	if root == "" {
+		return false
+	}
+	// 上传包 PackagePath 可能是 package.zip：运行时文件在同级或 files/ 下。
+	candidates := []string{root}
+	if st, err := os.Stat(root); err == nil && !st.IsDir() {
+		candidates = []string{filepath.Dir(root), filepath.Join(filepath.Dir(root), "files")}
+	}
+	for _, base := range candidates {
+		for _, name := range []string{"theme.json", "assets/theme.css", "assets"} {
+			if st, err := os.Stat(filepath.Join(base, name)); err == nil {
+				if name == "assets" && !st.IsDir() {
+					continue
+				}
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func validateInstalledPackage(extension Extension) error {

@@ -121,27 +121,35 @@ func (b *Builder) Prepare(_ context.Context, detail extensions.WebReleaseDetail)
 		return PreparedRelease{}, err
 	}
 
-	themeSource := b.snapshotPath(detail.ActiveThemeID, detail.ThemeVersion, detail.ThemePackageDigest)
-	if err := verifySnapshot(themeSource, detail.ThemePackageDigest); err != nil {
-		return PreparedRelease{}, fmt.Errorf("verify theme snapshot: %w", err)
+	// 公开主题 Layer 已退役：仅当 composition 仍携带 ThemeLayerPath 时复制（兼容旧 release）。
+	// 默认不再注入 SFORUM_THEME_LAYER；管理端插件前端 registry 仍照常生成。
+	themeLayer := ""
+	defaultThemeLayer := ""
+	if strings.TrimSpace(detail.ThemeLayerPath) != "" && strings.TrimSpace(detail.ThemePackageDigest) != "" {
+		themeSource := b.snapshotPath(detail.ActiveThemeID, detail.ThemeVersion, detail.ThemePackageDigest)
+		if err := verifySnapshot(themeSource, detail.ThemePackageDigest); err != nil {
+			return PreparedRelease{}, fmt.Errorf("verify theme snapshot: %w", err)
+		}
+		themeTarget := filepath.Join(devInput, "theme")
+		if err := copyTree(themeSource, themeTarget, nil); err != nil {
+			return PreparedRelease{}, fmt.Errorf("copy theme snapshot: %w", err)
+		}
+		if err := verifySnapshot(themeTarget, detail.ThemePackageDigest); err != nil {
+			return PreparedRelease{}, fmt.Errorf("verify copied theme snapshot: %w", err)
+		}
+		layerRelative, err := filepath.Rel(themeSource, detail.ThemeLayerPath)
+		if err != nil || layerRelative == ".." || strings.HasPrefix(layerRelative, ".."+string(filepath.Separator)) {
+			return PreparedRelease{}, fmt.Errorf("theme layer escapes immutable snapshot")
+		}
+		resolved, err := secureChildDirectory(themeTarget, filepath.ToSlash(layerRelative))
+		if err != nil {
+			return PreparedRelease{}, fmt.Errorf("resolve copied theme layer: %w", err)
+		}
+		themeLayer = resolved
+		defaultThemeLayer = themeLayer
 	}
-	themeTarget := filepath.Join(devInput, "theme")
-	if err := copyTree(themeSource, themeTarget, nil); err != nil {
-		return PreparedRelease{}, fmt.Errorf("copy theme snapshot: %w", err)
-	}
-	if err := verifySnapshot(themeTarget, detail.ThemePackageDigest); err != nil {
-		return PreparedRelease{}, fmt.Errorf("verify copied theme snapshot: %w", err)
-	}
-	layerRelative, err := filepath.Rel(themeSource, detail.ThemeLayerPath)
-	if err != nil || layerRelative == ".." || strings.HasPrefix(layerRelative, ".."+string(filepath.Separator)) {
-		return PreparedRelease{}, fmt.Errorf("theme layer escapes immutable snapshot")
-	}
-	themeLayer, err := secureChildDirectory(themeTarget, filepath.ToSlash(layerRelative))
-	if err != nil {
-		return PreparedRelease{}, fmt.Errorf("resolve copied theme layer: %w", err)
-	}
-	defaultThemeLayer := themeLayer
 	if b.config.DefaultThemeLayer != "" {
+		// 可选：仅兼容旧构建脚本仍读取 SFORUM_DEFAULT_THEME_LAYER 时复制；host 已不 extends layer。
 		defaultThemeLayer = filepath.Join(devInput, "default-theme")
 		if err := copyTree(b.config.DefaultThemeLayer, defaultThemeLayer, nil); err != nil {
 			return PreparedRelease{}, fmt.Errorf("copy default theme fallback: %w", err)
