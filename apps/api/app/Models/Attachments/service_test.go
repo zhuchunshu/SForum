@@ -82,18 +82,133 @@ func TestServiceUploadEmitsAttachmentUploadedEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("upload returned error: %v", err)
 	}
-	if len(publisher.names) != 1 || publisher.names[0] != appevents.AttachmentUploaded {
-		t.Fatalf("expected attachment uploaded event, got %#v", publisher.names)
+	// E1.4：先 before_upload validate，再 uploaded observe。
+	if !publisher.seen(appevents.AttachmentBeforeUpload) || !publisher.seen(appevents.AttachmentUploaded) {
+		t.Fatalf("expected before_upload + uploaded events, got %#v", publisher.names)
+	}
+	beforeEnv, ok := publisher.envelope(appevents.AttachmentBeforeUpload)
+	if !ok {
+		t.Fatal("missing attachment.before_upload")
+	}
+	if beforeEnv.Payload["filename"] != "note.txt" {
+		t.Fatalf("expected filename in payload, got %#v", beforeEnv.Payload)
+	}
+	if beforeEnv.Payload["contentType"] != "text/plain" {
+		t.Fatalf("expected sniffed contentType, got %#v", beforeEnv.Payload)
+	}
+	if beforeEnv.Payload["sizeBytes"] != int64(len("hello")) {
+		t.Fatalf("expected sizeBytes, got %#v", beforeEnv.Payload)
+	}
+	if beforeEnv.Payload["actorUserId"] != int64(42) {
+		t.Fatalf("expected actorUserId, got %#v", beforeEnv.Payload)
+	}
+	// 安全：原始字节不得出现在事件 payload。
+	for _, payload := range publisher.payloads {
+		for _, value := range payload {
+			if text, ok := value.(string); ok && text == "hello" {
+				t.Fatalf("raw file body leaked into event payload %#v", payload)
+			}
+		}
+	}
+}
+
+// TestServiceUploadBeforeUploadCanReject 插件拒绝时不得写存储/落库。
+func TestServiceUploadBeforeUploadCanReject(t *testing.T) {
+	store := &fakeAttachmentStore{}
+	adapter := &fakeStorageAdapter{}
+	publisher := &fakeAttachmentEventPublisher{results: map[string]appevents.Result{
+		appevents.AttachmentBeforeUpload: {
+			OK:      false,
+			Reason:  "attachment.content_type_blocked",
+			Message: "该类型不允许上传",
+		},
+	}}
+	service := NewServiceWithAdapterFactory(store, newAttachmentOptions(nil), func(storage.Config) (storage.Adapter, error) {
+		return adapter, nil
+	})
+	service.events = publisher
+
+	_, err := service.Upload(context.Background(), uploadActor(), UploadInput{
+		OriginalName: "note.txt",
+		ContentType:  "text/plain",
+		SizeBytes:    int64(len("hello")),
+		File:         newReadSeekCloser("hello"),
+	})
+	var rejected *appevents.RejectedError
+	if !errors.As(err, &rejected) {
+		t.Fatalf("expected RejectedError, got %v", err)
+	}
+	if rejected.Reason != "attachment.content_type_blocked" {
+		t.Fatalf("unexpected reason %q", rejected.Reason)
+	}
+	if adapter.putKey != "" {
+		t.Fatalf("rejected upload must not write storage, putKey=%q", adapter.putKey)
+	}
+	if len(store.creates) != 0 {
+		t.Fatalf("rejected upload must not create metadata, creates=%d", len(store.creates))
+	}
+	if publisher.seen(appevents.AttachmentUploaded) {
+		t.Fatal("attachment.uploaded must not fire after reject")
+	}
+}
+
+// TestServiceUploadBeforeUploadNotInvokedWhenInvalidType host 拒绝非法类型时不调用插件。
+func TestServiceUploadBeforeUploadNotInvokedWhenInvalidType(t *testing.T) {
+	store := &fakeAttachmentStore{}
+	adapter := &fakeStorageAdapter{}
+	publisher := &fakeAttachmentEventPublisher{}
+	service := NewServiceWithAdapterFactory(store, newAttachmentOptions(nil), func(storage.Config) (storage.Adapter, error) {
+		return adapter, nil
+	})
+	service.events = publisher
+
+	_, err := service.Upload(context.Background(), uploadActor(), UploadInput{
+		OriginalName: "shell.sh",
+		ContentType:  "application/x-sh",
+		SizeBytes:    4,
+		File:         newReadSeekCloser("#!/bin/sh"),
+	})
+	if !errors.Is(err, ErrInvalidAttachment) {
+		t.Fatalf("expected ErrInvalidAttachment, got %v", err)
+	}
+	if publisher.seen(appevents.AttachmentBeforeUpload) {
+		t.Fatal("plugin validate must not run when host policy rejects")
 	}
 }
 
 type fakeAttachmentEventPublisher struct {
-	names []string
+	names     []string
+	payloads  []map[string]any
+	envelopes []appevents.Envelope
+	results   map[string]appevents.Result
 }
 
 func (p *fakeAttachmentEventPublisher) Emit(_ context.Context, envelope appevents.Envelope) appevents.Result {
 	p.names = append(p.names, envelope.Name)
+	p.payloads = append(p.payloads, envelope.Payload)
+	p.envelopes = append(p.envelopes, envelope)
+	if result, ok := p.results[envelope.Name]; ok {
+		return result
+	}
 	return appevents.Result{OK: true}
+}
+
+func (p *fakeAttachmentEventPublisher) seen(name string) bool {
+	for _, item := range p.names {
+		if item == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *fakeAttachmentEventPublisher) envelope(name string) (appevents.Envelope, bool) {
+	for _, item := range p.envelopes {
+		if item.Name == name {
+			return item, true
+		}
+	}
+	return appevents.Envelope{}, false
 }
 
 func TestServiceUploadDeletesRemoteObjectWhenMetadataCreateFails(t *testing.T) {

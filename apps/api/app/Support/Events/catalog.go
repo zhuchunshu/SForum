@@ -23,9 +23,11 @@ const (
 	CommentCreated      = "comment.created"
 	CategoryCreated    = "category.created"
 	CategoryUpdated    = "category.updated"
-	TagCreated         = "tag.created"
-	TagUpdated         = "tag.updated"
-	AttachmentUploaded = "attachment.uploaded"
+	TagCreated = "tag.created"
+	TagUpdated = "tag.updated"
+	// AttachmentBeforeUpload E1.4：存储写入前同步 validate；仅元数据，无文件字节。
+	AttachmentBeforeUpload = "attachment.before_upload"
+	AttachmentUploaded     = "attachment.uploaded"
 	// EntityMetaUpdated F4.4：实体自定义字段值变更后发出（observe，不阻断写路径）。
 	EntityMetaUpdated = "entity_meta.updated"
 )
@@ -72,6 +74,10 @@ var definitions = []Definition{
 		[]string{"content"},
 	),
 	observe(CommentCreated, "Emitted after a comment is committed.", []string{"commentId", "topicId", "authorUserId", "parentId"}),
+	validate(AttachmentBeforeUpload,
+		"Runs after host MIME/size policy and before storage write. Reject-only in v1; payload is metadata only (no raw file bytes).",
+		[]string{"actorUserId", "contentType", "sizeBytes", "filename"},
+	),
 	observe(AttachmentUploaded, "Emitted after attachment metadata is committed.", []string{"attachmentId", "publicId", "ownerUserId", "provider", "contentType", "sizeBytes"}),
 	observe(EntityMetaUpdated, "Emitted after entity custom field values are written or cleared.", []string{"entityType", "entityId", "fieldKeys", "actorUserId"}),
 }

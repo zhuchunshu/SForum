@@ -13,6 +13,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
 
 type Controller struct {
@@ -278,9 +279,13 @@ func (h *Controller) optionalActor(c fiber.Ctx) (identity.Actor, error) {
 }
 
 func mapAttachmentError(err error) error {
+	var rejected *appevents.RejectedError
 	switch {
 	case errors.Is(err, identity.ErrPermissionDenied):
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	// 插件 attachment.before_upload 等同步拒绝：422 + 稳定 reason。
+	case errors.As(err, &rejected):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, rejected.Reason)
 	case errors.Is(err, attachments.ErrUploadDisabled):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, attachments.CodeUploadDisabled)
 	case errors.Is(err, attachments.ErrInvalidAttachment):

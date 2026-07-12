@@ -144,6 +144,11 @@ type preparedUpload struct {
 }
 
 func (s *Service) storePreparedUpload(ctx context.Context, actor identity.Actor, settings AttachmentSettings, prepared preparedUpload) (Attachment, error) {
+	// E1.4：MIME/大小策略与 inspect 之后、真正写存储之前；仅元数据，无文件字节。
+	if err := s.applyAttachmentBeforeUpload(ctx, actor, prepared); err != nil {
+		return Attachment{}, err
+	}
+
 	publicID, err := randomPublicID()
 	if err != nil {
 		return Attachment{}, err
@@ -203,6 +208,24 @@ func (s *Service) storePreparedUpload(ctx context.Context, actor identity.Actor,
 		OccurredAt: time.Now().UTC(),
 	})
 	return s.decorateURL(ctx, created), nil
+}
+
+// applyAttachmentBeforeUpload 调用 attachment.before_upload 同步 validate。
+// 仅传元数据；原始文件字节永不进入 RPC。v1 拒绝-only。
+func (s *Service) applyAttachmentBeforeUpload(ctx context.Context, actor identity.Actor, prepared preparedUpload) error {
+	envelope := appevents.NewEnvelope(appevents.AttachmentBeforeUpload, map[string]any{
+		"actorUserId": actor.ID,
+		"contentType": prepared.Metadata.ContentType,
+		"sizeBytes":   prepared.SizeBytes,
+		"filename":    prepared.Metadata.OriginalName,
+	})
+	envelope.ActorUserID = actor.ID
+	envelope.ResourceType = "attachment"
+	result := s.events.Emit(ctx, envelope)
+	if !result.OK {
+		return appevents.Reject(result)
+	}
+	return nil
 }
 
 func (s *Service) Get(ctx context.Context, actor identity.Actor, publicID string) (Attachment, error) {

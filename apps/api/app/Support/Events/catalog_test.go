@@ -89,4 +89,18 @@ func TestCatalogDocumentsTimeoutAndFailurePolicy(t *testing.T) {
 	if len(userBefore.PatchFields) != 0 {
 		t.Fatalf("user.before_register must be reject-only, patch=%#v", userBefore.PatchFields)
 	}
+
+	attachmentBefore, ok := FindDefinition(AttachmentBeforeUpload)
+	if !ok {
+		t.Fatal("attachment.before_upload missing")
+	}
+	if attachmentBefore.Kind != KindValidate {
+		t.Fatalf("attachment.before_upload kind=%s want validate", attachmentBefore.Kind)
+	}
+	if attachmentBefore.TimeoutMS != DefaultSyncTimeoutMS || attachmentBefore.FailurePolicy != FailurePolicyFailClosed {
+		t.Fatalf("attachment.before_upload: %#v", attachmentBefore)
+	}
+	if len(attachmentBefore.PatchFields) != 0 {
+		t.Fatalf("attachment.before_upload must be reject-only, patch=%#v", attachmentBefore.PatchFields)
+	}
 }
