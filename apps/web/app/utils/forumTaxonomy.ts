@@ -141,6 +141,10 @@ export type ForumRenderedContent = {
 export type ForumTopicDetail = ForumTopicSummary & {
   content: ForumRenderedContent
   extensionActions?: ForumTopicExtensionAction[]
+  /** forum.topic.sidebar 宿主描述符（E2.1） */
+  extensionSidebar?: ForumTopicExtensionSidebarItem[]
+  /** forum.topic.badges 宿主描述符（E2.1） */
+  extensionBadges?: ForumTopicExtensionBadge[]
 }
 
 export type ForumTopicExtensionActionMethod = 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -153,6 +157,30 @@ export type ForumTopicExtensionAction = {
   method: ForumTopicExtensionActionMethod
   url: string
   confirm?: boolean
+}
+
+/** forum.topic.sidebar 宿主描述符（E2.1） */
+export type ForumTopicExtensionSidebarItem = {
+  extensionId: string
+  id: string
+  order: number
+  label?: Record<string, string>
+  icon?: string
+  kind: 'extensionRoute' | 'hostLink'
+  method?: string
+  url: string
+}
+
+/** forum.topic.badges 宿主描述符（E2.1） */
+export type ForumTopicExtensionBadgeTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger'
+
+export type ForumTopicExtensionBadge = {
+  extensionId: string
+  id: string
+  order: number
+  label?: Record<string, string>
+  tone: ForumTopicExtensionBadgeTone
+  href?: string
 }
 
 /** forum.composer.toolbar 宿主描述符（F4.3） */
@@ -593,9 +621,16 @@ export function forumUserProfilePath(username: string) {
   return `/u/${encodeURIComponent(username)}`
 }
 
+export function forumTopicExtensionLabel(
+  item: { label?: Record<string, string> },
+  locale = 'zh-CN'
+) {
+  const labels = item.label || {}
+  return labels[locale] || labels['zh-CN'] || labels['en-US'] || Object.values(labels)[0] || ''
+}
+
 export function forumTopicExtensionActionLabel(action: ForumTopicExtensionAction, locale = 'zh-CN') {
-  const labels = action.label || {}
-  return labels[locale] || labels['zh-CN'] || labels['en-US'] || Object.values(labels).find(Boolean) || action.id
+  return forumTopicExtensionLabel(action, locale) || action.id
 }
 
 export function forumTopicExtensionActionRequestPath(action: Pick<ForumTopicExtensionAction, 'url'>) {

@@ -18,6 +18,7 @@ type Service struct {
 	settings          SettingsResolver
 	events            appevents.Publisher
 	topicActions      TopicExtensionActionProvider
+	topicSurfaces     TopicExtensionSurfaceProvider
 	composerToolbar   ComposerToolbarProvider
 	publicationPolicy PublicationPolicy
 	// indexer 触发 Meilisearch 索引调度；nil 表示不索引（搜索为派生数据，可重建）。
@@ -30,6 +31,14 @@ type Service struct {
 func (s *Service) WithComposerToolbar(provider ComposerToolbarProvider) *Service {
 	if s != nil {
 		s.composerToolbar = provider
+	}
+	return s
+}
+
+// WithTopicExtensionSurfaces 注入主题详情 sidebar/badges 贡献解析（E2.1）。
+func (s *Service) WithTopicExtensionSurfaces(provider TopicExtensionSurfaceProvider) *Service {
+	if s != nil {
+		s.topicSurfaces = provider
 	}
 	return s
 }
@@ -442,15 +451,29 @@ func applyCommentExcerpt(comment Comment, limit int) Comment {
 }
 
 func (s *Service) decorateTopicExtensionActions(ctx context.Context, topic TopicDetail) TopicDetail {
-	if s.topicActions == nil {
-		return topic
+	if s.topicActions != nil {
+		actions, err := s.topicActions.TopicExtensionActions(ctx)
+		if err != nil {
+			slog.ErrorContext(ctx, "forum: resolve topic extension actions failed", "err", err)
+		} else {
+			topic.ExtensionActions = actions
+		}
 	}
-	actions, err := s.topicActions.TopicExtensionActions(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "forum: resolve topic extension actions failed", "err", err)
-		return topic
+	// E2.1：sidebar / badges 与 actions 同属详情装饰；失败只记日志，不阻断主题读取。
+	if s.topicSurfaces != nil {
+		sidebar, err := s.topicSurfaces.TopicExtensionSidebar(ctx)
+		if err != nil {
+			slog.ErrorContext(ctx, "forum: resolve topic extension sidebar failed", "err", err)
+		} else {
+			topic.ExtensionSidebar = sidebar
+		}
+		badges, err := s.topicSurfaces.TopicExtensionBadges(ctx)
+		if err != nil {
+			slog.ErrorContext(ctx, "forum: resolve topic extension badges failed", "err", err)
+		} else {
+			topic.ExtensionBadges = badges
+		}
 	}
-	topic.ExtensionActions = actions
 	return topic
 }
 

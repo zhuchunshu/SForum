@@ -53,12 +53,20 @@ func NewForumProviderWithSearchTopicActionsAndPublicationPolicy(store forum.Stor
 
 // NewForumProviderWithContributions 同时注入 topic actions 与 composer toolbar（F4.3）。
 func NewForumProviderWithContributions(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher, indexer forum.TopicSearchIndexer, searchService forumcontroller.SearchService, reindexer forumcontroller.ReindexService, topicActions forum.TopicExtensionActionProvider, composerToolbar forum.ComposerToolbarProvider, publicationPolicy forum.PublicationPolicy) *ForumProvider {
+	return NewForumProviderWithTopicSurfaces(store, optionsService, users, sessions, publisher, indexer, searchService, reindexer, topicActions, nil, composerToolbar, publicationPolicy)
+}
+
+// NewForumProviderWithTopicSurfaces 在 F4.3 基础上注入 E2.1 sidebar/badges 解析。
+func NewForumProviderWithTopicSurfaces(store forum.Store, optionsService *options.Service, users identity.ActorStore, sessions *authsession.Manager, publisher appevents.Publisher, indexer forum.TopicSearchIndexer, searchService forumcontroller.SearchService, reindexer forumcontroller.ReindexService, topicActions forum.TopicExtensionActionProvider, topicSurfaces forum.TopicExtensionSurfaceProvider, composerToolbar forum.ComposerToolbarProvider, publicationPolicy forum.PublicationPolicy) *ForumProvider {
 	service := forum.NewServiceWithExtensionsAndPublicationPolicy(store, ForumSettingsResolver{options: optionsService}, publisher, indexer, topicActions, publicationPolicy)
 	if optionsService != nil {
 		service.WithTrustPolicy(TrustPolicyAdapter{options: optionsService})
 	}
 	if composerToolbar != nil {
 		service.WithComposerToolbar(composerToolbar)
+	}
+	if topicSurfaces != nil {
+		service.WithTopicExtensionSurfaces(topicSurfaces)
 	}
 	return &ForumProvider{
 		controller: forumcontroller.NewControllerWithSearch(service, searchService, reindexer, users, sessions),

@@ -2722,7 +2722,8 @@
       "replies": "Replies",
       "views": "Views",
       "participants": "Participants",
-      "tags": "Tags"
+      "tags": "Tags",
+      "extensions": "Extensions"
     },
     "progress": {
       "label": "Reading progress",

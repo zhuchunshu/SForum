@@ -120,6 +120,71 @@
   font-size: 12px;
 }
 
+/* 扩展贡献徽章（forum.topic.badges）；无条目时整块不渲染 */
+.sf-topic-heading__extension-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -4px 0 12px;
+}
+
+.sf-topic-heading__extension-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.4;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.sf-topic-heading__extension-badge--neutral {
+  color: var(--sf-public-text-muted);
+  background: var(--sf-public-surface-muted);
+}
+
+.sf-topic-heading__extension-badge--info {
+  color: #0369a1;
+  background: #e0f2fe;
+}
+
+.sf-topic-heading__extension-badge--success {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.sf-topic-heading__extension-badge--warning {
+  color: #a16207;
+  background: #fef3c7;
+}
+
+.sf-topic-heading__extension-badge--danger {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.dark .sf-topic-heading__extension-badge--info {
+  color: #7dd3fc;
+  background: rgba(14, 165, 233, 0.16);
+}
+
+.dark .sf-topic-heading__extension-badge--success {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.16);
+}
+
+.dark .sf-topic-heading__extension-badge--warning {
+  color: #fde68a;
+  background: rgba(234, 179, 8, 0.16);
+}
+
+.dark .sf-topic-heading__extension-badge--danger {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.16);
+}
+
 .sf-topic-action-menu {
   width: 40px;
   min-width: 40px;
@@ -291,6 +356,46 @@
 .sf-topic-side-card__tag:hover {
   color: var(--sf-accent);
   background: var(--sf-accent-soft);
+}
+
+/* 扩展侧栏链接（forum.topic.sidebar） */
+.sf-topic-side-card__extensions {
+  display: grid;
+  gap: 6px;
+}
+
+.sf-topic-side-card__extension-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sf-public-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sf-topic-side-card__extension-link:hover {
+  color: var(--sf-accent);
+  background: var(--sf-accent-soft);
+}
+
+.sf-topic-side-card__extension-link:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.sf-topic-side-card__extension-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 评论区 */

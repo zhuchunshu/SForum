@@ -2722,7 +2722,8 @@
       "replies": "回复",
       "views": "浏览",
       "participants": "参与者",
-      "tags": "标签"
+      "tags": "标签",
+      "extensions": "扩展"
     },
     "progress": {
       "label": "阅读进度",

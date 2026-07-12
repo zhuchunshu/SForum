@@ -4,6 +4,13 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 E2.1 complete** (topic sidebar + badges contribution points)
+  - Handoff: `knowledge/sessions/2026-07-12-e2-1-topic-sidebar-badges.md`
+  - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
+  - Points: `forum.topic.sidebar` / `forum.topic.badges`; API fields
+    `extensionSidebar` / `extensionBadges`; default theme empty-safe UI
+  - Next: **E2.2** comment actions, **E2.3** nav, or product fork **E6**
+
 - **2026-07-12 E1.4 complete** (`attachment.before_upload` validate)
   - Handoff: `knowledge/sessions/2026-07-12-e1-4-attachment-before-upload.md`
   - Plan: `knowledge/plans/2026-07-12-extension-surface-density.md`
@@ -42,7 +49,7 @@ This is the entry point for project memory.
   - **North star E6–E8:** storage / search / other services fully
     plugin-selectable and configurable (mail-like L4–L6); not slot names only
   - E3/E4 overlap F4.4/F4.5 (now implemented); **E1.1–E1.4 done** (E1 core);
-    next **E2** or **E6**
+    **E2.1 done**; remaining E2.2+ or product fork **E6**
 
 - **2026-07-12 posts content storage slim**
   - Handoff: `knowledge/sessions/2026-07-12-posts-excerpt-revision-slim.md`

@@ -772,6 +772,7 @@ async function submitReport() {
                   :category-to="categoryPath(topic.categorySlug)"
                   :tags="headingTags"
                   :published-label="formatDate(topic.createdAt)"
+                  :extension-badges="topic.extensionBadges || []"
                 />
                 <SFTopicActionMenu
                   :items="topicActionItems"
@@ -913,6 +914,7 @@ async function submitReport() {
             :author-to="authorPath"
             :tags="headingTags"
             :category-to="categoryPath(topic.categorySlug)"
+            :extension-sidebar="topic.extensionSidebar || []"
           />
         </div>
       </template>

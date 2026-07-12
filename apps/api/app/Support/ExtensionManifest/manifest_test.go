@@ -10,6 +10,8 @@ func TestContributionPointDefinitionsContainJobsProductionSlots(t *testing.T) {
 	points := ContributionPointDefinitions()
 	want := map[string]bool{
 		PointForumTopicActions:       true,
+		PointForumTopicSidebar:       true,
+		PointForumTopicBadges:        true,
 		PointForumComposerToolbar:    true,
 		PointForumProfileTabs:        true,
 		PointAdminDashboardWidgets:   true,
@@ -56,6 +58,16 @@ func TestF43ContributionPayloadValidation(t *testing.T) {
 			Payload: json.RawMessage(`{"type":"hostLink","href":"/tags"}`),
 		}},
 		{{
+			Point: PointForumTopicSidebar, ID: "demo.sidebar", Order: 10,
+			Label: map[string]string{"en-US": "Help"}, Icon: "i-lucide-life-buoy",
+			Payload: json.RawMessage(`{"type":"hostLink","href":"/help"}`),
+		}},
+		{{
+			Point: PointForumTopicBadges, ID: "demo.badge", Order: 10,
+			Label:   map[string]string{"en-US": "Reviewed"},
+			Payload: json.RawMessage(`{"tone":"success","href":"/moderation"}`),
+		}},
+		{{
 			Point: PointAdminDashboardWidgets, ID: "demo.widget", Order: 10,
 			Label: map[string]string{"en-US": "Queue"}, Icon: "i-lucide-gauge",
 			Payload: json.RawMessage(`{"type":"adminLink","route":"/jobs","severity":"info"}`),
@@ -90,6 +102,22 @@ func TestF43ContributionPayloadValidation(t *testing.T) {
 	}}
 	if err := Validate(bad); err == nil {
 		t.Fatal("executable/unknown health type must be rejected")
+	}
+	bad.Contributions = []ManifestContribution{{
+		Point: PointForumTopicBadges, ID: "evil-badge", Order: 1,
+		Label:   map[string]string{"en-US": "Evil"},
+		Payload: json.RawMessage(`{"tone":"rainbow"}`),
+	}}
+	if err := Validate(bad); err == nil {
+		t.Fatal("unknown badge tone must be rejected")
+	}
+	bad.Contributions = []ManifestContribution{{
+		Point: PointForumTopicSidebar, ID: "evil-side", Order: 1,
+		Label:   map[string]string{"en-US": "Evil"},
+		Payload: json.RawMessage(`{"type":"hostLink","href":"https://evil.example/"}`),
+	}}
+	if err := Validate(bad); err == nil {
+		t.Fatal("external sidebar hostLink must be rejected")
 	}
 }
 

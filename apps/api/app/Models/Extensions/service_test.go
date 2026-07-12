@@ -414,8 +414,8 @@ func TestServiceListsContributionPointsAndEffectiveContributions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ContributionPoints returned error: %v", err)
 	}
-	// 与 ExtensionManifest.ContributionPointDefinitions 生产目录对齐（含 F4.3）。
-	if len(points) != 11 || points[0].ID != "forum.topic.actions" {
+	// 与 ExtensionManifest.ContributionPointDefinitions 生产目录对齐（含 F4.3 + E2.1）。
+	if len(points) != 13 || points[0].ID != "forum.topic.actions" {
 		t.Fatalf("unexpected contribution points: %#v", points)
 	}
 	pointIDs := make(map[string]bool, len(points))
@@ -423,6 +423,8 @@ func TestServiceListsContributionPointsAndEffectiveContributions(t *testing.T) {
 		pointIDs[point.ID] = true
 	}
 	for _, id := range []string{
+		"forum.topic.sidebar",
+		"forum.topic.badges",
 		"forum.composer.toolbar",
 		"forum.profile.tabs",
 		"admin.dashboard.widgets",

@@ -276,14 +276,14 @@ Upload/UploadAvatar/UploadSEOImage share the gate; no raw bytes in payload).
 
 ### E2.1 Topic detail secondary surfaces
 
-- [ ] `forum.topic.sidebar` — ordered cards/links for topic detail (descriptor:
+- [x] `forum.topic.sidebar` — ordered cards/links for topic detail (descriptor:
   title, icon name from approved set, extensionRoute or hostLink)
-- [ ] `forum.topic.badges` — small status badges under title (label, tone enum,
+- [x] `forum.topic.badges` — small status badges under title (label, tone enum,
   optional hostLink)
-- [ ] Wire default theme consumers with empty-safe rendering
-- [ ] Admin contribution inspection already lists points — ensure new points
+- [x] Wire default theme consumers with empty-safe rendering
+- [x] Admin contribution inspection already lists points — ensure new points
   appear via catalog
-- [ ] Tests for payload validation + enabled-only resolution
+- [x] Tests for payload validation + enabled-only resolution
 
 ### E2.2 Comment row actions
 
@@ -683,14 +683,14 @@ edit comment/topic controllers.
 | --- | --- | --- |
 | 2026-07-12 | — | Plan recorded after extension-mechanism review |
 | 2026-07-12 | — | North star added: storage/search/etc. full plugin configure (E6–E8) |
+| 2026-07-12 | E1 | E1.1–E1.4 done; E1 core exit met; E1.5 optional skipped |
+| 2026-07-12 | E2.1 | `forum.topic.sidebar` + `forum.topic.badges` + theme consumers |
 
 ---
 
 ## Next session one-liner
 
 ```text
-Default: E1.1 comment.before_create (catalog + wire + tests + docs).
-If prioritizing service plugins: after E1.1, jump to E6.0 storage provider
-decision + host interface (attachment.storage.provider L4–L6).
-Search = E7 after storage pattern exists. Do not only reserve slot names.
+Next density: E2.2 forum.comment.actions, or E2.3 forum.nav.items, or product
+fork E6.0 storage provider decision + host interface (north star).
 ```

@@ -664,6 +664,16 @@ TopicDetail:
         description: Safe host-rendered extension action descriptors from enabled plugins. Executing an action still calls the extension route proxy and its policy checks.
         items:
           "$ref": "#/TopicExtensionAction"
+      extensionSidebar:
+        type: array
+        description: Host-rendered topic sidebar cards/links from forum.topic.sidebar (E2.1). No raw HTML; hostLink or extensionRoute only.
+        items:
+          "$ref": "#/TopicExtensionSidebarItem"
+      extensionBadges:
+        type: array
+        description: Host-rendered status badges under the topic title from forum.topic.badges (E2.1).
+        items:
+          "$ref": "#/TopicExtensionBadge"
 TopicExtensionAction:
   type: object
   required:
@@ -694,6 +704,76 @@ TopicExtensionAction:
       description: API-relative plugin route path such as /extensions/demo.plugin/topic-actions/bookmark.
     confirm:
       type: boolean
+TopicExtensionSidebarItem:
+  type: object
+  description: Host-rendered topic sidebar card from forum.topic.sidebar (E2.1).
+  required:
+  - extensionId
+  - id
+  - order
+  - kind
+  - url
+  properties:
+    extensionId:
+      type: string
+    id:
+      type: string
+    order:
+      type: integer
+    label:
+      type: object
+      additionalProperties:
+        type: string
+    icon:
+      type: string
+      description: Icon name from approved set (i-lucide-* or i-tabler-*).
+    kind:
+      type: string
+      enum:
+      - extensionRoute
+      - hostLink
+    method:
+      type: string
+      description: HTTP method for extensionRoute items.
+      enum:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+    url:
+      type: string
+      description: For extensionRoute, API-relative proxy path; for hostLink, site-relative path (not /api).
+TopicExtensionBadge:
+  type: object
+  description: Host-rendered topic title badge from forum.topic.badges (E2.1).
+  required:
+  - extensionId
+  - id
+  - order
+  - tone
+  properties:
+    extensionId:
+      type: string
+    id:
+      type: string
+    order:
+      type: integer
+    label:
+      type: object
+      additionalProperties:
+        type: string
+    tone:
+      type: string
+      enum:
+      - neutral
+      - info
+      - success
+      - warning
+      - danger
+    href:
+      type: string
+      description: Optional site-relative host path (not /api); omit for display-only badges.
 ComposerToolbarAction:
   type: object
   description: Host-rendered composer toolbar action from forum.composer.toolbar (F4.3).

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { ForumTopicDetail } from '~/utils/forumTaxonomy'
+import type { ForumTopicDetail, ForumTopicExtensionBadge } from '~/utils/forumTaxonomy'
+import { forumTopicExtensionLabel } from '~/utils/forumTaxonomy'
 
 type TopicHeadingTag = {
   id: number
@@ -7,21 +8,63 @@ type TopicHeadingTag = {
   to: string
 }
 
-defineProps<{
+const props = defineProps<{
   topic: ForumTopicDetail
   authorName: string
   authorTo?: string
   categoryTo: string
   tags: TopicHeadingTag[]
   publishedLabel: string
+  /** forum.topic.badges；空数组/未传时不渲染扩展徽章区 */
+  extensionBadges?: ForumTopicExtensionBadge[]
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const localePath = useLocalePath()
+
+const badges = computed(() => props.extensionBadges || [])
+
+function badgeLabel(badge: ForumTopicExtensionBadge) {
+  return forumTopicExtensionLabel(badge, String(locale.value || 'zh-CN')) || badge.id
+}
+
+function badgeHref(badge: ForumTopicExtensionBadge) {
+  const href = `${badge.href || ''}`.trim()
+  // 仅消费宿主已校验的站内相对路径；拒绝外链与 API。
+  if (!href.startsWith('/') || href.startsWith('//') || href.includes('://') || href.startsWith('/api')) {
+    return ''
+  }
+  return localePath(href)
+}
 </script>
 
 <template>
   <header class="sf-topic-heading">
     <h1 class="sf-topic-heading__title">{{ topic.title }}</h1>
+
+    <div
+      v-if="badges.length"
+      class="sf-topic-heading__extension-badges"
+      data-testid="topic-extension-badges"
+    >
+      <template v-for="badge in badges" :key="`${badge.extensionId}:${badge.id}`">
+        <NuxtLink
+          v-if="badgeHref(badge)"
+          :to="badgeHref(badge)"
+          class="sf-topic-heading__extension-badge"
+          :class="`sf-topic-heading__extension-badge--${badge.tone || 'neutral'}`"
+        >
+          {{ badgeLabel(badge) }}
+        </NuxtLink>
+        <span
+          v-else
+          class="sf-topic-heading__extension-badge"
+          :class="`sf-topic-heading__extension-badge--${badge.tone || 'neutral'}`"
+        >
+          {{ badgeLabel(badge) }}
+        </span>
+      </template>
+    </div>
 
     <div class="sf-topic-heading__byline">
       <NuxtLink v-if="authorTo" :to="authorTo" class="sf-topic-heading__author">

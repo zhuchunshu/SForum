@@ -607,6 +607,40 @@ func TestServiceGetTopicBySlugDecoratesExtensionActions(t *testing.T) {
 	}
 }
 
+func TestServiceGetTopicDecoratesExtensionSurfaces(t *testing.T) {
+	store := newServiceFakeStore()
+	service := NewServiceWithTopicExtensionActions(store, staticSettingsResolver{}, nil, nil, nil)
+	service.WithTopicExtensionSurfaces(fakeTopicSurfaceProvider{
+		sidebar: []TopicExtensionSidebarItem{{
+			ExtensionID: "demo.plugin",
+			ID:          "policy",
+			Order:       10,
+			Label:       map[string]string{"zh-CN": "规范"},
+			Icon:        "i-lucide-book-open",
+			Kind:        "hostLink",
+			URL:         "/help",
+		}},
+		badges: []TopicExtensionBadge{{
+			ExtensionID: "demo.plugin",
+			ID:          "reviewed",
+			Order:       1,
+			Label:       map[string]string{"en-US": "OK"},
+			Tone:        "success",
+		}},
+	})
+
+	topic, err := service.GetTopic(context.Background(), 42)
+	if err != nil {
+		t.Fatalf("GetTopic returned error: %v", err)
+	}
+	if len(topic.ExtensionSidebar) != 1 || topic.ExtensionSidebar[0].ID != "policy" {
+		t.Fatalf("expected extension sidebar, got %#v", topic.ExtensionSidebar)
+	}
+	if len(topic.ExtensionBadges) != 1 || topic.ExtensionBadges[0].Tone != "success" {
+		t.Fatalf("expected extension badges, got %#v", topic.ExtensionBadges)
+	}
+}
+
 func TestCommentPositionForInsertSupportsArbitraryDepth(t *testing.T) {
 	parent := CommentSummary{
 		ID:            7,
@@ -1357,6 +1391,26 @@ func (p fakeTopicActionProvider) TopicExtensionActions(context.Context) ([]Topic
 		return nil, p.err
 	}
 	return p.actions, nil
+}
+
+type fakeTopicSurfaceProvider struct {
+	sidebar []TopicExtensionSidebarItem
+	badges  []TopicExtensionBadge
+	err     error
+}
+
+func (p fakeTopicSurfaceProvider) TopicExtensionSidebar(context.Context) ([]TopicExtensionSidebarItem, error) {
+	if p.err != nil {
+		return nil, p.err
+	}
+	return p.sidebar, nil
+}
+
+func (p fakeTopicSurfaceProvider) TopicExtensionBadges(context.Context) ([]TopicExtensionBadge, error) {
+	if p.err != nil {
+		return nil, p.err
+	}
+	return p.badges, nil
 }
 
 type serviceFakeStore struct {

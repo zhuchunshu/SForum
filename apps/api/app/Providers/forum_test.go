@@ -128,6 +128,58 @@ func TestExtensionProfileTabAndDashboardProviders(t *testing.T) {
 	}
 }
 
+func TestExtensionTopicSurfaceProvider(t *testing.T) {
+	sidebarHost, _ := json.Marshal(map[string]any{"type": "hostLink", "href": "/help/policy"})
+	sidebarRoute, _ := json.Marshal(map[string]any{"type": "extensionRoute", "method": "GET", "path": "/topic/related"})
+	badgePayload, _ := json.Marshal(map[string]any{"tone": "warning", "href": "/moderation"})
+	source := fakeContributionSource{items: []extensions.EffectiveContribution{
+		{ExtensionID: "demo.plugin", Point: "forum.topic.sidebar", ID: "policy", Order: 20, Label: map[string]string{"zh-CN": "发帖规范"}, Icon: "i-lucide-book-open", Payload: sidebarHost},
+		{ExtensionID: "demo.plugin", Point: "forum.topic.sidebar", ID: "related", Order: 10, Label: map[string]string{"en-US": "Related"}, Icon: "i-tabler-link", Payload: sidebarRoute},
+		{ExtensionID: "demo.plugin", Point: "forum.topic.sidebar", ID: "evil", Payload: json.RawMessage(`{"type":"hostLink","href":"https://evil/"}`)},
+		{ExtensionID: "demo.plugin", Point: "forum.topic.badges", ID: "review", Order: 5, Label: map[string]string{"zh-CN": "待审"}, Payload: badgePayload},
+		{ExtensionID: "demo.plugin", Point: "forum.topic.badges", ID: "bad-tone", Payload: json.RawMessage(`{"tone":"rainbow"}`)},
+		{ExtensionID: "demo.plugin", Point: "forum.topic.actions", ID: "ignored", Payload: json.RawMessage(`{"type":"extensionRoute","method":"POST","path":"/x"}`)},
+	}}
+	provider := NewExtensionTopicSurfaceProvider(source)
+
+	sidebar, err := provider.TopicExtensionSidebar(context.Background())
+	if err != nil {
+		t.Fatalf("sidebar error: %v", err)
+	}
+	if len(sidebar) != 2 {
+		t.Fatalf("expected 2 safe sidebar items, got %#v", sidebar)
+	}
+	// EffectiveContributions 已按 order 排序；provider 保持源顺序。
+	if sidebar[0].ID != "policy" || sidebar[0].Kind != "hostLink" || sidebar[0].URL != "/help/policy" {
+		t.Fatalf("unexpected first sidebar item: %#v", sidebar[0])
+	}
+	if sidebar[1].ID != "related" || sidebar[1].Kind != "extensionRoute" || sidebar[1].Method != "GET" {
+		t.Fatalf("unexpected second sidebar item: %#v", sidebar[1])
+	}
+	if sidebar[1].URL != "/extensions/demo.plugin/topic/related" {
+		t.Fatalf("unexpected sidebar proxy url: %#v", sidebar[1])
+	}
+
+	badges, err := provider.TopicExtensionBadges(context.Background())
+	if err != nil || len(badges) != 1 {
+		t.Fatalf("badges=%#v err=%v", badges, err)
+	}
+	if badges[0].ID != "review" || badges[0].Tone != "warning" || badges[0].Href != "/moderation" {
+		t.Fatalf("unexpected badge: %#v", badges[0])
+	}
+}
+
+func TestExtensionTopicSurfaceProviderPropagatesSourceErrors(t *testing.T) {
+	expected := errors.New("list failed")
+	provider := NewExtensionTopicSurfaceProvider(fakeContributionSource{err: expected})
+	if _, err := provider.TopicExtensionSidebar(context.Background()); !errors.Is(err, expected) {
+		t.Fatalf("sidebar want source error, got %v", err)
+	}
+	if _, err := provider.TopicExtensionBadges(context.Background()); !errors.Is(err, expected) {
+		t.Fatalf("badges want source error, got %v", err)
+	}
+}
+
 type fakeContributionSource struct {
 	items []extensions.EffectiveContribution
 	err   error

@@ -25,16 +25,12 @@ entity meta and (2) **service providers not fully plugin-configurable** beyond
 mail. Implementation checklist:
 
 - Plan: `plans/2026-07-12-extension-surface-density.md` (waves **E1–E8**)
-- **E1.1 done:** `comment.before_create` filter (patch `content` only; reject
-  → `RejectedError` / 422)
-- **E1.2 done:** `topic.before_update` filter (patch title/tags/category/content;
-  force tags allowed)
-- **E1.3 done:** `user.before_register` validate (reject-only; no password in
-  payload)
-- **E1.4 done:** `attachment.before_upload` validate (metadata only; no raw
-  bytes). E1 core exit met (≥4 sync hooks). Optional **E1.5** observe gaps;
-  next density default **E2** or product fork **E6**
-- F4.4 entity meta → **E3**; F4.5 feature flags → **E4**
+- **E1.1–E1.4 done** (core exit met; optional E1.5 skipped)
+- **E2.1 done:** `forum.topic.sidebar` (`topicSidebarCard`) +
+  `forum.topic.badges` (`topicBadge`); topic detail returns
+  `extensionSidebar` / `extensionBadges`; default theme empty-safe consumers
+- **E2 remaining:** comment actions, nav items, list-row badges
+- F4.4 entity meta → **E3**; F4.5 feature flags → **E4** (already implemented)
 - **North star:** storage (**E6**) and search (**E7**) reach mail-like L4–L6
   (plugin RPC + admin select/settings/test/restore + reference plugin); other
   slots in **E8**. Today only `mail.provider` is end-to-end; storage/search

@@ -18,6 +18,8 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | Point ID | Owner | Kind | Payload type | Description |
 | --- | --- | --- | --- | --- |
 | `forum.topic.actions` | forum | descriptor | `extensionRoute` | Topic detail action descriptors rendered by the host UI. |
+| `forum.topic.sidebar` | forum | descriptor | `topicSidebarCard` | Topic detail sidebar cards/links rendered by the host UI (extensionRoute or hostLink). |
+| `forum.topic.badges` | forum | descriptor | `topicBadge` | Small status badges under the topic title (tone enum + optional hostLink). |
 | `forum.composer.toolbar` | forum | descriptor | `extensionRoute` | Composer/editor toolbar actions rendered by the host UI; payload is an extensionRoute only. |
 | `forum.profile.tabs` | forum | descriptor | `profileSection` | Public profile tabs/sections rendered by the host UI (extensionRoute or hostLink). |
 | `admin.dashboard.widgets` | admin | descriptor | `dashboardLink` | Admin dashboard link widgets; host-owned routes only, no executable payloads. |

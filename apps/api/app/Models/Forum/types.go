@@ -126,6 +126,13 @@ type TopicExtensionActionProvider interface {
 	TopicExtensionActions(ctx context.Context) ([]TopicExtensionAction, error)
 }
 
+// TopicExtensionSurfaceProvider 解析主题详情次级贡献点（E2.1 sidebar / badges）。
+// 与 TopicExtensionActionProvider 分离，避免破坏现有注入点；nil 时不装饰。
+type TopicExtensionSurfaceProvider interface {
+	TopicExtensionSidebar(ctx context.Context) ([]TopicExtensionSidebarItem, error)
+	TopicExtensionBadges(ctx context.Context) ([]TopicExtensionBadge, error)
+}
+
 type ContentInput struct {
 	RawContent    string `json:"rawContent"`
 	SourceFormat  string `json:"sourceFormat"`
@@ -236,8 +243,10 @@ type TopicSummary struct {
 
 type TopicDetail struct {
 	TopicSummary
-	Content          RenderedContent        `json:"content"`
-	ExtensionActions []TopicExtensionAction `json:"extensionActions,omitempty"`
+	Content          RenderedContent             `json:"content"`
+	ExtensionActions []TopicExtensionAction      `json:"extensionActions,omitempty"`
+	ExtensionSidebar []TopicExtensionSidebarItem `json:"extensionSidebar,omitempty"`
+	ExtensionBadges  []TopicExtensionBadge       `json:"extensionBadges,omitempty"`
 }
 
 type TopicExtensionAction struct {
@@ -248,6 +257,30 @@ type TopicExtensionAction struct {
 	Method      string            `json:"method"`
 	URL         string            `json:"url"`
 	Confirm     bool              `json:"confirm,omitempty"`
+}
+
+// TopicExtensionSidebarItem 是 forum.topic.sidebar 宿主安全描述符（E2.1）。
+// Kind: extensionRoute | hostLink；URL 对 extensionRoute 为 /extensions/{id}{path}。
+type TopicExtensionSidebarItem struct {
+	ExtensionID string            `json:"extensionId"`
+	ID          string            `json:"id"`
+	Order       int               `json:"order"`
+	Label       map[string]string `json:"label,omitempty"`
+	Icon        string            `json:"icon,omitempty"`
+	Kind        string            `json:"kind"`
+	Method      string            `json:"method,omitempty"`
+	URL         string            `json:"url"`
+}
+
+// TopicExtensionBadge 是 forum.topic.badges 宿主安全描述符（E2.1）。
+// Tone: neutral|info|success|warning|danger；Href 可选站内相对路径。
+type TopicExtensionBadge struct {
+	ExtensionID string            `json:"extensionId"`
+	ID          string            `json:"id"`
+	Order       int               `json:"order"`
+	Label       map[string]string `json:"label,omitempty"`
+	Tone        string            `json:"tone"`
+	Href        string            `json:"href,omitempty"`
 }
 
 // ComposerToolbarAction 是 forum.composer.toolbar 贡献的宿主安全描述符（F4.3）。
