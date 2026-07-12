@@ -63,17 +63,17 @@ later plugin declarations. No third-party capability model yet.
 
 ### F1.3 Event/filter hardening (minimal)
 
-- [ ] Catalog documents timeout + failure policy fields (even if defaults only)
-- [ ] Enforce timeout on sync filters where practical
-- [ ] Slow/failed deliveries remain visible in extension event log
-- [ ] Document: heavy work must enqueue jobs, never block filters long
+- [x] Catalog documents timeout + failure policy fields (even if defaults only)
+- [x] Enforce timeout on sync filters where practical
+- [x] Slow/failed deliveries remain visible in extension event log
+- [x] Document: heavy work must enqueue jobs, never block filters long
 
 ### F1.4 Audit minimum set
 
-- [ ] Ensure extension enable/disable/activate paths write audit events
-- [ ] Ensure sensitive settings changes audit (if not already)
-- [ ] Permission/role grant changes audit (if not already)
-- [ ] Define retention option + cleanup schedule stub or job (can finish in F3)
+- [x] Ensure extension enable/disable/activate paths write audit events
+- [x] Ensure sensitive settings changes audit (if not already)
+- [x] Permission/role grant changes audit (if not already)
+- [x] Define retention option + cleanup schedule stub or job (can finish in F3)
 
 **F1 exit criteria:** new maintenance job = one registry entry; ops can tell
 API live vs ready and whether worker is stale; no second queue invented.
@@ -246,7 +246,9 @@ per plugin.
 | 2026-07-12 | — | Plan recorded; implementation not started |
 | 2026-07-12 | F1.1 | Schedule Registry + three core periodics + admin list done |
 | 2026-07-12 | F1.2 | `/ready`, Redis worker heartbeat, overview stale + queue lag |
-| | F1.3–F1.4 | pending |
+| 2026-07-12 | F1.3 | catalog failurePolicy + sync timeout + delivery log |
+| 2026-07-12 | F1.4 | settings/extension audit_events + cleanup schedule |
+| | F2+ | pending |
 | | F2 | pending |
 | | F3 | pending |
 | | F4 | pending |
@@ -256,7 +258,6 @@ per plugin.
 ## Next session one-liner
 
 ```text
-Read knowledge/plans/2026-07-12-framework-hardening-waves.md F1.3; document
-event/filter timeout + failure policy on the catalog, enforce sync filter
-timeouts where practical, keep slow/failed deliveries in extension event log.
+Wave F1 complete. For framework work: start F2.1 capability grants or product
+Iteration A / settings Wave 3 per development-directions effort mix.
 ```

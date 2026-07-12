@@ -4,12 +4,18 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 Wave F1.3 + F1.4 complete (F1 done)**
+  - Handoff: `knowledge/sessions/2026-07-12-f1-3-f1-4-events-audit.md`
+  - F1.3: event catalog `failurePolicy`/`timeoutMs`; sync filter host timeout;
+    sync deliveries + slow/failed reasons in event log
+  - F1.4: settings + extension lifecycle → `audit_events`; daily
+    `audit.cleanup_events` (90d); permission audits already in identity
+  - Next framework wave: **F2** (capabilities / Host API), or product tracks
+
 - **2026-07-12 Wave F1.2 Ready + worker heartbeat implemented on main**
   - Handoff: `knowledge/sessions/2026-07-12-f1-2-ready-heartbeat.md`
   - `GET /api/v1/ready` (PG required; Redis/Meili degraded-ready)
   - Redis worker heartbeat; admin overview worker stale + queue lag
-  - Docs: live vs ready probes in development-and-deployment
-  - Next coding slice: Wave **F1.3** event/filter hardening
 
 - **2026-07-12 Wave F1.1 Schedule Registry implemented on main**
   - Handoff: `knowledge/sessions/2026-07-12-f1-1-schedule-registry.md`

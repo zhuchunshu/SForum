@@ -100,6 +100,7 @@ Plugins may render digest-approved client components there, but cannot bypass
   - `extension.web_release_cleanup` → queue `maintenance`
   - `attachments.cleanup_orphans` → queue `maintenance` (handler pre-existed;
     F1.1 registered the periodic)
+  - `audit.cleanup_events` → queue `maintenance` (F1.4; default retain 90 days)
 - Web Release cleanup always retains the active artifact, its rollback target,
   and the five newest successful artifacts. Failed and superseded artifacts are
   eligible after seven days; build logs after thirty days. Release rows, events,
@@ -131,7 +132,8 @@ Plugins may render digest-approved client components there, but cannot bypass
 
 ## Next Steps
 
-- **Wave F1 remaining:** F1.3 filter timeouts; F1.4 audit minimum set. See
+- **Wave F1 complete** for F1.1–F1.4. Next framework work is Wave F2 (capability
+  grants / Host API). See
   `knowledge/plans/2026-07-12-framework-hardening-waves.md`.
 - Wire additional domain job **handlers** into the worker `Registry`; add new
   maintenance **schedules** only through `CoreScheduleDefinitions` (or later

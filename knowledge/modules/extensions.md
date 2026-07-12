@@ -21,6 +21,29 @@ while provider-specific behavior remains in plugins.
 The extension foundation is implemented with plugin/theme lifecycle separation
 and plugin runtime v1.
 
+### Event / filter hardening (F1.3)
+
+- Host event catalog (`app/Support/Events`) documents `timeoutMs` and
+  `failurePolicy` on every definition. Sync filters default to
+  `fail_closed` + 2000ms; observe events use `fail_open` + 5000ms.
+- Sync filter/validate invokes apply a host `context.WithTimeout` and force
+  `extension.hook_timeout` when the plugin ignores cancellation.
+- Sync deliveries are recorded in `extension_event_deliveries` (same log as
+  observe) so slow (`extension.hook_slow`, ≥500ms) and failed hooks are
+  visible under the admin Event Log.
+- **Rule for plugin authors:** never block a filter with heavy I/O, mail, or
+  indexing — enqueue a River job instead.
+
+### Audit (F1.4)
+
+- Extension enable / disable / install / theme activate also append to host
+  `audit_events` (in addition to `extension_events`).
+- Settings updates append `settings.update` with changed option **names** only
+  (secrets never logged).
+- Permission/role grant paths already wrote `audit_events` in identity.
+- Daily schedule `audit.cleanup_events` deletes rows older than 90 days
+  (recommended retention; runtime option can follow later).
+
 - `extension.manage` is the permission for uploading, verifying, enabling
   plugins, activating the protected default theme, and inspecting extensions.
   It is seeded for `super_admin`.
