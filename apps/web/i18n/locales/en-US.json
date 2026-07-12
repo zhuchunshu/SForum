@@ -2562,7 +2562,7 @@
         "features.search": "Controls the public search product surface.",
         "features.registration": "Controls open registration product surface (still subject to registration policy).",
         "features.attachments": "Controls attachment upload product surface.",
-        "features.mentions": "Controls @mention product surface.",
+        "features.mentions": "Controls {'@'}mention product surface.",
         "features.public_profiles": "Controls public user profile pages.",
         "features.webhooks": "Controls outbound webhooks product surface (not public on web-options)."
       }

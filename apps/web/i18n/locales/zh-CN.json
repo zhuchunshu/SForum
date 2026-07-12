@@ -2562,7 +2562,7 @@
         "features.search": "控制公开搜索入口与搜索产品面。",
         "features.registration": "控制开放注册产品面（仍受注册策略约束）。",
         "features.attachments": "控制附件上传产品面。",
-        "features.mentions": "控制 @ 提及产品面。",
+        "features.mentions": "控制 {'@'} 提及产品面。",
         "features.public_profiles": "控制公开用户资料页。",
         "features.webhooks": "控制出站 Webhooks 产品面（不出现在公开 web-options）。"
       }
