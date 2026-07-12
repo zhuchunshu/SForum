@@ -1010,6 +1010,8 @@ function onLocaleToggle(locale: string, event: Event) {
       <UButton
         v-for="tab in tabs"
         :key="tab.id"
+        size="md"
+        class="min-h-10 px-4"
         :color="activeTab === tab.id ? 'primary' : 'neutral'"
         :variant="activeTab === tab.id ? 'solid' : 'ghost'"
         :leading-icon="tab.icon"
@@ -1043,9 +1045,9 @@ function onLocaleToggle(locale: string, event: Event) {
           </div>
         </template>
 
-        <div class="grid max-w-3xl gap-4">
+        <div class="grid max-w-5xl gap-5">
           <UFormField :label="t('admin.settings.siteName')" name="site-name">
-            <UInput
+            <UInput size="lg"
               v-model="form.siteName"
               icon="i-lucide-message-square-text"
               :placeholder="t('admin.settings.siteNamePlaceholder')"
@@ -1056,7 +1058,7 @@ function onLocaleToggle(locale: string, event: Event) {
           </UFormField>
 
           <UFormField :label="t('admin.settings.siteUrl')" name="site-url">
-            <UInput
+            <UInput size="lg"
               v-model="form.siteUrl"
               icon="i-lucide-link"
               type="url"
@@ -1067,7 +1069,7 @@ function onLocaleToggle(locale: string, event: Event) {
           </UFormField>
 
           <UFormField :label="t('admin.settings.siteTagline')" name="site-tagline">
-            <UInput
+            <UInput size="lg"
               v-model="form.tagline"
               icon="i-lucide-quote"
               :placeholder="t('admin.settings.siteTaglinePlaceholder')"
@@ -1080,7 +1082,7 @@ function onLocaleToggle(locale: string, event: Event) {
           </UFormField>
 
           <UFormField :label="t('admin.settings.adminEmail')" name="site-admin-email">
-            <UInput
+            <UInput size="lg"
               v-model="form.adminEmail"
               icon="i-lucide-mail"
               type="email"
@@ -1096,7 +1098,7 @@ function onLocaleToggle(locale: string, event: Event) {
           <UFormField :label="t('admin.settings.defaultLocale')" name="default-locale">
             <select
               v-model="form.defaultLocale"
-              class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             >
               <option
                 v-for="choice in localeChoices.filter((choice) => form.supportedLocales.includes(choice.value))"
@@ -1152,7 +1154,7 @@ function onLocaleToggle(locale: string, event: Event) {
               <UFormField :label="t('admin.settings.basic.timezone')" name="site-timezone" class="md:col-span-2">
                 <select
                   v-model="form.timezone"
-                  class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                  class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                 >
                   <option
                     v-for="choice in timezoneChoices"
@@ -1170,7 +1172,7 @@ function onLocaleToggle(locale: string, event: Event) {
               <UFormField :label="t('admin.settings.basic.dateFormat')" name="site-date-format">
                 <select
                   v-model="form.dateFormat"
-                  class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                  class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                 >
                   <option
                     v-for="choice in dateFormatChoices"
@@ -1185,7 +1187,7 @@ function onLocaleToggle(locale: string, event: Event) {
               <UFormField :label="t('admin.settings.basic.timeFormat')" name="site-time-format">
                 <select
                   v-model="form.timeFormat"
-                  class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                  class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                 >
                   <option
                     v-for="choice in timeFormatChoices"
@@ -1200,7 +1202,7 @@ function onLocaleToggle(locale: string, event: Event) {
               <UFormField :label="t('admin.settings.basic.startOfWeek')" name="site-start-of-week" class="md:col-span-2">
                 <select
                   v-model.number="form.startOfWeek"
-                  class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                  class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                 >
                   <option
                     v-for="choice in startOfWeekChoices"
@@ -1283,7 +1285,7 @@ function onLocaleToggle(locale: string, event: Event) {
 
           <div class="grid gap-4 md:grid-cols-2">
             <UFormField :label="t('admin.settings.basic.passwordMinLength')" name="password-min-length">
-              <UInput
+              <UInput size="lg"
                 v-model.number="form.passwordMinLength"
                 icon="i-lucide-ruler"
                 type="number"
@@ -1298,7 +1300,7 @@ function onLocaleToggle(locale: string, event: Event) {
             </UFormField>
 
             <UFormField :label="t('admin.settings.basic.passwordMaxLength')" name="password-max-length">
-              <UInput
+              <UInput size="lg"
                 v-model.number="form.passwordMaxLength"
                 icon="i-lucide-ruler"
                 type="number"
@@ -1366,7 +1368,7 @@ function onLocaleToggle(locale: string, event: Event) {
             name="sessions-max-devices"
             class="pt-2"
           >
-            <UInput
+            <UInput size="lg"
               v-model.number="form.sessionsMaxDevices"
               icon="i-lucide-devices"
               type="number"
@@ -1386,7 +1388,7 @@ function onLocaleToggle(locale: string, event: Event) {
             :description="t('admin.settings.basic.sessionsKeepDaysHint')"
             name="sessions-keep-days"
           >
-            <UInput
+            <UInput size="lg"
               v-model.number="form.sessionsKeepDays"
               icon="i-lucide-calendar-clock"
               type="number"
@@ -1406,7 +1408,7 @@ function onLocaleToggle(locale: string, event: Event) {
               :description="t('admin.settings.basic.loginMaxFailuresHint')"
               name="login-max-failures"
             >
-              <UInput
+              <UInput size="lg"
                 v-model.number="form.loginMaxFailures"
                 icon="i-lucide-shield-alert"
                 type="number"
@@ -1424,7 +1426,7 @@ function onLocaleToggle(locale: string, event: Event) {
               :description="t('admin.settings.basic.loginLockoutMinutesHint')"
               name="login-lockout-minutes"
             >
-              <UInput
+              <UInput size="lg"
                 v-model.number="form.loginLockoutMinutes"
                 icon="i-lucide-timer-off"
                 type="number"
@@ -1497,7 +1499,7 @@ function onLocaleToggle(locale: string, event: Event) {
           <UFormField :label="t('admin.settings.registration.mode')" name="registration-mode">
             <select
               v-model="form.registrationMode"
-              class="h-10 w-full max-w-xl rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
               @change="form.registrationEnabled = form.registrationMode === 'open'"
             >
               <option value="open">{{ t('admin.settings.registration.modes.open') }}</option>
@@ -1554,7 +1556,7 @@ function onLocaleToggle(locale: string, event: Event) {
             </div>
             <div class="grid gap-4 md:grid-cols-2">
               <UFormField :label="t('admin.settings.registration.usernameMinLength')" name="username-min">
-                <UInput
+                <UInput size="lg"
                   v-model.number="form.usernameMinLength"
                   type="number"
                   inputmode="numeric"
@@ -1567,7 +1569,7 @@ function onLocaleToggle(locale: string, event: Event) {
                 />
               </UFormField>
               <UFormField :label="t('admin.settings.registration.usernameMaxLength')" name="username-max">
-                <UInput
+                <UInput size="lg"
                   v-model.number="form.usernameMaxLength"
                   type="number"
                   inputmode="numeric"
@@ -1583,7 +1585,7 @@ function onLocaleToggle(locale: string, event: Event) {
             <UFormField :label="t('admin.settings.registration.usernameCharset')" name="username-charset">
               <select
                 v-model="form.usernameCharset"
-                class="h-10 w-full max-w-xl rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+                class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base dark:border-zinc-700 dark:bg-zinc-950"
               >
                 <option value="unicode_letters_numbers">{{ t('admin.settings.registration.charsetUnicode') }}</option>
                 <option value="ascii">{{ t('admin.settings.registration.charsetAscii') }}</option>
@@ -1594,7 +1596,7 @@ function onLocaleToggle(locale: string, event: Event) {
               :description="t('admin.settings.registration.usernameReservedHint')"
               name="username-reserved"
             >
-              <UTextarea
+              <UTextarea size="lg"
                 v-model="form.usernameReserved"
                 :rows="3"
                 class="w-full"
@@ -1663,7 +1665,7 @@ function onLocaleToggle(locale: string, event: Event) {
             :description="t('admin.settings.newcomers.daysHint')"
             name="trust-days"
           >
-            <UInput
+            <UInput size="lg"
               v-model.number="form.trustNewUserDays"
               type="number"
               inputmode="numeric"
@@ -1678,7 +1680,7 @@ function onLocaleToggle(locale: string, event: Event) {
 
           <div class="grid gap-4 md:grid-cols-2">
             <UFormField :label="t('admin.settings.newcomers.topicCooldown')" name="trust-topic-cooldown">
-              <UInput
+              <UInput size="lg"
                 v-model.number="form.trustTopicCooldown"
                 type="number"
                 inputmode="numeric"
@@ -1692,7 +1694,7 @@ function onLocaleToggle(locale: string, event: Event) {
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.settings.newcomers.zeroUnlimited') }}</p>
             </UFormField>
             <UFormField :label="t('admin.settings.newcomers.commentCooldown')" name="trust-comment-cooldown">
-              <UInput
+              <UInput size="lg"
                 v-model.number="form.trustCommentCooldown"
                 type="number"
                 inputmode="numeric"
@@ -1706,7 +1708,7 @@ function onLocaleToggle(locale: string, event: Event) {
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.settings.newcomers.zeroUnlimited') }}</p>
             </UFormField>
             <UFormField :label="t('admin.settings.newcomers.dailyTopicLimit')" name="trust-daily-topic">
-              <UInput
+              <UInput size="lg"
                 v-model.number="form.trustDailyTopicLimit"
                 type="number"
                 inputmode="numeric"
@@ -1720,7 +1722,7 @@ function onLocaleToggle(locale: string, event: Event) {
               <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.settings.newcomers.zeroUnlimited') }}</p>
             </UFormField>
             <UFormField :label="t('admin.settings.newcomers.dailyCommentLimit')" name="trust-daily-comment">
-              <UInput
+              <UInput size="lg"
                 v-model.number="form.trustDailyCommentLimit"
                 type="number"
                 inputmode="numeric"
@@ -1829,7 +1831,7 @@ function onLocaleToggle(locale: string, event: Event) {
             :description="t('admin.settings.maintenance.messageHint')"
             name="maintenance-message"
           >
-            <UTextarea
+            <UTextarea size="lg"
               v-model="form.maintenanceMessage"
               :rows="3"
               class="w-full"
@@ -1876,7 +1878,7 @@ function onLocaleToggle(locale: string, event: Event) {
           <UFormField :label="t('admin.settings.verification.provider')" name="verification-provider">
             <select
               v-model="form.humanVerificationProvider"
-              class="h-10 w-full max-w-xl rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             >
               <option value="disabled">{{ t('admin.settings.verification.disabled') }}</option>
               <option value="altcha">{{ t('admin.settings.verification.altcha') }}</option>
@@ -1920,7 +1922,7 @@ function onLocaleToggle(locale: string, event: Event) {
           <section class="border-t border-slate-200 pt-4 dark:border-zinc-800">
             <UFormField :label="t('admin.settings.verification.altchaSecret')" name="altcha-secret">
               <div class="flex flex-wrap items-center gap-2">
-                <UInput
+                <UInput size="lg"
                   v-model="form.altchaSecret"
                   icon="i-lucide-key-round"
                   :type="showAltchaSecret ? 'text' : 'password'"
@@ -1972,7 +1974,7 @@ function onLocaleToggle(locale: string, event: Event) {
               <UFormField :label="t('admin.settings.verification.widget.type')" name="altcha-widget-type">
                 <select
                   v-model="form.altchaWidgetType"
-                  class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                  class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                 >
                   <option v-for="item in altchaTypeOptions" :key="item.value" :value="item.value">
                     {{ item.label }}
@@ -1986,7 +1988,7 @@ function onLocaleToggle(locale: string, event: Event) {
               <UFormField :label="t('admin.settings.verification.widget.auto')" name="altcha-widget-auto">
                 <select
                   v-model="form.altchaWidgetAuto"
-                  class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                  class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                 >
                   <option v-for="item in altchaAutoOptions" :key="item.value" :value="item.value">
                     {{ item.label }}
@@ -2000,7 +2002,7 @@ function onLocaleToggle(locale: string, event: Event) {
               <UFormField :label="t('admin.settings.verification.widget.display')" name="altcha-widget-display">
                 <select
                   v-model="form.altchaWidgetDisplay"
-                  class="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                  class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none transition focus:border-[var(--sf-accent)] focus:ring-2 focus:ring-[var(--sf-accent-focus)] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                 >
                   <option v-for="item in altchaDisplayOptions" :key="item.value" :value="item.value">
                     {{ item.label }}
@@ -2048,7 +2050,7 @@ function onLocaleToggle(locale: string, event: Event) {
 
             <div class="grid gap-4 md:grid-cols-2">
               <UFormField :label="t('admin.settings.verification.widget.workers')" name="altcha-widget-workers">
-                <UInput
+                <UInput size="lg"
                   v-model.number="form.altchaWidgetWorkers"
                   icon="i-lucide-cpu"
                   type="number"
@@ -2079,7 +2081,7 @@ function onLocaleToggle(locale: string, event: Event) {
               </UFormField>
 
               <UFormField :label="t('admin.settings.verification.widget.minDuration')" name="altcha-widget-min-duration">
-                <UInput
+                <UInput size="lg"
                   v-model.number="form.altchaWidgetMinDuration"
                   icon="i-lucide-timer"
                   type="number"
@@ -2113,7 +2115,7 @@ function onLocaleToggle(locale: string, event: Event) {
 
           <section class="grid gap-4 border-t border-slate-200 pt-4 dark:border-zinc-800 md:grid-cols-2">
             <UFormField :label="t('admin.settings.verification.challengeTTL')" name="altcha-ttl">
-              <UInput
+              <UInput size="lg"
                 v-model.number="form.altchaChallengeTTLMinutes"
                 icon="i-lucide-clock-3"
                 type="number"
@@ -2144,7 +2146,7 @@ function onLocaleToggle(locale: string, event: Event) {
             </UFormField>
 
             <UFormField :label="t('admin.settings.verification.cost')" name="altcha-cost">
-              <UInput
+              <UInput size="lg"
                 v-model.number="form.altchaCost"
                 icon="i-lucide-cpu"
                 type="number"
