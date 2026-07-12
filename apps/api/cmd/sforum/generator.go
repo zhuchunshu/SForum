@@ -323,5 +323,7 @@ func readmeBody(opts makeOptions) string {
 }
 
 func pluginBackendReadme(opts makeOptions) string {
-	return "# Backend Stub\n\nBuild a HashiCorp go-plugin compatible executable named `plugin` in this directory before enabling `" + opts.ID + "`.\n"
+	return "# Backend Stub\n\nBuild a HashiCorp go-plugin compatible executable named `plugin` in this directory before enabling `" + opts.ID + "`.\n\n" +
+		"Prefer the public Go SDK:\n\n```go\npackage main\n\nimport pluginsdk \"github.com/zhuchunshu/sforum/apps/api/sdk/plugin\"\n\ntype myPlugin struct{ pluginsdk.Noop }\n\nfunc main() { pluginsdk.Serve(myPlugin{}) }\n```\n\n" +
+		"Contract test (no binary required while scaffolding):\n\n```bash\ncd apps/api && go run ./cmd/sforum extension test --allow-scaffold <package-root>\n```\n"
 }

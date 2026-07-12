@@ -1,0 +1,22 @@
+{
+  "id": "sforum.contract.schedules",
+  "name": "Contract Schedules Fixture",
+  "description": "CI fixture that documents host schedule catalog expectations for plugins (F4.1). No backend binary.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "settings": [
+    {
+      "key": "sforum.contract.schedules.note",
+      "label": { "default": "Note" },
+      "description": { "default": "Plugins must not start private cron loops; use host schedule registry." },
+      "type": "string",
+      "default": "use-host-schedules"
+    }
+  ]
+}

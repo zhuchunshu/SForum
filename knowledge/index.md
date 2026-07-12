@@ -4,11 +4,17 @@ This is the entry point for project memory.
 
 ## Latest Handoff
 
+- **2026-07-12 Wave F4.1 complete** (SDK + contract tests)
+  - Handoff: `knowledge/sessions/2026-07-12-f4-1-sdk-contract-tests.md`
+  - Plan: `knowledge/plans/2026-07-12-framework-hardening-waves.md`
+  - Public `apps/api/sdk/plugin`; `sforum extension test`; fixtures under
+    `extensions/fixtures/plugins/`
+  - Next framework: **F4.2–F4.5**, or product Iteration A / settings Wave 3
+
 - **2026-07-12 Wave F3 complete** (integration & reliability)
   - Handoff: `knowledge/sessions/2026-07-12-f3-integration-reliability.md`
   - Plan: `knowledge/plans/2026-07-12-framework-hardening-waves.md`
   - Outbox status machine; Idempotency-Key; webhooks; PAT; storage slot
-  - Next framework: **F4**, or product Iteration A / settings Wave 3
 
 - **2026-07-12 F2.4 Extension lifecycle**
   - Handoff: `knowledge/sessions/2026-07-12-f2-4-extension-lifecycle.md`

@@ -19,6 +19,7 @@ func newExtensionCommand() *cobra.Command {
 		Short: "Extension package helpers",
 	}
 	cmd.AddCommand(newExtensionValidateCommand())
+	cmd.AddCommand(newExtensionTestCommand())
 	return cmd
 }
 

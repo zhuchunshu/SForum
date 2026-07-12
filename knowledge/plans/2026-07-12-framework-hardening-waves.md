@@ -183,9 +183,9 @@ POSTs with Idempotency-Key are safe; storage selection is a real slot.
 
 ### F4.1 SDK and contract tests
 
-- [ ] Go plugin SDK module or package
-- [ ] `sforum extension test` / validate expanded beyond manifest parse
-- [ ] Fixture plugins in CI for Host API + events + schedules
+- [x] Go plugin SDK module or package
+- [x] `sforum extension test` / validate expanded beyond manifest parse
+- [x] Fixture plugins in CI for Host API + events + schedules
 
 ### F4.2 Catalog → documentation
 
@@ -268,13 +268,14 @@ per plugin.
 | 2026-07-12 | F3.4 | PAT Bearer auth + account security UI |
 | 2026-07-12 | F3.5 | attachment.storage.provider slot (drivers stay in core) |
 | | F3 | complete (current scope) |
-| | F4 | pending |
+| 2026-07-12 | F4.1 | public `sdk/plugin`, `extension test`, fixtures + CI contract tests |
+| | F4 | F4.1 done; F4.2–F4.5 pending |
 
 ---
 
 ## Next session one-liner
 
 ```text
-Wave F3 complete. Next framework: F4 SDK/docs/contributions/meta/flags;
-or product Iteration A / settings Wave 3 per development-directions mix.
+Wave F4.1 complete. Next: F4.2 catalog docs, F4.3 contribution points,
+F4.4 entity meta, F4.5 feature flags; or product Iteration A / settings Wave 3.
 ```

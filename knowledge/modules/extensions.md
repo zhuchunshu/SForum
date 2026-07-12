@@ -60,6 +60,15 @@ and plugin runtime v1.
 - Plugin jobs enqueue as River kind `extension.plugin_job`. Client stub:
   `hostapi.Client` / `ClientFromEnv`. Decision:
   `decisions/2026-07-12-host-api-v1-capabilities.md`.
+- **F4.1 public Go plugin SDK:** `apps/api/sdk/plugin` is the supported
+  authoring surface (`Serve`, `Noop`, `HostFromEnv` / typed Host helpers,
+  read-only catalogs for events/capabilities/contribution points/provider
+  slots/core schedules, and `LoadAndTest` contract reports). CLI:
+  `sforum extension test [path]` (deeper than `validate`; checks catalogs,
+  capabilities, backend entry). Fixtures under
+  `extensions/fixtures/plugins/` (hostapi / events / schedules) are exercised
+  by `go test ./sdk/plugin`. Handoff:
+  `sessions/2026-07-12-f4-1-sdk-contract-tests.md`.
 - **F2.3 resilience:** per-extension concurrency semaphore (default 4),
   consecutive-failure circuit (default 5 / 30s open), hook + mail deadlines
   (protocol uses goroutine+select because net/rpc lacks context). Observe /

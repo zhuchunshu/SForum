@@ -1,0 +1,39 @@
+{
+  "id": "sforum.contract.events",
+  "name": "Contract Events Fixture",
+  "description": "CI fixture that only declares host-catalog events and a topic action contribution (F4.1).",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "routes": [
+    {
+      "path": "/contract/ping",
+      "methods": ["POST"],
+      "access": "login"
+    }
+  ],
+  "events": [
+    { "name": "comment.created", "kind": "observe" },
+    { "name": "user.registered", "kind": "observe" }
+  ],
+  "contributions": [
+    {
+      "point": "forum.topic.actions",
+      "id": "sforum.contract.events.ping",
+      "order": 900,
+      "label": { "en-US": "Contract Ping", "zh-CN": "契约探测" },
+      "icon": "i-lucide-radio",
+      "payload": {
+        "type": "extensionRoute",
+        "method": "POST",
+        "path": "/contract/ping",
+        "confirm": false
+      }
+    }
+  ]
+}
