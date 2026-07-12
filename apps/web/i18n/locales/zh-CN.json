@@ -2810,24 +2810,40 @@
     "commentCount": "评论",
     "followingCount": "关注",
     "followersCount": "粉丝",
+    "likesCount": "获赞",
     "joinedAt": "加入时间",
+    "joinedOn": "加入于 {date}",
     "location": "位置",
     "editProfile": "编辑资料",
     "goToMyCenter": "我的中心",
     "follow": "关注",
     "followComingSoon": "关注功能即将上线。",
+    "messageComingSoon": "私信即将上线",
+    "more": "更多",
+    "moreComingSoon": "更多操作即将上线。",
+    "share": "分享主页",
+    "linkCopied": "主页链接已复制。",
+    "changeCover": "更换封面",
+    "coverComingSoon": "封面上传即将上线。",
     "coverLabel": "个人主页封面",
+    "memberBadge": "成员",
+    "bioEmpty": "这个人很懒，还没有写简介。",
+    "featuredWorks": "精选作品",
+    "filterAll": "全部",
+    "filterTutorial": "教程",
+    "filterOpenSource": "开源",
     "tabsAria": "个人主页分区",
     "tabs": {
       "works": "作品集",
       "topics": "主题",
       "comments": "评论",
       "following": "关注",
-      "followers": "粉丝"
+      "followers": "粉丝",
+      "likes": "获赞"
     },
     "worksEmpty": {
       "title": "暂无作品集",
-      "description": "精选主题与作品上架后会显示在这里。"
+      "description": "发布主题后，会以卡片形式展示在这里。"
     },
     "topicsEmpty": {
       "title": "还没有主题",
@@ -2836,6 +2852,10 @@
     "commentsEmpty": {
       "title": "暂无公开评论列表",
       "description": "评论时间线接口就绪后，会在此展示近期回复。"
+    },
+    "likesEmpty": {
+      "title": "获赞明细即将上线",
+      "description": "点赞统计接口就绪后，可在此查看获赞来源。"
     },
     "socialEmpty": {
       "followingTitle": "关注列表即将上线",
