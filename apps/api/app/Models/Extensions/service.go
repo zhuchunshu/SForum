@@ -539,10 +539,14 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, exte
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
+	// 持久化前保留 previous 密文快照，便于重启失败时回滚。
+	previousRaw, _ := s.store.ListSettings(ctx, extension.ID)
 	if err := s.store.ReplaceSettings(ctx, extension.ID, stored); err != nil {
 		return ExtensionSettings{}, err
 	}
 	if err := s.restartPluginForSettings(ctx, extension); err != nil {
+		// 插件重启失败：回滚设置，避免“已写库但进程仍用旧配置/失败态”不一致。
+		_ = s.store.ReplaceSettings(ctx, extension.ID, previousRaw)
 		return ExtensionSettings{}, err
 	}
 	// 返回解密后的视图（secret 仍在 resolve 中掩码）。
@@ -1274,22 +1278,42 @@ func resolveExtensionSettings(extension Extension, values map[string]string, loc
 	return ExtensionSettings{ExtensionID: extension.ID, Items: items}
 }
 
+// sanitizeSettingValues 将 PUT 解析为完整候选集：提交值 → 已存值 → 默认。
+// 省略的 secret 始终保留已存值；未知 key 拒绝且不写库。
 func sanitizeSettingValues(manifest Manifest, input, current map[string]string) (map[string]string, error) {
 	allowed := map[string]ManifestSetting{}
 	for _, setting := range manifest.Settings {
 		allowed[setting.Key] = setting
 	}
-	values := map[string]string{}
-	for key, value := range input {
+	// 先拒绝未知键，避免部分写入。
+	for key := range input {
 		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
 		if _, ok := allowed[key]; !ok {
 			return nil, ErrInvalidManifest
 		}
-		normalized := strings.TrimSpace(value)
-		if allowed[key].Type == "secret" && normalized == "" {
-			normalized = current[key]
+	}
+	values := map[string]string{}
+	for _, setting := range manifest.Settings {
+		key := setting.Key
+		if submitted, ok := input[key]; ok {
+			normalized := strings.TrimSpace(submitted)
+			if setting.Type == "secret" && normalized == "" {
+				if cur, has := current[key]; has {
+					values[key] = cur
+				}
+				// 无已存 secret 且提交空：不写入覆盖行。
+				continue
+			}
+			values[key] = normalized
+			continue
 		}
-		values[key] = normalized
+		// 未提交：保留已存；无已存则不写入（运行时用 default）。
+		if cur, has := current[key]; has {
+			values[key] = cur
+		}
 	}
 	return values, nil
 }

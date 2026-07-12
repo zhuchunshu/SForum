@@ -758,6 +758,66 @@ func TestServiceSettingsResolveUpdateAndResetDefaults(t *testing.T) {
 	}
 }
 
+func TestUpdateSettingsPreservesOmittedValues(t *testing.T) {
+	item := installedExtension("partial.plugin", TypePlugin, ManifestBackend{})
+	item.Status = StatusEnabled
+	item.Manifest.Settings = []ManifestSetting{
+		{Key: "a", Label: LocalizedText{Default: "A"}, Type: "text", Default: "da"},
+		{Key: "b", Label: LocalizedText{Default: "B"}, Type: "text", Default: "db"},
+		{Key: "token", Label: LocalizedText{Default: "T"}, Type: "secret"},
+	}
+	store := &fakeExtensionStore{
+		items: map[string]Extension{item.ID: item},
+		settings: map[string]map[string]string{
+			item.ID: {"a": "keep-a", "b": "keep-b", "token": "secret-value"},
+		},
+	}
+	service := NewService(store, t.TempDir())
+
+	// 只更新 b；a 与 token 必须保留。
+	updated, err := service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{
+		Values: map[string]string{"b": "new-b"},
+	}, "zh-CN")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settingValue(updated, "b") != "new-b" {
+		t.Fatalf("b=%q", settingValue(updated, "b"))
+	}
+	if store.settings[item.ID]["a"] != "keep-a" || store.settings[item.ID]["b"] != "new-b" {
+		t.Fatalf("store=%#v", store.settings[item.ID])
+	}
+	if store.settings[item.ID]["token"] != "secret-value" {
+		t.Fatalf("secret lost: %#v", store.settings[item.ID])
+	}
+	// 掩码
+	if settingValue(updated, "token") != "" {
+		t.Fatal("secret must stay masked in response")
+	}
+}
+
+func TestUpdateSettingsInvalidKeyChangesNothing(t *testing.T) {
+	item := installedExtension("bad.plugin", TypePlugin, ManifestBackend{})
+	item.Status = StatusEnabled
+	item.Manifest.Settings = []ManifestSetting{
+		{Key: "a", Label: LocalizedText{Default: "A"}, Type: "text", Default: "da"},
+	}
+	store := &fakeExtensionStore{
+		items:    map[string]Extension{item.ID: item},
+		settings: map[string]map[string]string{item.ID: {"a": "keep"}},
+	}
+	service := NewService(store, t.TempDir())
+	_, err := service.UpdateSettings(context.Background(), extensionManager(), item.ID, UpdateSettingsInput{
+		Values: map[string]string{"a": "x", "unknown": "y"},
+	}, "zh-CN")
+	if !errors.Is(err, ErrInvalidManifest) {
+		t.Fatalf("got %v", err)
+	}
+	if store.settings[item.ID]["a"] != "keep" {
+		t.Fatalf("store mutated: %#v", store.settings[item.ID])
+	}
+}
+
 func TestServiceSettingsRejectWhenExtensionDisabled(t *testing.T) {
 	item := installedExtension("settings.plugin", TypePlugin, ManifestBackend{})
 	item.Status = StatusDisabled
