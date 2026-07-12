@@ -202,6 +202,7 @@ async function submitRegister() {
 </script>
 
 <template>
+  <SFPageOutlet page="auth.register">
   <div class="auth-shell">
 
     <!-- 左侧品牌区 -->
@@ -453,6 +454,8 @@ async function submitRegister() {
     </div>
 
   </div>
+
+  </SFPageOutlet>
 </template>
 
 <style scoped>

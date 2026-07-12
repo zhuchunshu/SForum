@@ -125,6 +125,7 @@ watch(tagSlug, () => {
 </script>
 
 <template>
+  <SFPageOutlet page="forum.tag.show">
   <main class="sforum-home">
     <div class="sforum-home__layout">
       <div class="sforum-home__sidebar">
@@ -217,4 +218,6 @@ watch(tagSlug, () => {
       </section>
     </div>
   </main>
+
+  </SFPageOutlet>
 </template>

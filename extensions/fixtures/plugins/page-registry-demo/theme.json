@@ -1,0 +1,27 @@
+{
+  "pages": [
+    {
+      "id": "sforum.page-registry-demo.docs",
+      "action": "add",
+      "path": "/demo-docs/:slug",
+      "template": "templates/docs.html",
+      "access": "public",
+      "contract": "sforum.page.plugin_docs@1"
+    },
+    {
+      "id": "sforum.page-registry-demo.members-only",
+      "action": "add",
+      "path": "/demo-members",
+      "template": "templates/members.html",
+      "access": "login",
+      "contract": "sforum.page.plugin_members@1"
+    },
+    {
+      "id": "sforum.page-registry-demo.home",
+      "action": "replace",
+      "target": "forum.home",
+      "template": "templates/home.html",
+      "contract": "sforum.page.home@1"
+    }
+  ]
+}

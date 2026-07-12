@@ -106,6 +106,7 @@ async function submit() {
 </script>
 
 <template>
+  <SFPageOutlet page="auth.forgot_password">
   <main class="sf-public-page min-h-screen flex items-center justify-center px-4 py-12">
     <div class="w-full max-w-md">
       <h1 class="text-2xl font-bold text-slate-900 mb-2 dark:text-zinc-50">
@@ -181,6 +182,8 @@ async function submit() {
       </p>
     </div>
   </main>
+
+  </SFPageOutlet>
 </template>
 
 <style scoped>

@@ -1,32 +1,39 @@
 <script setup lang="ts">
 /**
- * 兼容路径 /x/*：转发到统一 Registry 解析（与根 catch-all 相同逻辑）。
- * 正式 add 路径应使用 manifest 声明的真实 path（由 [...sfRegistryPage] 承接）。
+ * 动态公开路由宿主：匹配 Page Registry 的 action=add 贡献。
+ * 仅在无其它 Nuxt 文件路由命中时生效（catch-all）。
+ * 权威 access/permission 由 API resolve-path 返回 401/403/404。
  */
-definePageMeta({ public: true })
+definePageMeta({
+  public: true
+})
 
 const route = useRoute()
 const localePath = useLocalePath()
 
 const requestPath = computed(() => {
-  const raw = route.params.path
+  const raw = route.params.sfRegistryPage
   const parts = Array.isArray(raw) ? raw.map(String) : (raw ? [String(raw)] : [])
-  return '/x/' + parts.join('/')
+  // 去掉可选 locale 前缀由 API strip；此处保留完整 path
+  return '/' + parts.join('/')
 })
 
 type ResolvePayload = {
-  page?: { id: string }
+  page?: { id: string, pathPattern?: string, access?: string }
   provider?: string
   extensionId?: string
+  contributionId?: string
+  action?: string
   fallback?: boolean
   templateHtml?: string
   dataSource?: string
   dataRoute?: string
+  loaderData?: unknown
   loaderError?: string
 }
 
-const { data, error } = await useAsyncData(
-  () => `page-resolve-path-x:${requestPath.value}`,
+const { data, error, status } = await useAsyncData(
+  () => `page-resolve-path:${requestPath.value}`,
   async () => {
     const { request } = useApiClient()
     return await request<ResolvePayload>(
@@ -36,6 +43,7 @@ const { data, error } = await useAsyncData(
   { watch: [requestPath] }
 )
 
+// API 404 → 正常 Nuxt 404
 if (error.value) {
   const err: any = error.value
   const code = err?.statusCode || err?.status || err?.data?.statusCode
@@ -62,8 +70,13 @@ useSForumSeo({
 
 <template>
   <main class="sf-public-page sf-registry-add mx-auto w-full max-w-4xl px-4 py-8">
+    <SFAlert
+      v-if="error && status === 'error'"
+      variant="danger"
+      title="Failed to load extension page"
+    />
     <SFThemeTemplate
-      v-if="useTemplate"
+      v-else-if="useTemplate"
       :html="templateHtml"
       :extension-id="data?.extensionId || data?.provider || ''"
       :data-source="data?.dataSource"

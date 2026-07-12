@@ -69,6 +69,7 @@ async function refreshAll() {
 </script>
 
 <template>
+  <SFPageOutlet page="moderation.review">
   <main class="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
     <header class="flex flex-wrap items-start justify-between gap-4">
       <div><h1 class="text-2xl font-bold text-slate-950 dark:text-zinc-50">{{ t('moderation.workbench.title') }}</h1><p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">{{ t('moderation.workbench.description') }}</p></div>
@@ -98,4 +99,6 @@ async function refreshAll() {
     </div>
     <div v-if="totalPages > 1" class="mt-6 flex justify-center"><SFPagination v-model:page="currentPage" :total-pages="totalPages" /></div>
   </main>
+
+  </SFPageOutlet>
 </template>

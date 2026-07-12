@@ -169,6 +169,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <SFPageOutlet page="forum.settings.security">
   <main class="sf-public-page min-h-screen py-8">
     <div class="sf-public-page__container sf-public-page__container--narrow mx-auto px-4 sm:px-6">
       <div class="flex items-center justify-between mb-6">
@@ -404,4 +405,6 @@ onMounted(() => {
       </section>
     </div>
   </main>
+
+  </SFPageOutlet>
 </template>

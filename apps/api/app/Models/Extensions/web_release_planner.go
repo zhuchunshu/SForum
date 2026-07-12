@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -120,19 +118,15 @@ func (p *WebReleasePlanner) Plan(ctx context.Context, input PlanWebReleaseInput)
 	}
 	extensions := make([]WebExtensionSnapshot, 0)
 	for _, item := range items {
+		// Web Release 仅打包获信任且仍需构建的管理端插件前端。
+		// 普通主题（含活动主题）的 L0/L1 不进入 composition，主题设置使用宿主 schema 页。
+		if item.Type != TypePlugin {
+			continue
+		}
 		if item.Manifest.Frontend.Admin == nil {
 			continue
 		}
-		// 插件：启用态；主题：仅打包当前计划主题的 admin 设置前端。
-		if item.Type == TypePlugin {
-			if !pluginEnabledForPlan(item, input) {
-				continue
-			}
-		} else if item.Type == TypeTheme {
-			if item.ID != theme.ExtensionID {
-				continue
-			}
-		} else {
+		if !pluginEnabledForPlan(item, input) {
 			continue
 		}
 		trusted, err := p.isTrusted(ctx, item)
@@ -199,28 +193,12 @@ func (p *WebReleasePlanner) resolveTheme(ctx context.Context, targetID string) (
 	if err := verifyPlannedPackage(theme); err != nil {
 		return WebThemeSnapshot{}, err
 	}
-	// 公开主题不再要求 Nuxt Layer；Web Release 仅打包主题 admin 前端（若有）。
-	// LayerPath 仅在兼容旧 layer 主题时填充。
-	layerPath := ""
-	if layer := strings.TrimSpace(theme.Manifest.Frontend.Layer); layer != "" {
-		resolved, ok := InstalledFilePathForRuntime(theme, layer)
-		if !ok {
-			return WebThemeSnapshot{}, fmt.Errorf("%w: theme layer path is invalid", ErrWebReleaseInvalidComposition)
-		}
-		resolved, err = filepath.Abs(resolved)
-		if err != nil {
-			return WebThemeSnapshot{}, fmt.Errorf("%w: resolve theme layer path: %v", ErrWebReleaseInvalidComposition, err)
-		}
-		info, err := os.Stat(resolved)
-		if err != nil || !info.IsDir() {
-			return WebThemeSnapshot{}, fmt.Errorf("%w: theme layer is unavailable", ErrWebReleaseInvalidComposition)
-		}
-		layerPath = resolved
-	}
+	// 公开主题身份仅作 composition 元数据；不再要求 Nuxt Layer，
+	// 也不把主题 frontend.admin 编入 Web Release（主题设置用宿主 schema 页）。
 	return WebThemeSnapshot{
 		ExtensionID:   theme.ID,
 		Version:       theme.Version,
-		LayerPath:     layerPath,
+		LayerPath:     "",
 		PackageDigest: theme.PackageDigest,
 	}, nil
 }

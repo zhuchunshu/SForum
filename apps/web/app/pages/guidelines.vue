@@ -10,6 +10,7 @@ useSeoMeta({
 </script>
 
 <template>
+  <SFPageOutlet page="site.guidelines">
   <main class="legal-page">
     <article class="legal-page__card">
       <h1 class="legal-page__title">
@@ -20,6 +21,8 @@ useSeoMeta({
       </div>
     </article>
   </main>
+
+  </SFPageOutlet>
 </template>
 
 <style scoped>

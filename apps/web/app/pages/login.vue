@@ -128,6 +128,7 @@ async function submitLogin() {
 </script>
 
 <template>
+  <SFPageOutlet page="auth.login">
   <div class="auth-shell">
 
     <!-- 左侧品牌区 -->
@@ -280,6 +281,8 @@ async function submitLogin() {
     </div>
 
   </div>
+
+  </SFPageOutlet>
 </template>
 
 <style scoped>

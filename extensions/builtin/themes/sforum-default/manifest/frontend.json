@@ -1,13 +1,1 @@
-{
-  "admin": {
-    "root": "frontend/admin",
-    "apiVersion": 1,
-    "components": {
-      "theme-settings-page": "components/ThemeSettingsPage.vue"
-    },
-    "locales": {
-      "zh-CN": "locales/zh-CN.json",
-      "en-US": "locales/en-US.json"
-    }
-  }
-}
+{}

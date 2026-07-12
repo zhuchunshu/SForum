@@ -86,6 +86,7 @@ const recentTopics = computed(() => profile.value?.recentTopics || [])
 </script>
 
 <template>
+  <SFPageOutlet page="forum.my.home">
   <main class="sf-public-page min-h-screen">
     <div class="sf-me-page">
       <div class="sf-me-top">
@@ -282,4 +283,6 @@ const recentTopics = computed(() => profile.value?.recentTopics || [])
       </div>
     </div>
   </main>
+
+  </SFPageOutlet>
 </template>

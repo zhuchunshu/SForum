@@ -127,6 +127,7 @@ function formatCount(value: number) {
 </script>
 
 <template>
+  <SFPageOutlet page="forum.tag.index">
   <main class="sforum-taxonomy">
     <div class="sforum-taxonomy__shell">
       <header class="sforum-taxonomy__head">
@@ -250,4 +251,6 @@ function formatCount(value: number) {
       </section>
     </div>
   </main>
+
+  </SFPageOutlet>
 </template>

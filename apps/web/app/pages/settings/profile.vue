@@ -144,6 +144,7 @@ async function removeAvatar() {
 </script>
 
 <template>
+  <SFPageOutlet page="forum.settings.profile">
   <main class="sf-public-page min-h-screen py-8">
     <div class="sf-public-page__container sf-public-page__container--form mx-auto px-4 sm:px-6">
       <h1 class="text-2xl font-bold text-slate-900 mb-6 dark:text-zinc-50">
@@ -305,6 +306,8 @@ async function removeAvatar() {
       </SFCard>
     </div>
   </main>
+
+  </SFPageOutlet>
 </template>
 
 <style scoped>

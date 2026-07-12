@@ -1,0 +1,10 @@
+{
+  "id": "sforum.page-registry-demo",
+  "name": "Page Registry Demo",
+  "description": "Fixture plugin proving add/replace page contributions via theme.json contract.",
+  "url": "https://sforum.local/plugins/page-registry-demo",
+  "author": { "name": "SForum Team", "url": "https://sforum.local" },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0"
+}

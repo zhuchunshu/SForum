@@ -152,6 +152,7 @@ const bioText = computed(() => {
 </script>
 
 <template>
+  <SFPageOutlet page="forum.profile.show">
   <main class="sf-public-page sf-profile-page min-h-screen">
     <template v-if="profileError && !profile">
       <div class="sf-profile-shell py-10">
@@ -431,4 +432,6 @@ const bioText = computed(() => {
       </div>
     </template>
   </main>
+
+  </SFPageOutlet>
 </template>

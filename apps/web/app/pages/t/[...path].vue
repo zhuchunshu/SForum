@@ -798,6 +798,7 @@ async function submitReport() {
 </script>
 
 <template>
+  <SFPageOutlet page="forum.topic.show">
   <main class="sforum-topic-page">
     <div class="sforum-topic-page__inner">
       <!-- 错误 / 未找到 -->
@@ -995,4 +996,6 @@ async function submitReport() {
       @submit="submitReport"
     />
   </main>
+
+  </SFPageOutlet>
 </template>

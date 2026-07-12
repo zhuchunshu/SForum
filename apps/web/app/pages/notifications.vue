@@ -13,6 +13,7 @@ async function markAllRead() { await notifications.markAllRead(); data.value.ite
 </script>
 
 <template>
+  <SFPageOutlet page="forum.notifications">
   <main class="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
     <header class="flex items-center justify-between gap-3"><div><h1 class="text-2xl font-bold text-slate-950 dark:text-zinc-50">{{ t('notifications.title') }}</h1><p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">{{ t('notifications.description') }}</p></div><UButton icon="i-lucide-check-check" color="neutral" variant="subtle" @click="markAllRead">{{ t('notifications.markAllRead') }}</UButton></header>
     <SFAlert v-if="error" class="mt-5" variant="danger" :title="t('notifications.loadFailed')" />
@@ -25,4 +26,6 @@ async function markAllRead() { await notifications.markAllRead(); data.value.ite
       </NuxtLink>
     </div>
   </main>
+
+  </SFPageOutlet>
 </template>

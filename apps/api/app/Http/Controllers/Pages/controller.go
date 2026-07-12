@@ -70,6 +70,8 @@ type resolveResponse struct {
 	TemplateHTML   string               `json:"templateHtml,omitempty"`
 	DataSource     string               `json:"dataSource,omitempty"`
 	DataRoute      string               `json:"dataRoute,omitempty"`
+	LoaderData     any                  `json:"loaderData,omitempty"`
+	LoaderError    string               `json:"loaderError,omitempty"`
 }
 
 func (h *Controller) resolve(c fiber.Ctx) error {

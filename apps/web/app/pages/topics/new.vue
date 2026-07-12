@@ -239,6 +239,7 @@ const markdownCheatsheet = computed(() => [
 </script>
 
 <template>
+  <SFPageOutlet page="forum.topic.create">
   <main class="sf-public-page min-h-screen py-8">
     <div class="sf-public-page__container mx-auto px-4 sm:px-6">
       <!-- 无权限提示 -->
@@ -411,4 +412,6 @@ const markdownCheatsheet = computed(() => [
       </template>
     </div>
   </main>
+
+  </SFPageOutlet>
 </template>

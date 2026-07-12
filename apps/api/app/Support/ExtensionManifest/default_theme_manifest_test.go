@@ -33,17 +33,14 @@ func TestBuiltinDefaultThemeManifestValidatesWithSettingsPage(t *testing.T) {
 	if len(normalized.Settings) < 15 {
 		t.Fatalf("expected expanded theme settings, got %d", len(normalized.Settings))
 	}
-	if normalized.Frontend.Admin == nil || normalized.Frontend.Admin.Components["theme-settings-page"] == "" {
-		t.Fatal("expected frontend.admin theme-settings-page component")
+	// 普通主题使用宿主 schema-driven 设置页，不再声明 frontend.admin / ThemeSettingsPage。
+	if normalized.Frontend.Admin != nil {
+		t.Fatal("runtime theme must not declare frontend.admin (host schema settings only)")
 	}
-	found := false
 	for _, contribution := range normalized.Contributions {
 		if contribution.Point == "admin.extension.settings.page" {
-			found = true
+			t.Fatal("runtime theme must not declare admin.extension.settings.page Vue contribution")
 		}
-	}
-	if !found {
-		t.Fatal("expected admin.extension.settings.page contribution")
 	}
 	// 主题仍不得声明后端/提供商等插件能力。
 	if normalized.Backend.Entry != "" || len(normalized.Providers) != 0 || len(normalized.Hooks) != 0 {

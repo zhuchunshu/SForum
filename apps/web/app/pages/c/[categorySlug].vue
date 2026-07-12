@@ -107,6 +107,7 @@ watch(categorySlug, () => {
 </script>
 
 <template>
+  <SFPageOutlet page="forum.category.show">
   <main class="sforum-home">
     <div class="sforum-home__layout">
       <div class="sforum-home__sidebar">
@@ -185,4 +186,6 @@ watch(categorySlug, () => {
       </section>
     </div>
   </main>
+
+  </SFPageOutlet>
 </template>

@@ -87,7 +87,8 @@ func TestWebReleasePlannerAppliesTrustAndLifecycleRules(t *testing.T) {
 	}
 }
 
-func TestWebReleasePlannerIncludesActiveThemeAdminFrontend(t *testing.T) {
+func TestWebReleasePlannerExcludesActiveThemeAdminFrontend(t *testing.T) {
+	// 普通主题不得因切换或设置页进入 Web Release composition。
 	theme := plannerThemeWithAdminFixture(t)
 	plugin := plannerPluginFixture(t, "alpha.plugin", SourceBuiltin, StatusEnabled)
 	reader := &plannerExtensionReader{theme: theme, items: []Extension{theme, plugin}}
@@ -98,8 +99,14 @@ func TestWebReleasePlannerIncludesActiveThemeAdminFrontend(t *testing.T) {
 		t.Fatalf("plan composition: %v", err)
 	}
 	ids := plannerExtensionIDs(planned.Composition.Extensions)
-	if !slices.Equal(ids, []string{"alpha.plugin", DefaultThemeID}) {
-		t.Fatalf("expected theme + plugin admin frontends sorted by id, got %#v", ids)
+	if !slices.Equal(ids, []string{"alpha.plugin"}) {
+		t.Fatalf("expected only trusted plugin admin frontend, got %#v", ids)
+	}
+	if planned.Composition.Theme.ExtensionID != theme.ID {
+		t.Fatalf("theme snapshot should still record active theme id, got %#v", planned.Composition.Theme)
+	}
+	if planned.Composition.Theme.LayerPath != "" {
+		t.Fatalf("theme layer path must be empty for runtime themes, got %q", planned.Composition.Theme.LayerPath)
 	}
 }
 
