@@ -307,7 +307,8 @@
       "permissionManagement": "权限管理",
       "webhooks": "Webhooks",
       "featureFlags": "产品开关",
-      "entityMeta": "自定义字段"
+      "entityMeta": "自定义字段",
+      "extensionPages": "页面注册表"
     },
     "avatar": {
       "metaTitle": "头像设置",
@@ -846,6 +847,25 @@
           "validate": "校验",
           "filter": "过滤"
         }
+      },
+      "pages": {
+        "metaTitle": "页面注册表",
+        "title": "页面注册表",
+        "intro": "查看核心公开页的稳定 ID、路径与当前提供者。替换核心页需超级管理员审批；可一键恢复 core。",
+        "loadFailed": "加载页面目录失败",
+        "restored": "已恢复核心页面",
+        "restoreFailed": "恢复失败",
+        "approved": "已批准页面替换",
+        "approveFailed": "批准失败",
+        "colId": "页面 ID",
+        "colPath": "路径",
+        "colAccess": "访问",
+        "colProvider": "提供者",
+        "colActions": "操作",
+        "candidates": "候选",
+        "restoreCore": "恢复 core",
+        "approve": "批准",
+        "empty": "暂无页面目录数据"
       }
     },
     "jobs": {

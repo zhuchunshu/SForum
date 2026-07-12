@@ -1,0 +1,188 @@
+<script setup lang="ts">
+import {
+  forumCategoryPath,
+  forumTopicPath,
+  type ForumCategoryGroup,
+  type ForumTopicList,
+  type ForumTopicSummary
+} from '~/utils/forumTaxonomy'
+
+const { t } = useI18n()
+const localePath = useLocalePath()
+const route = useRoute()
+const { seoSettings } = useWebOptions()
+const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
+const forumApi = useForumApi()
+const { can } = usePermissions()
+
+const categorySlug = computed(() => routeParam(route.params.categorySlug))
+const currentPage = ref(1)
+const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
+const renderedAt = useState<number>('forum-taxonomy-rendered-at', () => Date.now())
+const emptyTopicList = (): ForumTopicList => ({
+  items: [],
+  total: 0,
+  page: 1,
+  perPage: 20
+})
+
+const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
+  `forum-category-page-groups:${categorySlug.value}`,
+  () => forumApi.listCategoryGroups(),
+  { default: () => [] as ForumCategoryGroup[] }
+)
+
+const categories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
+const category = computed(() => categories.value.find((item) => item.slug === categorySlug.value))
+const totalTopics = computed(() => categories.value.reduce((sum, item) => sum + item.topicCount, 0))
+
+if (!category.value || category.value.visibility === 'hidden') {
+  throw createError({
+    statusCode: 404,
+    statusMessage: 'Category not found'
+  })
+}
+
+const { data: topicList, pending: topicsPending } = await useAsyncData(
+  `forum-category-page-topics:${categorySlug.value}`,
+  () => forumApi.listTopics({
+    categorySlug: categorySlug.value,
+    page: currentPage.value
+  }),
+  {
+    default: emptyTopicList,
+    watch: [currentPage, categorySlug]
+  }
+)
+
+const topics = computed(() => topicList.value.items)
+const totalPages = computed(() => Math.ceil(topicList.value.total / Math.max(topicList.value.perPage, 1)) || 1)
+
+useSForumSeo(computed(() => ({
+  type: 'category',
+  path: currentPage.value > 1 ? `${forumCategoryPath(categorySlug.value)}?page=${currentPage.value}` : forumCategoryPath(categorySlug.value),
+  title: category.value?.name || categorySlug.value,
+  description: category.value?.description,
+  public: category.value?.visibility !== 'hidden',
+  variables: { categoryName: category.value?.name || categorySlug.value },
+  breadcrumbs: [
+    { name: seoSettings.value.seoSiteName, path: '/' },
+    { name: category.value?.name || categorySlug.value, path: forumCategoryPath(categorySlug.value) }
+  ]
+})))
+
+function routeParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] || '' : value || ''
+}
+
+function topicActivity(topic: ForumTopicSummary) {
+  const value = topic.lastActivityAt || topic.createdAt
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  const diffMs = renderedAt.value - date.getTime()
+  const minute = 60 * 1000
+  const hour = 60 * minute
+  const day = 24 * hour
+
+  if (diffMs >= 0 && diffMs < hour) {
+    return t('home.feed.activityMinutes', { count: Math.max(1, Math.floor(diffMs / minute)) })
+  }
+  if (diffMs >= 0 && diffMs < day) {
+    return t('home.feed.activityHours', { count: Math.max(1, Math.floor(diffMs / hour)) })
+  }
+  if (diffMs >= 0 && diffMs < 7 * day) {
+    return t('home.feed.activityDays', { count: Math.max(1, Math.floor(diffMs / day)) })
+  }
+
+  return date.toISOString().slice(0, 10)
+}
+
+// 切换类别路由时回到第一页。
+watch(categorySlug, () => {
+  currentPage.value = 1
+})
+</script>
+
+<template>
+  <main class="sforum-home">
+    <div class="sforum-home__layout">
+      <div class="sforum-home__sidebar">
+        <SFHomeNavigation
+          desktop-only
+          navigation-mode="route"
+          :categories="categories"
+          :selected-category-slug="categorySlug"
+          :total-topics="totalTopics"
+          :pending="categoriesPending"
+          :can-create-topic="canCreateTopic"
+        />
+      </div>
+
+      <section class="sforum-home__main" aria-labelledby="category-page-title">
+        <div class="sforum-home__mobile-nav">
+          <SFHomeNavigation
+            mobile-only
+            navigation-mode="route"
+            :categories="categories"
+            :selected-category-slug="categorySlug"
+            :total-topics="totalTopics"
+            :pending="categoriesPending"
+            :can-create-topic="canCreateTopic"
+          />
+        </div>
+
+        <header class="sforum-home__page-header">
+          <p v-if="category?.groupName" class="sforum-home__page-group">{{ category.groupName }}</p>
+          <h1 id="category-page-title">{{ category?.name }}</h1>
+          <p v-if="category?.description">{{ category.description }}</p>
+          <div class="sforum-home__page-meta">
+            {{ t('home.feed.topicCountMeta', { count: topicList.total }) }}
+          </div>
+        </header>
+
+        <div class="sforum-home__topic-table sforum-home__topic-table--standalone">
+          <div class="sforum-home__topic-head" aria-hidden="true">
+            <span>{{ t('home.feed.topicColumn') }}</span>
+            <span>{{ t('home.feed.authorColumn') }}</span>
+            <span>{{ t('home.feed.repliesColumn') }}</span>
+            <span>{{ t('home.feed.activityColumn') }}</span>
+          </div>
+
+          <template v-if="topicsPending">
+            <div v-for="item in 6" :key="item" class="sforum-home__skeleton-row">
+              <SFSkeleton avatar :lines="2" />
+            </div>
+          </template>
+
+          <template v-else-if="topics.length">
+            <SFHomeTopicRow
+              v-for="topic in topics"
+              :key="topic.id"
+              :topic="topic"
+              :to="localePath(forumTopicPath(topic, topicUrlMode))"
+              :activity-label="topicActivity(topic)"
+              :extension-list-badges="topicList.extensionListBadges || []"
+            />
+          </template>
+
+          <div v-else class="sforum-home__empty">
+            <SFEmptyState
+              :title="t('home.emptyState.title')"
+              :description="t('home.emptyState.description')"
+            />
+          </div>
+        </div>
+
+        <div v-if="topics.length > 0 && !topicsPending && totalPages > 1" class="sforum-home__pagination">
+          <SFPagination
+            v-model:page="currentPage"
+            :total-pages="totalPages"
+          />
+        </div>
+      </section>
+    </div>
+  </main>
+</template>

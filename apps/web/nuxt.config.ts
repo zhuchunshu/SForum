@@ -16,13 +16,8 @@ const adminRoutePrefix = normalizeAdminRoutePrefix(
   process.env.NUXT_PUBLIC_ADMIN_ROUTE_PREFIX ||
   process.env.ADMIN_ROUTE_PREFIX
 )
-const defaultThemeLayer = process.env.SFORUM_DEFAULT_THEME_LAYER?.trim()
-  || '../../extensions/builtin/themes/sforum-default/layer'
-const uploadedThemeLayer = process.env.SFORUM_THEME_LAYER?.trim()
-// Nuxt Layers 按数组顺序应用优先级：上传主题先覆盖，默认主题必须始终作为最后的 fallback layer。
-const themeLayers = uploadedThemeLayer
-  ? [uploadedThemeLayer, defaultThemeLayer]
-  : [defaultThemeLayer]
+// 公开主题已迁出 Nuxt Layer：页面在 host app，L0/L1 经 Page Registry 运行时注入。
+// 仍可通过 SFORUM_ADMIN_REGISTRY_ROOT 注入可信管理端插件前端（Web Release）。
 const nitroOutputDir = process.env.SFORUM_NITRO_OUTPUT_DIR?.trim()
 const adminRegistryRoot = process.env.SFORUM_ADMIN_REGISTRY_ROOT?.trim()
 const adminMetadataPath = adminRegistryRoot
@@ -86,7 +81,6 @@ function rewriteAdminPageRoutes(pages: NuxtPage[]) {
 }
 
 export default defineNuxtConfig({
-  extends: themeLayers,
   alias: {
     '@sforum/admin-sdk/internal': resolve('packages/admin-sdk/src/internal.ts'),
     '@sforum/admin-sdk': resolve('packages/admin-sdk/src/index.ts'),
@@ -135,7 +129,16 @@ export default defineNuxtConfig({
     ...(nitroOutputDir ? { output: { dir: nitroOutputDir } } : {})
   },
   ignore: nuxtGeneratedIgnores,
-  css: ['~/assets/css/main.css', '~/assets/css/sforum-components.css', '~/assets/css/highlight-theme.css'],
+  css: [
+    '~/assets/css/main.css',
+    '~/assets/css/sforum-components.css',
+    '~/assets/css/highlight-theme.css',
+    '~/assets/css/sforum-theme.css',
+    '~/assets/css/sforum-home.css',
+    '~/assets/css/sforum-topic.css',
+    '~/assets/css/sforum-taxonomy.css',
+    '~/assets/css/sforum-profile.css'
+  ],
   devtools: { enabled: true },
   ui: {
     fonts: false

@@ -248,6 +248,14 @@ export const adminPageDefinitions = [
     requiredPermissions: ['extension.view']
   },
   {
+    id: '/extensions/pages',
+    labelKey: 'admin.nav.extensionPages',
+    icon: 'i-lucide-layout-template',
+    componentName: 'AdminExtensionPages',
+    requiredPermissions: ['extension.view', 'extension.theme.manage'],
+    permissionMode: 'any'
+  },
+  {
     id: '/extensions/releases',
     labelKey: 'admin.nav.extensionReleases',
     icon: 'i-lucide-rocket',
@@ -332,6 +340,7 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/extensions' },
         { type: 'page', pageId: '/extensions/plugins' },
         { type: 'page', pageId: '/extensions/themes' },
+        { type: 'page', pageId: '/extensions/pages' },
         { type: 'page', pageId: '/extensions/settings' },
         { type: 'page', pageId: '/extensions/events' },
         { type: 'page', pageId: '/extensions/contributions' },

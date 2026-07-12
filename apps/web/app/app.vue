@@ -41,6 +41,9 @@ if (import.meta.server) {
   // 浏览器挂载后再恢复会话，避免复用 SSR 的 app-startup payload 时跳过 auth 刷新。
   onMounted(() => {
     void refreshStartupState({ restoreAuth: true })
+    // L0 皮肤：运行时注入主题 CSS，不重建 Nuxt。
+    const { refresh: refreshThemeSkin } = useActiveThemeSkin()
+    void refreshThemeSkin()
   })
 }
 

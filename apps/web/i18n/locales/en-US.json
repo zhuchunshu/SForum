@@ -307,7 +307,8 @@
       "moderation": "Moderation management",
       "webhooks": "Webhooks",
       "featureFlags": "Feature flags",
-      "entityMeta": "Custom fields"
+      "entityMeta": "Custom fields",
+      "extensionPages": "Page registry"
     },
     "avatar": {
       "metaTitle": "Avatar settings",
@@ -846,6 +847,25 @@
           "validate": "Validate",
           "filter": "Filter"
         }
+      },
+      "pages": {
+        "metaTitle": "Page registry",
+        "title": "Page registry",
+        "intro": "Inspect stable page ids, paths, and active providers. Replacing a core page requires super_admin approval; restore core anytime.",
+        "loadFailed": "Failed to load page catalog",
+        "restored": "Restored core page",
+        "restoreFailed": "Restore failed",
+        "approved": "Page replace approved",
+        "approveFailed": "Approve failed",
+        "colId": "Page ID",
+        "colPath": "Path",
+        "colAccess": "Access",
+        "colProvider": "Provider",
+        "colActions": "Actions",
+        "candidates": "candidates",
+        "restoreCore": "Restore core",
+        "approve": "Approve",
+        "empty": "No page catalog data"
       }
     },
     "jobs": {
