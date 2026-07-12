@@ -250,7 +250,7 @@ func (h *Controller) activeSkin(c fiber.Ctx) error {
 	if err != nil {
 		return apphttp.OK(c, pages.ActiveSkinPublic{CSS: []string{}})
 	}
-	skin, err := pages.SkinFromPackage(theme.ID, theme.Version, theme.PackagePath)
+	skin, err := pages.SkinFromPackage(theme.ID, theme.Version, theme.PackageDigest, theme.PackagePath)
 	if err != nil {
 		return apphttp.OK(c, pages.ActiveSkinPublic{ExtensionID: theme.ID, CSS: []string{}})
 	}
@@ -263,27 +263,33 @@ func (h *Controller) themeAsset(c fiber.Ctx) error {
 	}
 	extensionID := c.Params("extensionId")
 	rel := strings.TrimPrefix(c.Params("*"), "/")
-	theme, err := h.themes.Get(c.Context(), extensionID)
-	if err != nil {
-		// 也允许服务当前激活主题
-		active, aerr := h.themes.ActiveTheme(c.Context())
-		if aerr != nil || active.ID != extensionID {
-			return fiber.NewError(fiber.StatusNotFound, "pages.asset_not_found")
-		}
-		theme = active
+	// 可选 digest 查询参数：?v=<packageDigest> 用于 immutable cache 与精确版本绑定
+	wantDigest := strings.TrimSpace(c.Query("v"))
+	if wantDigest == "" {
+		wantDigest = strings.TrimSpace(c.Query("digest"))
 	}
-	if theme.Type != extensions.TypeTheme {
+
+	// 仅允许当前活动主题的资源（禁止读取任意已安装主题）。
+	active, err := h.themes.ActiveTheme(c.Context())
+	if err != nil || active.ID != extensionID {
 		return fiber.NewError(fiber.StatusNotFound, "pages.asset_not_found")
 	}
-	full, err := pages.ResolveThemeAsset(theme.PackagePath, rel)
+	if active.Type != extensions.TypeTheme {
+		return fiber.NewError(fiber.StatusNotFound, "pages.asset_not_found")
+	}
+	// 若请求携带 digest，必须与活动主题 package digest 精确匹配。
+	if wantDigest != "" && active.PackageDigest != "" && !strings.EqualFold(wantDigest, active.PackageDigest) {
+		return fiber.NewError(fiber.StatusNotFound, "pages.asset_digest_mismatch")
+	}
+
+	full, err := pages.ResolveThemeAsset(active.PackagePath, rel)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "pages.asset_not_found")
 	}
-	// 仅允许 css 与常见静态资源
 	ext := strings.ToLower(filepath.Ext(full))
-	switch ext {
-	case ".css", ".woff", ".woff2", ".ttf", ".otf", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico":
-	default:
+	ctype, ok := pages.AllowedThemeAssetExt[ext]
+	if !ok {
+		// 明确禁止 SVG / JS / HTML 等可执行或高风险类型
 		return fiber.NewError(fiber.StatusForbidden, "pages.asset_type_forbidden")
 	}
 	raw, err := os.ReadFile(full)
@@ -295,12 +301,23 @@ func (h *Controller) themeAsset(c fiber.Ctx) error {
 			return fiber.NewError(fiber.StatusUnprocessableEntity, "pages.css_invalid")
 		}
 	}
-	ctype := mime.TypeByExtension(ext)
 	if ctype == "" {
-		ctype = "application/octet-stream"
+		ctype = mime.TypeByExtension(ext)
+		if ctype == "" {
+			ctype = "application/octet-stream"
+		}
 	}
 	c.Set("Content-Type", ctype)
-	c.Set("Cache-Control", "public, max-age=300")
+	c.Set("X-Content-Type-Options", "nosniff")
+	// 非可执行资源：禁止被当作脚本解析
+	c.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'")
+	c.Set("X-Frame-Options", "DENY")
+	if wantDigest != "" && active.PackageDigest != "" {
+		// 精确 digest URL 可 immutable 缓存
+		c.Set("Cache-Control", "public, max-age=31536000, immutable")
+	} else {
+		c.Set("Cache-Control", "public, max-age=300")
+	}
 	return c.Send(raw)
 }
 

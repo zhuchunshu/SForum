@@ -76,23 +76,10 @@ func (b *ExtensionBridge) RegisterThemePackage(ctx context.Context, ext ThemeExt
 		}
 	}
 	contribs := ContributionsFromTheme(ext.ID, ext.Version, ext.PackageDigest, pkg)
+	// 仅注册候选贡献；核心页 replace 必须由 super_admin 通过 ApproveReplace 明确批准。
+	// 主题激活不得静默批准、不得 ApprovedBy=0、不得忽略审批错误。
 	if err := b.Registry.RegisterContributions(ext.ID, contribs); err != nil {
 		return err
-	}
-	// 主题激活时自动绑定该主题声明的 replace（操作者已选择激活该主题）。
-	// 冲突多候选时仍只绑定本主题贡献；插件 replace 仍需 super_admin 审批。
-	for _, c := range contribs {
-		if c.Action != ActionReplace {
-			continue
-		}
-		_ = b.Registry.ApproveReplace(ctx, ProviderBinding{
-			PageID:         c.Target,
-			ExtensionID:    c.ExtensionID,
-			ContributionID: c.ID,
-			Version:        c.Version,
-			PackageDigest:  c.PackageDigest,
-			TemplatePath:   c.Template,
-		})
 	}
 	return nil
 }
@@ -107,30 +94,36 @@ func (b *ExtensionBridge) ClearExtension(extensionID string) {
 
 // ActiveSkinPublic 返回可公开注入的皮肤资源相对 URL 路径（由 API 静态路由服务）。
 type ActiveSkinPublic struct {
-	ExtensionID string   `json:"extensionId"`
-	Version     string   `json:"version"`
-	CSS         []string `json:"css"`
-	Tokens      string   `json:"tokens,omitempty"`
+	ExtensionID   string   `json:"extensionId"`
+	Version       string   `json:"version"`
+	PackageDigest string   `json:"packageDigest,omitempty"`
+	CSS           []string `json:"css"`
+	Tokens        string   `json:"tokens,omitempty"`
 }
 
-// SkinFromPackage 读取主题包皮肤清单。
-func SkinFromPackage(extensionID, version, packageRoot string) (ActiveSkinPublic, error) {
+// SkinFromPackage 读取主题包皮肤清单；URL 携带 package digest 以支持 immutable cache。
+func SkinFromPackage(extensionID, version, packageDigest, packageRoot string) (ActiveSkinPublic, error) {
 	pkg, err := LoadThemePackage(packageRoot)
 	if err != nil {
 		return ActiveSkinPublic{}, err
 	}
+	q := ""
+	if d := strings.TrimSpace(packageDigest); d != "" {
+		q = "?v=" + d
+	}
 	css := make([]string, 0, len(pkg.Skin.CSS))
 	for _, rel := range pkg.Skin.CSS {
-		css = append(css, "/api/v1/site/theme-assets/"+extensionID+"/"+filepath.ToSlash(rel))
+		css = append(css, "/api/v1/site/theme-assets/"+extensionID+"/"+filepath.ToSlash(rel)+q)
 	}
 	tokens := ""
 	if t := strings.TrimSpace(pkg.Skin.Tokens); t != "" {
-		tokens = "/api/v1/site/theme-assets/" + extensionID + "/" + filepath.ToSlash(t)
+		tokens = "/api/v1/site/theme-assets/" + extensionID + "/" + filepath.ToSlash(t) + q
 	}
 	return ActiveSkinPublic{
-		ExtensionID: extensionID,
-		Version:     version,
-		CSS:         css,
-		Tokens:      tokens,
+		ExtensionID:   extensionID,
+		Version:       version,
+		PackageDigest: packageDigest,
+		CSS:           css,
+		Tokens:        tokens,
 	}, nil
 }

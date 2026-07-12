@@ -1,8 +1,11 @@
 package pages
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,19 +13,19 @@ import (
 
 // ThemePackage 描述 L0/L1 运行时主题包（theme.json + assets + templates）。
 type ThemePackage struct {
-	Pages []ThemePageDecl `json:"pages"`
-	Skin  ThemeSkin       `json:"skin"`
-	Widgets []ThemeWidget `json:"widgets,omitempty"`
+	Pages   []ThemePageDecl `json:"pages"`
+	Skin    ThemeSkin       `json:"skin"`
+	Widgets []ThemeWidget   `json:"widgets,omitempty"` // L2 声明保留解析，运行时不加载
 }
 
 type ThemePageDecl struct {
-	ID       string `json:"id"`
-	Action   string `json:"action"` // add | replace
-	Target   string `json:"target,omitempty"`
-	Path     string `json:"path,omitempty"`
-	Template string `json:"template,omitempty"`
-	Contract string `json:"contract,omitempty"`
-	Access   string `json:"access,omitempty"`
+	ID       string         `json:"id"`
+	Action   string         `json:"action"` // add | replace
+	Target   string         `json:"target,omitempty"`
+	Path     string         `json:"path,omitempty"`
+	Template string         `json:"template,omitempty"`
+	Contract string         `json:"contract,omitempty"`
+	Access   string         `json:"access,omitempty"`
 	Data     *ThemePageData `json:"data,omitempty"`
 }
 
@@ -36,6 +39,7 @@ type ThemeSkin struct {
 	Tokens string   `json:"tokens,omitempty"`
 }
 
+// ThemeWidget L2 声明；当前宿主拒绝加载可执行 widget。
 type ThemeWidget struct {
 	ID        string `json:"id"`
 	Entry     string `json:"entry"`
@@ -49,7 +53,6 @@ func LoadThemePackage(packageRoot string) (ThemePackage, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// 兼容：无 theme.json 时尝试默认 skin 路径
 			return ThemePackage{
 				Skin: ThemeSkin{CSS: defaultSkinCSSIfPresent(packageRoot)},
 			}, nil
@@ -107,23 +110,79 @@ func ContributionsFromTheme(extensionID, version, digest string, pkg ThemePackag
 	return out
 }
 
+// AllowedThemeAssetExt 普通主题资源允许的扩展名（禁止 SVG / JS / HTML）。
+var AllowedThemeAssetExt = map[string]string{
+	".css":   "text/css; charset=utf-8",
+	".woff":  "font/woff",
+	".woff2": "font/woff2",
+	".ttf":   "font/ttf",
+	".otf":   "font/otf",
+	".png":   "image/png",
+	".jpg":   "image/jpeg",
+	".jpeg":  "image/jpeg",
+	".gif":   "image/gif",
+	".webp":  "image/webp",
+	".ico":   "image/x-icon",
+}
+
 // ResolveThemeAsset 安全解析主题包内相对资源路径。
+// 使用 EvalSymlinks 防止 symlink 逃逸出包根。
 func ResolveThemeAsset(packageRoot, rel string) (string, error) {
 	rel = filepath.ToSlash(strings.TrimSpace(rel))
-	if rel == "" || strings.Contains(rel, "..") || strings.HasPrefix(rel, "/") {
+	if rel == "" || strings.Contains(rel, "..") || strings.HasPrefix(rel, "/") || strings.Contains(rel, "\\") {
 		return "", fmt.Errorf("pages: unsafe asset path")
+	}
+	// 拒绝空段与隐藏绝对化
+	for _, seg := range strings.Split(rel, "/") {
+		if seg == "" || seg == "." || seg == ".." {
+			return "", fmt.Errorf("pages: unsafe asset path segment")
+		}
 	}
 	root, err := filepath.Abs(packageRoot)
 	if err != nil {
 		return "", err
 	}
+	// 解析包根真实路径（含 symlink）
+	rootReal, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		// 包根必须存在
+		return "", fmt.Errorf("pages: package root unavailable: %w", err)
+	}
 	full := filepath.Join(root, filepath.FromSlash(rel))
-	full, err = filepath.Abs(full)
+	fullAbs, err := filepath.Abs(full)
 	if err != nil {
 		return "", err
 	}
-	if full != root && !strings.HasPrefix(full, root+string(os.PathSeparator)) {
+	// 目标必须存在才能 EvalSymlinks
+	info, err := os.Lstat(fullAbs)
+	if err != nil {
+		return "", fmt.Errorf("pages: asset not found")
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		// 显式拒绝资源路径上的 symlink（防止逃逸）
+		return "", fmt.Errorf("pages: asset symlink forbidden")
+	}
+	// 若中间目录是 symlink，EvalSymlinks 后校验仍在 root 下
+	realFull, err := filepath.EvalSymlinks(fullAbs)
+	if err != nil {
+		return "", fmt.Errorf("pages: asset path resolve failed")
+	}
+	if realFull != rootReal && !strings.HasPrefix(realFull, rootReal+string(os.PathSeparator)) {
 		return "", fmt.Errorf("pages: asset escapes package root")
 	}
-	return full, nil
+	return realFull, nil
+}
+
+// FileDigestSHA256 计算文件 sha256 hex。
+func FileDigestSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
