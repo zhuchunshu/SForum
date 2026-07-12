@@ -5,6 +5,9 @@
   "workspaces": [
     "packages/*"
   ],
+  "overrides": {
+    "esbuild": "^0.28.1"
+  },
   "scripts": {
     "dev": "node --env-file=../../.env scripts/dev-theme-runtime.mjs",
     "dev:plain": "node --env-file=../../.env scripts/dev-plain.mjs",
@@ -18,10 +21,12 @@
     "@sforum/admin-sdk": "workspace:*",
     "@iconify-json/lucide": "^1.2.116",
     "@iconify-json/tabler": "^1.2.35",
+    "@iconify/vue": "^5.0.1",
     "@nuxt/image": "^2.0.0",
     "@nuxt/ui": "^4.9.0",
     "@nuxtjs/i18n": "^10.4.0",
     "@nuxtjs/seo": "^5.3.2",
+    "@tiptap/core": "^3.27.1",
     "@tiptap/extension-character-count": "^3.27.1",
     "@tiptap/extension-image": "^3.27.1",
     "@tiptap/extension-link": "^3.27.1",
@@ -38,7 +43,9 @@
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.20",
+    "esbuild": "^0.28.1",
     "typescript": "^6.0.3",
+    "vue-router": "^5.1.0",
     "vue-tsc": "^3.3.6"
   }
 }
