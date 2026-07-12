@@ -1,15 +1,19 @@
 # API Memory & Runtime Hygiene (P0–P2)
 
-Status: **ready to implement**  
+Status: **P0 done; P1/P2 cancelled (not needed for now)**  
 Date: 2026-07-12  
 Related: memory investigation session (dev `sforum-api` ~70–84 MB footprint;
 SMTP plugin started twice under `EMBED_WORKER_IN_API=true`)
 
 This plan is a **small, low-risk ops/runtime hygiene batch**. It is not a
 product wave and does not replace extension density (E*) or framework
-hardening (F*) work. Ship as **three separate PRs** (or three sequential
-commits on one branch if preferred), in order **P1 → P0 → P2** or
-**P0 → P1 → P2**. Do not squash all three into one unreviewable PR.
+hardening (F*) work.
+
+**Scope decision (2026-07-12):** Only **P0** (shared extension runtime under
+embed) is in scope and landed. **P1** (tiered River worker defaults) and
+**P2** (loopback pprof) are **cancelled / not planned**—keep the sections
+below as historical design notes only; do not implement unless product
+explicitly reopens them.
 
 ---
 
@@ -33,12 +37,11 @@ mode; secondary fat is **default River MaxWorkers sum = 31**.
 
 ### Goals
 
-1. **P0:** Under `EMBED_WORKER_IN_API=true`, each enabled backend plugin starts
-   **at most once** in the process tree.
-2. **P1:** Development (and optionally small-deploy) defaults for queue workers
-   are leaner; production defaults stay safe; env overrides always win.
-3. **P2:** Optional, default-off pprof for heap/goroutine diagnosis without
-   exposing a public debug surface.
+1. **P0 (done):** Under `EMBED_WORKER_IN_API=true`, each enabled backend plugin
+   starts **at most once** in the process tree.
+2. ~~**P1:** Development (and optionally small-deploy) defaults for queue
+   workers are leaner…~~ — **cancelled (not needed for now)**
+3. ~~**P2:** Optional, default-off pprof…~~ — **cancelled (not needed for now)**
 
 ### Non-goals
 
@@ -53,13 +56,8 @@ mode; secondary fat is **default River MaxWorkers sum = 31**.
 
 ## Execution order
 
-Recommended: **P1 (config) → P0 (structure) → P2 (observability)**.
-
-- P1 is pure defaults + tests; lands fastest and is reversible via env.
-- P0 is the real structure fix; needs careful Close ownership.
-- P2 is independent and can ship last or in parallel after P0 review starts.
-
-Alternative: P0 first if the team wants the double-plugin fix ASAP.
+~~Recommended: P1 → P0 → P2.~~ **Superseded:** only P0 was implemented; P1/P2
+cancelled.
 
 ---
 
@@ -162,6 +160,10 @@ embeddedWorker, err = newWorkerWithPool(cfg, pool, logger, workerRuntimeDeps{
 
 ## P1 — Environment-tier defaults for River queue workers
 
+> **Cancelled (2026-07-12):** Not needed for now. Left as design notes only.
+> Do not implement unless explicitly reopened. Production defaults stay as
+> today; operators can still set `JOB_QUEUE_*_WORKERS` if needed.
+
 ### Intent
 
 Current defaults (all envs if unset):
@@ -233,6 +235,10 @@ client and worker see the same numbers via `FromAppConfig`.
 
 ## P2 — Optional restricted pprof
 
+> **Cancelled (2026-07-12):** Not needed for now. Left as design notes only.
+> Do not implement unless explicitly reopened. Diagnosis remains `ps` /
+> footprint / existing logs.
+
 ### Intent
 
 Today diagnosis is `ps` / `footprint` only. Add **opt-in** Go pprof so heap
@@ -281,12 +287,13 @@ Use this as the session todo list. Check off in this file when done.
 
 ### PR-A / Task group P1 — Queue worker tier defaults
 
-- [ ] **T1.1** Decide final default tables (use proposed above unless product
-      asks otherwise).
-- [ ] **T1.2** Implement tiered defaults in `config.Load` (dev vs non-dev).
-- [ ] **T1.3** Update `config_test.go` + `Jobs/config_test.go` expectations.
-- [ ] **T1.4** Update `docs/development-and-deployment.md` env section.
-- [ ] **T1.5** `go test` for `./config/...` `./app/Support/Jobs/...`.
+> **Cancelled — do not implement.**
+
+- [ ] ~~**T1.1** Decide final default tables…~~
+- [ ] ~~**T1.2** Implement tiered defaults in `config.Load`…~~
+- [ ] ~~**T1.3** Update `config_test.go` + `Jobs/config_test.go`…~~
+- [ ] ~~**T1.4** Update `docs/development-and-deployment.md`…~~
+- [ ] ~~**T1.5** `go test` for `./config/...` `./app/Support/Jobs/...`.~~
 
 ### PR-B / Task group P0 — Shared runtime under embed
 
@@ -306,11 +313,13 @@ Use this as the session todo list. Check off in this file when done.
 
 ### PR-C / Task group P2 — Restricted pprof
 
-- [ ] **T2.1** Config flags `PPROF_ENABLED`, `PPROF_ADDR` (loopback default).
-- [ ] **T2.2** Start optional pprof server; register on API close.
-- [ ] **T2.3** Config tests; optional smoke test.
-- [ ] **T2.4** Docs: profiling section + security warnings.
-- [ ] **T2.5** Manual: enable, capture heap, disable, confirm no listen.
+> **Cancelled — do not implement.**
+
+- [ ] ~~**T2.1** Config flags `PPROF_ENABLED`, `PPROF_ADDR`…~~
+- [ ] ~~**T2.2** Start optional pprof server…~~
+- [ ] ~~**T2.3** Config tests; optional smoke test.~~
+- [ ] ~~**T2.4** Docs: profiling section + security warnings.~~
+- [ ] ~~**T2.5** Manual: enable, capture heap…~~
 
 ### Close-out (any PR)
 
@@ -356,13 +365,11 @@ pgrep -fl 'tmp/sforum-api|backend/plugin'
 
 ## Success definition
 
-Batch is done when:
+Batch is **done** when:
 
-1. Embed mode no longer doubles plugin processes (P0).
-2. Dev defaults are lean; prod defaults and env overrides documented (P1).
-3. Operators can opt into loopback pprof for heap investigation (P2).
-4. Knowledge base has handoff; this plan’s task boxes are checked.
+1. Embed mode no longer doubles plugin processes (**P0** — landed).
+2. Knowledge base has handoff; P0 task boxes are checked.
+3. ~~P1 / P2~~ — **cancelled**; not part of success criteria.
 
 No requirement to hit a specific RSS number; expect roughly **−10–20 MB**
-family RSS on current dev (one fewer plugin process), plus lower goroutine
-pressure under lean worker defaults when idle.
+family RSS on current dev (one fewer plugin process).

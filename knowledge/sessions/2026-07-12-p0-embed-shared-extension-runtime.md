@@ -25,17 +25,17 @@
   ownership is local to bootstrap and matches the plan sketch.
 - Public `NewWorker` signature unchanged.
 
-## Not done (same plan)
+## Not done / cancelled
 
-- **P1** tiered River worker defaults (`APP_ENV`)
-- **P2** loopback pprof
-- **T0.7** manual `pgrep` on a live dev API (operator check after restart)
+- **P1** / **P2**: **cancelled** (product: not needed for now). Plan sections
+  kept as historical notes only — do not implement unless reopened.
+- **T0.7** manual `pgrep` on a live dev API remains optional operator check.
 
 ## Next
 
 1. Optional: restart dev API with embed + SMTP enabled; confirm one
    `backend/plugin` child (`pgrep -fl backend/plugin`).
-2. **P1** then **P2** as separate commits/PRs per plan order preference.
+2. No further work on this hygiene plan unless P1/P2 are explicitly reopened.
 
 ## Open Questions
 
