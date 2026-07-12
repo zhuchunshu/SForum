@@ -87,15 +87,28 @@ func copyRegularFile(source string, target string, mode fs.FileMode) error {
 }
 
 func hostSourceExcluded(relative string, directory bool) bool {
-	first := strings.Split(relative, "/")[0]
+	slash := filepath.ToSlash(relative)
+	// Bun workspace 会在 packages/*/node_modules 下放 peer 软链；
+	// digest / copy 必须跳过任意深度的 node_modules，不能只认仓库根目录那一层。
+	if isNodeModulesPath(slash) {
+		return true
+	}
+	first := strings.Split(slash, "/")[0]
 	if directory {
 		switch first {
-		case "node_modules", ".nuxt", ".nuxt-build", ".nuxt-typecheck", ".output", ".cache", "coverage", "playwright-report", "test-results":
+		case ".nuxt", ".nuxt-build", ".nuxt-typecheck", ".output", ".cache", "coverage", "playwright-report", "test-results":
 			return true
 		}
 	}
-	base := filepath.Base(relative)
+	base := filepath.Base(slash)
 	return base == ".env" || strings.HasPrefix(base, ".env.")
+}
+
+func isNodeModulesPath(slashRelative string) bool {
+	if slashRelative == "node_modules" || strings.HasPrefix(slashRelative, "node_modules/") {
+		return true
+	}
+	return strings.Contains(slashRelative, "/node_modules/") || strings.HasSuffix(slashRelative, "/node_modules")
 }
 
 func linkHostDependencies(webRoot string, workspace string) error {
