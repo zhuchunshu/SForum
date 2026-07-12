@@ -10,12 +10,11 @@ This is the entry point for project memory.
   - Report: `knowledge/reports/2026-07-12-release-security-scan.md`
   - Decisions: untrusted backend plugins, SSRF, secrets, attachment read, forum policy, PAT ∩ scopes
 
-- **2026-07-13 profile UX direction** (public 01 + self center 03)
-  - Demos: `tmp/demos/grok/profile-center/`
+- **2026-07-13 profile UI shell** (public 01 + self center 03)
   - Decision: `knowledge/decisions/2026-07-13-profile-public-vs-self-center.md`
   - Handoff: `knowledge/sessions/2026-07-13-profile-center-ux-direction.md`
-  - Public `/u/:user` ← Bilibili cover; logged-in hub ← self dashboard
-  - Next: implement theme pages (API/follow/cover as follow-ups)
+  - `/u/:user` cover+tabs; `/my` hub; nav「我的中心」; follow/cover APIs still pending
+  - Demos remain: `tmp/demos/grok/profile-center/`
 
 - **2026-07-12 security audit follow-up plan ready**
   - Plan: `knowledge/plans/2026-07-12-security-audit-followup-remediation.md`

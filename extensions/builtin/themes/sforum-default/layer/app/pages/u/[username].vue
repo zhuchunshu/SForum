@@ -5,16 +5,19 @@ import {
   forumUserProfilePath,
   type ForumTopicSummary
 } from '~/utils/forumTaxonomy'
+import { safeUrl } from '~/utils/sfUrl'
 
 definePageMeta({ public: true })
 
 const route = useRoute()
 const { t } = useI18n()
 const localePath = useLocalePath()
+const toast = useToast()
 const { seoSettings } = useWebOptions()
 const topicUrlMode = computed(() => seoSettings.value.topicUrlMode)
 const { formatDateOnly } = useSiteDateTime()
 const profileApi = useProfileApi()
+const { user: authUser } = useAuthSession()
 
 const username = computed(() => String(route.params.username ?? ''))
 
@@ -53,9 +56,27 @@ useSForumSeo(computed(() => ({
 
 const displayName = computed(() => profile.value?.displayName || profile.value?.username || username.value)
 const isSelf = computed(() => {
-  const { user } = useAuthSession()
-  return Boolean(profile.value && user.value?.id === profile.value.userId)
+  return Boolean(profile.value && authUser.value?.id === profile.value.userId)
 })
+
+type ProfileTab = 'works' | 'topics' | 'comments' | 'following' | 'followers'
+const activeTab = ref<ProfileTab>('topics')
+
+const tabItems = computed(() => [
+  { value: 'works' as const, label: t('profile.tabs.works') },
+  {
+    value: 'topics' as const,
+    label: t('profile.tabs.topics'),
+    count: profile.value?.topicCount
+  },
+  {
+    value: 'comments' as const,
+    label: t('profile.tabs.comments'),
+    count: profile.value?.commentCount
+  },
+  { value: 'following' as const, label: t('profile.tabs.following') },
+  { value: 'followers' as const, label: t('profile.tabs.followers') }
+])
 
 function formatDate(value: string) {
   return formatDateOnly(value)
@@ -64,117 +85,223 @@ function formatDate(value: string) {
 function topicAuthor(topic: ForumTopicSummary) {
   return forumAuthorName(topic.author, topic.authorUserId)
 }
+
+// 关注 API 尚未落地：仅 UI 反馈，避免假数据误导。
+function onFollowClick() {
+  if (!authUser.value) {
+    return navigateTo({
+      path: localePath('/login'),
+      query: { redirect: route.fullPath }
+    })
+  }
+  toast.add({
+    color: 'neutral',
+    icon: 'i-lucide-info',
+    title: t('profile.followComingSoon')
+  })
+}
+
+const recentTopics = computed(() => profile.value?.recentTopics || [])
 </script>
 
 <template>
-  <main class="sf-public-page min-h-screen py-8">
-    <div class="sf-public-page__container sf-public-page__container--narrow mx-auto px-4 sm:px-6">
-      <SFCard v-if="profileError && !profile" class="p-10">
-        <SFEmptyState
-          :title="t('profile.notFound.title')"
-          :description="t('profile.notFound.description')"
-        />
-      </SFCard>
+  <main class="sf-public-page sf-profile-page min-h-screen">
+    <template v-if="profileError && !profile">
+      <div class="sf-profile-shell py-10">
+        <SFCard class="p-10">
+          <SFEmptyState
+            :title="t('profile.notFound.title')"
+            :description="t('profile.notFound.description')"
+          />
+        </SFCard>
+      </div>
+    </template>
 
-      <template v-else-if="profile">
-        <!-- 资料头部 -->
-        <SFCard class="p-6 mb-4">
-          <div class="flex items-center gap-4 mb-4">
+    <template v-else-if="profile">
+      <!-- 封面：默认主题渐变，上传封面后续再接附件 -->
+      <div class="sf-profile-cover" role="img" :aria-label="t('profile.coverLabel')" />
+
+      <div class="sf-profile-shell">
+        <div class="sf-profile-head">
+          <div class="sf-profile-avatar-ring">
             <SFAvatar :name="displayName" :avatar="profile.profile.avatar" size="lg" />
-            <div>
-              <h1 class="text-xl font-bold text-slate-900 dark:text-zinc-50">
-                {{ displayName }}
-              </h1>
-              <p class="text-sm text-slate-500 dark:text-zinc-400">@{{ profile.username }}</p>
-            </div>
           </div>
 
-          <dl class="grid grid-cols-2 gap-4 text-sm mb-4">
-            <div>
-              <dt class="text-slate-400 dark:text-zinc-500">{{ t('profile.topicCount') }}</dt>
-              <dd class="font-semibold text-slate-800 dark:text-zinc-100">{{ profile.topicCount }}</dd>
-            </div>
-            <div>
-              <dt class="text-slate-400 dark:text-zinc-500">{{ t('profile.commentCount') }}</dt>
-              <dd class="font-semibold text-slate-800 dark:text-zinc-100">{{ profile.commentCount }}</dd>
-            </div>
-            <div>
-              <dt class="text-slate-400 dark:text-zinc-500">{{ t('profile.joinedAt') }}</dt>
-              <dd class="font-semibold text-slate-800 dark:text-zinc-100">{{ formatDate(profile.joinedAt) }}</dd>
-            </div>
-            <div v-if="profile.profile.location">
-              <dt class="text-slate-400 dark:text-zinc-500">{{ t('profile.location') }}</dt>
-              <dd class="font-semibold text-slate-800 dark:text-zinc-100">{{ profile.profile.location }}</dd>
-            </div>
-          </dl>
-
-          <p v-if="profile.profile.bio" class="text-slate-700 dark:text-zinc-300 mb-2">
-            {{ profile.profile.bio }}
-          </p>
-          <a
-            v-if="profile.profile.websiteUrl"
-            :href="safeUrl(profile.profile.websiteUrl)"
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            class="inline-flex items-center gap-1 text-sm text-[#0F766E] hover:underline dark:text-teal-300"
-          >
-            <UIcon name="i-lucide-link" class="size-3.5" />
-            {{ profile.profile.websiteUrl }}
-          </a>
-
-          <div v-if="isSelf" class="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
-            <SFButton variant="ghost" size="sm" :to="localePath('/settings/profile')">
-              <UIcon name="i-lucide-settings" class="size-4" />
-              <span>{{ t('profile.editProfile') }}</span>
-            </SFButton>
+          <div class="sf-profile-head__main">
+            <h1 class="sf-profile-head__name">
+              <span>{{ displayName }}</span>
+            </h1>
+            <p class="sf-profile-head__uname">
+              @{{ profile.username }}
+            </p>
           </div>
 
-          <!-- F4.3：扩展资料 tabs/sections（宿主渲染，无插件 HTML） -->
-          <div
-            v-if="extensionTabs.length"
-            class="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4 dark:border-zinc-800"
-          >
-            <template v-for="tab in extensionTabs" :key="`${tab.extensionId}:${tab.id}`">
-              <NuxtLink
-                v-if="tab.kind === 'hostLink'"
-                :to="profileTabTo(tab)"
-                class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-[color:var(--sf-accent)] hover:text-[color:var(--sf-accent)] dark:border-zinc-700 dark:text-zinc-200"
-              >
-                <UIcon v-if="tab.icon" :name="tab.icon" class="size-4" />
-                <span>{{ profileTabLabel(tab) }}</span>
+          <div class="sf-profile-head__actions">
+            <template v-if="isSelf">
+              <NuxtLink :to="localePath('/my')">
+                <SFButton variant="secondary" size="sm">
+                  <UIcon name="i-lucide-layout-dashboard" class="size-4" />
+                  <span>{{ t('profile.goToMyCenter') }}</span>
+                </SFButton>
               </NuxtLink>
-              <a
-                v-else
-                :href="profileTabTo(tab)"
-                class="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-[color:var(--sf-accent)] hover:text-[color:var(--sf-accent)] dark:border-zinc-700 dark:text-zinc-200"
-              >
-                <UIcon v-if="tab.icon" :name="tab.icon" class="size-4" />
-                <span>{{ profileTabLabel(tab) }}</span>
-              </a>
+              <NuxtLink :to="localePath('/settings/profile')">
+                <SFButton variant="ghost" size="sm">
+                  <UIcon name="i-lucide-settings" class="size-4" />
+                  <span>{{ t('profile.editProfile') }}</span>
+                </SFButton>
+              </NuxtLink>
+            </template>
+            <template v-else>
+              <SFButton variant="primary" size="sm" @click="onFollowClick">
+                <UIcon name="i-lucide-user-plus" class="size-4" />
+                <span>{{ t('profile.follow') }}</span>
+              </SFButton>
             </template>
           </div>
-        </SFCard>
+        </div>
 
-        <!-- 最近主题 -->
-        <section v-if="profile.recentTopics && profile.recentTopics.length">
-          <h2 class="text-lg font-bold text-slate-800 mb-3 dark:text-zinc-100">
-            {{ t('profile.recentTopics') }}
-          </h2>
-          <SFCard class="divide-y divide-slate-100 dark:divide-zinc-800">
+        <div class="sf-profile-stats">
+          <div class="sf-profile-stats__item">
+            <span class="sf-profile-stats__num">{{ profile.topicCount }}</span>
+            <span class="sf-profile-stats__label">{{ t('profile.topicCount') }}</span>
+          </div>
+          <div class="sf-profile-stats__item">
+            <span class="sf-profile-stats__num">{{ profile.commentCount }}</span>
+            <span class="sf-profile-stats__label">{{ t('profile.commentCount') }}</span>
+          </div>
+          <!-- 关注关系 API 未就绪：占位展示，避免空白布局 -->
+          <div class="sf-profile-stats__item">
+            <span class="sf-profile-stats__num">—</span>
+            <span class="sf-profile-stats__label">{{ t('profile.followingCount') }}</span>
+          </div>
+          <div class="sf-profile-stats__item">
+            <span class="sf-profile-stats__num">—</span>
+            <span class="sf-profile-stats__label">{{ t('profile.followersCount') }}</span>
+          </div>
+        </div>
+
+        <p v-if="profile.profile.bio" class="sf-profile-bio">
+          {{ profile.profile.bio }}
+        </p>
+
+        <div class="sf-profile-meta">
+          <span v-if="profile.profile.location" class="sf-profile-meta__item">
+            <UIcon name="i-lucide-map-pin" class="size-3.5" />
+            {{ profile.profile.location }}
+          </span>
+          <span v-if="profile.profile.websiteUrl" class="sf-profile-meta__item">
+            <UIcon name="i-lucide-link" class="size-3.5" />
+            <a
+              :href="safeUrl(profile.profile.websiteUrl)"
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+            >{{ profile.profile.websiteUrl }}</a>
+          </span>
+          <span class="sf-profile-meta__item">
+            <UIcon name="i-lucide-calendar" class="size-3.5" />
+            {{ t('profile.joinedAt') }} {{ formatDate(profile.joinedAt) }}
+          </span>
+        </div>
+
+        <!-- 扩展资料入口（宿主渲染，无插件 HTML） -->
+        <div v-if="extensionTabs.length" class="sf-profile-ext">
+          <template v-for="tab in extensionTabs" :key="`${tab.extensionId}:${tab.id}`">
             <NuxtLink
-              v-for="topic in profile.recentTopics"
-              :key="topic.id"
-              :to="localePath(forumTopicPath(topic, topicUrlMode))"
-              class="block p-4 transition hover:bg-slate-50 dark:hover:bg-zinc-900/60"
+              v-if="tab.kind === 'hostLink'"
+              :to="profileTabTo(tab)"
             >
-              <p class="font-medium text-slate-800 dark:text-zinc-100">{{ topic.title }}</p>
-              <p class="text-xs text-slate-400 dark:text-zinc-500 mt-1">
-                {{ topicAuthor(topic) }} · {{ formatDate(topic.lastActivityAt || topic.createdAt) }} · {{ topic.commentCount }} {{ t('profile.replies') }}
-              </p>
+              <UIcon v-if="tab.icon" :name="tab.icon" class="size-4" />
+              <span>{{ profileTabLabel(tab) }}</span>
             </NuxtLink>
-          </SFCard>
-        </section>
-      </template>
-    </div>
+            <a
+              v-else
+              :href="profileTabTo(tab)"
+            >
+              <UIcon v-if="tab.icon" :name="tab.icon" class="size-4" />
+              <span>{{ profileTabLabel(tab) }}</span>
+            </a>
+          </template>
+        </div>
+
+        <div class="sf-profile-tabs-bar">
+          <nav class="sf-profile-tabs" role="tablist" :aria-label="t('profile.tabsAria')">
+            <button
+              v-for="item in tabItems"
+              :key="item.value"
+              type="button"
+              role="tab"
+              class="sf-profile-tabs__item"
+              :class="{ 'is-active': activeTab === item.value }"
+              :aria-selected="activeTab === item.value ? 'true' : 'false'"
+              @click="activeTab = item.value"
+            >
+              {{ item.label }}
+              <span v-if="item.count != null" class="sf-profile-tabs__count">{{ item.count }}</span>
+            </button>
+          </nav>
+        </div>
+
+        <div class="sf-profile-panel">
+          <!-- 作品集：领域模型未落地，先空状态引导 -->
+          <div v-if="activeTab === 'works'" role="tabpanel">
+            <SFEmptyState
+              class="py-10"
+              :title="t('profile.worksEmpty.title')"
+              :description="t('profile.worksEmpty.description')"
+            />
+          </div>
+
+          <div v-else-if="activeTab === 'topics'" role="tabpanel">
+            <template v-if="recentTopics.length">
+              <NuxtLink
+                v-for="topic in recentTopics"
+                :key="topic.id"
+                :to="localePath(forumTopicPath(topic, topicUrlMode))"
+                class="sf-profile-topic"
+              >
+                <p class="sf-profile-topic__title">
+                  {{ topic.title }}
+                </p>
+                <p class="sf-profile-topic__meta">
+                  {{ topicAuthor(topic) }}
+                  · {{ formatDate(topic.lastActivityAt || topic.createdAt) }}
+                  · {{ topic.commentCount }} {{ t('profile.replies') }}
+                </p>
+              </NuxtLink>
+            </template>
+            <SFEmptyState
+              v-else
+              class="py-10"
+              :title="t('profile.topicsEmpty.title')"
+              :description="t('profile.topicsEmpty.description')"
+            />
+          </div>
+
+          <div v-else-if="activeTab === 'comments'" role="tabpanel">
+            <SFEmptyState
+              class="py-10"
+              :title="t('profile.commentsEmpty.title')"
+              :description="t('profile.commentsEmpty.description')"
+            />
+          </div>
+
+          <div v-else-if="activeTab === 'following'" role="tabpanel">
+            <SFEmptyState
+              class="py-10"
+              :title="t('profile.socialEmpty.followingTitle')"
+              :description="t('profile.socialEmpty.followingDescription')"
+            />
+          </div>
+
+          <div v-else role="tabpanel">
+            <SFEmptyState
+              class="py-10"
+              :title="t('profile.socialEmpty.followersTitle')"
+              :description="t('profile.socialEmpty.followersDescription')"
+            />
+          </div>
+        </div>
+      </div>
+    </template>
   </main>
 </template>

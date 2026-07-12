@@ -15,7 +15,8 @@
     "openMenu": "打开菜单",
     "appearance": "外观",
     "newTopic": "发帖",
-    "myProfile": "我的资料",
+    "myCenter": "我的中心",
+    "myProfile": "公开主页",
     "profileSettings": "资料设置",
     "mailSettings": "邮箱与通知",
     "moderation": "审核",
@@ -2805,11 +2806,87 @@
     },
     "topicCount": "主题",
     "commentCount": "评论",
+    "followingCount": "关注",
+    "followersCount": "粉丝",
     "joinedAt": "加入时间",
     "location": "位置",
     "editProfile": "编辑资料",
+    "goToMyCenter": "我的中心",
+    "follow": "关注",
+    "followComingSoon": "关注功能即将上线。",
+    "coverLabel": "个人主页封面",
+    "tabsAria": "个人主页分区",
+    "tabs": {
+      "works": "作品集",
+      "topics": "主题",
+      "comments": "评论",
+      "following": "关注",
+      "followers": "粉丝"
+    },
+    "worksEmpty": {
+      "title": "暂无作品集",
+      "description": "精选主题与作品上架后会显示在这里。"
+    },
+    "topicsEmpty": {
+      "title": "还没有主题",
+      "description": "发布第一个讨论后，它们会出现在这里。"
+    },
+    "commentsEmpty": {
+      "title": "暂无公开评论列表",
+      "description": "评论时间线接口就绪后，会在此展示近期回复。"
+    },
+    "socialEmpty": {
+      "followingTitle": "关注列表即将上线",
+      "followingDescription": "关注关系接口就绪后，可在此查看关注的人。",
+      "followersTitle": "粉丝列表即将上线",
+      "followersDescription": "关注关系接口就绪后，可在此查看粉丝。"
+    },
     "recentTopics": "最近主题",
     "replies": "回复"
+  },
+  "myCenter": {
+    "metaTitle": "我的中心",
+    "metaDescription": "管理你的资料、内容与账号设置。",
+    "title": "我的中心",
+    "subtitle": "管理资料、内容与账号入口 · 与公开主页相互独立",
+    "viewPublic": "查看公开主页",
+    "editProfile": "编辑资料",
+    "loadFailed": "加载个人中心失败，请稍后重试。",
+    "retry": "重试",
+    "fallbackName": "成员",
+    "completenessTitle": "资料完整度",
+    "completenessLabel": "完成度",
+    "completeProfile": "完善资料",
+    "checklist": {
+      "avatar": "已上传头像",
+      "bio": "已填写简介",
+      "location": "已填写位置",
+      "website": "已填写网站",
+      "signature": "已填写签名"
+    },
+    "shortcutsTitle": "快捷操作",
+    "shortcuts": {
+      "newTopic": "发布主题",
+      "newTopicHint": "写一篇新讨论",
+      "profile": "资料设置",
+      "profileHint": "头像、简介与签名",
+      "security": "账号安全",
+      "securityHint": "设备与会话",
+      "review": "内容审核",
+      "reviewHint": "查看待处理内容",
+      "notifications": "通知中心",
+      "notificationsHint": "回复与系统消息",
+      "public": "公开主页",
+      "publicHint": "访客看到的样子"
+    },
+    "tipsTitle": "小提示",
+    "tipsBody": "公开主页给访客浏览；这里是你的管理入口。完善资料有助于社区识别你，账号安全建议定期检查登录设备。",
+    "tabsAria": "我的内容分区",
+    "tabs": {
+      "overview": "概览",
+      "topics": "我的主题"
+    },
+    "noBio": "还没有简介，去资料设置写几句介绍自己吧。"
   },
   "profileSettings": {
     "metaTitle": "资料设置",

@@ -15,7 +15,8 @@
     "openMenu": "Open menu",
     "appearance": "Appearance",
     "newTopic": "New Topic",
-    "myProfile": "My profile",
+    "myCenter": "My center",
+    "myProfile": "Public profile",
     "profileSettings": "Profile settings",
     "mailSettings": "Mail and notifications",
     "moderation": "Moderation",
@@ -2805,11 +2806,87 @@
     },
     "topicCount": "Topics",
     "commentCount": "Comments",
+    "followingCount": "Following",
+    "followersCount": "Followers",
     "joinedAt": "Joined",
     "location": "Location",
     "editProfile": "Edit profile",
+    "goToMyCenter": "My center",
+    "follow": "Follow",
+    "followComingSoon": "Follow is coming soon.",
+    "coverLabel": "Profile cover",
+    "tabsAria": "Profile sections",
+    "tabs": {
+      "works": "Portfolio",
+      "topics": "Topics",
+      "comments": "Comments",
+      "following": "Following",
+      "followers": "Followers"
+    },
+    "worksEmpty": {
+      "title": "No portfolio yet",
+      "description": "Featured topics and works will appear here once available."
+    },
+    "topicsEmpty": {
+      "title": "No topics yet",
+      "description": "Topics show up here after the first discussion is published."
+    },
+    "commentsEmpty": {
+      "title": "Comment list not available yet",
+      "description": "Recent replies will appear here when the comments timeline API is ready."
+    },
+    "socialEmpty": {
+      "followingTitle": "Following list coming soon",
+      "followingDescription": "People you follow will appear here once the social API is ready.",
+      "followersTitle": "Followers list coming soon",
+      "followersDescription": "Followers will appear here once the social API is ready."
+    },
     "recentTopics": "Recent topics",
     "replies": "replies"
+  },
+  "myCenter": {
+    "metaTitle": "My center",
+    "metaDescription": "Manage your profile, content, and account settings.",
+    "title": "My center",
+    "subtitle": "Manage profile, content, and account shortcuts · separate from your public page",
+    "viewPublic": "View public profile",
+    "editProfile": "Edit profile",
+    "loadFailed": "Could not load your center. Please try again.",
+    "retry": "Retry",
+    "fallbackName": "Member",
+    "completenessTitle": "Profile completeness",
+    "completenessLabel": "Progress",
+    "completeProfile": "Complete profile",
+    "checklist": {
+      "avatar": "Avatar uploaded",
+      "bio": "Bio filled in",
+      "location": "Location filled in",
+      "website": "Website filled in",
+      "signature": "Signature filled in"
+    },
+    "shortcutsTitle": "Shortcuts",
+    "shortcuts": {
+      "newTopic": "New topic",
+      "newTopicHint": "Start a discussion",
+      "profile": "Profile settings",
+      "profileHint": "Avatar, bio, signature",
+      "security": "Account security",
+      "securityHint": "Devices and sessions",
+      "review": "Content review",
+      "reviewHint": "Pending submissions",
+      "notifications": "Notifications",
+      "notificationsHint": "Replies and system mail",
+      "public": "Public profile",
+      "publicHint": "What visitors see"
+    },
+    "tipsTitle": "Tips",
+    "tipsBody": "Your public profile is for visitors; this hub is for managing your account. Completing your profile helps others recognize you—review signed-in devices regularly.",
+    "tabsAria": "My content sections",
+    "tabs": {
+      "overview": "Overview",
+      "topics": "My topics"
+    },
+    "noBio": "No bio yet. Add a short introduction in profile settings."
   },
   "profileSettings": {
     "metaTitle": "Profile settings",
